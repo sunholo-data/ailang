@@ -20,7 +20,11 @@ ailang/
 │   ├── ast/             # Abstract syntax tree definitions ✅ (complete)
 │   ├── lexer/           # Tokenizer with full Unicode support ✅ (fully working)
 │   ├── parser/          # Recursive descent parser ✅ (1,059 lines, mostly complete)
-│   ├── eval/            # Tree-walking interpreter ✅ (473 lines, basic features working)
+│   ├── eval/            # Tree-walking interpreter ✅ (~600 lines, core features working)
+│   │   ├── eval_simple.go     # Main evaluator with show/toText functions
+│   │   ├── eval_simple_test.go # Comprehensive test suite
+│   │   ├── value.go           # Value type definitions
+│   │   └── environment.go     # Variable scoping
 │   ├── types/           # Type system foundation (489 lines, needs inference)
 │   ├── effects/         # Effect system (TODO)
 │   ├── channels/        # CSP implementation (TODO)
@@ -28,9 +32,10 @@ ailang/
 │   └── typeclass/       # Type classes (TODO)
 ├── examples/            # Example AILANG programs
 │   ├── hello.ail        # Hello world example (requires IO effects)
-│   ├── arithmetic.ail   # Basic arithmetic (string concat not working)
+│   ├── arithmetic.ail   # Basic arithmetic ✅ (working with show and ++)
 │   ├── factorial.ail    # Factorial implementations (advanced syntax WIP)
-│   └── simple.ail       # Simple test program ✅ (working)
+│   ├── simple.ail       # Simple test program ✅ (working)
+│   └── show_demo.ail    # Demonstrates show/toText functions ✅ (working)
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
@@ -87,16 +92,17 @@ go test -v ./...
 ### Hello World
 
 ```ailang
--- hello.ail
-module Hello
+-- hello.ail (simplified version that works today)
+print("Hello, AILANG!")
+```
 
-import std/io (Console)
+### Working with Values
 
-func main() -> () ! {IO} {
-  with Console {
-    print("Hello, AILANG!")
-  }
-}
+```ailang
+-- values.ail
+let name = "AILANG" in
+let version = 0.1 in
+print("Welcome to " ++ name ++ " v" ++ show(version))
 ```
 
 ### Pure Functions with Tests
@@ -121,6 +127,7 @@ AILANG is currently in early development. Here's the current implementation prog
 - **Lexer** - Full tokenization with Unicode support, all tests passing
   - Keywords, operators, literals (int, float, string, bool, unit)
   - Comments, string escapes, scientific notation
+  - `++` operator for string concatenation
   - Keyword recognition working correctly via `LookupIdent()`
 - **AST Definitions** - Complete abstract syntax tree structure
 - **Parser** - Recursive descent with Pratt parsing (1,059 lines, mostly complete)
@@ -132,17 +139,25 @@ AILANG is currently in early development. Here's the current implementation prog
   - ✅ Lists, tuples, records, and field access
   - ✅ Module and import statements
   - ✅ Basic pattern matching structure
-- **Evaluator** - Tree-walking interpreter for core features (473 lines)
+  - ✅ `++` operator with correct precedence (between arithmetic and comparisons)
+- **Evaluator** - Tree-walking interpreter for core features (~600 lines)
   - ✅ Arithmetic and logical operations
   - ✅ Function definitions and calls
   - ✅ Let bindings with proper scoping
   - ✅ If-then-else conditionals
   - ✅ Lists and records
   - ✅ Lambda expressions
-  - ❌ String concatenation (not yet implemented)
+  - ✅ String concatenation via `++` operator
+  - ✅ `show` builtin for type conversion to strings
+  - ✅ `toText` builtin for unquoted string output
+  - ✅ Deterministic output for all value types
   - ❌ Pattern matching evaluation
 - **REPL** - Interactive mode with colored output
 - **CLI** - Command-line interface with run, repl, check modes
+- **Testing** - Comprehensive test suite
+  - ✅ Lexer tests (all passing)
+  - ✅ Parser tests (basic coverage)
+  - ✅ Evaluator tests (including show/++ operators)
 
 ### ⚠️ Partially Implemented
 - **Type System** - Foundation in place (489 lines)
@@ -181,21 +196,53 @@ The interpreter can currently parse and evaluate:
 - Lists: `[1, 2, 3]`, list operations
 - Records: `{ name: "Alice", age: 30 }`, field access with `.`
 - Unit type: `()`
+- **String concatenation**: `"hello " ++ "world"` (using `++` operator)
+- **Type conversion**: `show(42)` returns `"42"` (with proper quoting for strings)
+- **Pretty printing**: `toText(value)` for unquoted output
 
-### Example Working Program
+### Builtin Functions
+- `print(value)` - Outputs value to console
+- `show(value)` - Converts any value to its string representation (quoted for strings)
+- `toText(value)` - Converts value to string without quotes (for display)
+
+### Operator Precedence (high to low)
+1. Unary operators (`not`, `-`)
+2. Multiplication/Division (`*`, `/`, `%`)
+3. Addition/Subtraction (`+`, `-`)
+4. String concatenation (`++`)
+5. Comparisons (`<`, `>`, `<=`, `>=`, `==`, `!=`)
+6. Logical AND (`&&`)
+7. Logical OR (`||`)
+
+### Example Working Programs
+
 ```ailang
--- simple.ail (fully working)
-let x = 5 in
-let y = 2 in
-x * y  -- Returns: 10
+-- arithmetic.ail (fully working)
+let x = 5 + 3 * 2 in
+print("x = " ++ show(x))  -- Prints: x = 11
+
+let y = (10 - 2) / 4 in
+print("y = " ++ show(y))  -- Prints: y = 2
+```
+
+```ailang
+-- show_demo.ail (demonstrates show function)
+let record = { name: "Alice", age: 30 } in
+print("Record: " ++ show(record))
+-- Prints: Record: {age: 30, name: "Alice"}
+
+let text = "hello\nworld" in
+print("Quoted: " ++ show(text))   -- Prints: Quoted: "hello\nworld"
+print("Unquoted: " ++ toText(text)) -- Prints: Unquoted: hello
+                                     --         world
 ```
 
 ### Known Limitations
-- String concatenation not implemented (`"hello " + "world"` fails)
 - Pattern matching not evaluated (parses but doesn't execute)
 - Module imports not resolved
 - Type annotations parsed but not checked
 - Effect annotations parsed but not enforced
+- Tuple expressions not fully supported in evaluator
 
 ## Development Roadmap
 
@@ -204,8 +251,9 @@ x * y  -- Returns: 10
 - [x] AST definitions  
 - [x] Parser implementation (mostly complete)
 - [x] Basic evaluator (core features working)
-- [ ] String operations in evaluator
+- [x] String operations (`++` operator, `show` function)
 - [ ] Pattern matching evaluation
+- [ ] Tuple evaluation support
 - [ ] Basic type checking
 
 ### Phase 2: Type System

@@ -46,6 +46,15 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
+### IMPORTANT: Keeping Documentation Updated
+**Always update the README.md when making changes to the codebase:**
+- Update implementation status when adding new features
+- Update current capabilities when functionality changes
+- Update examples when they're fixed or new ones added
+- Keep line counts and completion status accurate
+- Document new builtin functions and operators
+- Update the roadmap as items are completed
+
 ### Common Tasks
 
 #### Adding a New Language Feature
