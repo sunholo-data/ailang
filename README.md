@@ -17,20 +17,20 @@ AILANG is a purely functional programming language designed specifically for AI-
 ailang/
 ├── cmd/ailang/          # CLI entry point with REPL
 ├── internal/
-│   ├── ast/             # Abstract syntax tree definitions ✅
-│   ├── lexer/           # Tokenizer with full Unicode support ✅
-│   ├── parser/          # Recursive descent parser (partial)
-│   ├── eval/            # Tree-walking interpreter ✅
-│   ├── types/           # Type system foundation
+│   ├── ast/             # Abstract syntax tree definitions ✅ (complete)
+│   ├── lexer/           # Tokenizer with full Unicode support ✅ (fully working)
+│   ├── parser/          # Recursive descent parser ✅ (1,059 lines, mostly complete)
+│   ├── eval/            # Tree-walking interpreter ✅ (473 lines, basic features working)
+│   ├── types/           # Type system foundation (489 lines, needs inference)
 │   ├── effects/         # Effect system (TODO)
 │   ├── channels/        # CSP implementation (TODO)
 │   ├── session/         # Session types (TODO)
 │   └── typeclass/       # Type classes (TODO)
 ├── examples/            # Example AILANG programs
-│   ├── hello.ail        # Hello world example
-│   ├── arithmetic.ail   # Basic arithmetic
-│   ├── factorial.ail    # Factorial implementations
-│   └── simple.ail       # Simple test program
+│   ├── hello.ail        # Hello world example (requires IO effects)
+│   ├── arithmetic.ail   # Basic arithmetic (string concat not working)
+│   ├── factorial.ail    # Factorial implementations (advanced syntax WIP)
+│   └── simple.ail       # Simple test program ✅ (working)
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
@@ -121,57 +121,91 @@ AILANG is currently in early development. Here's the current implementation prog
 - **Lexer** - Full tokenization with Unicode support, all tests passing
   - Keywords, operators, literals (int, float, string, bool, unit)
   - Comments, string escapes, scientific notation
+  - Keyword recognition working correctly via `LookupIdent()`
 - **AST Definitions** - Complete abstract syntax tree structure
-- **Basic Evaluator** - Tree-walking interpreter for core features
-  - Arithmetic and logical operations
-  - Function definitions and calls
-  - Let bindings and conditionals
-  - Lists and records
-  - Built-in print function
+- **Parser** - Recursive descent with Pratt parsing (1,059 lines, mostly complete)
+  - ✅ Literals, identifiers, and all basic types
+  - ✅ Binary and unary operations with proper precedence
+  - ✅ Function declarations, lambdas, and function calls
+  - ✅ Let expressions with type annotations
+  - ✅ If-then-else conditionals
+  - ✅ Lists, tuples, records, and field access
+  - ✅ Module and import statements
+  - ✅ Basic pattern matching structure
+- **Evaluator** - Tree-walking interpreter for core features (473 lines)
+  - ✅ Arithmetic and logical operations
+  - ✅ Function definitions and calls
+  - ✅ Let bindings with proper scoping
+  - ✅ If-then-else conditionals
+  - ✅ Lists and records
+  - ✅ Lambda expressions
+  - ❌ String concatenation (not yet implemented)
+  - ❌ Pattern matching evaluation
 - **REPL** - Interactive mode with colored output
 - **CLI** - Command-line interface with run, repl, check modes
 
 ### ⚠️ Partially Implemented
-- **Parser** - Recursive descent with Pratt parsing (needs completion)
-  - ✅ Literals and identifiers
-  - ❌ Binary/unary operations
-  - ❌ Function declarations
-  - ❌ Pattern matching
-  - ❌ Module system
+- **Type System** - Foundation in place (489 lines)
+  - ✅ Type variables, constructors, and function types
+  - ✅ Type substitution mechanisms
+  - ✅ Effect types foundation
+  - ❌ Hindley-Milner type inference
+  - ❌ Row polymorphism
+- **Parser Advanced Features**
+  - ❌ Advanced pattern matching (list/tuple/record patterns)
+  - ❌ Type declarations and type classes
+  - ❌ Test blocks and property blocks (stubs exist)
+  - ❌ Quasiquotes (parsing infrastructure exists)
+  - ❌ Advanced effect syntax
 
 ### ❌ Not Yet Implemented
-- **Type System** - Hindley-Milner type inference with row polymorphism
 - **Effect System** - Algebraic effects with capabilities
 - **Standard Library** - Core modules (io, collections, concurrent)
 - **Quasiquotes** - Typed templates for SQL, HTML, regex, etc.
 - **CSP Concurrency** - Channels with session types
 - **Property Testing** - Built-in property-based testing
 - **Training Export** - AI training data generation
+- **Module System** - Module loading and resolution
 
 ## Current Capabilities
 
-The interpreter can currently evaluate:
-- Integer and float literals
-- String literals
-- Boolean values
-- Unit type `()`
-- Simple expressions (once parser is complete)
+The interpreter can currently parse and evaluate:
 
-Example working code:
+### Working Features
+- Integer and float arithmetic: `2 + 3 * 4`, `10.5 / 2.0`
+- Boolean operations: `true && false`, `not true`
+- Comparisons: `5 > 3`, `x == y`, `a != b`
+- Let bindings: `let x = 5 in x * 2`
+- Conditionals: `if x > 0 then "positive" else "negative"`
+- Functions: `let f = (x) => x * 2 in f(5)`
+- Lists: `[1, 2, 3]`, list operations
+- Records: `{ name: "Alice", age: 30 }`, field access with `.`
+- Unit type: `()`
+
+### Example Working Program
 ```ailang
-42           -- Returns: 42
-"hello"      -- Returns: "hello"
-true         -- Returns: true
-()           -- Returns: ()
+-- simple.ail (fully working)
+let x = 5 in
+let y = 2 in
+x * y  -- Returns: 10
 ```
+
+### Known Limitations
+- String concatenation not implemented (`"hello " + "world"` fails)
+- Pattern matching not evaluated (parses but doesn't execute)
+- Module imports not resolved
+- Type annotations parsed but not checked
+- Effect annotations parsed but not enforced
 
 ## Development Roadmap
 
 ### Phase 1: Core Language (Current)
 - [x] Lexer implementation
-- [x] AST definitions
-- [x] Basic evaluator
-- [ ] Complete parser
+- [x] AST definitions  
+- [x] Parser implementation (mostly complete)
+- [x] Basic evaluator (core features working)
+- [ ] String operations in evaluator
+- [ ] Pattern matching evaluation
 - [ ] Basic type checking
 
 ### Phase 2: Type System
