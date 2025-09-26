@@ -31,8 +31,26 @@ build:
 # Install the binary to $GOPATH/bin
 install:
 	@echo "Installing $(BINARY)..."
-	$(GOBUILD) $(LDFLAGS) -o $(GOPATH)/bin/$(BINARY) cmd/ailang/main.go
-	@echo "Installed to $(GOPATH)/bin/$(BINARY)"
+	@go install $(LDFLAGS) ./cmd/ailang
+	@echo "✓ Installed to $$(go env GOPATH)/bin/$(BINARY)"
+	@echo ""
+	@if echo "$$PATH" | grep -q "$$(go env GOPATH)/bin"; then \
+		echo "✓ Your PATH is correctly configured"; \
+		echo "  You can now run 'ailang' from anywhere!"; \
+	else \
+		echo "⚠️  WARNING: $$(go env GOPATH)/bin is not in your PATH"; \
+		echo ""; \
+		echo "  To use 'ailang' from anywhere, add this to your shell profile:"; \
+		echo "  export PATH=\"$$(go env GOPATH)/bin:\$$PATH\""; \
+		echo ""; \
+		echo "  For zsh (~/.zshrc):"; \
+		echo "    echo 'export PATH=\"$$(go env GOPATH)/bin:\$$PATH\"' >> ~/.zshrc"; \
+		echo "    source ~/.zshrc"; \
+		echo ""; \
+		echo "  For bash (~/.bashrc or ~/.bash_profile):"; \
+		echo "    echo 'export PATH=\"$$(go env GOPATH)/bin:\$$PATH\"' >> ~/.bashrc"; \
+		echo "    source ~/.bashrc"; \
+	fi
 
 # Run tests
 test:
@@ -92,15 +110,27 @@ run: build
 	fi
 	@$(BUILD_DIR)/$(BINARY) run $(FILE)
 
-# Watch mode for development
+# Watch mode for development (rebuilds to bin/)
 watch:
-	@echo "Starting watch mode..."
+	@echo "Starting watch mode (local build)..."
 	@which fswatch > /dev/null || (echo "fswatch not found. Install with: brew install fswatch (macOS) or apt-get install fswatch (Linux)" && exit 1)
 	fswatch -o internal cmd | xargs -n1 -I{} make build
+
+# Watch and install mode (auto-installs to GOPATH/bin on changes)
+watch-install:
+	@echo "Starting watch mode (auto-install)..."
+	@echo "ailang will be automatically updated in $$(go env GOPATH)/bin on every change"
+	@which fswatch > /dev/null || (echo "fswatch not found. Install with: brew install fswatch (macOS) or apt-get install fswatch (Linux)" && exit 1)
+	fswatch -o internal cmd examples | xargs -n1 -I{} sh -c 'clear && echo "🔄 Rebuilding and installing..." && make install && echo "✓ ailang updated!" || echo "❌ Build failed"'
 
 # Quick development build (no optimization)
 dev:
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go
+
+# Quick install (useful for development)
+quick-install:
+	@go install ./cmd/ailang
+	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
 
 # Show help
 help:
@@ -116,6 +146,8 @@ help:
 	@echo "  make clean         - Clean build artifacts"
 	@echo "  make repl          - Start the REPL"
 	@echo "  make run FILE=...  - Run an AILANG file"
-	@echo "  make watch         - Watch mode for development"
+	@echo "  make watch         - Watch mode (local build)"
+	@echo "  make watch-install - Watch mode (auto-install to PATH)"
 	@echo "  make dev           - Quick development build"
+	@echo "  make quick-install - Quick install without version info"
 	@echo "  make help          - Show this help"

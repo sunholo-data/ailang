@@ -40,11 +40,61 @@ ailang/
 
 ### Building and Testing
 ```bash
-make build          # Build the interpreter
+make build          # Build the interpreter to bin/
+make install        # Install ailang to system (makes it available everywhere)
 make test           # Run all tests
 make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
+
+### Making `ailang` Accessible System-Wide
+
+#### First-Time Setup
+1. Install ailang to your Go bin directory:
+   ```bash
+   make install
+   ```
+
+2. Add Go bin to your PATH (if not already done):
+   ```bash
+   # For zsh (macOS default)
+   echo 'export PATH="/Users/mark/go/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   
+   # For bash
+   echo 'export PATH="/Users/mark/go/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+3. Test it works:
+   ```bash
+   ailang --version
+   ```
+
+#### Keeping `ailang` Up to Date
+
+**Option 1: Manual Update**
+After making code changes, run:
+```bash
+make quick-install  # Fast reinstall
+# OR
+make install        # Full reinstall with version info
+```
+
+**Option 2: Auto-Update on File Changes**
+For development, use watch mode to automatically reinstall on every code change:
+```bash
+make watch-install  # Automatically rebuilds and installs on file changes
+```
+This watches all Go files and automatically updates the global `ailang` command.
+
+**Option 3: Alias for Quick Updates**
+Add this to your shell profile for a quick update command:
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+alias ailang-update='cd /Users/mark/dev/sunholo/ailang && make quick-install && cd -'
+```
+Then just run `ailang-update` from anywhere to update.
 
 ### IMPORTANT: Keeping Documentation Updated
 **Always update the README.md when making changes to the codebase:**

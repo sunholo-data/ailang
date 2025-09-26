@@ -44,34 +44,75 @@ ailang/
 
 ## Getting Started
 
+### Prerequisites
+
+- Go 1.21 or later
+- Make (optional but recommended)
+- fswatch (optional, for auto-rebuild)
+
 ### Installation
+
+#### Quick Install (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/sunholo/ailang.git
 cd ailang
 
-# Build the interpreter
-go build -o ailang ./cmd/ailang
+# Install ailang globally (makes 'ailang' command available everywhere)
+make install
 
-# Or use make
+# Add Go bin to PATH if not already configured
+echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.zshrc  # For zsh (macOS default)
+source ~/.zshrc
+# OR
+echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.bashrc  # For bash
+source ~/.bashrc
+
+# Verify installation
+ailang --version
+```
+
+#### Local Build
+
+```bash
+# Build to local bin/ directory
 make build
+
+# Run locally
+./bin/ailang --version
 ```
 
 ### Running AILANG
 
 ```bash
 # Start the REPL
-./ailang repl
+ailang repl
 
 # Run a file
-./ailang run examples/simple.ail
+ailang run examples/simple.ail
 
 # Check a file (parsing only)
-./ailang check examples/hello.ail
+ailang check examples/hello.ail
 
 # Show version
-./ailang --version
+ailang --version
+```
+
+### Development Workflow
+
+```bash
+# Auto-rebuild and install on file changes
+make watch-install
+
+# Quick reinstall after changes
+make quick-install
+
+# Run tests
+make test
+
+# Format code
+make fmt
 ```
 
 ### Testing
@@ -80,8 +121,13 @@ make build
 # Run all tests
 make test
 
-# Run lexer tests specifically
+# Run tests with coverage
+make test-coverage
+
+# Run specific package tests
 go test ./internal/lexer
+go test ./internal/parser
+go test ./internal/eval
 
 # Run with verbose output
 go test -v ./...
@@ -278,21 +324,38 @@ print("Unquoted: " ++ toText(text)) -- Prints: Unquoted: hello
 
 ## Development
 
+### Available Make Commands
+
 ```bash
-# Install dependencies
-go mod download
+make build          # Build to bin/
+make install        # Install globally to $GOPATH/bin
+make quick-install  # Fast reinstall (for development)
+make watch          # Auto-rebuild locally on changes
+make watch-install  # Auto-install globally on changes
+make test           # Run all tests
+make test-coverage  # Run tests with coverage report
+make fmt            # Format all Go code
+make vet            # Run go vet
+make lint           # Run golangci-lint
+make clean          # Remove build artifacts
+make repl           # Start the REPL
+make run FILE=...   # Run an AILANG file
+make help           # Show all available commands
+```
 
-# Format code
-make fmt
+### Keeping `ailang` Updated
 
-# Run linter
-make lint
+After making code changes, update the global `ailang` command:
 
-# Watch mode for development
-make watch
+```bash
+# Option 1: Manual update
+make quick-install
 
-# Clean build artifacts
-make clean
+# Option 2: Auto-update on file changes
+make watch-install
+
+# Option 3: Create an alias for quick updates
+alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
 ```
 
 ## Contributing
