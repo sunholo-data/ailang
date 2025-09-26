@@ -405,7 +405,7 @@ func (p *Parser) parseListLiteral() ast.Expr {
 
 	p.nextToken()
 	
-	for !p.curTokenIs(lexer.RBRACKET) {
+	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
 		list.Elements = append(list.Elements, p.parseExpression(LOWEST))
 		
 		if p.peekTokenIs(lexer.RBRACKET) {
@@ -413,7 +413,9 @@ func (p *Parser) parseListLiteral() ast.Expr {
 			break
 		}
 		
-		p.expectPeek(lexer.COMMA)
+		if !p.expectPeek(lexer.COMMA) {
+			break
+		}
 		p.nextToken()
 	}
 
