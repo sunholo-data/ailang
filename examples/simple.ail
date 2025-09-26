@@ -1,0 +1,6 @@
+-- simple.ail - Very simple test program
+
+-- Basic arithmetic
+let x = 2 + 3 in
+let y = x * 2 in
+y  -- Returns 10

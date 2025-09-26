@@ -34,6 +34,7 @@ func New(input string, filename string) *Lexer {
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0
+		l.position = l.readPosition
 	} else {
 		var size int
 		l.ch, size = utf8.DecodeRuneInString(l.input[l.readPosition:])
@@ -175,7 +176,7 @@ func (l *Lexer) NextToken() Token {
 		tok = NewToken(SEMICOLON, string(l.ch), line, column, l.file)
 	case '(':
 		if l.peekChar() == ')' {
-			l.readChar()
+			l.readChar() // Move to ')'
 			tok = NewToken(UNIT, "()", line, column, l.file)
 		} else {
 			tok = NewToken(LPAREN, string(l.ch), line, column, l.file)

@@ -1,11 +1,7 @@
--- hello.ail: Simple hello world program demonstrating effects
-module Hello
+-- hello.ail - Simple hello world program
 
-import std/io (Console)
-
-func main() -> () ! {IO} {
-  with Console {
-    print("Hello, AILANG!")
-    print("Welcome to the AI-First Programming Language")
-  }
+-- Main function
+func main() {
+  print("Hello, AILANG!")
+  print("Welcome to the AI-First Programming Language")
 }
