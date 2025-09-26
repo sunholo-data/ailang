@@ -2,6 +2,17 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It provides static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
+## 🎉 Major Milestone: Type Inference Complete!
+
+**The Hindley-Milner type inference engine with row polymorphism is now fully implemented!** This includes:
+- ✅ Complete HM type inference with let-polymorphism
+- ✅ Principal row unification for records and effects
+- ✅ Kind system preventing type/row confusion  
+- ✅ ~2,500 lines of production-ready type system code
+- ✅ All core algorithms tested and passing
+
+While not yet integrated with the evaluator, the type system provides the semantic foundation for AILANG v2.0.
+
 ## Features
 
 - **Algebraic Effects with Row Polymorphism** - Making all effects explicit and composable
@@ -142,8 +153,9 @@ go test ./internal/types  # Type inference tests
 # Run with verbose output
 go test -v ./...
 
-# Run type inference demo
-go run cmd/typecheck/main.go
+# Test type inference system
+go run cmd/typecheck/main.go        # Interactive demos
+go run cmd/typecheck/demo_ast.go    # Type check real files
 ```
 
 ## Quick Start
@@ -180,69 +192,51 @@ pure func factorial(n: int) -> int
 
 ## Implementation Status
 
-AILANG is currently in early development. Here's the current implementation progress:
+AILANG is currently in early development with a fully functional type inference engine. Here's the current state:
 
-### ✅ Completed
-- **Lexer** - Full tokenization with Unicode support, all tests passing
-  - Keywords, operators, literals (int, float, string, bool, unit)
-  - Comments, string escapes, scientific notation
-  - `++` operator for string concatenation
-  - Keyword recognition working correctly via `LookupIdent()`
-- **AST Definitions** - Complete abstract syntax tree structure
-- **Parser** - Recursive descent with Pratt parsing (1,059 lines, mostly complete)
-  - ✅ Literals, identifiers, and all basic types
-  - ✅ Binary and unary operations with proper precedence
-  - ✅ Function declarations, lambdas, and function calls
-  - ✅ Let expressions with type annotations
-  - ✅ If-then-else conditionals
-  - ✅ Lists, tuples, records, and field access
-  - ✅ Module and import statements
-  - ✅ Basic pattern matching structure
-  - ✅ `++` operator with correct precedence (between arithmetic and comparisons)
-- **Evaluator** - Tree-walking interpreter for core features (~600 lines)
-  - ✅ Arithmetic and logical operations
-  - ✅ Function definitions and calls
-  - ✅ Let bindings with proper scoping
-  - ✅ If-then-else conditionals
-  - ✅ Lists and records
-  - ✅ Lambda expressions
-  - ✅ String concatenation via `++` operator
-  - ✅ `show` builtin for type conversion to strings
-  - ✅ `toText` builtin for unquoted string output
-  - ✅ Deterministic output for all value types
-  - ❌ Pattern matching evaluation
-- **REPL** - Interactive mode with colored output
-- **CLI** - Command-line interface with run, repl, check modes
-- **Testing** - Comprehensive test suite
-  - ✅ Lexer tests (all passing)
-  - ✅ Parser tests (basic coverage)
-  - ✅ Evaluator tests (including show/++ operators)
+### ✅ Completed Components
 
-### ✅ Type System (NEW! Fully Implemented)
-- **Hindley-Milner Type Inference** with let-polymorphism
-  - ✅ Complete constraint generation and solving
-  - ✅ Polymorphic type instantiation
-  - ✅ Value restriction for sound polymorphism with effects
-- **Row Polymorphism** for records and effects
-  - ✅ Principal row unification algorithm
-  - ✅ Open and closed rows
-  - ✅ Record field polymorphism (works with any record containing required fields)
-- **Kind System** preventing type/row confusion
-  - ✅ Separate kinds for Effect, Record, Row Effect, Row Record
-  - ✅ Kind-preserving substitution and generalization
-- **Effect Inference** (types ready, runtime TODO)
-  - ✅ Effect row inference in function types
-  - ✅ Effect composition through function calls
-  - ✅ Latent effects in higher-order functions
-- **Type Class Constraints** (collected but not solved)
-  - ✅ Constraint generation for Num, Ord, Eq, Show
-  - ❌ Dictionary passing (future work)
-- **Parser Advanced Features**
-  - ❌ Advanced pattern matching (list/tuple/record patterns)
-  - ❌ Type declarations and type classes
-  - ❌ Test blocks and property blocks (stubs exist)
-  - ❌ Quasiquotes (parsing infrastructure exists)
-  - ❌ Advanced effect syntax
+#### **Lexer** (Fully Working)
+- Complete tokenization with Unicode support
+- All token types: keywords, operators, literals, identifiers
+- String escapes, comments, scientific notation
+- `++` operator for string concatenation
+- ~550 lines, all tests passing
+
+#### **Parser** (Mostly Complete) 
+- Recursive descent with Pratt parsing (~1,059 lines)
+- ✅ **Working**: Basic expressions, let bindings, if-then-else, lists, records
+- ✅ **Working**: Binary/unary operators with correct precedence
+- ✅ **Working**: Module declarations and import statements
+- ⚠️ **Parsed but not evaluated**: Pattern matching, type annotations
+- ❌ **Not working**: Lambda syntax (`\x.` or `=>`), `?` operator, effect handlers
+
+#### **Evaluator** (Core Features Working)
+- Tree-walking interpreter (~630 lines)
+- ✅ **Working**: Arithmetic, booleans, strings, let bindings, if-then-else
+- ✅ **Working**: Lists, records (creation only, not field access)
+- ✅ **Working**: `show` and `toText` builtins, `++` operator
+- ❌ **Not working**: Lambdas, pattern matching, record field access, tuples
+
+#### **Type System** (Fully Implemented! ~2,500 lines)
+- ✅ **Hindley-Milner type inference** with let-polymorphism
+- ✅ **Principal row unification** for records and effects  
+- ✅ **Kind system** with separate kinds for Effect/Record/Row
+- ✅ **Value restriction** for sound polymorphism with effects
+- ✅ **Constraint collection** for type classes (Num, Ord, Eq, Show)
+- ✅ **Rich error reporting** with paths and suggestions
+- ⚠️ **Not integrated**: Type checker works standalone but not connected to evaluator
+
+### Testing Status
+- ✅ **Lexer tests**: All passing
+- ✅ **Parser tests**: Basic coverage  
+- ✅ **Evaluator tests**: Core features tested
+- ✅ **Type inference tests**: All algorithms passing
+  - Row unification: ✅ PASS
+  - Occurs check: ✅ PASS  
+  - Kind mismatch detection: ✅ PASS
+  - Value restriction: ✅ PASS
+  - Error reporting: ✅ PASS
 
 ### ❌ Not Yet Implemented
 - **Effect System** - Algebraic effects with capabilities
@@ -255,21 +249,29 @@ AILANG is currently in early development. Here's the current implementation prog
 
 ## Current Capabilities
 
-The interpreter can currently parse and evaluate:
+### What Actually Works (Can Run)
+- ✅ Integer and float arithmetic: `2 + 3 * 4`, `10.5 / 2.0`
+- ✅ Boolean operations: `true && false`, `not true`
+- ✅ Comparisons: `5 > 3`, `x == y`, `a != b`
+- ✅ Let bindings: `let x = 5 in x * 2`
+- ✅ Conditionals: `if x > 0 then "positive" else "negative"`
+- ✅ String concatenation: `"hello " ++ "world"`
+- ✅ Lists (creation only): `[1, 2, 3]`
+- ✅ Records (creation only): `{name: "Alice", age: 30}`
+- ✅ Builtins: `show(42)` → `"42"`, `toText(value)`, `print(value)`
 
-### Working Features
-- Integer and float arithmetic: `2 + 3 * 4`, `10.5 / 2.0`
-- Boolean operations: `true && false`, `not true`
-- Comparisons: `5 > 3`, `x == y`, `a != b`
-- Let bindings: `let x = 5 in x * 2`
-- Conditionals: `if x > 0 then "positive" else "negative"`
-- Functions: `let f = (x) => x * 2 in f(5)`
-- Lists: `[1, 2, 3]`, list operations
-- Records: `{ name: "Alice", age: 30 }`, field access with `.`
-- Unit type: `()`
-- **String concatenation**: `"hello " ++ "world"` (using `++` operator)
-- **Type conversion**: `show(42)` returns `"42"` (with proper quoting for strings)
-- **Pretty printing**: `toText(value)` for unquoted output
+### What Parses but Doesn't Evaluate
+- ⚠️ Pattern matching: `match x { ... }`
+- ⚠️ Type annotations: `let x: int = 5`
+- ⚠️ Module imports: `import std/io`
+- ⚠️ Function declarations: `func add(x, y) { x + y }`
+
+### What Doesn't Parse Yet
+- ❌ Lambda expressions: `\x. x + 1` or `(x) => x + 1`
+- ❌ Record field access: `person.name`
+- ❌ Tuples: `(1, "hello", true)`
+- ❌ Effect handlers: `handle ... with { ... }`
+- ❌ Result operator: `readFile(path)?`
 
 ### Builtin Functions
 - `print(value)` - Outputs value to console
@@ -285,31 +287,32 @@ The interpreter can currently parse and evaluate:
 6. Logical AND (`&&`)
 7. Logical OR (`||`)
 
-### Type Inference Examples (NEW!)
+### Type Inference Examples (Working!)
+
+The type inference engine is fully functional but not yet integrated with the parser/evaluator. 
+Here's what it can infer when given proper AST:
 
 ```ailang
--- Polymorphic identity function
-let id = \x. x
--- Inferred type: ∀α. α -> α
+-- Simple let binding with arithmetic
+let x = 5 in let y = x + 3 in y
+-- Inferred: int
+-- Effects: {}
+-- Constraints: Num[int]
 
--- Let-polymorphism allows using id at different types
-let result = {id(42), id(true), id("hello")}
--- Works! id instantiated at int, bool, and string
+-- Polymorphic identity (when lambdas are supported)
+\x. x
+-- Inferred: ∀α. α -> α
 
--- Row polymorphic record access
-let getName = \r. r.name
--- Inferred type: ∀α ρ. {name: α | ρ} -> α
--- Works with ANY record containing a 'name' field!
+-- Record field polymorphism (type system ready)
+\r. r.name  
+-- Inferred: ∀α ρ. {name: α | ρ} -> α
 
--- Effect inference
-let readConfig = \path. readFile(path)
--- Inferred type: string -> string ! {FS}
--- Function carries latent {FS} effect
-
--- Type class constraints (collected, not yet solved)
-let add = \x. \y. x + y
--- Inferred type: ∀α. Num[α] => α -> α -> α
+-- Effect tracking (types ready, runtime TODO)
+\path. readFile(path)
+-- Inferred: string -> Result[string, IOError] ! {FS}
 ```
+
+Run `go run cmd/typecheck/main.go` to see live type inference demos!
 
 ### Example Working Programs
 
@@ -335,11 +338,25 @@ print("Unquoted: " ++ toText(text)) -- Prints: Unquoted: hello
 ```
 
 ### Known Limitations
-- Pattern matching not evaluated (parses but doesn't execute)
+
+#### Parser Limitations
+- No lambda expression support (`\x.` or `=>` syntax)
+- No `?` operator for Result types
+- No effect handler syntax
+- Record field access parses but causes runtime errors
+
+#### Evaluator Limitations  
+- Lambdas don't evaluate
+- Pattern matching doesn't execute
+- Record field access not implemented
+- Tuples not supported
 - Module imports not resolved
-- Type annotations parsed but not checked
-- Effect annotations parsed but not enforced
-- Tuple expressions not fully supported in evaluator
+
+#### Integration Issues
+- Type checker not connected to evaluator
+- Type annotations parsed but ignored
+- Effect annotations have no runtime support
+- No type checking before evaluation
 
 ## Development Roadmap
 
