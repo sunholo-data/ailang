@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
 )
@@ -176,8 +177,18 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 		fmt.Printf("  %s Virtual time enabled\n", yellow("⏰"))
 	}
 
-	// TODO: Implement interpreter
-	fmt.Println("\n" + program.String())
+	// Execute the program
+	evaluator := eval.NewSimple()
+	result, err := evaluator.EvalProgram(program)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Runtime error"), err)
+		os.Exit(1)
+	}
+	
+	// Print result if not unit
+	if result != nil && result.Type() != "unit" {
+		fmt.Println(result.String())
+	}
 }
 
 func runREPL(learn bool, trace bool) {
@@ -228,8 +239,21 @@ func runREPL(learn bool, trace bool) {
 			continue
 		}
 
-		// TODO: Type check and evaluate
-		fmt.Printf("%s : %s = %s\n", cyan("result"), yellow("type"), green(program.String()))
+		// Evaluate
+		evaluator := eval.NewSimple()
+		result, err := evaluator.EvalProgram(program)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Runtime error"), err)
+			if learn {
+				fmt.Printf("%s Error recorded for training\n", yellow("📝"))
+			}
+			continue
+		}
+		
+		// Print result
+		if result != nil {
+			fmt.Printf("%s : %s = %s\n", cyan("result"), yellow(result.Type()), green(result.String()))
+		}
 		
 		if trace {
 			fmt.Printf("%s Trace: [execution trace]\n", yellow("⚡"))

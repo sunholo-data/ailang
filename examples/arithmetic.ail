@@ -1,0 +1,9 @@
+-- arithmetic.ail - Basic arithmetic expressions
+
+-- Simple calculations
+let x = 5 + 3 * 2 in
+let y = (10 - 2) / 4 in
+let z = x + y in
+print("x = " + x)  -- Should print: x = 11
+print("y = " + y)  -- Should print: y = 2
+print("z = " + z)  -- Should print: z = 13

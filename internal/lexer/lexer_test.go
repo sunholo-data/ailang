@@ -312,7 +312,7 @@ func f() { x }`
 	// Continue through tokens, comments should be skipped
 	expected := []TokenType{
 		LET, IDENT, ASSIGN, INT,
-		FUNC, IDENT, LPAREN, RPAREN, LBRACE, IDENT, RBRACE,
+		FUNC, IDENT, UNIT, LBRACE, IDENT, RBRACE,
 		EOF,
 	}
 
