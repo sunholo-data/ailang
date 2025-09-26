@@ -2,6 +2,10 @@ package eval
 
 import (
 	"fmt"
+	"math"
+	"sort"
+	"strconv"
+	"strings"
 	"github.com/sunholo/ailang/internal/ast"
 )
 
@@ -23,6 +27,28 @@ func NewSimple() *SimpleEvaluator {
 			}
 			fmt.Println()
 			return &UnitValue{}, nil
+		},
+	})
+	
+	// Register show builtin - converts any value to a string
+	env.Set("show", &BuiltinFunction{
+		Name: "show",
+		Fn: func(args []Value) (Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("show expects exactly 1 argument, got %d", len(args))
+			}
+			return &StringValue{Value: showValue(args[0], 0)}, nil
+		},
+	})
+	
+	// Register toText builtin - unquoted version for pretty printing
+	env.Set("toText", &BuiltinFunction{
+		Name: "toText",
+		Fn: func(args []Value) (Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("toText expects exactly 1 argument, got %d", len(args))
+			}
+			return &StringValue{Value: toTextValue(args[0])}, nil
 		},
 	})
 	
@@ -263,12 +289,16 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			if r, ok := right.(*FloatValue); ok {
 				return &FloatValue{Value: l.Value + r.Value}, nil
 			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &StringValue{Value: l.Value + r.Value}, nil
-			}
 		}
-		return nil, fmt.Errorf("+ expects matching types")
+		return nil, fmt.Errorf("'+' requires numeric types (use '++' for string concatenation)")
+		
+	case "++":
+		lStr, lOk := left.(*StringValue)
+		rStr, rOk := right.(*StringValue)
+		if !lOk || !rOk {
+			return nil, fmt.Errorf("'++' requires string operands")
+		}
+		return &StringValue{Value: lStr.Value + rStr.Value}, nil
 		
 	case "-":
 		switch l := left.(type) {
@@ -454,6 +484,132 @@ func (e *SimpleEvaluator) valuesEqual(left, right Value) bool {
 		return ok
 	}
 	return false
+}
+
+// Constants for show function
+const (
+	maxDepth = 3
+	maxWidth = 80
+	elisionPrefix = 20
+	elisionSuffix = 20
+)
+
+// showValue converts a value to its canonical string representation
+// with proper quoting, escaping, and deterministic output
+func showValue(v Value, depth int) string {
+	if depth > maxDepth {
+		return "..."
+	}
+	
+	switch val := v.(type) {
+	case *IntValue:
+		return strconv.FormatInt(val.Value, 10)
+		
+	case *FloatValue:
+		// Handle special cases
+		if math.IsNaN(val.Value) {
+			return "NaN"
+		}
+		if math.IsInf(val.Value, 1) {
+			return "Inf"
+		}
+		if math.IsInf(val.Value, -1) {
+			return "-Inf"
+		}
+		// Handle negative zero explicitly
+		if val.Value == 0 && math.Signbit(val.Value) {
+			return "-0.0"
+		}
+		// Use %g for cleaner output, but ensure precision
+		return fmt.Sprintf("%g", val.Value)
+		
+	case *StringValue:
+		// Quote and escape the string using JSON rules
+		return strconv.Quote(val.Value)
+		
+	case *BoolValue:
+		if val.Value {
+			return "true"
+		}
+		return "false"
+		
+	case *UnitValue:
+		return "()"
+		
+	case *ListValue:
+		if len(val.Elements) == 0 {
+			return "[]"
+		}
+		var parts []string
+		for _, elem := range val.Elements {
+			parts = append(parts, showValue(elem, depth+1))
+		}
+		result := "[" + strings.Join(parts, ", ") + "]"
+		return truncateIfNeeded(result)
+		
+	case *RecordValue:
+		if len(val.Fields) == 0 {
+			return "{}"
+		}
+		// Sort keys for deterministic output
+		keys := make([]string, 0, len(val.Fields))
+		for k := range val.Fields {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys) // Bytewise sort
+		
+		var parts []string
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf("%s: %s", k, showValue(val.Fields[k], depth+1)))
+		}
+		result := "{" + strings.Join(parts, ", ") + "}"
+		return truncateIfNeeded(result)
+		
+	case *FunctionValue:
+		return "<function>"
+		
+	case *BuiltinFunction:
+		return fmt.Sprintf("<builtin: %s>", val.Name)
+		
+	case *ErrorValue:
+		return fmt.Sprintf("Error: %s", val.Message)
+		
+	default:
+		return "<unknown>"
+	}
+}
+
+// toTextValue converts a value to string without quotes (for pretty printing)
+func toTextValue(v Value) string {
+	switch val := v.(type) {
+	case *StringValue:
+		// Return string without quotes
+		return val.Value
+	default:
+		// For all other types, use show but strip quotes if string
+		result := showValue(v, 0)
+		// If it's a quoted string from show, unquote it
+		if len(result) >= 2 && result[0] == '"' && result[len(result)-1] == '"' {
+			unquoted, err := strconv.Unquote(result)
+			if err == nil {
+				return unquoted
+			}
+		}
+		return result
+	}
+}
+
+// truncateIfNeeded elides the middle of long strings to keep under maxWidth
+func truncateIfNeeded(s string) string {
+	if len(s) <= maxWidth {
+		return s
+	}
+	
+	// Preserve prefix and suffix, elide middle
+	if len(s) > elisionPrefix+elisionSuffix+3 {
+		return s[:elisionPrefix] + "..." + s[len(s)-elisionSuffix:]
+	}
+	return s
 }
 
 // evalModule evaluates a module

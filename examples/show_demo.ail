@@ -1,0 +1,50 @@
+-- show_demo.ail - Demonstrates the show and toText functions
+
+-- Basic types with show (quoted output)
+let num = 42 in
+let pi = 3.14159 in
+let flag = true in
+let text = "hello\nworld" in
+let unit_val = () in
+
+print("Integer show: " ++ show(num))          -- Integer show: 42
+print("Float show: " ++ show(pi))             -- Float show: 3.14159
+print("Bool show: " ++ show(flag))            -- Bool show: true
+print("String show: " ++ show(text))          -- String show: "hello\nworld"
+print("Unit show: " ++ show(unit_val))        -- Unit show: ()
+
+-- Collections
+let list = [1, 2, 3] in
+let nested_list = [[1, 2], [3, 4]] in
+let record = { name: "Alice", age: 30, active: true } in
+
+print("List show: " ++ show(list))            -- List show: [1, 2, 3]
+print("Nested list: " ++ show(nested_list))   -- Nested list: [[1, 2], [3, 4]]
+print("Record: " ++ show(record))             -- Record: {active: true, age: 30, name: "Alice"}
+
+-- Demonstrate toText for unquoted string output
+print("String with show: " ++ show(text))     -- String with show: "hello\nworld"
+print("String with toText: " ++ toText(text)) -- String with toText: hello
+                                               -- world
+
+-- Special float values
+let inf = 1.0 / 0.0 in
+let neg_inf = -1.0 / 0.0 in
+let nan = 0.0 / 0.0 in
+let neg_zero = -0.0 in
+
+print("Infinity: " ++ show(inf))              -- Infinity: Inf
+print("Negative infinity: " ++ show(neg_inf)) -- Negative infinity: -Inf
+print("NaN: " ++ show(nan))                   -- NaN: NaN
+print("Negative zero: " ++ show(neg_zero))    -- Negative zero: -0.0
+
+-- Complex nested structure (deterministic output with sorted keys)
+let complex = {
+  z_last: "should be last",
+  a_first: "should be first", 
+  data: [1, 2, { x: 10, y: 20 }],
+  middle: true
+} in
+
+print("Complex structure: " ++ show(complex))
+-- Complex structure: {a_first: "should be first", data: [1, 2, {x: 10, y: 20}], middle: true, z_last: "should be last"}

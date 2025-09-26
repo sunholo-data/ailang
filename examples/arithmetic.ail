@@ -2,8 +2,12 @@
 
 -- Simple calculations
 let x = 5 + 3 * 2 in
+print("x = " ++ show(x))  -- Should print: x = 11
+
 let y = (10 - 2) / 4 in
-let z = x + y in
-print("x = " + x)  -- Should print: x = 11
-print("y = " + y)  -- Should print: y = 2
-print("z = " + z)  -- Should print: z = 13
+print("y = " ++ show(y))  -- Should print: y = 2
+
+let x2 = 5 + 3 * 2 in
+let y2 = (10 - 2) / 4 in
+let z = x2 + y2 in
+print("z = " ++ show(z))  -- Should print: z = 13
