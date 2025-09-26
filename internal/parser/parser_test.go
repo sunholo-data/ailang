@@ -452,6 +452,10 @@ func testLiteralExpression(t *testing.T, exp ast.Expr, expected interface{}) boo
 	case int64:
 		return testIntegerLiteral(t, exp, v)
 	case string:
+		// Try string literal first, then identifier
+		if lit, ok := exp.(*ast.Literal); ok && lit.Kind == ast.StringLit {
+			return testStringLiteral(t, exp, v)
+		}
 		return testIdentifier(t, exp, v)
 	case bool:
 		return testBooleanLiteral(t, exp, v)
@@ -521,6 +525,32 @@ func testIdentifier(t *testing.T, exp ast.Expr, value string) bool {
 
 	if ident.Name != value {
 		t.Errorf("ident.Name not %s. got=%s", value, ident.Name)
+		return false
+	}
+
+	return true
+}
+
+func testStringLiteral(t *testing.T, exp ast.Expr, value string) bool {
+	lit, ok := exp.(*ast.Literal)
+	if !ok {
+		t.Errorf("exp not *ast.Literal. got=%T", exp)
+		return false
+	}
+
+	if lit.Kind != ast.StringLit {
+		t.Errorf("lit.Kind not StringLit. got=%v", lit.Kind)
+		return false
+	}
+
+	strVal, ok := lit.Value.(string)
+	if !ok {
+		t.Errorf("lit.Value not string. got=%T", lit.Value)
+		return false
+	}
+
+	if strVal != value {
+		t.Errorf("lit.Value not %s. got=%s", value, strVal)
 		return false
 	}
 

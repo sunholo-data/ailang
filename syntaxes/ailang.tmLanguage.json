@@ -1,0 +1,259 @@
+{
+  "name": "AILANG",
+  "scopeName": "source.ailang",
+  "fileTypes": ["ail"],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#quasiquotes"
+    },
+    {
+      "include": "#identifiers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.ailang",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.ailang",
+          "match": "\\b(if|then|else|match|with|loop|break|continue|return|throw|try|catch|finally)\\b"
+        },
+        {
+          "name": "keyword.other.ailang",
+          "match": "\\b(let|var|func|pure|import|module|export|type|interface|typeclass|instance|property|forall|exists|parallel|spawn|select|yield|await)\\b"
+        },
+        {
+          "name": "keyword.operator.ailang",
+          "match": "\\b(and|or|not|is|as|in)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.ailang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ailang",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.ailang",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ailang",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.ailang",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.ailang",
+          "match": "\\b\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.hex.ailang",
+          "match": "\\b0x[0-9a-fA-F]+\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.ailang",
+          "match": "\\b(int|float|bool|string|char|unit|never)\\b"
+        },
+        {
+          "name": "storage.type.ailang",
+          "match": "\\b(Result|Option|Channel|Effect|Session)\\b"
+        },
+        {
+          "name": "entity.name.type.ailang",
+          "match": "\\b[A-Z][A-Za-z0-9]*\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "match": "(func|pure func)\\s+([a-z][A-Za-z0-9]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.ailang"
+            },
+            "2": {
+              "name": "entity.name.function.ailang"
+            }
+          }
+        },
+        {
+          "name": "support.function.builtin.ailang",
+          "match": "\\b(print|readFile|writeFile|httpGet|httpPost|length|map|filter|fold|reduce|sort|reverse|head|tail|cons|append)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.ailang",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.ailang",
+          "match": "[+\\-*/%]"
+        },
+        {
+          "name": "keyword.operator.comparison.ailang",
+          "match": "(==|!=|<=?|>=?)"
+        },
+        {
+          "name": "keyword.operator.logical.ailang",
+          "match": "(&&|\\|\\||!)"
+        },
+        {
+          "name": "keyword.operator.arrow.ailang",
+          "match": "(->|=>|<-)"
+        },
+        {
+          "name": "keyword.operator.pipe.ailang",
+          "match": "\\|>"
+        },
+        {
+          "name": "keyword.operator.composition.ailang",
+          "match": "<<"
+        },
+        {
+          "name": "keyword.operator.error.ailang",
+          "match": "\\?"
+        },
+        {
+          "name": "keyword.operator.effect.ailang",
+          "match": "!"
+        },
+        {
+          "name": "keyword.operator.spread.ailang",
+          "match": "\\.\\.\\."
+        }
+      ]
+    },
+    "quasiquotes": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.sql.ailang",
+          "begin": "sql\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            {
+              "name": "variable.other.interpolation.ailang",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.html.ailang",
+          "begin": "html\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            {
+              "name": "variable.other.interpolation.ailang",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.shell.ailang",
+          "begin": "shell\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            {
+              "name": "variable.other.interpolation.ailang",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.regex.ailang",
+          "begin": "regex/",
+          "end": "/[gimsu]*",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ailang",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.json.ailang",
+          "begin": "json\\{",
+          "end": "\\}",
+          "patterns": [
+            {
+              "name": "variable.other.interpolation.ailang",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.url.ailang",
+          "begin": "url\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "variable.other.interpolation.ailang",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.ailang",
+          "match": "\\b[a-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}

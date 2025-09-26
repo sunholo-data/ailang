@@ -338,6 +338,8 @@ func (t Token) Precedence() int {
 		return 8
 	case DOT:
 		return 9
+	case LPAREN:
+		return 10
 	default:
 		return 0
 	}
