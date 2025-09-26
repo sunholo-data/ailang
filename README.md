@@ -87,19 +87,19 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ### From GitHub Releases
 
-Download pre-built binaries for your platform from the [latest release](https://github.com/sunholo/ailang/releases/latest):
+Download pre-built binaries for your platform from the [latest release](https://github.com/sunholo-data/ailang/releases/latest):
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # macOS (Intel)  
-curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Linux
-curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 ```
 

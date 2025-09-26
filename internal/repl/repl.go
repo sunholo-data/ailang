@@ -88,7 +88,7 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	line.SetMultiLineMode(true)
 	
 	// Print welcome message
-	fmt.Fprintln(out, bold("AILANG v0.1 - 2025-09-25 - Type Classes & Dictionary-Passing"))
+	fmt.Fprintln(out, bold("AILANG v0.0.2 - 2025-09-25"))
 	fmt.Fprintln(out, dim("Type :help for help, :quit to exit"))
 	fmt.Fprintln(out, dim("Use ↑/↓ arrows to navigate history"))
 	fmt.Fprintln(out)
