@@ -1,0 +1,40 @@
+-- v2_pipeline_demo.ail
+-- Demonstrates the Phase 1 Core Integration features:
+-- 1. ANF transformation (let-normalization)
+-- 2. Type inference with let-polymorphism
+-- 3. Linear capture analysis
+-- 4. LetRec for recursion (parsed but not evaluated yet)
+
+-- 1. ANF Transformation Demo
+-- Complex expressions get normalized to A-Normal Form internally
+let complex = (2 + 3) * (4 + 5) in  -- Becomes: let t1 = 2+3 in let t2 = 4+5 in let t3 = t1*t2
+
+-- 2. Let-Polymorphism Demo
+-- The identity function gets a polymorphic type scheme
+let id = \x. x in               -- Type: ∀α. α → α
+let five = id(5) in              -- Instantiated at int
+let hello = id("hello") in       -- Instantiated at string
+
+-- 3. Currying and Partial Application
+-- Demonstrates proper lambda handling in Core AST
+let add = \x y. x + y in        -- Curried function
+let add10 = add(10) in           -- Partial application
+let result = add10(15) in        -- Full application
+
+-- 4. Higher-order functions
+-- Shows lambda capture and environment handling
+let compose = \f g x. f(g(x)) in
+let double = \n. n * 2 in
+let inc = \n. n + 1 in
+let doubleThenInc = compose(inc)(double) in
+
+-- 5. Nested let bindings (proper scoping in TypedAST)
+let outer = 100 in
+let inner = 
+  let x = outer + 50 in
+  let y = x * 2 in
+  y + 1
+in
+
+-- Final result combining multiple features
+doubleThenInc(result) + inner

@@ -4,6 +4,20 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ## Current Implementation Status
 
+### 🚀 NEW: Phase 1 Core Integration Complete (v2.0)
+
+**Parse → Elaborate → TypeCheck Pipeline (Foundation for v2.0)**
+- ✅ Core AST with A-Normal Form (ANF) representation (~350 lines)
+- ✅ Elaborator transforms surface AST to Core (~520 lines)  
+- ✅ Type checker produces immutable TypedAST (~1,065 lines)
+- ✅ TypedAST evaluator with trace generation (~650 lines)
+- ✅ Let-polymorphism with generalization at bindings only
+- ✅ Recursive bindings via LetRec (parsing complete)
+- ✅ Linear capability capture analysis
+- ✅ Fail-fast on unsolved constraints
+- **Total Phase 1 additions: ~3,000 lines of production code**
+- **Status: Pipeline working, ready for Phase 2 runtime integration**
+
 ### ✅ Core Features Working
 
 **Lambda Expressions & Functional Programming**
@@ -13,13 +27,13 @@ AILANG is a purely functional programming language designed specifically for AI-
 - Higher-order functions and function composition
 - Record field access with dot notation
 
-**Type System (Foundation Complete)**
+**Type System (Core Integration Complete)**
 - Hindley-Milner type inference with let-polymorphism
 - Principal row unification for records and effects
 - Value restriction for sound polymorphism
 - Kind system (Effect, Record, Row kinds)
 - Linear capability capture analysis
-- ~2,500 lines of working type system code
+- ~3,500 lines total (2,500 base + 1,065 Core typechecker)
 
 **Basic Language Features**
 - Arithmetic operations with correct precedence
@@ -48,12 +62,19 @@ ailang/
 │   ├── ast/             # Abstract syntax tree definitions ✅ (complete)
 │   ├── lexer/           # Tokenizer with full Unicode support ✅ (fully working)
 │   ├── parser/          # Recursive descent parser ✅ (1,059 lines, mostly complete)
-│   ├── eval/            # Tree-walking interpreter ✅ (~600 lines, core features working)
+│   ├── eval/            # Tree-walking interpreter ✅ (~1,250 lines total)
 │   │   ├── eval_simple.go     # Main evaluator with show/toText functions
+│   │   ├── eval_typed.go      # TypedAST evaluator ✅ (NEW - 650 lines)
 │   │   ├── eval_simple_test.go # Comprehensive test suite
 │   │   ├── value.go           # Value type definitions
 │   │   └── environment.go     # Variable scoping
-│   ├── types/           # Type system with HM inference ✅ (~2,500 lines, fully working!)
+│   ├── core/            # Core AST with ANF ✅ (NEW - 350 lines)
+│   │   └── core.go            # A-Normal Form representation
+│   ├── elaborate/       # Surface to Core elaboration ✅ (NEW - 520 lines)  
+│   │   └── elaborate.go       # ANF transformation & desugaring
+│   ├── typedast/        # Typed AST ✅ (NEW - 260 lines)
+│   │   └── typed_ast.go       # Immutable typed representation
+│   ├── types/           # Type system with HM inference ✅ (~3,500 lines total)
 │   │   ├── types.go           # Core type definitions
 │   │   ├── types_v2.go        # Enhanced types with kinds
 │   │   ├── kinds.go           # Kind system (Effect, Record, Row)
@@ -62,7 +83,8 @@ ailang/
 │   │   ├── row_unification.go # Principal row unifier
 │   │   ├── env.go             # Type environments
 │   │   ├── errors.go          # Rich error reporting
-│   │   └── typechecker.go     # Main type checking interface
+│   │   ├── typechecker.go     # Main type checking interface
+│   │   └── typechecker_core.go # Core AST type checker ✅ (NEW - 1,065 lines)
 │   ├── effects/         # Effect system (TODO)
 │   ├── channels/        # CSP implementation (TODO)
 │   ├── session/         # Session types (TODO)
@@ -72,12 +94,19 @@ ailang/
 │   ├── lambda_expressions.ail # Lambda features ✅ WORKING
 │   ├── type_demo_minimal.ail # Type system demo ✅ WORKING
 │   ├── show_demo.ail    # Show/toText functions ✅ PARTIAL
+│   ├── simple.ail       # Simple expressions ✅ WORKING
+│   ├── phase1_demo.ail  # Phase 1 pipeline demo ✅ NEW
+│   ├── v2_type_inference.ail # Pure type inference ✅ NEW
+│   ├── v2_pipeline_demo.ail # Full pipeline test ✅ NEW
+│   ├── lambdas_v2.ail   # Lambda currying demo ✅ NEW
+│   ├── pure_lambdas.ail # Church encodings ✅ NEW
 │   ├── hello.ail        # Hello world (needs func syntax)
-│   ├── factorial.ail    # Factorial (needs recursion)
-│   └── simple.ail       # Simple expressions ✅ WORKING
+│   └── factorial.ail    # Factorial (needs recursion)
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
+├── cmd/test_v2/         # Phase 1 pipeline tester ✅ NEW
+├── cmd/test_v2_verbose/ # Verbose pipeline demo ✅ NEW
 └── design_docs/         # Language design documentation
 ```
 
@@ -248,7 +277,9 @@ AILANG is currently in early development with a fully functional type inference 
 - ✅ **Linear capture analysis** for lambda expressions (compile-time errors)
 - ✅ **Constraint collection** for type classes (Num, Ord, Eq, Show)
 - ✅ **Rich error reporting** with paths and suggestions
-- ⚠️ **Not integrated**: Type checker works standalone but not connected to evaluator
+- ✅ **NEW: Core AST type checking** produces immutable TypedAST
+- ✅ **NEW: ANF normalization** ensures well-formed Core programs
+- ⚠️ **Partially integrated**: Pipeline works but needs class instances
 
 ### Testing Status
 - ✅ **Lexer tests**: All passing (including lambda tokens)
@@ -268,13 +299,28 @@ AILANG is currently in early development with a fully functional type inference 
   - Linear capture analysis: ✅ PASS
   - Error reporting: ✅ PASS
 
+### 🚧 What's Next (Phase 2 - Runtime Integration)
+
+**Immediate Priorities**:
+1. **Class Instance Resolution** - Add Num/Ord/Eq/Show instances to solver
+2. **Connect Pipeline to REPL** - Wire Core typechecker to evaluator  
+3. **Function Declarations** - Support `func` syntax in elaboration
+4. **Pattern Matching** - Elaborate match expressions to Core
+5. **Recursive Bindings** - Test LetRec with factorial/fibonacci
+
+**Known Issues**:
+- Class constraints collected but not resolved (need instance environment)
+- Binary operators generate unsolved Num constraints
+- Records don't unify in type checker (TRecord handling needed)
+- Match exhaustiveness checking not yet implemented
+
 ### ❌ Not Yet Implemented
 - **Effect System** - Algebraic effects with capabilities
 - **Standard Library** - Core modules (io, collections, concurrent)
 - **Quasiquotes** - Typed templates for SQL, HTML, regex, etc.
 - **CSP Concurrency** - Channels with session types
 - **Property Testing** - Built-in property-based testing
-- **Training Export** - AI training data generation
+- **Training Export** - AI training data generation with typed traces
 - **Module System** - Module loading and resolution
 
 ## Current Capabilities

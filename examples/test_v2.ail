@@ -1,0 +1,27 @@
+-- Test AILANG v2.0 pipeline with various features
+
+-- Simple arithmetic with let bindings
+let x = 5 in
+let y = x + 10 in
+
+-- Lambda expressions
+let add = \a b. a + b in
+let result = add(y)(20) in
+
+-- Nested let with conditionals  
+let check = 
+  if result > 30 then
+    "big"
+  else
+    "small"
+in
+
+-- Record creation and access
+let person = { name: "Alice", age: 30 } in
+let name = person.name in
+
+-- List creation
+let nums = [1, 2, 3, 4, 5] in
+
+-- Return final value
+result

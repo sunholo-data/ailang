@@ -2,7 +2,6 @@ package eval
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/ast"
 )
 
 // Value represents a runtime value in AILANG
@@ -13,7 +12,7 @@ type Value interface {
 
 // IntValue represents an integer value
 type IntValue struct {
-	Value int64
+	Value int
 }
 
 func (i *IntValue) Type() string   { return "int" }
@@ -95,8 +94,9 @@ func (r *RecordValue) String() string {
 // FunctionValue represents a function value
 type FunctionValue struct {
 	Params []string
-	Body   ast.Expr
+	Body   interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
 	Env    *Environment
+	Typed  bool // Whether Body is typed
 }
 
 func (f *FunctionValue) Type() string   { return "function" }

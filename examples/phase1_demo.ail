@@ -1,0 +1,34 @@
+-- phase1_demo.ail
+-- Demonstrates Phase 1 Core Integration (Parse → Elaborate → TypeCheck)
+-- This shows what the ~3,000 lines of new code actually do!
+
+-- 1. ELABORATION: Surface syntax → Core ANF
+-- This complex expression:
+let complex = (10 + 20) * (30 + 40) in
+-- Gets elaborated to ANF internally like:
+--   let $tmp1 = 10 + 20 in
+--   let $tmp2 = 30 + 40 in  
+--   let complex = $tmp1 * $tmp2 in
+
+-- 2. TYPE INFERENCE: Polymorphic types with let-generalization
+let id = \x. x in              -- Gets type scheme: ∀α. α → α
+let n = id(42) in               -- Instantiated at int
+let s = id("hello") in          -- Instantiated at string
+
+-- 3. LINEAR CAPTURE ANALYSIS: Tracks lambda captures
+let outer = 100 in
+let addOuter = \x. x + outer in  -- Captures 'outer' - tracked!
+
+-- 4. EFFECT TRACKING: Row polymorphism for effects
+-- (Effects collected but not enforced in Phase 1)
+let compute = \x. x * 2 in     -- Pure function
+
+-- 5. TYPED AST: Every node gets type annotations
+let typed = 
+  let a = 5 in                  -- TypedLet with scheme
+  let b = 10 in                 -- TypedLet with scheme
+  a + b                         -- TypedBinOp with monomorphic type
+in
+
+-- Result: The pipeline validates the program is well-typed!
+typed + n

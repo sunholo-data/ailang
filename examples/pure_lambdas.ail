@@ -1,0 +1,26 @@
+-- Pure lambda calculus without arithmetic
+
+-- Identity function
+let id = \x. x in
+
+-- Boolean constants as Church encodings
+let tru = \t f. t in
+let fls = \t f. f in
+
+-- Boolean NOT
+let bnot = \b. b(fls)(tru) in
+
+-- Apply NOT to true
+let result = bnot(tru) in
+
+-- Const combinator (K)
+let konst = \x y. x in
+
+-- Self-application (careful - don't create infinite types!)
+let apply = \f x. f(x) in
+
+-- Multiple arguments
+let triple = \x y z. x in
+
+-- Final result: apply id to const
+apply(id)(konst)

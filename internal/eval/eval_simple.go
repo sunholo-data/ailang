@@ -230,9 +230,9 @@ func (e *SimpleEvaluator) evalLiteral(lit *ast.Literal) (Value, error) {
 	case ast.IntLit:
 		switch v := lit.Value.(type) {
 		case int64:
-			return &IntValue{Value: v}, nil
+			return &IntValue{Value: int(v)}, nil
 		case int:
-			return &IntValue{Value: int64(v)}, nil
+			return &IntValue{Value: v}, nil
 		default:
 			return nil, fmt.Errorf("invalid int literal: %T", lit.Value)
 		}
@@ -281,7 +281,14 @@ func (e *SimpleEvaluator) evalCall(call *ast.FuncCall) (Value, error) {
 		// Evaluate function body
 		oldEnv := e.env
 		e.env = fnEnv
-		result, err := e.evalExpr(f.Body)
+		// f.Body is interface{} that could be ast.Expr
+		var result Value
+		var err error
+		if body, ok := f.Body.(ast.Expr); ok {
+			result, err = e.evalExpr(body)
+		} else {
+			err = fmt.Errorf("function body is not an ast.Expr")
+		}
 		e.env = oldEnv
 		
 		return result, err
@@ -521,7 +528,7 @@ func showValue(v Value, depth int) string {
 	
 	switch val := v.(type) {
 	case *IntValue:
-		return strconv.FormatInt(val.Value, 10)
+		return strconv.Itoa(val.Value)
 		
 	case *FloatValue:
 		// Handle special cases
