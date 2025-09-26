@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
@@ -19,7 +18,7 @@ func main() {
 		y + 100
 	`
 
-	fmt.Println("=== Dictionary-Passing Demo ===\n")
+	fmt.Println("=== Dictionary-Passing Demo ===")
 	fmt.Println("Source:")
 	fmt.Println(src)
 	fmt.Println()
@@ -92,11 +91,8 @@ func main() {
 
 	// Link
 	fmt.Println("6. Linking dictionaries...")
-	registry := types.NewDictionaryRegistry()
-	linker := link.NewLinker(registry)
-	linkedProg, err := linker.Link(dictProg, link.LinkOptions{
-		Namespace: "prelude",
-	})
+	linker := link.NewLinker()
+	linkedExpr, err := linker.Link(dictProg.Decls[0])
 	if err != nil {
 		fmt.Printf("Linking error: %v\n", err)
 		return
@@ -106,8 +102,8 @@ func main() {
 
 	// Evaluate
 	fmt.Println("7. Evaluating...")
-	evaluator := eval.NewCoreEvaluator(registry)
-	result, err := evaluator.EvalCoreProgram(linkedProg)
+	evaluator := eval.NewCoreEvaluator()
+	result, err := evaluator.Eval(linkedExpr)
 	if err != nil {
 		fmt.Printf("Evaluation error: %v\n", err)
 		return
@@ -121,6 +117,6 @@ func main() {
 	fmt.Println()
 
 	// Show the Core program structure
-	fmt.Println("=== Core Program After Dictionary Elaboration ===")
-	fmt.Println(core.Pretty(linkedProg))
+	fmt.Println("=== Core Expression After Dictionary Elaboration ===")
+	fmt.Printf("%+v\n", linkedExpr)
 }

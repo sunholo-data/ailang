@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Testing Dictionary Elaboration (Simple) ===\n")
+	fmt.Println("=== Testing Dictionary Elaboration (Simple) ===")
 	
 	// Create a simple Core expression: 2 + 3
 	binop := &core.BinOp{
@@ -56,7 +56,8 @@ func main() {
 	fmt.Println()
 	
 	// Test another operator: comparison
-	fmt.Println("\n=== Testing Comparison Operator ===\n")
+	fmt.Println()
+	fmt.Println("=== Testing Comparison Operator ===")
 	
 	compOp := &core.BinOp{
 		CoreNode: core.CoreNode{NodeID: 4},

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +11,7 @@ import (
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/repl"
 )
 
 var (
@@ -201,130 +200,14 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 }
 
 func runREPL(learn bool, trace bool) {
-	fmt.Printf("%s v%s - AI-First Functional Language\n", bold("AILANG"), Version)
-	if learn {
-		fmt.Printf("%s Learning mode enabled - corrections will be saved for training\n", green("✓"))
+	// Use the new REPL implementation
+	r := repl.New()
+	if trace {
+		r.EnableTrace()
 	}
-	fmt.Println("Type :help for help, :quit to exit")
-	fmt.Println()
-
-	reader := bufio.NewReader(os.Stdin)
-	
-	for {
-		fmt.Print(">>> ")
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("\nGoodbye!")
-				return
-			}
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			continue
-		}
-
-		input = strings.TrimSpace(input)
-
-		// Handle REPL commands
-		if strings.HasPrefix(input, ":") {
-			handleREPLCommand(input)
-			continue
-		}
-
-		if input == "" {
-			continue
-		}
-
-		// Parse and evaluate
-		l := lexer.New(input, "<repl>")
-		p := parser.New(l)
-		program := p.Parse()
-
-		if len(p.Errors()) > 0 {
-			printParserErrors(p.Errors())
-			if learn {
-				// TODO: Save error for training
-				fmt.Printf("%s Error recorded for training\n", yellow("📝"))
-			}
-			continue
-		}
-
-		// Evaluate
-		evaluator := eval.NewSimple()
-		result, err := evaluator.EvalProgram(program)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Runtime error"), err)
-			if learn {
-				fmt.Printf("%s Error recorded for training\n", yellow("📝"))
-			}
-			continue
-		}
-		
-		// Print result
-		if result != nil {
-			fmt.Printf("%s : %s = %s\n", cyan("result"), yellow(result.Type()), green(result.String()))
-		}
-		
-		if trace {
-			fmt.Printf("%s Trace: [execution trace]\n", yellow("⚡"))
-		}
-	}
+	r.Start(os.Stdin, os.Stdout)
 }
 
-func handleREPLCommand(cmd string) {
-	parts := strings.Fields(cmd)
-	if len(parts) == 0 {
-		return
-	}
-
-	switch parts[0] {
-	case ":help", ":h":
-		fmt.Println("REPL Commands:")
-		fmt.Println("  :help, :h        Show this help")
-		fmt.Println("  :quit, :q        Exit the REPL")
-		fmt.Println("  :type <expr>     Show type of expression")
-		fmt.Println("  :load <file>     Load a file")
-		fmt.Println("  :reload          Reload the last file")
-		fmt.Println("  :clear           Clear the screen")
-		fmt.Println("  :trace           Toggle tracing")
-		fmt.Println("  :effects         Show current effects")
-
-	case ":quit", ":q":
-		fmt.Println("Goodbye!")
-		os.Exit(0)
-
-	case ":type":
-		if len(parts) < 2 {
-			fmt.Println("Usage: :type <expression>")
-			return
-		}
-		expr := strings.Join(parts[1:], " ")
-		// TODO: Type check expression
-		fmt.Printf("Type of %s: %s\n", expr, yellow("unknown"))
-
-	case ":load":
-		if len(parts) < 2 {
-			fmt.Println("Usage: :load <file>")
-			return
-		}
-		// TODO: Load file
-		fmt.Printf("Loading %s...\n", parts[1])
-
-	case ":clear":
-		fmt.Print("\033[H\033[2J") // Clear screen
-
-	case ":trace":
-		// TODO: Toggle tracing
-		fmt.Println("Tracing toggled")
-
-	case ":effects":
-		// TODO: Show current effects
-		fmt.Println("Current effects: {IO}")
-
-	default:
-		fmt.Printf("Unknown command: %s\n", cmd)
-		fmt.Println("Type :help for help")
-	}
-}
 
 func runTests(path string) {
 	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)

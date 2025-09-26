@@ -19,7 +19,7 @@ let z = 4 == 4 in
 x
 `
 
-	fmt.Println("=== Testing Class Instance Resolution ===\n")
+	fmt.Println("=== Testing Class Instance Resolution ===")
 	fmt.Println("Input program:")
 	fmt.Println(input)
 	fmt.Println()

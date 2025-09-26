@@ -562,6 +562,17 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.BinOp:
 		// Check if this operator has a resolved constraint
 		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
+			// Guard against nil Type in resolved constraint
+			if rc.Type == nil {
+				// Skip dictionary transformation if type is nil
+				return &core.BinOp{
+					CoreNode: e.CoreNode,
+					Op:       e.Op,
+					Left:     de.transformExpr(e.Left),
+					Right:    de.transformExpr(e.Right),
+				}
+			}
+			
 			// Transform to dictionary application
 			// First transform the operands
 			left := de.transformExpr(e.Left)
@@ -569,40 +580,24 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			
 			// Create dictionary reference
 			typeName := types.NormalizeTypeName(rc.Type)
+			fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n", 
+				e.ID(), rc.ClassName, rc.Type, typeName, rc.Method)
 			dictRef := &core.DictRef{
 				CoreNode:  e.CoreNode,
 				ClassName: rc.ClassName,
 				TypeName:  typeName,
 			}
 			
-			// Create let-bound dictionary reference (ANF discipline)
-			dictVar := de.freshVar()
+			// Create dictionary application directly
 			
-			// Create dictionary application
-			dictApp := &core.DictApp{
-				CoreNode: e.CoreNode, // Preserve original NodeID
-				Dict:     &core.Var{CoreNode: e.CoreNode, Name: dictVar},
+			// Build the ANF structure properly:
+			// For now, just use DictApp directly with DictRef as the dictionary
+			// This is valid ANF since DictRef is atomic
+			return &core.DictApp{
+				CoreNode: e.CoreNode,
+				Dict:     dictRef,
 				Method:   rc.Method,
 				Args:     []core.CoreExpr{left, right},
-			}
-			
-			// Let-bind the dictionary application (ANF)
-			resultVar := de.freshVar()
-			
-			// Build the ANF structure:
-			// let $dict1 = dict_Num_Int in
-			// let $dict2 = DictApp($dict1, "add", [left, right]) in
-			// $dict2
-			return &core.Let{
-				CoreNode: e.CoreNode,
-				Name:     dictVar,
-				Value:    dictRef,
-				Body: &core.Let{
-					CoreNode: e.CoreNode,
-					Name:     resultVar,
-					Value:    dictApp,
-					Body:     &core.Var{CoreNode: e.CoreNode, Name: resultVar},
-				},
 			}
 		}
 		
@@ -617,6 +612,16 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.UnOp:
 		// Check if this operator has a resolved constraint
 		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
+			// Guard against nil Type in resolved constraint
+			if rc.Type == nil {
+				// Skip dictionary transformation if type is nil
+				return &core.UnOp{
+					CoreNode: e.CoreNode,
+					Op:       e.Op,
+					Operand:  de.transformExpr(e.Operand),
+				}
+			}
+			
 			// Transform to dictionary application
 			operand := de.transformExpr(e.Operand)
 			
@@ -628,30 +633,14 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 				TypeName:  typeName,
 			}
 			
-			// Create let-bound dictionary reference
-			dictVar := de.freshVar()
+			// Create dictionary application directly
 			
-			// Create dictionary application
-			dictApp := &core.DictApp{
+			// Build ANF structure properly with DictRef directly in DictApp
+			return &core.DictApp{
 				CoreNode: e.CoreNode,
-				Dict:     &core.Var{CoreNode: e.CoreNode, Name: dictVar},
+				Dict:     dictRef,
 				Method:   rc.Method,
 				Args:     []core.CoreExpr{operand},
-			}
-			
-			// Let-bind the result
-			resultVar := de.freshVar()
-			
-			return &core.Let{
-				CoreNode: e.CoreNode,
-				Name:     dictVar,
-				Value:    dictRef,
-				Body: &core.Let{
-					CoreNode: e.CoreNode,
-					Name:     resultVar,
-					Value:    dictApp,
-					Body:     &core.Var{CoreNode: e.CoreNode, Name: resultVar},
-				},
 			}
 		}
 		

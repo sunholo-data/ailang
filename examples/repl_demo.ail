@@ -1,0 +1,27 @@
+-- REPL Demo: Type Classes and Dictionary-Passing
+-- Run with: ailang repl < examples/repl_demo.ail
+
+-- Basic arithmetic with type inference
+1 + 2
+10 * 5 - 20 / 4
+
+-- Float operations
+3.14 * 2.0
+
+-- String operations  
+"Hello " ++ "AILANG!"
+
+-- Boolean operations
+true && false
+5 > 3
+
+-- Comparisons with type classes
+42 == 42
+"hello" == "hello"
+5 < 10
+
+-- List creation
+[1, 2, 3]
+
+-- Record creation
+{name: "Alice", age: 30}

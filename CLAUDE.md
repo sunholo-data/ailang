@@ -247,6 +247,106 @@ parallel {
 5. **Quasiquotes**: Validation and AST generation
 6. **Training Export**: Execution trace collection
 
+## REPL Usage (v2.3)
+
+The AILANG REPL now features professional-grade interactive development with full type class support:
+
+### Interactive Features
+- **Arrow Key History**: Navigate command history with ↑/↓ arrows
+- **Persistent History**: Commands saved in `~/.ailang_history`
+- **Tab Completion**: Auto-complete REPL commands with Tab key
+- **Auto-imports**: `std/prelude` loaded automatically on startup
+- **Clean Exit**: `:quit` command properly exits the REPL
+
+### Basic Usage
+```bash
+ailang repl
+```
+
+The REPL auto-imports `std/prelude` on startup, providing:
+- Numeric defaults: `Num → Int`, `Fractional → Float`  
+- Type class instances for `Num`, `Eq`, `Ord`, `Show`
+- String concatenation with `++` operator
+- Record literals and field access
+
+### Key Commands
+- `:help, :h` - Show all available commands
+- `:quit, :q` - Exit the REPL (also works: Ctrl+D)
+- `:type <expr>` - Show qualified type with constraints
+- `:import <module>` - Import type class instances
+- `:instances` - List available instances with superclass provisions
+- `:dump-core` - Toggle Core AST display for debugging
+- `:dump-typed` - Toggle Typed AST display
+- `:dry-link` - Show required dictionary instances without evaluating
+- `:trace-defaulting on/off` - Enable/disable defaulting trace
+- `:history` - Show command history
+- `:clear` - Clear the screen
+- `:reset` - Reset environment (auto-reimports prelude)
+
+### Example REPL Session
+
+```ailang
+λ> 1 + 2
+3 :: Int
+
+λ> 3.14 * 2.0
+6.28 :: Float
+
+λ> "Hello " ++ "AILANG!"
+Hello AILANG! :: String
+
+λ> true && false
+false :: Bool
+
+λ> [1, 2, 3]
+[1, 2, 3] :: [Int]
+
+λ> {name: "Alice", age: 30}
+{name: Alice, age: 30} :: {name: String, age: Int}
+
+λ> :type \x. x + x
+\x. x + x :: ∀α. Num α ⇒ α → α
+
+λ> let double = \x. x * 2 in double(21)
+42 :: Int
+```
+
+### Type Class Pipeline
+The REPL executes the full pipeline:
+1. **Parse** - Surface syntax to AST
+2. **Elaborate** - AST to Core (ANF)
+3. **TypeCheck** - Infer types with constraints
+4. **Dictionary Elaboration** - Transform operators to dictionary calls
+5. **ANF Verification** - Ensure well-formed Core
+6. **Link** - Resolve dictionary references
+7. **Evaluate** - Execute with runtime dictionaries
+
+### Example Session
+```
+λ> 1 + 2 * 3
+:: Int
+7
+
+λ> :type 42 == 42
+42 == 42 :: Bool
+
+λ> :instances
+Available instances:
+  Num:
+    • Num[Int], Num[Float]
+  Eq:
+    • Eq[Int], Eq[Float]
+  Ord:
+    • Ord[Int] (provides Eq[Int])
+    • Ord[Float] (provides Eq[Float])
+```
+
+### Architecture Notes
+- **Type-level instances** (`instEnv`) - Used during type checking and defaulting
+- **Runtime dictionaries** (`instances`) - Used during evaluation
+- Both must be kept in sync when importing modules
+- Method names are standardized: `eq`/`neq`, `lt`/`lte`/`gt`/`gte`
+
 ## Testing Guidelines
 
 ### Unit Tests

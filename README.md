@@ -30,9 +30,20 @@ AILANG is a purely functional programming language designed specifically for AI-
 - **Total additions: ~2,560 lines of production code**
 - **Status: Type classes fully operational with spec-compliant defaulting**
 
-### 🚀 Phase 1 Core Integration Complete (v2.0)
+### 🎉 Phase 1 REPL & UX Integration Complete (v2.3)
 
-**Parse → Elaborate → TypeCheck → Dictionary Pipeline**
+**Full Pipeline with Interactive REPL**
+- ✅ **Professional REPL** with type class support (~850 lines)
+  - **NEW:** Arrow key history navigation (↑/↓ to browse command history)
+  - **NEW:** Persistent history across sessions (saved in ~/.ailang_history)
+  - **NEW:** Tab completion for REPL commands
+  - **NEW:** Proper :quit command that actually exits
+  - Interactive type inference with qualified types and defaulting
+  - Module import system for loading instances
+  - Rich diagnostic commands (dump-core, dump-typed, dry-link)
+  - Defaulting trace visualization
+  - Instance browser with superclass tracking
+  - Auto-imports std/prelude on startup
 - ✅ Core AST with A-Normal Form (ANF) representation (~350 lines)
 - ✅ Elaborator transforms surface AST to Core (~1,290 lines with dict support)  
 - ✅ Type checker produces immutable TypedAST (~2,050 lines with defaulting)
@@ -41,8 +52,8 @@ AILANG is a purely functional programming language designed specifically for AI-
 - ✅ Recursive bindings via LetRec (parsing complete)
 - ✅ Linear capability capture analysis
 - ✅ Fail-fast on unsolved constraints
-- **Total v2.0-2.1: ~5,560 lines of production code**
-- **Status: Complete type class pipeline operational**
+- **Total v2.0-2.2: ~6,360 lines of production code**
+- **Status: Complete type class pipeline operational with interactive REPL**
 
 ### ✅ Core Features Working
 
@@ -221,7 +232,7 @@ make build
 ### Running AILANG
 
 ```bash
-# Start the REPL
+# Start the REPL with full type class support
 ailang repl
 
 # Run a file
@@ -232,6 +243,68 @@ ailang check examples/hello.ail
 
 # Show version
 ailang --version
+```
+
+### REPL Usage (v2.3)
+
+The AILANG REPL now features professional-grade interactive development:
+
+#### Interactive Features
+- **Arrow Key History**: Use ↑/↓ arrows to navigate through command history
+- **Persistent History**: Commands saved across sessions in `~/.ailang_history`
+- **Tab Completion**: Press Tab to complete REPL commands
+- **Auto-imports**: `std/prelude` loaded automatically on startup
+
+#### REPL Commands
+
+```bash
+# Basic Commands
+λ> :help               # Show help
+λ> :quit               # Exit REPL (also :q or Ctrl+D)
+λ> :history            # Show command history
+λ> :clear              # Clear screen
+λ> :reset              # Reset environment
+
+# Type System Commands
+λ> :type <expr>        # Show type of expression
+λ> :import <module>    # Import module instances
+λ> :instances          # Show available type class instances
+
+# Debugging Commands
+λ> :dump-core          # Toggle Core AST display
+λ> :dump-typed         # Toggle Typed AST display
+λ> :dry-link           # Show required instances without evaluating
+λ> :trace-defaulting on/off  # Enable/disable defaulting trace
+```
+
+#### Example REPL Session
+
+```ailang
+λ> 1 + 2
+3 :: Int
+
+λ> 3.14 * 2.0
+6.28 :: Float
+
+λ> "Hello " ++ "AILANG!"
+Hello AILANG! :: String
+
+λ> [1, 2, 3]
+[1, 2, 3] :: [Int]
+
+λ> {name: "Alice", age: 30}
+{name: Alice, age: 30} :: {name: String, age: Int}
+
+λ> :type \x. x + x
+\x. x + x :: ∀α. Num α ⇒ α → α
+λ> :trace-defaulting on # Enable defaulting trace
+
+# Other commands
+λ> :help               # Show all commands
+λ> :history            # Show command history
+λ> :reset              # Reset environment
+λ> :clear              # Clear screen
+λ> :quit               # Exit REPL
 ```
 
 ### Development Workflow

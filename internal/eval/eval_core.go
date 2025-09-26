@@ -12,8 +12,8 @@ type CoreEvaluator struct {
 	registry *types.DictionaryRegistry
 }
 
-// NewCoreEvaluator creates a new Core evaluator with dictionary support
-func NewCoreEvaluator(registry *types.DictionaryRegistry) *CoreEvaluator {
+// NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
+func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvaluator {
 	env := NewEnvironment()
 	registerBuiltins(env)
 	
@@ -21,6 +21,30 @@ func NewCoreEvaluator(registry *types.DictionaryRegistry) *CoreEvaluator {
 		env:      env,
 		registry: registry,
 	}
+}
+
+// NewCoreEvaluator creates a new core evaluator without a registry (for REPL)
+func NewCoreEvaluator() *CoreEvaluator {
+	env := NewEnvironment()
+	registerBuiltins(env)
+	
+	return &CoreEvaluator{
+		env:      env,
+		registry: types.NewDictionaryRegistry(),
+	}
+}
+
+// AddDictionary adds a dictionary to the evaluator (for REPL)
+func (e *CoreEvaluator) AddDictionary(key string, dict core.DictValue) {
+	// Register each method in the dictionary
+	for method, impl := range dict.Methods {
+		e.registry.Register("prelude", dict.TypeClass, dict.Type, method, impl)
+	}
+}
+
+// Eval evaluates a single expression (simplified for REPL)
+func (e *CoreEvaluator) Eval(expr core.CoreExpr) (Value, error) {
+	return e.evalCore(expr)
 }
 
 // EvalCoreProgram evaluates a Core program
@@ -414,6 +438,8 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 	switch ref.ClassName {
 	case "Num":
 		methodNames = []string{"add", "sub", "mul", "div", "neg", "abs", "fromInt"}
+	case "Fractional":
+		methodNames = []string{"add", "sub", "mul", "div", "neg", "abs", "fromInt", "divide", "recip", "fromRational"}
 	case "Eq":
 		methodNames = []string{"eq", "neq"}
 	case "Ord":
@@ -430,10 +456,15 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 			return nil, fmt.Errorf("missing dictionary method: %s", key)
 		}
 		
-		// Wrap the implementation as a builtin function
-		methods[method] = &BuiltinFunction{
-			Name: method,
-			Fn:   wrapDictionaryMethod(entry.Impl),
+		// Check if the implementation is already a BuiltinFunction
+		if builtin, ok := entry.Impl.(*BuiltinFunction); ok {
+			methods[method] = builtin
+		} else {
+			// Wrap the implementation as a builtin function
+			methods[method] = &BuiltinFunction{
+				Name: method,
+				Fn:   wrapDictionaryMethod(entry.Impl),
+			}
 		}
 	}
 	
@@ -451,6 +482,15 @@ func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
 	return e.evalCore(abs.Body)
 }
 
+// getFieldNames extracts field names for debugging
+func getFieldNames(fields map[string]Value) []string {
+	var names []string
+	for name := range fields {
+		names = append(names, name)
+	}
+	return names
+}
+
 // evalDictApp evaluates dictionary application
 func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	// Evaluate the dictionary
@@ -466,15 +506,10 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	}
 	
 	// Look up the method
+	fmt.Printf("DEBUG: DictApp looking for method '%s' in dictionary with fields: %v\n", app.Method, getFieldNames(dict.Fields))
 	methodVal, ok := dict.Fields[app.Method]
 	if !ok {
 		return nil, fmt.Errorf("dictionary missing method: %s", app.Method)
-	}
-	
-	// Method should be a function
-	method, ok := methodVal.(*BuiltinFunction)
-	if !ok {
-		return nil, fmt.Errorf("dictionary method must be a function, got %T", methodVal)
 	}
 	
 	// Evaluate arguments
@@ -487,17 +522,41 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 		args = append(args, argVal)
 	}
 	
-	// Apply the method
-	return method.Fn(args)
+	// Apply the method with proper type checking
+	switch method := methodVal.(type) {
+	case *BuiltinFunction:
+		// Proper BuiltinFunction - use its Fn
+		return method.Fn(args)
+	default:
+		// Raw function that slipped through - this should not happen with proper registration
+		return nil, fmt.Errorf("unsupported dictionary method type: %T", methodVal)
+	}
 }
 
 // wrapDictionaryMethod wraps a Go function as a Value function
 func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
+	// If it's already a BuiltinFunction, extract its Fn
+	if builtin, ok := impl.(*BuiltinFunction); ok {
+		return builtin.Fn
+	}
+	
 	return func(args []Value) (Value, error) {
 		// This is a simplified wrapper - a full implementation would handle
 		// all type conversions properly
 		
 		switch fn := impl.(type) {
+		case func(int64, int64) int64:
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*IntValue)
+			y, ok2 := args[1].(*IntValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected int arguments")
+			}
+			result := fn(int64(x.Value), int64(y.Value))
+			return &IntValue{Value: int(result)}, nil
+			
 		case func(int, int) int:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -522,6 +581,18 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			result := fn(x.Value, y.Value)
 			return &FloatValue{Value: result}, nil
 			
+		case func(int64, int64) bool:
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*IntValue)
+			y, ok2 := args[1].(*IntValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected int arguments")
+			}
+			result := fn(int64(x.Value), int64(y.Value))
+			return &BoolValue{Value: result}, nil
+			
 		case func(int, int) bool:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -531,7 +602,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			if !ok1 || !ok2 {
 				return nil, fmt.Errorf("expected int arguments")
 			}
-			result := fn(x.Value, y.Value)
+			result := fn(int(x.Value), int(y.Value))
 			return &BoolValue{Value: result}, nil
 			
 		case func(float64, float64) bool:
@@ -651,184 +722,37 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 	}
 }
 
-// applyBinOp applies a binary operator to two values
+// applyBinOp should NOT be called in dictionary-passing system except for special operators
+// This is a fail-fast guard to ensure BinOp nodes are properly elaborated to DictApp
 func applyBinOp(op string, left, right Value) (Value, error) {
-	switch op {
-	case "+":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &IntValue{Value: l.Value + r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &FloatValue{Value: l.Value + r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &StringValue{Value: l.Value + r.Value}, nil
-			}
+	// Special case: string concatenation doesn't use type classes
+	if op == "++" {
+		lStr, lOk := left.(*StringValue)
+		rStr, rOk := right.(*StringValue)
+		if !lOk || !rOk {
+			return nil, fmt.Errorf("'++' requires string operands")
+		}
+		return &StringValue{Value: lStr.Value + rStr.Value}, nil
+	}
+	
+	// Special case: boolean operators don't use type classes
+	if op == "&&" || op == "||" {
+		lBool, lOk := left.(*BoolValue)
+		rBool, rOk := right.(*BoolValue)
+		if !lOk || !rOk {
+			return nil, fmt.Errorf("'%s' requires boolean operands", op)
 		}
 		
-	case "-":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &IntValue{Value: l.Value - r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &FloatValue{Value: l.Value - r.Value}, nil
-			}
-		}
-		
-	case "*":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &IntValue{Value: l.Value * r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &FloatValue{Value: l.Value * r.Value}, nil
-			}
-		}
-		
-	case "/":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				if r.Value == 0 {
-					return nil, fmt.Errorf("division by zero")
-				}
-				return &IntValue{Value: l.Value / r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &FloatValue{Value: l.Value / r.Value}, nil
-			}
-		}
-		
-	case "==":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value == r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value == r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value == r.Value}, nil
-			}
-		case *BoolValue:
-			if r, ok := right.(*BoolValue); ok {
-				return &BoolValue{Value: l.Value == r.Value}, nil
-			}
-		}
-		
-	case "!=":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value != r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value != r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value != r.Value}, nil
-			}
-		case *BoolValue:
-			if r, ok := right.(*BoolValue); ok {
-				return &BoolValue{Value: l.Value != r.Value}, nil
-			}
-		}
-		
-	case "<":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value < r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value < r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value < r.Value}, nil
-			}
-		}
-		
-	case "<=":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value <= r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value <= r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value <= r.Value}, nil
-			}
-		}
-		
-	case ">":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value > r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value > r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value > r.Value}, nil
-			}
-		}
-		
-	case ">=":
-		switch l := left.(type) {
-		case *IntValue:
-			if r, ok := right.(*IntValue); ok {
-				return &BoolValue{Value: l.Value >= r.Value}, nil
-			}
-		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
-				return &BoolValue{Value: l.Value >= r.Value}, nil
-			}
-		case *StringValue:
-			if r, ok := right.(*StringValue); ok {
-				return &BoolValue{Value: l.Value >= r.Value}, nil
-			}
-		}
-		
-	case "&&":
-		if l, ok := left.(*BoolValue); ok {
-			if r, ok := right.(*BoolValue); ok {
-				return &BoolValue{Value: l.Value && r.Value}, nil
-			}
-		}
-		
-	case "||":
-		if l, ok := left.(*BoolValue); ok {
-			if r, ok := right.(*BoolValue); ok {
-				return &BoolValue{Value: l.Value || r.Value}, nil
-			}
+		switch op {
+		case "&&":
+			return &BoolValue{Value: lBool.Value && rBool.Value}, nil
+		case "||":
+			return &BoolValue{Value: lBool.Value || rBool.Value}, nil
 		}
 	}
 	
-	return nil, fmt.Errorf("cannot apply operator %s to %T and %T", op, left, right)
+	// All other operators must go through dictionary elaboration
+	return nil, fmt.Errorf("internal: BinOp reached evaluator; dictionaries not elaborated (op='%s')", op)
 }
 
 // applyUnOp applies a unary operator to a value

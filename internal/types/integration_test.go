@@ -53,8 +53,8 @@ func TestDefaulting_EndToEndPipeline(t *testing.T) {
 			if !isGround(rc.Type) {
 				t.Fatalf("FAIL: ResolvedConstraint[%d] has non-ground type %s", nodeID, rc.Type)
 			}
-			if rc.Type.String() != "int" {
-				t.Errorf("Expected operator constraint type to be int, got %s", rc.Type.String())
+			if rc.Type.String() != "Int" {
+				t.Errorf("Expected operator constraint type to be Int, got %s", rc.Type.String())
 			}
 			t.Logf("✓ Ground constraint: %s[%s] -> method:%s", rc.ClassName, rc.Type, rc.Method)
 		}

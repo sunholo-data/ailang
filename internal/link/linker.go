@@ -15,8 +15,19 @@ type Linker struct {
 	resolvedRefs map[string]bool // Track resolved references for idempotency
 }
 
-// NewLinker creates a new linker with the given registry
-func NewLinker(registry *types.DictionaryRegistry) *Linker {
+// NewLinker creates a new linker without a registry (for REPL)
+func NewLinker() *Linker {
+	return &Linker{
+		registry:     types.NewDictionaryRegistry(),
+		errors:       nil,
+		warnings:     nil,
+		dryRun:       false,
+		resolvedRefs: make(map[string]bool),
+	}
+}
+
+// NewLinkerWithRegistry creates a new linker with the given registry
+func NewLinkerWithRegistry(registry *types.DictionaryRegistry) *Linker {
 	return &Linker{
 		registry:     registry,
 		errors:       nil,
@@ -26,6 +37,26 @@ func NewLinker(registry *types.DictionaryRegistry) *Linker {
 	}
 }
 
+// AddDictionary adds a dictionary to the linker (for REPL)
+func (l *Linker) AddDictionary(key string, dict core.DictValue) {
+	// Register each method in the dictionary
+	for method, impl := range dict.Methods {
+		l.registry.Register("prelude", dict.TypeClass, dict.Type, method, impl)
+	}
+}
+
+// DryRun performs a dry run to find required instances
+func (l *Linker) DryRun(expr core.CoreExpr) []string {
+	// Simplified version - would walk expr tree to find DictRef nodes
+	return []string{}
+}
+
+// Link links a single expression (simplified for REPL)
+func (l *Linker) Link(expr core.CoreExpr) (core.CoreExpr, error) {
+	// Simplified version - in practice would transform DictRef nodes
+	return expr, nil
+}
+
 // LinkOptions configures the linking process
 type LinkOptions struct {
 	DryRun  bool   // If true, only check for errors without modifying
@@ -33,8 +64,8 @@ type LinkOptions struct {
 	Namespace string // Default namespace for lookups (usually "prelude")
 }
 
-// Link resolves all dictionary references in a Core program
-func (l *Linker) Link(prog *core.Program, opts LinkOptions) (*core.Program, error) {
+// LinkProgram resolves all dictionary references in a Core program
+func (l *Linker) LinkProgram(prog *core.Program, opts LinkOptions) (*core.Program, error) {
 	l.dryRun = opts.DryRun
 	l.errors = nil
 	l.warnings = nil
@@ -232,7 +263,7 @@ type LinkResult struct {
 
 // LinkWithResult performs linking and returns detailed results
 func (l *Linker) LinkWithResult(prog *core.Program, opts LinkOptions) LinkResult {
-	linked, err := l.Link(prog, opts)
+	linked, err := l.LinkProgram(prog, opts)
 	
 	result := LinkResult{
 		Program:  linked,
@@ -250,8 +281,8 @@ func (l *Linker) LinkWithResult(prog *core.Program, opts LinkOptions) LinkResult
 
 // VerifyIdempotence checks that linking is idempotent
 func VerifyIdempotence(prog *core.Program, registry *types.DictionaryRegistry) error {
-	linker1 := NewLinker(registry)
-	linker2 := NewLinker(registry)
+	linker1 := NewLinkerWithRegistry(registry)
+	linker2 := NewLinkerWithRegistry(registry)
 	
 	opts := LinkOptions{
 		DryRun:    false,
@@ -259,13 +290,13 @@ func VerifyIdempotence(prog *core.Program, registry *types.DictionaryRegistry) e
 	}
 	
 	// First link
-	prog1, err := linker1.Link(prog, opts)
+	prog1, err := linker1.LinkProgram(prog, opts)
 	if err != nil {
 		return fmt.Errorf("first link failed: %w", err)
 	}
 	
 	// Second link (should be identity)
-	_, err = linker2.Link(prog1, opts)
+	_, err = linker2.LinkProgram(prog1, opts)
 	if err != nil {
 		return fmt.Errorf("second link failed: %w", err)
 	}

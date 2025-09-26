@@ -82,19 +82,19 @@ func TestDefaulting_OperatorGroundness(t *testing.T) {
 			name:     "addition operator",
 			expr:     "1 + 2",
 			operator: "add",
-			expected: "int",
+			expected: "Int",
 		},
 		{
 			name:     "equality operator", 
 			expr:     "1 == 2",
 			operator: "eq",
-			expected: "int",
+			expected: "Int",
 		},
 		{
 			name:     "comparison operator",
 			expr:     "1 < 2", 
 			operator: "lt",
-			expected: "int",
+			expected: "Int",
 		},
 	}
 	

@@ -78,6 +78,11 @@ func (env *InstanceEnv) SetDefault(class string, typ Type) {
 	env.defaults[class] = typ
 }
 
+// GetDefault gets the default type for a class
+func (env *InstanceEnv) GetDefault(class string) Type {
+	return env.defaults[class]
+}
+
 // canonicalKey creates a normalized key for instance lookup
 func canonicalKey(className string, typ Type) string {
 	return fmt.Sprintf("%s:%s", className, normalizeType(typ))

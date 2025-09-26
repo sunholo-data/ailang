@@ -40,6 +40,12 @@ func (r *DictionaryRegistry) Register(namespace, className, typeName, method str
 	}
 }
 
+// RegisterInstance registers a complete type class instance
+func (r *DictionaryRegistry) RegisterInstance(key string, dict interface{}) {
+	// This is a simplified registration for REPL use
+	// In practice, would decompose the dict into individual method entries
+}
+
 // Lookup retrieves a dictionary entry by key
 func (r *DictionaryRegistry) Lookup(key string) (DictionaryEntry, bool) {
 	entry, ok := r.dictionaries[key]

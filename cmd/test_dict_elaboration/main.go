@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Testing Dictionary Elaboration ===\n")
+	fmt.Println("=== Testing Dictionary Elaboration ===")
 	
 	testCases := []struct {
 		name  string
@@ -44,7 +44,9 @@ func main() {
 		fmt.Println()
 		
 		runElaborationTest(tc.input)
-		fmt.Println("\n" + strings.Repeat("-", 60) + "\n")
+		fmt.Println()
+		fmt.Println(strings.Repeat("-", 60))
+		fmt.Println()
 	}
 }
 

@@ -27,8 +27,13 @@ type ResolvedConstraint struct {
 
 // NewCoreTypeChecker creates a new Core type checker
 func NewCoreTypeChecker() *CoreTypeChecker {
+	instanceEnv := NewInstanceEnv()
+	// Set up default types for numeric literals
+	instanceEnv.SetDefault("Num", &TCon{Name: "int"})
+	instanceEnv.SetDefault("Fractional", &TCon{Name: "float"})
+	
 	return &CoreTypeChecker{
-		instanceEnv:         NewInstanceEnv(),                        // Empty by default - instances come from imports
+		instanceEnv:         instanceEnv,
 		defaultingConfig:    NewDefaultingConfig(),                   // Standard defaulting config
 		debugMode:           false,
 		errors:              []error{},
@@ -52,9 +57,148 @@ func (tc *CoreTypeChecker) SetDebugMode(debug bool) {
 	tc.debugMode = debug
 }
 
+// EnableTraceDefaulting enables defaulting trace output
+func (tc *CoreTypeChecker) EnableTraceDefaulting(enable bool) {
+	tc.debugMode = enable
+}
+
 // SetDefaultingConfig sets a custom defaulting configuration
 func (tc *CoreTypeChecker) SetDefaultingConfig(config *DefaultingConfig) {
 	tc.defaultingConfig = config
+}
+
+// InferWithConstraints infers type with constraints for a Core expression
+// Returns: typed expression, qualified type, constraints, error
+func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, Type, []Constraint, error) {
+	// Create inference context
+	ctx := &InferenceContext{
+		env:                  env,
+		unifier:              NewUnifier(),
+		constraints:          []TypeConstraint{},
+		freshCounter:         0,
+		path:                 []string{},
+		qualifiedConstraints: []ClassConstraint{},
+	}
+	
+	// Infer type
+	typedNode, _, err := tc.inferCore(ctx, expr)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	
+	// Get the inferred type
+	inferredType := typedNode.GetType()
+	
+	// Apply substitution if we have one
+	var finalType Type
+	if typ, ok := inferredType.(Type); ok {
+		finalType = typ
+	} else {
+		finalType = &TCon{Name: "Unknown"}
+	}
+	
+	// Convert ClassConstraints to Constraints
+	constraints := make([]Constraint, len(ctx.qualifiedConstraints))
+	for i, cc := range ctx.qualifiedConstraints {
+		constraints[i] = Constraint{
+			Class: cc.Class,
+			Type:  cc.Type,
+		}
+	}
+	
+	// Now resolve constraints and apply defaulting
+	tc.resolveConstraints(ctx, typedNode)
+	
+	// Apply defaulting to the final type if it's still a type variable
+	if _, ok := finalType.(*TVar2); ok {
+		// Check if we can default this based on constraints
+		for _, c := range constraints {
+			if c.Class == "Num" {
+				// Default to int
+				finalType = &TCon{Name: "int"}
+				break
+			} else if c.Class == "Fractional" {
+				// Default to float
+				finalType = &TCon{Name: "float"}
+				break
+			}
+		}
+	}
+	
+	// Return with constraints and defaulted type
+	return typedNode, finalType, constraints, nil
+}
+
+// resolveConstraints resolves class constraints and applies defaulting
+func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typedast.TypedNode) {
+	// For each class constraint, resolve it
+	for _, cc := range ctx.qualifiedConstraints {
+		// Determine the method name based on the operator
+		methodName := ""
+		switch cc.Class {
+		case "Num":
+			// Check which operator triggered this constraint
+			methodName = "add" // Default to add for now
+		case "Eq":
+			methodName = "eq"
+		case "Ord":
+			methodName = "lt"
+		}
+		
+		// Apply defaulting if the type is still a variable
+		resolvedType := cc.Type
+		switch resolvedType.(type) {
+		case *TVar, *TVar2:
+			// For Ord/Eq, try to default to Int
+			// For Num, use the configured default
+			var defaultType Type
+			switch cc.Class {
+			case "Num":
+				defaultType = tc.instanceEnv.GetDefault("Num")
+			case "Fractional":
+				defaultType = tc.instanceEnv.GetDefault("Fractional")
+			case "Ord", "Eq":
+				// Default Ord/Eq to Int when ambiguous
+				defaultType = &TCon{Name: "int"}
+			}
+			
+			if defaultType != nil {
+				resolvedType = defaultType
+			}
+		}
+		
+		// Store resolved constraint - ensure we have a concrete type
+		var finalType Type = resolvedType
+		
+		// If we still have a type variable after defaulting attempt, that's an error
+		switch resolvedType.(type) {
+		case *TVar, *TVar2:
+			// This shouldn't happen - defaulting should have resolved it
+			// Type variable not resolved, using fallback
+			// Use a fallback concrete type based on class
+			switch cc.Class {
+			case "Num":
+				finalType = &TCon{Name: "int"}
+			case "Fractional":
+				finalType = &TCon{Name: "float"}
+			case "Ord", "Eq":
+				finalType = &TCon{Name: "int"}
+			default:
+				finalType = &TCon{Name: "int"} // Safe fallback
+			}
+		}
+		
+		// Now normalize the concrete type
+		normalizedTypeName := NormalizeTypeName(finalType)
+		normalizedType := &TCon{Name: normalizedTypeName}
+		
+		// Registered constraint resolution
+		tc.resolvedConstraints[cc.NodeID] = &ResolvedConstraint{
+			ClassName: cc.Class,
+			Type:      normalizedType, // Normalized type for dictionary consistency
+			Method:    methodName,
+		}
+	}
 }
 
 // GetResolvedConstraints returns the map of resolved constraints
@@ -186,7 +330,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 	
 	// Fill in operator methods for resolved constraints
-	tc.fillOperatorMethods(expr)
+	tc.FillOperatorMethods(expr)
 	
 	return typedNode, newEnv, nil
 }
@@ -790,25 +934,27 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 	
 	switch binop.Op {
 	case "+", "-", "*", "/", "%":
-		// Arithmetic operators - require Num constraint
-		ctx.addConstraint(ClassConstraint{
-			Class:  "Num",
-			Type:   getType(leftNode),
-			Path:   []string{binop.Span().String()},
-			NodeID: binop.ID(),
-		})
-		ctx.addConstraint(ClassConstraint{
-			Class:  "Num",
-			Type:   getType(rightNode),
-			Path:   []string{binop.Span().String()},
-			NodeID: binop.ID(),
-		})
+		// Arithmetic operators - unify operand types first
 		ctx.addConstraint(TypeEq{
 			Left:  getType(leftNode),
 			Right: getType(rightNode),
 			Path:  []string{"arithmetic at " + binop.Span().String()},
 		})
+		
+		// The result type is the same as the operand types
 		resultType = getType(leftNode)
+		
+		// IMPORTANT: use the unified type to decide the most specific numeric class
+		// This looks at constraints on the unified type, not individual nodes
+		cls := tc.mostSpecificNumericClass(ctx, resultType)
+		
+		// Attach ONE class constraint to the unified type
+		ctx.addConstraint(ClassConstraint{
+			Class:  cls,               // "Fractional" or "Num"
+			Type:   resultType,
+			Path:   []string{binop.Span().String()},
+			NodeID: binop.ID(),        // keep this for operator→method linking
+		})
 		
 	case "++":
 		// String concatenation
@@ -1901,20 +2047,83 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			
 			// We need to determine the method based on the node
 			// This will be done when we scan the Core AST
+			// Create normalized type for dictionary lookup consistency
+			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
+			fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n", 
+				c.NodeID, c.Class, c.Type, normalizedType.Name)
 			tc.resolvedConstraints[c.NodeID] = &ResolvedConstraint{
 				NodeID:    c.NodeID,
 				ClassName: c.Class,
-				Type:      c.Type, // GUARANTEED to be ground after defaulting
-				Method:    "",     // Will be filled in during Core traversal
+				Type:      normalizedType, // Normalized type (float→Float, int→Int)
+				Method:    "",             // Will be filled in during Core traversal
 			}
 		}
 	}
 	return nil
 }
 
-// fillOperatorMethods fills in the Method field for resolved constraints
-// by traversing the Core AST and matching NodeIDs
-func (tc *CoreTypeChecker) fillOperatorMethods(expr core.CoreExpr) {
+// mostSpecificNumericClass returns "Fractional" if any ClassConstraint on tUnified is Fractional,
+// otherwise "Num". It ignores neutral classes (Eq/Ord/Show).
+func (tc *CoreTypeChecker) mostSpecificNumericClass(ctx *InferenceContext, t Type) string {
+	anyFractional := false
+
+	// Walk all constraints currently in context
+	for _, c := range ctx.qualifiedConstraints {
+		if isNeutralClass(c.Class) { // Eq, Ord, Show
+			continue
+		}
+		// Compare the *unified* types, not raw pointers
+		if typesEqual(c.Type, t) {
+			if c.Class == "Fractional" {
+				anyFractional = true
+			}
+		}
+	}
+	if anyFractional { 
+		return "Fractional" 
+	}
+	return "Num"
+}
+
+// isNeutralClass returns true for classes that don't influence numeric defaulting
+func isNeutralClass(class string) bool {
+	switch class {
+	case "Eq", "Ord", "Show":
+		return true
+	default:
+		return false
+	}
+}
+
+// typesEqual compares types for equality (used for constraint matching)
+func typesEqual(t1, t2 Type) bool {
+	if t1 == nil || t2 == nil {
+		return t1 == t2
+	}
+	
+	switch typ1 := t1.(type) {
+	case *TCon:
+		if typ2, ok := t2.(*TCon); ok {
+			return typ1.Name == typ2.Name
+		}
+	case *TVar:
+		if typ2, ok := t2.(*TVar); ok {
+			return typ1.Name == typ2.Name
+		}
+	case *TVar2:
+		if typ2, ok := t2.(*TVar2); ok {
+			return typ1.Name == typ2.Name
+		}
+	}
+	
+	// For more complex types, use string representation as fallback
+	return t1.String() == t2.String()
+}
+
+// FillOperatorMethods fills in the Method field for resolved constraints
+// by traversing the Core AST and matching NodeIDs (exported for REPL)
+func (tc *CoreTypeChecker) FillOperatorMethods(expr core.CoreExpr) {
+	fmt.Printf("DEBUG FillOperatorMethods called with %T\n", expr)
 	tc.walkCore(expr)
 }
 
@@ -1928,7 +2137,11 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 	case *core.BinOp:
 		// If we have a resolved constraint for this node, fill in the method
 		if rc, ok := tc.resolvedConstraints[e.ID()]; ok {
-			rc.Method = OperatorMethod(e.Op, false)
+			method := OperatorMethod(e.Op, false)
+			fmt.Printf("DEBUG BinOp: node=%d, op='%s' -> method='%s'\n", e.ID(), e.Op, method)
+			rc.Method = method
+		} else {
+			fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
 		}
 		// Recurse on operands
 		tc.walkCore(e.Left)

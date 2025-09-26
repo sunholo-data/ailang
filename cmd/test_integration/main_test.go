@@ -173,7 +173,8 @@ func TestDictionaryElaborationDetails(t *testing.T) {
 	foundNumInt := false
 	for _, rc := range resolved {
 		if rc.ClassName == "Num" && rc.Method == "add" {
-			if rc.Type.Equals(types.TInt) {
+			// Check for normalized Int type (rc.Type should be normalized)
+			if intType, ok := rc.Type.(*types.TCon); ok && intType.Name == "Int" {
 				foundNumInt = true
 				t.Logf("✅ Found Num[Int] constraint resolved for addition")
 			}

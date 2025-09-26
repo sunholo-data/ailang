@@ -551,6 +551,11 @@ func (ctx *InferenceContext) freshType(kind Kind) Type {
 
 func (ctx *InferenceContext) addConstraint(c TypeConstraint) {
 	ctx.constraints = append(ctx.constraints, c)
+	
+	// Also track class constraints separately for qualified types
+	if cc, ok := c.(ClassConstraint); ok {
+		ctx.qualifiedConstraints = append(ctx.qualifiedConstraints, cc)
+	}
 }
 
 // SolveConstraints solves all collected constraints

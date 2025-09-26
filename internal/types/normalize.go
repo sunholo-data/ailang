@@ -18,6 +18,11 @@ import (
 // Design decision: We use angle brackets <> for type parameters and
 // Tuple<T1,T2> (not Pair) for consistency across all parameterized types.
 func NormalizeTypeName(t Type) string {
+	// Guard against nil types
+	if t == nil {
+		return "<unknown>"
+	}
+	
 	switch typ := t.(type) {
 	case *TCon:
 		// Normalize primitive type constructor names to canonical form

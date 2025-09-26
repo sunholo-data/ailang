@@ -25,6 +25,11 @@ type CoreExpr interface {
 	coreExpr()
 }
 
+// Expr is a simplified interface for core expressions (used by REPL)
+type Expr interface {
+	String() string
+}
+
 // Ensure CoreNode implements base methods
 func (n CoreNode) ID() uint64 { return n.NodeID }
 func (n CoreNode) Span() ast.Pos { return n.CoreSpan }
@@ -66,6 +71,17 @@ type Lambda struct {
 	CoreNode
 	Params []string
 	Body   CoreExpr
+}
+
+// Lam is a simplified lambda for REPL (single param)
+type Lam struct {
+	CoreNode
+	Param string
+	Body  Expr
+}
+
+func (l *Lam) String() string {
+	return fmt.Sprintf("λ%s. %s", l.Param, l.Body)
 }
 
 func (l *Lambda) coreExpr() {}
@@ -328,6 +344,14 @@ type DictParam struct {
 	Name      string // e.g., "dict_Num_α"
 	ClassName string // e.g., "Num"
 	Type      string // String representation of type
+}
+
+// DictValue represents a runtime dictionary for type class methods
+type DictValue struct {
+	TypeClass string                 // Type class name (e.g., "Num", "Eq")
+	Type      string                 // Type the instance is for (e.g., "Int", "Float")
+	Methods   map[string]interface{} // Method implementations
+	Provides  []string               // Other instances this provides (e.g., Ord provides Eq)
 }
 
 // Helper to check if expression is atomic (for ANF verification)

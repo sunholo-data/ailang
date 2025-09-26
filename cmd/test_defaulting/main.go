@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Testing Numeric Literal Defaulting ===\n")
+	fmt.Println("=== Testing Numeric Literal Defaulting ===")
 	
 	// Test cases showing numeric literals that should default
 	testCases := []struct {
