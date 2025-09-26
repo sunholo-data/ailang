@@ -4,7 +4,7 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ## Current Implementation Status
 
-### 🎯 NEW: Dictionary-Passing & Type Classes Complete (v2.1)
+### 🚀 NEW: REPL Fully Working with Type Classes! (v2.3)
 
 **Full Type Class Resolution Pipeline**
 - ✅ **Dictionary-Passing Transformation** (~770 lines)
@@ -32,18 +32,18 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ### 🎉 Phase 1 REPL & UX Integration Complete (v2.3)
 
-**Full Pipeline with Interactive REPL**
-- ✅ **Professional REPL** with type class support (~850 lines)
-  - **NEW:** Arrow key history navigation (↑/↓ to browse command history)
-  - **NEW:** Persistent history across sessions (saved in ~/.ailang_history)
-  - **NEW:** Tab completion for REPL commands
-  - **NEW:** Proper :quit command that actually exits
-  - Interactive type inference with qualified types and defaulting
-  - Module import system for loading instances
-  - Rich diagnostic commands (dump-core, dump-typed, dry-link)
-  - Defaulting trace visualization
-  - Instance browser with superclass tracking
-  - Auto-imports std/prelude on startup
+**REPL Now Fully Operational!**
+- ✅ **Professional Interactive REPL** with type class support (~850 lines)
+  - **WORKING:** Arrow key history navigation (↑/↓ to browse command history)
+  - **WORKING:** Persistent history across sessions (saved in ~/.ailang_history)
+  - **WORKING:** Tab completion for REPL commands
+  - **WORKING:** Proper :quit command that actually exits (also :q or Ctrl+D)
+  - **WORKING:** Interactive evaluation with type inference and defaulting
+  - **WORKING:** Full type class resolution with dictionary-passing
+  - **WORKING:** Module import system for loading instances
+  - **WORKING:** Rich diagnostic commands (dump-core, dump-typed, dry-link)
+  - **WORKING:** Instance browser with superclass tracking
+  - **WORKING:** Auto-imports std/prelude on startup
 - ✅ Core AST with A-Normal Form (ANF) representation (~350 lines)
 - ✅ Elaborator transforms surface AST to Core (~1,290 lines with dict support)  
 - ✅ Type checker produces immutable TypedAST (~2,050 lines with defaulting)
@@ -130,8 +130,9 @@ ailang --version
 
 ```
 ailang/
-├── cmd/ailang/          # CLI entry point with REPL
+├── cmd/ailang/          # CLI entry point with REPL ✅ (REPL working!)
 ├── internal/
+│   ├── repl/            # Interactive REPL ✅ NEW (850 lines, fully working!)
 │   ├── ast/             # Abstract syntax tree definitions ✅ (complete)
 │   ├── lexer/           # Tokenizer with full Unicode support ✅ (fully working)
 │   ├── parser/          # Recursive descent parser ✅ (1,059 lines, mostly complete)
@@ -195,6 +196,7 @@ ailang/
 - Go 1.21 or later
 - Make (optional but recommended)
 - fswatch (optional, for auto-rebuild)
+- readline library (included in most systems)
 
 ### Installation
 
@@ -245,15 +247,16 @@ ailang check examples/hello.ail
 ailang --version
 ```
 
-### REPL Usage (v2.3)
+### REPL Usage (v2.3) - NOW WORKING!
 
-The AILANG REPL now features professional-grade interactive development:
+The AILANG REPL is now fully operational with professional-grade interactive development:
 
-#### Interactive Features
-- **Arrow Key History**: Use ↑/↓ arrows to navigate through command history
-- **Persistent History**: Commands saved across sessions in `~/.ailang_history`
-- **Tab Completion**: Press Tab to complete REPL commands
-- **Auto-imports**: `std/prelude` loaded automatically on startup
+#### Interactive Features (All Working!)
+- **Arrow Key History**: Use ↑/↓ arrows to navigate through command history ✅
+- **Persistent History**: Commands saved across sessions in `~/.ailang_history` ✅
+- **Tab Completion**: Press Tab to complete REPL commands ✅
+- **Auto-imports**: `std/prelude` loaded automatically on startup ✅
+- **Clean Exit**: Use `:quit`, `:q`, or Ctrl+D to exit properly ✅
 
 #### REPL Commands
 
@@ -297,14 +300,26 @@ Hello AILANG! :: String
 
 λ> :type \x. x + x
 \x. x + x :: ∀α. Num α ⇒ α → α
-λ> :trace-defaulting on # Enable defaulting trace
+λ> :trace-defaulting on
+Defaulting trace enabled
 
-# Other commands
-λ> :help               # Show all commands
-λ> :history            # Show command history
-λ> :reset              # Reset environment
-λ> :clear              # Clear screen
-λ> :quit               # Exit REPL
+λ> let double = \x. x + x in double(21)
+42 :: Int
+
+λ> :instances
+Available instances:
+  Num:
+    • Num[Int], Num[Float]
+  Eq:
+    • Eq[Int], Eq[Float], Eq[String], Eq[Bool]
+  Ord:
+    • Ord[Int] (provides Eq[Int])
+    • Ord[Float] (provides Eq[Float])
+    • Ord[String] (provides Eq[String])
+  Show:
+    • Show[Int], Show[Float], Show[String], Show[Bool]
+
+λ> :quit               # Exit REPL (also :q or Ctrl+D)
 ```
 
 ### Development Workflow
@@ -485,20 +500,14 @@ AILANG now has a complete type class resolution system with dictionary-passing t
   - Linear capture analysis: ✅ PASS
   - Error reporting: ✅ PASS
 
-### 🚧 What's Next (Phase 2 - Runtime Integration)
+### 🚧 What's Next (Phase 2 - Enhanced Language Features)
 
-**Immediate Priorities**:
-1. **Class Instance Resolution** - Add Num/Ord/Eq/Show instances to solver
-2. **Connect Pipeline to REPL** - Wire Core typechecker to evaluator  
-3. **Function Declarations** - Support `func` syntax in elaboration
-4. **Pattern Matching** - Elaborate match expressions to Core
-5. **Recursive Bindings** - Test LetRec with factorial/fibonacci
-
-**Known Issues**:
-- Class constraints collected but not resolved (need instance environment)
-- Binary operators generate unsolved Num constraints
-- Records don't unify in type checker (TRecord handling needed)
-- Match exhaustiveness checking not yet implemented
+**Now that REPL is working, next priorities**:
+1. **Function Declarations** - Support `func` syntax in elaboration
+2. **Pattern Matching** - Elaborate match expressions to Core  
+3. **Recursive Bindings** - Test LetRec with factorial/fibonacci
+4. **Module System** - Import/export of functions and types
+5. **Standard Library** - Core modules (io, collections, etc.)
 
 ### ❌ Not Yet Implemented
 - **Effect System** - Algebraic effects with capabilities
