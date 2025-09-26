@@ -1,0 +1,4 @@
+-- Debug test 3
+let x = 10 + 20 in
+let y = x - 5 in
+y

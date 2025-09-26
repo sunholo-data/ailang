@@ -286,6 +286,52 @@ func (s *Scheme) String() string {
 	return prefix + constraintStr + s.Type.String()
 }
 
+// QualifiedScheme represents a type scheme with explicit class constraints
+// This is used during generalization to preserve non-ground constraints
+// e.g., ∀α. Num α ⇒ α → α → α
+type QualifiedScheme struct {
+	Constraints []ClassConstraint // Non-ground class constraints
+	Scheme      *Scheme           // The polymorphic type scheme
+}
+
+// NewQualifiedScheme creates a qualified scheme from constraints and type
+func NewQualifiedScheme(constraints []ClassConstraint, typeVars []string, typ Type) *QualifiedScheme {
+	// Convert ClassConstraint to Constraint for the Scheme
+	var schemeConstraints []Constraint
+	for _, cc := range constraints {
+		schemeConstraints = append(schemeConstraints, Constraint{
+			Class: cc.Class,
+			Type:  cc.Type,
+		})
+	}
+	
+	return &QualifiedScheme{
+		Constraints: constraints,
+		Scheme: &Scheme{
+			TypeVars:    typeVars,
+			Constraints: schemeConstraints,
+			Type:        typ,
+		},
+	}
+}
+
+// String returns a string representation of the qualified scheme
+func (qs *QualifiedScheme) String() string {
+	if qs.Scheme != nil {
+		return qs.Scheme.String()
+	}
+	
+	// Format constraints manually if no scheme
+	if len(qs.Constraints) > 0 {
+		var constraintStrs []string
+		for _, c := range qs.Constraints {
+			constraintStrs = append(constraintStrs, fmt.Sprintf("%s[%s]", c.Class, c.Type))
+		}
+		return fmt.Sprintf("(%s) => ?", strings.Join(constraintStrs, ", "))
+	}
+	return "?"
+}
+
 // Instantiate creates a fresh instance of the type scheme
 func (s *Scheme) Instantiate(fresh func(Kind) Type) Type {
 	subs := make(map[string]Type)

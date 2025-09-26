@@ -1,0 +1,78 @@
+-- Type Classes & Dictionary-Passing Demo
+-- This example demonstrates AILANG's type class resolution system
+-- All type class constraints are resolved to dictionary calls during compilation
+
+-- Basic Arithmetic with Num type class
+-- These operations are transformed to dictionary calls
+let simple = 
+  let sum = 1 + 2 in              -- Uses Num[Int] dictionary
+  let diff = 10 - 5 in            -- Uses Num[Int] dictionary 
+  let prod = 3 * 4 in             -- Uses Num[Int] dictionary
+  let quot = 20 / 4 in            -- Uses Num[Int] dictionary
+  sum + diff + prod + quot        -- Result: 25
+
+-- Floating point arithmetic
+let ratios = 
+  let pi = 3.14159 in
+  let tau = pi * 2.0 in           -- Uses Num[Float] dictionary
+  let half_pi = pi / 2.0 in       -- Uses Num[Float] dictionary
+  tau + half_pi                   -- Result: ~7.85
+
+-- Equality comparisons with Eq type class
+let test_eq = 
+  let int_eq = 42 == 42 in        -- Uses Eq[Int] dictionary
+  let str_eq = "hello" == "hello" in  -- Uses Eq[String] dictionary
+  let bool_eq = true == false in  -- Uses Eq[Bool] dictionary
+  if int_eq then 1 else 0         -- Result: 1
+
+-- Ordering comparisons with Ord type class
+let test_ord = 
+  let lt = 5 < 10 in              -- Uses Ord[Int] dictionary
+  let gt = 20 > 15 in             -- Uses Ord[Int] dictionary
+  let lte = 7 <= 7 in             -- Uses Ord[Int] dictionary  
+  let gte = 9 >= 8 in             -- Uses Ord[Int] dictionary
+  if lt && gt && lte && gte then 1 else 0  -- Result: 1
+
+-- Mixed integer and float operations
+-- Each literal defaults based on context
+let mixed = 
+  let int_calc = 5 + 10 in        -- Defaults to Int
+  let float_calc = 5.5 + 10.5 in  -- Float operations
+  int_calc                         -- Result: 15
+
+-- Polymorphic functions with constraints
+-- The constraint is resolved at each call site
+let double = \x. x + x            -- Has constraint: Num a => a -> a
+
+let test_poly = 
+  let int_double = double(5) in   -- Instantiated at Int
+  let float_double = double(2.5) in -- Instantiated at Float
+  int_double                       -- Result: 10
+
+-- Complex expressions with multiple constraints
+let complex = 
+  let check = if 3 < 5 then 10 else 20 in  -- Ord[Int] constraint
+  let sum = check + 15 in                   -- Num[Int] constraint
+  let equal = sum == 25 in                  -- Eq[Int] constraint
+  if equal then "yes" else "no"             -- Result: "yes"
+
+-- Main expression demonstrating all features
+let main = {
+  arithmetic: simple,
+  floats: ratios, 
+  equality: test_eq,
+  ordering: test_ord,
+  mixed: mixed,
+  polymorphic: test_poly,
+  complex: complex
+}
+
+-- Print results
+print("=== Type Classes Demo ===")
+print("Arithmetic: " ++ show(simple))
+print("Floats: " ++ show(ratios))
+print("Equality: " ++ show(test_eq))
+print("Ordering: " ++ show(test_ord))
+print("Mixed: " ++ show(mixed))
+print("Polymorphic: " ++ show(test_poly))
+print("Complex: " ++ show(complex))

@@ -7,11 +7,12 @@ import (
 
 // InferenceContext maintains state during type inference
 type InferenceContext struct {
-	env          *TypeEnv
-	unifier      *Unifier
-	constraints  []TypeConstraint
-	freshCounter int
-	path         []string // For error reporting
+	env                   *TypeEnv
+	unifier               *Unifier
+	constraints           []TypeConstraint
+	freshCounter          int
+	path                  []string         // For error reporting
+	qualifiedConstraints  []ClassConstraint // Non-ground constraints for qualified types
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -42,9 +43,10 @@ func (c RowEq) String() string { return fmt.Sprintf("%s ~ %s", c.Left, c.Right) 
 
 // ClassConstraint represents a type class constraint
 type ClassConstraint struct {
-	Class string
-	Type  Type
-	Path  []string
+	Class  string
+	Type   Type
+	Path   []string
+	NodeID uint64 // NodeID of the Core expression that generated this constraint
 }
 
 func (c ClassConstraint) constraint()   {}
@@ -554,8 +556,8 @@ func (ctx *InferenceContext) addConstraint(c TypeConstraint) {
 // SolveConstraints solves all collected constraints
 func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
 	sub := make(Substitution)
-	unsolvedClass := []ClassConstraint{}
-
+	
+	// Phase 1: Solve all equality constraints first to build up substitution
 	for _, c := range ctx.constraints {
 		switch constraint := c.(type) {
 		case TypeEq:
@@ -579,9 +581,14 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 			if err != nil {
 				return nil, nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
 			}
-
-		case ClassConstraint:
-			// Apply current substitution to the constraint
+		}
+	}
+	
+	// Phase 2: Apply final substitution to all class constraints
+	unsolvedClass := []ClassConstraint{}
+	for _, c := range ctx.constraints {
+		if constraint, ok := c.(ClassConstraint); ok {
+			// Apply the complete substitution from Phase 1
 			constraint.Type = ApplySubstitution(sub, constraint.Type)
 			unsolvedClass = append(unsolvedClass, constraint)
 		}

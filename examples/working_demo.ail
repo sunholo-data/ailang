@@ -1,0 +1,22 @@
+-- Working Type Classes Demo
+-- This demonstrates features that are confirmed working
+
+-- Integer arithmetic
+let x = 1 + 2 in
+let y = x * 3 in
+let z = y - 4 in
+
+-- Comparisons  
+let cmp1 = 5 < 10 in
+let cmp2 = 20 > 10 in
+
+-- Equality
+let eq1 = 42 == 42 in
+let eq2 = 10 == 20 in
+
+-- Polymorphic function
+let double = \n. n + n in
+let result = double(z) in
+
+-- Final result
+result  -- Returns 10 (since z = 5, double(5) = 10)

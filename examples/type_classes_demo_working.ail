@@ -1,0 +1,56 @@
+-- Type Classes & Dictionary-Passing Demo  
+-- This demonstrates AILANG's type class resolution system
+
+-- Basic integer arithmetic (Num[Int] dictionary)
+let demo_arithmetic = 
+  let a = 10 + 20 in      -- Addition
+  let b = 50 - 15 in      -- Subtraction
+  let c = 6 * 7 in        -- Multiplication
+  let d = 100 / 4 in      -- Division
+  a + b + c + d           -- Result: 152
+
+-- Floating point operations (Num[Float] dictionary)
+let demo_float =
+  let pi = 3.14159 in
+  let area = pi * 4.0 * 4.0 in    -- Circle area
+  area                             -- Result: ~50.26
+
+-- Equality tests (Eq dictionary)
+let demo_equality =
+  let test1 = 42 == 42 in          -- Int equality: true
+  let test2 = "hi" == "hi" in      -- String equality: true
+  let test3 = 10 == 20 in          -- Int inequality: false
+  if test1 then 1 else 0           -- Result: 1
+
+-- Ordering comparisons (Ord dictionary)  
+let demo_ordering =
+  let test1 = 5 < 10 in            -- Less than: true
+  let test2 = 20 > 15 in           -- Greater than: true
+  let test3 = 7 <= 7 in            -- Less or equal: true
+  if test1 then (if test2 then 1 else 0) else 0  -- Result: 1
+
+-- Polymorphic function with Num constraint
+let double = \x. x + x              -- Num a => a -> a
+
+-- Using polymorphic function at different types
+let demo_polymorphic =
+  let int_result = double(21) in    -- Int: 42
+  let float_result = double(1.5) in -- Float: 3.0
+  int_result                        -- Result: 42
+
+-- Complex nested expression
+let demo_complex =
+  let x = if 10 > 5 then 100 else 200 in  -- Ord constraint
+  let y = x + 50 in                        -- Num constraint  
+  let z = if y == 150 then 999 else 0 in   -- Eq constraint
+  z                                         -- Result: 999
+
+-- Demonstrate the transformation pipeline
+let main = 
+  demo_arithmetic + 
+  demo_equality + 
+  demo_ordering + 
+  demo_polymorphic + 
+  demo_complex      -- Total: 152 + 1 + 1 + 42 + 999 = 1195
+
+main

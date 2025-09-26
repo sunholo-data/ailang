@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // Elaborator transforms surface AST to Core ANF
@@ -519,4 +520,248 @@ func (e *Elaborator) freshVar() string {
 func (e *Elaborator) GetSurfaceSpan(nodeID uint64) (ast.Pos, bool) {
 	span, ok := e.surfaceSpans[nodeID]
 	return span, ok
+}
+
+// ElaborateWithDictionaries transforms operators to dictionary calls
+// This is the second pass after type checking
+func ElaborateWithDictionaries(prog *core.Program, resolved map[uint64]*types.ResolvedConstraint) (*core.Program, error) {
+	elaborator := &DictElaborator{
+		resolved:    resolved,
+		freshVarNum: 0,
+	}
+	
+	// Transform each declaration
+	var newDecls []core.CoreExpr
+	for _, decl := range prog.Decls {
+		transformed := elaborator.transformExpr(decl)
+		newDecls = append(newDecls, transformed)
+	}
+	
+	return &core.Program{Decls: newDecls}, nil
+}
+
+// DictElaborator handles dictionary transformation
+type DictElaborator struct {
+	resolved    map[uint64]*types.ResolvedConstraint
+	freshVarNum int
+}
+
+// freshVar generates a fresh variable name
+func (de *DictElaborator) freshVar() string {
+	de.freshVarNum++
+	return fmt.Sprintf("$dict%d", de.freshVarNum)
+}
+
+// transformExpr recursively transforms Core expressions
+func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
+	if expr == nil {
+		return nil
+	}
+	
+	switch e := expr.(type) {
+	case *core.BinOp:
+		// Check if this operator has a resolved constraint
+		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
+			// Transform to dictionary application
+			// First transform the operands
+			left := de.transformExpr(e.Left)
+			right := de.transformExpr(e.Right)
+			
+			// Create dictionary reference
+			typeName := types.NormalizeTypeName(rc.Type)
+			dictRef := &core.DictRef{
+				CoreNode:  e.CoreNode,
+				ClassName: rc.ClassName,
+				TypeName:  typeName,
+			}
+			
+			// Create let-bound dictionary reference (ANF discipline)
+			dictVar := de.freshVar()
+			
+			// Create dictionary application
+			dictApp := &core.DictApp{
+				CoreNode: e.CoreNode, // Preserve original NodeID
+				Dict:     &core.Var{CoreNode: e.CoreNode, Name: dictVar},
+				Method:   rc.Method,
+				Args:     []core.CoreExpr{left, right},
+			}
+			
+			// Let-bind the dictionary application (ANF)
+			resultVar := de.freshVar()
+			
+			// Build the ANF structure:
+			// let $dict1 = dict_Num_Int in
+			// let $dict2 = DictApp($dict1, "add", [left, right]) in
+			// $dict2
+			return &core.Let{
+				CoreNode: e.CoreNode,
+				Name:     dictVar,
+				Value:    dictRef,
+				Body: &core.Let{
+					CoreNode: e.CoreNode,
+					Name:     resultVar,
+					Value:    dictApp,
+					Body:     &core.Var{CoreNode: e.CoreNode, Name: resultVar},
+				},
+			}
+		}
+		
+		// No dictionary transformation needed, just recurse
+		return &core.BinOp{
+			CoreNode: e.CoreNode,
+			Op:       e.Op,
+			Left:     de.transformExpr(e.Left),
+			Right:    de.transformExpr(e.Right),
+		}
+		
+	case *core.UnOp:
+		// Check if this operator has a resolved constraint
+		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
+			// Transform to dictionary application
+			operand := de.transformExpr(e.Operand)
+			
+			// Create dictionary reference
+			typeName := types.NormalizeTypeName(rc.Type)
+			dictRef := &core.DictRef{
+				CoreNode:  e.CoreNode,
+				ClassName: rc.ClassName,
+				TypeName:  typeName,
+			}
+			
+			// Create let-bound dictionary reference
+			dictVar := de.freshVar()
+			
+			// Create dictionary application
+			dictApp := &core.DictApp{
+				CoreNode: e.CoreNode,
+				Dict:     &core.Var{CoreNode: e.CoreNode, Name: dictVar},
+				Method:   rc.Method,
+				Args:     []core.CoreExpr{operand},
+			}
+			
+			// Let-bind the result
+			resultVar := de.freshVar()
+			
+			return &core.Let{
+				CoreNode: e.CoreNode,
+				Name:     dictVar,
+				Value:    dictRef,
+				Body: &core.Let{
+					CoreNode: e.CoreNode,
+					Name:     resultVar,
+					Value:    dictApp,
+					Body:     &core.Var{CoreNode: e.CoreNode, Name: resultVar},
+				},
+			}
+		}
+		
+		// No transformation needed
+		return &core.UnOp{
+			CoreNode: e.CoreNode,
+			Op:       e.Op,
+			Operand:  de.transformExpr(e.Operand),
+		}
+		
+	case *core.Let:
+		return &core.Let{
+			CoreNode: e.CoreNode,
+			Name:     e.Name,
+			Value:    de.transformExpr(e.Value),
+			Body:     de.transformExpr(e.Body),
+		}
+		
+	case *core.LetRec:
+		var newBindings []core.RecBinding
+		for _, binding := range e.Bindings {
+			newBindings = append(newBindings, core.RecBinding{
+				Name:  binding.Name,
+				Value: de.transformExpr(binding.Value),
+			})
+		}
+		return &core.LetRec{
+			CoreNode: e.CoreNode,
+			Bindings: newBindings,
+			Body:     de.transformExpr(e.Body),
+		}
+		
+	case *core.Lambda:
+		return &core.Lambda{
+			CoreNode: e.CoreNode,
+			Params:   e.Params,
+			Body:     de.transformExpr(e.Body),
+		}
+		
+	case *core.App:
+		var newArgs []core.CoreExpr
+		for _, arg := range e.Args {
+			newArgs = append(newArgs, de.transformExpr(arg))
+		}
+		return &core.App{
+			CoreNode: e.CoreNode,
+			Func:     de.transformExpr(e.Func),
+			Args:     newArgs,
+		}
+		
+	case *core.If:
+		return &core.If{
+			CoreNode: e.CoreNode,
+			Cond:     de.transformExpr(e.Cond),
+			Then:     de.transformExpr(e.Then),
+			Else:     de.transformExpr(e.Else),
+		}
+		
+	case *core.Match:
+		var newArms []core.MatchArm
+		for _, arm := range e.Arms {
+			newArms = append(newArms, core.MatchArm{
+				Pattern: arm.Pattern,
+				Body:    de.transformExpr(arm.Body),
+			})
+		}
+		return &core.Match{
+			CoreNode:   e.CoreNode,
+			Scrutinee:  de.transformExpr(e.Scrutinee),
+			Arms:       newArms,
+			Exhaustive: e.Exhaustive,
+		}
+		
+	case *core.Record:
+		newFields := make(map[string]core.CoreExpr)
+		for k, v := range e.Fields {
+			newFields[k] = de.transformExpr(v)
+		}
+		return &core.Record{
+			CoreNode: e.CoreNode,
+			Fields:   newFields,
+		}
+		
+	case *core.RecordAccess:
+		return &core.RecordAccess{
+			CoreNode: e.CoreNode,
+			Record:   de.transformExpr(e.Record),
+			Field:    e.Field,
+		}
+		
+	case *core.List:
+		var newElements []core.CoreExpr
+		for _, elem := range e.Elements {
+			newElements = append(newElements, de.transformExpr(elem))
+		}
+		return &core.List{
+			CoreNode: e.CoreNode,
+			Elements: newElements,
+		}
+		
+	// Atomic expressions - return as is
+	case *core.Var, *core.Lit, *core.DictRef:
+		return expr
+		
+	// Already dictionary nodes - preserve
+	case *core.DictAbs, *core.DictApp:
+		return expr
+		
+	default:
+		// Unknown type - return as is
+		return expr
+	}
 }

@@ -1,0 +1,56 @@
+-- Complete Type Classes Demonstration
+-- Shows the full dictionary-passing pipeline in action
+
+-- 1. Basic Num operations default to Int
+let integers =
+  let a = 1 + 2 in         -- Num[Int].add
+  let b = 10 - 3 in        -- Num[Int].sub
+  let c = 4 * 5 in         -- Num[Int].mul
+  let d = 20 / 4 in        -- Num[Int].div
+  a + b + c + d            -- Result: 3 + 7 + 20 + 5 = 35
+
+-- 2. Float operations when using float literals
+let floats =
+  let x = 1.5 + 2.5 in     -- Num[Float].add
+  let y = 10.0 * 0.5 in    -- Num[Float].mul
+  x + y                    -- Result: 4.0 + 5.0 = 9.0
+
+-- 3. Polymorphic functions with type class constraints
+let add3 = \x y z. x + y + z    -- Num a => a -> a -> a -> a
+let twice = \f x. f(f(x))       -- (a -> a) -> a -> a
+let increment = \n. n + 1       -- Num a => a -> a
+
+-- 4. Using polymorphic functions
+let poly_demo =
+  let int_sum = add3(1)(2)(3) in          -- Instantiated at Int: 6
+  let float_sum = add3(1.0)(2.0)(3.0) in  -- Instantiated at Float: 6.0
+  let double_inc = twice(increment) in    -- (Num a => a -> a)
+  let result = double_inc(10) in          -- Int: 12
+  result
+
+-- 5. Comparisons with Ord type class
+let comparisons =
+  let a = if 5 < 10 then 1 else 0 in     -- Ord[Int].lt
+  let b = if 20 > 10 then 1 else 0 in    -- Ord[Int].gt  
+  let c = if 7 <= 7 then 1 else 0 in     -- Ord[Int].lte
+  let d = if 8 >= 9 then 0 else 1 in     -- Ord[Int].gte
+  a + b + c + d                           -- Result: 1 + 1 + 1 + 1 = 4
+
+-- 6. Equality with Eq type class
+let equality =
+  let test1 = if 42 == 42 then 1 else 0 in        -- Eq[Int].eq
+  let test2 = if 10 != 20 then 1 else 0 in        -- Eq[Int].neq
+  let test3 = if "hi" == "hi" then 1 else 0 in    -- Eq[String].eq
+  test1 + test2 + test3                           -- Result: 1 + 1 + 1 = 3
+
+-- 7. Demonstrating superclass provision
+-- Ord provides Eq automatically
+let ord_provides_eq =
+  let x = 10 in
+  let has_ord = x < 20 in        -- Uses Ord[Int]
+  let has_eq = x == 10 in        -- Uses Eq[Int] (provided by Ord)
+  if has_ord then (if has_eq then 1 else 0) else 0  -- Result: 1
+
+-- Final computation combining everything
+integers + poly_demo + comparisons + equality + ord_provides_eq
+-- Result: 35 + 12 + 4 + 3 + 1 = 55

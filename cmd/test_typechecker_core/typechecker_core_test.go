@@ -1,4 +1,4 @@
-package types
+package main
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 func TestCoreTypeChecker(t *testing.T) {
@@ -16,10 +17,10 @@ func TestCoreTypeChecker(t *testing.T) {
 		expectWarnings bool // For Num constraints
 	}{
 		{
-			name:           "simple arithmetic with Num warnings",
+			name:           "simple arithmetic with defaulting",
 			input:          "2 + 3",
 			expectError:    false,
-			expectWarnings: true, // Num constraints
+			expectWarnings: false, // Now properly defaults to Int
 		},
 		{
 			name:           "pure lambda - no warnings",
@@ -90,7 +91,15 @@ func TestCoreTypeChecker(t *testing.T) {
 			}
 
 			// Type check
-			tc := NewCoreTypeChecker()
+			instances := types.LoadBuiltinInstances()
+		tc := types.NewCoreTypeCheckerWithInstances(instances)
+		// Enable defaulting to int for Num
+		tc.SetDefaultingConfig(&types.DefaultingConfig{
+			Enabled: true,
+			Defaults: map[string]types.Type{
+				"Num": types.TInt,
+			},
+		})
 			typedProg, err := tc.CheckCoreProgram(coreProg)
 
 			if tt.expectError {
@@ -160,7 +169,15 @@ func TestCoreTypeInference(t *testing.T) {
 				t.Fatalf("elaboration error: %v", err)
 			}
 
-			tc := NewCoreTypeChecker()
+			instances := types.LoadBuiltinInstances()
+		tc := types.NewCoreTypeCheckerWithInstances(instances)
+		// Enable defaulting to int for Num
+		tc.SetDefaultingConfig(&types.DefaultingConfig{
+			Enabled: true,
+			Defaults: map[string]types.Type{
+				"Num": types.TInt,
+			},
+		})
 			typedProg, err := tc.CheckCoreProgram(coreProg)
 			
 			// These pure lambda expressions should type check successfully
@@ -197,7 +214,15 @@ func TestLetPolymorphism(t *testing.T) {
 		t.Fatalf("elaboration error: %v", err)
 	}
 
-	tc := NewCoreTypeChecker()
+	instances := types.LoadBuiltinInstances()
+	tc := types.NewCoreTypeCheckerWithInstances(instances)
+	// Enable defaulting to int for Num
+	tc.SetDefaultingConfig(&types.DefaultingConfig{
+		Enabled: true,
+		Defaults: map[string]types.Type{
+			"Num": types.TInt,
+		},
+	})
 	_, err = tc.CheckCoreProgram(coreProg)
 	
 	// This will have Num constraints from id(5), but should otherwise work

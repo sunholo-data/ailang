@@ -1,0 +1,60 @@
+-- Type Classes & Dictionary-Passing Demo (Simple)
+-- This example demonstrates AILANG's type class resolution system
+
+-- Basic Arithmetic with Num type class
+-- These operations are transformed to dictionary calls
+let sum = 1 + 2               -- Uses Num[Int] dictionary, defaults to Int
+let diff = 10 - 5             -- Uses Num[Int] dictionary  
+let prod = 3 * 4              -- Uses Num[Int] dictionary
+let quot = 20 / 4             -- Uses Num[Int] dictionary
+
+-- Floating point arithmetic  
+let pi = 3.14159
+let tau = pi * 2.0            -- Uses Num[Float] dictionary
+let half_pi = pi / 2.0        -- Uses Num[Float] dictionary
+
+-- Equality comparisons with Eq type class
+let int_eq = 42 == 42         -- Uses Eq[Int] dictionary -> true
+let str_eq = "hello" == "world" -- Uses Eq[String] dictionary -> false
+
+-- Ordering comparisons with Ord type class
+let lt = 5 < 10               -- Uses Ord[Int] dictionary -> true
+let gt = 20 > 15              -- Uses Ord[Int] dictionary -> true
+
+-- Polymorphic function with Num constraint
+let double = \x. x + x        -- Has constraint: Num a => a -> a
+
+-- Using the polymorphic function
+let int_double = double(5)    -- Instantiated at Int -> 10
+let float_double = double(2.5) -- Instantiated at Float -> 5.0
+
+-- Complex expression with multiple constraints
+let result = if 3 < 5 then double(10) else double(20)  
+-- Uses Ord[Int] for comparison, Num[Int] for double
+
+-- Print results
+print("=== Type Classes Demo (Simple) ===")
+print("Integer arithmetic:")
+print("  1 + 2 = " ++ show(sum))
+print("  10 - 5 = " ++ show(diff))
+print("  3 * 4 = " ++ show(prod))
+print("  20 / 4 = " ++ show(quot))
+print("")
+print("Float arithmetic:")
+print("  pi * 2 = " ++ show(tau))
+print("  pi / 2 = " ++ show(half_pi))
+print("")
+print("Equality tests:")
+print("  42 == 42 = " ++ show(int_eq))
+print("  'hello' == 'world' = " ++ show(str_eq))
+print("")
+print("Ordering tests:")
+print("  5 < 10 = " ++ show(lt))
+print("  20 > 15 = " ++ show(gt))
+print("")
+print("Polymorphic function:")
+print("  double(5) = " ++ show(int_double))
+print("  double(2.5) = " ++ show(float_double))
+print("")
+print("Complex expression:")
+print("  if 3 < 5 then double(10) else double(20) = " ++ show(result))

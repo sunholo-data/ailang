@@ -1,0 +1,76 @@
+-- Numeric Literal Defaulting Examples
+-- Shows how AILANG v2.0 handles ambiguous numeric literals
+
+-- Example 1: Simple defaulting
+let x = 42
+-- Trace: Defaulting α₁ to Int for constraint Num[α₁] at literal 42
+-- Result: x :: Int
+
+-- Example 2: Context determines type
+let y: Float = 3.14
+-- No defaulting needed - type annotation provides constraint
+-- Result: y :: Float
+
+-- Example 3: Function application forces defaulting
+let add_func = \a b. a + b
+let result = add_func(10)(20)
+-- Trace: Defaulting α₂ to Int for constraint Num[α₂] at literal 10
+-- Trace: Defaulting α₃ to Int for constraint Num[α₃] at literal 20  
+-- Result: result :: Int
+
+-- Example 4: Mixed defaulting scenarios
+let mixed = [1, 2.0, 3]
+-- 1: defaults to Int
+-- 2.0: inferred as Float from literal syntax
+-- 3: defaults to Int
+-- Error: Cannot unify Int with Float in list
+-- This shows defaulting happens before list type unification
+
+-- Example 5: Let polymorphism with defaulting
+let poly_id = \x. x
+let use_id = poly_id(99)
+-- Trace: Defaulting α₄ to Int for constraint Num[α₄] at literal 99
+-- poly_id remains polymorphic: ∀α. α → α
+-- use_id gets type: Int
+
+-- Example 6: Constraint propagation
+let constrained = \x. x + 1
+-- Type: ∀α. Num[α] ⇒ α → α
+-- When called with ambiguous literal:
+let call_constrained = constrained(5)
+-- Trace: Defaulting α₅ to Int for constraint Num[α₅] at literal 5
+-- Result: call_constrained :: Int
+
+-- Example 7: No defaulting needed
+let explicit: Int -> Int = \x. x + 1
+let call_explicit = explicit(7)
+-- No defaulting trace - type signature constrains everything
+-- Result: call_explicit :: Int
+
+-- Example 8: Complex expression defaulting
+let complex = if 1 < 2 then 3 + 4 else 5 * 6
+-- Multiple defaulting decisions:
+-- Trace: Defaulting α₆ to Int for constraint Num[α₆] at literal 1
+-- Trace: Defaulting α₇ to Int for constraint Num[α₇] at literal 2  
+-- Trace: Defaulting α₈ to Int for constraint Num[α₈] at literal 3
+-- Trace: Defaulting α₉ to Int for constraint Num[α₉] at literal 4
+-- Trace: Defaulting α₁₀ to Int for constraint Num[α₁₀] at literal 5
+-- Trace: Defaulting α₁₁ to Int for constraint Num[α₁₁] at literal 6
+-- Result: complex :: Int
+
+-- Example 9: Defaulting with multiple type classes
+let comparison = 1 == 2
+-- Trace: Defaulting α₁₂ to Int for constraint Num[α₁₂] at literal 1
+-- Trace: Defaulting α₁₃ to Int for constraint Num[α₁₃] at literal 2
+-- Uses both Num[Int] and Eq[Int] instances
+-- Result: comparison :: Bool
+
+-- Example 10: Module-scoped defaulting
+-- Different modules can have different defaulting rules
+-- module Financial where
+--   default (Decimal)  -- Custom precision type
+--   let price = 19.99  -- Defaults to Decimal, not Float
+-- 
+-- module Graphics where  
+--   default (Float)
+--   let coordinate = 10.5  -- Defaults to Float

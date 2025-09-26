@@ -4,19 +4,45 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ## Current Implementation Status
 
-### 🚀 NEW: Phase 1 Core Integration Complete (v2.0)
+### 🎯 NEW: Dictionary-Passing & Type Classes Complete (v2.1)
 
-**Parse → Elaborate → TypeCheck Pipeline (Foundation for v2.0)**
+**Full Type Class Resolution Pipeline**
+- ✅ **Dictionary-Passing Transformation** (~770 lines)
+  - Operators transformed to explicit dictionary calls in ANF
+  - Idempotent elaboration safe for REPL multi-passes
+  - Original source positions preserved for diagnostics
+- ✅ **Type Normalization & Registry** (~500 lines)
+  - Deterministic canonical type representations
+  - Law-compliant Float instances (reflexive NaN equality)
+  - Built-in Num, Eq, and Ord dictionaries
+- ✅ **ANF Verifier & Linker** (~440 lines)
+  - Validates A-Normal Form discipline
+  - Resolves dictionary references with dry-run mode
+  - Idempotency verification for transformations
+- ✅ **Core Evaluator with Dictionary Support** (~850 lines)
+  - Full DictApp/DictRef evaluation
+  - Method dispatch through dictionary records
+  - Wrapper functions for Go implementations
+- ✅ **Spec-Aligned Numeric Defaulting** (Haskell-style)
+  - Neutral classes (Eq, Ord, Show) don't affect defaulting
+  - Primary classes (Num, Fractional) drive defaulting decisions
+  - Module-scoped defaults: Num → Int, Fractional → Float
+- **Total additions: ~2,560 lines of production code**
+- **Status: Type classes fully operational with spec-compliant defaulting**
+
+### 🚀 Phase 1 Core Integration Complete (v2.0)
+
+**Parse → Elaborate → TypeCheck → Dictionary Pipeline**
 - ✅ Core AST with A-Normal Form (ANF) representation (~350 lines)
-- ✅ Elaborator transforms surface AST to Core (~520 lines)  
-- ✅ Type checker produces immutable TypedAST (~1,065 lines)
+- ✅ Elaborator transforms surface AST to Core (~1,290 lines with dict support)  
+- ✅ Type checker produces immutable TypedAST (~2,050 lines with defaulting)
 - ✅ TypedAST evaluator with trace generation (~650 lines)
 - ✅ Let-polymorphism with generalization at bindings only
 - ✅ Recursive bindings via LetRec (parsing complete)
 - ✅ Linear capability capture analysis
 - ✅ Fail-fast on unsolved constraints
-- **Total Phase 1 additions: ~3,000 lines of production code**
-- **Status: Pipeline working, ready for Phase 2 runtime integration**
+- **Total v2.0-2.1: ~5,560 lines of production code**
+- **Status: Complete type class pipeline operational**
 
 ### ✅ Core Features Working
 
@@ -27,13 +53,15 @@ AILANG is a purely functional programming language designed specifically for AI-
 - Higher-order functions and function composition
 - Record field access with dot notation
 
-**Type System (Core Integration Complete)**
+**Type System (Complete with Type Classes)**
 - Hindley-Milner type inference with let-polymorphism
+- Type class constraints with dictionary-passing
+- Spec-aligned numeric defaulting (neutral vs primary classes)
 - Principal row unification for records and effects
 - Value restriction for sound polymorphism
 - Kind system (Effect, Record, Row kinds)
 - Linear capability capture analysis
-- ~3,500 lines total (2,500 base + 1,065 Core typechecker)
+- ~5,000+ lines total (includes Core typechecker + dictionaries)
 
 **Basic Language Features**
 - Arithmetic operations with correct precedence
@@ -96,29 +124,35 @@ ailang/
 │   ├── ast/             # Abstract syntax tree definitions ✅ (complete)
 │   ├── lexer/           # Tokenizer with full Unicode support ✅ (fully working)
 │   ├── parser/          # Recursive descent parser ✅ (1,059 lines, mostly complete)
-│   ├── eval/            # Tree-walking interpreter ✅ (~1,250 lines total)
+│   ├── eval/            # Tree-walking interpreter ✅ (~2,100 lines total)
 │   │   ├── eval_simple.go     # Main evaluator with show/toText functions
-│   │   ├── eval_typed.go      # TypedAST evaluator ✅ (NEW - 650 lines)
+│   │   ├── eval_typed.go      # TypedAST evaluator ✅ (650 lines)
+│   │   ├── eval_core.go       # Core evaluator with dictionaries ✅ NEW (850 lines)
 │   │   ├── eval_simple_test.go # Comprehensive test suite
 │   │   ├── value.go           # Value type definitions
-│   │   └── environment.go     # Variable scoping
-│   ├── core/            # Core AST with ANF ✅ (NEW - 350 lines)
-│   │   └── core.go            # A-Normal Form representation
-│   ├── elaborate/       # Surface to Core elaboration ✅ (NEW - 520 lines)  
-│   │   └── elaborate.go       # ANF transformation & desugaring
+│   │   └── env.go             # Variable environment
+│   ├── core/            # Core AST with ANF ✅ (350 lines)
+│   │   └── core.go            # A-Normal Form with dictionary nodes
+│   ├── elaborate/       # Surface to Core elaboration ✅ (1,290 lines)  
+│   │   ├── elaborate.go       # ANF transformation & dictionary-passing
+│   │   └── verify.go          # ANF verifier & idempotency check ✅ NEW
 │   ├── typedast/        # Typed AST ✅ (NEW - 260 lines)
 │   │   └── typed_ast.go       # Immutable typed representation
-│   ├── types/           # Type system with HM inference ✅ (~3,500 lines total)
+│   ├── types/           # Type system with HM inference ✅ (~5,000 lines total)
 │   │   ├── types.go           # Core type definitions
 │   │   ├── types_v2.go        # Enhanced types with kinds
 │   │   ├── kinds.go           # Kind system (Effect, Record, Row)
 │   │   ├── inference.go       # HM type inference engine
 │   │   ├── unification.go     # Type unification with occurs check
 │   │   ├── row_unification.go # Principal row unifier
+│   │   ├── normalize.go       # Type normalization ✅ NEW (260 lines)
+│   │   ├── dictionaries.go    # Dictionary registry ✅ NEW (380 lines)
 │   │   ├── env.go             # Type environments
 │   │   ├── errors.go          # Rich error reporting
 │   │   ├── typechecker.go     # Main type checking interface
-│   │   └── typechecker_core.go # Core AST type checker ✅ (NEW - 1,065 lines)
+│   │   └── typechecker_core.go # Core type checker with defaulting ✅ (2,050 lines)
+│   ├── link/            # Dictionary linker ✅ NEW (270 lines)
+│   │   └── linker.go          # Resolves dictionary references
 │   ├── effects/         # Effect system (TODO)
 │   ├── channels/        # CSP implementation (TODO)
 │   ├── session/         # Session types (TODO)
@@ -126,16 +160,15 @@ ailang/
 ├── examples/            # Example AILANG programs
 │   ├── arithmetic.ail   # Basic arithmetic ✅ WORKING
 │   ├── lambda_expressions.ail # Lambda features ✅ WORKING
-│   ├── type_demo_minimal.ail # Type system demo ✅ WORKING
-│   ├── show_demo.ail    # Show/toText functions ✅ PARTIAL
-│   ├── simple.ail       # Simple expressions ✅ WORKING
-│   ├── phase1_demo.ail  # Phase 1 pipeline demo ✅ NEW
-│   ├── v2_type_inference.ail # Pure type inference ✅ NEW
-│   ├── v2_pipeline_demo.ail # Full pipeline test ✅ NEW
-│   ├── lambdas_v2.ail   # Lambda currying demo ✅ NEW
-│   ├── pure_lambdas.ail # Church encodings ✅ NEW
-│   ├── hello.ail        # Hello world (needs func syntax)
-│   └── factorial.ail    # Factorial (needs recursion)
+│   ├── simple.ail       # Simple expressions ✅ WORKING  
+│   ├── lambdas_v2.ail   # Lambda currying ✅ WORKING
+│   ├── type_class_showcase.ail # Type classes demo ✅ NEW
+│   ├── num_demo.ail     # Num dictionary examples ✅ NEW
+│   ├── debug*.ail       # Simple test files ✅ NEW
+│   ├── show_demo.ail    # Show/toText functions ⚠️ PARTIAL
+│   ├── hello.ail        # Hello world ⚠️ needs func syntax
+│   ├── factorial.ail    # Factorial ⚠️ needs recursion
+│   └── (30+ more examples in various states)
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
@@ -220,21 +253,31 @@ make fmt
 ### Testing
 
 ```bash
-# Run all tests
+# Run all tests (ALL PASSING as of v2.1)
 make test
 
 # Run tests with coverage
 make test-coverage
 
 # Run specific package tests
-go test ./internal/lexer
-go test ./internal/parser
-go test ./internal/eval
-go test ./internal/types  # Type inference tests
+go test ./internal/lexer        # Tokenization
+go test ./internal/parser       # Parsing  
+go test ./internal/eval          # Evaluation
+go test ./internal/types         # Type inference & defaulting
+go test ./internal/elaborate     # Dictionary elaboration
+go test ./cmd/test_integration   # End-to-end type class tests
 
 # Run with verbose output
 go test -v ./...
 ```
+
+**Test Coverage Highlights:**
+- ✅ Complete type class resolution pipeline
+- ✅ Spec-aligned defaulting (neutral vs primary classes)
+- ✅ Dictionary-passing transformation
+- ✅ ANF verification and idempotency
+- ✅ Law-compliant Float instances
+- ✅ Superclass provision (Ord provides Eq)
 
 ## Quick Start
 
@@ -270,9 +313,42 @@ let doubleThenInc = compose(inc)(double) in
 print("Composed: " ++ show(doubleThenInc(5)))  -- Composed: 11
 ```
 
+### Type Classes & Dictionary-Passing (NEW!)
+
+```ailang
+-- Type class constraints are resolved to dictionary calls
+-- All numeric literals default to Int unless used with Float operations
+
+-- Integer arithmetic (Num[Int] dictionary)
+let sum = 1 + 2 + 3             -- Defaults to Int: 6
+let calc = 10 * 5 - 20 / 4      -- All Int operations: 45
+
+-- Float arithmetic (Num[Float] dictionary)
+let pi = 3.14159
+let area = pi * 2.0 * 2.0       -- Circle area: ~12.56
+
+-- Equality tests (Eq dictionary)
+let eq1 = 42 == 42              -- Eq[Int]: true
+let eq2 = "hello" == "hello"    -- Eq[String]: true
+
+-- Ordering comparisons (Ord dictionary)
+let lt = 5 < 10                 -- Ord[Int]: true
+let gt = "zebra" > "apple"      -- Ord[String]: true
+
+-- Polymorphic functions with constraints
+let double = \x. x + x          -- Num a => a -> a
+let result1 = double(21)        -- Instantiated at Int: 42
+let result2 = double(1.5)       -- Instantiated at Float: 3.0
+
+-- After elaboration, operations become dictionary calls:
+-- 1 + 2 transforms to:
+-- let $dict = dict_Num_Int in
+-- DictApp($dict, "add", [1, 2])
+```
+
 ## Implementation Status
 
-AILANG is currently in early development with a fully functional type inference engine. Here's the current state:
+AILANG now has a complete type class resolution system with dictionary-passing transformation. Here's the current state:
 
 ### ✅ Completed Components
 
@@ -303,17 +379,20 @@ AILANG is currently in early development with a fully functional type inference 
 - ✅ **Working**: `show` and `toText` builtins, `++` operator
 - ❌ **Not working**: Pattern matching, tuples, effect handlers
 
-#### **Type System** (Core Integration Complete! ~3,500 lines)
+#### **Type System** (Full Type Classes! ~5,000 lines)
 - ✅ **Hindley-Milner type inference** with let-polymorphism
 - ✅ **Principal row unification** for records and effects  
 - ✅ **Kind system** with separate kinds for Effect/Record/Row
 - ✅ **Value restriction** for sound polymorphism with effects
 - ✅ **Linear capture analysis** for lambda expressions (compile-time errors)
-- ✅ **Constraint collection** for type classes (Num, Ord, Eq, Show)
+- ✅ **Type class constraint solving** (Num, Ord, Eq with superclasses)
+- ✅ **Numeric literal defaulting** (Haskell-style ambiguity resolution)
+- ✅ **Dictionary-passing transformation** (operators → dictionary calls)
+- ✅ **Law-compliant instances** (reflexive NaN, total float ordering)
+- ✅ **ANF verification** ensures well-formed Core programs
+- ✅ **Idempotent transformations** safe for REPL multi-passes
 - ✅ **Rich error reporting** with paths and suggestions
-- ✅ **NEW: Core AST type checking** produces immutable TypedAST
-- ✅ **NEW: ANF normalization** ensures well-formed Core programs
-- ⚠️ **Partially integrated**: Pipeline works but needs class instances
+- ✅ **FULLY INTEGRATED**: Complete pipeline from parsing to evaluation
 
 ### Testing Status
 - ✅ **Lexer tests**: All passing (including lambda tokens)

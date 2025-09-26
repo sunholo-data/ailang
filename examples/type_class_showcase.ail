@@ -1,0 +1,37 @@
+-- Type Class Showcase
+-- Demonstrates dictionary-passing transformation in AILANG
+
+-- Example 1: Simple arithmetic defaults to Int
+let example1 = 1 + 2 * 3 - 4  -- All operations use Num[Int]
+
+-- Example 2: Float arithmetic  
+let example2 = 
+  let pi = 3.14159 in
+  pi * 2.0  -- Uses Num[Float]
+
+-- Example 3: Polymorphic functions
+let add = \x y. x + y  -- Has constraint: Num a => a -> a -> a
+let triple = \x. x + x + x  -- Has constraint: Num a => a -> a
+
+-- Example 4: Using polymorphic functions
+let example4 = 
+  let int_sum = add(10)(20) in      -- Instantiated at Int
+  let float_sum = add(1.5)(2.5) in  -- Instantiated at Float
+  let int_trip = triple(7) in       -- Instantiated at Int
+  int_sum + int_trip  -- Result: 51
+
+-- Example 5: Comparisons
+let example5 =
+  let a = if 10 < 20 then 100 else 200 in  -- Ord[Int]
+  let b = if 5 == 5 then 50 else 0 in      -- Eq[Int]
+  a + b  -- Result: 150
+
+-- Example 6: String operations
+let example6 =
+  let s1 = "hello" in
+  let s2 = "world" in
+  let cmp = s1 < s2 in  -- Ord[String] -> true
+  if cmp then 1 else 0  -- Result: 1
+
+-- Main result
+example1 + example4 + example5 + example6  -- 3 + 51 + 150 + 1 = 205

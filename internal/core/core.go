@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"github.com/sunholo/ailang/internal/ast"
 )
 
@@ -267,12 +268,84 @@ type Program struct {
 	Decls []CoreExpr  // Top-level declarations
 }
 
+// Dictionary-passing nodes for type class resolution
+
+// DictAbs represents dictionary abstraction at binders
+// Used for polymorphic functions with type class constraints
+type DictAbs struct {
+	CoreNode
+	Params []DictParam // Dictionary parameters in canonical order
+	Body   CoreExpr    // Body with dictionaries available
+}
+
+func (d *DictAbs) coreExpr() {}
+func (d *DictAbs) String() string {
+	params := ""
+	for i, p := range d.Params {
+		if i > 0 {
+			params += ", "
+		}
+		params += fmt.Sprintf("%s: %s[%s]", p.Name, p.ClassName, p.Type)
+	}
+	return fmt.Sprintf("DictAbs([%s], %s)", params, d.Body)
+}
+
+// DictApp represents dictionary application at use sites
+// All method calls through type classes become DictApp nodes
+type DictApp struct {
+	CoreNode
+	Dict   CoreExpr // Dictionary reference (must be a Var in ANF)
+	Method string   // Method name: "add", "eq", "lt", etc.
+	Args   []CoreExpr // Method arguments
+}
+
+func (d *DictApp) coreExpr() {}
+func (d *DictApp) String() string {
+	args := ""
+	for i, a := range d.Args {
+		if i > 0 {
+			args += ", "
+		}
+		args += a.String()
+	}
+	return fmt.Sprintf("DictApp(%s.%s, [%s])", d.Dict, d.Method, args)
+}
+
+// DictRef represents a reference to a built-in dictionary
+type DictRef struct {
+	CoreNode
+	ClassName string // e.g., "Num", "Ord"
+	TypeName  string // Normalized type: "Int", "Float", etc.
+}
+
+func (d *DictRef) coreExpr() {}
+func (d *DictRef) String() string {
+	return fmt.Sprintf("dict_%s_%s", d.ClassName, d.TypeName)
+}
+
+// DictParam represents a dictionary parameter in DictAbs
+type DictParam struct {
+	Name      string // e.g., "dict_Num_α"
+	ClassName string // e.g., "Num"
+	Type      string // String representation of type
+}
+
 // Helper to check if expression is atomic (for ANF verification)
 func IsAtomic(expr CoreExpr) bool {
 	switch expr.(type) {
-	case *Var, *Lit, *Lambda:
+	case *Var, *Lit, *Lambda, *DictRef:
 		return true
 	default:
 		return false
 	}
+}
+
+// Pretty provides a basic string representation of Core programs
+// This is a stub implementation for testing purposes
+func Pretty(prog *Program) string {
+	var parts []string
+	for i, decl := range prog.Decls {
+		parts = append(parts, fmt.Sprintf("decl_%d: %s", i, decl.String()))
+	}
+	return fmt.Sprintf("Program(\n  %s\n)", fmt.Sprintf(strings.Join(parts, "\n  ")))
 }
