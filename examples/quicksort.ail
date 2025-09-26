@@ -1,0 +1,59 @@
+-- quicksort.ail: Functional sorting with property-based testing
+module QuickSort
+
+import std/prelude (Ord)
+import std/collections (filter, length, append)
+
+-- Generic quicksort for any orderable type
+pure func quicksort[a: Ord](list: [a]) -> [a] {
+  match list {
+    [] => [],
+    [x] => [x],
+    [pivot, ...rest] => {
+      let less = filter((x) => x < pivot, rest)
+      let greater = filter((x) => x >= pivot, rest)
+      quicksort(less) ++ [pivot] ++ quicksort(greater)
+    }
+  }
+}
+
+-- Properties that any sort function must satisfy
+property "sort is idempotent" {
+  forall(list: [int]) =>
+    quicksort(quicksort(list)) == quicksort(list)
+}
+
+property "sort preserves length" {
+  forall(list: [int]) =>
+    length(quicksort(list)) == length(list)
+}
+
+property "sort produces ordered output" {
+  forall(list: [int]) => {
+    let sorted = quicksort(list)
+    forall(i: int) where i >= 0 && i < length(sorted) - 1 =>
+      sorted[i] <= sorted[i + 1]
+  }
+}
+
+property "sort is permutation" {
+  forall(list: [int], x: int) =>
+    count(x, list) == count(x, quicksort(list))
+}
+
+-- Helper function to count occurrences
+pure func count[a: Eq](x: a, list: [a]) -> int {
+  match list {
+    [] => 0,
+    [h, ...t] => if h == x then 1 + count(x, t) else count(x, t)
+  }
+}
+
+-- Example with inline tests
+test "quicksort examples" {
+  assert quicksort([]) == []
+  assert quicksort([1]) == [1]
+  assert quicksort([3, 1, 2]) == [1, 2, 3]
+  assert quicksort([5, 2, 8, 1, 9]) == [1, 2, 5, 8, 9]
+  assert quicksort([1, 1, 1]) == [1, 1, 1]
+}

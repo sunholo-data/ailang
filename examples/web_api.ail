@@ -1,0 +1,184 @@
+-- web_api.ail: Type-safe web API with quasiquotes
+module WebAPI
+
+import std/io (Net, DB)
+import std/json
+import std/concurrent (spawn, channel)
+
+-- Domain types
+type User = {
+  id: int,
+  name: string,
+  email: string,
+  created: timestamp
+}
+
+type Request = {
+  method: Method,
+  path: string,
+  headers: Map[string, string],
+  body: Option[Json]
+}
+
+type Response = {
+  status: int,
+  headers: Map[string, string],
+  body: Json
+}
+
+type Method = GET | POST | PUT | DELETE
+
+-- Database queries using SQL quasiquote
+func getUser(id: int) -> Result[User, string] ! {DB} {
+  let query = sql"""
+    SELECT id, name, email, created
+    FROM users
+    WHERE id = ${id: int}
+  """ : SQL[Query[User]]
+  
+  DB.execute(query)
+}
+
+func createUser(name: string, email: string) -> Result[User, string] ! {DB} {
+  let query = sql"""
+    INSERT INTO users (name, email, created)
+    VALUES (${name: string}, ${email: string}, NOW())
+    RETURNING *
+  """ : SQL[Insert[User]]
+  
+  DB.execute(query)
+}
+
+-- Request handler with pattern matching
+func handleRequest(req: Request) -> Response ! {Net, DB} {
+  match (req.method, req.path) {
+    -- GET /users/:id
+    (GET, pattern"/users/${id: int}") => {
+      match getUser(id)? {
+        Ok(user) => Response{
+          status: 200,
+          headers: {"Content-Type": "application/json"},
+          body: json{
+            "id": ${user.id},
+            "name": ${user.name},
+            "email": ${user.email}
+          }
+        },
+        Err(e) => Response{
+          status: 404,
+          headers: {"Content-Type": "application/json"},
+          body: json{"error": ${e}}
+        }
+      }
+    },
+    
+    -- POST /users
+    (POST, "/users") => {
+      match req.body {
+        Some(body) => {
+          let userData = decode[{name: string, email: string}](body)?
+          match createUser(userData.name, userData.email)? {
+            Ok(user) => Response{
+              status: 201,
+              headers: {"Content-Type": "application/json"},
+              body: encode(user)
+            },
+            Err(e) => Response{
+              status: 400,
+              headers: {"Content-Type": "application/json"},
+              body: json{"error": ${e}}
+            }
+          }
+        },
+        None => Response{
+          status: 400,
+          headers: {"Content-Type": "application/json"},
+          body: json{"error": "Missing request body"}
+        }
+      }
+    },
+    
+    -- Default 404
+    _ => Response{
+      status: 404,
+      headers: {"Content-Type": "application/json"},
+      body: json{"error": "Not found"}
+    }
+  }
+}
+
+-- HTML templating with typed quasiquotes
+func renderUserPage(user: User) -> Html[Page] ! {Pure} {
+  html"""
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>User: ${user.name: SafeText}</title>
+      </head>
+      <body>
+        <div class="user-profile">
+          <h1>${user.name: SafeText}</h1>
+          <p>Email: ${user.email: SafeText}</p>
+          <p>Member since: ${formatDate(user.created): SafeText}</p>
+        </div>
+      </body>
+    </html>
+  """
+}
+
+-- Concurrent request handling
+func server(port: int) -> () ! {Net, DB, Async} {
+  let requests = channel[Request](100)
+  
+  -- Spawn worker pool
+  parallel {
+    for i in range(0, 10) {
+      spawn { 
+        worker(requests) 
+      }
+    }
+  }
+  
+  -- Accept connections
+  Net.listen(port) { conn =>
+    let req = parseRequest(conn)?
+    requests <- req
+  }
+}
+
+func worker(requests: Channel[Request]) -> () ! {Net, DB, Async} {
+  loop {
+    let req <- requests
+    let response = handleRequest(req)
+    sendResponse(req.connection, response)
+  }
+}
+
+-- Tests
+test "user API" {
+  let req = Request{
+    method: GET,
+    path: "/users/123",
+    headers: empty,
+    body: None
+  }
+  
+  withMockDB { db =>
+    db.addUser(User{id: 123, name: "Alice", email: "alice@example.com"})
+    let resp = handleRequest(req)
+    assert resp.status == 200
+  }
+}
+
+test "HTML escaping" {
+  let user = User{
+    id: 1,
+    name: "<script>alert('xss')</script>",
+    email: "test@example.com",
+    created: now()
+  }
+  
+  let html = renderUserPage(user)
+  assert not(contains(html, "<script>"))
+  assert contains(html, "&lt;script&gt;")
+}
