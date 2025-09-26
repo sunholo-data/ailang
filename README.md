@@ -44,6 +44,40 @@ AILANG is a purely functional programming language designed specifically for AI-
 - Lists (parsing complete, evaluation partial)
 - Built-in functions: `print`, `show`, `toText`
 
+## Installation
+
+### From GitHub Releases
+
+Download pre-built binaries for your platform from the [latest release](https://github.com/sunholo/ailang/releases/latest):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# macOS (Intel)  
+curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# Linux
+curl -L https://github.com/sunholo/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+```
+
+### From Source
+
+```bash
+# Clone the repository
+git clone https://github.com/sunholo/ailang.git
+cd ailang
+
+# Build and install
+make install
+
+# Verify installation
+ailang --version
+```
+
 ## Features
 
 - **Algebraic Effects with Row Polymorphism** - Making all effects explicit and composable
@@ -539,6 +573,13 @@ alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
 ## Contributing
 
 AILANG is an experimental language exploring how programming languages can be designed specifically for AI-assisted development. Contributions and ideas are welcome!
+
+### Release Process
+
+See [docs/RELEASE.md](docs/RELEASE.md) for details on:
+- Creating releases with semantic versioning
+- GitHub Actions CI/CD workflows
+- Binary distribution and installation methods
 
 ### Areas Needing Help
 - Parser completion for expressions and statements

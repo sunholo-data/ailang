@@ -16,7 +16,10 @@ import (
 )
 
 var (
-	Version = "0.1.0-dev"
+	// Version info - set by ldflags during build
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildTime = "unknown"
 	
 	// Color output
 	green  = color.New(color.FgGreen).SprintFunc()
@@ -100,7 +103,13 @@ func main() {
 
 func printVersion() {
 	fmt.Printf("AILANG %s\n", bold(Version))
-	fmt.Println("The AI-First Programming Language")
+	if Commit != "unknown" {
+		fmt.Printf("Commit: %s\n", Commit)
+	}
+	if BuildTime != "unknown" {
+		fmt.Printf("Built:  %s\n", BuildTime)
+	}
+	fmt.Println("\nThe AI-First Programming Language")
 	fmt.Println("Copyright (c) 2025")
 }
 

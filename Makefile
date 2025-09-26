@@ -2,8 +2,12 @@
 
 # Binary name
 BINARY=ailang
-VERSION=0.1.0
 BUILD_DIR=bin
+
+# Version handling - get from git tag or use dev version
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0-dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # Go commands
 GOCMD=go
@@ -15,8 +19,8 @@ GOMOD=$(GOCMD) mod
 GOFMT=$(GOCMD) fmt
 GOVET=$(GOCMD) vet
 
-# Build flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
+# Build flags with version info
+LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
 
 # Default target
 all: test build
