@@ -338,6 +338,13 @@ ailang export-training
 - Examples: `examples/` directory
 - Go tests: `*_test.go` files
 
+## Testing Policy
+**ALWAYS remove out-of-date tests. No backward compatibility.**
+- When architecture changes, delete old tests completely
+- Don't maintain legacy test suites  
+- Write new tests for new implementations
+- Keep test suite clean and current
+
 ## Important Notes
 1. The language is expression-based - everything returns a value
 2. Effects are tracked in the type system - never ignore them
