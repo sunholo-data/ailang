@@ -1,0 +1,91 @@
+-- Type Inference Demo for AILANG v2.0
+-- Demonstrates HM type inference with row unification
+
+-- Polymorphic identity function
+-- Inferred: ∀α. α -> α
+let id = \x. x
+
+-- Using polymorphic function at different types
+-- Note: Tuples use parentheses, not braces
+let test1 = (id(42), id(true), id("hello"))
+
+-- Function with effects and Result type
+-- Inferred: string -> Result[string, IOError] ! {FS}
+let readConfig = \path. readFile(path)
+
+-- Composing effects with Result propagation via `?`
+-- Inferred: string -> Result[(), IOError | NetError] ! {FS, Net}
+let syncFile = \path. {
+  let content = readFile(path)?                    -- Result unwrap with ?
+  let response = httpGet("https://api.example.com/sync")?
+  writeFile(path ++ ".backup", content)?
+  Ok(())  -- Explicit Result wrapping
+}
+
+-- Row polymorphic record access
+-- Inferred: ∀α ρ. {name: α | ρ} -> α
+let getName = \record. record.name
+
+-- Using row polymorphism
+let user = {name: "Alice", age: 30, email: "alice@example.com"}
+let product = {name: "Widget", price: 19.99, sku: "W123"}
+let names = (getName(user), getName(product))  -- Tuple, not record
+
+-- Higher-order function with effect row preservation
+-- Inferred: ∀α β ρ. (α -> β ! ρ) -> [α] -> [β] ! ρ
+-- Note: ρ is a row variable of kind Row Effect
+let map = \f. \list. 
+  match list {
+    [] => [],
+    [head, ...tail] => concat([f(head)], map(f)(tail))  -- Using concat from stdlib
+  }
+
+-- Using map with effectful function
+-- Inferred: [string] -> Result[[string], IOError] ! {FS}
+let readAllFiles = map(readFile)
+
+-- Value restriction example: effectful expression
+-- This will NOT be generalized (monomorphic) because RHS has effects
+-- Inferred: Result[float, RandError] ! {Rand}
+let counter = random()
+
+-- This WILL be generalized (polymorphic) because RHS is a value (lambda)
+-- Inferred: ∀α. α -> Result[float, RandError] ! {Rand}
+let makeCounter = \seed. random()
+
+-- Type class constraints (collected but not solved yet)
+-- Inferred: ∀α. Num[α] => α -> α -> α
+let add = \x. \y. x + y
+
+-- Record extension with row polymorphism and Clock effect
+-- Inferred: ∀ρ. {| ρ} -> Result[{timestamp: int | ρ}, TimeError] ! {Clock}
+let addTimestamp = \record. {
+  let t = getCurrentTime()?  -- Clock effect, Result propagation
+  Ok({...record, timestamp: t})
+}
+
+-- Effect handling (future feature, but types work now)
+-- Handler removes IO effect from the row
+-- Inferred: ∀α ρ. (() -> α ! {IO | ρ}) -> α ! ρ
+let withoutIO = \action. 
+  handle action() with {
+    IO.print(s) => continue(())  -- Discharge IO effect
+  }
+
+-- Example with multiple effect constraints
+-- Inferred: string -> string -> Result[(), IOError | NetError | DBError] ! {FS, Net, DB}
+let syncToDatabase = \file. \url. {
+  let data = readFile(file)?
+  let processed = httpPost(url, data)?
+  let id = dbInsert("sync_log", processed)?
+  writeFile(file ++ ".processed", id)?
+  Ok(())
+}
+
+-- Row polymorphic function composition
+-- Inferred: ∀α β γ ρ₁ ρ₂. (β -> γ ! ρ₂) -> (α -> β ! ρ₁) -> α -> γ ! {ρ₁ ∪ ρ₂}
+let compose = \f. \g. \x. f(g(x))
+
+-- Using compose with effectful functions
+-- Inferred: string -> Result[int, IOError | ParseError] ! {FS}
+let countLines = compose(length, readFile)

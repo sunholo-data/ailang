@@ -1,0 +1,44 @@
+-- Basic Type Inference Demo for AILANG v2.0
+-- Uses only features that the current parser supports
+
+-- Integer literals and arithmetic
+-- Inferred: int
+let x = 42 in
+
+-- String literals and concatenation
+-- Inferred: string
+let greeting = "Hello, " ++ "AILANG!" in
+
+-- Boolean literals and conditionals
+-- Inferred: string
+let status = if true then "yes" else "no" in
+
+-- Records with field access
+-- Inferred: {name: string, age: int}
+let person = {name: "Alice", age: 30} in
+let personName = person.name in
+let personAge = person.age in
+
+-- Nested records
+-- Inferred: {user: {id: int, name: string}}
+let data = {user: {id: 1, name: "Bob"}} in
+let userId = data.user.id in
+
+-- Lists
+-- Inferred: [int]
+let numbers = [1, 2, 3, 4, 5] in
+
+-- Complex expressions
+-- Inferred: int
+let result = 
+  let a = 10 in
+  let b = 20 in
+  let c = a + b in
+  c * 2 in
+
+-- Mixed operations
+-- Inferred: string
+let message = "The result is: " ++ show(result) in
+
+-- Final output
+print(message)

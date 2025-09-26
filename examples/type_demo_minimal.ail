@@ -1,0 +1,25 @@
+-- Minimal Type Demo for AILANG v2.0
+-- Only uses features supported by both parser and evaluator
+
+-- Integer arithmetic
+let x = 2 + 3 in
+let y = x * 4 in
+
+-- String concatenation
+let hello = "Hello, " in
+let world = "World!" in
+let greeting = hello ++ world in
+
+-- Conditionals
+let age = 25 in
+let canVote = if age > 18 then true else false in
+
+-- Show function for type conversion
+let number = 42 in
+let numberStr = show(number) in
+
+-- Lists (parse but may not evaluate)
+let numbers = [1, 2, 3] in
+
+-- Print the greeting
+print(greeting)

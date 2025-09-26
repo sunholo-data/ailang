@@ -61,7 +61,7 @@ func (t *TCon) Substitute(subs map[string]Type) Type {
 type TFunc struct {
 	Params  []Type
 	Return  Type
-	Effects []Effect
+	Effects []EffectType
 }
 
 func (t *TFunc) String() string {
@@ -278,10 +278,10 @@ func (t *TApp) Substitute(subs map[string]Type) Type {
 	}
 }
 
-// Effect represents an effect
-type Effect interface {
+// EffectType represents an effect
+type EffectType interface {
 	String() string
-	Equals(Effect) bool
+	Equals(EffectType) bool
 }
 
 // SimpleEffect represents a basic effect (IO, FS, Net, etc.)
@@ -293,20 +293,20 @@ func (e *SimpleEffect) String() string {
 	return e.Name
 }
 
-func (e *SimpleEffect) Equals(other Effect) bool {
+func (e *SimpleEffect) Equals(other EffectType) bool {
 	if o, ok := other.(*SimpleEffect); ok {
 		return e.Name == o.Name
 	}
 	return false
 }
 
-// EffectRow represents a row of effects (for row polymorphism)
-type EffectRow struct {
-	Effects []Effect
+// EffectRowOld represents a row of effects (for row polymorphism) - DEPRECATED
+type EffectRowOld struct {
+	Effects []EffectType
 	Row     *EffectVar // Row variable for extensibility
 }
 
-func (e *EffectRow) String() string {
+func (e *EffectRowOld) String() string {
 	effects := make([]string, len(e.Effects))
 	for i, eff := range e.Effects {
 		effects[i] = eff.String()
@@ -319,8 +319,8 @@ func (e *EffectRow) String() string {
 	return fmt.Sprintf("{%s}", strings.Join(effects, ", "))
 }
 
-func (e *EffectRow) Equals(other Effect) bool {
-	if o, ok := other.(*EffectRow); ok {
+func (e *EffectRowOld) Equals(other EffectType) bool {
+	if o, ok := other.(*EffectRowOld); ok {
 		if len(e.Effects) != len(o.Effects) {
 			return false
 		}
@@ -350,7 +350,7 @@ func (e *EffectVar) String() string {
 	return e.Name
 }
 
-func (e *EffectVar) Equals(other Effect) bool {
+func (e *EffectVar) Equals(other EffectType) bool {
 	if o, ok := other.(*EffectVar); ok {
 		return e.Name == o.Name
 	}
