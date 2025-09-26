@@ -269,7 +269,7 @@ AILANG is currently in early development with a fully functional type inference 
 - ✅ **Working**: `show` and `toText` builtins, `++` operator
 - ❌ **Not working**: Pattern matching, tuples, effect handlers
 
-#### **Type System** (Fully Implemented! ~2,500 lines)
+#### **Type System** (Core Integration Complete! ~3,500 lines)
 - ✅ **Hindley-Milner type inference** with let-polymorphism
 - ✅ **Principal row unification** for records and effects  
 - ✅ **Kind system** with separate kinds for Effect/Record/Row
