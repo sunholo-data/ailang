@@ -27,8 +27,7 @@ type (
 
 // Precedence levels
 const (
-	_ int = iota
-	LOWEST
+	LOWEST int = iota
 	LOGICAL_OR    // ||
 	LOGICAL_AND   // &&
 	EQUALS        // ==, !=
@@ -409,10 +408,17 @@ func (p *Parser) parseListLiteral() ast.Expr {
 	for !p.curTokenIs(lexer.RBRACKET) {
 		list.Elements = append(list.Elements, p.parseExpression(LOWEST))
 		
-		if !p.peekTokenIs(lexer.RBRACKET) {
-			p.expectPeek(lexer.COMMA)
+		if p.peekTokenIs(lexer.RBRACKET) {
 			p.nextToken()
+			break
 		}
+		
+		p.expectPeek(lexer.COMMA)
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.RBRACKET) {
+		p.expectPeek(lexer.RBRACKET)
 	}
 
 	return list
@@ -917,7 +923,7 @@ func (p *Parser) curPos() ast.Pos {
 }
 
 func (p *Parser) peekPrecedence() int {
-	return p.curToken.Precedence()
+	return p.peekToken.Precedence()
 }
 
 func (p *Parser) curPrecedence() int {
