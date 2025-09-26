@@ -105,6 +105,14 @@ Then just run `ailang-update` from anywhere to update.
 - Document new builtin functions and operators
 - Update the roadmap as items are completed
 
+**CRITICAL: Example Files Required**
+**Every new language feature MUST have a corresponding example file:**
+- Create `examples/feature_name.ail` for each new feature
+- Include comprehensive examples showing all capabilities
+- Add comments explaining the behavior and expected output
+- Test that examples actually work with current implementation
+- These examples will be used in documentation and tutorials
+
 ### Common Tasks
 
 #### Adding a New Language Feature

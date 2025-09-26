@@ -199,6 +199,8 @@ func (l *Lexer) NextToken() Token {
 		tok = NewToken(DOLLAR, string(l.ch), line, column, l.file)
 	case '#':
 		tok = NewToken(HASH, string(l.ch), line, column, l.file)
+	case '\\':
+		tok = NewToken(BACKSLASH, string(l.ch), line, column, l.file)
 	case '"':
 		// Check for quasiquote or regular string
 		if l.checkQuasiquotePrefix() {

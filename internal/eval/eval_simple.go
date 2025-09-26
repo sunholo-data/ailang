@@ -201,6 +201,24 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 		}
 		return &RecordValue{Fields: fields}, nil
 	
+	case *ast.RecordAccess:
+		record, err := e.evalExpr(ex.Record)
+		if err != nil {
+			return nil, err
+		}
+		
+		recordVal, ok := record.(*RecordValue)
+		if !ok {
+			return nil, fmt.Errorf("cannot access field %s on non-record value: %T", ex.Field, record)
+		}
+		
+		value, exists := recordVal.Fields[ex.Field]
+		if !exists {
+			return nil, fmt.Errorf("field '%s' does not exist on record", ex.Field)
+		}
+		
+		return value, nil
+	
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", expr)
 	}

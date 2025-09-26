@@ -77,6 +77,7 @@ const (
 	ASSIGN   // =
 	COLON    // :
 	DCOLON   // ::
+	BACKSLASH // \
 
 	// Delimiters
 	LPAREN    // (
@@ -178,6 +179,7 @@ var tokens = map[TokenType]string{
 	ASSIGN:   "=",
 	COLON:    ":",
 	DCOLON:   "::",
+	BACKSLASH: "\\",
 
 	LPAREN:    "(",
 	RPAREN:    ")",
@@ -315,31 +317,31 @@ func (t Token) IsKeyword() bool {
 	return false
 }
 
-// Precedence returns the precedence of an operator
+// Precedence returns the precedence of an operator - spec compliant ordering
 func (t Token) Precedence() int {
 	switch t.Type {
+	case BACKSLASH:
+		return 1  // LAMBDA - lowest precedence
 	case OR:
-		return 1
+		return 2  // LOGICAL_OR
 	case AND:
-		return 2
+		return 3  // LOGICAL_AND
 	case EQ, NEQ:
-		return 3
+		return 4  // EQUALS
 	case LT, GT, LTE, GTE:
-		return 4
+		return 5  // LESSGREATER
 	case APPEND:
-		return 5
-	case CONS:
-		return 5
+		return 6  // APPEND (++ string concatenation)
 	case PLUS, MINUS:
-		return 6
+		return 7  // SUM
 	case STAR, SLASH, PERCENT:
-		return 7
-	case COMPOSE:
-		return 8
-	case DOT:
-		return 9
+		return 8  // PRODUCT
+	case NOT:
+		return 9  // PREFIX (unary operators)
 	case LPAREN:
-		return 10
+		return 10 // CALL (function application)
+	case DOT:
+		return 11 // DOT_ACCESS (field access - highest)
 	default:
 		return 0
 	}

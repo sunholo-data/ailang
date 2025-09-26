@@ -117,6 +117,11 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 			return nil, nil, err
 		}
 
+		// Check for linear capture violations
+		if err := ctx.checkLinearCapture(e, paramTypes); err != nil {
+			return nil, nil, err
+		}
+
 		// Lambda itself is pure, but carries latent effects
 		return &TFunc2{
 			Params:    paramTypes,
@@ -638,4 +643,198 @@ func collectFreeRowVars(r *Row, free map[string]bool) {
 			}
 		}
 	}
+}
+
+// checkLinearCapture analyzes lambda for linear value capture violations
+func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, paramTypes []Type) error {
+	// Find all free variables in the lambda body
+	freeVars := findFreeVariables(lambda.Body, getParamNames(lambda.Params))
+	
+	// Check if any captured variables have linear capabilities
+	for varName, _ := range freeVars {
+		varType, err := ctx.env.Lookup(varName)
+		if err != nil {
+			continue // Variable not in scope, will be caught by type inference
+		}
+		
+		// Check if the variable type contains linear capabilities
+		if hasLinearCapabilities(varType) {
+			// Get the linear capability names for error reporting
+			linearCaps := getLinearCapabilities(varType)
+			for _, capName := range linearCaps {
+				return fmt.Errorf("Lambda captures linear value %s; pass it as a parameter instead", capName)
+			}
+		}
+	}
+	
+	return nil
+}
+
+// findFreeVariables finds all free variables in an expression, excluding bound parameters
+func findFreeVariables(expr ast.Expr, boundParams []string) map[string]bool {
+	freeVars := make(map[string]bool)
+	boundSet := make(map[string]bool)
+	
+	// Mark parameters as bound
+	for _, param := range boundParams {
+		boundSet[param] = true
+	}
+	
+	findFreeVarsHelper(expr, freeVars, boundSet)
+	return freeVars
+}
+
+// findFreeVarsHelper recursively finds free variables
+func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[string]bool) {
+	if expr == nil {
+		return
+	}
+	
+	switch e := expr.(type) {
+	case *ast.Identifier:
+		// If identifier is not bound, it's a free variable
+		if !bound[e.Name] {
+			freeVars[e.Name] = true
+		}
+		
+	case *ast.Lambda:
+		// Create new bound set including lambda parameters
+		newBound := make(map[string]bool)
+		for k, v := range bound {
+			newBound[k] = v
+		}
+		for _, param := range e.Params {
+			newBound[param.Name] = true
+		}
+		findFreeVarsHelper(e.Body, freeVars, newBound)
+		
+	case *ast.Let:
+		// Let binding creates a new scope
+		findFreeVarsHelper(e.Value, freeVars, bound)
+		
+		// Create new bound set including let variable
+		newBound := make(map[string]bool)
+		for k, v := range bound {
+			newBound[k] = v
+		}
+		newBound[e.Name] = true
+		findFreeVarsHelper(e.Body, freeVars, newBound)
+		
+	case *ast.BinaryOp:
+		findFreeVarsHelper(e.Left, freeVars, bound)
+		findFreeVarsHelper(e.Right, freeVars, bound)
+		
+	case *ast.UnaryOp:
+		findFreeVarsHelper(e.Expr, freeVars, bound)
+		
+	case *ast.FuncCall:
+		findFreeVarsHelper(e.Func, freeVars, bound)
+		for _, arg := range e.Args {
+			findFreeVarsHelper(arg, freeVars, bound)
+		}
+		
+	case *ast.If:
+		findFreeVarsHelper(e.Condition, freeVars, bound)
+		findFreeVarsHelper(e.Then, freeVars, bound)
+		if e.Else != nil {
+			findFreeVarsHelper(e.Else, freeVars, bound)
+		}
+		
+	case *ast.List:
+		for _, elem := range e.Elements {
+			findFreeVarsHelper(elem, freeVars, bound)
+		}
+		
+	case *ast.Record:
+		for _, field := range e.Fields {
+			findFreeVarsHelper(field.Value, freeVars, bound)
+		}
+		
+	case *ast.RecordAccess:
+		findFreeVarsHelper(e.Record, freeVars, bound)
+		
+	case *ast.Literal:
+		// Literals don't contain variables
+		
+	default:
+		// For other expression types, conservatively assume no free variables
+		// In a real implementation, you'd handle all expression types
+	}
+}
+
+// getParamNames extracts parameter names from lambda parameters
+func getParamNames(params []*ast.Param) []string {
+	names := make([]string, len(params))
+	for i, param := range params {
+		names[i] = param.Name
+	}
+	return names
+}
+
+// hasLinearCapabilities checks if a type contains linear capabilities
+func hasLinearCapabilities(typ interface{}) bool {
+	switch t := typ.(type) {
+	case *TFunc2:
+		// Check if function effects contain linear capabilities
+		return hasLinearEffects(t.EffectRow)
+	case *Scheme:
+		// Check the underlying type
+		if funcType, ok := t.Type.(*TFunc2); ok {
+			return hasLinearEffects(funcType.EffectRow)
+		}
+	}
+	return false
+}
+
+// hasLinearEffects checks if an effect row contains linear capabilities
+func hasLinearEffects(effectRow *Row) bool {
+	if effectRow == nil {
+		return false
+	}
+	
+	// Check for known linear capabilities in effect labels
+	// In a real implementation, this would be configurable
+	linearCapabilities := []string{"FS", "Net", "Time", "Rand", "Console"}
+	
+	for _, capName := range linearCapabilities {
+		if _, exists := effectRow.Labels[capName]; exists {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// getLinearCapabilities returns the names of linear capabilities in a type
+func getLinearCapabilities(typ interface{}) []string {
+	var capabilities []string
+	
+	switch t := typ.(type) {
+	case *TFunc2:
+		capabilities = append(capabilities, getLinearEffectNames(t.EffectRow)...)
+	case *Scheme:
+		if funcType, ok := t.Type.(*TFunc2); ok {
+			capabilities = append(capabilities, getLinearEffectNames(funcType.EffectRow)...)
+		}
+	}
+	
+	return capabilities
+}
+
+// getLinearEffectNames extracts linear capability names from an effect row
+func getLinearEffectNames(effectRow *Row) []string {
+	if effectRow == nil {
+		return nil
+	}
+	
+	var linearCaps []string
+	linearCapabilities := []string{"FS", "Net", "Time", "Rand", "Console"}
+	
+	for _, capName := range linearCapabilities {
+		if _, exists := effectRow.Labels[capName]; exists {
+			linearCaps = append(linearCaps, capName)
+		}
+	}
+	
+	return linearCaps
 }

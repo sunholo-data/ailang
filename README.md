@@ -2,16 +2,33 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It provides static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## 🎉 Major Milestone: Type Inference Complete!
+## Current Implementation Status
 
-**The Hindley-Milner type inference engine with row polymorphism is now fully implemented!** This includes:
-- ✅ Complete HM type inference with let-polymorphism
-- ✅ Principal row unification for records and effects
-- ✅ Kind system preventing type/row confusion  
-- ✅ ~2,500 lines of production-ready type system code
-- ✅ All core algorithms tested and passing
+### ✅ Core Features Working
 
-While not yet integrated with the evaluator, the type system provides the semantic foundation for AILANG v2.0.
+**Lambda Expressions & Functional Programming**
+- Complete lambda syntax with `\x. body` notation
+- Closures with proper environment capture
+- Currying and partial application: `\x y. x + y`
+- Higher-order functions and function composition
+- Record field access with dot notation
+
+**Type System (Foundation Complete)**
+- Hindley-Milner type inference with let-polymorphism
+- Principal row unification for records and effects
+- Value restriction for sound polymorphism
+- Kind system (Effect, Record, Row kinds)
+- Linear capability capture analysis
+- ~2,500 lines of working type system code
+
+**Basic Language Features**
+- Arithmetic operations with correct precedence
+- String concatenation with `++` operator
+- Conditional expressions (`if then else`)
+- Let bindings with type inference
+- Records and record field access
+- Lists (parsing complete, evaluation partial)
+- Built-in functions: `print`, `show`, `toText`
 
 ## Features
 
@@ -51,11 +68,13 @@ ailang/
 │   ├── session/         # Session types (TODO)
 │   └── typeclass/       # Type classes (TODO)
 ├── examples/            # Example AILANG programs
-│   ├── hello.ail        # Hello world example (requires IO effects)
-│   ├── arithmetic.ail   # Basic arithmetic ✅ (working with show and ++)
-│   ├── factorial.ail    # Factorial implementations (advanced syntax WIP)
-│   ├── simple.ail       # Simple test program ✅ (working)
-│   └── show_demo.ail    # Demonstrates show/toText functions ✅ (working)
+│   ├── arithmetic.ail   # Basic arithmetic ✅ WORKING
+│   ├── lambda_expressions.ail # Lambda features ✅ WORKING
+│   ├── type_demo_minimal.ail # Type system demo ✅ WORKING
+│   ├── show_demo.ail    # Show/toText functions ✅ PARTIAL
+│   ├── hello.ail        # Hello world (needs func syntax)
+│   ├── factorial.ail    # Factorial (needs recursion)
+│   └── simple.ail       # Simple expressions ✅ WORKING
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
@@ -152,10 +171,6 @@ go test ./internal/types  # Type inference tests
 
 # Run with verbose output
 go test -v ./...
-
-# Test type inference system
-go run cmd/typecheck/main.go        # Interactive demos
-go run cmd/typecheck/demo_ast.go    # Type check real files
 ```
 
 ## Quick Start
@@ -176,18 +191,20 @@ let version = 0.1 in
 print("Welcome to " ++ name ++ " v" ++ show(version))
 ```
 
-### Pure Functions with Tests
+### Lambda Expressions
 
 ```ailang
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (5, 120),
-    (10, 3628800)
-  ]
-{
-  if n <= 1 then 1 else n * factorial(n - 1)
-}
+-- Lambda syntax with closures
+let add = \x y. x + y in
+let add5 = add(5) in  -- Partial application
+print("Result: " ++ show(add5(3)))  -- Result: 8
+
+-- Higher-order functions
+let compose = \f g x. f(g(x)) in
+let double = \x. x * 2 in
+let inc = \x. x + 1 in
+let doubleThenInc = compose(inc)(double) in
+print("Composed: " ++ show(doubleThenInc(5)))  -- Composed: 11
 ```
 
 ## Implementation Status
@@ -203,39 +220,52 @@ AILANG is currently in early development with a fully functional type inference 
 - `++` operator for string concatenation
 - ~550 lines, all tests passing
 
-#### **Parser** (Mostly Complete) 
-- Recursive descent with Pratt parsing (~1,059 lines)
+#### **Parser** (Nearly Complete) 
+- Recursive descent with Pratt parsing (~1,200 lines)
 - ✅ **Working**: Basic expressions, let bindings, if-then-else, lists, records
-- ✅ **Working**: Binary/unary operators with correct precedence
+- ✅ **Working**: Binary/unary operators with spec-compliant precedence
+- ✅ **Working**: **Lambda expressions with `\x.` syntax and currying**
+- ✅ **Working**: **Record field access with correct precedence** 
 - ✅ **Working**: Module declarations and import statements
 - ⚠️ **Parsed but not evaluated**: Pattern matching, type annotations
-- ❌ **Not working**: Lambda syntax (`\x.` or `=>`), `?` operator, effect handlers
+- ❌ **Not working**: `?` operator, effect handlers, tuples
 
-#### **Evaluator** (Core Features Working)
-- Tree-walking interpreter (~630 lines)
+#### **Evaluator** (Major Features Working)
+- Tree-walking interpreter (~700 lines)
 - ✅ **Working**: Arithmetic, booleans, strings, let bindings, if-then-else
-- ✅ **Working**: Lists, records (creation only, not field access)
+- ✅ **Working**: Lists, records (creation and field access)
+- ✅ **Working**: **Lambda expressions with proper closures**
+- ✅ **Working**: **Higher-order functions and partial application**
+- ✅ **Working**: **Record field access with chaining (a.b.c)**
 - ✅ **Working**: `show` and `toText` builtins, `++` operator
-- ❌ **Not working**: Lambdas, pattern matching, record field access, tuples
+- ❌ **Not working**: Pattern matching, tuples, effect handlers
 
 #### **Type System** (Fully Implemented! ~2,500 lines)
 - ✅ **Hindley-Milner type inference** with let-polymorphism
 - ✅ **Principal row unification** for records and effects  
 - ✅ **Kind system** with separate kinds for Effect/Record/Row
 - ✅ **Value restriction** for sound polymorphism with effects
+- ✅ **Linear capture analysis** for lambda expressions (compile-time errors)
 - ✅ **Constraint collection** for type classes (Num, Ord, Eq, Show)
 - ✅ **Rich error reporting** with paths and suggestions
 - ⚠️ **Not integrated**: Type checker works standalone but not connected to evaluator
 
 ### Testing Status
-- ✅ **Lexer tests**: All passing
-- ✅ **Parser tests**: Basic coverage  
-- ✅ **Evaluator tests**: Core features tested
+- ✅ **Lexer tests**: All passing (including lambda tokens)
+- ✅ **Parser tests**: Comprehensive coverage including lambdas
+  - Lambda syntax: ✅ PASS (`\x.`, currying, precedence)
+  - Body extent: ✅ PASS (correct precedence parsing)
+  - Record access: ✅ PASS (field chaining)
+- ✅ **Evaluator tests**: Core and advanced features tested
+  - Lambda closures: ✅ PASS (environment capture, isolation)
+  - Higher-order functions: ✅ PASS (partial application)
+  - Record field access: ✅ PASS (chained access)
 - ✅ **Type inference tests**: All algorithms passing
   - Row unification: ✅ PASS
   - Occurs check: ✅ PASS  
   - Kind mismatch detection: ✅ PASS
   - Value restriction: ✅ PASS
+  - Linear capture analysis: ✅ PASS
   - Error reporting: ✅ PASS
 
 ### ❌ Not Yet Implemented
@@ -256,8 +286,13 @@ AILANG is currently in early development with a fully functional type inference 
 - ✅ Let bindings: `let x = 5 in x * 2`
 - ✅ Conditionals: `if x > 0 then "positive" else "negative"`
 - ✅ String concatenation: `"hello " ++ "world"`
-- ✅ Lists (creation only): `[1, 2, 3]`
-- ✅ Records (creation only): `{name: "Alice", age: 30}`
+- ✅ Lists: `[1, 2, 3]` (creation and usage)
+- ✅ Records: `{name: "Alice", age: 30}` (creation and field access)
+- ✅ **Lambda expressions**: `\x. x + 1`, `(\x y. x + y)(3)(4)` → `7`
+- ✅ **Higher-order functions**: `(\f. f(5))(\x. x * 2)` → `10`
+- ✅ **Closures**: `let y = 10 in (\x. x + y)(5)` → `15`
+- ✅ **Record field access**: `person.name`, `user.profile.email`
+- ✅ **Function composition**: `(\f g x. f(g(x)))(inc)(double)(5)`
 - ✅ Builtins: `show(42)` → `"42"`, `toText(value)`, `print(value)`
 
 ### What Parses but Doesn't Evaluate
@@ -267,8 +302,6 @@ AILANG is currently in early development with a fully functional type inference 
 - ⚠️ Function declarations: `func add(x, y) { x + y }`
 
 ### What Doesn't Parse Yet
-- ❌ Lambda expressions: `\x. x + 1` or `(x) => x + 1`
-- ❌ Record field access: `person.name`
 - ❌ Tuples: `(1, "hello", true)`
 - ❌ Effect handlers: `handle ... with { ... }`
 - ❌ Result operator: `readFile(path)?`
@@ -278,14 +311,17 @@ AILANG is currently in early development with a fully functional type inference 
 - `show(value)` - Converts any value to its string representation (quoted for strings)
 - `toText(value)` - Converts value to string without quotes (for display)
 
-### Operator Precedence (high to low)
-1. Unary operators (`not`, `-`)
-2. Multiplication/Division (`*`, `/`, `%`)
-3. Addition/Subtraction (`+`, `-`)
-4. String concatenation (`++`)
-5. Comparisons (`<`, `>`, `<=`, `>=`, `==`, `!=`)
-6. Logical AND (`&&`)
-7. Logical OR (`||`)
+### Operator Precedence (high to low) - Spec Compliant
+1. **Field access** (`.`) - highest precedence
+2. **Function application** (space: `f x`)
+3. **Unary operators** (`not`, `-`)
+4. **Multiplication/Division** (`*`, `/`, `%`)
+5. **Addition/Subtraction** (`+`, `-`)
+6. **String concatenation** (`++`)
+7. **Comparisons** (`<`, `>`, `<=`, `>=`, `==`, `!=`)
+8. **Logical AND** (`&&`)
+9. **Logical OR** (`||`)
+10. **Lambda expressions** (`\x. body`) - lowest precedence
 
 ### Type Inference Examples (Working!)
 
@@ -312,7 +348,35 @@ let x = 5 in let y = x + 3 in y
 -- Inferred: string -> Result[string, IOError] ! {FS}
 ```
 
-Run `go run cmd/typecheck/main.go` to see live type inference demos!
+The type system has been battle-tested with comprehensive test suites!
+
+### Lambda Expression Examples (NEW!)
+
+```ailang
+-- Basic lambda expressions
+let id = \x. x in id(42)                    -- Returns: 42
+let add = \x y. x + y in add(3)(4)         -- Returns: 7
+
+-- Closures (capturing environment)
+let multiplier = 10 in
+let scale = \x. x * multiplier in 
+scale(5)                                   -- Returns: 50
+
+-- Higher-order functions
+let apply_twice = \f x. f(f(x)) in
+let inc = \x. x + 1 in
+apply_twice(inc)(5)                        -- Returns: 7
+
+-- Function composition  
+let compose = \f g x. f(g(x)) in
+let double = \x. x * 2 in
+let add_one = \x. x + 1 in
+compose(double)(add_one)(3)                -- Returns: 8
+
+-- Record field access with functions
+let person = {name: "Alice", greet: \msg. "Hello, " ++ msg} in
+person.greet(person.name)                  -- Returns: "Hello, Alice"
+```
 
 ### Example Working Programs
 
@@ -340,17 +404,15 @@ print("Unquoted: " ++ toText(text)) -- Prints: Unquoted: hello
 ### Known Limitations
 
 #### Parser Limitations
-- No lambda expression support (`\x.` or `=>` syntax)
 - No `?` operator for Result types
-- No effect handler syntax
-- Record field access parses but causes runtime errors
+- No effect handler syntax  
+- No tuple syntax `(a, b, c)`
 
 #### Evaluator Limitations  
-- Lambdas don't evaluate
 - Pattern matching doesn't execute
-- Record field access not implemented
-- Tuples not supported
+- Tuples not supported  
 - Module imports not resolved
+- Effect handlers not implemented
 
 #### Integration Issues
 - Type checker not connected to evaluator

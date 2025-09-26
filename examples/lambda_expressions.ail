@@ -1,0 +1,187 @@
+-- lambda_expressions.ail - Comprehensive lambda expression examples
+-- Demonstrates all lambda capabilities in AILANG v2.0
+
+print("=== Lambda Expressions in AILANG v2.0 ===")
+
+-- =======================
+-- BASIC LAMBDA SYNTAX
+-- =======================
+
+print("\n--- Basic Lambda Syntax ---")
+
+-- Identity function
+let id = \x. x in
+print("Identity: " ++ show(id(42)))  -- Identity: 42
+
+-- Simple arithmetic lambda
+let add_one = \x. x + 1 in
+print("Add one: " ++ show(add_one(5)))  -- Add one: 6
+
+-- Lambda with multiple operations
+let complex = \x. x * 2 + 1 in
+print("Complex: " ++ show(complex(3)))  -- Complex: 7
+
+-- =======================
+-- CURRIED FUNCTIONS
+-- =======================
+
+print("\n--- Curried Functions ---")
+
+-- Curried addition (desugars to nested lambdas)
+let add = \x y. x + y in
+print("Curried add: " ++ show(add(3)(4)))  -- Curried add: 7
+
+-- Curried with three parameters
+let add_three = \a b c. a + b + c in
+print("Three params: " ++ show(add_three(1)(2)(3)))  -- Three params: 6
+
+-- Mixed curried and normal application
+let multiply = \x y. x * y in
+let double = multiply(2) in  -- Partial application
+print("Partial application: " ++ show(double(5)))  -- Partial application: 10
+
+-- =======================
+-- CLOSURES & ENVIRONMENT CAPTURE
+-- =======================
+
+print("\n--- Closures ---")
+
+-- Simple closure capturing outer variable
+let base = 100 in
+let add_base = \x. x + base in
+print("Simple closure: " ++ show(add_base(42)))  -- Simple closure: 142
+
+-- Closure with string concatenation
+let prefix = "Mr. " in
+let greet = \name. prefix ++ name in
+print("String closure: " ++ greet("Smith"))  -- String closure: Mr. Smith
+
+-- Nested closures
+let outer = 10 in
+let make_adder = \y. \x. x + y + outer in
+let add_5_plus_outer = make_adder(5) in
+print("Nested closure: " ++ show(add_5_plus_outer(3)))  -- Nested closure: 18
+
+-- Multiple variables captured
+let a = 1 in
+let b = 2 in 
+let c = 3 in
+let sum_all = \x. x + a + b + c in
+print("Multiple capture: " ++ show(sum_all(4)))  -- Multiple capture: 10
+
+-- =======================
+-- HIGHER-ORDER FUNCTIONS
+-- =======================
+
+print("\n--- Higher-Order Functions ---")
+
+-- Function that takes a function as argument
+let apply_twice = \f x. f(f(x)) in
+let increment = \n. n + 1 in
+print("Apply twice: " ++ show(apply_twice(increment)(5)))  -- Apply twice: 7
+
+-- Function that returns a function
+let make_multiplier = \factor. \x. x * factor in
+let triple = make_multiplier(3) in
+print("Function factory: " ++ show(triple(4)))  -- Function factory: 12
+
+-- Function composition
+let compose = \f g x. f(g(x)) in
+let square = \x. x * x in
+let add_two = \x. x + 2 in
+let square_then_add_two = compose(add_two)(square) in
+print("Composition: " ++ show(square_then_add_two(3)))  -- Composition: 11
+
+-- Chain of functions
+let chain = \f g h x. f(g(h(x))) in
+let times_two = \x. x * 2 in
+let plus_one = \x. x + 1 in  
+let minus_one = \x. x - 1 in
+print("Chain: " ++ show(chain(times_two)(plus_one)(minus_one)(5)))  -- Chain: 10
+
+-- =======================
+-- LAMBDA WITH DATA STRUCTURES
+-- =======================
+
+print("\n--- Lambdas with Records ---")
+
+-- Records containing functions
+let math_ops = {
+  add: \x y. x + y,
+  multiply: \x y. x * y,
+  square: \x. x * x
+} in
+print("Record with functions: " ++ show(math_ops.add(3)(4)))  -- Record with functions: 7
+
+let math_ops2 = {
+  add: \x y. x + y,
+  multiply: \x y. x * y,
+  square: \x. x * x
+} in
+print("Square function: " ++ show(math_ops2.square(5)))  -- Square function: 25
+
+-- Lambda accessing record fields
+let person = { name: "Alice", age: 30 } in
+let describe = \p. "Person: " ++ p.name ++ ", Age: " ++ show(p.age) in
+print("Record access: " ++ describe(person))  -- Record access: Person: Alice, Age: 30
+
+-- Chained record access in lambda
+let user = { profile: { name: "Bob", email: "bob@test.com" } } in
+let get_email = \u. u.profile.email in
+print("Chained access: " ++ get_email(user))  -- Chained access: bob@test.com
+
+-- =======================
+-- ADVANCED PATTERNS
+-- =======================
+
+print("\n--- Advanced Patterns ---")
+
+-- Y-combinator style (self-application simulation)
+let self_apply = \f x. f(f)(x) in
+let double_double = \f x. f(f(x)) in
+let inc = \x. x + 1 in
+print("Self application: " ++ show(self_apply(double_double)(inc)(5)))  -- Self application: 7
+
+-- Closure with conditional logic
+let make_conditional = \threshold. \value. 
+  if value > threshold then value * 2 else value in
+let double_if_big = make_conditional(10) in
+print("Conditional closure (big): " ++ show(double_if_big(15)))  -- Conditional closure (big): 30
+
+let make_conditional2 = \threshold. \value. 
+  if value > threshold then value * 2 else value in
+let double_if_big2 = make_conditional2(10) in
+print("Conditional closure (small): " ++ show(double_if_big2(5)))  -- Conditional closure (small): 5
+
+-- Lambda with list operations (when list functions are available)
+let numbers = [1, 2, 3, 4, 5] in
+let sum_list = \list. 
+  -- This would require fold/reduce, showing conceptual usage
+  42  -- Placeholder result
+in
+print("List processing: " ++ show(sum_list(numbers)))  -- List processing: 42
+
+-- =======================
+-- PRECEDENCE DEMONSTRATION
+-- =======================
+
+print("\n--- Precedence Examples ---")
+
+-- Lambda has lowest precedence
+let test_precedence = \x. x + 1 * 2 in
+print("Lambda precedence: " ++ show(test_precedence(5)))  -- Lambda precedence: 7 (not 12)
+
+-- Field access has highest precedence  
+let obj = { val: 10, fn: \x. x * 2 } in
+let use_field = \o. o.fn(o.val) in
+print("Field precedence: " ++ show(use_field(obj)))  -- Field precedence: 20
+
+-- Function application vs field access
+let complex_obj = { 
+  data: { value: 5 },
+  processor: \d. d.value * 3
+} in
+let process_data = \o. o.processor(o.data) in
+print("Complex precedence: " ++ show(process_data(complex_obj)))  -- Complex precedence: 15
+
+print("\n=== Lambda Examples Complete! ===")

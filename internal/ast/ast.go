@@ -127,7 +127,7 @@ func (l *Lambda) String() string {
 	for _, p := range l.Params {
 		params = append(params, p.Name)
 	}
-	return fmt.Sprintf("(λ %s . %s)", strings.Join(params, " "), l.Body)
+	return fmt.Sprintf("\\%s. %s", strings.Join(params, " "), l.Body)
 }
 func (l *Lambda) Position() Pos { return l.Pos }
 func (l *Lambda) exprNode()    {}

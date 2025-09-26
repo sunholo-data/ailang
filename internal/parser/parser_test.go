@@ -920,3 +920,100 @@ func TestLetInExpression(t *testing.T) {
 func printAST(node ast.Node) {
 	fmt.Printf("AST: %s\n", node.String())
 }
+
+// Lambda expression tests
+func TestLambdaExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// Simple lambda
+		{`\x. x`, `\x. x`},
+		// Lambda with arithmetic
+		{`\x. x + 1`, `\x. (x + 1)`},
+		// Curried lambda (should parse as nested)
+		{`\x y. x + y`, `\x. \y. (x + y)`},
+		// Lambda with multiple params
+		{`\a b c. a + b * c`, `\a. \b. \c. (a + (b * c))`},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input, "test.ail")
+		p := New(l)
+		program := p.Parse()
+		checkParserErrors(t, p)
+
+		if len(program.Module.Decls) != 1 {
+			t.Errorf("program.Module.Decls does not contain 1 declaration. got=%d",
+				len(program.Module.Decls))
+		}
+
+		lambda, ok := program.Module.Decls[0].(*ast.Lambda)
+		if !ok {
+			t.Errorf("program.Module.Decls[0] is not *ast.Lambda. got=%T",
+				program.Module.Decls[0])
+		}
+
+		if lambda.String() != tt.expected {
+			t.Errorf("lambda.String() wrong. want=%q, got=%q",
+				tt.expected, lambda.String())
+		}
+	}
+}
+
+func TestLambdaBodyExtent(t *testing.T) {
+	// Test that lambda body extends correctly: \x. f(x).y + z should be \x. ((f(x)).y + z)
+	input := `\x. f(x).y + z`
+	
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	program := p.Parse()
+	checkParserErrors(t, p)
+
+	if len(program.Module.Decls) != 1 {
+		t.Errorf("program.Module.Decls does not contain 1 declaration. got=%d",
+			len(program.Module.Decls))
+	}
+
+	lambda, ok := program.Module.Decls[0].(*ast.Lambda)
+	if !ok {
+		t.Errorf("program.Module.Decls[0] is not *ast.Lambda. got=%T",
+			program.Module.Decls[0])
+	}
+
+	// The body should be: ((f x).y + z)
+	// This tests precedence: field access > function call > addition
+	expected := `\x. ((f x).y + z)`
+	if lambda.String() != expected {
+		t.Errorf("lambda body extent wrong. want=%q, got=%q",
+			expected, lambda.String())
+	}
+}
+
+func TestLambdaPrecedence(t *testing.T) {
+	// Test that lambda has lowest precedence
+	input := `\x. x + 1 * 2`
+	
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	program := p.Parse()
+	checkParserErrors(t, p)
+
+	if len(program.Module.Decls) != 1 {
+		t.Errorf("program.Module.Decls does not contain 1 declaration. got=%d",
+			len(program.Module.Decls))
+	}
+
+	lambda, ok := program.Module.Decls[0].(*ast.Lambda)
+	if !ok {
+		t.Errorf("program.Module.Decls[0] is not *ast.Lambda. got=%T",
+			program.Module.Decls[0])
+	}
+
+	// Should be: \x. (x + (1 * 2))
+	expected := `\x. (x + (1 * 2))`
+	if lambda.String() != expected {
+		t.Errorf("lambda precedence wrong. want=%q, got=%q",
+			expected, lambda.String())
+	}
+}

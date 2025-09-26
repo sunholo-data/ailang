@@ -25,20 +25,20 @@ type (
 	infixParseFn  func(ast.Expr) ast.Expr
 )
 
-// Precedence levels
+// Precedence levels - spec compliant ordering
 const (
 	LOWEST int = iota
+	LAMBDA        // \x. (lowest precedence)
 	LOGICAL_OR    // ||
 	LOGICAL_AND   // &&
 	EQUALS        // ==, !=
 	LESSGREATER   // >, <, >=, <=
 	APPEND        // ++
-	CONS          // ::
 	SUM           // +, -
 	PRODUCT       // *, /, %
-	PREFIX        // -x, !x
-	CALL          // f(x)
-	INDEX         // a[i], r.field
+	PREFIX        // -x, !x (unary)
+	CALL          // f(x) (application)
+	DOT_ACCESS    // r.field (field access - highest)
 	HIGHEST
 )
 
@@ -70,6 +70,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.MATCH, p.parseMatchExpression)
 	p.registerPrefix(lexer.FUNC, p.parseLambda)
 	p.registerPrefix(lexer.PURE, p.parsePureLambda)
+	p.registerPrefix(lexer.BACKSLASH, p.parseBackslashLambda)
 
 	// Register infix parse functions
 	p.infixParseFns = make(map[lexer.TokenType]infixParseFn)
@@ -658,6 +659,83 @@ func (p *Parser) parsePureLambda() ast.Expr {
 	// We're already at 'func' token after 'pure'
 	lambda := p.parseLambda().(*ast.Lambda)
 	// Mark as pure somehow
+	return lambda
+}
+
+// parseBackslashLambda parses lambda expressions with \x. syntax
+func (p *Parser) parseBackslashLambda() ast.Expr {
+	lambda := &ast.Lambda{
+		Pos: p.curPos(),
+	}
+
+	// Parse parameters - support curried sugar \x y z. body
+	var params []*ast.Param
+	
+	// Keep consuming identifiers until we hit DOT
+	for {
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+		
+		param := &ast.Param{
+			Name: p.curToken.Literal,
+			Pos:  p.curPos(),
+			// Type will be inferred
+		}
+		params = append(params, param)
+		
+		// Check if next token is DOT (end of params) or another IDENT (more params)
+		if p.peekTokenIs(lexer.DOT) {
+			break
+		} else if !p.peekTokenIs(lexer.IDENT) {
+			p.errors = append(p.errors, fmt.Errorf("expected '.' after lambda parameter at %s", p.peekToken.Position()))
+			return nil
+		}
+	}
+	
+	// Expect DOT
+	if !p.expectPeek(lexer.DOT) {
+		return nil
+	}
+	
+	// Parse body with LOWEST precedence to capture entire expression
+	p.nextToken()
+	lambda.Body = p.parseExpression(LOWEST)
+	
+	// Convert curried parameters to nested lambdas: \x y. body -> \x. \y. body
+	if len(params) == 0 {
+		p.errors = append(p.errors, fmt.Errorf("lambda requires at least one parameter at %s", lambda.Pos.String()))
+		return nil
+	} else if len(params) == 1 {
+		lambda.Params = params
+	} else {
+		// Create nested lambdas for curried syntax
+		lambda.Params = []*ast.Param{params[0]}
+		
+		// Create nested lambda for remaining parameters
+		innerLambda := &ast.Lambda{
+			Pos:  lambda.Pos,
+			Body: lambda.Body,
+		}
+		
+		// Recursively create nested structure
+		current := innerLambda
+		for i := 1; i < len(params)-1; i++ {
+			current.Params = []*ast.Param{params[i]}
+			next := &ast.Lambda{
+				Pos: lambda.Pos,
+			}
+			current.Body = next
+			current = next
+		}
+		
+		// Set the last parameter and body
+		current.Params = []*ast.Param{params[len(params)-1]}
+		current.Body = lambda.Body
+		
+		lambda.Body = innerLambda
+	}
+	
 	return lambda
 }
 
