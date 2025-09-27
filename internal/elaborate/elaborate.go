@@ -580,8 +580,8 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			
 			// Create dictionary reference
 			typeName := types.NormalizeTypeName(rc.Type)
-			fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n", 
-				e.ID(), rc.ClassName, rc.Type, typeName, rc.Method)
+			// fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n", 
+			// 	e.ID(), rc.ClassName, rc.Type, typeName, rc.Method)
 			dictRef := &core.DictRef{
 				CoreNode:  e.CoreNode,
 				ClassName: rc.ClassName,

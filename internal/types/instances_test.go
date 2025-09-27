@@ -139,7 +139,8 @@ func TestSuperclassProvision(t *testing.T) {
 	}
 	
 	// The actual method implementation names should indicate derivation
-	expectedEq := "derived_eq_from_ord_bytes"
+	// Note: NormalizeTypeName converts "bytes" to "Bytes"
+	expectedEq := "derived_eq_from_ord_Bytes"
 	if eqInst.Dict["eq"] != expectedEq {
 		t.Errorf("Expected derived eq method name %s, got %s", expectedEq, eqInst.Dict["eq"])
 	}

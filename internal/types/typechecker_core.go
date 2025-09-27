@@ -2049,8 +2049,8 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			// This will be done when we scan the Core AST
 			// Create normalized type for dictionary lookup consistency
 			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
-			fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n", 
-				c.NodeID, c.Class, c.Type, normalizedType.Name)
+			// fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n", 
+			// 	c.NodeID, c.Class, c.Type, normalizedType.Name)
 			tc.resolvedConstraints[c.NodeID] = &ResolvedConstraint{
 				NodeID:    c.NodeID,
 				ClassName: c.Class,
@@ -2123,7 +2123,7 @@ func typesEqual(t1, t2 Type) bool {
 // FillOperatorMethods fills in the Method field for resolved constraints
 // by traversing the Core AST and matching NodeIDs (exported for REPL)
 func (tc *CoreTypeChecker) FillOperatorMethods(expr core.CoreExpr) {
-	fmt.Printf("DEBUG FillOperatorMethods called with %T\n", expr)
+	// fmt.Printf("DEBUG FillOperatorMethods called with %T\n", expr)
 	tc.walkCore(expr)
 }
 
@@ -2138,10 +2138,10 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 		// If we have a resolved constraint for this node, fill in the method
 		if rc, ok := tc.resolvedConstraints[e.ID()]; ok {
 			method := OperatorMethod(e.Op, false)
-			fmt.Printf("DEBUG BinOp: node=%d, op='%s' -> method='%s'\n", e.ID(), e.Op, method)
+			// fmt.Printf("DEBUG BinOp: node=%d, op='%s' -> method='%s'\n", e.ID(), e.Op, method)
 			rc.Method = method
 		} else {
-			fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
+			// fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
 		}
 		// Recurse on operands
 		tc.walkCore(e.Left)

@@ -430,8 +430,8 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 	// Look up all methods for this class/type combination
 	methods := make(map[string]Value)
 	
-	// Get the base key without method
-	baseKey := fmt.Sprintf("prelude::%s::%s", ref.ClassName, ref.TypeName)
+	// Create type for normalized key generation
+	typ := &types.TCon{Name: ref.TypeName}
 	
 	// Common methods for each class
 	var methodNames []string
@@ -450,7 +450,7 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 	
 	// Collect all methods
 	for _, method := range methodNames {
-		key := fmt.Sprintf("%s::%s", baseKey, method)
+		key := types.MakeDictionaryKey("prelude", ref.ClassName, typ, method)
 		entry, ok := e.registry.Lookup(key)
 		if !ok {
 			return nil, fmt.Errorf("missing dictionary method: %s", key)
@@ -506,7 +506,7 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	}
 	
 	// Look up the method
-	fmt.Printf("DEBUG: DictApp looking for method '%s' in dictionary with fields: %v\n", app.Method, getFieldNames(dict.Fields))
+	// fmt.Printf("DEBUG: DictApp looking for method '%s' in dictionary with fields: %v\n", app.Method, getFieldNames(dict.Fields))
 	methodVal, ok := dict.Fields[app.Method]
 	if !ok {
 		return nil, fmt.Errorf("dictionary missing method: %s", app.Method)

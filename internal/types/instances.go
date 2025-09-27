@@ -84,14 +84,10 @@ func (env *InstanceEnv) GetDefault(class string) Type {
 }
 
 // canonicalKey creates a normalized key for instance lookup
+// NOTE: InstanceEnv keys are class+type (no namespace, no method). Reuse NormalizeTypeName.
 func canonicalKey(className string, typ Type) string {
-	return fmt.Sprintf("%s:%s", className, normalizeType(typ))
-}
-
-// normalizeType creates a canonical string representation of a type
-func normalizeType(typ Type) string {
-	// Use the String() method from the Type interface
-	return typ.String()
+	// Double-colon to match the rest of the system's visual convention for segments.
+	return fmt.Sprintf("%s::%s", className, NormalizeTypeName(typ))
 }
 
 // deriveEqFromOrd creates an Eq instance from an Ord instance
@@ -102,8 +98,8 @@ func deriveEqFromOrd(ord *ClassInstance) *ClassInstance {
 		ClassName: "Eq",
 		TypeHead:  ord.TypeHead,
 		Dict: Dict{
-			"eq":  fmt.Sprintf("derived_eq_from_ord_%s", normalizeType(ord.TypeHead)),
-			"neq": fmt.Sprintf("derived_neq_from_ord_%s", normalizeType(ord.TypeHead)),
+			"eq":  fmt.Sprintf("derived_eq_from_ord_%s", NormalizeTypeName(ord.TypeHead)),
+			"neq": fmt.Sprintf("derived_neq_from_ord_%s", NormalizeTypeName(ord.TypeHead)),
 		},
 	}
 }
