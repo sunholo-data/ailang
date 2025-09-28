@@ -10,24 +10,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/scripts/internal/reporttypes"
 )
-
-type ExampleResult struct {
-	File     string        `json:"file"`
-	Status   string        `json:"status"`
-	Error    string        `json:"error,omitempty"`
-	Duration time.Duration `json:"duration"`
-	Output   string        `json:"output,omitempty"`
-}
-
-type VerificationReport struct {
-	Timestamp    time.Time        `json:"timestamp"`
-	TotalExamples int              `json:"total_examples"`
-	Passed       int              `json:"passed"`
-	Failed       int              `json:"failed"`
-	Skipped      int              `json:"skipped"`
-	Results      []ExampleResult  `json:"results"`
-}
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--json" {
@@ -39,9 +24,9 @@ func main() {
 	}
 }
 
-func runExample(filename string) ExampleResult {
+func runExample(filename string) reporttypes.ExampleResult {
 	start := time.Now()
-	result := ExampleResult{
+	result := reporttypes.ExampleResult{
 		File: filename,
 	}
 
@@ -140,9 +125,9 @@ func verifyExamplesJSON() {
 
 	sort.Strings(files)
 
-	report := VerificationReport{
+	report := reporttypes.VerificationReport{
 		Timestamp: time.Now(),
-		Results:   []ExampleResult{},
+		Results:   []reporttypes.ExampleResult{},
 	}
 
 	for _, file := range files {

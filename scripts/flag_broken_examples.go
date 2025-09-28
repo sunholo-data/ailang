@@ -6,17 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo/ailang/scripts/internal/reporttypes"
 )
-
-type ExampleResult struct {
-	File   string `json:"file"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-}
-
-type VerificationReport struct {
-	Results []ExampleResult `json:"results"`
-}
 
 func main() {
 	// Read the verification report
@@ -28,7 +20,7 @@ func main() {
 	}
 	defer reportFile.Close()
 
-	var report VerificationReport
+	var report reporttypes.VerificationReport
 	if err := json.NewDecoder(reportFile).Decode(&report); err != nil {
 		fmt.Fprintf(os.Stderr, "Error decoding JSON: %v\n", err)
 		os.Exit(1)

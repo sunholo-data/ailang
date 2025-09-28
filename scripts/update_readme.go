@@ -5,24 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
+
+	"github.com/sunholo/ailang/scripts/internal/reporttypes"
 )
-
-type ExampleResult struct {
-	File     string        `json:"file"`
-	Status   string        `json:"status"`
-	Error    string        `json:"error,omitempty"`
-	Duration time.Duration `json:"duration"`
-}
-
-type VerificationReport struct {
-	Timestamp     time.Time       `json:"timestamp"`
-	TotalExamples int             `json:"total_examples"`
-	Passed        int             `json:"passed"`
-	Failed        int             `json:"failed"`
-	Skipped       int             `json:"skipped"`
-	Results       []ExampleResult `json:"results"`
-}
 
 func main() {
 	// Read the verification report
@@ -33,7 +18,7 @@ func main() {
 	}
 	defer reportFile.Close()
 
-	var report VerificationReport
+	var report reporttypes.VerificationReport
 	if err := json.NewDecoder(reportFile).Decode(&report); err != nil {
 		fmt.Fprintf(os.Stderr, "Error decoding JSON: %v\n", err)
 		os.Exit(1)
@@ -61,7 +46,7 @@ func main() {
 	fmt.Println("README updated successfully")
 }
 
-func generateStatusTable(report VerificationReport) string {
+func generateStatusTable(report reporttypes.VerificationReport) string {
 	var sb strings.Builder
 
 	// Add badges
