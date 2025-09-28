@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -914,11 +913,6 @@ func TestLetInExpression(t *testing.T) {
 	}
 
 	testInfixExpression(t, let.Body, "x", "+", int64(1))
-}
-
-// Helper to print AST for debugging
-func printAST(node ast.Node) {
-	fmt.Printf("AST: %s\n", node.String())
 }
 
 // Lambda expression tests

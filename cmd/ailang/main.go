@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
 	"github.com/sunholo/ailang/internal/repl"
+	"github.com/sunholo/ailang/internal/schema"
 )
 
 var (
@@ -36,9 +37,15 @@ func main() {
 		traceFlag   = flag.Bool("trace", false, "Enable execution tracing")
 		seedFlag    = flag.Int("seed", 0, "Random seed for deterministic execution")
 		virtualTime = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
+		compactFlag = flag.Bool("compact", false, "Use compact JSON output")
 	)
 
 	flag.Parse()
+
+	// Set compact mode globally if flag is provided
+	if *compactFlag {
+		schema.SetCompactMode(true)
+	}
 
 	if *versionFlag {
 		printVersion()
@@ -134,6 +141,7 @@ func printHelp() {
 	fmt.Println("  --trace          Enable execution tracing")
 	fmt.Println("  --seed <n>       Set random seed for deterministic execution")
 	fmt.Println("  --virtual-time   Use virtual time for testing")
+	fmt.Println("  --compact        Use compact JSON output")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Printf("  %s              # Start REPL\n", cyan("ailang repl"))
@@ -200,8 +208,8 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 }
 
 func runREPL(learn bool, trace bool) {
-	// Use the new REPL implementation
-	r := repl.New()
+	// Use the new REPL implementation with version info
+	r := repl.NewWithVersion(Version, BuildTime)
 	if trace {
 		r.EnableTrace()
 	}

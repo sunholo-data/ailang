@@ -877,10 +877,3 @@ func registerBuiltins(env *Environment) {
 	})
 }
 
-// Helper to check if effects are empty
-func isEmptyEffects(row *types.Row) bool {
-	if row == nil {
-		return true
-	}
-	return len(row.Labels) == 0 && row.Tail == nil
-}

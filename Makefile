@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken
 
 # Binary name
 BINARY=ailang
@@ -100,6 +100,7 @@ clean:
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
+	rm -f examples_report.json examples_status.md coverage.txt
 	@echo "Clean complete"
 
 # Run the REPL
@@ -136,22 +137,55 @@ quick-install:
 	@go install ./cmd/ailang
 	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
 
+# Verify all examples
+verify-examples: build
+	@echo "Verifying examples..."
+	@go run scripts/verify_examples.go --json > examples_report.json 2>&1; EXIT_CODE=$$?; \
+	go run scripts/verify_examples.go --markdown > examples_status.md 2>&1; \
+	cat examples_status.md; \
+	exit $$EXIT_CODE
+
+# Update README with example status
+update-readme: verify-examples
+	@echo "Updating README with example status..."
+	@go run scripts/update_readme.go
+
+# Generate test coverage badge
+test-coverage-badge:
+	@echo "Generating coverage badge..."
+	@$(GOTEST) -coverprofile=coverage.out ./... > /dev/null 2>&1 || true
+	@go tool cover -func=coverage.out | grep total: | awk '{print $$3}' | sed 's/%//' > coverage.txt
+	@echo "Coverage: $$(cat coverage.txt)%"
+
+# Flag broken examples with warning headers
+flag-broken: verify-examples
+	@echo "Flagging broken examples..."
+	@go run scripts/flag_broken_examples.go
+
+# CI verification target  
+ci: deps test test-coverage-badge verify-examples
+	@echo "CI verification complete"
+
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  make build         - Build the binary"
-	@echo "  make install       - Install binary to GOPATH/bin"
-	@echo "  make test          - Run tests"
-	@echo "  make test-coverage - Run tests with coverage"
-	@echo "  make fmt           - Format code"
-	@echo "  make vet           - Run go vet"
-	@echo "  make lint          - Run linter"
-	@echo "  make deps          - Download dependencies"
-	@echo "  make clean         - Clean build artifacts"
-	@echo "  make repl          - Start the REPL"
-	@echo "  make run FILE=...  - Run an AILANG file"
-	@echo "  make watch         - Watch mode (local build)"
-	@echo "  make watch-install - Watch mode (auto-install to PATH)"
-	@echo "  make dev           - Quick development build"
-	@echo "  make quick-install - Quick install without version info"
-	@echo "  make help          - Show this help"
+	@echo "  make build            - Build the binary"
+	@echo "  make install          - Install binary to GOPATH/bin"
+	@echo "  make test             - Run tests"
+	@echo "  make test-coverage    - Run tests with coverage"
+	@echo "  make verify-examples  - Verify all examples"
+	@echo "  make flag-broken      - Add warning headers to broken examples"
+	@echo "  make update-readme    - Update README with example status"
+	@echo "  make ci               - Run full CI verification"
+	@echo "  make fmt              - Format code"
+	@echo "  make vet              - Run go vet"
+	@echo "  make lint             - Run linter"
+	@echo "  make deps             - Download dependencies"
+	@echo "  make clean            - Clean build artifacts"
+	@echo "  make repl             - Start the REPL"
+	@echo "  make run FILE=...     - Run an AILANG file"
+	@echo "  make watch            - Watch mode (local build)"
+	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
+	@echo "  make dev              - Quick development build"
+	@echo "  make quick-install    - Quick install without version info"
+	@echo "  make help             - Show this help"

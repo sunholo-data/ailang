@@ -33,3 +33,8 @@ go.work.sum
 ailang
 bin/ailang
 /bin
+
+# CI/CD generated files
+examples_report.json
+examples_status.md
+coverage.txt

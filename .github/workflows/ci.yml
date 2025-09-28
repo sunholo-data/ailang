@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    
+    - name: Install dependencies
+      run: make deps
+    
+    - name: Run tests
+      run: make test
+    
+    - name: Generate test coverage
+      run: |
+        go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        go tool cover -func=coverage.out
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        token: ${{ secrets.CODECOV_TOKEN }}
+    
+    - name: Verify examples
+      id: verify
+      run: |
+        make verify-examples > examples_output.txt 2>&1 || true
+        cat examples_output.txt
+        if grep -q "Failed: 0" examples_output.txt; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Update example status in README
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      run: |
+        # Generate the status markdown
+        go run scripts/verify_examples.go --markdown > examples_status.md
+        
+        # Create a script to update README
+        cat > scripts/update_readme_ci.sh << 'EOF'
+        #!/bin/bash
+        README="README.md"
+        TEMP="README.tmp"
+        
+        # Extract the new status from examples_status.md
+        NEW_STATUS=$(cat examples_status.md)
+        
+        # Update README between markers
+        awk '
+        /<!-- EXAMPLES_STATUS_START -->/ {print; print ""; getline < "examples_status.md"; print; f=1}
+        /<!-- EXAMPLES_STATUS_END -->/ {f=0}
+        !f' "$README" > "$TEMP"
+        
+        mv "$TEMP" "$README"
+        EOF
+        
+        chmod +x scripts/update_readme_ci.sh
+        ./scripts/update_readme_ci.sh
+    
+    - name: Commit README updates
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: 'Update example verification status [skip ci]'
+        file_pattern: 'README.md examples_status.md examples_report.json'
+        commit_user_name: github-actions[bot]
+        commit_user_email: github-actions[bot]@users.noreply.github.com
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    
+    - name: Build binary
+      run: make build
+    
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ailang-binary
+        path: bin/ailang
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    
+    - name: Run go fmt
+      run: |
+        if [ -n "$(gofmt -l .)" ]; then
+          echo "Go code is not formatted"
+          gofmt -l .
+          exit 1
+        fi
+    
+    - name: Run go vet
+      run: make vet
+    
+    - name: Install golangci-lint
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+    
+    - name: Run golangci-lint
+      run: $(go env GOPATH)/bin/golangci-lint run

@@ -97,7 +97,10 @@ alias ailang-update='cd /Users/mark/dev/sunholo/ailang && make quick-install && 
 Then just run `ailang-update` from anywhere to update.
 
 ### IMPORTANT: Keeping Documentation Updated
-**Always update the README.md when making changes to the codebase:**
+
+**Required documentation updates for every change:**
+
+#### 1. README.md
 - Update implementation status when adding new features
 - Update current capabilities when functionality changes
 - Update examples when they're fixed or new ones added
@@ -105,13 +108,44 @@ Then just run `ailang-update` from anywhere to update.
 - Document new builtin functions and operators
 - Update the roadmap as items are completed
 
+#### 2. CHANGELOG.md
+**Must be updated for every feature or bug fix:**
+- Follow semantic versioning (vMAJOR.MINOR.PATCH)
+- Group changes by category: Added, Changed, Fixed, Deprecated, Removed
+- Include code locations for new features (e.g., `internal/schema/`)
+- Note breaking changes clearly
+- Add migration notes if needed
+- Include metrics (lines of code, test coverage)
+
+Example entry:
+```markdown
+## [v3.2.0] - 2024-09-28
+
+### Added
+- Schema Registry (`internal/schema/`) - Versioned JSON schemas
+- Error JSON Encoder (`internal/errors/`) - Structured error reporting
+- Test coverage: 100% for new packages
+- Total new code: ~1,500 lines
+```
+
+#### 3. Design Documentation
+- **Before starting**: Create design doc in `design_docs/planned/`
+- **After completing**: Move to `design_docs/implemented/vX_Y/`
+- Include implementation report with metrics and limitations
+
 **CRITICAL: Example Files Required**
 **Every new language feature MUST have a corresponding example file:**
 - Create `examples/feature_name.ail` for each new feature
 - Include comprehensive examples showing all capabilities
 - Add comments explaining the behavior and expected output
-- Test that examples actually work with current implementation
+- ⚠️ **Test that examples actually work with current implementation**
+- ⚠️ **Add warning headers to examples that don't work**
 - These examples will be used in documentation and tutorials
+
+**⚠️ IMPORTANT: Most current examples in `/examples/` are broken**
+- Only `hello.ail`, `simple.ail`, `arithmetic.ail`, `lambda_expressions.ail` work
+- Examples using `module`, `func`, `type`, `import` will fail
+- Always test examples before documenting them as working
 
 ### Common Tasks
 
@@ -233,19 +267,31 @@ parallel {
 
 ## Known Issues & TODOs
 
+### ⚠️ CRITICAL: Documentation vs Reality Gap
+**Many documented features don't actually work. Use these working examples:**
+- ✅ `examples/hello.ail` - Simple print
+- ✅ `examples/simple.ail` - Basic arithmetic  
+- ✅ `examples/arithmetic.ail` - Arithmetic with show
+- ✅ `examples/lambda_expressions.ail` - Full lambda functionality
+- ✅ REPL with basic expressions
+
 ### Immediate Fixes Needed
-1. **Lexer**: Keywords not being recognized (all parsed as IDENT)
-2. **Parser**: Import statements not parsing correctly
-3. **Parser**: Module declarations incomplete
-4. **Parser**: Pattern matching not fully implemented
+1. ❌ **Parser**: Module declarations completely broken (`module`, `import`)
+2. ❌ **Parser**: Function declarations don't work (`func` syntax)
+3. ❌ **Parser**: Type definitions not supported (`type` declarations)
+4. ❌ **Parser**: Tests/properties syntax fails (`tests [...]`, `properties [...]`)
+5. ⚠️ **Integration**: REPL vs file execution use different evaluators
+6. ⚠️ **Type System**: Type classes work in REPL but not file execution
 
 ### Major Components to Implement
-1. **Type Inference**: Hindley-Milner with effect inference
-2. **Interpreter**: Tree-walking evaluator
-3. **Effect System**: Capability checking and propagation
-4. **Standard Library**: Core modules (prelude, io, collections, concurrent)
-5. **Quasiquotes**: Validation and AST generation
-6. **Training Export**: Execution trace collection
+1. ❌ **Module System**: Make `module` and `import` statements work
+2. ❌ **Function Declarations**: Implement `func` syntax
+3. ❌ **Type Definitions**: Support `type` declarations
+4. ❌ **Integration**: Unify REPL and file execution paths
+5. ❌ **Effect System**: Capability checking and propagation (not started)
+6. ❌ **Standard Library**: Core modules (not started)
+7. ❌ **Quasiquotes**: Validation and AST generation (not started)
+8. ❌ **Training Export**: Execution trace collection (not started)
 
 ## REPL Usage (v2.3)
 

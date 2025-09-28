@@ -1,0 +1,240 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+)
+
+type ExampleResult struct {
+	File     string        `json:"file"`
+	Status   string        `json:"status"`
+	Error    string        `json:"error,omitempty"`
+	Duration time.Duration `json:"duration"`
+	Output   string        `json:"output,omitempty"`
+}
+
+type VerificationReport struct {
+	Timestamp    time.Time        `json:"timestamp"`
+	TotalExamples int              `json:"total_examples"`
+	Passed       int              `json:"passed"`
+	Failed       int              `json:"failed"`
+	Skipped      int              `json:"skipped"`
+	Results      []ExampleResult  `json:"results"`
+}
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--json" {
+		verifyExamplesJSON()
+	} else if len(os.Args) > 1 && os.Args[1] == "--markdown" {
+		verifyExamplesMarkdown()
+	} else {
+		verifyExamplesPlain()
+	}
+}
+
+func runExample(filename string) ExampleResult {
+	start := time.Now()
+	result := ExampleResult{
+		File: filename,
+	}
+
+	// Skip non-.ail files
+	if !strings.HasSuffix(filename, ".ail") {
+		result.Status = "skipped"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Skip known documentation files
+	if strings.Contains(filename, "_demo") || strings.Contains(filename, "_test") ||
+		strings.Contains(filename, "_trace") || strings.Contains(filename, "_session") {
+		result.Status = "skipped"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	cmd := exec.Command("go", "run", "cmd/ailang/main.go", "run", filename)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	result.Duration = time.Since(start)
+	result.Output = stdout.String()
+
+	if err != nil {
+		result.Status = "failed"
+		result.Error = stderr.String()
+		if result.Error == "" {
+			result.Error = err.Error()
+		}
+	} else {
+		result.Status = "passed"
+	}
+
+	return result
+}
+
+func verifyExamplesPlain() {
+	files, err := filepath.Glob("examples/*.ail")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
+		os.Exit(1)
+	}
+
+	sort.Strings(files)
+
+	passed := 0
+	failed := 0
+	skipped := 0
+
+	fmt.Println("Verifying AILANG Examples")
+	fmt.Println("=========================")
+
+	for _, file := range files {
+		basename := filepath.Base(file)
+		fmt.Printf("Testing %s... ", basename)
+
+		result := runExample(file)
+
+		switch result.Status {
+		case "passed":
+			fmt.Printf("✓ PASS (%.2fs)\n", result.Duration.Seconds())
+			passed++
+		case "failed":
+			fmt.Printf("✗ FAIL (%.2fs)\n", result.Duration.Seconds())
+			if result.Error != "" {
+				fmt.Printf("  Error: %s\n", strings.TrimSpace(result.Error))
+			}
+			failed++
+		case "skipped":
+			fmt.Printf("- SKIP\n")
+			skipped++
+		}
+	}
+
+	fmt.Println("\nSummary:")
+	fmt.Printf("  Total: %d\n", passed+failed+skipped)
+	fmt.Printf("  Passed: %d\n", passed)
+	fmt.Printf("  Failed: %d\n", failed)
+	fmt.Printf("  Skipped: %d\n", skipped)
+
+	if failed > 0 {
+		os.Exit(1)
+	}
+}
+
+func verifyExamplesJSON() {
+	files, err := filepath.Glob("examples/*.ail")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
+		os.Exit(1)
+	}
+
+	sort.Strings(files)
+
+	report := VerificationReport{
+		Timestamp: time.Now(),
+		Results:   []ExampleResult{},
+	}
+
+	for _, file := range files {
+		result := runExample(file)
+		result.File = filepath.Base(result.File) // Use basename for cleaner output
+		report.Results = append(report.Results, result)
+
+		switch result.Status {
+		case "passed":
+			report.Passed++
+		case "failed":
+			report.Failed++
+		case "skipped":
+			report.Skipped++
+		}
+	}
+
+	report.TotalExamples = len(report.Results)
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(report); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	if report.Failed > 0 {
+		os.Exit(1)
+	}
+}
+
+func verifyExamplesMarkdown() {
+	files, err := filepath.Glob("examples/*.ail")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
+		os.Exit(1)
+	}
+
+	sort.Strings(files)
+
+	var passed, failed, skipped []string
+
+	for _, file := range files {
+		basename := filepath.Base(file)
+		result := runExample(file)
+
+		switch result.Status {
+		case "passed":
+			passed = append(passed, basename)
+		case "failed":
+			failed = append(failed, basename)
+		case "skipped":
+			skipped = append(skipped, basename)
+		}
+	}
+
+	fmt.Println("## Example Status")
+	fmt.Println()
+	fmt.Println("### Working Examples ✅")
+	if len(passed) > 0 {
+		for _, f := range passed {
+			fmt.Printf("- `%s`\n", f)
+		}
+	} else {
+		fmt.Println("*None*")
+	}
+
+	fmt.Println()
+	fmt.Println("### Failing Examples ❌")
+	if len(failed) > 0 {
+		for _, f := range failed {
+			fmt.Printf("- `%s`\n", f)
+		}
+	} else {
+		fmt.Println("*None*")
+	}
+
+	fmt.Println()
+	fmt.Println("### Skipped Examples ⏭️")
+	if len(skipped) > 0 {
+		for _, f := range skipped {
+			fmt.Printf("- `%s`\n", f)
+		}
+	} else {
+		fmt.Println("*None*")
+	}
+
+	fmt.Println()
+	fmt.Printf("**Summary:** %d passed, %d failed, %d skipped (Total: %d)\n",
+		len(passed), len(failed), len(skipped), len(passed)+len(failed)+len(skipped))
+
+	if len(failed) > 0 {
+		os.Exit(1)
+	}
+}

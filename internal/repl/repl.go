@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/peterh/liner"
@@ -16,6 +17,8 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo/ailang/internal/test"
 	"github.com/sunholo/ailang/internal/typedast"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -51,10 +54,23 @@ type REPL struct {
 	instances  map[string]core.DictValue
 	history    []string
 	lastResult interface{}
+	version    string // Version info from build
+	buildTime  string // Build time from build
 }
 
 // New creates a new REPL instance
 func New() *REPL {
+	return NewWithVersion("", "")
+}
+
+// NewWithVersion creates a new REPL with version info
+func NewWithVersion(version, buildTime string) *REPL {
+	if version == "" {
+		version = "dev"
+	}
+	if buildTime == "" {
+		buildTime = "unknown"
+	}
 	return &REPL{
 		config:    &Config{},
 		env:       eval.NewEnvironment(),
@@ -63,6 +79,8 @@ func New() *REPL {
 		dictReg:   types.NewDictionaryRegistry(),
 		instances: make(map[string]core.DictValue),
 		history:   []string{},
+		version:   version,
+		buildTime: buildTime,
 	}
 }
 
@@ -87,8 +105,20 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	// Enable multiline mode
 	line.SetMultiLineMode(true)
 	
-	// Print welcome message
-	fmt.Fprintln(out, bold("AILANG v0.0.3 - 2025-09-27"))
+	// Print welcome message with dynamic version
+	versionStr := r.version
+	if versionStr == "" || versionStr == "dev" {
+		versionStr = "dev"
+	} else {
+		// Add build time if available and not unknown
+		if r.buildTime != "" && r.buildTime != "unknown" {
+			// Parse and format build time nicely
+			if t, err := time.Parse("2006-01-02_15:04:05", r.buildTime); err == nil {
+				versionStr = fmt.Sprintf("%s - %s", versionStr, t.Format("2006-01-02"))
+			}
+		}
+	}
+	fmt.Fprintf(out, "%s %s\n", bold("AILANG"), bold(versionStr))
 	fmt.Fprintln(out, dim("Type :help for help, :quit to exit"))
 	fmt.Fprintln(out, dim("Use ↑/↓ arrows to navigate history"))
 	fmt.Fprintln(out)
@@ -131,6 +161,39 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 
 		if input == "" {
 			continue
+		}
+
+		// Check if input needs continuation (ends with "in" or other indicators)
+		needsContinuation := strings.HasSuffix(input, " in") || strings.HasSuffix(input, "\tin")
+		
+		// Multi-line input support
+		if needsContinuation {
+			// Continue reading lines until we get a complete expression
+			var lines []string
+			lines = append(lines, input)
+			
+			for {
+				contInput, err := line.Prompt("... ")
+				if err == io.EOF {
+					fmt.Fprintln(out, red("\nIncomplete expression"))
+					break
+				}
+				if err != nil {
+					fmt.Fprintf(out, "%s: %v\n", red("Error"), err)
+					break
+				}
+				
+				lines = append(lines, contInput)
+				
+				// Check if we have a complete expression
+				// For now, just check if the line is non-empty and doesn't end with certain keywords
+				trimmed := strings.TrimSpace(contInput)
+				if trimmed != "" && !strings.HasSuffix(trimmed, " in") && !strings.HasSuffix(trimmed, ",") {
+					break
+				}
+			}
+			
+			input = strings.Join(lines, "\n")
 		}
 
 		// Add to liner history
@@ -620,10 +683,62 @@ func (r *REPL) handleCommand(cmd string, out io.Writer) {
 		r.importModule("std/prelude", io.Discard)
 		fmt.Fprintln(out, green("Environment reset (prelude auto-imported)"))
 
+	case ":effects":
+		if len(parts) < 2 {
+			fmt.Fprintln(out, "Usage: :effects <expression>")
+			return
+		}
+		input := strings.Join(parts[1:], " ")
+		if err := EffectsCommand(input); err != nil {
+			fmt.Fprintf(out, red("Error: %v\n"), err)
+		}
+
+	case ":compact":
+		if len(parts) < 2 {
+			fmt.Fprintln(out, "Usage: :compact on|off")
+			return
+		}
+		enabled := parts[1] == "on"
+		schema.SetCompactMode(enabled)
+		fmt.Fprintf(out, "Compact JSON mode %s\n", yellow(parts[1]))
+
+	case ":test":
+		if len(parts) >= 2 && parts[1] == "--json" {
+			r.runTestsJSON(out)
+		} else {
+			r.runTests(out)
+		}
+
 	default:
 		fmt.Fprintf(out, "Unknown command: %s\n", cmd)
 		fmt.Fprintln(out, "Type :help for help")
 	}
+}
+
+// runTests runs tests in normal mode
+func (r *REPL) runTests(out io.Writer) {
+	fmt.Fprintln(out, yellow("Running tests..."))
+	// TODO: Implement test discovery and execution
+	fmt.Fprintln(out, "No tests found (test discovery not yet implemented)")
+}
+
+// runTestsJSON runs tests and outputs JSON report
+func (r *REPL) runTestsJSON(out io.Writer) {
+	// Create a new test runner with current time
+	startTime := time.Now()
+	report := test.NewReport()
+	
+	// TODO: Discover and run actual tests
+	// For now, create empty report
+	report.Finalize(startTime)
+	
+	jsonData, err := report.ToJSON()
+	if err != nil {
+		fmt.Fprintf(out, red("Error generating test report: %v\n"), err)
+		return
+	}
+	
+	fmt.Fprintln(out, string(jsonData))
 }
 
 // showType shows just the type of an expression without evaluating
@@ -820,12 +935,15 @@ func (r *REPL) printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  :help, :h                Show this help")
 	fmt.Fprintln(out, "  :quit, :q                Exit the REPL")
 	fmt.Fprintln(out, "  :type <expr>             Show type of expression")
+	fmt.Fprintln(out, "  :effects <expr>          Show type and effects without evaluating")
 	fmt.Fprintln(out, "  :import <module>         Load module instances")
 	fmt.Fprintln(out, "  :dump-core              Toggle Core AST display")
 	fmt.Fprintln(out, "  :dump-typed             Toggle Typed AST display")
 	fmt.Fprintln(out, "  :dry-link               Show required instances without evaluating")
 	fmt.Fprintln(out, "  :trace-defaulting on|off Enable/disable defaulting trace")
 	fmt.Fprintln(out, "  :instances              Show available type class instances")
+	fmt.Fprintln(out, "  :test [--json]          Run tests (with optional JSON output)")
+	fmt.Fprintln(out, "  :compact on|off         Enable/disable compact JSON mode")
 	fmt.Fprintln(out, "  :history                Show command history")
 	fmt.Fprintln(out, "  :clear                  Clear the screen")
 	fmt.Fprintln(out, "  :reset                  Reset the environment")
@@ -833,6 +951,8 @@ func (r *REPL) printHelp(out io.Writer) {
 	fmt.Fprintln(out, bold("Examples:"))
 	fmt.Fprintln(out, "  let add = \\x y. x + y in add(1)(2)")
 	fmt.Fprintln(out, "  :type \\x. x + x")
+	fmt.Fprintln(out, "  :effects 1 + 2")
+	fmt.Fprintln(out, "  :test --json")
 	fmt.Fprintln(out, "  :import std/prelude")
 }
 

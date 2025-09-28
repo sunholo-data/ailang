@@ -1,3 +1,8 @@
+-- ⚠️ WARNING: This example partially works but has runtime errors
+-- Issues: Some variable scoping problems cause "undefined identifier" errors
+-- Status: Basic show() function works, but complex nested let bindings fail
+-- Try simple.ail or arithmetic.ail for fully working examples
+--
 -- show_demo.ail - Demonstrates the show and toText functions
 
 -- Basic types with show (quoted output)

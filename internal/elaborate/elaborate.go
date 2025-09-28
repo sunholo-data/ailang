@@ -546,12 +546,6 @@ type DictElaborator struct {
 	freshVarNum int
 }
 
-// freshVar generates a fresh variable name
-func (de *DictElaborator) freshVar() string {
-	de.freshVarNum++
-	return fmt.Sprintf("$dict%d", de.freshVarNum)
-}
-
 // transformExpr recursively transforms Core expressions
 func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	if expr == nil {

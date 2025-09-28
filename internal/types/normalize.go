@@ -241,6 +241,12 @@ func MakeDictionaryKey(namespace, className string, typ Type, method string) str
 	return fmt.Sprintf("%s::%s::%s::%s", namespace, className, typeNF, method)
 }
 
+// CanonKey is an alias for MakeDictionaryKey - the single entry point for
+// all dictionary key generation to ensure consistency across linker and evaluator.
+func CanonKey(namespace, className string, typ Type, method string) string {
+	return MakeDictionaryKey(namespace, className, typ, method)
+}
+
 // ParseDictionaryKey extracts components from a dictionary key
 // Now uses :: separator for better visual clarity
 func ParseDictionaryKey(key string) (namespace, className, typeNF, method string, err error) {

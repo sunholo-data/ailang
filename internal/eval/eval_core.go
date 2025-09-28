@@ -482,15 +482,6 @@ func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
 	return e.evalCore(abs.Body)
 }
 
-// getFieldNames extracts field names for debugging
-func getFieldNames(fields map[string]Value) []string {
-	var names []string
-	for name := range fields {
-		names = append(names, name)
-	}
-	return names
-}
-
 // evalDictApp evaluates dictionary application
 func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	// Evaluate the dictionary

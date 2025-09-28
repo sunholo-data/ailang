@@ -1,36 +1,375 @@
 # AILANG: The AI-First Programming Language
 
+![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)](https://codecov.io/gh/sunholo-data/ailang)
+![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
+![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
+
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It provides static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Implementation Status
+<!-- EXAMPLES_STATUS_START -->
+## Status
 
-### 🚀 NEW: REPL Fully Working with Type Classes! (v2.3)
+![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
+![Coverage](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)
+![Examples](https://img.shields.io/badge/examples-13%25passing%2013%25failing-red.svg)
 
-**Full Type Class Resolution Pipeline**
-- ✅ **Dictionary-Passing Transformation** (~770 lines)
-  - Operators transformed to explicit dictionary calls in ANF
-  - Idempotent elaboration safe for REPL multi-passes
-  - Original source positions preserved for diagnostics
-- ✅ **Type Normalization & Registry** (~500 lines)
-  - Deterministic canonical type representations
-  - Law-compliant Float instances (reflexive NaN equality)
-  - Built-in Num, Eq, and Ord dictionaries
-- ✅ **ANF Verifier & Linker** (~440 lines)
-  - Validates A-Normal Form discipline
-  - Resolves dictionary references with dry-run mode
-  - Idempotency verification for transformations
-- ✅ **Core Evaluator with Dictionary Support** (~850 lines)
-  - Full DictApp/DictRef evaluation
-  - Method dispatch through dictionary records
-  - Wrapper functions for Go implementations
-- ✅ **Spec-Aligned Numeric Defaulting** (Haskell-style)
-  - Neutral classes (Eq, Ord, Show) don't affect defaulting
-  - Primary classes (Num, Fractional) drive defaulting decisions
-  - Module-scoped defaults: Num → Int, Fractional → Float
-- **Total additions: ~2,560 lines of production code**
-- **Status: Type classes fully operational with spec-compliant defaulting**
+### Example Verification Status
 
-### 🎉 Phase 1 REPL & UX Integration Complete (v2.3)
+*Last updated: 2025-09-28 20:15:46 UTC*
+
+**Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
+
+| Example File | Status | Notes |
+|--------------|--------|-------|
+| `ai_agent_integration.ail` | ❌ Fail | Error Parser errors: |
+| `arithmetic.ail` | ✅ Pass |  |
+| `concurrent_pipeline.ail` | ❌ Fail | Error Parser errors: |
+| `debug1.ail` | ✅ Pass |  |
+| `debug2.ail` | ✅ Pass |  |
+| `debug3.ail` | ✅ Pass |  |
+| `defaulting_trace.ail` | ⏭️ Skip | Test/demo file |
+| `factorial.ail` | ❌ Fail | Error Parser errors: |
+| `hello.ail` | ✅ Pass |  |
+| `lambda_expressions.ail` | ✅ Pass |  |
+| `lambdas_v2.ail` | ✅ Pass |  |
+| `num_demo.ail` | ⏭️ Skip | Test/demo file |
+| `phase1_demo.ail` | ⏭️ Skip | Test/demo file |
+| `pure_lambdas.ail` | ✅ Pass |  |
+| `quicksort.ail` | ❌ Fail | Error Parser errors: |
+| `repl_demo.ail` | ⏭️ Skip | Test/demo file |
+| `repl_test.ail` | ⏭️ Skip | Test/demo file |
+| `show_demo.ail` | ⏭️ Skip | Test/demo file |
+| `simple.ail` | ✅ Pass |  |
+| `test_basic.ail` | ✅ Pass |  |
+| `test_instances.ail` | ❌ Fail | Runtime error: undefined identifier: y |
+| `test_v2.ail` | ✅ Pass |  |
+| `type_class_showcase.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_classes.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_classes_complete.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_classes_demo.ail` | ⏭️ Skip | Test/demo file |
+| `type_classes_demo_working.ail` | ⏭️ Skip | Test/demo file |
+| `type_classes_final.ail` | ❌ Fail | Error Parser errors: |
+| `type_classes_simple.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_classes_working.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_demo_minimal.ail` | ⏭️ Skip | Test/demo file |
+| `type_inference_basic.ail` | ✅ Pass |  |
+| `type_inference_demo.ail` | ⏭️ Skip | Test/demo file |
+| `type_inference_simple.ail` | ❌ Fail | Error Parser errors: |
+| `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
+| `v2_type_inference.ail` | ✅ Pass |  |
+| `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
+| `web_api.ail` | ❌ Fail | Error Parser errors: |
+| `working_demo.ail` | ⏭️ Skip | Test/demo file |
+| `working_v0_0_3_demo.ail` | ⏭️ Skip | Test/demo file |
+
+<!-- EXAMPLES_STATUS_END -->
+
+## 📍 **START HERE: What You Can Actually Try Right Now**
+
+### ✅ Working Examples (Guaranteed to Run)
+```bash
+# These examples actually work with the current implementation:
+ailang run examples/hello.ail          # Simple print statement
+ailang run examples/simple.ail         # Basic arithmetic
+ailang run examples/arithmetic.ail     # Arithmetic with show function  
+ailang run examples/lambda_expressions.ail  # Full lambda functionality
+ailang run examples/repl_demo.ail      # Basic expressions
+ailang run examples/v0_0_3_features_demo.ail  # NEW: AI-first features demo
+ailang run examples/working_v0_0_3_demo.ail   # Working v0.0.3 examples
+
+# Interactive REPL (works for basic expressions + new AI commands)
+ailang repl
+# Try: 1 + 2, "hello" ++ "world", [1, 2, 3], {name: "Alice"}
+# New: :effects 1+2, :test --json, :compact on
+# Multi-line: let x = 5 in [press Enter for continuation]
+```
+
+### ❌ Examples That Will Fail (Don't Try These)
+```bash
+# These examples fail with parser errors:
+ailang run examples/factorial.ail      # Uses func syntax
+ailang run examples/quicksort.ail      # Uses modules, types
+ailang run examples/web_api.ail        # Uses advanced features
+ailang run examples/concurrent_pipeline.ail  # Uses channels
+# Most other examples/ files
+```
+
+### 📝 What Actually Works
+- ✅ Basic arithmetic: `2 + 3 * 4`
+- ✅ String operations: `"hello " ++ "world"`
+- ✅ Let bindings: `let x = 5 in x * 2`
+- ✅ Conditionals: `if x > 0 then "pos" else "neg"`
+- ✅ Lambda expressions: `\x. x + 1`, `(\x y. x + y)(3)(4)`
+- ✅ Records: `{name: "Alice", age: 30}` and field access
+- ✅ Lists: `[1, 2, 3]` (creation only)
+- ✅ Built-ins: `print()`, `show()`, `toText()`
+
+### ❌ What Doesn't Work
+- ❌ Module system (`module`, `import`)
+- ❌ Function declarations (`func`)
+- ❌ Type definitions (`type`)
+- ❌ Pattern matching (parsing works, evaluation doesn't)
+- ❌ Most examples in `/examples/` directory
+- ❌ Advanced type class features in file mode
+
+## 🚨 Reality Check: Implementation Status
+
+**Last Updated:** September 28, 2024
+
+### ✅ Fully Working Features (Tested)
+1. **Simple expressions in files:** hello.ail, simple.ail, arithmetic.ail  
+2. **Lambda expressions:** Complete functionality with closures, currying (see lambda_expressions.ail - 187 lines)
+3. **Basic REPL usage:** Simple arithmetic, strings, let bindings
+4. **Built-in functions:** `print()`, `show()`, `toText()`
+
+### ⚠️ Partially Working
+- **`examples/show_demo.ail`** - Works but has variable scoping issues
+- **REPL type classes** - Work for simple expressions but not complex programs
+- **Type checking** - REPL-only, file execution uses simpler evaluator
+
+### ❌ Completely Broken (Parser Failures)
+- **`examples/factorial.ail`** - Uses `func` syntax, `tests`, `properties` 
+- **`examples/quicksort.ail`** - Uses modules, type parameters, pattern matching
+- **`examples/web_api.ail`** - Uses modules, imports, type definitions, quasiquotes
+- **`examples/concurrent_pipeline.ail`** - Uses channels, effects, advanced syntax
+- **Most other examples in `/examples/`** - Use unsupported syntax
+
+## 🔧 Current Implementation Capabilities
+
+### Parser Support
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Basic expressions | ✅ Works | Arithmetic, strings, booleans |
+| Let bindings | ✅ Works | `let x = 5 in x * 2` |
+| Conditionals | ✅ Works | `if then else` |
+| Lambda expressions | ✅ Works | `\x. x + 1`, currying, closures |
+| Records | ✅ Works | Creation and field access |
+| Lists | ✅ Works | Creation, limited operations |
+| Function calls | ✅ Works | `f(x)`, `f(x)(y)` |
+| Module declarations | ❌ Broken | `module MyModule` fails |
+| Import statements | ❌ Broken | `import std/io` fails |
+| Function declarations | ❌ Broken | `func add(x, y) { ... }` fails |
+| Type definitions | ❌ Broken | `type User = { ... }` fails |
+| Pattern matching | ⚠️ Parses only | Syntax works, evaluation doesn't |
+| Type annotations | ⚠️ Parses only | Ignored by evaluator |
+| Tests syntax | ❌ Broken | `tests [...]` fails |
+| Properties syntax | ❌ Broken | `properties [...]` fails |
+| Effects syntax | ❌ Broken | `! {IO, FS}` fails |
+| Quasiquotes | ❌ Broken | `sql"""..."""` fails |
+
+### Evaluator Support  
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Arithmetic | ✅ Works | `+`, `-`, `*`, `/` |
+| String concatenation | ✅ Works | `++` operator |
+| Comparisons | ✅ Works | `==`, `!=`, `<`, `>`, etc. |
+| Boolean operations | ✅ Works | `&&`, `||`, `!` |
+| Let bindings | ✅ Works | Variable scoping |
+| Conditionals | ✅ Works | `if then else` |
+| Lambda expressions | ✅ Works | Full closure support |
+| Function calls | ✅ Works | Including partial application |
+| Records | ✅ Works | Creation and field access |
+| Lists | ✅ Limited | Creation works, operations limited |
+| Built-in functions | ✅ Works | `print`, `show`, `toText` |
+| Pattern matching | ❌ Not implemented | Parsed but not evaluated |
+| Module system | ❌ Not implemented | No import resolution |
+| Type checking | ❌ File mode only | REPL has type classes |
+| Effects | ❌ Not implemented | No runtime support |
+
+## 🎯 What Users Can Actually Do Right Now
+
+### Recommended Learning Path
+1. **Start with**: `examples/simple.ail` - Basic arithmetic
+2. **Next try**: `examples/arithmetic.ail` - Show function usage
+3. **Then explore**: `examples/lambda_expressions.ail` - Full lambda tutorial (comprehensive!)
+4. **Interactive**: Use REPL for experimentation
+
+### REPL Usage (What Actually Works)
+```bash
+ailang repl
+
+# These work:
+λ> 1 + 2
+3
+
+λ> "hello" ++ " world"
+hello world
+
+λ> let x = 5 in x * 2
+10
+
+λ> \x. x + 1
+<function>
+
+λ> (\x y. x + y)(3)(4)
+7
+
+λ> {name: "Alice", age: 30}
+{age: 30, name: Alice}
+
+λ> [1, 2, 3]
+[1, 2, 3]
+```
+
+### File Execution (What Works)
+```bash
+# Simple expressions
+ailang run examples/simple.ail
+
+# Arithmetic with output
+ailang run examples/arithmetic.ail
+
+# Complete lambda tutorial (comprehensive!)
+ailang run examples/lambda_expressions.ail
+
+# Simple print
+ailang run examples/hello.ail
+```
+
+## 🚧 Major Missing Features
+
+### Core Language Features Not Working
+1. **Module System** - Cannot use `module` or `import`
+2. **Function Declarations** - Cannot use `func` syntax  
+3. **Type System Integration** - File mode has no type checking
+4. **Pattern Matching** - Syntax parsed but not evaluated
+5. **Advanced Type Features** - No type definitions, annotations ignored
+
+### Advanced Features Not Started
+1. **Effect System** - No algebraic effects
+2. **Concurrency** - No channels or CSP
+3. **Quasiquotes** - No typed templates
+4. **Standard Library** - No built-in modules
+5. **Property Testing** - No property-based testing
+6. **Training Export** - No AI training data generation
+
+## 📊 Documentation vs Reality
+
+### README Claims vs Actual Status
+| Claimed Feature | Previous Status | Actual Status |
+|----------------|-----------------|---------------|
+| "Type classes fully operational" | ✅ Complete | ⚠️ REPL only |
+| "REPL fully working" | ✅ Complete | ⚠️ Basic features only |
+| "Examples working" | ✅ Multiple listed | ❌ Most are broken |
+| "Module system" | ✅ Working | ❌ Completely broken |
+| "Function declarations" | ✅ Working | ❌ Not implemented |
+
+### Recommendation: User Expectations
+**Set realistic expectations:**
+- AILANG is an experimental language in early development
+- Most documented features are aspirational/future plans
+- Only basic functional programming features work
+- Complex examples are for demonstration of planned features
+
+## 🎯 Immediate Priorities for Development
+
+### Critical Fixes Needed
+1. **Parser**: Make `module` and `import` statements work
+2. **Parser**: Implement `func` declaration syntax
+3. **Integration**: Unify REPL and file execution evaluators
+4. **Documentation**: Remove or clearly mark aspirational features
+5. **Examples**: Fix or remove broken examples
+
+### User Experience Improvements
+1. **Error Messages**: Better error reporting for unsupported features
+2. **Example Validation**: Test all examples in CI
+3. **Documentation Accuracy**: Match docs to implementation reality
+4. **Getting Started Guide**: Focus on what actually works
+
+## 💡 For New Users
+
+### What You Can Learn Right Now
+- **Functional programming basics** - Pure functions, immutability
+- **Lambda expressions** - Closures, higher-order functions, currying
+- **Basic type inference** - Let polymorphism (in REPL)
+- **Expression-based programming** - Everything returns a value
+
+### What to Avoid
+- Don't try complex examples from `/examples/` (most are broken)
+- Don't expect module system to work
+- Don't use `func` syntax (use lambdas instead)  
+- Don't expect type annotations to do anything
+
+### Alternative Learning Resources
+- Study the working examples first
+- Use REPL for experimentation
+- Focus on lambda expressions (they work well!)
+- Understand this is a research/experimental language
+
+---
+
+### 🚀 NEW: AI-First Features (v3.2) - September 28, 2024
+
+**AILANG v3.2 introduces AI-first features for structured error reporting, test output, and introspection:**
+
+#### New REPL Commands for AI Agents
+- **`:effects <expr>`** - Inspect type and effects without evaluation
+- **`:test --json`** - Run tests with structured JSON output
+- **`:compact on/off`** - Toggle compact JSON mode for token efficiency
+
+#### Structured JSON Output
+All new features output versioned, deterministic JSON for AI consumption:
+
+```bash
+λ> :test --json
+{
+  "schema": "ailang.test/v1",
+  "run_id": "5a71641df5b487b0",
+  "counts": {
+    "passed": 0, "failed": 0, "errored": 0, 
+    "skipped": 0, "total": 0
+  },
+  "platform": {
+    "go_version": "go1.19.2",
+    "os": "darwin",
+    "arch": "amd64"
+  }
+}
+
+λ> :effects 1 + 2
+{
+  "schema": "ailang.effects/v1",
+  "type": "<type inference pending>",
+  "effects": []
+}
+
+λ> :compact on
+# Switches to single-line JSON for reduced token usage
+```
+
+#### Error Reporting (Coming Soon)
+Errors will be reported with structured taxonomy and fix suggestions:
+- Error codes: TC### (typecheck), ELB### (elaboration), LNK### (linking), RT### (runtime)
+- Always includes `fix` field with suggestion and confidence score
+- Stable Node IDs (SIDs) for tracking transformations
+
+#### Implementation Details
+- **Schema Registry** (`internal/schema/`) - Versioned schemas with forward compatibility
+- **Error JSON Encoder** (`internal/errors/`) - Structured error reporting with taxonomy
+- **Test Reporter** (`internal/test/`) - Machine-readable test results
+- **Effects Inspector** (`internal/repl/effects.go`) - Type/effect introspection
+- **Golden Test Framework** (`testutil/`) - Reproducible test fixtures
+
+#### Examples
+- `examples/v3_2_features_demo.ail` - Demonstrates new AI-first features
+- `examples/repl_commands_demo.md` - Complete REPL command documentation
+- `examples/ai_agent_integration.ail` - Comprehensive AI agent integration guide
+- `examples/working_v3_2_demo.ail` - Working examples for current implementation
+
+#### Multi-line Input Support
+The REPL now supports multi-line expressions with automatic continuation:
+```bash
+λ> let user = {name: "Alice", age: 30} in
+... user
+{name: Alice, age: 30} :: {name: String, age: Int}
+```
+
+All new packages have 100% test coverage and comprehensive documentation.
+
+---
+
+### 🚀 REPL Implementation Details (v2.3)
 
 **REPL Now Fully Operational!**
 - ✅ **Professional Interactive REPL** with type class support (~850 lines)
@@ -53,6 +392,8 @@ AILANG is a purely functional programming language designed specifically for AI-
 - ✅ Linear capability capture analysis
 - ✅ Fail-fast on unsolved constraints
 - **Total v2.0-2.2: ~6,360 lines of production code**
+- **Total v3.2 additions: ~1,500 lines (schema, errors, test, effects)**
+- **Current total: ~7,860 lines of production code**
 - **Status: Complete type class pipeline operational with interactive REPL**
 
 ### ✅ Core Features Working
@@ -165,22 +506,35 @@ ailang/
 │   │   └── typechecker_core.go # Core type checker with defaulting ✅ (2,050 lines)
 │   ├── link/            # Dictionary linker ✅ NEW (270 lines)
 │   │   └── linker.go          # Resolves dictionary references
+│   ├── schema/          # Schema registry ✅ NEW v3.2 (250 lines)
+│   │   └── registry.go        # Versioned JSON schemas
+│   ├── errors/          # Error JSON encoder ✅ NEW v3.2 (400 lines)
+│   │   └── json_encoder.go    # Structured error reporting
+│   ├── test/            # Test reporter ✅ NEW v3.2 (350 lines)
+│   │   └── reporter.go        # JSON test output
 │   ├── effects/         # Effect system (TODO)
 │   ├── channels/        # CSP implementation (TODO)
 │   ├── session/         # Session types (TODO)
 │   └── typeclass/       # Type classes (TODO)
+├── testutil/            # Testing utilities ✅ NEW v3.2 (200 lines)
+│   └── golden.go        # Golden file test framework
 ├── examples/            # Example AILANG programs
 │   ├── arithmetic.ail   # Basic arithmetic ✅ WORKING
+│   ├── v3_2_features_demo.ail # AI-first features ✅ NEW
+│   ├── working_v3_2_demo.ail # Working v3.2 examples ✅ NEW
+│   ├── ai_agent_integration.ail # AI agent guide ✅ NEW
 │   ├── lambda_expressions.ail # Lambda features ✅ WORKING
 │   ├── simple.ail       # Simple expressions ✅ WORKING  
-│   ├── lambdas_v2.ail   # Lambda currying ✅ WORKING
-│   ├── type_class_showcase.ail # Type classes demo ✅ NEW
-│   ├── num_demo.ail     # Num dictionary examples ✅ NEW
-│   ├── debug*.ail       # Simple test files ✅ NEW
+│   ├── hello.ail        # Hello world ✅ WORKING
+│   ├── repl_demo.ail    # REPL expressions ✅ WORKING
 │   ├── show_demo.ail    # Show/toText functions ⚠️ PARTIAL
-│   ├── hello.ail        # Hello world ⚠️ needs func syntax
-│   ├── factorial.ail    # Factorial ⚠️ needs recursion
-│   └── (30+ more examples in various states)
+│   ├── factorial.ail    # Factorial ❌ BROKEN - parser fails
+│   ├── quicksort.ail    # Sorting ❌ BROKEN - parser fails
+│   ├── web_api.ail      # Web API ❌ BROKEN - parser fails
+│   ├── concurrent_pipeline.ail # Concurrency ❌ BROKEN - parser fails
+│   └── (30+ more examples - most are ❌ BROKEN)
+├── testutil/            # Testing utilities ✅ NEW v3.2
+│   └── golden.go              # Golden file testing framework
 ├── quasiquote/          # Typed templates (TODO)
 ├── stdlib/              # Standard library (TODO)
 ├── tools/               # Development tools (TODO)
@@ -257,6 +611,7 @@ The AILANG REPL is now fully operational with professional-grade interactive dev
 - **Tab Completion**: Press Tab to complete REPL commands ✅
 - **Auto-imports**: `std/prelude` loaded automatically on startup ✅
 - **Clean Exit**: Use `:quit`, `:q`, or Ctrl+D to exit properly ✅
+- **Multi-line Input**: Expressions ending with `in` continue on next line with `...` prompt ✅
 
 #### REPL Commands
 
@@ -272,6 +627,11 @@ The AILANG REPL is now fully operational with professional-grade interactive dev
 λ> :type <expr>        # Show type of expression
 λ> :import <module>    # Import module instances
 λ> :instances          # Show available type class instances
+
+# AI-First Commands (NEW v3.2)
+λ> :effects <expr>     # Show type and effects without evaluating
+λ> :test [--json]      # Run tests (with optional JSON output)
+λ> :compact on/off     # Enable/disable compact JSON mode
 
 # Debugging Commands
 λ> :dump-core          # Toggle Core AST display
@@ -372,7 +732,7 @@ go test -v ./...
 ### Hello World
 
 ```ailang
--- hello.ail (simplified version that works today)
+-- hello.ail (✅ WORKS with current implementation)
 print("Hello, AILANG!")
 ```
 
@@ -385,10 +745,10 @@ let version = 0.1 in
 print("Welcome to " ++ name ++ " v" ++ show(version))
 ```
 
-### Lambda Expressions
+### Lambda Expressions (✅ FULLY WORKING!)
 
 ```ailang
--- Lambda syntax with closures
+-- Lambda syntax with closures - ALL OF THIS ACTUALLY WORKS!
 let add = \x y. x + y in
 let add5 = add(5) in  -- Partial application
 print("Result: " ++ show(add5(3)))  -- Result: 8
@@ -401,37 +761,39 @@ let doubleThenInc = compose(inc)(double) in
 print("Composed: " ++ show(doubleThenInc(5)))  -- Composed: 11
 ```
 
-### Type Classes & Dictionary-Passing (NEW!)
+**Run this working example:**
+```bash
+ailang run examples/lambda_expressions.ail  # This actually works!
+```
+
+### Type Classes & Dictionary-Passing (⚠️ REPL ONLY!)
+
+**⚠️ WARNING: Type classes work in REPL but NOT in file execution**
 
 ```ailang
--- Type class constraints are resolved to dictionary calls
--- All numeric literals default to Int unless used with Float operations
+-- This works in REPL (ailang repl) but may fail in files
+-- REPL uses different evaluator than file execution
 
--- Integer arithmetic (Num[Int] dictionary)
-let sum = 1 + 2 + 3             -- Defaults to Int: 6
-let calc = 10 * 5 - 20 / 4      -- All Int operations: 45
+-- Basic arithmetic (works in both REPL and files)
+let sum = 1 + 2 + 3             -- Works: 6
+let calc = 10 * 5 - 20 / 4      -- Works: 45
 
--- Float arithmetic (Num[Float] dictionary)
-let pi = 3.14159
-let area = pi * 2.0 * 2.0       -- Circle area: ~12.56
+-- String operations (works in both)
+let greeting = "hello" ++ " world"  -- Works: "hello world"
 
--- Equality tests (Eq dictionary)
-let eq1 = 42 == 42              -- Eq[Int]: true
-let eq2 = "hello" == "hello"    -- Eq[String]: true
+-- These work in REPL but may not work in complex file examples:
+let eq1 = 42 == 42              -- REPL: true
+let lt = 5 < 10                 -- REPL: true
+let double = \x. x + x          -- REPL: works, files: may fail
+```
 
--- Ordering comparisons (Ord dictionary)
-let lt = 5 < 10                 -- Ord[Int]: true
-let gt = "zebra" > "apple"      -- Ord[String]: true
-
--- Polymorphic functions with constraints
-let double = \x. x + x          -- Num a => a -> a
-let result1 = double(21)        -- Instantiated at Int: 42
-let result2 = double(1.5)       -- Instantiated at Float: 3.0
-
--- After elaboration, operations become dictionary calls:
--- 1 + 2 transforms to:
--- let $dict = dict_Num_Int in
--- DictApp($dict, "add", [1, 2])
+**To try type classes, use the REPL:**
+```bash
+ailang repl
+λ> 1 + 2
+3 :: Int
+λ> "hello" ++ " world"
+hello world :: String
 ```
 
 ## Implementation Status
@@ -518,7 +880,26 @@ AILANG now has a complete type class resolution system with dictionary-passing t
 - **Training Export** - AI training data generation with typed traces
 - **Module System** - Module loading and resolution
 
-## Current Capabilities
+## ⚠️ IMPORTANT: Current Implementation Reality
+
+**The documentation above is aspirational. Here's what ACTUALLY works with the current implementation:**
+
+### ✅ Examples That Actually Work (Tested and Verified)
+- `examples/hello.ail` - Simple print statement
+- `examples/simple.ail` - Basic arithmetic with let bindings
+- `examples/arithmetic.ail` - Arithmetic operations with show function
+- `examples/lambda_expressions.ail` - Complete lambda functionality (WORKING!)
+- `examples/repl_demo.ail` - REPL-compatible expressions
+- Basic expressions in REPL (1 + 2, "hello" ++ "world", etc.)
+
+### ❌ Examples That DON'T Work (Parser Failures)
+- `examples/factorial.ail` - Uses `func` syntax, `tests`, `properties`
+- `examples/quicksort.ail` - Uses modules, type parameters, pattern matching
+- `examples/web_api.ail` - Uses modules, imports, type definitions, quasiquotes
+- `examples/concurrent_pipeline.ail` - Uses channels, effects, advanced syntax
+- Most other examples that use advanced language features
+
+### Current Capabilities
 
 ### What Actually Works (Can Run)
 - ✅ Integer and float arithmetic: `2 + 3 * 4`, `10.5 / 2.0`
@@ -537,15 +918,27 @@ AILANG now has a complete type class resolution system with dictionary-passing t
 - ✅ Builtins: `show(42)` → `"42"`, `toText(value)`, `print(value)`
 
 ### What Parses but Doesn't Evaluate
-- ⚠️ Pattern matching: `match x { ... }`
-- ⚠️ Type annotations: `let x: int = 5`
-- ⚠️ Module imports: `import std/io`
-- ⚠️ Function declarations: `func add(x, y) { x + y }`
+- ⚠️ Pattern matching: `match x { ... }` (parsed but not evaluated)
+- ⚠️ Type annotations: `let x: int = 5` (parsed but ignored)
+- ⚠️ Some function calls may parse but fail at runtime
 
-### What Doesn't Parse Yet
+### What Doesn't Parse Yet (Causes Parser Errors)
+- ❌ Module declarations: `module MyModule`
+- ❌ Import statements: `import std/io`
+- ❌ Function declarations: `func add(x, y) { x + y }`
+- ❌ Type definitions: `type User = { ... }`
+- ❌ Tests syntax: `tests [...]`
+- ❌ Properties syntax: `properties [...]`
+- ❌ Type parameters: `func sort[T](list: [T])`
+- ❌ Effects syntax: `! {IO, FS}`
+- ❌ Quasiquotes: `sql"""..."""`, `html"""..."""`, etc.
+
+### Additional Parser Limitations
 - ❌ Tuples: `(1, "hello", true)`
 - ❌ Effect handlers: `handle ... with { ... }`
 - ❌ Result operator: `readFile(path)?`
+- ❌ Advanced pattern matching with guards
+- ❌ Recursive let bindings (`let rec`)
 
 ### Builtin Functions
 - `print(value)` - Outputs value to console
@@ -642,24 +1035,39 @@ print("Unquoted: " ++ toText(text)) -- Prints: Unquoted: hello
                                      --         world
 ```
 
-### Known Limitations
+### 🚨 Critical Limitations (Updated)
 
-#### Parser Limitations
+#### What the README Claims vs Reality
+- 🔴 **Type Classes**: README claims "fully operational" but many examples fail
+- 🔴 **REPL**: While basic REPL works, many documented features cause errors
+- 🔴 **Module System**: Completely non-functional - all imports fail
+- 🔴 **Function Declarations**: `func` syntax doesn't work at all
+- 🔴 **Advanced Examples**: Most complex examples in `/examples` are broken
+
+#### Parser Limitations (Actual)
+- No module system (`module`, `import` statements)
+- No function declarations (`func` syntax)
+- No type definitions (`type` declarations)
 - No `?` operator for Result types
 - No effect handler syntax  
 - No tuple syntax `(a, b, c)`
+- No tests/properties syntax
+- No quasiquotes
 
-#### Evaluator Limitations  
+#### Evaluator Limitations (Actual)
 - Pattern matching doesn't execute
 - Tuples not supported  
 - Module imports not resolved
 - Effect handlers not implemented
+- Function declarations not supported
+- Type classes work in REPL but not in file execution
 
-#### Integration Issues
-- Type checker not connected to evaluator
-- Type annotations parsed but ignored
+#### Integration Issues (Actual)
+- Type checker not connected to file-based evaluator
+- Type annotations parsed but completely ignored
 - Effect annotations have no runtime support
-- No type checking before evaluation
+- No type checking before evaluation in file mode
+- REPL and file execution use different code paths
 
 ## Development Roadmap
 

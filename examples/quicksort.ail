@@ -1,3 +1,8 @@
+-- ⚠️ WARNING: This example does not work with current implementation
+-- Requires: modules, imports, type parameters, pattern matching, properties
+-- Status: Parser fails on module syntax, type parameters, pattern matching
+-- Try simple.ail or arithmetic.ail for working examples
+--
 -- quicksort.ail: Functional sorting with property-based testing
 module QuickSort
 

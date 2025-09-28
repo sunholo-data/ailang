@@ -1,0 +1,43 @@
+-- v3_2_features_demo.ail
+-- Demonstrates AILANG v3.2 AI-First Features
+-- 
+-- This file showcases the new REPL commands for AI-assisted development:
+-- • :effects - Type and effect introspection without evaluation
+-- • :test --json - Structured test reporting in JSON format
+-- • :compact - Toggle compact JSON mode for token efficiency
+--
+-- To try these features:
+-- 1. Start the REPL: ailang repl
+-- 2. Run the commands shown below
+
+-- Example expressions to test with :effects command
+let add = \x y. x + y in add(5)(10)
+
+-- Simple arithmetic to check type inference
+42 * 2 + 10
+
+-- String operations
+"Hello, " ++ "AILANG v3.2!"
+
+-- Record creation (note: field access not yet implemented)
+-- Single line version:
+let user = {name: "Alice", age: 30} in user
+-- Multi-line version (REPL will prompt with "..." for continuation):
+-- λ> let user = {name: "Alice", age: 30} in
+-- ... user
+
+-- List operations (basic)
+[1, 2, 3, 4, 5]
+
+-- Conditional expressions
+if 5 > 3 then "correct" else "impossible"
+
+-- Lambda with type class constraint (Num)
+let double = \x. x + x in double(21)
+
+-- Higher-order function (use single line in REPL)
+-- Single line version:
+let apply_twice = \f x. f(f(x)) in let inc = \n. n + 1 in apply_twice(inc)(10)
+-- Or multi-line with continuation:
+-- λ> let apply_twice = \f x. f(f(x)) in
+-- ... let inc = \n. n + 1 in apply_twice(inc)(10)

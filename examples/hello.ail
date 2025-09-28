@@ -1,7 +1,4 @@
 -- hello.ail - Simple hello world program
 
--- Main function
-func main() {
-  print("Hello, AILANG!")
-  print("Welcome to the AI-First Programming Language")
-}
+-- Using print expression instead of func declaration
+print("Hello, AILANG!")

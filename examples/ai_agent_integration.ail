@@ -1,0 +1,178 @@
+-- ai_agent_integration.ail
+-- Demonstrates AILANG v3.2 AI-First Features for AI Agent Integration
+--
+-- This example shows how AI agents can interact with AILANG programs
+-- using the structured JSON output from v3.2 features.
+--
+-- Run with: ailang repl < ai_agent_integration.ail
+-- Or in REPL: :load ai_agent_integration.ail (when implemented)
+
+-- ============================================================================
+-- 1. EFFECTS INTROSPECTION
+-- AI agents can use :effects to understand code before execution
+-- ============================================================================
+
+-- Example 1: Simple pure function
+-- Command: :effects \x. x * x
+-- Expected output: {"effects":[],"schema":"ailang.effects/v1","type":"Num a => a -> a"}
+
+-- Example 2: Effectful computation (future)
+-- Command: :effects readFile("config.json")
+-- Expected output: {"effects":["FS"],"schema":"ailang.effects/v1","type":"String ! {FS}"}
+
+-- ============================================================================
+-- 2. TEST RUNNER INTEGRATION
+-- AI agents can run tests and get structured results
+-- ============================================================================
+
+-- Test suite for an AI to verify
+let test_arithmetic = \() -> Bool {
+  (1 + 1 == 2) && 
+  (10 - 3 == 7) &&
+  (5 * 5 == 25) &&
+  (20 / 4 == 5)
+}
+
+-- Command: :test --json
+-- AI agents receive structured output with:
+-- - Pass/fail counts
+-- - Individual test results
+-- - Timing information
+-- - Platform details for reproducibility
+
+-- ============================================================================
+-- 3. ERROR ANALYSIS
+-- AI agents can understand and suggest fixes for errors
+-- ============================================================================
+
+-- This would produce a type error (when full type checking is implemented)
+-- let type_error = "hello" + 42
+
+-- Expected error JSON:
+-- {
+--   "schema": "ailang.error/v1",
+--   "code": "TC001", 
+--   "message": "Type mismatch: cannot add String and Int",
+--   "fix": {
+--     "suggestion": "Convert Int to String using show: \"hello\" ++ show(42)",
+--     "confidence": 0.95
+--   }
+-- }
+
+-- ============================================================================
+-- 4. COMPACT MODE FOR TOKEN EFFICIENCY
+-- AI agents working with limited context windows
+-- ============================================================================
+
+-- Command: :compact on
+-- All JSON output becomes single-line without whitespace
+-- Reduces token usage by ~40% for complex outputs
+
+-- Example workflow for AI agent:
+-- 1. :compact on                    -- Enable compact mode
+-- 2. :effects complex_function      -- Get type info (compact)
+-- 3. complex_function(args)         -- Execute
+-- 4. :test --json                   -- Verify (compact output)
+
+-- ============================================================================
+-- 5. AI-FRIENDLY COMPUTATION EXAMPLES
+-- ============================================================================
+
+-- Factorial with memoization (demonstrates pure computation)
+let factorial = \n -> Int {
+  if n <= 1 then 1 else n * factorial(n - 1)
+}
+
+-- Map function (higher-order, polymorphic)
+let map = \f xs -> [b] {
+  match xs {
+    [] => [],
+    [h, ...t] => [f(h), ...map(f, t)]
+  }
+}
+
+-- Filter function (demonstrates predicates)
+let filter = \pred xs -> [a] {
+  match xs {
+    [] => [],
+    [h, ...t] => 
+      if pred(h) then [h, ...filter(pred, t)]
+      else filter(pred, t)
+  }
+}
+
+-- ============================================================================
+-- 6. STRUCTURED DATA FOR AI TRAINING
+-- ============================================================================
+
+-- Example: Generate training data for code completion
+let training_example = {
+  input: "let double = \\x. x * ",
+  expected: "2",
+  context: {
+    type: "Int -> Int",
+    effects: [],
+    constraints: ["Num a"]
+  }
+}
+
+-- AI agents can use AILANG to generate verified training examples
+-- by running code and capturing execution traces
+
+-- ============================================================================
+-- 7. INTERACTIVE REPL WORKFLOW
+-- ============================================================================
+
+-- Step 1: AI analyzes available functions
+-- Command: :type factorial
+-- Output: factorial :: Int -> Int
+
+-- Step 2: AI tests edge cases
+factorial(0)   -- Base case: returns 1
+factorial(5)   -- Normal case: returns 120
+factorial(10)  -- Larger input: returns 3628800
+
+-- Step 3: AI generates test suite
+let test_factorial = \() -> Bool {
+  (factorial(0) == 1) &&
+  (factorial(1) == 1) &&
+  (factorial(5) == 120) &&
+  (factorial(10) == 3628800)
+}
+
+-- Step 4: AI verifies test passes
+-- Command: :test --json
+-- Receives structured confirmation
+
+-- ============================================================================
+-- 8. DECISION TRACKING (Future Feature)
+-- ============================================================================
+
+-- When implemented, AI agents can query type inference decisions:
+-- Command: :why
+-- Output: Shows type inference steps, defaulting choices, instance resolution
+
+-- This helps AI agents understand:
+-- - Why a particular type was inferred
+-- - What constraints were applied
+-- - Which type class instances were selected
+
+-- ============================================================================
+-- SUMMARY: AI Agent Integration Points
+-- ============================================================================
+
+-- 1. Pre-execution analysis with :effects
+-- 2. Structured test results with :test --json
+-- 3. Machine-readable errors with fix suggestions
+-- 4. Token-efficient compact mode
+-- 5. Type introspection for code understanding
+-- 6. Deterministic execution for training data
+-- 7. Decision tracking for debugging
+
+-- Example AI agent workflow:
+-- a. Load this file
+-- b. Use :effects to understand each function
+-- c. Run examples and capture outputs
+-- d. Generate test cases
+-- e. Verify with :test --json
+-- f. Use results to improve code or generate documentation

@@ -55,15 +55,6 @@ func typecheckCore(t *testing.T, cp *core.Program) *types.CoreTypeChecker {
 	return tc
 }
 
-func typeOfTopVal(t *testing.T, tc *types.CoreTypeChecker, name string) string {
-	t.Helper()
-	// For now, this is a stub since we don't have full program-level type environments
-	// In a real implementation, this would look up the binding in the typed program
-	
-	// Return a placeholder for now
-	return "int" // This will need to be implemented when we have proper program typing
-}
-
 func TestDefaulting_IntLiteralGround(t *testing.T) {
 	src := `let x = 1 in x`
 	surf := parseSurface(t, src)
