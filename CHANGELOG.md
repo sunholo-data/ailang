@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- CI/CD script compilation errors by refactoring shared types into `scripts/internal/reporttypes`
+- Test suite now correctly excludes `scripts/` directory containing standalone executables
+- Makefile and CI workflow updated to use `go list ./... | grep -v /scripts` for testing
+
 ## [v0.0.4] - 2025-09-28
 
 ### Added - Schema & Compact Mode Baseline

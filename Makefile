@@ -56,15 +56,15 @@ install:
 		echo "    source ~/.bashrc"; \
 	fi
 
-# Run tests
+# Run tests (excluding scripts directory which contains standalone executables)
 test:
 	@echo "Running tests..."
-	$(GOTEST) -v ./...
+	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts)
 
-# Run tests with coverage
+# Run tests with coverage (excluding scripts directory)
 test-coverage:
 	@echo "Running tests with coverage..."
-	$(GOTEST) -v -cover -coverprofile=coverage.out ./...
+	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts)
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 

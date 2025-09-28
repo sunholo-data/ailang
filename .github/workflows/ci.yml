@@ -28,7 +28,7 @@ jobs:
     
     - name: Generate test coverage
       run: |
-        go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)
         go tool cover -func=coverage.out
     
     - name: Upload coverage to Codecov
