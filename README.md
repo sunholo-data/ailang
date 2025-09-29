@@ -10,13 +10,11 @@ AILANG is a purely functional programming language designed specifically for AI-
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)
-![Examples](https://img.shields.io/badge/examples-13%25passing%2013%25failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-13%20passing%2013%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 06:32:16 UTC*
+*Last updated: 2025-09-29 08:49:15 UTC*
 
 **Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
 
