@@ -224,7 +224,7 @@ func (l *Lexer) NextToken() Token {
 	default:
 		if isLetter(l.ch) {
 			literal := l.readIdentifier()
-			tokType := LookupIdent(literal)
+			tokType := LookupIdentContextual(literal)
 
 			// Check for quasiquote keywords followed by quotes
 			if l.checkQuasiquoteKeyword(literal) {
@@ -447,7 +447,7 @@ func (l *Lexer) readQuasiquoteWithKeyword(keyword string, line, column int) Toke
 	}
 
 	// Otherwise it's just a regular identifier
-	return NewToken(LookupIdent(keyword), keyword, line, column, l.file)
+	return NewToken(LookupIdentContextual(keyword), keyword, line, column, l.file)
 }
 
 // readJSONQuote reads a JSON quasiquote

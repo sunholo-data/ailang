@@ -31,11 +31,13 @@ func (p Pos) String() string {
 
 // File represents a complete AILANG source file
 type File struct {
-	Module  *ModuleDecl   // Optional module declaration
-	Imports []*ImportDecl // Import declarations
-	Decls   []Node        // Top-level declarations
-	Path    string        // File path for validation
-	Pos     Pos
+	Module     *ModuleDecl   // Optional module declaration
+	Imports    []*ImportDecl // Import declarations
+	Decls      []Node        // Top-level declarations (deprecated, use Funcs/Statements)
+	Funcs      []*FuncDecl   // Function declarations
+	Statements []Node        // Top-level statements/expressions
+	Path       string        // File path for validation
+	Pos        Pos
 }
 
 // ModuleDecl represents a module declaration
@@ -327,6 +329,22 @@ func (r *RecordAccess) String() string {
 }
 func (r *RecordAccess) Position() Pos { return r.Pos }
 func (r *RecordAccess) exprNode()     {}
+
+// Error represents a parse error node (placeholder for error recovery)
+type Error struct {
+	Pos Pos
+	Msg string
+}
+
+func (e *Error) exprNode()        {}
+func (e *Error) Literal() string   { return "<error>" }
+func (e *Error) Position() Pos     { return e.Pos }
+func (e *Error) String() string    { 
+	if e.Msg != "" {
+		return fmt.Sprintf("<error: %s>", e.Msg)
+	}
+	return "<error>" 
+}
 
 // QuasiQuote represents typed quasiquotes
 type QuasiQuote struct {

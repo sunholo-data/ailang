@@ -1,0 +1,5 @@
+-- Test integer binary operations
+-- These should all be lowered to builtin function calls
+
+-- Basic arithmetic (should output 14)
+2 + 3 * 4

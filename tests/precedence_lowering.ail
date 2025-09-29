@@ -1,0 +1,5 @@
+-- Test operator precedence after lowering
+-- Ensures operators are lowered with correct precedence
+
+-- Multiplication before addition (should be 14)
+2 + 3 * 4

@@ -47,6 +47,9 @@ const (
 
 	// PAR013 indicates unexpected token before tests/properties (common missing })
 	PAR013 = "PAR013"
+	
+	// PAR999 indicates internal parser error/panic
+	PAR999 = "PAR999"
 
 	// ============================================================================
 	// Module System Errors (MOD###)

@@ -1,0 +1,20 @@
+-- Test export filtering
+module tests/exports_basic
+
+-- This should be exported
+export func add(a: int, b: int) -> int {
+  a + b
+}
+
+-- This should NOT be exported (starts with underscore)
+func _helper(x: int) -> int {
+  x * 2
+}
+
+-- This should NOT be exported (no export keyword)
+func internal(x: int) -> int {
+  _helper(x) + 1
+}
+
+-- Use the functions to test they work
+add(1, 2)

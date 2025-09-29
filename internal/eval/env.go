@@ -57,6 +57,25 @@ func (e *Environment) Extend(name string, value Value) *Environment {
 	return child
 }
 
+// GetAllBindings returns all bindings in this environment and its parents
+func (e *Environment) GetAllBindings() map[string]Value {
+	result := make(map[string]Value)
+
+	// Collect from parent first (so current env can override)
+	if e.parent != nil {
+		for k, v := range e.parent.GetAllBindings() {
+			result[k] = v
+		}
+	}
+
+	// Add current env bindings (overriding parent if needed)
+	for k, v := range e.values {
+		result[k] = v
+	}
+
+	return result
+}
+
 // New creates a new evaluator with built-in functions (for compatibility)
 func New() *SimpleEvaluator {
 	return NewSimple()

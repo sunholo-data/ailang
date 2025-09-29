@@ -15,6 +15,46 @@ type CoreTypeChecker struct {
 	debugMode           bool              // Enable debug output
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
+	globalTypes         map[string]*Scheme // Global types for imports (module.name -> Scheme)
+	instantiations      []Instantiation    // Track polymorphic instantiations for debugging
+	trackInstantiations bool              // Whether to track instantiations
+	varCounter          int               // Counter for generating fresh variable names
+}
+
+// Instantiation records a polymorphic type instantiation for debugging
+type Instantiation struct {
+	Location     string   // File position "line:col"
+	VarName      string   // Variable name
+	FreshVars    []string // Fresh type variables generated
+	Instantiated Type     // The instantiated monotype
+}
+
+// DumpInstantiations returns a JSON-serializable map of instantiations
+func (tc *CoreTypeChecker) DumpInstantiations() map[string]interface{} {
+	if !tc.trackInstantiations {
+		return nil
+	}
+	
+	result := make(map[string]interface{})
+	result["instantiations"] = make([]map[string]interface{}, 0, len(tc.instantiations))
+	
+	for _, inst := range tc.instantiations {
+		entry := map[string]interface{}{
+			"location":  inst.Location,
+			"var":       inst.VarName,
+			"fresh":     inst.FreshVars,
+			"type":      inst.Instantiated.String(),
+		}
+		result["instantiations"] = append(result["instantiations"].([]map[string]interface{}), entry)
+	}
+	
+	return result
+}
+
+// EnableInstantiationTracking turns on tracking of polymorphic instantiations
+func (tc *CoreTypeChecker) EnableInstantiationTracking() {
+	tc.trackInstantiations = true
+	tc.instantiations = make([]Instantiation, 0)
 }
 
 // ResolvedConstraint records a resolved class constraint at a specific node
@@ -39,6 +79,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		debugMode:           false,
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
+		globalTypes:         make(map[string]*Scheme),
 	}
 }
 
@@ -50,7 +91,21 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		debugMode:           false,
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
+		globalTypes:         make(map[string]*Scheme),
 	}
+}
+
+// SetGlobalTypes sets the global types for import resolution
+func (tc *CoreTypeChecker) SetGlobalTypes(types map[string]*Scheme) {
+	tc.globalTypes = types
+}
+
+// SetGlobalType sets a single global type scheme
+func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
+	if tc.globalTypes == nil {
+		tc.globalTypes = make(map[string]*Scheme)
+	}
+	tc.globalTypes[key] = scheme
 }
 
 // SetDebugMode enables debug output for defaulting traces
@@ -69,8 +124,8 @@ func (tc *CoreTypeChecker) SetDefaultingConfig(config *DefaultingConfig) {
 }
 
 // InferWithConstraints infers type with constraints for a Core expression
-// Returns: typed expression, qualified type, constraints, error
-func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, Type, []Constraint, error) {
+// Returns: typed expression, updated env, qualified type, constraints, error
+func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
 	// Create inference context
 	ctx := &InferenceContext{
 		env:                  env,
@@ -81,10 +136,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		qualifiedConstraints: []ClassConstraint{},
 	}
 
-	// Infer type
-	typedNode, _, err := tc.inferCore(ctx, expr)
+	// Infer type (returns updated env)
+	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	// Get the inferred type
@@ -126,8 +181,8 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		}
 	}
 
-	// Return with constraints and defaulted type
-	return typedNode, finalType, constraints, nil
+	// Return with updated env, constraints and defaulted type
+	return typedNode, updatedEnv, finalType, constraints, nil
 }
 
 // resolveConstraints resolves class constraints and applies defaulting
@@ -345,6 +400,9 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.Var:
 		return tc.inferVar(ctx, e)
 
+	case *core.VarGlobal:
+		return tc.inferVarGlobal(ctx, e)
+
 	case *core.Lambda:
 		return tc.inferLambda(ctx, e)
 
@@ -377,6 +435,9 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 
 	case *core.Match:
 		return tc.inferMatch(ctx, e)
+
+	case *core.Intrinsic:
+		return tc.inferIntrinsic(ctx, e)
 
 	default:
 		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
@@ -441,7 +502,27 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 	// Instantiate if it's a scheme
 	var monotype Type
 	if scheme, ok := typ.(*Scheme); ok {
+		// Track fresh variables before instantiation
+		var freshVars []string
+		if tc.trackInstantiations {
+			// Capture fresh type variables that will be generated
+			for range scheme.TypeVars {
+				freshVars = append(freshVars, fmt.Sprintf("t%d", tc.varCounter))
+				tc.varCounter++
+			}
+		}
+		
 		monotype = scheme.Instantiate(ctx.freshType)
+		
+		// Record instantiation after it happens
+		if tc.trackInstantiations {
+			tc.instantiations = append(tc.instantiations, Instantiation{
+				Location:     v.Span().String(),
+				VarName:      v.Name,
+				FreshVars:    freshVars,
+				Instantiated: monotype,
+			})
+		}
 	} else if t, ok := typ.(Type); ok {
 		monotype = t
 	} else {
@@ -457,6 +538,50 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 			Core:      v,
 		},
 		Name: v.Name,
+	}, ctx.env, nil
+}
+
+// inferVarGlobal infers type of global variable reference
+func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlobal) (*typedast.TypedVar, *TypeEnv, error) {
+	// Look up the type in the global types
+	key := fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name)
+	scheme, ok := tc.globalTypes[key]
+	if !ok {
+		return nil, ctx.env, fmt.Errorf("undefined global variable: %s from %s", v.Ref.Name, v.Ref.Module)
+	}
+
+	// Track fresh variables before instantiation
+	var freshVars []string
+	if tc.trackInstantiations {
+		// Capture fresh type variables that will be generated
+		for range scheme.TypeVars {
+			freshVars = append(freshVars, fmt.Sprintf("t%d", tc.varCounter))
+			tc.varCounter++
+		}
+	}
+	
+	// Instantiate the scheme
+	monotype := scheme.Instantiate(ctx.freshType)
+	
+	// Record instantiation after it happens
+	if tc.trackInstantiations {
+		tc.instantiations = append(tc.instantiations, Instantiation{
+			Location:     v.Span().String(),
+			VarName:      fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name),
+			FreshVars:    freshVars,
+			Instantiated: monotype,
+		})
+	}
+
+	return &typedast.TypedVar{
+		TypedExpr: typedast.TypedExpr{
+			NodeID:    v.ID(),
+			Span:      v.Span(),
+			Type:      monotype,
+			EffectRow: EmptyEffectRow(),
+			Core:      v,
+		},
+		Name: fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name),
 	}, ctx.env, nil
 }
 
@@ -913,6 +1038,54 @@ func OperatorMethod(op string, isUnary bool) string {
 	default:
 		return ""
 	}
+}
+
+// inferIntrinsic infers type of intrinsic operation
+func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core.Intrinsic) (*typedast.TypedBinOp, *TypeEnv, error) {
+	// For binary intrinsics, delegate to inferBinOp logic
+	if len(intrinsic.Args) == 2 {
+		// Convert back to BinOp for type checking (temporary)
+		opStr := map[core.IntrinsicOp]string{
+			core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*", core.OpDiv: "/", core.OpMod: "%",
+			core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
+			core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||",
+		}[intrinsic.Op]
+		
+		binop := &core.BinOp{
+			CoreNode: intrinsic.CoreNode,
+			Op:       opStr,
+			Left:     intrinsic.Args[0],
+			Right:    intrinsic.Args[1],
+		}
+		return tc.inferBinOp(ctx, binop)
+	}
+	
+	// For unary intrinsics
+	if len(intrinsic.Args) == 1 {
+		opStr := map[core.IntrinsicOp]string{
+			core.OpNot: "not", core.OpNeg: "-",
+		}[intrinsic.Op]
+		
+		unop := &core.UnOp{
+			CoreNode: intrinsic.CoreNode,
+			Op:       opStr,
+			Operand:  intrinsic.Args[0],
+		}
+		// We need to adapt the unary result
+		unResult, env, err := tc.inferUnOp(ctx, unop)
+		if err != nil {
+			return nil, env, err
+		}
+		// Convert UnOp result to BinOp result (hack for now)
+		return &typedast.TypedBinOp{
+			TypedExpr: unResult.TypedExpr,
+			Op:        opStr,
+			Left:      unResult.Operand,
+			Right:     &typedast.TypedLit{TypedExpr: typedast.TypedExpr{Type: TUnit}}, // dummy
+		}, env, nil
+	}
+	
+	return nil, ctx.env, fmt.Errorf("unexpected intrinsic arity: %d", len(intrinsic.Args))
 }
 
 // inferBinOp infers type of binary operation
@@ -2153,6 +2326,12 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 			rc.Method = OperatorMethod(e.Op, true)
 		}
 		tc.walkCore(e.Operand)
+	
+	case *core.Intrinsic:
+		// Intrinsic nodes pass through - they'll be handled by OpLowering
+		for _, arg := range e.Args {
+			tc.walkCore(arg)
+		}
 
 	case *core.Let:
 		tc.walkCore(e.Value)

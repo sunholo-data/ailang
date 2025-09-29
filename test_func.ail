@@ -1,0 +1,10 @@
+module mathtest
+
+func factorial(n: int) -> int
+  tests [
+    (0, 1),
+    (5, 120)
+  ]
+{
+  if n <= 1 then 1 else n * factorial(n - 1)
+}

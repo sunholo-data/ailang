@@ -1,0 +1,8 @@
+-- Test selective import (should parse)
+module test_selective_import
+
+-- This should work - selective import with symbols
+import examples/v3_3/math/simple_gcd (gcd)
+
+-- Use imported function
+show_Int(gcd(48, 18))

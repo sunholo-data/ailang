@@ -265,6 +265,21 @@ func LookupIdent(ident string) TokenType {
 	return IDENT
 }
 
+// LookupIdentContextual checks if an identifier is a keyword, but treats
+// test/tests/properties as contextual (can be used as identifiers in some contexts)
+func LookupIdentContextual(ident string) TokenType {
+	// Contextual keywords that can be used as identifiers in some contexts
+	switch ident {
+	case "test", "tests", "properties", "property":
+		// These are only keywords in specific contexts (after func declarations)
+		// Return IDENT and let the parser decide based on context
+		return IDENT
+	default:
+		// For all other keywords, use strict lookup
+		return LookupIdent(ident)
+	}
+}
+
 // IsReservedKeyword checks if a string is a reserved keyword
 // This is used to prevent keywords from being used as identifiers
 func IsReservedKeyword(ident string) bool {

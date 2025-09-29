@@ -25,6 +25,17 @@ jobs:
     
     - name: Run tests
       run: make test
+
+    - name: Run operator lowering tests
+      run: make test-lowering
+
+    - name: Test import system
+      run: make build && make test-imports
+    
+    - name: Verify no shim usage (CI gate)
+      run: make verify-no-shim
+      env:
+        AILANG_REQUIRE_LOWERING: "true"
     
     - name: Generate test coverage
       run: |

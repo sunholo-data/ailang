@@ -1,0 +1,5 @@
+-- Test float binary operations including division
+-- These should all be lowered to builtin function calls
+
+-- Basic float division (should output 1.5)
+3.0 / 2.0

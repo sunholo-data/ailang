@@ -1,0 +1,28 @@
+-- Example module with polymorphic exports
+module examples/v3_3/polymorphic
+
+-- Identity function - polymorphic over any type
+func id(x) {
+  x
+}
+
+-- Compose two functions - polymorphic over three types
+func compose(f, g) {
+  \x. f(g(x))
+}
+
+-- Map function for lists - polymorphic over element types
+func map(f, list) {
+  match list {
+    [] => [],
+    [head, ...tail] => [f(head), ...map(f, tail)]
+  }
+}
+
+-- Fold left - polymorphic accumulator and element types
+func foldl(f, acc, list) {
+  match list {
+    [] => acc,
+    [head, ...tail] => foldl(f, f(acc, head), tail)
+  }
+}

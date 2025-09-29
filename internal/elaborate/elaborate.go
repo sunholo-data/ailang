@@ -2,9 +2,11 @@ package elaborate
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/types"
 )
 
@@ -13,6 +15,9 @@ type Elaborator struct {
 	nextID       uint64
 	surfaceSpans map[uint64]ast.Pos // Map Core IDs to surface positions
 	freshVarNum  int                // For generating fresh variable names
+	moduleLoader *loader.ModuleLoader
+	filePath     string // Current file path for relative imports
+	globalEnv    map[string]core.GlobalRef // Global environment for imports (name -> GlobalRef)
 }
 
 // NewElaborator creates a new elaborator
@@ -21,13 +26,34 @@ func NewElaborator() *Elaborator {
 		nextID:       1,
 		surfaceSpans: make(map[uint64]ast.Pos),
 		freshVarNum:  0,
+		globalEnv:    make(map[string]core.GlobalRef),
 	}
+}
+
+// NewElaboratorWithPath creates a new elaborator with file path for imports
+func NewElaboratorWithPath(filePath string) *Elaborator {
+	dir := filepath.Dir(filePath)
+	return &Elaborator{
+		nextID:       1,
+		surfaceSpans: make(map[uint64]ast.Pos),
+		freshVarNum:  0,
+		moduleLoader: loader.NewModuleLoader(dir),
+		filePath:     filePath,
+		globalEnv:    make(map[string]core.GlobalRef),
+	}
+}
+
+// SetGlobalEnv sets the global environment for import resolution
+func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
+	e.globalEnv = env
 }
 
 // Elaborate transforms a surface program to Core ANF
 func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
 	if prog.Module == nil {
-		return &core.Program{}, nil
+		// For simple expressions without a module, return empty program
+		// Use ElaborateExpr for bare expressions
+		return &core.Program{Meta: make(map[string]*core.DeclMeta)}, nil
 	}
 
 	var coreDecls []core.CoreExpr
@@ -42,6 +68,240 @@ func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
 	}
 
 	return &core.Program{Decls: coreDecls}, nil
+}
+
+// ElaborateExpr transforms a single expression to Core ANF (for testing)
+func (e *Elaborator) ElaborateExpr(expr ast.Expr) (core.CoreExpr, error) {
+	return e.elaborateExpr(expr)
+}
+
+// ElaborateFile transforms a complete file with module structure to Core ANF
+func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
+	// For REPL/simple cases without module or funcs
+	if file.Module == nil || (len(file.Imports) == 0 && len(file.Funcs) == 0) {
+		// Just elaborate statements as expressions
+		var coreDecls []core.CoreExpr
+		for _, stmt := range file.Statements {
+			if expr, ok := stmt.(ast.Expr); ok {
+				coreExpr, err := e.elaborateExpr(expr)
+				if err != nil {
+					return nil, err
+				}
+				coreDecls = append(coreDecls, coreExpr)
+			}
+		}
+		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
+	}
+	
+	// Build symbol table and imports map
+	funcs := collectFuncSigs(file)
+	imports := collectImports(file)
+	symbols := make(map[string]*FuncSig)
+	for _, f := range funcs {
+		symbols[f.Name] = f
+	}
+	
+	// Load imported modules and add their exports to symbols
+	if e.moduleLoader != nil {
+		for _, imp := range file.Imports {
+			if imp.Symbols != nil && len(imp.Symbols) > 0 {
+				// Selective import
+				for _, sym := range imp.Symbols {
+					decl, err := e.moduleLoader.GetExport(imp.Path, sym)
+					if err != nil {
+						return nil, fmt.Errorf("failed to import %s from %s: %w", sym, imp.Path, err)
+					}
+					// Convert imported func to FuncSig
+					// The GetExport already returns *ast.FuncDecl
+					sig := astFuncToSig(decl)
+					symbols[sym] = sig
+					// Mark as imported
+					imports[sym] = imp.Path + "/" + sym
+				}
+			}
+		}
+	}
+	
+	// Build call graph for SCC detection
+	graph := BuildCallGraph(funcs, symbols, imports)
+	
+	// Find SCCs for mutual recursion
+	sccs := graph.SCCs()
+	
+	// Desugar functions based on SCCs
+	var coreDecls []core.CoreExpr
+	meta := make(map[string]*core.DeclMeta)
+	for _, scc := range sccs {
+		if len(scc) == 1 && !isSelfRecursive(scc[0], symbols) {
+			// Single non-recursive function → Let
+			f := symbols[scc[0]]
+			lambda, err := e.funcToLambda(f)
+			if err != nil {
+				return nil, err
+			}
+			
+			let := &core.Let{
+				CoreNode: e.makeNodeFromFunc(f),
+				Name:     f.Name,
+				Value:    lambda,
+				Body:     &core.Var{
+					CoreNode: e.makeNodeFromFunc(f),
+					Name:     f.Name,
+				},
+			}
+			// Track metadata from original AST function
+			if astFunc := findASTFunc(file, f.Name); astFunc != nil {
+				meta[f.Name] = &core.DeclMeta{
+					Name:     f.Name,
+					IsExport: astFunc.IsExport,
+					IsPure:   astFunc.IsPure,
+				}
+			}
+			coreDecls = append(coreDecls, let)
+		} else {
+			// Mutual or self-recursive → LetRec
+			var bindings []core.RecBinding
+			for _, fname := range scc {
+				f := symbols[fname]
+				lambda, err := e.funcToLambda(f)
+				if err != nil {
+					return nil, err
+				}
+				bindings = append(bindings, core.RecBinding{
+					Name:  f.Name,
+					Value: lambda,
+				})
+				// Track metadata for each binding
+				if astFunc := findASTFunc(file, f.Name); astFunc != nil {
+					meta[f.Name] = &core.DeclMeta{
+						Name:     f.Name,
+						IsExport: astFunc.IsExport,
+						IsPure:   astFunc.IsPure,
+					}
+				}
+			}
+			
+			// Create a LetRec that binds all functions and returns unit
+			letRec := &core.LetRec{
+				CoreNode: e.makeNode(ast.Pos{Line: 0, Column: 0}),
+				Bindings: bindings,
+				Body: &core.Lit{
+					CoreNode: e.makeNode(ast.Pos{Line: 0, Column: 0}),
+					Kind:     core.UnitLit,
+					Value:    nil,
+				},
+			}
+			coreDecls = append(coreDecls, letRec)
+		}
+	}
+	
+	// Add any non-func statements
+	for _, stmt := range file.Statements {
+		if expr, ok := stmt.(ast.Expr); ok {
+			coreExpr, err := e.elaborateExpr(expr)
+			if err != nil {
+				return nil, err
+			}
+			coreDecls = append(coreDecls, coreExpr)
+		}
+	}
+	
+	return &core.Program{Decls: coreDecls, Meta: meta}, nil
+}
+
+// findASTFunc finds the AST function declaration by name
+func findASTFunc(file *ast.File, name string) *ast.FuncDecl {
+	for _, fn := range file.Funcs {
+		if fn.Name == name {
+			return fn
+		}
+	}
+	return nil
+}
+
+// collectFuncSigs extracts function signatures from file
+// astFuncToSig converts an AST FuncDecl to a FuncSig
+func astFuncToSig(f *ast.FuncDecl) *FuncSig {
+	// Extract parameter names
+	params := make([]string, len(f.Params))
+	for i, p := range f.Params {
+		params[i] = p.Name
+	}
+	
+	return &FuncSig{
+		Name:     f.Name,
+		NodeSID:  "", // TODO: Calculate surface SID
+		Body:     f.Body,
+		Params:   params,
+		IsPure:   f.IsPure,
+		IsExport: f.IsExport,
+		Tests:    f.Tests,
+		Props:    f.Properties,
+		FuncDecl: f,
+	}
+}
+
+func collectFuncSigs(file *ast.File) []*FuncSig {
+	var funcs []*FuncSig
+	for _, f := range file.Funcs {
+		funcs = append(funcs, astFuncToSig(f))
+	}
+	return funcs
+}
+
+// collectImports builds import name map
+func collectImports(file *ast.File) map[string]string {
+	imports := make(map[string]string)
+	for _, imp := range file.Imports {
+		if imp.Symbols != nil {
+			// Selective import
+			for _, sym := range imp.Symbols {
+				imports[sym] = imp.Path + "/" + sym
+			}
+		}
+		// TODO: Handle wildcard imports
+	}
+	return imports
+}
+
+// isSelfRecursive checks if function calls itself
+func isSelfRecursive(fname string, symbols map[string]*FuncSig) bool {
+	f := symbols[fname]
+	if f == nil {
+		return false
+	}
+	
+	refs := findReferences(f.Body)
+	for _, ref := range refs {
+		if ref == fname {
+			return true
+		}
+	}
+	return false
+}
+
+// funcToLambda converts function to lambda
+func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
+	body, err := e.elaborateExpr(f.Body)
+	if err != nil {
+		return nil, err
+	}
+	
+	lambda := &core.Lambda{
+		CoreNode: e.makeNodeFromFunc(f),
+		Params:   f.Params,
+		Body:     body,
+	}
+	
+	// TODO: Preserve metadata (pure, export, tests, props) in CoreNode.Meta
+	
+	return lambda, nil
+}
+
+// makeNodeFromFunc creates CoreNode from FuncSig
+func (e *Elaborator) makeNodeFromFunc(f *FuncSig) core.CoreNode {
+	pos := f.FuncDecl.Position()
+	return e.makeNode(pos)
 }
 
 // elaborateNode handles any AST node
@@ -78,6 +338,14 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		return e.normalizeLiteral(ex)
 
 	case *ast.Identifier:
+		// Check if this is an imported symbol
+		if ref, ok := e.globalEnv[ex.Name]; ok {
+			return &core.VarGlobal{
+				CoreNode: e.makeNode(ex.Position()),
+				Ref:      ref,
+			}, nil
+		}
+		// Otherwise it's a local variable
 		return &core.Var{
 			CoreNode: e.makeNode(ex.Position()),
 			Name:     ex.Name,
@@ -177,12 +445,53 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		return nil, err
 	}
 
-	// Create the binary operation
-	result := &core.BinOp{
+	// Map operator to intrinsic
+	var op core.IntrinsicOp
+	switch binop.Op {
+	case "+":
+		op = core.OpAdd
+	case "-":
+		op = core.OpSub
+	case "*":
+		op = core.OpMul
+	case "/":
+		op = core.OpDiv
+	case "%":
+		op = core.OpMod
+	case "==":
+		op = core.OpEq
+	case "!=":
+		op = core.OpNe
+	case "<":
+		op = core.OpLt
+	case "<=":
+		op = core.OpLe
+	case ">":
+		op = core.OpGt
+	case ">=":
+		op = core.OpGe
+	case "++":
+		op = core.OpConcat
+	case "&&":
+		op = core.OpAnd
+	case "||":
+		op = core.OpOr
+	default:
+		// For compatibility, still create BinOp for unknown operators
+		result := &core.BinOp{
+			CoreNode: e.makeNode(binop.Position()),
+			Op:       binop.Op,
+			Left:     left,
+			Right:    right,
+		}
+		return e.wrapWithBindings(result, append(leftBinds, rightBinds...)), nil
+	}
+
+	// Create intrinsic operation
+	result := &core.Intrinsic{
 		CoreNode: e.makeNode(binop.Position()),
-		Op:       binop.Op,
-		Left:     left,
-		Right:    right,
+		Op:       op,
+		Args:     []core.CoreExpr{left, right},
 	}
 
 	// Wrap with let bindings from normalization
@@ -196,10 +505,28 @@ func (e *Elaborator) normalizeUnaryOp(unop *ast.UnaryOp) (core.CoreExpr, error) 
 		return nil, err
 	}
 
-	result := &core.UnOp{
+	// Map operator to intrinsic
+	var op core.IntrinsicOp
+	switch unop.Op {
+	case "-":
+		op = core.OpNeg
+	case "not":
+		op = core.OpNot
+	default:
+		// For compatibility, still create UnOp for unknown operators
+		result := &core.UnOp{
+			CoreNode: e.makeNode(unop.Position()),
+			Op:       unop.Op,
+			Operand:  operand,
+		}
+		return e.wrapWithBindings(result, binds), nil
+	}
+
+	// Create intrinsic operation
+	result := &core.Intrinsic{
 		CoreNode: e.makeNode(unop.Position()),
-		Op:       unop.Op,
-		Operand:  operand,
+		Op:       op,
+		Args:     []core.CoreExpr{operand},
 	}
 
 	return e.wrapWithBindings(result, binds), nil
@@ -644,6 +971,18 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			CoreNode: e.CoreNode,
 			Op:       e.Op,
 			Operand:  de.transformExpr(e.Operand),
+		}
+
+	case *core.Intrinsic:
+		// Intrinsic nodes pass through - they'll be handled by OpLowering pass
+		args := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			args[i] = de.transformExpr(arg)
+		}
+		return &core.Intrinsic{
+			CoreNode: e.CoreNode,
+			Op:       e.Op,
+			Args:     args,
 		}
 
 	case *core.Let:

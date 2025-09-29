@@ -1,0 +1,170 @@
+// Package pipeline provides assertion functions for operator lowering
+package pipeline
+
+import (
+	"fmt"
+	
+	"github.com/sunholo/ailang/internal/core"
+)
+
+// AssertOnlyBuiltinsForOps verifies that after lowering, only builtin references
+// appear where operators used to be. This catches regression where operators
+// leak through the lowering pass.
+func AssertOnlyBuiltinsForOps(prog *core.Program) error {
+	// Walk the entire Core program
+	var errors []error
+	
+	walkCore := func(expr core.CoreExpr) {
+		switch e := expr.(type) {
+		case *core.Intrinsic:
+			// Should never see an Intrinsic after lowering
+			errors = append(errors, fmt.Errorf(
+				"ELB_OP003: Found unlowered Intrinsic operator %s at %s",
+				e.Op, e.Span()))
+				
+		case *core.BinOp:
+			// Legacy BinOp nodes should also not exist
+			errors = append(errors, fmt.Errorf(
+				"ELB_OP004: Found legacy BinOp %s at %s", 
+				e.Op, e.Span()))
+				
+		case *core.UnaryOp:
+			// Legacy UnaryOp nodes should also not exist
+			errors = append(errors, fmt.Errorf(
+				"ELB_OP005: Found legacy UnaryOp %s at %s",
+				e.Op, e.Span()))
+				
+		case *core.Var:
+			// Check if it's a builtin reference
+			if isOperatorBuiltin(e.Name) {
+				// This is fine - it's a lowered operator
+				return
+			}
+			
+		case *core.VarGlobal:
+			// Check if it's a $builtin reference
+			if e.Ref.Module == "$builtin" && isOperatorBuiltin(e.Ref.Name) {
+				// This is fine - it's a lowered operator
+				return
+			}
+		}
+	}
+	
+	// Walk all declarations in the program
+	for _, decl := range prog.Decls {
+		walkCoreExpr(decl, walkCore)
+	}
+	
+	// Report all errors found
+	if len(errors) > 0 {
+		return fmt.Errorf("operator lowering verification failed: %v", errors)
+	}
+	
+	return nil
+}
+
+// isOperatorBuiltin checks if a name is a known operator builtin
+func isOperatorBuiltin(name string) bool {
+	// These are the builtins that operators lower to
+	operatorBuiltins := map[string]bool{
+		// Arithmetic
+		"add_Int": true, "add_Float": true,
+		"sub_Int": true, "sub_Float": true,
+		"mul_Int": true, "mul_Float": true,
+		"div_Int": true, "div_Float": true,
+		"mod_Int": true,
+		"neg_Int": true, "neg_Float": true,
+		
+		// Comparison
+		"eq_Int": true, "eq_Float": true, "eq_String": true, "eq_Bool": true,
+		"neq_Int": true, "neq_Float": true, "neq_String": true, "neq_Bool": true,
+		"lt_Int": true, "lt_Float": true, "lt_String": true,
+		"lte_Int": true, "lte_Float": true, "lte_String": true,
+		"gt_Int": true, "gt_Float": true, "gt_String": true,
+		"gte_Int": true, "gte_Float": true, "gte_String": true,
+		
+		// String
+		"concat_String": true,
+		
+		// Logical (these don't exist as builtins, they lower to if-then-else)
+		// "and_Bool": true, "or_Bool": true, "not_Bool": true,
+	}
+	
+	return operatorBuiltins[name]
+}
+
+// walkCoreExpr recursively walks a Core expression tree
+func walkCoreExpr(expr core.CoreExpr, visit func(core.CoreExpr)) {
+	// Visit current node
+	visit(expr)
+	
+	// Recurse into children
+	switch e := expr.(type) {
+	case *core.Let:
+		walkCoreExpr(e.Value, visit)
+		walkCoreExpr(e.Body, visit)
+		
+	case *core.Lam:
+		walkCoreExpr(e.Body, visit)
+		
+	case *core.App:
+		walkCoreExpr(e.Fn, visit)
+		walkCoreExpr(e.Arg, visit)
+		
+	case *core.If:
+		walkCoreExpr(e.Cond, visit)
+		walkCoreExpr(e.Then, visit)
+		walkCoreExpr(e.Else, visit)
+		
+	case *core.Match:
+		walkCoreExpr(e.Scrutinee, visit)
+		for _, branch := range e.Branches {
+			walkCoreExpr(branch.Body, visit)
+		}
+		
+	case *core.Tuple:
+		for _, elem := range e.Elements {
+			walkCoreExpr(elem, visit)
+		}
+		
+	case *core.List:
+		for _, elem := range e.Elements {
+			walkCoreExpr(elem, visit)
+		}
+		
+	case *core.Record:
+		for _, value := range e.Fields {
+			walkCoreExpr(value, visit)
+		}
+		
+	case *core.RecordAccess:
+		walkCoreExpr(e.Record, visit)
+
+	// case *core.RecordUpdate: // TODO: Implement RecordUpdate when needed
+	// 	walkCoreExpr(e.Record, visit)
+	// 	for _, value := range e.Updates {
+	// 		walkCoreExpr(value, visit)
+	// 	}
+
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			walkCoreExpr(arg, visit)
+		}
+
+	case *core.BinOp:
+		walkCoreExpr(e.Left, visit)
+		walkCoreExpr(e.Right, visit)
+
+	// case *core.UnaryOp: // TODO: Remove after full lowering migration
+	// 	walkCoreExpr(e.Operand, visit)
+
+	// case *core.Quasi: // TODO: Implement quasiquotes when ready
+	// 	for _, interp := range e.Interpolations {
+	// 		walkCoreExpr(interp, visit)
+	// 	}
+		
+	// Leaf nodes - no recursion needed
+	case *core.Var, *core.VarGlobal, *core.Lit:
+		// Nothing to recurse into
+	}
+}

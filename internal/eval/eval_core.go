@@ -7,10 +7,17 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// GlobalResolver resolves global references to values
+type GlobalResolver interface {
+	ResolveValue(ref core.GlobalRef) (Value, error)
+}
+
 // CoreEvaluator evaluates Core AST programs after dictionary elaboration
 type CoreEvaluator struct {
-	env      *Environment
-	registry *types.DictionaryRegistry
+	env                   *Environment
+	registry              *types.DictionaryRegistry
+	resolver              GlobalResolver  // Resolver for global references
+	experimentalBinopShim bool            // Feature flag for operator shim
 }
 
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
@@ -43,6 +50,55 @@ func (e *CoreEvaluator) AddDictionary(key string, dict core.DictValue) {
 	}
 }
 
+// SetGlobalResolver sets the resolver for global references
+func (e *CoreEvaluator) SetGlobalResolver(resolver GlobalResolver) {
+	e.resolver = resolver
+}
+
+// GetEnvironmentBindings returns all bindings in the current environment
+func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
+	return e.env.GetAllBindings()
+}
+
+// EvalLetRecBindings evaluates a LetRec and returns its bindings without evaluating the body
+func (e *CoreEvaluator) EvalLetRecBindings(letrec *core.LetRec) (map[string]Value, error) {
+	// Create new environment for recursive bindings
+	newEnv := e.env.NewChildEnvironment()
+
+	// First pass: create placeholders for recursive references
+	for _, binding := range letrec.Bindings {
+		newEnv.Set(binding.Name, &UnitValue{}) // Placeholder
+	}
+
+	// Second pass: evaluate bindings in the recursive environment
+	oldEnv := e.env
+	e.env = newEnv
+
+	bindings := make(map[string]Value)
+	for _, binding := range letrec.Bindings {
+		val, err := e.evalCore(binding.Value)
+		if err != nil {
+			e.env = oldEnv
+			return nil, err
+		}
+		newEnv.Set(binding.Name, val)
+		bindings[binding.Name] = val
+	}
+
+	e.env = oldEnv
+	return bindings, nil
+}
+
+// SetExperimentalBinopShim enables the experimental operator shim
+func (e *CoreEvaluator) SetExperimentalBinopShim(enabled bool) {
+	e.experimentalBinopShim = enabled
+}
+
+// SetResolver sets the resolver for global references
+func (e *CoreEvaluator) SetResolver(resolver GlobalResolver) {
+	e.resolver = resolver
+}
+
 // Eval evaluates a single expression (simplified for REPL)
 func (e *CoreEvaluator) Eval(expr core.CoreExpr) (Value, error) {
 	return e.evalCore(expr)
@@ -72,6 +128,9 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	switch n := expr.(type) {
 	case *core.Var:
 		return e.evalCoreVar(n)
+
+	case *core.VarGlobal:
+		return e.evalCoreVarGlobal(n)
 
 	case *core.Lit:
 		return e.evalCoreLit(n)
@@ -118,6 +177,9 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	case *core.DictApp:
 		return e.evalDictApp(n)
 
+	case *core.Intrinsic:
+		return e.evalIntrinsic(n)
+
 	default:
 		return nil, fmt.Errorf("core evaluation not implemented for %T", expr)
 	}
@@ -129,6 +191,21 @@ func (e *CoreEvaluator) evalCoreVar(v *core.Var) (Value, error) {
 	if !ok {
 		return nil, fmt.Errorf("undefined variable: %s", v.Name)
 	}
+	return val, nil
+}
+
+// evalCoreVarGlobal evaluates a global variable reference
+func (e *CoreEvaluator) evalCoreVarGlobal(v *core.VarGlobal) (Value, error) {
+	if e.resolver == nil {
+		return nil, fmt.Errorf("no resolver available to resolve global reference: %s.%s", v.Ref.Module, v.Ref.Name)
+	}
+	
+	// Resolve the value through the resolver
+	val, err := e.resolver.ResolveValue(v.Ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve global %s.%s: %w", v.Ref.Module, v.Ref.Name, err)
+	}
+	
 	return val, nil
 }
 
@@ -179,7 +256,7 @@ func (e *CoreEvaluator) evalCoreLambda(lam *core.Lambda) (Value, error) {
 	return &FunctionValue{
 		Params: lam.Params,
 		Body:   lam.Body,
-		Env:    e.env.Clone(), // Capture environment
+		Env:    e.env, // Capture environment by reference (needed for recursion)
 		Typed:  false,
 	}, nil
 }
@@ -238,6 +315,22 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 
 // evalCoreApp evaluates function application
 func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
+	// Check if this is a builtin function call
+	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
+		// Evaluate arguments
+		var args []Value
+		for _, arg := range app.Args {
+			argVal, err := e.evalCore(arg)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, argVal)
+		}
+		
+		// Call the builtin
+		return CallBuiltin(vg.Ref.Name, args)
+	}
+	
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {
@@ -326,7 +419,7 @@ func (e *CoreEvaluator) evalCoreBinOp(binop *core.BinOp) (Value, error) {
 	}
 
 	// Apply operation based on operator and types
-	return applyBinOp(binop.Op, leftVal, rightVal)
+	return e.applyBinOp(binop.Op, leftVal, rightVal)
 }
 
 // evalCoreUnOp evaluates unary operation
@@ -481,6 +574,78 @@ func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
 	// For now, we'll just evaluate the body
 	// In a full implementation, this would handle polymorphic dictionary passing
 	return e.evalCore(abs.Body)
+}
+
+// evalIntrinsic evaluates an intrinsic operation
+// This should typically be handled by OpLowering pass, but we provide
+// a fallback implementation using the experimental binop shim
+func (e *CoreEvaluator) evalIntrinsic(intrinsic *core.Intrinsic) (Value, error) {
+	// Evaluate arguments
+	args := make([]Value, len(intrinsic.Args))
+	for i, arg := range intrinsic.Args {
+		val, err := e.evalCore(arg)
+		if err != nil {
+			return nil, err
+		}
+		args[i] = val
+	}
+
+	// Map intrinsic to operator for shim
+	if e.experimentalBinopShim {
+		// Binary operations
+		if len(args) == 2 {
+			var op string
+			switch intrinsic.Op {
+			case core.OpAdd:
+				op = "+"
+			case core.OpSub:
+				op = "-"
+			case core.OpMul:
+				op = "*"
+			case core.OpDiv:
+				op = "/"
+			case core.OpMod:
+				op = "%"
+			case core.OpEq:
+				op = "=="
+			case core.OpNe:
+				op = "!="
+			case core.OpLt:
+				op = "<"
+			case core.OpLe:
+				op = "<="
+			case core.OpGt:
+				op = ">"
+			case core.OpGe:
+				op = ">="
+			case core.OpConcat:
+				op = "++"
+			case core.OpAnd:
+				op = "&&"
+			case core.OpOr:
+				op = "||"
+			default:
+				return nil, fmt.Errorf("unknown intrinsic operation: %v", intrinsic.Op)
+			}
+			return e.applyBinOp(op, args[0], args[1])
+		}
+
+		// Unary operations
+		if len(args) == 1 {
+			var op string
+			switch intrinsic.Op {
+			case core.OpNot:
+				op = "not"
+			case core.OpNeg:
+				op = "-"
+			default:
+				return nil, fmt.Errorf("unknown unary intrinsic: %v", intrinsic.Op)
+			}
+			return applyUnOp(op, args[0])
+		}
+	}
+
+	return nil, fmt.Errorf("intrinsic operations require OpLowering pass or --experimental-binop-shim flag")
 }
 
 // evalDictApp evaluates dictionary application
@@ -716,7 +881,7 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 
 // applyBinOp should NOT be called in dictionary-passing system except for special operators
 // This is a fail-fast guard to ensure BinOp nodes are properly elaborated to DictApp
-func applyBinOp(op string, left, right Value) (Value, error) {
+func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) {
 	// Special case: string concatenation doesn't use type classes
 	if op == "++" {
 		lStr, lOk := left.(*StringValue)
@@ -740,6 +905,76 @@ func applyBinOp(op string, left, right Value) (Value, error) {
 			return &BoolValue{Value: lBool.Value && rBool.Value}, nil
 		case "||":
 			return &BoolValue{Value: lBool.Value || rBool.Value}, nil
+		}
+	}
+
+	// Experimental operator shim for basic arithmetic
+	if e.experimentalBinopShim {
+		// Try Int operations
+		if lInt, lOk := left.(*IntValue); lOk {
+			if rInt, rOk := right.(*IntValue); rOk {
+				switch op {
+				case "+":
+					return &IntValue{Value: lInt.Value + rInt.Value}, nil
+				case "-":
+					return &IntValue{Value: lInt.Value - rInt.Value}, nil
+				case "*":
+					return &IntValue{Value: lInt.Value * rInt.Value}, nil
+				case "/":
+					if rInt.Value == 0 {
+						return nil, fmt.Errorf("division by zero")
+					}
+					return &IntValue{Value: lInt.Value / rInt.Value}, nil
+				case "%":
+					if rInt.Value == 0 {
+						return nil, fmt.Errorf("modulo by zero")
+					}
+					return &IntValue{Value: lInt.Value % rInt.Value}, nil
+				case "==":
+					return &BoolValue{Value: lInt.Value == rInt.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lInt.Value != rInt.Value}, nil
+				case "<":
+					return &BoolValue{Value: lInt.Value < rInt.Value}, nil
+				case ">":
+					return &BoolValue{Value: lInt.Value > rInt.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lInt.Value <= rInt.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lInt.Value >= rInt.Value}, nil
+				}
+			}
+		}
+
+		// Try Float operations
+		if lFloat, lOk := left.(*FloatValue); lOk {
+			if rFloat, rOk := right.(*FloatValue); rOk {
+				switch op {
+				case "+":
+					return &FloatValue{Value: lFloat.Value + rFloat.Value}, nil
+				case "-":
+					return &FloatValue{Value: lFloat.Value - rFloat.Value}, nil
+				case "*":
+					return &FloatValue{Value: lFloat.Value * rFloat.Value}, nil
+				case "/":
+					if rFloat.Value == 0 {
+						return nil, fmt.Errorf("division by zero")
+					}
+					return &FloatValue{Value: lFloat.Value / rFloat.Value}, nil
+				case "==":
+					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+				case "<":
+					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+				case ">":
+					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+				}
+			}
 		}
 	}
 

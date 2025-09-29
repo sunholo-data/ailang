@@ -501,6 +501,27 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 		}
 		return &BoolValue{Value: rBool.Value}, nil
 
+	case "%":
+		// Modulo operator
+		switch l := left.(type) {
+		case *IntValue:
+			if r, ok := right.(*IntValue); ok {
+				if r.Value == 0 {
+					return nil, fmt.Errorf("modulo by zero")
+				}
+				return &IntValue{Value: l.Value % r.Value}, nil
+			}
+		case *FloatValue:
+			if r, ok := right.(*FloatValue); ok {
+				if r.Value == 0 {
+					return nil, fmt.Errorf("modulo by zero")
+				}
+				// Go's math.Mod for floating point
+				return &FloatValue{Value: math.Mod(l.Value, r.Value)}, nil
+			}
+		}
+		return nil, fmt.Errorf("%% expects numeric operands")
+
 	default:
 		return nil, fmt.Errorf("unknown operator: %s", op)
 	}

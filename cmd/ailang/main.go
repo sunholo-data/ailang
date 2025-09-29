@@ -8,9 +8,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/repl"
 	"github.com/sunholo/ailang/internal/schema"
 )
@@ -31,13 +29,17 @@ var (
 
 func main() {
 	var (
-		versionFlag = flag.Bool("version", false, "Print version information")
-		helpFlag    = flag.Bool("help", false, "Show help")
-		learnFlag   = flag.Bool("learn", false, "Enable learning mode (collect training data)")
-		traceFlag   = flag.Bool("trace", false, "Enable execution tracing")
-		seedFlag    = flag.Int("seed", 0, "Random seed for deterministic execution")
-		virtualTime = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
-		compactFlag = flag.Bool("compact", false, "Use compact JSON output")
+		versionFlag   = flag.Bool("version", false, "Print version information")
+		helpFlag      = flag.Bool("help", false, "Show help")
+		learnFlag     = flag.Bool("learn", false, "Enable learning mode (collect training data)")
+		traceFlag     = flag.Bool("trace", false, "Enable execution tracing")
+		seedFlag      = flag.Int("seed", 0, "Random seed for deterministic execution")
+		virtualTime   = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
+		compactFlag   = flag.Bool("compact", false, "Use compact JSON output")
+		binopShimFlag = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
+		failOnShimFlag = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
+		requireLoweringFlag = flag.Bool("require-lowering", false, "Require operator lowering pass")
+		trackInstantiationsFlag = flag.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
 	)
 
 	flag.Parse()
@@ -66,7 +68,7 @@ func main() {
 			fmt.Println("Usage: ailang run <file.ail>")
 			os.Exit(1)
 		}
-		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime)
+		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag)
 
 	case "repl":
 		runREPL(*learnFlag, *traceFlag)
@@ -84,7 +86,7 @@ func main() {
 			fmt.Println("Usage: ailang watch <file.ail>")
 			os.Exit(1)
 		}
-		watchFile(flag.Arg(1), *traceFlag)
+		watchFile(flag.Arg(1), *traceFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag)
 
 	case "check":
 		if flag.NArg() < 2 {
@@ -150,7 +152,7 @@ func printHelp() {
 	fmt.Printf("  %s  # Watch with tracing\n", cyan("ailang watch main.ail --trace"))
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -163,23 +165,11 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 		fmt.Fprintf(os.Stderr, "%s: file must have .ail extension\n", yellow("Warning"))
 	}
 
-	// Parse the file
-	l := lexer.New(string(content), filename)
-	p := parser.New(l)
-	program := p.Parse()
-
-	if len(p.Errors()) > 0 {
-		printParserErrors(p.Errors())
-		os.Exit(1)
-	}
-
 	// Type check
 	fmt.Printf("%s Type checking...\n", cyan("→"))
-	// TODO: Implement type checking
 
 	// Run effects analysis
 	fmt.Printf("%s Effect checking...\n", cyan("→"))
-	// TODO: Implement effect checking
 
 	// Execute
 	fmt.Printf("%s Running %s\n", green("✓"), filename)
@@ -193,17 +183,47 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 		fmt.Printf("  %s Virtual time enabled\n", yellow("⏰"))
 	}
 
-	// Execute the program
-	evaluator := eval.NewSimple()
-	result, err := evaluator.EvalProgram(program)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Runtime error"), err)
-		os.Exit(1)
+	// Use unified pipeline
+	cfg := pipeline.Config{
+		TraceDefaulting:       trace,
+		ExperimentalBinopShim: binopShim,
+		FailOnShim:           failOnShim,
+		RequireLowering:      requireLowering,
+		TrackInstantiations:  trackInstantiations,
+	}
+	src := pipeline.Source{
+		Code:     string(content),
+		Filename: filename,
+		IsREPL:   false,
 	}
 
+	if trace {
+		fmt.Printf("DEBUG: Running with trace=%v, file=%s\n", trace, filename)
+	}
+
+	result, err := pipeline.Run(cfg, src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	
 	// Print result if not unit
-	if result != nil && result.Type() != "unit" {
-		fmt.Println(result.String())
+	if result.Value != nil && result.Value.Type() != "unit" {
+		fmt.Println(result.Value.String())
+	}
+	
+	// Dump instantiations if tracking
+	if trackInstantiations && result.Instantiations != nil {
+		fmt.Printf("\n%s Polymorphic Instantiations:\n", cyan("📊"))
+		if insts, ok := result.Instantiations["instantiations"].([]map[string]interface{}); ok {
+			for i, inst := range insts {
+				fmt.Printf("  [%d] %s @ %s\n", i, inst["var"], inst["location"])
+				if fresh, ok := inst["fresh"].([]string); ok && len(fresh) > 0 {
+					fmt.Printf("      Fresh vars: %v\n", fresh)
+				}
+				fmt.Printf("      Type: %s\n", inst["type"])
+			}
+		}
 	}
 }
 
@@ -242,13 +262,13 @@ func runTests(path string) {
 	fmt.Printf("\n%s All tests passed!\n", green("✓"))
 }
 
-func watchFile(filename string, trace bool) {
+func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool) {
 	fmt.Printf("%s Watching %s for changes...\n", cyan("👁"), filename)
 	fmt.Println("Press Ctrl+C to stop")
 
 	// TODO: Implement file watching
 	// For now, just run the file once
-	runFile(filename, trace, 0, false)
+	runFile(filename, trace, 0, false, binopShim, failOnShim, requireLowering, trackInstantiations)
 }
 
 func checkFile(filename string) {
@@ -259,23 +279,35 @@ func checkFile(filename string) {
 		os.Exit(1)
 	}
 
-	// Parse
-	l := lexer.New(string(content), filename)
-	p := parser.New(l)
-	_ = p.Parse() // TODO: Use the parsed program for type checking
-
-	if len(p.Errors()) > 0 {
-		printParserErrors(p.Errors())
-		os.Exit(1)
-	}
-
 	// Type check
 	fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
-	// TODO: Implement type checking
-
+	
 	// Effect check
 	fmt.Printf("%s Effect checking...\n", cyan("→"))
-	// TODO: Implement effect checking
+	
+	// Use unified pipeline in dry-run mode (no evaluation)
+	cfg := pipeline.Config{
+		DryLink: true, // Don't evaluate, just check
+	}
+	src := pipeline.Source{
+		Code:     string(content),
+		Filename: filename,
+		IsREPL:   false,
+	}
+	
+	result, err := pipeline.Run(cfg, src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	
+	// Check for any errors
+	if len(result.Errors) > 0 {
+		for _, e := range result.Errors {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+		}
+		os.Exit(1)
+	}
 
 	fmt.Printf("\n%s No errors found!\n", green("✓"))
 }

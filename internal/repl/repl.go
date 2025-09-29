@@ -481,7 +481,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
 
-	typedNode, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
+	typedNode, updatedEnv, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Type error"), err)
 		if r.config.TraceDefaulting {
@@ -489,6 +489,9 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 		}
 		return
 	}
+
+	// Update REPL type environment with any new bindings
+	r.typeEnv = updatedEnv
 
 	// Step 4: Dictionary elaboration (resolve constraints to dictionaries)
 	// Get resolved constraints from the type checker - this also triggers defaulting
@@ -742,11 +745,13 @@ func (r *REPL) showType(input string, out io.Writer) {
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
 
-	typedNode, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
+	typedNode, _, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Type error"), err)
 		return
 	}
+
+	// Note: We don't update r.typeEnv here since :type is read-only (updatedEnv ignored)
 
 	// Get resolved constraints to trigger defaulting
 	resolved := typeChecker.GetResolvedConstraints()

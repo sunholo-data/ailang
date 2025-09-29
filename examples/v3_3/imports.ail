@@ -1,22 +1,10 @@
--- v3.3 Example: Module imports and composition
-module main
+-- Example of using imports from other modules
+module examples/v3_3/imports
 
--- Import specific functions from the math module
-import ./math (factorial, fibonacci)
+-- Import specific functions
+import examples/v3_3/math/gcd (gcd, lcm)
+import examples/v3_3/math/div (simplifyNum, simplifyDen, coprime)
 
--- Import the greeting module
-import ./hello (greet)
-
--- Compose imported functions
-func describe_number(n: int) -> string {
-  let fact = factorial(n) in
-  let fib = fibonacci(n) in
-  "For n=" ++ show(n) ++ ": factorial=" ++ show(fact) ++ ", fibonacci=" ++ show(fib)
-}
-
--- Main function using imports
-func main() -> string {
-  let greeting = greet("Module System") in
-  let description = describe_number(6) in
-  greeting ++ "\n" ++ description
-}
+-- Use the imported functions
+-- For now, just test the imported functions directly
+gcd(48, 18)

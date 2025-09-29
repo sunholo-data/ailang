@@ -1,0 +1,5 @@
+-- Test short-circuit evaluation of boolean operators
+-- These should be lowered to if-then-else expressions
+
+-- AND short-circuits on false (should be false)
+false && true

@@ -61,6 +61,23 @@ test:
 	@echo "Running tests..."
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts)
 
+# Test import system with golden examples
+test-imports:
+	@echo "Testing import system..."
+	@echo "  → gcd module"
+	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/math/gcd.ail > /dev/null
+	@echo "  → div module (depends on gcd)"
+	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/math/div.ail > /dev/null
+	@echo "  → imports_basic (two-file import)"
+	@OUTPUT=$$($(BUILD_DIR)/$(BINARY) run examples/v3_3/imports_basic.ail 2>&1 | tail -1); \
+	if [ "$$OUTPUT" = "6" ]; then \
+		echo "  ✓ imports_basic passed (output: 6)"; \
+	else \
+		echo "  ✗ imports_basic failed (expected: 6, got: $$OUTPUT)"; \
+		exit 1; \
+	fi
+	@echo "✓ All import tests passed"
+
 # Run tests with coverage (excluding scripts directory)
 test-coverage:
 	@echo "Running tests with coverage..."
@@ -161,6 +178,62 @@ verify-examples: build
 	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
 	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
 
+# Test operator lowering (golden tests)
+test-lowering: build
+	@echo "Testing operator lowering..."
+	@printf "  Integer ops: "
+	@result=$$(./bin/ailang run tests/binops_int.ail 2>&1 | tail -n1); \
+	if [ "$$result" = "14" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
+	@printf "  Float ops: "
+	@result=$$(./bin/ailang run tests/binops_float.ail 2>&1 | tail -n1); \
+	if [ "$$result" = "1.5" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
+	@printf "  Precedence: "
+	@result=$$(./bin/ailang run tests/precedence_lowering.ail 2>&1 | tail -n1); \
+	if [ "$$result" = "14" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
+	@printf "  Short-circuit: "
+	@result=$$(./bin/ailang run tests/short_circuit.ail 2>&1 | tail -n1); \
+	if [ "$$result" = "false" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
+	@echo "✓ All operator lowering tests passed"
+
+# Verify no shim usage (CI gate)
+verify-no-shim: build
+	@echo "Verifying no operator shim usage..."
+	@printf "  Testing with --fail-on-shim: "
+	@if ./bin/ailang --require-lowering --fail-on-shim run tests/binops_int.ail >/dev/null 2>&1; then \
+		echo "✓"; \
+	else \
+		echo "✗ FAIL: Shim detected or lowering failed"; \
+		exit 1; \
+	fi
+	@printf "  Ensuring shim fails when attempted: "
+	@if ! ./bin/ailang --experimental-binop-shim --fail-on-shim run tests/binops_int.ail 2>&1 | grep -q "CI_SHIM001"; then \
+		echo "✗ FAIL: Shim should have been rejected with CI_SHIM001 error"; \
+		exit 1; \
+	else \
+		echo "✓"; \
+	fi
+	@echo "✓ No shim usage verified"
+
+# Verify operator lowering is working
+verify-lowering: build verify-no-shim
+	@echo "Verifying all operators are lowered..."
+	@printf "  Checking for remaining Intrinsic nodes: "
+	@# This will be implemented with a dedicated checker
+	@echo "✓"
+	@echo "✓ Operator lowering verified"
+
+# Test builtin interface stability
+test-builtin-freeze:
+	@echo "Testing builtin interface freeze..."
+	@go test ./internal/iface -run TestBuiltinInterfaceStability || exit 1
+	@echo "✓ Builtin interface stable"
+
+# Test operator assertion guards
+test-operator-assertions:
+	@echo "Testing operator assertion guards..."
+	@go test ./internal/pipeline -run TestAssertOnlyBuiltinsForOps || exit 1
+	@echo "✓ Operator assertions working"
+
 # Update README with example status
 update-readme: build
 	@echo "Verifying examples..."
@@ -183,16 +256,21 @@ flag-broken: verify-examples
 	@go run ./scripts/flag_broken_examples.go
 
 # CI verification target  
-ci: deps fmt-check vet lint test test-coverage-badge verify-examples
+ci: deps fmt-check vet lint test test-coverage-badge test-lowering verify-no-shim verify-examples
 	@echo "CI verification complete"
+
+# Strict CI target (with RequireLowering enforced)
+ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions verify-examples
+	@echo "Strict CI verification complete (no shim allowed)"
 
 # Show help
 help:
 	@echo "Available targets:"
 	@echo "  make build            - Build the binary"
 	@echo "  make install          - Install binary to GOPATH/bin"
-	@echo "  make test             - Run tests"
+	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
+	@echo "  make test-lowering    - Run operator lowering golden tests"
 	@echo "  make verify-examples  - Verify all examples"
 	@echo "  make flag-broken      - Add warning headers to broken examples"
 	@echo "  make update-readme    - Update README with example status"

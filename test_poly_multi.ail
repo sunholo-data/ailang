@@ -1,0 +1,3 @@
+-- Test polymorphic instantiation tracking
+-- Each use of id should get fresh type variables
+(\x. x)(42) + (\x. x)(100)

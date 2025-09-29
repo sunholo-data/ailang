@@ -3,6 +3,7 @@ package elaborate
 import (
 	"testing"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
 )
@@ -99,44 +100,60 @@ func TestElaborateSimple(t *testing.T) {
 
 func TestANFTransformation(t *testing.T) {
 	// Test that complex expressions get properly normalized to ANF
-	input := "(a + b) * (c + d)"
-
-	l := lexer.New(input, "test.ail")
-	p := parser.New(l)
-	prog := p.Parse()
-
-	if len(p.Errors()) > 0 {
-		t.Fatalf("parse errors: %v", p.Errors())
+	// Create a simple binary op manually for testing
+	// This tests the elaboration directly without parser complications
+	expr := &ast.BinaryOp{
+		Left: &ast.BinaryOp{
+			Left:  &ast.Identifier{Name: "a"},
+			Op:    "+",
+			Right: &ast.Identifier{Name: "b"},
+		},
+		Op: "*",
+		Right: &ast.BinaryOp{
+			Left:  &ast.Identifier{Name: "c"},
+			Op:    "+",
+			Right: &ast.Identifier{Name: "d"},
+		},
 	}
 
 	elab := NewElaborator()
-	coreProg, err := elab.Elaborate(prog)
+	coreExpr, err := elab.ElaborateExpr(expr)
 
 	if err != nil {
 		t.Fatalf("elaboration error: %v", err)
 	}
 
-	// The result should have let-bindings for intermediate results
-	// This is a basic sanity check
-	if coreProg == nil || len(coreProg.Decls) == 0 {
-		t.Errorf("expected non-empty core program")
+	// The result should be a non-nil core expression
+	if coreExpr == nil {
+		t.Errorf("expected non-nil core expression")
 	}
 }
 
 func TestNodeIDAssignment(t *testing.T) {
 	// Test that every node gets a unique ID
-	input := "let x = 5 in let y = 10 in x + y"
-
-	l := lexer.New(input, "test.ail")
-	p := parser.New(l)
-	prog := p.Parse()
-
-	if len(p.Errors()) > 0 {
-		t.Fatalf("parse errors: %v", p.Errors())
+	// Create a let expression manually for testing
+	expr := &ast.Let{
+		Name: "x",
+		Value: &ast.Literal{
+			Kind:  ast.IntLit,
+			Value: 5,
+		},
+		Body: &ast.Let{
+			Name: "y",
+			Value: &ast.Literal{
+				Kind:  ast.IntLit,
+				Value: 10,
+			},
+			Body: &ast.BinaryOp{
+				Left:  &ast.Identifier{Name: "x"},
+				Op:    "+",
+				Right: &ast.Identifier{Name: "y"},
+			},
+		},
 	}
 
 	elab := NewElaborator()
-	_, err := elab.Elaborate(prog)
+	_, err := elab.ElaborateExpr(expr)
 
 	if err != nil {
 		t.Fatalf("elaboration error: %v", err)

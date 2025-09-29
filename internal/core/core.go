@@ -47,6 +47,21 @@ type Var struct {
 func (v *Var) coreExpr()      {}
 func (v *Var) String() string { return v.Name }
 
+// GlobalRef represents a cross-module reference
+type GlobalRef struct {
+	Module string // e.g., "math/gcd"
+	Name   string // e.g., "gcd"
+}
+
+// VarGlobal represents a reference to an imported symbol
+type VarGlobal struct {
+	CoreNode
+	Ref GlobalRef
+}
+
+func (v *VarGlobal) coreExpr()      {}
+func (v *VarGlobal) String() string { return fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name) }
+
 // Lit represents a literal value
 type Lit struct {
 	CoreNode
@@ -225,6 +240,50 @@ func (l *List) String() string {
 	return fmt.Sprintf("[%v]", l.Elements)
 }
 
+// Intrinsic operations (replaces BinOp/UnOp after lowering)
+
+// IntrinsicOp represents built-in operations
+type IntrinsicOp int
+
+const (
+	OpAdd IntrinsicOp = iota
+	OpSub
+	OpMul
+	OpDiv
+	OpMod
+	OpEq
+	OpNe
+	OpLt
+	OpLe
+	OpGt
+	OpGe
+	OpConcat // for ++ string concatenation
+	OpAnd    // for && boolean and
+	OpOr     // for || boolean or
+	OpNot    // for unary not
+	OpNeg    // for unary negation
+)
+
+// Intrinsic represents a built-in operation that will be lowered
+type Intrinsic struct {
+	CoreNode
+	Op   IntrinsicOp
+	Args []CoreExpr // [left, right] for binary, [operand] for unary
+}
+
+func (i *Intrinsic) coreExpr() {}
+func (i *Intrinsic) String() string {
+	opStr := map[IntrinsicOp]string{
+		OpAdd: "+", OpSub: "-", OpMul: "*", OpDiv: "/", OpMod: "%",
+		OpEq: "==", OpNe: "!=", OpLt: "<", OpLe: "<=", OpGt: ">", OpGe: ">=",
+		OpConcat: "++", OpAnd: "&&", OpOr: "||", OpNot: "not", OpNeg: "-",
+	}
+	if len(i.Args) == 1 {
+		return fmt.Sprintf("%s%s", opStr[i.Op], i.Args[0])
+	}
+	return fmt.Sprintf("(%s %s %s)", i.Args[0], opStr[i.Op], i.Args[1])
+}
+
 // Patterns for matching
 
 type CorePattern interface {
@@ -280,9 +339,25 @@ type WildcardPattern struct{}
 func (w *WildcardPattern) patternNode()   {}
 func (w *WildcardPattern) String() string { return "_" }
 
+// ProgramFlags tracks compilation state
+type ProgramFlags struct {
+	Lowered bool // Set after OpLowering pass
+	Linked  bool // Set after linking
+}
+
 // Program represents a Core program
 type Program struct {
-	Decls []CoreExpr // Top-level declarations
+	Decls []CoreExpr           // Top-level declarations
+	Meta  map[string]*DeclMeta // Metadata for top-level declarations
+	Flags ProgramFlags         // Compilation state flags
+}
+
+// DeclMeta contains metadata for top-level declarations
+type DeclMeta struct {
+	Name     string
+	IsExport bool
+	IsPure   bool
+	SID      string // Source ID for tracing
 }
 
 // Dictionary-passing nodes for type class resolution
@@ -358,7 +433,7 @@ type DictValue struct {
 // Helper to check if expression is atomic (for ANF verification)
 func IsAtomic(expr CoreExpr) bool {
 	switch expr.(type) {
-	case *Var, *Lit, *Lambda, *DictRef:
+	case *Var, *Lit, *Lambda, *DictRef, *VarGlobal:
 		return true
 	default:
 		return false

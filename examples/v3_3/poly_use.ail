@@ -1,0 +1,16 @@
+-- Test polymorphic instantiation freshness
+module examples/v3_3/poly_use
+
+-- Import polymorphic identity
+import examples/v3_3/poly_id (id)
+
+-- Use id at different types - each should get fresh type variables
+show_Int(id(42))        -- id instantiated at Int -> Int
+show_String(id("x"))    -- id instantiated at String -> String
+show_Int(id(id(1)))     -- id instantiated twice, both at Int -> Int
+show_String("y" ++ id(""))  -- id instantiated at String -> String
+
+-- More complex: function composition
+let compose = \f. \g. \x. f(g(x)) in
+let inc = \n. n + 1 in
+show_Int(compose(id)(inc)(5))  -- id at Int -> Int

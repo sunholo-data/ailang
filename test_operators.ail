@@ -1,0 +1,2 @@
+-- Test operator lowering
+1 + 2 * 3

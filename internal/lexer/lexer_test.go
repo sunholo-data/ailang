@@ -252,17 +252,28 @@ func TestKeywords(t *testing.T) {
 		"select", "channel", "true", "false", "not",
 	}
 
+	contextualKeywords := map[string]bool{
+		"test": true, "property": true,
+	}
+
 	for _, kw := range keywords {
 		l := New(kw, "test.ail")
 		tok := l.NextToken()
 
-		expectedType := LookupIdent(kw)
-		if tok.Type != expectedType {
-			t.Errorf("keyword %q: expected type %v, got %v", kw, expectedType, tok.Type)
-		}
+		// Contextual keywords are intentionally returned as IDENT outside their context
+		if contextualKeywords[kw] {
+			if tok.Type != IDENT {
+				t.Errorf("contextual keyword %q: expected IDENT, got %v", kw, tok.Type)
+			}
+		} else {
+			expectedType := LookupIdent(kw)
+			if tok.Type != expectedType {
+				t.Errorf("keyword %q: expected type %v, got %v", kw, expectedType, tok.Type)
+			}
 
-		if tok.Type == IDENT {
-			t.Errorf("keyword %q was parsed as IDENT", kw)
+			if tok.Type == IDENT {
+				t.Errorf("keyword %q was parsed as IDENT", kw)
+			}
 		}
 	}
 }

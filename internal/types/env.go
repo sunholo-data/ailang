@@ -63,6 +63,15 @@ func NewTypeEnvWithBuiltins() *TypeEnv {
 		},
 	})
 
+	// show : ∀α. α -> string
+	env.bindBuiltin("show", &Scheme{
+		TypeVars: []string{"α"},
+		Type: &TFunc2{
+			Params: []Type{&TVar2{Name: "α", Kind: Star}},
+			Return: TString,
+		},
+	})
+
 	// httpGet : string -> string ! {Net}
 	env.bindBuiltin("httpGet", &Scheme{
 		Type: &TFunc2{

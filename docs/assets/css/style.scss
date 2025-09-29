@@ -1,0 +1,244 @@
+---
+# This ensures Jekyll processes this file
+---
+
+@import "{{ site.theme }}";
+
+// Custom styles for AILANG documentation
+
+// Color scheme
+$ailang-primary: #2e7d32;
+$ailang-secondary: #1976d2;
+$ailang-accent: #f57c00;
+$ailang-dark: #263238;
+$ailang-light: #fafafa;
+
+// Typography improvements
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+}
+
+// Code blocks with AILANG syntax highlighting
+.language-ailang {
+  .highlight {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 1rem;
+    
+    // Keywords
+    .k, .kd, .kr {
+      color: $ailang-primary;
+      font-weight: bold;
+    }
+    
+    // Strings
+    .s, .s1, .s2 {
+      color: #d14;
+    }
+    
+    // Comments
+    .c, .cm, .c1 {
+      color: #6c757d;
+      font-style: italic;
+    }
+    
+    // Numbers
+    .m, .mf, .mh, .mi, .mo {
+      color: $ailang-accent;
+    }
+    
+    // Functions
+    .nf, .nb {
+      color: $ailang-secondary;
+    }
+    
+    // Operators
+    .o, .ow {
+      color: #000;
+      font-weight: bold;
+    }
+    
+    // Types
+    .nc, .nn {
+      color: $ailang-primary;
+    }
+  }
+}
+
+// Inline code
+code.language-plaintext {
+  background-color: rgba($ailang-primary, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: $ailang-dark;
+}
+
+// Navigation improvements
+.site-nav {
+  .page-link {
+    color: $ailang-dark;
+    transition: color 0.2s;
+    
+    &:hover {
+      color: $ailang-primary;
+      text-decoration: none;
+    }
+  }
+}
+
+// Header styling
+.site-header {
+  border-bottom: 2px solid $ailang-primary;
+  
+  .site-title {
+    color: $ailang-dark !important;
+    font-weight: 600;
+    
+    &:hover {
+      text-decoration: none;
+      color: $ailang-primary !important;
+    }
+  }
+}
+
+// Cards for feature grid
+.grid.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+  
+  > div, > ul > li {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 1.5rem;
+    transition: box-shadow 0.2s;
+    
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    a {
+      color: $ailang-primary;
+      font-weight: 600;
+      text-decoration: none;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    
+    p {
+      color: #586069;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Tables
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  
+  th {
+    background-color: $ailang-light;
+    color: $ailang-dark;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.75rem;
+    border-bottom: 2px solid $ailang-primary;
+  }
+  
+  td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  tr:hover {
+    background-color: rgba($ailang-primary, 0.05);
+  }
+}
+
+// Alerts/Callouts
+.alert, .note, .warning {
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  border-left: 4px solid;
+  border-radius: 4px;
+  
+  &.note {
+    background-color: #e3f2fd;
+    border-color: $ailang-secondary;
+    color: #0d47a1;
+  }
+  
+  &.warning {
+    background-color: #fff3e0;
+    border-color: $ailang-accent;
+    color: #e65100;
+  }
+  
+  &.success {
+    background-color: #e8f5e9;
+    border-color: $ailang-primary;
+    color: #1b5e20;
+  }
+}
+
+// Footer
+.site-footer {
+  border-top: 1px solid #e1e4e8;
+  background-color: $ailang-light;
+  
+  .footer-col-wrapper {
+    color: #586069;
+  }
+}
+
+// Responsive improvements
+@media screen and (max-width: 600px) {
+  .grid.cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .site-nav {
+    background-color: white;
+    border: 1px solid #e1e4e8;
+  }
+}
+
+// Syntax highlighting for other languages
+.language-bash .highlight {
+  background: #2d2d2d;
+  color: #f8f8f2;
+  
+  .nv { color: #66d9ef; }
+  .o { color: #f92672; }
+  .s { color: #e6db74; }
+}
+
+// Print styles
+@media print {
+  .site-nav, .site-footer, .site-header {
+    display: none;
+  }
+  
+  .page-content {
+    padding: 0;
+  }
+  
+  a {
+    color: inherit;
+    text-decoration: none;
+    
+    &:after {
+      content: " (" attr(href) ")";
+    }
+  }
+}
