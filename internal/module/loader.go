@@ -551,13 +551,13 @@ func (l *Loader) TopologicalSort() ([]string, error) {
 	// If A depends on B, we want B to come before A
 	reverseGraph := make(map[string][]string)
 	inDegree := make(map[string]int)
-	
+
 	// Initialize all nodes
 	for node := range graph {
 		reverseGraph[node] = []string{}
 		inDegree[node] = 0
 	}
-	
+
 	// Build reverse graph and count in-degrees
 	for node, deps := range graph {
 		for _, dep := range deps {
