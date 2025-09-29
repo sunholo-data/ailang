@@ -3,6 +3,7 @@ package errors
 
 import (
 	"fmt"
+
 	"github.com/sunholo/ailang/internal/schema"
 )
 

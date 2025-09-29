@@ -2,8 +2,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/ast"
 	"strings"
+
+	"github.com/sunholo/ailang/internal/ast"
 )
 
 // Core AST - A-Normal Form with explicit recursion
@@ -371,5 +372,5 @@ func Pretty(prog *Program) string {
 	for i, decl := range prog.Decls {
 		parts = append(parts, fmt.Sprintf("decl_%d: %s", i, decl.String()))
 	}
-	return fmt.Sprintf("Program(\n  %s\n)", fmt.Sprintf(strings.Join(parts, "\n  ")))
+	return fmt.Sprintf("Program(\n  %s\n)", strings.Join(parts, "\n  "))
 }

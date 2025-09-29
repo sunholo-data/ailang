@@ -2,10 +2,11 @@ package eval
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
 	"github.com/sunholo/ailang/internal/types"
-	"math"
 )
 
 // TypedEvaluator evaluates TypedAST programs

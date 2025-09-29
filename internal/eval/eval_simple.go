@@ -2,11 +2,12 @@ package eval
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/ast"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/sunholo/ailang/internal/ast"
 )
 
 // SimpleEvaluator for basic testing

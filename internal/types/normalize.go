@@ -185,7 +185,7 @@ func NormalizeTypeName(t Type) string {
 			sort.Strings(fieldNames)
 
 			for _, name := range fieldNames {
-				if fieldType, ok := typ.Labels[name].(Type); ok {
+				if fieldType, ok := typ.Labels[name]; ok {
 					fields = append(fields, fmt.Sprintf("%s:%s", name, NormalizeTypeName(fieldType)))
 				}
 			}
@@ -327,10 +327,8 @@ func IsGroundType(t Type) bool {
 		// Check row labels if they contain types (for record rows)
 		if typ.Kind == RecordRow {
 			for _, val := range typ.Labels {
-				if t, ok := val.(Type); ok {
-					if !IsGroundType(t) {
-						return false
-					}
+				if !IsGroundType(val) {
+					return false
 				}
 			}
 		}

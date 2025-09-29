@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/sunholo/ailang/internal/ast"
 )
 
@@ -95,7 +96,7 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 		// Instantiate if it's a scheme
 		if scheme, ok := typ.(*Scheme); ok {
 			instType := scheme.Instantiate(ctx.freshType)
-			return instType.(Type), EmptyEffectRow(), nil
+			return instType, EmptyEffectRow(), nil
 		}
 		if t, ok := typ.(Type); ok {
 			return t, EmptyEffectRow(), nil

@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/sunholo/ailang/internal/ast"
 )
 
@@ -118,7 +119,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 		}
 
 		// Add to environment
-		newEnv := env
+		var newEnv *TypeEnv
 		if scheme, ok := binding.(*Scheme); ok {
 			newEnv = env.ExtendScheme(d.Name, scheme)
 		} else {

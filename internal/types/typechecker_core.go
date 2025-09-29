@@ -2,9 +2,10 @@ package types
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
-	"strings"
 )
 
 // CoreTypeChecker type checks Core AST and produces TypedAST
@@ -278,7 +279,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	// Apply spec-compliant defaulting at this generalization boundary
 	// For top-level expressions, also default non-ambiguous numeric literals
 	exprType := typedNode.GetType().(Type)
-	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesTopLevel(exprType, unsolved)
+	defaultingSub, _, defaultedConstraints, err := tc.defaultAmbiguitiesTopLevel(exprType, unsolved)
 	if err != nil {
 		return nil, newEnv, fmt.Errorf("defaulting failed: %w", err)
 	}
@@ -289,7 +290,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 		sub = composeSubstitutions(defaultingSub, sub)
 
 		// Use defaulted values (constraints are already substituted by defaultAmbiguities)
-		exprType = defaultedType
+		// exprType = defaultedType // Not used after this point
 		unsolved = defaultedConstraints
 
 		if tc.debugMode {
@@ -440,7 +441,7 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 	// Instantiate if it's a scheme
 	var monotype Type
 	if scheme, ok := typ.(*Scheme); ok {
-		monotype = scheme.Instantiate(ctx.freshType).(Type)
+		monotype = scheme.Instantiate(ctx.freshType)
 	} else if t, ok := typ.(Type); ok {
 		monotype = t
 	} else {
@@ -657,7 +658,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 
 		// Apply defaulting substitution everywhere if any defaults were applied
 		if len(defaultingSub) > 0 {
-			defaultedType, defaultedConstraints, valueNode, _ = tc.ApplySubstEverywhere(
+			defaultedType, _, valueNode, _ = tc.ApplySubstEverywhere(
 				defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, binding.Name)
 
 			// Update the stored values
@@ -713,9 +714,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	// Combine effects from all bindings and body
 	var allEffects []*Row
 	for _, binding := range typedBindings {
-		if node, ok := binding.Value.(typedast.TypedNode); ok {
-			allEffects = append(allEffects, getEffectRow(node))
-		}
+		allEffects = append(allEffects, getEffectRow(binding.Value))
 	}
 	allEffects = append(allEffects, getEffectRow(bodyNode))
 
@@ -1582,7 +1581,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 
 	// Step 3: Apply module defaults with conflict detection
 	sub := make(Substitution)
-	traces := []DefaultingTrace{}
+	// traces := []DefaultingTrace{} // Not used
 
 	for varName, classes := range varClasses {
 		defaultType, err := tc.pickDefault(classes)
@@ -1601,7 +1600,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 				Default:   defaultType,
 				Location:  "generalization boundary",
 			}
-			traces = append(traces, trace)
+			// traces = append(traces, trace) // Not used after this
 			tc.defaultingConfig.Traces = append(tc.defaultingConfig.Traces, trace)
 
 			if tc.debugMode {
@@ -1659,7 +1658,7 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 
 	// Apply defaults to all defaultable variables
 	sub := make(Substitution)
-	traces := []DefaultingTrace{}
+	// traces := []DefaultingTrace{} // Not used
 
 	for varName, classes := range defaultableVars {
 		defaultType, err := tc.pickDefault(classes)
@@ -1677,7 +1676,7 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 				Default:   defaultType,
 				Location:  "top-level",
 			}
-			traces = append(traces, trace)
+			// traces = append(traces, trace) // Not used after this
 			tc.defaultingConfig.Traces = append(tc.defaultingConfig.Traces, trace)
 
 			if tc.debugMode {
@@ -2140,9 +2139,10 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 			method := OperatorMethod(e.Op, false)
 			// fmt.Printf("DEBUG BinOp: node=%d, op='%s' -> method='%s'\n", e.ID(), e.Op, method)
 			rc.Method = method
-		} else {
-			// fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
 		}
+		// else {
+		// 	// fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
+		// }
 		// Recurse on operands
 		tc.walkCore(e.Left)
 		tc.walkCore(e.Right)

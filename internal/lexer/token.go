@@ -93,15 +93,15 @@ const (
 	NEWLINE   // \n
 
 	// Quasiquote types
-	SQL_QUOTE   // sql"""
-	HTML_QUOTE  // html"""
-	JSON_QUOTE  // json{
-	REGEX_QUOTE // regex/
-	URL_QUOTE   // url"
-	SHELL_QUOTE // shell"""
+	SQLQuote   // sql"""
+	HTMLQuote  // html"""
+	JSONQuote  // json{
+	RegexQuote // regex/
+	URLQuote   // url"
+	ShellQuote // shell"""
 
 	// Effect markers
-	EFFECT_MARKER // ! {effects}
+	EffectMarker // ! {effects}
 
 	// Boolean literals
 	TRUE
@@ -193,14 +193,14 @@ var tokens = map[TokenType]string{
 	SEMICOLON: ";",
 	NEWLINE:   "\\n",
 
-	SQL_QUOTE:   "sql\"\"\"",
-	HTML_QUOTE:  "html\"\"\"",
-	JSON_QUOTE:  "json{",
-	REGEX_QUOTE: "regex/",
-	URL_QUOTE:   "url\"",
-	SHELL_QUOTE: "shell\"\"\"",
+	SQLQuote:   "sql\"\"\"",
+	HTMLQuote:  "html\"\"\"",
+	JSONQuote:  "json{",
+	RegexQuote: "regex/",
+	URLQuote:   "url\"",
+	ShellQuote: "shell\"\"\"",
 
-	EFFECT_MARKER: "!",
+	EffectMarker: "!",
 
 	TRUE:  "true",
 	FALSE: "false",

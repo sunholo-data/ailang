@@ -494,7 +494,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	// Get resolved constraints from the type checker - this also triggers defaulting
 	resolved := typeChecker.GetResolvedConstraints()
 
-	// CRITICAL FIX: Manually call fillOperatorMethods to set correct method names
+	// CRITICAL FIX: Manually call FillOperatorMethods to set correct method names
 	// The REPL's InferWithConstraints doesn't call this automatically
 	// Fill operator methods manually for dictionary elaboration
 	typeChecker.FillOperatorMethods(coreExpr)
@@ -573,36 +573,6 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 
 	// Pretty print result with type on the same line
 	fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
-}
-
-// prettyPrintQualifiedType formats a type with its constraints
-func (r *REPL) prettyPrintQualifiedType(typ types.Type, constraints []types.Constraint) string {
-	var parts []string
-
-	// Collect type variables
-	typeVars := collectTypeVars(typ)
-
-	if len(typeVars) > 0 || len(constraints) > 0 {
-		// Add quantifier
-		if len(typeVars) > 0 {
-			varList := strings.Join(typeVars, " ")
-			parts = append(parts, fmt.Sprintf("∀%s.", varList))
-		}
-
-		// Add constraints
-		if len(constraints) > 0 {
-			var constraintStrs []string
-			for _, c := range constraints {
-				constraintStrs = append(constraintStrs, formatConstraint(c))
-			}
-			parts = append(parts, fmt.Sprintf("%s ⇒", strings.Join(constraintStrs, ", ")))
-		}
-	}
-
-	// Add the type
-	parts = append(parts, formatType(typ))
-
-	return strings.Join(parts, " ")
 }
 
 // handleCommand processes REPL commands
@@ -1126,29 +1096,6 @@ func formatConstraint(c types.Constraint) string {
 	return fmt.Sprintf("%s %s", c.Class, formatType(c.Type))
 }
 
-func collectTypeVars(t types.Type) []string {
-	vars := make(map[string]bool)
-	collectVarsHelper(t, vars)
-
-	var result []string
-	for v := range vars {
-		result = append(result, v)
-	}
-	return result
-}
-
-func collectVarsHelper(t types.Type, vars map[string]bool) {
-	switch typ := t.(type) {
-	case *types.TVar:
-		vars[typ.Name] = true
-	case *types.TApp:
-		collectVarsHelper(typ.Constructor, vars)
-		for _, arg := range typ.Args {
-			collectVarsHelper(arg, vars)
-		}
-	}
-}
-
 func isAmbiguous(c types.Constraint) bool {
 	// A constraint is ambiguous if its type variable doesn't appear in the result type
 	if _, ok := c.Type.(*types.TVar); ok {
@@ -1221,9 +1168,9 @@ func (r *REPL) registerDictionariesForEvaluator(evaluator *eval.CoreEvaluator) {
 // getFinalTypeAfterDefaulting gets the final type after defaulting has been applied
 func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualType types.Type, resolved map[uint64]*types.ResolvedConstraint) types.Type {
 	// Debug: print what we're getting (only if trace is enabled)
-	if r.config.TraceDefaulting {
-		// Getting final type after constraint resolution
-	}
+	// if r.config.TraceDefaulting {
+	// 	// Getting final type after constraint resolution
+	// }
 
 	// Strategy: Prefer concrete types over type variables, in this order:
 	// 1. Concrete TCon from typedNode.GetType() (if not a TVar)
@@ -1242,7 +1189,7 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 	}
 
 	// If we have resolved constraints, look for concrete types
-	if resolved != nil && len(resolved) > 0 {
+	if len(resolved) > 0 {
 		// Check if the root node has a defaulted type
 		if rc, ok := resolved[typedNode.GetNodeID()]; ok && rc.Type != nil {
 			if con, ok := rc.Type.(*types.TCon); ok {

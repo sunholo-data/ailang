@@ -392,7 +392,7 @@ func (l *Lexer) readQuasiquote(line, column int) Token {
 	var content strings.Builder
 
 	// Determine quote type from context
-	// For now, default to SQL_QUOTE
+	// For now, default to SqlQuote
 
 	// Skip the opening quotes
 	for i := 0; i < 3; i++ {
@@ -414,7 +414,7 @@ func (l *Lexer) readQuasiquote(line, column int) Token {
 		l.readChar()
 	}
 
-	return NewToken(SQL_QUOTE, content.String(), line, column, l.file)
+	return NewToken(SQLQuote, content.String(), line, column, l.file)
 }
 
 // readQuasiquoteWithKeyword reads a quasiquote that starts with a keyword
@@ -469,7 +469,7 @@ func (l *Lexer) readJSONQuote(line, column int) Token {
 		l.readChar()
 	}
 
-	return NewToken(JSON_QUOTE, content.String(), line, column, l.file)
+	return NewToken(JSONQuote, content.String(), line, column, l.file)
 }
 
 // readRegex reads a regex literal
@@ -501,7 +501,7 @@ func (l *Lexer) readRegex(line, column int) Token {
 		l.readChar()
 	}
 
-	return NewToken(REGEX_QUOTE, content.String(), line, column, l.file)
+	return NewToken(RegexQuote, content.String(), line, column, l.file)
 }
 
 // isRegexStart checks if we're at the start of a regex literal

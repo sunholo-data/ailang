@@ -29,8 +29,8 @@ type (
 const (
 	LOWEST      int = iota
 	LAMBDA          // \x. (lowest precedence)
-	LOGICAL_OR      // ||
-	LOGICAL_AND     // &&
+	LogicalOr       // ||
+	LogicalAnd      // &&
 	EQUALS          // ==, !=
 	LESSGREATER     // >, <, >=, <=
 	APPEND          // ++
@@ -38,7 +38,7 @@ const (
 	PRODUCT         // *, /, %
 	PREFIX          // -x, !x (unary)
 	CALL            // f(x) (application)
-	DOT_ACCESS      // r.field (field access - highest)
+	DotAccess       // r.field (field access - highest)
 	HIGHEST
 )
 
