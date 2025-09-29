@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+## [v3.2.0] - 2025-09-29
+
+### Added - Module System Foundation
+
+#### Error Code Taxonomy (`internal/errors/codes.go`)
+- Comprehensive error code system with structured taxonomy
+- Error codes organized by phase: PAR (Parser), MOD (Module), LDR (Loader), TC (Type Check), etc.
+- Error registry with phase and category metadata
+- Helper functions: `IsParserError()`, `IsModuleError()`, `IsLoaderError()`, etc.
+- ~278 lines of structured error definitions
+
+#### Manifest System (`internal/manifest/`)
+- Example manifest format for tracking example status (working/broken/experimental)
+- Validation ensures consistency between documentation and implementation
+- Statistics calculation with coverage metrics
+- README generation support for automatic documentation updates
+- Environment defaults for reproducible execution
+- ~390 lines with full validation logic
+
+#### Module Loader (`internal/module/loader.go`)
+- Complete module loading system with dependency resolution
+- Circular dependency detection using cycle detection algorithm
+- Topological sorting using Kahn's algorithm for build order
+- Module caching with thread-safe concurrent access
+- Support for stdlib modules and relative imports
+- Structured error reporting with resolution traces
+- ~607 lines of robust module management
+
+#### Path Resolver (`internal/module/resolver.go`)
+- Cross-platform path normalization and resolution
+- Support for relative imports (`./`, `../`)
+- Standard library path resolution (`std/`)
+- Project root detection and search path management
+- Case-sensitive and case-insensitive filesystem handling
+- Module identity derivation from file paths
+- ~405 lines of platform-aware path handling
+
+#### v3.3 Example Files
+- `examples/v3_3/hello.ail` - Basic module with function declarations
+- `examples/v3_3/math.ail` - Recursive functions with inline tests
+- `examples/v3_3/imports.ail` - Module imports and composition
+- `examples/v3_3/stdlib_demo.ail` - Standard library usage patterns
+- `examples/v3_3/properties_demo.ail` - Property-based testing examples
+
+### Changed
+- Test coverage improved from 29.9% to 33.7%
+- Module tests now include comprehensive cycle detection validation
+- Topological sort correctly handles dependency ordering
+
 ### Fixed
 - CI/CD script compilation errors by refactoring shared types into `scripts/internal/reporttypes`
 - Test suite now correctly excludes `scripts/` directory containing standalone executables

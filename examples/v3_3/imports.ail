@@ -1,0 +1,22 @@
+-- v3.3 Example: Module imports and composition
+module main
+
+-- Import specific functions from the math module
+import ./math (factorial, fibonacci)
+
+-- Import the greeting module
+import ./hello (greet)
+
+-- Compose imported functions
+func describe_number(n: int) -> string {
+  let fact = factorial(n) in
+  let fib = fibonacci(n) in
+  "For n=" ++ show(n) ++ ": factorial=" ++ show(fact) ++ ", fibonacci=" ++ show(fib)
+}
+
+-- Main function using imports
+func main() -> string {
+  let greeting = greet("Module System") in
+  let description = describe_number(6) in
+  greeting ++ "\n" ++ description
+}

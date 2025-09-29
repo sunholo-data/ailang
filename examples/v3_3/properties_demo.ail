@@ -1,0 +1,85 @@
+-- v3.3 Example: Properties for property-based testing
+module properties_demo
+
+export { reverse, sort, is_sorted }
+
+-- List reversal with properties
+func reverse(list: [a]) -> [a]
+  tests [
+    ([], []),
+    ([1], [1]),
+    ([1, 2, 3], [3, 2, 1])
+  ]
+  properties [
+    -- Double reverse equals identity
+    forall(list: [a]) => reverse(reverse(list)) == list,
+    -- Reverse preserves length
+    forall(list: [a]) => length(reverse(list)) == length(list),
+    -- Singleton lists are unchanged
+    forall(x: a) => reverse([x]) == [x]
+  ]
+{
+  match list {
+    [] => [],
+    [head, ...tail] => reverse(tail) ++ [head]
+  }
+}
+
+-- Check if a list is sorted
+func is_sorted(list: [int]) -> bool {
+  match list {
+    [] => true,
+    [_] => true,
+    [x, y, ...rest] => x <= y && is_sorted([y] ++ rest)
+  }
+}
+
+-- Insertion sort with properties
+func sort(list: [int]) -> [int]
+  tests [
+    ([], []),
+    ([3, 1, 2], [1, 2, 3]),
+    ([5, 2, 8, 1, 9], [1, 2, 5, 8, 9])
+  ]
+  properties [
+    -- Sorted list is sorted
+    forall(list: [int]) => is_sorted(sort(list)),
+    -- Sort preserves length
+    forall(list: [int]) => length(sort(list)) == length(list),
+    -- Sort is idempotent
+    forall(list: [int]) => sort(sort(list)) == sort(list)
+  ]
+{
+  match list {
+    [] => [],
+    [head, ...tail] => insert(head, sort(tail))
+  }
+}
+
+-- Helper: Insert element into sorted list
+func insert(x: int, list: [int]) -> [int] {
+  match list {
+    [] => [x],
+    [head, ...tail] => 
+      if x <= head then [x, head] ++ tail
+      else [head] ++ insert(x, tail)
+  }
+}
+
+-- Helper: Get list length
+func length(list: [a]) -> int {
+  match list {
+    [] => 0,
+    [_, ...tail] => 1 + length(tail)
+  }
+}
+
+func main() -> string {
+  let test_list = [5, 2, 8, 1, 9] in
+  let sorted = sort(test_list) in
+  let reversed = reverse(sorted) in
+  "Original: " ++ show(test_list) ++ 
+  "\nSorted: " ++ show(sorted) ++ 
+  "\nReversed: " ++ show(reversed) ++
+  "\nIs sorted? " ++ show(is_sorted(sorted))
+}

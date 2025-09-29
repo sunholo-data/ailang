@@ -302,25 +302,42 @@ func (p *Parser) parseFunctionDeclaration(isPure bool) *ast.FuncDecl {
 		}
 	}
 
-	// Parse tests if present
+	// Parse tests and properties before body (they appear before opening brace)
+	// The syntax is:
+	//   func name(params) -> type
+	//     tests [...]
+	//     properties [...]
+	//   {
+	//     body
+	//   }
+
+	// Parse tests if present (before body)
 	if p.peekTokenIs(lexer.TEST) {
-		p.nextToken()
-		p.expectPeek(lexer.LBRACKET)
-		fn.Tests = p.parseTests()
+		p.nextToken() // consume 'tests'
+		if p.peekTokenIs(lexer.LBRACKET) {
+			p.nextToken() // move to LBRACKET
+			fn.Tests = p.parseTests()
+		}
 	}
 
-	// Parse properties if present
+	// Parse properties if present (before body)
 	if p.peekTokenIs(lexer.PROPERTY) {
-		p.nextToken()
-		p.expectPeek(lexer.LBRACKET)
-		fn.Properties = p.parseProperties()
+		p.nextToken() // consume 'properties'
+		if p.peekTokenIs(lexer.LBRACKET) {
+			p.nextToken() // move to LBRACKET
+			fn.Properties = p.parseProperties()
+		}
 	}
 
 	// Parse body
-	p.expectPeek(lexer.LBRACE)
-	p.nextToken()
+	if !p.expectPeek(lexer.LBRACE) {
+		return nil
+	}
+	p.nextToken() // move past LBRACE
 	fn.Body = p.parseExpression(LOWEST)
-	p.expectPeek(lexer.RBRACE)
+	if !p.expectPeek(lexer.RBRACE) {
+		return nil
+	}
 
 	return fn
 }
@@ -994,13 +1011,146 @@ func (p *Parser) parseEffects() []string {
 }
 
 func (p *Parser) parseTests() []*ast.TestCase {
-	// TODO: Implement test case parsing
-	return []*ast.TestCase{}
+	var tests []*ast.TestCase
+
+	// We should be at LBRACKET
+	if !p.curTokenIs(lexer.LBRACKET) {
+		p.errors = append(p.errors, fmt.Errorf("expected [ for tests block at %s:%d:%d, got %s",
+			p.curToken.File, p.curPos().Line, p.curPos().Column, p.curToken.Type))
+		return tests
+	}
+
+	// Handle empty tests block
+	if p.peekTokenIs(lexer.RBRACKET) {
+		p.nextToken() // consume RBRACKET
+		return tests
+	}
+
+	p.nextToken() // Move to first test
+
+	// Parse test cases: (input, output) pairs
+	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
+		// Expect LPAREN for test case tuple
+		if !p.curTokenIs(lexer.LPAREN) {
+			p.errors = append(p.errors, fmt.Errorf("expected ( for test case at %s:%d:%d, got %s",
+				p.curToken.File, p.curPos().Line, p.curPos().Column, p.curToken.Type))
+			// Try to recover by skipping to next comma or closing bracket
+			for !p.curTokenIs(lexer.COMMA) && !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
+				p.nextToken()
+			}
+			if p.curTokenIs(lexer.COMMA) {
+				p.nextToken()
+			}
+			continue
+		}
+
+		p.nextToken() // Move past LPAREN
+
+		// Parse input expression
+		input := p.parseExpression(LOWEST)
+		if input == nil {
+			return tests
+		}
+
+		// Expect comma
+		if !p.expectPeek(lexer.COMMA) {
+			return tests
+		}
+		p.nextToken() // Move past comma
+
+		// Parse expected output
+		output := p.parseExpression(LOWEST)
+		if output == nil {
+			return tests
+		}
+
+		// Expect closing paren
+		if !p.expectPeek(lexer.RPAREN) {
+			return tests
+		}
+
+		tests = append(tests, &ast.TestCase{
+			Input:  input,
+			Output: output,
+			Pos:    p.curPos(),
+		})
+
+		// Check for comma or end of tests
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next test
+		} else if p.peekTokenIs(lexer.RBRACKET) {
+			p.nextToken() // consume closing bracket
+			break
+		} else {
+			p.errors = append(p.errors, fmt.Errorf("expected , or ] after test case at %s:%d:%d, got %s",
+				p.peekToken.File, p.peekPos().Line, p.peekPos().Column, p.peekToken.Type))
+			return tests
+		}
+	}
+
+	return tests
 }
 
 func (p *Parser) parseProperties() []*ast.Property {
-	// TODO: Implement property parsing
-	return []*ast.Property{}
+	var properties []*ast.Property
+
+	// We're at LBRACKET
+	if !p.curTokenIs(lexer.LBRACKET) {
+		return properties
+	}
+
+	// Handle empty properties block
+	if p.peekTokenIs(lexer.RBRACKET) {
+		p.nextToken()
+		return properties
+	}
+
+	p.nextToken() // Move to first property
+
+	// Parse properties
+	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
+		var prop ast.Property
+		prop.Pos = p.curPos()
+
+		// Check if it's a named property (string literal followed by colon)
+		if p.curTokenIs(lexer.STRING) {
+			prop.Name = p.curToken.Literal
+			if p.peekTokenIs(lexer.COLON) {
+				p.nextToken() // consume string
+				p.nextToken() // consume colon
+			} else {
+				// String without colon is an unnamed property expression
+				prop.Name = ""
+			}
+		} else {
+			// Unnamed property
+			prop.Name = ""
+		}
+
+		// Parse property expression (typically starts with forall)
+		prop.Expr = p.parseExpression(LOWEST)
+		if prop.Expr == nil {
+			return properties
+		}
+
+		properties = append(properties, &prop)
+
+		// Check for comma or end of properties
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next property
+		} else if p.peekTokenIs(lexer.RBRACKET) {
+			p.nextToken() // consume closing bracket
+			break
+		} else {
+			p.errors = append(p.errors, fmt.Errorf("expected , or ] at %s:%d:%d, got %s",
+				p.peekToken.File, p.peekPos().Line, p.peekPos().Column, p.peekToken.Type))
+			return properties
+		}
+	}
+
+	return properties
 }
 
 func (p *Parser) parseConstructorPattern(name string) ast.Pattern {
@@ -1118,6 +1268,14 @@ func (p *Parser) curPos() ast.Pos {
 		Line:   p.curToken.Line,
 		Column: p.curToken.Column,
 		File:   p.curToken.File,
+	}
+}
+
+func (p *Parser) peekPos() ast.Pos {
+	return ast.Pos{
+		Line:   p.peekToken.Line,
+		Column: p.peekToken.Column,
+		File:   p.peekToken.File,
 	}
 }
 

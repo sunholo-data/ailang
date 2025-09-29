@@ -1,0 +1,366 @@
+{
+  "schema": "ailang.manifest/v1",
+  "schema_version": "1.0.0",
+  "schema_digest": "sha256:8a9b2c4d5e6f7a8b",
+  "generated_at": "2024-09-29T08:00:00Z",
+  "generator": "ailang verify-examples",
+  "examples": [
+    {
+      "path": "hello.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["basic", "io"],
+      "description": "Basic hello world program",
+      "expected": {
+        "stdout": "Hello, AILANG!\n",
+        "stderr": "",
+        "exit_code": 0
+      },
+      "environment": {
+        "seed": 0,
+        "locale": "C.UTF-8",
+        "timezone": "UTC"
+      }
+    },
+    {
+      "path": "simple.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["basic", "arithmetic"],
+      "description": "Simple arithmetic expression",
+      "expected": {
+        "stdout": "7\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "arithmetic.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["basic", "arithmetic", "show"],
+      "description": "Arithmetic with Show type class",
+      "expected": {
+        "stdout": "42\n3.14159\ntrue\nHello, AILANG!\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "lambda_expressions.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["lambda", "functional"],
+      "description": "Lambda function demonstrations",
+      "expected": {
+        "stdout": "8\n10\n42\n120\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "debug1.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["debug"],
+      "description": "Debug test 1",
+      "expected": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "debug2.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["debug"],
+      "description": "Debug test 2",
+      "expected": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "debug3.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["debug"],
+      "description": "Debug test 3",
+      "expected": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "lambdas_v2.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["lambda", "v2"],
+      "description": "Version 2 lambda examples",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "pure_lambdas.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["lambda", "pure"],
+      "description": "Pure lambda expressions",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "test_basic.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["test"],
+      "description": "Basic test example",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "test_v2.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["test", "v2"],
+      "description": "Version 2 test example",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "type_inference_basic.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["types", "inference"],
+      "description": "Basic type inference examples",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "v2_type_inference.ail",
+      "status": "working",
+      "mode": "file",
+      "tags": ["types", "inference", "v2"],
+      "description": "Version 2 type inference",
+      "expected": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "factorial.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["recursion", "functions"],
+      "description": "Factorial with tests and properties",
+      "broken": {
+        "reason": "func syntax not implemented",
+        "error_code": "PAR003",
+        "requires": ["func", "tests", "properties", "module"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/1"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "ai_agent_integration.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["ai", "integration"],
+      "description": "AI agent integration example",
+      "broken": {
+        "reason": "module syntax not implemented",
+        "error_code": "PAR004",
+        "requires": ["module", "import", "func"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/2"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "concurrent_pipeline.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["concurrency", "channels"],
+      "description": "CSP concurrent pipeline",
+      "broken": {
+        "reason": "CSP not implemented",
+        "error_code": "PAR003",
+        "requires": ["func", "channel", "spawn", "parallel"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/3"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "quicksort.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["algorithms", "recursion"],
+      "description": "Quicksort implementation",
+      "broken": {
+        "reason": "pattern matching not implemented",
+        "error_code": "PAR008",
+        "requires": ["func", "match", "list patterns"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/4"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "test_instances.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["typeclass", "instances"],
+      "description": "Type class instance tests",
+      "broken": {
+        "reason": "module syntax not implemented",
+        "error_code": "PAR004",
+        "requires": ["module", "import"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/5"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "type_class_showcase.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["typeclass"],
+      "description": "Type class showcase",
+      "broken": {
+        "reason": "module syntax not implemented",
+        "error_code": "PAR004",
+        "requires": ["module", "import", "func"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/6"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "type_classes.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["typeclass"],
+      "description": "Type class definitions",
+      "broken": {
+        "reason": "module syntax not implemented",
+        "error_code": "PAR004",
+        "requires": ["module", "class", "instance"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/7"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "type_classes_complete.ail",
+      "status": "broken",
+      "mode": "file",
+      "tags": ["typeclass"],
+      "description": "Complete type class example",
+      "broken": {
+        "reason": "module syntax not implemented",
+        "error_code": "PAR004",
+        "requires": ["module", "class", "instance", "func"],
+        "tracked_issue": "https://github.com/sunholo/ailang/issues/8"
+      },
+      "expected": {
+        "error_pattern": "PAR\\d{3}",
+        "exit_code": 1
+      }
+    },
+    {
+      "path": "defaulting_trace.ail",
+      "status": "experimental",
+      "mode": "repl",
+      "tags": ["types", "defaulting"],
+      "description": "Type defaulting trace example",
+      "requires_features": ["lang.defaulting_trace"],
+      "skip_reason": "Requires REPL-specific features"
+    },
+    {
+      "path": "v3_3/hello.ail",
+      "status": "experimental",
+      "mode": "file",
+      "tags": ["v3.3", "module", "func"],
+      "description": "Basic module with function declarations",
+      "requires_features": ["lang.modules", "lang.func"],
+      "skip_reason": "Module system and func syntax in development"
+    },
+    {
+      "path": "v3_3/math.ail",
+      "status": "experimental",
+      "mode": "file",
+      "tags": ["v3.3", "recursion", "tests"],
+      "description": "Recursive functions with inline tests",
+      "requires_features": ["lang.modules", "lang.func", "lang.tests"],
+      "skip_reason": "Tests block parsing in development"
+    },
+    {
+      "path": "v3_3/imports.ail",
+      "status": "experimental",
+      "mode": "file",
+      "tags": ["v3.3", "imports", "modules"],
+      "description": "Module imports and composition",
+      "requires_features": ["lang.modules", "lang.imports"],
+      "skip_reason": "Import resolution in development"
+    },
+    {
+      "path": "v3_3/stdlib_demo.ail",
+      "status": "experimental",
+      "mode": "file",
+      "tags": ["v3.3", "stdlib", "patterns"],
+      "description": "Standard library usage patterns",
+      "requires_features": ["lang.modules", "lang.pattern_matching"],
+      "skip_reason": "Pattern matching not fully implemented"
+    },
+    {
+      "path": "v3_3/properties_demo.ail",
+      "status": "experimental",
+      "mode": "file",
+      "tags": ["v3.3", "properties", "testing"],
+      "description": "Property-based testing examples",
+      "requires_features": ["lang.modules", "lang.properties", "lang.pattern_matching"],
+      "skip_reason": "Properties and forall quantifiers not implemented"
+    }
+  ],
+  "statistics": {
+    "total": 27,
+    "working": 13,
+    "broken": 8,
+    "experimental": 6,
+    "coverage": 0.481
+  }

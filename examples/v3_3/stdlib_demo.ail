@@ -1,0 +1,39 @@
+-- v3.3 Example: Using standard library modules
+module stdlib_demo
+
+-- Import from standard library (when available)
+-- import std/prelude
+-- import std/list (map, filter, fold)
+
+-- For now, define our own list operations
+func map(f: a -> b, list: [a]) -> [b] {
+  match list {
+    [] => [],
+    [head, ...tail] => [f(head)] ++ map(f, tail)
+  }
+}
+
+func filter(pred: a -> bool, list: [a]) -> [a] {
+  match list {
+    [] => [],
+    [head, ...tail] => 
+      if pred(head) then [head] ++ filter(pred, tail)
+      else filter(pred, tail)
+  }
+}
+
+func fold(f: (a, b) -> a, init: a, list: [b]) -> a {
+  match list {
+    [] => init,
+    [head, ...tail] => fold(f, f(init, head), tail)
+  }
+}
+
+-- Example usage
+func main() -> string {
+  let numbers = [1, 2, 3, 4, 5] in
+  let doubled = map(\x. x * 2, numbers) in
+  let evens = filter(\x. x % 2 == 0, doubled) in
+  let sum = fold(\acc. \x. acc + x, 0, evens) in
+  "Doubled: " ++ show(doubled) ++ ", Evens: " ++ show(evens) ++ ", Sum: " ++ show(sum)
+}
