@@ -67,7 +67,7 @@ func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
 		}
 	}
 
-	return &core.Program{Decls: coreDecls}, nil
+	return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
 }
 
 // ElaborateExpr transforms a single expression to Core ANF (for testing)

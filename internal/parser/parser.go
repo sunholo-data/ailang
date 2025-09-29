@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/errors"
@@ -208,13 +209,16 @@ func (p *Parser) ParseFile() (file *ast.File) {
 
 	// Optional module declaration
 	if p.curTokenIs(lexer.MODULE) {
-		// file.Module = p._parseModuleDecl() // TODO: Implement module declaration
+		file.Module = p.parseModuleDecl()
 		p.nextToken()
 	}
 
 	// Import declarations
-	// TODO: Implement import declaration parsing
 	for p.curTokenIs(lexer.IMPORT) {
+		imp := p.parseImportDecl()
+		if imp != nil {
+			file.Imports = append(file.Imports, imp)
+		}
 		p.nextToken()
 	}
 
@@ -280,7 +284,136 @@ func (p *Parser) parseExportList() []string {
 	return exports
 }
 
+// parseModuleDecl parses a module declaration
+func (p *Parser) parseModuleDecl() *ast.ModuleDecl {
+	startPos := p.curPos()
+	p.expectPeek(lexer.IDENT)
+
+	// Build module path (e.g., "foo/bar")
+	path := p.curToken.Literal
+	for p.peekTokenIs(lexer.SLASH) {
+		p.nextToken() // consume slash
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+		path += "/" + p.curToken.Literal
+	}
+
+	endPos := p.curPos()
+	return &ast.ModuleDecl{
+		Path: path,
+		Pos:  startPos,
+		Span: ast.Span{Start: startPos, End: endPos},
+	}
+}
+
 // parseImportDecl parses an import declaration
+func (p *Parser) parseImportDecl() *ast.ImportDecl {
+	startPos := p.curPos()
+	imp := &ast.ImportDecl{
+		Pos: startPos,
+	}
+
+	p.nextToken() // consume 'import'
+
+	// Parse import path - can be string or path segments: ./relative, ../parent, std/io
+	if p.curTokenIs(lexer.STRING) {
+		imp.Path = p.curToken.Literal
+	} else {
+		// Build path from segments: segment ("/" segment)*
+		// segment = IDENT | "." | ".."
+		path := ""
+
+		// Handle leading dots for relative paths
+		if p.curTokenIs(lexer.DOT) {
+			path = "."
+			// Check for ./ or ../
+			if p.peekTokenIs(lexer.DOT) {
+				p.nextToken()
+				path = ".."
+			}
+			if p.peekTokenIs(lexer.SLASH) {
+				p.nextToken() // consume slash
+				path += "/"
+				p.nextToken() // move to next segment
+			}
+		}
+
+		// Parse path segments
+		if p.curTokenIs(lexer.IDENT) {
+			if path != "" && !strings.HasSuffix(path, "/") {
+				path += "/"
+			}
+			path += p.curToken.Literal
+
+			for p.peekTokenIs(lexer.SLASH) {
+				p.nextToken() // consume slash
+				p.nextToken() // move to next segment
+
+				if p.curTokenIs(lexer.IDENT) {
+					path += "/" + p.curToken.Literal
+				} else if p.curTokenIs(lexer.DOT) {
+					// Handle .. in middle of path
+					if p.peekTokenIs(lexer.DOT) {
+						p.nextToken()
+						path += "/.."
+					} else {
+						path += "/."
+					}
+				} else {
+					p.errors = append(p.errors, NewParserError(errors.IMP010, p.curPos(), p.curToken,
+						"expected path segment after /",
+						[]lexer.TokenType{lexer.IDENT},
+						"Add path segment or remove trailing /"))
+					return nil
+				}
+			}
+		} else if path == "" {
+			// No valid path found
+			p.errors = append(p.errors, NewParserError(errors.IMP001, p.curPos(), p.curToken,
+				"expected import path",
+				[]lexer.TokenType{lexer.STRING, lexer.IDENT, lexer.DOT},
+				"Provide a valid import path"))
+			return nil
+		}
+
+		imp.Path = path
+	}
+
+	// Check for selective imports: import module (symbol1, symbol2)
+	if p.peekTokenIs(lexer.LPAREN) {
+		p.nextToken() // consume (
+		p.nextToken() // move to first symbol
+
+		for !p.curTokenIs(lexer.RPAREN) {
+			if p.curTokenIs(lexer.IDENT) {
+				imp.Symbols = append(imp.Symbols, p.curToken.Literal)
+			}
+
+			if p.peekTokenIs(lexer.COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // move to next symbol
+			} else {
+				break
+			}
+		}
+
+		if !p.expectPeek(lexer.RPAREN) {
+			return nil
+		}
+	} else {
+		// Namespace imports not supported - require selective import
+		p.errors = append(p.errors, NewParserError("IMP012_UNSUPPORTED_NAMESPACE", p.curPos(), p.curToken,
+			"namespace imports not yet supported",
+			[]lexer.TokenType{lexer.LPAREN},
+			"Use selective import: import module/path (symbol1, symbol2)"))
+		return nil
+	}
+
+	endPos := p.curPos()
+	imp.Span = ast.Span{Start: startPos, End: endPos}
+	return imp
+}
 
 // parseTopLevelDecl parses a top-level declaration
 func (p *Parser) parseTopLevelDecl() ast.Node {
