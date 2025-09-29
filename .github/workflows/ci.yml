@@ -30,14 +30,34 @@ jobs:
       run: |
         go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)
         go tool cover -func=coverage.out
+        # Extract coverage percentage for badge
+        COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+        echo "Coverage: $COVERAGE%"
+        
+        # Generate coverage badge color
+        if (( $(echo "$COVERAGE < 20" | bc -l) )); then
+          COLOR="red"
+        elif (( $(echo "$COVERAGE < 40" | bc -l) )); then
+          COLOR="orange"
+        elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+          COLOR="yellow"
+        elif (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          COLOR="green"
+        else
+          COLOR="brightgreen"
+        fi
+        echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
+      continue-on-error: true  # Don't fail if Codecov is down or token is missing
       with:
         files: ./coverage.out
         flags: unittests
         name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false  # Don't fail the CI if upload fails
     
     - name: Verify examples
       id: verify
@@ -50,18 +70,43 @@ jobs:
           echo "status=failure" >> $GITHUB_OUTPUT
         fi
     
-    - name: Update example status in README
+    - name: Update example status and coverage in README
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
       run: |
         # Use the Makefile which handles module paths correctly
         make update-readme
+        
+        # Get coverage percentage
+        make test-coverage-badge
+        COVERAGE=$(cat coverage.txt)
+        
+        # Determine badge color based on coverage
+        if (( $(echo "$COVERAGE < 20" | bc -l) )); then
+          COLOR="red"
+        elif (( $(echo "$COVERAGE < 40" | bc -l) )); then
+          COLOR="orange"
+        elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+          COLOR="yellow"
+        elif (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          COLOR="green"
+        else
+          COLOR="brightgreen"
+        fi
+        
+        # Update the coverage badge in README
+        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
+        
+        # Also update the codecov badge line to use our local coverage
+        sed -i "s|\[\![codecov\].*||g" README.md
+        
+        echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
     
     - name: Commit README updates
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: 'Update example verification status [skip ci]'
-        file_pattern: 'README.md'
+        commit_message: 'Update example verification status and coverage [skip ci]'
+        file_pattern: 'README.md coverage.txt'
         commit_user_name: github-actions[bot]
         commit_user_email: github-actions[bot]@users.noreply.github.com
 

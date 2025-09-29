@@ -54,13 +54,11 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 
 	// Add badges
 	sb.WriteString("## Status\n\n")
-	sb.WriteString("![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)\n")
-	sb.WriteString("![Coverage](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)\n")
 	sb.WriteString("![Examples](https://img.shields.io/badge/examples-")
 	if report.Failed == 0 {
-		sb.WriteString(fmt.Sprintf("%d%%25passing-brightgreen", report.Passed))
+		sb.WriteString(fmt.Sprintf("%d%%20passing-brightgreen", report.Passed))
 	} else {
-		sb.WriteString(fmt.Sprintf("%d%%25passing%%20%d%%25failing-red", report.Passed, report.Failed))
+		sb.WriteString(fmt.Sprintf("%d%%20passing%%20%d%%20failing-red", report.Passed, report.Failed))
 	}
 	sb.WriteString(".svg)\n\n")
 
