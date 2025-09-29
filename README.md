@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-31.3%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-19.2%25-red.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -87,59 +87,73 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-14%20passing%2015%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-20%20passing%2023%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 13:28:48 UTC*
+*Last updated: 2025-09-29 19:09:40 UTC*
 
-**Summary:** 14 passed, 15 failed, 16 skipped (Total: 45)
+**Summary:** 20 passed, 23 failed, 16 skipped (Total: 59)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
-| `ai_agent_integration.ail` | ❌ Fail | Error Parser errors: |
+| `ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `arithmetic.ail` | ✅ Pass |  |
-| `concurrent_pipeline.ail` | ❌ Fail | Error Parser errors: |
+| `concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `debug1.ail` | ✅ Pass |  |
 | `debug2.ail` | ✅ Pass |  |
 | `debug3.ail` | ✅ Pass |  |
 | `defaulting_trace.ail` | ⏭️ Skip | Test/demo file |
-| `factorial.ail` | ❌ Fail | Error Parser errors: |
+| `factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `hello.ail` | ✅ Pass |  |
-| `lambda_expressions.ail` | ✅ Pass |  |
+| `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `lambdas_v2.ail` | ✅ Pass |  |
 | `num_demo.ail` | ⏭️ Skip | Test/demo file |
 | `phase1_demo.ail` | ⏭️ Skip | Test/demo file |
 | `pure_lambdas.ail` | ✅ Pass |  |
-| `quicksort.ail` | ❌ Fail | Error Parser errors: |
+| `quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `repl_demo.ail` | ⏭️ Skip | Test/demo file |
 | `repl_test.ail` | ⏭️ Skip | Test/demo file |
 | `show_demo.ail` | ⏭️ Skip | Test/demo file |
 | `simple.ail` | ✅ Pass |  |
+| `simple_module.ail` | ✅ Pass |  |
 | `test_basic.ail` | ✅ Pass |  |
-| `test_instances.ail` | ❌ Fail | Runtime error: undefined identifier: y |
-| `test_v2.ail` | ✅ Pass |  |
-| `type_class_showcase.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
-| `type_classes.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
-| `type_classes_complete.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `test_export.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `test_export_func.ail` | ✅ Pass |  |
+| `test_instances.ail` | ✅ Pass |  |
+| `test_operators.ail` | ✅ Pass |  |
+| `test_simple_module.ail` | ❌ Fail | Error: MOD010: module declaration 'test_simple'... |
+| `test_simple_ops.ail` | ✅ Pass |  |
+| `test_v2.ail` | ❌ Fail | Error: type error in examples/test_v2 (decl 0):... |
+| `type_class_showcase.ail` | ❌ Fail | Error: elaboration error in examples/type_class... |
+| `type_classes.ail` | ❌ Fail | Error: elaboration error in examples/type_class... |
+| `type_classes_complete.ail` | ❌ Fail | Error: elaboration error in examples/type_class... |
 | `type_classes_demo.ail` | ⏭️ Skip | Test/demo file |
 | `type_classes_demo_working.ail` | ⏭️ Skip | Test/demo file |
-| `type_classes_final.ail` | ❌ Fail | Error Parser errors: |
-| `type_classes_simple.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
-| `type_classes_working.ail` | ❌ Fail | Runtime error: unknown expression type: <nil> |
+| `type_classes_final.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `type_classes_simple.ail` | ❌ Fail | Error: elaboration error in examples/type_class... |
+| `type_classes_working.ail` | ❌ Fail | Error: elaboration error in examples/type_class... |
 | `type_demo_minimal.ail` | ⏭️ Skip | Test/demo file |
-| `type_inference_basic.ail` | ✅ Pass |  |
+| `type_inference_basic.ail` | ❌ Fail | Error: type error in examples/type_inference_ba... |
 | `type_inference_demo.ail` | ⏭️ Skip | Test/demo file |
-| `type_inference_simple.ail` | ❌ Fail | Error Parser errors: |
+| `type_inference_simple.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_type_inference.ail` | ✅ Pass |  |
-| `v3_3/hello.ail` | ✅ Pass |  |
-| `v3_3/imports.ail` | ❌ Fail | Error Parser errors: |
-| `v3_3/math.ail` | ❌ Fail | Error Parser errors: |
+| `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
+| `v3_3/imports.ail` | ✅ Pass |  |
+| `v3_3/imports_basic.ail` | ✅ Pass |  |
+| `v3_3/math.ail` | ❌ Fail | Error: MOD010: module declaration 'math' doesn'... |
+| `v3_3/math/div.ail` | ✅ Pass |  |
+| `v3_3/math/gcd.ail` | ✅ Pass |  |
+| `v3_3/math/simple_gcd.ail` | ✅ Pass |  |
+| `v3_3/poly_id.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `v3_3/poly_imports.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `v3_3/poly_use.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `v3_3/polymorphic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `v3_3/properties_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v3_3/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
-| `web_api.ail` | ❌ Fail | Error Parser errors: |
+| `web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `working_demo.ail` | ⏭️ Skip | Test/demo file |
 | `working_v0_0_3_demo.ail` | ⏭️ Skip | Test/demo file |
 
