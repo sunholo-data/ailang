@@ -47,6 +47,31 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
+### Code Quality & Coverage
+```bash
+make test-coverage-badge  # Quick coverage check (shows: "Coverage: 29.9%")
+make test-coverage        # Run tests with coverage, generates HTML report
+make lint                 # Run golangci-lint
+make fmt                  # Format all Go code
+make fmt-check            # Check if code is formatted
+make vet                  # Run go vet
+```
+
+### Example Management
+```bash
+make verify-examples      # Verify all example files work/fail
+make update-readme        # Update README with example status
+make flag-broken          # Add warning headers to broken examples
+```
+
+### Development Helpers
+```bash
+make deps                 # Install all dependencies
+make clean                # Remove build artifacts and coverage files
+make ci                   # Run full CI verification locally
+make help                 # Show all available make targets
+```
+
 ### Making `ailang` Accessible System-Wide
 
 #### First-Time Setup
@@ -490,6 +515,12 @@ ailang export-training
 - Don't maintain legacy test suites  
 - Write new tests for new implementations
 - Keep test suite clean and current
+
+### Current Test Coverage
+- **Overall**: 29.9% (as of 2024-09-29)
+- **Well-tested**: `test` (95.7%), `schema` (87.9%), `parser` (75.8%), `errors` (75.9%)
+- **Needs work**: `typedast` (0%), `eval` (15.6%), `types` (20.3%)
+- Run `make test-coverage-badge` for quick coverage check
 
 ## Important Notes
 1. The language is expression-based - everything returns a value
