@@ -16,7 +16,7 @@ type CoreEvaluator struct {
 func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvaluator {
 	env := NewEnvironment()
 	registerBuiltins(env)
-	
+
 	return &CoreEvaluator{
 		env:      env,
 		registry: registry,
@@ -27,7 +27,7 @@ func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvalu
 func NewCoreEvaluator() *CoreEvaluator {
 	env := NewEnvironment()
 	registerBuiltins(env)
-	
+
 	return &CoreEvaluator{
 		env:      env,
 		registry: types.NewDictionaryRegistry(),
@@ -50,7 +50,7 @@ func (e *CoreEvaluator) Eval(expr core.CoreExpr) (Value, error) {
 // EvalCoreProgram evaluates a Core program
 func (e *CoreEvaluator) EvalCoreProgram(prog *core.Program) (Value, error) {
 	var lastResult Value = &UnitValue{}
-	
+
 	for _, decl := range prog.Decls {
 		result, err := e.evalCore(decl)
 		if err != nil {
@@ -58,7 +58,7 @@ func (e *CoreEvaluator) EvalCoreProgram(prog *core.Program) (Value, error) {
 		}
 		lastResult = result
 	}
-	
+
 	return lastResult, nil
 }
 
@@ -67,56 +67,56 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	if expr == nil {
 		return &UnitValue{}, nil
 	}
-	
+
 	switch n := expr.(type) {
 	case *core.Var:
 		return e.evalCoreVar(n)
-		
+
 	case *core.Lit:
 		return e.evalCoreLit(n)
-		
+
 	case *core.Lambda:
 		return e.evalCoreLambda(n)
-		
+
 	case *core.Let:
 		return e.evalCoreLet(n)
-		
+
 	case *core.LetRec:
 		return e.evalCoreLetRec(n)
-		
+
 	case *core.App:
 		return e.evalCoreApp(n)
-		
+
 	case *core.If:
 		return e.evalCoreIf(n)
-		
+
 	case *core.BinOp:
 		return e.evalCoreBinOp(n)
-		
+
 	case *core.UnOp:
 		return e.evalCoreUnOp(n)
-		
+
 	case *core.Record:
 		return e.evalCoreRecord(n)
-		
+
 	case *core.RecordAccess:
 		return e.evalCoreRecordAccess(n)
-		
+
 	case *core.List:
 		return e.evalCoreList(n)
-		
+
 	case *core.Match:
 		return e.evalCoreMatch(n)
-		
+
 	case *core.DictRef:
 		return e.evalDictRef(n)
-		
+
 	case *core.DictAbs:
 		return e.evalDictAbs(n)
-		
+
 	case *core.DictApp:
 		return e.evalDictApp(n)
-		
+
 	default:
 		return nil, fmt.Errorf("core evaluation not implemented for %T", expr)
 	}
@@ -146,28 +146,28 @@ func (e *CoreEvaluator) evalCoreLit(lit *core.Lit) (Value, error) {
 		default:
 			return nil, fmt.Errorf("invalid int literal: %v (type %T)", lit.Value, lit.Value)
 		}
-		
+
 	case core.FloatLit:
 		if f, ok := lit.Value.(float64); ok {
 			return &FloatValue{Value: f}, nil
 		}
 		return nil, fmt.Errorf("invalid float literal: %v", lit.Value)
-		
+
 	case core.StringLit:
 		if s, ok := lit.Value.(string); ok {
 			return &StringValue{Value: s}, nil
 		}
 		return nil, fmt.Errorf("invalid string literal: %v", lit.Value)
-		
+
 	case core.BoolLit:
 		if b, ok := lit.Value.(bool); ok {
 			return &BoolValue{Value: b}, nil
 		}
 		return nil, fmt.Errorf("invalid bool literal: %v", lit.Value)
-		
+
 	case core.UnitLit:
 		return &UnitValue{}, nil
-		
+
 	default:
 		return nil, fmt.Errorf("unknown literal kind: %v", lit.Kind)
 	}
@@ -190,17 +190,17 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create new environment with binding
 	newEnv := e.env.NewChildEnvironment()
 	newEnv.Set(let.Name, val)
-	
+
 	// Evaluate body in new environment
 	oldEnv := e.env
 	e.env = newEnv
 	result, err := e.evalCore(let.Body)
 	e.env = oldEnv
-	
+
 	return result, err
 }
 
@@ -208,17 +208,17 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 	// Create new environment for recursive bindings
 	newEnv := e.env.NewChildEnvironment()
-	
+
 	// First pass: create placeholders for recursive references
 	for _, binding := range letrec.Bindings {
 		// For now, assume all recursive bindings are functions
 		newEnv.Set(binding.Name, &UnitValue{}) // Placeholder
 	}
-	
+
 	// Second pass: evaluate bindings in the recursive environment
 	oldEnv := e.env
 	e.env = newEnv
-	
+
 	for _, binding := range letrec.Bindings {
 		val, err := e.evalCore(binding.Value)
 		if err != nil {
@@ -227,11 +227,11 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 		}
 		newEnv.Set(binding.Name, val)
 	}
-	
+
 	// Evaluate body in recursive environment
 	result, err := e.evalCore(letrec.Body)
 	e.env = oldEnv
-	
+
 	return result, err
 }
 
@@ -242,7 +242,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Evaluate arguments
 	var args []Value
 	for _, arg := range app.Args {
@@ -252,24 +252,24 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		}
 		args = append(args, argVal)
 	}
-	
+
 	// Apply function
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
 		if len(args) != len(fn.Params) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 		}
-		
+
 		// Create new environment with parameters bound
 		newEnv := fn.Env.Clone()
 		for i, param := range fn.Params {
 			newEnv.Set(param, args[i])
 		}
-		
+
 		// Evaluate body
 		oldEnv := e.env
 		e.env = newEnv
-		
+
 		// Body could be Core or TypedAST depending on origin
 		var result Value
 		if coreBody, ok := fn.Body.(core.CoreExpr); ok {
@@ -277,13 +277,13 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		} else {
 			return nil, fmt.Errorf("function body is not Core AST")
 		}
-		
+
 		e.env = oldEnv
 		return result, err
-		
+
 	case *BuiltinFunction:
 		return fn.Fn(args)
-		
+
 	default:
 		return nil, fmt.Errorf("cannot apply non-function value: %T", fnVal)
 	}
@@ -296,13 +296,13 @@ func (e *CoreEvaluator) evalCoreIf(ifExpr *core.If) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check condition is boolean
 	boolVal, ok := condVal.(*BoolValue)
 	if !ok {
 		return nil, fmt.Errorf("if condition must be boolean, got %T", condVal)
 	}
-	
+
 	// Evaluate appropriate branch
 	if boolVal.Value {
 		return e.evalCore(ifExpr.Then)
@@ -318,12 +318,12 @@ func (e *CoreEvaluator) evalCoreBinOp(binop *core.BinOp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	rightVal, err := e.evalCore(binop.Right)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Apply operation based on operator and types
 	return applyBinOp(binop.Op, leftVal, rightVal)
 }
@@ -335,7 +335,7 @@ func (e *CoreEvaluator) evalCoreUnOp(unop *core.UnOp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Apply operation
 	return applyUnOp(unop.Op, operandVal)
 }
@@ -343,7 +343,7 @@ func (e *CoreEvaluator) evalCoreUnOp(unop *core.UnOp) (Value, error) {
 // evalCoreRecord evaluates record construction
 func (e *CoreEvaluator) evalCoreRecord(record *core.Record) (Value, error) {
 	fields := make(map[string]Value)
-	
+
 	for name, fieldExpr := range record.Fields {
 		val, err := e.evalCore(fieldExpr)
 		if err != nil {
@@ -351,7 +351,7 @@ func (e *CoreEvaluator) evalCoreRecord(record *core.Record) (Value, error) {
 		}
 		fields[name] = val
 	}
-	
+
 	return &RecordValue{Fields: fields}, nil
 }
 
@@ -361,24 +361,24 @@ func (e *CoreEvaluator) evalCoreRecordAccess(access *core.RecordAccess) (Value, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	record, ok := recordVal.(*RecordValue)
 	if !ok {
 		return nil, fmt.Errorf("cannot access field of non-record value: %T", recordVal)
 	}
-	
+
 	val, ok := record.Fields[access.Field]
 	if !ok {
 		return nil, fmt.Errorf("record has no field: %s", access.Field)
 	}
-	
+
 	return val, nil
 }
 
 // evalCoreList evaluates list construction
 func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
 	var elements []Value
-	
+
 	for _, elemExpr := range list.Elements {
 		val, err := e.evalCore(elemExpr)
 		if err != nil {
@@ -386,7 +386,7 @@ func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
 		}
 		elements = append(elements, val)
 	}
-	
+
 	return &ListValue{Elements: elements}, nil
 }
 
@@ -397,28 +397,28 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Try each arm
 	for _, arm := range match.Arms {
 		bindings, matched := matchPattern(arm.Pattern, scrutineeVal)
 		if !matched {
 			continue
 		}
-		
+
 		// Pattern matched - evaluate body with bindings
 		newEnv := e.env.NewChildEnvironment()
 		for name, val := range bindings {
 			newEnv.Set(name, val)
 		}
-		
+
 		oldEnv := e.env
 		e.env = newEnv
 		result, err := e.evalCore(arm.Body)
 		e.env = oldEnv
-		
+
 		return result, err
 	}
-	
+
 	return nil, fmt.Errorf("no pattern matched in match expression")
 }
 
@@ -426,13 +426,13 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 	// Create a dictionary value that contains the methods
 	// The dictionary is a record with method implementations
-	
+
 	// Look up all methods for this class/type combination
 	methods := make(map[string]Value)
-	
+
 	// Create type for normalized key generation
 	typ := &types.TCon{Name: ref.TypeName}
-	
+
 	// Common methods for each class
 	var methodNames []string
 	switch ref.ClassName {
@@ -447,7 +447,7 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 	default:
 		return nil, fmt.Errorf("unknown type class: %s", ref.ClassName)
 	}
-	
+
 	// Collect all methods
 	for _, method := range methodNames {
 		key := types.MakeDictionaryKey("prelude", ref.ClassName, typ, method)
@@ -455,7 +455,7 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 		if !ok {
 			return nil, fmt.Errorf("missing dictionary method: %s", key)
 		}
-		
+
 		// Check if the implementation is already a BuiltinFunction
 		if builtin, ok := entry.Impl.(*BuiltinFunction); ok {
 			methods[method] = builtin
@@ -467,7 +467,7 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 			}
 		}
 	}
-	
+
 	// Return dictionary as a record
 	return &RecordValue{Fields: methods}, nil
 }
@@ -476,7 +476,7 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
 	// Dictionary abstraction introduces dictionary parameters
 	// We need to evaluate the body with dictionaries in scope
-	
+
 	// For now, we'll just evaluate the body
 	// In a full implementation, this would handle polymorphic dictionary passing
 	return e.evalCore(abs.Body)
@@ -489,20 +489,20 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Dictionary should be a record with methods
 	dict, ok := dictVal.(*RecordValue)
 	if !ok {
 		return nil, fmt.Errorf("dictionary must be a record, got %T", dictVal)
 	}
-	
+
 	// Look up the method
 	// fmt.Printf("DEBUG: DictApp looking for method '%s' in dictionary with fields: %v\n", app.Method, getFieldNames(dict.Fields))
 	methodVal, ok := dict.Fields[app.Method]
 	if !ok {
 		return nil, fmt.Errorf("dictionary missing method: %s", app.Method)
 	}
-	
+
 	// Evaluate arguments
 	var args []Value
 	for _, argExpr := range app.Args {
@@ -512,7 +512,7 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 		}
 		args = append(args, argVal)
 	}
-	
+
 	// Apply the method with proper type checking
 	switch method := methodVal.(type) {
 	case *BuiltinFunction:
@@ -530,11 +530,11 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 	if builtin, ok := impl.(*BuiltinFunction); ok {
 		return builtin.Fn
 	}
-	
+
 	return func(args []Value) (Value, error) {
 		// This is a simplified wrapper - a full implementation would handle
 		// all type conversions properly
-		
+
 		switch fn := impl.(type) {
 		case func(int64, int64) int64:
 			if len(args) != 2 {
@@ -547,7 +547,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(int64(x.Value), int64(y.Value))
 			return &IntValue{Value: int(result)}, nil
-			
+
 		case func(int, int) int:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -559,7 +559,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value, y.Value)
 			return &IntValue{Value: result}, nil
-			
+
 		case func(float64, float64) float64:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -571,7 +571,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value, y.Value)
 			return &FloatValue{Value: result}, nil
-			
+
 		case func(int64, int64) bool:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -583,7 +583,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(int64(x.Value), int64(y.Value))
 			return &BoolValue{Value: result}, nil
-			
+
 		case func(int, int) bool:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -595,7 +595,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(int(x.Value), int(y.Value))
 			return &BoolValue{Value: result}, nil
-			
+
 		case func(float64, float64) bool:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -607,7 +607,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value, y.Value)
 			return &BoolValue{Value: result}, nil
-			
+
 		case func(int) int:
 			if len(args) != 1 {
 				return nil, fmt.Errorf("expected 1 argument")
@@ -618,7 +618,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value)
 			return &IntValue{Value: result}, nil
-			
+
 		case func(float64) float64:
 			if len(args) != 1 {
 				return nil, fmt.Errorf("expected 1 argument")
@@ -629,7 +629,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value)
 			return &FloatValue{Value: result}, nil
-			
+
 		case func(bool) bool:
 			if len(args) != 1 {
 				return nil, fmt.Errorf("expected 1 argument")
@@ -640,7 +640,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value)
 			return &BoolValue{Value: result}, nil
-			
+
 		case func(string, string) bool:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -652,7 +652,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value, y.Value)
 			return &BoolValue{Value: result}, nil
-			
+
 		case func(string, string) string:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")
@@ -664,7 +664,7 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			}
 			result := fn(x.Value, y.Value)
 			return &StringValue{Value: result}, nil
-			
+
 		default:
 			return nil, fmt.Errorf("unsupported dictionary method type: %T", impl)
 		}
@@ -674,13 +674,13 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 // matchPattern attempts to match a pattern against a value
 func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool) {
 	bindings := make(map[string]Value)
-	
+
 	switch p := pattern.(type) {
 	case *core.VarPattern:
 		// Variable pattern always matches and binds
 		bindings[p.Name] = value
 		return bindings, true
-		
+
 	case *core.LitPattern:
 		// Literal pattern matches if values are equal
 		switch v := value.(type) {
@@ -702,11 +702,11 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 			}
 		}
 		return nil, false
-		
+
 	case *core.WildcardPattern:
 		// Wildcard always matches without binding
 		return bindings, true
-		
+
 	default:
 		// Other patterns not yet implemented
 		return nil, false
@@ -725,7 +725,7 @@ func applyBinOp(op string, left, right Value) (Value, error) {
 		}
 		return &StringValue{Value: lStr.Value + rStr.Value}, nil
 	}
-	
+
 	// Special case: boolean operators don't use type classes
 	if op == "&&" || op == "||" {
 		lBool, lOk := left.(*BoolValue)
@@ -733,7 +733,7 @@ func applyBinOp(op string, left, right Value) (Value, error) {
 		if !lOk || !rOk {
 			return nil, fmt.Errorf("'%s' requires boolean operands", op)
 		}
-		
+
 		switch op {
 		case "&&":
 			return &BoolValue{Value: lBool.Value && rBool.Value}, nil
@@ -741,7 +741,7 @@ func applyBinOp(op string, left, right Value) (Value, error) {
 			return &BoolValue{Value: lBool.Value || rBool.Value}, nil
 		}
 	}
-	
+
 	// All other operators must go through dictionary elaboration
 	return nil, fmt.Errorf("internal: BinOp reached evaluator; dictionaries not elaborated (op='%s')", op)
 }
@@ -756,12 +756,12 @@ func applyUnOp(op string, operand Value) (Value, error) {
 		case *FloatValue:
 			return &FloatValue{Value: -v.Value}, nil
 		}
-		
+
 	case "!":
 		if v, ok := operand.(*BoolValue); ok {
 			return &BoolValue{Value: !v.Value}, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("cannot apply unary operator %s to %T", op, operand)
 }

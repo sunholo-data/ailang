@@ -2,10 +2,10 @@ package eval
 
 import (
 	"fmt"
-	"math"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
 	"github.com/sunholo/ailang/internal/types"
+	"math"
 )
 
 // TypedEvaluator evaluates TypedAST programs
@@ -39,7 +39,7 @@ type TraceEntry struct {
 func NewTypedEvaluator(trace bool, seed int, virtualTime bool) *TypedEvaluator {
 	env := NewEnvironment()
 	registerBuiltins(env)
-	
+
 	var traceCollector *TraceCollector
 	if trace {
 		traceCollector = &TraceCollector{
@@ -47,13 +47,13 @@ func NewTypedEvaluator(trace bool, seed int, virtualTime bool) *TypedEvaluator {
 			Entries: []TraceEntry{},
 		}
 	}
-	
+
 	var seedPtr *int64
 	if seed != 0 {
 		s := int64(seed)
 		seedPtr = &s
 	}
-	
+
 	return &TypedEvaluator{
 		env:         env,
 		trace:       traceCollector,
@@ -71,13 +71,13 @@ func NewTypedEvaluatorWithEnv(env *Environment, trace bool, seed int, virtualTim
 			Entries: []TraceEntry{},
 		}
 	}
-	
+
 	var seedPtr *int64
 	if seed != 0 {
 		s := int64(seed)
 		seedPtr = &s
 	}
-	
+
 	return &TypedEvaluator{
 		env:         env,
 		trace:       traceCollector,
@@ -89,7 +89,7 @@ func NewTypedEvaluatorWithEnv(env *Environment, trace bool, seed int, virtualTim
 // EvalTypedProgram evaluates a typed program
 func (e *TypedEvaluator) EvalTypedProgram(prog *typedast.TypedProgram) (Value, error) {
 	var lastResult Value = &UnitValue{}
-	
+
 	for _, decl := range prog.Decls {
 		result, err := e.evalTypedNode(decl)
 		if err != nil {
@@ -97,54 +97,54 @@ func (e *TypedEvaluator) EvalTypedProgram(prog *typedast.TypedProgram) (Value, e
 		}
 		lastResult = result
 	}
-	
+
 	return lastResult, nil
 }
 
 // evalTypedNode evaluates a typed node
 func (e *TypedEvaluator) evalTypedNode(node typedast.TypedNode) (Value, error) {
 	// Note: We only use type information for tracing/errors, not for behavior
-	
+
 	switch n := node.(type) {
 	case *typedast.TypedVar:
 		return e.evalVar(n)
-		
+
 	case *typedast.TypedLit:
 		return e.evalLit(n)
-		
+
 	case *typedast.TypedLambda:
 		return e.evalLambda(n)
-		
+
 	case *typedast.TypedLet:
 		return e.evalLet(n)
-		
+
 	case *typedast.TypedLetRec:
 		return e.evalLetRec(n)
-		
+
 	case *typedast.TypedApp:
 		return e.evalApp(n)
-		
+
 	case *typedast.TypedIf:
 		return e.evalIf(n)
-		
+
 	case *typedast.TypedBinOp:
 		return e.evalBinOp(n)
-		
+
 	case *typedast.TypedUnOp:
 		return e.evalUnOp(n)
-		
+
 	case *typedast.TypedRecord:
 		return e.evalRecord(n)
-		
+
 	case *typedast.TypedRecordAccess:
 		return e.evalRecordAccess(n)
-		
+
 	case *typedast.TypedList:
 		return e.evalList(n)
-		
+
 	case *typedast.TypedMatch:
 		return e.evalMatch(n)
-		
+
 	default:
 		return nil, fmt.Errorf("evaluation not implemented for %T", node)
 	}
@@ -168,28 +168,28 @@ func (e *TypedEvaluator) evalLit(lit *typedast.TypedLit) (Value, error) {
 			return &IntValue{Value: i}, nil
 		}
 		return nil, fmt.Errorf("invalid int literal: %v", lit.Value)
-		
+
 	case core.FloatLit:
 		if f, ok := lit.Value.(float64); ok {
 			return &FloatValue{Value: f}, nil
 		}
 		return nil, fmt.Errorf("invalid float literal: %v", lit.Value)
-		
+
 	case core.StringLit:
 		if s, ok := lit.Value.(string); ok {
 			return &StringValue{Value: s}, nil
 		}
 		return nil, fmt.Errorf("invalid string literal: %v", lit.Value)
-		
+
 	case core.BoolLit:
 		if b, ok := lit.Value.(bool); ok {
 			return &BoolValue{Value: b}, nil
 		}
 		return nil, fmt.Errorf("invalid bool literal: %v", lit.Value)
-		
+
 	case core.UnitLit:
 		return &UnitValue{}, nil
-		
+
 	default:
 		return nil, fmt.Errorf("unknown literal kind: %v", lit.Kind)
 	}
@@ -199,7 +199,7 @@ func (e *TypedEvaluator) evalLit(lit *typedast.TypedLit) (Value, error) {
 func (e *TypedEvaluator) evalLambda(lam *typedast.TypedLambda) (Value, error) {
 	return &FunctionValue{
 		Params: lam.Params,
-		Body:   lam.Body, // Store typed body
+		Body:   lam.Body,      // Store typed body
 		Env:    e.env.Clone(), // Capture environment
 		Typed:  true,
 	}, nil
@@ -212,17 +212,17 @@ func (e *TypedEvaluator) evalLet(let *typedast.TypedLet) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Extend environment
 	oldEnv := e.env
 	e.env = e.env.Extend(let.Name, val)
-	
+
 	// Evaluate body
 	result, err := e.evalTypedNode(let.Body)
-	
+
 	// Restore environment
 	e.env = oldEnv
-	
+
 	return result, err
 }
 
@@ -230,7 +230,7 @@ func (e *TypedEvaluator) evalLet(let *typedast.TypedLet) (Value, error) {
 func (e *TypedEvaluator) evalLetRec(letrec *typedast.TypedLetRec) (Value, error) {
 	// Create new environment for recursion
 	recEnv := e.env.NewChildEnvironment()
-	
+
 	// First pass: create function placeholders
 	for _, binding := range letrec.Bindings {
 		// For now, assume all recursive bindings are functions
@@ -246,20 +246,20 @@ func (e *TypedEvaluator) evalLetRec(letrec *typedast.TypedLetRec) (Value, error)
 			return nil, fmt.Errorf("non-function recursive binding not supported: %s", binding.Name)
 		}
 	}
-	
+
 	// Second pass: update closures with complete environment
 	for _, binding := range letrec.Bindings {
 		if fn, ok := recEnv.values[binding.Name].(*FunctionValue); ok {
 			fn.Env = recEnv.Clone()
 		}
 	}
-	
+
 	// Evaluate body in recursive environment
 	oldEnv := e.env
 	e.env = recEnv
 	result, err := e.evalTypedNode(letrec.Body)
 	e.env = oldEnv
-	
+
 	return result, err
 }
 
@@ -270,7 +270,7 @@ func (e *TypedEvaluator) evalApp(app *typedast.TypedApp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Evaluate arguments
 	var args []Value
 	for _, arg := range app.Args {
@@ -280,20 +280,20 @@ func (e *TypedEvaluator) evalApp(app *typedast.TypedApp) (Value, error) {
 		}
 		args = append(args, argVal)
 	}
-	
+
 	// Trace if enabled
 	if e.trace != nil && e.trace.Enabled {
 		e.recordTrace(app, fnVal, args)
 	}
-	
+
 	// Apply function
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
 		return e.applyFunction(fn, args)
-		
+
 	case *BuiltinFunction:
 		return fn.Fn(args)
-		
+
 	default:
 		return nil, fmt.Errorf("cannot apply non-function: %T at %s", fnVal, app.Span)
 	}
@@ -302,19 +302,19 @@ func (e *TypedEvaluator) evalApp(app *typedast.TypedApp) (Value, error) {
 // applyFunction applies a user-defined function
 func (e *TypedEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, error) {
 	if len(args) != len(fn.Params) {
-		return nil, fmt.Errorf("argument count mismatch: expected %d, got %d", 
+		return nil, fmt.Errorf("argument count mismatch: expected %d, got %d",
 			len(fn.Params), len(args))
 	}
-	
+
 	// Create new environment extending closure
 	oldEnv := e.env
 	e.env = fn.Env.NewChildEnvironment()
-	
+
 	// Bind parameters
 	for i, param := range fn.Params {
 		e.env.Set(param, args[i])
 	}
-	
+
 	// Evaluate body
 	var result Value
 	var err error
@@ -325,10 +325,10 @@ func (e *TypedEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, 
 	} else {
 		err = fmt.Errorf("invalid function body type: %T", fn.Body)
 	}
-	
+
 	// Restore environment
 	e.env = oldEnv
-	
+
 	return result, err
 }
 
@@ -339,13 +339,13 @@ func (e *TypedEvaluator) evalIf(ifExpr *typedast.TypedIf) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check condition
 	boolVal, ok := condVal.(*BoolValue)
 	if !ok {
 		return nil, fmt.Errorf("condition must be boolean, got %T at %s", condVal, ifExpr.Span)
 	}
-	
+
 	// Evaluate appropriate branch
 	if boolVal.Value {
 		return e.evalTypedNode(ifExpr.Then)
@@ -361,12 +361,12 @@ func (e *TypedEvaluator) evalBinOp(binop *typedast.TypedBinOp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	right, err := e.evalTypedNode(binop.Right)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Perform operation based on operator and types
 	switch binop.Op {
 	case "+":
@@ -409,7 +409,7 @@ func (e *TypedEvaluator) evalUnOp(unop *typedast.TypedUnOp) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch unop.Op {
 	case "-":
 		return e.evalNegate(operand, unop.Span.String())
@@ -423,7 +423,7 @@ func (e *TypedEvaluator) evalUnOp(unop *typedast.TypedUnOp) (Value, error) {
 // evalRecord evaluates record construction
 func (e *TypedEvaluator) evalRecord(rec *typedast.TypedRecord) (Value, error) {
 	fields := make(map[string]Value)
-	
+
 	for name, value := range rec.Fields {
 		val, err := e.evalTypedNode(value)
 		if err != nil {
@@ -431,7 +431,7 @@ func (e *TypedEvaluator) evalRecord(rec *typedast.TypedRecord) (Value, error) {
 		}
 		fields[name] = val
 	}
-	
+
 	return &RecordValue{Fields: fields}, nil
 }
 
@@ -442,25 +442,25 @@ func (e *TypedEvaluator) evalRecordAccess(acc *typedast.TypedRecordAccess) (Valu
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Access field
 	recVal, ok := recordVal.(*RecordValue)
 	if !ok {
 		return nil, fmt.Errorf("cannot access field of non-record: %T at %s", recordVal, acc.Span)
 	}
-	
+
 	val, ok := recVal.Fields[acc.Field]
 	if !ok {
 		return nil, fmt.Errorf("field not found: %s at %s", acc.Field, acc.Span)
 	}
-	
+
 	return val, nil
 }
 
 // evalList evaluates list construction
 func (e *TypedEvaluator) evalList(list *typedast.TypedList) (Value, error) {
 	var elements []Value
-	
+
 	for _, elem := range list.Elements {
 		val, err := e.evalTypedNode(elem)
 		if err != nil {
@@ -468,7 +468,7 @@ func (e *TypedEvaluator) evalList(list *typedast.TypedList) (Value, error) {
 		}
 		elements = append(elements, val)
 	}
-	
+
 	return &ListValue{Elements: elements}, nil
 }
 
@@ -479,7 +479,7 @@ func (e *TypedEvaluator) evalMatch(match *typedast.TypedMatch) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Try each arm
 	for _, arm := range match.Arms {
 		// Match pattern
@@ -487,43 +487,43 @@ func (e *TypedEvaluator) evalMatch(match *typedast.TypedMatch) (Value, error) {
 		if !matched {
 			continue
 		}
-		
+
 		// Check guard if present
 		if arm.Guard != nil {
 			oldEnv := e.env
 			e.env = e.env.NewChildEnvironment()
-			
+
 			// Bind pattern variables
 			for name, val := range bindings {
 				e.env.Set(name, val)
 			}
-			
+
 			guardVal, err := e.evalTypedNode(arm.Guard)
 			e.env = oldEnv
-			
+
 			if err != nil {
 				return nil, err
 			}
-			
+
 			if boolVal, ok := guardVal.(*BoolValue); !ok || !boolVal.Value {
 				continue
 			}
 		}
-		
+
 		// Evaluate body with pattern bindings
 		oldEnv := e.env
 		e.env = e.env.NewChildEnvironment()
-		
+
 		for name, val := range bindings {
 			e.env.Set(name, val)
 		}
-		
+
 		result, err := e.evalTypedNode(arm.Body)
 		e.env = oldEnv
-		
+
 		return result, err
 	}
-	
+
 	return nil, fmt.Errorf("non-exhaustive pattern match at %s", match.Span)
 }
 
@@ -533,18 +533,18 @@ func (e *TypedEvaluator) matchPattern(pat typedast.TypedPattern, val Value) (map
 	case typedast.TypedVarPattern:
 		// Variable pattern always matches
 		return map[string]Value{p.Name: val}, true
-		
+
 	case typedast.TypedLitPattern:
 		// Literal pattern must match exactly
 		if e.valuesEqual(val, p.Value) {
 			return nil, true
 		}
 		return nil, false
-		
+
 	case typedast.TypedWildcardPattern:
 		// Wildcard always matches
 		return nil, true
-		
+
 	default:
 		// TODO: Implement other pattern types
 		return nil, false
@@ -802,17 +802,17 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 	if e.trace == nil || !e.trace.Enabled {
 		return
 	}
-	
+
 	// TODO: Extract scheme and effects from typed nodes
 	// For now, create a placeholder trace
 	var inputs []string
 	for _, arg := range args {
 		inputs = append(inputs, boundedShow(arg, 3, 10))
 	}
-	
+
 	entry := TraceEntry{
 		CallSiteID:  app.NodeID,
-		FnID:        0, // TODO: Extract from function
+		FnID:        0,   // TODO: Extract from function
 		FnScheme:    nil, // TODO: Extract scheme
 		CallEffects: nil, // TODO: Type assertion needed
 		Inputs:      inputs,
@@ -820,7 +820,7 @@ func (e *TypedEvaluator) recordTrace(app *typedast.TypedApp, fn Value, args []Va
 		VirtualTime: e.virtualTime,
 		Timestamp:   e.getTimestamp(),
 	}
-	
+
 	e.trace.Entries = append(e.trace.Entries, entry)
 }
 
@@ -853,7 +853,7 @@ func registerBuiltins(env *Environment) {
 			return &UnitValue{}, nil
 		},
 	})
-	
+
 	// Register show builtin
 	env.Set("show", &BuiltinFunction{
 		Name: "show",
@@ -864,7 +864,7 @@ func registerBuiltins(env *Environment) {
 			return &StringValue{Value: showValue(args[0], 0)}, nil
 		},
 	})
-	
+
 	// Register toText builtin
 	env.Set("toText", &BuiltinFunction{
 		Name: "toText",
@@ -876,4 +876,3 @@ func registerBuiltins(env *Environment) {
 		},
 	})
 }
-

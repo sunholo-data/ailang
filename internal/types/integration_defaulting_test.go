@@ -18,7 +18,7 @@ func parseSurface(t *testing.T, src string) *ast.Program {
 	l := lexer.New(src, "<test>")
 	p := parser.New(l)
 	prog := p.Parse()
-	
+
 	if errors := p.Errors(); len(errors) > 0 {
 		var errMsgs []string
 		for _, err := range errors {
@@ -42,7 +42,7 @@ func elaborateCore(t *testing.T, surf *ast.Program) *core.Program {
 func typecheckCore(t *testing.T, cp *core.Program) *types.CoreTypeChecker {
 	t.Helper()
 	tc := types.NewCoreTypeCheckerWithInstances(types.LoadBuiltinInstances())
-	
+
 	// For now, type check the expressions in the program
 	// This is a simplified approach since we don't have full program typing yet
 	env := types.NewTypeEnvWithBuiltins()
@@ -64,7 +64,7 @@ func TestDefaulting_IntLiteralGround(t *testing.T) {
 	// For now, just verify that type checking succeeded
 	// In the full implementation, we would check the actual type
 	_ = tc
-	
+
 	// Placeholder assertion - this will be replaced when we have proper type lookup
 	t.Logf("Successfully type checked: %s", src)
 }
@@ -77,7 +77,7 @@ func TestDefaulting_FloatLiteralGround(t *testing.T) {
 
 	// For now, just verify that type checking succeeded
 	_ = tc
-	
+
 	// Placeholder assertion - this will be replaced when we have proper type lookup
 	t.Logf("Successfully type checked: %s", src)
 }
@@ -91,7 +91,7 @@ func TestQualifiedScheme_NumConstraint(t *testing.T) {
 
 	// For now, just verify that type checking succeeded
 	_ = tc
-	
+
 	// Placeholder assertion - this will be replaced when we have proper qualified scheme lookup
 	t.Logf("Successfully type checked: %s", src)
 }

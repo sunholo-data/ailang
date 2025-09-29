@@ -3,7 +3,7 @@ package repl
 
 import (
 	"fmt"
-	
+
 	"github.com/sunholo/ailang/internal/schema"
 )
 
@@ -36,7 +36,7 @@ func EffectsCommand(input string) error {
 	if err != nil {
 		return fmt.Errorf("failed to format JSON: %w", err)
 	}
-	
+
 	fmt.Println(string(formatted))
 	return nil
 }

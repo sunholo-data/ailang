@@ -72,7 +72,7 @@ func TestElaborateSimple(t *testing.T) {
 			l := lexer.New(tt.input, "test.ail")
 			p := parser.New(l)
 			prog := p.Parse()
-			
+
 			if len(p.Errors()) > 0 {
 				t.Fatalf("parse errors: %v", p.Errors())
 			}
@@ -100,22 +100,22 @@ func TestElaborateSimple(t *testing.T) {
 func TestANFTransformation(t *testing.T) {
 	// Test that complex expressions get properly normalized to ANF
 	input := "(a + b) * (c + d)"
-	
+
 	l := lexer.New(input, "test.ail")
 	p := parser.New(l)
 	prog := p.Parse()
-	
+
 	if len(p.Errors()) > 0 {
 		t.Fatalf("parse errors: %v", p.Errors())
 	}
 
 	elab := NewElaborator()
 	coreProg, err := elab.Elaborate(prog)
-	
+
 	if err != nil {
 		t.Fatalf("elaboration error: %v", err)
 	}
-	
+
 	// The result should have let-bindings for intermediate results
 	// This is a basic sanity check
 	if coreProg == nil || len(coreProg.Decls) == 0 {
@@ -126,25 +126,24 @@ func TestANFTransformation(t *testing.T) {
 func TestNodeIDAssignment(t *testing.T) {
 	// Test that every node gets a unique ID
 	input := "let x = 5 in let y = 10 in x + y"
-	
+
 	l := lexer.New(input, "test.ail")
 	p := parser.New(l)
 	prog := p.Parse()
-	
+
 	if len(p.Errors()) > 0 {
 		t.Fatalf("parse errors: %v", p.Errors())
 	}
 
 	elab := NewElaborator()
 	_, err := elab.Elaborate(prog)
-	
+
 	if err != nil {
 		t.Fatalf("elaboration error: %v", err)
 	}
-	
+
 	// Check that IDs are being assigned (starts at 1)
 	if elab.nextID <= 1 {
 		t.Errorf("expected node IDs to be assigned, but nextID is %d", elab.nextID)
 	}
 }
-

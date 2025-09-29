@@ -58,7 +58,7 @@ type ListValue struct {
 	Elements []Value
 }
 
-func (l *ListValue) Type() string   { return "list" }
+func (l *ListValue) Type() string { return "list" }
 func (l *ListValue) String() string {
 	result := "["
 	for i, elem := range l.Elements {
@@ -76,7 +76,7 @@ type RecordValue struct {
 	Fields map[string]Value
 }
 
-func (r *RecordValue) Type() string   { return "record" }
+func (r *RecordValue) Type() string { return "record" }
 func (r *RecordValue) String() string {
 	result := "{"
 	first := true

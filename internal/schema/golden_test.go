@@ -118,9 +118,9 @@ func TestGoldenErrorJSON(t *testing.T) {
 func TestGoldenTestReportJSON(t *testing.T) {
 	// Create a mock test report structure similar to what test package would produce
 	report := map[string]interface{}{
-		"schema": TestV1,
-		"run_id": "test_run_001",
-		"seed":   42,
+		"schema":      TestV1,
+		"run_id":      "test_run_001",
+		"seed":        42,
 		"duration_ms": 38,
 		"cases": []interface{}{
 			map[string]interface{}{
@@ -275,11 +275,11 @@ func TestAcceptsCompatibility(t *testing.T) {
 		// Minor versions should be accepted
 		{"error v1.1", "ailang.error/v1.1", ErrorV1, true},
 		{"test v1.2.3", "ailang.test/v1.2.3", TestV1, true},
-		
+
 		// Major version mismatches should be rejected
 		{"error v2", "ailang.error/v2", ErrorV1, false},
 		{"test v2", "ailang.test/v2", TestV1, false},
-		
+
 		// Different schemas should be rejected
 		{"wrong schema", "ailang.test/v1", ErrorV1, false},
 		{"wrong schema 2", "ailang.error/v1", TestV1, false},
@@ -300,11 +300,11 @@ func normalizeJSON(t *testing.T, jsonStr string) string {
 	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
 		t.Fatalf("Invalid JSON: %v\nJSON: %s", err, jsonStr)
 	}
-	
+
 	normalized, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to normalize JSON: %v", err)
 	}
-	
+
 	return string(normalized)
 }

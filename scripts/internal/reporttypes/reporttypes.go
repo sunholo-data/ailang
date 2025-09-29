@@ -6,7 +6,7 @@ import "time"
 // ExampleResult represents the result of running a single example
 type ExampleResult struct {
 	File     string        `json:"file"`
-	Status   string        `json:"status"`      // "passed", "failed", "skipped"
+	Status   string        `json:"status"` // "passed", "failed", "skipped"
 	Error    string        `json:"error,omitempty"`
 	Duration time.Duration `json:"duration"`
 	Output   string        `json:"output,omitempty"`

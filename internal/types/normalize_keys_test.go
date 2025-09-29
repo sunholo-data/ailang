@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestMakeDictionaryKey_Canonicalizes verifies that MakeDictionaryKey 
+// TestMakeDictionaryKey_Canonicalizes verifies that MakeDictionaryKey
 // properly normalizes type names (int→Int, float→Float, etc.)
 func TestMakeDictionaryKey_Canonicalizes(t *testing.T) {
 	tests := []struct {
@@ -64,7 +64,7 @@ func TestMakeDictionaryKey_Canonicalizes(t *testing.T) {
 			want:      "prelude::Ord::Float",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := MakeDictionaryKey(tt.namespace, tt.className, tt.typ, tt.method)
@@ -116,7 +116,7 @@ func TestInstanceEnv_CanonicalKey(t *testing.T) {
 			want:      "Eq::Int",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := canonicalKey(tt.className, tt.typ)
@@ -136,28 +136,28 @@ func TestKeyConsistency(t *testing.T) {
 	className := "Num"
 	namespace := "prelude"
 	method := "add"
-	
+
 	// Create key using MakeDictionaryKey
 	key1 := MakeDictionaryKey(namespace, className, typ, method)
-	
+
 	// What the key should normalize to
 	expectedKey := "prelude::Num::Int::add"
-	
+
 	if key1 != expectedKey {
 		t.Errorf("MakeDictionaryKey produced %q, expected %q", key1, expectedKey)
 	}
-	
+
 	// Verify that normalizing "int" always produces "Int"
 	normalized := NormalizeTypeName(typ)
 	if normalized != "Int" {
 		t.Errorf("NormalizeTypeName(%v) = %q, expected \"Int\"", typ, normalized)
 	}
-	
+
 	// Test with float type
 	floatTyp := &TCon{Name: "float"}
 	floatKey := MakeDictionaryKey(namespace, "Fractional", floatTyp, "divide")
 	expectedFloatKey := "prelude::Fractional::Float::divide"
-	
+
 	if floatKey != expectedFloatKey {
 		t.Errorf("MakeDictionaryKey for float produced %q, expected %q", floatKey, expectedFloatKey)
 	}

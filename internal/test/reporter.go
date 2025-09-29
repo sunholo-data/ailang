@@ -34,13 +34,13 @@ type Counts struct {
 
 // Report represents a complete test run report
 type Report struct {
-	Schema        string  `json:"schema"`
-	RunID         string  `json:"run_id"`
-	Seed          *int    `json:"seed,omitempty"`
-	EnvLockDigest string  `json:"env_lock_digest,omitempty"`
-	DurationMs    int64   `json:"duration_ms"`
-	Counts        Counts  `json:"counts"`
-	Cases         []Case  `json:"cases"`
+	Schema        string   `json:"schema"`
+	RunID         string   `json:"run_id"`
+	Seed          *int     `json:"seed,omitempty"`
+	EnvLockDigest string   `json:"env_lock_digest,omitempty"`
+	DurationMs    int64    `json:"duration_ms"`
+	Counts        Counts   `json:"counts"`
+	Cases         []Case   `json:"cases"`
 	Platform      Platform `json:"platform"`
 }
 
@@ -70,7 +70,7 @@ func NewReport() *Report {
 // AddCase adds a test case to the report
 func (r *Report) AddCase(c Case) {
 	r.Cases = append(r.Cases, c)
-	
+
 	// Update counts
 	r.Counts.Total++
 	switch c.Status {
@@ -88,7 +88,7 @@ func (r *Report) AddCase(c Case) {
 // Finalize sorts cases and sets final timing
 func (r *Report) Finalize(startTime time.Time) {
 	r.DurationMs = time.Since(startTime).Milliseconds()
-	
+
 	// Sort cases by (suite, name) for deterministic output
 	sort.Slice(r.Cases, func(i, j int) bool {
 		if r.Cases[i].Suite != r.Cases[j].Suite {
@@ -114,7 +114,7 @@ func (r *Report) ToJSON() ([]byte, error) {
 	if r.Cases == nil {
 		r.Cases = []Case{}
 	}
-	
+
 	data, err := schema.MarshalDeterministic(r)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (r *Report) ToJSON() ([]byte, error) {
 // generateRunID creates a unique run identifier
 func generateRunID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	_, _ = rand.Read(b) // Ignore error as crypto/rand.Read rarely fails
 	return hex.EncodeToString(b)
 }
 
@@ -156,10 +156,10 @@ func NewRunner() *TestRunner {
 func (tr *TestRunner) RunTest(suite, name string, testFunc func() error) {
 	startTime := time.Now()
 	sid := GenerateTestSID(suite, name)
-	
+
 	var status string
 	var testErr any
-	
+
 	err := testFunc()
 	if err != nil {
 		status = "failed"
@@ -167,9 +167,9 @@ func (tr *TestRunner) RunTest(suite, name string, testFunc func() error) {
 	} else {
 		status = "passed"
 	}
-	
+
 	timeMs := time.Since(startTime).Milliseconds()
-	
+
 	tr.report.AddCase(Case{
 		SID:    sid,
 		Suite:  suite,

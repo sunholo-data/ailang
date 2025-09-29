@@ -20,8 +20,8 @@ type ClassInstance struct {
 
 // InstanceEnv manages type class instances with coherence checking
 type InstanceEnv struct {
-	instances map[string]*ClassInstance  // Key: "ClassName:NormalizedType"
-	defaults  map[string]Type            // Default types for ambiguous literals
+	instances map[string]*ClassInstance // Key: "ClassName:NormalizedType"
+	defaults  map[string]Type           // Default types for ambiguous literals
 }
 
 // NewInstanceEnv creates a new empty instance environment
@@ -180,7 +180,7 @@ func builtinInstances() []*ClassInstance {
 			ClassName: "Eq",
 			TypeHead:  TFloat,
 			Dict: Dict{
-				"eq":  "builtin_eq_float_eq",  // Lawful: NaN==NaN, -0==+0
+				"eq":  "builtin_eq_float_eq", // Lawful: NaN==NaN, -0==+0
 				"neq": "builtin_eq_float_neq",
 			},
 		},
@@ -224,7 +224,7 @@ func builtinInstances() []*ClassInstance {
 			TypeHead:  TFloat,
 			Super:     []string{"Eq"},
 			Dict: Dict{
-				"lt":  "builtin_ord_float_lt",  // NaN is greatest
+				"lt":  "builtin_ord_float_lt", // NaN is greatest
 				"lte": "builtin_ord_float_lte",
 				"gt":  "builtin_ord_float_gt",
 				"gte": "builtin_ord_float_gte",

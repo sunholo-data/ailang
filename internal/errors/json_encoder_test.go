@@ -58,7 +58,7 @@ func TestWithSourceSpan(t *testing.T) {
 
 func TestWithMeta(t *testing.T) {
 	meta := map[string]string{
-		"hint": "Check variable scoping",
+		"hint":     "Check variable scoping",
 		"severity": "error",
 	}
 

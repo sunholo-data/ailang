@@ -2,11 +2,11 @@ package eval
 
 import (
 	"fmt"
+	"github.com/sunholo/ailang/internal/ast"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
-	"github.com/sunholo/ailang/internal/ast"
 )
 
 // SimpleEvaluator for basic testing
@@ -17,7 +17,7 @@ type SimpleEvaluator struct {
 // NewSimple creates a simple evaluator
 func NewSimple() *SimpleEvaluator {
 	env := NewEnvironment()
-	
+
 	// Register print builtin
 	env.Set("print", &BuiltinFunction{
 		Name: "print",
@@ -29,7 +29,7 @@ func NewSimple() *SimpleEvaluator {
 			return &UnitValue{}, nil
 		},
 	})
-	
+
 	// Register show builtin - converts any value to a string
 	env.Set("show", &BuiltinFunction{
 		Name: "show",
@@ -40,7 +40,7 @@ func NewSimple() *SimpleEvaluator {
 			return &StringValue{Value: showValue(args[0], 0)}, nil
 		},
 	})
-	
+
 	// Register toText builtin - unquoted version for pretty printing
 	env.Set("toText", &BuiltinFunction{
 		Name: "toText",
@@ -51,7 +51,7 @@ func NewSimple() *SimpleEvaluator {
 			return &StringValue{Value: toTextValue(args[0])}, nil
 		},
 	})
-	
+
 	return &SimpleEvaluator{env: env}
 }
 
@@ -97,14 +97,14 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 	switch ex := expr.(type) {
 	case *ast.Literal:
 		return e.evalLiteral(ex)
-	
+
 	case *ast.Identifier:
 		val, ok := e.env.Get(ex.Name)
 		if !ok {
 			return nil, fmt.Errorf("undefined identifier: %s", ex.Name)
 		}
 		return val, nil
-	
+
 	case *ast.BinaryOp:
 		left, err := e.evalExpr(ex.Left)
 		if err != nil {
@@ -115,42 +115,42 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 			return nil, err
 		}
 		return e.evalBinOp(ex.Op, left, right)
-	
+
 	case *ast.UnaryOp:
 		operand, err := e.evalExpr(ex.Expr)
 		if err != nil {
 			return nil, err
 		}
 		return e.evalUnOp(ex.Op, operand)
-	
+
 	case *ast.FuncCall:
 		return e.evalCall(ex)
-	
+
 	case *ast.Let:
 		// Evaluate value
 		val, err := e.evalExpr(ex.Value)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Create new environment with binding
 		newEnv := e.env.NewChildEnvironment()
 		newEnv.Set(ex.Name, val)
-		
+
 		// Evaluate body in new environment
 		oldEnv := e.env
 		e.env = newEnv
 		result, err := e.evalExpr(ex.Body)
 		e.env = oldEnv
-		
+
 		return result, err
-	
+
 	case *ast.If:
 		cond, err := e.evalExpr(ex.Condition)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		boolVal, ok := cond.(*BoolValue)
 		if !ok {
 			// Try to convert to bool
@@ -160,14 +160,14 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 				return nil, fmt.Errorf("if condition must be boolean, got %s", cond.Type())
 			}
 		}
-		
+
 		if boolVal.Value {
 			return e.evalExpr(ex.Then)
 		} else if ex.Else != nil {
 			return e.evalExpr(ex.Else)
 		}
 		return &UnitValue{}, nil
-	
+
 	case *ast.Lambda:
 		params := make([]string, len(ex.Params))
 		for i, p := range ex.Params {
@@ -178,7 +178,7 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 			Body:   ex.Body,
 			Env:    e.env,
 		}, nil
-	
+
 	case *ast.List:
 		elements := make([]Value, len(ex.Elements))
 		for i, elem := range ex.Elements {
@@ -189,7 +189,7 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 			elements[i] = val
 		}
 		return &ListValue{Elements: elements}, nil
-	
+
 	case *ast.Record:
 		fields := make(map[string]Value)
 		for _, field := range ex.Fields {
@@ -200,25 +200,25 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 			fields[field.Name] = val
 		}
 		return &RecordValue{Fields: fields}, nil
-	
+
 	case *ast.RecordAccess:
 		record, err := e.evalExpr(ex.Record)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		recordVal, ok := record.(*RecordValue)
 		if !ok {
 			return nil, fmt.Errorf("cannot access field %s on non-record value: %T", ex.Field, record)
 		}
-		
+
 		value, exists := recordVal.Fields[ex.Field]
 		if !exists {
 			return nil, fmt.Errorf("field '%s' does not exist on record", ex.Field)
 		}
-		
+
 		return value, nil
-	
+
 	default:
 		return nil, fmt.Errorf("unknown expression type: %T", expr)
 	}
@@ -255,7 +255,7 @@ func (e *SimpleEvaluator) evalCall(call *ast.FuncCall) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Evaluate arguments
 	args := make([]Value, len(call.Args))
 	for i, arg := range call.Args {
@@ -265,19 +265,19 @@ func (e *SimpleEvaluator) evalCall(call *ast.FuncCall) (Value, error) {
 		}
 		args[i] = val
 	}
-	
+
 	switch f := fn.(type) {
 	case *FunctionValue:
 		if len(args) != len(f.Params) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(f.Params), len(args))
 		}
-		
+
 		// Create new environment for function body
 		fnEnv := f.Env.NewChildEnvironment()
 		for i, param := range f.Params {
 			fnEnv.Set(param, args[i])
 		}
-		
+
 		// Evaluate function body
 		oldEnv := e.env
 		e.env = fnEnv
@@ -290,12 +290,12 @@ func (e *SimpleEvaluator) evalCall(call *ast.FuncCall) (Value, error) {
 			err = fmt.Errorf("function body is not an ast.Expr")
 		}
 		e.env = oldEnv
-		
+
 		return result, err
-	
+
 	case *BuiltinFunction:
 		return f.Fn(args)
-	
+
 	default:
 		return nil, fmt.Errorf("cannot call non-function value: %s", fn.Type())
 	}
@@ -316,7 +316,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("'+' requires numeric types (use '++' for string concatenation)")
-		
+
 	case "++":
 		lStr, lOk := left.(*StringValue)
 		rStr, rOk := right.(*StringValue)
@@ -324,7 +324,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			return nil, fmt.Errorf("'++' requires string operands")
 		}
 		return &StringValue{Value: lStr.Value + rStr.Value}, nil
-		
+
 	case "-":
 		switch l := left.(type) {
 		case *IntValue:
@@ -337,7 +337,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("- expects numeric types")
-		
+
 	case "*":
 		switch l := left.(type) {
 		case *IntValue:
@@ -350,7 +350,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("* expects numeric types")
-		
+
 	case "/":
 		switch l := left.(type) {
 		case *IntValue:
@@ -369,13 +369,13 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("/ expects numeric types")
-		
+
 	case "==":
 		return &BoolValue{Value: e.valuesEqual(left, right)}, nil
-		
+
 	case "!=":
 		return &BoolValue{Value: !e.valuesEqual(left, right)}, nil
-		
+
 	case "<":
 		switch l := left.(type) {
 		case *IntValue:
@@ -388,7 +388,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("< expects numeric types")
-		
+
 	case ">":
 		switch l := left.(type) {
 		case *IntValue:
@@ -401,7 +401,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("> expects numeric types")
-		
+
 	case "<=":
 		switch l := left.(type) {
 		case *IntValue:
@@ -414,7 +414,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf("<= expects numeric types")
-		
+
 	case ">=":
 		switch l := left.(type) {
 		case *IntValue:
@@ -427,7 +427,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			}
 		}
 		return nil, fmt.Errorf(">= expects numeric types")
-		
+
 	case "&&":
 		lBool, ok := left.(*BoolValue)
 		if !ok {
@@ -441,7 +441,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			return nil, fmt.Errorf("&& expects boolean operands")
 		}
 		return &BoolValue{Value: rBool.Value}, nil
-		
+
 	case "||":
 		lBool, ok := left.(*BoolValue)
 		if !ok {
@@ -455,7 +455,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 			return nil, fmt.Errorf("|| expects boolean operands")
 		}
 		return &BoolValue{Value: rBool.Value}, nil
-		
+
 	default:
 		return nil, fmt.Errorf("unknown operator: %s", op)
 	}
@@ -513,8 +513,8 @@ func (e *SimpleEvaluator) valuesEqual(left, right Value) bool {
 
 // Constants for show function
 const (
-	maxDepth = 3
-	maxWidth = 80
+	maxDepth      = 3
+	maxWidth      = 80
 	elisionPrefix = 20
 	elisionSuffix = 20
 )
@@ -525,11 +525,11 @@ func showValue(v Value, depth int) string {
 	if depth > maxDepth {
 		return "..."
 	}
-	
+
 	switch val := v.(type) {
 	case *IntValue:
 		return strconv.Itoa(val.Value)
-		
+
 	case *FloatValue:
 		// Handle special cases
 		if math.IsNaN(val.Value) {
@@ -547,20 +547,20 @@ func showValue(v Value, depth int) string {
 		}
 		// Use %g for cleaner output, but ensure precision
 		return fmt.Sprintf("%g", val.Value)
-		
+
 	case *StringValue:
 		// Quote and escape the string using JSON rules
 		return strconv.Quote(val.Value)
-		
+
 	case *BoolValue:
 		if val.Value {
 			return "true"
 		}
 		return "false"
-		
+
 	case *UnitValue:
 		return "()"
-		
+
 	case *ListValue:
 		if len(val.Elements) == 0 {
 			return "[]"
@@ -571,7 +571,7 @@ func showValue(v Value, depth int) string {
 		}
 		result := "[" + strings.Join(parts, ", ") + "]"
 		return truncateIfNeeded(result)
-		
+
 	case *RecordValue:
 		if len(val.Fields) == 0 {
 			return "{}"
@@ -582,23 +582,23 @@ func showValue(v Value, depth int) string {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys) // Bytewise sort
-		
+
 		var parts []string
 		for _, k := range keys {
 			parts = append(parts, fmt.Sprintf("%s: %s", k, showValue(val.Fields[k], depth+1)))
 		}
 		result := "{" + strings.Join(parts, ", ") + "}"
 		return truncateIfNeeded(result)
-		
+
 	case *FunctionValue:
 		return "<function>"
-		
+
 	case *BuiltinFunction:
 		return fmt.Sprintf("<builtin: %s>", val.Name)
-		
+
 	case *ErrorValue:
 		return fmt.Sprintf("Error: %s", val.Message)
-		
+
 	default:
 		return "<unknown>"
 	}
@@ -629,7 +629,7 @@ func truncateIfNeeded(s string) string {
 	if len(s) <= maxWidth {
 		return s
 	}
-	
+
 	// Preserve prefix and suffix, elide middle
 	if len(s) > elisionPrefix+elisionSuffix+3 {
 		return s[:elisionPrefix] + "..." + s[len(s)-elisionSuffix:]
@@ -640,7 +640,7 @@ func truncateIfNeeded(s string) string {
 // evalModule evaluates a module
 func (e *SimpleEvaluator) evalModule(module *ast.Module) (Value, error) {
 	var result Value = &UnitValue{}
-	
+
 	for _, decl := range module.Decls {
 		val, err := e.evalNode(decl)
 		if err != nil {
@@ -650,6 +650,6 @@ func (e *SimpleEvaluator) evalModule(module *ast.Module) (Value, error) {
 			result = val
 		}
 	}
-	
+
 	return result, nil
 }

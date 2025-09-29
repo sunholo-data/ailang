@@ -14,7 +14,7 @@ type Parser struct {
 	curToken  lexer.Token
 	peekToken lexer.Token
 	errors    []error
-	
+
 	// Pratt parsing
 	prefixParseFns map[lexer.TokenType]prefixParseFn
 	infixParseFns  map[lexer.TokenType]infixParseFn
@@ -27,18 +27,18 @@ type (
 
 // Precedence levels - spec compliant ordering
 const (
-	LOWEST int = iota
-	LAMBDA        // \x. (lowest precedence)
-	LOGICAL_OR    // ||
-	LOGICAL_AND   // &&
-	EQUALS        // ==, !=
-	LESSGREATER   // >, <, >=, <=
-	APPEND        // ++
-	SUM           // +, -
-	PRODUCT       // *, /, %
-	PREFIX        // -x, !x (unary)
-	CALL          // f(x) (application)
-	DOT_ACCESS    // r.field (field access - highest)
+	LOWEST      int = iota
+	LAMBDA          // \x. (lowest precedence)
+	LOGICAL_OR      // ||
+	LOGICAL_AND     // &&
+	EQUALS          // ==, !=
+	LESSGREATER     // >, <, >=, <=
+	APPEND          // ++
+	SUM             // +, -
+	PRODUCT         // *, /, %
+	PREFIX          // -x, !x (unary)
+	CALL            // f(x) (application)
+	DOT_ACCESS      // r.field (field access - highest)
 	HIGHEST
 )
 
@@ -108,7 +108,7 @@ func (p *Parser) Errors() []error {
 // Parse parses the input and returns an AST
 func (p *Parser) Parse() *ast.Program {
 	program := &ast.Program{}
-	
+
 	// Check if we have a module declaration
 	if p.curTokenIs(lexer.MODULE) {
 		module := p.parseModule()
@@ -119,14 +119,14 @@ func (p *Parser) Parse() *ast.Program {
 			Name: "Main",
 			Pos:  p.curPos(),
 		}
-		
+
 		for !p.curTokenIs(lexer.EOF) {
 			if decl := p.parseDeclaration(); decl != nil {
 				module.Decls = append(module.Decls, decl)
 			}
 			p.nextToken()
 		}
-		
+
 		program.Module = module
 	}
 
@@ -175,7 +175,7 @@ func (p *Parser) parseImport() *ast.Import {
 	}
 
 	p.nextToken()
-	
+
 	// Parse import path - can be string or identifier path like std/io
 	if p.curTokenIs(lexer.STRING) {
 		imp.Path = p.curToken.Literal
@@ -212,7 +212,7 @@ func (p *Parser) parseImport() *ast.Import {
 			}
 			p.nextToken()
 		}
-		
+
 		if !p.curTokenIs(lexer.RPAREN) {
 			p.errors = append(p.errors, fmt.Errorf("expected ), got %s", p.curToken.Type))
 			return nil
@@ -291,7 +291,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool) *ast.FuncDecl {
 		p.nextToken()
 		p.nextToken()
 		fn.ReturnType = p.parseType()
-		
+
 		// Parse effects if present
 		if p.peekTokenIs(lexer.BANG) {
 			p.nextToken()
@@ -422,20 +422,20 @@ func (p *Parser) parseGroupedExpression() ast.Expr {
 
 	// Check for tuple
 	expr := p.parseExpression(LOWEST)
-	
+
 	if p.peekTokenIs(lexer.COMMA) {
 		// It's a tuple
 		tuple := &ast.Tuple{
 			Elements: []ast.Expr{expr},
 			Pos:      p.curPos(),
 		}
-		
+
 		for p.peekTokenIs(lexer.COMMA) {
 			p.nextToken()
 			p.nextToken()
 			tuple.Elements = append(tuple.Elements, p.parseExpression(LOWEST))
 		}
-		
+
 		p.expectPeek(lexer.RPAREN)
 		return tuple
 	}
@@ -450,15 +450,15 @@ func (p *Parser) parseListLiteral() ast.Expr {
 	}
 
 	p.nextToken()
-	
+
 	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
 		list.Elements = append(list.Elements, p.parseExpression(LOWEST))
-		
+
 		if p.peekTokenIs(lexer.RBRACKET) {
 			p.nextToken()
 			break
 		}
-		
+
 		if !p.expectPeek(lexer.COMMA) {
 			break
 		}
@@ -478,32 +478,32 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 	}
 
 	p.nextToken()
-	
+
 	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
 		field := &ast.Field{
 			Pos: p.curPos(),
 		}
-		
+
 		if !p.curTokenIs(lexer.IDENT) {
 			p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
 			return nil
 		}
-		
+
 		field.Name = p.curToken.Literal
-		
+
 		if !p.expectPeek(lexer.COLON) {
 			return nil
 		}
 		p.nextToken()
-		
+
 		field.Value = p.parseExpression(LOWEST)
 		record.Fields = append(record.Fields, field)
-		
+
 		if p.peekTokenIs(lexer.RBRACE) {
 			p.nextToken()
 			break
 		}
-		
+
 		if !p.expectPeek(lexer.COMMA) {
 			return nil
 		}
@@ -593,10 +593,10 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 		if c != nil {
 			match.Cases = append(match.Cases, c)
 		}
-		
+
 		// Move to next token after parsing case
 		p.nextToken()
-		
+
 		// Skip comma if present
 		if p.curTokenIs(lexer.COMMA) {
 			p.nextToken()
@@ -607,7 +607,7 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 	if !p.curTokenIs(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
 	}
-	
+
 	return match
 }
 
@@ -670,20 +670,20 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 
 	// Parse parameters - support curried sugar \x y z. body
 	var params []*ast.Param
-	
+
 	// Keep consuming identifiers until we hit DOT
 	for {
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		
+
 		param := &ast.Param{
 			Name: p.curToken.Literal,
 			Pos:  p.curPos(),
 			// Type will be inferred
 		}
 		params = append(params, param)
-		
+
 		// Check if next token is DOT (end of params) or another IDENT (more params)
 		if p.peekTokenIs(lexer.DOT) {
 			break
@@ -692,16 +692,16 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 			return nil
 		}
 	}
-	
+
 	// Expect DOT
 	if !p.expectPeek(lexer.DOT) {
 		return nil
 	}
-	
+
 	// Parse body with LOWEST precedence to capture entire expression
 	p.nextToken()
 	lambda.Body = p.parseExpression(LOWEST)
-	
+
 	// Convert curried parameters to nested lambdas: \x y. body -> \x. \y. body
 	if len(params) == 0 {
 		p.errors = append(p.errors, fmt.Errorf("lambda requires at least one parameter at %s", lambda.Pos.String()))
@@ -711,13 +711,13 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 	} else {
 		// Create nested lambdas for curried syntax
 		lambda.Params = []*ast.Param{params[0]}
-		
+
 		// Create nested lambda for remaining parameters
 		innerLambda := &ast.Lambda{
 			Pos:  lambda.Pos,
 			Body: lambda.Body,
 		}
-		
+
 		// Recursively create nested structure
 		current := innerLambda
 		for i := 1; i < len(params)-1; i++ {
@@ -728,14 +728,14 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 			current.Body = next
 			current = next
 		}
-		
+
 		// Set the last parameter and body
 		current.Params = []*ast.Param{params[len(params)-1]}
 		current.Body = lambda.Body
-		
+
 		lambda.Body = innerLambda
 	}
-	
+
 	return lambda
 }
 
@@ -827,7 +827,7 @@ func (p *Parser) parseParams() []*ast.Param {
 
 	if p.curTokenIs(lexer.IDENT) {
 		param.Name = p.curToken.Literal
-		
+
 		if p.peekTokenIs(lexer.COLON) {
 			p.nextToken()
 			p.nextToken()
@@ -840,21 +840,21 @@ func (p *Parser) parseParams() []*ast.Param {
 	for p.peekTokenIs(lexer.COMMA) {
 		p.nextToken()
 		p.nextToken()
-		
+
 		param := &ast.Param{
 			Pos: p.curPos(),
 		}
-		
+
 		if p.curTokenIs(lexer.IDENT) {
 			param.Name = p.curToken.Literal
-			
+
 			if p.peekTokenIs(lexer.COLON) {
 				p.nextToken()
 				p.nextToken()
 				param.Type = p.parseType()
 			}
 		}
-		
+
 		params = append(params, param)
 	}
 
@@ -870,7 +870,7 @@ func (p *Parser) parseType() ast.Type {
 			Pos:  p.curPos(),
 		}
 	}
-	
+
 	if p.curTokenIs(lexer.UNIT) {
 		// Unit type ()
 		return &ast.SimpleType{
@@ -878,7 +878,7 @@ func (p *Parser) parseType() ast.Type {
 			Pos:  p.curPos(),
 		}
 	}
-	
+
 	if p.curTokenIs(lexer.LPAREN) && p.peekTokenIs(lexer.RPAREN) {
 		// Also handle () as unit type
 		p.nextToken() // consume RPAREN
@@ -887,7 +887,7 @@ func (p *Parser) parseType() ast.Type {
 			Pos:  p.curPos(),
 		}
 	}
-	
+
 	if p.curTokenIs(lexer.LBRACKET) {
 		p.nextToken()
 		elemType := p.parseType()
@@ -897,7 +897,7 @@ func (p *Parser) parseType() ast.Type {
 			Pos:     p.curPos(),
 		}
 	}
-	
+
 	// Add more type parsing as needed
 	return nil
 }
@@ -972,23 +972,23 @@ func (p *Parser) parseTypeParams() []string {
 
 func (p *Parser) parseEffects() []string {
 	effects := []string{}
-	
+
 	// We're already at the LBRACE token
 	for !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
 		p.nextToken()
 		if p.curTokenIs(lexer.IDENT) {
 			effects = append(effects, p.curToken.Literal)
 		}
-		
+
 		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
-		
+
 		if p.peekTokenIs(lexer.COMMA) {
 			p.nextToken()
 		}
 	}
-	
+
 	p.expectPeek(lexer.RBRACE)
 	return effects
 }
@@ -1009,22 +1009,22 @@ func (p *Parser) parseConstructorPattern(name string) ast.Pattern {
 		Pos:      p.curPos(),
 		Patterns: []ast.Pattern{},
 	}
-	
+
 	// We're at LPAREN
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // consume RPAREN
 		return constructor
 	}
-	
+
 	p.nextToken() // move to first argument
 	constructor.Patterns = append(constructor.Patterns, p.parsePattern())
-	
+
 	for p.peekTokenIs(lexer.COMMA) {
 		p.nextToken() // consume comma
 		p.nextToken() // move to next argument
 		constructor.Patterns = append(constructor.Patterns, p.parsePattern())
 	}
-	
+
 	p.expectPeek(lexer.RPAREN)
 	return constructor
 }

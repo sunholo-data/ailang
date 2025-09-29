@@ -10,16 +10,16 @@ import (
 type TypeErrorKind string
 
 const (
-	KindMismatchError     TypeErrorKind = "kind_mismatch"
-	TypeMismatchError     TypeErrorKind = "type_mismatch"
-	RowMismatchError      TypeErrorKind = "row_mismatch"
-	OccursCheckError      TypeErrorKind = "occurs_check"
-	UnboundVariableError  TypeErrorKind = "unbound_variable"
-	ArityMismatchError    TypeErrorKind = "arity_mismatch"
-	MissingFieldError     TypeErrorKind = "missing_field"
-	ExtraFieldError       TypeErrorKind = "extra_field"
-	MissingEffectError    TypeErrorKind = "missing_effect"
-	ExtraEffectError      TypeErrorKind = "extra_effect"
+	KindMismatchError       TypeErrorKind = "kind_mismatch"
+	TypeMismatchError       TypeErrorKind = "type_mismatch"
+	RowMismatchError        TypeErrorKind = "row_mismatch"
+	OccursCheckError        TypeErrorKind = "occurs_check"
+	UnboundVariableError    TypeErrorKind = "unbound_variable"
+	ArityMismatchError      TypeErrorKind = "arity_mismatch"
+	MissingFieldError       TypeErrorKind = "missing_field"
+	ExtraFieldError         TypeErrorKind = "extra_field"
+	MissingEffectError      TypeErrorKind = "missing_effect"
+	ExtraEffectError        TypeErrorKind = "extra_effect"
 	UnsolvedConstraintError TypeErrorKind = "unsolved_constraint"
 )
 
@@ -36,25 +36,25 @@ type TypeCheckError struct {
 
 func (e *TypeCheckError) Error() string {
 	var parts []string
-	
+
 	if e.Position != "" {
 		parts = append(parts, e.Position)
 	}
-	
+
 	if len(e.Path) > 0 {
 		parts = append(parts, fmt.Sprintf("at %s", strings.Join(e.Path, ".")))
 	}
-	
+
 	parts = append(parts, e.Message)
-	
+
 	if e.Expected != nil && e.Actual != nil {
 		parts = append(parts, fmt.Sprintf("\n  Expected: %s\n  Actual:   %s", e.Expected, e.Actual))
 	}
-	
+
 	if e.Suggestion != "" {
 		parts = append(parts, fmt.Sprintf("\n  Suggestion: %s", e.Suggestion))
 	}
-	
+
 	return strings.Join(parts, ": ")
 }
 
@@ -172,8 +172,8 @@ func newRecordRowError(expected, actual *Row, path []string) *TypeCheckError {
 			// Field exists, check type
 			if !expectedType.Equals(actualType) {
 				fieldPath := append(path, k)
-				typeMismatches = append(typeMismatches, 
-					fmt.Sprintf("%s: expected %s, found %s", 
+				typeMismatches = append(typeMismatches,
+					fmt.Sprintf("%s: expected %s, found %s",
 						strings.Join(fieldPath, "."), expectedType, actualType))
 			}
 		} else {
@@ -219,8 +219,8 @@ func newRecordRowError(expected, actual *Row, path []string) *TypeCheckError {
 // NewOccursCheckError creates an occurs check error
 func NewOccursCheckError(varName string, inType Type) *TypeCheckError {
 	return &TypeCheckError{
-		Kind:    OccursCheckError,
-		Message: fmt.Sprintf("infinite type: %s occurs in %s", varName, inType),
+		Kind:       OccursCheckError,
+		Message:    fmt.Sprintf("infinite type: %s occurs in %s", varName, inType),
 		Suggestion: "This would create an infinite type. Check for recursive definitions without a base case.",
 	}
 }
@@ -228,9 +228,9 @@ func NewOccursCheckError(varName string, inType Type) *TypeCheckError {
 // NewUnboundVariableError creates an unbound variable error
 func NewUnboundVariableError(name string, path []string) *TypeCheckError {
 	return &TypeCheckError{
-		Kind:    UnboundVariableError,
-		Path:    path,
-		Message: fmt.Sprintf("unbound variable: %s", name),
+		Kind:       UnboundVariableError,
+		Path:       path,
+		Message:    fmt.Sprintf("unbound variable: %s", name),
 		Suggestion: fmt.Sprintf("Variable '%s' is not defined. Did you mean to define it with 'let' first?", name),
 	}
 }
@@ -278,7 +278,7 @@ func (e ErrorList) Error() string {
 	if len(e) == 1 {
 		return e[0].Error()
 	}
-	
+
 	var parts []string
 	parts = append(parts, fmt.Sprintf("%d type errors:", len(e)))
 	for i, err := range e {

@@ -30,31 +30,31 @@ func TestOperatorMethodMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repl := New()
-			
+
 			// Initialize prelude for proper defaulting (critical for tests)
 			var discardOut bytes.Buffer
 			repl.importModule("std/prelude", &discardOut)
-			
+
 			// Capture output
 			var output bytes.Buffer
-			
+
 			// Process the expression through the REPL pipeline
 			repl.processExpression(tt.expression, &output)
-			
+
 			outputStr := output.String()
-			
+
 			// Check that the result is correct (the debug output goes to stdout, not captured)
 			// We trust that the correct method was called if we get the right result
-			
+
 			// Check that the result is correct
 			if !strings.Contains(outputStr, tt.expectedResult) {
-				t.Errorf("Expected result '%s' for expression '%s', but output was: %s", 
+				t.Errorf("Expected result '%s' for expression '%s', but output was: %s",
 					tt.expectedResult, tt.expression, outputStr)
 			}
-			
+
 			// Critical: Should not see fallback errors
 			if strings.Contains(outputStr, "BinOp reached evaluator") {
-				t.Errorf("REGRESSION: Expression '%s' fell back to BinOp evaluator instead of using dictionaries", 
+				t.Errorf("REGRESSION: Expression '%s' fell back to BinOp evaluator instead of using dictionaries",
 					tt.expression)
 			}
 		})
@@ -78,20 +78,20 @@ func TestFloatOperations(t *testing.T) {
 			repl := New()
 			var discardOut bytes.Buffer
 			repl.importModule("std/prelude", &discardOut)
-			
+
 			var output bytes.Buffer
 			repl.processExpression(tt.expression, &output)
 			outputStr := output.String()
-			
+
 			// Should not get "expected int arguments" error
 			if strings.Contains(outputStr, "expected int arguments") {
-				t.Errorf("Float operation '%s' incorrectly tried to use int method: %s", 
+				t.Errorf("Float operation '%s' incorrectly tried to use int method: %s",
 					tt.expression, outputStr)
 			}
-			
+
 			// Should contain the expected result
 			if !strings.Contains(outputStr, tt.expected) {
-				t.Errorf("Expected result '%s' for expression '%s', but output was: %s", 
+				t.Errorf("Expected result '%s' for expression '%s', but output was: %s",
 					tt.expected, tt.expression, outputStr)
 			}
 		})
@@ -102,15 +102,15 @@ func TestFloatOperations(t *testing.T) {
 func TestStringConcatenation(t *testing.T) {
 	repl := New()
 	var output bytes.Buffer
-	
+
 	repl.processExpression(`"Hello " ++ "World"`, &output)
 	outputStr := output.String()
-	
+
 	// Should not reach the BinOp fallback
 	if strings.Contains(outputStr, "BinOp reached evaluator") {
 		t.Errorf("String concatenation incorrectly fell back to BinOp evaluator: %s", outputStr)
 	}
-	
+
 	// Should produce correct result
 	if !strings.Contains(outputStr, "Hello World") {
 		t.Errorf("Expected 'Hello World' in output, but got: %s", outputStr)
@@ -121,18 +121,18 @@ func TestStringConcatenation(t *testing.T) {
 func TestDictionaryElaborationHappens(t *testing.T) {
 	repl := New()
 	var output bytes.Buffer
-	
+
 	// Enable core dumping to see if BinOp nodes remain
 	repl.config.ShowCore = true
-	
+
 	repl.processExpression("2 + 3", &output)
 	outputStr := output.String()
-	
+
 	// Should produce correct result and not fail with elaboration errors
 	if !strings.Contains(outputStr, "5 :: Int") {
 		t.Errorf("Expected correct result '5 :: Int', but got: %s", outputStr)
 	}
-	
+
 	// Should not see elaboration failure messages
 	if strings.Contains(outputStr, "BinOp reached evaluator") {
 		t.Errorf("Dictionary elaboration failed - fell back to BinOp evaluator: %s", outputStr)
@@ -143,15 +143,15 @@ func TestDictionaryElaborationHappens(t *testing.T) {
 func TestFillOperatorMethodsCalled(t *testing.T) {
 	repl := New()
 	var output bytes.Buffer
-	
+
 	repl.processExpression("2 * 3", &output)
 	outputStr := output.String()
-	
+
 	// Should produce correct result (evidence that the pipeline worked)
 	if !strings.Contains(outputStr, "6 :: Int") {
 		t.Errorf("Expected correct result '6 :: Int', but got: %s", outputStr)
 	}
-	
+
 	// Should not see fallback errors
 	if strings.Contains(outputStr, "BinOp reached evaluator") {
 		t.Errorf("Operator fell back to BinOp evaluator: %s", outputStr)
@@ -161,18 +161,18 @@ func TestFillOperatorMethodsCalled(t *testing.T) {
 // TestNoFallbackToApplyBinOp ensures operations use dictionary-passing, not fallback
 func TestNoFallbackToApplyBinOp(t *testing.T) {
 	operations := []string{"1 + 2", "3 * 4", "5 - 1", "8 / 2"}
-	
+
 	for _, op := range operations {
 		t.Run(op, func(t *testing.T) {
 			repl := New()
 			var output bytes.Buffer
-			
+
 			repl.processExpression(op, &output)
 			outputStr := output.String()
-			
+
 			// Should not see the BinOp fallback error
 			if strings.Contains(outputStr, "BinOp reached evaluator; dictionaries not elaborated") {
-				t.Errorf("Operation '%s' fell back to applyBinOp instead of using dictionaries: %s", 
+				t.Errorf("Operation '%s' fell back to applyBinOp instead of using dictionaries: %s",
 					op, outputStr)
 			}
 		})
@@ -195,13 +195,13 @@ func TestTypeDisplayNormalization(t *testing.T) {
 		t.Run(tt.expression, func(t *testing.T) {
 			repl := New()
 			var output bytes.Buffer
-			
+
 			repl.processExpression(tt.expression, &output)
 			outputStr := output.String()
-			
+
 			// Should show normalized type names, not internal ones
 			if !strings.Contains(outputStr, ":: "+tt.expectedType) {
-				t.Errorf("Expected type '%s' for expression '%s', but output was: %s", 
+				t.Errorf("Expected type '%s' for expression '%s', but output was: %s",
 					tt.expectedType, tt.expression, outputStr)
 			}
 		})
@@ -214,8 +214,8 @@ func TestMostSpecificNumericClassRegression(t *testing.T) {
 	tests := []struct {
 		name           string
 		expression     string
-		expectedClass  string  // "Fractional" or "Num"
-		expectedType   string  // "Float" or "Int"
+		expectedClass  string // "Fractional" or "Num"
+		expectedType   string // "Float" or "Int"
 		expectedResult string
 	}{
 		{
@@ -226,7 +226,7 @@ func TestMostSpecificNumericClassRegression(t *testing.T) {
 			expectedResult: "6.28",
 		},
 		{
-			name:           "float_addition_preserves_fractional", 
+			name:           "float_addition_preserves_fractional",
 			expression:     "1.5 + 2.5",
 			expectedClass:  "Fractional",
 			expectedType:   "Float",
@@ -242,7 +242,7 @@ func TestMostSpecificNumericClassRegression(t *testing.T) {
 		{
 			name:           "float_division_preserves_fractional",
 			expression:     "10.0 / 3.0",
-			expectedClass:  "Fractional", 
+			expectedClass:  "Fractional",
 			expectedType:   "Float",
 			expectedResult: "3.333",
 		},
@@ -253,26 +253,26 @@ func TestMostSpecificNumericClassRegression(t *testing.T) {
 			repl := New()
 			var discardOut bytes.Buffer
 			repl.importModule("std/prelude", &discardOut)
-			
+
 			var output bytes.Buffer
 			repl.processExpression(tt.expression, &output)
 			outputStr := output.String()
-			
-			// CRITICAL: Should resolve to the expected final type  
+
+			// CRITICAL: Should resolve to the expected final type
 			if !strings.Contains(outputStr, ":: "+tt.expectedType) {
-				t.Errorf("REGRESSION: Expected final type '%s' for '%s', but output was: %s", 
+				t.Errorf("REGRESSION: Expected final type '%s' for '%s', but output was: %s",
 					tt.expectedType, tt.expression, outputStr)
 			}
-			
+
 			// Should produce correct result
 			if !strings.Contains(outputStr, tt.expectedResult) {
-				t.Errorf("Expected result containing '%s' for '%s', but output was: %s", 
+				t.Errorf("Expected result containing '%s' for '%s', but output was: %s",
 					tt.expectedResult, tt.expression, outputStr)
 			}
-			
+
 			// CRITICAL: Should NOT see "expected int arguments" error for float operations
 			if tt.expectedType == "Float" && strings.Contains(outputStr, "expected int arguments") {
-				t.Errorf("REGRESSION: Float operation '%s' incorrectly tried to use int method: %s", 
+				t.Errorf("REGRESSION: Float operation '%s' incorrectly tried to use int method: %s",
 					tt.expression, outputStr)
 			}
 		})
@@ -299,25 +299,25 @@ func TestBooleanOperatorsRegression(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repl := New()
 			var output bytes.Buffer
-			
+
 			repl.processExpression(tt.expression, &output)
 			outputStr := output.String()
-			
+
 			// CRITICAL: Should NOT see the "BinOp reached evaluator" error
 			if strings.Contains(outputStr, "BinOp reached evaluator") {
-				t.Errorf("REGRESSION: Boolean operation '%s' incorrectly fell back to BinOp evaluator: %s", 
+				t.Errorf("REGRESSION: Boolean operation '%s' incorrectly fell back to BinOp evaluator: %s",
 					tt.expression, outputStr)
 			}
-			
+
 			// Should produce correct result
 			if !strings.Contains(outputStr, tt.expected+" :: Bool") {
-				t.Errorf("Expected '%s :: Bool' for expression '%s', but output was: %s", 
+				t.Errorf("Expected '%s :: Bool' for expression '%s', but output was: %s",
 					tt.expected, tt.expression, outputStr)
 			}
-			
+
 			// Should show that it's working (has result) and not using type classes
 			if strings.Contains(outputStr, "Runtime error") {
-				t.Errorf("Boolean operation '%s' failed with runtime error: %s", 
+				t.Errorf("Boolean operation '%s' failed with runtime error: %s",
 					tt.expression, outputStr)
 			}
 		})
@@ -346,17 +346,17 @@ func TestMixedArithmeticScenarios(t *testing.T) {
 			repl := New()
 			var discardOut bytes.Buffer
 			repl.importModule("std/prelude", &discardOut)
-			
+
 			var output bytes.Buffer
 			repl.processExpression(tt.expression, &output)
 			outputStr := output.String()
-			
+
 			// Should produce correct result
 			if !strings.Contains(outputStr, tt.expected) {
-				t.Errorf("Expected '%s' for expression '%s', but output was: %s", 
+				t.Errorf("Expected '%s' for expression '%s', but output was: %s",
 					tt.expected, tt.expression, outputStr)
 			}
-			
+
 			// Should not see any errors
 			if strings.Contains(outputStr, "Runtime error") {
 				t.Errorf("Unexpected runtime error for '%s': %s", tt.expression, outputStr)

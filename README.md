@@ -16,7 +16,7 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ### Example Verification Status
 
-*Last updated: 2025-09-28 20:15:46 UTC*
+*Last updated: 2025-09-29 07:04:27 UTC*
 
 **Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
 
@@ -56,9 +56,9 @@ AILANG is a purely functional programming language designed specifically for AI-
 | `type_inference_basic.ail` | ✅ Pass |  |
 | `type_inference_demo.ail` | ⏭️ Skip | Test/demo file |
 | `type_inference_simple.ail` | ❌ Fail | Error Parser errors: |
+| `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_type_inference.ail` | ✅ Pass |  |
-| `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
 | `web_api.ail` | ❌ Fail | Error Parser errors: |
 | `working_demo.ail` | ⏭️ Skip | Test/demo file |
 | `working_v0_0_3_demo.ail` | ⏭️ Skip | Test/demo file |

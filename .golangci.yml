@@ -1,0 +1,71 @@
+run:
+  # Exclude scripts directory since they are standalone executables
+  skip-dirs:
+    - scripts
+  skip-files:
+    - ".*_test.go"  # Optional: uncomment if you want to skip test files for some linters
+  
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    
+  disable:
+    - gosec  # Security linter - can be noisy
+    - dupl   # Duplicate code - often false positives
+    - gocyclo # Cyclomatic complexity - can be too strict
+    
+linters-settings:
+  errcheck:
+    # Don't check error returns on these
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Printf
+      - fmt.Println
+      
+  unused:
+    # Don't flag unused code in tests
+    check-exported: false
+    
+  revive:
+    rules:
+      - name: exported
+        disabled: true  # Don't require comments on exported types
+      - name: var-naming
+        disabled: false
+        
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    # Exclude scripts directory from all linters
+    - path: scripts/
+      linters:
+        - typecheck
+        - unused
+        
+    # Exclude test files from some linters  
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        
+    # Don't complain about unused test helpers
+    - path: _test\.go
+      text: "is unused"
+      linters:
+        - unused
+        
+  # Maximum issues count per one linter. Set to 0 to disable.
+  max-issues-per-linter: 50
+  
+  # Maximum count of issues with the same text. Set to 0 to disable.
+  max-same-issues: 10

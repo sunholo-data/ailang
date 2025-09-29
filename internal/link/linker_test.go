@@ -1,9 +1,9 @@
 package link
 
 import (
-	"testing"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
+	"testing"
 )
 
 func TestNewLinker(t *testing.T) {

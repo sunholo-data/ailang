@@ -10,8 +10,8 @@ import (
 // Elaborator transforms surface AST to Core ANF
 type Elaborator struct {
 	nextID       uint64
-	surfaceSpans map[uint64]ast.Pos  // Map Core IDs to surface positions
-	freshVarNum  int                 // For generating fresh variable names
+	surfaceSpans map[uint64]ast.Pos // Map Core IDs to surface positions
+	freshVarNum  int                // For generating fresh variable names
 }
 
 // NewElaborator creates a new elaborator
@@ -59,7 +59,7 @@ func (e *Elaborator) elaborateNode(node ast.Node) (core.CoreExpr, error) {
 func (e *Elaborator) elaborateExpr(expr ast.Expr) (core.CoreExpr, error) {
 	// First pass: desugar surface constructs
 	desugared := e.desugar(expr)
-	
+
 	// Second pass: normalize to ANF
 	return e.normalize(desugared)
 }
@@ -75,43 +75,43 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	switch ex := expr.(type) {
 	case *ast.Literal:
 		return e.normalizeLiteral(ex)
-	
+
 	case *ast.Identifier:
 		return &core.Var{
 			CoreNode: e.makeNode(ex.Position()),
 			Name:     ex.Name,
 		}, nil
-	
+
 	case *ast.Lambda:
 		return e.normalizeLambda(ex)
-	
+
 	case *ast.BinaryOp:
 		return e.normalizeBinaryOp(ex)
-	
+
 	case *ast.UnaryOp:
 		return e.normalizeUnaryOp(ex)
-	
+
 	case *ast.If:
 		return e.normalizeIf(ex)
-	
+
 	case *ast.Let:
 		return e.normalizeLet(ex)
-	
+
 	case *ast.FuncCall:
 		return e.normalizeFuncCall(ex)
-	
+
 	case *ast.Record:
 		return e.normalizeRecord(ex)
-	
+
 	case *ast.RecordAccess:
 		return e.normalizeRecordAccess(ex)
-	
+
 	case *ast.List:
 		return e.normalizeList(ex)
-	
+
 	case *ast.Match:
 		return e.normalizeMatch(ex)
-	
+
 	default:
 		return nil, fmt.Errorf("normalization not implemented for %T", expr)
 	}
@@ -134,7 +134,7 @@ func (e *Elaborator) normalizeLiteral(lit *ast.Literal) (core.CoreExpr, error) {
 	default:
 		return nil, fmt.Errorf("unknown literal kind: %v", lit.Kind)
 	}
-	
+
 	return &core.Lit{
 		CoreNode: e.makeNode(lit.Position()),
 		Kind:     kind,
@@ -149,13 +149,13 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 	for i, p := range lam.Params {
 		params[i] = p.Name
 	}
-	
+
 	// Normalize body
 	body, err := e.normalize(lam.Body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &core.Lambda{
 		CoreNode: e.makeNode(lam.Position()),
 		Params:   params,
@@ -170,12 +170,12 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 	if err != nil {
 		return nil, err
 	}
-	
+
 	right, rightBinds, err := e.normalizeToAtomic(binop.Right)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create the binary operation
 	result := &core.BinOp{
 		CoreNode: e.makeNode(binop.Position()),
@@ -183,7 +183,7 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		Left:     left,
 		Right:    right,
 	}
-	
+
 	// Wrap with let bindings from normalization
 	return e.wrapWithBindings(result, append(leftBinds, rightBinds...)), nil
 }
@@ -194,13 +194,13 @@ func (e *Elaborator) normalizeUnaryOp(unop *ast.UnaryOp) (core.CoreExpr, error) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &core.UnOp{
 		CoreNode: e.makeNode(unop.Position()),
 		Op:       unop.Op,
 		Operand:  operand,
 	}
-	
+
 	return e.wrapWithBindings(result, binds), nil
 }
 
@@ -211,25 +211,25 @@ func (e *Elaborator) normalizeIf(ifExpr *ast.If) (core.CoreExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Branches can be complex
 	thenBranch, err := e.normalize(ifExpr.Then)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	elseBranch, err := e.normalize(ifExpr.Else)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &core.If{
 		CoreNode: e.makeNode(ifExpr.Position()),
 		Cond:     cond,
 		Then:     thenBranch,
 		Else:     elseBranch,
 	}
-	
+
 	return e.wrapWithBindings(result, condBinds), nil
 }
 
@@ -239,19 +239,19 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 	isRec := false
 	// For now, detect recursion by checking if the value references the name
 	// This is simplified - full implementation would analyze the value expression
-	
+
 	if isRec {
 		// Handle recursive binding
 		value, err := e.normalize(let.Value)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		body, err := e.normalize(let.Body)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		return &core.LetRec{
 			CoreNode: e.makeNode(let.Position()),
 			Bindings: []core.RecBinding{{Name: let.Name, Value: value}},
@@ -263,12 +263,12 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		body, err := e.normalize(let.Body)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		return &core.Let{
 			CoreNode: e.makeNode(let.Position()),
 			Name:     let.Name,
@@ -285,10 +285,10 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var allBindings []binding
 	var atomicArgs []core.CoreExpr
-	
+
 	for _, arg := range app.Args {
 		atomic, binds, err := e.normalizeToAtomic(arg)
 		if err != nil {
@@ -297,7 +297,7 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 		atomicArgs = append(atomicArgs, atomic)
 		allBindings = append(allBindings, binds...)
 	}
-	
+
 	// If function is not atomic, bind it too
 	if !core.IsAtomic(fun) {
 		freshVar := e.freshVar()
@@ -307,13 +307,13 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 			Name:     freshVar,
 		}
 	}
-	
+
 	result := &core.App{
 		CoreNode: e.makeNode(app.Position()),
 		Func:     fun,
 		Args:     atomicArgs,
 	}
-	
+
 	return e.wrapWithBindings(result, allBindings), nil
 }
 
@@ -321,7 +321,7 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 func (e *Elaborator) normalizeRecord(rec *ast.Record) (core.CoreExpr, error) {
 	fields := make(map[string]core.CoreExpr)
 	var allBindings []binding
-	
+
 	for i, field := range rec.Fields {
 		value := field.Value
 		name := field.Name
@@ -333,12 +333,12 @@ func (e *Elaborator) normalizeRecord(rec *ast.Record) (core.CoreExpr, error) {
 		allBindings = append(allBindings, binds...)
 		_ = i // use i to avoid warning
 	}
-	
+
 	result := &core.Record{
 		CoreNode: e.makeNode(rec.Position()),
 		Fields:   fields,
 	}
-	
+
 	return e.wrapWithBindings(result, allBindings), nil
 }
 
@@ -348,13 +348,13 @@ func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &core.RecordAccess{
 		CoreNode: e.makeNode(acc.Position()),
 		Record:   record,
 		Field:    acc.Field,
 	}
-	
+
 	return e.wrapWithBindings(result, binds), nil
 }
 
@@ -362,7 +362,7 @@ func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr
 func (e *Elaborator) normalizeList(list *ast.List) (core.CoreExpr, error) {
 	var elements []core.CoreExpr
 	var allBindings []binding
-	
+
 	for _, elem := range list.Elements {
 		atomic, binds, err := e.normalizeToAtomic(elem)
 		if err != nil {
@@ -371,12 +371,12 @@ func (e *Elaborator) normalizeList(list *ast.List) (core.CoreExpr, error) {
 		elements = append(elements, atomic)
 		allBindings = append(allBindings, binds...)
 	}
-	
+
 	result := &core.List{
 		CoreNode: e.makeNode(list.Position()),
 		Elements: elements,
 	}
-	
+
 	return e.wrapWithBindings(result, allBindings), nil
 }
 
@@ -387,7 +387,7 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert arms
 	var arms []core.MatchArm
 	for _, caseClause := range match.Cases {
@@ -395,25 +395,25 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		body, err := e.normalize(caseClause.Body)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		arms = append(arms, core.MatchArm{
 			Pattern: pattern,
 			Body:    body,
 		})
 	}
-	
+
 	result := &core.Match{
 		CoreNode:   e.makeNode(match.Position()),
 		Scrutinee:  scrutinee,
 		Arms:       arms,
 		Exhaustive: false, // Will be set by typechecker
 	}
-	
+
 	return e.wrapWithBindings(result, binds), nil
 }
 
@@ -439,12 +439,12 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 		Body:   fn.Body,
 		Pos:    fn.Pos,
 	}
-	
+
 	value, err := e.normalizeLambda(lambda)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Wrap in let rec if recursive
 	return &core.LetRec{
 		CoreNode: e.makeNode(fn.Position()),
@@ -466,11 +466,11 @@ func (e *Elaborator) normalizeToAtomic(expr ast.Expr) (core.CoreExpr, []binding,
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	if core.IsAtomic(normalized) {
 		return normalized, nil, nil
 	}
-	
+
 	// Need to bind non-atomic expression
 	freshName := e.freshVar()
 	bind := binding{Name: freshName, Value: normalized}
@@ -478,7 +478,7 @@ func (e *Elaborator) normalizeToAtomic(expr ast.Expr) (core.CoreExpr, []binding,
 		CoreNode: e.makeNode(expr.Position()),
 		Name:     freshName,
 	}
-	
+
 	return varRef, []binding{bind}, nil
 }
 
@@ -529,14 +529,14 @@ func ElaborateWithDictionaries(prog *core.Program, resolved map[uint64]*types.Re
 		resolved:    resolved,
 		freshVarNum: 0,
 	}
-	
+
 	// Transform each declaration
 	var newDecls []core.CoreExpr
 	for _, decl := range prog.Decls {
 		transformed := elaborator.transformExpr(decl)
 		newDecls = append(newDecls, transformed)
 	}
-	
+
 	return &core.Program{Decls: newDecls}, nil
 }
 
@@ -551,7 +551,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	if expr == nil {
 		return nil
 	}
-	
+
 	switch e := expr.(type) {
 	case *core.BinOp:
 		// Check if this operator has a resolved constraint
@@ -566,24 +566,24 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 					Right:    de.transformExpr(e.Right),
 				}
 			}
-			
+
 			// Transform to dictionary application
 			// First transform the operands
 			left := de.transformExpr(e.Left)
 			right := de.transformExpr(e.Right)
-			
+
 			// Create dictionary reference
 			typeName := types.NormalizeTypeName(rc.Type)
-			// fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n", 
+			// fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n",
 			// 	e.ID(), rc.ClassName, rc.Type, typeName, rc.Method)
 			dictRef := &core.DictRef{
 				CoreNode:  e.CoreNode,
 				ClassName: rc.ClassName,
 				TypeName:  typeName,
 			}
-			
+
 			// Create dictionary application directly
-			
+
 			// Build the ANF structure properly:
 			// For now, just use DictApp directly with DictRef as the dictionary
 			// This is valid ANF since DictRef is atomic
@@ -594,7 +594,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 				Args:     []core.CoreExpr{left, right},
 			}
 		}
-		
+
 		// No dictionary transformation needed, just recurse
 		return &core.BinOp{
 			CoreNode: e.CoreNode,
@@ -602,7 +602,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Left:     de.transformExpr(e.Left),
 			Right:    de.transformExpr(e.Right),
 		}
-		
+
 	case *core.UnOp:
 		// Check if this operator has a resolved constraint
 		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
@@ -615,10 +615,10 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 					Operand:  de.transformExpr(e.Operand),
 				}
 			}
-			
+
 			// Transform to dictionary application
 			operand := de.transformExpr(e.Operand)
-			
+
 			// Create dictionary reference
 			typeName := types.NormalizeTypeName(rc.Type)
 			dictRef := &core.DictRef{
@@ -626,9 +626,9 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 				ClassName: rc.ClassName,
 				TypeName:  typeName,
 			}
-			
+
 			// Create dictionary application directly
-			
+
 			// Build ANF structure properly with DictRef directly in DictApp
 			return &core.DictApp{
 				CoreNode: e.CoreNode,
@@ -637,14 +637,14 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 				Args:     []core.CoreExpr{operand},
 			}
 		}
-		
+
 		// No transformation needed
 		return &core.UnOp{
 			CoreNode: e.CoreNode,
 			Op:       e.Op,
 			Operand:  de.transformExpr(e.Operand),
 		}
-		
+
 	case *core.Let:
 		return &core.Let{
 			CoreNode: e.CoreNode,
@@ -652,7 +652,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Value:    de.transformExpr(e.Value),
 			Body:     de.transformExpr(e.Body),
 		}
-		
+
 	case *core.LetRec:
 		var newBindings []core.RecBinding
 		for _, binding := range e.Bindings {
@@ -666,14 +666,14 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Bindings: newBindings,
 			Body:     de.transformExpr(e.Body),
 		}
-		
+
 	case *core.Lambda:
 		return &core.Lambda{
 			CoreNode: e.CoreNode,
 			Params:   e.Params,
 			Body:     de.transformExpr(e.Body),
 		}
-		
+
 	case *core.App:
 		var newArgs []core.CoreExpr
 		for _, arg := range e.Args {
@@ -684,7 +684,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Func:     de.transformExpr(e.Func),
 			Args:     newArgs,
 		}
-		
+
 	case *core.If:
 		return &core.If{
 			CoreNode: e.CoreNode,
@@ -692,7 +692,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Then:     de.transformExpr(e.Then),
 			Else:     de.transformExpr(e.Else),
 		}
-		
+
 	case *core.Match:
 		var newArms []core.MatchArm
 		for _, arm := range e.Arms {
@@ -707,7 +707,7 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Arms:       newArms,
 			Exhaustive: e.Exhaustive,
 		}
-		
+
 	case *core.Record:
 		newFields := make(map[string]core.CoreExpr)
 		for k, v := range e.Fields {
@@ -717,14 +717,14 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			CoreNode: e.CoreNode,
 			Fields:   newFields,
 		}
-		
+
 	case *core.RecordAccess:
 		return &core.RecordAccess{
 			CoreNode: e.CoreNode,
 			Record:   de.transformExpr(e.Record),
 			Field:    e.Field,
 		}
-		
+
 	case *core.List:
 		var newElements []core.CoreExpr
 		for _, elem := range e.Elements {
@@ -734,15 +734,15 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			CoreNode: e.CoreNode,
 			Elements: newElements,
 		}
-		
+
 	// Atomic expressions - return as is
 	case *core.Var, *core.Lit, *core.DictRef:
 		return expr
-		
+
 	// Already dictionary nodes - preserve
 	case *core.DictAbs, *core.DictApp:
 		return expr
-		
+
 	default:
 		// Unknown type - return as is
 		return expr

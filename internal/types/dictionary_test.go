@@ -34,7 +34,7 @@ func TestResolvedConstraint(t *testing.T) {
 			method:    "eq",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rc := &ResolvedConstraint{
@@ -43,7 +43,7 @@ func TestResolvedConstraint(t *testing.T) {
 				Type:      tt.typ,
 				Method:    tt.method,
 			}
-			
+
 			if rc.NodeID != tt.nodeID {
 				t.Errorf("NodeID = %v, want %v", rc.NodeID, tt.nodeID)
 			}
@@ -77,7 +77,7 @@ func TestOperatorMethod(t *testing.T) {
 		{">=", "gte"},
 		{"unknown", ""},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.op, func(t *testing.T) {
 			got := OperatorMethod(tt.op, false)
@@ -154,7 +154,7 @@ func TestNormalizeTypeName(t *testing.T) {
 			expected: "Func<Int,Int->Int>",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NormalizeTypeName(tt.typ)
@@ -195,7 +195,7 @@ func TestMakeDictionaryKey(t *testing.T) {
 			expected:  "user::Show::List<Int>::show",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
 			// Create a type from the string
@@ -253,23 +253,23 @@ func TestParseDictionaryKey(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			module, className, typeName, method, err := ParseDictionaryKey(tt.key)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ParseDictionaryKey(%q) expected error, got nil", tt.key)
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseDictionaryKey(%q) unexpected error: %v", tt.key, err)
 				return
 			}
-			
+
 			if module != tt.module {
 				t.Errorf("module = %v, want %v", module, tt.module)
 			}

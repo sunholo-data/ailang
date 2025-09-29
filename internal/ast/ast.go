@@ -52,10 +52,10 @@ type Identifier struct {
 	Pos  Pos
 }
 
-func (i *Identifier) String() string      { return i.Name }
-func (i *Identifier) Position() Pos        { return i.Pos }
-func (i *Identifier) exprNode()           {}
-func (i *Identifier) patternNode()        {}
+func (i *Identifier) String() string { return i.Name }
+func (i *Identifier) Position() Pos  { return i.Pos }
+func (i *Identifier) exprNode()      {}
+func (i *Identifier) patternNode()   {}
 
 // Literal represents a literal value
 type Literal struct {
@@ -77,7 +77,7 @@ const (
 func (l *Literal) String() string {
 	return fmt.Sprintf("%v", l.Value)
 }
-func (l *Literal) Position() Pos  { return l.Pos }
+func (l *Literal) Position() Pos { return l.Pos }
 func (l *Literal) exprNode()     {}
 func (l *Literal) patternNode()  {}
 
@@ -93,7 +93,7 @@ func (b *BinaryOp) String() string {
 	return fmt.Sprintf("(%s %s %s)", b.Left, b.Op, b.Right)
 }
 func (b *BinaryOp) Position() Pos { return b.Pos }
-func (b *BinaryOp) exprNode()    {}
+func (b *BinaryOp) exprNode()     {}
 
 // UnaryOp represents a unary operation
 type UnaryOp struct {
@@ -106,7 +106,7 @@ func (u *UnaryOp) String() string {
 	return fmt.Sprintf("(%s %s)", u.Op, u.Expr)
 }
 func (u *UnaryOp) Position() Pos { return u.Pos }
-func (u *UnaryOp) exprNode()    {}
+func (u *UnaryOp) exprNode()     {}
 
 // Lambda represents a lambda expression
 type Lambda struct {
@@ -130,7 +130,7 @@ func (l *Lambda) String() string {
 	return fmt.Sprintf("\\%s. %s", strings.Join(params, " "), l.Body)
 }
 func (l *Lambda) Position() Pos { return l.Pos }
-func (l *Lambda) exprNode()    {}
+func (l *Lambda) exprNode()     {}
 
 // FuncCall represents a function application
 type FuncCall struct {
@@ -147,22 +147,22 @@ func (f *FuncCall) String() string {
 	return fmt.Sprintf("(%s %s)", f.Func, strings.Join(args, " "))
 }
 func (f *FuncCall) Position() Pos { return f.Pos }
-func (f *FuncCall) exprNode()    {}
+func (f *FuncCall) exprNode()     {}
 
 // Let represents a let binding
 type Let struct {
-	Name    string
-	Type    Type // Optional type annotation
-	Value   Expr
-	Body    Expr
-	Pos     Pos
+	Name  string
+	Type  Type // Optional type annotation
+	Value Expr
+	Body  Expr
+	Pos   Pos
 }
 
 func (l *Let) String() string {
 	return fmt.Sprintf("(let %s = %s in %s)", l.Name, l.Value, l.Body)
 }
 func (l *Let) Position() Pos { return l.Pos }
-func (l *Let) exprNode()    {}
+func (l *Let) exprNode()     {}
 
 // If represents a conditional expression
 type If struct {
@@ -176,7 +176,7 @@ func (i *If) String() string {
 	return fmt.Sprintf("(if %s then %s else %s)", i.Condition, i.Then, i.Else)
 }
 func (i *If) Position() Pos { return i.Pos }
-func (i *If) exprNode()    {}
+func (i *If) exprNode()     {}
 
 // Match represents pattern matching
 type Match struct {
@@ -200,7 +200,7 @@ func (m *Match) String() string {
 	return fmt.Sprintf("(match %s { %s })", m.Expr, strings.Join(cases, " | "))
 }
 func (m *Match) Position() Pos { return m.Pos }
-func (m *Match) exprNode()    {}
+func (m *Match) exprNode()     {}
 
 // List represents a list literal
 type List struct {
@@ -216,7 +216,7 @@ func (l *List) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(elems, ", "))
 }
 func (l *List) Position() Pos { return l.Pos }
-func (l *List) exprNode()    {}
+func (l *List) exprNode()     {}
 
 // Tuple represents a tuple
 type Tuple struct {
@@ -232,7 +232,7 @@ func (t *Tuple) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 func (t *Tuple) Position() Pos { return t.Pos }
-func (t *Tuple) exprNode()    {}
+func (t *Tuple) exprNode()     {}
 
 // Record represents a record literal
 type Record struct {
@@ -254,7 +254,7 @@ func (r *Record) String() string {
 	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
 }
 func (r *Record) Position() Pos { return r.Pos }
-func (r *Record) exprNode()    {}
+func (r *Record) exprNode()     {}
 
 // RecordAccess represents field access
 type RecordAccess struct {
@@ -267,14 +267,14 @@ func (r *RecordAccess) String() string {
 	return fmt.Sprintf("%s.%s", r.Record, r.Field)
 }
 func (r *RecordAccess) Position() Pos { return r.Pos }
-func (r *RecordAccess) exprNode()    {}
+func (r *RecordAccess) exprNode()     {}
 
 // QuasiQuote represents typed quasiquotes
 type QuasiQuote struct {
-	Kind         string // sql, html, regex, json, shell, url
-	Template     string
+	Kind           string // sql, html, regex, json, shell, url
+	Template       string
 	Interpolations []*Interpolation
-	Pos          Pos
+	Pos            Pos
 }
 
 type Interpolation struct {
@@ -288,7 +288,7 @@ func (q *QuasiQuote) String() string {
 	return fmt.Sprintf("%s\"\"\"%s\"\"\"", q.Kind, q.Template)
 }
 func (q *QuasiQuote) Position() Pos { return q.Pos }
-func (q *QuasiQuote) exprNode()    {}
+func (q *QuasiQuote) exprNode()     {}
 
 // Channel operations
 type Send struct {
@@ -301,7 +301,7 @@ func (s *Send) String() string {
 	return fmt.Sprintf("%s <- %s", s.Channel, s.Value)
 }
 func (s *Send) Position() Pos { return s.Pos }
-func (s *Send) exprNode()    {}
+func (s *Send) exprNode()     {}
 
 type Recv struct {
 	Channel Expr
@@ -312,7 +312,7 @@ func (r *Recv) String() string {
 	return fmt.Sprintf("<- %s", r.Channel)
 }
 func (r *Recv) Position() Pos { return r.Pos }
-func (r *Recv) exprNode()    {}
+func (r *Recv) exprNode()     {}
 
 // Top-level declarations
 
@@ -354,7 +354,7 @@ func (f *FuncDecl) String() string {
 	return fmt.Sprintf("%sfunc %s(%s) = %s", pureStr, f.Name, strings.Join(params, ", "), f.Body)
 }
 func (f *FuncDecl) Position() Pos { return f.Pos }
-func (f *FuncDecl) stmtNode()    {}
+func (f *FuncDecl) stmtNode()     {}
 
 // TypeDecl represents a type declaration
 type TypeDecl struct {
@@ -400,7 +400,7 @@ func (t *TypeDecl) String() string {
 	return fmt.Sprintf("type %s", t.Name)
 }
 func (t *TypeDecl) Position() Pos { return t.Pos }
-func (t *TypeDecl) stmtNode()    {}
+func (t *TypeDecl) stmtNode()     {}
 
 // TypeClass represents a type class declaration
 type TypeClass struct {
@@ -412,31 +412,31 @@ type TypeClass struct {
 }
 
 type Method struct {
-	Name       string
-	Type       Type
-	Default    Expr // Optional default implementation
-	Pos        Pos
+	Name    string
+	Type    Type
+	Default Expr // Optional default implementation
+	Pos     Pos
 }
 
 func (t *TypeClass) String() string {
 	return fmt.Sprintf("class %s[%s]", t.Name, t.TypeParam)
 }
 func (t *TypeClass) Position() Pos { return t.Pos }
-func (t *TypeClass) stmtNode()    {}
+func (t *TypeClass) stmtNode()     {}
 
 // Instance represents a type class instance
 type Instance struct {
-	ClassName  string
-	Type       Type
-	Methods    map[string]Expr
-	Pos        Pos
+	ClassName string
+	Type      Type
+	Methods   map[string]Expr
+	Pos       Pos
 }
 
 func (i *Instance) String() string {
 	return fmt.Sprintf("instance %s[%s]", i.ClassName, i.Type)
 }
 func (i *Instance) Position() Pos { return i.Pos }
-func (i *Instance) stmtNode()    {}
+func (i *Instance) stmtNode()     {}
 
 // Module represents a module
 type Module struct {
@@ -448,11 +448,11 @@ type Module struct {
 }
 
 type Import struct {
-	Path        string
-	Alias       string
-	Symbols     []string // Specific imports
+	Path         string
+	Alias        string
+	Symbols      []string // Specific imports
 	Capabilities []string // Capability imports
-	Pos         Pos
+	Pos          Pos
 }
 
 func (m *Module) String() string {
@@ -470,7 +470,7 @@ type SimpleType struct {
 
 func (s *SimpleType) String() string { return s.Name }
 func (s *SimpleType) Position() Pos  { return s.Pos }
-func (s *SimpleType) typeNode()     {}
+func (s *SimpleType) typeNode()      {}
 
 // TypeVar represents type variables
 type TypeVar struct {
@@ -480,7 +480,7 @@ type TypeVar struct {
 
 func (t *TypeVar) String() string { return t.Name }
 func (t *TypeVar) Position() Pos  { return t.Pos }
-func (t *TypeVar) typeNode()     {}
+func (t *TypeVar) typeNode()      {}
 
 // FuncType represents function types
 type FuncType struct {
@@ -502,7 +502,7 @@ func (f *FuncType) String() string {
 	return fmt.Sprintf("(%s -> %s%s)", strings.Join(params, ", "), f.Return, effectStr)
 }
 func (f *FuncType) Position() Pos { return f.Pos }
-func (f *FuncType) typeNode()    {}
+func (f *FuncType) typeNode()     {}
 
 // ListType represents list types
 type ListType struct {
@@ -512,7 +512,7 @@ type ListType struct {
 
 func (l *ListType) String() string { return fmt.Sprintf("[%s]", l.Element) }
 func (l *ListType) Position() Pos  { return l.Pos }
-func (l *ListType) typeNode()     {}
+func (l *ListType) typeNode()      {}
 
 // TupleType represents tuple types
 type TupleType struct {
@@ -528,7 +528,7 @@ func (t *TupleType) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 func (t *TupleType) Position() Pos { return t.Pos }
-func (t *TupleType) typeNode()    {}
+func (t *TupleType) typeNode()     {}
 
 // Pattern matching patterns
 
@@ -539,7 +539,7 @@ type WildcardPattern struct {
 
 func (w *WildcardPattern) String() string { return "_" }
 func (w *WildcardPattern) Position() Pos  { return w.Pos }
-func (w *WildcardPattern) patternNode()  {}
+func (w *WildcardPattern) patternNode()   {}
 
 // ConsPattern matches list cons
 type ConsPattern struct {
@@ -552,7 +552,7 @@ func (c *ConsPattern) String() string {
 	return fmt.Sprintf("[%s, ...%s]", c.Head, c.Tail)
 }
 func (c *ConsPattern) Position() Pos { return c.Pos }
-func (c *ConsPattern) patternNode() {}
+func (c *ConsPattern) patternNode()  {}
 
 // ListPattern matches list literals
 type ListPattern struct {
@@ -572,7 +572,7 @@ func (l *ListPattern) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(elems, ", "))
 }
 func (l *ListPattern) Position() Pos { return l.Pos }
-func (l *ListPattern) patternNode() {}
+func (l *ListPattern) patternNode()  {}
 
 // TuplePattern matches tuples
 type TuplePattern struct {
@@ -588,7 +588,7 @@ func (t *TuplePattern) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(elems, ", "))
 }
 func (t *TuplePattern) Position() Pos { return t.Pos }
-func (t *TuplePattern) patternNode() {}
+func (t *TuplePattern) patternNode()  {}
 
 // RecordPattern matches records
 type RecordPattern struct {
@@ -614,13 +614,13 @@ func (r *RecordPattern) String() string {
 	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
 }
 func (r *RecordPattern) Position() Pos { return r.Pos }
-func (r *RecordPattern) patternNode() {}
+func (r *RecordPattern) patternNode()  {}
 
 // ConstructorPattern matches algebraic type constructors
 type ConstructorPattern struct {
-	Name    string
+	Name     string
 	Patterns []Pattern
-	Pos     Pos
+	Pos      Pos
 }
 
 func (c *ConstructorPattern) String() string {
@@ -634,7 +634,7 @@ func (c *ConstructorPattern) String() string {
 	return fmt.Sprintf("%s(%s)", c.Name, strings.Join(patterns, ", "))
 }
 func (c *ConstructorPattern) Position() Pos { return c.Pos }
-func (c *ConstructorPattern) patternNode() {}
+func (c *ConstructorPattern) patternNode()  {}
 
 // Program represents the entire program
 type Program struct {

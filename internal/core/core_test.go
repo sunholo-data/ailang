@@ -2,9 +2,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/sunholo/ailang/internal/ast"
 	"strings"
 	"testing"
-	"github.com/sunholo/ailang/internal/ast"
 )
 
 func TestCoreNode(t *testing.T) {
@@ -369,7 +369,6 @@ func TestRecord(t *testing.T) {
 	var _ CoreExpr = record
 }
 
-
 func TestDictAbs(t *testing.T) {
 	dictAbs := &DictAbs{
 		CoreNode: CoreNode{NodeID: 1},
@@ -386,11 +385,11 @@ func TestDictAbs(t *testing.T) {
 	// Test with multiple params
 	dictAbs2 := &DictAbs{
 		CoreNode: CoreNode{NodeID: 3},
-		Params:   []DictParam{
+		Params: []DictParam{
 			{Name: "EqInt", ClassName: "Eq", Type: "Int"},
 			{Name: "OrdInt", ClassName: "Ord", Type: "Int"},
 		},
-		Body:     &Var{CoreNode: CoreNode{NodeID: 4}, Name: "y"},
+		Body: &Var{CoreNode: CoreNode{NodeID: 4}, Name: "y"},
 	}
 
 	got2 := dictAbs2.String()

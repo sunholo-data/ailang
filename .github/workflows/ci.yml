@@ -53,29 +53,8 @@ jobs:
     - name: Update example status in README
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
       run: |
-        # Generate the status markdown
-        go run scripts/verify_examples.go --markdown > examples_status.md
-        
-        # Create a script to update README
-        cat > scripts/update_readme_ci.sh << 'EOF'
-        #!/bin/bash
-        README="README.md"
-        TEMP="README.tmp"
-        
-        # Extract the new status from examples_status.md
-        NEW_STATUS=$(cat examples_status.md)
-        
-        # Update README between markers
-        awk '
-        /<!-- EXAMPLES_STATUS_START -->/ {print; print ""; getline < "examples_status.md"; print; f=1}
-        /<!-- EXAMPLES_STATUS_END -->/ {f=0}
-        !f' "$README" > "$TEMP"
-        
-        mv "$TEMP" "$README"
-        EOF
-        
-        chmod +x scripts/update_readme_ci.sh
-        ./scripts/update_readme_ci.sh
+        # Use the Makefile which handles module paths correctly
+        make update-readme
     
     - name: Commit README updates
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
@@ -120,20 +99,13 @@ jobs:
         go-version: '1.22'
         cache: true
     
-    - name: Run go fmt
-      run: |
-        if [ -n "$(gofmt -l .)" ]; then
-          echo "Go code is not formatted"
-          gofmt -l .
-          exit 1
-        fi
+    - name: Check code formatting
+      run: make fmt-check
     
     - name: Run go vet
       run: make vet
     
-    - name: Install golangci-lint
+    - name: Install and run golangci-lint
       run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
-    
-    - name: Run golangci-lint
-      run: $(go env GOPATH)/bin/golangci-lint run
+        make install-lint
+        make lint

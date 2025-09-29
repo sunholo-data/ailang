@@ -7,12 +7,12 @@ import (
 
 // InferenceContext maintains state during type inference
 type InferenceContext struct {
-	env                   *TypeEnv
-	unifier               *Unifier
-	constraints           []TypeConstraint
-	freshCounter          int
-	path                  []string         // For error reporting
-	qualifiedConstraints  []ClassConstraint // Non-ground constraints for qualified types
+	env                  *TypeEnv
+	unifier              *Unifier
+	constraints          []TypeConstraint
+	freshCounter         int
+	path                 []string          // For error reporting
+	qualifiedConstraints []ClassConstraint // Non-ground constraints for qualified types
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -28,7 +28,7 @@ type TypeEq struct {
 	Path  []string // Source location path
 }
 
-func (c TypeEq) constraint()   {}
+func (c TypeEq) constraint()    {}
 func (c TypeEq) String() string { return fmt.Sprintf("%s ~ %s", c.Left, c.Right) }
 
 // RowEq represents a row equality constraint
@@ -38,7 +38,7 @@ type RowEq struct {
 	Path  []string
 }
 
-func (c RowEq) constraint()   {}
+func (c RowEq) constraint()    {}
 func (c RowEq) String() string { return fmt.Sprintf("%s ~ %s", c.Left, c.Right) }
 
 // ClassConstraint represents a type class constraint
@@ -49,17 +49,17 @@ type ClassConstraint struct {
 	NodeID uint64 // NodeID of the Core expression that generated this constraint
 }
 
-func (c ClassConstraint) constraint()   {}
+func (c ClassConstraint) constraint()    {}
 func (c ClassConstraint) String() string { return fmt.Sprintf("%s[%s]", c.Class, c.Type) }
 
 // NewInferenceContext creates a new inference context
 func NewInferenceContext() *InferenceContext {
 	return &InferenceContext{
-		env:         NewTypeEnv(),
-		unifier:     NewUnifier(),
-		constraints: []TypeConstraint{},
+		env:          NewTypeEnv(),
+		unifier:      NewUnifier(),
+		constraints:  []TypeConstraint{},
 		freshCounter: 0,
-		path:        []string{},
+		path:         []string{},
 	}
 }
 
@@ -108,7 +108,7 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 		for i, param := range e.Params {
 			paramType := ctx.freshTypeVar()
 			paramTypes[i] = paramType
-			
+
 			// Bind parameter in environment
 			ctx.env = ctx.env.Extend(param.Name, paramType)
 		}
@@ -452,7 +452,7 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 	// Find free type variables in type but not in environment
 	typeFreeVars := freeTypeVars(typ)
 	envFreeVars := ctx.env.FreeTypeVars()
-	
+
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
 		if !envFreeVars[v] {
@@ -463,7 +463,7 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 	// Find free row variables in effects but not in environment
 	effectFreeVars := freeRowVars(effects)
 	envFreeRowVars := ctx.env.FreeRowVars()
-	
+
 	generalizedRowVars := []string{}
 	for v := range effectFreeVars {
 		if !envFreeRowVars[v] {
@@ -551,7 +551,7 @@ func (ctx *InferenceContext) freshType(kind Kind) Type {
 
 func (ctx *InferenceContext) addConstraint(c TypeConstraint) {
 	ctx.constraints = append(ctx.constraints, c)
-	
+
 	// Also track class constraints separately for qualified types
 	if cc, ok := c.(ClassConstraint); ok {
 		ctx.qualifiedConstraints = append(ctx.qualifiedConstraints, cc)
@@ -561,7 +561,7 @@ func (ctx *InferenceContext) addConstraint(c TypeConstraint) {
 // SolveConstraints solves all collected constraints
 func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
 	sub := make(Substitution)
-	
+
 	// Phase 1: Solve all equality constraints first to build up substitution
 	for _, c := range ctx.constraints {
 		switch constraint := c.(type) {
@@ -588,7 +588,7 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 			}
 		}
 	}
-	
+
 	// Phase 2: Apply final substitution to all class constraints
 	unsolvedClass := []ClassConstraint{}
 	for _, c := range ctx.constraints {
@@ -658,17 +658,17 @@ func collectFreeRowVars(r *Row, free map[string]bool) {
 }
 
 // checkLinearCapture analyzes lambda for linear value capture violations
-func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, paramTypes []Type) error {
+func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, _ []Type) error {
 	// Find all free variables in the lambda body
 	freeVars := findFreeVariables(lambda.Body, getParamNames(lambda.Params))
-	
+
 	// Check if any captured variables have linear capabilities
-	for varName, _ := range freeVars {
+	for varName := range freeVars {
 		varType, err := ctx.env.Lookup(varName)
 		if err != nil {
 			continue // Variable not in scope, will be caught by type inference
 		}
-		
+
 		// Check if the variable type contains linear capabilities
 		if hasLinearCapabilities(varType) {
 			// Get the linear capability names for error reporting
@@ -678,7 +678,7 @@ func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, paramTypes [
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -686,12 +686,12 @@ func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, paramTypes [
 func findFreeVariables(expr ast.Expr, boundParams []string) map[string]bool {
 	freeVars := make(map[string]bool)
 	boundSet := make(map[string]bool)
-	
+
 	// Mark parameters as bound
 	for _, param := range boundParams {
 		boundSet[param] = true
 	}
-	
+
 	findFreeVarsHelper(expr, freeVars, boundSet)
 	return freeVars
 }
@@ -701,14 +701,14 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 	if expr == nil {
 		return
 	}
-	
+
 	switch e := expr.(type) {
 	case *ast.Identifier:
 		// If identifier is not bound, it's a free variable
 		if !bound[e.Name] {
 			freeVars[e.Name] = true
 		}
-		
+
 	case *ast.Lambda:
 		// Create new bound set including lambda parameters
 		newBound := make(map[string]bool)
@@ -719,11 +719,11 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 			newBound[param.Name] = true
 		}
 		findFreeVarsHelper(e.Body, freeVars, newBound)
-		
+
 	case *ast.Let:
 		// Let binding creates a new scope
 		findFreeVarsHelper(e.Value, freeVars, bound)
-		
+
 		// Create new bound set including let variable
 		newBound := make(map[string]bool)
 		for k, v := range bound {
@@ -731,43 +731,43 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 		}
 		newBound[e.Name] = true
 		findFreeVarsHelper(e.Body, freeVars, newBound)
-		
+
 	case *ast.BinaryOp:
 		findFreeVarsHelper(e.Left, freeVars, bound)
 		findFreeVarsHelper(e.Right, freeVars, bound)
-		
+
 	case *ast.UnaryOp:
 		findFreeVarsHelper(e.Expr, freeVars, bound)
-		
+
 	case *ast.FuncCall:
 		findFreeVarsHelper(e.Func, freeVars, bound)
 		for _, arg := range e.Args {
 			findFreeVarsHelper(arg, freeVars, bound)
 		}
-		
+
 	case *ast.If:
 		findFreeVarsHelper(e.Condition, freeVars, bound)
 		findFreeVarsHelper(e.Then, freeVars, bound)
 		if e.Else != nil {
 			findFreeVarsHelper(e.Else, freeVars, bound)
 		}
-		
+
 	case *ast.List:
 		for _, elem := range e.Elements {
 			findFreeVarsHelper(elem, freeVars, bound)
 		}
-		
+
 	case *ast.Record:
 		for _, field := range e.Fields {
 			findFreeVarsHelper(field.Value, freeVars, bound)
 		}
-		
+
 	case *ast.RecordAccess:
 		findFreeVarsHelper(e.Record, freeVars, bound)
-		
+
 	case *ast.Literal:
 		// Literals don't contain variables
-		
+
 	default:
 		// For other expression types, conservatively assume no free variables
 		// In a real implementation, you'd handle all expression types
@@ -803,24 +803,24 @@ func hasLinearEffects(effectRow *Row) bool {
 	if effectRow == nil {
 		return false
 	}
-	
+
 	// Check for known linear capabilities in effect labels
 	// In a real implementation, this would be configurable
 	linearCapabilities := []string{"FS", "Net", "Time", "Rand", "Console"}
-	
+
 	for _, capName := range linearCapabilities {
 		if _, exists := effectRow.Labels[capName]; exists {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // getLinearCapabilities returns the names of linear capabilities in a type
 func getLinearCapabilities(typ interface{}) []string {
 	var capabilities []string
-	
+
 	switch t := typ.(type) {
 	case *TFunc2:
 		capabilities = append(capabilities, getLinearEffectNames(t.EffectRow)...)
@@ -829,7 +829,7 @@ func getLinearCapabilities(typ interface{}) []string {
 			capabilities = append(capabilities, getLinearEffectNames(funcType.EffectRow)...)
 		}
 	}
-	
+
 	return capabilities
 }
 
@@ -838,15 +838,15 @@ func getLinearEffectNames(effectRow *Row) []string {
 	if effectRow == nil {
 		return nil
 	}
-	
+
 	var linearCaps []string
 	linearCapabilities := []string{"FS", "Net", "Time", "Rand", "Console"}
-	
+
 	for _, capName := range linearCapabilities {
 		if _, exists := effectRow.Labels[capName]; exists {
 			linearCaps = append(linearCaps, capName)
 		}
 	}
-	
+
 	return linearCaps
 }

@@ -33,12 +33,12 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 	if expr == nil {
 		return nil
 	}
-	
+
 	switch e := expr.(type) {
 	// Atomic expressions - always valid
 	case *core.Var, *core.Lit, *core.Lambda, *core.DictRef:
 		return nil
-		
+
 	// Let bindings - value can be complex, body must be verified
 	case *core.Let:
 		// Value can be a simple call or atomic
@@ -47,7 +47,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 		}
 		// Body continues verification
 		return v.verifyExpr(e.Body, topLevel)
-		
+
 	case *core.LetRec:
 		// Each binding value must be simple or atomic (usually lambdas)
 		for _, binding := range e.Bindings {
@@ -57,7 +57,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 		}
 		// Body continues verification
 		return v.verifyExpr(e.Body, topLevel)
-		
+
 	// Complex expressions - must be at top level or let-bound
 	case *core.App:
 		if !topLevel {
@@ -74,7 +74,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			}
 		}
 		return nil
-		
+
 	case *core.BinOp:
 		if !topLevel {
 			return fmt.Errorf("binary operation '%s' must be let-bound in ANF", e.Op)
@@ -87,7 +87,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			return fmt.Errorf("right operand of '%s' must be atomic, got %T", e.Op, e.Right)
 		}
 		return nil
-		
+
 	case *core.UnOp:
 		if !topLevel {
 			return fmt.Errorf("unary operation '%s' must be let-bound in ANF", e.Op)
@@ -97,7 +97,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			return fmt.Errorf("operand of unary '%s' must be atomic, got %T", e.Op, e.Operand)
 		}
 		return nil
-		
+
 	case *core.If:
 		// If can appear anywhere but condition must be atomic
 		if !core.IsAtomic(e.Cond) {
@@ -111,7 +111,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			return fmt.Errorf("if else branch: %w", err)
 		}
 		return nil
-		
+
 	case *core.Match:
 		// Match can appear anywhere but scrutinee must be atomic
 		if !core.IsAtomic(e.Scrutinee) {
@@ -124,7 +124,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			}
 		}
 		return nil
-		
+
 	case *core.Record:
 		if !topLevel {
 			return fmt.Errorf("record construction must be let-bound in ANF")
@@ -136,7 +136,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			}
 		}
 		return nil
-		
+
 	case *core.RecordAccess:
 		if !topLevel {
 			return fmt.Errorf("record field access must be let-bound in ANF")
@@ -146,7 +146,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			return fmt.Errorf("record in field access must be atomic, got %T", e.Record)
 		}
 		return nil
-		
+
 	case *core.List:
 		if !topLevel {
 			return fmt.Errorf("list construction must be let-bound in ANF")
@@ -158,12 +158,12 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			}
 		}
 		return nil
-		
+
 	// Dictionary nodes
 	case *core.DictAbs:
 		// Body continues verification
 		return v.verifyExpr(e.Body, true)
-		
+
 	case *core.DictApp:
 		if !topLevel {
 			return fmt.Errorf("dictionary application must be let-bound in ANF")
@@ -179,7 +179,7 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 			}
 		}
 		return nil
-		
+
 	default:
 		return fmt.Errorf("unknown expression type in ANF verification: %T", expr)
 	}
@@ -191,7 +191,7 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 	if core.IsAtomic(expr) {
 		return nil
 	}
-	
+
 	// Check if it's a simple call with atomic arguments
 	switch e := expr.(type) {
 	case *core.App:
@@ -204,7 +204,7 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 			}
 		}
 		return nil
-		
+
 	case *core.BinOp:
 		if !core.IsAtomic(e.Left) {
 			return fmt.Errorf("left operand must be atomic")
@@ -213,13 +213,13 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 			return fmt.Errorf("right operand must be atomic")
 		}
 		return nil
-		
+
 	case *core.UnOp:
 		if !core.IsAtomic(e.Operand) {
 			return fmt.Errorf("operand must be atomic")
 		}
 		return nil
-		
+
 	case *core.Record:
 		for name, value := range e.Fields {
 			if !core.IsAtomic(value) {
@@ -227,7 +227,7 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 			}
 		}
 		return nil
-		
+
 	case *core.List:
 		for i, elem := range e.Elements {
 			if !core.IsAtomic(elem) {
@@ -235,13 +235,13 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 			}
 		}
 		return nil
-		
+
 	case *core.RecordAccess:
 		if !core.IsAtomic(e.Record) {
 			return fmt.Errorf("record must be atomic")
 		}
 		return nil
-		
+
 	case *core.DictApp:
 		if !core.IsAtomic(e.Dict) {
 			return fmt.Errorf("dictionary must be atomic")
@@ -252,19 +252,19 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 			}
 		}
 		return nil
-		
+
 	// If and Match are control flow, not simple calls
 	case *core.If, *core.Match:
 		return fmt.Errorf("control flow expressions are not simple calls")
-		
+
 	// Let forms are not simple calls
 	case *core.Let, *core.LetRec:
 		return fmt.Errorf("let bindings are not simple calls")
-		
+
 	// DictAbs is not a simple call
 	case *core.DictAbs:
 		return fmt.Errorf("dictionary abstraction is not a simple call")
-		
+
 	default:
 		return fmt.Errorf("expression %T is not atomic or simple call", expr)
 	}
@@ -278,28 +278,25 @@ func VerifyIdempotence(prog *core.Program, resolved map[uint64]*types.ResolvedCo
 	if err != nil {
 		return fmt.Errorf("first transformation failed: %w", err)
 	}
-	
+
 	// Second transformation (should be identity)
 	prog2, err := ElaborateWithDictionaries(prog1, resolved)
 	if err != nil {
 		return fmt.Errorf("second transformation failed: %w", err)
 	}
-	
+
 	// Compare the two programs (simplified check - in practice we'd do deep equality)
 	if !programsEqual(prog1, prog2) {
 		return fmt.Errorf("transformation is not idempotent: second pass produced different result")
 	}
-	
+
 	return nil
 }
 
 // programsEqual does a simplified equality check on Core programs
 // In a real implementation, this would do deep structural equality
 func programsEqual(p1, p2 *core.Program) bool {
-	if len(p1.Decls) != len(p2.Decls) {
-		return false
-	}
 	// For now, we just check that we have the same number of declarations
 	// A full implementation would recursively compare the AST structure
-	return true
+	return len(p1.Decls) == len(p2.Decls)
 }

@@ -60,9 +60,9 @@ func (r *RowVar) Substitute(subs map[string]Type) Type {
 
 // Row represents a row type (for both records and effects)
 type Row struct {
-	Kind   Kind              // KRow(KEffect) or KRow(KRecord)
-	Labels map[string]Type   // For records: field->type, For effects: effect->unit
-	Tail   *RowVar          // Optional row variable for extension
+	Kind   Kind            // KRow(KEffect) or KRow(KRecord)
+	Labels map[string]Type // For records: field->type, For effects: effect->unit
+	Tail   *RowVar         // Optional row variable for extension
 }
 
 func (r *Row) String() string {
@@ -254,20 +254,16 @@ func (t *TRecord2) Substitute(subs map[string]Type) Type {
 
 // Scheme represents a type scheme with quantified variables
 type Scheme struct {
-	TypeVars    []string      // Quantified type variables
-	RowVars     []string      // Quantified row variables
-	Constraints []Constraint  // Type class constraints
+	TypeVars    []string     // Quantified type variables
+	RowVars     []string     // Quantified row variables
+	Constraints []Constraint // Type class constraints
 	Type        Type
 }
 
 func (s *Scheme) String() string {
 	var vars []string
-	for _, v := range s.TypeVars {
-		vars = append(vars, v)
-	}
-	for _, v := range s.RowVars {
-		vars = append(vars, v)
-	}
+	vars = append(vars, s.TypeVars...)
+	vars = append(vars, s.RowVars...)
 
 	prefix := ""
 	if len(vars) > 0 {
@@ -304,7 +300,7 @@ func NewQualifiedScheme(constraints []ClassConstraint, typeVars []string, typ Ty
 			Type:  cc.Type,
 		})
 	}
-	
+
 	return &QualifiedScheme{
 		Constraints: constraints,
 		Scheme: &Scheme{
@@ -320,7 +316,7 @@ func (qs *QualifiedScheme) String() string {
 	if qs.Scheme != nil {
 		return qs.Scheme.String()
 	}
-	
+
 	// Format constraints manually if no scheme
 	if len(qs.Constraints) > 0 {
 		var constraintStrs []string
@@ -335,19 +331,19 @@ func (qs *QualifiedScheme) String() string {
 // Instantiate creates a fresh instance of the type scheme
 func (s *Scheme) Instantiate(fresh func(Kind) Type) Type {
 	subs := make(map[string]Type)
-	
+
 	// Fresh type variables
 	for _, v := range s.TypeVars {
 		subs[v] = fresh(Star)
 	}
-	
+
 	// Fresh row variables for effects
 	for _, v := range s.RowVars {
 		// Determine kind from usage in type
 		// For now, assume effect rows (can be refined)
 		subs[v] = fresh(EffectRow)
 	}
-	
+
 	return s.Type.Substitute(subs)
 }
 

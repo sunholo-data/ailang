@@ -44,7 +44,7 @@ type TypedLambda struct {
 type TypedLet struct {
 	TypedExpr
 	Name   string
-	Scheme interface{}  // *types.Scheme - Generalized type (only here!)
+	Scheme interface{} // *types.Scheme - Generalized type (only here!)
 	Value  TypedNode
 	Body   TypedNode
 }
@@ -59,7 +59,7 @@ type TypedLetRec struct {
 // TypedRecBinding represents a recursive binding with scheme
 type TypedRecBinding struct {
 	Name   string
-	Scheme interface{}  // *types.Scheme - Generalized type for recursive binding
+	Scheme interface{} // *types.Scheme - Generalized type for recursive binding
 	Value  TypedNode
 }
 
@@ -89,7 +89,7 @@ type TypedMatch struct {
 // TypedMatchArm represents a typed match arm
 type TypedMatchArm struct {
 	Pattern TypedPattern
-	Guard   TypedNode  // Optional
+	Guard   TypedNode // Optional
 	Body    TypedNode
 }
 
@@ -138,11 +138,11 @@ type TypedNode interface {
 }
 
 // Implement TypedNode interface for TypedExpr
-func (t TypedExpr) GetNodeID() uint64        { return t.NodeID }
-func (t TypedExpr) GetSpan() ast.Pos         { return t.Span }
-func (t TypedExpr) GetType() interface{}     { return t.Type }
+func (t TypedExpr) GetNodeID() uint64         { return t.NodeID }
+func (t TypedExpr) GetSpan() ast.Pos          { return t.Span }
+func (t TypedExpr) GetType() interface{}      { return t.Type }
 func (t TypedExpr) GetEffectRow() interface{} { return t.EffectRow }
-func (t TypedExpr) GetCore() core.CoreExpr   { return t.Core }
+func (t TypedExpr) GetCore() core.CoreExpr    { return t.Core }
 
 // String methods for typed nodes
 func (t TypedVar) String() string { return t.Name }
@@ -208,14 +208,14 @@ type TypedVarPattern struct {
 	Type interface{} // types.Type
 }
 
-func (p TypedVarPattern) patternNode() {}
+func (p TypedVarPattern) patternNode()   {}
 func (p TypedVarPattern) String() string { return p.Name }
 
 type TypedLitPattern struct {
 	Value interface{}
 }
 
-func (p TypedLitPattern) patternNode() {}
+func (p TypedLitPattern) patternNode()   {}
 func (p TypedLitPattern) String() string { return fmt.Sprintf("%v", p.Value) }
 
 type TypedConstructorPattern struct {
@@ -230,7 +230,7 @@ func (p TypedConstructorPattern) String() string {
 
 type TypedWildcardPattern struct{}
 
-func (p TypedWildcardPattern) patternNode() {}
+func (p TypedWildcardPattern) patternNode()   {}
 func (p TypedWildcardPattern) String() string { return "_" }
 
 // TypedProgram represents a typed program

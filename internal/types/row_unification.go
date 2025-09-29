@@ -101,14 +101,14 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 		} else {
 			// Different row variables - create fresh var for remainder
 			fresh := ru.freshRowVar(r1.Kind)
-			
+
 			// r1.Tail := only2 ∪ fresh
 			sub[r1.Tail.Name] = &Row{
 				Kind:   r1.Kind,
 				Labels: only2,
 				Tail:   fresh,
 			}
-			
+
 			// r2.Tail := only1 ∪ fresh
 			sub[r2.Tail.Name] = &Row{
 				Kind:   r2.Kind,

@@ -48,35 +48,35 @@ const (
 	TIMEOUT
 
 	// Operators
-	PLUS     // +
-	MINUS    // -
-	STAR     // *
-	SLASH    // /
-	PERCENT  // %
-	EQ       // ==
-	NEQ      // !=
-	LT       // <
-	GT       // >
-	LTE      // <=
-	GTE      // >=
-	AND      // &&
-	OR       // ||
-	NOT      // not
-	ARROW    // ->
-	FARROW   // =>
-	LARROW   // <-
-	PIPE     // |
-	APPEND   // ++
-	CONS     // ::
-	COMPOSE  // .
-	BANG     // !
-	QUESTION // ?
-	AT       // @
-	DOLLAR   // $
-	HASH     // #
-	ASSIGN   // =
-	COLON    // :
-	DCOLON   // ::
+	PLUS      // +
+	MINUS     // -
+	STAR      // *
+	SLASH     // /
+	PERCENT   // %
+	EQ        // ==
+	NEQ       // !=
+	LT        // <
+	GT        // >
+	LTE       // <=
+	GTE       // >=
+	AND       // &&
+	OR        // ||
+	NOT       // not
+	ARROW     // ->
+	FARROW    // =>
+	LARROW    // <-
+	PIPE      // |
+	APPEND    // ++
+	CONS      // ::
+	COMPOSE   // .
+	BANG      // !
+	QUESTION  // ?
+	AT        // @
+	DOLLAR    // $
+	HASH      // #
+	ASSIGN    // =
+	COLON     // :
+	DCOLON    // ::
 	BACKSLASH // \
 
 	// Delimiters
@@ -150,35 +150,35 @@ var tokens = map[TokenType]string{
 	RECV:     "recv",
 	TIMEOUT:  "timeout",
 
-	PLUS:     "+",
-	MINUS:    "-",
-	STAR:     "*",
-	SLASH:    "/",
-	PERCENT:  "%",
-	EQ:       "==",
-	NEQ:      "!=",
-	LT:       "<",
-	GT:       ">",
-	LTE:      "<=",
-	GTE:      ">=",
-	AND:      "&&",
-	OR:       "||",
-	NOT:      "not",
-	ARROW:    "->",
-	FARROW:   "=>",
-	LARROW:   "<-",
-	PIPE:     "|",
-	APPEND:   "++",
-	CONS:     "::",
-	COMPOSE:  ".",
-	BANG:     "!",
-	QUESTION: "?",
-	AT:       "@",
-	DOLLAR:   "$",
-	HASH:     "#",
-	ASSIGN:   "=",
-	COLON:    ":",
-	DCOLON:   "::",
+	PLUS:      "+",
+	MINUS:     "-",
+	STAR:      "*",
+	SLASH:     "/",
+	PERCENT:   "%",
+	EQ:        "==",
+	NEQ:       "!=",
+	LT:        "<",
+	GT:        ">",
+	LTE:       "<=",
+	GTE:       ">=",
+	AND:       "&&",
+	OR:        "||",
+	NOT:       "not",
+	ARROW:     "->",
+	FARROW:    "=>",
+	LARROW:    "<-",
+	PIPE:      "|",
+	APPEND:    "++",
+	CONS:      "::",
+	COMPOSE:   ".",
+	BANG:      "!",
+	QUESTION:  "?",
+	AT:        "@",
+	DOLLAR:    "$",
+	HASH:      "#",
+	ASSIGN:    "=",
+	COLON:     ":",
+	DCOLON:    "::",
 	BACKSLASH: "\\",
 
 	LPAREN:    "(",
@@ -321,23 +321,23 @@ func (t Token) IsKeyword() bool {
 func (t Token) Precedence() int {
 	switch t.Type {
 	case BACKSLASH:
-		return 1  // LAMBDA - lowest precedence
+		return 1 // LAMBDA - lowest precedence
 	case OR:
-		return 2  // LOGICAL_OR
+		return 2 // LOGICAL_OR
 	case AND:
-		return 3  // LOGICAL_AND
+		return 3 // LOGICAL_AND
 	case EQ, NEQ:
-		return 4  // EQUALS
+		return 4 // EQUALS
 	case LT, GT, LTE, GTE:
-		return 5  // LESSGREATER
+		return 5 // LESSGREATER
 	case APPEND:
-		return 6  // APPEND (++ string concatenation)
+		return 6 // APPEND (++ string concatenation)
 	case PLUS, MINUS:
-		return 7  // SUM
+		return 7 // SUM
 	case STAR, SLASH, PERCENT:
-		return 8  // PRODUCT
+		return 8 // PRODUCT
 	case NOT:
-		return 9  // PREFIX (unary operators)
+		return 9 // PREFIX (unary operators)
 	case LPAREN:
 		return 10 // CALL (function application)
 	case DOT:

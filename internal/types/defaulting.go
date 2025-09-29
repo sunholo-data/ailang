@@ -8,17 +8,17 @@ import (
 
 // DefaultingTrace records when numeric defaulting occurs
 type DefaultingTrace struct {
-	TypeVar   string   // The type variable being defaulted
-	ClassName string   // The class constraint (Num, Fractional, etc.)
-	Default   Type     // The chosen default type
-	Location  string   // Source location
+	TypeVar   string // The type variable being defaulted
+	ClassName string // The class constraint (Num, Fractional, etc.)
+	Default   Type   // The chosen default type
+	Location  string // Source location
 }
 
 // DefaultingConfig controls numeric literal defaulting
 type DefaultingConfig struct {
-	Enabled    bool              // Whether defaulting is enabled
-	Defaults   map[string]Type   // Class -> default type mapping
-	Traces     []DefaultingTrace // Record of defaulting decisions
+	Enabled  bool              // Whether defaulting is enabled
+	Defaults map[string]Type   // Class -> default type mapping
+	Traces   []DefaultingTrace // Record of defaulting decisions
 }
 
 // NewDefaultingConfig creates a standard defaulting configuration
@@ -50,10 +50,10 @@ func FormatDefaultingTraces(traces []DefaultingTrace) string {
 	if len(traces) == 0 {
 		return ""
 	}
-	
+
 	var lines []string
 	lines = append(lines, "Numeric defaulting applied:")
-	
+
 	// Sort for deterministic output
 	sort.Slice(traces, func(i, j int) bool {
 		if traces[i].Location != traces[j].Location {
@@ -61,7 +61,7 @@ func FormatDefaultingTraces(traces []DefaultingTrace) string {
 		}
 		return traces[i].TypeVar < traces[j].TypeVar
 	})
-	
+
 	for _, trace := range traces {
 		lines = append(lines, fmt.Sprintf("  • %s: %s[%s] defaulted to %s",
 			trace.Location,
@@ -70,7 +70,7 @@ func FormatDefaultingTraces(traces []DefaultingTrace) string {
 			trace.Default.String(),
 		))
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 

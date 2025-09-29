@@ -1,9 +1,9 @@
 package typedast
 
 import (
-	"testing"
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"testing"
 )
 
 func TestTypedExpr(t *testing.T) {

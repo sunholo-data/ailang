@@ -23,7 +23,6 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
-
 // Color functions for pretty output
 var (
 	green  = color.New(color.FgGreen).SprintFunc()
@@ -94,17 +93,17 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	// Create liner instance for readline functionality
 	line := liner.NewLiner()
 	defer line.Close()
-	
+
 	// Set up history file
 	historyFile := filepath.Join(os.TempDir(), ".ailang_history")
 	if f, err := os.Open(historyFile); err == nil {
-		line.ReadHistory(f)
+		_, _ = line.ReadHistory(f) // Ignore error as history is optional
 		f.Close()
 	}
-	
+
 	// Enable multiline mode
 	line.SetMultiLineMode(true)
-	
+
 	// Print welcome message with dynamic version
 	versionStr := r.version
 	if versionStr == "" || versionStr == "dev" {
@@ -125,15 +124,15 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 
 	// Initialize built-in instances
 	r.initBuiltins()
-	
+
 	// Auto-import prelude for convenience
 	r.importModule("std/prelude", io.Discard)
 
 	// Add command completion
 	line.SetCompleter(func(line string) (c []string) {
 		if strings.HasPrefix(line, ":") {
-			commands := []string{":help", ":quit", ":type", ":import", ":dump-core", 
-				":dump-typed", ":dry-link", ":trace-defaulting", ":instances", 
+			commands := []string{":help", ":quit", ":type", ":import", ":dump-core",
+				":dump-typed", ":dry-link", ":trace-defaulting", ":instances",
 				":history", ":clear", ":reset"}
 			for _, cmd := range commands {
 				if strings.HasPrefix(cmd, line) {
@@ -165,13 +164,13 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 
 		// Check if input needs continuation (ends with "in" or other indicators)
 		needsContinuation := strings.HasSuffix(input, " in") || strings.HasSuffix(input, "\tin")
-		
+
 		// Multi-line input support
 		if needsContinuation {
 			// Continue reading lines until we get a complete expression
 			var lines []string
 			lines = append(lines, input)
-			
+
 			for {
 				contInput, err := line.Prompt("... ")
 				if err == io.EOF {
@@ -182,9 +181,9 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 					fmt.Fprintf(out, "%s: %v\n", red("Error"), err)
 					break
 				}
-				
+
 				lines = append(lines, contInput)
-				
+
 				// Check if we have a complete expression
 				// For now, just check if the line is non-empty and doesn't end with certain keywords
 				trimmed := strings.TrimSpace(contInput)
@@ -192,13 +191,13 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 					break
 				}
 			}
-			
+
 			input = strings.Join(lines, "\n")
 		}
 
 		// Add to liner history
 		line.AppendHistory(input)
-		
+
 		// Add to our internal history
 		r.history = append(r.history, input)
 
@@ -216,10 +215,10 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 		// Process expression through full pipeline
 		r.processExpression(input, out)
 	}
-	
+
 	// Save history before exiting
 	if f, err := os.Create(historyFile); err == nil {
-		line.WriteHistory(f)
+		_, _ = line.WriteHistory(f) // Ignore error as history is optional
 		f.Close()
 	}
 }
@@ -240,7 +239,7 @@ func (r *REPL) initBuiltins() {
 			return &eval.IntValue{Value: int(f(int64(x.Value), int64(y.Value)))}, nil
 		}
 	}
-	
+
 	wrapFloat2 := func(f func(float64, float64) float64) func([]eval.Value) (eval.Value, error) {
 		return func(args []eval.Value) (eval.Value, error) {
 			if len(args) != 2 {
@@ -254,7 +253,7 @@ func (r *REPL) initBuiltins() {
 			return &eval.FloatValue{Value: f(x.Value, y.Value)}, nil
 		}
 	}
-	
+
 	wrapFloat1 := func(f func(float64) float64) func([]eval.Value) (eval.Value, error) {
 		return func(args []eval.Value) (eval.Value, error) {
 			if len(args) != 1 {
@@ -267,7 +266,7 @@ func (r *REPL) initBuiltins() {
 			return &eval.FloatValue{Value: f(x.Value)}, nil
 		}
 	}
-	
+
 	wrapIntCmp2 := func(f func(int64, int64) bool) func([]eval.Value) (eval.Value, error) {
 		return func(args []eval.Value) (eval.Value, error) {
 			if len(args) != 2 {
@@ -281,7 +280,7 @@ func (r *REPL) initBuiltins() {
 			return &eval.BoolValue{Value: f(int64(x.Value), int64(y.Value))}, nil
 		}
 	}
-	
+
 	wrapFloatCmp2 := func(f func(float64, float64) bool) func([]eval.Value) (eval.Value, error) {
 		return func(args []eval.Value) (eval.Value, error) {
 			if len(args) != 2 {
@@ -295,7 +294,7 @@ func (r *REPL) initBuiltins() {
 			return &eval.BoolValue{Value: f(x.Value, y.Value)}, nil
 		}
 	}
-	
+
 	// Register built-in instances with wrapped methods as BuiltinFunction
 	r.instances["Num[Int]"] = core.DictValue{
 		TypeClass: "Num",
@@ -303,7 +302,7 @@ func (r *REPL) initBuiltins() {
 		Methods: map[string]interface{}{
 			"add": &eval.BuiltinFunction{
 				Name: "add",
-				Fn:   wrapInt2(func(a, b int64) int64 { 
+				Fn: wrapInt2(func(a, b int64) int64 {
 					result := a + b
 					// Integer addition
 					return result
@@ -315,7 +314,7 @@ func (r *REPL) initBuiltins() {
 			},
 			"mul": &eval.BuiltinFunction{
 				Name: "mul",
-				Fn:   wrapInt2(func(a, b int64) int64 { 
+				Fn: wrapInt2(func(a, b int64) int64 {
 					result := a * b
 					// Integer multiplication
 					return result
@@ -355,8 +354,11 @@ func (r *REPL) initBuiltins() {
 			"mul": &eval.BuiltinFunction{Name: "mul", Fn: wrapFloat2(func(a, b float64) float64 { return a * b })},
 			"div": &eval.BuiltinFunction{Name: "div", Fn: wrapFloat2(func(a, b float64) float64 { return a / b })},
 			"neg": &eval.BuiltinFunction{Name: "neg", Fn: wrapFloat1(func(a float64) float64 { return -a })},
-			"abs": &eval.BuiltinFunction{Name: "abs", Fn: wrapFloat1(func(a float64) float64 { 
-				if a < 0 { return -a }; return a 
+			"abs": &eval.BuiltinFunction{Name: "abs", Fn: wrapFloat1(func(a float64) float64 {
+				if a < 0 {
+					return -a
+				}
+				return a
 			})},
 			"fromInt": &eval.BuiltinFunction{Name: "fromInt", Fn: func(args []eval.Value) (eval.Value, error) {
 				if len(args) != 1 {
@@ -369,7 +371,7 @@ func (r *REPL) initBuiltins() {
 			}},
 			// Fractional-specific methods
 			"divide": &eval.BuiltinFunction{Name: "divide", Fn: wrapFloat2(func(a, b float64) float64 { return a / b })},
-			"recip": &eval.BuiltinFunction{Name: "recip", Fn: wrapFloat1(func(a float64) float64 { return 1.0 / a })},
+			"recip":  &eval.BuiltinFunction{Name: "recip", Fn: wrapFloat1(func(a float64) float64 { return 1.0 / a })},
 			"fromRational": &eval.BuiltinFunction{Name: "fromRational", Fn: func(args []eval.Value) (eval.Value, error) {
 				// For now, just convert from float (simplified)
 				if len(args) != 1 {
@@ -427,7 +429,7 @@ func (r *REPL) initBuiltins() {
 
 	r.instances["Ord[Float]"] = core.DictValue{
 		TypeClass: "Ord",
-		Type:      "Float", 
+		Type:      "Float",
 		Methods: map[string]interface{}{
 			"lt":  &eval.BuiltinFunction{Name: "lt", Fn: wrapFloatCmp2(func(a, b float64) bool { return a < b })},
 			"lte": &eval.BuiltinFunction{Name: "lte", Fn: wrapFloatCmp2(func(a, b float64) bool { return a <= b })},
@@ -462,7 +464,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 		fmt.Fprintf(out, "%s: %v\n", red("Elaboration error"), err)
 		return
 	}
-	
+
 	// Extract the first declaration as an expression
 	if len(coreProg.Decls) == 0 {
 		fmt.Fprintln(out, yellow("Empty expression"))
@@ -478,7 +480,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	// Step 3: Type check with constraints
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
-	
+
 	typedNode, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Type error"), err)
@@ -491,23 +493,23 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	// Step 4: Dictionary elaboration (resolve constraints to dictionaries)
 	// Get resolved constraints from the type checker - this also triggers defaulting
 	resolved := typeChecker.GetResolvedConstraints()
-	
+
 	// CRITICAL FIX: Manually call fillOperatorMethods to set correct method names
 	// The REPL's InferWithConstraints doesn't call this automatically
 	// Fill operator methods manually for dictionary elaboration
 	typeChecker.FillOperatorMethods(coreExpr)
-	
+
 	// Get the final type after defaulting - prefer concrete types from post-defaulting
 	typeToDisplay := r.getFinalTypeAfterDefaulting(typedNode, qualType, resolved)
-	
+
 	// Pretty print the final type
 	prettyType := r.normalizeTypeName(typeToDisplay)
-	
+
 	if r.config.ShowTyped {
 		fmt.Fprintf(out, "%s\n", dim("Typed AST:"))
 		fmt.Fprintln(out, formatTyped(typedNode, "  "))
 	}
-	
+
 	// Create a temporary program for elaboration
 	tempProg := &core.Program{Decls: []core.CoreExpr{coreExpr}}
 	elaboratedProg, err := elaborate.ElaborateWithDictionaries(tempProg, resolved)
@@ -516,7 +518,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 		r.suggestMissingInstances(constraints, out)
 		return
 	}
-	
+
 	// Extract the elaborated expression
 	if len(elaboratedProg.Decls) == 0 {
 		fmt.Fprintln(out, yellow("Empty result after elaboration"))
@@ -532,7 +534,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 
 	// Step 6: Link dictionaries
 	linker := link.NewLinker()
-	
+
 	// Add instances to linker with canonical keys
 	r.registerDictionariesForLinker(linker)
 
@@ -556,7 +558,7 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 
 	// Step 7: Evaluate
 	evaluator := eval.NewCoreEvaluator()
-	
+
 	// Add dictionaries to evaluator with canonical keys
 	r.registerDictionariesForEvaluator(evaluator)
 
@@ -573,21 +575,20 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
 }
 
-
 // prettyPrintQualifiedType formats a type with its constraints
 func (r *REPL) prettyPrintQualifiedType(typ types.Type, constraints []types.Constraint) string {
 	var parts []string
-	
+
 	// Collect type variables
 	typeVars := collectTypeVars(typ)
-	
+
 	if len(typeVars) > 0 || len(constraints) > 0 {
 		// Add quantifier
 		if len(typeVars) > 0 {
 			varList := strings.Join(typeVars, " ")
 			parts = append(parts, fmt.Sprintf("∀%s.", varList))
 		}
-		
+
 		// Add constraints
 		if len(constraints) > 0 {
 			var constraintStrs []string
@@ -597,10 +598,10 @@ func (r *REPL) prettyPrintQualifiedType(typ types.Type, constraints []types.Cons
 			parts = append(parts, fmt.Sprintf("%s ⇒", strings.Join(constraintStrs, ", ")))
 		}
 	}
-	
+
 	// Add the type
 	parts = append(parts, formatType(typ))
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -727,17 +728,17 @@ func (r *REPL) runTestsJSON(out io.Writer) {
 	// Create a new test runner with current time
 	startTime := time.Now()
 	report := test.NewReport()
-	
+
 	// TODO: Discover and run actual tests
 	// For now, create empty report
 	report.Finalize(startTime)
-	
+
 	jsonData, err := report.ToJSON()
 	if err != nil {
 		fmt.Fprintf(out, red("Error generating test report: %v\n"), err)
 		return
 	}
-	
+
 	fmt.Fprintln(out, string(jsonData))
 }
 
@@ -760,7 +761,7 @@ func (r *REPL) showType(input string, out io.Writer) {
 		fmt.Fprintf(out, "%s: %v\n", red("Elaboration error"), err)
 		return
 	}
-	
+
 	if len(coreProg.Decls) == 0 {
 		fmt.Fprintln(out, yellow("Invalid expression"))
 		return
@@ -770,7 +771,7 @@ func (r *REPL) showType(input string, out io.Writer) {
 	// Type check with instance environment for defaulting
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
-	
+
 	typedNode, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Type error"), err)
@@ -779,10 +780,10 @@ func (r *REPL) showType(input string, out io.Writer) {
 
 	// Get resolved constraints to trigger defaulting
 	resolved := typeChecker.GetResolvedConstraints()
-	
+
 	// Get the final type after defaulting
 	finalType := r.getFinalTypeAfterDefaulting(typedNode, qualType, resolved)
-	
+
 	// Pretty print the final type
 	prettyType := r.prettyPrintFinalType(finalType, constraints)
 	fmt.Fprintf(out, "%s :: %s\n", input, cyan(prettyType))
@@ -794,61 +795,61 @@ func (r *REPL) importModule(module string, out io.Writer) {
 	case "std/prelude":
 		// Add standard prelude instances
 		fmt.Fprintf(out, "Importing %s...\n", module)
-		
+
 		// Set type-level defaults for numeric literals
 		r.instEnv.SetDefault("Num", &types.TCon{Name: "int"})
 		r.instEnv.SetDefault("Fractional", &types.TCon{Name: "float"})
-		
+
 		// Add type-level instances
 		// Num instances
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Num",
 			TypeHead:  &types.TCon{Name: "int"},
 			Dict:      types.Dict{"add": "", "sub": "", "mul": "", "div": ""},
 		})
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Num",
 			TypeHead:  &types.TCon{Name: "float"},
 			Dict:      types.Dict{"add": "", "sub": "", "mul": "", "div": ""},
 		})
-		
+
 		// Fractional instances (extends Num)
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Fractional",
 			TypeHead:  &types.TCon{Name: "float"},
 			Dict:      types.Dict{"add": "", "sub": "", "mul": "", "div": ""},
 			Super:     []string{"Num"},
 		})
-		
+
 		// Eq instances
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Eq",
 			TypeHead:  &types.TCon{Name: "int"},
 			Dict:      types.Dict{"eq": "", "neq": ""},
 		})
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Eq",
 			TypeHead:  &types.TCon{Name: "float"},
 			Dict:      types.Dict{"eq": "", "neq": ""},
 		})
-		
+
 		// Ord instances (with superclass Eq)
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Ord",
 			TypeHead:  &types.TCon{Name: "int"},
 			Dict:      types.Dict{"lt": "", "lte": "", "gt": "", "gte": ""},
 			Super:     []string{"Eq"},
 		})
-		r.instEnv.Add(&types.ClassInstance{
+		_ = r.instEnv.Add(&types.ClassInstance{
 			ClassName: "Ord",
 			TypeHead:  &types.TCon{Name: "float"},
 			Dict:      types.Dict{"lt": "", "lte": "", "gt": "", "gte": ""},
 			Super:     []string{"Eq"},
 		})
-		
+
 		// Re-initialize runtime dictionaries to ensure they're loaded
 		r.initBuiltins()
-		
+
 		// Show instances (already using normalized names)
 		r.instances["Show[Int]"] = core.DictValue{
 			TypeClass: "Show",
@@ -857,7 +858,7 @@ func (r *REPL) importModule(module string, out io.Writer) {
 				"show": func(a int64) string { return fmt.Sprintf("%d", a) },
 			},
 		}
-		
+
 		r.instances["Show[Float]"] = core.DictValue{
 			TypeClass: "Show",
 			Type:      "Float",
@@ -865,22 +866,22 @@ func (r *REPL) importModule(module string, out io.Writer) {
 				"show": func(a float64) string { return fmt.Sprintf("%g", a) },
 			},
 		}
-		
+
 		r.instances["Show[String]"] = core.DictValue{
-			TypeClass: "Show", 
+			TypeClass: "Show",
 			Type:      "String",
 			Methods: map[string]interface{}{
 				"show": func(s string) string { return fmt.Sprintf("%q", s) },
 			},
 		}
-		
+
 		r.instances["Show[Bool]"] = core.DictValue{
 			TypeClass: "Show",
 			Type:      "Bool",
 			Methods: map[string]interface{}{
-				"show": func(b bool) string { 
+				"show": func(b bool) string {
 					if b {
-						return "true" 
+						return "true"
 					}
 					return "false"
 				},
@@ -889,7 +890,7 @@ func (r *REPL) importModule(module string, out io.Writer) {
 
 		r.config.ImportedModules = append(r.config.ImportedModules, module)
 		fmt.Fprintf(out, "%s Imported %s\n", green("✓"), module)
-		
+
 	default:
 		fmt.Fprintf(out, "%s: Unknown module %s\n", red("Error"), module)
 	}
@@ -898,7 +899,7 @@ func (r *REPL) importModule(module string, out io.Writer) {
 // showInstances displays available type class instances
 func (r *REPL) showInstances(out io.Writer) {
 	fmt.Fprintln(out, bold("Available instances:"))
-	
+
 	// Group by type class
 	byClass := make(map[string][]string)
 	for key := range r.instances {
@@ -908,7 +909,7 @@ func (r *REPL) showInstances(out io.Writer) {
 			byClass[className] = append(byClass[className], key)
 		}
 	}
-	
+
 	for className, instances := range byClass {
 		fmt.Fprintf(out, "  %s:\n", yellow(className))
 		for _, inst := range instances {
@@ -985,7 +986,7 @@ func (r *REPL) suggestMissingInstances(constraints []types.Constraint, out io.Wr
 		key := constraintToKey(c)
 		if _, exists := r.instances[key]; !exists {
 			fmt.Fprintf(out, "  • %s\n", key)
-			
+
 			// Suggest import if in prelude
 			if isInPrelude(key) {
 				fmt.Fprintf(out, "    %s\n", dim("Try: :import std/prelude"))
@@ -1013,7 +1014,7 @@ func formatCore(expr core.CoreExpr, indent string) string {
 			}
 			args += formatCore(arg, indent+"  ")
 		}
-		return fmt.Sprintf("%sApp(\n%s,\n%s)", indent, 
+		return fmt.Sprintf("%sApp(\n%s,\n%s)", indent,
 			formatCore(e.Func, indent+"  "), args)
 	case *core.Let:
 		return fmt.Sprintf("%sLet(%s) =\n%s\n%sin\n%s", indent, e.Name,
@@ -1029,10 +1030,10 @@ func formatCore(expr core.CoreExpr, indent string) string {
 func formatTyped(expr typedast.TypedNode, indent string) string {
 	// Format TypedAST for display
 	typ := expr.GetType()
-	
+
 	// Convert interface{} to string for display
 	typeStr := fmt.Sprintf("%v", typ)
-	
+
 	switch e := expr.(type) {
 	case *typedast.TypedVar:
 		return fmt.Sprintf("%sVar(%s : %s)", indent, e.Name, typeStr)
@@ -1110,7 +1111,7 @@ func formatType(t types.Type) string {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		
+
 		fields := make([]string, len(keys))
 		for i, k := range keys {
 			fields[i] = fmt.Sprintf("%s: %s", k, formatType(typ.Fields[k]))
@@ -1128,7 +1129,7 @@ func formatConstraint(c types.Constraint) string {
 func collectTypeVars(t types.Type) []string {
 	vars := make(map[string]bool)
 	collectVarsHelper(t, vars)
-	
+
 	var result []string
 	for v := range vars {
 		result = append(result, v)
@@ -1170,7 +1171,7 @@ func isInPrelude(key string) bool {
 		"Read[Int]", "Read[Float]", "Read[String]",
 		"Enum[Int]", "Bounded[Int]", "Bounded[Bool]",
 	}
-	
+
 	for _, inst := range preludeInstances {
 		if inst == key {
 			return true
@@ -1184,10 +1185,10 @@ func (r *REPL) registerDictionariesForLinker(linker *link.Linker) {
 	for _, dict := range r.instances {
 		// Convert "Num[Int]" to canonical keys like "prelude::Num::Int::add"
 		className := dict.TypeClass
-		
+
 		// Create a proper Type for key generation
 		typeForKey := &types.TCon{Name: dict.Type}
-		
+
 		// Register each method with its canonical key
 		for methodName := range dict.Methods {
 			canonicalKey := types.MakeDictionaryKey("prelude", className, typeForKey, methodName)
@@ -1201,16 +1202,16 @@ func (r *REPL) registerDictionariesForEvaluator(evaluator *eval.CoreEvaluator) {
 	for _, dict := range r.instances {
 		// Convert "Num[Int]" to canonical keys like "prelude::Num::Int::add"
 		className := dict.TypeClass
-		
+
 		// Create a proper Type for key generation
 		typeForKey := &types.TCon{Name: dict.Type}
-		
+
 		// Register each method with its canonical key
 		for methodName := range dict.Methods {
 			canonicalKey := types.MakeDictionaryKey("prelude", className, typeForKey, methodName)
 			evaluator.AddDictionary(canonicalKey, dict)
 		}
-		
+
 		// Also register the base dictionary for lookups (no method name)
 		baseKey := types.MakeDictionaryKey("prelude", className, typeForKey, "")
 		evaluator.AddDictionary(baseKey, dict)
@@ -1223,13 +1224,13 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 	if r.config.TraceDefaulting {
 		// Getting final type after constraint resolution
 	}
-	
+
 	// Strategy: Prefer concrete types over type variables, in this order:
 	// 1. Concrete TCon from typedNode.GetType() (if not a TVar)
 	// 2. Concrete type from resolved constraints for this node ID
 	// 3. Any concrete type from resolved constraints (from defaulting)
 	// 4. Fallback to qualType
-	
+
 	// First check if the typed node already has a concrete type
 	nodeType := typedNode.GetType()
 	if t, ok := nodeType.(types.Type); ok {
@@ -1239,7 +1240,7 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 			return typ
 		}
 	}
-	
+
 	// If we have resolved constraints, look for concrete types
 	if resolved != nil && len(resolved) > 0 {
 		// Check if the root node has a defaulted type
@@ -1248,7 +1249,7 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 				return con
 			}
 		}
-		
+
 		// Look for any resolved constraint with a concrete type from defaulting
 		for _, rc := range resolved {
 			if rc.Type != nil {
@@ -1259,7 +1260,7 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 			}
 		}
 	}
-	
+
 	// Fall back to the original qualified type
 	return qualType
 }
@@ -1268,13 +1269,13 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 func (r *REPL) prettyPrintFinalType(typ types.Type, constraints []types.Constraint) string {
 	// First normalize the type name
 	normalizedType := r.normalizeTypeName(typ)
-	
+
 	// If there are no remaining constraints, just return the type
 	remainingConstraints := r.filterResolvedConstraints(constraints, typ)
 	if len(remainingConstraints) == 0 {
 		return normalizedType
 	}
-	
+
 	// Format with remaining constraints
 	var parts []string
 	for _, c := range remainingConstraints {
@@ -1321,14 +1322,14 @@ func (r *REPL) normalizeTypeName(typ types.Type) string {
 // filterResolvedConstraints removes constraints that have been resolved via defaulting
 func (r *REPL) filterResolvedConstraints(constraints []types.Constraint, finalType types.Type) []types.Constraint {
 	var remaining []types.Constraint
-	
+
 	// If the final type is concrete, all constraints have been resolved
 	switch finalType.(type) {
 	case *types.TCon:
 		// Concrete type - all constraints resolved
 		return remaining
 	}
-	
+
 	// Otherwise keep constraints on remaining type variables
 	for _, c := range constraints {
 		if _, ok := c.Type.(*types.TVar); ok {
@@ -1337,6 +1338,6 @@ func (r *REPL) filterResolvedConstraints(constraints []types.Constraint, finalTy
 			remaining = append(remaining, c)
 		}
 	}
-	
+
 	return remaining
 }

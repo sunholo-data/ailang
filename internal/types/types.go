@@ -69,7 +69,7 @@ func (t *TFunc) String() string {
 	for i, p := range t.Params {
 		params[i] = p.String()
 	}
-	
+
 	effectStr := ""
 	if len(t.Effects) > 0 {
 		effects := make([]string, len(t.Effects))
@@ -78,7 +78,7 @@ func (t *TFunc) String() string {
 		}
 		effectStr = fmt.Sprintf(" ! {%s}", strings.Join(effects, ", "))
 	}
-	
+
 	if len(params) == 1 {
 		return fmt.Sprintf("%s -> %s%s", params[0], t.Return.String(), effectStr)
 	}
@@ -191,11 +191,11 @@ func (t *TRecord) String() string {
 	for name, typ := range t.Fields {
 		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
 	}
-	
+
 	if t.Row != nil {
 		fields = append(fields, fmt.Sprintf("...%s", t.Row.String()))
 	}
-	
+
 	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
 }
 
@@ -226,12 +226,12 @@ func (t *TRecord) Substitute(subs map[string]Type) Type {
 	for name, typ := range t.Fields {
 		fields[name] = typ.Substitute(subs)
 	}
-	
+
 	var row Type
 	if t.Row != nil {
 		row = t.Row.Substitute(subs)
 	}
-	
+
 	return &TRecord{Fields: fields, Row: row}
 }
 
@@ -311,11 +311,11 @@ func (e *EffectRowOld) String() string {
 	for i, eff := range e.Effects {
 		effects[i] = eff.String()
 	}
-	
+
 	if e.Row != nil {
 		effects = append(effects, fmt.Sprintf("...%s", e.Row.String()))
 	}
-	
+
 	return fmt.Sprintf("{%s}", strings.Join(effects, ", "))
 }
 
@@ -453,12 +453,12 @@ func (q *Qualified) String() string {
 	if len(q.Constraints) == 0 {
 		return q.Type.String()
 	}
-	
+
 	constraints := make([]string, len(q.Constraints))
 	for i, c := range q.Constraints {
 		constraints[i] = c.String()
 	}
-	
+
 	return fmt.Sprintf("(%s) => %s", strings.Join(constraints, ", "), q.Type.String())
 }
 

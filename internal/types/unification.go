@@ -258,7 +258,7 @@ func (u *Unifier) kindsCompatible(k1, k2 Kind) bool {
 
 // ApplySubstitution applies a substitution to a type
 func ApplySubstitution(sub Substitution, t Type) Type {
-	if sub == nil || len(sub) == 0 {
+	if len(sub) == 0 {
 		return t
 	}
 	return t.Substitute(sub)
@@ -267,18 +267,18 @@ func ApplySubstitution(sub Substitution, t Type) Type {
 // ComposeSubstitutions composes two substitutions
 func ComposeSubstitutions(s1, s2 Substitution) Substitution {
 	result := make(Substitution)
-	
+
 	// Apply s2 to all values in s1
 	for k, v := range s1 {
 		result[k] = ApplySubstitution(s2, v)
 	}
-	
+
 	// Add all mappings from s2 not in s1
 	for k, v := range s2 {
 		if _, ok := result[k]; !ok {
 			result[k] = v
 		}
 	}
-	
+
 	return result
 }

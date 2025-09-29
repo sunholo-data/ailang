@@ -2,16 +2,16 @@ package types
 
 import (
 	"fmt"
-	"strings"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
+	"strings"
 )
 
 // CoreTypeChecker type checks Core AST and produces TypedAST
 type CoreTypeChecker struct {
-	instanceEnv         *InstanceEnv                   // Type class instances
-	defaultingConfig    *DefaultingConfig              // Numeric defaulting configuration
-	debugMode           bool                           // Enable debug output
+	instanceEnv         *InstanceEnv      // Type class instances
+	defaultingConfig    *DefaultingConfig // Numeric defaulting configuration
+	debugMode           bool              // Enable debug output
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
 }
@@ -31,10 +31,10 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	// Set up default types for numeric literals
 	instanceEnv.SetDefault("Num", &TCon{Name: "int"})
 	instanceEnv.SetDefault("Fractional", &TCon{Name: "float"})
-	
+
 	return &CoreTypeChecker{
 		instanceEnv:         instanceEnv,
-		defaultingConfig:    NewDefaultingConfig(),                   // Standard defaulting config
+		defaultingConfig:    NewDefaultingConfig(), // Standard defaulting config
 		debugMode:           false,
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
@@ -79,16 +79,16 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
 	}
-	
+
 	// Infer type
 	typedNode, _, err := tc.inferCore(ctx, expr)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	
+
 	// Get the inferred type
 	inferredType := typedNode.GetType()
-	
+
 	// Apply substitution if we have one
 	var finalType Type
 	if typ, ok := inferredType.(Type); ok {
@@ -96,7 +96,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	} else {
 		finalType = &TCon{Name: "Unknown"}
 	}
-	
+
 	// Convert ClassConstraints to Constraints
 	constraints := make([]Constraint, len(ctx.qualifiedConstraints))
 	for i, cc := range ctx.qualifiedConstraints {
@@ -105,10 +105,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 			Type:  cc.Type,
 		}
 	}
-	
+
 	// Now resolve constraints and apply defaulting
 	tc.resolveConstraints(ctx, typedNode)
-	
+
 	// Apply defaulting to the final type if it's still a type variable
 	if _, ok := finalType.(*TVar2); ok {
 		// Check if we can default this based on constraints
@@ -124,7 +124,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 			}
 		}
 	}
-	
+
 	// Return with constraints and defaulted type
 	return typedNode, finalType, constraints, nil
 }
@@ -144,7 +144,7 @@ func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typeda
 		case "Ord":
 			methodName = "lt"
 		}
-		
+
 		// Apply defaulting if the type is still a variable
 		resolvedType := cc.Type
 		switch resolvedType.(type) {
@@ -161,15 +161,15 @@ func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typeda
 				// Default Ord/Eq to Int when ambiguous
 				defaultType = &TCon{Name: "int"}
 			}
-			
+
 			if defaultType != nil {
 				resolvedType = defaultType
 			}
 		}
-		
+
 		// Store resolved constraint - ensure we have a concrete type
 		var finalType Type = resolvedType
-		
+
 		// If we still have a type variable after defaulting attempt, that's an error
 		switch resolvedType.(type) {
 		case *TVar, *TVar2:
@@ -187,11 +187,11 @@ func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typeda
 				finalType = &TCon{Name: "int"} // Safe fallback
 			}
 		}
-		
+
 		// Now normalize the concrete type
 		normalizedTypeName := NormalizeTypeName(finalType)
 		normalizedType := &TCon{Name: normalizedTypeName}
-		
+
 		// Registered constraint resolution
 		tc.resolvedConstraints[cc.NodeID] = &ResolvedConstraint{
 			ClassName: cc.Class,
@@ -218,10 +218,10 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 	typed := &typedast.TypedProgram{
 		Decls: make([]typedast.TypedNode, 0),
 	}
-	
+
 	// Create global environment with builtins
 	globalEnv := NewTypeEnvWithBuiltins()
-	
+
 	for _, decl := range prog.Decls {
 		typedNode, env, err := tc.CheckCoreExpr(decl, globalEnv)
 		if err != nil {
@@ -231,12 +231,12 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 		typed.Decls = append(typed.Decls, typedNode)
 		globalEnv = env // Update environment with new bindings
 	}
-	
+
 	// Report all errors
 	if len(tc.errors) > 0 {
 		return nil, tc.formatErrors()
 	}
-	
+
 	return typed, nil
 }
 
@@ -244,19 +244,19 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, error) {
 	ctx := NewInferenceContext()
 	ctx.env = env
-	
+
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)
 	if err != nil {
 		return nil, env, err
 	}
-	
+
 	// Solve type equality constraints first
 	sub, unsolved, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, env, err
 	}
-	
+
 	if tc.debugMode {
 		fmt.Printf("[debug] Unification substitution: %v\n", sub)
 		fmt.Printf("[debug] Unsolved after unification: ")
@@ -265,7 +265,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 		}
 		fmt.Println()
 	}
-	
+
 	// CRITICAL: Apply defaulting at top-level/REPL generalization boundary
 	// This happens AFTER unification, BEFORE constraint partitioning
 	if tc.debugMode {
@@ -274,7 +274,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 			fmt.Printf("  - %s[%s]\n", c.Class, c.Type)
 		}
 	}
-	
+
 	// Apply spec-compliant defaulting at this generalization boundary
 	// For top-level expressions, also default non-ambiguous numeric literals
 	exprType := typedNode.GetType().(Type)
@@ -282,16 +282,16 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	if err != nil {
 		return nil, newEnv, fmt.Errorf("defaulting failed: %w", err)
 	}
-	
+
 	// Apply defaulting substitution everywhere if any defaults were applied
 	if len(defaultingSub) > 0 {
 		// Compose with existing substitution
 		sub = composeSubstitutions(defaultingSub, sub)
-		
+
 		// Use defaulted values (constraints are already substituted by defaultAmbiguities)
 		exprType = defaultedType
 		unsolved = defaultedConstraints
-		
+
 		if tc.debugMode {
 			fmt.Printf("[debug] Applied defaulting substitution: %v\n", defaultingSub)
 			fmt.Printf("[debug] Defaulted constraints: ")
@@ -303,35 +303,35 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	} else if tc.debugMode {
 		fmt.Println("[debug] No defaulting applied")
 	}
-	
+
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
-	
+
 	// The constraints from defaulting should already be properly substituted
 	// Don't double-apply substitution
 	groundConstraints := unsolved
-	
+
 	// Partition into ground and non-ground constraints
 	ground, nonGround := tc.partitionConstraints(groundConstraints)
-	
+
 	// Resolve ground constraints using instance environment
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {
 		return nil, env, err
 	}
-	
+
 	// Non-ground constraints become part of qualified type schemes
 	// (will be handled during generalization)
 	if len(nonGround) > 0 {
 		// Store for later use in type scheme
 		ctx.qualifiedConstraints = nonGround
 	}
-	
+
 	// Apply substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
-	
+
 	// Fill in operator methods for resolved constraints
 	tc.FillOperatorMethods(expr)
-	
+
 	return typedNode, newEnv, nil
 }
 
@@ -340,43 +340,43 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	switch e := expr.(type) {
 	case *core.Lit:
 		return tc.inferLit(ctx, e)
-		
+
 	case *core.Var:
 		return tc.inferVar(ctx, e)
-		
+
 	case *core.Lambda:
 		return tc.inferLambda(ctx, e)
-		
+
 	case *core.Let:
 		return tc.inferLet(ctx, e)
-		
+
 	case *core.LetRec:
 		return tc.inferLetRec(ctx, e)
-		
+
 	case *core.App:
 		return tc.inferApp(ctx, e)
-		
+
 	case *core.If:
 		return tc.inferIf(ctx, e)
-		
+
 	case *core.BinOp:
 		return tc.inferBinOp(ctx, e)
-		
+
 	case *core.UnOp:
 		return tc.inferUnOp(ctx, e)
-		
+
 	case *core.Record:
 		return tc.inferRecord(ctx, e)
-		
+
 	case *core.RecordAccess:
 		return tc.inferRecordAccess(ctx, e)
-		
+
 	case *core.List:
 		return tc.inferList(ctx, e)
-		
+
 	case *core.Match:
 		return tc.inferMatch(ctx, e)
-		
+
 	default:
 		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
 	}
@@ -416,7 +416,7 @@ func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*type
 	default:
 		return nil, ctx.env, fmt.Errorf("unknown literal kind: %v", lit.Kind)
 	}
-	
+
 	return &typedast.TypedLit{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    lit.ID(),
@@ -436,7 +436,7 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("undefined variable: %s at %s", v.Name, v.Span())
 	}
-	
+
 	// Instantiate if it's a scheme
 	var monotype Type
 	if scheme, ok := typ.(*Scheme); ok {
@@ -446,7 +446,7 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 	} else {
 		return nil, ctx.env, fmt.Errorf("invalid type in environment: %T", typ)
 	}
-	
+
 	return &typedast.TypedVar{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    v.ID(),
@@ -464,35 +464,35 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	// Fresh type variables for parameters
 	paramTypes := make([]Type, len(lam.Params))
 	newEnv := ctx.env
-	
+
 	for i, param := range lam.Params {
 		paramType := ctx.freshTypeVar()
 		paramTypes[i] = paramType
 		newEnv = newEnv.Extend(param, paramType)
 	}
-	
+
 	// Save old env and use new one for body
 	oldEnv := ctx.env
 	ctx.env = newEnv
-	
+
 	// Infer body type
 	bodyNode, _, err := tc.inferCore(ctx, lam.Body)
 	if err != nil {
 		return nil, oldEnv, err
 	}
-	
+
 	// Check for linear capture violations
 	captured := tc.findCapturedVars(lam, oldEnv)
 	for _, cap := range captured {
 		if tc.isLinearCapability(cap) {
-			return nil, oldEnv, fmt.Errorf("lambda at %s captures linear capability %s; pass it as a parameter instead", 
+			return nil, oldEnv, fmt.Errorf("lambda at %s captures linear capability %s; pass it as a parameter instead",
 				lam.Span(), cap)
 		}
 	}
-	
+
 	// Restore environment
 	ctx.env = oldEnv
-	
+
 	// Lambda type
 	var bodyEffectRow *Row
 	if effRow := bodyNode.GetEffectRow(); effRow != nil {
@@ -503,7 +503,7 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		EffectRow: bodyEffectRow,
 		Return:    bodyNode.GetType().(Type),
 	}
-	
+
 	return &typedast.TypedLambda{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    lam.ID(),
@@ -525,30 +525,30 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// CRITICAL: Apply defaulting BEFORE generalization
 	// This is a generalization boundary where defaulting must happen
 	valueType := getType(valueNode)
 	valueEffects := getEffectRow(valueNode)
-	
+
 	// Get unsolved constraints from current context
 	_, unsolvedConstraints, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Apply defaulting at this generalization boundary
 	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("defaulting failed for let binding %s: %w", let.Name, err)
 	}
-	
+
 	// Apply defaulting substitution everywhere if any defaults were applied
 	if len(defaultingSub) > 0 {
 		defaultedType, defaultedConstraints, valueNode, _ = tc.ApplySubstEverywhere(
 			defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, let.Name)
 	}
-	
+
 	// Generalize if value is syntactic value (value restriction)
 	var binding interface{}
 	if isCoreValue(let.Value) {
@@ -563,7 +563,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	} else {
 		binding = defaultedType
 	}
-	
+
 	// Extend environment
 	var newEnv *TypeEnv
 	var scheme *Scheme
@@ -575,7 +575,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// Create trivial scheme for consistency
 		scheme = &Scheme{Type: binding.(Type)}
 	}
-	
+
 	// Save env and infer body
 	oldEnv := ctx.env
 	ctx.env = newEnv
@@ -584,7 +584,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		return nil, oldEnv, err
 	}
 	ctx.env = oldEnv
-	
+
 	return &typedast.TypedLet{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    let.ID(),
@@ -607,17 +607,17 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	for _, binding := range letrec.Bindings {
 		bindingTypes[binding.Name] = ctx.freshTypeVar()
 	}
-	
+
 	// Extend environment with all bindings
 	newEnv := ctx.env
 	for name, typ := range bindingTypes {
 		newEnv = newEnv.Extend(name, typ)
 	}
-	
+
 	// Save and update environment
 	oldEnv := ctx.env
 	ctx.env = newEnv
-	
+
 	// Infer types of all values and collect constraints
 	var allValueNodes []typedast.TypedNode
 	var allValueTypes []Type
@@ -626,10 +626,10 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		if err != nil {
 			return nil, oldEnv, err
 		}
-		
+
 		allValueNodes = append(allValueNodes, valueNode)
 		allValueTypes = append(allValueTypes, getType(valueNode))
-		
+
 		// Unify with expected type
 		ctx.addConstraint(TypeEq{
 			Left:  bindingTypes[binding.Name],
@@ -637,79 +637,79 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			Path:  []string{binding.Name},
 		})
 	}
-	
+
 	// CRITICAL: Apply defaulting ONCE for the entire SCC after solving mutual block
 	_, unsolvedConstraints, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, oldEnv, err
 	}
-	
+
 	// Apply defaulting to the entire mutual block (once per SCC)
 	for i, binding := range letrec.Bindings {
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
-		
+
 		// Apply defaulting at this generalization boundary
 		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
-		
+
 		// Apply defaulting substitution everywhere if any defaults were applied
 		if len(defaultingSub) > 0 {
 			defaultedType, defaultedConstraints, valueNode, _ = tc.ApplySubstEverywhere(
 				defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, binding.Name)
-			
+
 			// Update the stored values
 			allValueTypes[i] = defaultedType
 			allValueNodes[i] = valueNode
 		}
 	}
-	
+
 	// Now generalize each binding after defaulting
 	typedBindings := make([]typedast.TypedRecBinding, len(letrec.Bindings))
 	for i, binding := range letrec.Bindings {
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
-		
+
 		// Get remaining non-ground constraints after defaulting
 		_, remainingConstraints, err := ctx.SolveConstraints()
 		if err != nil {
 			return nil, oldEnv, err
 		}
-		
+
 		nonGroundConstraints := []ClassConstraint{}
 		for _, c := range remainingConstraints {
 			if !isGround(c.Type) {
 				nonGroundConstraints = append(nonGroundConstraints, c)
 			}
 		}
-		
+
 		// Generalize for recursion
 		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints)
-		
+
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
 			Scheme: scheme,
 			Value:  valueNode,
 		}
-		
+
 		// Update environment with generalized type
 		newEnv = newEnv.ExtendScheme(binding.Name, scheme)
 	}
-	
+
 	// Update context environment for body
 	ctx.env = newEnv
-	
+
 	// Infer body type
 	bodyNode, finalEnv, err := tc.inferCore(ctx, letrec.Body)
 	if err != nil {
 		return nil, oldEnv, err
 	}
-	
+
 	// Restore environment
 	ctx.env = oldEnv
-	
+
 	// Combine effects from all bindings and body
 	var allEffects []*Row
 	for _, binding := range typedBindings {
@@ -718,7 +718,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		}
 	}
 	allEffects = append(allEffects, getEffectRow(bodyNode))
-	
+
 	return &typedast.TypedLetRec{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    letrec.ID(),
@@ -737,14 +737,14 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	// Find free type variables in type but not in environment
 	typeFreeVars := make(map[string]bool)
 	collectFreeVars(typ, typeFreeVars)
-	
+
 	// For now, simplified generalization
 	// In a full implementation, would check against environment free vars
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
 		generalizedTypeVars = append(generalizedTypeVars, v)
 	}
-	
+
 	// Convert class constraints to scheme constraints
 	schemeConstraints := []Constraint{}
 	for _, c := range constraints {
@@ -753,7 +753,7 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 			Type:  c.Type,
 		})
 	}
-	
+
 	return &Scheme{
 		TypeVars:    generalizedTypeVars,
 		RowVars:     []string{}, // Simplified for now
@@ -769,12 +769,12 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Infer argument types
 	var argNodes []typedast.TypedNode
 	var argTypes []Type
 	var allEffects []*Row
-	
+
 	for _, arg := range app.Args {
 		argNode, _, err := tc.inferCore(ctx, arg)
 		if err != nil {
@@ -784,27 +784,27 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		argTypes = append(argTypes, getType(argNode))
 		allEffects = append(allEffects, getEffectRow(argNode))
 	}
-	
+
 	// Create result type variable
 	resultType := ctx.freshTypeVar()
 	effectRow := ctx.freshEffectRow()
-	
+
 	// Unify function type with expected type
 	expectedFuncType := &TFunc2{
 		Params:    argTypes,
 		EffectRow: effectRow,
 		Return:    resultType,
 	}
-	
+
 	ctx.addConstraint(TypeEq{
 		Left:  getType(funcNode),
 		Right: expectedFuncType,
 		Path:  []string{"function application at " + app.Span().String()},
 	})
-	
+
 	// Combine effects
 	allEffects = append(allEffects, getEffectRow(funcNode), effectRow)
-	
+
 	return &typedast.TypedApp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    app.ID(),
@@ -825,39 +825,39 @@ func (tc *CoreTypeChecker) inferIf(ctx *InferenceContext, ifExpr *core.If) (*typ
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Condition must be bool
 	ctx.addConstraint(TypeEq{
 		Left:  getType(condNode),
 		Right: TBool,
 		Path:  []string{"if condition at " + ifExpr.Span().String()},
 	})
-	
+
 	// Infer branch types
 	thenNode, _, err := tc.inferCore(ctx, ifExpr.Then)
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	elseNode, _, err := tc.inferCore(ctx, ifExpr.Else)
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Branches must have same type
 	ctx.addConstraint(TypeEq{
 		Left:  getType(thenNode),
 		Right: getType(elseNode),
 		Path:  []string{"if branches at " + ifExpr.Span().String()},
 	})
-	
+
 	// Combine effects from all parts
 	effects := combineEffectList([]*Row{
 		getEffectRow(condNode),
 		getEffectRow(thenNode),
 		getEffectRow(elseNode),
 	})
-	
+
 	return &typedast.TypedIf{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    ifExpr.ID(),
@@ -881,14 +881,14 @@ func OperatorMethod(op string, isUnary bool) string {
 	if isUnary {
 		switch op {
 		case "-":
-			return "neg"  // Unary minus uses Num.neg method
+			return "neg" // Unary minus uses Num.neg method
 		case "!":
-			return "not"  // Boolean not (if we have a Bool class)
+			return "not" // Boolean not (if we have a Bool class)
 		default:
 			return ""
 		}
 	}
-	
+
 	// Binary operators
 	switch op {
 	case "+":
@@ -923,15 +923,15 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	rightNode, _, err := tc.inferCore(ctx, binop.Right)
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Determine result type based on operator
 	var resultType Type
-	
+
 	switch binop.Op {
 	case "+", "-", "*", "/", "%":
 		// Arithmetic operators - unify operand types first
@@ -940,22 +940,22 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			Right: getType(rightNode),
 			Path:  []string{"arithmetic at " + binop.Span().String()},
 		})
-		
+
 		// The result type is the same as the operand types
 		resultType = getType(leftNode)
-		
+
 		// IMPORTANT: use the unified type to decide the most specific numeric class
 		// This looks at constraints on the unified type, not individual nodes
 		cls := tc.mostSpecificNumericClass(ctx, resultType)
-		
+
 		// Attach ONE class constraint to the unified type
 		ctx.addConstraint(ClassConstraint{
-			Class:  cls,               // "Fractional" or "Num"
+			Class:  cls, // "Fractional" or "Num"
 			Type:   resultType,
 			Path:   []string{binop.Span().String()},
-			NodeID: binop.ID(),        // keep this for operator→method linking
+			NodeID: binop.ID(), // keep this for operator→method linking
 		})
-		
+
 	case "++":
 		// String concatenation
 		ctx.addConstraint(TypeEq{
@@ -969,7 +969,7 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			Path:  []string{"string concat at " + binop.Span().String()},
 		})
 		resultType = TString
-		
+
 	case "<", ">", "<=", ">=":
 		// Comparison operators - require Ord constraint
 		ctx.addConstraint(ClassConstraint{
@@ -990,7 +990,7 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			Path:  []string{"comparison at " + binop.Span().String()},
 		})
 		resultType = TBool
-		
+
 	case "==", "!=":
 		// Equality - require Eq constraint
 		ctx.addConstraint(ClassConstraint{
@@ -1011,7 +1011,7 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			Path:  []string{"equality at " + binop.Span().String()},
 		})
 		resultType = TBool
-		
+
 	case "&&", "||":
 		// Boolean operators
 		ctx.addConstraint(TypeEq{
@@ -1025,14 +1025,14 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			Path:  []string{"boolean op at " + binop.Span().String()},
 		})
 		resultType = TBool
-		
+
 	default:
 		return nil, ctx.env, fmt.Errorf("unknown binary operator: %s", binop.Op)
 	}
-	
+
 	// Combine effects
 	effects := combineEffects(getEffectRow(leftNode), getEffectRow(rightNode))
-	
+
 	return &typedast.TypedBinOp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    binop.ID(),
@@ -1054,9 +1054,9 @@ func (tc *CoreTypeChecker) inferUnOp(ctx *InferenceContext, unop *core.UnOp) (*t
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	var resultType Type
-	
+
 	switch unop.Op {
 	case "-":
 		// Negation - requires Num constraint
@@ -1067,7 +1067,7 @@ func (tc *CoreTypeChecker) inferUnOp(ctx *InferenceContext, unop *core.UnOp) (*t
 			NodeID: unop.ID(),
 		})
 		resultType = getType(operandNode)
-		
+
 	case "not":
 		// Boolean negation
 		ctx.addConstraint(TypeEq{
@@ -1076,11 +1076,11 @@ func (tc *CoreTypeChecker) inferUnOp(ctx *InferenceContext, unop *core.UnOp) (*t
 			Path:  []string{"not at " + unop.Span().String()},
 		})
 		resultType = TBool
-		
+
 	default:
 		return nil, ctx.env, fmt.Errorf("unknown unary operator: %s", unop.Op)
 	}
-	
+
 	return &typedast.TypedUnOp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    unop.ID(),
@@ -1099,7 +1099,7 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 	fields := make(map[string]typedast.TypedNode)
 	fieldTypes := make(map[string]Type)
 	var allEffects []*Row
-	
+
 	for name, value := range rec.Fields {
 		valueNode, _, err := tc.inferCore(ctx, value)
 		if err != nil {
@@ -1109,7 +1109,7 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 		fieldTypes[name] = getType(valueNode)
 		allEffects = append(allEffects, getEffectRow(valueNode))
 	}
-	
+
 	// Create record type
 	recordType := &TRecord{
 		Fields: fieldTypes,
@@ -1119,7 +1119,7 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 			Tail:   nil, // Closed record for now
 		},
 	}
-	
+
 	return &typedast.TypedRecord{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    rec.ID(),
@@ -1139,11 +1139,11 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Create fresh type variable for field
 	fieldType := ctx.freshTypeVar()
 	rowVar := &RowVar{Name: "r", Kind: RecordRow}
-	
+
 	// Expected record type with field
 	expectedRecord := &TRecord{
 		Fields: map[string]Type{acc.Field: fieldType},
@@ -1153,13 +1153,13 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 			Tail:   rowVar, // Row polymorphic
 		},
 	}
-	
+
 	ctx.addConstraint(TypeEq{
 		Left:  getType(recordNode),
 		Right: expectedRecord,
 		Path:  []string{"field access at " + acc.Span().String()},
 	})
-	
+
 	return &typedast.TypedRecordAccess{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    acc.ID(),
@@ -1189,11 +1189,11 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 			Elements: nil,
 		}, ctx.env, nil
 	}
-	
+
 	// Non-empty list - all elements must have same type
 	var elements []typedast.TypedNode
 	var allEffects []*Row
-	
+
 	firstElem, _, err := tc.inferCore(ctx, list.Elements[0])
 	if err != nil {
 		return nil, ctx.env, err
@@ -1201,7 +1201,7 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 	elements = append(elements, firstElem)
 	allEffects = append(allEffects, getEffectRow(firstElem))
 	elemType := getType(firstElem)
-	
+
 	for i := 1; i < len(list.Elements); i++ {
 		elemNode, _, err := tc.inferCore(ctx, list.Elements[i])
 		if err != nil {
@@ -1209,7 +1209,7 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 		}
 		elements = append(elements, elemNode)
 		allEffects = append(allEffects, getEffectRow(elemNode))
-		
+
 		// All elements must have same type
 		ctx.addConstraint(TypeEq{
 			Left:  getType(elemNode),
@@ -1217,7 +1217,7 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 			Path:  []string{fmt.Sprintf("list element %d at %s", i, list.Span())},
 		})
 	}
-	
+
 	return &typedast.TypedList{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    list.ID(),
@@ -1237,33 +1237,33 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 	if err != nil {
 		return nil, ctx.env, err
 	}
-	
+
 	// Check exhaustiveness (simplified for now)
 	// TODO: Implement full exhaustiveness checking
 	exhaustive := match.Exhaustive
-	
+
 	// Infer types of all arms
 	var arms []typedast.TypedMatchArm
 	var resultType Type
 	var allEffects []*Row
-	
+
 	for i, arm := range match.Arms {
 		// Type check pattern and get bindings
 		patternBindings, typedPattern, err := tc.checkPattern(arm.Pattern, getType(scrutineeNode), ctx)
 		if err != nil {
 			return nil, ctx.env, err
 		}
-		
+
 		// Extend environment with pattern bindings
 		armEnv := ctx.env
 		for name, typ := range patternBindings {
 			armEnv = armEnv.Extend(name, typ)
 		}
-		
+
 		// Save and update environment
 		oldEnv := ctx.env
 		ctx.env = armEnv
-		
+
 		// Check guard if present
 		var guardNode typedast.TypedNode
 		if arm.Guard != nil {
@@ -1279,17 +1279,17 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 			})
 			allEffects = append(allEffects, getEffectRow(guardNode))
 		}
-		
+
 		// Type check body
 		bodyNode, _, err := tc.inferCore(ctx, arm.Body)
 		if err != nil {
 			return nil, oldEnv, err
 		}
 		allEffects = append(allEffects, getEffectRow(bodyNode))
-		
+
 		// Restore environment
 		ctx.env = oldEnv
-		
+
 		// All arms must have same result type
 		if i == 0 {
 			resultType = getType(bodyNode)
@@ -1300,17 +1300,17 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 				Path:  []string{fmt.Sprintf("match arm %d at %s", i, match.Span())},
 			})
 		}
-		
+
 		arms = append(arms, typedast.TypedMatchArm{
 			Pattern: typedPattern,
 			Guard:   guardNode,
 			Body:    bodyNode,
 		})
 	}
-	
+
 	// Add scrutinee effects
 	allEffects = append(allEffects, getEffectRow(scrutineeNode))
-	
+
 	return &typedast.TypedMatch{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    match.ID(),
@@ -1330,9 +1330,9 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 	switch p := pat.(type) {
 	case *core.VarPattern:
 		// Variable pattern binds to scrutinee type
-		return map[string]Type{p.Name: scrutType}, 
+		return map[string]Type{p.Name: scrutType},
 			typedast.TypedVarPattern{Name: p.Name, Type: scrutType}, nil
-			
+
 	case *core.LitPattern:
 		// Literal pattern - scrutinee must match literal type
 		var litType Type
@@ -1348,19 +1348,19 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		default:
 			return nil, nil, fmt.Errorf("unknown literal type in pattern: %T", p.Value)
 		}
-		
+
 		ctx.addConstraint(TypeEq{
 			Left:  scrutType,
 			Right: litType,
 			Path:  []string{"literal pattern"},
 		})
-		
+
 		return nil, typedast.TypedLitPattern{Value: p.Value}, nil
-		
+
 	case *core.WildcardPattern:
 		// Wildcard matches anything, binds nothing
 		return nil, typedast.TypedWildcardPattern{}, nil
-		
+
 	default:
 		return nil, nil, fmt.Errorf("pattern type checking not implemented for %T", pat)
 	}
@@ -1451,7 +1451,7 @@ func combineEffects(e1, e2 *Row) *Row {
 	if e2 == nil || (len(e2.Labels) == 0 && e2.Tail == nil) {
 		return e1
 	}
-	
+
 	// Combine labels
 	combined := make(map[string]Type)
 	for k, v := range e1.Labels {
@@ -1460,7 +1460,7 @@ func combineEffects(e1, e2 *Row) *Row {
 	for k, v := range e2.Labels {
 		combined[k] = v
 	}
-	
+
 	// For now, ignore tail variables in combination
 	// Full implementation would handle row unification
 	return &Row{
@@ -1484,7 +1484,7 @@ func (tc *CoreTypeChecker) applySubstitutionToTyped(sub Substitution, node typed
 	// Apply substitution to the type in the node
 	if typ, ok := node.GetType().(Type); ok {
 		substitutedType := ApplySubstitution(sub, typ)
-		
+
 		// We need to update the type in the node
 		// Since TypedNode is an interface, we need to handle each concrete type
 		switch n := node.(type) {
@@ -1532,27 +1532,27 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
-	
+
 	if !tc.defaultingConfig.Enabled {
 		return make(Substitution), monotype, constraints, nil
 	}
-	
+
 	// Step 1: Compute ambiguous type variables A = ftv(C) \ ftv(τ)
 	constraintVars := make(map[string]bool)
 	for _, c := range constraints {
 		collectConstraintVars(c.Type, constraintVars)
 	}
-	
+
 	monotypeVars := make(map[string]bool)
 	collectFreeVars(monotype, monotypeVars)
-	
+
 	ambiguousVars := make(map[string]bool)
 	for v := range constraintVars {
 		if !monotypeVars[v] {
 			ambiguousVars[v] = true
 		}
 	}
-	
+
 	if tc.debugMode && len(ambiguousVars) > 0 {
 		fmt.Printf("[debug] Ambiguous vars: ")
 		for v := range ambiguousVars {
@@ -1564,11 +1564,11 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 		}
 		fmt.Println()
 	}
-	
+
 	if len(ambiguousVars) == 0 {
 		return make(Substitution), monotype, constraints, nil
 	}
-	
+
 	// Step 2: For each ambiguous var α, collect class set Kα
 	varClasses := make(map[string]map[string]bool)
 	for _, c := range constraints {
@@ -1579,21 +1579,21 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 			varClasses[varName][c.Class] = true
 		}
 	}
-	
+
 	// Step 3: Apply module defaults with conflict detection
 	sub := make(Substitution)
 	traces := []DefaultingTrace{}
-	
+
 	for varName, classes := range varClasses {
 		defaultType, err := tc.pickDefault(classes)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("ambiguous type variable %s with classes %v: %w", 
+			return nil, nil, nil, fmt.Errorf("ambiguous type variable %s with classes %v: %w",
 				varName, getClassNames(classes), err)
 		}
-		
+
 		if defaultType != nil {
 			sub[varName] = defaultType
-			
+
 			// Record trace for deterministic output
 			trace := DefaultingTrace{
 				TypeVar:   varName,
@@ -1603,18 +1603,18 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 			}
 			traces = append(traces, trace)
 			tc.defaultingConfig.Traces = append(tc.defaultingConfig.Traces, trace)
-			
+
 			if tc.debugMode {
 				tc.logDefaulting(trace)
 			}
 		}
 	}
-	
+
 	// Step 4: Apply substitution consistently everywhere
 	if len(sub) > 0 {
 		monotype = ApplySubstitution(sub, monotype)
 		constraints = tc.applySubstitutionToConstraints(sub, constraints)
-		
+
 		// SAFETY CHECK: Ensure defaulting only affects Star-kinded types
 		for varName, defaultType := range sub {
 			if !isStarKinded(defaultType) {
@@ -1622,7 +1622,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 			}
 		}
 	}
-	
+
 	return sub, monotype, constraints, nil
 }
 
@@ -1631,14 +1631,14 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
-	
+
 	if !tc.defaultingConfig.Enabled {
 		return make(Substitution), monotype, constraints, nil
 	}
-	
+
 	// At top-level, we want to default ANY type variable with defaultable constraints
 	// not just ambiguous ones (this gives the REPL experience users expect)
-	
+
 	// Collect all type variables in constraints that have defaultable classes
 	defaultableVars := make(map[string]map[string]bool)
 	for _, c := range constraints {
@@ -1652,25 +1652,25 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 			}
 		}
 	}
-	
+
 	if len(defaultableVars) == 0 {
 		return make(Substitution), monotype, constraints, nil
 	}
-	
+
 	// Apply defaults to all defaultable variables
 	sub := make(Substitution)
 	traces := []DefaultingTrace{}
-	
+
 	for varName, classes := range defaultableVars {
 		defaultType, err := tc.pickDefault(classes)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("ambiguous type variable %s with classes %v: %w", 
+			return nil, nil, nil, fmt.Errorf("ambiguous type variable %s with classes %v: %w",
 				varName, getClassNames(classes), err)
 		}
-		
+
 		if defaultType != nil {
 			sub[varName] = defaultType
-			
+
 			trace := DefaultingTrace{
 				TypeVar:   varName,
 				ClassName: getFirstClassName(classes),
@@ -1679,18 +1679,18 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 			}
 			traces = append(traces, trace)
 			tc.defaultingConfig.Traces = append(tc.defaultingConfig.Traces, trace)
-			
+
 			if tc.debugMode {
 				tc.logDefaulting(trace)
 			}
 		}
 	}
-	
+
 	// Apply substitution
 	if len(sub) > 0 {
 		monotype = ApplySubstitution(sub, monotype)
 		constraints = tc.applySubstitutionToConstraints(sub, constraints)
-		
+
 		// Safety check
 		for varName, defaultType := range sub {
 			if !isStarKinded(defaultType) {
@@ -1698,7 +1698,7 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesTopLevel(
 			}
 		}
 	}
-	
+
 	return sub, monotype, constraints, nil
 }
 
@@ -1736,28 +1736,28 @@ func (tc *CoreTypeChecker) pickDefault(classes map[string]bool) (Type, error) {
 		// Only neutral constraints present (rare, as numeric literals add Num)
 		// Require annotation in this case
 		return nil, fmt.Errorf("ambiguous type requires annotation")
-		
+
 	case len(primary) == 1 && primary[0] == "Num":
 		// Pure Num constraint (possibly with neutral constraints like Eq, Ord)
 		if def := tc.instanceEnv.DefaultFor("Num"); def != nil {
 			return def, nil
 		}
 		return nil, fmt.Errorf("no default for Num; add type annotation")
-		
+
 	case len(primary) == 1 && primary[0] == "Fractional":
 		// Pure Fractional constraint (possibly with neutral constraints)
 		if def := tc.instanceEnv.DefaultFor("Fractional"); def != nil {
 			return def, nil
 		}
 		return nil, fmt.Errorf("no default for Fractional; add type annotation")
-		
+
 	case len(primary) == 2 && classes["Fractional"] && classes["Num"]:
 		// Fractional implies Num, so this is effectively just Fractional
 		if def := tc.instanceEnv.DefaultFor("Fractional"); def != nil {
 			return def, nil
 		}
 		return nil, fmt.Errorf("no default for Fractional; add type annotation")
-		
+
 	default:
 		// Mixed non-neutral constraints → require annotation
 		// This maintains spec compliance: only default within a single family
@@ -1876,23 +1876,23 @@ func isStarKinded(t Type) bool {
 
 // ApplySubstEverywhere applies substitution coherently to all relevant data structures
 func (tc *CoreTypeChecker) ApplySubstEverywhere(
-	sub Substitution, 
-	monotype Type, 
+	sub Substitution,
+	monotype Type,
 	constraints []ClassConstraint,
 	typedNode typedast.TypedNode,
 	envEntry interface{},
 	bindingName string,
 ) (Type, []ClassConstraint, typedast.TypedNode, interface{}) {
-	
+
 	// Apply to monotype
 	newMonotype := ApplySubstitution(sub, monotype)
-	
+
 	// Apply to constraints
 	newConstraints := tc.applySubstitutionToConstraints(sub, constraints)
-	
+
 	// Apply to TypedAST
 	newTypedNode := tc.applySubstitutionToTyped(sub, typedNode)
-	
+
 	// Apply to environment entry
 	var newEnvEntry interface{}
 	if scheme, ok := envEntry.(*Scheme); ok {
@@ -1909,10 +1909,10 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 	} else {
 		newEnvEntry = envEntry
 	}
-	
+
 	// Apply to resolved constraints
 	tc.applySubstitutionToResolvedConstraints(sub)
-	
+
 	return newMonotype, newConstraints, newTypedNode, newEnvEntry
 }
 
@@ -1941,19 +1941,19 @@ func (tc *CoreTypeChecker) applySubstitutionToConstraints(sub Substitution, cons
 // composeSubstitutions composes two substitutions: (S2 ∘ S1)(t) = S2(S1(t))
 func composeSubstitutions(s1, s2 Substitution) Substitution {
 	result := make(Substitution)
-	
+
 	// Apply s2 to the codomain of s1
 	for v, t := range s1 {
 		result[v] = ApplySubstitution(s2, t)
 	}
-	
+
 	// Add bindings from s2 that aren't in s1
 	for v, t := range s2 {
 		if _, exists := result[v]; !exists {
 			result[v] = t
 		}
 	}
-	
+
 	return result
 }
 
@@ -2027,7 +2027,7 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 		if !isGround(c.Type) {
 			return fmt.Errorf("INTERNAL ERROR: attempting to resolve non-ground constraint %s[%s] - defaulting failed to make this ground", c.Class, c.Type)
 		}
-		
+
 		// Look up instance in the environment
 		_, err := tc.instanceEnv.Lookup(c.Class, c.Type)
 		if err != nil {
@@ -2037,19 +2037,19 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			}
 			return err
 		}
-		
+
 		// Instance found - record the resolved constraint if it has a NodeID
 		if c.NodeID != 0 {
 			// CRITICAL: Double-check that the type we're recording is ground
 			if !isGround(c.Type) {
 				return fmt.Errorf("INTERNAL ERROR: storing non-ground type %s in ResolvedConstraints for node %d", c.Type, c.NodeID)
 			}
-			
+
 			// We need to determine the method based on the node
 			// This will be done when we scan the Core AST
 			// Create normalized type for dictionary lookup consistency
 			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
-			// fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n", 
+			// fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n",
 			// 	c.NodeID, c.Class, c.Type, normalizedType.Name)
 			tc.resolvedConstraints[c.NodeID] = &ResolvedConstraint{
 				NodeID:    c.NodeID,
@@ -2079,8 +2079,8 @@ func (tc *CoreTypeChecker) mostSpecificNumericClass(ctx *InferenceContext, t Typ
 			}
 		}
 	}
-	if anyFractional { 
-		return "Fractional" 
+	if anyFractional {
+		return "Fractional"
 	}
 	return "Num"
 }
@@ -2100,7 +2100,7 @@ func typesEqual(t1, t2 Type) bool {
 	if t1 == nil || t2 == nil {
 		return t1 == t2
 	}
-	
+
 	switch typ1 := t1.(type) {
 	case *TCon:
 		if typ2, ok := t2.(*TCon); ok {
@@ -2115,7 +2115,7 @@ func typesEqual(t1, t2 Type) bool {
 			return typ1.Name == typ2.Name
 		}
 	}
-	
+
 	// For more complex types, use string representation as fallback
 	return t1.String() == t2.String()
 }
@@ -2132,7 +2132,7 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 	if expr == nil {
 		return
 	}
-	
+
 	switch e := expr.(type) {
 	case *core.BinOp:
 		// If we have a resolved constraint for this node, fill in the method
@@ -2146,57 +2146,57 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 		// Recurse on operands
 		tc.walkCore(e.Left)
 		tc.walkCore(e.Right)
-		
+
 	case *core.UnOp:
 		// Fill in the method name for unary operators
 		if rc, ok := tc.resolvedConstraints[e.ID()]; ok {
 			rc.Method = OperatorMethod(e.Op, true)
 		}
 		tc.walkCore(e.Operand)
-		
+
 	case *core.Let:
 		tc.walkCore(e.Value)
 		tc.walkCore(e.Body)
-		
+
 	case *core.LetRec:
 		for _, binding := range e.Bindings {
 			tc.walkCore(binding.Value)
 		}
 		tc.walkCore(e.Body)
-		
+
 	case *core.Lambda:
 		tc.walkCore(e.Body)
-		
+
 	case *core.App:
 		tc.walkCore(e.Func)
 		for _, arg := range e.Args {
 			tc.walkCore(arg)
 		}
-		
+
 	case *core.If:
 		tc.walkCore(e.Cond)
 		tc.walkCore(e.Then)
 		tc.walkCore(e.Else)
-		
+
 	case *core.Match:
 		tc.walkCore(e.Scrutinee)
 		for _, arm := range e.Arms {
 			tc.walkCore(arm.Body)
 		}
-		
+
 	case *core.Record:
 		for _, field := range e.Fields {
 			tc.walkCore(field)
 		}
-		
+
 	case *core.RecordAccess:
 		tc.walkCore(e.Record)
-		
+
 	case *core.List:
 		for _, elem := range e.Elements {
 			tc.walkCore(elem)
 		}
-		
+
 	// Atomic expressions don't need recursion
 	case *core.Var, *core.Lit, *core.DictRef:
 		return
@@ -2208,12 +2208,12 @@ func (tc *CoreTypeChecker) formatErrors() error {
 	if len(tc.errors) == 0 {
 		return nil
 	}
-	
+
 	// Format errors with diagnostics
 	var messages []string
 	for _, err := range tc.errors {
 		messages = append(messages, err.Error())
 	}
-	
+
 	return fmt.Errorf("Type checking failed:\n%s", strings.Join(messages, "\n"))
 }

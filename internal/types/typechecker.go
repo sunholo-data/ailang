@@ -22,10 +22,10 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) (*TypedProgram, error)
 	typed := &TypedProgram{
 		Statements: make([]TypedStatement, 0),
 	}
-	
+
 	// Create global environment with builtins
 	globalEnv := NewTypeEnvWithBuiltins()
-	
+
 	if program.Module != nil {
 		for _, decl := range program.Module.Decls {
 			typedStmt, env, err := tc.checkDecl(decl, globalEnv)
@@ -39,7 +39,7 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) (*TypedProgram, error)
 			globalEnv = env // Update environment with new bindings
 		}
 	}
-	
+
 	if len(tc.errors) > 0 {
 		var errList ErrorList
 		for _, err := range tc.errors {
@@ -49,7 +49,7 @@ func (tc *TypeChecker) CheckProgram(program *ast.Program) (*TypedProgram, error)
 		}
 		return nil, errList
 	}
-	
+
 	return typed, nil
 }
 
@@ -60,7 +60,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 		// Type check function body
 		ctx := NewInferenceContext()
 		ctx.env = env
-		
+
 		// Add parameters to environment
 		paramTypes := make([]Type, len(d.Params))
 		for i, param := range d.Params {
@@ -74,41 +74,41 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 			paramTypes[i] = paramType
 			ctx.env = ctx.env.Extend(param.Name, paramType)
 		}
-		
+
 		// Infer body type
 		bodyType, bodyEffects, err := ctx.Infer(d.Body)
 		if err != nil {
 			return nil, env, err
 		}
-		
+
 		// Solve constraints
 		sub, unsolved, err := ctx.SolveConstraints()
 		if err != nil {
 			return nil, env, err
 		}
-		
+
 		// Report unsolved class constraints
 		if len(unsolved) > 0 {
 			for _, c := range unsolved {
-				tc.errors = append(tc.errors, 
+				tc.errors = append(tc.errors,
 					NewUnsolvedConstraintError(c.Class, c.Type, c.Path))
 			}
 		}
-		
+
 		// Apply substitution
 		for i := range paramTypes {
 			paramTypes[i] = ApplySubstitution(sub, paramTypes[i])
 		}
 		bodyType = ApplySubstitution(sub, bodyType)
 		bodyEffects = ApplySubstitution(sub, bodyEffects).(*Row)
-		
+
 		// Create function type
 		fnType := &TFunc2{
 			Params:    paramTypes,
 			EffectRow: bodyEffects,
 			Return:    bodyType,
 		}
-		
+
 		// Generalize if pure
 		var binding interface{}
 		if d.IsPure || isValue(d.Body) {
@@ -116,7 +116,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 		} else {
 			binding = fnType
 		}
-		
+
 		// Add to environment
 		newEnv := env
 		if scheme, ok := binding.(*Scheme); ok {
@@ -124,7 +124,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 		} else {
 			newEnv = env.Extend(d.Name, binding.(Type))
 		}
-		
+
 		return &TypedFunctionDeclaration{
 			Name:       d.Name,
 			Params:     nil, // Convert params
@@ -133,7 +133,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 			BodyType:   bodyType,
 			Effects:    bodyEffects,
 		}, newEnv, nil
-		
+
 	case ast.Expr:
 		// Expression as a top-level declaration
 		typedExpr, err := tc.checkExpression(d, env)
@@ -143,7 +143,7 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 		return &TypedExpressionStatement{
 			Expression: typedExpr,
 		}, env, nil
-		
+
 	default:
 		return nil, env, fmt.Errorf("type checking not implemented for %T", decl)
 	}
@@ -153,31 +153,31 @@ func (tc *TypeChecker) checkDecl(decl ast.Node, env *TypeEnv) (TypedStatement, *
 func (tc *TypeChecker) checkExpression(expr ast.Expr, env *TypeEnv) (*TypedExpression, error) {
 	ctx := NewInferenceContext()
 	ctx.env = env
-	
+
 	// Infer type
 	typ, effects, err := ctx.Infer(expr)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Solve constraints
 	sub, unsolved, err := ctx.SolveConstraints()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Report unsolved class constraints
 	if len(unsolved) > 0 {
 		for _, c := range unsolved {
-			tc.errors = append(tc.errors, 
+			tc.errors = append(tc.errors,
 				NewUnsolvedConstraintError(c.Class, c.Type, c.Path))
 		}
 	}
-	
+
 	// Apply substitution
 	finalType := ApplySubstitution(sub, typ)
 	finalEffects := ApplySubstitution(sub, effects).(*Row)
-	
+
 	return &TypedExpression{
 		Expr:    expr,
 		Type:    finalType,
@@ -209,13 +209,13 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			}
 			return &TCon{Name: typ.Name}
 		}
-		
+
 	case *ast.FuncType:
 		paramTypes := make([]Type, len(typ.Params))
 		for i, p := range typ.Params {
 			paramTypes[i] = tc.astTypeToType(p)
 		}
-		
+
 		// Handle effects
 		var effectRow *Row
 		if len(typ.Effects) > 0 {
@@ -231,25 +231,25 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		} else {
 			effectRow = EmptyEffectRow()
 		}
-		
+
 		return &TFunc2{
 			Params:    paramTypes,
 			EffectRow: effectRow,
 			Return:    tc.astTypeToType(typ.Return),
 		}
-		
+
 	case *ast.ListType:
 		return &TList{
 			Element: tc.astTypeToType(typ.Element),
 		}
-		
+
 	case *ast.TupleType:
 		elements := make([]Type, len(typ.Elements))
 		for i, e := range typ.Elements {
 			elements[i] = tc.astTypeToType(e)
 		}
 		return &TTuple{Elements: elements}
-		
+
 	default:
 		// Unknown type, return type variable
 		return &TVar2{Name: "unknown", Kind: Star}
@@ -283,7 +283,7 @@ func (s *TypedExpressionStatement) GetType() Type {
 
 // TypedFunctionDeclaration is a typed function declaration
 type TypedFunctionDeclaration struct {
-	Name       interface{} // Can be ast.Expression or nil
+	Name       interface{}   // Can be ast.Expression or nil
 	Params     []interface{} // ast.Expression items
 	ParamTypes []Type
 	Body       interface{} // ast.Expression

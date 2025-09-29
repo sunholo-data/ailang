@@ -74,16 +74,33 @@ fmt:
 	$(GOFMT) ./...
 	@echo "Code formatted"
 
+# Check code formatting (for CI)
+fmt-check:
+	@echo "Checking code formatting..."
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "Go code is not formatted. Please run 'make fmt'"; \
+		echo "Files that need formatting:"; \
+		gofmt -l .; \
+		exit 1; \
+	fi
+	@echo "Code formatting check passed"
+
 # Run go vet
 vet:
 	@echo "Running go vet..."
 	$(GOVET) ./...
 	@echo "Vet complete"
 
+# Install golangci-lint
+install-lint:
+	@echo "Installing golangci-lint..."
+	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.54.2
+	@echo "golangci-lint installed"
+
 # Run linter (requires golangci-lint)
 lint:
 	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" && exit 1)
+	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install golangci-lint'" && exit 1)
 	golangci-lint run
 	@echo "Lint complete"
 
@@ -140,15 +157,15 @@ quick-install:
 # Verify all examples
 verify-examples: build
 	@echo "Verifying examples..."
-	@go run scripts/verify_examples.go --json > examples_report.json 2>&1; EXIT_CODE=$$?; \
-	go run scripts/verify_examples.go --markdown > examples_status.md 2>&1; \
+	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1; EXIT_CODE=$$?; \
+	go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1; \
 	cat examples_status.md; \
 	exit $$EXIT_CODE
 
 # Update README with example status
 update-readme: verify-examples
 	@echo "Updating README with example status..."
-	@go run scripts/update_readme.go
+	@go run ./scripts/update_readme.go
 
 # Generate test coverage badge
 test-coverage-badge:
@@ -160,10 +177,10 @@ test-coverage-badge:
 # Flag broken examples with warning headers
 flag-broken: verify-examples
 	@echo "Flagging broken examples..."
-	@go run scripts/flag_broken_examples.go
+	@go run ./scripts/flag_broken_examples.go
 
 # CI verification target  
-ci: deps test test-coverage-badge verify-examples
+ci: deps fmt-check vet lint test test-coverage-badge verify-examples
 	@echo "CI verification complete"
 
 # Show help
@@ -178,8 +195,10 @@ help:
 	@echo "  make update-readme    - Update README with example status"
 	@echo "  make ci               - Run full CI verification"
 	@echo "  make fmt              - Format code"
+	@echo "  make fmt-check        - Check code formatting"
 	@echo "  make vet              - Run go vet"
 	@echo "  make lint             - Run linter"
+	@echo "  make install-lint     - Install golangci-lint"
 	@echo "  make deps             - Download dependencies"
 	@echo "  make clean            - Clean build artifacts"
 	@echo "  make repl             - Start the REPL"

@@ -159,9 +159,9 @@ func (e Encoded) ToJSON() ([]byte, error) {
 
 // ErrorContext provides structured context for errors
 type ErrorContext struct {
-	Constraints []string `json:"constraints,omitempty"`
-	Decisions   []string `json:"decisions,omitempty"`
-	TraceSlice  string   `json:"trace_slice,omitempty"`
+	Constraints []string          `json:"constraints,omitempty"`
+	Decisions   []string          `json:"decisions,omitempty"`
+	TraceSlice  string            `json:"trace_slice,omitempty"`
 	Environment map[string]string `json:"environment,omitempty"`
 }
 

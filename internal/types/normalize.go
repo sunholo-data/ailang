@@ -10,7 +10,7 @@ import (
 // for use in deterministic registry keys and pretty-printing.
 // Examples:
 //   - int → "Int"
-//   - float → "Float"  
+//   - float → "Float"
 //   - [int] → "List<Int>"
 //   - (int, float) → "Tuple<Int,Float>"
 //   - {x: int, y: float} → "Record<x:Int,y:Float>"
@@ -22,7 +22,7 @@ func NormalizeTypeName(t Type) string {
 	if t == nil {
 		return "<unknown>"
 	}
-	
+
 	switch typ := t.(type) {
 	case *TCon:
 		// Normalize primitive type constructor names to canonical form
@@ -46,16 +46,16 @@ func NormalizeTypeName(t Type) string {
 			}
 			return typ.Name
 		}
-	
+
 	case *TVar:
 		// Type variables should not appear in normalized names (should be ground)
 		// This is an error case but we handle it gracefully
 		return fmt.Sprintf("_%s", typ.Name)
-	
+
 	case *TList:
 		elemType := NormalizeTypeName(typ.Element)
 		return fmt.Sprintf("List<%s>", elemType)
-	
+
 	case *TTuple:
 		// Canonical tuple format: Tuple<T1,T2,...>
 		// Decision: Always use "Tuple", never "Pair" for consistency
@@ -64,7 +64,7 @@ func NormalizeTypeName(t Type) string {
 			elems = append(elems, NormalizeTypeName(e))
 		}
 		return fmt.Sprintf("Tuple<%s>", strings.Join(elems, ","))
-	
+
 	case *TRecord:
 		// Canonical record format: Record<f1:T1,f2:T2,...>
 		// Fields are sorted alphabetically for determinism
@@ -74,21 +74,21 @@ func NormalizeTypeName(t Type) string {
 			fieldNames = append(fieldNames, name)
 		}
 		sort.Strings(fieldNames)
-		
+
 		for _, name := range fieldNames {
 			fieldType := NormalizeTypeName(typ.Fields[name])
 			fields = append(fields, fmt.Sprintf("%s:%s", name, fieldType))
 		}
-		
+
 		result := fmt.Sprintf("Record<%s>", strings.Join(fields, ","))
-		
+
 		// Handle row polymorphism if present
 		if typ.Row != nil {
 			result += fmt.Sprintf("|%s", NormalizeTypeName(typ.Row))
 		}
-		
+
 		return result
-	
+
 	case *TFunc:
 		// Function types: Func<P1,P2,...->R>
 		// We include effects if present: Func<P1,P2->R!{E1,E2}>
@@ -96,9 +96,9 @@ func NormalizeTypeName(t Type) string {
 		for _, p := range typ.Params {
 			params = append(params, NormalizeTypeName(p))
 		}
-		
+
 		returnType := NormalizeTypeName(typ.Return)
-		
+
 		// Format with arrow inside angle brackets for clarity
 		if len(params) == 0 {
 			result := fmt.Sprintf("Func<()->%s>", returnType)
@@ -107,17 +107,17 @@ func NormalizeTypeName(t Type) string {
 			}
 			return result
 		}
-		
-		result := fmt.Sprintf("Func<%s->%s>", 
-			strings.Join(params, ","), 
+
+		result := fmt.Sprintf("Func<%s->%s>",
+			strings.Join(params, ","),
 			returnType)
-		
+
 		if len(typ.Effects) > 0 {
 			result = addEffectsToFunc(result, typ.Effects)
 		}
-		
+
 		return result
-	
+
 	case *TApp:
 		// Type application: Maybe<Int>, Either<Int,String>
 		constr := NormalizeTypeName(typ.Constructor)
@@ -126,19 +126,19 @@ func NormalizeTypeName(t Type) string {
 			args = append(args, NormalizeTypeName(a))
 		}
 		return fmt.Sprintf("%s<%s>", constr, strings.Join(args, ","))
-	
+
 	// Handle v2 types if they exist
 	case *TVar2:
 		return fmt.Sprintf("_%s", typ.Name)
-	
+
 	case *TFunc2:
 		var params []string
 		for _, p := range typ.Params {
 			params = append(params, NormalizeTypeName(p))
 		}
-		
+
 		returnType := NormalizeTypeName(typ.Return)
-		
+
 		if len(params) == 0 {
 			result := fmt.Sprintf("Func<()->%s>", returnType)
 			if typ.EffectRow != nil {
@@ -146,11 +146,11 @@ func NormalizeTypeName(t Type) string {
 			}
 			return result
 		}
-		
+
 		result := fmt.Sprintf("Func<%s->%s>",
 			strings.Join(params, ","),
 			returnType)
-		
+
 		// Include effect row if present
 		if typ.EffectRow != nil {
 			effectStr := NormalizeTypeName(typ.EffectRow)
@@ -160,7 +160,7 @@ func NormalizeTypeName(t Type) string {
 				effectStr)
 		}
 		return result
-	
+
 	case *Row:
 		// Row types for effects or records
 		if typ.Kind == EffectRow {
@@ -183,7 +183,7 @@ func NormalizeTypeName(t Type) string {
 				fieldNames = append(fieldNames, name)
 			}
 			sort.Strings(fieldNames)
-			
+
 			for _, name := range fieldNames {
 				if fieldType, ok := typ.Labels[name].(Type); ok {
 					fields = append(fields, fmt.Sprintf("%s:%s", name, NormalizeTypeName(fieldType)))
@@ -192,17 +192,17 @@ func NormalizeTypeName(t Type) string {
 			return fmt.Sprintf("Record<%s>", strings.Join(fields, ","))
 		}
 		return "UnknownRow"
-	
+
 	case *RowVar:
 		return fmt.Sprintf("_%s", typ.Name)
-		
+
 	case *TRecord2:
 		// Use same format as TRecord
 		if typ.Row != nil {
 			return NormalizeTypeName(typ.Row)
 		}
 		return "Record<>"
-		
+
 	default:
 		// Fallback for unknown types
 		if t != nil {
@@ -219,7 +219,7 @@ func addEffectsToFunc(funcStr string, effects []EffectType) string {
 		effectStrs = append(effectStrs, e.String())
 	}
 	sort.Strings(effectStrs) // Deterministic effect order
-	
+
 	// Insert effects before the closing >
 	idx := strings.LastIndex(funcStr, ">")
 	if idx >= 0 {
@@ -254,15 +254,15 @@ func ParseDictionaryKey(key string) (namespace, className, typeNF, method string
 	if len(parts) < 3 || len(parts) > 4 {
 		return "", "", "", "", fmt.Errorf("invalid dictionary key format: %s (expected namespace::class::type[::method])", key)
 	}
-	
+
 	namespace = parts[0]
 	className = parts[1]
 	typeNF = parts[2]
-	
+
 	if len(parts) == 4 {
 		method = parts[3]
 	}
-	
+
 	return namespace, className, typeNF, method, nil
 }
 

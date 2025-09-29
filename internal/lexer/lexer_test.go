@@ -34,7 +34,7 @@ true && false || not true
 		{INT, "5"},
 		{PLUS, "+"},
 		{INT, "10"},
-		
+
 		{PURE, "pure"},
 		{FUNC, "func"},
 		{IDENT, "add"},
@@ -54,7 +54,7 @@ true && false || not true
 		{PLUS, "+"},
 		{IDENT, "b"},
 		{RBRACE, "}"},
-		
+
 		{IF, "if"},
 		{IDENT, "x"},
 		{GT, ">"},
@@ -63,7 +63,7 @@ true && false || not true
 		{STRING, "big"},
 		{ELSE, "else"},
 		{STRING, "small"},
-		
+
 		{MATCH, "match"},
 		{IDENT, "value"},
 		{LBRACE, "{"},
@@ -80,7 +80,7 @@ true && false || not true
 		{FARROW, "=>"},
 		{INT, "0"},
 		{RBRACE, "}"},
-		
+
 		{LBRACKET, "["},
 		{INT, "1"},
 		{COMMA, ","},
@@ -94,7 +94,7 @@ true && false || not true
 		{COMMA, ","},
 		{INT, "5"},
 		{RBRACKET, "]"},
-		
+
 		{LBRACE, "{"},
 		{IDENT, "name"},
 		{COLON, ":"},
@@ -104,14 +104,14 @@ true && false || not true
 		{COLON, ":"},
 		{INT, "30"},
 		{RBRACE, "}"},
-		
+
 		{TRUE, "true"},
 		{AND, "&&"},
 		{FALSE, "false"},
 		{OR, "||"},
 		{NOT, "not"},
 		{TRUE, "true"},
-		
+
 		{EOF, ""},
 	}
 
@@ -201,7 +201,7 @@ func TestOperators(t *testing.T) {
 		EQ, NEQ, LT, GT, LTE, GTE,
 		AND, OR, BANG,
 		ARROW, FARROW, LARROW,
-		PIPE, APPEND, DCOLON,  // Note: :: becomes DCOLON
+		PIPE, APPEND, DCOLON, // Note: :: becomes DCOLON
 		DOT, QUESTION, AT, DOLLAR, HASH,
 		EOF,
 	}
@@ -255,12 +255,12 @@ func TestKeywords(t *testing.T) {
 	for _, kw := range keywords {
 		l := New(kw, "test.ail")
 		tok := l.NextToken()
-		
+
 		expectedType := LookupIdent(kw)
 		if tok.Type != expectedType {
 			t.Errorf("keyword %q: expected type %v, got %v", kw, expectedType, tok.Type)
 		}
-		
+
 		if tok.Type == IDENT {
 			t.Errorf("keyword %q was parsed as IDENT", kw)
 		}

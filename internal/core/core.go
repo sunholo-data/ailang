@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"strings"
 	"github.com/sunholo/ailang/internal/ast"
+	"strings"
 )
 
 // Core AST - A-Normal Form with explicit recursion
@@ -11,16 +11,16 @@ import (
 
 // CoreNode is the base for all Core AST nodes
 type CoreNode struct {
-	NodeID   uint64   // Stable identifier assigned by elaborator
-	CoreSpan ast.Pos  // Position in Core AST
-	OrigSpan ast.Pos  // Original surface position for diagnostics
+	NodeID   uint64  // Stable identifier assigned by elaborator
+	CoreSpan ast.Pos // Position in Core AST
+	OrigSpan ast.Pos // Original surface position for diagnostics
 }
 
 // CoreExpr is the base interface for Core expressions
 type CoreExpr interface {
 	ID() uint64
-	Span() ast.Pos       // Core span
-	OriginalSpan() ast.Pos  // Surface origin
+	Span() ast.Pos         // Core span
+	OriginalSpan() ast.Pos // Surface origin
 	String() string
 	coreExpr()
 }
@@ -31,8 +31,8 @@ type Expr interface {
 }
 
 // Ensure CoreNode implements base methods
-func (n CoreNode) ID() uint64 { return n.NodeID }
-func (n CoreNode) Span() ast.Pos { return n.CoreSpan }
+func (n CoreNode) ID() uint64            { return n.NodeID }
+func (n CoreNode) Span() ast.Pos         { return n.CoreSpan }
 func (n CoreNode) OriginalSpan() ast.Pos { return n.OrigSpan }
 
 // Atomic expressions (can appear in any position)
@@ -43,7 +43,7 @@ type Var struct {
 	Name string
 }
 
-func (v *Var) coreExpr() {}
+func (v *Var) coreExpr()      {}
 func (v *Var) String() string { return v.Name }
 
 // Lit represents a literal value
@@ -63,7 +63,7 @@ const (
 	UnitLit
 )
 
-func (l *Lit) coreExpr() {}
+func (l *Lit) coreExpr()      {}
 func (l *Lit) String() string { return fmt.Sprintf("%v", l.Value) }
 
 // Lambda represents a function value
@@ -95,7 +95,7 @@ func (l *Lambda) String() string {
 type Let struct {
 	CoreNode
 	Name  string
-	Value CoreExpr  // In ANF: atomic or simple call
+	Value CoreExpr // In ANF: atomic or simple call
 	Body  CoreExpr
 }
 
@@ -113,7 +113,7 @@ type LetRec struct {
 
 type RecBinding struct {
 	Name  string
-	Value CoreExpr  // Usually Lambda for recursion
+	Value CoreExpr // Usually Lambda for recursion
 }
 
 func (l *LetRec) coreExpr() {}
@@ -125,7 +125,7 @@ func (l *LetRec) String() string {
 type App struct {
 	CoreNode
 	Func CoreExpr
-	Args []CoreExpr  // All must be atomic in ANF
+	Args []CoreExpr // All must be atomic in ANF
 }
 
 func (a *App) coreExpr() {}
@@ -136,7 +136,7 @@ func (a *App) String() string {
 // If represents conditional (in ANF, condition is atomic)
 type If struct {
 	CoreNode
-	Cond CoreExpr  // Must be atomic in ANF
+	Cond CoreExpr // Must be atomic in ANF
 	Then CoreExpr
 	Else CoreExpr
 }
@@ -149,14 +149,14 @@ func (i *If) String() string {
 // Match represents pattern matching
 type Match struct {
 	CoreNode
-	Scrutinee  CoreExpr  // Must be atomic in ANF
+	Scrutinee  CoreExpr // Must be atomic in ANF
 	Arms       []MatchArm
-	Exhaustive bool  // Set by elaborator/typechecker
+	Exhaustive bool // Set by elaborator/typechecker
 }
 
 type MatchArm struct {
 	Pattern CorePattern
-	Guard   CoreExpr  // Optional, must be atomic
+	Guard   CoreExpr // Optional, must be atomic
 	Body    CoreExpr
 }
 
@@ -169,8 +169,8 @@ func (m *Match) String() string {
 type BinOp struct {
 	CoreNode
 	Op    string
-	Left  CoreExpr  // Must be atomic in ANF
-	Right CoreExpr  // Must be atomic in ANF
+	Left  CoreExpr // Must be atomic in ANF
+	Right CoreExpr // Must be atomic in ANF
 }
 
 func (b *BinOp) coreExpr() {}
@@ -182,7 +182,7 @@ func (b *BinOp) String() string {
 type UnOp struct {
 	CoreNode
 	Op      string
-	Operand CoreExpr  // Must be atomic in ANF
+	Operand CoreExpr // Must be atomic in ANF
 }
 
 func (u *UnOp) coreExpr() {}
@@ -193,7 +193,7 @@ func (u *UnOp) String() string {
 // Record represents record construction (fields are atomic in ANF)
 type Record struct {
 	CoreNode
-	Fields map[string]CoreExpr  // All values must be atomic
+	Fields map[string]CoreExpr // All values must be atomic
 }
 
 func (r *Record) coreExpr() {}
@@ -204,7 +204,7 @@ func (r *Record) String() string {
 // RecordAccess represents field access (record is atomic in ANF)
 type RecordAccess struct {
 	CoreNode
-	Record CoreExpr  // Must be atomic in ANF
+	Record CoreExpr // Must be atomic in ANF
 	Field  string
 }
 
@@ -216,7 +216,7 @@ func (r *RecordAccess) String() string {
 // List represents list construction (elements are atomic in ANF)
 type List struct {
 	CoreNode
-	Elements []CoreExpr  // All must be atomic in ANF
+	Elements []CoreExpr // All must be atomic in ANF
 }
 
 func (l *List) coreExpr() {}
@@ -235,14 +235,14 @@ type VarPattern struct {
 	Name string
 }
 
-func (v *VarPattern) patternNode() {}
+func (v *VarPattern) patternNode()   {}
 func (v *VarPattern) String() string { return v.Name }
 
 type LitPattern struct {
 	Value interface{}
 }
 
-func (l *LitPattern) patternNode() {}
+func (l *LitPattern) patternNode()   {}
 func (l *LitPattern) String() string { return fmt.Sprintf("%v", l.Value) }
 
 type ConstructorPattern struct {
@@ -257,7 +257,7 @@ func (c *ConstructorPattern) String() string {
 
 type ListPattern struct {
 	Elements []CorePattern
-	Tail     *CorePattern  // For ... patterns
+	Tail     *CorePattern // For ... patterns
 }
 
 func (l *ListPattern) patternNode() {}
@@ -276,12 +276,12 @@ func (r *RecordPattern) String() string {
 
 type WildcardPattern struct{}
 
-func (w *WildcardPattern) patternNode() {}
+func (w *WildcardPattern) patternNode()   {}
 func (w *WildcardPattern) String() string { return "_" }
 
 // Program represents a Core program
 type Program struct {
-	Decls []CoreExpr  // Top-level declarations
+	Decls []CoreExpr // Top-level declarations
 }
 
 // Dictionary-passing nodes for type class resolution
@@ -310,8 +310,8 @@ func (d *DictAbs) String() string {
 // All method calls through type classes become DictApp nodes
 type DictApp struct {
 	CoreNode
-	Dict   CoreExpr // Dictionary reference (must be a Var in ANF)
-	Method string   // Method name: "add", "eq", "lt", etc.
+	Dict   CoreExpr   // Dictionary reference (must be a Var in ANF)
+	Method string     // Method name: "add", "eq", "lt", etc.
 	Args   []CoreExpr // Method arguments
 }
 

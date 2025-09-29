@@ -25,11 +25,11 @@ func TestOperatorMethodMapping(t *testing.T) {
 		{"<=", false, "lte"},
 		{">", false, "gt"},
 		{">=", false, "gte"},
-		
+
 		// Unary operators
 		{"-", true, "neg"},
 		{"!", true, "not"},
-		
+
 		// Unknown operators
 		{"unknown", false, ""},
 		{"unknown", true, ""},
@@ -39,7 +39,7 @@ func TestOperatorMethodMapping(t *testing.T) {
 		t.Run(tt.operator+"_unary_"+fmt.Sprintf("%t", tt.isUnary), func(t *testing.T) {
 			result := OperatorMethod(tt.operator, tt.isUnary)
 			if result != tt.expected {
-				t.Errorf("OperatorMethod(%q, %t) = %q, want %q", 
+				t.Errorf("OperatorMethod(%q, %t) = %q, want %q",
 					tt.operator, tt.isUnary, result, tt.expected)
 			}
 		})
@@ -50,7 +50,7 @@ func TestOperatorMethodMapping(t *testing.T) {
 func TestFillOperatorMethodsIntegration(t *testing.T) {
 	// Create a type checker with mock resolved constraints
 	tc := NewCoreTypeChecker()
-	
+
 	// Create a mock BinOp node
 	binOp := &core.BinOp{
 		CoreNode: core.CoreNode{NodeID: 1},
@@ -58,7 +58,7 @@ func TestFillOperatorMethodsIntegration(t *testing.T) {
 		Left:     &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: 2},
 		Right:    &core.Lit{CoreNode: core.CoreNode{NodeID: 3}, Kind: core.IntLit, Value: 3},
 	}
-	
+
 	// Create a mock resolved constraint for the BinOp node
 	tc.resolvedConstraints = make(map[uint64]*ResolvedConstraint)
 	tc.resolvedConstraints[1] = &ResolvedConstraint{
@@ -67,10 +67,10 @@ func TestFillOperatorMethodsIntegration(t *testing.T) {
 		Type:      &TCon{Name: "Int"},
 		Method:    "", // Initially empty - should be filled by FillOperatorMethods
 	}
-	
+
 	// Call FillOperatorMethods
 	tc.FillOperatorMethods(binOp)
-	
+
 	// Verify that the method was set correctly
 	constraint := tc.resolvedConstraints[1]
 	if constraint.Method != "mul" {
@@ -81,7 +81,7 @@ func TestFillOperatorMethodsIntegration(t *testing.T) {
 // TestMultipleOperatorsInExpression tests that all operators in a complex expression get correct methods
 func TestMultipleOperatorsInExpression(t *testing.T) {
 	tc := NewCoreTypeChecker()
-	
+
 	// Create a complex expression: (2 + 3) * 4
 	addOp := &core.BinOp{
 		CoreNode: core.CoreNode{NodeID: 1},
@@ -89,14 +89,14 @@ func TestMultipleOperatorsInExpression(t *testing.T) {
 		Left:     &core.Lit{CoreNode: core.CoreNode{NodeID: 2}, Kind: core.IntLit, Value: 2},
 		Right:    &core.Lit{CoreNode: core.CoreNode{NodeID: 3}, Kind: core.IntLit, Value: 3},
 	}
-	
+
 	mulOp := &core.BinOp{
 		CoreNode: core.CoreNode{NodeID: 4},
 		Op:       "*",
 		Left:     addOp,
 		Right:    &core.Lit{CoreNode: core.CoreNode{NodeID: 5}, Kind: core.IntLit, Value: 4},
 	}
-	
+
 	// Create resolved constraints for both operations
 	tc.resolvedConstraints = make(map[uint64]*ResolvedConstraint)
 	tc.resolvedConstraints[1] = &ResolvedConstraint{
@@ -107,14 +107,14 @@ func TestMultipleOperatorsInExpression(t *testing.T) {
 	}
 	tc.resolvedConstraints[4] = &ResolvedConstraint{
 		NodeID:    4,
-		ClassName: "Num", 
+		ClassName: "Num",
 		Type:      &TCon{Name: "Int"},
 		Method:    "", // Should become "mul"
 	}
-	
+
 	// Call FillOperatorMethods on the root expression
 	tc.FillOperatorMethods(mulOp)
-	
+
 	// Verify both methods were set correctly
 	if tc.resolvedConstraints[1].Method != "add" {
 		t.Errorf("Expected method 'add' for '+' operator, got '%s'", tc.resolvedConstraints[1].Method)
@@ -140,7 +140,7 @@ func TestBinaryVsUnaryOperators(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := OperatorMethod(tt.operator, tt.isUnary)
 			if result != tt.expected {
-				t.Errorf("OperatorMethod(%q, %t) = %q, want %q", 
+				t.Errorf("OperatorMethod(%q, %t) = %q, want %q",
 					tt.operator, tt.isUnary, result, tt.expected)
 			}
 		})
@@ -150,7 +150,7 @@ func TestBinaryVsUnaryOperators(t *testing.T) {
 // TestNoRegressionAllOperatorsAddBug ensures the specific bug where all operators became "add" doesn't happen
 func TestNoRegressionAllOperatorsAddBug(t *testing.T) {
 	operators := []string{"*", "/", "-", "==", "!=", "<", ">", "<=", ">="}
-	
+
 	for _, op := range operators {
 		t.Run("operator_"+op, func(t *testing.T) {
 			method := OperatorMethod(op, false)

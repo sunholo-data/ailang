@@ -33,8 +33,8 @@ func TestAccepts(t *testing.T) {
 func TestMarshalDeterministic(t *testing.T) {
 	// Test that keys are sorted
 	data := map[string]interface{}{
-		"zebra": "last",
-		"alpha": "first",
+		"zebra":  "last",
+		"alpha":  "first",
 		"middle": "middle",
 	}
 
@@ -112,7 +112,7 @@ func TestFormatJSON(t *testing.T) {
 func TestMustValidate(t *testing.T) {
 	// Test with matching schema
 	data := map[string]interface{}{
-		"schema": "ailang.error/v1",
+		"schema":  "ailang.error/v1",
 		"message": "test error",
 	}
 

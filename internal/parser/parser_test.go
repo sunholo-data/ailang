@@ -692,11 +692,11 @@ match value {
 
 func TestParsingErrors(t *testing.T) {
 	tests := []string{
-		"let x 5",           // Missing =
-		"if x < y then x",   // Missing else
-		"func (x, y",        // Unclosed parenthesis
-		"{ name: }",         // Missing value
-		"[1, 2,",           // Unclosed bracket
+		"let x 5",         // Missing =
+		"if x < y then x", // Missing else
+		"func (x, y",      // Unclosed parenthesis
+		"{ name: }",       // Missing value
+		"[1, 2,",          // Unclosed bracket
 	}
 
 	for _, input := range tests {
@@ -795,7 +795,7 @@ pure func add(x: int, y: int) -> int {
 	if param1.Name != "x" {
 		t.Errorf("param[0].Name not 'x'. got=%s", param1.Name)
 	}
-	
+
 	param2 := fn.Params[1]
 	if param2.Name != "y" {
 		t.Errorf("param[1].Name not 'y'. got=%s", param2.Name)
@@ -826,7 +826,7 @@ func TestTupleLiteral(t *testing.T) {
 
 	testLiteralExpression(t, tuple.Elements[0], int64(1))
 	testLiteralExpression(t, tuple.Elements[1], true)
-	
+
 	str, ok := tuple.Elements[2].(*ast.Literal)
 	if !ok || str.Kind != ast.StringLit || str.Value != "hello" {
 		t.Errorf("tuple.Elements[2] not string 'hello'. got=%v", tuple.Elements[2])
@@ -958,7 +958,7 @@ func TestLambdaExpression(t *testing.T) {
 func TestLambdaBodyExtent(t *testing.T) {
 	// Test that lambda body extends correctly: \x. f(x).y + z should be \x. ((f(x)).y + z)
 	input := `\x. f(x).y + z`
-	
+
 	l := lexer.New(input, "test.ail")
 	p := New(l)
 	program := p.Parse()
@@ -987,7 +987,7 @@ func TestLambdaBodyExtent(t *testing.T) {
 func TestLambdaPrecedence(t *testing.T) {
 	// Test that lambda has lowest precedence
 	input := `\x. x + 1 * 2`
-	
+
 	l := lexer.New(input, "test.ail")
 	p := New(l)
 	program := p.Parse()

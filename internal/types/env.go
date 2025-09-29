@@ -21,7 +21,7 @@ func NewTypeEnv() *TypeEnv {
 // NewTypeEnvWithBuiltins creates a type environment with builtin functions
 func NewTypeEnvWithBuiltins() *TypeEnv {
 	env := NewTypeEnv()
-	
+
 	// Add builtin functions
 	// print : ∀α. α -> () ! {IO}
 	env.bindBuiltin("print", &Scheme{

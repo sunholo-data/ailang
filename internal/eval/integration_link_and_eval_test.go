@@ -12,29 +12,29 @@ import (
 
 func pipeAll(t *testing.T, src string) *core.Program {
 	t.Helper()
-	
+
 	l := lexer.New(src, "<test>")
 	p := parser.New(l)
 	surf := p.Parse()
 	if errors := p.Errors(); len(errors) > 0 {
 		t.Fatalf("parse: %v", errors[0])
 	}
-	
+
 	el := elaborate.NewElaborator()
 	core1, err := el.Elaborate(surf)
 	if err != nil {
 		t.Fatalf("elaborate: %v", err)
 	}
-	
+
 	tc := types.NewCoreTypeCheckerWithInstances(types.LoadBuiltinInstances())
-	
+
 	env := types.NewTypeEnvWithBuiltins()
 	for _, decl := range core1.Decls {
 		if _, _, err := tc.CheckCoreExpr(decl, env); err != nil {
 			t.Fatalf("typecheck: %v", err)
 		}
 	}
-	
+
 	// For now, return core1 since dictionary elaboration isn't implemented yet
 	// In the real implementation, this would call:
 	// core2, err := el.ElaborateWithDictionaries(core1, tc.GetResolvedConstraints())
@@ -45,7 +45,7 @@ func TestLinkAndEval_AddInt(t *testing.T) {
 	core2 := pipeAll(t, `let r = 2 + 3 in r`)
 
 	// These are placeholders since the full eval/link infrastructure doesn't exist yet
-	
+
 	// TODO: When implemented, this would be:
 	// reg := NewDictRegistry()
 	// RegisterBuiltins(reg) // prelude.Num.Int.add, etc.
@@ -67,7 +67,7 @@ func TestLinkAndEval_AddInt(t *testing.T) {
 	if len(core2.Decls) == 0 {
 		t.Fatalf("expected core program to have declarations")
 	}
-	
+
 	t.Logf("Successfully processed pipeline for: let r = 2 + 3 in r")
 	t.Logf("Core program has %d declarations", len(core2.Decls))
 }
@@ -87,13 +87,13 @@ func TestLinkError_MissingMethod(t *testing.T) {
 	if len(core2.Decls) == 0 {
 		t.Fatalf("expected core program to have declarations")
 	}
-	
+
 	t.Logf("Pipeline works - would test missing method error when linker is implemented")
 }
 
 // Placeholder types and functions for when the eval infrastructure is implemented
 
-// EvalContext represents evaluation context  
+// EvalContext represents evaluation context
 type EvalContext struct {
 	Env *Environment
 }

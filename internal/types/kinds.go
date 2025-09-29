@@ -53,9 +53,9 @@ func (k KRecord) Equals(other Kind) bool {
 
 // Common kinds
 var (
-	Star       = KStar{}
-	Effect     = KEffect{}
-	Record     = KRecord{}
-	EffectRow  = KRow{ElemKind: Effect}
-	RecordRow  = KRow{ElemKind: Record}
+	Star      = KStar{}
+	Effect    = KEffect{}
+	Record    = KRecord{}
+	EffectRow = KRow{ElemKind: Effect}
+	RecordRow = KRow{ElemKind: Record}
 )

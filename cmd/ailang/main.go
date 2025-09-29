@@ -20,7 +20,7 @@ var (
 	Version   = "dev"
 	Commit    = "unknown"
 	BuildTime = "unknown"
-	
+
 	// Color output
 	green  = color.New(color.FgGreen).SprintFunc()
 	red    = color.New(color.FgRed).SprintFunc()
@@ -200,7 +200,7 @@ func runFile(filename string, trace bool, seed int, virtualTime bool) {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Runtime error"), err)
 		os.Exit(1)
 	}
-	
+
 	// Print result if not unit
 	if result != nil && result.Type() != "unit" {
 		fmt.Println(result.String())
@@ -216,29 +216,28 @@ func runREPL(learn bool, trace bool) {
 	r.Start(os.Stdin, os.Stdout)
 }
 
-
 func runTests(path string) {
 	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)
-	
+
 	// Find all .ail files with tests
 	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if strings.HasSuffix(p, ".ail") {
 			// TODO: Check if file has tests and run them
 			fmt.Printf("  %s %s\n", green("✓"), p)
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
-	
+
 	// TODO: Implement test runner
 	fmt.Printf("\n%s All tests passed!\n", green("✓"))
 }
@@ -246,7 +245,7 @@ func runTests(path string) {
 func watchFile(filename string, trace bool) {
 	fmt.Printf("%s Watching %s for changes...\n", cyan("👁"), filename)
 	fmt.Println("Press Ctrl+C to stop")
-	
+
 	// TODO: Implement file watching
 	// For now, just run the file once
 	runFile(filename, trace, 0, false)
@@ -283,19 +282,19 @@ func checkFile(filename string) {
 
 func exportTraining() {
 	fmt.Printf("%s Exporting training data...\n", cyan("→"))
-	
+
 	// TODO: Implement training data export
 	fmt.Printf("  Analyzing execution traces...\n")
 	fmt.Printf("  Filtering high-quality traces (score > 0.8)...\n")
 	fmt.Printf("  Formatting for fine-tuning...\n")
-	
+
 	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
 }
 
 func runLSP() {
 	fmt.Printf("%s Language Server v%s\n", bold("AILANG"), Version)
 	fmt.Println("Listening on stdio...")
-	
+
 	// TODO: Implement LSP
 	fmt.Fprintf(os.Stderr, "%s: LSP not yet implemented\n", red("Error"))
 	os.Exit(1)
