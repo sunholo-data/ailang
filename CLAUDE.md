@@ -512,9 +512,69 @@ ailang export-training
 ## Testing Policy
 **ALWAYS remove out-of-date tests. No backward compatibility.**
 - When architecture changes, delete old tests completely
-- Don't maintain legacy test suites  
+- Don't maintain legacy test suites
 - Write new tests for new implementations
 - Keep test suite clean and current
+
+## 🚨 CRITICAL: Linting & "Unused" Code Warnings
+
+**⚠️ LESSON LEARNED: Never blindly delete "unused" functions without understanding WHY they're unused!**
+
+### The Import System Disaster (September 2025)
+In commit `eae08b6`, working import functions were deleted because linter said they were "unused".
+**What actually happened:**
+1. Function **calls** were renamed from `parseModuleDecl()` to `_parseModuleDecl()` (note underscore)
+2. Function **definitions** kept original names (no underscore)
+3. Calls were then **commented out**
+4. Linter correctly said "hey, `parseModuleDecl` is never called!"
+5. Functions were **blindly deleted**
+6. Result: **Working import system completely broken** 💥
+
+### Rules to Prevent This:
+1. **NEVER delete functions just because linter says "unused"**
+   - First understand WHY they're unused
+   - Check git history - were they just commented out?
+   - Search entire codebase for references (including comments)
+   - Run `make test-imports` and `make test` BEFORE deleting anything
+
+2. **If renaming function calls, rename definitions too**
+   - Use IDE refactoring tools, not manual find/replace
+   - If adding `_` prefix to mark as TODO, add to BOTH call and definition
+   - Better: use TODO comments instead of renaming
+
+3. **Test between each change**
+   - Don't combine: rename + comment out + delete
+   - Run tests after EACH step:
+     - After rename → `make test`
+     - After commenting out → `make test-imports`
+     - After deleting → `make test && make lint`
+
+4. **When linter complains about unused code:**
+   ```bash
+   # Step 1: Check if it's really unused
+   git log -p --all -S 'functionName' internal/
+   grep -r "functionName" internal/
+
+   # Step 2: Check recent changes
+   git log --oneline internal/parser/parser.go | head -5
+   git diff HEAD~1 internal/parser/parser.go | grep functionName
+
+   # Step 3: If truly unused AND you know why, document it
+   git commit -m "Remove unused parseOldFormat() - replaced by parseNewFormat() in commit abc123"
+   ```
+
+5. **Special warning for parser/module/import code**
+   - These are **critical** for language functionality
+   - If you break these, **nothing imports work**
+   - Always run `make test-imports` before committing parser changes
+   - Check that example files still work: `make verify-examples`
+
+### Recovery Checklist (if this happens again):
+1. Find last working commit: `git log --all --oneline | grep "import"`
+2. Check what was deleted: `git diff working_commit broken_commit`
+3. Restore deleted functions: `git show working_commit:file.go`
+4. Test imports: `make test-imports`
+5. Document in commit message what was broken and how it was fixed
 
 ### Current Test Coverage
 - **Overall**: 29.9% (as of 2024-09-29)
