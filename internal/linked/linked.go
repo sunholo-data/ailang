@@ -32,7 +32,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 	if expr == nil {
 		return nil
 	}
-	
+
 	switch e := expr.(type) {
 	case *core.DictRef:
 		// Look up dictionary in registry
@@ -41,7 +41,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 		// Full implementation would resolve to actual dictionary
 		_ = dictKey
 		return e
-		
+
 	case *core.DictApp:
 		return &core.DictApp{
 			CoreNode: e.CoreNode,
@@ -49,7 +49,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Method:   e.Method,
 			Args:     linkExprs(e.Args, dictReg),
 		}
-		
+
 	case *core.Let:
 		return &core.Let{
 			CoreNode: e.CoreNode,
@@ -57,7 +57,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Value:    linkExpr(e.Value, dictReg),
 			Body:     linkExpr(e.Body, dictReg),
 		}
-		
+
 	case *core.LetRec:
 		var bindings []core.RecBinding
 		for _, b := range e.Bindings {
@@ -71,21 +71,21 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Bindings: bindings,
 			Body:     linkExpr(e.Body, dictReg),
 		}
-		
+
 	case *core.Lambda:
 		return &core.Lambda{
 			CoreNode: e.CoreNode,
 			Params:   e.Params,
 			Body:     linkExpr(e.Body, dictReg),
 		}
-		
+
 	case *core.App:
 		return &core.App{
 			CoreNode: e.CoreNode,
 			Func:     linkExpr(e.Func, dictReg),
 			Args:     linkExprs(e.Args, dictReg),
 		}
-		
+
 	case *core.BinOp:
 		return &core.BinOp{
 			CoreNode: e.CoreNode,
@@ -93,14 +93,14 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Left:     linkExpr(e.Left, dictReg),
 			Right:    linkExpr(e.Right, dictReg),
 		}
-		
+
 	case *core.UnOp:
 		return &core.UnOp{
 			CoreNode: e.CoreNode,
 			Op:       e.Op,
 			Operand:  linkExpr(e.Operand, dictReg),
 		}
-		
+
 	case *core.If:
 		return &core.If{
 			CoreNode: e.CoreNode,
@@ -108,7 +108,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Then:     linkExpr(e.Then, dictReg),
 			Else:     linkExpr(e.Else, dictReg),
 		}
-		
+
 	case *core.Match:
 		var arms []core.MatchArm
 		for _, arm := range e.Arms {
@@ -123,7 +123,7 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Arms:       arms,
 			Exhaustive: e.Exhaustive,
 		}
-		
+
 	case *core.Record:
 		fields := make(map[string]core.CoreExpr)
 		for k, v := range e.Fields {
@@ -133,20 +133,20 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			CoreNode: e.CoreNode,
 			Fields:   fields,
 		}
-		
+
 	case *core.RecordAccess:
 		return &core.RecordAccess{
 			CoreNode: e.CoreNode,
 			Record:   linkExpr(e.Record, dictReg),
 			Field:    e.Field,
 		}
-		
+
 	case *core.List:
 		return &core.List{
 			CoreNode: e.CoreNode,
 			Elements: linkExprs(e.Elements, dictReg),
 		}
-		
+
 	case *core.Intrinsic:
 		// Intrinsic nodes pass through - they'll be handled by OpLowering pass
 		return &core.Intrinsic{
@@ -154,11 +154,11 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 			Op:       e.Op,
 			Args:     linkExprs(e.Args, dictReg),
 		}
-		
+
 	// Atomic expressions - return as is
 	case *core.Var, *core.Lit, *core.DictAbs, *core.VarGlobal:
 		return expr
-		
+
 	default:
 		// Unknown type - return as is
 		return expr

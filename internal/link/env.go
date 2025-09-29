@@ -7,9 +7,9 @@ import (
 
 // ImportedSym represents an imported symbol with its type information
 type ImportedSym struct {
-	Ref     core.GlobalRef
-	Type    *types.Scheme
-	Purity  bool
+	Ref    core.GlobalRef
+	Type   *types.Scheme
+	Purity bool
 }
 
 // GlobalEnv maps imported names to their symbol information

@@ -336,14 +336,14 @@ type Error struct {
 	Msg string
 }
 
-func (e *Error) exprNode()        {}
-func (e *Error) Literal() string   { return "<error>" }
-func (e *Error) Position() Pos     { return e.Pos }
-func (e *Error) String() string    { 
+func (e *Error) exprNode()       {}
+func (e *Error) Literal() string { return "<error>" }
+func (e *Error) Position() Pos   { return e.Pos }
+func (e *Error) String() string {
 	if e.Msg != "" {
 		return fmt.Sprintf("<error: %s>", e.Msg)
 	}
-	return "<error>" 
+	return "<error>"
 }
 
 // QuasiQuote represents typed quasiquotes
@@ -404,7 +404,7 @@ type FuncDecl struct {
 	Properties []*Property
 	Body       Expr
 	IsPure     bool
-	IsExport   bool   // Export flag
+	IsExport   bool // Export flag
 	Pos        Pos
 	Span       Span   // For SID calculation
 	SID        string // Stable ID (calculated post-parse)

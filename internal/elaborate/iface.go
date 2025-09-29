@@ -9,7 +9,7 @@ import (
 // BuildInterface extracts a module interface from an elaborated Core program
 func BuildInterface(prog *core.Program, modulePath string, typeEnv *types.TypeEnv) *iface.Iface {
 	moduleIface := iface.NewIface(modulePath)
-	
+
 	// Extract exports from top-level declarations
 	for _, decl := range prog.Decls {
 		switch d := decl.(type) {
@@ -21,7 +21,7 @@ func BuildInterface(prog *core.Program, modulePath string, typeEnv *types.TypeEn
 				purity := isPure(d.Value)
 				moduleIface.AddExport(d.Name, typ, purity)
 			}
-			
+
 		case *core.LetRec:
 			// Recursive bindings
 			for _, binding := range d.Bindings {
@@ -33,7 +33,7 @@ func BuildInterface(prog *core.Program, modulePath string, typeEnv *types.TypeEn
 			}
 		}
 	}
-	
+
 	return moduleIface
 }
 

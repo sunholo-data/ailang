@@ -29,7 +29,7 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 		Decls: make([]core.CoreExpr, len(prog.Decls)),
 		Meta:  prog.Meta, // Preserve metadata
 	}
-	
+
 	for i, decl := range prog.Decls {
 		loweredDecl := l.lowerExpr(decl)
 		if loweredDecl == nil {
@@ -37,12 +37,12 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 		}
 		lowered.Decls[i] = loweredDecl
 	}
-	
+
 	// Return any collected errors
 	if len(l.errors) > 0 {
 		return nil, l.errors[0] // TODO: Return all errors
 	}
-	
+
 	return lowered, nil
 }
 
@@ -51,11 +51,11 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 	if expr == nil {
 		return nil
 	}
-	
+
 	switch e := expr.(type) {
 	case *core.Intrinsic:
 		return l.lowerIntrinsic(e)
-		
+
 	case *core.Let:
 		return &core.Let{
 			CoreNode: e.CoreNode,
@@ -63,7 +63,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Value:    l.lowerExpr(e.Value),
 			Body:     l.lowerExpr(e.Body),
 		}
-		
+
 	case *core.LetRec:
 		var bindings []core.RecBinding
 		for _, b := range e.Bindings {
@@ -77,21 +77,21 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Bindings: bindings,
 			Body:     l.lowerExpr(e.Body),
 		}
-		
+
 	case *core.Lambda:
 		return &core.Lambda{
 			CoreNode: e.CoreNode,
 			Params:   e.Params,
 			Body:     l.lowerExpr(e.Body),
 		}
-		
+
 	case *core.App:
 		return &core.App{
 			CoreNode: e.CoreNode,
 			Func:     l.lowerExpr(e.Func),
 			Args:     l.lowerExprs(e.Args),
 		}
-		
+
 	case *core.If:
 		return &core.If{
 			CoreNode: e.CoreNode,
@@ -99,7 +99,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Then:     l.lowerExpr(e.Then),
 			Else:     l.lowerExpr(e.Else),
 		}
-		
+
 	case *core.Match:
 		var arms []core.MatchArm
 		for _, arm := range e.Arms {
@@ -115,7 +115,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Arms:       arms,
 			Exhaustive: e.Exhaustive,
 		}
-		
+
 	case *core.BinOp:
 		// Legacy BinOp nodes - convert to Intrinsic first
 		var op core.IntrinsicOp
@@ -157,7 +157,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 				Right:    l.lowerExpr(e.Right),
 			}
 		}
-		
+
 		// Convert to Intrinsic and lower
 		intrinsic := &core.Intrinsic{
 			CoreNode: e.CoreNode,
@@ -165,7 +165,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Args:     []core.CoreExpr{e.Left, e.Right},
 		}
 		return l.lowerIntrinsic(intrinsic)
-		
+
 	case *core.UnOp:
 		// Legacy UnOp nodes - convert to Intrinsic first
 		var op core.IntrinsicOp
@@ -182,7 +182,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 				Operand:  l.lowerExpr(e.Operand),
 			}
 		}
-		
+
 		// Convert to Intrinsic and lower
 		intrinsic := &core.Intrinsic{
 			CoreNode: e.CoreNode,
@@ -190,7 +190,7 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			Args:     []core.CoreExpr{e.Operand},
 		}
 		return l.lowerIntrinsic(intrinsic)
-		
+
 	case *core.Record:
 		fields := make(map[string]core.CoreExpr)
 		for k, v := range e.Fields {
@@ -200,24 +200,24 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 			CoreNode: e.CoreNode,
 			Fields:   fields,
 		}
-		
+
 	case *core.RecordAccess:
 		return &core.RecordAccess{
 			CoreNode: e.CoreNode,
 			Record:   l.lowerExpr(e.Record),
 			Field:    e.Field,
 		}
-		
+
 	case *core.List:
 		return &core.List{
 			CoreNode: e.CoreNode,
 			Elements: l.lowerExprs(e.Elements),
 		}
-		
+
 	// Atomic expressions and dictionary operations - pass through
 	case *core.Var, *core.VarGlobal, *core.Lit, *core.DictRef, *core.DictAbs, *core.DictApp:
 		return expr
-		
+
 	default:
 		// Unknown type - pass through
 		return expr
@@ -248,7 +248,7 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			Else:     &core.Lit{CoreNode: intrinsic.CoreNode, Kind: core.BoolLit, Value: false},
 		}
 	}
-	
+
 	if intrinsic.Op == core.OpOr {
 		// Lower to: if left then true else right
 		// This preserves short-circuit semantics
@@ -261,15 +261,15 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			Else:     right,
 		}
 	}
-	
+
 	// For non-short-circuiting operations, recursively lower the arguments
 	args := l.lowerExprs(intrinsic.Args)
-	
+
 	// Determine the type suffix based on the operation
 	// TODO: Get actual types from typechecker
 	// For MVP, use simple heuristics
 	var typeSuffix string
-	
+
 	switch intrinsic.Op {
 	case core.OpNot:
 		typeSuffix = "Bool"
@@ -279,7 +279,7 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		// For arithmetic and comparison, default to Int
 		// A real implementation would inspect types
 		typeSuffix = "Int"
-		
+
 		// Check if we have float literals
 		if len(args) > 0 {
 			if lit, ok := args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
@@ -287,7 +287,7 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			}
 		}
 	}
-	
+
 	// Get the builtin name from the operator table
 	builtinName, err := GetBuiltinName(intrinsic.Op, typeSuffix)
 	if err != nil {
@@ -299,7 +299,7 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			Args:     args,
 		}
 	}
-	
+
 	// Create a builtin call
 	// We use VarGlobal with module "$builtin" to represent builtins
 	builtinRef := &core.VarGlobal{
@@ -309,7 +309,7 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			Name:   builtinName,
 		},
 	}
-	
+
 	// Create the application
 	return &core.App{
 		CoreNode: intrinsic.CoreNode,
@@ -330,9 +330,9 @@ func CreateTypeMismatchError(op core.IntrinsicOp, leftType, rightType types.Type
 		core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||", core.OpNot: "not", core.OpNeg: "-",
 	}[op]
-	
+
 	// For now, return a simple error
 	// TODO: Use structured error when error encoder is available
-	return fmt.Errorf("ELB_OP001: Operator '%s' has no implementation for types (%s, %s). Suggestion: Use matching types or add explicit conversion", 
+	return fmt.Errorf("ELB_OP001: Operator '%s' has no implementation for types (%s, %s). Suggestion: Use matching types or add explicit conversion",
 		opStr, leftType, rightType)
 }

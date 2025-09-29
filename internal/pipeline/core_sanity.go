@@ -26,7 +26,7 @@ func (e *CoreSanityError) Error() string {
 // AssertNoOperators ensures no operator nodes remain after lowering
 func AssertNoOperators(prog *core.Program) error {
 	var errors []error
-	
+
 	// Walk all declarations
 	for _, decl := range prog.Decls {
 		walkCore(decl, func(node core.CoreExpr) {
@@ -62,7 +62,7 @@ func AssertNoOperators(prog *core.Program) error {
 			}
 		})
 	}
-	
+
 	// Check VarGlobal references
 	for _, decl := range prog.Decls {
 		walkCore(decl, func(node core.CoreExpr) {
@@ -77,14 +77,13 @@ func AssertNoOperators(prog *core.Program) error {
 							Suggestion: "Check builtin name spelling",
 						})
 					}
-				} else {
-					// TODO: Check against linker index for other modules
+				} else { //nolint:staticcheck // TODO: Check against linker index for other modules
 					// For now, we'll assume they're valid if not $builtin
 				}
 			}
 		})
 	}
-	
+
 	if len(errors) > 0 {
 		return errors[0] // Return first error
 	}
@@ -102,75 +101,75 @@ func walkCore(expr core.CoreExpr, visit func(core.CoreExpr)) {
 	if expr == nil {
 		return
 	}
-	
+
 	visit(expr)
-	
+
 	switch e := expr.(type) {
 	case *core.Let:
 		walkCore(e.Value, visit)
 		walkCore(e.Body, visit)
-	
+
 	case *core.LetRec:
 		for _, binding := range e.Bindings {
 			walkCore(binding.Value, visit)
 		}
 		walkCore(e.Body, visit)
-	
+
 	case *core.Lambda:
 		walkCore(e.Body, visit)
-	
+
 	case *core.App:
 		walkCore(e.Func, visit)
 		for _, arg := range e.Args {
 			walkCore(arg, visit)
 		}
-	
+
 	case *core.If:
 		walkCore(e.Cond, visit)
 		walkCore(e.Then, visit)
 		walkCore(e.Else, visit)
-	
+
 	case *core.Match:
 		walkCore(e.Scrutinee, visit)
 		for _, arm := range e.Arms {
 			walkCore(arm.Guard, visit)
 			walkCore(arm.Body, visit)
 		}
-	
+
 	case *core.BinOp:
 		walkCore(e.Left, visit)
 		walkCore(e.Right, visit)
-	
+
 	case *core.UnOp:
 		walkCore(e.Operand, visit)
-	
+
 	case *core.Intrinsic:
 		for _, arg := range e.Args {
 			walkCore(arg, visit)
 		}
-	
+
 	case *core.Record:
 		for _, field := range e.Fields {
 			walkCore(field, visit)
 		}
-	
+
 	case *core.RecordAccess:
 		walkCore(e.Record, visit)
-	
+
 	case *core.List:
 		for _, elem := range e.Elements {
 			walkCore(elem, visit)
 		}
-	
+
 	case *core.DictAbs:
 		walkCore(e.Body, visit)
-	
+
 	case *core.DictApp:
 		walkCore(e.Dict, visit)
 		for _, arg := range e.Args {
 			walkCore(arg, visit)
 		}
-	
+
 	// Atomic nodes - no recursion needed
 	case *core.Var, *core.VarGlobal, *core.Lit, *core.DictRef:
 		// Nothing to recurse into

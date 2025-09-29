@@ -3,7 +3,7 @@ package link
 import (
 	"fmt"
 	"sort"
-	
+
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
@@ -18,16 +18,16 @@ func RegisterBuiltinModule(ml *ModuleLinker) {
 		Exports: make(map[string]*iface.IfaceItem),
 		Schema:  "ailang.builtin/v1",
 	}
-	
+
 	// Get sorted list of builtin names for deterministic ordering
 	builtinNames := GetBuiltinInterface()
-	
+
 	// Register all builtin functions from the evaluator
 	for _, name := range builtinNames {
 		// Parse the builtin name to determine its type
 		// Format: operation_Type (e.g., "add_Int", "eq_Bool")
 		typeScheme := inferBuiltinType(name)
-		
+
 		builtinIface.Exports[name] = &iface.IfaceItem{
 			Name:   name,
 			Type:   typeScheme,
@@ -38,11 +38,11 @@ func RegisterBuiltinModule(ml *ModuleLinker) {
 			},
 		}
 	}
-	
+
 	// Compute deterministic digest
 	digest := computeBuiltinDigest(builtinIface)
 	builtinIface.Digest = digest
-	
+
 	// Register the interface
 	ml.RegisterIface(builtinIface)
 }
@@ -58,7 +58,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Type:     &types.TVar{Name: "?"},
 		}
 	}
-	
+
 	// Build the appropriate type based on the operation
 	var resultType types.Type
 	switch op {
@@ -69,7 +69,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{baseType, baseType},
 			Return: baseType,
 		}
-		
+
 	case "neg":
 		// Unary negation: Type -> Type
 		baseType := getBaseType(typ)
@@ -77,7 +77,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{baseType},
 			Return: baseType,
 		}
-		
+
 	case "eq", "ne", "lt", "le", "gt", "ge":
 		// Comparison: Type -> Type -> Bool
 		baseType := getBaseType(typ)
@@ -86,7 +86,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{baseType, baseType},
 			Return: boolType,
 		}
-		
+
 	case "concat":
 		// String concatenation: String -> String -> String
 		strType := &types.TCon{Name: "String"}
@@ -94,7 +94,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{strType, strType},
 			Return: strType,
 		}
-		
+
 	case "and", "or":
 		// Boolean operations: Bool -> Bool -> Bool
 		boolType := &types.TCon{Name: "Bool"}
@@ -102,7 +102,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{boolType, boolType},
 			Return: boolType,
 		}
-		
+
 	case "not":
 		// Boolean negation: Bool -> Bool
 		boolType := &types.TCon{Name: "Bool"}
@@ -110,7 +110,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{boolType},
 			Return: boolType,
 		}
-		
+
 	case "show":
 		// Show: a -> String (monomorphic based on type)
 		baseType := getBaseType(typ)
@@ -119,7 +119,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Params: []types.Type{baseType},
 			Return: strType,
 		}
-		
+
 	default:
 		// Unknown operation, return generic type
 		return &types.Scheme{
@@ -127,7 +127,7 @@ func inferBuiltinType(name string) *types.Scheme {
 			Type:     &types.TVar{Name: "?"},
 		}
 	}
-	
+
 	return &types.Scheme{
 		TypeVars: []string{}, // All builtins are monomorphic after lowering
 		Type:     resultType,

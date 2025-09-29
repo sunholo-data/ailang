@@ -7,10 +7,10 @@ import (
 
 // BuiltinFunc represents a built-in function
 type BuiltinFunc struct {
-	Name     string
-	Impl     interface{} // The actual Go function
-	NumArgs  int        // Expected number of arguments
-	IsPure   bool       // Whether the function is pure
+	Name    string
+	Impl    interface{} // The actual Go function
+	NumArgs int         // Expected number of arguments
+	IsPure  bool        // Whether the function is pure
 }
 
 // Builtins is the registry of built-in functions
@@ -34,7 +34,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: a.Value + b.Value}, nil
 		},
 	}
-	
+
 	Builtins["sub_Int"] = &BuiltinFunc{
 		Name:    "sub_Int",
 		NumArgs: 2,
@@ -43,7 +43,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: a.Value - b.Value}, nil
 		},
 	}
-	
+
 	Builtins["mul_Int"] = &BuiltinFunc{
 		Name:    "mul_Int",
 		NumArgs: 2,
@@ -52,7 +52,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: a.Value * b.Value}, nil
 		},
 	}
-	
+
 	Builtins["div_Int"] = &BuiltinFunc{
 		Name:    "div_Int",
 		NumArgs: 2,
@@ -64,7 +64,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: a.Value / b.Value}, nil
 		},
 	}
-	
+
 	Builtins["mod_Int"] = &BuiltinFunc{
 		Name:    "mod_Int",
 		NumArgs: 2,
@@ -76,7 +76,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: a.Value % b.Value}, nil
 		},
 	}
-	
+
 	Builtins["neg_Int"] = &BuiltinFunc{
 		Name:    "neg_Int",
 		NumArgs: 1,
@@ -85,7 +85,7 @@ func registerArithmeticBuiltins() {
 			return &IntValue{Value: -a.Value}, nil
 		},
 	}
-	
+
 	// Float operations
 	Builtins["add_Float"] = &BuiltinFunc{
 		Name:    "add_Float",
@@ -95,7 +95,7 @@ func registerArithmeticBuiltins() {
 			return &FloatValue{Value: a.Value + b.Value}, nil
 		},
 	}
-	
+
 	Builtins["sub_Float"] = &BuiltinFunc{
 		Name:    "sub_Float",
 		NumArgs: 2,
@@ -104,7 +104,7 @@ func registerArithmeticBuiltins() {
 			return &FloatValue{Value: a.Value - b.Value}, nil
 		},
 	}
-	
+
 	Builtins["mul_Float"] = &BuiltinFunc{
 		Name:    "mul_Float",
 		NumArgs: 2,
@@ -113,7 +113,7 @@ func registerArithmeticBuiltins() {
 			return &FloatValue{Value: a.Value * b.Value}, nil
 		},
 	}
-	
+
 	Builtins["div_Float"] = &BuiltinFunc{
 		Name:    "div_Float",
 		NumArgs: 2,
@@ -130,7 +130,7 @@ func registerArithmeticBuiltins() {
 			return &FloatValue{Value: a.Value / b.Value}, nil
 		},
 	}
-	
+
 	Builtins["mod_Float"] = &BuiltinFunc{
 		Name:    "mod_Float",
 		NumArgs: 2,
@@ -142,7 +142,7 @@ func registerArithmeticBuiltins() {
 			return &FloatValue{Value: math.Mod(a.Value, b.Value)}, nil
 		},
 	}
-	
+
 	Builtins["neg_Float"] = &BuiltinFunc{
 		Name:    "neg_Float",
 		NumArgs: 1,
@@ -164,7 +164,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value == b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ne_Int"] = &BuiltinFunc{
 		Name:    "ne_Int",
 		NumArgs: 2,
@@ -173,7 +173,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value != b.Value}, nil
 		},
 	}
-	
+
 	Builtins["lt_Int"] = &BuiltinFunc{
 		Name:    "lt_Int",
 		NumArgs: 2,
@@ -182,7 +182,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value < b.Value}, nil
 		},
 	}
-	
+
 	Builtins["le_Int"] = &BuiltinFunc{
 		Name:    "le_Int",
 		NumArgs: 2,
@@ -191,7 +191,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value <= b.Value}, nil
 		},
 	}
-	
+
 	Builtins["gt_Int"] = &BuiltinFunc{
 		Name:    "gt_Int",
 		NumArgs: 2,
@@ -200,7 +200,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value > b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ge_Int"] = &BuiltinFunc{
 		Name:    "ge_Int",
 		NumArgs: 2,
@@ -209,7 +209,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value >= b.Value}, nil
 		},
 	}
-	
+
 	// Float comparisons with NaN handling
 	// NaN comparisons: all comparisons with NaN return false except !=
 	Builtins["eq_Float"] = &BuiltinFunc{
@@ -224,7 +224,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value == b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ne_Float"] = &BuiltinFunc{
 		Name:    "ne_Float",
 		NumArgs: 2,
@@ -237,7 +237,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value != b.Value}, nil
 		},
 	}
-	
+
 	Builtins["lt_Float"] = &BuiltinFunc{
 		Name:    "lt_Float",
 		NumArgs: 2,
@@ -250,7 +250,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value < b.Value}, nil
 		},
 	}
-	
+
 	Builtins["le_Float"] = &BuiltinFunc{
 		Name:    "le_Float",
 		NumArgs: 2,
@@ -262,7 +262,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value <= b.Value}, nil
 		},
 	}
-	
+
 	Builtins["gt_Float"] = &BuiltinFunc{
 		Name:    "gt_Float",
 		NumArgs: 2,
@@ -274,7 +274,7 @@ func registerComparisonBuiltins() {
 			return &BoolValue{Value: a.Value > b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ge_Float"] = &BuiltinFunc{
 		Name:    "ge_Float",
 		NumArgs: 2,
@@ -298,7 +298,7 @@ func registerStringBuiltins() {
 			return &StringValue{Value: a.Value + b.Value}, nil
 		},
 	}
-	
+
 	Builtins["eq_String"] = &BuiltinFunc{
 		Name:    "eq_String",
 		NumArgs: 2,
@@ -307,7 +307,7 @@ func registerStringBuiltins() {
 			return &BoolValue{Value: a.Value == b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ne_String"] = &BuiltinFunc{
 		Name:    "ne_String",
 		NumArgs: 2,
@@ -316,7 +316,7 @@ func registerStringBuiltins() {
 			return &BoolValue{Value: a.Value != b.Value}, nil
 		},
 	}
-	
+
 	Builtins["lt_String"] = &BuiltinFunc{
 		Name:    "lt_String",
 		NumArgs: 2,
@@ -325,7 +325,7 @@ func registerStringBuiltins() {
 			return &BoolValue{Value: a.Value < b.Value}, nil
 		},
 	}
-	
+
 	Builtins["le_String"] = &BuiltinFunc{
 		Name:    "le_String",
 		NumArgs: 2,
@@ -334,7 +334,7 @@ func registerStringBuiltins() {
 			return &BoolValue{Value: a.Value <= b.Value}, nil
 		},
 	}
-	
+
 	Builtins["gt_String"] = &BuiltinFunc{
 		Name:    "gt_String",
 		NumArgs: 2,
@@ -343,7 +343,7 @@ func registerStringBuiltins() {
 			return &BoolValue{Value: a.Value > b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ge_String"] = &BuiltinFunc{
 		Name:    "ge_String",
 		NumArgs: 2,
@@ -364,7 +364,7 @@ func registerBooleanBuiltins() {
 			return &BoolValue{Value: a.Value && b.Value}, nil
 		},
 	}
-	
+
 	Builtins["or_Bool"] = &BuiltinFunc{
 		Name:    "or_Bool",
 		NumArgs: 2,
@@ -373,7 +373,7 @@ func registerBooleanBuiltins() {
 			return &BoolValue{Value: a.Value || b.Value}, nil
 		},
 	}
-	
+
 	Builtins["not_Bool"] = &BuiltinFunc{
 		Name:    "not_Bool",
 		NumArgs: 1,
@@ -382,7 +382,7 @@ func registerBooleanBuiltins() {
 			return &BoolValue{Value: !a.Value}, nil
 		},
 	}
-	
+
 	Builtins["eq_Bool"] = &BuiltinFunc{
 		Name:    "eq_Bool",
 		NumArgs: 2,
@@ -391,7 +391,7 @@ func registerBooleanBuiltins() {
 			return &BoolValue{Value: a.Value == b.Value}, nil
 		},
 	}
-	
+
 	Builtins["ne_Bool"] = &BuiltinFunc{
 		Name:    "ne_Bool",
 		NumArgs: 2,
@@ -408,12 +408,12 @@ func CallBuiltin(name string, args []Value) (Value, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown builtin function: %s", name)
 	}
-	
+
 	if len(args) != builtin.NumArgs {
-		return nil, fmt.Errorf("builtin %s expects %d arguments, got %d", 
+		return nil, fmt.Errorf("builtin %s expects %d arguments, got %d",
 			name, builtin.NumArgs, len(args))
 	}
-	
+
 	// Handle different arities
 	switch builtin.NumArgs {
 	case 1:
@@ -444,7 +444,7 @@ func CallBuiltin(name string, args []Value) (Value, error) {
 		default:
 			return nil, fmt.Errorf("unsupported builtin implementation for %s", name)
 		}
-		
+
 	case 2:
 		fn, ok := builtin.Impl.(func(Value, Value) (Value, error))
 		if ok {
@@ -525,7 +525,7 @@ func CallBuiltin(name string, args []Value) (Value, error) {
 		default:
 			return nil, fmt.Errorf("unsupported builtin implementation for %s", name)
 		}
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported arity %d for builtin %s", builtin.NumArgs, name)
 	}

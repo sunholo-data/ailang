@@ -29,16 +29,16 @@ var (
 
 func main() {
 	var (
-		versionFlag   = flag.Bool("version", false, "Print version information")
-		helpFlag      = flag.Bool("help", false, "Show help")
-		learnFlag     = flag.Bool("learn", false, "Enable learning mode (collect training data)")
-		traceFlag     = flag.Bool("trace", false, "Enable execution tracing")
-		seedFlag      = flag.Int("seed", 0, "Random seed for deterministic execution")
-		virtualTime   = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
-		compactFlag   = flag.Bool("compact", false, "Use compact JSON output")
-		binopShimFlag = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
-		failOnShimFlag = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
-		requireLoweringFlag = flag.Bool("require-lowering", false, "Require operator lowering pass")
+		versionFlag             = flag.Bool("version", false, "Print version information")
+		helpFlag                = flag.Bool("help", false, "Show help")
+		learnFlag               = flag.Bool("learn", false, "Enable learning mode (collect training data)")
+		traceFlag               = flag.Bool("trace", false, "Enable execution tracing")
+		seedFlag                = flag.Int("seed", 0, "Random seed for deterministic execution")
+		virtualTime             = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
+		compactFlag             = flag.Bool("compact", false, "Use compact JSON output")
+		binopShimFlag           = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
+		failOnShimFlag          = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
+		requireLoweringFlag     = flag.Bool("require-lowering", false, "Require operator lowering pass")
 		trackInstantiationsFlag = flag.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
 	)
 
@@ -187,9 +187,9 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, binopShim 
 	cfg := pipeline.Config{
 		TraceDefaulting:       trace,
 		ExperimentalBinopShim: binopShim,
-		FailOnShim:           failOnShim,
-		RequireLowering:      requireLowering,
-		TrackInstantiations:  trackInstantiations,
+		FailOnShim:            failOnShim,
+		RequireLowering:       requireLowering,
+		TrackInstantiations:   trackInstantiations,
 	}
 	src := pipeline.Source{
 		Code:     string(content),
@@ -206,12 +206,12 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, binopShim 
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
-	
+
 	// Print result if not unit
 	if result.Value != nil && result.Value.Type() != "unit" {
 		fmt.Println(result.Value.String())
 	}
-	
+
 	// Dump instantiations if tracking
 	if trackInstantiations && result.Instantiations != nil {
 		fmt.Printf("\n%s Polymorphic Instantiations:\n", cyan("📊"))
@@ -281,10 +281,10 @@ func checkFile(filename string) {
 
 	// Type check
 	fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
-	
+
 	// Effect check
 	fmt.Printf("%s Effect checking...\n", cyan("→"))
-	
+
 	// Use unified pipeline in dry-run mode (no evaluation)
 	cfg := pipeline.Config{
 		DryLink: true, // Don't evaluate, just check
@@ -294,13 +294,13 @@ func checkFile(filename string) {
 		Filename: filename,
 		IsREPL:   false,
 	}
-	
+
 	result, err := pipeline.Run(cfg, src)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
-	
+
 	// Check for any errors
 	if len(result.Errors) > 0 {
 		for _, e := range result.Errors {
@@ -330,11 +330,4 @@ func runLSP() {
 	// TODO: Implement LSP
 	fmt.Fprintf(os.Stderr, "%s: LSP not yet implemented\n", red("Error"))
 	os.Exit(1)
-}
-
-func printParserErrors(errors []error) {
-	fmt.Fprintf(os.Stderr, "%s Parser errors:\n", red("Error"))
-	for _, err := range errors {
-		fmt.Fprintf(os.Stderr, "  %s %v\n", red("•"), err)
-	}
 }

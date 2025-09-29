@@ -18,23 +18,23 @@ type SID string
 func NewSID(path string, start, end int, kind string, childPath []int) SID {
 	// Canonicalize the path
 	canonPath := canonicalizePath(path)
-	
+
 	// Build the hash input
 	var parts []string
 	parts = append(parts, canonPath)
 	parts = append(parts, fmt.Sprintf("%d", start))
 	parts = append(parts, fmt.Sprintf("%d", end))
 	parts = append(parts, kind)
-	
+
 	// Add child path
 	for _, idx := range childPath {
 		parts = append(parts, fmt.Sprintf("%d", idx))
 	}
-	
+
 	// Hash the combined string
 	input := strings.Join(parts, "|")
 	hash := sha256.Sum256([]byte(input))
-	
+
 	// Return first 16 hex chars for brevity
 	return SID(hex.EncodeToString(hash[:])[:16])
 }
@@ -43,28 +43,28 @@ func NewSID(path string, start, end int, kind string, childPath []int) SID {
 func canonicalizePath(path string) string {
 	// Clean the path
 	path = filepath.Clean(path)
-	
+
 	// Resolve symlinks if possible
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		path = resolved
 	}
-	
+
 	// Make path absolute if not already
 	if !filepath.IsAbs(path) {
 		if abs, err := filepath.Abs(path); err == nil {
 			path = abs
 		}
 	}
-	
+
 	// On case-insensitive filesystems (Windows, macOS), normalize to lowercase
 	// This is for SID stability only - actual resolution uses real FS semantics
 	if isCaseInsensitive() {
 		path = strings.ToLower(path)
 	}
-	
+
 	// Use forward slashes consistently
 	path = filepath.ToSlash(path)
-	
+
 	return path
 }
 
@@ -123,12 +123,12 @@ type TransformStep struct {
 // GetTraceSlice returns the transformation trace for a surface SID
 func (m *SIDMap) GetTraceSlice(surfaceSID SID) *TraceSlice {
 	coreSIDs := m.GetCoreSIDs(surfaceSID)
-	
+
 	trace := &TraceSlice{
 		SurfaceSID: surfaceSID,
 		CoreSIDs:   coreSIDs,
 	}
-	
+
 	// Build transformation steps
 	for i, coreSID := range coreSIDs {
 		if i == 0 {
@@ -145,6 +145,6 @@ func (m *SIDMap) GetTraceSlice(surfaceSID SID) *TraceSlice {
 			})
 		}
 	}
-	
+
 	return trace
 }

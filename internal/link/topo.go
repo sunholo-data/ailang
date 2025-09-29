@@ -33,7 +33,7 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 	inPath := make(map[ModuleID]bool)
 	var sorted []ModuleID
 	var cyclePath []ModuleID
-	
+
 	// DFS helper with cycle detection
 	var dfs func(module ModuleID) error
 	dfs = func(module ModuleID) error {
@@ -41,7 +41,7 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 		if visited[module] {
 			return nil
 		}
-		
+
 		// Cycle detected
 		if inPath[module] {
 			// Build cycle path for error message
@@ -60,33 +60,33 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 				Cycle: cyclePath,
 			}
 		}
-		
+
 		// Mark as being processed
 		inPath[module] = true
 		cyclePath = append(cyclePath, module)
-		
+
 		// Get dependencies for this module
 		deps, err := ml.getDependencies(module)
 		if err != nil {
 			return err
 		}
-		
+
 		// Process dependencies first
 		for _, dep := range deps {
 			if err := dfs(dep); err != nil {
 				return err
 			}
 		}
-		
+
 		// Mark as visited and add to sorted list
 		visited[module] = true
 		inPath[module] = false
 		cyclePath = cyclePath[:len(cyclePath)-1]
 		sorted = append(sorted, module)
-		
+
 		return nil
 	}
-	
+
 	// Process all roots
 	for _, root := range roots {
 		if err := dfs(root); err != nil {
@@ -110,7 +110,7 @@ func (ml *ModuleLinker) getDependencies(module ModuleID) ([]ModuleID, error) {
 		}
 		return deps, nil
 	}
-	
+
 	// Module should have been in the loaded map
 	// Include a search trace for debugging
 	var available []string
@@ -131,14 +131,15 @@ func (e *CycleError) Error() string {
 	for _, m := range e.Cycle {
 		path = append(path, string(m))
 	}
-	return fmt.Sprintf("%s: dependency cycle detected: %s", e.Code, strings.Join(path, " -> "))}
+	return fmt.Sprintf("%s: dependency cycle detected: %s", e.Code, strings.Join(path, " -> "))
+}
 
 // GetSuggestion returns a fix suggestion for the cycle error
 func (e *CycleError) GetSuggestion() string {
 	if len(e.Cycle) < 2 {
 		return ""
 	}
-	
+
 	// Suggest breaking the cycle by extracting shared code
 	return fmt.Sprintf("Consider extracting shared functionality from %s and %s into a separate module",
 		e.Cycle[0], e.Cycle[1])

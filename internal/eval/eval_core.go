@@ -16,8 +16,8 @@ type GlobalResolver interface {
 type CoreEvaluator struct {
 	env                   *Environment
 	registry              *types.DictionaryRegistry
-	resolver              GlobalResolver  // Resolver for global references
-	experimentalBinopShim bool            // Feature flag for operator shim
+	resolver              GlobalResolver // Resolver for global references
+	experimentalBinopShim bool           // Feature flag for operator shim
 }
 
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
@@ -199,13 +199,13 @@ func (e *CoreEvaluator) evalCoreVarGlobal(v *core.VarGlobal) (Value, error) {
 	if e.resolver == nil {
 		return nil, fmt.Errorf("no resolver available to resolve global reference: %s.%s", v.Ref.Module, v.Ref.Name)
 	}
-	
+
 	// Resolve the value through the resolver
 	val, err := e.resolver.ResolveValue(v.Ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve global %s.%s: %w", v.Ref.Module, v.Ref.Name, err)
 	}
-	
+
 	return val, nil
 }
 
@@ -326,11 +326,11 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			}
 			args = append(args, argVal)
 		}
-		
+
 		// Call the builtin
 		return CallBuiltin(vg.Ref.Name, args)
 	}
-	
+
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {

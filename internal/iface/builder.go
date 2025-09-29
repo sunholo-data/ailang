@@ -34,13 +34,13 @@ func BuildInterface(module string, prog *core.Program, typeEnv *types.TypeEnv) (
 // Build constructs the interface from a Core program
 func (b *Builder) Build(prog *core.Program) (*Iface, error) {
 	iface := NewIface(b.module)
-	
+
 	// Extract exportable bindings from the program
 	exports, err := b.extractExports(prog)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Process each export
 	fmt.Printf("DEBUG: Processing %d exports for module %s\n", len(exports), b.module)
 	for name, binding := range exports {
@@ -53,16 +53,16 @@ func (b *Builder) Build(prog *core.Program) (*Iface, error) {
 			continue
 		}
 		fmt.Printf("DEBUG:   Got type for %s\n", name)
-		
+
 		// Generalize the type at module boundary
 		scheme, err := b.generalizeType(typ, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generalize export %s: %w", name, err)
 		}
-		
+
 		// Determine purity (for now, assume pure unless marked otherwise)
 		purity := b.determinePurity(binding)
-		
+
 		// Create interface item
 		item := &IfaceItem{
 			Name:   name,
@@ -73,10 +73,10 @@ func (b *Builder) Build(prog *core.Program) (*Iface, error) {
 				Name:   name,
 			},
 		}
-		
+
 		iface.Exports[name] = item
 	}
-	
+
 	// Compute deterministic digest
 	iface.Schema = "ailang.iface/v1"
 	digest, err := b.computeDigest(iface)
@@ -84,7 +84,7 @@ func (b *Builder) Build(prog *core.Program) (*Iface, error) {
 		return nil, fmt.Errorf("failed to compute interface digest: %w", err)
 	}
 	iface.Digest = digest
-	
+
 	return iface, nil
 }
 
@@ -135,10 +135,9 @@ func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, 
 		// Fallback: no metadata means no exports (safer than exporting everything)
 		return exports, nil
 	}
-	
+
 	return exports, nil
 }
-
 
 // generalizeType converts a type to a type scheme, generalizing at module boundary
 func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, error) {
@@ -146,14 +145,14 @@ func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, e
 	if scheme, ok := typ.(*types.Scheme); ok {
 		return b.canonicalizeScheme(scheme)
 	}
-	
+
 	// If it's a monotype, generalize it
 	if monotype, ok := typ.(types.Type); ok {
 		// Get free type variables
 		// TODO: Implement proper free variable collection for types
 		freeVars := []string{}
 		freeRowVars := []string{}
-		
+
 		// Check for escaping type variables (shouldn't happen after proper typechecking)
 		if len(freeVars) > 0 {
 			// Check if these are legitimate polymorphic variables
@@ -167,23 +166,23 @@ func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, e
 				return nil, fmt.Errorf("type variable %s escapes in export %s", v, name)
 			}
 		}
-		
+
 		// Create scheme with quantified variables
 		quantified := make([]string, len(freeVars))
 		copy(quantified, freeVars)
 		sort.Strings(quantified) // Deterministic ordering
-		
+
 		rowVars := make([]string, len(freeRowVars))
 		copy(rowVars, freeRowVars)
 		sort.Strings(rowVars) // Deterministic ordering
-		
+
 		return &types.Scheme{
 			TypeVars: quantified,
 			RowVars:  rowVars,
 			Type:     monotype,
 		}, nil
 	}
-	
+
 	return nil, fmt.Errorf("unexpected type kind for export %s: %T", name, typ)
 }
 
@@ -193,11 +192,11 @@ func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error
 	typeVars := make([]string, len(scheme.TypeVars))
 	copy(typeVars, scheme.TypeVars)
 	sort.Strings(typeVars)
-	
+
 	rowVars := make([]string, len(scheme.RowVars))
 	copy(rowVars, scheme.RowVars)
 	sort.Strings(rowVars)
-	
+
 	// TODO: Alpha-normalize the type to ensure consistent variable naming
 	// For now, just return with sorted quantifiers
 	return &types.Scheme{
@@ -224,9 +223,9 @@ func (b *Builder) determinePurity(expr core.CoreExpr) bool {
 
 // ifaceItem is used for JSON serialization
 type ifaceItem struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`  // String representation of the scheme
-	Pure   bool     `json:"pure"`
+	Name    string   `json:"name"`
+	Type    string   `json:"type"` // String representation of the scheme
+	Pure    bool     `json:"pure"`
 	Effects []string `json:"effects,omitempty"`
 }
 
@@ -234,25 +233,25 @@ type ifaceItem struct {
 func (b *Builder) computeDigest(iface *Iface) (string, error) {
 	// Create a deterministic JSON representation
 	type jsonIface struct {
-		Module  string                    `json:"module"`
-		Schema  string                    `json:"schema"`
-		Exports map[string]ifaceItem  `json:"exports"`
+		Module  string               `json:"module"`
+		Schema  string               `json:"schema"`
+		Exports map[string]ifaceItem `json:"exports"`
 	}
-	
+
 	// Convert to JSON-friendly format with sorted keys
 	ji := jsonIface{
 		Module:  iface.Module,
 		Schema:  iface.Schema,
 		Exports: make(map[string]ifaceItem),
 	}
-	
+
 	// Sort export names for deterministic ordering
 	var names []string
 	for name := range iface.Exports {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	
+
 	for _, name := range names {
 		item := iface.Exports[name]
 		ji.Exports[name] = ifaceItem{
@@ -262,13 +261,13 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 			Effects: []string{}, // Placeholder for future effect system
 		}
 	}
-	
+
 	// Marshal to canonical JSON
 	data, err := json.Marshal(ji)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Compute SHA256 (using standard library for now, can switch to Blake3 later)
 	hash := sha256.Sum256(data)
 	return fmt.Sprintf("%x", hash), nil
@@ -279,7 +278,7 @@ func (b *Builder) schemeToString(scheme *types.Scheme) string {
 	if scheme == nil {
 		return "?"
 	}
-	
+
 	// Format: ∀a b. ∀r s. type (type vars, then row vars)
 	var quantifiers []string
 	if len(scheme.TypeVars) > 0 {
@@ -287,13 +286,11 @@ func (b *Builder) schemeToString(scheme *types.Scheme) string {
 	}
 	if len(scheme.RowVars) > 0 {
 		// Add row vars with a different prefix for clarity
-		for _, rv := range scheme.RowVars {
-			quantifiers = append(quantifiers, rv)
-		}
+		quantifiers = append(quantifiers, scheme.RowVars...)
 	}
-	
+
 	if len(quantifiers) > 0 {
-		return fmt.Sprintf("∀%s. %s", 
+		return fmt.Sprintf("∀%s. %s",
 			strings.Join(quantifiers, " "),
 			scheme.Type.String())
 	}
@@ -301,11 +298,3 @@ func (b *Builder) schemeToString(scheme *types.Scheme) string {
 }
 
 // contains checks if a string slice contains a value
-func contains(slice []string, val string) bool {
-	for _, s := range slice {
-		if s == val {
-			return true
-		}
-	}
-	return false
-}

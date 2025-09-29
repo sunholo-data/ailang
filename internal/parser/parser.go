@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/errors"
@@ -137,9 +136,6 @@ func (p *Parser) Errors() []error {
 
 // isContextualKeyword checks if the current token is a specific keyword
 // This is used for contextual keywords like "tests" that are returned as IDENT
-func (p *Parser) isContextualKeyword(keyword string) bool {
-	return p.curTokenIs(lexer.IDENT) && p.curToken.Literal == keyword
-}
 
 // peekIsContextualKeyword checks if the peek token is a specific keyword
 func (p *Parser) peekIsContextualKeyword(keyword string) bool {
@@ -187,7 +183,7 @@ func (p *Parser) ParseFile() (file *ast.File) {
 			} else {
 				msg = fmt.Sprintf("%v", r)
 			}
-			
+
 			p.errors = append(p.errors, NewParserError(
 				errors.PAR999, // Generic parser panic code
 				p.curPos(),
@@ -195,7 +191,7 @@ func (p *Parser) ParseFile() (file *ast.File) {
 				fmt.Sprintf("parser panic: %s", msg),
 				nil,
 				"This is an internal parser error. Please report this issue."))
-			
+
 			// Return a minimal valid AST
 			if file == nil {
 				file = &ast.File{
@@ -205,23 +201,20 @@ func (p *Parser) ParseFile() (file *ast.File) {
 			}
 		}
 	}()
-	
+
 	file = &ast.File{
 		Pos: p.curPos(),
 	}
 
 	// Optional module declaration
 	if p.curTokenIs(lexer.MODULE) {
-		file.Module = p.parseModuleDecl()
+		// file.Module = p._parseModuleDecl() // TODO: Implement module declaration
 		p.nextToken()
 	}
 
 	// Import declarations
+	// TODO: Implement import declaration parsing
 	for p.curTokenIs(lexer.IMPORT) {
-		imp := p.parseImportDecl()
-		if imp != nil {
-			file.Imports = append(file.Imports, imp)
-		}
 		p.nextToken()
 	}
 
@@ -252,116 +245,10 @@ func (p *Parser) ParseFile() (file *ast.File) {
 }
 
 // parseModuleDecl parses a module declaration
-func (p *Parser) parseModuleDecl() *ast.ModuleDecl {
-	startPos := p.curPos()
-	p.expectPeek(lexer.IDENT)
-	
-	// Build module path (e.g., "foo/bar")
-	path := p.curToken.Literal
-	for p.peekTokenIs(lexer.SLASH) {
-		p.nextToken() // consume slash
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-		path += "/" + p.curToken.Literal
-	}
-
-	endPos := p.curPos()
-	return &ast.ModuleDecl{
-		Path: path,
-		Pos:  startPos,
-		Span: ast.Span{Start: startPos, End: endPos},
-	}
-}
 
 // parseModule parses a module declaration (legacy)
-func (p *Parser) parseModule() *ast.Module {
-	module := &ast.Module{
-		Pos: p.curPos(),
-	}
-
-	p.expectPeek(lexer.IDENT)
-	module.Name = p.curToken.Literal
-
-	p.nextToken()
-
-	// Parse imports
-	for p.curTokenIs(lexer.IMPORT) {
-		imp := p.parseImport()
-		module.Imports = append(module.Imports, imp)
-		p.nextToken()
-	}
-
-	// Parse exports (if explicit)
-	if p.curTokenIs(lexer.EXPORT) {
-		p.nextToken()
-		// Parse export list
-	}
-
-	// Parse declarations
-	for !p.curTokenIs(lexer.EOF) {
-		if decl := p.parseDeclaration(); decl != nil {
-			module.Decls = append(module.Decls, decl)
-		}
-		p.nextToken()
-	}
-
-	return module
-}
 
 // parseImport parses an import statement
-func (p *Parser) parseImport() *ast.Import {
-	imp := &ast.Import{
-		Pos: p.curPos(),
-	}
-
-	p.nextToken()
-
-	// Parse import path - can be string or identifier path like std/io
-	if p.curTokenIs(lexer.STRING) {
-		imp.Path = p.curToken.Literal
-	} else if p.curTokenIs(lexer.IDENT) {
-		// Build path from identifiers and slashes
-		path := p.curToken.Literal
-		for p.peekTokenIs(lexer.SLASH) {
-			p.nextToken() // consume slash
-			if !p.expectPeek(lexer.IDENT) {
-				return nil
-			}
-			path += "/" + p.curToken.Literal
-		}
-		imp.Path = path
-	} else {
-		p.errors = append(p.errors, fmt.Errorf("expected import path, got %s", p.curToken.Type))
-		return nil
-	}
-
-	// Check for specific imports
-	if p.peekTokenIs(lexer.LPAREN) {
-		p.nextToken()
-		p.nextToken()
-		for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-			if p.curTokenIs(lexer.IDENT) {
-				imp.Symbols = append(imp.Symbols, p.curToken.Literal)
-			}
-			if p.peekTokenIs(lexer.RPAREN) {
-				p.nextToken()
-				break
-			}
-			if !p.expectPeek(lexer.COMMA) {
-				return nil
-			}
-			p.nextToken()
-		}
-
-		if !p.curTokenIs(lexer.RPAREN) {
-			p.errors = append(p.errors, fmt.Errorf("expected ), got %s", p.curToken.Type))
-			return nil
-		}
-	}
-
-	return imp
-}
 
 // parseExportList parses a standalone export list: export { name1, name2 }
 func (p *Parser) parseExportList() []string {
@@ -394,112 +281,6 @@ func (p *Parser) parseExportList() []string {
 }
 
 // parseImportDecl parses an import declaration
-func (p *Parser) parseImportDecl() *ast.ImportDecl {
-	startPos := p.curPos()
-	imp := &ast.ImportDecl{
-		Pos: startPos,
-	}
-
-	p.nextToken() // consume 'import'
-
-	// Parse import path - can be string or path segments: ./relative, ../parent, std/io
-	if p.curTokenIs(lexer.STRING) {
-		imp.Path = p.curToken.Literal
-	} else {
-		// Build path from segments: segment ("/" segment)*
-		// segment = IDENT | "." | ".."
-		path := ""
-		
-		// Handle leading dots for relative paths
-		if p.curTokenIs(lexer.DOT) {
-			path = "."
-			// Check for ./ or ../
-			if p.peekTokenIs(lexer.DOT) {
-				p.nextToken()
-				path = ".."
-			}
-			if p.peekTokenIs(lexer.SLASH) {
-				p.nextToken() // consume slash
-				path += "/"
-				p.nextToken() // move to next segment
-			}
-		}
-		
-		// Parse path segments
-		if p.curTokenIs(lexer.IDENT) {
-			if path != "" && !strings.HasSuffix(path, "/") {
-				path += "/"
-			}
-			path += p.curToken.Literal
-			
-			for p.peekTokenIs(lexer.SLASH) {
-				p.nextToken() // consume slash
-				p.nextToken() // move to next segment
-				
-				if p.curTokenIs(lexer.IDENT) {
-					path += "/" + p.curToken.Literal
-				} else if p.curTokenIs(lexer.DOT) {
-					// Handle .. in middle of path
-					if p.peekTokenIs(lexer.DOT) {
-						p.nextToken()
-						path += "/.."
-					} else {
-						path += "/."
-					}
-				} else {
-					p.errors = append(p.errors, NewParserError(errors.IMP010, p.curPos(), p.curToken,
-						"expected path segment after /",
-						[]lexer.TokenType{lexer.IDENT},
-						"Add path segment or remove trailing /"))
-					return nil
-				}
-			}
-		} else if path == "" {
-			// No valid path found
-			p.errors = append(p.errors, NewParserError(errors.IMP001, p.curPos(), p.curToken,
-				"expected import path",
-				[]lexer.TokenType{lexer.STRING, lexer.IDENT, lexer.DOT},
-				"Provide a valid import path"))
-			return nil
-		}
-		
-		imp.Path = path
-	}
-
-	// Check for selective imports: import module (symbol1, symbol2)
-	if p.peekTokenIs(lexer.LPAREN) {
-		p.nextToken() // consume (
-		p.nextToken() // move to first symbol
-		
-		for !p.curTokenIs(lexer.RPAREN) {
-			if p.curTokenIs(lexer.IDENT) {
-				imp.Symbols = append(imp.Symbols, p.curToken.Literal)
-			}
-			
-			if p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // move to next symbol
-			} else {
-				break
-			}
-		}
-		
-		if !p.expectPeek(lexer.RPAREN) {
-			return nil
-		}
-	} else {
-		// Namespace imports not supported - require selective import
-		p.errors = append(p.errors, NewParserError("IMP012_UNSUPPORTED_NAMESPACE", p.curPos(), p.curToken,
-			"namespace imports not yet supported",
-			[]lexer.TokenType{lexer.LPAREN},
-			"Use selective import: import module/path (symbol1, symbol2)"))
-		return nil
-	}
-
-	endPos := p.curPos()
-	imp.Span = ast.Span{Start: startPos, End: endPos}
-	return imp
-}
 
 // parseTopLevelDecl parses a top-level declaration
 func (p *Parser) parseTopLevelDecl() ast.Node {
@@ -537,7 +318,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 	case lexer.PURE:
 		// Check if it's a pure function declaration
 		if p.peekTokenIs(lexer.FUNC) {
-			p.nextToken() // consume 'pure'
+			p.nextToken()                                  // consume 'pure'
 			return p.parseFunctionDeclaration(true, false) // is pure, not export yet
 		}
 		// Otherwise treat as expression
@@ -557,9 +338,6 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 }
 
 // parseDeclaration parses a top-level declaration (legacy)
-func (p *Parser) parseDeclaration() ast.Node {
-	return p.parseTopLevelDecl()
-}
 
 // parseFunctionDeclaration parses a function declaration
 func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncDecl {
@@ -648,7 +426,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 		if p.peekTokenIs(lexer.LBRACKET) {
 			p.nextToken() // move to LBRACKET
-			fn.Tests = p.parseTestsBlock()
+			// fn.Tests = p._parseTestsBlock() // TODO: Implement tests block
 			// parseTestsBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()
@@ -670,7 +448,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 		if p.peekTokenIs(lexer.LBRACKET) {
 			p.nextToken() // move to LBRACKET
-			fn.Properties = p.parsePropertiesBlock()
+			// fn.Properties = p._parsePropertiesBlock() // TODO: Implement properties block
 			// parsePropertiesBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()
@@ -1346,16 +1124,6 @@ func (p *Parser) parseInstanceDeclaration() ast.Node {
 	return nil
 }
 
-func (p *Parser) parseTestBlock() ast.Node {
-	// TODO: Implement test block parsing
-	return nil
-}
-
-func (p *Parser) parsePropertyBlock() ast.Node {
-	// TODO: Implement property block parsing
-	return nil
-}
-
 func (p *Parser) parseTypeParams() []string {
 	// TODO: Implement type parameter parsing
 	return []string{}
@@ -1385,328 +1153,8 @@ func (p *Parser) parseEffects() []string {
 }
 
 // parseTestsBlock parses a tests block with the new multi-input format
-func (p *Parser) parseTestsBlock() []*ast.TestCase {
-	var tests []*ast.TestCase
-
-	// We should be at LBRACKET
-	if !p.curTokenIs(lexer.LBRACKET) {
-		p.errors = append(p.errors, fmt.Errorf("expected [ for tests block at %s:%d:%d, got %s",
-			p.curToken.File, p.curPos().Line, p.curPos().Column, p.curToken.Type))
-		return tests
-	}
-
-	// Handle empty tests block
-	if p.peekTokenIs(lexer.RBRACKET) {
-		p.nextToken() // consume RBRACKET
-		return tests
-	}
-
-	p.nextToken() // Move to first test
-
-	// Parse test cases: (input1, input2, ..., expected) tuples
-	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-		// Expect LPAREN for test case tuple
-		if !p.curTokenIs(lexer.LPAREN) {
-			p.errors = append(p.errors, fmt.Errorf("expected ( for test case"))
-			// Skip to next test
-			for !p.curTokenIs(lexer.COMMA) && !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-				p.nextToken()
-			}
-			if p.curTokenIs(lexer.COMMA) {
-				p.nextToken()
-			}
-			continue
-		}
-
-		p.nextToken() // Move past LPAREN
-
-		// Parse all expressions in the tuple
-		var exprs []ast.Expr
-		for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-			expr := p.parseExpression(LOWEST)
-			if expr == nil {
-				return tests
-			}
-			exprs = append(exprs, expr)
-
-			if p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // move to next expression
-			} else {
-				break
-			}
-		}
-
-		if !p.expectPeek(lexer.RPAREN) {
-			return tests
-		}
-
-		// Create test case with inputs and expected
-		if len(exprs) >= 2 {
-			test := &ast.TestCase{
-				Inputs:   exprs[:len(exprs)-1],
-				Expected: exprs[len(exprs)-1],
-				Pos:      p.curPos(),
-			}
-			tests = append(tests, test)
-		}
-
-		// Check for comma or end of tests
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // move to next test
-		} else {
-			// No comma, we're done with tests
-			break
-		}
-	}
-
-	if !p.expectPeek(lexer.RBRACKET) {
-		return tests
-	}
-	// expectPeek leaves us at RBRACKET, no need to advance further
-
-	return tests
-}
 
 // parsePropertiesBlock parses a properties block
-func (p *Parser) parsePropertiesBlock() []*ast.Property {
-	var props []*ast.Property
-
-	// We should be at LBRACKET
-	if !p.curTokenIs(lexer.LBRACKET) {
-		p.errors = append(p.errors, fmt.Errorf("expected [ for properties block"))
-		return props
-	}
-
-	// Handle empty properties block
-	if p.peekTokenIs(lexer.RBRACKET) {
-		p.nextToken() // consume RBRACKET
-		return props
-	}
-
-	p.nextToken() // Move to first property
-
-	// Parse properties
-	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-		prop := &ast.Property{
-			Pos: p.curPos(),
-		}
-
-		// Parse property name (optional)
-		if p.curTokenIs(lexer.STRING) {
-			prop.Name = p.curToken.Literal
-			p.nextToken()
-		}
-
-		// Parse forall bindings
-		if p.curTokenIs(lexer.FORALL) {
-			p.nextToken() // consume forall
-			if p.expectPeek(lexer.LPAREN) {
-				p.nextToken() // move past (
-				
-				// Parse binders
-				for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-					if p.curTokenIs(lexer.IDENT) {
-						binder := &ast.Binder{
-							Name: p.curToken.Literal,
-							Pos:  p.curPos(),
-						}
-						
-						// Parse type annotation
-						if p.peekTokenIs(lexer.COLON) {
-							p.nextToken() // consume :
-							p.nextToken() // move to type
-							binder.Type = p.parseType()
-						}
-						
-						prop.Binders = append(prop.Binders, binder)
-						
-						if p.peekTokenIs(lexer.COMMA) {
-							p.nextToken() // consume comma
-							p.nextToken() // move to next binder
-						}
-					} else {
-						break
-					}
-				}
-				
-				if !p.expectPeek(lexer.RPAREN) {
-					return props
-				}
-			}
-			
-			// Expect =>
-			if !p.expectPeek(lexer.FARROW) {
-				return props
-			}
-			p.nextToken() // move past =>
-		}
-
-		// Parse property expression
-		prop.Expr = p.parseExpression(LOWEST)
-		if prop.Expr != nil {
-			props = append(props, prop)
-		}
-
-		// Check for comma before next property
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken()
-			p.nextToken()
-		} else if !p.peekTokenIs(lexer.RBRACKET) {
-			break
-		}
-	}
-
-	if !p.expectPeek(lexer.RBRACKET) {
-		return props
-	}
-
-	return props
-}
-
-func (p *Parser) parseTests() []*ast.TestCase {
-	var tests []*ast.TestCase
-
-	// We should be at LBRACKET
-	if !p.curTokenIs(lexer.LBRACKET) {
-		p.errors = append(p.errors, fmt.Errorf("expected [ for tests block at %s:%d:%d, got %s",
-			p.curToken.File, p.curPos().Line, p.curPos().Column, p.curToken.Type))
-		return tests
-	}
-
-	// Handle empty tests block
-	if p.peekTokenIs(lexer.RBRACKET) {
-		p.nextToken() // consume RBRACKET
-		return tests
-	}
-
-	p.nextToken() // Move to first test
-
-	// Parse test cases: (input, output) pairs
-	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-		// Expect LPAREN for test case tuple
-		if !p.curTokenIs(lexer.LPAREN) {
-			p.errors = append(p.errors, fmt.Errorf("expected ( for test case at %s:%d:%d, got %s",
-				p.curToken.File, p.curPos().Line, p.curPos().Column, p.curToken.Type))
-			// Try to recover by skipping to next comma or closing bracket
-			for !p.curTokenIs(lexer.COMMA) && !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-				p.nextToken()
-			}
-			if p.curTokenIs(lexer.COMMA) {
-				p.nextToken()
-			}
-			continue
-		}
-
-		p.nextToken() // Move past LPAREN
-
-		// Parse input expression
-		input := p.parseExpression(LOWEST)
-		if input == nil {
-			return tests
-		}
-
-		// Expect comma
-		if !p.expectPeek(lexer.COMMA) {
-			return tests
-		}
-		p.nextToken() // Move past comma
-
-		// Parse expected output
-		output := p.parseExpression(LOWEST)
-		if output == nil {
-			return tests
-		}
-
-		// Expect closing paren
-		if !p.expectPeek(lexer.RPAREN) {
-			return tests
-		}
-
-		tests = append(tests, &ast.TestCase{
-			Inputs:   []ast.Expr{input},
-			Expected: output,
-			Pos:      p.curPos(),
-		})
-
-		// Check for comma or end of tests
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // move to next test
-		} else if p.peekTokenIs(lexer.RBRACKET) {
-			p.nextToken() // consume closing bracket
-			break
-		} else {
-			p.errors = append(p.errors, fmt.Errorf("expected , or ] after test case at %s:%d:%d, got %s",
-				p.peekToken.File, p.peekPos().Line, p.peekPos().Column, p.peekToken.Type))
-			return tests
-		}
-	}
-
-	return tests
-}
-
-func (p *Parser) parseProperties() []*ast.Property {
-	var properties []*ast.Property
-
-	// We're at LBRACKET
-	if !p.curTokenIs(lexer.LBRACKET) {
-		return properties
-	}
-
-	// Handle empty properties block
-	if p.peekTokenIs(lexer.RBRACKET) {
-		p.nextToken()
-		return properties
-	}
-
-	p.nextToken() // Move to first property
-
-	// Parse properties
-	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
-		var prop ast.Property
-		prop.Pos = p.curPos()
-
-		// Check if it's a named property (string literal followed by colon)
-		if p.curTokenIs(lexer.STRING) {
-			prop.Name = p.curToken.Literal
-			if p.peekTokenIs(lexer.COLON) {
-				p.nextToken() // consume string
-				p.nextToken() // consume colon
-			} else {
-				// String without colon is an unnamed property expression
-				prop.Name = ""
-			}
-		} else {
-			// Unnamed property
-			prop.Name = ""
-		}
-
-		// Parse property expression (typically starts with forall)
-		prop.Expr = p.parseExpression(LOWEST)
-		if prop.Expr == nil {
-			return properties
-		}
-
-		properties = append(properties, &prop)
-
-		// Check for comma or end of properties
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // move to next property
-		} else if p.peekTokenIs(lexer.RBRACKET) {
-			p.nextToken() // consume closing bracket
-			break
-		} else {
-			p.errors = append(p.errors, fmt.Errorf("expected , or ] at %s:%d:%d, got %s",
-				p.peekToken.File, p.peekPos().Line, p.peekPos().Column, p.peekToken.Type))
-			return properties
-		}
-	}
-
-	return properties
-}
 
 func (p *Parser) parseConstructorPattern(name string) ast.Pattern {
 	constructor := &ast.ConstructorPattern{
@@ -1823,14 +1271,6 @@ func (p *Parser) curPos() ast.Pos {
 		Line:   p.curToken.Line,
 		Column: p.curToken.Column,
 		File:   p.curToken.File,
-	}
-}
-
-func (p *Parser) peekPos() ast.Pos {
-	return ast.Pos{
-		Line:   p.peekToken.Line,
-		Column: p.peekToken.Column,
-		File:   p.peekToken.File,
 	}
 }
 

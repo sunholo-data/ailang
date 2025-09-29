@@ -8,7 +8,7 @@ import (
 // FuncSig represents a function signature for call graph analysis
 type FuncSig struct {
 	Name     string
-	NodeSID  string      // Surface SID
+	NodeSID  string // Surface SID
 	Body     ast.Expr
 	Params   []string
 	IsPure   bool
@@ -20,9 +20,9 @@ type FuncSig struct {
 
 // CallGraph represents a dependency graph between functions
 type CallGraph struct {
-	nodes    []string
-	edges    map[string][]string
-	nodeSet  map[string]bool
+	nodes   []string
+	edges   map[string][]string
+	nodeSet map[string]bool
 }
 
 // NewCallGraph creates a new call graph
@@ -107,12 +107,12 @@ func (g *CallGraph) SCCs() [][]string {
 // BuildCallGraph analyzes functions to build a call graph
 func BuildCallGraph(funcs []*FuncSig, symbols map[string]*FuncSig, imports map[string]string) *CallGraph {
 	graph := NewCallGraph()
-	
+
 	// Add all function nodes
 	for _, f := range funcs {
 		graph.AddNode(f.Name)
 	}
-	
+
 	// Analyze each function body for calls
 	for _, f := range funcs {
 		refs := findReferences(f.Body)
@@ -126,71 +126,71 @@ func BuildCallGraph(funcs []*FuncSig, symbols map[string]*FuncSig, imports map[s
 			}
 		}
 	}
-	
+
 	return graph
 }
 
 // findReferences finds all identifier references in an expression
 func findReferences(expr ast.Expr) []string {
 	var refs []string
-	
+
 	switch ex := expr.(type) {
 	case *ast.Identifier:
 		refs = append(refs, ex.Name)
-		
+
 	case *ast.BinaryOp:
 		refs = append(refs, findReferences(ex.Left)...)
 		refs = append(refs, findReferences(ex.Right)...)
-		
+
 	case *ast.UnaryOp:
 		refs = append(refs, findReferences(ex.Expr)...)
-		
+
 	case *ast.If:
 		refs = append(refs, findReferences(ex.Condition)...)
 		refs = append(refs, findReferences(ex.Then)...)
 		refs = append(refs, findReferences(ex.Else)...)
-		
+
 	case *ast.Let:
 		// Value might reference functions
 		refs = append(refs, findReferences(ex.Value)...)
 		// Body has ex.Name in scope, filter it out later if needed
 		refs = append(refs, findReferences(ex.Body)...)
-		
+
 	case *ast.Lambda:
 		// Lambda body might reference functions
 		refs = append(refs, findReferences(ex.Body)...)
-		
+
 	case *ast.FuncCall:
 		refs = append(refs, findReferences(ex.Func)...)
 		for _, arg := range ex.Args {
 			refs = append(refs, findReferences(arg)...)
 		}
-		
+
 	case *ast.List:
 		for _, elem := range ex.Elements {
 			refs = append(refs, findReferences(elem)...)
 		}
-		
+
 	case *ast.Record:
 		for _, field := range ex.Fields {
 			refs = append(refs, findReferences(field.Value)...)
 		}
-		
+
 	case *ast.RecordAccess:
 		refs = append(refs, findReferences(ex.Record)...)
-		
+
 	case *ast.Match:
 		refs = append(refs, findReferences(ex.Expr)...)
 		for _, c := range ex.Cases {
 			refs = append(refs, findReferences(c.Body)...)
 		}
-		
+
 	case *ast.Tuple:
 		for _, elem := range ex.Elements {
 			refs = append(refs, findReferences(elem)...)
 		}
 	}
-	
+
 	return refs
 }
 

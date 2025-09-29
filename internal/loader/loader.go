@@ -3,7 +3,7 @@ package loader
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -23,12 +23,12 @@ type ModuleLoader struct {
 
 // LoadedModule represents a loaded and parsed module
 type LoadedModule struct {
-	Path     string
-	File     *ast.File
-	Imports  []string                 // Module paths this module imports
-	Exports  map[string]*ast.FuncDecl // Export table (for now, just functions)
-	Core     *core.Program            // Core representation (after elaboration)
-	Iface    *iface.Iface             // Module interface (after type checking)
+	Path    string
+	File    *ast.File
+	Imports []string                 // Module paths this module imports
+	Exports map[string]*ast.FuncDecl // Export table (for now, just functions)
+	Core    *core.Program            // Core representation (after elaboration)
+	Iface   *iface.Iface             // Module interface (after type checking)
 }
 
 // NewModuleLoader creates a new module loader
@@ -43,7 +43,7 @@ func NewModuleLoader(basePath string) *ModuleLoader {
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Canonicalize the module ID
 	canonicalID := CanonicalModuleID(path)
-	
+
 	// Check cache with canonical ID
 	if loaded, ok := ml.cache[canonicalID]; ok {
 		return loaded, nil
@@ -51,9 +51,9 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 
 	// Resolve path
 	fullPath := ml.resolvePath(path)
-	
+
 	// Read file
-	content, err := ioutil.ReadFile(fullPath)
+	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read module %s: %w", path, err)
 	}
@@ -79,13 +79,13 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Cache and return with canonical ID
 	canonicalID = CanonicalModuleID(path)
 	loaded := &LoadedModule{
-		Path:    canonicalID,  // Store canonical form
+		Path:    canonicalID, // Store canonical form
 		File:    file,
 		Imports: imports,
 		Exports: exports,
 	}
 	ml.cache[canonicalID] = loaded
-	
+
 	return loaded, nil
 }
 
@@ -117,26 +117,26 @@ func (ml *ModuleLoader) resolvePath(path string) string {
 func CanonicalModuleID(p string) string {
 	// Clean the path first
 	p = filepath.Clean(p)
-	
+
 	// Remove .ail extension if present
 	p = strings.TrimSuffix(p, ".ail")
-	
+
 	// Normalize to forward slashes (cross-platform)
 	p = strings.ReplaceAll(p, "\\", "/")
-	
+
 	// Remove leading ./ if present
 	p = strings.TrimPrefix(p, "./")
-	
+
 	// Remove leading / for absolute paths (make repo-relative)
 	p = strings.TrimPrefix(p, "/")
-	
+
 	return p
 }
 
 // buildExports builds the export table for a module
 func (ml *ModuleLoader) buildExports(file *ast.File) map[string]*ast.FuncDecl {
 	exports := make(map[string]*ast.FuncDecl)
-	
+
 	// For now, just export all functions (since we don't have export declarations yet)
 	// TODO: Once we have export declarations, use those
 	for _, fn := range file.Funcs {
@@ -145,7 +145,7 @@ func (ml *ModuleLoader) buildExports(file *ast.File) map[string]*ast.FuncDecl {
 			exports[fn.Name] = fn
 		}
 	}
-	
+
 	return exports
 }
 
@@ -155,12 +155,12 @@ func (ml *ModuleLoader) GetExport(modulePath, symbol string) (*ast.FuncDecl, err
 	if err != nil {
 		return nil, err
 	}
-	
+
 	decl, ok := module.Exports[symbol]
 	if !ok {
 		return nil, fmt.Errorf("symbol %s not exported from %s", symbol, modulePath)
 	}
-	
+
 	return decl, nil
 }
 
@@ -169,7 +169,7 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 	modules := make(map[string]*LoadedModule)
 	visited := make(map[string]bool)
 	var searchTrace []string
-	
+
 	// DFS to load all dependencies
 	var loadDeps func(path string) error
 	loadDeps = func(path string) error {
@@ -178,10 +178,10 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 			return nil
 		}
 		visited[path] = true
-		
+
 		// Track search attempt
 		searchTrace = append(searchTrace, fmt.Sprintf("Loading module: %s", path))
-		
+
 		// Load the module
 		module, err := ml.Load(path)
 		if err != nil {
@@ -191,7 +191,7 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 		}
 		// Store with canonical ID (module.Path), not input path
 		modules[module.Path] = module
-		
+
 		// Load its dependencies
 		for _, dep := range module.Imports {
 			searchTrace = append(searchTrace, fmt.Sprintf("  -> dependency: %s", dep))
@@ -199,17 +199,17 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 				return err
 			}
 		}
-		
+
 		return nil
 	}
-	
+
 	// Load all root modules and their dependencies
 	for _, root := range roots {
 		if err := loadDeps(root); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return modules, nil
 }
 
@@ -228,12 +228,12 @@ func (ml *ModuleLoader) LoadInterface(modulePath string) (*iface.Iface, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If the interface is already built, return it
 	if module.Iface != nil {
 		return module.Iface, nil
 	}
-	
+
 	// Otherwise, we need to build it (requires type checking)
 	// This will be done by the pipeline
 	return nil, fmt.Errorf("interface not yet built for module %s", modulePath)
@@ -245,7 +245,7 @@ func (ml *ModuleLoader) EvaluateExport(ref core.GlobalRef) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// This requires the module to be compiled and evaluated
 	// The pipeline will handle this
 	return nil, fmt.Errorf("export evaluation not yet implemented for %s.%s", ref.Module, ref.Name)
@@ -257,11 +257,11 @@ func (ml *ModuleLoader) NormalizeContent(content []byte) []byte {
 	if bytes.HasPrefix(content, []byte{0xEF, 0xBB, 0xBF}) {
 		content = content[3:]
 	}
-	
+
 	// Normalize line endings (CRLF -> LF)
 	content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
 	content = bytes.ReplaceAll(content, []byte("\r"), []byte("\n"))
-	
+
 	return content
 }
 
@@ -269,23 +269,21 @@ func (ml *ModuleLoader) NormalizeContent(content []byte) []byte {
 func (ml *ModuleLoader) CanonicalPath(path string) (string, error) {
 	// Resolve to absolute path
 	fullPath := ml.resolvePath(path)
-	
+
 	// Get canonical path (resolves symlinks, etc.)
 	canonical, err := filepath.EvalSymlinks(fullPath)
 	if err != nil {
 		// If file doesn't exist yet, just clean the path
 		canonical = filepath.Clean(fullPath)
 	}
-	
+
 	// Convert back to module path format
 	// Remove .ail extension and base path
-	if strings.HasSuffix(canonical, ".ail") {
-		canonical = canonical[:len(canonical)-4]
-	}
+	canonical = strings.TrimSuffix(canonical, ".ail")
 	if strings.HasPrefix(canonical, ml.basePath) {
 		canonical = strings.TrimPrefix(canonical, ml.basePath)
 		canonical = strings.TrimPrefix(canonical, "/")
 	}
-	
+
 	return canonical, nil
 }

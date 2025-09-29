@@ -48,7 +48,7 @@ func (r *Resolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
 		}
 	}
 	r.mu.RUnlock()
-	
+
 	// Need to evaluate the export
 	r.mu.Lock()
 	defer r.mu.Unlock()

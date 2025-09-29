@@ -8,11 +8,11 @@ import (
 
 // CompileUnit represents a module compilation unit
 type CompileUnit struct {
-	ID       string        // Module ID/path
-	Surface  *ast.File     // Parsed AST
-	Core     *core.Program // Core representation
-	Iface    *iface.Iface  // Module interface
-	TypeEnv  interface{}   // Type environment (placeholder)
+	ID      string        // Module ID/path
+	Surface *ast.File     // Parsed AST
+	Core    *core.Program // Core representation
+	Iface   *iface.Iface  // Module interface
+	TypeEnv interface{}   // Type environment (placeholder)
 }
 
 // GetCore returns the Core AST (implements link.CompileUnit interface)

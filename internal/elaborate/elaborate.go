@@ -16,7 +16,7 @@ type Elaborator struct {
 	surfaceSpans map[uint64]ast.Pos // Map Core IDs to surface positions
 	freshVarNum  int                // For generating fresh variable names
 	moduleLoader *loader.ModuleLoader
-	filePath     string // Current file path for relative imports
+	filePath     string                    // Current file path for relative imports
 	globalEnv    map[string]core.GlobalRef // Global environment for imports (name -> GlobalRef)
 }
 
@@ -92,7 +92,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		}
 		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
 	}
-	
+
 	// Build symbol table and imports map
 	funcs := collectFuncSigs(file)
 	imports := collectImports(file)
@@ -100,7 +100,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	for _, f := range funcs {
 		symbols[f.Name] = f
 	}
-	
+
 	// Load imported modules and add their exports to symbols
 	if e.moduleLoader != nil {
 		for _, imp := range file.Imports {
@@ -121,13 +121,13 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			}
 		}
 	}
-	
+
 	// Build call graph for SCC detection
 	graph := BuildCallGraph(funcs, symbols, imports)
-	
+
 	// Find SCCs for mutual recursion
 	sccs := graph.SCCs()
-	
+
 	// Desugar functions based on SCCs
 	var coreDecls []core.CoreExpr
 	meta := make(map[string]*core.DeclMeta)
@@ -139,12 +139,12 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			if err != nil {
 				return nil, err
 			}
-			
+
 			let := &core.Let{
 				CoreNode: e.makeNodeFromFunc(f),
 				Name:     f.Name,
 				Value:    lambda,
-				Body:     &core.Var{
+				Body: &core.Var{
 					CoreNode: e.makeNodeFromFunc(f),
 					Name:     f.Name,
 				},
@@ -180,7 +180,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					}
 				}
 			}
-			
+
 			// Create a LetRec that binds all functions and returns unit
 			letRec := &core.LetRec{
 				CoreNode: e.makeNode(ast.Pos{Line: 0, Column: 0}),
@@ -194,7 +194,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			coreDecls = append(coreDecls, letRec)
 		}
 	}
-	
+
 	// Add any non-func statements
 	for _, stmt := range file.Statements {
 		if expr, ok := stmt.(ast.Expr); ok {
@@ -205,7 +205,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			coreDecls = append(coreDecls, coreExpr)
 		}
 	}
-	
+
 	return &core.Program{Decls: coreDecls, Meta: meta}, nil
 }
 
@@ -227,7 +227,7 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 	for i, p := range f.Params {
 		params[i] = p.Name
 	}
-	
+
 	return &FuncSig{
 		Name:     f.Name,
 		NodeSID:  "", // TODO: Calculate surface SID
@@ -270,7 +270,7 @@ func isSelfRecursive(fname string, symbols map[string]*FuncSig) bool {
 	if f == nil {
 		return false
 	}
-	
+
 	refs := findReferences(f.Body)
 	for _, ref := range refs {
 		if ref == fname {
@@ -286,15 +286,15 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	lambda := &core.Lambda{
 		CoreNode: e.makeNodeFromFunc(f),
 		Params:   f.Params,
 		Body:     body,
 	}
-	
+
 	// TODO: Preserve metadata (pure, export, tests, props) in CoreNode.Meta
-	
+
 	return lambda, nil
 }
 

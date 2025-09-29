@@ -12,14 +12,13 @@ import (
 	"github.com/sunholo/ailang/internal/loader"
 )
 
-
 // ModuleLinker manages module interfaces and cross-module resolution
 type ModuleLinker struct {
-	ifaces        map[string]*iface.Iface              // Module interfaces by module path
-	values        map[core.GlobalRef]eval.Value        // Cached evaluated exports
-	loader        ModuleLoader                         // Interface to load modules
-	loadedModules map[string]*loader.LoadedModule      // Modules loaded for TopoSort
-	resolver      *Resolver                            // Cached resolver instance
+	ifaces        map[string]*iface.Iface         // Module interfaces by module path
+	values        map[core.GlobalRef]eval.Value   // Cached evaluated exports
+	loader        ModuleLoader                    // Interface to load modules
+	loadedModules map[string]*loader.LoadedModule // Modules loaded for TopoSort
+	resolver      *Resolver                       // Cached resolver instance
 }
 
 // ModuleLoader is the interface for loading and evaluating modules
@@ -46,12 +45,12 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 		ResolutionTrace: []string{},
 		Suggestions:     []string{},
 	}
-	
+
 	for _, imp := range imports {
 		// Track resolution attempt
-		report.ResolutionTrace = append(report.ResolutionTrace, 
+		report.ResolutionTrace = append(report.ResolutionTrace,
 			fmt.Sprintf("Resolving import: %s", imp.Path))
-		
+
 		// Load the interface for this module
 		iface, err := ml.getOrLoadInterface(imp.Path)
 		if err != nil {
@@ -63,13 +62,13 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 			}
 			return nil, report, fmt.Errorf("LDR001: module not found: %s", imp.Path)
 		}
-		
+
 		// Process selective imports
 		if len(imp.Symbols) > 0 {
 			for _, sym := range imp.Symbols {
 				report.ResolutionTrace = append(report.ResolutionTrace,
 					fmt.Sprintf("  Looking for symbol: %s", sym))
-				
+
 				item, ok := iface.GetExport(sym)
 				if !ok {
 					// Suggest similar export names
@@ -85,7 +84,7 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 						Symbol:  sym,
 					}
 				}
-				
+
 				// Check for conflicts
 				if existing, exists := env[sym]; exists {
 					return nil, report, &ImportConflictError{
@@ -95,10 +94,10 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 						Modules: []string{existing.Ref.Module, imp.Path},
 					}
 				}
-				
+
 				report.ResolutionTrace = append(report.ResolutionTrace,
 					fmt.Sprintf("  ✓ Resolved %s from %s", sym, imp.Path))
-				
+
 				env[sym] = &ImportedSym{
 					Ref:    item.Ref,
 					Type:   item.Type,
@@ -116,7 +115,7 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 			}
 		}
 	}
-	
+
 	return env, report, nil
 }
 
@@ -140,12 +139,12 @@ func (ml *ModuleLinker) getOrLoadInterface(modulePath string) (*iface.Iface, err
 	if iface, ok := ml.ifaces[modulePath]; ok {
 		return iface, nil
 	}
-	
+
 	iface, err := ml.loader.LoadInterface(modulePath)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	ml.ifaces[modulePath] = iface
 	return iface, nil
 }
@@ -154,12 +153,12 @@ func (ml *ModuleLinker) getOrLoadInterface(modulePath string) (*iface.Iface, err
 func (ml *ModuleLinker) suggestModules(target string) []string {
 	var suggestions []string
 	var candidates []string
-	
+
 	// Collect all known module paths
 	for path := range ml.ifaces {
 		candidates = append(candidates, path)
 	}
-	
+
 	// Sort by similarity (simple length difference for now)
 	// TODO: Implement Levenshtein distance
 	sort.Slice(candidates, func(i, j int) bool {
@@ -167,12 +166,12 @@ func (ml *ModuleLinker) suggestModules(target string) []string {
 		diff2 := abs(len(candidates[j]) - len(target))
 		return diff1 < diff2
 	})
-	
+
 	// Return top 3 suggestions
 	for i := 0; i < 3 && i < len(candidates); i++ {
 		suggestions = append(suggestions, candidates[i])
 	}
-	
+
 	return suggestions
 }
 
@@ -180,12 +179,12 @@ func (ml *ModuleLinker) suggestModules(target string) []string {
 func (ml *ModuleLinker) suggestExports(iface *iface.Iface, target string) []string {
 	var suggestions []string
 	var exports []string
-	
+
 	// Collect all export names
 	for name := range iface.Exports {
 		exports = append(exports, name)
 	}
-	
+
 	// Sort by similarity (simple prefix match for now)
 	// TODO: Implement proper Levenshtein distance
 	sort.Slice(exports, func(i, j int) bool {
@@ -201,12 +200,12 @@ func (ml *ModuleLinker) suggestExports(iface *iface.Iface, target string) []stri
 		diff2 := abs(len(exports[j]) - len(target))
 		return diff1 < diff2
 	})
-	
+
 	// Return top 3 suggestions
 	for i := 0; i < 3 && i < len(exports); i++ {
 		suggestions = append(suggestions, exports[i])
 	}
-	
+
 	return suggestions
 }
 

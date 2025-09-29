@@ -7,18 +7,18 @@ import (
 
 // Iface represents a module's interface (its typed exports)
 type Iface struct {
-	Module  string                 // Module path, e.g., "math/gcd"
-	Exports map[string]*IfaceItem  // Exported symbols
-	Schema  string                 // Schema version, e.g., "ailang.iface/v1"
-	Digest  string                 // Deterministic digest of interface
+	Module  string                // Module path, e.g., "math/gcd"
+	Exports map[string]*IfaceItem // Exported symbols
+	Schema  string                // Schema version, e.g., "ailang.iface/v1"
+	Digest  string                // Deterministic digest of interface
 }
 
 // IfaceItem represents a single exported symbol
 type IfaceItem struct {
-	Name    string           // Symbol name
-	Type    *types.Scheme    // Generalized type scheme
-	Purity  bool             // Whether the function is pure
-	Ref     core.GlobalRef   // Global reference to this item
+	Name   string         // Symbol name
+	Type   *types.Scheme  // Generalized type scheme
+	Purity bool           // Whether the function is pure
+	Ref    core.GlobalRef // Global reference to this item
 }
 
 // NewIface creates a new module interface

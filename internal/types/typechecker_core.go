@@ -15,10 +15,10 @@ type CoreTypeChecker struct {
 	debugMode           bool              // Enable debug output
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
-	globalTypes         map[string]*Scheme // Global types for imports (module.name -> Scheme)
-	instantiations      []Instantiation    // Track polymorphic instantiations for debugging
-	trackInstantiations bool              // Whether to track instantiations
-	varCounter          int               // Counter for generating fresh variable names
+	globalTypes         map[string]*Scheme             // Global types for imports (module.name -> Scheme)
+	instantiations      []Instantiation                // Track polymorphic instantiations for debugging
+	trackInstantiations bool                           // Whether to track instantiations
+	varCounter          int                            // Counter for generating fresh variable names
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -34,20 +34,20 @@ func (tc *CoreTypeChecker) DumpInstantiations() map[string]interface{} {
 	if !tc.trackInstantiations {
 		return nil
 	}
-	
+
 	result := make(map[string]interface{})
 	result["instantiations"] = make([]map[string]interface{}, 0, len(tc.instantiations))
-	
+
 	for _, inst := range tc.instantiations {
 		entry := map[string]interface{}{
-			"location":  inst.Location,
-			"var":       inst.VarName,
-			"fresh":     inst.FreshVars,
-			"type":      inst.Instantiated.String(),
+			"location": inst.Location,
+			"var":      inst.VarName,
+			"fresh":    inst.FreshVars,
+			"type":     inst.Instantiated.String(),
 		}
 		result["instantiations"] = append(result["instantiations"].([]map[string]interface{}), entry)
 	}
-	
+
 	return result
 }
 
@@ -511,9 +511,9 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 				tc.varCounter++
 			}
 		}
-		
+
 		monotype = scheme.Instantiate(ctx.freshType)
-		
+
 		// Record instantiation after it happens
 		if tc.trackInstantiations {
 			tc.instantiations = append(tc.instantiations, Instantiation{
@@ -559,10 +559,10 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 			tc.varCounter++
 		}
 	}
-	
+
 	// Instantiate the scheme
 	monotype := scheme.Instantiate(ctx.freshType)
-	
+
 	// Record instantiation after it happens
 	if tc.trackInstantiations {
 		tc.instantiations = append(tc.instantiations, Instantiation{
@@ -1050,7 +1050,7 @@ func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core
 			core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 			core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||",
 		}[intrinsic.Op]
-		
+
 		binop := &core.BinOp{
 			CoreNode: intrinsic.CoreNode,
 			Op:       opStr,
@@ -1059,13 +1059,13 @@ func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core
 		}
 		return tc.inferBinOp(ctx, binop)
 	}
-	
+
 	// For unary intrinsics
 	if len(intrinsic.Args) == 1 {
 		opStr := map[core.IntrinsicOp]string{
 			core.OpNot: "not", core.OpNeg: "-",
 		}[intrinsic.Op]
-		
+
 		unop := &core.UnOp{
 			CoreNode: intrinsic.CoreNode,
 			Op:       opStr,
@@ -1084,7 +1084,7 @@ func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core
 			Right:     &typedast.TypedLit{TypedExpr: typedast.TypedExpr{Type: TUnit}}, // dummy
 		}, env, nil
 	}
-	
+
 	return nil, ctx.env, fmt.Errorf("unexpected intrinsic arity: %d", len(intrinsic.Args))
 }
 
@@ -2326,7 +2326,7 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 			rc.Method = OperatorMethod(e.Op, true)
 		}
 		tc.walkCore(e.Operand)
-	
+
 	case *core.Intrinsic:
 		// Intrinsic nodes pass through - they'll be handled by OpLowering
 		for _, arg := range e.Args {

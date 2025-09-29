@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
+
 	// "github.com/sunholo/ailang/internal/errors" // TODO: Use structured errors
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
@@ -17,25 +18,25 @@ import (
 	"github.com/sunholo/ailang/internal/linked"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/parser"
-	"github.com/sunholo/ailang/internal/types"
 	_ "github.com/sunholo/ailang/internal/typedast" // For type checker return value
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // Config contains pipeline configuration options
 type Config struct {
-	JSON                  bool                 // Output JSON format
-	Compact               bool                 // Use compact JSON
-	DumpCore              bool                 // Show Core AST
-	DumpCoreLowered       bool                 // Show Core after lowering
-	DumpTyped             bool                 // Show Typed AST
-	TraceDefaulting       bool                 // Trace type defaulting
-	DryLink               bool                 // Show linking without eval
-	RequireLowering       bool                 // Fail if operators not lowered
-	ExperimentalBinopShim bool                 // Feature flag for operator shim
-	FailOnShim            bool                 // Fail if shim would be used (CI mode)
-	TrackInstantiations   bool                 // Track polymorphic type instantiations
+	JSON                  bool                  // Output JSON format
+	Compact               bool                  // Use compact JSON
+	DumpCore              bool                  // Show Core AST
+	DumpCoreLowered       bool                  // Show Core after lowering
+	DumpTyped             bool                  // Show Typed AST
+	TraceDefaulting       bool                  // Trace type defaulting
+	DryLink               bool                  // Show linking without eval
+	RequireLowering       bool                  // Fail if operators not lowered
+	ExperimentalBinopShim bool                  // Feature flag for operator shim
+	FailOnShim            bool                  // Fail if shim would be used (CI mode)
+	TrackInstantiations   bool                  // Track polymorphic type instantiations
 	LedgerHook            func(decision string) // Optional decision hook
-	
+
 	// Environment from REPL (optional)
 	TypeEnv   *types.TypeEnv
 	InstEnv   *types.InstanceEnv
@@ -62,13 +63,13 @@ type Artifacts struct {
 
 // Result contains pipeline output
 type Result struct {
-	Value         eval.Value
-	Type          types.Type
-	Constraints   []types.Constraint
-	Errors        []error // TODO: Use structured errors
-	Artifacts     Artifacts
-	EnvLockDigest string
-	PhaseTimings  map[string]int64 // milliseconds
+	Value          eval.Value
+	Type           types.Type
+	Constraints    []types.Constraint
+	Errors         []error // TODO: Use structured errors
+	Artifacts      Artifacts
+	EnvLockDigest  string
+	PhaseTimings   map[string]int64       // milliseconds
 	Instantiations map[string]interface{} // Polymorphic instantiation tracking
 }
 
@@ -94,7 +95,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	result := Result{
 		PhaseTimings: make(map[string]int64),
 	}
-	
+
 	// Initialize environments if not provided
 	if cfg.TypeEnv == nil {
 		cfg.TypeEnv = types.NewTypeEnvWithBuiltins()
@@ -111,12 +112,12 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if cfg.Instances == nil {
 		cfg.Instances = make(map[string]core.DictValue)
 	}
-	
+
 	// Phase 1: Parse
 	start := time.Now()
 	l := lexer.New(src.Code, src.Filename)
 	p := parser.New(l)
-	
+
 	var astFile *ast.File
 	if src.IsREPL {
 		// For REPL, wrap expression in synthetic module
@@ -124,7 +125,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		if len(p.Errors()) > 0 {
 			return result, convertParserErrors(p.Errors())
 		}
-		
+
 		// Create synthetic module wrapper with session ID
 		moduleName := fmt.Sprintf("_repl/%d", src.REPLNum)
 		astFile = &ast.File{
@@ -136,9 +137,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		}
 		// Convert program to statements
 		if program.Module != nil {
-			for _, decl := range program.Module.Decls {
-				astFile.Statements = append(astFile.Statements, decl)
-			}
+			astFile.Statements = append(astFile.Statements, program.Module.Decls...)
 		}
 	} else {
 		// For files, parse as complete file
@@ -147,10 +146,10 @@ func runSingle(cfg Config, src Source) (Result, error) {
 			return result, convertParserErrors(p.Errors())
 		}
 	}
-	
+
 	result.Artifacts.AST = astFile
 	result.PhaseTimings["parse"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 2: Elaborate to Core
 	start = time.Now()
 	var elaborator *elaborate.Elaborator
@@ -163,14 +162,14 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if err != nil {
 		return result, fmt.Errorf("elaboration error: %w", err)
 	}
-	
+
 	result.Artifacts.Core = coreProg
 	result.PhaseTimings["elaborate"] = time.Since(start).Milliseconds()
-	
-	if cfg.DumpCore {
+
+	if cfg.DumpCore { //nolint:staticcheck // Flag for caller to display Core AST
 		// Core will be displayed by caller
 	}
-	
+
 	// Phase 3: Type Check
 	start = time.Now()
 	typeChecker := types.NewCoreTypeCheckerWithInstances(cfg.InstEnv)
@@ -178,7 +177,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if cfg.TrackInstantiations {
 		typeChecker.EnableInstantiationTracking()
 	}
-	
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {
@@ -190,29 +189,29 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	} else {
 		return result, fmt.Errorf("empty program")
 	}
-	
+
 	typedNode, _, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, cfg.TypeEnv)
 	if err != nil {
 		return result, fmt.Errorf("type error: %w", err)
 	}
-	
+
 	result.Type = qualType
 	result.Constraints = constraints
 	result.PhaseTimings["typecheck"] = time.Since(start).Milliseconds()
-	
+
 	// Capture instantiation tracking if enabled
 	if cfg.TrackInstantiations {
 		result.Instantiations = typeChecker.DumpInstantiations()
 	}
-	
+
 	// Phase 3.5: Operator Lowering
 	start = time.Now()
-	
+
 	// Check if shim is forbidden in CI mode (before any other logic)
 	if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 		return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim")
 	}
-	
+
 	// If require lowering is set, we must lower regardless of shim flag
 	// If shim is not enabled, we must lower
 	if cfg.RequireLowering || !cfg.ExperimentalBinopShim {
@@ -221,7 +220,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		if err != nil {
 			return result, fmt.Errorf("lowering error: %w", err)
 		}
-		
+
 		// Guard A: Assert no operators remain
 		// TODO: Re-enable after assert_builtins.go is fixed
 		// if err := AssertNoOperators(loweredProg); err != nil {
@@ -233,16 +232,16 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		// if err := AssertOnlyBuiltinsForOps(loweredProg); err != nil {
 		// 	return result, err
 		// }
-		
+
 		loweredProg.Flags.Lowered = true
 		coreProg = loweredProg
-		
-		if cfg.DumpCoreLowered {
+
+		if cfg.DumpCoreLowered { //nolint:staticcheck // Flag for caller to display lowered Core
 			// Core will be displayed by caller
 		}
 	}
 	result.PhaseTimings["lower"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 4: Dictionary Elaboration
 	start = time.Now()
 	// TODO: Implement proper dictionary elaboration
@@ -251,32 +250,32 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	_ = typedNode
 	_ = constraints
 	result.PhaseTimings["dict_elab"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 5: ANF Verification
 	start = time.Now()
 	// TODO: Implement ANF verification
 	_ = elaborated
 	result.PhaseTimings["anf_verify"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 6: Link
 	start = time.Now()
 	linker := linked.NewLinker()
-	
+
 	// Register runtime dictionaries
 	for key, dict := range cfg.Instances {
 		cfg.DictReg.RegisterInstance(key, dict)
 	}
-	
+
 	// Linking expects CoreExpr, but we have core.Expr
 	// TODO: Unify these types
 	linkedExpr := elaborated
 	result.PhaseTimings["link"] = time.Since(start).Milliseconds()
-	
+
 	if cfg.DryLink {
 		// Skip evaluation for dry link
 		return result, nil
 	}
-	
+
 	// Phase 7: Evaluate
 	start = time.Now()
 	// Use Core evaluator for proper evaluation
@@ -285,7 +284,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if cfg.ExperimentalBinopShim && !cfg.RequireLowering && !cfg.FailOnShim {
 		coreEval.SetExperimentalBinopShim(true)
 	}
-	
+
 	// Guard B: Ensure program was lowered (unless using allowed shim)
 	// TODO: Re-enable after assert_builtins.go is fixed
 	// if cfg.RequireLowering || !cfg.ExperimentalBinopShim {
@@ -293,7 +292,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// 		return result, err
 	// 	}
 	// }
-	
+
 	// Evaluate the program
 	if len(coreProg.Decls) > 0 {
 		value, err := coreEval.Eval(coreProg.Decls[0])
@@ -302,15 +301,15 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		}
 		result.Value = value
 	}
-	
+
 	_ = linkedExpr
 	_ = linker
 	result.PhaseTimings["evaluate"] = time.Since(start).Milliseconds()
-	
+
 	// Calculate environment digest for determinism
 	// TODO: Implement proper digest calculation
 	result.EnvLockDigest = "TODO"
-	
+
 	return result, nil
 }
 
@@ -322,7 +321,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	result := Result{
 		PhaseTimings: make(map[string]int64),
 	}
-	
+
 	// Initialize environments if not provided
 	if cfg.TypeEnv == nil {
 		cfg.TypeEnv = types.NewTypeEnvWithBuiltins()
@@ -339,7 +338,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	if cfg.Instances == nil {
 		cfg.Instances = make(map[string]core.DictValue)
 	}
-	
+
 	// Phase 1: Load module and dependencies
 	start := time.Now()
 	modLoader := loader.NewModuleLoader(".")
@@ -348,7 +347,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		return result, fmt.Errorf("module loading error: %w", err)
 	}
 	result.PhaseTimings["load"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 2: Topological sort
 	start = time.Now()
 	modLinker := link.NewModuleLinker(modLoader)
@@ -361,7 +360,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		return result, fmt.Errorf("dependency cycle: %w", err)
 	}
 	result.PhaseTimings["topo"] = time.Since(start).Milliseconds()
-	
+
 	// Phase 3: Two-phase compilation
 	// Phase 3a: Build interfaces for all modules in dependency order
 	// Log phase order for debugging
@@ -372,17 +371,17 @@ func runModule(cfg Config, src Source) (Result, error) {
 	if cfg.TraceDefaulting {
 		fmt.Printf("PHASE ORDER: ELAB+TC+IFACE: %v; EVAL: %s\n", phaseLog, src.Filename)
 	}
-	
+
 	start = time.Now()
 	compiledUnits := make(map[string]*CompileUnit)
-	
+
 	for _, modID := range sortedModules {
 		mod := modules[string(modID)]
 		unit := &CompileUnit{
 			ID:      string(modID),
 			Surface: mod.File,
 		}
-		
+
 		// Validate module declaration matches canonical path (MOD010)
 		if mod.File.Module != nil {
 			canonicalID := loader.CanonicalModuleID(string(modID))
@@ -392,11 +391,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 					mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
 			}
 		}
-		
+
 		// Build external environment from already-compiled dependencies
 		externalTypes := make(map[string]*types.Scheme)
 		globalRefs := make(map[string]core.GlobalRef)
-		
+
 		// Get imports for this module
 		if len(mod.File.Imports) > 0 {
 			for _, imp := range mod.File.Imports {
@@ -425,16 +424,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 				}
 			}
 		}
-		
+
 		// Elaborate to Core
 		elaborator := elaborate.NewElaboratorWithPath(string(modID))
 		elaborator.SetGlobalEnv(globalRefs)
-		
+
 		unit.Core, err = elaborator.ElaborateFile(mod.File)
 		if err != nil {
 			return result, fmt.Errorf("elaboration error in %s: %w", modID, err)
 		}
-		
+
 		// Type check with external types from dependencies
 		// Create a local TypeEnv for this module (inherits from global builtins)
 		moduleTypeEnv := types.NewTypeEnvWithBuiltins()
@@ -454,13 +453,13 @@ func runModule(cfg Config, src Source) (Result, error) {
 				return result, fmt.Errorf("type error in %s (decl %d): %w", modID, i, err)
 			}
 		}
-		
+
 		// Phase 3.5: Operator Lowering
 		// Check if shim is forbidden in CI mode (before any other logic)
 		if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 			return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim in module %s", modID)
 		}
-		
+
 		// If require lowering is set, we must lower regardless of shim flag
 		// If shim is not enabled, we must lower
 		if cfg.RequireLowering || !cfg.ExperimentalBinopShim {
@@ -469,7 +468,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 			if err != nil {
 				return result, fmt.Errorf("lowering error in %s: %w", modID, err)
 			}
-			
+
 			// Guard A: Assert no operators remain
 			// TODO: Re-enable after assert_builtins.go is fixed
 			// if err := AssertNoOperators(unit.Core); err != nil {
@@ -481,10 +480,10 @@ func runModule(cfg Config, src Source) (Result, error) {
 			// if err := AssertOnlyBuiltinsForOps(unit.Core); err != nil {
 			// 	return result, fmt.Errorf("in module %s: %w", modID, err)
 			// }
-			
+
 			unit.Core.Flags.Lowered = true
 		}
-		
+
 		// Build and register interface (using module-local type environment)
 		unitIface, err := iface.BuildInterface(string(modID), unit.Core, moduleTypeEnv)
 		if err != nil {
@@ -492,7 +491,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 		unit.Iface = unitIface
 		modLinker.RegisterIface(unitIface)
-		
+
 		compiledUnits[string(modID)] = unit
 	}
 	result.PhaseTimings["compile"] = time.Since(start).Milliseconds()
@@ -527,7 +526,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	if cfg.ExperimentalBinopShim && !cfg.RequireLowering && !cfg.FailOnShim {
 		coreEval.SetExperimentalBinopShim(true)
 	}
-	
+
 	// Guard B: Ensure program was lowered (unless using allowed shim)
 	// TODO: Re-enable after assert_builtins.go is fixed
 	// if cfg.RequireLowering || !cfg.ExperimentalBinopShim {
@@ -535,7 +534,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// 		return result, err
 	// 	}
 	// }
-	
+
 	// Evaluate the root module
 	if len(rootUnit.Core.Decls) > 0 {
 		value, err := coreEval.Eval(rootUnit.Core.Decls[0])
@@ -545,11 +544,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 		result.Value = value
 	}
 	result.PhaseTimings["evaluate"] = time.Since(start).Milliseconds()
-	
+
 	// Store artifacts
 	result.Artifacts.AST = rootUnit.Surface
 	result.Artifacts.Core = rootUnit.Core
-	
+
 	return result, nil
 }
 
@@ -558,7 +557,7 @@ func convertParserErrors(errs []error) error {
 	if len(errs) == 0 {
 		return nil
 	}
-	
+
 	// For now, return the first error
 	// TODO: Return all errors with proper structure
 	return errs[0]

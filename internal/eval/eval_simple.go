@@ -73,7 +73,7 @@ func (e *SimpleEvaluator) EvalProgram(program *ast.Program) (Value, error) {
 func (e *SimpleEvaluator) evalFile(file *ast.File) (Value, error) {
 	// Process declarations
 	var lastVal Value = &UnitValue{}
-	
+
 	for _, decl := range file.Decls {
 		val, err := e.evalNode(decl)
 		if err != nil {
@@ -81,7 +81,7 @@ func (e *SimpleEvaluator) evalFile(file *ast.File) (Value, error) {
 		}
 		lastVal = val
 	}
-	
+
 	// If there's a main function, call it
 	if mainVal, ok := e.env.Get("main"); ok {
 		if fn, ok := mainVal.(*FunctionValue); ok {
@@ -89,11 +89,11 @@ func (e *SimpleEvaluator) evalFile(file *ast.File) (Value, error) {
 			// Create new environment for function body
 			fnEnv := fn.Env.NewChildEnvironment()
 			// No parameters to bind for main
-			
+
 			// Evaluate function body
 			oldEnv := e.env
 			e.env = fnEnv
-			
+
 			// Body should be an ast.Expr
 			if body, ok := fn.Body.(ast.Expr); ok {
 				result, err := e.evalExpr(body)
@@ -104,7 +104,7 @@ func (e *SimpleEvaluator) evalFile(file *ast.File) (Value, error) {
 			return nil, fmt.Errorf("function body is not an expression")
 		}
 	}
-	
+
 	return lastVal, nil
 }
 

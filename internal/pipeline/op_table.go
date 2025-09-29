@@ -23,7 +23,7 @@ var OperatorTable = map[core.IntrinsicOp]OpMapping{
 	core.OpMul: {Builtin: "mul", Types: []string{"Int", "Float"}},
 	core.OpDiv: {Builtin: "div", Types: []string{"Int", "Float"}},
 	core.OpMod: {Builtin: "mod", Types: []string{"Int", "Float"}},
-	
+
 	// Comparison operations
 	core.OpEq: {Builtin: "eq", Types: []string{"Int", "Float", "String", "Bool"}},
 	core.OpNe: {Builtin: "ne", Types: []string{"Int", "Float", "String", "Bool"}},
@@ -31,14 +31,14 @@ var OperatorTable = map[core.IntrinsicOp]OpMapping{
 	core.OpLe: {Builtin: "le", Types: []string{"Int", "Float", "String"}},
 	core.OpGt: {Builtin: "gt", Types: []string{"Int", "Float", "String"}},
 	core.OpGe: {Builtin: "ge", Types: []string{"Int", "Float", "String"}},
-	
+
 	// String operations
 	core.OpConcat: {Builtin: "concat", Types: []string{"String"}},
-	
+
 	// Boolean operations (short-circuit, handled specially)
 	core.OpAnd: {Builtin: "and", Types: []string{"Bool"}},
 	core.OpOr:  {Builtin: "or", Types: []string{"Bool"}},
-	
+
 	// Unary operations
 	core.OpNot: {Builtin: "not", Types: []string{"Bool"}},
 	core.OpNeg: {Builtin: "neg", Types: []string{"Int", "Float"}},
@@ -50,7 +50,7 @@ func GetBuiltinName(op core.IntrinsicOp, typ string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("unknown operator: %v", op)
 	}
-	
+
 	// Verify type is supported
 	found := false
 	for _, t := range mapping.Types {
@@ -61,10 +61,10 @@ func GetBuiltinName(op core.IntrinsicOp, typ string) (string, error) {
 	}
 	if !found {
 		opStr := GetOpSymbol(op)
-		return "", fmt.Errorf("ELB_OP001: Operator '%s' has no implementation for type %s. Suggestion: Align operand types (e.g., add cast)", 
+		return "", fmt.Errorf("ELB_OP001: Operator '%s' has no implementation for type %s. Suggestion: Align operand types (e.g., add cast)",
 			opStr, typ)
 	}
-	
+
 	return fmt.Sprintf("%s_%s", mapping.Builtin, typ), nil
 }
 
@@ -90,7 +90,7 @@ func GetAllBuiltinNames() []string {
 			seen[name] = true
 		}
 	}
-	
+
 	var names []string
 	for name := range seen {
 		names = append(names, name)
@@ -113,15 +113,15 @@ func IsOperatorTableComplete() error {
 
 // OperatorSemantics documents the semantics of each operator
 var OperatorSemantics = map[string]string{
-	"div_Int": "Integer division truncates toward zero (e.g., -7/2 = -3)",
-	"mod_Int": "Integer modulo has the sign of the dividend (e.g., -7%3 = -1)",
+	"div_Int":   "Integer division truncates toward zero (e.g., -7/2 = -3)",
+	"mod_Int":   "Integer modulo has the sign of the dividend (e.g., -7%3 = -1)",
 	"div_Float": "Float division follows IEEE 754 (division by zero produces ±Inf)",
 	"mod_Float": "Float modulo follows IEEE 754 (mod by zero produces NaN)",
-	"eq_Float": "Float equality: NaN != NaN is false, all other comparisons standard",
-	"ne_Float": "Float inequality: NaN != x is true for all x (including NaN)",
-	"lt_Float": "Float less-than: any comparison with NaN is false",
-	"and_Bool": "Boolean AND short-circuits: false && _ returns false without evaluating RHS",
-	"or_Bool": "Boolean OR short-circuits: true || _ returns true without evaluating RHS",
+	"eq_Float":  "Float equality: NaN != NaN is false, all other comparisons standard",
+	"ne_Float":  "Float inequality: NaN != x is true for all x (including NaN)",
+	"lt_Float":  "Float less-than: any comparison with NaN is false",
+	"and_Bool":  "Boolean AND short-circuits: false && _ returns false without evaluating RHS",
+	"or_Bool":   "Boolean OR short-circuits: true || _ returns true without evaluating RHS",
 }
 
 // GetBuiltinType returns the type signature for a builtin
@@ -131,10 +131,10 @@ func GetBuiltinType(name string) string {
 	if len(parts) != 2 {
 		return "?"
 	}
-	
+
 	op := parts[0]
 	typ := parts[1]
-	
+
 	// Determine signature based on operation
 	switch op {
 	case "add", "sub", "mul", "div", "mod":
