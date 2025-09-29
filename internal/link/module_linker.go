@@ -7,6 +7,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
@@ -39,16 +40,16 @@ func NewModuleLinker(loader ModuleLoader) *ModuleLinker {
 }
 
 // BuildGlobalEnv constructs the global environment for imports
-func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *LinkReport, error) {
+func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *LinkDiagnostics, error) {
 	env := make(GlobalEnv)
-	report := &LinkReport{
+	diag := &LinkDiagnostics{
 		ResolutionTrace: []string{},
 		Suggestions:     []string{},
 	}
 
 	for _, imp := range imports {
 		// Track resolution attempt
-		report.ResolutionTrace = append(report.ResolutionTrace,
+		diag.ResolutionTrace = append(diag.ResolutionTrace,
 			fmt.Sprintf("Resolving import: %s", imp.Path))
 
 		// Load the interface for this module
@@ -57,45 +58,39 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 			// Add suggestions for missing module
 			suggestedModules := ml.suggestModules(imp.Path)
 			for _, suggestion := range suggestedModules {
-				report.Suggestions = append(report.Suggestions,
+				diag.Suggestions = append(diag.Suggestions,
 					fmt.Sprintf("Did you mean: %s?", suggestion))
 			}
-			return nil, report, fmt.Errorf("LDR001: module not found: %s", imp.Path)
+			return nil, diag, fmt.Errorf("LDR001: module not found: %s", imp.Path)
 		}
 
 		// Process selective imports
 		if len(imp.Symbols) > 0 {
 			for _, sym := range imp.Symbols {
-				report.ResolutionTrace = append(report.ResolutionTrace,
+				diag.ResolutionTrace = append(diag.ResolutionTrace,
 					fmt.Sprintf("  Looking for symbol: %s", sym))
 
 				item, ok := iface.GetExport(sym)
 				if !ok {
-					// Suggest similar export names
-					suggestedSymbols := ml.suggestExports(iface, sym)
-					for _, suggestion := range suggestedSymbols {
-						report.Suggestions = append(report.Suggestions,
-							fmt.Sprintf("Symbol %s not found. Did you mean: %s?", sym, suggestion))
+					// Get available exports for error reporting
+					var available []string
+					for name := range iface.Exports {
+						available = append(available, name)
 					}
-					return nil, report, &ImportError{
-						Code:    "IMP010",
-						Message: fmt.Sprintf("symbol %s not exported from %s", sym, imp.Path),
-						Module:  imp.Path,
-						Symbol:  sym,
-					}
+
+					// Build structured error report
+					errReport := newIMP010(sym, imp.Path, available, diag.ResolutionTrace, nil)
+					return nil, diag, errors.WrapReport(errReport)
 				}
 
 				// Check for conflicts
 				if existing, exists := env[sym]; exists {
-					return nil, report, &ImportConflictError{
-						Code:    "IMP011",
-						Message: fmt.Sprintf("conflicting import of %s", sym),
-						Symbol:  sym,
-						Modules: []string{existing.Ref.Module, imp.Path},
-					}
+					providers := []string{existing.Ref.Module, imp.Path}
+					errReport := newIMP011(sym, imp.Path, providers, nil)
+					return nil, diag, errors.WrapReport(errReport)
 				}
 
-				report.ResolutionTrace = append(report.ResolutionTrace,
+				diag.ResolutionTrace = append(diag.ResolutionTrace,
 					fmt.Sprintf("  ✓ Resolved %s from %s", sym, imp.Path))
 
 				env[sym] = &ImportedSym{
@@ -106,17 +101,12 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 			}
 		} else {
 			// Namespace imports not yet supported
-			report.Suggestions = append(report.Suggestions,
-				"Use selective import: import module/path (symbol1, symbol2)")
-			return nil, report, &ImportError{
-				Code:    "IMP012",
-				Message: "namespace imports not yet supported",
-				Module:  imp.Path,
-			}
+			errReport := newIMP012(imp.Path, fmt.Sprintf("import %s", imp.Path), nil)
+			return nil, diag, errors.WrapReport(errReport)
 		}
 	}
 
-	return env, report, nil
+	return env, diag, nil
 }
 
 // Resolver returns a GlobalResolver for the evaluator
@@ -214,28 +204,4 @@ func abs(n int) int {
 		return -n
 	}
 	return n
-}
-
-// ImportError represents an import-related error
-type ImportError struct {
-	Code    string
-	Message string
-	Module  string
-	Symbol  string
-}
-
-func (e *ImportError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Code, e.Message)
-}
-
-// ImportConflictError represents a conflict between imports
-type ImportConflictError struct {
-	Code    string
-	Message string
-	Symbol  string
-	Modules []string
-}
-
-func (e *ImportConflictError) Error() string {
-	return fmt.Sprintf("%s: %s (from modules: %s)", e.Code, e.Message, strings.Join(e.Modules, ", "))
 }

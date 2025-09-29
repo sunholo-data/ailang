@@ -75,6 +75,9 @@ const (
 	// MOD010 indicates module/path mismatch (e.g., module foo/bar but file is foo/baz.ail)
 	MOD010 = "MOD010"
 
+	// MOD_EXPORT_PRIVATE indicates attempted export of underscore-prefixed name
+	MOD_EXPORT_PRIVATE = "MOD_EXPORT_PRIVATE"
+
 	// MOD011 indicates multiple module declarations per file
 	MOD011 = "MOD011"
 
@@ -243,9 +246,10 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD003: {MOD003, "module", "feature", "Re-export not supported"},
 	MOD004: {MOD004, "module", "namespace", "Duplicate export"},
 	MOD005: {MOD005, "module", "syntax", "Invalid module path"},
-	MOD010: {MOD010, "module", "validation", "Module/path mismatch"},
-	MOD011: {MOD011, "module", "structure", "Multiple module declarations"},
-	MOD012: {MOD012, "module", "structure", "Implicit module warning"},
+	MOD010:            {MOD010, "module", "validation", "Module/path mismatch"},
+	MOD011:            {MOD011, "module", "structure", "Multiple module declarations"},
+	MOD012:            {MOD012, "module", "structure", "Implicit module warning"},
+	MOD_EXPORT_PRIVATE: {MOD_EXPORT_PRIVATE, "module", "validation", "Export of private (underscore) name"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},

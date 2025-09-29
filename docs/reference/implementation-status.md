@@ -1,6 +1,6 @@
 # AILANG Implementation Status
 
-## Current Version: v0.0.6
+## Current Version: v0.0.7
 
 ## Test Coverage: 31.3%
 
@@ -8,10 +8,19 @@
 
 ### ✅ Completed Components
 
+#### **Structured Error Reporting - Milestone A2** (v0.0.7)
+- ✅ **Unified Report Type** (`internal/errors/report.go`) - First-class error type with schema `ailang.error/v1`
+- ✅ **Error Flow Hardening** - Errors survive through error chains using `errors.As()`
+- ✅ **Standardized Error Codes** - IMP010, IMP011, IMP012, LDR001, MOD_EXPORT_PRIVATE
+- ✅ **CLI JSON Output** - `--json` and `--compact` flags for structured error reporting
+- ✅ **Golden File Testing** - Byte-for-byte reproducibility of error output
+- ✅ **CI Integration** - Import tests with golden file validation
+- ~680 lines of implementation + test files + golden files
+
 #### **Module System Foundation** (v0.0.6)
 - ✅ **Error Code Taxonomy** (`internal/errors/codes.go`) - Structured error classification with 60+ error codes
 - ✅ **Manifest System** (`internal/manifest/`) - Example status tracking and validation
-- ✅ **Module Loader** (`internal/module/loader.go`) - Complete dependency resolution with cycle detection  
+- ✅ **Module Loader** (`internal/module/loader.go`) - Complete dependency resolution with cycle detection
 - ✅ **Path Resolver** (`internal/module/resolver.go`) - Cross-platform import path handling
 - ~1,680 lines of production code + comprehensive tests
 

@@ -1,0 +1,7 @@
+-- Test LDR001: Module not found error
+module tests/errors/lnk_unresolved_module
+
+import examples/v3_3/math/nope (something)
+
+-- This import should fail with LDR001
+-- The module nope does not exist

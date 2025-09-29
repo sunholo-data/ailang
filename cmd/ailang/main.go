@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	ailangErrors "github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/repl"
 	"github.com/sunholo/ailang/internal/schema"
@@ -36,6 +38,7 @@ func main() {
 		seedFlag                = flag.Int("seed", 0, "Random seed for deterministic execution")
 		virtualTime             = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
 		compactFlag             = flag.Bool("compact", false, "Use compact JSON output")
+		jsonFlag                = flag.Bool("json", false, "Output errors in structured JSON format")
 		binopShimFlag           = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
 		failOnShimFlag          = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 		requireLoweringFlag     = flag.Bool("require-lowering", false, "Require operator lowering pass")
@@ -68,7 +71,7 @@ func main() {
 			fmt.Println("Usage: ailang run <file.ail>")
 			os.Exit(1)
 		}
-		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag)
+		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag)
 
 	case "repl":
 		runREPL(*learnFlag, *traceFlag)
@@ -152,7 +155,7 @@ func printHelp() {
 	fmt.Printf("  %s  # Watch with tracing\n", cyan("ailang watch main.ail --trace"))
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -197,13 +200,15 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, binopShim 
 		IsREPL:   false,
 	}
 
-	if trace {
-		fmt.Printf("DEBUG: Running with trace=%v, file=%s\n", trace, filename)
-	}
-
 	result, err := pipeline.Run(cfg, src)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		if jsonOutput {
+			// Structured JSON output
+			handleStructuredError(err, compact)
+		} else {
+			// Human-readable error output
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		}
 		os.Exit(1)
 	}
 
@@ -267,8 +272,8 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 	fmt.Println("Press Ctrl+C to stop")
 
 	// TODO: Implement file watching
-	// For now, just run the file once
-	runFile(filename, trace, 0, false, binopShim, failOnShim, requireLowering, trackInstantiations)
+	// For now, just run the file once (no json/compact for watch mode)
+	runFile(filename, trace, 0, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations)
 }
 
 func checkFile(filename string) {
@@ -330,4 +335,37 @@ func runLSP() {
 	// TODO: Implement LSP
 	fmt.Fprintf(os.Stderr, "%s: LSP not yet implemented\n", red("Error"))
 	os.Exit(1)
+}
+
+// handleStructuredError outputs structured JSON error reports
+func handleStructuredError(err error, compact bool) {
+	// Try to extract a structured Report using errors.AsReport
+	if rep, ok := ailangErrors.AsReport(err); ok {
+		outputJSON(rep, compact)
+		return
+	}
+
+	// Fallback: wrap in generic error
+	generic := ailangErrors.NewGeneric("runtime", err)
+	outputJSON(generic, compact)
+}
+
+
+// outputJSON marshals and prints JSON
+func outputJSON(v interface{}, compact bool) {
+	var data []byte
+	var err error
+
+	if compact {
+		data, err = json.Marshal(v)
+	} else {
+		data, err = json.MarshalIndent(v, "", "  ")
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
+		return
+	}
+
+	fmt.Println(string(data))
 }

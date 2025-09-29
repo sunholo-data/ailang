@@ -2,6 +2,102 @@
 
 ## [Unreleased]
 
+## [v0.0.7] - 2025-09-29
+
+### Added - Milestone A2: Structured Error Reporting
+
+#### Unified Error Report System (`internal/errors/report.go`)
+- Canonical `errors.Report` type with schema `ailang.error/v1`
+- `ReportError` wrapper preserves structured errors through error chains
+- `AsReport()` function for type-safe error unwrapping using `errors.As()`
+- `WrapReport()` ensures Reports survive through error propagation
+- JSON-serializable with deterministic field ordering
+- Structured `Data` map with sorted arrays for reproducibility
+- `Fix` suggestions with confidence scores
+- ~120 lines of core error infrastructure
+
+#### Standardized Error Codes
+- **IMP010** - Symbol not exported by module
+  - Data: `symbol`, `module_id`, `available_exports[]`, `search_trace[]`
+  - Suggests checking available exports in target module
+- **IMP011** - Import conflict (multiple providers for same symbol)
+  - Data: `symbol`, `module_id`, `providers[{export, module_id}]`
+  - Suggests using selective imports to resolve conflict
+- **IMP012** - Unsupported import form (namespace imports)
+  - Data: `module_id`, `import_syntax`
+  - Suggests using selective import syntax
+- **LDR001** - Module not found during load
+  - Data: `module_id`, `search_trace[]`, `similar[]`
+  - Provides resolution trace and similar module suggestions
+- **MOD_EXPORT_PRIVATE** - Cannot export underscore-prefixed (private) names
+  - Parser validation prevents accidental private exports
+
+#### Error Flow Hardening
+- Removed `fmt.Errorf()` wrappers in `internal/elaborate/elaborate.go:112`
+- Removed `fmt.Errorf()` wrappers in `internal/pipeline/pipeline.go:434`
+- All error builders return `*errors.Report` instead of generic errors
+- Link phase wraps reports with `errors.WrapReport()` in `internal/link/module_linker.go`
+- Loader phase wraps reports with `errors.WrapReport()` in `internal/loader/loader.go`
+- Errors flow end-to-end as first-class types, not string wrappers
+
+#### CLI JSON Output (`cmd/ailang/main.go`)
+- `--json` flag enables structured JSON error output
+- `--compact` flag for token-efficient JSON serialization
+- `handleStructuredError()` extracts Reports using `errors.As()`
+- Generic error fallback for non-structured errors
+- Exit code 1 for all error conditions
+
+#### Golden File Testing Infrastructure
+- **Test files** (`tests/errors/`):
+  - `lnk_unresolved_symbol.ail` - Tests IMP010 (symbol not exported)
+  - `lnk_unresolved_module.ail` - Tests LDR001 (module not found)
+  - `import_conflict.ail` - Tests IMP011 (import conflict)
+  - `export_private.ail` - Tests MOD_EXPORT_PRIVATE (private export)
+- **Golden files** (`goldens/`):
+  - `lnk_unresolved_symbol.json` - Expected IMP010 output
+  - `lnk_unresolved_module.json` - Expected LDR001 output
+  - `import_conflict.json` - Expected IMP011 output
+  - `imports_basic_success.json` - Expected success output (value: 6)
+- Golden files ensure byte-for-byte reproducibility of error output
+
+#### Makefile Test Targets
+- `make test-imports-success` - Verifies successful imports work
+- `make test-import-errors` - Validates golden file matching with `diff -u`
+- `make regen-import-error-goldens` - Regenerates golden files (use with caution)
+- `make test-imports` - Combined import testing (success + errors)
+- `make test-parity` - REPL/file parity test (manual, requires interactive REPL)
+
+#### CI Integration (`.github/workflows/ci.yml`)
+- Split import testing into explicit steps:
+  - "Test import system (success cases)" - Runs `make test-imports-success`
+  - "Test import errors (golden file verification)" - Runs `make test-import-errors`
+- CI gates prevent regression in error reporting determinism
+- Integrated into `ci-strict` target with operator lowering and builtin freeze tests
+
+### Changed
+- `internal/link/report.go` - All builders return `*errors.Report`
+- `internal/link/env.go` - Renamed old `LinkReport` to `LinkDiagnostics` to avoid confusion
+- `internal/loader/loader.go` - Search trace collection during module resolution
+- `internal/parser/parser.go` - Added MOD_EXPORT_PRIVATE validation
+
+### Fixed
+- Structured errors were being stringified by `fmt.Errorf("%w")` wrappers
+- Error type information now survives through error chains using `errors.As()`
+- Flag ordering: Flags must come BEFORE subcommand (`ailang --json --compact run file.ail`)
+
+### Technical Details
+- Total new code: ~680 lines (implementation + test files + golden files)
+- Test coverage: Golden files ensure deterministic error output
+- Determinism: All arrays sorted, canonical module IDs, stable JSON field ordering
+- No breaking changes to existing functionality
+- Schema versioning allows future enhancements without breaking compatibility
+
+### Migration Notes
+- Existing error handling continues to work unchanged
+- JSON output is opt-in via `--json` flag
+- Structured errors available via `errors.AsReport()` for tools integration
+- Golden file tests serve as documentation of expected error formats
+
 ## [v0.0.6] - 2025-09-29
 
 ### Added

@@ -109,7 +109,8 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 				for _, sym := range imp.Symbols {
 					decl, err := e.moduleLoader.GetExport(imp.Path, sym)
 					if err != nil {
-						return nil, fmt.Errorf("failed to import %s from %s: %w", sym, imp.Path, err)
+						// Preserve structured error reports without wrapping
+					return nil, err
 					}
 					// Convert imported func to FuncSig
 					// The GetExport already returns *ast.FuncDecl

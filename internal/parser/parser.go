@@ -503,6 +503,18 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	p.expectPeek(lexer.IDENT)
 	fn.Name = p.curToken.Literal
 
+	// Validate: cannot export underscore-prefixed (private) names
+	if isExport && strings.HasPrefix(fn.Name, "_") {
+		p.errors = append(p.errors, NewParserError(
+			"MOD_EXPORT_PRIVATE",
+			p.curPos(),
+			p.curToken,
+			fmt.Sprintf("cannot export private (underscore-prefixed) name '%s'", fn.Name),
+			nil,
+			"Remove leading underscore or drop 'export' keyword"))
+		return nil
+	}
+
 	// Parse type parameters if present
 	if p.peekTokenIs(lexer.LBRACKET) {
 		p.nextToken()

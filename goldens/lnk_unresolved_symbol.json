@@ -1,0 +1,1 @@
+{"schema":"ailang.error/v1","code":"IMP010","phase":"loader","message":"symbol 'notThere' not exported by 'examples/v3_3/math/gcd'","data":{"available_exports":["gcd","lcm"],"module_id":"examples/v3_3/math/gcd","symbol":"notThere"},"fix":{"suggestion":"Check exports in examples/v3_3/math/gcd. Available: gcd, lcm","confidence":0.85}}

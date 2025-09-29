@@ -431,7 +431,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 		unit.Core, err = elaborator.ElaborateFile(mod.File)
 		if err != nil {
-			return result, fmt.Errorf("elaboration error in %s: %w", modID, err)
+			// Preserve structured error reports without wrapping
+			return result, err
 		}
 
 		// Type check with external types from dependencies

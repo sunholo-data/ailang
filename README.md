@@ -7,7 +7,7 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.0.6
+## Current Version: v0.0.7
 
 ⚠️ **Early Development**: This language is in active development. Many planned features are not yet implemented. See [Implementation Status](docs/reference/implementation-status.md) for details.
 
@@ -66,6 +66,7 @@ Hello World :: String
 - **Basic Evaluation** - Arithmetic, strings, conditionals, let bindings
 - **Records & Lists** - Creation and field access
 - **Module System Foundation** - Path resolution, dependency management, cycle detection
+- **Structured Error Reporting** - JSON error output with schema versioning, deterministic diagnostics
 
 ### 🚧 In Progress
 

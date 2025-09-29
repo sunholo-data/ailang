@@ -15,8 +15,9 @@ type ImportedSym struct {
 // GlobalEnv maps imported names to their symbol information
 type GlobalEnv map[string]*ImportedSym
 
-// LinkReport contains diagnostic information from linking
-type LinkReport struct {
+// LinkDiagnostics contains diagnostic information from linking process
+// (separate from LinkReport which is for structured error output)
+type LinkDiagnostics struct {
 	ResolutionTrace []string // Paths tried during resolution
 	Suggestions     []string // Suggestions for fixes
 }

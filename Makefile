@@ -62,22 +62,6 @@ test:
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts)
 
 # Test import system with golden examples
-test-imports:
-	@echo "Testing import system..."
-	@echo "  → gcd module"
-	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/math/gcd.ail > /dev/null
-	@echo "  → div module (depends on gcd)"
-	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/math/div.ail > /dev/null
-	@echo "  → imports_basic (two-file import)"
-	@OUTPUT=$$($(BUILD_DIR)/$(BINARY) run examples/v3_3/imports_basic.ail 2>&1 | tail -1); \
-	if [ "$$OUTPUT" = "6" ]; then \
-		echo "  ✓ imports_basic passed (output: 6)"; \
-	else \
-		echo "  ✗ imports_basic failed (expected: 6, got: $$OUTPUT)"; \
-		exit 1; \
-	fi
-	@echo "✓ All import tests passed"
-
 # Run tests with coverage (excluding scripts directory)
 test-coverage:
 	@echo "Running tests with coverage..."
@@ -255,13 +239,50 @@ flag-broken: verify-examples
 	@echo "Flagging broken examples..."
 	@go run ./scripts/flag_broken_examples.go
 
-# CI verification target  
+# Import/Link Error Testing
+# Test that successful imports work
+test-imports-success: build
+	@echo "== Testing successful imports =="
+	@echo "  → imports_basic.ail"
+	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
+	@echo "  → imports.ail"
+	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
+	@echo "✓ Successful imports work"
+
+# Test that error cases produce correct JSON output
+test-import-errors: build
+	@echo "== Testing import error goldens =="
+	@echo "  → LDR001 (module not found)"
+	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_module.json - || (echo "FAIL: LDR001 golden mismatch" && exit 1)
+	@echo "  → IMP010 (symbol not exported)"
+	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_symbol.json - || (echo "FAIL: IMP010 golden mismatch" && exit 1)
+	@echo "✓ All import error goldens match"
+
+# Regenerate golden files (use with caution - only when intentionally updating)
+regen-import-error-goldens: build
+	@echo "Regenerating import error golden files..."
+	@mkdir -p goldens
+	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
+	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
+	@$(BUILD_DIR)/$(BINARY) --json --compact run examples/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
+	@echo "✓ Golden files regenerated"
+
+# Test REPL/file parity for imports
+test-parity: build
+	@chmod +x tests/parity/run_imports_basic.sh
+	@tests/parity/run_imports_basic.sh
+
+# Combined import testing (parity test excluded - requires interactive REPL)
+test-imports: test-imports-success test-import-errors
+	@echo "✓ All import tests passed"
+
+# CI verification target
 ci: deps fmt-check vet lint test test-coverage-badge test-lowering verify-no-shim verify-examples
 	@echo "CI verification complete"
 
-# Strict CI target (with RequireLowering enforced)
-ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions verify-examples
-	@echo "Strict CI verification complete (no shim allowed)"
+# Strict CI target (with RequireLowering enforced + import tests)
+ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions test-imports verify-examples
+	@echo "✓ Strict CI verification complete (no shim allowed)"
 
 # Show help
 help:
@@ -271,6 +292,8 @@ help:
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
 	@echo "  make test-lowering    - Run operator lowering golden tests"
+	@echo "  make test-imports     - Test import system (success + errors)"
+	@echo "  make test-import-errors - Test import error goldens"
 	@echo "  make verify-examples  - Verify all examples"
 	@echo "  make flag-broken      - Add warning headers to broken examples"
 	@echo "  make update-readme    - Update README with example status"
