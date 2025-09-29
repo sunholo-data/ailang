@@ -159,16 +159,16 @@ verify-examples: build
 	@echo "Verifying examples..."
 	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
 	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
-	@cat examples_status.md
+	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
 
 # Update README with example status
 update-readme: build
 	@echo "Verifying examples..."
 	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
 	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
-	@cat examples_status.md
+	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
 	@echo "Updating README with example status..."
-	@go run ./scripts/update_readme.go
+	@if [ -f examples_report.json ]; then go run ./scripts/update_readme.go; else echo "No examples report found, skipping README update"; fi
 
 # Generate test coverage badge
 test-coverage-badge:
