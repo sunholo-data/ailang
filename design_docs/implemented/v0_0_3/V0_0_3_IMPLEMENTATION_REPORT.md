@@ -194,7 +194,7 @@ Example Status (Auto-Generated):
 
 CI Badges:
 • ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-• ![Coverage](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)
+• ![Coverage](https://img.shields.io/badge/coverage-28.8%25-orange.svg)
 • ![Examples](https://img.shields.io/badge/examples-13%25passing-yellow.svg)
 
 ⸻

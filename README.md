@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-[![codecov](https://codecov.io/gh/sunholo-data/ailang/branch/dev/graph/badge.svg)](https://codecov.io/gh/sunholo-data/ailang)
+![Coverage](https://img.shields.io/badge/coverage-28.8%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 

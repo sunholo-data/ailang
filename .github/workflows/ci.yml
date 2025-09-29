@@ -49,15 +49,6 @@ jobs:
         fi
         echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
     
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      continue-on-error: true  # Don't fail if Codecov is down or token is missing
-      with:
-        files: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false  # Don't fail the CI if upload fails
     
     - name: Verify examples
       id: verify
@@ -93,10 +84,7 @@ jobs:
           COLOR="brightgreen"
         fi
         
-        # Replace codecov badge with our local coverage badge
-        sed -i "s|\[\![codecov\].*|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
-        
-        # If a plain Coverage badge already exists, update it
+        # Update the coverage badge in README
         sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
         
         echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
