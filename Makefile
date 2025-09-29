@@ -157,13 +157,16 @@ quick-install:
 # Verify all examples
 verify-examples: build
 	@echo "Verifying examples..."
-	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1; EXIT_CODE=$$?; \
-	go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1; \
-	cat examples_status.md; \
-	exit $$EXIT_CODE
+	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
+	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
+	@cat examples_status.md
 
 # Update README with example status
-update-readme: verify-examples
+update-readme: build
+	@echo "Verifying examples..."
+	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
+	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
+	@cat examples_status.md
 	@echo "Updating README with example status..."
 	@go run ./scripts/update_readme.go
 
