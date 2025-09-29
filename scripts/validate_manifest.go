@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	
+
 	"github.com/fatih/color"
 	"github.com/sunholo/ailang/internal/manifest"
 )
@@ -43,32 +43,32 @@ func main() {
 		ciMode       = flag.Bool("ci", false, "CI mode (fail on any mismatch)")
 	)
 	flag.Parse()
-	
+
 	// Load manifest
 	m, err := manifest.Load(*manifestPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Failed to load manifest: %v\n", red("Error:"), err)
 		os.Exit(1)
 	}
-	
+
 	fmt.Printf("%s AILANG Example Validator\n", bold("🔍"))
 	fmt.Printf("Manifest: %s\n", *manifestPath)
 	fmt.Printf("Examples: %d (Working: %d, Broken: %d, Experimental: %d)\n\n",
 		m.Statistics.Total, m.Statistics.Working, m.Statistics.Broken, m.Statistics.Experimental)
-	
+
 	// Validate each example
 	var results []ValidationResult
 	failed := 0
-	
+
 	// Set deterministic environment
 	os.Setenv("LC_ALL", "C.UTF-8")
 	os.Setenv("TZ", "UTC")
 	os.Setenv("AILANG_SEED", "0")
-	
+
 	for _, example := range m.Examples {
 		result := validateExample(*examplesDir, example, *verboseFlag)
 		results = append(results, result)
-		
+
 		if !result.Passed {
 			failed++
 			fmt.Printf("%s %s: %s\n", red("✗"), result.Path, result.Message)
@@ -78,7 +78,7 @@ func main() {
 		} else {
 			fmt.Printf("%s %s\n", green("✓"), result.Path)
 		}
-		
+
 		// Check header in file matches manifest
 		if err := validateHeader(*examplesDir, example); err != nil {
 			fmt.Printf("  %s Header mismatch: %v\n", yellow("⚠"), err)
@@ -87,14 +87,14 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Summary
 	fmt.Printf("\n%s\n", strings.Repeat("─", 60))
 	passed := len(results) - failed
 	fmt.Printf("Results: %s passed, %s failed\n",
 		green(fmt.Sprintf("%d", passed)),
 		red(fmt.Sprintf("%d", failed)))
-	
+
 	// Update manifest if requested
 	if *updateFlag {
 		fmt.Printf("\n%s Updating manifest...\n", cyan("→"))
@@ -106,7 +106,7 @@ func main() {
 		}
 		fmt.Printf("%s Manifest updated\n", green("✓"))
 	}
-	
+
 	// Generate README section
 	readmePath := filepath.Join(filepath.Dir(*manifestPath), "..", "README.md")
 	if err := updateREADME(readmePath, m); err != nil {
@@ -114,7 +114,7 @@ func main() {
 	} else {
 		fmt.Printf("%s README status table updated\n", green("✓"))
 	}
-	
+
 	// Exit with error in CI mode if any failures
 	if *ciMode && failed > 0 {
 		os.Exit(1)
@@ -127,25 +127,25 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 		Status: example.Status,
 		Passed: true,
 	}
-	
+
 	examplePath := filepath.Join(dir, example.Path)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(examplePath); os.IsNotExist(err) {
 		result.Passed = false
 		result.Message = "File not found"
 		return result
 	}
-	
+
 	// Skip experimental examples
 	if example.Status == manifest.StatusExperimental {
 		result.Message = "Skipped (experimental)"
 		return result
 	}
-	
+
 	// Run the example
 	cmd := exec.Command("bin/ailang", "run", examplePath)
-	
+
 	// Set environment if specified
 	if example.Environment != nil {
 		if example.Environment.Seed != 0 {
@@ -158,21 +158,21 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 			cmd.Env = append(cmd.Env, fmt.Sprintf("TZ=%s", example.Environment.Timezone))
 		}
 	}
-	
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	err := cmd.Run()
 	exitCode := 0
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		exitCode = exitErr.ExitCode()
 	}
-	
+
 	// Combine output for debugging
 	result.Output = fmt.Sprintf("STDOUT:\n%s\nSTDERR:\n%s\nExit: %d",
 		stdout.String(), stderr.String(), exitCode)
-	
+
 	// Validate based on status
 	switch example.Status {
 	case manifest.StatusWorking:
@@ -181,7 +181,7 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 			result.Message = "Missing expected output in manifest"
 			return result
 		}
-		
+
 		// Check exit code
 		if exitCode != example.Expected.ExitCode {
 			result.Passed = false
@@ -189,7 +189,7 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 				exitCode, example.Expected.ExitCode)
 			return result
 		}
-		
+
 		// Check stdout (normalize line endings)
 		expectedStdout := normalizeOutput(example.Expected.Stdout)
 		actualStdout := normalizeOutput(stdout.String())
@@ -199,7 +199,7 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 				expectedStdout, actualStdout)
 			return result
 		}
-		
+
 		// Check stderr
 		expectedStderr := normalizeOutput(example.Expected.Stderr)
 		actualStderr := normalizeOutput(stderr.String())
@@ -209,23 +209,23 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 				expectedStderr, actualStderr)
 			return result
 		}
-		
+
 		result.Message = "Output matches expected"
-		
+
 	case manifest.StatusBroken:
 		if example.Expected == nil {
 			result.Passed = false
 			result.Message = "Missing expected error in manifest"
 			return result
 		}
-		
+
 		// Should fail with non-zero exit
 		if exitCode == 0 {
 			result.Passed = false
 			result.Message = "Expected failure but succeeded"
 			return result
 		}
-		
+
 		// Check error pattern if specified
 		if example.Expected.ErrorPattern != "" {
 			pattern := regexp.MustCompile(example.Expected.ErrorPattern)
@@ -237,10 +237,10 @@ func validateExample(dir string, example manifest.Example, verbose bool) Validat
 				return result
 			}
 		}
-		
+
 		result.Message = "Failed as expected"
 	}
-	
+
 	return result
 }
 
@@ -250,12 +250,12 @@ func validateHeader(dir string, example manifest.Example) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Look for header comment
 	lines := strings.Split(string(content), "\n")
 	var headerJSON string
 	inHeader := false
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "--! {") {
 			inHeader = true
@@ -266,7 +266,7 @@ func validateHeader(dir string, example manifest.Example) error {
 			break
 		}
 	}
-	
+
 	if headerJSON == "" {
 		// No header is OK for working examples
 		if example.Status == manifest.StatusWorking {
@@ -274,20 +274,20 @@ func validateHeader(dir string, example manifest.Example) error {
 		}
 		return fmt.Errorf("missing header for %s example", example.Status)
 	}
-	
+
 	// Parse header
 	var header map[string]interface{}
 	if err := json.Unmarshal([]byte(headerJSON), &header); err != nil {
 		return fmt.Errorf("invalid header JSON: %w", err)
 	}
-	
+
 	// Validate status matches
 	if status, ok := header["status"].(string); ok {
 		if manifest.Status(status) != example.Status {
 			return fmt.Errorf("status mismatch: header=%s, manifest=%s", status, example.Status)
 		}
 	}
-	
+
 	// For broken examples, check error code
 	if example.Status == manifest.StatusBroken && example.Broken != nil {
 		if code, ok := header["error_code"].(string); ok {
@@ -297,7 +297,7 @@ func validateHeader(dir string, example manifest.Example) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -307,7 +307,7 @@ func updateManifest(m *manifest.Manifest, results []ValidationResult) {
 		if !found {
 			continue
 		}
-		
+
 		// Update status based on result
 		if result.Passed {
 			if example.Status == manifest.StatusBroken && result.Status == manifest.StatusBroken {
@@ -330,7 +330,7 @@ func updateManifest(m *manifest.Manifest, results []ValidationResult) {
 			}
 		}
 	}
-	
+
 	// Recalculate statistics
 	m.UpdateStatistics()
 }
@@ -341,15 +341,15 @@ func updateREADME(readmePath string, m *manifest.Manifest) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Find the example status section
 	readme := string(content)
 	statusSection := m.GenerateREADMESection()
-	
+
 	// Look for existing section markers
 	startMarker := "## Example Status"
 	endMarker := "_Last updated:"
-	
+
 	startIdx := strings.Index(readme, startMarker)
 	if startIdx == -1 {
 		// Add new section before first ## or at end
@@ -379,7 +379,7 @@ func updateREADME(readmePath string, m *manifest.Manifest) error {
 		}
 		readme = readme[:startIdx] + statusSection + readme[startIdx+endIdx:]
 	}
-	
+
 	return os.WriteFile(readmePath, []byte(readme), 0644)
 }
 

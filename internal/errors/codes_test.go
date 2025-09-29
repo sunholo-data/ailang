@@ -15,30 +15,30 @@ func TestErrorCodeTaxonomy(t *testing.T) {
 		{"PAR001", PAR001, "parser", "syntax"},
 		{"PAR003", PAR003, "parser", "syntax"},
 		{"PAR010", PAR010, "parser", "syntax"},
-		
+
 		// Module errors
 		{"MOD001", MOD001, "module", "structure"},
 		{"MOD003", MOD003, "module", "feature"},
 		{"MOD004", MOD004, "module", "namespace"},
-		
+
 		// Loader errors
 		{"LDR001", LDR001, "loader", "resolution"},
 		{"LDR002", LDR002, "loader", "dependency"},
-		
+
 		// Type checking errors
 		{"TC001", TC001, "typecheck", "type"},
 		{"TC007", TC007, "typecheck", "defaulting"},
 		{"TC009", TC009, "typecheck", "effect"},
-		
+
 		// Runtime errors
 		{"RT001", RT001, "runtime", "arithmetic"},
 		{"RT005", RT005, "runtime", "stack"},
-		
+
 		// Evaluation errors
 		{"EVA001", EVA001, "eval", "scope"},
 		{"EVA004", EVA004, "eval", "effect"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			info, exists := GetErrorInfo(tt.code)
@@ -46,15 +46,15 @@ func TestErrorCodeTaxonomy(t *testing.T) {
 				t.Errorf("Error code %s not found in registry", tt.code)
 				return
 			}
-			
+
 			if info.Code != tt.code {
 				t.Errorf("Code mismatch: got %s, want %s", info.Code, tt.code)
 			}
-			
+
 			if info.Phase != tt.phase {
 				t.Errorf("Phase mismatch for %s: got %s, want %s", tt.code, info.Phase, tt.phase)
 			}
-			
+
 			if info.Category != tt.category {
 				t.Errorf("Category mismatch for %s: got %s, want %s", tt.code, info.Category, tt.category)
 			}
@@ -64,12 +64,12 @@ func TestErrorCodeTaxonomy(t *testing.T) {
 
 func TestErrorTypeCheckers(t *testing.T) {
 	tests := []struct {
-		name     string
-		code     string
-		isParser bool
-		isModule bool
-		isLoader bool
-		isType   bool
+		name      string
+		code      string
+		isParser  bool
+		isModule  bool
+		isLoader  bool
+		isType    bool
 		isRuntime bool
 	}{
 		{"Parser error", PAR001, true, false, false, false, false},
@@ -79,25 +79,25 @@ func TestErrorTypeCheckers(t *testing.T) {
 		{"Runtime error", RT001, false, false, false, false, true},
 		{"Eval error", EVA001, false, false, false, false, true}, // Eval counts as runtime
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsParserError(tt.code); got != tt.isParser {
 				t.Errorf("IsParserError(%s) = %v, want %v", tt.code, got, tt.isParser)
 			}
-			
+
 			if got := IsModuleError(tt.code); got != tt.isModule {
 				t.Errorf("IsModuleError(%s) = %v, want %v", tt.code, got, tt.isModule)
 			}
-			
+
 			if got := IsLoaderError(tt.code); got != tt.isLoader {
 				t.Errorf("IsLoaderError(%s) = %v, want %v", tt.code, got, tt.isLoader)
 			}
-			
+
 			if got := IsTypeError(tt.code); got != tt.isType {
 				t.Errorf("IsTypeError(%s) = %v, want %v", tt.code, got, tt.isType)
 			}
-			
+
 			if got := IsRuntimeError(tt.code); got != tt.isRuntime {
 				t.Errorf("IsRuntimeError(%s) = %v, want %v", tt.code, got, tt.isRuntime)
 			}
@@ -127,7 +127,7 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		// Runtime
 		RT001, RT002, RT003, RT004, RT005, RT006, RT007, RT008,
 	}
-	
+
 	for _, code := range allCodes {
 		t.Run(code, func(t *testing.T) {
 			_, exists := GetErrorInfo(code)
@@ -136,7 +136,7 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 			}
 		})
 	}
-	
+
 	// Check registry doesn't have extra codes
 	if len(ErrorRegistry) != len(allCodes) {
 		t.Errorf("Registry has %d codes, expected %d", len(ErrorRegistry), len(allCodes))
@@ -150,12 +150,12 @@ func TestErrorInfoConsistency(t *testing.T) {
 		if info.Code != code {
 			t.Errorf("Code mismatch in registry: key=%s, info.Code=%s", code, info.Code)
 		}
-		
+
 		// Check code format (PREFIX###)
 		if len(code) < 4 || len(code) > 6 {
 			t.Errorf("Invalid code format: %s", code)
 		}
-		
+
 		// Check phase is valid
 		validPhases := map[string]bool{
 			"parser": true, "module": true, "loader": true, "desugar": true,
@@ -165,7 +165,7 @@ func TestErrorInfoConsistency(t *testing.T) {
 		if !validPhases[info.Phase] {
 			t.Errorf("Invalid phase for %s: %s", code, info.Phase)
 		}
-		
+
 		// Check description is not empty
 		if info.Description == "" {
 			t.Errorf("Empty description for %s", code)

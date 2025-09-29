@@ -2,9 +2,9 @@
 
 ## [Unreleased]
 
-## [v3.2.0] - 2025-09-29
+## [v0.0.6] - 2025-09-29
 
-### Added - Module System Foundation
+### Added
 
 #### Error Code Taxonomy (`internal/errors/codes.go`)
 - Comprehensive error code system with structured taxonomy
@@ -39,15 +39,15 @@
 - Module identity derivation from file paths
 - ~405 lines of platform-aware path handling
 
-#### v3.3 Example Files
-- `examples/v3_3/hello.ail` - Basic module with function declarations
-- `examples/v3_3/math.ail` - Recursive functions with inline tests
-- `examples/v3_3/imports.ail` - Module imports and composition
-- `examples/v3_3/stdlib_demo.ail` - Standard library usage patterns
-- `examples/v3_3/properties_demo.ail` - Property-based testing examples
+#### Example Files
+- Basic module with function declarations
+- Recursive functions with inline tests
+- Module imports and composition
+- Standard library usage patterns
+- Property-based testing examples
 
 ### Changed
-- Test coverage improved from 29.9% to 33.7%
+- Test coverage improved from 29.9% to 31.3%
 - Module tests now include comprehensive cycle detection validation
 - Topological sort correctly handles dependency ordering
 
@@ -56,9 +56,9 @@
 - Test suite now correctly excludes `scripts/` directory containing standalone executables
 - Makefile and CI workflow updated to use `go list ./... | grep -v /scripts` for testing
 
-## [v0.0.4] - 2025-09-28
+## [v0.0.5] - 2025-09-29
 
-### Added - Schema & Compact Mode Baseline
+### Added
 
 #### Schema Registry (`internal/schema/`)
 - Frozen schema versioning system with forward compatibility
@@ -135,7 +135,9 @@
 - JSON output format enhanced but remains backward compatible
 - Schema versioning allows gradual migration to newer formats
 
-### Added - CI/CD Infrastructure
+## [v0.0.4] - 2025-09-28
+
+### Added
 
 #### Example Verification System (`scripts/`)
 - `verify_examples.go` - Tests all examples, categorizes as passed/failed/skipped
@@ -187,7 +189,7 @@
 
 ## [v0.0.3] - 2025-09-26
 
-### Added - AI-First Features
+### Added
 
 #### Schema Registry (`internal/schema/`)
 - Versioned JSON schemas with forward compatibility
