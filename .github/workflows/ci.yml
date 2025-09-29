@@ -93,11 +93,11 @@ jobs:
           COLOR="brightgreen"
         fi
         
-        # Update the coverage badge in README
-        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
+        # Replace codecov badge with our local coverage badge
+        sed -i "s|\[\![codecov\].*|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
         
-        # Also update the codecov badge line to use our local coverage
-        sed -i "s|\[\![codecov\].*||g" README.md
+        # If a plain Coverage badge already exists, update it
+        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
         
         echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
     
