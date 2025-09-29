@@ -3,7 +3,6 @@ package link
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
@@ -165,7 +164,9 @@ func (ml *ModuleLinker) suggestModules(target string) []string {
 	return suggestions
 }
 
-// suggestExports suggests similar export names from a module interface
+// TODO: Add similar export suggestions to IMP010 error report
+// Commented out until we decide to use it (currently unused)
+/*
 func (ml *ModuleLinker) suggestExports(iface *iface.Iface, target string) []string {
 	var suggestions []string
 	var exports []string
@@ -198,6 +199,7 @@ func (ml *ModuleLinker) suggestExports(iface *iface.Iface, target string) []stri
 
 	return suggestions
 }
+*/
 
 func abs(n int) int {
 	if n < 0 {
