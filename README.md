@@ -85,13 +85,13 @@ Hello World :: String
 - AI training data export
 
 <!-- EXAMPLES_STATUS_START -->
-## Example Status
+## Status
 
 ![Examples](https://img.shields.io/badge/examples-13%20passing%2013%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 08:56:03 UTC*
+*Last updated: 2025-09-29 10:53:50 UTC*
 
 **Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
 
