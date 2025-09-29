@@ -36,8 +36,17 @@ const (
 	// PAR009 indicates invalid type annotation syntax
 	PAR009 = "PAR009"
 
-	// PAR010 indicates invalid effect annotation syntax
+	// PAR010 indicates unexpected token after func signature (likely missing {)
 	PAR010 = "PAR010"
+
+	// PAR011 indicates missing ) in parameter list
+	PAR011 = "PAR011"
+
+	// PAR012 indicates reserved keyword used as identifier
+	PAR012 = "PAR012"
+
+	// PAR013 indicates unexpected token before tests/properties (common missing })
+	PAR013 = "PAR013"
 
 	// ============================================================================
 	// Module System Errors (MOD###)
@@ -57,6 +66,17 @@ const (
 
 	// MOD005 indicates invalid module path format
 	MOD005 = "MOD005"
+
+	// MOD006-MOD009 reserved for future use
+
+	// MOD010 indicates module/path mismatch (e.g., module foo/bar but file is foo/baz.ail)
+	MOD010 = "MOD010"
+
+	// MOD011 indicates multiple module declarations per file
+	MOD011 = "MOD011"
+
+	// MOD012 indicates implicit module (file without module declaration)
+	MOD012 = "MOD012"
 
 	// ============================================================================
 	// Loader Errors (LDR###)
@@ -78,6 +98,36 @@ const (
 	LDR005 = "LDR005"
 
 	// ============================================================================
+	// Import Errors (IMP###)
+	// ============================================================================
+
+	// IMP001 indicates invalid import syntax
+	IMP001 = "IMP001"
+
+	// IMP002 indicates import of non-existent module
+	IMP002 = "IMP002"
+
+	// IMP003 indicates cyclic import dependency
+	IMP003 = "IMP003"
+
+	// IMP004 indicates invalid selective import syntax
+	IMP004 = "IMP004"
+
+	// IMP005 indicates importing from non-module file
+	IMP005 = "IMP005"
+
+	// IMP006-IMP009 reserved for future use
+
+	// IMP010 indicates unknown import form (reject aliasing for MVP)
+	IMP010 = "IMP010"
+
+	// IMP011 indicates unknown symbol in selective import
+	IMP011 = "IMP011"
+
+	// IMP012 indicates duplicate binding introduced by import
+	IMP012 = "IMP012"
+
+	// ============================================================================
 	// Desugaring Errors (DSG###)
 	// ============================================================================
 
@@ -89,6 +139,11 @@ const (
 
 	// DSG003 indicates recursive function without proper binding
 	DSG003 = "DSG003"
+
+	// DSG004-DSG009 reserved for future use
+
+	// DSG010 indicates pure func calls effectful things (warning placeholder)
+	DSG010 = "DSG010"
 
 	// ============================================================================
 	// Type Checking Errors (TC###) - Already defined in json_encoder.go
@@ -174,7 +229,10 @@ var ErrorRegistry = map[string]ErrorInfo{
 	PAR007: {PAR007, "parser", "syntax", "Invalid property block"},
 	PAR008: {PAR008, "parser", "syntax", "Invalid pattern match"},
 	PAR009: {PAR009, "parser", "syntax", "Invalid type annotation"},
-	PAR010: {PAR010, "parser", "syntax", "Invalid effect annotation"},
+	PAR010: {PAR010, "parser", "syntax", "Unexpected token after func signature"},
+	PAR011: {PAR011, "parser", "syntax", "Missing ) in parameter list"},
+	PAR012: {PAR012, "parser", "syntax", "Reserved keyword as identifier"},
+	PAR013: {PAR013, "parser", "syntax", "Unexpected token before tests/properties"},
 
 	// Module errors
 	MOD001: {MOD001, "module", "structure", "Module name/path mismatch"},
@@ -182,6 +240,9 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD003: {MOD003, "module", "feature", "Re-export not supported"},
 	MOD004: {MOD004, "module", "namespace", "Duplicate export"},
 	MOD005: {MOD005, "module", "syntax", "Invalid module path"},
+	MOD010: {MOD010, "module", "validation", "Module/path mismatch"},
+	MOD011: {MOD011, "module", "structure", "Multiple module declarations"},
+	MOD012: {MOD012, "module", "structure", "Implicit module warning"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},
@@ -190,10 +251,21 @@ var ErrorRegistry = map[string]ErrorInfo{
 	LDR004: {LDR004, "loader", "resolution", "Import not exported"},
 	LDR005: {LDR005, "loader", "resolution", "Ambiguous import"},
 
+	// Import errors
+	IMP001: {IMP001, "import", "syntax", "Invalid import syntax"},
+	IMP002: {IMP002, "import", "resolution", "Module not found"},
+	IMP003: {IMP003, "import", "dependency", "Cyclic import"},
+	IMP004: {IMP004, "import", "syntax", "Invalid selective import"},
+	IMP005: {IMP005, "import", "validation", "Non-module import"},
+	IMP010: {IMP010, "import", "feature", "Unknown import form"},
+	IMP011: {IMP011, "import", "resolution", "Unknown symbol in import"},
+	IMP012: {IMP012, "import", "namespace", "Duplicate binding from import"},
+
 	// Desugar errors
 	DSG001: {DSG001, "desugar", "transform", "Invalid desugaring"},
 	DSG002: {DSG002, "desugar", "scope", "Alpha-renaming conflict"},
 	DSG003: {DSG003, "desugar", "recursion", "Invalid recursive binding"},
+	DSG010: {DSG010, "desugar", "purity", "Pure func calls effectful (warning)"},
 
 	// Type checking errors
 	TC001: {TC001, "typecheck", "type", "Type mismatch"},
@@ -274,4 +346,28 @@ func IsTypeError(code string) bool {
 func IsRuntimeError(code string) bool {
 	info, exists := GetErrorInfo(code)
 	return exists && (info.Phase == "runtime" || info.Phase == "eval")
+}
+
+// IsImportError checks if the error code is an import error
+func IsImportError(code string) bool {
+	info, exists := GetErrorInfo(code)
+	return exists && info.Phase == "import"
+}
+
+// IsDesugarError checks if the error code is a desugaring error
+func IsDesugarError(code string) bool {
+	info, exists := GetErrorInfo(code)
+	return exists && info.Phase == "desugar"
+}
+
+// IsElaborationError checks if the error code is an elaboration error
+func IsElaborationError(code string) bool {
+	info, exists := GetErrorInfo(code)
+	return exists && info.Phase == "elaborate"
+}
+
+// IsLinkError checks if the error code is a linking error
+func IsLinkError(code string) bool {
+	info, exists := GetErrorInfo(code)
+	return exists && info.Phase == "link"
 }

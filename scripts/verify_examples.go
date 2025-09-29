@@ -70,8 +70,23 @@ func runExample(filename string) reporttypes.ExampleResult {
 	return result
 }
 
+// findAllExamples recursively finds all .ail files in the examples directory
+func findAllExamples() ([]string, error) {
+	var files []string
+	err := filepath.Walk("examples", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".ail") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
+}
+
 func verifyExamplesPlain() {
-	files, err := filepath.Glob("examples/*.ail")
+	files, err := findAllExamples()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
 		os.Exit(1)
@@ -87,8 +102,9 @@ func verifyExamplesPlain() {
 	fmt.Println("=========================")
 
 	for _, file := range files {
-		basename := filepath.Base(file)
-		fmt.Printf("Testing %s... ", basename)
+		// Show relative path from examples/ for better clarity
+		displayName := strings.TrimPrefix(file, "examples/")
+		fmt.Printf("Testing %s... ", displayName)
 
 		result := runExample(file)
 
@@ -120,7 +136,7 @@ func verifyExamplesPlain() {
 }
 
 func verifyExamplesJSON() {
-	files, err := filepath.Glob("examples/*.ail")
+	files, err := findAllExamples()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
 		os.Exit(1)
@@ -135,7 +151,8 @@ func verifyExamplesJSON() {
 
 	for _, file := range files {
 		result := runExample(file)
-		result.File = filepath.Base(result.File) // Use basename for cleaner output
+		// Use relative path from examples/ for cleaner output
+		result.File = strings.TrimPrefix(file, "examples/")
 		report.Results = append(report.Results, result)
 
 		switch result.Status {
@@ -163,7 +180,7 @@ func verifyExamplesJSON() {
 }
 
 func verifyExamplesMarkdown() {
-	files, err := filepath.Glob("examples/*.ail")
+	files, err := findAllExamples()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
 		os.Exit(1)
@@ -174,16 +191,17 @@ func verifyExamplesMarkdown() {
 	var passed, failed, skipped []string
 
 	for _, file := range files {
-		basename := filepath.Base(file)
+		// Use relative path from examples/ for better clarity
+		displayName := strings.TrimPrefix(file, "examples/")
 		result := runExample(file)
 
 		switch result.Status {
 		case "passed":
-			passed = append(passed, basename)
+			passed = append(passed, displayName)
 		case "failed":
-			failed = append(failed, basename)
+			failed = append(failed, displayName)
 		case "skipped":
-			skipped = append(skipped, basename)
+			skipped = append(skipped, displayName)
 		}
 	}
 

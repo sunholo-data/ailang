@@ -37,7 +37,9 @@ const (
 	FORALL
 	EXISTS
 	TEST
+	TESTS      // tests block
 	PROPERTY
+	PROPERTIES // properties block
 	ASSERT
 	SPAWN
 	PARALLEL
@@ -139,9 +141,11 @@ var tokens = map[TokenType]string{
 	EXPORT:   "export",
 	FORALL:   "forall",
 	EXISTS:   "exists",
-	TEST:     "test",
-	PROPERTY: "property",
-	ASSERT:   "assert",
+	TEST:       "test",
+	TESTS:      "tests",
+	PROPERTY:   "property",
+	PROPERTIES: "properties",
+	ASSERT:     "assert",
 	SPAWN:    "spawn",
 	PARALLEL: "parallel",
 	SELECT:   "select",
@@ -235,9 +239,9 @@ var keywords = map[string]TokenType{
 	"forall":     FORALL,
 	"exists":     EXISTS,
 	"test":       TEST,
-	"tests":      TEST,
+	"tests":      TESTS,
 	"property":   PROPERTY,
-	"properties": PROPERTY,
+	"properties": PROPERTIES,
 	"assert":     ASSERT,
 	"spawn":      SPAWN,
 	"parallel":   PARALLEL,
@@ -259,6 +263,21 @@ func LookupIdent(ident string) TokenType {
 		return tok
 	}
 	return IDENT
+}
+
+// IsReservedKeyword checks if a string is a reserved keyword
+// This is used to prevent keywords from being used as identifiers
+func IsReservedKeyword(ident string) bool {
+	_, ok := keywords[ident]
+	return ok
+}
+
+// IsContextualKeyword checks if a token type is only reserved in specific contexts
+// For now, all keywords are strictly reserved, but this allows future flexibility
+func IsContextualKeyword(t TokenType) bool {
+	// In the future, we might allow 'tests' or 'properties' as field names
+	// For now, keep all keywords strictly reserved
+	return false
 }
 
 // Token represents a lexical token
@@ -310,7 +329,7 @@ func (t Token) IsKeyword() bool {
 	case FUNC, PURE, LET, IN, IF, THEN, ELSE,
 		MATCH, WITH, TYPE, CLASS, INSTANCE,
 		MODULE, IMPORT, EXPORT,
-		FORALL, EXISTS, TEST, PROPERTY, ASSERT,
+		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
 		SEND, RECV, TIMEOUT,
 		TRUE, FALSE:

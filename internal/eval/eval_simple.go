@@ -58,10 +58,54 @@ func NewSimple() *SimpleEvaluator {
 
 // EvalProgram evaluates a program
 func (e *SimpleEvaluator) EvalProgram(program *ast.Program) (Value, error) {
+	// Handle new File structure
+	if program.File != nil {
+		return e.evalFile(program.File)
+	}
+	// Legacy: handle Module structure
 	if program.Module != nil {
 		return e.evalModule(program.Module)
 	}
 	return &UnitValue{}, nil
+}
+
+// evalFile evaluates a File
+func (e *SimpleEvaluator) evalFile(file *ast.File) (Value, error) {
+	// Process declarations
+	var lastVal Value = &UnitValue{}
+	
+	for _, decl := range file.Decls {
+		val, err := e.evalNode(decl)
+		if err != nil {
+			return nil, err
+		}
+		lastVal = val
+	}
+	
+	// If there's a main function, call it
+	if mainVal, ok := e.env.Get("main"); ok {
+		if fn, ok := mainVal.(*FunctionValue); ok {
+			// Call main with no arguments
+			// Create new environment for function body
+			fnEnv := fn.Env.NewChildEnvironment()
+			// No parameters to bind for main
+			
+			// Evaluate function body
+			oldEnv := e.env
+			e.env = fnEnv
+			
+			// Body should be an ast.Expr
+			if body, ok := fn.Body.(ast.Expr); ok {
+				result, err := e.evalExpr(body)
+				e.env = oldEnv
+				return result, err
+			}
+			e.env = oldEnv
+			return nil, fmt.Errorf("function body is not an expression")
+		}
+	}
+	
+	return lastVal, nil
 }
 
 // evalNode evaluates any AST node

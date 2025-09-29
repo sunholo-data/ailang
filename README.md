@@ -85,15 +85,15 @@ Hello World :: String
 - AI training data export
 
 <!-- EXAMPLES_STATUS_START -->
-## Example Status
+## Status
 
-![Examples](https://img.shields.io/badge/examples-13%20passing%2013%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-14%20passing%2015%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 08:56:03 UTC*
+*Last updated: 2025-09-29 13:28:48 UTC*
 
-**Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
+**Summary:** 14 passed, 15 failed, 16 skipped (Total: 45)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -134,6 +134,11 @@ Hello World :: String
 | `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_type_inference.ail` | ✅ Pass |  |
+| `v3_3/hello.ail` | ✅ Pass |  |
+| `v3_3/imports.ail` | ❌ Fail | Error Parser errors: |
+| `v3_3/math.ail` | ❌ Fail | Error Parser errors: |
+| `v3_3/properties_demo.ail` | ⏭️ Skip | Test/demo file |
+| `v3_3/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `web_api.ail` | ❌ Fail | Error Parser errors: |
 | `working_demo.ail` | ⏭️ Skip | Test/demo file |
 | `working_v0_0_3_demo.ail` | ⏭️ Skip | Test/demo file |

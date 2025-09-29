@@ -16,11 +16,70 @@ type Pos struct {
 	Line   int
 	Column int
 	File   string
+	Offset int // Byte offset for SID calculation
+}
+
+// Span represents a range in source code
+type Span struct {
+	Start Pos
+	End   Pos
 }
 
 func (p Pos) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.File, p.Line, p.Column)
 }
+
+// File represents a complete AILANG source file
+type File struct {
+	Module  *ModuleDecl   // Optional module declaration
+	Imports []*ImportDecl // Import declarations
+	Decls   []Node        // Top-level declarations
+	Path    string        // File path for validation
+	Pos     Pos
+}
+
+// ModuleDecl represents a module declaration
+type ModuleDecl struct {
+	Path string // e.g., "foo/bar"
+	Pos  Pos
+	Span Span // For SID calculation
+}
+
+// ImportDecl represents an import declaration
+type ImportDecl struct {
+	Path    string   // Module path to import
+	Symbols []string // Selective imports (empty = whole module)
+	Pos     Pos
+	Span    Span
+}
+
+func (f *File) String() string {
+	parts := []string{}
+	if f.Module != nil {
+		parts = append(parts, fmt.Sprintf("module %s", f.Module.Path))
+	}
+	for _, imp := range f.Imports {
+		parts = append(parts, imp.String())
+	}
+	for _, decl := range f.Decls {
+		parts = append(parts, decl.String())
+	}
+	return strings.Join(parts, "\n")
+}
+func (f *File) Position() Pos { return f.Pos }
+
+func (m *ModuleDecl) String() string {
+	return fmt.Sprintf("module %s", m.Path)
+}
+func (m *ModuleDecl) Position() Pos { return m.Pos }
+
+func (i *ImportDecl) String() string {
+	if len(i.Symbols) > 0 {
+		return fmt.Sprintf("import %s (%s)", i.Path, strings.Join(i.Symbols, ", "))
+	}
+	return fmt.Sprintf("import %s", i.Path)
+}
+func (i *ImportDecl) Position() Pos { return i.Pos }
 
 // Expression nodes
 type Expr interface {
@@ -327,18 +386,29 @@ type FuncDecl struct {
 	Properties []*Property
 	Body       Expr
 	IsPure     bool
+	IsExport   bool   // Export flag
 	Pos        Pos
+	Span       Span   // For SID calculation
+	SID        string // Stable ID (calculated post-parse)
+	Origin     string // "func_decl" for metadata
 }
 
 type TestCase struct {
-	Input  Expr
-	Output Expr
-	Pos    Pos
+	Inputs   []Expr // Multiple inputs for multi-arg functions
+	Expected Expr   // Expected output
+	Pos      Pos
 }
 
 type Property struct {
+	Name    string
+	Binders []*Binder // forall bindings
+	Expr    Expr
+	Pos     Pos
+}
+
+type Binder struct {
 	Name string
-	Expr Expr
+	Type Type
 	Pos  Pos
 }
 
@@ -638,7 +708,8 @@ func (c *ConstructorPattern) patternNode()  {}
 
 // Program represents the entire program
 type Program struct {
-	Module *Module
+	File   *File   // New: Use File instead of Module
+	Module *Module // Legacy: Keep for compatibility
 }
 
 func (p *Program) String() string {
