@@ -29,7 +29,7 @@
 - **LDR001** - Module not found during load
   - Data: `module_id`, `search_trace[]`, `similar[]`
   - Provides resolution trace and similar module suggestions
-- **MOD_EXPORT_PRIVATE** - Cannot export underscore-prefixed (private) names
+- **MOD006** - Cannot export underscore-prefixed (private) names
   - Parser validation prevents accidental private exports
 
 #### Error Flow Hardening

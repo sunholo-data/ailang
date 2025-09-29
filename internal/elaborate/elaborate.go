@@ -110,7 +110,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					decl, err := e.moduleLoader.GetExport(imp.Path, sym)
 					if err != nil {
 						// Preserve structured error reports without wrapping
-					return nil, err
+						return nil, err
 					}
 					// Convert imported func to FuncSig
 					// The GetExport already returns *ast.FuncDecl

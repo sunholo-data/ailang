@@ -350,7 +350,6 @@ func handleStructuredError(err error, compact bool) {
 	outputJSON(generic, compact)
 }
 
-
 // outputJSON marshals and prints JSON
 func outputJSON(v interface{}, compact bool) {
 	var data []byte

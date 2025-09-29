@@ -10,13 +10,13 @@ import (
 // Report is the canonical structured error type for AILANG
 // All error builders should return *Report, which can be wrapped as ReportError
 type Report struct {
-	Schema  string         `json:"schema"`           // Always "ailang.error/v1"
-	Code    string         `json:"code"`             // Error code (IMP010, LDR001, etc.)
-	Phase   string         `json:"phase"`            // Phase: "parser", "loader", "link", "typecheck", etc.
-	Message string         `json:"message"`          // Human-readable message
-	Span    *ast.Span      `json:"span,omitempty"`   // Source location (optional)
-	Data    map[string]any `json:"data,omitempty"`   // Structured data (sorted keys)
-	Fix     *Fix           `json:"fix,omitempty"`    // Suggested fix (optional)
+	Schema  string         `json:"schema"`         // Always "ailang.error/v1"
+	Code    string         `json:"code"`           // Error code (IMP010, LDR001, etc.)
+	Phase   string         `json:"phase"`          // Phase: "parser", "loader", "link", "typecheck", etc.
+	Message string         `json:"message"`        // Human-readable message
+	Span    *ast.Span      `json:"span,omitempty"` // Source location (optional)
+	Data    map[string]any `json:"data,omitempty"` // Structured data (sorted keys)
+	Fix     *Fix           `json:"fix,omitempty"`  // Suggested fix (optional)
 }
 
 // ReportError wraps a Report as an error

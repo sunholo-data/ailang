@@ -11,7 +11,7 @@
 #### **Structured Error Reporting - Milestone A2** (v0.0.7)
 - ✅ **Unified Report Type** (`internal/errors/report.go`) - First-class error type with schema `ailang.error/v1`
 - ✅ **Error Flow Hardening** - Errors survive through error chains using `errors.As()`
-- ✅ **Standardized Error Codes** - IMP010, IMP011, IMP012, LDR001, MOD_EXPORT_PRIVATE
+- ✅ **Standardized Error Codes** - IMP010, IMP011, IMP012, LDR001, MOD006
 - ✅ **CLI JSON Output** - `--json` and `--compact` flags for structured error reporting
 - ✅ **Golden File Testing** - Byte-for-byte reproducibility of error output
 - ✅ **CI Integration** - Import tests with golden file validation
