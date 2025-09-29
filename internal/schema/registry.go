@@ -38,10 +38,17 @@ func Accepts(got, wantPrefix string) bool {
 
 // MarshalDeterministic marshals a value to JSON with sorted keys for deterministic output.
 func MarshalDeterministic(v any) ([]byte, error) {
-	// First marshal to get a map
-	data, err := json.Marshal(v)
-	if err != nil {
+	// First marshal to get a map (without HTML escaping)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
 		return nil, fmt.Errorf("initial marshal failed: %w", err)
+	}
+	data := buf.Bytes()
+	// Remove trailing newline added by Encode
+	if len(data) > 0 && data[len(data)-1] == '\n' {
+		data = data[:len(data)-1]
 	}
 
 	// Unmarshal to a generic map to sort keys
@@ -72,7 +79,19 @@ func marshalSorted(v any) ([]byte, error) {
 			if i > 0 {
 				result += ","
 			}
-			keyJSON, _ := json.Marshal(k)
+			// Marshal key without HTML escaping
+			var keyBuf bytes.Buffer
+			keyEnc := json.NewEncoder(&keyBuf)
+			keyEnc.SetEscapeHTML(false)
+			if err := keyEnc.Encode(k); err != nil {
+				return nil, err
+			}
+			keyJSON := keyBuf.Bytes()
+			// Remove trailing newline
+			if len(keyJSON) > 0 && keyJSON[len(keyJSON)-1] == '\n' {
+				keyJSON = keyJSON[:len(keyJSON)-1]
+			}
+
 			valJSON, err := marshalSorted(val[k])
 			if err != nil {
 				return nil, err
@@ -99,8 +118,19 @@ func marshalSorted(v any) ([]byte, error) {
 		return []byte(result), nil
 
 	default:
-		// Use standard marshal for primitives
-		return json.Marshal(v)
+		// Use encoder without HTML escaping for primitives
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(v); err != nil {
+			return nil, err
+		}
+		// Remove trailing newline added by Encode
+		result := buf.Bytes()
+		if len(result) > 0 && result[len(result)-1] == '\n' {
+			result = result[:len(result)-1]
+		}
+		return result, nil
 	}
 }
 
