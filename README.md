@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-19.2%25-red.svg)
+![Coverage](https://img.shields.io/badge/coverage-19.7%25-red.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -91,7 +91,7 @@ Hello World :: String
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 19:09:40 UTC*
+*Last updated: 2025-09-29 19:42:58 UTC*
 
 **Summary:** 20 passed, 23 failed, 16 skipped (Total: 59)
 
@@ -143,7 +143,7 @@ Hello World :: String
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
 | `v3_3/imports.ail` | ✅ Pass |  |
 | `v3_3/imports_basic.ail` | ✅ Pass |  |
-| `v3_3/math.ail` | ❌ Fail | Error: MOD010: module declaration 'math' doesn'... |
+| `v3_3/math.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `v3_3/math/div.ail` | ✅ Pass |  |
 | `v3_3/math/gcd.ail` | ✅ Pass |  |
 | `v3_3/math/simple_gcd.ail` | ✅ Pass |  |
