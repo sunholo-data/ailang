@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-33.7%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-31.3%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -14,7 +14,7 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 07:44:41 UTC*
+*Last updated: 2025-09-29 08:52:27 UTC*
 
 **Summary:** 13 passed, 13 failed, 14 skipped (Total: 40)
 
