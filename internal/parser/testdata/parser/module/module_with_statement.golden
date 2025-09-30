@@ -1,0 +1,51 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "module": {
+      "path": "Test",
+      "type": "ModuleDecl"
+    },
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "type": "File"
+  },
+  "module": {
+    "decls": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "name": "Test",
+    "type": "Module"
+  },
+  "type": "Program"
+}

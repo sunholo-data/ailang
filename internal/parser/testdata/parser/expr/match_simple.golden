@@ -1,0 +1,105 @@
+{
+  "file": {
+    "decls": [
+      {
+        "cases": [
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "one"
+            },
+            "pattern": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 1
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "two"
+            },
+            "pattern": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "other"
+            },
+            "pattern": {
+              "name": "_",
+              "type": "Identifier"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "cases": [
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "one"
+            },
+            "pattern": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 1
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "two"
+            },
+            "pattern": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "other"
+            },
+            "pattern": {
+              "name": "_",
+              "type": "Identifier"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

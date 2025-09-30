@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/schema"
 	"github.com/sunholo/ailang/internal/test"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -533,6 +534,19 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	if err := elaborate.VerifyANF(elaboratedProg); err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("ANF verification error"), err)
 		return
+	}
+
+	// Step 5.5: Lower intrinsic operations to dictionary calls
+	lowerer := pipeline.NewOpLowerer(r.typeEnv)
+	loweredProg, err := lowerer.Lower(elaboratedProg)
+	if err != nil {
+		fmt.Fprintf(out, "%s: %v\n", red("Op lowering error"), err)
+		return
+	}
+
+	// Update elaboratedCore with lowered version
+	if len(loweredProg.Decls) > 0 {
+		elaboratedCore = loweredProg.Decls[0]
 	}
 
 	// Step 6: Link dictionaries

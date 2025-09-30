@@ -1,0 +1,63 @@
+{
+  "file": {
+    "decls": [
+      {
+        "condition": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "\u003e",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 0
+          },
+          "type": "BinaryOp"
+        },
+        "else": {
+          "kind": "String",
+          "type": "Literal",
+          "value": "neg"
+        },
+        "then": {
+          "kind": "String",
+          "type": "Literal",
+          "value": "pos"
+        },
+        "type": "If"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "condition": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "\u003e",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 0
+          },
+          "type": "BinaryOp"
+        },
+        "else": {
+          "kind": "String",
+          "type": "Literal",
+          "value": "neg"
+        },
+        "then": {
+          "kind": "String",
+          "type": "Literal",
+          "value": "pos"
+        },
+        "type": "If"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

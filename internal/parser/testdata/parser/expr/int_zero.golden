@@ -1,0 +1,21 @@
+{
+  "file": {
+    "decls": [
+      {
+        "kind": "Int",
+        "type": "Literal",
+        "value": 0
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "kind": "Int",
+        "type": "Literal",
+        "value": 0
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

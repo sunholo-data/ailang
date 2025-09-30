@@ -1,0 +1,97 @@
+{
+  "file": {
+    "decls": [
+      {
+        "elements": [
+          {
+            "fields": [
+              {
+                "name": 0,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              },
+              {
+                "name": 1,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              }
+            ],
+            "type": "Record"
+          },
+          {
+            "fields": [
+              {
+                "name": 0,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              },
+              {
+                "name": 1,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              }
+            ],
+            "type": "Record"
+          }
+        ],
+        "type": "List"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "elements": [
+          {
+            "fields": [
+              {
+                "name": 0,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              },
+              {
+                "name": 1,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              }
+            ],
+            "type": "Record"
+          },
+          {
+            "fields": [
+              {
+                "name": 0,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              },
+              {
+                "name": 1,
+                "value": {
+                  "_note": "Not yet handled by printer",
+                  "type": "*ast.Field"
+                }
+              }
+            ],
+            "type": "Record"
+          }
+        ],
+        "type": "List"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

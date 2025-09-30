@@ -8,14 +8,32 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 
 ---
 
-## Current Implementation Status (v0.0.7)
+## Current Implementation Status (v0.0.8)
+
+### 🆕 Recent Progress (September 30, 2025)
+
+**REPL Fixed**:
+- ✅ Fixed "Empty expression" bug by updating `Elaborate()` to handle `prog.File.Statements`
+- ✅ Added `Intrinsic` support to ANF verifier for arithmetic operators
+- ✅ Integrated `OpLowering` pass into REPL pipeline
+- ✅ All basic expressions now work: `42`, `1 + 2`, `"hello" ++ "world"`, etc.
+
+**Module System Verified**:
+- ✅ `func` declarations work in files (proven by test_export_func.ail)
+- ✅ `module`/`import` statements work for basic cases
+- ✅ Export/import mechanism functional
+
+**Metrics Updated**:
+- Corrected test coverage from inflated 31.3% to actual 24.9%
+- Updated LOC count from 7,860 to accurate 23,384
+- Identified critical gaps: parser (0% tests), eval (14.9%), types (15.4%)
 
 ### ✅ What We Have (Working)
 
-**Already at 31.3% test coverage with ~7,860 LOC!**
+**Currently at 24.9% test coverage with ~23,384 LOC** *(Updated 2025-09-30)*
 
-1. **Type System** (Complete)
-   - Hindley-Milner inference with let-polymorphism (~5,000 LOC)
+1. **Type System** (Foundation - 15.4% coverage)
+   - Hindley-Milner inference with let-polymorphism (~6,815 LOC)
    - Type classes: Num, Eq, Ord, Show with dictionary-passing
    - Row-polymorphic records with principal row unification
    - Value restriction for sound polymorphism
@@ -31,23 +49,24 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
    - **Golden file testing** (byte-for-byte reproducibility)
    - **CLI JSON output** (`--json`, `--compact` flags)
 
-3. **Evaluation** (Working)
-   - Tree-walking interpreter (~700 LOC)
+3. **Evaluation** (Working - 14.9% coverage)
+   - Tree-walking interpreter (~3,362 LOC)
    - Lambda expressions with closures
    - Arithmetic, strings, conditionals, let bindings
    - Records (creation + field access)
    - Lists, built-ins (print, show, toText)
 
-4. **REPL** (Fully Operational)
-   - Professional interactive REPL (~850 LOC)
+4. **REPL** (NOW Operational - Fixed v0.0.8)
+   - Professional interactive REPL (~1,351 LOC)
+   - **Recent fix**: Elaborate() now handles bare expressions, Intrinsic support added, OpLowering pass integrated
    - Arrow key history, tab completion, persistent history
    - Type class resolution with dictionary-passing
    - Module import system
    - Rich diagnostic commands (`:type`, `:instances`, `:dump-core`)
    - Auto-imports std/prelude
 
-5. **Parser** (Nearly Complete)
-   - Recursive descent + Pratt parsing (~1,200 LOC)
+5. **Parser** (Nearly Complete - 0% test coverage ⚠️)
+   - Recursive descent + Pratt parsing (~1,436 LOC)
    - ✅ Expressions, let bindings, if-then-else
    - ✅ Binary/unary operators (spec-compliant precedence)
    - ✅ Lambda expressions (`\x.` syntax, currying)
@@ -57,15 +76,15 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
    - ❌ `?` operator, effect handlers, tuples
 
 6. **AI-First Features** (v0.0.4-v0.0.7)
-   - Schema registry (versioned JSON, ~145 LOC)
-   - Error JSON encoder (~190 LOC)
-   - Test reporter (~206 LOC)
+   - Schema registry (versioned JSON, ~176 LOC, 88.5% coverage)
+   - Error JSON encoder (~192 LOC, 50.0% coverage ⚠️)
+   - Test reporter (~95 LOC, 95.7% coverage)
    - Effects inspector stub (~41 LOC)
-   - Golden test framework (~309 LOC)
-   - **100% test coverage** for these packages!
+   - Golden test framework (~310 LOC)
+   - **Note**: Coverage ranges 50-95.7%, not 100%
 
 7. **Infrastructure**
-   - Lexer (~550 LOC, all tests passing)
+   - Lexer (~935 LOC, 57.0% coverage)
    - Error taxonomy (60+ error codes)
    - Manifest system (~390 LOC)
    - CI/CD with automated testing
@@ -73,9 +92,9 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 
 ### ⚠️ What's Broken/Missing
 
-**Parser Issues** (block file execution):
-- ❌ `func` declarations work in REPL, fail in files
-- ❌ `module`/`import` statements fragile
+**Parser Issues** (MOSTLY FIXED in v0.0.8):
+- ✅ `func` declarations work in files (test_export_func.ail passes)
+- ✅ `module`/`import` statements work (basic cases proven)
 - ❌ `type` definitions not supported
 - ❌ Test/property syntax broken
 
@@ -84,11 +103,12 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 - ❌ Quasiquotes
 - ❌ CSP/channels
 
-### 📊 Current Metrics
-- **Test Coverage**: 31.3% (was 19.7% in v0.0.6!)
-- **Examples**: 20 passing, 23 failing
-- **Production Code**: ~7,860 lines
-- **Well-tested**: test (95.7%), schema (87.9%), parser (75.8%), errors (75.9%)
+### 📊 Current Metrics (v0.0.8 - Updated 2025-09-30)
+- **Test Coverage**: 24.9% (down from inflated 31.3% claim)
+- **Examples**: 22 passing, 24 failing (60 total)
+- **Production Code**: ~23,384 lines (3x larger than previously stated)
+- **Well-tested**: test (95.7%), manifest (89.9%), schema (88.5%), module (67.7%)
+- **Needs tests**: parser (0%), eval (14.9%), types (15.4%), errors (50.0%)
 
 ---
 
@@ -112,38 +132,77 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 
 ---
 
-## v0.1.0 MVP Scope (The "Ship It" Version)
+## v0.1.0 MVP Scope (REVISED - Conservative & Achievable)
 
-### Design Philosophy
+### Design Philosophy (Updated 2025-09-30)
 
-**GPT-5's Wisdom**: "Smallest set that proves AILANG's 'one-shot + secure by construction' thesis"
+**Revised Goal**: Build a **solid foundation** with comprehensive testing rather than rushing all features.
 
-**Core Thesis**: A single `.ail` file can be:
-1. **Type-safe** with explicit effects
-2. **Resource-bounded** with compile-time budgets
-3. **Reproducible** with deterministic execution
-4. **Hermetic** with signed artifacts
-5. **Zero-boilerplate** via `@oneshot`
+**Core Principle**: Ship features that are **well-tested and production-ready**, not features that are "mostly done."
+
+**What v0.1.0 Proves**:
+1. **Parser is robust** - 80%+ test coverage, no "REPL vs file" discrepancies
+2. **Effects are tracked** - Type system enforces effect discipline
+3. **Type system is complete** - ADTs, pattern matching, type classes all work
+4. **Ready for v0.2.0** - Solid foundation for runtime features
 
 ### What's In (Must-Have)
 
-#### A. Fix Parser (Make Files Work Like REPL)
+#### A. Parser Testing & Fixes (HIGHEST PRIORITY - 5 days)
 
-**Goal**: Unblock file execution
+**Goal**: Eliminate #1 risk factor (currently 0% test coverage)
 
 **Tasks**:
-- ✅ Fix `func` declarations in files (~2 days)
-- ✅ Fix `module` declarations (~1 day)
-- ✅ Fix `import` statements (~1 day)
-- ✅ Fix `type` definitions (ADTs) (~2 days)
-- ✅ Complete pattern matching evaluation (~2 days)
+1. **Write 100+ parser tests** (3 days)
+   - Expression parsing (arithmetic, lambdas, let, if-then-else)
+   - Module/import parsing
+   - Function declarations
+   - Type definitions
+   - Pattern matching syntax
+   - Error recovery
 
-**Lines**: ~500 modified
-**Acceptance**: All REPL examples work in files
+2. **Add ADT support** (2 days)
+   - Sum types: `type Option[a] = Some(a) | None`
+   - Product types: `type Point = {x: float, y: float}`
+   - Recursive types: `type List[a] = Cons(a, List[a]) | Nil`
+   - Tuple syntax: `(1, "hello", true)` with type `(int, string, bool)`
 
-#### B. Effect System (MVP)
+**Lines**: ~500 new (tests) + ~200 modified (parser)
+**Acceptance**:
+- Parser test coverage >80%
+- All ADT examples parse and type-check correctly
+- No more "works in REPL, fails in files"
 
-**Goal**: Explicit effects with inference
+#### B. Pattern Matching Evaluation (3 days)
+
+**Goal**: Make pattern matching actually work (currently parsed but not evaluated)
+
+**Tasks**:
+1. **Implement evaluation** (2 days)
+   - Literal patterns: `42`, `"hello"`, `true`
+   - Constructor patterns: `Some(x)`, `Cons(head, tail)`
+   - Tuple patterns: `(x, y, z)`
+   - Wildcard/variable patterns: `_`, `x`
+
+2. **Exhaustiveness checking** (1 day)
+   - Warn on non-exhaustive matches
+   - Suggest missing patterns
+
+**Lines**: ~300 new (eval) + ~100 new (exhaustiveness)
+**Acceptance**:
+```ailang
+type Option[a] = Some(a) | None
+
+match option {
+  Some(x) => x,
+  None => 0
+}
+```
+Works correctly and warns if `None` case is missing.
+
+#### C. Effect System - Type Level Only (4 days)
+
+**Goal**: Track effects in types, **NO runtime enforcement yet**
 
 **Core Effects**:
 ```ailang
@@ -152,274 +211,166 @@ type Effect = IO | FS | Net | Clock | Rand
 
 **Function Signatures**:
 ```ailang
-func readFile(path: Path) -> Result[string, IOError] ! {FS}
-func httpGet(url: Url) -> Result[Response, NetError] ! {Net}
-func now() -> Timestamp ! {Clock}
+func readFile(path: string) -> Result[string, string] ! {FS}
+func httpGet(url: string) -> Result[string, string] ! {Net}
+func print(s: string) -> () ! {IO}
 ```
 
-**Effect Inference** (internal only):
+**Effect Inference**:
 ```ailang
-// Infers {FS, Net} from function body
-func process(path: Path) -> Result[Data] ! {FS, Net} {
+// Compiler infers {FS, Net} from body
+func process(path: string) -> Result[string] ! {FS, Net} {
   let config = readFile(path)?
-  let data = httpGet(config.url)?
-  Ok(transform(data))
+  let data = httpGet(config)?
+  Ok(data)
 }
 ```
 
 **Implementation**:
+- Effect syntax in parser (~100 LOC)
 - Effect tracking in type checker (~300 LOC)
 - Effect propagation (~200 LOC)
 - Export signature enforcement (~100 LOC)
-- Error messages with suggestions (~200 LOC)
 
-**Lines**: ~800 new
-**Acceptance**: Effect mismatch = compile error with suggestion
+**Lines**: ~700 new
+**Acceptance**:
+- Effect mismatch = compile error
+- Calling `readFile` without `! {FS}` is rejected
+- **NO runtime enforcement** (deferred to v0.2.0)
 
-#### C. Refinement Types (Starter Set)
+#### D. Minimal Stdlib (2 days)
 
-**Goal**: Type-level constraints
-
-**Built-in Refinements**:
-```ailang
-type PositiveInt = int where (x > 0)
-type NonZero = int where (x != 0)
-type NonEmptyString = string where (length(x) > 0)
-type Percentage = float where (x >= 0.0 && x <= 100.0)
-```
-
-**Runtime Guards** (compile-time in v0.2.0):
-```ailang
-func divide(a: int, b: NonZero) -> int {
-  // Compiler inserts: if b == 0 then panic
-  a / b
-}
-```
-
-**Implementation**:
-- Refinement type definitions (~100 LOC)
-- Guard insertion pass (~200 LOC)
-- std/refinement helpers (~100 LOC)
-
-**Lines**: ~400 new
-**Acceptance**: `divide(x, 0)` fails at runtime with clear message
-
-#### D. Capability Budgets (MVP)
-
-**Goal**: Resource limits in type signatures
-
-**Budget Syntax**:
-```ailang
-func processAll(items: [Item]) -> [Result]
-  ! {Net with budget(requests: 100, bandwidth: 1.MB),
-     Clock with budget(wall_time: 30.seconds)}
-{
-  items.map(fetchAndProcess)
-}
-```
-
-**Runtime Enforcement**:
-```ailang
-type BudgetExceeded = {
-  kind: string,      -- "Net.requests"
-  limit: int,        -- 100
-  used: int          -- 101
-}
-```
-
-**Implementation**:
-- Budget counters in runtime (~200 LOC)
-- Budget tracking per effect (~200 LOC)
-- Typed errors (~200 LOC)
-
-**Lines**: ~600 new
-**Acceptance**: Exceeding budget stops execution with structured error
-
-#### E. Effect Composition (MVP)
-
-**Goal**: Declarative retry/timeout
-
-**Core Combinators**:
-```ailang
-! {Net with timeout(5.seconds)}
-! {Net with retry(3, Exponential)}
-! {FS with trace(Debug)}
-```
-
-**Implementation**:
-- Combinator parsing (~100 LOC)
-- Runtime wrappers (~200 LOC)
-- std/effects module (~100 LOC)
-
-**Lines**: ~400 new
-**Acceptance**: `retry(3)` retries 3 times on failure
-
-#### F. @oneshot Runner (The Centerpiece)
-
-**Goal**: Hermetic single-file execution
-
-**Syntax**:
-```ailang
-@oneshot
-@cli "--file Path --webhook Url?"
-func main(args: {file: Path, webhook: Option[Url]})
-  -> Result[{summary: NonEmptyString}, string]
-  ! {FS with budget(reads: 5, writes: 2, bytes: 5.MB),
-     Net with timeout(3.s) with retry(2, Exponential),
-     Clock with budget(wall_time: 5.s)}
-{
-  let text = readFile(args.file)?
-  let summary = summarize(text)?
-  match args.webhook {
-    Some(url) => httpPost(url, json{summary})?,
-    None => ()
-  }
-  Ok({summary})
-}
-```
-
-**Build & Run**:
-```bash
-$ ailang build --oneshot main.ail
-# Produces:
-# - main.airun (signed hermetic artifact)
-# - main.sbom.json (dependencies + stdlib)
-# - main.ledger.json (compiler decisions + budgets)
-
-$ ailang run main.airun --file notes.txt
-# Output: {"summary": "..."}
-```
-
-**Implementation**:
-- CLI parser from `@cli` spec (~200 LOC)
-- Hermetic bundler (~200 LOC)
-- SBOM generation (~100 LOC)
-- Decision ledger export (~100 LOC)
-- Signing (dev key) (~100 LOC)
-- Runner with budget enforcement (~100 LOC)
-
-**Lines**: ~800 new
-**Acceptance**: One artifact, deterministic output
-
-#### G. Minimal Stdlib
+**Goal**: Essential functions for examples and testing
 
 **Modules**:
 ```ailang
-std/io         -- print, readText, writeText
-std/net        -- httpGet, httpPost, jsonEncode, jsonDecode
-std/time       -- Duration, sleep, now
-std/rand       -- seed, nextInt, nextFloat
-std/refinement -- positive, nonzero, nonEmpty
-std/effects    -- retry, timeout, trace
+std/prelude    -- Num, Eq, Ord, Show (already exists)
+std/list       -- map, filter, fold, length, head, tail
+std/string     -- concat (++), length, substring
+std/option     -- Option[a], map, flatMap, getOrElse
+std/io         -- print (stub implementation with effects)
 ```
 
-**Lines**: ~800 new
-**Acceptance**: All demos use stdlib functions
+**Implementation**: ~600 LOC
+**Acceptance**: Example programs use stdlib functions
 
-#### H. Tooling
+#### E. Fix Examples & Documentation (2 days)
 
-**CLI Commands**:
-```bash
-ailang build file.ail           # Typecheck + emit
-ailang build --oneshot file.ail # Hermetic bundle
-ailang run file.airun           # Execute artifact
-ailang fmt file.ail             # Format (defer to v0.2.0)
-ailang test                     # Run tests
-ailang lint-sec                 # Security lint
-```
+**Goal**: Make existing examples work and document accurately
 
-**REPL Commands** (add to existing):
-```
-:effects <expr>    -- Show effects without eval
-:budget <expr>     -- Show budget estimates
-:oneshot <fn>      -- Test oneshot function
-```
+**Tasks**:
+1. **Fix broken examples** (~1 day)
+   - Update to use new ADT syntax
+   - Add pattern matching examples
+   - Add effect-annotated examples
 
-**Lines**: ~400 new
-**Acceptance**: All commands work as documented
+2. **Update documentation** (~1 day)
+   - README.md with accurate metrics
+   - CLAUDE.md with current status
+   - Example comments explaining effects
+
+**Lines**: ~500 modified (examples + docs)
+**Acceptance**: >35 examples passing (up from 22)
 
 ---
 
-## Implementation Plan
+### 🚫 EXPLICITLY DEFERRED to v0.2.0
+
+**These features are OUT OF SCOPE for v0.1.0:**
+
+#### Refinement Types
+- **Why defer**: Requires SMT solver or extensive runtime guards
+- **Complexity**: ~400-800 LOC + external dependencies
+- **Not essential** for core thesis proof
+
+#### Capability Budgets
+- **Why defer**: Requires runtime instrumentation
+- **Complexity**: ~600-1000 LOC + testing overhead
+- **Dependencies**: Needs effect runtime first
+
+#### Effect Composition (Runtime)
+- **Why defer**: Needs runtime effect handlers (retry, timeout)
+- **Note**: Syntax can be added in parser, implementation deferred
+
+#### @oneshot Hermetic Bundler
+- **Why defer**: Complex tooling (bundling, SBOM, signing)
+- **For v0.1.0**: Basic `ailang run file.ail` is sufficient
+- **For v0.2.0**: Add hermetic execution, signing, SBOM generation
+
+---
+
+### Timeline Summary
+
+**Total Time**: 13 days (~2.6 weeks)
+
+| Week | Task | Days |
+|------|------|------|
+| Week 1 | Parser tests + ADT support | 5 |
+| Week 2 | Pattern matching + Effect system | 7 |
+| Week 3 | Stdlib + Examples + Docs | 3 (partial) |
+
+**Milestone**: Ship v0.1.0 with **solid foundations** for v0.2.0 runtime features
+
+---
+
+## Implementation Plan (REVISED)
 
 ### Sprint Structure
 
-**Note**: You ship fast, so no dates. Just order:
+**Philosophy**: Quality over quantity. Ship robust features, not rushed features.
 
-### 1. Parser Fixes (First)
-- Fix `func` in files
-- Fix `module` declarations
-- Fix `import` statements
-- Fix `type` definitions
-- Complete pattern matching
-- **Blocker**: Without this, nothing else works in files
-- **Lines**: ~500 modified
-- **Acceptance**: REPL examples work in files
+### Week 1: Parser Foundation (5 days)
 
-### 2. Effect System (Second)
-- Effect tracking in type checker
-- Effect propagation
-- Export enforcement
-- Error messages
-- **Critical**: Core thesis depends on this
-- **Lines**: ~800 new
-- **Acceptance**: Effect discipline enforced
+**Priority**: HIGHEST - Parser has 0% test coverage
 
-### 3. Refinements + Budgets (Third)
-- Refinement type definitions
-- Runtime guards
-- Budget syntax parsing
-- Budget runtime enforcement
-- **Important**: Proves resource safety
-- **Lines**: ~1,000 new
-- **Acceptance**: Constraints enforced
+**Tasks**:
+- Day 1-3: Write 100+ parser tests (expressions, modules, functions, patterns)
+- Day 4-5: Add ADT support (sum types, product types, recursive types, tuples)
 
-### 4. Effect Composition + Stdlib (Fourth)
-- Combinator syntax
-- timeout/retry/trace implementation
-- std/io, std/net, std/time, std/refinement, std/effects
-- **Enabling**: Makes effects usable
-- **Lines**: ~1,200 new
-- **Acceptance**: Declarative patterns work
+**Deliverable**: Parser test coverage >80%, ADTs work
+**Blocker Removed**: "Works in REPL, fails in files"
 
-### 5. @oneshot Runner (Fifth)
-- `@oneshot` annotation parsing
-- CLI spec parsing (`@cli`)
-- Hermetic bundler
-- SBOM + ledger generation
-- Signing + runner
-- **Centerpiece**: The "wow" feature
-- **Lines**: ~800 new
-- **Acceptance**: Hermetic execution works
+### Week 2: Semantics (7 days)
 
-### 6. Polish + Demos (Sixth)
-- Security lint (`lint-sec`)
-- 5 demo programs
-- Documentation
-- Bug fixes
-- **Final**: Ship-ready
-- **Lines**: ~500 new
-- **Acceptance**: All demos pass
+**Priority**: HIGH - Complete language semantics
+
+**Tasks**:
+- Day 1-2: Pattern matching evaluation (literals, constructors, tuples, wildcards)
+- Day 3: Exhaustiveness checking
+- Day 4-7: Effect type system (parsing, tracking, propagation, enforcement)
+
+**Deliverable**: Pattern matching works, effects tracked in types
+**Foundation**: Type-level effect discipline proven
+
+### Week 3: Polish (3 days)
+
+**Priority**: MEDIUM - Make it usable
+
+**Tasks**:
+- Day 1-2: Stdlib modules (list, string, option, io stubs)
+- Day 3: Fix examples + update documentation
+
+**Deliverable**: >35 examples passing, accurate docs
 
 ---
 
-## Total Code Estimate
+## Total Code Estimate (REVISED)
 
-| Component | New Code | Modified Code |
-|-----------|----------|---------------|
-| Parser fixes | - | ~500 LOC |
-| Effect system | ~800 LOC | ~200 LOC |
-| Refinements | ~400 LOC | - |
-| Budgets | ~600 LOC | - |
-| Effect composition | ~400 LOC | - |
-| @oneshot runner | ~800 LOC | - |
-| Stdlib | ~800 LOC | - |
-| Tooling | ~400 LOC | ~200 LOC |
-| Tests | ~1,500 LOC | - |
-| **Total** | **~6,200 new** | **~900 modified** |
+| Component | New Code | Modified Code | Test Code |
+|-----------|----------|---------------|-----------|
+| Parser tests | - | - | ~500 LOC |
+| ADT support | ~200 LOC | ~200 LOC | - |
+| Pattern matching eval | ~300 LOC | ~100 LOC | - |
+| Exhaustiveness check | ~100 LOC | - | - |
+| Effect type system | ~700 LOC | ~200 LOC | - |
+| Stdlib | ~600 LOC | - | - |
+| Examples + docs | - | ~500 LOC | - |
+| **Total** | **~1,900 new** | **~1,000 modified** | **~500 tests** |
 
-**Starting Point**: 7,860 LOC at 31.3% coverage
-**Target**: ~14,000 LOC at >40% coverage
+**Starting Point (v0.0.8)**: 23,384 LOC at 24.9% coverage
+**Target (v0.1.0)**: ~25,900 LOC at >35% coverage
+
+**Note**: Much smaller scope than original plan (1,900 vs 6,200 new LOC), but **actually achievable** in 13 days
 
 ---
 

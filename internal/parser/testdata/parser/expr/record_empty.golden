@@ -1,0 +1,17 @@
+{
+  "file": {
+    "decls": [
+      {
+        "type": "Record"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "type": "Record"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

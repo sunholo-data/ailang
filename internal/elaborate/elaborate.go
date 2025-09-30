@@ -50,6 +50,25 @@ func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
 
 // Elaborate transforms a surface program to Core ANF
 func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
+	// Check new File structure first (for REPL and bare expressions)
+	if prog.File != nil && prog.File.Module == nil && len(prog.File.Statements) > 0 {
+		// Process bare expressions from REPL
+		var coreDecls []core.CoreExpr
+		for _, stmt := range prog.File.Statements {
+			if expr, ok := stmt.(ast.Expr); ok {
+				coreExpr, err := e.elaborateExpr(expr)
+				if err != nil {
+					return nil, err
+				}
+				if coreExpr != nil {
+					coreDecls = append(coreDecls, coreExpr)
+				}
+			}
+		}
+		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
+	}
+
+	// Legacy: check Module field
 	if prog.Module == nil {
 		// For simple expressions without a module, return empty program
 		// Use ElaborateExpr for bare expressions

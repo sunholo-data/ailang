@@ -1,0 +1,66 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "imports": [
+      {
+        "path": "Bar",
+        "symbols": [
+          "x"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "module": {
+      "path": "Foo",
+      "type": "ModuleDecl"
+    },
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "type": "File"
+  },
+  "module": {
+    "decls": [
+      {
+        "body": null,
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "imports": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.Import"
+      }
+    ],
+    "name": "Foo",
+    "type": "Module"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,75 @@
+{
+  "file": {
+    "decls": [
+      {
+        "args": [
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 21
+          }
+        ],
+        "func": {
+          "body": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "*",
+            "right": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "BinaryOp"
+          },
+          "params": [
+            {
+              "name": "x",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "args": [
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 21
+          }
+        ],
+        "func": {
+          "body": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "*",
+            "right": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "BinaryOp"
+          },
+          "params": [
+            {
+              "name": "x",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

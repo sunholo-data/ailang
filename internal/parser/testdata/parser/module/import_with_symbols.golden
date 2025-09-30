@@ -1,0 +1,17 @@
+{
+  "file": {
+    "imports": [
+      {
+        "path": "Foo",
+        "symbols": [
+          "bar",
+          "baz"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}

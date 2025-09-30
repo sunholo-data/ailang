@@ -181,6 +181,18 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 		}
 		return nil
 
+	case *core.Intrinsic:
+		if !topLevel {
+			return fmt.Errorf("intrinsic operation must be let-bound in ANF")
+		}
+		// All arguments must be atomic
+		for i, arg := range e.Args {
+			if !core.IsAtomic(arg) {
+				return fmt.Errorf("argument %d in Intrinsic must be atomic, got %T", i, arg)
+			}
+		}
+		return nil
+
 	default:
 		return fmt.Errorf("unknown expression type in ANF verification: %T", expr)
 	}
@@ -247,6 +259,14 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 		if !core.IsAtomic(e.Dict) {
 			return fmt.Errorf("dictionary must be atomic")
 		}
+		for i, arg := range e.Args {
+			if !core.IsAtomic(arg) {
+				return fmt.Errorf("argument %d must be atomic", i)
+			}
+		}
+		return nil
+
+	case *core.Intrinsic:
 		for i, arg := range e.Args {
 			if !core.IsAtomic(arg) {
 				return fmt.Errorf("argument %d must be atomic", i)

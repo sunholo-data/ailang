@@ -145,6 +145,19 @@ func (p *Parser) peekIsContextualKeyword(keyword string) bool {
 
 // Parse parses the input and returns an AST
 func (p *Parser) Parse() *ast.Program {
+	// Recover from panics and convert to structured errors
+	defer func() {
+		if r := recover(); r != nil {
+			p.errors = append(p.errors, NewParserError(
+				"PAR999_INTERNAL_ERROR",
+				p.curPos(),
+				p.curToken,
+				fmt.Sprintf("internal parser panic: %v", r),
+				nil,
+				"Please report this as a bug at https://github.com/sunholo/ailang/issues"))
+		}
+	}()
+
 	program := &ast.Program{}
 
 	// Parse as a File structure

@@ -1,0 +1,19 @@
+{
+  "file": {
+    "decls": [
+      {
+        "name": "x1",
+        "type": "Identifier"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "name": "x1",
+        "type": "Identifier"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

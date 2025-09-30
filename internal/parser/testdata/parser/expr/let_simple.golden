@@ -1,0 +1,37 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        }
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

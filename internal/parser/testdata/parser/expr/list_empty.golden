@@ -1,0 +1,17 @@
+{
+  "file": {
+    "decls": [
+      {
+        "type": "List"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "type": "List"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

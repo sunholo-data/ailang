@@ -1,0 +1,95 @@
+{
+  "file": {
+    "decls": [
+      {
+        "condition": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "\u003e",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 0
+          },
+          "type": "BinaryOp"
+        },
+        "else": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 0
+        },
+        "then": {
+          "body": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "name": "y",
+          "type": "Let",
+          "value": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "*",
+            "right": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "BinaryOp"
+          }
+        },
+        "type": "If"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "condition": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "\u003e",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 0
+          },
+          "type": "BinaryOp"
+        },
+        "else": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 0
+        },
+        "then": {
+          "body": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "name": "y",
+          "type": "Let",
+          "value": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "*",
+            "right": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 2
+            },
+            "type": "BinaryOp"
+          }
+        },
+        "type": "If"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

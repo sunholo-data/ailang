@@ -1,0 +1,30 @@
+{
+  "file": {
+    "imports": [
+      {
+        "path": "Bar",
+        "symbols": [
+          "x"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "module": {
+      "path": "Foo",
+      "type": "ModuleDecl"
+    },
+    "path": "test://unit",
+    "type": "File"
+  },
+  "module": {
+    "imports": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.Import"
+      }
+    ],
+    "name": "Foo",
+    "type": "Module"
+  },
+  "type": "Program"
+}

@@ -206,6 +206,43 @@ verify-lowering: build verify-no-shim
 	@echo "✓"
 	@echo "✓ Operator lowering verified"
 
+# Test parser with coverage
+test-parser:
+	@echo "Testing parser..."
+	@$(GOTEST) ./internal/parser
+	@echo "✓ Parser tests passed"
+
+# Update parser golden files
+test-parser-update:
+	@echo "Updating parser golden files..."
+	@$(GOTEST) -update ./internal/parser
+	@echo "✓ Golden files updated"
+
+# Fuzz parser (short run for CI)
+fuzz-parser:
+	@echo "Fuzzing parser (2s)..."
+	@$(GOTEST) -fuzz=FuzzParseExpr -fuzztime=2s ./internal/parser
+	@echo "✓ Fuzz test completed (no panics)"
+
+# Fuzz parser (extended run)
+fuzz-parser-long:
+	@echo "Fuzzing parser (1m)..."
+	@$(GOTEST) -fuzz=FuzzParseExpr -fuzztime=1m ./internal/parser
+	@$(GOTEST) -fuzz=FuzzParseModule -fuzztime=1m ./internal/parser
+	@$(GOTEST) -fuzz=FuzzParseMalformed -fuzztime=1m ./internal/parser
+	@$(GOTEST) -fuzz=FuzzParseUnicode -fuzztime=1m ./internal/parser
+	@echo "✓ Extended fuzz testing completed"
+
+# Check parser line coverage (≥80% required)
+cover-lines:
+	@$(GOTEST) -coverprofile=coverage.out ./internal/parser > /dev/null 2>&1
+	@$(GOCMD) tool cover -func=coverage.out | tail -1 | awk '{print $$3}'
+
+# Open parser branch coverage HTML report
+cover-branch:
+	@$(GOTEST) -covermode=atomic -coverprofile=coverage.out ./internal/parser
+	@$(GOCMD) tool cover -html=coverage.out
+
 # Test builtin interface stability
 test-builtin-freeze:
 	@echo "Testing builtin interface freeze..."
@@ -306,6 +343,10 @@ help:
 	@echo "  make install          - Install binary to GOPATH/bin"
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
+	@echo "  make test-parser      - Run parser tests"
+	@echo "  make test-parser-update - Update parser golden files"
+	@echo "  make cover-lines      - Show parser line coverage"
+	@echo "  make cover-branch     - Open parser branch coverage HTML"
 	@echo "  make test-lowering    - Run operator lowering golden tests"
 	@echo "  make test-imports     - Test import system (success + errors)"
 	@echo "  make test-import-errors - Test import error goldens"

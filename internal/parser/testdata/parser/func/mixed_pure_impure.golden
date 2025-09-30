@@ -1,0 +1,27 @@
+{
+  "file": {
+    "decls": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.FuncDecl"
+      },
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.FuncDecl"
+      }
+    ],
+    "funcs": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.FuncDecl"
+      },
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.FuncDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,59 @@
+{
+  "file": {
+    "decls": [
+      {
+        "name": "foo",
+        "type": "Identifier"
+      },
+      {
+        "field": "bar",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      },
+      {
+        "field": "baz",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      },
+      {
+        "kind": "Unit",
+        "type": "Literal"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "name": "foo",
+        "type": "Identifier"
+      },
+      {
+        "field": "bar",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      },
+      {
+        "field": "baz",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      },
+      {
+        "kind": "Unit",
+        "type": "Literal"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,15 @@
+{
+  "file": {
+    "module": {
+      "path": "Foo",
+      "type": "ModuleDecl"
+    },
+    "path": "test://unit",
+    "type": "File"
+  },
+  "module": {
+    "name": "Foo",
+    "type": "Module"
+  },
+  "type": "Program"
+}

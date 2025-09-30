@@ -1,0 +1,35 @@
+{
+  "file": {
+    "decls": [
+      {
+        "name": "getUser",
+        "type": "Identifier"
+      },
+      {
+        "field": "name",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "name": "getUser",
+        "type": "Identifier"
+      },
+      {
+        "field": "name",
+        "record": {
+          "kind": "Unit",
+          "type": "Literal"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

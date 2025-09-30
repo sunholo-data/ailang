@@ -1,0 +1,29 @@
+{
+  "file": {
+    "decls": [
+      {
+        "expr": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 123
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "expr": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 123
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

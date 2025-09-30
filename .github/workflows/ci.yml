@@ -26,6 +26,24 @@ jobs:
     - name: Run tests
       run: make test
 
+    - name: Run parser tests
+      run: make test-parser
+
+    - name: Check parser coverage
+      run: |
+        COVERAGE=$(make cover-lines)
+        echo "Parser coverage: $COVERAGE"
+        # Require at least 70% parser coverage (current baseline)
+        COVERAGE_NUM=$(echo $COVERAGE | sed 's/%//')
+        if (( $(echo "$COVERAGE_NUM < 70.0" | bc -l) )); then
+          echo "❌ Parser coverage $COVERAGE is below 70% threshold"
+          exit 1
+        fi
+        echo "✅ Parser coverage $COVERAGE meets threshold"
+
+    - name: Fuzz parser (short)
+      run: make fuzz-parser
+
     - name: Run operator lowering tests
       run: make test-lowering
 

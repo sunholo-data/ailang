@@ -1,0 +1,83 @@
+{
+  "file": {
+    "decls": [
+      {
+        "left": {
+          "left": {
+            "left": {
+              "name": "a",
+              "type": "Identifier"
+            },
+            "op": "+",
+            "right": {
+              "name": "b",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "op": "*",
+          "right": {
+            "left": {
+              "name": "c",
+              "type": "Identifier"
+            },
+            "op": "-",
+            "right": {
+              "name": "d",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "type": "BinaryOp"
+        },
+        "op": "/",
+        "right": {
+          "name": "e",
+          "type": "Identifier"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "left": {
+          "left": {
+            "left": {
+              "name": "a",
+              "type": "Identifier"
+            },
+            "op": "+",
+            "right": {
+              "name": "b",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "op": "*",
+          "right": {
+            "left": {
+              "name": "c",
+              "type": "Identifier"
+            },
+            "op": "-",
+            "right": {
+              "name": "d",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "type": "BinaryOp"
+        },
+        "op": "/",
+        "right": {
+          "name": "e",
+          "type": "Identifier"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

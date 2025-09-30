@@ -1,0 +1,49 @@
+{
+  "file": {
+    "decls": [
+      {
+        "elements": [
+          {
+            "name": "x",
+            "type": "Identifier"
+          },
+          {
+            "kind": "String",
+            "type": "Literal",
+            "value": "hello"
+          },
+          {
+            "kind": "Bool",
+            "type": "Literal",
+            "value": true
+          }
+        ],
+        "type": "Tuple"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "elements": [
+          {
+            "name": "x",
+            "type": "Identifier"
+          },
+          {
+            "kind": "String",
+            "type": "Literal",
+            "value": "hello"
+          },
+          {
+            "kind": "Bool",
+            "type": "Literal",
+            "value": true
+          }
+        ],
+        "type": "Tuple"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

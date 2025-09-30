@@ -1,0 +1,35 @@
+{
+  "file": {
+    "decls": [
+      {
+        "left": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "op": "\u003e",
+        "right": {
+          "name": "y",
+          "type": "Identifier"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "left": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "op": "\u003e",
+        "right": {
+          "name": "y",
+          "type": "Identifier"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

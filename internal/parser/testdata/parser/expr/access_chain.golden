@@ -1,0 +1,35 @@
+{
+  "file": {
+    "decls": [
+      {
+        "field": "city",
+        "record": {
+          "field": "address",
+          "record": {
+            "name": "user",
+            "type": "Identifier"
+          },
+          "type": "RecordAccess"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "field": "city",
+        "record": {
+          "field": "address",
+          "record": {
+            "name": "user",
+            "type": "Identifier"
+          },
+          "type": "RecordAccess"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}
