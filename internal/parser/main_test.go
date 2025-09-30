@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-// update flag controls whether golden files are updated or compared
-// Usage: go test -update ./internal/parser
-var update = flag.Bool("update", false, "update golden files")
-
 // TestMain provides setup/teardown for all parser tests
 func TestMain(m *testing.M) {
 	// Parse flags

@@ -228,9 +228,9 @@ func TestStructuredErrorFormat(t *testing.T) {
 // TestErrorMessagesHelpful tests that error messages provide context
 func TestErrorMessagesHelpful(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		expectInMsg  string // Substring that should appear in error message
+		name        string
+		input       string
+		expectInMsg string // Substring that should appear in error message
 	}{
 		{
 			"unterminated_list_mentions_bracket",

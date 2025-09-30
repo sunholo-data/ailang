@@ -162,10 +162,10 @@ func TestPrecedenceTable(t *testing.T) {
 // TestAssociativity validates operator associativity
 func TestAssociativity(t *testing.T) {
 	tests := []struct {
-		name       string
-		op         string
-		expected   string // Pattern for "a OP b OP c"
-		leftAssoc  bool   // true for left, false for right
+		name      string
+		op        string
+		expected  string // Pattern for "a OP b OP c"
+		leftAssoc bool   // true for left, false for right
 	}{
 		{"add_assoc", "+", "((a + b) + c)", true},
 		{"subtract_assoc", "-", "((a - b) - c)", true},

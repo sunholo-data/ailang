@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/lexer"
 )
+
+// update flag controls whether golden files are updated or compared
+// Usage: go test -update ./internal/parser
+var update = flag.Bool("update", false, "update golden files")
 
 // goldenCompare compares the given output with a golden file.
 // If the -update flag is set, it updates the golden file instead of comparing.

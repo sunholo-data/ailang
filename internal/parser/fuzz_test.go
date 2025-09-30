@@ -153,9 +153,9 @@ func FuzzParseUnicode(f *testing.F) {
 		"λx. x + 1", // Lambda character
 		"let résumé = {}",
 		"\xEF\xBB\xBF42", // UTF-8 BOM
-		"let x = 1\r\n", // CRLF
-		"let y = 2\n", // LF
-		"let z = 3\r", // CR
+		"let x = 1\r\n",  // CRLF
+		"let y = 2\n",    // LF
+		"let z = 3\r",    // CR
 	}
 
 	for _, seed := range seeds {

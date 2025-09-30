@@ -83,7 +83,7 @@ func TestRecordTypes(t *testing.T) {
 func TestSumTypes(t *testing.T) {
 	t.Skip("Type declarations not yet implemented - parseTypeDeclaration() returns nil")
 
-	tests := []struct{
+	tests := []struct {
 		name   string
 		input  string
 		golden string
