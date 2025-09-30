@@ -1,0 +1,10 @@
+-- Test IMP011: Import conflict error
+module examples/v3_3/import_conflict
+
+-- Both modules export 'gcd' (assuming we create a duplicate)
+-- For now, let's import the same symbol twice from different imports
+import examples/v3_3/math/gcd (gcd)
+import examples/v3_3/math/gcd (lcm, gcd)
+
+-- This should fail with IMP011
+-- Symbol 'gcd' is imported twice (second import conflicts)

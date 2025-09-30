@@ -213,6 +213,9 @@ const (
 
 	// RT008 indicates timeout exceeded
 	RT008 = "RT008"
+
+	// RT009 indicates value initialization cycle detected
+	RT009 = "RT009"
 )
 
 // ErrorInfo provides structured information about an error code
@@ -317,6 +320,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	RT006: {RT006, "runtime", "type", "Type assertion failed"},
 	RT007: {RT007, "runtime", "memory", "Out of memory"},
 	RT008: {RT008, "runtime", "timeout", "Timeout exceeded"},
+	RT009: {RT009, "runtime", "cycle", "Value initialization cycle detected"},
 }
 
 // GetErrorInfo returns information about an error code

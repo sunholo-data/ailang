@@ -125,7 +125,7 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		// Evaluation
 		EVA001, EVA002, EVA003, EVA004, EVA005,
 		// Runtime
-		RT001, RT002, RT003, RT004, RT005, RT006, RT007, RT008,
+		RT001, RT002, RT003, RT004, RT005, RT006, RT007, RT008, RT009,
 	}
 
 	for _, code := range allCodes {

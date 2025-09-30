@@ -191,6 +191,10 @@ func (e *CoreEvaluator) evalCoreVar(v *core.Var) (Value, error) {
 	if !ok {
 		return nil, fmt.Errorf("undefined variable: %s", v.Name)
 	}
+	// Check for cycle marker (immediate self-reference)
+	if marker, ok := val.(*CycleMarker); ok {
+		return nil, fmt.Errorf("RT009: value initialization cycle detected: %s references itself during initialization", marker.Name)
+	}
 	return val, nil
 }
 
@@ -282,15 +286,22 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 	return result, err
 }
 
+// CycleMarker is a special value used to detect initialization cycles
+type CycleMarker struct {
+	Name string
+}
+
+func (c *CycleMarker) String() string { return fmt.Sprintf("<cycle-marker:%s>", c.Name) }
+func (c *CycleMarker) Type() string   { return "CycleMarker" }
+
 // evalCoreLetRec evaluates recursive let bindings
 func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 	// Create new environment for recursive bindings
 	newEnv := e.env.NewChildEnvironment()
 
-	// First pass: create placeholders for recursive references
+	// First pass: create cycle markers for recursive references
 	for _, binding := range letrec.Bindings {
-		// For now, assume all recursive bindings are functions
-		newEnv.Set(binding.Name, &UnitValue{}) // Placeholder
+		newEnv.Set(binding.Name, &CycleMarker{Name: binding.Name})
 	}
 
 	// Second pass: evaluate bindings in the recursive environment
@@ -298,11 +309,19 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 	e.env = newEnv
 
 	for _, binding := range letrec.Bindings {
+		// Check if we're trying to access ourselves during evaluation
 		val, err := e.evalCore(binding.Value)
 		if err != nil {
 			e.env = oldEnv
 			return nil, err
 		}
+
+		// Check if the value is still a cycle marker (immediate self-reference)
+		if marker, ok := val.(*CycleMarker); ok {
+			e.env = oldEnv
+			return nil, fmt.Errorf("RT009: value initialization cycle detected: %s references itself", marker.Name)
+		}
+
 		newEnv.Set(binding.Name, val)
 	}
 
