@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-19.4%25-red.svg)
+![Coverage](https://img.shields.io/badge/coverage-24.2%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -90,28 +90,9 @@ Hello World :: String
 
 ![Examples](https://img.shields.io/badge/examples-21%20passing%2023%20failing-red.svg)
 
-### Parser Test Coverage (v0.1.0 Baseline)
-
-**M-P1 Milestone Complete** ✅ - Comprehensive parser testing baseline established.
-
-- **Coverage**: 70.2% line coverage
-- **Test Suite**: 506 test cases across 12 test files
-- **Golden Snapshots**: 116 deterministic AST comparison files
-- **Fuzz Testing**: 4 fuzz functions with 47 seed cases, 52k+ executions, zero panics
-- **Guarantees**:
-  - ✅ Deterministic parsing (same input → same AST)
-  - ✅ No panics on any input (verified via fuzzing)
-  - ✅ Unicode string support (Chinese, Arabic, Hebrew, emoji)
-  - ✅ Cross-platform line endings (LF, CRLF, CR)
-  - ✅ REPL/file parsing parity
-
-**Test Files**: Expression parsing (85 tests), precedence validation (25 tests), module/import declarations (20 tests), function declarations (30+ tests), error recovery (70+ tests), fuzz tests (4 functions), UTF-8/CRLF/BOM invariants (100+ tests), REPL parity (50+ tests).
-
-For details, see [design_docs/20250930/M-P1.md](design_docs/20250930/M-P1.md) and [docs/parser-guarantees.md](docs/parser-guarantees.md).
-
 ### Example Verification Status
 
-*Last updated: 2025-09-30 11:15:59 UTC*
+*Last updated: 2025-09-30 14:02:14 UTC*
 
 **Summary:** 21 passed, 23 failed, 16 skipped (Total: 60)
 
