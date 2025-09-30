@@ -6,7 +6,7 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/google/go-cmp v0.7.0
 	github.com/peterh/liner v1.2.2
-	golang.org/x/text v0.29.0
+	golang.org/x/text v0.20.0
 )
 
 require (
