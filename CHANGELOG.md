@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.0.9] - 2025-09-30
 
 ### Changed - Upgraded to Go 1.22
 
