@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-24.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-24.5%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -92,7 +92,7 @@ Hello World :: String
 
 ### Example Verification Status
 
-*Last updated: 2025-09-30 14:04:44 UTC*
+*Last updated: 2025-09-30 15:43:04 UTC*
 
 **Summary:** 21 passed, 23 failed, 16 skipped (Total: 60)
 
