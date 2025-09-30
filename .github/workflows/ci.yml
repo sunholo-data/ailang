@@ -29,17 +29,15 @@ jobs:
     - name: Run parser tests
       run: make test-parser
 
-    - name: Check parser coverage
+    - name: Check per-package coverage gates (M-P2)
       run: |
-        COVERAGE=$(make cover-lines)
-        echo "Parser coverage: $COVERAGE"
-        # Require at least 70% parser coverage (current baseline)
-        COVERAGE_NUM=$(echo $COVERAGE | sed 's/%//')
-        if (( $(echo "$COVERAGE_NUM < 70.0" | bc -l) )); then
-          echo "❌ Parser coverage $COVERAGE is below 70% threshold"
-          exit 1
-        fi
-        echo "✅ Parser coverage $COVERAGE meets threshold"
+        make cover-all-packages
+        make gate-all-packages
+
+    - name: Check golden drift protection (M-P2)
+      run: make check-golden-drift
+      env:
+        ALLOW_GOLDEN_UPDATES: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[golden-update]') && '1' || '' }}
 
     - name: Fuzz parser (short)
       run: make fuzz-parser

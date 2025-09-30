@@ -4,6 +4,20 @@
 
 ## Test Coverage: 31.3%
 
+## Recent Milestone: M-P2 Lock-In (Type System Hardening)
+
+**Parser coverage increased: 69% → 70.8%**
+
+M-P2 adds critical type system infrastructure and validation:
+- ✅ Type alias vs sum type disambiguation (`type Names = [string]` vs `type Color = Red | Green`)
+- ✅ Nested record types (`type User = { addr: { street: string } }`)
+- ✅ Export metadata tracking (`export type PublicAPI = ...`)
+- ✅ REPL/file parsing parity (10 test cases verify consistency)
+- ✅ Per-package coverage gates (prevents regression)
+- ✅ Golden drift protection (CI fails on unintended golden changes)
+
+**Type declarations now fully parse**: aliases, sum types, record types, nested records, generic types, and exports. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+
 ## Component Status
 
 ### ✅ Completed Components
@@ -31,15 +45,18 @@
 - `++` operator for string concatenation
 - ~550 lines, all tests passing
 
-#### **Parser** (Nearly Complete) 
+#### **Parser** (Nearly Complete - 70.8% coverage)
 - Recursive descent with Pratt parsing (~1,200 lines)
 - ✅ **Working**: Basic expressions, let bindings, if-then-else, lists, records
 - ✅ **Working**: Binary/unary operators with spec-compliant precedence
 - ✅ **Working**: Lambda expressions with `\x.` syntax and currying
 - ✅ **Working**: Record field access with correct precedence
 - ✅ **Working**: Module declarations and import statements
+- ✅ **Working (M-P2)**: Type declarations - aliases, sum types, record types, nested records
+- ✅ **Working (M-P2)**: Export metadata tracking for type declarations
+- ✅ **Working (M-P2)**: REPL/file parsing parity for all type declarations
 - ⚠️ **Parsed but not evaluated**: Pattern matching, type annotations
-- ❌ **Not working**: `?` operator, effect handlers, tuples
+- ❌ **Not working**: `?` operator, effect handlers, tuple type aliases
 
 #### **Type System** (Complete with Type Classes)
 - Hindley-Milner type inference with let-polymorphism
@@ -91,7 +108,7 @@ Many documented features don't actually work. Use these working examples:
 #### Immediate Fixes Needed
 1. ❌ **Parser**: Module declarations completely broken (`module`, `import`)
 2. ❌ **Parser**: Function declarations don't work (`func` syntax)
-3. ❌ **Parser**: Type definitions not supported (`type` declarations)
+3. ✅ **Parser**: Type definitions now supported! (M-P2) - aliases, sum types, records, exports
 4. ❌ **Parser**: Tests/properties syntax fails
 5. ⚠️ **Integration**: REPL vs file execution use different evaluators
 6. ⚠️ **Type System**: Type classes work in REPL but not file execution

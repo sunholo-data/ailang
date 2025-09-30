@@ -126,6 +126,35 @@ func assertHasErrorCode(t *testing.T, errs []error, code string) {
 	}
 }
 
+// assertHasCode checks that at least one error in the list is a ParserError with the given code.
+// This is a stricter version than assertHasErrorCode that checks the Code field directly.
+//
+// Usage:
+//
+//	errs := mustParseError(t, "type T = foo | Bar")
+//	assertHasCode(t, errs, "PAR_VARIANT_NEEDS_UIDENT")
+func assertHasCode(t *testing.T, errs []error, code string) {
+	t.Helper()
+
+	for _, err := range errs {
+		if perr, ok := err.(*ParserError); ok {
+			if perr.Code == code {
+				return
+			}
+		}
+	}
+
+	// Error not found - show what we got
+	t.Errorf("Expected ParserError with code %s but not found in:\n", code)
+	for _, err := range errs {
+		if perr, ok := err.(*ParserError); ok {
+			t.Errorf("  - ParserError{Code: %q, Message: %q}", perr.Code, perr.Message)
+		} else {
+			t.Errorf("  - %T: %v", err, err)
+		}
+	}
+}
+
 // assertErrorCount checks that the parser produced exactly n errors
 func assertErrorCount(t *testing.T, errs []error, expected int) {
 	t.Helper()

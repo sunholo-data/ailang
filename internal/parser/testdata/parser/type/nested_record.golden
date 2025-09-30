@@ -1,0 +1,87 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "name",
+              "typeExpr": {
+                "name": "string",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "address",
+              "typeExpr": {
+                "fields": [
+                  {
+                    "name": "street",
+                    "typeExpr": {
+                      "name": "string",
+                      "type": "SimpleType"
+                    }
+                  },
+                  {
+                    "name": "city",
+                    "typeExpr": {
+                      "name": "string",
+                      "type": "SimpleType"
+                    }
+                  }
+                ],
+                "type": "RecordType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "User",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "name",
+              "typeExpr": {
+                "name": "string",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "address",
+              "typeExpr": {
+                "fields": [
+                  {
+                    "name": "street",
+                    "typeExpr": {
+                      "name": "string",
+                      "type": "SimpleType"
+                    }
+                  },
+                  {
+                    "name": "city",
+                    "typeExpr": {
+                      "name": "string",
+                      "type": "SimpleType"
+                    }
+                  }
+                ],
+                "type": "RecordType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "User",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

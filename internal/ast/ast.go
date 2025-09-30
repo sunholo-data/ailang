@@ -449,6 +449,7 @@ type TypeDecl struct {
 	Name       string
 	TypeParams []string
 	Definition TypeDef
+	Exported   bool // True if type was declared with 'export'
 	Pos        Pos
 }
 
@@ -483,6 +484,24 @@ type RecordField struct {
 }
 
 func (r *RecordType) typeDefNode() {}
+func (r *RecordType) typeNode()    {} // Also implements Type for nested record types
+func (r *RecordType) String() string {
+	fieldStrs := make([]string, len(r.Fields))
+	for i, f := range r.Fields {
+		fieldStrs[i] = fmt.Sprintf("%s: %s", f.Name, f.Type.String())
+	}
+	return fmt.Sprintf("{ %s }", strings.Join(fieldStrs, ", "))
+}
+func (r *RecordType) Position() Pos { return r.Pos }
+
+// TypeAlias represents type aliases (not sum types)
+// Used to distinguish `type Names = [string]` from `type Color = Red | Green`
+type TypeAlias struct {
+	Target Type // The aliased type expression
+	Pos    Pos
+}
+
+func (t *TypeAlias) typeDefNode() {}
 
 func (t *TypeDecl) String() string {
 	return fmt.Sprintf("type %s", t.Name)

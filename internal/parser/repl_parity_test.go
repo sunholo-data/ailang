@@ -252,3 +252,74 @@ func TestParserFilenamePreservation(t *testing.T) {
 		})
 	}
 }
+
+// TestREPLFileParityTypes tests that type declarations parse identically in REPL and file context
+// This is part of M-P2 lock-in: ensuring type syntax works consistently across contexts
+func TestREPLFileParityTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		decl string
+	}{
+		{"simple_alias", "type UserId = int"},
+		{"list_alias", "type Names = [string]"},
+		// TODO: Tuple type aliases not yet supported - deferred to future milestone
+		// {"tuple_alias", "type Point = (int, int)"},
+		{"simple_record", "type Point = { x: int, y: int }"},
+		{"nested_record", "type User = { name: string, addr: { street: string } }"},
+		{"simple_enum", "type Color = Red | Green | Blue"},
+		{"enum_with_fields", "type Option = Some(int) | None"},
+		{"generic_type", "type Box[a] = { value: a }"},
+		{"exported_alias", "export type UserId = int"},
+		{"exported_record", "export type Point = { x: int, y: int }"},
+		{"exported_sum", "export type Color = Red | Green | Blue"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Parse as REPL input
+			replParser := New(lexer.New(tt.decl, "<repl>"))
+			replProg := replParser.Parse()
+
+			if len(replParser.Errors()) > 0 {
+				t.Fatalf("REPL parse errors: %v", replParser.Errors())
+			}
+
+			// Parse as file input
+			fileParser := New(lexer.New(tt.decl, "test.ail"))
+			fileProg := fileParser.Parse()
+
+			if len(fileParser.Errors()) > 0 {
+				t.Fatalf("File parse errors: %v", fileParser.Errors())
+			}
+
+			// Compare AST structures
+			replAST := ast.PrintProgram(replProg)
+			fileAST := ast.PrintProgram(fileProg)
+
+			// The AST printer normalizes to "test://unit" so they should match exactly
+			if replAST != fileAST {
+				t.Errorf("REPL and file ASTs differ for type declaration:\nREPL:\n%s\n\nFile:\n%s",
+					replAST, fileAST)
+			}
+
+			// Verify the type declaration was actually parsed
+			if replProg.File == nil || len(replProg.File.Statements) == 0 {
+				t.Error("REPL produced no type declarations")
+			}
+			if fileProg.File == nil || len(fileProg.File.Statements) == 0 {
+				t.Error("File produced no type declarations")
+			}
+
+			// Verify it's actually a TypeDecl
+			replStmt := replProg.File.Statements[0]
+			fileStmt := fileProg.File.Statements[0]
+
+			if _, ok := replStmt.(*ast.TypeDecl); !ok {
+				t.Errorf("REPL statement is not TypeDecl: %T", replStmt)
+			}
+			if _, ok := fileStmt.(*ast.TypeDecl); !ok {
+				t.Errorf("File statement is not TypeDecl: %T", fileStmt)
+			}
+		})
+	}
+}

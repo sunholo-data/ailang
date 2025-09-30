@@ -13,4 +13,5 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.3 // indirect
 	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 )

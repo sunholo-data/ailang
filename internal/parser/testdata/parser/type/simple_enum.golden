@@ -1,0 +1,53 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "name": "Red",
+              "type": "Constructor"
+            },
+            {
+              "name": "Green",
+              "type": "Constructor"
+            },
+            {
+              "name": "Blue",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Color",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "name": "Red",
+              "type": "Constructor"
+            },
+            {
+              "name": "Green",
+              "type": "Constructor"
+            },
+            {
+              "name": "Blue",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Color",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

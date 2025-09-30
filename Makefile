@@ -118,6 +118,9 @@ clean:
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
+	rm -f coverage.parser.out coverage.lexer.out
+	rm -f .parser_coverage .lexer_coverage
+	rm -f .golden_changes
 	rm -f examples_report.json examples_status.md coverage.txt
 	@echo "Clean complete"
 
@@ -242,6 +245,66 @@ cover-lines:
 cover-branch:
 	@$(GOTEST) -covermode=atomic -coverprofile=coverage.out ./internal/parser
 	@$(GOCMD) tool cover -html=coverage.out
+
+# Per-package coverage gates (M-P2 lock-in)
+cover-parser:
+	@echo "Generating parser coverage..."
+	@$(GOTEST) -coverprofile=coverage.parser.out ./internal/parser > /dev/null 2>&1
+	@$(GOCMD) tool cover -func=coverage.parser.out | awk '/total:/ {gsub(/%/,"",$$3); print $$3}' > .parser_coverage
+	@cat .parser_coverage
+
+gate-parser:
+	@if [ ! -f .parser_coverage ]; then echo "Run 'make cover-parser' first"; exit 1; fi
+	@pct=$$(cat .parser_coverage); min=$${PARSER_COVER_MIN:-70}; \
+	echo "Parser coverage: $$pct% (minimum: $$min%)"; \
+	if [ $$(echo "$$pct < $$min" | bc -l) -eq 1 ]; then \
+		echo "❌ Parser coverage $$pct% is below $$min% threshold"; \
+		exit 1; \
+	fi; \
+	echo "✅ Parser coverage meets threshold"
+
+cover-lexer:
+	@echo "Generating lexer coverage..."
+	@$(GOTEST) -coverprofile=coverage.lexer.out ./internal/lexer > /dev/null 2>&1
+	@$(GOCMD) tool cover -func=coverage.lexer.out | awk '/total:/ {gsub(/%/,"",$$3); print $$3}' > .lexer_coverage
+	@cat .lexer_coverage
+
+gate-lexer:
+	@if [ ! -f .lexer_coverage ]; then echo "Run 'make cover-lexer' first"; exit 1; fi
+	@pct=$$(cat .lexer_coverage); min=$${LEXER_COVER_MIN:-57}; \
+	echo "Lexer coverage: $$pct% (minimum: $$min%)"; \
+	if [ $$(echo "$$pct < $$min" | bc -l) -eq 1 ]; then \
+		echo "❌ Lexer coverage $$pct% is below $$min% threshold"; \
+		exit 1; \
+	fi; \
+	echo "✅ Lexer coverage meets threshold"
+
+cover-all-packages: cover-parser cover-lexer
+	@echo "All package coverage generated"
+
+gate-all-packages: gate-parser gate-lexer
+	@echo "✅ All package coverage gates passed"
+
+# Golden drift protection (M-P2 lock-in)
+check-golden-drift:
+	@echo "Checking for golden file changes..."
+	@git diff --name-only -- internal/parser/testdata/parser/ > .golden_changes || true
+	@if [ -s .golden_changes ]; then \
+		echo "⚠️  Golden files changed:"; \
+		cat .golden_changes; \
+		if [ "$$ALLOW_GOLDEN_UPDATES" != "1" ]; then \
+			echo ""; \
+			echo "❌ Golden files changed without ALLOW_GOLDEN_UPDATES=1"; \
+			echo "   If this is intentional, run:"; \
+			echo "   ALLOW_GOLDEN_UPDATES=1 make check-golden-drift"; \
+			rm -f .golden_changes; \
+			exit 1; \
+		fi; \
+		echo "✅ Golden updates allowed (ALLOW_GOLDEN_UPDATES=1)"; \
+	else \
+		echo "✅ No golden file changes"; \
+	fi
+	@rm -f .golden_changes
 
 # Test builtin interface stability
 test-builtin-freeze:

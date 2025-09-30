@@ -1,0 +1,33 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "target": {
+            "name": "int",
+            "type": "SimpleType"
+          },
+          "type": "TypeAlias"
+        },
+        "name": "UserId",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "target": {
+            "name": "int",
+            "type": "SimpleType"
+          },
+          "type": "TypeAlias"
+        },
+        "name": "UserId",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

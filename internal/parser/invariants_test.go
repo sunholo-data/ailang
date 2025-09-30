@@ -9,7 +9,7 @@ import (
 )
 
 // TestUTF8BOM tests that parser handles UTF-8 BOM
-// Note: Current lexer does not strip BOM, so it's treated as ILLEGAL token
+// Note: Lexer now strips BOM at input boundary via Normalize()
 func TestUTF8BOM(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -19,12 +19,12 @@ func TestUTF8BOM(t *testing.T) {
 		{
 			"bom_before_number",
 			"\xEF\xBB\xBF42",
-			true, // BOM not currently stripped
+			false, // BOM is now stripped, should parse fine
 		},
 		{
 			"bom_before_let",
 			"\xEF\xBB\xBFlet x = 5 in x",
-			true, // BOM not currently stripped
+			false, // BOM is now stripped, should parse fine
 		},
 		{
 			"no_bom",

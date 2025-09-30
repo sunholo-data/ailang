@@ -1,0 +1,65 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "first",
+              "typeExpr": {
+                "name": "a",
+                "type": "TypeVar"
+              }
+            },
+            {
+              "name": "second",
+              "typeExpr": {
+                "name": "b",
+                "type": "TypeVar"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Pair",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a",
+          "b"
+        ]
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "first",
+              "typeExpr": {
+                "name": "a",
+                "type": "TypeVar"
+              }
+            },
+            {
+              "name": "second",
+              "typeExpr": {
+                "name": "b",
+                "type": "TypeVar"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Pair",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a",
+          "b"
+        ]
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

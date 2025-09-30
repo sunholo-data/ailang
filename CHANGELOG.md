@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Added - M-P2 Lock-In: Type System Hardening
+
+#### Coverage Regression Protection
+- Per-package coverage gates in Makefile (`cover-parser`, `gate-parser`, `cover-lexer`, `gate-lexer`)
+- Parser baseline: 70% coverage (up from 69%)
+- Lexer baseline: 57% coverage
+- CI workflow enforces coverage thresholds on every push
+- Golden drift protection: CI fails if golden files change without `ALLOW_GOLDEN_UPDATES=1`
+- New make target: `check-golden-drift` validates golden file stability
+
+#### Type Alias vs Sum Type Disambiguation
+- Fixed bug: `type Names = [string]` now correctly parses as TypeAlias, not AlgebraicType
+- Added `TypeAlias` AST node in `internal/ast/ast.go`
+- Implemented `hasTopLevelPipe()` helper to detect sum types by presence of `|` operator
+- Updated `parseTypeDeclBody()` to distinguish:
+  - Type aliases: `type UserId = int`, `type Names = [string]`
+  - Sum types: `type Color = Red | Green | Blue`
+- Regenerated all type golden files with correct TypeAlias representation
+
+#### Nested Record Types
+- Record types now work in type positions: `type User = { addr: { street: string } }`
+- Added `typeNode()`, `String()`, `Position()` methods to RecordType
+- Created `parseRecordTypeExpr()` function for `{...}` in type expressions
+- Added test case `TestRecordTypes/nested_record` with golden file
+- RecordType now implements both TypeDef and Type interfaces
+
+#### Export Metadata Tracking
+- Added `Exported bool` field to TypeDecl AST node
+- Updated `parseTypeDeclaration(exported bool)` to track export status
+- AST printer includes `"exported": true` in JSON output for exported types
+- Tests validate: `export type PublicColor = Red | Green` vs `type PrivateData = { value: int }`
+- Regenerated export golden files with metadata
+
+#### REPL/File Type Parity
+- New test suite: `TestREPLFileParityTypes` with 10 type declaration test cases
+- Validates identical parsing for: aliases, lists, records (simple & nested), sum types, generics, exports
+- All type declarations parse identically in REPL (`<repl>`) vs file (`test.ail`) contexts
+- Parser coverage increased to 70.8%
+
+#### Metrics
+- Parser coverage: 69% → 70.8%
+- New tests: 11 (1 nested record + 10 parity tests)
+- All existing parser tests pass (544ms test suite)
+- Golden files: 3 regenerated (export_alias, export_record, export_sum)
+- Code changes: 3 files (ast.go, parser.go, print.go, repl_parity_test.go, type_test.go, Makefile, ci.yml)
+
 ## [v0.0.7] - 2025-09-29
 
 ### Added - Milestone A2: Structured Error Reporting

@@ -18,10 +18,18 @@ type Lexer struct {
 	file         string
 }
 
-// New creates a new Lexer
+// New creates a new Lexer with normalized input.
+// Input is normalized at the lexer boundary:
+// - UTF-8 BOM is stripped
+// - Unicode NFC normalization is applied
+//
+// This ensures lexically equivalent source produces identical token streams.
 func New(input string, filename string) *Lexer {
+	// Normalize input at the boundary
+	normalized := Normalize([]byte(input))
+
 	l := &Lexer{
-		input:  input,
+		input:  string(normalized),
 		file:   filename,
 		line:   1,
 		column: 0,

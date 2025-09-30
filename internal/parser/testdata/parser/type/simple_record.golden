@@ -1,0 +1,57 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "x",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "y",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Point",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "x",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "y",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Point",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

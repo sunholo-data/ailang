@@ -1,0 +1,65 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "a",
+                  "type": "TypeVar"
+                }
+              ],
+              "name": "Some",
+              "type": "Constructor"
+            },
+            {
+              "name": "None",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "exported": true,
+        "name": "Option",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "a",
+                  "type": "TypeVar"
+                }
+              ],
+              "name": "Some",
+              "type": "Constructor"
+            },
+            {
+              "name": "None",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "exported": true,
+        "name": "Option",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

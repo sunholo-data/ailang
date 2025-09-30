@@ -1,0 +1,83 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "a",
+                  "type": "TypeVar"
+                }
+              ],
+              "name": "Leaf",
+              "type": "Constructor"
+            },
+            {
+              "fields": [
+                {
+                  "name": "Tree",
+                  "type": "SimpleType"
+                },
+                {
+                  "name": "Tree",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Node",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Tree",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "a",
+                  "type": "TypeVar"
+                }
+              ],
+              "name": "Leaf",
+              "type": "Constructor"
+            },
+            {
+              "fields": [
+                {
+                  "name": "Tree",
+                  "type": "SimpleType"
+                },
+                {
+                  "name": "Tree",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Node",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Tree",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

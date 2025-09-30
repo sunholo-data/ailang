@@ -344,6 +344,68 @@ func simplify(node interface{}) interface{} {
 		}
 		return m
 
+	// Type Declarations
+	case *TypeDecl:
+		m := map[string]interface{}{
+			"type": "TypeDecl",
+			"name": n.Name,
+		}
+		if len(n.TypeParams) > 0 {
+			m["typeParams"] = n.TypeParams
+		}
+		if n.Definition != nil {
+			m["definition"] = simplify(n.Definition)
+		}
+		if n.Exported {
+			m["exported"] = true
+		}
+		return m
+
+	case *AlgebraicType:
+		m := map[string]interface{}{
+			"type": "AlgebraicType",
+		}
+		if len(n.Constructors) > 0 {
+			constructors := make([]interface{}, len(n.Constructors))
+			for i, c := range n.Constructors {
+				constructors[i] = simplify(c)
+			}
+			m["constructors"] = constructors
+		}
+		return m
+
+	case *Constructor:
+		m := map[string]interface{}{
+			"type": "Constructor",
+			"name": n.Name,
+		}
+		if len(n.Fields) > 0 {
+			m["fields"] = simplifyTypeSlice(n.Fields)
+		}
+		return m
+
+	case *RecordType:
+		m := map[string]interface{}{
+			"type": "RecordType",
+		}
+		if len(n.Fields) > 0 {
+			fields := make([]interface{}, len(n.Fields))
+			for i, f := range n.Fields {
+				fields[i] = map[string]interface{}{
+					"name":     f.Name,
+					"typeExpr": simplify(f.Type),
+				}
+			}
+			m["fields"] = fields
+		}
+		return m
+
+	case *TypeAlias:
+		return map[string]interface{}{
+			"type":   "TypeAlias",
+			"target": simplify(n.Target),
+		}
+
 	case *Param:
 		m := map[string]interface{}{
 			"type": "Param",
