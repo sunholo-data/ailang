@@ -20,6 +20,8 @@
 **Files Changed:**
 - `go.mod`: go 1.22, golang.org/x/text v0.21.0
 - `.github/workflows/ci.yml`: go-version: '1.22'
+- `.github/workflows/build.yml`: go-version: '1.22' (fixes Windows builds)
+- `.github/workflows/release.yml`: go-version: '1.22'
 - `go.sum`: Updated checksums
 
 ### Added - M-P2 Lock-In: Type System Hardening
