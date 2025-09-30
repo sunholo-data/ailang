@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Changed - Upgraded to Go 1.22
+
+**Security & Performance Upgrade:**
+- Upgraded from Go 1.19 → Go 1.22.12 (Go 1.19 EOL since Sept 2023)
+- Updated `golang.org/x/text` from v0.20.0 → v0.21.0
+- Updated CI workflow to use Go 1.22
+- All tests and linting pass with new version
+
+**Benefits:**
+- Security patches for 2+ years of vulnerabilities
+- 1-3% CPU performance improvement
+- ~1% memory reduction
+- For-loop variable scoping fix (prevents common bugs)
+- Enhanced HTTP routing, better generics support
+
+**Files Changed:**
+- `go.mod`: go 1.22, golang.org/x/text v0.21.0
+- `.github/workflows/ci.yml`: go-version: '1.22'
+- `go.sum`: Updated checksums
+
 ### Added - M-P2 Lock-In: Type System Hardening
 
 #### Coverage Regression Protection

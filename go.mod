@@ -1,12 +1,12 @@
 module github.com/sunholo/ailang
 
-go 1.19
+go 1.22
 
 require (
 	github.com/fatih/color v1.16.0
 	github.com/google/go-cmp v0.7.0
 	github.com/peterh/liner v1.2.2
-	golang.org/x/text v0.20.0
+	golang.org/x/text v0.21.0
 )
 
 require (
