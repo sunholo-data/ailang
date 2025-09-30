@@ -88,13 +88,13 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-20%20passing%2023%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-21%20passing%2023%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-09-29 20:54:49 UTC*
+*Last updated: 2025-09-30 11:15:59 UTC*
 
-**Summary:** 20 passed, 23 failed, 16 skipped (Total: 59)
+**Summary:** 21 passed, 23 failed, 16 skipped (Total: 60)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -142,6 +142,7 @@ Hello World :: String
 | `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v2_type_inference.ail` | ✅ Pass |  |
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
+| `v3_3/import_conflict.ail` | ✅ Pass |  |
 | `v3_3/imports.ail` | ✅ Pass |  |
 | `v3_3/imports_basic.ail` | ✅ Pass |  |
 | `v3_3/math.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
