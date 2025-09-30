@@ -46,7 +46,32 @@
 - New tests: 11 (1 nested record + 10 parity tests)
 - All existing parser tests pass (544ms test suite)
 - Golden files: 3 regenerated (export_alias, export_record, export_sum)
-- Code changes: 3 files (ast.go, parser.go, print.go, repl_parity_test.go, type_test.go, Makefile, ci.yml)
+- Code changes: 7 files (ast.go, parser.go, print.go, repl_parity_test.go, type_test.go, Makefile, ci.yml)
+
+### Added - M-P1: Parser Baseline (2025-09-30)
+
+#### Comprehensive Test Infrastructure
+- Created deterministic AST printer in `internal/ast/print.go` (445 lines)
+- Created test utilities in `internal/parser/testutil.go` (241 lines)
+- Established golden file testing framework with 116 snapshots
+- Added Makefile targets: `test-parser`, `test-parser-update`, `fuzz-parser`
+
+#### Test Coverage Across All Parser Features
+- **Expression tests** (`expr_test.go`, 385 lines): 85 test cases covering literals, operators, collections, lambdas
+- **Precedence tests** (`precedence_test.go`, 283 lines): 53 test cases validating operator precedence
+- **Module tests** (`module_test.go`, 142 lines): 17 test cases for module/import declarations
+- **Function tests** (`func_test.go`, 252 lines): 22 test cases for function declarations and signatures
+- **Error recovery tests** (`error_recovery_test.go`, 312 lines): 38 test cases for graceful error handling
+- **Invariant tests** (`invariants_test.go`, 320 lines): UTF-8 normalization, CRLF handling, BOM stripping
+- **REPL parity tests** (`repl_parity_test.go`, 220 lines): Ensures REPL and file parsing consistency
+- **Fuzz tests** (`fuzz_test.go`, 181 lines): 4 fuzz functions with 47 seed cases
+
+#### Baseline Metrics
+- **506 test cases** total across all parser features
+- **70.2% line coverage** (baseline frozen)
+- **Zero panics** in 52k+ fuzz executions
+- **2,233 lines** of test code
+- All tests pass in ~550ms
 
 ## [v0.0.7] - 2025-09-29
 

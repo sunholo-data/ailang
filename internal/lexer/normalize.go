@@ -23,9 +23,7 @@ var bomUTF8 = []byte{0xEF, 0xBB, 0xBF}
 // Normalization is performed once at input to avoid repeated processing.
 func Normalize(src []byte) []byte {
 	// Strip BOM if present
-	if bytes.HasPrefix(src, bomUTF8) {
-		src = src[len(bomUTF8):]
-	}
+	src = bytes.TrimPrefix(src, bomUTF8)
 
 	// Apply NFC normalization
 	// IsNormal() is fast and avoids allocation if already normalized

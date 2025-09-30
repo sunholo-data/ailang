@@ -63,6 +63,12 @@ issues:
       text: "is unused"
       linters:
         - unused
+
+    # Don't complain about unused functions in testutil.go (they're helper functions)
+    - path: testutil\.go
+      text: "is unused"
+      linters:
+        - unused
         
   # Maximum issues count per one linter. Set to 0 to disable.
   max-issues-per-linter: 50
