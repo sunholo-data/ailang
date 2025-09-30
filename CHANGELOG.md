@@ -24,6 +24,15 @@
 - `.github/workflows/release.yml`: go-version: '1.22'
 - `go.sum`: Updated checksums
 
+### Fixed - Windows Golden File Tests
+
+**Cross-platform Test Compatibility:**
+- Fixed Windows test failures in `TestLiterals` subtests
+- Issue: Golden files checked out with CRLF line endings on Windows but comparison used raw bytes
+- Solution: Normalize line endings (CRLF → LF) in both `want` and `got` strings before comparison
+- Updated `goldenCompare()` function in `internal/parser/testutil.go`
+- All platforms (Linux, macOS, Windows) now pass golden file tests consistently
+
 ### Added - M-P2 Lock-In: Type System Hardening
 
 #### Coverage Regression Protection

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -51,7 +52,12 @@ func goldenCompare(t *testing.T, name string, got string) {
 		t.Fatalf("Failed to read golden file %s: %v\nRun with -update to create it", path, err)
 	}
 
-	if diff := cmp.Diff(string(want), got); diff != "" {
+	// Normalize line endings for cross-platform compatibility
+	// Windows Git checks out files with CRLF, but generated output has LF
+	wantNorm := strings.ReplaceAll(string(want), "\r\n", "\n")
+	gotNorm := strings.ReplaceAll(got, "\r\n", "\n")
+
+	if diff := cmp.Diff(wantNorm, gotNorm); diff != "" {
 		t.Errorf("Golden mismatch for %s (-want +got):\n%s", name, diff)
 		t.Logf("To update: go test -update ./internal/parser")
 	}
