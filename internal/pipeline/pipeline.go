@@ -452,12 +452,42 @@ func runModule(cfg Config, src Source) (Result, error) {
 						if ctor, ok := depIface.GetConstructor(sym); ok {
 							// Constructors are added to global environment
 							// They're factory functions from $adt module
-							key := fmt.Sprintf("$adt.make_%s_%s", ctor.TypeName, ctor.CtorName)
+							factoryName := fmt.Sprintf("make_%s_%s", ctor.TypeName, ctor.CtorName)
+							key := fmt.Sprintf("$adt.%s", factoryName)
+
 							globalRefs[sym] = core.GlobalRef{
 								Module: "$adt",
-								Name:   fmt.Sprintf("make_%s_%s", ctor.TypeName, ctor.CtorName),
+								Name:   factoryName,
 							}
-							fmt.Printf("DEBUG: Import constructor %s -> %s\n", sym, key)
+
+							// CRITICAL FIX: Also add to externalTypes so type checker knows the signature
+							// Build the factory type scheme from the constructor info
+							var factoryType types.Type
+							if ctor.Arity == 0 {
+								// Nullary constructor: just the result type
+								factoryType = ctor.ResultType
+							} else {
+								// Constructor with fields: FieldTypes -> ResultType
+								factoryType = &types.TFunc2{
+									Params:    ctor.FieldTypes,
+									EffectRow: nil, // Pure constructor
+									Return:    ctor.ResultType,
+								}
+							}
+
+							// Extract type variables from result type for polymorphism
+							var typeVars []string
+							if ctor.ResultType != nil {
+								// Extract type vars from result type (e.g., Option[a] -> ["a"])
+								typeVars = extractTypeVarsFromType(ctor.ResultType)
+							}
+
+							externalTypes[key] = &types.Scheme{
+								TypeVars: typeVars,
+								Type:     factoryType,
+							}
+
+							fmt.Printf("DEBUG: Import constructor %s -> %s with type scheme (vars: %v)\n", sym, key, typeVars)
 							if cfg.TraceDefaulting {
 								fmt.Printf("  Import constructor %s -> %s\n", sym, key)
 							}
@@ -695,4 +725,45 @@ func convertToIfaceConstructors(pipeCtors map[string]*ConstructorInfo) map[strin
 		}
 	}
 	return ifaceCtors
+}
+
+// extractTypeVarsFromType extracts type variable names from a type
+// For example: Option[a] -> ["a"], Result[t, e] -> ["t", "e"]
+func extractTypeVarsFromType(typ types.Type) []string {
+	var vars []string
+	seen := make(map[string]bool)
+
+	var extract func(types.Type)
+	extract = func(t types.Type) {
+		if t == nil {
+			return
+		}
+		switch typ := t.(type) {
+		case *types.TVar2:
+			if !seen[typ.Name] {
+				vars = append(vars, typ.Name)
+				seen[typ.Name] = true
+			}
+		case *types.TApp:
+			extract(typ.Constructor)
+			for _, arg := range typ.Args {
+				extract(arg)
+			}
+		case *types.TFunc2:
+			for _, param := range typ.Params {
+				extract(param)
+			}
+			extract(typ.Return)
+		case *types.TList:
+			extract(typ.Element)
+		case *types.TTuple:
+			for _, elem := range typ.Elements {
+				extract(elem)
+			}
+		// TCon and other base types don't have type variables
+		}
+	}
+
+	extract(typ)
+	return vars
 }
