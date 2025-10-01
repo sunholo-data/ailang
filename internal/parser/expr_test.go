@@ -318,9 +318,12 @@ func TestMatchExpressions(t *testing.T) {
 	}{
 		{"match_simple", "match x { 1 => \"one\", 2 => \"two\", _ => \"other\" }", "expr/match_simple"},
 		{"match_with_guard", "match x { n if n > 0 => \"positive\", _ => \"other\" }", "expr/match_with_guard"},
-		// TODO: List and tuple patterns not yet supported in match expressions
+		{"match_tuple", "match pair { (0, 0) => \"origin\", (x, y) => \"point\" }", "expr/match_tuple"},
+		{"match_constructor_nullary", "match opt { None => 0, _ => 1 }", "expr/match_constructor_nullary"},
+		{"match_constructor_unary", "match opt { Some(x) => x, None => 0 }", "expr/match_constructor_unary"},
+		{"match_constructor_nested", "match result { Ok(Some(x)) => x, _ => 0 }", "expr/match_constructor_nested"},
+		// TODO: List patterns not yet fully supported
 		// {"match_list", "match list { [] => \"empty\", [x] => \"one\", _ => \"many\" }", "expr/match_list"},
-		// {"match_tuple", "match pair { (0, 0) => \"origin\", (x, y) => \"point\" }", "expr/match_tuple"},
 	}
 
 	for _, tt := range tests {

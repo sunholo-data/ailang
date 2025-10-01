@@ -123,6 +123,11 @@ func (ml *ModuleLinker) GetIface(path string) *iface.Iface {
 	return ml.ifaces[path]
 }
 
+// GetLoadedModules returns all loaded module interfaces
+func (ml *ModuleLinker) GetLoadedModules() map[string]*iface.Iface {
+	return ml.ifaces
+}
+
 // getOrLoadInterface retrieves or loads a module interface
 func (ml *ModuleLinker) getOrLoadInterface(modulePath string) (*iface.Iface, error) {
 	if iface, ok := ml.ifaces[modulePath]; ok {

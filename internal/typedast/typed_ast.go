@@ -2,6 +2,7 @@ package typedast
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
@@ -128,6 +129,16 @@ type TypedList struct {
 	Elements []TypedNode
 }
 
+// TypedTuple represents typed tuple construction
+type TypedTuple struct {
+	TypedExpr
+	Elements []TypedNode
+}
+
+func (t TypedTuple) String() string {
+	return fmt.Sprintf("(...) : %s", t.Type)
+}
+
 // TypedNode is the interface for all typed nodes
 type TypedNode interface {
 	GetNodeID() uint64
@@ -233,6 +244,19 @@ type TypedWildcardPattern struct{}
 
 func (p TypedWildcardPattern) patternNode()   {}
 func (p TypedWildcardPattern) String() string { return "_" }
+
+type TypedTuplePattern struct {
+	Elements []TypedPattern
+}
+
+func (p TypedTuplePattern) patternNode() {}
+func (p TypedTuplePattern) String() string {
+	parts := make([]string, len(p.Elements))
+	for i, elem := range p.Elements {
+		parts[i] = elem.String()
+	}
+	return fmt.Sprintf("(%s)", strings.Join(parts, ", "))
+}
 
 // TypedProgram represents a typed program
 type TypedProgram struct {

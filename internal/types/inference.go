@@ -14,6 +14,7 @@ type InferenceContext struct {
 	freshCounter         int
 	path                 []string          // For error reporting
 	qualifiedConstraints []ClassConstraint // Non-ground constraints for qualified types
+	accumulatedEffects   *Row              // Effects accumulated during expression inference
 }
 
 // TypeConstraint represents a constraint to be solved

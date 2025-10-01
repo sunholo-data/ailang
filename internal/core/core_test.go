@@ -481,3 +481,70 @@ func TestRecBinding(t *testing.T) {
 	// Verify Value is a CoreExpr
 	var _ CoreExpr = binding.Value
 }
+
+func TestTuplePattern(t *testing.T) {
+	// Create tuple pattern: (x, 42, _)
+	pattern := &TuplePattern{
+		Elements: []CorePattern{
+			&VarPattern{Name: "x"},
+			&LitPattern{Value: 42},
+			&WildcardPattern{},
+		},
+	}
+
+	// Test String() representation
+	got := pattern.String()
+	want := "(x, 42, _)"
+	if got != want {
+		t.Errorf("TuplePattern.String() = %q, want %q", got, want)
+	}
+
+	// Test that it implements CorePattern interface
+	var _ CorePattern = pattern
+}
+
+func TestConstructorPattern(t *testing.T) {
+	// Create constructor pattern: Some(x)
+	pattern := &ConstructorPattern{
+		Name: "Some",
+		Args: []CorePattern{
+			&VarPattern{Name: "x"},
+		},
+	}
+
+	// Test String() representation
+	got := pattern.String()
+	want := "Some([x])"
+	if got != want {
+		t.Errorf("ConstructorPattern.String() = %q, want %q", got, want)
+	}
+
+	// Test that it implements CorePattern interface
+	var _ CorePattern = pattern
+}
+
+func TestNestedPatterns(t *testing.T) {
+	// Create nested pattern: Cons((x, y), tail)
+	pattern := &ConstructorPattern{
+		Name: "Cons",
+		Args: []CorePattern{
+			&TuplePattern{
+				Elements: []CorePattern{
+					&VarPattern{Name: "x"},
+					&VarPattern{Name: "y"},
+				},
+			},
+			&VarPattern{Name: "tail"},
+		},
+	}
+
+	// Test String() representation
+	got := pattern.String()
+	// Note: String() may format Args as a slice representation
+	if !strings.Contains(got, "Cons") {
+		t.Errorf("ConstructorPattern.String() should contain 'Cons', got %q", got)
+	}
+
+	// Test that it implements CorePattern interface
+	var _ CorePattern = pattern
+}

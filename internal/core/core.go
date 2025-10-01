@@ -240,6 +240,21 @@ func (l *List) String() string {
 	return fmt.Sprintf("[%v]", l.Elements)
 }
 
+// Tuple represents tuple construction (elements are atomic in ANF)
+type Tuple struct {
+	CoreNode
+	Elements []CoreExpr // All must be atomic in ANF
+}
+
+func (t *Tuple) coreExpr() {}
+func (t *Tuple) String() string {
+	parts := make([]string, len(t.Elements))
+	for i, elem := range t.Elements {
+		parts[i] = elem.String()
+	}
+	return fmt.Sprintf("(%s)", strings.Join(parts, ", "))
+}
+
 // Intrinsic operations (replaces BinOp/UnOp after lowering)
 
 // IntrinsicOp represents built-in operations
@@ -338,6 +353,19 @@ type WildcardPattern struct{}
 
 func (w *WildcardPattern) patternNode()   {}
 func (w *WildcardPattern) String() string { return "_" }
+
+type TuplePattern struct {
+	Elements []CorePattern
+}
+
+func (t *TuplePattern) patternNode() {}
+func (t *TuplePattern) String() string {
+	parts := make([]string, len(t.Elements))
+	for i, elem := range t.Elements {
+		parts[i] = elem.String()
+	}
+	return fmt.Sprintf("(%s)", strings.Join(parts, ", "))
+}
 
 // ProgramFlags tracks compilation state
 type ProgramFlags struct {

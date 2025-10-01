@@ -435,6 +435,51 @@ func runModule(cfg Config, src Source) (Result, error) {
 			return result, err
 		}
 
+		// Extract constructors from elaborator and store in CompileUnit
+		unit.Constructors = convertConstructors(elaborator.GetConstructors())
+
+		// Add $adt factory types for this module's constructors to externalTypes
+		// This allows the type checker to know about constructor factories
+		for ctorName, ctorInfo := range unit.Constructors {
+			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorName)
+			factoryKey := fmt.Sprintf("$adt.%s", factoryName)
+
+			// Build factory type: a0 -> a1 -> ... -> TypeName
+			// Use TVar2 (new type system) for type variables with Star kind
+			var typeVars []string
+			var paramTypes []types.Type
+			for i := 0; i < ctorInfo.Arity; i++ {
+				varName := fmt.Sprintf("a%d", i)
+				typeVars = append(typeVars, varName)
+				paramTypes = append(paramTypes, &types.TVar2{Name: varName, Kind: types.Star})
+			}
+
+			// Result type - monomorphic for now (M-P3 limitation)
+			// Full polymorphic ADTs (Option[Int]) will require type application support in unifier
+			resultType := &types.TCon{Name: ctorInfo.TypeName}
+
+			var factoryType types.Type
+			if ctorInfo.Arity == 0 {
+				// Nullary constructor: just the result type
+				factoryType = resultType
+			} else {
+				// Constructor with fields
+				// Use TFunc2 (new type system) for compatibility with unification
+				factoryType = &types.TFunc2{
+					Params:    paramTypes,
+					EffectRow: nil, // Pure constructor
+					Return:    resultType,
+				}
+			}
+
+			// Add to external types with Scheme wrapper
+			// TypeVars allows polymorphism over field types
+			externalTypes[factoryKey] = &types.Scheme{
+				TypeVars: typeVars,
+				Type:     factoryType,
+			}
+		}
+
 		// Type check with external types from dependencies
 		// Create a local TypeEnv for this module (inherits from global builtins)
 		moduleTypeEnv := types.NewTypeEnvWithBuiltins()
@@ -486,7 +531,9 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 
 		// Build and register interface (using module-local type environment)
-		unitIface, err := iface.BuildInterface(string(modID), unit.Core, moduleTypeEnv)
+		// Convert pipeline constructors to iface constructors
+		ifaceCtors := convertToIfaceConstructors(unit.Constructors)
+		unitIface, err := iface.BuildInterfaceWithConstructors(string(modID), unit.Core, moduleTypeEnv, ifaceCtors)
 		if err != nil {
 			return result, fmt.Errorf("interface build error in %s: %w", modID, err)
 		}
@@ -495,6 +542,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 		compiledUnits[string(modID)] = unit
 	}
+
+	// Register $adt module after all modules are loaded and their interfaces are built
+	// This allows $adt to collect all constructors from all loaded modules
+	link.RegisterAdtModule(modLinker)
+
 	result.PhaseTimings["compile"] = time.Since(start).Milliseconds()
 
 	// Phase 3b: Register compiled modules with resolver for on-demand evaluation
@@ -562,4 +614,34 @@ func convertParserErrors(errs []error) error {
 	// For now, return the first error
 	// TODO: Return all errors with proper structure
 	return errs[0]
+}
+
+// convertConstructors converts elaborator constructors to pipeline ConstructorInfo
+func convertConstructors(elabCtors map[string]*elaborate.ConstructorInfo) map[string]*ConstructorInfo {
+	ctors := make(map[string]*ConstructorInfo)
+	for name, elabCtor := range elabCtors {
+		ctors[name] = &ConstructorInfo{
+			TypeName:   elabCtor.TypeName,
+			CtorName:   elabCtor.CtorName,
+			FieldTypes: nil, // We don't have AST types here, will infer from Core
+			Arity:      elabCtor.Arity,
+		}
+	}
+	return ctors
+}
+
+// convertToIfaceConstructors converts pipeline constructors to iface constructors
+func convertToIfaceConstructors(pipeCtors map[string]*ConstructorInfo) map[string]*iface.ConstructorInfo {
+	if pipeCtors == nil {
+		return nil
+	}
+	ifaceCtors := make(map[string]*iface.ConstructorInfo)
+	for name, pipeCtor := range pipeCtors {
+		ifaceCtors[name] = &iface.ConstructorInfo{
+			TypeName: pipeCtor.TypeName,
+			CtorName: pipeCtor.CtorName,
+			Arity:    pipeCtor.Arity,
+		}
+	}
+	return ifaceCtors
 }

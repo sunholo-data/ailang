@@ -165,6 +165,9 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	case *core.List:
 		return e.evalCoreList(n)
 
+	case *core.Tuple:
+		return e.evalCoreTuple(n)
+
 	case *core.Match:
 		return e.evalCoreMatch(n)
 
@@ -501,6 +504,21 @@ func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
 	}
 
 	return &ListValue{Elements: elements}, nil
+}
+
+// evalCoreTuple evaluates tuple construction
+func (e *CoreEvaluator) evalCoreTuple(tuple *core.Tuple) (Value, error) {
+	var elements []Value
+
+	for _, elemExpr := range tuple.Elements {
+		val, err := e.evalCore(elemExpr)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, val)
+	}
+
+	return &TupleValue{Elements: elements}, nil
 }
 
 // evalCoreMatch evaluates pattern matching
@@ -892,10 +910,88 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 		// Wildcard always matches without binding
 		return bindings, true
 
+	case *core.TuplePattern:
+		// Tuple pattern - value must be a tuple with matching arity
+		tupleVal, ok := value.(*TupleValue)
+		if !ok {
+			return nil, false
+		}
+
+		if len(p.Elements) != len(tupleVal.Elements) {
+			return nil, false
+		}
+
+		// Match each element pattern
+		for i, elemPattern := range p.Elements {
+			elemBindings, ok := matchPattern(elemPattern, tupleVal.Elements[i])
+			if !ok {
+				return nil, false
+			}
+			// Merge bindings
+			for k, v := range elemBindings {
+				bindings[k] = v
+			}
+		}
+		return bindings, true
+
+	case *core.ConstructorPattern:
+		// Constructor pattern - value must be a TaggedValue with matching constructor
+		tagged, ok := value.(*TaggedValue)
+		if !ok {
+			return nil, false
+		}
+
+		// Check if constructor name matches
+		if tagged.CtorName != p.Name {
+			return nil, false
+		}
+
+		// Check arity
+		if len(p.Args) != len(tagged.Fields) {
+			return nil, false
+		}
+
+		// Match field patterns recursively
+		for i, argPattern := range p.Args {
+			argBindings, ok := matchPattern(argPattern, tagged.Fields[i])
+			if !ok {
+				return nil, false
+			}
+			// Merge bindings
+			for k, v := range argBindings {
+				bindings[k] = v
+			}
+		}
+		return bindings, true
+
 	default:
 		// Other patterns not yet implemented
 		return nil, false
 	}
+}
+
+// ADT Runtime Helpers
+
+// isTag checks if a value is a TaggedValue with the given type and constructor names
+func isTag(v Value, typeName, ctorName string) bool {
+	tagged, ok := v.(*TaggedValue)
+	if !ok {
+		return false
+	}
+	return tagged.TypeName == typeName && tagged.CtorName == ctorName
+}
+
+// getField extracts a field from a TaggedValue by index (bounds-checked)
+func getField(v Value, index int) (Value, error) {
+	tagged, ok := v.(*TaggedValue)
+	if !ok {
+		return nil, fmt.Errorf("EVA_RT002: getField called on non-tagged value: %s", v.Type())
+	}
+	if index < 0 || index >= len(tagged.Fields) {
+		return nil, fmt.Errorf("EVA_RT002: field index %d out of bounds for constructor %s (has %d fields)",
+			index, tagged.CtorName, len(tagged.Fields))
+	}
+	return tagged.Fields[index], nil
 }
 
 // applyBinOp should NOT be called in dictionary-passing system except for special operators

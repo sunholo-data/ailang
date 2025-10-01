@@ -172,13 +172,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		return nil, fmt.Errorf("cannot unify record type with %T", t2)
 
 	default:
-		// Handle old types for compatibility
-		if t2Var, ok := t2.(*TVar2); ok {
-			return u.Unify(t2Var, t1, sub)
-		}
-		if t2RowVar, ok := t2.(*RowVar); ok {
-			return u.Unify(t2RowVar, t1, sub)
-		}
+		// Unhandled type - no more compatibility for old type system
 		return nil, fmt.Errorf("unhandled type in unification: %T", t1)
 	}
 }

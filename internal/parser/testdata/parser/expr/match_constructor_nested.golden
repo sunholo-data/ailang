@@ -1,0 +1,99 @@
+{
+  "file": {
+    "decls": [
+      {
+        "cases": [
+          {
+            "body": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "pattern": {
+              "name": "Ok",
+              "patterns": [
+                {
+                  "name": "Some",
+                  "patterns": [
+                    {
+                      "name": "x",
+                      "type": "Identifier"
+                    }
+                  ],
+                  "type": "ConstructorPattern"
+                }
+              ],
+              "type": "ConstructorPattern"
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 0
+            },
+            "pattern": {
+              "name": "_",
+              "type": "Identifier"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "result",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "cases": [
+          {
+            "body": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "pattern": {
+              "name": "Ok",
+              "patterns": [
+                {
+                  "name": "Some",
+                  "patterns": [
+                    {
+                      "name": "x",
+                      "type": "Identifier"
+                    }
+                  ],
+                  "type": "ConstructorPattern"
+                }
+              ],
+              "type": "ConstructorPattern"
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "Int",
+              "type": "Literal",
+              "value": 0
+            },
+            "pattern": {
+              "name": "_",
+              "type": "Identifier"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "result",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -2,6 +2,7 @@ package link
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -40,6 +41,11 @@ func (r *Resolver) RegisterCompiledModule(moduleID string, unit CompileUnit) {
 
 // ResolveValue resolves a global reference to its value
 func (r *Resolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
+	// Check if this is an $adt factory function
+	if ref.Module == "$adt" {
+		return r.resolveAdtFactory(ref)
+	}
+
 	r.mu.RLock()
 	if moduleCache, ok := r.memo[ref.Module]; ok {
 		if val, ok := moduleCache[ref.Name]; ok {
@@ -133,4 +139,64 @@ func (r *Resolver) InvalidateAll() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.memo = make(map[string]map[string]eval.Value)
+}
+
+// resolveAdtFactory resolves $adt factory functions to builtin constructor creators
+// Factory names follow pattern: make_<TypeName>_<CtorName>
+func (r *Resolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
+	// Parse factory name: "make_Option_Some" → TypeName="Option", CtorName="Some"
+	if !strings.HasPrefix(ref.Name, "make_") {
+		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: invalid $adt factory name: %s", ref.Name)
+	}
+
+	parts := strings.SplitN(ref.Name[5:], "_", 2) // Remove "make_" prefix
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: invalid $adt factory name format: %s", ref.Name)
+	}
+
+	typeName := parts[0]
+	ctorName := parts[1]
+
+	// Look up constructor arity from $adt interface
+	adtIface := r.linker.GetIface("$adt")
+	if adtIface == nil {
+		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: $adt module not registered")
+	}
+
+	var arity int
+	found := false
+	for _, ctor := range adtIface.Constructors {
+		if ctor.TypeName == typeName && ctor.CtorName == ctorName {
+			arity = ctor.Arity
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: constructor %s.%s not found in $adt module (looking for factory %s)", typeName, ctorName, ref.Name)
+	}
+
+	// For nullary constructors, return the TaggedValue directly
+	if arity == 0 {
+		return &eval.TaggedValue{
+			TypeName: typeName,
+			CtorName: ctorName,
+			Fields:   []eval.Value{},
+		}, nil
+	}
+
+	// For constructors with fields, return a function
+	factoryFn := &eval.BuiltinFunction{
+		Name: ref.Name,
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			// Constructor factory: creates TaggedValue with given fields
+			return &eval.TaggedValue{
+				TypeName: typeName,
+				CtorName: ctorName,
+				Fields:   args,
+			}, nil
+		},
+	}
+
+	return factoryFn, nil
 }

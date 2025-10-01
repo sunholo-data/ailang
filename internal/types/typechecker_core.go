@@ -10,15 +10,16 @@ import (
 
 // CoreTypeChecker type checks Core AST and produces TypedAST
 type CoreTypeChecker struct {
-	instanceEnv         *InstanceEnv      // Type class instances
-	defaultingConfig    *DefaultingConfig // Numeric defaulting configuration
-	debugMode           bool              // Enable debug output
+	instanceEnv         *InstanceEnv               // Type class instances
+	defaultingConfig    *DefaultingConfig          // Numeric defaulting configuration
+	debugMode           bool                       // Enable debug output
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
 	globalTypes         map[string]*Scheme             // Global types for imports (module.name -> Scheme)
 	instantiations      []Instantiation                // Track polymorphic instantiations for debugging
 	trackInstantiations bool                           // Whether to track instantiations
 	varCounter          int                            // Counter for generating fresh variable names
+	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -80,6 +81,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
+		effectAnnots:        make(map[uint64][]string),
 	}
 }
 
@@ -92,6 +94,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
+		effectAnnots:        make(map[uint64][]string),
 	}
 }
 
@@ -121,6 +124,11 @@ func (tc *CoreTypeChecker) EnableTraceDefaulting(enable bool) {
 // SetDefaultingConfig sets a custom defaulting configuration
 func (tc *CoreTypeChecker) SetDefaultingConfig(config *DefaultingConfig) {
 	tc.defaultingConfig = config
+}
+
+// SetEffectAnnotations sets effect annotations from elaboration
+func (tc *CoreTypeChecker) SetEffectAnnotations(annots map[uint64][]string) {
+	tc.effectAnnots = annots
 }
 
 // InferWithConstraints infers type with constraints for a Core expression
@@ -433,6 +441,9 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.List:
 		return tc.inferList(ctx, e)
 
+	case *core.Tuple:
+		return tc.inferTuple(ctx, e)
+
 	case *core.Match:
 		return tc.inferMatch(ctx, e)
 
@@ -619,14 +630,27 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	// Restore environment
 	ctx.env = oldEnv
 
-	// Lambda type
-	var bodyEffectRow *Row
-	if effRow := bodyNode.GetEffectRow(); effRow != nil {
-		bodyEffectRow = effRow.(*Row)
+	// Lambda type with effect annotation
+	var funcEffectRow *Row
+
+	// Check for explicit effect annotation from AST
+	if effectNames := tc.effectAnnots[lam.ID()]; len(effectNames) > 0 {
+		// Use explicit annotation
+		var err error
+		funcEffectRow, err = ElaborateEffectRow(effectNames)
+		if err != nil {
+			return nil, oldEnv, fmt.Errorf("invalid effect annotation at %s: %w", lam.Span(), err)
+		}
+	} else {
+		// Infer from body (existing behavior)
+		if effRow := bodyNode.GetEffectRow(); effRow != nil {
+			funcEffectRow = effRow.(*Row)
+		}
 	}
+
 	funcType := &TFunc2{
 		Params:    paramTypes,
-		EffectRow: bodyEffectRow,
+		EffectRow: funcEffectRow,
 		Return:    bodyNode.GetType().(Type),
 	}
 
@@ -1402,6 +1426,35 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 	}, ctx.env, nil
 }
 
+// inferTuple infers type of tuple construction
+func (tc *CoreTypeChecker) inferTuple(ctx *InferenceContext, tuple *core.Tuple) (*typedast.TypedTuple, *TypeEnv, error) {
+	// Infer types for all elements
+	var elements []typedast.TypedNode
+	var elemTypes []Type
+	var allEffects []*Row
+
+	for _, elem := range tuple.Elements {
+		elemNode, _, err := tc.inferCore(ctx, elem)
+		if err != nil {
+			return nil, ctx.env, err
+		}
+		elements = append(elements, elemNode)
+		elemTypes = append(elemTypes, getType(elemNode))
+		allEffects = append(allEffects, getEffectRow(elemNode))
+	}
+
+	return &typedast.TypedTuple{
+		TypedExpr: typedast.TypedExpr{
+			NodeID:    tuple.ID(),
+			Span:      tuple.Span(),
+			Type:      &TTuple{Elements: elemTypes},
+			EffectRow: combineEffectList(allEffects),
+			Core:      tuple,
+		},
+		Elements: elements,
+	}, ctx.env, nil
+}
+
 // inferMatch infers type of pattern matching
 func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) (*typedast.TypedMatch, *TypeEnv, error) {
 	// Infer scrutinee type
@@ -1509,9 +1562,9 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// Literal pattern - scrutinee must match literal type
 		var litType Type
 		switch p.Value.(type) {
-		case int:
+		case int, int64:
 			litType = TInt
-		case float64:
+		case float32, float64:
 			litType = TFloat
 		case string:
 			litType = TString
@@ -1532,6 +1585,101 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 	case *core.WildcardPattern:
 		// Wildcard matches anything, binds nothing
 		return nil, typedast.TypedWildcardPattern{}, nil
+
+	case *core.ConstructorPattern:
+		// Constructor pattern - need to lookup constructor scheme
+		// TODO: This needs access to the module interface to get constructor schemes
+		// For now, we'll do basic checking without constructor validation
+
+		// Recursively check nested patterns
+		// We need to know the field types of this constructor
+		// For now, create fresh type variables for each field
+		bindings := make(map[string]Type)
+		typedArgs := make([]typedast.TypedPattern, len(p.Args))
+
+		for i, argPat := range p.Args {
+			// Create fresh type variable for each argument
+			argType := ctx.freshTypeVar()
+			argBindings, typedArg, err := tc.checkPattern(argPat, argType, ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// Merge bindings
+			for name, typ := range argBindings {
+				if existing, ok := bindings[name]; ok {
+					// Variable bound multiple times - must unify
+					ctx.addConstraint(TypeEq{
+						Left:  existing,
+						Right: typ,
+						Path:  []string{fmt.Sprintf("pattern variable %s", name)},
+					})
+				} else {
+					bindings[name] = typ
+				}
+			}
+			typedArgs[i] = typedArg
+		}
+
+		return bindings, typedast.TypedConstructorPattern{
+			Name: p.Name,
+			Args: typedArgs,
+		}, nil
+
+	case *core.TuplePattern:
+		// Tuple pattern - scrutinee must be tuple type
+		// Extract element types from scrutinee
+		var elemTypes []Type
+
+		// Try to extract tuple type from scrutinee
+		if tupleTy, ok := scrutType.(*TTuple); ok {
+			elemTypes = tupleTy.Elements
+		} else {
+			// Create fresh type variables and add constraint
+			elemTypes = make([]Type, len(p.Elements))
+			for i := range p.Elements {
+				elemTypes[i] = ctx.freshTypeVar()
+			}
+			ctx.addConstraint(TypeEq{
+				Left:  scrutType,
+				Right: &TTuple{Elements: elemTypes},
+				Path:  []string{"tuple pattern"},
+			})
+		}
+
+		// Check that arity matches
+		if len(p.Elements) != len(elemTypes) {
+			return nil, nil, fmt.Errorf("tuple pattern has %d elements but scrutinee has %d",
+				len(p.Elements), len(elemTypes))
+		}
+
+		// Recursively check each element pattern
+		bindings := make(map[string]Type)
+		typedElems := make([]typedast.TypedPattern, len(p.Elements))
+
+		for i, elemPat := range p.Elements {
+			elemBindings, typedElem, err := tc.checkPattern(elemPat, elemTypes[i], ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// Merge bindings
+			for name, typ := range elemBindings {
+				if existing, ok := bindings[name]; ok {
+					// Variable bound multiple times - must unify
+					ctx.addConstraint(TypeEq{
+						Left:  existing,
+						Right: typ,
+						Path:  []string{fmt.Sprintf("pattern variable %s", name)},
+					})
+				} else {
+					bindings[name] = typ
+				}
+			}
+			typedElems[i] = typedElem
+		}
+
+		return bindings, typedast.TypedTuplePattern{
+			Elements: typedElems,
+		}, nil
 
 	default:
 		return nil, nil, fmt.Errorf("pattern type checking not implemented for %T", pat)

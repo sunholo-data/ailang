@@ -1,22 +1,31 @@
 # AILANG Implementation Status
 
-## Current Version: v0.0.9
+## Current Version: v0.0.10
 
 ## Test Coverage: 31.3%
 
-## Recent Milestone: M-P2 Lock-In (Type System Hardening)
+## Recent Milestone: M-P4 Complete (Effect System - Type Level)
 
-**Parser coverage increased: 69% → 70.8%**
+**~1,060 LOC added: Complete type-level effect tracking**
 
-M-P2 adds critical type system infrastructure and validation:
-- ✅ Type alias vs sum type disambiguation (`type Names = [string]` vs `type Color = Red | Green`)
-- ✅ Nested record types (`type User = { addr: { street: string } }`)
-- ✅ Export metadata tracking (`export type PublicAPI = ...`)
-- ✅ REPL/file parsing parity (10 test cases verify consistency)
-- ✅ Per-package coverage gates (prevents regression)
-- ✅ Golden drift protection (CI fails on unintended golden changes)
+M-P4 implements comprehensive effect system infrastructure:
+- ✅ Effect syntax parsing (`func f() -> int ! {IO, FS}`, `\x. body ! {IO}`)
+- ✅ 8 canonical effects: IO, FS, Net, Clock, Rand, DB, Trace, Async
+- ✅ Effect validation with helpful error messages
+- ✅ Effect elaboration (AST strings → typed effect rows)
+- ✅ Type checking integration (effects thread to TFunc2.EffectRow)
+- ✅ 46 tests passing (17 parser + 29 elaboration)
+- ✅ Deterministic normalization (alphabetically sorted)
+- ✅ Purity sentinel (`nil` = pure function)
 
-**Type declarations now fully parse**: aliases, sum types, record types, nested records, generic types, and exports. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**Foundation complete for runtime effect enforcement in v0.2.0**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+
+---
+
+**Previous Milestones:**
+- M-P3: Pattern Matching + ADT Runtime (~600 LOC)
+- M-P2: Type System Hardening (parser coverage 69% → 70.8%)
+- Type System Consolidation (unified TFunc2/TVar2)
 
 ## Component Status
 

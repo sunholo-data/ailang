@@ -12,12 +12,22 @@ import (
 
 // Elaborator transforms surface AST to Core ANF
 type Elaborator struct {
-	nextID       uint64
-	surfaceSpans map[uint64]ast.Pos // Map Core IDs to surface positions
-	freshVarNum  int                // For generating fresh variable names
-	moduleLoader *loader.ModuleLoader
-	filePath     string                    // Current file path for relative imports
-	globalEnv    map[string]core.GlobalRef // Global environment for imports (name -> GlobalRef)
+	nextID          uint64
+	surfaceSpans    map[uint64]ast.Pos         // Map Core IDs to surface positions
+	effectAnnots    map[uint64][]string        // Map Core IDs to effect annotations from AST
+	freshVarNum     int                        // For generating fresh variable names
+	moduleLoader    *loader.ModuleLoader
+	filePath        string                                  // Current file path for relative imports
+	globalEnv       map[string]core.GlobalRef               // Global environment for imports (name -> GlobalRef)
+	constructors    map[string]*ConstructorInfo             // Available constructors (name -> info)
+}
+
+// ConstructorInfo holds information about an available constructor
+type ConstructorInfo struct {
+	TypeName   string // The ADT type name (e.g., "Option")
+	CtorName   string // Constructor name (e.g., "Some")
+	Arity      int    // Number of fields
+	IsImported bool   // Whether this constructor is imported
 }
 
 // NewElaborator creates a new elaborator
@@ -25,21 +35,25 @@ func NewElaborator() *Elaborator {
 	return &Elaborator{
 		nextID:       1,
 		surfaceSpans: make(map[uint64]ast.Pos),
+		effectAnnots: make(map[uint64][]string),
 		freshVarNum:  0,
 		globalEnv:    make(map[string]core.GlobalRef),
+		constructors: make(map[string]*ConstructorInfo),
 	}
 }
 
 // NewElaboratorWithPath creates a new elaborator with file path for imports
-func NewElaboratorWithPath(filePath string) *Elaborator {
+func NewElaboratorWithPath(filePath string) *Elaborator{
 	dir := filepath.Dir(filePath)
 	return &Elaborator{
 		nextID:       1,
 		surfaceSpans: make(map[uint64]ast.Pos),
+		effectAnnots: make(map[uint64][]string),
 		freshVarNum:  0,
 		moduleLoader: loader.NewModuleLoader(dir),
 		filePath:     filePath,
 		globalEnv:    make(map[string]core.GlobalRef),
+		constructors: make(map[string]*ConstructorInfo),
 	}
 }
 
@@ -48,10 +62,46 @@ func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
 	e.globalEnv = env
 }
 
+// RegisterConstructor adds a constructor to the elaborator's constructor map
+func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, isImported bool) {
+	e.constructors[ctorName] = &ConstructorInfo{
+		TypeName:   typeName,
+		CtorName:   ctorName,
+		Arity:      arity,
+		IsImported: isImported,
+	}
+}
+
+// GetConstructors returns all constructors defined in this module (not imported)
+func (e *Elaborator) GetConstructors() map[string]*ConstructorInfo {
+	localConstructors := make(map[string]*ConstructorInfo)
+	for name, info := range e.constructors {
+		if !info.IsImported {
+			localConstructors[name] = info
+		}
+	}
+	return localConstructors
+}
+
+// GetEffectAnnotation returns the effect annotation for a Core node ID
+func (e *Elaborator) GetEffectAnnotation(nodeID uint64) []string {
+	return e.effectAnnots[nodeID]
+}
+
 // Elaborate transforms a surface program to Core ANF
 func (e *Elaborator) Elaborate(prog *ast.Program) (*core.Program, error) {
 	// Check new File structure first (for REPL and bare expressions)
 	if prog.File != nil && prog.File.Module == nil && len(prog.File.Statements) > 0 {
+		// First, process type declarations to register constructors
+		for _, stmt := range prog.File.Statements {
+			if typeDecl, ok := stmt.(*ast.TypeDecl); ok {
+				_, err := e.elaborateTypeDecl(typeDecl)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process type declaration %s: %w", typeDecl.Name, err)
+				}
+			}
+		}
+
 		// Process bare expressions from REPL
 		var coreDecls []core.CoreExpr
 		for _, stmt := range prog.File.Statements {
@@ -98,7 +148,17 @@ func (e *Elaborator) ElaborateExpr(expr ast.Expr) (core.CoreExpr, error) {
 func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	// For REPL/simple cases without module or funcs
 	if file.Module == nil || (len(file.Imports) == 0 && len(file.Funcs) == 0) {
-		// Just elaborate statements as expressions
+		// First, process type declarations to register constructors
+		for _, stmt := range file.Statements {
+			if typeDecl, ok := stmt.(*ast.TypeDecl); ok {
+				_, err := e.elaborateTypeDecl(typeDecl)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process type declaration %s: %w", typeDecl.Name, err)
+				}
+			}
+		}
+
+		// Then elaborate statements as expressions
 		var coreDecls []core.CoreExpr
 		for _, stmt := range file.Statements {
 			if expr, ok := stmt.(ast.Expr); ok {
@@ -110,6 +170,17 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			}
 		}
 		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
+	}
+
+	// First, process type declarations to register constructors
+	// This must happen before function elaboration so constructors are available
+	for _, decl := range file.Decls {
+		if typeDecl, ok := decl.(*ast.TypeDecl); ok {
+			_, err := e.elaborateTypeDecl(typeDecl)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process type declaration %s: %w", typeDecl.Name, err)
+			}
+		}
 	}
 
 	// Build symbol table and imports map
@@ -331,8 +402,41 @@ func (e *Elaborator) elaborateNode(node ast.Node) (core.CoreExpr, error) {
 		return e.elaborateExpr(n)
 	case *ast.FuncDecl:
 		return e.elaborateFuncDecl(n)
+	case *ast.TypeDecl:
+		// Type declarations don't produce Core expressions
+		// They register constructors for use in expressions
+		return e.elaborateTypeDecl(n)
 	default:
 		return nil, fmt.Errorf("elaboration not implemented for %T", node)
+	}
+}
+
+// elaborateTypeDecl processes a type declaration and registers its constructors
+// Type declarations don't produce Core expressions - they have side effects:
+// 1. Register constructors in the elaborator's constructor map
+// 2. Add constructors to the module interface (for exports)
+func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error) {
+	// Extract type name
+	typeName := decl.Name
+
+	// Process the type definition
+	switch def := decl.Definition.(type) {
+	case *ast.AlgebraicType:
+		// Process each constructor in the ADT
+		for _, ctor := range def.Constructors {
+			// Register constructor in elaborator's map
+			e.RegisterConstructor(typeName, ctor.Name, len(ctor.Fields), false)
+		}
+		// Type declarations don't produce code, return nil
+		return nil, nil
+
+	case *ast.RecordType:
+		// Record types don't have constructors (they're structural)
+		// TODO: Handle record type declarations if needed
+		return nil, nil
+
+	default:
+		return nil, fmt.Errorf("unknown type definition: %T", def)
 	}
 }
 
@@ -358,6 +462,19 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		return e.normalizeLiteral(ex)
 
 	case *ast.Identifier:
+		// Check if this is a nullary constructor (e.g., None, True, False)
+		if ctorInfo, isConstructor := e.constructors[ex.Name]; isConstructor && ctorInfo.Arity == 0 {
+			// Nullary constructor: transform None → $adt.make_Option_None
+			// Note: No App node needed - factory is a value, not a function call
+			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorInfo.CtorName)
+			return &core.VarGlobal{
+				CoreNode: e.makeNode(ex.Position()),
+				Ref: core.GlobalRef{
+					Module: "$adt",
+					Name:   factoryName,
+				},
+			}, nil
+		}
 		// Check if this is an imported symbol
 		if ref, ok := e.globalEnv[ex.Name]; ok {
 			return &core.VarGlobal{
@@ -398,10 +515,16 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.List:
 		return e.normalizeList(ex)
 
+	case *ast.Tuple:
+		return e.normalizeTuple(ex)
+
 	case *ast.Match:
 		return e.normalizeMatch(ex)
 
 	default:
+		if expr == nil {
+			return nil, fmt.Errorf("normalization received nil expression")
+		}
 		return nil, fmt.Errorf("normalization not implemented for %T", expr)
 	}
 }
@@ -445,11 +568,24 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 		return nil, err
 	}
 
-	return &core.Lambda{
+	// Create Core Lambda node
+	coreLam := &core.Lambda{
 		CoreNode: e.makeNode(lam.Position()),
 		Params:   params,
 		Body:     body,
-	}, nil
+	}
+
+	// Store effect annotations if present
+	if len(lam.Effects) > 0 {
+		// Validate and normalize effect names
+		_, err := types.ElaborateEffectRow(lam.Effects)
+		if err != nil {
+			return nil, fmt.Errorf("invalid effect annotation: %w", err)
+		}
+		e.effectAnnots[coreLam.ID()] = lam.Effects
+	}
+
+	return coreLam, nil
 }
 
 // normalizeBinaryOp handles binary operations with ANF transformation
@@ -628,7 +764,46 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 
 // normalizeFuncCall handles function application
 func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error) {
-	// Function can be complex, but args must be atomic
+	// Check if this is a constructor call
+	if ident, ok := app.Func.(*ast.Identifier); ok {
+		if ctorInfo, isConstructor := e.constructors[ident.Name]; isConstructor {
+			// This is a constructor! Emit $adt factory call
+			// Transform Some(x) → $adt.make_Option_Some(x)
+			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorInfo.CtorName)
+
+			// Normalize arguments to atomic values
+			var allBindings []binding
+			var atomicArgs []core.CoreExpr
+
+			for _, arg := range app.Args {
+				atomic, binds, err := e.normalizeToAtomic(arg)
+				if err != nil {
+					return nil, err
+				}
+				atomicArgs = append(atomicArgs, atomic)
+				allBindings = append(allBindings, binds...)
+			}
+
+			// Create factory function reference
+			factoryRef := &core.VarGlobal{
+				CoreNode: e.makeNode(app.Position()),
+				Ref: core.GlobalRef{
+					Module: "$adt",
+					Name:   factoryName,
+				},
+			}
+
+			result := &core.App{
+				CoreNode: e.makeNode(app.Position()),
+				Func:     factoryRef,
+				Args:     atomicArgs,
+			}
+
+			return e.wrapWithBindings(result, allBindings), nil
+		}
+	}
+
+	// Not a constructor - handle as normal function call
 	fun, err := e.normalize(app.Func)
 	if err != nil {
 		return nil, err
@@ -728,6 +903,28 @@ func (e *Elaborator) normalizeList(list *ast.List) (core.CoreExpr, error) {
 	return e.wrapWithBindings(result, allBindings), nil
 }
 
+// normalizeTuple handles tuple construction
+func (e *Elaborator) normalizeTuple(tuple *ast.Tuple) (core.CoreExpr, error) {
+	var elements []core.CoreExpr
+	var allBindings []binding
+
+	for _, elem := range tuple.Elements {
+		atomic, binds, err := e.normalizeToAtomic(elem)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, atomic)
+		allBindings = append(allBindings, binds...)
+	}
+
+	result := &core.Tuple{
+		CoreNode: e.makeNode(tuple.Position()),
+		Elements: elements,
+	}
+
+	return e.wrapWithBindings(result, allBindings), nil
+}
+
 // normalizeMatch handles pattern matching
 func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 	// Scrutinee must be atomic
@@ -774,6 +971,33 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		return &core.LitPattern{Value: p.Value}, nil
 	case *ast.WildcardPattern:
 		return &core.WildcardPattern{}, nil
+	case *ast.ConstructorPattern:
+		// Elaborate nested patterns
+		var args []core.CorePattern
+		for _, argPat := range p.Patterns {
+			coreArg, err := e.elaboratePattern(argPat)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, coreArg)
+		}
+		return &core.ConstructorPattern{
+			Name: p.Name,
+			Args: args,
+		}, nil
+	case *ast.TuplePattern:
+		// Elaborate tuple element patterns
+		var elements []core.CorePattern
+		for _, elemPat := range p.Elements {
+			coreElem, err := e.elaboratePattern(elemPat)
+			if err != nil {
+				return nil, err
+			}
+			elements = append(elements, coreElem)
+		}
+		return &core.TuplePattern{
+			Elements: elements,
+		}, nil
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)
 	}

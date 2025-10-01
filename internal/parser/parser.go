@@ -573,13 +573,10 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		p.nextToken()
 		fn.ReturnType = p.parseType()
 
-		// Parse effects if present
+		// Parse effects if present: ! {IO, FS}
 		if p.peekTokenIs(lexer.BANG) {
-			p.nextToken()
-			if p.peekTokenIs(lexer.LBRACE) {
-				p.nextToken()
-				fn.Effects = p.parseEffects()
-			}
+			p.nextToken() // move to BANG
+			fn.Effects = p.parseEffectAnnotation()
 		}
 	}
 
@@ -889,6 +886,11 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 }
 
 func (p *Parser) parsePrefixExpression() ast.Expr {
+	// Special case: BANG followed by LBRACE is an effect annotation, not a prefix operator
+	if p.curTokenIs(lexer.BANG) && p.peekTokenIs(lexer.LBRACE) {
+		return nil // Not a prefix expression, let caller handle it
+	}
+
 	expr := &ast.UnaryOp{
 		Op:  p.curToken.Literal,
 		Pos: p.curPos(),
@@ -1087,6 +1089,12 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 	// Parse body with LOWEST precedence to capture entire expression
 	p.nextToken()
 	lambda.Body = p.parseExpression(LOWEST)
+
+	// Parse optional effect annotation: \x. body ! {IO}
+	if p.peekTokenIs(lexer.BANG) {
+		p.nextToken() // move to BANG
+		lambda.Effects = p.parseEffectAnnotation()
+	}
 
 	// Convert curried parameters to nested lambdas: \x y. body -> \x. \y. body
 	if len(params) == 0 {
@@ -1361,10 +1369,19 @@ func (p *Parser) parseType() ast.Type {
 				p.nextToken() // consume RPAREN
 				p.nextToken() // consume ARROW
 				retType := p.parseType()
+
+				// Parse optional effect annotation: (int) -> string ! {IO}
+				var effects []string
+				if p.peekTokenIs(lexer.BANG) {
+					p.nextToken() // move to BANG
+					effects = p.parseEffectAnnotation()
+				}
+
 				return &ast.FuncType{
-					Params: []ast.Type{firstType},
-					Return: retType,
-					Pos:    startPos,
+					Params:  []ast.Type{firstType},
+					Return:  retType,
+					Effects: effects,
+					Pos:     startPos,
 				}
 			}
 
@@ -1393,10 +1410,19 @@ func (p *Parser) parseType() ast.Type {
 				p.nextToken() // consume RPAREN
 				p.nextToken() // consume ARROW
 				retType := p.parseType()
+
+				// Parse optional effect annotation: (int, string) -> bool ! {IO, FS}
+				var effects []string
+				if p.peekTokenIs(lexer.BANG) {
+					p.nextToken() // move to BANG
+					effects = p.parseEffectAnnotation()
+				}
+
 				return &ast.FuncType{
-					Params: types,
-					Return: retType,
-					Pos:    startPos,
+					Params:  types,
+					Return:  retType,
+					Effects: effects,
+					Pos:     startPos,
 				}
 			}
 
@@ -1836,27 +1862,107 @@ func (p *Parser) parseInstanceDeclaration() ast.Node {
 	return nil
 }
 
-func (p *Parser) parseEffects() []string {
-	effects := []string{}
+// parseEffectAnnotation parses effect annotations: ! {IO, FS, Net}
+// Validates effect names and detects duplicates
+func (p *Parser) parseEffectAnnotation() []string {
+	// Known canonical effect names
+	knownEffects := map[string]bool{
+		"IO":    true,
+		"FS":    true,
+		"Net":   true,
+		"Clock": true,
+		"Rand":  true,
+		"DB":    true,
+		"Trace": true,
+		"Async": true,
+	}
 
-	// We're already at the LBRACE token
+	// We're at the BANG token
+	if !p.expectPeek(lexer.LBRACE) {
+		return nil
+	}
+
+	effects := []string{}
+	seen := make(map[string]bool)
+
+	// Parse comma-separated effect names
 	for !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
 		p.nextToken()
-		if p.curTokenIs(lexer.IDENT) {
-			effects = append(effects, p.curToken.Literal)
+
+		if !p.curTokenIs(lexer.IDENT) {
+			p.report("PAR_EFF004_INVALID",
+				"effect name must be an identifier",
+				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async")
+			continue
 		}
 
+		effectName := p.curToken.Literal
+
+		// Check for unknown effects
+		if !knownEffects[effectName] {
+			// Try to suggest closest match
+			suggestion := p.suggestEffect(effectName, knownEffects)
+			fix := fmt.Sprintf("Did you mean '%s'?", suggestion)
+			p.report("PAR_EFF002_UNKNOWN",
+				fmt.Sprintf("unknown effect '%s'", effectName),
+				fix)
+			// Continue parsing to find more errors
+		}
+
+		// Check for duplicates
+		if seen[effectName] {
+			p.report("PAR_EFF001_DUP",
+				fmt.Sprintf("duplicate effect '%s' in annotation", effectName),
+				fmt.Sprintf("Remove duplicate '%s'", effectName))
+		} else {
+			seen[effectName] = true
+			effects = append(effects, effectName)
+		}
+
+		// Check for comma or closing brace
 		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
 
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken()
+		if !p.expectPeek(lexer.COMMA) {
+			p.reportExpected(lexer.COMMA, "Add ',' between effect names")
+			break
 		}
 	}
 
-	p.expectPeek(lexer.RBRACE)
+	if !p.expectPeek(lexer.RBRACE) {
+		p.reportExpected(lexer.RBRACE, "Add '}' to close effect annotation")
+	}
+
 	return effects
+}
+
+// suggestEffect finds closest matching effect name (simple heuristic)
+func (p *Parser) suggestEffect(name string, known map[string]bool) string {
+	name = strings.ToLower(name)
+
+	// Check exact match ignoring case
+	for k := range known {
+		if strings.ToLower(k) == name {
+			return k
+		}
+	}
+
+	// Check prefix match
+	for k := range known {
+		if strings.HasPrefix(strings.ToLower(k), name) {
+			return k
+		}
+	}
+
+	// Default to IO as most common
+	return "IO"
+}
+
+// parseEffects is deprecated - use parseEffectAnnotation instead
+// Kept for backward compatibility during migration
+func (p *Parser) parseEffects() []string {
+	return p.parseEffectAnnotation()
 }
 
 // parseTestsBlock parses a tests block with the new multi-input format
@@ -1900,8 +2006,53 @@ func (p *Parser) parseRecordPattern() ast.Pattern {
 }
 
 func (p *Parser) parseTuplePattern() ast.Pattern {
-	// TODO: Implement tuple pattern parsing
-	return nil
+	startPos := p.curPos()
+	// We're at LPAREN
+	p.nextToken() // consume LPAREN
+
+	// Empty tuple: ()
+	if p.curTokenIs(lexer.RPAREN) {
+		// Empty tuple pattern (same as Unit pattern)
+		return &ast.Literal{
+			Kind:  ast.UnitLit,
+			Value: nil,
+			Pos:   startPos,
+		}
+	}
+
+	// Parse first element
+	first := p.parsePattern()
+
+	// Single element in parens: (x) - not a tuple, just a grouped pattern
+	if p.peekTokenIs(lexer.RPAREN) {
+		p.nextToken() // consume RPAREN
+		return first
+	}
+
+	// Must be a comma for tuple
+	if !p.peekTokenIs(lexer.COMMA) {
+		p.reportExpected(lexer.COMMA, "Expected ',' for tuple pattern or ')' for grouped pattern")
+		return nil
+	}
+
+	// Parse remaining elements
+	elements := []ast.Pattern{first}
+	for p.peekTokenIs(lexer.COMMA) {
+		p.nextToken() // consume comma
+		if p.peekTokenIs(lexer.RPAREN) {
+			// Trailing comma
+			break
+		}
+		p.nextToken() // move to next element
+		elements = append(elements, p.parsePattern())
+	}
+
+	p.expectPeek(lexer.RPAREN)
+
+	return &ast.TuplePattern{
+		Elements: elements,
+		Pos:      startPos,
+	}
 }
 
 func (p *Parser) literalKind() ast.LiteralKind {

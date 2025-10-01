@@ -25,14 +25,27 @@ func NewBuilder(module string, typeEnv *types.TypeEnv) *Builder {
 	}
 }
 
+// ConstructorInfo represents constructor information for interface building
+type ConstructorInfo struct {
+	TypeName string
+	CtorName string
+	Arity    int
+}
+
 // BuildInterface extracts the typed interface from a Core program
 func BuildInterface(module string, prog *core.Program, typeEnv *types.TypeEnv) (*Iface, error) {
 	builder := NewBuilder(module, typeEnv)
-	return builder.Build(prog)
+	return builder.Build(prog, nil)
+}
+
+// BuildInterfaceWithConstructors builds an interface with constructor information
+func BuildInterfaceWithConstructors(module string, prog *core.Program, typeEnv *types.TypeEnv, constructors map[string]*ConstructorInfo) (*Iface, error) {
+	builder := NewBuilder(module, typeEnv)
+	return builder.Build(prog, constructors)
 }
 
 // Build constructs the interface from a Core program
-func (b *Builder) Build(prog *core.Program) (*Iface, error) {
+func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo) (*Iface, error) {
 	iface := NewIface(b.module)
 
 	// Extract exportable bindings from the program
@@ -75,6 +88,24 @@ func (b *Builder) Build(prog *core.Program) (*Iface, error) {
 		}
 
 		iface.Exports[name] = item
+	}
+
+	// Add constructors to interface if provided
+	if constructors != nil {
+		for ctorName, ctorInfo := range constructors {
+			// For now, we don't have full type information for constructor fields
+			// We'll use placeholder types that will be refined later
+			// The TypeName from the ADT declaration becomes the result type
+			resultType := &types.TCon{Name: ctorInfo.TypeName}
+
+			// Create placeholder field types (will be refined by type checker)
+			fieldTypes := make([]types.Type, ctorInfo.Arity)
+			for i := 0; i < ctorInfo.Arity; i++ {
+				fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
+			}
+
+			iface.AddConstructor(ctorInfo.TypeName, ctorName, fieldTypes, resultType)
+		}
 	}
 
 	// Compute deterministic digest
@@ -229,20 +260,31 @@ type ifaceItem struct {
 	Effects []string `json:"effects,omitempty"`
 }
 
+// ctorItem is used for JSON serialization of constructors
+type ctorItem struct {
+	TypeName   string   `json:"type_name"`
+	CtorName   string   `json:"ctor_name"`
+	FieldTypes []string `json:"field_types"`
+	ResultType string   `json:"result_type"`
+	Arity      int      `json:"arity"`
+}
+
 // computeDigest computes a deterministic digest of the interface
 func (b *Builder) computeDigest(iface *Iface) (string, error) {
 	// Create a deterministic JSON representation
 	type jsonIface struct {
-		Module  string               `json:"module"`
-		Schema  string               `json:"schema"`
-		Exports map[string]ifaceItem `json:"exports"`
+		Module       string               `json:"module"`
+		Schema       string               `json:"schema"`
+		Exports      map[string]ifaceItem `json:"exports"`
+		Constructors map[string]ctorItem  `json:"constructors,omitempty"`
 	}
 
 	// Convert to JSON-friendly format with sorted keys
 	ji := jsonIface{
-		Module:  iface.Module,
-		Schema:  iface.Schema,
-		Exports: make(map[string]ifaceItem),
+		Module:       iface.Module,
+		Schema:       iface.Schema,
+		Exports:      make(map[string]ifaceItem),
+		Constructors: make(map[string]ctorItem),
 	}
 
 	// Sort export names for deterministic ordering
@@ -259,6 +301,28 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 			Type:    b.schemeToString(item.Type),
 			Pure:    item.Purity,
 			Effects: []string{}, // Placeholder for future effect system
+		}
+	}
+
+	// Sort constructor names for deterministic ordering
+	var ctorNames []string
+	for name := range iface.Constructors {
+		ctorNames = append(ctorNames, name)
+	}
+	sort.Strings(ctorNames)
+
+	for _, name := range ctorNames {
+		ctor := iface.Constructors[name]
+		fieldTypeStrs := make([]string, len(ctor.FieldTypes))
+		for i, ft := range ctor.FieldTypes {
+			fieldTypeStrs[i] = ft.String()
+		}
+		ji.Constructors[name] = ctorItem{
+			TypeName:   ctor.TypeName,
+			CtorName:   ctor.CtorName,
+			FieldTypes: fieldTypeStrs,
+			ResultType: ctor.ResultType.String(),
+			Arity:      ctor.Arity,
 		}
 	}
 

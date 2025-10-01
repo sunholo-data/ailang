@@ -71,6 +71,24 @@ func (l *ListValue) String() string {
 	return result
 }
 
+// TupleValue represents a tuple of values
+type TupleValue struct {
+	Elements []Value
+}
+
+func (t *TupleValue) Type() string { return "tuple" }
+func (t *TupleValue) String() string {
+	result := "("
+	for i, elem := range t.Elements {
+		if i > 0 {
+			result += ", "
+		}
+		result += elem.String()
+	}
+	result += ")"
+	return result
+}
+
 // RecordValue represents a record (struct) value
 type RecordValue struct {
 	Fields map[string]Value
@@ -118,3 +136,28 @@ type ErrorValue struct {
 
 func (e *ErrorValue) Type() string   { return "error" }
 func (e *ErrorValue) String() string { return fmt.Sprintf("Error: %s", e.Message) }
+
+// TaggedValue represents an ADT constructor at runtime
+type TaggedValue struct {
+	TypeName string  // The ADT name (e.g., "Option")
+	CtorName string  // Constructor name (e.g., "Some", "None")
+	Fields   []Value // Constructor field values
+}
+
+func (t *TaggedValue) Type() string { return t.TypeName }
+func (t *TaggedValue) String() string {
+	if len(t.Fields) == 0 {
+		// Nullary constructor: None
+		return t.CtorName
+	}
+	// Constructor with fields: Some(42)
+	result := t.CtorName + "("
+	for i, field := range t.Fields {
+		if i > 0 {
+			result += ", "
+		}
+		result += field.String()
+	}
+	result += ")"
+	return result
+}
