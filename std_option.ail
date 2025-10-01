@@ -1,0 +1,22 @@
+module std_option
+
+export type Option[a] = Some(a) | None
+
+export pure func map[a, b](f: (a) -> b, opt: Option[a]) -> Option[b] {
+  match opt { Some(x) => Some(f(x)), None => None }
+}
+
+export pure func flatMap[a, b](f: (a) -> Option[b], opt: Option[a]) -> Option[b] {
+  match opt { Some(x) => f(x), None => None }
+}
+
+export pure func getOrElse[a](opt: Option[a], d: a) -> a {
+  match opt { Some(x) => x, None => d }
+}
+
+export pure func isSome[a](opt: Option[a]) -> bool { match opt { Some(_) => true, None => false } }
+export pure func isNone[a](opt: Option[a]) -> bool { !isSome(opt) }
+
+export pure func filter[a](p: (a) -> bool, opt: Option[a]) -> Option[a] {
+  match opt { Some(x) => if p(x) then Some(x) else None, None => None }
+}

@@ -1,0 +1,23 @@
+module std_result
+
+export type Result[a, e] = Ok(a) | Err(e)
+
+export pure func map[a, b, e](f: (a) -> b, r: Result[a, e]) -> Result[b, e] {
+  match r { Ok(x) => Ok(f(x)), Err(e) => Err(e) }
+}
+
+export pure func mapErr[a, e1, e2](f: (e1) -> e2, r: Result[a, e1]) -> Result[a, e2] {
+  match r { Ok(x) => Ok(x), Err(e) => Err(f(e)) }
+}
+
+export pure func flatMap[a, b, e](f: (a) -> Result[b, e], r: Result[a, e]) -> Result[b, e] {
+  match r { Ok(x) => f(x), Err(e) => Err(e) }
+}
+
+export pure func isOk[a, e](r: Result[a, e]) -> bool { match r { Ok(_) => true, Err(_) => false } }
+export pure func isErr[a, e](r: Result[a, e]) -> bool { !isOk(r) }
+
+-- UNSAFE: panics on Err(e). Use only in tests or when error is impossible.
+export pure func unwrap[a, e](r: Result[a, e]) -> a {
+  match r { Ok(x) => x, Err(e) => panic("unwrap called on Err: " ++ show(e)) }
+}

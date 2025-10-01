@@ -1,0 +1,14 @@
+-- Test if function declarations with pattern matching work
+module .tmp/test_func_pattern
+
+type Option[a] = Some(a) | None
+
+export func getOrElse[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+
+-- Test it
+getOrElse(Some(42), 0)

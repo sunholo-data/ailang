@@ -1,0 +1,19 @@
+module std_string
+
+export pure func length(s: string) -> int { _str_len(s) }
+export pure func concat(s1: string, s2: string) -> string { s1 ++ s2 }
+
+-- Substring with exclusive end index. Builtin handles bounds checking.
+export pure func substring(s: string, start: int, end: int) -> string { _str_slice(s, start, end) }
+
+export pure func join(strs: [string], sep: string) -> string {
+  match strs {
+    [] => "",
+    [x] => x,
+    [x, ...rest] => x ++ sep ++ join(rest, sep)
+  }
+}
+
+export pure func toUpper(s: string) -> string { _str_upper(s) }
+export pure func toLower(s: string) -> string { _str_lower(s) }
+export pure func trim(s: string) -> string { _str_trim(s) }

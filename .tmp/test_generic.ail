@@ -1,0 +1,14 @@
+-- Test generic function parsing
+module test_generic
+
+type Option[a] = Some(a) | None
+
+export func getOrElse[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+
+-- Test it
+getOrElse(Some(42), 0)

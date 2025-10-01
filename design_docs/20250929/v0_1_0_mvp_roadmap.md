@@ -147,12 +147,26 @@ match Some(42) {
 
 ### ⚠️ What's Broken/Missing
 
-**Parser Issues** (MOSTLY FIXED in v0.0.8-0.0.9):
+**Parser Issues** (MOSTLY FIXED in v0.0.8-0.0.9, NEW ISSUES Oct 1):
 - ✅ `func` declarations work in files (test_export_func.ail passes)
 - ✅ `module`/`import` statements work (basic cases proven)
 - ✅ **`type` definitions work** (M-P3: ADTs fully supported)
+- ✅ **Generic type parameters** work: `func map[a, b]` syntax fixed (Oct 1, 2025)
+- ❌ **Pattern matching in function bodies** - CRITICAL BLOCKER for stdlib (discovered Oct 1)
 - ❌ Test/property syntax broken
 - ❌ `?` operator not implemented
+
+**Parser Discovery (October 1, 2025)** - Two Issues Found:
+1. ✅ **FIXED**: Generic type parameter bug - `parseTypeParams()` left parser at wrong position
+   - **Fix**: Adjusted token positioning after type param parsing (lines 554-582 in parser.go)
+   - **Impact**: `export func map[a, b](f: (a) -> b, xs: [a]) -> [b]` now parses correctly
+   - **Time**: 5 minutes to fix, verified with test case
+
+2. ❌ **NEW BLOCKER**: Pattern matching doesn't work inside function bodies
+   - **Symptom**: `match xs { [] => ..., [x, ...rest] => ... }` fails inside functions
+   - **Works**: Same patterns work at top-level (proven by `adt_simple.ail`)
+   - **Impact**: BLOCKS stdlib implementation in AILANG (all stdlib uses pattern matching)
+   - **Estimate**: 1-2 days to fix (parser context issue, not missing feature)
 
 **Pattern Matching Limitations** (M-P3):
 - ⚠️ Let bindings with constructors have elaboration bug
@@ -302,21 +316,82 @@ func process(path: string) -> Result[string] ! {FS, Net} {
 - ✅ 46 tests passing (17 parser + 29 elaboration)
 - ✅ **NO runtime enforcement** (correctly deferred to v0.2.0)
 
-#### D. Minimal Stdlib (2 days)
+#### D. Parser Enhancement: Pattern Matching in Function Bodies (1-2 days) - 🚧 **NEW REQUIREMENT**
 
-**Goal**: Essential functions for examples and testing
+**Status**: ⚠️ **BLOCKER DISCOVERED** (Oct 1, 2025 during stdlib implementation)
 
-**Modules**:
+**Discovery Summary**:
+- ✅ **Fixed**: Generic type parameter parsing (`func map[a, b]`) - 1-line fix COMPLETE
+- ❌ **New Blocker**: Pattern matching doesn't work inside function bodies in module files
+- ✅ **Works**: Pattern matching at top-level (proven by `adt_simple.ail`)
+- ❌ **Broken**: Pattern matching inside `export func` bodies
+
+**Evidence**:
 ```ailang
-std/prelude    -- Num, Eq, Ord, Show (already exists)
-std/list       -- map, filter, fold, length, head, tail
-std/string     -- concat (++), length, substring
-std/option     -- Option[a], map, flatMap, getOrElse
-std/io         -- print (stub implementation with effects)
+-- ✅ THIS WORKS (top-level in module):
+module test
+type Option[a] = Some(a) | None
+match Some(42) { Some(n) => n, None => 0 }  -- Evaluates to 42
+
+-- ❌ THIS FAILS (inside function body):
+export func getOrElse[a](opt: Option[a], d: a) -> a {
+  match opt {  -- Parser error: "expected =>, got ] instead"
+    Some(x) => x,
+    None => d
+  }
+}
 ```
 
-**Implementation**: ~600 LOC
-**Acceptance**: Example programs use stdlib functions
+**Root Cause**: Parser's `parseMatchExpression()` works in statement/expression contexts but fails inside function body blocks. Likely related to block parsing scope or token context tracking.
+
+**Impact**: Cannot implement stdlib in AILANG for v0.1.0 without this fix.
+
+**Tasks**:
+1. **Fix pattern parsing in function bodies** (~1 day)
+   - Debug why `parseMatchExpression()` fails inside `parseFunctionBody()`
+   - Ensure all pattern types work: literals, lists `[]`, spreads `...`, constructors, tuples
+   - Test nested patterns: `Some([x, ...xs])`
+
+2. **Add comprehensive parser tests** (~0.5 days)
+   - Test patterns in function bodies: `internal/parser/func_pattern_test.go`
+   - Test list patterns: `[]`, `[x]`, `[x, ...rest]`
+   - Test constructor patterns in functions
+   - Test nested match expressions
+
+**Lines**: ~200 LOC parser changes + ~300 LOC tests = ~500 LOC
+**Acceptance**:
+- [ ] All list patterns parse inside functions: `match xs { [] => ..., [x, ...rest] => ... }`
+- [ ] Stdlib modules parse without errors
+- [ ] Pattern matching parity: top-level == function body
+
+---
+
+#### E. Minimal Stdlib in AILANG (1 day) - 📋 **DEPENDS ON D**
+
+**Goal**: Dogfood AILANG by implementing stdlib in .ail files (NOT Go builtins)
+
+**Prerequisites**: Section D (pattern matching in functions) MUST be complete
+
+**Modules** (code already written, ready to drop in):
+```ailang
+std_list       -- map, filter, fold, length, head, tail (~180 LOC)
+std_string     -- length, join, substring (~40 LOC, uses builtins)
+std_option     -- Option[a], map, flatMap, getOrElse (~50 LOC)
+std_result     -- Result[a,e], map, flatMap, isOk, unwrap (~70 LOC)
+std_io         -- print, println, debug with ! {IO} effects (~20 LOC)
+```
+
+**Builtins Already Implemented** (Oct 1, 2025):
+- ✅ String primitives: `_str_len`, `_str_slice`, `_str_compare`, `_str_find`, `_str_upper`, `_str_lower`, `_str_trim` (~150 LOC)
+- ✅ IO primitives: `_io_print`, `_io_println`, `_io_readLine` with `IsPure: false`
+- ✅ All builtins compile and are ready to use
+
+**Implementation**: ~360 LOC stdlib + ~200 LOC tests = ~560 LOC total
+**Acceptance**:
+- [ ] All stdlib modules parse and type-check
+- [ ] `import std_list (map, filter)` works
+- [ ] Effect annotations verified: `println` has `! {IO}`
+- [ ] Example programs use stdlib functions
 
 #### E. Fix Examples & Documentation (2 days)
 
@@ -365,7 +440,7 @@ std/io         -- print (stub implementation with effects)
 
 ### Timeline Summary
 
-**Total Time**: ~~13 days~~ ~~10 days~~ ~~9.5 days~~ **~6.5 days remaining** (~1.5 weeks) - Way ahead of schedule!
+**Total Time**: ~~13 days~~ ~~10 days~~ ~~9.5 days~~ ~~6.5 days~~ **~8 days remaining** (~2 weeks) - Still ahead!
 
 | Week | Task | Days | Status |
 |------|------|------|--------|
@@ -373,13 +448,22 @@ std/io         -- print (stub implementation with effects)
 | ~~Week 2~~ | ~~Pattern matching + Effect system~~ | ~~7~~ | ✅ Patterns done (M-P3) |
 | ~~**Type Migration**~~ | ~~**Type system consolidation**~~ | ~~1~~ | ✅ **Done (Oct 1)** |
 | ~~**M-P4**~~ | ~~**Effect system (type-level only)**~~ | ~~3~~ | ✅ **Done (Oct 1)** |
-| **Week 1** | **Stdlib + Examples** | **3** | 📋 Next |
-| **Week 2** | **Documentation + Polish** | **3** | 📋 Final |
+| ~~**Parser Fix**~~ | ~~**Generic type params**~~ | ~~0.1~~ | ✅ **Done (Oct 1)** |
+| **Day 1-2** | **Parser: patterns in functions** | **1.5** | 📋 **NEXT** |
+| **Day 3** | **Stdlib in AILANG** | **1** | 📋 Blocked |
+| **Day 4-5** | **Examples + Documentation** | **2** | 📋 Final |
+| **Buffer** | **Testing + Polish** | **3.4** | 📋 Reserve |
 
 **Progress**:
 - M-P3 delivered ~600 LOC ahead of schedule (saved ~3 days)
 - Type consolidation completed in 1 hour (saved 1-2 days buffer time)
 - M-P4 completed in 3 days (saved ~1 day from 4-day estimate)
+- Generic type params fix: 5 minutes (saved ~0.4 days from 0.5 day estimate)
+
+**New Discovery (Oct 1)**:
+- Pattern matching in functions blocker adds ~1.5 days
+- Builtins already implemented saves ~0.5 days (was part of stdlib estimate)
+- Net impact: +1 day to timeline (still 3.4 days buffer remaining)
 
 **Milestone**: Ship v0.1.0 with **solid foundations** for v0.2.0 runtime features
 

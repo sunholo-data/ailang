@@ -25,7 +25,6 @@ Execute an approved sprint plan with continuous progress tracking, testing, lint
 3. **Document as You Go**: Update CHANGELOG.md and sprint plan progressively
 4. **Pause for Breath**: Stop at natural breakpoints for review and approval
 5. **Track Everything**: Use TodoWrite to maintain visible progress
-6. **Commit Often**: Commit after each completed milestone/task
 
 ## Execution Flow
 
@@ -91,21 +90,7 @@ For each milestone in the sprint:
    - Update sprint plan with completion status (✅)
    - Add metrics (actual LOC vs estimated, time spent)
 
-#### Step 6: Commit
-   - Stage all changes: `git add <relevant-files>`
-   - Commit with descriptive message:
-     ```
-     Complete <milestone-name>
-
-     - <Implementation detail>
-     - <Test coverage detail>
-     - <LOC count>
-
-     Part of sprint: <sprint-name>
-     ```
-   - Update TodoWrite: mark milestone as `completed`
-
-#### Step 7: Pause for Breath
+#### Step 6: Pause for Breath
    After each milestone:
    - Show summary of what was completed
    - Show current sprint progress (X of Y milestones done)

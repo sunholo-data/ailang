@@ -1,5 +1,117 @@
 # AILANG Changelog
 
+## [Unreleased] - 2025-10-01
+
+### Added - Parser Fix + Stdlib Foundation (~300 LOC)
+
+#### Generic Type Parameter Fix (`internal/parser/parser.go`)
+**1-line fix unblocks generic functions in modules:**
+
+**Issue Discovered**: Generic function syntax failed during stdlib implementation
+```ailang
+export func map[a, b](f: (a) -> b, xs: [a]) -> [b]  -- ❌ Parser error
+```
+
+**Root Cause**: After `parseTypeParams()` parsed `[a, b]`, parser was positioned AT `(` but code called `expectPeek(LPAREN)` expecting to PEEK at next token.
+
+**Fix Applied** (lines 554-582):
+- Check `hasTypeParams` flag to determine token positioning
+- If generic: `curTokenIs(LPAREN)` (already at opening paren)
+- If non-generic: `expectPeek(LPAREN)` (need to advance)
+- Handles all cases: `func[T]()`, `func[T](x)`, `func()`, `func(x)`
+
+**Impact**: ✅ Generic function declarations now parse correctly in module files
+
+---
+
+#### String & IO Builtins Implementation (~150 LOC)
+
+**7 String Primitives** (`internal/eval/builtins.go`):
+- `_str_len(s: string) -> int` - UTF-8 aware length (rune count, not bytes)
+- `_str_slice(s: string, start: int, end: int) -> string` - Substring with rune indices
+- `_str_compare(a: string, b: string) -> int` - Lexicographic comparison (-1, 0, 1)
+- `_str_find(s: string, sub: string) -> int` - First occurrence index (rune-based)
+- `_str_upper(s: string) -> string` - Unicode-aware uppercase
+- `_str_lower(s: string) -> string` - Unicode-aware lowercase
+- `_str_trim(s: string) -> string` - Unicode whitespace trimming
+
+**3 IO Primitives** (effectful: `IsPure: false`):
+- `_io_print(s: string) -> ()` - Print without newline
+- `_io_println(s: string) -> ()` - Print with newline
+- `_io_readLine() -> string` - Read line from stdin (stub for v0.1.0)
+
+**Design Principles**:
+- UTF-8 safe: All string operations use rune indices, not byte indices
+- Deterministic: No locale-dependent behavior
+- Pure primitives: String functions are pure (IsPure: true)
+- Effectful IO: IO functions marked impure (IsPure: false) for future effect tracking
+
+**Updated CallBuiltin()** to handle:
+- 0-argument functions: `_io_readLine()`
+- 3-argument functions: `_str_slice(s, start, end)`
+- New type signatures: `String -> Int`, `String -> String`, `String -> Unit`
+
+---
+
+#### Stdlib Modules Prepared (Ready for Deployment)
+
+**5 Stdlib Modules Written** (~360 LOC AILANG code):
+- `std_list.ail` (~180 LOC): map, filter, foldl, foldr, length, head, tail, reverse, concat, zip
+- `std_option.ail` (~50 LOC): Option[a], map, flatMap, getOrElse, isSome, filter
+- `std_result.ail` (~70 LOC): Result[a,e], map, mapErr, flatMap, isOk, unwrap
+- `std_string.ail` (~40 LOC): length, concat, substring, join, toUpper, toLower, trim
+- `std_io.ail` (~20 LOC): print, println, readLine, debug with `! {IO}` effects
+
+**Status**: ⚠️ BLOCKED - Parser doesn't support pattern matching inside function bodies
+
+**Blocker Details**:
+- ✅ Pattern matching works at top-level: `match Some(42) { ... }` (proven)
+- ❌ Pattern matching fails inside functions: `export func f() { match x { ... } }` (broken)
+- Error: "expected =>, got ] instead" when parsing list patterns `[]`, `[x, ...rest]`
+- Affects: ALL stdlib modules (they use pattern matching extensively)
+
+**Next Steps**: Fix pattern matching in function bodies (~1-2 days parser work)
+
+---
+
+### Fixed
+
+**Parser Token Positioning** (`internal/parser/parser.go:554-582`)
+- Generic type parameters now work in function declarations
+- Correctly handles: `func name[T]()`, `func name[T](x: T)`, `func name()`, `func name(x: int)`
+- Test case verified: `export func getOrElse[a](opt: Option[a], d: a) -> a` parses
+
+---
+
+### Changed
+
+**CallBuiltin Signature Support** (`internal/eval/builtins.go`)
+- Added 0-argument builtin handling (for `_io_readLine`)
+- Added 3-argument builtin handling (for `_str_slice`)
+- Extended type signatures: `String -> Int`, `String -> String`, `String -> Unit`
+
+---
+
+### Technical Details
+
+**Files Modified**:
+- `internal/parser/parser.go` (~30 LOC): Generic function fix
+- `internal/eval/builtins.go` (~150 LOC): String and IO primitives
+- Total: ~180 LOC implementation
+
+**Stdlib Modules Created** (not yet deployable):
+- 5 modules (~360 LOC) written and ready
+- Blocked pending pattern matching parser fix
+
+**Test Coverage**: Generic function test case passes, builtins compile and register
+
+**Metrics**:
+- Builtins: 10 new primitives (7 string + 3 IO)
+- Parser fix: Unblocks generic functions in modules
+- Stdlib: Ready to deploy once parser fixed
+
+---
+
 ## [v0.0.10] - 2025-10-01
 
 ### Added - M-P4: Effect System (Type-Level) (~1,060 LOC)

@@ -1,0 +1,25 @@
+-- Test std/list functions
+import std/list (map, filter, foldl, length, head, reverse)
+
+let nums = [1, 2, 3, 4, 5]
+
+-- Test map
+let doubled = map(\x. x * 2, nums)
+
+-- Test filter
+let evens = filter(\x. x % 2 == 0, doubled)
+
+-- Test foldl
+let sum = foldl(\acc. \x. acc + x, 0, evens)
+
+-- Test length
+let len = length(evens)
+
+-- Test head
+let first = head(nums)
+
+-- Test reverse
+let rev = reverse(nums)
+
+-- Simple expression for now (will add proper test framework later)
+sum

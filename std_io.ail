@@ -1,0 +1,10 @@
+module std_io
+
+export func print(s: string) -> () ! {IO} { _io_print(s) }
+export func println(s: string) -> () ! {IO} { _io_println(s) }
+export func readLine() -> string ! {IO} { _io_readLine() }
+
+export func debug[a](label: string, value: a) -> a ! {IO} {
+  _io_println(label ++ ": " ++ show(value))
+  value
+}

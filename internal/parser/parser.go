@@ -555,14 +555,28 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	if p.peekTokenIs(lexer.LBRACKET) {
 		p.nextToken()
 		fn.TypeParams = p.parseTypeParams()
+		// After parseTypeParams(), we're now AT the token after ]
+		// For generic functions: func name[T](params), we're at (
+		// No need to peek - we're already positioned correctly
 	}
 
 	// Parse parameters
-	if p.peekTokenIs(lexer.UNIT) {
-		// Empty parameter list
+	hasTypeParams := len(fn.TypeParams) > 0
+
+	if hasTypeParams && p.curTokenIs(lexer.UNIT) {
+		// Generic function with unit parameter: func name[T]()
+		fn.Params = []*ast.Param{}
+		p.nextToken() // consume UNIT
+	} else if hasTypeParams && p.curTokenIs(lexer.LPAREN) {
+		// Generic function with parameters: func name[T](x: T)
+		// Already at LPAREN after parseTypeParams()
+		fn.Params = p.parseParams()
+	} else if !hasTypeParams && p.peekTokenIs(lexer.UNIT) {
+		// Non-generic function with unit parameter: func name()
 		p.nextToken()
 		fn.Params = []*ast.Param{}
 	} else {
+		// Non-generic function with parameters: func name(x: int)
 		p.expectPeek(lexer.LPAREN)
 		fn.Params = p.parseParams()
 	}
