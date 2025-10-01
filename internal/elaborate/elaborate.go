@@ -521,6 +521,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Let:
 		return e.normalizeLet(ex)
 
+	case *ast.Block:
+		return e.normalizeBlock(ex)
+
 	case *ast.FuncCall:
 		return e.normalizeFuncCall(ex)
 
@@ -778,6 +781,53 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			Body:     body,
 		}, nil
 	}
+}
+
+// normalizeBlock converts a block of semicolon-separated expressions
+// into nested Let expressions: { e1; e2; e3 } => let _ = e1 in let _ = e2 in e3
+func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
+	// Empty block: should not happen but handle gracefully
+	if len(block.Exprs) == 0 {
+		// Return unit literal
+		return &core.Lit{
+			CoreNode: e.makeNode(block.Position()),
+			Kind:     core.UnitLit,
+			Value:    "()",
+		}, nil
+	}
+
+	// Single expression: just normalize it directly
+	if len(block.Exprs) == 1 {
+		return e.normalize(block.Exprs[0])
+	}
+
+	// Multiple expressions: convert to nested Lets
+	// Start with the last expression (the return value)
+	result, err := e.normalize(block.Exprs[len(block.Exprs)-1])
+	if err != nil {
+		return nil, err
+	}
+
+	// Work backwards through the expressions, wrapping each in a Let
+	for i := len(block.Exprs) - 2; i >= 0; i-- {
+		value, err := e.normalize(block.Exprs[i])
+		if err != nil {
+			return nil, err
+		}
+
+		// Use a wildcard name for the binding since we're discarding the result
+		// Generate unique names to avoid conflicts
+		bindingName := fmt.Sprintf("_block_%d", i)
+
+		result = &core.Let{
+			CoreNode: e.makeNode(block.Position()),
+			Name:     bindingName,
+			Value:    value,
+			Body:     result,
+		}
+	}
+
+	return result, nil
 }
 
 // normalizeFuncCall handles function application

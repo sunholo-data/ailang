@@ -225,6 +225,23 @@ func (l *Let) String() string {
 func (l *Let) Position() Pos { return l.Pos }
 func (l *Let) exprNode()     {}
 
+// Block represents a sequence of expressions separated by semicolons
+// The last expression is the return value, others are evaluated for effects
+type Block struct {
+	Exprs []Expr
+	Pos   Pos
+}
+
+func (b *Block) String() string {
+	var parts []string
+	for _, expr := range b.Exprs {
+		parts = append(parts, expr.String())
+	}
+	return fmt.Sprintf("{ %s }", strings.Join(parts, "; "))
+}
+func (b *Block) Position() Pos { return b.Pos }
+func (b *Block) exprNode()     {}
+
 // If represents a conditional expression
 type If struct {
 	Condition Expr

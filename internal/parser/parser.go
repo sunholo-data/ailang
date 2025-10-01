@@ -659,8 +659,8 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 			return nil
 		}
 	}
-	p.nextToken() // move past LBRACE
-	fn.Body = p.parseExpression(LOWEST)
+	// Parse body as a block (semicolon-separated expressions)
+	fn.Body = p.parseFunctionBody()
 	if !p.expectPeek(lexer.RBRACE) {
 		return nil
 	}
@@ -668,6 +668,56 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	endPos := p.curPos()
 	fn.Span = ast.Span{Start: startPos, End: endPos}
 	return fn
+}
+
+// parseFunctionBody parses a function body as a block of semicolon-separated expressions
+// Assumes we're currently AT the LBRACE token
+// Returns either a single expression or a Block containing multiple expressions
+func (p *Parser) parseFunctionBody() ast.Expr {
+	startPos := p.curPos()
+	p.nextToken() // move past LBRACE
+
+	// Empty body: {}
+	if p.curTokenIs(lexer.RBRACE) {
+		return &ast.Block{
+			Exprs: []ast.Expr{},
+			Pos:   startPos,
+		}
+	}
+
+	// Parse first expression
+	var exprs []ast.Expr
+	expr := p.parseExpression(LOWEST)
+	if expr != nil {
+		exprs = append(exprs, expr)
+	}
+
+	// Continue parsing while we see semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // move to SEMICOLON
+		p.nextToken() // move past SEMICOLON
+
+		// Skip trailing semicolon before closing brace
+		if p.curTokenIs(lexer.RBRACE) {
+			break
+		}
+
+		expr = p.parseExpression(LOWEST)
+		if expr != nil {
+			exprs = append(exprs, expr)
+		}
+	}
+
+	// If we only have one expression, return it directly (not wrapped in a Block)
+	if len(exprs) == 1 {
+		return exprs[0]
+	}
+
+	// Multiple expressions: return as a Block
+	return &ast.Block{
+		Exprs: exprs,
+		Pos:   startPos,
+	}
 }
 
 // parseExpression parses an expression with precedence
@@ -854,49 +904,105 @@ func (p *Parser) parseListLiteral() ast.Expr {
 }
 
 func (p *Parser) parseRecordLiteral() ast.Expr {
-	record := &ast.Record{
-		Pos: p.curPos(),
+	startPos := p.curPos()
+	p.nextToken() // move past LBRACE
+
+	// Empty block: {}
+	if p.curTokenIs(lexer.RBRACE) {
+		return &ast.Block{
+			Exprs: []ast.Expr{},
+			Pos:   startPos,
+		}
 	}
 
-	p.nextToken()
+	// Peek ahead to determine if this is a record literal or a block
+	// Record literals have the pattern: IDENT COLON ...
+	// Blocks have expressions (which might start with anything)
+	isRecord := p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON)
 
-	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
-		field := &ast.Field{
-			Pos: p.curPos(),
+	if isRecord {
+		// Parse as record literal
+		record := &ast.Record{
+			Pos: startPos,
 		}
 
-		if !p.curTokenIs(lexer.IDENT) {
-			p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
-			return nil
-		}
+		for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+			field := &ast.Field{
+				Pos: p.curPos(),
+			}
 
-		field.Name = p.curToken.Literal
+			if !p.curTokenIs(lexer.IDENT) {
+				p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
+				return nil
+			}
 
-		if !p.expectPeek(lexer.COLON) {
-			return nil
-		}
-		p.nextToken()
+			field.Name = p.curToken.Literal
 
-		field.Value = p.parseExpression(LOWEST)
-		record.Fields = append(record.Fields, field)
-
-		if p.peekTokenIs(lexer.RBRACE) {
+			if !p.expectPeek(lexer.COLON) {
+				return nil
+			}
 			p.nextToken()
+
+			field.Value = p.parseExpression(LOWEST)
+			record.Fields = append(record.Fields, field)
+
+			if p.peekTokenIs(lexer.RBRACE) {
+				p.nextToken()
+				break
+			}
+
+			if !p.expectPeek(lexer.COMMA) {
+				return nil
+			}
+			p.nextToken()
+		}
+
+		if !p.curTokenIs(lexer.RBRACE) {
+			p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
+			return nil
+		}
+
+		return record
+	} else {
+		// Parse as block (semicolon-separated expressions)
+		block := &ast.Block{
+			Pos: startPos,
+		}
+
+		for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+			expr := p.parseExpression(LOWEST)
+			if expr != nil {
+				block.Exprs = append(block.Exprs, expr)
+			}
+
+			// If we see a semicolon, consume it and continue
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken() // move to SEMICOLON
+				p.nextToken() // move past SEMICOLON
+				continue
+			}
+
+			// If we see RBRACE next, we're done
+			if p.peekTokenIs(lexer.RBRACE) {
+				p.nextToken() // move to RBRACE
+				break
+			}
+
+			// Otherwise we expect a semicolon or RBRACE
+			if !p.curTokenIs(lexer.RBRACE) {
+				p.errors = append(p.errors, fmt.Errorf("expected ; or }, got %s", p.peekToken.Type))
+				return nil
+			}
 			break
 		}
 
-		if !p.expectPeek(lexer.COMMA) {
+		if !p.curTokenIs(lexer.RBRACE) {
+			p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
 			return nil
 		}
-		p.nextToken()
-	}
 
-	if !p.curTokenIs(lexer.RBRACE) {
-		p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
-		return nil
+		return block
 	}
-
-	return record
 }
 
 func (p *Parser) parsePrefixExpression() ast.Expr {
