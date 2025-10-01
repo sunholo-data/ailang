@@ -740,6 +740,32 @@ func (e *Elaborator) normalizeIf(ifExpr *ast.If) (core.CoreExpr, error) {
 
 // normalizeLet handles let bindings
 func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
+	// Handle let statements without body (e.g., "let x = 1;" in a block)
+	// These are created by the parser for semicolon-terminated lets
+	// They should only appear as part of a Block, which will sequence them properly
+	if let.Body == nil {
+		// Just normalize the value and return it wrapped in a Let that binds to Unit
+		// The Block normalization will thread this through properly
+		value, err := e.normalize(let.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return a Let that binds the value but returns Unit
+		// This allows the value to be computed (for side effects) and the binding to be visible
+		// in subsequent expressions in the block
+		return &core.Let{
+			CoreNode: e.makeNode(let.Position()),
+			Name:     let.Name,
+			Value:    value,
+			Body: &core.Lit{
+				CoreNode: e.makeNode(let.Position()),
+				Kind:     core.UnitLit,
+				Value:    "()",
+			},
+		}, nil
+	}
+
 	// Check if it's recursive (let rec)
 	isRec := false
 	// For now, detect recursion by checking if the value references the name
@@ -763,7 +789,7 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			Body:     body,
 		}, nil
 	} else {
-		// Non-recursive let
+		// Non-recursive let with body (let x = 1 in x + 1)
 		value, err := e.normalize(let.Value)
 		if err != nil {
 			return nil, err
@@ -810,20 +836,39 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 
 	// Work backwards through the expressions, wrapping each in a Let
 	for i := len(block.Exprs) - 2; i >= 0; i-- {
-		value, err := e.normalize(block.Exprs[i])
-		if err != nil {
-			return nil, err
-		}
+		expr := block.Exprs[i]
 
-		// Use a wildcard name for the binding since we're discarding the result
-		// Generate unique names to avoid conflicts
-		bindingName := fmt.Sprintf("_block_%d", i)
+		// Special case: if this is a Let with nil body (statement form),
+		// normalize its value and use the let's name directly
+		if letExpr, ok := expr.(*ast.Let); ok && letExpr.Body == nil {
+			value, err := e.normalize(letExpr.Value)
+			if err != nil {
+				return nil, err
+			}
 
-		result = &core.Let{
-			CoreNode: e.makeNode(block.Position()),
-			Name:     bindingName,
-			Value:    value,
-			Body:     result,
+			result = &core.Let{
+				CoreNode: e.makeNode(letExpr.Position()),
+				Name:     letExpr.Name, // Use the actual let name, not _block_N
+				Value:    value,
+				Body:     result, // Thread through to next expression
+			}
+		} else {
+			// Regular expression: normalize and bind to a wildcard
+			value, err := e.normalize(expr)
+			if err != nil {
+				return nil, err
+			}
+
+			// Use a wildcard name for the binding since we're discarding the result
+			// Generate unique names to avoid conflicts
+			bindingName := fmt.Sprintf("_block_%d", i)
+
+			result = &core.Let{
+				CoreNode: e.makeNode(block.Position()),
+				Name:     bindingName,
+				Value:    value,
+				Body:     result,
+			}
 		}
 	}
 
