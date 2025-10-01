@@ -88,59 +88,31 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-21%20passing%2023%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-11%20passing%2016%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-01 14:42:56 UTC*
+*Last updated: 2025-10-01 14:47:03 UTC*
 
-**Summary:** 21 passed, 23 failed, 16 skipped (Total: 60)
+**Summary:** 11 passed, 16 failed, 2 skipped (Total: 29)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
-| `ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `adt_option.ail` | ✅ Pass |  |
+| `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
-| `concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `debug1.ail` | ✅ Pass |  |
-| `debug2.ail` | ✅ Pass |  |
-| `debug3.ail` | ✅ Pass |  |
-| `defaulting_trace.ail` | ⏭️ Skip | Test/demo file |
-| `factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `experimental/quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `hello.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
-| `lambdas_v2.ail` | ✅ Pass |  |
-| `num_demo.ail` | ⏭️ Skip | Test/demo file |
-| `phase1_demo.ail` | ⏭️ Skip | Test/demo file |
-| `pure_lambdas.ail` | ✅ Pass |  |
-| `quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `repl_demo.ail` | ⏭️ Skip | Test/demo file |
-| `repl_test.ail` | ⏭️ Skip | Test/demo file |
-| `show_demo.ail` | ⏭️ Skip | Test/demo file |
+| `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
 | `simple.ail` | ✅ Pass |  |
-| `simple_module.ail` | ✅ Pass |  |
-| `test_basic.ail` | ✅ Pass |  |
-| `test_export.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `test_export_func.ail` | ✅ Pass |  |
-| `test_instances.ail` | ✅ Pass |  |
-| `test_operators.ail` | ✅ Pass |  |
-| `test_simple_module.ail` | ❌ Fail | Error: MOD010: module declaration 'test_simple'... |
-| `test_simple_ops.ail` | ✅ Pass |  |
-| `test_v2.ail` | ❌ Fail | Error: type error in examples/test_v2 (decl 0):... |
-| `type_class_showcase.ail` | ❌ Fail | Error: normalization received nil expression |
-| `type_classes.ail` | ❌ Fail | Error: normalization received nil expression |
-| `type_classes_complete.ail` | ❌ Fail | Error: normalization received nil expression |
-| `type_classes_demo.ail` | ⏭️ Skip | Test/demo file |
-| `type_classes_demo_working.ail` | ⏭️ Skip | Test/demo file |
-| `type_classes_final.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `type_classes_simple.ail` | ❌ Fail | Error: normalization received nil expression |
-| `type_classes_working.ail` | ❌ Fail | Error: normalization received nil expression |
-| `type_demo_minimal.ail` | ⏭️ Skip | Test/demo file |
-| `type_inference_basic.ail` | ❌ Fail | Error: type error in examples/type_inference_ba... |
-| `type_inference_demo.ail` | ⏭️ Skip | Test/demo file |
-| `type_inference_simple.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v0_0_3_features_demo.ail` | ⏭️ Skip | Test/demo file |
-| `v2_pipeline_demo.ail` | ⏭️ Skip | Test/demo file |
-| `v2_type_inference.ail` | ✅ Pass |  |
+| `type_classes_working_reference.ail` | ❌ Fail | Error: normalization received nil expression |
+| `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
 | `v3_3/import_conflict.ail` | ✅ Pass |  |
 | `v3_3/imports.ail` | ✅ Pass |  |
@@ -155,9 +127,6 @@ Hello World :: String
 | `v3_3/polymorphic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `v3_3/properties_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v3_3/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
-| `web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `working_demo.ail` | ⏭️ Skip | Test/demo file |
-| `working_v0_0_3_demo.ail` | ⏭️ Skip | Test/demo file |
 
 <!-- EXAMPLES_STATUS_END -->
 
