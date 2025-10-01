@@ -10,35 +10,35 @@ import (
 
 func TestEffectAnnotationParsing(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
+		name            string
+		input           string
 		expectedEffects []string
-		shouldError    bool
-		errorCode      string
+		shouldError     bool
+		errorCode       string
 	}{
 		{
-			name:           "single effect",
-			input:          "func f() -> int ! {IO} { 42 }",
+			name:            "single effect",
+			input:           "func f() -> int ! {IO} { 42 }",
 			expectedEffects: []string{"IO"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "multiple effects",
-			input:          "func f() -> int ! {IO, FS, Net} { 42 }",
+			name:            "multiple effects",
+			input:           "func f() -> int ! {IO, FS, Net} { 42 }",
 			expectedEffects: []string{"IO", "FS", "Net"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "all standard effects",
-			input:          "func f() -> int ! {IO, FS, Net, Clock, Rand, DB, Trace, Async} { 42 }",
+			name:            "all standard effects",
+			input:           "func f() -> int ! {IO, FS, Net, Clock, Rand, DB, Trace, Async} { 42 }",
 			expectedEffects: []string{"IO", "FS", "Net", "Clock", "Rand", "DB", "Trace", "Async"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "empty effect set",
-			input:          "func f() -> int ! {} { 42 }",
+			name:            "empty effect set",
+			input:           "func f() -> int ! {} { 42 }",
 			expectedEffects: []string{},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
 			name:        "duplicate effect",
@@ -129,28 +129,28 @@ func TestEffectAnnotationParsing(t *testing.T) {
 
 func TestLambdaEffectAnnotationParsing(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
+		name            string
+		input           string
 		expectedEffects []string
-		shouldError    bool
+		shouldError     bool
 	}{
 		{
-			name:           "lambda with single effect",
-			input:          "\\x. print(x) ! {IO}",
+			name:            "lambda with single effect",
+			input:           "\\x. print(x) ! {IO}",
 			expectedEffects: []string{"IO"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "lambda with multiple effects",
-			input:          "\\x. readFile(x) ! {IO, FS}",
+			name:            "lambda with multiple effects",
+			input:           "\\x. readFile(x) ! {IO, FS}",
 			expectedEffects: []string{"IO", "FS"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "lambda without effects",
-			input:          "\\x. x + 1",
+			name:            "lambda without effects",
+			input:           "\\x. x + 1",
 			expectedEffects: nil,
-			shouldError:    false,
+			shouldError:     false,
 		},
 	}
 
@@ -209,28 +209,28 @@ func TestLambdaEffectAnnotationParsing(t *testing.T) {
 
 func TestFunctionTypeEffectAnnotationParsing(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
+		name            string
+		input           string
 		expectedEffects []string
-		shouldError    bool
+		shouldError     bool
 	}{
 		{
-			name:           "function type with single effect",
-			input:          "let f: (int) -> string ! {IO} = undefined",
+			name:            "function type with single effect",
+			input:           "let f: (int) -> string ! {IO} = undefined",
 			expectedEffects: []string{"IO"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "function type with multiple effects",
-			input:          "let f: (int, string) -> bool ! {IO, FS, Net} = undefined",
+			name:            "function type with multiple effects",
+			input:           "let f: (int, string) -> bool ! {IO, FS, Net} = undefined",
 			expectedEffects: []string{"IO", "FS", "Net"},
-			shouldError:    false,
+			shouldError:     false,
 		},
 		{
-			name:           "function type without effects",
-			input:          "let f: (int) -> int = undefined",
+			name:            "function type without effects",
+			input:           "let f: (int) -> int = undefined",
 			expectedEffects: nil,
-			shouldError:    false,
+			shouldError:     false,
 		},
 	}
 
@@ -298,28 +298,28 @@ func TestFunctionTypeEffectAnnotationParsing(t *testing.T) {
 
 func TestEffectAnnotationErrorMessages(t *testing.T) {
 	tests := []struct {
-		name             string
-		input            string
+		name              string
+		input             string
 		expectedErrorCode string
-		shouldContain    string // expected substring in error message
+		shouldContain     string // expected substring in error message
 	}{
 		{
-			name:             "duplicate effect suggests removal",
-			input:            "func f() -> int ! {IO, IO} { 42 }",
+			name:              "duplicate effect suggests removal",
+			input:             "func f() -> int ! {IO, IO} { 42 }",
 			expectedErrorCode: "PAR_EFF001_DUP",
-			shouldContain:    "duplicate",
+			shouldContain:     "duplicate",
 		},
 		{
-			name:             "lowercase effect suggests uppercase",
-			input:            "func f() -> int ! {io} { 42 }",
+			name:              "lowercase effect suggests uppercase",
+			input:             "func f() -> int ! {io} { 42 }",
 			expectedErrorCode: "PAR_EFF002_UNKNOWN",
-			shouldContain:    "IO", // should suggest uppercase
+			shouldContain:     "IO", // should suggest uppercase
 		},
 		{
-			name:             "typo in effect name",
-			input:            "func f() -> int ! {Nett} { 42 }",
+			name:              "typo in effect name",
+			input:             "func f() -> int ! {Nett} { 42 }",
 			expectedErrorCode: "PAR_EFF002_UNKNOWN",
-			shouldContain:    "Net", // should suggest Net
+			shouldContain:     "Net", // should suggest Net
 		},
 	}
 
