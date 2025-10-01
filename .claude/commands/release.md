@@ -50,11 +50,32 @@ Create a new AILANG release with the specified version number.
 8. **Monitor CI/CD:**
    - Run `gh run list --limit 3` to check CI status
    - Verify builds pass on all platforms (Linux, macOS, Windows)
+   - Wait for release workflow to complete (typically 2-3 minutes)
 
-9. **Summary:**
-   - Confirm version v$1 released
-   - Show git tag details
-   - Show CI workflow URLs
+9. **Verify Release:**
+   - Run `gh release view v$1` to verify release was created successfully
+   - Check that release includes all platform binaries:
+     - ailang-darwin-amd64.tar.gz (macOS Intel)
+     - ailang-darwin-arm64.tar.gz (macOS Apple Silicon)
+     - ailang-linux-amd64.tar.gz (Linux)
+     - ailang-windows-amd64.zip (Windows)
+   - Verify release is published (not draft)
+   - Check release notes are present
+
+10. **Monitor for CI Failures:**
+    - Run `gh run list --workflow=CI --limit 3` to check for any failures
+    - If CI fails after push:
+      - Check logs: `gh run view <run-id> --log-failed`
+      - Fix issues (likely formatting or linting)
+      - Commit fixes with clear message
+      - Push again
+    - Verify all checks pass on the release commit
+
+11. **Summary:**
+    - Confirm version v$1 released
+    - Show git tag details
+    - Show release URL: https://github.com/sunholo-data/ailang/releases/tag/v$1
+    - Show CI workflow status
 
 ## Version Format
 
