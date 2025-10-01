@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-24.6%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-25.5%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -92,7 +92,7 @@ Hello World :: String
 
 ### Example Verification Status
 
-*Last updated: 2025-09-30 21:07:44 UTC*
+*Last updated: 2025-10-01 14:42:56 UTC*
 
 **Summary:** 21 passed, 23 failed, 16 skipped (Total: 60)
 
@@ -126,14 +126,14 @@ Hello World :: String
 | `test_simple_module.ail` | ❌ Fail | Error: MOD010: module declaration 'test_simple'... |
 | `test_simple_ops.ail` | ✅ Pass |  |
 | `test_v2.ail` | ❌ Fail | Error: type error in examples/test_v2 (decl 0):... |
-| `type_class_showcase.ail` | ❌ Fail | Error: normalization not implemented for <nil> |
-| `type_classes.ail` | ❌ Fail | Error: normalization not implemented for <nil> |
-| `type_classes_complete.ail` | ❌ Fail | Error: normalization not implemented for <nil> |
+| `type_class_showcase.ail` | ❌ Fail | Error: normalization received nil expression |
+| `type_classes.ail` | ❌ Fail | Error: normalization received nil expression |
+| `type_classes_complete.ail` | ❌ Fail | Error: normalization received nil expression |
 | `type_classes_demo.ail` | ⏭️ Skip | Test/demo file |
 | `type_classes_demo_working.ail` | ⏭️ Skip | Test/demo file |
 | `type_classes_final.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `type_classes_simple.ail` | ❌ Fail | Error: normalization not implemented for <nil> |
-| `type_classes_working.ail` | ❌ Fail | Error: normalization not implemented for <nil> |
+| `type_classes_simple.ail` | ❌ Fail | Error: normalization received nil expression |
+| `type_classes_working.ail` | ❌ Fail | Error: normalization received nil expression |
 | `type_demo_minimal.ail` | ⏭️ Skip | Test/demo file |
 | `type_inference_basic.ail` | ❌ Fail | Error: type error in examples/type_inference_ba... |
 | `type_inference_demo.ail` | ⏭️ Skip | Test/demo file |
