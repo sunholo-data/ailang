@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-25.5%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-25.2%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -88,19 +88,20 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-11%20passing%2016%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-15%20passing%2017%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-01 15:26:15 UTC*
+*Last updated: 2025-10-01 19:27:47 UTC*
 
-**Summary:** 11 passed, 16 failed, 2 skipped (Total: 29)
+**Summary:** 15 passed, 17 failed, 4 skipped (Total: 36)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
+| `effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -108,9 +109,15 @@ Hello World :: String
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `hello.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
+| `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
 | `simple.ail` | ✅ Pass |  |
+| `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
+| `test_import_ctor.ail` | ✅ Pass |  |
+| `test_import_func.ail` | ✅ Pass |  |
+| `test_use_constructor.ail` | ❌ Fail | Error: type error in examples/test_use_construc... |
 | `type_classes_working_reference.ail` | ❌ Fail | Error: normalization received nil expression |
 | `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
@@ -121,9 +128,9 @@ Hello World :: String
 | `v3_3/math/div.ail` | ✅ Pass |  |
 | `v3_3/math/gcd.ail` | ✅ Pass |  |
 | `v3_3/math/simple_gcd.ail` | ✅ Pass |  |
-| `v3_3/poly_id.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v3_3/poly_imports.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v3_3/poly_use.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `v3_3/poly_id.ail` | ✅ Pass |  |
+| `v3_3/poly_imports.ail` | ✅ Pass |  |
+| `v3_3/poly_use.ail` | ❌ Fail | Error: type error in examples/v3_3/poly_use (de... |
 | `v3_3/polymorphic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `v3_3/properties_demo.ail` | ⏭️ Skip | Test/demo file |
 | `v3_3/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
