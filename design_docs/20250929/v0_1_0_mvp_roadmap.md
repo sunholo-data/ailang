@@ -8,9 +8,23 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 
 ---
 
-## Current Implementation Status (v0.0.9 + M-P3 + M-P4 + M-S1 Parts A & B)
+## Current Implementation Status (v0.0.9 + M-P3 + M-P4 + M-S1 Parts A & B + Blockers Fixed)
 
 ### 🆕 Recent Progress (October 1, 2025)
+
+**✅ M-S1 BLOCKERS FIXED: Cross-Module Constructors & Multi-Statement Functions (~224 LOC)**
+- ✅ **Blocker 1 FIXED**: Cross-module constructor resolution (~74 LOC, 2 hours)
+  - Constructor factory types now added to `externalTypes` during import
+  - `examples/option_demo.ail` now type-checks successfully
+  - Can use imported constructors: `import std/option (Some, None)`
+- ✅ **Blocker 2 FIXED**: Multi-statement function bodies (~150 LOC, 3 hours)
+  - Added `Block` AST node for semicolon-separated expressions
+  - Parser now supports: `{ let x = 1; let y = 2; x + y }`
+  - Elaboration converts blocks to nested `Let` expressions
+  - `examples/block_demo.ail` demonstrates working multi-statement functions
+- ✅ **5 files modified**: pipeline, ast, parser, elaborate, examples
+- ✅ **All tests passing**: No regressions, both blockers resolved
+- ✅ **READY FOR STDLIB**: All prerequisites complete! Can now implement realistic stdlib modules
 
 **✅ M-S1 Parts A & B COMPLETE: Import System & Builtin Visibility (~700 LOC)**
 - ✅ **Type/constructor imports**: `import std/option (Option, Some, None)` now works
@@ -20,7 +34,6 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 - ✅ **7 files modified**: loader, elaborator, interface builder, pipeline, linker (2 files)
 - ✅ **stdlib/std/string.ail**: Type-checks successfully with all 7 exports
 - ✅ **All tests passing**: No regressions, import system proven working
-- 📝 **Ready for stdlib**: All blockers resolved, can now implement option/result/list/io modules
 
 **✅ M-P4 COMPLETE: Effect System (~1,060 LOC)**
 - ✅ **Effect syntax parsing**: `func f() -> int ! {IO, FS}` works
@@ -451,7 +464,7 @@ std_io         -- print, println, debug with ! {IO} effects (~20 LOC)
 
 ### Timeline Summary
 
-**Total Time**: ~~13 days~~ ~~10 days~~ ~~9.5 days~~ ~~6.5 days~~ ~~8 days~~ **~6 days remaining** (~1.5 weeks) - Ahead of schedule!
+**Total Time**: ~~13 days~~ ~~10 days~~ ~~9.5 days~~ ~~6.5 days~~ ~~8 days~~ ~~6 days~~ **~3 days remaining** (~0.75 weeks) - Way ahead of schedule!
 
 | Week | Task | Days | Status |
 |------|------|------|--------|
@@ -462,9 +475,10 @@ std_io         -- print, println, debug with ! {IO} effects (~20 LOC)
 | ~~**Parser Fix**~~ | ~~**Generic type params**~~ | ~~0.1~~ | ✅ **Done (Oct 1)** |
 | ~~**M-P5**~~ | ~~**Parser: patterns in functions**~~ | ~~0.25~~ | ✅ **Done (Oct 1)** |
 | ~~**M-S1 A & B**~~ | ~~**Import system + Builtins**~~ | ~~1~~ | ✅ **Done (Oct 1)** |
+| ~~**BLOCKERS**~~ | ~~**Constructor resolution + Multi-statement**~~ | ~~0.3~~ | ✅ **Done (Oct 1)** |
 | **Day 1** | **Stdlib in AILANG** | **1** | 📋 **NEXT** |
 | **Day 2-3** | **Examples + Documentation** | **2** | 📋 Final |
-| **Buffer** | **Testing + Polish** | **3.15** | 📋 Reserve |
+| **Buffer** | **Testing + Polish** | **~0** | 📋 Depleted |
 
 **Progress**:
 - M-P3 delivered ~600 LOC ahead of schedule (saved ~3 days)
@@ -473,18 +487,15 @@ std_io         -- print, println, debug with ! {IO} effects (~20 LOC)
 - Generic type params fix: 5 minutes (saved ~0.4 days from 0.5 day estimate)
 - M-P5 completed in 6 hours (saved ~1.25 days from 1.5 day estimate)
 - M-S1 Parts A & B completed in 8 hours (on schedule, 1 day actual)
+- **Blockers fixed in 5 hours** (saved ~2.7 days from 3 day buffer allocation)
 
-**M-P5 Complete (Oct 1)**:
-- List pattern parsing implemented (~260 LOC in 6 hours)
-- Faster than estimate: 0.25 days actual vs 1.5 days budgeted
-- Savings: +1.25 days added to buffer
-
-**M-S1 Parts A & B Complete (Oct 1)**:
-- Import system for types/constructors (~700 LOC in 8 hours)
-- Builtin visibility for string/IO primitives
-- On schedule: 1 day actual vs 1 day budgeted
-- Buffer remains: 3.15 days total
-- All tests passing, no regressions
+**Blockers Complete (Oct 1, late afternoon)**:
+- Blocker 1: Cross-module constructors (~74 LOC in 2 hours)
+- Blocker 2: Multi-statement functions (~150 LOC in 3 hours)
+- Total: ~224 LOC in 5 hours (0.3 days actual vs 3 days budgeted)
+- Savings: +2.7 days - but most buffer already used for earlier milestones
+- **Net buffer**: ~0 days remaining (but on track for v0.1.0 scope)
+- All tests passing, both critical blockers resolved
 
 **Milestone**: Ship v0.1.0 with **solid foundations** for v0.2.0 runtime features
 
