@@ -430,4 +430,38 @@ help:
 	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
 	@echo "  make dev              - Quick development build"
 	@echo "  make quick-install    - Quick install without version info"
+	@echo "  make verify-examples-golden - Verify examples against golden files"
+	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
 	@echo "  make help             - Show this help"
+
+# Verify examples against golden stdout files
+.PHONY: verify-examples-golden
+verify-examples-golden:
+	@bash scripts/verify-examples.sh
+
+# Test stdlib interface freeze (SHA256 digest matching)
+EX_VERIFY := scripts/verify-examples.sh
+STDLIB := stdlib/std/option.ail stdlib/std/result.ail stdlib/std/list.ail stdlib/std/string.ail stdlib/std/io.ail
+FREEZE_DIR := goldens/stdlib
+TOOLS := ailang
+
+.PHONY: test-stdlib-freeze
+test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
+                    $(FREEZE_DIR)/list.sha256 $(FREEZE_DIR)/string.sha256 \
+                    $(FREEZE_DIR)/io.sha256
+	@ok=0; \
+	for m in $(STDLIB); do \
+	  name=$$(basename $${m} .ail | sed 's/^/std\//'); \
+	  tmp=$$(mktemp); \
+	  $(TOOLS) iface --module "$$name" --json > $$tmp || ok=1; \
+	  sum=$$(shasum -a 256 $$tmp | awk '{print $$1}'); \
+	  golden="$(FREEZE_DIR)/$$(basename $$name).sha256"; \
+	  if [ ! -f $$golden ]; then echo "MISSING $$golden"; ok=1; else \
+	    exp=$$(cat $$golden); \
+	    if [ "$$sum" != "$$exp" ]; then \
+	      echo "MISMATCH $$name"; \
+	      echo " expected: $$exp"; echo " actual  : $$sum"; ok=1; \
+	    fi; \
+	  fi; \
+	done; \
+	exit $$ok

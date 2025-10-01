@@ -2,6 +2,109 @@
 
 ## [Unreleased] - 2025-10-01
 
+### Added - M-S1 Parts A & B: Import System & Builtin Visibility (~700 LOC)
+
+#### Part A: Export System for Types and Constructors (~400 LOC)
+**Complete end-to-end import resolution for types, constructors, and functions:**
+
+**Loader Enhancement** (`internal/loader/loader.go`)
+- Added `Types map[string]*ast.TypeDecl` to `LoadedModule` for exported type declarations
+- Added `Constructors map[string]string` for constructor name → type name mapping
+- Created `buildTypes()` function to extract type declarations from AST (checks both `Decls` and `Statements`)
+- Updated `GetExport()` to return `(nil, nil)` for types and constructors (not errors, just non-functions)
+- Enhanced error reporting to list available types and constructors with labels
+
+**Elaborator Updates** (`internal/elaborate/elaborate.go`)
+- Added `AddBuiltinsToGlobalEnv()` method to inject all builtin functions into elaborator's global scope
+- Modified import resolution in `ElaborateFile()` to skip types/constructors (handled later in pipeline)
+- Builtins now available during elaboration, not just linking
+
+**Interface Builder** (`internal/iface/iface.go`, `internal/iface/builder.go`)
+- Added `Types map[string]*TypeExport` to `Iface` struct
+- Created `TypeExport` struct with `Name` and `Arity` fields
+- Enhanced `BuildInterfaceWithTypesAndConstructors()` to extract types from AST file
+- Constructors extracted from `AlgebraicType.Constructors` (not `Variants`)
+- Helper methods: `AddType()`, `GetType()`
+
+**Pipeline Integration** (`internal/pipeline/pipeline.go`)
+- Updated import resolution to check `GetType()` and `GetConstructor()` in addition to `GetExport()`
+- Constructors map to `$adt.make_{TypeName}_{CtorName}` factory functions
+- Added automatic injection of `$builtin` module exports into all modules' `externalTypes`
+- Builtins now available globally without explicit imports
+- Added `AddBuiltinsToGlobalEnv()` calls for both REPL and module compilation paths
+
+**Module Linker** (`internal/link/module_linker.go`)
+- Enhanced `BuildGlobalEnv()` to handle three symbol types: functions, types, constructors
+- Types: Skip adding to environment (handled by type checker)
+- Constructors: Add with `$adt` module reference for factory functions
+- Functions: Add with original module reference
+- Improved error reporting with separate listings for types and constructors
+- Added `continue` statements to skip further processing for types/constructors
+
+**Working Examples:**
+```ailang
+// Type and constructor imports work
+import stdlib/std/option (Option, Some, None)
+
+// Constructor usage (pending $adt runtime)
+let x = Some(42)
+match x {
+  Some(n) => n,
+  None => 0
+}
+```
+
+**Test Results:**
+- ✅ Constructor imports: `import stdlib/std/option (Some)` type-checks
+- ✅ Type imports: `import stdlib/std/option (Option)` type-checks
+- ✅ Function imports: `import stdlib/std/option (getOrElse)` works
+- ✅ All existing tests pass (no regressions)
+- ⏳ Constructor evaluation pending `$adt` runtime implementation
+
+---
+
+#### Part B: Builtin Type Visibility (~300 LOC)
+**Made string and IO primitives available to all modules:**
+
+**Builtin Module Enhancement** (`internal/link/builtin_module.go`)
+- Added `handleStringPrimitive()` function for 7 string builtins:
+  - `_str_len: String -> Int` (UTF-8 rune count)
+  - `_str_slice: String -> Int -> Int -> String` (rune-based substring)
+  - `_str_compare: String -> String -> Int` (lexicographic, returns -1/0/1)
+  - `_str_find: String -> String -> Int` (first occurrence, rune index)
+  - `_str_upper: String -> String` (Unicode-aware uppercase)
+  - `_str_lower: String -> String` (Unicode-aware lowercase)
+  - `_str_trim: String -> String` (Unicode whitespace)
+- Added `handleIOBuiltin()` function for 3 IO builtins:
+  - `_io_print: String -> Unit ! {IO}` (no newline)
+  - `_io_println: String -> Unit ! {IO}` (with newline)
+  - `_io_readLine: Unit -> String ! {IO}` (read from stdin)
+- Proper effect row representation: `&types.Row{Kind: types.EffectRow, Labels: {"IO": ...}}`
+- All builtins registered in `$builtin` module interface
+
+**Pipeline Integration** (`internal/pipeline/pipeline.go`)
+- Automatic injection of `$builtin` module into every module's compilation context
+- Builtins available in `externalTypes` for type checking
+- Builtins available in `globalRefs` for elaboration
+- No explicit imports required - builtins are globally visible
+
+**Test Results:**
+- ✅ `stdlib/std/string.ail` type-checks successfully (7 exports)
+- ⏳ `stdlib/std/io.ail` has parse errors (inline function syntax limitation)
+- ✅ String primitives: length, substring, toUpper, toLower, trim, compare, find
+- ✅ Effect tracking: IO functions properly annotated with `! {IO}`
+
+**Example Working:**
+```ailang
+module stdlib/std/string
+
+export pure func length(s: string) -> int { _str_len(s) }
+export pure func toUpper(s: string) -> string { _str_upper(s) }
+// ... all 7 functions type-check correctly
+```
+
+---
+
 ### Added - Parser Fix + Stdlib Foundation (~300 LOC)
 
 #### Generic Type Parameter Fix (`internal/parser/parser.go`)

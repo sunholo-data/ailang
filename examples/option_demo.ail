@@ -1,0 +1,10 @@
+module examples/option_demo
+import stdlib/std/option (Some, None, map, getOrElse)
+
+export pure func main() -> int {
+  let val1 = getOrElse(Some(42), 0) in
+  let val2 = getOrElse(None, 99) in
+  let doubled = map(\x. x * 2, Some(21)) in
+  let result = getOrElse(doubled, 0) in
+  val1 + val2 + result
+}

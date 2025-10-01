@@ -6,6 +6,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -60,6 +61,18 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 // SetGlobalEnv sets the global environment for import resolution
 func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
 	e.globalEnv = env
+}
+
+// AddBuiltinsToGlobalEnv adds all builtin functions to the global environment
+func (e *Elaborator) AddBuiltinsToGlobalEnv() {
+	// Import eval package to access builtins
+	builtins := eval.Builtins
+	for name := range builtins {
+		e.globalEnv[name] = core.GlobalRef{
+			Module: "$builtin",
+			Name:   name,
+		}
+	}
 }
 
 // RegisterConstructor adds a constructor to the elaborator's constructor map
@@ -201,6 +214,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					if err != nil {
 						// Preserve structured error reports without wrapping
 						return nil, err
+					}
+					// If decl is nil, it's a type or constructor - skip for now
+					// (they'll be handled by the type checker and linker)
+					if decl == nil {
+						continue
 					}
 					// Convert imported func to FuncSig
 					// The GetExport already returns *ast.FuncDecl
@@ -997,6 +1015,31 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		}
 		return &core.TuplePattern{
 			Elements: elements,
+		}, nil
+	case *ast.ListPattern:
+		// Elaborate list element patterns
+		var elements []core.CorePattern
+		for _, elemPat := range p.Elements {
+			coreElem, err := e.elaboratePattern(elemPat)
+			if err != nil {
+				return nil, err
+			}
+			elements = append(elements, coreElem)
+		}
+
+		// Elaborate rest pattern if present
+		var tail *core.CorePattern
+		if p.Rest != nil {
+			restCore, err := e.elaboratePattern(p.Rest)
+			if err != nil {
+				return nil, err
+			}
+			tail = &restCore
+		}
+
+		return &core.ListPattern{
+			Elements: elements,
+			Tail:     tail,
 		}, nil
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)

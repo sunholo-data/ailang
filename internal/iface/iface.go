@@ -10,8 +10,15 @@ type Iface struct {
 	Module       string                        // Module path, e.g., "math/gcd"
 	Exports      map[string]*IfaceItem         // Exported symbols
 	Constructors map[string]*ConstructorScheme // Exported ADT constructors
+	Types        map[string]*TypeExport        // Exported type names
 	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
 	Digest       string                        // Deterministic digest of interface
+}
+
+// TypeExport represents an exported type name
+type TypeExport struct {
+	Name  string // Type name (e.g., "Option", "Result")
+	Arity int    // Number of type parameters
 }
 
 // IfaceItem represents a single exported symbol
@@ -37,6 +44,7 @@ func NewIface(module string) *Iface {
 		Module:       module,
 		Exports:      make(map[string]*IfaceItem),
 		Constructors: make(map[string]*ConstructorScheme),
+		Types:        make(map[string]*TypeExport),
 		Schema:       "ailang.iface/v1",
 	}
 }
@@ -75,4 +83,18 @@ func (i *Iface) AddConstructor(typeName, ctorName string, fieldTypes []types.Typ
 func (i *Iface) GetConstructor(name string) (*ConstructorScheme, bool) {
 	ctor, ok := i.Constructors[name]
 	return ctor, ok
+}
+
+// AddType adds an exported type name to the interface
+func (i *Iface) AddType(name string, arity int) {
+	i.Types[name] = &TypeExport{
+		Name:  name,
+		Arity: arity,
+	}
+}
+
+// GetType retrieves an exported type
+func (i *Iface) GetType(name string) (*TypeExport, bool) {
+	typ, ok := i.Types[name]
+	return typ, ok
 }

@@ -158,6 +158,8 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	} else {
 		elaborator = elaborate.NewElaborator()
 	}
+	// Add builtins to global environment so they can be referenced
+	elaborator.AddBuiltinsToGlobalEnv()
 	coreProg, err := elaborator.ElaborateFile(astFile)
 	if err != nil {
 		return result, fmt.Errorf("elaboration error: %w", err)
@@ -396,6 +398,15 @@ func runModule(cfg Config, src Source) (Result, error) {
 		externalTypes := make(map[string]*types.Scheme)
 		globalRefs := make(map[string]core.GlobalRef)
 
+		// Always include $builtin module exports (available to all modules)
+		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
+			for name, item := range builtinIface.Exports {
+				key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
+				externalTypes[key] = item.Type
+				globalRefs[name] = item.Ref
+			}
+		}
+
 		// Get imports for this module
 		if len(mod.File.Imports) > 0 {
 			for _, imp := range mod.File.Imports {
@@ -410,14 +421,52 @@ func runModule(cfg Config, src Source) (Result, error) {
 				if len(imp.Symbols) > 0 {
 					// Selective import
 					for _, sym := range imp.Symbols {
+						found := false
+
+						// Try to import as a regular export (function/value)
 						if item, ok := depIface.GetExport(sym); ok {
 							key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 							externalTypes[key] = item.Type
 							globalRefs[sym] = item.Ref
 							if cfg.TraceDefaulting {
-								fmt.Printf("  Import %s -> %s (%s)\n", sym, key, item.Type)
+								fmt.Printf("  Import value %s -> %s (%s)\n", sym, key, item.Type)
 							}
-						} else if cfg.TraceDefaulting {
+							found = true
+						}
+
+						// Try to import as a type name
+						if typ, ok := depIface.GetType(sym); ok {
+							// Type names don't need to be added to externalTypes/globalRefs for now
+							// They're handled by the type checker
+							if cfg.TraceDefaulting {
+								fmt.Printf("  Import type %s (arity %d)\n", typ.Name, typ.Arity)
+							}
+							found = true
+						}
+
+						// Try to import as a constructor
+						fmt.Printf("DEBUG: Checking if %s is a constructor in %s (has %d constructors)...\n", sym, imp.Path, len(depIface.Constructors))
+						for k := range depIface.Constructors {
+							fmt.Printf("DEBUG:   Constructor %s in interface\n", k)
+						}
+						if ctor, ok := depIface.GetConstructor(sym); ok {
+							// Constructors are added to global environment
+							// They're factory functions from $adt module
+							key := fmt.Sprintf("$adt.make_%s_%s", ctor.TypeName, ctor.CtorName)
+							globalRefs[sym] = core.GlobalRef{
+								Module: "$adt",
+								Name:   fmt.Sprintf("make_%s_%s", ctor.TypeName, ctor.CtorName),
+							}
+							fmt.Printf("DEBUG: Import constructor %s -> %s\n", sym, key)
+							if cfg.TraceDefaulting {
+								fmt.Printf("  Import constructor %s -> %s\n", sym, key)
+							}
+							found = true
+						} else {
+							fmt.Printf("DEBUG: %s NOT found as constructor\n", sym)
+						}
+
+						if !found && cfg.TraceDefaulting {
 							fmt.Printf("  Symbol %s not found in %s\n", sym, imp.Path)
 						}
 					}
@@ -428,6 +477,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Elaborate to Core
 		elaborator := elaborate.NewElaboratorWithPath(string(modID))
 		elaborator.SetGlobalEnv(globalRefs)
+		// Add builtins to global environment so they can be referenced
+		elaborator.AddBuiltinsToGlobalEnv()
 
 		unit.Core, err = elaborator.ElaborateFile(mod.File)
 		if err != nil {
@@ -533,7 +584,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Build and register interface (using module-local type environment)
 		// Convert pipeline constructors to iface constructors
 		ifaceCtors := convertToIfaceConstructors(unit.Constructors)
-		unitIface, err := iface.BuildInterfaceWithConstructors(string(modID), unit.Core, moduleTypeEnv, ifaceCtors)
+		unitIface, err := iface.BuildInterfaceWithTypesAndConstructors(string(modID), unit.Core, moduleTypeEnv, unit.Surface, ifaceCtors)
 		if err != nil {
 			return result, fmt.Errorf("interface build error in %s: %w", modID, err)
 		}

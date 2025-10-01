@@ -258,6 +258,23 @@ func (p TypedTuplePattern) String() string {
 	return fmt.Sprintf("(%s)", strings.Join(parts, ", "))
 }
 
+type TypedListPattern struct {
+	Elements []TypedPattern
+	Tail     *TypedPattern // For spread patterns: [x, ...rest]
+}
+
+func (p TypedListPattern) patternNode() {}
+func (p TypedListPattern) String() string {
+	parts := make([]string, len(p.Elements))
+	for i, elem := range p.Elements {
+		parts[i] = elem.String()
+	}
+	if p.Tail != nil {
+		return fmt.Sprintf("[%s, ...%s]", strings.Join(parts, ", "), (*p.Tail).String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(parts, ", "))
+}
+
 // TypedProgram represents a typed program
 type TypedProgram struct {
 	Decls []TypedNode

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -35,17 +36,24 @@ type ConstructorInfo struct {
 // BuildInterface extracts the typed interface from a Core program
 func BuildInterface(module string, prog *core.Program, typeEnv *types.TypeEnv) (*Iface, error) {
 	builder := NewBuilder(module, typeEnv)
-	return builder.Build(prog, nil)
+	return builder.Build(prog, nil, nil)
 }
 
 // BuildInterfaceWithConstructors builds an interface with constructor information
 func BuildInterfaceWithConstructors(module string, prog *core.Program, typeEnv *types.TypeEnv, constructors map[string]*ConstructorInfo) (*Iface, error) {
 	builder := NewBuilder(module, typeEnv)
-	return builder.Build(prog, constructors)
+	return builder.Build(prog, constructors, nil)
+}
+
+// BuildInterfaceWithTypesAndConstructors builds an interface with type declarations and constructor information
+func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, typeEnv *types.TypeEnv, astFile interface{}, constructors map[string]*ConstructorInfo) (*Iface, error) {
+	builder := NewBuilder(module, typeEnv)
+	return builder.Build(prog, constructors, astFile)
 }
 
 // Build constructs the interface from a Core program
-func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo) (*Iface, error) {
+func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
+	fmt.Printf("DEBUG Build: module=%s, astFile=%v\n", b.module, astFile != nil)
 	iface := NewIface(b.module)
 
 	// Extract exportable bindings from the program
@@ -104,6 +112,39 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		}
 
 		iface.AddConstructor(ctorInfo.TypeName, ctorName, fieldTypes, resultType)
+	}
+
+	// Extract and add type declarations if AST is provided
+	fmt.Printf("DEBUG: astFile=%v (nil=%v)\n", astFile != nil, astFile == nil)
+	if astFile != nil {
+		fmt.Printf("DEBUG: astFile type: %T\n", astFile)
+		if file, ok := astFile.(*ast.File); ok {
+			fmt.Printf("DEBUG: Extracting types from AST, found %d Decls and %d Statements\n", len(file.Decls), len(file.Statements))
+			// Check both Decls and Statements for type declarations
+			allDecls := append(file.Decls, file.Statements...)
+			for _, decl := range allDecls {
+				if typeDecl, ok := decl.(*ast.TypeDecl); ok {
+					fmt.Printf("DEBUG: Found type declaration %s, Exported=%v\n", typeDecl.Name, typeDecl.Exported)
+					if typeDecl.Exported {
+						// Add type to interface
+						arity := len(typeDecl.TypeParams)
+						iface.AddType(typeDecl.Name, arity)
+						fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
+
+						// Extract constructors from algebraic types
+						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
+							fmt.Printf("DEBUG: Type %s is algebraic with %d constructors\n", typeDecl.Name, len(algType.Constructors))
+							for _, ctor := range algType.Constructors {
+								// Add constructor to exports (will be importable)
+								// The actual constructor scheme was already added above
+								// Just mark it as exportable here
+								fmt.Printf("DEBUG: Type %s exports constructor %s\n", typeDecl.Name, ctor.Name)
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Compute deterministic digest

@@ -2006,8 +2006,81 @@ func (p *Parser) parseConstructorPattern(name string) ast.Pattern {
 }
 
 func (p *Parser) parseListPattern() ast.Pattern {
-	// TODO: Implement list pattern parsing
-	return nil
+	startPos := p.curPos()
+	// We're at LBRACKET
+	p.nextToken() // consume LBRACKET
+
+	// Empty list pattern: []
+	if p.curTokenIs(lexer.RBRACKET) {
+		// Parser convention: leave at last token of pattern (RBRACKET)
+		return &ast.ListPattern{
+			Elements: []ast.Pattern{},
+			Rest:     nil,
+			Pos:      startPos,
+		}
+	}
+
+	// Non-empty list: [x, ...] or [x, y, ...rest]
+	elements := []ast.Pattern{}
+	var rest ast.Pattern
+
+	for {
+		// Check for spread pattern: ...rest
+		if p.curTokenIs(lexer.ELLIPSIS) {
+			p.nextToken() // consume ELLIPSIS
+			if !p.curTokenIs(lexer.IDENT) {
+				p.report("PAT_SPREAD_NEEDS_IDENT", "spread in list pattern must bind to a name, e.g. [x, ...xs]", "Add an identifier after ..., like [x, ...rest]")
+				return nil
+			}
+			rest = &ast.Identifier{
+				Name: p.curToken.Literal,
+				Pos:  p.curPos(),
+			}
+			p.nextToken() // consume ident
+			break         // spread must be last
+		}
+
+		// Parse next pattern element
+		elem := p.parsePattern()
+		if elem == nil {
+			return nil
+		}
+		elements = append(elements, elem)
+
+		// Check what comes next
+		p.nextToken() // move past pattern element
+
+		if p.curTokenIs(lexer.RBRACKET) {
+			// End of list
+			break
+		}
+
+		if !p.curTokenIs(lexer.COMMA) {
+			p.reportExpected(lexer.COMMA, "Expected ',' or ']' in list pattern")
+			return nil
+		}
+
+		p.nextToken() // consume comma
+
+		// Check for closing bracket after comma (trailing comma)
+		if p.curTokenIs(lexer.RBRACKET) {
+			break
+		}
+	}
+
+	// We should be at RBRACKET now
+	if !p.curTokenIs(lexer.RBRACKET) {
+		p.reportExpected(lexer.RBRACKET, "Expected ']' to close list pattern")
+		return nil
+	}
+	// Pattern parsing convention: leave current token at the last token of the pattern
+	// The caller will advance past it
+
+	return &ast.ListPattern{
+		Elements: elements,
+		Rest:     rest,
+		Pos:      startPos,
+	}
 }
 
 func (p *Parser) parseRecordPattern() ast.Pattern {

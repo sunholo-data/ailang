@@ -128,6 +128,14 @@ func inferBuiltinType(name string) *types.Scheme {
 		}
 
 	default:
+		// Check for string primitives and IO builtins
+		if handleStringPrimitive(name, &resultType) || handleIOBuiltin(name, &resultType) {
+			return &types.Scheme{
+				TypeVars: []string{},
+				Type:     resultType,
+			}
+		}
+
 		// Unknown operation, return generic type
 		return &types.Scheme{
 			TypeVars: []string{},
@@ -138,6 +146,98 @@ func inferBuiltinType(name string) *types.Scheme {
 	return &types.Scheme{
 		TypeVars: []string{}, // All builtins are monomorphic after lowering
 		Type:     resultType,
+	}
+}
+
+// handleStringPrimitive handles string primitive builtins (_str_*)
+func handleStringPrimitive(name string, resultType *types.Type) bool {
+	strType := &types.TCon{Name: "String"}
+	intType := &types.TCon{Name: "Int"}
+
+	switch name {
+	case "_str_len":
+		// _str_len: String -> Int
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType},
+			EffectRow: nil,
+			Return:    intType,
+		}
+		return true
+
+	case "_str_slice":
+		// _str_slice: String -> Int -> Int -> String
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType, intType, intType},
+			EffectRow: nil,
+			Return:    strType,
+		}
+		return true
+
+	case "_str_compare":
+		// _str_compare: String -> String -> Int
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType, strType},
+			EffectRow: nil,
+			Return:    intType,
+		}
+		return true
+
+	case "_str_find":
+		// _str_find: String -> String -> Int
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType, strType},
+			EffectRow: nil,
+			Return:    intType,
+		}
+		return true
+
+	case "_str_upper", "_str_lower", "_str_trim":
+		// _str_upper/lower/trim: String -> String
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType},
+			EffectRow: nil,
+			Return:    strType,
+		}
+		return true
+
+	default:
+		return false
+	}
+}
+
+// handleIOBuiltin handles IO primitive builtins (_io_*)
+func handleIOBuiltin(name string, resultType *types.Type) bool {
+	strType := &types.TCon{Name: "String"}
+	unitType := &types.TCon{Name: "Unit"}
+
+	// Create effect row with IO effect
+	ioEffectRow := &types.Row{
+		Kind:   types.EffectRow,
+		Labels: map[string]types.Type{"IO": &types.TCon{Name: "IO"}},
+		Tail:   nil,
+	}
+
+	switch name {
+	case "_io_print", "_io_println":
+		// _io_print/println: String -> Unit ! {IO}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType},
+			EffectRow: ioEffectRow,
+			Return:    unitType,
+		}
+		return true
+
+	case "_io_readLine":
+		// _io_readLine: () -> String ! {IO}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{unitType},
+			EffectRow: ioEffectRow,
+			Return:    strType,
+		}
+		return true
+
+	default:
+		return false
 	}
 }
 

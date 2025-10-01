@@ -25,12 +25,14 @@ type ModuleLoader struct {
 
 // LoadedModule represents a loaded and parsed module
 type LoadedModule struct {
-	Path    string
-	File    *ast.File
-	Imports []string                 // Module paths this module imports
-	Exports map[string]*ast.FuncDecl // Export table (for now, just functions)
-	Core    *core.Program            // Core representation (after elaboration)
-	Iface   *iface.Iface             // Module interface (after type checking)
+	Path         string
+	File         *ast.File
+	Imports      []string                 // Module paths this module imports
+	Exports      map[string]*ast.FuncDecl // Export table (for now, just functions)
+	Types        map[string]*ast.TypeDecl // Exported type declarations
+	Constructors map[string]string        // Constructor name -> Type name mapping
+	Core         *core.Program            // Core representation (after elaboration)
+	Iface        *iface.Iface             // Module interface (after type checking)
 }
 
 // NewModuleLoader creates a new module loader
@@ -105,13 +107,18 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Build export table
 	exports := ml.buildExports(file)
 
+	// Build types and constructors tables
+	types, constructors := ml.buildTypes(file)
+
 	// Cache and return with canonical ID
 	canonicalID = CanonicalModuleID(path)
 	loaded := &LoadedModule{
-		Path:    canonicalID, // Store canonical form
-		File:    file,
-		Imports: imports,
-		Exports: exports,
+		Path:         canonicalID, // Store canonical form
+		File:         file,
+		Imports:      imports,
+		Exports:      exports,
+		Types:        types,
+		Constructors: constructors,
 	}
 	ml.cache[canonicalID] = loaded
 
@@ -178,7 +185,34 @@ func (ml *ModuleLoader) buildExports(file *ast.File) map[string]*ast.FuncDecl {
 	return exports
 }
 
+// buildTypes extracts type declarations and constructors from a module
+func (ml *ModuleLoader) buildTypes(file *ast.File) (map[string]*ast.TypeDecl, map[string]string) {
+	types := make(map[string]*ast.TypeDecl)
+	constructors := make(map[string]string) // ctor name -> type name
+
+	// Check both Decls and Statements for type declarations
+	allDecls := append(file.Decls, file.Statements...)
+	for _, decl := range allDecls {
+		if typeDecl, ok := decl.(*ast.TypeDecl); ok {
+			// Only export if marked as exported
+			if typeDecl.Exported {
+				types[typeDecl.Name] = typeDecl
+
+				// Extract constructors from algebraic types
+				if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
+					for _, ctor := range algType.Constructors {
+						constructors[ctor.Name] = typeDecl.Name
+					}
+				}
+			}
+		}
+	}
+
+	return types, constructors
+}
+
 // GetExport retrieves an exported symbol from a module
+// Returns (nil, nil) if the symbol is a type or constructor (not a function)
 func (ml *ModuleLoader) GetExport(modulePath, symbol string) (*ast.FuncDecl, error) {
 	module, err := ml.Load(modulePath)
 	if err != nil {
@@ -186,21 +220,38 @@ func (ml *ModuleLoader) GetExport(modulePath, symbol string) (*ast.FuncDecl, err
 		return nil, err
 	}
 
+	// Check if it's a function export
 	decl, ok := module.Exports[symbol]
-	if !ok {
-		// Build list of available exports
-		var available []string
-		for name := range module.Exports {
-			available = append(available, name)
-		}
-		sort.Strings(available)
-
-		// Return structured error report (wrapped)
-		errReport := newIMP010Loader(symbol, modulePath, available, nil)
-		return nil, errors.WrapReport(errReport)
+	if ok {
+		return decl, nil
 	}
 
-	return decl, nil
+	// Check if it's a type name - return nil (not an error, just not a function)
+	if _, isType := module.Types[symbol]; isType {
+		return nil, nil
+	}
+
+	// Check if it's a constructor - return nil (not an error, just not a function)
+	if _, isCtor := module.Constructors[symbol]; isCtor {
+		return nil, nil
+	}
+
+	// Symbol not found at all - build error report
+	var available []string
+	for name := range module.Exports {
+		available = append(available, name)
+	}
+	for name := range module.Types {
+		available = append(available, name+" (type)")
+	}
+	for name := range module.Constructors {
+		available = append(available, name+" (ctor)")
+	}
+	sort.Strings(available)
+
+	// Return structured error report (wrapped)
+	errReport := newIMP010Loader(symbol, modulePath, available, nil)
+	return nil, errors.WrapReport(errReport)
 }
 
 // newIMP010Loader creates an IMP010 error report (symbol not exported)

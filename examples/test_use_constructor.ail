@@ -1,0 +1,12 @@
+module examples/test_use_constructor
+import stdlib/std/option (Option, Some, None, getOrElse)
+
+export pure func testSome() -> int {
+  let x = Some(42) in
+  getOrElse(x, 0)
+}
+
+export pure func testNone() -> int {
+  let x = None in
+  getOrElse(x, 99)
+}

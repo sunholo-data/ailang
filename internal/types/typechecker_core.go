@@ -1681,6 +1681,78 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			Elements: typedElems,
 		}, nil
 
+	case *core.ListPattern:
+		// List pattern - scrutinee must be list type
+		// Extract element type from scrutinee list
+		var elemType Type
+
+		// Try to extract list type from scrutinee
+		if listTy, ok := scrutType.(*TList); ok {
+			elemType = listTy.Element
+		} else {
+			// Create fresh type variable for elements
+			elemType = ctx.freshTypeVar()
+			ctx.addConstraint(TypeEq{
+				Left:  scrutType,
+				Right: &TList{Element: elemType},
+				Path:  []string{"list pattern"},
+			})
+		}
+
+		// Recursively check each element pattern
+		bindings := make(map[string]Type)
+		typedElems := make([]typedast.TypedPattern, len(p.Elements))
+
+		for i, elemPat := range p.Elements {
+			elemBindings, typedElem, err := tc.checkPattern(elemPat, elemType, ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// Merge bindings
+			for name, typ := range elemBindings {
+				if existing, ok := bindings[name]; ok {
+					// Variable bound multiple times - must unify
+					ctx.addConstraint(TypeEq{
+						Left:  existing,
+						Right: typ,
+						Path:  []string{fmt.Sprintf("pattern variable %s", name)},
+					})
+				} else {
+					bindings[name] = typ
+				}
+			}
+			typedElems[i] = typedElem
+		}
+
+		// Type check tail pattern if present
+		var typedTail *typedast.TypedPattern
+		if p.Tail != nil {
+			// Tail must have list type (same as scrutinee)
+			tailBindings, tail, err := tc.checkPattern(*p.Tail, scrutType, ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// Merge tail bindings
+			for name, typ := range tailBindings {
+				if existing, ok := bindings[name]; ok {
+					// Variable bound multiple times - must unify
+					ctx.addConstraint(TypeEq{
+						Left:  existing,
+						Right: typ,
+						Path:  []string{fmt.Sprintf("pattern variable %s", name)},
+					})
+				} else {
+					bindings[name] = typ
+				}
+			}
+			typedTail = &tail
+		}
+
+		return bindings, typedast.TypedListPattern{
+			Elements: typedElems,
+			Tail:     typedTail,
+		}, nil
+
 	default:
 		return nil, nil, fmt.Errorf("pattern type checking not implemented for %T", pat)
 	}

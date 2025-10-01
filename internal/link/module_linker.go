@@ -69,17 +69,70 @@ func (ml *ModuleLinker) BuildGlobalEnv(imports []*ast.ImportDecl) (GlobalEnv, *L
 				diag.ResolutionTrace = append(diag.ResolutionTrace,
 					fmt.Sprintf("  Looking for symbol: %s", sym))
 
+				// Try to get as regular export first
 				item, ok := iface.GetExport(sym)
+
+				// If not found as regular export, try as type or constructor
+				var isType, isConstructor bool
+				if !ok {
+					// Check if it's a type name
+					if _, typeOk := iface.GetType(sym); typeOk {
+						isType = true
+						ok = true
+						// Types don't need to be added to env, just acknowledge they exist
+						diag.ResolutionTrace = append(diag.ResolutionTrace,
+							fmt.Sprintf("  ✓ Resolved type %s from %s", sym, imp.Path))
+					}
+
+					// Check if it's a constructor
+					if !ok {
+						if ctor, ctorOk := iface.GetConstructor(sym); ctorOk {
+							isConstructor = true
+							ok = true
+							// Constructors are resolved differently (from $adt module)
+							// The pipeline already handles adding them to globalRefs
+							diag.ResolutionTrace = append(diag.ResolutionTrace,
+								fmt.Sprintf("  ✓ Resolved constructor %s from %s", sym, imp.Path))
+							// Add constructor to env as a special marker
+							env[sym] = &ImportedSym{
+								Ref: core.GlobalRef{
+									Module: "$adt",
+									Name:   fmt.Sprintf("make_%s_%s", ctor.TypeName, ctor.CtorName),
+								},
+								Type:   nil, // Constructor types are handled specially
+								Purity: true,
+							}
+						}
+					}
+				}
+
 				if !ok {
 					// Get available exports for error reporting
 					var available []string
 					for name := range iface.Exports {
 						available = append(available, name)
 					}
+					// Also list types and constructors
+					for name := range iface.Types {
+						available = append(available, name+" (type)")
+					}
+					for name := range iface.Constructors {
+						available = append(available, name+" (ctor)")
+					}
 
 					// Build structured error report
 					errReport := newIMP010(sym, imp.Path, available, diag.ResolutionTrace, nil)
 					return nil, diag, errors.WrapReport(errReport)
+				}
+
+				// Skip further processing for types (they don't go in env)
+				if isType {
+					continue
+				}
+
+				// Skip further processing for constructors (already added to env above)
+				if isConstructor {
+					continue
 				}
 
 				// Check for conflicts
