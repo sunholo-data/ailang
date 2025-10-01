@@ -1,0 +1,8 @@
+-- Simplest ADT test without let binding
+
+type Option[a] = Some(a) | None
+
+match Some(42) {
+  Some(n) => n,
+  None => 0
+}

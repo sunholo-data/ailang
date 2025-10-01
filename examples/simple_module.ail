@@ -1,4 +1,0 @@
--- Simple test of basic functionality
-let add = \x y. x + y in
-let result = add(10)(5) in
-print("Result: " ++ show(result))

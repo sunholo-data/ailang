@@ -1,8 +1,0 @@
--- Test namespace import (should fail)
-module test_namespace_import
-
--- This should trigger IMP012_UNSUPPORTED_NAMESPACE
-import examples/v3_3/math/simple_gcd
-
--- Try to use it
-gcd(48, 18)

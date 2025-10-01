@@ -1,2 +1,0 @@
--- Test polymorphism tracking
-(\x. x)(42)

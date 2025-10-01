@@ -1,5 +1,0 @@
--- Simple test without imports
-module test_simple
-
--- Simple function to test
-12 + 30

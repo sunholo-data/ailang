@@ -1,0 +1,134 @@
+-- records.ail - Record examples
+-- Demonstrates record literals, field access, and nested records
+
+-- =======================
+-- BASIC RECORDS
+-- =======================
+
+-- Simple record literal
+{name: "Alice", age: 30}
+-- Output: {name: "Alice", age: 30}
+
+-- Record with multiple types
+{id: 1, name: "Bob", active: true, score: 98.5}
+-- Output: {id: 1, name: "Bob", active: true, score: 98.5}
+
+-- =======================
+-- FIELD ACCESS
+-- =======================
+
+-- Single field access
+let person = {name: "Charlie", age: 25} in
+person.name
+-- Output: "Charlie"
+
+-- Multiple field access
+let user = {id: 123, email: "test@example.com"} in
+show_Int(user.id) ++ " - " ++ user.email
+-- Output: "123 - test@example.com"
+
+-- =======================
+-- NESTED RECORDS
+-- =======================
+
+-- Record with nested structure
+let company = {
+  name: "Acme Corp",
+  ceo: {
+    name: "Jane Doe",
+    age: 45
+  }
+} in
+company.ceo.name
+-- Output: "Jane Doe"
+
+-- Deeper nesting
+let data = {
+  user: {
+    profile: {
+      name: "Deep",
+      email: "deep@test.com"
+    }
+  }
+} in
+data.user.profile.email
+-- Output: "deep@test.com"
+
+-- =======================
+-- RECORDS IN EXPRESSIONS
+-- =======================
+
+-- Record with computed fields
+let x = 10 in
+let y = 20 in
+{sum: x + y, product: x * y, x: x, y: y}
+-- Output: {sum: 30, product: 200, x: 10, y: 20}
+
+-- Using record fields in calculations
+let rect = {width: 5, height: 10} in
+rect.width * rect.height
+-- Output: 50
+
+-- =======================
+-- RECORDS WITH FUNCTIONS
+-- =======================
+
+-- Record containing lambda functions
+let math = {
+  add: \x y. x + y,
+  multiply: \x y. x * y,
+  square: \x. x * x
+} in
+math.square(5)
+-- Output: 25
+
+-- Using functions from records
+let ops = {
+  double: \x. x * 2,
+  triple: \x. x * 3
+} in
+ops.double(21)
+-- Output: 42
+
+-- =======================
+-- PATTERN MATCHING (Future)
+-- =======================
+
+-- Note: Record patterns not yet implemented
+-- Future syntax will look like:
+-- match person {
+--   {name, age} => name ++ " is " ++ show_Int(age)
+-- }
+
+-- =======================
+-- COMPLEX EXAMPLES
+-- =======================
+
+-- Record with mixed types and nesting
+let config = {
+  app: {
+    name: "MyApp",
+    version: "1.0.0"
+  },
+  server: {
+    host: "localhost",
+    port: 8080,
+    ssl: false
+  },
+  features: {
+    debug: true,
+    logging: true
+  }
+} in
+config.app.name ++ " v" ++ config.app.version
+-- Output: "MyApp v1.0.0"
+
+-- Building a result from record fields
+let point = {x: 3, y: 4} in
+let distance = \p.
+  let dx = p.x * p.x in
+  let dy = p.y * p.y in
+  dx + dy  -- Would be sqrt(dx + dy) with math functions
+in
+distance(point)
+-- Output: 25

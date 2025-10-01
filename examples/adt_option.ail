@@ -1,0 +1,10 @@
+-- ADT with Option type and pattern matching
+-- Demonstrates pattern matching with both Some and None cases
+
+type Option[a] = Some(a) | None
+
+-- Test Some case
+match Some(42) {
+  Some(n) => n,
+  None => 0
+}

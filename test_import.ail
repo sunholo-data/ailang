@@ -1,8 +1,0 @@
--- Test import at root level
-module test_import
-
--- Import from examples
-import examples/v3_3/math/simple_gcd (gcd)
-
--- Use imported function
-show_Int(gcd(48, 18))
