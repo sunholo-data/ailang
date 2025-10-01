@@ -20,31 +20,38 @@ Create a new AILANG release with the specified version number.
 
 1. **Read current version** from README.md to understand the current state
 
-2. **Update version in documentation:**
+2. **Verify tests and linting BEFORE making any changes:**
+   - Run `make test` to ensure all tests pass
+   - Run `make lint` to ensure code quality
+   - **CRITICAL**: If either fails, STOP and fix issues before proceeding
+   - Do NOT proceed with version updates if tests or linting fail
+
+3. **Update version in documentation:**
    - README.md: Update "Current Version: vX.X.X"
    - docs/reference/implementation-status.md: Update "Current Version: vX.X.X"
    - CHANGELOG.md: Change `## [Unreleased]` to `## [v$1] - $(date +%Y-%m-%d)`
 
-3. **Verify tests pass:**
-   - Run `make test` to ensure all tests pass
-   - Run `make lint` to ensure code quality
+4. **Verify tests and linting AGAIN after documentation changes:**
+   - Run `make test` to ensure documentation changes didn't break anything
+   - Run `make lint` to ensure all files pass linting
+   - **CRITICAL**: If either fails, fix issues before committing
 
-4. **Commit changes:**
+5. **Commit changes:**
    - Stage README.md, CHANGELOG.md, and docs/reference/implementation-status.md
    - Commit with message: "Release v$1"
 
-5. **Create and push git tag:**
+6. **Create and push git tag:**
    - Create annotated tag: `git tag -a v$1 -m "Release v$1"`
    - Push tag: `git push origin v$1`
 
-6. **Push commit:**
+7. **Push commit:**
    - Push to remote: `git push`
 
-7. **Monitor CI/CD:**
+8. **Monitor CI/CD:**
    - Run `gh run list --limit 3` to check CI status
    - Verify builds pass on all platforms (Linux, macOS, Windows)
 
-8. **Summary:**
+9. **Summary:**
    - Confirm version v$1 released
    - Show git tag details
    - Show CI workflow URLs
@@ -58,4 +65,8 @@ Version should be in semantic versioning format: `MAJOR.MINOR.PATCH`
 
 - Working directory must be clean (no uncommitted changes)
 - Current branch should be `dev` or `main`
-- All tests must pass before release
+- **CRITICAL**: All tests must pass before release
+- **CRITICAL**: All linting must pass before release
+- **IMPORTANT**: Run tests and linting TWICE:
+  1. Before making version changes (to ensure current state is clean)
+  2. After making version changes (to ensure changes didn't break anything)

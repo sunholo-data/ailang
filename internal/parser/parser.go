@@ -1961,10 +1961,6 @@ func (p *Parser) suggestEffect(name string, known map[string]bool) string {
 
 // parseEffects is deprecated - use parseEffectAnnotation instead
 // Kept for backward compatibility during migration
-func (p *Parser) parseEffects() []string {
-	return p.parseEffectAnnotation()
-}
-
 // parseTestsBlock parses a tests block with the new multi-input format
 
 // parsePropertiesBlock parses a properties block

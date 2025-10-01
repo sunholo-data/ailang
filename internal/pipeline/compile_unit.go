@@ -8,10 +8,10 @@ import (
 
 // ConstructorInfo holds information about a constructor for interface building
 type ConstructorInfo struct {
-	TypeName   string // ADT type name (e.g., "Option")
-	CtorName   string // Constructor name (e.g., "Some")
+	TypeName   string     // ADT type name (e.g., "Option")
+	CtorName   string     // Constructor name (e.g., "Some")
 	FieldTypes []ast.Type // Field types from AST
-	Arity      int    // Number of fields
+	Arity      int        // Number of fields
 }
 
 // CompileUnit represents a module compilation unit

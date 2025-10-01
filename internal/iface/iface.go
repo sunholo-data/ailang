@@ -7,11 +7,11 @@ import (
 
 // Iface represents a module's interface (its typed exports)
 type Iface struct {
-	Module       string                         // Module path, e.g., "math/gcd"
-	Exports      map[string]*IfaceItem          // Exported symbols
-	Constructors map[string]*ConstructorScheme  // Exported ADT constructors
-	Schema       string                         // Schema version, e.g., "ailang.iface/v1"
-	Digest       string                         // Deterministic digest of interface
+	Module       string                        // Module path, e.g., "math/gcd"
+	Exports      map[string]*IfaceItem         // Exported symbols
+	Constructors map[string]*ConstructorScheme // Exported ADT constructors
+	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
+	Digest       string                        // Deterministic digest of interface
 }
 
 // IfaceItem represents a single exported symbol
@@ -24,11 +24,11 @@ type IfaceItem struct {
 
 // ConstructorScheme represents the type scheme of an ADT constructor
 type ConstructorScheme struct {
-	TypeName   string         // The ADT name (e.g., "Option")
-	CtorName   string         // Constructor name (e.g., "Some", "None")
-	FieldTypes []types.Type   // Field types (empty for nullary constructors)
-	ResultType types.Type     // Result type after application
-	Arity      int            // Number of fields
+	TypeName   string       // The ADT name (e.g., "Option")
+	CtorName   string       // Constructor name (e.g., "Some", "None")
+	FieldTypes []types.Type // Field types (empty for nullary constructors)
+	ResultType types.Type   // Result type after application
+	Arity      int          // Number of fields
 }
 
 // NewIface creates a new module interface

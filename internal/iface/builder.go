@@ -91,21 +91,19 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Add constructors to interface if provided
-	if constructors != nil {
-		for ctorName, ctorInfo := range constructors {
-			// For now, we don't have full type information for constructor fields
-			// We'll use placeholder types that will be refined later
-			// The TypeName from the ADT declaration becomes the result type
-			resultType := &types.TCon{Name: ctorInfo.TypeName}
+	for ctorName, ctorInfo := range constructors {
+		// For now, we don't have full type information for constructor fields
+		// We'll use placeholder types that will be refined later
+		// The TypeName from the ADT declaration becomes the result type
+		resultType := &types.TCon{Name: ctorInfo.TypeName}
 
-			// Create placeholder field types (will be refined by type checker)
-			fieldTypes := make([]types.Type, ctorInfo.Arity)
-			for i := 0; i < ctorInfo.Arity; i++ {
-				fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
-			}
-
-			iface.AddConstructor(ctorInfo.TypeName, ctorName, fieldTypes, resultType)
+		// Create placeholder field types (will be refined by type checker)
+		fieldTypes := make([]types.Type, ctorInfo.Arity)
+		for i := 0; i < ctorInfo.Arity; i++ {
+			fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
 		}
+
+		iface.AddConstructor(ctorInfo.TypeName, ctorName, fieldTypes, resultType)
 	}
 
 	// Compute deterministic digest

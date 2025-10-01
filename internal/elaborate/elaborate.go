@@ -12,14 +12,14 @@ import (
 
 // Elaborator transforms surface AST to Core ANF
 type Elaborator struct {
-	nextID          uint64
-	surfaceSpans    map[uint64]ast.Pos         // Map Core IDs to surface positions
-	effectAnnots    map[uint64][]string        // Map Core IDs to effect annotations from AST
-	freshVarNum     int                        // For generating fresh variable names
-	moduleLoader    *loader.ModuleLoader
-	filePath        string                                  // Current file path for relative imports
-	globalEnv       map[string]core.GlobalRef               // Global environment for imports (name -> GlobalRef)
-	constructors    map[string]*ConstructorInfo             // Available constructors (name -> info)
+	nextID       uint64
+	surfaceSpans map[uint64]ast.Pos  // Map Core IDs to surface positions
+	effectAnnots map[uint64][]string // Map Core IDs to effect annotations from AST
+	freshVarNum  int                 // For generating fresh variable names
+	moduleLoader *loader.ModuleLoader
+	filePath     string                      // Current file path for relative imports
+	globalEnv    map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
+	constructors map[string]*ConstructorInfo // Available constructors (name -> info)
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -43,7 +43,7 @@ func NewElaborator() *Elaborator {
 }
 
 // NewElaboratorWithPath creates a new elaborator with file path for imports
-func NewElaboratorWithPath(filePath string) *Elaborator{
+func NewElaboratorWithPath(filePath string) *Elaborator {
 	dir := filepath.Dir(filePath)
 	return &Elaborator{
 		nextID:       1,

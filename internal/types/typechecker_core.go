@@ -10,9 +10,9 @@ import (
 
 // CoreTypeChecker type checks Core AST and produces TypedAST
 type CoreTypeChecker struct {
-	instanceEnv         *InstanceEnv               // Type class instances
-	defaultingConfig    *DefaultingConfig          // Numeric defaulting configuration
-	debugMode           bool                       // Enable debug output
+	instanceEnv         *InstanceEnv      // Type class instances
+	defaultingConfig    *DefaultingConfig // Numeric defaulting configuration
+	debugMode           bool              // Enable debug output
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
 	globalTypes         map[string]*Scheme             // Global types for imports (module.name -> Scheme)
