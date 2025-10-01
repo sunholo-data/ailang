@@ -132,6 +132,7 @@ Hello World :: String
 
 ## Documentation
 
+- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
 - **[Getting Started](docs/guides/getting-started.md)** - Installation and quick tutorial
 - **[Language Syntax](docs/reference/language-syntax.md)** - Complete language reference
 - **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide
