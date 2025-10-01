@@ -1,0 +1,16 @@
+module stdlib/std/string
+
+-- Wrappers for built-in string primitives
+-- The underlying _str_* functions are registered in Go
+
+export pure func length(s: string) -> int { _str_len(s) }
+export pure func substring(s: string, start: int, end: int) -> string { _str_slice(s, start, end) }
+export pure func toUpper(s: string) -> string { _str_upper(s) }
+export pure func toLower(s: string) -> string { _str_lower(s) }
+export pure func trim(s: string) -> string { _str_trim(s) }
+
+-- compare: -1 / 0 / +1
+export pure func compare(a: string, b: string) -> int { _str_compare(a, b) }
+
+-- returns first index or -1
+export pure func find(hay: string, needle: string) -> int { _str_find(hay, needle) }
