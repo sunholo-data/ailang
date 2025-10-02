@@ -1,0 +1,67 @@
+{
+  "module": "stdlib/std/list",
+  "types": [],
+  "funcs": [
+    {
+      "name": "concat",
+      "type": "(a,b)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "filter",
+      "type": "(a,b)-\u003e[c]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldl",
+      "type": "(a,b,c)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "foldr",
+      "type": "(a,b,c)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "head",
+      "type": "(a)-\u003eOption",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "length",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "map",
+      "type": "(a,b)-\u003e[c]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "reverse",
+      "type": "(a)-\u003e[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "tail",
+      "type": "(a)-\u003e[b]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "zip",
+      "type": "(a,b)-\u003e[c]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

@@ -2,17 +2,13 @@ module stdlib/std/io
 
 -- Wrappers around Go builtins (_io_print, _io_println, _io_readLine)
 -- Effects are tracked at the type level with ! {IO}
--- Note: Inline function bodies not yet supported by parser
--- TODO: Restore inline bodies when parser supports them
+-- Using equation-form exports for thin wrappers
 
 -- print: Print string without newline
--- export func print(s: string) -> () ! {IO}
+export func print(s: string) -> () ! {IO} = _io_print(s)
 
 -- println: Print string with newline
--- export func println(s: string) -> () ! {IO}
+export func println(s: string) -> () ! {IO} = _io_println(s)
 
 -- readLine: Read line from stdin
--- export func readLine() -> string ! {IO}
-
--- debug: Print labeled value and return it
--- export func debug[a](label: string, value: a) -> a ! {IO}
+export func readLine() -> string ! {IO} = _io_readLine()

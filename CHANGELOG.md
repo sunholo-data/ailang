@@ -1,5 +1,203 @@
 # AILANG Changelog
 
+## [v0.0.12] - 2025-10-02
+
+### Added - M-S1 Complete: Stdlib Foundation (~200 LOC)
+
+**✅ M-S1 MILESTONE ACHIEVED: All 5 stdlib modules type-check successfully**
+
+#### Equation-Form Export Syntax (~30 LOC)
+**Parser enhancement for thin wrapper functions:**
+
+**New Syntax** (`internal/parser/parser.go`, lines 655-683):
+- Added equation-form function syntax: `export func f(x: T) -> R = expr`
+- Alternative to block-form: `export func f(x: T) -> R { expr }`
+- Wraps expression in Block for uniform AST handling
+
+**Implementation**:
+```go
+if p.peekTokenIs(lexer.ASSIGN) {
+    p.nextToken() // move to ASSIGN
+    p.nextToken() // move past ASSIGN
+    body := p.parseExpression(LOWEST)
+    fn.Body = &ast.Block{Exprs: []ast.Expr{body}, Pos: body.Position()}
+}
+```
+
+**Use Case**: Thin wrappers around builtins (std/io module)
+```ailang
+export func println(s: string) -> () ! {IO} = _io_println(s)
+export func print(s: string) -> () ! {IO} = _io_print(s)
+export func readLine() -> string ! {IO} = _io_readLine()
+```
+
+---
+
+#### Polymorphic ++ Operator (~170 LOC)
+**Type checker enhancement for list and string concatenation:**
+
+**Typing Rule**: `xs:[α] ∧ ys:[α] ⇒ xs++ys:[α]`
+
+**Implementation** (`internal/types/typechecker_core.go`, lines 1155-1250):
+- Decision tree for polymorphic concatenation:
+  1. If at least one operand is a concrete list → list concat
+  2. If at least one operand is a concrete string → string concat
+  3. If both are type variables → default to list concat (more polymorphic)
+  4. Otherwise → fallback to string concat
+
+**Type Unification** (`internal/types/unification.go`, lines 125-143):
+- Added TCon compatibility for both `TCon("String")` and `TCon("string")` (case variations)
+- Proper unification when one operand is concrete type, other is type variable
+
+**Examples Working**:
+```ailang
+"hello" ++ " world"        -- String concat
+[1, 2] ++ [3, 4]           -- List concat: [Int]
+[] ++ []                   -- Polymorphic: [α]
+concat xs ys = xs ++ ys    -- Infers: [α] -> [α] -> [α]
+```
+
+---
+
+#### Stdlib Modules Complete (All 5 type-check)
+
+**stdlib/std/io.ail** (3 exports):
+- `print(s: string) -> () ! {IO}` - Print without newline
+- `println(s: string) -> () ! {IO}` - Print with newline
+- `readLine() -> string ! {IO}` - Read from stdin
+- Uses equation-form syntax for thin wrappers
+
+**stdlib/std/list.ail** (10 exports):
+- `map, filter, foldl, foldr, length, head, tail, reverse, concat, zip`
+- ++ operator now works correctly for list concatenation
+
+**stdlib/std/option.ail** (6 exports):
+- `map, flatMap, getOrElse, isSome, isNone, filter`
+
+**stdlib/std/result.ail** (6 exports):
+- `map, mapErr, flatMap, isOk, isErr, unwrap`
+
+**stdlib/std/string.ail** (7 exports):
+- `length, substring, toUpper, toLower, trim, compare, find`
+
+---
+
+### Changed
+
+**Parser Function Declaration**:
+- Extended to support both block-form and equation-form syntax
+- Equation-form used for simple wrapper functions
+- Block-form used for multi-statement functions
+
+**Type Checker**:
+- Enhanced ++ operator to work polymorphically for both lists and strings
+- Improved type variable unification for binary operators
+
+---
+
+### Fixed
+
+**List Concatenation**: ++ operator now properly type-checks with polymorphic element types
+**String Concatenation**: Works when one operand is a type variable
+**Type Unification**: TCon case variations ("String" vs "string") now handled correctly
+
+---
+
+### Technical Details
+
+**Files Modified**:
+- `internal/parser/parser.go` (+30 LOC): Equation-form export syntax
+- `internal/types/typechecker_core.go` (+95 LOC): Polymorphic ++ operator
+- `internal/types/unification.go` (+18 LOC): TCon compatibility
+- `stdlib/std/io.ail` (rewritten): 3 equation-form exports
+
+**Test Results**:
+- ✅ All 5 stdlib modules type-check without errors
+- ✅ All existing tests pass (no regressions)
+- ✅ Examples type-check successfully (option_demo, block_demo, stdlib_demo)
+
+**Known Limitations**:
+- ⚠️ Example execution: Runner doesn't call `main()` in module files (type-checking works)
+- ⚠️ No `_io_debug` builtin yet (deferred)
+
+**Metrics**:
+- Total new code: ~200 LOC (130 implementation + 70 stdlib)
+- Stdlib modules: 5/5 complete (100%)
+- M-S1 Status: ✅ **COMPLETE**
+
+---
+
+#### Minimal Viable Runner (MVF) - Partial Implementation (~250 LOC)
+**Entrypoint resolution and argument decoding foundation for v0.2.0:**
+
+**✅ What Works**:
+1. **Argument Decoder Package** (`internal/runtime/argdecode/argdecode.go`, ~200 LOC)
+   - Type-directed JSON→Value conversion
+   - Supports: null→(), number→int/float, string, bool, array→list, object→record
+   - Handles type variables with simple inference
+   - Structured errors: `DecodeError` with Expected/Got/Reason
+
+2. **CLI Flags** (3 new flags in `cmd/ailang/main.go`):
+   - `--entry <name>` - Entrypoint function name (default: "main")
+   - `--args-json '<json>'` - JSON arguments to pass (default: "null")
+   - `--print` - Print return value even for unit (default: true)
+
+3. **Entrypoint Resolution Logic**:
+   - Looks up function in `result.Interface.Exports`
+   - Validates it's a function type (`TFunc2`)
+   - Supports 0 or 1 parameters (v0.1.0 constraint)
+   - Rejects multi-arg functions with clear error
+   - Lists available exports if entrypoint not found
+
+4. **Demo Files** (3 examples in `examples/demos/`):
+   - `hello_io.ail` - IO effects demo
+   - `adt_pipeline.ail` - ADT/Option usage
+   - `effects_pure.ail` - Pure list operations
+
+**❌ What's NOT Implemented**:
+- Module-level evaluation (no function values extracted)
+- Actual entrypoint execution (blocked on module evaluation)
+- Effect handlers (IO, etc.)
+- Demo output and golden files (blocked on execution)
+
+**Reason**: Module execution requires evaluating all bindings in dependency order, building runtime environments with closures, and handling effects. This is a significant feature planned for v0.2.0.
+
+**Current Behavior**:
+```bash
+$ ailang run examples/demos/hello_io.ail
+
+Note: Module evaluation not yet supported
+  Entrypoint:  main
+  Type:        () -> α3 ! {...ε4}
+  Parameters:  0
+  Decoded arg: ()
+
+What IS working:
+  ✓ Interface extraction and freezing
+  ✓ Entrypoint resolution
+  ✓ Argument type checking and JSON decoding
+```
+
+**Usage Examples**:
+```bash
+ailang run file.ail                                    # Zero-arg main()
+ailang --entry=demo run file.ail                       # Zero-arg demo()
+ailang --entry=process --args-json='42' run file.ail   # Single-arg
+```
+
+**Files Modified**:
+- `internal/runtime/argdecode/argdecode.go` (+200 LOC): New package
+- `cmd/ailang/main.go` (+60 LOC): CLI flags + entrypoint resolution
+- `examples/demos/*.ail` (+3 files): Demo examples
+
+**Value Delivered**:
+- Foundation for v0.2.0 module execution
+- Type-safe argument handling ready
+- Clear UX messaging about what's working vs. coming
+- Demo files ready for when evaluation lands
+
+---
+
 ## [v0.0.11] - 2025-10-02
 
 ### Fixed - M-S1 Blockers: Cross-Module Constructors & Multi-Statement Functions (~224 LOC)

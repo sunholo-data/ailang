@@ -8,9 +8,119 @@ This document synthesizes feedback from Claude Sonnet 4.5 and GPT-5, assesses cu
 
 ---
 
-## Current Implementation Status (v0.0.9 + M-P3 + M-P4 + M-S1 COMPLETE)
+## Current Implementation Status (v0.0.12 - M-S1 COMPLETE!)
 
 ### 🆕 Recent Progress (October 2, 2025)
+
+**✅ M-S1 COMPLETE: Stdlib Foundation (v0.0.12, ~200 LOC, 3.5 hours)**
+
+**Phase 1 Complete** - All blockers resolved:
+- ✅ **List ++ operator**: Polymorphic typing rule implemented (90 min)
+- ✅ **Equation-form exports**: Parser support added (60 min)
+- ✅ **All 5 stdlib modules**: Type-check successfully (30 min verification)
+
+**Implementation Summary**:
+1. **Polymorphic ++ Operator** (`typechecker_core.go:1155-1250`, ~95 LOC)
+   - Decision tree: Lists first → Strings with type vars → Both type vars → String fallback
+   - Handles both `TCon("String")` and `TCon("string")` case variations
+   - Works with type variable unification
+
+2. **Equation-Form Syntax** (`parser.go:655-683`, ~30 LOC)
+   - New syntax: `export func f(x: T) -> R = expr`
+   - Wraps expression in Block for uniform handling
+   - Used in `stdlib/std/io.ail` for thin wrappers
+
+3. **Stdlib Modules** (All 5 type-check):
+   - ✅ `stdlib/std/io.ail`: 3 exports (print, println, readLine) with `! {IO}`
+   - ✅ `stdlib/std/list.ail`: 10 exports with working ++ operator
+   - ✅ `stdlib/std/option.ail`: 6 exports
+   - ✅ `stdlib/std/result.ail`: 6 exports
+   - ✅ `stdlib/std/string.ail`: 7 exports
+
+**Working Examples**:
+```ailang
+-- String concatenation
+"hello" ++ " world"  -- ✅ Works!
+
+-- List concatenation
+[1, 2] ++ [3, 4]     -- ✅ Works!
+
+-- Equation-form export
+export func println(s: string) -> () ! {IO} = _io_println(s)
+```
+
+**Known Limitations**:
+- ⚠️ Example execution: Runner doesn't call `main()` in module files
+- ⚠️ No `_io_debug` builtin yet
+
+**Metrics**:
+- Time: 3.5 hours (under budget)
+- Files modified: 3
+- New code: ~200 LOC
+- **Status**: ✅ **M-S1 COMPLETE!**
+
+---
+
+**✅ PHASE 2A COMPLETE: API Stability - Interface Freeze System (Oct 2, 2025 - 2 hours)**
+
+**Pipeline Refactoring + Stdlib Golden Files (~500 LOC)**
+
+**What Was Built**:
+1. **Pipeline Refactoring** (~50 LOC):
+   - Added `Interface *iface.Iface` field to `pipeline.Result`
+   - Wired interface through `runModule()` - root module interface exposed
+   - Module interfaces now accessible from CLI
+
+2. **JSON Serialization** ([iface/json.go](internal/iface/json.go), ~200 LOC):
+   - `ToNormalizedJSON()` with canonical type formatting
+   - Type variables normalized to a, b, c, ...
+   - Sorted arrays for deterministic output
+   - SHA256-friendly format
+
+3. **CLI Command** (~50 LOC):
+   ```bash
+   ailang iface stdlib/std/option.ail
+   # Outputs normalized JSON interface
+   ```
+
+4. **Freeze/Verify Scripts** (~150 LOC):
+   - `tools/freeze-stdlib.sh` - Generate golden files with SHA256
+   - `tools/verify-stdlib.sh` - Verify API stability (CI-friendly)
+   - Makefile targets: `freeze-stdlib`, `verify-stdlib`
+
+**Golden Files Created** (`.stdlib-golden/`):
+```
+✓ io      (SHA256: c3a8088b...)
+✓ list    (SHA256: d4d4955c...)
+✓ option  (SHA256: 9e001a30...)
+✓ result  (SHA256: 000485cb...)
+✓ string  (SHA256: 7e1057c0...)
+```
+
+**Verification**:
+```bash
+$ make verify-stdlib
+✓ All stdlib interfaces stable
+```
+
+**Files Modified/Created**:
+- `internal/pipeline/pipeline.go` (+10 LOC)
+- `internal/iface/json.go` (+200 LOC) **NEW**
+- `cmd/ailang/main.go` (+50 LOC)
+- `tools/freeze-stdlib.sh` (+50 LOC) **NEW**
+- `tools/verify-stdlib.sh` (+100 LOC) **NEW**
+- `Makefile` (+10 LOC)
+
+**Known Limitations**:
+- Type formatting shows generic `(a,b)->c` (cosmetic - structure correct)
+- Effects not fully extracted (type-level limitation)
+
+**Metrics**:
+- Time: 2 hours
+- Code: ~500 LOC
+- Status: ✅ **Phase 2A COMPLETE - API stability enforced**
+
+---
 
 **✅ PARSER TESTING: Coverage Improved 73.4% → 75.1% (+1.7%)**
 

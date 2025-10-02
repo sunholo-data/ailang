@@ -1153,18 +1153,101 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 		})
 
 	case "++":
-		// String concatenation
-		ctx.addConstraint(TypeEq{
-			Left:  getType(leftNode),
-			Right: TString,
-			Path:  []string{"string concat at " + binop.Span().String()},
-		})
-		ctx.addConstraint(TypeEq{
-			Left:  getType(rightNode),
-			Right: TString,
-			Path:  []string{"string concat at " + binop.Span().String()},
-		})
-		resultType = TString
+		// Concatenation: works for both strings and lists
+		leftType := getType(leftNode)
+		rightType := getType(rightNode)
+
+		// DEBUG output
+		fmt.Printf("DEBUG ++ operator: left=%T(%v), right=%T(%v)\n", leftType, leftType, rightType, rightType)
+
+		// Check type patterns
+		_, leftIsList := leftType.(*TList)
+		_, rightIsList := rightType.(*TList)
+		_, leftIsVar := leftType.(*TVar2)
+		_, rightIsVar := rightType.(*TVar2)
+
+		// Check if both are strings (TCon "String"/"string" or TString)
+		leftIsString := false
+		rightIsString := false
+
+		if leftType == TString {
+			leftIsString = true
+		} else if leftCon, ok := leftType.(*TCon); ok && (leftCon.Name == "String" || leftCon.Name == "string") {
+			leftIsString = true
+		}
+
+		if rightType == TString {
+			rightIsString = true
+		} else if rightCon, ok := rightType.(*TCon); ok && (rightCon.Name == "String" || rightCon.Name == "string") {
+			rightIsString = true
+		}
+
+		// Decision tree:
+		// 1. If at least one is a concrete list → list concat
+		// 2. If at least one is a concrete string → string concat
+		// 3. If both are type variables → list concat (more polymorphic)
+		// 4. Otherwise → string concat (fallback)
+
+		if leftIsList || rightIsList {
+			// At least one is definitely a list → list concat
+			elemType := ctx.freshTypeVar()
+
+			ctx.addConstraint(TypeEq{
+				Left:  leftType,
+				Right: &TList{Element: elemType},
+				Path:  []string{"list concat left at " + binop.Span().String()},
+			})
+			ctx.addConstraint(TypeEq{
+				Left:  rightType,
+				Right: &TList{Element: elemType},
+				Path:  []string{"list concat right at " + binop.Span().String()},
+			})
+
+			resultType = &TList{Element: elemType}
+		} else if leftIsString || rightIsString {
+			// At least one is a concrete string → string concat
+			// The type variable (if any) will be unified with String
+			ctx.addConstraint(TypeEq{
+				Left:  leftType,
+				Right: TString,
+				Path:  []string{"string concat left at " + binop.Span().String()},
+			})
+			ctx.addConstraint(TypeEq{
+				Left:  rightType,
+				Right: TString,
+				Path:  []string{"string concat right at " + binop.Span().String()},
+			})
+			resultType = TString
+		} else if leftIsVar && rightIsVar {
+			// Both are type variables - default to list concat (more polymorphic)
+			elemType := ctx.freshTypeVar()
+
+			ctx.addConstraint(TypeEq{
+				Left:  leftType,
+				Right: &TList{Element: elemType},
+				Path:  []string{"list concat left at " + binop.Span().String()},
+			})
+			ctx.addConstraint(TypeEq{
+				Left:  rightType,
+				Right: &TList{Element: elemType},
+				Path:  []string{"list concat right at " + binop.Span().String()},
+			})
+
+			resultType = &TList{Element: elemType}
+		} else {
+			// Fallback: assume string concat
+			ctx.addConstraint(TypeEq{
+				Left:  leftType,
+				Right: TString,
+				Path:  []string{"string concat at " + binop.Span().String()},
+			})
+			ctx.addConstraint(TypeEq{
+				Left:  rightType,
+				Right: TString,
+				Path:  []string{"string concat at " + binop.Span().String()},
+			})
+			resultType = TString
+		}
 
 	case "<", ">", "<=", ">=":
 		// Comparison operators - require Ord constraint

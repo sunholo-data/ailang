@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib
 
 # Binary name
 BINARY=ailang
@@ -465,3 +465,11 @@ test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
 	  fi; \
 	done; \
 	exit $$ok
+# Stdlib interface freeze/verify targets
+freeze-stdlib:
+	@echo "Freezing stdlib interfaces..."
+	@tools/freeze-stdlib.sh
+
+verify-stdlib:
+	@echo "Verifying stdlib interface stability..."
+	@tools/verify-stdlib.sh

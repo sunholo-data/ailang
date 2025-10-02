@@ -652,17 +652,34 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 	}
 
-	// Parse body
-	// Check if we're already at LBRACE (after skipping newlines) or need to advance
-	if !p.curTokenIs(lexer.LBRACE) {
-		if !p.expectPeek(lexer.LBRACE) {
+	// Parse body: either equation-form (= expr) or block ({ ... })
+	// Equation-form: export func f(x: int) -> int = x * 2
+	// Block-form: export func f(x: int) -> int { x * 2 }
+
+	// Check if we're already at LBRACE (block-form) or ASSIGN (equation-form)
+	if p.peekTokenIs(lexer.ASSIGN) {
+		// Equation-form: consume = and parse expression
+		p.nextToken() // move to ASSIGN
+		p.nextToken() // move past ASSIGN to start of expression
+
+		body := p.parseExpression(LOWEST)
+		// Wrap single expression in a block for uniform handling
+		fn.Body = &ast.Block{
+			Exprs: []ast.Expr{body},
+			Pos:   body.Position(),
+		}
+	} else {
+		// Block-form: expect LBRACE
+		if !p.curTokenIs(lexer.LBRACE) {
+			if !p.expectPeek(lexer.LBRACE) {
+				return nil
+			}
+		}
+		// Parse body as a block (semicolon-separated expressions)
+		fn.Body = p.parseFunctionBody()
+		if !p.expectPeek(lexer.RBRACE) {
 			return nil
 		}
-	}
-	// Parse body as a block (semicolon-separated expressions)
-	fn.Body = p.parseFunctionBody()
-	if !p.expectPeek(lexer.RBRACE) {
-		return nil
 	}
 
 	endPos := p.curPos()

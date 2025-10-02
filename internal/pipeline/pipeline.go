@@ -68,6 +68,7 @@ type Result struct {
 	Constraints    []types.Constraint
 	Errors         []error // TODO: Use structured errors
 	Artifacts      Artifacts
+	Interface      *iface.Iface // Module interface (for modules only)
 	EnvLockDigest  string
 	PhaseTimings   map[string]int64       // milliseconds
 	Instantiations map[string]interface{} // Polymorphic instantiation tracking
@@ -682,6 +683,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// Store artifacts
 	result.Artifacts.AST = rootUnit.Surface
 	result.Artifacts.Core = rootUnit.Core
+	result.Interface = rootUnit.Iface // Store module interface
 
 	return result, nil
 }

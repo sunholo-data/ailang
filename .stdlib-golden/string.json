@@ -1,0 +1,49 @@
+{
+  "module": "stdlib/std/string",
+  "types": [],
+  "funcs": [
+    {
+      "name": "compare",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "find",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "length",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "substring",
+      "type": "(a,b,c)-\u003ed",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "toLower",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "toUpper",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "trim",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

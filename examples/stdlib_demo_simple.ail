@@ -1,0 +1,8 @@
+module examples/stdlib_demo_simple
+import std/io (println)
+import std/string (toUpper)
+
+export func main() -> () ! {IO} {
+  let s = toUpper("hi");
+  println("Uppercase: " ++ s)
+}

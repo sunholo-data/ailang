@@ -131,6 +131,15 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
 		}
+		// Handle old type system compatibility: TCon might represent String
+		if t2Con, ok := t2.(*TCon); ok {
+			// If trying to unify list with string, fail with better error
+			if t2Con.Name == "String" {
+				return nil, fmt.Errorf("type mismatch: cannot use list where string expected")
+			}
+			// Other TCon cases fail as before
+			return nil, fmt.Errorf("cannot unify list type with %T", t2)
+		}
 		return nil, fmt.Errorf("cannot unify list type with %T", t2)
 
 	case *TTuple:

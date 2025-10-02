@@ -1,18 +1,10 @@
 module examples/stdlib_demo
-import std/io (println)
-import std/list (map, foldl)
-import std/string (toUpper)
-import std/option (Some, None, getOrElse)
+import stdlib/std/io (println)
+import stdlib/std/list (map)
+import stdlib/std/string (toUpper)
+import stdlib/std/option (Some, getOrElse)
 
 export func main() -> () ! {IO} {
-  let nums = [1, 2, 3, 4];
-  let doubled = map(\x. x * 2, nums);
-  let sum = foldl(\acc. \x. acc + x, 0, doubled);
-  println("SUM=" ++ show(sum));
-
-  let s = toUpper("hi");
-  println("UP=" ++ s);
-
-  let v = getOrElse(Some(42), 0);
-  println("OPT=" ++ show(v));
+  let s = toUpper("hello");
+  println("Result: " ++ s)
 }

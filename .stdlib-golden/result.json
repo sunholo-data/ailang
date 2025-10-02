@@ -1,0 +1,49 @@
+{
+  "module": "stdlib/std/result",
+  "types": [
+    {
+      "name": "Result",
+      "params": [
+        "a",
+        "b"
+      ],
+      "ctors": [
+        "Err",
+        "Ok"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "flatMap",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isErr",
+      "type": "(a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isOk",
+      "type": "(a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "mapErr",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "unwrap",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}
