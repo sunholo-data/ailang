@@ -7,11 +7,11 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.1.0 (MVP - Type System Complete)
+## Current Version: v0.1.1 (Module Runtime Infrastructure)
 
-**🎯 What Works**: Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, and expression evaluation.
+**🎯 What Works**: Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, expression evaluation, and **module runtime infrastructure** (loading, evaluation, export resolution).
 
-**⚠️ Known Limitation**: Module execution is not yet implemented. Modules type-check correctly but cannot run. Non-module `.ail` files execute successfully. See [LIMITATIONS.md](docs/LIMITATIONS.md) for details.
+**⚠️ Known Limitation**: Function invocation from modules is not yet implemented (Phase 5 pending). Module infrastructure is complete: modules load, evaluate bindings, and resolve entrypoints. Non-module `.ail` files execute successfully. See [CHANGELOG.md](CHANGELOG.md) for v0.1.1 details.
 
 **📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [What's Coming in v0.2.0](#whats-coming-in-v020)
 

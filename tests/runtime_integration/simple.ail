@@ -1,0 +1,5 @@
+module tests/runtime_integration/simple
+
+export func main() -> int {
+  42
+}

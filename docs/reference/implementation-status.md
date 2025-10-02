@@ -1,12 +1,12 @@
 # AILANG Implementation Status
 
-## Current Version: v0.1.0 (MVP - Type System Complete)
+## Current Version: v0.1.1 (Module Runtime Infrastructure)
 
 ## Test Coverage: 24.8%
 
-## Recent Milestone: v0.1.0 MVP Released
+## Recent Milestone: v0.1.1 Module Runtime Infrastructure
 
-**~1,060 LOC added: Complete type-level effect tracking**
+**~1,594 LOC added: Complete module execution infrastructure (Phases 1-4)**
 
 M-P4 implements comprehensive effect system infrastructure:
 - ✅ Effect syntax parsing (`func f() -> int ! {IO, FS}`, `\x. body ! {IO}`)

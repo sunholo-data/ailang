@@ -68,7 +68,8 @@ type Result struct {
 	Constraints    []types.Constraint
 	Errors         []error // TODO: Use structured errors
 	Artifacts      Artifacts
-	Interface      *iface.Iface // Module interface (for modules only)
+	Interface      *iface.Iface                    // Module interface (for modules only)
+	Modules        map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
 	EnvLockDigest  string
 	PhaseTimings   map[string]int64       // milliseconds
 	Instantiations map[string]interface{} // Polymorphic instantiation tracking
@@ -684,6 +685,38 @@ func runModule(cfg Config, src Source) (Result, error) {
 	result.Artifacts.AST = rootUnit.Surface
 	result.Artifacts.Core = rootUnit.Core
 	result.Interface = rootUnit.Iface // Store module interface
+
+	// Convert CompileUnits to LoadedModules for runtime execution (v0.2.0+)
+	result.Modules = make(map[string]*loader.LoadedModule)
+	for modID, unit := range compiledUnits {
+		// Skip $builtin - it's a virtual module
+		if modID == "$builtin" {
+			continue
+		}
+
+		loaded := &loader.LoadedModule{
+			Path:    unit.ID,
+			File:    unit.Surface,
+			Core:    unit.Core,
+			Iface:   unit.Iface,
+			Imports: []string{},
+		}
+
+		// Extract import paths from AST
+		if unit.Surface != nil && len(unit.Surface.Imports) > 0 {
+			for _, imp := range unit.Surface.Imports {
+				loaded.Imports = append(loaded.Imports, imp.Path)
+			}
+		}
+
+		// Initialize empty maps for compatibility with loader interface
+		// (The actual export/type/constructor information is in the Iface)
+		loaded.Exports = make(map[string]*ast.FuncDecl)
+		loaded.Types = make(map[string]*ast.TypeDecl)
+		loaded.Constructors = make(map[string]string)
+
+		result.Modules[modID] = loaded
+	}
 
 	return result, nil
 }

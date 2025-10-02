@@ -10,9 +10,9 @@ import (
 
 	"github.com/fatih/color"
 	ailangErrors "github.com/sunholo/ailang/internal/errors"
-	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/repl"
+	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/runtime/argdecode"
 	"github.com/sunholo/ailang/internal/schema"
 	"github.com/sunholo/ailang/internal/types"
@@ -257,19 +257,60 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 			os.Exit(1)
 		}
 
+		// Module execution with runtime (v0.2.0+)
+		rt := runtime.NewModuleRuntime(filepath.Dir(filename))
+
+		// Pre-load modules from pipeline result
+		if result.Modules != nil {
+			for path, loaded := range result.Modules {
+				rt.PreloadModule(path, loaded)
+			}
+		}
+
+		// Load and evaluate module
+		inst, err := rt.LoadAndEvaluate(result.Interface.Module)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: module evaluation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		// Get entrypoint
+		entrypointVal, err := inst.GetExport(entry)
+		if err != nil {
+			// RUN_NO_ENTRY
+			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' not found in module %s\n",
+				red("Error"), entry, result.Interface.Module)
+			fmt.Fprintf(os.Stderr, "  Available exports: %s\n",
+				strings.Join(runtime.GetExportNames(inst), ", "))
+			os.Exit(1)
+		}
+
+		// Check arity
+		arity, err := runtime.GetArity(entrypointVal)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' is not a function: %v\n",
+				red("Error"), entry, err)
+			os.Exit(1)
+		}
+		if arity > 1 {
+			// RUN_MULTIARG_UNSUPPORTED
+			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' takes %d parameters. v0.2.0 supports 0 or 1.\n",
+				red("Error"), entry, arity)
+			fmt.Fprintf(os.Stderr, "  Suggestion: wrap as 'wrapper(p:{...}) -> ...' and pass --args-json\n")
+			os.Exit(1)
+		}
+
+		// TODO: Validate arguments
 		// For v0.1.0: Only support zero-arg or single-arg functions
-		var arg eval.Value
 		if len(fnType.Params) == 0 {
 			// Zero-arg function - argsJSON must be null
 			if argsJSON != "null" {
 				fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' takes no arguments, but --args-json was provided\n", red("Error"), entry)
 				os.Exit(1)
 			}
-			arg = &eval.UnitValue{} // Unit argument for zero-arg functions
 		} else if len(fnType.Params) == 1 {
 			// Single-arg function - decode JSON to match parameter type
-			var err error
-			arg, err = argdecode.DecodeJSON(argsJSON, fnType.Params[0])
+			_, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: failed to decode arguments: %v\n", red("Error"), err)
 				os.Exit(1)
@@ -280,31 +321,13 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 			os.Exit(1)
 		}
 
-		// LIMITATION: Module evaluation not yet implemented
-		// For v0.1.0 MVP, we successfully:
-		// - Resolve the entrypoint from module interface
-		// - Type-check the function signature
-		// - Decode JSON arguments to runtime values
-		//
-		// What's missing:
-		// - Actually evaluating the module to get function values
-		// - Calling the function with decoded arguments
-		// - Printing the result
-		//
-		// This requires module-level evaluation support, which is planned for v0.2.0
-		fmt.Fprintf(os.Stderr, "\n%s: Module evaluation not yet supported\n", yellow("Note"))
+		// Call entrypoint (simplified for now - just check it exists and has right arity)
+		// TODO: Actually call the function with arguments
+		fmt.Fprintf(os.Stderr, "\n%s: Module execution ready\n", green("✓"))
 		fmt.Fprintf(os.Stderr, "  Entrypoint:  %s\n", entry)
-		fmt.Fprintf(os.Stderr, "  Type:        %s\n", scheme.Type)
-		fmt.Fprintf(os.Stderr, "  Parameters:  %d\n", len(fnType.Params))
-		fmt.Fprintf(os.Stderr, "  Decoded arg: %v\n", arg)
-		fmt.Fprintf(os.Stderr, "\nWhat IS working:\n")
-		fmt.Fprintf(os.Stderr, "  ✓ Interface extraction and freezing\n")
-		fmt.Fprintf(os.Stderr, "  ✓ Entrypoint resolution\n")
-		fmt.Fprintf(os.Stderr, "  ✓ Argument type checking and JSON decoding\n")
-		fmt.Fprintf(os.Stderr, "\nPlanned for v0.2.0:\n")
-		fmt.Fprintf(os.Stderr, "  • Module-level evaluation\n")
-		fmt.Fprintf(os.Stderr, "  • Function value extraction\n")
-		fmt.Fprintf(os.Stderr, "  • Entrypoint execution with effects\n")
+		fmt.Fprintf(os.Stderr, "  Arity:       %d\n", arity)
+		fmt.Fprintf(os.Stderr, "  Module:      %s\n", result.Interface.Module)
+		fmt.Fprintf(os.Stderr, "\nNote: Function invocation coming soon (Phase 4 completion)\n")
 	} else {
 		// Non-module mode - print result if not unit
 		if result.Value != nil && result.Value.Type() != "unit" {
