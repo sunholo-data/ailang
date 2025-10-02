@@ -207,7 +207,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	// Load imported modules and add their exports to symbols
 	if e.moduleLoader != nil {
 		for _, imp := range file.Imports {
-			if imp.Symbols != nil && len(imp.Symbols) > 0 {
+			if len(imp.Symbols) > 0 {
 				// Selective import
 				for _, sym := range imp.Symbols {
 					decl, err := e.moduleLoader.GetExport(imp.Path, sym)

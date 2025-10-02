@@ -1,6 +1,6 @@
 # AILANG Implementation Status
 
-## Current Version: v0.0.10
+## Current Version: v0.0.11
 
 ## Test Coverage: 31.3%
 

@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased] - 2025-10-01
+## [v0.0.11] - 2025-10-02
 
 ### Fixed - M-S1 Blockers: Cross-Module Constructors & Multi-Statement Functions (~224 LOC)
 

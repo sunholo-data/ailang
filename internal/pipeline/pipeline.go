@@ -760,7 +760,7 @@ func extractTypeVarsFromType(typ types.Type) []string {
 			for _, elem := range typ.Elements {
 				extract(elem)
 			}
-		// TCon and other base types don't have type variables
+			// TCon and other base types don't have type variables
 		}
 	}
 
