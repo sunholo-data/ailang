@@ -29,7 +29,7 @@ all: test build
 build:
 	@echo "Building $(BINARY)..."
 	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
 
 # Install the binary to $GOPATH/bin
@@ -473,3 +473,24 @@ freeze-stdlib:
 verify-stdlib:
 	@echo "Verifying stdlib interface stability..."
 	@tools/verify-stdlib.sh
+
+# Evaluation benchmarks
+eval: build
+	@echo "Running evaluation benchmark..."
+	@$(BUILD_DIR)/$(BINARY) eval --benchmark fizzbuzz --mock
+
+eval-suite: build
+	@echo "Running full benchmark suite (all models)..."
+	@bash tools/run_benchmark_suite.sh
+
+eval-models: build
+	@echo "Available models:"
+	@$(BUILD_DIR)/$(BINARY) eval --list-models
+
+eval-report:
+	@echo "Generating evaluation report..."
+	@bash tools/report_eval.sh
+
+eval-clean:
+	@echo "Cleaning evaluation results..."
+	@rm -rf eval_results/*.json eval_results/*.csv eval_results/*.md

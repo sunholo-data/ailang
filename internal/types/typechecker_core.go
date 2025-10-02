@@ -2208,8 +2208,16 @@ func (tc *CoreTypeChecker) pickDefault(classes map[string]bool) (Type, error) {
 	// Handle defaulting based on remaining primary constraints
 	switch {
 	case len(primary) == 0:
-		// Only neutral constraints present (rare, as numeric literals add Num)
-		// Require annotation in this case
+		// Only neutral constraints present (Eq, Ord, Show)
+		// Default to Int for Ord/Eq/Show when no numeric context
+		// This handles comparisons like `x > y` where x, y are already Int
+		if classes["Ord"] || classes["Eq"] {
+			return &TCon{Name: "int"}, nil
+		}
+		// For Show-only, also default to Int
+		if classes["Show"] {
+			return &TCon{Name: "int"}, nil
+		}
 		return nil, fmt.Errorf("ambiguous type requires annotation")
 
 	case len(primary) == 1 && primary[0] == "Num":

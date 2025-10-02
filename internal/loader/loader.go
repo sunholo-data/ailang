@@ -78,8 +78,12 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
 	} else if strings.HasPrefix(path, "std/") {
-		// Stdlib path
-		stdPath := filepath.Join(ml.basePath, path) + ".ail"
+		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "stdlib/"
+		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
+		if stdlibPath == "" {
+			stdlibPath = "stdlib"
+		}
+		stdPath := filepath.Join(stdlibPath, path) + ".ail"
 		searchTrace = append(searchTrace, "stdlib: "+stdPath)
 		fullPath = stdPath
 	} else if strings.HasSuffix(path, ".ail") {
@@ -87,8 +91,8 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "absolute: "+path)
 		fullPath = path
 	} else {
-		// Project-relative
-		projPath := path + ".ail"
+		// Project-relative - join with basePath for absolute resolution
+		projPath := filepath.Join(ml.basePath, path) + ".ail"
 		searchTrace = append(searchTrace, "project: "+projPath)
 		fullPath = projPath
 	}
@@ -123,6 +127,9 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Build types and constructors tables
 	types, constructors := ml.buildTypes(file)
 
+	// Note: Core elaboration is done by the runtime to avoid import cycles
+	// (elaborate imports loader, so loader can't import elaborate)
+
 	// Cache and return with canonical ID
 	canonicalID = CanonicalModuleID(path)
 	loaded := &LoadedModule{
@@ -132,6 +139,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		Exports:      exports,
 		Types:        types,
 		Constructors: constructors,
+		Core:         nil, // Will be populated by runtime
 	}
 	ml.cache[canonicalID] = loaded
 
@@ -152,13 +160,17 @@ func (ml *ModuleLoader) resolvePath(path string) string {
 
 	// Handle stdlib imports (always relative to stdlib root)
 	if strings.HasPrefix(path, "std/") {
-		// TODO: Resolve from AILANG_STDLIB_PATH env or default location
-		return filepath.Join(ml.basePath, path) + ".ail"
+		// Resolve from AILANG_STDLIB_PATH env or default to "stdlib/"
+		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
+		if stdlibPath == "" {
+			stdlibPath = "stdlib"
+		}
+		return filepath.Join(stdlibPath, path) + ".ail"
 	}
 
-	// Default: treat as repo-relative (don't join with basePath!)
-	// Example: "examples/v3_3/math/gcd" → "examples/v3_3/math/gcd.ail"
-	return path + ".ail"
+	// Default: treat as project-relative (join with basePath)
+	// Example: "examples/v3_3/math/gcd" → "/abs/path/examples/v3_3/math/gcd.ail"
+	return filepath.Join(ml.basePath, path) + ".ail"
 }
 
 // CanonicalModuleID returns the canonical module ID for a path

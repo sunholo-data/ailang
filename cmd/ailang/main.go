@@ -10,6 +10,8 @@ import (
 
 	"github.com/fatih/color"
 	ailangErrors "github.com/sunholo/ailang/internal/errors"
+	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/repl"
 	"github.com/sunholo/ailang/internal/runtime"
@@ -49,6 +51,8 @@ func main() {
 		entryFlag               = flag.String("entry", "main", "Entrypoint function name to execute")
 		argsJSONFlag            = flag.String("args-json", "null", "JSON arguments to pass to entrypoint")
 		printFlag               = flag.Bool("print", true, "Print return value (even for unit type)")
+		noPrintFlag             = flag.Bool("no-print", false, "Suppress output (exit code only)")
+		capsFlag                = flag.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net)")
 	)
 
 	flag.Parse()
@@ -77,7 +81,7 @@ func main() {
 			fmt.Println("Usage: ailang run <file.ail> [--entry main] [--args-json '<json>'] [--print]")
 			os.Exit(1)
 		}
-		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag)
+		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag)
 
 	case "repl":
 		runREPL(*learnFlag, *traceFlag)
@@ -119,6 +123,9 @@ func main() {
 	case "lsp":
 		runLSP()
 
+	case "eval":
+		runEval()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
@@ -153,6 +160,7 @@ func printHelp() {
 	fmt.Printf("  %s <module>    Output normalized JSON interface for a module\n", cyan("iface"))
 	fmt.Printf("  %s   Export training data\n", cyan("export-training"))
 	fmt.Printf("  %s              Start the Language Server Protocol server\n", cyan("lsp"))
+	fmt.Printf("  %s              Run AI benchmarks (AILANG vs Python)\n", cyan("eval"))
 	fmt.Println()
 	fmt.Println("Flags:")
 	fmt.Println("  --version        Print version information")
@@ -168,9 +176,10 @@ func printHelp() {
 	fmt.Printf("  %s    # Run program\n", cyan("ailang run hello.ail"))
 	fmt.Printf("  %s        # Type-check\n", cyan("ailang check src/"))
 	fmt.Printf("  %s  # Watch with tracing\n", cyan("ailang watch main.ail --trace"))
+	fmt.Printf("  %s  # Run benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool, noprint bool, caps string) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -227,6 +236,11 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		os.Exit(1)
 	}
 
+	// Display exhaustiveness warnings
+	for _, warning := range result.Warnings {
+		fmt.Fprintf(os.Stderr, "%s\n", yellow(warning.String()))
+	}
+
 	// Entrypoint resolution and execution
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
@@ -259,6 +273,18 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 
 		// Module execution with runtime (v0.2.0+)
 		rt := runtime.NewModuleRuntime(filepath.Dir(filename))
+
+		// Set up effect context with capability grants
+		effCtx := effects.NewEffContext()
+		if caps != "" {
+			for _, capName := range strings.Split(caps, ",") {
+				capName = strings.TrimSpace(capName)
+				if capName != "" {
+					effCtx.Grant(effects.NewCapability(capName))
+				}
+			}
+		}
+		rt.GetEvaluator().SetEffContext(effCtx)
 
 		// Pre-load modules from pipeline result
 		if result.Modules != nil {
@@ -300,37 +326,45 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 			os.Exit(1)
 		}
 
-		// TODO: Validate arguments
-		// For v0.1.0: Only support zero-arg or single-arg functions
+		// Validate and decode arguments
+		var args []eval.Value
 		if len(fnType.Params) == 0 {
 			// Zero-arg function - argsJSON must be null
 			if argsJSON != "null" {
 				fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' takes no arguments, but --args-json was provided\n", red("Error"), entry)
 				os.Exit(1)
 			}
+			args = []eval.Value{} // Empty args
 		} else if len(fnType.Params) == 1 {
 			// Single-arg function - decode JSON to match parameter type
-			_, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
+			argVal, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: failed to decode arguments: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
+			args = []eval.Value{argVal}
 		} else {
 			// Multi-arg functions not yet supported
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' has %d parameters (only 0 or 1 supported in v0.1.0)\n", red("Error"), entry, len(fnType.Params))
+			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' has %d parameters (only 0 or 1 supported in v0.2.0)\n", red("Error"), entry, len(fnType.Params))
 			os.Exit(1)
 		}
 
-		// Call entrypoint (simplified for now - just check it exists and has right arity)
-		// TODO: Actually call the function with arguments
-		fmt.Fprintf(os.Stderr, "\n%s: Module execution ready\n", green("✓"))
-		fmt.Fprintf(os.Stderr, "  Entrypoint:  %s\n", entry)
-		fmt.Fprintf(os.Stderr, "  Arity:       %d\n", arity)
-		fmt.Fprintf(os.Stderr, "  Module:      %s\n", result.Interface.Module)
-		fmt.Fprintf(os.Stderr, "\nNote: Function invocation coming soon (Phase 4 completion)\n")
+		// Call the entrypoint function
+		execResult, err := runtime.CallEntrypoint(rt, inst, entry, args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: execution failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		// Print result if not Unit and not suppressed
+		if execResult.Type() != "unit" && !noprint {
+			if print {
+				fmt.Println(execResult.String())
+			}
+		}
 	} else {
-		// Non-module mode - print result if not unit
-		if result.Value != nil && result.Value.Type() != "unit" {
+		// Non-module mode - print result if not unit and not suppressed
+		if result.Value != nil && result.Value.Type() != "unit" && !noprint {
 			if print {
 				fmt.Println(result.Value.String())
 			}
@@ -393,8 +427,8 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact for watch mode)
-	// Default to main entrypoint with null args for watch mode
-	runFile(filename, trace, 0, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, "main", "null", true)
+	// Default to main entrypoint with null args for watch mode, no caps
+	runFile(filename, trace, 0, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, "main", "null", true, false, "")
 }
 
 func checkFile(filename string) {

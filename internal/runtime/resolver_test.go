@@ -8,6 +8,9 @@ import (
 )
 
 func TestModuleGlobalResolver_ResolveLocal(t *testing.T) {
+	// Create a module runtime for builtins
+	rt := NewModuleRuntime("/tmp")
+
 	// Create a module instance with some bindings
 	inst := &ModuleInstance{
 		Path: "test/module",
@@ -21,7 +24,7 @@ func TestModuleGlobalResolver_ResolveLocal(t *testing.T) {
 		Imports: make(map[string]*ModuleInstance),
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve local binding with empty module path
 	ref := core.GlobalRef{Module: "", Name: "foo"}
@@ -66,7 +69,8 @@ func TestModuleGlobalResolver_ResolveLocal_Undefined(t *testing.T) {
 		Imports: make(map[string]*ModuleInstance),
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	rt := NewModuleRuntime("/tmp")
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve undefined local binding
 	ref := core.GlobalRef{Module: "", Name: "undefined"}
@@ -105,7 +109,8 @@ func TestModuleGlobalResolver_ResolveImported(t *testing.T) {
 		},
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	rt := NewModuleRuntime("/tmp")
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve exported binding from imported module
 	ref := core.GlobalRef{Module: "test/dep", Name: "public"}
@@ -141,7 +146,8 @@ func TestModuleGlobalResolver_ResolveImported_ModuleNotImported(t *testing.T) {
 		},
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	rt := NewModuleRuntime("/tmp")
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve from module that is not imported
 	ref := core.GlobalRef{Module: "test/dep2", Name: "foo"}
@@ -177,7 +183,8 @@ func TestModuleGlobalResolver_ResolveImported_ExportNotFound(t *testing.T) {
 		},
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	rt := NewModuleRuntime("/tmp")
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve export that doesn't exist
 	ref := core.GlobalRef{Module: "test/dep", Name: "bar"}
@@ -195,7 +202,8 @@ func TestModuleGlobalResolver_EmptyModule(t *testing.T) {
 		Imports:  make(map[string]*ModuleInstance),
 	}
 
-	resolver := newModuleGlobalResolver(inst)
+	rt := NewModuleRuntime("/tmp")
+	resolver := newModuleGlobalResolver(inst, rt)
 
 	// Test: Resolve from empty module
 	ref := core.GlobalRef{Module: "", Name: "foo"}

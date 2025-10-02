@@ -1,0 +1,10 @@
+-- Test builtin IO functions (M-R1 Phase 5)
+module examples/test_io_builtins
+
+export func greet() -> () {
+    _io_println("Hello from AILANG with builtins!")
+}
+
+export func greet_name(name: string) -> () {
+    _io_println(name)
+}

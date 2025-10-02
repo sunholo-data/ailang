@@ -1,0 +1,17 @@
+id: cli_args
+description: "Read file from CLI argument, process, write result (IO + FS)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "high"
+prompt: |
+  Write a program in <LANG> that:
+  1. Takes a filename as a command-line argument
+  2. Reads the file contents (assume it contains numbers, one per line)
+  3. Computes the sum of all numbers
+  4. Prints the sum
+
+  Output only the code, no explanations.
+expected_stdout: |
+  15

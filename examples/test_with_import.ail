@@ -1,0 +1,7 @@
+module examples/test_with_import
+import std/io (println)
+
+export func main() -> () {
+  let x = 42;
+  ()
+}

@@ -1,0 +1,4 @@
+-- Debug: what is 5 > 10?
+let test1 = 5 > 10 in
+let test2 = 5 > 0 in
+(test1, test2)

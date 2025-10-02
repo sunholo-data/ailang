@@ -1,0 +1,5 @@
+-- Test guard with false - should fall through
+match 5 {
+  x if false => "matched with guard",
+  x => "matched without guard"
+}

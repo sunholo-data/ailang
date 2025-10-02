@@ -1,0 +1,5 @@
+-- Test exhaustive bool match (should not warn)
+match true {
+  true => "yes",
+  false => "no"
+}

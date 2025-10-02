@@ -8,26 +8,41 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 - Deterministic execution for AI training data generation (planned)
 - File extension: `.ail`
 
-## Current Status: v0.1.0 MVP (Type System Complete)
+## Current Status: v0.2.0-rc1 (Module Execution + Effects COMPLETE ✅)
 
-**✅ COMPLETE:**
+**✅ COMPLETE (v0.2.0-rc1):**
+- ✅ **M-R1: Module Execution Runtime** (~1,874 LOC) - COMPLETE
+  - Module instance creation and evaluation
+  - Cross-module imports at runtime
+  - Entrypoint execution (`--entry`, `--args-json`)
+  - Function invocation with argument decoding
+  - Builtin registry (IO, FS primitives)
+
+- ✅ **M-R2: Effect System Runtime** (~1,550 LOC) - COMPLETE
+  - Capability-based security (`--caps IO,FS`)
+  - IO effect: `print`, `println`, `readLine`
+  - FS effect: `readFile`, `writeFile`, `exists`
+  - Secure by default (no caps unless explicitly granted)
+  - Sandbox support (`AILANG_FS_SANDBOX`)
+
+**✅ COMPLETE (v0.1.0):**
 - Hindley-Milner type inference with let-polymorphism
 - Type classes (Num, Eq, Ord, Show) with dictionary-passing
 - Lambda calculus (first-class functions, closures, currying)
 - Interactive REPL with full type checking
-- Module system (type-checking only - execution in v0.2.0)
-- Expression evaluation (arithmetic, strings, conditionals, let bindings)
+- Pattern matching (constructors, tuples, lists, wildcards)
+- Algebraic data types (ADTs) with runtime
 - Structured error reporting with JSON schemas
+- AI Evaluation Framework (M-EVAL) with multi-model support
+- Pattern matching guards and exhaustiveness warnings (M-R3, optional)
 
 **❌ NOT YET IMPLEMENTED:**
-- Module execution runtime (coming in v0.2.0)
-- Effect system (coming in v0.2.0)
-- Pattern matching (coming in v0.2.0)
+
 - Typed quasiquotes (v0.3.0+)
 - CSP concurrency (v0.3.0+)
 - AI training data export (v0.3.0+)
 
-**⚠️ CRITICAL LIMITATION:** Module files (with `module` declarations) parse and type-check correctly but cannot execute. Only non-module `.ail` files can run. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+**🎉 MAJOR MILESTONE:** Module files now execute! Use `ailang run module.ail --entry main --caps IO,FS` to run module code with effects.
 
 ## Key Design Principles
 1. **Explicit Effects**: All side effects must be declared in function signatures
@@ -36,31 +51,32 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 4. **Deterministic**: All non-determinism must be explicit (seeds, virtual time)
 5. **AI-Friendly**: Generate structured execution traces for training
 
-## Project Structure (v0.1.0)
+## Project Structure (v0.2.0-rc1)
 ```
 ailang/
-├── cmd/ailang/         # CLI entry point (main.go) ✅
+├── cmd/ailang/         # CLI entry point ✅ COMPLETE
 ├── internal/
 │   ├── ast/            # AST definitions ✅ COMPLETE
 │   ├── lexer/          # Tokenizer ✅ COMPLETE
-│   ├── parser/         # Parser ✅ COMPLETE (some limitations*)
+│   ├── parser/         # Parser ✅ COMPLETE
 │   ├── types/          # Type system ✅ COMPLETE
 │   ├── typeclass/      # Type classes ✅ COMPLETE
-│   ├── eval/           # Evaluator ✅ PARTIAL (non-module files only)
+│   ├── eval/           # Evaluator ✅ COMPLETE (Core + module support)
 │   ├── repl/           # Interactive REPL ✅ COMPLETE
-│   ├── module/         # Module resolution ✅ COMPLETE (type-checking)
+│   ├── runtime/        # Module execution runtime ✅ COMPLETE (v0.2.0)
+│   ├── effects/        # Effect system runtime ✅ COMPLETE (v0.2.0)
+│   ├── loader/         # Module loader ✅ COMPLETE
 │   ├── errors/         # Error reporting ✅ COMPLETE
 │   ├── schema/         # JSON schemas ✅ COMPLETE
-│   ├── effects/        # Effect system ❌ TODO (v0.2.0)
+│   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
 │   ├── channels/       # CSP implementation ❌ TODO (v0.3.0+)
 │   └── session/        # Session types ❌ TODO (v0.3.0+)
-├── stdlib/             # Standard library ✅ PARTIAL (prelude, option, result)
-├── tools/              # Development tools ✅ (audit-examples.sh)
-├── examples/           # Example .ail programs (42 total, 12 working)
+├── stdlib/             # Standard library ✅ COMPLETE (std/io, std/fs, std/prelude)
+├── tools/              # Development tools ✅ (benchmarking, example verification)
+├── benchmarks/         # AI code generation benchmarks ✅
+├── examples/           # Example .ail programs (~40 files)
 ├── tests/              # Test suite ✅
 └── docs/               # Documentation ✅ COMPLETE
-
-*Parser limitations: 3-deep let nesting limit, no match expressions yet
 ```
 
 ## Development Workflow
@@ -99,30 +115,6 @@ make ci                   # Run full CI verification locally
 make help                 # Show all available make targets
 ```
 
-### Making `ailang` Accessible System-Wide
-
-#### First-Time Setup
-1. Install ailang to your Go bin directory:
-   ```bash
-   make install
-   ```
-
-2. Add Go bin to your PATH (if not already done):
-   ```bash
-   # For zsh (macOS default)
-   echo 'export PATH="/Users/mark/go/bin:$PATH"' >> ~/.zshrc
-   source ~/.zshrc
-   
-   # For bash
-   echo 'export PATH="/Users/mark/go/bin:$PATH"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
-
-3. Test it works:
-   ```bash
-   ailang --version
-   ```
-
 #### Keeping `ailang` Up to Date
 
 **Option 1: Manual Update**
@@ -132,21 +124,6 @@ make quick-install  # Fast reinstall
 # OR
 make install        # Full reinstall with version info
 ```
-
-**Option 2: Auto-Update on File Changes**
-For development, use watch mode to automatically reinstall on every code change:
-```bash
-make watch-install  # Automatically rebuilds and installs on file changes
-```
-This watches all Go files and automatically updates the global `ailang` command.
-
-**Option 3: Alias for Quick Updates**
-Add this to your shell profile for a quick update command:
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-alias ailang-update='cd /Users/mark/dev/sunholo/ailang && make quick-install && cd -'
-```
-Then just run `ailang-update` from anywhere to update.
 
 ### IMPORTANT: Keeping Documentation Updated
 
@@ -193,10 +170,6 @@ Example entry:
 - ⚠️ **Test that examples actually work with current implementation**
 - ⚠️ **Add warning headers to examples that don't work**
 - These examples will be used in documentation and tutorials
-
-**⚠️ IMPORTANT: Most current examples in `/examples/` are broken**
-- Only `hello.ail`, `simple.ail`, `arithmetic.ail`, `lambda_expressions.ail` work
-- Examples using `module`, `func`, `type`, `import` will fail
 - Always test examples before documenting them as working
 
 ### Common Tasks
@@ -211,18 +184,9 @@ Example entry:
 7. Write tests in corresponding `*_test.go` files
 8. Add examples in `examples/`
 
-#### Implementing a Missing Component
-Check the implementation sizes from the design doc:
-- Lexer: ~200 lines (mostly complete)
-- Parser: ~500 lines (needs completion)
-- Types: ~800 lines (foundation only)
-- Effects: ~400 lines (TODO)
-- Eval: ~500 lines (TODO)
-- Channels: ~400 lines (TODO)
-
 ## Language Syntax Reference
 
-### ✅ Working Syntax (v0.1.0)
+### ✅ Working Syntax (v0.2.0-rc1)
 
 **Basic Expressions:**
 ```ailang
@@ -237,7 +201,7 @@ if x > 0 then "pos" else "neg"         -- Conditional expression
 "Hello " ++ "World"                     -- String concatenation
 ```
 
-**REPL-Only Features:**
+**REPL Features:**
 ```ailang
 λ> :type \x. x + x
 \x. x + x :: ∀α. Num α ⇒ α → α
@@ -249,38 +213,65 @@ if x > 0 then "pos" else "neg"         -- Conditional expression
 Available instances: Num[Int], Num[Float], Eq[Int], Eq[Float], Ord[Int], Ord[Float]
 ```
 
-**Module Syntax (Type-Checks Only, Does Not Execute):**
+**Module Syntax (NOW EXECUTES! ✅):**
 ```ailang
 module examples/demo
 
-import stdlib/std/option (Option, Some, None)
+import std/io (println)
 
-export type MyData = {
-  value: Int
-}
-
-export func process(x: Int) -> Option[Int] {
-  if x > 0 then Some(x * 2) else None
+export func main() -> () ! {IO} {
+  println("Hello from module!")
 }
 ```
 
-**⚠️ Note**: The above module syntax parses and type-checks but cannot execute until v0.2.0.
+**Running modules:**
+```bash
+ailang run examples/demo.ail --entry main --caps IO
+# Output: Hello from module!
+```
 
-### ❌ Planned Syntax (Not Yet Implemented)
+**Pattern Matching:**
+```ailang
+type Option[a] = Some(a) | None
 
-**Pattern Matching (v0.2.0):**
+match Some(42) {
+  Some(x) => x * 2,
+  None => 0
+}
+-- Result: 84
+```
+
+**Effects (v0.2.0):**
+```ailang
+import std/io (println)
+import std/fs (readFile)
+
+export func main() -> () ! {IO, FS} {
+  let content = readFile("data.txt");
+  println(content)
+}
+```
+
+**Running with capabilities:**
+```bash
+ailang run app.ail --entry main --caps IO,FS
+```
+
+**Pattern Guards (M-R3, optional):**
 ```ailang
 match value {
-  Some(x) if x > 0 => x * 2,
+  Some(x) if x > 0 => x * 2,  -- ❌ Guards not yet supported
   Some(x) => x,
   None => 0
 }
 ```
 
-**Effect Handlers (v0.2.0):**
+### ❌ Planned Syntax (Not Yet Implemented)
+
+**Error Propagation (future):**
 ```ailang
 func readAndPrint() -> () ! {IO, FS} {
-  let content = readFile("data.txt")?
+  let content = readFile("data.txt")?  -- ❌ ? operator not implemented
   print(content)
 }
 ```
@@ -300,25 +291,40 @@ func worker(ch: Channel[Task]) ! {Async} {
 }
 ```
 
-## What Works & What Doesn't (v0.1.0)
+## What Works & What Doesn't (v0.2.0-rc1)
+
+### ✅ Working Features
+- ✅ **Module execution** - `ailang run module.ail --entry main`
+- ✅ **Effect system** - IO and FS effects with capability security
+- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards
+- ✅ **ADTs** - Algebraic data types with runtime support
+- ✅ **Type classes** - Num, Eq, Ord, Show with dictionary-passing
+- ✅ **Imports** - Cross-module imports work at runtime
+- ✅ **REPL** - Fully functional with all type system features
+- ✅ **Builtins** - String primitives, IO, FS operations
 
 ### ✅ Working Examples
-- `examples/hello.ail` - Simple print
-- `examples/simple.ail` - Basic arithmetic
-- `examples/arithmetic.ail` - Arithmetic with show
-- `examples/type_classes_working_reference.ail` - Type classes demo
-- `examples/showcase/*.ail` - Type inference, lambdas, closures, type classes
-- **REPL** - Fully functional with all type system features
+```bash
+# Module with IO
+ailang run examples/test_io_builtins.ail --entry main --caps IO
 
-See [examples/STATUS.md](examples/STATUS.md) for complete inventory (12 working, 3 type-check only, 27 broken).
+# Pattern matching with ADTs
+ailang run examples/adt_simple.ail --entry main
 
-### ⚠️ Known Limitations (v0.1.0)
+# Cross-module imports
+ailang run examples/effects_basic.ail --entry main --caps IO
+```
 
-**Parser Limitations:**
-1. ✅ Module/import/export **parse and type-check** but cannot execute (v0.2.0)
-2. ⚠️ Let expressions limited to 3 nesting levels (4+ fails)
-3. ✅ Pattern matching **works** (constructors, tuples, lists, wildcards) - v0.2.0 adds guards + exhaustiveness
+See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
+
+### ⚠️ Known Limitations (v0.2.0-rc1)
+
+**Still TODO:**
+1. ⚠️ Pattern matching guards - `if condition` in match arms not evaluated
+2. ⚠️ Exhaustiveness checking - No warnings for non-exhaustive patterns
+3. ⚠️ Let expressions limited to 3 nesting levels (4+ fails)
 4. ❌ `tests [...]` and `properties [...]` syntax not implemented
+5. ❌ Error propagation operator `?` not implemented
 5. ⚠️ Non-module files cannot use `func`, `type`, `import`, `export` keywords
 
 **Execution Limitations:**

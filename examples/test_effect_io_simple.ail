@@ -1,0 +1,4 @@
+-- Simple IO effect test (no module syntax)
+-- This file tests capability enforcement for IO effects
+
+_io_println("hello from effect system")

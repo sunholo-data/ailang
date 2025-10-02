@@ -1,0 +1,7 @@
+module examples/test_effect_annotation
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("test");
+  ()
+}

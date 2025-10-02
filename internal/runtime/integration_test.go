@@ -15,10 +15,14 @@ func TestIntegration_SimpleModule(t *testing.T) {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
 
+	t.Logf("DEBUG: testPath = %s", testPath)
 	rt := NewModuleRuntime(testPath)
 
 	// Load and evaluate simple module
-	inst, err := rt.LoadAndEvaluate("tests/runtime_integration/simple")
+	modulePath := "tests/runtime_integration/simple"
+	fullPath := filepath.Join(testPath, modulePath+".ail")
+	t.Logf("DEBUG: modulePath = %s, fullPath = %s", modulePath, fullPath)
+	inst, err := rt.LoadAndEvaluate(modulePath)
 	if err != nil {
 		t.Fatalf("Failed to load and evaluate simple module: %v", err)
 	}

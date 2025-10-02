@@ -1,0 +1,28 @@
+module stdlib/std/fs
+
+-- Filesystem operations with capability-based security
+-- All operations require FS capability grant
+-- Respects AILANG_FS_SANDBOX for sandboxed execution
+
+-- Effect marker
+-- export effect FS  -- Will be added when effect declarations are supported
+
+-- File reading
+-- Reads entire file contents as a string
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
+
+-- File writing
+-- Writes string content to file (truncates if exists)
+-- Creates parent directories if needed (future enhancement)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func writeFile(path: string, content: string) -> () ! {FS} = _fs_writeFile(path, content)
+
+-- File existence check
+-- Returns true if file or directory exists
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func exists(path: string) -> bool ! {FS} = _fs_exists(path)

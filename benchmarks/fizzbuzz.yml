@@ -1,0 +1,41 @@
+id: fizzbuzz
+description: "Classic FizzBuzz problem (control flow)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "low"
+prompt_file: "prompts/v0.2.0.md"
+task_prompt: |
+  Write a program in <LANG> that prints FizzBuzz from 1 to 100.
+
+  Requirements:
+  - Print numbers 1-100, one per line
+  - For multiples of 3, print "Fizz" instead of the number
+  - For multiples of 5, print "Buzz" instead of the number
+  - For multiples of both 3 and 5, print "FizzBuzz" instead of the number
+
+  For AILANG:
+  - Use module declaration
+  - Export a main() function with ! {IO} effect
+  - Import println from std/io
+  - Use recursion (no for loops)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  1
+  2
+  Fizz
+  4
+  Buzz
+  Fizz
+  7
+  8
+  Fizz
+  Buzz
+  11
+  Fizz
+  13
+  14
+  FizzBuzz
+  16

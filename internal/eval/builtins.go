@@ -407,6 +407,13 @@ func registerBooleanBuiltins() {
 }
 
 // CallBuiltin calls a builtin function with the given arguments
+//
+// DEPRECATED: This function is no longer used for effect-based builtins (IO, FS).
+// Effect-based builtins now route through internal/runtime/builtins.go and the
+// effect system for capability checking. This function is kept for backward
+// compatibility with non-effect builtins and for internal validation.
+//
+// For effect-based operations, use runtime.ModuleRuntime with EffContext instead.
 func CallBuiltin(name string, args []Value) (Value, error) {
 	builtin, ok := Builtins[name]
 	if !ok {

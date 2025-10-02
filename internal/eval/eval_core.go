@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/dtree"
 	"github.com/sunholo/ailang/internal/types"
 )
 
@@ -18,6 +19,7 @@ type CoreEvaluator struct {
 	registry              *types.DictionaryRegistry
 	resolver              GlobalResolver // Resolver for global references
 	experimentalBinopShim bool           // Feature flag for operator shim
+	effContext            interface{}    // Effect context (interface{} avoids import cycle with effects package)
 }
 
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
@@ -55,9 +57,71 @@ func (e *CoreEvaluator) SetGlobalResolver(resolver GlobalResolver) {
 	e.resolver = resolver
 }
 
+// SetEffContext sets the effect context for this evaluator
+//
+// The effect context provides capability grants for effect operations.
+// It uses interface{} to avoid import cycles with the effects package.
+//
+// Parameters:
+//   - ctx: The effect context (should be *effects.EffContext)
+//
+// Example:
+//
+//	evaluator.SetEffContext(effCtx)
+func (e *CoreEvaluator) SetEffContext(ctx interface{}) {
+	e.effContext = ctx
+}
+
+// GetEffContext returns the current effect context
+//
+// Returns nil if no effect context has been set.
+func (e *CoreEvaluator) GetEffContext() interface{} {
+	return e.effContext
+}
+
 // GetEnvironmentBindings returns all bindings in the current environment
 func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 	return e.env.GetAllBindings()
+}
+
+// CallFunction calls a function value with the given arguments
+//
+// This is a helper for invoking FunctionValues from outside the evaluator,
+// such as from the module runtime when calling entrypoints.
+//
+// Parameters:
+//   - fn: The function value to call
+//   - args: The arguments to pass to the function
+//
+// Returns:
+//   - The result value from executing the function
+//   - An error if execution fails
+func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, error) {
+	// Verify argument count
+	if len(args) != len(fn.Params) {
+		return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
+	}
+
+	// Create new environment with parameters bound
+	newEnv := fn.Env.Clone()
+	for i, param := range fn.Params {
+		newEnv.Set(param, args[i])
+	}
+
+	// Evaluate body in new environment
+	oldEnv := e.env
+	e.env = newEnv
+
+	var result Value
+	var err error
+	if coreBody, ok := fn.Body.(core.CoreExpr); ok {
+		result, err = e.evalCore(coreBody)
+	} else {
+		err = fmt.Errorf("function body is not Core AST")
+	}
+
+	e.env = oldEnv
+	return result, err
 }
 
 // EvalLetRecBindings evaluates a LetRec and returns its bindings without evaluating the body
@@ -337,22 +401,6 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 
 // evalCoreApp evaluates function application
 func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
-	// Check if this is a builtin function call
-	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
-		// Evaluate arguments
-		var args []Value
-		for _, arg := range app.Args {
-			argVal, err := e.evalCore(arg)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, argVal)
-		}
-
-		// Call the builtin
-		return CallBuiltin(vg.Ref.Name, args)
-	}
-
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {
@@ -529,6 +577,17 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 		return nil, err
 	}
 
+	// Decision tree optimization: compile to tree if beneficial
+	// Note: Decision tree compilation is available but disabled by default
+	// This is a runtime optimization that doesn't change semantics
+	useDecisionTree := false // Can be enabled via flag in future
+	if useDecisionTree {
+		compiler := dtree.NewDecisionTreeCompiler(match.Arms)
+		tree := compiler.Compile()
+		return e.evalDecisionTree(scrutineeVal, tree, match.Arms)
+	}
+
+	// Linear evaluation (current default implementation)
 	// Try each arm
 	for _, arm := range match.Arms {
 		bindings, matched := matchPattern(arm.Pattern, scrutineeVal)
@@ -536,7 +595,36 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 			continue
 		}
 
-		// Pattern matched - evaluate body with bindings
+		// Check guard if present
+		if arm.Guard != nil {
+			// Push bindings for guard evaluation
+			newEnv := e.env.NewChildEnvironment()
+			for name, val := range bindings {
+				newEnv.Set(name, val)
+			}
+
+			oldEnv := e.env
+			e.env = newEnv
+			guardVal, err := e.evalCore(arm.Guard)
+			e.env = oldEnv
+
+			if err != nil {
+				return nil, fmt.Errorf("guard evaluation failed: %w", err)
+			}
+
+			// Guard must evaluate to Bool
+			boolVal, ok := guardVal.(*BoolValue)
+			if !ok {
+				return nil, fmt.Errorf("guard must evaluate to Bool, got %T", guardVal)
+			}
+
+			// If guard is false, try next arm
+			if !boolVal.Value {
+				continue
+			}
+		}
+
+		// Pattern matched and guard passed - evaluate body with bindings
 		newEnv := e.env.NewChildEnvironment()
 		for name, val := range bindings {
 			newEnv.Set(name, val)

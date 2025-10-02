@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -21,6 +21,8 @@ type Elaborator struct {
 	filePath     string                      // Current file path for relative imports
 	globalEnv    map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
 	constructors map[string]*ConstructorInfo // Available constructors (name -> info)
+	warnings     []*ExhaustivenessWarning    // Accumulated warnings
+	exChecker    *ExhaustivenessChecker      // Exhaustiveness checker
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -40,6 +42,8 @@ func NewElaborator() *Elaborator {
 		freshVarNum:  0,
 		globalEnv:    make(map[string]core.GlobalRef),
 		constructors: make(map[string]*ConstructorInfo),
+		warnings:     []*ExhaustivenessWarning{},
+		exChecker:    NewExhaustivenessChecker(),
 	}
 }
 
@@ -55,6 +59,8 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		filePath:     filePath,
 		globalEnv:    make(map[string]core.GlobalRef),
 		constructors: make(map[string]*ConstructorInfo),
+		warnings:     []*ExhaustivenessWarning{},
+		exChecker:    NewExhaustivenessChecker(),
 	}
 }
 
@@ -63,11 +69,15 @@ func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
 	e.globalEnv = env
 }
 
+// SetModuleLoader sets the module loader for import resolution
+func (e *Elaborator) SetModuleLoader(ml *loader.ModuleLoader) {
+	e.moduleLoader = ml
+}
+
 // AddBuiltinsToGlobalEnv adds all builtin functions to the global environment
 func (e *Elaborator) AddBuiltinsToGlobalEnv() {
-	// Import eval package to access builtins
-	builtins := eval.Builtins
-	for name := range builtins {
+	// Add all registered builtins to global environment
+	for name := range builtins.Registry {
 		e.globalEnv[name] = core.GlobalRef{
 			Module: "$builtin",
 			Name:   name,
@@ -99,6 +109,16 @@ func (e *Elaborator) GetConstructors() map[string]*ConstructorInfo {
 // GetEffectAnnotation returns the effect annotation for a Core node ID
 func (e *Elaborator) GetEffectAnnotation(nodeID uint64) []string {
 	return e.effectAnnots[nodeID]
+}
+
+// GetWarnings returns accumulated exhaustiveness warnings
+func (e *Elaborator) GetWarnings() []*ExhaustivenessWarning {
+	return e.warnings
+}
+
+// ClearWarnings clears accumulated warnings
+func (e *Elaborator) ClearWarnings() {
+	e.warnings = []*ExhaustivenessWarning{}
 }
 
 // Elaborate transforms a surface program to Core ANF
@@ -1059,8 +1079,18 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 			return nil, err
 		}
 
+		// Elaborate guard if present
+		var guard core.CoreExpr
+		if caseClause.Guard != nil {
+			guard, err = e.normalize(caseClause.Guard)
+			if err != nil {
+				return nil, fmt.Errorf("failed to elaborate guard: %w", err)
+			}
+		}
+
 		arms = append(arms, core.MatchArm{
 			Pattern: pattern,
+			Guard:   guard,
 			Body:    body,
 		})
 	}
@@ -1069,7 +1099,25 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 		CoreNode:   e.makeNode(match.Position()),
 		Scrutinee:  scrutinee,
 		Arms:       arms,
-		Exhaustive: false, // Will be set by typechecker
+		Exhaustive: false, // Will be checked below
+	}
+
+	// Check exhaustiveness (without type info, use simple heuristic)
+	// For now, assume Bool type if we see boolean literals
+	scrutineeType := e.inferScrutineeType(arms)
+	if scrutineeType != nil {
+		exhaustive, missing := e.exChecker.CheckExhaustiveness(result, scrutineeType)
+		result.Exhaustive = exhaustive
+
+		if !exhaustive {
+			// Add warning with source location
+			pos := match.Position()
+			location := fmt.Sprintf("%s:%d:%d", e.filePath, pos.Line, pos.Column)
+			e.warnings = append(e.warnings, &ExhaustivenessWarning{
+				Location:       location,
+				MissingPattern: missing,
+			})
+		}
 	}
 
 	return e.wrapWithBindings(result, binds), nil
@@ -1139,6 +1187,28 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)
 	}
+}
+
+// inferScrutineeType attempts to infer the type of a scrutinee from its patterns
+// This is a simple heuristic - returns Bool if we see boolean literals
+func (e *Elaborator) inferScrutineeType(arms []core.MatchArm) types.Type {
+	// Look at patterns to infer type
+	for _, arm := range arms {
+		if litPat, ok := arm.Pattern.(*core.LitPattern); ok {
+			switch litPat.Value.(type) {
+			case bool:
+				return &types.TCon{Name: "Bool"}
+			case int, int64:
+				return &types.TCon{Name: "Int"}
+			case float64:
+				return &types.TCon{Name: "Float"}
+			case string:
+				return &types.TCon{Name: "String"}
+			}
+		}
+	}
+	// Can't infer type - return nil
+	return nil
 }
 
 // elaborateFuncDecl handles function declarations

@@ -66,7 +66,8 @@ type Result struct {
 	Value          eval.Value
 	Type           types.Type
 	Constraints    []types.Constraint
-	Errors         []error // TODO: Use structured errors
+	Errors         []error                            // TODO: Use structured errors
+	Warnings       []*elaborate.ExhaustivenessWarning // Exhaustiveness warnings
 	Artifacts      Artifacts
 	Interface      *iface.Iface                    // Module interface (for modules only)
 	Modules        map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
@@ -166,6 +167,9 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if err != nil {
 		return result, fmt.Errorf("elaboration error: %w", err)
 	}
+
+	// Collect exhaustiveness warnings
+	result.Warnings = elaborator.GetWarnings()
 
 	result.Artifacts.Core = coreProg
 	result.PhaseTimings["elaborate"] = time.Since(start).Milliseconds()
@@ -517,6 +521,10 @@ func runModule(cfg Config, src Source) (Result, error) {
 			// Preserve structured error reports without wrapping
 			return result, err
 		}
+
+		// Collect exhaustiveness warnings
+		warnings := elaborator.GetWarnings()
+		result.Warnings = append(result.Warnings, warnings...)
 
 		// Extract constructors from elaborator and store in CompileUnit
 		unit.Constructors = convertConstructors(elaborator.GetConstructors())

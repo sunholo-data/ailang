@@ -1,0 +1,77 @@
+# AILANG Evaluation Model Configuration
+# Last updated: October 2025
+#
+# This file defines the canonical model names for evaluation benchmarks.
+# Update this file when new model versions are released.
+
+# Model definitions
+models:
+  # OpenAI GPT-5 (released August 2025)
+  gpt5:
+    api_name: "gpt-5"
+    provider: "openai"
+    description: "GPT-5 full reasoning model"
+    env_var: "OPENAI_API_KEY"
+    pricing:
+      input_per_1k: 0.03   # $0.03 per 1K input tokens (estimated)
+      output_per_1k: 0.06  # $0.06 per 1K output tokens (estimated)
+    notes: |
+      Main GPT-5 model with reasoning capabilities.
+      Use for production benchmarks.
+
+  gpt5-mini:
+    api_name: "gpt-5-mini"
+    provider: "openai"
+    description: "GPT-5 mini (faster, cheaper)"
+    env_var: "OPENAI_API_KEY"
+    pricing:
+      input_per_1k: 0.01
+      output_per_1k: 0.02
+    notes: "Smaller variant, good for development/testing"
+
+  # Anthropic Claude Sonnet 4.5 (released September 2025)
+  claude-sonnet-4-5:
+    api_name: "claude-sonnet-4-5-20250929"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.5 - best for coding"
+    env_var: "ANTHROPIC_API_KEY"
+    pricing:
+      input_per_1k: 0.003  # $3 per million = $0.003 per 1K
+      output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+    notes: |
+      Anthropic's most intelligent model, optimized for coding.
+      Can run autonomously for 30 hours.
+      1M token context window.
+
+  # Google Gemini 2.5 Pro (released March 2025)
+  gemini-2-5-pro:
+    api_name: "gemini-2.5-pro"
+    provider: "google"
+    description: "Gemini 2.5 Pro with thinking"
+    env_var: "GOOGLE_API_KEY"
+    pricing:
+      input_per_1k: 0.001  # Estimated, check Google pricing
+      output_per_1k: 0.002
+    notes: |
+      Google's most advanced model with reasoning.
+      1M token context window (2M coming soon).
+      Strong in coding, math, and science.
+
+# Default model for benchmarks
+default: "claude-sonnet-4-5"
+
+# Recommended model set for comprehensive evaluation
+benchmark_suite:
+  - "gpt5"
+  - "claude-sonnet-4-5"
+  - "gemini-2-5-pro"
+
+# Development/testing models (cheaper, faster)
+dev_models:
+  - "gpt5-mini"
+
+# Notes for future updates:
+# - When new models release, add them here
+# - Update api_name with full version strings (e.g., "gpt-5-2025-08-07")
+# - Update pricing from official documentation
+# - Keep old model versions for historical comparison

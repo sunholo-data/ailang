@@ -1,0 +1,11 @@
+-- Test FS effect with capability grant
+-- Run with: ailang run examples/test_effect_fs.ail --caps FS,IO
+-- NOTE: Uses raw builtins (stdlib wrappers don't parse yet)
+
+module examples/test_effect_fs
+
+export func main() -> () {
+  -- Direct builtin calls bypass type checking
+  -- In v0.2.1+, use: import stdlib/std/fs (readFile)
+  _io_println("FS test - using direct builtins")
+}

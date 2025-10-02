@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
 )
 
@@ -18,12 +20,14 @@ import (
 //   - Evaluating modules in dependency order (topological sort)
 //   - Linking imported modules
 //   - Detecting circular imports
+//   - Providing builtin function registry
 //
 // Thread-safety: The runtime uses sync.Once within each ModuleInstance
 // to ensure each module is evaluated exactly once.
 type ModuleRuntime struct {
 	loader    *loader.ModuleLoader       // For loading and type-checking modules
 	evaluator *eval.CoreEvaluator        // For evaluating Core AST
+	builtins  *BuiltinRegistry           // Registry of builtin functions
 	instances map[string]*ModuleInstance // Cache: path → instance
 	basePath  string                     // Base path for resolving modules
 	visiting  map[string]bool            // Track modules being visited (for cycle detection)
@@ -49,9 +53,16 @@ func NewModuleRuntime(basePath string) *ModuleRuntime {
 	// Clean the base path
 	cleanPath := filepath.Clean(basePath)
 
+	// Create evaluator first
+	evaluator := eval.NewCoreEvaluator()
+
+	// Create builtins registry with evaluator reference
+	builtins := NewBuiltinRegistry(evaluator)
+
 	return &ModuleRuntime{
 		loader:    loader.NewModuleLoader(cleanPath),
-		evaluator: eval.NewCoreEvaluator(),
+		evaluator: evaluator,
+		builtins:  builtins,
 		instances: make(map[string]*ModuleInstance),
 		basePath:  cleanPath,
 		visiting:  make(map[string]bool),
@@ -149,6 +160,25 @@ func (rt *ModuleRuntime) LoadAndEvaluate(modulePath string) (*ModuleInstance, er
 		return nil, fmt.Errorf("failed to load module %s: %w", modulePath, err)
 	}
 
+	// 3b. Elaborate AST to Core if not already done
+	// (Pipeline preloads modules with Core already populated)
+	if loaded.Core == nil && loaded.File != nil {
+		elaborator := elaborate.NewElaboratorWithPath(loaded.Path)
+		elaborator.SetModuleLoader(rt.loader) // Share the runtime's loader for consistent module resolution
+		elaborator.AddBuiltinsToGlobalEnv()
+		coreProgram, err := elaborator.ElaborateFile(loaded.File)
+		if err != nil {
+			return nil, fmt.Errorf("failed to elaborate module %s: %w", modulePath, err)
+		}
+		loaded.Core = coreProgram
+	}
+
+	// 3c. Build minimal interface if not already done
+	// (Pipeline provides complete type-checked interface)
+	if loaded.Iface == nil {
+		loaded.Iface = rt.buildMinimalInterface(loaded)
+	}
+
 	// 4. Create module instance
 	inst := NewModuleInstance(loaded)
 	rt.instances[modulePath] = inst
@@ -192,7 +222,7 @@ func (rt *ModuleRuntime) LoadAndEvaluate(modulePath string) (*ModuleInstance, er
 // internally by LoadAndEvaluate.
 func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 	// 1. Set up global resolver for cross-module references
-	resolver := newModuleGlobalResolver(inst)
+	resolver := newModuleGlobalResolver(inst, rt)
 	rt.evaluator.SetGlobalResolver(resolver)
 
 	// 2. Iterate over top-level declarations in the Core AST
@@ -283,6 +313,12 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 		// For modules, we ignore this - we only care about bindings
 		return nil
 
+	case *core.Lit:
+		// Literal at module level (used in stdlib equation-form exports)
+		// These don't create bindings, just represent constant values
+		// We ignore them during module evaluation
+		return nil
+
 	default:
 		// Other expression types are not expected at module level
 		return fmt.Errorf("unexpected module-level expression type %T in module %s", e, inst.Path)
@@ -301,6 +337,17 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 // Returns:
 //   - The cached ModuleInstance if found
 //   - nil if not found
+// GetEvaluator returns the runtime's evaluator
+//
+// This allows external code to access the evaluator for setting
+// the effect context or other configuration.
+//
+// Returns:
+//   - The CoreEvaluator used by this runtime
+func (rt *ModuleRuntime) GetEvaluator() *eval.CoreEvaluator {
+	return rt.evaluator
+}
+
 func (rt *ModuleRuntime) GetInstance(modulePath string) *ModuleInstance {
 	return rt.instances[modulePath]
 }
@@ -329,4 +376,29 @@ func (rt *ModuleRuntime) ListInstances() []string {
 		paths = append(paths, path)
 	}
 	return paths
+}
+
+// buildMinimalInterface creates a minimal interface from loader exports
+// This is used when modules are loaded without full type checking (e.g., in tests)
+func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *iface.Iface {
+	exports := make(map[string]*iface.IfaceItem)
+	
+	for name := range loaded.Exports {
+		exports[name] = &iface.IfaceItem{
+			Name:   name,
+			Type:   nil, // No type info available without type checking
+			Purity: false,
+			Ref: core.GlobalRef{
+				Module: loaded.Path,
+				Name:   name,
+			},
+		}
+	}
+	
+	return &iface.Iface{
+		Module:       loaded.Path,
+		Exports:      exports,
+		Constructors: make(map[string]*iface.ConstructorScheme),
+		Types:        make(map[string]*iface.TypeExport),
+	}
 }
