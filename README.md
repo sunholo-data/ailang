@@ -169,13 +169,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-12%20passing%2024%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-16%20passing%2025%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-02 05:56:42 UTC*
+*Last updated: 2025-10-02 14:14:05 UTC*
 
-**Summary:** 12 passed, 24 failed, 6 skipped (Total: 42)
+**Summary:** 16 passed, 25 failed, 6 skipped (Total: 47)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -199,6 +199,11 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
+| `showcase/01_type_inference.ail` | ✅ Pass |  |
+| `showcase/02_lambdas.ail` | ✅ Pass |  |
+| `showcase/03_lists.ail` | ❌ Fail | Error: evaluation error: builtin concat_String ... |
+| `showcase/03_type_classes.ail` | ✅ Pass |  |
+| `showcase/04_closures.ail` | ✅ Pass |  |
 | `simple.ail` | ✅ Pass |  |
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
