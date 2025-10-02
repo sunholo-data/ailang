@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-25.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-25.4%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -88,19 +88,20 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-15%20passing%2017%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-17%20passing%2015%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-01 19:27:47 UTC*
+*Last updated: 2025-10-02 04:47:17 UTC*
 
-**Summary:** 15 passed, 17 failed, 4 skipped (Total: 36)
+**Summary:** 17 passed, 15 failed, 5 skipped (Total: 37)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
+| `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -117,8 +118,8 @@ Hello World :: String
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `test_import_ctor.ail` | ✅ Pass |  |
 | `test_import_func.ail` | ✅ Pass |  |
-| `test_use_constructor.ail` | ❌ Fail | Error: type error in examples/test_use_construc... |
-| `type_classes_working_reference.ail` | ❌ Fail | Error: normalization received nil expression |
+| `test_use_constructor.ail` | ✅ Pass |  |
+| `type_classes_working_reference.ail` | ✅ Pass |  |
 | `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
 | `v3_3/import_conflict.ail` | ✅ Pass |  |
