@@ -2,127 +2,152 @@
 
 This directory contains example programs demonstrating AILANG features.
 
-## Status Levels
+## Quick Start
 
-### ✅ **Working Examples** (Ready for documentation)
-These examples work with the current implementation and can be run with `ailang run <file>`:
-
-- **[hello.ail](hello.ail)** - Basic print statement
-- **[simple.ail](simple.ail)** - Let bindings and arithmetic
-- **[arithmetic.ail](arithmetic.ail)** - Show type class usage
-- **[lambda_expressions.ail](lambda_expressions.ail)** - Comprehensive lambda examples (currying, closures, higher-order functions)
-- **[adt_simple.ail](adt_simple.ail)** - ADT declarations and pattern matching
-- **[adt_option.ail](adt_option.ail)** - Option type with pattern matching
-- **[patterns.ail](patterns.ail)** - All pattern types (tuples, literals, constructors, nested)
-- **[typeclasses.ail](typeclasses.ail)** - Type class usage (Num, Eq, Ord, Show)
-- **[records.ail](records.ail)** - Record literals, field access, nesting
-
-### ⚠️ **Experimental Examples** (Future features)
-These examples demonstrate planned features and **will not run** with the current implementation. They are included for design validation and documentation of the language vision.
-
-Located in [experimental/](experimental/):
-
-- **[factorial.ail](experimental/factorial.ail)** - Requires: `func` declarations, `tests` syntax
-- **[quicksort.ail](experimental/quicksort.ail)** - Requires: `func` declarations, list patterns
-- **[concurrent_pipeline.ail](experimental/concurrent_pipeline.ail)** - Requires: CSP (channels, spawn, parallel)
-- **[web_api.ail](experimental/web_api.ail)** - Requires: Quasiquotes, HTTP effects
-- **[ai_agent_integration.ail](experimental/ai_agent_integration.ail)** - Requires: Full effect system
-
-Each experimental file has a warning header explaining what features are missing.
-
-### 🔬 **Development Examples** (In progress)
-Located in [v3_3/](v3_3/):
-
-These examples test features currently under development (module system, imports, exports). Status may change frequently.
-
-## Running Examples
-
-### File Execution
+**Run an example:**
 ```bash
-# Run a working example
 ailang run examples/hello.ail
-ailang run examples/lambda_expressions.ail
-ailang run examples/patterns.ail
-
-# Experimental examples will fail with parser errors
-ailang run examples/experimental/factorial.ail  # ❌ Will fail
 ```
 
-### REPL Usage
+**Type-check an example:**
 ```bash
-# Start the REPL
-ailang repl
-
-# Try expressions from examples
-λ> 1 + 2 * 3
-7 :: Int
-
-λ> let double = \x. x * 2 in double(21)
-42 :: Int
-
-λ> type Option[a] = Some(a) | None
-λ> match Some(42) { Some(n) => n, None => 0 }
-42 :: Int
+ailang check examples/option_demo.ail
 ```
 
-## Example Coverage by Feature
+**Interactive exploration:**
+```bash
+ailang repl
+```
 
-| Feature | Example Files |
-|---------|--------------|
-| **Let bindings** | simple.ail, arithmetic.ail |
-| **Lambdas** | lambda_expressions.ail |
-| **Type classes** | typeclasses.ail, arithmetic.ail |
-| **Records** | records.ail, lambda_expressions.ail |
-| **ADTs** | adt_simple.ail, adt_option.ail |
-| **Pattern matching** | patterns.ail, adt_simple.ail |
-| **Effects** | *(M-P4 in progress)* |
-| **Modules** | v3_3/* *(in development)* |
-| **Concurrency** | experimental/concurrent_pipeline.ail *(future)* |
-| **Quasiquotes** | experimental/web_api.ail *(future)* |
+## Example Categories
 
-## Implementation Status
+### ✅ Working Examples (Ready to Run)
 
-**Current Version:** v0.0.9 (M-P3 complete, M-P4 in progress)
+Start here if you're new to AILANG! These examples work end-to-end:
 
-**Completed Milestones:**
-- ✅ M-P1: Core parser foundation
-- ✅ M-P2: ADT syntax (sum/product types)
-- ✅ M-P3: Pattern matching with ADT runtime
-- ⏳ M-P4: Effect system (type-level only)
+- **`hello.ail`** - Hello world with builtin functions
+- **`simple.ail`** - Let bindings and basic arithmetic
+- **`arithmetic.ail`** - Operator precedence and type inference
+- **`block_demo.ail`** - Multi-statement blocks with scoping
+- **`adt_simple.ail`** - Algebraic data type definitions
+- **`adt_option.ail`** - Using the Option ADT
+- **`effects_pure.ail`** - Pure function annotations
+- **`type_classes_working_reference.ail`** - Type classes and inference
 
-**Next Milestones:**
-- Module system completion (imports/exports)
-- Effect system runtime (handlers, capabilities)
-- Standard library expansion
-- Quasiquotes implementation
-- CSP concurrency
+### ⚠️ Type-Check Only (v0.2.0)
 
-See [design_docs/](../design_docs/) for detailed implementation plans.
+These examples demonstrate important features but cannot execute yet due to the module execution limitation:
+
+- **`stdlib_demo.ail`** - Standard library showcase (IO, list, string, option)
+- **`option_demo.ail`** - Option ADT with stdlib functions
+- **`demos/hello_io.ail`** - IO effects demo
+
+**What works**: Parsing ✓, Type-checking ✓
+**What doesn't**: Execution (planned for v0.2.0)
+
+### 📁 Module Examples
+
+The `v3_3/` directory contains examples of the module system:
+
+- Module imports and exports
+- Polymorphic functions across modules
+- Import conflict resolution
+- Nested module structures
+
+### 🔬 Experimental
+
+The `experimental/` directory contains examples of planned features:
+
+- Concurrency with CSP
+- Web API integration
+- AI agent pipelines
+- Advanced algorithms
+
+**Note**: These use syntax that isn't finalized yet.
+
+## Example Status
+
+For a complete status report of all examples, see [STATUS.md](STATUS.md).
+
+**Summary (v0.1.0)**:
+- Total: 42 examples
+- ✅ Working: 12 (28.6%)
+- ⚠️ Type-checks only: 3 (7.1%)
+- ❌ Needs fixing: 27 (64.3%)
+
+## Features Demonstrated
+
+### Type System
+- Hindley-Milner type inference (`simple.ail`, `arithmetic.ail`)
+- Type classes with constraints (`type_classes_working_reference.ail`)
+- Algebraic data types (`adt_simple.ail`, `adt_option.ail`)
+- Row polymorphism for extensible records
+- Effect tracking (`effects_pure.ail`)
+
+### Language Features
+- Let bindings and lambdas (`simple.ail`)
+- Multi-statement blocks (`block_demo.ail`)
+- Pattern matching (type-level only in v0.1.0)
+- Module system (`v3_3/*.ail`)
+- Pure function annotations
+
+### Standard Library (Type Signatures)
+- **io**: print, println, readLine
+- **list**: map, filter, fold, length, etc.
+- **option**: Some, None, map, getOrElse
+- **result**: Ok, Err, map, unwrap
+- **string**: length, toUpper, toLower, etc.
+
+## Known Limitations (v0.1.0)
+
+### Module Execution
+Currently, AILANG can parse and type-check modules but cannot execute them. This affects:
+- Calling standard library functions
+- Running module exports
+- Demo programs using stdlib
+
+**Workaround**: Use the REPL for interactive testing, or write non-module files (simple expressions).
+
+**Status**: Module execution is planned for v0.2.0.
+
+### Parser Limitations
+- Match expressions not yet implemented
+- Properties syntax not finalized
+- Some experimental syntax not stable
 
 ## Contributing Examples
 
 When adding new examples:
 
-1. **Test first**: Verify the example runs with `ailang run`
-2. **Add comments**: Explain what the example demonstrates
-3. **Include output**: Show expected results in comments
-4. **Mark status**:
-   - Working examples go in root `examples/`
-   - Future features go in `examples/experimental/` with warning headers
-5. **Update this README**: Add to the appropriate status section
-6. **Update manifest.json**: Keep the verification manifest in sync
+1. **Test that they work**:
+   ```bash
+   ailang run examples/your_example.ail
+   ```
 
-## Reference Files
+2. **Add clear comments** explaining what the example demonstrates
 
-- **[type_classes_working_reference.ail](type_classes_working_reference.ail)** - Detailed type class implementation reference (not for beginners)
+3. **Update STATUS.md** with the new example's status
+
+4. **Use appropriate warnings** for v0.2.0 features:
+   ```ailang
+   -- ⚠️ NOTE: This example type-checks but cannot execute until v0.2.0
+   ```
 
 ## Getting Help
 
-- **Documentation**: See `CLAUDE.md` for language overview
-- **Design Docs**: See `design_docs/` for feature specifications
-- **Issues**: Report problems at https://github.com/sunholo/ailang/issues
+- **Documentation**: See `docs/` directory
+- **REPL Help**: Type `:help` in the REPL
+- **Issue Tracker**: https://github.com/sunholo-data/ailang/issues
+
+## Next Steps
+
+After exploring these examples:
+
+1. Try modifying them to experiment
+2. Use the REPL to test ideas interactively
+3. Check out the design docs in `design_docs/` to understand the language
+4. Watch for v0.2.0 which will add module execution!
 
 ---
 
-**Last Updated:** 2025-10-01
-**Examples Count:** 9 working, 5 experimental, 6 in development
+*For detailed status of each example, see [STATUS.md](STATUS.md)*

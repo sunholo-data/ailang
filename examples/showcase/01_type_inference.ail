@@ -1,0 +1,6 @@
+-- Showcase: Type Inference
+-- The type checker automatically infers types!
+
+let double = \x. x * 2 in
+let result = double(21) in
+print("Type inference: " ++ show(result))

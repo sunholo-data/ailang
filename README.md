@@ -7,9 +7,13 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.0.12
+## Current Version: v0.1.0 (MVP - Type System Complete)
 
-⚠️ **Early Development**: This language is in active development. Many planned features are not yet implemented. See [Implementation Status](docs/reference/implementation-status.md) for details.
+**🎯 What Works**: Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, and expression evaluation.
+
+**⚠️ Known Limitation**: Module execution is not yet implemented. Modules type-check correctly but cannot run. Non-module `.ail` files execute successfully. See [LIMITATIONS.md](docs/LIMITATIONS.md) for details.
+
+**📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [What's Coming in v0.2.0](#whats-coming-in-v020)
 
 ## Quick Start
 
@@ -27,7 +31,9 @@ ailang --version
 
 For detailed installation instructions, see the [Getting Started Guide](docs/guides/getting-started.md).
 
-### Hello World
+### Hello World (Non-Module Files)
+
+AILANG v0.1.0 executes **non-module** `.ail` files successfully:
 
 ```ailang
 -- hello.ail
@@ -35,10 +41,22 @@ print("Hello, AILANG!")
 ```
 
 ```bash
-ailang run hello.ail
+ailang run examples/hello.ail
+# Output: Hello, AILANG!
 ```
 
-### Interactive REPL
+More examples:
+```bash
+ailang run examples/arithmetic.ail        # Arithmetic with operator precedence
+ailang run examples/simple.ail            # Let bindings and evaluation
+ailang run examples/showcase/01_type_inference.ail  # Type inference demo
+```
+
+**Note**: Files with `module` declarations type-check but cannot execute until v0.2.0. See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
+
+### Interactive REPL (Fully Functional)
+
+The REPL is the **most complete** part of AILANG v0.1.0, featuring full type inference and type classes:
 
 ```bash
 ailang repl
@@ -52,37 +70,100 @@ Hello World :: String
 λ> let double = \x. x * 2 in double(21)
 42 :: Int
 
+λ> :type \x. x + x
+\x. x + x :: ∀α. Num α ⇒ α → α
+
+λ> let compose = \f. \g. \x. f(g(x)) in compose (\x. x * 2) (\x. x + 1) 5
+12 :: Int
+
 λ> :quit
 ```
 
-## Core Features
+**REPL Commands**: `:help`, `:type <expr>`, `:instances`, `:import <module>`, `:history`, `:clear`
 
-### ✅ Working Features
+See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 
-- **Lambda Expressions** - Full lambda calculus with closures and currying
-- **Type Inference** - Hindley-Milner type system with let-polymorphism
-- **Type Classes** - Num, Eq, Ord, Show with dictionary-passing (REPL only)
-- **Interactive REPL** - Professional REPL with history, completion, and debugging
-- **Basic Evaluation** - Arithmetic, strings, conditionals, let bindings
-- **Records & Lists** - Creation and field access
-- **Module System Foundation** - Path resolution, dependency management, cycle detection
-- **Structured Error Reporting** - JSON error output with schema versioning, deterministic diagnostics
+## What Works in v0.1.0
 
-### 🚧 In Progress
+### ✅ Complete Type System
 
-- Function declarations (`func` syntax)
-- Pattern matching
-- Module imports in files
-- Type definitions
-- Effect system
+- **Hindley-Milner Type Inference** - Full polymorphic type inference with let-polymorphism
+- **Type Classes** - `Num`, `Eq`, `Ord`, `Show` with dictionary-passing semantics
+- **Constraint Solving** - Type class constraint generation and resolution
+- **Defaulting** - Automatic defaulting for ambiguous numeric types (Int, Float)
+- **Type Checking** - Module interface checking, export resolution, import validation
 
-### 📋 Planned
+### ✅ Lambda Calculus & Expressions
 
-- Typed quasiquotes (SQL, HTML, JSON, etc.)
+- **Lambda Expressions** - First-class functions with closures and currying
+- **Function Composition** - Higher-order functions, partial application
+- **Let Bindings** - Polymorphic let expressions (up to 3 nested levels)
+- **Conditionals** - `if-then-else` expressions
+- **Operators** - Arithmetic (`+`, `-`, `*`, `/`), comparison (`==`, `<`, `>`, etc.), string concatenation (`++`)
+
+### ✅ Data Structures
+
+- **Lists** - `[1, 2, 3]` with type inference
+- **Records** - `{name: "Alice", age: 30}` with field access
+- **Tuples** - `(1, "hello", true)` for heterogeneous data
+- **Strings** - String literals with concatenation
+
+### ✅ Module System (Type-Checking Only)
+
+- **Module Declarations** - `module path/to/module`
+- **Import/Export** - `import stdlib/std/io (println)`, `export func main() ...`
+- **Path Resolution** - Correct module path resolution and validation
+- **Dependency Analysis** - Import graph construction, cycle detection
+- **Interface Generation** - Module signatures with exported types/functions
+
+**Note**: Modules parse and type-check correctly but cannot execute until v0.2.0. See [LIMITATIONS.md](docs/LIMITATIONS.md#critical-limitation-module-execution-gap).
+
+### ✅ Interactive Development
+
+- **Professional REPL** - Arrow key history, tab completion, persistent history (`~/.ailang_history`)
+- **Type Inspection** - `:type <expr>` shows qualified types with constraints
+- **Instance Inspection** - `:instances` lists available type class instances
+- **Debugging Tools** - `:dump-core`, `:dump-typed`, `:trace-defaulting`, `:dry-link`
+- **Auto-imports** - `stdlib/std/prelude` loaded automatically
+
+### ✅ Error Reporting
+
+- **Structured Errors** - JSON error output with schema versioning
+- **Deterministic Diagnostics** - Stable error messages, line/column positions
+- **Helpful Messages** - Type errors, parse errors, module loading errors
+
+## What's Coming in v0.2.0
+
+### 🚀 v0.2.0 Roadmap (Module Execution & Effects)
+
+**M-R1: Module Execution Runtime** (~1,200 LOC, 1.5-2 weeks)
+- Module instance creation and initialization
+- Import resolution and linking at runtime
+- Top-level function execution
+- Exported function calls
+
+**M-R2: Algebraic Effects Foundation** (~800 LOC, 1-1.5 weeks)
+- Effect declarations and checking
+- Effect handler syntax (`with`, `handle`)
+- Capability-based effect system
+- Basic effects: `IO`, `FS`, `Net`
+
+**M-R3: Pattern Matching** (~600 LOC, 1 week)
+- `match` expressions
+- Pattern guards
+- Exhaustiveness checking
+- Constructor patterns for ADTs
+
+**Total Timeline**: 3.5-4.5 weeks for v0.2.0
+
+See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details.
+
+### 📋 Future Features (v0.3.0+)
+
+- Typed quasiquotes (SQL, HTML, JSON, regex)
 - CSP-based concurrency with channels
 - Session types for protocol verification
-- Property-based testing
-- Capability-based security
+- Property-based testing (`properties [...]`)
 - AI training data export
 
 <!-- EXAMPLES_STATUS_START -->
@@ -145,14 +226,25 @@ Hello World :: String
 
 ## Documentation
 
-- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
+### User Documentation
+- **[LIMITATIONS.md](docs/LIMITATIONS.md)** - ⚠️ Read this first! Current v0.1.0 limitations and workarounds
 - **[Getting Started](docs/guides/getting-started.md)** - Installation and quick tutorial
+- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide (fully functional)
 - **[Language Syntax](docs/reference/language-syntax.md)** - Complete language reference
-- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide
+- **[Examples Status](examples/STATUS.md)** - Inventory of all 42 example files
+- **[Examples README](examples/README.md)** - How to use and understand examples
+
+### Development Documentation
+- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status with metrics
 - **[Development Guide](docs/guides/development.md)** - Contributing and development workflow
-- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status
+- **[CLAUDE.md](CLAUDE.md)** - Instructions for AI assistants working on AILANG
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
+
+### Design & Architecture
+- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
 - **[Design Documents](design_docs/)** - Architecture and design decisions
+- **[v0.1.0 MVP Roadmap](design_docs/20250929/v0_1_0_mvp_roadmap.md)** - Current milestone plan
+- **[Showcase Issues](docs/SHOWCASE_ISSUES.md)** - Known parser/execution limitations discovered during example creation
 
 ## Development
 
@@ -214,4 +306,23 @@ AILANG draws inspiration from:
 
 ---
 
-*For AI agents: This is an experimental functional language with Hindley-Milner type inference, type classes, and planned support for algebraic effects. The REPL is fully functional with type class resolution. File execution supports basic features. See [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*
+## FAQ
+
+**Q: Can I use AILANG for production code?**
+A: Not yet. v0.1.0 is an MVP focused on the type system. Module execution arrives in v0.2.0 (planned ~4 weeks).
+
+**Q: What's the difference between REPL and file execution?**
+A: The REPL is fully functional with type classes. File execution works for non-module files. Module files type-check but cannot execute until v0.2.0.
+
+**Q: Which examples actually work?**
+A: See [examples/STATUS.md](examples/STATUS.md). 12 examples execute successfully. The showcase examples in `examples/showcase/` demonstrate working features.
+
+**Q: How can I help or contribute?**
+A: See [Development Guide](docs/guides/development.md). We especially welcome testing, example creation, and documentation improvements.
+
+**Q: What makes AILANG "AI-first"?**
+A: Explicit effects, deterministic execution traces, structured errors, and typed metaprogramming make AILANG ideal for AI-assisted development and training data generation. See [AI-First Features](docs/ai-first-features.md).
+
+---
+
+*For AI agents: This is an experimental functional language with complete Hindley-Milner type inference, type classes (Num/Eq/Ord/Show), and lambda calculus. The REPL is fully functional. Non-module file execution works for expressions and let bindings. Module files type-check but cannot execute (runtime coming in v0.2.0). See [LIMITATIONS.md](docs/LIMITATIONS.md) and [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*

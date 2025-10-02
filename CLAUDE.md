@@ -2,11 +2,32 @@
 
 ## Project Overview
 AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- Pure functional programming with algebraic effects
-- Typed quasiquotes for safe metaprogramming
-- CSP-based concurrency with session types
-- Deterministic execution for AI training data generation
+- Pure functional programming with algebraic effects (planned)
+- Typed quasiquotes for safe metaprogramming (planned)
+- CSP-based concurrency with session types (planned)
+- Deterministic execution for AI training data generation (planned)
 - File extension: `.ail`
+
+## Current Status: v0.1.0 MVP (Type System Complete)
+
+**✅ COMPLETE:**
+- Hindley-Milner type inference with let-polymorphism
+- Type classes (Num, Eq, Ord, Show) with dictionary-passing
+- Lambda calculus (first-class functions, closures, currying)
+- Interactive REPL with full type checking
+- Module system (type-checking only - execution in v0.2.0)
+- Expression evaluation (arithmetic, strings, conditionals, let bindings)
+- Structured error reporting with JSON schemas
+
+**❌ NOT YET IMPLEMENTED:**
+- Module execution runtime (coming in v0.2.0)
+- Effect system (coming in v0.2.0)
+- Pattern matching (coming in v0.2.0)
+- Typed quasiquotes (v0.3.0+)
+- CSP concurrency (v0.3.0+)
+- AI training data export (v0.3.0+)
+
+**⚠️ CRITICAL LIMITATION:** Module files (with `module` declarations) parse and type-check correctly but cannot execute. Only non-module `.ail` files can run. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Key Design Principles
 1. **Explicit Effects**: All side effects must be declared in function signatures
@@ -15,25 +36,31 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 4. **Deterministic**: All non-determinism must be explicit (seeds, virtual time)
 5. **AI-Friendly**: Generate structured execution traces for training
 
-## Project Structure
+## Project Structure (v0.1.0)
 ```
 ailang/
-├── cmd/ailang/         # CLI entry point (main.go)
+├── cmd/ailang/         # CLI entry point (main.go) ✅
 ├── internal/
-│   ├── ast/            # AST definitions (complete)
-│   ├── lexer/          # Tokenizer (needs fixes)
-│   ├── parser/         # Parser (partial implementation)
-│   ├── types/          # Type system (foundation only)
-│   ├── effects/        # Effect system (TODO)
-│   ├── eval/           # Interpreter (TODO)
-│   ├── channels/       # CSP implementation (TODO)
-│   ├── session/        # Session types (TODO)
-│   └── typeclass/      # Type classes (TODO)
-├── quasiquote/         # Typed templates (TODO)
-├── stdlib/             # Standard library (TODO)
-├── tools/              # Development tools (TODO)
-├── examples/           # Example .ail programs
-└── tests/              # Test suite
+│   ├── ast/            # AST definitions ✅ COMPLETE
+│   ├── lexer/          # Tokenizer ✅ COMPLETE
+│   ├── parser/         # Parser ✅ COMPLETE (some limitations*)
+│   ├── types/          # Type system ✅ COMPLETE
+│   ├── typeclass/      # Type classes ✅ COMPLETE
+│   ├── eval/           # Evaluator ✅ PARTIAL (non-module files only)
+│   ├── repl/           # Interactive REPL ✅ COMPLETE
+│   ├── module/         # Module resolution ✅ COMPLETE (type-checking)
+│   ├── errors/         # Error reporting ✅ COMPLETE
+│   ├── schema/         # JSON schemas ✅ COMPLETE
+│   ├── effects/        # Effect system ❌ TODO (v0.2.0)
+│   ├── channels/       # CSP implementation ❌ TODO (v0.3.0+)
+│   └── session/        # Session types ❌ TODO (v0.3.0+)
+├── stdlib/             # Standard library ✅ PARTIAL (prelude, option, result)
+├── tools/              # Development tools ✅ (audit-examples.sh)
+├── examples/           # Example .ail programs (42 total, 12 working)
+├── tests/              # Test suite ✅
+└── docs/               # Documentation ✅ COMPLETE
+
+*Parser limitations: 3-deep let nesting limit, no match expressions yet
 ```
 
 ## Development Workflow
@@ -195,128 +222,125 @@ Check the implementation sizes from the design doc:
 
 ## Language Syntax Reference
 
-### Basic Constructs
+### ✅ Working Syntax (v0.1.0)
+
+**Basic Expressions:**
 ```ailang
 -- Comments use double dash
-let x = 5                          -- Immutable binding
-let f = (x: int) -> int => x * 2  -- Lambda function
-if x > 0 then "pos" else "neg"    -- Conditional expression
-[1, 2, 3]                          -- List literal
-{ name: "Alice", age: 30 }        -- Record literal
-(1, "hello", true)                 -- Tuple
+let x = 5 in x * 2                     -- Let binding (works up to 3 nested)
+\x. x * 2                               -- Lambda function
+if x > 0 then "pos" else "neg"         -- Conditional expression
+[1, 2, 3]                               -- List literal
+{ name: "Alice", age: 30 }             -- Record literal
+(1, "hello", true)                      -- Tuple literal
+1 + 2 * 3                               -- Arithmetic with precedence
+"Hello " ++ "World"                     -- String concatenation
 ```
 
-### Functions
+**REPL-Only Features:**
 ```ailang
--- Pure function (no effects)
-pure func add(x: int, y: int) -> int {
-  x + y
+λ> :type \x. x + x
+\x. x + x :: ∀α. Num α ⇒ α → α
+
+λ> let double = \x. x * 2 in double(21)
+42 :: Int
+
+λ> :instances
+Available instances: Num[Int], Num[Float], Eq[Int], Eq[Float], Ord[Int], Ord[Float]
+```
+
+**Module Syntax (Type-Checks Only, Does Not Execute):**
+```ailang
+module examples/demo
+
+import stdlib/std/option (Option, Some, None)
+
+export type MyData = {
+  value: Int
 }
 
--- Effectful function
-func readAndPrint() -> () ! {IO, FS} {
-  let content = readFile("data.txt")?  -- ? propagates errors
-  print(content)
-}
-
--- With inline tests
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (5, 120)
-  ]
-{
-  if n <= 1 then 1 else n * factorial(n - 1)
+export func process(x: Int) -> Option[Int] {
+  if x > 0 then Some(x * 2) else None
 }
 ```
 
-### Pattern Matching
+**⚠️ Note**: The above module syntax parses and type-checks but cannot execute until v0.2.0.
+
+### ❌ Planned Syntax (Not Yet Implemented)
+
+**Pattern Matching (v0.2.0):**
 ```ailang
 match value {
   Some(x) if x > 0 => x * 2,
   Some(x) => x,
   None => 0
 }
+```
 
-match list {
-  [] => "empty",
-  [x] => "single",
-  [head, ...tail] => "multiple"
+**Effect Handlers (v0.2.0):**
+```ailang
+func readAndPrint() -> () ! {IO, FS} {
+  let content = readFile("data.txt")?
+  print(content)
 }
 ```
 
-### Quasiquotes
+**Quasiquotes (v0.3.0+):**
 ```ailang
--- SQL with type checking
-let query = sql"""
-  SELECT * FROM users 
-  WHERE age > ${minAge: int}
-"""
-
--- HTML with sanitization
-let page = html"""
-  <div>${content: SafeHtml}</div>
-"""
-
--- Other quasiquotes: regex/, json{}, shell""", url"
+let query = sql"""SELECT * FROM users WHERE age > ${minAge: int}"""
 ```
 
-### Effects and Capabilities
-```ailang
-import std/io (FS, Net)
-
-func processData() -> Result[Data] ! {FS, Net} {
-  with FS, Net {
-    let data = readFile(FS, "input.txt")?
-    let response = httpGet(Net, "api.example.com")?
-    Ok(process(data, response))
-  }
-}
-```
-
-### Concurrency (CSP)
+**Concurrency (v0.3.0+):**
 ```ailang
 func worker(ch: Channel[Task]) ! {Async} {
   loop {
-    let task <- ch       -- Receive from channel
-    let result = process(task)
-    ch <- result         -- Send to channel
+    let task <- ch
+    ch <- process(task)
   }
 }
-
-parallel {
-  spawn { worker(ch1) }
-  spawn { worker(ch2) }
-}  -- Waits for all spawned tasks
 ```
 
-## Known Issues & TODOs
+## What Works & What Doesn't (v0.1.0)
 
-### ⚠️ CRITICAL: Documentation vs Reality Gap
-**Many documented features don't actually work. Use these working examples:**
-- ✅ `examples/hello.ail` - Simple print
-- ✅ `examples/simple.ail` - Basic arithmetic  
-- ✅ `examples/arithmetic.ail` - Arithmetic with show
-- ✅ `examples/lambda_expressions.ail` - Full lambda functionality
-- ✅ REPL with basic expressions
+### ✅ Working Examples
+- `examples/hello.ail` - Simple print
+- `examples/simple.ail` - Basic arithmetic
+- `examples/arithmetic.ail` - Arithmetic with show
+- `examples/type_classes_working_reference.ail` - Type classes demo
+- `examples/showcase/*.ail` - Type inference, lambdas, closures, type classes
+- **REPL** - Fully functional with all type system features
 
-### Immediate Fixes Needed
-1. ❌ **Parser**: Module declarations completely broken (`module`, `import`)
-2. ❌ **Parser**: Function declarations don't work (`func` syntax)
-3. ❌ **Parser**: Type definitions not supported (`type` declarations)
-4. ❌ **Parser**: Tests/properties syntax fails (`tests [...]`, `properties [...]`)
-5. ⚠️ **Integration**: REPL vs file execution use different evaluators
-6. ⚠️ **Type System**: Type classes work in REPL but not file execution
+See [examples/STATUS.md](examples/STATUS.md) for complete inventory (12 working, 3 type-check only, 27 broken).
 
-### Major Components to Implement
-1. ❌ **Module System**: Make `module` and `import` statements work
-2. ❌ **Function Declarations**: Implement `func` syntax
-3. ❌ **Type Definitions**: Support `type` declarations
-4. ❌ **Integration**: Unify REPL and file execution paths
-5. ❌ **Effect System**: Capability checking and propagation (not started)
-6. ❌ **Standard Library**: Core modules (not started)
-7. ❌ **Quasiquotes**: Validation and AST generation (not started)
-8. ❌ **Training Export**: Execution trace collection (not started)
+### ⚠️ Known Limitations (v0.1.0)
+
+**Parser Limitations:**
+1. ✅ Module/import/export **parse and type-check** but cannot execute (v0.2.0)
+2. ⚠️ Let expressions limited to 3 nesting levels (4+ fails)
+3. ❌ Pattern matching syntax not implemented (v0.2.0)
+4. ❌ `tests [...]` and `properties [...]` syntax not implemented
+5. ⚠️ Non-module files cannot use `func`, `type`, `import`, `export` keywords
+
+**Execution Limitations:**
+1. ❌ **Critical**: Module files type-check but cannot execute
+2. ⚠️ REPL and file execution use different code paths (intentional)
+3. ⚠️ Type classes work in REPL and module type-checking, not in non-module file execution
+4. ⚠️ Record field access has unification bugs in some cases
+5. ⚠️ List operations have limited runtime support
+
+See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for comprehensive details and workarounds.
+
+### 🚀 Coming in v0.2.0 (3.5-4.5 weeks)
+1. ✅ **Module Execution Runtime** - Make modules actually run
+2. ✅ **Effect System** - Effect declarations and handlers
+3. ✅ **Pattern Matching** - `match` expressions with exhaustiveness checking
+
+### 📋 Future (v0.3.0+)
+1. Typed quasiquotes (SQL, HTML, JSON)
+2. CSP concurrency with channels
+3. Session types
+4. Property-based testing
+5. AI training data export
 
 ## REPL Usage (v2.3)
 

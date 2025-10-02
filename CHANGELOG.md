@@ -1,5 +1,78 @@
 # AILANG Changelog
 
+## [v0.1.0] - 2025-10-02
+
+### 🎯 MVP Release: Type System Complete
+
+**Major Achievement**: First complete type system MVP with 27,610 LOC of Go implementation.
+
+#### Added - Documentation & Polish (~2,500 lines)
+
+**Documentation Suite**:
+- **README.md**: Complete restructure for v0.1.0 with honest status, "What Works" section, FAQ
+- **docs/LIMITATIONS.md**: NEW - 400+ lines comprehensive limitations guide
+- **docs/METRICS.md**: NEW - 300+ lines project statistics and metrics
+- **RELEASE_NOTES_v0.1.0.md**: NEW - 500+ lines comprehensive release notes
+- **docs/SHOWCASE_ISSUES.md**: NEW - 350+ lines parser/execution limitations
+- **examples/STATUS.md**: NEW - Complete inventory of 42 example files
+- **examples/README.md**: NEW - User guide for examples
+- **CLAUDE.md**: UPDATED - Current v0.1.0 status, accurate component breakdown
+
+**Showcase Examples** (4 new files):
+- `examples/showcase/01_type_inference.ail` - Type inference demonstration
+- `examples/showcase/02_lambdas.ail` - Lambda composition
+- `examples/showcase/03_type_classes.ail` - Type class polymorphism
+- `examples/showcase/04_closures.ail` - Closures and captured environments
+
+**Development Tools**:
+- `tools/audit-examples.sh`: Automated example testing and categorization
+
+**Warning Headers**: Added to 3 module examples that type-check but can't execute
+
+#### Status Summary
+
+**✅ Complete (27,610 LOC)**:
+- Hindley-Milner type inference (7,291 LOC)
+- Type classes with dictionary-passing (linked system, ~3,000 LOC)
+- Lambda calculus & closures (3,712 LOC)
+- Professional REPL with debugging (1,351 LOC)
+- Module type-checking (1,030 LOC module + 503 LOC loader)
+- Parser with operator precedence (2,656 LOC)
+- Structured error reporting with JSON schemas (657 LOC)
+
+**⚠️ Known Limitation**:
+- Module files type-check ✅ but cannot execute ❌ (runtime in v0.2.0)
+- Non-module `.ail` files execute successfully ✅
+- REPL fully functional ✅
+
+**Examples**:
+- 12 working (25.5%)
+- 3 type-check only (6.4%)
+- 27 broken (57.4%)
+- 6 skipped (test/demo files)
+
+**Test Coverage**: 24.8% (10,559 LOC of tests)
+
+#### Changed
+
+- README.md version badge: v0.0.12 → v0.1.0
+- Implementation status: Updated to "Type System Complete"
+- Test coverage badge: 31.3% → 24.8% (accurate count)
+
+#### Fixed
+
+- Documentation now accurately reflects v0.1.0 capabilities
+- Example status now honestly documented
+- Module execution limitation clearly communicated
+
+### v0.2.0 Roadmap (3.5-4.5 weeks)
+
+**M-R1**: Module Execution Runtime (~1,200 LOC, 1.5-2 weeks)
+**M-R2**: Algebraic Effects Foundation (~800 LOC, 1-1.5 weeks)
+**M-R3**: Pattern Matching (~600 LOC, 1 week)
+
+---
+
 ## [v0.0.12] - 2025-10-02
 
 ### Added - M-S1 Complete: Stdlib Foundation (~200 LOC)

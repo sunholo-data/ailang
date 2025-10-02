@@ -1,10 +1,10 @@
 # AILANG Implementation Status
 
-## Current Version: v0.0.12
+## Current Version: v0.1.0 (MVP - Type System Complete)
 
-## Test Coverage: 31.3%
+## Test Coverage: 24.8%
 
-## Recent Milestone: M-P4 Complete (Effect System - Type Level)
+## Recent Milestone: v0.1.0 MVP Released
 
 **~1,060 LOC added: Complete type-level effect tracking**
 

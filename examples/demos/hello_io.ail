@@ -1,3 +1,7 @@
+-- ⚠️  NOTE: This example type-checks but cannot execute until v0.2.0
+-- The module execution feature is planned for the next release.
+-- Current status: Parses ✓, Type-checks ✓, Executes ✗
+
 module examples/demos/hello_io
 import stdlib/std/io (println)
 
