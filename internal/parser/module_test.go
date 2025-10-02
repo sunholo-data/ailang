@@ -142,3 +142,36 @@ func TestInvalidModuleSyntax(t *testing.T) {
 		})
 	}
 }
+
+// TestExportLists tests standalone export list parsing
+func TestExportLists(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		golden string
+	}{
+		{
+			"export_single",
+			"export { foo }",
+			"module/export_single",
+		},
+		{
+			"export_multiple",
+			"export { foo, bar, baz }",
+			"module/export_multiple",
+		},
+		{
+			"export_with_code",
+			"export { foo }\nlet x = 1",
+			"module/export_with_code",
+		},
+		// Note: Trailing comma not currently supported in export lists
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := parseAndPrint(t, tt.input)
+			goldenCompare(t, tt.golden, output)
+		})
+	}
+}

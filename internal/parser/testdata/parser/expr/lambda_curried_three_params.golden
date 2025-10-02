@@ -1,0 +1,105 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "body": {
+            "body": {
+              "left": {
+                "left": {
+                  "name": "x",
+                  "type": "Identifier"
+                },
+                "op": "+",
+                "right": {
+                  "name": "y",
+                  "type": "Identifier"
+                },
+                "type": "BinaryOp"
+              },
+              "op": "+",
+              "right": {
+                "name": "z",
+                "type": "Identifier"
+              },
+              "type": "BinaryOp"
+            },
+            "params": [
+              {
+                "name": "z",
+                "type": "Param"
+              }
+            ],
+            "type": "Lambda"
+          },
+          "params": [
+            {
+              "name": "y",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "body": {
+            "body": {
+              "left": {
+                "left": {
+                  "name": "x",
+                  "type": "Identifier"
+                },
+                "op": "+",
+                "right": {
+                  "name": "y",
+                  "type": "Identifier"
+                },
+                "type": "BinaryOp"
+              },
+              "op": "+",
+              "right": {
+                "name": "z",
+                "type": "Identifier"
+              },
+              "type": "BinaryOp"
+            },
+            "params": [
+              {
+                "name": "z",
+                "type": "Param"
+              }
+            ],
+            "type": "Lambda"
+          },
+          "params": [
+            {
+              "name": "y",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -2,15 +2,17 @@
   "file": {
     "decls": [
       {
-        "_note": "Not yet handled by printer",
-        "type": "*ast.Block"
+        "kind": "String",
+        "type": "Literal",
+        "value": "\n"
       }
     ],
     "path": "test://unit",
     "statements": [
       {
-        "_note": "Not yet handled by printer",
-        "type": "*ast.Block"
+        "kind": "String",
+        "type": "Literal",
+        "value": "\n"
       }
     ],
     "type": "File"

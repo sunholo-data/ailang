@@ -1,0 +1,37 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}
