@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-25.4%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-24.8%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -88,13 +88,13 @@ Hello World :: String
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-17%20passing%2015%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-12%20passing%2024%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-02 04:54:56 UTC*
+*Last updated: 2025-10-02 05:56:42 UTC*
 
-**Summary:** 17 passed, 15 failed, 5 skipped (Total: 37)
+**Summary:** 12 passed, 24 failed, 6 skipped (Total: 42)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -102,7 +102,11 @@ Hello World :: String
 | `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
+| `demos/adt_pipeline.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `demos/effects_pure.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `demos/hello_io.ail` | ✅ Pass |  |
 | `effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `effects_pure.ail` | ✅ Pass |  |
 | `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -116,9 +120,10 @@ Hello World :: String
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
 | `simple.ail` | ✅ Pass |  |
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
-| `test_import_ctor.ail` | ✅ Pass |  |
-| `test_import_func.ail` | ✅ Pass |  |
-| `test_use_constructor.ail` | ✅ Pass |  |
+| `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
+| `test_import_ctor.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `test_import_func.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `test_use_constructor.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
 | `type_classes_working_reference.ail` | ✅ Pass |  |
 | `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
 | `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
@@ -126,10 +131,10 @@ Hello World :: String
 | `v3_3/imports.ail` | ✅ Pass |  |
 | `v3_3/imports_basic.ail` | ✅ Pass |  |
 | `v3_3/math.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v3_3/math/div.ail` | ✅ Pass |  |
-| `v3_3/math/gcd.ail` | ✅ Pass |  |
-| `v3_3/math/simple_gcd.ail` | ✅ Pass |  |
-| `v3_3/poly_id.ail` | ✅ Pass |  |
+| `v3_3/math/div.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `v3_3/math/gcd.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `v3_3/math/simple_gcd.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `v3_3/poly_id.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
 | `v3_3/poly_imports.ail` | ✅ Pass |  |
 | `v3_3/poly_use.ail` | ❌ Fail | Error: type error in examples/v3_3/poly_use (de... |
 | `v3_3/polymorphic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
