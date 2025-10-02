@@ -43,6 +43,19 @@ func NewModuleLoader(basePath string) *ModuleLoader {
 	}
 }
 
+// Preload adds a pre-loaded module to the cache
+//
+// This is used to inject modules that were already loaded and elaborated
+// by the pipeline, avoiding redundant loading and elaboration.
+//
+// Parameters:
+//   - path: The module path
+//   - loaded: The LoadedModule with Core AST already populated
+func (ml *ModuleLoader) Preload(path string, loaded *LoadedModule) {
+	canonicalID := CanonicalModuleID(path)
+	ml.cache[canonicalID] = loaded
+}
+
 // Load loads a module by path
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Canonicalize the module ID

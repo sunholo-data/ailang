@@ -1,0 +1,5 @@
+module tests/runtime_integration/dep
+
+export func inc(x: int) -> int {
+  x + 1
+}

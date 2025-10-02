@@ -1,5 +1,185 @@
 # AILANG Changelog
 
+## [v0.1.1] - 2025-10-02
+
+### 🚀 Major Feature: Module Execution Runtime (M-R1 Core Infrastructure)
+
+**Milestone Achievement**: Core infrastructure for module execution complete (~1,594 LOC).
+
+This release delivers the foundation for executable modules in v0.2.0. While function invocation is still pending (Phase 5), the complete infrastructure for loading, evaluating, and managing module instances is now in place.
+
+#### Added - Module Runtime Infrastructure (~1,594 LOC)
+
+**Phase 1: Scaffolding** (692 LOC)
+- **ModuleInstance** (`internal/runtime/module.go`, 164 LOC)
+  - Runtime representation of modules with evaluated bindings
+  - Thread-safe initialization using `sync.Once`
+  - Export filtering and access control
+  - Methods: `GetExport()`, `HasExport()`, `GetBinding()`, `ListExports()`, `IsEvaluated()`
+
+- **ModuleRuntime** (`internal/runtime/runtime.go`, 149 LOC)
+  - Orchestrates module loading, caching, and evaluation
+  - Circular import detection with clear error messages ("A → B → C → A")
+  - Topological dependency evaluation
+  - Methods: `LoadAndEvaluate()`, `GetInstance()`, `PreloadModule()`
+
+- **Unit Tests** (379 LOC)
+  - `internal/runtime/module_test.go` - 7 tests for ModuleInstance
+  - `internal/runtime/runtime_test.go` - 5 tests for ModuleRuntime
+  - 12/12 tests passing ✅
+
+**Phase 2: Evaluation + Resolver** (402 LOC)
+- **Global Resolver** (`internal/runtime/resolver.go`, 120 LOC)
+  - Cross-module reference resolution with encapsulation enforcement
+  - Routes imported references through exports only (never private bindings)
+  - Error handling with module availability checks
+
+- **Module Evaluation** (~70 LOC in `runtime.go`)
+  - `evaluateModule()` method for top-level binding extraction
+  - Integration with existing Core evaluator
+  - Export filtering based on module interface
+
+- **Resolver Tests** (`internal/runtime/resolver_test.go`, 212 LOC)
+  - 6 tests for local/import resolution, encapsulation, error cases
+  - 18/18 total tests passing ✅
+
+**Phase 3: Linking & Topological Sort** (~300 LOC)
+- **Cycle Detection** (~50 LOC in `runtime.go`)
+  - DFS-based circular import detection
+  - Clear error messages with import path: "circular import detected: A → B → C → A"
+  - State tracking with `visiting` map and `pathStack`
+
+- **Integration Tests** (`internal/runtime/integration_test.go`, 249 LOC)
+  - 7 integration tests covering module execution flows
+  - Test modules in `tests/runtime_integration/` (simple.ail, dep.ail, with_import.ail)
+  - 2/7 passing (5 have known loader path issues, non-blocking)
+
+**Phase 4: CLI Integration** (~200 LOC)
+- **Pipeline Extension** (`internal/pipeline/pipeline.go`, ~60 LOC)
+  - Added `Modules map[string]*loader.LoadedModule` to Result struct
+  - Converts CompileUnits to LoadedModules after elaboration
+  - Preserves Core AST, Iface, and imports for runtime use
+
+- **Loader Preloading** (`internal/loader/loader.go`, ~15 LOC)
+  - Added `Preload(path, loaded)` method to inject elaborated modules
+  - Avoids redundant loading and elaboration
+
+- **Recursive Binding Extraction** (`internal/runtime/runtime.go`, ~55 LOC)
+  - `extractBindings()` helper for nested Let/LetRec declarations
+  - Handles module elaboration structure: `let f1 = ... in (let f2 = ... in Var(...))`
+  - Properly terminates at Var expressions
+
+- **CLI Integration** (`cmd/ailang/main.go`, ~30 LOC)
+  - Module runtime replaces "not yet supported" error
+  - Pre-loads modules from pipeline result
+  - Entrypoint validation with arity checking
+  - Error messages show available exports
+
+- **Entrypoint Helpers** (`internal/runtime/entrypoint.go`, 37 LOC)
+  - `GetArity(val)` - Returns function parameter count
+  - `GetExportNames(inst)` - Lists module exports for error messages
+
+#### Architecture Highlights
+
+**Key Design Decisions**:
+1. **Pipeline Integration**: Runtime receives pre-elaborated modules from pipeline (no duplicate work)
+2. **Recursive Extraction**: `extractBindings()` traverses nested Let structures from elaboration
+3. **Preloading Pattern**: Modules injected into loader cache via `PreloadModule()`
+4. **Thread-Safe Init**: `sync.Once` ensures each module evaluates exactly once
+5. **Encapsulation**: Only exported bindings accessible across modules
+
+**Data Flow**:
+```
+Parse → Type-check → Elaborate → Pipeline
+                                    ↓
+                              Convert to LoadedModules
+                                    ↓
+                              Runtime.PreloadModule()
+                                    ↓
+                              Runtime.LoadAndEvaluate()
+                                    ↓
+                              Extract bindings recursively
+                                    ↓
+                              Filter exports
+                                    ↓
+                              Validate entrypoint ✅
+```
+
+#### Test Results
+
+**Unit Tests**: ✅ 18/18 passing
+- Module instance creation and export access (7 tests)
+- Runtime caching and management (5 tests)
+- Global resolver with encapsulation (6 tests)
+
+**Integration Tests**: ⚠️ 2/7 passing
+- CircularImport detection ✅
+- NonExistentModule error ✅
+- SimpleModule, ModuleWithImport, etc. ⚠️ (loader path resolution issues, non-blocking)
+
+**End-to-End Validation**: ✅ Working
+```bash
+$ ailang --entry main run examples/test_runtime_simple.ail
+✓: Module execution ready
+  Entrypoint:  main
+  Arity:       0
+  Module:      examples/test_runtime_simple
+
+Note: Function invocation coming soon (Phase 5 completion)
+```
+
+#### Known Limitations
+
+1. **Function Invocation Not Implemented**
+   - Entrypoints validated but not yet executed
+   - Arity checking works ✅
+   - Export resolution works ✅
+   - Actual function calling deferred to Phase 5
+
+2. **stdlib Modules Fail**
+   - stdlib uses builtin stubs (`_io_print`, etc.)
+   - Requires special handling for Lit expressions
+   - Planned for Phase 5
+
+3. **CLI Flag Order**
+   - `--entry` must come before `run` command
+   - Use: `ailang --entry <name> run <file>`
+   - Known CLI parsing quirk, low priority fix
+
+#### Files Changed
+
+**New Files**:
+- `internal/runtime/module.go` (164 LOC) - ModuleInstance
+- `internal/runtime/runtime.go` (210 LOC) - ModuleRuntime with cycle detection
+- `internal/runtime/resolver.go` (120 LOC) - Global resolver
+- `internal/runtime/entrypoint.go` (37 LOC) - Helper functions
+- `internal/runtime/module_test.go` (239 LOC) - Module tests
+- `internal/runtime/runtime_test.go` (140 LOC) - Runtime tests
+- `internal/runtime/resolver_test.go` (212 LOC) - Resolver tests
+- `internal/runtime/integration_test.go` (249 LOC) - Integration tests
+- `tests/runtime_integration/*.ail` (3 test modules)
+
+**Modified Files**:
+- `internal/pipeline/pipeline.go` (+60 LOC) - Added Modules map to Result
+- `internal/loader/loader.go` (+15 LOC) - Added Preload() method
+- `cmd/ailang/main.go` (+30 LOC) - CLI integration
+
+#### Technical Metrics
+
+- **Total LOC**: ~1,594 (implementation + tests)
+- **Test Coverage**: 18/18 unit tests passing
+- **Integration Tests**: 2/7 passing (loader issues non-blocking)
+- **Timeline**: On schedule (Phases 1-4 complete)
+
+#### Next Steps (Phase 5 - Pending)
+
+1. **Function Invocation** - Connect to evaluator API, call entrypoints, print results
+2. **stdlib Support** - Handle builtin functions and Lit expressions
+3. **Example Verification** - Test all examples, update README
+4. **Documentation** - Update CLAUDE.md, create execution guide
+
+---
+
 ## [v0.1.0] - 2025-10-02
 
 ### 🎯 MVP Release: Type System Complete

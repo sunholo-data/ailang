@@ -1,0 +1,61 @@
+=== AILANG Example Audit ===
+
+## ✅ Working (12 files)
+These examples parse, type-check, and execute successfully:
+
+- examples//adt_option.ail
+- examples//adt_simple.ail
+- examples//arithmetic.ail
+- examples//block_demo.ail
+- examples//effects_pure.ail
+- examples//hello.ail
+- examples//simple.ail
+- examples//type_classes_working_reference.ail
+- examples//v3_3/import_conflict.ail
+- examples//v3_3/imports.ail
+- examples//v3_3/imports_basic.ail
+- examples//v3_3/poly_imports.ail
+
+## ⚠️ Type-Checks Only (3 files)
+These examples parse and type-check but cannot execute (module limitation):
+
+- examples//demos/hello_io.ail
+- examples//option_demo.ail
+- examples//stdlib_demo.ail
+
+## ❌ Broken (27 files)
+These examples have parse errors or type errors:
+
+- examples//demos/adt_pipeline.ail
+- examples//demos/effects_pure.ail
+- examples//effects_basic.ail
+- examples//experimental/ai_agent_integration.ail
+- examples//experimental/concurrent_pipeline.ail
+- examples//experimental/factorial.ail
+- examples//experimental/quicksort.ail
+- examples//experimental/web_api.ail
+- examples//lambda_expressions.ail
+- examples//list_patterns.ail
+- examples//patterns.ail
+- examples//records.ail
+- examples//stdlib_demo_simple.ail
+- examples//test_import_ctor.ail
+- examples//test_import_func.ail
+- examples//test_use_constructor.ail
+- examples//typeclasses.ail
+- examples//v3_3/hello.ail
+- examples//v3_3/math.ail
+- examples//v3_3/math/div.ail
+- examples//v3_3/math/gcd.ail
+- examples//v3_3/math/simple_gcd.ail
+- examples//v3_3/poly_id.ail
+- examples//v3_3/poly_use.ail
+- examples//v3_3/polymorphic.ail
+- examples//v3_3/properties_demo.ail
+- examples//v3_3/stdlib_demo.ail
+
+### Summary
+- Total examples: 42
+- Working: 12
+- Type-checks only: 3
+- Broken: 27
