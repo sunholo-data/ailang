@@ -625,84 +625,6 @@ In commit `eae08b6`, working import functions were deleted because linter said t
 4. Test imports: `make test-imports`
 5. Document in commit message what was broken and how it was fixed
 
-## v0.2.0 Development Guide
-
-### Getting Started with v0.2.0
-
-The v0.2.0 implementation is divided into three sequential milestones. Start with M-R1, as M-R2 and M-R3 depend on it.
-
-**Design Documents**:
-- [v0.2.0 Implementation Plan](design_docs/planned/v0_2_0_implementation_plan.md) - High-level overview
-- [M-R1: Module Execution](design_docs/planned/m_r1_module_execution.md) - Detailed M-R1 design
-- [M-R2: Effect System](design_docs/planned/m_r2_effect_system.md) - Detailed M-R2 design
-- [M-R3: Pattern Matching](design_docs/planned/m_r3_pattern_matching.md) - Detailed M-R3 design
-
-### M-R1: Module Execution (Week 1-2)
-
-**Objective**: Make `ailang run module.ail` actually execute module exports
-
-**Key Files to Create**:
-- `internal/runtime/module.go` - `ModuleInstance` struct (~200 LOC)
-- `internal/runtime/runtime.go` - `ModuleRuntime` (~300 LOC)
-- `internal/runtime/resolver.go` - `GlobalResolver` implementation (~100 LOC)
-- `internal/runtime/linker.go` - Topological module linking (~200 LOC)
-
-**Key Files to Modify**:
-- `cmd/ailang/main.go` - Wire module runtime (~100 LOC changes)
-- `internal/eval/eval_core.go` - Add `SetGlobalResolver` (~50 LOC)
-
-**Testing Strategy**:
-1. Unit tests for `ModuleInstance`, `ModuleRuntime` (~500 LOC)
-2. Integration tests with multi-module programs (~400 LOC)
-3. Update `make verify-examples` to test module examples
-
-**Acceptance**: 25-30 module examples execute successfully
-
-### M-R2: Effect Runtime (Week 2.5-3.5)
-
-**Objective**: Execute IO/FS effects with capability security
-
-**Key Files to Create**:
-- `internal/effects/capability.go` - `Capability` struct (~50 LOC)
-- `internal/effects/context.go` - `EffContext` (~100 LOC)
-- `internal/effects/ops.go` - Effect operation registry (~150 LOC)
-- `internal/effects/io.go` - IO operations (~150 LOC)
-- `internal/effects/fs.go` - FS operations (~200 LOC)
-
-**Key Files to Modify**:
-- `cmd/ailang/main.go` - Add `--caps` flag (~50 LOC)
-- `internal/eval/eval_core.go` - Add `effContext` field (~100 LOC)
-
-**Testing Strategy**:
-1. Unit tests for each effect operation (~750 LOC)
-2. Integration tests with capability checks (~300 LOC)
-3. Test sandbox mode (`AILANG_FS_SANDBOX`)
-
-**Acceptance**: IO/FS examples work; missing caps → clear error
-
-### M-R3: Pattern Matching Polish (Week 3.5-4.5)
-
-**Objective**: Add guards, exhaustiveness warnings, decision trees
-
-**Key Files to Create**:
-- `internal/elaborate/exhaustiveness.go` - Exhaustiveness checker (~200 LOC)
-- `internal/elaborate/warnings.go` - Warning generation (~100 LOC)
-- `internal/elaborate/decision_tree.go` - Decision tree compilation (~150 LOC)
-- `internal/eval/decision_tree.go` - Decision tree evaluation (~100 LOC)
-
-**Key Files to Modify**:
-- `internal/ast/ast.go` - Add `Guard` field to `MatchClause` (~10 LOC)
-- `internal/parser/parser.go` - Parse guards (~50 LOC)
-- `internal/elaborate/match.go` - Elaborate guards (~50 LOC)
-- `internal/eval/eval_core.go` - Evaluate guards (~30 LOC)
-
-**Testing Strategy**:
-1. Unit tests for exhaustiveness checker (~200 LOC)
-2. Unit tests for decision trees (~200 LOC)
-3. Integration tests for guards (~100 LOC)
-
-**Acceptance**: Guards work, exhaustiveness warnings appear
-
 ### Development Commands
 
 ```bash
@@ -722,35 +644,6 @@ go test ./internal/eval/...        # Test evaluation
 # Full CI check
 make ci                           # Run all checks locally
 ```
-
-### Code Style for v0.2.0
-
-**Module Runtime**:
-- Use `sync.Once` for thread-safe initialization
-- Cache module instances by canonical path
-- Clear error messages for circular dependencies
-
-**Effect Runtime**:
-- Secure by default: no capabilities unless explicitly granted
-- Use `EffContext` for all effect operations
-- Sandbox FS operations when `AILANG_FS_SANDBOX` set
-
-**Pattern Matching**:
-- Warn (don't error) on non-exhaustive matches
-- Format missing patterns clearly
-- Keep naive evaluation as fallback if decision trees fail
-
-### Common Pitfalls
-
-1. **M-R1**: Circular imports - Use topological sort, detect cycles early
-2. **M-R2**: Forgetting capability checks - Always call `ctx.RequireCap()`
-3. **M-R3**: False positive warnings - Be conservative, allow `--no-exhaustive-check`
-
-### Current Test Coverage
-- **Overall**: 24.8% (as of v0.1.0)
-- **Well-tested**: `test` (95.7%), `schema` (87.9%), `parser` (75.8%), `errors` (75.9%)
-- **Needs work**: `typedast` (0%), `eval` (15.6%), `types` (20.3%)
-- Run `make test-coverage-badge` for quick coverage check
 
 ## Important Notes
 1. The language is expression-based - everything returns a value
