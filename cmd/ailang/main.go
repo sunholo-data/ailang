@@ -228,7 +228,8 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	}
 
 	// Entrypoint resolution and execution
-	if result.Interface != nil {
+	// Only attempt entrypoint resolution if the module has exports
+	if result.Interface != nil && len(result.Interface.Exports) > 0 {
 		// Module mode - look up and call entrypoint
 		fnExport, exists := result.Interface.Exports[entry]
 		if !exists {
