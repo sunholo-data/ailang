@@ -64,7 +64,14 @@ func runExample(filename string) reporttypes.ExampleResult {
 			result.Error = err.Error()
 		}
 	} else {
-		result.Status = "passed"
+		// Success - check for actual errors in stderr (not just DEBUG output)
+		stderrStr := stderr.String()
+		if strings.Contains(stderrStr, "Error:") || strings.Contains(stderrStr, "error:") {
+			result.Status = "failed"
+			result.Error = stderrStr
+		} else {
+			result.Status = "passed"
+		}
 	}
 
 	return result

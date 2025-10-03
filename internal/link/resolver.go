@@ -17,10 +17,11 @@ type CompileUnit interface {
 
 // Resolver implements GlobalResolver for the evaluator
 type Resolver struct {
-	linker       *ModuleLinker
-	memo         map[string]map[string]eval.Value // module -> name -> value
-	compiledCode map[string]CompileUnit           // module -> compiled Core AST
-	mu           sync.RWMutex                     // For thread-safe memoization
+	linker         *ModuleLinker
+	memo           map[string]map[string]eval.Value // module -> name -> value
+	compiledCode   map[string]CompileUnit           // module -> compiled Core AST
+	mu             sync.RWMutex                     // For thread-safe memoization
+	builtinLookup  func(string) (eval.Value, bool)  // Optional builtin lookup (v0.2.0 hotfix)
 }
 
 // NewResolver creates a new resolver backed by a module linker
@@ -39,11 +40,28 @@ func (r *Resolver) RegisterCompiledModule(moduleID string, unit CompileUnit) {
 	r.compiledCode[moduleID] = unit
 }
 
+// SetBuiltinLookup sets the builtin lookup function (v0.2.0 hotfix)
+// This allows the resolver to access builtin functions from the runtime
+func (r *Resolver) SetBuiltinLookup(lookup func(string) (eval.Value, bool)) {
+	r.builtinLookup = lookup
+}
+
 // ResolveValue resolves a global reference to its value
 func (r *Resolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
 	// Check if this is an $adt factory function
 	if ref.Module == "$adt" {
 		return r.resolveAdtFactory(ref)
+	}
+
+	// Check if this is a builtin reference (v0.2.0 hotfix)
+	if ref.Module == "$builtin" || strings.HasPrefix(ref.Name, "_") {
+		if r.builtinLookup != nil {
+			if val, ok := r.builtinLookup(ref.Name); ok {
+				return val, nil
+			}
+		}
+		// Builtin not found - fall through to normal resolution
+		// (This allows user code to shadow builtins if needed)
 	}
 
 	r.mu.RLock()

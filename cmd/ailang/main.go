@@ -124,7 +124,9 @@ func main() {
 		runLSP()
 
 	case "eval":
-		runEval()
+		// TODO: Implement AI evaluation benchmarks
+		fmt.Fprintf(os.Stderr, "%s: eval command not yet implemented\n", red("Error"))
+		os.Exit(1)
 
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
@@ -210,6 +212,12 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		fmt.Printf("  %s Virtual time enabled\n", yellow("⏰"))
 	}
 
+	// Create builtin resolver for non-module evaluation (v0.2.0 hotfix)
+	// This ensures arithmetic operators and string functions work in all files
+	evaluator := eval.NewCoreEvaluator()
+	builtins := runtime.NewBuiltinRegistry(evaluator)
+	builtinResolver := runtime.NewBuiltinOnlyResolver(builtins)
+
 	// Use unified pipeline
 	cfg := pipeline.Config{
 		TraceDefaulting:       trace,
@@ -217,6 +225,7 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		FailOnShim:            failOnShim,
 		RequireLowering:       requireLowering,
 		TrackInstantiations:   trackInstantiations,
+		GlobalResolver:        builtinResolver, // Provide builtin access
 	}
 	src := pipeline.Source{
 		Code:     string(content),

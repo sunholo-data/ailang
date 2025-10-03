@@ -43,6 +43,9 @@ type Config struct {
 	DictReg   *types.DictionaryRegistry
 	Instances map[string]core.DictValue
 	EvalEnv   *eval.Environment
+
+	// Global resolver for non-module evaluation (v0.2.0 hotfix)
+	GlobalResolver eval.GlobalResolver
 }
 
 // Source represents input source
@@ -288,6 +291,10 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	start = time.Now()
 	// Use Core evaluator for proper evaluation
 	coreEval := eval.NewCoreEvaluator()
+	// Set global resolver if provided (v0.2.0 hotfix for builtins)
+	if cfg.GlobalResolver != nil {
+		coreEval.SetGlobalResolver(cfg.GlobalResolver)
+	}
 	// Set experimental flag only if allowed
 	if cfg.ExperimentalBinopShim && !cfg.RequireLowering && !cfg.FailOnShim {
 		coreEval.SetExperimentalBinopShim(true)
@@ -644,6 +651,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 	resolver := modLinker.Resolver()
 	for modID, unit := range compiledUnits {
 		resolver.RegisterCompiledModule(modID, unit)
+	}
+
+	// Wire builtin lookup if provided (v0.2.0 hotfix)
+	if cfg.GlobalResolver != nil {
+		// Extract builtin lookup capability from the provided resolver
+		// We assume GlobalResolver supports builtin lookups via the same interface
+		resolver.SetBuiltinLookup(func(name string) (eval.Value, bool) {
+			ref := core.GlobalRef{Module: "$builtin", Name: name}
+			val, err := cfg.GlobalResolver.ResolveValue(ref)
+			if err != nil || val == nil {
+				return nil, false
+			}
+			return val, true
+		})
 	}
 
 	// Phase 4: Evaluate the root module ONLY
