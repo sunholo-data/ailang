@@ -119,8 +119,8 @@ func TestFSWriteFile_Success(t *testing.T) {
 	ctx := NewEffContext()
 	ctx.Grant(NewCapability("FS"))
 
-	// Create temp file path
-	tmpfile := filepath.Join(os.TempDir(), "test-write-*.txt")
+	// Create temp file path (use simple name, no wildcards which break on Windows)
+	tmpfile := filepath.Join(os.TempDir(), "ailang-test-write.txt")
 	defer os.Remove(tmpfile)
 
 	testContent := "Test content"
