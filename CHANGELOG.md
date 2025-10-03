@@ -1,5 +1,52 @@
 # AILANG Changelog
 
+## [Unreleased v0.3.0] - TBD
+
+### 🔄 RECURSION & REAL-WORLD PROGRAMS (Target: 50+ examples)
+
+**Status**: 🚧 IN PLANNING - See [design_docs/20251004/v0_3_0_implementation_plan.md](design_docs/20251004/v0_3_0_implementation_plan.md)
+
+**Planned Features**:
+
+#### M-R4: Recursion Support (HIGH PRIORITY, ~600 LOC)
+- ✅ **TODO**: LetRec support in runtime evaluator
+- ✅ **TODO**: Self-referential closures
+- ✅ **TODO**: Recursive function examples (factorial, fibonacci, quicksort)
+- **Impact**: Unlocks fundamental programming patterns
+
+#### M-R5: Records & Row Polymorphism (HIGH PRIORITY, ~500 LOC)
+- ✅ **TODO**: Complete TRecord unification
+- ✅ **TODO**: Row variables for polymorphic records
+- ✅ **TODO**: Field access type checking improvements
+- **Impact**: Enables proper data modeling
+
+#### M-R6: Extended Effects - Clock & Net (MEDIUM PRIORITY, ~700 LOC)
+- ✅ **TODO**: std/clock effect (now, sleep, timeout)
+- ✅ **TODO**: std/net effect (httpGet, httpPost)
+- ✅ **TODO**: Capability enforcement and security sandbox
+- **Impact**: Real-world program connectivity
+
+#### M-R7: Modulo Operator Fix (MEDIUM PRIORITY, ~200 LOC)
+- ✅ **TODO**: Integral type class (div, mod)
+- ✅ **TODO**: Fix % operator type inference
+- **Impact**: Removes arithmetic operator blocker
+
+#### M-UX2: User Experience (LOW PRIORITY, ~300 LOC)
+- ✅ **TODO**: Better recursion error messages
+- ✅ **TODO**: Audit script Clock/Net detection
+- ✅ **TODO**: 4-6 new micro examples
+
+**Target Success Metrics**:
+- **Passing Examples**: 42 → 50+ (83%+)
+- **Recursion**: Broken → Working
+- **Records**: Partial → Working with row polymorphism
+- **Effects**: IO/FS → + Clock/Net (4 total)
+- **Modulo (%)**: Broken → Working via Integral
+
+**Timeline**: October 17-21, 2025 (2 weeks)
+
+---
+
 ## [v0.2.0] - 2025-10-03
 
 ### 🎉 AUTO-ENTRY & EXAMPLE EXPLOSION: 42/53 Passing (79%) ✅
