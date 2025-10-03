@@ -49,7 +49,9 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 - CSP concurrency (v0.3.0+)
 - AI training data export (v0.3.0+)
 
-**🎉 MAJOR MILESTONE:** Module files now execute! Use `ailang run module.ail --entry main --caps IO,FS` to run module code with effects.
+**🎉 MAJOR MILESTONE:** Module files now execute! Use `ailang run --caps IO,FS --entry main module.ail` to run module code with effects.
+
+**⚠️ Important**: Flags must come BEFORE the filename when using `ailang run`.
 
 ## Key Design Principles
 1. **Explicit Effects**: All side effects must be declared in function signatures
@@ -233,7 +235,7 @@ export func main() -> () ! {IO} {
 
 **Running modules:**
 ```bash
-ailang run examples/demo.ail --entry main --caps IO
+ailang run --caps IO --entry main examples/demo.ail
 # Output: Hello from module!
 ```
 
@@ -261,7 +263,7 @@ export func main() -> () ! {IO, FS} {
 
 **Running with capabilities:**
 ```bash
-ailang run app.ail --entry main --caps IO,FS
+ailang run --caps IO,FS --entry main app.ail
 ```
 
 **Pattern Guards (M-R3, optional):**
@@ -301,7 +303,7 @@ func worker(ch: Channel[Task]) ! {Async} {
 ## What Works & What Doesn't (v0.2.0-rc1)
 
 ### ✅ Working Features
-- ✅ **Module execution** - `ailang run module.ail --entry main`
+- ✅ **Module execution** - `ailang run --entry main module.ail`
 - ✅ **Effect system** - IO and FS effects with capability security
 - ✅ **Pattern matching** - Constructors, tuples, lists, wildcards
 - ✅ **ADTs** - Algebraic data types with runtime support
@@ -313,13 +315,13 @@ func worker(ch: Channel[Task]) ! {Async} {
 ### ✅ Working Examples
 ```bash
 # Module with IO
-ailang run examples/test_io_builtins.ail --entry main --caps IO
+ailang run --caps IO --entry main examples/test_io_builtins.ail
 
 # Pattern matching with ADTs
-ailang run examples/adt_simple.ail --entry main
+ailang run --entry main examples/adt_simple.ail
 
 # Cross-module imports
-ailang run examples/effects_basic.ail --entry main --caps IO
+ailang run --caps IO --entry main examples/effects_basic.ail
 ```
 
 See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.

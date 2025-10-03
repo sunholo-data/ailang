@@ -84,7 +84,7 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 	select {
 	case <-time.After(timeout):
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		return &RunResult{
 			Stdout:    stdout.String(),
 			Stderr:    "execution timed out",
@@ -198,7 +198,7 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 	select {
 	case <-time.After(timeout):
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		return &RunResult{
 			Stdout:    stdout.String(),
 			Stderr:    "execution timed out",

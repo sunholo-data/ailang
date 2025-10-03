@@ -92,16 +92,12 @@ type Result struct {
 func Run(cfg Config, src Source) (Result, error) {
 	// For simple expressions/REPL, use the original single-file pipeline
 	if src.IsREPL || src.Filename == "" || src.Filename == "<repl>" {
-		if cfg.TraceDefaulting {
-			fmt.Printf("DEBUG: Using runSingle for %s\n", src.Filename)
-		}
+		// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: Using runSingle for %s\n", src.Filename) }
 		return runSingle(cfg, src)
 	}
 
 	// For files with potential imports, use the module pipeline
-	if cfg.TraceDefaulting {
-		fmt.Printf("DEBUG: Using runModule for %s\n", src.Filename)
-	}
+	// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: Using runModule for %s\n", src.Filename) }
 	return runModule(cfg, src)
 }
 
@@ -341,9 +337,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 // runModule runs the pipeline for a module with dependencies
 func runModule(cfg Config, src Source) (Result, error) {
-	if cfg.TraceDefaulting {
-		fmt.Printf("DEBUG: runModule called for %s\n", src.Filename)
-	}
+	// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: runModule called for %s\n", src.Filename) }
 	result := Result{
 		PhaseTimings: make(map[string]int64),
 	}
@@ -469,9 +463,9 @@ func runModule(cfg Config, src Source) (Result, error) {
 						}
 
 						// Try to import as a constructor
-						fmt.Printf("DEBUG: Checking if %s is a constructor in %s (has %d constructors)...\n", sym, imp.Path, len(depIface.Constructors))
-						for k := range depIface.Constructors {
-							fmt.Printf("DEBUG:   Constructor %s in interface\n", k)
+						// DEBUG: fmt.Printf("DEBUG: Checking if %s is a constructor in %s (has %d constructors)...\n", sym, imp.Path, len(depIface.Constructors))
+						for range depIface.Constructors {
+							// DEBUG: fmt.Printf("DEBUG:   Constructor %s in interface\n", k)
 						}
 						if ctor, ok := depIface.GetConstructor(sym); ok {
 							// Constructors are added to global environment
@@ -511,14 +505,13 @@ func runModule(cfg Config, src Source) (Result, error) {
 								Type:     factoryType,
 							}
 
-							fmt.Printf("DEBUG: Import constructor %s -> %s with type scheme (vars: %v)\n", sym, key, typeVars)
+							// DEBUG: fmt.Printf("DEBUG: Import constructor %s -> %s with type scheme (vars: %v)\n", sym, key, typeVars)
 							if cfg.TraceDefaulting {
 								fmt.Printf("  Import constructor %s -> %s\n", sym, key)
 							}
 							found = true
-						} else {
-							fmt.Printf("DEBUG: %s NOT found as constructor\n", sym)
 						}
+						// No else needed - if constructor not found, we continue searching
 
 						if !found && cfg.TraceDefaulting {
 							fmt.Printf("  Symbol %s not found in %s\n", sym, imp.Path)

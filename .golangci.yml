@@ -69,6 +69,12 @@ issues:
       text: "is unused"
       linters:
         - unused
+
+    # Allow underscore in eval_harness package name (M-EVAL framework)
+    - path: internal/eval_harness/
+      text: "don't use an underscore in package name"
+      linters:
+        - revive
         
   # Maximum issues count per one linter. Set to 0 to disable.
   max-issues-per-linter: 50

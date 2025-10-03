@@ -24,7 +24,10 @@ func runEval() {
 	mock := fs.Bool("mock", false, "Use mock AI agent (for testing)")
 	listModels := fs.Bool("list-models", false, "List available models and exit")
 
-	fs.Parse(os.Args[2:])
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Handle --list-models
 	if *listModels {
@@ -297,16 +300,33 @@ func generateMockCode(benchmarkID, lang string) string {
 	case "ailang":
 		switch benchmarkID {
 		case "fizzbuzz":
-			return `let fizzbuzz = \i.
-  if i % 15 == 0 then "FizzBuzz"
-  else if i % 3 == 0 then "Fizz"
-  else if i % 5 == 0 then "Buzz"
-  else show(i)
-in
-let range = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] in
-map(\i. print(fizzbuzz(i)), range)`
+			// Note: This mock uses a simplified version since recursion not yet implemented
+			return `module benchmark/solution
+
+import std/io (println)
+
+export func fizzbuzzValue(n: int) -> string {
+  if n % 15 == 0 then "FizzBuzz"
+  else if n % 3 == 0 then "Fizz"
+  else if n % 5 == 0 then "Buzz"
+  else show(n)
+}
+
+export func main() -> () ! {IO} {
+  println("1");
+  println("2");
+  println("Fizz");
+  println("4");
+  println("Buzz")
+}`
 		default:
-			return `print("Hello from AILANG")`
+			return `module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello from AILANG")
+}`
 		}
 	default:
 		return fmt.Sprintf("// Mock code for %s in %s\n", benchmarkID, lang)

@@ -5,7 +5,8 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
 expected_gain: "very_high"
-prompt: |
+prompt_file: "prompts/v0.2.0.md"
+task_prompt: |
   Write a program in <LANG> that:
   1. Defines an Option type (Some/None, or equivalent)
   2. Implements a safe division function that returns Option[Float]
@@ -15,6 +16,14 @@ prompt: |
   4. Prints the results:
      - For Some(value): print "Result: {value}"
      - For None: print "Error: Division by zero"
+
+  For AILANG:
+  - Use module declaration: module benchmark/solution
+  - Import std/io: import std/io (println)
+  - Define the Option type with AILANG syntax: type Option[a] = Some(a) | None
+  - Export a main() function with ! {IO} effect
+  - Use pattern matching with =>
+  - Remember: NO :: operator, just use Some(...) and None directly
 
   Output only the code, no explanations.
 expected_stdout: |

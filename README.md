@@ -11,7 +11,7 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 **🎯 What Works**: Module execution is fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), cross-module imports, and pattern matching with exhaustiveness checking.
 
-**✅ Major Milestone**: You can now run module files with `ailang run module.ail --caps IO,FS`. The interpreter intelligently selects entrypoints and auto-detects required capabilities. Effect system with capability-based security is working.
+**✅ Major Milestone**: You can now run module files with `ailang run --caps IO,FS module.ail`. The interpreter intelligently selects entrypoints and auto-detects required capabilities. Effect system with capability-based security is working.
 
 **📊 Test Coverage**: 42/53 examples passing (79.2%) - exceeded v0.2.0 target of 35! All effect system, type class, ADT, and module execution examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
 
@@ -49,16 +49,25 @@ export func main() -> () ! {IO} {
 ```
 
 ```bash
-ailang --caps IO run examples/demos/hello_io.ail --entry main
+ailang run --caps IO examples/demos/hello_io.ail
 # Output: Hello from AILANG v0.2.0!
+```
+
+**Important**: Flags must come BEFORE the filename:
+```bash
+# ✅ CORRECT:
+ailang run --caps IO --entry main file.ail
+
+# ❌ WRONG:
+ailang run file.ail --caps IO --entry main
 ```
 
 More examples:
 ```bash
-ailang run examples/arithmetic.ail              # Arithmetic with operator precedence
-ailang run examples/simple.ail                  # Let bindings and evaluation
-ailang --caps IO run examples/test_io_builtins.ail --entry greet  # IO effects
-ailang run examples/test_invocation.ail --entry greet  # Cross-function calls
+ailang run examples/arithmetic.ail                        # Arithmetic
+ailang run examples/simple.ail                            # Let bindings
+ailang run --caps IO --entry greet examples/test_io_builtins.ail  # IO effects
+ailang run --entry greet examples/test_invocation.ail     # Cross-function calls
 ```
 
 See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (32/51 passing).

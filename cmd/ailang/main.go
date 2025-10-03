@@ -40,19 +40,11 @@ func main() {
 		helpFlag                = flag.Bool("help", false, "Show help")
 		learnFlag               = flag.Bool("learn", false, "Enable learning mode (collect training data)")
 		traceFlag               = flag.Bool("trace", false, "Enable execution tracing")
-		seedFlag                = flag.Int("seed", 0, "Random seed for deterministic execution")
-		virtualTime             = flag.Bool("virtual-time", false, "Use virtual time for deterministic execution")
 		compactFlag             = flag.Bool("compact", false, "Use compact JSON output")
-		jsonFlag                = flag.Bool("json", false, "Output errors in structured JSON format")
 		binopShimFlag           = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
 		failOnShimFlag          = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 		requireLoweringFlag     = flag.Bool("require-lowering", false, "Require operator lowering pass")
 		trackInstantiationsFlag = flag.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
-		entryFlag               = flag.String("entry", "main", "Entrypoint function name to execute")
-		argsJSONFlag            = flag.String("args-json", "null", "JSON arguments to pass to entrypoint")
-		printFlag               = flag.Bool("print", true, "Print return value (even for unit type)")
-		noPrintFlag             = flag.Bool("no-print", false, "Suppress output (exit code only)")
-		capsFlag                = flag.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net)")
 	)
 
 	flag.Parse()
@@ -76,12 +68,7 @@ func main() {
 
 	switch command {
 	case "run":
-		if flag.NArg() < 2 {
-			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang run <file.ail> [--entry main] [--args-json '<json>'] [--print]")
-			os.Exit(1)
-		}
-		runFile(flag.Arg(1), *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag)
+		runCommand()
 
 	case "repl":
 		runREPL(*learnFlag, *traceFlag)
@@ -152,31 +139,73 @@ func printHelp() {
 	fmt.Println("  ailang <command> [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Printf("  %s <file>      Run an AILANG program\n", cyan("run"))
-	fmt.Printf("  %s             Start the interactive REPL\n", cyan("repl"))
-	fmt.Printf("  %s [path]      Run tests\n", cyan("test"))
-	fmt.Printf("  %s <file>      Watch file for changes and auto-reload\n", cyan("watch"))
-	fmt.Printf("  %s <file>      Type-check a file without running\n", cyan("check"))
-	fmt.Printf("  %s <module>    Output normalized JSON interface for a module\n", cyan("iface"))
-	fmt.Printf("  %s   Export training data\n", cyan("export-training"))
-	fmt.Printf("  %s              Start the Language Server Protocol server\n", cyan("lsp"))
-	fmt.Printf("  %s              Run AI benchmarks (AILANG vs Python)\n", cyan("eval"))
+	fmt.Printf("  %s             Run an AILANG program\n", cyan("run [flags] <file>"))
+	fmt.Printf("  %s                       Start the interactive REPL\n", cyan("repl"))
+	fmt.Printf("  %s                   Run tests\n", cyan("test [path]"))
+	fmt.Printf("  %s           Watch file for changes and auto-reload\n", cyan("watch <file>"))
+	fmt.Printf("  %s           Type-check a file without running\n", cyan("check <file>"))
+	fmt.Printf("  %s        Output normalized JSON interface for a module\n", cyan("iface <module>"))
+	fmt.Printf("  %s           Export training data\n", cyan("export-training"))
+	fmt.Printf("  %s                        Start the Language Server Protocol server\n", cyan("lsp"))
+	fmt.Printf("  %s         Run AI benchmarks (AILANG vs Python)\n", cyan("eval [flags]"))
 	fmt.Println()
-	fmt.Println("Flags:")
-	fmt.Println("  --version        Print version information")
-	fmt.Println("  --help           Show this help message")
-	fmt.Println("  --learn          Enable learning mode (REPL only)")
-	fmt.Println("  --trace          Enable execution tracing")
-	fmt.Println("  --seed <n>       Set random seed for deterministic execution")
-	fmt.Println("  --virtual-time   Use virtual time for testing")
-	fmt.Println("  --compact        Use compact JSON output")
+	fmt.Println("Run Command Flags (must come BEFORE filename):")
+	fmt.Println("  --caps <list>        Enable capabilities (comma-separated: IO,FS,Net)")
+	fmt.Println("  --entry <name>       Entrypoint function name (default: main)")
+	fmt.Println("  --args-json <json>   JSON arguments to pass to entrypoint")
+	fmt.Println("  --trace              Enable execution tracing")
+	fmt.Println("  --print              Print return value (default: true)")
+	fmt.Println("  --no-print           Suppress output (exit code only)")
+	fmt.Println()
+	fmt.Println("Global Flags:")
+	fmt.Println("  --version            Print version information")
+	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Printf("  %s              # Start REPL\n", cyan("ailang repl"))
-	fmt.Printf("  %s    # Run program\n", cyan("ailang run hello.ail"))
-	fmt.Printf("  %s        # Type-check\n", cyan("ailang check src/"))
-	fmt.Printf("  %s  # Watch with tracing\n", cyan("ailang watch main.ail --trace"))
-	fmt.Printf("  %s  # Run benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
+	fmt.Printf("  %s                        # Start REPL\n", cyan("ailang repl"))
+	fmt.Printf("  %s              # Run program with IO capability\n", cyan("ailang run --caps IO hello.ail"))
+	fmt.Printf("  %s  # Run with custom entrypoint\n", cyan("ailang run --caps IO --entry test main.ail"))
+	fmt.Printf("  %s                  # Type-check without running\n", cyan("ailang check src/"))
+	fmt.Printf("  %s            # Run AI benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
+	fmt.Println()
+	fmt.Println(yellow("Note: For 'run' command, flags must come BEFORE the filename"))
+	fmt.Println(yellow("      Example: ailang run --caps IO file.ail  (NOT: ailang run file.ail --caps IO)"))
+}
+
+func runCommand() {
+	// Parse run subcommand flags
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	traceFlag := fs.Bool("trace", false, "Enable execution tracing")
+	seedFlag := fs.Int("seed", 0, "Random seed for deterministic execution")
+	virtualTime := fs.Bool("virtual-time", false, "Use virtual time for deterministic execution")
+	jsonFlag := fs.Bool("json", false, "Output errors in structured JSON format")
+	compactFlag := fs.Bool("compact", false, "Use compact JSON output")
+	binopShimFlag := fs.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
+	failOnShimFlag := fs.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
+	requireLoweringFlag := fs.Bool("require-lowering", false, "Require operator lowering pass")
+	trackInstantiationsFlag := fs.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
+	entryFlag := fs.String("entry", "main", "Entrypoint function name to execute")
+	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
+	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
+	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
+	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net)")
+
+	// Parse from os.Args[2:] (everything after "run")
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Check for filename argument
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+		fmt.Println("Usage: ailang run [--caps IO] [--entry main] [--args-json '<json>'] <file.ail>")
+		fmt.Println("Note: Flags must come BEFORE the filename")
+		os.Exit(1)
+	}
+
+	filename := fs.Arg(0)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag)
 }
 
 func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool, noprint bool, caps string) {

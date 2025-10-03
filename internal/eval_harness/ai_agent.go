@@ -95,14 +95,6 @@ func (a *AIAgent) generateGemini(ctx context.Context, prompt string) (*GenerateR
 	return a.callGemini(ctx, prompt)
 }
 
-// truncate truncates a string to maxLen characters
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
 // RetryConfig configures retry behavior
 type RetryConfig struct {
 	MaxRetries int

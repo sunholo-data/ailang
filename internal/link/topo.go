@@ -18,13 +18,13 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 	ml.loadedModules = loaded
 
 	// DEBUG: Show loaded modules
-	fmt.Printf("DEBUG TopoSort: root=%s, loaded modules: %v\n", root, func() []string {
-		var keys []string
-		for k := range loaded {
-			keys = append(keys, k)
-		}
-		return keys
-	}())
+	// fmt.Printf("DEBUG TopoSort: root=%s, loaded modules: %v\n", root, func() []string {
+	// 	var keys []string
+	// 	for k := range loaded {
+	// 		keys = append(keys, k)
+	// 	}
+	// 	return keys
+	// }())
 
 	// Use single root for topological sort
 	roots := []ModuleID{ModuleID(root)}

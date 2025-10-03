@@ -53,7 +53,7 @@ func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, t
 
 // Build constructs the interface from a Core program
 func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
-	fmt.Printf("DEBUG Build: module=%s, astFile=%v\n", b.module, astFile != nil)
+	// DEBUG: fmt.Printf("DEBUG Build: module=%s, astFile=%v\n", b.module, astFile != nil)
 	iface := NewIface(b.module)
 
 	// Extract exportable bindings from the program
@@ -63,17 +63,17 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Process each export
-	fmt.Printf("DEBUG: Processing %d exports for module %s\n", len(exports), b.module)
+	// DEBUG: fmt.Printf("DEBUG: Processing %d exports for module %s\n", len(exports), b.module)
 	for name, binding := range exports {
-		fmt.Printf("DEBUG:   Processing export %s\n", name)
+		// DEBUG: fmt.Printf("DEBUG:   Processing export %s\n", name)
 		// Get the type from the environment
 		typ, err := b.typeEnv.Lookup(name)
 		if err != nil {
 			// Skip if not in type environment (shouldn't happen after typechecking)
-			fmt.Printf("DEBUG: Skipping %s (not in type env): %v\n", name, err)
+			// DEBUG: fmt.Printf("DEBUG: Skipping %s (not in type env): %v\n", name, err)
 			continue
 		}
-		fmt.Printf("DEBUG:   Got type for %s\n", name)
+		// DEBUG: fmt.Printf("DEBUG:   Got type for %s\n", name)
 
 		// Generalize the type at module boundary
 		scheme, err := b.generalizeType(typ, name)
@@ -115,30 +115,30 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Extract and add type declarations if AST is provided
-	fmt.Printf("DEBUG: astFile=%v (nil=%v)\n", astFile != nil, astFile == nil)
+	// DEBUG: fmt.Printf("DEBUG: astFile=%v (nil=%v)\n", astFile != nil, astFile == nil)
 	if astFile != nil {
-		fmt.Printf("DEBUG: astFile type: %T\n", astFile)
+		// DEBUG: fmt.Printf("DEBUG: astFile type: %T\n", astFile)
 		if file, ok := astFile.(*ast.File); ok {
-			fmt.Printf("DEBUG: Extracting types from AST, found %d Decls and %d Statements\n", len(file.Decls), len(file.Statements))
+			// DEBUG: fmt.Printf("DEBUG: Extracting types from AST, found %d Decls and %d Statements\n", len(file.Decls), len(file.Statements))
 			// Check both Decls and Statements for type declarations
 			allDecls := append(file.Decls, file.Statements...)
 			for _, decl := range allDecls {
 				if typeDecl, ok := decl.(*ast.TypeDecl); ok {
-					fmt.Printf("DEBUG: Found type declaration %s, Exported=%v\n", typeDecl.Name, typeDecl.Exported)
+					// DEBUG: fmt.Printf("DEBUG: Found type declaration %s, Exported=%v\n", typeDecl.Name, typeDecl.Exported)
 					if typeDecl.Exported {
 						// Add type to interface
 						arity := len(typeDecl.TypeParams)
 						iface.AddType(typeDecl.Name, arity)
-						fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
+						// DEBUG: fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
 
 						// Extract constructors from algebraic types
 						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
-							fmt.Printf("DEBUG: Type %s is algebraic with %d constructors\n", typeDecl.Name, len(algType.Constructors))
-							for _, ctor := range algType.Constructors {
+							// DEBUG: fmt.Printf("DEBUG: Type %s is algebraic with %d constructors\n", typeDecl.Name, len(algType.Constructors))
+							for range algType.Constructors {
 								// Add constructor to exports (will be importable)
 								// The actual constructor scheme was already added above
 								// Just mark it as exportable here
-								fmt.Printf("DEBUG: Type %s exports constructor %s\n", typeDecl.Name, ctor.Name)
+								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s\n", typeDecl.Name, ctor.Name)
 							}
 						}
 					}
@@ -163,41 +163,40 @@ func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, 
 	exports := make(map[string]core.CoreExpr)
 
 	// DEBUG: Show metadata
-	if prog.Meta != nil {
-		fmt.Printf("DEBUG BuildInterface: module %s has metadata with %d entries\n", b.module, len(prog.Meta))
-		for name, meta := range prog.Meta {
-			fmt.Printf("  %s: IsExport=%v, IsPure=%v\n", name, meta.IsExport, meta.IsPure)
-		}
-	} else {
-		fmt.Printf("DEBUG BuildInterface: module %s has NO metadata\n", b.module)
-	}
+	// if prog.Meta != nil {
+	// 	fmt.Printf("DEBUG BuildInterface: module %s has metadata with %d entries\n", b.module, len(prog.Meta))
+	// 	for name, meta := range prog.Meta {
+	// 		fmt.Printf("  %s: IsExport=%v, IsPure=%v\n", name, meta.IsExport, meta.IsPure)
+	// 	}
+	// } else {
+	// 	fmt.Printf("DEBUG BuildInterface: module %s has NO metadata\n", b.module)
+	// }
 
 	// Use metadata to determine exports
 	if prog.Meta != nil {
 		for _, decl := range prog.Decls {
 			switch d := decl.(type) {
 			case *core.Let:
-				fmt.Printf("DEBUG: Found Let %s\n", d.Name)
+				// DEBUG: fmt.Printf("DEBUG: Found Let %s\n", d.Name)
 				if meta, ok := prog.Meta[d.Name]; ok {
 					// Only export explicitly marked functions that don't start with underscore
 					if meta.IsExport && !strings.HasPrefix(d.Name, "_") {
-						fmt.Printf("DEBUG: Adding export %s\n", d.Name)
+						// DEBUG: fmt.Printf("DEBUG: Adding export %s\n", d.Name)
 						exports[d.Name] = d.Value
 					}
 				}
 			case *core.LetRec:
-				fmt.Printf("DEBUG: Found LetRec with %d bindings\n", len(d.Bindings))
+				// DEBUG: fmt.Printf("DEBUG: Found LetRec with %d bindings\n", len(d.Bindings))
 				for _, binding := range d.Bindings {
-					fmt.Printf("DEBUG:   Binding %s\n", binding.Name)
+					// DEBUG: fmt.Printf("DEBUG:   Binding %s\n", binding.Name)
 					if meta, ok := prog.Meta[binding.Name]; ok {
-						fmt.Printf("DEBUG:     Has metadata: IsExport=%v\n", meta.IsExport)
+						// DEBUG: fmt.Printf("DEBUG:     Has metadata: IsExport=%v\n", meta.IsExport)
 						if meta.IsExport && !strings.HasPrefix(binding.Name, "_") {
-							fmt.Printf("DEBUG: Adding export %s from LetRec\n", binding.Name)
+							// DEBUG: fmt.Printf("DEBUG: Adding export %s from LetRec\n", binding.Name)
 							exports[binding.Name] = binding.Value
 						}
-					} else {
-						fmt.Printf("DEBUG:     NO metadata found\n")
 					}
+					// No else needed - if no metadata, we skip the binding
 				}
 			}
 		}

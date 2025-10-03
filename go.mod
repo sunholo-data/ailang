@@ -7,6 +7,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/peterh/liner v1.2.2
 	golang.org/x/text v0.21.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -14,5 +15,4 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.3 // indirect
 	golang.org/x/sys v0.14.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

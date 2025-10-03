@@ -1,0 +1,25 @@
+module benchmark/test_int
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func divide(a: int, b: int) -> Option[int] {
+  if b == 0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[int]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = divide(10, 2);
+  printResult(r1);
+  let r2 = divide(10, 0);
+  printResult(r2)
+}
