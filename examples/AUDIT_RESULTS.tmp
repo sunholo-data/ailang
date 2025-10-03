@@ -1,34 +1,59 @@
 === AILANG Example Audit ===
 
-## ✅ Working (12 files)
+## ✅ Working (42 files)
 These examples parse, type-check, and execute successfully:
 
 - examples//adt_option.ail
 - examples//adt_simple.ail
 - examples//arithmetic.ail
 - examples//block_demo.ail
+- examples//demos/adt_pipeline.ail
+- examples//demos/hello_io.ail
+- examples//effects_basic.ail
 - examples//effects_pure.ail
+- examples//guards_basic.ail
 - examples//hello.ail
+- examples//micro_io_echo.ail
+- examples//micro_option_map.ail
+- examples//option_demo.ail
+- examples//showcase/01_type_inference.ail
+- examples//showcase/02_lambdas.ail
+- examples//showcase/03_lists.ail
+- examples//showcase/03_type_classes.ail
+- examples//showcase/04_closures.ail
 - examples//simple.ail
+- examples//stdlib_demo.ail
+- examples//stdlib_demo_simple.ail
+- examples//test_effect_annotation.ail
+- examples//test_effect_capability.ail
+- examples//test_effect_fs.ail
+- examples//test_effect_io.ail
+- examples//test_effect_io_simple.ail
+- examples//test_exhaustive_bool_complete.ail
+- examples//test_exhaustive_bool_incomplete.ail
+- examples//test_exhaustive_wildcard.ail
+- examples//test_guard_bool.ail
+- examples//test_guard_debug.ail
+- examples//test_guard_false.ail
+- examples//test_import_ctor.ail
+- examples//test_import_func.ail
+- examples//test_invocation.ail
+- examples//test_io_builtins.ail
+- examples//test_module_minimal.ail
+- examples//test_no_import.ail
+- examples//test_single_guard.ail
+- examples//test_use_constructor.ail
+- examples//test_with_import.ail
 - examples//type_classes_working_reference.ail
-- examples//v3_3/import_conflict.ail
-- examples//v3_3/imports.ail
-- examples//v3_3/imports_basic.ail
-- examples//v3_3/poly_imports.ail
 
-## ⚠️ Type-Checks Only (3 files)
+## ⚠️ Type-Checks Only (0 files)
 These examples parse and type-check but cannot execute (module limitation):
 
-- examples//demos/hello_io.ail
-- examples//option_demo.ail
-- examples//stdlib_demo.ail
 
-## ❌ Broken (27 files)
+## ❌ Broken (11 files)
 These examples have parse errors or type errors:
 
-- examples//demos/adt_pipeline.ail
 - examples//demos/effects_pure.ail
-- examples//effects_basic.ail
 - examples//experimental/ai_agent_integration.ail
 - examples//experimental/concurrent_pipeline.ail
 - examples//experimental/factorial.ail
@@ -38,24 +63,10 @@ These examples have parse errors or type errors:
 - examples//list_patterns.ail
 - examples//patterns.ail
 - examples//records.ail
-- examples//stdlib_demo_simple.ail
-- examples//test_import_ctor.ail
-- examples//test_import_func.ail
-- examples//test_use_constructor.ail
 - examples//typeclasses.ail
-- examples//v3_3/hello.ail
-- examples//v3_3/math.ail
-- examples//v3_3/math/div.ail
-- examples//v3_3/math/gcd.ail
-- examples//v3_3/math/simple_gcd.ail
-- examples//v3_3/poly_id.ail
-- examples//v3_3/poly_use.ail
-- examples//v3_3/polymorphic.ail
-- examples//v3_3/properties_demo.ail
-- examples//v3_3/stdlib_demo.ail
 
 ### Summary
-- Total examples: 42
-- Working: 12
-- Type-checks only: 3
-- Broken: 27
+- Total examples: 53
+- Working: 42
+- Type-checks only: 0
+- Broken: 11

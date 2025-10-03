@@ -22,8 +22,25 @@ BROKEN=()
 while IFS= read -r file; do
     echo "Testing: $file"
 
-    # Try to run it
-    output=$("$AILANG" run "$file" 2>&1)
+    # Detect required capabilities from effect annotations
+    caps=""
+    if grep -q '! {IO}' "$file" || grep -q '_io_' "$file"; then
+        caps="IO"
+    fi
+    if grep -q '! {FS}' "$file" || grep -q '_fs_' "$file"; then
+        if [ -n "$caps" ]; then
+            caps="$caps,FS"
+        else
+            caps="FS"
+        fi
+    fi
+
+    # Try to run it with appropriate capabilities
+    if [ -n "$caps" ]; then
+        output=$("$AILANG" --caps "$caps" run "$file" 2>&1)
+    else
+        output=$("$AILANG" run "$file" 2>&1)
+    fi
     exit_code=$?
 
     # Check if it's a module (has 'module' declaration)

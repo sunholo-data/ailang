@@ -258,14 +258,48 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		// Module mode - look up and call entrypoint
 		fnExport, exists := result.Interface.Exports[entry]
 		if !exists {
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' not found in module\n", red("Error"), entry)
-			fmt.Fprintf(os.Stderr, "Available exports: ")
-			exportNames := []string{}
-			for name := range result.Interface.Exports {
-				exportNames = append(exportNames, name)
+			// Auto-select entrypoint if possible
+			if entry == "main" {
+				// Try to auto-select an unambiguous entrypoint
+				var zeroArgFuncs []string
+				for name, export := range result.Interface.Exports {
+					if export.Type != nil {
+						if fnType, isFn := export.Type.Type.(*types.TFunc2); isFn {
+							if len(fnType.Params) == 0 {
+								zeroArgFuncs = append(zeroArgFuncs, name)
+							}
+						}
+					}
+				}
+
+				// Case 1: Exactly one zero-arg function
+				if len(zeroArgFuncs) == 1 {
+					entry = zeroArgFuncs[0]
+					fnExport = result.Interface.Exports[entry]
+					exists = true
+				} else if len(zeroArgFuncs) > 1 {
+					// Case 2: Multiple zero-arg functions, try "test"
+					for _, name := range zeroArgFuncs {
+						if name == "test" {
+							entry = name
+							fnExport = result.Interface.Exports[entry]
+							exists = true
+							break
+						}
+					}
+				}
 			}
-			fmt.Fprintf(os.Stderr, "%v\n", exportNames)
-			os.Exit(1)
+
+			if !exists {
+				fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' not found in module\n", red("Error"), entry)
+				fmt.Fprintf(os.Stderr, "Available exports: ")
+				exportNames := []string{}
+				for name := range result.Interface.Exports {
+					exportNames = append(exportNames, name)
+				}
+				fmt.Fprintf(os.Stderr, "%v\n", exportNames)
+				os.Exit(1)
+			}
 		}
 
 		// Check function type and decode arguments

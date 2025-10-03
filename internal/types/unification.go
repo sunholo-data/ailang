@@ -180,6 +180,45 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		}
 		return nil, fmt.Errorf("cannot unify record type with %T", t2)
 
+	case *TRecord:
+		// Old record type - unify field by field
+		if t2Rec, ok := t2.(*TRecord); ok {
+			// Check that both have the same fields
+			if len(t1.Fields) != len(t2Rec.Fields) {
+				return nil, fmt.Errorf("record field count mismatch: %d vs %d", len(t1.Fields), len(t2Rec.Fields))
+			}
+			// Unify each field
+			for name, typ1 := range t1.Fields {
+				typ2, exists := t2Rec.Fields[name]
+				if !exists {
+					return nil, fmt.Errorf("record field '%s' not found in second record", name)
+				}
+				var err error
+				sub, err = u.Unify(typ1, typ2, sub)
+				if err != nil {
+					return nil, fmt.Errorf("failed to unify record field '%s': %w", name, err)
+				}
+			}
+			// Unify row variables if present
+			if t1.Row != nil || t2Rec.Row != nil {
+				row1 := t1.Row
+				if row1 == nil {
+					row1 = &TVar2{Name: "ρ_empty", Kind: &KRow{ElemKind: &KRecord{}}}
+				}
+				row2 := t2Rec.Row
+				if row2 == nil {
+					row2 = &TVar2{Name: "ρ_empty", Kind: &KRow{ElemKind: &KRecord{}}}
+				}
+				return u.Unify(row1, row2, sub)
+			}
+			return sub, nil
+		}
+		if t2Var, ok := t2.(*TVar2); ok {
+			// Swap and retry
+			return u.Unify(t2Var, t1, sub)
+		}
+		return nil, fmt.Errorf("cannot unify old record type with %T", t2)
+
 	default:
 		// Unhandled type - no more compatibility for old type system
 		return nil, fmt.Errorf("unhandled type in unification: %T", t1)

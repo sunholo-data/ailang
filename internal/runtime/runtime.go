@@ -3,12 +3,15 @@ package runtime
 import (
 	"fmt"
 	"path/filepath"
+	"sync"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // ModuleRuntime manages module instances and orchestrates evaluation
@@ -25,13 +28,14 @@ import (
 // Thread-safety: The runtime uses sync.Once within each ModuleInstance
 // to ensure each module is evaluated exactly once.
 type ModuleRuntime struct {
-	loader    *loader.ModuleLoader       // For loading and type-checking modules
-	evaluator *eval.CoreEvaluator        // For evaluating Core AST
-	builtins  *BuiltinRegistry           // Registry of builtin functions
-	instances map[string]*ModuleInstance // Cache: path → instance
-	basePath  string                     // Base path for resolving modules
-	visiting  map[string]bool            // Track modules being visited (for cycle detection)
-	pathStack []string                   // Current DFS path (for cycle error messages)
+	loader       *loader.ModuleLoader       // For loading and type-checking modules
+	evaluator    *eval.CoreEvaluator        // For evaluating Core AST
+	builtins     *BuiltinRegistry           // Registry of builtin functions
+	instances    map[string]*ModuleInstance // Cache: path → instance
+	basePath     string                     // Base path for resolving modules
+	visiting     map[string]bool            // Track modules being visited (for cycle detection)
+	pathStack    []string                   // Current DFS path (for cycle error messages)
+	nullaryCache sync.Map                   // Cache for nullary constructors (None, True, False) - key: "modPath::Type::Ctor"
 }
 
 // NewModuleRuntime creates a new module runtime
@@ -388,7 +392,7 @@ func (rt *ModuleRuntime) ListInstances() []string {
 // This is used when modules are loaded without full type checking (e.g., in tests)
 func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *iface.Iface {
 	exports := make(map[string]*iface.IfaceItem)
-	
+
 	for name := range loaded.Exports {
 		exports[name] = &iface.IfaceItem{
 			Name:   name,
@@ -400,11 +404,45 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 			},
 		}
 	}
-	
+
+	// Build constructor map from loaded module's constructor info
+	constructors := make(map[string]*iface.ConstructorScheme)
+	if loaded.Constructors != nil {
+		for ctorName, typeName := range loaded.Constructors {
+			// Find arity from the type declaration
+			arity := 0
+			if typeDecl, ok := loaded.Types[typeName]; ok {
+				// Check if this is an algebraic type (sum type)
+				if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
+					for _, ctor := range algType.Constructors {
+						if ctor.Name == ctorName {
+							arity = len(ctor.Fields)
+							break
+						}
+					}
+				}
+			}
+
+			// Create placeholder field types
+			fieldTypes := make([]types.Type, arity)
+			for i := 0; i < arity; i++ {
+				fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
+			}
+
+			constructors[ctorName] = &iface.ConstructorScheme{
+				TypeName:   typeName,
+				CtorName:   ctorName,
+				FieldTypes: fieldTypes,
+				ResultType: &types.TCon{Name: typeName},
+				Arity:      arity,
+			}
+		}
+	}
+
 	return &iface.Iface{
 		Module:       loaded.Path,
 		Exports:      exports,
-		Constructors: make(map[string]*iface.ConstructorScheme),
+		Constructors: constructors,
 		Types:        make(map[string]*iface.TypeExport),
 	}
 }

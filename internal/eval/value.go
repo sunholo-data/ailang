@@ -139,9 +139,10 @@ func (e *ErrorValue) String() string { return fmt.Sprintf("Error: %s", e.Message
 
 // TaggedValue represents an ADT constructor at runtime
 type TaggedValue struct {
-	TypeName string  // The ADT name (e.g., "Option")
-	CtorName string  // Constructor name (e.g., "Some", "None")
-	Fields   []Value // Constructor field values
+	ModulePath string  // Module where type is defined (e.g., "std/option") - prevents ambiguity
+	TypeName   string  // The ADT name (e.g., "Option")
+	CtorName   string  // Constructor name (e.g., "Some", "None")
+	Fields     []Value // Constructor field values
 }
 
 func (t *TaggedValue) Type() string { return t.TypeName }

@@ -13,3 +13,7 @@ export func processValue(x: int) -> int {
 export func demo() -> int {
   processValue(21)
 }
+
+export func main() -> int {
+  processValue(21)
+}
