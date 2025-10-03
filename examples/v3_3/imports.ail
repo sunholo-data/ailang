@@ -1,0 +1,9 @@
+-- Import test: multiple imports from stdlib
+module examples/v3_3/imports
+
+import std/io (println, print)
+
+export func main() -> () ! {IO} {
+  print("Multiple imports: ");
+  println("OK")
+}

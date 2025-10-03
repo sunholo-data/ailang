@@ -344,27 +344,27 @@ flag-broken: verify-examples
 test-imports-success: build
 	@echo "== Testing successful imports =="
 	@echo "  → imports_basic.ail"
-	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
 	@echo "  → imports.ail"
-	@$(BUILD_DIR)/$(BINARY) run examples/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
 	@echo "✓ Successful imports work"
 
 # Test that error cases produce correct JSON output
 test-import-errors: build
 	@echo "== Testing import error goldens =="
 	@echo "  → LDR001 (module not found)"
-	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_module.json - || (echo "FAIL: LDR001 golden mismatch" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_module.json - || (echo "FAIL: LDR001 golden mismatch" && exit 1)
 	@echo "  → IMP010 (symbol not exported)"
-	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_symbol.json - || (echo "FAIL: IMP010 golden mismatch" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_symbol.json - || (echo "FAIL: IMP010 golden mismatch" && exit 1)
 	@echo "✓ All import error goldens match"
 
 # Regenerate golden files (use with caution - only when intentionally updating)
 regen-import-error-goldens: build
 	@echo "Regenerating import error golden files..."
 	@mkdir -p goldens
-	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
-	@$(BUILD_DIR)/$(BINARY) --json --compact run tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
-	@$(BUILD_DIR)/$(BINARY) --json --compact run examples/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
+	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
+	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
+	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
 	@echo "✓ Golden files regenerated"
 
 # Test REPL/file parity for imports

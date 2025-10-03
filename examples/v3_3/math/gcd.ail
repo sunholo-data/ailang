@@ -1,0 +1,15 @@
+-- GCD/LCM module for import testing
+module examples/v3_3/math/gcd
+
+export pure func gcd(a: int, b: int) -> int {
+  if b == 0 then a else gcd(b, a % b)
+}
+
+export pure func lcm(a: int, b: int) -> int {
+  (a * b) / gcd(a, b)
+}
+
+-- Internal helper (not exported)
+func helper() -> int {
+  42
+}
