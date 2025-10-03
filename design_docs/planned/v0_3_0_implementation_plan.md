@@ -5,7 +5,45 @@
 **Target Release**: October 17–21, 2025 (2 weeks)
 **Author**: AILANG Development Team
 **Created**: October 4, 2025
-**Last Updated**: October 4, 2025
+**Last Updated**: October 3, 2025
+
+---
+
+## Background: v0.2.0 Post-Release Fixes (October 3, 2025)
+
+After releasing v0.2.0-rc1, CI failures were discovered and fixed:
+
+### Issues Fixed
+1. **Non-module file execution** (v0.1.0 compatibility)
+   - Files without `module` keyword were failing to execute
+   - **Root cause**: All files went through module execution path, but non-module files have no exports
+   - **Fix**: Detect module vs non-module files; use ModeEval for non-module files (proper resolvers for ADT constructors)
+   - **Implementation**: Added module keyword detection in `cmd/ailang/main.go:248-266`
+
+2. **Test lowering failures**
+   - Non-module test files (`tests/binops_int.ail`) weren't printing results
+   - **Root cause**: ModeCheck doesn't evaluate; results weren't printed
+   - **Fix**: Non-module files use ModeEval, results printed from pipeline
+
+3. **Flag ordering** (Go `flag` package behavior)
+   - Makefile had flags BEFORE subcommand: `ailang --caps IO run file.ail` (broken)
+   - **Fix**: Flags must come AFTER subcommand: `ailang run --caps IO file.ail`
+   - **Updated**: `Makefile:189-196` and `scripts/verify_examples.go:110-119`
+
+4. **Example verification script**
+   - Used `go run cmd/ailang/main.go` (only compiles main.go, missing runEval)
+   - **Fix**: Changed to `go run ./cmd/ailang` (compiles full package)
+
+### Results
+- **Before**: 0/53 examples passing (100% failure)
+- **After**: 36/53 examples passing (68% success)
+- **CI**: All checks now pass ✅
+- **Commit**: `57bb6de` - "Fix CI failures: Non-module execution and flag ordering"
+
+### Lessons Learned
+- **Module detection**: Checking for `module` keyword determines execution path
+- **Flag ordering**: Go's `flag` package stops parsing after first non-flag argument
+- **Build commands**: Use `go run ./package` not `go run file.go` for multi-file packages
 
 ---
 
@@ -16,7 +54,7 @@
 - Effect system (IO, FS) with capability-based security
 - Pattern matching w/ guards + exhaustiveness (decision trees available)
 - Auto-entry fallback, capability auto-detection
-- **42/53 passing examples (79.2%)** — exceeded target
+- **36/53 passing examples (68%)** — post-CI-fix baseline
 
 ### What v0.3.0 Will Deliver
 - **Recursion**: real LetRec and self/mutual recursion (factorial/fib/quicksort)
@@ -234,14 +272,15 @@
 
 ## Success Metrics
 
-| Metric | v0.2.0 | v0.3.0 Target |
-|--------|--------|---------------|
-| **Passing examples** | 42/53 (79%) | **≥50 (≥83%)** |
+| Metric | v0.2.0 (post-fix) | v0.3.0 Target |
+|--------|-------------------|---------------|
+| **Passing examples** | 36/53 (68%) | **≥50 (≥94%)** |
 | **Recursion** | Broken | Working |
 | **Records** | Partial | Row-poly access working |
 | **% operator** | Broken | Working (Integral) |
+| **Float comparison** | Broken (uses eq_Int) | Working (uses eq_Float) |
 | **Effects** | IO, FS | + Clock, Net |
-| **Test coverage** | 27.3% | ≥30% (stretch 35%) |
+| **Test coverage** | 27.1% | ≥30% (stretch 35%) |
 
 ### RC Gate
 - ✅ **Recursion must work** (P0)
