@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.2.0-rc2] - 2025-10-03
+## [v0.2.0] - 2025-10-03
 
 ### 🎉 AUTO-ENTRY & EXAMPLE EXPLOSION: 42/53 Passing (79%) ✅
 

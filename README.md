@@ -7,13 +7,13 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.2.0-rc1 (Module Execution + Effects)
+## Current Version: v0.2.0 (Module Execution + Effects)
 
-**🎯 What Works**: Module execution is now fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), and cross-function references within modules.
+**🎯 What Works**: Module execution is fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), cross-module imports, and pattern matching with exhaustiveness checking.
 
-**✅ Major Milestone**: You can now run module files with `ailang run module.ail --entry main --caps IO,FS`. Functions can call other functions in the same module. Effect system with capability-based security is working.
+**✅ Major Milestone**: You can now run module files with `ailang run module.ail --caps IO,FS`. The interpreter intelligently selects entrypoints and auto-detects required capabilities. Effect system with capability-based security is working.
 
-**📊 Test Coverage**: 32/51 examples passing (62.7%). All effect system, type class, and basic module examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+**📊 Test Coverage**: 42/53 examples passing (79.2%) - exceeded v0.2.0 target of 35! All effect system, type class, ADT, and module execution examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
 
 **📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
 
