@@ -96,13 +96,10 @@ func (br *BuiltinRegistry) registerEffectBuiltins() {
 	br.builtins["_io_println"] = &eval.BuiltinFunction{
 		Name: "_io_println",
 		Fn: func(args []eval.Value) (eval.Value, error) {
-			fmt.Println("DEBUG runtime/builtins.go: _io_println called!")
 			ctx := br.getEffContext()
 			if ctx == nil {
-				fmt.Println("DEBUG: _io_println called but no effect context!")
 				return nil, fmt.Errorf("_io_println: no effect context available")
 			}
-			fmt.Printf("DEBUG: _io_println calling effects.Call with IO cap=%v\n", ctx.HasCap("IO"))
 			return effects.Call(ctx, "IO", "println", args)
 		},
 	}

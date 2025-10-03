@@ -22,6 +22,13 @@ type CoreEvaluator struct {
 	effContext            interface{}    // Effect context (interface{} avoids import cycle with effects package)
 }
 
+// Env returns the current environment (for module evaluation)
+// This allows the runtime to add bindings so subsequent module-level declarations
+// can reference earlier ones.
+func (e *CoreEvaluator) Env() *Environment {
+	return e.env
+}
+
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
 func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvaluator {
 	env := NewEnvironment()

@@ -7,13 +7,15 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.1.1 (Module Runtime Infrastructure)
+## Current Version: v0.2.0-rc1 (Module Execution + Effects)
 
-**🎯 What Works**: Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, expression evaluation, and **module runtime infrastructure** (loading, evaluation, export resolution).
+**🎯 What Works**: Module execution is now fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), and cross-function references within modules.
 
-**⚠️ Known Limitation**: Function invocation from modules is not yet implemented (Phase 5 pending). Module infrastructure is complete: modules load, evaluate bindings, and resolve entrypoints. Non-module `.ail` files execute successfully. See [CHANGELOG.md](CHANGELOG.md) for v0.1.1 details.
+**✅ Major Milestone**: You can now run module files with `ailang run module.ail --entry main --caps IO,FS`. Functions can call other functions in the same module. Effect system with capability-based security is working.
 
-**📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [What's Coming in v0.2.0](#whats-coming-in-v020)
+**📊 Test Coverage**: 32/51 examples passing (62.7%). All effect system, type class, and basic module examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+
+**📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
 
 ## Quick Start
 
@@ -31,28 +33,35 @@ ailang --version
 
 For detailed installation instructions, see the [Getting Started Guide](docs/guides/getting-started.md).
 
-### Hello World (Non-Module Files)
+### Hello World (Module Execution)
 
-AILANG v0.1.0 executes **non-module** `.ail` files successfully:
+AILANG v0.2.0 now executes module files with effects:
 
 ```ailang
--- hello.ail
-print("Hello, AILANG!")
+-- examples/demos/hello_io.ail
+module examples/demos/hello_io
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello from AILANG v0.2.0!")
+}
 ```
 
 ```bash
-ailang run examples/hello.ail
-# Output: Hello, AILANG!
+ailang --caps IO run examples/demos/hello_io.ail --entry main
+# Output: Hello from AILANG v0.2.0!
 ```
 
 More examples:
 ```bash
-ailang run examples/arithmetic.ail        # Arithmetic with operator precedence
-ailang run examples/simple.ail            # Let bindings and evaluation
-ailang run examples/showcase/01_type_inference.ail  # Type inference demo
+ailang run examples/arithmetic.ail              # Arithmetic with operator precedence
+ailang run examples/simple.ail                  # Let bindings and evaluation
+ailang --caps IO run examples/test_io_builtins.ail --entry greet  # IO effects
+ailang run examples/test_invocation.ail --entry greet  # Cross-function calls
 ```
 
-**Note**: Files with `module` declarations type-check but cannot execute until v0.2.0. See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
+See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (32/51 passing).
 
 ### Interactive REPL (Fully Functional)
 

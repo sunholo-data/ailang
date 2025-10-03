@@ -19,8 +19,9 @@ import (
 
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
-	cache    map[string]*LoadedModule
-	basePath string // Base directory for relative imports
+	cache              map[string]*LoadedModule
+	basePath           string // Base directory for relative imports
+	warnedLegacyStdlib bool   // Track if we've warned about stdlib/std/* usage
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -56,10 +57,38 @@ func (ml *ModuleLoader) Preload(path string, loaded *LoadedModule) {
 	ml.cache[canonicalID] = loaded
 }
 
+// canonicalizeModulePath normalizes import paths and detects legacy patterns
+//
+// Returns the canonical path and a flag indicating if a legacy pattern was used.
+// Legacy pattern: "stdlib/std/io" → canonical: "std/io" (legacy=true)
+// Modern pattern: "std/io" → canonical: "std/io" (legacy=false)
+func canonicalizeModulePath(path string) (string, bool) {
+	legacy := false
+	// Strip leading "./" or ".\" for cross-platform safety
+	path = strings.TrimPrefix(strings.TrimPrefix(path, "./"), ".\\")
+
+	// Detect and normalize legacy stdlib/std/* pattern
+	if strings.HasPrefix(path, "stdlib/std/") {
+		path = strings.TrimPrefix(path, "stdlib/")
+		legacy = true
+	}
+
+	return path, legacy
+}
+
 // Load loads a module by path
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
-	// Canonicalize the module ID
-	canonicalID := CanonicalModuleID(path)
+	// Canonicalize the import path and check for legacy patterns
+	canonPath, isLegacy := canonicalizeModulePath(path)
+
+	// Emit one-time warning for legacy stdlib/std/* usage
+	if isLegacy && !ml.warnedLegacyStdlib {
+		fmt.Fprintf(os.Stderr, "Warning: import path 'stdlib/std/*' is deprecated; use 'std/*' instead\n")
+		ml.warnedLegacyStdlib = true
+	}
+
+	// Use canonicalized path for all subsequent operations
+	canonicalID := CanonicalModuleID(canonPath)
 
 	// Check cache with canonical ID
 	if loaded, ok := ml.cache[canonicalID]; ok {
@@ -73,26 +102,26 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	fullPath := ""
 
 	// Try relative path first
-	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
-		relPath := filepath.Join(ml.basePath, path) + ".ail"
+	if strings.HasPrefix(canonPath, "./") || strings.HasPrefix(canonPath, "../") {
+		relPath := filepath.Join(ml.basePath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
-	} else if strings.HasPrefix(path, "std/") {
+	} else if strings.HasPrefix(canonPath, "std/") {
 		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "stdlib/"
 		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
 		if stdlibPath == "" {
 			stdlibPath = "stdlib"
 		}
-		stdPath := filepath.Join(stdlibPath, path) + ".ail"
+		stdPath := filepath.Join(stdlibPath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "stdlib: "+stdPath)
 		fullPath = stdPath
-	} else if strings.HasSuffix(path, ".ail") {
+	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
-		searchTrace = append(searchTrace, "absolute: "+path)
-		fullPath = path
+		searchTrace = append(searchTrace, "absolute: "+canonPath)
+		fullPath = canonPath
 	} else {
 		// Project-relative - join with basePath for absolute resolution
-		projPath := filepath.Join(ml.basePath, path) + ".ail"
+		projPath := filepath.Join(ml.basePath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "project: "+projPath)
 		fullPath = projPath
 	}

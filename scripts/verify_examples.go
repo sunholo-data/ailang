@@ -48,12 +48,82 @@ func runExample(filename string) reporttypes.ExampleResult {
 		return result
 	}
 
-	cmd := exec.Command("go", "run", "cmd/ailang/main.go", "run", filename)
+	// Read file to detect capabilities and entrypoint
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		result.Status = "failed"
+		result.Error = fmt.Sprintf("failed to read file: %v", err)
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	fileContent := string(content)
+
+	// Detect required capabilities
+	caps := []string{}
+	if strings.Contains(fileContent, "! {IO") || strings.Contains(fileContent, "_io_") {
+		caps = append(caps, "IO")
+	}
+	if strings.Contains(fileContent, "! {FS") || strings.Contains(fileContent, "_fs_") {
+		caps = append(caps, "FS")
+	}
+
+	// Detect entrypoint (look for export func NAME)
+	// Prefer zero-arg functions as entrypoints
+	entrypoint := "main"
+	if strings.Contains(fileContent, "export func") && !strings.Contains(fileContent, "export func main") {
+		// Try to find a zero-arg exported function first
+		lines := strings.Split(fileContent, "\n")
+		candidates := []string{}
+
+		for _, line := range lines {
+			if strings.Contains(line, "export func") {
+				// Extract function name and check if zero-arg
+				parts := strings.Fields(line)
+				for i, part := range parts {
+					if part == "func" && i+1 < len(parts) {
+						nameWithParen := parts[i+1]
+						if idx := strings.Index(nameWithParen, "("); idx > 0 {
+							name := nameWithParen[:idx]
+							// Check if it's zero-arg: "func name() ->"
+							if strings.HasPrefix(nameWithParen[idx:], "()") {
+								// Zero-arg function - use immediately
+								entrypoint = name
+								goto done
+							}
+							// Non-zero-arg - save as fallback
+							candidates = append(candidates, name)
+						}
+						break
+					}
+				}
+			}
+		}
+
+		// If no zero-arg function found, use first exported function
+		if entrypoint == "main" && len(candidates) > 0 {
+			entrypoint = candidates[0]
+		}
+	}
+done:
+
+	// Build command with proper flag order: ALL FLAGS BEFORE run command
+	// Correct: go run cmd/ailang/main.go --caps IO --entry hello run file.ail
+	args := []string{"run", "cmd/ailang/main.go"}
+	if len(caps) > 0 {
+		args = append(args, "--caps", strings.Join(caps, ","))
+	}
+	if entrypoint != "main" {
+		args = append(args, "--entry", entrypoint)
+	}
+	args = append(args, "run", filename)
+
+	cmd := exec.Command("go", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	result.Duration = time.Since(start)
 	result.Output = stdout.String()
 

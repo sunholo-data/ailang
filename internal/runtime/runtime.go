@@ -285,9 +285,11 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 			return fmt.Errorf("failed to evaluate let rec in module %s: %w", inst.Path, err)
 		}
 
-		// Store bindings
+		// Store bindings and add to evaluator environment
 		for name, val := range bindings {
 			inst.Bindings[name] = val
+			// Add to environment so subsequent bindings can reference these
+			rt.evaluator.Env().Set(name, val)
 		}
 
 		// Recursively process body if it exists
@@ -302,6 +304,10 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 			return fmt.Errorf("failed to evaluate let %s in module %s: %w", e.Name, inst.Path, err)
 		}
 		inst.Bindings[e.Name] = val
+
+		// CRITICAL: Add binding to evaluator's environment so subsequent bindings can reference it
+		// This allows functions within the same module to call each other
+		rt.evaluator.Env().Set(e.Name, val)
 
 		// Recursively process body if it exists
 		if e.Body != nil {

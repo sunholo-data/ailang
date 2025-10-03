@@ -1,128 +1,61 @@
-# AILANG Examples Status (v0.1.0)
+## Example Status
 
-**Last Updated**: October 2, 2025
+### Working Examples ✅
+- `adt_option.ail`
+- `adt_simple.ail`
+- `arithmetic.ail`
+- `demos/hello_io.ail`
+- `effects_basic.ail`
+- `effects_pure.ail`
+- `guards_basic.ail`
+- `hello.ail`
+- `showcase/01_type_inference.ail`
+- `showcase/02_lambdas.ail`
+- `showcase/03_lists.ail`
+- `showcase/03_type_classes.ail`
+- `showcase/04_closures.ail`
+- `simple.ail`
+- `test_effect_annotation.ail`
+- `test_effect_capability.ail`
+- `test_effect_fs.ail`
+- `test_effect_io.ail`
+- `test_effect_io_simple.ail`
+- `test_exhaustive_bool_complete.ail`
+- `test_exhaustive_bool_incomplete.ail`
+- `test_exhaustive_wildcard.ail`
+- `test_guard_bool.ail`
+- `test_guard_debug.ail`
+- `test_guard_false.ail`
+- `test_invocation.ail`
+- `test_io_builtins.ail`
+- `test_module_minimal.ail`
+- `test_no_import.ail`
+- `test_single_guard.ail`
+- `test_with_import.ail`
+- `type_classes_working_reference.ail`
 
-This document tracks the status of all example files in the AILANG repository.
+### Failing Examples ❌
+- `demos/adt_pipeline.ail`
+- `demos/effects_pure.ail`
+- `experimental/ai_agent_integration.ail`
+- `experimental/concurrent_pipeline.ail`
+- `experimental/factorial.ail`
+- `experimental/quicksort.ail`
+- `experimental/web_api.ail`
+- `lambda_expressions.ail`
+- `list_patterns.ail`
+- `patterns.ail`
+- `records.ail`
+- `test_import_ctor.ail`
+- `test_import_func.ail`
+- `test_use_constructor.ail`
+- `typeclasses.ail`
 
-## Summary Statistics
+### Skipped Examples ⏭️
+- `block_demo.ail`
+- `option_demo.ail`
+- `stdlib_demo.ail`
+- `stdlib_demo_simple.ail`
 
-- **Total Examples**: 42
-- **✅ Working**: 12 (28.6%)
-- **⚠️ Type-Checks Only**: 3 (7.1%)
-- **❌ Broken**: 27 (64.3%)
-
-## Status Categories
-
-### ✅ Working (12 files)
-These examples parse, type-check, and execute successfully. They demonstrate features that work end-to-end in v0.1.0.
-
-| File | Description | Features Demonstrated |
-|------|-------------|----------------------|
-| `adt_option.ail` | Option ADT construction | ADT types, pattern matching (type-level) |
-| `adt_simple.ail` | Simple ADT examples | Type definitions, constructors |
-| `arithmetic.ail` | Basic arithmetic expressions | Operators, type inference |
-| `block_demo.ail` | Block expressions | Multi-statement blocks, scoping |
-| `effects_pure.ail` | Pure function demonstrations | Pure annotations, type inference |
-| `hello.ail` | Hello world | Basic expressions, builtin functions |
-| `simple.ail` | Simple expressions | Let bindings, arithmetic |
-| `type_classes_working_reference.ail` | Type class examples | Type classes, constraints, inference |
-| `v3_3/import_conflict.ail` | Import conflict handling | Module imports, naming |
-| `v3_3/imports.ail` | Module import examples | Import system |
-| `v3_3/imports_basic.ail` | Basic imports | Simple module usage |
-| `v3_3/poly_imports.ail` | Polymorphic imports | Polymorphism across modules |
-
-### ⚠️ Type-Checks Only (3 files)
-These examples parse and type-check correctly but cannot execute due to the module execution limitation in v0.1.0. They will work in v0.2.0.
-
-| File | Description | Limitation |
-|------|-------------|------------|
-| `demos/hello_io.ail` | IO demo with stdlib | Module execution not implemented |
-| `option_demo.ail` | Option ADT demonstrations | Module execution not implemented |
-| `stdlib_demo.ail` | Standard library showcase | Module execution not implemented |
-
-**Note**: These examples demonstrate important features (stdlib usage, IO effects) but are blocked by the module execution gap. See [LIMITATIONS.md](../docs/LIMITATIONS.md) for details.
-
-### ❌ Broken (27 files)
-These examples have parse errors or type errors that need to be fixed. Many are from experimental features or older syntax.
-
-#### Parse Errors (10 files)
-Examples that fail to parse with current syntax:
-
-- `patterns.ail` - Match expression syntax not implemented
-- `lambda_expressions.ail` - Type error with record unification
-- `records.ail` - Parse/type issues
-- `experimental/*.ail` (5 files) - Experimental syntax not finalized
-- `v3_3/properties_demo.ail` - Properties syntax not implemented
-
-#### Type Errors (8 files)
-Examples that parse but have type checking errors:
-
-- `demos/adt_pipeline.ail` - Import/type issues
-- `demos/effects_pure.ail` - Type class issues
-- `list_patterns.ail` - Pattern matching type errors
-- `typeclasses.ail` - Old type class syntax
-- `test_*.ail` (3 files) - Test files with known issues
-
-#### Module/Import Errors (9 files)
-Examples with module system issues:
-
-- `stdlib_demo_simple.ail` - Import errors
-- `v3_3/hello.ail` - Module resolution issues
-- `v3_3/math.ail` - Module structure
-- `v3_3/math/*.ail` (3 files) - Nested module issues
-- `v3_3/poly_*.ail` (3 files) - Polymorphic module issues
-
-## Recommended Examples for Learning
-
-If you're new to AILANG, start with these working examples:
-
-1. **`hello.ail`** - Your first AILANG program
-2. **`simple.ail`** - Basic let bindings and arithmetic
-3. **`arithmetic.ail`** - Operator precedence and evaluation
-4. **`block_demo.ail`** - Multi-statement blocks
-5. **`adt_simple.ail`** - Algebraic data types
-6. **`type_classes_working_reference.ail`** - Type classes and inference
-
-## Known Issues
-
-### Module Execution Limitation
-Currently, AILANG can parse and type-check modules but cannot execute them. This affects:
-- Standard library function calls
-- Module export execution
-- Demo programs that use stdlib
-
-**Status**: Planned for v0.2.0 (Module Evaluation milestone)
-
-### Parser Limitations
-- Match expressions not yet implemented (affects pattern matching examples)
-- Properties syntax not finalized
-- Some experimental syntax not stable
-
-### Type System
-- Record field access has unification issues in some cases
-- Some polymorphic examples have inference issues
-
-## How to Test Examples
-
-```bash
-# Check if an example works
-ailang run examples/hello.ail
-
-# Type-check only (useful for module examples)
-ailang check examples/stdlib_demo.ail
-
-# Use REPL for interactive testing
-ailang repl
-```
-
-## Contributing
-
-When adding new examples:
-1. Test that they work (`ailang run`)
-2. Add clear comments explaining the feature
-3. Update this STATUS.md file
-4. If the example demonstrates a v0.2.0 feature, add a warning comment
-
----
-
-*This status document is auto-generated by `tools/audit-examples.sh` and manually curated.*
+**Summary:** 32 passed, 15 failed, 4 skipped (Total: 51)
+exit status 1

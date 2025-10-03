@@ -22,8 +22,17 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// Mode determines pipeline execution behavior
+type Mode int
+
+const (
+	ModeCheck Mode = iota // Parse + type + elaborate + build interface (NO evaluation)
+	ModeEval              // Include evaluation (REPL only)
+)
+
 // Config contains pipeline configuration options
 type Config struct {
+	Mode                  Mode                  // Execution mode (Check or Eval)
 	JSON                  bool                  // Output JSON format
 	Compact               bool                  // Use compact JSON
 	DumpCore              bool                  // Show Core AST
@@ -308,13 +317,15 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// 	}
 	// }
 
-	// Evaluate the program
-	if len(coreProg.Decls) > 0 {
-		value, err := coreEval.Eval(coreProg.Decls[0])
-		if err != nil {
-			return result, fmt.Errorf("runtime error: %w", err)
+	// Evaluate the program ONLY in ModeEval (REPL)
+	if cfg.Mode == ModeEval {
+		if len(coreProg.Decls) > 0 {
+			value, err := coreEval.Eval(coreProg.Decls[0])
+			if err != nil {
+				return result, fmt.Errorf("runtime error: %w", err)
+			}
+			result.Value = value
 		}
-		result.Value = value
 	}
 
 	_ = linkedExpr
@@ -700,13 +711,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// 	}
 	// }
 
-	// Evaluate the root module
-	if len(rootUnit.Core.Decls) > 0 {
-		value, err := coreEval.Eval(rootUnit.Core.Decls[0])
-		if err != nil {
-			return result, fmt.Errorf("evaluation error: %w", err)
+	// Evaluate the root module ONLY in ModeEval (REPL)
+	// In ModeCheck (CLI run), defer all execution to ModuleRuntime
+	if cfg.Mode == ModeEval {
+		if len(rootUnit.Core.Decls) > 0 {
+			value, err := coreEval.Eval(rootUnit.Core.Decls[0])
+			if err != nil {
+				return result, fmt.Errorf("evaluation error: %w", err)
+			}
+			result.Value = value
 		}
-		result.Value = value
 	}
 	result.PhaseTimings["evaluate"] = time.Since(start).Milliseconds()
 

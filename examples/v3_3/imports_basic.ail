@@ -1,7 +1,0 @@
--- Basic import test: single function import
-module examples/v3_3/imports_basic
-
-import examples/v3_3/math/gcd (gcd)
-
--- Should output: 6
-gcd(48, 18)

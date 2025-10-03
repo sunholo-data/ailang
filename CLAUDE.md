@@ -17,6 +17,7 @@ AILANG is an AI-first programming language designed for AI-assisted development.
   - Entrypoint execution (`--entry`, `--args-json`)
   - Function invocation with argument decoding
   - Builtin registry (IO, FS primitives)
+  - **Cross-function references within modules** (functions can call other functions in same module)
 
 - ✅ **M-R2: Effect System Runtime** (~1,550 LOC) - COMPLETE
   - Capability-based security (`--caps IO,FS`)
@@ -24,6 +25,12 @@ AILANG is an AI-first programming language designed for AI-assisted development.
   - FS effect: `readFile`, `writeFile`, `exists`
   - Secure by default (no caps unless explicitly granted)
   - Sandbox support (`AILANG_FS_SANDBOX`)
+
+**📊 Test Status:**
+- Unit tests: 66/66 passing (runtime + effects)
+- Example files: 32/51 passing (62.7%)
+- All effect system examples working
+- All type class examples working
 
 **✅ COMPLETE (v0.1.0):**
 - Hindley-Milner type inference with let-polymorphism

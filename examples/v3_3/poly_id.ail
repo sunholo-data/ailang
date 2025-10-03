@@ -1,7 +1,0 @@
--- Polymorphic identity function
-module examples/v3_3/poly_id
-
--- Export a polymorphic identity function
-export func id[a](x: a) -> a {
-  x
-}

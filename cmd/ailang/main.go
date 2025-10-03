@@ -218,14 +218,16 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	builtins := runtime.NewBuiltinRegistry(evaluator)
 	builtinResolver := runtime.NewBuiltinOnlyResolver(builtins)
 
-	// Use unified pipeline
+	// Use unified pipeline in CHECK mode (no evaluation in pipeline)
+	// All execution happens via ModuleRuntime with proper EffContext
 	cfg := pipeline.Config{
+		Mode:                  pipeline.ModeCheck, // CHECK only - defer all execution to runtime
 		TraceDefaulting:       trace,
 		ExperimentalBinopShim: binopShim,
 		FailOnShim:            failOnShim,
 		RequireLowering:       requireLowering,
 		TrackInstantiations:   trackInstantiations,
-		GlobalResolver:        builtinResolver, // Provide builtin access
+		GlobalResolver:        builtinResolver, // Provide builtin access for type checking
 	}
 	src := pipeline.Source{
 		Code:     string(content),
