@@ -85,6 +85,8 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	select {
 	case <-time.After(timeout):
 		_ = cmd.Process.Kill()
+		// Wait for the goroutine to finish after kill to avoid race
+		<-done
 		return &RunResult{
 			Stdout:    stdout.String(),
 			Stderr:    "execution timed out",
@@ -199,6 +201,8 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	select {
 	case <-time.After(timeout):
 		_ = cmd.Process.Kill()
+		// Wait for the goroutine to finish after kill to avoid race
+		<-done
 		return &RunResult{
 			Stdout:    stdout.String(),
 			Stderr:    "execution timed out",
