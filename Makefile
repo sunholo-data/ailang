@@ -186,14 +186,14 @@ test-lowering: build
 verify-no-shim: build
 	@echo "Verifying no operator shim usage..."
 	@printf "  Testing with --fail-on-shim: "
-	@if ./bin/ailang --require-lowering --fail-on-shim run tests/binops_int.ail >/dev/null 2>&1; then \
+	@if ./bin/ailang run --require-lowering --fail-on-shim tests/binops_int.ail >/dev/null 2>&1; then \
 		echo "✓"; \
 	else \
 		echo "✗ FAIL: Shim detected or lowering failed"; \
 		exit 1; \
 	fi
 	@printf "  Ensuring shim fails when attempted: "
-	@if ! ./bin/ailang --experimental-binop-shim --fail-on-shim run tests/binops_int.ail 2>&1 | grep -q "CI_SHIM001"; then \
+	@if ! ./bin/ailang run --experimental-binop-shim --fail-on-shim tests/binops_int.ail 2>&1 | grep -q "CI_SHIM001"; then \
 		echo "✗ FAIL: Shim should have been rejected with CI_SHIM001 error"; \
 		exit 1; \
 	else \

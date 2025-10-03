@@ -245,10 +245,29 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	builtins := runtime.NewBuiltinRegistry(evaluator)
 	builtinResolver := runtime.NewBuiltinOnlyResolver(builtins)
 
-	// Use unified pipeline in CHECK mode (no evaluation in pipeline)
-	// All execution happens via ModuleRuntime with proper EffContext
+	// Determine if this is a module file by checking for "module" keyword
+	// Non-module files (v0.1.0 style) need ModeEval for proper execution
+	contentStr := string(content)
+	hasModuleKeyword := false
+	for _, line := range strings.Split(contentStr, "\n") {
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmed, "module ") {
+			hasModuleKeyword = true
+			break
+		}
+	}
+	isModuleFile := hasModuleKeyword
+
+	// Use unified pipeline
+	//  - ModeCheck for module files (execution via ModuleRuntime)
+	//  - ModeEval for non-module files (evaluation in pipeline with proper resolvers)
+	mode := pipeline.ModeCheck
+	if !isModuleFile {
+		mode = pipeline.ModeEval
+	}
+
 	cfg := pipeline.Config{
-		Mode:                  pipeline.ModeCheck, // CHECK only - defer all execution to runtime
+		Mode:                  mode,
 		TraceDefaulting:       trace,
 		ExperimentalBinopShim: binopShim,
 		FailOnShim:            failOnShim,
@@ -435,7 +454,7 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 			}
 		}
 	} else {
-		// Non-module mode - print result if not unit and not suppressed
+		// Non-module mode - print result if evaluated by pipeline (ModeEval)
 		if result.Value != nil && result.Value.Type() != "unit" && !noprint {
 			if print {
 				fmt.Println(result.Value.String())

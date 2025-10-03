@@ -107,16 +107,16 @@ func runExample(filename string) reporttypes.ExampleResult {
 	}
 done:
 
-	// Build command with proper flag order: ALL FLAGS BEFORE run command
-	// Correct: go run cmd/ailang/main.go --caps IO --entry hello run file.ail
-	args := []string{"run", "cmd/ailang/main.go"}
+	// Build command with proper flag order: flags AFTER the run subcommand
+	// Correct: go run ./cmd/ailang run --caps IO --entry hello file.ail
+	args := []string{"run", "./cmd/ailang", "run"}
 	if len(caps) > 0 {
 		args = append(args, "--caps", strings.Join(caps, ","))
 	}
 	if entrypoint != "main" {
 		args = append(args, "--entry", entrypoint)
 	}
-	args = append(args, "run", filename)
+	args = append(args, filename)
 
 	cmd := exec.Command("go", args...)
 	var stdout, stderr bytes.Buffer
