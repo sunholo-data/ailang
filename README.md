@@ -7,7 +7,7 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.2.0 (Module Execution + Effects)
+## Current Version: v0.2.1 (Module Execution + Effects)
 
 **🎯 What Works**: Module execution is fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), cross-module imports, and pattern matching with exhaustiveness checking.
 

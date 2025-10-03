@@ -2,6 +2,18 @@
 
 ## [Unreleased v0.3.0] - TBD
 
+## [v0.2.1] - 2025-10-03
+
+### Fixed
+- **Windows Build Compatibility**: Fixed two Windows-specific test failures
+  - Fixed `TestFSWriteFile_Success` using invalid `*` wildcard in filename (not allowed on Windows)
+  - Fixed `TestNewModuleRuntime` path separator mismatch (Windows uses `\` vs Unix `/`)
+  - All tests now pass on Windows, Linux, and macOS
+
+### Changed
+- Tests are now OS-agnostic, using `filepath.Clean()` for cross-platform compatibility
+- Improved CI/CD reliability across all supported platforms
+
 ### 🔄 RECURSION & REAL-WORLD PROGRAMS (Target: 50+ examples)
 
 **Status**: 🚧 IN PLANNING - See [design_docs/20251004/v0_3_0_implementation_plan.md](design_docs/20251004/v0_3_0_implementation_plan.md)

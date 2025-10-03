@@ -1,6 +1,6 @@
 # AILANG Implementation Status
 
-## Current Version: v0.1.1 (Module Runtime Infrastructure)
+## Current Version: v0.2.1 (Module Execution + Effects)
 
 ## Test Coverage: 24.8%
 
