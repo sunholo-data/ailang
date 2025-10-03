@@ -12,14 +12,14 @@ import (
 
 // RunResult captures the outcome of running generated code
 type RunResult struct {
-	Stdout     string
-	Stderr     string
-	ExitCode   int
-	Duration   time.Duration
-	CompileOk  bool
-	RuntimeOk  bool
-	StdoutOk   bool
-	TimedOut   bool
+	Stdout    string
+	Stderr    string
+	ExitCode  int
+	Duration  time.Duration
+	CompileOk bool
+	RuntimeOk bool
+	StdoutOk  bool
+	TimedOut  bool
 }
 
 // LanguageRunner executes code in a specific language
@@ -269,8 +269,8 @@ func GetRunner(lang string, spec *BenchmarkSpec) (LanguageRunner, error) {
 func FindAILANG() (string, error) {
 	// Try common locations
 	paths := []string{
-		"ailang",                           // In PATH
-		"./bin/ailang",                     // Local build
+		"ailang",       // In PATH
+		"./bin/ailang", // Local build
 		filepath.Join(os.Getenv("GOPATH"), "bin", "ailang"), // GOPATH
 	}
 

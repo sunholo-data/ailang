@@ -11,10 +11,10 @@ import (
 
 // Anthropic API structures
 type anthropicRequest struct {
-	Model     string              `json:"model"`
-	MaxTokens int                 `json:"max_tokens"`
-	Messages  []anthropicMessage  `json:"messages"`
-	System    string              `json:"system,omitempty"`
+	Model     string             `json:"model"`
+	MaxTokens int                `json:"max_tokens"`
+	Messages  []anthropicMessage `json:"messages"`
+	System    string             `json:"system,omitempty"`
 }
 
 type anthropicMessage struct {

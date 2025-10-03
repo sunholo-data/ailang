@@ -204,7 +204,7 @@ func (r *moduleGlobalResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value
 	}
 
 	// Non-nullary: return factory function
-	modPath := match.ModulePath // Capture for closure
+	modPath := match.ModulePath  // Capture for closure
 	expectedArity := match.Arity // Capture arity for closure
 	return &eval.BuiltinFunction{
 		Name: ref.Name,

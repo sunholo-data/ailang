@@ -17,11 +17,11 @@ type CompileUnit interface {
 
 // Resolver implements GlobalResolver for the evaluator
 type Resolver struct {
-	linker         *ModuleLinker
-	memo           map[string]map[string]eval.Value // module -> name -> value
-	compiledCode   map[string]CompileUnit           // module -> compiled Core AST
-	mu             sync.RWMutex                     // For thread-safe memoization
-	builtinLookup  func(string) (eval.Value, bool)  // Optional builtin lookup (v0.2.0 hotfix)
+	linker        *ModuleLinker
+	memo          map[string]map[string]eval.Value // module -> name -> value
+	compiledCode  map[string]CompileUnit           // module -> compiled Core AST
+	mu            sync.RWMutex                     // For thread-safe memoization
+	builtinLookup func(string) (eval.Value, bool)  // Optional builtin lookup (v0.2.0 hotfix)
 }
 
 // NewResolver creates a new resolver backed by a module linker

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	ailangErrors "github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/effects"
+	ailangErrors "github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/repl"

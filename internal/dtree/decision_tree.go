@@ -15,13 +15,13 @@ type DecisionTree interface {
 
 // LeafNode represents a match with a body to execute
 type LeafNode struct {
-	ArmIndex int          // Index of the original match arm
+	ArmIndex int // Index of the original match arm
 	Body     core.CoreExpr
 	Guard    core.CoreExpr // Optional guard
 }
 
-func (l *LeafNode) isDecisionTree()  {}
-func (l *LeafNode) String() string { return fmt.Sprintf("Leaf(arm=%d)", l.ArmIndex) }
+func (l *LeafNode) isDecisionTree() {}
+func (l *LeafNode) String() string  { return fmt.Sprintf("Leaf(arm=%d)", l.ArmIndex) }
 
 // FailNode represents no match (non-exhaustive)
 type FailNode struct{}
@@ -31,9 +31,9 @@ func (f *FailNode) String() string  { return "Fail" }
 
 // SwitchNode represents a choice based on a discriminator
 type SwitchNode struct {
-	Path     []int                   // Path to the value being tested (e.g., [0, 1] = first field of second field)
-	Cases    map[interface{}]DecisionTree // Map from constructor/literal to subtree
-	Default  DecisionTree            // Fallback for wildcard/variable patterns
+	Path    []int                        // Path to the value being tested (e.g., [0, 1] = first field of second field)
+	Cases   map[interface{}]DecisionTree // Map from constructor/literal to subtree
+	Default DecisionTree                 // Fallback for wildcard/variable patterns
 }
 
 func (s *SwitchNode) isDecisionTree() {}

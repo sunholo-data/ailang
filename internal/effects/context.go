@@ -15,7 +15,7 @@ import (
 // should not be mutated concurrently.
 type EffContext struct {
 	Caps map[string]Capability // Effect name → Capability grant
-	Env  EffEnv                 // Environment configuration
+	Env  EffEnv                // Environment configuration
 }
 
 // EffEnv provides deterministic effect execution configuration

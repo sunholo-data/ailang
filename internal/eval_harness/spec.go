@@ -14,9 +14,9 @@ type BenchmarkSpec struct {
 	Languages    []string `yaml:"languages"`
 	Entrypoint   string   `yaml:"entrypoint"`
 	Caps         []string `yaml:"caps"`
-	Prompt       string   `yaml:"prompt"`        // Inline prompt text
-	PromptFile   string   `yaml:"prompt_file"`   // Path to prompt file (relative to repo root)
-	TaskPrompt   string   `yaml:"task_prompt"`   // Task-specific prompt appended after base prompt
+	Prompt       string   `yaml:"prompt"`      // Inline prompt text
+	PromptFile   string   `yaml:"prompt_file"` // Path to prompt file (relative to repo root)
+	TaskPrompt   string   `yaml:"task_prompt"` // Task-specific prompt appended after base prompt
 	ExpectedOut  string   `yaml:"expected_stdout"`
 	Difficulty   string   `yaml:"difficulty"`
 	ExpectedGain string   `yaml:"expected_gain"`

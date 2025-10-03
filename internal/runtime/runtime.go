@@ -347,7 +347,8 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 // Returns:
 //   - The cached ModuleInstance if found
 //   - nil if not found
-// GetEvaluator returns the runtime's evaluator
+//
+// # GetEvaluator returns the runtime's evaluator
 //
 // This allows external code to access the evaluator for setting
 // the effect context or other configuration.
