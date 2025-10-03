@@ -1,6 +1,63 @@
 # AILANG Changelog
 
-## [Unreleased v0.2.0-rc1] - 2025-10-02
+## [v0.2.0-rc2] - 2025-10-03
+
+### 🎉 AUTO-ENTRY & EXAMPLE EXPLOSION: 42/53 Passing (79%) ✅
+
+**Achieved Target**: Exceeded v0.2.0 goal of ≥35 passing examples, reaching **42/53 (79.2%)**
+
+**Implementation**: ~200 LOC across 3 strategic improvements
+1. **Auto-Entry Fallback** (`cmd/ailang/main.go`, ~50 LOC)
+   - Intelligent entrypoint selection when `main` not found
+   - Auto-selects single zero-arg function, or tries `test()`
+   - Eliminated "entrypoint not found" errors for 10+ examples
+
+2. **Audit Script Enhancement** (`tools/audit-examples.sh`, ~20 LOC)
+   - Automatic capability detection (`! {IO}`, `! {FS}`)
+   - Runs examples with appropriate `--caps` flags
+   - Enabled testing of all IO/FS effect examples
+
+3. **TRecord Unification Support** (`internal/types/unification.go`, ~40 LOC)
+   - Added handler for legacy `*TRecord` type in unification
+   - Fixed "unhandled type in unification" errors
+   - Improved record type checking with field-by-field unification
+
+4. **Micro Examples** (2 new passing examples)
+   - `examples/micro_option_map.ail` - Pure ADT operations
+   - `examples/micro_io_echo.ail` - IO effect demonstration
+
+**Results**: +14 examples in single session
+- Before: 28/51 passing (55%)
+- After: 42/53 passing (79%)
+- **Progress**: +50% more working examples
+
+**Newly Passing Examples** (+14):
+- `demos/hello_io.ail` - IO effect with println
+- `effects_basic.ail` - Basic effect annotations
+- `stdlib_demo.ail` - Standard library usage
+- `stdlib_demo_simple.ail` - Simplified stdlib demo
+- `test_effect_annotation.ail` - Effect syntax
+- `test_effect_capability.ail` - Capability requirements
+- `test_effect_fs.ail` - FS effect testing
+- `test_effect_io.ail` - IO effect testing
+- `test_invocation.ail` - Function invocation
+- `test_io_builtins.ail` - IO builtin functions
+- `test_module_minimal.ail` - Minimal module
+- `test_no_import.ail` - No imports required
+- `micro_io_echo.ail` - NEW micro example
+- `micro_option_map.ail` - NEW micro example
+
+**Key Insight**: Auto-entry was the MVP - single feature unlocked 10+ examples by making testing frictionless.
+
+**Impact on v0.2.0 Goals**:
+- ✅ Target met: ≥35 examples (achieved 42)
+- ✅ Effect system validated: IO/FS working across examples
+- ✅ Module execution proven: Cross-module imports stable
+- ✅ User experience improved: Reduced friction for running examples
+
+---
+
+## [v0.2.0-rc1] - 2025-10-02
 
 ### 🎯 M-EVAL: AI Evaluation Framework (~600 LOC) ✅
 

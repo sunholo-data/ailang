@@ -124,9 +124,7 @@ func main() {
 		runLSP()
 
 	case "eval":
-		// TODO: Implement AI evaluation benchmarks
-		fmt.Fprintf(os.Stderr, "%s: eval command not yet implemented\n", red("Error"))
-		os.Exit(1)
+		runEval()
 
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
