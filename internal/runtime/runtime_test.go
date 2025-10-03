@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -24,8 +25,10 @@ func TestNewModuleRuntime(t *testing.T) {
 		t.Error("Expected instances map to be initialized")
 	}
 
-	if rt.basePath != basePath {
-		t.Errorf("Expected basePath '%s', got '%s'", basePath, rt.basePath)
+	// basePath should be cleaned (OS-specific path separators)
+	expectedPath := filepath.Clean(basePath)
+	if rt.basePath != expectedPath {
+		t.Errorf("Expected basePath '%s', got '%s'", expectedPath, rt.basePath)
 	}
 
 	// Verify instances map is empty
