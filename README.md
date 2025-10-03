@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-24.8%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-27.1%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -187,13 +187,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-16%20passing%2025%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-38%20passing%2014%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-02 14:14:05 UTC*
+*Last updated: 2025-10-03 18:41:05 UTC*
 
-**Summary:** 16 passed, 25 failed, 6 skipped (Total: 47)
+**Summary:** 38 passed, 14 failed, 4 skipped (Total: 56)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -201,19 +201,22 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `demos/adt_pipeline.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `demos/effects_pure.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `demos/adt_pipeline.ail` | ✅ Pass |  |
+| `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demos/hello_io.ail` | ✅ Pass |  |
-| `effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `effects_basic.ail` | ✅ Pass |  |
 | `effects_pure.ail` | ✅ Pass |  |
 | `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `guards_basic.ail` | ✅ Pass |  |
 | `hello.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `micro_io_echo.ail` | ✅ Pass |  |
+| `micro_option_map.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
@@ -225,25 +228,31 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `simple.ail` | ✅ Pass |  |
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
-| `test_import_ctor.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `test_import_func.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `test_use_constructor.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+| `test_effect_annotation.ail` | ✅ Pass |  |
+| `test_effect_capability.ail` | ✅ Pass |  |
+| `test_effect_fs.ail` | ✅ Pass |  |
+| `test_effect_io.ail` | ✅ Pass |  |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect... |
+| `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
+| `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
+| `test_exhaustive_wildcard.ail` | ✅ Pass |  |
+| `test_guard_bool.ail` | ✅ Pass |  |
+| `test_guard_debug.ail` | ✅ Pass |  |
+| `test_guard_false.ail` | ✅ Pass |  |
+| `test_import_ctor.ail` | ✅ Pass |  |
+| `test_import_func.ail` | ✅ Pass |  |
+| `test_invocation.ail` | ✅ Pass |  |
+| `test_io_builtins.ail` | ✅ Pass |  |
+| `test_module_minimal.ail` | ✅ Pass |  |
+| `test_no_import.ail` | ✅ Pass |  |
+| `test_single_guard.ail` | ✅ Pass |  |
+| `test_use_constructor.ail` | ✅ Pass |  |
+| `test_with_import.ail` | ✅ Pass |  |
 | `type_classes_working_reference.ail` | ✅ Pass |  |
 | `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
-| `v3_3/hello.ail` | ❌ Fail | Error: MOD010: module declaration 'hello' doesn... |
-| `v3_3/import_conflict.ail` | ✅ Pass |  |
 | `v3_3/imports.ail` | ✅ Pass |  |
 | `v3_3/imports_basic.ail` | ✅ Pass |  |
-| `v3_3/math.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v3_3/math/div.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
 | `v3_3/math/gcd.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `v3_3/math/simple_gcd.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `v3_3/poly_id.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
-| `v3_3/poly_imports.ail` | ✅ Pass |  |
-| `v3_3/poly_use.ail` | ❌ Fail | Error: type error in examples/v3_3/poly_use (de... |
-| `v3_3/polymorphic.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
-| `v3_3/properties_demo.ail` | ⏭️ Skip | Test/demo file |
-| `v3_3/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 
 <!-- EXAMPLES_STATUS_END -->
 
