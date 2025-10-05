@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview
 
 # Binary name
 BINARY=ailang
@@ -509,3 +509,20 @@ generate-llms-txt:
 .PHONY: docs
 docs: sync-prompts generate-llms-txt
 	@echo "✓ All documentation generated"
+
+# Website preview targets
+.PHONY: docs-install
+docs-install:
+	@echo "Installing Jekyll dependencies..."
+	@cd docs && bundle config set --local path 'vendor/bundle' && bundle install
+
+.PHONY: docs-serve
+docs-serve:
+	@echo "Starting Jekyll server..."
+	@echo "Website will be available at: http://localhost:4000/ailang/"
+	@cd docs && bundle exec jekyll serve --baseurl /ailang
+
+.PHONY: docs-preview
+docs-preview: docs
+	@echo "Regenerating documentation and starting server..."
+	@$(MAKE) docs-serve

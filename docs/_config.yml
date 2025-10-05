@@ -1,107 +1,27 @@
-# Jekyll configuration for AILANG documentation
-title: AILANG Documentation
-description: >-
-  AILANG is an AI-first programming language designed for AI-assisted development,
-  featuring pure functional programming with algebraic effects, typed quasiquotes,
-  and CSP-based concurrency.
-baseurl: "/ailang" # the subpath of your site, e.g. /blog
-url: "https://sunholo-data.github.io" # your GitHub Pages URL
+title: AILANG Documentation  
+description: AI-first programming language
+baseurl: "/ailang"
+url: "https://sunholo-data.github.io"
 
-# Build settings
-remote_theme: just-the-docs/just-the-docs
+theme: minima
+
+# Show all important pages in header
+header_pages:
+  - index.md
+  - guides/getting-started.md
+  - guides/development.md  
+  - reference/language-syntax.md
+  - reference/implementation-status.md
+  - reference/repl-commands.md
+  - prompts/index.md
+
+markdown: kramdown
+highlighter: rouge
+
+# Better minima skin
+minima:
+  skin: dark
+  
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
-  - jekyll-sitemap
-  - jekyll-remote-theme
-
-# Just the Docs configuration
-color_scheme: light
-search_enabled: true
-heading_anchors: true
-
-# Navigation footer
-aux_links:
-  "AILANG on GitHub":
-    - "//github.com/sunholo-data/ailang"
-
-# Footer content
-footer_content: "Copyright &copy; 2025 Sunholo. Apache 2.0 License."
-
-# Collections for organizing content
-collections:
-  guides:
-    output: true
-    permalink: /guides/:name
-  reference:
-    output: true
-    permalink: /reference/:name
-  examples:
-    output: true
-    permalink: /examples/:name
-
-# Defaults for different content types
-defaults:
-  - scope:
-      path: ""
-      type: "guides"
-    values:
-      layout: "page"
-      nav_order: 2
-  - scope:
-      path: ""
-      type: "reference"
-    values:
-      layout: "page"
-      nav_order: 3
-  - scope:
-      path: ""
-      type: "examples"
-    values:
-      layout: "page"
-      nav_order: 4
-  - scope:
-      path: ""
-    values:
-      layout: "default"
-
-# Markdown processing
-markdown: kramdown
-kramdown:
-  input: GFM
-  syntax_highlighter: rouge
-  syntax_highlighter_opts:
-    css_class: 'highlight'
-    span:
-      line_numbers: false
-    block:
-      line_numbers: false
-
-# Syntax highlighting for AILANG
-highlighter: rouge
-rouge:
-  # Add custom lexer support for .ail files
-  lexers:
-    ailang:
-      title: AILANG
-      aliases: [ail]
-      filenames: ["*.ail"]
-
-# Exclude files from processing
-exclude:
-  - Gemfile
-  - Gemfile.lock
-  - node_modules
-  - vendor/bundle/
-  - vendor/cache/
-  - vendor/gems/
-  - vendor/ruby/
-  - .jekyll-cache/
-  - .sass-cache/
-
-# Include dotfiles
-include:
-  - .nojekyll
-
-# Analytics (optional - add your tracking ID when ready)
-# google_analytics: UA-XXXXXXXXX-X

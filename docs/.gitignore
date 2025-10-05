@@ -32,4 +32,4 @@ Thumbs.db
 
 # Local development
 .env
-.env.local
+.env.localvendor/bundle/
