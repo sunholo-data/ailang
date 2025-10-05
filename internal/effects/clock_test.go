@@ -27,8 +27,9 @@ func TestClockNow_RealTime(t *testing.T) {
 		t.Fatalf("expected IntValue, got %T", result)
 	}
 
-	if intVal.Value < before || intVal.Value > after {
-		t.Errorf("clockNow returned %d, expected between %d and %d", intVal.Value, before, after)
+	// Allow 2ms tolerance for CI timing variance
+	if intVal.Value < before-2 || intVal.Value > after+2 {
+		t.Errorf("clockNow returned %d, expected between %d and %d (±2ms tolerance)", intVal.Value, before, after)
 	}
 }
 

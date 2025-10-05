@@ -15,9 +15,9 @@ func TestTRecord2Unification(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "empty records unify",
-			t1:   &TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{}}},
-			t2:   &TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{}}},
+			name:    "empty records unify",
+			t1:      &TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{}}},
+			t2:      &TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{}}},
 			wantErr: false,
 		},
 		{
