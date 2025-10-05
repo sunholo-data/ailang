@@ -3495,6 +3495,7 @@ AILANG is built on several key principles:
 - [Design Documentation](https://github.com/sunholo-data/ailang/tree/main/design_docs)
 - [Change Log](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
 - [Development Setup]({{ site.baseurl }}/guides/development)
+- [llms.txt]({{ site.baseurl }}/llms.txt) - AI-readable project documentation
 
 ---
 
