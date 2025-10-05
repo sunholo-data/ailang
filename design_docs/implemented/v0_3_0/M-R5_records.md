@@ -1,11 +1,12 @@
 # M-R5: Records & Row Polymorphism
 
-**Status**: 📋 Planned
+**Status**: ✅ COMPLETE (Implemented in v0.2.1, verified in v0.3.0)
 **Priority**: P0 (CRITICAL - MUST SHIP)
 **Estimated**: 500 LOC (350 impl + 150 tests)
-**Duration**: 3 days
+**Actual**: Already implemented in v0.2.1 + TRecord2 row polymorphism
+**Duration**: N/A (feature already existed)
 **Dependencies**: None
-**Blocks**: Data modeling, structured data, APIs
+**Blocks**: Data modeling, structured data, APIs ✅ UNBLOCKED
 
 ## Problem Statement
 

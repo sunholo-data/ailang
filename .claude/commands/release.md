@@ -77,6 +77,11 @@ Create a new AILANG release with the specified version number.
     - Show release URL: https://github.com/sunholo-data/ailang/releases/tag/v$1
     - Show CI workflow status
 
+12. **update design docs** 
+    - move design docs used into design_docs/implemented/
+    - update design docs used with what was implemented
+    - if any features were missed or pushed to a future release, ensure they have new design_docs ready in design_docs/planned/
+
 ## Version Format
 
 Version should be in semantic versioning format: `MAJOR.MINOR.PATCH`

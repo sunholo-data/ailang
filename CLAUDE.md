@@ -379,7 +379,7 @@ ailang run --caps IO --entry main examples/effects_basic.ail
 
 See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
 
-### ⚠️ Known Limitations (v0.2.0-rc1)
+### ⚠️ Known Limitations (v0.3.0-alpha2)
 
 **Still TODO:**
 1. ⚠️ Pattern matching guards - `if condition` in match arms not evaluated
@@ -387,14 +387,28 @@ See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
 3. ⚠️ Let expressions limited to 3 nesting levels (4+ fails)
 4. ❌ `tests [...]` and `properties [...]` syntax not implemented
 5. ❌ Error propagation operator `?` not implemented
-5. ⚠️ Non-module files cannot use `func`, `type`, `import`, `export` keywords
+
+**Execution Modes:**
+AILANG supports two execution modes:
+
+1. **Simple scripts** (no module declaration):
+   - Cannot use `func`, `type`, `import`, `export` keywords
+   - Just write expressions: `let x = 5 in x * 2`
+   - Run with: `ailang run script.ail`
+   - Example: [examples/simple.ail](examples/simple.ail)
+
+2. **Module files** (with `module` declaration):
+   - Must start with `module path/name`
+   - Can use `func`, `type`, `import`, `export` keywords
+   - Can import from stdlib and use effects
+   - Run with: `ailang run --caps IO --entry main module.ail`
+   - Example: [examples/effects_basic.ail](examples/effects_basic.ail)
 
 **Execution Limitations:**
-1. ❌ **Critical**: Module files type-check but cannot execute
-2. ⚠️ REPL and file execution use different code paths (intentional)
-3. ⚠️ Type classes work in REPL and module type-checking, not in non-module file execution
-4. ⚠️ Record field access has unification bugs in some cases
-5. ⚠️ List operations have limited runtime support
+1. ⚠️ REPL and file execution use different code paths (intentional)
+2. ⚠️ Type classes work in REPL and module files, not in simple scripts
+3. ⚠️ Record field access has unification bugs in some cases
+4. ⚠️ List operations have limited runtime support
 
 See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for comprehensive details and workarounds.
 
