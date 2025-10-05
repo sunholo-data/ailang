@@ -32,6 +32,9 @@ var (
 	yellow = color.New(color.FgYellow).SprintFunc()
 	cyan   = color.New(color.FgCyan).SprintFunc()
 	bold   = color.New(color.Bold).SprintFunc()
+
+	// Global flags
+	quietMode = false
 )
 
 func main() {
@@ -41,6 +44,7 @@ func main() {
 		learnFlag               = flag.Bool("learn", false, "Enable learning mode (collect training data)")
 		traceFlag               = flag.Bool("trace", false, "Enable execution tracing")
 		compactFlag             = flag.Bool("compact", false, "Use compact JSON output")
+		quietFlag               = flag.Bool("quiet", false, "Suppress progress messages (only show program output)")
 		binopShimFlag           = flag.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
 		failOnShimFlag          = flag.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 		requireLoweringFlag     = flag.Bool("require-lowering", false, "Require operator lowering pass")
@@ -54,6 +58,9 @@ func main() {
 	if *compactFlag {
 		schema.SetCompactMode(true)
 	}
+
+	// Set quiet mode globally
+	quietMode = *quietFlag
 
 	if *versionFlag {
 		printVersion()
@@ -181,6 +188,7 @@ func runCommand() {
 	virtualTime := fs.Bool("virtual-time", false, "Use virtual time for deterministic execution")
 	jsonFlag := fs.Bool("json", false, "Output errors in structured JSON format")
 	compactFlag := fs.Bool("compact", false, "Use compact JSON output")
+	quietFlag := fs.Bool("quiet", false, "Suppress progress messages (only show program output)")
 	binopShimFlag := fs.Bool("experimental-binop-shim", false, "Enable experimental operator shim")
 	failOnShimFlag := fs.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 	requireLoweringFlag := fs.Bool("require-lowering", false, "Require operator lowering pass")
@@ -207,10 +215,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -224,13 +232,19 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	}
 
 	// Type check
-	fmt.Printf("%s Type checking...\n", cyan("→"))
+	if !quiet {
+		fmt.Printf("%s Type checking...\n", cyan("→"))
+	}
 
 	// Run effects analysis
-	fmt.Printf("%s Effect checking...\n", cyan("→"))
+	if !quiet {
+		fmt.Printf("%s Effect checking...\n", cyan("→"))
+	}
 
 	// Execute
-	fmt.Printf("%s Running %s\n", green("✓"), filename)
+	if !quiet {
+		fmt.Printf("%s Running %s\n", green("✓"), filename)
+	}
 	if trace {
 		fmt.Printf("  %s Tracing enabled\n", yellow("⚡"))
 	}
@@ -527,9 +541,9 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 	fmt.Println("Press Ctrl+C to stop")
 
 	// TODO: Implement file watching
-	// For now, just run the file once (no json/compact for watch mode)
+	// For now, just run the file once (no json/compact/quiet for watch mode)
 	// Default to main entrypoint with null args for watch mode, no caps
-	runFile(filename, trace, 0, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, "main", "null", true, false, "", maxRecursionDepth)
+	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, "main", "null", true, false, "", maxRecursionDepth)
 }
 
 func checkFile(filename string) {

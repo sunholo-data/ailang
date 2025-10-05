@@ -145,10 +145,10 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 
 	// Extract imports from the file
 	imports := ml.extractImports(file)
-	// DEBUG: Show imports
-	if len(imports) > 0 {
-		fmt.Printf("DEBUG loader: module %s imports %v\n", path, imports)
-	}
+	// DEBUG: Show imports (commented out - pollutes output for benchmarks)
+	//if len(imports) > 0 {
+	//	fmt.Printf("DEBUG loader: module %s imports %v\n", path, imports)
+	//}
 
 	// Build export table
 	exports := ml.buildExports(file)

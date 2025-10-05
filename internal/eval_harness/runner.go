@@ -161,16 +161,16 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	}
 	defer os.Remove(tmpFile) // Clean up after execution
 
-	// Build command with relative path
-	args := []string{"run", "benchmark/solution.ail"}
-
-	// Add entrypoint (always "main" for benchmarks)
-	args = append(args, "--entry", "main")
+	// Build command with flags BEFORE filename (required by ailang CLI)
+	args := []string{"run", "--entry", "main", "--quiet"}
 
 	// Add capabilities if specified
 	if len(r.caps) > 0 {
 		args = append(args, "--caps", strings.Join(r.caps, ","))
 	}
+
+	// Add filename last
+	args = append(args, "benchmark/solution.ail")
 
 	// Execute with timeout from current directory (for stdlib access)
 	start := time.Now()
