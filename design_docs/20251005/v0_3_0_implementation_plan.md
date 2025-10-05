@@ -195,7 +195,7 @@ After releasing v0.2.0-rc1, CI failures were discovered and fixed:
 ### M-R4: Recursion Support (P0 - MUST SHIP)
 
 **Effort**: ~600 LOC | **Priority**: P0 | **Duration**: 3 days
-**Design Doc**: [`design_docs/20251005/M-R4_recursion.md`](../20251005/M-R4_recursion.md)
+**Design Doc**: [`design_docs/implemented/v0_3_0/M-R4_recursion.md`](../implemented/v0_3_0/M-R4_recursion.md)
 
 **Why**: Fundamental building block; blocks factorial, fibonacci, quicksort, tree traversal.
 
@@ -626,12 +626,14 @@ Add block expressions `{ e1; e2; ...; en }` that desugar to let-sequencing:
 
 ## Appendix: Design Documents
 
-All milestone design docs are in [`design_docs/20251005/`](../20251005/):
+### Implemented (v0.3.0-alpha1)
+1. **[M-R4_recursion.md](../implemented/v0_3_0/M-R4_recursion.md)** - ✅ COMPLETE: Recursion support with self/mutual recursion
 
-1. **[M-R4_recursion.md](../20251005/M-R4_recursion.md)** - Recursion support with self/mutual recursion
-2. **[M-R7_type_fixes.md](../20251005/M-R7_type_fixes.md)** - Integral type class and float comparison fix
-3. **[M-R5_records.md](../20251005/M-R5_records.md)** - Records with row polymorphism
-4. **[M-R6_clock_net_effects.md](../20251005/M-R6_clock_net_effects.md)** - Clock and Net effects
+### Planned (v0.3.0)
+2. **[M-R8_block_expressions.md](../20251005/M-R8_block_expressions.md)** - Block syntax as syntactic sugar (NEW)
+3. **[M-R7_type_fixes.md](../20251005/M-R7_type_fixes.md)** - Integral type class and float comparison fix
+4. **[M-R5_records.md](../20251005/M-R5_records.md)** - Records with row polymorphism
+5. **[M-R6_clock_net_effects.md](../20251005/M-R6_clock_net_effects.md)** - Clock and Net effects
 
 Each doc contains:
 - Problem statement with root cause analysis
