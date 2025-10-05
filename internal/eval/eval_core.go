@@ -136,31 +136,58 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 }
 
 // EvalLetRecBindings evaluates a LetRec and returns its bindings without evaluating the body
+//
+// This uses the same 3-phase RefCell algorithm as evalCoreLetRec to ensure proper
+// recursion support in module code. The algorithm:
+//  1. Pre-allocate RefCell indirection cells for all bindings
+//  2. Evaluate RHS under recursive environment (lambdas safe, non-lambdas strict)
+//  3. Return initialized values from cells
+//
+// This is called by the module runtime when loading module declarations.
 func (e *CoreEvaluator) EvalLetRecBindings(letrec *core.LetRec) (map[string]Value, error) {
-	// Create new environment for recursive bindings
-	newEnv := e.env.NewChildEnvironment()
+	// Phase 1: Pre-allocate indirection cells and extend environment
+	recEnv := e.env.NewChildEnvironment()
+	cells := make(map[string]*RefCell, len(letrec.Bindings))
 
-	// First pass: create placeholders for recursive references
 	for _, binding := range letrec.Bindings {
-		newEnv.Set(binding.Name, &UnitValue{}) // Placeholder
+		cell := &RefCell{} // Uninitialized cell
+		cells[binding.Name] = cell
+		recEnv.Set(binding.Name, &IndirectValue{Cell: cell})
 	}
 
-	// Second pass: evaluate bindings in the recursive environment
+	// Phase 2: Evaluate RHS under recursive environment
 	oldEnv := e.env
-	e.env = newEnv
+	e.env = recEnv
+	defer func() { e.env = oldEnv }()
 
-	bindings := make(map[string]Value)
+	bindings := make(map[string]Value, len(letrec.Bindings))
 	for _, binding := range letrec.Bindings {
+		// Optimize for lambda RHS: build closure immediately (safe, body executes later)
+		if lam, ok := isLambda(binding.Value); ok {
+			fv, err := e.buildClosure(lam, recEnv)
+			if err != nil {
+				return nil, err
+			}
+			cells[binding.Name].Val = fv
+			cells[binding.Name].Init = true
+			bindings[binding.Name] = fv
+			continue
+		}
+
+		// Non-lambda RHS: strict evaluation with cycle detection
+		cells[binding.Name].Visiting = true
 		val, err := e.evalCore(binding.Value)
+		cells[binding.Name].Visiting = false
 		if err != nil {
-			e.env = oldEnv
 			return nil, err
 		}
-		newEnv.Set(binding.Name, val)
+
+		cells[binding.Name].Val = val
+		cells[binding.Name].Init = true
 		bindings[binding.Name] = val
 	}
 
-	e.env = oldEnv
+	// Phase 3: Return bindings (cells are already in environment)
 	return bindings, nil
 }
 
