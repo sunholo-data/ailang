@@ -105,7 +105,8 @@ func runEval() {
 			continue
 		}
 
-		fmt.Printf("  %s Generated %d tokens\n", green("✓"), result.Tokens)
+		fmt.Printf("  %s Generated %d output tokens (%d input + %d output)\n",
+			green("✓"), result.OutputTokens, result.InputTokens, result.OutputTokens)
 
 		// Get runner
 		runner, err := eval_harness.GetRunner(lang, spec)
@@ -155,16 +156,27 @@ func runEval() {
 			}
 		}
 
-		fmt.Printf("  Duration: %dms\n", runResult.Duration.Milliseconds())
+		// Display timing breakdown
+		totalMs := runResult.Duration.Milliseconds()
+		if runResult.CompileTime > 0 || runResult.ExecuteTime > 0 {
+			fmt.Printf("  Duration: %dms (compile: %dms, execute: %dms)\n",
+				totalMs, runResult.CompileTime.Milliseconds(), runResult.ExecuteTime.Milliseconds())
+		} else {
+			fmt.Printf("  Duration: %dms (total process time)\n", totalMs)
+		}
 
 		// Create metrics
 		metrics := eval_harness.NewRunMetrics(spec.ID, lang, *model, *seed)
-		metrics.Tokens = result.Tokens
-		metrics.CostUSD = eval_harness.CalculateCost(*model, result.Tokens)
+		metrics.InputTokens = result.InputTokens
+		metrics.OutputTokens = result.OutputTokens
+		metrics.TotalTokens = result.TotalTokens
+		metrics.CostUSD = eval_harness.CalculateCost(*model, result.TotalTokens)
 		metrics.CompileOk = runResult.CompileOk
 		metrics.RuntimeOk = runResult.RuntimeOk
 		metrics.StdoutOk = runResult.StdoutOk
 		metrics.DurationMs = runResult.Duration.Milliseconds()
+		metrics.CompileMs = runResult.CompileTime.Milliseconds()
+		metrics.ExecuteMs = runResult.ExecuteTime.Milliseconds()
 		metrics.ErrorCategory = errorCategory
 		metrics.Stderr = runResult.Stderr
 		metrics.Code = result.Code

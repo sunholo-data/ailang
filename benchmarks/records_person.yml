@@ -1,0 +1,23 @@
+id: records_person
+description: "Record types with field access and updates"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+prompt_files:
+  ailang: "prompts/v0.3.0.md"
+  python: "prompts/python.md"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a person record/object with fields: name (string), age (int), city (string)
+  2. Creates TWO persons:
+     - Alice: name="Alice", age=30, city="NYC"
+     - Bob: name="Bob", age=25, city="SF"
+  3. Prints both persons in this exact format (one per line):
+     "{name}, {age}, {city}"
+
+  Output only the code for <LANG>, no explanations.
+expected_stdout: |
+  Alice, 30, NYC
+  Bob, 25, SF

@@ -97,9 +97,11 @@ func (a *AIAgent) callOpenAI(ctx context.Context, prompt string) (*GenerateResul
 	code := apiResp.Choices[0].Message.Content
 
 	return &GenerateResult{
-		Code:   extractCodeFromMarkdown(code),
-		Tokens: apiResp.Usage.TotalTokens,
-		Model:  a.model,
+		Code:         extractCodeFromMarkdown(code),
+		InputTokens:  apiResp.Usage.PromptTokens,
+		OutputTokens: apiResp.Usage.CompletionTokens,
+		TotalTokens:  apiResp.Usage.TotalTokens,
+		Model:        a.model,
 	}, nil
 }
 

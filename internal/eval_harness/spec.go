@@ -9,17 +9,18 @@ import (
 
 // BenchmarkSpec defines a single benchmark task
 type BenchmarkSpec struct {
-	ID           string   `yaml:"id"`
-	Description  string   `yaml:"description"`
-	Languages    []string `yaml:"languages"`
-	Entrypoint   string   `yaml:"entrypoint"`
-	Caps         []string `yaml:"caps"`
-	Prompt       string   `yaml:"prompt"`      // Inline prompt text
-	PromptFile   string   `yaml:"prompt_file"` // Path to prompt file (relative to repo root)
-	TaskPrompt   string   `yaml:"task_prompt"` // Task-specific prompt appended after base prompt
-	ExpectedOut  string   `yaml:"expected_stdout"`
-	Difficulty   string   `yaml:"difficulty"`
-	ExpectedGain string   `yaml:"expected_gain"`
+	ID           string            `yaml:"id"`
+	Description  string            `yaml:"description"`
+	Languages    []string          `yaml:"languages"`
+	Entrypoint   string            `yaml:"entrypoint"`
+	Caps         []string          `yaml:"caps"`
+	Prompt       string            `yaml:"prompt"`       // Inline prompt text (language-agnostic)
+	PromptFiles  map[string]string `yaml:"prompt_files"` // Language-specific prompt files: {ailang: "prompts/v0.3.0.md", python: "prompts/python.md"}
+	PromptFile   string            `yaml:"prompt_file"`  // DEPRECATED: Use prompt_files instead
+	TaskPrompt   string            `yaml:"task_prompt"`  // Task-specific prompt appended after base prompt
+	ExpectedOut  string            `yaml:"expected_stdout"`
+	Difficulty   string            `yaml:"difficulty"`
+	ExpectedGain string            `yaml:"expected_gain"`
 }
 
 // LoadSpec loads a benchmark spec from a YAML file
@@ -42,28 +43,16 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		return nil, fmt.Errorf("spec missing required field: languages")
 	}
 
-	// Load prompt from file if specified
-	if spec.PromptFile != "" {
-		promptData, err := os.ReadFile(spec.PromptFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read prompt file %s: %w", spec.PromptFile, err)
-		}
-		spec.Prompt = string(promptData)
-	}
-
-	// Append task-specific prompt if specified
-	if spec.TaskPrompt != "" {
-		if spec.Prompt != "" {
-			spec.Prompt = spec.Prompt + "\n\n" + spec.TaskPrompt
-		} else {
-			spec.Prompt = spec.TaskPrompt
+	// Backward compatibility: if prompt_file is specified without prompt_files, apply to all languages
+	if spec.PromptFile != "" && spec.PromptFiles == nil {
+		spec.PromptFiles = make(map[string]string)
+		for _, lang := range spec.Languages {
+			spec.PromptFiles[lang] = spec.PromptFile
 		}
 	}
 
-	// Now validate that we have a prompt
-	if spec.Prompt == "" {
-		return nil, fmt.Errorf("spec missing prompt (must specify either 'prompt', 'prompt_file', or 'task_prompt')")
-	}
+	// Note: We don't load prompts here anymore - they're loaded per-language in PromptForLanguage()
+	// This allows each language to have its own base prompt file
 
 	return &spec, nil
 }
@@ -78,9 +67,38 @@ func (s *BenchmarkSpec) SupportsLanguage(lang string) bool {
 	return false
 }
 
-// PromptForLanguage returns the prompt with <LANG> replaced by the target language
+// PromptForLanguage returns the prompt with language-specific base prompt + task prompt
 func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
-	// Normalize language names
+	var basePrompt string
+
+	// Load language-specific prompt file if available
+	if s.PromptFiles != nil {
+		if promptFile, ok := s.PromptFiles[lang]; ok {
+			data, err := os.ReadFile(promptFile)
+			if err == nil {
+				basePrompt = string(data)
+			}
+			// If file not found, fall back to inline prompt or default
+		}
+	}
+
+	// If no language-specific prompt file, use inline prompt or default
+	if basePrompt == "" {
+		if s.Prompt != "" {
+			basePrompt = s.Prompt
+		} else {
+			// Default minimal prompt for languages without specific guidance
+			basePrompt = getDefaultPrompt(lang)
+		}
+	}
+
+	// Append task-specific prompt
+	fullPrompt := basePrompt
+	if s.TaskPrompt != "" {
+		fullPrompt = fullPrompt + "\n\n## Task\n\n" + s.TaskPrompt
+	}
+
+	// Normalize language names for <LANG> placeholder
 	langName := lang
 	switch lang {
 	case "python":
@@ -89,8 +107,20 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 		langName = "AILANG"
 	}
 
-	// Simple string replacement
-	return replaceAll(s.Prompt, "<LANG>", langName)
+	// Replace <LANG> placeholder
+	return replaceAll(fullPrompt, "<LANG>", langName)
+}
+
+// getDefaultPrompt returns a minimal default prompt for a language
+func getDefaultPrompt(lang string) string {
+	switch lang {
+	case "python":
+		return "You are an expert Python programmer. Write clean, idiomatic Python code."
+	case "ailang":
+		return "You are writing code in AILANG, a functional programming language."
+	default:
+		return "Write clean, idiomatic code in the specified language."
+	}
 }
 
 // replaceAll is a simple string replacement function

@@ -64,12 +64,16 @@ func TestMetricsLogger(t *testing.T) {
 		Lang:          "python",
 		Model:         "gpt-4",
 		Seed:          42,
-		Tokens:        100,
+		InputTokens:   50,
+		OutputTokens:  50,
+		TotalTokens:   100,
 		CostUSD:       0.003,
 		CompileOk:     true,
 		RuntimeOk:     true,
 		StdoutOk:      true,
 		DurationMs:    150,
+		CompileMs:     50,
+		ExecuteMs:     100,
 		ErrorCategory: ErrorCategoryNone,
 		Timestamp:     time.Now(),
 	}
@@ -105,8 +109,16 @@ func TestMetricsLogger(t *testing.T) {
 		t.Errorf("Expected ID 'test', got '%s'", loaded.ID)
 	}
 
-	if loaded.Tokens != 100 {
-		t.Errorf("Expected tokens 100, got %d", loaded.Tokens)
+	if loaded.TotalTokens != 100 {
+		t.Errorf("Expected total tokens 100, got %d", loaded.TotalTokens)
+	}
+
+	if loaded.InputTokens != 50 {
+		t.Errorf("Expected input tokens 50, got %d", loaded.InputTokens)
+	}
+
+	if loaded.OutputTokens != 50 {
+		t.Errorf("Expected output tokens 50, got %d", loaded.OutputTokens)
 	}
 }
 

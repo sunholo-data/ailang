@@ -2,6 +2,101 @@
 
 ## [Unreleased v0.3.0] - TBD
 
+## [v0.3.0-alpha3] - 2025-10-05
+
+### Added - M-R5: Records & Row Polymorphism ✅ COMPLETE
+- **Record subsumption** for flexible field access
+  - Functions accepting `{id: int}` now work with `{id: int, name: string, email: string}`
+  - Field access uses open records: `{x: α | ρ}` unifies with larger closed records
+  - Enables polymorphic functions over records with common fields
+- **TRecord2 with row polymorphism** (opt-in via `AILANG_RECORDS_V2=1`)
+  - Proper row types with tail variables: `{x: int, y: bool | ρ}`
+  - Row unification with occurs check prevents infinite types
+  - Order-independent field matching: `{x:int,y:bool}` ~ `{y:bool,x:int}`
+  - Nested record openness: `{u:{id:int | ρ}}` ~ `{u:{id:int,email:string}}`
+- **TRecordOpen compatibility shim** for Day 1 subsumption
+  - Bridges old TRecord and new TRecord2 systems
+  - Enables subsumption without breaking existing code
+- **Enhanced error messages** (TC_REC_001 - TC_REC_004)
+  - TC_REC_001: Missing field with available field suggestions
+  - TC_REC_002: Duplicate field in literal with positions
+  - TC_REC_003: Row occurs check with infinite type prevention
+  - TC_REC_004: Field type mismatch with clear expected vs actual
+- **New helper functions** in `internal/types/unification.go`:
+  - `RecordHasField()` - Check field existence across record types
+  - `RecordFieldType()` - Get field type safely
+  - `IsOpenRecord()` - Detect open vs closed records
+  - `TRecordToTRecord2()`, `TRecord2ToTRecord()` - Bidirectional conversion
+- **Row unifier with occurs check**
+  - `unifyRows()` handles field-by-field unification
+  - Prevents `ρ ~ {x: τ | ρ}` infinite types
+  - Proper tail unification with commutativity
+- **2 new example files**:
+  - `examples/micro_record_person.ail` - Simple field access and aliasing
+  - `examples/test_record_subsumption.ail` - Demonstrates subsumption in action
+- **16 new unit tests** covering:
+  - TRecord2 ~ TRecord2 unification (4 cases)
+  - TRecord ↔ TRecord2 conversion (3 cases)
+  - Row occurs check (1 case)
+  - Open-closed interactions (6 cases)
+  - Order independence, nested openness, field mismatches
+
+### Changed
+- **Typechecker emits TRecord2** when `AILANG_RECORDS_V2=1` is set
+  - `inferRecordLiteral()` creates TRecord2 for record literals
+  - Default still uses TRecord for backwards compatibility
+  - Plan: Enable by default in v0.3.1, remove TRecord in v0.4.0
+- **Field access uses TRecordOpen** for subsumption
+  - `inferRecordAccess()` emits open records instead of closed
+  - Allows functions to work with record subsets
+
+### Fixed
+- **Record field access** now works with nested records
+  - Before: `{ceo: {name: "Jane"}}.ceo.name` → type error
+  - After: Correctly types and evaluates to "Jane" ✅
+- **Subsumption** enables polymorphic record functions
+  - Before: Functions required exact field matches
+  - After: Functions work with any record containing required fields ✅
+
+### Impact
+- **Lines of code**: ~670 total
+  - Day 1: ~198 LOC (TRecordOpen, subsumption, helpers)
+  - Day 2: ~280 LOC (TRecord2 unification, row unifier, conversion, occurs check, tests)
+  - Day 3: ~192 LOC (flag support, error codes, examples, tests)
+- **Examples**: 48/66 passing (72.7%, up from 40)
+  - +9 fixed from subsumption (Day 1)
+  - +2 new examples (Day 3)
+- **Tests**: 16 new unit tests, all passing
+- **Files modified**: 8 files
+  - `internal/types/types.go` - TRecordOpen type
+  - `internal/types/typechecker_core.go` - useRecordsV2 flag, inferRecordLiteral
+  - `internal/types/unification.go` - Subsumption, TRecord2, unifyRows, helpers
+  - `internal/types/errors.go` - TC_REC_001-004 error codes
+  - `internal/types/record_unification_test.go` - 16 unit tests (NEW)
+  - `examples/micro_record_person.ail` - (NEW)
+  - `examples/test_record_subsumption.ail` - (NEW)
+  - `examples/STATUS.md` - Updated counts
+
+### Migration Guide
+**Opt-in to TRecord2**:
+```bash
+export AILANG_RECORDS_V2=1
+ailang run examples/micro_record_person.ail
+```
+
+**Using subsumption**:
+```ailang
+-- Define function with minimal fields
+func printId(entity: {id: int}) -> () ! {IO} {
+  println(show(entity.id))
+}
+
+-- Works with any record containing 'id'!
+printId({id: 42})                           -- ✅
+printId({id: 100, name: "Alice"})          -- ✅
+printId({id: 200, name: "Bob", age: 30})   -- ✅
+```
+
 ## [v0.3.0-alpha2] - 2025-10-05
 
 ### Added - M-R8: Block Expressions ✅ COMPLETE

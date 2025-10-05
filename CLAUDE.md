@@ -8,16 +8,26 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 - Deterministic execution for AI training data generation (planned)
 - File extension: `.ail`
 
-## Current Status: v0.3.0-alpha2 (Recursion + Blocks COMPLETE ✅)
+## Current Status: v0.3.0-alpha3 (Records & Row Polymorphism COMPLETE ✅)
+
+**✅ COMPLETE (v0.3.0-alpha3):**
+- ✅ **M-R5: Records & Row Polymorphism** (~670 LOC) - COMPLETE
+  - Record subsumption for flexible field access
+  - TRecordOpen compatibility shim for Day 1 wins
+  - TRecord2 with full row polymorphism (opt-in via `AILANG_RECORDS_V2=1`)
+  - Row unification with occurs check
+  - Helper functions and error codes (TC_REC_001-004)
+  - 16 new unit tests, all passing ✅
+  - Fixed 11 examples (9 from subsumption + 2 new) ✅
 
 **✅ COMPLETE (v0.3.0-alpha2):**
-- ✅ **M-R4: Recursion Support** (~1,780 LOC) - COMPLETE
+- ✅ **M-R4: Recursion Support** (~1,780 LOC)
   - RefCell-based recursion (OCaml/Haskell style)
   - Self-recursive and mutual recursion
   - Depth guard (configurable limit)
   - Works in module runtime ✅
 
-- ✅ **M-R8: Block Expressions** (~10 LOC fix) - COMPLETE
+- ✅ **M-R8: Block Expressions** (~10 LOC fix)
   - Block syntax `{ e1; e2; e3 }` for sequencing
   - Desugars to let chains
   - Works with recursion ✅
@@ -40,10 +50,13 @@ AILANG is an AI-first programming language designed for AI-assisted development.
   - Sandbox support (`AILANG_FS_SANDBOX`)
 
 **📊 Test Status:**
-- Unit tests: 66/66 passing (runtime + effects)
-- Example files: 32/51 passing (62.7%)
-- All effect system examples working
-- All type class examples working
+- Unit tests: 80+ passing (runtime + effects + records)
+- Example files: 48/66 passing (72.7%)
+- All record subsumption examples working ✅
+- All effect system examples working ✅
+- All type class examples working ✅
+- All recursion examples working ✅
+- All block expression examples working ✅
 
 **✅ COMPLETE (v0.1.0):**
 - Hindley-Milner type inference with let-polymorphism

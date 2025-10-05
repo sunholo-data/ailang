@@ -7,13 +7,13 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.2.1 (Module Execution + Effects)
+## Current Version: v0.3.0-alpha3 (Records & Row Polymorphism)
 
-**🎯 What Works**: Module execution is fully functional! Complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, **module execution runtime** (loading, evaluation, entrypoint invocation), **effect system** (IO, FS with capability security), cross-module imports, and pattern matching with exhaustiveness checking.
+**🎯 What Works**: Full module execution, **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
-**✅ Major Milestone**: You can now run module files with `ailang run --caps IO,FS module.ail`. The interpreter intelligently selects entrypoints and auto-detects required capabilities. Effect system with capability-based security is working.
+**✅ Major Milestone**: Records now support subsumption! Functions accepting `{id: int}` work with `{id: int, name: string, ...}`. Row polymorphism available via `AILANG_RECORDS_V2=1`. Nested record field access works perfectly.
 
-**📊 Test Coverage**: 42/53 examples passing (79.2%) - exceeded v0.2.0 target of 35! All effect system, type class, ADT, and module execution examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+**📊 Test Coverage**: 48/66 examples passing (72.7%) - up from 40! All record subsumption, effect system, type class, ADT, recursion, and block expression examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
 
 **📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
 

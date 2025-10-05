@@ -286,3 +286,94 @@ func (e ErrorList) Error() string {
 	}
 	return strings.Join(parts, "\n")
 }
+
+// Record-specific error codes (M-R5 Day 3.3)
+const (
+	TC_REC_001 = "TC_REC_001" // Missing field
+	TC_REC_002 = "TC_REC_002" // Duplicate field in literal
+	TC_REC_003 = "TC_REC_003" // Row occurs check
+	TC_REC_004 = "TC_REC_004" // Field type mismatch
+)
+
+// NewMissingFieldError creates a TC_REC_001 error
+func NewMissingFieldError(field string, recordType Type, position string) *TypeCheckError {
+	// Get available fields for suggestion
+	availableFields := getRecordFields(recordType)
+	sort.Strings(availableFields)
+
+	msg := fmt.Sprintf("Field '%s' not found in record", field)
+	if len(availableFields) > 0 {
+		msg += fmt.Sprintf(". Available fields: %s", strings.Join(availableFields, ", "))
+	}
+
+	return &TypeCheckError{
+		Kind:       MissingFieldError,
+		Position:   position,
+		Message:    fmt.Sprintf("%s: %s", TC_REC_001, msg),
+		Actual:     recordType,
+		Suggestion: fmt.Sprintf("Check for typos. Valid fields: %s", strings.Join(availableFields, ", ")),
+	}
+}
+
+// NewDuplicateFieldError creates a TC_REC_002 error
+func NewDuplicateFieldError(field string, pos1, pos2 string) *TypeCheckError {
+	return &TypeCheckError{
+		Kind:       TypeErrorKind("duplicate_field"),
+		Position:   pos2,
+		Message:    fmt.Sprintf("%s: Duplicate field '%s' in record literal (first defined at %s)", TC_REC_002, field, pos1),
+		Suggestion: "Remove the duplicate field definition",
+	}
+}
+
+// NewRowOccursError creates a TC_REC_003 error
+func NewRowOccursError(rowVar string, inType Type, position string) *TypeCheckError {
+	return &TypeCheckError{
+		Kind:       OccursCheckError,
+		Position:   position,
+		Message:    fmt.Sprintf("%s: Row variable '%s' occurs in %s (infinite type)", TC_REC_003, rowVar, inType.String()),
+		Actual:     inType,
+		Suggestion: "This would create an infinite type. Check your type annotations.",
+	}
+}
+
+// NewFieldTypeMismatchError creates a TC_REC_004 error
+func NewFieldTypeMismatchError(field string, expected, actual Type, position string) *TypeCheckError {
+	return &TypeCheckError{
+		Kind:     TypeMismatchError,
+		Position: position,
+		Message:  fmt.Sprintf("%s: Field '%s' type mismatch", TC_REC_004, field),
+		Expected: expected,
+		Actual:   actual,
+		Suggestion: fmt.Sprintf("Field '%s' expects %s, but got %s",
+			field, expected.String(), actual.String()),
+	}
+}
+
+// Helper: Get all field names from a record type
+func getRecordFields(t Type) []string {
+	switch r := t.(type) {
+	case *TRecord:
+		fields := make([]string, 0, len(r.Fields))
+		for name := range r.Fields {
+			fields = append(fields, name)
+		}
+		return fields
+	case *TRecordOpen:
+		fields := make([]string, 0, len(r.Fields))
+		for name := range r.Fields {
+			fields = append(fields, name)
+		}
+		return fields
+	case *TRecord2:
+		if r.Row != nil {
+			fields := make([]string, 0, len(r.Row.Labels))
+			for name := range r.Row.Labels {
+				fields = append(fields, name)
+			}
+			return fields
+		}
+		return []string{}
+	default:
+		return []string{}
+	}
+}

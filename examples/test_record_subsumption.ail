@@ -1,0 +1,20 @@
+-- Test record subsumption: accessing subset of fields
+module examples/test_record_subsumption
+
+import std/io (println)
+
+-- Function only needs 'id' field, works with records that have more fields
+export func getId(record: {id: int}) -> int {
+  record.id
+}
+
+export func main() -> () ! {IO} {
+  -- Record with just 'id'
+  let simple = {id: 42};
+
+  -- Record with 'id' and 'name' - subsumption allows this
+  let detailed = {id: 100, name: "Entity"};
+
+  println(show(getId(simple)));
+  println(show(getId(detailed)))
+}

@@ -75,9 +75,11 @@ func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateRes
 
 // GenerateResult contains the result of code generation
 type GenerateResult struct {
-	Code   string
-	Tokens int
-	Model  string
+	Code         string
+	InputTokens  int // Prompt tokens (input to LLM)
+	OutputTokens int // Completion tokens (generated code)
+	TotalTokens  int // Total tokens (for billing)
+	Model        string
 }
 
 // generateOpenAI generates code using OpenAI API
@@ -179,9 +181,13 @@ func NewMockAIAgent(model, code string) *MockAIAgent {
 
 // GenerateCode returns the pre-configured mock code
 func (m *MockAIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
+	outputTokens := len(m.code) / 4    // Rough estimate: ~4 chars per token
+	inputTokens := len(prompt) / 4      // Rough estimate: ~4 chars per token
 	return &GenerateResult{
-		Code:   m.code,
-		Tokens: len(m.code) / 4, // Rough estimate
-		Model:  m.model,
+		Code:         m.code,
+		InputTokens:  inputTokens,
+		OutputTokens: outputTokens,
+		TotalTokens:  inputTokens + outputTokens,
+		Model:        m.model,
 	}, nil
 }

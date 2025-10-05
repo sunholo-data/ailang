@@ -109,12 +109,13 @@ func (a *AIAgent) callGemini(ctx context.Context, prompt string) (*GenerateResul
 	}
 
 	code := apiResp.Candidates[0].Content.Parts[0].Text
-	totalTokens := apiResp.UsageMetadata.TotalTokenCount
 
 	return &GenerateResult{
-		Code:   extractCodeFromMarkdown(code),
-		Tokens: totalTokens,
-		Model:  a.model,
+		Code:         extractCodeFromMarkdown(code),
+		InputTokens:  apiResp.UsageMetadata.PromptTokenCount,
+		OutputTokens: apiResp.UsageMetadata.CandidatesTokenCount,
+		TotalTokens:  apiResp.UsageMetadata.TotalTokenCount,
+		Model:        a.model,
 	}, nil
 }
 

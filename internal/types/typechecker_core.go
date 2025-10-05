@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -13,6 +14,7 @@ type CoreTypeChecker struct {
 	instanceEnv         *InstanceEnv      // Type class instances
 	defaultingConfig    *DefaultingConfig // Numeric defaulting configuration
 	debugMode           bool              // Enable debug output
+	useRecordsV2        bool              // Emit TRecord2 instead of TRecord (AILANG_RECORDS_V2)
 	errors              []error
 	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
 	globalTypes         map[string]*Scheme             // Global types for imports (module.name -> Scheme)
@@ -74,10 +76,14 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 	instanceEnv.SetDefault("Num", &TCon{Name: "int"})
 	instanceEnv.SetDefault("Fractional", &TCon{Name: "float"})
 
+	// Check environment flag for records v2
+	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+
 	return &CoreTypeChecker{
 		instanceEnv:         instanceEnv,
 		defaultingConfig:    NewDefaultingConfig(), // Standard defaulting config
 		debugMode:           false,
+		useRecordsV2:        useRecordsV2,
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
@@ -87,10 +93,14 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 
 // NewCoreTypeCheckerWithInstances creates a type checker with preloaded instances
 func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
+	// Check environment flag for records v2
+	useRecordsV2 := os.Getenv("AILANG_RECORDS_V2") == "1"
+
 	return &CoreTypeChecker{
 		instanceEnv:         instances,
 		defaultingConfig:    NewDefaultingConfig(),
 		debugMode:           false,
+		useRecordsV2:        useRecordsV2,
 		errors:              []error{},
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
@@ -1157,8 +1167,8 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 		leftType := getType(leftNode)
 		rightType := getType(rightNode)
 
-		// DEBUG output
-		fmt.Printf("DEBUG ++ operator: left=%T(%v), right=%T(%v)\n", leftType, leftType, rightType, rightType)
+		// DEBUG output (commented out - pollutes output)
+		//fmt.Printf("DEBUG ++ operator: left=%T(%v), right=%T(%v)\n", leftType, leftType, rightType, rightType)
 
 		// Check type patterns
 		_, leftIsList := leftType.(*TList)
@@ -1389,14 +1399,25 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 		allEffects = append(allEffects, getEffectRow(valueNode))
 	}
 
-	// Create record type
-	recordType := &TRecord{
-		Fields: fieldTypes,
-		Row: &Row{
-			Kind:   RecordRow,
-			Labels: fieldTypes,
-			Tail:   nil, // Closed record for now
-		},
+	// Create record type - use TRecord2 if flag is set
+	var recordType Type
+	if tc.useRecordsV2 {
+		recordType = &TRecord2{
+			Row: &Row{
+				Kind:   RecordRow,
+				Labels: fieldTypes,
+				Tail:   nil, // Closed record literal
+			},
+		}
+	} else {
+		recordType = &TRecord{
+			Fields: fieldTypes,
+			Row: &Row{
+				Kind:   RecordRow,
+				Labels: fieldTypes,
+				Tail:   nil, // Closed record for now
+			},
+		}
 	}
 
 	return &typedast.TypedRecord{
@@ -1423,14 +1444,11 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 	fieldType := ctx.freshTypeVar()
 	rowVar := &RowVar{Name: "r", Kind: RecordRow}
 
-	// Expected record type with field
-	expectedRecord := &TRecord{
+	// Expected record type with field - use TRecordOpen for subsumption
+	// This allows {id:int} to unify with {id:int, email:string}
+	expectedRecord := &TRecordOpen{
 		Fields: map[string]Type{acc.Field: fieldType},
-		Row: &Row{
-			Kind:   RecordRow,
-			Labels: map[string]Type{acc.Field: fieldType},
-			Tail:   rowVar, // Row polymorphic
-		},
+		Row:    rowVar, // Mark as open for unknown fields
 	}
 
 	ctx.addConstraint(TypeEq{

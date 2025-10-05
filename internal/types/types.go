@@ -235,6 +235,62 @@ func (t *TRecord) Substitute(subs map[string]Type) Type {
 	return &TRecord{Fields: fields, Row: row}
 }
 
+// TRecordOpen marks an open record for subsumption (field access)
+// Example: {x: α | ρ} where we only know field 'x' exists
+// This is a compatibility shim for M-R5; will be replaced by TRecord2 in Day 2
+type TRecordOpen struct {
+	Fields map[string]Type // Known fields (subset)
+	Row    Type            // Row variable for unknown fields
+}
+
+func (t *TRecordOpen) String() string {
+	var fields []string
+	for name, typ := range t.Fields {
+		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
+	}
+	if t.Row != nil {
+		fields = append(fields, fmt.Sprintf("| %s", t.Row.String()))
+	}
+	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
+}
+
+func (t *TRecordOpen) Equals(other Type) bool {
+	if o, ok := other.(*TRecordOpen); ok {
+		// Must have same fields
+		if len(t.Fields) != len(o.Fields) {
+			return false
+		}
+		for name, typ := range t.Fields {
+			if oTyp, ok := o.Fields[name]; !ok || !typ.Equals(oTyp) {
+				return false
+			}
+		}
+		// Check row variables
+		if t.Row == nil && o.Row == nil {
+			return true
+		}
+		if t.Row != nil && o.Row != nil {
+			return t.Row.Equals(o.Row)
+		}
+		return false
+	}
+	return false
+}
+
+func (t *TRecordOpen) Substitute(subs map[string]Type) Type {
+	fields := make(map[string]Type)
+	for name, typ := range t.Fields {
+		fields[name] = typ.Substitute(subs)
+	}
+
+	var row Type
+	if t.Row != nil {
+		row = t.Row.Substitute(subs)
+	}
+
+	return &TRecordOpen{Fields: fields, Row: row}
+}
+
 // TApp represents type application (e.g., Maybe[int])
 type TApp struct {
 	Constructor Type

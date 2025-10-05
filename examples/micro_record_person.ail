@@ -1,0 +1,17 @@
+-- Micro example: Record field access and aliasing
+module examples/micro_record_person
+
+import std/io (println)
+
+-- Simple person record with field access
+export func describe(person: {name: string, age: int}) -> string {
+  person.name
+}
+
+export func main() -> () ! {IO} {
+  let alice = {name: "Alice", age: 30};
+  let bob = {name: "Bob", age: 25};
+
+  println(describe(alice));
+  println(describe(bob))
+}

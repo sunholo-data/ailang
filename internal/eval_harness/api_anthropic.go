@@ -92,11 +92,12 @@ func (a *AIAgent) callAnthropic(ctx context.Context, prompt string) (*GenerateRe
 	}
 
 	code := apiResp.Content[0].Text
-	totalTokens := apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens
 
 	return &GenerateResult{
-		Code:   extractCodeFromMarkdown(code),
-		Tokens: totalTokens,
-		Model:  a.model,
+		Code:         extractCodeFromMarkdown(code),
+		InputTokens:  apiResp.Usage.InputTokens,
+		OutputTokens: apiResp.Usage.OutputTokens,
+		TotalTokens:  apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens,
+		Model:        a.model,
 	}, nil
 }
