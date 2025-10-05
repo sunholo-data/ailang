@@ -209,13 +209,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-43%20passing%2014%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-46%20passing%2014%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-05 16:55:57 UTC*
+*Last updated: 2025-10-05 17:35:42 UTC*
 
-**Summary:** 43 passed, 14 failed, 4 skipped (Total: 61)
+**Summary:** 46 passed, 14 failed, 4 skipped (Total: 64)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -223,6 +223,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `adt_simple.ail` | ✅ Pass |  |
 | `arithmetic.ail` | ✅ Pass |  |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
+| `block_recursion.ail` | ✅ Pass |  |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demos/hello_io.ail` | ✅ Pass |  |
@@ -237,6 +238,8 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `hello.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `micro_block_if.ail` | ✅ Pass |  |
+| `micro_block_seq.ail` | ✅ Pass |  |
 | `micro_io_echo.ail` | ✅ Pass |  |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
