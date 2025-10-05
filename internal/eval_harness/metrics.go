@@ -14,20 +14,20 @@ type RunMetrics struct {
 	Lang          string    `json:"lang"`
 	Model         string    `json:"model"`
 	Seed          int64     `json:"seed"`
-	InputTokens   int       `json:"input_tokens"`   // Prompt tokens (recorded but not primary metric)
-	OutputTokens  int       `json:"output_tokens"`  // Generated code tokens (PRIMARY METRIC)
-	TotalTokens   int       `json:"total_tokens"`   // Total for billing
+	InputTokens   int       `json:"input_tokens"`  // Prompt tokens (recorded but not primary metric)
+	OutputTokens  int       `json:"output_tokens"` // Generated code tokens (PRIMARY METRIC)
+	TotalTokens   int       `json:"total_tokens"`  // Total for billing
 	CostUSD       float64   `json:"cost_usd"`
 	CompileOk     bool      `json:"compile_ok"`
 	RuntimeOk     bool      `json:"runtime_ok"`
 	StdoutOk      bool      `json:"stdout_ok"`
-	DurationMs    int64     `json:"duration_ms"`     // Total time (startup + compile + execution)
-	CompileMs     int64     `json:"compile_ms"`      // Time spent in compilation (if separate)
-	ExecuteMs     int64     `json:"execute_ms"`      // Time spent in execution (if measurable)
-	ErrorCategory string    `json:"error_category"`  // compile_error | runtime_error | logic_error | none
+	DurationMs    int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
+	CompileMs     int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
+	ExecuteMs     int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	ErrorCategory string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
 	Stderr        string    `json:"stderr,omitempty"`
 	Timestamp     time.Time `json:"timestamp"`
-	Code          string    `json:"code,omitempty"`  // Generated code (optional, for debugging)
+	Code          string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 }
 
 // ErrorCategory constants

@@ -1,0 +1,5 @@
+id: float_eq
+languages: ["python", "ailang"]
+prompt: |
+  Write a <LANG> program that evaluates (0.0 == 0.0) and prints true or false.
+expected_stdout: "true"

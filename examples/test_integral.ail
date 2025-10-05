@@ -1,0 +1,9 @@
+-- Integration Test: Integral Type Class
+-- Tests that modulo operator works on integers
+-- Expected output: 2
+
+module examples/test_integral
+
+export func main() -> int {
+  5 % 3
+}

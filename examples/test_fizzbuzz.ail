@@ -1,0 +1,35 @@
+-- Integration Test: FizzBuzz
+-- Tests modulo (%) and equality (==) operators together
+-- Exercises: % operator, == operator, && operator, if-then-else
+
+module examples/test_fizzbuzz
+
+import std/io (println)
+
+export func fb(n: int) -> () ! {IO} {
+  let m3 = n % 3 == 0;
+  let m5 = n % 5 == 0;
+  if m3 && m5 then {
+    println("FizzBuzz")
+  } else {
+    if m3 then {
+      println("Fizz")
+    } else {
+      if m5 then {
+        println("Buzz")
+      } else {
+        println(show(n))
+      }
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  {
+    fb(1);
+    fb(3);
+    fb(5);
+    fb(15);
+    ()
+  }
+}

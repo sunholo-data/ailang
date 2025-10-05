@@ -80,6 +80,8 @@ func (br *BuiltinRegistry) registerArithmeticBuiltins() {
 // Builtins registered:
 //   - IO effect: _io_print, _io_println, _io_readLine
 //   - FS effect: _fs_readFile, _fs_writeFile, _fs_exists
+//   - Clock effect: _clock_now, _clock_sleep
+//   - Net effect: _net_httpGet, _net_httpPost
 func (br *BuiltinRegistry) registerEffectBuiltins() {
 	// IO effect builtins
 	br.builtins["_io_print"] = &eval.BuiltinFunction{
@@ -146,6 +148,52 @@ func (br *BuiltinRegistry) registerEffectBuiltins() {
 				return nil, fmt.Errorf("_fs_exists: no effect context available")
 			}
 			return effects.Call(ctx, "FS", "exists", args)
+		},
+	}
+
+	// Clock effect builtins
+	br.builtins["_clock_now"] = &eval.BuiltinFunction{
+		Name: "_clock_now",
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			ctx := br.getEffContext()
+			if ctx == nil {
+				return nil, fmt.Errorf("_clock_now: no effect context available")
+			}
+			return effects.Call(ctx, "Clock", "now", args)
+		},
+	}
+
+	br.builtins["_clock_sleep"] = &eval.BuiltinFunction{
+		Name: "_clock_sleep",
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			ctx := br.getEffContext()
+			if ctx == nil {
+				return nil, fmt.Errorf("_clock_sleep: no effect context available")
+			}
+			return effects.Call(ctx, "Clock", "sleep", args)
+		},
+	}
+
+	// Net effect builtins
+	br.builtins["_net_httpGet"] = &eval.BuiltinFunction{
+		Name: "_net_httpGet",
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			ctx := br.getEffContext()
+			if ctx == nil {
+				return nil, fmt.Errorf("_net_httpGet: no effect context available")
+			}
+			return effects.Call(ctx, "Net", "httpGet", args)
+		},
+	}
+
+	br.builtins["_net_httpPost"] = &eval.BuiltinFunction{
+		Name: "_net_httpPost",
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			ctx := br.getEffContext()
+			if ctx == nil {
+				return nil, fmt.Errorf("_net_httpPost: no effect context available")
+			}
+			return effects.Call(ctx, "Net", "httpPost", args)
 		},
 	}
 }

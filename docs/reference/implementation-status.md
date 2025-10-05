@@ -1,10 +1,10 @@
 # AILANG Implementation Status
 
-## Current Version: v0.2.1 (Module Execution + Effects)
+## Current Version: v0.3.0 (Clock & Net Effects + Type System Fixes)
 
-## Test Coverage: 24.8%
+## Test Coverage: 27.7%
 
-## Recent Milestone: v0.1.1 Module Runtime Infrastructure
+## Recent Milestone: v0.3.0 Clock & Net Effects (M-R6) + Type System Fixes (M-R7)
 
 **~1,594 LOC added: Complete module execution infrastructure (Phases 1-4)**
 

@@ -39,13 +39,19 @@ type EffOp func(ctx *EffContext, args []eval.Value) (eval.Value, error)
 //	Registry["IO"]["print"] = ioPrint
 //	Registry["IO"]["println"] = ioPrintln
 //	Registry["FS"]["readFile"] = fsReadFile
+//	Registry["Clock"]["now"] = clockNow
+//	Registry["Clock"]["sleep"] = clockSleep
+//	Registry["Net"]["httpGet"] = netHttpGet
+//	Registry["Net"]["httpPost"] = netHttpPost
 //
 // This registry is initialized at package load time with nested maps
 // pre-created, making it safe for concurrent reads and allowing
 // RegisterOp to work in init() functions.
 var Registry = map[string]map[string]EffOp{
-	"IO": {},
-	"FS": {},
+	"IO":    {},
+	"FS":    {},
+	"Clock": {},
+	"Net":   {},
 }
 
 // Call invokes an effect operation

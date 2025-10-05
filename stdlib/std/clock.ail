@@ -1,0 +1,13 @@
+module stdlib/std/clock
+
+-- Wrappers around Go builtins (_clock_now, _clock_sleep)
+-- Effects are tracked at the type level with ! {Clock}
+-- Using equation-form exports for thin wrappers
+
+-- now: Get current Unix timestamp in milliseconds
+-- Returns epoch time in production mode, virtual time in deterministic mode
+export func now() -> int ! {Clock} = _clock_now()
+
+-- sleep: Sleep for specified milliseconds
+-- Blocks in production mode, advances virtual time in deterministic mode
+export func sleep(ms: int) -> () ! {Clock} = _clock_sleep(ms)

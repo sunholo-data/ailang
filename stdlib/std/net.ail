@@ -1,0 +1,60 @@
+-- Standard library: Network operations
+-- Run with: ailang run --caps Net <file>
+
+module std/net
+
+-- HTTP GET request
+--
+-- Fetches content from an HTTP/HTTPS URL.
+--
+-- Security features:
+--   - HTTPS enforced by default (http:// requires --net-allow-http)
+--   - DNS rebinding prevention
+--   - IP blocking (localhost, private IPs, link-local)
+--   - Redirect validation (max 5 redirects)
+--   - Body size limits (5MB default)
+--   - Domain allowlist support
+--
+-- Args:
+--   url: String - The URL to fetch (must be https:// unless http allowed)
+--
+-- Returns:
+--   String - The response body
+--
+-- Errors:
+--   E_NET_CAP_MISSING - Net capability not granted
+--   E_NET_PROTOCOL_BLOCKED - Unsupported/blocked protocol
+--   E_NET_IP_BLOCKED - Blocked IP address (localhost/private/link-local)
+--   E_NET_DOMAIN_BLOCKED - Domain not in allowlist
+--   E_NET_DNS_REBINDING - DNS resolves to blocked IP
+--   E_NET_TOO_MANY_REDIRECTS - Exceeded redirect limit
+--   E_NET_BODY_TOO_LARGE - Response exceeds size limit
+--   E_NET_REQUEST_FAILED - HTTP request failed
+--
+-- Example:
+--   let html = httpGet("https://example.com")
+export func httpGet(url: string) -> string ! {Net} {
+  _net_httpGet(url)
+}
+
+-- HTTP POST request
+--
+-- Sends an HTTP POST request with the given body.
+-- Sets Content-Type: application/json by default.
+--
+-- Security features: Same as httpGet()
+--
+-- Args:
+--   url: String - The URL to POST to
+--   body: String - The request body (typically JSON)
+--
+-- Returns:
+--   String - The response body
+--
+-- Errors: Same as httpGet()
+--
+-- Example:
+--   let response = httpPost("https://api.example.com/data", "{\"key\": \"value\"}")
+export func httpPost(url: string, body: string) -> string ! {Net} {
+  _net_httpPost(url, body)
+}

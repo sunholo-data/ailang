@@ -221,7 +221,13 @@ Example entry:
 
 ## Language Syntax Reference
 
-### ✅ Working Syntax (v0.3.0-alpha2)
+**📖 When Writing AILANG Code:**
+If you (Claude or other AI) are writing AILANG code during development, refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
+- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md) (v0.3.0-alpha3 features)
+- This is the same prompt used in eval benchmarks and validated through multi-model testing
+- Covers syntax, limitations, common pitfalls, and working examples
+
+### ✅ Working Syntax (v0.3.0-alpha3)
 
 **Basic Expressions:**
 ```ailang

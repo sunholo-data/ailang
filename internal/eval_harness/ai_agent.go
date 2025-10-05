@@ -181,8 +181,8 @@ func NewMockAIAgent(model, code string) *MockAIAgent {
 
 // GenerateCode returns the pre-configured mock code
 func (m *MockAIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	outputTokens := len(m.code) / 4    // Rough estimate: ~4 chars per token
-	inputTokens := len(prompt) / 4      // Rough estimate: ~4 chars per token
+	outputTokens := len(m.code) / 4 // Rough estimate: ~4 chars per token
+	inputTokens := len(prompt) / 4  // Rough estimate: ~4 chars per token
 	return &GenerateResult{
 		Code:         m.code,
 		InputTokens:  inputTokens,

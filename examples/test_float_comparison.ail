@@ -1,0 +1,8 @@
+-- Integration Test: Float Comparison
+-- Expected: true
+
+module examples/test_float_comparison
+
+export func main() -> bool {
+  0.0 == 0.0
+}

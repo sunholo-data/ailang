@@ -1,6 +1,80 @@
 # AILANG Changelog
 
-## [Unreleased v0.3.0] - TBD
+## [v0.3.0] - 2025-10-05
+
+Complete implementation of Clock & Net effects (M-R6) with full Phase 2 PM security hardening, plus critical type system fixes (M-R7) for modulo operator and float comparison.
+
+### Added - M-R7 Type System Fixes ✅ COMPLETE
+- **Fixed modulo operator (`%`)**: Works correctly with type defaulting (`5 % 3` returns `2`)
+- **Fixed float comparison (`==`)**: Resolves dictionary correctly (`0.0 == 0.0` returns `true`)
+- **Regression tests**:
+  - `examples/test_integral.ail` - Locks in modulo fix
+  - `examples/test_float_comparison.ail` - Locks in float comparison fix
+  - `examples/test_fizzbuzz.ail` - Exercises both `%` and `==` together
+  - `benchmarks/numeric_modulo.yml` - Eval harness benchmark for `%`
+  - `benchmarks/float_eq.yml` - Eval harness benchmark for `==`
+  - All tests passing ✅
+
+### Added - AI API Examples (with v0.4.0 roadmap)
+- **`examples/demo_openai_api.ail`** - OpenAI API example with workaround for missing features
+- **`design_docs/planned/v0_4_0_net_enhancements.md`** - Complete roadmap for Net enhancements:
+  - Custom HTTP headers (`httpPostWithHeaders`)
+  - Environment variable reading (`getEnv`, `hasEnv`)
+  - JSON parsing (`parseJSON`, `getValue`)
+  - Response status/headers
+
+## [v0.3.0-alpha4] - 2025-10-05
+
+### Added - M-R6 Phase 2: Clock & Net Effects ✅ COMPLETE
+- **Clock effect** (`internal/effects/clock.go`, 109 LOC)
+  - `_clock_now()` returns current time in milliseconds since Unix epoch
+  - `_clock_sleep(ms)` suspends execution for specified milliseconds
+  - Monotonic time: immune to NTP/DST changes (uses `time.Since(start) + epoch`)
+  - Virtual time: deterministic mode with `AILANG_SEED` (starts at epoch 0)
+  - stdlib wrapper: `std/clock` module with `now()` and `sleep()` functions
+- **Net effect** (`internal/effects/net.go`, 355 LOC - Phase 2 PM FULL)
+  - `_net_httpGet(url)` fetches content from HTTP/HTTPS URLs
+  - `_net_httpPost(url, body)` sends POST requests with JSON body
+  - **DNS rebinding prevention**: resolve → validate IPs → dial validated IP directly
+  - **Protocol security**: https always allowed, http requires `--net-allow-http`, file:// blocked
+  - **IP blocking**: localhost (127.x, ::1), private IPs (10.x, 192.168.x, 172.16-31.x), link-local
+  - **Redirect validation**: max 5 redirects, re-validate IP at each hop
+  - **Body size limits**: 5MB default via `io.LimitReader`, configurable via `NetContext.MaxBytes`
+  - **Domain allowlist**: optional wildcard matching (*.example.com)
+  - stdlib wrapper: `std/net` module with `httpGet()` and `httpPost()` functions
+- **NetContext security configuration** (`internal/effects/context.go`, +130 LOC)
+  - `Timeout` (30s default), `MaxBytes` (5MB), `MaxRedirects` (5)
+  - `AllowHTTP` (false), `AllowLocalhost` (false)
+  - `AllowedDomains` (wildcard support), `UserAgent` ("ailang/0.3.0")
+- **IP validation helpers** (`internal/effects/net_security.go`, 91 LOC)
+  - `validateIP()` checks IP against security policy
+  - `resolveAndValidateIP()` prevents DNS rebinding attacks
+  - `isAllowedDomain()` and `matchDomain()` for allowlist checking
+- **Comprehensive test suites**:
+  - Clock: 9 tests with flaky-guard (100 iterations for determinism)
+  - Net: 6 test suites covering capabilities, protocols, IPs, domains, POST, body limits
+  - All tests passing with both real network and mocked scenarios
+- **2 new example files**:
+  - `examples/micro_clock_measure.ail` - Clock effect demonstration
+  - `examples/demo_ai_api.ail` - Real API calling with httpbin.org
+- **Stdlib modules**:
+  - `stdlib/std/clock.ail` - Clock effect wrappers
+  - `stdlib/std/net.ail` - Net effect wrappers with security docs
+
+### Security
+- **M-R6 Net effect implements full Phase 2 PM hardening**
+  - DNS rebinding prevention protects against SSRF attacks
+  - IP blocking prevents access to localhost, private networks, link-local
+  - Protocol validation blocks file://, ftp://, data://, gopher://
+  - Redirect validation with IP re-check at each hop
+  - Body size limits prevent memory exhaustion
+  - Domain allowlist enables fine-grained access control
+  - All security features tested with comprehensive test suite
+
+### Fixed
+- Added capability checks to `netHttpGet()` and `netHttpPost()` (requires `--caps Net`)
+- Updated `resolveAndValidateIP()` to accept `*EffContext` for `AllowLocalhost` flag
+- Fixed `validateIP()` to check `ctx.Net.AllowLocalhost` before blocking localhost IPs
 
 ## [v0.3.0-alpha3] - 2025-10-05
 

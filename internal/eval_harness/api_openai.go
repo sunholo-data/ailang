@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // OpenAI API structures
@@ -107,12 +108,13 @@ func (a *AIAgent) callOpenAI(ctx context.Context, prompt string) (*GenerateResul
 
 // extractCodeFromMarkdown strips markdown code fences if present
 func extractCodeFromMarkdown(text string) string {
-	// Remove ```language\n ... \n``` blocks
+	// Trim leading/trailing whitespace first
+	text = strings.TrimSpace(text)
 	lines := []byte(text)
 
-	// Simple heuristic: if starts with ```, skip first line and remove last ```
+	// Check if starts with ``` (after trimming)
 	if len(lines) > 3 && lines[0] == '`' && lines[1] == '`' && lines[2] == '`' {
-		// Find first newline
+		// Find first newline (end of opening fence)
 		start := 0
 		for i, b := range lines {
 			if b == '\n' {
@@ -121,12 +123,13 @@ func extractCodeFromMarkdown(text string) string {
 			}
 		}
 
-		// Find last ```
+		// Find last ``` working backwards
 		end := len(lines)
-		for i := len(lines) - 1; i >= 0; i-- {
-			if i >= 2 && lines[i] == '`' && lines[i-1] == '`' && lines[i-2] == '`' {
+		for i := len(lines) - 1; i >= 2; i-- {
+			if lines[i] == '`' && lines[i-1] == '`' && lines[i-2] == '`' {
+				// Check if this is at start of line or has newline before it
 				end = i - 2
-				// Trim trailing newline before ```
+				// Trim trailing newline before closing fence
 				if end > 0 && lines[end-1] == '\n' {
 					end--
 				}

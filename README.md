@@ -7,13 +7,23 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.0-alpha3 (Records & Row Polymorphism)
+## Current Version: v0.3.0 (Clock & Net Effects + Type System Fixes)
 
-**🎯 What Works**: Full module execution, **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
-**✅ Major Milestone**: Records now support subsumption! Functions accepting `{id: int}` work with `{id: int, name: string, ...}`. Row polymorphism available via `AILANG_RECORDS_V2=1`. Nested record field access works perfectly.
+**✅ Major Milestones**:
+- **Clock effect** with monotonic time and virtual time for deterministic execution
+- **Net effect** with full Phase 2 PM security hardening:
+  - DNS rebinding prevention
+  - Protocol validation (https enforced, file:// blocked)
+  - IP blocking (localhost, private IPs, link-local)
+  - Redirect validation with IP re-check
+  - Body size limits (5MB default)
+  - Domain allowlist with wildcard support
+- Records support subsumption: functions accepting `{id: int}` work with larger records
+- Row polymorphism available via `AILANG_RECORDS_V2=1`
 
-**📊 Test Coverage**: 48/66 examples passing (72.7%) - up from 40! All record subsumption, effect system, type class, ADT, recursion, and block expression examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+**📊 Test Coverage**: 48/66 examples passing (72.7%). All record subsumption, effect system (IO, FS, Clock, Net), type class, ADT, recursion, and block expression examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
 
 **📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
 
@@ -66,12 +76,47 @@ More examples:
 ```bash
 ailang run examples/arithmetic.ail                        # Arithmetic
 ailang run examples/simple.ail                            # Let bindings
-ailang run --caps IO --entry main examples/micro_block_seq.ail  # Block expressions ✨ NEW
+ailang run --caps IO --entry main examples/micro_block_seq.ail  # Block expressions
 ailang run --caps IO --entry greet examples/test_io_builtins.ail  # IO effects
+ailang run --caps Clock,IO --entry main examples/micro_clock_measure.ail  # Clock effect ✨ NEW
+ailang run --caps Net,IO --entry main examples/demo_ai_api.ail  # Net effect (API calls) ✨ NEW
 ailang run --entry greet examples/test_invocation.ail     # Cross-function calls
 ```
 
-**✨ NEW: Block Expressions** (v0.3.0)
+**✨ NEW: Clock & Net Effects** (v0.3.0-alpha4)
+```ailang
+-- Clock effect: Monotonic time (immune to NTP/DST)
+import std/clock (now, sleep)
+
+func benchmark() -> int ! {Clock, IO} {
+  let start = now();
+  sleep(100);  -- Sleep 100ms
+  let elapsed = now() - start;
+  elapsed
+}
+```
+
+```ailang
+-- Net effect: HTTP GET/POST with security hardening
+import std/net (httpGet, httpPost)
+import std/io (println)
+
+func callAPI() -> () ! {Net, IO} {
+  let response = httpGet("https://api.example.com/data");
+  println(response)
+}
+```
+
+**Net Security Features**:
+- ✅ HTTPS enforced (http:// requires `--net-allow-http`)
+- ✅ DNS rebinding prevention
+- ✅ IP blocking (localhost, private IPs, link-local)
+- ✅ Protocol blocking (file://, ftp://, data://)
+- ✅ Redirect validation (max 5 redirects)
+- ✅ Body size limits (5MB default)
+- ✅ Domain allowlist with wildcard support
+
+**✨ Block Expressions** (v0.3.0)
 ```ailang
 -- Blocks allow sequencing multiple expressions
 {
@@ -91,7 +136,7 @@ func countdown(n: int) -> () ! {IO} {
 }
 ```
 
-See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (32/51 passing).
+See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (48/66 passing).
 
 ### Interactive REPL (Fully Functional)
 

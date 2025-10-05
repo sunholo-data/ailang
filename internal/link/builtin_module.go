@@ -128,8 +128,8 @@ func inferBuiltinType(name string) *types.Scheme {
 		}
 
 	default:
-		// Check for string primitives and IO builtins
-		if handleStringPrimitive(name, &resultType) || handleIOBuiltin(name, &resultType) {
+		// Check for string primitives, IO builtins, Clock builtins, and Net builtins
+		if handleStringPrimitive(name, &resultType) || handleIOBuiltin(name, &resultType) || handleClockBuiltin(name, &resultType) || handleNetBuiltin(name, &resultType) {
 			return &types.Scheme{
 				TypeVars: []string{},
 				Type:     resultType,
@@ -241,6 +241,77 @@ func handleIOBuiltin(name string, resultType *types.Type) bool {
 	}
 }
 
+// handleClockBuiltin handles Clock primitive builtins (_clock_*)
+func handleClockBuiltin(name string, resultType *types.Type) bool {
+	intType := &types.TCon{Name: "Int"}
+	unitType := &types.TCon{Name: "Unit"}
+
+	// Create effect row with Clock effect
+	clockEffectRow := &types.Row{
+		Kind:   types.EffectRow,
+		Labels: map[string]types.Type{"Clock": &types.TCon{Name: "Clock"}},
+		Tail:   nil,
+	}
+
+	switch name {
+	case "_clock_now":
+		// _clock_now: () -> Int ! {Clock}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{unitType},
+			EffectRow: clockEffectRow,
+			Return:    intType,
+		}
+		return true
+
+	case "_clock_sleep":
+		// _clock_sleep: Int -> Unit ! {Clock}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{intType},
+			EffectRow: clockEffectRow,
+			Return:    unitType,
+		}
+		return true
+
+	default:
+		return false
+	}
+}
+
+// handleNetBuiltin handles Net primitive builtins (_net_*)
+func handleNetBuiltin(name string, resultType *types.Type) bool {
+	strType := &types.TCon{Name: "String"}
+
+	// Create effect row with Net effect
+	netEffectRow := &types.Row{
+		Kind:   types.EffectRow,
+		Labels: map[string]types.Type{"Net": &types.TCon{Name: "Net"}},
+		Tail:   nil,
+	}
+
+	switch name {
+	case "_net_httpGet":
+		// _net_httpGet: String -> String ! {Net}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType},
+			EffectRow: netEffectRow,
+			Return:    strType,
+		}
+		return true
+
+	case "_net_httpPost":
+		// _net_httpPost: String -> String -> String ! {Net}
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType, strType},
+			EffectRow: netEffectRow,
+			Return:    strType,
+		}
+		return true
+
+	default:
+		return false
+	}
+}
+
 // getBaseType converts a type name string to a Type
 func getBaseType(typName string) types.Type {
 	switch typName {
@@ -260,9 +331,25 @@ func getBaseType(typName string) types.Type {
 // GetBuiltinInterface returns a sorted list of all builtin functions for deterministic output
 func GetBuiltinInterface() []string {
 	var builtins []string
+
+	// Add pure builtins from eval package
 	for name := range eval.Builtins {
 		builtins = append(builtins, name)
 	}
+
+	// Add effect builtins
+	effectBuiltins := []string{
+		// IO effect
+		"_io_print", "_io_println", "_io_readLine",
+		// FS effect
+		"_fs_readFile", "_fs_writeFile", "_fs_exists",
+		// Clock effect
+		"_clock_now", "_clock_sleep",
+		// Net effect
+		"_net_httpGet", "_net_httpPost",
+	}
+	builtins = append(builtins, effectBuiltins...)
+
 	sort.Strings(builtins)
 	return builtins
 }

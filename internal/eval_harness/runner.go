@@ -12,16 +12,16 @@ import (
 
 // RunResult captures the outcome of running generated code
 type RunResult struct {
-	Stdout       string
-	Stderr       string
-	ExitCode     int
-	Duration     time.Duration // Total time (startup + compile + execution)
-	CompileTime  time.Duration // Time spent in compilation/type-checking (if separate)
-	ExecuteTime  time.Duration // Time spent in actual code execution (if measurable)
-	CompileOk    bool
-	RuntimeOk    bool
-	StdoutOk     bool
-	TimedOut     bool
+	Stdout      string
+	Stderr      string
+	ExitCode    int
+	Duration    time.Duration // Total time (startup + compile + execution)
+	CompileTime time.Duration // Time spent in compilation/type-checking (if separate)
+	ExecuteTime time.Duration // Time spent in actual code execution (if measurable)
+	CompileOk   bool
+	RuntimeOk   bool
+	StdoutOk    bool
+	TimedOut    bool
 }
 
 // LanguageRunner executes code in a specific language

@@ -1,0 +1,9 @@
+-- Bug Demonstration: Float Comparison
+-- Expected: 0.0 == 0.0 should use eq_Float and return true
+-- Actual: May use eq_Int instead
+
+module examples/bug_float_comparison
+
+export func main() -> bool {
+  0.0 == 0.0
+}

@@ -34,7 +34,7 @@ var (
 	bold   = color.New(color.Bold).SprintFunc()
 
 	// Global flags
-	quietMode = false
+	_ = false // quietMode placeholder for future use
 )
 
 func main() {
@@ -59,8 +59,8 @@ func main() {
 		schema.SetCompactMode(true)
 	}
 
-	// Set quiet mode globally
-	quietMode = *quietFlag
+	// Set quiet mode globally (placeholder for future use)
+	_ = *quietFlag
 
 	if *versionFlag {
 		printVersion()

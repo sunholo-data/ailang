@@ -1,0 +1,9 @@
+-- Test Clock effect: Basic now() and sleep()
+-- Run with: ailang run --caps Clock,IO --entry main examples/micro_clock_measure.ail
+module examples/micro_clock_measure
+
+export func main() -> () {
+  _io_println("Testing Clock effect...");
+  _clock_sleep(100);
+  _io_println("Sleep complete!")
+}
