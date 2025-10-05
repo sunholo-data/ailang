@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-27.1%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-27.8%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -187,13 +187,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-38%20passing%2014%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-43%20passing%2014%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-03 19:50:17 UTC*
+*Last updated: 2025-10-05 16:33:50 UTC*
 
-**Summary:** 38 passed, 14 failed, 4 skipped (Total: 56)
+**Summary:** 43 passed, 14 failed, 4 skipped (Total: 61)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -220,6 +220,11 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
+| `recursion_error.ail` | ✅ Pass |  |
+| `recursion_factorial.ail` | ✅ Pass |  |
+| `recursion_fibonacci.ail` | ✅ Pass |  |
+| `recursion_mutual.ail` | ✅ Pass |  |
+| `recursion_quicksort.ail` | ✅ Pass |  |
 | `showcase/01_type_inference.ail` | ✅ Pass |  |
 | `showcase/02_lambdas.ail` | ✅ Pass |  |
 | `showcase/03_lists.ail` | ❌ Fail | Error: evaluation error: builtin concat_String ... |
