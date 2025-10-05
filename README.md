@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-27.7%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-27.9%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -209,13 +209,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-46%20passing%2014%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-48%20passing%2014%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-05 17:46:33 UTC*
+*Last updated: 2025-10-05 18:56:31 UTC*
 
-**Summary:** 46 passed, 14 failed, 4 skipped (Total: 64)
+**Summary:** 48 passed, 14 failed, 4 skipped (Total: 66)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -242,6 +242,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `micro_block_seq.ail` | ✅ Pass |  |
 | `micro_io_echo.ail` | ✅ Pass |  |
 | `micro_option_map.ail` | ✅ Pass |  |
+| `micro_record_person.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
@@ -275,6 +276,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_io_builtins.ail` | ✅ Pass |  |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_no_import.ail` | ✅ Pass |  |
+| `test_record_subsumption.ail` | ✅ Pass |  |
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
 | `test_with_import.ail` | ✅ Pass |  |
