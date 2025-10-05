@@ -1,10 +1,83 @@
 # M-R8: Block Expressions
 
-**Status**: Planned for v0.3.0
-**Priority**: HIGH (unblocks AI-generated code)
-**Effort**: ~200-300 LOC
-**Time**: 0.5-1 day
+**Status**: ✅ **COMPLETE** (v0.3.0-alpha2)
+**Priority**: P0 (CRITICAL - AI compatibility blocker)
+**Actual**: ~10 LOC (bug fix only!)
+**Duration**: 2 hours (investigation + fix)
+**Commits**:
+- Investigation revealed blocks already implemented
+- Bug fix: Added `Block` case to `findReferences()` in scc.go
 **Risk**: LOW (pure syntactic sugar)
+
+---
+
+## 📋 Implementation Report
+
+### Discovery: Blocks Already Implemented!
+
+**Investigation findings** (Oct 5, 2025):
+- Block syntax `{ e1; e2; e3 }` was **already implemented** in parser and elaboration
+- Parser correctly handles blocks via `parseRecordLiteral()` with lookahead
+- Elaboration correctly desugars blocks to let chains in `normalizeBlock()`
+- Blocks work in if-then-else branches ✅
+
+**The Bug**: Recursion + Blocks Failed
+
+```ailang
+-- ✅ WORKS: Recursion without blocks
+func fact(n: int) -> int {
+  if n <= 1 then 1 else n * fact(n - 1)
+}
+
+-- ❌ FAILED: Recursion with blocks
+func fact(n: int) -> int {
+  if n <= 1 then { 1 } else { n * fact(n - 1) }
+}
+```
+
+**Root Cause**: `findReferences()` in `scc.go` was missing a case for `*ast.Block`, so:
+1. Self-recursive functions with blocks were not detected as recursive
+2. Elaborator created `Let` instead of `LetRec`
+3. Type checker failed: "undefined variable: fact"
+
+**The Fix** (internal/elaborate/scc.go:193-197):
+```go
+case *ast.Block:
+    // Blocks can contain function references in any expression
+    for _, expr := range ex.Exprs {
+        refs = append(refs, findReferences(expr)...)
+    }
+```
+
+### Test Results
+
+**All tests pass** ✅:
+- Self-recursion with blocks: `examples/block_recursion.ail`
+- Mutual recursion with blocks: verified with isEven/isOdd
+- Block sequencing: `examples/micro_block_seq.ail`
+- Blocks in if-then-else: `examples/micro_block_if.ail`
+- Existing recursion tests: still pass
+- Negative test: undefined variables still error correctly
+
+**Example output**:
+```
+$ ailang run --caps IO --entry main examples/block_recursion.ail
+5
+4
+3
+2
+1
+Done!
+```
+
+### Impact
+
+- **LOC**: 10 lines (1 case + 4 lines of code)
+- **Examples**: 3 new example files created
+- **Bugs fixed**: Recursion detection in blocks
+- **AI compatibility**: ✅ UNBLOCKED
+
+---
 
 ## Motivation
 

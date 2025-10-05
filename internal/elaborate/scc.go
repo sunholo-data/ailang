@@ -189,6 +189,12 @@ func findReferences(expr ast.Expr) []string {
 		for _, elem := range ex.Elements {
 			refs = append(refs, findReferences(elem)...)
 		}
+
+	case *ast.Block:
+		// Blocks can contain function references in any expression
+		for _, expr := range ex.Exprs {
+			refs = append(refs, findReferences(expr)...)
+		}
 	}
 
 	return refs

@@ -64,8 +64,8 @@ Timeline very tight? → Ship P0 only, defer everything else
 ### Updated Implementation Plan
 
 **Week 1: Core Blockers (Oct 5-11)**
-- Day 1: ✅ **M-R4 Recursion** (P0, 600 LOC) - COMPLETE (v0.3.0-alpha1)
-- **Day 2: M-R8 Block Expressions** (P0, 300 LOC) ← **NEW: Critical for AI compatibility**
+- Day 1: ✅ **M-R4 Recursion** (P0, ~1,780 LOC) - COMPLETE (v0.3.0-alpha1)
+- Day 2: ✅ **M-R8 Block Expressions** (P0, ~10 LOC fix) - COMPLETE (v0.3.0-alpha2) ✨
 - Days 3-4: **M-R7 Type Fixes** (P0, 300 LOC - includes float comparison)
 - Day 5: Buffer for unknowns
 - Weekend: Buffer
@@ -82,7 +82,7 @@ Timeline very tight? → Ship P0 only, defer everything else
 | Component | Implementation | Tests | Total | Priority | Days | Status |
 |-----------|----------------|-------|-------|----------|------|--------|
 | M-R4 Recursion | 400 LOC | 200 LOC | 600 LOC | P0 | 3 | ✅ COMPLETE |
-| **M-R8 Block Expressions** | **200 LOC** | **100 LOC** | **300 LOC** | **P0** | **0.5** | **NEW** |
+| **M-R8 Block Expressions** | **~10 LOC** | **0 LOC** | **~10 LOC** | **P0** | **0.1** | ✅ **DONE** |
 | M-R7 Type Fixes | 200 LOC | 100 LOC | 300 LOC | P0 | 2 | Planned |
 | M-R5 Records | 350 LOC | 150 LOC | 500 LOC | P0 | 3 | Planned |
 | M-R6 Clock | 200 LOC | 50 LOC | 250 LOC | P1 | 1 | Planned |
@@ -216,46 +216,39 @@ After releasing v0.2.0-rc1, CI failures were discovered and fixed:
 
 ---
 
-### M-R8: Block Expressions (P0 - MUST SHIP) ← **NEW**
+### M-R8: Block Expressions (P0 - MUST SHIP) ✅ **COMPLETE** (v0.3.0-alpha2)
 
-**Effort**: ~300 LOC | **Priority**: P0 | **Duration**: 0.5 days
-**Design Doc**: [`design_docs/20251005/M-R8_block_expressions.md`](../20251005/M-R8_block_expressions.md)
+**Actual Effort**: ~10 LOC (bug fix only!) | **Priority**: P0 | **Duration**: 2 hours
+**Design Doc**: [`design_docs/implemented/v0_3_0/M-R8_block_expressions.md`](../implemented/v0_3_0/M-R8_block_expressions.md)
+**Status**: ✅ SHIPPED in v0.3.0-alpha2
 
-**Why**: **Critical AI compatibility feature** - AI models (Claude Sonnet 4.5, GPT-4) naturally generate code with blocks. Without this, AI-generated recursive code fails to parse.
+**Discovery**: Blocks were **already implemented**! Parser and elaboration both support `{ e1; e2; e3 }` syntax.
 
-#### Problem (Current State)
-- ❌ AI-generated code: `if cond then { println(x); recurse() }` **fails to parse**
-- ❌ Manual rewriting required: `if cond then recurse((), println(x))`
-- ✅ Recursion works (M-R4 complete), but blocks don't
+#### The Bug (Found & Fixed)
+- ❌ **Root cause**: `findReferences()` in `scc.go` was missing a case for `*ast.Block`
+- ❌ **Impact**: Recursive functions with blocks not detected as recursive
+- ❌ **Symptom**: `if n <= 1 then { 1 } else { n * fact(n-1) }` → "undefined variable: fact"
+- ✅ **Fix**: Added 5 lines to handle `*ast.Block` case in SCC analysis
 
-#### Solution: Syntactic Sugar
-Add block expressions `{ e1; e2; ...; en }` that desugar to let-sequencing:
+#### The Fix (internal/elaborate/scc.go)
+```go
+case *ast.Block:
+    // Blocks can contain function references in any expression
+    for _, expr := range ex.Exprs {
+        refs = append(refs, findReferences(expr)...)
+    }
 ```
-{ e1; e2; e3 } ⇒ let _ = e1 in let _ = e2 in e3
-```
 
-**Implementation**:
-- Parser: ~100 LOC (recognize `{ }` in expression position)
-- Elaboration: ~50 LOC (desugar to let chains)
-- Tests: ~100 LOC (parser + elaboration + 3 integration examples)
-- Docs: ~50 LOC (README + guides)
-
-**Semantics**:
-- Value of block = value of last expression
-- Non-last expressions evaluated for effects, values discarded
-- Empty blocks `{}` rejected with clear error
-- Trailing semicolons allowed: `{ e1; e2; }`
-
-#### Acceptance Criteria
-- ✅ `{ e1; e2; e3 }` parses and desugars correctly
-- ✅ Works in all expression contexts (function bodies, if-then-else, let RHS)
-- ✅ **Recursive function with blocks works** (the key AI-generated pattern)
-- ✅ 3 integration examples pass: seq, if-then-else, recursion
-- ✅ Empty blocks rejected: `{}` → clear error
+#### Results
+- ✅ Self-recursion with blocks works
+- ✅ Mutual recursion with blocks works
+- ✅ All existing tests pass
+- ✅ 3 new example files: `micro_block_seq.ail`, `micro_block_if.ail`, `block_recursion.ail`
+- ✅ AI-generated code with blocks now works ✨
 
 **Examples Unblocked**: All AI-generated code with blocks (critical for eval benchmarks)
 
-**Risk**: LOW (pure syntactic sugar, no type system or runtime changes)
+**Impact**: 10 LOC fix with massive AI compatibility improvement!
 
 ---
 

@@ -4,11 +4,14 @@
 - `adt_option.ail`
 - `adt_simple.ail`
 - `arithmetic.ail`
+- `block_recursion.ail` ← ✨ NEW (v0.3.0-alpha2)
 - `demos/hello_io.ail`
 - `effects_basic.ail`
 - `effects_pure.ail`
 - `guards_basic.ail`
 - `hello.ail`
+- `micro_block_if.ail` ← ✨ NEW (v0.3.0-alpha2)
+- `micro_block_seq.ail` ← ✨ NEW (v0.3.0-alpha2)
 - `recursion_error.ail`
 - `recursion_factorial.ail`
 - `recursion_fibonacci.ail`
@@ -62,7 +65,8 @@
 - `stdlib_demo.ail`
 - `stdlib_demo_simple.ail`
 
-**Summary:** 37 passed, 15 failed, 4 skipped (Total: 56)
+**Summary:** 40 passed, 15 failed, 4 skipped (Total: 59)
 
 **Recent additions:**
-- ✅ `recursion_*.ail` (5 files) - M-R4 recursion support with RefCell indirection
+- ✅ `micro_block_*.ail`, `block_recursion.ail` (3 files) - M-R8 block expressions with recursion (v0.3.0-alpha2)
+- ✅ `recursion_*.ail` (5 files) - M-R4 recursion support with RefCell indirection (v0.3.0-alpha1)

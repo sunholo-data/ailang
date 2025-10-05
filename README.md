@@ -66,8 +66,29 @@ More examples:
 ```bash
 ailang run examples/arithmetic.ail                        # Arithmetic
 ailang run examples/simple.ail                            # Let bindings
+ailang run --caps IO --entry main examples/micro_block_seq.ail  # Block expressions ✨ NEW
 ailang run --caps IO --entry greet examples/test_io_builtins.ail  # IO effects
 ailang run --entry greet examples/test_invocation.ail     # Cross-function calls
+```
+
+**✨ NEW: Block Expressions** (v0.3.0)
+```ailang
+-- Blocks allow sequencing multiple expressions
+{
+  println("first");
+  println("second");
+  42  -- Value of block is the last expression
+}
+
+-- Perfect for recursive functions with logging:
+func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
 ```
 
 See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (32/51 passing).
@@ -117,6 +138,7 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 - **Function Composition** - Higher-order functions, partial application
 - **Let Bindings** - Polymorphic let expressions (up to 3 nested levels)
 - **Conditionals** - `if-then-else` expressions
+- **Block Expressions** - `{ e1; e2; e3 }` for sequencing (desugars to let chains) ✨ NEW in v0.3.0
 - **Operators** - Arithmetic (`+`, `-`, `*`, `/`), comparison (`==`, `<`, `>`, etc.), string concatenation (`++`)
 
 ### ✅ Data Structures

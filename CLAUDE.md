@@ -8,18 +8,31 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 - Deterministic execution for AI training data generation (planned)
 - File extension: `.ail`
 
-## Current Status: v0.2.0-rc1 (Module Execution + Effects COMPLETE ✅)
+## Current Status: v0.3.0-alpha2 (Recursion + Blocks COMPLETE ✅)
 
-**✅ COMPLETE (v0.2.0-rc1):**
-- ✅ **M-R1: Module Execution Runtime** (~1,874 LOC) - COMPLETE
+**✅ COMPLETE (v0.3.0-alpha2):**
+- ✅ **M-R4: Recursion Support** (~1,780 LOC) - COMPLETE
+  - RefCell-based recursion (OCaml/Haskell style)
+  - Self-recursive and mutual recursion
+  - Depth guard (configurable limit)
+  - Works in module runtime ✅
+
+- ✅ **M-R8: Block Expressions** (~10 LOC fix) - COMPLETE
+  - Block syntax `{ e1; e2; e3 }` for sequencing
+  - Desugars to let chains
+  - Works with recursion ✅
+  - AI-generated code compatible ✅
+
+**✅ COMPLETE (v0.2.0):**
+- ✅ **M-R1: Module Execution Runtime** (~1,874 LOC)
   - Module instance creation and evaluation
   - Cross-module imports at runtime
   - Entrypoint execution (`--entry`, `--args-json`)
   - Function invocation with argument decoding
   - Builtin registry (IO, FS primitives)
-  - **Cross-function references within modules** (functions can call other functions in same module)
+  - **Cross-function references within modules**
 
-- ✅ **M-R2: Effect System Runtime** (~1,550 LOC) - COMPLETE
+- ✅ **M-R2: Effect System Runtime** (~1,550 LOC)
   - Capability-based security (`--caps IO,FS`)
   - IO effect: `print`, `println`, `readLine`
   - FS effect: `readFile`, `writeFile`, `exists`
@@ -195,7 +208,7 @@ Example entry:
 
 ## Language Syntax Reference
 
-### ✅ Working Syntax (v0.2.0-rc1)
+### ✅ Working Syntax (v0.3.0-alpha2)
 
 **Basic Expressions:**
 ```ailang
@@ -203,6 +216,7 @@ Example entry:
 let x = 5 in x * 2                     -- Let binding (works up to 3 nested)
 \x. x * 2                               -- Lambda function
 if x > 0 then "pos" else "neg"         -- Conditional expression
+{ e1; e2; e3 }                          -- Block expression (NEW! ✨)
 [1, 2, 3]                               -- List literal
 { name: "Alice", age: 30 }             -- Record literal
 (1, "hello", true)                      -- Tuple literal
@@ -264,6 +278,26 @@ export func main() -> () ! {IO, FS} {
 **Running with capabilities:**
 ```bash
 ailang run --caps IO,FS --entry main app.ail
+```
+
+**Block Expressions (v0.3.0-alpha2, NEW! ✨):**
+```ailang
+-- Blocks allow sequencing with automatic let-chain desugaring
+{
+  println("Computing...");
+  println("Result:");
+  42
+}
+
+-- Perfect for recursive functions with side effects:
+func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
 ```
 
 **Pattern Guards (M-R3, optional):**

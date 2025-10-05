@@ -1,0 +1,13 @@
+module examples/micro_block_seq
+
+import std/io (println)
+
+-- Block expressions allow sequencing multiple expressions
+-- The last expression's value is returned
+export func main() -> int ! {IO} {
+  {
+    println("first");
+    println("second");
+    42
+  }
+}

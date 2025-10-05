@@ -1,0 +1,14 @@
+module examples/micro_block_if
+
+import std/io (println)
+
+-- Blocks work in if-then-else branches
+export func main() -> int ! {IO} {
+  if true then {
+    println("true branch");
+    1
+  } else {
+    println("false branch");
+    0
+  }
+}

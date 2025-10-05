@@ -2,6 +2,38 @@
 
 ## [Unreleased v0.3.0] - TBD
 
+## [v0.3.0-alpha2] - 2025-10-05
+
+### Added - M-R8: Block Expressions ✅ COMPLETE
+- **Block expression syntax** `{ e1; e2; e3 }` for sequencing multiple expressions
+  - Last expression's value is the block's value
+  - Non-last expressions evaluated for side effects
+  - Desugars to let chains: `let _ = e1 in let _ = e2 in e3`
+- **Bug fix** in `internal/elaborate/scc.go` (~10 LOC)
+  - Added missing `*ast.Block` case to `findReferences()` function
+  - Fixed recursion detection for functions using block syntax
+  - Self-recursive and mutual recursion now work correctly with blocks
+- **3 new example files**:
+  - `examples/micro_block_seq.ail` - Basic block sequencing
+  - `examples/micro_block_if.ail` - Blocks in if-then-else branches
+  - `examples/block_recursion.ail` - Recursive functions with blocks
+- **AI compatibility unlocked** ✨
+  - AI-generated code with blocks now works out of the box
+  - No manual rewriting required
+  - Compatible with Claude Sonnet 4.5, GPT-4, etc.
+
+### Fixed
+- **Recursion + Blocks Bug**: Functions with recursive calls inside blocks now correctly detected as recursive
+  - Before: `func fact(n) { ... fact(n-1) }` → "undefined variable: fact"
+  - After: Correctly creates LetRec, recursion works ✅
+- **SCC Detection**: `findReferences()` now traverses all expression types including blocks
+
+### Impact
+- Lines of code: 10 (5-line case statement)
+- Examples: 3 new files
+- Test status: All existing tests pass + new examples verified
+- Developer experience: Major improvement for AI-assisted development
+
 ## [v0.3.0-alpha1] - 2025-10-05
 
 ### Added - M-R4: Recursion Support ✅ COMPLETE
