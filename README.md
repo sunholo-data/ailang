@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-27.9%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-28.5%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -254,13 +254,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-48%20passing%2014%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-56%20passing%2022%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-05 18:56:31 UTC*
+*Last updated: 2025-10-05 20:14:27 UTC*
 
-**Summary:** 48 passed, 14 failed, 4 skipped (Total: 66)
+**Summary:** 56 passed, 22 failed, 4 skipped (Total: 82)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -269,6 +269,10 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `arithmetic.ail` | ✅ Pass |  |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
+| `bug_float_comparison.ail` | ✅ Pass |  |
+| `bug_modulo_operator.ail` | ✅ Pass |  |
+| `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `demo_openai_api.ail` | ❌ Fail | Error: execution failed: effect 'IO' requires c... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demos/hello_io.ail` | ✅ Pass |  |
@@ -285,7 +289,9 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `micro_block_if.ail` | ✅ Pass |  |
 | `micro_block_seq.ail` | ✅ Pass |  |
+| `micro_clock_measure.ail` | ❌ Fail | Error: execution failed: effect 'Clock' require... |
 | `micro_io_echo.ail` | ✅ Pass |  |
+| `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `micro_record_person.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
@@ -312,14 +318,24 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
 | `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
 | `test_exhaustive_wildcard.ail` | ✅ Pass |  |
+| `test_fizzbuzz.ail` | ✅ Pass |  |
+| `test_float_comparison.ail` | ✅ Pass |  |
+| `test_float_eq_works.ail` | ✅ Pass |  |
+| `test_float_modulo.ail` | ✅ Pass |  |
 | `test_guard_bool.ail` | ✅ Pass |  |
 | `test_guard_debug.ail` | ✅ Pass |  |
 | `test_guard_false.ail` | ✅ Pass |  |
 | `test_import_ctor.ail` | ✅ Pass |  |
 | `test_import_func.ail` | ✅ Pass |  |
+| `test_integral.ail` | ✅ Pass |  |
 | `test_invocation.ail` | ✅ Pass |  |
 | `test_io_builtins.ail` | ✅ Pass |  |
+| `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
+| `test_modulo_works.ail` | ✅ Pass |  |
+| `test_net_file_protocol.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `test_net_localhost.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `test_net_security.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `test_no_import.ail` | ✅ Pass |  |
 | `test_record_subsumption.ail` | ✅ Pass |  |
 | `test_single_guard.ail` | ✅ Pass |  |
