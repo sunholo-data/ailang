@@ -3,7 +3,7 @@
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
 module examples/demos/hello_io
-import stdlib/std/io (println)
+import std/io (println)
 
 export func main() -> () ! {IO} {
   println("Hello from AILANG Minimal Runner!")

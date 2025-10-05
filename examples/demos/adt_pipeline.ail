@@ -1,5 +1,5 @@
 module examples/demos/adt_pipeline
-import stdlib/std/option (Some, None, map, getOrElse)
+import std/option (Some, None, map, getOrElse)
 
 -- Demonstrate ADT usage with Option type
 -- Entry takes an integer and returns doubled value or default

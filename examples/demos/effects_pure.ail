@@ -1,5 +1,5 @@
 module examples/demos/effects_pure
-import stdlib/std/list (map, foldl)
+import std/list (map, foldl)
 
 -- Demonstrate pure functions with list operations
 -- No effects - completely pure computation
