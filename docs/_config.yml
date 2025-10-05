@@ -8,26 +8,25 @@ baseurl: "/ailang" # the subpath of your site, e.g. /blog
 url: "https://sunholo-data.github.io" # your GitHub Pages URL
 
 # Build settings
-theme: minima
+remote_theme: just-the-docs/just-the-docs
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
   - jekyll-sitemap
+  - jekyll-remote-theme
 
-# Theme configuration
-minima:
-  skin: classic
-  date_format: "%b %-d, %Y"
-  # Generate social links in footer
-  social_links:
-    - { platform: github,  user_url: "https://github.com/sunholo-data/ailang" }
+# Just the Docs configuration
+color_scheme: light
+search_enabled: true
+heading_anchors: true
 
-# Header pages
-header_pages:
-  - guides/getting-started.md
-  - guides/development.md
-  - reference/language-syntax.md
-  - reference/implementation-status.md
+# Navigation footer
+aux_links:
+  "AILANG on GitHub":
+    - "//github.com/sunholo-data/ailang"
+
+# Footer content
+footer_content: "Copyright &copy; 2025 Sunholo. Apache 2.0 License."
 
 # Collections for organizing content
 collections:

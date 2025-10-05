@@ -24,22 +24,28 @@ AILANG is a pure functional programming language that makes AI assistance a firs
 ## Quick Example
 
 ```ailang
--- Define a pure function with inline tests
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (5, 120)
-  ]
-{
+-- Module with effects (v0.3.0)
+module examples/hello
+
+import std/io (println)
+import std/net (httpGet)
+
+-- Recursive factorial function
+export func factorial(n: int) -> int {
   if n <= 1 then 1 else n * factorial(n - 1)
 }
 
--- Use effects explicitly
-func readAndGreet() -> () ! {IO} {
-  let name = input("What's your name? ")
-  print("Hello, " ++ name ++ "!")
+-- Function with multiple effects
+export func main() -> () ! {IO, Net} {
+  println("Factorial of 5 is:");
+  println(show(factorial(5)));
+
+  let response = httpGet("https://api.example.com/data");
+  println(response)
 }
 ```
+
+Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
 
 ## Getting Started
 
@@ -59,25 +65,28 @@ func readAndGreet() -> () ! {IO} {
 
 </div>
 
-## Current Status
+## Current Status: v0.3.0 (October 2025)
 
-AILANG is under active development. Check the [implementation status]({{ site.baseurl }}/reference/implementation-status) for details on what's currently working.
+AILANG v0.3.0 is now available! Check the [implementation status]({{ site.baseurl }}/reference/implementation-status) for complete details.
 
-### Working Features
-- ✅ Basic expressions and arithmetic
-- ✅ Lambda functions and closures
-- ✅ Let bindings and recursion
-- ✅ Lists and basic operations
-- ✅ Pattern matching (partial)
-- ✅ REPL with type inference
-- ✅ Type classes (Num, Eq, Ord, Show)
+### ✅ Working Features (v0.3.0)
+- **Recursion** - Self-recursion, mutual recursion, with stack overflow protection
+- **Block Expressions** - Multi-statement blocks with proper scoping
+- **Records** - Record literals, field access, subsumption
+- **Type System** - Hindley-Milner inference with type classes (Num, Eq, Ord, Show)
+- **Pattern Matching** - Constructors, tuples, lists, wildcards, guards
+- **Module System** - Cross-module imports, entrypoint execution
+- **Effect System** - IO, FS, Clock, Net with capability-based security
+  - **Clock Effect**: Monotonic time, sleep, deterministic mode
+  - **Net Effect**: HTTP GET/POST with DNS rebinding prevention, IP blocking
+- **REPL** - Full type checking, command history, tab completion
+- **Lambda Calculus** - First-class functions, closures, currying
 
-### In Progress
-- 🚧 Module system
-- 🚧 Function declarations
-- 🚧 Effect system
-- 🚧 Quasiquotes
-- 🚧 Concurrency primitives
+### 🚧 Planned Features
+- Typed quasiquotes (v0.4.0+)
+- CSP concurrency with channels (v0.4.0+)
+- Session types (v1.0+)
+- AI training data export (v1.0+)
 
 ## Documentation Structure
 

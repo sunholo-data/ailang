@@ -82,6 +82,12 @@ Create a new AILANG release with the specified version number.
     - update design docs used with what was implemented
     - if any features were missed or pushed to a future release, ensure they have new design_docs ready in design_docs/planned/
 
+13. **update public docs**
+    - ensure prompt in prompts/ reflects latest changes for AILANG syntax instruction
+    - ensure website docs in docs/ includes latest changes and is updated to remove any old references
+    - make sure latest examples are reflected on the website
+
+
 ## Version Format
 
 Version should be in semantic versioning format: `MAJOR.MINOR.PATCH`

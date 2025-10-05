@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs
 
 # Binary name
 BINARY=ailang
@@ -494,3 +494,18 @@ eval-report:
 eval-clean:
 	@echo "Cleaning evaluation results..."
 	@rm -rf eval_results/*.json eval_results/*.csv eval_results/*.md
+
+# Documentation targets
+.PHONY: sync-prompts
+sync-prompts:
+	@echo "Syncing prompts/ to docs/prompts/..."
+	@./tools/sync-prompts.sh
+
+.PHONY: generate-llms-txt
+generate-llms-txt:
+	@echo "Generating llms.txt..."
+	@./tools/generate-llms-txt.sh
+
+.PHONY: docs
+docs: sync-prompts generate-llms-txt
+	@echo "✓ All documentation generated"

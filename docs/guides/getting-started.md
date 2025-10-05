@@ -80,17 +80,25 @@ alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
 
 ## Quick Start
 
-### Hello World
+### Hello World (v0.3.0 Module Syntax)
 
 ```ailang
--- hello.ail (✅ WORKS with current implementation)
-print("Hello, AILANG!")
+-- hello.ail
+module examples/hello
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello, AILANG!")
+}
 ```
 
 Run it:
 ```bash
-ailang run hello.ail
+ailang run --caps IO --entry main hello.ail
 ```
+
+**Note**: Flags must come BEFORE the filename when using `ailang run`.
 
 ### Working with Values
 
@@ -141,15 +149,37 @@ Hello World :: String
 λ> :quit
 ```
 
-## Working Examples
+## Working Examples (v0.3.0)
 
 The following examples are confirmed to work with the current implementation:
-- `examples/hello.ail` - Simple print statement
-- `examples/simple.ail` - Basic arithmetic operations
-- `examples/arithmetic.ail` - Arithmetic with show function
-- `examples/lambda_expressions.ail` - Full lambda functionality
-- `examples/test_basic.ail` - Basic test cases
-- `examples/type_inference_basic.ail` - Type inference examples
+
+**Recursion**:
+- `examples/recursion_factorial.ail` - Recursive factorial function
+- `examples/recursion_fibonacci.ail` - Fibonacci sequence
+- `examples/recursion_quicksort.ail` - Quicksort implementation
+- `examples/recursion_mutual.ail` - Mutual recursion (isEven/isOdd)
+
+**Records**:
+- `examples/micro_record_person.ail` - Record literals and field access
+- `examples/test_record_subsumption.ail` - Record subsumption
+
+**Effects**:
+- `examples/test_effect_io.ail` - IO effect examples
+- `examples/test_effect_fs.ail` - File system operations
+- `examples/micro_clock_measure.ail` - Clock effect (time, sleep)
+- `examples/micro_net_fetch.ail` - Net effect (HTTP GET)
+
+**Pattern Matching & ADTs**:
+- `examples/adt_simple.ail` - Algebraic data types
+- `examples/adt_option.ail` - Option type with pattern matching
+- `examples/guards_basic.ail` - Pattern guards
+
+**Blocks**:
+- `examples/micro_block_if.ail` - Block expressions with if
+- `examples/micro_block_seq.ail` - Sequential blocks
+- `examples/block_recursion.ail` - Recursion in blocks
+
+See [examples/STATUS.md](https://github.com/sunholo-data/ailang/blob/main/examples/STATUS.md) for the complete list of 48+ working examples.
 
 ## Next Steps
 
