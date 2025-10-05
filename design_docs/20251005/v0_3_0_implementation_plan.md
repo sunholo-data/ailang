@@ -64,9 +64,11 @@ Timeline very tight? → Ship P0 only, defer everything else
 ### Updated Implementation Plan
 
 **Week 1: Core Blockers (Oct 5-11)**
-- Days 1-3: **M-R4 Recursion** (P0, 600 LOC)
-- Days 4-5: **M-R7 Type Fixes** (P0, 300 LOC - includes float comparison)
-- Weekend: Buffer for unknowns
+- Day 1: ✅ **M-R4 Recursion** (P0, 600 LOC) - COMPLETE (v0.3.0-alpha1)
+- **Day 2: M-R8 Block Expressions** (P0, 300 LOC) ← **NEW: Critical for AI compatibility**
+- Days 3-4: **M-R7 Type Fixes** (P0, 300 LOC - includes float comparison)
+- Day 5: Buffer for unknowns
+- Weekend: Buffer
 
 **Week 2: Records & Polish (Oct 12-18)**
 - Days 6-8: **M-R5 Records** (P0, 500 LOC)
@@ -77,23 +79,26 @@ Timeline very tight? → Ship P0 only, defer everything else
 
 ### Code Estimate Breakdown
 
-| Component | Implementation | Tests | Total | Priority | Days |
-|-----------|----------------|-------|-------|----------|------|
-| M-R4 Recursion | 400 LOC | 200 LOC | 600 LOC | P0 | 3 |
-| M-R7 Type Fixes | 200 LOC | 100 LOC | 300 LOC | P0 | 2 |
-| M-R5 Records | 350 LOC | 150 LOC | 500 LOC | P0 | 3 |
-| M-R6 Clock | 200 LOC | 50 LOC | 250 LOC | P1 | 1 |
-| M-R6 Net | 300 LOC | 150 LOC | 450 LOC | P1 | 2 |
-| M-UX2 Polish | 300 LOC | 100 LOC | 400 LOC | P2 | 2 |
-| **Total (all)** | **1,750 LOC** | **750 LOC** | **2,500 LOC** | - | **~13 days** |
-| **Total (P0 only)** | **950 LOC** | **450 LOC** | **1,400 LOC** | **Critical** | **~7 days** |
+| Component | Implementation | Tests | Total | Priority | Days | Status |
+|-----------|----------------|-------|-------|----------|------|--------|
+| M-R4 Recursion | 400 LOC | 200 LOC | 600 LOC | P0 | 3 | ✅ COMPLETE |
+| **M-R8 Block Expressions** | **200 LOC** | **100 LOC** | **300 LOC** | **P0** | **0.5** | **NEW** |
+| M-R7 Type Fixes | 200 LOC | 100 LOC | 300 LOC | P0 | 2 | Planned |
+| M-R5 Records | 350 LOC | 150 LOC | 500 LOC | P0 | 3 | Planned |
+| M-R6 Clock | 200 LOC | 50 LOC | 250 LOC | P1 | 1 | Planned |
+| M-R6 Net | 300 LOC | 150 LOC | 450 LOC | P1 | 2 | Planned |
+| M-UX2 Polish | 300 LOC | 100 LOC | 400 LOC | P2 | 2 | Planned |
+| **Total (all)** | **1,950 LOC** | **850 LOC** | **2,800 LOC** | - | **~13.5 days** | - |
+| **Total (P0 only)** | **1,150 LOC** | **550 LOC** | **1,700 LOC** | **Critical** | **~7.5 days** | - |
 
 **Velocity Check**:
 - Recent average: 400-600 LOC/day
-- P0 scope: 1,400 LOC = 3-4 days ideal (5-7 days with testing = **1 week realistic**)
-- Full scope: 2,500 LOC = 5-6 days ideal (10-12 days with testing = **2 weeks TIGHT**)
+- P0 scope: 1,700 LOC = 3-4 days ideal (6-8 days with testing = **1.5 weeks realistic**)
+- Full scope: 2,800 LOC = 5-7 days ideal (11-13 days with testing = **2 weeks TIGHT**)
 
 **Conclusion**: 2-week timeline is achievable for P0 + Clock. Net and UX polish may slip.
+
+**Impact of M-R8 Addition**: +300 LOC (+0.5 days) to P0 scope. Still comfortably fits in 2-week timeline and is **critical for AI compatibility** - unblocks Claude Sonnet 4.5's generated recursive code with blocks.
 
 ---
 
@@ -206,6 +211,51 @@ After releasing v0.2.0-rc1, CI failures were discovered and fixed:
 - ✅ Stack overflow gives friendly error (not panic)
 
 **Examples Unblocked**: +4 (factorial, fibonacci, quicksort, mutual)
+
+**Status**: ✅ **COMPLETE** (v0.3.0-alpha1, commits df608e1 + 3cd4c33)
+
+---
+
+### M-R8: Block Expressions (P0 - MUST SHIP) ← **NEW**
+
+**Effort**: ~300 LOC | **Priority**: P0 | **Duration**: 0.5 days
+**Design Doc**: [`design_docs/20251005/M-R8_block_expressions.md`](../20251005/M-R8_block_expressions.md)
+
+**Why**: **Critical AI compatibility feature** - AI models (Claude Sonnet 4.5, GPT-4) naturally generate code with blocks. Without this, AI-generated recursive code fails to parse.
+
+#### Problem (Current State)
+- ❌ AI-generated code: `if cond then { println(x); recurse() }` **fails to parse**
+- ❌ Manual rewriting required: `if cond then recurse((), println(x))`
+- ✅ Recursion works (M-R4 complete), but blocks don't
+
+#### Solution: Syntactic Sugar
+Add block expressions `{ e1; e2; ...; en }` that desugar to let-sequencing:
+```
+{ e1; e2; e3 } ⇒ let _ = e1 in let _ = e2 in e3
+```
+
+**Implementation**:
+- Parser: ~100 LOC (recognize `{ }` in expression position)
+- Elaboration: ~50 LOC (desugar to let chains)
+- Tests: ~100 LOC (parser + elaboration + 3 integration examples)
+- Docs: ~50 LOC (README + guides)
+
+**Semantics**:
+- Value of block = value of last expression
+- Non-last expressions evaluated for effects, values discarded
+- Empty blocks `{}` rejected with clear error
+- Trailing semicolons allowed: `{ e1; e2; }`
+
+#### Acceptance Criteria
+- ✅ `{ e1; e2; e3 }` parses and desugars correctly
+- ✅ Works in all expression contexts (function bodies, if-then-else, let RHS)
+- ✅ **Recursive function with blocks works** (the key AI-generated pattern)
+- ✅ 3 integration examples pass: seq, if-then-else, recursion
+- ✅ Empty blocks rejected: `{}` → clear error
+
+**Examples Unblocked**: All AI-generated code with blocks (critical for eval benchmarks)
+
+**Risk**: LOW (pure syntactic sugar, no type system or runtime changes)
 
 ---
 

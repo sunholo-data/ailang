@@ -81,6 +81,16 @@ This milestone enables expressing every partial recursive function under determi
 - ✅ **DONE**: Stack overflow protection (--max-recursion-depth flag)
 - **Impact**: AILANG now Turing-complete with deterministic semantics
 
+#### M-R8: Block Expressions (HIGH PRIORITY, ~300 LOC) ← **NEW**
+- ✅ **TODO**: Block syntax `{ e1; e2; e3 }` as syntactic sugar
+- ✅ **TODO**: Desugar to let-sequencing: `let _ = e1 in let _ = e2 in e3`
+- ✅ **TODO**: Parser support (recognize `{ }` in expression position)
+- ✅ **TODO**: Empty block error with clear message
+- ✅ **TODO**: 3 integration examples (seq, if-then-else, recursion)
+- **Impact**: **Critical for AI compatibility** - unblocks Claude Sonnet 4.5 generated code with blocks
+- **Why**: AI models naturally generate blocks, currently fails to parse
+- **Risk**: LOW (pure syntactic sugar, no type system or runtime changes)
+
 #### M-R5: Records & Row Polymorphism (HIGH PRIORITY, ~500 LOC)
 - ✅ **TODO**: Complete TRecord unification
 - ✅ **TODO**: Row variables for polymorphic records
