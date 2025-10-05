@@ -162,3 +162,36 @@ func (t *TaggedValue) String() string {
 	result += ")"
 	return result
 }
+
+// RefCell allows self/mutual recursion via indirection
+// Used in LetRec evaluation for function-first semantics (OCaml/Haskell style)
+type RefCell struct {
+	Val      Value // The actual value (once initialized)
+	Init     bool  // Has the value been set?
+	Visiting bool  // Currently being evaluated? (for cycle detection)
+}
+
+// IndirectValue defers to the cell at read-time
+// Environment bindings point to IndirectValue during LetRec evaluation
+type IndirectValue struct {
+	Cell *RefCell
+}
+
+func (iv *IndirectValue) Type() string { return "indirect" }
+func (iv *IndirectValue) String() string {
+	if iv.Cell.Init {
+		return iv.Cell.Val.String()
+	}
+	return "<uninitialized>"
+}
+
+// Force resolves the indirection, checking for initialization and cycles
+func (iv *IndirectValue) Force() (Value, error) {
+	if !iv.Cell.Init {
+		if iv.Cell.Visiting {
+			return nil, fmt.Errorf("RT_REC_001: recursive value used before initialization (non-function RHS). Consider making it a function or introducing laziness")
+		}
+		return nil, fmt.Errorf("RT_REC_002: uninitialized recursive binding; this indicates an internal ordering bug")
+	}
+	return iv.Cell.Val, nil
+}

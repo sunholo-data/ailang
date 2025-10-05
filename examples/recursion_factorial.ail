@@ -1,0 +1,25 @@
+-- recursion_factorial.ail
+-- Demonstrates simple recursive function with LetRec
+-- Status: ✅ Working (M-R4 recursion support)
+
+module examples/recursion_factorial
+
+import std/io (println)
+
+-- Classic factorial using recursion
+export func factorial(n: int) -> int {
+  if n <= 1 then 1 else n * factorial(n - 1)
+}
+
+-- Tail-recursive factorial with accumulator
+export func factorialTail(n: int, acc: int) -> int {
+  if n <= 1 then acc else factorialTail(n - 1, n * acc)
+}
+
+export func main() -> () ! {IO} {
+  let result1 = factorial(5);
+  let result2 = factorialTail(10, 1);
+
+  println("factorial(5) = " ++ show(result1));
+  println("factorialTail(10, 1) = " ++ show(result2))
+}

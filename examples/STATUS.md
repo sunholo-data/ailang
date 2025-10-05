@@ -9,6 +9,11 @@
 - `effects_pure.ail`
 - `guards_basic.ail`
 - `hello.ail`
+- `recursion_error.ail`
+- `recursion_factorial.ail`
+- `recursion_fibonacci.ail`
+- `recursion_mutual.ail`
+- `recursion_quicksort.ail`
 - `showcase/01_type_inference.ail`
 - `showcase/02_lambdas.ail`
 - `showcase/03_lists.ail`
@@ -57,5 +62,7 @@
 - `stdlib_demo.ail`
 - `stdlib_demo_simple.ail`
 
-**Summary:** 32 passed, 15 failed, 4 skipped (Total: 51)
-exit status 1
+**Summary:** 37 passed, 15 failed, 4 skipped (Total: 56)
+
+**Recent additions:**
+- ✅ `recursion_*.ail` (5 files) - M-R4 recursion support with RefCell indirection

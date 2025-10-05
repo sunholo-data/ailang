@@ -1,0 +1,28 @@
+-- recursion_mutual.ail
+-- Demonstrates mutually recursive functions
+-- Status: ✅ Working (M-R4 recursion support)
+
+module examples/recursion_mutual
+
+import std/io (println)
+
+-- Mutually recursive functions to test even/odd
+export func isEven(n: int) -> bool {
+  if n == 0 then true else isOdd(n - 1)
+}
+
+export func isOdd(n: int) -> bool {
+  if n == 0 then false else isEven(n - 1)
+}
+
+export func main() -> () ! {IO} {
+  let even42 = isEven(42);
+  let odd42 = isOdd(42);
+  let even17 = isEven(17);
+  let odd17 = isOdd(17);
+
+  println("isEven(42) = " ++ show(even42));
+  println("isOdd(42) = " ++ show(odd42));
+  println("isEven(17) = " ++ show(even17));
+  println("isOdd(17) = " ++ show(odd17))
+}

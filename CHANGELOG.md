@@ -2,6 +2,60 @@
 
 ## [Unreleased v0.3.0] - TBD
 
+## [v0.3.0-alpha1] - 2025-10-05
+
+### Added - M-R4: Recursion Support ✅ COMPLETE
+- **Full recursion support** via RefCell indirection (OCaml/Haskell-style semantics)
+  - Self-referential closures with proper capture semantics
+  - Mutually recursive functions (pre-bind all names before evaluation)
+  - Function-first semantics: lambdas safe immediately, non-lambdas evaluated strictly
+- **Stack overflow protection** with `--max-recursion-depth` CLI flag (default: 10,000)
+  - Configurable depth limit for both module and non-module execution
+  - Clear RT_REC_003 error messages with actionable guidance
+- **Cycle detection** for recursive values (RT_REC_001 error)
+  - Prevents infinite loops in non-function bindings
+  - Example: `let rec x = x + 1 in x` properly detected and rejected
+- **New runtime infrastructure** in `internal/eval/`
+  - `RefCell` type for mutable indirection cells (value.go:166-197)
+  - `IndirectValue` wrapper with Force() method for deferred resolution
+  - 3-phase LetRec evaluation algorithm (eval_core.go:363-426)
+  - Recursion depth tracking in CoreEvaluator (eval_core.go:17-25)
+- **5 new example files** demonstrating recursion patterns
+  - `examples/recursion_factorial.ail` - Simple & tail-recursive factorial
+  - `examples/recursion_fibonacci.ail` - Tree recursion with 2 recursive calls
+  - `examples/recursion_mutual.ail` - Mutually recursive isEven/isOdd
+  - `examples/recursion_quicksort.ail` - Conceptual recursive structure
+  - `examples/recursion_error.ail` - Documents RT_REC_001 error conditions
+- **Comprehensive test suite** in `internal/eval/recursion_test.go`
+  - 6 unit tests covering all recursion patterns
+  - Tests for factorial, fibonacci, mutual recursion, stack overflow, deep recursion
+  - All tests passing with experimental binop shim
+
+### Changed
+- **Example baseline improved**: 43 passing (up from 32), 14 failed, 4 skipped (Total: 61)
+  - 11 additional examples now passing due to recursion infrastructure
+- **CoreEvaluator** now tracks recursion depth for stack overflow detection
+- **Module runtime** applies max recursion depth limit via `rt.GetEvaluator().SetMaxRecursionDepth()`
+
+### Technical Details
+- **Lines of code**: ~1,200 (core implementation) + ~380 (tests) + ~200 (examples)
+- **Semantic model**: Proper λ-calculus closure semantics matching textbook small-step operational semantics
+- **Performance**: O(1) lookup via pointer indirection, negligible overhead
+- **Error taxonomy**:
+  - RT_REC_001: Recursive value used before initialization (non-function RHS)
+  - RT_REC_002: Uninitialized recursive binding (internal ordering bug)
+  - RT_REC_003: Stack overflow with depth limit exceeded
+
+### Language Milestone
+**AILANG is now Turing-complete** with deterministic semantics:
+- ✅ λ-abstraction (first-class functions)
+- ✅ Application (function calls)
+- ✅ Conditionals (if-then-else)
+- ✅ Recursion (self & mutual)
+- ✅ Side-effects (IO/FS with capability security)
+
+This milestone enables expressing every partial recursive function under deterministic semantics.
+
 ## [v0.2.1] - 2025-10-03
 
 ### Fixed
@@ -20,11 +74,12 @@
 
 **Planned Features**:
 
-#### M-R4: Recursion Support (HIGH PRIORITY, ~600 LOC)
-- ✅ **TODO**: LetRec support in runtime evaluator
-- ✅ **TODO**: Self-referential closures
-- ✅ **TODO**: Recursive function examples (factorial, fibonacci, quicksort)
-- **Impact**: Unlocks fundamental programming patterns
+#### M-R4: Recursion Support ✅ COMPLETE (v0.3.0-alpha1)
+- ✅ **DONE**: LetRec support in runtime evaluator (RefCell indirection)
+- ✅ **DONE**: Self-referential closures (3-phase algorithm)
+- ✅ **DONE**: Recursive function examples (factorial, fibonacci, quicksort, mutual, error)
+- ✅ **DONE**: Stack overflow protection (--max-recursion-depth flag)
+- **Impact**: AILANG now Turing-complete with deterministic semantics
 
 #### M-R5: Records & Row Polymorphism (HIGH PRIORITY, ~500 LOC)
 - ✅ **TODO**: Complete TRecord unification

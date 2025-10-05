@@ -1,0 +1,25 @@
+-- recursion_fibonacci.ail
+-- Demonstrates tree recursion (two recursive calls)
+-- Status: ✅ Working (M-R4 recursion support)
+
+module examples/recursion_fibonacci
+
+import std/io (println)
+
+-- Classic Fibonacci with tree recursion
+export func fib(n: int) -> int {
+  if n <= 1 then n else fib(n - 1) + fib(n - 2)
+}
+
+-- Tail-recursive Fibonacci with two accumulators
+export func fibTail(n: int, a: int, b: int) -> int {
+  if n <= 0 then a else fibTail(n - 1, b, a + b)
+}
+
+export func main() -> () ! {IO} {
+  let result1 = fib(10);
+  let result2 = fibTail(10, 0, 1);
+
+  println("fib(10) = " ++ show(result1));
+  println("fibTail(10, 0, 1) = " ++ show(result2))
+}

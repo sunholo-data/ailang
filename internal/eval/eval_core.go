@@ -20,6 +20,8 @@ type CoreEvaluator struct {
 	resolver              GlobalResolver // Resolver for global references
 	experimentalBinopShim bool           // Feature flag for operator shim
 	effContext            interface{}    // Effect context (interface{} avoids import cycle with effects package)
+	recursionDepth        int            // Current recursion depth (for stack overflow detection)
+	maxRecursionDepth     int            // Maximum allowed recursion depth (default: 10,000)
 }
 
 // Env returns the current environment (for module evaluation)
@@ -35,8 +37,9 @@ func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvalu
 	registerBuiltins(env)
 
 	return &CoreEvaluator{
-		env:      env,
-		registry: registry,
+		env:               env,
+		registry:          registry,
+		maxRecursionDepth: 10000, // Default: 10,000
 	}
 }
 
@@ -46,8 +49,9 @@ func NewCoreEvaluator() *CoreEvaluator {
 	registerBuiltins(env)
 
 	return &CoreEvaluator{
-		env:      env,
-		registry: types.NewDictionaryRegistry(),
+		env:               env,
+		registry:          types.NewDictionaryRegistry(),
+		maxRecursionDepth: 10000, // Default: 10,000
 	}
 }
 
@@ -165,6 +169,11 @@ func (e *CoreEvaluator) SetExperimentalBinopShim(enabled bool) {
 	e.experimentalBinopShim = enabled
 }
 
+// SetMaxRecursionDepth sets the maximum allowed recursion depth
+func (e *CoreEvaluator) SetMaxRecursionDepth(max int) {
+	e.maxRecursionDepth = max
+}
+
 // SetResolver sets the resolver for global references
 func (e *CoreEvaluator) SetResolver(resolver GlobalResolver) {
 	e.resolver = resolver
@@ -265,9 +274,13 @@ func (e *CoreEvaluator) evalCoreVar(v *core.Var) (Value, error) {
 	if !ok {
 		return nil, fmt.Errorf("undefined variable: %s", v.Name)
 	}
-	// Check for cycle marker (immediate self-reference)
-	if marker, ok := val.(*CycleMarker); ok {
-		return nil, fmt.Errorf("RT009: value initialization cycle detected: %s references itself during initialization", marker.Name)
+	// Force IndirectValue if needed (for LetRec recursion)
+	if iv, ok := val.(*IndirectValue); ok {
+		forced, err := iv.Force()
+		if err != nil {
+			return nil, err
+		}
+		return forced, nil
 	}
 	return val, nil
 }
@@ -360,50 +373,69 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 	return result, err
 }
 
-// CycleMarker is a special value used to detect initialization cycles
-type CycleMarker struct {
-	Name string
-}
-
-func (c *CycleMarker) String() string { return fmt.Sprintf("<cycle-marker:%s>", c.Name) }
-func (c *CycleMarker) Type() string   { return "CycleMarker" }
-
-// evalCoreLetRec evaluates recursive let bindings
+// evalCoreLetRec evaluates recursive let bindings using indirection cells
+// Implements function-first semantics (OCaml/Haskell style) for safe recursion
 func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
-	// Create new environment for recursive bindings
-	newEnv := e.env.NewChildEnvironment()
+	// Phase 1: Pre-allocate indirection cells and extend environment
+	recEnv := e.env.NewChildEnvironment()
+	cells := make(map[string]*RefCell, len(letrec.Bindings))
 
-	// First pass: create cycle markers for recursive references
 	for _, binding := range letrec.Bindings {
-		newEnv.Set(binding.Name, &CycleMarker{Name: binding.Name})
+		cell := &RefCell{} // Uninitialized cell
+		cells[binding.Name] = cell
+		recEnv.Set(binding.Name, &IndirectValue{Cell: cell})
 	}
 
-	// Second pass: evaluate bindings in the recursive environment
+	// Phase 2: Evaluate RHS under recursive environment
 	oldEnv := e.env
-	e.env = newEnv
+	e.env = recEnv
+	defer func() { e.env = oldEnv }()
 
 	for _, binding := range letrec.Bindings {
-		// Check if we're trying to access ourselves during evaluation
+		// Optimize for lambda RHS: build closure immediately (safe, body executes later)
+		if lam, ok := isLambda(binding.Value); ok {
+			fv, err := e.buildClosure(lam, recEnv)
+			if err != nil {
+				return nil, err
+			}
+			cells[binding.Name].Val = fv
+			cells[binding.Name].Init = true
+			continue
+		}
+
+		// Non-lambda RHS: strict evaluation
+		// Mark visiting to detect immediate cycles
+		cells[binding.Name].Visiting = true
 		val, err := e.evalCore(binding.Value)
+		cells[binding.Name].Visiting = false
 		if err != nil {
-			e.env = oldEnv
 			return nil, err
 		}
 
-		// Check if the value is still a cycle marker (immediate self-reference)
-		if marker, ok := val.(*CycleMarker); ok {
-			e.env = oldEnv
-			return nil, fmt.Errorf("RT009: value initialization cycle detected: %s references itself", marker.Name)
-		}
-
-		newEnv.Set(binding.Name, val)
+		cells[binding.Name].Val = val
+		cells[binding.Name].Init = true
 	}
 
-	// Evaluate body in recursive environment
-	result, err := e.evalCore(letrec.Body)
-	e.env = oldEnv
+	// Phase 3: Evaluate body under recursive environment
+	return e.evalCore(letrec.Body)
+}
 
-	return result, err
+// isLambda checks if a Core expression is a Lambda
+func isLambda(expr core.CoreExpr) (*core.Lambda, bool) {
+	if lam, ok := expr.(*core.Lambda); ok {
+		return lam, true
+	}
+	return nil, false
+}
+
+// buildClosure creates a FunctionValue from a Lambda, capturing the given environment
+func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*FunctionValue, error) {
+	return &FunctionValue{
+		Params: lam.Params,
+		Body:   lam.Body,
+		Env:    env,
+		Typed:  false,
+	}, nil
 }
 
 // evalCoreApp evaluates function application
@@ -412,6 +444,14 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {
 		return nil, err
+	}
+
+	// Force IndirectValue if needed (for LetRec recursion)
+	if iv, ok := fnVal.(*IndirectValue); ok {
+		fnVal, err = iv.Force()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Evaluate arguments
@@ -427,6 +467,14 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 	// Apply function
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
+		// Recursion depth guard
+		e.recursionDepth++
+		if e.recursionDepth > e.maxRecursionDepth {
+			e.recursionDepth--
+			return nil, fmt.Errorf("RT_REC_003: max recursion depth %d exceeded. Try smaller input, enable tail recursion, or increase with --max-recursion-depth", e.maxRecursionDepth)
+		}
+		defer func() { e.recursionDepth-- }()
+
 		if len(args) != len(fn.Params) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 		}
