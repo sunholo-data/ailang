@@ -95,7 +95,7 @@ const config = {
             position: 'left',
           },
           {
-            href: 'llms.txt',
+            href: '/ailang/llms.txt',
             label: 'llms.txt',
             position: 'right',
           },
@@ -143,16 +143,12 @@ const config = {
             title: 'More',
             items: [
               {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
                 label: 'Changelog',
                 href: 'https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md',
               },
               {
                 label: 'llms.txt',
-                href: 'llms.txt',
+                href: '/ailang/llms.txt',
               },
             ],
           },
