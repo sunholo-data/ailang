@@ -1,143 +1,118 @@
----
-layout: page
-title: Documentation README
-nav_exclude: true
----
+# AILANG Documentation
 
-# AILANG Website Documentation
+This directory contains the AILANG documentation website built with [Docusaurus](https://docusaurus.io/).
 
-This directory contains the source for the AILANG documentation website hosted at [https://sunholo-data.github.io/ailang/](https://sunholo-data.github.io/ailang/)
+**Live site:** [https://sunholo-data.github.io/ailang/](https://sunholo-data.github.io/ailang/)
 
 ## Quick Start
 
-### Preview Locally
-
-**First time setup:**
-```bash
-make docs-install
-```
-
-**Run the website locally:**
-```bash
-make docs-serve
-```
-
-Then open: [http://localhost:4000/ailang/](http://localhost:4000/ailang/)
-
-**Regenerate docs and preview:**
-```bash
-make docs-preview
-```
-
-### Manual Jekyll Commands
-
-If you prefer to use Jekyll directly:
+### Local Development
 
 ```bash
 cd docs
-
-# Install dependencies (first time only)
-bundle install
-
-# Serve the site
-bundle exec jekyll serve --baseurl /ailang
-
-# Build static files
-bundle exec jekyll build
+npm install
+npm start
 ```
+
+This starts a local development server and opens a browser window. Most changes are reflected live without restarting the server.
+
+**Local URL:** [http://localhost:3000/ailang/](http://localhost:3000/ailang/)
+
+### Build
+
+```bash
+npm run build
+```
+
+Generates static content into the `build` directory.
+
+### Test Production Build
+
+```bash
+npm run serve
+```
+
+Serves the production build locally.
 
 ## Directory Structure
 
 ```
 docs/
-├── _config.yml           # Jekyll configuration
-├── index.md              # Homepage
-├── guides/               # User guides
-│   ├── getting-started.md
-│   ├── development.md
-│   ├── ai-prompt-guide.md
+├── docs/                  # Documentation content
+│   ├── intro.md          # Homepage
+│   ├── guides/           # Tutorials and guides
+│   ├── reference/        # API and language reference
+│   ├── prompts/          # AI teaching prompts
 │   └── ...
-├── reference/            # Reference documentation
-│   ├── language-syntax.md
-│   ├── implementation-status.md
-│   └── repl-commands.md
-├── prompts/              # AI teaching prompts (auto-synced)
-│   ├── v0.3.0.md
-│   ├── v0.2.0.md
-│   └── python.md
-├── llms.txt              # Consolidated docs for LLMs
-└── assets/               # Images, CSS, etc.
+├── blog/                 # Blog posts (release notes, updates)
+├── src/                  # Custom React components
+│   └── css/             # Custom styles
+├── static/               # Static assets
+│   ├── img/             # Images
+│   └── llms.txt         # AI-readable documentation
+├── docusaurus.config.js  # Docusaurus configuration
+├── sidebars.js          # Sidebar structure (auto-generated)
+└── package.json         # Dependencies
 ```
 
-## Theme
+## Commands
 
-The site uses [Just the Docs](https://just-the-docs.github.io/just-the-docs/) theme for:
-- Better navigation
-- Search functionality
-- Mobile responsiveness
-- Heading anchors
+- `npm start` - Start local development server
+- `npm run build` - Build production site
+- `npm run serve` - Serve built site locally
+- `npm run clear` - Clear Docusaurus cache
 
-## Automation
+## Deployment
 
-The following are automatically updated by CI/CD:
-
-- `docs/prompts/` - Synced from `prompts/` on every push to dev
-- `docs/llms.txt` - Regenerated from all docs on every push to dev
+Documentation is automatically deployed to GitHub Pages when changes are pushed to `main` or `dev` branches via `.github/workflows/jekyll-gh-pages.yml`.
 
 ## Adding New Pages
 
-1. Create a `.md` file in the appropriate directory
-2. Add Jekyll front matter:
+1. Create a `.md` or `.mdx` file in `docs/docs/`
+2. Optional front matter:
 
 ```yaml
 ---
-layout: page
+sidebar_position: 1
 title: Your Page Title
-parent: Parent Section (optional)
-nav_order: 1
 ---
 ```
 
-3. Write your content in Markdown
-4. Preview locally with `make docs-serve`
-5. Commit and push - GitHub Pages will rebuild automatically
+3. Write your content in Markdown or MDX
+4. Sidebar is auto-generated from file structure
+5. Preview with `npm start`
+6. Commit and push - CI will deploy automatically
 
-## Front Matter Options
+## Migrated from Jekyll (October 2025)
 
-```yaml
-layout: page           # Use 'page' for most docs
-title: Page Title      # Shows in navigation
-parent: Section Name   # Creates hierarchy
-nav_order: 1          # Controls order in nav
-nav_exclude: true     # Hide from navigation
-has_children: true    # This page has children
-```
+This site was previously built with Jekyll. Benefits of Docusaurus:
+- Better developer experience (hot reload, fast builds)
+- React-based - can add interactive components
+- Better search (Algolia integration available)
+- Versioned docs support
+- Active development and maintenance
+- Modern UI with dark mode by default
 
 ## Troubleshooting
 
 **Port already in use:**
 ```bash
-# Kill existing Jekyll process
-pkill -f jekyll
-# Or use a different port
-cd docs && bundle exec jekyll serve --port 4001 --baseurl /ailang
+npm start -- --port 3001
 ```
 
-**Gems not installing:**
+**Build errors:**
 ```bash
-# Update bundler
-gem install bundler
-# Clean and reinstall
-cd docs && rm -rf Gemfile.lock && bundle install
+npm run clear
+rm -rf node_modules package-lock.json
+npm install
+npm run build
 ```
 
-**Changes not showing:**
-- Hard refresh: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
-- Clear Jekyll cache: `rm -rf docs/_site docs/.jekyll-cache`
+**Broken links:**
+Links to files outside `docs/` will show warnings. Use absolute GitHub URLs for external files like CHANGELOG.md.
 
 ## Resources
 
-- [Just the Docs Documentation](https://just-the-docs.github.io/just-the-docs/)
-- [Jekyll Documentation](https://jekyllrb.com/docs/)
-- [GitHub Pages Documentation](https://docs.github.com/en/pages)
-- [Markdown Guide](https://www.markdownguide.org/)
+- [Docusaurus Documentation](https://docusaurus.io/docs)
+- [Markdown Features](https://docusaurus.io/docs/markdown-features)
+- [MDX and React](https://docusaurus.io/docs/markdown-features/react)

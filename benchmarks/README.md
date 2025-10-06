@@ -222,13 +222,97 @@ When adding benchmarks:
 5. ✅ Test with at least 2 models
 6. ✅ Submit PR with results
 
+## Automated Design Doc Generation
+
+**NEW** ✨ Automatically generate design documents from eval failures!
+
+### Quick Start
+
+```bash
+# Full workflow: run evals → analyze → generate design docs
+make eval-to-design
+
+# Or run steps individually:
+make eval-suite          # Run benchmarks
+make eval-analyze        # Analyze failures, generate design docs
+```
+
+### How It Works
+
+1. **Run Evals**: Benchmarks execute and save results to `eval_results/*.json`
+2. **Analyze Patterns**: `ailang eval-analyze` groups failures by error pattern
+3. **Generate Designs**: GPT-5 analyzes failures and creates design documents in `design_docs/planned/`
+
+### Example Workflow
+
+```bash
+# Run eval suite with multiple models
+make eval-suite
+
+# Analyze results (dry-run to see issues first)
+ailang eval-analyze --results eval_results/ --dry-run
+
+# Generate design docs
+ailang eval-analyze --results eval_results/ \
+    --model gpt5 \
+    --output design_docs/planned/ \
+    --min-frequency 2
+
+# Review generated designs
+ls -lh design_docs/planned/
+cat design_docs/planned/EVAL_ANALYSIS_*.md
+```
+
+### Options
+
+```bash
+ailang eval-analyze [options]
+
+Options:
+  --results <dir>         Directory with eval results (default: eval_results)
+  --output <dir>          Output directory for design docs (default: design_docs/planned)
+  --model <name>          LLM model for analysis (default: gpt5)
+  --min-frequency <n>     Minimum failure count to report (default: 2)
+  --categories <list>     Filter by category (compile_error,runtime_error,logic_error)
+  --dry-run               Show issues without generating design docs
+  --generate=false        Skip design doc generation (analysis only)
+```
+
+### What Gets Generated
+
+For each issue pattern discovered:
+
+1. **Design Document** (`YYYYMMDD_category_issue_name.md`)
+   - Problem statement synthesized from error patterns
+   - Root cause analysis
+   - Proposed solution with implementation plan
+   - Testing strategy
+   - Success criteria
+   - Estimated LOC and time
+
+2. **Summary Report** (`EVAL_ANALYSIS_YYYYMMDD.md`)
+   - Overview of all issues by impact
+   - Links to generated design docs
+   - Next steps for implementation
+
+3. **Analysis Data** (`analysis_YYYYMMDD_HHMMSS.json`)
+   - Machine-readable issue data
+   - For further processing/tracking
+
+### Cost Estimate
+
+- ~$0.10-0.50 per design doc (GPT-5)
+- Typical analysis: 1-3 design docs
+- Total cost: $0.10-$1.50 per analysis run
+
 ## Next Steps
 
 1. **Run mock tests**: `make eval`
 2. **Set up API key**: `export OPENAI_API_KEY="..."`
 3. **Run baseline suite**: See "Real API Mode" above
 4. **Analyze results**: `make eval-report`
-5. **Share findings**: Help improve AILANG documentation
+5. **Generate design docs**: `make eval-analyze` ✨ NEW
+6. **Share findings**: Help improve AILANG documentation
 
 ---
 

@@ -391,6 +391,13 @@ make watch-install
 
 # Check coverage
 make test-coverage-badge
+
+# AI Evaluation & Design Generation (NEW! ✨)
+make eval-suite          # Run AI benchmarks (AILANG vs Python)
+make eval-report         # Generate evaluation report
+make eval-analyze        # Analyze failures, generate design docs (auto-dedup)
+make eval-analyze-fresh  # Force new docs (disable dedup)
+make eval-to-design      # Full workflow: evals → analysis → design docs
 ```
 
 See the [Development Guide](docs/guides/development.md) for detailed instructions.

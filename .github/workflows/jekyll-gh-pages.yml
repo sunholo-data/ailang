@@ -1,5 +1,5 @@
-# GitHub Actions workflow for building and deploying Jekyll site to GitHub Pages
-name: Deploy Jekyll site to GitHub Pages
+# GitHub Actions workflow for building and deploying Docusaurus site to GitHub Pages
+name: Deploy Documentation to GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -7,8 +7,9 @@ on:
     branches: ["main", "dev"]
     paths:
       - 'docs/**'
+      - 'llms.txt'
       - '.github/workflows/jekyll-gh-pages.yml'
-  
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -31,33 +32,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          ruby-version: '3.1' # Not needed with a .ruby-version file
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-          cache-version: 0 # Increment this number if you need to re-download cached gems
-          working-directory: ./docs
-          
-      - name: Setup Pages
-        id: pages
-        uses: actions/configure-pages@v5
-        
-      - name: Build with Jekyll
-        working-directory: ./docs
-        # Outputs to the './_site' directory by default
-        run: |
-          bundle install
-          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
-        env:
-          JEKYLL_ENV: production
-          
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './docs/package-lock.json'
+
+      - name: Copy llms.txt to static
+        run: cp llms.txt docs/static/
+
+      - name: Install dependencies
+        run: make docs-install
+
+      - name: Build Docusaurus site
+        run: make docs-build
+
       - name: Upload artifact
-        # Automatically uploads an artifact from the './_site' directory by default
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/_site
+          path: ./docs/build
 
   # Deployment job
   deploy:

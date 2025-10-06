@@ -432,6 +432,12 @@ help:
 	@echo "  make quick-install    - Quick install without version info"
 	@echo "  make verify-examples-golden - Verify examples against golden files"
 	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
+	@echo "  make eval-suite       - Run AI benchmark suite"
+	@echo "  make eval-report      - Generate evaluation report"
+	@echo "  make eval-analyze     - Analyze failures, generate design docs (with dedup)"
+	@echo "  make eval-analyze-fresh - Force new design docs (disable dedup)"
+	@echo "  make eval-to-design   - Full workflow: evals → analysis → design docs"
+	@echo "  make eval-clean       - Clean evaluation results"
 	@echo "  make help             - Show this help"
 
 # Verify examples against golden stdout files
@@ -495,6 +501,38 @@ eval-clean:
 	@echo "Cleaning evaluation results..."
 	@rm -rf eval_results/*.json eval_results/*.csv eval_results/*.md
 
+# Analyze eval results and generate design docs
+# Note: Deduplication enabled by default (merges into existing docs)
+# Options:
+#   --force-new             Disable dedup, always create new docs
+#   --merge-threshold 0.75  Similarity % for merging (default: 75%)
+#   --skip-documented       Skip if already well-documented
+eval-analyze: build
+	@echo "→ Analyzing eval results..."
+	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
+		--model gpt5 --output design_docs/planned/ \
+		--min-frequency 2
+
+# Analyze with forced new docs (disable deduplication)
+eval-analyze-fresh: build
+	@echo "→ Analyzing eval results (forcing new docs)..."
+	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
+		--model gpt5 --output design_docs/planned/ \
+		--min-frequency 2 --force-new
+
+# Full workflow: run evals → analyze → generate design docs
+eval-to-design: eval-suite eval-analyze
+	@echo "✓ Design docs generated in design_docs/planned/"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Review generated design documents"
+	@echo "  2. Adjust priorities and estimates"
+	@echo "  3. Move approved designs to milestone tracking"
+	@echo ""
+	@echo "Deduplication info:"
+	@echo "  - Similar docs are automatically merged (saves API costs)"
+	@echo "  - Use 'make eval-analyze-fresh' to force new docs"
+
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
@@ -510,19 +548,37 @@ generate-llms-txt:
 docs: sync-prompts generate-llms-txt
 	@echo "✓ All documentation generated"
 
-# Website preview targets
+# Website preview targets (Docusaurus)
 .PHONY: docs-install
 docs-install:
-	@echo "Installing Jekyll dependencies..."
-	@cd docs && bundle config set --local path 'vendor/bundle' && bundle install
+	@echo "Installing Docusaurus dependencies..."
+	@cd docs && npm install
 
 .PHONY: docs-serve
 docs-serve:
-	@echo "Starting Jekyll server..."
-	@echo "Website will be available at: http://localhost:4000/ailang/"
-	@cd docs && bundle exec jekyll serve --baseurl /ailang
+	@echo "Starting Docusaurus development server..."
+	@echo "Website will be available at: http://localhost:3000/ailang/"
+	@cd docs && npm start
+
+.PHONY: docs-build
+docs-build:
+	@echo "Building Docusaurus site..."
+	@cd docs && npm run build
 
 .PHONY: docs-preview
-docs-preview: docs
-	@echo "Regenerating documentation and starting server..."
-	@$(MAKE) docs-serve
+docs-preview: docs docs-build
+	@echo "Serving production build..."
+	@cd docs && npm run serve
+
+.PHONY: docs-clean
+docs-clean:
+	@echo "Cleaning Docusaurus cache..."
+	@cd docs && npm run clear
+	@rm -rf docs/build docs/.docusaurus
+
+.PHONY: docs-restart
+docs-restart: docs-clean
+	@echo "Restarting Docusaurus development server..."
+	@echo "Clearing cache and rebuilding..."
+	@echo "Website will be available at: http://localhost:3000/ailang/"
+	@cd docs && npm start

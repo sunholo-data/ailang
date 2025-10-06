@@ -1,23 +1,16 @@
-# Jekyll build output
+# Docusaurus
+node_modules/
+/build
+.docusaurus
+.cache-loader
+
+# Jekyll (old - kept for reference)
 _site/
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
-
-# Bundler
-.bundle/
-vendor/bundle/
-vendor/cache/
-vendor/gems/
-vendor/ruby/
-
-# Ruby version manager files
-.ruby-version
-.ruby-gemset
-.rvmrc
-
-# Dependency lock file (regenerated on bundle install)
 Gemfile.lock
+.bundle/
 
 # IDE files
 .vscode/
@@ -32,4 +25,12 @@ Thumbs.db
 
 # Local development
 .env
-.env.localvendor/bundle/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
