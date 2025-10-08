@@ -64,24 +64,36 @@ done
 
 # Calculate aggregates
 MATRIX=$(jq -s '
-{
-  version: "'$VERSION'",
-  timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
-  total_runs: length,
+if length == 0 then
+  {
+    version: "'$VERSION'",
+    timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+    total_runs: 0,
+    error: "No results found",
+    aggregates: {},
+    models: {},
+    benchmarks: {},
+    error_codes: []
+  }
+else
+  {
+    version: "'$VERSION'",
+    timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+    total_runs: length,
 
-  # Overall aggregates
-  aggregates: {
-    "0-shot_success": (map(select(.first_attempt_ok == true)) | length / length),
-    "final_success": (map(select(.stdout_ok == true)) | length / length),
-    repair_used: (map(select(.repair_used == true)) | length),
-    repair_success_rate: (
-      (map(select(.repair_used == true and .repair_ok == true)) | length) /
-      ((map(select(.repair_used == true)) | length) + 0.0001)  # Avoid div by zero
-    ),
-    total_tokens: (map(.total_tokens) | add),
-    total_cost_usd: (map(.cost_usd) | add),
-    avg_duration_ms: (map(.duration_ms) | add / length)
-  },
+    # Overall aggregates
+    aggregates: {
+      "0-shot_success": (map(select(.first_attempt_ok == true)) | length / length),
+      "final_success": (map(select(.stdout_ok == true)) | length / length),
+      repair_used: (map(select(.repair_used == true)) | length),
+      repair_success_rate: (
+        (map(select(.repair_used == true and .repair_ok == true)) | length) /
+        ((map(select(.repair_used == true)) | length) + 0.0001)  # Avoid div by zero
+      ),
+      total_tokens: (map(.total_tokens) | add),
+      total_cost_usd: (map(.cost_usd) | add),
+      avg_duration_ms: (map(.duration_ms) | add / length)
+    },
 
   # By model
   models: (
@@ -163,7 +175,9 @@ MATRIX=$(jq -s '
       }
     }) | from_entries
   )
-}' < "$TEMP_JSONL")
+}
+end
+' < "$TEMP_JSONL")
 
 # Write output
 echo "$MATRIX" | jq '.' > "$OUTPUT_FILE"
