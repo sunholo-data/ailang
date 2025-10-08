@@ -1,7 +1,7 @@
 # PYTHON: Runtime Errors
 
 **Discovered**: AI Eval Analysis - 2025-10-06
-**Frequency**: 18 failures across 3 benchmark(s)
+**Frequency**: 36 failures across 3 benchmark(s)
 **Priority**: P1 (High Priority)
 **Estimated**: 975 LOC, 3.5 days
 **Category**: runtime_error
@@ -14,9 +14,15 @@
 
 
 **Last Updated**: 2025-10-25 (merged 9 new failures)
+
+
+**Last Updated**: 2025-10-25 (merged 9 new failures)
+
+
+**Last Updated**: 2025-10-25 (merged 9 new failures)
 ## Evidence from AI Eval
 
-**Affected Benchmarks**: fizzbuzz, records_person, recursion_factorial
+**Affected Benchmarks**: records_person, recursion_factorial, fizzbuzz
 
 **Models Affected**: claude-sonnet-4-5, gpt-4o-mini
 
@@ -145,6 +151,176 @@ export func main() -> () ! {IO} {
   loop(1, 100)
 }
 ```
+
+
+### Additional Examples (Latest Analysis)
+
+**Error 1:**
+```
+  File "/var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/eval_3002195128.py", line 1
+    module benchmark/solution
+           ^^^^^^^^^
+SyntaxError: invalid syntax
+
+```
+
+**Generated Code:**
+```python
+module benchmark/solution
+
+import std/io (println)
+
+export func fizzBuzzValue(n: int) -> string {
+  if n % 15 == 0
+  then "FizzBuzz"
+  else if n % 3 == 0
+  then "Fizz"
+  else if n % 5 == 0
+  then "Buzz"
+  else show(n)
+}
+
+export func fizzBuzzLoop(current: int, end: int) -> () ! {IO} {
+  if current > end
+  then ()
+  else {
+    println(fizzBuzzValue(current));
+    fizzBuzzLoop(current + 1, end)
+  }
+}
+
+export func main() -> () ! {IO} {
+  fizzBuzzLoop(1, 100)
+}
+```
+
+---
+
+**Error 2:**
+```
+  File "/var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/eval_3678032186.py", line 1
+    module benchmark/solution
+           ^^^^^^^^^
+SyntaxError: invalid syntax
+
+```
+
+**Generated Code:**
+```python
+module benchmark/solution
+
+import std/io (println)
+
+export func fizzBuzz(n: int) -> string {
+  if n % 15 == 0
+  then "FizzBuzz"
+  else if n % 3 == 0
+  then "Fizz"
+  else if n % 5 == 0
+  then "Buzz"
+  else show(n)
+}
+
+export func loop(current: int, end: int) -> () ! {IO} {
+  if current > end
+  then ()
+  else {
+    println(fizzBuzz(current));
+    loop(current + 1, end)
+  }
+}
+
+export func main() -> () ! {IO} {
+  loop(1, 100)
+}
+```
+
+---
+
+
+### Additional Examples (Latest Analysis)
+
+**Error 1:**
+```
+  File "/var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/eval_3002195128.py", line 1
+    module benchmark/solution
+           ^^^^^^^^^
+SyntaxError: invalid syntax
+
+```
+
+**Generated Code:**
+```python
+module benchmark/solution
+
+import std/io (println)
+
+export func fizzBuzzValue(n: int) -> string {
+  if n % 15 == 0
+  then "FizzBuzz"
+  else if n % 3 == 0
+  then "Fizz"
+  else if n % 5 == 0
+  then "Buzz"
+  else show(n)
+}
+
+export func fizzBuzzLoop(current: int, end: int) -> () ! {IO} {
+  if current > end
+  then ()
+  else {
+    println(fizzBuzzValue(current));
+    fizzBuzzLoop(current + 1, end)
+  }
+}
+
+export func main() -> () ! {IO} {
+  fizzBuzzLoop(1, 100)
+}
+```
+
+---
+
+**Error 2:**
+```
+  File "/var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/eval_3678032186.py", line 1
+    module benchmark/solution
+           ^^^^^^^^^
+SyntaxError: invalid syntax
+
+```
+
+**Generated Code:**
+```python
+module benchmark/solution
+
+import std/io (println)
+
+export func fizzBuzz(n: int) -> string {
+  if n % 15 == 0
+  then "FizzBuzz"
+  else if n % 3 == 0
+  then "Fizz"
+  else if n % 5 == 0
+  then "Buzz"
+  else show(n)
+}
+
+export func loop(current: int, end: int) -> () ! {IO} {
+  if current > end
+  then ()
+  else {
+    println(fizzBuzz(current));
+    loop(current + 1, end)
+  }
+}
+
+export func main() -> () ! {IO} {
+  loop(1, 100)
+}
+```
+
+---
 
 
 ### Additional Examples (Latest Analysis)
