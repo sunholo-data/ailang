@@ -54,11 +54,11 @@ func LoadModelsConfig(path string) (*ModelsConfig, error) {
 
 // InitModelsConfig loads the global models configuration
 func InitModelsConfig() error {
-	// Try to find models.yml in benchmarks/ directory
+	// Try to find models.yml in internal/eval_harness/ directory
 	paths := []string{
-		"benchmarks/models.yml",
-		"../benchmarks/models.yml",
-		"../../benchmarks/models.yml",
+		"internal/eval_harness/models.yml",
+		"../internal/eval_harness/models.yml",
+		"models.yml", // If already in the same directory
 	}
 
 	var lastErr error
