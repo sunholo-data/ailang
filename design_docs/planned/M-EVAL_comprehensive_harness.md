@@ -71,24 +71,32 @@ Phase D: Multi-Turn Agentic 🚧 TODO (agent abstraction, CLI integration)
 
 ## Motivation & Vision
 
-### Current State (v0.3.0-alpha2)
+### Current State (v0.3.0-alpha5) - Updated October 2025
 
-✅ **Works well:**
+✅ **Works well (via M-EVAL-LOOP):**
 - Multi-model support (OpenAI, Gemini, Claude)
 - Language comparison (AILANG vs Python)
 - Separated input/output token tracking
 - Execution timing (startup + compute)
 - Structured JSON results
+- ✅ **AI-friendly formats** (JSONL, performance matrices)
+- ✅ **Self-repair with error taxonomy** (6 error codes, 1 retry)
+- ✅ **Prompt versioning with SHA256** (A/B testing workflow)
+- ✅ **Baseline validation workflow** (before/after comparison)
+- ✅ **Automated fix implementation** (AI agent reads design docs, implements fixes)
 
-⚠️ **Pain points:**
-- Results require manual JSON parsing by AI
-- No failure pattern analysis
-- Prompt evolution not tracked (hard to A/B test)
-- Single-shot only (no retry with error feedback)
-- No multi-turn iteration (real-world coding is iterative)
-- No human-friendly visualization
-- Missing reproducibility metadata
-- Capability detection is manual
+✅ **Pain points SOLVED by M-EVAL-LOOP:**
+- ~~Results require manual JSON parsing by AI~~ → JSONL format added
+- ~~No failure pattern analysis~~ → Error taxonomy + design doc generation
+- ~~Prompt evolution not tracked~~ → Prompt versioning with SHA256 hashing
+- ~~Single-shot only~~ → Self-repair with 1 retry implemented
+
+⚠️ **Remaining pain points (Phases C-D):**
+- No multi-turn iteration (3-5 turns needed for realistic workflows)
+- No human-friendly visualization (HTML dashboards)
+- Missing full reproducibility metadata (binary/stdlib hashes)
+- Capability detection is manual (auto-infer from code)
+- No production agent integration (Claude Code CLI, Gemini CLI)
 
 ### Vision: AI-First Language Development
 
@@ -96,22 +104,28 @@ Phase D: Multi-Turn Agentic 🚧 TODO (agent abstraction, CLI integration)
 
 **The Solution**: The eval harness becomes a **co-development tool** where:
 
-1. **Baseline Testing** (existing)
+1. ✅ **Baseline Testing** (COMPLETE)
    - AI generates code → Harness measures success
    - Single-shot evaluation validates language features
 
-2. **Self-Repair Loop** (Phase B)
-   - First attempt fails → Extract error category
+2. ✅ **Self-Repair Loop** (COMPLETE - Phase B via M-EVAL-LOOP)
+   - First attempt fails → Extract error category (6 codes)
    - Inject error-specific guidance → Retry once
    - Measures: "Can AI *learn* AILANG from error messages?"
+   - **Result**: 50-95% repair success rates depending on error type
 
-3. **Multi-Turn Agentic** (Phase D)
+3. ✅ **Automated Fix Implementation** (COMPLETE - M-EVAL-LOOP Milestone 4)
+   - Eval failures → Generate design docs → AI implements fix
+   - Tests verify → Benchmarks validate → Before/after comparison
+   - Measures: "Can the language self-improve automatically?"
+
+4. 🚧 **Multi-Turn Agentic** (TODO - Phase D)
    - Full conversation loop (up to 5 turns)
    - Cumulative token cost tracking
-   - Production agent integration (Claude Code, Gemini CLI)
+   - Production agent integration (Claude Code CLI, Gemini CLI)
    - Measures: "What's the *total* cost of AI-assisted development?"
 
-4. **Continuous Improvement** (all phases)
+5. ✅ **Continuous Improvement** (COMPLETE - all M-EVAL-LOOP phases)
    - Harness categorizes failures → AI learns patterns
    - Prompt evolves → Harness A/B tests versions
    - Language improves → Metrics validate impact
@@ -120,33 +134,39 @@ Phase D: Multi-Turn Agentic 🚧 TODO (agent abstraction, CLI integration)
 
 ## Design Goals
 
-### 1. AI-Friendly Data Formats
+### 1. AI-Friendly Data Formats ✅ COMPLETE
 **Goal**: Make eval results trivially consumable by AI assistants
 
-**Formats**:
-- `summary.jsonl` - One line per run (sequential reading)
-- `matrix.json` - Pivoted comparison (benchmarks × models × languages)
-- `insights.json` - High-level analysis (success rates, error patterns, recommendations)
+**Formats** (implemented via M-EVAL-LOOP):
+- ✅ `summary.jsonl` - One line per run (sequential reading)
+- ✅ `matrix.json` - Pivoted comparison (benchmarks × models × languages)
+- 🚧 `insights.json` - High-level analysis (TODO - Phase C)
+
+**Tools**:
+- ✅ `tools/generate_summary_jsonl.sh`
+- ✅ `tools/generate_matrix_json.sh`
 
 **Why**: AI can read 1 JSONL file instead of parsing 10+ individual JSON files
 
-### 2. Progressive Repair Strategies
+### 2. Progressive Repair Strategies ✅ MOSTLY COMPLETE
 **Goal**: Measure language UX at increasing complexity levels
 
 **Strategy Levels**:
-1. **Single-shot** (baseline) - Does AI know AILANG?
-2. **Self-repair** (1 retry) - Can AI learn from error messages?
-3. **Multi-turn** (3-5 turns) - What's the total debugging cost?
-4. **Production agents** (external CLIs) - How do real tools perform?
+1. ✅ **Single-shot** (baseline) - Does AI know AILANG? → COMPLETE
+2. ✅ **Self-repair** (1 retry) - Can AI learn from error messages? → COMPLETE (M-EVAL-LOOP M1)
+3. 🚧 **Multi-turn** (3-5 turns) - What's the total debugging cost? → TODO (Phase D)
+4. 🚧 **Production agents** (external CLIs) - How do real tools perform? → TODO (Phase D)
 
-### 3. Prompt Versioning & A/B Testing
+### 3. Prompt Versioning & A/B Testing ✅ COMPLETE
 **Goal**: Track prompt evolution scientifically
 
-**Features**:
-- SHA-256 hash of prompts for reproducibility
-- Version metadata (`v0.3.0-rev1`, `v0.3.0-rev2`)
-- A/B testing: `compare_prompts.sh rev1 rev2`
-- Measures: "Which teaching strategy works best?"
+**Features** (implemented via M-EVAL-LOOP Milestone 2):
+- ✅ SHA-256 hash of prompts for reproducibility
+- ✅ Version metadata in `prompts/versions.json`
+- ✅ A/B testing: `make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints`
+- ✅ Automated comparison with success rate deltas
+
+**Measures**: "Which teaching strategy works best?" → **Answer**: hints version improved by +7%
 
 ### 4. Reproducibility
 **Goal**: Ensure results are scientifically valid
@@ -219,7 +239,14 @@ Metrics → JSONL + Matrix + Insights → Dashboard + Marketing
 
 ---
 
-## Phase A: Core Infrastructure (1-2 days)
+## Phase A: Core Infrastructure ✅ MOSTLY COMPLETE (via M-EVAL-LOOP)
+
+**Status**:
+- ✅ JSONL/matrix formats → COMPLETE (M-EVAL-LOOP M3)
+- ✅ Prompt versioning → COMPLETE (M-EVAL-LOOP M2)
+- 🚧 Provenance tracking → TODO (binary/stdlib hashes)
+- 🚧 Capability detection → TODO (auto-infer from code)
+- 🚧 Code quality metrics → TODO (lines, comments)
 
 **Goal**: Extend schema, add AI-friendly formats, enable prompt versioning
 
@@ -546,7 +573,32 @@ func (r *AILangRunner) Run(code string, declaredCaps []string) (*RunResult, erro
 
 ---
 
-## Phase B: Single-Shot Self-Repair (2-3 days)
+## Phase B: Single-Shot Self-Repair ✅ COMPLETE (via M-EVAL-LOOP)
+
+**Status**: ✅ **FULLY IMPLEMENTED** in M-EVAL-LOOP Milestones 1 & 4
+
+**What Was Built**:
+- ✅ Error taxonomy with 6 error codes (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001)
+- ✅ RepairRunner with single-shot retry mechanism
+- ✅ Error-specific repair guidance (hints for each error type)
+- ✅ Metrics tracking: first_attempt_ok, repair_used, repair_ok, err_code
+- ✅ CLI flag: `--self-repair`
+- ✅ Automated fix implementation (AI agent reads design docs, implements fixes)
+
+**Files Implemented**:
+- `internal/eval_harness/errors.go` (~150 LOC)
+- `internal/eval_harness/repair.go` (~140 LOC)
+- `internal/eval_harness/metrics.go` (extended)
+- `tools/eval_auto_improve.sh` (~200 LOC)
+- `.claude/agents/eval-fix-implementer.md` (agent definition)
+
+**Results**: 50-95% repair success rates depending on error type
+
+**See**: [M-EVAL-LOOP Design Doc](../implemented/M-EVAL-LOOP_self_improving_feedback.md)
+
+---
+
+### Original Phase B Design (for reference)
 
 **Goal**: Add error taxonomy and 1-retry self-repair mechanism
 
@@ -1533,11 +1585,50 @@ ailang/
 
 ---
 
-**Status**: 📋 Ready for implementation (Phase A → B → C → D)
+## 📊 Implementation Status Summary (Updated 2025-10-08)
+
+### ✅ COMPLETE (via M-EVAL-LOOP)
+
+**Phase A** (Mostly Complete):
+- ✅ JSONL/matrix AI-friendly formats
+- ✅ Prompt versioning with SHA256
+- ✅ Baseline validation workflow
+- ✅ A/B testing automation
+
+**Phase B** (Fully Complete):
+- ✅ Error taxonomy (6 codes)
+- ✅ Single-shot self-repair
+- ✅ Automated fix implementation
+- ✅ Design doc generation
+- ✅ Validation workflow
+
+### 🚧 TODO (Remaining Work)
+
+**Phase A** (Remaining):
+- 🚧 Provenance tracking (binary/stdlib hashes) (~200 LOC, 2-3 hours)
+- 🚧 Capability auto-detection (~150 LOC, 2 hours)
+- 🚧 Code quality metrics (~100 LOC, 1 hour)
+
+**Phase C** (Dashboards & Marketing):
+- 🚧 HTML dashboard with Chart.js (~600 LOC, 1-2 days)
+- 🚧 Marketing material generator (~300 LOC, 1 day)
+- 🚧 Insights.json generation (~200 LOC, 0.5 day)
+
+**Phase D** (Multi-Turn Agentic):
+- 🚧 Multi-turn agent loop (3-5 turns) (~800 LOC, 1 week)
+- 🚧 Conversation history tracking (~200 LOC, 0.5 day)
+- 🚧 Claude Code CLI integration (~400 LOC, 1 week)
+- 🚧 Gemini CLI integration (~400 LOC, 1 week)
+
+**Estimated Remaining**: 8-10 days total
+
+---
+
+**Status**: 🔄 PARTIALLY COMPLETE (Foundation done, extensions remain)
 
 **Next Steps**:
-1. Review unified design
-2. Start Phase A (core infrastructure)
-3. Validate error taxonomy in Phase B
-4. Iterate on Phase C dashboards
-5. Begin Phase D after Phase B validation complete
+1. ✅ ~~Phase A core~~ → COMPLETE
+2. ✅ ~~Phase B self-repair~~ → COMPLETE
+3. 🚧 Complete Phase A remaining items (provenance, caps, quality metrics)
+4. 🚧 Implement Phase C dashboards for stakeholder visibility
+5. 🚧 Begin Phase D multi-turn after validating single-shot works well

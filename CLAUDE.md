@@ -125,6 +125,56 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE)
+
+**CRITICAL: These tools already exist - DO NOT recreate them!**
+
+The M-EVAL-LOOP system (Milestones 1-4) provides complete AI evaluation and automated fix implementation:
+
+```bash
+# Run evaluations
+make eval-baseline                          # Store baseline (runs all benchmarks, all models)
+make eval-validate-fix BENCH=<id>          # Validate specific fix
+make eval-prompt-ab A=<v1> B=<v2>          # A/B test prompts
+
+# Analysis tools
+make eval-summary DIR=<dir>                 # Generate JSONL summary
+make eval-matrix DIR=<dir> VERSION=<v>     # Generate performance matrix
+make eval-diff BASELINE=<dir> NEW=<dir>    # Compare two runs
+make eval-analyze                           # Generate design docs from failures
+
+# Automated fix implementation (NEW!)
+make eval-auto-improve                      # Full loop: eval → analyze → implement → validate
+make eval-auto-improve-apply               # Actually apply fixes (dry-run by default)
+
+# Slash command (after Claude Code restart)
+/eval-loop auto-improve                    # Fully automated self-improvement
+/eval-loop baseline                        # Store baseline
+/eval-loop validate <bench-id>             # Validate fix
+/eval-loop diff <baseline> <new>           # Compare runs
+/eval-loop prompt-ab <v1> <v2>            # A/B test prompts
+```
+
+**Available Tools** (in `tools/`):
+- ✅ `generate_summary_jsonl.sh` - Convert results to JSONL
+- ✅ `generate_matrix_json.sh` - Performance matrix with aggregates
+- ✅ `eval_baseline.sh` - Store baseline with git metadata
+- ✅ `eval_diff.sh` - Compare before/after
+- ✅ `eval_validate_fix.sh` - Validate specific fix
+- ✅ `eval_auto_improve.sh` - Automated fix implementation
+- ✅ `eval_prompt_ab.sh` - A/B test prompt versions
+
+**Documentation**:
+- [M-EVAL-LOOP Design Doc](design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - Complete implementation
+- [Eval Loop Guide](docs/docs/guides/evaluation/eval-loop.md) - Usage guide
+- [Eval Fix Implementer Agent](.claude/agents/eval-fix-implementer.md) - AI agent for fixes
+
+**DO NOT**:
+- ❌ Create new bash scripts for running evals - use `make eval-baseline`
+- ❌ Write custom comparison scripts - use `make eval-diff`
+- ❌ Manually generate summaries - use `make eval-summary`
+- ❌ Create new analysis tools - use existing M-EVAL-LOOP tools
+
 ### Code Quality & Coverage
 ```bash
 make test-coverage-badge  # Quick coverage check (shows: "Coverage: 29.9%")

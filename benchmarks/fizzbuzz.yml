@@ -5,7 +5,8 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "easy"
 expected_gain: "low"
-prompt_file: "prompts/v0.2.0.md"
+prompt_files:
+  ailang: "prompts/v0.2.0.md"
 task_prompt: |
   Write a program in <LANG> that prints FizzBuzz from 1 to 100.
 

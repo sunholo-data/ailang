@@ -14,10 +14,9 @@ type BenchmarkSpec struct {
 	Languages    []string          `yaml:"languages"`
 	Entrypoint   string            `yaml:"entrypoint"`
 	Caps         []string          `yaml:"caps"`
-	Prompt       string            `yaml:"prompt"`       // Inline prompt text (language-agnostic)
-	PromptFiles  map[string]string `yaml:"prompt_files"` // Language-specific prompt files: {ailang: "prompts/v0.3.0.md", python: "prompts/python.md"}
-	PromptFile   string            `yaml:"prompt_file"`  // DEPRECATED: Use prompt_files instead
-	TaskPrompt   string            `yaml:"task_prompt"`  // Task-specific prompt appended after base prompt
+	Prompt      string            `yaml:"prompt"`       // Inline prompt text (language-agnostic)
+	PromptFiles map[string]string `yaml:"prompt_files"` // Language-specific prompt files: {ailang: "prompts/v0.3.0.md"}
+	TaskPrompt  string            `yaml:"task_prompt"`  // Task-specific prompt appended after base prompt
 	ExpectedOut  string            `yaml:"expected_stdout"`
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
@@ -43,13 +42,7 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 		return nil, fmt.Errorf("spec missing required field: languages")
 	}
 
-	// Backward compatibility: if prompt_file is specified without prompt_files, apply to all languages
-	if spec.PromptFile != "" && spec.PromptFiles == nil {
-		spec.PromptFiles = make(map[string]string)
-		for _, lang := range spec.Languages {
-			spec.PromptFiles[lang] = spec.PromptFile
-		}
-	}
+	// No backward compatibility - benchmarks must use prompt_files
 
 	// Note: We don't load prompts here anymore - they're loaded per-language in PromptForLanguage()
 	// This allows each language to have its own base prompt file
