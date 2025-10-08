@@ -2914,6 +2914,37 @@ match None {
 
 # Claude Instructions for AILANG Development
 
+## ⚠️ CRITICAL: ALWAYS USE EXISTING TOOLS FIRST
+
+**Before writing ANY new script or code:**
+1. ✅ Check `make help` for existing targets
+2. ✅ Check `tools/` directory for existing scripts
+3. ✅ Check this CLAUDE.md for documented workflows
+4. ✅ Search codebase: `grep -r "function_name" internal/`
+
+**Common mistakes to avoid:**
+- ❌ Writing new bash scripts when `make` targets exist
+- ❌ Creating new analysis tools when M-EVAL-LOOP tools exist
+- ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
+- ❌ Ignoring documented workflows in CLAUDE.md
+
+**When asked to run evals:**
+```bash
+# ✅ CORRECT - Use existing tools
+make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang
+make eval-summary DIR=eval_results/baselines/v0.3.0-35-g3530d07
+
+# ❌ WRONG - Don't create new scripts
+./new_eval_script.sh  # NO! Check what exists first!
+```
+
+**Available models** (check `internal/eval_harness/models.yml`):
+- `claude-sonnet-4-5` (Anthropic)
+- `gpt5`, `gpt5-mini` (OpenAI)
+- `gemini-2-5-pro` (Google)
+
+---
+
 ## Project Overview
 AILANG is an AI-first programming language designed for AI-assisted development. It features:
 - Pure functional programming with algebraic effects (planned)
