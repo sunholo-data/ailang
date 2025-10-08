@@ -28,6 +28,22 @@ type RunMetrics struct {
 	Stderr        string    `json:"stderr,omitempty"`
 	Timestamp     time.Time `json:"timestamp"`
 	Code          string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+
+	// Self-repair metrics (M-EVAL-LOOP)
+	FirstAttemptOk  bool   `json:"first_attempt_ok"`            // Did first attempt succeed?
+	RepairUsed      bool   `json:"repair_used"`                 // Did we attempt a repair?
+	RepairOk        bool   `json:"repair_ok"`                   // Did repair succeed?
+	ErrCode         string `json:"err_code,omitempty"`          // Error code from taxonomy (PAR_001, etc.)
+	RepairTokensIn  int    `json:"repair_tokens_in,omitempty"`  // Input tokens for repair attempt
+	RepairTokensOut int    `json:"repair_tokens_out,omitempty"` // Output tokens for repair attempt
+
+	// Prompt versioning (M-EVAL-LOOP)
+	PromptVersion string `json:"prompt_version,omitempty"` // Prompt version used (v0.3.0-hints, etc.)
+
+	// Reproducibility (M-EVAL-LOOP)
+	BinaryHash string   `json:"binary_hash,omitempty"` // SHA256 of ailang binary
+	StdlibHash string   `json:"stdlib_hash,omitempty"` // SHA256 of stdlib
+	Caps       []string `json:"caps,omitempty"`        // Capabilities granted
 }
 
 // ErrorCategory constants

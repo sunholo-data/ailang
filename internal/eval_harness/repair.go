@@ -1,0 +1,146 @@
+package eval_harness
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+// RepairRunner orchestrates self-repair logic for eval benchmarks
+type RepairRunner struct {
+	agent     *AIAgent
+	runner    LanguageRunner
+	spec      *BenchmarkSpec
+	timeout   time.Duration
+	selfRepair bool
+}
+
+// NewRepairRunner creates a new repair runner
+func NewRepairRunner(agent *AIAgent, runner LanguageRunner, spec *BenchmarkSpec, timeout time.Duration, selfRepair bool) *RepairRunner {
+	return &RepairRunner{
+		agent:      agent,
+		runner:     runner,
+		spec:       spec,
+		timeout:    timeout,
+		selfRepair: selfRepair,
+	}
+}
+
+// Run executes the benchmark with optional self-repair
+func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, error) {
+	metrics := NewRunMetrics(r.spec.ID, r.runner.Language(), r.agent.model, r.agent.seed)
+
+	// First attempt
+	firstResult, err := r.runSingleAttempt(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("first attempt failed: %w", err)
+	}
+
+	// Populate metrics from first attempt
+	r.populateMetrics(metrics, firstResult)
+	metrics.FirstAttemptOk = firstResult.CompileOk && firstResult.RuntimeOk && firstResult.StdoutOk
+
+	// If first attempt succeeded or self-repair is disabled, return
+	if metrics.FirstAttemptOk || !r.selfRepair {
+		return metrics, nil
+	}
+
+	// Attempt self-repair
+	errCode, hint := CategorizeErrorCode(firstResult.RunResult.Stderr)
+	if hint == nil {
+		// Unknown error, can't repair
+		return metrics, nil
+	}
+
+	// We have a categorized error and repair hint
+	metrics.ErrCode = string(errCode)
+	metrics.RepairUsed = true
+
+	// Build repair prompt
+	repairPrompt := prompt + "\n\n" + FormatRepairPrompt(errCode, hint, r.spec.ID, r.runner.Language())
+
+	// Second attempt with repair guidance
+	repairResult, err := r.runSingleAttempt(ctx, repairPrompt)
+	if err != nil {
+		// Repair attempt failed to execute, but not a failure - just log
+		return metrics, nil
+	}
+
+	// Update metrics with repair results
+	metrics.RepairTokensIn = repairResult.InputTokens
+	metrics.RepairTokensOut = repairResult.OutputTokens
+	metrics.RepairOk = repairResult.CompileOk && repairResult.RuntimeOk && repairResult.StdoutOk
+
+	if metrics.RepairOk {
+		// Repair succeeded - update metrics to reflect successful run
+		metrics.Code = repairResult.Code
+		metrics.CompileOk = true
+		metrics.RuntimeOk = true
+		metrics.StdoutOk = true
+		// Add repair tokens to totals
+		metrics.InputTokens += repairResult.InputTokens
+		metrics.OutputTokens += repairResult.OutputTokens
+		metrics.TotalTokens += repairResult.InputTokens + repairResult.OutputTokens
+	}
+
+	return metrics, nil
+}
+
+// attemptResult contains results from a single attempt
+type attemptResult struct {
+	Code         string
+	InputTokens  int
+	OutputTokens int
+	RunResult    *RunResult
+	CompileOk    bool
+	RuntimeOk    bool
+	StdoutOk     bool
+}
+
+// runSingleAttempt executes one code generation + execution cycle
+func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*attemptResult, error) {
+	// Generate code using AI
+	genResult, err := r.agent.GenerateCode(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("code generation failed: %w", err)
+	}
+
+	// Execute generated code
+	runResult, err := r.runner.Run(genResult.Code, r.timeout)
+	if err != nil {
+		return nil, fmt.Errorf("code execution failed: %w", err)
+	}
+
+	// Check if output matches expected
+	stdoutOk := CompareOutput(r.spec.ExpectedOut, runResult.Stdout)
+
+	return &attemptResult{
+		Code:         genResult.Code,
+		InputTokens:  genResult.InputTokens,
+		OutputTokens: genResult.OutputTokens,
+		RunResult:    runResult,
+		CompileOk:    runResult.CompileOk,
+		RuntimeOk:    runResult.RuntimeOk,
+		StdoutOk:     stdoutOk,
+	}, nil
+}
+
+// populateMetrics fills in RunMetrics from an attemptResult
+func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResult) {
+	metrics.InputTokens = result.InputTokens
+	metrics.OutputTokens = result.OutputTokens
+	metrics.TotalTokens = result.InputTokens + result.OutputTokens
+	metrics.CostUSD = CalculateCost(metrics.Model, metrics.TotalTokens)
+
+	metrics.CompileOk = result.CompileOk
+	metrics.RuntimeOk = result.RuntimeOk
+	metrics.StdoutOk = result.StdoutOk
+
+	metrics.DurationMs = result.RunResult.Duration.Milliseconds()
+	metrics.CompileMs = result.RunResult.CompileTime.Milliseconds()
+	metrics.ExecuteMs = result.RunResult.ExecuteTime.Milliseconds()
+
+	metrics.ErrorCategory = CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+	metrics.Stderr = result.RunResult.Stderr
+	metrics.Code = result.Code
+}
