@@ -67,7 +67,7 @@ if [ -f "$REPO_ROOT/docs/index.md" ]; then
     echo "" >> "$OUTPUT"
 fi
 
-# docs/guides/
+# docs/guides/ (including subdirectories)
 if [ -d "$REPO_ROOT/docs/guides" ]; then
     for file in "$REPO_ROOT/docs/guides"/*.md; do
         if [ -f "$file" ]; then
@@ -78,6 +78,38 @@ if [ -d "$REPO_ROOT/docs/guides" ]; then
             echo "" >> "$OUTPUT"
             echo "---" >> "$OUTPUT"
             echo "" >> "$OUTPUT"
+        fi
+    done
+fi
+
+# docs/docs/guides/ (Docusaurus structure)
+if [ -d "$REPO_ROOT/docs/docs/guides" ]; then
+    for file in "$REPO_ROOT/docs/docs/guides"/*.md; do
+        if [ -f "$file" ]; then
+            filename=$(basename "$file")
+            echo "# Guide: $filename" >> "$OUTPUT"
+            echo "" >> "$OUTPUT"
+            cat "$file" >> "$OUTPUT"
+            echo "" >> "$OUTPUT"
+            echo "---" >> "$OUTPUT"
+            echo "" >> "$OUTPUT"
+        fi
+    done
+    # Include subdirectories (evaluation, etc.)
+    for subdir in "$REPO_ROOT/docs/docs/guides"/*; do
+        if [ -d "$subdir" ]; then
+            subdir_name=$(basename "$subdir")
+            for file in "$subdir"/*.md; do
+                if [ -f "$file" ]; then
+                    filename=$(basename "$file")
+                    echo "# Guide/$subdir_name: $filename" >> "$OUTPUT"
+                    echo "" >> "$OUTPUT"
+                    cat "$file" >> "$OUTPUT"
+                    echo "" >> "$OUTPUT"
+                    echo "---" >> "$OUTPUT"
+                    echo "" >> "$OUTPUT"
+                fi
+            done
         fi
     done
 fi

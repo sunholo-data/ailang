@@ -563,6 +563,54 @@ eval-prompt-hash:
 		echo "$$(basename $$file): $$hash"; \
 	done
 
+# Validation workflow (M-EVAL-LOOP Milestone 3)
+.PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
+
+eval-baseline: build
+	@echo "Storing baseline for current version..."
+	@./tools/eval_baseline.sh
+
+eval-diff: build
+	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
+		echo "Usage: make eval-diff BASELINE=<dir> NEW=<dir>"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make eval-diff BASELINE=eval_results/baselines/v0.3.0 NEW=eval_results/after_fix"; \
+		exit 1; \
+	fi
+	@./tools/eval_diff.sh "$(BASELINE)" "$(NEW)"
+
+eval-validate-fix: build
+	@if [ -z "$(BENCH)" ]; then \
+		echo "Usage: make eval-validate-fix BENCH=<benchmark_id> [BASELINE=<version>]"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make eval-validate-fix BENCH=float_eq"; \
+		echo "  make eval-validate-fix BENCH=float_eq BASELINE=v0.3.0-alpha5"; \
+		exit 1; \
+	fi
+	@./tools/eval_validate_fix.sh "$(BENCH)" "$(BASELINE)"
+
+eval-summary:
+	@if [ -z "$(DIR)" ]; then \
+		echo "Usage: make eval-summary DIR=<results_dir> [OUTPUT=<file>]"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make eval-summary DIR=eval_results/baseline OUTPUT=summary.jsonl"; \
+		exit 1; \
+	fi
+	@./tools/generate_summary_jsonl.sh "$(DIR)" "$(OUTPUT)"
+
+eval-matrix:
+	@if [ -z "$(DIR)" ] || [ -z "$(VERSION)" ]; then \
+		echo "Usage: make eval-matrix DIR=<results_dir> VERSION=<version> [OUTPUT=<file>]"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make eval-matrix DIR=eval_results/baseline VERSION=v0.3.0-alpha5"; \
+		exit 1; \
+	fi
+	@./tools/generate_matrix_json.sh "$(DIR)" "$(VERSION)" "$(OUTPUT)"
+
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
