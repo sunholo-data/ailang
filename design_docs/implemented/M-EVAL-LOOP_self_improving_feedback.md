@@ -115,10 +115,112 @@ make eval-matrix DIR=eval_results/baseline VERSION=v0.3.0
 
 ---
 
-## 🎉 M-EVAL-LOOP COMPLETE
+---
 
-**Total Implementation:**
-- **3 Milestones**: Self-Repair + Prompt Versioning + Validation
+## 🚀 Milestone 4: Automated Fix Implementation (~800 LOC, 4-6 hours) [IN PROGRESS]
+
+**Goal**: Close the loop fully - AI identifies failures, generates design docs, implements fixes, and validates automatically.
+
+**Status**: 🚧 IN PROGRESS
+
+**The Missing Piece:**
+Milestones 1-3 provide self-repair, validation, and analysis. But the **fix implementation step is still manual**. Milestone 4 automates it.
+
+**Complete Automated Loop:**
+```
+1. Run eval → Collect failures
+2. Analyze → Generate design docs (✅ already implemented)
+3. Implement → AI reads design doc and writes fix code (⬅ NEW!)
+4. Test → Run tests to verify fix works
+5. Validate → Re-run affected benchmarks
+6. Report → Show before/after comparison
+```
+
+**Usage:**
+```bash
+# Fully automated self-improvement
+make eval-auto-improve
+
+# Or via slash command
+/eval-loop auto-improve
+
+# With specific benchmark
+/eval-loop auto-improve --benchmark float_eq
+```
+
+**What Gets Automated:**
+- Read design doc from `design_docs/planned/`
+- Use Claude/GPT to implement the fix
+- Run `make test` to verify
+- Re-run affected benchmarks
+- Generate validation report
+- Optionally commit if successful
+
+**Files Created:**
+- ✅ `tools/eval_auto_improve.sh` (~200 LOC) - Orchestrates the loop
+- ✅ `.eval_auto_improve_task.md` (generated) - Task file for AI agent
+- ✅ `.claude/commands/eval-loop.md` (UPDATED) - Add auto-improve workflow
+- ✅ `Makefile` (+2 targets: eval-auto-improve, eval-auto-improve-apply)
+
+**Agent Integration:**
+- Currently uses Claude Code Task agent (general-purpose)
+- Pluggable design - can invoke other AI agents via CLI/API in future:
+  - OpenAI GPT-5 via API
+  - Anthropic Claude via CLI
+  - Google Gemini Code Assist
+  - Any coding agent with file system access
+
+**Safety Guardrails:**
+- ✅ Dry-run mode by default (show what would be changed)
+- ✅ Require explicit `--apply` flag to make changes
+- ✅ Run tests before accepting fix
+- ✅ Store rollback point automatically
+- ✅ Fail fast if tests break
+- ✅ Human review of changes before commit
+
+**Design Doc Reading Strategy:**
+1. Parse design doc markdown
+2. Extract: problem description, proposed solution, files to modify
+3. For each file: read current code, generate fix, apply patch
+4. Run tests, revert if fails
+5. Re-run benchmark, compare before/after
+
+**Implementation Agent Prompt:**
+```
+You are implementing a fix for AILANG based on the design doc:
+
+[design doc content]
+
+Files to modify: [list]
+Current code: [file contents]
+
+Generate the implementation that:
+1. Solves the problem described
+2. Passes existing tests
+3. Follows AILANG coding standards
+4. Is minimal and focused
+
+Output format:
+- File path
+- Old code (exact match for Edit tool)
+- New code
+- Explanation of changes
+```
+
+---
+
+## 🎉 M-EVAL-LOOP Status
+
+**Completed Milestones:**
+- **Milestone 1**: ✅ Self-Repair + Error Taxonomy
+- **Milestone 2**: ✅ Prompt Versioning + A/B Testing
+- **Milestone 3**: ✅ Validation Workflow + AI Formats
+
+**In Progress:**
+- **Milestone 4**: 🚧 Automated Fix Implementation
+
+**Total So Far:**
+- **3 Milestones Complete**: Self-Repair + Prompt Versioning + Validation
 - **Total LOC**: ~2,960 (implementation + tests + scripts)
 - **Total Time**: ~7 hours
 - **Average Velocity**: ~423 LOC/hour
@@ -131,6 +233,7 @@ make eval-matrix DIR=eval_results/baseline VERSION=v0.3.0
 4. ✅ AI-friendly JSONL/JSON exports
 5. ✅ Performance tracking across versions
 6. ✅ Full Makefile integration
+7. 🚧 Automated fix implementation (in progress)
 
 **Complete Workflow:**
 ```bash

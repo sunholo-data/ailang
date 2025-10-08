@@ -611,6 +611,27 @@ eval-matrix:
 	fi
 	@./tools/generate_matrix_json.sh "$(DIR)" "$(VERSION)" "$(OUTPUT)"
 
+# Automated fix implementation (M-EVAL-LOOP Milestone 4)
+.PHONY: eval-auto-improve
+
+eval-auto-improve:
+	@echo "🚀 M-EVAL-LOOP: Automated Fix Implementation"
+	@echo ""
+	@if [ -n "$(BENCH)" ]; then \
+		./tools/eval_auto_improve.sh --benchmark "$(BENCH)"; \
+	else \
+		./tools/eval_auto_improve.sh; \
+	fi
+
+eval-auto-improve-apply:
+	@echo "🚀 M-EVAL-LOOP: Automated Fix Implementation (APPLY MODE)"
+	@echo ""
+	@if [ -n "$(BENCH)" ]; then \
+		./tools/eval_auto_improve.sh --benchmark "$(BENCH)" --apply; \
+	else \
+		./tools/eval_auto_improve.sh --apply; \
+	fi
+
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:

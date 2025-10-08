@@ -14,6 +14,7 @@ Execute M-EVAL-LOOP workflows for validating fixes, A/B testing prompts, and ana
 **Usage:** `/eval-loop <workflow> [options]`
 
 **Available Workflows:**
+- `auto-improve [--benchmark <id>]` - 🚀 Fully automated fix implementation loop (NEW!)
 - `baseline` - Store current results as baseline
 - `validate <benchmark-id>` - Validate a specific fix
 - `diff <baseline-dir> <new-dir>` - Compare two runs
@@ -25,6 +26,8 @@ Execute M-EVAL-LOOP workflows for validating fixes, A/B testing prompts, and ana
 ## Examples
 
 ```
+/eval-loop auto-improve                    # 🚀 Full automated loop - identify → analyze → implement → validate
+/eval-loop auto-improve --benchmark float_eq  # Target specific benchmark
 /eval-loop baseline
 /eval-loop validate float_eq
 /eval-loop diff baselines/v0.3.0 after_fix
@@ -34,6 +37,51 @@ Execute M-EVAL-LOOP workflows for validating fixes, A/B testing prompts, and ana
 ```
 
 ## Workflow Descriptions
+
+### 0. Auto-Improve Workflow (🚀 NEW!)
+
+**Command:** `/eval-loop auto-improve [--benchmark <id>]`
+
+**What it does:**
+1. Runs benchmarks (or uses recent results)
+2. Analyzes failures → generates design docs
+3. Reads design doc and implements the fix via AI agent
+4. Runs tests to verify fix works
+5. Re-runs affected benchmarks to validate
+6. Shows before/after comparison
+
+**When to use:**
+- You want a fully automated fix attempt
+- You have eval failures and want AI to try fixing them
+- You want to see if the design doc → implementation loop works
+
+**Workflow steps:**
+```
+Run eval → Analyze failures → Generate design doc →
+→ AI implements fix → Run tests → Validate → Report
+```
+
+**Example:**
+```bash
+User: "Let's try to auto-fix the float comparison issue"
+Assistant: /eval-loop auto-improve --benchmark float_eq
+
+# Output:
+# 📊 Running benchmark: float_eq
+# 📋 Analyzing failures...
+# ✓ Design doc generated: design_docs/planned/EVAL_ANALYSIS_float_eq.md
+# 🤖 Implementing fix via AI agent...
+# [AI reads design doc and implements fix]
+# ✅ Tests passing
+# 📊 Re-running float_eq benchmark...
+# ✓ FIX VALIDATED: 60% → 95% success rate
+```
+
+**Safety features:**
+- Dry-run by default (shows what would be done)
+- Stores rollback point before changes
+- Runs tests before accepting fix
+- Human review recommended before commit
 
 ### 1. Baseline Workflow
 
@@ -217,6 +265,80 @@ When user invokes `/eval-loop <workflow>`, the assistant should:
 3. **Execute the appropriate Makefile target or script**
 4. **Parse and summarize the output**
 5. **Provide actionable recommendations**
+
+### Workflow Routing
+
+```bash
+case "$workflow" in
+    auto-improve)
+        # Run automated fix implementation
+        ./tools/eval_auto_improve.sh $options
+        # Then use Task agent to read .eval_auto_improve_task.md and implement
+        ;;
+    baseline)
+        make eval-baseline
+        ;;
+    validate)
+        make eval-validate-fix BENCH="$benchmark_id"
+        ;;
+    diff)
+        make eval-diff BASELINE="$baseline_dir" NEW="$new_dir"
+        ;;
+    prompt-ab)
+        make eval-prompt-ab A="$version_a" B="$version_b"
+        ;;
+    summary)
+        make eval-summary DIR="$results_dir"
+        ;;
+    matrix)
+        make eval-matrix DIR="$results_dir" VERSION="$version"
+        ;;
+esac
+```
+
+### Auto-Improve Implementation
+
+For `auto-improve` workflow, the assistant should:
+
+1. **Run setup script** (dry-run first):
+   ```bash
+   ./tools/eval_auto_improve.sh [--benchmark <id>]
+   ```
+   This creates the task file `.eval_auto_improve_task.md`
+
+2. **Show preview** of what will be done
+
+3. **Ask user** if they want to proceed with --apply mode
+
+4. **If user confirms**, run with --apply:
+   ```bash
+   ./tools/eval_auto_improve.sh [--benchmark <id>] --apply
+   ```
+
+5. **Invoke Task agent** to implement the fix:
+   ```
+   Use the Task tool to launch a general-purpose agent with this prompt:
+
+   "Please read and execute the task described in .eval_auto_improve_task.md
+
+   This is an automated fix implementation task from M-EVAL-LOOP.
+   Follow all the steps in the task file:
+   1. Read the design document
+   2. Implement the proposed fix
+   3. Run tests to verify
+   4. Validate with benchmarks
+   5. Report results
+
+   Important: Make minimal changes and run tests after each change."
+   ```
+
+6. **After agent completes**, run validation:
+   ```bash
+   make eval-validate-fix BENCH=<benchmark-id>
+   make eval-diff
+   ```
+
+7. **Show results** to user with before/after comparison
 
 ## Integration with Development Workflow
 
