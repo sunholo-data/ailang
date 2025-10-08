@@ -1,35 +1,55 @@
 # M-EVAL: Comprehensive AI Evaluation Harness
 
-**Status**: 📋 Planned (replaces M-EVAL-ENHANCE + M-EVAL2-Agentic)
-**Version**: 2.0 (Unified Design)
+**Status**: 🔄 PARTIALLY COMPLETE (Phases A & B done via M-EVAL-LOOP)
+**Version**: 2.1 (Updated - Foundation Complete)
 **Author**: AI-Assisted (Claude + User)
-**Date**: 2025-10-05
-**Milestone**: v0.3.0-alpha3 (Phases A-C) → v0.4.0 (Phase D)
+**Date**: 2025-10-08 (Updated from 2025-10-05)
+**Milestone**: v0.3.0-alpha5 (Phases A-B ✅) → v0.4.0 (Phases C-D)
+
+---
+
+## 🎉 Foundation Complete: M-EVAL-LOOP
+
+**Phases A & B have been implemented via M-EVAL-LOOP (Milestones 1-4):**
+
+✅ **Milestone 1**: Self-Repair + Error Taxonomy (Phase B)
+✅ **Milestone 2**: Prompt Versioning + A/B Testing (Phase A)
+✅ **Milestone 3**: Validation Workflow + AI Formats (Phase A)
+✅ **Milestone 4**: Automated Fix Implementation (Phase B+)
+
+**See**: [M-EVAL-LOOP Design Doc](../implemented/M-EVAL-LOOP_self_improving_feedback.md)
 
 ---
 
 ## Executive Summary
 
-The AILANG eval harness is **the definitive tool for developing an AI-optimized programming language**. This comprehensive design combines:
+The AILANG eval harness is **the definitive tool for developing an AI-optimized programming language**. This document tracks the remaining enhancements:
 
-1. **AI-friendly infrastructure** (JSONL formats, insights, reproducibility)
-2. **Single-shot self-repair** (1 retry with error-specific guidance)
-3. **Multi-turn agentic evaluation** (up to 5 turns, conversation-based)
-4. **Production tool integration** (Claude Code CLI, Gemini CLI)
-5. **Marketing & visualization** (HTML dashboards, comparison matrices)
+**✅ COMPLETED (via M-EVAL-LOOP):**
+1. ✅ **AI-friendly infrastructure** - JSONL formats, performance matrices, baseline validation
+2. ✅ **Single-shot self-repair** - Error taxonomy (6 codes), 1 retry with hints
+3. ✅ **Prompt versioning** - SHA256 verification, A/B testing
+4. ✅ **Automated fix implementation** - AI agent reads design docs, implements fixes, validates
+
+**🚧 REMAINING (Phases A-C-D):**
+1. **Provenance tracking** (Phase A) - Binary hash, stdlib hash, environment fingerprint
+2. **Capability auto-detection** (Phase A) - Infer caps from code, warn on mismatch
+3. **Code quality metrics** (Phase A) - Lines, bytes, comments
+4. **HTML Dashboards** (Phase C) - Chart.js visualizations, marketing material
+5. **Multi-turn agentic** (Phase D) - 3-5 turn loops, conversation history, CLI integration
 
 **Progressive Enhancement Philosophy:**
 ```
-Phase A: Core Infrastructure (schema, formats, versioning)
+Phase A: Core Infrastructure ✅ MOSTLY COMPLETE (provenance/caps remain)
     ↓
-Phase B: Single-Shot Self-Repair (error taxonomy, 1 retry)
+Phase B: Single-Shot Self-Repair ✅ COMPLETE (via M-EVAL-LOOP)
     ↓
-Phase C: Dashboards & Marketing (HTML, charts, insights)
+Phase C: Dashboards & Marketing 🚧 TODO (HTML, charts, insights)
     ↓
-Phase D: Multi-Turn Agentic (agent abstraction, CLI integration)
+Phase D: Multi-Turn Agentic 🚧 TODO (agent abstraction, CLI integration)
 ```
 
-**Key Insight**: Start simple (1 retry), validate error taxonomy, then scale to multi-turn production agents.
+**Key Achievement**: Single-shot self-repair validated! Error taxonomy works. Ready to extend to multi-turn.
 
 ---
 
