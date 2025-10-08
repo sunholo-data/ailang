@@ -32,18 +32,18 @@ type SimilarDoc struct {
 
 // DedupConfig configures deduplication behavior
 type DedupConfig struct {
-	Enabled          bool
-	MergeThreshold   float64 // Similarity % for merging (0.0-1.0)
-	ForceNew         bool    // Always create new docs
-	SkipWellDocumented bool  // Skip if issue is already comprehensive
+	Enabled            bool
+	MergeThreshold     float64 // Similarity % for merging (0.0-1.0)
+	ForceNew           bool    // Always create new docs
+	SkipWellDocumented bool    // Skip if issue is already comprehensive
 }
 
 // DefaultDedupConfig returns default deduplication settings
 func DefaultDedupConfig() DedupConfig {
 	return DedupConfig{
-		Enabled:          true,
-		MergeThreshold:   0.75, // 75% similarity
-		ForceNew:         false,
+		Enabled:            true,
+		MergeThreshold:     0.75, // 75% similarity
+		ForceNew:           false,
 		SkipWellDocumented: false,
 	}
 }

@@ -1,5 +1,71 @@
 # AILANG Changelog
 
+## [Unreleased] - 2025-10-08
+
+### Added - M-EVAL-LOOP Milestone 1: Self-Repair Foundation ✅ COMPLETE
+
+**Complete self-repair system for AI evaluation benchmarks with error taxonomy, retry logic, and CLI integration (~520 LOC in 3.5 hours).**
+
+**Implementation** (`internal/eval_harness/`)
+- **Error taxonomy** (`errors.go`, ~150 LOC)
+  - 6 error codes: PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001
+  - Regex-based error matching with repair hints
+  - `CategorizeErrorCode()` matches stderr against patterns
+  - `FormatRepairPrompt()` generates error-specific fix guidance
+  - Structured RepairHint with Title/Why/How format
+- **RepairRunner orchestration** (`repair.go`, ~140 LOC)
+  - Single-shot self-repair loop: attempt → error → repair → retry
+  - `Run()` method handles first attempt + optional repair
+  - `runSingleAttempt()` for code generation + execution cycles
+  - `populateMetrics()` for comprehensive metrics tracking
+  - Automatic error categorization and repair prompt injection
+- **Extended metrics** (`metrics.go`, modified)
+  - Self-repair tracking: FirstAttemptOk, RepairUsed, RepairOk
+  - Error details: ErrCode, RepairTokensIn, RepairTokensOut
+  - Prompt versioning: PromptVersion field (ready for A/B testing)
+  - Reproducibility: BinaryHash, StdlibHash, Caps fields
+
+**Tests** (`internal/eval_harness/errors_test.go`, ~200 LOC)
+- 10 test cases covering all error codes
+- Repair prompt formatting validation
+- Rule completeness checks
+- Regex pattern validation
+- All tests passing ✅
+
+**CLI Integration** (`cmd/ailang/eval.go`, modified)
+- New `--self-repair` flag for single-shot repair
+- RepairRunner integration replacing manual execution
+- Enhanced output showing repair attempts and results
+- Backward compatible (repair disabled by default)
+
+**Usage:**
+```bash
+# Without self-repair (0-shot)
+ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5
+
+# With self-repair (1-shot)
+ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --self-repair
+```
+
+**Files Modified:**
+- `internal/eval_harness/errors.go` (+150 LOC)
+- `internal/eval_harness/errors_test.go` (+200 LOC)
+- `internal/eval_harness/repair.go` (+140 LOC)
+- `internal/eval_harness/metrics.go` (+30 LOC)
+- `cmd/ailang/eval.go` (refactored for RepairRunner)
+- Total: ~520 LOC
+
+**Key Design Decisions:**
+1. Single-shot repair only (no infinite loops)
+2. Error-specific repair hints (not generic "fix it")
+3. Metrics track both first attempt and repair separately
+4. RepairRunner owns orchestration (agent + runner coordination)
+5. Backward compatible CLI (repair opt-in via flag)
+
+**Velocity:** ~150 LOC/hour, ahead of schedule (estimated 6-8 hours, actual 3.5 hours)
+
+---
+
 ## [v0.3.0] - 2025-10-05
 
 Complete implementation of Clock & Net effects (M-R6) with full Phase 2 PM security hardening, plus critical type system fixes (M-R7) for modulo operator and float comparison.

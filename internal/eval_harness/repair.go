@@ -8,10 +8,10 @@ import (
 
 // RepairRunner orchestrates self-repair logic for eval benchmarks
 type RepairRunner struct {
-	agent     *AIAgent
-	runner    LanguageRunner
-	spec      *BenchmarkSpec
-	timeout   time.Duration
+	agent      *AIAgent
+	runner     LanguageRunner
+	spec       *BenchmarkSpec
+	timeout    time.Duration
 	selfRepair bool
 }
 

@@ -16,15 +16,15 @@ import (
 // DesignDocData contains all data for rendering a design document
 type DesignDocData struct {
 	// Header
-	Title           string
-	Date            string
-	Frequency       int
-	BenchmarkCount  int
-	Priority        string
-	EstimatedLOC    string
-	EstimatedTime   string
-	Category        string
-	Impact          string
+	Title          string
+	Date           string
+	Frequency      int
+	BenchmarkCount int
+	Priority       string
+	EstimatedLOC   string
+	EstimatedTime  string
+	Category       string
+	Impact         string
 
 	// Evidence
 	Benchmarks        string
@@ -34,9 +34,9 @@ type DesignDocData struct {
 	ErrorExamples     []ErrorExample
 
 	// Analysis
-	ProblemStatement string
-	RootCause        string
-	Solution         string
+	ProblemStatement   string
+	RootCause          string
+	Solution           string
 	ImplementationPlan string
 
 	// Technical Design
@@ -48,14 +48,14 @@ type DesignDocData struct {
 	Tasks []Task
 
 	// Testing
-	UnitTests      string
+	UnitTests        string
 	IntegrationTests string
-	NewBenchmarks  string
-	SuccessCriteria []string
+	NewBenchmarks    string
+	SuccessCriteria  []string
 
 	// References
-	SimilarFeatures     string
-	RelatedDesignDocs   string
+	SimilarFeatures   string
+	RelatedDesignDocs string
 
 	// Impact
 	SuccessRateBefore     string
@@ -287,8 +287,8 @@ SUCCESS_RATE_AFTER:
 TOKEN_EFFICIENCY_AFTER:
 [description]
 `,
-		truncate(claudeMd, 8000),  // Increased: Full CLAUDE.md context is critical
-		truncate(readmeMd, 4000),  // Increased: More implementation status
+		truncate(claudeMd, 8000),    // Increased: Full CLAUDE.md context is critical
+		truncate(readmeMd, 4000),    // Increased: More implementation status
 		truncate(similarDocs, 3000), // Increased: Full design doc examples
 		issue.Category,
 		issue.Title,
@@ -338,40 +338,40 @@ func (g *DesignGenerator) parseGPTOutput(output string, issue IssueReport, total
 	priority := calculatePriority(issue.Impact, issue.Frequency, totalFailures)
 
 	return &DesignDocData{
-		Title:             issue.Title,
-		Date:              time.Now().Format("2006-01-02"),
-		Frequency:         issue.Frequency,
-		BenchmarkCount:    len(issue.Benchmarks),
-		Priority:          priority,
-		EstimatedLOC:      sections["ESTIMATED_LOC"],
-		EstimatedTime:     sections["ESTIMATED_TIME"],
-		Category:          issue.Category,
-		Impact:            issue.Impact,
-		Benchmarks:        strings.Join(issue.Benchmarks, ", "),
-		Models:            strings.Join(issue.Models, ", "),
-		TotalFailures:     totalFailures,
-		FailurePercentage: fmt.Sprintf("%.1f", float64(issue.Frequency)/float64(totalFailures)*100.0),
-		ErrorExamples:     errorExamples,
-		ProblemStatement:  sections["PROBLEM_STATEMENT"],
-		RootCause:         sections["ROOT_CAUSE"],
-		Solution:          sections["SOLUTION"],
-		ImplementationPlan: sections["IMPLEMENTATION_PLAN"],
-		APIChanges:        sections["API_CHANGES"],
-		TypeSystemChanges: sections["TYPE_SYSTEM_CHANGES"],
-		RuntimeChanges:    sections["RUNTIME_CHANGES"],
-		Tasks:             tasks,
-		UnitTests:         sections["UNIT_TESTS"],
-		IntegrationTests:  sections["INTEGRATION_TESTS"],
-		NewBenchmarks:     sections["NEW_BENCHMARKS"],
-		SuccessCriteria:   successCriteria,
-		SimilarFeatures:   g.findSimilarFeatures(issue.Category),
-		RelatedDesignDocs: g.findRelatedDocs(issue.Category),
+		Title:                 issue.Title,
+		Date:                  time.Now().Format("2006-01-02"),
+		Frequency:             issue.Frequency,
+		BenchmarkCount:        len(issue.Benchmarks),
+		Priority:              priority,
+		EstimatedLOC:          sections["ESTIMATED_LOC"],
+		EstimatedTime:         sections["ESTIMATED_TIME"],
+		Category:              issue.Category,
+		Impact:                issue.Impact,
+		Benchmarks:            strings.Join(issue.Benchmarks, ", "),
+		Models:                strings.Join(issue.Models, ", "),
+		TotalFailures:         totalFailures,
+		FailurePercentage:     fmt.Sprintf("%.1f", float64(issue.Frequency)/float64(totalFailures)*100.0),
+		ErrorExamples:         errorExamples,
+		ProblemStatement:      sections["PROBLEM_STATEMENT"],
+		RootCause:             sections["ROOT_CAUSE"],
+		Solution:              sections["SOLUTION"],
+		ImplementationPlan:    sections["IMPLEMENTATION_PLAN"],
+		APIChanges:            sections["API_CHANGES"],
+		TypeSystemChanges:     sections["TYPE_SYSTEM_CHANGES"],
+		RuntimeChanges:        sections["RUNTIME_CHANGES"],
+		Tasks:                 tasks,
+		UnitTests:             sections["UNIT_TESTS"],
+		IntegrationTests:      sections["INTEGRATION_TESTS"],
+		NewBenchmarks:         sections["NEW_BENCHMARKS"],
+		SuccessCriteria:       successCriteria,
+		SimilarFeatures:       g.findSimilarFeatures(issue.Category),
+		RelatedDesignDocs:     g.findRelatedDocs(issue.Category),
 		SuccessRateBefore:     sections["SUCCESS_RATE_BEFORE"],
 		TokenEfficiencyBefore: sections["TOKEN_EFFICIENCY_BEFORE"],
 		SuccessRateAfter:      sections["SUCCESS_RATE_AFTER"],
 		TokenEfficiencyAfter:  sections["TOKEN_EFFICIENCY_AFTER"],
-		GeneratedDate:  time.Now().Format("2006-01-02 15:04:05"),
-		GeneratorModel: g.model,
+		GeneratedDate:         time.Now().Format("2006-01-02 15:04:05"),
+		GeneratorModel:        g.model,
 	}
 }
 

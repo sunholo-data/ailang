@@ -1,11 +1,39 @@
 # M-EVAL-LOOP: Self-Improving AI Feedback Loop
 
-**Status**: 📋 Planned
-**Version**: 1.0
+**Status**: 🔄 In Progress (Milestone 1 Complete ✅)
+**Version**: 1.1
 **Author**: AI-Assisted (Claude + User + GPT-5 + Gemini 2.5 Pro)
 **Date**: 2025-10-08
-**Milestone**: v0.3.0-alpha4
+**Milestone**: v0.3.0-alpha5
 **Priority**: HIGH - Core infrastructure for AI-first language development
+
+---
+
+## ✅ Milestone 1 Complete (October 8, 2025) - Self-Repair Foundation (~520 LOC)
+
+**Estimated**: ~600 LOC in 6-8 hours
+**Actual**: ~520 LOC in 3.5 hours
+
+**What Was Built:**
+- Error taxonomy with 6 error codes (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001)
+- RepairRunner orchestration for single-shot self-repair loop
+- Extended RunMetrics with FirstAttemptOk, RepairUsed, RepairOk, ErrCode, RepairTokens
+- CLI integration with `--self-repair` flag
+- 10 comprehensive test cases covering all error patterns
+
+**Velocity**: ~150 LOC/hour (ahead of schedule)
+
+**Usage:**
+```bash
+ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --self-repair
+```
+
+**Files Modified:**
+- `internal/eval_harness/errors.go` (+150 LOC)
+- `internal/eval_harness/errors_test.go` (+200 LOC)
+- `internal/eval_harness/repair.go` (+140 LOC)
+- `internal/eval_harness/metrics.go` (+30 LOC)
+- `cmd/ailang/eval.go` (refactored for RepairRunner)
 
 ---
 

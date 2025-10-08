@@ -107,30 +107,30 @@ func TestDetermineMergeStrategy(t *testing.T) {
 	config := DefaultDedupConfig()
 
 	tests := []struct {
-		name     string
-		issue    IssueReport
-		similar  []SimilarDoc
+		name         string
+		issue        IssueReport
+		similar      []SimilarDoc
 		wantStrategy MergeStrategy
 	}{
 		{
 			name: "no similar docs - create",
 			issue: IssueReport{
-				Category: "compile_error",
+				Category:  "compile_error",
 				Frequency: 5,
 			},
-			similar: []SimilarDoc{},
+			similar:      []SimilarDoc{},
 			wantStrategy: StrategyCreate,
 		},
 		{
 			name: "very high similarity - merge",
 			issue: IssueReport{
-				Category: "runtime_error",
+				Category:  "runtime_error",
 				Frequency: 5,
 			},
 			similar: []SimilarDoc{
 				{
 					SimilarityScore: 0.95,
-					Frequency: 3,
+					Frequency:       3,
 				},
 			},
 			wantStrategy: StrategyMerge,
@@ -138,13 +138,13 @@ func TestDetermineMergeStrategy(t *testing.T) {
 		{
 			name: "high similarity - merge",
 			issue: IssueReport{
-				Category: "runtime_error",
+				Category:  "runtime_error",
 				Frequency: 5,
 			},
 			similar: []SimilarDoc{
 				{
 					SimilarityScore: 0.80,
-					Frequency: 3,
+					Frequency:       3,
 				},
 			},
 			wantStrategy: StrategyMerge,
@@ -152,13 +152,13 @@ func TestDetermineMergeStrategy(t *testing.T) {
 		{
 			name: "moderate similarity - link",
 			issue: IssueReport{
-				Category: "runtime_error",
+				Category:  "runtime_error",
 				Frequency: 5,
 			},
 			similar: []SimilarDoc{
 				{
 					SimilarityScore: 0.60,
-					Frequency: 3,
+					Frequency:       3,
 				},
 			},
 			wantStrategy: StrategyLink,
@@ -166,13 +166,13 @@ func TestDetermineMergeStrategy(t *testing.T) {
 		{
 			name: "low similarity - create",
 			issue: IssueReport{
-				Category: "runtime_error",
+				Category:  "runtime_error",
 				Frequency: 5,
 			},
 			similar: []SimilarDoc{
 				{
 					SimilarityScore: 0.40,
-					Frequency: 3,
+					Frequency:       3,
 				},
 			},
 			wantStrategy: StrategyCreate,
@@ -222,9 +222,9 @@ Error: builtin eq_Int expects Int arguments
 
 	// Test finding similar docs
 	issue := IssueReport{
-		Category:   "runtime_error",
-		Lang:       "ailang",
-		Benchmarks: []string{"adt_option", "fizzbuzz"},
+		Category:      "runtime_error",
+		Lang:          "ailang",
+		Benchmarks:    []string{"adt_option", "fizzbuzz"},
 		ErrorMessages: []string{"Error: builtin eq_Int expects Int arguments"},
 	}
 
@@ -294,12 +294,12 @@ Test root cause.
 
 	// Create issue to merge
 	issue := IssueReport{
-		Category:   "runtime_error",
-		Lang:       "ailang",
-		Frequency:  3,
-		Benchmarks: []string{"pipeline"},
+		Category:      "runtime_error",
+		Lang:          "ailang",
+		Frequency:     3,
+		Benchmarks:    []string{"pipeline"},
 		ErrorMessages: []string{"Error: new error"},
-		Examples:   []string{"new code example"},
+		Examples:      []string{"new code example"},
 	}
 
 	// Merge

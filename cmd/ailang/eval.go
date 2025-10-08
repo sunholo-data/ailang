@@ -23,6 +23,7 @@ func runEval() {
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for code execution")
 	mock := fs.Bool("mock", false, "Use mock AI agent (for testing)")
 	listModels := fs.Bool("list-models", false, "List available models and exit")
+	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -64,22 +65,26 @@ func runEval() {
 	logger := eval_harness.NewMetricsLogger(*outputDir)
 
 	// Create AI agent (or mock)
-	var agent interface {
-		GenerateCode(ctx context.Context, prompt string) (*eval_harness.GenerateResult, error)
-	}
+	var agent *eval_harness.AIAgent
 
 	if *mock {
-		// Use mock agent for testing
-		mockCode := generateMockCode(*benchmarkID, targetLangs[0])
-		agent = eval_harness.NewMockAIAgent(*model, mockCode)
-		fmt.Printf("%s Using mock AI agent\n", yellow("⚠"))
-	} else {
-		aiAgent, err := eval_harness.NewAIAgent(*model, *seed)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: failed to create AI agent: %v\n", red("Error"), err)
+		fmt.Fprintf(os.Stderr, "%s: --self-repair not supported with --mock\n", red("Error"))
+		if *selfRepair {
 			os.Exit(1)
 		}
-		agent = aiAgent
+		// Mock agent doesn't support self-repair currently
+	}
+
+	// Create real AI agent (required for self-repair)
+	aiAgent, err := eval_harness.NewAIAgent(*model, *seed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to create AI agent: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	agent = aiAgent
+
+	if *selfRepair {
+		fmt.Printf("  %s Self-repair enabled (will retry on errors)\n", cyan("ℹ"))
 	}
 
 	// Run benchmark for each language
@@ -97,17 +102,6 @@ func runEval() {
 		prompt := spec.PromptForLanguage(lang)
 		fmt.Printf("  Prompt: %s...\n", truncatePrompt(prompt, 60))
 
-		// Generate code
-		ctx := context.Background()
-		result, err := agent.GenerateCode(ctx, prompt)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: code generation failed: %v\n", red("✗"), err)
-			continue
-		}
-
-		fmt.Printf("  %s Generated %d output tokens (%d input + %d output)\n",
-			green("✓"), result.OutputTokens, result.InputTokens, result.OutputTokens)
-
 		// Get runner
 		runner, err := eval_harness.GetRunner(lang, spec)
 		if err != nil {
@@ -115,71 +109,61 @@ func runEval() {
 			continue
 		}
 
-		// Execute code
-		fmt.Printf("  Running code...\n")
-		runResult, err := runner.Run(result.Code, *timeout)
+		// Create RepairRunner and execute with optional self-repair
+		ctx := context.Background()
+		repairRunner := eval_harness.NewRepairRunner(agent, runner, spec, *timeout, *selfRepair)
+		metrics, err := repairRunner.Run(ctx, prompt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: execution failed: %v\n", red("✗"), err)
+			fmt.Fprintf(os.Stderr, "%s: benchmark execution failed: %v\n", red("✗"), err)
 			continue
 		}
 
-		// Check output
-		runResult.StdoutOk = eval_harness.CompareOutput(spec.ExpectedOut, runResult.Stdout)
+		// Print first attempt results
+		fmt.Printf("  %s Generated %d output tokens (%d input + %d output)\n",
+			green("✓"), metrics.OutputTokens, metrics.InputTokens, metrics.OutputTokens)
 
-		// Categorize error
-		errorCategory := eval_harness.CategorizeError(
-			runResult.CompileOk,
-			runResult.RuntimeOk,
-			runResult.StdoutOk,
-		)
+		fmt.Printf("  Running code...\n")
 
-		// Print results
-		if runResult.CompileOk {
+		if metrics.CompileOk {
 			fmt.Printf("  %s Compile: OK\n", green("✓"))
 		} else {
 			fmt.Printf("  %s Compile: FAILED\n", red("✗"))
 		}
 
-		if runResult.RuntimeOk {
+		if metrics.RuntimeOk {
 			fmt.Printf("  %s Runtime: OK\n", green("✓"))
 		} else {
 			fmt.Printf("  %s Runtime: FAILED\n", red("✗"))
 		}
 
-		if runResult.StdoutOk {
+		if metrics.StdoutOk {
 			fmt.Printf("  %s Output: MATCH\n", green("✓"))
 		} else {
 			fmt.Printf("  %s Output: MISMATCH\n", red("✗"))
-			if runResult.Stdout != "" {
+			if metrics.Stderr != "" {
 				fmt.Printf("    Expected: %s\n", truncateOutput(spec.ExpectedOut))
-				fmt.Printf("    Got:      %s\n", truncateOutput(runResult.Stdout))
 			}
 		}
 
 		// Display timing breakdown
-		totalMs := runResult.Duration.Milliseconds()
-		if runResult.CompileTime > 0 || runResult.ExecuteTime > 0 {
+		if metrics.CompileMs > 0 || metrics.ExecuteMs > 0 {
 			fmt.Printf("  Duration: %dms (compile: %dms, execute: %dms)\n",
-				totalMs, runResult.CompileTime.Milliseconds(), runResult.ExecuteTime.Milliseconds())
+				metrics.DurationMs, metrics.CompileMs, metrics.ExecuteMs)
 		} else {
-			fmt.Printf("  Duration: %dms (total process time)\n", totalMs)
+			fmt.Printf("  Duration: %dms (total process time)\n", metrics.DurationMs)
 		}
 
-		// Create metrics
-		metrics := eval_harness.NewRunMetrics(spec.ID, lang, *model, *seed)
-		metrics.InputTokens = result.InputTokens
-		metrics.OutputTokens = result.OutputTokens
-		metrics.TotalTokens = result.TotalTokens
-		metrics.CostUSD = eval_harness.CalculateCost(*model, result.TotalTokens)
-		metrics.CompileOk = runResult.CompileOk
-		metrics.RuntimeOk = runResult.RuntimeOk
-		metrics.StdoutOk = runResult.StdoutOk
-		metrics.DurationMs = runResult.Duration.Milliseconds()
-		metrics.CompileMs = runResult.CompileTime.Milliseconds()
-		metrics.ExecuteMs = runResult.ExecuteTime.Milliseconds()
-		metrics.ErrorCategory = errorCategory
-		metrics.Stderr = runResult.Stderr
-		metrics.Code = result.Code
+		// If self-repair was used, show repair results
+		if metrics.RepairUsed {
+			fmt.Printf("\n  %s Self-repair triggered (error: %s)\n", yellow("↻"), metrics.ErrCode)
+			fmt.Printf("  %s Repair tokens: %d input + %d output\n",
+				cyan("ℹ"), metrics.RepairTokensIn, metrics.RepairTokensOut)
+			if metrics.RepairOk {
+				fmt.Printf("  %s Repair: SUCCESS\n", green("✓"))
+			} else {
+				fmt.Printf("  %s Repair: FAILED\n", red("✗"))
+			}
+		}
 
 		// Log metrics
 		if err := logger.Log(metrics); err != nil {

@@ -17,11 +17,11 @@ type ErrorPattern struct {
 
 // ParsedError contains extracted information from an error message
 type ParsedError struct {
-	Pattern     string            // Which pattern matched
-	Category    string            // Error category
-	Context     string            // Surrounding code context
-	Suggestion  string            // Suggested fix (if known)
-	Metadata    map[string]string // Extracted fields (e.g., "missing_feature": "recursion")
+	Pattern    string            // Which pattern matched
+	Category   string            // Error category
+	Context    string            // Surrounding code context
+	Suggestion string            // Suggested fix (if known)
+	Metadata   map[string]string // Extracted fields (e.g., "missing_feature": "recursion")
 }
 
 // ErrorExtractor parses stderr and code to identify specific issues
@@ -207,18 +207,18 @@ func extractContext(code, stderr string) string {
 // generateSuggestion provides a fix suggestion based on the error pattern
 func generateSuggestion(patternName string, metadata map[string]string) string {
 	suggestions := map[string]string{
-		"recursion_not_implemented": "Rewrite using iteration or list operations. Recursion support is planned for v0.3.0+",
+		"recursion_not_implemented":  "Rewrite using iteration or list operations. Recursion support is planned for v0.3.0+",
 		"pattern_guards_unsupported": "Extract guard condition into separate if-expression. Pattern guards are planned (M-R3)",
-		"error_propagation_missing": "Use explicit match/case handling instead of ? operator. Error propagation is planned for v0.3.0+",
-		"parse_error_syntax": "Review AILANG syntax guide in prompts/v0.3.0.md. Ensure using correct let/func/module syntax",
-		"type_mismatch": "Add explicit type annotations. Check type class constraints (Num, Eq, Ord)",
-		"unbound_variable": "Ensure variable is defined before use. Check imports and function parameters",
-		"module_not_found": "Verify module path. Standard library is in std/ (e.g., std/io, std/fs)",
-		"effect_capability_missing": "Add required capability: ailang run --caps IO,FS --entry main file.ail",
-		"deep_let_nesting": "Refactor to use block expressions {...} instead of deeply nested let bindings",
-		"python_syntax_error": "Review Python syntax",
-		"python_name_error": "Define variable before use",
-		"python_type_error": "Check type compatibility",
+		"error_propagation_missing":  "Use explicit match/case handling instead of ? operator. Error propagation is planned for v0.3.0+",
+		"parse_error_syntax":         "Review AILANG syntax guide in prompts/v0.3.0.md. Ensure using correct let/func/module syntax",
+		"type_mismatch":              "Add explicit type annotations. Check type class constraints (Num, Eq, Ord)",
+		"unbound_variable":           "Ensure variable is defined before use. Check imports and function parameters",
+		"module_not_found":           "Verify module path. Standard library is in std/ (e.g., std/io, std/fs)",
+		"effect_capability_missing":  "Add required capability: ailang run --caps IO,FS --entry main file.ail",
+		"deep_let_nesting":           "Refactor to use block expressions {...} instead of deeply nested let bindings",
+		"python_syntax_error":        "Review Python syntax",
+		"python_name_error":          "Define variable before use",
+		"python_type_error":          "Check type compatibility",
 	}
 
 	if suggestion, ok := suggestions[patternName]; ok {

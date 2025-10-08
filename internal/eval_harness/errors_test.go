@@ -7,11 +7,11 @@ import (
 
 func TestCategorizeErrorCode(t *testing.T) {
 	tests := []struct {
-		name       string
-		stderr     string
-		wantCode   ErrCode
-		wantHint   bool
-		hintTitle  string
+		name      string
+		stderr    string
+		wantCode  ErrCode
+		wantHint  bool
+		hintTitle string
 	}{
 		{
 			name:      "PAR_001: Block semicolon missing",
@@ -117,11 +117,11 @@ func TestCategorizeErrorCode(t *testing.T) {
 
 func TestFormatRepairPrompt(t *testing.T) {
 	tests := []struct {
-		name        string
-		code        ErrCode
-		hint        RepairHint
-		benchmarkID string
-		lang        string
+		name         string
+		code         ErrCode
+		hint         RepairHint
+		benchmarkID  string
+		lang         string
 		wantContains []string
 	}{
 		{
