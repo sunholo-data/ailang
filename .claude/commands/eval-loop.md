@@ -281,6 +281,6 @@ If a workflow fails:
 
 ## References
 
-- [Eval Loop Guide](https://ailang-docs.vercel.app/guides/evaluation/eval-loop)
+- [Eval Loop Guide](https://sunholo-data.github.io/ailang/guides/evaluation/eval-loop)
 - [M-EVAL-LOOP Design Doc](../design_docs/planned/M-EVAL-LOOP_self_improving_feedback.md)
 - [Makefile Targets](../../Makefile) (search for "eval-")
