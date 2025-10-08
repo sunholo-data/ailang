@@ -24,6 +24,7 @@ func runEval() {
 	mock := fs.Bool("mock", false, "Use mock AI agent (for testing)")
 	listModels := fs.Bool("list-models", false, "List available models and exit")
 	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
+	promptVersion := fs.String("prompt-version", "", "Prompt version ID (e.g., v0.3.0-baseline, v0.3.0-hints)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -87,6 +88,25 @@ func runEval() {
 		fmt.Printf("  %s Self-repair enabled (will retry on errors)\n", cyan("ℹ"))
 	}
 
+	// Load custom prompt version if specified
+	var customPrompt string
+	if *promptVersion != "" {
+		registryPath := filepath.Join("prompts", "versions.json")
+		loader, err := eval_harness.NewPromptLoader(registryPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load prompt registry: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		customPrompt, err = loader.LoadPrompt(*promptVersion)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load prompt version %q: %v\n", red("Error"), *promptVersion, err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("  %s Using prompt version: %s\n", cyan("ℹ"), *promptVersion)
+	}
+
 	// Run benchmark for each language
 	for _, lang := range targetLangs {
 		// Check if language is supported
@@ -98,8 +118,17 @@ func runEval() {
 
 		fmt.Printf("\n%s Testing %s...\n", cyan("→"), lang)
 
-		// Generate prompt
-		prompt := spec.PromptForLanguage(lang)
+		// Generate prompt (use custom version if specified, otherwise use benchmark default)
+		var prompt string
+		if customPrompt != "" {
+			// Use custom prompt + task-specific portion
+			prompt = customPrompt
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		} else {
+			prompt = spec.PromptForLanguage(lang)
+		}
 		fmt.Printf("  Prompt: %s...\n", truncatePrompt(prompt, 60))
 
 		// Get runner
@@ -112,6 +141,9 @@ func runEval() {
 		// Create RepairRunner and execute with optional self-repair
 		ctx := context.Background()
 		repairRunner := eval_harness.NewRepairRunner(agent, runner, spec, *timeout, *selfRepair)
+		if *promptVersion != "" {
+			repairRunner.SetPromptVersion(*promptVersion)
+		}
 		metrics, err := repairRunner.Run(ctx, prompt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: benchmark execution failed: %v\n", red("✗"), err)

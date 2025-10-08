@@ -8,11 +8,12 @@ import (
 
 // RepairRunner orchestrates self-repair logic for eval benchmarks
 type RepairRunner struct {
-	agent      *AIAgent
-	runner     LanguageRunner
-	spec       *BenchmarkSpec
-	timeout    time.Duration
-	selfRepair bool
+	agent         *AIAgent
+	runner        LanguageRunner
+	spec          *BenchmarkSpec
+	timeout       time.Duration
+	selfRepair    bool
+	promptVersion string // Optional prompt version ID for A/B testing
 }
 
 // NewRepairRunner creates a new repair runner
@@ -26,9 +27,15 @@ func NewRepairRunner(agent *AIAgent, runner LanguageRunner, spec *BenchmarkSpec,
 	}
 }
 
+// SetPromptVersion sets the prompt version ID for metrics tracking
+func (r *RepairRunner) SetPromptVersion(version string) {
+	r.promptVersion = version
+}
+
 // Run executes the benchmark with optional self-repair
 func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, error) {
 	metrics := NewRunMetrics(r.spec.ID, r.runner.Language(), r.agent.model, r.agent.seed)
+	metrics.PromptVersion = r.promptVersion // Track prompt version for A/B testing
 
 	// First attempt
 	firstResult, err := r.runSingleAttempt(ctx, prompt)

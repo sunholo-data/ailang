@@ -66,6 +66,97 @@ ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --self-repair
 
 ---
 
+### Added - M-EVAL-LOOP Milestone 2: Prompt Versioning & A/B Testing ✅ COMPLETE
+
+**Complete prompt versioning system for A/B testing teaching strategies across AI models (~570 LOC in 2 hours).**
+
+**Prompt Registry** (`prompts/versions.json`)
+- JSON-based registry with metadata for all prompt versions
+- SHA256 hash verification for prompt integrity
+- Version tags: baseline, experimental, production, historical, control
+- Active version tracking for defaults
+- Created 2 initial versions:
+  - `v0.3.0-baseline`: Original teaching prompt (3,674 tokens)
+  - `v0.3.0-hints`: Enhanced with 6 error pattern sections (4,538 tokens, +864 tokens)
+
+**Prompt Loader** (`internal/eval_harness/prompt_loader.go`, ~120 LOC)
+- `NewPromptLoader()` loads registry from `prompts/versions.json`
+- `LoadPrompt(versionID)` with SHA256 hash verification
+- `GetActivePrompt()` for default version
+- `GetVersion()` and `ListVersions()` for metadata queries
+- `ComputePromptHash()` helper for updating registry
+- Placeholder hash support for work-in-progress prompts
+
+**Prompt Variants** (`prompts/v0.3.0-hints.md`, +864 tokens)
+- Added explicit error pattern warnings based on error taxonomy
+- 6 common error sections with wrong/correct examples:
+  - PAR_001: Missing semicolons in blocks
+  - TC_REC_001: Accessing non-existent record fields
+  - TC_INT_001: Using modulo on floats
+  - EQ_001: Wrong equality dictionary
+  - CAP_001: Missing effect capabilities
+  - MOD_001: Undefined module/entrypoint
+- Hypothesis: Explicit warnings reduce first-attempt failures and improve repair success
+
+**Tests** (`internal/eval_harness/prompt_loader_test.go`, ~270 LOC)
+- 10 comprehensive test cases
+- Hash verification and mismatch detection
+- Placeholder hash support
+- Active prompt loading
+- All tests passing ✅
+
+**CLI Integration** (`cmd/ailang/eval.go`, modified)
+- New `--prompt-version` flag for version selection
+- Automatic prompt loading with hash verification
+- Metrics tracking with PromptVersion field
+- Custom prompt + task prompt composition
+
+**A/B Testing Tools**
+- `tools/eval_prompt_ab.sh` (~200 LOC): Run full benchmark suite with two prompts
+- `tools/compare_results.sh` (~180 LOC): Analyze and compare results
+- Beautiful terminal output with success rates, token counts, cost comparison
+- Recommendations based on performance deltas
+
+**Makefile Targets**
+- `make eval-prompt-list`: Show all available prompt versions
+- `make eval-prompt-hash`: Compute SHA256 hashes for all prompts
+- `make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints`: Run A/B comparison
+
+**Usage:**
+```bash
+# Use specific prompt version
+ailang eval --benchmark fizzbuzz --prompt-version v0.3.0-hints
+
+# A/B comparison
+make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints
+
+# List available versions
+make eval-prompt-list
+```
+
+**Files Modified:**
+- `prompts/versions.json` (new, registry)
+- `prompts/v0.3.0-hints.md` (new, +864 tokens)
+- `internal/eval_harness/prompt_loader.go` (+120 LOC)
+- `internal/eval_harness/prompt_loader_test.go` (+270 LOC)
+- `internal/eval_harness/repair.go` (added SetPromptVersion method)
+- `cmd/ailang/eval.go` (added --prompt-version flag)
+- `tools/eval_prompt_ab.sh` (+200 LOC)
+- `tools/compare_results.sh` (+180 LOC)
+- `Makefile` (+3 targets)
+- Total: ~770 LOC
+
+**Key Design Decisions:**
+1. Hash verification prevents accidental prompt modification mid-experiment
+2. Prompt version tracked in metrics for historical analysis
+3. A/B scripts automate full benchmark suite comparison
+4. Terminal-based output for fast iteration (no GUI required)
+5. Backward compatible (version optional, falls back to benchmark default)
+
+**Velocity:** ~385 LOC/hour (estimated 3-4 hours, actual 2 hours)
+
+---
+
 ## [v0.3.0] - 2025-10-05
 
 Complete implementation of Clock & Net effects (M-R6) with full Phase 2 PM security hardening, plus critical type system fixes (M-R7) for modulo operator and float comparison.

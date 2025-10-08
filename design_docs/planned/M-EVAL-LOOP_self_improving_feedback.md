@@ -1,7 +1,7 @@
 # M-EVAL-LOOP: Self-Improving AI Feedback Loop
 
-**Status**: 🔄 In Progress (Milestone 1 Complete ✅)
-**Version**: 1.1
+**Status**: 🔄 In Progress (Milestones 1 & 2 Complete ✅)
+**Version**: 1.2
 **Author**: AI-Assisted (Claude + User + GPT-5 + Gemini 2.5 Pro)
 **Date**: 2025-10-08
 **Milestone**: v0.3.0-alpha5
@@ -34,6 +34,47 @@ ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --self-repair
 - `internal/eval_harness/repair.go` (+140 LOC)
 - `internal/eval_harness/metrics.go` (+30 LOC)
 - `cmd/ailang/eval.go` (refactored for RepairRunner)
+
+---
+
+## ✅ Milestone 2 Complete (October 8, 2025) - Prompt Versioning & A/B Testing (~770 LOC)
+
+**Estimated**: ~800 LOC in 3-4 hours
+**Actual**: ~770 LOC in 2 hours
+
+**What Was Built:**
+- Prompt version registry with SHA256 hash verification (`prompts/versions.json`)
+- PromptLoader with hash verification and metadata queries
+- Enhanced prompt variant with error pattern warnings (`v0.3.0-hints`, +864 tokens)
+- CLI integration with `--prompt-version` flag
+- A/B testing automation scripts with beautiful terminal output
+- 10 comprehensive test cases for prompt loader
+- 3 new Makefile targets for prompt management
+
+**Velocity**: ~385 LOC/hour (ahead of schedule!)
+
+**Usage:**
+```bash
+# Use specific prompt version
+ailang eval --benchmark fizzbuzz --prompt-version v0.3.0-hints
+
+# A/B comparison
+make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints
+
+# List available versions
+make eval-prompt-list
+```
+
+**Files Modified:**
+- `prompts/versions.json` (new, registry with metadata)
+- `prompts/v0.3.0-hints.md` (new, enhanced with error warnings)
+- `internal/eval_harness/prompt_loader.go` (+120 LOC)
+- `internal/eval_harness/prompt_loader_test.go` (+270 LOC)
+- `internal/eval_harness/repair.go` (added SetPromptVersion)
+- `cmd/ailang/eval.go` (added --prompt-version flag)
+- `tools/eval_prompt_ab.sh` (+200 LOC, A/B automation)
+- `tools/compare_results.sh` (+180 LOC, analysis script)
+- `Makefile` (+3 targets)
 
 ---
 

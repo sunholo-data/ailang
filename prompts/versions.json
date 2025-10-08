@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "versions": {
+    "v0.3.0-baseline": {
+      "file": "prompts/v0.3.0.md",
+      "hash": "e36ab2dfbdb985095a74302386c3681b426698d59a04513deb894eaf7f689663",
+      "description": "Baseline teaching prompt for v0.3.0 with records, recursion, blocks, Clock/Net effects",
+      "created": "2025-10-05",
+      "tags": ["baseline", "production"],
+      "notes": "Original teaching prompt from v0.3.0 release. Comprehensive coverage of language features with clear syntax rules and examples."
+    },
+    "v0.3.0-hints": {
+      "file": "prompts/v0.3.0-hints.md",
+      "hash": "28653b83b6399896728d807f9bf3305b999b7a3108a4e570a288e9c3a88846be",
+      "description": "Enhanced v0.3.0 prompt with explicit error pattern warnings and prevention guidance",
+      "created": "2025-10-08",
+      "tags": ["experimental", "error-hints"],
+      "notes": "Adds 6 common error pattern sections (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001) with wrong/correct examples. Hypothesis: Explicit error warnings reduce first-attempt failures and improve repair success rate."
+    },
+    "v0.2.0": {
+      "file": "prompts/v0.2.0.md",
+      "hash": "PLACEHOLDER",
+      "description": "Teaching prompt for v0.2.0 with module runtime and effect system",
+      "created": "2025-09-28",
+      "tags": ["historical"],
+      "notes": "Pre-records, pre-recursion, pre-blocks. Kept for historical comparison."
+    },
+    "python": {
+      "file": "prompts/python.md",
+      "hash": "PLACEHOLDER",
+      "description": "Python language teaching prompt (control/reference)",
+      "created": "2025-10-05",
+      "tags": ["control", "python"],
+      "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
+    }
+  },
+  "active": "v0.3.0-baseline",
+  "notes": [
+    "Hash is SHA256 of the prompt file contents",
+    "Use 'active' field to specify default prompt version",
+    "Tags help categorize prompts: baseline, experimental, production, historical, control",
+    "Add new versions here when creating prompt variants for A/B testing"
+  ]
+}

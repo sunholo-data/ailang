@@ -533,6 +533,36 @@ eval-to-design: eval-suite eval-analyze
 	@echo "  - Similar docs are automatically merged (saves API costs)"
 	@echo "  - Use 'make eval-analyze-fresh' to force new docs"
 
+# Prompt versioning and A/B testing (M-EVAL-LOOP Milestone 2)
+.PHONY: eval-prompt-ab eval-prompt-list eval-prompt-hash
+
+eval-prompt-ab: build
+	@echo "Running A/B comparison of two prompt versions..."
+	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
+		echo "Usage: make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints [MODEL=claude-sonnet-4-5] [LANGS=ailang]"; \
+		echo ""; \
+		echo "Example:"; \
+		echo "  make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints"; \
+		echo "  make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints MODEL=gpt5 LANGS=python,ailang"; \
+		exit 1; \
+	fi
+	@./tools/eval_prompt_ab.sh "$(A)" "$(B)" --model $(MODEL) --langs $(LANGS)
+
+eval-prompt-list:
+	@echo "Available prompt versions:"
+	@echo ""
+	@cat prompts/versions.json | jq -r '.versions | to_entries[] | "  \(.key)\n    File: \(.value.file)\n    Description: \(.value.description)\n    Tags: \(.value.tags | join(", "))\n    Created: \(.value.created)\n"'
+	@echo ""
+	@echo "Active version: $$(cat prompts/versions.json | jq -r '.active')"
+
+eval-prompt-hash:
+	@echo "Computing SHA256 hashes for all prompt files..."
+	@echo ""
+	@for file in prompts/*.md; do \
+		hash=$$(shasum -a 256 "$$file" | awk '{print $$1}'); \
+		echo "$$(basename $$file): $$hash"; \
+	done
+
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
