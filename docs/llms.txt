@@ -5982,10 +5982,57 @@ jq -s '[.[] | {version: .version, success: .aggregates."final_success"}]' \
 - **Test Coverage**: 100% for new code
 - **All tests passing**: ✅
 
+## Automated Fix Implementation (NEW! 🚀)
+
+**Milestone 4** adds fully automated fix implementation:
+
+```bash
+# Dry-run (preview what would be done)
+make eval-auto-improve
+
+# Actually implement the fix
+make eval-auto-improve-apply
+```
+
+**How it works:**
+1. Runs benchmarks (or uses recent results)
+2. Analyzes failures → generates design docs
+3. **AI agent reads design doc and implements fix** ⬅ NEW!
+4. Runs tests to verify
+5. Re-runs affected benchmarks
+6. Shows before/after comparison
+
+**Example workflow:**
+```bash
+# Preview
+make eval-auto-improve
+# Shows: Design doc preview, what would be done
+
+# Apply
+make eval-auto-improve-apply
+# AI agent implements the fix automatically
+
+# Validate
+make eval-validate-fix BENCH=<benchmark-id>
+make eval-diff
+```
+
+**Agent Integration:**
+- Uses Claude Code Task agent (general-purpose)
+- Pluggable design for future CLI/API agents
+- Task file generated: `.eval_auto_improve_task.md`
+
+**Safety:**
+- Dry-run by default
+- Tests must pass before accepting fix
+- Human review before commit
+- Automatic rollback on test failures
+
 ## Next Steps
 
-The M-EVAL-LOOP system is complete. Future enhancements could include:
+Future enhancements could include:
 
+- **Multi-agent coordination**: Multiple agents working on related fixes
 - **Multi-shot repair**: Allow more than one retry
 - **Error pattern learning**: Auto-generate repair hints from manual fixes
 - **Cross-model comparison**: Compare GPT vs Claude vs Gemini on same benchmarks
