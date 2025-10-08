@@ -84,7 +84,14 @@ for BENCH_FILE in $BENCHMARKS; do
 
   printf "[%2d/%2d] %-30s " "$BENCH_NUM" "$BENCHMARK_COUNT" "$BENCH_ID"
 
-  if bin/ailang eval --benchmark "$BENCH_ID" --output "$BASELINE_DIR" $EVAL_FLAGS 2>&1 | grep -q "✓"; then
+  # Run benchmark (suppress output)
+  bin/ailang eval --benchmark "$BENCH_ID" --output "$BASELINE_DIR" $EVAL_FLAGS > /dev/null 2>&1
+
+  # Check actual result from JSON files
+  # Find the most recent result file for this benchmark+lang combination
+  RESULT_FILE=$(find "$BASELINE_DIR" -name "${BENCH_ID}_${LANGS}_*.json" -type f | sort -r | head -1)
+
+  if [ -f "$RESULT_FILE" ] && jq -e '.stdout_ok == true' "$RESULT_FILE" > /dev/null 2>&1; then
     echo -e "${GREEN}✓${NC}"
     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
   else
@@ -99,9 +106,13 @@ echo "  Success: $SUCCESS_COUNT"
 echo "  Failed:  $FAIL_COUNT"
 echo ""
 
-# Generate performance matrix
+# Generate performance matrix (optional - skip if it fails)
 echo -e "${CYAN}Generating performance matrix...${NC}"
-./tools/generate_matrix_json.sh "$BASELINE_DIR" "$VERSION" "$MATRIX_FILE"
+if ./tools/generate_matrix_json.sh "$BASELINE_DIR" "$VERSION" "$MATRIX_FILE" 2>/dev/null; then
+  echo -e "${GREEN}✓ Matrix generated${NC}"
+else
+  echo -e "${YELLOW}⚠ Matrix generation skipped (use manual analysis)${NC}"
+fi
 
 # Create baseline metadata
 METADATA_FILE="${BASELINE_DIR}/baseline.json"
