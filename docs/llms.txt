@@ -475,6 +475,105 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 
 # AILANG Changelog
 
+## [Unreleased] - 2025-10-10
+
+### Added - M-V3.2: Planning & Scaffolding Protocol ✅ COMPLETE
+
+**Complete proactive planning system for architecture validation and code scaffolding from plans (~2,560 LOC in 1 day).**
+
+**Implementation** (`internal/schema/`, `internal/planning/`, `internal/repl/`)
+- **Plan Schema** (`schema/plan.go`, ~109 LOC)
+  - JSON schema for architecture plans with modules, types, functions, effects
+  - Plan versioning with `ailang.plan/v1`
+  - Helper methods: `AddModule()`, `AddType()`, `AddFunction()`, `AddEffect()`
+  - Deterministic JSON serialization via schema registry
+
+- **Plan Validator** (`planning/validator.go`, ~546 LOC)
+  - Validates module paths (lowercase, no invalid chars, no cycles)
+  - Validates type definitions (CamelCase names, valid kinds: adt/record/alias)
+  - Validates function signatures (camelCase names, canonical effects)
+  - Detects circular dependencies between modules
+  - 24 validation error codes (VAL_M##, VAL_T##, VAL_F##, VAL_E##, VAL_G##)
+  - Returns structured validation results with errors and warnings
+
+- **Code Scaffolder** (`planning/scaffolder.go`, ~327 LOC)
+  - Generates valid AILANG module files from validated plans
+  - Creates module declarations, imports, type definitions, function stubs
+  - Supports multiple modules with proper directory structure
+  - Placeholder return values based on inferred types
+  - TODO comments in generated code for implementation guidance
+  - Options: output directory, overwrite mode, include comments/TODOs
+
+- **REPL Integration** (`repl/planning.go`, ~264 LOC + repl.go modifications)
+  - New `:propose <plan.json>` command - validates architecture plans
+  - New `:scaffold --from-plan <plan.json> [--output <dir>] [--overwrite]` command
+  - Colorized validation output (errors in red, success in green)
+  - Example plan creation with `SaveExamplePlan()`
+  - Updated `:help` text with planning commands
+
+**Tests** (~844 LOC total)
+- `schema/plan_test.go`: 9 tests for plan schema
+- `planning/validator_test.go`: 18 tests for validation rules
+- `planning/scaffolder_test.go`: 17 tests for code generation
+- `planning/integration_test.go`: 6 end-to-end tests + 2 benchmarks
+- `repl/planning_test.go`: 15 tests for REPL command parsing
+- **All 65 tests passing** ✅
+
+**Example Plans** (`examples/plans/`)
+- `simple_api.json`: REST API handler with Request/Response types
+- `cli_tool.json`: CLI utility with multiple modules and FS effects
+- `minimal.json`: Hello world application
+
+**Usage:**
+```bash
+# In REPL:
+λ> :propose examples/plans/simple_api.json
+✅ Plan is valid!
+✅ Ready to scaffold!
+
+λ> :scaffold --from-plan examples/plans/simple_api.json --output ./generated
+✅ Scaffolding successful!
+Files created: 1
+Total lines: 28
+Generated files:
+  - ./generated/api/core.ail
+
+# From command line (after building):
+ailang repl
+```
+
+**Files Added:**
+- `internal/schema/plan.go` (+109 LOC)
+- `internal/schema/plan_test.go` (+152 LOC)
+- `internal/planning/validator.go` (+546 LOC)
+- `internal/planning/validator_test.go` (+328 LOC)
+- `internal/planning/scaffolder.go` (+327 LOC)
+- `internal/planning/scaffolder_test.go` (+305 LOC)
+- `internal/planning/integration_test.go` (+325 LOC)
+- `internal/repl/planning.go` (+264 LOC)
+- `internal/repl/planning_test.go` (+174 LOC)
+- `examples/plans/simple_api.json` (example)
+- `examples/plans/cli_tool.json` (example)
+- `examples/plans/minimal.json` (example)
+- Total: **~2,560 LOC** + 3 example plans
+
+**Files Modified:**
+- `internal/schema/registry.go` (updated PlanV1 constant)
+- `internal/repl/repl.go` (added :propose and :scaffold commands to REPL)
+
+**Key Design Decisions:**
+1. Schema versioning from day 1 (ailang.plan/v1) for future evolution
+2. Validation separated into errors (must fix) vs warnings (should fix)
+3. Scaffolder generates valid module structure but allows compilation errors in stubs
+4. Planning workflow: create plan → validate → scaffold → implement → compile
+5. REPL commands make planning accessible without CLI flags
+
+**Velocity:** ~2,560 LOC in ~8 hours (~320 LOC/hour sustained)
+
+**Impact:** AI agents can now validate architecture before coding, reducing wasted effort and improving success rates in eval benchmarks.
+
+---
+
 ## [Unreleased] - 2025-10-08
 
 ### Added - M-EVAL-LOOP Milestone 1: Self-Repair Foundation ✅ COMPLETE
@@ -7670,6 +7769,651 @@ export func main() -> () ! {IO} {
 - Fixed float comparison (`==`) dictionary resolution
 - Pattern matching guards now work correctly
 - 48+ working examples demonstrating all features
+
+---
+
+# AI Prompt: v0.3.2.md
+
+# AILANG AI Teaching Prompt (v0.3.2)
+
+**CRITICAL: You MUST write code in AILANG syntax. This is NOT Python, NOT Rust, NOT JavaScript.**
+
+You are writing code in AILANG, a pure functional programming language with Hindley-Milner type inference and algebraic effects.
+
+**IMPORTANT SYNTAX RULES:**
+- Use `func` NOT `fn`, `function`, or `def`
+- Use `type Name[a] = Constructor(a) | Constructor2` NOT `type Name { }` or `enum`
+- NO namespace syntax (`::`), just use constructor names directly
+- Semicolons REQUIRED between statements in blocks
+- Pattern matching uses `=>` NOT `:` or `->`
+- NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
+
+---
+
+## 🚨 COMMON ERROR PATTERNS (AVOID THESE!)
+
+Based on real AI code generation errors, here are the most common mistakes:
+
+### ❌ ERROR 1: Missing Semicolons in Blocks (PAR_001)
+**Symptom**: Parse error mentioning "expected semicolon" or "block"
+
+**❌ WRONG:**
+```ailang
+{
+  println("First")
+  println("Second")  -- Parse error!
+}
+```
+
+**✅ CORRECT:**
+```ailang
+{
+  println("First");   -- Semicolon required!
+  println("Second")   -- Last statement can omit semicolon
+}
+```
+
+**Rule**: Every statement in a block EXCEPT the last MUST have a semicolon.
+
+---
+
+### ❌ ERROR 2: Accessing Non-Existent Record Fields (TC_REC_001)
+**Symptom**: Type error mentioning "field not found" or "record does not contain"
+
+**❌ WRONG:**
+```ailang
+let person = {name: "Alice", age: 30};
+person.email  -- ERROR! Field doesn't exist
+```
+
+**✅ CORRECT:**
+```ailang
+-- Option 1: Only access fields that exist
+let person = {name: "Alice", age: 30};
+person.name  -- ✓ Works
+
+-- Option 2: Include all needed fields
+let person = {name: "Alice", age: 30, email: "alice@example.com"};
+person.email  -- ✓ Works
+```
+
+**Rule**: You can only access fields that were explicitly included in the record literal.
+
+---
+
+### ❌ ERROR 3: Using Modulo (%) on Floats (TC_INT_001)
+**Symptom**: Type error mentioning "Integral" or "modulo not defined for Float"
+
+**❌ WRONG:**
+```ailang
+let result = 5.5 % 2.0  -- ERROR! % only works on integers
+```
+
+**✅ CORRECT:**
+```ailang
+let result = 5 % 2  -- ✓ Works with integers
+```
+
+**Rule**: The modulo operator `%` only works on `int`, not `float`. Use integer literals without decimals.
+
+---
+
+### ❌ ERROR 4: Wrong Equality Dictionary (EQ_001)
+**Symptom**: Type error mentioning "Eq dictionary" or "expected Eq[T]"
+
+**Why**: Usually caused by mixing types in comparisons or using `show` incorrectly.
+
+**❌ WRONG:**
+```ailang
+let result = 5 == 5.0  -- Comparing int with float
+```
+
+**✅ CORRECT:**
+```ailang
+let result = 5 == 5      -- Both int
+let result2 = 5.0 == 5.0  -- Both float
+```
+
+**Rule**: Both sides of `==` must be the same type.
+
+---
+
+### ❌ ERROR 5: Missing Effect Capabilities (CAP_001)
+**Symptom**: Runtime error mentioning "missing capability" or "requires IO/FS/Clock/Net"
+
+**❌ WRONG:**
+```ailang
+-- Function declares IO effect but program doesn't request it
+export func main() -> () ! {IO} {
+  println("hello")
+}
+-- Run with: ailang run file.ail  ← Missing --caps IO!
+```
+
+**✅ CORRECT:**
+```ailang
+export func main() -> () ! {IO} {
+  println("hello")
+}
+-- Run with: ailang run --caps IO --entry main file.ail
+```
+
+**Rule**: Always declare effects in function signatures (`! {IO}`) AND request capabilities at runtime (`--caps IO`).
+
+---
+
+### ❌ ERROR 6: Undefined Module or Entrypoint (MOD_001)
+**Symptom**: Runtime error mentioning "entrypoint not found" or "module not found"
+
+**❌ WRONG:**
+```ailang
+module benchmark/solution
+
+-- Missing export keyword!
+func main() -> () ! {IO} {
+  println("hello")
+}
+```
+
+**✅ CORRECT:**
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {  -- Must export!
+  println("hello")
+}
+```
+
+**Rule**: Entrypoint functions must be `export`ed. Module name should match file structure.
+
+---
+
+## 🎯 NEW in v0.3.2: Proactive Architecture Planning
+
+**BEFORE writing any code**, you can now validate your architecture plan!
+
+### Why Use Planning?
+- ✅ Catch architecture mistakes BEFORE coding
+- ✅ Validate module structure, types, and effects upfront
+- ✅ Generate boilerplate code from validated plans
+- ✅ Reduce wasted effort on invalid approaches
+
+### Step 1: Create a Plan (JSON)
+
+Create a plan file describing your architecture:
+
+```json
+{
+  "schema": "ailang.plan/v1",
+  "goal": "Build a REST API handler",
+  "modules": [
+    {
+      "path": "api/core",
+      "exports": ["handleRequest", "parseRequest"],
+      "imports": ["std/io", "std/result"]
+    }
+  ],
+  "types": [
+    {
+      "name": "Request",
+      "kind": "record",
+      "definition": "{url: string, method: string}",
+      "module": "api/core"
+    }
+  ],
+  "functions": [
+    {
+      "name": "handleRequest",
+      "type": "(Request) -> () ! {IO}",
+      "effects": ["IO"],
+      "module": "api/core"
+    }
+  ],
+  "effects": ["IO"]
+}
+```
+
+### Step 2: Validate the Plan
+
+```bash
+# In REPL:
+λ> :propose plan.json
+✅ Plan is valid!
+✅ Ready to scaffold!
+
+# If there are errors:
+❌ Plan validation failed
+
+Errors (2):
+  1. [VAL_M01] Invalid module path 'Api/Core'
+     Location: modules[0].path
+  2. [VAL_F01] Invalid function name 'HandleRequest'
+     Location: functions[0].name
+```
+
+### Step 3: Generate Boilerplate
+
+```bash
+λ> :scaffold --from-plan plan.json --output ./generated
+✅ Scaffolding successful!
+Files created: 1
+Total lines: 24
+
+Generated files:
+  - ./generated/api/core.ail
+```
+
+### Step 4: Implement the TODOs
+
+The scaffolder generates valid AILANG code with TODOs:
+
+```ailang
+module api/core
+
+import std/io
+import std/result
+
+-- Type: Request (record)
+type Request = {url: string, method: string}
+
+-- Function: handleRequest
+-- Effects: IO
+export func handleRequest ! {IO} {
+  -- TODO: Implement handleRequest
+  -- Signature: (Request) -> () ! {IO}
+  ()  -- Unit return
+}
+```
+
+### Planning Best Practices
+
+**Module Paths:**
+- ✅ Use lowercase: `api/core`, `app/utils`
+- ❌ NO uppercase: `Api/Core`, `APP/Utils`
+- ❌ NO trailing slashes: `api/core/`
+
+**Type Names:**
+- ✅ Use CamelCase: `Request`, `Person`, `UserId`
+- ❌ NO lowercase: `request`, `person`
+- ❌ NO underscores: `user_id`, `http_request`
+
+**Function Names:**
+- ✅ Use camelCase: `handleRequest`, `parseData`
+- ❌ NO CamelCase: `HandleRequest`, `ParseData`
+- ❌ NO underscores: `handle_request`
+
+**Valid Type Kinds:**
+- `"adt"` - Algebraic data type: `Some(a) | None`
+- `"record"` - Record type: `{name: string, age: int}`
+- `"alias"` - Type alias: `int` or `Result[string, Error]`
+
+**Canonical Effects:**
+- `IO` - Console input/output
+- `FS` - File system operations
+- `Clock` - Time operations
+- `Net` - HTTP requests
+
+**Common Validation Errors:**
+
+| Error Code | Problem | Fix |
+|------------|---------|-----|
+| VAL_M01 | Invalid module path | Use lowercase, no trailing `/` |
+| VAL_M02 | Circular dependency | Remove cycle: `a -> b -> a` |
+| VAL_M03 | Duplicate module | Each module path must be unique |
+| VAL_T01 | Invalid type name | Use CamelCase (start uppercase) |
+| VAL_T02 | Unsupported type kind | Use `adt`, `record`, or `alias` |
+| VAL_F01 | Invalid function name | Use camelCase (start lowercase) |
+| VAL_F04 | Module not found | Define module before using it |
+| VAL_E01 | Unknown effect | Use IO, FS, Clock, or Net only |
+| VAL_E02 | Effect not in plan | Add effect to plan.effects list |
+
+---
+
+## Current Version: v0.3.2 (October 2025)
+
+**✅ WHAT WORKS:**
+- ✅ **Module declarations** - `module path/to/module`
+- ✅ **Function declarations** - `export func name(params) -> Type { body }`
+- ✅ **Import statements** - `import std/io (println)`, `import std/clock (now, sleep)`, `import std/net (httpGet)`
+- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards, **guards** (`if` conditions)
+- ✅ **Effect system** - `! {IO, FS, Clock, Net}` for side effects with capability security
+- ✅ **ADTs** - Algebraic data types: `type Option[a] = Some(a) | None`
+- ✅ **Recursion** - Self-recursive and mutually-recursive functions with stack overflow protection
+- ✅ **Block expressions** - `{ stmt1; stmt2; result }` for sequencing
+- ✅ **Records** - Record literals, field access, subsumption
+- ✅ **Type system fixes** - Modulo operator (`%`) and float comparison (`==`) both work correctly
+- ✅ **Planning & Scaffolding** - Validate architecture before coding, generate boilerplate (NEW!)
+
+**⚠️ LIMITATIONS:**
+- ⚠️ NO `for`/`while` loops - use recursion
+- ⚠️ NO `var` - everything is immutable
+- ⚠️ NO record update syntax `{r | field: val}` (yet)
+- ⚠️ NO error propagation operator `?` (yet)
+- ⚠️ NO custom HTTP headers (OpenAI/Claude APIs blocked until v0.4.0)
+- ⚠️ `show` is a builtin - do NOT import it
+
+## Module Structure
+
+Every AILANG program must be a module with exported functions:
+
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello, World!")
+}
+```
+
+**IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
+
+## Functions
+
+```ailang
+-- Simple pure function
+export func add(x: int, y: int) -> int {
+  x + y
+}
+
+-- Function with effects (IO, FS)
+export func greet(name: string) -> () ! {IO} {
+  println("Hello, " ++ name)
+}
+
+-- Generic function
+export func identity[a](x: a) -> a {
+  x
+}
+
+-- Multi-statement body (SEMICOLONS REQUIRED!)
+export func compute() -> int {
+  let x = 10;
+  let y = 20;
+  x + y
+}
+```
+
+## Block Expressions
+
+Blocks allow sequencing statements with semicolons:
+
+```ailang
+export func demo() -> () ! {IO} {
+  {
+    println("First");
+    println("Second");
+    println("Third")
+  }
+}
+
+-- Blocks are expressions - the last value is returned
+export func compute() -> int {
+  {
+    let x = 10;
+    let y = 20;
+    x + y
+  }
+}
+```
+
+**CRITICAL**: Semicolons REQUIRED between statements! Missing semicolons will cause parse errors (PAR_001).
+
+## Records
+
+Records are structural types with named fields:
+
+```ailang
+-- Record literal
+let person = {name: "Alice", age: 30, city: "NYC"}
+
+-- Field access (ONLY fields that exist!)
+person.name    -- "Alice"
+person.age     -- 30
+
+-- Use in functions
+export func describe(p: {name: string, age: int}) -> string {
+  p.name ++ " is " ++ show(p.age)
+}
+```
+
+**⚠️ IMPORTANT**: Record update syntax `{r | field: val}` is NOT yet implemented.
+To create a modified record, create a new record literal:
+
+```ailang
+-- ❌ NOT supported yet:
+let older = {person | age: 31}
+
+-- ✅ Instead do this:
+let older = {name: person.name, age: 31, city: person.city}
+```
+
+**⚠️ CRITICAL**: You can ONLY access fields that exist in the record. Accessing non-existent fields causes TC_REC_001 errors.
+
+## Algebraic Data Types (ADTs)
+
+**✅ CORRECT AILANG SYNTAX:**
+```ailang
+type Option[a] = Some(a) | None
+type Result[a, e] = Ok(a) | Err(e)
+type List[a] = Cons(a, List[a]) | Nil
+
+export func getOrElse[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+```
+
+**❌ WRONG - This is Rust/other languages, NOT AILANG:**
+```rust
+type Option {        // ❌ Wrong - no { } braces
+  Some(value)        // ❌ Wrong - not AILANG syntax
+  None
+}
+
+Option::Some(42)     // ❌ Wrong - AILANG has no :: operator
+fn divide(a, b) { }  // ❌ Wrong - use 'func' not 'fn'
+```
+
+**✅ CORRECT - Use constructors directly:**
+```ailang
+Some(42)             // ✅ Correct - no namespace needed
+None                 // ✅ Correct
+```
+
+## Available Imports
+
+**std/io** - IO operations (requires `! {IO}` effect)
+```ailang
+import std/io (println, print, readLine)
+
+export func main() -> () ! {IO} {
+  println("text")
+}
+```
+
+**std/fs** - File operations (requires `! {FS}` effect)
+```ailang
+import std/fs (readFile, writeFile, exists)
+
+export func readData() -> string ! {FS} {
+  readFile("data.txt")
+}
+```
+
+**std/clock** - Time operations (requires `! {Clock}` effect)
+```ailang
+import std/clock (now, sleep)
+
+export func measureTime() -> () ! {IO, Clock} {
+  let start = now();
+  sleep(1000);  -- Sleep for 1 second (milliseconds)
+  let end = now();
+  println("Elapsed: " ++ show(end - start) ++ "ms")
+}
+```
+
+**std/net** - HTTP operations (requires `! {Net}` effect)
+```ailang
+import std/net (httpGet, httpPost)
+
+export func fetchData() -> () ! {IO, Net} {
+  let response = httpGet("https://api.example.com/data");
+  println(response)
+}
+```
+
+**IMPORTANT:**
+- `show` is a BUILTIN function - do NOT import it from std/io!
+- Clock and Net have security restrictions (no localhost, private IPs, file:// URLs blocked)
+- Run with capabilities: `ailang run --caps IO,FS,Clock,Net --entry main file.ail`
+
+**std/option** - Option type
+```ailang
+import std/option (Option, Some, None)
+```
+
+## Recursion (instead of loops)
+
+Recursion works perfectly in v0.3.2:
+
+```ailang
+export func factorial(n: int) -> int {
+  if n <= 1
+  then 1
+  else n * factorial(n - 1)
+}
+
+-- Recursion with IO effects and blocks
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+```
+
+## Complete Working Examples
+
+### Example 1: Safe Division with Option
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func safeDivide(a: float, b: float) -> Option[float] {
+  if b == 0.0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[float]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = safeDivide(10.0, 2.0);
+  printResult(r1);
+  let r2 = safeDivide(10.0, 0.0);
+  printResult(r2)
+}
+```
+
+### Example 2: Countdown with Recursion and Blocks
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  countdown(5)
+}
+```
+
+### Example 3: Records with Field Access
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let alice = {name: "Alice", age: 30, city: "NYC"};
+  let bob = {name: "Bob", age: 25, city: "SF"};
+
+  println(alice.name ++ ", " ++ show(alice.age) ++ ", " ++ alice.city);
+  println(bob.name ++ ", " ++ show(bob.age) ++ ", " ++ bob.city)
+}
+```
+
+## Summary
+
+**Structure:**
+1. **OPTIONAL**: Create a plan first and validate it with `:propose plan.json`
+2. **OPTIONAL**: Generate boilerplate with `:scaffold --from-plan plan.json`
+3. Start with `module benchmark/solution` (REQUIRED for benchmarks!)
+4. Import what you need from stdlib (`import std/io (println)`)
+5. Define exported functions with `export func name(params) -> ReturnType { }`
+6. Declare effects with `! {IO, FS}` when using IO/FS operations
+7. Use recursion instead of loops - AILANG has NO for/while loops!
+8. Use semicolons between statements in blocks (or you'll get PAR_001 errors!)
+
+**Remember:**
+- ✅ Use `func` NOT `fn`, `function`, or `def`
+- ✅ ADTs use `type Name[a] = Cons1(a) | Cons2` syntax
+- ✅ NO `::` operator - use constructors directly
+- ✅ NO for/while loops - use recursion
+- ✅ Everything is immutable (no `var` or mutation)
+- ✅ Pattern matching uses `=>` arrows, guards work (`if` conditions)
+- ✅ Semicolons REQUIRED between statements in blocks (PAR_001)
+- ✅ `show` is builtin - do NOT import it
+- ✅ Records: use literals and field access, NO update syntax yet
+- ✅ Only access record fields that exist (TC_REC_001)
+- ✅ Modulo `%` only works on int, not float (TC_INT_001)
+- ✅ Effects must be declared: `! {IO}`, `! {FS}`, `! {Clock}`, `! {Net}`, or combinations
+- ✅ Export entrypoint functions (MOD_001)
+- ✅ Request capabilities at runtime with --caps (CAP_001)
+- ✅ Modulo operator `%` works: `5 % 3` returns `2`
+- ✅ Float comparison works: `0.0 == 0.0` returns `true`
+- ✅ Four effects available: IO (console), FS (files), Clock (time), Net (HTTP)
+- ✅ **NEW**: Plan validation with `:propose` catches architecture errors early
+- ✅ **NEW**: Code scaffolding with `:scaffold` generates boilerplate from plans
+
+**If you're not sure, look at the examples above!** They show the exact AILANG syntax.
+
+**🎯 Key Additions in v0.3.2:**
+- **Proactive Planning**: Validate architecture BEFORE coding with JSON plans
+- **Code Scaffolding**: Generate valid AILANG boilerplate from validated plans
+- **24 Validation Rules**: Catch module path errors, type name errors, circular dependencies, etc.
+- **REPL Commands**: `:propose` and `:scaffold` for interactive development
+
+**v0.3.2 Release Notes (October 2025):**
+- Added Planning & Scaffolding Protocol for proactive architecture validation
+- New `:propose` REPL command validates JSON plan files
+- New `:scaffold` REPL command generates code from validated plans
+- 24 validation error codes (VAL_M##, VAL_T##, VAL_F##, VAL_E##, VAL_G##)
+- Plan schema versioning (ailang.plan/v1)
+- ~2,560 LOC implementation with 65 passing tests
+- 3 example plans in `examples/plans/`
 
 ---
 
