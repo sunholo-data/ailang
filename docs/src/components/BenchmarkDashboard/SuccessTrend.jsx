@@ -3,17 +3,33 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import styles from './styles.module.css';
 
 export default function SuccessTrend({ history }) {
+  // Sort history by timestamp (oldest first for proper trend display)
+  const sortedHistory = [...history].sort((a, b) => {
+    const dateA = new Date(a.timestamp);
+    const dateB = new Date(b.timestamp);
+    return dateA - dateB;
+  });
+
   // Transform history data for recharts
-  const chartData = history.map(baseline => ({
-    version: formatVersion(baseline.version),
-    'Zero-Shot': baseline.aggregates?.zeroShotSuccess
-      ? (baseline.aggregates.zeroShotSuccess * 100).toFixed(1)
-      : 0,
-    'Final Success': baseline.aggregates?.finalSuccess
-      ? (baseline.aggregates.finalSuccess * 100).toFixed(1)
-      : 0,
-    date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : ''
-  }));
+  const chartData = sortedHistory.map(baseline => {
+    // History entries have pre-calculated successRate from SuccessCount/TotalBenchmarks
+    // The languages field indicates which language(s) the baseline ran for
+    const successRate = (baseline.successRate || 0) * 100;
+    const languages = baseline.languages || '';
+
+    // If baseline only ran one language, show it in the appropriate column
+    // If it ran both (comma-separated or empty string), show in both columns
+    const isAilangOnly = languages === 'ailang';
+    const isPythonOnly = languages === 'python';
+    const isBoth = languages.includes(',') || languages === '';
+
+    return {
+      version: formatVersion(baseline.version),
+      'AILANG': parseFloat((isAilangOnly || isBoth ? successRate : 0).toFixed(1)),
+      'Python': parseFloat((isPythonOnly || isBoth ? successRate : 0).toFixed(1)),
+      date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : ''
+    };
+  });
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
@@ -25,12 +41,14 @@ export default function SuccessTrend({ history }) {
           {data.date && <p className={styles.tooltipDate}>{data.date}</p>}
           <p className={styles.tooltipValue}>
             <span className={styles.tooltipDot} style={{backgroundColor: '#2e8555'}} />
-            Zero-Shot: {data['Zero-Shot']}%
+            AILANG: {data['AILANG']}%
           </p>
-          <p className={styles.tooltipValue}>
-            <span className={styles.tooltipDot} style={{backgroundColor: '#25c2a0'}} />
-            Final: {data['Final Success']}%
-          </p>
+          {data['Python'] > 0 && (
+            <p className={styles.tooltipValue}>
+              <span className={styles.tooltipDot} style={{backgroundColor: '#ffa726'}} />
+              Python: {data['Python']}%
+            </p>
+          )}
         </div>
       );
     }
@@ -63,16 +81,16 @@ export default function SuccessTrend({ history }) {
           />
           <Line
             type="monotone"
-            dataKey="Zero-Shot"
-            stroke="var(--ifm-color-primary-dark)"
+            dataKey="AILANG"
+            stroke="var(--ifm-color-primary)"
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 7 }}
           />
           <Line
             type="monotone"
-            dataKey="Final Success"
-            stroke="var(--ifm-color-primary-light)"
+            dataKey="Python"
+            stroke="#ffa726"
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 7 }}

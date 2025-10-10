@@ -42,25 +42,37 @@
 
 /* Hero Section */
 .heroSection {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .metricGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 996px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Metric Cards */
 .metricCard {
   background: var(--ifm-card-background-color);
   border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 8px;
+  padding: 1rem;
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.75rem;
   transition: all 0.3s ease;
 }
 
@@ -79,21 +91,26 @@
   flex-shrink: 0;
 }
 
+.metricIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
 .metricContent {
   flex: 1;
 }
 
 .metricTitle {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--ifm-color-emphasis-600);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
 }
 
 .metricValue {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--ifm-color-emphasis-900);
   display: flex;
@@ -103,16 +120,22 @@
 }
 
 .metricSubtitle {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--ifm-color-emphasis-600);
+  line-height: 1.4;
 }
 
 .trend {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
+}
+
+.trend svg {
+  width: 16px;
+  height: 16px;
 }
 
 .trend.up {
@@ -182,6 +205,13 @@
   padding: 1.5rem;
 }
 
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-emphasis-900);
+}
+
 .chartTooltip {
   background: var(--ifm-background-color);
   border: 1px solid var(--ifm-color-emphasis-300);
@@ -217,6 +247,12 @@
   font-size: 0.75rem;
   color: var(--ifm-color-emphasis-600);
   margin-top: 0.25rem;
+}
+
+.tooltipDelta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
 }
 
 /* Benchmark Gallery */
@@ -428,6 +464,20 @@
   margin: 0;
 }
 
+.taskPrompt {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--ifm-code-background);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 4px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-900);
+  white-space: pre-wrap;
+  word-break: break-word;
+  width: 100%;
+}
+
 /* CTA Section */
 .ctaSection {
   text-align: center;
@@ -475,6 +525,58 @@
   text-decoration: none;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Code Comparison */
+.codeComparison {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.comparisonTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.codeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.codeBlock {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ifm-code-background);
+}
+
+.codeHeader {
+  padding: 0.5rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-800);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.codePre {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.codePre code {
+  font-family: var(--ifm-font-family-monospace);
+  white-space: pre;
+  color: var(--ifm-code-color);
 }
 
 .ctaButton.secondary {

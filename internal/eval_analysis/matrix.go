@@ -211,19 +211,20 @@ func groupByLanguage(results []*BenchmarkResult) map[string]*LanguageStats {
 	languages := make(map[string]*LanguageStats)
 	for lang, results := range langResults {
 		successCount := 0
-		totalTokens := 0
+		totalOutputTokens := 0
 
 		for _, r := range results {
 			if r.StdoutOk {
 				successCount++
 			}
-			totalTokens += r.TotalTokens
+			// Use OutputTokens instead of TotalTokens to exclude input prompt
+			totalOutputTokens += r.OutputTokens
 		}
 
 		languages[lang] = &LanguageStats{
 			TotalRuns:   len(results),
 			SuccessRate: safeDiv(float64(successCount), float64(len(results))),
-			AvgTokens:   safeDiv(float64(totalTokens), float64(len(results))),
+			AvgTokens:   safeDiv(float64(totalOutputTokens), float64(len(results))),
 		}
 	}
 

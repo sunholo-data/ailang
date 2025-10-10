@@ -3,9 +3,13 @@ package eval_analysis
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/internal/eval_harness"
 )
 
 // ExportDocusaurusMDX generates an MDX file with React components for Docusaurus
@@ -197,7 +201,7 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 }
 
 // ExportBenchmarkJSON exports benchmark data as JSON for client-side rendering
-func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline) (string, error) {
+func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results []*BenchmarkResult) (string, error) {
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
 		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
@@ -209,15 +213,80 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline) (string
 		"avgDurationMs":     matrix.Aggregates.AvgDurationMs,
 	}
 
+	// Group results by benchmark ID and language for code samples and stats
+	codeSamples := make(map[string]map[string]string)         // benchmarkID -> language -> code
+	langStats := make(map[string]map[string]*LanguageStats)   // benchmarkID -> language -> stats
+
+	for _, r := range results {
+		// Collect code samples
+		if r.Code != "" {
+			if codeSamples[r.ID] == nil {
+				codeSamples[r.ID] = make(map[string]string)
+			}
+			// Only keep one sample per language (preferably successful ones)
+			if existing, exists := codeSamples[r.ID][r.Lang]; !exists || (r.RuntimeOk && !strings.Contains(existing, "def ")) {
+				codeSamples[r.ID][r.Lang] = r.Code
+			}
+		}
+
+		// Collect language-specific stats for each benchmark
+		if langStats[r.ID] == nil {
+			langStats[r.ID] = make(map[string]*LanguageStats)
+		}
+		if langStats[r.ID][r.Lang] == nil {
+			langStats[r.ID][r.Lang] = &LanguageStats{}
+		}
+		stats := langStats[r.ID][r.Lang]
+		stats.TotalRuns++
+		if r.StdoutOk {
+			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1)) + 1) / float64(stats.TotalRuns)
+		} else {
+			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1))) / float64(stats.TotalRuns)
+		}
+		// Use output tokens (not total)
+		stats.AvgTokens = (stats.AvgTokens*float64(stats.TotalRuns-1) + float64(r.OutputTokens)) / float64(stats.TotalRuns)
+	}
+
 	// Convert benchmarks to camelCase for JavaScript
 	benchmarksJS := make(map[string]interface{})
 	for id, stats := range matrix.Benchmarks {
-		benchmarksJS[id] = map[string]interface{}{
+		benchmark := map[string]interface{}{
 			"totalRuns":   stats.TotalRuns,
 			"successRate": stats.SuccessRate,
 			"avgTokens":   stats.AvgTokens,
 			"languages":   stats.Languages,
 		}
+
+		// Load task prompt from benchmark YAML file
+		specPath := filepath.Join("benchmarks", id+".yml")
+		if _, err := os.Stat(specPath); err == nil {
+			if spec, err := eval_harness.LoadSpec(specPath); err == nil {
+				// Use TaskPrompt if available, otherwise fall back to Prompt
+				if spec.TaskPrompt != "" {
+					benchmark["taskPrompt"] = spec.TaskPrompt
+				} else if spec.Prompt != "" {
+					benchmark["taskPrompt"] = spec.Prompt
+				}
+			}
+		}
+
+		// Add code samples if available
+		if samples, ok := codeSamples[id]; ok {
+			benchmark["codeSamples"] = samples
+		}
+		// Add per-language stats if available
+		if perLangStats, ok := langStats[id]; ok {
+			langStatsJS := make(map[string]interface{})
+			for lang, lstats := range perLangStats {
+				langStatsJS[lang] = map[string]interface{}{
+					"successRate": lstats.SuccessRate,
+					"avgTokens":   lstats.AvgTokens,
+					"totalRuns":   lstats.TotalRuns,
+				}
+			}
+			benchmark["languageStats"] = langStatsJS
+		}
+		benchmarksJS[id] = benchmark
 	}
 
 	// Convert models to camelCase for JavaScript (nested aggregates)
@@ -237,6 +306,23 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline) (string
 		}
 	}
 
+	// Transform history to include calculated success rates
+	historyJS := make([]map[string]interface{}, len(history))
+	for i, baseline := range history {
+		successRate := 0.0
+		if baseline.TotalBenchmarks > 0 {
+			successRate = float64(baseline.SuccessCount) / float64(baseline.TotalBenchmarks)
+		}
+		historyJS[i] = map[string]interface{}{
+			"version":       baseline.Version,
+			"timestamp":     baseline.Timestamp.Format(time.RFC3339),
+			"successRate":   successRate,
+			"totalRuns":     baseline.TotalBenchmarks,
+			"successCount":  baseline.SuccessCount,
+			"languages":     baseline.Languages, // May be "ailang", "python", or "ailang,python"
+		}
+	}
+
 	data := map[string]interface{}{
 		"version":    matrix.Version,
 		"timestamp":  time.Now().Format(time.RFC3339),
@@ -245,7 +331,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline) (string
 		"models":     modelsJS,
 		"benchmarks": benchmarksJS,
 		"languages":  matrix.Languages,
-		"history":    history,
+		"history":    historyJS,
 	}
 
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")

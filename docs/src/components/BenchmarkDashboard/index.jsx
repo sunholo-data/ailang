@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
+import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
 import styles from './styles.module.css';
@@ -59,13 +60,26 @@ export default function BenchmarkDashboard() {
     );
   }
 
-  const { aggregates, models, benchmarks, version, totalRuns, history } = data;
+  const { aggregates, models, benchmarks, version, totalRuns, history, languages } = data;
+
+  // Use AILANG-specific metrics for the dashboard
+  const ailangStats = languages?.ailang || aggregates;
+  const pythonStats = languages?.python;
+  const ailangRuns = ailangStats.total_runs || ailangStats.totalRuns || Math.floor(totalRuns / 2);
+  const ailangSuccess = ailangStats.success_rate || ailangStats.finalSuccess || aggregates.finalSuccess;
+  const ailangZeroShot = ailangStats.success_rate || ailangStats.zeroShotSuccess || aggregates.zeroShotSuccess;
+
+  // Calculate deltas vs Python baseline
+  const successDelta = pythonStats ? ((ailangSuccess - pythonStats.success_rate) * 100) : 0;
+  const tokenDelta = pythonStats ? ((ailangStats.avg_tokens - pythonStats.avg_tokens) / pythonStats.avg_tokens * 100) : 0;
+  const tokenRatio = pythonStats ? (ailangStats.avg_tokens / pythonStats.avg_tokens) : 1;
 
   // Calculate trend (compare to previous version if available)
   let trend = null;
   if (history && history.length > 1) {
-    const current = aggregates.finalSuccess || aggregates.zeroShotSuccess || 0;
-    const previous = history[history.length - 2]?.aggregates?.finalSuccess || 0;
+    const current = ailangSuccess;
+    const previous = history[history.length - 2]?.languages?.ailang?.success_rate ||
+                    history[history.length - 2]?.aggregates?.finalSuccess || 0;
     const diff = current - previous;
     if (Math.abs(diff) > 0.01) {
       trend = {
@@ -83,31 +97,43 @@ export default function BenchmarkDashboard() {
           <MetricCard
             icon={<CheckCircle />}
             title="Success Rate"
-            value={`${(aggregates.finalSuccess * 100).toFixed(1)}%`}
-            subtitle={`${(aggregates.zeroShotSuccess * 100).toFixed(1)}% on first try`}
+            value={`${(ailangSuccess * 100).toFixed(1)}%`}
+            subtitle={pythonStats ? `${successDelta.toFixed(1)}% vs Python (${(pythonStats.success_rate * 100).toFixed(1)}%)` : 'AILANG success rate'}
             trend={trend}
             large
           />
           <MetricCard
-            icon={<Activity />}
-            title="Total Runs"
-            value={totalRuns}
-            subtitle={`Across ${Object.keys(models || {}).length} models`}
+            icon={<Zap />}
+            title="Output Tokens"
+            value={Math.round(ailangStats.avg_tokens || ailangStats.avgTokens || (aggregates.totalTokens / totalRuns))}
+            subtitle={pythonStats ? `${tokenRatio.toFixed(1)}x vs Python (${Math.round(pythonStats.avg_tokens)} tokens)` : 'Per AILANG run'}
+            large
           />
           <MetricCard
-            icon={<Zap />}
-            title="Avg Tokens"
-            value={Math.round(aggregates.totalTokens / totalRuns)}
-            subtitle="Per successful run"
+            icon={<Activity />}
+            title="Total Benchmarks"
+            value={ailangRuns}
+            subtitle={`Across ${Object.keys(models || {}).length} AI models`}
           />
           <MetricCard
             icon={<DollarSign />}
-            title="Total Cost"
-            value={`$${aggregates.totalCostUSD.toFixed(2)}`}
-            subtitle={`$${(aggregates.totalCostUSD / totalRuns).toFixed(4)}/run`}
+            title="Cost Efficiency"
+            value={pythonStats ? `${tokenRatio.toFixed(1)}x` : 'N/A'}
+            subtitle={pythonStats ? `More expensive than Python` : 'Cost comparison'}
           />
         </div>
       </div>
+
+      {/* Language Comparison Chart */}
+      {languages && Object.keys(languages).length > 1 && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Performance</h3>
+          <p className={styles.sectionSubtitle}>
+            Direct comparison of AI code generation success rates and efficiency
+          </p>
+          <LanguageChart languages={languages} />
+        </div>
+      )}
 
       {/* Model Performance Chart */}
       {models && Object.keys(models).length > 0 && (

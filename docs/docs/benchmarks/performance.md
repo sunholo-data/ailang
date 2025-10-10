@@ -37,10 +37,10 @@ These benchmarks demonstrate:
 AILANG excels at these problem types:
 
 - **String Manipulation**: 100.0% success rate
-- **Nested Records**: 100.0% success rate
-- **Recursion Factorial**: 100.0% success rate
+- **Recursion Fibonacci**: 100.0% success rate
 - **Records Person**: 100.0% success rate
 - **Adt Option**: 100.0% success rate
+- **Recursion Factorial**: 83.3% success rate
 
 ## How Benchmarks Guide Development
 
@@ -69,40 +69,40 @@ Want to see AILANG in action?
 
 **Version**: 0.3.3-5-gb238e7b
 
-**Total Runs**: 54
+**Total Runs**: 108
 
-**Generated**: 2025-10-10 19:27:18
+**Generated**: 2025-10-10 20:12:25
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run |
 |-------|------|--------|-------|------------|---------|
-| Claude Sonnet 4.5 | 18 | 50.0% | 50.0% | 4472 | $0.1342 |
-| gpt-5 | 18 | 44.4% | 44.4% | 5025 | $0.1507 |
-| gemini-2.5-pro | 18 | 33.3% | 33.3% | 4050 | $0.1215 |
+| Claude Sonnet 4.5 | 36 | 63.9% | 63.9% | 2391 | $0.0717 |
+| gpt-5 | 36 | 61.1% | 61.1% | 2928 | $0.0878 |
+| gemini-2.5-pro | 36 | 58.3% | 58.3% | 2207 | $0.0662 |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Adt Option | 100.0% | 5773 | ailang |
-| ✅ Nested Records | 100.0% | 5689 | ailang |
-| ✅ Records Person | 100.0% | 5645 | ailang |
-| ✅ Recursion Factorial | 100.0% | 5487 | ailang |
-| ✅ String Manipulation | 100.0% | 5694 | ailang |
-| ⚠️ Error Handling | 66.7% | 6269 | ailang |
-| ⚠️ Fizzbuzz | 66.7% | 5972 | ailang |
-| ⚠️ Recursion Fibonacci | 66.7% | 5573 | ailang |
-| ❌ List Operations | 33.3% | 6180 | ailang |
-| ❌ Record Update | 33.3% | 5939 | ailang |
-| ❌ Cli Args | 0.0% | 758 | ailang |
-| ❌ Float Eq | 0.0% | 498 | ailang |
-| ❌ Higher Order Functions | 0.0% | 6787 | ailang |
-| ❌ Json Parse | 0.0% | 720 | ailang |
-| ❌ List Comprehension | 0.0% | 6694 | ailang |
-| ❌ Numeric Modulo | 0.0% | 312 | ailang |
-| ❌ Pattern Matching Complex | 0.0% | 6673 | ailang |
-| ❌ Pipeline | 0.0% | 624 | ailang |
+| ✅ Adt Option | 100.0% | 3338 | ailang, python |
+| ✅ Records Person | 100.0% | 2954 | ailang, python |
+| ✅ Recursion Fibonacci | 100.0% | 3012 | ailang, python |
+| ✅ String Manipulation | 100.0% | 3023 | ailang, python |
+| ⚠️ Fizzbuzz | 83.3% | 3056 | ailang, python |
+| ⚠️ Nested Records | 83.3% | 3099 | ailang, python |
+| ⚠️ Recursion Factorial | 83.3% | 2912 | ailang, python |
+| ⚠️ Error Handling | 66.7% | 3752 | ailang, python |
+| ⚠️ List Operations | 66.7% | 3457 | ailang, python |
+| ⚠️ Higher Order Functions | 50.0% | 3611 | ailang, python |
+| ⚠️ Json Parse | 50.0% | 463 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 174 | ailang, python |
+| ⚠️ Pattern Matching Complex | 50.0% | 3809 | ailang, python |
+| ⚠️ Record Update | 50.0% | 3278 | ailang, python |
+| ❌ Float Eq | 33.3% | 347 | ailang, python |
+| ❌ List Comprehension | 33.3% | 3536 | ailang, python |
+| ❌ Cli Args | 0.0% | 870 | ailang, python |
+| ❌ Pipeline | 0.0% | 465 | ailang, python |
 
 ---
 

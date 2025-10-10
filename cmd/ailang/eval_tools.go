@@ -302,7 +302,7 @@ func runEvalReport() {
 	case "docusaurus", "mdx":
 		output = eval_analysis.ExportDocusaurusMDX(matrix, history)
 	case "json":
-		output, err = eval_analysis.ExportBenchmarkJSON(matrix, history)
+		output, err = eval_analysis.ExportBenchmarkJSON(matrix, history, results)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: failed to generate JSON: %v\n", red("Error"), err)
 			os.Exit(1)

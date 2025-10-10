@@ -76,13 +76,21 @@ export default function ModelChart({ models }) {
 }
 
 function formatModelName(name) {
-  // Shorten model names for display
-  if (name.includes('claude-sonnet-4-5')) return 'Claude 4.5';
+  // Format model names consistently with models.yml conventions
+  // Use proper capitalization and version numbers
+  if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
+  if (name.includes('claude-sonnet')) return 'Claude Sonnet';
+  if (name.includes('claude-opus')) return 'Claude Opus';
   if (name.includes('gpt-4o-mini')) return 'GPT-4o Mini';
   if (name.includes('gpt-5-mini')) return 'GPT-5 Mini';
   if (name.includes('gpt-5')) return 'GPT-5';
+  if (name.includes('gpt-4o')) return 'GPT-4o';
   if (name.includes('gpt-4')) return 'GPT-4';
-  if (name.includes('gemini-2-5-pro')) return 'Gemini 2.5';
+  if (name.includes('gemini-2-5-pro')) return 'Gemini 2.5 Pro';
+  if (name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
+  if (name.includes('gemini-pro')) return 'Gemini Pro';
   if (name.includes('gemini')) return 'Gemini';
-  return name.split('-')[0].substring(0, 15); // Fallback: first word, max 15 chars
+
+  // Fallback: capitalize first letter of each word
+  return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }

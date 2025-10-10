@@ -21,7 +21,11 @@ export default function BenchmarkGallery({ benchmarks }) {
 function BenchmarkCard({ benchmark }) {
   const [expanded, setExpanded] = useState(false);
 
-  const { id, successRate, attempts, avgTokens, languages } = benchmark;
+  const { id, successRate, attempts, avgTokens, languages, codeSamples, languageStats, taskPrompt } = benchmark;
+
+  // Get AILANG and Python specific stats if available
+  const ailangStats = languageStats?.ailang;
+  const pythonStats = languageStats?.python;
 
   // Determine status
   let status, statusColor, StatusIcon;
@@ -64,22 +68,51 @@ function BenchmarkCard({ benchmark }) {
       </div>
 
       <div className={styles.benchmarkStats}>
-        <div className={styles.stat}>
-          <span className={styles.statLabel}>Success</span>
-          <span className={styles.statValue}>{(successRate * 100).toFixed(1)}%</span>
-        </div>
-        <div className={styles.stat}>
-          <span className={styles.statLabel}>Attempts</span>
-          <span className={styles.statValue}>{attempts}</span>
-        </div>
-        <div className={styles.stat}>
-          <span className={styles.statLabel}>Avg Tokens</span>
-          <span className={styles.statValue}>{Math.round(avgTokens)}</span>
-        </div>
+        {ailangStats && pythonStats ? (
+          <>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>AILANG Success</span>
+              <span className={styles.statValue}>{(ailangStats.successRate * 100).toFixed(0)}%</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Python Success</span>
+              <span className={styles.statValue}>{(pythonStats.successRate * 100).toFixed(0)}%</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>AILANG Tokens</span>
+              <span className={styles.statValue}>{Math.round(ailangStats.avgTokens)}</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Python Tokens</span>
+              <span className={styles.statValue}>{Math.round(pythonStats.avgTokens)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Success</span>
+              <span className={styles.statValue}>{(successRate * 100).toFixed(1)}%</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Attempts</span>
+              <span className={styles.statValue}>{attempts}</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>Avg Tokens</span>
+              <span className={styles.statValue}>{Math.round(avgTokens)}</span>
+            </div>
+          </>
+        )}
       </div>
 
       {expanded && (
         <div className={styles.benchmarkDetails}>
+          {taskPrompt && (
+            <div className={styles.detailRow} style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+              <span className={styles.detailLabel}>Task Prompt:</span>
+              <div className={styles.taskPrompt}>{taskPrompt}</div>
+            </div>
+          )}
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Languages:</span>
             <span className={styles.detailValue}>
@@ -93,6 +126,25 @@ function BenchmarkCard({ benchmark }) {
           {successRate < 1.0 && (
             <div className={styles.detailHint}>
               <p>💡 {getHint(id, successRate)}</p>
+            </div>
+          )}
+          {codeSamples && (codeSamples.ailang || codeSamples.python) && (
+            <div className={styles.codeComparison}>
+              <h4 className={styles.comparisonTitle}>Generated Code Comparison</h4>
+              <div className={styles.codeGrid}>
+                {codeSamples.ailang && (
+                  <div className={styles.codeBlock}>
+                    <div className={styles.codeHeader}>AILANG</div>
+                    <pre className={styles.codePre}><code>{codeSamples.ailang}</code></pre>
+                  </div>
+                )}
+                {codeSamples.python && (
+                  <div className={styles.codeBlock}>
+                    <div className={styles.codeHeader}>Python</div>
+                    <pre className={styles.codePre}><code>{codeSamples.python}</code></pre>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
