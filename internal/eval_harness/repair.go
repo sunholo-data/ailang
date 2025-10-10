@@ -148,6 +148,8 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.ExecuteMs = result.RunResult.ExecuteTime.Milliseconds()
 
 	metrics.ErrorCategory = CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)
+	metrics.Stdout = result.RunResult.Stdout
 	metrics.Stderr = result.RunResult.Stderr
+	metrics.ExpectedStdout = r.spec.ExpectedOut
 	metrics.Code = result.Code
 }

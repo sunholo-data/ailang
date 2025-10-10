@@ -42,7 +42,7 @@
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
     }
   },
-  "active": "v0.3.0-baseline",
+  "active": "latest",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

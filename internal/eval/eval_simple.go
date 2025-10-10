@@ -611,8 +611,13 @@ func showValue(v Value, depth int) string {
 		if val.Value == 0 && math.Signbit(val.Value) {
 			return "-0.0"
 		}
-		// Use %g for cleaner output, but ensure precision
-		return fmt.Sprintf("%g", val.Value)
+		// Use %g for cleaner output, but ensure at least one decimal point
+		s := fmt.Sprintf("%g", val.Value)
+		// Ensure at least one decimal point for floats (5 -> 5.0)
+		if !strings.Contains(s, ".") && !strings.Contains(s, "e") && !strings.Contains(s, "E") {
+			s = s + ".0"
+		}
+		return s
 
 	case *StringValue:
 		// Quote and escape the string using JSON rules

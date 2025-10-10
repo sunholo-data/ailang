@@ -171,31 +171,43 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = &TCon{Name: "Unknown"}
 	}
 
-	// Convert ClassConstraints to Constraints
-	constraints := make([]Constraint, len(ctx.qualifiedConstraints))
-	for i, cc := range ctx.qualifiedConstraints {
+	// Solve constraints and apply defaulting (proper way)
+	sub, unsolved, err := ctx.SolveConstraints()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	// Apply defaulting to unsolved constraints
+	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesTopLevel(finalType, unsolved)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
+	}
+
+	// Compose substitutions if defaulting was applied
+	if len(defaultingSub) > 0 {
+		sub = composeSubstitutions(defaultingSub, sub)
+		finalType = defaultedType
+		unsolved = defaultedConstraints
+	}
+
+	// Apply final substitution to typed node
+	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
+
+	// Resolve ground constraints
+	ground, nonGround := tc.partitionConstraints(unsolved)
+	if err := tc.resolveGroundConstraints(ground, expr); err != nil {
+		return nil, updatedEnv, nil, nil, err
+	}
+
+	// Fill in operator methods
+	tc.FillOperatorMethods(expr)
+
+	// Convert ClassConstraints to Constraints for return value
+	constraints := make([]Constraint, len(nonGround))
+	for i, cc := range nonGround {
 		constraints[i] = Constraint{
 			Class: cc.Class,
 			Type:  cc.Type,
-		}
-	}
-
-	// Now resolve constraints and apply defaulting
-	tc.resolveConstraints(ctx, typedNode)
-
-	// Apply defaulting to the final type if it's still a type variable
-	if _, ok := finalType.(*TVar2); ok {
-		// Check if we can default this based on constraints
-		for _, c := range constraints {
-			if c.Class == "Num" {
-				// Default to int
-				finalType = &TCon{Name: "int"}
-				break
-			} else if c.Class == "Fractional" {
-				// Default to float
-				finalType = &TCon{Name: "float"}
-				break
-			}
 		}
 	}
 
@@ -219,51 +231,36 @@ func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typeda
 			methodName = "lt"
 		}
 
-		// Apply defaulting if the type is still a variable
+		// Use the resolved type from unification/defaulting
+		// NOTE: Defaulting already happened in defaultAmbiguitiesTopLevel() and pickDefault()
+		// DO NOT apply additional defaulting here - it will override the correct decision!
 		resolvedType := cc.Type
+
+		// SAFETY: Type should already be ground after defaulting
+		// If it's still a type variable, that's an internal error
 		switch resolvedType.(type) {
 		case *TVar, *TVar2:
-			// For Ord/Eq, try to default to Int
-			// For Num, use the configured default
-			var defaultType Type
+			// This should never happen after proper defaulting
+			// Log error but use fallback to prevent crash
+			fmt.Fprintf(os.Stderr, "WARNING: Non-ground type %s for constraint %s[%s] at node %d\n",
+				resolvedType, cc.Class, cc.Type, cc.NodeID)
+			fmt.Fprintf(os.Stderr, "         Defaulting should have resolved this. Using fallback.\n")
+
+			// Fallback based on class
 			switch cc.Class {
 			case "Num":
-				defaultType = tc.instanceEnv.GetDefault("Num")
+				resolvedType = &TCon{Name: "int"}
 			case "Fractional":
-				defaultType = tc.instanceEnv.GetDefault("Fractional")
+				resolvedType = &TCon{Name: "float"}
 			case "Ord", "Eq":
-				// Default Ord/Eq to Int when ambiguous
-				defaultType = &TCon{Name: "int"}
-			}
-
-			if defaultType != nil {
-				resolvedType = defaultType
-			}
-		}
-
-		// Store resolved constraint - ensure we have a concrete type
-		var finalType Type = resolvedType
-
-		// If we still have a type variable after defaulting attempt, that's an error
-		switch resolvedType.(type) {
-		case *TVar, *TVar2:
-			// This shouldn't happen - defaulting should have resolved it
-			// Type variable not resolved, using fallback
-			// Use a fallback concrete type based on class
-			switch cc.Class {
-			case "Num":
-				finalType = &TCon{Name: "int"}
-			case "Fractional":
-				finalType = &TCon{Name: "float"}
-			case "Ord", "Eq":
-				finalType = &TCon{Name: "int"}
+				resolvedType = &TCon{Name: "int"}
 			default:
-				finalType = &TCon{Name: "int"} // Safe fallback
+				resolvedType = &TCon{Name: "int"}
 			}
 		}
 
 		// Now normalize the concrete type
-		normalizedTypeName := NormalizeTypeName(finalType)
+		normalizedTypeName := NormalizeTypeName(resolvedType)
 		normalizedType := &TCon{Name: normalizedTypeName}
 
 		// Registered constraint resolution
@@ -2657,7 +2654,23 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 		tc.walkCore(e.Operand)
 
 	case *core.Intrinsic:
-		// Intrinsic nodes pass through - they'll be handled by OpLowering
+		// Fill in the method name for intrinsic operators
+		if rc, ok := tc.resolvedConstraints[e.ID()]; ok {
+			// Map IntrinsicOp to operator string for OperatorMethod lookup
+			opStr := intrinsicOpToString(e.Op)
+			if opStr != "" {
+				method := OperatorMethod(opStr, len(e.Args) == 1)
+				rc.Method = method
+				// DEBUG
+				if tc.debugMode {
+					fmt.Printf("[DEBUG] Intrinsic %s (node %d): class=%s, type=%s, method=%s\n",
+						opStr, e.ID(), rc.ClassName, rc.Type, method)
+				}
+			}
+		} else if tc.debugMode {
+			fmt.Printf("[DEBUG] Intrinsic node %d has no resolved constraint\n", e.ID())
+		}
+		// Recurse on arguments
 		for _, arg := range e.Args {
 			tc.walkCore(arg)
 		}
@@ -2708,6 +2721,46 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 	// Atomic expressions don't need recursion
 	case *core.Var, *core.Lit, *core.DictRef:
 		return
+	}
+}
+
+// intrinsicOpToString converts IntrinsicOp to operator string for method lookup
+func intrinsicOpToString(op core.IntrinsicOp) string {
+	switch op {
+	case core.OpAdd:
+		return "+"
+	case core.OpSub:
+		return "-"
+	case core.OpMul:
+		return "*"
+	case core.OpDiv:
+		return "/"
+	case core.OpMod:
+		return "%"
+	case core.OpEq:
+		return "=="
+	case core.OpNe:
+		return "!="
+	case core.OpLt:
+		return "<"
+	case core.OpLe:
+		return "<="
+	case core.OpGt:
+		return ">"
+	case core.OpGe:
+		return ">="
+	case core.OpConcat:
+		return "++"
+	case core.OpAnd:
+		return "&&"
+	case core.OpOr:
+		return "||"
+	case core.OpNot:
+		return "!"
+	case core.OpNeg:
+		return "-"
+	default:
+		return ""
 	}
 }
 

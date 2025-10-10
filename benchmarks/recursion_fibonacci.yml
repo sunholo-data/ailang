@@ -5,9 +5,6 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
 expected_gain: "medium"
-prompt_files:
-  ailang: "prompts/v0.3.0.md"
-  python: "prompts/python.md"
 task_prompt: |
   Write a program in <LANG> that:
   1. Defines a recursive Fibonacci function: fib(0) = 0, fib(1) = 1, fib(n) = fib(n-1) + fib(n-2)

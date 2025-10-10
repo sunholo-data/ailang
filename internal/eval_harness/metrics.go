@@ -21,13 +21,15 @@ type RunMetrics struct {
 	CompileOk     bool      `json:"compile_ok"`
 	RuntimeOk     bool      `json:"runtime_ok"`
 	StdoutOk      bool      `json:"stdout_ok"`
-	DurationMs    int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
-	CompileMs     int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
-	ExecuteMs     int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
-	ErrorCategory string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
-	Stderr        string    `json:"stderr,omitempty"`
-	Timestamp     time.Time `json:"timestamp"`
-	Code          string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+	DurationMs     int64     `json:"duration_ms"`    // Total time (startup + compile + execution)
+	CompileMs      int64     `json:"compile_ms"`     // Time spent in compilation (if separate)
+	ExecuteMs      int64     `json:"execute_ms"`     // Time spent in execution (if measurable)
+	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
+	Stdout         string    `json:"stdout,omitempty"`
+	Stderr         string    `json:"stderr,omitempty"`
+	ExpectedStdout string    `json:"expected_stdout,omitempty"`
+	Timestamp      time.Time `json:"timestamp"`
+	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
 	// Self-repair metrics (M-EVAL-LOOP)
 	FirstAttemptOk  bool   `json:"first_attempt_ok"`            // Did first attempt succeed?

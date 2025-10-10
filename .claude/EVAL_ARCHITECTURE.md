@@ -18,14 +18,42 @@ Results + Interpretation
 
 ### Tier 1: Native Go Commands (Fast & Reliable)
 
-Location: `internal/eval_analysis/` + `cmd/ailang/`
+Location: `internal/eval_analysis/` + `internal/eval_harness/` + `cmd/ailang/`
 
 ```bash
+ailang eval-suite [flags]                   # Run full benchmark suite (parallel)
 ailang eval-compare <baseline> <new>        # Compare two runs
 ailang eval-matrix <dir> <version>          # Generate performance matrix
 ailang eval-summary <dir>                   # Export to JSONL
 ailang eval-validate <benchmark> [version]  # Validate specific fix
 ailang eval-report <dir> <version> [format] # Generate reports (MD/HTML/CSV)
+```
+
+**eval-suite: Full Benchmark Execution**
+
+Runs all benchmarks across multiple models in parallel. This is the primary command for generating evaluation results.
+
+**Flags:**
+- `--models`: Comma-separated list (default: claude-sonnet-4-5,gpt5,gemini-2-5-pro)
+- `--benchmarks`: Which tests to run (default: all 10 benchmarks)
+- `--langs`: Target languages (default: python,ailang)
+- `--parallel N`: Concurrent API calls (default: 5, 0=sequential)
+- `--seed N`: Random seed for reproducibility (default: 42)
+- `--self-repair`: Enable single-shot self-repair on errors
+- `--timeout`: Execution timeout (default: 30s)
+- `--output`: Output directory (default: eval_results)
+- `--prompt-version`: Specific prompt version for all benchmarks
+
+**Example:**
+```bash
+# Default: all models, all benchmarks, parallel
+ailang eval-suite
+
+# Single model, specific benchmarks
+ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
+
+# With self-repair enabled
+ailang eval-suite --self-repair --models claude-sonnet-4-5
 ```
 
 **Characteristics:**

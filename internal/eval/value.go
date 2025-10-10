@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Value represents a runtime value in AILANG
@@ -23,8 +24,15 @@ type FloatValue struct {
 	Value float64
 }
 
-func (f *FloatValue) Type() string   { return "float" }
-func (f *FloatValue) String() string { return fmt.Sprintf("%g", f.Value) }
+func (f *FloatValue) Type() string { return "float" }
+func (f *FloatValue) String() string {
+	s := fmt.Sprintf("%g", f.Value)
+	// Ensure at least one decimal point for floats (5 -> 5.0)
+	if !strings.Contains(s, ".") && !strings.Contains(s, "e") && !strings.Contains(s, "E") {
+		s = s + ".0"
+	}
+	return s
+}
 
 // StringValue represents a string value
 type StringValue struct {

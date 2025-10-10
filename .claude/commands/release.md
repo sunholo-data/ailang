@@ -77,15 +77,28 @@ Create a new AILANG release with the specified version number.
     - Show release URL: https://github.com/sunholo-data/ailang/releases/tag/v$1
     - Show CI workflow status
 
-12. **update design docs** 
-    - move design docs used into design_docs/implemented/
-    - update design docs used with what was implemented
-    - if any features were missed or pushed to a future release, ensure they have new design_docs ready in design_docs/planned/
+12. **Update eval benchmarks** (NEW: M-EVAL-LOOP documentation)
+    - Run eval baseline to capture current performance: `make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang`
+    - Compare to previous version: `ailang eval-compare eval_results/baselines/v<prev> eval_results/baselines/v$1`
+    - Update CHANGELOG.md with benchmark results:
+      - Add section "### Benchmark Results (M-EVAL)"
+      - Include success rate: "X/10 benchmarks passing (X%)"
+      - List improvements: "✓ Fixed: <benchmark_ids>"
+      - List regressions: "✗ Regressed: <benchmark_ids>" (if any)
+      - Show comparison: "+X% improvement" or note if regression
+    - Store baseline: Already saved to `eval_results/baselines/v$1/` by make target
+    - Commit baseline results: `git add eval_results/baselines/v$1/ && git commit -m "Add eval baseline for v$1"`
 
-13. **update public docs**
-    - ensure prompt in prompts/ reflects latest changes for AILANG syntax instruction
-    - ensure website docs in docs/ includes latest changes and is updated to remove any old references
-    - make sure latest examples are reflected on the website
+13. **Update design docs**
+    - Move design docs used into design_docs/implemented/
+    - Update design docs used with what was implemented
+    - If any features were missed or pushed to a future release, ensure they have new design_docs ready in design_docs/planned/
+
+14. **Update public docs**
+    - Ensure prompt in prompts/ reflects latest changes for AILANG syntax instruction
+    - Ensure website docs in docs/ includes latest changes and is updated to remove any old references
+    - Make sure latest examples are reflected on the website
+    - Update docs/guides/evaluation/ with new benchmark results if significant improvements
 
 
 ## Version Format

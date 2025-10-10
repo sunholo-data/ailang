@@ -95,11 +95,52 @@ func (l *PromptLoader) LoadPrompt(versionID string) (string, error) {
 }
 
 // GetActivePrompt loads the active prompt version
+// Supports special value "latest" to automatically use the most recent version
 func (l *PromptLoader) GetActivePrompt() (string, error) {
 	if l.registry.Active == "" {
 		return "", fmt.Errorf("no active prompt version specified in registry")
 	}
-	return l.LoadPrompt(l.registry.Active)
+
+	versionID := l.registry.Active
+
+	// Handle "latest" special value - find most recent version
+	if versionID == "latest" {
+		latest := l.findLatestVersion()
+		if latest == "" {
+			return "", fmt.Errorf("no versions available to select as latest")
+		}
+		versionID = latest
+	}
+
+	return l.LoadPrompt(versionID)
+}
+
+// findLatestVersion returns the most recent version ID by comparing creation dates
+func (l *PromptLoader) findLatestVersion() string {
+	var latest string
+	var latestDate string
+
+	for id, version := range l.registry.Versions {
+		// Skip non-production versions for "latest"
+		hasProduction := false
+		for _, tag := range version.Tags {
+			if tag == "production" {
+				hasProduction = true
+				break
+			}
+		}
+		if !hasProduction {
+			continue
+		}
+
+		// Compare dates (format: YYYY-MM-DD)
+		if version.Created > latestDate {
+			latestDate = version.Created
+			latest = id
+		}
+	}
+
+	return latest
 }
 
 // GetVersion returns metadata for a specific version

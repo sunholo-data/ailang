@@ -110,6 +110,15 @@ func getDefaultPrompt(lang string) string {
 	case "python":
 		return "You are an expert Python programmer. Write clean, idiomatic Python code."
 	case "ailang":
+		// For AILANG, use the active prompt from the registry
+		loader, err := NewPromptLoader("prompts/versions.json")
+		if err == nil {
+			activePrompt, err := loader.GetActivePrompt()
+			if err == nil {
+				return activePrompt
+			}
+		}
+		// Fallback if prompt loader fails
 		return "You are writing code in AILANG, a functional programming language."
 	default:
 		return "Write clean, idiomatic code in the specified language."

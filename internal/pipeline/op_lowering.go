@@ -10,16 +10,23 @@ import (
 
 // OpLowerer performs type-directed lowering of intrinsic operations
 type OpLowerer struct {
-	typeEnv *types.TypeEnv
-	errors  []error
+	typeEnv             *types.TypeEnv
+	resolvedConstraints map[uint64]*types.ResolvedConstraint // NodeID → resolved constraint
+	errors              []error
 }
 
 // NewOpLowerer creates a new operation lowerer
 func NewOpLowerer(typeEnv *types.TypeEnv) *OpLowerer {
 	return &OpLowerer{
-		typeEnv: typeEnv,
-		errors:  []error{},
+		typeEnv:             typeEnv,
+		resolvedConstraints: make(map[uint64]*types.ResolvedConstraint),
+		errors:              []error{},
 	}
+}
+
+// SetResolvedConstraints sets the resolved constraints from type checking
+func (l *OpLowerer) SetResolvedConstraints(constraints map[uint64]*types.ResolvedConstraint) {
+	l.resolvedConstraints = constraints
 }
 
 // Lower performs type-directed lowering of intrinsic operations
@@ -265,25 +272,30 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	// For non-short-circuiting operations, recursively lower the arguments
 	args := l.lowerExprs(intrinsic.Args)
 
-	// Determine the type suffix based on the operation
-	// TODO: Get actual types from typechecker
-	// For MVP, use simple heuristics
+	// Determine the type suffix from resolved constraints
 	var typeSuffix string
 
-	switch intrinsic.Op {
-	case core.OpNot:
-		typeSuffix = "Bool"
-	case core.OpConcat:
-		typeSuffix = "String"
-	default:
-		// For arithmetic and comparison, default to Int
-		// A real implementation would inspect types
-		typeSuffix = "Int"
+	// Look up the resolved constraint for this intrinsic node
+	if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+		// Use the type from the resolved constraint
+		typeSuffix = getTypeSuffixFromType(constraint.Type)
+	} else {
+		// Fallback to heuristics if no constraint available
+		// This handles cases like OpNot, OpConcat that don't use type classes
+		switch intrinsic.Op {
+		case core.OpNot:
+			typeSuffix = "Bool"
+		case core.OpConcat:
+			typeSuffix = "String"
+		default:
+			// Default to Int for backward compatibility
+			typeSuffix = "Int"
 
-		// Check if we have float literals
-		if len(args) > 0 {
-			if lit, ok := args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
-				typeSuffix = "Float"
+			// Check if we have float literals as last resort
+			if len(args) > 0 {
+				if lit, ok := args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
+					typeSuffix = "Float"
+				}
 			}
 		}
 	}
@@ -321,6 +333,39 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 // AddError adds an error to the lowerer
 func (l *OpLowerer) AddError(err error) {
 	l.errors = append(l.errors, err)
+}
+
+// getTypeSuffixFromType extracts the type suffix from a resolved type
+// Maps TInt → "Int", TFloat → "Float", TBool → "Bool", TString → "String"
+func getTypeSuffixFromType(t types.Type) string {
+	switch t {
+	case types.TInt:
+		return "Int"
+	case types.TFloat:
+		return "Float"
+	case types.TBool:
+		return "Bool"
+	case types.TString:
+		return "String"
+	default:
+		// For complex types, try to extract from string representation
+		typeStr := t.String()
+		// Handle common cases like "Int", "Float", "Bool", "String"
+		if typeStr == "Int" || typeStr == "int" {
+			return "Int"
+		}
+		if typeStr == "Float" || typeStr == "float" {
+			return "Float"
+		}
+		if typeStr == "Bool" || typeStr == "bool" {
+			return "Bool"
+		}
+		if typeStr == "String" || typeStr == "string" {
+			return "String"
+		}
+		// Default to Int for unknown types (backward compatibility)
+		return "Int"
+	}
 }
 
 // CreateTypeMismatchError creates a structured type mismatch error for operators

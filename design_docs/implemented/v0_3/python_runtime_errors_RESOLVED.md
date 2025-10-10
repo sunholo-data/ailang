@@ -1,13 +1,31 @@
-# PYTHON: Runtime Errors
+# PYTHON: Runtime Errors [RESOLVED]
 
 **Discovered**: AI Eval Analysis - 2025-10-06
-**Frequency**: 45 failures across 3 benchmark(s)
-**Priority**: P1 (High Priority)
-**Estimated**: 975 LOC, 3.5 days
-**Category**: runtime_error
-**Impact**: high
+**Resolved**: 2025-10-10
+**Status**: ✅ FIXED - No longer occurring
+**Resolution**: Fixed by improved prompt templating in benchmark YAML files
 
-## Problem Statement
+**Original Frequency**: 45 failures across 3 benchmark(s)
+**Original Priority**: P1 (High Priority)
+**Original Estimated**: 975 LOC, 3.5 days
+**Category**: runtime_error
+**Impact**: high (was)
+
+## Resolution Summary
+
+**Issue**: AI models were generating AILANG code when asked for Python code, causing Python syntax errors.
+
+**Root Cause**: Prompt templates not properly substituting `<LANG>` placeholder or system prompts not clearly distinguishing Python from AILANG.
+
+**Fix**: Improved benchmark YAML configuration with proper `task_prompt` templating and language-specific prompts.
+
+**Verification**: Tested 2025-10-10 - Python fizzbuzz benchmark generates correct Python code and executes successfully.
+
+**Proposed Solution (No Longer Needed)**: Original design proposed a 975 LOC content-based language detector. This proved unnecessary - simpler prompt templating solved the issue.
+
+---
+
+## Original Problem Statement
 
 
 

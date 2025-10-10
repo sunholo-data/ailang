@@ -216,7 +216,8 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 	// Generate prompt
 	var prompt string
 	if promptVersion != "" {
-		loader, err := eval_harness.NewPromptLoader("prompts")
+		// Explicit version specified via --prompt-version flag
+		loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
 		if err != nil {
 			return false, fmt.Errorf("failed to create prompt loader: %w", err)
 		}
@@ -229,7 +230,29 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 		}
 	} else {
+		// Try spec.PromptFiles first, then fall back to active version from registry
 		prompt = spec.PromptForLanguage(lang)
+		if prompt == "" && lang == "ailang" {
+			// No prompt in spec, use active version from registry
+			loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+			if err != nil {
+				return false, fmt.Errorf("failed to create prompt loader: %w", err)
+			}
+			activePrompt, err := loader.GetActivePrompt()
+			if err != nil {
+				return false, fmt.Errorf("failed to load active prompt: %w", err)
+			}
+			prompt = activePrompt
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		}
+	}
+
+	// Debug: Print prompt info
+	if os.Getenv("DEBUG_PROMPT") != "" {
+		fmt.Printf("[DEBUG] Prompt length: %d bytes\n", len(prompt))
+		fmt.Printf("[DEBUG] First 300 chars: %s\n", prompt[:min(300, len(prompt))])
 	}
 
 	// Execute with repair runner

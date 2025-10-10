@@ -612,6 +612,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// If shim is not enabled, we must lower
 		if cfg.RequireLowering || !cfg.ExperimentalBinopShim {
 			lowerer := NewOpLowerer(cfg.TypeEnv)
+			// Pass resolved constraints from type checker to lowerer
+			lowerer.SetResolvedConstraints(typeChecker.GetResolvedConstraints())
 			unit.Core, err = lowerer.Lower(unit.Core)
 			if err != nil {
 				return result, fmt.Errorf("lowering error in %s: %w", modID, err)
