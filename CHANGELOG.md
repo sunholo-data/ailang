@@ -1,5 +1,91 @@
 # AILANG Changelog
 
+## [v0.3.4] - 2025-10-10
+
+### Added - REPL Stabilization
+
+**Builtin Resolver**: Fixed "no resolver available" error for arithmetic operations in REPL.
+- Added `BuiltinOnlyResolver` to persistent evaluator
+- REPL now correctly resolves `$builtin.add_Int`, `$builtin.mul_Float`, etc.
+- Impact: `1 + 2` now works in REPL (previously crashed)
+
+**Persistent Environment**: Let bindings now survive across REPL inputs.
+- Evaluator environment shared across all inputs
+- Value bindings persist: `let x = 42` then `x + 1` works
+- Impact: REPL suitable for interactive demos and experimentation
+
+**Float Equality in REPL**: Enabled experimental binop shim for float comparisons.
+- Direct literal comparisons work: `0.0 == 0.0` returns `true`
+- Workaround until OpLowering handles all cases
+- Impact: Basic float comparisons functional in REPL
+
+**Capability Prompt**: REPL prompt shows active capabilities.
+- New format: `λ[IO]>` instead of plain `λ>`
+- Sorted alphabetically for consistency
+- Impact: Better UX, clearer about available effects
+
+**Files Changed**:
+- `internal/repl/repl.go` (~100 LOC) - Persistent evaluator, bindings, prompt
+- `internal/types/env.go` (~12 LOC) - Added `BindScheme()` and `BindType()` methods
+- `cmd/wasm/main.go` - WASM inherits REPL fixes automatically
+
+### Added - Browser-Based Playground
+
+**WebAssembly Build**: AILANG REPL now runs in the browser via WASM.
+- Built with `GOOS=js GOARCH=wasm` (~11MB binary)
+- Integrated with Docusaurus documentation site
+- Auto-reloads on changes during development
+
+**JavaScript API**: Clean wrapper for WASM integration.
+- `AilangREPL` class with `eval()`, `command()`, `reset()` methods
+- React component for easy embedding
+- Automatic import of std/prelude
+
+**Files Added**:
+- `cmd/wasm/main.go` - WASM entry point
+- `web/ailang-repl.js` - JavaScript wrapper
+- `web/AilangRepl.jsx` - React component
+- `docs/docusaurus.config.js` - WASM script loading
+- `.github/workflows/docusaurus-deploy.yml` - Auto-deploy on push
+- `.github/workflows/release.yml` - Include WASM in releases
+
+### Added - Design Documentation
+
+**Implementation Report**: Documented v0.3.3 REPL fixes.
+- `design_docs/implemented/v0_3/M-REPL0_basic_stabilization.md`
+- Before/after examples, code changes, test results
+- Documents known limitations (type annotations, module loading)
+
+**Future Planning**: Roadmap for remaining REPL improvements.
+- `design_docs/planned/M-REPL1_persistent_bindings.md`
+- Type annotation persistence through elaboration
+- Module loading in REPL (`:import std/io`, `println`)
+- Complete 3-phase implementation plan (~300 LOC, 2-3 days)
+
+### Known Limitations
+
+**Type Annotations Lost**: User type annotations disappear during elaboration.
+- Example: `let b: float = 0.0` creates binding but type becomes `α`
+- Impact: Variable comparisons fail (`b == 0.0` still crashes)
+- Workaround: Use direct literals (`0.0 == 0.0` works)
+- Fix planned: M-REPL1 (v0.3.5 or v0.4.0)
+
+**Module Loading**: REPL can't import module files.
+- `:import std/io` fails (only hardcoded std/prelude works)
+- Impact: `println` unavailable in REPL
+- Workaround: None currently
+- Fix planned: M-REPL1 (v0.3.5 or v0.4.0)
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **REPL fixes** | 3 critical bugs fixed |
+| **Lines of code** | ~200 LOC |
+| **Files modified** | 2 core + 4 new (WASM) |
+| **Test coverage** | All existing tests pass |
+| **WASM binary** | 11MB (compressed: ~1-2MB) |
+
 ## [v0.3.3] - 2025-10-10
 
 ### Fixed - Critical Float Equality Bug
