@@ -11,16 +11,20 @@ import AilangRepl from '@site/src/components/AilangRepl';
 
 Try AILANG right in your browser! This REPL runs entirely client-side using WebAssembly - no server required.
 
-:::warning Known Issue
-Basic arithmetic operators (`+`, `-`, etc.) are currently not working due to a builtin resolver issue in AILANG v0.3.3. This affects both CLI and browser REPLs. Try the other examples below which demonstrate working features!
-:::
-
 <AilangRepl />
 
 ## Quick Examples
 
+### 🔢 Basic Arithmetic
+Try some simple calculations:
+```
+1 + 2
+10 * 5
+42 / 2
+```
+
 ### λ Lambda Functions & Let Bindings
-Try typing:
+Define and use functions:
 ```
 let double = \x. x * 2 in double(21)
 ```
@@ -80,11 +84,16 @@ Special commands available in the REPL:
 ## Technical Details
 
 This playground is powered by:
-- **WebAssembly**: The full AILANG interpreter compiled to WASM (5.7 MB)
-- **Go**: Core language implementation
+- **WebAssembly**: The full AILANG interpreter compiled to WASM (~11 MB, 1-2 MB compressed)
+- **Go**: Core language implementation (GOOS=js GOARCH=wasm)
 - **React**: UI component framework
 
-**Current limitations**: File I/O and module imports are disabled in the browser version. For full functionality, [install AILANG locally](/docs/guides/getting-started).
+**Current limitations**:
+- Module imports (`:import std/io`) not yet supported - only type class instances loaded
+- File I/O and other effects disabled in browser for security
+- Type annotations may not persist across inputs in some cases
+
+For full functionality including modules and effects, [install AILANG locally](/docs/guides/getting-started).
 
 ## Found a Bug?
 
