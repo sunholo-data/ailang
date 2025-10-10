@@ -12,12 +12,14 @@ import (
 	"github.com/fatih/color"
 	"github.com/peterh/liner"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/parser"
 	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/schema"
 	"github.com/sunholo/ailang/internal/test"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -56,6 +58,11 @@ type REPL struct {
 	lastResult interface{}
 	version    string // Version info from build
 	buildTime  string // Build time from build
+
+	// Persistent evaluator (v0.3.3 fix - resolves builtins properly)
+	evaluator       *eval.CoreEvaluator
+	builtinRegistry *runtime.BuiltinRegistry
+	effContext      *effects.EffContext
 }
 
 // New creates a new REPL instance
@@ -71,22 +78,63 @@ func NewWithVersion(version, buildTime string) *REPL {
 	if buildTime == "" {
 		buildTime = "unknown"
 	}
-	return &REPL{
-		config:    &Config{},
-		env:       eval.NewEnvironment(),
-		typeEnv:   types.NewTypeEnv(),
-		instEnv:   types.NewInstanceEnv(),
-		dictReg:   types.NewDictionaryRegistry(),
-		instances: make(map[string]core.DictValue),
-		history:   []string{},
-		version:   version,
-		buildTime: buildTime,
+
+	// Create persistent evaluator with builtin resolver (v0.3.3 fix)
+	// This mirrors what `ailang run` does and fixes the "no resolver" error
+	evaluator := eval.NewCoreEvaluator()
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	builtinResolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
+	evaluator.SetGlobalResolver(builtinResolver)
+
+	// Create effect context (grant IO by default for REPL convenience)
+	effContext := effects.NewEffContext()
+	effContext.Grant(effects.NewCapability("IO")) // Allow println, readLine, etc. in REPL
+	evaluator.SetEffContext(effContext)
+
+	// Enable experimental binop shim for REPL (handles float equality until OpLowering is complete)
+	evaluator.SetExperimentalBinopShim(true)
+
+	r := &REPL{
+		config:          &Config{},
+		env:             evaluator.Env(), // Share the evaluator's environment (for persistent let bindings)
+		typeEnv:         types.NewTypeEnv(),
+		instEnv:         types.NewInstanceEnv(),
+		dictReg:         types.NewDictionaryRegistry(),
+		instances:       make(map[string]core.DictValue),
+		history:         []string{},
+		version:         version,
+		buildTime:       buildTime,
+		evaluator:       evaluator,
+		builtinRegistry: builtinRegistry,
+		effContext:      effContext,
 	}
+
+	// Register dictionaries with the persistent evaluator
+	r.registerDictionariesForEvaluator(r.evaluator)
+
+	return r
 }
 
 // EnableTrace enables execution tracing
 func (r *REPL) EnableTrace() {
 	r.config.Verbose = true
+}
+
+// getPrompt returns the REPL prompt with active capabilities
+func (r *REPL) getPrompt() string {
+	if len(r.effContext.Caps) == 0 {
+		return "λ> "
+	}
+
+	// Collect and sort capability names for consistent display
+	caps := make([]string, 0, len(r.effContext.Caps))
+	for name := range r.effContext.Caps {
+		caps = append(caps, name)
+	}
+	sort.Strings(caps)
+
+	// Format as λ[IO,FS]>
+	return fmt.Sprintf("λ[%s]> ", strings.Join(caps, ","))
 }
 
 // Start begins the REPL session
@@ -126,7 +174,7 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	// Initialize built-in instances
 	r.initBuiltins()
 
-	// Auto-import prelude for convenience
+	// Auto-import prelude for type class instances
 	r.importModule("std/prelude", io.Discard)
 
 	// Add command completion
@@ -147,7 +195,8 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	for {
 		// Use liner to get input with history support
 		// Note: liner doesn't support ANSI colors in the prompt
-		input, err := line.Prompt("λ> ")
+		prompt := r.getPrompt()
+		input, err := line.Prompt(prompt)
 		if err == io.EOF {
 			fmt.Fprintln(out, green("\nGoodbye!"))
 			break
@@ -492,7 +541,11 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	}
 
 	// Update REPL type environment with any new bindings
-	r.typeEnv = updatedEnv
+	// NOTE: For top-level let bindings, we'll explicitly persist the type below (Step 8)
+	// For now, only update if it's not a Let (to avoid nested scope issues)
+	if _, isLet := coreExpr.(*core.Let); !isLet {
+		r.typeEnv = updatedEnv
+	}
 
 	// Step 4: Dictionary elaboration (resolve constraints to dictionaries)
 	// Get resolved constraints from the type checker - this also triggers defaulting
@@ -573,16 +626,36 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 		return
 	}
 
-	// Step 7: Evaluate
-	evaluator := eval.NewCoreEvaluator()
-
-	// Add dictionaries to evaluator with canonical keys
-	r.registerDictionariesForEvaluator(evaluator)
-
-	result, err := evaluator.Eval(linkedCore)
+	// Step 7: Evaluate (using persistent evaluator with builtin resolver)
+	result, err := r.evaluator.Eval(linkedCore)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Runtime error"), err)
 		return
+	}
+
+	// Step 8: Persist top-level let bindings in REPL environment
+	// The evaluator's evalCoreLet restores the environment after evaluation,
+	// but for REPL we want top-level bindings to persist across inputs (both value and type)
+	if letExpr, ok := elaboratedCore.(*core.Let); ok {
+		// Re-evaluate just the RHS to get the value
+		val, err := r.evaluator.Eval(letExpr.Value)
+		if err == nil {
+			// Add VALUE binding to both REPL env and evaluator env (they're the same reference)
+			r.env.Set(letExpr.Name, val)
+
+			// TODO: Add TYPE binding persistence for let
+			// Currently, type annotations are lost during Surface → Core elaboration,
+			// so the TypedLet scheme contains a fresh type variable instead of the annotated type.
+			// To fix this properly, we need to preserve annotations through elaboration.
+			// For now, let bindings work for VALUES but type info isn't persisted across REPL inputs.
+			if typedLet, ok := typedNode.(*typedast.TypedLet); ok {
+				if typedLet.Scheme != nil {
+					scheme := typedLet.Scheme.(*types.Scheme)
+					// Persist type binding (though it may be generalized to a type variable)
+					r.typeEnv.BindScheme(letExpr.Name, scheme)
+				}
+			}
+		}
 	}
 
 	// Store result

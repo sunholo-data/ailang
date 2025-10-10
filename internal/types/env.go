@@ -151,6 +151,20 @@ func (env *TypeEnv) bindBuiltin(name string, scheme *Scheme) {
 	env.bindings[name] = scheme
 }
 
+// BindScheme adds a scheme binding to the environment (for REPL persistence)
+// This mutates the environment in-place, unlike Extend which creates a child.
+// Use this only when you need top-level bindings to persist (e.g., REPL).
+func (env *TypeEnv) BindScheme(name string, scheme *Scheme) {
+	env.bindings[name] = scheme
+}
+
+// BindType adds a type binding to the environment (for REPL persistence)
+// This mutates the environment in-place, unlike Extend which creates a child.
+// Use this only when you need top-level bindings to persist (e.g., REPL).
+func (env *TypeEnv) BindType(name string, typ Type) {
+	env.bindings[name] = typ
+}
+
 // FreeTypeVars returns all free type variables in the environment
 func (env *TypeEnv) FreeTypeVars() map[string]bool {
 	free := make(map[string]bool)
