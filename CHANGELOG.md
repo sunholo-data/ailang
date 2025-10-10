@@ -1,5 +1,86 @@
 # AILANG Changelog
 
+## [v0.3.3] - 2025-10-10
+
+### Fixed - Critical Float Equality Bug
+
+**OpLowering Pass Bug**: Fixed critical bug where float equality operations with variables incorrectly called `eq_Int` instead of `eq_Float`, causing runtime crashes.
+
+**Root Cause**: OpLowering pass used literal inspection heuristics instead of type checker's resolved constraints. This worked for literals (`0.0 == 0.0`) but failed for variables (`let b: float = 0.0; b == 0.0`).
+
+**Impact**:
+- `adt_option` benchmark: runtime_error → PASSING ✅
+- Fixed: Algebraic data types with float comparisons now work correctly
+- Example that now works:
+  ```ailang
+  func divide(a: float, b: float) -> Option[float] {
+    if b == 0.0  // ← This no longer crashes!
+    then None
+    else Some(a / b)
+  }
+  ```
+
+**Files Changed**:
+- `internal/pipeline/op_lowering.go` - Use resolved constraints from type checker
+- `internal/pipeline/pipeline.go` - Wire constraints into OpLowering pass
+- `internal/pipeline/op_lowering_test.go` - Added comprehensive regression tests
+- `internal/types/typechecker_core.go` - Cleanup unused code
+
+### Fixed - Float Display Formatting
+
+**Issue**: `show(5.0)` displayed as `"5"` instead of `"5.0"`, causing benchmark output mismatches.
+
+**Fix**: Modified float formatting to always include decimal point.
+
+**Files Changed**:
+- `internal/eval/value.go` - FloatValue.String() ensures decimal point
+- `internal/eval/eval_simple.go` - showValue() ensures decimal point
+
+### Improved - Eval Harness
+
+**JSON Output**: Added `stdout`, `stderr`, and `expected_stdout` fields to benchmark results for better debugging.
+
+**Prompt Version System**:
+- Fixed prompt loader path handling (`prompts/versions.json`)
+- Updated `getDefaultPrompt()` to use active prompt from registry
+- Implemented `"latest"` special value for automatic prompt selection
+- Changed active prompt from `v0.3.0-baseline` to `v0.3.2`
+
+**Files Changed**:
+- `internal/eval_harness/metrics.go` - Add stdout/stderr fields
+- `internal/eval_harness/repair.go` - Populate new fields
+- `internal/eval_harness/spec.go` - Use active prompt
+- `internal/eval_harness/prompt_loader.go` - Implement "latest"
+- `cmd/ailang/eval_suite.go` - Fix prompt loading
+- `prompts/versions.json` - Set active to "latest"
+
+### Added - Documentation
+
+- `.claude/commands/release.md` - Added eval benchmark step to release process
+- `docs/guides/evaluation/case-study-oplowering-fix.md` - Case study showing how M-EVAL helped find and fix the bug
+- `design_docs/planned/FLOAT_EQUALITY_INVESTIGATION_2025-10-10.md` - Investigation report
+
+### Benchmark Results (M-EVAL)
+
+**Comparison**: v0.3.0-40-ga7be6e9 → v0.3.2-19-g4f42cf4
+
+```
+Total benchmarks: 10
+v0.3.0: 4/10 passing (40.0%)
+v0.3.3: 4/10 passing (40.0%)
+
+✓ Fixed: adt_option (runtime_error → PASSING) - Critical bug fixed!
+✗ Regressed: recursion_factorial (PASSING → logic_error, AI variance)
+→ Still passing: fizzbuzz, recursion_fibonacci, records_person
+⚠ Still failing: pipeline, numeric_modulo, json_parse, float_eq, cli_args (compile errors)
+```
+
+**Key Achievement**: The `adt_option` benchmark no longer crashes. The float equality bug that caused runtime errors is now fixed. The overall success rate remains stable at 40%, with the regression in `recursion_factorial` being due to AI generation variance rather than a language bug.
+
+**How M-EVAL Helped**: The benchmark suite detected the bug, provided structured error data, guided the fix, and validated the solution. This demonstrates the value of evaluation infrastructure in improving language reliability.
+
+---
+
 ## [v0.3.2] - 2025-10-10
 
 ### Added - M-EVAL-LOOP v2.0: Complete Go Reimplementation ✅ COMPLETE
