@@ -9,6 +9,35 @@ permissions:
   contents: write
 
 jobs:
+  build-wasm:
+    name: Build WASM Binary
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Build WASM binary
+      run: make build-wasm
+
+    - name: Create WASM archive
+      run: |
+        cd bin
+        tar -czf ailang-wasm.tar.gz ailang.wasm
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ailang-wasm
+        path: bin/ailang-wasm.tar.gz
+
   build-release:
     name: Build Release ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -89,7 +118,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: build-release
+    needs: [build-release, build-wasm]
     runs-on: ubuntu-latest
     
     steps:
@@ -129,6 +158,15 @@ jobs:
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-linux-amd64.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '```' >> changelog.md
+        echo '' >> changelog.md
+        echo '### WebAssembly' >> changelog.md
+        echo '' >> changelog.md
+        echo 'For embedding AILANG REPL in web applications:' >> changelog.md
+        echo '```bash' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-wasm.tar.gz | tar -xz' >> changelog.md
+        echo '```' >> changelog.md
+        echo '' >> changelog.md
+        echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
 
     - name: Create Release
       uses: softprops/action-gh-release@v2

@@ -27,6 +27,18 @@ const config = {
   onBrokenLinks: 'warn', // Changed from 'throw' to allow migration - will fix broken links later
   onBrokenMarkdownLinks: 'warn',
 
+  // Load Go's WebAssembly support for AILANG REPL
+  scripts: [
+    {
+      src: '/ailang/wasm/wasm_exec.js',
+      async: false,
+    },
+    {
+      src: '/ailang/js/ailang-repl.js',
+      async: false,
+    },
+  ],
+
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
@@ -88,6 +100,11 @@ const config = {
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Documentation',
+          },
+          {
+            to: '/docs/playground',
+            label: '🎮 Playground',
+            position: 'left',
           },
           {
             href: 'https://github.com/sunholo-data/ailang/tree/main/examples',

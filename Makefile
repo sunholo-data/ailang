@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm
 
 # Binary name
 BINARY=ailang
@@ -690,7 +690,13 @@ docs-serve:
 	@cd docs && npm start
 
 .PHONY: docs-build
-docs-build:
+docs-build: build-wasm
+	@echo "Copying WASM assets to docs..."
+	@mkdir -p docs/static/wasm docs/static/js docs/src/components
+	@cp bin/ailang.wasm docs/static/wasm/
+	@cp "$$(go env GOROOT)/misc/wasm/wasm_exec.js" docs/static/wasm/
+	@cp web/ailang-repl.js docs/static/js/
+	@cp web/AilangRepl.jsx docs/src/components/
 	@echo "Building Docusaurus site..."
 	@cd docs && npm run build
 
@@ -711,3 +717,18 @@ docs-restart: docs-clean
 	@echo "Clearing cache and rebuilding..."
 	@echo "Website will be available at: http://localhost:3000/ailang/"
 	@cd docs && npm start
+
+# Build WASM binary for browser REPL
+.PHONY: build-wasm
+build-wasm:
+	@echo "Building WASM binary..."
+	@mkdir -p $(BUILD_DIR)
+	GOOS=js GOARCH=wasm $(GOBUILD) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
+	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm"
+	@echo ""
+	@echo "Next steps for Docusaurus integration:"
+	@echo "  1. Copy $(BUILD_DIR)/$(BINARY).wasm to your-site/static/wasm/"
+	@echo "  2. Copy web/ailang-repl.js to your-site/src/components/"
+	@echo "  3. Copy web/AilangRepl.jsx to your-site/src/components/"
+	@echo "  4. Copy \$$(go env GOROOT)/misc/wasm/wasm_exec.js to your-site/static/wasm/"
+	@echo "  5. See web/README.md for complete setup instructions"

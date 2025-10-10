@@ -42,8 +42,22 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './docs/package-lock.json'
 
-      - name: Copy llms.txt to static
-        run: cp llms.txt docs/static/
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build WASM binary
+        run: make build-wasm
+
+      - name: Copy static assets
+        run: |
+          mkdir -p docs/static/js
+          cp llms.txt docs/static/
+          cp bin/ailang.wasm docs/static/wasm/
+          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" docs/static/wasm/
+          cp web/ailang-repl.js docs/static/js/
+          cp web/AilangRepl.jsx docs/src/components/
 
       - name: Install dependencies
         run: make docs-install

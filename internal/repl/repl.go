@@ -209,12 +209,12 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 				fmt.Fprintln(out, green("Goodbye!"))
 				break // Exit the loop
 			}
-			r.handleCommand(input, out)
+			r.HandleCommand(input, out)
 			continue
 		}
 
 		// Process expression through full pipeline
-		r.processExpression(input, out)
+		r.ProcessExpression(input, out)
 	}
 
 	// Save history before exiting
@@ -446,8 +446,8 @@ func (r *REPL) initBuiltins() {
 	}
 }
 
-// processExpression runs an expression through the full pipeline
-func (r *REPL) processExpression(input string, out io.Writer) {
+// ProcessExpression runs an expression through the full pipeline (exported for WASM)
+func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 1: Parse
 	l := lexer.New(input, "<repl>")
 	p := parser.New(l)
@@ -592,8 +592,8 @@ func (r *REPL) processExpression(input string, out io.Writer) {
 	fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
 }
 
-// handleCommand processes REPL commands
-func (r *REPL) handleCommand(cmd string, out io.Writer) {
+// HandleCommand processes REPL commands (exported for WASM)
+func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 	parts := strings.Fields(cmd)
 	if len(parts) == 0 {
 		return

@@ -214,8 +214,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	}
 
 	// Group results by benchmark ID and language for code samples and stats
-	codeSamples := make(map[string]map[string]string)         // benchmarkID -> language -> code
-	langStats := make(map[string]map[string]*LanguageStats)   // benchmarkID -> language -> stats
+	codeSamples := make(map[string]map[string]string)       // benchmarkID -> language -> code
+	langStats := make(map[string]map[string]*LanguageStats) // benchmarkID -> language -> stats
 
 	for _, r := range results {
 		// Collect code samples
@@ -239,7 +239,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats := langStats[r.ID][r.Lang]
 		stats.TotalRuns++
 		if r.StdoutOk {
-			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1)) + 1) / float64(stats.TotalRuns)
+			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1))+1) / float64(stats.TotalRuns)
 		} else {
 			stats.SuccessRate = float64(int(stats.SuccessRate*float64(stats.TotalRuns-1))) / float64(stats.TotalRuns)
 		}
@@ -314,12 +314,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			successRate = float64(baseline.SuccessCount) / float64(baseline.TotalBenchmarks)
 		}
 		historyJS[i] = map[string]interface{}{
-			"version":       baseline.Version,
-			"timestamp":     baseline.Timestamp.Format(time.RFC3339),
-			"successRate":   successRate,
-			"totalRuns":     baseline.TotalBenchmarks,
-			"successCount":  baseline.SuccessCount,
-			"languages":     baseline.Languages, // May be "ailang", "python", or "ailang,python"
+			"version":      baseline.Version,
+			"timestamp":    baseline.Timestamp.Format(time.RFC3339),
+			"successRate":  successRate,
+			"totalRuns":    baseline.TotalBenchmarks,
+			"successCount": baseline.SuccessCount,
+			"languages":    baseline.Languages, // May be "ailang", "python", or "ailang,python"
 		}
 	}
 
