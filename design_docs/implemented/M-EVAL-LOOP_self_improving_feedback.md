@@ -2211,7 +2211,18 @@ make eval-prompt-compare A=v0.3.0-baseline B=v0.3.0-refined
 - Defines 3-phase implementation plan
 - Documents performance tracking tables with 0-shot, 1-shot metrics
 
+**v2.0 (2025-10-10)** - **✅ COMPLETE: Go Reimplementation**
+- Milestone 3 redesigned: Replaced bash scripts with native Go implementation
+- Created `internal/eval_analysis/` package (~2,070 LOC + 500 LOC tests)
+- 5 new native commands: eval-compare, eval-matrix, eval-summary, eval-validate, eval-report
+- Removed 564 LOC of brittle bash scripts
+- Fixed division by zero bug in matrix aggregates
+- Multi-format export: JSON, JSONL, Markdown, HTML, CSV
+- 90%+ test coverage, cross-platform support
+- Two-tier architecture: Native Go commands + Smart agents
+- See [docs/docs/guides/evaluation/go-implementation.md](../../docs/docs/guides/evaluation/go-implementation.md)
+
 ---
 
-**Status**: 📋 Ready for implementation
-**Next Steps**: Review plan → Start Phase 1 Task 1 (Error Taxonomy) → Iterate
+**Status**: ✅ IMPLEMENTED (v2.0 - Go reimplementation complete)
+**Shipped in**: v0.3.2 (2025-10-10)
