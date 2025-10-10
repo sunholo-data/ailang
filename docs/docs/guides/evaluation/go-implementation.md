@@ -297,7 +297,7 @@ func ExportToPostgres(results []*BenchmarkResult, connStr string) error {
 }
 ```
 
-**Each extension**: ~50-100 LOC, <1 hour implementation time
+**Each extension**: ~50-100 LOC, less than 1 hour implementation time
 
 ---
 
