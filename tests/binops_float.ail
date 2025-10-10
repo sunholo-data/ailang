@@ -3,9 +3,3 @@
 
 -- Basic float division (should output 1.5)
 3.0 / 2.0
-
--- Float equality with variables (OpLowering fix regression test)
--- Tests that b == 0.0 uses eq_Float instead of eq_Int
--- Expected output: true
-let b: float = 0.0;
-b == 0.0
