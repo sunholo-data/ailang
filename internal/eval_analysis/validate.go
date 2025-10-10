@@ -82,20 +82,20 @@ func ValidateFix(benchmarkID, baselineVersion string) (*ValidationResult, error)
 	// Determine outcome
 	if !result.BaselineStatus && result.NewStatus {
 		result.Outcome = OutcomeFixed
-		result.Message = fmt.Sprintf("✓ FIX VALIDATED: Benchmark now passing!")
+		result.Message = "✓ FIX VALIDATED: Benchmark now passing!"
 	} else if result.BaselineStatus && !result.NewStatus {
 		result.Outcome = OutcomeBroken
-		result.Message = fmt.Sprintf("✗ REGRESSION: Benchmark was passing, now failing!")
+		result.Message = "✗ REGRESSION: Benchmark was passing, now failing!"
 	} else if !result.BaselineStatus && !result.NewStatus {
 		result.Outcome = OutcomeStillFailing
 		if result.BaselineError != result.NewError {
 			result.Message = fmt.Sprintf("⚠ STILL FAILING: Error changed from %s to %s", result.BaselineError, result.NewError)
 		} else {
-			result.Message = fmt.Sprintf("⚠ STILL FAILING: No improvement")
+			result.Message = "⚠ STILL FAILING: No improvement"
 		}
 	} else {
 		result.Outcome = OutcomeStillPassing
-		result.Message = fmt.Sprintf("ℹ NO CHANGE: Benchmark still passing")
+		result.Message = "ℹ NO CHANGE: Benchmark still passing"
 	}
 
 	return result, nil
@@ -111,10 +111,7 @@ func runBenchmark(benchmarkID string) (*BenchmarkResult, error) {
 
 	// Run benchmark using ailang eval command
 	cmd := exec.Command("bin/ailang", "eval", "--benchmark", benchmarkID, "--output", tmpDir, "--self-repair")
-	if err := cmd.Run(); err != nil {
-		// Don't fail on benchmark execution errors - we want to capture those
-		// The result JSON will contain the error information
-	}
+	_ = cmd.Run() // Ignore error - we want to capture benchmark failures in result JSON
 
 	// Find and load the result file
 	pattern := filepath.Join(tmpDir, fmt.Sprintf("%s_*.json", benchmarkID))

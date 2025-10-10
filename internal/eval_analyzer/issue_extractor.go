@@ -266,9 +266,7 @@ func (e *ErrorExtractor) EnhanceIssueReport(issue *IssueReport) {
 
 	// Store suggestions (would add to IssueReport struct if we extend it)
 	// For now, we can add to the category field for debugging
-	if len(suggestions) > 0 {
-		// Store as metadata somewhere accessible
-	}
+	_ = suggestions // TODO: Store as metadata somewhere accessible
 }
 
 // humanizePatternName converts pattern name to human-readable title
