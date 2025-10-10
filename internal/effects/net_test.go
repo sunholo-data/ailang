@@ -307,9 +307,9 @@ func TestNetHttpPost(t *testing.T) {
 	})
 
 	t.Run("httpPost to httpbin.org", func(t *testing.T) {
-		// Skip if no network
-		if os.Getenv("SKIP_NET_TESTS") != "" {
-			t.Skip("Skipping network test (SKIP_NET_TESTS set)")
+		// Skip in CI environments due to unreliable external network access
+		if os.Getenv("SKIP_NET_TESTS") != "" || os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+			t.Skip("Skipping network test in CI environment (unreliable external access)")
 		}
 
 		url := &eval.StringValue{Value: "https://httpbin.org/post"}

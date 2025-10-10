@@ -1,0 +1,90 @@
+name: AI Evaluation Benchmarks
+
+on:
+  # Uncomment to run weekly on Sundays at midnight UTC
+  # schedule:
+  #   - cron: '0 0 * * 0'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Model to test (claude-sonnet-4-5, gpt5, gemini-2-5-pro, or all)'
+        required: false
+        default: 'claude-sonnet-4-5'
+      baseline:
+        description: 'Baseline version to compare against (optional)'
+        required: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+
+    - name: Install dependencies
+      run: make deps
+
+    - name: Build binary
+      run: make build
+
+    - name: Run benchmark suite
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        if [ "${{ github.event.inputs.model }}" = "all" ]; then
+          echo "Running full benchmark suite (all models)..."
+          make eval-suite
+        else
+          MODEL="${{ github.event.inputs.model }}"
+          echo "Running benchmarks with model: ${MODEL}"
+          ./bin/ailang eval --benchmark all --model "${MODEL}"
+        fi
+
+    - name: Compare with baseline (if provided)
+      if: github.event.inputs.baseline != ''
+      run: |
+        BASELINE="${{ github.event.inputs.baseline }}"
+        echo "Comparing against baseline: ${BASELINE}"
+        make eval-diff BASELINE="eval_results/baselines/${BASELINE}" NEW="eval_results/current"
+
+    - name: Generate reports
+      run: |
+        VERSION=$(git describe --tags --always --dirty)
+        make eval-matrix DIR=eval_results/current VERSION="${VERSION}"
+        make eval-summary DIR=eval_results/current
+        bin/ailang eval-report eval_results/current "${VERSION}" --format=md > eval_report.md
+        bin/ailang eval-report eval_results/current "${VERSION}" --format=html > eval_report.html
+
+    - name: Upload results as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: eval-results-${{ github.run_number }}
+        path: |
+          eval_results/
+          eval_report.md
+          eval_report.html
+        retention-days: 90
+
+    - name: Comment PR with results (if PR context)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('eval_report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🤖 AI Evaluation Results\n\n${report}`
+          });
