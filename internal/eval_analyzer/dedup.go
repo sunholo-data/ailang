@@ -161,7 +161,7 @@ func parseDocMetadata(content string, doc *SimilarDoc) {
 
 		// Parse frequency
 		if strings.HasPrefix(line, "**Frequency**:") {
-			fmt.Sscanf(line, "**Frequency**: %d", &doc.Frequency)
+			_, _ = fmt.Sscanf(line, "**Frequency**: %d", &doc.Frequency)
 		}
 
 		// Parse benchmarks
@@ -371,7 +371,7 @@ func MergeDesignDoc(existingPath string, issue IssueReport, totalFailures int) e
 	existingFreq := 0
 	freqRegex := regexp.MustCompile(`\*\*Frequency\*\*: (\d+)`)
 	if match := freqRegex.FindStringSubmatch(contentStr); len(match) > 1 {
-		fmt.Sscanf(match[1], "%d", &existingFreq)
+		_, _ = fmt.Sscanf(match[1], "%d", &existingFreq)
 	}
 
 	// Update frequency
