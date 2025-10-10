@@ -15,7 +15,7 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	// Frontmatter
 	sb.WriteString("---\n")
 	sb.WriteString("sidebar_position: 6\n")
-	sb.WriteString("title: 🚀 Benchmark Performance\n")
+	sb.WriteString("title: Benchmark Performance\n")
 	sb.WriteString("description: Real-world AI code generation performance metrics for AILANG\n")
 	sb.WriteString(fmt.Sprintf("last_updated: %s\n", time.Now().Format("2006-01-02")))
 	sb.WriteString("---\n\n")
@@ -24,7 +24,7 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	sb.WriteString("import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';\n\n")
 
 	// Hero section
-	sb.WriteString("# 🚀 AI Code Generation Benchmarks\n\n")
+	sb.WriteString("# AI Code Generation Benchmarks\n\n")
 	sb.WriteString("Real-world performance metrics for AILANG vs Python across multiple AI models.\n\n")
 
 	// Dashboard component
@@ -47,7 +47,7 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	sb.WriteString("4. **Room to Grow**: Benchmarks identify language gaps and guide development\n\n")
 
 	// Success stories
-	sb.WriteString("## 🎯 Where AILANG Shines\n\n")
+	sb.WriteString("## Where AILANG Shines\n\n")
 	if len(matrix.Benchmarks) > 0 {
 		// Find top performing benchmarks
 		type benchEntry struct {
@@ -78,7 +78,7 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	}
 
 	// Development impact
-	sb.WriteString("## 🛠️ How Benchmarks Guide Development\n\n")
+	sb.WriteString("## How Benchmarks Guide Development\n\n")
 	sb.WriteString("The M-EVAL-LOOP system uses these benchmarks to:\n\n")
 	sb.WriteString("1. **Identify Bugs**: Failing benchmarks reveal language issues\n")
 	sb.WriteString("2. **Validate Fixes**: Compare before/after to confirm improvements\n")
@@ -93,14 +93,14 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	sb.WriteString("**Result**: Benchmark went from runtime_error → PASSING ✅\n\n")
 
 	// Try it yourself
-	sb.WriteString("## 🎮 Try It Yourself\n\n")
+	sb.WriteString("## Try It Yourself\n\n")
 	sb.WriteString("Want to see AILANG in action?\n\n")
 	sb.WriteString("- **[Interactive REPL](/ailang/docs/reference/repl-commands)** - Try AILANG in your browser\n")
 	sb.WriteString("- **[Code Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - 48+ working examples\n")
 	sb.WriteString("- **[Getting Started](/ailang/docs/guides/getting-started)** - Install and run locally\n\n")
 
 	// Technical details
-	sb.WriteString("## 📊 Technical Details\n\n")
+	sb.WriteString("## Technical Details\n\n")
 	sb.WriteString(fmt.Sprintf("**Version**: %s\n\n", matrix.Version))
 	sb.WriteString(fmt.Sprintf("**Total Runs**: %d\n\n", matrix.TotalRuns))
 	sb.WriteString(fmt.Sprintf("**Generated**: %s\n\n", time.Now().Format("2006-01-02 15:04:05")))
@@ -198,13 +198,52 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 
 // ExportBenchmarkJSON exports benchmark data as JSON for client-side rendering
 func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline) (string, error) {
+	// Convert aggregates to camelCase for JavaScript
+	aggregatesJS := map[string]interface{}{
+		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
+		"finalSuccess":      matrix.Aggregates.FinalSuccess,
+		"repairUsed":        matrix.Aggregates.RepairUsed,
+		"repairSuccessRate": matrix.Aggregates.RepairSuccessRate,
+		"totalTokens":       matrix.Aggregates.TotalTokens,
+		"totalCostUSD":      matrix.Aggregates.TotalCostUSD,
+		"avgDurationMs":     matrix.Aggregates.AvgDurationMs,
+	}
+
+	// Convert benchmarks to camelCase for JavaScript
+	benchmarksJS := make(map[string]interface{})
+	for id, stats := range matrix.Benchmarks {
+		benchmarksJS[id] = map[string]interface{}{
+			"totalRuns":   stats.TotalRuns,
+			"successRate": stats.SuccessRate,
+			"avgTokens":   stats.AvgTokens,
+			"languages":   stats.Languages,
+		}
+	}
+
+	// Convert models to camelCase for JavaScript (nested aggregates)
+	modelsJS := make(map[string]interface{})
+	for name, stats := range matrix.Models {
+		modelsJS[name] = map[string]interface{}{
+			"totalRuns": stats.TotalRuns,
+			"aggregates": map[string]interface{}{
+				"zeroShotSuccess":   stats.Aggregates.ZeroShotSuccess,
+				"finalSuccess":      stats.Aggregates.FinalSuccess,
+				"repairUsed":        stats.Aggregates.RepairUsed,
+				"repairSuccessRate": stats.Aggregates.RepairSuccessRate,
+				"totalTokens":       stats.Aggregates.TotalTokens,
+				"totalCostUSD":      stats.Aggregates.TotalCostUSD,
+				"avgDurationMs":     stats.Aggregates.AvgDurationMs,
+			},
+		}
+	}
+
 	data := map[string]interface{}{
 		"version":    matrix.Version,
 		"timestamp":  time.Now().Format(time.RFC3339),
 		"totalRuns":  matrix.TotalRuns,
-		"aggregates": matrix.Aggregates,
-		"models":     matrix.Models,
-		"benchmarks": matrix.Benchmarks,
+		"aggregates": aggregatesJS,
+		"models":     modelsJS,
+		"benchmarks": benchmarksJS,
 		"languages":  matrix.Languages,
 		"history":    history,
 	}

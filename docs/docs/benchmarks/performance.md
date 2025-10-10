@@ -1,13 +1,13 @@
 ---
 sidebar_position: 6
-title: 🚀 Benchmark Performance
+title: Benchmark Performance
 description: Real-world AI code generation performance metrics for AILANG
 last_updated: 2025-10-10
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
 
-# 🚀 AI Code Generation Benchmarks
+# AI Code Generation Benchmarks
 
 Real-world performance metrics for AILANG vs Python across multiple AI models.
 
@@ -32,16 +32,17 @@ These benchmarks demonstrate:
 3. **Patterns Are Learnable**: AI models understand functional programming
 4. **Room to Grow**: Benchmarks identify language gaps and guide development
 
-## 🎯 Where AILANG Shines
+## Where AILANG Shines
 
 AILANG excels at these problem types:
 
+- **String Manipulation**: 100.0% success rate
+- **Nested Records**: 100.0% success rate
+- **Recursion Factorial**: 100.0% success rate
 - **Records Person**: 100.0% success rate
 - **Adt Option**: 100.0% success rate
-- **Fizzbuzz**: 100.0% success rate
-- **Recursion Fibonacci**: 100.0% success rate
 
-## 🛠️ How Benchmarks Guide Development
+## How Benchmarks Guide Development
 
 The M-EVAL-LOOP system uses these benchmarks to:
 
@@ -56,7 +57,7 @@ The `adt_option` benchmark caught a critical bug where float comparisons with va
 
 **Result**: Benchmark went from runtime_error → PASSING ✅
 
-## 🎮 Try It Yourself
+## Try It Yourself
 
 Want to see AILANG in action?
 
@@ -64,34 +65,44 @@ Want to see AILANG in action?
 - **[Code Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - 48+ working examples
 - **[Getting Started](/ailang/docs/guides/getting-started)** - Install and run locally
 
-## 📊 Technical Details
+## Technical Details
 
-**Version**: 0.3.2-19-g4f42cf4
+**Version**: 0.3.3-5-gb238e7b
 
-**Total Runs**: 10
+**Total Runs**: 54
 
-**Generated**: 2025-10-10 17:53:42
+**Generated**: 2025-10-10 19:27:18
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run |
 |-------|------|--------|-------|------------|---------|
-| Claude Sonnet 4.5 | 10 | 40.0% | 40.0% | 3076 | $0.0923 |
+| Claude Sonnet 4.5 | 18 | 50.0% | 50.0% | 4472 | $0.1342 |
+| gpt-5 | 18 | 44.4% | 44.4% | 5025 | $0.1507 |
+| gemini-2.5-pro | 18 | 33.3% | 33.3% | 4050 | $0.1215 |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Adt Option | 100.0% | 6100 | ailang |
-| ✅ Fizzbuzz | 100.0% | 6042 | ailang |
-| ✅ Records Person | 100.0% | 6009 | ailang |
-| ✅ Recursion Fibonacci | 100.0% | 5986 | ailang |
-| ❌ Cli Args | 0.0% | 181 | ailang |
-| ❌ Float Eq | 0.0% | 105 | ailang |
-| ❌ Json Parse | 0.0% | 206 | ailang |
-| ❌ Numeric Modulo | 0.0% | 62 | ailang |
-| ❌ Pipeline | 0.0% | 145 | ailang |
-| ❌ Recursion Factorial | 0.0% | 5921 | ailang |
+| ✅ Adt Option | 100.0% | 5773 | ailang |
+| ✅ Nested Records | 100.0% | 5689 | ailang |
+| ✅ Records Person | 100.0% | 5645 | ailang |
+| ✅ Recursion Factorial | 100.0% | 5487 | ailang |
+| ✅ String Manipulation | 100.0% | 5694 | ailang |
+| ⚠️ Error Handling | 66.7% | 6269 | ailang |
+| ⚠️ Fizzbuzz | 66.7% | 5972 | ailang |
+| ⚠️ Recursion Fibonacci | 66.7% | 5573 | ailang |
+| ❌ List Operations | 33.3% | 6180 | ailang |
+| ❌ Record Update | 33.3% | 5939 | ailang |
+| ❌ Cli Args | 0.0% | 758 | ailang |
+| ❌ Float Eq | 0.0% | 498 | ailang |
+| ❌ Higher Order Functions | 0.0% | 6787 | ailang |
+| ❌ Json Parse | 0.0% | 720 | ailang |
+| ❌ List Comprehension | 0.0% | 6694 | ailang |
+| ❌ Numeric Modulo | 0.0% | 312 | ailang |
+| ❌ Pattern Matching Complex | 0.0% | 6673 | ailang |
+| ❌ Pipeline | 0.0% | 624 | ailang |
 
 ---
 

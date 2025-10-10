@@ -1,96 +1,173 @@
 {
   "aggregates": {
-    "0-shot_success": 0.4,
-    "final_success": 0.4,
-    "repair_used": 0,
-    "repair_success_rate": 0,
-    "total_tokens": 30757,
-    "total_cost_usd": 0.92271,
-    "avg_duration_ms": 17.2
+    "avgDurationMs": 16.27777777777778,
+    "finalSuccess": 0.42592592592592593,
+    "repairSuccessRate": 0,
+    "repairUsed": 0,
+    "totalCostUSD": 7.315619999999998,
+    "totalTokens": 243854,
+    "zeroShotSuccess": 0.42592592592592593
   },
   "benchmarks": {
     "adt_option": {
-      "total_runs": 1,
-      "success_rate": 1,
-      "avg_tokens": 6100,
+      "avgTokens": 5772.666666666667,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 1,
+      "totalRuns": 3
     },
     "cli_args": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 181,
+      "avgTokens": 757.6666666666666,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "error_handling": {
+      "avgTokens": 6268.666666666667,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0.6666666666666666,
+      "totalRuns": 3
     },
     "fizzbuzz": {
-      "total_runs": 1,
-      "success_rate": 1,
-      "avg_tokens": 6042,
+      "avgTokens": 5971.666666666667,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0.6666666666666666,
+      "totalRuns": 3
     },
     "float_eq": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 105,
+      "avgTokens": 498.3333333333333,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "higher_order_functions": {
+      "avgTokens": 6786.666666666667,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0,
+      "totalRuns": 3
     },
     "json_parse": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 206,
+      "avgTokens": 720.3333333333334,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "list_comprehension": {
+      "avgTokens": 6694,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "list_operations": {
+      "avgTokens": 6179.666666666667,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0.3333333333333333,
+      "totalRuns": 3
+    },
+    "nested_records": {
+      "avgTokens": 5689,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 1,
+      "totalRuns": 3
     },
     "numeric_modulo": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 62,
+      "avgTokens": 311.6666666666667,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "pattern_matching_complex": {
+      "avgTokens": 6672.666666666667,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0,
+      "totalRuns": 3
     },
     "pipeline": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 145,
+      "avgTokens": 624,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0,
+      "totalRuns": 3
+    },
+    "record_update": {
+      "avgTokens": 5939,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 0.3333333333333333,
+      "totalRuns": 3
     },
     "records_person": {
-      "total_runs": 1,
-      "success_rate": 1,
-      "avg_tokens": 6009,
+      "avgTokens": 5644.666666666667,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 1,
+      "totalRuns": 3
     },
     "recursion_factorial": {
-      "total_runs": 1,
-      "success_rate": 0,
-      "avg_tokens": 5921,
+      "avgTokens": 5487.333333333333,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 1,
+      "totalRuns": 3
     },
     "recursion_fibonacci": {
-      "total_runs": 1,
-      "success_rate": 1,
-      "avg_tokens": 5986,
+      "avgTokens": 5572.666666666667,
       "languages": [
         "ailang"
-      ]
+      ],
+      "successRate": 0.6666666666666666,
+      "totalRuns": 3
+    },
+    "string_manipulation": {
+      "avgTokens": 5694,
+      "languages": [
+        "ailang"
+      ],
+      "successRate": 1,
+      "totalRuns": 3
     }
   },
   "history": [
+    {
+      "version": "v0.3.3-5-gb238e7b",
+      "timestamp": "0001-01-01T00:00:00Z",
+      "model": "",
+      "languages": "",
+      "self_repair": false,
+      "total_benchmarks": 54,
+      "success_count": 23,
+      "fail_count": 31,
+      "matrix_file": "",
+      "git_commit": "",
+      "git_branch": ""
+    },
     {
       "version": "v0.3.2-19-g4f42cf4",
       "timestamp": "2025-10-10T15:28:33Z",
@@ -172,88 +249,50 @@
   ],
   "languages": {
     "ailang": {
-      "total_runs": 10,
-      "success_rate": 0.4,
-      "avg_tokens": 3075.7
+      "total_runs": 54,
+      "success_rate": 0.42592592592592593,
+      "avg_tokens": 4515.814814814815
     }
   },
   "models": {
     "claude-sonnet-4-5-20250929": {
-      "total_runs": 10,
       "aggregates": {
-        "0-shot_success": 0.4,
-        "final_success": 0.4,
-        "repair_used": 0,
-        "repair_success_rate": 0,
-        "total_tokens": 30757,
-        "total_cost_usd": 0.92271,
-        "avg_duration_ms": 17.2
+        "avgDurationMs": 16.833333333333332,
+        "finalSuccess": 0.5,
+        "repairSuccessRate": 0,
+        "repairUsed": 0,
+        "totalCostUSD": 2.4149399999999996,
+        "totalTokens": 80498,
+        "zeroShotSuccess": 0.5
       },
-      "benchmarks": {
-        "adt_option": {
-          "success": true,
-          "first_attempt_ok": true,
-          "repair_used": false,
-          "tokens": 6100
-        },
-        "cli_args": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 181
-        },
-        "fizzbuzz": {
-          "success": true,
-          "first_attempt_ok": true,
-          "repair_used": false,
-          "tokens": 6042
-        },
-        "float_eq": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 105
-        },
-        "json_parse": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 206
-        },
-        "numeric_modulo": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 62
-        },
-        "pipeline": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 145
-        },
-        "records_person": {
-          "success": true,
-          "first_attempt_ok": true,
-          "repair_used": false,
-          "tokens": 6009
-        },
-        "recursion_factorial": {
-          "success": false,
-          "first_attempt_ok": false,
-          "repair_used": false,
-          "tokens": 5921
-        },
-        "recursion_fibonacci": {
-          "success": true,
-          "first_attempt_ok": true,
-          "repair_used": false,
-          "tokens": 5986
-        }
-      }
+      "totalRuns": 18
+    },
+    "gemini-2.5-pro": {
+      "aggregates": {
+        "avgDurationMs": 16.22222222222222,
+        "finalSuccess": 0.3333333333333333,
+        "repairSuccessRate": 0,
+        "repairUsed": 0,
+        "totalCostUSD": 2.1872100000000003,
+        "totalTokens": 72907,
+        "zeroShotSuccess": 0.3333333333333333
+      },
+      "totalRuns": 18
+    },
+    "gpt-5": {
+      "aggregates": {
+        "avgDurationMs": 15.777777777777779,
+        "finalSuccess": 0.4444444444444444,
+        "repairSuccessRate": 0,
+        "repairUsed": 0,
+        "totalCostUSD": 2.7134699999999996,
+        "totalTokens": 90449,
+        "zeroShotSuccess": 0.4444444444444444
+      },
+      "totalRuns": 18
     }
   },
-  "timestamp": "2025-10-10T17:53:42+02:00",
-  "totalRuns": 10,
-  "version": "0.3.2-19-g4f42cf4"
+  "timestamp": "2025-10-10T19:27:18+02:00",
+  "totalRuns": 54,
+  "version": "0.3.3-5-gb238e7b"
 }

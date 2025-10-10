@@ -22,11 +22,35 @@ type SuiteResult struct {
 	Error       error
 }
 
+// discoverBenchmarks finds all .yml files in benchmarks/ directory
+func discoverBenchmarks() []string {
+	benchmarksDir := "benchmarks"
+	entries, err := os.ReadDir(benchmarksDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not read benchmarks directory: %v\n", err)
+		return nil
+	}
+
+	var benchmarks []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".yml") || strings.HasSuffix(entry.Name(), ".yaml") {
+			// Remove extension to get benchmark ID
+			name := strings.TrimSuffix(entry.Name(), ".yml")
+			name = strings.TrimSuffix(name, ".yaml")
+			benchmarks = append(benchmarks, name)
+		}
+	}
+	return benchmarks
+}
+
 func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "claude-sonnet-4-5,gpt5,gemini-2-5-pro", "Comma-separated list of models")
-	benchmarks := fs.String("benchmarks", "fizzbuzz,json_parse,pipeline,cli_args,adt_option,records_person,recursion_factorial,recursion_fibonacci,float_eq,numeric_modulo", "Comma-separated list of benchmarks")
+	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
@@ -42,7 +66,17 @@ func runEvalSuite() {
 
 	// Parse lists
 	modelList := strings.Split(*models, ",")
-	benchmarkList := strings.Split(*benchmarks, ",")
+	var benchmarkList []string
+	if *benchmarks == "" {
+		// Auto-discover benchmarks from benchmarks/ directory
+		benchmarkList = discoverBenchmarks()
+		if len(benchmarkList) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No benchmarks found in benchmarks/ directory\n")
+			os.Exit(1)
+		}
+	} else {
+		benchmarkList = strings.Split(*benchmarks, ",")
+	}
 	langList := strings.Split(*langs, ",")
 
 	// Validate models and benchmarks

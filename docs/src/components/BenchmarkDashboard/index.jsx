@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
@@ -12,7 +12,7 @@ export default function BenchmarkDashboard() {
 
   useEffect(() => {
     // Fetch benchmark data
-    fetch('/ailang/static/benchmarks/latest.json')
+    fetch('/ailang/benchmarks/latest.json')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load benchmark data');
         return res.json();
@@ -109,30 +109,6 @@ export default function BenchmarkDashboard() {
         </div>
       </div>
 
-      {/* Value Propositions */}
-      <div className={styles.valueProps}>
-        <ValueProp
-          emoji="🔒"
-          title="Type Safety"
-          description="Hindley-Milner inference catches errors before execution"
-        />
-        <ValueProp
-          emoji="⚡"
-          title="Effect System"
-          description="Explicit IO, FS, Net effects guide AI code generation"
-        />
-        <ValueProp
-          emoji="🎯"
-          title="Deterministic"
-          description="Same input always produces same output"
-        />
-        <ValueProp
-          emoji="🤖"
-          title="AI-Optimized"
-          description="Designed for AI-assisted development"
-        />
-      </div>
-
       {/* Model Performance Chart */}
       {models && Object.keys(models).length > 0 && (
         <div className={styles.section}>
@@ -156,6 +132,30 @@ export default function BenchmarkDashboard() {
           <BenchmarkGallery benchmarks={benchmarks} />
         </div>
       )}
+
+      {/* Value Propositions */}
+      <div className={styles.valueProps}>
+        <ValueProp
+          icon={<Lock size={32} />}
+          title="Type Safety"
+          description="Hindley-Milner inference catches errors before execution"
+        />
+        <ValueProp
+          icon={<Zap size={32} />}
+          title="Effect System"
+          description="Explicit IO, FS, Net effects guide AI code generation"
+        />
+        <ValueProp
+          icon={<Target size={32} />}
+          title="Deterministic"
+          description="Same input always produces same output"
+        />
+        <ValueProp
+          icon={<Bot size={32} />}
+          title="AI-Optimized"
+          description="Designed for AI-assisted development"
+        />
+      </div>
 
       {/* CTA Section */}
       <div className={styles.ctaSection}>
@@ -197,10 +197,10 @@ function MetricCard({ icon, title, value, subtitle, trend, large }) {
   );
 }
 
-function ValueProp({ emoji, title, description }) {
+function ValueProp({ icon, title, description }) {
   return (
     <div className={styles.valueProp}>
-      <div className={styles.valuePropEmoji}>{emoji}</div>
+      <div className={styles.valuePropIcon}>{icon}</div>
       <div className={styles.valuePropTitle}>{title}</div>
       <div className={styles.valuePropDescription}>{description}</div>
     </div>
