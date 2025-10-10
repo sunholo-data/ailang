@@ -82,8 +82,20 @@ issues:
       linters:
         - revive
 
+    # Allow underscore in eval_analyzer package name (M-EVAL analyzer)
+    - path: internal/eval_analyzer/
+      text: "don't use an underscore in package name"
+      linters:
+        - revive
+
     # Allow ALL_CAPS for error code constants (they match JSON schema error codes)
     - path: internal/types/errors\.go
+      text: "don't use ALL_CAPS in Go names"
+      linters:
+        - revive
+
+    # Allow ALL_CAPS for eval harness error codes (PAR_001, TC_REC_001, etc.)
+    - path: internal/eval_harness/errors\.go
       text: "don't use ALL_CAPS in Go names"
       linters:
         - revive
