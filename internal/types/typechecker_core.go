@@ -215,63 +215,6 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	return typedNode, updatedEnv, finalType, constraints, nil
 }
 
-// resolveConstraints resolves class constraints and applies defaulting
-func (tc *CoreTypeChecker) resolveConstraints(ctx *InferenceContext, node typedast.TypedNode) {
-	// For each class constraint, resolve it
-	for _, cc := range ctx.qualifiedConstraints {
-		// Determine the method name based on the operator
-		methodName := ""
-		switch cc.Class {
-		case "Num":
-			// Check which operator triggered this constraint
-			methodName = "add" // Default to add for now
-		case "Eq":
-			methodName = "eq"
-		case "Ord":
-			methodName = "lt"
-		}
-
-		// Use the resolved type from unification/defaulting
-		// NOTE: Defaulting already happened in defaultAmbiguitiesTopLevel() and pickDefault()
-		// DO NOT apply additional defaulting here - it will override the correct decision!
-		resolvedType := cc.Type
-
-		// SAFETY: Type should already be ground after defaulting
-		// If it's still a type variable, that's an internal error
-		switch resolvedType.(type) {
-		case *TVar, *TVar2:
-			// This should never happen after proper defaulting
-			// Log error but use fallback to prevent crash
-			fmt.Fprintf(os.Stderr, "WARNING: Non-ground type %s for constraint %s[%s] at node %d\n",
-				resolvedType, cc.Class, cc.Type, cc.NodeID)
-			fmt.Fprintf(os.Stderr, "         Defaulting should have resolved this. Using fallback.\n")
-
-			// Fallback based on class
-			switch cc.Class {
-			case "Num":
-				resolvedType = &TCon{Name: "int"}
-			case "Fractional":
-				resolvedType = &TCon{Name: "float"}
-			case "Ord", "Eq":
-				resolvedType = &TCon{Name: "int"}
-			default:
-				resolvedType = &TCon{Name: "int"}
-			}
-		}
-
-		// Now normalize the concrete type
-		normalizedTypeName := NormalizeTypeName(resolvedType)
-		normalizedType := &TCon{Name: normalizedTypeName}
-
-		// Registered constraint resolution
-		tc.resolvedConstraints[cc.NodeID] = &ResolvedConstraint{
-			ClassName: cc.Class,
-			Type:      normalizedType, // Normalized type for dictionary consistency
-			Method:    methodName,
-		}
-	}
-}
-
 // GetResolvedConstraints returns the map of resolved constraints
 // Used by the elaborator for dictionary passing transformation
 func (tc *CoreTypeChecker) GetResolvedConstraints() map[uint64]*ResolvedConstraint {
