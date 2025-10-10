@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-29.8%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-29.6%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -254,19 +254,19 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-56%20passing%2022%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-49%20passing%2029%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-10 13:46:00 UTC*
+*Last updated: 2025-10-10 15:36:18 UTC*
 
-**Summary:** 56 passed, 22 failed, 4 skipped (Total: 82)
+**Summary:** 49 passed, 29 failed, 4 skipped (Total: 82)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
-| `arithmetic.ail` | ✅ Pass |  |
+| `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
 | `bug_float_comparison.ail` | ✅ Pass |  |
@@ -284,12 +284,12 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `experimental/quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
-| `hello.ail` | ✅ Pass |  |
+| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): t... |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `micro_block_if.ail` | ✅ Pass |  |
 | `micro_block_seq.ail` | ✅ Pass |  |
-| `micro_clock_measure.ail` | ❌ Fail | Error: execution failed: effect 'Clock' require... |
+| `micro_clock_measure.ail` | ❌ Fail | Error: type error in examples/micro_clock_measu... |
 | `micro_io_echo.ail` | ✅ Pass |  |
 | `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `micro_option_map.ail` | ✅ Pass |  |
@@ -302,11 +302,11 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `recursion_fibonacci.ail` | ✅ Pass |  |
 | `recursion_mutual.ail` | ✅ Pass |  |
 | `recursion_quicksort.ail` | ✅ Pass |  |
-| `showcase/01_type_inference.ail` | ✅ Pass |  |
-| `showcase/02_lambdas.ail` | ✅ Pass |  |
-| `showcase/03_lists.ail` | ❌ Fail | Error: evaluation error: builtin concat_String ... |
-| `showcase/03_type_classes.ail` | ✅ Pass |  |
-| `showcase/04_closures.ail` | ✅ Pass |  |
+| `showcase/01_type_inference.ail` | ❌ Fail | Error: type error in examples/showcase/01_type_... |
+| `showcase/02_lambdas.ail` | ❌ Fail | Error: type error in examples/showcase/02_lambd... |
+| `showcase/03_lists.ail` | ❌ Fail | Error: type error in examples/showcase/03_lists... |
+| `showcase/03_type_classes.ail` | ❌ Fail | Error: type error in examples/showcase/03_type_... |
+| `showcase/04_closures.ail` | ❌ Fail | Error: type error in examples/showcase/04_closu... |
 | `simple.ail` | ✅ Pass |  |
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
@@ -341,7 +341,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
 | `test_with_import.ail` | ✅ Pass |  |
-| `type_classes_working_reference.ail` | ✅ Pass |  |
+| `type_classes_working_reference.ail` | ❌ Fail | Error: type error in examples/type_classes_work... |
 | `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl... |
 | `v3_3/imports.ail` | ✅ Pass |  |
 | `v3_3/imports_basic.ail` | ✅ Pass |  |
