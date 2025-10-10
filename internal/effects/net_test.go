@@ -353,7 +353,12 @@ func TestNetBodySizeLimit(t *testing.T) {
 		// Should fail with body too large error
 		if err == nil {
 			t.Error("Expected E_NET_BODY_TOO_LARGE error, got nil")
-		} else if !strings.Contains(err.Error(), "E_NET_BODY_TOO_LARGE") {
+		} else if strings.Contains(err.Error(), "E_NET_BODY_TOO_LARGE") {
+			// Expected error - test passed
+		} else if strings.Contains(err.Error(), "context deadline exceeded") || strings.Contains(err.Error(), "timeout") {
+			// Network timeout in CI environment - skip test
+			t.Skipf("Network timeout (httpbin.org unavailable): %v", err)
+		} else {
 			t.Errorf("Expected E_NET_BODY_TOO_LARGE error, got: %v", err)
 		}
 	})
