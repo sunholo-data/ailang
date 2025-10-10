@@ -8,7 +8,7 @@ on:
     paths:
       - 'docs/**'
       - 'llms.txt'
-      - '.github/workflows/jekyll-gh-pages.yml'
+      - '.github/workflows/docusaurus-deploy.yml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -29,6 +29,8 @@ jobs:
   # Build job
   build:
     runs-on: ubuntu-latest
+    # Run even if commit has [skip ci] when it's from docs automation
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') || github.actor == 'github-actions[bot]' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -343,8 +343,9 @@ func TestNetBodySizeLimit(t *testing.T) {
 
 	t.Run("small response under limit", func(t *testing.T) {
 		// httpbin.org/get returns ~270 bytes, should exceed 100 byte limit
-		if os.Getenv("SKIP_NET_TESTS") != "" {
-			t.Skip("Skipping network test (SKIP_NET_TESTS set)")
+		// Skip in CI environments due to unreliable external network access
+		if os.Getenv("SKIP_NET_TESTS") != "" || os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+			t.Skip("Skipping network test in CI environment (unreliable external access)")
 		}
 
 		url := &eval.StringValue{Value: "https://httpbin.org/get"}
@@ -356,7 +357,7 @@ func TestNetBodySizeLimit(t *testing.T) {
 		} else if strings.Contains(err.Error(), "E_NET_BODY_TOO_LARGE") {
 			// Expected error - test passed
 		} else if strings.Contains(err.Error(), "context deadline exceeded") || strings.Contains(err.Error(), "timeout") {
-			// Network timeout in CI environment - skip test
+			// Network timeout - skip test
 			t.Skipf("Network timeout (httpbin.org unavailable): %v", err)
 		} else {
 			t.Errorf("Expected E_NET_BODY_TOO_LARGE error, got: %v", err)
