@@ -12,12 +12,12 @@ import (
 
 // ScaffoldResult contains information about the scaffolding operation
 type ScaffoldResult struct {
-	OutputDir     string   `json:"output_dir"`
-	FilesCreated  []string `json:"files_created"`
-	TotalLines    int      `json:"total_lines"`
-	TotalFiles    int      `json:"total_files"`
-	Success       bool     `json:"success"`
-	ErrorMessage  string   `json:"error_message,omitempty"`
+	OutputDir    string   `json:"output_dir"`
+	FilesCreated []string `json:"files_created"`
+	TotalLines   int      `json:"total_lines"`
+	TotalFiles   int      `json:"total_files"`
+	Success      bool     `json:"success"`
+	ErrorMessage string   `json:"error_message,omitempty"`
 }
 
 // ScaffoldOptions configures the scaffolding behavior
@@ -225,7 +225,7 @@ func GenerateFuncStub(fn schema.FuncPlan, opts *ScaffoldOptions) (string, int) {
 		sb.WriteString(fmt.Sprintf("-- Function: %s\n", fn.Name))
 		lineCount++
 		if len(fn.Effects) > 0 {
-			sb.WriteString(fmt.Sprintf("-- Effects: %s\n", strings.Join(fn.Effects, ", "))  )
+			sb.WriteString(fmt.Sprintf("-- Effects: %s\n", strings.Join(fn.Effects, ", ")))
 			lineCount++
 		}
 	}
@@ -298,15 +298,15 @@ func getReturnPlaceholder(typeSignature string) string {
 	return "()  -- TODO: Return appropriate value"
 }
 
-// Helper: Check if function is in module exports
-func isFunctionExported(fnName string, module schema.ModulePlan) bool {
-	for _, exp := range module.Exports {
-		if exp == fnName {
-			return true
-		}
-	}
-	return false
-}
+// Helper: Check if function is in module exports (currently unused, reserved for future use)
+// func isFunctionExported(fnName string, module schema.ModulePlan) bool {
+// 	for _, exp := range module.Exports {
+// 		if exp == fnName {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 // ValidatePlanForScaffolding performs additional checks before scaffolding
 func ValidatePlanForScaffolding(plan *schema.Plan) error {

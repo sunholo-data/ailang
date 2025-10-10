@@ -3,7 +3,6 @@ package planning
 
 import (
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -28,10 +27,10 @@ type ValidationIssue struct {
 
 // ValidationResult is the result of validating a plan
 type ValidationResult struct {
-	Schema   string             `json:"schema"`
-	Valid    bool               `json:"valid"`
-	Errors   []ValidationIssue  `json:"errors"`
-	Warnings []ValidationIssue  `json:"warnings"`
+	Schema   string            `json:"schema"`
+	Valid    bool              `json:"valid"`
+	Errors   []ValidationIssue `json:"errors"`
+	Warnings []ValidationIssue `json:"warnings"`
 }
 
 // Validation error codes
@@ -478,21 +477,22 @@ func (v *ValidationResult) addError(code, message, location string) {
 	})
 }
 
-func (v *ValidationResult) addWarning(code, message, location string) {
-	v.Warnings = append(v.Warnings, ValidationIssue{
-		Level:    ValidationWarning,
-		Code:     code,
-		Message:  message,
-		Location: location,
-	})
-}
+// addWarning is currently unused but reserved for future validation rules
+// func (v *ValidationResult) addWarning(code, message, location string) {
+// 	v.Warnings = append(v.Warnings, ValidationIssue{
+// 		Level:    ValidationWarning,
+// 		Code:     code,
+// 		Message:  message,
+// 		Location: location,
+// 	})
+// }
 
 // ToJSON converts validation result to JSON
 func (v *ValidationResult) ToJSON() ([]byte, error) {
 	return schema.MarshalDeterministic(v)
 }
 
-// Utility: Clean module path to ensure it's filesystem-safe
-func cleanModulePath(path string) string {
-	return filepath.Clean(strings.TrimSpace(path))
-}
+// cleanModulePath is currently unused but reserved for future path cleaning
+// func cleanModulePath(path string) string {
+// 	return filepath.Clean(strings.TrimSpace(path))
+// }

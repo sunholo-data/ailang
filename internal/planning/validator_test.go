@@ -58,11 +58,11 @@ func TestValidatePlan_ValidSimplePlan(t *testing.T) {
 
 func TestCheckModulePaths_InvalidPath(t *testing.T) {
 	modules := []schema.ModulePlan{
-		{Path: "Foo/Bar", Exports: []string{"test"}},           // Invalid: uppercase
-		{Path: "foo/bar/", Exports: []string{"test"}},          // Invalid: trailing slash
-		{Path: "foo-bar", Exports: []string{"test"}},           // Invalid: dash
-		{Path: "foo/bar", Exports: []string{"test"}},           // Valid
-		{Path: "valid_name", Exports: []string{"test"}},        // Valid
+		{Path: "Foo/Bar", Exports: []string{"test"}},    // Invalid: uppercase
+		{Path: "foo/bar/", Exports: []string{"test"}},   // Invalid: trailing slash
+		{Path: "foo-bar", Exports: []string{"test"}},    // Invalid: dash
+		{Path: "foo/bar", Exports: []string{"test"}},    // Valid
+		{Path: "valid_name", Exports: []string{"test"}}, // Valid
 	}
 
 	issues := CheckModulePaths(modules)
@@ -124,9 +124,9 @@ func TestCheckModulePaths_NoExports(t *testing.T) {
 
 func TestCheckTypeDefinitions_InvalidNames(t *testing.T) {
 	types := []schema.TypePlan{
-		{Name: "option", Kind: "adt", Definition: "Some | None", Module: "core"},   // Invalid: lowercase
-		{Name: "Result", Kind: "adt", Definition: "Ok | Err", Module: "core"},      // Valid
-		{Name: "my_type", Kind: "record", Definition: "{x: int}", Module: "core"},  // Invalid: underscore
+		{Name: "option", Kind: "adt", Definition: "Some | None", Module: "core"},  // Invalid: lowercase
+		{Name: "Result", Kind: "adt", Definition: "Ok | Err", Module: "core"},     // Valid
+		{Name: "my_type", Kind: "record", Definition: "{x: int}", Module: "core"}, // Invalid: underscore
 	}
 
 	modules := []schema.ModulePlan{
@@ -223,9 +223,9 @@ func TestCheckTypeDefinitions_DuplicateNames(t *testing.T) {
 
 func TestCheckFunctionSignatures_InvalidNames(t *testing.T) {
 	funcs := []schema.FuncPlan{
-		{Name: "Process", Type: "() -> ()", Module: "core"},     // Invalid: uppercase
-		{Name: "process", Type: "() -> ()", Module: "core"},     // Valid
-		{Name: "do-thing", Type: "() -> ()", Module: "core"},    // Invalid: dash
+		{Name: "Process", Type: "() -> ()", Module: "core"},  // Invalid: uppercase
+		{Name: "process", Type: "() -> ()", Module: "core"},  // Valid
+		{Name: "do-thing", Type: "() -> ()", Module: "core"}, // Invalid: dash
 	}
 
 	modules := []schema.ModulePlan{

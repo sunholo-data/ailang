@@ -8,8 +8,14 @@ M-EVAL is designed to empirically measure the "AI teachability" of AILANG - one 
 
 ## Documentation
 
+### Getting Started
 - **[baseline-tests.md](baseline-tests.md)** - Complete guide for running your first baseline tests
 - **[model-configuration.md](model-configuration.md)** - How to configure and manage AI models
+- **[eval-loop.md](eval-loop.md)** - Automated evaluation and improvement workflow
+
+### Implementation Details
+- **[go-implementation.md](go-implementation.md)** - Go implementation of eval analysis tools
+- **[migration-guide.md](migration-guide.md)** - Migration from bash scripts to Go
 - **[benchmarking.md](../benchmarking.md)** - Technical details of the benchmarking system
 
 ## Quick Start

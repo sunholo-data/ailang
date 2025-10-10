@@ -49,9 +49,9 @@ Use this agent when:
 
 ### Phase 4: Validation
 1. Identify which benchmark(s) this fix addresses
-2. Re-run those benchmarks: `make eval BENCH=<benchmark-id>`
-3. Compare results before/after
-4. Calculate success rate improvement
+2. Validate the fix using native Go command: `ailang eval-validate <benchmark-id>`
+3. If validation passes, compare full results: `ailang eval-compare <baseline> <current>`
+4. Calculate success rate improvement from validation output
 
 ### Phase 5: Reporting
 Provide a comprehensive report including:

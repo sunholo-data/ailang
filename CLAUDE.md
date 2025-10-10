@@ -9,8 +9,8 @@
 4. ✅ Search codebase: `grep -r "function_name" internal/`
 
 **Common mistakes to avoid:**
-- ❌ Writing new bash scripts when `make` targets exist
-- ❌ Creating new analysis tools when M-EVAL-LOOP tools exist
+- ❌ Writing new bash scripts when `make` targets or `ailang` commands exist
+- ❌ Creating new analysis tools when M-EVAL-LOOP Go implementation exists
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
 
@@ -18,7 +18,8 @@
 ```bash
 # ✅ CORRECT - Use existing tools
 make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang
-make eval-summary DIR=eval_results/baselines/v0.3.0-35-g3530d07
+ailang eval-summary eval_results/baselines/v0.3.0-35-g3530d07
+ailang eval-validate records_person
 
 # ❌ WRONG - Don't create new scripts
 ./new_eval_script.sh  # NO! Check what exists first!
@@ -33,78 +34,42 @@ make eval-summary DIR=eval_results/baselines/v0.3.0-35-g3530d07
 
 ## Project Overview
 AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- Pure functional programming with algebraic effects (planned)
-- Typed quasiquotes for safe metaprogramming (planned)
-- CSP-based concurrency with session types (planned)
-- Deterministic execution for AI training data generation (planned)
+- ✅ **Pure functional programming** - First-class functions, closures, lambda calculus
+- ✅ **Algebraic effects** - Capability-based effect system (IO, FS) with runtime security
+- ✅ **Hindley-Milner type inference** - Full type system with type classes and row polymorphism
+- ❌ Typed quasiquotes for safe metaprogramming (planned v0.4.0+)
+- ❌ CSP-based concurrency with session types (planned v0.4.0+)
+- ❌ Deterministic execution for AI training data generation (planned v0.4.0+)
 - File extension: `.ail`
 
-## Current Status: v0.3.0-alpha3 (Records & Row Polymorphism COMPLETE ✅)
+## What AILANG Can Do (Implementation Status)
 
-**✅ COMPLETE (v0.3.0-alpha3):**
-- ✅ **M-R5: Records & Row Polymorphism** (~670 LOC) - COMPLETE
-  - Record subsumption for flexible field access
-  - TRecordOpen compatibility shim for Day 1 wins
-  - TRecord2 with full row polymorphism (opt-in via `AILANG_RECORDS_V2=1`)
-  - Row unification with occurs check
-  - Helper functions and error codes (TC_REC_001-004)
-  - 16 new unit tests, all passing ✅
-  - Fixed 11 examples (9 from subsumption + 2 new) ✅
+**Language Features** (see [CHANGELOG.md](CHANGELOG.md) for version history):
+- ✅ Pure functional programming (lambda calculus, closures, recursion)
+- ✅ Hindley-Milner type inference with type classes and row polymorphism
+- ✅ Algebraic effects with capability-based security (IO, FS)
+- ✅ Pattern matching with ADTs
+- ✅ Module system with runtime execution
+- ✅ Interactive REPL with full type checking
+- ✅ Block expressions `{ e1; e2; e3 }` for sequencing
+- ❌ Typed quasiquotes (planned)
+- ❌ CSP concurrency (planned)
+- ❌ AI training data export (planned)
 
-**✅ COMPLETE (v0.3.0-alpha2):**
-- ✅ **M-R4: Recursion Support** (~1,780 LOC)
-  - RefCell-based recursion (OCaml/Haskell style)
-  - Self-recursive and mutual recursion
-  - Depth guard (configurable limit)
-  - Works in module runtime ✅
+**Development Tools:**
+- ✅ M-EVAL: AI code generation benchmarks (multi-model support)
+- ✅ M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
+- ✅ Plan validation and code scaffolding (`internal/planning/`)
+- ✅ Structured error reporting with JSON schemas
 
-- ✅ **M-R8: Block Expressions** (~10 LOC fix)
-  - Block syntax `{ e1; e2; e3 }` for sequencing
-  - Desugars to let chains
-  - Works with recursion ✅
-  - AI-generated code compatible ✅
+**Quick Test:**
+```bash
+make test                # Run all tests
+make verify-examples     # Check example files
+ailang repl             # Start REPL
+```
 
-**✅ COMPLETE (v0.2.0):**
-- ✅ **M-R1: Module Execution Runtime** (~1,874 LOC)
-  - Module instance creation and evaluation
-  - Cross-module imports at runtime
-  - Entrypoint execution (`--entry`, `--args-json`)
-  - Function invocation with argument decoding
-  - Builtin registry (IO, FS primitives)
-  - **Cross-function references within modules**
-
-- ✅ **M-R2: Effect System Runtime** (~1,550 LOC)
-  - Capability-based security (`--caps IO,FS`)
-  - IO effect: `print`, `println`, `readLine`
-  - FS effect: `readFile`, `writeFile`, `exists`
-  - Secure by default (no caps unless explicitly granted)
-  - Sandbox support (`AILANG_FS_SANDBOX`)
-
-**📊 Test Status:**
-- Unit tests: 80+ passing (runtime + effects + records)
-- Example files: 48/66 passing (72.7%)
-- All record subsumption examples working ✅
-- All effect system examples working ✅
-- All type class examples working ✅
-- All recursion examples working ✅
-- All block expression examples working ✅
-
-**✅ COMPLETE (v0.1.0):**
-- Hindley-Milner type inference with let-polymorphism
-- Type classes (Num, Eq, Ord, Show) with dictionary-passing
-- Lambda calculus (first-class functions, closures, currying)
-- Interactive REPL with full type checking
-- Pattern matching (constructors, tuples, lists, wildcards)
-- Algebraic data types (ADTs) with runtime
-- Structured error reporting with JSON schemas
-- AI Evaluation Framework (M-EVAL) with multi-model support
-- Pattern matching guards and exhaustiveness warnings (M-R3, optional)
-
-**❌ NOT YET IMPLEMENTED:**
-
-- Typed quasiquotes (v0.3.0+)
-- CSP concurrency (v0.3.0+)
-- AI training data export (v0.3.0+)
+**For detailed version history, see [CHANGELOG.md](CHANGELOG.md)**
 
 **🎉 MAJOR MILESTONE:** Module files now execute! Use `ailang run --caps IO,FS --entry main module.ail` to run module code with effects.
 
@@ -117,16 +82,20 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 4. **Deterministic**: All non-determinism must be explicit (seeds, virtual time)
 5. **AI-Friendly**: Generate structured execution traces for training
 
-## Project Structure (v0.2.0-rc1)
+## Project Structure (v0.3.0+)
 ```
 ailang/
 ├── cmd/ailang/         # CLI entry point ✅ COMPLETE
 ├── internal/
-│   ├── ast/            # AST definitions ✅ COMPLETE
+│   ├── ast/            # Surface AST ✅ COMPLETE
 │   ├── lexer/          # Tokenizer ✅ COMPLETE
 │   ├── parser/         # Parser ✅ COMPLETE
+│   ├── core/           # Core AST (ANF) ✅ COMPLETE
+│   ├── elaborate/      # Surface → Core elaboration ✅ COMPLETE
 │   ├── types/          # Type system ✅ COMPLETE
-│   ├── typeclass/      # Type classes ✅ COMPLETE
+│   ├── typeclass/      # Type classes ✅ COMPLETE (stub)
+│   ├── link/           # Dictionary linking ✅ COMPLETE
+│   ├── pipeline/       # Full compilation pipeline ✅ COMPLETE
 │   ├── eval/           # Evaluator ✅ COMPLETE (Core + module support)
 │   ├── repl/           # Interactive REPL ✅ COMPLETE
 │   ├── runtime/        # Module execution runtime ✅ COMPLETE (v0.2.0)
@@ -135,12 +104,21 @@ ailang/
 │   ├── errors/         # Error reporting ✅ COMPLETE
 │   ├── schema/         # JSON schemas ✅ COMPLETE
 │   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
-│   ├── channels/       # CSP implementation ❌ TODO (v0.3.0+)
-│   └── session/        # Session types ❌ TODO (v0.3.0+)
+│   ├── eval_analysis/  # Go eval tools ✅ COMPLETE (M-EVAL v2.0)
+│   ├── eval_analyzer/  # Failure analyzer ✅ COMPLETE (M-EVAL v2.0)
+│   ├── planning/       # Plan validation & scaffolding ✅ COMPLETE
+│   ├── builtins/       # Builtin definitions ✅ COMPLETE
+│   ├── dtree/          # Decision trees (pattern matching) ✅ COMPLETE
+│   ├── iface/          # Interface definitions ✅ COMPLETE
+│   ├── manifest/       # Module manifests ✅ COMPLETE
+│   ├── module/         # Module system ✅ COMPLETE
+│   ├── typedast/       # Typed AST ✅ COMPLETE
+│   ├── channels/       # CSP implementation ❌ TODO (v0.4.0+)
+│   └── session/        # Session types ❌ TODO (v0.4.0+)
 ├── stdlib/             # Standard library ✅ COMPLETE (std/io, std/fs, std/prelude)
-├── tools/              # Development tools ✅ (benchmarking, example verification)
+├── tools/              # Development tools ✅ (eval, benchmarking, verification)
 ├── benchmarks/         # AI code generation benchmarks ✅
-├── examples/           # Example .ail programs (~40 files)
+├── examples/           # Example .ail programs (66 files, 48 passing)
 ├── tests/              # Test suite ✅
 └── docs/               # Documentation ✅ COMPLETE
 ```
@@ -156,55 +134,82 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
-### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE)
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0 Go Implementation)
 
 **CRITICAL: These tools already exist - DO NOT recreate them!**
 
-The M-EVAL-LOOP system (Milestones 1-4) provides complete AI evaluation and automated fix implementation:
+The M-EVAL-LOOP system provides complete AI evaluation and automated fix implementation with **native Go commands** (fast, type-safe, 90%+ test coverage).
+
+#### Native Go Commands (Tier 1: Fast & Reliable)
+
+All commands are built into `bin/ailang`:
 
 ```bash
-# Run evaluations
-make eval-baseline                          # Store baseline (runs all benchmarks, all models)
-make eval-validate-fix BENCH=<id>          # Validate specific fix
-make eval-prompt-ab A=<v1> B=<v2>          # A/B test prompts
-
-# Analysis tools
-make eval-summary DIR=<dir>                 # Generate JSONL summary
-make eval-matrix DIR=<dir> VERSION=<v>     # Generate performance matrix
-make eval-diff BASELINE=<dir> NEW=<dir>    # Compare two runs
-make eval-analyze                           # Generate design docs from failures
-
-# Automated fix implementation (NEW!)
-make eval-auto-improve                      # Full loop: eval → analyze → implement → validate
-make eval-auto-improve-apply               # Actually apply fixes (dry-run by default)
-
-# Slash command (after Claude Code restart)
-/eval-loop auto-improve                    # Fully automated self-improvement
-/eval-loop baseline                        # Store baseline
-/eval-loop validate <bench-id>             # Validate fix
-/eval-loop diff <baseline> <new>           # Compare runs
-/eval-loop prompt-ab <v1> <v2>            # A/B test prompts
+# Direct commands (power users)
+ailang eval-compare <baseline> <new>        # Compare two runs
+ailang eval-matrix <dir> <version>          # Generate performance matrix (JSON)
+ailang eval-summary <dir>                   # Export to JSONL
+ailang eval-validate <benchmark> [version]  # Validate specific fix
+ailang eval-report <dir> <version> [--format=md|html|csv]  # Generate reports
 ```
 
-**Available Tools** (in `tools/`):
-- ✅ `generate_summary_jsonl.sh` - Convert results to JSONL
-- ✅ `generate_matrix_json.sh` - Performance matrix with aggregates
-- ✅ `eval_baseline.sh` - Store baseline with git metadata
-- ✅ `eval_diff.sh` - Compare before/after
-- ✅ `eval_validate_fix.sh` - Validate specific fix
-- ✅ `eval_auto_improve.sh` - Automated fix implementation
-- ✅ `eval_prompt_ab.sh` - A/B test prompt versions
+**Benefits**: 5-10x faster than bash, type-safe, cross-platform, proper error handling
+
+#### Make Targets (Tier 2: Workflow Convenience)
+
+```bash
+# Evaluation workflows
+make eval-baseline                          # Store baseline (runs all benchmarks, all models)
+make eval-suite                             # Run all benchmarks with current code
+make eval-diff BASELINE=<dir> NEW=<dir>    # Compare two runs (calls: ailang eval-compare)
+make eval-summary DIR=<dir>                 # JSONL export (calls: ailang eval-summary)
+make eval-matrix DIR=<dir> VERSION=<v>     # Matrix generation (calls: ailang eval-matrix)
+
+# Analysis & improvement
+make eval-analyze                           # Generate design docs from failures
+make eval-validate-fix BENCH=<id>          # Validate specific fix (calls: ailang eval-validate)
+make eval-auto-improve                      # Full loop: eval → analyze → implement → validate
+make eval-prompt-ab A=<v1> B=<v2>          # A/B test prompts
+```
+
+#### Smart Agents (Tier 3: Natural Language)
+
+Users can speak naturally - agents handle routing to correct commands:
+
+```
+✅ "validate my fix for records"           → ailang eval-validate records_person
+✅ "compare baseline to current"           → ailang eval-compare baselines/v0.3.0 current
+✅ "generate an HTML report for v0.3.1"    → ailang eval-report results/ v0.3.1 --format=html
+```
+
+**Available agents:**
+- [eval-orchestrator](.claude/agents/eval-orchestrator.md) - Intelligent workflow routing
+- [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) - Automated fix implementation
+
+#### Architecture
+
+```
+User Input
+    ↓
+Smart Agent (interprets intent)
+    ↓
+Native Go Command (fast execution)
+    ↓
+Results + Recommendations
+```
 
 **Documentation**:
-- [M-EVAL-LOOP Design Doc](design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - Complete implementation
-- [Eval Loop Guide](docs/docs/guides/evaluation/eval-loop.md) - Usage guide
-- [Eval Fix Implementer Agent](.claude/agents/eval-fix-implementer.md) - AI agent for fixes
+- [M-EVAL-LOOP Design Doc](design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - System architecture
+- [Go Implementation Guide](docs/docs/guides/evaluation/go-implementation.md) - Complete feature guide
+- [Migration Guide](docs/docs/guides/evaluation/migration-guide.md) - Bash → Go migration
+- [Eval Loop Guide](docs/docs/guides/evaluation/eval-loop.md) - Usage workflows
+- [Architecture Overview](.claude/EVAL_ARCHITECTURE.md) - Two-tier design
 
 **DO NOT**:
-- ❌ Create new bash scripts for running evals - use `make eval-baseline`
-- ❌ Write custom comparison scripts - use `make eval-diff`
-- ❌ Manually generate summaries - use `make eval-summary`
-- ❌ Create new analysis tools - use existing M-EVAL-LOOP tools
+- ❌ Create new bash scripts for evals - use native `ailang eval-*` commands
+- ❌ Write custom comparison scripts - use `ailang eval-compare`
+- ❌ Manually generate summaries - use `ailang eval-summary`
+- ❌ Create new analysis tools - extend `internal/eval_analysis/` package
 
 ### Code Quality & Coverage
 ```bash
@@ -288,6 +293,26 @@ Example entry:
 - These examples will be used in documentation and tutorials
 - Always test examples before documenting them as working
 
+### Writing AILANG Code
+
+**When writing AILANG code during development:**
+Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
+- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md)
+- Validated through multi-model testing (Claude, GPT, Gemini)
+- Covers syntax, limitations, common pitfalls, and working examples
+
+**Quick reference:**
+```bash
+ailang run --caps IO,FS --entry main module.ail  # Run module
+ailang repl                                        # Start REPL
+:type expr                                         # Check type in REPL
+```
+
+**For detailed syntax, limitations, and examples:**
+- See [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete AILANG teaching prompt
+- See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
+- See [examples/](examples/) - 66 example files (48 working)
+
 ### Common Tasks
 
 #### Adding a New Language Feature
@@ -296,438 +321,32 @@ Example entry:
 3. Add AST nodes in `internal/ast/ast.go`
 4. Update parser in `internal/parser/parser.go`
 5. Add type rules in `internal/types/`
-6. Implement evaluation in `internal/eval/` (when created)
+6. Implement evaluation in `internal/eval/`
 7. Write tests in corresponding `*_test.go` files
-8. Add examples in `examples/`
+8. **Add examples in `examples/`** (REQUIRED!)
+9. **Update CHANGELOG.md** (REQUIRED!)
+10. **Update README.md** if public-facing (REQUIRED!)
 
-## Language Syntax Reference
+**For detailed contributing guidelines:**
+- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
+- See [design_docs/](design_docs/) - Architecture and design decisions
 
-**📖 When Writing AILANG Code:**
-If you (Claude or other AI) are writing AILANG code during development, refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md) (v0.3.0-alpha3 features)
-- This is the same prompt used in eval benchmarks and validated through multi-model testing
-- Covers syntax, limitations, common pitfalls, and working examples
+## 🚨 CRITICAL WARNINGS
 
-### ✅ Working Syntax (v0.3.0-alpha3)
-
-**Basic Expressions:**
-```ailang
--- Comments use double dash
-let x = 5 in x * 2                     -- Let binding (works up to 3 nested)
-\x. x * 2                               -- Lambda function
-if x > 0 then "pos" else "neg"         -- Conditional expression
-{ e1; e2; e3 }                          -- Block expression (NEW! ✨)
-[1, 2, 3]                               -- List literal
-{ name: "Alice", age: 30 }             -- Record literal
-(1, "hello", true)                      -- Tuple literal
-1 + 2 * 3                               -- Arithmetic with precedence
-"Hello " ++ "World"                     -- String concatenation
-```
-
-**REPL Features:**
-```ailang
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
-
-λ> let double = \x. x * 2 in double(21)
-42 :: Int
-
-λ> :instances
-Available instances: Num[Int], Num[Float], Eq[Int], Eq[Float], Ord[Int], Ord[Float]
-```
-
-**Module Syntax (NOW EXECUTES! ✅):**
-```ailang
-module examples/demo
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Hello from module!")
-}
-```
-
-**Running modules:**
-```bash
-ailang run --caps IO --entry main examples/demo.ail
-# Output: Hello from module!
-```
-
-**Pattern Matching:**
-```ailang
-type Option[a] = Some(a) | None
-
-match Some(42) {
-  Some(x) => x * 2,
-  None => 0
-}
--- Result: 84
-```
-
-**Effects (v0.2.0):**
-```ailang
-import std/io (println)
-import std/fs (readFile)
-
-export func main() -> () ! {IO, FS} {
-  let content = readFile("data.txt");
-  println(content)
-}
-```
-
-**Running with capabilities:**
-```bash
-ailang run --caps IO,FS --entry main app.ail
-```
-
-**Block Expressions (v0.3.0-alpha2, NEW! ✨):**
-```ailang
--- Blocks allow sequencing with automatic let-chain desugaring
-{
-  println("Computing...");
-  println("Result:");
-  42
-}
-
--- Perfect for recursive functions with side effects:
-func countdown(n: int) -> () ! {IO} {
-  if n <= 0 then {
-    println("Done!")
-  } else {
-    println(show(n));
-    countdown(n - 1)
-  }
-}
-```
-
-**Pattern Guards (M-R3, optional):**
-```ailang
-match value {
-  Some(x) if x > 0 => x * 2,  -- ❌ Guards not yet supported
-  Some(x) => x,
-  None => 0
-}
-```
-
-### ❌ Planned Syntax (Not Yet Implemented)
-
-**Error Propagation (future):**
-```ailang
-func readAndPrint() -> () ! {IO, FS} {
-  let content = readFile("data.txt")?  -- ❌ ? operator not implemented
-  print(content)
-}
-```
-
-**Quasiquotes (v0.3.0+):**
-```ailang
-let query = sql"""SELECT * FROM users WHERE age > ${minAge: int}"""
-```
-
-**Concurrency (v0.3.0+):**
-```ailang
-func worker(ch: Channel[Task]) ! {Async} {
-  loop {
-    let task <- ch
-    ch <- process(task)
-  }
-}
-```
-
-## What Works & What Doesn't (v0.2.0-rc1)
-
-### ✅ Working Features
-- ✅ **Module execution** - `ailang run --entry main module.ail`
-- ✅ **Effect system** - IO and FS effects with capability security
-- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards
-- ✅ **ADTs** - Algebraic data types with runtime support
-- ✅ **Type classes** - Num, Eq, Ord, Show with dictionary-passing
-- ✅ **Imports** - Cross-module imports work at runtime
-- ✅ **REPL** - Fully functional with all type system features
-- ✅ **Builtins** - String primitives, IO, FS operations
-
-### ✅ Working Examples
-```bash
-# Module with IO
-ailang run --caps IO --entry main examples/test_io_builtins.ail
-
-# Pattern matching with ADTs
-ailang run --entry main examples/adt_simple.ail
-
-# Cross-module imports
-ailang run --caps IO --entry main examples/effects_basic.ail
-```
-
-See [examples/STATUS.md](examples/STATUS.md) for complete example inventory.
-
-### ⚠️ Known Limitations (v0.3.0-alpha2)
-
-**Still TODO:**
-1. ⚠️ Pattern matching guards - `if condition` in match arms not evaluated
-2. ⚠️ Exhaustiveness checking - No warnings for non-exhaustive patterns
-3. ⚠️ Let expressions limited to 3 nesting levels (4+ fails)
-4. ❌ `tests [...]` and `properties [...]` syntax not implemented
-5. ❌ Error propagation operator `?` not implemented
-
-**Execution Modes:**
-AILANG supports two execution modes:
-
-1. **Simple scripts** (no module declaration):
-   - Cannot use `func`, `type`, `import`, `export` keywords
-   - Just write expressions: `let x = 5 in x * 2`
-   - Run with: `ailang run script.ail`
-   - Example: [examples/simple.ail](examples/simple.ail)
-
-2. **Module files** (with `module` declaration):
-   - Must start with `module path/name`
-   - Can use `func`, `type`, `import`, `export` keywords
-   - Can import from stdlib and use effects
-   - Run with: `ailang run --caps IO --entry main module.ail`
-   - Example: [examples/effects_basic.ail](examples/effects_basic.ail)
-
-**Execution Limitations:**
-1. ⚠️ REPL and file execution use different code paths (intentional)
-2. ⚠️ Type classes work in REPL and module files, not in simple scripts
-3. ⚠️ Record field access has unification bugs in some cases
-4. ⚠️ List operations have limited runtime support
-
-See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for comprehensive details and workarounds.
-
-### 🚀 v0.2.0 Roadmap (3.5-4.5 weeks)
-
-**Status**: Design complete, ready for implementation
-
-**M-R1: Module Execution Runtime** (~1,000-1,300 LOC, 1.5-2 weeks)
-- Module instance creation and evaluation
-- Cross-module imports at runtime
-- Entrypoint execution (`--entry`, `--args-json`)
-- `--runner=fallback` to preserve v0.1.0 wrapper
-
-**M-R2: Minimal Effect Runtime** (~700-900 LOC, 1-1.5 weeks)
-- Capability-based security (`--caps IO,FS`)
-- IO effect: `print`, `println`, `readLine`
-- FS effect: `readFile`, `writeFile`, `exists`
-- Secure by default (no caps unless explicitly granted)
-
-**M-R3: Pattern Matching Polish** (~450-650 LOC, 1 week) [STRETCH]
-- Guards: `pattern if condition => body`
-- Exhaustiveness warnings with suggested missing cases
-- Decision tree compilation for performance
-
-**See**: [v0.2.0 Implementation Plan](design_docs/planned/v0_2_0_implementation_plan.md)
-
-### 📋 Future (v0.3.0+)
-1. Effect composition DSL, budgets, async effects
-2. Typed quasiquotes (SQL, HTML, JSON)
-3. CSP concurrency with channels
-4. Session types
-5. Property-based testing
-6. AI training data export
-
-## REPL Usage (v2.3)
-
-The AILANG REPL now features professional-grade interactive development with full type class support:
-
-### Interactive Features
-- **Arrow Key History**: Navigate command history with ↑/↓ arrows
-- **Persistent History**: Commands saved in `~/.ailang_history`
-- **Tab Completion**: Auto-complete REPL commands with Tab key
-- **Auto-imports**: `std/prelude` loaded automatically on startup
-- **Clean Exit**: `:quit` command properly exits the REPL
-
-### Basic Usage
-```bash
-ailang repl
-```
-
-The REPL auto-imports `std/prelude` on startup, providing:
-- Numeric defaults: `Num → Int`, `Fractional → Float`  
-- Type class instances for `Num`, `Eq`, `Ord`, `Show`
-- String concatenation with `++` operator
-- Record literals and field access
-
-### Key Commands
-- `:help, :h` - Show all available commands
-- `:quit, :q` - Exit the REPL (also works: Ctrl+D)
-- `:type <expr>` - Show qualified type with constraints
-- `:import <module>` - Import type class instances
-- `:instances` - List available instances with superclass provisions
-- `:dump-core` - Toggle Core AST display for debugging
-- `:dump-typed` - Toggle Typed AST display
-- `:dry-link` - Show required dictionary instances without evaluating
-- `:trace-defaulting on/off` - Enable/disable defaulting trace
-- `:history` - Show command history
-- `:clear` - Clear the screen
-- `:reset` - Reset environment (auto-reimports prelude)
-
-### Example REPL Session
-
-```ailang
-λ> 1 + 2
-3 :: Int
-
-λ> 3.14 * 2.0
-6.28 :: Float
-
-λ> "Hello " ++ "AILANG!"
-Hello AILANG! :: String
-
-λ> true && false
-false :: Bool
-
-λ> [1, 2, 3]
-[1, 2, 3] :: [Int]
-
-λ> {name: "Alice", age: 30}
-{name: Alice, age: 30} :: {name: String, age: Int}
-
-λ> :type \x. x + x
-\x. x + x :: ∀α. Num α ⇒ α → α
-
-λ> let double = \x. x * 2 in double(21)
-42 :: Int
-```
-
-### Type Class Pipeline
-The REPL executes the full pipeline:
-1. **Parse** - Surface syntax to AST
-2. **Elaborate** - AST to Core (ANF)
-3. **TypeCheck** - Infer types with constraints
-4. **Dictionary Elaboration** - Transform operators to dictionary calls
-5. **ANF Verification** - Ensure well-formed Core
-6. **Link** - Resolve dictionary references
-7. **Evaluate** - Execute with runtime dictionaries
-
-### Example Session
-```
-λ> 1 + 2 * 3
-:: Int
-7
-
-λ> :type 42 == 42
-42 == 42 :: Bool
-
-λ> :instances
-Available instances:
-  Num:
-    • Num[Int], Num[Float]
-  Eq:
-    • Eq[Int], Eq[Float]
-  Ord:
-    • Ord[Int] (provides Eq[Int])
-    • Ord[Float] (provides Eq[Float])
-```
-
-### Architecture Notes
-- **Type-level instances** (`instEnv`) - Used during type checking and defaulting
-- **Runtime dictionaries** (`instances`) - Used during evaluation
-- Both must be kept in sync when importing modules
-- Method names are standardized: `eq`/`neq`, `lt`/`lte`/`gt`/`gte`
-
-## Testing Guidelines
-
-### Unit Tests
-- Each module should have a corresponding `*_test.go` file
-- Test both success and error cases
-- Use table-driven tests for multiple inputs
-
-### Integration Tests
-- Test complete programs in `examples/`
-- Verify type checking catches errors
-- Test effect propagation
-- Ensure deterministic execution
-
-### Property-Based Tests
-AILANG supports inline property tests:
-```ailang
-property "sort preserves length" {
-  forall(list: [int]) =>
-    length(sort(list)) == length(list)
-}
-```
-
-## Code Style Guidelines
-
-1. **Go Code**:
-   - Follow standard Go conventions
-   - Use descriptive names
-   - Add comments for complex logic
-   - Keep functions under 50 lines
-
-2. **AILANG Code**:
-   - Use 2-space indentation
-   - Prefer pure functions
-   - Make effects explicit
-   - Include tests with functions
-   - Use type annotations when helpful
-
-## Error Handling
-
-### In Go Implementation
-- Return explicit errors, don't panic
-- Include position information in parse errors
-- Provide helpful error messages with suggestions
-
-### In AILANG
-- Use Result type for fallible operations
-- Propagate errors with `?` operator
-- Provide structured error context
-
-## Performance Considerations
-- Parser uses Pratt parsing for efficient operator precedence
-- Type inference should cache resolved types
-- Lazy evaluation for better performance (future)
-- String interning for identifiers
-
-## Debug Commands
-```bash
-# Parse and print AST (when implemented)
-ailang parse file.ail
-
-# Type check without running
-ailang check file.ail
-
-# Show execution trace
-ailang run --trace file.ail
-
-# Export training data
-ailang export-training
-```
-
-## Common Patterns
-
-### Adding a Binary Operator
-1. Add token in `token.go`
-2. Add to lexer switch statement
-3. Define precedence in parser
-4. Add to `parseInfixExpression`
-5. Add type rule
-6. Implement evaluation
-
-### Adding a Built-in Function
-1. Define type signature
-2. Add to prelude or appropriate module
-3. Implement in Go
-4. Add tests
-
-## Resources
-- Design doc: `design_docs/20250926/initial_design.md`
-- Examples: `examples/` directory
-- Go tests: `*_test.go` files
-
-## Testing Policy
+### Testing Policy
 **ALWAYS remove out-of-date tests. No backward compatibility.**
 - When architecture changes, delete old tests completely
 - Don't maintain legacy test suites
 - Write new tests for new implementations
 - Keep test suite clean and current
 
-## 🚨 CRITICAL: Linting & "Unused" Code Warnings
+### Linting & "Unused" Code Warnings
 
 **⚠️ LESSON LEARNED: Never blindly delete "unused" functions without understanding WHY they're unused!**
 
-### The Import System Disaster (September 2025)
+**The Import System Disaster (September 2025)**
 In commit `eae08b6`, working import functions were deleted because linter said they were "unused".
+
 **What actually happened:**
 1. Function **calls** were renamed from `parseModuleDecl()` to `_parseModuleDecl()` (note underscore)
 2. Function **definitions** kept original names (no underscore)
@@ -736,7 +355,8 @@ In commit `eae08b6`, working import functions were deleted because linter said t
 5. Functions were **blindly deleted**
 6. Result: **Working import system completely broken** 💥
 
-### Rules to Prevent This:
+**Rules to Prevent This:**
+
 1. **NEVER delete functions just because linter says "unused"**
    - First understand WHY they're unused
    - Check git history - were they just commented out?
@@ -775,32 +395,27 @@ In commit `eae08b6`, working import functions were deleted because linter said t
    - Always run `make test-imports` before committing parser changes
    - Check that example files still work: `make verify-examples`
 
-### Recovery Checklist (if this happens again):
+**Recovery Checklist (if this happens again):**
 1. Find last working commit: `git log --all --oneline | grep "import"`
 2. Check what was deleted: `git diff working_commit broken_commit`
 3. Restore deleted functions: `git show working_commit:file.go`
 4. Test imports: `make test-imports`
 5. Document in commit message what was broken and how it was fixed
 
-### Development Commands
+## Reference Documentation
 
-```bash
-# Module runtime development
-make test                          # Run all tests
-go test ./internal/runtime/...     # Test module runtime
-make verify-examples               # Verify examples work
+**For detailed guides, see:**
+- **AILANG Syntax**: [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete teaching prompt
+- **REPL Guide**: [docs/guides/repl.md](docs/guides/repl.md) - Interactive development
+- **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known issues and workarounds
+- **Contributing**: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflow
+- **Design Docs**: [design_docs/](design_docs/) - Architecture decisions
+- **Examples**: [examples/](examples/) - 66 example programs
 
-# Effect runtime development
-go test ./internal/effects/...     # Test effects
-AILANG_FS_SANDBOX=/tmp make test  # Test with sandbox
-
-# Pattern matching development
-go test ./internal/elaborate/...   # Test exhaustiveness
-go test ./internal/eval/...        # Test evaluation
-
-# Full CI check
-make ci                           # Run all checks locally
-```
+**For architecture details, see:**
+- [design_docs/20250926/initial_design.md](design_docs/20250926/initial_design.md) - Original design
+- [design_docs/implemented/](design_docs/implemented/) - Completed features
+- [design_docs/planned/](design_docs/planned/) - Future work
 
 ## Important Notes
 1. The language is expression-based - everything returns a value
@@ -808,7 +423,7 @@ make ci                           # Run all checks locally
 3. Pattern matching must be exhaustive
 4. All imports must be explicit
 5. Row polymorphism allows extensible records and effects
-6. Session types ensure protocol correctness in channels
+6. Session types ensure protocol correctness in channels (when implemented)
 
 ## Quick Debugging Checklist
 - [ ] Check lexer is producing correct tokens
@@ -818,9 +433,6 @@ make ci                           # Run all checks locally
 - [ ] Check that all AST nodes implement correct interfaces
 - [ ] Verify type substitution is working correctly
 
-## Contact & Support
-This is an experimental language. For questions or issues:
-- Check the design documents in @design_docs
-- Look at example programs
-- Run tests for expected behavior
-- Refer to similar functional languages (Haskell, OCaml, F#)
+---
+
+**Remember**: This is a living document. Update it when workflows change, but keep it focused on **actionable instructions** for Claude, not reference material that belongs in docs/.

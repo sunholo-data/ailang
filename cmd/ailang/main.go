@@ -124,6 +124,21 @@ func main() {
 	case "eval-analyze":
 		runEvalAnalyze()
 
+	case "eval-compare":
+		runEvalCompare()
+
+	case "eval-matrix":
+		runEvalMatrix()
+
+	case "eval-summary":
+		runEvalSummary()
+
+	case "eval-validate":
+		runEvalValidate()
+
+	case "eval-report":
+		runEvalReport()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()

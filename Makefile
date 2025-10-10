@@ -578,7 +578,7 @@ eval-diff: build
 		echo "  make eval-diff BASELINE=eval_results/baselines/v0.3.0 NEW=eval_results/after_fix"; \
 		exit 1; \
 	fi
-	@./tools/eval_diff.sh "$(BASELINE)" "$(NEW)"
+	@bin/ailang eval-compare "$(BASELINE)" "$(NEW)"
 
 eval-validate-fix: build
 	@if [ -z "$(BENCH)" ]; then \
@@ -593,23 +593,23 @@ eval-validate-fix: build
 
 eval-summary:
 	@if [ -z "$(DIR)" ]; then \
-		echo "Usage: make eval-summary DIR=<results_dir> [OUTPUT=<file>]"; \
+		echo "Usage: make eval-summary DIR=<results_dir>"; \
 		echo ""; \
 		echo "Example:"; \
-		echo "  make eval-summary DIR=eval_results/baseline OUTPUT=summary.jsonl"; \
+		echo "  make eval-summary DIR=eval_results/baseline"; \
 		exit 1; \
 	fi
-	@./tools/generate_summary_jsonl.sh "$(DIR)" "$(OUTPUT)"
+	@bin/ailang eval-summary "$(DIR)"
 
 eval-matrix:
 	@if [ -z "$(DIR)" ] || [ -z "$(VERSION)" ]; then \
-		echo "Usage: make eval-matrix DIR=<results_dir> VERSION=<version> [OUTPUT=<file>]"; \
+		echo "Usage: make eval-matrix DIR=<results_dir> VERSION=<version>"; \
 		echo ""; \
 		echo "Example:"; \
 		echo "  make eval-matrix DIR=eval_results/baseline VERSION=v0.3.0-alpha5"; \
 		exit 1; \
 	fi
-	@./tools/generate_matrix_json.sh "$(DIR)" "$(VERSION)" "$(OUTPUT)"
+	@bin/ailang eval-matrix "$(DIR)" "$(VERSION)"
 
 # Automated fix implementation (M-EVAL-LOOP Milestone 4)
 .PHONY: eval-auto-improve

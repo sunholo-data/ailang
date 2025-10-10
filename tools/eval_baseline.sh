@@ -108,7 +108,7 @@ echo ""
 
 # Generate performance matrix (optional - skip if it fails)
 echo -e "${CYAN}Generating performance matrix...${NC}"
-if ./tools/generate_matrix_json.sh "$BASELINE_DIR" "$VERSION" "$MATRIX_FILE" 2>/dev/null; then
+if bin/ailang eval-matrix "$BASELINE_DIR" "$VERSION" 2>/dev/null; then
   echo -e "${GREEN}✓ Matrix generated${NC}"
 else
   echo -e "${YELLOW}⚠ Matrix generation skipped (use manual analysis)${NC}"
@@ -142,5 +142,5 @@ echo ""
 echo "Next steps:"
 echo "  1. Make code changes"
 echo "  2. Run: make eval-validate-fix BENCH=<benchmark_id>"
-echo "  3. Compare results with: ./tools/eval_diff.sh $VERSION <new_run>"
+echo "  3. Compare results with: make eval-diff BASELINE=$BASELINE_DIR NEW=<new_run>"
 echo ""
