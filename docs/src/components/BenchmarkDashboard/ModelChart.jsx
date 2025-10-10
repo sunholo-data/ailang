@@ -41,13 +41,16 @@ export default function ModelChart({ models }) {
 
   return (
     <div className={styles.chartContainer}>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={350}>
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-200)" />
           <XAxis
             dataKey="name"
             stroke="var(--ifm-color-emphasis-600)"
-            tick={{ fill: 'var(--ifm-color-emphasis-800)' }}
+            tick={{ fill: 'var(--ifm-color-emphasis-800)', fontSize: 12 }}
+            angle={-45}
+            textAnchor="end"
+            height={80}
           />
           <YAxis
             stroke="var(--ifm-color-emphasis-600)"
@@ -78,6 +81,7 @@ export default function ModelChart({ models }) {
 function formatModelName(name) {
   // Format model names consistently with models.yml conventions
   // Use proper capitalization and version numbers
+  // Check most specific patterns first
   if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
   if (name.includes('claude-sonnet')) return 'Claude Sonnet';
   if (name.includes('claude-opus')) return 'Claude Opus';
@@ -86,8 +90,8 @@ function formatModelName(name) {
   if (name.includes('gpt-5')) return 'GPT-5';
   if (name.includes('gpt-4o')) return 'GPT-4o';
   if (name.includes('gpt-4')) return 'GPT-4';
-  if (name.includes('gemini-2-5-pro')) return 'Gemini 2.5 Pro';
-  if (name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
+  if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
+  if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
   if (name.includes('gemini-pro')) return 'Gemini Pro';
   if (name.includes('gemini')) return 'Gemini';
 

@@ -630,3 +630,19 @@
 [data-theme='dark'] .benchmarkCard:hover {
   box-shadow: 0 4px 16px rgba(255, 255, 255, 0.05);
 }
+
+/* Chart Note */
+.chartNote {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--ifm-color-primary-lightest);
+  border-left: 3px solid var(--ifm-color-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+[data-theme='dark'] .chartNote {
+  background: var(--ifm-color-primary-darkest);
+  border-left-color: var(--ifm-color-primary-light);
+}

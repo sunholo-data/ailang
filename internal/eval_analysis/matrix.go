@@ -135,14 +135,15 @@ func groupByBenchmark(results []*BenchmarkResult) map[string]*BenchmarkStats {
 	benchmarks := make(map[string]*BenchmarkStats)
 	for benchID, results := range benchResults {
 		successCount := 0
-		totalTokens := 0
+		totalOutputTokens := 0
 		langs := make(map[string]bool)
 
 		for _, r := range results {
 			if r.StdoutOk {
 				successCount++
 			}
-			totalTokens += r.TotalTokens
+			// Use OutputTokens instead of TotalTokens to exclude input prompt
+			totalOutputTokens += r.OutputTokens
 			langs[r.Lang] = true
 		}
 
@@ -156,7 +157,7 @@ func groupByBenchmark(results []*BenchmarkResult) map[string]*BenchmarkStats {
 		benchmarks[benchID] = &BenchmarkStats{
 			TotalRuns:   len(results),
 			SuccessRate: safeDiv(float64(successCount), float64(len(results))),
-			AvgTokens:   safeDiv(float64(totalTokens), float64(len(results))),
+			AvgTokens:   safeDiv(float64(totalOutputTokens), float64(len(results))),
 			Languages:   langList,
 		}
 	}

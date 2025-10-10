@@ -31,6 +31,10 @@ type openAIResponse struct {
 		PromptTokens     int `json:"prompt_tokens"`
 		CompletionTokens int `json:"completion_tokens"`
 		TotalTokens      int `json:"total_tokens"`
+		// GPT-5 reasoning models include reasoning_tokens in completion_tokens
+		CompletionTokensDetails struct {
+			ReasoningTokens int `json:"reasoning_tokens"`
+		} `json:"completion_tokens_details,omitempty"`
 	} `json:"usage"`
 }
 
@@ -97,10 +101,18 @@ func (a *AIAgent) callOpenAI(ctx context.Context, prompt string) (*GenerateResul
 
 	code := apiResp.Choices[0].Message.Content
 
+	// For GPT-5 models, completion_tokens includes reasoning_tokens
+	// We need to subtract reasoning tokens to get actual output tokens
+	outputTokens := apiResp.Usage.CompletionTokens
+	reasoningTokens := apiResp.Usage.CompletionTokensDetails.ReasoningTokens
+	if reasoningTokens > 0 {
+		outputTokens = outputTokens - reasoningTokens
+	}
+
 	return &GenerateResult{
 		Code:         extractCodeFromMarkdown(code),
 		InputTokens:  apiResp.Usage.PromptTokens,
-		OutputTokens: apiResp.Usage.CompletionTokens,
+		OutputTokens: outputTokens,
 		TotalTokens:  apiResp.Usage.TotalTokens,
 		Model:        a.model,
 	}, nil

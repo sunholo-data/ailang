@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
+import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
@@ -140,6 +141,17 @@ export default function BenchmarkDashboard() {
         <div className={styles.section}>
           <h3>Model Performance Comparison</h3>
           <ModelChart models={models} />
+        </div>
+      )}
+
+      {/* Model Token Usage Chart */}
+      {models && Object.keys(models).length > 0 && (
+        <div className={styles.section}>
+          <h3>Token Usage & Cost by Model</h3>
+          <p className={styles.sectionSubtitle}>
+            Average output tokens and cost per benchmark run (excludes reasoning tokens for GPT-5)
+          </p>
+          <ModelTokenChart models={models} />
         </div>
       )}
 
