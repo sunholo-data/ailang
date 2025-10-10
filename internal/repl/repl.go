@@ -697,6 +697,26 @@ func (r *REPL) handleCommand(cmd string, out io.Writer) {
 			r.runTests(out)
 		}
 
+	case ":propose":
+		filename, err := ParseProposeCommand(cmd)
+		if err != nil {
+			fmt.Fprintf(out, red("Error: %v\n"), err)
+			return
+		}
+		if err := ProposePlanCommand(filename); err != nil {
+			fmt.Fprintf(out, red("Error: %v\n"), err)
+		}
+
+	case ":scaffold":
+		planFile, outputDir, overwrite, err := ParseScaffoldCommand(cmd)
+		if err != nil {
+			fmt.Fprintf(out, red("Error: %v\n"), err)
+			return
+		}
+		if err := ScaffoldCommand(planFile, outputDir, overwrite); err != nil {
+			fmt.Fprintf(out, red("Error: %v\n"), err)
+		}
+
 	default:
 		fmt.Fprintf(out, "Unknown command: %s\n", cmd)
 		fmt.Fprintln(out, "Type :help for help")
@@ -934,6 +954,9 @@ func (r *REPL) printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  :instances              Show available type class instances")
 	fmt.Fprintln(out, "  :test [--json]          Run tests (with optional JSON output)")
 	fmt.Fprintln(out, "  :compact on|off         Enable/disable compact JSON mode")
+	fmt.Fprintln(out, "  :propose <plan.json>    Validate an architecture plan")
+	fmt.Fprintln(out, "  :scaffold --from-plan <plan.json> [--output <dir>] [--overwrite]")
+	fmt.Fprintln(out, "                          Generate module stubs from plan")
 	fmt.Fprintln(out, "  :history                Show command history")
 	fmt.Fprintln(out, "  :clear                  Clear the screen")
 	fmt.Fprintln(out, "  :reset                  Reset the environment")

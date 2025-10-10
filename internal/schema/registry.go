@@ -15,7 +15,7 @@ const (
 	ErrorV1     = "ailang.error/v1"
 	TestV1      = "ailang.test/v1"
 	DecisionsV1 = "ailang.decisions/v1"
-	PlanV1      = "plan/v1"
+	PlanV1      = "ailang.plan/v1"
 	EffectsV1   = "ailang.effects/v1"
 )
 

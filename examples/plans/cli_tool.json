@@ -1,0 +1,57 @@
+{
+  "schema": "ailang.plan/v1",
+  "goal": "Build a command-line utility for file processing",
+  "modules": [
+    {
+      "path": "cli/main",
+      "exports": ["main", "parseArgs"],
+      "imports": ["std/io", "std/fs", "cli/processor"]
+    },
+    {
+      "path": "cli/processor",
+      "exports": ["processFile", "formatOutput"],
+      "imports": ["std/result"]
+    }
+  ],
+  "types": [
+    {
+      "name": "Args",
+      "kind": "record",
+      "definition": "{input: string, output: string, verbose: bool}",
+      "module": "cli/main"
+    },
+    {
+      "name": "ProcessResult",
+      "kind": "record",
+      "definition": "{linesProcessed: int, warnings: [string]}",
+      "module": "cli/processor"
+    }
+  ],
+  "functions": [
+    {
+      "name": "main",
+      "type": "() -> () ! {IO, FS}",
+      "effects": ["IO", "FS"],
+      "module": "cli/main"
+    },
+    {
+      "name": "parseArgs",
+      "type": "([string]) -> Result[Args, string]",
+      "effects": [],
+      "module": "cli/main"
+    },
+    {
+      "name": "processFile",
+      "type": "(string) -> Result[ProcessResult, string] ! {FS}",
+      "effects": ["FS"],
+      "module": "cli/processor"
+    },
+    {
+      "name": "formatOutput",
+      "type": "(ProcessResult) -> string",
+      "effects": [],
+      "module": "cli/processor"
+    }
+  ],
+  "effects": ["IO", "FS"]
+}

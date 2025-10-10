@@ -1,0 +1,40 @@
+{
+  "schema": "ailang.plan/v1",
+  "goal": "Build a simple REST API handler",
+  "modules": [
+    {
+      "path": "api/core",
+      "exports": ["handleRequest", "parseRequest"],
+      "imports": ["std/io", "std/result"]
+    }
+  ],
+  "types": [
+    {
+      "name": "Request",
+      "kind": "record",
+      "definition": "{url: string, method: string, body: string}",
+      "module": "api/core"
+    },
+    {
+      "name": "Response",
+      "kind": "record",
+      "definition": "{status: int, body: string}",
+      "module": "api/core"
+    }
+  ],
+  "functions": [
+    {
+      "name": "parseRequest",
+      "type": "(string) -> Result[Request, string]",
+      "effects": [],
+      "module": "api/core"
+    },
+    {
+      "name": "handleRequest",
+      "type": "(Request) -> Response ! {IO}",
+      "effects": ["IO"],
+      "module": "api/core"
+    }
+  ],
+  "effects": ["IO"]
+}

@@ -1,5 +1,104 @@
 # AILANG Changelog
 
+## [Unreleased] - 2025-10-10
+
+### Added - M-V3.2: Planning & Scaffolding Protocol ✅ COMPLETE
+
+**Complete proactive planning system for architecture validation and code scaffolding from plans (~2,560 LOC in 1 day).**
+
+**Implementation** (`internal/schema/`, `internal/planning/`, `internal/repl/`)
+- **Plan Schema** (`schema/plan.go`, ~109 LOC)
+  - JSON schema for architecture plans with modules, types, functions, effects
+  - Plan versioning with `ailang.plan/v1`
+  - Helper methods: `AddModule()`, `AddType()`, `AddFunction()`, `AddEffect()`
+  - Deterministic JSON serialization via schema registry
+
+- **Plan Validator** (`planning/validator.go`, ~546 LOC)
+  - Validates module paths (lowercase, no invalid chars, no cycles)
+  - Validates type definitions (CamelCase names, valid kinds: adt/record/alias)
+  - Validates function signatures (camelCase names, canonical effects)
+  - Detects circular dependencies between modules
+  - 24 validation error codes (VAL_M##, VAL_T##, VAL_F##, VAL_E##, VAL_G##)
+  - Returns structured validation results with errors and warnings
+
+- **Code Scaffolder** (`planning/scaffolder.go`, ~327 LOC)
+  - Generates valid AILANG module files from validated plans
+  - Creates module declarations, imports, type definitions, function stubs
+  - Supports multiple modules with proper directory structure
+  - Placeholder return values based on inferred types
+  - TODO comments in generated code for implementation guidance
+  - Options: output directory, overwrite mode, include comments/TODOs
+
+- **REPL Integration** (`repl/planning.go`, ~264 LOC + repl.go modifications)
+  - New `:propose <plan.json>` command - validates architecture plans
+  - New `:scaffold --from-plan <plan.json> [--output <dir>] [--overwrite]` command
+  - Colorized validation output (errors in red, success in green)
+  - Example plan creation with `SaveExamplePlan()`
+  - Updated `:help` text with planning commands
+
+**Tests** (~844 LOC total)
+- `schema/plan_test.go`: 9 tests for plan schema
+- `planning/validator_test.go`: 18 tests for validation rules
+- `planning/scaffolder_test.go`: 17 tests for code generation
+- `planning/integration_test.go`: 6 end-to-end tests + 2 benchmarks
+- `repl/planning_test.go`: 15 tests for REPL command parsing
+- **All 65 tests passing** ✅
+
+**Example Plans** (`examples/plans/`)
+- `simple_api.json`: REST API handler with Request/Response types
+- `cli_tool.json`: CLI utility with multiple modules and FS effects
+- `minimal.json`: Hello world application
+
+**Usage:**
+```bash
+# In REPL:
+λ> :propose examples/plans/simple_api.json
+✅ Plan is valid!
+✅ Ready to scaffold!
+
+λ> :scaffold --from-plan examples/plans/simple_api.json --output ./generated
+✅ Scaffolding successful!
+Files created: 1
+Total lines: 28
+Generated files:
+  - ./generated/api/core.ail
+
+# From command line (after building):
+ailang repl
+```
+
+**Files Added:**
+- `internal/schema/plan.go` (+109 LOC)
+- `internal/schema/plan_test.go` (+152 LOC)
+- `internal/planning/validator.go` (+546 LOC)
+- `internal/planning/validator_test.go` (+328 LOC)
+- `internal/planning/scaffolder.go` (+327 LOC)
+- `internal/planning/scaffolder_test.go` (+305 LOC)
+- `internal/planning/integration_test.go` (+325 LOC)
+- `internal/repl/planning.go` (+264 LOC)
+- `internal/repl/planning_test.go` (+174 LOC)
+- `examples/plans/simple_api.json` (example)
+- `examples/plans/cli_tool.json` (example)
+- `examples/plans/minimal.json` (example)
+- Total: **~2,560 LOC** + 3 example plans
+
+**Files Modified:**
+- `internal/schema/registry.go` (updated PlanV1 constant)
+- `internal/repl/repl.go` (added :propose and :scaffold commands to REPL)
+
+**Key Design Decisions:**
+1. Schema versioning from day 1 (ailang.plan/v1) for future evolution
+2. Validation separated into errors (must fix) vs warnings (should fix)
+3. Scaffolder generates valid module structure but allows compilation errors in stubs
+4. Planning workflow: create plan → validate → scaffold → implement → compile
+5. REPL commands make planning accessible without CLI flags
+
+**Velocity:** ~2,560 LOC in ~8 hours (~320 LOC/hour sustained)
+
+**Impact:** AI agents can now validate architecture before coding, reducing wasted effort and improving success rates in eval benchmarks.
+
+---
+
 ## [Unreleased] - 2025-10-08
 
 ### Added - M-EVAL-LOOP Milestone 1: Self-Repair Foundation ✅ COMPLETE

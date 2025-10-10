@@ -17,6 +17,14 @@
       "tags": ["experimental", "error-hints"],
       "notes": "Adds 6 common error pattern sections (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001) with wrong/correct examples. Hypothesis: Explicit error warnings reduce first-attempt failures and improve repair success rate."
     },
+    "v0.3.2": {
+      "file": "prompts/v0.3.2.md",
+      "hash": "c29549fb36585bf775d4425cc615f78436866960d25347086f4c6a1f656b93a7",
+      "description": "v0.3.2 prompt with Planning & Scaffolding Protocol - proactive architecture validation",
+      "created": "2025-10-10",
+      "tags": ["production", "planning"],
+      "notes": "Adds proactive architecture planning with :propose and :scaffold commands. Includes plan schema, validation rules, and best practices. Teaches AI agents to validate architecture BEFORE coding. Derived from v0.3.0-hints with 24 validation error codes added."
+    },
     "v0.2.0": {
       "file": "prompts/v0.2.0.md",
       "hash": "PLACEHOLDER",

@@ -1,0 +1,21 @@
+{
+  "schema": "ailang.plan/v1",
+  "goal": "Minimal hello world application",
+  "modules": [
+    {
+      "path": "app",
+      "exports": ["main"],
+      "imports": ["std/io"]
+    }
+  ],
+  "types": [],
+  "functions": [
+    {
+      "name": "main",
+      "type": "() -> () ! {IO}",
+      "effects": ["IO"],
+      "module": "app"
+    }
+  ],
+  "effects": ["IO"]
+}
