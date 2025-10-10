@@ -1,0 +1,25 @@
+id: list_comprehension
+description: "Map/filter/fold operations on lists"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a list of integers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  2. Filters the list to keep only even numbers
+  3. Maps the filtered list by squaring each number
+  4. Computes the sum of the resulting list
+  5. Prints the result: "Sum of squares of evens: {result}"
+
+  Requirements:
+  - For Python: Use list comprehensions or map/filter
+  - For AILANG: Implement map/filter/fold as recursive functions
+  - Show intermediate results if helpful for debugging
+
+  Expected result: 2^2 + 4^2 + 6^2 + 8^2 + 10^2 = 4 + 16 + 36 + 64 + 100 = 220
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum of squares of evens: 220

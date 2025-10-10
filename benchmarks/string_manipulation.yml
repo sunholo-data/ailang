@@ -1,0 +1,28 @@
+id: string_manipulation
+description: "String concatenation, show(), and comparisons"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates three variables:
+     - greeting: "Hello"
+     - name: "World"
+     - year: 2025 (integer)
+  2. Concatenates them into a message: "{greeting}, {name}! Year: {year}"
+  3. Checks if greeting equals "Hello" (print "Match" or "No match")
+  4. Prints both results:
+     "Message: {message}"
+     "Check: {Match or No match}"
+
+  Requirements:
+  - Use string concatenation operator
+  - Convert integer to string for concatenation
+  - Use string equality comparison
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Message: Hello, World! Year: 2025
+  Check: Match

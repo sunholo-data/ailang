@@ -4,13 +4,38 @@ This directory contains benchmark specifications for measuring AI code generatio
 
 ## Available Benchmarks
 
-| ID | Description | Difficulty | Focus Area | Expected Gain |
-|----|-------------|------------|------------|---------------|
-| `fizzbuzz` | Classic FizzBuzz (1-100) | Easy | Control flow | Low |
-| `json_parse` | Parse JSON, filter, output | Medium | Data parsing | Medium |
-| `pipeline` | stdin → transform → stdout | Medium | IO + lists | High |
-| `cli_args` | Read file, process, sum | Hard | IO + FS | High |
-| `adt_option` | Option/Maybe monad operations | Medium | Algebraic types | Very High |
+### Core Benchmarks (Existing)
+
+| ID | Description | Difficulty | Focus Area | Expected Gain | Status |
+|----|-------------|------------|------------|---------------|--------|
+| `fizzbuzz` | Classic FizzBuzz (1-100) | Easy | Control flow | Low | ✅ Passing |
+| `recursion_factorial` | Factorial via recursion | Easy | Recursion | Low | ✅ Passing |
+| `recursion_fibonacci` | Fibonacci via recursion | Easy | Recursion | Low | ✅ Passing |
+| `records_person` | Record types with field access | Medium | Records | High | ✅ Passing |
+| `adt_option` | Option/Maybe monad operations | Medium | Algebraic types | Very High | ✅ Passing |
+| `float_eq` | Float equality comparisons | Easy | Type system | Low | ⚠️ AI variance |
+| `numeric_modulo` | Modulo operator (%) | Easy | Operators | Low | ❌ Failing |
+| `json_parse` | Parse JSON, filter, output | Medium | Data parsing | Medium | ❌ Failing |
+| `pipeline` | stdin → transform → stdout | Medium | IO + lists | High | ❌ Failing |
+| `cli_args` | Read file, process, sum | Hard | IO + FS | High | ❌ Failing |
+
+### New Benchmarks (Testing Current Features)
+
+| ID | Description | Difficulty | Focus Area | Expected Gain | Expected Status |
+|----|-------------|------------|------------|---------------|-----------------|
+| `list_operations` | List construction, pattern matching, recursion | Easy | Lists + recursion | High | Should Pass ✅ |
+| `string_manipulation` | String concat, show(), comparisons | Easy | Strings | Medium | Should Pass ✅ |
+| `nested_records` | Nested record access | Medium | Records | High | Should Pass ✅ |
+| `higher_order_functions` | Compose, map, filter, currying | Medium | Functional programming | High | May Pass ⚠️ |
+| `pattern_matching_complex` | Nested patterns, guards, Tree ADT | Hard | Pattern matching | Medium | Should Pass ✅ |
+
+### New Benchmarks (Identifying Gaps)
+
+| ID | Description | Difficulty | Focus Area | Expected Gain | Expected Status |
+|----|-------------|------------|------------|---------------|-----------------|
+| `record_update` | Record update syntax `{r \| field: value}` | Medium | Records | Very High | Will Fail ❌ (M-R5b) |
+| `list_comprehension` | Map/filter/fold on lists | Hard | Stdlib | Very High | Will Fail ❌ (no stdlib) |
+| `error_handling` | Result/Either type for errors | Medium | Error handling | High | Will Fail ❌ (no Result) |
 
 ## Quick Start
 
@@ -25,8 +50,15 @@ ailang eval --benchmark fizzbuzz --mock
 # Both languages
 ailang eval --benchmark fizzbuzz --mock --langs python,ailang
 
-# All benchmarks (mock)
-for bench in fizzbuzz json_parse pipeline cli_args adt_option; do
+# All existing benchmarks (mock)
+for bench in fizzbuzz recursion_factorial recursion_fibonacci records_person adt_option \
+             float_eq numeric_modulo json_parse pipeline cli_args; do
+    ailang eval --benchmark $bench --mock --langs python,ailang
+done
+
+# All new benchmarks (mock)
+for bench in list_operations string_manipulation nested_records higher_order_functions \
+             pattern_matching_complex record_update list_comprehension error_handling; do
     ailang eval --benchmark $bench --mock --langs python,ailang
 done
 
@@ -48,7 +80,20 @@ export ANTHROPIC_API_KEY="..."
 ailang eval --benchmark fizzbuzz --model gpt-4 --seed 42
 
 # Run all benchmarks (this will cost API credits!)
-for bench in fizzbuzz json_parse pipeline cli_args adt_option; do
+# Existing benchmarks
+for bench in fizzbuzz recursion_factorial recursion_fibonacci records_person adt_option \
+             float_eq numeric_modulo json_parse pipeline cli_args; do
+    ailang eval --benchmark $bench --model gpt-4 --seed 42 --langs python,ailang
+done
+
+# New benchmarks (testing current features)
+for bench in list_operations string_manipulation nested_records higher_order_functions \
+             pattern_matching_complex; do
+    ailang eval --benchmark $bench --model gpt-4 --seed 42 --langs python,ailang
+done
+
+# New benchmarks (expected to fail - identifies gaps)
+for bench in record_update list_comprehension error_handling; do
     ailang eval --benchmark $bench --model gpt-4 --seed 42 --langs python,ailang
 done
 

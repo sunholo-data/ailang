@@ -1,0 +1,259 @@
+{
+  "aggregates": {
+    "0-shot_success": 0.4,
+    "final_success": 0.4,
+    "repair_used": 0,
+    "repair_success_rate": 0,
+    "total_tokens": 30757,
+    "total_cost_usd": 0.92271,
+    "avg_duration_ms": 17.2
+  },
+  "benchmarks": {
+    "adt_option": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 6100,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "cli_args": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 181,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "fizzbuzz": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 6042,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "float_eq": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 105,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "json_parse": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 206,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "numeric_modulo": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 62,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "pipeline": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 145,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "records_person": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 6009,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "recursion_factorial": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 5921,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "recursion_fibonacci": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 5986,
+      "languages": [
+        "ailang"
+      ]
+    }
+  },
+  "history": [
+    {
+      "version": "v0.3.2-19-g4f42cf4",
+      "timestamp": "2025-10-10T15:28:33Z",
+      "model": "claude-sonnet-4-5",
+      "languages": "ailang",
+      "self_repair": false,
+      "total_benchmarks": 10,
+      "success_count": 4,
+      "fail_count": 6,
+      "matrix_file": "",
+      "git_commit": "4f42cf433176408aaa10a3d09b585bffc7dd3b30",
+      "git_branch": "dev"
+    },
+    {
+      "version": "v0.3.0-40-ga7be6e9",
+      "timestamp": "2025-10-10T10:57:42Z",
+      "model": "claude-sonnet-4-5",
+      "languages": "ailang",
+      "self_repair": true,
+      "total_benchmarks": 10,
+      "success_count": 4,
+      "fail_count": 6,
+      "matrix_file": "eval_results/performance_tables/v0.3.0-40-ga7be6e9.json",
+      "git_commit": "a7be6e9daca800343488564ab31c8045cc7c09be",
+      "git_branch": "dev"
+    },
+    {
+      "version": "v0.3.0-36-g76515b0",
+      "timestamp": "2025-10-08T12:54:01Z",
+      "model": "gpt5",
+      "languages": "ailang",
+      "self_repair": true,
+      "total_benchmarks": 10,
+      "success_count": 5,
+      "fail_count": 5,
+      "matrix_file": "eval_results/performance_tables/v0.3.0-36-g76515b0.json",
+      "git_commit": "76515b0802fe2bc49d18137d56255f6519303ae9",
+      "git_branch": "dev"
+    },
+    {
+      "version": "v0.3.0-35-g3530d07",
+      "timestamp": "2025-10-08T12:47:41Z",
+      "model": "claude-sonnet-4-5",
+      "languages": "ailang",
+      "self_repair": true,
+      "total_benchmarks": 10,
+      "success_count": 4,
+      "fail_count": 6,
+      "matrix_file": "eval_results/performance_tables/v0.3.0-35-g3530d07.json",
+      "git_commit": "3530d07aa63fb8ae055fbd73e8bec712f5d6919f",
+      "git_branch": "dev"
+    },
+    {
+      "version": "v0.3.0-33-gd8a86be",
+      "timestamp": "2025-10-08T12:43:46Z",
+      "model": "claude-sonnet-4-5",
+      "languages": "ailang",
+      "self_repair": true,
+      "total_benchmarks": 10,
+      "success_count": 4,
+      "fail_count": 6,
+      "matrix_file": "eval_results/performance_tables/v0.3.0-33-gd8a86be.json",
+      "git_commit": "d8a86beb8b1a9530d0b91d4ef5a4d8e3f57045c7",
+      "git_branch": "dev"
+    },
+    {
+      "version": "v0.3.0-25-g9435827",
+      "timestamp": "0001-01-01T00:00:00Z",
+      "model": "",
+      "languages": "",
+      "self_repair": false,
+      "total_benchmarks": 10,
+      "success_count": 4,
+      "fail_count": 6,
+      "matrix_file": "",
+      "git_commit": "",
+      "git_branch": ""
+    }
+  ],
+  "languages": {
+    "ailang": {
+      "total_runs": 10,
+      "success_rate": 0.4,
+      "avg_tokens": 3075.7
+    }
+  },
+  "models": {
+    "claude-sonnet-4-5-20250929": {
+      "total_runs": 10,
+      "aggregates": {
+        "0-shot_success": 0.4,
+        "final_success": 0.4,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 30757,
+        "total_cost_usd": 0.92271,
+        "avg_duration_ms": 17.2
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 6100
+        },
+        "cli_args": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 181
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 6042
+        },
+        "float_eq": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 105
+        },
+        "json_parse": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 206
+        },
+        "numeric_modulo": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 62
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 145
+        },
+        "records_person": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 6009
+        },
+        "recursion_factorial": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 5921
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 5986
+        }
+      }
+    }
+  },
+  "timestamp": "2025-10-10T17:53:42+02:00",
+  "totalRuns": 10,
+  "version": "0.3.2-19-g4f42cf4"
+}

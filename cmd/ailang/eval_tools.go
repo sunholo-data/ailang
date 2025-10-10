@@ -238,13 +238,15 @@ func runEvalValidate() {
 func runEvalReport() {
 	if flag.NArg() < 3 {
 		fmt.Fprintf(os.Stderr, "%s: missing arguments\n", red("Error"))
-		fmt.Println("Usage: ailang eval-report <results_dir> <version> [--format=markdown|html|csv]")
+		fmt.Println("Usage: ailang eval-report <results_dir> <version> [--format=markdown|html|docusaurus|json|csv]")
 		fmt.Println("")
 		fmt.Println("Generate comprehensive evaluation report.")
 		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-report eval_results/baselines/v0.3.0 v0.3.0")
 		fmt.Println("  ailang eval-report results/ v0.3.1 --format=html > report.html")
+		fmt.Println("  ailang eval-report results/ v0.3.1 --format=docusaurus > docs/docs/benchmarks/performance.md")
+		fmt.Println("  ailang eval-report results/ v0.3.1 --format=json > docs/static/benchmarks/latest.json")
 		os.Exit(1)
 	}
 
@@ -297,6 +299,14 @@ func runEvalReport() {
 			fmt.Fprintf(os.Stderr, "%s: failed to generate HTML: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
+	case "docusaurus", "mdx":
+		output = eval_analysis.ExportDocusaurusMDX(matrix, history)
+	case "json":
+		output, err = eval_analysis.ExportBenchmarkJSON(matrix, history)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to generate JSON: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
 	case "csv":
 		output, err = eval_analysis.ExportCSV(results)
 		if err != nil {
@@ -305,7 +315,7 @@ func runEvalReport() {
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown format '%s'\n", red("Error"), format)
-		fmt.Fprintf(os.Stderr, "Supported formats: markdown, html, csv\n")
+		fmt.Fprintf(os.Stderr, "Supported formats: markdown, html, docusaurus, json, csv\n")
 		os.Exit(1)
 	}
 

@@ -637,6 +637,31 @@ eval-auto-improve-apply:
 		./tools/eval_auto_improve.sh --apply; \
 	fi
 
+# Benchmark dashboard generation
+.PHONY: benchmark-dashboard benchmark-deploy
+benchmark-dashboard:
+	@echo "📊 Generating benchmark dashboard..."
+	@mkdir -p docs/static/benchmarks docs/docs/benchmarks
+	@if [ ! -d "eval_results/baselines" ] || [ -z "$$(ls -A eval_results/baselines 2>/dev/null)" ]; then \
+		echo "⚠️  No baseline data found. Run 'make eval-baseline' first."; \
+		exit 1; \
+	fi
+	@LATEST_BASELINE=$$(ls -t eval_results/baselines | head -1); \
+	VERSION=$$(echo $$LATEST_BASELINE | sed 's/^v//'); \
+	echo "  Using baseline: $$LATEST_BASELINE (version: $$VERSION)"; \
+	$(BUILD_DIR)/$(BINARY) eval-report eval_results/baselines/$$LATEST_BASELINE $$VERSION --format=docusaurus > docs/docs/benchmarks/performance.md; \
+	$(BUILD_DIR)/$(BINARY) eval-report eval_results/baselines/$$LATEST_BASELINE $$VERSION --format=json > docs/static/benchmarks/latest.json; \
+	echo "✅ Dashboard generated!"; \
+	echo "  - Markdown: docs/docs/benchmarks/performance.md"; \
+	echo "  - JSON data: docs/static/benchmarks/latest.json"; \
+	echo ""; \
+	echo "Preview: cd docs && npm start"
+
+benchmark-deploy: benchmark-dashboard
+	@echo "🚀 Building and deploying docs..."
+	cd docs && npm run build && npm run deploy
+	@echo "✅ Deployed to GitHub Pages!"
+
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
