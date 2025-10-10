@@ -16,8 +16,6 @@ task_prompt: |
 
   The factorial function should use recursion (not loops).
 
-  Expected output: 3628800
-
   Output only the code for <LANG>, no explanations.
 expected_stdout: |
   3628800

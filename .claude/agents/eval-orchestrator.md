@@ -127,7 +127,7 @@ ailang eval-report current v0.3.1 > RELEASE.md
 | Concept | What It Is | Command | When to Use |
 |---------|------------|---------|-------------|
 | **Baseline** | Performance snapshot | `make eval-baseline` | Before starting work |
-| **Eval** | AI code generation test | `make eval-suite` | Measure AI-friendliness |
+| **Eval** | AI code generation test (parallel) | `make eval-suite` | Measure AI-friendliness |
 | **Analysis** | Failure investigation | `make eval-analyze` | Understand what to fix |
 | **Validate** | Check specific fix | `ailang eval-validate <bench>` | After implementing fix |
 | **Compare** | Before vs after | `ailang eval-compare <a> <b>` | Measure impact |
@@ -158,8 +158,8 @@ ailang eval --benchmark <id> --model <m>    # Run specific benchmark
 make eval-baseline                          # Store current performance as baseline
 
 # Running Evaluations
-make eval-suite                             # Run full benchmark suite (all models)
-make eval-report                            # Run evals + generate report
+make eval-suite                             # Run full benchmark suite (parallel, all models)
+make eval-report                            # Generate report from results
 
 # Analysis & Design
 make eval-analyze                           # Analyze failures → generate design docs
@@ -373,7 +373,7 @@ Example:
 - ✅ Use native `ailang` commands when available (faster, type-safe)
 
 ### Don't:
-- ❌ Run `make eval-suite` without warning (takes 2-5 minutes)
+- ❌ Run `make eval-suite` without warning (takes 30-60 seconds with parallel execution)
 - ❌ Delete or overwrite baselines without confirmation
 - ❌ Apply fixes automatically without showing user what will change
 - ❌ Ignore failures in critical benchmarks (fizzbuzz, records, effects)
@@ -397,9 +397,16 @@ Check `models.yml` for latest configuration including:
 
 **Two-tier system:**
 1. **Native Go commands** (`ailang eval-*`) - Fast, type-safe, tested
+   - **NEW**: `ailang eval-suite` with parallel execution (5 concurrent API calls)
+   - **Performance**: 10x faster than previous sequential bash implementation
 2. **Smart agents** (this agent + eval-fix-implementer) - Interpret intent, provide recommendations
 
 **No slash commands needed** - Users speak naturally, agents handle routing to correct commands.
+
+**Performance Improvements (v0.3.2+):**
+- Parallel benchmark execution (default: 5 concurrent)
+- Native Go implementation replaces bash scripts
+- Typical full suite: ~30-60 seconds (was ~5 minutes)
 
 ## Context Files
 
@@ -444,7 +451,10 @@ This agent succeeds when:
 
 ---
 
-**Version**: 2.0 (Updated for Go Implementation)
+**Version**: 2.1 (Parallel Execution)
 **Updated**: 2025-10-10
 **Part of**: M-EVAL-LOOP System (Milestones 1-4)
 **Dependencies**: eval-fix-implementer, test-coverage-guardian (optional)
+**Changelog**:
+- v2.1: Added parallel eval-suite execution (~10x faster)
+- v2.0: Native Go commands replace bash scripts

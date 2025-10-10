@@ -36,13 +36,13 @@ if [ ! -d "$RESULTS_DIR" ] || [ -z "$(ls -A $RESULTS_DIR/*.json 2>/dev/null)" ];
     echo
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${CYAN}→${NC} Running eval suite..."
-        make eval-suite || {
+        echo -e "${CYAN}→${NC} Running eval suite (parallel)..."
+        bin/ailang eval-suite --output "$RESULTS_DIR" || {
             echo -e "${RED}✗ Eval suite failed${NC}"
             exit 1
         }
     else
-        echo "Exiting. Run 'make eval-suite' first."
+        echo "Exiting. Run 'ailang eval-suite' first."
         exit 1
     fi
 fi
@@ -145,6 +145,6 @@ echo "  3. Move approved designs to milestone tracking:"
 echo "     mv $OUTPUT_DIR/approved_design.md design_docs/planned/"
 echo ""
 echo "  4. After implementing fixes, re-run evals:"
-echo "     make eval-suite"
-echo "     make eval-report"
+echo "     ailang eval-suite"
+echo "     ailang eval-report eval_results/ v0.3.1"
 echo ""

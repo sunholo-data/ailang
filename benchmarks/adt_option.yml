@@ -18,14 +18,6 @@ task_prompt: |
      - For Some(value): print "Result: {value}"
      - For None: print "Error: Division by zero"
 
-  For AILANG:
-  - Use module declaration: module benchmark/solution
-  - Import std/io: import std/io (println)
-  - Define the Option type with AILANG syntax: type Option[a] = Some(a) | None
-  - Export a main() function with ! {IO} effect
-  - Use pattern matching with =>
-  - Remember: NO :: operator, just use Some(...) and None directly
-
   Output only the code, no explanations.
 expected_stdout: |
   Result: 5.0

@@ -17,8 +17,6 @@ task_prompt: |
   The function MUST use recursion (not loops or memoization).
   This will be compute-intensive to test execution performance.
 
-  Expected output: 6765
-
   Output only the code for <LANG>, no explanations.
 expected_stdout: |
   6765

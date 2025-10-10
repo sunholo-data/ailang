@@ -139,6 +139,9 @@ func main() {
 	case "eval-report":
 		runEvalReport()
 
+	case "eval-suite":
+		runEvalSuite()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
@@ -174,6 +177,7 @@ func printHelp() {
 	fmt.Printf("  %s           Export training data\n", cyan("export-training"))
 	fmt.Printf("  %s                        Start the Language Server Protocol server\n", cyan("lsp"))
 	fmt.Printf("  %s         Run AI benchmarks (AILANG vs Python)\n", cyan("eval [flags]"))
+	fmt.Printf("  %s     Run full benchmark suite (parallel)\n", cyan("eval-suite [flags]"))
 	fmt.Printf("  %s  Analyze eval results and generate design docs\n", cyan("eval-analyze [flags]"))
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")

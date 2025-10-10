@@ -1,7 +1,7 @@
 # PYTHON: Logic Errors in fizzbuzz, pipeline
 
 **Discovered**: AI Eval Analysis - 2025-10-08
-**Frequency**: 2 failures across 2 benchmark(s)
+**Frequency**: 4 failures across 2 benchmark(s)
 **Priority**: P3 (Low Priority)
 **Estimated**:  LOC, 
 **Category**: logic_error
@@ -11,6 +11,9 @@
 
 
 
+
+
+**Last Updated**: 2025-10-25 (merged 2 new failures)
 ## Evidence from AI Eval
 
 **Affected Benchmarks**: fizzbuzz, pipeline

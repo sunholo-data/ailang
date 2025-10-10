@@ -1,7 +1,7 @@
 # AILANG: Runtime Errors
 
 **Discovered**: AI Eval Analysis - 2025-10-06
-**Frequency**: 28 failures across 2 benchmark(s)
+**Frequency**: 35 failures across 2 benchmark(s)
 **Priority**: P1 (High Priority)
 **Estimated**: 1040 LOC, 4 days
 **Category**: runtime_error
@@ -13,6 +13,9 @@ AILANG benchmarks adt_option and fizzbuzz exhibit runtime_error failures dominat
 
 Users expect statically type-checked AILANG programs to execute deterministically without runtime type mismatches, especially for basic comparisons like Float equality. They also expect the CLI/runner to either infer and provision required capabilities for entrypoints or provide actionable guidance that doesn't require tribal knowledge.
 
+
+
+**Last Updated**: 2025-10-25 (merged 7 new failures)
 
 
 **Last Updated**: 2025-10-25 (merged 7 new failures)
@@ -105,6 +108,84 @@ export func main() -> () ! {IO} {
   printResult(r2)
 }
 ```
+
+
+### Additional Examples (Latest Analysis)
+
+**Error 1:**
+```
+Error: execution failed: builtin eq_Int expects Int arguments
+
+```
+
+**Generated Code:**
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func divide(a: float, b: float) -> Option[float] {
+  if b == 0.0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[float]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = divide(10.0, 2.0);
+  printResult(r1);
+  let r2 = divide(10.0, 0.0);
+  printResult(r2)
+}
+```
+
+---
+
+**Error 2:**
+```
+Error: execution failed: effect 'IO' requires capability, but none provided
+Hint: Run with --caps IO
+
+```
+
+**Generated Code:**
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func divide(a: float, b: float) -> Option[float] {
+  if b == 0.0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[float]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = divide(10.0, 2.0);
+  printResult(r1);
+  let r2 = divide(10.0, 0.0);
+  printResult(r2)
+}
+```
+
+---
 
 
 ### Additional Examples (Latest Analysis)

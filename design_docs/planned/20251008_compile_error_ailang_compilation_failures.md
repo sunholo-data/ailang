@@ -1,7 +1,7 @@
 # AILANG: Compilation Failures
 
 **Discovered**: AI Eval Analysis - 2025-10-08
-**Frequency**: 24 failures across 5 benchmark(s)
+**Frequency**: 36 failures across 5 benchmark(s)
 **Priority**: P0 (Critical - Must Ship)
 **Estimated**:  LOC, 
 **Category**: compile_error
@@ -11,6 +11,9 @@
 
 
 
+
+
+**Last Updated**: 2025-10-25 (merged 12 new failures)
 
 
 **Last Updated**: 2025-10-25 (merged 12 new failures)
@@ -129,6 +132,81 @@ export func main() -> () ! {IO} {
   fizzbuzz(1, 100)
 }
 ```
+
+
+### Additional Examples (Latest Analysis)
+
+**Error 1:**
+```
+Error: module loading error: failed to load benchmark/solution.ail (search trace: [Loading module: benchmark/solution.ail]): parse errors in benchmark/solution.ail: [PAR_UNEXPECTED_TOKEN at benchmark/solution.ail:1:13: expected =, got { PAR_NO_PREFIX_PARSE at benchmark/solution.ail:4:1: unexpected token in expression: } PAR_UNEXPECTED_TOKEN at benchmark/solution.ail:7:13: expected next token to be then, got { instead expected ; or }, got IDENT PAR_UNEXPECTED_TOKEN at benchmark/solution.ail:8:12:...
+```
+
+**Generated Code:**
+```ailang
+type Option {
+  Some(value)
+  None
+}
+
+fn divide(a, b) {
+  if b == 0 {
+    return Option::None
+  } else {
+    return Option::Some(a / b)
+  }
+}
+
+fn print_result(opt) {
+  match opt {
+    Option::Some(value) => print("Result: " + str(value))
+    Option::None => print("Error: Division by zero")
+  }
+}
+
+let result1 = divide(10, 2)
+print_result(result1)
+
+let result2 = divide(10, 0)
+print_result(result2)
+```
+
+---
+
+**Error 2:**
+```
+Error: module loading error: failed to load benchmark/solution.ail (search trace: [Loading module: benchmark/solution.ail]): parse errors in benchmark/solution.ail: [expected ; or }, got , PAR_NO_PREFIX_PARSE at benchmark/solution.ail:2:16: unexpected token in expression: , PAR_NO_PREFIX_PARSE at benchmark/solution.ail:4:1: unexpected token in expression: } PAR_UNEXPECTED_TOKEN at benchmark/solution.ail:7:15: expected next token to be then, got { instead expected ; or }, got IDENT PAR_UNEXPECTED...
+```
+
+**Generated Code:**
+```ailang
+enum Option {
+    Some(value),
+    None
+}
+
+fn divide(a, b) {
+    if b == 0 {
+        return Option::None
+    } else {
+        return Option::Some(a / b)
+    }
+}
+
+fn print_result(opt) {
+    match opt {
+        Option::Some(value) => print("Result: " + value),
+        Option::None => print("Error: Division by zero")
+    }
+}
+
+let result1 = divide(10, 2)
+print_result(result1)
+
+let result2 = divide(10, 0)
+print_result(result2)
+```
+
+---
 
 
 ### Additional Examples (Latest Analysis)

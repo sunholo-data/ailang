@@ -486,8 +486,8 @@ eval: build
 	@$(BUILD_DIR)/$(BINARY) eval --benchmark fizzbuzz --mock
 
 eval-suite: build
-	@echo "Running full benchmark suite (all models)..."
-	@bash tools/run_benchmark_suite.sh
+	@echo "Running full benchmark suite (all models, parallel)..."
+	@$(BUILD_DIR)/$(BINARY) eval-suite
 
 eval-models: build
 	@echo "Available models:"
@@ -495,7 +495,8 @@ eval-models: build
 
 eval-report:
 	@echo "Generating evaluation report..."
-	@bash tools/report_eval.sh
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	$(BUILD_DIR)/$(BINARY) eval-report eval_results/ $$VERSION --format=md
 
 eval-clean:
 	@echo "Cleaning evaluation results..."
@@ -589,7 +590,11 @@ eval-validate-fix: build
 		echo "  make eval-validate-fix BENCH=float_eq BASELINE=v0.3.0-alpha5"; \
 		exit 1; \
 	fi
-	@./tools/eval_validate_fix.sh "$(BENCH)" "$(BASELINE)"
+	@if [ -z "$(BASELINE)" ]; then \
+		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)"; \
+	else \
+		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)" "$(BASELINE)"; \
+	fi
 
 eval-summary:
 	@if [ -z "$(DIR)" ]; then \
