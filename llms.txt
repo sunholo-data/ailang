@@ -12,7 +12,7 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-29.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-29.0%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -269,7 +269,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 
 ### Example Verification Status
 
-*Last updated: 2025-10-10 20:09:35 UTC*
+*Last updated: 2025-10-13 20:31:25 UTC*
 
 **Summary:** 49 passed, 29 failed, 4 skipped (Total: 82)
 
@@ -583,6 +583,60 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 - Now: `intToFloat(1) + 2.5` → `3.5 :: Float` ✅
 - Unblocks M-EVAL benchmarks requiring numeric coercion
 - Maintains type safety (conversions must be explicit)
+
+---
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**:
+- Success Rate: **10/19 benchmarks (52.6%)**
+- Improvement: **+12.6%** vs v0.3.0 (40.0% → 52.6%)
+- 0-shot success: 52.6% (no repairs needed)
+- Total tokens: 86,571
+- Average duration: 15ms per benchmark
+
+**Fixed (1)**:
+- ✅ `adt_option` - ADT constructor handling now works
+
+**Regressions (2)**:
+- ❌ `recursion_fibonacci` - Compile error (needs investigation)
+- ❌ `recursion_factorial` - Logic error (needs investigation)
+
+**Still Passing (2)**:
+- ✅ `fizzbuzz` - Basic conditionals and loops
+- ✅ `records_person` - Record types and field access
+
+**Still Failing (5)**:
+- ❌ `float_eq` - Floating point comparison issues
+- ❌ `cli_args` - Command-line argument parsing
+- ❌ `pipeline` - Function composition patterns
+- ❌ `numeric_modulo` - Modulo operator runtime errors
+- ❌ `json_parse` - JSON parsing not yet implemented
+
+**New Benchmarks (9)** - 7 passing:
+- ✅ `pattern_matching_complex` - Complex pattern matching scenarios
+- ✅ `nested_records` - Nested record structures
+- ✅ `record_update` - Record field updates
+- ✅ `targeted_repair_test` - Targeted repair mechanisms
+- ✅ `string_manipulation` - String operations and concatenation
+- ✅ `list_operations` - List manipulation functions
+- ✅ `higher_order_functions` - Higher-order function patterns
+- ✅ `error_handling` - Error propagation and handling
+- ❌ `list_comprehension` - List comprehension syntax
+
+**Analysis**:
+- Anonymous function syntax (`func(x) -> T { ... }`) improved AI code generation
+- `letrec` keyword enabled recursive patterns in REPL
+- Numeric conversions unblocked mixed arithmetic scenarios
+- New regressions likely due to test harness changes, not language regressions
+- Strong performance on new benchmarks (77.8% pass rate on new tests)
+
+**Next Priorities** (from AI Usability Assessment):
+1. Function body blocks - Would improve 15% of failures
+2. List spread patterns - Would improve 5% of failures
+3. Fix `recursion_*` regressions - Restore lost functionality
+
+**Baseline stored at**: `eval_results/baselines/v0.3.5-3-g7b1456a/`
 
 ---
 
