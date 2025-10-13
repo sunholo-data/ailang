@@ -18,7 +18,7 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.4 (REPL Stabilization + Browser Playground)
+## Current Version: v0.3.5 (Functional Completeness)
 
 **🎯 What Works**: Full module execution, **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
@@ -474,6 +474,117 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 # CHANGELOG
 
 # AILANG Changelog
+
+## [v0.3.5] - 2025-10-13 - Functional Completeness Sprint
+
+### Added - P0: Anonymous Function Syntax (2025-10-13)
+
+**Func Expressions**: Inline function syntax now works in all expression positions.
+- New syntax: `func(x: int) -> int { x * 2 }` alongside existing `\x. x * 2`
+- Multi-param: `func(x: int, y: int) -> int { x + y }`
+- Effects: `func() -> () ! {IO} { println("hi") }`
+- Type inference: `func(x, y) { x + y }` (types optional)
+- Backward compatible: Old `func(x) => body` syntax still works
+
+**Implementation** (`internal/ast/`, `internal/parser/`, `internal/elaborate/`)
+- AST: New `FuncLit` node with params, return type, effects, body (~40 LOC)
+- Parser: `parseLambda` detects `->` vs `=>` to choose syntax (~120 LOC)
+  - Adds `parseFuncLitWithParams` helper
+  - Adds `parseBlockOrExpression` for brace bodies
+- Elaborate: `normalizeFuncLit` desugars to `core.Lambda` (~35 LOC)
+- SCC: Handle `FuncLit` in `findReferences` (~5 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- REPL: `let f = func(x: int) -> int { x * 2 } in f(5)` → `10`
+- Higher-order: `apply(func(n: int) -> int { n * 2 })(5)` → `10`
+
+**Files Modified**:
+- `internal/ast/ast.go` (+40 LOC) - Add FuncLit node
+- `internal/parser/parser.go` (+120 LOC) - Parse func expressions
+- `internal/elaborate/elaborate.go` (+35 LOC) - Desugar FuncLit → Lambda
+- `internal/elaborate/scc.go` (+5 LOC) - Handle FuncLit in call graph
+
+**Total**: ~200 LOC
+
+**Impact**: Unblocks 15/90 M-EVAL benchmarks (all higher-order function code)
+- `higher_order_functions` benchmark now parseable
+- `pipeline` benchmark now parseable
+- AI models can use familiar `func(x) { ... }` syntax
+
+---
+
+### Added - P1a: letrec Keyword for Recursive Lambdas (2025-10-13)
+
+**Recursive Functions in REPL**: New `letrec` keyword enables recursive function definitions.
+- Syntax: `letrec name = value in body` (name is in scope in value)
+- Works with lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in fib(10)`
+- Desugars to existing `core.LetRec` (single-binding case)
+
+**Implementation** (`internal/lexer/`, `internal/ast/`, `internal/parser/`, `internal/elaborate/`)
+- Lexer: Add `LETREC` token to keywords (~10 LOC)
+- AST: Add `LetRec` surface node (~20 LOC)
+- Parser: Add `parseLetRecExpression` (~45 LOC)
+- Elaborate: Add `normalizeLetRec` desugaring (~35 LOC)
+  - Handles REPL case (body = nil → returns Unit)
+- SCC: Handle `LetRec` in `findReferences` (~5 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- Fibonacci: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in fib(10)` → `55`
+- Factorial: `letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in factorial(5)` → `120`
+- Sum: `letrec sum = \n. if n == 0 then 0 else n + sum(n - 1) in sum(100)` → `5050`
+
+**Files Modified**:
+- `internal/lexer/token.go` (+3 LOC) - Add LETREC token
+- `internal/ast/ast.go` (+20 LOC) - Add LetRec node
+- `internal/parser/parser.go` (+45 LOC) - Parse letrec expressions
+- `internal/elaborate/elaborate.go` (+35 LOC) - Elaborate LetRec → core.LetRec
+- `internal/elaborate/scc.go` (+5 LOC) - Handle LetRec in call graph
+
+**Total**: ~115 LOC (less than estimated, reused existing core.LetRec)
+
+**Impact**: Enables recursive functions in REPL without module syntax
+- Previously: `let fib = \n. ... fib(...) → Error: undefined variable fib`
+- Now: `letrec fib = \n. ... fib(...) → Works! ✅`
+- Unblocks REPL experimentation with recursive algorithms
+
+---
+
+### Added - P1b: Numeric Conversion Builtins (2025-10-13)
+
+**Type Conversion Functions**: Add `intToFloat` and `floatToInt` for numeric type conversions.
+- Syntax: `intToFloat(1)` → `1.0`, `floatToInt(3.9)` → `3`
+- Pure functions (no effects)
+- Available directly in all modules (no import needed)
+- `floatToInt` truncates towards zero (standard Go behavior)
+
+**Implementation** (`internal/builtins/`, `internal/eval/`)
+- Builtins Registry: Add metadata for conversion functions (~5 LOC)
+- Runtime: Implement `intToFloat` and `floatToInt` (~20 LOC)
+  - `intToFloat`: `func(IntValue) FloatValue`
+  - `floatToInt`: `func(FloatValue) IntValue` (truncates)
+- CallBuiltin: Add type handlers for Int→Float and Float→Int (~15 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- Type checking: `intToFloat(1) + 2.5` compiles as `Float`
+- Type checking: `floatToInt(3.9)` compiles as `Int`
+- Functions resolve automatically (builtin registry)
+
+**Files Modified**:
+- `internal/builtins/registry.go` (+5 LOC) - Add conversion metadata
+- `internal/eval/builtins.go` (+35 LOC) - Implement conversions + type handlers
+
+**Total**: ~50 LOC (much less than estimated - no stdlib wrappers needed)
+
+**Impact**: Enables mixed int/float arithmetic via explicit conversion
+- Previously: `let x = 1 in x + 2.5` → Type error (can't mix Int and Float)
+- Now: `intToFloat(1) + 2.5` → `3.5 :: Float` ✅
+- Unblocks M-EVAL benchmarks requiring numeric coercion
+- Maintains type safety (conversions must be explicit)
+
+---
 
 ## [v0.3.4] - 2025-10-10
 
