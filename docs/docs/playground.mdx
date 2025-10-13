@@ -47,14 +47,14 @@ Define and use variables:
 let double = \x. x * 2 in double(21)
 ```
 
-### 🎯 Pattern Matching & Recursion
-Calculate Fibonacci numbers:
+### 🔁 Higher-Order Functions
+Compose and apply functions:
 ```
-let fib = \n.
-  if n < 2 then n
-  else fib(n - 1) + fib(n - 2)
-in fib(10)
+let double = \x. x * 2 in
+let triple = \x. x * 3 in
+double(5) + triple(4)
 ```
+*Note: Recursive lambdas are not supported in REPL - use module functions instead*
 
 ### 🔢 Type Classes
 AILANG supports Haskell-style type classes:
