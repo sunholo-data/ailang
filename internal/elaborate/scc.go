@@ -156,6 +156,12 @@ func findReferences(expr ast.Expr) []string {
 		// Body has ex.Name in scope, filter it out later if needed
 		refs = append(refs, findReferences(ex.Body)...)
 
+	case *ast.LetRec:
+		// Value might reference functions (including itself for recursion)
+		refs = append(refs, findReferences(ex.Value)...)
+		// Body has ex.Name in scope
+		refs = append(refs, findReferences(ex.Body)...)
+
 	case *ast.Lambda:
 		// Lambda body might reference functions
 		refs = append(refs, findReferences(ex.Body)...)

@@ -544,6 +544,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Let:
 		return e.normalizeLet(ex)
 
+	case *ast.LetRec:
+		return e.normalizeLetRec(ex)
+
 	case *ast.Block:
 		return e.normalizeBlock(ex)
 
@@ -865,6 +868,42 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			Body:     body,
 		}, nil
 	}
+}
+
+// normalizeLetRec handles recursive let bindings
+// Syntax: letrec name = value in body
+func (e *Elaborator) normalizeLetRec(letrec *ast.LetRec) (core.CoreExpr, error) {
+	// Normalize value (which can reference the name being bound)
+	value, err := e.normalize(letrec.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle missing body (REPL case)
+	if letrec.Body == nil {
+		// Return a LetRec that binds the value but returns Unit
+		return &core.LetRec{
+			CoreNode: e.makeNode(letrec.Position()),
+			Bindings: []core.RecBinding{{Name: letrec.Name, Value: value}},
+			Body: &core.Lit{
+				CoreNode: e.makeNode(letrec.Position()),
+				Kind:     core.UnitLit,
+				Value:    "()",
+			},
+		}, nil
+	}
+
+	// Normal case: letrec with body
+	body, err := e.normalize(letrec.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.LetRec{
+		CoreNode: e.makeNode(letrec.Position()),
+		Bindings: []core.RecBinding{{Name: letrec.Name, Value: value}},
+		Body:     body,
+	}, nil
 }
 
 // normalizeBlock converts a block of semicolon-separated expressions

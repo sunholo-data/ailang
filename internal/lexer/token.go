@@ -22,6 +22,7 @@ const (
 	FUNC
 	PURE
 	LET
+	LETREC
 	IN
 	IF
 	THEN
@@ -127,6 +128,7 @@ var tokens = map[TokenType]string{
 	FUNC:       "func",
 	PURE:       "pure",
 	LET:        "let",
+	LETREC:     "letrec",
 	IN:         "in",
 	IF:         "if",
 	THEN:       "then",
@@ -224,6 +226,7 @@ var keywords = map[string]TokenType{
 	"func":       FUNC,
 	"pure":       PURE,
 	"let":        LET,
+	"letrec":     LETREC,
 	"in":         IN,
 	"if":         IF,
 	"then":       THEN,

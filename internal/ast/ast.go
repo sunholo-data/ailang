@@ -258,6 +258,23 @@ func (l *Let) String() string {
 func (l *Let) Position() Pos { return l.Pos }
 func (l *Let) exprNode()     {}
 
+// LetRec represents a recursive let binding
+// Syntax: letrec name = value in body
+// The name is in scope in the value expression (for recursion)
+type LetRec struct {
+	Name  string
+	Type  Type // Optional type annotation
+	Value Expr
+	Body  Expr
+	Pos   Pos
+}
+
+func (l *LetRec) String() string {
+	return fmt.Sprintf("(letrec %s = %s in %s)", l.Name, l.Value, l.Body)
+}
+func (l *LetRec) Position() Pos { return l.Pos }
+func (l *LetRec) exprNode()     {}
+
 // Block represents a sequence of expressions separated by semicolons
 // The last expression is the return value, others are evaluated for effects
 type Block struct {

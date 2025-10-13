@@ -117,6 +117,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.BANG, p.parsePrefixExpression)
 	p.registerPrefix(lexer.IF, p.parseIfExpression)
 	p.registerPrefix(lexer.LET, p.parseLetExpression)
+	p.registerPrefix(lexer.LETREC, p.parseLetRecExpression)
 	p.registerPrefix(lexer.MATCH, p.parseMatchExpression)
 	p.registerPrefix(lexer.FUNC, p.parseLambda)
 	p.registerPrefix(lexer.PURE, p.parsePureLambda)
@@ -1100,6 +1101,50 @@ func (p *Parser) parseLetExpression() ast.Expr {
 	}
 
 	return let
+}
+
+func (p *Parser) parseLetRecExpression() ast.Expr {
+	letrec := &ast.LetRec{
+		Pos: p.curPos(),
+	}
+
+	if !p.expectPeek(lexer.IDENT) {
+		return nil
+	}
+	letrec.Name = p.curToken.Literal
+
+	// Optional type annotation
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken()
+		p.nextToken()
+		letrec.Type = p.parseType()
+		if letrec.Type == nil {
+			// If type parsing failed, continue anyway
+			letrec.Type = &ast.SimpleType{Name: "unknown", Pos: p.curPos()}
+		}
+	}
+
+	if !p.expectPeek(lexer.ASSIGN) {
+		return letrec // Return partial AST
+	}
+	p.nextToken()
+	letrec.Value = p.parseExpression(LOWEST)
+	if letrec.Value == nil {
+		// If value parsing failed, create error node
+		letrec.Value = &ast.Error{Pos: p.curPos()}
+	}
+
+	if p.peekTokenIs(lexer.IN) {
+		p.nextToken()
+		p.nextToken()
+		letrec.Body = p.parseExpression(LOWEST)
+		if letrec.Body == nil {
+			// If body parsing failed, create error node
+			letrec.Body = &ast.Error{Pos: p.curPos()}
+		}
+	}
+
+	return letrec
 }
 
 func (p *Parser) parseMatchExpression() ast.Expr {
