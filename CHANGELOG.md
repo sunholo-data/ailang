@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased] - v0.3.5 Sprint: Functional Completeness
+## [v0.3.5] - 2025-10-13 - Functional Completeness Sprint
 
 ### Added - P0: Anonymous Function Syntax (2025-10-13)
 

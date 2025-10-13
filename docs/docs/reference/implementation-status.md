@@ -1,6 +1,6 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.0 (Clock & Net Effects + Type System Fixes)
+## Current Version: v0.3.5 (Functional Completeness)
 
 ## Test Coverage: 27.7%
 
