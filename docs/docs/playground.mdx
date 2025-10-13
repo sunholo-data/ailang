@@ -56,12 +56,12 @@ double(5) + triple(4)
 ```
 *Note: Recursive lambdas are not supported in REPL - use module functions instead*
 
-### 🔢 Type Classes
-AILANG supports Haskell-style type classes:
+### 🔢 Type Inference
+AILANG infers types automatically:
 ```
-1 + 2.5
+let add = \x. \y. x + y in add(1)(2)
 ```
-*Note: This will trigger automatic type defaulting*
+*Note: Numeric operations require matching types (both Int or both Float)*
 
 ## REPL Commands
 
