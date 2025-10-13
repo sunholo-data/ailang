@@ -39,6 +39,43 @@
 
 ---
 
+### Added - P1a: letrec Keyword for Recursive Lambdas (2025-10-13)
+
+**Recursive Functions in REPL**: New `letrec` keyword enables recursive function definitions.
+- Syntax: `letrec name = value in body` (name is in scope in value)
+- Works with lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in fib(10)`
+- Desugars to existing `core.LetRec` (single-binding case)
+
+**Implementation** (`internal/lexer/`, `internal/ast/`, `internal/parser/`, `internal/elaborate/`)
+- Lexer: Add `LETREC` token to keywords (~10 LOC)
+- AST: Add `LetRec` surface node (~20 LOC)
+- Parser: Add `parseLetRecExpression` (~45 LOC)
+- Elaborate: Add `normalizeLetRec` desugaring (~35 LOC)
+  - Handles REPL case (body = nil → returns Unit)
+- SCC: Handle `LetRec` in `findReferences` (~5 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- Fibonacci: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in fib(10)` → `55`
+- Factorial: `letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in factorial(5)` → `120`
+- Sum: `letrec sum = \n. if n == 0 then 0 else n + sum(n - 1) in sum(100)` → `5050`
+
+**Files Modified**:
+- `internal/lexer/token.go` (+3 LOC) - Add LETREC token
+- `internal/ast/ast.go` (+20 LOC) - Add LetRec node
+- `internal/parser/parser.go` (+45 LOC) - Parse letrec expressions
+- `internal/elaborate/elaborate.go` (+35 LOC) - Elaborate LetRec → core.LetRec
+- `internal/elaborate/scc.go` (+5 LOC) - Handle LetRec in call graph
+
+**Total**: ~115 LOC (less than estimated, reused existing core.LetRec)
+
+**Impact**: Enables recursive functions in REPL without module syntax
+- Previously: `let fib = \n. ... fib(...) → Error: undefined variable fib`
+- Now: `letrec fib = \n. ... fib(...) → Works! ✅`
+- Unblocks REPL experimentation with recursive algorithms
+
+---
+
 ## [v0.3.4] - 2025-10-10
 
 ### Added - REPL Stabilization
