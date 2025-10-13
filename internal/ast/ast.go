@@ -193,6 +193,39 @@ func (l *Lambda) String() string {
 func (l *Lambda) Position() Pos { return l.Pos }
 func (l *Lambda) exprNode()     {}
 
+// FuncLit represents an anonymous function literal (func expression)
+// Syntax: func(x: int, y: int) -> int { x + y }
+// This desugars to Lambda in the elaboration phase
+type FuncLit struct {
+	Params     []*Param
+	ReturnType Type     // Optional return type annotation
+	Effects    []string // Effect annotations
+	Body       Expr
+	Pos        Pos
+}
+
+func (f *FuncLit) String() string {
+	params := []string{}
+	for _, p := range f.Params {
+		if p.Type != nil {
+			params = append(params, fmt.Sprintf("%s: %s", p.Name, p.Type))
+		} else {
+			params = append(params, p.Name)
+		}
+	}
+	retType := ""
+	if f.ReturnType != nil {
+		retType = fmt.Sprintf(" -> %s", f.ReturnType)
+	}
+	effects := ""
+	if len(f.Effects) > 0 {
+		effects = fmt.Sprintf(" ! {%s}", strings.Join(f.Effects, ", "))
+	}
+	return fmt.Sprintf("func(%s)%s%s { %s }", strings.Join(params, ", "), retType, effects, f.Body)
+}
+func (f *FuncLit) Position() Pos { return f.Pos }
+func (f *FuncLit) exprNode()     {}
+
 // FuncCall represents a function application
 type FuncCall struct {
 	Func Expr

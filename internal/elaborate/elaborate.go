@@ -529,6 +529,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Lambda:
 		return e.normalizeLambda(ex)
 
+	case *ast.FuncLit:
+		return e.normalizeFuncLit(ex)
+
 	case *ast.BinaryOp:
 		return e.normalizeBinaryOp(ex)
 
@@ -624,6 +627,41 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 			return nil, fmt.Errorf("invalid effect annotation: %w", err)
 		}
 		e.effectAnnots[coreLam.ID()] = lam.Effects
+	}
+
+	return coreLam, nil
+}
+
+// normalizeFuncLit handles function literal expressions (func(x) -> T { body })
+// Desugars to Lambda: func(x: int) -> int { x + 1 } ≡ \x. x + 1
+func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, error) {
+	// Extract parameter names (type annotations are handled by type checker)
+	params := make([]string, len(funcLit.Params))
+	for i, p := range funcLit.Params {
+		params[i] = p.Name
+	}
+
+	// Normalize body
+	body, err := e.normalize(funcLit.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Core Lambda node
+	coreLam := &core.Lambda{
+		CoreNode: e.makeNode(funcLit.Position()),
+		Params:   params,
+		Body:     body,
+	}
+
+	// Store effect annotations if present
+	if len(funcLit.Effects) > 0 {
+		// Validate and normalize effect names
+		_, err := types.ElaborateEffectRow(funcLit.Effects)
+		if err != nil {
+			return nil, fmt.Errorf("invalid effect annotation: %w", err)
+		}
+		e.effectAnnots[coreLam.ID()] = funcLit.Effects
 	}
 
 	return coreLam, nil

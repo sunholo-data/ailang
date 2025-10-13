@@ -160,6 +160,10 @@ func findReferences(expr ast.Expr) []string {
 		// Lambda body might reference functions
 		refs = append(refs, findReferences(ex.Body)...)
 
+	case *ast.FuncLit:
+		// FuncLit body might reference functions (same as Lambda)
+		refs = append(refs, findReferences(ex.Body)...)
+
 	case *ast.FuncCall:
 		refs = append(refs, findReferences(ex.Func)...)
 		for _, arg := range ex.Args {

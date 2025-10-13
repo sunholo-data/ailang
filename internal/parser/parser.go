@@ -1158,26 +1158,124 @@ func (p *Parser) parseCase() *ast.Case {
 }
 
 func (p *Parser) parseLambda() ast.Expr {
-	lambda := &ast.Lambda{
-		Pos: p.curPos(),
+	pos := p.curPos()
+
+	// Expect opening parenthesis
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
 	}
 
-	p.expectPeek(lexer.LPAREN)
-	lambda.Params = p.parseParams()
+	// Parse parameters
+	params := p.parseParams()
 
-	// Parse return type and effects if present
+	// Check which syntax we're using:
+	// - func(x) -> type { body }  (new FuncLit syntax)
+	// - func(x) => body           (old Lambda syntax)
+
 	if p.peekTokenIs(lexer.ARROW) {
+		// New FuncLit syntax: func(x: int) -> int { body }
+		return p.parseFuncLitWithParams(pos, params)
+	} else if p.peekTokenIs(lexer.FARROW) {
+		// Old Lambda syntax: func(x) => body
+		lambda := &ast.Lambda{
+			Pos:    pos,
+			Params: params,
+		}
+		p.nextToken() // consume =>
 		p.nextToken()
-		p.nextToken()
-		// Parse return type
-		// Parse effects if present
+		lambda.Body = p.parseExpression(LOWEST)
+		return lambda
+	} else {
+		p.errors = append(p.errors, fmt.Errorf("expected '->' or '=>' after function parameters at %s", p.peekToken.Position()))
+		return nil
+	}
+}
+
+// parseFuncLitWithParams parses the rest of a function literal after params have been parsed
+// Syntax: (already parsed: func(params)) -> returnType ! {effects} { body }
+func (p *Parser) parseFuncLitWithParams(pos ast.Pos, params []*ast.Param) ast.Expr {
+	funcLit := &ast.FuncLit{
+		Pos:    pos,
+		Params: params,
 	}
 
-	p.expectPeek(lexer.FARROW)
-	p.nextToken()
-	lambda.Body = p.parseExpression(LOWEST)
+	// Consume '->'
+	if !p.expectPeek(lexer.ARROW) {
+		return nil
+	}
+	p.nextToken() // move to return type
 
-	return lambda
+	// Parse return type
+	funcLit.ReturnType = p.parseType()
+
+	// Parse optional effect annotation: func() -> int ! {IO}
+	if p.peekTokenIs(lexer.BANG) {
+		p.nextToken() // move to BANG
+		funcLit.Effects = p.parseEffectAnnotation()
+	}
+
+	// Expect body in braces: { expr }
+	if !p.expectPeek(lexer.LBRACE) {
+		p.errors = append(p.errors, fmt.Errorf("expected '{' for function body at %s", p.peekToken.Position()))
+		return nil
+	}
+
+	// Parse body as a block or expression
+	funcLit.Body = p.parseBlockOrExpression()
+
+	return funcLit
+}
+
+// parseBlockOrExpression parses either a block { e1; e2; e3 } or a single expression
+// This is called when we're at the opening LBRACE
+func (p *Parser) parseBlockOrExpression() ast.Expr {
+	// We're at LBRACE
+	startPos := p.curPos()
+	p.nextToken() // consume LBRACE
+
+	// Check for empty block: {}
+	if p.curTokenIs(lexer.RBRACE) {
+		// Empty block returns unit
+		return &ast.Literal{
+			Kind:  ast.UnitLit,
+			Value: nil,
+			Pos:   startPos,
+		}
+	}
+
+	// Parse expressions separated by semicolons
+	exprs := []ast.Expr{}
+	exprs = append(exprs, p.parseExpression(LOWEST))
+
+	// Keep parsing while we see semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // move to SEMICOLON
+		p.nextToken() // move past SEMICOLON
+
+		// Check for trailing semicolon before RBRACE
+		if p.curTokenIs(lexer.RBRACE) {
+			break
+		}
+
+		exprs = append(exprs, p.parseExpression(LOWEST))
+	}
+
+	// Expect closing brace
+	if !p.expectPeek(lexer.RBRACE) {
+		p.errors = append(p.errors, fmt.Errorf("expected '}' to close function body at %s", p.peekToken.Position()))
+		return nil
+	}
+
+	// If single expression, return it directly (not as block)
+	if len(exprs) == 1 {
+		return exprs[0]
+	}
+
+	// Multiple expressions: return as block
+	return &ast.Block{
+		Exprs: exprs,
+		Pos:   startPos,
+	}
 }
 
 func (p *Parser) parsePureLambda() ast.Expr {
