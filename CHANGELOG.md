@@ -1,5 +1,44 @@
 # AILANG Changelog
 
+## [Unreleased] - v0.3.5 Sprint: Functional Completeness
+
+### Added - P0: Anonymous Function Syntax (2025-10-13)
+
+**Func Expressions**: Inline function syntax now works in all expression positions.
+- New syntax: `func(x: int) -> int { x * 2 }` alongside existing `\x. x * 2`
+- Multi-param: `func(x: int, y: int) -> int { x + y }`
+- Effects: `func() -> () ! {IO} { println("hi") }`
+- Type inference: `func(x, y) { x + y }` (types optional)
+- Backward compatible: Old `func(x) => body` syntax still works
+
+**Implementation** (`internal/ast/`, `internal/parser/`, `internal/elaborate/`)
+- AST: New `FuncLit` node with params, return type, effects, body (~40 LOC)
+- Parser: `parseLambda` detects `->` vs `=>` to choose syntax (~120 LOC)
+  - Adds `parseFuncLitWithParams` helper
+  - Adds `parseBlockOrExpression` for brace bodies
+- Elaborate: `normalizeFuncLit` desugars to `core.Lambda` (~35 LOC)
+- SCC: Handle `FuncLit` in `findReferences` (~5 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- REPL: `let f = func(x: int) -> int { x * 2 } in f(5)` → `10`
+- Higher-order: `apply(func(n: int) -> int { n * 2 })(5)` → `10`
+
+**Files Modified**:
+- `internal/ast/ast.go` (+40 LOC) - Add FuncLit node
+- `internal/parser/parser.go` (+120 LOC) - Parse func expressions
+- `internal/elaborate/elaborate.go` (+35 LOC) - Desugar FuncLit → Lambda
+- `internal/elaborate/scc.go` (+5 LOC) - Handle FuncLit in call graph
+
+**Total**: ~200 LOC
+
+**Impact**: Unblocks 15/90 M-EVAL benchmarks (all higher-order function code)
+- `higher_order_functions` benchmark now parseable
+- `pipeline` benchmark now parseable
+- AI models can use familiar `func(x) { ... }` syntax
+
+---
+
 ## [v0.3.4] - 2025-10-10
 
 ### Added - REPL Stabilization
