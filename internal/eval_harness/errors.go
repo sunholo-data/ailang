@@ -80,11 +80,11 @@ var Rules = []errorRule{
 	},
 	{
 		CAP_001,
-		regexp.MustCompile(`effect '(\w+)' requires capability|closed row missing labels: \[(IO|FS|Clock|Net)`),
+		regexp.MustCompile(`no effect context available|effect '(\w+)' requires capability|closed row missing labels: \[(IO|FS|Clock|Net)`),
 		RepairHint{
 			Title: "Missing capability",
 			Why:   "Effect calls require explicit capabilities at runtime.",
-			How:   "Declare effects in function signature: `f : T -> U <IO, FS>`, and the eval harness will pass `--caps IO,FS` automatically.",
+			How:   "Declare effects in function signature with explicit type annotation: `let main : Unit -> Unit <IO> = \\() -> { println(...) }`. The type annotation is REQUIRED for effects.",
 		},
 	},
 	{

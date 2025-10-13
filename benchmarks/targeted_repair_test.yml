@@ -1,0 +1,34 @@
+id: targeted_repair_test
+description: "Targeted test to validate repair mechanism works"
+languages: ["ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "trivial"
+expected_gain: "high"
+task_prompt: |
+  Write an AILANG program that computes 2 + 2 and prints the result.
+
+  AILANG Syntax Guide (IMPORTANT - Follow exactly):
+  - Module declaration: Not needed for single-file programs
+  - Import: `import std/io (println)`
+  - Function: `let main = { println(4) }` OR `let main = println(4)`
+  - Numbers: Just write them: 1, 2, 42
+  - Arithmetic: Use infix: 2 + 2
+  - Print: Use `println(expr)`
+  - Block syntax: If you need multiple statements: `{ stmt1; stmt2; result }`
+    CRITICAL: Semicolons BETWEEN statements, NOT after the last one
+  - Let binding: `let x = expr in body` OR for top-level: `let x = expr`
+
+  Example AILANG program:
+  ```
+  import std/io (println)
+
+  let main = {
+    let result = 2 + 2;
+    println(result)
+  }
+  ```
+
+  Write EXACTLY this style. Output only the code.
+expected_stdout: |
+  4
