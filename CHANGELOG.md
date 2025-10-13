@@ -76,6 +76,41 @@
 
 ---
 
+### Added - P1b: Numeric Conversion Builtins (2025-10-13)
+
+**Type Conversion Functions**: Add `intToFloat` and `floatToInt` for numeric type conversions.
+- Syntax: `intToFloat(1)` → `1.0`, `floatToInt(3.9)` → `3`
+- Pure functions (no effects)
+- Available directly in all modules (no import needed)
+- `floatToInt` truncates towards zero (standard Go behavior)
+
+**Implementation** (`internal/builtins/`, `internal/eval/`)
+- Builtins Registry: Add metadata for conversion functions (~5 LOC)
+- Runtime: Implement `intToFloat` and `floatToInt` (~20 LOC)
+  - `intToFloat`: `func(IntValue) FloatValue`
+  - `floatToInt`: `func(FloatValue) IntValue` (truncates)
+- CallBuiltin: Add type handlers for Int→Float and Float→Int (~15 LOC)
+
+**Tests**
+- All existing tests pass ✅
+- Type checking: `intToFloat(1) + 2.5` compiles as `Float`
+- Type checking: `floatToInt(3.9)` compiles as `Int`
+- Functions resolve automatically (builtin registry)
+
+**Files Modified**:
+- `internal/builtins/registry.go` (+5 LOC) - Add conversion metadata
+- `internal/eval/builtins.go` (+35 LOC) - Implement conversions + type handlers
+
+**Total**: ~50 LOC (much less than estimated - no stdlib wrappers needed)
+
+**Impact**: Enables mixed int/float arithmetic via explicit conversion
+- Previously: `let x = 1 in x + 2.5` → Type error (can't mix Int and Float)
+- Now: `intToFloat(1) + 2.5` → `3.5 :: Float` ✅
+- Unblocks M-EVAL benchmarks requiring numeric coercion
+- Maintains type safety (conversions must be explicit)
+
+---
+
 ## [v0.3.4] - 2025-10-10
 
 ### Added - REPL Stabilization
