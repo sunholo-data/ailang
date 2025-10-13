@@ -21,6 +21,7 @@ var Builtins = make(map[string]*BuiltinFunc)
 func init() {
 	registerArithmeticBuiltins()
 	registerComparisonBuiltins()
+	registerConversionBuiltins()
 	registerStringBuiltins()
 	registerBooleanBuiltins()
 	registerStringPrimitiveBuiltins()
@@ -292,6 +293,28 @@ func registerComparisonBuiltins() {
 	}
 }
 
+// registerConversionBuiltins registers numeric type conversion functions
+func registerConversionBuiltins() {
+	Builtins["intToFloat"] = &BuiltinFunc{
+		Name:    "intToFloat",
+		NumArgs: 1,
+		IsPure:  true,
+		Impl: func(a *IntValue) (*FloatValue, error) {
+			return &FloatValue{Value: float64(a.Value)}, nil
+		},
+	}
+
+	Builtins["floatToInt"] = &BuiltinFunc{
+		Name:    "floatToInt",
+		NumArgs: 1,
+		IsPure:  true,
+		Impl: func(a *FloatValue) (*IntValue, error) {
+			// Truncate towards zero (standard Go conversion)
+			return &IntValue{Value: int(a.Value)}, nil
+		},
+	}
+}
+
 // registerStringBuiltins registers string operations
 func registerStringBuiltins() {
 	Builtins["concat_String"] = &BuiltinFunc{
@@ -452,6 +475,18 @@ func CallBuiltin(name string, args []Value) (Value, error) {
 			}
 			return impl(a)
 		case func(*FloatValue) (*FloatValue, error):
+			a, ok := args[0].(*FloatValue)
+			if !ok {
+				return nil, fmt.Errorf("builtin %s expects Float argument", name)
+			}
+			return impl(a)
+		case func(*IntValue) (*FloatValue, error):
+			a, ok := args[0].(*IntValue)
+			if !ok {
+				return nil, fmt.Errorf("builtin %s expects Int argument", name)
+			}
+			return impl(a)
+		case func(*FloatValue) (*IntValue, error):
 			a, ok := args[0].(*FloatValue)
 			if !ok {
 				return nil, fmt.Errorf("builtin %s expects Float argument", name)

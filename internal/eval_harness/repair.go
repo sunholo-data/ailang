@@ -63,8 +63,15 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 	metrics.ErrCode = string(errCode)
 	metrics.RepairUsed = true
 
-	// Build repair prompt
-	repairPrompt := prompt + "\n\n" + FormatRepairPrompt(errCode, hint, r.spec.ID, r.runner.Language())
+	// Build repair prompt with failed code and error context
+	repairPrompt := prompt + "\n\n" + FormatRepairPrompt(
+		errCode,
+		hint,
+		r.spec.ID,
+		r.runner.Language(),
+		firstResult.Code,
+		firstResult.RunResult.Stderr,
+	)
 
 	// Second attempt with repair guidance
 	repairResult, err := r.runSingleAttempt(ctx, repairPrompt)

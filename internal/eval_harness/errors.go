@@ -44,20 +44,20 @@ type errorRule struct {
 var Rules = []errorRule{
 	{
 		PAR_001,
-		regexp.MustCompile(`parse error.*unexpected .* near`),
+		regexp.MustCompile(`PAR_NO_PREFIX_PARSE|PAR_UNEXPECTED_TOKEN|parse errors? in|unexpected token`),
 		RepairHint{
-			Title: "Block/semicolon issue",
-			Why:   "Parser expects semicolons in `{ ... }` blocks.",
-			How:   "Add `;` between expressions inside `{}` or unwrap single-expression blocks.",
+			Title: "Parse error",
+			Why:   "AILANG syntax error - common issues: missing semicolons in blocks, wrong syntax for let/lambda/records.",
+			How:   "Check: 1) Use `{ e1; e2; e3 }` for blocks (semicolons between exprs), 2) Use `let x = expr in body` or `let x = expr; rest`, 3) Lambda: `\\x -> body` or `func(x) { body }`, 4) No `=` in function params.",
 		},
 	},
 	{
 		TC_REC_001,
-		regexp.MustCompile(`field '([^']+)' not found in record.*\{([^}]*)\}`),
+		regexp.MustCompile(`field '([^']+)' not found in record|closed row missing labels`),
 		RepairHint{
 			Title: "Record field missing",
-			Why:   "Type checker requires the field to exist.",
-			How:   "Add the field, or generalize the function type to `{ <field>: T | ρ }`.",
+			Why:   "Type checker requires the field to exist in the record.",
+			How:   "Add the missing field to the record literal, or use row polymorphism: `{ field: T | ρ }` in type annotation.",
 		},
 	},
 	{
@@ -65,7 +65,7 @@ var Rules = []errorRule{
 		regexp.MustCompile(`Float .* is not an instance of Integral|mod not defined for Float`),
 		RepairHint{
 			Title: "Modulo on Float",
-			Why:   "`%` requires `Integral` (Int).",
+			Why:   "`%` requires `Integral` (Int) type.",
 			How:   "Use integers for `%`, or use `/` and `floor` for floats.",
 		},
 	},
@@ -74,17 +74,17 @@ var Rules = []errorRule{
 		regexp.MustCompile(`Eq dictionary resolution failed|using eq_Int for Float`),
 		RepairHint{
 			Title: "Float equality dictionary",
-			Why:   "The Eq dictionary must match Float.",
+			Why:   "The Eq dictionary must match Float type.",
 			How:   "Annotate as `: float` or ensure both sides are Float.",
 		},
 	},
 	{
 		CAP_001,
-		regexp.MustCompile(`effect '(\w+)' requires capability`),
+		regexp.MustCompile(`effect '(\w+)' requires capability|closed row missing labels: \[(IO|FS|Clock|Net)`),
 		RepairHint{
 			Title: "Missing capability",
-			Why:   "Effect calls require explicit caps.",
-			How:   "Run with `--caps IO,FS,Clock,Net` (only what you need).",
+			Why:   "Effect calls require explicit capabilities at runtime.",
+			How:   "Declare effects in function signature: `f : T -> U <IO, FS>`, and the eval harness will pass `--caps IO,FS` automatically.",
 		},
 	},
 	{
@@ -92,8 +92,8 @@ var Rules = []errorRule{
 		regexp.MustCompile(`entrypoint '(\w+)' not found|module .* not found`),
 		RepairHint{
 			Title: "Entrypoint/module resolution",
-			Why:   "Runner couldn't find your export.",
-			How:   "Export a zero-arg `main`, or pass `--entry yourFunc`.",
+			Why:   "Runner couldn't find the entry point function.",
+			How:   "Export a zero-argument `main` function, the eval harness uses `--entry main`.",
 		},
 	},
 }
@@ -113,13 +113,21 @@ func CategorizeErrorCode(stderr string) (ErrCode, *RepairHint) {
 // FormatRepairPrompt creates the repair guidance injection for retry attempts.
 // This prompt is appended to the original benchmark prompt to guide the AI
 // toward fixing the specific error that occurred.
-func FormatRepairPrompt(code ErrCode, hint *RepairHint, benchmarkID, lang string) string {
-	return fmt.Sprintf(`Your previous program failed with:
+func FormatRepairPrompt(code ErrCode, hint *RepairHint, benchmarkID, lang, failedCode, stderr string) string {
+	return fmt.Sprintf(`Your previous program failed with this error:
+
+ERROR:
+%s
+
+YOUR PREVIOUS CODE:
+%s
+
+DIAGNOSIS:
 <%s>: %s
 Why: %s
 How to fix: %s
 
-Please produce a corrected %s program that compiles and runs
-for the benchmark "%s". Keep it minimal, single file,
-no extra commentary.`, code, hint.Title, hint.Why, hint.How, lang, benchmarkID)
+Please produce a corrected %s program that fixes this specific error
+for the benchmark "%s". Keep it minimal, single file, no extra commentary.`,
+		stderr, failedCode, code, hint.Title, hint.Why, hint.How, lang, benchmarkID)
 }

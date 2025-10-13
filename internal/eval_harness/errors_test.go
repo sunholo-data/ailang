@@ -15,10 +15,10 @@ func TestCategorizeErrorCode(t *testing.T) {
 	}{
 		{
 			name:      "PAR_001: Block semicolon missing",
-			stderr:    "parse error: unexpected 'println' near line 5",
+			stderr:    "PAR_NO_PREFIX_PARSE at benchmark/solution.ail:1:14: unexpected token in expression: =",
 			wantCode:  PAR_001,
 			wantHint:  true,
-			hintTitle: "Block/semicolon issue",
+			hintTitle: "Parse error",
 		},
 		{
 			name:      "TC_REC_001: Record field not found",
@@ -119,45 +119,37 @@ func TestFormatRepairPrompt(t *testing.T) {
 	tests := []struct {
 		name         string
 		code         ErrCode
-		hint         RepairHint
+		stderr       string
 		benchmarkID  string
 		lang         string
 		wantContains []string
 	}{
 		{
-			name: "PAR_001 repair prompt",
-			code: PAR_001,
-			hint: RepairHint{
-				Title: "Block/semicolon issue",
-				Why:   "Parser expects semicolons",
-				How:   "Add semicolons between expressions",
-			},
+			name:        "PAR_001 repair prompt",
+			code:        PAR_001,
+			stderr:      "PAR_NO_PREFIX_PARSE at benchmark/solution.ail:1:14: unexpected token",
 			benchmarkID: "test_blocks",
 			lang:        "ailang",
 			wantContains: []string{
 				"<PAR_001>",
-				"Block/semicolon issue",
-				"Parser expects semicolons",
-				"Add semicolons between expressions",
+				"Parse error",
+				"AILANG syntax error",
+				"semicolons",
 				"ailang program",
 				"test_blocks",
 			},
 		},
 		{
-			name: "EQ_001 repair prompt",
-			code: EQ_001,
-			hint: RepairHint{
-				Title: "Float equality",
-				Why:   "Dictionary mismatch",
-				How:   "Annotate as float",
-			},
+			name:        "EQ_001 repair prompt",
+			code:        EQ_001,
+			stderr:      "Eq dictionary resolution failed for Float",
 			benchmarkID: "float_comparison",
 			lang:        "ailang",
 			wantContains: []string{
 				"<EQ_001>",
 				"Float equality",
-				"Dictionary mismatch",
-				"Annotate as float",
+				"Eq dictionary must match",
+				"Annotate as",
 				"float_comparison",
 			},
 		},
@@ -165,7 +157,16 @@ func TestFormatRepairPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatRepairPrompt(tt.code, &tt.hint, tt.benchmarkID, tt.lang)
+			// Get the actual hint from the Rules
+			_, hint := CategorizeErrorCode(tt.stderr)
+			if hint == nil {
+				t.Fatalf("CategorizeErrorCode() returned nil hint for %s", tt.stderr)
+			}
+
+			// Provide example failed code
+			failedCode := "let x = 1\nprint(x)"
+
+			got := FormatRepairPrompt(tt.code, hint, tt.benchmarkID, tt.lang, failedCode, tt.stderr)
 
 			for _, want := range tt.wantContains {
 				if !strings.Contains(got, want) {
@@ -173,9 +174,15 @@ func TestFormatRepairPrompt(t *testing.T) {
 				}
 			}
 
-			// Verify structure
-			if !strings.Contains(got, "Your previous program failed with:") {
-				t.Errorf("FormatRepairPrompt() missing intro")
+			// Verify structure includes error context
+			if !strings.Contains(got, "ERROR:") {
+				t.Errorf("FormatRepairPrompt() missing ERROR section")
+			}
+			if !strings.Contains(got, "YOUR PREVIOUS CODE:") {
+				t.Errorf("FormatRepairPrompt() missing code section")
+			}
+			if !strings.Contains(got, "DIAGNOSIS:") {
+				t.Errorf("FormatRepairPrompt() missing diagnosis")
 			}
 			if !strings.Contains(got, "Please produce a corrected") {
 				t.Errorf("FormatRepairPrompt() missing instructions")

@@ -15,6 +15,7 @@ var Registry = make(map[string]*BuiltinMeta)
 func init() {
 	registerArithmeticMeta()
 	registerComparisonMeta()
+	registerConversionMeta()
 	registerStringMeta()
 	registerBooleanMeta()
 	registerStringPrimitiveMeta()
@@ -72,6 +73,12 @@ func registerComparisonMeta() {
 	Registry["le_Float"] = &BuiltinMeta{Name: "le_Float", NumArgs: 2, IsPure: true}
 	Registry["gt_Float"] = &BuiltinMeta{Name: "gt_Float", NumArgs: 2, IsPure: true}
 	Registry["ge_Float"] = &BuiltinMeta{Name: "ge_Float", NumArgs: 2, IsPure: true}
+}
+
+// registerConversionMeta registers metadata for numeric conversion builtins
+func registerConversionMeta() {
+	Registry["intToFloat"] = &BuiltinMeta{Name: "intToFloat", NumArgs: 1, IsPure: true}
+	Registry["floatToInt"] = &BuiltinMeta{Name: "floatToInt", NumArgs: 1, IsPure: true}
 }
 
 // registerStringMeta registers metadata for string operation builtins
