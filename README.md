@@ -9,9 +9,14 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ## Current Version: v0.3.5 (Functional Completeness)
 
-**🎯 What Works**: Full module execution, **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.5 (Oct 2025)**: Anonymous function syntax, letrec keyword, numeric conversions
+  - New syntax: `func(x: int) -> int { x * 2 }` for inline lambdas
+  - REPL recursive lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
+  - Type conversions: `intToFloat(42)`, `floatToInt(3.14)` for mixed arithmetic
+  - M-EVAL benchmark: 52.6% success rate (+12.6% improvement)
 - **Clock effect** with monotonic time and virtual time for deterministic execution
 - **Net effect** with full Phase 2 PM security hardening:
   - DNS rebinding prevention

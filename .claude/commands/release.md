@@ -23,8 +23,10 @@ Create a new AILANG release with the specified version number.
 2. **Verify tests and linting BEFORE making any changes:**
    - Run `make test` to ensure all tests pass
    - Run `make lint` to ensure code quality
-   - **CRITICAL**: If either fails, STOP and fix issues before proceeding
-   - Do NOT proceed with version updates if tests or linting fail
+   - Run `make check-file-sizes` to verify no files exceed 800 lines
+   - **CRITICAL**: If any checks fail, STOP and fix issues before proceeding
+   - If file size check fails, use the codebase-organizer agent to refactor large files
+   - Do NOT proceed with version updates if tests, linting, or file sizes fail
 
 3. **Update version in documentation:**
    - README.md: Update "Current Version: vX.X.X"

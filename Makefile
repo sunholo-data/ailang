@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files
 
 # Binary name
 BINARY=ailang
@@ -732,3 +732,101 @@ build-wasm:
 	@echo "  3. Copy web/AilangRepl.jsx to your-site/src/components/"
 	@echo "  4. Copy \$$(go env GOROOT)/misc/wasm/wasm_exec.js to your-site/static/wasm/"
 	@echo "  5. See web/README.md for complete setup instructions"
+
+
+# ============================================================================
+# Code Organization & AI-Friendly Codebase Maintenance
+# ============================================================================
+
+.PHONY: check-file-sizes
+check-file-sizes:
+	@echo "Checking for files >800 lines..."
+	@FOUND=0; \
+	for file in $$(find internal -name "*.go"); do \
+		SIZE=$$(wc -l < "$$file"); \
+		if [ $$SIZE -gt 800 ]; then \
+			echo "❌ $$file: $$SIZE lines (exceeds 800 line limit)"; \
+			FOUND=1; \
+		fi; \
+	done; \
+	if [ $$FOUND -eq 1 ]; then \
+		echo ""; \
+		echo "⚠️  Files exceed 800 line limit. Please split them for AI maintainability."; \
+		echo "See CLAUDE.md 'Code Organization Principles' section for guidelines."; \
+		echo "Use: make report-file-sizes for detailed report"; \
+		exit 1; \
+	else \
+		echo "✅ All files within 800 line limit"; \
+	fi
+
+.PHONY: report-file-sizes
+report-file-sizes:
+	@echo "=== File Size Report ==="
+	@echo ""
+	@echo "CRITICAL (>800 lines):"
+	@CRITICAL=0; \
+	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+		if [ $$SIZE -gt 800 ]; then \
+			echo "⚠️ $$FILE: $$SIZE lines"; \
+			CRITICAL=$$((CRITICAL + 1)); \
+		fi; \
+	done; \
+	if [ $$CRITICAL -eq 0 ]; then echo "  (none)"; fi
+	@echo ""
+	@echo "WARNING (500-800 lines):"
+	@WARNING=0; \
+	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+		if [ $$SIZE -gt 500 ] && [ $$SIZE -le 800 ]; then \
+			echo "⚠️ $$FILE: $$SIZE lines"; \
+			WARNING=$$((WARNING + 1)); \
+		fi; \
+	done; \
+	if [ $$WARNING -eq 0 ]; then echo "  (none)"; fi
+	@echo ""
+	@CRITICAL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	WARNING=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	echo "Summary: $$CRITICAL files exceed 800 lines, $$WARNING files between 500-800 lines"; \
+	if [ $$CRITICAL -gt 0 ]; then \
+		echo ""; \
+		echo "Recommended: Use codebase-organizer agent to split large files"; \
+		echo "See: .claude/agents/codebase-organizer.md"; \
+	fi
+
+.PHONY: codebase-health
+codebase-health:
+	@echo "=== Codebase Health Report ==="
+	@echo ""
+	@echo "File Size Metrics:"
+	@TOTAL=$$(find internal -name "*.go" | wc -l | tr -d ' '); \
+	SUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
+	AVG=$$(echo "$$SUM / $$TOTAL" | bc); \
+	echo "  Total files: $$TOTAL"; \
+	echo "  Total lines: $$SUM"; \
+	echo "  Average size: $$AVG lines/file"
+	@echo ""
+	@echo "File Size Distribution:"
+	@SMALL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
+	MEDIUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	LARGE=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	echo "  ≤500 lines (good): $$SMALL files"; \
+	echo "  500-800 lines (acceptable): $$MEDIUM files"; \
+	echo "  >800 lines (needs split): $$LARGE files"; \
+	echo ""; \
+	if [ $$LARGE -eq 0 ]; then \
+		echo "✅ Codebase is AI-friendly (no files >800 lines)"; \
+	else \
+		echo "⚠️  $$LARGE files need splitting for optimal AI maintainability"; \
+	fi; \
+	echo ""; \
+	echo "Goal metrics:"; \
+	if [ $$LARGE -eq 0 ]; then echo "  - 0 files >800 lines ✅"; else echo "  - 0 files >800 lines ❌"; fi; \
+	if [ $$MEDIUM -lt 5 ]; then echo "  - <5 files 500-800 lines ✅"; else echo "  - <5 files 500-800 lines ⚠️"; fi; \
+	AVG=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
+	if [ $$AVG -ge 300 ] && [ $$AVG -le 400 ]; then echo "  - Average 300-400 lines ✅"; else echo "  - Average 300-400 lines ⚠️"; fi
+
+.PHONY: largest-files
+largest-files:
+	@echo "=== 20 Largest Files ==="
+	@find internal -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
+		awk '{printf "%4d lines: %s\n", $$1, $$2}'
+

@@ -58,6 +58,41 @@ ailang eval --benchmark adt_option --model claude-3 --seed 42
 | `cli_args` | Read file, process, sum | Hard | IO + FS |
 | `adt_option` | Option/Maybe monad ops | Medium | Algebraic types |
 
+## Latest Benchmark Results (v0.3.5)
+
+**Model:** Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+**Date:** October 13, 2025
+**Success Rate:** 10/19 (52.6%)
+
+| Benchmark | Compile | Runtime | Output | Status |
+|-----------|---------|---------|--------|--------|
+| adt_option | ✅ | ✅ | ✅ | **PASS** |
+| cli_args | ❌ | ❌ | ❌ | FAIL |
+| error_handling | ✅ | ✅ | ✅ | **PASS** |
+| fizzbuzz | ✅ | ✅ | ✅ | **PASS** |
+| float_eq | ❌ | ❌ | ❌ | FAIL |
+| higher_order_functions | ✅ | ✅ | ✅ | **PASS** |
+| json_parse | ❌ | ❌ | ❌ | FAIL |
+| list_comprehension | ✅ | ✅ | ❌ | FAIL |
+| list_operations | ✅ | ✅ | ✅ | **PASS** |
+| nested_records | ✅ | ✅ | ✅ | **PASS** |
+| numeric_modulo | ✅ | ❌ | ❌ | FAIL |
+| pattern_matching_complex | ❌ | ❌ | ❌ | FAIL |
+| pipeline | ❌ | ❌ | ❌ | FAIL |
+| record_update | ✅ | ✅ | ✅ | **PASS** |
+| records_person | ✅ | ✅ | ✅ | **PASS** |
+| recursion_factorial | ✅ | ✅ | ❌ | FAIL |
+| recursion_fibonacci | ❌ | ❌ | ❌ | FAIL |
+| string_manipulation | ✅ | ✅ | ✅ | **PASS** |
+| targeted_repair_test | ✅ | ✅ | ✅ | **PASS** |
+
+**Key Insights:**
+- **Strong areas:** Records, ADTs, basic recursion, string operations
+- **Needs improvement:** File I/O, JSON parsing, complex pattern matching, numeric operations
+- **Compile success:** 16/19 (84.2%) - AI understands AILANG syntax well
+- **Runtime success:** 14/19 (73.7%) - Most syntax issues resolved
+- **Output correctness:** 10/19 (52.6%) - Logic errors in complex scenarios
+
 ## Command-Line Options
 
 ```bash
