@@ -15,17 +15,27 @@ function formatModelName(name) {
 
 export default function ModelTokenChart({ models }) {
   // Convert models data to chart format
-  const chartData = Object.entries(models).map(([name, stats]) => {
-    const avgTokens = stats.aggregates.totalTokens / stats.totalRuns;
-    const avgCost = stats.aggregates.totalCostUSD / stats.totalRuns;
+  const chartData = Object.entries(models)
+    // Only show models with language breakdown (has output token data)
+    .filter(([name, stats]) => stats.languages && stats.languages.ailang && stats.languages.python)
+    .map(([name, stats]) => {
+      // Use output tokens from language breakdown (actual code generated)
+      // Average AILANG and Python output tokens
+      const ailangTokens = stats.languages.ailang.avgTokens;
+      const pythonTokens = stats.languages.python.avgTokens;
+      const avgOutputTokens = (ailangTokens + pythonTokens) / 2;
 
-    return {
-      name: formatModelName(name),
-      'Avg Output Tokens': Math.round(avgTokens),
-      'Cost per Run ($)': parseFloat((avgCost * 1000).toFixed(3)), // Show as milli-dollars for better scale
-      fullCost: avgCost, // Keep actual cost for tooltip
-    };
-  });
+      const avgCost = stats.aggregates.totalCostUSD / stats.totalRuns;
+
+      return {
+        name: formatModelName(name),
+        'Avg Output Tokens': Math.round(avgOutputTokens),
+        'Cost per Run ($)': parseFloat((avgCost * 1000).toFixed(3)), // Show as milli-dollars for better scale
+        fullCost: avgCost, // Keep actual cost for tooltip
+        ailangTokens: Math.round(ailangTokens),
+        pythonTokens: Math.round(pythonTokens),
+      };
+    });
 
   // Sort by tokens (descending)
   chartData.sort((a, b) => b['Avg Output Tokens'] - a['Avg Output Tokens']);
@@ -38,6 +48,9 @@ export default function ModelTokenChart({ models }) {
           <p className={styles.tooltipLabel}>{data.name}</p>
           <p className={styles.tooltipValue}>
             Avg Tokens: <strong>{data['Avg Output Tokens']}</strong>
+          </p>
+          <p className={styles.tooltipHint}>
+            (AILANG: {data.ailangTokens}, Python: {data.pythonTokens})
           </p>
           <p className={styles.tooltipValue}>
             Cost/Run: <strong>${data.fullCost.toFixed(6)}</strong>
