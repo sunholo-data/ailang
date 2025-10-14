@@ -219,6 +219,27 @@ func TestRecordAccess(t *testing.T) {
 	}
 }
 
+// TestRecordUpdate tests record update syntax
+func TestRecordUpdate(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		golden string
+	}{
+		{"update_one_field", "{person | age: 30}", "expr/update_one_field"},
+		{"update_multiple", "{point | x: 10, y: 20}", "expr/update_multiple"},
+		{"update_nested", "{config | db: {host: \"localhost\"}}", "expr/update_nested"},
+		{"update_with_string", "{user | name: \"Alice\"}", "expr/update_with_string"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := parseAndPrint(t, tt.input)
+			goldenCompare(t, tt.golden, output)
+		})
+	}
+}
+
 // TestLambdas tests lambda expressions
 func TestLambdas(t *testing.T) {
 	tests := []struct {

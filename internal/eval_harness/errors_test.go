@@ -264,18 +264,18 @@ func TestCategorizeErrorWithCode(t *testing.T) {
 			name: "WRONG_LANG: Python def statement",
 			code: `def main():
     print("hello")`,
-			stderr:   "PAR_NO_PREFIX_PARSE",
-			wantCode: WRONG_LANG,
-			wantHint: true,
+			stderr:    "PAR_NO_PREFIX_PARSE",
+			wantCode:  WRONG_LANG,
+			wantHint:  true,
 			hintTitle: "Wrong programming language",
 		},
 		{
 			name: "WRONG_LANG: JavaScript var",
 			code: `var x = 10;
 function main() { return x; }`,
-			stderr:   "PAR_UNEXPECTED_TOKEN",
-			wantCode: WRONG_LANG,
-			wantHint: true,
+			stderr:    "PAR_UNEXPECTED_TOKEN",
+			wantCode:  WRONG_LANG,
+			wantHint:  true,
 			hintTitle: "Wrong programming language",
 		},
 		{
@@ -283,9 +283,9 @@ function main() { return x; }`,
 			code: `public static void main(String[] args) {
     System.out.println("hello");
 }`,
-			stderr:   "parse error",
-			wantCode: WRONG_LANG,
-			wantHint: true,
+			stderr:    "parse error",
+			wantCode:  WRONG_LANG,
+			wantHint:  true,
 			hintTitle: "Wrong programming language",
 		},
 		{
@@ -297,9 +297,9 @@ function main() { return x; }`,
   }
   print(input_line);
 }`,
-			stderr:   "PAR_NO_PREFIX_PARSE",
-			wantCode: IMPERATIVE,
-			wantHint: true,
+			stderr:    "PAR_NO_PREFIX_PARSE",
+			wantCode:  IMPERATIVE,
+			wantHint:  true,
 			hintTitle: "Imperative syntax not allowed",
 		},
 		{
@@ -307,18 +307,18 @@ function main() { return x; }`,
 			code: `while (x < 10) {
   x = x + 1;
 }`,
-			stderr:   "unexpected token",
-			wantCode: IMPERATIVE,
-			wantHint: true,
+			stderr:    "unexpected token",
+			wantCode:  IMPERATIVE,
+			wantHint:  true,
 			hintTitle: "Imperative syntax not allowed",
 		},
 		{
 			name: "IMPERATIVE: assignment statement",
 			code: `let x = 10;
 x = x + 1;  // Assignment`,
-			stderr:   "PAR_NO_PREFIX_PARSE",
-			wantCode: IMPERATIVE,
-			wantHint: true,
+			stderr:    "PAR_NO_PREFIX_PARSE",
+			wantCode:  IMPERATIVE,
+			wantHint:  true,
 			hintTitle: "Imperative syntax not allowed",
 		},
 		{

@@ -1,0 +1,19 @@
+{
+  "file": {
+    "decls": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.RecordUpdate"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "_note": "Not yet handled by printer",
+        "type": "*ast.RecordUpdate"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}
