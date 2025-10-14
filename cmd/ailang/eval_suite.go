@@ -307,7 +307,18 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		return false, fmt.Errorf("failed to save result: %w", err)
 	}
 
-	return metrics.StdoutOk, nil
+	// Return error with failure details if benchmark failed
+	if !metrics.StdoutOk {
+		if !metrics.CompileOk {
+			return false, fmt.Errorf("compilation failed (%s)", metrics.ErrorCategory)
+		}
+		if !metrics.RuntimeOk {
+			return false, fmt.Errorf("runtime error (%s)", metrics.ErrorCategory)
+		}
+		return false, fmt.Errorf("output mismatch (%s)", metrics.ErrorCategory)
+	}
+
+	return true, nil
 }
 
 // checkAPIKeys validates that required API keys are set

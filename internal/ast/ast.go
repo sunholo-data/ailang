@@ -399,8 +399,8 @@ func (r *RecordAccess) exprNode()     {}
 
 // RecordUpdate represents functional record update: {base | field: value, ...}
 type RecordUpdate struct {
-	Base   Expr      // The base record expression
-	Fields []*Field  // Fields to update
+	Base   Expr     // The base record expression
+	Fields []*Field // Fields to update
 	Pos    Pos
 }
 

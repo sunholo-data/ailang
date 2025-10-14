@@ -233,8 +233,8 @@ func (r *RecordAccess) String() string {
 // Base is atomic, Updates contains atomic values for fields to update
 type RecordUpdate struct {
 	CoreNode
-	Base    CoreExpr               // Must be atomic in ANF
-	Updates map[string]CoreExpr    // All values must be atomic
+	Base    CoreExpr            // Must be atomic in ANF
+	Updates map[string]CoreExpr // All values must be atomic
 }
 
 func (r *RecordUpdate) coreExpr() {}

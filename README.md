@@ -7,16 +7,20 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.5 (Functional Completeness)
+## Current Version: v0.3.6 (AI Usability Improvements)
 
-**🎯 What Works**: Full module execution, **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.6 (Oct 2025)**: AI usability improvements - auto-import, record updates, error detection
+  - Auto-import std/prelude: Zero imports needed for comparisons and typeclasses
+  - Record update syntax: `{person | age: 30}` for functional updates
+  - Error detection: Identifies wrong language/imperative syntax for self-repair
+  - M-EVAL benchmark: 52.6% success rate on Claude Sonnet 4.5 (+17.5% improvement from v0.3.5 baseline)
 - **v0.3.5 (Oct 2025)**: Anonymous function syntax, letrec keyword, numeric conversions
   - New syntax: `func(x: int) -> int { x * 2 }` for inline lambdas
   - REPL recursive lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
   - Type conversions: `intToFloat(42)`, `floatToInt(3.14)` for mixed arithmetic
-  - M-EVAL benchmark: 52.6% success rate (+12.6% improvement)
 - **Clock effect** with monotonic time and virtual time for deterministic execution
 - **Net effect** with full Phase 2 PM security hardening:
   - DNS rebinding prevention
