@@ -3,8 +3,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import styles from './styles.module.css';
 
 export default function SuccessTrend({ history }) {
+  // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
+  const validHistory = history.filter(h => {
+    const date = new Date(h.timestamp);
+    return date.getFullYear() > 2000; // Only show entries with real timestamps
+  });
+
   // Sort history by timestamp (oldest first for proper trend display)
-  const sortedHistory = [...history].sort((a, b) => {
+  const sortedHistory = [...validHistory].sort((a, b) => {
     const dateA = new Date(a.timestamp);
     const dateB = new Date(b.timestamp);
     return dateA - dateB;
