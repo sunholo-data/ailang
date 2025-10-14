@@ -3596,7 +3596,9 @@ match None {
 
 # Claude Instructions for AILANG Development
 
-## ⚠️ CRITICAL: ALWAYS USE EXISTING TOOLS FIRST
+## ⚠️ CRITICAL PRINCIPLES
+
+### 1. ALWAYS USE EXISTING TOOLS FIRST
 
 **Before writing ANY new script or code:**
 1. ✅ Check `make help` for existing targets
@@ -3610,6 +3612,51 @@ match None {
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
 - ❌ Manually extracting/formatting data when automated tools exist
+
+### 2. NO SILENT FALLBACKS - FAIL LOUDLY
+
+**CRITICAL LESSON**: Silent fallbacks hide bugs and produce wrong data that users trust.
+
+**The Cost Calculation Bug (Oct 2024):**
+```go
+// ❌ WRONG - Silent fallback hid 61x cost overestimation for YEARS
+rate, ok := rates[model]
+if !ok {
+    rate = 0.03  // Default to GPT-4 pricing if unknown
+}
+return float64(tokens) / 1000.0 * rate
+```
+
+**Impact**: All modern models (GPT-5, Gemini 2.5, Claude Sonnet 4.5) used wrong pricing.
+Users trusted inflated costs. Bug was invisible until someone questioned the numbers.
+
+**The Principle:**
+```go
+// ✅ CORRECT - Return 0 or error to force investigation
+if GlobalModelsConfig == nil {
+    return 0.0  // Better to see $0.00 than trust wrong data
+}
+
+cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+if err != nil {
+    return 0.0  // NO SILENT FALLBACKS - we want to know when pricing is missing
+}
+```
+
+**When to apply:**
+- ✅ Pricing/cost calculations (return $0.00 if unknown)
+- ✅ Model configurations (fail if model not in models.yml)
+- ✅ Required environment variables (fail if missing, don't use defaults)
+- ✅ Data validation (reject invalid data, don't silently fix)
+- ✅ Configuration loading (fail if config invalid, don't use built-in defaults)
+
+**When fallbacks ARE okay:**
+- ✅ UI defaults (empty state, placeholder text)
+- ✅ Optional features (graceful degradation of non-critical features)
+- ✅ Caching (miss → fetch from source)
+- ✅ Performance optimizations (slow path if fast path unavailable)
+
+**Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
 **When asked to run evals:**
 ```bash
