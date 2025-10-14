@@ -234,16 +234,20 @@ func runEvalValidate() {
 }
 
 // runEvalReport generates a comprehensive evaluation report
-// Usage: ailang eval-report <results_dir> <version> [--format=markdown|html|csv]
+// Usage: ailang eval-report <results_dir|--multi-model> <version> [--format=markdown|html|csv]
 func runEvalReport() {
 	if flag.NArg() < 3 {
 		fmt.Fprintf(os.Stderr, "%s: missing arguments\n", red("Error"))
-		fmt.Println("Usage: ailang eval-report <results_dir> <version> [--format=markdown|html|docusaurus|json|csv]")
+		fmt.Println("Usage: ailang eval-report <results_dir|--multi-model> <version> [--format=markdown|html|docusaurus|json|csv]")
 		fmt.Println("")
 		fmt.Println("Generate comprehensive evaluation report.")
 		fmt.Println("")
+		fmt.Println("Options:")
+		fmt.Println("  --multi-model    Aggregate latest results per model from all baselines")
+		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-report eval_results/baselines/v0.3.0 v0.3.0")
+		fmt.Println("  ailang eval-report --multi-model v0.3.5 --format=docusaurus")
 		fmt.Println("  ailang eval-report results/ v0.3.1 --format=html > report.html")
 		fmt.Println("  ailang eval-report results/ v0.3.1 --format=docusaurus > docs/docs/benchmarks/performance.md")
 		fmt.Println("  ailang eval-report results/ v0.3.1 --format=json > docs/static/benchmarks/latest.json")
@@ -253,6 +257,12 @@ func runEvalReport() {
 	resultsDir := flag.Arg(1)
 	version := flag.Arg(2)
 	format := "markdown" // default
+	multiModel := false
+
+	// Check if using multi-model mode
+	if resultsDir == "--multi-model" {
+		multiModel = true
+	}
 
 	// Check for format flag
 	if flag.NArg() >= 4 {
@@ -263,16 +273,41 @@ func runEvalReport() {
 	}
 
 	// Load results
-	fmt.Fprintf(os.Stderr, "Loading results from %s...\n", resultsDir)
-	results, err := eval_analysis.LoadResults(resultsDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to load results: %v\n", red("Error"), err)
-		os.Exit(1)
+	var results []*eval_analysis.BenchmarkResult
+	var modelBaselines map[string]string
+	var err error
+
+	if multiModel {
+		fmt.Fprintf(os.Stderr, "Aggregating latest results per model from all baselines...\n")
+		results, modelBaselines, err = eval_analysis.LoadLatestResultsPerModel()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load multi-model results: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		// Report which baselines were used per model
+		fmt.Fprintf(os.Stderr, "Model sources:\n")
+		for model, baseline := range modelBaselines {
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", model, baseline)
+		}
+		fmt.Fprintf(os.Stderr, "\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "Loading results from %s...\n", resultsDir)
+		results, err = eval_analysis.LoadResults(resultsDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load results: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
 	}
 
 	// Generate matrix
 	fmt.Fprintf(os.Stderr, "Generating performance matrix...\n")
-	matrix, err := eval_analysis.GenerateMatrix(results, version)
+	var matrix *eval_analysis.PerformanceMatrix
+	if multiModel {
+		matrix, err = eval_analysis.GenerateMatrixWithBaselines(results, version, modelBaselines)
+	} else {
+		matrix, err = eval_analysis.GenerateMatrix(results, version)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to generate matrix: %v\n", red("Error"), err)
 		os.Exit(1)

@@ -247,3 +247,65 @@ func hasJSONFiles(dir string) bool {
 	}
 	return len(matches) > 0
 }
+
+// LoadLatestResultsPerModel aggregates results from multiple baselines,
+// keeping the latest result for each model.
+// Returns results and a map of model -> baseline version used
+func LoadLatestResultsPerModel() ([]*BenchmarkResult, map[string]string, error) {
+	// Get all baselines
+	versions, err := ListBaselines()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list baselines: %w", err)
+	}
+
+	// Track latest result per (benchmark_id, lang, model) tuple
+	type resultKey struct {
+		ID    string
+		Lang  string
+		Model string
+	}
+
+	latestResults := make(map[resultKey]*BenchmarkResult)
+	modelBaselines := make(map[string]string) // model -> baseline version
+
+	// Process baselines from newest to oldest
+	for _, version := range versions {
+		baseline, err := LoadBaselineByVersion(version)
+		if err != nil {
+			// Skip baselines that fail to load
+			continue
+		}
+
+		for _, result := range baseline.Results {
+			key := resultKey{
+				ID:    result.ID,
+				Lang:  result.Lang,
+				Model: result.Model,
+			}
+
+			// Only update if we don't have a result for this key yet
+			// (since we're processing newest first)
+			if _, exists := latestResults[key]; !exists {
+				latestResults[key] = result
+
+				// Track which baseline this model came from
+				if _, tracked := modelBaselines[result.Model]; !tracked {
+					modelBaselines[result.Model] = version
+				}
+			}
+		}
+	}
+
+	// Convert map to slice
+	var results []*BenchmarkResult
+	for _, result := range latestResults {
+		results = append(results, result)
+	}
+
+	// Sort by timestamp (newest first)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Timestamp.After(results[j].Timestamp)
+	})
+
+	return results, modelBaselines, nil
+}

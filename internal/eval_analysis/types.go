@@ -124,9 +124,11 @@ type Aggregates struct {
 
 // ModelStats contains per-model performance
 type ModelStats struct {
-	TotalRuns  int                      `json:"total_runs"`
-	Aggregates Aggregates               `json:"aggregates"`
-	Benchmarks map[string]*BenchmarkRun `json:"benchmarks"`
+	TotalRuns       int                      `json:"total_runs"`
+	Aggregates      Aggregates               `json:"aggregates"`
+	Benchmarks      map[string]*BenchmarkRun `json:"benchmarks"`
+	BaselineVersion string                   `json:"baseline_version,omitempty"` // Which baseline these results came from
+	Languages       map[string]*LanguageStats `json:"languages,omitempty"`        // Per-language breakdown for this model
 }
 
 // BenchmarkStats contains per-benchmark performance

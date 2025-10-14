@@ -112,8 +112,8 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	// Model breakdown
 	if len(matrix.Models) > 0 {
 		sb.WriteString("### Model Performance Details\n\n")
-		sb.WriteString("| Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run |\n")
-		sb.WriteString("|-------|------|--------|-------|------------|---------|\n")
+		sb.WriteString("| Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run | Baseline |\n")
+		sb.WriteString("|-------|------|--------|-------|------------|----------|----------|\n")
 
 		type modelEntry struct {
 			name  string
@@ -137,13 +137,19 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 				avgTokens = float64(m.stats.Aggregates.TotalTokens) / float64(m.stats.TotalRuns)
 			}
 
-			sb.WriteString(fmt.Sprintf("| %s | %d | %.1f%% | %.1f%% | %.0f | $%.4f |\n",
+			baselineVersion := m.stats.BaselineVersion
+			if baselineVersion == "" {
+				baselineVersion = matrix.Version
+			}
+
+			sb.WriteString(fmt.Sprintf("| %s | %d | %.1f%% | %.1f%% | %.0f | $%.4f | %s |\n",
 				formatModelName(m.name),
 				m.stats.TotalRuns,
 				m.stats.Aggregates.ZeroShotSuccess*100,
 				m.stats.Aggregates.FinalSuccess*100,
 				avgTokens,
-				avgCost))
+				avgCost,
+				baselineVersion))
 		}
 		sb.WriteString("\n")
 	}
@@ -292,7 +298,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// Convert models to camelCase for JavaScript (nested aggregates)
 	modelsJS := make(map[string]interface{})
 	for name, stats := range matrix.Models {
-		modelsJS[name] = map[string]interface{}{
+		modelData := map[string]interface{}{
 			"totalRuns": stats.TotalRuns,
 			"aggregates": map[string]interface{}{
 				"zeroShotSuccess":   stats.Aggregates.ZeroShotSuccess,
@@ -304,6 +310,36 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				"avgDurationMs":     stats.Aggregates.AvgDurationMs,
 			},
 		}
+		// Add baseline version if available
+		if stats.BaselineVersion != "" {
+			modelData["baselineVersion"] = stats.BaselineVersion
+		}
+		// Add per-language breakdown for this model
+		if stats.Languages != nil && len(stats.Languages) > 0 {
+			langBreakdown := make(map[string]interface{})
+			for lang, lstats := range stats.Languages {
+				langBreakdown[lang] = map[string]interface{}{
+					"successRate": lstats.SuccessRate,
+					"avgTokens":   lstats.AvgTokens,
+					"totalRuns":   lstats.TotalRuns,
+				}
+			}
+			modelData["languages"] = langBreakdown
+		}
+		// Add per-benchmark breakdown for this model
+		if stats.Benchmarks != nil && len(stats.Benchmarks) > 0 {
+			benchBreakdown := make(map[string]interface{})
+			for benchID, run := range stats.Benchmarks {
+				benchBreakdown[benchID] = map[string]interface{}{
+					"success":        run.Success,
+					"firstAttemptOk": run.FirstAttemptOk,
+					"repairUsed":     run.RepairUsed,
+					"tokens":         run.Tokens,
+				}
+			}
+			modelData["benchmarks"] = benchBreakdown
+		}
+		modelsJS[name] = modelData
 	}
 
 	// Transform history to include calculated success rates

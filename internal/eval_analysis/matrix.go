@@ -9,6 +9,11 @@ import (
 // GenerateMatrix generates a performance matrix from benchmark results
 // This replaces the brittle jq-based bash script with type-safe Go code
 func GenerateMatrix(results []*BenchmarkResult, version string) (*PerformanceMatrix, error) {
+	return GenerateMatrixWithBaselines(results, version, nil)
+}
+
+// GenerateMatrixWithBaselines generates a performance matrix with optional baseline version info per model
+func GenerateMatrixWithBaselines(results []*BenchmarkResult, version string, modelBaselines map[string]string) (*PerformanceMatrix, error) {
 	if len(results) == 0 {
 		return nil, fmt.Errorf("no results to generate matrix from")
 	}
@@ -23,7 +28,7 @@ func GenerateMatrix(results []*BenchmarkResult, version string) (*PerformanceMat
 	matrix.Aggregates = calculateAggregates(results)
 
 	// Group by model
-	matrix.Models = groupByModel(results)
+	matrix.Models = groupByModelWithBaselines(results, modelBaselines)
 
 	// Group by benchmark
 	matrix.Benchmarks = groupByBenchmark(results)
@@ -84,6 +89,11 @@ func calculateAggregates(results []*BenchmarkResult) Aggregates {
 
 // groupByModel groups results by model
 func groupByModel(results []*BenchmarkResult) map[string]*ModelStats {
+	return groupByModelWithBaselines(results, nil)
+}
+
+// groupByModelWithBaselines groups results by model with optional baseline version info
+func groupByModelWithBaselines(results []*BenchmarkResult, modelBaselines map[string]string) map[string]*ModelStats {
 	// Group results by model
 	modelResults := make(map[string][]*BenchmarkResult)
 	for _, r := range results {
@@ -97,6 +107,13 @@ func groupByModel(results []*BenchmarkResult) map[string]*ModelStats {
 			TotalRuns:  len(results),
 			Aggregates: calculateAggregates(results),
 			Benchmarks: make(map[string]*BenchmarkRun),
+		}
+
+		// Add baseline version if available
+		if modelBaselines != nil {
+			if baseline, exists := modelBaselines[model]; exists {
+				stats.BaselineVersion = baseline
+			}
 		}
 
 		// Group by benchmark within this model
@@ -116,6 +133,9 @@ func groupByModel(results []*BenchmarkResult) map[string]*ModelStats {
 				Tokens:         r.TotalTokens,
 			}
 		}
+
+		// Add per-language breakdown for this model
+		stats.Languages = groupByLanguage(results)
 
 		models[model] = stats
 	}
