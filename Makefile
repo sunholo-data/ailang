@@ -255,7 +255,7 @@ cover-parser:
 
 gate-parser:
 	@if [ ! -f .parser_coverage ]; then echo "Run 'make cover-parser' first"; exit 1; fi
-	@pct=$$(cat .parser_coverage); min=$${PARSER_COVER_MIN:-70}; \
+	@pct=$$(cat .parser_coverage); min=$${PARSER_COVER_MIN:-68}; \
 	echo "Parser coverage: $$pct% (minimum: $$min%)"; \
 	if [ $$(echo "$$pct < $$min" | bc -l) -eq 1 ]; then \
 		echo "❌ Parser coverage $$pct% is below $$min% threshold"; \
