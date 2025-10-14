@@ -12,6 +12,12 @@ const (
 	// Parser errors
 	PAR_001 ErrCode = "PAR_001" // Parse error (block/semicolon issues)
 
+	// AI usability errors - Wrong language
+	WRONG_LANG ErrCode = "WRONG_LANG" // Generated code in wrong programming language
+
+	// AI usability errors - Imperative syntax
+	IMPERATIVE ErrCode = "IMPERATIVE" // Used imperative constructs (loop, break, assignment statements)
+
 	// Type checker errors - Records
 	TC_REC_001 ErrCode = "TC_REC_001" // Record field not found
 
@@ -42,6 +48,26 @@ type errorRule struct {
 
 // Rules maps error patterns to categorized error codes and repair hints
 var Rules = []errorRule{
+	// CRITICAL: WRONG_LANG and IMPERATIVE must be checked BEFORE PAR_001
+	// because they also trigger parse errors but need specific repair guidance
+	{
+		WRONG_LANG,
+		regexp.MustCompile(`(?i)(def |class |import json|import sys|function |var |const |#include|using namespace|public static|interface |enum class)`),
+		RepairHint{
+			Title: "Wrong programming language",
+			Why:   "Generated code appears to be Python/JavaScript/C++/Java, not AILANG. AILANG is a pure functional language with ML-style syntax.",
+			How:   "Start over with AILANG syntax: 1) Use `let x = expr` for bindings, 2) Use `func name(params) -> Type { body }` for functions, 3) Use recursion instead of loops, 4) No classes, no mutation, no statements. Refer to AILANG examples in the prompt.",
+		},
+	},
+	{
+		IMPERATIVE,
+		regexp.MustCompile(`(?i)(loop\s*\{|while\s*\(|for\s*\(|break;|continue;|^\s*\w+\s*=\s*[^=]|;\s*\w+\s*=\s*[^=]|let mut )`),
+		RepairHint{
+			Title: "Imperative syntax not allowed",
+			Why:   "Used imperative constructs (loop/while/for/break/assignment statements). AILANG is purely functional - no loops, no mutation, no statements.",
+			How:   "Replace imperative code with functional patterns: 1) Use recursion instead of loops, 2) Use `let x = expr in body` instead of `x = expr;`, 3) Use pattern matching instead of break/continue, 4) All variables are immutable.",
+		},
+	},
 	{
 		PAR_001,
 		regexp.MustCompile(`PAR_NO_PREFIX_PARSE|PAR_UNEXPECTED_TOKEN|parse errors? in|unexpected token`),
@@ -108,6 +134,24 @@ func CategorizeErrorCode(stderr string) (ErrCode, *RepairHint) {
 		}
 	}
 	return "", nil // Unknown error
+}
+
+// CategorizeErrorWithCode analyzes both generated code and stderr to detect
+// AI usability issues like wrong language or imperative syntax.
+// Checks code patterns first (WRONG_LANG, IMPERATIVE), then stderr patterns.
+func CategorizeErrorWithCode(code, stderr string) (ErrCode, *RepairHint) {
+	// First, check for wrong language patterns in the code itself
+	// This catches cases where the AI generated Python/JS/etc before even trying to compile
+	for _, rule := range Rules {
+		if rule.Code == WRONG_LANG || rule.Code == IMPERATIVE {
+			if rule.Re.MatchString(code) {
+				return rule.Code, &rule.Hint
+			}
+		}
+	}
+
+	// Then check stderr for all error patterns (including parse errors from wrong syntax)
+	return CategorizeErrorCode(stderr)
 }
 
 // FormatRepairPrompt creates the repair guidance injection for retry attempts.

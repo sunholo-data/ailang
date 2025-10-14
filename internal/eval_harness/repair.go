@@ -53,7 +53,8 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 	}
 
 	// Attempt self-repair
-	errCode, hint := CategorizeErrorCode(firstResult.RunResult.Stderr)
+	// Check both generated code and stderr for error patterns
+	errCode, hint := CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr)
 	if hint == nil {
 		// Unknown error, can't repair
 		return metrics, nil

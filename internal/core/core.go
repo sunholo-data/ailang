@@ -229,6 +229,23 @@ func (r *RecordAccess) String() string {
 	return fmt.Sprintf("%s.%s", r.Record, r.Field)
 }
 
+// RecordUpdate represents functional record update: {base | field: value}
+// Base is atomic, Updates contains atomic values for fields to update
+type RecordUpdate struct {
+	CoreNode
+	Base    CoreExpr               // Must be atomic in ANF
+	Updates map[string]CoreExpr    // All values must be atomic
+}
+
+func (r *RecordUpdate) coreExpr() {}
+func (r *RecordUpdate) String() string {
+	updates := []string{}
+	for k, v := range r.Updates {
+		updates = append(updates, fmt.Sprintf("%s: %s", k, v))
+	}
+	return fmt.Sprintf("{%s | %s}", r.Base, strings.Join(updates, ", "))
+}
+
 // List represents list construction (elements are atomic in ANF)
 type List struct {
 	CoreNode

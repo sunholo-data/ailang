@@ -399,6 +399,9 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.RecordAccess:
 		return tc.inferRecordAccess(ctx, e)
 
+	case *core.RecordUpdate:
+		return tc.inferRecordUpdate(ctx, e)
+
 	case *core.List:
 		return tc.inferList(ctx, e)
 

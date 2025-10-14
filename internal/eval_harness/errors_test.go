@@ -193,7 +193,7 @@ func TestFormatRepairPrompt(t *testing.T) {
 
 func TestAllErrorCodesHaveRules(t *testing.T) {
 	// Ensure every error code constant has a corresponding rule
-	allCodes := []ErrCode{PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001}
+	allCodes := []ErrCode{PAR_001, WRONG_LANG, IMPERATIVE, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001}
 
 	foundCodes := make(map[ErrCode]bool)
 	for _, rule := range Rules {
@@ -228,6 +228,8 @@ func TestRegexPatternsCompile(t *testing.T) {
 	// All patterns should already be compiled, but verify they match something
 	testCases := map[ErrCode]string{
 		PAR_001:    "parse error: unexpected token near",
+		WRONG_LANG: "def main(): import json",
+		IMPERATIVE: "loop { break; }",
 		TC_REC_001: "field 'x' not found in record {}",
 		TC_INT_001: "Float 1.5 is not an instance of Integral",
 		EQ_001:     "Eq dictionary resolution failed",
@@ -246,5 +248,123 @@ func TestRegexPatternsCompile(t *testing.T) {
 		if !found {
 			t.Errorf("No rule for %s matches test input: %s", code, testInput)
 		}
+	}
+}
+
+func TestCategorizeErrorWithCode(t *testing.T) {
+	tests := []struct {
+		name      string
+		code      string
+		stderr    string
+		wantCode  ErrCode
+		wantHint  bool
+		hintTitle string
+	}{
+		{
+			name: "WRONG_LANG: Python def statement",
+			code: `def main():
+    print("hello")`,
+			stderr:   "PAR_NO_PREFIX_PARSE",
+			wantCode: WRONG_LANG,
+			wantHint: true,
+			hintTitle: "Wrong programming language",
+		},
+		{
+			name: "WRONG_LANG: JavaScript var",
+			code: `var x = 10;
+function main() { return x; }`,
+			stderr:   "PAR_UNEXPECTED_TOKEN",
+			wantCode: WRONG_LANG,
+			wantHint: true,
+			hintTitle: "Wrong programming language",
+		},
+		{
+			name: "WRONG_LANG: Java public static",
+			code: `public static void main(String[] args) {
+    System.out.println("hello");
+}`,
+			stderr:   "parse error",
+			wantCode: WRONG_LANG,
+			wantHint: true,
+			hintTitle: "Wrong programming language",
+		},
+		{
+			name: "IMPERATIVE: loop construct",
+			code: `loop {
+  input_line = read();
+  if (input_line == "") {
+    break;
+  }
+  print(input_line);
+}`,
+			stderr:   "PAR_NO_PREFIX_PARSE",
+			wantCode: IMPERATIVE,
+			wantHint: true,
+			hintTitle: "Imperative syntax not allowed",
+		},
+		{
+			name: "IMPERATIVE: while loop",
+			code: `while (x < 10) {
+  x = x + 1;
+}`,
+			stderr:   "unexpected token",
+			wantCode: IMPERATIVE,
+			wantHint: true,
+			hintTitle: "Imperative syntax not allowed",
+		},
+		{
+			name: "IMPERATIVE: assignment statement",
+			code: `let x = 10;
+x = x + 1;  // Assignment`,
+			stderr:   "PAR_NO_PREFIX_PARSE",
+			wantCode: IMPERATIVE,
+			wantHint: true,
+			hintTitle: "Imperative syntax not allowed",
+		},
+		{
+			name:      "PAR_001: Normal parse error (no code patterns)",
+			code:      `func main() -> () { let x = 10; let y = 20 }`,
+			stderr:    "PAR_NO_PREFIX_PARSE at file.ail:2:1",
+			wantCode:  PAR_001,
+			wantHint:  true,
+			hintTitle: "Parse error",
+		},
+		{
+			name:     "Unknown error",
+			code:     `func main() -> () { println("ok") }`,
+			stderr:   "some unknown runtime error",
+			wantCode: "",
+			wantHint: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCode, gotHint := CategorizeErrorWithCode(tt.code, tt.stderr)
+
+			if gotCode != tt.wantCode {
+				t.Errorf("CategorizeErrorWithCode() code = %v, want %v", gotCode, tt.wantCode)
+			}
+
+			if tt.wantHint {
+				if gotHint == nil {
+					t.Errorf("CategorizeErrorWithCode() hint = nil, want non-nil")
+				} else {
+					if gotHint.Title != tt.hintTitle {
+						t.Errorf("CategorizeErrorWithCode() hint.Title = %v, want %v", gotHint.Title, tt.hintTitle)
+					}
+					if gotHint.Why == "" {
+						t.Errorf("CategorizeErrorWithCode() hint.Why is empty")
+					}
+					if gotHint.How == "" {
+						t.Errorf("CategorizeErrorWithCode() hint.How is empty")
+					}
+				}
+			} else {
+				if gotHint != nil {
+					t.Errorf("CategorizeErrorWithCode() hint = %v, want nil", gotHint)
+				}
+			}
+		})
 	}
 }

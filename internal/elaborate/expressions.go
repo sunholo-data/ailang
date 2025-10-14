@@ -89,6 +89,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.RecordAccess:
 		return e.normalizeRecordAccess(ex)
 
+	case *ast.RecordUpdate:
+		return e.normalizeRecordUpdate(ex)
+
 	case *ast.List:
 		return e.normalizeList(ex)
 
@@ -619,6 +622,40 @@ func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr
 	}
 
 	return e.wrapWithBindings(result, binds), nil
+}
+
+// normalizeRecordUpdate handles record update: {base | field: value, ...}
+// Desugars to Core RecordUpdate node, which will be handled during type checking
+// The type checker needs to know all fields to properly desugar this
+func (e *Elaborator) normalizeRecordUpdate(upd *ast.RecordUpdate) (core.CoreExpr, error) {
+	// Normalize base record
+	base, baseBinds, err := e.normalizeToAtomic(upd.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	// Normalize updated fields
+	updates := make(map[string]core.CoreExpr)
+	var allBindings []binding
+	allBindings = append(allBindings, baseBinds...)
+
+	for _, field := range upd.Fields {
+		value, binds, err := e.normalizeToAtomic(field.Value)
+		if err != nil {
+			return nil, err
+		}
+		updates[field.Name] = value
+		allBindings = append(allBindings, binds...)
+	}
+
+	// Create Core RecordUpdate node
+	result := &core.RecordUpdate{
+		CoreNode: e.makeNode(upd.Position()),
+		Base:     base,
+		Updates:  updates,
+	}
+
+	return e.wrapWithBindings(result, allBindings), nil
 }
 
 // normalizeList handles list construction

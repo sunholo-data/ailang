@@ -397,6 +397,23 @@ func (r *RecordAccess) String() string {
 func (r *RecordAccess) Position() Pos { return r.Pos }
 func (r *RecordAccess) exprNode()     {}
 
+// RecordUpdate represents functional record update: {base | field: value, ...}
+type RecordUpdate struct {
+	Base   Expr      // The base record expression
+	Fields []*Field  // Fields to update
+	Pos    Pos
+}
+
+func (r *RecordUpdate) String() string {
+	fields := []string{}
+	for _, f := range r.Fields {
+		fields = append(fields, fmt.Sprintf("%s: %s", f.Name, f.Value))
+	}
+	return fmt.Sprintf("{ %s | %s }", r.Base, strings.Join(fields, ", "))
+}
+func (r *RecordUpdate) Position() Pos { return r.Pos }
+func (r *RecordUpdate) exprNode()     {}
+
 // Error represents a parse error node (placeholder for error recovery)
 type Error struct {
 	Pos Pos

@@ -49,6 +49,9 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	case *core.RecordAccess:
 		return e.evalCoreRecordAccess(n)
 
+	case *core.RecordUpdate:
+		return e.evalCoreRecordUpdate(n)
+
 	case *core.List:
 		return e.evalCoreList(n)
 
@@ -260,6 +263,37 @@ func (e *CoreEvaluator) evalCoreRecordAccess(access *core.RecordAccess) (Value, 
 	}
 
 	return val, nil
+}
+
+// evalCoreRecordUpdate evaluates record update: {base | field: value, ...}
+func (e *CoreEvaluator) evalCoreRecordUpdate(update *core.RecordUpdate) (Value, error) {
+	// Evaluate base record
+	baseVal, err := e.evalCore(update.Base)
+	if err != nil {
+		return nil, err
+	}
+
+	baseRecord, ok := baseVal.(*RecordValue)
+	if !ok {
+		return nil, fmt.Errorf("cannot update non-record value: %T", baseVal)
+	}
+
+	// Create new record with all fields from base
+	newFields := make(map[string]Value)
+	for name, val := range baseRecord.Fields {
+		newFields[name] = val
+	}
+
+	// Evaluate and update specified fields
+	for name, fieldExpr := range update.Updates {
+		val, err := e.evalCore(fieldExpr)
+		if err != nil {
+			return nil, err
+		}
+		newFields[name] = val
+	}
+
+	return &RecordValue{Fields: newFields}, nil
 }
 
 // evalCoreList evaluates list construction
