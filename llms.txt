@@ -20,9 +20,14 @@ AILANG is a purely functional programming language designed specifically for AI-
 
 ## Current Version: v0.3.5 (Functional Completeness)
 
-**🎯 What Works**: Full module execution, **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.5 (Oct 2025)**: Anonymous function syntax, letrec keyword, numeric conversions
+  - New syntax: `func(x: int) -> int { x * 2 }` for inline lambdas
+  - REPL recursive lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
+  - Type conversions: `intToFloat(42)`, `floatToInt(3.14)` for mixed arithmetic
+  - M-EVAL benchmark: 52.6% success rate (+12.6% improvement)
 - **Clock effect** with monotonic time and virtual time for deterministic execution
 - **Net effect** with full Phase 2 PM security hardening:
   - DNS rebinding prevention
@@ -3469,6 +3474,7 @@ match None {
 - ❌ Creating new analysis tools when M-EVAL-LOOP Go implementation exists
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
+- ❌ Manually extracting/formatting data when automated tools exist
 
 **When asked to run evals:**
 ```bash
@@ -3479,6 +3485,16 @@ ailang eval-validate records_person
 
 # ❌ WRONG - Don't create new scripts
 ./new_eval_script.sh  # NO! Check what exists first!
+```
+
+**When asked to update documentation with benchmark results:**
+```bash
+# ✅ CORRECT - Use existing make target
+make benchmark-dashboard  # Updates docs/docs/benchmarks/performance.md + JSON data
+
+# ❌ WRONG - Don't manually extract and format data
+# Don't: Read JSON files, format markdown tables manually, write custom Python scripts
+# The make target does everything: reads latest baseline, generates markdown, updates JSON
 ```
 
 **Available models** (check `internal/eval_harness/models.yml`):
@@ -3786,6 +3802,244 @@ ailang repl                                        # Start REPL
 **For detailed contributing guidelines:**
 - See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
 - See [design_docs/](design_docs/) - Architecture and design decisions
+
+## 📐 Code Organization Principles (AI-First Design)
+
+### File Size Guidelines
+
+**AILANG is designed to be maintained by AI assistants. Keep files small and focused.**
+
+**Target file sizes:**
+- **Sweet spot**: 200-500 lines per file
+- **Acceptable**: 500-800 lines
+- **Problematic**: 800-1200 lines (consider splitting)
+- **Critical**: 1200+ lines (MUST split before adding features)
+
+**Why small files matter for AI:**
+- Fits in AI context window (I can see the whole file at once)
+- Single responsibility principle naturally enforced
+- Easy to understand the full structure in one read
+- Reduces merge conflicts
+- Enables better testing isolation
+
+**Check file sizes:**
+```bash
+make check-file-sizes    # Fails CI if any file >800 lines
+make report-file-sizes   # Shows all files >500 lines
+wc -l internal/path/file.go  # Check specific file
+```
+
+### Current Technical Debt
+
+**Check current status:**
+```bash
+make report-file-sizes    # Detailed report of files >500 lines
+make codebase-health      # Overall codebase metrics
+make largest-files        # Top 20 largest files
+```
+
+As of October 2025, ~10 files exceed the 800 line limit (out of 183 total). Run `make report-file-sizes` for the current list.
+
+**Before modifying these files:**
+1. Check if splitting is needed first
+2. Run tests before/after: `make test`
+3. Use the `codebase-organizer` agent for safe refactoring
+
+### File Organization Patterns
+
+#### Pattern 1: One Concept Per File
+
+```
+❌ BAD: Everything in one file
+internal/parser/parser.go (2518 lines)
+  - Expression parsing
+  - Statement parsing
+  - Type parsing
+  - Pattern parsing
+  - Module parsing
+
+✅ GOOD: Split by responsibility
+internal/parser/
+  ├── parser.go (200 lines)         # Main struct, entry points, package docs
+  ├── expressions.go (300 lines)    # parseExpression, parseLambda, parseCall
+  ├── statements.go (250 lines)     # parseLetDecl, parseFuncDecl, parseType
+  ├── types.go (200 lines)          # parseType, parseEffects, parseTypeParams
+  ├── patterns.go (280 lines)       # parsePattern, parseConstructor
+  ├── modules.go (150 lines)        # parseModule, parseImport, parseExport
+  └── helpers.go (140 lines)        # parseParams, parseBlock, utility functions
+```
+
+#### Pattern 2: Main File as Table of Contents
+
+Every package should have a main file (usually `pkg.go` or matching package name) that serves as navigation:
+
+```go
+// internal/parser/parser.go (200 lines max)
+package parser
+
+// Package parser implements AILANG source code parsing.
+//
+// # Architecture
+//
+// The parser is split into several files by responsibility:
+//   - parser.go: Main Parser struct and entry points (THIS FILE)
+//   - expressions.go: Expression parsing (literals, lambdas, calls, etc.)
+//   - statements.go: Top-level declarations (func, type, let)
+//   - types.go: Type annotation parsing
+//   - patterns.go: Pattern matching syntax
+//   - modules.go: Module system (import/export)
+//
+// # Usage
+//
+//   p := parser.New(lexer)
+//   file, err := p.Parse()
+//
+// # See Also
+//
+//   - internal/ast: AST node definitions
+//   - internal/lexer: Token generation
+//   - docs/parser/README.md: Detailed parser documentation
+
+// Parser is the main entry point for parsing AILANG source code.
+type Parser struct { /* ... */ }
+
+// Parse parses a complete AILANG source file.
+// Implementation delegates to parseFile() in statements.go.
+func (p *Parser) Parse() (*ast.File, error) { /* ... */ }
+```
+
+#### Pattern 3: Tests Next to Implementation
+
+```
+✅ GOOD: Focused test files
+internal/parser/
+  ├── expressions.go
+  ├── expressions_test.go (300 lines focused tests)
+  ├── statements.go
+  ├── statements_test.go (250 lines focused tests)
+  └── integration_test.go (end-to-end tests)
+
+❌ BAD: One giant test file
+  └── parser_test.go (5000 lines)
+```
+
+#### Pattern 4: Clear File Naming
+
+File names should match the main functions they contain:
+
+```
+✅ GOOD:
+expressions.go → parseExpression(), parseCall(), parseLambda()
+statements.go  → parseLetDecl(), parseFuncDecl(), parseTypeDecl()
+patterns.go    → parsePattern(), parseConstructor()
+
+❌ BAD:
+parse_stuff.go → everything mixed together
+utils.go       → vague, no clear responsibility
+```
+
+### Adding New Features (File Size Rules)
+
+**Before adding any new feature to a file:**
+
+```bash
+# 1. Check current file size
+wc -l internal/types/typechecker_core.go
+# Output: 2736 lines
+
+# 2. If >800 lines, STOP and split first
+# 3. If 500-800 lines, consider if new feature pushes it over 800
+# 4. If <500 lines, proceed normally
+
+# 5. After changes, verify size
+wc -l internal/types/typechecker_core.go
+make check-file-sizes  # Fails if >800 lines
+```
+
+**Splitting workflow:**
+
+```bash
+# Option 1: Use the codebase-organizer agent (recommended)
+# This agent safely refactors files while ensuring tests pass
+
+# Option 2: Manual split (if you understand the code deeply)
+make test                    # Baseline - all tests pass
+# ... split files ...
+make test                    # Verify - all tests still pass
+git add internal/types/*.go
+git commit -m "Split typechecker_core.go into 8 files (AI-friendly)"
+```
+
+### Package Documentation Standards
+
+Every package with >3 files MUST have a README.md:
+
+```markdown
+# internal/parser
+
+Parser for AILANG source code.
+
+## Files
+
+- `parser.go` - Main Parser struct, entry points
+- `expressions.go` - Expression parsing: literals, lambdas, calls, operators
+- `statements.go` - Declarations: func, type, let, import, export
+- `types.go` - Type annotations: simple types, effects, type parameters
+- `patterns.go` - Pattern matching: constructors, literals, wildcards, guards
+- `modules.go` - Module system: module declarations, import resolution
+- `helpers.go` - Shared utilities: parameter parsing, block parsing
+
+## Entry Points
+
+- `Parse()` → `parseFile()` in statements.go
+- `parseExpression()` in expressions.go
+- `parseType()` in types.go
+- `parsePattern()` in patterns.go
+
+## Cross-references
+
+- Consumes: `internal/lexer` (tokens)
+- Produces: `internal/ast` (syntax tree)
+- Used by: `internal/pipeline`, `internal/repl`
+```
+
+### Automated Code Organization
+
+**Use the codebase-organizer agent** for safe refactoring:
+
+The `codebase-organizer` agent is available in `.claude/agents/codebase-organizer.md`. It:
+- Monitors file sizes across the codebase
+- Identifies files that need splitting
+- Safely refactors large files into smaller, focused modules
+- Ensures all tests pass before/after refactoring
+- Maintains git history and commit hygiene
+
+**Example usage:**
+```bash
+# Ask Claude to invoke the agent:
+"Please use the codebase-organizer agent to check for files that need splitting"
+
+# Or for specific refactoring:
+"Use the codebase-organizer agent to split internal/parser/parser.go"
+```
+
+### Measuring Success
+
+```bash
+# CI checks (automatically run on PRs)
+make check-file-sizes     # Fails if any file >800 lines
+
+# Status reports
+make report-file-sizes    # Lists all files >500 lines
+make codebase-health      # Full codebase metrics
+```
+
+**Goal metrics:**
+- 0 files over 800 lines ✅
+- <5 files between 500-800 lines ⚠️
+- Average file size: 300-400 lines 🎯
+
+---
 
 ## 🚨 CRITICAL WARNINGS
 
@@ -4105,6 +4359,41 @@ ailang eval --benchmark adt_option --model claude-3 --seed 42
 | `pipeline` | stdin → transform → stdout | Medium | IO + lists |
 | `cli_args` | Read file, process, sum | Hard | IO + FS |
 | `adt_option` | Option/Maybe monad ops | Medium | Algebraic types |
+
+## Latest Benchmark Results (v0.3.5)
+
+**Model:** Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+**Date:** October 13, 2025
+**Success Rate:** 10/19 (52.6%)
+
+| Benchmark | Compile | Runtime | Output | Status |
+|-----------|---------|---------|--------|--------|
+| adt_option | ✅ | ✅ | ✅ | **PASS** |
+| cli_args | ❌ | ❌ | ❌ | FAIL |
+| error_handling | ✅ | ✅ | ✅ | **PASS** |
+| fizzbuzz | ✅ | ✅ | ✅ | **PASS** |
+| float_eq | ❌ | ❌ | ❌ | FAIL |
+| higher_order_functions | ✅ | ✅ | ✅ | **PASS** |
+| json_parse | ❌ | ❌ | ❌ | FAIL |
+| list_comprehension | ✅ | ✅ | ❌ | FAIL |
+| list_operations | ✅ | ✅ | ✅ | **PASS** |
+| nested_records | ✅ | ✅ | ✅ | **PASS** |
+| numeric_modulo | ✅ | ❌ | ❌ | FAIL |
+| pattern_matching_complex | ❌ | ❌ | ❌ | FAIL |
+| pipeline | ❌ | ❌ | ❌ | FAIL |
+| record_update | ✅ | ✅ | ✅ | **PASS** |
+| records_person | ✅ | ✅ | ✅ | **PASS** |
+| recursion_factorial | ✅ | ✅ | ❌ | FAIL |
+| recursion_fibonacci | ❌ | ❌ | ❌ | FAIL |
+| string_manipulation | ✅ | ✅ | ✅ | **PASS** |
+| targeted_repair_test | ✅ | ✅ | ✅ | **PASS** |
+
+**Key Insights:**
+- **Strong areas:** Records, ADTs, basic recursion, string operations
+- **Needs improvement:** File I/O, JSON parsing, complex pattern matching, numeric operations
+- **Compile success:** 16/19 (84.2%) - AI understands AILANG syntax well
+- **Runtime success:** 14/19 (73.7%) - Most syntax issues resolved
+- **Output correctness:** 10/19 (52.6%) - Logic errors in complex scenarios
 
 ## Command-Line Options
 
@@ -8291,7 +8580,7 @@ This prompt includes explicit error pattern warnings based on real AI code gener
 
 # AI Prompt: v0.3.0.md
 
-# AILANG AI Teaching Prompt (v0.3.5)
+# AILANG AI Teaching Prompt (v0.3.0)
 
 **CRITICAL: You MUST write code in AILANG syntax. This is NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -8305,14 +8594,11 @@ You are writing code in AILANG, a pure functional programming language with Hind
 - Pattern matching uses `=>` NOT `:` or `->`
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
 
-## Current Version: v0.3.5 (October 2025)
+## Current Version: v0.3.0 (October 2025)
 
 **✅ WHAT WORKS:**
 - ✅ **Module declarations** - `module path/to/module`
 - ✅ **Function declarations** - `export func name(params) -> Type { body }`
-- ✅ **Anonymous functions** - NEW: `func(x: int) -> int { x * 2 }` (inline lambdas)
-- ✅ **Recursive lambdas** - NEW: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
-- ✅ **Numeric conversions** - NEW: `intToFloat(42)`, `floatToInt(3.14)`
 - ✅ **Import statements** - `import std/io (println)`, `import std/clock (now, sleep)`, `import std/net (httpGet)`
 - ✅ **Pattern matching** - Constructors, tuples, lists, wildcards, **guards** (`if` conditions)
 - ✅ **Effect system** - `! {IO, FS, Clock, Net}` for side effects with capability security
@@ -8328,7 +8614,6 @@ You are writing code in AILANG, a pure functional programming language with Hind
 - ⚠️ NO record update syntax `{r | field: val}` (yet)
 - ⚠️ NO error propagation operator `?` (yet)
 - ⚠️ NO custom HTTP headers (OpenAI/Claude APIs blocked until v0.4.0)
-- ⚠️ NO list spread patterns `[x, ...rest]` (yet) - use Cons constructor
 - ⚠️ `show` is a builtin - do NOT import it
 
 ## Module Structure
@@ -8373,64 +8658,7 @@ export func compute() -> int {
 }
 ```
 
-## Anonymous Functions (NEW in v0.3.5!)
-
-Inline lambda expressions with familiar syntax:
-
-```ailang
--- Anonymous function literal
-let double = func(x: int) -> int { x * 2 }
-
--- With type inference
-let add = func(x, y) { x + y }
-
--- With effects
-let greet = func(name: string) -> () ! {IO} {
-  println("Hello, " ++ name)
-}
-
--- Higher-order functions
-let apply = func(f: func(int) -> int, x: int) -> int { f(x) }
-apply(func(n: int) -> int { n * 2 }, 5)  -- 10
-```
-
-**IMPORTANT**: Use `=>` for lambdas (`\x. body`), use `-> {` for func expressions.
-
-## Recursive Lambdas (NEW in v0.3.5!)
-
-The `letrec` keyword enables recursive function definitions in expressions:
-
-```ailang
--- Fibonacci using letrec
-letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in
-fib(10)  -- 55
-
--- Factorial
-letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in
-factorial(5)  -- 120
-```
-
-**Use case**: Recursive functions in REPL or inside expressions without full function declarations.
-
-## Numeric Conversions (NEW in v0.3.5!)
-
-Explicit type conversion builtins for int ↔ float:
-
-```ailang
--- Int to Float
-intToFloat(42)  -- 42.0
-
--- Float to Int (truncates towards zero)
-floatToInt(3.14)   -- 3
-floatToInt(-3.14)  -- -3
-
--- Mixed arithmetic (requires conversion)
-let result = intToFloat(1) + 2.5  -- 3.5
-```
-
-**IMPORTANT**: AILANG does NOT do automatic numeric coercion. You MUST use these builtins.
-
-## Block Expressions
+## Block Expressions (NEW in v0.3.0!)
 
 Blocks allow sequencing statements with semicolons:
 
@@ -8590,28 +8818,6 @@ export func countdown(n: int) -> () ! {IO} {
   }
 }
 ```
-
-## Recursion Limitation in REPL
-
-**IMPORTANT:** Recursive lambdas are NOT supported in let-bindings:
-
-```ailang
--- ❌ DOES NOT WORK - let bindings cannot be recursive
-let fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10)
--- Error: undefined variable: fib
-```
-
-**✅ WORKAROUND:** Use `func` declarations in module files instead:
-
-```ailang
--- In a .ail file:
-module examples/fib
-export func fib(n: int) -> int {
-  if n < 2 then n else fib(n - 1) + fib(n - 2)
-}
-```
-
-**Why:** Module-level `func` declarations are automatically recursive. The `letrec` keyword does not exist in AILANG's surface syntax (v0.3.0).
 
 ## Common Mistakes to Avoid
 
@@ -9423,6 +9629,1072 @@ export func main() -> () ! {IO} {
 - Plan schema versioning (ailang.plan/v1)
 - ~2,560 LOC implementation with 65 passing tests
 - 3 example plans in `examples/plans/`
+
+---
+
+# AI Prompt: v0.3.5.md
+
+# AILANG AI Teaching Prompt (v0.3.5)
+
+**CRITICAL: You MUST write code in AILANG syntax. This is NOT Python, NOT Rust, NOT JavaScript.**
+
+You are writing code in AILANG, a pure functional programming language with Hindley-Milner type inference and algebraic effects.
+
+**IMPORTANT SYNTAX RULES:**
+- Use `func` NOT `fn`, `function`, or `def`
+- Use `type Name[a] = Constructor(a) | Constructor2` NOT `type Name { }` or `enum`
+- NO namespace syntax (`::`), just use constructor names directly
+- Semicolons REQUIRED between statements in blocks
+- Pattern matching uses `=>` NOT `:` or `->`
+- NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
+
+## Current Version: v0.3.5 (October 2025)
+
+**✅ WHAT WORKS:**
+- ✅ **Module declarations** - `module path/to/module`
+- ✅ **Function declarations** - `export func name(params) -> Type { body }`
+- ✅ **Anonymous functions** - NEW: `func(x: int) -> int { x * 2 }` (inline lambdas)
+- ✅ **Recursive lambdas** - NEW: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
+- ✅ **Numeric conversions** - NEW: `intToFloat(42)`, `floatToInt(3.14)`
+- ✅ **Import statements** - `import std/io (println)`, `import std/clock (now, sleep)`, `import std/net (httpGet)`
+- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards, **guards** (`if` conditions)
+- ✅ **Effect system** - `! {IO, FS, Clock, Net}` for side effects with capability security
+- ✅ **ADTs** - Algebraic data types: `type Option[a] = Some(a) | None`
+- ✅ **Recursion** - Self-recursive and mutually-recursive functions with stack overflow protection
+- ✅ **Block expressions** - `{ stmt1; stmt2; result }` for sequencing
+- ✅ **Records** - Record literals, field access, subsumption
+- ✅ **Type system fixes** - Modulo operator (`%`) and float comparison (`==`) both work correctly
+
+**⚠️ LIMITATIONS:**
+- ⚠️ NO `for`/`while` loops - use recursion
+- ⚠️ NO `var` - everything is immutable
+- ⚠️ NO record update syntax `{r | field: val}` (yet)
+- ⚠️ NO error propagation operator `?` (yet)
+- ⚠️ NO custom HTTP headers (OpenAI/Claude APIs blocked until v0.4.0)
+- ⚠️ NO list spread patterns `[x, ...rest]` (yet) - use Cons constructor
+- ⚠️ `show` is a builtin - do NOT import it
+
+## Module Structure
+
+Every AILANG program must be a module with exported functions:
+
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello, World!")
+}
+```
+
+**IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
+
+## Functions
+
+```ailang
+-- Simple pure function
+export func add(x: int, y: int) -> int {
+  x + y
+}
+
+-- Function with effects (IO, FS)
+export func greet(name: string) -> () ! {IO} {
+  println("Hello, " ++ name)
+}
+
+-- Generic function
+export func identity[a](x: a) -> a {
+  x
+}
+
+-- Multi-statement body (SEMICOLONS REQUIRED!)
+export func compute() -> int {
+  let x = 10;
+  let y = 20;
+  x + y
+}
+```
+
+## Anonymous Functions (NEW in v0.3.5!)
+
+Inline lambda expressions with familiar syntax:
+
+```ailang
+-- Anonymous function literal
+let double = func(x: int) -> int { x * 2 }
+
+-- With type inference
+let add = func(x, y) { x + y }
+
+-- With effects
+let greet = func(name: string) -> () ! {IO} {
+  println("Hello, " ++ name)
+}
+
+-- Higher-order functions
+let apply = func(f: func(int) -> int, x: int) -> int { f(x) }
+apply(func(n: int) -> int { n * 2 }, 5)  -- 10
+```
+
+**IMPORTANT**: Use `=>` for lambdas (`\x. body`), use `-> {` for func expressions.
+
+## Recursive Lambdas (NEW in v0.3.5!)
+
+The `letrec` keyword enables recursive function definitions in expressions:
+
+```ailang
+-- Fibonacci using letrec
+letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in
+fib(10)  -- 55
+
+-- Factorial
+letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in
+factorial(5)  -- 120
+```
+
+**Use case**: Recursive functions in REPL or inside expressions without full function declarations.
+
+## Numeric Conversions (NEW in v0.3.5!)
+
+Explicit type conversion builtins for int ↔ float:
+
+```ailang
+-- Int to Float
+intToFloat(42)  -- 42.0
+
+-- Float to Int (truncates towards zero)
+floatToInt(3.14)   -- 3
+floatToInt(-3.14)  -- -3
+
+-- Mixed arithmetic (requires conversion)
+let result = intToFloat(1) + 2.5  -- 3.5
+```
+
+**IMPORTANT**: AILANG does NOT do automatic numeric coercion. You MUST use these builtins.
+
+## Block Expressions
+
+Blocks allow sequencing statements with semicolons:
+
+```ailang
+export func demo() -> () ! {IO} {
+  {
+    println("First");
+    println("Second");
+    println("Third")
+  }
+}
+
+-- Blocks are expressions - the last value is returned
+export func compute() -> int {
+  {
+    let x = 10;
+    let y = 20;
+    x + y
+  }
+}
+```
+
+**CRITICAL**: Semicolons REQUIRED between statements! Missing semicolons will cause parse errors.
+
+## Records (NEW in v0.3.0!)
+
+Records are structural types with named fields:
+
+```ailang
+-- Record literal
+let person = {name: "Alice", age: 30, city: "NYC"}
+
+-- Field access
+person.name    -- "Alice"
+person.age     -- 30
+
+-- Use in functions
+export func describe(p: {name: string, age: int}) -> string {
+  p.name ++ " is " ++ show(p.age)
+}
+```
+
+**⚠️ IMPORTANT**: Record update syntax `{r | field: val}` is NOT yet implemented.
+To create a modified record, create a new record literal:
+
+```ailang
+-- ❌ NOT supported yet:
+let older = {person | age: 31}
+
+-- ✅ Instead do this:
+let older = {name: person.name, age: 31, city: person.city}
+```
+
+## Algebraic Data Types (ADTs)
+
+**✅ CORRECT AILANG SYNTAX:**
+```ailang
+type Option[a] = Some(a) | None
+type Result[a, e] = Ok(a) | Err(e)
+type List[a] = Cons(a, List[a]) | Nil
+
+export func getOrElse[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+```
+
+**❌ WRONG - This is Rust/other languages, NOT AILANG:**
+```rust
+type Option {        // ❌ Wrong - no { } braces
+  Some(value)        // ❌ Wrong - not AILANG syntax
+  None
+}
+
+Option::Some(42)     // ❌ Wrong - AILANG has no :: operator
+fn divide(a, b) { }  // ❌ Wrong - use 'func' not 'fn'
+```
+
+**✅ CORRECT - Use constructors directly:**
+```ailang
+Some(42)             // ✅ Correct - no namespace needed
+None                 // ✅ Correct
+```
+
+## Available Imports
+
+**std/io** - IO operations (requires `! {IO}` effect)
+```ailang
+import std/io (println, print, readLine)
+
+export func main() -> () ! {IO} {
+  println("text")
+}
+```
+
+**std/fs** - File operations (requires `! {FS}` effect)
+```ailang
+import std/fs (readFile, writeFile, exists)
+
+export func readData() -> string ! {FS} {
+  readFile("data.txt")
+}
+```
+
+**std/clock** - Time operations (requires `! {Clock}` effect) **NEW in v0.3.0!**
+```ailang
+import std/clock (now, sleep)
+
+export func measureTime() -> () ! {IO, Clock} {
+  let start = now();
+  sleep(1000);  -- Sleep for 1 second (milliseconds)
+  let end = now();
+  println("Elapsed: " ++ show(end - start) ++ "ms")
+}
+```
+
+**std/net** - HTTP operations (requires `! {Net}` effect) **NEW in v0.3.0!**
+```ailang
+import std/net (httpGet, httpPost)
+
+export func fetchData() -> () ! {IO, Net} {
+  let response = httpGet("https://api.example.com/data");
+  println(response)
+}
+```
+
+**IMPORTANT:**
+- `show` is a BUILTIN function - do NOT import it from std/io!
+- Clock and Net have security restrictions (no localhost, private IPs, file:// URLs blocked)
+- Run with capabilities: `ailang run --caps IO,FS,Clock,Net --entry main file.ail`
+
+**std/option** - Option type
+```ailang
+import std/option (Option, Some, None)
+```
+
+## Recursion (instead of loops)
+
+Recursion works perfectly in v0.3.0:
+
+```ailang
+export func factorial(n: int) -> int {
+  if n <= 1
+  then 1
+  else n * factorial(n - 1)
+}
+
+-- Recursion with IO effects and blocks
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+```
+
+## Recursion Limitation in REPL
+
+**IMPORTANT:** Recursive lambdas are NOT supported in let-bindings:
+
+```ailang
+-- ❌ DOES NOT WORK - let bindings cannot be recursive
+let fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10)
+-- Error: undefined variable: fib
+```
+
+**✅ WORKAROUND:** Use `func` declarations in module files instead:
+
+```ailang
+-- In a .ail file:
+module examples/fib
+export func fib(n: int) -> int {
+  if n < 2 then n else fib(n - 1) + fib(n - 2)
+}
+```
+
+**Why:** Module-level `func` declarations are automatically recursive. The `letrec` keyword does not exist in AILANG's surface syntax (v0.3.0).
+
+## Common Mistakes to Avoid
+
+❌ **Don't use for/while loops:**
+```ailang
+for i in [1, 2, 3] { println(i) }  -- ❌ NOT supported
+```
+
+✅ **Use recursion:**
+```ailang
+export func printAll(xs: [int]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    _ => {
+      println(show(head(xs)));
+      printAll(tail(xs))
+    }
+  }
+}
+```
+
+❌ **Don't forget semicolons in blocks:**
+```ailang
+{
+  println("First")
+  println("Second")  -- ❌ Parse error! Missing semicolon
+}
+```
+
+✅ **Add semicolons between statements:**
+```ailang
+{
+  println("First");
+  println("Second")  -- ✅ Last statement doesn't need semicolon
+}
+```
+
+❌ **Don't import show:**
+```ailang
+import std/io (println, show)  -- ❌ show not in std/io
+```
+
+✅ **show is a builtin:**
+```ailang
+import std/io (println)
+-- show is available automatically
+println(show(42))
+```
+
+❌ **Don't forget module and export:**
+```ailang
+func main() {  -- ❌ Missing 'module' declaration and 'export'
+  println("hello")
+}
+```
+
+✅ **Always use module and export:**
+```ailang
+module benchmark/solution
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("hello")
+}
+```
+
+## Complete Working Examples
+
+### Example 1: Safe Division with Option
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func safeDivide(a: float, b: float) -> Option[float] {
+  if b == 0.0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[float]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = safeDivide(10.0, 2.0);
+  printResult(r1);
+  let r2 = safeDivide(10.0, 0.0);
+  printResult(r2)
+}
+```
+
+### Example 2: Countdown with Recursion and Blocks
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  countdown(5)
+}
+```
+
+### Example 3: Records with Field Access
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let alice = {name: "Alice", age: 30, city: "NYC"};
+  let bob = {name: "Bob", age: 25, city: "SF"};
+
+  println(alice.name ++ ", " ++ show(alice.age) ++ ", " ++ alice.city);
+  println(bob.name ++ ", " ++ show(bob.age) ++ ", " ++ bob.city)
+}
+```
+
+## Summary
+
+**Structure:**
+1. Start with `module benchmark/solution` (REQUIRED for benchmarks!)
+2. Import what you need from stdlib (`import std/io (println)`)
+3. Define exported functions with `export func name(params) -> ReturnType { }`
+4. Declare effects with `! {IO, FS}` when using IO/FS operations
+5. Use recursion instead of loops - AILANG has NO for/while loops!
+6. Use semicolons between statements in blocks
+
+**Remember:**
+- ✅ Use `func` NOT `fn`, `function`, or `def`
+- ✅ ADTs use `type Name[a] = Cons1(a) | Cons2` syntax
+- ✅ NO `::` operator - use constructors directly
+- ✅ NO for/while loops - use recursion
+- ✅ Everything is immutable (no `var` or mutation)
+- ✅ Pattern matching uses `=>` arrows, guards work (`if` conditions)
+- ✅ Semicolons REQUIRED between statements in blocks
+- ✅ `show` is builtin - do NOT import it
+- ✅ Records: use literals and field access, NO update syntax yet
+- ✅ Effects must be declared: `! {IO}`, `! {FS}`, `! {Clock}`, `! {Net}`, or combinations
+- ✅ Modulo operator `%` works: `5 % 3` returns `2`
+- ✅ Float comparison works: `0.0 == 0.0` returns `true`
+- ✅ Four effects available: IO (console), FS (files), Clock (time), Net (HTTP)
+
+**If you're not sure, look at the examples above!** They show the exact AILANG syntax.
+
+**v0.3.0 Release Notes (October 2025):**
+- Added Clock effect (monotonic time, sleep, deterministic mode)
+- Added Net effect (HTTP GET/POST with DNS rebinding prevention, IP blocking)
+- Fixed modulo operator (`%`) type defaulting
+- Fixed float comparison (`==`) dictionary resolution
+- Pattern matching guards now work correctly
+- 48+ working examples demonstrating all features
+
+---
+
+# AI Prompt: v0.3.6.md
+
+# AILANG AI Teaching Prompt (v0.3.6)
+
+**CRITICAL: You MUST write code in AILANG syntax. This is NOT Python, NOT Rust, NOT JavaScript.**
+
+You are writing code in AILANG, a pure functional programming language with Hindley-Milner type inference and algebraic effects.
+
+## ⚠️ CRITICAL: What AILANG is NOT
+
+**DO NOT generate code like this - these will FAIL:**
+
+❌ **WRONG - Single-line statements without module:**
+```
+PRINT 5 % 3
+```
+Every program MUST start with `module benchmark/solution`
+
+❌ **WRONG - Imperative style with loops:**
+```python
+loop {
+  x = read();
+  if (x == "") { break; }
+  print(x);
+}
+```
+AILANG has NO `loop`, `break`, `while`, `for`. Use recursion!
+
+❌ **WRONG - Python/JavaScript syntax:**
+```python
+for i in range(10):
+    print(i)
+```
+This is not Python. Use functional recursion.
+
+❌ **WRONG - Assignment statements:**
+```
+x = 10;
+x = x + 1;
+```
+No mutable variables. Use `let` bindings.
+
+**✅ CORRECT - Functional AILANG:**
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func loop(n: int) -> () ! {IO} {
+  if n > 10
+  then ()
+  else {
+    println(show(n));
+    loop(n + 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  loop(1)
+}
+```
+
+## MANDATORY Structure
+
+**EVERY AILANG program MUST have this structure:**
+
+1. **Module declaration**: `module benchmark/solution` (first line)
+2. **Imports**: `import std/io (println)` (if using IO)
+3. **Functions**: `export func main() -> () ! {IO} { ... }`
+
+**IMPORTANT SYNTAX RULES:**
+- Use `func` NOT `fn`, `function`, or `def`
+- Use `type Name[a] = Constructor(a) | Constructor2` NOT `type Name { }` or `enum`
+- NO namespace syntax (`::`), just use constructor names directly
+- Semicolons REQUIRED between statements in blocks
+- Pattern matching uses `=>` NOT `:` or `->`
+- NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
+
+## Current Version: v0.3.6 (October 2025)
+
+**✅ WHAT WORKS:**
+- ✅ **Module declarations** - `module path/to/module`
+- ✅ **Function declarations** - `export func name(params) -> Type { body }`
+- ✅ **Anonymous functions** - NEW: `func(x: int) -> int { x * 2 }` (inline lambdas)
+- ✅ **Recursive lambdas** - NEW: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
+- ✅ **Numeric conversions** - NEW: `intToFloat(42)`, `floatToInt(3.14)`
+- ✅ **Import statements** - `import std/io (println)`, `import std/clock (now, sleep)`, `import std/net (httpGet)`
+- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards, **guards** (`if` conditions)
+- ✅ **Effect system** - `! {IO, FS, Clock, Net}` for side effects with capability security
+- ✅ **ADTs** - Algebraic data types: `type Option[a] = Some(a) | None`
+- ✅ **Recursion** - Self-recursive and mutually-recursive functions with stack overflow protection
+- ✅ **Block expressions** - `{ stmt1; stmt2; result }` for sequencing
+- ✅ **Records** - Record literals, field access, subsumption
+- ✅ **Type system fixes** - Modulo operator (`%`) and float comparison (`==`) both work correctly
+
+**⚠️ LIMITATIONS:**
+- ⚠️ NO `for`/`while` loops - use recursion
+- ⚠️ NO `var` - everything is immutable
+- ⚠️ NO record update syntax `{r | field: val}` (yet) - manually copy all fields
+- ⚠️ NO error propagation operator `?` (yet)
+- ⚠️ NO custom HTTP headers (OpenAI/Claude APIs blocked until v0.4.0)
+- ⚠️ NO list spread patterns `[x, ...rest]` (yet) - use Cons constructor
+- ⚠️ `show` is a builtin - do NOT import it
+
+## 📋 IMPORT CHECKLIST - Read Before Writing Code!
+
+**Using comparison operators?** → You MUST import std/prelude with explicit items:
+
+```ailang
+import std/prelude (Ord, Eq)  // Required for <, >, <=, >=, ==, !=
+```
+
+**Common imports:**
+- `<`, `>`, `<=`, `>=` → `import std/prelude (Ord)` (Ord typeclass) **REQUIRED**
+- `==`, `!=` → `import std/prelude (Eq)` (Eq typeclass) **REQUIRED**
+- Both → `import std/prelude (Ord, Eq)` **RECOMMENDED**
+- `println`, `print` → `import std/io (println)`
+- `show` → builtin, **DO NOT IMPORT**
+
+**IMPORTANT**: Must use parentheses `(Ord, Eq)` - namespace imports not supported!
+
+**If you see error: "No instance for Ord" or "No instance for Eq":**
+→ You forgot `import std/prelude (Ord, Eq)` at the top!
+
+## Module Structure
+
+Every AILANG program must be a module with exported functions:
+
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello, World!")
+}
+```
+
+**IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
+
+## Functions
+
+```ailang
+-- Simple pure function
+export func add(x: int, y: int) -> int {
+  x + y
+}
+
+-- Function with effects (IO, FS)
+export func greet(name: string) -> () ! {IO} {
+  println("Hello, " ++ name)
+}
+
+-- Generic function
+export func identity[a](x: a) -> a {
+  x
+}
+
+-- Multi-statement body (SEMICOLONS REQUIRED!)
+export func compute() -> int {
+  let x = 10;
+  let y = 20;
+  x + y
+}
+```
+
+## Anonymous Functions (NEW in v0.3.5!)
+
+Inline lambda expressions with familiar syntax:
+
+```ailang
+-- Anonymous function literal
+let double = func(x: int) -> int { x * 2 }
+
+-- With type inference
+let add = func(x, y) { x + y }
+
+-- With effects
+let greet = func(name: string) -> () ! {IO} {
+  println("Hello, " ++ name)
+}
+
+-- Higher-order functions
+let apply = func(f: func(int) -> int, x: int) -> int { f(x) }
+apply(func(n: int) -> int { n * 2 }, 5)  -- 10
+```
+
+**IMPORTANT**: Use `=>` for lambdas (`\x. body`), use `-> {` for func expressions.
+
+## Recursive Lambdas (NEW in v0.3.5!)
+
+The `letrec` keyword enables recursive function definitions in expressions:
+
+```ailang
+-- Fibonacci using letrec
+letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in
+fib(10)  -- 55
+
+-- Factorial
+letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in
+factorial(5)  -- 120
+```
+
+**Use case**: Recursive functions in REPL or inside expressions without full function declarations.
+
+## Numeric Conversions (NEW in v0.3.5!)
+
+Explicit type conversion builtins for int ↔ float:
+
+```ailang
+-- Int to Float
+intToFloat(42)  -- 42.0
+
+-- Float to Int (truncates towards zero)
+floatToInt(3.14)   -- 3
+floatToInt(-3.14)  -- -3
+
+-- Mixed arithmetic (requires conversion)
+let result = intToFloat(1) + 2.5  -- 3.5
+```
+
+**IMPORTANT**: AILANG does NOT do automatic numeric coercion. You MUST use these builtins.
+
+## Block Expressions
+
+Blocks allow sequencing statements with semicolons:
+
+```ailang
+export func demo() -> () ! {IO} {
+  {
+    println("First");
+    println("Second");
+    println("Third")
+  }
+}
+
+-- Blocks are expressions - the last value is returned
+export func compute() -> int {
+  {
+    let x = 10;
+    let y = 20;
+    x + y
+  }
+}
+```
+
+**CRITICAL**: Semicolons REQUIRED between statements! Missing semicolons will cause parse errors.
+
+## Records (NEW in v0.3.0!)
+
+Records are structural types with named fields:
+
+```ailang
+-- Record literal
+let person = {name: "Alice", age: 30, city: "NYC"}
+
+-- Field access
+person.name    -- "Alice"
+person.age     -- 30
+
+-- Use in functions
+export func describe(p: {name: string, age: int}) -> string {
+  p.name ++ " is " ++ show(p.age)
+}
+```
+
+**⚠️ IMPORTANT**: Record update syntax `{r | field: val}` is NOT yet implemented.
+To create a modified record, create a new record literal:
+
+```ailang
+-- ❌ NOT supported yet:
+let older = {person | age: 31}
+
+-- ✅ Instead do this:
+let older = {name: person.name, age: 31, city: person.city}
+```
+
+## Algebraic Data Types (ADTs)
+
+**✅ CORRECT AILANG SYNTAX:**
+```ailang
+type Option[a] = Some(a) | None
+type Result[a, e] = Ok(a) | Err(e)
+type List[a] = Cons(a, List[a]) | Nil
+
+export func getOrElse[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+```
+
+**❌ WRONG - This is Rust/other languages, NOT AILANG:**
+```rust
+type Option {        // ❌ Wrong - no { } braces
+  Some(value)        // ❌ Wrong - not AILANG syntax
+  None
+}
+
+Option::Some(42)     // ❌ Wrong - AILANG has no :: operator
+fn divide(a, b) { }  // ❌ Wrong - use 'func' not 'fn'
+```
+
+**✅ CORRECT - Use constructors directly:**
+```ailang
+Some(42)             // ✅ Correct - no namespace needed
+None                 // ✅ Correct
+```
+
+## Available Imports
+
+**std/io** - IO operations (requires `! {IO}` effect)
+```ailang
+import std/io (println, print, readLine)
+
+export func main() -> () ! {IO} {
+  println("text")
+}
+```
+
+**std/fs** - File operations (requires `! {FS}` effect)
+```ailang
+import std/fs (readFile, writeFile, exists)
+
+export func readData() -> string ! {FS} {
+  readFile("data.txt")
+}
+```
+
+**std/clock** - Time operations (requires `! {Clock}` effect) **NEW in v0.3.0!**
+```ailang
+import std/clock (now, sleep)
+
+export func measureTime() -> () ! {IO, Clock} {
+  let start = now();
+  sleep(1000);  -- Sleep for 1 second (milliseconds)
+  let end = now();
+  println("Elapsed: " ++ show(end - start) ++ "ms")
+}
+```
+
+**std/net** - HTTP operations (requires `! {Net}` effect) **NEW in v0.3.0!**
+```ailang
+import std/net (httpGet, httpPost)
+
+export func fetchData() -> () ! {IO, Net} {
+  let response = httpGet("https://api.example.com/data");
+  println(response)
+}
+```
+
+**IMPORTANT:**
+- `show` is a BUILTIN function - do NOT import it from std/io!
+- Clock and Net have security restrictions (no localhost, private IPs, file:// URLs blocked)
+- Run with capabilities: `ailang run --caps IO,FS,Clock,Net --entry main file.ail`
+
+**std/option** - Option type
+```ailang
+import std/option (Option, Some, None)
+```
+
+## Recursion (instead of loops)
+
+Recursion works perfectly in v0.3.0:
+
+```ailang
+export func factorial(n: int) -> int {
+  if n <= 1
+  then 1
+  else n * factorial(n - 1)
+}
+
+-- Recursion with IO effects and blocks
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+```
+
+## Recursion Limitation in REPL
+
+**IMPORTANT:** Recursive lambdas are NOT supported in let-bindings:
+
+```ailang
+-- ❌ DOES NOT WORK - let bindings cannot be recursive
+let fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10)
+-- Error: undefined variable: fib
+```
+
+**✅ WORKAROUND:** Use `func` declarations in module files instead:
+
+```ailang
+-- In a .ail file:
+module examples/fib
+export func fib(n: int) -> int {
+  if n < 2 then n else fib(n - 1) + fib(n - 2)
+}
+```
+
+**Why:** Module-level `func` declarations are automatically recursive. The `letrec` keyword does not exist in AILANG's surface syntax (v0.3.0).
+
+## Common Mistakes to Avoid
+
+❌ **Don't use for/while loops:**
+```ailang
+for i in [1, 2, 3] { println(i) }  -- ❌ NOT supported
+```
+
+✅ **Use recursion:**
+```ailang
+export func printAll(xs: [int]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    _ => {
+      println(show(head(xs)));
+      printAll(tail(xs))
+    }
+  }
+}
+```
+
+❌ **Don't forget semicolons in blocks:**
+```ailang
+{
+  println("First")
+  println("Second")  -- ❌ Parse error! Missing semicolon
+}
+```
+
+✅ **Add semicolons between statements:**
+```ailang
+{
+  println("First");
+  println("Second")  -- ✅ Last statement doesn't need semicolon
+}
+```
+
+❌ **Don't import show:**
+```ailang
+import std/io (println, show)  -- ❌ show not in std/io
+```
+
+✅ **show is a builtin:**
+```ailang
+import std/io (println)
+-- show is available automatically
+println(show(42))
+```
+
+❌ **Don't forget module and export:**
+```ailang
+func main() {  -- ❌ Missing 'module' declaration and 'export'
+  println("hello")
+}
+```
+
+✅ **Always use module and export:**
+```ailang
+module benchmark/solution
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("hello")
+}
+```
+
+## Complete Working Examples
+
+### Example 1: Safe Division with Option
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func safeDivide(a: float, b: float) -> Option[float] {
+  if b == 0.0
+  then None
+  else Some(a / b)
+}
+
+export func printResult(result: Option[float]) -> () ! {IO} {
+  match result {
+    Some(v) => println("Result: " ++ show(v)),
+    None => println("Error: Division by zero")
+  }
+}
+
+export func main() -> () ! {IO} {
+  let r1 = safeDivide(10.0, 2.0);
+  printResult(r1);
+  let r2 = safeDivide(10.0, 0.0);
+  printResult(r2)
+}
+```
+
+### Example 2: Countdown with Recursion and Blocks
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  countdown(5)
+}
+```
+
+### Example 3: Records with Field Access
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let alice = {name: "Alice", age: 30, city: "NYC"};
+  let bob = {name: "Bob", age: 25, city: "SF"};
+
+  println(alice.name ++ ", " ++ show(alice.age) ++ ", " ++ alice.city);
+  println(bob.name ++ ", " ++ show(bob.age) ++ ", " ++ bob.city)
+}
+```
+
+## Summary
+
+**Structure:**
+1. Start with `module benchmark/solution` (REQUIRED for benchmarks!)
+2. Import what you need from stdlib (`import std/io (println)`)
+3. Define exported functions with `export func name(params) -> ReturnType { }`
+4. Declare effects with `! {IO, FS}` when using IO/FS operations
+5. Use recursion instead of loops - AILANG has NO for/while loops!
+6. Use semicolons between statements in blocks
+
+**Remember:**
+- ✅ Use `func` NOT `fn`, `function`, or `def`
+- ✅ ADTs use `type Name[a] = Cons1(a) | Cons2` syntax
+- ✅ NO `::` operator - use constructors directly
+- ✅ NO for/while loops - use recursion
+- ✅ Everything is immutable (no `var` or mutation)
+- ✅ Pattern matching uses `=>` arrows, guards work (`if` conditions)
+- ✅ Semicolons REQUIRED between statements in blocks
+- ✅ `show` is builtin - do NOT import it
+- ✅ Records: use literals and field access, NO update syntax yet
+- ✅ Effects must be declared: `! {IO}`, `! {FS}`, `! {Clock}`, `! {Net}`, or combinations
+- ✅ Modulo operator `%` works: `5 % 3` returns `2`
+- ✅ Float comparison works: `0.0 == 0.0` returns `true`
+- ✅ Four effects available: IO (console), FS (files), Clock (time), Net (HTTP)
+
+**If you're not sure, look at the examples above!** They show the exact AILANG syntax.
+
+**v0.3.0 Release Notes (October 2025):**
+- Added Clock effect (monotonic time, sleep, deterministic mode)
+- Added Net effect (HTTP GET/POST with DNS rebinding prevention, IP blocking)
+- Fixed modulo operator (`%`) type defaulting
+- Fixed float comparison (`==`) dictionary resolution
+- Pattern matching guards now work correctly
+- 48+ working examples demonstrating all features
 
 ---
 
