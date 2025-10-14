@@ -131,19 +131,23 @@ func CalculateCost(model string, tokens int) float64 {
 
 // CalculateCostWithBreakdown calculates cost using separate input/output token counts
 // This provides accurate pricing based on models.yml configuration
+// Returns 0.0 if model not found - FAIL LOUDLY, NO SILENT FALLBACKS
 func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) float64 {
-	// Try to use GlobalModelsConfig for accurate pricing
-	if GlobalModelsConfig != nil {
-		cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
-		if err == nil {
-			return cost
-		}
+	// CRITICAL: GlobalModelsConfig MUST be initialized
+	if GlobalModelsConfig == nil {
+		// Return 0 to make it obvious something is wrong
+		// Better to see $0.00 in reports than trust wrong data
+		return 0.0
 	}
 
-	// Fallback: Conservative estimate (GPT-4 pricing)
-	inputCost := float64(inputTokens) / 1000.0 * 0.03
-	outputCost := float64(outputTokens) / 1000.0 * 0.06
-	return inputCost + outputCost
+	cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+	if err != nil {
+		// Model not found in config - return 0 to force investigation
+		// NO SILENT FALLBACKS - we want to know when pricing is missing
+		return 0.0
+	}
+
+	return cost
 }
 
 // NewRunMetrics creates a new RunMetrics with timestamp and error category
