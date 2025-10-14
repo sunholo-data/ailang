@@ -145,7 +145,7 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.InputTokens = result.InputTokens
 	metrics.OutputTokens = result.OutputTokens
 	metrics.TotalTokens = result.InputTokens + result.OutputTokens
-	metrics.CostUSD = CalculateCost(metrics.Model, metrics.TotalTokens)
+	metrics.CostUSD = CalculateCostWithBreakdown(metrics.Model, metrics.InputTokens, metrics.OutputTokens)
 
 	metrics.CompileOk = result.CompileOk
 	metrics.RuntimeOk = result.RuntimeOk

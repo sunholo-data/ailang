@@ -113,24 +113,37 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 }
 
 // CalculateCost estimates the cost in USD based on model and token count
+// DEPRECATED: Use CalculateCostWithBreakdown for accurate pricing
+// This function assumes all tokens are output tokens for backward compatibility
 func CalculateCost(model string, tokens int) float64 {
-	// Token pricing (as of 2025, per 1K tokens)
-	// These are approximate rates and should be updated
-	rates := map[string]float64{
-		"gpt-4":         0.03,  // $0.03 per 1K tokens (input)
-		"gpt-4-turbo":   0.01,  // $0.01 per 1K tokens
-		"gpt-3.5-turbo": 0.001, // $0.001 per 1K tokens
-		"claude-3":      0.015, // Anthropic pricing
-		"claude-2":      0.01,
+	// Try to use GlobalModelsConfig for accurate pricing
+	if GlobalModelsConfig != nil {
+		cost, err := GlobalModelsConfig.CalculateCostForModel(model, 0, tokens)
+		if err == nil {
+			return cost
+		}
 	}
 
-	rate, ok := rates[model]
-	if !ok {
-		// Default to GPT-4 pricing if unknown
-		rate = 0.03
+	// Fallback: Conservative estimate using output token pricing
+	// This is a last resort and should rarely be needed
+	return float64(tokens) / 1000.0 * 0.03
+}
+
+// CalculateCostWithBreakdown calculates cost using separate input/output token counts
+// This provides accurate pricing based on models.yml configuration
+func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) float64 {
+	// Try to use GlobalModelsConfig for accurate pricing
+	if GlobalModelsConfig != nil {
+		cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+		if err == nil {
+			return cost
+		}
 	}
 
-	return float64(tokens) / 1000.0 * rate
+	// Fallback: Conservative estimate (GPT-4 pricing)
+	inputCost := float64(inputTokens) / 1000.0 * 0.03
+	outputCost := float64(outputTokens) / 1000.0 * 0.06
+	return inputCost + outputCost
 }
 
 // NewRunMetrics creates a new RunMetrics with timestamp and error category
