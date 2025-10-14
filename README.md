@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-29.0%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-28.9%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -263,13 +263,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-49%20passing%2029%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-51%20passing%2030%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-13 20:31:25 UTC*
+*Last updated: 2025-10-14 19:00:56 UTC*
 
-**Summary:** 49 passed, 29 failed, 4 skipped (Total: 82)
+**Summary:** 51 passed, 30 failed, 4 skipped (Total: 85)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -281,7 +281,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
 | `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `demo_openai_api.ail` | ❌ Fail | Error: execution failed: effect 'IO' requires c... |
+| `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demos/hello_io.ail` | ✅ Pass |  |
@@ -292,9 +292,11 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/quicksort.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
 | `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): t... |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
+| `letrec_recursion.ail` | ✅ Pass |  |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `micro_block_if.ail` | ✅ Pass |  |
 | `micro_block_seq.ail` | ✅ Pass |  |
@@ -303,6 +305,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `micro_record_person.ail` | ✅ Pass |  |
+| `numeric_conversion.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
