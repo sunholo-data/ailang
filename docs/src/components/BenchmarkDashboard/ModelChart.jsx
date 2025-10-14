@@ -3,19 +3,41 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import styles from './styles.module.css';
 
 export default function ModelChart({ models }) {
-  // Transform data for recharts
+  // Transform data for recharts - now with per-language breakdown
   const chartData = Object.entries(models).map(([name, stats]) => {
     const shortName = formatModelName(name);
-    return {
+    const data = {
       name: shortName,
-      'Zero-Shot': (stats.aggregates.zeroShotSuccess * 100).toFixed(1),
-      'Final (with repair)': (stats.aggregates.finalSuccess * 100).toFixed(1),
+      fullName: name,
       runs: stats.totalRuns
     };
+
+    // Use per-language stats if available (NEW DATA!)
+    if (stats.languages && stats.languages.ailang && stats.languages.python) {
+      data['AILANG'] = (stats.languages.ailang.successRate * 100).toFixed(1);
+      data['Python'] = (stats.languages.python.successRate * 100).toFixed(1);
+      data.ailangTokens = Math.round(stats.languages.ailang.avgTokens);
+      data.pythonTokens = Math.round(stats.languages.python.avgTokens);
+      data.ailangRuns = stats.languages.ailang.totalRuns;
+      data.pythonRuns = stats.languages.python.totalRuns;
+    } else {
+      // Fallback to aggregates (old behavior)
+      data['Zero-Shot'] = (stats.aggregates.zeroShotSuccess * 100).toFixed(1);
+      data['Final (with repair)'] = (stats.aggregates.finalSuccess * 100).toFixed(1);
+    }
+
+    return data;
   });
 
-  // Sort by final success rate
-  chartData.sort((a, b) => parseFloat(b['Final (with repair)']) - parseFloat(a['Final (with repair)']));
+  // Sort by AILANG success rate (or zero-shot if no language data)
+  chartData.sort((a, b) => {
+    const aVal = parseFloat(a['AILANG'] || a['Zero-Shot'] || 0);
+    const bVal = parseFloat(b['AILANG'] || b['Zero-Shot'] || 0);
+    return bVal - aVal;
+  });
+
+  // Check if we have language-specific data
+  const hasLanguageData = chartData.some(d => d['AILANG'] !== undefined);
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {
@@ -24,15 +46,33 @@ export default function ModelChart({ models }) {
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
-          <p className={styles.tooltipValue}>
-            <span className={styles.tooltipDot} style={{backgroundColor: '#2e8555'}} />
-            Zero-Shot: {data['Zero-Shot']}%
-          </p>
-          <p className={styles.tooltipValue}>
-            <span className={styles.tooltipDot} style={{backgroundColor: '#25c2a0'}} />
-            Final: {data['Final (with repair)']}%
-          </p>
-          <p className={styles.tooltipRuns}>({data.runs} runs)</p>
+          {data['AILANG'] !== undefined ? (
+            <>
+              <p className={styles.tooltipValue}>
+                <span className={styles.tooltipDot} style={{backgroundColor: '#2e8555'}} />
+                AILANG: {data['AILANG']}% ({data.ailangRuns} runs, {data.ailangTokens} tokens)
+              </p>
+              <p className={styles.tooltipValue}>
+                <span className={styles.tooltipDot} style={{backgroundColor: '#25c2a0'}} />
+                Python: {data['Python']}% ({data.pythonRuns} runs, {data.pythonTokens} tokens)
+              </p>
+              <p className={styles.tooltipRuns}>
+                Gap: {(parseFloat(data['AILANG']) - parseFloat(data['Python'])).toFixed(1)}%
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={styles.tooltipValue}>
+                <span className={styles.tooltipDot} style={{backgroundColor: '#2e8555'}} />
+                Zero-Shot: {data['Zero-Shot']}%
+              </p>
+              <p className={styles.tooltipValue}>
+                <span className={styles.tooltipDot} style={{backgroundColor: '#25c2a0'}} />
+                Final: {data['Final (with repair)']}%
+              </p>
+              <p className={styles.tooltipRuns}>({data.runs} runs)</p>
+            </>
+          )}
         </div>
       );
     }
@@ -62,16 +102,33 @@ export default function ModelChart({ models }) {
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
           />
-          <Bar
-            dataKey="Zero-Shot"
-            fill="var(--ifm-color-primary-dark)"
-            radius={[8, 8, 0, 0]}
-          />
-          <Bar
-            dataKey="Final (with repair)"
-            fill="var(--ifm-color-primary-light)"
-            radius={[8, 8, 0, 0]}
-          />
+          {hasLanguageData ? (
+            <>
+              <Bar
+                dataKey="AILANG"
+                fill="var(--ifm-color-primary-dark)"
+                radius={[8, 8, 0, 0]}
+              />
+              <Bar
+                dataKey="Python"
+                fill="var(--ifm-color-success-dark)"
+                radius={[8, 8, 0, 0]}
+              />
+            </>
+          ) : (
+            <>
+              <Bar
+                dataKey="Zero-Shot"
+                fill="var(--ifm-color-primary-dark)"
+                radius={[8, 8, 0, 0]}
+              />
+              <Bar
+                dataKey="Final (with repair)"
+                fill="var(--ifm-color-primary-light)"
+                radius={[8, 8, 0, 0]}
+              />
+            </>
+          )}
         </BarChart>
       </ResponsiveContainer>
     </div>
