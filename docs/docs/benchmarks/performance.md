@@ -36,9 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Adt Option**: 100.0% success rate
 - **Recursion Fibonacci**: 100.0% success rate
+- **Targeted Repair Test**: 100.0% success rate
+- **Fizzbuzz**: 100.0% success rate
 - **Records Person**: 100.0% success rate
+- **Pattern Matching Complex**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -65,43 +67,42 @@ Want to see AILANG in action?
 
 ## Technical Details
 
-**Version**: 0.3.5-8-g2e48915
+**Version**: 0.3.5-15-g542d20f
 
-**Total Runs**: 57
+**Total Runs**: 38
 
-**Generated**: 2025-10-14 14:15:29
+**Generated**: 2025-10-14 20:58:36
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run |
 |-------|------|--------|-------|------------|---------|
-| gpt-5 | 19 | 42.1% | 42.1% | 3005 | $0.0901 |
-| Claude Sonnet 4.5 | 19 | 36.8% | 36.8% | 3563 | $0.1069 |
-| gemini-2.5-pro | 19 | 26.3% | 26.3% | 3261 | $0.0978 |
+| Claude Sonnet 4.5 | 38 | 68.4% | 68.4% | 1931 | $0.0579 |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Adt Option | 100.0% | 197 | ailang |
-| ✅ Records Person | 100.0% | 127 | ailang |
-| ✅ Recursion Fibonacci | 100.0% | 91 | ailang |
-| ⚠️ Fizzbuzz | 66.7% | 169 | ailang |
-| ⚠️ Nested Records | 66.7% | 120 | ailang |
-| ⚠️ Recursion Factorial | 66.7% | 85 | ailang |
-| ⚠️ String Manipulation | 66.7% | 121 | ailang |
-| ⚠️ Targeted Repair Test | 66.7% | 47 | ailang |
-| ❌ Error Handling | 33.3% | 450 | ailang |
-| ❌ Cli Args | 0.0% | 114 | ailang |
-| ❌ Float Eq | 0.0% | 36 | ailang |
-| ❌ Higher Order Functions | 0.0% | 219 | ailang |
-| ❌ Json Parse | 0.0% | 83 | ailang |
-| ❌ List Comprehension | 0.0% | 460 | ailang |
-| ❌ List Operations | 0.0% | 215 | ailang |
-| ❌ Numeric Modulo | 0.0% | 14 | ailang |
-| ❌ Pattern Matching Complex | 0.0% | 337 | ailang |
-| ❌ Pipeline | 0.0% | 57 | ailang |
-| ❌ Record Update | 0.0% | 176 | ailang |
+| ✅ Fizzbuzz | 100.0% | 140 | ailang, python |
+| ✅ Nested Records | 100.0% | 135 | ailang, python |
+| ✅ Pattern Matching Complex | 100.0% | 298 | ailang, python |
+| ✅ Record Update | 100.0% | 186 | ailang, python |
+| ✅ Records Person | 100.0% | 122 | ailang, python |
+| ✅ Recursion Factorial | 100.0% | 73 | ailang, python |
+| ✅ Recursion Fibonacci | 100.0% | 89 | ailang, python |
+| ✅ Simple Print | 100.0% | 22 | python |
+| ✅ String Manipulation | 100.0% | 109 | ailang, python |
+| ✅ Targeted Repair Test | 100.0% | 55 | ailang |
+| ⚠️ Adt Option | 50.0% | 177 | ailang, python |
+| ⚠️ Error Handling | 50.0% | 642 | ailang, python |
+| ⚠️ Float Eq | 50.0% | 36 | ailang, python |
+| ⚠️ Higher Order Functions | 50.0% | 170 | ailang, python |
+| ⚠️ Json Parse | 50.0% | 88 | ailang, python |
+| ⚠️ List Comprehension | 50.0% | 286 | ailang, python |
+| ⚠️ List Operations | 50.0% | 190 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 18 | ailang, python |
+| ❌ Cli Args | 0.0% | 110 | ailang, python |
+| ❌ Pipeline | 0.0% | 38 | ailang, python |
 
 ---
 
