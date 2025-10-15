@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
 
 # Binary name
 BINARY=ailang
@@ -399,6 +399,11 @@ ci: deps fmt-check vet lint test test-coverage-badge test-lowering verify-no-shi
 ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions test-imports test-recursion test-iface-determinism verify-examples
 	@echo "✓ Strict CI verification complete (A2 milestone)"
 
+# Doctor command - validate builtin registry
+doctor: build
+	@echo "Running builtin registry validation..."
+	@AILANG_BUILTINS_REGISTRY=1 $(BUILD_DIR)/$(BINARY) doctor builtins
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -416,6 +421,7 @@ help:
 	@echo "  make verify-examples  - Verify all examples"
 	@echo "  make flag-broken      - Add warning headers to broken examples"
 	@echo "  make update-readme    - Update README with example status"
+	@echo "  make doctor           - Validate builtin registry"
 	@echo "  make ci               - Run full CI verification"
 	@echo "  make fmt              - Format code"
 	@echo "  make fmt-check        - Check code formatting"
