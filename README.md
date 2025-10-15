@@ -263,13 +263,13 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-51%20passing%2030%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-52%20passing%2029%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-15 07:30:32 UTC*
+*Last updated: 2025-10-15 09:21:05 UTC*
 
-**Summary:** 51 passed, 30 failed, 4 skipped (Total: 85)
+**Summary:** 52 passed, 29 failed, 4 skipped (Total: 85)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -307,7 +307,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `micro_record_person.ail` | ✅ Pass |  |
 | `numeric_conversion.ail` | ✅ Pass |  |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
-| `patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
+| `patterns.ail` | ✅ Pass |  |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
 | `recursion_error.ail` | ✅ Pass |  |
 | `recursion_factorial.ail` | ✅ Pass |  |
