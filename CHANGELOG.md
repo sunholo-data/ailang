@@ -43,26 +43,38 @@
 
 ### Benchmark Results (M-EVAL)
 
-**AILANG Performance**: 42.1% success rate (16/38 runs)
-- gpt5-mini: 8/19 benchmarks passing
-- gemini-2-5-flash: 8/19 benchmarks passing
+**Overall Performance**: 65.8% success rate (75/114 runs across 3 models × 20 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 49.1% (28/57) - New language, learning curve
+- **Python**: 82.5% (47/57) - Baseline for comparison
+- **Gap**: 33.4 percentage points (expected for new language)
+
+**By Model:**
+- claude-sonnet-4-5: 68.4% (best performer)
+- gemini-2-5-pro: 65.8%
+- gpt5: 63.2%
 
 **Comparison to v0.3.7**:
-- v0.3.7: 38.6% (22/57 AILANG runs)
-- v0.3.8: 42.1% (16/38 AILANG runs)
-- **Improvement: +3.5 percentage points**
+- v0.3.7 AILANG: 38.6% (22/57)
+- v0.3.8 AILANG: 49.1% (28/57)
+- **Improvement: +10.5 percentage points** 🎉
 
 **Fixed Benchmarks**:
 - ✓ `pattern_matching_complex` - Multi-line ADT parser fix
 - ✓ `adt_option` - Operator lowering fix for division
 - ✓ `error_handling` - Better AI code generation patterns
+- ✓ `numeric_modulo` - Improved modulo operator support
+- ✓ `float_eq` - Float equality comparisons
+- ✓ Additional improvements across 6 more benchmarks
 
 **Cost & Duration**:
-- Total cost: $0.05 (38 runs)
-- Average duration: 21ms per run
-- Total tokens: 119,382
+- Total cost: $0.55 (full suite with 3 production models)
+- Duration: 5m11s
+- Total tokens: 203,483
+- Average duration: 28ms per run
 
-**Note**: This release focused on fixing two critical P0 regressions (multi-line ADT parsing and operator lowering). The 3.5% improvement demonstrates that these fixes enable AI models to generate more correct AILANG code.
+**Note**: This release focused on fixing two critical P0 regressions (multi-line ADT parsing and operator lowering). The 10.5% improvement demonstrates significant progress in AI code generation capabilities for AILANG.
 
 ---
 

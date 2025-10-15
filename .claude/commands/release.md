@@ -80,7 +80,12 @@ Create a new AILANG release with the specified version number.
     - Show CI workflow status
 
 12. **Update eval benchmarks** (NEW: M-EVAL-LOOP documentation)
-    - Run eval baseline to capture current performance: `make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang`
+    - Run eval baseline to capture current performance: `make eval-baseline FULL=true`
+      - **IMPORTANT**: Use `FULL=true` for releases (runs all production models)
+      - This ensures complete baseline data for dashboard charts and language comparison
+      - Will run: claude-sonnet-4-5, gpt5, gpt5-mini, gemini-2-5-flash, gemini-2-5-pro
+      - Both languages: AILANG and Python (default, DO NOT override with LANGS=ailang)
+      - Cost: ~$0.50-1.00 for full suite
     - Compare to previous version: `ailang eval-compare eval_results/baselines/v<prev> eval_results/baselines/v$1`
     - **CRITICAL**: Calculate AILANG-only and combined metrics correctly:
       ```bash
