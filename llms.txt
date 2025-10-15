@@ -530,7 +530,26 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 
 ### Benchmark Results (M-EVAL)
 
-**Note**: Benchmark results will be added after release when baseline is captured.
+**AILANG Performance**: 42.1% success rate (16/38 runs)
+- gpt5-mini: 8/19 benchmarks passing
+- gemini-2-5-flash: 8/19 benchmarks passing
+
+**Comparison to v0.3.7**:
+- v0.3.7: 38.6% (22/57 AILANG runs)
+- v0.3.8: 42.1% (16/38 AILANG runs)
+- **Improvement: +3.5 percentage points**
+
+**Fixed Benchmarks**:
+- ✓ `pattern_matching_complex` - Multi-line ADT parser fix
+- ✓ `adt_option` - Operator lowering fix for division
+- ✓ `error_handling` - Better AI code generation patterns
+
+**Cost & Duration**:
+- Total cost: $0.05 (38 runs)
+- Average duration: 21ms per run
+- Total tokens: 119,382
+
+**Note**: This release focused on fixing two critical P0 regressions (multi-line ADT parsing and operator lowering). The 3.5% improvement demonstrates that these fixes enable AI models to generate more correct AILANG code.
 
 ---
 
@@ -3696,6 +3715,7 @@ match None {
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
 - ❌ Manually extracting/formatting data when automated tools exist
+- ❌ Guessing which tools to use for benchmarks/evals - ALWAYS use eval-orchestrator agent
 
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
@@ -3742,15 +3762,22 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
-**When asked to run evals or update benchmark results:**
+**When asked to run evals, compare benchmarks, or update benchmark results:**
 
-→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+→ **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
 The agent knows how to:
 - Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
 - Compare results, validate fixes, generate reports
-- Update the benchmark dashboard
+- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
 - Use all available models and their pricing
+- Route to appropriate `ailang eval-*` commands
+
+**DO NOT:**
+- ❌ Try to guess which make targets or scripts to use
+- ❌ Write custom Python/bash scripts for benchmark analysis
+- ❌ Manually regenerate dashboard files
+- ❌ Call `ailang eval-*` commands directly (let the agent handle it)
 
 ---
 
