@@ -1,0 +1,82 @@
+-- AILANG OpenAI API Integration Example
+-- Demonstrates HTTP headers + JSON encoding for AI API calls
+--
+-- Usage:
+--   ailang run --caps IO,Net --net-allow=api.openai.com --net-timeout=30s examples/ai_call.ail
+--
+-- Setup:
+--   Get API key at: https://platform.openai.com/api-keys
+--   Replace <YOUR_API_KEY> below with your actual key
+--
+-- What this demonstrates:
+--   - httpRequest with custom headers (Authorization, Content-Type)
+--   - JSON encoding with convenience helpers (jo, kv, js)
+--   - Result matching (transport errors vs HTTP errors)
+--   - Error handling (truncated error bodies, status codes)
+
+module examples/ai_call
+
+import std/json (encode, jo, ja, kv, js, jnum)
+import std/io (println)
+import std/net (httpRequest, NetError, Transport, DisallowedHost, InvalidHeader, BodyTooLarge)
+
+-- Call OpenAI's GPT-4o-mini with a simple prompt
+export func chatOpenAI(prompt: string, apiKey: string) -> string ! {Net} {
+  let url = "https://api.openai.com/v1/chat/completions";
+
+  -- Build headers
+  let headers = [
+    {name: "Authorization", value: concat_String("Bearer ", apiKey)},
+    {name: "Content-Type", value: "application/json"}
+  ];
+
+  -- Build JSON request body
+  let body = encode(
+    jo([
+      kv("model", js("gpt-4o-mini")),
+      kv("messages", ja([
+        jo([
+          kv("role", js("user")),
+          kv("content", js(prompt))
+        ])
+      ])),
+      kv("max_tokens", jnum(100.0))
+    ])
+  );
+
+  -- Make request and handle Result
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) =>
+      if resp.ok then
+        resp.body
+      else
+        -- HTTP error (4xx, 5xx) - would show status and body preview in production
+        concat_String("HTTP error: ", show(resp.status))
+    Err(err) =>
+      -- Transport error (DNS, timeout, TLS, allowlist)
+      match err {
+        Transport(msg) => concat_String("Transport error: ", msg)
+        DisallowedHost(host) => concat_String("Blocked: ", host)
+        InvalidHeader(hdr) => concat_String("Invalid header: ", hdr)
+        BodyTooLarge(size) => concat_String("Response too large: ", size)
+      }
+  }
+}
+
+export func main() -> () ! {IO, Net} {
+  _io_println("AILANG + OpenAI GPT-4o-mini Demo");
+  _io_println("=================================");
+  _io_println("");
+  _io_println("NOTE: Replace <YOUR_API_KEY> below with your actual OpenAI API key");
+  _io_println("Get your key at: https://platform.openai.com/api-keys");
+  _io_println("");
+
+  -- IMPORTANT: Replace with your actual API key
+  let apiKey = "<YOUR_API_KEY>";
+
+  _io_println("Calling OpenAI API...");
+  let response = chatOpenAI("Say 'Hello from AILANG!' in a creative way", apiKey);
+  _io_println("");
+  _io_println("Response:");
+  _io_println(response)
+}

@@ -364,3 +364,204 @@ func TestNetBodySizeLimit(t *testing.T) {
 		}
 	})
 }
+
+// TestNetHTTPRequestCapability verifies httpRequest requires Net capability
+func TestNetHTTPRequestCapability(t *testing.T) {
+	ctx := NewEffContext()
+	// No capabilities granted
+
+	method := &eval.StringValue{Value: "GET"}
+	url := &eval.StringValue{Value: "https://example.com"}
+	headers := &eval.ListValue{Elements: []eval.Value{}}
+	body := &eval.StringValue{Value: ""}
+
+	_, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+
+	if err == nil {
+		t.Fatal("Expected capability error, got nil")
+	}
+	capErr, ok := err.(*CapabilityError)
+	if !ok {
+		t.Fatalf("Expected CapabilityError, got %T", err)
+	}
+	if capErr.Effect != "Net" {
+		t.Errorf("Expected Effect=Net, got %s", capErr.Effect)
+	}
+}
+
+// TestNetHTTPRequestHeaderValidation verifies header blocking
+func TestNetHTTPRequestHeaderValidation(t *testing.T) {
+	ctx := NewEffContext()
+	ctx.Grant(NewCapability("Net"))
+	ctx.Net = NewNetContext()
+
+	method := &eval.StringValue{Value: "GET"}
+	url := &eval.StringValue{Value: "https://example.com"}
+	body := &eval.StringValue{Value: ""}
+
+	testCases := []struct {
+		name       string
+		headerName string
+		wantError  string
+	}{
+		{"blocks Connection", "Connection", "hop-by-hop header not allowed: Connection"},
+		{"blocks Transfer-Encoding", "Transfer-Encoding", "hop-by-hop header not allowed: Transfer-Encoding"},
+		{"blocks Host", "Host", "Host header override not allowed"},
+		{"blocks Accept-Encoding", "Accept-Encoding", "Accept-Encoding is managed automatically"},
+		{"blocks Content-Length", "Content-Length", "Content-Length is computed automatically"},
+		{"allows Authorization", "Authorization", ""}, // Should not error
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			headers := &eval.ListValue{
+				Elements: []eval.Value{
+					&eval.RecordValue{
+						Fields: map[string]eval.Value{
+							"name":  &eval.StringValue{Value: tc.headerName},
+							"value": &eval.StringValue{Value: "test"},
+						},
+					},
+				},
+			}
+
+			result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+
+			if tc.wantError != "" {
+				// Expecting error
+				if err != nil {
+					t.Fatalf("Expected Result with Err, got Go error: %v", err)
+				}
+				// Check if result is Err(InvalidHeader(...))
+				tagged, ok := result.(*eval.TaggedValue)
+				if !ok {
+					t.Fatalf("Expected TaggedValue, got %T", result)
+				}
+				if tagged.CtorName != "Err" {
+					t.Errorf("Expected Err constructor, got %s", tagged.CtorName)
+				}
+				// Extract error value
+				errVal := tagged.Fields[0].(*eval.TaggedValue)
+				if errVal.CtorName != "InvalidHeader" {
+					t.Errorf("Expected InvalidHeader, got %s", errVal.CtorName)
+				}
+				errMsg := errVal.Fields[0].(*eval.StringValue).Value
+				if !strings.Contains(errMsg, tc.wantError) {
+					t.Errorf("Expected error containing %q, got %q", tc.wantError, errMsg)
+				}
+			} else {
+				// Should succeed (or fail with Transport error due to network, which is ok for this test)
+				if err != nil {
+					t.Fatalf("Unexpected Go error: %v", err)
+				}
+				// Result should be Ok(...) or Err(Transport(...))
+				tagged, ok := result.(*eval.TaggedValue)
+				if !ok {
+					t.Fatalf("Expected TaggedValue, got %T", result)
+				}
+				if tagged.CtorName != "Ok" && tagged.CtorName != "Err" {
+					t.Errorf("Expected Ok or Err, got %s", tagged.CtorName)
+				}
+			}
+		})
+	}
+}
+
+// TestNetHTTPRequestMethodWhitelist verifies method validation
+func TestNetHTTPRequestMethodWhitelist(t *testing.T) {
+	ctx := NewEffContext()
+	ctx.Grant(NewCapability("Net"))
+	ctx.Net = NewNetContext()
+
+	url := &eval.StringValue{Value: "https://example.com"}
+	headers := &eval.ListValue{Elements: []eval.Value{}}
+	body := &eval.StringValue{Value: ""}
+
+	testCases := []struct {
+		method    string
+		wantError bool
+	}{
+		{"GET", false},
+		{"POST", false},
+		{"PUT", true},
+		{"DELETE", true},
+		{"PATCH", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.method, func(t *testing.T) {
+			method := &eval.StringValue{Value: tc.method}
+			result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+
+			if err != nil {
+				t.Fatalf("Unexpected Go error: %v", err)
+			}
+
+			tagged, ok := result.(*eval.TaggedValue)
+			if !ok {
+				t.Fatalf("Expected TaggedValue, got %T", result)
+			}
+
+			if tc.wantError {
+				// Should return Err for unsupported method
+				if tagged.CtorName != "Err" {
+					t.Errorf("Expected Err for method %s, got %s", tc.method, tagged.CtorName)
+				}
+			}
+		})
+	}
+}
+
+// TestNetHTTPRequestResultType verifies Result structure
+func TestNetHTTPRequestResultType(t *testing.T) {
+	ctx := NewEffContext()
+	ctx.Grant(NewCapability("Net"))
+	ctx.Net = NewNetContext()
+
+	method := &eval.StringValue{Value: "GET"}
+	// Use invalid URL to force Transport error
+	url := &eval.StringValue{Value: "https://invalid-domain-that-does-not-exist-12345.com"}
+	headers := &eval.ListValue{Elements: []eval.Value{}}
+	body := &eval.StringValue{Value: ""}
+
+	result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+
+	if err != nil {
+		t.Fatalf("Unexpected Go error: %v", err)
+	}
+
+	// Result should be TaggedValue (Result ADT)
+	tagged, ok := result.(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("Expected TaggedValue, got %T", result)
+	}
+
+	if tagged.TypeName != "Result" {
+		t.Errorf("Expected TypeName=Result, got %s", tagged.TypeName)
+	}
+
+	if tagged.ModulePath != "std/result" {
+		t.Errorf("Expected ModulePath=std/result, got %s", tagged.ModulePath)
+	}
+
+	// Should be Err(...) because of invalid domain
+	if tagged.CtorName != "Err" {
+		t.Errorf("Expected CtorName=Err for invalid domain, got %s", tagged.CtorName)
+	}
+
+	// Error should be NetError ADT
+	errVal := tagged.Fields[0]
+	errTagged, ok := errVal.(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("Expected NetError as TaggedValue, got %T", errVal)
+	}
+
+	if errTagged.TypeName != "NetError" {
+		t.Errorf("Expected TypeName=NetError, got %s", errTagged.TypeName)
+	}
+
+	// Should be Transport error
+	if errTagged.CtorName != "Transport" {
+		t.Errorf("Expected Transport error for DNS failure, got %s", errTagged.CtorName)
+	}
+}

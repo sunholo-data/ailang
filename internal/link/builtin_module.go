@@ -307,6 +307,42 @@ func handleNetBuiltin(name string, resultType *types.Type) bool {
 		}
 		return true
 
+	case "_net_httpRequest":
+		// _net_httpRequest: String -> String -> List[{name: string, value: string}] -> String -> Result[HttpResponse, NetError] ! {Net}
+		headerRecordType := &types.TRecord{
+			Fields: map[string]types.Type{
+				"name":  strType,
+				"value": strType,
+			},
+		}
+		headerListType := &types.TList{Element: headerRecordType}
+
+		// Build HttpResponse record type
+		httpResponseType := &types.TRecord{
+			Fields: map[string]types.Type{
+				"status":  &types.TCon{Name: "Int"},
+				"headers": headerListType,
+				"body":    strType,
+				"ok":      &types.TCon{Name: "Bool"},
+			},
+		}
+
+		// Build NetError ADT type (just use the type constructor - variants handled by ADT system)
+		netErrorType := &types.TCon{Name: "NetError"}
+
+		// Build Result[HttpResponse, NetError]
+		resultAppType := &types.TApp{
+			Constructor: &types.TCon{Name: "Result"},
+			Args:        []types.Type{httpResponseType, netErrorType},
+		}
+
+		*resultType = &types.TFunc2{
+			Params:    []types.Type{strType, strType, headerListType, strType},
+			EffectRow: netEffectRow,
+			Return:    resultAppType,
+		}
+		return true
+
 	default:
 		return false
 	}
@@ -346,7 +382,7 @@ func GetBuiltinInterface() []string {
 		// Clock effect
 		"_clock_now", "_clock_sleep",
 		// Net effect
-		"_net_httpGet", "_net_httpPost",
+		"_net_httpGet", "_net_httpPost", "_net_httpRequest",
 	}
 	builtins = append(builtins, effectBuiltins...)
 

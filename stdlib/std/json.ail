@@ -1,0 +1,48 @@
+-- JSON encoding for AILANG
+-- Provides ADT for JSON values and encoding function
+module stdlib/std/json
+
+-- JSON ADT with all JSON types
+export type Json =
+  | JNull
+  | JBool(bool)
+  | JNumber(float)
+  | JString(string)
+  | JArray(List[Json])
+  | JObject(List[{key: string, value: Json}])
+
+-- Encode JSON to string (Go-backed for correctness)
+export func encode(obj: Json) -> string {
+  _json_encode(obj)
+}
+
+-- Convenience constructors (reduce AI fumbles)
+
+export func jn() -> Json {
+  JNull
+}
+
+export func jb(b: bool) -> Json {
+  JBool(b)
+}
+
+export func jnum(x: float) -> Json {
+  JNumber(x)
+}
+
+export func js(s: string) -> Json {
+  JString(s)
+}
+
+export func ja(xs: List[Json]) -> Json {
+  JArray(xs)
+}
+
+export func jo(kvs: List[{key: string, value: Json}]) -> Json {
+  JObject(kvs)
+}
+
+-- Helper to build object key-value pairs
+export func kv(k: string, v: Json) -> {key: string, value: Json} {
+  {key: k, value: v}
+}

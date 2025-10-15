@@ -16,9 +16,13 @@ import (
 func init() {
 	RegisterOp("Net", "httpGet", netHTTPGet)
 	RegisterOp("Net", "httpPost", netHTTPPost)
+	RegisterOp("Net", "httpRequest", netHTTPRequest)
 }
 
 // netHttpGet implements Net.httpGet(url: String) -> String
+//
+// Deprecated: Prefer httpRequest for access to status codes, headers, and structured errors.
+// This function will be removed in v0.4.0.
 //
 // Fetches content from an HTTP/HTTPS URL with comprehensive security validation.
 //
@@ -136,6 +140,9 @@ func netHTTPGet(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 }
 
 // netHttpPost implements Net.httpPost(url: String, body: String) -> String
+//
+// Deprecated: Prefer httpRequest for access to status codes, headers, and structured errors.
+// This function will be removed in v0.4.0.
 //
 // Sends an HTTP POST request with the given body.
 //
@@ -361,4 +368,309 @@ func matchDomain(hostname, pattern string) bool {
 	}
 
 	return false
+}
+
+// netHTTPRequest implements Net.httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]
+//
+// Advanced HTTP client with custom headers, status codes, and structured error handling.
+//
+// Parameters:
+//   - method: HTTP method ("GET", "POST" supported in v0.3.8)
+//   - url: Target URL (must pass allowlist/security validation)
+//   - headers: List of {name, value} records
+//   - body: Request body (empty string for GET)
+//
+// Returns:
+//   - Ok(HttpResponse) on success (includes 4xx/5xx status codes)
+//   - Err(NetError) for transport/validation failures
+//
+// Security:
+//   - Blocks hop-by-hop headers (Connection, Transfer-Encoding, etc.)
+//   - Blocks Host, Accept-Encoding, Content-Length overrides
+//   - Strips Authorization on cross-origin redirects
+//   - Case-insensitive header matching, preserves order
+//   - Method whitelist (GET, POST only)
+//
+// Example AILANG code:
+//
+//	let headers = [{name: "Authorization", value: "Bearer token"}];
+//	match httpRequest("POST", url, headers, body) {
+//	  Ok(resp) -> if resp.ok then resp.body else "Error: " ++ show(resp.status)
+//	  Err(err) -> match err {
+//	    Transport(msg) -> "Network error: " ++ msg
+//	    DisallowedHost(host) -> "Blocked: " ++ host
+//	    InvalidHeader(hdr) -> "Bad header: " ++ hdr
+//	    BodyTooLarge(size) -> "Response too large: " ++ show(size)
+//	  }
+//	}
+func netHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	// Step 0: Capability check
+	if !ctx.HasCap("Net") {
+		return nil, NewCapabilityError("Net")
+	}
+
+	// Step 1: Parse arguments
+	if len(args) != 4 {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: expected 4 arguments (method, url, headers, body), got %d", len(args))
+	}
+
+	methodVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: method must be String, got %T", args[0])
+	}
+	method := strings.ToUpper(methodVal.Value)
+
+	urlVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: url must be String, got %T", args[1])
+	}
+	urlStr := urlVal.Value
+
+	headersList, ok := args[2].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: headers must be List, got %T", args[2])
+	}
+
+	bodyVal, ok := args[3].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_NET_TYPE_ERROR: httpRequest: body must be String, got %T", args[3])
+	}
+	body := bodyVal.Value
+
+	// Step 2: Validate HTTP method (whitelist)
+	if method != "GET" && method != "POST" {
+		return makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST)", method)), nil
+	}
+
+	// Step 3: Parse and validate URL
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return makeResultErr("Transport", fmt.Sprintf("invalid URL: %v", err)), nil
+	}
+
+	// Step 4: Protocol validation
+	if err := validateProtocol(u.Scheme, ctx); err != nil {
+		return makeResultErr("Transport", err.Error()), nil
+	}
+
+	// Step 5: Domain allowlist check
+	if !isAllowedDomain(u.Hostname(), ctx.Net.AllowedDomains) {
+		return makeResultErr("DisallowedHost", u.Hostname()), nil
+	}
+
+	// Step 6: DNS resolution + IP validation
+	validatedIP, err := resolveAndValidateIP(u.Hostname(), ctx)
+	if err != nil {
+		return makeResultErr("Transport", err.Error()), nil
+	}
+
+	// Step 7: Parse and validate headers
+	userHeaders, err := parseHeaders(headersList)
+	if err != nil {
+		return makeResultErr("InvalidHeader", err.Error()), nil
+	}
+
+	// Step 8: Build HTTP client with security config
+	originalHost := u.Host // Save for cross-origin detection
+	client := &http.Client{
+		Timeout: ctx.Net.Timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Strip Authorization if crossing origins
+			if req.URL.Host != originalHost {
+				req.Header.Del("Authorization")
+			}
+			return validateRedirect(req, via, ctx)
+		},
+		Transport: &http.Transport{
+			DialContext: func(ctxDial context.Context, network, addr string) (net.Conn, error) {
+				_, port, _ := net.SplitHostPort(addr)
+				if port == "" {
+					port = "443"
+					if u.Scheme == "http" {
+						port = "80"
+					}
+				}
+				dialAddr := net.JoinHostPort(validatedIP, port)
+				return (&net.Dialer{}).DialContext(ctxDial, network, dialAddr)
+			},
+		},
+	}
+
+	// Step 9: Build request
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, urlStr, reqBody)
+	if err != nil {
+		return makeResultErr("Transport", fmt.Sprintf("request creation failed: %v", err)), nil
+	}
+
+	// Set User-Agent
+	req.Header.Set("User-Agent", ctx.Net.UserAgent)
+	// Set Host header to original hostname (for virtual hosting)
+	req.Host = u.Host
+	// Let Go handle Accept-Encoding for transparent gzip decompression
+	// (Don't allow user override)
+
+	// Apply user headers (with validation)
+	for _, hdr := range userHeaders {
+		if err := validateHeaderName(hdr.Name); err != nil {
+			return makeResultErr("InvalidHeader", err.Error()), nil
+		}
+		req.Header.Set(hdr.Name, hdr.Value)
+	}
+
+	// Step 10: Execute request
+	resp, err := client.Do(req)
+	if err != nil {
+		return makeResultErr("Transport", err.Error()), nil
+	}
+	defer resp.Body.Close()
+
+	// Step 11: Read body with size limit
+	limitedReader := io.LimitReader(resp.Body, ctx.Net.MaxBytes)
+	respBody, err := io.ReadAll(limitedReader)
+	if err != nil {
+		return makeResultErr("Transport", fmt.Sprintf("failed to read response: %v", err)), nil
+	}
+
+	// Check if body was truncated (exceeded size limit)
+	if int64(len(respBody)) == ctx.Net.MaxBytes {
+		oneByte := make([]byte, 1)
+		if n, _ := resp.Body.Read(oneByte); n > 0 {
+			return makeResultErr("BodyTooLarge", fmt.Sprintf("%d", ctx.Net.MaxBytes)), nil
+		}
+	}
+
+	// Step 12: Build HttpResponse record
+	httpResp := &eval.RecordValue{
+		Fields: map[string]eval.Value{
+			"status":  &eval.IntValue{Value: resp.StatusCode},
+			"headers": makeHeadersList(resp.Header),
+			"body":    &eval.StringValue{Value: string(respBody)},
+			"ok":      &eval.BoolValue{Value: resp.StatusCode >= 200 && resp.StatusCode < 300},
+		},
+	}
+
+	// Step 13: Return Ok(httpResp)
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Ok",
+		Fields:     []eval.Value{httpResp},
+	}, nil
+}
+
+// parseHeaders extracts {name, value} records from a List
+func parseHeaders(headersList *eval.ListValue) ([]httpHeader, error) {
+	var headers []httpHeader
+	for i, elem := range headersList.Elements {
+		rec, ok := elem.(*eval.RecordValue)
+		if !ok {
+			return nil, fmt.Errorf("header at index %d must be a record, got %T", i, elem)
+		}
+
+		nameVal, ok := rec.Fields["name"]
+		if !ok {
+			return nil, fmt.Errorf("header at index %d missing 'name' field", i)
+		}
+		nameStr, ok := nameVal.(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("header at index %d 'name' must be String, got %T", i, nameVal)
+		}
+
+		valueVal, ok := rec.Fields["value"]
+		if !ok {
+			return nil, fmt.Errorf("header at index %d missing 'value' field", i)
+		}
+		valueStr, ok := valueVal.(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("header at index %d 'value' must be String, got %T", i, valueVal)
+		}
+
+		headers = append(headers, httpHeader{
+			Name:  nameStr.Value,
+			Value: valueStr.Value,
+		})
+	}
+	return headers, nil
+}
+
+// httpHeader represents a single HTTP header
+type httpHeader struct {
+	Name  string
+	Value string
+}
+
+// validateHeaderName checks if a header name is allowed
+func validateHeaderName(name string) error {
+	lowerName := strings.ToLower(name)
+
+	// Block hop-by-hop headers (per HTTP/1.1 spec)
+	blocked := []string{
+		"connection",
+		"proxy-connection",
+		"keep-alive",
+		"transfer-encoding",
+		"upgrade",
+		"trailer",
+		"te",
+	}
+	for _, b := range blocked {
+		if lowerName == b {
+			return fmt.Errorf("hop-by-hop header not allowed: %s", name)
+		}
+	}
+
+	// Block headers we control
+	switch lowerName {
+	case "host":
+		return fmt.Errorf("Host header override not allowed (SSRF prevention)")
+	case "accept-encoding":
+		return fmt.Errorf("Accept-Encoding is managed automatically")
+	case "content-length":
+		return fmt.Errorf("Content-Length is computed automatically")
+	}
+
+	return nil
+}
+
+// makeHeadersList converts http.Header to AILANG List[{name, value}]
+func makeHeadersList(headers http.Header) *eval.ListValue {
+	var headerRecords []eval.Value
+	for name, values := range headers {
+		// Preserve all values (including multiple Set-Cookie, etc.)
+		for _, value := range values {
+			headerRecords = append(headerRecords, &eval.RecordValue{
+				Fields: map[string]eval.Value{
+					"name":  &eval.StringValue{Value: name},
+					"value": &eval.StringValue{Value: value},
+				},
+			})
+		}
+	}
+	return &eval.ListValue{Elements: headerRecords}
+}
+
+// makeNetError constructs a NetError ADT value
+func makeNetError(ctorName, message string) eval.Value {
+	return &eval.TaggedValue{
+		ModulePath: "std/net",
+		TypeName:   "NetError",
+		CtorName:   ctorName,
+		Fields:     []eval.Value{&eval.StringValue{Value: message}},
+	}
+}
+
+// makeResultErr wraps a NetError in Result's Err constructor
+func makeResultErr(ctorName, message string) eval.Value {
+	netErr := makeNetError(ctorName, message)
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Err",
+		Fields:     []eval.Value{netErr},
+	}
 }

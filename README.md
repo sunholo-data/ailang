@@ -7,11 +7,16 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.8 (Bug Fixes)
+## Current Version: v0.3.9 (AI API Integration)
 
 **🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.9 (Oct 2025)**: AI API Integration - HTTP headers, JSON encoding, OpenAI example
+  - **HTTP headers**: `httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]`
+  - **JSON encoding**: Complete encoder with `Json` ADT and convenience helpers
+  - **Security**: Header validation, cross-origin auth stripping, method whitelist (GET/POST)
+  - **Example**: Working OpenAI GPT-4o-mini integration in `examples/ai_call.ail`
 - **v0.3.6 (Oct 2025)**: AI usability improvements - auto-import, record updates, error detection
   - Auto-import std/prelude: Zero imports needed for comparisons and typeclasses
   - Record update syntax: `{person | age: 30}` for functional updates
@@ -124,6 +129,46 @@ func callAPI() -> () ! {Net, IO} {
 - ✅ Redirect validation (max 5 redirects)
 - ✅ Body size limits (5MB default)
 - ✅ Domain allowlist with wildcard support
+
+**✨ NEW: AI API Integration** (v0.3.9)
+```ailang
+-- Complete OpenAI integration with JSON encoding and error handling
+import std/json (encode, jo, ja, kv, js, jnum)
+import std/net (httpRequest, NetError, Transport, InvalidHeader)
+import std/io (println)
+
+func chatOpenAI(prompt: string, apiKey: string) -> string ! {Net, IO} {
+  let url = "https://api.openai.com/v1/chat/completions";
+  let headers = [
+    {name: "Authorization", value: concat_String("Bearer ", apiKey)},
+    {name: "Content-Type", value: "application/json"}
+  ];
+  let body = encode(
+    jo([
+      kv("model", js("gpt-4o-mini")),
+      kv("messages", ja([jo([kv("role", js("user")), kv("content", js(prompt))])]))
+    ])
+  );
+
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) => if resp.ok then resp.body else concat_String("HTTP error: ", show(resp.status))
+    Err(err) => match err {
+      Transport(msg) => concat_String("Network error: ", msg)
+      InvalidHeader(hdr) => concat_String("Invalid header: ", hdr)
+      -- ... handle other NetError variants
+    }
+  }
+}
+```
+
+**Key features**:
+- ✅ `httpRequest()`: Custom headers, method control, `Result[HttpResponse, NetError]` return type
+- ✅ `Json` ADT: Type-safe JSON construction with helpers (`jo`, `ja`, `kv`, `js`, `jnum`)
+- ✅ JSON encoding: Full spec compliance with proper escaping and UTF-16 support
+- ✅ Error handling: Pattern match on `Result` and `NetError` for robust failure handling
+- ✅ Security: Header validation, Authorization stripping on cross-origin redirects
+
+See [examples/ai_call.ail](examples/ai_call.ail) for the complete working example.
 
 **✨ Block Expressions** (v0.3.0)
 ```ailang

@@ -81,7 +81,7 @@ func (br *BuiltinRegistry) registerArithmeticBuiltins() {
 //   - IO effect: _io_print, _io_println, _io_readLine
 //   - FS effect: _fs_readFile, _fs_writeFile, _fs_exists
 //   - Clock effect: _clock_now, _clock_sleep
-//   - Net effect: _net_httpGet, _net_httpPost
+//   - Net effect: _net_httpGet, _net_httpPost, _net_httpRequest
 func (br *BuiltinRegistry) registerEffectBuiltins() {
 	// IO effect builtins
 	br.builtins["_io_print"] = &eval.BuiltinFunction{
@@ -194,6 +194,17 @@ func (br *BuiltinRegistry) registerEffectBuiltins() {
 				return nil, fmt.Errorf("_net_httpPost: no effect context available")
 			}
 			return effects.Call(ctx, "Net", "httpPost", args)
+		},
+	}
+
+	br.builtins["_net_httpRequest"] = &eval.BuiltinFunction{
+		Name: "_net_httpRequest",
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			ctx := br.getEffContext()
+			if ctx == nil {
+				return nil, fmt.Errorf("_net_httpRequest: no effect context available")
+			}
+			return effects.Call(ctx, "Net", "httpRequest", args)
 		},
 	}
 }
