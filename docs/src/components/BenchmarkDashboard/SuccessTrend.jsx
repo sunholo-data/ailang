@@ -21,13 +21,15 @@ export default function SuccessTrend({ history, languages }) {
     const langs = baseline.languages || '';
     const isLatest = index === sortedHistory.length - 1;
 
-    // For the latest baseline, use the actual per-language data from languages prop
-    // For historical baselines, calculate from combined rate
     let ailangRate = 0;
     let pythonRate = 0;
 
-    if (isLatest && languages) {
-      // Use actual language-specific data for latest version
+    // Check if this baseline has per-language stats (new format)
+    if (baseline.languageStats) {
+      ailangRate = (baseline.languageStats.ailang?.success_rate || 0) * 100;
+      pythonRate = (baseline.languageStats.python?.success_rate || 0) * 100;
+    } else if (isLatest && languages) {
+      // Fallback: Use top-level language stats for latest version
       ailangRate = (languages.ailang?.success_rate || 0) * 100;
       pythonRate = (languages.python?.success_rate || 0) * 100;
     } else if (langs === 'ailang') {
@@ -42,7 +44,7 @@ export default function SuccessTrend({ history, languages }) {
       pythonRate = combinedRate;
     } else {
       // Both languages - use combined rate for both (legacy behavior)
-      // This is not ideal but we don't have per-language historical data
+      // This shouldn't happen with new export format
       const combinedRate = (baseline.successRate || 0) * 100;
       ailangRate = combinedRate;
       pythonRate = combinedRate;

@@ -518,6 +518,16 @@
   },
   "history": [
     {
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.49122807017543857,
+          "total_runs": 57
+        },
+        "python": {
+          "success_rate": 0.8245614035087719,
+          "total_runs": 57
+        }
+      },
       "languages": "python,ailang",
       "successCount": 75,
       "successRate": 0.6578947368421053,
@@ -526,6 +536,16 @@
       "version": "v0.3.8"
     },
     {
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.38596491228070173,
+          "total_runs": 57
+        },
+        "python": {
+          "success_rate": 0.7894736842105263,
+          "total_runs": 57
+        }
+      },
       "languages": "python,ailang",
       "successCount": 67,
       "successRate": 0.5877192982456141,
@@ -534,6 +554,16 @@
       "version": "v0.3.7-1-gd24a7dc"
     },
     {
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.42105263157894735,
+          "total_runs": 38
+        },
+        "python": {
+          "success_rate": 0.8157894736842105,
+          "total_runs": 38
+        }
+      },
       "languages": "",
       "successCount": 47,
       "successRate": 0.618421052631579,
@@ -542,6 +572,16 @@
       "version": "v0.3.6-24-mini"
     },
     {
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.4117647058823529,
+          "total_runs": 34
+        },
+        "python": {
+          "success_rate": 0.8235294117647058,
+          "total_runs": 34
+        }
+      },
       "languages": "",
       "successCount": 42,
       "successRate": 0.6176470588235294,
@@ -1299,7 +1339,7 @@
       "totalRuns": 38
     }
   },
-  "timestamp": "2025-10-15T11:12:07+02:00",
+  "timestamp": "2025-10-15T11:31:20+02:00",
   "totalRuns": 190,
   "version": "v0.3.8"
 }

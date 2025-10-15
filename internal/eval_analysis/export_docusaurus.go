@@ -342,14 +342,15 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		modelsJS[name] = modelData
 	}
 
-	// Transform history to include calculated success rates
+	// Transform history to include calculated success rates and per-language breakdown
 	historyJS := make([]map[string]interface{}, len(history))
 	for i, baseline := range history {
 		successRate := 0.0
 		if baseline.TotalBenchmarks > 0 {
 			successRate = float64(baseline.SuccessCount) / float64(baseline.TotalBenchmarks)
 		}
-		historyJS[i] = map[string]interface{}{
+
+		histEntry := map[string]interface{}{
 			"version":      baseline.Version,
 			"timestamp":    baseline.Timestamp.Format(time.RFC3339),
 			"successRate":  successRate,
@@ -357,6 +358,41 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			"successCount": baseline.SuccessCount,
 			"languages":    baseline.Languages, // May be "ailang", "python", or "ailang,python"
 		}
+
+		// Calculate per-language stats from results if available
+		if len(baseline.Results) > 0 {
+			langStats := make(map[string]*LanguageStats)
+			for _, result := range baseline.Results {
+				lang := result.Lang
+				if lang == "" {
+					continue
+				}
+				if langStats[lang] == nil {
+					langStats[lang] = &LanguageStats{}
+				}
+				langStats[lang].TotalRuns++
+				// Success = compile_ok && runtime_ok && stdout_ok
+				if result.CompileOk && result.RuntimeOk && result.StdoutOk {
+					langStats[lang].SuccessRate += 1.0
+				}
+			}
+
+			// Calculate final success rates
+			langStatsJS := make(map[string]interface{})
+			for lang, stats := range langStats {
+				if stats.TotalRuns > 0 {
+					langStatsJS[lang] = map[string]interface{}{
+						"success_rate": stats.SuccessRate / float64(stats.TotalRuns),
+						"total_runs":   stats.TotalRuns,
+					}
+				}
+			}
+			if len(langStatsJS) > 0 {
+				histEntry["languageStats"] = langStatsJS
+			}
+		}
+
+		historyJS[i] = histEntry
 	}
 
 	data := map[string]interface{}{

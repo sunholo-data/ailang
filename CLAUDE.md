@@ -236,12 +236,18 @@ make help                 # Show all available make targets
 
 #### Keeping `ailang` Up to Date
 
-**Option 1: Manual Update**
-After making code changes, run:
+**After making code changes to the ailang binary:**
 ```bash
-make quick-install  # Fast reinstall
+make quick-install  # Fast reinstall (recommended for development)
 # OR
 make install        # Full reinstall with version info
+```
+
+**Important**: The `ailang` command in your PATH points to `/Users/mark/go/bin/ailang` (system install), NOT `bin/ailang` (local build). Always run `make install` or `make quick-install` after building to update the system binary. Otherwise your changes won't be used when running `ailang` commands.
+
+**For local testing without install:**
+```bash
+./bin/ailang <command>  # Use local build directly
 ```
 
 ### IMPORTANT: Keeping Documentation Updated
