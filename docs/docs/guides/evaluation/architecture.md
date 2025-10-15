@@ -16,7 +16,7 @@ ailang eval-suite --models gpt5,claude-sonnet-4-5
 
 # Create baseline
 make eval-baseline                # Quick baseline (dev models)
-FULL=true make eval-baseline      # Full baseline (all models)
+make eval-baseline FULL=true      # Full baseline (all models)
 
 # Compare results
 ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
@@ -141,8 +141,8 @@ Agent: → Reads design_docs/planned/EVAL_ANALYSIS_float_eq.md
 
 ```bash
 make eval-baseline              # Quick baseline
-FULL=true make eval-baseline    # Full baseline
-MODELS=X,Y make eval-baseline   # Custom baseline
+make eval-baseline FULL=true    # Full baseline
+make eval-baseline MODELS=X,Y   # Custom baseline
 
 make eval-suite                 # Run benchmarks
 make eval-analyze               # Generate design docs

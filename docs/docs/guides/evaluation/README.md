@@ -38,7 +38,7 @@ Use expensive models for release validation:
 ailang eval-suite --full
 
 # Full baseline
-FULL=true make eval-baseline
+make eval-baseline FULL=true 
 
 # Compare results
 ailang eval-compare baselines/v0.3.0 current
@@ -165,7 +165,7 @@ The framework tracks:
 ```bash
 make eval-baseline              # Quick baseline (dev models)
 # OR
-FULL=true make eval-baseline    # Full baseline (all models)
+make eval-baseline FULL=true    # Full baseline (all models)
 ```
 
 ### 2. Make Changes
