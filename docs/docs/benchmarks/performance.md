@@ -36,11 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
+- **Records Person**: 100.0% success rate
+- **Recursion Factorial**: 100.0% success rate
 - **Fizzbuzz**: 100.0% success rate
 - **Simple Print**: 100.0% success rate
-- **Records Person**: 100.0% success rate
-- **Recursion Factorial**: 90.0% success rate
-- **Nested Records**: 90.0% success rate
+- **String Manipulation**: 90.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -67,19 +67,19 @@ Want to see AILANG in action?
 
 ## Technical Details
 
-**Version**: v0.3.7-2-g7ba8de7-dirty
+**Version**: v0.3.8
 
 **Total Runs**: 190
 
-**Generated**: 2025-10-15 08:39:22
+**Generated**: 2025-10-15 10:56:15
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run | Baseline |
 |-------|------|--------|-------|------------|----------|----------|
-| gpt5-mini | 38 | 65.8% | 65.8% | 1645 | $0.0007 | v0.3.6-24-mini |
 | Claude Sonnet 4.5 | 38 | 63.2% | 63.2% | 1932 | $0.0077 | v0.3.7-1-gd24a7dc |
-| gemini-2-5-flash | 38 | 57.9% | 57.9% | 1784 | $0.0009 | v0.3.6-24-mini |
+| gpt5-mini | 38 | 63.2% | 63.2% | 1652 | $0.0007 | v0.3.8 |
+| gemini-2-5-flash | 38 | 60.5% | 60.5% | 1778 | $0.0009 | v0.3.8 |
 | gpt5 | 38 | 57.9% | 57.9% | 1630 | $0.0031 | v0.3.7-1-gd24a7dc |
 | Gemini 2.5 Pro | 38 | 55.3% | 55.3% | 1784 | $0.0036 | v0.3.7-1-gd24a7dc |
 
@@ -87,26 +87,26 @@ Want to see AILANG in action?
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Fizzbuzz | 100.0% | 127 | ailang, python |
+| ✅ Fizzbuzz | 100.0% | 123 | ailang, python |
 | ✅ Records Person | 100.0% | 114 | ailang, python |
+| ✅ Recursion Factorial | 100.0% | 69 | ailang, python |
 | ✅ Simple Print | 100.0% | 19 | python |
 | ⚠️ Nested Records | 90.0% | 136 | ailang, python |
-| ⚠️ Recursion Factorial | 90.0% | 70 | ailang, python |
-| ⚠️ Recursion Fibonacci | 90.0% | 83 | ailang, python |
 | ⚠️ String Manipulation | 90.0% | 102 | ailang, python |
-| ⚠️ Adt Option | 70.0% | 193 | ailang, python |
-| ⚠️ Pattern Matching Complex | 60.0% | 320 | ailang, python |
-| ⚠️ Record Update | 60.0% | 168 | ailang, python |
-| ⚠️ Error Handling | 50.0% | 536 | ailang, python |
-| ⚠️ Higher Order Functions | 50.0% | 166 | ailang, python |
-| ⚠️ Json Parse | 50.0% | 82 | ailang, python |
-| ⚠️ List Operations | 50.0% | 179 | ailang, python |
-| ⚠️ Numeric Modulo | 50.0% | 14 | ailang, python |
-| ❌ List Comprehension | 40.0% | 278 | ailang, python |
+| ⚠️ Recursion Fibonacci | 80.0% | 85 | ailang, python |
+| ⚠️ Adt Option | 60.0% | 190 | ailang, python |
+| ⚠️ Error Handling | 60.0% | 487 | ailang, python |
+| ⚠️ Pattern Matching Complex | 60.0% | 341 | ailang, python |
+| ⚠️ Record Update | 60.0% | 174 | ailang, python |
+| ⚠️ Higher Order Functions | 50.0% | 167 | ailang, python |
+| ⚠️ Json Parse | 50.0% | 80 | ailang, python |
+| ⚠️ List Operations | 50.0% | 178 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 13 | ailang, python |
+| ❌ List Comprehension | 40.0% | 293 | ailang, python |
 | ❌ Targeted Repair Test | 40.0% | 40 | ailang |
-| ❌ Float Eq | 30.0% | 28 | ailang, python |
-| ❌ Cli Args | 0.0% | 120 | ailang, python |
-| ❌ Pipeline | 0.0% | 51 | ailang, python |
+| ❌ Float Eq | 30.0% | 29 | ailang, python |
+| ❌ Cli Args | 0.0% | 134 | ailang, python |
+| ❌ Pipeline | 0.0% | 52 | ailang, python |
 
 ---
 
