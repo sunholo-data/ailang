@@ -805,7 +805,7 @@ func registerJSONBuiltins() {
 				return nil, fmt.Errorf("_json_encode: expected Json ADT, got %s", tagged.TypeName)
 			}
 
-			result, err := encodeJson(tagged)
+			result, err := encodeJSON(tagged)
 			if err != nil {
 				return nil, err
 			}
@@ -815,8 +815,8 @@ func registerJSONBuiltins() {
 	}
 }
 
-// encodeJson recursively encodes a Json ADT value
-func encodeJson(v *TaggedValue) (string, error) {
+// encodeJSON recursively encodes a Json ADT value
+func encodeJSON(v *TaggedValue) (string, error) {
 	switch v.CtorName {
 	case "JNull":
 		return "null", nil
@@ -942,7 +942,7 @@ func encodeJSONArray(list *ListValue) (string, error) {
 			return "", fmt.Errorf("JArray element %d: expected Json ADT, got %T", i, elem)
 		}
 
-		encoded, err := encodeJson(tagged)
+		encoded, err := encodeJSON(tagged)
 		if err != nil {
 			return "", fmt.Errorf("JArray element %d: %w", i, err)
 		}
@@ -993,7 +993,7 @@ func encodeJSONObject(list *ListValue) (string, error) {
 		b.WriteByte(':')
 
 		// Encode value
-		encoded, err := encodeJson(valueTagged)
+		encoded, err := encodeJSON(valueTagged)
 		if err != nil {
 			return "", fmt.Errorf("JObject element %d value: %w", i, err)
 		}

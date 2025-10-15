@@ -7,14 +7,15 @@ package types
 //   - Future-proofing for polymorphism and row types
 //
 // Example usage:
-//   T := NewBuilder()
-//   httpReqType := T.Func(
-//       T.String(), T.String(),
-//       T.List(T.Record(Field("name", T.String()), Field("value", T.String()))),
-//       T.String(),
-//   ).Returns(
-//       T.App("Result", responseType, T.Con("NetError")),
-//   ).Effects("Net")
+//
+//	T := NewBuilder()
+//	httpReqType := T.Func(
+//	    T.String(), T.String(),
+//	    T.List(T.Record(Field("name", T.String()), Field("value", T.String()))),
+//	    T.String(),
+//	).Returns(
+//	    T.App("Result", responseType, T.Con("NetError")),
+//	).Effects("Net")
 type Builder struct{}
 
 // NewBuilder creates a new type builder
@@ -105,10 +106,11 @@ func Field(name string, typ Type) FieldSpec {
 // Duplicate field names will panic at build time
 //
 // Example:
-//   T.Record(
-//       Field("name", T.String()),
-//       Field("age", T.Int()),
-//   )
+//
+//	T.Record(
+//	    Field("name", T.String()),
+//	    Field("age", T.Int()),
+//	)
 func (b *Builder) Record(fields ...FieldSpec) Type {
 	labels := make(map[string]Type)
 	for _, f := range fields {
@@ -131,7 +133,8 @@ func (b *Builder) Record(fields ...FieldSpec) Type {
 // This is a convenience method for simple records
 //
 // Example:
-//   T.Rec("name", T.String(), "age", T.Int())
+//
+//	T.Rec("name", T.String(), "age", T.Int())
 func (b *Builder) Rec(pairs ...interface{}) Type {
 	if len(pairs)%2 != 0 {
 		panic("Rec() requires even number of arguments (key-value pairs)")
@@ -172,7 +175,8 @@ type FuncBuilder struct {
 // Takes the parameter types as arguments
 //
 // Example:
-//   T.Func(T.String(), T.Int()).Returns(T.Bool())
+//
+//	T.Func(T.String(), T.Int()).Returns(T.Bool())
 func (b *Builder) Func(params ...Type) *FuncBuilder {
 	return &FuncBuilder{
 		builder: b,
@@ -191,7 +195,8 @@ func (fb *FuncBuilder) Returns(ret Type) *FuncBuilder {
 // Multiple effects can be specified. Returns the final Type.
 //
 // Example:
-//   typ := T.Func(T.String()).Returns(T.Unit()).Effects("IO", "Net")
+//
+//	typ := T.Func(T.String()).Returns(T.Unit()).Effects("IO", "Net")
 func (fb *FuncBuilder) Effects(eff ...string) Type {
 	fb.effects = eff
 	return fb.Build()
@@ -201,7 +206,8 @@ func (fb *FuncBuilder) Effects(eff ...string) Type {
 // This is for future extensibility
 //
 // Example:
-//   typ := T.Func(T.String()).Returns(T.Unit()).RowTail("ρ").Effects("IO")
+//
+//	typ := T.Func(T.String()).Returns(T.Unit()).RowTail("ρ").Effects("IO")
 func (fb *FuncBuilder) RowTail(tailVar string) *FuncBuilder {
 	fb.rowTail = &RowVar{
 		Name: tailVar,

@@ -16,11 +16,11 @@ type ValidationError struct {
 
 // RegistryStats holds statistics about registered builtins
 type RegistryStats struct {
-	Total       int            // Total builtins registered
-	Pure        int            // Pure functions (no side effects)
-	Effect      int            // Functions with effects
-	ByModule    map[string]int // Count by module
-	ByEffect    map[string]int // Count by effect type
+	Total    int            // Total builtins registered
+	Pure     int            // Pure functions (no side effects)
+	Effect   int            // Functions with effects
+	ByModule map[string]int // Count by module
+	ByEffect map[string]int // Count by effect type
 }
 
 // GetRegistryStats returns statistics about registered builtins

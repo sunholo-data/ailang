@@ -17,13 +17,13 @@ type EffectImpl func(*effects.EffContext, []eval.Value) (eval.Value, error)
 // - Type signature
 // - Implementation
 type BuiltinSpec struct {
-	Module  string         // Module path (e.g., "std/net", "std/io")
-	Name    string         // Builtin name with _ prefix (e.g., "_net_httpRequest")
-	NumArgs int            // Number of arguments (for arity checking)
-	IsPure  bool           // true = no side effects, false = has effects
-	Effect  string         // "" for pure functions, "Net"/"IO"/"FS" for effects
+	Module  string            // Module path (e.g., "std/net", "std/io")
+	Name    string            // Builtin name with _ prefix (e.g., "_net_httpRequest")
+	NumArgs int               // Number of arguments (for arity checking)
+	IsPure  bool              // true = no side effects, false = has effects
+	Effect  string            // "" for pure functions, "Net"/"IO"/"FS" for effects
 	Type    func() types.Type // Type signature constructor (must return non-nil)
-	Impl    EffectImpl     // Implementation function
+	Impl    EffectImpl        // Implementation function
 }
 
 // specRegistry holds all registered builtin specifications
@@ -40,15 +40,16 @@ var frozen = false
 // It performs comprehensive validation and consolidates all registration steps.
 //
 // Example:
-//   RegisterEffectBuiltin(BuiltinSpec{
-//       Module:  "std/net",
-//       Name:    "_net_httpRequest",
-//       NumArgs: 4,
-//       IsPure:  false,
-//       Effect:  "Net",
-//       Type:    makeHTTPRequestType,
-//       Impl:    effects.NetHTTPRequest,
-//   })
+//
+//	RegisterEffectBuiltin(BuiltinSpec{
+//	    Module:  "std/net",
+//	    Name:    "_net_httpRequest",
+//	    NumArgs: 4,
+//	    IsPure:  false,
+//	    Effect:  "Net",
+//	    Type:    makeHTTPRequestType,
+//	    Impl:    effects.NetHTTPRequest,
+//	})
 //
 // Validation performed:
 //   - Name must not be empty

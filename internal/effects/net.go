@@ -403,6 +403,7 @@ func matchDomain(hostname, pattern string) bool {
 //	    BodyTooLarge(size) -> "Response too large: " ++ show(size)
 //	  }
 //	}
+//
 // NetHTTPRequest implements the _net_httpRequest builtin
 // Exported for use in new builtin registry (internal/builtins/register.go)
 func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {

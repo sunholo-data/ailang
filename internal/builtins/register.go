@@ -78,8 +78,9 @@ func registerNetHTTPRequest() {
 
 // makeHTTPRequestType builds the type signature for _net_httpRequest
 // Type: (String, String, List<{name: String, value: String}>, String)
-//       -> Result<{status: Int, headers: List<{name: String, value: String}>, body: String, ok: Bool}, NetError>
-//       ! {Net}
+//
+//	-> Result<{status: Int, headers: List<{name: String, value: String}>, body: String, ok: Bool}, NetError>
+//	! {Net}
 func makeHTTPRequestType() types.Type {
 	T := types.NewBuilder()
 
