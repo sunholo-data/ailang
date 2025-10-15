@@ -261,6 +261,18 @@ func (p *Parser) hasTopLevelPipe() bool {
 }
 
 func (p *Parser) parseTypeDeclBody() ast.TypeDef {
+	// Lexer already skips whitespace/newlines, so we don't need to call skipNewlinesAndComments()
+
+	// Allow optional leading '|' for Haskell-style multi-line ADTs:
+	// type Tree =
+	//   | Leaf(int)
+	//   | Node(Tree, int, Tree)
+	leadingPipe := false
+	if p.curTokenIs(lexer.PIPE) {
+		leadingPipe = true
+		p.nextToken() // consume PIPE (lexer already skipped whitespace after it)
+	}
+
 	// Record type if we see '{'
 	if p.curTokenIs(lexer.LBRACE) {
 		return p.parseRecordTypeDef()
@@ -315,46 +327,62 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 				Fields: fields,
 				Pos:    p.curPos(),
 			}
+			// Lexer skips whitespace, so we're already at next real token (PIPE or other)
 		} else {
 			// No fields - check if this is a simple type alias or sum type
-			// Use hasTopLevelPipe() to decide
-			if !p.hasTopLevelPipe() {
-				// No pipe → simple type alias like: type UserId = int
-				typeExpr := p.parseType()
-				return &ast.TypeAlias{
-					Target: typeExpr,
+			// If we saw a leading PIPE, it's definitely a sum type
+			if leadingPipe {
+				// Definitely a sum type with no fields (e.g., Red, Green, Blue)
+				firstVariant = &ast.Constructor{
+					Name:   name,
+					Fields: nil,
 					Pos:    p.curPos(),
 				}
-			}
+				// Advance past the name (lexer already skipped whitespace)
+				p.nextToken()
+			} else {
+				// Check if peek is PIPE to determine if it's a sum type
+				if !p.peekTokenIs(lexer.PIPE) {
+					// No pipe → simple type alias like: type UserId = int
+					// We're at the identifier, parse it as a type
+					typeExpr := p.parseType()
+					return &ast.TypeAlias{
+						Target: typeExpr,
+						Pos:    p.curPos(),
+					}
+				}
 
-			// Has pipe → sum type like: type Color = Red | Green | Blue
-			// We're still at the identifier token
-			firstVariant = &ast.Constructor{
-				Name:   name,
-				Fields: nil,
-				Pos:    p.curPos(),
+				// Has pipe → sum type like: type Color = Red | Green | Blue
+				// Advance past the name and save it as first variant
+				p.nextToken() // advance to PIPE
+				firstVariant = &ast.Constructor{
+					Name:   name, // We saved this earlier
+					Fields: nil,
+					Pos:    p.curPos(),
+				}
 			}
 		}
 
 		// Check if there are more variants (PIPE)
-		// If first variant had fields, we're at token after RPAREN (could be PIPE)
-		// If first variant had no fields, we're still at variant name, need to peek
-		hasMoreVariants := p.curTokenIs(lexer.PIPE) || p.peekTokenIs(lexer.PIPE)
-		if hasMoreVariants {
-			if !p.curTokenIs(lexer.PIPE) {
-				p.nextToken() // advance to PIPE if we were peeking
-			}
+		// At this point, we should be at a PIPE token if there are more variants
+		if p.curTokenIs(lexer.PIPE) {
 			variants := []*ast.Constructor{firstVariant}
+			// Parse remaining variants
+			// After first variant, we're at PIPE or end of ADT
+			// Lexer skips whitespace/newlines, so no need to check for NEWLINE tokens
 			for p.curTokenIs(lexer.PIPE) {
 				p.nextToken() // consume PIPE
 				variant := p.parseVariant()
 				if variant != nil {
 					variants = append(variants, variant)
 				}
-				// After parsing variant, we're at the variant name
-				// Need to check if there's another PIPE
+				// parseVariant() leaves us AT the last token (RPAREN or variant name)
+				// Check if there's another PIPE by peeking
 				if p.peekTokenIs(lexer.PIPE) {
 					p.nextToken() // advance to PIPE for next iteration
+				} else {
+					// No more variants - stay at current position
+					break
 				}
 			}
 			return &ast.AlgebraicType{
@@ -406,9 +434,11 @@ func (p *Parser) parseVariant() *ast.Constructor {
 		}
 		if !p.curTokenIs(lexer.RPAREN) {
 			p.reportExpected(lexer.RPAREN, "Add ')' to close variant fields")
-		} else {
-			p.nextToken() // consume RPAREN
+			// Return constructor even if there's an error
 		}
+		// DON'T consume RPAREN - leave it for the caller to handle
+		// This matches the pattern where parse functions leave the parser
+		// at the last token they recognize, not past it
 	}
 
 	return &ast.Constructor{
