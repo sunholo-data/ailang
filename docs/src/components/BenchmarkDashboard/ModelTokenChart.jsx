@@ -44,18 +44,18 @@ export default function ModelTokenChart({ models }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className={styles.customTooltip}>
+        <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{data.name}</p>
           <p className={styles.tooltipValue}>
             Avg Tokens: <strong>{data['Avg Output Tokens']}</strong>
           </p>
-          <p className={styles.tooltipHint}>
+          <p className={styles.tooltipRuns}>
             (AILANG: {data.ailangTokens}, Python: {data.pythonTokens})
           </p>
           <p className={styles.tooltipValue}>
             Cost/Run: <strong>${data.fullCost.toFixed(6)}</strong>
           </p>
-          <p className={styles.tooltipHint}>
+          <p className={styles.tooltipRuns}>
             (${(data.fullCost * 1000).toFixed(3)} per 1000 runs)
           </p>
         </div>
