@@ -10,9 +10,10 @@ import (
 
 // AIAgent generates code using LLM APIs
 type AIAgent struct {
-	model  string
-	apiKey string
-	seed   int64
+	friendlyName string // Friendly name (e.g., "claude-sonnet-4-5") - used for cost lookups
+	model        string // API model name (e.g., "claude-sonnet-4-5-20250929") - used for API calls
+	apiKey       string
+	seed         int64
 }
 
 // NewAIAgent creates a new AI agent
@@ -50,9 +51,10 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	}
 
 	return &AIAgent{
-		model:  apiName, // Use resolved API name
-		apiKey: apiKey,
-		seed:   seed,
+		friendlyName: model,   // Store original friendly name for cost lookups
+		model:        apiName, // Use resolved API name for API calls
+		apiKey:       apiKey,
+		seed:         seed,
 	}, nil
 }
 

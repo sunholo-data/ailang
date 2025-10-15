@@ -114,8 +114,9 @@ func (c *ModelsConfig) GetEnvVar(name string) (string, error) {
 func (c *ModelsConfig) CalculateCostForModel(name string, inputTokens, outputTokens int) (float64, error) {
 	model, err := c.GetModel(name)
 	if err != nil {
-		// Fallback to legacy cost calculation
-		return CalculateCost(name, inputTokens+outputTokens), nil
+		// NO FALLBACK - return error to caller
+		// This prevents infinite recursion and silent failures
+		return 0.0, err
 	}
 
 	inputCost := float64(inputTokens) / 1000.0 * model.Pricing.InputPer1K

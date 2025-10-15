@@ -34,7 +34,7 @@ func (r *RepairRunner) SetPromptVersion(version string) {
 
 // Run executes the benchmark with optional self-repair
 func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, error) {
-	metrics := NewRunMetrics(r.spec.ID, r.runner.Language(), r.agent.model, r.agent.seed)
+	metrics := NewRunMetrics(r.spec.ID, r.runner.Language(), r.agent.friendlyName, r.agent.seed)
 	metrics.PromptVersion = r.promptVersion // Track prompt version for A/B testing
 
 	// First attempt
