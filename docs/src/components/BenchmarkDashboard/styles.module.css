@@ -213,11 +213,17 @@
 }
 
 .chartTooltip {
-  background: var(--ifm-background-color);
+  background: rgba(255, 255, 255, 0.98);
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: 8px;
   padding: 0.75rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+}
+
+[data-theme='dark'] .chartTooltip {
+  background: rgba(30, 30, 30, 0.98);
+  border-color: var(--ifm-color-emphasis-600);
 }
 
 .tooltipLabel {
