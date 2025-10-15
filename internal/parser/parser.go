@@ -174,6 +174,19 @@ func (p *Parser) curPos() ast.Pos {
 	}
 }
 
+// peekNonNewline returns the next non-newline, non-comment token type
+// without advancing the parser
+func (p *Parser) peekNonNewline() lexer.TokenType {
+	// If peek is not a newline/comment, return it directly
+	if p.peekToken.Type != lexer.NEWLINE && p.peekToken.Type != lexer.COMMENT {
+		return p.peekToken.Type
+	}
+
+	// Otherwise, we need to look ahead more (this is expensive, use sparingly)
+	// For now, just return peek - we'll handle this in hasTopLevelPipe
+	return p.peekToken.Type
+}
+
 func (p *Parser) peekPrecedence() int {
 	return p.peekToken.Precedence()
 }

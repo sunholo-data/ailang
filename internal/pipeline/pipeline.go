@@ -602,6 +602,12 @@ func runModule(cfg Config, src Source) (Result, error) {
 			}
 		}
 
+		// Fill operator methods (resolve operators to type class methods)
+		// This populates the Method field in resolved constraints before lowering
+		for _, decl := range unit.Core.Decls {
+			typeChecker.FillOperatorMethods(decl)
+		}
+
 		// Phase 3.5: Operator Lowering
 		// Check if shim is forbidden in CI mode (before any other logic)
 		if cfg.FailOnShim && cfg.ExperimentalBinopShim {

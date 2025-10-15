@@ -630,6 +630,88 @@ In commit `eae08b6`, working import functions were deleted because linter said t
 4. Test imports: `make test-imports`
 5. Document in commit message what was broken and how it was fixed
 
+### Lexer/Parser Architecture - NEWLINE Tokens Don't Exist!
+
+**⚠️ CRITICAL LESSON: The lexer NEVER generates NEWLINE tokens - it skips them as whitespace!**
+
+**The Multi-line ADT Parser Bug (October 2025)**
+While implementing multi-line ADT syntax support, code was written assuming the parser could see NEWLINE tokens:
+```go
+// ❌ WRONG - This code will never work!
+p.skipNewlinesAndComments()  // Tries to skip NEWLINE tokens
+if p.curTokenIs(lexer.NEWLINE) {  // This condition is NEVER true!
+    ...
+}
+```
+
+**The Root Cause:**
+In `internal/lexer/lexer.go`, the `NextToken()` function calls `skipWhitespace()` which does this:
+```go
+func (l *Lexer) skipWhitespace() {
+    for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+        l.readChar()
+    }
+}
+```
+
+This means `\n` characters are **consumed and never returned as tokens**. Even though `lexer/token.go` defines a NEWLINE token type, the lexer never generates them!
+
+**Implications for Parser Development:**
+
+1. **Never check for NEWLINE tokens**
+   ```go
+   // ❌ WRONG - lexer skips newlines
+   if p.curTokenIs(lexer.NEWLINE) { ... }
+   if p.peekTokenIs(lexer.NEWLINE) { ... }
+
+   // ✅ CORRECT - rely on lexer skipping whitespace
+   // After RPAREN of Leaf(int), next token is PIPE or TYPE (not NEWLINE)
+   if p.curTokenIs(lexer.PIPE) { ... }
+   ```
+
+2. **Multi-line syntax "just works"**
+   - The lexer automatically handles multi-line constructs
+   - For ADTs, after `Leaf(int)` on line 4, the next token is `|` on line 5
+   - No need to explicitly skip newlines - the lexer already did it
+
+3. **Token stream example:**
+   ```ailang
+   type Tree =
+     | Leaf(int)
+     | Node(Tree, int, Tree)
+   ```
+
+   **Token stream the parser sees:**
+   ```
+   TYPE Tree ASSIGN PIPE Leaf LPAREN int RPAREN PIPE Node LPAREN Tree COMMA int COMMA Tree RPAREN ...
+   ```
+
+   **NOT**:
+   ```
+   TYPE Tree ASSIGN NEWLINE PIPE Leaf LPAREN int RPAREN NEWLINE PIPE Node ...
+   ```
+
+4. **When you think you need newline handling:**
+   - You probably don't! The lexer handles it
+   - Focus on the semantic tokens (PIPE, TYPE, IDENT, etc.)
+   - Trust that whitespace (including newlines) is already skipped
+
+5. **If you genuinely need layout-sensitive parsing:**
+   - Would require modifying the lexer's `skipWhitespace()` function
+   - Would affect the ENTIRE language parsing
+   - This is a breaking architectural change - avoid if possible
+   - Consider alternative approaches (explicit delimiters, etc.)
+
+**Debugging tip:** If you see unexpected tokens or "skipped too far" issues, check if:
+1. You're assuming NEWLINE tokens exist (they don't!)
+2. You're calling `skipNewlinesAndComments()` (usually unnecessary)
+3. The lexer is already doing what you want (it skips whitespace automatically)
+
+**Files to check if modifying lexer/parser interaction:**
+- `internal/lexer/lexer.go` - `NextToken()` and `skipWhitespace()`
+- `internal/parser/parser.go` - `nextToken()` wrapper
+- Any parser code that checks for or handles whitespace
+
 ## Reference Documentation
 
 **For detailed guides, see:**
