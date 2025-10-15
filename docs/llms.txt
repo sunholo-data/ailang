@@ -8629,6 +8629,27 @@ For comprehensive evaluation, run all three:
    - Strength: Math, science, reasoning
    - Pricing: ~$1/$2 per million (estimated)
 
+### Development/Testing Models (Cheaper, Faster)
+
+For rapid iteration and cost-conscious development:
+
+1. **GPT-5 Mini** (OpenAI)
+   - API Name: `gpt-5-mini`
+   - ~1/5 the price of GPT-5
+   - Pricing: $0.25/$2 per million
+
+2. **Claude Haiku 4.5** (Anthropic) 🆕
+   - Released: October 1, 2025
+   - API Name: `claude-haiku-4-5-20251001`
+   - Fastest and most cost-effective Claude model
+   - ~3x cheaper than Sonnet
+   - Pricing: $1/$5 per million
+
+3. **Gemini 2.5 Flash** (Google)
+   - API Name: `gemini-2.5-flash`
+   - 4x cheaper than Gemini Pro
+   - Pricing: $0.30/$2.50 per million
+
 ---
 
 ## Quick Start
@@ -8660,9 +8681,14 @@ ailang eval --list-models
 # With default model (Claude Sonnet 4.5)
 ailang eval --benchmark fizzbuzz
 
-# With specific model
+# With specific models
 ailang eval --benchmark fizzbuzz --model gpt5
 ailang eval --benchmark fizzbuzz --model gemini-2-5-pro
+
+# With cheaper/faster models (for development)
+ailang eval --benchmark fizzbuzz --model claude-haiku-4-5  # 🆕 Fast & cheap
+ailang eval --benchmark fizzbuzz --model gpt5-mini
+ailang eval --benchmark fizzbuzz --model gemini-2-5-flash
 ```
 
 ### 4. Run Full Suite (All Models)
