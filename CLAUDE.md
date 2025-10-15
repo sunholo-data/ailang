@@ -497,11 +497,28 @@ ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
 ailang eval-suite --models gpt5,gpt5-mini,claude-sonnet-4-5,claude-haiku-4-5,gemini-2-5-pro,gemini-2-5-flash
 ```
 
+**Quick reference - Common eval commands:**
+```bash
+# Run baseline
+make eval-baseline              # Uses dev models by default
+make eval-baseline FULL=true    # Uses expensive models
+
+# Generate benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
+ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+
+# Compare two baselines
+ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
+
+# Generate performance matrix
+ailang eval-matrix eval_results/baselines/v0.3.9 v0.3.9
+```
+
 **DO NOT**:
 - ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
 - ❌ Duplicate agent logic - just invoke the appropriate agent
 - ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
 - ❌ Run multiple `ailang eval-suite` commands to same directory - results will be overwritten!
+- ❌ Search for dashboard generation scripts - just use `ailang eval-report`
 
 ### Code Quality & Coverage
 ```bash
