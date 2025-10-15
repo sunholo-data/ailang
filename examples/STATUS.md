@@ -3,8 +3,10 @@
 ### Working Examples ✅
 - `adt_option.ail`
 - `adt_simple.ail`
+- `ai_call.ail` ← ✨ NEW (v0.3.9) - OpenAI API integration
 - `arithmetic.ail`
 - `block_recursion.ail` ← ✨ NEW (v0.3.0-alpha2)
+- `claude_haiku_call.ail` ← ✨ NEW (v0.3.9) - Anthropic API integration
 - `demos/adt_pipeline.ail` ← ✅ FIXED (M-R5 Day 1)
 - `demos/hello_io.ail`
 - `effects_basic.ail`
@@ -72,9 +74,12 @@
 - `stdlib_demo.ail`
 - `stdlib_demo_simple.ail`
 
-**Summary:** 48 passed, 14 failed, 4 skipped (Total: 66)
+**Summary:** 50 passed, 14 failed, 4 skipped (Total: 68)
 
 **Recent improvements:**
+- ✅ **v0.3.9 (Oct 2025)**: 2 new AI API integration examples!
+  - `ai_call.ail`: OpenAI GPT-4o-mini integration with JSON encoding
+  - `claude_haiku_call.ail`: Anthropic Claude Haiku integration (verified with real API)
 - ✅ **M-R5 (v0.3.0-alpha3)**: 11 examples fixed/added via records & row polymorphism!
   - Day 1: 9 examples fixed (demos/adt_pipeline, micro_io_echo, micro_option_map, test_import_ctor, test_import_func, test_use_constructor, v3_3/imports, v3_3/imports_basic)
   - Day 3: 2 new examples (micro_record_person, test_record_subsumption)
