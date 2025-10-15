@@ -821,7 +821,7 @@ func runBuiltins() {
 	listFlags := flag.NewFlagSet("list", flag.ExitOnError)
 	byEffect := listFlags.Bool("by-effect", false, "Group by effect type")
 	byModule := listFlags.Bool("by-module", false, "Group by module")
-	listFlags.Parse(flag.Args()[2:])
+	_ = listFlags.Parse(flag.Args()[2:]) // ExitOnError means this never returns an error we can handle
 
 	// Check if new registry is enabled
 	if os.Getenv("AILANG_BUILTINS_REGISTRY") != "1" {

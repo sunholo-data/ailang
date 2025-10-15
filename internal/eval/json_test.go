@@ -12,7 +12,7 @@ func TestJSONEncodeNull(t *testing.T) {
 		Fields:   []Value{},
 	}
 
-	result, err := encodeJson(jnull)
+	result, err := encodeJSON(jnull)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestJSONEncodeBool(t *testing.T) {
 			Fields:   []Value{&BoolValue{Value: tc.value}},
 		}
 
-		result, err := encodeJson(jbool)
+		result, err := encodeJSON(jbool)
 		if err != nil {
 			t.Fatalf("Unexpected error for %v: %v", tc.value, err)
 		}
@@ -71,7 +71,7 @@ func TestJSONEncodeNumber(t *testing.T) {
 			Fields:   []Value{&FloatValue{Value: tc.value}},
 		}
 
-		result, err := encodeJson(jnum)
+		result, err := encodeJSON(jnum)
 		if err != nil {
 			t.Fatalf("Unexpected error for %v: %v", tc.value, err)
 		}
@@ -111,7 +111,7 @@ func TestJSONEncodeString(t *testing.T) {
 				Fields:   []Value{&StringValue{Value: tc.value}},
 			}
 
-			result, err := encodeJson(jstr)
+			result, err := encodeJSON(jstr)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -170,7 +170,7 @@ func TestJSONEncodeArray(t *testing.T) {
 				Fields:   []Value{&ListValue{Elements: tc.elements}},
 			}
 
-			result, err := encodeJson(jarr)
+			result, err := encodeJSON(jarr)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -234,7 +234,7 @@ func TestJSONEncodeObject(t *testing.T) {
 				Fields:   []Value{&ListValue{Elements: tc.pairs}},
 			}
 
-			result, err := encodeJson(jobj)
+			result, err := encodeJSON(jobj)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -297,7 +297,7 @@ func TestJSONEncodeNested(t *testing.T) {
 		},
 	}
 
-	result, err := encodeJson(outerObject)
+	result, err := encodeJSON(outerObject)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
