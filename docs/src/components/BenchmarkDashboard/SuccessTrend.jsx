@@ -2,7 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import styles from './styles.module.css';
 
-export default function SuccessTrend({ history }) {
+export default function SuccessTrend({ history, languages }) {
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
@@ -17,22 +17,41 @@ export default function SuccessTrend({ history }) {
   });
 
   // Transform history data for recharts
-  const chartData = sortedHistory.map(baseline => {
-    // History entries have pre-calculated successRate from SuccessCount/TotalBenchmarks
-    // The languages field indicates which language(s) the baseline ran for
-    const successRate = (baseline.successRate || 0) * 100;
-    const languages = baseline.languages || '';
+  const chartData = sortedHistory.map((baseline, index) => {
+    const langs = baseline.languages || '';
+    const isLatest = index === sortedHistory.length - 1;
 
-    // If baseline only ran one language, show it in the appropriate column
-    // If it ran both (comma-separated or empty string), show in both columns
-    const isAilangOnly = languages === 'ailang';
-    const isPythonOnly = languages === 'python';
-    const isBoth = languages.includes(',') || languages === '';
+    // For the latest baseline, use the actual per-language data from languages prop
+    // For historical baselines, calculate from combined rate
+    let ailangRate = 0;
+    let pythonRate = 0;
+
+    if (isLatest && languages) {
+      // Use actual language-specific data for latest version
+      ailangRate = (languages.ailang?.success_rate || 0) * 100;
+      pythonRate = (languages.python?.success_rate || 0) * 100;
+    } else if (langs === 'ailang') {
+      // AILANG-only baseline
+      const combinedRate = (baseline.successRate || 0) * 100;
+      ailangRate = combinedRate;
+      pythonRate = 0;
+    } else if (langs === 'python') {
+      // Python-only baseline
+      const combinedRate = (baseline.successRate || 0) * 100;
+      ailangRate = 0;
+      pythonRate = combinedRate;
+    } else {
+      // Both languages - use combined rate for both (legacy behavior)
+      // This is not ideal but we don't have per-language historical data
+      const combinedRate = (baseline.successRate || 0) * 100;
+      ailangRate = combinedRate;
+      pythonRate = combinedRate;
+    }
 
     return {
       version: formatVersion(baseline.version),
-      'AILANG': parseFloat((isAilangOnly || isBoth ? successRate : 0).toFixed(1)),
-      'Python': parseFloat((isPythonOnly || isBoth ? successRate : 0).toFixed(1)),
+      'AILANG': parseFloat(ailangRate.toFixed(1)),
+      'Python': parseFloat(pythonRate.toFixed(1)),
       date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : ''
     };
   });

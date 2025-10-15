@@ -159,7 +159,7 @@ export default function BenchmarkDashboard() {
       {history && history.length > 1 && (
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
-          <SuccessTrend history={history} />
+          <SuccessTrend history={history} languages={languages} />
         </div>
       )}
 
