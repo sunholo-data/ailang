@@ -82,12 +82,47 @@ Create a new AILANG release with the specified version number.
 12. **Update eval benchmarks** (NEW: M-EVAL-LOOP documentation)
     - Run eval baseline to capture current performance: `make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang`
     - Compare to previous version: `ailang eval-compare eval_results/baselines/v<prev> eval_results/baselines/v$1`
-    - Update CHANGELOG.md with benchmark results:
+    - **CRITICAL**: Calculate AILANG-only and combined metrics correctly:
+      ```bash
+      # Count AILANG-only results
+      AILANG_PASS=$(jq -s 'map(select(.lang == "ailang" and .compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*ailang*.json)
+      AILANG_TOTAL=$(ls eval_results/baselines/v$1/*ailang*.json | wc -l)
+
+      # Count combined results
+      TOTAL_PASS=$(jq -s 'map(select(.compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*.json)
+      TOTAL_RUNS=$(ls eval_results/baselines/v$1/*.json | grep -v baseline.json | wc -l)
+
+      # Count Python baseline (for comparison)
+      PYTHON_PASS=$(jq -s 'map(select(.lang == "python" and .compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*python*.json)
+      PYTHON_TOTAL=$(ls eval_results/baselines/v$1/*python*.json | wc -l)
+      ```
+    - Update CHANGELOG.md with **SEPARATE AILANG and COMBINED metrics**:
       - Add section "### Benchmark Results (M-EVAL)"
-      - Include success rate: "X/10 benchmarks passing (X%)"
+      - **AILANG-only rate**: "AILANG: X/Y (Z%) - New language, learning curve"
+      - **Python baseline**: "Python: X/Y (Z%) - Baseline for comparison"
+      - **Combined rate**: "Overall: X/Y (Z%) - Combined Python+AILANG"
+      - **Gap analysis**: "Gap: Z percentage points (AILANG vs Python)"
       - List improvements: "✓ Fixed: <benchmark_ids>"
       - List regressions: "✗ Regressed: <benchmark_ids>" (if any)
-      - Show comparison: "+X% improvement" or note if regression
+      - Show comparison: "+X% AILANG improvement" (not combined!)
+    - **Example CHANGELOG format**:
+      ```markdown
+      ### Benchmark Results (M-EVAL)
+
+      **Overall Performance**: 58.8% success rate (67/114 runs across 3 models × 20 benchmarks × 2 languages)
+
+      **By Language:**
+      - **AILANG**: 38.6% (22/57) - New language, learning curve
+      - **Python**: 78.9% (45/57) - Baseline for comparison
+      - **Gap**: 40.3 percentage points (expected for new language)
+
+      **By Model:**
+      - claude-sonnet-4-5: 63.2% (best performer)
+      - gpt5: 57.9%
+      - gemini-2-5-pro: 55.3%
+
+      **Comparison**: +3.5% AILANG improvement from v0.3.7 (38.6% → 42.1%)
+      ```
     - Store baseline: Already saved to `eval_results/baselines/v$1/` by make target
     - Commit baseline results: `git add eval_results/baselines/v$1/ && git commit -m "Add eval baseline for v$1"`
 

@@ -340,9 +340,16 @@ ailang eval-report eval_results/baselines/v0.3.1 v0.3.1 --format=csv > data.csv
 
 Always provide:
 1. **What was run**: Exact commands executed
-2. **Results summary**: Key metrics (success rates, model comparison)
+2. **Results summary**: Key metrics with **AILANG-only** success rate (not combined!)
 3. **Interpretation**: What the results mean
 4. **Recommendations**: What to do next
+
+**CRITICAL**: When reporting success rates:
+- ✅ **Primary metric**: AILANG-only success rate (X/Y = Z%)
+- ✅ **Comparison**: Python baseline (X/Y = Z%)
+- ✅ **Gap**: Z percentage points between AILANG and Python
+- ✅ **Context**: Combined rate (for overall eval health)
+- ❌ **DO NOT** report combined rate as primary metric (misleading!)
 
 Example:
 ```markdown

@@ -1,11 +1,13 @@
 # AILANG: Compilation Failures
 
 **Discovered**: AI Eval Analysis - 2025-10-08
-**Frequency**: 36 failures across 5 benchmark(s)
-**Priority**: P0 (Critical - Must Ship)
-**Estimated**:  LOC, 
-**Category**: compile_error
-**Impact**: critical
+**Frequency**: 36 failures across 5 benchmark(s) (Oct 2025)
+**Priority**: P1 (High - AI Usability)
+**Status**: ⚠️ **PARTIALLY ADDRESSED** in v0.3.6
+**Category**: compile_error (AI generates wrong syntax)
+**Impact**: Reduced by v0.3.6 error detection feature
+
+> **Update (2025-10-15)**: v0.3.6 added **Error Detection for Self-Repair** which identifies wrong language syntax (Python, JavaScript, etc.) and imperative patterns. This helps AI models self-correct without manual intervention. Remaining work: Better prompts, improved error messages. See v0.4.0 roadmap for REPL improvements.
 
 ## Problem Statement
 

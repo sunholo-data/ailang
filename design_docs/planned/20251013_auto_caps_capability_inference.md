@@ -1,10 +1,13 @@
 # AILANG: Auto-Caps and Capability Inference
 
 **Created**: 2025-10-13
-**Priority**: P2 (Medium - UX Enhancement)
+**Priority**: P2a (High - UX Enhancement)
 **Estimated**: 420 LOC, 2 days
-**Status**: Planned
+**Status**: 📋 PLANNED for v0.4.0
 **Category**: Runtime, CLI, Developer Experience
+**Roadmap**: See [roadmap_v0_4_0.md](../roadmap_v0_4_0.md#-p2a-capability-inference-auto_caps)
+
+> **Update (2025-10-15)**: Deferred to v0.4.0 sprint (P2a priority). This was identified in the 20251013 audit as P2. All P0-P1 features completed in v0.3.5-v0.3.7. See roadmap for v0.4.0 implementation plan.
 
 ---
 
