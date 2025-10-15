@@ -5239,82 +5239,118 @@ Every change must update:
 
 # Getting Started with AILANG
 
-## Installation
+## 🤖 For AI Agents: Quick Integration
 
-### From GitHub Releases
+**AILANG is designed for AI-assisted development.** To integrate AILANG into your AI coding agent:
 
-Download pre-built binaries for your platform from the [latest release](https://github.com/sunholo-data/ailang/releases/latest):
+### Step 1: Install AILANG
 
 ```bash
 # macOS (Apple Silicon)
 curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
-# macOS (Intel)  
+# macOS (Intel)
 curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Linux
 curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
-```
 
-### From Source
-
-```bash
-# Clone the repository
-git clone https://github.com/sunholo/ailang.git
-cd ailang
-
-# Build and install
-make install
-
-# Verify installation
+# Verify
 ailang --version
 ```
 
-### Making ailang Accessible System-Wide
+### Step 2: Load the AILANG Teaching Prompt
 
-#### First-Time Setup
-1. Install ailang to your Go bin directory:
-   ```bash
-   make install
-   ```
+**Provide your AI agent with the current AILANG syntax guide:**
 
-2. Add Go bin to your PATH (if not already done):
-   ```bash
-   # For zsh (macOS default)
-   echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.zshrc
-   source ~/.zshrc
-   
-   # For bash
-   echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
+📖 **[AILANG v0.3.8 Teaching Prompt](/docs/prompts/v0.3.8)**
 
-3. Test it works:
-   ```bash
-   ailang --version
-   ```
+This prompt teaches AI models:
+- ✅ Correct AILANG syntax (not Python/Rust/JavaScript)
+- ✅ Pure functional programming with recursion
+- ✅ Module system with effects (IO, FS, Clock, Net)
+- ✅ Record updates, pattern matching, ADTs
+- ✅ Auto-imported std/prelude (no manual imports for comparisons)
 
-#### Keeping ailang Up to Date
+**Copy the full prompt** from [prompts/v0.3.8.md](/docs/prompts/v0.3.8) and include it in your AI agent's system prompt or context.
 
-**Option 1: Manual Update**
-```bash
-make quick-install  # Fast reinstall
-# OR
-make install        # Full reinstall with version info
+### Step 3: Test AI Code Generation
+
+Ask your AI agent to write AILANG code:
+
+```
+Using AILANG v0.3.8, write a program that reads a file and counts the number of lines.
+
+[Include full v0.3.8 prompt here]
 ```
 
-**Option 2: Auto-Update on File Changes**
-```bash
-make watch-install  # Automatically rebuilds and installs on file changes
+**Expected output:**
+```typescript
+module benchmark/solution
+
+import std/io (println)
+import std/fs (readFile)
+
+export func countLines(content: string) -> int {
+  -- Implementation using recursion
+  ...
+}
+
+export func main() -> () ! {IO, FS} {
+  let content = readFile("data.txt");
+  println("Lines: " ++ show(countLines(content)))
+}
 ```
 
-**Option 3: Alias for Quick Updates**
+### Step 4: Run AI-Generated Code
+
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
-alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
+ailang run --caps IO,FS --entry main solution.ail
+```
+
+### AI Success Metrics (v0.3.8)
+
+**Current benchmark results:**
+- **AILANG**: 49.1% success rate (28/57 benchmarks)
+- **Improvement**: +10.5% from v0.3.7 (38.6% → 49.1%)
+- **Best model**: Claude Sonnet 4.5 (68.4% across all tasks)
+
+See [AI Prompt Guide](/docs/guides/ai-prompt-guide) for detailed instructions.
+
+---
+
+## 👤 For Human Developers: Manual Installation
+
+### Installation Options
+
+#### From GitHub Releases (Recommended)
+
+Download pre-built binaries from the [latest release](https://github.com/sunholo-data/ailang/releases/latest).
+
+#### From Source (For Development)
+
+```bash
+git clone https://github.com/sunholo/ailang.git
+cd ailang
+make install
+ailang --version
+```
+
+**Add Go bin to PATH:**
+```bash
+# For zsh (macOS default)
+echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Development workflow:**
+```bash
+make quick-install    # Fast rebuild after changes
+make test            # Run tests
+make verify-examples # Test example files
 ```
 
 ## Quick Start
