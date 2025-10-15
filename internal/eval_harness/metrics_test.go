@@ -33,28 +33,6 @@ func TestCategorizeError(t *testing.T) {
 	}
 }
 
-func TestCalculateCost(t *testing.T) {
-	tests := []struct {
-		model    string
-		tokens   int
-		expected float64
-	}{
-		{"gpt-4", 1000, 0.03},
-		{"gpt-3.5-turbo", 1000, 0.001},
-		{"claude-3", 1000, 0.015},
-		{"unknown-model", 1000, 0.03}, // Defaults to gpt-4
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.model, func(t *testing.T) {
-			result := CalculateCost(tt.model, tt.tokens)
-			if result != tt.expected {
-				t.Errorf("CalculateCost(%s, %d) = %f, want %f", tt.model, tt.tokens, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestMetricsLogger(t *testing.T) {
 	tmpDir := t.TempDir()
 	logger := NewMetricsLogger(tmpDir)

@@ -112,23 +112,6 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 	return nil
 }
 
-// CalculateCost estimates the cost in USD based on model and token count
-// DEPRECATED: Use CalculateCostWithBreakdown for accurate pricing
-// This function assumes all tokens are output tokens for backward compatibility
-func CalculateCost(model string, tokens int) float64 {
-	// Try to use GlobalModelsConfig for accurate pricing
-	if GlobalModelsConfig != nil {
-		cost, err := GlobalModelsConfig.CalculateCostForModel(model, 0, tokens)
-		if err == nil {
-			return cost
-		}
-	}
-
-	// Fallback: Conservative estimate using output token pricing
-	// This is a last resort and should rarely be needed
-	return float64(tokens) / 1000.0 * 0.03
-}
-
 // CalculateCostWithBreakdown calculates cost using separate input/output token counts
 // This provides accurate pricing based on models.yml configuration
 // Returns 0.0 if model not found - FAIL LOUDLY, NO SILENT FALLBACKS

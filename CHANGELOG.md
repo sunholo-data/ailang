@@ -1,5 +1,22 @@
 # AILANG Changelog
 
+## [v0.3.7] - 2025-10-15 - Code Cleanup
+
+### Removed
+- **Deprecated `CalculateCost` function** - Removed unused cost calculation function
+  - Only used in tests, not in actual codebase
+  - Replaced by `CalculateCostWithBreakdown` which provides accurate pricing
+  - Follows "NO SILENT FALLBACKS" principle - better to return 0.0 than trust wrong data
+  - Files modified: `internal/eval_harness/metrics.go`, `internal/eval_harness/metrics_test.go`
+
+### Fixed
+- **Linting issues** - Fixed formatting and nil check simplifications
+  - Formatted `internal/eval_analysis/types.go`
+  - Simplified nil checks in `internal/eval_analysis/export_docusaurus.go`
+  - All linting checks now pass
+
+---
+
 ## [v0.3.6] - 2025-10-14 - AI Usability Improvements
 
 ### Added - Auto-Import std/prelude (2025-10-14)

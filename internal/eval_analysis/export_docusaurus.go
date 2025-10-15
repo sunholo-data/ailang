@@ -315,7 +315,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			modelData["baselineVersion"] = stats.BaselineVersion
 		}
 		// Add per-language breakdown for this model
-		if stats.Languages != nil && len(stats.Languages) > 0 {
+		if len(stats.Languages) > 0 {
 			langBreakdown := make(map[string]interface{})
 			for lang, lstats := range stats.Languages {
 				langBreakdown[lang] = map[string]interface{}{
@@ -327,7 +327,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			modelData["languages"] = langBreakdown
 		}
 		// Add per-benchmark breakdown for this model
-		if stats.Benchmarks != nil && len(stats.Benchmarks) > 0 {
+		if len(stats.Benchmarks) > 0 {
 			benchBreakdown := make(map[string]interface{})
 			for benchID, run := range stats.Benchmarks {
 				benchBreakdown[benchID] = map[string]interface{}{
