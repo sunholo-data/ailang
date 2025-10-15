@@ -44,6 +44,20 @@ models:
       Can run autonomously for 30 hours.
       1M token context window.
 
+  # Anthropic Claude Haiku 4.5 (released October 2025)
+  claude-haiku-4-5:
+    api_name: "claude-haiku-4-5-20251001"
+    provider: "anthropic"
+    description: "Claude Haiku 4.5 - fastest and most cost-effective"
+    env_var: "ANTHROPIC_API_KEY"
+    pricing:
+      input_per_1k: 0.001   # $1.00 per million = $0.001 per 1K
+      output_per_1k: 0.005  # $5.00 per million = $0.005 per 1K
+    notes: |
+      Anthropic's fastest and most cost-effective model.
+      Ideal for high-volume, low-latency tasks.
+      ~3x cheaper than Sonnet, competitive with GPT-5-mini and Gemini Flash.
+
   # Google Gemini 2.5 Pro (released March 2025)
   gemini-2-5-pro:
     api_name: "gemini-2.5-pro"
@@ -88,12 +102,14 @@ extended_suite:
   - "gpt5"
   - "gpt5-mini"
   - "claude-sonnet-4-5"
+  - "claude-haiku-4-5"
   - "gemini-2-5-pro"
   - "gemini-2-5-flash"
 
 # Development/testing models (cheaper, faster)
 dev_models:
   - "gpt5-mini"
+  - "claude-haiku-4-5"
   - "gemini-2-5-flash"
 
 # Notes for future updates:

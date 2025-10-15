@@ -30,8 +30,16 @@
       "hash": "15edab8d4b814bbd04cebaa70b8abeac94757c26a8499aa9a2236731080e0f2f",
       "description": "v0.3.5 prompt with anonymous functions (func literals), letrec, and numeric conversions",
       "created": "2025-10-14",
-      "tags": ["production", "latest"],
+      "tags": ["production"],
       "notes": "Adds support for: 1) Anonymous function syntax func(x) -> T { body }, 2) letrec keyword for recursive lambdas, 3) intToFloat/floatToInt builtins. Derived from v0.3.0 baseline."
+    },
+    "v0.3.8": {
+      "file": "prompts/v0.3.8.md",
+      "hash": "91fed29dd5b991549cddd7a492b1afe790eb0a74c8da9bf29dcb46c2546a9665",
+      "description": "v0.3.8 prompt with auto-import std/prelude, record updates, and multi-line ADTs",
+      "created": "2025-10-15",
+      "tags": ["production", "latest"],
+      "notes": "Major improvements: 1) std/prelude auto-imported (no more Ord/Eq imports needed), 2) Record update syntax {r | field: val}, 3) Multi-line ADTs with optional leading pipe, 4) Operator lowering fixes. 49.1% success rate (+10.5% from v0.3.7). All v0.3.5 features included."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -58,7 +66,7 @@
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
     }
   },
-  "active": "v0.3.5",
+  "active": "v0.3.8",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
