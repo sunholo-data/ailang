@@ -1,295 +1,250 @@
 # M-EVAL-LOOP Architecture (v2.0)
 
-## Overview
+## Quick Reference
 
-Clean two-tier architecture: **Native Go commands** + **Smart agents**
+### Running Evaluations
+
+```bash
+# Quick dev eval (default: gpt5-mini, gemini-2-5-flash)
+ailang eval-suite
+
+# Full comprehensive eval (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+ailang eval-suite --full
+
+# Custom models
+ailang eval-suite --models gpt5,claude-sonnet-4-5
+
+# Create baseline
+make eval-baseline                # Quick baseline (dev models)
+FULL=true make eval-baseline      # Full baseline (all models)
+
+# Compare results
+ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
+
+# Validate specific fix
+ailang eval-validate float_eq
+```
+
+### Available Commands
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `ailang eval-suite` | Run full benchmark suite | `ailang eval-suite --full` |
+| `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
+| `ailang eval-validate` | Validate specific fix | `ailang eval-validate records_person` |
+| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
+| `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
+| `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0 --format=html` |
+
+## Architecture Overview
 
 ```
 User Input ("validate my fix")
     ↓
-Smart Agent (eval-orchestrator)
+Smart Agent (eval-orchestrator)  ← Natural language interface
     ↓
-Native Go Commands (ailang eval-validate)
+Native Go Commands (ailang eval-*)  ← Fast, type-safe execution
     ↓
 Results + Interpretation
 ```
 
-## Components
-
-### Tier 1: Native Go Commands (Fast & Reliable)
+## Tier 1: Native Go Commands
 
 Location: `internal/eval_analysis/` + `internal/eval_harness/` + `cmd/ailang/`
 
+### eval-suite: Full Benchmark Execution
+
+**Key Flags:**
+- `--full`: Use expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+- `--models X,Y,Z`: Custom model list (default: gpt5-mini, gemini-2-5-flash)
+- `--benchmarks X,Y,Z`: Specific tests (default: all)
+- `--langs X,Y`: Target languages (default: python,ailang)
+- `--parallel N`: Concurrent API calls (default: 5)
+- `--self-repair`: Enable self-repair on errors
+- `--output DIR`: Output directory (default: eval_results)
+
+**Examples:**
 ```bash
-ailang eval-suite [flags]                   # Run full benchmark suite (parallel)
-ailang eval-compare <baseline> <new>        # Compare two runs
-ailang eval-matrix <dir> <version>          # Generate performance matrix
-ailang eval-summary <dir>                   # Export to JSONL
-ailang eval-validate <benchmark> [version]  # Validate specific fix
-ailang eval-report <dir> <version> [format] # Generate reports (MD/HTML/CSV)
-```
-
-**eval-suite: Full Benchmark Execution**
-
-Runs all benchmarks across multiple models in parallel. This is the primary command for generating evaluation results.
-
-**Flags:**
-- `--models`: Comma-separated list (default: claude-sonnet-4-5,gpt5,gemini-2-5-pro)
-- `--benchmarks`: Which tests to run (default: all 10 benchmarks)
-- `--langs`: Target languages (default: python,ailang)
-- `--parallel N`: Concurrent API calls (default: 5, 0=sequential)
-- `--seed N`: Random seed for reproducibility (default: 42)
-- `--self-repair`: Enable single-shot self-repair on errors
-- `--timeout`: Execution timeout (default: 30s)
-- `--output`: Output directory (default: eval_results)
-- `--prompt-version`: Specific prompt version for all benchmarks
-
-**Example:**
-```bash
-# Default: all models, all benchmarks, parallel
+# Quick dev check (cheap/fast)
 ailang eval-suite
 
-# Single model, specific benchmarks
+# Full validation (expensive)
+ailang eval-suite --full
+
+# Single model + self-repair
+ailang eval-suite --models gpt5 --self-repair
+
+# Custom subset
 ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
-
-# With self-repair enabled
-ailang eval-suite --self-repair --models claude-sonnet-4-5
 ```
 
-**Characteristics:**
-- ⚡ Fast (native Go, no bash/jq overhead)
-- ✅ Type-safe (90%+ test coverage)
-- 🔧 Maintainable (2,070 LOC with tests)
-- 🪟 Cross-platform
-- 🤖 CI/CD friendly (proper exit codes)
+**Model Cost Comparison:**
+- Dev models (default): ~$0.0003-0.002 per benchmark
+- Full models (--full): ~$0.003-0.015 per benchmark
+- **5-10x cheaper for day-to-day development**
 
-### Tier 2: Smart Agents (Intelligence Layer)
-
-#### A. eval-orchestrator (.claude/agents/eval-orchestrator.md)
-
-**Role**: Intelligent workflow orchestration
-
-**What it does:**
-- Interprets user intent ("How's AILANG doing?")
-- Maps to appropriate `ailang` command
-- Runs command and interprets results
-- Provides recommendations for next steps
-
-**Example:**
-```
-User: "validate the float_eq fix"
-
-Agent:
-1. Understands: user wants to check if fix works
-2. Chooses: ailang eval-validate float_eq
-3. Runs command
-4. Interprets: "✓ FIX VALIDATED: Benchmark now passing!"
-5. Recommends: "Run full comparison? Update baseline?"
-```
-
-#### B. eval-fix-implementer (.claude/agents/eval-fix-implementer.md)
-
-**Role**: Automated fix implementation
-
-**What it does:**
-- Reads design docs from `design_docs/planned/EVAL_ANALYSIS_*.md`
-- Implements the proposed fix
-- Runs tests
-- Validates with `ailang eval-validate`
-- Reports before/after comparison
-
-**Example:**
-```
-User: "implement the float_eq fix from the design doc"
-
-Agent:
-1. Reads: design_docs/planned/EVAL_ANALYSIS_float_eq.md
-2. Implements fix in internal/types/builtins.go
-3. Runs: go test ./internal/types/
-4. Validates: ailang eval-validate float_eq
-5. Shows: ✓ FIX VALIDATED + before/after metrics
-```
-
-### Make Targets (Convenience Layer)
+### eval-compare: Diff Two Runs
 
 ```bash
-make eval-baseline    # Store baseline
-make eval-suite       # Run all benchmarks
-make eval-analyze     # Analyze failures → design docs
-make eval-diff        # Calls: ailang eval-compare
-make eval-matrix      # Calls: ailang eval-matrix
-make eval-summary     # Calls: ailang eval-summary
+ailang eval-compare baseline/ current/
+```
+
+Shows:
+- Success rate changes
+- Newly passing/failing tests
+- Token usage deltas
+- Cost differences
+
+### eval-validate: Check Specific Fix
+
+```bash
+ailang eval-validate records_person [version]
+```
+
+Validates that a fix works by comparing current implementation against baseline.
+
+### Other Commands
+
+```bash
+ailang eval-matrix results/ v0.3.0     # Aggregate stats
+ailang eval-summary results/           # Export JSONL
+ailang eval-report results/ v0.3.0 -f html  # Generate report
+```
+
+## Tier 2: Smart Agents
+
+### eval-orchestrator (.claude/agents/eval-orchestrator.md)
+
+Interprets natural language and routes to correct commands:
+
+```
+User: "validate the float_eq fix"
+Agent: → ailang eval-validate float_eq
+      → Interprets results
+      → Suggests next steps
+```
+
+### eval-fix-implementer (.claude/agents/eval-fix-implementer.md)
+
+Automates fix implementation from design docs:
+
+```
+User: "implement the float_eq fix"
+Agent: → Reads design_docs/planned/EVAL_ANALYSIS_float_eq.md
+      → Implements fix
+      → Runs tests
+      → Validates with ailang eval-validate
+      → Reports metrics
+```
+
+## Make Targets (Convenience)
+
+```bash
+make eval-baseline              # Quick baseline
+FULL=true make eval-baseline    # Full baseline
+MODELS=X,Y make eval-baseline   # Custom baseline
+
+make eval-suite                 # Run benchmarks
+make eval-analyze               # Generate design docs
+make eval-diff BASELINE=X NEW=Y # Compare runs
 ```
 
 ## User Experience
 
 ### Natural Language (Recommended)
-
-Users don't need to know command names:
-
 ```
 ✅ "validate my fix for records"
 ✅ "how is AILANG performing?"
+✅ "compare baseline to current"
 ✅ "generate a release report"
-✅ "compare the baseline to current results"
 ```
 
-Agent automatically:
-- Chooses correct command
-- Runs it with appropriate options
-- Interprets results
-- Suggests next steps
-
 ### Direct Commands (Power Users)
-
 ```bash
 ailang eval-validate records_person
 ailang eval-compare baselines/v0.3.0 current
-ailang eval-report results/ v0.3.1 --format=html > report.html
+ailang eval-report results/ v0.3.0 --format=html
 ```
 
-### Make Targets (Workflows)
+## Model Selection Strategy
 
-```bash
-make eval-baseline              # Before starting work
-make eval-suite                 # Full validation
-make eval-diff BASELINE=... NEW=...
-```
+### Default: Cheap & Fast (Dev Models)
+- **Models**: gpt5-mini, gemini-2-5-flash
+- **Cost**: ~1/5 of full suite
+- **Use for**: Daily development, rapid iteration, CI checks
+- **Command**: `ailang eval-suite` (no flags needed)
 
-## Decision Flow
+### Full Suite: Comprehensive (Production Models)
+- **Models**: gpt5, claude-sonnet-4-5, gemini-2-5-pro
+- **Cost**: Full price
+- **Use for**: Release validation, final QA, baseline creation
+- **Command**: `ailang eval-suite --full`
 
-```
-User Input
-    ↓
-Is it a question/request? ────YES───→ eval-orchestrator agent
-    ↓                                    ↓
-    NO (direct command)             Interprets intent
-    ↓                                    ↓
-Is it a make target? ──YES──→ Run make    ↓
-    ↓                                Chooses command
-    NO                                   ↓
-    ↓                            ailang eval-* command
-Run ailang command directly              ↓
-                                  Interprets results
-                                         ↓
-                                  Provides recommendations
-```
-
-## Why This Architecture?
-
-### 1. Separation of Concerns
-- **Go layer**: Fast, tested, type-safe execution
-- **Agent layer**: Intelligence, interpretation, recommendations
-
-### 2. Flexibility
-- Users can use natural language OR direct commands
-- Agents add value (interpretation) without forcing specific syntax
-
-### 3. Maintainability
-- Native Go code is easy to test and debug
-- Agents are pure routing logic (no complex bash)
-- Clear boundaries between layers
-
-### 4. Performance
-- Native Go = 5-10x faster than old bash scripts
-- No overhead from slash command parsing
-- Direct execution path for power users
-
-## Anti-Patterns (What We Removed)
-
-### ❌ Slash Command Layer
-**Removed**: `/eval-loop validate`
-
-**Why removed:**
-- Redundant with agents (eval-orchestrator does the same thing better)
-- Forced users to learn special syntax
-- Added no intelligence (just aliases)
-
-**Better approach:**
-```
-# OLD (removed):
-/eval-loop validate float_eq
-
-# NEW (simpler):
-"validate float_eq"  → agent handles it
-# OR
-ailang eval-validate float_eq  → direct command
-```
-
-### ❌ Bash Script Wrappers
-**Removed**: `tools/eval_diff.sh`, `tools/generate_matrix_json.sh`, etc.
-
-**Why removed:**
-- Brittle (division by zero bugs)
-- Slow (jq overhead)
-- Untested
-- Hard to maintain
-
-**Better approach:**
-Native Go implementation in `internal/eval_analysis/`
+### Custom: Mix & Match
+- **Models**: Your choice
+- **Cost**: Varies
+- **Use for**: Targeted testing, specific model evaluation
+- **Command**: `ailang eval-suite --models X,Y,Z`
 
 ## File Organization
 
 ```
 .claude/
   agents/
-    eval-orchestrator.md     # Smart workflow router
-    eval-fix-implementer.md  # Automated fix implementation
-  commands/
-    (eval-loop.md deleted)   # Removed: redundant with agents
+    eval-orchestrator.md          # Smart workflow router
+    eval-fix-implementer.md       # Automated fix implementation
+  EVAL_ARCHITECTURE.md            # This file
 
-internal/eval_analysis/      # Native Go implementation
-  types.go                   # Data structures
-  loader.go                  # Load results
-  comparison.go              # Diff logic
-  matrix.go                  # Aggregates
-  formatter.go               # Terminal output
-  validate.go                # Fix validation
-  export.go                  # MD/HTML/CSV export
-  *_test.go                  # Tests (90%+ coverage)
+internal/
+  eval_analysis/                  # Native Go implementation (2,070 LOC)
+    types.go, loader.go, comparison.go, matrix.go, formatter.go,
+    validate.go, export.go, *_test.go (90%+ coverage)
+  eval_harness/                   # Benchmark execution
+    models.yml                    # Model configurations
 
 cmd/ailang/
-  eval_tools.go              # CLI integration
-  main.go                    # Command routing
+  eval_suite.go                   # eval-suite command
+  eval_tools.go                   # Other eval commands
+  main.go                         # Command routing
 
 tools/
-  eval_baseline.sh           # Calls: ailang eval-matrix
-  (bash wrappers deleted)    # Removed: redundant
+  eval_baseline.sh                # Baseline creation helper
 
-Makefile                     # Convenience targets
+Makefile                          # Convenience targets
 ```
 
-## Migration from Old Architecture
+## Design Principles
 
-### Before (v1.0)
-```
-User → /eval-loop command → Bash script → jq → Results
-        (brittle, slow, untested)
-```
+1. **Native Go First**: Fast, type-safe, testable
+2. **Smart Agents Layer**: Add intelligence without forcing syntax
+3. **Cost-Conscious Defaults**: Cheap models for dev, expensive for release
+4. **Flexible**: Natural language, direct commands, or make targets
+5. **Separation of Concerns**: Execution vs. interpretation
 
-### After (v2.0)
-```
-User → eval-orchestrator agent → ailang command → Go implementation → Results
-        (smart, fast, tested)
-```
+## Why This Architecture?
 
-**Benefits:**
-- 5-10x faster
-- Type-safe (no division by zero!)
+### Performance
+- Native Go = 5-10x faster than old bash scripts
+- No jq/sed/awk overhead
+- Parallel execution built-in
+
+### Reliability
 - 90%+ test coverage
-- Better UX (natural language)
+- Type-safe (no division by zero!)
+- Proper error handling
 
-## Success Metrics
+### Usability
+- Natural language interface (agents)
+- Power user direct commands
+- Cost-conscious defaults
 
-This architecture succeeds when:
-- [x] Users can speak naturally without learning syntax
-- [x] Power users can use direct commands
-- [x] All commands are fast and reliable
-- [x] Easy to extend (add new features to Go package)
-- [x] Clear separation between execution and intelligence
+### Maintainability
+- Clear layer boundaries
+- Easy to test and debug
+- No brittle bash scripts
 
 ---
 
-**Version**: 2.0
-**Updated**: 2025-10-10
+**Version**: 2.1
+**Updated**: 2025-10-15
 **Status**: Production Ready
