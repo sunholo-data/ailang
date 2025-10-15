@@ -991,7 +991,7 @@ v0.3.3: 4/10 passing (40.0%)
 - `internal/eval_analysis/comparison_test.go` (+~250 LOC)
 - `internal/eval_analysis/matrix_test.go` (+~250 LOC)
 - `cmd/ailang/eval_tools.go` (+310 LOC)
-- `.claude/EVAL_ARCHITECTURE.md` - Two-tier architecture documentation
+- `docs/docs/guides/evaluation/architecture.md` - Two-tier architecture & command reference
 - `docs/docs/guides/evaluation/go-implementation.md` - Complete feature guide
 - `docs/docs/guides/evaluation/migration-guide.md` - Bash → Go migration guide
 - `docs/FINAL_SUMMARY.md` - Project metrics and deliverables
@@ -3658,31 +3658,15 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
-**When asked to run evals:**
-```bash
-# ✅ CORRECT - Use existing tools
-make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang
-ailang eval-summary eval_results/baselines/v0.3.0-35-g3530d07
-ailang eval-validate records_person
+**When asked to run evals or update benchmark results:**
 
-# ❌ WRONG - Don't create new scripts
-./new_eval_script.sh  # NO! Check what exists first!
-```
+→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
-**When asked to update documentation with benchmark results:**
-```bash
-# ✅ CORRECT - Use existing make target
-make benchmark-dashboard  # Updates docs/docs/benchmarks/performance.md + JSON data
-
-# ❌ WRONG - Don't manually extract and format data
-# Don't: Read JSON files, format markdown tables manually, write custom Python scripts
-# The make target does everything: reads latest baseline, generates markdown, updates JSON
-```
-
-**Available models** (check `internal/eval_harness/models.yml`):
-- `claude-sonnet-4-5` (Anthropic)
-- `gpt5`, `gpt5-mini` (OpenAI)
-- `gemini-2-5-pro` (Google)
+The agent knows how to:
+- Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
+- Compare results, validate fixes, generate reports
+- Update the benchmark dashboard
+- Use all available models and their pricing
 
 ---
 
@@ -3788,82 +3772,30 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
-### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0 Go Implementation)
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
 
-**CRITICAL: These tools already exist - DO NOT recreate them!**
+**When user asks about evaluations, benchmarks, or testing AI code generation:**
 
-The M-EVAL-LOOP system provides complete AI evaluation and automated fix implementation with **native Go commands** (fast, type-safe, 90%+ test coverage).
+→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
-#### Native Go Commands (Tier 1: Fast & Reliable)
+The agent handles all eval workflows:
+- Running benchmarks (defaults to cheap/fast models)
+- Comparing results and validating fixes
+- Generating reports and interpreting metrics
+- Routing to appropriate `ailang eval-*` commands
 
-All commands are built into `bin/ailang`:
+**For automated fix implementation:**
 
-```bash
-# Direct commands (power users)
-ailang eval-compare <baseline> <new>        # Compare two runs
-ailang eval-matrix <dir> <version>          # Generate performance matrix (JSON)
-ailang eval-summary <dir>                   # Export to JSONL
-ailang eval-validate <benchmark> [version]  # Validate specific fix
-ailang eval-report <dir> <version> [--format=md|html|csv]  # Generate reports
-```
+→ **Use the [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) agent**
 
-**Benefits**: 5-10x faster than bash, type-safe, cross-platform, proper error handling
-
-#### Make Targets (Tier 2: Workflow Convenience)
-
-```bash
-# Evaluation workflows
-make eval-baseline                          # Store baseline (runs all benchmarks, all models)
-make eval-suite                             # Run all benchmarks with current code
-make eval-diff BASELINE=<dir> NEW=<dir>    # Compare two runs (calls: ailang eval-compare)
-make eval-summary DIR=<dir>                 # JSONL export (calls: ailang eval-summary)
-make eval-matrix DIR=<dir> VERSION=<v>     # Matrix generation (calls: ailang eval-matrix)
-
-# Analysis & improvement
-make eval-analyze                           # Generate design docs from failures
-make eval-validate-fix BENCH=<id>          # Validate specific fix (calls: ailang eval-validate)
-make eval-auto-improve                      # Full loop: eval → analyze → implement → validate
-make eval-prompt-ab A=<v1> B=<v2>          # A/B test prompts
-```
-
-#### Smart Agents (Tier 3: Natural Language)
-
-Users can speak naturally - agents handle routing to correct commands:
-
-```
-✅ "validate my fix for records"           → ailang eval-validate records_person
-✅ "compare baseline to current"           → ailang eval-compare baselines/v0.3.0 current
-✅ "generate an HTML report for v0.3.1"    → ailang eval-report results/ v0.3.1 --format=html
-```
-
-**Available agents:**
-- [eval-orchestrator](.claude/agents/eval-orchestrator.md) - Intelligent workflow routing
-- [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) - Automated fix implementation
-
-#### Architecture
-
-```
-User Input
-    ↓
-Smart Agent (interprets intent)
-    ↓
-Native Go Command (fast execution)
-    ↓
-Results + Recommendations
-```
-
-**Documentation**:
-- [M-EVAL-LOOP Design Doc](design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - System architecture
-- [Go Implementation Guide](docs/docs/guides/evaluation/go-implementation.md) - Complete feature guide
-- [Migration Guide](docs/docs/guides/evaluation/migration-guide.md) - Bash → Go migration
-- [Eval Loop Guide](docs/docs/guides/evaluation/eval-loop.md) - Usage workflows
-- [Architecture Overview](.claude/EVAL_ARCHITECTURE.md) - Two-tier design
+**Documentation** (for detailed reference):
+- [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
+- [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
 
 **DO NOT**:
-- ❌ Create new bash scripts for evals - use native `ailang eval-*` commands
-- ❌ Write custom comparison scripts - use `ailang eval-compare`
-- ❌ Manually generate summaries - use `ailang eval-summary`
-- ❌ Create new analysis tools - extend `internal/eval_analysis/` package
+- ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
+- ❌ Duplicate agent logic - just invoke the appropriate agent
+- ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
 
 ### Code Quality & Coverage
 ```bash
@@ -6141,128 +6073,498 @@ See:
 
 # Guide/evaluation: README.md
 
-# AI Evaluation Framework (M-EVAL)
+# AI Evaluation Framework (M-EVAL-LOOP v2.0)
 
-This directory contains documentation for the AILANG AI evaluation framework, which measures how well AI models can generate AILANG code compared to Python.
+This directory contains documentation for AILANG's AI evaluation framework, which measures how well AI models can generate AILANG code and provides automated feedback loops for continuous improvement.
 
 ## Overview
 
-M-EVAL is designed to empirically measure the "AI teachability" of AILANG - one of the project's key success metrics. It compares AI code generation efficiency for AILANG vs Python across multiple benchmarks and models.
-
-## Documentation
-
-### Getting Started
-- **[baseline-tests.md](baseline-tests.md)** - Complete guide for running your first baseline tests
-- **[model-configuration.md](model-configuration.md)** - How to configure and manage AI models
-- **[eval-loop.md](eval-loop.md)** - Automated evaluation and improvement workflow
-
-### Implementation Details
-- **[go-implementation.md](go-implementation.md)** - Go implementation of eval analysis tools
-- **[migration-guide.md](migration-guide.md)** - Migration from bash scripts to Go
-- **[benchmarking.md](../benchmarking.md)** - Technical details of the benchmarking system
+M-EVAL-LOOP is designed to empirically measure the "AI teachability" of AILANG - one of the project's key success metrics. It:
+- Compares AI code generation across AILANG vs Python
+- Tracks performance across multiple models and benchmarks
+- Provides automated analysis and fix suggestions
+- Validates fixes and measures improvements
 
 ## Quick Start
 
-### Prerequisites
+### Cost-Conscious Development (Recommended)
 
-You need at least one of these:
-
-1. **Anthropic Claude** (recommended)
-   ```bash
-   export ANTHROPIC_API_KEY="sk-ant-..."
-   ```
-
-2. **OpenAI GPT**
-   ```bash
-   export OPENAI_API_KEY="sk-proj-..."
-   ```
-
-3. **Google Gemini** (via Vertex AI)
-   ```bash
-   gcloud auth application-default login
-   gcloud config set project YOUR_PROJECT_ID
-   ```
-
-### Run Baseline Tests
+Use cheaper/faster models for daily development:
 
 ```bash
-# Quick test with single model
-ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --seed 42
+# Quick dev check (gpt5-mini, gemini-2-5-flash)
+ailang eval-suite
 
-# Full benchmark suite with all 3 models
-./tools/run_benchmark_suite.sh
+# Create baseline
+make eval-baseline
 
-# Generate report
-make eval-report
-cat eval_results/leaderboard.md
+# Validate a fix
+ailang eval-validate float_eq
 ```
+
+**Cost**: ~$0.0003-0.002 per benchmark (5-10x cheaper than full suite)
+
+### Full Comprehensive Testing
+
+Use expensive models for release validation:
+
+```bash
+# Full suite (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+ailang eval-suite --full
+
+# Full baseline
+FULL=true make eval-baseline
+
+# Compare results
+ailang eval-compare baselines/v0.3.0 current
+```
+
+**Cost**: ~$0.003-0.015 per benchmark
+
+### Custom Model Selection
+
+```bash
+# Test specific models
+ailang eval-suite --models gpt5,claude-sonnet-4-5
+
+# With self-repair
+ailang eval-suite --models gpt5 --self-repair
+```
+
+## Documentation
+
+### Core Guides
+- **[architecture.md](architecture.md)** - System architecture and command reference
+- **[eval-loop.md](eval-loop.md)** - Automated evaluation and improvement workflow
+- **[model-configuration.md](model-configuration.md)** - Model setup and pricing
+
+### Implementation Details
+- **[go-implementation.md](go-implementation.md)** - Native Go implementation guide
+- **[migration-guide.md](migration-guide.md)** - Migration from bash to Go
+- **[baseline-tests.md](baseline-tests.md)** - Running baseline tests
 
 ## Available Models (October 2025)
 
-All three models tested and working:
+### Production Models (--full)
+- ✅ **Claude Sonnet 4.5** (Anthropic) - $3/$15 per 1M tokens
+- ✅ **GPT-5** (OpenAI) - $1.25/$10 per 1M tokens
+- ✅ **Gemini 2.5 Pro** (Google) - $1.25/$10 per 1M tokens
 
-- ✅ **Claude Sonnet 4.5** (Anthropic) - Recommended for coding
-- ✅ **GPT-5** (OpenAI) - Latest reasoning model
-- ✅ **Gemini 2.5 Pro** (Google Vertex AI) - Multimodal capabilities
+### Development Models (default)
+- ✅ **GPT-5 Mini** (OpenAI) - $0.25/$2 per 1M tokens (~1/5 price)
+- ✅ **Gemini 2.5 Flash** (Google) - $0.30/$2.50 per 1M tokens (~1/4 price)
 
-See [model-configuration.md](model-configuration.md) for details.
+See [model-configuration.md](model-configuration.md) for setup details.
+
+## Prerequisites
+
+Set up at least one model's API key:
+
+```bash
+# Anthropic Claude (recommended for coding)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# OpenAI GPT
+export OPENAI_API_KEY="sk-proj-..."
+
+# Google Gemini (Application Default Credentials)
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID
+# OR set API key
+export GOOGLE_API_KEY="..."
+```
+
+## Commands Overview
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `ailang eval-suite` | Run benchmarks | `ailang eval-suite --full` |
+| `ailang eval-compare` | Compare two runs | `ailang eval-compare baseline current` |
+| `ailang eval-validate` | Validate specific fix | `ailang eval-validate records_person` |
+| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
+| `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
+| `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0` |
+
+See [architecture.md](architecture.md) for detailed command reference.
 
 ## Benchmarks
 
-Current benchmark suite (5 benchmarks):
+Current benchmark suite (20 benchmarks):
 
-1. **fizzbuzz** - Control flow (if/else, loops)
-2. **json_parse** - Data parsing and filtering
-3. **pipeline** - IO + list operations
-4. **cli_args** - Command-line argument handling (IO + FS)
-5. **adt_option** - Algebraic data types (Option monad)
+**Core Language Features:**
+- `fizzbuzz` - Control flow (if/else, loops)
+- `recursion_factorial`, `recursion_fibonacci` - Recursion
+- `higher_order_functions` - Functions as first-class values
+- `list_operations`, `list_comprehension` - List manipulation
+- `string_manipulation` - String operations
+
+**Type System:**
+- `records_person`, `nested_records` - Record types
+- `record_update` - Record update syntax
+- `adt_option` - Algebraic data types (Option)
+- `pattern_matching_complex` - Pattern matching
+
+**Effects & Capabilities:**
+- `simple_print` - IO effects
+- `cli_args` - Command-line arguments (IO + FS)
+- `json_parse` - JSON parsing
+- `error_handling` - Error propagation
+- `pipeline` - Effect composition
+
+**Edge Cases:**
+- `float_eq` - Floating-point comparisons
+- `numeric_modulo` - Modulo operations
+- `targeted_repair_test` - Self-repair validation
 
 ## Results Location
 
 After running benchmarks:
 
-- **JSON**: `eval_results/*.json` - Full details for each run
-- **CSV**: `eval_results/summary.csv` - Aggregated data
-- **Markdown**: `eval_results/leaderboard.md` - Human-readable report
+- **JSON**: `eval_results/baselines/VERSION/*.json` - Full details per run
+- **Matrix**: `eval_results/baselines/VERSION/matrix.json` - Aggregated stats
+- **Dashboard**: `docs/docs/benchmarks/performance.md` - Live leaderboard
 
 ## Key Metrics
 
 The framework tracks:
 
-- **Token efficiency** - Tokens used per attempt
-- **Success rate** - % of attempts that compile and run correctly
-- **Error categories** - compile_error, runtime_error, logic_error
-- **Cost** - Estimated API cost per run
+- **Success Rate**: % of attempts that compile, run, and produce correct output
+- **Token Efficiency**: Input/output tokens used per attempt
+- **Cost**: Actual API cost based on model pricing
+- **Error Categories**: compile_error, runtime_error, logic_error
+- **Self-Repair**: First attempt success vs. repair success
+
+## Typical Workflow
+
+### 1. Create Baseline
+```bash
+make eval-baseline              # Quick baseline (dev models)
+# OR
+FULL=true make eval-baseline    # Full baseline (all models)
+```
+
+### 2. Make Changes
+```bash
+# Edit code, update prompts, etc.
+```
+
+### 3. Validate Fix
+```bash
+ailang eval-validate float_eq   # Check specific benchmark
+```
+
+### 4. Compare Results
+```bash
+ailang eval-compare baselines/v0.3.6 current
+```
+
+### 5. Update Dashboard
+```bash
+make benchmark-dashboard
+```
+
+## Natural Language Interface
+
+You can also use natural language with Claude Code:
+
+```
+✅ "validate my fix for records"
+✅ "how is AILANG performing?"
+✅ "compare baseline to current"
+✅ "generate an HTML report for v0.3.6"
+```
+
+The eval-orchestrator agent automatically routes to the correct commands.
+
+## Architecture
+
+M-EVAL-LOOP uses a two-tier architecture:
+
+1. **Native Go Commands** - Fast, type-safe execution (90%+ test coverage)
+2. **Smart Agents** - Natural language interface and workflow automation
+
+See [architecture.md](architecture.md) for complete details.
 
 ## Target KPIs
 
-- **AI Teachability**: 80%+ success rate on simple benchmarks
+- **AI Teachability**: 80%+ success rate on all benchmarks
 - **Token Efficiency**: AILANG should use ≤ Python tokens (concise syntax)
-- **Error Quality**: Clear error categories to identify documentation gaps
+- **Cost Efficiency**: Dev models viable for daily development
+- **Error Quality**: Clear categorization for targeted improvements
 
-## Next Steps
+## Development Cycle
 
-1. Run baseline tests following [baseline-tests.md](baseline-tests.md)
-2. Analyze results to identify common AI errors
-3. Update AI prompt guide based on findings
-4. Re-run benchmarks to measure improvement
-
-## Phase 2: M-EVAL2 (Future)
-
-The current framework (M-EVAL Phase 1) does single-shot evaluation. Phase 2 will add:
-
-- Multi-turn evaluation with error feedback
-- Integration with Claude Code and Gemini CLI
-- Retry loops with corrective hints
-- Success rate tracking across iterations
-
-See design docs for details.
+```
+1. make eval-baseline           # Store current state
+2. <make changes>               # Implement features/fixes
+3. ailang eval-validate BENCH   # Check specific fix
+4. ailang eval-compare ...      # Full comparison
+5. make benchmark-dashboard     # Update public dashboard
+6. Repeat!
+```
 
 ---
 
-**Last Updated**: October 2, 2025 (v0.2.0-rc1)
-**Framework Status**: ✅ Complete and operational
-**Models Tested**: 3/3 working
+**Version**: 2.0
+**Last Updated**: October 15, 2025
+**Framework Status**: ✅ Production Ready
+**Models Tested**: 5/5 working (3 production + 2 dev)
+**Test Coverage**: 90%+ for eval analysis tools
+
+---
+
+# Guide/evaluation: architecture.md
+
+# M-EVAL-LOOP Architecture (v2.0)
+
+## Quick Reference
+
+### Running Evaluations
+
+```bash
+# Quick dev eval (default: gpt5-mini, gemini-2-5-flash)
+ailang eval-suite
+
+# Full comprehensive eval (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+ailang eval-suite --full
+
+# Custom models
+ailang eval-suite --models gpt5,claude-sonnet-4-5
+
+# Create baseline
+make eval-baseline                # Quick baseline (dev models)
+FULL=true make eval-baseline      # Full baseline (all models)
+
+# Compare results
+ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
+
+# Validate specific fix
+ailang eval-validate float_eq
+```
+
+### Available Commands
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `ailang eval-suite` | Run full benchmark suite | `ailang eval-suite --full` |
+| `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
+| `ailang eval-validate` | Validate specific fix | `ailang eval-validate records_person` |
+| `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
+| `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
+| `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0 --format=html` |
+
+## Architecture Overview
+
+```
+User Input ("validate my fix")
+    ↓
+Smart Agent (eval-orchestrator)  ← Natural language interface
+    ↓
+Native Go Commands (ailang eval-*)  ← Fast, type-safe execution
+    ↓
+Results + Interpretation
+```
+
+## Tier 1: Native Go Commands
+
+Location: `internal/eval_analysis/` + `internal/eval_harness/` + `cmd/ailang/`
+
+### eval-suite: Full Benchmark Execution
+
+**Key Flags:**
+- `--full`: Use expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+- `--models X,Y,Z`: Custom model list (default: gpt5-mini, gemini-2-5-flash)
+- `--benchmarks X,Y,Z`: Specific tests (default: all)
+- `--langs X,Y`: Target languages (default: python,ailang)
+- `--parallel N`: Concurrent API calls (default: 5)
+- `--self-repair`: Enable self-repair on errors
+- `--output DIR`: Output directory (default: eval_results)
+
+**Examples:**
+```bash
+# Quick dev check (cheap/fast)
+ailang eval-suite
+
+# Full validation (expensive)
+ailang eval-suite --full
+
+# Single model + self-repair
+ailang eval-suite --models gpt5 --self-repair
+
+# Custom subset
+ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
+```
+
+**Model Cost Comparison:**
+- Dev models (default): ~$0.0003-0.002 per benchmark
+- Full models (--full): ~$0.003-0.015 per benchmark
+- **5-10x cheaper for day-to-day development**
+
+### eval-compare: Diff Two Runs
+
+```bash
+ailang eval-compare baseline/ current/
+```
+
+Shows:
+- Success rate changes
+- Newly passing/failing tests
+- Token usage deltas
+- Cost differences
+
+### eval-validate: Check Specific Fix
+
+```bash
+ailang eval-validate records_person [version]
+```
+
+Validates that a fix works by comparing current implementation against baseline.
+
+### Other Commands
+
+```bash
+ailang eval-matrix results/ v0.3.0     # Aggregate stats
+ailang eval-summary results/           # Export JSONL
+ailang eval-report results/ v0.3.0 -f html  # Generate report
+```
+
+## Tier 2: Smart Agents
+
+### eval-orchestrator (.claude/agents/eval-orchestrator.md)
+
+Interprets natural language and routes to correct commands:
+
+```
+User: "validate the float_eq fix"
+Agent: → ailang eval-validate float_eq
+      → Interprets results
+      → Suggests next steps
+```
+
+### eval-fix-implementer (.claude/agents/eval-fix-implementer.md)
+
+Automates fix implementation from design docs:
+
+```
+User: "implement the float_eq fix"
+Agent: → Reads design_docs/planned/EVAL_ANALYSIS_float_eq.md
+      → Implements fix
+      → Runs tests
+      → Validates with ailang eval-validate
+      → Reports metrics
+```
+
+## Make Targets (Convenience)
+
+```bash
+make eval-baseline              # Quick baseline
+FULL=true make eval-baseline    # Full baseline
+MODELS=X,Y make eval-baseline   # Custom baseline
+
+make eval-suite                 # Run benchmarks
+make eval-analyze               # Generate design docs
+make eval-diff BASELINE=X NEW=Y # Compare runs
+```
+
+## User Experience
+
+### Natural Language (Recommended)
+```
+✅ "validate my fix for records"
+✅ "how is AILANG performing?"
+✅ "compare baseline to current"
+✅ "generate a release report"
+```
+
+### Direct Commands (Power Users)
+```bash
+ailang eval-validate records_person
+ailang eval-compare baselines/v0.3.0 current
+ailang eval-report results/ v0.3.0 --format=html
+```
+
+## Model Selection Strategy
+
+### Default: Cheap & Fast (Dev Models)
+- **Models**: gpt5-mini, gemini-2-5-flash
+- **Cost**: ~1/5 of full suite
+- **Use for**: Daily development, rapid iteration, CI checks
+- **Command**: `ailang eval-suite` (no flags needed)
+
+### Full Suite: Comprehensive (Production Models)
+- **Models**: gpt5, claude-sonnet-4-5, gemini-2-5-pro
+- **Cost**: Full price
+- **Use for**: Release validation, final QA, baseline creation
+- **Command**: `ailang eval-suite --full`
+
+### Custom: Mix & Match
+- **Models**: Your choice
+- **Cost**: Varies
+- **Use for**: Targeted testing, specific model evaluation
+- **Command**: `ailang eval-suite --models X,Y,Z`
+
+## File Organization
+
+```
+.claude/
+  agents/
+    eval-orchestrator.md          # Smart workflow router
+    eval-fix-implementer.md       # Automated fix implementation
+  EVAL_ARCHITECTURE.md            # This file
+
+internal/
+  eval_analysis/                  # Native Go implementation (2,070 LOC)
+    types.go, loader.go, comparison.go, matrix.go, formatter.go,
+    validate.go, export.go, *_test.go (90%+ coverage)
+  eval_harness/                   # Benchmark execution
+    models.yml                    # Model configurations
+
+cmd/ailang/
+  eval_suite.go                   # eval-suite command
+  eval_tools.go                   # Other eval commands
+  main.go                         # Command routing
+
+tools/
+  eval_baseline.sh                # Baseline creation helper
+
+Makefile                          # Convenience targets
+```
+
+## Design Principles
+
+1. **Native Go First**: Fast, type-safe, testable
+2. **Smart Agents Layer**: Add intelligence without forcing syntax
+3. **Cost-Conscious Defaults**: Cheap models for dev, expensive for release
+4. **Flexible**: Natural language, direct commands, or make targets
+5. **Separation of Concerns**: Execution vs. interpretation
+
+## Why This Architecture?
+
+### Performance
+- Native Go = 5-10x faster than old bash scripts
+- No jq/sed/awk overhead
+- Parallel execution built-in
+
+### Reliability
+- 90%+ test coverage
+- Type-safe (no division by zero!)
+- Proper error handling
+
+### Usability
+- Natural language interface (agents)
+- Power user direct commands
+- Cost-conscious defaults
+
+### Maintainability
+- Clear layer boundaries
+- Easy to test and debug
+- No brittle bash scripts
+
+---
+
+**Version**: 2.1
+**Updated**: 2025-10-15
+**Status**: Production Ready
 
 ---
 
