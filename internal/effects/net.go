@@ -16,7 +16,7 @@ import (
 func init() {
 	RegisterOp("Net", "httpGet", netHTTPGet)
 	RegisterOp("Net", "httpPost", netHTTPPost)
-	RegisterOp("Net", "httpRequest", netHTTPRequest)
+	RegisterOp("Net", "httpRequest", NetHTTPRequest)
 }
 
 // netHttpGet implements Net.httpGet(url: String) -> String
@@ -370,7 +370,7 @@ func matchDomain(hostname, pattern string) bool {
 	return false
 }
 
-// netHTTPRequest implements Net.httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]
+// NetHTTPRequest implements Net.httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]
 //
 // Advanced HTTP client with custom headers, status codes, and structured error handling.
 //
@@ -403,7 +403,9 @@ func matchDomain(hostname, pattern string) bool {
 //	    BodyTooLarge(size) -> "Response too large: " ++ show(size)
 //	  }
 //	}
-func netHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+// NetHTTPRequest implements the _net_httpRequest builtin
+// Exported for use in new builtin registry (internal/builtins/register.go)
+func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	// Step 0: Capability check
 	if !ctx.HasCap("Net") {
 		return nil, NewCapabilityError("Net")

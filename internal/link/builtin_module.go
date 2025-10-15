@@ -2,8 +2,10 @@ package link
 
 import (
 	"fmt"
+	"os"
 	"sort"
 
+	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
@@ -12,6 +14,63 @@ import (
 
 // RegisterBuiltinModule creates and registers the $builtin module interface
 func RegisterBuiltinModule(ml *ModuleLinker) {
+	// Check if new registry is enabled
+	if os.Getenv("AILANG_BUILTINS_REGISTRY") == "1" {
+		registerFromSpecRegistry(ml)
+	} else {
+		registerLegacyBuiltins(ml)
+	}
+}
+
+// registerFromSpecRegistry registers builtins from the new spec-based registry
+func registerFromSpecRegistry(ml *ModuleLinker) {
+	builtinIface := &iface.Iface{
+		Module:  "$builtin",
+		Exports: make(map[string]*iface.IfaceItem),
+		Schema:  "ailang.builtin/v2", // New schema version
+	}
+
+	specs := builtins.AllSpecs()
+
+	// Get sorted names for deterministic ordering
+	names := make([]string, 0, len(specs))
+	for name := range specs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	// Register each builtin from spec
+	for _, name := range names {
+		spec := specs[name]
+
+		// Build type scheme from spec
+		typ := spec.Type()
+		typeScheme := &types.Scheme{
+			TypeVars: []string{}, // TODO: Extract type vars if polymorphic
+			Type:     typ,
+		}
+
+		builtinIface.Exports[name] = &iface.IfaceItem{
+			Name:   name,
+			Type:   typeScheme,
+			Purity: spec.IsPure,
+			Ref: core.GlobalRef{
+				Module: "$builtin",
+				Name:   name,
+			},
+		}
+	}
+
+	// Compute deterministic digest
+	digest := computeBuiltinDigest(builtinIface)
+	builtinIface.Digest = digest
+
+	// Register the interface
+	ml.RegisterIface(builtinIface)
+}
+
+// registerLegacyBuiltins is the old registration path
+func registerLegacyBuiltins(ml *ModuleLinker) {
 	// Create the builtin module interface
 	builtinIface := &iface.Iface{
 		Module:  "$builtin",

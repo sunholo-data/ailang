@@ -375,7 +375,7 @@ func TestNetHTTPRequestCapability(t *testing.T) {
 	headers := &eval.ListValue{Elements: []eval.Value{}}
 	body := &eval.StringValue{Value: ""}
 
-	_, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+	_, err := NetHTTPRequest(ctx, []eval.Value{method, url, headers, body})
 
 	if err == nil {
 		t.Fatal("Expected capability error, got nil")
@@ -425,7 +425,7 @@ func TestNetHTTPRequestHeaderValidation(t *testing.T) {
 				},
 			}
 
-			result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+			result, err := NetHTTPRequest(ctx, []eval.Value{method, url, headers, body})
 
 			if tc.wantError != "" {
 				// Expecting error
@@ -491,7 +491,7 @@ func TestNetHTTPRequestMethodWhitelist(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.method, func(t *testing.T) {
 			method := &eval.StringValue{Value: tc.method}
-			result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+			result, err := NetHTTPRequest(ctx, []eval.Value{method, url, headers, body})
 
 			if err != nil {
 				t.Fatalf("Unexpected Go error: %v", err)
@@ -524,7 +524,7 @@ func TestNetHTTPRequestResultType(t *testing.T) {
 	headers := &eval.ListValue{Elements: []eval.Value{}}
 	body := &eval.StringValue{Value: ""}
 
-	result, err := netHTTPRequest(ctx, []eval.Value{method, url, headers, body})
+	result, err := NetHTTPRequest(ctx, []eval.Value{method, url, headers, body})
 
 	if err != nil {
 		t.Fatalf("Unexpected Go error: %v", err)

@@ -140,6 +140,10 @@ When all milestones are complete:
    - Highlight any issues or deviations
    - Suggest next steps (new sprint, release, etc.)
 
+5. **Identify bumps**
+   - What could AILANG do better to make a smoother coding sprint?
+   - Is it worth adding a new design doc to help ease how we make AILANG?
+
 ## Key Features
 
 ### Continuous Testing

@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 )
@@ -36,8 +38,16 @@ func NewBuiltinRegistry(evaluator *eval.CoreEvaluator) *BuiltinRegistry {
 		builtins:  make(map[string]eval.Value),
 		evaluator: evaluator,
 	}
-	br.registerArithmeticBuiltins()
-	br.registerEffectBuiltins()
+
+	// Check if new registry is enabled
+	if os.Getenv("AILANG_BUILTINS_REGISTRY") == "1" {
+		br.registerFromSpecRegistry()
+	} else {
+		// Legacy path
+		br.registerArithmeticBuiltins()
+		br.registerEffectBuiltins()
+	}
+
 	return br
 }
 
@@ -206,6 +216,28 @@ func (br *BuiltinRegistry) registerEffectBuiltins() {
 			}
 			return effects.Call(ctx, "Net", "httpRequest", args)
 		},
+	}
+}
+
+// registerFromSpecRegistry registers builtins from the new spec-based registry
+// This is the new centralized registration path (enabled with AILANG_BUILTINS_REGISTRY=1)
+func (br *BuiltinRegistry) registerFromSpecRegistry() {
+	specs := builtins.AllSpecs()
+
+	for name, spec := range specs {
+		// Capture spec for closure
+		builtinSpec := spec
+
+		br.builtins[name] = &eval.BuiltinFunction{
+			Name: name,
+			Fn: func(args []eval.Value) (eval.Value, error) {
+				ctx := br.getEffContext()
+				if ctx == nil && !builtinSpec.IsPure {
+					return nil, fmt.Errorf("%s: no effect context available", builtinSpec.Name)
+				}
+				return builtinSpec.Impl(ctx, args)
+			},
+		}
 	}
 }
 
