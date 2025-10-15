@@ -502,6 +502,26 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
   - Simplified nil checks in `internal/eval_analysis/export_docusaurus.go`
   - All linting checks now pass
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 58.8% success rate (67/114 runs across 3 models × 20 benchmarks × 2 languages)
+
+**By Model:**
+- claude-sonnet-4-5: 63.2% (best performer)
+- gpt5: 57.9%
+- gemini-2-5-pro: 55.3%
+
+**By Language:**
+- Python: 78.9% (mature ecosystem, well-known syntax)
+- AILANG: 38.6% (new language, learning curve)
+
+**Cost & Performance:**
+- Total cost: $0.55 for full baseline
+- Duration: 4m27s
+- Average tokens per run: 1,782
+
+**Note**: This is a code cleanup release with no language changes. Benchmark results reflect the current state of v0.3.6 language features (auto-import std/prelude, record update syntax, numeric conversions, etc.) with improved cost tracking accuracy.
+
 ---
 
 ## [v0.3.6] - 2025-10-14 - AI Usability Improvements
