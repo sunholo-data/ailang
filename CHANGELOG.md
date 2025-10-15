@@ -139,6 +139,29 @@
 **Total new code**: ~1,370 LOC (including tests)
 **Test coverage**: 100% for new features
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 62.7% success rate (79/126 runs across 3 models × 21 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 42.9% (27/63) - New language, learning curve
+- **Python**: 82.5% (52/63) - Baseline for comparison
+- **Gap**: 39.6 percentage points (expected for new language)
+
+**By Model:**
+- claude-sonnet-4-5: 66.7% (best performer)
+- gpt5: 61.9%
+- gemini-2-5-pro: 59.5%
+
+**New Benchmarks (v0.3.9)**:
+- `json_encode`: Testing JSON ADT construction and encoding
+- `api_call_json`: Testing HTTP POST with headers and JSON payload
+
+**Cost & Metrics**:
+- Total cost: $0.68 (full suite with 3 production models)
+- Total tokens: 268,886
+- Average duration: 34ms per run
+
 ---
 
 ## [v0.3.8] - 2025-10-15 - Bug Fixes
