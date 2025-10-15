@@ -16,6 +16,7 @@
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
 - ❌ Manually extracting/formatting data when automated tools exist
+- ❌ Guessing which tools to use for benchmarks/evals - ALWAYS use eval-orchestrator agent
 
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
@@ -62,15 +63,22 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
-**When asked to run evals or update benchmark results:**
+**When asked to run evals, compare benchmarks, or update benchmark results:**
 
-→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+→ **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
 The agent knows how to:
 - Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
 - Compare results, validate fixes, generate reports
-- Update the benchmark dashboard
+- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
 - Use all available models and their pricing
+- Route to appropriate `ailang eval-*` commands
+
+**DO NOT:**
+- ❌ Try to guess which make targets or scripts to use
+- ❌ Write custom Python/bash scripts for benchmark analysis
+- ❌ Manually regenerate dashboard files
+- ❌ Call `ailang eval-*` commands directly (let the agent handle it)
 
 ---
 
