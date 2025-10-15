@@ -49,7 +49,8 @@ func discoverBenchmarks() []string {
 func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
-	models := fs.String("models", "claude-sonnet-4-5,gpt5,gemini-2-5-pro", "Comma-separated list of models")
+	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
+	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
@@ -64,8 +65,18 @@ func runEvalSuite() {
 		os.Exit(1)
 	}
 
-	// Parse lists
-	modelList := strings.Split(*models, ",")
+	// Determine model list
+	var modelList []string
+	if *models != "" {
+		// User specified models explicitly
+		modelList = strings.Split(*models, ",")
+	} else if *fullSuite {
+		// Full suite: use expensive/comprehensive models
+		modelList = []string{"gpt5", "claude-sonnet-4-5", "gemini-2-5-pro"}
+	} else {
+		// Default: use cheaper/faster dev models
+		modelList = []string{"gpt5-mini", "gemini-2-5-flash"}
+	}
 	var benchmarkList []string
 	if *benchmarks == "" {
 		// Auto-discover benchmarks from benchmarks/ directory

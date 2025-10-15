@@ -27,18 +27,28 @@ NC='\033[0m' # No Color
 
 # Defaults
 VERSION="${1:-$(git describe --tags --always 2>/dev/null || echo "dev")}"
-MODEL="${MODEL:-claude-sonnet-4-5}"
+FULL_SUITE="${FULL:-false}"  # Set FULL=true for full expensive suite
+MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
 PARALLEL="${PARALLEL:-5}"
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
+
+# Determine model description for display
+if [ -n "$MODELS" ]; then
+  MODEL_DESC="$MODELS (custom)"
+elif [ "$FULL_SUITE" = "true" ]; then
+  MODEL_DESC="gpt5, claude-sonnet-4-5, gemini-2-5-pro (--full)"
+else
+  MODEL_DESC="gpt5-mini, gemini-2-5-flash (dev default)"
+fi
 
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 echo -e "${CYAN}  Creating Baseline: ${BOLD}${VERSION}${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 echo ""
 echo "  Version:     $VERSION"
-echo "  Model:       $MODEL"
+echo "  Models:      $MODEL_DESC"
 echo "  Languages:   $LANGS"
 echo "  Parallel:    $PARALLEL"
 echo "  Output:      $BASELINE_DIR"
@@ -64,11 +74,19 @@ mkdir -p "$BASELINE_DIR"
 echo -e "${CYAN}Running benchmark suite...${NC}"
 echo ""
 
-bin/ailang eval-suite \
-  --models "$MODEL" \
-  --langs "$LANGS" \
-  --parallel "$PARALLEL" \
-  --output "$BASELINE_DIR"
+# Build command with conditional flags
+CMD=(bin/ailang eval-suite --langs "$LANGS" --parallel "$PARALLEL" --output "$BASELINE_DIR")
+
+if [ -n "$MODELS" ]; then
+  # User specified custom models
+  CMD+=(--models "$MODELS")
+elif [ "$FULL_SUITE" = "true" ]; then
+  # Full expensive suite
+  CMD+=(--full)
+fi
+# Otherwise, use default (dev models)
+
+"${CMD[@]}"
 
 # Check results
 SUCCESS_COUNT=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r 'select(.stdout_ok == true) | .id' {} \; 2>/dev/null | sort -u | wc -l | tr -d ' ')
@@ -92,11 +110,16 @@ fi
 
 # Create baseline metadata
 METADATA_FILE="${BASELINE_DIR}/baseline.json"
+
+# Determine actual models used (extract from result files)
+ACTUAL_MODELS=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.model' {} \; 2>/dev/null | sort -u | paste -sd "," -)
+
 cat > "$METADATA_FILE" << EOF
 {
   "version": "$VERSION",
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "model": "$MODEL",
+  "models": "$ACTUAL_MODELS",
+  "full_suite": $FULL_SUITE,
   "languages": "$LANGS",
   "parallel": $PARALLEL,
   "total_runs": $TOTAL_COUNT,
