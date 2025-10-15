@@ -2,7 +2,7 @@
 sidebar_position: 6
 title: Benchmark Performance
 description: Real-world AI code generation performance metrics for AILANG
-last_updated: 2025-10-14
+last_updated: 2025-10-15
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
@@ -37,10 +37,10 @@ These benchmarks demonstrate:
 AILANG excels at these problem types:
 
 - **Simple Print**: 100.0% success rate
-- **Recursion Fibonacci**: 100.0% success rate
 - **Records Person**: 100.0% success rate
-- **Fizzbuzz**: 90.9% success rate
-- **Nested Records**: 90.0% success rate
+- **Recursion Fibonacci**: 100.0% success rate
+- **Nested Records**: 94.4% success rate
+- **Fizzbuzz**: 94.1% success rate
 
 ## How Benchmarks Guide Development
 
@@ -67,47 +67,51 @@ Want to see AILANG in action?
 
 ## Technical Details
 
-**Version**: v0.3.6-5-ge5e012c-dirty
+**Version**: v0.3.6-21-g56b7984-dirty
 
-**Total Runs**: 194
+**Total Runs**: 332
 
-**Generated**: 2025-10-14 21:21:36
+**Generated**: 2025-10-15 07:51:06
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run | Baseline |
 |-------|------|--------|-------|------------|----------|----------|
+| gpt5-mini | 38 | 65.8% | 65.8% | 1645 | $0.0007 | v0.3.6-cost-fix-mini |
+| Gemini 2.5 Pro | 14 | 64.3% | 64.3% | 1408 | $0.0029 | v0.3.6-cost-fix |
 | gpt-5-mini | 36 | 63.9% | 63.9% | 2599 | $0.0780 | v0.3.3-11-5models |
 | gpt-5 | 37 | 62.2% | 62.2% | 1972 | $0.0591 | v0.3.5-8-g2e48915 |
+| Claude Sonnet 4.5 | 26 | 61.5% | 61.5% | 1967 | $0.0171 | v0.3.6-cost-fix |
 | Claude Sonnet 4.5 | 38 | 60.5% | 60.5% | 1922 | $0.0577 | v0.3.5-8-g2e48915 |
+| gpt5 | 32 | 59.4% | 59.4% | 1555 | $0.0032 | v0.3.6-cost-fix |
+| gemini-2-5-flash | 38 | 57.9% | 57.9% | 1784 | $0.0009 | v0.3.6-cost-fix-mini |
 | gemini-2.5-flash | 36 | 55.6% | 55.6% | 2185 | $0.0655 | v0.3.3-11-5models |
 | gemini-2.5-pro | 37 | 48.6% | 48.6% | 1823 | $0.0547 | v0.3.5-8-g2e48915 |
-| Claude Sonnet 4.5 | 10 | 40.0% | 40.0% | 1739 | $0.0522 | v0.3.0-33-gd8a86be |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Records Person | 100.0% | 186 | ailang, python |
-| ✅ Recursion Fibonacci | 100.0% | 143 | ailang, python |
-| ✅ Simple Print | 100.0% | 22 | python |
-| ⚠️ Fizzbuzz | 90.9% | 207 | ailang, python |
-| ⚠️ Nested Records | 90.0% | 242 | ailang, python |
-| ⚠️ String Manipulation | 90.0% | 191 | ailang, python |
-| ⚠️ Adt Option | 81.8% | 392 | ailang, python |
-| ⚠️ Recursion Factorial | 81.8% | 131 | ailang, python |
-| ⚠️ Targeted Repair Test | 66.7% | 47 | ailang |
-| ⚠️ Error Handling | 60.0% | 847 | ailang, python |
-| ⚠️ List Operations | 60.0% | 349 | ailang, python |
-| ⚠️ Higher Order Functions | 50.0% | 391 | ailang, python |
-| ⚠️ Pattern Matching Complex | 50.0% | 865 | ailang, python |
-| ❌ Json Parse | 45.5% | 175 | ailang, python |
-| ❌ Numeric Modulo | 45.5% | 78 | ailang, python |
-| ❌ List Comprehension | 30.0% | 474 | ailang, python |
-| ❌ Float Eq | 27.3% | 137 | ailang, python |
-| ❌ Record Update | 20.0% | 337 | ailang, python |
-| ❌ Cli Args | 0.0% | 424 | ailang, python |
-| ❌ Pipeline | 0.0% | 205 | ailang, python |
+| ✅ Records Person | 100.0% | 155 | ailang, python |
+| ✅ Recursion Fibonacci | 100.0% | 124 | ailang, python |
+| ✅ Simple Print | 100.0% | 18 | python |
+| ⚠️ Nested Records | 94.4% | 190 | ailang, python |
+| ⚠️ Fizzbuzz | 94.1% | 174 | ailang, python |
+| ⚠️ String Manipulation | 92.9% | 165 | ailang, python |
+| ⚠️ Adt Option | 88.2% | 325 | ailang, python |
+| ⚠️ Recursion Factorial | 84.2% | 107 | ailang, python |
+| ⚠️ Pattern Matching Complex | 70.0% | 606 | ailang, python |
+| ⚠️ Error Handling | 56.2% | 721 | ailang, python |
+| ⚠️ List Operations | 55.6% | 270 | ailang, python |
+| ⚠️ Higher Order Functions | 50.0% | 288 | ailang, python |
+| ⚠️ Json Parse | 50.0% | 137 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 49 | ailang, python |
+| ⚠️ Targeted Repair Test | 50.0% | 43 | ailang |
+| ❌ List Comprehension | 33.3% | 373 | ailang, python |
+| ❌ Record Update | 31.6% | 252 | ailang, python |
+| ❌ Float Eq | 29.4% | 97 | ailang, python |
+| ❌ Cli Args | 0.0% | 318 | ailang, python |
+| ❌ Pipeline | 0.0% | 141 | ailang, python |
 
 ---
 

@@ -62,31 +62,15 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
-**When asked to run evals:**
-```bash
-# ✅ CORRECT - Use existing tools
-make eval-baseline MODEL=claude-sonnet-4-5 LANGS=ailang
-ailang eval-summary eval_results/baselines/v0.3.0-35-g3530d07
-ailang eval-validate records_person
+**When asked to run evals or update benchmark results:**
 
-# ❌ WRONG - Don't create new scripts
-./new_eval_script.sh  # NO! Check what exists first!
-```
+→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
-**When asked to update documentation with benchmark results:**
-```bash
-# ✅ CORRECT - Use existing make target
-make benchmark-dashboard  # Updates docs/docs/benchmarks/performance.md + JSON data
-
-# ❌ WRONG - Don't manually extract and format data
-# Don't: Read JSON files, format markdown tables manually, write custom Python scripts
-# The make target does everything: reads latest baseline, generates markdown, updates JSON
-```
-
-**Available models** (check `internal/eval_harness/models.yml`):
-- `claude-sonnet-4-5` (Anthropic)
-- `gpt5`, `gpt5-mini` (OpenAI)
-- `gemini-2-5-pro` (Google)
+The agent knows how to:
+- Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
+- Compare results, validate fixes, generate reports
+- Update the benchmark dashboard
+- Use all available models and their pricing
 
 ---
 
@@ -192,82 +176,30 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
-### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0 Go Implementation)
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
 
-**CRITICAL: These tools already exist - DO NOT recreate them!**
+**When user asks about evaluations, benchmarks, or testing AI code generation:**
 
-The M-EVAL-LOOP system provides complete AI evaluation and automated fix implementation with **native Go commands** (fast, type-safe, 90%+ test coverage).
+→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
 
-#### Native Go Commands (Tier 1: Fast & Reliable)
+The agent handles all eval workflows:
+- Running benchmarks (defaults to cheap/fast models)
+- Comparing results and validating fixes
+- Generating reports and interpreting metrics
+- Routing to appropriate `ailang eval-*` commands
 
-All commands are built into `bin/ailang`:
+**For automated fix implementation:**
 
-```bash
-# Direct commands (power users)
-ailang eval-compare <baseline> <new>        # Compare two runs
-ailang eval-matrix <dir> <version>          # Generate performance matrix (JSON)
-ailang eval-summary <dir>                   # Export to JSONL
-ailang eval-validate <benchmark> [version]  # Validate specific fix
-ailang eval-report <dir> <version> [--format=md|html|csv]  # Generate reports
-```
+→ **Use the [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) agent**
 
-**Benefits**: 5-10x faster than bash, type-safe, cross-platform, proper error handling
-
-#### Make Targets (Tier 2: Workflow Convenience)
-
-```bash
-# Evaluation workflows
-make eval-baseline                          # Store baseline (runs all benchmarks, all models)
-make eval-suite                             # Run all benchmarks with current code
-make eval-diff BASELINE=<dir> NEW=<dir>    # Compare two runs (calls: ailang eval-compare)
-make eval-summary DIR=<dir>                 # JSONL export (calls: ailang eval-summary)
-make eval-matrix DIR=<dir> VERSION=<v>     # Matrix generation (calls: ailang eval-matrix)
-
-# Analysis & improvement
-make eval-analyze                           # Generate design docs from failures
-make eval-validate-fix BENCH=<id>          # Validate specific fix (calls: ailang eval-validate)
-make eval-auto-improve                      # Full loop: eval → analyze → implement → validate
-make eval-prompt-ab A=<v1> B=<v2>          # A/B test prompts
-```
-
-#### Smart Agents (Tier 3: Natural Language)
-
-Users can speak naturally - agents handle routing to correct commands:
-
-```
-✅ "validate my fix for records"           → ailang eval-validate records_person
-✅ "compare baseline to current"           → ailang eval-compare baselines/v0.3.0 current
-✅ "generate an HTML report for v0.3.1"    → ailang eval-report results/ v0.3.1 --format=html
-```
-
-**Available agents:**
-- [eval-orchestrator](.claude/agents/eval-orchestrator.md) - Intelligent workflow routing
-- [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) - Automated fix implementation
-
-#### Architecture
-
-```
-User Input
-    ↓
-Smart Agent (interprets intent)
-    ↓
-Native Go Command (fast execution)
-    ↓
-Results + Recommendations
-```
-
-**Documentation**:
-- [M-EVAL-LOOP Design Doc](design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - System architecture
-- [Go Implementation Guide](docs/docs/guides/evaluation/go-implementation.md) - Complete feature guide
-- [Migration Guide](docs/docs/guides/evaluation/migration-guide.md) - Bash → Go migration
-- [Eval Loop Guide](docs/docs/guides/evaluation/eval-loop.md) - Usage workflows
-- [Architecture Overview](.claude/EVAL_ARCHITECTURE.md) - Two-tier design
+**Documentation** (for detailed reference):
+- [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
+- [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
 
 **DO NOT**:
-- ❌ Create new bash scripts for evals - use native `ailang eval-*` commands
-- ❌ Write custom comparison scripts - use `ailang eval-compare`
-- ❌ Manually generate summaries - use `ailang eval-summary`
-- ❌ Create new analysis tools - extend `internal/eval_analysis/` package
+- ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
+- ❌ Duplicate agent logic - just invoke the appropriate agent
+- ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
 
 ### Code Quality & Coverage
 ```bash

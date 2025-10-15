@@ -66,10 +66,10 @@ All integrated into `bin/ailang`:
 ### 5. Documentation
 
 ```
-✅ docs/docs/guides/evaluation/go-implementation.md  # Complete feature guide (moved from docs/)
-✅ docs/docs/guides/evaluation/migration-guide.md    # Before/after comparison (moved from docs/)
+✅ docs/docs/guides/evaluation/architecture.md       # Architecture overview & command reference
+✅ docs/docs/guides/evaluation/go-implementation.md  # Complete feature guide
+✅ docs/docs/guides/evaluation/migration-guide.md    # Before/after comparison
 ✅ docs/docs/guides/evaluation/README.md             # Updated with new doc links
-✅ .claude/EVAL_ARCHITECTURE.md                      # Architecture overview
 ✅ .claude/agents/eval-orchestrator.md               # Updated for Go
 ✅ .claude/agents/eval-fix-implementer.md            # Updated for Go
 ```

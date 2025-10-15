@@ -504,7 +504,7 @@ v0.3.3: 4/10 passing (40.0%)
 - `internal/eval_analysis/comparison_test.go` (+~250 LOC)
 - `internal/eval_analysis/matrix_test.go` (+~250 LOC)
 - `cmd/ailang/eval_tools.go` (+310 LOC)
-- `.claude/EVAL_ARCHITECTURE.md` - Two-tier architecture documentation
+- `docs/docs/guides/evaluation/architecture.md` - Two-tier architecture & command reference
 - `docs/docs/guides/evaluation/go-implementation.md` - Complete feature guide
 - `docs/docs/guides/evaluation/migration-guide.md` - Bash → Go migration guide
 - `docs/FINAL_SUMMARY.md` - Project metrics and deliverables
