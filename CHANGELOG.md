@@ -1,5 +1,52 @@
 # AILANG Changelog
 
+## [v0.3.8] - 2025-10-15 - Bug Fixes
+
+### Fixed
+
+**1. Multi-line ADT Parser** - Parser now supports multi-line algebraic data type declarations
+- **Problem**: AI models generating multi-line ADTs that parser couldn't handle
+- **Root Cause**: Parser assumed NEWLINE tokens existed, but lexer skips all newlines as whitespace
+- **Solution**:
+  - Added support for optional leading PIPE: `type Tree = | Leaf | Node`
+  - Removed all NEWLINE token checks (they never exist!)
+  - Fixed token positioning in `parseVariant()` to follow parser conventions
+- **Impact**: `pattern_matching_complex` benchmarks now pass
+- **Files**: `internal/parser/parser_type.go`, `internal/parser/parser.go`
+
+**2. Operator Lowering Bug** - Division operators now resolve to correct builtins
+- **Problem**: Division was using wrong builtin (div_Int instead of div_Float), causing runtime errors
+- **Root Cause**: Pipeline missing `FillOperatorMethods()` call after type checking
+- **Solution**: Added method resolution before operator lowering (5 lines in `internal/pipeline/pipeline.go`)
+- **Impact**: `adt_option` benchmarks now pass
+- **Files**: `internal/pipeline/pipeline.go`
+
+**3. Documentation** - Added critical architectural lesson to CLAUDE.md
+- **Section**: "Lexer/Parser Architecture - NEWLINE Tokens Don't Exist!"
+- **Key insight**: Lexer skips newlines in `skipWhitespace()` - they're never returned as tokens
+- **Why important**: Prevents future developers from making the same multi-hour debugging mistake
+- **Files**: `CLAUDE.md` (~82 lines added)
+
+### Test Results
+- ✅ All 100+ parser tests pass
+- ✅ Both failing benchmarks (pattern_matching_complex, adt_option) now pass
+- ✅ No regressions introduced
+
+### Known Issues
+- **File size violations**: 6 files exceed 800 line limit (deferred to v0.3.9/v0.4.0)
+  - internal/pipeline/pipeline.go: 848 lines
+  - internal/types/inference.go: 853 lines
+  - internal/parser/parser_expr.go: 951 lines
+  - internal/ast/ast.go: 841 lines
+  - internal/eval/eval_typed.go: 879 lines
+  - internal/eval/builtins.go: 815 lines
+
+### Benchmark Results (M-EVAL)
+
+**Note**: Benchmark results will be added after release when baseline is captured.
+
+---
+
 ## [v0.3.7] - 2025-10-15 - Code Cleanup
 
 ### Removed
