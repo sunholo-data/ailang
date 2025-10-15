@@ -12,7 +12,7 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-28.7%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-30.0%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -319,23 +319,25 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-52%20passing%2029%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-52%20passing%2031%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-15 09:21:05 UTC*
+*Last updated: 2025-10-15 22:15:29 UTC*
 
-**Summary:** 52 passed, 29 failed, 4 skipped (Total: 85)
+**Summary:** 52 passed, 31 failed, 4 skipped (Total: 87)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
+| `ai_call.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
+| `claude_haiku_call.ail` | ❌ Fail | Error: execution failed: effect 'IO' requires c... |
 | `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
