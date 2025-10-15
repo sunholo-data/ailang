@@ -22,7 +22,7 @@ AILANG is a pure functional programming language that makes AI assistance a firs
 
 ## Quick Example
 
-```ailang
+```typescript
 -- Module with effects (v0.3.0)
 module examples/hello
 

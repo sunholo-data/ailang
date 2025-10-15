@@ -25,7 +25,7 @@ ailang --entry process --args-json '{"input": "data"}' run examples/processor.ai
 
 ### Minimal Example
 
-```ailang
+```typescript
 -- hello.ail
 module examples/hello
 
@@ -46,7 +46,7 @@ ailang --entry main run examples/hello.ail
 
 ### Anatomy of an Executable Module
 
-```ailang
+```typescript
 -- my_module.ail
 module examples/my_module
 import stdlib/std/option (Some, None)
@@ -90,7 +90,7 @@ An entrypoint function must:
 
 #### 0-Argument Functions
 
-```ailang
+```typescript
 export func main() -> int {
     42
 }
@@ -104,7 +104,7 @@ ailang --entry main run module.ail
 
 #### 1-Argument Functions
 
-```ailang
+```typescript
 export func greet(name: string) -> () {
     _io_println(name)
 }
@@ -118,7 +118,7 @@ ailang --entry greet --args-json '"World"' run module.ail
 
 #### Record Parameters (Recommended Pattern)
 
-```ailang
+```typescript
 export func process(params: {input: string, count: int}) -> () {
     _io_println(params.input)
 }
@@ -135,14 +135,14 @@ ailang --entry process --args-json '{"input": "data", "count": 5}' run module.ai
 Functions with 2+ parameters are not directly supported. Wrap parameters in a record:
 
 ❌ **Not supported:**
-```ailang
+```typescript
 export func add(x: int, y: int) -> int {
     x + y
 }
 ```
 
 ✅ **Supported pattern:**
-```ailang
+```typescript
 export func add(params: {x: int, y: int}) -> int {
     params.x + params.y
 }
@@ -166,7 +166,7 @@ AILANG v0.2.0 provides three builtin IO functions:
 
 Print a string without a newline.
 
-```ailang
+```typescript
 export func main() -> () {
     _io_print("Hello")
     _io_print(" ")
@@ -180,7 +180,7 @@ Output: `Hello World`
 
 Print a string with a newline.
 
-```ailang
+```typescript
 export func main() -> () {
     _io_println("Line 1")
     _io_println("Line 2")
@@ -197,7 +197,7 @@ Line 2
 
 Read a line from stdin (blocking).
 
-```ailang
+```typescript
 export func main() -> () {
     _io_println("Enter your name:")
     let name = _io_readLine() in
@@ -214,7 +214,7 @@ export func main() -> () {
 - **Non-Unit values**: Printed to stdout automatically
 - **Unit values**: Silent (no output)
 
-```ailang
+```typescript
 -- Returns int, prints to stdout
 export func compute() -> int {
     42
@@ -241,7 +241,7 @@ export func greet() -> () {
 
 Effects are **type-checked** but **not enforced** at runtime in v0.2.0.
 
-```ailang
+```typescript
 -- Effect annotation required for IO operations
 export func main() -> () ! {IO} {
     _io_println("Hello")
@@ -254,7 +254,7 @@ export func main() -> () ! {IO} {
 
 Pure functions have no effect annotation:
 
-```ailang
+```typescript
 export pure func add(x: int, y: int) -> int {
     x + y
 }
@@ -266,7 +266,7 @@ export pure func add(x: int, y: int) -> int {
 
 ### Simple Script
 
-```ailang
+```typescript
 module scripts/hello
 
 export func main() -> () {
@@ -276,7 +276,7 @@ export func main() -> () {
 
 ### CLI Tool with Arguments
 
-```ailang
+```typescript
 module tools/greeter
 
 export func greet(config: {name: string, greeting: string}) -> () {
@@ -293,7 +293,7 @@ ailang --entry greet --args-json '{"name":"Alice","greeting":"Hello"}' run tools
 
 ### Interactive Program
 
-```ailang
+```typescript
 module apps/echo
 
 export func main() -> () {
@@ -377,7 +377,7 @@ Suggestions:
 
 Modules can import other modules:
 
-```ailang
+```typescript
 -- math/utils.ail
 module math/utils
 
@@ -386,7 +386,7 @@ export func double(x: int) -> int {
 }
 ```
 
-```ailang
+```typescript
 -- app/main.ail
 module app/main
 import math/utils (double)
@@ -401,7 +401,7 @@ export func main() -> () {
 
 Only **exported** bindings are accessible from other modules:
 
-```ailang
+```typescript
 module lib/secret
 
 -- Private (not accessible from imports)

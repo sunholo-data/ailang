@@ -180,6 +180,7 @@ const config = {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
         additionalLanguages: ['bash', 'json', 'javascript', 'typescript', 'go'],
+        // Note: AILANG syntax highlighting coming soon - use 'typescript' for now
       },
       colorMode: {
         defaultMode: 'dark',

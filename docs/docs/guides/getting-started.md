@@ -82,7 +82,7 @@ alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
 
 ### Hello World (v0.3.8 Module Syntax)
 
-```ailang
+```typescript
 -- hello.ail
 module examples/hello
 
@@ -102,7 +102,7 @@ ailang run --caps IO --entry main hello.ail
 
 ### Working with Values
 
-```ailang
+```typescript
 -- values.ail
 let name = "AILANG" in
 let version = 0.0 in
@@ -111,7 +111,7 @@ print("Welcome to " ++ name ++ " v" ++ show(version))
 
 ### Lambda Expressions
 
-```ailang
+```typescript
 -- Lambda syntax with closures
 let add = \x y. x + y in
 let add5 = add(5) in  -- Partial application
@@ -133,7 +133,7 @@ ailang repl
 ```
 
 Try some expressions:
-```ailang
+```typescript
 λ> 1 + 2
 3 :: Int
 
