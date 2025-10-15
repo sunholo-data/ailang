@@ -74,8 +74,13 @@ func runEvalSuite() {
 		// Full suite: use expensive/comprehensive models
 		modelList = []string{"gpt5", "claude-sonnet-4-5", "gemini-2-5-pro"}
 	} else {
-		// Default: use cheaper/faster dev models
-		modelList = []string{"gpt5-mini", "gemini-2-5-flash"}
+		// Default: use dev models from models.yml
+		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.DevModels) > 0 {
+			modelList = eval_harness.GlobalModelsConfig.DevModels
+		} else {
+			// Fallback if models.yml not loaded
+			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
+		}
 	}
 	var benchmarkList []string
 	if *benchmarks == "" {

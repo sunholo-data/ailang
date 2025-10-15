@@ -471,10 +471,37 @@ The agent handles all eval workflows:
 - [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
 - [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
 
+**⚠️ CRITICAL: Running Multiple Models**
+
+**The `ailang eval-suite` command OVERWRITES the output directory!**
+
+```bash
+# ❌ WRONG - Second run overwrites first run's results
+ailang eval-suite --models gpt5
+ailang eval-suite --models claude-sonnet-4-5  # DELETES gpt5 results!
+
+# ✅ CORRECT - Run all models in ONE command
+ailang eval-suite --models gpt5,claude-sonnet-4-5,gemini-2-5-pro
+
+# ✅ ALSO CORRECT - Use different output directories
+ailang eval-suite --models gpt5 --output eval_results/gpt5_only
+ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
+```
+
+**Default model sets:**
+- `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
+- `ailang eval-suite --full` → gpt5, claude-sonnet-4-5, gemini-2-5-pro (expensive)
+
+**For baselines with all 6 models:**
+```bash
+ailang eval-suite --models gpt5,gpt5-mini,claude-sonnet-4-5,claude-haiku-4-5,gemini-2-5-pro,gemini-2-5-flash
+```
+
 **DO NOT**:
 - ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
 - ❌ Duplicate agent logic - just invoke the appropriate agent
 - ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
+- ❌ Run multiple `ailang eval-suite` commands to same directory - results will be overwritten!
 
 ### Code Quality & Coverage
 ```bash
