@@ -2,7 +2,7 @@
 
 ## Overview
 
-AILANG evaluation system supports the latest AI models from OpenAI, Anthropic, and Google. Model configurations are centralized in `benchmarks/models.yml` for easy updates when new versions are released.
+AILANG evaluation system supports the latest AI models from OpenAI, Anthropic, and Google. Model configurations are centralized in [`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/main/internal/eval_harness/models.yml) for easy updates when new versions are released.
 
 ---
 
@@ -92,7 +92,7 @@ This runs all 5 benchmarks (fizzbuzz, json_parse, pipeline, cli_args, adt_option
 
 ## Configuration File
 
-Models are configured in `benchmarks/models.yml`:
+Models are configured in [`internal/eval_harness/models.yml`](https://github.com/sunholo-data/ailang/blob/main/internal/eval_harness/models.yml):
 
 ```yaml
 models:
@@ -108,13 +108,13 @@ models:
 
 ### When to Update
 
-**Update `benchmarks/models.yml` when:**
+**Update `internal/eval_harness/models.yml` when:**
 - New model versions release (e.g., GPT-6, Claude 5)
 - Pricing changes
 - API names change (e.g., `gpt-5-2026-01-01`)
 
 **How to update:**
-1. Edit `benchmarks/models.yml`
+1. Edit `internal/eval_harness/models.yml`
 2. Add new model entry
 3. Update `default:` if needed
 4. Update `benchmark_suite:` list
@@ -207,7 +207,7 @@ ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5
 # Check if model is in config
 make eval-models
 
-# If not, add to benchmarks/models.yml
+# If not, add to internal/eval_harness/models.yml
 ```
 
 ### "API key not set"
@@ -240,7 +240,7 @@ cat eval_results/summary.csv | awk -F, '{sum+=$6} END {print "Total: $" sum}'
 
 ## Adding New Models
 
-When new models release, update `benchmarks/models.yml`:
+When new models release, update `internal/eval_harness/models.yml`:
 
 ```yaml
 # Example: GPT-6 release
@@ -301,4 +301,4 @@ make eval-clean
 
 **Last Updated**: October 2, 2025
 **Default Model**: Claude Sonnet 4.5 (Anthropic)
-**Configuration**: [benchmarks/models.yml](benchmarks/models.yml)
+**Configuration**: [internal/eval_harness/models.yml](https://github.com/sunholo-data/ailang/blob/main/internal/eval_harness/models.yml)

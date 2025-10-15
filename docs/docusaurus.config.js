@@ -24,8 +24,12 @@ const config = {
   projectName: 'ailang', // Usually your repo name.
   trailingSlash: false,
 
-  onBrokenLinks: 'warn', // Changed from 'throw' to allow migration - will fix broken links later
+  onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
+  onBrokenAnchors: 'warn',
+
+  // Static assets are not checked for broken links - they are copied as-is
+  staticDirectories: ['static'],
 
   // Load Go's WebAssembly support for AILANG REPL
   scripts: [
@@ -112,7 +116,7 @@ const config = {
             position: 'left',
           },
           {
-            href: '/ailang/llms.txt',
+            href: 'https://sunholo-data.github.io/ailang/llms.txt',
             label: 'llms.txt',
             position: 'right',
           },
@@ -165,7 +169,7 @@ const config = {
               },
               {
                 label: 'llms.txt',
-                href: '/ailang/llms.txt',
+                href: 'https://sunholo-data.github.io/ailang/llms.txt',
               },
             ],
           },

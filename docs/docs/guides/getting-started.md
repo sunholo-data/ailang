@@ -80,7 +80,7 @@ alias ailang-update='cd /path/to/ailang && make quick-install && cd -'
 
 ## Quick Start
 
-### Hello World (v0.3.0 Module Syntax)
+### Hello World (v0.3.8 Module Syntax)
 
 ```ailang
 -- hello.ail
@@ -149,7 +149,7 @@ Hello World :: String
 λ> :quit
 ```
 
-## Working Examples (v0.3.0)
+## Working Examples (v0.3.8)
 
 The following examples are confirmed to work with the current implementation:
 

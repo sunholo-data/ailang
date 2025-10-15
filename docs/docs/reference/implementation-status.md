@@ -1,10 +1,15 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.6 (AI Usability Improvements)
+## Current Version: v0.3.8 (Bug Fixes - Multi-line ADTs & Operator Lowering)
 
-## Test Coverage: 27.7%
+## Test Coverage: 28.9%
 
-## Recent Milestone: v0.3.0 Clock & Net Effects (M-R6) + Type System Fixes (M-R7)
+## Recent Release: v0.3.8 (October 2025)
+
+**Bug Fixes:**
+- ✅ **Multi-line ADT Parser** - Parser now supports multi-line algebraic data type declarations
+- ✅ **Operator Lowering** - Division operators correctly resolve to type-specific builtins
+- ✅ **10.5% improvement** in M-EVAL benchmarks (38.6% → 49.1% success rate)
 
 **~1,594 LOC added: Complete module execution infrastructure (Phases 1-4)**
 
@@ -77,13 +82,19 @@ M-P4 implements comprehensive effect system infrastructure:
 - Linear capability capture analysis
 - ~5,000+ lines total
 
-#### **Evaluator** (Major Features Working)
-- Tree-walking interpreter (~700 lines)
-- ✅ **Working**: Arithmetic, booleans, strings, let bindings, if-then-else
-- ✅ **Working**: Lists, records (creation and field access)
-- ✅ **Working**: Lambda expressions with proper closures
-- ✅ **Working**: Built-in functions: `print`, `show`, `toText`
-- ❌ **Not working**: Pattern matching, type definitions, effects
+#### **Evaluator & Runtime** (Full Module Execution!)
+- Tree-walking interpreter with module execution runtime
+- ✅ **Working**: Full module system with imports and exports
+- ✅ **Working**: Effect system (IO, FS, Clock, Net) with capability security
+- ✅ **Working**: Pattern matching with exhaustiveness checking
+- ✅ **Working**: Recursion (self-recursive and mutually-recursive functions)
+- ✅ **Working**: Block expressions (`{ stmt1; stmt2; result }`)
+- ✅ **Working**: Records with subsumption and optional row polymorphism
+- ✅ **Working**: Type classes (Num, Eq, Ord, Show) with dictionary-passing
+- ✅ **Working**: Auto-import of std/prelude (zero imports for comparisons!)
+- ✅ **Working**: Record update syntax (`{base | field: value}`)
+- ✅ **Working**: Anonymous function syntax (`func(x: int) -> int { x * 2 }`)
+- ✅ **Working**: Numeric conversions (`intToFloat`, `floatToInt`)
 
 #### **REPL** (Fully Operational)
 - ✅ Professional Interactive REPL with type class support (~850 lines)
@@ -104,37 +115,53 @@ M-P4 implements comprehensive effect system infrastructure:
 - ✅ **Golden Test Framework** (`testutil/`) - Reproducible test fixtures
 - ~1,500 lines with 100% test coverage
 
-### ⚠️ Known Issues
+### ⚠️ Known Issues & Limitations
 
-#### Critical Documentation vs Reality Gap
-Many documented features don't actually work. Use these working examples:
-- ✅ `examples/hello.ail` - Simple print
-- ✅ `examples/simple.ail` - Basic arithmetic  
-- ✅ `examples/arithmetic.ail` - Arithmetic with show
-- ✅ `examples/lambda_expressions.ail` - Full lambda functionality
-- ✅ REPL with basic expressions
+#### What Works (48/66 examples passing - 72.7%)
+- ✅ Full module execution with effects
+- ✅ Recursion (self-recursive and mutually-recursive)
+- ✅ Block expressions
+- ✅ Records with subsumption
+- ✅ Pattern matching with ADTs
+- ✅ Type classes (Num, Eq, Ord, Show)
+- ✅ Effects: IO, FS, Clock, Net
+- ✅ REPL with full type checking
 
-#### Immediate Fixes Needed
-1. ❌ **Parser**: Module declarations completely broken (`module`, `import`)
-2. ❌ **Parser**: Function declarations don't work (`func` syntax)
-3. ✅ **Parser**: Type definitions now supported! (M-P2) - aliases, sum types, records, exports
-4. ❌ **Parser**: Tests/properties syntax fails
-5. ⚠️ **Integration**: REPL vs file execution use different evaluators
-6. ⚠️ **Type System**: Type classes work in REPL but not file execution
+#### Current Limitations
+1. ⚠️ **Pattern Guards** - Parsed but not evaluated yet
+2. ⚠️ **Error Propagation** - `?` operator not yet implemented
+3. ⚠️ **Deep Let Nesting** - 4+ levels may fail
+4. ❌ **Typed Quasiquotes** - Planned for v0.4.0+
+5. ❌ **CSP Concurrency** - Planned for v0.4.0+
+6. ❌ **Session Types** - Planned for v1.0+
 
-### ❌ TODO Components
+#### File Size Issues (Deferred to v0.3.9/v0.4.0)
+6 files exceed the 800-line AI-friendly limit:
+- `internal/pipeline/pipeline.go`: 848 lines
+- `internal/types/inference.go`: 853 lines
+- `internal/parser/parser_expr.go`: 951 lines
+- `internal/ast/ast.go`: 841 lines
+- `internal/eval/eval_typed.go`: 879 lines
+- `internal/eval/builtins.go`: 815 lines
 
-#### Major Components to Implement
-1. **Module System**: Make `module` and `import` statements work
-2. **Function Declarations**: Implement `func` syntax
-3. **Type Definitions**: Support `type` declarations
-4. **Integration**: Unify REPL and file execution paths
-5. **Effect System**: Capability checking and propagation
-6. **Standard Library**: Core modules
-7. **Quasiquotes**: Validation and AST generation
-8. **Training Export**: Execution trace collection
-9. **CSP/Channels**: Concurrent programming support
-10. **Session Types**: Protocol verification
+### 🚧 Planned Features
+
+#### Upcoming (v0.4.0+)
+1. ✅ ~~**Module System**~~ - COMPLETE in v0.2.0
+2. ✅ ~~**Function Declarations**~~ - COMPLETE in v0.2.0
+3. ✅ ~~**Type Definitions**~~ - COMPLETE in v0.2.0
+4. ✅ ~~**Effect System**~~ - COMPLETE in v0.2.0-v0.3.0
+5. ✅ ~~**Standard Library**~~ - Core modules (std/io, std/fs, std/prelude) COMPLETE
+6. **Pattern Guards** - Enhance pattern matching with boolean conditions
+7. **Error Propagation** - `?` operator for Result types
+8. **Typed Quasiquotes** - Safe metaprogramming with compile-time validation
+9. **CSP/Channels** - Concurrent programming support
+10. **Session Types** - Protocol verification
+
+#### Future (v1.0+)
+- **Training Export**: Execution trace collection for AI training
+- **Deterministic Time**: Virtual clock for reproducible builds
+- **AI Debugging Tools**: Structured execution traces
 
 ## Lines of Code Summary
 

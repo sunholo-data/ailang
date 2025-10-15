@@ -1,3 +1,4 @@
+---
 sidebar_position: 1
 title: Introduction
 description: AILANG is an AI-first programming language designed for AI-assisted development
@@ -14,9 +15,9 @@ AILANG is a pure functional programming language that makes AI assistance a firs
 
 - **Pure Functional Programming**: Immutable data and explicit effects
 - **Algebraic Effects System**: Track and control side effects in the type system
-- **Typed Quasiquotes**: Safe metaprogramming with compile-time validation
-- **CSP-Based Concurrency**: Channel-based communication with session types
-- **Deterministic Execution**: Reproducible builds for AI training data
+- **Type Classes**: Num, Eq, Ord, Show with dictionary-passing semantics
+- **Pattern Matching**: Algebraic data types with exhaustiveness checking
+- **Auto-Import Prelude**: Zero imports needed for type classes and comparisons
 - **AI-Optimized Design**: Generate structured execution traces for model training
 
 ## Quick Example
@@ -47,23 +48,23 @@ Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
 
 ## Getting Started
 
-- **[Installation Guide](./guides/getting-started)**
+- **[Installation Guide](/docs/guides/getting-started)**
   Install AILANG and run your first program
 
-- **[Language Tutorial](./guides/development)**
+- **[Language Tutorial](/docs/guides/development)**
   Learn the basics of AILANG programming
 
-- **[Language Reference](./reference/language-syntax)**
+- **[Language Reference](/docs/reference/language-syntax)**
   Complete syntax and semantics reference
 
-- **[REPL Commands](./reference/repl-commands)**
+- **[REPL Commands](/docs/reference/repl-commands)**
   Interactive development with the AILANG REPL
 
-## Current Status: v0.3.0 (October 2025)
+## Current Status: v0.3.8 (October 2025)
 
-AILANG v0.3.0 is now available! Check the [implementation status](./reference/implementation-status) for complete details.
+AILANG v0.3.8 is now available with multi-line ADT parser fixes and operator lowering improvements! Check the [implementation status](/docs/reference/implementation-status) for complete details.
 
-### ✅ Working Features (v0.3.0)
+### ✅ Working Features (v0.3.8)
 - **Recursion** - Self-recursion, mutual recursion, with stack overflow protection
 - **Block Expressions** - Multi-statement blocks with proper scoping
 - **Records** - Record literals, field access, subsumption
@@ -76,16 +77,17 @@ AILANG v0.3.0 is now available! Check the [implementation status](./reference/im
 - **REPL** - Full type checking, command history, tab completion
 - **Lambda Calculus** - First-class functions, closures, currying
 
-### 🚧 Planned Features
-- Typed quasiquotes (v0.4.0+)
-- CSP concurrency with channels (v0.4.0+)
-- Session types (v1.0+)
-- AI training data export (v1.0+)
+### 🚧 Planned Features (v0.4.0+)
+- **Pattern Guards** - Boolean conditions in pattern matching
+- **Error Propagation** - `?` operator for Result types
+- **Typed Quasiquotes** - Safe metaprogramming with compile-time validation
+- **CSP Concurrency** - Channel-based communication with session types
+- **AI Training Export** - Execution trace collection (v1.0+)
 
 ## Documentation Structure
 
-- **[Guides](./guides/getting-started)** - Tutorials and how-to guides
-- **[Reference](./reference/language-syntax)** - Language specification and API docs
+- **[Guides](/docs/guides/getting-started)** - Tutorials and how-to guides
+- **[Reference](/docs/reference/language-syntax)** - Language specification and API docs
 - **[Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - Sample AILANG programs
 
 ## Contributing
@@ -112,8 +114,8 @@ AILANG is built on several key principles:
 - [GitHub Repository](https://github.com/sunholo-data/ailang)
 - [Design Documentation](https://github.com/sunholo-data/ailang/tree/main/design_docs)
 - [Change Log](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
-- [Development Setup](./guides/development)
-- [llms.txt](/llms.txt) - AI-readable project documentation
+- [Development Setup](/docs/guides/development)
+- [llms.txt](https://sunholo-data.github.io/ailang/llms.txt) - AI-readable project documentation
 
 ---
 
