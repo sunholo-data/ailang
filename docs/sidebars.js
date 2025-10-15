@@ -20,6 +20,7 @@ const sidebars = {
       type: 'category',
       label: 'Getting Started',
       items: [
+        'guides/agent-integration',
         'guides/getting-started',
         'guides/module_execution',
       ],

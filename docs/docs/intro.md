@@ -48,6 +48,16 @@ Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
 
 ## Getting Started
 
+### 🤖 For AI Agents
+
+- **[AI Agent Integration Guide](/docs/guides/agent-integration)** ⭐
+  Quick start for AI coding agents (Claude, GPT, Gemini)
+
+- **[Teaching Prompt v0.3.8](/docs/prompts/v0.3.8)**
+  Complete AILANG syntax guide for AI models
+
+### 👤 For Human Developers
+
 - **[Installation Guide](/docs/guides/getting-started)**
   Install AILANG and run your first program
 
