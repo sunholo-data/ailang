@@ -1,0 +1,22 @@
+id: json_encode
+description: "Build and encode nested JSON (data serialization)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+prompt: |
+  Write a program in <LANG> that:
+  1. Creates a nested JSON structure representing:
+     - A user object with name "Alice", age 30, active status true
+     - An array of hobbies: ["reading", "coding", "hiking"]
+     - A nested address object: city "Seattle", zip 98101
+  2. Encodes it to a JSON string
+  3. Prints the JSON string
+
+  The output should be valid JSON with this structure:
+  {"name":"Alice","age":30,"active":true,"hobbies":["reading","coding","hiking"],"address":{"city":"Seattle","zip":98101}}
+
+  Output only the code, no explanations.
+expected_stdout: |
+  {"name":"Alice","age":30,"active":true,"hobbies":["reading","coding","hiking"],"address":{"city":"Seattle","zip":98101}}

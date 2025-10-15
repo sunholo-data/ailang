@@ -38,8 +38,16 @@
       "hash": "91fed29dd5b991549cddd7a492b1afe790eb0a74c8da9bf29dcb46c2546a9665",
       "description": "v0.3.8 prompt with auto-import std/prelude, record updates, and multi-line ADTs",
       "created": "2025-10-15",
-      "tags": ["production", "latest"],
+      "tags": ["production"],
       "notes": "Major improvements: 1) std/prelude auto-imported (no more Ord/Eq imports needed), 2) Record update syntax {r | field: val}, 3) Multi-line ADTs with optional leading pipe, 4) Operator lowering fixes. 49.1% success rate (+10.5% from v0.3.7). All v0.3.5 features included."
+    },
+    "v0.3.9": {
+      "file": "prompts/v0.3.9.md",
+      "hash": "7cb721b1876618bcdfb13ca9f699b3a697bcdeaa627f4ff062e67001470a450d",
+      "description": "v0.3.9 prompt with JSON encoding and HTTP headers for AI API integration",
+      "created": "2025-10-15",
+      "tags": ["production", "latest"],
+      "notes": "AI API integration features: 1) JSON encoding with std/json (encode, jo, ja, kv, js, jnum), 2) HTTP headers with httpRequest() and Result-based error handling, 3) NetError ADT (Transport, InvalidHeader, DisallowedHost, BodyTooLarge), 4) Verified with real Claude Haiku API call. All v0.3.8 features included."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -66,7 +74,7 @@
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
     }
   },
-  "active": "v0.3.8",
+  "active": "v0.3.9",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

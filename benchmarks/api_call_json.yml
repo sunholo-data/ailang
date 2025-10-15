@@ -1,0 +1,17 @@
+id: api_call_json
+description: "Make HTTP POST with JSON payload and custom headers"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["Net", "IO"]
+difficulty: "hard"
+expected_gain: "high"
+prompt: |
+  Write a program in <LANG> that:
+  1. Makes an HTTP POST request to https://httpbin.org/post
+  2. Includes custom headers: "X-Test-Header: value123" and "Content-Type: application/json"
+  3. Sends a JSON body: {"message":"Hello from <LANG>","count":42}
+  4. Prints ONLY the response status code (e.g., "200" or "201")
+
+  Output only the code, no explanations.
+expected_stdout: |
+  200
