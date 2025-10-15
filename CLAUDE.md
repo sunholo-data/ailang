@@ -301,7 +301,7 @@ Example entry:
 
 **When writing AILANG code during development:**
 Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md)
+- **Current version**: [prompts/v0.3.8.md](prompts/v0.3.8.md)
 - Validated through multi-model testing (Claude, GPT, Gemini)
 - Covers syntax, limitations, common pitfalls, and working examples
 
@@ -313,7 +313,7 @@ ailang repl                                        # Start REPL
 ```
 
 **For detailed syntax, limitations, and examples:**
-- See [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete AILANG teaching prompt
+- See [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete AILANG teaching prompt
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 
@@ -729,7 +729,7 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 ## Reference Documentation
 
 **For detailed guides, see:**
-- **AILANG Syntax**: [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete teaching prompt
+- **AILANG Syntax**: [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete teaching prompt
 - **REPL Guide**: [docs/guides/repl.md](docs/guides/repl.md) - Interactive development
 - **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known issues and workarounds
 - **Contributing**: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflow

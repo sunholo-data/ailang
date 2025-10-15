@@ -6,15 +6,15 @@
 
 ---
 
-## Canonical Prompt (v0.3.6)
+## Canonical Prompt (v0.3.8)
 
 **The official AILANG teaching prompt is maintained at**:
 
-### 📖 [prompts/v0.3.6.md](../prompts/v0.3.6)
+### 📖 [prompts/v0.3.8.md](../prompts/v0.3.8)
 
 This prompt is:
 - ✅ **Validated through eval benchmarks** - Tested across GPT-5, Gemini 2.5 Pro, Claude Sonnet 4.5
-- ✅ **Up-to-date with v0.3.6 features** - Record updates, auto-import prelude, anonymous functions
+- ✅ **Up-to-date with v0.3.8 features** - Record updates, auto-import prelude, anonymous functions
 - ✅ **Versioned with SHA-256 hashing** - Reproducible eval results
 - ✅ **Actively maintained** - Updated as language evolves
 
@@ -22,17 +22,18 @@ This prompt is:
 
 ## Quick Reference
 
-**Current version**: v0.3.6 (AI Usability Improvements)
+**Current version**: v0.3.8 (AI Usability Improvements)
 
-**What works in v0.3.6**:
+**What works in v0.3.8**:
 - ✅ Module execution with effects
 - ✅ Recursion (self-recursive and mutually-recursive)
 - ✅ Block expressions (`{ stmt1; stmt2; result }`)
 - ✅ Records (literals + field access + **updates**)
-- ✅ **Record update syntax** `{base | field: value}` - NEW!
-- ✅ **Auto-import std/prelude** - No imports needed for comparisons - NEW!
-- ✅ **Anonymous functions** `func(x: int) -> int { x * 2 }` - NEW!
-- ✅ **Numeric conversions** `intToFloat`, `floatToInt` - NEW!
+- ✅ **Multi-line ADTs** `type Tree = | Leaf | Node` - NEW in v0.3.8!
+- ✅ **Record update syntax** `{base | field: value}`
+- ✅ **Auto-import std/prelude** - No imports needed for comparisons
+- ✅ **Anonymous functions** `func(x: int) -> int { x * 2 }`
+- ✅ **Numeric conversions** `intToFloat`, `floatToInt`
 - ✅ Effects: IO, FS, Clock, Net
 - ✅ Type classes, ADTs, pattern matching
 - ✅ REPL with full type checking
@@ -44,7 +45,7 @@ This prompt is:
 - ❌ Typed quasiquotes
 - ❌ CSP concurrency
 
-**For complete details**, see [prompts/v0.3.6.md](/docs/prompts/v0.3.6)
+**For complete details**, see [prompts/v0.3.8.md](/docs/prompts/v0.3.8)
 
 ---
 
@@ -52,14 +53,14 @@ This prompt is:
 
 ### For AI Code Generation
 
-When asking an AI model (Claude, GPT, Gemini) to write AILANG code, provide the full prompt from [prompts/v0.3.6.md](/docs/prompts/v0.3.6).
+When asking an AI model (Claude, GPT, Gemini) to write AILANG code, provide the full prompt from [prompts/v0.3.8.md](/docs/prompts/v0.3.8).
 
 **Example usage**:
 ```
 I need you to write AILANG code to solve this problem: [problem description]
 
 First, read this AILANG syntax guide:
-[paste contents of prompts/v0.3.6.md]
+[paste contents of prompts/v0.3.8.md]
 
 Now write the code.
 ```
@@ -73,7 +74,7 @@ The eval harness automatically loads the correct prompt version:
 id: example_task
 languages: ["ailang", "python"]
 prompt_files:
-  ailang: "prompts/v0.3.6.md"
+  ailang: "prompts/v0.3.8.md"
   python: "prompts/python.md"
 task_prompt: |
   Write a program that [task description]
@@ -85,13 +86,14 @@ See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benc
 
 ## Current Prompt
 
-**Version**: v0.3.6 - [View full prompt](/docs/prompts/v0.3.6)
+**Version**: v0.3.8 - [View full prompt](/docs/prompts/v0.3.8)
 
 **Features**:
-- Record updates: `{base | field: value}`
-- Auto-import std/prelude
-- Anonymous functions: `func(x: int) -> int { x * 2 }`
-- Numeric conversions: `intToFloat`, `floatToInt`
+- Multi-line ADTs: `type Tree = | Leaf | Node` (v0.3.8)
+- Record updates: `{base | field: value}` (v0.3.6)
+- Auto-import std/prelude (v0.3.6)
+- Anonymous functions: `func(x: int) -> int { x * 2 }` (v0.3.5)
+- Numeric conversions: `intToFloat`, `floatToInt` (v0.3.5)
 - Full module system with effects
 
 **Why prompt quality matters**:
@@ -103,7 +105,7 @@ See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benc
 
 ## Eval Results
 
-**Current success rates** (v0.3.6 prompt on v0.3.8):
+**Current success rates** (v0.3.8 prompt on v0.3.8):
 - **Overall**: 49.1% AILANG success rate (vs 82.5% Python baseline)
 - **Claude Sonnet 4.5**: 68.4% best performer
 - **Gemini 2.5 Pro**: 65.8%
@@ -131,7 +133,7 @@ If you find ways to improve the AILANG teaching prompt:
    tools/compare_prompts.sh old_version new_version
    ```
 
-3. **Update the prompt** at `prompts/v0.3.6.md` (or create new version)
+3. **Update the prompt** at `prompts/v0.3.8.md` (or create new version)
 
 4. **Document changes** in `prompts/versions.json` (future enhancement)
 
@@ -146,4 +148,4 @@ If you find ways to improve the AILANG teaching prompt:
 
 ---
 
-*Last updated: October 15, 2025 for v0.3.6/v0.3.8*
+*Last updated: October 15, 2025 for v0.3.8/v0.3.8*

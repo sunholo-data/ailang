@@ -39,7 +39,7 @@ const sidebars = {
       items: [
         'guides/ai-prompt-guide',
         'prompts/index',
-        'prompts/v0.3.6',
+        'prompts/v0.3.8',
         'prompts/python',
       ],
     },

@@ -9,7 +9,8 @@ These prompts teach AI models how to write correct AILANG code.
 
 ## Current Prompts
 
-- **[AILANG v0.3.6](/docs/prompts/v0.3.6)** - Current AILANG teaching prompt
+- **[AILANG v0.3.8](/docs/prompts/v0.3.8)** - Current AILANG teaching prompt (October 2025)
+  - Multi-line ADTs with optional leading pipe
   - Record updates, auto-import prelude, anonymous functions
   - Recursion, pattern matching, effects, type classes
   - Updated for latest language features
@@ -23,24 +24,25 @@ These prompts teach AI models how to write correct AILANG code.
 
 When asking an AI model (Claude, GPT, Gemini) to write AILANG code:
 
-1. **Include the full prompt** - Copy the entire v0.3.6 prompt content
+1. **Include the full prompt** - Copy the entire v0.3.8 prompt content
 2. **Be specific** - Describe what you want the code to do
-3. **Mention version** - Reference "AILANG v0.3.6" to ensure correct syntax
+3. **Mention version** - Reference "AILANG v0.3.8" to ensure correct syntax
 
 ### Example Request
 
 ```
-Using AILANG v0.3.6, write a program that:
+Using AILANG v0.3.8, write a program that:
 - Reads a list of numbers from user input
 - Filters out even numbers
 - Returns the sum of remaining odd numbers
 
-[Include full v0.3.6 prompt here]
+[Include full v0.3.8 prompt here]
 ```
 
 ## Features by Version
 
-**v0.3.6 (Current)**
+**v0.3.8 (Current)**
+- ✅ Multi-line ADTs: `type Tree = | Leaf | Node`
 - ✅ Record updates: `{base | field: value}`
 - ✅ Auto-import prelude (no imports for comparisons)
 - ✅ Anonymous functions: `func(x: int) -> int { x * 2 }`
