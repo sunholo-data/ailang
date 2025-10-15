@@ -237,10 +237,10 @@ func TestComplexType(t *testing.T) {
 
 	// (String, String, List<Header>, String) -> Result<Response, NetError> ! {Net}
 	httpRequestType := b.Func(
-		b.String(),        // method
-		b.String(),        // url
+		b.String(),         // method
+		b.String(),         // url
 		b.List(headerType), // headers
-		b.String(),        // body
+		b.String(),         // body
 	).Returns(
 		b.App("Result", responseType, b.Con("NetError")),
 	).Effects("Net")

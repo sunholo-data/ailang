@@ -45,9 +45,9 @@ func TestStrLenImpl(t *testing.T) {
 	}{
 		{"empty string", "", 0},
 		{"ascii", "hello", 5},
-		{"unicode", "世界", 2},       // 2 characters
-		{"mixed", "hello世界", 7},     // 5 + 2
-		{"emoji", "👋🌍", 2},         // 2 emoji
+		{"unicode", "世界", 2},    // 2 characters
+		{"mixed", "hello世界", 7}, // 5 + 2
+		{"emoji", "👋🌍", 2},      // 2 emoji
 	}
 
 	for _, tt := range tests {
