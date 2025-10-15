@@ -1,0 +1,31 @@
+id: error_handling
+description: "Result/Either type for error propagation"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Defines a Result type with Ok(value) and Err(message) variants
+  2. Implements a function `parse_int(s: string) -> Result[int]`:
+     - Returns Ok(n) if string can be parsed as integer
+     - Returns Err("Invalid integer") otherwise
+  3. Implements a function `divide_safe(a: int, b: int) -> Result[int]`:
+     - Returns Ok(a/b) if b != 0
+     - Returns Err("Division by zero") if b == 0
+  4. Chains operations: parse_int("10") -> divide_safe(result, 2)
+  5. Prints the final result:
+     - For Ok(value): "Result: {value}"
+     - For Err(msg): "Error: {msg}"
+
+  Test cases:
+  - parse_int("10") then divide by 2 -> "Result: 5"
+  - parse_int("10") then divide by 0 -> "Error: Division by zero"
+  - parse_int("abc") -> "Error: Invalid integer"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Result: 5
+  Error: Division by zero
+  Error: Invalid integer

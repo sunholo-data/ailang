@@ -1,0 +1,126 @@
+package pipeline_test
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/sunholo/ailang/internal/pipeline"
+)
+
+// TestPolymorphicFreshness verifies that each use of a polymorphic function gets fresh type variables
+func TestPolymorphicFreshness(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantUses int // Expected number of instantiations
+	}{
+		{
+			name: "simple_identity",
+			input: `let id = \x. x in id(42)`,
+			wantUses: 1, // One use of id
+		},
+		{
+			name: "nested_identity",
+			input: `let id = \x. x in id(id(7))`,
+			wantUses: 2, // Two nested uses
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := pipeline.Config{
+				TrackInstantiations: true,
+			}
+			
+			result, err := pipeline.Run(cfg, pipeline.Source{
+				Code: tt.input,
+				Filename: "<test>",
+				IsREPL: true,
+			})
+			if err != nil {
+				t.Fatalf("pipeline error: %v", err)
+			}
+
+			// Check instantiations
+			if result.Instantiations == nil {
+				t.Fatal("expected instantiation tracking")
+			}
+
+			instantiations := result.Instantiations["instantiations"].([]map[string]interface{})
+			if len(instantiations) != tt.wantUses {
+				t.Errorf("expected %d instantiations, got %d", tt.wantUses, len(instantiations))
+			}
+
+			// Verify freshness: no two instantiations should have the same fresh variables
+			seenVars := make(map[string]bool)
+			for i, inst := range instantiations {
+				freshVars := inst["fresh"].([]string)
+				for _, v := range freshVars {
+					if seenVars[v] {
+						t.Errorf("instantiation %d reused type variable %s", i, v)
+					}
+					seenVars[v] = true
+				}
+			}
+
+			// Log the dump for debugging
+			jsonDump, _ := json.MarshalIndent(result.Instantiations, "", "  ")
+			t.Logf("Instantiation dump:\n%s", jsonDump)
+		})
+	}
+}
+
+// TestPolymorphicGolden generates a golden file for polymorphic instantiations
+func TestPolymorphicGolden(t *testing.T) {
+	input := `
+-- Comprehensive polymorphic test
+let id = \x. x in
+let const = \x. \y. x in
+let compose = \f. \g. \x. f(g(x)) in
+
+-- Multiple uses at different types
+show_Int(id(42)) ++
+show_String(id("hello")) ++
+show_Bool(id(true)) ++
+
+-- Nested polymorphism
+show_Int(compose(id)(\n. n + 1)(5)) ++
+
+-- Const at multiple types
+show_String(const("keep")("discard")) ++
+show_Int(const(100)(200))
+`
+
+	cfg := pipeline.Config{
+		TrackInstantiations: true,
+	}
+	
+	result, err := pipeline.Run(cfg, pipeline.Source{
+		Code: input,
+		Filename: "<golden>",
+		IsREPL: true,
+	})
+	if err != nil {
+		t.Fatalf("pipeline error: %v", err)
+	}
+
+	// Get instantiation dump
+	dump := result.Instantiations
+	
+	// Create golden output
+	golden := map[string]interface{}{
+		"program_type": result.Type.String(),
+		"instantiations": dump["instantiations"],
+	}
+
+	// Pretty print
+	jsonDump, _ := json.MarshalIndent(golden, "", "  ")
+	t.Logf("Golden polymorphic instantiations:\n%s", jsonDump)
+
+	// In a real test, we'd compare against a saved golden file
+	// For now, just verify we have the expected number of instantiations
+	instantiations := dump["instantiations"].([]map[string]interface{})
+	if len(instantiations) < 6 {
+		t.Errorf("expected at least 6 instantiations, got %d", len(instantiations))
+	}
+}

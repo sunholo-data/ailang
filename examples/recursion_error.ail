@@ -1,0 +1,39 @@
+-- recursion_error.ail
+-- Documents RT_REC_001: recursive value error
+-- Status: ✅ Conceptual (demonstrates error conditions)
+
+module examples/recursion_error
+
+import std/io (println)
+
+-- NOTE: These examples show what WOULD cause RT_REC_001 if we could
+-- write them in current syntax. The error occurs when a non-function
+-- value tries to reference itself in its definition.
+--
+-- WOULD FAIL with RT_REC_001:
+--   let rec x = x + 1 in x
+--   (non-function value referencing itself)
+--
+-- WOULD FAIL with RT_REC_001:
+--   let rec value = value * 2 in value
+--   (immediate cycle in non-function binding)
+--
+-- WORKS (function wrapping is safe):
+--   let rec f = \n. if n <= 0 then 0 else f(n - 1) in f(5)
+--   (function captures name, body executes later)
+
+-- This function demonstrates safe recursion
+export func safeRecursion(n: int) -> int {
+  if n <= 0 then 0 else safeRecursion(n - 1)
+}
+
+export func main() -> () ! {IO} {
+  println("RT_REC_001 occurs when non-function values reference themselves.");
+  println("Example: let rec x = x + 1 in x");
+  println("");
+  println("Functions are safe because they capture the name");
+  println("and execute the body later:");
+
+  let result = safeRecursion(5);
+  println("safeRecursion(5) = " ++ show(result))
+}

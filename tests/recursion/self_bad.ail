@@ -1,0 +1,10 @@
+-- Test immediate self-reference (should fail with RT_CYCLE)
+module tests/recursion/self_bad
+
+-- This creates a value-level cycle
+-- Function that immediately evaluates itself
+func badValue() -> Int {
+  badValue() + 1
+}
+
+badValue()

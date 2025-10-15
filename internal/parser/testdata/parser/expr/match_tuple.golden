@@ -1,0 +1,117 @@
+{
+  "file": {
+    "decls": [
+      {
+        "cases": [
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "origin"
+            },
+            "pattern": {
+              "elements": [
+                {
+                  "kind": "Int",
+                  "type": "Literal",
+                  "value": 0
+                },
+                {
+                  "kind": "Int",
+                  "type": "Literal",
+                  "value": 0
+                }
+              ],
+              "type": "TuplePattern"
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "point"
+            },
+            "pattern": {
+              "elements": [
+                {
+                  "name": "x",
+                  "type": "Identifier"
+                },
+                {
+                  "name": "y",
+                  "type": "Identifier"
+                }
+              ],
+              "type": "TuplePattern"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "pair",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "cases": [
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "origin"
+            },
+            "pattern": {
+              "elements": [
+                {
+                  "kind": "Int",
+                  "type": "Literal",
+                  "value": 0
+                },
+                {
+                  "kind": "Int",
+                  "type": "Literal",
+                  "value": 0
+                }
+              ],
+              "type": "TuplePattern"
+            },
+            "type": "Case"
+          },
+          {
+            "body": {
+              "kind": "String",
+              "type": "Literal",
+              "value": "point"
+            },
+            "pattern": {
+              "elements": [
+                {
+                  "name": "x",
+                  "type": "Identifier"
+                },
+                {
+                  "name": "y",
+                  "type": "Identifier"
+                }
+              ],
+              "type": "TuplePattern"
+            },
+            "type": "Case"
+          }
+        ],
+        "expr": {
+          "name": "pair",
+          "type": "Identifier"
+        },
+        "type": "Match"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

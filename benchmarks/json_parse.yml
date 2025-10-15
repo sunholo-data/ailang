@@ -1,0 +1,17 @@
+id: json_parse
+description: "Parse JSON array, filter, and output (data parsing)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+prompt: |
+  Write a program in <LANG> that:
+  1. Parses this JSON array: [{"name":"Alice","age":30},{"name":"Bob","age":25},{"name":"Charlie","age":35}]
+  2. Filters to keep only people aged 30 or older
+  3. Prints the names, one per line
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Alice
+  Charlie

@@ -1,0 +1,12 @@
+-- Demo: Call a public API endpoint
+-- This example fetches JSON data from httpbin.org (a testing service)
+-- Run with: ailang run --caps Net,IO --entry main examples/demo_ai_api.ail
+module examples/demo_ai_api
+
+export func main() -> () {
+  _io_println("Calling httpbin.org API for testing...");
+  let response = _net_httpGet("https://httpbin.org/get");
+  _io_println("Response from API:");
+  _io_println("Length: " ++ show(_str_len(response)) ++ " bytes");
+  _io_println("Success!")
+}

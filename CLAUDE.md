@@ -1,12 +1,129 @@
 # Claude Instructions for AILANG Development
 
+## ⚠️ CRITICAL PRINCIPLES
+
+### 1. ALWAYS USE EXISTING TOOLS FIRST
+
+**Before writing ANY new script or code:**
+1. ✅ Check `make help` for existing targets
+2. ✅ Check `tools/` directory for existing scripts
+3. ✅ Check this CLAUDE.md for documented workflows
+4. ✅ Search codebase: `grep -r "function_name" internal/`
+
+**Common mistakes to avoid:**
+- ❌ Writing new bash scripts when `make` targets or `ailang` commands exist
+- ❌ Creating new analysis tools when M-EVAL-LOOP Go implementation exists
+- ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
+- ❌ Ignoring documented workflows in CLAUDE.md
+- ❌ Manually extracting/formatting data when automated tools exist
+- ❌ Guessing which tools to use for benchmarks/evals - ALWAYS use eval-orchestrator agent
+
+### 2. NO SILENT FALLBACKS - FAIL LOUDLY
+
+**CRITICAL LESSON**: Silent fallbacks hide bugs and produce wrong data that users trust.
+
+**The Cost Calculation Bug (Oct 2024):**
+```go
+// ❌ WRONG - Silent fallback hid 61x cost overestimation for YEARS
+rate, ok := rates[model]
+if !ok {
+    rate = 0.03  // Default to GPT-4 pricing if unknown
+}
+return float64(tokens) / 1000.0 * rate
+```
+
+**Impact**: All modern models (GPT-5, Gemini 2.5, Claude Sonnet 4.5) used wrong pricing.
+Users trusted inflated costs. Bug was invisible until someone questioned the numbers.
+
+**The Principle:**
+```go
+// ✅ CORRECT - Return 0 or error to force investigation
+if GlobalModelsConfig == nil {
+    return 0.0  // Better to see $0.00 than trust wrong data
+}
+
+cost, err := GlobalModelsConfig.CalculateCostForModel(model, inputTokens, outputTokens)
+if err != nil {
+    return 0.0  // NO SILENT FALLBACKS - we want to know when pricing is missing
+}
+```
+
+**When to apply:**
+- ✅ Pricing/cost calculations (return $0.00 if unknown)
+- ✅ Model configurations (fail if model not in models.yml)
+- ✅ Required environment variables (fail if missing, don't use defaults)
+- ✅ Data validation (reject invalid data, don't silently fix)
+- ✅ Configuration loading (fail if config invalid, don't use built-in defaults)
+
+**When fallbacks ARE okay:**
+- ✅ UI defaults (empty state, placeholder text)
+- ✅ Optional features (graceful degradation of non-critical features)
+- ✅ Caching (miss → fetch from source)
+- ✅ Performance optimizations (slow path if fast path unavailable)
+
+**Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
+
+**When asked to run evals, compare benchmarks, or update benchmark results:**
+
+→ **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+
+The agent knows how to:
+- Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
+- Compare results, validate fixes, generate reports
+- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
+- Use all available models and their pricing
+- Route to appropriate `ailang eval-*` commands
+
+**DO NOT:**
+- ❌ Try to guess which make targets or scripts to use
+- ❌ Write custom Python/bash scripts for benchmark analysis
+- ❌ Manually regenerate dashboard files
+- ❌ Call `ailang eval-*` commands directly (let the agent handle it)
+
+---
+
 ## Project Overview
 AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- Pure functional programming with algebraic effects
-- Typed quasiquotes for safe metaprogramming
-- CSP-based concurrency with session types
-- Deterministic execution for AI training data generation
+- ✅ **Pure functional programming** - First-class functions, closures, lambda calculus
+- ✅ **Algebraic effects** - Capability-based effect system (IO, FS) with runtime security
+- ✅ **Hindley-Milner type inference** - Full type system with type classes and row polymorphism
+- ❌ Typed quasiquotes for safe metaprogramming (planned v0.4.0+)
+- ❌ CSP-based concurrency with session types (planned v0.4.0+)
+- ❌ Deterministic execution for AI training data generation (planned v0.4.0+)
 - File extension: `.ail`
+
+## What AILANG Can Do (Implementation Status)
+
+**Language Features** (see [CHANGELOG.md](CHANGELOG.md) for version history):
+- ✅ Pure functional programming (lambda calculus, closures, recursion)
+- ✅ Hindley-Milner type inference with type classes and row polymorphism
+- ✅ Algebraic effects with capability-based security (IO, FS)
+- ✅ Pattern matching with ADTs
+- ✅ Module system with runtime execution
+- ✅ Interactive REPL with full type checking
+- ✅ Block expressions `{ e1; e2; e3 }` for sequencing
+- ❌ Typed quasiquotes (planned)
+- ❌ CSP concurrency (planned)
+- ❌ AI training data export (planned)
+
+**Development Tools:**
+- ✅ M-EVAL: AI code generation benchmarks (multi-model support)
+- ✅ M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
+- ✅ Plan validation and code scaffolding (`internal/planning/`)
+- ✅ Structured error reporting with JSON schemas
+
+**Quick Test:**
+```bash
+make test                # Run all tests
+make verify-examples     # Check example files
+ailang repl             # Start REPL
+```
+
+**For detailed version history, see [CHANGELOG.md](CHANGELOG.md)**
+
+**🎉 MAJOR MILESTONE:** Module files now execute! Use `ailang run --caps IO,FS --entry main module.ail` to run module code with effects.
+
+**⚠️ Important**: Flags must come BEFORE the filename when using `ailang run`.
 
 ## Key Design Principles
 1. **Explicit Effects**: All side effects must be declared in function signatures
@@ -15,36 +132,190 @@ AILANG is an AI-first programming language designed for AI-assisted development.
 4. **Deterministic**: All non-determinism must be explicit (seeds, virtual time)
 5. **AI-Friendly**: Generate structured execution traces for training
 
-## Project Structure
+## Project Structure (v0.3.0+)
 ```
 ailang/
-├── cmd/ailang/         # CLI entry point (main.go)
+├── cmd/ailang/         # CLI entry point ✅ COMPLETE
 ├── internal/
-│   ├── ast/            # AST definitions (complete)
-│   ├── lexer/          # Tokenizer (needs fixes)
-│   ├── parser/         # Parser (partial implementation)
-│   ├── types/          # Type system (foundation only)
-│   ├── effects/        # Effect system (TODO)
-│   ├── eval/           # Interpreter (TODO)
-│   ├── channels/       # CSP implementation (TODO)
-│   ├── session/        # Session types (TODO)
-│   └── typeclass/      # Type classes (TODO)
-├── quasiquote/         # Typed templates (TODO)
-├── stdlib/             # Standard library (TODO)
-├── tools/              # Development tools (TODO)
-├── examples/           # Example .ail programs
-└── tests/              # Test suite
+│   ├── ast/            # Surface AST ✅ COMPLETE
+│   ├── lexer/          # Tokenizer ✅ COMPLETE
+│   ├── parser/         # Parser ✅ COMPLETE
+│   ├── core/           # Core AST (ANF) ✅ COMPLETE
+│   ├── elaborate/      # Surface → Core elaboration ✅ COMPLETE
+│   ├── types/          # Type system ✅ COMPLETE
+│   ├── typeclass/      # Type classes ✅ COMPLETE (stub)
+│   ├── link/           # Dictionary linking ✅ COMPLETE
+│   ├── pipeline/       # Full compilation pipeline ✅ COMPLETE
+│   ├── eval/           # Evaluator ✅ COMPLETE (Core + module support)
+│   ├── repl/           # Interactive REPL ✅ COMPLETE
+│   ├── runtime/        # Module execution runtime ✅ COMPLETE (v0.2.0)
+│   ├── effects/        # Effect system runtime ✅ COMPLETE (v0.2.0)
+│   ├── loader/         # Module loader ✅ COMPLETE
+│   ├── errors/         # Error reporting ✅ COMPLETE
+│   ├── schema/         # JSON schemas ✅ COMPLETE
+│   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
+│   ├── eval_analysis/  # Go eval tools ✅ COMPLETE (M-EVAL v2.0)
+│   ├── eval_analyzer/  # Failure analyzer ✅ COMPLETE (M-EVAL v2.0)
+│   ├── planning/       # Plan validation & scaffolding ✅ COMPLETE
+│   ├── builtins/       # Builtin definitions ✅ COMPLETE
+│   ├── dtree/          # Decision trees (pattern matching) ✅ COMPLETE
+│   ├── iface/          # Interface definitions ✅ COMPLETE
+│   ├── manifest/       # Module manifests ✅ COMPLETE
+│   ├── module/         # Module system ✅ COMPLETE
+│   ├── typedast/       # Typed AST ✅ COMPLETE
+│   ├── channels/       # CSP implementation ❌ TODO (v0.4.0+)
+│   └── session/        # Session types ❌ TODO (v0.4.0+)
+├── stdlib/             # Standard library ✅ COMPLETE (std/io, std/fs, std/prelude)
+├── tools/              # Development tools ✅ (eval, benchmarking, verification)
+├── benchmarks/         # AI code generation benchmarks ✅
+├── examples/           # Example .ail programs (66 files, 48 passing)
+├── tests/              # Test suite ✅
+└── docs/               # Documentation ✅ COMPLETE
 ```
 
 ## Development Workflow
 
 ### Building and Testing
 ```bash
-make build          # Build the interpreter
+make build          # Build the interpreter to bin/
+make install        # Install ailang to system (makes it available everywhere)
 make test           # Run all tests
 make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
+
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
+
+**When user asks about evaluations, benchmarks, or testing AI code generation:**
+
+→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+
+The agent handles all eval workflows:
+- Running benchmarks (defaults to cheap/fast models)
+- Comparing results and validating fixes
+- Generating reports and interpreting metrics
+- Routing to appropriate `ailang eval-*` commands
+
+**For automated fix implementation:**
+
+→ **Use the [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) agent**
+
+**Documentation** (for detailed reference):
+- [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
+- [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
+
+**DO NOT**:
+- ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
+- ❌ Duplicate agent logic - just invoke the appropriate agent
+- ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
+
+### Code Quality & Coverage
+```bash
+make test-coverage-badge  # Quick coverage check (shows: "Coverage: 29.9%")
+make test-coverage        # Run tests with coverage, generates HTML report
+make lint                 # Run golangci-lint
+make fmt                  # Format all Go code
+make fmt-check            # Check if code is formatted
+make vet                  # Run go vet
+```
+
+### Example Management
+```bash
+make verify-examples      # Verify all example files work/fail
+make update-readme        # Update README with example status
+make flag-broken          # Add warning headers to broken examples
+```
+
+### Development Helpers
+```bash
+make deps                 # Install all dependencies
+make clean                # Remove build artifacts and coverage files
+make ci                   # Run full CI verification locally
+make help                 # Show all available make targets
+```
+
+#### Keeping `ailang` Up to Date
+
+**After making code changes to the ailang binary:**
+```bash
+make quick-install  # Fast reinstall (recommended for development)
+# OR
+make install        # Full reinstall with version info
+```
+
+**Important**: The `ailang` command in your PATH points to `/Users/mark/go/bin/ailang` (system install), NOT `bin/ailang` (local build). Always run `make install` or `make quick-install` after building to update the system binary. Otherwise your changes won't be used when running `ailang` commands.
+
+**For local testing without install:**
+```bash
+./bin/ailang <command>  # Use local build directly
+```
+
+### IMPORTANT: Keeping Documentation Updated
+
+**Required documentation updates for every change:**
+
+#### 1. README.md
+- Update implementation status when adding new features
+- Update current capabilities when functionality changes
+- Update examples when they're fixed or new ones added
+- Keep line counts and completion status accurate
+- Document new builtin functions and operators
+- Update the roadmap as items are completed
+
+#### 2. CHANGELOG.md
+**Must be updated for every feature or bug fix:**
+- Follow semantic versioning (vMAJOR.MINOR.PATCH)
+- Group changes by category: Added, Changed, Fixed, Deprecated, Removed
+- Include code locations for new features (e.g., `internal/schema/`)
+- Note breaking changes clearly
+- Add migration notes if needed
+- Include metrics (lines of code, test coverage)
+
+Example entry:
+```markdown
+## [v3.2.0] - 2024-09-28
+
+### Added
+- Schema Registry (`internal/schema/`) - Versioned JSON schemas
+- Error JSON Encoder (`internal/errors/`) - Structured error reporting
+- Test coverage: 100% for new packages
+- Total new code: ~1,500 lines
+```
+
+#### 3. Design Documentation
+- **Before starting**: Create design doc in `design_docs/planned/`
+- **After completing**: Move to `design_docs/implemented/vX_Y/`
+- Include implementation report with metrics and limitations
+
+**CRITICAL: Example Files Required**
+**Every new language feature MUST have a corresponding example file:**
+- Create `examples/feature_name.ail` for each new feature
+- Include comprehensive examples showing all capabilities
+- Add comments explaining the behavior and expected output
+- ⚠️ **Test that examples actually work with current implementation**
+- ⚠️ **Add warning headers to examples that don't work**
+- These examples will be used in documentation and tutorials
+- Always test examples before documenting them as working
+
+### Writing AILANG Code
+
+**When writing AILANG code during development:**
+Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
+- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md)
+- Validated through multi-model testing (Claude, GPT, Gemini)
+- Covers syntax, limitations, common pitfalls, and working examples
+
+**Quick reference:**
+```bash
+ailang run --caps IO,FS --entry main module.ail  # Run module
+ailang repl                                        # Start REPL
+:type expr                                         # Check type in REPL
+```
+
+**For detailed syntax, limitations, and examples:**
+- See [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete AILANG teaching prompt
+- See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
+- See [examples/](examples/) - 66 example files (48 working)
 
 ### Common Tasks
 
@@ -54,222 +325,421 @@ make repl           # Start interactive REPL
 3. Add AST nodes in `internal/ast/ast.go`
 4. Update parser in `internal/parser/parser.go`
 5. Add type rules in `internal/types/`
-6. Implement evaluation in `internal/eval/` (when created)
+6. Implement evaluation in `internal/eval/`
 7. Write tests in corresponding `*_test.go` files
-8. Add examples in `examples/`
+8. **Add examples in `examples/`** (REQUIRED!)
+9. **Update CHANGELOG.md** (REQUIRED!)
+10. **Update README.md** if public-facing (REQUIRED!)
 
-#### Implementing a Missing Component
-Check the implementation sizes from the design doc:
-- Lexer: ~200 lines (mostly complete)
-- Parser: ~500 lines (needs completion)
-- Types: ~800 lines (foundation only)
-- Effects: ~400 lines (TODO)
-- Eval: ~500 lines (TODO)
-- Channels: ~400 lines (TODO)
+**For detailed contributing guidelines:**
+- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
+- See [design_docs/](design_docs/) - Architecture and design decisions
 
-## Language Syntax Reference
+## 📐 Code Organization Principles (AI-First Design)
 
-### Basic Constructs
-```ailang
--- Comments use double dash
-let x = 5                          -- Immutable binding
-let f = (x: int) -> int => x * 2  -- Lambda function
-if x > 0 then "pos" else "neg"    -- Conditional expression
-[1, 2, 3]                          -- List literal
-{ name: "Alice", age: 30 }        -- Record literal
-(1, "hello", true)                 -- Tuple
-```
+### File Size Guidelines
 
-### Functions
-```ailang
--- Pure function (no effects)
-pure func add(x: int, y: int) -> int {
-  x + y
-}
+**AILANG is designed to be maintained by AI assistants. Keep files small and focused.**
 
--- Effectful function
-func readAndPrint() -> () ! {IO, FS} {
-  let content = readFile("data.txt")?  -- ? propagates errors
-  print(content)
-}
+**Target file sizes:**
+- **Sweet spot**: 200-500 lines per file
+- **Acceptable**: 500-800 lines
+- **Problematic**: 800-1200 lines (consider splitting)
+- **Critical**: 1200+ lines (MUST split before adding features)
 
--- With inline tests
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (5, 120)
-  ]
-{
-  if n <= 1 then 1 else n * factorial(n - 1)
-}
-```
+**Why small files matter for AI:**
+- Fits in AI context window (I can see the whole file at once)
+- Single responsibility principle naturally enforced
+- Easy to understand the full structure in one read
+- Reduces merge conflicts
+- Enables better testing isolation
 
-### Pattern Matching
-```ailang
-match value {
-  Some(x) if x > 0 => x * 2,
-  Some(x) => x,
-  None => 0
-}
-
-match list {
-  [] => "empty",
-  [x] => "single",
-  [head, ...tail] => "multiple"
-}
-```
-
-### Quasiquotes
-```ailang
--- SQL with type checking
-let query = sql"""
-  SELECT * FROM users 
-  WHERE age > ${minAge: int}
-"""
-
--- HTML with sanitization
-let page = html"""
-  <div>${content: SafeHtml}</div>
-"""
-
--- Other quasiquotes: regex/, json{}, shell""", url"
-```
-
-### Effects and Capabilities
-```ailang
-import std/io (FS, Net)
-
-func processData() -> Result[Data] ! {FS, Net} {
-  with FS, Net {
-    let data = readFile(FS, "input.txt")?
-    let response = httpGet(Net, "api.example.com")?
-    Ok(process(data, response))
-  }
-}
-```
-
-### Concurrency (CSP)
-```ailang
-func worker(ch: Channel[Task]) ! {Async} {
-  loop {
-    let task <- ch       -- Receive from channel
-    let result = process(task)
-    ch <- result         -- Send to channel
-  }
-}
-
-parallel {
-  spawn { worker(ch1) }
-  spawn { worker(ch2) }
-}  -- Waits for all spawned tasks
-```
-
-## Known Issues & TODOs
-
-### Immediate Fixes Needed
-1. **Lexer**: Keywords not being recognized (all parsed as IDENT)
-2. **Parser**: Import statements not parsing correctly
-3. **Parser**: Module declarations incomplete
-4. **Parser**: Pattern matching not fully implemented
-
-### Major Components to Implement
-1. **Type Inference**: Hindley-Milner with effect inference
-2. **Interpreter**: Tree-walking evaluator
-3. **Effect System**: Capability checking and propagation
-4. **Standard Library**: Core modules (prelude, io, collections, concurrent)
-5. **Quasiquotes**: Validation and AST generation
-6. **Training Export**: Execution trace collection
-
-## Testing Guidelines
-
-### Unit Tests
-- Each module should have a corresponding `*_test.go` file
-- Test both success and error cases
-- Use table-driven tests for multiple inputs
-
-### Integration Tests
-- Test complete programs in `examples/`
-- Verify type checking catches errors
-- Test effect propagation
-- Ensure deterministic execution
-
-### Property-Based Tests
-AILANG supports inline property tests:
-```ailang
-property "sort preserves length" {
-  forall(list: [int]) =>
-    length(sort(list)) == length(list)
-}
-```
-
-## Code Style Guidelines
-
-1. **Go Code**:
-   - Follow standard Go conventions
-   - Use descriptive names
-   - Add comments for complex logic
-   - Keep functions under 50 lines
-
-2. **AILANG Code**:
-   - Use 2-space indentation
-   - Prefer pure functions
-   - Make effects explicit
-   - Include tests with functions
-   - Use type annotations when helpful
-
-## Error Handling
-
-### In Go Implementation
-- Return explicit errors, don't panic
-- Include position information in parse errors
-- Provide helpful error messages with suggestions
-
-### In AILANG
-- Use Result type for fallible operations
-- Propagate errors with `?` operator
-- Provide structured error context
-
-## Performance Considerations
-- Parser uses Pratt parsing for efficient operator precedence
-- Type inference should cache resolved types
-- Lazy evaluation for better performance (future)
-- String interning for identifiers
-
-## Debug Commands
+**Check file sizes:**
 ```bash
-# Parse and print AST (when implemented)
-ailang parse file.ail
-
-# Type check without running
-ailang check file.ail
-
-# Show execution trace
-ailang run --trace file.ail
-
-# Export training data
-ailang export-training
+make check-file-sizes    # Fails CI if any file >800 lines
+make report-file-sizes   # Shows all files >500 lines
+wc -l internal/path/file.go  # Check specific file
 ```
 
-## Common Patterns
+### Current Technical Debt
 
-### Adding a Binary Operator
-1. Add token in `token.go`
-2. Add to lexer switch statement
-3. Define precedence in parser
-4. Add to `parseInfixExpression`
-5. Add type rule
-6. Implement evaluation
+**Check current status:**
+```bash
+make report-file-sizes    # Detailed report of files >500 lines
+make codebase-health      # Overall codebase metrics
+make largest-files        # Top 20 largest files
+```
 
-### Adding a Built-in Function
-1. Define type signature
-2. Add to prelude or appropriate module
-3. Implement in Go
-4. Add tests
+As of October 2025, ~10 files exceed the 800 line limit (out of 183 total). Run `make report-file-sizes` for the current list.
 
-## Resources
-- Design doc: `design_docs/20250926/initial_design.md`
-- Examples: `examples/` directory
-- Go tests: `*_test.go` files
+**Before modifying these files:**
+1. Check if splitting is needed first
+2. Run tests before/after: `make test`
+3. Use the `codebase-organizer` agent for safe refactoring
+
+### File Organization Patterns
+
+#### Pattern 1: One Concept Per File
+
+```
+❌ BAD: Everything in one file
+internal/parser/parser.go (2518 lines)
+  - Expression parsing
+  - Statement parsing
+  - Type parsing
+  - Pattern parsing
+  - Module parsing
+
+✅ GOOD: Split by responsibility
+internal/parser/
+  ├── parser.go (200 lines)         # Main struct, entry points, package docs
+  ├── expressions.go (300 lines)    # parseExpression, parseLambda, parseCall
+  ├── statements.go (250 lines)     # parseLetDecl, parseFuncDecl, parseType
+  ├── types.go (200 lines)          # parseType, parseEffects, parseTypeParams
+  ├── patterns.go (280 lines)       # parsePattern, parseConstructor
+  ├── modules.go (150 lines)        # parseModule, parseImport, parseExport
+  └── helpers.go (140 lines)        # parseParams, parseBlock, utility functions
+```
+
+#### Pattern 2: Main File as Table of Contents
+
+Every package should have a main file (usually `pkg.go` or matching package name) that serves as navigation:
+
+```go
+// internal/parser/parser.go (200 lines max)
+package parser
+
+// Package parser implements AILANG source code parsing.
+//
+// # Architecture
+//
+// The parser is split into several files by responsibility:
+//   - parser.go: Main Parser struct and entry points (THIS FILE)
+//   - expressions.go: Expression parsing (literals, lambdas, calls, etc.)
+//   - statements.go: Top-level declarations (func, type, let)
+//   - types.go: Type annotation parsing
+//   - patterns.go: Pattern matching syntax
+//   - modules.go: Module system (import/export)
+//
+// # Usage
+//
+//   p := parser.New(lexer)
+//   file, err := p.Parse()
+//
+// # See Also
+//
+//   - internal/ast: AST node definitions
+//   - internal/lexer: Token generation
+//   - docs/parser/README.md: Detailed parser documentation
+
+// Parser is the main entry point for parsing AILANG source code.
+type Parser struct { /* ... */ }
+
+// Parse parses a complete AILANG source file.
+// Implementation delegates to parseFile() in statements.go.
+func (p *Parser) Parse() (*ast.File, error) { /* ... */ }
+```
+
+#### Pattern 3: Tests Next to Implementation
+
+```
+✅ GOOD: Focused test files
+internal/parser/
+  ├── expressions.go
+  ├── expressions_test.go (300 lines focused tests)
+  ├── statements.go
+  ├── statements_test.go (250 lines focused tests)
+  └── integration_test.go (end-to-end tests)
+
+❌ BAD: One giant test file
+  └── parser_test.go (5000 lines)
+```
+
+#### Pattern 4: Clear File Naming
+
+File names should match the main functions they contain:
+
+```
+✅ GOOD:
+expressions.go → parseExpression(), parseCall(), parseLambda()
+statements.go  → parseLetDecl(), parseFuncDecl(), parseTypeDecl()
+patterns.go    → parsePattern(), parseConstructor()
+
+❌ BAD:
+parse_stuff.go → everything mixed together
+utils.go       → vague, no clear responsibility
+```
+
+### Adding New Features (File Size Rules)
+
+**Before adding any new feature to a file:**
+
+```bash
+# 1. Check current file size
+wc -l internal/types/typechecker_core.go
+# Output: 2736 lines
+
+# 2. If >800 lines, STOP and split first
+# 3. If 500-800 lines, consider if new feature pushes it over 800
+# 4. If <500 lines, proceed normally
+
+# 5. After changes, verify size
+wc -l internal/types/typechecker_core.go
+make check-file-sizes  # Fails if >800 lines
+```
+
+**Splitting workflow:**
+
+```bash
+# Option 1: Use the codebase-organizer agent (recommended)
+# This agent safely refactors files while ensuring tests pass
+
+# Option 2: Manual split (if you understand the code deeply)
+make test                    # Baseline - all tests pass
+# ... split files ...
+make test                    # Verify - all tests still pass
+git add internal/types/*.go
+git commit -m "Split typechecker_core.go into 8 files (AI-friendly)"
+```
+
+### Package Documentation Standards
+
+Every package with >3 files MUST have a README.md:
+
+```markdown
+# internal/parser
+
+Parser for AILANG source code.
+
+## Files
+
+- `parser.go` - Main Parser struct, entry points
+- `expressions.go` - Expression parsing: literals, lambdas, calls, operators
+- `statements.go` - Declarations: func, type, let, import, export
+- `types.go` - Type annotations: simple types, effects, type parameters
+- `patterns.go` - Pattern matching: constructors, literals, wildcards, guards
+- `modules.go` - Module system: module declarations, import resolution
+- `helpers.go` - Shared utilities: parameter parsing, block parsing
+
+## Entry Points
+
+- `Parse()` → `parseFile()` in statements.go
+- `parseExpression()` in expressions.go
+- `parseType()` in types.go
+- `parsePattern()` in patterns.go
+
+## Cross-references
+
+- Consumes: `internal/lexer` (tokens)
+- Produces: `internal/ast` (syntax tree)
+- Used by: `internal/pipeline`, `internal/repl`
+```
+
+### Automated Code Organization
+
+**Use the codebase-organizer agent** for safe refactoring:
+
+The `codebase-organizer` agent is available in `.claude/agents/codebase-organizer.md`. It:
+- Monitors file sizes across the codebase
+- Identifies files that need splitting
+- Safely refactors large files into smaller, focused modules
+- Ensures all tests pass before/after refactoring
+- Maintains git history and commit hygiene
+
+**Example usage:**
+```bash
+# Ask Claude to invoke the agent:
+"Please use the codebase-organizer agent to check for files that need splitting"
+
+# Or for specific refactoring:
+"Use the codebase-organizer agent to split internal/parser/parser.go"
+```
+
+### Measuring Success
+
+```bash
+# CI checks (automatically run on PRs)
+make check-file-sizes     # Fails if any file >800 lines
+
+# Status reports
+make report-file-sizes    # Lists all files >500 lines
+make codebase-health      # Full codebase metrics
+```
+
+**Goal metrics:**
+- 0 files over 800 lines ✅
+- <5 files between 500-800 lines ⚠️
+- Average file size: 300-400 lines 🎯
+
+---
+
+## 🚨 CRITICAL WARNINGS
+
+### Testing Policy
+**ALWAYS remove out-of-date tests. No backward compatibility.**
+- When architecture changes, delete old tests completely
+- Don't maintain legacy test suites
+- Write new tests for new implementations
+- Keep test suite clean and current
+
+### Linting & "Unused" Code Warnings
+
+**⚠️ LESSON LEARNED: Never blindly delete "unused" functions without understanding WHY they're unused!**
+
+**The Import System Disaster (September 2025)**
+In commit `eae08b6`, working import functions were deleted because linter said they were "unused".
+
+**What actually happened:**
+1. Function **calls** were renamed from `parseModuleDecl()` to `_parseModuleDecl()` (note underscore)
+2. Function **definitions** kept original names (no underscore)
+3. Calls were then **commented out**
+4. Linter correctly said "hey, `parseModuleDecl` is never called!"
+5. Functions were **blindly deleted**
+6. Result: **Working import system completely broken** 💥
+
+**Rules to Prevent This:**
+
+1. **NEVER delete functions just because linter says "unused"**
+   - First understand WHY they're unused
+   - Check git history - were they just commented out?
+   - Search entire codebase for references (including comments)
+   - Run `make test-imports` and `make test` BEFORE deleting anything
+
+2. **If renaming function calls, rename definitions too**
+   - Use IDE refactoring tools, not manual find/replace
+   - If adding `_` prefix to mark as TODO, add to BOTH call and definition
+   - Better: use TODO comments instead of renaming
+
+3. **Test between each change**
+   - Don't combine: rename + comment out + delete
+   - Run tests after EACH step:
+     - After rename → `make test`
+     - After commenting out → `make test-imports`
+     - After deleting → `make test && make lint`
+
+4. **When linter complains about unused code:**
+   ```bash
+   # Step 1: Check if it's really unused
+   git log -p --all -S 'functionName' internal/
+   grep -r "functionName" internal/
+
+   # Step 2: Check recent changes
+   git log --oneline internal/parser/parser.go | head -5
+   git diff HEAD~1 internal/parser/parser.go | grep functionName
+
+   # Step 3: If truly unused AND you know why, document it
+   git commit -m "Remove unused parseOldFormat() - replaced by parseNewFormat() in commit abc123"
+   ```
+
+5. **Special warning for parser/module/import code**
+   - These are **critical** for language functionality
+   - If you break these, **nothing imports work**
+   - Always run `make test-imports` before committing parser changes
+   - Check that example files still work: `make verify-examples`
+
+**Recovery Checklist (if this happens again):**
+1. Find last working commit: `git log --all --oneline | grep "import"`
+2. Check what was deleted: `git diff working_commit broken_commit`
+3. Restore deleted functions: `git show working_commit:file.go`
+4. Test imports: `make test-imports`
+5. Document in commit message what was broken and how it was fixed
+
+### Lexer/Parser Architecture - NEWLINE Tokens Don't Exist!
+
+**⚠️ CRITICAL LESSON: The lexer NEVER generates NEWLINE tokens - it skips them as whitespace!**
+
+**The Multi-line ADT Parser Bug (October 2025)**
+While implementing multi-line ADT syntax support, code was written assuming the parser could see NEWLINE tokens:
+```go
+// ❌ WRONG - This code will never work!
+p.skipNewlinesAndComments()  // Tries to skip NEWLINE tokens
+if p.curTokenIs(lexer.NEWLINE) {  // This condition is NEVER true!
+    ...
+}
+```
+
+**The Root Cause:**
+In `internal/lexer/lexer.go`, the `NextToken()` function calls `skipWhitespace()` which does this:
+```go
+func (l *Lexer) skipWhitespace() {
+    for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+        l.readChar()
+    }
+}
+```
+
+This means `\n` characters are **consumed and never returned as tokens**. Even though `lexer/token.go` defines a NEWLINE token type, the lexer never generates them!
+
+**Implications for Parser Development:**
+
+1. **Never check for NEWLINE tokens**
+   ```go
+   // ❌ WRONG - lexer skips newlines
+   if p.curTokenIs(lexer.NEWLINE) { ... }
+   if p.peekTokenIs(lexer.NEWLINE) { ... }
+
+   // ✅ CORRECT - rely on lexer skipping whitespace
+   // After RPAREN of Leaf(int), next token is PIPE or TYPE (not NEWLINE)
+   if p.curTokenIs(lexer.PIPE) { ... }
+   ```
+
+2. **Multi-line syntax "just works"**
+   - The lexer automatically handles multi-line constructs
+   - For ADTs, after `Leaf(int)` on line 4, the next token is `|` on line 5
+   - No need to explicitly skip newlines - the lexer already did it
+
+3. **Token stream example:**
+   ```ailang
+   type Tree =
+     | Leaf(int)
+     | Node(Tree, int, Tree)
+   ```
+
+   **Token stream the parser sees:**
+   ```
+   TYPE Tree ASSIGN PIPE Leaf LPAREN int RPAREN PIPE Node LPAREN Tree COMMA int COMMA Tree RPAREN ...
+   ```
+
+   **NOT**:
+   ```
+   TYPE Tree ASSIGN NEWLINE PIPE Leaf LPAREN int RPAREN NEWLINE PIPE Node ...
+   ```
+
+4. **When you think you need newline handling:**
+   - You probably don't! The lexer handles it
+   - Focus on the semantic tokens (PIPE, TYPE, IDENT, etc.)
+   - Trust that whitespace (including newlines) is already skipped
+
+5. **If you genuinely need layout-sensitive parsing:**
+   - Would require modifying the lexer's `skipWhitespace()` function
+   - Would affect the ENTIRE language parsing
+   - This is a breaking architectural change - avoid if possible
+   - Consider alternative approaches (explicit delimiters, etc.)
+
+**Debugging tip:** If you see unexpected tokens or "skipped too far" issues, check if:
+1. You're assuming NEWLINE tokens exist (they don't!)
+2. You're calling `skipNewlinesAndComments()` (usually unnecessary)
+3. The lexer is already doing what you want (it skips whitespace automatically)
+
+**Files to check if modifying lexer/parser interaction:**
+- `internal/lexer/lexer.go` - `NextToken()` and `skipWhitespace()`
+- `internal/parser/parser.go` - `nextToken()` wrapper
+- Any parser code that checks for or handles whitespace
+
+## Reference Documentation
+
+**For detailed guides, see:**
+- **AILANG Syntax**: [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete teaching prompt
+- **REPL Guide**: [docs/guides/repl.md](docs/guides/repl.md) - Interactive development
+- **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known issues and workarounds
+- **Contributing**: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflow
+- **Design Docs**: [design_docs/](design_docs/) - Architecture decisions
+- **Examples**: [examples/](examples/) - 66 example programs
+
+**For architecture details, see:**
+- [design_docs/20250926/initial_design.md](design_docs/20250926/initial_design.md) - Original design
+- [design_docs/implemented/](design_docs/implemented/) - Completed features
+- [design_docs/planned/](design_docs/planned/) - Future work
 
 ## Important Notes
 1. The language is expression-based - everything returns a value
@@ -277,7 +747,7 @@ ailang export-training
 3. Pattern matching must be exhaustive
 4. All imports must be explicit
 5. Row polymorphism allows extensible records and effects
-6. Session types ensure protocol correctness in channels
+6. Session types ensure protocol correctness in channels (when implemented)
 
 ## Quick Debugging Checklist
 - [ ] Check lexer is producing correct tokens
@@ -287,9 +757,6 @@ ailang export-training
 - [ ] Check that all AST nodes implement correct interfaces
 - [ ] Verify type substitution is working correctly
 
-## Contact & Support
-This is an experimental language. For questions or issues:
-- Check the design documents in @design_docs
-- Look at example programs
-- Run tests for expected behavior
-- Refer to similar functional languages (Haskell, OCaml, F#)
+---
+
+**Remember**: This is a living document. Update it when workflows change, but keep it focused on **actionable instructions** for Claude, not reference material that belongs in docs/.

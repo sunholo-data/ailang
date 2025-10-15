@@ -61,7 +61,7 @@ func (t *TCon) Substitute(subs map[string]Type) Type {
 type TFunc struct {
 	Params  []Type
 	Return  Type
-	Effects []Effect
+	Effects []EffectType
 }
 
 func (t *TFunc) String() string {
@@ -69,7 +69,7 @@ func (t *TFunc) String() string {
 	for i, p := range t.Params {
 		params[i] = p.String()
 	}
-	
+
 	effectStr := ""
 	if len(t.Effects) > 0 {
 		effects := make([]string, len(t.Effects))
@@ -78,7 +78,7 @@ func (t *TFunc) String() string {
 		}
 		effectStr = fmt.Sprintf(" ! {%s}", strings.Join(effects, ", "))
 	}
-	
+
 	if len(params) == 1 {
 		return fmt.Sprintf("%s -> %s%s", params[0], t.Return.String(), effectStr)
 	}
@@ -191,11 +191,11 @@ func (t *TRecord) String() string {
 	for name, typ := range t.Fields {
 		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
 	}
-	
+
 	if t.Row != nil {
 		fields = append(fields, fmt.Sprintf("...%s", t.Row.String()))
 	}
-	
+
 	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
 }
 
@@ -226,13 +226,69 @@ func (t *TRecord) Substitute(subs map[string]Type) Type {
 	for name, typ := range t.Fields {
 		fields[name] = typ.Substitute(subs)
 	}
-	
+
 	var row Type
 	if t.Row != nil {
 		row = t.Row.Substitute(subs)
 	}
-	
+
 	return &TRecord{Fields: fields, Row: row}
+}
+
+// TRecordOpen marks an open record for subsumption (field access)
+// Example: {x: α | ρ} where we only know field 'x' exists
+// This is a compatibility shim for M-R5; will be replaced by TRecord2 in Day 2
+type TRecordOpen struct {
+	Fields map[string]Type // Known fields (subset)
+	Row    Type            // Row variable for unknown fields
+}
+
+func (t *TRecordOpen) String() string {
+	var fields []string
+	for name, typ := range t.Fields {
+		fields = append(fields, fmt.Sprintf("%s: %s", name, typ.String()))
+	}
+	if t.Row != nil {
+		fields = append(fields, fmt.Sprintf("| %s", t.Row.String()))
+	}
+	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
+}
+
+func (t *TRecordOpen) Equals(other Type) bool {
+	if o, ok := other.(*TRecordOpen); ok {
+		// Must have same fields
+		if len(t.Fields) != len(o.Fields) {
+			return false
+		}
+		for name, typ := range t.Fields {
+			if oTyp, ok := o.Fields[name]; !ok || !typ.Equals(oTyp) {
+				return false
+			}
+		}
+		// Check row variables
+		if t.Row == nil && o.Row == nil {
+			return true
+		}
+		if t.Row != nil && o.Row != nil {
+			return t.Row.Equals(o.Row)
+		}
+		return false
+	}
+	return false
+}
+
+func (t *TRecordOpen) Substitute(subs map[string]Type) Type {
+	fields := make(map[string]Type)
+	for name, typ := range t.Fields {
+		fields[name] = typ.Substitute(subs)
+	}
+
+	var row Type
+	if t.Row != nil {
+		row = t.Row.Substitute(subs)
+	}
+
+	return &TRecordOpen{Fields: fields, Row: row}
 }
 
 // TApp represents type application (e.g., Maybe[int])
@@ -278,10 +334,10 @@ func (t *TApp) Substitute(subs map[string]Type) Type {
 	}
 }
 
-// Effect represents an effect
-type Effect interface {
+// EffectType represents an effect
+type EffectType interface {
 	String() string
-	Equals(Effect) bool
+	Equals(EffectType) bool
 }
 
 // SimpleEffect represents a basic effect (IO, FS, Net, etc.)
@@ -293,34 +349,34 @@ func (e *SimpleEffect) String() string {
 	return e.Name
 }
 
-func (e *SimpleEffect) Equals(other Effect) bool {
+func (e *SimpleEffect) Equals(other EffectType) bool {
 	if o, ok := other.(*SimpleEffect); ok {
 		return e.Name == o.Name
 	}
 	return false
 }
 
-// EffectRow represents a row of effects (for row polymorphism)
-type EffectRow struct {
-	Effects []Effect
+// EffectRowOld represents a row of effects (for row polymorphism) - DEPRECATED
+type EffectRowOld struct {
+	Effects []EffectType
 	Row     *EffectVar // Row variable for extensibility
 }
 
-func (e *EffectRow) String() string {
+func (e *EffectRowOld) String() string {
 	effects := make([]string, len(e.Effects))
 	for i, eff := range e.Effects {
 		effects[i] = eff.String()
 	}
-	
+
 	if e.Row != nil {
 		effects = append(effects, fmt.Sprintf("...%s", e.Row.String()))
 	}
-	
+
 	return fmt.Sprintf("{%s}", strings.Join(effects, ", "))
 }
 
-func (e *EffectRow) Equals(other Effect) bool {
-	if o, ok := other.(*EffectRow); ok {
+func (e *EffectRowOld) Equals(other EffectType) bool {
+	if o, ok := other.(*EffectRowOld); ok {
 		if len(e.Effects) != len(o.Effects) {
 			return false
 		}
@@ -350,7 +406,7 @@ func (e *EffectVar) String() string {
 	return e.Name
 }
 
-func (e *EffectVar) Equals(other Effect) bool {
+func (e *EffectVar) Equals(other EffectType) bool {
 	if o, ok := other.(*EffectVar); ok {
 		return e.Name == o.Name
 	}
@@ -453,12 +509,12 @@ func (q *Qualified) String() string {
 	if len(q.Constraints) == 0 {
 		return q.Type.String()
 	}
-	
+
 	constraints := make([]string, len(q.Constraints))
 	for i, c := range q.Constraints {
 		constraints[i] = c.String()
 	}
-	
+
 	return fmt.Sprintf("(%s) => %s", strings.Join(constraints, ", "), q.Type.String())
 }
 

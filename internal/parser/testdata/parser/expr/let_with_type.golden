@@ -1,0 +1,45 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "name": "x",
+        "type": "Let",
+        "typeAnnotation": {
+          "name": "int",
+          "type": "SimpleType"
+        },
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 42
+        }
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "name": "x",
+        "type": "Let",
+        "typeAnnotation": {
+          "name": "int",
+          "type": "SimpleType"
+        },
+        "value": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 42
+        }
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

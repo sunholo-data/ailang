@@ -1,0 +1,117 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary_name: ailang
+            artifact_name: ailang-linux-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary_name: ailang
+            artifact_name: ailang-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary_name: ailang
+            artifact_name: ailang-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary_name: ailang.exe
+            artifact_name: ailang-windows-amd64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        go build -v -o bin/${{ matrix.binary_name }} ./cmd/ailang
+
+    - name: Create artifact directory
+      run: mkdir -p artifacts
+
+    - name: Prepare artifact (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cp bin/${{ matrix.binary_name }} artifacts/
+        chmod +x artifacts/${{ matrix.binary_name }}
+        cd artifacts && tar -czf ../${{ matrix.artifact_name }}.tar.gz ${{ matrix.binary_name }}
+
+    - name: Prepare artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Copy-Item bin\${{ matrix.binary_name }} artifacts\
+        Compress-Archive -Path artifacts\${{ matrix.binary_name }} -DestinationPath ${{ matrix.artifact_name }}.zip
+
+    - name: Upload artifact (Unix)
+      if: matrix.os != 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.tar.gz
+
+    - name: Upload artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.zip
+
+  create-release-bundle:
+    name: Create Release Bundle
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Display structure
+      run: ls -la ./artifacts/
+
+    - name: Create combined bundle
+      run: |
+        mkdir -p bundle
+        find ./artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} bundle/ \;
+        cd bundle && tar -czf ../ailang-all-platforms.tar.gz *
+
+    - name: Upload combined bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: ailang-all-platforms
+        path: ailang-all-platforms.tar.gz
+        retention-days: 30

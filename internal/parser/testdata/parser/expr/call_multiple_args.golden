@@ -1,0 +1,59 @@
+{
+  "file": {
+    "decls": [
+      {
+        "args": [
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 3
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "args": [
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 3
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,25 @@
+id: list_operations
+description: "List construction, pattern matching, and recursion"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a list of integers: [1, 2, 3, 4, 5]
+  2. Implements a recursive function `sum_list` that sums all elements
+  3. Implements a recursive function `length_list` that counts elements
+  4. Prints the sum and length in this exact format:
+     "Sum: {sum}"
+     "Length: {length}"
+
+  Requirements:
+  - Use pattern matching for head/tail (e.g., x::xs or similar)
+  - Use recursion (no loops)
+  - For empty list, sum is 0 and length is 0
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum: 15
+  Length: 5

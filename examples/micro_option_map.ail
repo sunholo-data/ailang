@@ -1,0 +1,11 @@
+-- Micro example: Option map usage (pure ADT operations)
+-- Tests: ADT constructors, map function, getOrElse
+-- Expected output: 42
+
+module examples/micro_option_map
+import std/option (Option, Some, None, map, getOrElse)
+
+export pure func main() -> int {
+  let doubled = map(\x. x * 2, Some(21)) in
+  getOrElse(doubled, 0)
+}

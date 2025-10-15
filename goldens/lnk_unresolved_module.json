@@ -1,0 +1,1 @@
+{"schema":"ailang.error/v1","code":"LDR001","phase":"loader","message":"module not found: examples/v3_3/math/nope","data":{"module_id":"examples/v3_3/math/nope","search_trace":["project: examples/v3_3/math/nope.ail"]},"fix":{"suggestion":"Check module path 'examples/v3_3/math/nope' exists","confidence":0.85}}

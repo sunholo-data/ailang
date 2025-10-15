@@ -38,6 +38,44 @@ func (e *Environment) Get(name string) (Value, bool) {
 	return nil, false
 }
 
+// Clone creates a deep copy of the environment
+func (e *Environment) Clone() *Environment {
+	newEnv := &Environment{
+		values: make(map[string]Value),
+		parent: e.parent,
+	}
+	for k, v := range e.values {
+		newEnv.values[k] = v
+	}
+	return newEnv
+}
+
+// Extend creates a new child environment with a binding
+func (e *Environment) Extend(name string, value Value) *Environment {
+	child := e.NewChildEnvironment()
+	child.Set(name, value)
+	return child
+}
+
+// GetAllBindings returns all bindings in this environment and its parents
+func (e *Environment) GetAllBindings() map[string]Value {
+	result := make(map[string]Value)
+
+	// Collect from parent first (so current env can override)
+	if e.parent != nil {
+		for k, v := range e.parent.GetAllBindings() {
+			result[k] = v
+		}
+	}
+
+	// Add current env bindings (overriding parent if needed)
+	for k, v := range e.values {
+		result[k] = v
+	}
+
+	return result
+}
+
 // New creates a new evaluator with built-in functions (for compatibility)
 func New() *SimpleEvaluator {
 	return NewSimple()

@@ -1,0 +1,11 @@
+-- Micro example: IO effect with println
+-- Tests: IO capability, println builtin
+-- Run with: ailang --caps IO run examples/micro_io_echo.ail
+-- Expected output: "Hello from AILANG!"
+
+module examples/micro_io_echo
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello from AILANG!")
+}

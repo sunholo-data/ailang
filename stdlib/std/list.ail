@@ -1,0 +1,68 @@
+module stdlib/std/list
+import stdlib/std/option (Option, Some, None)
+
+export pure func length[a](xs: [a]) -> int {
+  match xs {
+    [] => 0,
+    [_, ...rest] => 1 + length(rest)
+  }
+}
+
+export pure func head[a](xs: [a]) -> Option[a] {
+  match xs {
+    [] => None,
+    [x, ..._] => Some(x)
+  }
+}
+
+export pure func tail[a](xs: [a]) -> [a] {
+  match xs {
+    [] => [],
+    [_, ...rest] => rest
+  }
+}
+
+export pure func reverse[a](xs: [a]) -> [a] {
+  -- Simple recursive reverse (not tail-recursive)
+  match xs {
+    [] => [],
+    [x, ...rest] => concat(reverse(rest), [x])
+  }
+}
+
+export pure func concat[a](xs: [a], ys: [a]) -> [a] {
+  match xs {
+    [] => ys,
+    [x, ...rest] => [x] ++ concat(rest, ys)
+  }
+}
+
+export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] {
+  match xs {
+    [] => [],
+    [xh, ...xr] => match ys {
+      [] => [],
+      [yh, ...yr] => [(xh, yh)] ++ zip(xr, yr)
+    }
+  }
+}
+
+-- Optional: include these now if your polymorphism is happy.
+export pure func map[a, b](f: (a) -> b, xs: [a]) -> [b] {
+  match xs { [] => [], [x, ...rest] => [f(x)] ++ map(f, rest) }
+}
+
+export pure func filter[a](p: (a) -> bool, xs: [a]) -> [a] {
+  match xs {
+    [] => [],
+    [x, ...rest] => if p(x) then [x] ++ filter(p, rest) else filter(p, rest)
+  }
+}
+
+export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b {
+  match xs { [] => acc, [x, ...rest] => foldl(f, f(acc, x), rest) }
+}
+
+export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
+  match xs { [] => acc, [x, ...rest] => f(x, foldr(f, acc, rest)) }
+}

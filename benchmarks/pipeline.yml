@@ -1,0 +1,22 @@
+id: pipeline
+description: "Read stdin, transform data, write stdout (IO + lists)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+prompt: |
+  Write a program in <LANG> that:
+  1. Reads numbers from stdin (one per line)
+  2. For each number, computes double its value
+  3. Prints the doubled values to stdout (one per line)
+
+  Assume input is: 1, 2, 3, 4, 5 (one per line)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  2
+  4
+  6
+  8
+  10

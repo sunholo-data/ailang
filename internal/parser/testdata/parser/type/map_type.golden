@@ -1,0 +1,33 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "target": {
+            "name": "Map",
+            "type": "SimpleType"
+          },
+          "type": "TypeAlias"
+        },
+        "name": "Config",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "target": {
+            "name": "Map",
+            "type": "SimpleType"
+          },
+          "type": "TypeAlias"
+        },
+        "name": "Config",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

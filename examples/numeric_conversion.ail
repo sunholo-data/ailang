@@ -1,0 +1,42 @@
+-- numeric_conversion.ail
+-- Demonstrates numeric conversion builtins (v0.3.5)
+module examples/numeric_conversion
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  {
+    println("=== Numeric Conversion Builtins (v0.3.5) ===");
+
+    -- Basic int to float conversion
+    println("intToFloat(42):");
+    println(show(intToFloat(42)));
+
+    -- Basic float to int conversion (truncates)
+    println("floatToInt(3.14):");
+    println(show(floatToInt(3.14)));
+
+    println("floatToInt(-3.14):");
+    println(show(floatToInt(neg_Float(3.14))));
+
+    -- Mixed arithmetic with conversion
+    println("intToFloat(1) + 2.5:");
+    println(show(intToFloat(1) + 2.5));
+
+    -- Rounding simulation
+    println("Truncate 9.9:");
+    println(show(floatToInt(9.9)));
+
+    println("Round 9.9:");
+    println(show(floatToInt(9.9 + 0.5)));
+
+    -- Chain conversions: Int -> Float -> multiply -> Int
+    println("Chain: 42 -> Float -> *1.5 -> Int:");
+    let as_float = intToFloat(42);
+    let multiplied = as_float * 1.5;
+    let back_to_int = floatToInt(multiplied);
+    println(show(back_to_int));
+
+    ()
+  }
+}

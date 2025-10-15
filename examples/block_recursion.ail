@@ -1,0 +1,18 @@
+module examples/block_recursion
+
+import std/io (println)
+
+-- Blocks with recursive calls
+-- Tests that findReferences correctly detects recursion through blocks
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0 then {
+    println("Done!")
+  } else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+
+export func main() -> () ! {IO} {
+  countdown(5)
+}

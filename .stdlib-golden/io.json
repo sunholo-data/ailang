@@ -1,0 +1,25 @@
+{
+  "module": "stdlib/std/io",
+  "types": [],
+  "funcs": [
+    {
+      "name": "print",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "println",
+      "type": "(a)-\u003eb",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "readLine",
+      "type": "()-\u003ea",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

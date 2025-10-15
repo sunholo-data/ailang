@@ -1,0 +1,57 @@
+{
+  "file": {
+    "decls": [
+      {
+        "left": {
+          "left": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          "op": "+",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          "type": "BinaryOp"
+        },
+        "op": "*",
+        "right": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 3
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "left": {
+          "left": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          "op": "+",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          "type": "BinaryOp"
+        },
+        "op": "*",
+        "right": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 3
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

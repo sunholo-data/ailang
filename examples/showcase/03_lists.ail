@@ -1,0 +1,5 @@
+-- Showcase: Lists and Strings
+-- Both use the ++ operator!
+
+let numbers = [1, 2, 3] ++ [4, 5] in
+print("Concatenation works for lists and strings!")

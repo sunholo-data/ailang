@@ -1,0 +1,103 @@
+# AILANG Evaluation Model Configuration
+# Last updated: October 2025
+#
+# This file defines the canonical model names for evaluation benchmarks.
+# Update this file when new model versions are released.
+
+# Model definitions
+models:
+  # OpenAI GPT-5 (released August 2025)
+  gpt5:
+    api_name: "gpt-5"
+    provider: "openai"
+    description: "GPT-5 full reasoning model"
+    env_var: "OPENAI_API_KEY"
+    pricing:
+      input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
+      output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
+    notes: |
+      Main GPT-5 model with reasoning capabilities.
+      90% discount on cached tokens ($0.125/M).
+      Use for production benchmarks.
+
+  gpt5-mini:
+    api_name: "gpt-5-mini"
+    provider: "openai"
+    description: "GPT-5 mini (faster, cheaper)"
+    env_var: "OPENAI_API_KEY"
+    pricing:
+      input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K (~1/5 of GPT-5)
+      output_per_1k: 0.002     # $2 per 1M = $0.002 per 1K
+    notes: "Smaller variant, ~1/5 the price of GPT-5"
+
+  # Anthropic Claude Sonnet 4.5 (released September 2025)
+  claude-sonnet-4-5:
+    api_name: "claude-sonnet-4-5-20250929"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.5 - best for coding"
+    env_var: "ANTHROPIC_API_KEY"
+    pricing:
+      input_per_1k: 0.003  # $3 per million = $0.003 per 1K
+      output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+    notes: |
+      Anthropic's most intelligent model, optimized for coding.
+      Can run autonomously for 30 hours.
+      1M token context window.
+
+  # Google Gemini 2.5 Pro (released March 2025)
+  gemini-2-5-pro:
+    api_name: "gemini-2.5-pro"
+    provider: "google"
+    description: "Gemini 2.5 Pro with thinking"
+    env_var: "GOOGLE_API_KEY"
+    pricing:
+      input_per_1k: 0.00125    # $1.25 per 1M = $0.00125 per 1K (≤200k context)
+      output_per_1k: 0.01      # $10.00 per 1M = $0.01 per 1K (≤200k context)
+    notes: |
+      Google's most advanced model with reasoning.
+      1M token context window (2M coming soon).
+      Pricing: $1.25/$10 per 1M (≤200k), $2.50/$15 per 1M (>200k).
+      Context caching: $0.125 per 1M (≤200k).
+
+  # Google Gemini 2.5 Flash (released September 2025)
+  gemini-2-5-flash:
+    api_name: "gemini-2.5-flash"
+    provider: "google"
+    description: "Gemini 2.5 Flash - fast and efficient"
+    env_var: "GOOGLE_API_KEY"
+    pricing:
+      input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
+      output_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
+    notes: |
+      Fast, efficient variant - 4x cheaper than Pro!
+      Best for large scale processing and low-latency needs.
+      Good for agentic use cases and thinking tasks.
+      Context caching: $0.03 per 1M.
+
+# Default model for benchmarks
+default: "claude-sonnet-4-5"
+
+# Recommended model set for comprehensive evaluation
+benchmark_suite:
+  - "gpt5"
+  - "claude-sonnet-4-5"
+  - "gemini-2-5-pro"
+
+# Extended model set (includes smaller/faster variants)
+extended_suite:
+  - "gpt5"
+  - "gpt5-mini"
+  - "claude-sonnet-4-5"
+  - "gemini-2-5-pro"
+  - "gemini-2-5-flash"
+
+# Development/testing models (cheaper, faster)
+dev_models:
+  - "gpt5-mini"
+  - "gemini-2-5-flash"
+
+# Notes for future updates:
+# - When new models release, add them here
+# - Update api_name with full version strings (e.g., "gpt-5-2025-08-07")
+# - Update pricing from official documentation
+# - Keep old model versions for historical comparison

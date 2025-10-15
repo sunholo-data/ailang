@@ -1,0 +1,207 @@
+-- ⚠️ WARNING: This example does not work with current implementation
+-- Requires: modules, imports, type definitions, channels, effects, pattern matching
+-- Status: Parser fails on module syntax, type definitions, and channel operations
+-- Try simple.ail or arithmetic.ail for working examples
+--
+-- concurrent_pipeline.ail: CSP-based data processing with session types
+module Pipeline
+
+import std/concurrent (channel, spawn, parallel, select)
+import std/collections (map, filter, fold)
+
+-- Session types for worker communication
+type WorkerProtocol[a, b] =
+  | Send[Task[a], Recv[Result[b], WorkerProtocol[a, b]]]
+  | Shutdown[Recv[Stats, End]]
+
+type Task[a] = {
+  id: int,
+  data: a,
+  priority: Priority
+}
+
+type Result[a] = {
+  id: int,
+  data: a,
+  duration: Duration
+}
+
+type Priority = High | Medium | Low
+type Stats = {processed: int, errors: int, avgTime: Duration}
+
+-- Generic worker that processes tasks
+func worker[a, b](
+  id: int,
+  process: a -> b ! e,
+  ch: Channel[WorkerProtocol[a, b]]
+) -> () ! {Async, Trace | e} {
+  let stats = {processed: 0, errors: 0, totalTime: 0}
+  
+  loop {
+    select {
+      task <- ch => {
+        let start = now()
+        match process(task.data) {
+          Ok(result) => {
+            let duration = now() - start
+            ch <- Result{id: task.id, data: result, duration: duration}
+            stats.processed = stats.processed + 1
+            stats.totalTime = stats.totalTime + duration
+          },
+          Err(e) => {
+            trace("Worker ${id} error: ${e}")
+            stats.errors = stats.errors + 1
+          }
+        }
+      },
+      
+      Shutdown <- ch => {
+        stats.avgTime = stats.totalTime / stats.processed
+        ch <- stats
+        return ()
+      },
+      
+      timeout(10.seconds) => {
+        trace("Worker ${id} idle timeout")
+      }
+    }
+  }
+}
+
+-- Pipeline stage that transforms data
+pure func stage[a, b](name: string, f: a -> b) -> a -> b {
+  (x: a) => {
+    trace("Stage ${name}: processing")
+    f(x)
+  }
+}
+
+-- Composable pipeline builder
+func pipeline[a, b](stages: [a -> a]) -> a -> a {
+  fold(compose, id, stages)
+}
+
+-- Parallel map with bounded concurrency
+func parallelMap[a, b](
+  f: a -> b ! e,
+  items: [a],
+  workers: int
+) -> [b] ! {Async | e} {
+  let input = channel[Task[a]](len(items))
+  let output = channel[Result[b]](len(items))
+  
+  -- Spawn worker pool
+  let workerChannels = [channel[WorkerProtocol[a, b]]() for _ in range(workers)]
+  
+  parallel {
+    for (i, ch) in enumerate(workerChannels) {
+      spawn {
+        worker(i, f, ch)
+      }
+    }
+  }
+  
+  -- Distribute tasks round-robin
+  for (i, item) in enumerate(items) {
+    let workerCh = workerChannels[i % workers]
+    workerCh <- Task{id: i, data: item, priority: Medium}
+  }
+  
+  -- Collect results
+  let results = Array.new(len(items))
+  for _ in range(len(items)) {
+    let result <- output
+    results[result.id] = result.data
+  }
+  
+  -- Shutdown workers and collect stats
+  let totalStats = {processed: 0, errors: 0, avgTime: 0}
+  for ch in workerChannels {
+    ch <- Shutdown
+    let stats <- ch
+    totalStats.processed += stats.processed
+    totalStats.errors += stats.errors
+  }
+  
+  trace("Pipeline complete: ${totalStats}")
+  results.toList()
+}
+
+-- Example: Image processing pipeline
+type Image = {
+  pixels: [[Color]],
+  width: int,
+  height: int
+}
+
+type Color = {r: float, g: float, b: float}
+
+func processImages(images: [Path]) -> [Image] ! {FS, Async} {
+  let pipeline = compose[
+    stage("load", loadImage),
+    stage("resize", resize(800, 600)),
+    stage("blur", gaussianBlur(5)),
+    stage("enhance", enhanceContrast(1.2)),
+    stage("save", saveImage)
+  ]
+  
+  parallelMap(pipeline, images, 4)
+}
+
+-- Streaming pipeline with backpressure
+func stream[a, b](
+  source: Channel[a],
+  transform: a -> b ! e,
+  sink: Channel[b],
+  bufferSize: int
+) -> () ! {Async | e} {
+  let buffer = channel[b](bufferSize)
+  
+  parallel {
+    -- Producer
+    spawn {
+      loop {
+        let item <- source
+        let result = transform(item)
+        buffer <- result  -- Blocks if buffer full (backpressure)
+      }
+    },
+    
+    -- Consumer
+    spawn {
+      loop {
+        let item <- buffer
+        sink <- item
+      }
+    }
+  }
+}
+
+-- Tests with deterministic concurrency
+test "parallel map preserves order" {
+  let items = [1, 2, 3, 4, 5]
+  let results = parallelMap((x) => x * 2, items, 3)
+  assert results == [2, 4, 6, 8, 10]
+}
+
+property "parallel map is equivalent to sequential map" {
+  forall(items: [int], workers: int) where workers > 0 =>
+    parallelMap(id, items, workers) == map(id, items)
+}
+
+test "worker shutdown collects stats" {
+  let ch = channel[WorkerProtocol[int, int]]()
+  
+  spawn {
+    worker(0, (x) => x * 2, ch)
+  }
+  
+  ch <- Task{id: 0, data: 5, priority: High}
+  let result <- ch
+  assert result.data == 10
+  
+  ch <- Shutdown
+  let stats <- ch
+  assert stats.processed == 1
+  assert stats.errors == 0
+}

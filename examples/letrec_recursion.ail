@@ -1,0 +1,43 @@
+-- letrec_recursion.ail
+-- Demonstrates letrec keyword for recursive lambdas (v0.3.5)
+module examples/letrec_recursion
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  {
+    println("=== Letrec Recursive Lambdas (v0.3.5) ===");
+
+    -- Fibonacci using letrec
+    let fib_result = letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in fib(10);
+    println("Fibonacci(10) = " ++ show(fib_result));
+
+    -- Factorial using letrec
+    let fact_result = letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in factorial(5);
+    println("Factorial(5) = " ++ show(fact_result));
+
+    -- Sum using letrec
+    let sum_result = letrec sum = \n. if n == 0 then 0 else n + sum(n - 1) in sum(100);
+    println("Sum(1..100) = " ++ show(sum_result));
+
+    -- GCD using letrec (Euclidean algorithm)
+    let gcd_result = letrec gcd = \a. \b. if b == 0 then a else gcd(b)(a - b * (a / b)) in gcd(48)(18);
+    println("GCD(48, 18) = " ++ show(gcd_result));
+
+    -- Power function using letrec
+    let power_result = letrec power = \base. \exp.
+      if exp == 0 then 1
+      else base * power(base)(exp - 1)
+    in power(2)(10);
+    println("2^10 = " ++ show(power_result));
+
+    -- Nested letrec for mutual recursion simulation
+    let even_result = letrec isEven = \n.
+      if n == 0 then true
+      else letrec isOdd = \m. if m == 0 then false else isEven(m - 1) in isOdd(n - 1)
+    in isEven(42);
+    println("Is 42 even? " ++ show(even_result));
+
+    ()
+  }
+}

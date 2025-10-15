@@ -2,7 +2,7 @@ package eval
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/ast"
+	"strings"
 )
 
 // Value represents a runtime value in AILANG
@@ -13,7 +13,7 @@ type Value interface {
 
 // IntValue represents an integer value
 type IntValue struct {
-	Value int64
+	Value int
 }
 
 func (i *IntValue) Type() string   { return "int" }
@@ -24,8 +24,15 @@ type FloatValue struct {
 	Value float64
 }
 
-func (f *FloatValue) Type() string   { return "float" }
-func (f *FloatValue) String() string { return fmt.Sprintf("%g", f.Value) }
+func (f *FloatValue) Type() string { return "float" }
+func (f *FloatValue) String() string {
+	s := fmt.Sprintf("%g", f.Value)
+	// Ensure at least one decimal point for floats (5 -> 5.0)
+	if !strings.Contains(s, ".") && !strings.Contains(s, "e") && !strings.Contains(s, "E") {
+		s = s + ".0"
+	}
+	return s
+}
 
 // StringValue represents a string value
 type StringValue struct {
@@ -59,7 +66,7 @@ type ListValue struct {
 	Elements []Value
 }
 
-func (l *ListValue) Type() string   { return "list" }
+func (l *ListValue) Type() string { return "list" }
 func (l *ListValue) String() string {
 	result := "["
 	for i, elem := range l.Elements {
@@ -72,12 +79,30 @@ func (l *ListValue) String() string {
 	return result
 }
 
+// TupleValue represents a tuple of values
+type TupleValue struct {
+	Elements []Value
+}
+
+func (t *TupleValue) Type() string { return "tuple" }
+func (t *TupleValue) String() string {
+	result := "("
+	for i, elem := range t.Elements {
+		if i > 0 {
+			result += ", "
+		}
+		result += elem.String()
+	}
+	result += ")"
+	return result
+}
+
 // RecordValue represents a record (struct) value
 type RecordValue struct {
 	Fields map[string]Value
 }
 
-func (r *RecordValue) Type() string   { return "record" }
+func (r *RecordValue) Type() string { return "record" }
 func (r *RecordValue) String() string {
 	result := "{"
 	first := true
@@ -95,8 +120,9 @@ func (r *RecordValue) String() string {
 // FunctionValue represents a function value
 type FunctionValue struct {
 	Params []string
-	Body   ast.Expr
+	Body   interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
 	Env    *Environment
+	Typed  bool // Whether Body is typed
 }
 
 func (f *FunctionValue) Type() string   { return "function" }
@@ -118,3 +144,62 @@ type ErrorValue struct {
 
 func (e *ErrorValue) Type() string   { return "error" }
 func (e *ErrorValue) String() string { return fmt.Sprintf("Error: %s", e.Message) }
+
+// TaggedValue represents an ADT constructor at runtime
+type TaggedValue struct {
+	ModulePath string  // Module where type is defined (e.g., "std/option") - prevents ambiguity
+	TypeName   string  // The ADT name (e.g., "Option")
+	CtorName   string  // Constructor name (e.g., "Some", "None")
+	Fields     []Value // Constructor field values
+}
+
+func (t *TaggedValue) Type() string { return t.TypeName }
+func (t *TaggedValue) String() string {
+	if len(t.Fields) == 0 {
+		// Nullary constructor: None
+		return t.CtorName
+	}
+	// Constructor with fields: Some(42)
+	result := t.CtorName + "("
+	for i, field := range t.Fields {
+		if i > 0 {
+			result += ", "
+		}
+		result += field.String()
+	}
+	result += ")"
+	return result
+}
+
+// RefCell allows self/mutual recursion via indirection
+// Used in LetRec evaluation for function-first semantics (OCaml/Haskell style)
+type RefCell struct {
+	Val      Value // The actual value (once initialized)
+	Init     bool  // Has the value been set?
+	Visiting bool  // Currently being evaluated? (for cycle detection)
+}
+
+// IndirectValue defers to the cell at read-time
+// Environment bindings point to IndirectValue during LetRec evaluation
+type IndirectValue struct {
+	Cell *RefCell
+}
+
+func (iv *IndirectValue) Type() string { return "indirect" }
+func (iv *IndirectValue) String() string {
+	if iv.Cell.Init {
+		return iv.Cell.Val.String()
+	}
+	return "<uninitialized>"
+}
+
+// Force resolves the indirection, checking for initialization and cycles
+func (iv *IndirectValue) Force() (Value, error) {
+	if !iv.Cell.Init {
+		if iv.Cell.Visiting {
+			return nil, fmt.Errorf("RT_REC_001: recursive value used before initialization (non-function RHS). Consider making it a function or introducing laziness")
+		}
+		return nil, fmt.Errorf("RT_REC_002: uninitialized recursive binding; this indicates an internal ordering bug")
+	}
+	return iv.Cell.Val, nil
+}

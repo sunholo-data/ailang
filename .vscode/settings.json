@@ -1,0 +1,29 @@
+{
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": [
+    "--fast"
+  ],
+  "go.lintOnSave": "workspace",
+  "go.formatTool": "gofmt",
+  "go.formatOnSave": true,
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "go.build.buildFlags": [
+    "-tags=scripts"
+  ],
+  "gopls": {
+    "build.directoryFilters": [
+      "-scripts"
+    ]
+  },
+  "files.exclude": {
+    "scripts/**/*.go": false
+  },
+  "go.toolsEnvVars": {
+    "GOWORK": "off"
+  }
+}

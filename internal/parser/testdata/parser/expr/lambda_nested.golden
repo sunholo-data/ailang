@@ -1,0 +1,71 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "body": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "+",
+            "right": {
+              "name": "y",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "params": [
+            {
+              "name": "y",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "body": {
+            "left": {
+              "name": "x",
+              "type": "Identifier"
+            },
+            "op": "+",
+            "right": {
+              "name": "y",
+              "type": "Identifier"
+            },
+            "type": "BinaryOp"
+          },
+          "params": [
+            {
+              "name": "y",
+              "type": "Param"
+            }
+          ],
+          "type": "Lambda"
+        },
+        "params": [
+          {
+            "name": "x",
+            "type": "Param"
+          }
+        ],
+        "type": "Lambda"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

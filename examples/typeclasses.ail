@@ -1,0 +1,126 @@
+-- typeclasses.ail - Type class usage examples
+-- Demonstrates Num, Eq, Ord, and Show type classes
+
+-- =======================
+-- NUM TYPE CLASS
+-- =======================
+
+-- Numeric operations with defaulting to Int
+1 + 2 * 3
+-- Output: 7
+
+-- Floating point operations
+3.14 * 2.0
+-- Output: 6.28
+
+-- Negative numbers
+-42 + 100
+-- Output: 58
+
+-- Division
+100 / 4
+-- Output: 25
+
+-- =======================
+-- EQ TYPE CLASS
+-- =======================
+
+-- Integer equality
+42 == 42
+-- Output: true
+
+-- Inequality
+42 != 43
+-- Output: true
+
+-- String equality
+"hello" == "hello"
+-- Output: true
+
+-- Boolean equality
+true == true
+-- Output: true
+
+-- =======================
+-- ORD TYPE CLASS
+-- =======================
+
+-- Less than
+5 < 10
+-- Output: true
+
+-- Less than or equal
+10 <= 10
+-- Output: true
+
+-- Greater than
+20 > 15
+-- Output: true
+
+-- Greater than or equal
+30 >= 30
+-- Output: true
+
+-- String comparison
+"abc" < "xyz"
+-- Output: true
+
+-- =======================
+-- SHOW TYPE CLASS
+-- =======================
+
+-- Showing integers
+show_Int(42)
+-- Output: "42"
+
+-- Showing floats
+show_Float(3.14159)
+-- Output: "3.14159"
+
+-- Showing booleans
+show_Bool(true)
+-- Output: "true"
+
+-- Showing strings (identity)
+show_String("Hello, AILANG!")
+-- Output: "Hello, AILANG!"
+
+-- =======================
+-- STRING CONCATENATION
+-- =======================
+
+-- Concat operator
+"Hello, " ++ "World!"
+-- Output: "Hello, World!"
+
+-- Building messages
+"The answer is " ++ show_Int(42)
+-- Output: "The answer is 42"
+
+-- =======================
+-- POLYMORPHIC OPERATIONS
+-- =======================
+
+-- Identity function is polymorphic
+let id = \x. x in
+show_Int(id(42)) ++ ", " ++ show_String(id("hello"))
+-- Output: "42, hello"
+
+-- Generic comparison
+let equals = \x y. x == y in
+show_Bool(equals(1)(1)) ++ ", " ++ show_Bool(equals("a")("b"))
+-- Output: "true, false"
+
+-- =======================
+-- COMPLEX EXPRESSIONS
+-- =======================
+
+-- Combining multiple type classes
+let result = if 10 > 5 then 42 else 0 in
+show_Int(result) ++ " is the answer"
+-- Output: "42 is the answer"
+
+-- Numeric polymorphism
+let double = \x. x * 2 in
+show_Int(double(21)) ++ ", " ++ show_Float(double(3.14))
+-- Output: "42, 6.28"

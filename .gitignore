@@ -30,3 +30,13 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Built binaries
+/ailang
+bin/ailang
+/bin
+
+# CI/CD generated files
+examples_report.json
+examples_status.md
+coverage.txt

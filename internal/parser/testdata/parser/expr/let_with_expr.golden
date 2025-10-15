@@ -1,0 +1,73 @@
+{
+  "file": {
+    "decls": [
+      {
+        "body": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "*",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 3
+          },
+          "type": "BinaryOp"
+        },
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "left": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          "op": "+",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          "type": "BinaryOp"
+        }
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "body": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "*",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 3
+          },
+          "type": "BinaryOp"
+        },
+        "name": "x",
+        "type": "Let",
+        "value": {
+          "left": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 1
+          },
+          "op": "+",
+          "right": {
+            "kind": "Int",
+            "type": "Literal",
+            "value": 2
+          },
+          "type": "BinaryOp"
+        }
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

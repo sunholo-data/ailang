@@ -1,0 +1,6 @@
+-- Showcase: Lambda Expressions & Composition
+-- Functions are first-class values
+
+let compose = \f. \g. \x. f(g(x)) in
+let addThenDouble = compose (\x. x * 2) (\x. x + 1) in
+print("Lambda composition: " ++ show(addThenDouble(5)))

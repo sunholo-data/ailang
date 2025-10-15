@@ -1,0 +1,99 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "x",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "y",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Point",
+        "type": "TypeDecl"
+      },
+      {
+        "definition": {
+          "constructors": [
+            {
+              "name": "Red",
+              "type": "Constructor"
+            },
+            {
+              "name": "Green",
+              "type": "Constructor"
+            },
+            {
+              "name": "Blue",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Color",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "x",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "y",
+              "typeExpr": {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Point",
+        "type": "TypeDecl"
+      },
+      {
+        "definition": {
+          "constructors": [
+            {
+              "name": "Red",
+              "type": "Constructor"
+            },
+            {
+              "name": "Green",
+              "type": "Constructor"
+            },
+            {
+              "name": "Blue",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Color",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

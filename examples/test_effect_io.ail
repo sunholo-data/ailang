@@ -1,0 +1,8 @@
+-- Test IO effect with capability grant
+-- Run with: ailang run examples/test_effect_io.ail --caps IO
+
+module examples/test_effect_io
+
+export func main() -> () {
+  _io_println("Hello from effect system!")
+}

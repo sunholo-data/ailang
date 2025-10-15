@@ -1,0 +1,5 @@
+-- Test guard with boolean literal
+match 5 {
+  x if true => "matched with guard",
+  x => "matched without guard"
+}

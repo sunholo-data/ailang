@@ -22,6 +22,7 @@ const (
 	FUNC
 	PURE
 	LET
+	LETREC
 	IN
 	IF
 	THEN
@@ -37,7 +38,9 @@ const (
 	FORALL
 	EXISTS
 	TEST
+	TESTS // tests block
 	PROPERTY
+	PROPERTIES // properties block
 	ASSERT
 	SPAWN
 	PARALLEL
@@ -48,35 +51,36 @@ const (
 	TIMEOUT
 
 	// Operators
-	PLUS     // +
-	MINUS    // -
-	STAR     // *
-	SLASH    // /
-	PERCENT  // %
-	EQ       // ==
-	NEQ      // !=
-	LT       // <
-	GT       // >
-	LTE      // <=
-	GTE      // >=
-	AND      // &&
-	OR       // ||
-	NOT      // not
-	ARROW    // ->
-	FARROW   // =>
-	LARROW   // <-
-	PIPE     // |
-	APPEND   // ++
-	CONS     // ::
-	COMPOSE  // .
-	BANG     // !
-	QUESTION // ?
-	AT       // @
-	DOLLAR   // $
-	HASH     // #
-	ASSIGN   // =
-	COLON    // :
-	DCOLON   // ::
+	PLUS      // +
+	MINUS     // -
+	STAR      // *
+	SLASH     // /
+	PERCENT   // %
+	EQ        // ==
+	NEQ       // !=
+	LT        // <
+	GT        // >
+	LTE       // <=
+	GTE       // >=
+	AND       // &&
+	OR        // ||
+	NOT       // not
+	ARROW     // ->
+	FARROW    // =>
+	LARROW    // <-
+	PIPE      // |
+	APPEND    // ++
+	CONS      // ::
+	COMPOSE   // .
+	BANG      // !
+	QUESTION  // ?
+	AT        // @
+	DOLLAR    // $
+	HASH      // #
+	ASSIGN    // =
+	COLON     // :
+	DCOLON    // ::
+	BACKSLASH // \
 
 	// Delimiters
 	LPAREN    // (
@@ -92,15 +96,15 @@ const (
 	NEWLINE   // \n
 
 	// Quasiquote types
-	SQL_QUOTE   // sql"""
-	HTML_QUOTE  // html"""
-	JSON_QUOTE  // json{
-	REGEX_QUOTE // regex/
-	URL_QUOTE   // url"
-	SHELL_QUOTE // shell"""
+	SQLQuote   // sql"""
+	HTMLQuote  // html"""
+	JSONQuote  // json{
+	RegexQuote // regex/
+	URLQuote   // url"
+	ShellQuote // shell"""
 
 	// Effect markers
-	EFFECT_MARKER // ! {effects}
+	EffectMarker // ! {effects}
 
 	// Boolean literals
 	TRUE
@@ -121,63 +125,67 @@ var tokens = map[TokenType]string{
 	STRING: "STRING",
 	CHAR:   "CHAR",
 
-	FUNC:     "func",
-	PURE:     "pure",
-	LET:      "let",
-	IN:       "in",
-	IF:       "if",
-	THEN:     "then",
-	ELSE:     "else",
-	MATCH:    "match",
-	WITH:     "with",
-	TYPE:     "type",
-	CLASS:    "class",
-	INSTANCE: "instance",
-	MODULE:   "module",
-	IMPORT:   "import",
-	EXPORT:   "export",
-	FORALL:   "forall",
-	EXISTS:   "exists",
-	TEST:     "test",
-	PROPERTY: "property",
-	ASSERT:   "assert",
-	SPAWN:    "spawn",
-	PARALLEL: "parallel",
-	SELECT:   "select",
-	CHANNEL:  "channel",
-	SEND:     "send",
-	RECV:     "recv",
-	TIMEOUT:  "timeout",
+	FUNC:       "func",
+	PURE:       "pure",
+	LET:        "let",
+	LETREC:     "letrec",
+	IN:         "in",
+	IF:         "if",
+	THEN:       "then",
+	ELSE:       "else",
+	MATCH:      "match",
+	WITH:       "with",
+	TYPE:       "type",
+	CLASS:      "class",
+	INSTANCE:   "instance",
+	MODULE:     "module",
+	IMPORT:     "import",
+	EXPORT:     "export",
+	FORALL:     "forall",
+	EXISTS:     "exists",
+	TEST:       "test",
+	TESTS:      "tests",
+	PROPERTY:   "property",
+	PROPERTIES: "properties",
+	ASSERT:     "assert",
+	SPAWN:      "spawn",
+	PARALLEL:   "parallel",
+	SELECT:     "select",
+	CHANNEL:    "channel",
+	SEND:       "send",
+	RECV:       "recv",
+	TIMEOUT:    "timeout",
 
-	PLUS:     "+",
-	MINUS:    "-",
-	STAR:     "*",
-	SLASH:    "/",
-	PERCENT:  "%",
-	EQ:       "==",
-	NEQ:      "!=",
-	LT:       "<",
-	GT:       ">",
-	LTE:      "<=",
-	GTE:      ">=",
-	AND:      "&&",
-	OR:       "||",
-	NOT:      "not",
-	ARROW:    "->",
-	FARROW:   "=>",
-	LARROW:   "<-",
-	PIPE:     "|",
-	APPEND:   "++",
-	CONS:     "::",
-	COMPOSE:  ".",
-	BANG:     "!",
-	QUESTION: "?",
-	AT:       "@",
-	DOLLAR:   "$",
-	HASH:     "#",
-	ASSIGN:   "=",
-	COLON:    ":",
-	DCOLON:   "::",
+	PLUS:      "+",
+	MINUS:     "-",
+	STAR:      "*",
+	SLASH:     "/",
+	PERCENT:   "%",
+	EQ:        "==",
+	NEQ:       "!=",
+	LT:        "<",
+	GT:        ">",
+	LTE:       "<=",
+	GTE:       ">=",
+	AND:       "&&",
+	OR:        "||",
+	NOT:       "not",
+	ARROW:     "->",
+	FARROW:    "=>",
+	LARROW:    "<-",
+	PIPE:      "|",
+	APPEND:    "++",
+	CONS:      "::",
+	COMPOSE:   ".",
+	BANG:      "!",
+	QUESTION:  "?",
+	AT:        "@",
+	DOLLAR:    "$",
+	HASH:      "#",
+	ASSIGN:    "=",
+	COLON:     ":",
+	DCOLON:    "::",
+	BACKSLASH: "\\",
 
 	LPAREN:    "(",
 	RPAREN:    ")",
@@ -191,14 +199,14 @@ var tokens = map[TokenType]string{
 	SEMICOLON: ";",
 	NEWLINE:   "\\n",
 
-	SQL_QUOTE:   "sql\"\"\"",
-	HTML_QUOTE:  "html\"\"\"",
-	JSON_QUOTE:  "json{",
-	REGEX_QUOTE: "regex/",
-	URL_QUOTE:   "url\"",
-	SHELL_QUOTE: "shell\"\"\"",
+	SQLQuote:   "sql\"\"\"",
+	HTMLQuote:  "html\"\"\"",
+	JSONQuote:  "json{",
+	RegexQuote: "regex/",
+	URLQuote:   "url\"",
+	ShellQuote: "shell\"\"\"",
 
-	EFFECT_MARKER: "!",
+	EffectMarker: "!",
 
 	TRUE:  "true",
 	FALSE: "false",
@@ -215,38 +223,41 @@ func (t TokenType) String() string {
 
 // Keywords map
 var keywords = map[string]TokenType{
-	"func":     FUNC,
-	"pure":     PURE,
-	"let":      LET,
-	"in":       IN,
-	"if":       IF,
-	"then":     THEN,
-	"else":     ELSE,
-	"match":    MATCH,
-	"with":     WITH,
-	"type":     TYPE,
-	"class":    CLASS,
-	"instance": INSTANCE,
-	"module":   MODULE,
-	"import":   IMPORT,
-	"export":   EXPORT,
-	"forall":   FORALL,
-	"exists":   EXISTS,
-	"test":     TEST,
-	"property": PROPERTY,
-	"assert":   ASSERT,
-	"spawn":    SPAWN,
-	"parallel": PARALLEL,
-	"select":   SELECT,
-	"channel":  CHANNEL,
-	"send":     SEND,
-	"recv":     RECV,
-	"timeout":  TIMEOUT,
-	"true":     TRUE,
-	"false":    FALSE,
-	"not":      NOT,
-	"and":      AND,
-	"or":       OR,
+	"func":       FUNC,
+	"pure":       PURE,
+	"let":        LET,
+	"letrec":     LETREC,
+	"in":         IN,
+	"if":         IF,
+	"then":       THEN,
+	"else":       ELSE,
+	"match":      MATCH,
+	"with":       WITH,
+	"type":       TYPE,
+	"class":      CLASS,
+	"instance":   INSTANCE,
+	"module":     MODULE,
+	"import":     IMPORT,
+	"export":     EXPORT,
+	"forall":     FORALL,
+	"exists":     EXISTS,
+	"test":       TEST,
+	"tests":      TESTS,
+	"property":   PROPERTY,
+	"properties": PROPERTIES,
+	"assert":     ASSERT,
+	"spawn":      SPAWN,
+	"parallel":   PARALLEL,
+	"select":     SELECT,
+	"channel":    CHANNEL,
+	"send":       SEND,
+	"recv":       RECV,
+	"timeout":    TIMEOUT,
+	"true":       TRUE,
+	"false":      FALSE,
+	"not":        NOT,
+	"and":        AND,
+	"or":         OR,
 }
 
 // LookupIdent checks if an identifier is a keyword
@@ -255,6 +266,36 @@ func LookupIdent(ident string) TokenType {
 		return tok
 	}
 	return IDENT
+}
+
+// LookupIdentContextual checks if an identifier is a keyword, but treats
+// test/tests/properties as contextual (can be used as identifiers in some contexts)
+func LookupIdentContextual(ident string) TokenType {
+	// Contextual keywords that can be used as identifiers in some contexts
+	switch ident {
+	case "test", "tests", "properties", "property":
+		// These are only keywords in specific contexts (after func declarations)
+		// Return IDENT and let the parser decide based on context
+		return IDENT
+	default:
+		// For all other keywords, use strict lookup
+		return LookupIdent(ident)
+	}
+}
+
+// IsReservedKeyword checks if a string is a reserved keyword
+// This is used to prevent keywords from being used as identifiers
+func IsReservedKeyword(ident string) bool {
+	_, ok := keywords[ident]
+	return ok
+}
+
+// IsContextualKeyword checks if a token type is only reserved in specific contexts
+// For now, all keywords are strictly reserved, but this allows future flexibility
+func IsContextualKeyword(t TokenType) bool {
+	// In the future, we might allow 'tests' or 'properties' as field names
+	// For now, keep all keywords strictly reserved
+	return false
 }
 
 // Token represents a lexical token
@@ -306,7 +347,7 @@ func (t Token) IsKeyword() bool {
 	case FUNC, PURE, LET, IN, IF, THEN, ELSE,
 		MATCH, WITH, TYPE, CLASS, INSTANCE,
 		MODULE, IMPORT, EXPORT,
-		FORALL, EXISTS, TEST, PROPERTY, ASSERT,
+		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
 		SEND, RECV, TIMEOUT,
 		TRUE, FALSE:
@@ -315,29 +356,31 @@ func (t Token) IsKeyword() bool {
 	return false
 }
 
-// Precedence returns the precedence of an operator
+// Precedence returns the precedence of an operator - spec compliant ordering
 func (t Token) Precedence() int {
 	switch t.Type {
+	case BACKSLASH:
+		return 1 // LAMBDA - lowest precedence
 	case OR:
-		return 1
+		return 2 // LOGICAL_OR
 	case AND:
-		return 2
+		return 3 // LOGICAL_AND
 	case EQ, NEQ:
-		return 3
+		return 4 // EQUALS
 	case LT, GT, LTE, GTE:
-		return 4
+		return 5 // LESSGREATER
 	case APPEND:
-		return 5
-	case CONS:
-		return 5
+		return 6 // APPEND (++ string concatenation)
 	case PLUS, MINUS:
-		return 6
+		return 7 // SUM
 	case STAR, SLASH, PERCENT:
-		return 7
-	case COMPOSE:
-		return 8
+		return 8 // PRODUCT
+	case NOT:
+		return 9 // PREFIX (unary operators)
+	case LPAREN:
+		return 10 // CALL (function application)
 	case DOT:
-		return 9
+		return 11 // DOT_ACCESS (field access - highest)
 	default:
 		return 0
 	}

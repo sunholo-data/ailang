@@ -1,0 +1,20 @@
+-- Test mutual recursion (should work)
+module tests/recursion/mutual
+
+-- Simple mutually recursive functions
+func countDown(n: Int) -> Int {
+  if n then
+    countUp(n - 1)
+  else
+    0
+}
+
+func countUp(n: Int) -> Int {
+  if n then
+    countDown(n - 1) + 1
+  else
+    0
+}
+
+-- Test it
+countDown(3)

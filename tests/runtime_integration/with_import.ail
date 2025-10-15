@@ -1,0 +1,7 @@
+module tests/runtime_integration/with_import
+
+import tests/runtime_integration/dep (inc)
+
+export func main() -> int {
+  inc(41)
+}

@@ -1,0 +1,37 @@
+-- recursion_quicksort.ail
+-- Demonstrates real-world recursion with list processing
+-- Status: ⚠️ Partial (list operations limited in current runtime)
+
+module examples/recursion_quicksort
+
+import std/io (println)
+
+-- Quicksort implementation (conceptual)
+-- Note: Full list pattern matching and helper functions not yet supported
+-- This demonstrates the recursive structure
+
+-- Placeholder: actual implementation would require:
+-- 1. List pattern matching: match lst { [] => ..., [x] => ..., [pivot, ...rest] => ... }
+-- 2. List operations: filter, concat
+-- 3. Partition logic
+
+export func quicksort(lst: [int]) -> [int] {
+  -- Would be: match lst {
+  --   [] => [],
+  --   [x] => [x],
+  --   [pivot, ...rest] => {
+  --     let lesser = filter(\x. x <= pivot, rest);
+  --     let greater = filter(\x. x > pivot, rest);
+  --     concat(quicksort(lesser), [pivot], quicksort(greater))
+  --   }
+  -- }
+  lst
+}
+
+export func main() -> () ! {IO} {
+  let input = [3, 1, 4, 1, 5, 9, 2, 6];
+  let sorted = quicksort(input);
+
+  println("Input: [3, 1, 4, 1, 5, 9, 2, 6]");
+  println("Sorted: (quicksort not fully implemented yet)")
+}

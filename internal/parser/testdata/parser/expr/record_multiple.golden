@@ -1,0 +1,49 @@
+{
+  "file": {
+    "decls": [
+      {
+        "fields": [
+          {
+            "name": 0,
+            "value": {
+              "_note": "Not yet handled by printer",
+              "type": "*ast.Field"
+            }
+          },
+          {
+            "name": 1,
+            "value": {
+              "_note": "Not yet handled by printer",
+              "type": "*ast.Field"
+            }
+          }
+        ],
+        "type": "Record"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "fields": [
+          {
+            "name": 0,
+            "value": {
+              "_note": "Not yet handled by printer",
+              "type": "*ast.Field"
+            }
+          },
+          {
+            "name": 1,
+            "value": {
+              "_note": "Not yet handled by printer",
+              "type": "*ast.Field"
+            }
+          }
+        ],
+        "type": "Record"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

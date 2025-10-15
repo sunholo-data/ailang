@@ -1,0 +1,47 @@
+{
+  "file": {
+    "decls": [
+      {
+        "condition": {
+          "kind": "Bool",
+          "type": "Literal",
+          "value": true
+        },
+        "else": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 2
+        },
+        "then": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        },
+        "type": "If"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "condition": {
+          "kind": "Bool",
+          "type": "Literal",
+          "value": true
+        },
+        "else": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 2
+        },
+        "then": {
+          "kind": "Int",
+          "type": "Literal",
+          "value": 1
+        },
+        "type": "If"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

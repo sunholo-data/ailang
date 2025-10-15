@@ -1,0 +1,32 @@
+id: nested_records
+description: "Nested record construction and field access"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a nested record structure representing a company employee:
+     - Employee record with fields:
+       - name: "Alice"
+       - age: 30
+       - department: (nested record)
+         - name: "Engineering"
+         - code: "ENG"
+         - building: 5
+  2. Access and print the employee's name, department name, and building number
+  3. Output format (one per line):
+     "Employee: {name}"
+     "Department: {dept_name}"
+     "Building: {building}"
+
+  Requirements:
+  - Use nested record/object structure
+  - Access nested fields through chaining (e.g., employee.department.name)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Employee: Alice
+  Department: Engineering
+  Building: 5

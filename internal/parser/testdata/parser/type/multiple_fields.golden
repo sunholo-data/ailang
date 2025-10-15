@@ -1,0 +1,85 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Circle",
+              "type": "Constructor"
+            },
+            {
+              "fields": [
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                },
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Rectangle",
+              "type": "Constructor"
+            },
+            {
+              "name": "Point",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Shape",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "constructors": [
+            {
+              "fields": [
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Circle",
+              "type": "Constructor"
+            },
+            {
+              "fields": [
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                },
+                {
+                  "name": "int",
+                  "type": "SimpleType"
+                }
+              ],
+              "name": "Rectangle",
+              "type": "Constructor"
+            },
+            {
+              "name": "Point",
+              "type": "Constructor"
+            }
+          ],
+          "type": "AlgebraicType"
+        },
+        "name": "Shape",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

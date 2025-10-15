@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-wasm:
+    name: Build WASM Binary
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Build WASM binary
+      run: make build-wasm
+
+    - name: Create WASM archive
+      run: |
+        cd bin
+        tar -czf ailang-wasm.tar.gz ailang.wasm
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ailang-wasm
+        path: bin/ailang-wasm.tar.gz
+
+  build-release:
+    name: Build Release ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary_name: ailang
+            artifact_name: ailang-linux-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary_name: ailang
+            artifact_name: ailang-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary_name: ailang
+            artifact_name: ailang-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary_name: ailang.exe
+            artifact_name: ailang-windows-amd64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Get version
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Build binary with version
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ steps.get_version.outputs.VERSION }}
+      run: |
+        go build -v -ldflags "-X main.Version=${VERSION}" -o bin/${{ matrix.binary_name }} ./cmd/ailang
+
+    - name: Create archive (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        chmod +x bin/${{ matrix.binary_name }}
+        tar -czf ${{ matrix.artifact_name }}.tar.gz -C bin ${{ matrix.binary_name }}
+
+    - name: Create archive (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Compress-Archive -Path bin\${{ matrix.binary_name }} -DestinationPath ${{ matrix.artifact_name }}.zip
+
+    - name: Upload artifact (Unix)
+      if: matrix.os != 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.tar.gz
+
+    - name: Upload artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.zip
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-release, build-wasm]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Get version
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "## What's Changed" > changelog.md
+        echo "" >> changelog.md
+        git log --pretty=format:"* %s (%h)" $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> changelog.md || echo "* Initial release" >> changelog.md
+        echo "" >> changelog.md
+        echo "## Downloads" >> changelog.md
+        echo "" >> changelog.md
+        echo "### Installation" >> changelog.md
+        echo "" >> changelog.md
+        echo '```bash' >> changelog.md
+        echo '# macOS (Intel)' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-darwin-amd64.tar.gz | tar -xz' >> changelog.md
+        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo '' >> changelog.md
+        echo '# macOS (Apple Silicon)' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-darwin-arm64.tar.gz | tar -xz' >> changelog.md
+        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo '' >> changelog.md
+        echo '# Linux' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-linux-amd64.tar.gz | tar -xz' >> changelog.md
+        echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo '```' >> changelog.md
+        echo '' >> changelog.md
+        echo '### WebAssembly' >> changelog.md
+        echo '' >> changelog.md
+        echo 'For embedding AILANG REPL in web applications:' >> changelog.md
+        echo '```bash' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-wasm.tar.gz | tar -xz' >> changelog.md
+        echo '```' >> changelog.md
+        echo '' >> changelog.md
+        echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: AILANG ${{ steps.get_version.outputs.VERSION }}
+        body_path: changelog.md
+        draft: false
+        prerelease: ${{ contains(steps.get_version.outputs.VERSION, '-') }}
+        files: |
+          artifacts/**/*.tar.gz
+          artifacts/**/*.zip

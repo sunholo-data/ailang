@@ -1,0 +1,113 @@
+run:
+  # Exclude scripts directory since they are standalone executables
+  skip-dirs:
+    - scripts
+  skip-files:
+    - ".*_test.go"  # Optional: uncomment if you want to skip test files for some linters
+  
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    
+  disable:
+    - gosec  # Security linter - can be noisy
+    - dupl   # Duplicate code - often false positives
+    - gocyclo # Cyclomatic complexity - can be too strict
+    
+linters-settings:
+  errcheck:
+    # Don't check error returns on these
+    exclude-functions:
+      - fmt.Fprintf
+      - fmt.Printf
+      - fmt.Println
+      
+  unused:
+    # Don't flag unused code in tests
+    check-exported: false
+    
+  revive:
+    rules:
+      - name: exported
+        disabled: true  # Don't require comments on exported types
+      - name: var-naming
+        disabled: false
+        
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    # Exclude scripts directory from all linters
+    - path: scripts/
+      linters:
+        - typecheck
+        - unused
+        
+    # Exclude test files from some linters  
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        
+    # Don't complain about unused test helpers
+    - path: _test\.go
+      text: "is unused"
+      linters:
+        - unused
+
+    # Don't complain about unused functions in testutil.go (they're helper functions)
+    - path: testutil\.go
+      text: "is unused"
+      linters:
+        - unused
+
+    # Allow underscore in eval_harness package name (M-EVAL framework)
+    - path: internal/eval_harness/
+      text: "don't use an underscore in package name"
+      linters:
+        - revive
+
+    # Allow underscore in eval_analysis package name (M-EVAL analysis tools)
+    - path: internal/eval_analysis/
+      text: "don't use an underscore in package name"
+      linters:
+        - revive
+
+    # Allow underscore in eval_analyzer package name (M-EVAL analyzer)
+    - path: internal/eval_analyzer/
+      text: "don't use an underscore in package name"
+      linters:
+        - revive
+
+    # Allow ALL_CAPS for error code constants (they match JSON schema error codes)
+    - path: internal/types/errors\.go
+      text: "don't use ALL_CAPS in Go names"
+      linters:
+        - revive
+
+    # Allow ALL_CAPS for eval harness error codes (PAR_001, TC_REC_001, etc.)
+    - path: internal/eval_harness/errors\.go
+      text: "don't use ALL_CAPS in Go names"
+      linters:
+        - revive
+
+    # Allow ALL_CAPS for validation error codes (VAL_M##, VAL_T##, etc. - match error messages)
+    - path: internal/planning/validator\.go
+      text: "don't use ALL_CAPS in Go names"
+      linters:
+        - revive
+        
+  # Maximum issues count per one linter. Set to 0 to disable.
+  max-issues-per-linter: 50
+  
+  # Maximum count of issues with the same text. Set to 0 to disable.
+  max-same-issues: 10

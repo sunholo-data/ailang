@@ -1,0 +1,16 @@
+-- Pure functional programming: basic list operations
+-- Demonstrates: list concat, arithmetic, pure computation
+module examples/effects_pure
+
+-- Concatenate lists and compute length
+let list1 = [1, 2, 3]
+let list2 = [4, 5]
+let combined = list1 ++ list2
+
+-- Simple arithmetic
+let doubled = [10, 20, 30]
+let first = 10
+let second = 20
+
+-- Result: 30
+first + second

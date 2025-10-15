@@ -1,0 +1,33 @@
+id: pattern_matching_complex
+description: "Nested patterns, guards, exhaustiveness checking"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that demonstrates complex pattern matching:
+
+  1. Define a Tree type: Leaf(value: int) | Node(left: Tree, value: int, right: Tree)
+  2. Implement `tree_sum(tree: Tree) -> int` using pattern matching:
+     - Match Leaf(v): return v
+     - Match Node(l, v, r): return tree_sum(l) + v + tree_sum(r)
+  3. Implement `find_max(tree: Tree) -> int` with nested patterns and guards:
+     - Match Leaf(v): return v
+     - Match Node with guards to find maximum value in tree
+  4. Create a sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))
+  5. Print results:
+     "Sum: {sum}"
+     "Max: {max}"
+
+  Expected: sum = 1+5+3+7+2 = 18, max = 7
+
+  Requirements:
+  - Use algebraic data types
+  - Use pattern matching with nested constructors
+  - Demonstrate exhaustiveness (cover all cases)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum: 18
+  Max: 7

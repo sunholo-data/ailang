@@ -1,0 +1,54 @@
+{
+  "module": "stdlib/std/option",
+  "types": [
+    {
+      "name": "Option",
+      "params": [
+        "a"
+      ],
+      "ctors": [
+        "None",
+        "Some"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "filter",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "flatMap",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "getOrElse",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isNone",
+      "type": "(a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "isSome",
+      "type": "(a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "map",
+      "type": "(a,b)-\u003ec",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

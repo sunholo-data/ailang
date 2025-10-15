@@ -1,0 +1,10 @@
+module examples/test_import_ctor
+import stdlib/std/option (Some)
+
+export pure func test() -> int {
+  42
+}
+
+export pure func main() -> int {
+  test
+}

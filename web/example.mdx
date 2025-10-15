@@ -1,0 +1,75 @@
+---
+title: Try AILANG
+description: Interactive AILANG REPL in your browser
+---
+
+import AilangRepl from '@site/src/components/AilangRepl';
+
+# Try AILANG in Your Browser
+
+Experience AILANG without installing anything! This REPL runs entirely in your browser using WebAssembly.
+
+## Interactive REPL
+
+<AilangRepl />
+
+## Quick Examples
+
+### Basic Arithmetic
+```
+1 + 2
+```
+
+### Type Inference
+```
+:type \x. x + x
+```
+
+### Lambda Functions
+```
+(\x. x * 2)(21)
+```
+
+### Let Bindings
+```
+let double = \x. x * 2 in double(21)
+```
+
+### Pattern Matching
+```
+let fib = \n.
+  if n < 2 then n
+  else fib(n - 1) + fib(n - 2)
+in fib(10)
+```
+
+### Type Classes
+```
+1 + 2.5
+```
+*Note: This will trigger type defaulting*
+
+## REPL Commands
+
+Try these special commands:
+
+- `:help` - Show all available commands
+- `:type <expr>` - Show the type of an expression
+- `:reset` - Clear the environment
+- `:instances` - Show available type class instances
+
+## Learn More
+
+- [Language Tutorial](/docs/tutorial)
+- [Type System Guide](/docs/type-system)
+- [Standard Library](/docs/stdlib)
+- [GitHub Repository](https://github.com/sunholo-data/ailang)
+
+## Technical Details
+
+This REPL is powered by:
+- **WebAssembly**: The AILANG interpreter compiled to WASM
+- **Go**: Core language implementation
+- **React**: UI component framework
+
+**Limitations**: File I/O and module imports are disabled in the browser version.

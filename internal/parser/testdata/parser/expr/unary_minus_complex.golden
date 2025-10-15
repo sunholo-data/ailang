@@ -1,0 +1,43 @@
+{
+  "file": {
+    "decls": [
+      {
+        "expr": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "+",
+          "right": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "type": "BinaryOp"
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "expr": {
+          "left": {
+            "name": "x",
+            "type": "Identifier"
+          },
+          "op": "+",
+          "right": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "type": "BinaryOp"
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

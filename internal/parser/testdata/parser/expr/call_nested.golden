@@ -1,0 +1,55 @@
+{
+  "file": {
+    "decls": [
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "name": "x",
+                "type": "Identifier"
+              }
+            ],
+            "func": {
+              "name": "bar",
+              "type": "Identifier"
+            },
+            "type": "FuncCall"
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "args": [
+          {
+            "args": [
+              {
+                "name": "x",
+                "type": "Identifier"
+              }
+            ],
+            "func": {
+              "name": "bar",
+              "type": "Identifier"
+            },
+            "type": "FuncCall"
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,13 @@
+-- Simple stdlib demo - Demonstrates basic IO builtins
+-- Status: ✅ Works with v0.2.0-rc1
+module examples/stdlib_demo_simple
+
+-- Simple greeting using println
+export func main() -> () {
+    _io_println("Hello from AILANG stdlib!")
+}
+
+-- Echo a message
+export func echo(msg: string) -> () {
+    _io_println(msg)
+}

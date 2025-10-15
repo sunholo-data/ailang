@@ -1,0 +1,11 @@
+module examples/list_patterns
+import std/io (println)
+import std/list (length, head, tail)
+import std/option (Some, None)
+
+export func main() -> () ! {IO} {
+  let xs = [10, 20, 30];
+  println("LEN=" ++ show(length(xs)));
+  match head(xs) { Some(h) => println("HEAD=" ++ show(h)), None => println("HEAD=None") }
+  println("TLEN=" ++ show(length(tail(xs))));
+}

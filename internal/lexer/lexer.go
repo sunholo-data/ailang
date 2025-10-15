@@ -18,10 +18,18 @@ type Lexer struct {
 	file         string
 }
 
-// New creates a new Lexer
+// New creates a new Lexer with normalized input.
+// Input is normalized at the lexer boundary:
+// - UTF-8 BOM is stripped
+// - Unicode NFC normalization is applied
+//
+// This ensures lexically equivalent source produces identical token streams.
 func New(input string, filename string) *Lexer {
+	// Normalize input at the boundary
+	normalized := Normalize([]byte(input))
+
 	l := &Lexer{
-		input:  input,
+		input:  string(normalized),
 		file:   filename,
 		line:   1,
 		column: 0,
@@ -199,6 +207,8 @@ func (l *Lexer) NextToken() Token {
 		tok = NewToken(DOLLAR, string(l.ch), line, column, l.file)
 	case '#':
 		tok = NewToken(HASH, string(l.ch), line, column, l.file)
+	case '\\':
+		tok = NewToken(BACKSLASH, string(l.ch), line, column, l.file)
 	case '"':
 		// Check for quasiquote or regular string
 		if l.checkQuasiquotePrefix() {
@@ -222,13 +232,13 @@ func (l *Lexer) NextToken() Token {
 	default:
 		if isLetter(l.ch) {
 			literal := l.readIdentifier()
-			tokType := LookupIdent(literal)
-			
+			tokType := LookupIdentContextual(literal)
+
 			// Check for quasiquote keywords followed by quotes
 			if l.checkQuasiquoteKeyword(literal) {
 				return l.readQuasiquoteWithKeyword(literal, line, column)
 			}
-			
+
 			tok = NewToken(tokType, literal, line, column, l.file)
 			return tok
 		} else if isDigit(l.ch) {
@@ -266,7 +276,7 @@ func (l *Lexer) skipComment() {
 func (l *Lexer) readString() string {
 	var out strings.Builder
 	l.readChar() // skip opening quote
-	
+
 	for l.ch != '"' && l.ch != 0 {
 		if l.ch == '\\' {
 			l.readChar()
@@ -289,7 +299,7 @@ func (l *Lexer) readString() string {
 		}
 		l.readChar()
 	}
-	
+
 	l.readChar() // skip closing quote
 	return out.String()
 }
@@ -298,7 +308,7 @@ func (l *Lexer) readString() string {
 func (l *Lexer) readCharLiteral() string {
 	var out strings.Builder
 	l.readChar() // skip opening quote
-	
+
 	if l.ch == '\\' {
 		l.readChar()
 		switch l.ch {
@@ -318,12 +328,12 @@ func (l *Lexer) readCharLiteral() string {
 	} else {
 		out.WriteRune(l.ch)
 	}
-	
+
 	l.readChar()
 	if l.ch == '\'' {
 		l.readChar() // skip closing quote
 	}
-	
+
 	return out.String()
 }
 
@@ -340,11 +350,11 @@ func (l *Lexer) readIdentifier() string {
 func (l *Lexer) readNumber() (string, bool) {
 	position := l.position
 	isFloat := false
-	
+
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	
+
 	if l.ch == '.' && isDigit(l.peekChar()) {
 		isFloat = true
 		l.readChar()
@@ -352,7 +362,7 @@ func (l *Lexer) readNumber() (string, bool) {
 			l.readChar()
 		}
 	}
-	
+
 	if l.ch == 'e' || l.ch == 'E' {
 		isFloat = true
 		l.readChar()
@@ -363,7 +373,7 @@ func (l *Lexer) readNumber() (string, bool) {
 			l.readChar()
 		}
 	}
-	
+
 	return l.input[position:l.position], isFloat
 }
 
@@ -388,15 +398,15 @@ func (l *Lexer) readQuasiquote(line, column int) Token {
 	// This would be more complex in reality, handling interpolations
 	// For now, just read until the closing quotes
 	var content strings.Builder
-	
+
 	// Determine quote type from context
-	// For now, default to SQL_QUOTE
-	
+	// For now, default to SqlQuote
+
 	// Skip the opening quotes
 	for i := 0; i < 3; i++ {
 		l.readChar()
 	}
-	
+
 	// Read content until closing quotes
 	for {
 		if l.ch == '"' && l.peekChar() == '"' && l.peekAhead(2) == '"' {
@@ -411,14 +421,14 @@ func (l *Lexer) readQuasiquote(line, column int) Token {
 		content.WriteRune(l.ch)
 		l.readChar()
 	}
-	
-	return NewToken(SQL_QUOTE, content.String(), line, column, l.file)
+
+	return NewToken(SQLQuote, content.String(), line, column, l.file)
 }
 
 // readQuasiquoteWithKeyword reads a quasiquote that starts with a keyword
 func (l *Lexer) readQuasiquoteWithKeyword(keyword string, line, column int) Token {
 	l.skipWhitespace()
-	
+
 	switch keyword {
 	case "sql":
 		// Handle SQL quasiquote
@@ -438,21 +448,21 @@ func (l *Lexer) readQuasiquoteWithKeyword(keyword string, line, column int) Toke
 			return l.readRegex(line, column)
 		}
 	}
-	
+
 	// Expect triple quotes for most quasiquotes
 	if l.ch == '"' && l.peekChar() == '"' && l.peekAhead(2) == '"' {
 		return l.readQuasiquote(line, column)
 	}
-	
+
 	// Otherwise it's just a regular identifier
-	return NewToken(LookupIdent(keyword), keyword, line, column, l.file)
+	return NewToken(LookupIdentContextual(keyword), keyword, line, column, l.file)
 }
 
 // readJSONQuote reads a JSON quasiquote
 func (l *Lexer) readJSONQuote(line, column int) Token {
 	var content strings.Builder
 	braceCount := 0
-	
+
 	for l.ch != 0 {
 		if l.ch == '{' {
 			braceCount++
@@ -466,15 +476,15 @@ func (l *Lexer) readJSONQuote(line, column int) Token {
 		content.WriteRune(l.ch)
 		l.readChar()
 	}
-	
-	return NewToken(JSON_QUOTE, content.String(), line, column, l.file)
+
+	return NewToken(JSONQuote, content.String(), line, column, l.file)
 }
 
 // readRegex reads a regex literal
 func (l *Lexer) readRegex(line, column int) Token {
 	var content strings.Builder
 	l.readChar() // skip opening /
-	
+
 	for l.ch != '/' && l.ch != 0 {
 		if l.ch == '\\' {
 			content.WriteRune(l.ch)
@@ -488,18 +498,18 @@ func (l *Lexer) readRegex(line, column int) Token {
 			l.readChar()
 		}
 	}
-	
+
 	if l.ch == '/' {
 		l.readChar() // skip closing /
 	}
-	
+
 	// Read any regex flags
 	for isLetter(l.ch) {
 		content.WriteRune(l.ch)
 		l.readChar()
 	}
-	
-	return NewToken(REGEX_QUOTE, content.String(), line, column, l.file)
+
+	return NewToken(RegexQuote, content.String(), line, column, l.file)
 }
 
 // isRegexStart checks if we're at the start of a regex literal

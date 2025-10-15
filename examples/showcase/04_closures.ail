@@ -1,0 +1,6 @@
+-- Showcase: Closures
+-- Functions capture their environment
+
+let makeAdder = \n. \x. x + n in
+let add10 = makeAdder(10) in
+print("Closure: " ++ show(add10(5)))

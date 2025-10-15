@@ -1,0 +1,100 @@
+---
+id: playground
+title: AILANG Playground
+sidebar_label: Playground
+description: Try AILANG right in your browser with our interactive WebAssembly REPL
+---
+
+import AilangRepl from '@site/src/components/AilangRepl';
+
+# AILANG Playground
+
+Try AILANG right in your browser! This REPL runs entirely client-side using WebAssembly - no server required.
+
+<AilangRepl />
+
+## Quick Examples
+
+### 🔢 Basic Arithmetic
+Try some simple calculations:
+```
+1 + 2
+10 * 5
+42 / 2
+```
+
+### λ Lambda Functions & Let Bindings
+Define and use functions:
+```
+let double = \x. x * 2 in double(21)
+```
+
+### 🔍 Type Inference
+Check the type of an expression:
+```
+:type \x. x + x
+```
+
+### λ Lambda Functions
+AILANG is a functional language at heart:
+```
+(\x. x * 2)(21)
+```
+
+### 📝 Let Bindings
+Define and use variables:
+```
+let double = \x. x * 2 in double(21)
+```
+
+### 🔁 Higher-Order Functions
+Compose and apply functions:
+```
+let double = \x. x * 2 in
+let triple = \x. x * 3 in
+double(5) + triple(4)
+```
+*Note: Recursive lambdas are not supported in REPL - use module functions instead*
+
+### 🔢 Type Inference
+AILANG infers types automatically:
+```
+let add = \x. \y. x + y in add(1)(2)
+```
+*Note: Numeric operations require matching types (both Int or both Float)*
+
+## REPL Commands
+
+Special commands available in the REPL:
+
+| Command | Description |
+|---------|-------------|
+| `:help` | Show all available commands |
+| `:type <expr>` | Display the type of an expression |
+| `:instances` | Show available type class instances |
+| `:reset` | Clear the environment and start fresh |
+
+## Learn More
+
+- **[Getting Started](/docs/guides/getting-started)** - Install AILANG locally
+- **[Language Tutorial](/docs/guides/language-tutorial)** - Learn AILANG syntax
+- **[Type System](/docs/reference/type-system)** - Deep dive into types
+- **[Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - Browse 60+ examples
+
+## Technical Details
+
+This playground is powered by:
+- **WebAssembly**: The full AILANG interpreter compiled to WASM (~11 MB, 1-2 MB compressed)
+- **Go**: Core language implementation (GOOS=js GOARCH=wasm)
+- **React**: UI component framework
+
+**Current limitations**:
+- Module imports (`:import std/io`) not yet supported - only type class instances loaded
+- File I/O and other effects disabled in browser for security
+- Type annotations may not persist across inputs in some cases
+
+For full functionality including modules and effects, [install AILANG locally](/docs/guides/getting-started).
+
+## Found a Bug?
+
+If you encounter issues with the playground, please [report them on GitHub](https://github.com/sunholo-data/ailang/issues).

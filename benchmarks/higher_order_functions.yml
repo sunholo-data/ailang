@@ -1,0 +1,29 @@
+id: higher_order_functions
+description: "Compose, map, filter, currying, partial application"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates higher-order functions:
+
+  1. Implement `compose(f, g)` - returns a function that computes f(g(x))
+  2. Implement `add(x, y)` - adds two numbers
+  3. Implement `multiply(x, y)` - multiplies two numbers
+  4. Create `add5 = add(5, _)` using partial application (or lambda)
+  5. Create `double = multiply(2, _)` using partial application (or lambda)
+  6. Create `add5_then_double = compose(double, add5)`
+  7. Apply the composed function to 10
+  8. Print the result: "Result: {value}"
+
+  Expected computation: (10 + 5) * 2 = 30
+
+  Requirements:
+  - Use first-class functions
+  - Demonstrate function composition
+  - Show currying or partial application
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Result: 30

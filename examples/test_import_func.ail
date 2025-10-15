@@ -1,0 +1,10 @@
+module examples/test_import_func
+import stdlib/std/option (getOrElse)
+
+export pure func test() -> int {
+  42
+}
+
+export pure func main() -> int {
+  test
+}

@@ -1,0 +1,107 @@
+{
+  "file": {
+    "decls": [
+      {
+        "left": {
+          "args": [
+            {
+              "left": {
+                "name": "x",
+                "type": "Identifier"
+              },
+              "op": "+",
+              "right": {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 1
+              },
+              "type": "BinaryOp"
+            }
+          ],
+          "func": {
+            "name": "foo",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
+        },
+        "op": "+",
+        "right": {
+          "args": [
+            {
+              "left": {
+                "name": "y",
+                "type": "Identifier"
+              },
+              "op": "*",
+              "right": {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 2
+              },
+              "type": "BinaryOp"
+            }
+          ],
+          "func": {
+            "name": "bar",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "left": {
+          "args": [
+            {
+              "left": {
+                "name": "x",
+                "type": "Identifier"
+              },
+              "op": "+",
+              "right": {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 1
+              },
+              "type": "BinaryOp"
+            }
+          ],
+          "func": {
+            "name": "foo",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
+        },
+        "op": "+",
+        "right": {
+          "args": [
+            {
+              "left": {
+                "name": "y",
+                "type": "Identifier"
+              },
+              "op": "*",
+              "right": {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 2
+              },
+              "type": "BinaryOp"
+            }
+          ],
+          "func": {
+            "name": "bar",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
+        },
+        "type": "BinaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

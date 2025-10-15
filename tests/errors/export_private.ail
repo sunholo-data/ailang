@@ -1,0 +1,9 @@
+-- Test MOD006: Export of private (underscore-prefixed) name
+module tests/errors/export_private
+
+-- This should fail: cannot export private function
+export func _privateFunction(x: Int) -> Int {
+  x * 2
+}
+
+_privateFunction(5)

@@ -1,0 +1,57 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "host",
+              "typeExpr": {
+                "name": "string",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "port",
+              "typeExpr": {
+                "name": "Option",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Config",
+        "type": "TypeDecl"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "host",
+              "typeExpr": {
+                "name": "string",
+                "type": "SimpleType"
+              }
+            },
+            {
+              "name": "port",
+              "typeExpr": {
+                "name": "Option",
+                "type": "SimpleType"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Config",
+        "type": "TypeDecl"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

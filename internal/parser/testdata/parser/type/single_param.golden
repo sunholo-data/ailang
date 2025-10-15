@@ -1,0 +1,49 @@
+{
+  "file": {
+    "decls": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "value",
+              "typeExpr": {
+                "name": "a",
+                "type": "TypeVar"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Box",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "definition": {
+          "fields": [
+            {
+              "name": "value",
+              "typeExpr": {
+                "name": "a",
+                "type": "TypeVar"
+              }
+            }
+          ],
+          "type": "RecordType"
+        },
+        "name": "Box",
+        "type": "TypeDecl",
+        "typeParams": [
+          "a"
+        ]
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

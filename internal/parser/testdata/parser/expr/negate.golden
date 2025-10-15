@@ -1,0 +1,27 @@
+{
+  "file": {
+    "decls": [
+      {
+        "expr": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "expr": {
+          "name": "x",
+          "type": "Identifier"
+        },
+        "op": "-",
+        "type": "UnaryOp"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

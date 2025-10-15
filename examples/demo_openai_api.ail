@@ -1,0 +1,61 @@
+-- OpenAI GPT-4 API Example
+-- Demonstrates what's needed to call OpenAI's API
+--
+-- Setup:
+--   echo 'sk-proj-your-key-here' > .openai_key
+--   ailang run --caps Net,IO,FS --entry main examples/demo_openai_api.ail
+--
+-- Get API key at: https://platform.openai.com/api-keys
+--
+-- REQUIREMENTS FOR v0.4.0:
+--   1. Custom HTTP headers (Authorization: Bearer <token>)
+--   2. Environment variable reading (optional, cleaner than file)
+--   3. JSON parsing (to extract response text)
+
+module examples/demo_openai_api
+
+import std/io (println)
+
+export func main() -> () {
+  {
+    println("===========================================");
+    println("AILANG + OpenAI GPT-4 Example");
+    println("===========================================");
+    println("");
+    println("This example shows what will be possible in v0.4.0");
+    println("");
+
+    let hasKeyFile = _fs_exists(".openai_key");
+
+    if hasKeyFile then {
+      println("[OK] API key file found: .openai_key");
+      println("");
+      println("What this example WILL do in v0.4.0:");
+      println("  1. Read API key from file (or environment variable)");
+      println("  2. Build JSON request body");
+      println("  3. Call OpenAI API with Authorization header");
+      println("  4. Parse JSON response to extract generated text");
+      println("");
+      println("Current limitations (v0.3.0-alpha4):");
+      println("  ❌ No custom HTTP headers support");
+      println("  ❌ No environment variable reading");
+      println("  ❌ No JSON parsing");
+      println("");
+      println("WORKAROUND: Use the eval harness for now:");
+      println("  ailang eval --model gpt-4 --provider openai benchmarks/simple_math.md");
+      println("");
+      println("The eval harness already has all these features!");
+      ()
+    } else {
+      println("[Setup] No API key file found");
+      println("");
+      println("To prepare for v0.4.0, create .openai_key:");
+      println("  echo 'sk-proj-your-key-here' > .openai_key");
+      println("");
+      println("Get your API key at: https://platform.openai.com/api-keys");
+      println("");
+      println("Then this example will work once v0.4.0 is released!");
+      ()
+    }
+  }
+}

@@ -1,0 +1,7 @@
+module examples/effects_basic
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("hello effects");
+  ()
+}

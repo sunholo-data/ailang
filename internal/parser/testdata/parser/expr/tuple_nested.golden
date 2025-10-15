@@ -1,0 +1,81 @@
+{
+  "file": {
+    "decls": [
+      {
+        "elements": [
+          {
+            "elements": [
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 1
+              },
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 2
+              }
+            ],
+            "type": "Tuple"
+          },
+          {
+            "elements": [
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 3
+              },
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 4
+              }
+            ],
+            "type": "Tuple"
+          }
+        ],
+        "type": "Tuple"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "elements": [
+          {
+            "elements": [
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 1
+              },
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 2
+              }
+            ],
+            "type": "Tuple"
+          },
+          {
+            "elements": [
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 3
+              },
+              {
+                "kind": "Int",
+                "type": "Literal",
+                "value": 4
+              }
+            ],
+            "type": "Tuple"
+          }
+        ],
+        "type": "Tuple"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

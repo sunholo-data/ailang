@@ -1,0 +1,18 @@
+id: recursion_factorial
+description: "Recursive factorial computation"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Defines a recursive factorial function that computes n!
+  2. Computes factorial(10)
+  3. Prints the result
+
+  The factorial function should use recursion (not loops).
+
+  Output only the code for <LANG>, no explanations.
+expected_stdout: |
+  3628800

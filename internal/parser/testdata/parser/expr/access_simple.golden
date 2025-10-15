@@ -1,0 +1,27 @@
+{
+  "file": {
+    "decls": [
+      {
+        "field": "x",
+        "record": {
+          "name": "point",
+          "type": "Identifier"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "field": "x",
+        "record": {
+          "name": "point",
+          "type": "Identifier"
+        },
+        "type": "RecordAccess"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

@@ -1,0 +1,21 @@
+id: simple_print
+description: "Simple print test - designed to test repair mechanism"
+languages: ["python"]
+entrypoint: "main"
+caps: []
+difficulty: "trivial"
+expected_gain: "high"
+task_prompt: |
+  Write a Python program that prints exactly:
+  Hello World
+  The answer is 42
+
+  Requirements:
+  - Two lines of output
+  - First line: "Hello World"
+  - Second line: "The answer is 42"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Hello World
+  The answer is 42

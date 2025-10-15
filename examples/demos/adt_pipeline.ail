@@ -1,0 +1,19 @@
+module examples/demos/adt_pipeline
+import std/option (Some, None, map, getOrElse)
+
+-- Demonstrate ADT usage with Option type
+-- Entry takes an integer and returns doubled value or default
+export func processValue(x: int) -> int {
+  let opt = if x > 0 then Some(x) else None in
+  let doubled = map(\y. y * 2, opt) in
+  getOrElse(doubled, 42)
+}
+
+-- Zero-arg entrypoint for demonstration
+export func demo() -> int {
+  processValue(21)
+}
+
+export func main() -> int {
+  processValue(21)
+}

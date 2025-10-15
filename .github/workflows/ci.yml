@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    
+    - name: Install dependencies
+      run: make deps
+    
+    - name: Run tests
+      run: make test
+
+    - name: Run parser tests
+      run: make test-parser
+
+    - name: Check per-package coverage gates (M-P2)
+      run: |
+        make cover-all-packages
+        make gate-all-packages
+
+    - name: Check golden drift protection (M-P2)
+      run: make check-golden-drift
+      env:
+        ALLOW_GOLDEN_UPDATES: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[golden-update]') && '1' || '' }}
+
+    - name: Fuzz parser (short)
+      run: make fuzz-parser
+
+    - name: Run operator lowering tests
+      run: make test-lowering
+
+    - name: Test import system (success cases)
+      run: make test-imports-success
+
+    - name: Test import errors (golden file verification)
+      run: make test-import-errors
+
+    - name: Verify no shim usage (CI gate)
+      run: make verify-no-shim
+      env:
+        AILANG_REQUIRE_LOWERING: "true"
+    
+    - name: Generate test coverage
+      run: |
+        go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)
+        go tool cover -func=coverage.out
+        # Extract coverage percentage for badge
+        COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+        echo "Coverage: $COVERAGE%"
+        
+        # Generate coverage badge color
+        if (( $(echo "$COVERAGE < 20" | bc -l) )); then
+          COLOR="red"
+        elif (( $(echo "$COVERAGE < 40" | bc -l) )); then
+          COLOR="orange"
+        elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+          COLOR="yellow"
+        elif (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          COLOR="green"
+        else
+          COLOR="brightgreen"
+        fi
+        echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
+    
+    
+    - name: Verify examples
+      id: verify
+      run: |
+        make verify-examples > examples_output.txt 2>&1 || true
+        cat examples_output.txt
+        if grep -q "Failed: 0" examples_output.txt; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Update example status and coverage in README
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      run: |
+        # Use the Makefile which handles module paths correctly
+        make update-readme
+        
+        # Get coverage percentage
+        make test-coverage-badge
+        COVERAGE=$(cat coverage.txt)
+        
+        # Determine badge color based on coverage
+        if (( $(echo "$COVERAGE < 20" | bc -l) )); then
+          COLOR="red"
+        elif (( $(echo "$COVERAGE < 40" | bc -l) )); then
+          COLOR="orange"
+        elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+          COLOR="yellow"
+        elif (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          COLOR="green"
+        else
+          COLOR="brightgreen"
+        fi
+        
+        # Update the coverage badge in README
+        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
+        
+        echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
+    
+    - name: Commit README updates
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: 'Update example verification status and coverage [skip ci]'
+        file_pattern: 'README.md'
+        commit_user_name: github-actions[bot]
+        commit_user_email: github-actions[bot]@users.noreply.github.com
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+    
+    - name: Build binary
+      run: make build
+    
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ailang-binary
+        path: bin/ailang
+
+  docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Sync prompts/ to docs/prompts/
+      run: ./tools/sync-prompts.sh
+
+    - name: Generate llms.txt
+      run: ./tools/generate-llms-txt.sh
+
+    - name: Commit documentation updates
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: 'Docs: Auto-sync prompts and generate llms.txt [skip ci]'
+        file_pattern: 'docs/prompts/*.md docs/llms.txt llms.txt'
+        commit_user_name: github-actions[bot]
+        commit_user_email: github-actions[bot]@users.noreply.github.com
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+
+    - name: Check code formatting
+      run: make fmt-check
+
+    - name: Run go vet
+      run: make vet
+
+    - name: Install and run golangci-lint
+      run: |
+        make install-lint
+        make lint

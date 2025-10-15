@@ -1,0 +1,22 @@
+id: adt_option
+description: "Option/Maybe monad operations (algebraic data types)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Defines an Option type (Some/None, or equivalent)
+  2. Implements a safe division function that returns Option[Float]
+     - Returns Some(result) if divisor is non-zero
+     - Returns None if divisor is zero
+  3. Tests the function with: divide(10, 2) and divide(10, 0)
+  4. Prints the results:
+     - For Some(value): print "Result: {value}"
+     - For None: print "Error: Division by zero"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Result: 5.0
+  Error: Division by zero

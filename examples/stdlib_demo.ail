@@ -1,0 +1,14 @@
+-- ⚠️  NOTE: This example type-checks but cannot execute until v0.2.0
+-- The module execution feature is planned for the next release.
+-- Current status: Parses ✓, Type-checks ✓, Executes ✗
+
+module examples/stdlib_demo
+import stdlib/std/io (println)
+import stdlib/std/list (map)
+import stdlib/std/string (toUpper)
+import stdlib/std/option (Some, getOrElse)
+
+export func main() -> () ! {IO} {
+  let s = toUpper("hello");
+  println("Result: " ++ s)
+}

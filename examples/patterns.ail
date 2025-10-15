@@ -1,0 +1,123 @@
+-- patterns.ail - Comprehensive pattern matching examples
+-- Demonstrates all pattern types supported in AILANG
+
+-- =======================
+-- TUPLE PATTERNS
+-- =======================
+
+-- Simple tuple destructuring
+match (1, 2) {
+  (x, y) => x + y
+}
+-- Output: 3
+
+-- Nested tuples
+match ((1, 2), (3, 4)) {
+  ((a, b), (c, d)) => a + b + c + d
+}
+-- Output: 10
+
+-- =======================
+-- LITERAL PATTERNS
+-- =======================
+
+-- Integer literals
+match 42 {
+  0 => "zero",
+  42 => "forty-two",
+  _ => "other"
+}
+-- Output: "forty-two"
+
+-- String literals
+match "hello" {
+  "hello" => "greeting",
+  "goodbye" => "farewell",
+  _ => "unknown"
+}
+-- Output: "greeting"
+
+-- Boolean literals
+match true {
+  true => "yes",
+  false => "no"
+}
+-- Output: "yes"
+
+-- =======================
+-- VARIABLE PATTERNS
+-- =======================
+
+-- Binding values to variables
+match 100 {
+  x => x * 2
+}
+-- Output: 200
+
+-- =======================
+-- WILDCARD PATTERNS
+-- =======================
+
+-- Catch-all pattern
+match 999 {
+  0 => "zero",
+  1 => "one",
+  _ => "many"
+}
+-- Output: "many"
+
+-- =======================
+-- ADT CONSTRUCTOR PATTERNS
+-- =======================
+
+type Option[a] = Some(a) | None
+
+-- Matching constructors with fields
+match Some(42) {
+  Some(n) => n * 2,
+  None => 0
+}
+-- Output: 84
+
+-- Matching nullary constructors
+match None {
+  Some(n) => n,
+  None => -1
+}
+-- Output: -1
+
+-- =======================
+-- NESTED PATTERNS
+-- =======================
+
+type Result[a, e] = Ok(a) | Err(e)
+
+-- Nested ADT patterns
+match Ok(Some(42)) {
+  Ok(Some(n)) => n,
+  Ok(None) => 0,
+  Err(e) => -1
+}
+-- Output: 42
+
+-- Tuple with ADT patterns
+match (Some(1), Some(2)) {
+  (Some(x), Some(y)) => x + y,
+  (Some(x), None) => x,
+  (None, Some(y)) => y,
+  (None, None) => 0
+}
+-- Output: 3
+
+-- =======================
+-- COMPLEX EXAMPLES
+-- =======================
+
+-- Pattern matching in expressions
+let result = match (10, 20) {
+  (0, y) => y,
+  (x, 0) => x,
+  (x, y) => x + y
+} in
+result
+-- Output: 30

@@ -1,0 +1,6 @@
+-- Showcase: Type Classes
+-- Operators work on different types!
+
+let intSum = 5 + 10 in
+let floatSum = 3.14 + 2.86 in
+print("Type classes: Int=" ++ show(intSum) ++ " Float=" ++ show(floatSum))

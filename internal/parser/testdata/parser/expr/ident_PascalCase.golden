@@ -1,0 +1,19 @@
+{
+  "file": {
+    "decls": [
+      {
+        "name": "FooBar",
+        "type": "Identifier"
+      }
+    ],
+    "path": "test://unit",
+    "statements": [
+      {
+        "name": "FooBar",
+        "type": "Identifier"
+      }
+    ],
+    "type": "File"
+  },
+  "type": "Program"
+}

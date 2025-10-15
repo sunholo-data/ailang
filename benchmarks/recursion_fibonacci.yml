@@ -1,0 +1,19 @@
+id: recursion_fibonacci
+description: "Recursive Fibonacci computation (compute-intensive)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Defines a recursive Fibonacci function: fib(0) = 0, fib(1) = 1, fib(n) = fib(n-1) + fib(n-2)
+  2. Computes fib(20)
+  3. Prints the result
+
+  The function MUST use recursion (not loops or memoization).
+  This will be compute-intensive to test execution performance.
+
+  Output only the code for <LANG>, no explanations.
+expected_stdout: |
+  6765

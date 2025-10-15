@@ -1,0 +1,24 @@
+id: record_update
+description: "Record update syntax {r | field: value}"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a person record: {name: "Alice", age: 30, city: "NYC"}
+  2. Creates an updated version with age incremented by 1 (using record update syntax)
+  3. Creates another update changing only the city to "SF"
+  4. Prints all three records in format: "{name}, {age}, {city}"
+
+  Requirements:
+  - For AILANG: Use record update syntax {r | field: value}
+  - For Python: Use dict update or dataclass replace
+  - Each update creates a NEW record (immutable)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Alice, 30, NYC
+  Alice, 31, NYC
+  Alice, 31, SF

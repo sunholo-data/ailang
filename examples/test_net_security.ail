@@ -1,0 +1,9 @@
+-- Test Net effect security features
+-- This should FAIL with E_NET_IP_BLOCKED (localhost)
+module examples/test_net_security
+
+export func main() -> () {
+  _io_println("Testing localhost IP blocking...");
+  let result = _net_httpGet("https://127.0.0.1:8443/test");
+  _io_println(result)
+}

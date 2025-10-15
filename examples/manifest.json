@@ -1,0 +1,133 @@
+{
+  "schema": "ailang.manifest/v1",
+  "schema_version": "1.0.0",
+  "generated_at": "2025-10-01T00:00:00Z",
+  "generator": "manual-v2",
+  "examples": [
+    {
+      "path": "hello.ail",
+      "status": "working",
+      "tags": ["basic", "io"],
+      "description": "Basic hello world program",
+      "expected": {
+        "stdout": "Hello, AILANG!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "simple.ail",
+      "status": "working",
+      "tags": ["basic", "arithmetic", "let"],
+      "description": "Let bindings and arithmetic",
+      "expected": {
+        "stdout": "10\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "arithmetic.ail",
+      "status": "working",
+      "tags": ["typeclass", "show", "arithmetic"],
+      "description": "Show type class usage with multiple types",
+      "expected": {
+        "stdout": "42\n3.14159\ntrue\nHello, AILANG!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "lambda_expressions.ail",
+      "status": "working",
+      "tags": ["lambda", "functional", "closures", "higher-order"],
+      "description": "Comprehensive lambda examples: currying, closures, composition"
+    },
+    {
+      "path": "adt_simple.ail",
+      "status": "working",
+      "tags": ["adt", "pattern-matching", "m-p3"],
+      "description": "ADT declaration and constructor pattern matching",
+      "expected": {
+        "stdout": "42\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "adt_option.ail",
+      "status": "working",
+      "tags": ["adt", "pattern-matching", "option", "m-p3"],
+      "description": "Option type with pattern matching",
+      "expected": {
+        "stdout": "42\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "patterns.ail",
+      "status": "working",
+      "tags": ["pattern-matching", "tuples", "adt", "m-p3"],
+      "description": "All pattern types: tuples, literals, constructors, nested"
+    },
+    {
+      "path": "typeclasses.ail",
+      "status": "working",
+      "tags": ["typeclass", "num", "eq", "ord", "show"],
+      "description": "Type class usage: Num, Eq, Ord, Show"
+    },
+    {
+      "path": "records.ail",
+      "status": "working",
+      "tags": ["records", "field-access", "nesting"],
+      "description": "Record literals, field access, nested records"
+    },
+    {
+      "path": "experimental/factorial.ail",
+      "status": "experimental",
+      "tags": ["func", "recursion", "tests", "future"],
+      "description": "Factorial with func declarations and tests syntax",
+      "requires": ["func", "tests", "properties"],
+      "skip_reason": "func declarations not implemented"
+    },
+    {
+      "path": "experimental/quicksort.ail",
+      "status": "experimental",
+      "tags": ["func", "algorithms", "pattern-matching", "future"],
+      "description": "Quicksort with advanced list patterns",
+      "requires": ["func", "list-patterns", "properties"],
+      "skip_reason": "func and advanced patterns not implemented"
+    },
+    {
+      "path": "experimental/concurrent_pipeline.ail",
+      "status": "experimental",
+      "tags": ["csp", "channels", "concurrency", "future"],
+      "description": "CSP-based concurrent pipeline",
+      "requires": ["channels", "spawn", "parallel", "session-types"],
+      "skip_reason": "CSP not implemented"
+    },
+    {
+      "path": "experimental/web_api.ail",
+      "status": "experimental",
+      "tags": ["quasiquotes", "http", "effects", "future"],
+      "description": "Web API with SQL/HTML quasiquotes",
+      "requires": ["quasiquotes", "http-effects", "db-effects"],
+      "skip_reason": "Quasiquotes not implemented"
+    },
+    {
+      "path": "experimental/ai_agent_integration.ail",
+      "status": "experimental",
+      "tags": ["ai", "effects", "introspection", "future"],
+      "description": "AI agent integration demonstration",
+      "requires": ["effects", "introspection", "json-schema"],
+      "skip_reason": "Full effect system not implemented"
+    }
+  ],
+  "statistics": {
+    "total": 14,
+    "working": 9,
+    "experimental": 5,
+    "coverage": 0.643
+  },
+  "milestones": {
+    "completed": ["M-P1", "M-P2", "M-P3"],
+    "in_progress": ["M-P4"],
+    "planned": ["Module-System", "Effect-Runtime", "Quasiquotes", "CSP"]
+  }
+}

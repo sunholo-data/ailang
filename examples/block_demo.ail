@@ -1,0 +1,16 @@
+export func compute() -> int {
+  let x = 1 + 2;
+  let y = x * 3;
+  let z = y + 10;
+  z * 2
+}
+
+export func singleLine() -> int {
+  42
+}
+
+export func multiStep() -> int {
+  let a = 10;
+  let b = 20;
+  a + b
+}

@@ -1,0 +1,5 @@
+-- Test wildcard makes match exhaustive
+match true {
+  true => "yes",
+  _ => "other"
+}
