@@ -250,16 +250,6 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	}
 }
 
-// hasTopLevelPipe scans ahead to check if there's a pipe (|) at depth 0
-// Used to disambiguate type aliases from sum types
-// Returns true if finds unbalanced | at depth 0 before newline/EOF
-// This is a simple check that peeks at the next few tokens
-func (p *Parser) hasTopLevelPipe() bool {
-	// Simple heuristic: check if peek token is PIPE
-	// or if we're at an identifier and peek is PIPE
-	return p.peekTokenIs(lexer.PIPE)
-}
-
 func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 	// Lexer already skips whitespace/newlines, so we don't need to call skipNewlinesAndComments()
 
