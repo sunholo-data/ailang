@@ -50,7 +50,7 @@ func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
-	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)")
+	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all 6 models from extended_suite (gpt5, gpt5-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-2-5-pro, gemini-2-5-flash)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
@@ -71,8 +71,13 @@ func runEvalSuite() {
 		// User specified models explicitly
 		modelList = strings.Split(*models, ",")
 	} else if *fullSuite {
-		// Full suite: use expensive/comprehensive models
-		modelList = []string{"gpt5", "claude-sonnet-4-5", "gemini-2-5-pro"}
+		// Full suite: use extended suite (all 6 models) from models.yml
+		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.ExtendedSuite) > 0 {
+			modelList = eval_harness.GlobalModelsConfig.ExtendedSuite
+		} else {
+			// Fallback if models.yml not loaded
+			modelList = []string{"gpt5", "gpt5-mini", "claude-sonnet-4-5", "claude-haiku-4-5", "gemini-2-5-pro", "gemini-2-5-flash"}
+		}
 	} else {
 		// Default: use dev models from models.yml
 		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.DevModels) > 0 {

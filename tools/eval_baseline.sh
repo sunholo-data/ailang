@@ -56,9 +56,9 @@ BASELINE_DIR="eval_results/baselines/${VERSION}"
 if [ -n "$MODELS" ]; then
   MODEL_DESC="$MODELS (custom)"
 elif [ "$FULL_SUITE" = "true" ]; then
-  MODEL_DESC="gpt5, claude-sonnet-4-5, gemini-2-5-pro (--full)"
+  MODEL_DESC="All 6 models: gpt5, gpt5-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-2-5-pro, gemini-2-5-flash (--full)"
 else
-  MODEL_DESC="gpt5-mini, gemini-2-5-flash (dev default)"
+  MODEL_DESC="Dev models: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash (default)"
 fi
 
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"

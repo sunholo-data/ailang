@@ -562,12 +562,7 @@ ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
 
 **Default model sets:**
 - `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
-- `ailang eval-suite --full` → gpt5, claude-sonnet-4-5, gemini-2-5-pro (expensive)
-
-**For baselines with all 6 models:**
-```bash
-ailang eval-suite --models gpt5,gpt5-mini,claude-sonnet-4-5,claude-haiku-4-5,gemini-2-5-pro,gemini-2-5-flash
-```
+- `ailang eval-suite --full` → Reads from `extended_suite` in models.yml (all 6 models: gpt5, gpt5-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-2-5-pro, gemini-2-5-flash)
 
 **Quick reference - Common eval commands:**
 ```bash
@@ -582,8 +577,8 @@ ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
 ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
 
 # Run baseline (REQUIRES explicit version!)
-make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models
-make eval-baseline EVAL_VERSION=v0.3.10 FULL=true    # Uses expensive models
+make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models (3 cheap models)
+make eval-baseline EVAL_VERSION=v0.3.10 FULL=true    # Uses ALL 6 models (extended_suite)
 
 # Compare two baselines
 ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
