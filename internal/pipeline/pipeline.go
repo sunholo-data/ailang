@@ -419,8 +419,14 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Always include $builtin module exports (available to all modules)
 		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
 			for name, item := range builtinIface.Exports {
+				// Add with qualified key (for explicit $builtin.name references)
 				key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 				externalTypes[key] = item.Type
+
+				// CRITICAL FIX: Also add with simple name so stdlib can reference _io_print directly
+				// This preserves the effect row from the spec registry
+				externalTypes[name] = item.Type
+
 				globalRefs[name] = item.Ref
 			}
 		}

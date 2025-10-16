@@ -89,7 +89,7 @@ func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 
 	case ":reset":
 		r.env = eval.NewEnvironment()
-		r.typeEnv = types.NewTypeEnv()
+		r.typeEnv = types.NewTypeEnvWithBuiltins() // Reload builtins on reset
 		r.instEnv = types.NewInstanceEnv()
 		// Re-import prelude after reset
 		r.importModule("std/prelude", io.Discard)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/lexer"
+	_ "github.com/sunholo/ailang/internal/link" // Initialize builtin env factory
 	"github.com/sunholo/ailang/internal/parser"
 	"github.com/sunholo/ailang/internal/types"
 )

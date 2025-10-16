@@ -1,8 +1,9 @@
 package types
 
 import (
-	"github.com/sunholo/ailang/internal/core"
 	"testing"
+
+	"github.com/sunholo/ailang/internal/core"
 )
 
 // TestDefaulting_LocalDefaulting tests basic defaulting behavior
@@ -33,7 +34,7 @@ func TestDefaulting_LocalDefaulting(t *testing.T) {
 			coreExpr := parseTestExpr(tt.expr)
 
 			// Type check with fresh environment
-			env := NewTypeEnvWithBuiltins()
+			env := NewTypeEnv()
 			typedNode, _, err := tc.CheckCoreExpr(coreExpr, env)
 			if err != nil {
 				t.Fatalf("Type checking failed for %s: %v", tt.expr, err)
@@ -102,7 +103,7 @@ func TestDefaulting_OperatorGroundness(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			coreExpr := parseTestExpr(tt.expr)
 
-			_, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnvWithBuiltins())
+			_, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnv())
 			if err != nil {
 				t.Fatalf("Type checking failed: %v", err)
 			}
@@ -159,7 +160,7 @@ func TestDefaulting_PolymorphismPreservation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			coreExpr := parseTestExpr(tt.expr)
 
-			typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnvWithBuiltins())
+			typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnv())
 			if err != nil {
 				t.Fatalf("Type checking failed: %v", err)
 			}
@@ -199,7 +200,7 @@ func TestDefaulting_NestedLets(t *testing.T) {
 
 	coreExpr := parseTestExpr(expr)
 
-	typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnvWithBuiltins())
+	typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnv())
 	if err != nil {
 		t.Fatalf("Type checking failed: %v", err)
 	}
@@ -232,7 +233,7 @@ func TestDefaulting_MixedConstraints(t *testing.T) {
 	expr := "1 + 1"
 	coreExpr := parseTestExpr(expr)
 
-	_, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnvWithBuiltins())
+	_, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnv())
 	if err != nil {
 		t.Fatalf("Type checking should succeed for pure Num constraint: %v", err)
 	}
@@ -253,8 +254,8 @@ func TestDefaulting_REPLParity(t *testing.T) {
 	coreExpr1 := parseTestExpr(expr)
 	coreExpr2 := parseTestExpr(expr)
 
-	node1, _, err1 := tc1.CheckCoreExpr(coreExpr1, NewTypeEnvWithBuiltins())
-	node2, _, err2 := tc2.CheckCoreExpr(coreExpr2, NewTypeEnvWithBuiltins())
+	node1, _, err1 := tc1.CheckCoreExpr(coreExpr1, NewTypeEnv())
+	node2, _, err2 := tc2.CheckCoreExpr(coreExpr2, NewTypeEnv())
 
 	if err1 != nil || err2 != nil {
 		t.Fatalf("Type checking failed: %v, %v", err1, err2)
@@ -286,7 +287,7 @@ func TestDefaulting_NoEffectLeakage(t *testing.T) {
 	expr := "1"
 	coreExpr := parseTestExpr(expr)
 
-	typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnvWithBuiltins())
+	typedNode, _, err := tc.CheckCoreExpr(coreExpr, NewTypeEnv())
 	if err != nil {
 		t.Fatalf("Type checking failed: %v", err)
 	}

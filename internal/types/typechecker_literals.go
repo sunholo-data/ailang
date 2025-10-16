@@ -108,6 +108,7 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlobal) (*typedast.TypedVar, *TypeEnv, error) {
 	// Look up the type in the global types
 	key := fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name)
+
 	scheme, ok := tc.globalTypes[key]
 	if !ok {
 		return nil, ctx.env, fmt.Errorf("undefined global variable: %s from %s", v.Ref.Name, v.Ref.Module)
@@ -126,6 +127,14 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 	// Instantiate the scheme
 	monotype := scheme.Instantiate(ctx.freshType)
 
+	// DEBUG: Check instantiated type
+	if v.Ref.Name == "_io_print" {
+		fmt.Printf("  After instantiation: %v\n", monotype)
+		if fn, ok := monotype.(*TFunc2); ok {
+			fmt.Printf("  Instantiated EffectRow: %v\n", fn.EffectRow)
+		}
+	}
+
 	// Record instantiation after it happens
 	if tc.trackInstantiations {
 		tc.instantiations = append(tc.instantiations, Instantiation{
@@ -141,7 +150,7 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 			NodeID:    v.ID(),
 			Span:      v.Span(),
 			Type:      monotype,
-			EffectRow: EmptyEffectRow(),
+			EffectRow: EmptyEffectRow(), // Variable reference itself has no effects
 			Core:      v,
 		},
 		Name: fmt.Sprintf("%s.%s", v.Ref.Module, v.Ref.Name),

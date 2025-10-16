@@ -18,101 +18,25 @@ func NewTypeEnv() *TypeEnv {
 	}
 }
 
-// NewTypeEnvWithBuiltins creates a type environment with builtin functions
+// builtinEnvFactory is set by internal/link package during init to avoid import cycles
+var builtinEnvFactory func() *TypeEnv
+
+// SetBuiltinEnvFactory allows the link package to provide the builtin env implementation
+func SetBuiltinEnvFactory(factory func() *TypeEnv) {
+	builtinEnvFactory = factory
+}
+
+// NewTypeEnvWithBuiltins creates a type environment with builtin functions.
+//
+// This delegates to internal/link/env_seed.go which seeds the environment
+// from the linker's $builtin interface, ensuring all 49 spec-registered
+// builtins (with correct effect rows) are visible to the typechecker.
 func NewTypeEnvWithBuiltins() *TypeEnv {
-	env := NewTypeEnv()
-
-	// Add builtin functions
-	// print : ∀α. α -> () ! {IO}
-	env.bindBuiltin("print", &Scheme{
-		TypeVars: []string{"α"},
-		Type: &TFunc2{
-			Params: []Type{&TVar2{Name: "α", Kind: Star}},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"IO": TUnit},
-				Tail:   nil,
-			},
-			Return: TUnit,
-		},
-	})
-
-	// readFile : string -> string ! {FS}
-	env.bindBuiltin("readFile", &Scheme{
-		Type: &TFunc2{
-			Params: []Type{TString},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"FS": TUnit},
-				Tail:   nil,
-			},
-			Return: TString,
-		},
-	})
-
-	// writeFile : string -> string -> () ! {FS}
-	env.bindBuiltin("writeFile", &Scheme{
-		Type: &TFunc2{
-			Params: []Type{TString, TString},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"FS": TUnit},
-				Tail:   nil,
-			},
-			Return: TUnit,
-		},
-	})
-
-	// show : ∀α. α -> string
-	env.bindBuiltin("show", &Scheme{
-		TypeVars: []string{"α"},
-		Type: &TFunc2{
-			Params: []Type{&TVar2{Name: "α", Kind: Star}},
-			Return: TString,
-		},
-	})
-
-	// httpGet : string -> string ! {Net}
-	env.bindBuiltin("httpGet", &Scheme{
-		Type: &TFunc2{
-			Params: []Type{TString},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"Net": TUnit},
-				Tail:   nil,
-			},
-			Return: TString,
-		},
-	})
-
-	// random : () -> float ! {Rand}
-	env.bindBuiltin("random", &Scheme{
-		Type: &TFunc2{
-			Params: []Type{TUnit},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"Rand": TUnit},
-				Tail:   nil,
-			},
-			Return: TFloat,
-		},
-	})
-
-	// trace : ∀α. string -> α -> α ! {Trace}
-	env.bindBuiltin("trace", &Scheme{
-		TypeVars: []string{"α"},
-		Type: &TFunc2{
-			Params: []Type{TString, &TVar2{Name: "α", Kind: Star}},
-			EffectRow: &Row{
-				Kind:   EffectRow,
-				Labels: map[string]Type{"Trace": TUnit},
-				Tail:   nil,
-			},
-			Return: &TVar2{Name: "α", Kind: Star},
-		},
-	})
-
-	return env
+	if builtinEnvFactory == nil {
+		// Fallback if link package hasn't initialized yet (shouldn't happen in normal use)
+		panic("NewTypeEnvWithBuiltins called before link package initialized")
+	}
+	return builtinEnvFactory()
 }
 
 // Extend creates a new environment with an additional binding
