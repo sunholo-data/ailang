@@ -738,17 +738,7 @@ func runDoctor() {
 		os.Exit(1)
 	}
 
-	// Check if new registry is enabled
-	if os.Getenv("AILANG_BUILTINS_REGISTRY") != "1" {
-		fmt.Println("⚠️  New builtin registry not enabled")
-		fmt.Println("Set AILANG_BUILTINS_REGISTRY=1 to use the new registry")
-		fmt.Println()
-		fmt.Println("Current status: Using legacy builtin registration")
-		return
-	}
-
-	// Import builtins package
-	// Note: import is at top of file
+	// Validate builtins from new spec-based registry (M-DX1 complete in v0.3.10)
 	errors := builtins.ValidateBuiltins()
 
 	if len(errors) == 0 {
@@ -823,23 +813,7 @@ func runBuiltins() {
 	byModule := listFlags.Bool("by-module", false, "Group by module")
 	_ = listFlags.Parse(flag.Args()[2:]) // ExitOnError means this never returns an error we can handle
 
-	// Check if new registry is enabled
-	if os.Getenv("AILANG_BUILTINS_REGISTRY") != "1" {
-		fmt.Println("⚠️  New builtin registry not enabled")
-		fmt.Println("Set AILANG_BUILTINS_REGISTRY=1 to use the new registry")
-		fmt.Println()
-
-		// Show stats from old registry
-		oldBuiltins := builtins.GetBuiltinNames()
-		sortStrings(oldBuiltins)
-		fmt.Printf("Legacy registry has %d builtins:\n", len(oldBuiltins))
-		for _, name := range oldBuiltins {
-			fmt.Printf("  %s\n", name)
-		}
-		return
-	}
-
-	// Get all specs
+	// Get all specs from new registry (M-DX1 complete in v0.3.10)
 	specs := builtins.AllSpecs()
 
 	if len(specs) == 0 {
