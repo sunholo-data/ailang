@@ -15,7 +15,7 @@ AILANG v0.3.9 introduces first-class support for calling AI APIs with HTTP heade
 
 ### 1. Claude (Anthropic) API
 
-**Example:** [`examples/claude_haiku_call.ail`](../../examples/claude_haiku_call.ail)
+**Example:** `examples/claude_haiku_call.ail`
 
 ```ailang
 import std/json (encode, jo, ja, kv, js, jnum)
@@ -89,7 +89,7 @@ Immutable data glides smooth\nCode without side paths"}],
 
 ### 2. OpenAI API
 
-**Example:** [`examples/ai_call.ail`](../../examples/ai_call.ail)
+**Example:** `examples/ai_call.ail`
 
 ```ailang
 import std/json (encode, jo, ja, kv, js, jnum)
@@ -450,7 +450,7 @@ func callAPI(endpoint: string, payload: Json, apiKey: string) -> string ! {Net, 
 
 ## Related Documentation
 
-- [Net Effect Security](../guides/effects/net-effect.md)
-- [JSON Module Reference](../reference/stdlib/json.md)
-- [Result Type](../reference/stdlib/result.md)
-- [Examples Overview](./README.md)
+See the AILANG repository for more examples and documentation:
+- `/examples/` - Complete example files
+- `/stdlib/` - Standard library implementations
+- `/docs/LIMITATIONS.md` - Known limitations and workarounds
