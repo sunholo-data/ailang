@@ -3,11 +3,17 @@
 # eval_baseline.sh - Store current eval results as baseline for comparison
 #
 # Usage:
-#   ./tools/eval_baseline.sh [VERSION] [MODEL] [LANGS]
+#   VERSION=v0.3.10 ./tools/eval_baseline.sh
+#   VERSION=v0.3.10 FULL=true ./tools/eval_baseline.sh
 #
-# Example:
-#   ./tools/eval_baseline.sh v0.3.0-alpha5
-#   MODEL=gpt5 ./tools/eval_baseline.sh v0.3.1
+# Required:
+#   VERSION - Explicit version string (e.g., v0.3.10)
+#
+# Optional:
+#   FULL=true - Use expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
+#   MODELS=... - Custom model list (comma-separated)
+#   LANGS=... - Languages to test (default: python,ailang)
+#   PARALLEL=N - Number of parallel jobs (default: 5)
 #
 # This script:
 # 1. Runs full benchmark suite (using ailang eval-suite)
@@ -25,8 +31,20 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Defaults
-VERSION="${1:-$(git describe --tags --always 2>/dev/null || echo "dev")}"
+# VERSION is now REQUIRED (no default from git describe)
+VERSION="${VERSION:-}"
+if [ -z "$VERSION" ]; then
+  echo -e "${RED}Error: VERSION environment variable is required${NC}"
+  echo ""
+  echo "Usage:"
+  echo "  VERSION=v0.3.10 ./tools/eval_baseline.sh"
+  echo "  VERSION=v0.3.10 FULL=true ./tools/eval_baseline.sh"
+  echo ""
+  echo "Or use make target:"
+  echo "  make eval-baseline VERSION=v0.3.10"
+  echo ""
+  exit 1
+fi
 FULL_SUITE="${FULL:-false}"  # Set FULL=true for full expensive suite
 MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
@@ -89,15 +107,15 @@ fi
 "${CMD[@]}"
 
 # Check results
-SUCCESS_COUNT=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r 'select(.stdout_ok == true) | .id' {} \; 2>/dev/null | sort -u | wc -l | tr -d ' ')
 TOTAL_COUNT=$(find "$BASELINE_DIR" -name "*.json" -type f | wc -l | tr -d ' ')
-FAIL_COUNT=$((TOTAL_COUNT - SUCCESS_COUNT))
+
+# Note: We don't cache success_count anymore - it's calculated dynamically from result files
+# This prevents the "wrong success_count" bug (e.g., 20 vs actual 74 in v0.3.9)
 
 echo ""
 echo -e "${GREEN}✓ Benchmarks complete${NC}"
-echo "  Success: $SUCCESS_COUNT"
-echo "  Failed:  $FAIL_COUNT"
-echo "  Total:   $TOTAL_COUNT"
+echo "  Total runs: $TOTAL_COUNT"
+echo "  (Success count calculated dynamically from result files)"
 echo ""
 
 # Generate performance matrix
@@ -114,17 +132,19 @@ METADATA_FILE="${BASELINE_DIR}/baseline.json"
 # Determine actual models used (extract from result files)
 ACTUAL_MODELS=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.model' {} \; 2>/dev/null | sort -u | paste -sd "," -)
 
+# Get git describe for reference (but keep version separate)
+GIT_DESCRIBE="$(git describe --tags --always 2>/dev/null || echo "unknown")"
+
 cat > "$METADATA_FILE" << EOF
 {
   "version": "$VERSION",
+  "git_describe": "$GIT_DESCRIBE",
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "models": "$ACTUAL_MODELS",
   "full_suite": $FULL_SUITE,
   "languages": "$LANGS",
   "parallel": $PARALLEL,
   "total_runs": $TOTAL_COUNT,
-  "success_count": $SUCCESS_COUNT,
-  "fail_count": $FAIL_COUNT,
   "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo "unknown")",
   "git_branch": "$(git branch --show-current 2>/dev/null || echo "unknown")",
   "git_dirty": $(git diff-index --quiet HEAD -- 2>/dev/null && echo "false" || echo "true")

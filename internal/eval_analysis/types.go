@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -191,6 +192,54 @@ type SummaryEntry struct {
 	DurationMs     int64   `json:"duration_ms"`
 	Timestamp      string  `json:"timestamp"`
 	Stderr         string  `json:"stderr,omitempty"`
+}
+
+// DashboardJSON represents the structure of docs/static/benchmarks/latest.json
+// This is the single source of truth for the dashboard frontend
+type DashboardJSON struct {
+	Version    string                 `json:"version"`
+	Timestamp  string                 `json:"timestamp"`
+	TotalRuns  int                    `json:"totalRuns"`
+	Aggregates map[string]interface{} `json:"aggregates"`
+	Models     map[string]interface{} `json:"models"`
+	Benchmarks map[string]interface{} `json:"benchmarks"`
+	Languages  map[string]interface{} `json:"languages"` // map[language]->stats
+	History    []HistoryEntry         `json:"history"`
+}
+
+// HistoryEntry represents a single version's data in the history array
+type HistoryEntry struct {
+	Version       string                 `json:"version"`
+	Timestamp     string                 `json:"timestamp"`
+	SuccessRate   float64                `json:"successRate"`
+	TotalRuns     int                    `json:"totalRuns"`
+	SuccessCount  int                    `json:"successCount"`
+	Languages     string                 `json:"languages"`
+	LanguageStats map[string]interface{} `json:"languageStats,omitempty"`
+}
+
+// Validate checks if a DashboardJSON structure is valid
+func (d *DashboardJSON) Validate() error {
+	if d.Version == "" {
+		return fmt.Errorf("version required")
+	}
+	if d.Timestamp == "" {
+		return fmt.Errorf("timestamp required")
+	}
+	if len(d.History) == 0 {
+		return fmt.Errorf("history must have at least one entry")
+	}
+
+	// Check for duplicate versions in history
+	seen := make(map[string]bool)
+	for _, entry := range d.History {
+		if seen[entry.Version] {
+			return fmt.Errorf("duplicate version in history: %s", entry.Version)
+		}
+		seen[entry.Version] = true
+	}
+
+	return nil
 }
 
 // ToSummaryEntry converts a BenchmarkResult to a SummaryEntry for JSONL export
