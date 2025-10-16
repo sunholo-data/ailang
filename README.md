@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-30.5%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-31.9%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -314,26 +314,26 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-52%20passing%2031%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-38%20passing%2045%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-16 11:47:08 UTC*
+*Last updated: 2025-10-16 17:40:14 UTC*
 
-**Summary:** 52 passed, 31 failed, 4 skipped (Total: 87)
+**Summary:** 38 passed, 45 failed, 4 skipped (Total: 87)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
-| `ai_call.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `ai_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `block_recursion.ail` | ✅ Pass |  |
+| `block_recursion.ail` | ❌ Fail | Error: type error in examples/block_recursion (... |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
-| `claude_haiku_call.ail` | ❌ Fail | Error: execution failed: effect 'IO' requires c... |
-| `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `claude_haiku_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
@@ -347,25 +347,25 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
-| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): t... |
+| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): u... |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
-| `letrec_recursion.ail` | ✅ Pass |  |
+| `letrec_recursion.ail` | ❌ Fail | Error: type error in examples/letrec_recursion ... |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `micro_block_if.ail` | ✅ Pass |  |
 | `micro_block_seq.ail` | ✅ Pass |  |
 | `micro_clock_measure.ail` | ❌ Fail | Error: type error in examples/micro_clock_measu... |
 | `micro_io_echo.ail` | ✅ Pass |  |
-| `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `micro_net_fetch.ail` | ❌ Fail | Error: type error in examples/micro_net_fetch (... |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `micro_record_person.ail` | ✅ Pass |  |
-| `numeric_conversion.ail` | ✅ Pass |  |
+| `numeric_conversion.ail` | ❌ Fail | Error: type error in examples/numeric_conversio... |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ✅ Pass |  |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
-| `recursion_error.ail` | ✅ Pass |  |
-| `recursion_factorial.ail` | ✅ Pass |  |
-| `recursion_fibonacci.ail` | ✅ Pass |  |
-| `recursion_mutual.ail` | ✅ Pass |  |
+| `recursion_error.ail` | ❌ Fail | Error: type error in examples/recursion_error (... |
+| `recursion_factorial.ail` | ❌ Fail | Error: type error in examples/recursion_factori... |
+| `recursion_fibonacci.ail` | ❌ Fail | Error: type error in examples/recursion_fibonac... |
+| `recursion_mutual.ail` | ❌ Fail | Error: type error in examples/recursion_mutual ... |
 | `recursion_quicksort.ail` | ✅ Pass |  |
 | `showcase/01_type_inference.ail` | ❌ Fail | Error: type error in examples/showcase/01_type_... |
 | `showcase/02_lambdas.ail` | ❌ Fail | Error: type error in examples/showcase/02_lambd... |
@@ -376,14 +376,14 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `test_effect_annotation.ail` | ✅ Pass |  |
-| `test_effect_capability.ail` | ✅ Pass |  |
-| `test_effect_fs.ail` | ✅ Pass |  |
-| `test_effect_io.ail` | ✅ Pass |  |
-| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect... |
+| `test_effect_capability.ail` | ❌ Fail | Error: type error in examples/test_effect_capab... |
+| `test_effect_fs.ail` | ❌ Fail | Error: type error in examples/test_effect_fs (d... |
+| `test_effect_io.ail` | ❌ Fail | Error: type error in examples/test_effect_io (d... |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: type error in examples/test_effect_io_si... |
 | `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
 | `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
 | `test_exhaustive_wildcard.ail` | ✅ Pass |  |
-| `test_fizzbuzz.ail` | ✅ Pass |  |
+| `test_fizzbuzz.ail` | ❌ Fail | Error: type error in examples/test_fizzbuzz (de... |
 | `test_float_comparison.ail` | ✅ Pass |  |
 | `test_float_eq_works.ail` | ✅ Pass |  |
 | `test_float_modulo.ail` | ✅ Pass |  |
@@ -394,15 +394,15 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_import_func.ail` | ✅ Pass |  |
 | `test_integral.ail` | ✅ Pass |  |
 | `test_invocation.ail` | ✅ Pass |  |
-| `test_io_builtins.ail` | ✅ Pass |  |
+| `test_io_builtins.ail` | ❌ Fail | Error: type error in examples/test_io_builtins ... |
 | `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_modulo_works.ail` | ✅ Pass |  |
-| `test_net_file_protocol.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_localhost.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_security.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_no_import.ail` | ✅ Pass |  |
-| `test_record_subsumption.ail` | ✅ Pass |  |
+| `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_pro... |
+| `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhos... |
+| `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security... |
+| `test_no_import.ail` | ❌ Fail | Error: type error in examples/test_no_import (d... |
+| `test_record_subsumption.ail` | ❌ Fail | Error: type error in examples/test_record_subsu... |
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
 | `test_with_import.ail` | ✅ Pass |  |
