@@ -2,6 +2,68 @@
 
 ## ⚠️ CRITICAL PRINCIPLES
 
+### 0. NEVER DESTROY LOCAL WORK WITH GIT OPERATIONS
+
+**🚨 ABSOLUTELY FORBIDDEN GIT OPERATIONS:**
+
+**NEVER run these commands - they destroy uncommitted work:**
+- ❌ `git checkout <branch>` when there are uncommitted changes
+- ❌ `git pull` on a branch with local commits (use `git status` first!)
+- ❌ `git reset --hard`
+- ❌ `git clean -fd`
+- ❌ `git stash` followed by branch switching that causes fast-forward
+- ❌ Any command that would overwrite or discard user's work
+
+**The Dev Branch Disaster (October 2025):**
+```bash
+# ❌ WRONG - This destroyed local work on dev branch
+git stash                    # Hides user's work
+git checkout dev             # Switches branch
+git pull                     # Fast-forwards, making stashed work incompatible
+# Result: User's uncommitted work on dev branch is LOST
+```
+
+**✅ CORRECT approach when user asks to fix something on another branch:**
+
+1. **ALWAYS check git status first:**
+   ```bash
+   git status  # See what branch we're on and what's uncommitted
+   ```
+
+2. **If there are uncommitted changes, ASK THE USER:**
+   ```
+   "I see you have uncommitted changes on the current branch.
+    How would you like me to handle them before switching branches?
+    Options:
+    1. Commit them first
+    2. Create a new branch from here for the fix
+    3. Tell me it's safe to stash them"
+   ```
+
+3. **If fixing docs/CI issues, work on CURRENT branch:**
+   - If it's a simple fix (broken links, typos, CI failures), make the fix on whatever branch you're on
+   - Push to that branch, don't force a branch switch
+   - User can merge/cherry-pick later if needed
+
+4. **NEVER assume it's safe to discard or stash work:**
+   - User's uncommitted work may represent hours of effort
+   - Stashing can cause conflicts or make work hard to recover
+   - Switching branches can trigger unwanted merges/rebases
+
+**Recovery if you've already done damage:**
+```bash
+git reflog                   # Find lost commits
+git stash list               # Find stashed work
+git stash show -p stash@{0}  # Preview stashed changes
+git fsck --lost-found        # Find orphaned commits
+```
+
+**Safe alternatives:**
+- ✅ Make fixes on current branch, push, let user handle merging
+- ✅ Ask user before ANY branch switching
+- ✅ Create new branches instead of switching to existing ones
+- ✅ Use `git status` before every git operation
+
 ### 1. ALWAYS USE EXISTING TOOLS FIRST
 
 **Before writing ANY new script or code:**
@@ -184,9 +246,11 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
-### Adding Builtin Functions (✅ M-DX1 - v0.3.9)
+### Adding Builtin Functions (✅ M-DX1 - v0.3.10)
 
 **AILANG has a modern builtin development system that reduces implementation time from 7.5h to 2.5h (-67%).**
+
+**Status**: M-DX1.5 migration complete in v0.3.10! All 49 builtins now use the new registry.
 
 #### Quick Start (2.5 hours instead of 7.5)
 
@@ -250,35 +314,39 @@ func TestStrReverse(t *testing.T) {
 
 **Step 3: Validate and inspect** (~30 min)
 ```bash
-# Enable the new registry
-export AILANG_BUILTINS_REGISTRY=1
-
-# Validate the builtin
+# Validate the builtin (no feature flag needed since v0.3.10!)
 ailang doctor builtins
 # ✅ All builtins are valid!
 
 # List all builtins
 ailang builtins list --by-module
-# # std/string (2)
+# # std/string (8)
+#   _str_compare                   [pure]
+#   _str_find                      [pure]
 #   _str_len                       [pure]
+#   _str_lower                     [pure]
 #   _str_reverse                   [pure]
+#   _str_slice                     [pure]
+#   _str_trim                      [pure]
+#   _str_upper                     [pure]
 
-# Test in REPL (when M-DX1.5 is implemented)
+# Test in REPL (when M-DX1.6 is implemented)
 ailang repl
 > :type _str_reverse
 string -> string
 ```
 
 **Step 4: Wire to runtime** (~30 min)
-- Already done! The registry automatically wires to runtime/link when `AILANG_BUILTINS_REGISTRY=1`
+- Already done! The registry automatically wires to runtime/link (no feature flag needed since v0.3.10)
 
 #### Key Components
 
 **Central Registry** (`internal/builtins/spec.go`):
 - Single-point registration with `RegisterEffectBuiltin()`
 - Compile-time validation (arity, types, impl, effects)
-- Feature flag: `AILANG_BUILTINS_REGISTRY=1`
+- ✅ No feature flag needed (default since v0.3.10)
 - Freeze-safe (no registration after init)
+- 49 builtins migrated (v0.3.10)
 
 **Type Builder DSL** (`internal/types/builder.go`):
 - Fluent API: `T.Func(args...).Returns(ret).Effects(effs...)`
@@ -433,23 +501,27 @@ RegisterEffectBuiltin(BuiltinSpec{
 
 #### Status
 
-**Completed (v0.3.9-alpha3):**
+**Completed (v0.3.9-alpha3 through v0.3.10):**
 - ✅ M-DX1.1: Central Registry with validation
 - ✅ M-DX1.2: Type Builder DSL
 - ✅ M-DX1.3: Doctor + List CLI commands
 - ✅ M-DX1.4: Test Harness with mocking
-- ✅ 2 proof-of-concept migrations (_str_len, _net_httpRequest)
-- ✅ 57 tests (100% coverage on new code)
+- ✅ M-DX1.5: Complete builtin migration (49 builtins) ← **v0.3.10**
+- ✅ Removed feature flag - new registry is default ← **v0.3.10**
+- ✅ 57+ tests (100% coverage on new code)
 
-**Planned (v0.3.10+, see design_docs/planned/m-dx1-day3-polish.md):**
-- ⏳ M-DX1.5: REPL :type command (~3h)
-- ⏳ M-DX1.6: Enhanced diagnostics (~3h)
-- ⏳ M-DX1.7: docs/ADDING_BUILTINS.md guide (~2h)
+**Future Polish (v0.3.11+, see design_docs/planned/m-dx1-future-polish.md):**
+- ⏳ M-DX1.6: REPL :type command (~3h)
+- ⏳ M-DX1.7: Enhanced error diagnostics (~2h)
+- ⏳ M-DX1.8: docs/ADDING_BUILTINS.md guide (~2h)
+- ⏳ M-DX1.9: Cleanup & delete legacy code (~2h)
+- ⏳ M-DX1.10: Migrate _json_encode (~3h)
 
 **For full documentation, see:**
-- Detailed examples: (to be created in M-DX1.7)
+- Future work: `design_docs/planned/m-dx1-future-polish.md`
 - Design rationale: `design_docs/planned/easier-ailang-dev.md`
 - Test coverage: `internal/builtins/*_test.go`, `internal/effects/testctx/*_test.go`
+- Changelog: See v0.3.10 entry in `CHANGELOG.md`
 
 ### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
 
