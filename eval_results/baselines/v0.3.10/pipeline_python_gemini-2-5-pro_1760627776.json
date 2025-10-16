@@ -1,0 +1,23 @@
+{
+  "id": "pipeline",
+  "lang": "python",
+  "model": "gemini-2-5-pro",
+  "seed": 42,
+  "input_tokens": 96,
+  "output_tokens": 65,
+  "total_tokens": 161,
+  "cost_usd": 0.0007700000000000001,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 42,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "2\n4\n6\n8\n10\n",
+  "timestamp": "2025-10-16T17:16:16.368957+02:00",
+  "code": "import sys\n\nfor line in sys.stdin:\n    try:\n        num = int(line.strip())\n        doubled_num = num * 2\n        print(doubled_num)\n    except ValueError:\n        # Silently ignore lines that are not valid numbers\n        pass",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}

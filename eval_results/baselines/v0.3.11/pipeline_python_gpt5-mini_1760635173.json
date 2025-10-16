@@ -1,0 +1,23 @@
+{
+  "id": "pipeline",
+  "lang": "python",
+  "model": "gpt5-mini",
+  "seed": 42,
+  "input_tokens": 101,
+  "output_tokens": 70,
+  "total_tokens": 171,
+  "cost_usd": 0.00016525,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 42,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "2\n4\n6\n8\n10\n",
+  "timestamp": "2025-10-16T19:19:33.795132+02:00",
+  "code": "import sys\n\nfor line in sys.stdin:\n    s = line.strip()\n    if not s:\n        continue\n    try:\n        val = int(s)\n    except ValueError:\n        try:\n            val = float(s)\n        except ValueError:\n            continue\n    print(val * 2)",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}
