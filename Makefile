@@ -574,8 +574,17 @@ eval-prompt-hash:
 .PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
 
 eval-baseline: build
-	@echo "Storing baseline for current version..."
-	@./tools/eval_baseline.sh
+	@if [ -z "$(EVAL_VERSION)" ]; then \
+		echo "Error: EVAL_VERSION parameter required"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10 FULL=true"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "Storing baseline for version $(EVAL_VERSION)..."
+	@VERSION=$(EVAL_VERSION) ./tools/eval_baseline.sh
 
 eval-diff: build
 	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \

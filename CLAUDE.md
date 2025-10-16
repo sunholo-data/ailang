@@ -509,9 +509,9 @@ ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
 # Generate markdown dashboard
 ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
 
-# Run baseline
-make eval-baseline              # Uses dev models by default
-make eval-baseline FULL=true    # Uses expensive models
+# Run baseline (REQUIRES explicit version!)
+make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models
+make eval-baseline EVAL_VERSION=v0.3.10 FULL=true    # Uses expensive models
 
 # Compare two baselines
 ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
