@@ -4,6 +4,164 @@
 
 ---
 
+## [v0.3.11] - 2025-10-16 - Critical Row Unification Fix
+
+**CRITICAL BUGFIX**: Fixed row unification regression that caused 0% AILANG success in v0.3.10
+
+### Fixed
+
+**Row Unification Bug** (Existed since v0.3.9, became critical in v0.3.10)
+- **Root cause**: Parameter swap in `internal/types/row_unification.go` (lines 70-91)
+- **Symptom**: All stdlib modules failed with "closed row missing labels: [IO]"
+- **Impact**:
+  - v0.3.9: Bug existed but masked by other issues (46% AILANG success)
+  - v0.3.10: Bug became critical (0% AILANG success)
+  - v0.3.11: Bug fixed, but exposed `show()` missing (still 0%, different cause)
+- **Fix**: Correctly assign `only1` (r1's unique labels) to `r2.Tail` when unifying closed/open rows
+
+**Effect Propagation in Function Application**
+- **File**: `internal/types/typechecker_functions.go` (line 365-370)
+- **Issue**: Included `getEffectRow(funcNode)` which is always empty for variable references
+- **Fix**: Only combine argument effects + function type's effect row
+
+**REPL Builtin Environment**
+- **Files**: `internal/repl/repl.go`, `internal/repl/repl_commands.go`
+- **Issue**: Used `NewTypeEnv()` instead of `NewTypeEnvWithBuiltins()`
+- **Fix**: REPL now has access to all builtins for `:type` command
+
+### Added
+
+**Safety Net: Regression Prevention Tests** (~300 LOC)
+- `internal/types/row_unification_regression_test.go`: 12-case matrix test for row unification
+- `internal/pipeline/application_effects_regression_test.go`: Builtin environment availability test
+- `internal/pipeline/stdlib_canary_test.go`: End-to-end stdlib typechecking smoke test
+
+**Builtin Environment Factory Pattern**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()` registration mechanism
+- `internal/link/env_seed.go`: Bridge between types and link packages (breaks import cycle)
+- Enables REPL and compiler to share builtin definitions without circular dependencies
+
+### Changed
+
+**Debug Logging Cleanup**
+- Removed DEBUG fmt.Printf statements from 5 files
+- Cleaner output in production builds
+
+### Known Issues
+
+**`show()` Function Missing** (discovered during v0.3.11 validation)
+- **Impact**: 64/125 (51%) AILANG benchmarks fail with "undefined variable: show"
+- **Root cause**: `show()` was defined in v0.3.9's `internal/types/env.go` but not migrated to new builtin registry
+- **Status**: Design doc created (`design_docs/planned/m-lang-show-function.md`)
+- **Target**: v0.3.12 (3-4 hour fix)
+- **Workaround**: None - code using `show()` will not compile
+
+### Metrics
+
+| Metric | v0.3.9 | v0.3.10 | v0.3.11 | Status |
+|--------|--------|---------|---------|--------|
+| Row unification errors | 0 (bug masked) | 75 | 0 | ✅ Fixed |
+| AILANG compile failures | Many | 126/126 | 125/125 | ⚠️ Different cause |
+| `show()` errors | 0 (existed) | N/A | 64 | ❌ Regression |
+| Examples passing | 48/87 (55%) | Unknown | 38/87 (44%) | ⚠️ Degraded |
+| Test coverage | ✅ | ✅ | ✅ | No regressions |
+
+### Files Modified
+
+**Core fixes:**
+- `internal/types/row_unification.go`: Fixed parameter swap (lines 70-91)
+- `internal/types/typechecker_functions.go`: Fixed effect propagation (lines 365-370)
+- `internal/repl/repl.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+- `internal/repl/repl_commands.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+
+**Factory pattern:**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()`, `NewTypeEnvWithBuiltins()`
+- `internal/link/env_seed.go`: New file - factory registration
+
+**Safety nets:**
+- `internal/types/row_unification_regression_test.go`: New file - 12 test cases
+- `internal/pipeline/application_effects_regression_test.go`: New file - builtin env test
+- `internal/pipeline/stdlib_canary_test.go`: New file - stdlib smoke test
+
+**Documentation:**
+- `design_docs/implemented/v0_3/202510_regression_fix.md`: Complete post-mortem
+- `design_docs/planned/m-lang-show-function.md`: Next priority fix
+
+### Test Coverage
+
+- ✅ All 183 Go packages pass tests
+- ✅ Row unification matrix test (12 cases)
+- ✅ Stdlib canary test (end-to-end)
+- ✅ Builtin environment availability test
+- ✅ No import cycles
+
+### Technical Notes
+
+**The Row Unification Bug (Lines 70-91)**
+
+Before (buggy):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open
+    if len(only1) > 0 {
+        return nil, fmt.Errorf("closed row missing labels: %v", ru.labelNames(only1))
+    }
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only2,  // ❌ WRONG - assigns r2's labels instead of r1's
+        Tail:   nil,
+    }
+```
+
+After (fixed):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open - r2's tail gets r1's unique labels
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only1,  // ✅ CORRECT - assigns r1's labels to tail variable
+        Tail:   nil,
+    }
+```
+
+**Why This Matters:**
+- When typechecking `_io_print("hello")`, we unify:
+  - Builtin signature: `String -> () ! {IO}` (closed row)
+  - Application context: `String -> () ! {} | ε` (open row)
+- The bug assigned wrong labels to `ε`, causing "closed row missing labels: [IO]"
+- Fix correctly unifies `ε := {IO}`, allowing stdlib to typecheck
+
+### Lessons Learned
+
+**1. Silent Fallbacks Hide Bugs**
+- The row bug existed since v0.3.9 (Sept 2025) but was masked
+- Became critical only when other code paths changed
+- Reinforces: NO SILENT FALLBACKS in critical code (cost calculations, types, effects)
+
+**2. Regression Tests Are Essential**
+- Created 3-layer safety net (unit, integration, end-to-end)
+- Would have caught this bug immediately
+- Added to standard test suite to prevent recurrence
+
+**3. Migration Requires Comprehensive Checklists**
+- When migrating builtins to new registry, missed `show()` function
+- Need explicit checklist: "What builtins existed in v0.3.9?"
+- Automated migration validation would catch this
+
+### Next Steps
+
+**Immediate (v0.3.12):**
+1. Implement `show()` builtin (see `design_docs/planned/m-lang-show-function.md`)
+2. Expected to recover ~46% AILANG success rate
+3. Re-run full evaluation baseline
+
+**Future:**
+- Complete M-DX1 polish (REPL `:type`, enhanced diagnostics, docs)
+- Migrate remaining complex builtins (`_json_encode`)
+- Delete legacy builtin code paths
+
+---
+
 ## [v0.3.10] - 2025-10-16 - M-DX1.5: Builtin Migration Complete
 
 **Goal Achieved**: Reduced builtin development time from 7.5h to 2.5h (-67%)
