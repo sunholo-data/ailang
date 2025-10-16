@@ -12,17 +12,24 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-30.5%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-31.9%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.10 (M-DX1: Developer Experience - Builtin Migration)
+## Current Version: v0.3.11 (Critical Row Unification Fix)
 
-**🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism**, complete Hindley-Milner type inference, type classes (Num, Eq, Ord), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.11 (Oct 2025)**: Critical row unification fix - **KNOWN ISSUE: `show()` missing**
+  - **Fixed**: Row unification bug that caused "closed row missing labels: [IO]" errors
+  - **Fixed**: Effect propagation in function application
+  - **Fixed**: REPL builtin environment initialization
+  - **Added**: 3-layer regression test safety net (12 test cases)
+  - **⚠️ Known Issue**: `show()` function not yet migrated to new builtin registry - affects 51% of AI-generated code
+  - **Next**: v0.3.12 will restore `show()` function (~3-4 hour fix)
 - **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration complete
   - **Unified builtin registry**: All 49 builtins now use spec-based registration (1 file instead of 4)
   - **Development time**: Reduced from 7.5h to 2.5h per builtin (-67%)
@@ -325,26 +332,26 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-52%20passing%2031%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-38%20passing%2045%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-16 11:47:08 UTC*
+*Last updated: 2025-10-16 17:40:14 UTC*
 
-**Summary:** 52 passed, 31 failed, 4 skipped (Total: 87)
+**Summary:** 38 passed, 45 failed, 4 skipped (Total: 87)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
-| `ai_call.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `ai_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `block_recursion.ail` | ✅ Pass |  |
+| `block_recursion.ail` | ❌ Fail | Error: type error in examples/block_recursion (... |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
-| `claude_haiku_call.ail` | ❌ Fail | Error: execution failed: effect 'IO' requires c... |
-| `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `claude_haiku_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
@@ -358,25 +365,25 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
-| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): t... |
+| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): u... |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
-| `letrec_recursion.ail` | ✅ Pass |  |
+| `letrec_recursion.ail` | ❌ Fail | Error: type error in examples/letrec_recursion ... |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `micro_block_if.ail` | ✅ Pass |  |
 | `micro_block_seq.ail` | ✅ Pass |  |
 | `micro_clock_measure.ail` | ❌ Fail | Error: type error in examples/micro_clock_measu... |
 | `micro_io_echo.ail` | ✅ Pass |  |
-| `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `micro_net_fetch.ail` | ❌ Fail | Error: type error in examples/micro_net_fetch (... |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `micro_record_person.ail` | ✅ Pass |  |
-| `numeric_conversion.ail` | ✅ Pass |  |
+| `numeric_conversion.ail` | ❌ Fail | Error: type error in examples/numeric_conversio... |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ✅ Pass |  |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
-| `recursion_error.ail` | ✅ Pass |  |
-| `recursion_factorial.ail` | ✅ Pass |  |
-| `recursion_fibonacci.ail` | ✅ Pass |  |
-| `recursion_mutual.ail` | ✅ Pass |  |
+| `recursion_error.ail` | ❌ Fail | Error: type error in examples/recursion_error (... |
+| `recursion_factorial.ail` | ❌ Fail | Error: type error in examples/recursion_factori... |
+| `recursion_fibonacci.ail` | ❌ Fail | Error: type error in examples/recursion_fibonac... |
+| `recursion_mutual.ail` | ❌ Fail | Error: type error in examples/recursion_mutual ... |
 | `recursion_quicksort.ail` | ✅ Pass |  |
 | `showcase/01_type_inference.ail` | ❌ Fail | Error: type error in examples/showcase/01_type_... |
 | `showcase/02_lambdas.ail` | ❌ Fail | Error: type error in examples/showcase/02_lambd... |
@@ -387,14 +394,14 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `test_effect_annotation.ail` | ✅ Pass |  |
-| `test_effect_capability.ail` | ✅ Pass |  |
-| `test_effect_fs.ail` | ✅ Pass |  |
-| `test_effect_io.ail` | ✅ Pass |  |
-| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect... |
+| `test_effect_capability.ail` | ❌ Fail | Error: type error in examples/test_effect_capab... |
+| `test_effect_fs.ail` | ❌ Fail | Error: type error in examples/test_effect_fs (d... |
+| `test_effect_io.ail` | ❌ Fail | Error: type error in examples/test_effect_io (d... |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: type error in examples/test_effect_io_si... |
 | `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
 | `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
 | `test_exhaustive_wildcard.ail` | ✅ Pass |  |
-| `test_fizzbuzz.ail` | ✅ Pass |  |
+| `test_fizzbuzz.ail` | ❌ Fail | Error: type error in examples/test_fizzbuzz (de... |
 | `test_float_comparison.ail` | ✅ Pass |  |
 | `test_float_eq_works.ail` | ✅ Pass |  |
 | `test_float_modulo.ail` | ✅ Pass |  |
@@ -405,15 +412,15 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_import_func.ail` | ✅ Pass |  |
 | `test_integral.ail` | ✅ Pass |  |
 | `test_invocation.ail` | ✅ Pass |  |
-| `test_io_builtins.ail` | ✅ Pass |  |
+| `test_io_builtins.ail` | ❌ Fail | Error: type error in examples/test_io_builtins ... |
 | `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_modulo_works.ail` | ✅ Pass |  |
-| `test_net_file_protocol.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_localhost.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_security.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_no_import.ail` | ✅ Pass |  |
-| `test_record_subsumption.ail` | ✅ Pass |  |
+| `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_pro... |
+| `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhos... |
+| `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security... |
+| `test_no_import.ail` | ❌ Fail | Error: type error in examples/test_no_import (d... |
+| `test_record_subsumption.ail` | ❌ Fail | Error: type error in examples/test_record_subsu... |
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
 | `test_with_import.ail` | ✅ Pass |  |
@@ -541,6 +548,164 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 # AILANG Changelog
 
 ## [Unreleased] - Next release
+
+---
+
+## [v0.3.11] - 2025-10-16 - Critical Row Unification Fix
+
+**CRITICAL BUGFIX**: Fixed row unification regression that caused 0% AILANG success in v0.3.10
+
+### Fixed
+
+**Row Unification Bug** (Existed since v0.3.9, became critical in v0.3.10)
+- **Root cause**: Parameter swap in `internal/types/row_unification.go` (lines 70-91)
+- **Symptom**: All stdlib modules failed with "closed row missing labels: [IO]"
+- **Impact**:
+  - v0.3.9: Bug existed but masked by other issues (46% AILANG success)
+  - v0.3.10: Bug became critical (0% AILANG success)
+  - v0.3.11: Bug fixed, but exposed `show()` missing (still 0%, different cause)
+- **Fix**: Correctly assign `only1` (r1's unique labels) to `r2.Tail` when unifying closed/open rows
+
+**Effect Propagation in Function Application**
+- **File**: `internal/types/typechecker_functions.go` (line 365-370)
+- **Issue**: Included `getEffectRow(funcNode)` which is always empty for variable references
+- **Fix**: Only combine argument effects + function type's effect row
+
+**REPL Builtin Environment**
+- **Files**: `internal/repl/repl.go`, `internal/repl/repl_commands.go`
+- **Issue**: Used `NewTypeEnv()` instead of `NewTypeEnvWithBuiltins()`
+- **Fix**: REPL now has access to all builtins for `:type` command
+
+### Added
+
+**Safety Net: Regression Prevention Tests** (~300 LOC)
+- `internal/types/row_unification_regression_test.go`: 12-case matrix test for row unification
+- `internal/pipeline/application_effects_regression_test.go`: Builtin environment availability test
+- `internal/pipeline/stdlib_canary_test.go`: End-to-end stdlib typechecking smoke test
+
+**Builtin Environment Factory Pattern**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()` registration mechanism
+- `internal/link/env_seed.go`: Bridge between types and link packages (breaks import cycle)
+- Enables REPL and compiler to share builtin definitions without circular dependencies
+
+### Changed
+
+**Debug Logging Cleanup**
+- Removed DEBUG fmt.Printf statements from 5 files
+- Cleaner output in production builds
+
+### Known Issues
+
+**`show()` Function Missing** (discovered during v0.3.11 validation)
+- **Impact**: 64/125 (51%) AILANG benchmarks fail with "undefined variable: show"
+- **Root cause**: `show()` was defined in v0.3.9's `internal/types/env.go` but not migrated to new builtin registry
+- **Status**: Design doc created (`design_docs/planned/m-lang-show-function.md`)
+- **Target**: v0.3.12 (3-4 hour fix)
+- **Workaround**: None - code using `show()` will not compile
+
+### Metrics
+
+| Metric | v0.3.9 | v0.3.10 | v0.3.11 | Status |
+|--------|--------|---------|---------|--------|
+| Row unification errors | 0 (bug masked) | 75 | 0 | ✅ Fixed |
+| AILANG compile failures | Many | 126/126 | 125/125 | ⚠️ Different cause |
+| `show()` errors | 0 (existed) | N/A | 64 | ❌ Regression |
+| Examples passing | 48/87 (55%) | Unknown | 38/87 (44%) | ⚠️ Degraded |
+| Test coverage | ✅ | ✅ | ✅ | No regressions |
+
+### Files Modified
+
+**Core fixes:**
+- `internal/types/row_unification.go`: Fixed parameter swap (lines 70-91)
+- `internal/types/typechecker_functions.go`: Fixed effect propagation (lines 365-370)
+- `internal/repl/repl.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+- `internal/repl/repl_commands.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+
+**Factory pattern:**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()`, `NewTypeEnvWithBuiltins()`
+- `internal/link/env_seed.go`: New file - factory registration
+
+**Safety nets:**
+- `internal/types/row_unification_regression_test.go`: New file - 12 test cases
+- `internal/pipeline/application_effects_regression_test.go`: New file - builtin env test
+- `internal/pipeline/stdlib_canary_test.go`: New file - stdlib smoke test
+
+**Documentation:**
+- `design_docs/implemented/v0_3/202510_regression_fix.md`: Complete post-mortem
+- `design_docs/planned/m-lang-show-function.md`: Next priority fix
+
+### Test Coverage
+
+- ✅ All 183 Go packages pass tests
+- ✅ Row unification matrix test (12 cases)
+- ✅ Stdlib canary test (end-to-end)
+- ✅ Builtin environment availability test
+- ✅ No import cycles
+
+### Technical Notes
+
+**The Row Unification Bug (Lines 70-91)**
+
+Before (buggy):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open
+    if len(only1) > 0 {
+        return nil, fmt.Errorf("closed row missing labels: %v", ru.labelNames(only1))
+    }
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only2,  // ❌ WRONG - assigns r2's labels instead of r1's
+        Tail:   nil,
+    }
+```
+
+After (fixed):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open - r2's tail gets r1's unique labels
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only1,  // ✅ CORRECT - assigns r1's labels to tail variable
+        Tail:   nil,
+    }
+```
+
+**Why This Matters:**
+- When typechecking `_io_print("hello")`, we unify:
+  - Builtin signature: `String -> () ! {IO}` (closed row)
+  - Application context: `String -> () ! {} | ε` (open row)
+- The bug assigned wrong labels to `ε`, causing "closed row missing labels: [IO]"
+- Fix correctly unifies `ε := {IO}`, allowing stdlib to typecheck
+
+### Lessons Learned
+
+**1. Silent Fallbacks Hide Bugs**
+- The row bug existed since v0.3.9 (Sept 2025) but was masked
+- Became critical only when other code paths changed
+- Reinforces: NO SILENT FALLBACKS in critical code (cost calculations, types, effects)
+
+**2. Regression Tests Are Essential**
+- Created 3-layer safety net (unit, integration, end-to-end)
+- Would have caught this bug immediately
+- Added to standard test suite to prevent recurrence
+
+**3. Migration Requires Comprehensive Checklists**
+- When migrating builtins to new registry, missed `show()` function
+- Need explicit checklist: "What builtins existed in v0.3.9?"
+- Automated migration validation would catch this
+
+### Next Steps
+
+**Immediate (v0.3.12):**
+1. Implement `show()` builtin (see `design_docs/planned/m-lang-show-function.md`)
+2. Expected to recover ~46% AILANG success rate
+3. Re-run full evaluation baseline
+
+**Future:**
+- Complete M-DX1 polish (REPL `:type`, enhanced diagnostics, docs)
+- Migrate remaining complex builtins (`_json_encode`)
+- Delete legacy builtin code paths
 
 ---
 
