@@ -1,10 +1,10 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.8 (Bug Fixes - Multi-line ADTs & Operator Lowering)
+## Current Version: v0.3.10 (M-DX1: Developer Experience - Builtin Migration)
 
-## Test Coverage: 28.9%
+## Test Coverage: 30.5%
 
-## Recent Release: v0.3.8 (October 2025)
+## Recent Release: v0.3.10 (October 2025)
 
 **Bug Fixes:**
 - ✅ **Multi-line ADT Parser** - Parser now supports multi-line algebraic data type declarations

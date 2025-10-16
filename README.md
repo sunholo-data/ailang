@@ -7,11 +7,17 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.9 (AI API Integration)
+## Current Version: v0.3.10 (M-DX1: Developer Experience - Builtin Migration)
 
 **🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
+- **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration complete
+  - **Unified builtin registry**: All 49 builtins now use spec-based registration (1 file instead of 4)
+  - **Development time**: Reduced from 7.5h to 2.5h per builtin (-67%)
+  - **Type Builder DSL**: Fluent API reduces type construction from 35→10 lines
+  - **Test harness**: Hermetic testing with `MockEffContext`
+  - **Feature flag removed**: New registry is now the default
 - **v0.3.9 (Oct 2025)**: AI API Integration - HTTP headers, JSON encoding, OpenAI example
   - **HTTP headers**: `httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]`
   - **JSON encoding**: Complete encoder with `Json` ADT and convenience helpers
