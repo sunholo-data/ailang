@@ -499,12 +499,19 @@ ailang eval-suite --models gpt5,gpt5-mini,claude-sonnet-4-5,claude-haiku-4-5,gem
 
 **Quick reference - Common eval commands:**
 ```bash
+# Update benchmark dashboard (PRESERVES HISTORY!)
+ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
+# ✅ Automatically writes to docs/static/benchmarks/latest.json
+# ✅ Preserves all historical versions
+# ✅ Validates before writing
+# ✅ Atomic writes (no corruption)
+
+# Generate markdown dashboard
+ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+
 # Run baseline
 make eval-baseline              # Uses dev models by default
 make eval-baseline FULL=true    # Uses expensive models
-
-# Generate benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
-ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
 
 # Compare two baselines
 ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
@@ -513,12 +520,35 @@ ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
 ailang eval-matrix eval_results/baselines/v0.3.9 v0.3.9
 ```
 
+**⚠️ CRITICAL - Dashboard Update Workflow (v0.3.10+)**
+
+**The dashboard JSON now preserves history automatically!**
+
+```bash
+# ✅ CORRECT - Safe, preserves history
+ailang eval-report eval_results/baselines/v0.3.10 v0.3.10 --format=json
+# Reads existing latest.json → merges history → validates → writes atomically
+
+# ❌ WRONG - Don't redirect stdout (bypasses history preservation)
+ailang eval-report ... --format=json > docs/static/benchmarks/latest.json
+```
+
+**How it works:**
+1. Loads existing `docs/static/benchmarks/latest.json`
+2. Builds new entry from current results
+3. Merges into history (updates if version exists, appends if new)
+4. Validates JSON structure (no duplicates, required fields present)
+5. Writes atomically (temp file + rename, no partial writes)
+6. Also prints to stdout (for backwards compatibility)
+
 **DO NOT**:
 - ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
 - ❌ Duplicate agent logic - just invoke the appropriate agent
 - ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
 - ❌ Run multiple `ailang eval-suite` commands to same directory - results will be overwritten!
 - ❌ Search for dashboard generation scripts - just use `ailang eval-report`
+- ❌ Redirect `--format=json` to file (bypasses history preservation logic!)
+- ❌ Manually edit latest.json (use eval-report to update it)
 
 ### Code Quality & Coverage
 ```bash
