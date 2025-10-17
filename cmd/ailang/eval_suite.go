@@ -191,19 +191,37 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 	}
 
 	var (
-		wg      sync.WaitGroup
-		results = make([]SuiteResult, len(jobs))
-		sem     = make(chan struct{}, maxConcurrent) // Semaphore for concurrency control
-		mu      sync.Mutex                           // Protect progress counter
+		wg           sync.WaitGroup
+		results      = make([]SuiteResult, len(jobs))
+		sem          = make(chan struct{}, maxConcurrent) // Semaphore for concurrency control
+		mu           sync.Mutex                           // Protect progress counter
+		failureCount int                                  // Track consecutive failures
+		aborted      bool                                 // Early abort flag
 	)
 
 	completed := 0
 	totalJobs := len(jobs)
 
 	for i, job := range jobs {
+		// Check if we should abort early
+		mu.Lock()
+		if aborted {
+			mu.Unlock()
+			break
+		}
+		mu.Unlock()
+
 		wg.Add(1)
 		go func(idx int, j Job) {
 			defer wg.Done()
+
+			// Check abort flag before starting work
+			mu.Lock()
+			if aborted {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
 
 			// Acquire semaphore
 			sem <- struct{}{}
@@ -232,8 +250,22 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 
 			if success {
 				fmt.Printf("  %s Completed\n", green("✓"))
+				mu.Lock()
+				failureCount = 0 // Reset failure count on success
+				mu.Unlock()
 			} else {
 				fmt.Printf("  %s Failed: %v\n", red("✗"), err)
+				mu.Lock()
+				failureCount++
+				// Abort if first 50 results are all failures
+				if completed >= 50 && failureCount >= 50 {
+					if !aborted {
+						aborted = true
+						fmt.Printf("\n%s Aborting: First 50 results all failed - likely system issue!\n", red("🚨"))
+						fmt.Printf("Check: interpreter debug output, missing API keys, or broken prompt.\n\n")
+					}
+				}
+				mu.Unlock()
 			}
 		}(i, job)
 	}
