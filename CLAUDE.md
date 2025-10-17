@@ -743,6 +743,71 @@ ailang repl                                        # Start REPL
 - See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
 - See [design_docs/](design_docs/) - Architecture and design decisions
 
+## 🎯 RELEASE WORKFLOW - READ THIS FIRST!
+
+**When user says "ready to release" or "update dashboard":**
+
+### Quick Reference
+
+**Run release command** (handles everything):
+```bash
+# Use the /release command - it now includes dashboard updates!
+/release 0.3.13
+```
+
+The `/release` command now includes:
+- Running baseline evaluations (step 12)
+- **Updating website dashboard** (step 13) ← Critical!
+- Verification checklist (step 16)
+
+### Manual Dashboard Update (if needed)
+
+**Update website dashboard for specific version**:
+```bash
+# Generate dashboard files (markdown + JSON with history)
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus > docs/docs/benchmarks/performance.md
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json > docs/static/benchmarks/latest.json
+
+# Verify JSON is valid
+jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
+
+# Clear Docusaurus cache (prevents webpack errors)
+cd docs && npm run clear
+
+# Test locally (optional)
+cd docs && npm start
+# Visit: http://localhost:3000/ailang/docs/benchmarks/performance
+
+# Commit and push
+git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
+git commit -m "Update benchmark dashboard for v0.3.12"
+git push
+```
+
+### Common Issues
+
+**Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
+**Cause**: Used `make benchmark-dashboard` which aggregates latest PER MODEL
+**Solution**: Use `ailang eval-report` with specific baseline directory instead
+
+**Problem**: "Uncaught runtime errors" / webpack chunk errors
+**Cause**: Docusaurus build cache stale
+**Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
+
+**Problem**: Dashboard JSON shows "null" for aggregates
+**Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
+**Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
+
+### ⚠️ CRITICAL WARNING
+
+**DO NOT use `make benchmark-dashboard` for version releases!**
+- It uses `--multi-model` which aggregates latest per-model across ALL baselines
+- Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
+- Only use for homepage "best of each model" view
+- **Always use `ailang eval-report <specific_baseline_dir> <version>` for releases**
+
+---
+
 ## 📐 Code Organization Principles (AI-First Design)
 
 ### File Size Guidelines
