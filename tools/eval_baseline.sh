@@ -69,6 +69,7 @@ echo "  Version:     $VERSION"
 echo "  Models:      $MODEL_DESC"
 echo "  Languages:   $LANGS"
 echo "  Parallel:    $PARALLEL"
+echo "  Self-repair: ENABLED (critical for agentic AI evaluation)"
 echo "  Output:      $BASELINE_DIR"
 echo ""
 
@@ -93,7 +94,8 @@ echo -e "${CYAN}Running benchmark suite...${NC}"
 echo ""
 
 # Build command with conditional flags
-CMD=(bin/ailang eval-suite --langs "$LANGS" --parallel "$PARALLEL" --output "$BASELINE_DIR")
+# CRITICAL: Always enable self-repair for agentic AI evaluation
+CMD=(bin/ailang eval-suite --langs "$LANGS" --parallel "$PARALLEL" --output "$BASELINE_DIR" -self-repair)
 
 if [ -n "$MODELS" ]; then
   # User specified custom models
