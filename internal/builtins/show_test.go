@@ -27,8 +27,8 @@ func TestShow_Primitives(t *testing.T) {
 		// Floats
 		{"float positive", testctx.MakeFloat(3.14), "3.14"},
 		{"float negative", testctx.MakeFloat(-2.5), "-2.5"},
-		{"float zero", testctx.MakeFloat(0.0), "0"},
-		{"float integer-like", testctx.MakeFloat(5.0), "5"},
+		{"float zero", testctx.MakeFloat(0.0), "0.0"},
+		{"float integer-like", testctx.MakeFloat(5.0), "5.0"},
 		{"float small", testctx.MakeFloat(0.001), "0.001"},
 		{"float large", testctx.MakeFloat(123456.789), "123456.789"},
 
