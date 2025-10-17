@@ -78,9 +78,14 @@ func showValue(v eval.Value, depth int) string {
 		if math.IsInf(val.Value, -1) {
 			return "-Inf"
 		}
-		// Use %g format for general float representation
-		// This gives "5" for 5.0, "3.14" for 3.14, etc.
-		return strconv.FormatFloat(val.Value, 'g', -1, 64)
+		// Use 'f' format to ensure decimal point is always shown
+		// e.g., "5.0" not "5", "3.14" not "3.14"
+		s := strconv.FormatFloat(val.Value, 'f', -1, 64)
+		// Ensure at least one decimal place (e.g., "5" -> "5.0")
+		if !strings.Contains(s, ".") {
+			s += ".0"
+		}
+		return s
 
 	case *eval.BoolValue:
 		if val.Value {
