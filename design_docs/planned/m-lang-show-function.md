@@ -1,9 +1,51 @@
 # M-LANG: Implement `show()` Builtin Function
 
-**Status**: Planned
+**Status**: ✅ COMPLETE (2025-10-17)
 **Priority**: CRITICAL (blocks 64/125 AILANG benchmarks = 51% of eval suite)
-**Estimated effort**: 3-4 hours
-**Target version**: v0.3.12
+**Actual effort**: ~3.5 hours
+**Completed version**: v0.3.12 (Unreleased)
+
+---
+
+## Implementation Summary
+
+**What was built:**
+- `internal/builtins/show.go` (160 LOC) - Polymorphic show() with type dispatch
+- `internal/builtins/show_test.go` (190 LOC) - 35 comprehensive test cases
+- Total: ~350 LOC
+
+**Test Coverage:**
+- ✅ All primitive types (int, float, bool, string)
+- ✅ Special float values (NaN, Inf, -Inf)
+- ✅ Structured types (lists, records, ADTs)
+- ✅ Edge cases (depth limiting, truncation)
+- ✅ Type registration validation
+- **Result**: All 35 tests passing
+
+**REPL Verification:**
+```ailang
+λ> show(42)         → "42"
+λ> show(3.14)       → "3.14"
+λ> show(true)       → "true"
+λ> show("hello")    → "hello"
+```
+
+**Key Decisions:**
+1. Used `TVar2` with type variable `α` for polymorphism (not `Scheme` - avoids `Equals` method requirement)
+2. Runtime type dispatch via switch on `eval.Value` concrete types
+3. Based implementation on v0.3.9's `showValue()` function
+4. `%g` float format (produces "5" for 5.0, "3.14" for 3.14)
+
+**Velocity:**
+- Estimated: 3-4 hours, ~350 LOC
+- Actual: ~3.5 hours, ~350 LOC
+- **On target** ✅
+
+---
+
+**Original Design Doc Follows**
+
+---
 
 ## Problem Statement
 
