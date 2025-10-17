@@ -131,16 +131,58 @@ Create a new AILANG release with the specified version number.
     - Store baseline: Already saved to `eval_results/baselines/v$1/` by make target
     - Commit baseline results: `git add eval_results/baselines/v$1/ && git commit -m "Add eval baseline for v$1"`
 
-13. **Update design docs**
+13. **Update website dashboard** (CRITICAL - often forgotten!)
+    - **Generate dashboard files** (markdown + JSON with history preservation):
+      ```bash
+      ailang eval-report eval_results/baselines/v$1 v$1 --format=docusaurus > docs/docs/benchmarks/performance.md
+      ailang eval-report eval_results/baselines/v$1 v$1 --format=json > docs/static/benchmarks/latest.json
+      ```
+    - **Verify JSON is valid**:
+      ```bash
+      jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
+      # Should show: v$1 and success rate (e.g., 0.627 = 62.7%)
+      ```
+    - **Clear Docusaurus cache** (prevents webpack errors):
+      ```bash
+      cd docs && npm run clear
+      ```
+    - **Test locally** (optional but recommended):
+      ```bash
+      cd docs && npm start
+      # Visit: http://localhost:3000/ailang/docs/benchmarks/performance
+      # Verify: Timeline shows v$1, success rate matches, no errors
+      ```
+    - **Commit dashboard updates**:
+      ```bash
+      git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
+      git commit -m "Update benchmark dashboard for v$1"
+      git push
+      ```
+    - **⚠️ CRITICAL - DO NOT use `make benchmark-dashboard` for releases!**
+      - It uses `--multi-model` which aggregates latest per-model across ALL baselines
+      - Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
+      - Always use `ailang eval-report <specific_baseline_dir> <version>` instead
+
+14. **Update design docs**
     - Move design docs used into design_docs/implemented/
     - Update design docs used with what was implemented
     - If any features were missed or pushed to a future release, ensure they have new design_docs ready in design_docs/planned/
 
-14. **Update public docs**
+15. **Update public docs**
     - Ensure prompt in prompts/ reflects latest changes for AILANG syntax instruction
     - Ensure website docs in docs/ includes latest changes and is updated to remove any old references
     - Make sure latest examples are reflected on the website
     - Update docs/guides/evaluation/ with new benchmark results if significant improvements
+
+16. **Final verification checklist**
+    - [ ] Git tag v$1 created and pushed
+    - [ ] Release binaries published on GitHub
+    - [ ] CHANGELOG.md updated with benchmark results (AILANG-only + combined)
+    - [ ] Website dashboard shows v$1 as latest (http://localhost:3000/ailang/docs/benchmarks/performance)
+    - [ ] Dashboard timeline chart includes v$1 data point
+    - [ ] No webpack/cache errors when viewing dashboard
+    - [ ] Design docs moved to implemented/
+    - [ ] Public docs updated with latest syntax/examples
 
 
 ## Version Format

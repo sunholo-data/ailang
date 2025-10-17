@@ -181,6 +181,58 @@ make eval-auto-improve-apply                # Apply fixes (dry-run disabled)
 
 ## Decision Tree
 
+### User Intent: "Update dashboard" or "Ready to release"
+**THIS IS THE MOST COMMON REQUEST - HANDLE IT FIRST!**
+
+**Questions to ask:**
+1. Have you run the baseline for this version? (Check `eval_results/baselines/v{VERSION}/`)
+2. Is this a dev baseline (3 models) or full (6 models)?
+3. Do you want the dashboard to show this version only, or aggregate across all versions?
+
+**Action - Standard Release Flow** (99% of cases):
+```bash
+# 1. Run baseline if not already done
+make eval-baseline EVAL_VERSION=v0.3.12  # Or FULL=true for 6 models
+
+# 2. Update dashboard with SPECIFIC version (critical - preserves history!)
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus > docs/docs/benchmarks/performance.md
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json > docs/static/benchmarks/latest.json
+
+# 3. Verify JSON is valid
+jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
+# Should show: v0.3.12 and success rate (e.g., 0.627 = 62.7%)
+
+# 4. Clear Docusaurus cache (prevents webpack errors!)
+cd docs && npm run clear
+
+# 5. Restart dev server
+cd docs && npm start
+
+# 6. Verify at http://localhost:3000/ailang/docs/benchmarks/performance
+```
+
+**⚠️ CRITICAL - DO NOT use `make benchmark-dashboard` for releases!**
+- It uses `--multi-model` which aggregates latest per-model across ALL baselines
+- Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
+- Confuses users and doesn't reflect actual release performance
+- **Always use `ailang eval-report <specific_baseline_dir> <version>` for releases**
+
+**Action - Multi-version Dashboard** (rare, for homepage only):
+```bash
+# Only use this if user explicitly wants "best of each model" view
+make benchmark-dashboard
+```
+
+**Report back:**
+- Version published (e.g., "v0.3.12")
+- Success rates: **AILANG-only** (e.g., "47.6%"), not combined
+- Also report Python for context (e.g., "77.8%")
+- Dashboard link: http://localhost:3000/ailang/docs/benchmarks/performance
+- Any regressions found (compare to previous version)
+- Verification: "Timeline chart shows v0.3.12, no webpack errors"
+
+---
+
 ### User Intent: "Run evaluations"
 **Questions to ask:**
 1. Full suite or specific benchmark?
@@ -445,6 +497,65 @@ Check `models.yml` for latest configuration including:
 - "Test my new prompt" → Guide through prompt-ab workflow
 - "Auto-fix the failures" → Run analyze, call eval-fix-implementer agent
 - "Prepare for v0.3.1 release" → Full validation workflow with reports
+
+## Common Pitfalls & How to Avoid Them
+
+### Pitfall 1: Not Delegating to Agent
+**Symptom**: User manually runs eval commands, dashboard doesn't update correctly
+**Solution**: ALWAYS use eval-orchestrator agent for release workflows
+**Prevention**: `/release` command now includes dashboard updates (step 13)
+
+### Pitfall 2: Using `make benchmark-dashboard` for Releases
+**Symptom**: Dashboard shows v0.3.9 even though v0.3.12 baseline exists
+**Cause**: Multi-model aggregation picks latest per-model, not latest version
+**Example**: Shows gpt5 from v0.3.9, claude from v0.3.11, gemini from v0.3.12
+**Solution**: Use `ailang eval-report <baseline_dir> <version>` instead
+**Prevention**: `/release` command now warns against this explicitly
+
+### Pitfall 3: Docusaurus Cache Not Cleared
+**Symptom**: "Uncaught runtime errors" or webpack chunk 404s in browser
+**Cause**: React components changed but webpack cache stale
+**Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
+**Prevention**: `/release` command includes cache clearing step
+
+### Pitfall 4: Wrong JSON File Used
+**Symptom**: Dashboard shows "null" for aggregates, missing data
+**Cause**: Used performance matrix JSON instead of baseline results
+**Example**:
+```bash
+# ❌ WRONG - performance matrix has different structure
+cp eval_results/performance_tables/v0.3.12.json docs/static/benchmarks/latest.json
+
+# ✅ CORRECT - baseline results with full data + history
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json > docs/static/benchmarks/latest.json
+```
+**Prevention**: Always use `ailang eval-report` output
+
+### Pitfall 5: Manually Editing Files
+**Symptom**: JSON corruption, missing history, validation errors
+**Cause**: Trying to manually copy/edit dashboard files
+**Solution**: ALWAYS use `ailang eval-report` - it handles:
+  - History preservation across versions
+  - JSON validation
+  - Atomic writes (no corruption)
+  - Proper data structure
+**Prevention**: Don't use `cp`, `jq`, or text editors on dashboard files
+
+### Pitfall 6: Running Multiple Models to Same Directory
+**Symptom**: Second eval run overwrites first run's results
+**Cause**: `ailang eval-suite` cleans output directory before running
+**Example**:
+```bash
+# ❌ WRONG - second run deletes gpt5 results!
+ailang eval-suite --models gpt5 --output eval_results/test
+ailang eval-suite --models claude-sonnet-4-5 --output eval_results/test
+
+# ✅ CORRECT - run all models in one command
+ailang eval-suite --models gpt5,claude-sonnet-4-5 --output eval_results/test
+```
+**Prevention**: Always run all desired models in a single command
+
+---
 
 ## Success Criteria
 

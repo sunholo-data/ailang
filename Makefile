@@ -845,3 +845,27 @@ largest-files:
 	@find internal -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
 
+
+.PHONY: help-release
+help-release: ## Show release workflow (eval + dashboard)
+	@echo "📦 RELEASE WORKFLOW"
+	@echo ""
+	@echo "Step 1: Run baseline evaluation"
+	@echo "  make eval-baseline EVAL_VERSION=v0.3.X              # 3 dev models (fast, ~\$$0.22)"
+	@echo "  make eval-baseline EVAL_VERSION=v0.3.X FULL=true    # All 6 models (slow, ~\$$1.50)"
+	@echo ""
+	@echo "Step 2: Update website dashboard"
+	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=docusaurus > docs/docs/benchmarks/performance.md"
+	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=json > docs/static/benchmarks/latest.json"
+	@echo ""
+	@echo "Step 3: Clear Docusaurus cache"
+	@echo "  cd docs && npm run clear"
+	@echo ""
+	@echo "Step 4: Restart dev server"
+	@echo "  cd docs && npm start"
+	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
+	@echo ""
+	@echo "⚠️  CRITICAL: DO NOT use 'make benchmark-dashboard' for releases!"
+	@echo "   It aggregates across versions (shows mixed model versions)"
+	@echo "   Always use 'ailang eval-report <specific_baseline_dir>' instead"
+	@echo ""
