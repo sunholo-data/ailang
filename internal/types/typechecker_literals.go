@@ -127,14 +127,6 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 	// Instantiate the scheme
 	monotype := scheme.Instantiate(ctx.freshType)
 
-	// DEBUG: Check instantiated type
-	if v.Ref.Name == "_io_print" {
-		fmt.Printf("  After instantiation: %v\n", monotype)
-		if fn, ok := monotype.(*TFunc2); ok {
-			fmt.Printf("  Instantiated EffectRow: %v\n", fn.EffectRow)
-		}
-	}
-
 	// Record instantiation after it happens
 	if tc.trackInstantiations {
 		tc.instantiations = append(tc.instantiations, Instantiation{
