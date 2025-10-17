@@ -2,9 +2,15 @@
 
 ## [Unreleased] - Next release
 
+---
+
+## [v0.3.12] - 2025-10-17 - Recovery Release (show() Restored)
+
+**RECOVERY**: Restored `show()` builtin function lost in v0.3.10 migration
+
 ### Added
 
-**`show()` Builtin Function** (~350 LOC, 10 test cases) - **M-LANG Recovery**
+**`show()` Builtin Function** (~350 LOC, 35 test cases) - **M-LANG Recovery**
 
 **Status**: ✅ COMPLETE - Restores 51% of AILANG benchmarks (v0.3.12)
 

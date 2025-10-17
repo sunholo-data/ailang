@@ -7,18 +7,22 @@
 
 AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
 
-## Current Version: v0.3.11 (Critical Row Unification Fix)
+## Current Version: v0.3.12 (Recovery Release - show() Restored)
 
-**🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism**, complete Hindley-Milner type inference, type classes (Num, Eq, Ord), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+**🎯 What Works**: Full module execution, **`show()` builtin** (polymorphic string conversion), **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism**, complete Hindley-Milner type inference, type classes (Num, Eq, Ord), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
 
 **✅ Major Milestones**:
-- **v0.3.11 (Oct 2025)**: Critical row unification fix - **KNOWN ISSUE: `show()` missing**
+- **v0.3.12 (Oct 2025)**: Recovery Release - **`show()` Builtin Restored**
+  - **Fixed**: Restored `show()` function lost in v0.3.10 migration (M-LANG recovery)
+  - **Impact**: Recovers 51% of failing AILANG benchmarks (64/125 affected)
+  - **Implementation**: Polymorphic `∀α. α -> string` with full type dispatch
+  - **Coverage**: 35 comprehensive tests (primitives, lists, records, ADTs)
+  - **Velocity**: 3.5 hours, ~350 LOC (on target with estimates)
+- **v0.3.11 (Oct 2025)**: Critical row unification fix
   - **Fixed**: Row unification bug that caused "closed row missing labels: [IO]" errors
   - **Fixed**: Effect propagation in function application
   - **Fixed**: REPL builtin environment initialization
   - **Added**: 3-layer regression test safety net (12 test cases)
-  - **⚠️ Known Issue**: `show()` function not yet migrated to new builtin registry - affects 51% of AI-generated code
-  - **Next**: v0.3.12 will restore `show()` function (~3-4 hour fix)
 - **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration complete
   - **Unified builtin registry**: All 49 builtins now use spec-based registration (1 file instead of 4)
   - **Development time**: Reduced from 7.5h to 2.5h per builtin (-67%)

@@ -1,10 +1,26 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.10 (M-DX1: Developer Experience - Builtin Migration)
+## Current Version: v0.3.12 (Recovery Release - show() Restored)
 
-## Test Coverage: 30.5%
+## Test Coverage: 31.9%
 
-## Recent Release: v0.3.10 (October 2025)
+## Recent Release: v0.3.12 (October 2025)
+
+**Recovery Release:**
+- ✅ **`show()` Builtin Restored** - Polymorphic `∀α. α -> string` with full type dispatch
+- ✅ **51% Benchmark Recovery** - Fixes 64/125 AILANG benchmarks that failed with "undefined variable: show"
+- ✅ **35 Comprehensive Tests** - Coverage for primitives, lists, records, ADTs, edge cases
+- ✅ **3.5 hour implementation** - On target with estimates (~350 LOC)
+
+## Previous Release: v0.3.11 (October 2025)
+
+**Critical Bug Fixes:**
+- ✅ **Row Unification Fix** - Fixed "closed row missing labels: [IO]" errors
+- ✅ **Effect Propagation** - Corrected function application effect handling
+- ✅ **REPL Builtin Environment** - Fixed builtin availability in REPL
+- ✅ **3-layer Regression Tests** - Added 12-case safety net
+
+## v0.3.10 (October 2025)
 
 **Bug Fixes:**
 - ✅ **Multi-line ADT Parser** - Parser now supports multi-line algebraic data type declarations

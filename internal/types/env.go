@@ -70,11 +70,6 @@ func (env *TypeEnv) Lookup(name string) (interface{}, error) {
 	return nil, fmt.Errorf("unbound variable: %s", name)
 }
 
-// bindBuiltin adds a builtin to the environment (internal use)
-func (env *TypeEnv) bindBuiltin(name string, scheme *Scheme) {
-	env.bindings[name] = scheme
-}
-
 // BindScheme adds a scheme binding to the environment (for REPL persistence)
 // This mutates the environment in-place, unlike Extend which creates a child.
 // Use this only when you need top-level bindings to persist (e.g., REPL).
