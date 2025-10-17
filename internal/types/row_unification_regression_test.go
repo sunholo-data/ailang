@@ -15,12 +15,12 @@ import (
 // the fix is symmetric and handles all cases correctly.
 func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 	tests := []struct {
-		name           string
-		r1             *Row          // First row
-		r2             *Row          // Second row
-		expectSuccess  bool          // Should unification succeed?
-		expectedSub    map[string]string // Expected tail substitutions (tail_name -> labels_string)
-		expectedError  string        // Expected error substring (if expectSuccess=false)
+		name          string
+		r1            *Row              // First row
+		r2            *Row              // Second row
+		expectSuccess bool              // Should unification succeed?
+		expectedSub   map[string]string // Expected tail substitutions (tail_name -> labels_string)
+		expectedError string            // Expected error substring (if expectSuccess=false)
 	}{
 		// ═══════════════════════════════════════════════════════════════
 		// Both closed - must have exact same labels
@@ -88,8 +88,8 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε1": "{}",  // ε1 := {} | ρ (where ρ is fresh)
-				"ε2": "{}",  // ε2 := {} | ρ
+				"ε1": "{}", // ε1 := {} | ρ (where ρ is fresh)
+				"ε2": "{}", // ε2 := {} | ρ
 			},
 		},
 		{
@@ -106,8 +106,8 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε1": "{Net}",  // ε1 := {Net} | ρ (r2's unique labels)
-				"ε2": "{IO}",   // ε2 := {IO} | ρ (r1's unique labels)
+				"ε1": "{Net}", // ε1 := {Net} | ρ (r2's unique labels)
+				"ε2": "{IO}",  // ε2 := {IO} | ρ (r1's unique labels)
 			},
 		},
 
@@ -128,7 +128,7 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε1": "{IO}",  // ε1 gets r2's unique labels (IO)
+				"ε1": "{IO}", // ε1 gets r2's unique labels (IO)
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε1": "{IO}",  // ε1 gets r2's unique labels (only IO, Net is common)
+				"ε1": "{IO}", // ε1 gets r2's unique labels (only IO, Net is common)
 			},
 		},
 
@@ -166,7 +166,7 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε2": "{IO}",  // ε2 gets r1's unique labels (IO)
+				"ε2": "{IO}", // ε2 gets r1's unique labels (IO)
 			},
 		},
 		{
@@ -183,7 +183,7 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε2": "{IO}",  // ε2 gets r1's unique labels (only IO, Net is common)
+				"ε2": "{IO}", // ε2 gets r1's unique labels (only IO, Net is common)
 			},
 		},
 		{
@@ -200,7 +200,7 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 			},
 			expectSuccess: true,
 			expectedSub: map[string]string{
-				"ε2": "{FS,IO,Net}",  // ε2 gets all of r1's labels (sorted)
+				"ε2": "{FS,IO,Net}", // ε2 gets all of r1's labels (sorted)
 			},
 		},
 	}
@@ -238,7 +238,8 @@ func TestRowUnification_OpenClosedMatrix(t *testing.T) {
 
 // TestRowUnification_StdlibRegressionCase is the exact scenario that broke in v0.3.10.
 // When typechecking stdlib/std/io.ail:
-//   export func print(s: string) -> () ! {IO} = _io_print(s)
+//
+//	export func print(s: string) -> () ! {IO} = _io_print(s)
 //
 // The application _io_print(s) created a fresh effect row {} | ε1 which needed to unify
 // with the builtin's effect row {IO}. The bug assigned ε1 := {} instead of ε1 := {IO}.

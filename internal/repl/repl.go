@@ -88,7 +88,7 @@ func NewWithVersion(version, buildTime string) *REPL {
 
 	r := &REPL{
 		config:          &Config{},
-		env:             evaluator.Env(), // Share the evaluator's environment (for persistent let bindings)
+		env:             evaluator.Env(),                // Share the evaluator's environment (for persistent let bindings)
 		typeEnv:         types.NewTypeEnvWithBuiltins(), // Load all 49 builtins from spec registry
 		instEnv:         types.NewInstanceEnv(),
 		dictReg:         types.NewDictionaryRegistry(),
