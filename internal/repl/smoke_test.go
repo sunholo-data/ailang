@@ -23,9 +23,9 @@ import (
 // If this test fails, it means the REPL's type environment initialization is broken.
 func TestREPLSmoke_TypeCommand(t *testing.T) {
 	tests := []struct {
-		name         string
-		command      string
-		mustContain  []string // All of these must appear in output
+		name           string
+		command        string
+		mustContain    []string // All of these must appear in output
 		mustNotContain []string // None of these must appear
 	}{
 		{
@@ -33,7 +33,7 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			command: ":type _io_print",
 			mustContain: []string{
 				"! {IO}", // CRITICAL: Effect row must be present
-				"String",  // Parameter type
+				"String", // Parameter type
 			},
 			mustNotContain: []string{
 				"error",
@@ -170,7 +170,8 @@ func TestREPLSmoke_EnvInitialization(t *testing.T) {
 // TestREPLSmoke_EffectRowPreservation is the most focused regression test.
 //
 // This directly checks that effect rows survive the REPL initialization path:
-//   builtins.AllSpecs() → link.RegisterBuiltinModule() → types.NewTypeEnvWithBuiltins()
+//
+//	builtins.AllSpecs() → link.RegisterBuiltinModule() → types.NewTypeEnvWithBuiltins()
 //
 // If this fails, effect rows are being lost somewhere in the chain.
 func TestREPLSmoke_EffectRowPreservation(t *testing.T) {

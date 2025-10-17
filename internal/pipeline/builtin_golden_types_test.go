@@ -24,7 +24,8 @@ import (
 // Any change to builtin types will cause this test to fail with a clear diff.
 //
 // To update the golden file (after intentional changes):
-//   UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot
+//
+//	UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot
 func TestBuiltinTypes_GoldenSnapshot(t *testing.T) {
 	specs := builtins.AllSpecs()
 
