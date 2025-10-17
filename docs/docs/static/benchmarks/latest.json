@@ -1,6 +1,6 @@
 {
   "version": "v0.3.12",
-  "timestamp": "2025-10-17T14:30:15+02:00",
+  "timestamp": "2025-10-17T14:06:19+02:00",
   "totalRuns": 126,
   "aggregates": {
     "avgDurationMs": 41.32539682539682,
@@ -1062,7 +1062,7 @@
   "history": [
     {
       "version": "v0.3.12",
-      "timestamp": "2025-10-17T14:30:15+02:00",
+      "timestamp": "2025-10-17T14:06:19+02:00",
       "successRate": 0.626984126984127,
       "totalRuns": 126,
       "successCount": 79,
