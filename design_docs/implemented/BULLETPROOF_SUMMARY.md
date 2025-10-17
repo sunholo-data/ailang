@@ -390,6 +390,25 @@ UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnaps
 
 ---
 
+## Windows CI Fix (October 17, 2025)
+
+**Issue**: Windows CI correctly detected that the golden file was missing 33 operator builtins and that test files needed formatting.
+
+**Root cause**: Golden file was created with only 17 builtins (the explicit `_io_*`, `_net_*`, `_str_*` builtins) but missed all the operator builtins (`add_Int`, `mul_Float`, `eq_Bool`, etc.) that are also registered in the system.
+
+**Fix**: Updated golden file with all 50 builtins and ran `make fmt`.
+
+**Lesson**: The golden snapshot test is **working as designed** - it caught the mismatch immediately on Windows! This is exactly what we want: any change to builtin signatures (including new registrations) requires explicit review and golden file update.
+
+**Files updated**:
+- `internal/pipeline/testdata/builtin_types.golden` - Now has all 50 builtins
+- `internal/pipeline/builtin_golden_types_test.go` - Formatted
+- `internal/repl/smoke_test.go` - Formatted
+
+**Verification**: All tests pass on Linux, macOS, and Windows (commit 5e4ff0f).
+
+---
+
 **Status**: ✅ **COMPLETE** - All regression guards implemented, tested, documented, and deployed to CI.
 
 **No more lost effect rows!** 🛡️
