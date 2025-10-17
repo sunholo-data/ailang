@@ -46,8 +46,16 @@
       "hash": "7cb721b1876618bcdfb13ca9f699b3a697bcdeaa627f4ff062e67001470a450d",
       "description": "v0.3.9 prompt with JSON encoding and HTTP headers for AI API integration",
       "created": "2025-10-15",
-      "tags": ["production", "latest"],
+      "tags": ["production"],
       "notes": "AI API integration features: 1) JSON encoding with std/json (encode, jo, ja, kv, js, jnum), 2) HTTP headers with httpRequest() and Result-based error handling, 3) NetError ADT (Transport, InvalidHeader, DisallowedHost, BodyTooLarge), 4) Verified with real Claude Haiku API call. All v0.3.8 features included."
+    },
+    "v0.3.12": {
+      "file": "prompts/v0.3.12.md",
+      "hash": "f29acaa33a0e2c3161164e1e0b6337b912d553776f9ac97251f4aa30dc665830",
+      "description": "v0.3.12 prompt with show() function emphasis - recovery release",
+      "created": "2025-10-17",
+      "tags": ["production", "latest"],
+      "notes": "Recovery release restoring show() builtin (accidentally removed in v0.3.10). Prominent show() examples added to teach proper string conversion. All v0.3.9 features included. Testing hypothesis: Emphasizing show() will reduce syntax errors and improve AILANG success rates from 0% baseline."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -74,7 +82,7 @@
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
     }
   },
-  "active": "v0.3.9",
+  "active": "v0.3.12",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
