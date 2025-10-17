@@ -1,0 +1,15 @@
+# Force LF line endings for all text files
+* text=auto
+
+# Force LF for golden test files (prevents Windows CRLF issues)
+*.golden text eol=lf
+
+# Force LF for shell scripts
+*.sh text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
