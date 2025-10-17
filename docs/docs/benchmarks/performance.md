@@ -2,7 +2,7 @@
 sidebar_position: 6
 title: Benchmark Performance
 description: Real-world AI code generation performance metrics for AILANG
-last_updated: 2025-10-16
+last_updated: 2025-10-17
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
@@ -36,11 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Recursion Factorial**: 100.0% success rate
 - **String Manipulation**: 100.0% success rate
-- **Records Person**: 100.0% success rate
-- **Recursion Fibonacci**: 100.0% success rate
 - **Pattern Matching Complex**: 100.0% success rate
+- **Nested Records**: 100.0% success rate
+- **Fizzbuzz**: 100.0% success rate
+- **Records Person**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -67,46 +67,49 @@ Want to see AILANG in action?
 
 ## Technical Details
 
-**Version**: v0.3.9
+**Version**: v0.3.13
 
-**Total Runs**: 126
+**Total Runs**: 180
 
-**Generated**: 2025-10-16 01:00:40
+**Generated**: 2025-10-17 15:56:44
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run | Baseline |
 |-------|------|--------|-------|------------|----------|----------|
-| gpt5-mini | 42 | 69.0% | 69.0% | 1978 | $0.0007 | v0.3.9 |
-| gemini-2-5-flash | 42 | 54.8% | 54.8% | 2130 | $0.0010 | v0.3.9 |
-| claude-haiku-4-5 | 42 | 52.4% | 52.4% | 2362 | $0.0032 | v0.3.9 |
+| gemini-2-5-flash | 3 | 100.0% | 100.0% | 6251 | $0.0021 | v0.3.13 |
+| Claude Sonnet 4.5 | 42 | 64.3% | 71.4% | 2521 | $0.0090 | v0.3.13 |
+| gpt5 | 42 | 66.7% | 66.7% | 2106 | $0.0037 | v0.3.13 |
+| gpt5-mini | 42 | 64.3% | 64.3% | 2118 | $0.0008 | v0.3.13 |
+| Gemini 2.5 Pro | 14 | 42.9% | 57.1% | 2999 | $0.0039 | v0.3.13 |
+| claude-haiku-4-5 | 37 | 51.4% | 54.1% | 2523 | $0.0033 | v0.3.13 |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Pattern Matching Complex | 100.0% | 334 | ailang, python |
-| ✅ Records Person | 100.0% | 122 | ailang, python |
-| ✅ Recursion Factorial | 100.0% | 84 | ailang, python |
-| ✅ Recursion Fibonacci | 100.0% | 91 | ailang, python |
-| ✅ Simple Print | 100.0% | 20 | python |
-| ✅ String Manipulation | 100.0% | 103 | ailang, python |
-| ⚠️ Adt Option | 83.3% | 269 | ailang, python |
-| ⚠️ Fizzbuzz | 83.3% | 116 | ailang, python |
-| ⚠️ Nested Records | 83.3% | 242 | ailang, python |
-| ⚠️ Record Update | 66.7% | 159 | ailang, python |
-| ⚠️ Targeted Repair Test | 66.7% | 48 | ailang |
-| ⚠️ Higher Order Functions | 50.0% | 170 | ailang, python |
-| ⚠️ Json Parse | 50.0% | 80 | ailang, python |
-| ⚠️ List Operations | 50.0% | 182 | ailang, python |
-| ⚠️ Numeric Modulo | 50.0% | 82 | ailang, python |
-| ❌ Error Handling | 33.3% | 541 | ailang, python |
-| ❌ Float Eq | 33.3% | 22 | ailang, python |
-| ❌ Json Encode | 33.3% | 132 | ailang, python |
-| ❌ Api Call Json | 16.7% | 106 | ailang, python |
-| ❌ List Comprehension | 16.7% | 279 | ailang, python |
-| ❌ Cli Args | 0.0% | 234 | ailang, python |
-| ❌ Pipeline | 0.0% | 61 | ailang, python |
+| ✅ Adt Option | 100.0% | 310 | ailang, python |
+| ✅ Fizzbuzz | 100.0% | 121 | ailang, python |
+| ✅ Nested Records | 100.0% | 140 | ailang, python |
+| ✅ Pattern Matching Complex | 100.0% | 413 | ailang, python |
+| ✅ Records Person | 100.0% | 118 | ailang, python |
+| ✅ Recursion Factorial | 100.0% | 80 | ailang, python |
+| ✅ Simple Print | 100.0% | 22 | python |
+| ✅ String Manipulation | 100.0% | 106 | ailang, python |
+| ⚠️ Record Update | 87.5% | 157 | ailang, python |
+| ⚠️ Recursion Fibonacci | 83.3% | 82 | ailang, python |
+| ⚠️ Targeted Repair Test | 80.0% | 46 | ailang |
+| ⚠️ Error Handling | 75.0% | 458 | ailang, python |
+| ⚠️ Higher Order Functions | 50.0% | 166 | ailang, python |
+| ⚠️ Json Encode | 50.0% | 104 | ailang, python |
+| ⚠️ Json Parse | 50.0% | 82 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 17 | ailang, python |
+| ❌ List Operations | 44.4% | 174 | ailang, python |
+| ❌ Float Eq | 37.5% | 29 | ailang, python |
+| ❌ List Comprehension | 25.0% | 275 | ailang, python |
+| ❌ Api Call Json | 20.0% | 125 | ailang, python |
+| ❌ Cli Args | 0.0% | 118 | ailang, python |
+| ❌ Pipeline | 0.0% | 63 | ailang, python |
 
 ---
 
