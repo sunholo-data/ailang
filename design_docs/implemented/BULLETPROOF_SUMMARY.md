@@ -392,20 +392,37 @@ UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnaps
 
 ## Windows CI Fix (October 17, 2025)
 
-**Issue**: Windows CI correctly detected that the golden file was missing 33 operator builtins and that test files needed formatting.
+**Issue**: Windows CI failed golden snapshot test even though the file had all 50 builtins.
 
-**Root cause**: Golden file was created with only 17 builtins (the explicit `_io_*`, `_net_*`, `_str_*` builtins) but missed all the operator builtins (`add_Int`, `mul_Float`, `eq_Bool`, etc.) that are also registered in the system.
+**Symptoms**:
+- ✅ Linux/macOS: Tests passed
+- ❌ Windows: Test failed with "0 signatures unchanged" (all 50 builtins shown as new)
+- The golden file content was correct (57 lines, all builtins present)
 
-**Fix**: Updated golden file with all 50 builtins and ran `make fmt`.
+**Root cause**: **Line ending conversion** - Git was converting LF to CRLF on Windows checkout, causing byte-for-byte mismatch even though the semantic content was identical.
 
-**Lesson**: The golden snapshot test is **working as designed** - it caught the mismatch immediately on Windows! This is exactly what we want: any change to builtin signatures (including new registrations) requires explicit review and golden file update.
+**Investigation**:
+1. Initially suspected missing builtins (wrong - all 50 were in the file)
+2. Checked code formatting (red herring - fixed but not the real issue)
+3. Verified golden file was committed correctly (yes, it was)
+4. Discovered: No `.gitattributes` file → Git using platform defaults
+5. On Windows: `*.golden` files checked out with CRLF line endings
+6. Test code: Generates content with LF, compares byte-for-byte with file
+7. Result: String mismatch even though semantically identical
+
+**Fix**: Added `.gitattributes` to force LF line endings for:
+- `*.golden` files (test data must be byte-identical across platforms)
+- `*.sh` files (shell scripts require LF)
+- Binary files (*.png, *.zip, etc.)
+
+**Lesson**: The golden snapshot test was **working perfectly** - it caught a real difference! Just not the difference we initially expected (line endings, not signatures). This is exactly the kind of subtle cross-platform issue that regression tests should catch.
 
 **Files updated**:
-- `internal/pipeline/testdata/builtin_types.golden` - Now has all 50 builtins
-- `internal/pipeline/builtin_golden_types_test.go` - Formatted
-- `internal/repl/smoke_test.go` - Formatted
+- `.gitattributes` - Force LF for golden files and scripts (commit 8a8609c)
+- `internal/pipeline/builtin_golden_types_test.go` - Formatted (commit 5e4ff0f)
+- `internal/repl/smoke_test.go` - Formatted (commit 5e4ff0f)
 
-**Verification**: All tests pass on Linux, macOS, and Windows (commit 5e4ff0f).
+**Verification**: Waiting for CI to confirm all platforms pass with `.gitattributes` fix.
 
 ---
 
