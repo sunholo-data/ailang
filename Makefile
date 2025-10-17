@@ -404,6 +404,47 @@ doctor: build
 	@echo "Running builtin registry validation..."
 	@AILANG_BUILTINS_REGISTRY=1 $(BUILD_DIR)/$(BINARY) doctor builtins
 
+# Regression guard tests (critical for preventing v0.3.10-style bugs)
+.PHONY: test-regression-guards
+test-regression-guards:
+	@echo "Running regression guard tests..."
+	@echo "  → Builtin consistency (three-way parity)"
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
+	@echo "  → Builtin type golden snapshots"
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
+	@echo "  → REPL smoke tests (:type command)"
+	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
+	@echo "  → Stdlib canaries (std/io, std/net)"
+	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
+	@echo "  → Row unification properties"
+	@$(GOTEST) -v ./internal/types -run TestRowUnification
+	@echo "✓ All regression guards passed"
+
+.PHONY: test-builtin-consistency
+test-builtin-consistency:
+	@echo "Testing builtin consistency..."
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
+
+.PHONY: test-stdlib-canaries
+test-stdlib-canaries:
+	@echo "Testing stdlib canaries..."
+	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
+
+.PHONY: test-row-properties
+test-row-properties:
+	@echo "Testing row unification properties..."
+	@$(GOTEST) -v ./internal/types -run TestRowUnification
+
+.PHONY: test-golden-types
+test-golden-types:
+	@echo "Testing builtin type golden snapshots..."
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
+
+.PHONY: test-repl-smoke
+test-repl-smoke:
+	@echo "Testing REPL smoke tests..."
+	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -422,6 +463,7 @@ help:
 	@echo "  make flag-broken      - Add warning headers to broken examples"
 	@echo "  make update-readme    - Update README with example status"
 	@echo "  make doctor           - Validate builtin registry"
+	@echo "  make test-regression-guards - Run regression guard tests"
 	@echo "  make ci               - Run full CI verification"
 	@echo "  make fmt              - Format code"
 	@echo "  make fmt-check        - Check code formatting"

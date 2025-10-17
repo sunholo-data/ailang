@@ -59,6 +59,9 @@ jobs:
     - name: Validate builtin registry (M-DX1.3)
       run: make doctor
 
+    - name: Run regression guard tests (v0.3.10 prevention)
+      run: make test-regression-guards
+
     - name: Generate test coverage
       run: |
         go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)

@@ -1,0 +1,57 @@
+# AILANG Builtin Type Signatures
+# Auto-generated golden file - DO NOT EDIT MANUALLY
+# To update: UPDATE_GOLDEN=1 go test -v ./internal/pipeline -run TestBuiltinTypes_GoldenSnapshot
+#
+# Format: <name> : <type_signature>
+#
+
+_io_print : String -> () ! {IO}
+_io_println : String -> () ! {IO}
+_io_readLine : () -> String ! {IO}
+_net_httpRequest : (String, String, List[{name: String, value: String}], String) -> Result[{body: String, headers: List[{name: String, value: String}], ok: Bool, status: Int}, NetError] ! {Net}
+_str_compare : (String, String) -> Int
+_str_find : (String, String) -> Int
+_str_len : String -> Int
+_str_lower : String -> String
+_str_slice : (String, Int, Int) -> String
+_str_trim : String -> String
+_str_upper : String -> String
+add_Float : (Float, Float) -> Float
+add_Int : (Int, Int) -> Int
+and_Bool : (Bool, Bool) -> Bool
+concat_String : (String, String) -> String
+div_Float : (Float, Float) -> Float
+div_Int : (Int, Int) -> Int
+eq_Bool : (Bool, Bool) -> Bool
+eq_Float : (Float, Float) -> Bool
+eq_Int : (Int, Int) -> Bool
+eq_String : (String, String) -> Bool
+floatToInt : Float -> Int
+ge_Float : (Float, Float) -> Bool
+ge_Int : (Int, Int) -> Bool
+ge_String : (String, String) -> Bool
+gt_Float : (Float, Float) -> Bool
+gt_Int : (Int, Int) -> Bool
+gt_String : (String, String) -> Bool
+intToFloat : Int -> Float
+le_Float : (Float, Float) -> Bool
+le_Int : (Int, Int) -> Bool
+le_String : (String, String) -> Bool
+lt_Float : (Float, Float) -> Bool
+lt_Int : (Int, Int) -> Bool
+lt_String : (String, String) -> Bool
+mod_Float : (Float, Float) -> Float
+mod_Int : (Int, Int) -> Int
+mul_Float : (Float, Float) -> Float
+mul_Int : (Int, Int) -> Int
+ne_Bool : (Bool, Bool) -> Bool
+ne_Float : (Float, Float) -> Bool
+ne_Int : (Int, Int) -> Bool
+ne_String : (String, String) -> Bool
+neg_Float : Float -> Float
+neg_Int : Int -> Int
+not_Bool : Bool -> Bool
+or_Bool : (Bool, Bool) -> Bool
+show : α -> string
+sub_Float : (Float, Float) -> Float
+sub_Int : (Int, Int) -> Int
