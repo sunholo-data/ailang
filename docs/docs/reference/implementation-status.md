@@ -1,6 +1,6 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.12 (Recovery Release - show() Restored)
+## Current Version: v0.3.13 (Recovery Release - show() Restored)
 
 ## Test Coverage: 31.9%
 
