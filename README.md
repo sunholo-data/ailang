@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-32.1%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-32.5%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -329,7 +329,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 
 ### Example Verification Status
 
-*Last updated: 2025-10-17 14:14:26 UTC*
+*Last updated: 2025-10-17 21:51:45 UTC*
 
 **Summary:** 46 passed, 37 failed, 4 skipped (Total: 87)
 
