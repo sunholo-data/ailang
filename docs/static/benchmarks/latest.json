@@ -1,141 +1,141 @@
 {
-  "version": "v0.3.9",
-  "timestamp": "2025-10-16T13:16:59+02:00",
+  "version": "v0.3.12",
+  "timestamp": "2025-10-17T14:06:19+02:00",
   "totalRuns": 126,
   "aggregates": {
-    "avgDurationMs": 30.91269841269841,
-    "finalSuccess": 0.5873015873015873,
-    "repairSuccessRate": 0,
-    "repairUsed": 0,
-    "totalCostUSD": 0.20499710000000004,
-    "totalTokens": 271774,
+    "avgDurationMs": 41.32539682539682,
+    "finalSuccess": 0.626984126984127,
+    "repairSuccessRate": 0.11363636363636363,
+    "repairUsed": 44,
+    "totalCostUSD": 0.21828309999999998,
+    "totalTokens": 308183,
     "zeroShotSuccess": 0.5873015873015873
   },
   "models": {
     "claude-haiku-4-5": {
       "aggregates": {
-        "avgDurationMs": 26.5,
-        "finalSuccess": 0.5238095238095238,
-        "repairSuccessRate": 0,
-        "repairUsed": 0,
-        "totalCostUSD": 0.133415,
-        "totalTokens": 99219,
-        "zeroShotSuccess": 0.5238095238095238
+        "avgDurationMs": 26.30952380952381,
+        "finalSuccess": 0.6428571428571429,
+        "repairSuccessRate": 0.17647058823529413,
+        "repairUsed": 17,
+        "totalCostUSD": 0.14344200000000001,
+        "totalTokens": 109702,
+        "zeroShotSuccess": 0.5714285714285714
       },
       "benchmarks": {
         "adt_option": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 6344
+          "tokens": 6852
         },
         "api_call_json": {
           "firstAttemptOk": false,
-          "repairUsed": false,
-          "success": false,
-          "tokens": 256
+          "repairUsed": true,
+          "success": true,
+          "tokens": 909
         },
         "cli_args": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 630
+          "tokens": 298
         },
         "error_handling": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 6752
+          "success": true,
+          "tokens": 7196
         },
         "fizzbuzz": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 6294
+          "success": true,
+          "tokens": 243
         },
         "float_eq": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 73
+          "tokens": 247
         },
         "higher_order_functions": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 6440
+          "tokens": 6950
         },
         "json_encode": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 301
+          "tokens": 299
         },
         "json_parse": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 192
+          "tokens": 182
         },
         "list_comprehension": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 519
+          "tokens": 7113
         },
         "list_operations": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 6363
+          "success": true,
+          "tokens": 6909
         },
         "nested_records": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 6341
+          "tokens": 6810
         },
         "numeric_modulo": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 474
+          "success": true,
+          "tokens": 62
         },
         "pattern_matching_complex": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 639
+          "tokens": 649
         },
         "pipeline": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 205
+          "tokens": 183
         },
         "record_update": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 362
+          "tokens": 860
         },
         "records_person": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 284
+          "tokens": 6766
         },
         "recursion_factorial": {
-          "firstAttemptOk": true,
+          "firstAttemptOk": false,
           "repairUsed": false,
-          "success": true,
-          "tokens": 6161
+          "success": false,
+          "tokens": 6679
         },
         "recursion_fibonacci": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 6223
+          "tokens": 243
         },
         "simple_print": {
           "firstAttemptOk": true,
@@ -147,24 +147,24 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 6295
+          "tokens": 6799
         },
         "targeted_repair_test": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 6305
+          "tokens": 6813
         }
       },
       "languages": {
         "ailang": {
-          "avgTokens": 204.0952380952381,
-          "successRate": 0.42857142857142855,
+          "avgTokens": 172.61904761904762,
+          "successRate": 0.5238095238095238,
           "totalRuns": 21
         },
         "python": {
-          "avgTokens": 203,
-          "successRate": 0.6190476190476191,
+          "avgTokens": 288.04761904761904,
+          "successRate": 0.7619047619047619,
           "totalRuns": 21
         }
       },
@@ -172,44 +172,44 @@
     },
     "gemini-2-5-flash": {
       "aggregates": {
-        "avgDurationMs": 25.547619047619047,
+        "avgDurationMs": 26.5,
         "finalSuccess": 0.5476190476190477,
-        "repairSuccessRate": 0,
-        "repairUsed": 0,
-        "totalCostUSD": 0.040410600000000005,
-        "totalTokens": 89470,
-        "zeroShotSuccess": 0.5476190476190477
+        "repairSuccessRate": 0.07142857142857142,
+        "repairUsed": 14,
+        "totalCostUSD": 0.0430631,
+        "totalTokens": 103116,
+        "zeroShotSuccess": 0.5238095238095238
       },
       "benchmarks": {
         "adt_option": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5839
+          "tokens": 367
         },
         "api_call_json": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 243
+          "tokens": 222
         },
         "cli_args": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 151
+          "tokens": 282
         },
         "error_handling": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 6558
+          "tokens": 7004
         },
         "fizzbuzz": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5763
+          "tokens": 6230
         },
         "float_eq": {
           "firstAttemptOk": false,
@@ -219,81 +219,81 @@
         },
         "higher_order_functions": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 5931
+          "tokens": 6554
         },
         "json_encode": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 254
+          "tokens": 264
         },
         "json_parse": {
-          "firstAttemptOk": true,
-          "repairUsed": false,
-          "success": true,
-          "tokens": 175
+          "firstAttemptOk": false,
+          "repairUsed": true,
+          "success": false,
+          "tokens": 185
         },
         "list_comprehension": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 6143
+          "tokens": 6577
         },
         "list_operations": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 5887
+          "tokens": 6340
         },
         "nested_records": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5800
+          "tokens": 6265
         },
         "numeric_modulo": {
           "firstAttemptOk": false,
           "repairUsed": false,
           "success": false,
-          "tokens": 42
+          "tokens": 41
         },
         "pattern_matching_complex": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 578
+          "tokens": 6557
         },
         "pipeline": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 164
+          "tokens": 149
         },
         "record_update": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5812
+          "tokens": 6278
         },
         "records_person": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5745
+          "tokens": 6220
         },
         "recursion_factorial": {
-          "firstAttemptOk": true,
+          "firstAttemptOk": false,
           "repairUsed": false,
-          "success": true,
-          "tokens": 5653
+          "success": false,
+          "tokens": 6138
         },
         "recursion_fibonacci": {
-          "firstAttemptOk": true,
+          "firstAttemptOk": false,
           "repairUsed": false,
-          "success": true,
-          "tokens": 5717
+          "success": false,
+          "tokens": 6200
         },
         "simple_print": {
           "firstAttemptOk": true,
@@ -305,24 +305,24 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 269
+          "tokens": 6247
         },
         "targeted_repair_test": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 5785
+          "success": true,
+          "tokens": 6254
         }
       },
       "languages": {
         "ailang": {
-          "avgTokens": 168.28571428571428,
-          "successRate": 0.42857142857142855,
+          "avgTokens": 184,
+          "successRate": 0.38095238095238093,
           "totalRuns": 21
         },
         "python": {
-          "avgTokens": 125.42857142857143,
-          "successRate": 0.6666666666666666,
+          "avgTokens": 131.52380952380952,
+          "successRate": 0.7142857142857143,
           "totalRuns": 21
         }
       },
@@ -330,90 +330,90 @@
     },
     "gpt5-mini": {
       "aggregates": {
-        "avgDurationMs": 40.69047619047619,
+        "avgDurationMs": 71.16666666666667,
         "finalSuccess": 0.6904761904761905,
-        "repairSuccessRate": 0,
-        "repairUsed": 0,
-        "totalCostUSD": 0.031171499999999998,
-        "totalTokens": 83085,
-        "zeroShotSuccess": 0.6904761904761905
+        "repairSuccessRate": 0.07692307692307693,
+        "repairUsed": 13,
+        "totalCostUSD": 0.031778,
+        "totalTokens": 95365,
+        "zeroShotSuccess": 0.6666666666666666
       },
       "benchmarks": {
         "adt_option": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 346
+          "tokens": 5826
         },
         "api_call_json": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 227
+          "tokens": 222
         },
         "cli_args": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 253
+          "tokens": 223
         },
         "error_handling": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5615
+          "tokens": 737
         },
         "fizzbuzz": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 209
+          "tokens": 5776
         },
         "float_eq": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 76
+          "tokens": 77
         },
         "higher_order_functions": {
-          "firstAttemptOk": false,
-          "repairUsed": false,
-          "success": false,
-          "tokens": 5462
-        },
-        "json_encode": {
-          "firstAttemptOk": false,
-          "repairUsed": false,
-          "success": false,
-          "tokens": 446
-        },
-        "json_parse": {
-          "firstAttemptOk": false,
-          "repairUsed": false,
-          "success": false,
-          "tokens": 166
-        },
-        "list_comprehension": {
-          "firstAttemptOk": false,
-          "repairUsed": false,
-          "success": false,
-          "tokens": 347
-        },
-        "list_operations": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 304
+          "tokens": 325
+        },
+        "json_encode": {
+          "firstAttemptOk": true,
+          "repairUsed": false,
+          "success": true,
+          "tokens": 242
+        },
+        "json_parse": {
+          "firstAttemptOk": true,
+          "repairUsed": false,
+          "success": true,
+          "tokens": 168
+        },
+        "list_comprehension": {
+          "firstAttemptOk": false,
+          "repairUsed": true,
+          "success": false,
+          "tokens": 340
+        },
+        "list_operations": {
+          "firstAttemptOk": false,
+          "repairUsed": true,
+          "success": false,
+          "tokens": 5833
         },
         "nested_records": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 330
+          "tokens": 5785
         },
         "numeric_modulo": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
           "tokens": 59
         },
@@ -421,37 +421,37 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5705
+          "tokens": 6120
         },
         "pipeline": {
           "firstAttemptOk": false,
-          "repairUsed": false,
+          "repairUsed": true,
           "success": false,
-          "tokens": 144
+          "tokens": 166
         },
         "record_update": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5362
+          "tokens": 5811
         },
         "records_person": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5310
+          "tokens": 5757
         },
         "recursion_factorial": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5222
+          "tokens": 5669
         },
         "recursion_fibonacci": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5280
+          "tokens": 5727
         },
         "simple_print": {
           "firstAttemptOk": true,
@@ -463,23 +463,23 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5334
+          "tokens": 5781
         },
         "targeted_repair_test": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 5350
+          "tokens": 5791
         }
       },
       "languages": {
         "ailang": {
-          "avgTokens": 147.9047619047619,
+          "avgTokens": 144.42857142857142,
           "successRate": 0.5238095238095238,
           "totalRuns": 21
         },
         "python": {
-          "avgTokens": 135.0952380952381,
+          "avgTokens": 123.76190476190476,
           "successRate": 0.8571428571428571,
           "totalRuns": 21
         }
@@ -489,19 +489,45 @@
   },
   "benchmarks": {
     "adt_option": {
-      "avgTokens": 269.1666666666667,
+      "avgTokens": 303.6666666666667,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Option[a] = Some(a) | None\n\nexport func safeDivide(a: float, b: float) -\u003e Option[float] {\n  if b == 0.0\n  then None\n  else Some(a / b)\n}\n\nexport func printResult(r: Option[float]) -\u003e () ! {IO} {\n  match r {\n    Some(v) =\u003e println(\"Result: \" ++ show(v)),\n    None =\u003e println(\"Error: Division by zero\")\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let r1 = safeDivide(10.0, 2.0);\n  printResult(r1);\n  let r2 = safeDivide(10.0, 0.0);\n  printResult(r2)\n}",
-        "python": "import math\nfrom typing import Optional, Union\n\ndef safe_divide(numerator: Union[int, float], denominator: Union[int, float]) -\u003e Optional[float]:\n    if denominator == 0:\n        return None\n    return float(numerator) / denominator\n\n# Test cases\nresult1 = safe_divide(10, 2)\nresult2 = safe_divide(10, 0)\n\n# Print results for the first test case\nif result1 is not None:\n    print(f\"Result: {result1}\")\nelse:\n    print(\"Error: Division by zero\")\n\n# Print results for the second test case\nif result2 is not None:\n    print(f\"Result: {result2}\")\nelse:\n    print(\"Error: Division by zero\")"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Option[a] = Some(a) | None\n\nexport func divide(a: int, b: int) -\u003e Option[float] {\n  if b == 0\n  then None\n  else Some(intToFloat(a) / intToFloat(b))\n}\n\nexport func printResult(r: Option[float]) -\u003e () ! {IO} {\n  match r {\n    Some(v) =\u003e println(\"Result: \" ++ show(v)),\n    None =\u003e println(\"Error: Division by zero\")\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let r1 = divide(10, 2);\n  printResult(r1);\n  let r2 = divide(10, 0);\n  printResult(r2)\n}",
+        "python": "from dataclasses import dataclass\nfrom typing import Generic, TypeVar, Union\n\nT = TypeVar('T')\n\n@dataclass(frozen=True)\nclass Some(Generic[T]):\n    value: T\n\nOption = Union[Some[T], None]\n\ndef safe_division(numerator: float, divisor: float) -\u003e Option[float]:\n    if divisor == 0:\n        return None\n    else:\n        return Some(numerator / divisor)\n\nresult1 = safe_division(10, 2)\nresult2 = safe_division(10, 0)\n\nif isinstance(result1, Some):\n    print(f\"Result: {result1.value}\")\nelse:\n    print(\"Error: Division by zero\")\n\nif isinstance(result2, Some):\n    print(f\"Result: {result2.value}\")\nelse:\n    print(\"Error: Division by zero\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 193,
+          "avgTokens": 256,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 345.3333333333333,
+          "avgTokens": 351.3333333333333,
+          "successRate": 1,
+          "totalRuns": 3
+        }
+      },
+      "languages": [
+        "ailang",
+        "python"
+      ],
+      "successRate": 1,
+      "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines an Option type (Some/None, or equivalent)\n2. Implements a safe division function that returns Option[Float]\n   - Returns Some(result) if divisor is non-zero\n   - Returns None if divisor is zero\n3. Tests the function with: divide(10, 2) and divide(10, 0)\n4. Prints the results:\n   - For Some(value): print \"Result: {value}\"\n   - For None: print \"Error: Division by zero\"\n\nOutput only the code, no explanations.\n",
+      "totalRuns": 6
+    },
+    "api_call_json": {
+      "avgTokens": 130.83333333333334,
+      "codeSamples": {
+        "ailang": "import http_request\n\n# Make the HTTP POST request\nresponse = http_request.post(\n    \"https://httpbin.org/post\",\n    headers={\n        \"X-Test-Header\": \"value123\",\n        \"Content-Type\": \"application/json\"\n    },\n    body='{\"message\":\"Hello from AILANG\",\"count\":42}'\n)\n\n# Print only the status code\nprint(response.status_code)",
+        "python": "import json\nfrom urllib.request import Request, urlopen\n\nurl = \"https://httpbin.org/post\"\ndata = json.dumps({\"message\":\"Hello from Python 3\",\"count\":42}).encode(\"utf-8\")\nheaders = {\"X-Test-Header\": \"value123\", \"Content-Type\": \"application/json\"}\nreq = Request(url, data=data, headers=headers, method=\"POST\")\nwith urlopen(req) as resp:\n    print(resp.getcode())"
+      },
+      "languageStats": {
+        "ailang": {
+          "avgTokens": 95.33333333333333,
+          "successRate": 0,
+          "totalRuns": 3
+        },
+        "python": {
+          "avgTokens": 166.33333333333334,
           "successRate": 0.6666666666666666,
           "totalRuns": 3
         }
@@ -510,50 +536,24 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.8333333333333334,
-      "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines an Option type (Some/None, or equivalent)\n2. Implements a safe division function that returns Option[Float]\n   - Returns Some(result) if divisor is non-zero\n   - Returns None if divisor is zero\n3. Tests the function with: divide(10, 2) and divide(10, 0)\n4. Prints the results:\n   - For Some(value): print \"Result: {value}\"\n   - For None: print \"Error: Division by zero\"\n\nOutput only the code, no explanations.\n",
-      "totalRuns": 6
-    },
-    "api_call_json": {
-      "avgTokens": 105.83333333333333,
-      "codeSamples": {
-        "ailang": "import http.client\nimport json\n\nconn = http.client.HTTPSConnection(\"httpbin.org\")\n\nbody = json.dumps({\"message\": \"Hello from AILANG\", \"count\": 42})\n\nheaders = {\n    \"X-Test-Header\": \"value123\",\n    \"Content-Type\": \"application/json\"\n}\n\nconn.request(\"POST\", \"/post\", body, headers)\n\nresponse = conn.getresponse()\nprint(response.status)\n\nconn.close()",
-        "python": "import urllib.request\nimport json\n\nurl = \"https://httpbin.org/post\"\npayload = {\"message\": \"Hello from Python 3\", \"count\": 42}\ndata = json.dumps(payload).encode(\"utf-8\")\nheaders = {\"X-Test-Header\": \"value123\", \"Content-Type\": \"application/json\"}\n\nreq = urllib.request.Request(url, data=data, headers=headers, method=\"POST\")\nwith urllib.request.urlopen(req) as resp:\n    print(resp.getcode())"
-      },
-      "languageStats": {
-        "ailang": {
-          "avgTokens": 106.66666666666667,
-          "successRate": 0,
-          "totalRuns": 3
-        },
-        "python": {
-          "avgTokens": 105,
-          "successRate": 0.3333333333333333,
-          "totalRuns": 3
-        }
-      },
-      "languages": [
-        "ailang",
-        "python"
-      ],
-      "successRate": 0.16666666666666666,
+      "successRate": 0.3333333333333333,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Makes an HTTP POST request to https://httpbin.org/post\n2. Includes custom headers: \"X-Test-Header: value123\" and \"Content-Type: application/json\"\n3. Sends a JSON body: {\"message\":\"Hello from \u003cLANG\u003e\",\"count\":42}\n4. Prints ONLY the response status code (e.g., \"200\" or \"201\")\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "cli_args": {
-      "avgTokens": 234.33333333333334,
+      "avgTokens": 178.5,
       "codeSamples": {
-        "ailang": "SET FILENAME ARGS[1]\nSET SUM 0\nSET FH OPEN FILENAME \"r\"\nWHILE TRUE DO\n    SET LINE READLINE FH\n    IF EQ LINE NULL THEN\n        BREAK\n    END\n    SET NUM_VAL NUM LINE\n    SET SUM ADD SUM NUM_VAL\nEND\nCLOSE FH\nPRINT SUM",
-        "python": "import sys\n\nif len(sys.argv) != 2:\n    print(\"Usage: python script.py \u003cfilename\u003e\")\n    sys.exit(1)\n\nfilename = sys.argv[1]\ntotal_sum = 0.0\n\ntry:\n    with open(filename, 'r') as f:\n        for line in f:\n            try:\n                num = float(line.strip())\n                total_sum += num\n            except ValueError:\n                # Optionally, handle non-numeric lines.\n                # For this problem, we assume all lines are valid numbers.\n                pass\n    print(total_sum)\nexcept FileNotFoundError:\n    print(f\"Error: File '{filename}' not found.\")\n    sys.exit(1)\nexcept Exception as e:\n    print(f\"An error occurred: {e}\")\n    sys.exit(1)"
+        "ailang": "func main(args: list\u003cstring\u003e) {\n  if len(args) \u003c 2 {\n    print(\"Usage: ailang sum.ailang \u003cfilename\u003e\")\n    return\n  }\n\n  filename = args[1]\n  \n  file = open(filename, \"r\")\n  if file == null {\n    print(\"Error: Could not open file \" + filename)\n    return\n  }\n\n  sum = 0\n  while true {\n    line = file.readline()\n    if line == \"\" {\n      break\n    }\n    \n    line = line.strip()\n    if line == \"\" {\n      continue\n    }\n    \n    num = int(line)\n    sum = sum + num\n  }\n  \n  file.close()\n  \n  print(\"Sum: \" + str(sum))\n}\n\nmain(args)",
+        "python": "#!/usr/bin/env python3\nimport sys\nimport anthropic\n\n\ndef main():\n    if len(sys.argv) != 2:\n        print(\"Usage: python solution.py \u003cfilename\u003e\")\n        sys.exit(1)\n    \n    filename = sys.argv[1]\n    \n    client = anthropic.Anthropic()\n    \n    with open(filename, 'r') as f:\n        file_contents = f.read()\n    \n    prompt = f\"\"\"I have a file with numbers, one per line. Here are the contents:\n\n{file_contents}\n\nPlease compute the sum of all these numbers and tell me only the final sum as a number.\"\"\"\n    \n    message = client.messages.create(\n        model=\"claude-3-5-sonnet-20241022\",\n        max_tokens=1024,\n        messages=[\n            {\"role\": \"user\", \"content\": prompt}\n        ]\n    )\n    \n    response_text = message.content[0].text.strip()\n    try:\n        total = float(response_text.split()[-1])\n        print(int(total) if total == int(total) else total)\n    except (ValueError, IndexError):\n        print(response_text)\n\n\nif __name__ == \"__main__\":\n    main()"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 259.3333333333333,
+          "avgTokens": 182.33333333333334,
           "successRate": 0,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 209.33333333333334,
+          "avgTokens": 174.66666666666666,
           "successRate": 0,
           "totalRuns": 3
         }
@@ -567,20 +567,20 @@
       "totalRuns": 6
     },
     "error_handling": {
-      "avgTokens": 541,
+      "avgTokens": 695,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Result[a] = Ok(a) | Err(string)\n\nexport func parse_int(s: string) -\u003e Result[int] {\n  if s == \"10\" then Ok(10)\n  else if s == \"0\" then Ok(0)\n  else if s == \"5\" then Ok(5)\n  else if s == \"-5\" then Ok(-5)\n  else Err(\"Invalid integer\")\n}\n\nexport func divide_safe(a: int, b: int) -\u003e Result[int] {\n  if b == 0 then Err(\"Division by zero\") else Ok(a / b)\n}\n\nexport func print_result(res: Result[int]) -\u003e () ! {IO} {\n  match res {\n    Ok(v) =\u003e println(\"Result: \" ++ show(v)),\n    Err(msg) =\u003e println(\"Error: \" ++ msg)\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let r1 = match parse_int(\"10\") {\n    Ok(v) =\u003e divide_safe(v, 2),\n    Err(msg) =\u003e Err(msg)\n  };\n  print_result(r1);\n  let r2 = match parse_int(\"10\") {\n    Ok(v) =\u003e divide_safe(v, 0),\n    Err(msg) =\u003e Err(msg)\n  };\n  print_result(r2);\n  let r3 = parse_int(\"abc\");\n  print_result(r3)\n}",
-        "python": "from typing import TypeVar, Generic, Union\n\nT = TypeVar('T')\n\nclass Ok(Generic[T]):\n    def __init__(self, value: T):\n        self._value = value\n\n    def __repr__(self) -\u003e str:\n        return f\"Ok({self._value!r})\"\n\n    def is_ok(self) -\u003e bool:\n        return True\n\n    def is_err(self) -\u003e bool:\n        return False\n\n    @property\n    def value(self) -\u003e T:\n        return self._value\n\nclass Err:\n    def __init__(self, message: str):\n        self._message = message\n\n    def __repr__(self) -\u003e str:\n        return f\"Err({self._message!r})\"\n\n    def is_ok(self) -\u003e bool:\n        return False\n\n    def is_err(self) -\u003e bool:\n        return True\n\n    @property\n    def message(self) -\u003e str:\n        return self._message\n\nResultInt = Union[Ok[int], Err]\n\ndef parse_int(s: str) -\u003e ResultInt:\n    try:\n        return Ok(int(s))\n    except ValueError:\n        return Err(\"Invalid integer\")\n\ndef divide_safe(a: int, b: int) -\u003e ResultInt:\n    if b == 0:\n        return Err(\"Division by zero\")\n    return Ok(a // b)\n\ndef process_and_print(s_val: str, divisor: int):\n    parse_result = parse_int(s_val)\n\n    if parse_result.is_ok():\n        divide_result = divide_safe(parse_result.value, divisor)\n        if divide_result.is_ok():\n            print(f\"Result: {divide_result.value}\")\n        else:\n            print(f\"Error: {divide_result.message}\")\n    else:\n        print(f\"Error: {parse_result.message}\")\n\nif __name__ == \"__main__\":\n    process_and_print(\"10\", 2)\n    process_and_print(\"10\", 0)\n    process_and_print(\"abc\", 2)\n    process_and_print(\"100\", 10)\n    process_and_print(\"0\", 5)\n    process_and_print(\"bad\", 0)"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Result[a] = Ok(a) | Err(string)\n\nexport func parse_int(s: string) -\u003e Result[int] {\n  if s == \"10\"\n  then Ok(10)\n  else if s == \"5\"\n  then Ok(5)\n  else if s == \"0\"\n  then Ok(0)\n  else if s == \"2\"\n  then Ok(2)\n  else if s == \"100\"\n  then Ok(100)\n  else Err(\"Invalid integer\")\n}\n\nexport func divide_safe(a: int, b: int) -\u003e Result[int] {\n  if b == 0\n  then Err(\"Division by zero\")\n  else Ok(a / b)\n}\n\nexport func chain_operations(s: string, divisor: int) -\u003e Result[int] {\n  match parse_int(s) {\n    Ok(value) =\u003e divide_safe(value, divisor),\n    Err(msg) =\u003e Err(msg)\n  }\n}\n\nexport func format_result(result: Result[int]) -\u003e string {\n  match result {\n    Ok(value) =\u003e \"Result: \" ++ show(value),\n    Err(msg) =\u003e \"Error: \" ++ msg\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  {\n    let r1 = chain_operations(\"10\", 2);\n    println(format_result(r1));\n    let r2 = chain_operations(\"10\", 0);\n    println(format_result(r2));\n    let r3 = parse_int(\"abc\");\n    println(format_result(r3))\n  }\n}",
+        "python": "from typing import Generic, TypeVar, Callable, Union\n\nT = TypeVar('T')\nU = TypeVar('U')\n\nclass Result(Generic[T]):\n    def and_then(self, fn: Callable[[T], 'Result[U]']) -\u003e 'Result[U]':\n        raise NotImplementedError\n\nclass Ok(Result[T]):\n    def __init__(self, value: T):\n        self.value = value\n\n    def and_then(self, fn: Callable[[T], 'Result[U]']) -\u003e 'Result[U]':\n        return fn(self.value)\n\n    def __repr__(self):\n        return f\"Ok({self.value!r})\"\n\nclass Err(Result[T]):\n    def __init__(self, message: str):\n        self.message = message\n\n    def and_then(self, fn: Callable[[T], 'Result[U]']) -\u003e 'Result[U]':\n        return self  # type: ignore\n\n    def __repr__(self):\n        return f\"Err({self.message!r})\"\n\ndef parse_int(s: str) -\u003e Result[int]:\n    try:\n        n = int(s)\n        return Ok(n)\n    except ValueError:\n        return Err(\"Invalid integer\")\n\ndef divide_safe(a: int, b: int) -\u003e Result[int]:\n    if b == 0:\n        return Err(\"Division by zero\")\n    return Ok(a // b)\n\ndef print_result(r: Result[int]) -\u003e None:\n    if isinstance(r, Ok):\n        print(f\"Result: {r.value}\")\n    elif isinstance(r, Err):\n        print(f\"Error: {r.message}\")\n\nif __name__ == \"__main__\":\n    # parse_int(\"10\") then divide by 2 -\u003e \"Result: 5\"\n    r1 = parse_int(\"10\").and_then(lambda n: divide_safe(n, 2))\n    print_result(r1)\n\n    # parse_int(\"10\") then divide by 0 -\u003e \"Error: Division by zero\"\n    r2 = parse_int(\"10\").and_then(lambda n: divide_safe(n, 0))\n    print_result(r2)\n\n    # parse_int(\"abc\") -\u003e \"Error: Invalid integer\"\n    r3 = parse_int(\"abc\")\n    print_result(r3)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 523,
+          "avgTokens": 496.6666666666667,
           "successRate": 0.3333333333333333,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 559,
-          "successRate": 0.3333333333333333,
+          "avgTokens": 893.3333333333334,
+          "successRate": 0.6666666666666666,
           "totalRuns": 3
         }
       },
@@ -588,24 +588,24 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.3333333333333333,
+      "successRate": 0.5,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a Result type with Ok(value) and Err(message) variants\n2. Implements a function `parse_int(s: string) -\u003e Result[int]`:\n   - Returns Ok(n) if string can be parsed as integer\n   - Returns Err(\"Invalid integer\") otherwise\n3. Implements a function `divide_safe(a: int, b: int) -\u003e Result[int]`:\n   - Returns Ok(a/b) if b != 0\n   - Returns Err(\"Division by zero\") if b == 0\n4. Chains operations: parse_int(\"10\") -\u003e divide_safe(result, 2)\n5. Prints the final result:\n   - For Ok(value): \"Result: {value}\"\n   - For Err(msg): \"Error: {msg}\"\n\nTest cases:\n- parse_int(\"10\") then divide by 2 -\u003e \"Result: 5\"\n- parse_int(\"10\") then divide by 0 -\u003e \"Error: Division by zero\"\n- parse_int(\"abc\") -\u003e \"Error: Invalid integer\"\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "fizzbuzz": {
-      "avgTokens": 116.33333333333333,
+      "avgTokens": 115.5,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func fb(n: int) -\u003e () ! {IO} {\n  if n \u003e 100\n  then ()\n  else {\n    let s = if n % 15 == 0 then \"FizzBuzz\"\n            else if n % 3 == 0 then \"Fizz\"\n            else if n % 5 == 0 then \"Buzz\"\n            else show(n);\n    println(s);\n    fb(n + 1)\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  fb(1)\n}",
-        "python": "for i in range(1, 101):\n    if i % 15 == 0:\n        print(\"FizzBuzz\")\n    elif i % 3 == 0:\n        print(\"Fizz\")\n    elif i % 5 == 0:\n        print(\"Buzz\")\n    else:\n        print(i)"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func fizzbuzz(n: int) -\u003e string {\n  if n % 15 == 0\n  then \"FizzBuzz\"\n  else if n % 3 == 0\n  then \"Fizz\"\n  else if n % 5 == 0\n  then \"Buzz\"\n  else show(n)\n}\n\nexport func loop(i: int) -\u003e () ! {IO} {\n  if i \u003e 100\n  then ()\n  else {\n    println(fizzbuzz(i));\n    loop(i + 1)\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  loop(1)\n}",
+        "python": "for i in range(1, 101):\n    s = ''\n    if i % 3 == 0:\n        s += 'Fizz'\n    if i % 5 == 0:\n        s += 'Buzz'\n    print(s or i)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 154.33333333333334,
-          "successRate": 0.6666666666666666,
+          "avgTokens": 155.66666666666666,
+          "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 78.33333333333333,
+          "avgTokens": 75.33333333333333,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -614,19 +614,19 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.8333333333333334,
+      "successRate": 1,
       "taskPrompt": "Write a program in \u003cLANG\u003e that prints FizzBuzz from 1 to 100.\n\nRequirements:\n- Print numbers 1-100, one per line\n- For multiples of 3, print \"Fizz\" instead of the number\n- For multiples of 5, print \"Buzz\" instead of the number\n- For multiples of both 3 and 5, print \"FizzBuzz\" instead of the number\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "float_eq": {
-      "avgTokens": 21.833333333333332,
+      "avgTokens": 51,
       "codeSamples": {
-        "ailang": "print(\"true\" if 0.0 == 0.0 else \"false\")",
-        "python": "result = (0.0 == 0.0)\nprint(str(result).lower())"
+        "ailang": "print(0.0 == 0.0)",
+        "python": "print(\"true\" if 0.0 == 0.0 else \"false\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 20.333333333333332,
+          "avgTokens": 78.66666666666667,
           "successRate": 0,
           "totalRuns": 3
         },
@@ -645,19 +645,19 @@
       "totalRuns": 6
     },
     "higher_order_functions": {
-      "avgTokens": 169.5,
+      "avgTokens": 227.33333333333334,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func compose(f: func(int) -\u003e int, g: func(int) -\u003e int) -\u003e func(int) -\u003e int {\n  func(x: int) -\u003e int { f(g(x)) }\n}\n\nexport func add(x: int, y: int) -\u003e int {\n  x + y\n}\n\nexport func multiply(x: int, y: int) -\u003e int {\n  x * y\n}\n\nexport func main() -\u003e () ! {IO} {\n  {\n    let add5 = func(y: int) -\u003e int { add(5, y) };\n    let double = func(y: int) -\u003e int { multiply(2, y) };\n    let add5_then_double = compose(double, add5);\n    let result = add5_then_double(10);\n    println(\"Result: \" ++ show(result))\n  }\n}",
-        "python": "from functools import partial\n\ndef compose(f, g):\n    def composed(x):\n        return f(g(x))\n    return composed\n\ndef add(x, y):\n    return x + y\n\ndef multiply(x, y):\n    return x * y\n\nadd5 = partial(add, 5)\ndouble = partial(multiply, 2)\nadd5_then_double = compose(double, add5)\nresult = add5_then_double(10)\nprint(f\"Result: {result}\")"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func compose(f, g) {\n  func(x: int) -\u003e int { f(g(x)) }\n}\n\nexport func add(x: int, y: int) -\u003e int {\n  x + y\n}\n\nexport func multiply(x: int, y: int) -\u003e int {\n  x * y\n}\n\nexport func main() -\u003e () ! {IO} {\n  let add5 = func(y: int) -\u003e int { add(5, y) };\n  let double = func(y: int) -\u003e int { multiply(2, y) };\n  let add5_then_double = compose(double, add5);\n  let result = add5_then_double(10);\n  println(\"Result: \" ++ show(result))\n}",
+        "python": "def compose(f, g):\n    return lambda x: f(g(x))\n\ndef add(x, y):\n    return x + y\n\ndef multiply(x, y):\n    return x * y\n\nadd5 = lambda x: add(5, x)\n\ndouble = lambda x: multiply(2, x)\n\nadd5_then_double = compose(double, add5)\n\nvalue = 10\nresult = add5_then_double(value)\n\nprint(f\"Result: {result}\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 210.33333333333334,
-          "successRate": 0,
+          "avgTokens": 315,
+          "successRate": 0.3333333333333333,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 128.66666666666666,
+          "avgTokens": 139.66666666666666,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -666,24 +666,24 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.5,
+      "successRate": 0.6666666666666666,
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates higher-order functions:\n\n1. Implement `compose(f, g)` - returns a function that computes f(g(x))\n2. Implement `add(x, y)` - adds two numbers\n3. Implement `multiply(x, y)` - multiplies two numbers\n4. Create `add5 = add(5, _)` using partial application (or lambda)\n5. Create `double = multiply(2, _)` using partial application (or lambda)\n6. Create `add5_then_double = compose(double, add5)`\n7. Apply the composed function to 10\n8. Print the result: \"Result: {value}\"\n\nExpected computation: (10 + 5) * 2 = 30\n\nRequirements:\n- Use first-class functions\n- Demonstrate function composition\n- Show currying or partial application\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "json_encode": {
-      "avgTokens": 132.33333333333334,
+      "avgTokens": 97.83333333333333,
       "codeSamples": {
-        "ailang": "user = {}\nuser.name = \"Alice\"\nuser.age = 30\nuser.active = true\nuser.hobbies = [\"reading\", \"coding\", \"hiking\"]\nuser.address = {}\nuser.address.city = \"Seattle\"\nuser.address.zip = 98101\n\nfunction tostring(v) {\n  return v + \"\"\n}\n\nfunction encode_json(u) {\n  hob = \"\"\n  i = 0\n  while i \u003c len(u.hobbies) {\n    if i \u003e 0 {\n      hob = hob + \",\"\n    }\n    hob = hob + \"\\\"\" + u.hobbies[i] + \"\\\"\"\n    i = i + 1\n  }\n  result = \"{\"\n  result = result + \"\\\"name\\\":\\\"\" + u.name + \"\\\",\"\n  result = result + \"\\\"age\\\":\" + tostring(u.age) + \",\"\n  result = result + \"\\\"active\\\":\"\n  if u.active {\n    result = result + \"true,\"\n  } else {\n    result = result + \"false,\"\n  }\n  result = result + \"\\\"hobbies\\\":[\" + hob + \"],\"\n  result = result + \"\\\"address\\\":{\\\"city\\\":\\\"\" + u.address.city + \"\\\",\\\"zip\\\":\" + tostring(u.address.zip) + \"}\"\n  result = result + \"}\"\n  return result\n}\n\njson_string = encode_json(user)\nprint(json_string)",
-        "python": "import json\n\nuser_data = {\n    \"name\": \"Alice\",\n    \"age\": 30,\n    \"active\": True,\n    \"hobbies\": [\"reading\", \"coding\", \"hiking\"],\n    \"address\": {\n        \"city\": \"Seattle\",\n        \"zip\": 98101\n    }\n}\n\njson_string = json.dumps(user_data, separators=(',', ':'))\nprint(json_string)"
+        "ailang": "import json\n\n// Create the nested JSON structure\nuser_object = {\n    \"name\": \"Alice\",\n    \"age\": 30,\n    \"active\": true,\n    \"hobbies\": [\"reading\", \"coding\", \"hiking\"],\n    \"address\": {\n        \"city\": \"Seattle\",\n        \"zip\": 98101\n    }\n}\n\n// Encode to JSON string\njson_string = json.dumps(user_object)\n\n// Print the JSON string\nprint(json_string)",
+        "python": "import json\ndata = {\n    \"name\": \"Alice\",\n    \"age\": 30,\n    \"active\": True,\n    \"hobbies\": [\"reading\", \"coding\", \"hiking\"],\n    \"address\": {\"city\": \"Seattle\", \"zip\": 98101}\n}\nprint(json.dumps(data, separators=(',', ':')))"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 165.33333333333334,
+          "avgTokens": 93.66666666666667,
           "successRate": 0,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 99.33333333333333,
+          "avgTokens": 102,
           "successRate": 0.6666666666666666,
           "totalRuns": 3
         }
@@ -697,19 +697,19 @@
       "totalRuns": 6
     },
     "json_parse": {
-      "avgTokens": 80.16666666666667,
+      "avgTokens": 79.16666666666667,
       "codeSamples": {
-        "ailang": "import json\n\njson_string = '[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25},{\"name\":\"Charlie\",\"age\":35}]'\n\ndata = json.loads(json_string)\n\nfor person in data:\n    if person[\"age\"] \u003e= 30:\n        print(person[\"name\"])",
+        "ailang": "import json\n\ndata = json.loads('[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25},{\"name\":\"Charlie\",\"age\":35}]')\n\nfor person in data:\n    if person[\"age\"] \u003e= 30:\n        print(person[\"name\"])",
         "python": "import json\n\ndata = json.loads('[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25},{\"name\":\"Charlie\",\"age\":35}]')\nfor person in data:\n    if person.get(\"age\", 0) \u003e= 30:\n        print(person.get(\"name\", \"\"))"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 80,
+          "avgTokens": 75.66666666666667,
           "successRate": 0,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 80.33333333333333,
+          "avgTokens": 82.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -723,19 +723,19 @@
       "totalRuns": 6
     },
     "list_comprehension": {
-      "avgTokens": 279.1666666666667,
+      "avgTokens": 332.1666666666667,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\n-- Predicate to check if a number is even\nfunc isEven(n: int) -\u003e bool {\n  n % 2 == 0\n}\n\n-- Function to square a number\nfunc square(n: int) -\u003e int {\n  n * n\n}\n\n-- Generic filter function\nfunc filter[a](pred: func(a) -\u003e bool, xs: [a]) -\u003e [a] {\n  match xs {\n    [] =\u003e [],\n    head :: tail =\u003e\n      if pred(head)\n      then head :: filter(pred, tail)\n      else filter(pred, tail)\n  }\n}\n\n-- Generic map function\nfunc map[a, b](f: func(a) -\u003e b, xs: [a]) -\u003e [b] {\n  match xs {\n    [] =\u003e [],\n    head :: tail =\u003e f(head) :: map(f, tail)\n  }\n}\n\n-- Function to sum all elements in an integer list\nfunc sum(xs: [int]) -\u003e int {\n  match xs {\n    [] =\u003e 0,\n    head :: tail =\u003e head + sum(tail)\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let initialList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n\n  -- Step 2: Filter the list to keep only even numbers\n  let evenNumbers = filter(isEven, initialList);\n\n  -- Step 3: Map the filtered list by squaring each number\n  let squaredEvenNumbers = map(square, evenNumbers);\n\n  -- Step 4: Compute the sum of the resulting list\n  let finalSum = sum(squaredEvenNumbers);\n\n  -- Step 5: Print the result\n  println(\"Sum of squares of evens: \" ++ show(finalSum))\n}",
-        "python": "if __name__ == \"__main__\":\n    numbers = list(range(1, 11))\n    evens = [n for n in numbers if n % 2 == 0]\n    squares = [n * n for n in evens]\n    total = sum(squares)\n\n    print(f\"Original list: {numbers}\")\n    print(f\"Filtered evens: {evens}\")\n    print(f\"Squared evens: {squares}\")\n    print(f\"Sum of squares of evens: {total}\")"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func filter(pred: func(int) -\u003e bool, xs: [int]) -\u003e [int] {\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e \n      if pred(x)\n      then x :: filter(pred, rest)\n      else filter(pred, rest)\n  }\n}\n\nexport func map(f: func(int) -\u003e int, xs: [int]) -\u003e [int] {\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e f(x) :: map(f, rest)\n  }\n}\n\nexport func fold(f: func(int, int) -\u003e int, acc: int, xs: [int]) -\u003e int {\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e fold(f, f(acc, x), rest)\n  }\n}\n\nexport func isEven(n: int) -\u003e bool {\n  n % 2 == 0\n}\n\nexport func square(n: int) -\u003e int {\n  n * n\n}\n\nexport func add(a: int, b: int) -\u003e int {\n  a + b\n}\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n  let evens = filter(isEven, nums);\n  let squared = map(square, evens);\n  let result = fold(add, 0, squared);\n  println(\"Sum of squares of evens: \" ++ show(result))\n}",
+        "python": "import anthropic\n\ndef solve_with_claude():\n    client = anthropic.Anthropic()\n    \n    message = client.messages.create(\n        model=\"claude-3-5-sonnet-20241022\",\n        max_tokens=1024,\n        messages=[\n            {\n                \"role\": \"user\",\n                \"content\": \"\"\"Write Python code that:\n1. Creates a list of integers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n2. Filters the list to keep only even numbers\n3. Maps the filtered list by squaring each number\n4. Computes the sum of the resulting list\n5. Prints the result: \"Sum of squares of evens: {result}\"\n\nUse list comprehensions. Show intermediate results for debugging.\nExpected result should be 220 (2^2 + 4^2 + 6^2 + 8^2 + 10^2 = 4 + 16 + 36 + 64 + 100 = 220)\n\nOnly output the Python code, no explanations.\"\"\"\n            }\n        ]\n    )\n    \n    code = message.content[0].text\n    \n    code_lines = []\n    in_code_block = False\n    for line in code.split('\\n'):\n        if line.strip().startswith('```python'):\n            in_code_block = True\n            continue\n        elif line.strip().startswith('```'):\n            in_code_block = False\n            continue\n        if in_code_block or (not line.strip().startswith('```') and code.count('```') == 0):\n            code_lines.append(line)\n    \n    final_code = '\\n'.join(code_lines)\n    \n    exec(final_code)\n\ndef solve_direct():\n    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    print(f\"Original list: {numbers}\")\n    \n    evens = [n for n in numbers if n % 2 == 0]\n    print(f\"Even numbers: {evens}\")\n    \n    squares = [n**2 for n in evens]\n    print(f\"Squares of evens: {squares}\")\n    \n    total = sum(squares)\n    print(f\"Sum of squares of evens: {total}\")\n\nif __name__ == \"__main__\":\n    solve_direct()"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 403.6666666666667,
+          "avgTokens": 393.3333333333333,
           "successRate": 0,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 154.66666666666666,
+          "avgTokens": 271,
           "successRate": 0.3333333333333333,
           "totalRuns": 3
         }
@@ -749,19 +749,19 @@
       "totalRuns": 6
     },
     "list_operations": {
-      "avgTokens": 181.5,
+      "avgTokens": 177.33333333333334,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype List[a] = Cons(a, List[a]) | Nil\n\nfunc sum_list(xs: List[int]) -\u003e int {\n  match xs {\n    Nil =\u003e 0,\n    Cons(head, tail) =\u003e head + sum_list(tail)\n  }\n}\n\nfunc length_list[a](xs: List[a]) -\u003e int {\n  match xs {\n    Nil =\u003e 0,\n    Cons(_, tail) =\u003e 1 + length_list(tail)\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let my_list = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))));\n  let sum_result = sum_list(my_list);\n  let length_result = length_list(my_list);\n\n  println(\"Sum: \" ++ show(sum_result));\n  println(\"Length: \" ++ show(length_result))\n}",
-        "python": "my_list = [1, 2, 3, 4, 5]\n\ndef sum_list(lst):\n    match lst:\n        case []:\n            return 0\n        case [head, *tail]:\n            return head + sum_list(tail)\n\ndef length_list(lst):\n    match lst:\n        case []:\n            return 0\n        case [_, *tail]:\n            return 1 + length_list(tail)\n\ntotal_sum = sum_list(my_list)\ntotal_length = length_list(my_list)\n\nprint(f\"Sum: {total_sum}\")\nprint(f\"Length: {total_length}\")"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype List[a] = Cons(a, List[a]) | Nil\n\nexport func sum_list(lst: List[int]) -\u003e int {\n  match lst {\n    Cons(x, xs) =\u003e x + sum_list(xs),\n    Nil =\u003e 0\n  }\n}\n\nexport func length_list(lst: List[int]) -\u003e int {\n  match lst {\n    Cons(_, xs) =\u003e 1 + length_list(xs),\n    Nil =\u003e 0\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let nums = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))));\n  let s = sum_list(nums);\n  let len = length_list(nums);\n  println(\"Sum: \" ++ show(s));\n  println(\"Length: \" ++ show(len))\n}",
+        "python": "def sum_list(lst):\n    match lst:\n        case []:\n            return 0\n        case [head, *tail]:\n            return head + sum_list(tail)\n\ndef length_list(lst):\n    match lst:\n        case []:\n            return 0\n        case [_, *tail]:\n            return 1 + length_list(tail)\n\nnumbers = [1, 2, 3, 4, 5]\ntotal = sum_list(numbers)\ncount = length_list(numbers)\n\nprint(f\"Sum: {total}\")\nprint(f\"Length: {count}\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 198.66666666666666,
-          "successRate": 0,
+          "avgTokens": 202.66666666666666,
+          "successRate": 0.3333333333333333,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 164.33333333333334,
+          "avgTokens": 152,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -770,25 +770,25 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.5,
+      "successRate": 0.6666666666666666,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a list of integers: [1, 2, 3, 4, 5]\n2. Implements a recursive function `sum_list` that sums all elements\n3. Implements a recursive function `length_list` that counts elements\n4. Prints the sum and length in this exact format:\n   \"Sum: {sum}\"\n   \"Length: {length}\"\n\nRequirements:\n- Use pattern matching for head/tail (e.g., x::xs or similar)\n- Use recursion (no loops)\n- For empty list, sum is 0 and length is 0\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "nested_records": {
-      "avgTokens": 241.5,
+      "avgTokens": 202.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let employee = {name: \"Alice\", age: 30, department: {name: \"Engineering\", code: \"ENG\", building: 5}};\n  println(\"Employee: \" ++ employee.name);\n  println(\"Department: \" ++ employee.department.name);\n  println(\"Building: \" ++ show(employee.department.building))\n}",
-        "python": "from dataclasses import dataclass\n\n@dataclass\nclass Department:\n    name: str\n    code: str\n    building: int\n\n@dataclass\nclass Employee:\n    name: str\n    age: int\n    department: Department\n\ndef main():\n    department = Department(name=\"Engineering\", code=\"ENG\", building=5)\n    employee = Employee(name=\"Alice\", age=30, department=department)\n    print(f\"Employee: {employee.name}\")\n    print(f\"Department: {employee.department.name}\")\n    print(f\"Building: {employee.department.building}\")\n\nif __name__ == \"__main__\":\n    main()"
+        "python": "from dataclasses import dataclass\n\n@dataclass\nclass Department:\n    name: str\n    code: str\n    building: int\n\n@dataclass\nclass Employee:\n    name: str\n    age: int\n    department: Department\n\nemployee = Employee(\n    name=\"Alice\",\n    age=30,\n    department=Department(name=\"Engineering\", code=\"ENG\", building=5)\n)\n\nprint(f\"Employee: {employee.name}\")\nprint(f\"Department: {employee.department.name}\")\nprint(f\"Building: {employee.department.building}\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 128,
+          "avgTokens": 111.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 355,
-          "successRate": 0.6666666666666666,
+          "avgTokens": 293.3333333333333,
+          "successRate": 1,
           "totalRuns": 3
         }
       },
@@ -796,19 +796,19 @@
         "ailang",
         "python"
       ],
-      "successRate": 0.8333333333333334,
+      "successRate": 1,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a nested record structure representing a company employee:\n   - Employee record with fields:\n     - name: \"Alice\"\n     - age: 30\n     - department: (nested record)\n       - name: \"Engineering\"\n       - code: \"ENG\"\n       - building: 5\n2. Access and print the employee's name, department name, and building number\n3. Output format (one per line):\n   \"Employee: {name}\"\n   \"Department: {dept_name}\"\n   \"Building: {building}\"\n\nRequirements:\n- Use nested record/object structure\n- Access nested fields through chaining (e.g., employee.department.name)\n\nOutput only the code, no explanations.\n",
       "totalRuns": 6
     },
     "numeric_modulo": {
-      "avgTokens": 82.5,
+      "avgTokens": 16,
       "codeSamples": {
-        "ailang": "print(5 % 3)",
+        "ailang": "fun main() {\n    let remainder = 5 % 3\n    print(remainder)\n}",
         "python": "print(5 % 3)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 151.33333333333334,
+          "avgTokens": 18.333333333333332,
           "successRate": 0,
           "totalRuns": 3
         },
@@ -827,19 +827,19 @@
       "totalRuns": 6
     },
     "pattern_matching_complex": {
-      "avgTokens": 333.8333333333333,
+      "avgTokens": 334.5,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\nexport func tree_sum(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n}\n\nexport func find_max(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e {\n      let left_max = find_max(l);\n      let right_max = find_max(r);\n      if left_max \u003e v then\n        if left_max \u003e right_max then left_max else right_max\n      else\n        if v \u003e right_max then v else right_max\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let sample_tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n  let sum = tree_sum(sample_tree);\n  let max = find_max(sample_tree);\n  println(\"Sum: \" ++ show(sum));\n  println(\"Max: \" ++ show(max))\n}",
-        "python": "from __future__ import annotations\nfrom dataclasses import dataclass\nfrom typing import Union\n\n@dataclass(frozen=True)\nclass Leaf:\n    value: int\n\n@dataclass(frozen=True)\nclass Node:\n    left: Tree\n    value: int\n    right: Tree\n\nTree = Union[Leaf, Node]\n\ndef tree_sum(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            return tree_sum(l) + v + tree_sum(r)\n\ndef find_max(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            max_left = find_max(l)\n            max_right = find_max(r)\n            return max(v, max_left, max_right)\n\nsample_tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n\nsum_result = tree_sum(sample_tree)\nmax_result = find_max(sample_tree)\n\nprint(f\"Sum: {sum_result}\")\nprint(f\"Max: {max_result}\")"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\nexport func tree_sum(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n}\n\nexport func find_max(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) if v \u003e= find_max(l) \u0026\u0026 v \u003e= find_max(r) =\u003e v,\n    Node(Leaf(lv), v, r) =\u003e {\n      let mr = find_max(r);\n      if lv \u003e= v \u0026\u0026 lv \u003e= mr then lv else if mr \u003e= v \u0026\u0026 mr \u003e= lv then mr else v\n    },\n    Node(l, v, Leaf(rv)) =\u003e {\n      let ml = find_max(l);\n      if ml \u003e= v \u0026\u0026 ml \u003e= rv then ml else if rv \u003e= v \u0026\u0026 rv \u003e= ml then rv else v\n    },\n    Node(l, v, r) =\u003e {\n      let ml = find_max(l);\n      let mr = find_max(r);\n      if ml \u003e= mr \u0026\u0026 ml \u003e= v then ml else if mr \u003e= ml \u0026\u0026 mr \u003e= v then mr else v\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n  let sum = tree_sum(tree);\n  let mx = find_max(tree);\n  println(\"Sum: \" ++ show(sum));\n  println(\"Max: \" ++ show(mx))\n}",
+        "python": "from dataclasses import dataclass\nfrom typing import Union\n\n@dataclass\nclass Leaf:\n    value: int\n\n@dataclass\nclass Node:\n    left: 'Tree'\n    value: int\n    right: 'Tree'\n\nTree = Union[Leaf, Node]\n\ndef tree_sum(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            return tree_sum(l) + v + tree_sum(r)\n\ndef find_max(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(l, v, r):\n            left_max = find_max(l)\n            right_max = find_max(r)\n            return max(left_max, v, right_max)\n\n# Create sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\nsample_tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n\n# Calculate sum and max\ntotal_sum = tree_sum(sample_tree)\nmax_value = find_max(sample_tree)\n\n# Print results\nprint(f\"Sum: {total_sum}\")\nprint(f\"Max: {max_value}\")"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 341.3333333333333,
+          "avgTokens": 328.3333333333333,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 326.3333333333333,
+          "avgTokens": 340.6666666666667,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -853,19 +853,19 @@
       "totalRuns": 6
     },
     "pipeline": {
-      "avgTokens": 61.166666666666664,
+      "avgTokens": 54.666666666666664,
       "codeSamples": {
-        "ailang": "LOOP\n  LINE_INPUT = READ_LINE()\n  IF LINE_INPUT IS NULL THEN\n    BREAK\n  END IF\n  NUMBER_VALUE = TO_NUMBER(LINE_INPUT)\n  DOUBLED_VALUE = NUMBER_VALUE * 2\n  PRINT(DOUBLED_VALUE)\nEND LOOP",
-        "python": "import sys\n\nfor line in sys.stdin:\n    number = int(line.strip())\n    doubled = number * 2\n    print(doubled)"
+        "ailang": "()\nstart:\n  input = read_line()\n  if input == \"\":\n    stop()\n  else:\n    num = to_number(input)\n    doubled = num * 2\n    print(to_string(doubled))\n    go_to(start)",
+        "python": "import sys\n\nfor line in sys.stdin:\n    s = line.strip()\n    if not s:\n        continue\n    try:\n        n = int(s)\n    except ValueError:\n        try:\n            n = float(s)\n        except ValueError:\n            continue\n    print(n * 2)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 69,
+          "avgTokens": 64,
           "successRate": 0,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 53.333333333333336,
+          "avgTokens": 45.333333333333336,
           "successRate": 0,
           "totalRuns": 3
         }
@@ -879,19 +879,19 @@
       "totalRuns": 6
     },
     "record_update": {
-      "avgTokens": 159.16666666666666,
+      "avgTokens": 247.83333333333334,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let person = {name: \"Alice\", age: 30, city: \"NYC\"};\n  let older = {person | age: person.age + 1};\n  let moved = {older | city: \"SF\"};\n  println(person.name ++ \", \" ++ show(person.age) ++ \", \" ++ person.city);\n  println(older.name ++ \", \" ++ show(older.age) ++ \", \" ++ older.city);\n  println(moved.name ++ \", \" ++ show(moved.age) ++ \", \" ++ moved.city)\n}",
-        "python": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Person:\n    name: str\n    age: int\n    city: str\n    \n    def __str__(self):\n        return f\"{self.name}, {self.age}, {self.city}\"\n    \n    def replace(self, **kwargs):\n        return self.__class__(**{**self.__dict__, **kwargs})\n\nperson1 = Person(name=\"Alice\", age=30, city=\"NYC\")\nperson2 = person1.replace(age=31)\nperson3 = person1.replace(city=\"SF\")\n\nprint(str(person1))\nprint(str(person2))\nprint(str(person3))"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let alice = {name: \"Alice\", age: 30, city: \"NYC\"};\n  \n  let older = {alice | age: 31};\n  \n  let moved = {older | city: \"SF\"};\n  \n  {\n    println(alice.name ++ \", \" ++ show(alice.age) ++ \", \" ++ alice.city);\n    println(older.name ++ \", \" ++ show(older.age) ++ \", \" ++ older.city);\n    println(moved.name ++ \", \" ++ show(moved.age) ++ \", \" ++ moved.city)\n  }\n}",
+        "python": "from anthropic import Anthropic\n\nclient = Anthropic()\nconversation_history = []\n\ndef chat(user_message: str) -\u003e str:\n    \"\"\"Send a message and get a response.\"\"\"\n    conversation_history.append({\n        \"role\": \"user\",\n        \"content\": user_message\n    })\n    \n    response = client.messages.create(\n        model=\"claude-3-5-sonnet-20241022\",\n        max_tokens=8096,\n        system=\"\"\"You are a helpful programming assistant. When asked to write code, write clean, idiomatic Python code.\n        \nFor this task, you should write Python code that:\n1. Creates a person record: {name: \"Alice\", age: 30, city: \"NYC\"}\n2. Creates an updated version with age incremented by 1\n3. Creates another update changing only the city to \"SF\"\n4. Prints all three records in format: \"{name}, {age}, {city}\"\n\nUse Python dictionaries and create new records (don't modify originals - maintain immutability by creating new dict objects).\n\nImportant: Always output ONLY the complete, runnable Python code without any markdown formatting, explanations, or code blocks. The code should be ready to execute directly.\"\"\",\n        messages=conversation_history\n    )\n    \n    assistant_message = response.content[0].text\n    conversation_history.append({\n        \"role\": \"assistant\",\n        \"content\": assistant_message\n    })\n    \n    return assistant_message\n\ndef main():\n    print(\"Task: Write a Python program to manage person records with immutable updates\")\n    print(\"=\" * 70)\n    \n    # Get the code from Claude\n    response = chat(\"\"\"Write a Python program that:\n1. Creates a person record: {name: \"Alice\", age: 30, city: \"NYC\"}\n2. Creates an updated version with age incremented by 1 (using immutable update - create new dict)\n3. Creates another update changing only the city to \"SF\"\n4. Prints all three records in format: \"{name}, {age}, {city}\"\n\nEach update should create a NEW record (immutable pattern). Output ONLY the executable Python code, no explanations.\"\"\")\n    \n    # Extract and execute the code\n    code = response.strip()\n    \n    # Remove markdown code blocks if present\n    if code.startswith(\"```\"):\n        code = code.split(\"```\")[1]\n        if code.startswith(\"python\"):\n            code = code[6:]\n        code = code.strip()\n    \n    print(\"Generated Code:\")\n    print(\"-\" * 70)\n    print(code)\n    print(\"-\" * 70)\n    print(\"\\nOutput:\")\n    print(\"-\" * 70)\n    \n    # Execute the code\n    exec(code)\n\nif __name__ == \"__main__\":\n    main()"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 160,
+          "avgTokens": 159.66666666666666,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 158.33333333333334,
+          "avgTokens": 336,
           "successRate": 0.3333333333333333,
           "totalRuns": 3
         }
@@ -905,19 +905,19 @@
       "totalRuns": 6
     },
     "records_person": {
-      "avgTokens": 122.33333333333333,
+      "avgTokens": 116.83333333333333,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let alice = {name: \"Alice\", age: 30, city: \"NYC\"};\n  let bob = {name: \"Bob\", age: 25, city: \"SF\"};\n  println(alice.name ++ \", \" ++ show(alice.age) ++ \", \" ++ alice.city);\n  println(bob.name ++ \", \" ++ show(bob.age) ++ \", \" ++ bob.city)\n}",
-        "python": "from dataclasses import dataclass\n\n@dataclass\nclass Person:\n    name: str\n    age: int\n    city: str\n    \n    def __str__(self):\n        return f\"{self.name}, {self.age}, {self.city}\"\n\n# Create two persons\nalice = Person(name=\"Alice\", age=30, city=\"NYC\")\nbob = Person(name=\"Bob\", age=25, city=\"SF\")\n\n# Print both persons\nprint(alice)\nprint(bob)"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let alice = {name: \"Alice\", age: 30, city: \"NYC\"};\n  let bob = {name: \"Bob\", age: 25, city: \"SF\"};\n\n  println(alice.name ++ \", \" ++ show(alice.age) ++ \", \" ++ alice.city);\n  println(bob.name ++ \", \" ++ show(bob.age) ++ \", \" ++ bob.city)\n}",
+        "python": "from dataclasses import dataclass\n\n@dataclass\nclass Person:\n    name: str\n    age: int\n    city: str\n\ndef main():\n    alice = Person(name=\"Alice\", age=30, city=\"NYC\")\n    bob = Person(name=\"Bob\", age=25, city=\"SF\")\n    print(f\"{alice.name}, {alice.age}, {alice.city}\")\n    print(f\"{bob.name}, {bob.age}, {bob.city}\")\n\nif __name__ == \"__main__\":\n    main()"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 124.66666666666667,
+          "avgTokens": 124,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 120,
+          "avgTokens": 109.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -931,19 +931,19 @@
       "totalRuns": 6
     },
     "recursion_factorial": {
-      "avgTokens": 83.83333333333333,
+      "avgTokens": 73.16666666666667,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func factorial(n: int) -\u003e int {\n  if n \u003c= 1\n  then 1\n  else n * factorial(n - 1)\n}\n\nexport func main() -\u003e () ! {IO} {\n  let result = factorial(10);\n  println(show(result))\n}",
-        "python": "def factorial(n):\n    \"\"\"Compute n! using recursion.\"\"\"\n    if n \u003c 0:\n        raise ValueError(\"Factorial is not defined for negative numbers\")\n    if n == 0 or n == 1:\n        return 1\n    return n * factorial(n - 1)\n\n\nresult = factorial(10)\nprint(result)"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func factorial(n: int) -\u003e int {\n  if n \u003c= 1\n  then 1\n  else n * factorial(n - 1)\n}\n\nexport func main() -\u003e () ! {IO} {\n  let result = factorial(10);\n  println(\"factorial(10) = \" ++ show(result))\n}",
+        "python": "def factorial(n):\n    if n \u003c 0:\n        raise ValueError(\"factorial() not defined for negative values\")\n    if n \u003c= 1:\n        return 1\n    return n * factorial(n - 1)\n\nresult = factorial(10)\nprint(result)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 83.33333333333333,
-          "successRate": 1,
+          "avgTokens": 90,
+          "successRate": 0.3333333333333333,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 84.33333333333333,
+          "avgTokens": 56.333333333333336,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -952,24 +952,24 @@
         "ailang",
         "python"
       ],
-      "successRate": 1,
+      "successRate": 0.6666666666666666,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a recursive factorial function that computes n!\n2. Computes factorial(10)\n3. Prints the result\n\nThe factorial function should use recursion (not loops).\n\nOutput only the code for \u003cLANG\u003e, no explanations.\n",
       "totalRuns": 6
     },
     "recursion_fibonacci": {
-      "avgTokens": 90.66666666666667,
+      "avgTokens": 86,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func fib(n: int) -\u003e int {\n  if n == 0\n  then 0\n  else if n == 1\n  then 1\n  else fib(n - 1) + fib(n - 2)\n}\n\nexport func main() -\u003e () ! {IO} {\n  let result = fib(20);\n  println(show(result))\n}",
-        "python": "def fib(n):\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 1\n    else:\n        return fib(n - 1) + fib(n - 2)\n\nresult = fib(20)\nprint(result)"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func fib(n: int) -\u003e int {\n  if n \u003c= 1\n  then n\n  else fib(n - 1) + fib(n - 2)\n}\n\nexport func main() -\u003e () ! {IO} {\n  let result = fib(20);\n  println(show(result))\n}",
+        "python": "def fib(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    return fib(n - 1) + fib(n - 2)\n\nif __name__ == \"__main__\":\n    print(fib(20))"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 98.66666666666667,
-          "successRate": 1,
+          "avgTokens": 101.33333333333333,
+          "successRate": 0.6666666666666666,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 82.66666666666667,
+          "avgTokens": 70.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -978,7 +978,7 @@
         "ailang",
         "python"
       ],
-      "successRate": 1,
+      "successRate": 0.8333333333333334,
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a recursive Fibonacci function: fib(0) = 0, fib(1) = 1, fib(n) = fib(n-1) + fib(n-2)\n2. Computes fib(20)\n3. Prints the result\n\nThe function MUST use recursion (not loops or memoization).\nThis will be compute-intensive to test execution performance.\n\nOutput only the code for \u003cLANG\u003e, no explanations.\n",
       "totalRuns": 6
     },
@@ -1002,19 +1002,19 @@
       "totalRuns": 3
     },
     "string_manipulation": {
-      "avgTokens": 102.83333333333333,
+      "avgTokens": 103.16666666666667,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let greeting = \"Hello\";\n  let name = \"World\";\n  let year = 2025;\n  let message = greeting ++ \", \" ++ name ++ \"! Year: \" ++ show(year);\n  let check = if greeting == \"Hello\" then \"Match\" else \"No match\";\n  println(\"Message: \" ++ message);\n  println(\"Check: \" ++ check)\n}",
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let greeting = \"Hello\";\n  let name = \"World\";\n  let year = 2025;\n  \n  let message = greeting ++ \", \" ++ name ++ \"! Year: \" ++ show(year);\n  \n  let checkResult = if greeting == \"Hello\" then \"Match\" else \"No match\";\n  \n  println(\"Message: \" ++ message);\n  println(\"Check: \" ++ checkResult)\n}",
         "python": "greeting = \"Hello\"\nname = \"World\"\nyear = 2025\n\nmessage = greeting + \", \" + name + \"! Year: \" + str(year)\n\nif greeting == \"Hello\":\n    check = \"Match\"\nelse:\n    check = \"No match\"\n\nprint(\"Message: \" + message)\nprint(\"Check: \" + check)"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 122.66666666666667,
+          "avgTokens": 120.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         },
         "python": {
-          "avgTokens": 83,
+          "avgTokens": 85.66666666666667,
           "successRate": 1,
           "totalRuns": 3
         }
@@ -1028,38 +1028,56 @@
       "totalRuns": 6
     },
     "targeted_repair_test": {
-      "avgTokens": 48.333333333333336,
+      "avgTokens": 44.333333333333336,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  let result = 2 + 2;\n  println(show(result))\n}"
+        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO} {\n  println(show(2 + 2))\n}"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 48.333333333333336,
-          "successRate": 0.6666666666666666,
+          "avgTokens": 44.333333333333336,
+          "successRate": 1,
           "totalRuns": 3
         }
       },
       "languages": [
         "ailang"
       ],
-      "successRate": 0.6666666666666666,
+      "successRate": 1,
       "taskPrompt": "Write an AILANG program that computes 2 + 2 and prints the result.\n\nAILANG Syntax Guide (IMPORTANT - Follow exactly):\n- Module declaration: Not needed for single-file programs\n- Import: `import std/io (println)`\n- Function: `let main = { println(4) }` OR `let main = println(4)`\n- Numbers: Just write them: 1, 2, 42\n- Arithmetic: Use infix: 2 + 2\n- Print: Use `println(expr)`\n- Block syntax: If you need multiple statements: `{ stmt1; stmt2; result }`\n  CRITICAL: Semicolons BETWEEN statements, NOT after the last one\n- Let binding: `let x = expr in body` OR for top-level: `let x = expr`\n\nExample AILANG program:\n```\nimport std/io (println)\n\nlet main = {\n  let result = 2 + 2;\n  println(result)\n}\n```\n\nWrite EXACTLY this style. Output only the code.\n",
       "totalRuns": 3
     }
   },
   "languages": {
     "ailang": {
-      "avg_tokens": 173.42857142857142,
-      "success_rate": 0.4603174603174603,
+      "avg_tokens": 167.015873015873,
+      "success_rate": 0.47619047619047616,
       "total_runs": 63
     },
     "python": {
-      "avg_tokens": 154.5079365079365,
-      "success_rate": 0.7142857142857143,
+      "avg_tokens": 181.11111111111111,
+      "success_rate": 0.7777777777777778,
       "total_runs": 63
     }
   },
   "history": [
+    {
+      "version": "v0.3.12",
+      "timestamp": "2025-10-17T14:06:19+02:00",
+      "successRate": 0.626984126984127,
+      "totalRuns": 126,
+      "successCount": 79,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.47619047619047616,
+          "total_runs": 63
+        },
+        "python": {
+          "success_rate": 0.7777777777777778,
+          "total_runs": 63
+        }
+      }
+    },
     {
       "version": "v0.3.9",
       "timestamp": "2025-10-16T13:16:59+02:00",
