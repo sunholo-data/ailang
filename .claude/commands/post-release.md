@@ -45,19 +45,21 @@ Run post-release tasks for an AILANG release: benchmarks, dashboard updates, and
      - Checks for existing result files before running each benchmark
      - Added in v0.3.14 to handle timeout issues on slower machines
    - Compare to previous version: `ailang eval-compare eval_results/baselines/v<prev> eval_results/baselines/v$1`
-   - **CRITICAL**: Calculate AILANG-only and combined metrics correctly:
+   - **Extract metrics for CHANGELOG** (use eval-report JSON output):
      ```bash
-     # Count AILANG-only results
-     AILANG_PASS=$(jq -s 'map(select(.lang == "ailang" and .compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*ailang*.json)
-     AILANG_TOTAL=$(ls eval_results/baselines/v$1/*ailang*.json | wc -l)
+     # Generate report JSON (writes to docs/static/benchmarks/latest.json automatically)
+     ailang eval-report eval_results/baselines/v$1 v$1 --format=json
 
-     # Count combined results
-     TOTAL_PASS=$(jq -s 'map(select(.compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*.json)
-     TOTAL_RUNS=$(ls eval_results/baselines/v$1/*.json | grep -v baseline.json | wc -l)
+     # Extract metrics from the generated JSON
+     AILANG_RATE=$(jq -r '.languages.ailang.success_rate' docs/static/benchmarks/latest.json)
+     PYTHON_RATE=$(jq -r '.languages.python.success_rate' docs/static/benchmarks/latest.json)
+     OVERALL_RATE=$(jq -r '.aggregates.finalSuccess' docs/static/benchmarks/latest.json)
+     TOTAL_RUNS=$(jq -r '.totalRuns' docs/static/benchmarks/latest.json)
 
-     # Count Python baseline (for comparison)
-     PYTHON_PASS=$(jq -s 'map(select(.lang == "python" and .compile_ok and .runtime_ok and .stdout_ok)) | length' eval_results/baselines/v$1/*python*.json)
-     PYTHON_TOTAL=$(ls eval_results/baselines/v$1/*python*.json | wc -l)
+     # Display for CHANGELOG
+     echo "Overall: $(echo "$OVERALL_RATE * 100" | bc)% ($TOTAL_RUNS total runs)"
+     echo "AILANG: $(echo "$AILANG_RATE * 100" | bc)%"
+     echo "Python: $(echo "$PYTHON_RATE * 100" | bc)%"
      ```
    - Update CHANGELOG.md with **SEPARATE AILANG and COMBINED metrics**:
      - Add section "### Benchmark Results (M-EVAL)"
