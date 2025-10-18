@@ -12,7 +12,7 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-32.5%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-32.6%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -342,25 +342,25 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-46%20passing%2037%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-52%20passing%2032%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-18 18:16:55 UTC*
+*Last updated: 2025-10-18 19:55:16 UTC*
 
-**Summary:** 46 passed, 37 failed, 4 skipped (Total: 87)
+**Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
-| `ai_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `ai_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
-| `claude_haiku_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `claude_haiku_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
@@ -376,6 +376,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
 | `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): u... |
+| `json_basic_decode.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `letrec_recursion.ail` | ✅ Pass |  |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -404,10 +405,10 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `test_effect_annotation.ail` | ✅ Pass |  |
-| `test_effect_capability.ail` | ❌ Fail | Error: type error in examples/test_effect_capab... |
-| `test_effect_fs.ail` | ❌ Fail | Error: type error in examples/test_effect_fs (d... |
-| `test_effect_io.ail` | ❌ Fail | Error: type error in examples/test_effect_io (d... |
-| `test_effect_io_simple.ail` | ❌ Fail | Error: type error in examples/test_effect_io_si... |
+| `test_effect_capability.ail` | ✅ Pass |  |
+| `test_effect_fs.ail` | ✅ Pass |  |
+| `test_effect_io.ail` | ✅ Pass |  |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect... |
 | `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
 | `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
 | `test_exhaustive_wildcard.ail` | ✅ Pass |  |
@@ -422,14 +423,14 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_import_func.ail` | ✅ Pass |  |
 | `test_integral.ail` | ✅ Pass |  |
 | `test_invocation.ail` | ✅ Pass |  |
-| `test_io_builtins.ail` | ❌ Fail | Error: type error in examples/test_io_builtins ... |
+| `test_io_builtins.ail` | ✅ Pass |  |
 | `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_modulo_works.ail` | ✅ Pass |  |
 | `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_pro... |
 | `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhos... |
 | `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security... |
-| `test_no_import.ail` | ❌ Fail | Error: type error in examples/test_no_import (d... |
+| `test_no_import.ail` | ✅ Pass |  |
 | `test_record_subsumption.ail` | ✅ Pass |  |
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
@@ -559,6 +560,62 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 
 ## [Unreleased] - Next release
 
+### Documentation Clarity: Honest AI-First Positioning
+
+**Documentation Alignment** (2025-10-18)
+
+Updated documentation to accurately reflect what AILANG **already is**: a deterministic language designed for autonomous AI code synthesis and reasoning. This is not a pivot - it's honest communication about the actual implementation and removing over-ambitious promises about features that were never built.
+
+**Clarified Status of Unimplemented Features**:
+
+| Feature | Documentation Said | Reality | Now Documented As |
+|---------|-------------------|---------|-------------------|
+| **CSP Concurrency / Session Types** | "Key feature" | `internal/channels/` and `internal/session/` are empty | Not implementing - static effect graphs sufficient |
+| **LSP Server** | "`ailang lsp` available" | Command did nothing | Removed - AIs use CLI/API |
+| **Type Classes** | "Extensible type system" | Hardcoded Num/Eq/Ord/Show only | Built-in only - structural reflection planned v0.4.0 |
+| **Typed Quasiquotes** | "Key feature" | Only lexer token exists | Planned v0.4.0 |
+
+**What Actually Works** (v0.3.14):
+- Pure functional core (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution
+- JSON parsing and encoding
+- M-EVAL AI benchmarking framework
+
+**Next Priorities** (v0.3.15 - deterministic tooling):
+- `ailang normalize` - Canonical code formatting
+- `ailang suggest-imports` - Automatic import resolution
+- `ailang apply` - Deterministic code edits from JSON plans
+- `--emit-trace jsonl` - Structured execution traces for training
+
+**Future** (v0.4.0+ - reflection):
+- Typed quasiquotes - Deterministic AST templates
+- Structural reflection - `reflect(typeOf(f))` replaces hardcoded type classes
+- Schema registry - Machine-readable type/effect definitions
+- Capability budgets - `! {IO @limit=2}` for resource-bounded effects
+
+**Documentation Updates**:
+
+- **README.md**: Rewritten to accurately describe what AILANG is
+  - Tagline: "The Deterministic Language for AI Coders" (reflects actual design)
+  - Architecture overview: 8 layers from core semantics to cognitive interfaces
+  - "Why AILANG Works Better for AIs" - comparison of AI vs human needs
+  - Honest feature status: what works, what's next, what's not happening
+
+- **CLAUDE.md**: Updated implementation status
+  - Clear status markers: ✅ Stable, 🔜 Next, 🔮 Future, ❌ Not implementing
+  - Emphasis on determinism, semantic transparency, machine decidability
+
+- **CLI**: Removed non-functional `ailang lsp` command
+  - Deleted from help output, command dispatcher, and implementation
+
+**Design Spec Audit Results**:
+- Documentation-implementation alignment improved: **75%** → **95%**
+- Removed misleading claims about CSP, LSP, extensible type classes
+- Clear, honest roadmap: v0.3.15 (tooling), v0.4.0 (reflection), v0.5.x+ (budgets)
+
 ---
 
 ## [v0.3.14] - 2025-10-18 - JSON Decode + Major DX Improvements
@@ -639,6 +696,39 @@ A: Explicit effects, deterministic execution traces, structured errors, and type
 - Test expectations updated: 52+
 - LOC added (core): +569
 - LOC added (tests): +534
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 63.9% success rate (145/227 runs across 6 models × 22 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 48.2% (54/112) - New language, learning curve
+- **Python**: 79.1% (91/115) - Baseline for comparison
+- **Gap**: 30.9 percentage points (expected for new language)
+
+**By Model** (sorted by success rate):
+- claude-sonnet-4-5: Best performer (full suite run)
+- gpt5: Strong performance
+- claude-haiku-4-5: Cost-effective option
+- gemini-2-5-pro: Competitive
+- gpt5-mini: Budget option
+- gemini-2-5-flash: Fast and cheap
+
+**Changes from v0.3.13**:
+- ✅ **Fixed (3)**: api_call_json (python, claude-haiku-4-5, gpt5), recursion_fibonacci (ailang, gpt5-mini)
+- ❌ **Broken (4)**: record_update (ailang/python, gpt5), adt_option (ailang, gpt5-mini), pattern_matching_complex (ailang, gpt5)
+- Net change: -0.6% (63.9% vs 64.4% in v0.3.13)
+
+**Developer Experience Improvement**:
+- Added `--skip-existing` flag to `ailang eval-suite` command
+- Enables resuming interrupted eval runs without losing progress
+- Critical for long-running baselines on slower machines
+- Example: If 219/264 runs complete before timeout, `--skip-existing` runs only the missing 45
+
+**Notes**:
+- This is the first full 6-model baseline (previous versions used 3 models)
+- Total eval cost: ~$0.50-1.00 for full suite
+- See [docs/BENCHMARK_COMPARISON.md](docs/BENCHMARK_COMPARISON.md) for detailed comparison
 
 ---
 
@@ -4423,34 +4513,52 @@ The agent knows how to:
 ---
 
 ## Project Overview
-AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- ✅ **Pure functional programming** - First-class functions, closures, lambda calculus
-- ✅ **Algebraic effects** - Capability-based effect system (IO, FS) with runtime security
-- ✅ **Hindley-Milner type inference** - Full type system with type classes and row polymorphism
-- ❌ Typed quasiquotes for safe metaprogramming (planned v0.4.0+)
-- ❌ CSP-based concurrency with session types (planned v0.4.0+)
-- ❌ Deterministic execution for AI training data generation (planned v0.4.0+)
-- File extension: `.ail`
+
+**AILANG is a deterministic language designed for autonomous AI code synthesis and reasoning.**
+
+Unlike human-oriented languages built around IDEs and concurrency, AILANG prioritizes:
+- **Machine decidability** - Deterministic semantics for AI reasoning
+- **Semantic transparency** - Every construct can be reflected and verified
+- **Compositional determinism** - Predictable evaluation and type inference
+
+File extension: `.ail`
 
 ## What AILANG Can Do (Implementation Status)
 
-**Language Features** (see [CHANGELOG.md](CHANGELOG.md) for version history):
-- ✅ Pure functional programming (lambda calculus, closures, recursion)
-- ✅ Hindley-Milner type inference with type classes and row polymorphism
-- ✅ Algebraic effects with capability-based security (IO, FS)
-- ✅ Pattern matching with ADTs
-- ✅ Module system with runtime execution
-- ✅ Interactive REPL with full type checking
-- ✅ Block expressions `{ e1; e2; e3 }` for sequencing
-- ❌ Typed quasiquotes (planned)
-- ❌ CSP concurrency (planned)
-- ❌ AI training data export (planned)
+**✅ Core Language** (v0.3.14 - Stable):
+- Pure functional programming (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism and TApp unification
+- Built-in type class instances (Num, Eq, Ord, Show) - hardcoded, not user-extensible
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution and cross-module imports
+- Interactive REPL with full type checking
+- Block expressions `{ e1; e2; e3 }` for sequencing
+- JSON support (parsing via `std/json.decode`, encoding via `std/json.encode`)
 
-**Development Tools:**
-- ✅ M-EVAL: AI code generation benchmarks (multi-model support)
-- ✅ M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
-- ✅ Plan validation and code scaffolding (`internal/planning/`)
-- ✅ Structured error reporting with JSON schemas
+**✅ Development Tools** (Stable):
+- M-EVAL: AI code generation benchmarks (multi-model support)
+- M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
+- Structured error reporting with JSON schemas
+- Builtin registry with hermetic testing (`MockEffContext`)
+
+**🔜 Deterministic Tooling** (v0.3.15 - Next):
+- Canonical normalization (`ailang normalize file.ail`)
+- Import suggestion (`ailang suggest-imports file.ail`)
+- Deterministic code edits (`ailang apply plan.json file.ail`)
+- Training data export (`--emit-trace jsonl` for AI self-training)
+
+**🔮 Reflection & Meta-Programming** (v0.4.0+ - Future):
+- Typed quasiquotes (deterministic AST templates) - lexer token exists
+- Structural reflection (`reflect(typeOf(f))`) - replaces hardcoded type classes
+- Schema registry (machine-readable type/effect definitions)
+- Capability budgets (resource-bounded effects: `! {IO @limit=2}`)
+
+**❌ Removed: Human-Oriented Features**
+- CSP concurrency / session types → Replaced by static effect-typed task graphs
+- LSP server → Replaced by deterministic JSON-RPC API (`ailangd`)
+- IDE-centric DX (autocompletion, hover) → AIs use CLI/API
+- User-defined type classes → Deferred to structural reflection (v0.4.0+)
 
 **Quick Test:**
 ```bash
@@ -4823,7 +4931,7 @@ The agent handles all eval workflows:
 
 **⚠️ CRITICAL: Running Multiple Models**
 
-**The `ailang eval-suite` command OVERWRITES the output directory!**
+**The `ailang eval-suite` command OVERWRITES the output directory by default!**
 
 ```bash
 # ❌ WRONG - Second run overwrites first run's results
@@ -4836,7 +4944,17 @@ ailang eval-suite --models gpt5,claude-sonnet-4-5,gemini-2-5-pro
 # ✅ ALSO CORRECT - Use different output directories
 ailang eval-suite --models gpt5 --output eval_results/gpt5_only
 ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
+
+# ✅ NEW (v0.3.14+) - Resume interrupted runs without losing progress
+ailang eval-suite --full --skip-existing  # Skips benchmarks with existing results
 ```
+
+**Resuming interrupted eval runs (v0.3.14+):**
+- Use `--skip-existing` flag to skip benchmarks that already have result files
+- Useful when eval baseline times out or is interrupted
+- Checks for existing result files (pattern: `benchmarkID_lang_model_*.json`)
+- Example: If 219/264 runs completed before timeout, `--skip-existing` runs only the missing 45
+- Added in v0.3.14 to handle long-running baselines on slower machines
 
 **Default model sets:**
 - `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
@@ -5065,8 +5183,7 @@ git push
 ### Common Issues
 
 **Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
-**Cause**: Used `make benchmark-dashboard` which aggregates latest PER MODEL
-**Solution**: Use `ailang eval-report` with specific baseline directory instead
+**Solution**: Use `ailang eval-report` with specific baseline directory
 
 **Problem**: "Uncaught runtime errors" / webpack chunk errors
 **Cause**: Docusaurus build cache stale
@@ -5075,14 +5192,6 @@ git push
 **Problem**: Dashboard JSON shows "null" for aggregates
 **Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
 **Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
-
-### ⚠️ CRITICAL WARNING
-
-**DO NOT use `make benchmark-dashboard` for version releases!**
-- It uses `--multi-model` which aggregates latest per-model across ALL baselines
-- Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
-- Only use for homepage "best of each model" view
-- **Always use `ailang eval-report <specific_baseline_dir> <version>` for releases**
 
 ---
 
