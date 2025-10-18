@@ -447,7 +447,7 @@ For AIs: **Reason about functions, not state machines.**
 - **Fold Laws**: [Bird & Wadler, Introduction to Functional Programming](https://www.cs.ox.ac.uk/publications/books/functional/)
 - **Totality Checking**: [Idris Documentation on Totality](https://idris2.readthedocs.io/en/latest/tutorial/theorems.html#totality-checking)
 - **Effect Systems**: [Koka Effect Handlers](https://koka-lang.github.io/koka/doc/book.html#why-effects)
-- **Fusion Optimization**: [Stream Fusion: From Lists to Streams to Nothing at All (PDF)](https://www.cse.unsw.edu.au/~dons/papers/CLS07.pdf)
+- **Fusion Optimization**: [Stream Fusion: From Lists to Streams to Nothing at All (PDF)](https://www.cs.tufts.edu/~nr/cs257/archive/duncan-coutts/stream-fusion.pdf)
 
 ---
 
