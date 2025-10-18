@@ -454,5 +454,5 @@ For AIs: **Reason about functions, not state machines.**
 ## See Also
 
 - [README § No Loops](https://github.com/sunholo-data/ailang#-why-ailang-has-no-loops-and-never-will) - User-facing explanation
-- [Limitations](/docs/guides/limitations) - Current language limitations
+- [Implementation Status](/docs/reference/implementation-status) - Current language features and limitations
 - [Getting Started](/docs/guides/getting-started) - Installation and quick start
