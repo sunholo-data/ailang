@@ -303,7 +303,7 @@ See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 
 ### Example Verification Status
 
-*Last updated: 2025-10-18 22:18:27 UTC*
+*Last updated: 2025-10-18 22:26:22 UTC*
 
 **Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
 
