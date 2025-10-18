@@ -177,7 +177,7 @@ map(filter(people, \p. p.age >= 30), \p. p.name)
 
 **No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
 
-For the formal rationale and algebraic laws, see [docs/design/NO_LOOPS.md](docs/design/NO_LOOPS.md).
+For the formal rationale and algebraic laws, see the [Why No Loops?](https://sunholo-data.github.io/ailang/docs/reference/no-loops) documentation.
 
 ---
 
