@@ -328,22 +328,14 @@ See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 
 ## Documentation
 
-### User Documentation
-- **[Getting Started](docs/guides/getting-started.md)** - Installation and quick tutorial
-- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide
-- **[Language Syntax](docs/reference/language-syntax.md)** - Complete language reference
-- **[Examples Status](examples/STATUS.md)** - Inventory of all example files
-- **[LIMITATIONS.md](docs/LIMITATIONS.md)** - Current limitations and workarounds
+📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site
 
-### Development Documentation
-- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status
-- **[Development Guide](docs/guides/development.md)** - Contributing workflow
-- **[CLAUDE.md](CLAUDE.md)** - Instructions for AI assistants working on AILANG
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
-
-### Design & Architecture
-- **[Design Documents](design_docs/)** - Architecture and design decisions
-- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
+**Quick Links:**
+- **[Getting Started](https://sunholo-data.github.io/ailang/docs/guides/getting-started)** - Installation and tutorial
+- **[Language Guide](https://sunholo-data.github.io/ailang/docs/category/language-guide)** - Syntax and features
+- **[REPL Guide](https://sunholo-data.github.io/ailang/docs/guides/repl)** - Interactive development
+- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation performance
+- **[Examples](https://sunholo-data.github.io/ailang/docs/examples/overview)** - Code examples and patterns
 
 ---
 
@@ -374,7 +366,7 @@ make eval-report         # Generate evaluation report
 make eval-analyze        # Analyze failures, generate design docs
 ```
 
-See the [Development Guide](docs/guides/development.md) for detailed instructions.
+See the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for detailed instructions.
 
 ---
 
@@ -412,7 +404,7 @@ ailang/
 
 ## Contributing
 
-AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](docs/guides/development.md) for guidelines.
+AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for guidelines.
 
 ---
 
@@ -436,7 +428,7 @@ AILANG draws inspiration from:
 
 ---
 
-*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*
+*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://sunholo-data.github.io/ailang/) for exact capabilities.*
 
 ---
 
