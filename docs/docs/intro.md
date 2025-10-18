@@ -48,15 +48,15 @@ Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
 
 ## Getting Started
 
-### 🤖 For AI Agents
+### For AI Agents
 
-- **[AI Agent Integration Guide](/docs/guides/agent-integration)** ⭐
+- **[AI Agent Integration Guide](/docs/guides/agent-integration)**
   Quick start for AI coding agents (Claude, GPT, Gemini)
 
 - **[Teaching Prompt v0.3.8](/docs/prompts/v0.3.8)**
   Complete AILANG syntax guide for AI models
 
-### 👤 For Human Developers
+### For Human Developers
 
 - **[Installation Guide](/docs/guides/getting-started)**
   Install AILANG and run your first program
@@ -74,7 +74,7 @@ Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
 
 AILANG v0.3.8 is now available with multi-line ADT parser fixes and operator lowering improvements! Check the [implementation status](/docs/reference/implementation-status) for complete details.
 
-### ✅ Working Features (v0.3.8)
+### Working Features (v0.3.8)
 - **Recursion** - Self-recursion, mutual recursion, with stack overflow protection
 - **Block Expressions** - Multi-statement blocks with proper scoping
 - **Records** - Record literals, field access, subsumption
@@ -87,7 +87,7 @@ AILANG v0.3.8 is now available with multi-line ADT parser fixes and operator low
 - **REPL** - Full type checking, command history, tab completion
 - **Lambda Calculus** - First-class functions, closures, currying
 
-### 🚧 Planned Features (v0.4.0+)
+### Planned Features (v0.4.0+)
 - **Pattern Guards** - Boolean conditions in pattern matching
 - **Error Propagation** - `?` operator for Result types
 - **Typed Quasiquotes** - Safe metaprogramming with compile-time validation
