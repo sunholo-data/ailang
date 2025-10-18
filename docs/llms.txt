@@ -303,7 +303,7 @@ See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 
 ### Example Verification Status
 
-*Last updated: 2025-10-18 21:01:33 UTC*
+*Last updated: 2025-10-18 22:18:27 UTC*
 
 **Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
 
@@ -1622,13 +1622,13 @@ The browser version has these limitations compared to the CLI:
 
 | Feature | CLI | WASM |
 |---------|-----|------|
-| Expression evaluation | ✅ | ✅ |
-| Type inference | ✅ | ✅ |
-| Pattern matching | ✅ | ✅ |
-| Type classes | ✅ | ✅ |
-| File I/O (`FS` effect) | ✅ | ❌ |
-| Module imports | ✅ | ❌ |
-| History persistence | ✅ | ❌ |
+| Expression evaluation | Yes | Yes |
+| Type inference | Yes | Yes |
+| Pattern matching | Yes | Yes |
+| Type classes | Yes | Yes |
+| File I/O (`FS` effect) | Yes | No |
+| Module imports | Yes | No |
+| History persistence | Yes | No |
 
 ## Deployment
 
