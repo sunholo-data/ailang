@@ -145,34 +145,52 @@ The agent knows how to:
 ---
 
 ## Project Overview
-AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- ✅ **Pure functional programming** - First-class functions, closures, lambda calculus
-- ✅ **Algebraic effects** - Capability-based effect system (IO, FS) with runtime security
-- ✅ **Hindley-Milner type inference** - Full type system with type classes and row polymorphism
-- ❌ Typed quasiquotes for safe metaprogramming (planned v0.4.0+)
-- ❌ CSP-based concurrency with session types (planned v0.4.0+)
-- ❌ Deterministic execution for AI training data generation (planned v0.4.0+)
-- File extension: `.ail`
+
+**AILANG is a deterministic language designed for autonomous AI code synthesis and reasoning.**
+
+Unlike human-oriented languages built around IDEs and concurrency, AILANG prioritizes:
+- **Machine decidability** - Deterministic semantics for AI reasoning
+- **Semantic transparency** - Every construct can be reflected and verified
+- **Compositional determinism** - Predictable evaluation and type inference
+
+File extension: `.ail`
 
 ## What AILANG Can Do (Implementation Status)
 
-**Language Features** (see [CHANGELOG.md](CHANGELOG.md) for version history):
-- ✅ Pure functional programming (lambda calculus, closures, recursion)
-- ✅ Hindley-Milner type inference with type classes and row polymorphism
-- ✅ Algebraic effects with capability-based security (IO, FS)
-- ✅ Pattern matching with ADTs
-- ✅ Module system with runtime execution
-- ✅ Interactive REPL with full type checking
-- ✅ Block expressions `{ e1; e2; e3 }` for sequencing
-- ❌ Typed quasiquotes (planned)
-- ❌ CSP concurrency (planned)
-- ❌ AI training data export (planned)
+**✅ Core Language** (v0.3.14 - Stable):
+- Pure functional programming (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism and TApp unification
+- Built-in type class instances (Num, Eq, Ord, Show) - hardcoded, not user-extensible
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution and cross-module imports
+- Interactive REPL with full type checking
+- Block expressions `{ e1; e2; e3 }` for sequencing
+- JSON support (parsing via `std/json.decode`, encoding via `std/json.encode`)
 
-**Development Tools:**
-- ✅ M-EVAL: AI code generation benchmarks (multi-model support)
-- ✅ M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
-- ✅ Plan validation and code scaffolding (`internal/planning/`)
-- ✅ Structured error reporting with JSON schemas
+**✅ Development Tools** (Stable):
+- M-EVAL: AI code generation benchmarks (multi-model support)
+- M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
+- Structured error reporting with JSON schemas
+- Builtin registry with hermetic testing (`MockEffContext`)
+
+**🔜 Deterministic Tooling** (v0.3.15 - Next):
+- Canonical normalization (`ailang normalize file.ail`)
+- Import suggestion (`ailang suggest-imports file.ail`)
+- Deterministic code edits (`ailang apply plan.json file.ail`)
+- Training data export (`--emit-trace jsonl` for AI self-training)
+
+**🔮 Reflection & Meta-Programming** (v0.4.0+ - Future):
+- Typed quasiquotes (deterministic AST templates) - lexer token exists
+- Structural reflection (`reflect(typeOf(f))`) - replaces hardcoded type classes
+- Schema registry (machine-readable type/effect definitions)
+- Capability budgets (resource-bounded effects: `! {IO @limit=2}`)
+
+**❌ Removed: Human-Oriented Features**
+- CSP concurrency / session types → Replaced by static effect-typed task graphs
+- LSP server → Replaced by deterministic JSON-RPC API (`ailangd`)
+- IDE-centric DX (autocompletion, hover) → AIs use CLI/API
+- User-defined type classes → Deferred to structural reflection (v0.4.0+)
 
 **Quick Test:**
 ```bash
@@ -545,7 +563,7 @@ The agent handles all eval workflows:
 
 **⚠️ CRITICAL: Running Multiple Models**
 
-**The `ailang eval-suite` command OVERWRITES the output directory!**
+**The `ailang eval-suite` command OVERWRITES the output directory by default!**
 
 ```bash
 # ❌ WRONG - Second run overwrites first run's results
@@ -558,7 +576,17 @@ ailang eval-suite --models gpt5,claude-sonnet-4-5,gemini-2-5-pro
 # ✅ ALSO CORRECT - Use different output directories
 ailang eval-suite --models gpt5 --output eval_results/gpt5_only
 ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
+
+# ✅ NEW (v0.3.14+) - Resume interrupted runs without losing progress
+ailang eval-suite --full --skip-existing  # Skips benchmarks with existing results
 ```
+
+**Resuming interrupted eval runs (v0.3.14+):**
+- Use `--skip-existing` flag to skip benchmarks that already have result files
+- Useful when eval baseline times out or is interrupted
+- Checks for existing result files (pattern: `benchmarkID_lang_model_*.json`)
+- Example: If 219/264 runs completed before timeout, `--skip-existing` runs only the missing 45
+- Added in v0.3.14 to handle long-running baselines on slower machines
 
 **Default model sets:**
 - `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
@@ -787,8 +815,7 @@ git push
 ### Common Issues
 
 **Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
-**Cause**: Used `make benchmark-dashboard` which aggregates latest PER MODEL
-**Solution**: Use `ailang eval-report` with specific baseline directory instead
+**Solution**: Use `ailang eval-report` with specific baseline directory
 
 **Problem**: "Uncaught runtime errors" / webpack chunk errors
 **Cause**: Docusaurus build cache stale
@@ -797,14 +824,6 @@ git push
 **Problem**: Dashboard JSON shows "null" for aggregates
 **Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
 **Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
-
-### ⚠️ CRITICAL WARNING
-
-**DO NOT use `make benchmark-dashboard` for version releases!**
-- It uses `--multi-model` which aggregates latest per-model across ALL baselines
-- Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
-- Only use for homepage "best of each model" view
-- **Always use `ailang eval-report <specific_baseline_dir> <version>` for releases**
 
 ---
 

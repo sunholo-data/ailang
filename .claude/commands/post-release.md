@@ -36,6 +36,14 @@ Run post-release tasks for an AILANG release: benchmarks, dashboard updates, and
      - Will run: claude-sonnet-4-5, claude-haiku-4-5, gpt5, gpt5-mini, gemini-2-5-flash, gemini-2-5-pro
      - Both languages: AILANG and Python (default, DO NOT override with LANGS=ailang)
      - Cost: ~$0.50-1.00 for full suite
+   - **If eval baseline times out or is interrupted**, resume with:
+     ```bash
+     bin/ailang eval-suite --full --langs python,ailang --parallel 5 --output ./eval_results/baselines/$1 --self-repair --skip-existing
+     ```
+     - The `--skip-existing` flag skips benchmarks that already have result files
+     - This allows resuming long-running eval baselines without losing progress
+     - Checks for existing result files before running each benchmark
+     - Added in v0.3.14 to handle timeout issues on slower machines
    - Compare to previous version: `ailang eval-compare eval_results/baselines/v<prev> eval_results/baselines/v$1`
    - **CRITICAL**: Calculate AILANG-only and combined metrics correctly:
      ```bash
@@ -109,10 +117,6 @@ Run post-release tasks for an AILANG release: benchmarks, dashboard updates, and
      git commit -m "Update benchmark dashboard for v$1"
      git push
      ```
-   - **⚠️ CRITICAL - DO NOT use `make benchmark-dashboard` for releases!**
-     - It uses `--multi-model` which aggregates latest per-model across ALL baselines
-     - Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
-     - Always use `ailang eval-report <specific_baseline_dir> <version>` instead
 
 4. **Update design docs**
    - Move design docs used into design_docs/implemented/

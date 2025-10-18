@@ -59,6 +59,7 @@ func runEvalSuite() {
 	maxConcurrent := fs.Int("parallel", 5, "Maximum concurrent API calls (0 = sequential)")
 	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
+	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -128,22 +129,46 @@ func runEvalSuite() {
 	// Check API keys
 	checkAPIKeys(modelList)
 
-	// Clean previous results
-	fmt.Printf("%s Cleaning previous results...\n", cyan("→"))
-	cleanResults(*outputDir)
+	// Clean previous results (unless resuming)
+	if !*skipExisting {
+		fmt.Printf("%s Cleaning previous results...\n", cyan("→"))
+		cleanResults(*outputDir)
+	} else {
+		fmt.Printf("%s Resuming run (skipping existing results)...\n", cyan("→"))
+	}
 
 	// Build job list
 	var jobs []Job
+	skippedCount := 0
 	for _, model := range modelList {
 		for _, benchmark := range benchmarkList {
 			for _, lang := range langList {
-				jobs = append(jobs, Job{
+				job := Job{
 					Model:     model,
 					Benchmark: benchmark,
 					Language:  lang,
-				})
+				}
+
+				// Check if result already exists (if resuming)
+				if *skipExisting {
+					// Result filename format: benchmarkID_lang_model_timestamp.json
+					// We check for any file matching the pattern (ignoring timestamp)
+					pattern := filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model))
+					matches, _ := filepath.Glob(pattern)
+					if len(matches) > 0 {
+						skippedCount++
+						continue // Skip this job
+					}
+				}
+
+				jobs = append(jobs, job)
 			}
 		}
+	}
+
+	if *skipExisting && skippedCount > 0 {
+		fmt.Printf("Skipped %d existing results\n", skippedCount)
+		fmt.Println()
 	}
 
 	// Run benchmarks with concurrency control

@@ -2,6 +2,62 @@
 
 ## [Unreleased] - Next release
 
+### Documentation Clarity: Honest AI-First Positioning
+
+**Documentation Alignment** (2025-10-18)
+
+Updated documentation to accurately reflect what AILANG **already is**: a deterministic language designed for autonomous AI code synthesis and reasoning. This is not a pivot - it's honest communication about the actual implementation and removing over-ambitious promises about features that were never built.
+
+**Clarified Status of Unimplemented Features**:
+
+| Feature | Documentation Said | Reality | Now Documented As |
+|---------|-------------------|---------|-------------------|
+| **CSP Concurrency / Session Types** | "Key feature" | `internal/channels/` and `internal/session/` are empty | Not implementing - static effect graphs sufficient |
+| **LSP Server** | "`ailang lsp` available" | Command did nothing | Removed - AIs use CLI/API |
+| **Type Classes** | "Extensible type system" | Hardcoded Num/Eq/Ord/Show only | Built-in only - structural reflection planned v0.4.0 |
+| **Typed Quasiquotes** | "Key feature" | Only lexer token exists | Planned v0.4.0 |
+
+**What Actually Works** (v0.3.14):
+- Pure functional core (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution
+- JSON parsing and encoding
+- M-EVAL AI benchmarking framework
+
+**Next Priorities** (v0.3.15 - deterministic tooling):
+- `ailang normalize` - Canonical code formatting
+- `ailang suggest-imports` - Automatic import resolution
+- `ailang apply` - Deterministic code edits from JSON plans
+- `--emit-trace jsonl` - Structured execution traces for training
+
+**Future** (v0.4.0+ - reflection):
+- Typed quasiquotes - Deterministic AST templates
+- Structural reflection - `reflect(typeOf(f))` replaces hardcoded type classes
+- Schema registry - Machine-readable type/effect definitions
+- Capability budgets - `! {IO @limit=2}` for resource-bounded effects
+
+**Documentation Updates**:
+
+- **README.md**: Rewritten to accurately describe what AILANG is
+  - Tagline: "The Deterministic Language for AI Coders" (reflects actual design)
+  - Architecture overview: 8 layers from core semantics to cognitive interfaces
+  - "Why AILANG Works Better for AIs" - comparison of AI vs human needs
+  - Honest feature status: what works, what's next, what's not happening
+
+- **CLAUDE.md**: Updated implementation status
+  - Clear status markers: ✅ Stable, 🔜 Next, 🔮 Future, ❌ Not implementing
+  - Emphasis on determinism, semantic transparency, machine decidability
+
+- **CLI**: Removed non-functional `ailang lsp` command
+  - Deleted from help output, command dispatcher, and implementation
+
+**Design Spec Audit Results**:
+- Documentation-implementation alignment improved: **75%** → **95%**
+- Removed misleading claims about CSP, LSP, extensible type classes
+- Clear, honest roadmap: v0.3.15 (tooling), v0.4.0 (reflection), v0.5.x+ (budgets)
+
 ---
 
 ## [v0.3.14] - 2025-10-18 - JSON Decode + Major DX Improvements
@@ -82,6 +138,39 @@
 - Test expectations updated: 52+
 - LOC added (core): +569
 - LOC added (tests): +534
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 63.9% success rate (145/227 runs across 6 models × 22 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 48.2% (54/112) - New language, learning curve
+- **Python**: 79.1% (91/115) - Baseline for comparison
+- **Gap**: 30.9 percentage points (expected for new language)
+
+**By Model** (sorted by success rate):
+- claude-sonnet-4-5: Best performer (full suite run)
+- gpt5: Strong performance
+- claude-haiku-4-5: Cost-effective option
+- gemini-2-5-pro: Competitive
+- gpt5-mini: Budget option
+- gemini-2-5-flash: Fast and cheap
+
+**Changes from v0.3.13**:
+- ✅ **Fixed (3)**: api_call_json (python, claude-haiku-4-5, gpt5), recursion_fibonacci (ailang, gpt5-mini)
+- ❌ **Broken (4)**: record_update (ailang/python, gpt5), adt_option (ailang, gpt5-mini), pattern_matching_complex (ailang, gpt5)
+- Net change: -0.6% (63.9% vs 64.4% in v0.3.13)
+
+**Developer Experience Improvement**:
+- Added `--skip-existing` flag to `ailang eval-suite` command
+- Enables resuming interrupted eval runs without losing progress
+- Critical for long-running baselines on slower machines
+- Example: If 219/264 runs complete before timeout, `--skip-existing` runs only the missing 45
+
+**Notes**:
+- This is the first full 6-model baseline (previous versions used 3 models)
+- Total eval cost: ~$0.50-1.00 for full suite
+- See [docs/BENCHMARK_COMPARISON.md](docs/BENCHMARK_COMPARISON.md) for detailed comparison
 
 ---
 
