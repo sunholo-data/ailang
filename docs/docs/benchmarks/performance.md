@@ -6,10 +6,17 @@ last_updated: 2025-10-18
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
+import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 
 # AI Code Generation Benchmarks
 
 Real-world performance metrics for AILANG vs Python across multiple AI models.
+
+## Model Comparison (Radar Plot)
+
+<ModelRadarComparison />
+
+## Detailed Results
 
 <BenchmarkDashboard />
 
