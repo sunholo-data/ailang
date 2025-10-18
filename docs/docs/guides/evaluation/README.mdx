@@ -1,8 +1,10 @@
+import Icon, { CheckIcon, CrossIcon, InfoIcon } from '@site/src/components/Icon';
+
 # AI Evaluation Framework (M-EVAL-LOOP v2.0)
 
 This directory contains documentation for AILANG's AI evaluation framework, which measures how well AI models can generate AILANG code and provides automated feedback loops for continuous improvement.
 
-## Overview
+## <Icon name="info" inline /> Overview
 
 M-EVAL-LOOP is designed to empirically measure the "AI teachability" of AILANG - one of the project's key success metrics. It:
 - Compares AI code generation across AILANG vs Python
@@ -10,7 +12,7 @@ M-EVAL-LOOP is designed to empirically measure the "AI teachability" of AILANG -
 - Provides automated analysis and fix suggestions
 - Validates fixes and measures improvements
 
-## Quick Start
+## <Icon name="rocket" inline /> Quick Start
 
 ### Cost-Conscious Development (Recommended)
 
@@ -71,13 +73,13 @@ ailang eval-suite --models gpt5 --self-repair
 ## Available Models (October 2025)
 
 ### Production Models (--full)
-- ✅ **Claude Sonnet 4.5** (Anthropic) - $3/$15 per 1M tokens
-- ✅ **GPT-5** (OpenAI) - $1.25/$10 per 1M tokens
-- ✅ **Gemini 2.5 Pro** (Google) - $1.25/$10 per 1M tokens
+- <CheckIcon inline size={14} /> **Claude Sonnet 4.5** (Anthropic) - $3/$15 per 1M tokens
+- <CheckIcon inline size={14} /> **GPT-5** (OpenAI) - $1.25/$10 per 1M tokens
+- <CheckIcon inline size={14} /> **Gemini 2.5 Pro** (Google) - $1.25/$10 per 1M tokens
 
 ### Development Models (default)
-- ✅ **GPT-5 Mini** (OpenAI) - $0.25/$2 per 1M tokens (~1/5 price)
-- ✅ **Gemini 2.5 Flash** (Google) - $0.30/$2.50 per 1M tokens (~1/4 price)
+- <CheckIcon inline size={14} /> **GPT-5 Mini** (OpenAI) - $0.25/$2 per 1M tokens (~1/5 price)
+- <CheckIcon inline size={14} /> **Gemini 2.5 Flash** (Google) - $0.30/$2.50 per 1M tokens (~1/4 price)
 
 See [model-configuration.md](model-configuration.md) for setup details.
 
@@ -99,7 +101,7 @@ gcloud config set project YOUR_PROJECT_ID
 export GOOGLE_API_KEY="..."
 ```
 
-## Commands Overview
+## <Icon name="code" inline /> Commands Overview
 
 | Command | Purpose | Example |
 |---------|---------|---------|
@@ -193,10 +195,10 @@ ailang eval-report eval_results/baselines/VERSION VERSION --format=json
 You can also use natural language with Claude Code:
 
 ```
-✅ "validate my fix for records"
-✅ "how is AILANG performing?"
-✅ "compare baseline to current"
-✅ "generate an HTML report for v0.3.6"
+<CheckIcon inline size={14} /> "validate my fix for records"
+<CheckIcon inline size={14} /> "how is AILANG performing?"
+<CheckIcon inline size={14} /> "compare baseline to current"
+<CheckIcon inline size={14} /> "generate an HTML report for v0.3.6"
 ```
 
 The eval-orchestrator agent automatically routes to the correct commands.
@@ -232,6 +234,6 @@ See [architecture.md](architecture.md) for complete details.
 
 **Version**: 2.0
 **Last Updated**: October 15, 2025
-**Framework Status**: ✅ Production Ready
+**Framework Status**: <CheckIcon inline size={14} /> Production Ready
 **Models Tested**: 5/5 working (3 production + 2 dev)
 **Test Coverage**: 90%+ for eval analysis tools

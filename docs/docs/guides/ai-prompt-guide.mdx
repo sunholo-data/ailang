@@ -1,3 +1,9 @@
+---
+sidebar_position: 2
+---
+
+import Icon, { CheckIcon, CrossIcon, InfoIcon } from '@site/src/components/Icon';
+
 # AI Prompt Guide: Teaching AILANG to Language Models
 
 **Purpose**: This document points to the canonical AILANG teaching prompt for AI models.
@@ -6,50 +12,50 @@
 
 ---
 
-## Canonical Prompt (v0.3.8)
+## <Icon name="book" inline /> Canonical Prompt (v0.3.8)
 
 **The official AILANG teaching prompt is maintained at**:
 
-### 📖 [prompts/v0.3.8.md](../prompts/v0.3.8)
+### [prompts/v0.3.8.md](../prompts/v0.3.8)
 
 This prompt is:
-- ✅ **Validated through eval benchmarks** - Tested across GPT-5, Gemini 2.5 Pro, Claude Sonnet 4.5
-- ✅ **Up-to-date with v0.3.8 features** - Record updates, auto-import prelude, anonymous functions
-- ✅ **Versioned with SHA-256 hashing** - Reproducible eval results
-- ✅ **Actively maintained** - Updated as language evolves
+- <CheckIcon inline size={14} /> **Validated through eval benchmarks** - Tested across GPT-5, Gemini 2.5 Pro, Claude Sonnet 4.5
+- <CheckIcon inline size={14} /> **Up-to-date with v0.3.8 features** - Record updates, auto-import prelude, anonymous functions
+- <CheckIcon inline size={14} /> **Versioned with SHA-256 hashing** - Reproducible eval results
+- <CheckIcon inline size={14} /> **Actively maintained** - Updated as language evolves
 
 ---
 
-## Quick Reference
+## <Icon name="info" inline /> Quick Reference
 
 **Current version**: v0.3.8 (AI Usability Improvements)
 
 **What works in v0.3.8**:
-- ✅ Module execution with effects
-- ✅ Recursion (self-recursive and mutually-recursive)
-- ✅ Block expressions (`{ stmt1; stmt2; result }`)
-- ✅ Records (literals + field access + **updates**)
-- ✅ **Multi-line ADTs** `type Tree = | Leaf | Node` - NEW in v0.3.8!
-- ✅ **Record update syntax** `{base | field: value}`
-- ✅ **Auto-import std/prelude** - No imports needed for comparisons
-- ✅ **Anonymous functions** `func(x: int) -> int { x * 2 }`
-- ✅ **Numeric conversions** `intToFloat`, `floatToInt`
-- ✅ Effects: IO, FS, Clock, Net
-- ✅ Type classes, ADTs, pattern matching
-- ✅ REPL with full type checking
+- <CheckIcon inline size={14} /> Module execution with effects
+- <CheckIcon inline size={14} /> Recursion (self-recursive and mutually-recursive)
+- <CheckIcon inline size={14} /> Block expressions (`{ stmt1; stmt2; result }`)
+- <CheckIcon inline size={14} /> Records (literals + field access + **updates**)
+- <CheckIcon inline size={14} /> **Multi-line ADTs** `type Tree = | Leaf | Node` - NEW in v0.3.8!
+- <CheckIcon inline size={14} /> **Record update syntax** `{base | field: value}`
+- <CheckIcon inline size={14} /> **Auto-import std/prelude** - No imports needed for comparisons
+- <CheckIcon inline size={14} /> **Anonymous functions** `func(x: int) -> int { x * 2 }`
+- <CheckIcon inline size={14} /> **Numeric conversions** `intToFloat`, `floatToInt`
+- <CheckIcon inline size={14} /> Effects: IO, FS, Clock, Net
+- <CheckIcon inline size={14} /> Type classes, ADTs, pattern matching
+- <CheckIcon inline size={14} /> REPL with full type checking
 
 **What doesn't work yet**:
-- ❌ Pattern guards (parsed but not evaluated)
-- ❌ Error propagation operator `?`
-- ❌ Deep let nesting (4+ levels)
-- ❌ Typed quasiquotes
-- ❌ CSP concurrency
+- <CrossIcon inline size={14} /> Pattern guards (parsed but not evaluated)
+- <CrossIcon inline size={14} /> Error propagation operator `?`
+- <CrossIcon inline size={14} /> Deep let nesting (4+ levels)
+- <CrossIcon inline size={14} /> Typed quasiquotes
+- <CrossIcon inline size={14} /> CSP concurrency
 
 **For complete details**, see [prompts/v0.3.8.md](/docs/prompts/v0.3.8)
 
 ---
 
-## Using the Prompt
+## <Icon name="code" inline /> Using the Prompt
 
 ### For AI Code Generation
 
@@ -84,7 +90,7 @@ See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benc
 
 ---
 
-## Current Prompt
+## <Icon name="rocket" inline /> Current Prompt
 
 **Version**: v0.3.8 - [View full prompt](/docs/prompts/v0.3.8)
 
@@ -103,7 +109,7 @@ See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benc
 
 ---
 
-## Eval Results
+## <Icon name="target" inline /> Eval Results
 
 **Current success rates** (v0.3.8 prompt on v0.3.8):
 - **Overall**: 49.1% AILANG success rate (vs 82.5% Python baseline)
@@ -119,7 +125,7 @@ See [Benchmark Dashboard](/docs/benchmarks/performance) for detailed metrics.
 
 ---
 
-## Contributing Improvements
+## <Icon name="wrench" inline /> Contributing Improvements
 
 If you find ways to improve the AILANG teaching prompt:
 

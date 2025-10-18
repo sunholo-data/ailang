@@ -4,11 +4,13 @@
 
 ---
 
-## Overview
+import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+
+## <Icon name="info" inline /> Overview
 
 AILANG v0.2.0 introduces the **Module Execution Runtime** (M-R1), enabling you to run modules with exported entrypoint functions. This guide covers basic usage, requirements, and common patterns.
 
-## Quick Start
+## <Icon name="rocket" inline /> Quick Start
 
 ### Basic Usage
 
@@ -42,7 +44,7 @@ ailang --entry main run examples/hello.ail
 
 ---
 
-## Module Structure
+## <Icon name="code" inline /> Module Structure
 
 ### Anatomy of an Executable Module
 
@@ -76,15 +78,15 @@ export func process(input: {value: int}) -> int {
 
 ---
 
-## Entrypoint Functions
+## <Icon name="target" inline /> Entrypoint Functions
 
 ### Requirements
 
 An entrypoint function must:
-1. ✅ Be **exported** from the module (`export func`)
-2. ✅ Be a **function** (not a value)
-3. ✅ Have **0 or 1 parameters** (v0.2.0 limitation)
-4. ✅ Be specified via `--entry <name>` flag
+1. <CheckIcon inline size={14} /> Be **exported** from the module (`export func`)
+2. <CheckIcon inline size={14} /> Be a **function** (not a value)
+3. <CheckIcon inline size={14} /> Have **0 or 1 parameters** (v0.2.0 limitation)
+4. <CheckIcon inline size={14} /> Be specified via `--entry <name>` flag
 
 ### Supported Arities
 
@@ -134,14 +136,14 @@ ailang --entry process --args-json '{"input": "data", "count": 5}' run module.ai
 
 Functions with 2+ parameters are not directly supported. Wrap parameters in a record:
 
-❌ **Not supported:**
+<CrossIcon inline size={14} /> **Not supported:**
 ```typescript
 export func add(x: int, y: int) -> int {
     x + y
 }
 ```
 
-✅ **Supported pattern:**
+<CheckIcon inline size={14} /> **Supported pattern:**
 ```typescript
 export func add(params: {x: int, y: int}) -> int {
     params.x + params.y
@@ -350,7 +352,7 @@ Suggestions:
 
 ## Known Limitations (v0.2.0)
 
-### Supported ✅
+### Supported <CheckIcon inline size={14} />
 - 0-argument and 1-argument entrypoints
 - Builtin IO functions (`_io_print`, `_io_println`, `_io_readLine`)
 - JSON argument parsing

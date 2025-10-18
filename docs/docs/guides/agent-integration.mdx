@@ -4,6 +4,8 @@ sidebar_position: 1
 description: Quick start guide for AI coding agents to integrate AILANG
 ---
 
+import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+
 # AILANG for AI Agents - Quick Integration Guide
 
 **AILANG is an AI-first programming language designed for AI-assisted development.**
@@ -70,20 +72,20 @@ export func main() -> () ! {IO} {
 ```
 
 **Key syntax rules:**
-- ✅ Use `func` NOT `fn`, `function`, or `def`
-- ✅ Use `type Name[a] = Constructor(a) | Constructor2` for ADTs
-- ✅ NO `for`/`while` loops - use recursion
-- ✅ Effects must be declared: `! {IO}`, `! {FS}`, etc.
-- ✅ Semicolons REQUIRED between statements in blocks
-- ✅ `show` is builtin - do NOT import it
-- ✅ std/prelude is AUTO-IMPORTED (no imports for `<`, `>`, `==`, `!=`)
+- <CheckIcon inline size={14} /> Use `func` NOT `fn`, `function`, or `def`
+- <CheckIcon inline size={14} /> Use `type Name[a] = Constructor(a) | Constructor2` for ADTs
+- <CheckIcon inline size={14} /> NO `for`/`while` loops - use recursion
+- <CheckIcon inline size={14} /> Effects must be declared: `! {IO}`, `! {FS}`, etc.
+- <CheckIcon inline size={14} /> Semicolons REQUIRED between statements in blocks
+- <CheckIcon inline size={14} /> `show` is builtin - do NOT import it
+- <CheckIcon inline size={14} /> std/prelude is AUTO-IMPORTED (no imports for `<`, `>`, `==`, `!=`)
 
 **Common mistakes to avoid:**
-- ❌ Writing Python/JavaScript/Rust syntax
-- ❌ Forgetting `module` declaration
-- ❌ Using loops instead of recursion
-- ❌ Missing `export` keyword on functions
-- ❌ Importing `show` or comparison operators
+- <CrossIcon inline size={14} /> Writing Python/JavaScript/Rust syntax
+- <CrossIcon inline size={14} /> Forgetting `module` declaration
+- <CrossIcon inline size={14} /> Using loops instead of recursion
+- <CrossIcon inline size={14} /> Missing `export` keyword on functions
+- <CrossIcon inline size={14} /> Importing `show` or comparison operators
 
 ### Step 4: Run the Code
 
@@ -118,10 +120,10 @@ import std/net (httpGet, httpPost)             // HTTP requests
 
 ### Recursion (instead of loops)
 ```typescript
-// ❌ WRONG - No loops in AILANG
+// <CrossIcon inline size={14} /> WRONG - No loops in AILANG
 for i in [1, 2, 3] { println(i) }
 
-// ✅ CORRECT - Use recursion
+// <CheckIcon inline size={14} /> CORRECT - Use recursion
 export func printAll(xs: [int]) -> () ! {IO} {
   match xs {
     [] => (),
@@ -244,7 +246,7 @@ export func main() -> () ! {IO} {
 ```typescript
 {
   println("First")
-  println("Second")  -- ❌ Parse error!
+  println("Second")  -- <CrossIcon inline size={14} /> Parse error!
 }
 ```
 
@@ -252,20 +254,20 @@ export func main() -> () ! {IO} {
 ```typescript
 {
   println("First");
-  println("Second")  -- ✅ Last statement doesn't need semicolon
+  println("Second")  -- <CheckIcon inline size={14} /> Last statement doesn't need semicolon
 }
 ```
 
 ### Pitfall 4: Importing show or comparisons
 **Problem:**
 ```typescript
-import std/io (println, show)        -- ❌ show not in std/io
-import std/prelude (Ord, Eq)         -- ❌ auto-imported
+import std/io (println, show)        -- <CrossIcon inline size={14} /> show not in std/io
+import std/prelude (Ord, Eq)         -- <CrossIcon inline size={14} /> auto-imported
 ```
 
 **Fix:**
 ```typescript
-import std/io (println)              -- ✅ Only println
+import std/io (println)              -- <CheckIcon inline size={14} /> Only println
 -- show and comparisons work automatically!
 ```
 
@@ -315,7 +317,7 @@ ailang repl
 
 ---
 
-## ✅ Pre-Flight Checklist
+## <CheckIcon inline size={14} /> Pre-Flight Checklist
 
 Before generating AILANG code, confirm:
 
