@@ -57,7 +57,21 @@ Your core responsibilities:
    - Include context about design decisions and architectural choices
    - Document both what the code does and why it does it that way
 
-7. **Version and History Tracking**:
+7. **Docusaurus Documentation Standards**:
+   - **MDX files**: Use `.mdx` extension when importing React components (e.g., icons)
+   - **Icon components**: Import from `@site/src/components/Icon` for professional appearance
+   - Available icons via Lucide React:
+     * `<Icon name="check|cross|warning|info|idea|code|zap|bot|user|wrench|rocket|target|book|scale|brain" />`
+     * Convenience components: `<CheckIcon />`, `<CrossIcon />`, `<InfoIcon />`, `<WarningIcon />`
+     * Inline usage: `<Icon name="zap" inline />` for icons within text
+     * Sizing: `<Icon size={16} />` or `<CheckIcon size={18} />`
+     * Colors: Icons use semantic CSS vars by default (e.g., CheckIcon is green, CrossIcon is red)
+   - **Link format**: Use markdown `[text](path)` for clickable links, not backticks
+   - **Professional tone**: Replace emojis with icons or "Yes/No" text in tables
+   - **Broken links**: Always verify external links work before committing
+   - **Sidebar**: Update `docs/sidebars.js` when adding new pages
+
+8. **Version and History Tracking**:
    - Note when features were added or changed
    - Maintain a clear changelog or history section
    - Document breaking changes prominently
