@@ -763,8 +763,8 @@ docs-restart: docs-clean
 build-wasm:
 	@echo "Building WASM binary..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=js GOARCH=wasm $(GOBUILD) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
-	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm"
+	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
+	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm ($(VERSION))"
 	@echo ""
 	@echo "Next steps for Docusaurus integration:"
 	@echo "  1. Copy $(BUILD_DIR)/$(BINARY).wasm to your-site/static/wasm/"
