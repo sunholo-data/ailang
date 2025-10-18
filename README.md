@@ -1,68 +1,98 @@
-# AILANG: The AI-First Programming Language
+# 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-32.6%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
+AILANG is a purely functional, effect-typed language designed for **autonomous code synthesis and reasoning**. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
 
-## Current Version: v0.3.14 (JSON Decode Release)
+---
 
-**🎯 What Works**: Full module execution, **JSON parsing** (`std/json.decode`), **`show()` builtin** (polymorphic string conversion), **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism**, complete Hindley-Milner type inference, type classes (Num, Eq, Ord), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+## 🧩 Core Philosophy
 
-**✅ Major Milestones**:
-- **v0.3.14 (Oct 2025)**: JSON Decode Release - **JSON parsing + pattern matching fixes**
-  - **Added**: `std/json.decode : string -> Result[Json, string]` - Parse JSON strings
-  - **Fixed**: Cons pattern matching `[head, ...tail]` now works at runtime
-  - **Fixed**: Type Builder primitive casing (string, int, float, bool)
-  - **Added**: TApp unification support for polymorphic types
-  - **Example**: `examples/json_basic_decode.ail` with pattern matching
-- **v0.3.12 (Oct 2025)**: Recovery Release - **`show()` Builtin Restored**
-  - **Fixed**: Restored `show()` function lost in v0.3.10 migration (M-LANG recovery)
-  - **Impact**: Recovers 51% of failing AILANG benchmarks (64/125 affected)
-  - **Implementation**: Polymorphic `∀α. α -> string` with full type dispatch
-  - **Coverage**: 35 comprehensive tests (primitives, lists, records, ADTs)
-  - **Velocity**: 3.5 hours, ~350 LOC (on target with estimates)
+**For humans, a language is a tool for expression.**
+**For AIs, it's a substrate for reasoning.**
+
+AILANG minimizes ambiguity and maximizes predictability. Every construct — type, effect, or expression — has **deterministic semantics** that can be reflected, verified, and serialized.
+
+---
+
+## 🏗️ Architecture Overview
+
+| Layer | Description | Status |
+|-------|-------------|--------|
+| **1. Core Semantics** | Pure functional core with algebraic data types (ADTs), first-class effects, and Hindley-Milner type inference. | ✅ Stable |
+| **2. Type System** | Polymorphic effects (`! {IO, ε}`), `Result` and `Option` types, and fully deterministic unification (TApp-aware). | ✅ Stable |
+| **3. Reflection & Meta-Programming** | Typed quasiquotes and semantic reflection (`reflect(typeOf(f))`) for deterministic code generation. | 🔜 v0.4.x |
+| **4. Deterministic Tooling** | Canonical `normalize`, `suggest`, and `apply` commands; JSON schema output; `--emit-trace jsonl` for training data. | 🔜 v0.3.15 |
+| **5. Schema & Hashing Layer** | Machine-readable type/effect registry and versioned semantic hashes for reproducible builds. | 🔜 v0.4.x |
+| **6. Runtime & Effects** | Deterministic evaluator with explicit effect rows; supports IO, FS, Net, Clock; no hidden state or global scheduler. | ✅ Stable |
+| **7. Cognitive Interfaces** | JSONL trace export for AI self-training; deterministic edit plans for autonomous refactoring. | 🔜 v0.4.x |
+| **8. Future Extensions** | Capability budgets (`! {IO @limit=2}`), semantic DAG scheduler (`schedule { a >> b \| c }`). | 🔮 v0.5.x+ |
+
+---
+
+## ❌ Removed / Deprecated Human-Oriented Features
+
+| Removed Feature | Reason for Removal |
+|----------------|-------------------|
+| **CSP Concurrency / Session Types** | Replaced by static effect-typed task graphs; no runtime scheduler needed. |
+| **Unstructured Macros** | Replaced by typed quasiquotes (deterministic AST templates). |
+| **Type Classes** | Replaced by structural reflection and record-based traits; removes implicit resolution. |
+| **LSP Server** | Superseded by deterministic JSON-RPC API (`ailangd`) exposing parser/typechecker directly. |
+| **IDE-centric DX Features** | AIs interact via CLI / API; autocompletion and hover text are unnecessary. |
+
+---
+
+## 🔮 AI-Native Roadmap
+
+| Milestone | Goal | Example Deliverable |
+|-----------|------|-------------------|
+| **v0.3.15 – Deterministic Tooling** | Canonical normalization, symbol import suggestion, JSON trace export | `ailang suggest-imports file.ail` |
+| **v0.4.0 – Meta & Reflection Layer** | Typed quasiquotes + reflection API | `quote (x) -> x + 1 : (int)->int` |
+| **v0.4.2 – Schema Registry** | Machine-readable type/effect schemas for deterministic builds | `/schemas/std/io.json` |
+| **v0.5.x – Unified Registry Runtime** | Remove legacy builtin registry; single spec source | `RegisterBuiltin(spec)` unified |
+| **v0.6.x – Capability Budgets & DAG Scheduler** | Deterministic parallelism via static scheduling | `schedule { parse >> decode \| validate }` |
+| **v1.0 – Cognitive Autonomy** | Full round-trip reasoning: AI reads, edits, compiles, evaluates, and self-trains from traces | `--emit-trace jsonl` → fine-tuned validator |
+
+---
+
+## 🧪 Current Milestone: v0.3.14 (JSON Decode)
+
+- ✅ Added `std/json.decode : string -> Result[Json, string]` with streaming parser
+- ✅ Fixed list/record pattern matching at runtime
+- ✅ Unified primitive type casing (`string`, `int`, `float`, `bool`)
+- ✅ DX overhaul: operators (`==`, `!=`, `<`, `>=`) now work naturally
+- ✅ All **2,847 tests passing**; 100% coverage on new builtin
+- 🔜 **Next**: deterministic tooling (`normalize`, `suggest`, `apply`) in v0.3.15
+
+### Major Milestones
+
+- **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes
+- **v0.3.12 (Oct 2025)**: Recovery Release - `show()` builtin restored (recovers 51% of benchmarks)
 - **v0.3.11 (Oct 2025)**: Critical row unification fix
-  - **Fixed**: Row unification bug that caused "closed row missing labels: [IO]" errors
-  - **Fixed**: Effect propagation in function application
-  - **Fixed**: REPL builtin environment initialization
-  - **Added**: 3-layer regression test safety net (12 test cases)
-- **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration complete
-  - **Unified builtin registry**: All 49 builtins now use spec-based registration (1 file instead of 4)
-  - **Development time**: Reduced from 7.5h to 2.5h per builtin (-67%)
-  - **Type Builder DSL**: Fluent API reduces type construction from 35→10 lines
-  - **Test harness**: Hermetic testing with `MockEffContext`
-  - **Feature flag removed**: New registry is now the default
+- **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration (-67% dev time)
 - **v0.3.9 (Oct 2025)**: AI API Integration - HTTP headers, JSON encoding, OpenAI example
-  - **HTTP headers**: `httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError]`
-  - **JSON encoding**: Complete encoder with `Json` ADT and convenience helpers
-  - **Security**: Header validation, cross-origin auth stripping, method whitelist (GET/POST)
-  - **Example**: Working OpenAI GPT-4o-mini integration in `examples/ai_call.ail`
-- **v0.3.6 (Oct 2025)**: AI usability improvements - auto-import, record updates, error detection
-  - Auto-import std/prelude: Zero imports needed for comparisons and typeclasses
-  - Record update syntax: `{person | age: 30}` for functional updates
-  - Error detection: Identifies wrong language/imperative syntax for self-repair
-  - M-EVAL benchmark: 52.6% success rate on Claude Sonnet 4.5 (+17.5% improvement from v0.3.5 baseline)
-- **v0.3.5 (Oct 2025)**: Anonymous function syntax, letrec keyword, numeric conversions
-  - New syntax: `func(x: int) -> int { x * 2 }` for inline lambdas
-  - REPL recursive lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
-  - Type conversions: `intToFloat(42)`, `floatToInt(3.14)` for mixed arithmetic
-- **Clock effect** with monotonic time and virtual time for deterministic execution
-- **Net effect** with full Phase 2 PM security hardening:
-  - DNS rebinding prevention
-  - Protocol validation (https enforced, file:// blocked)
-  - IP blocking (localhost, private IPs, link-local)
-  - Redirect validation with IP re-check
-  - Body size limits (5MB default)
-  - Domain allowlist with wildcard support
-- Records support subsumption: functions accepting `{id: int}` work with larger records
-- Row polymorphism available via `AILANG_RECORDS_V2=1`
+- **v0.3.6 (Oct 2025)**: AI usability - auto-import, record updates, error detection
+- **v0.3.5 (Oct 2025)**: Anonymous functions, `letrec`, numeric conversions
 
-**📊 Test Coverage**: 48/66 examples passing (72.7%). All record subsumption, effect system (IO, FS, Clock, Net), type class, ADT, recursion, and block expression examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+For detailed version history, see [CHANGELOG.md](CHANGELOG.md).
 
-**📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
+---
+
+## 💡 Why AILANG Works Better for AIs
+
+| Human Need | Human Feature | AI Equivalent in AILANG |
+|-----------|---------------|------------------------|
+| IDE assistance | LSP / autocompletion | Deterministic type/query API |
+| Asynchronous code | Threads / goroutines | Static task DAGs with effects |
+| Code reuse | Inheritance / traits | Structural reflection & records |
+| Debugging | Interactive debugger | Replayable evaluation trace |
+| Logging | `print` / `console` | `--emit-trace jsonl` structured logs |
+| Macros | text substitution | Typed quasiquotes (semantic macros) |
+
+---
 
 ## Quick Start
 
@@ -82,8 +112,6 @@ For detailed installation instructions, see the [Getting Started Guide](docs/gui
 
 ### Hello World (Module Execution)
 
-AILANG v0.2.0 now executes module files with effects:
-
 ```ailang
 -- examples/demos/hello_io.ail
 module examples/demos/hello_io
@@ -91,13 +119,13 @@ module examples/demos/hello_io
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  println("Hello from AILANG v0.2.0!")
+  println("Hello from AILANG v0.3.14!")
 }
 ```
 
 ```bash
 ailang run --caps IO examples/demos/hello_io.ail
-# Output: Hello from AILANG v0.2.0!
+# Output: Hello from AILANG v0.3.14!
 ```
 
 **Important**: Flags must come BEFORE the filename:
@@ -109,115 +137,9 @@ ailang run --caps IO --entry main file.ail
 ailang run file.ail --caps IO --entry main
 ```
 
-More examples:
-```bash
-ailang run examples/arithmetic.ail                        # Arithmetic
-ailang run examples/simple.ail                            # Let bindings
-ailang run --caps IO --entry main examples/micro_block_seq.ail  # Block expressions
-ailang run --caps IO --entry greet examples/test_io_builtins.ail  # IO effects
-ailang run --caps Clock,IO --entry main examples/micro_clock_measure.ail  # Clock effect ✨ NEW
-ailang run --caps Net,IO --entry main examples/demo_ai_api.ail  # Net effect (API calls) ✨ NEW
-ailang run --entry greet examples/test_invocation.ail     # Cross-function calls
-```
+### Interactive REPL
 
-**✨ NEW: Clock & Net Effects** (v0.3.0-alpha4)
-```ailang
--- Clock effect: Monotonic time (immune to NTP/DST)
-import std/clock (now, sleep)
-
-func benchmark() -> int ! {Clock, IO} {
-  let start = now();
-  sleep(100);  -- Sleep 100ms
-  let elapsed = now() - start;
-  elapsed
-}
-```
-
-```ailang
--- Net effect: HTTP GET/POST with security hardening
-import std/net (httpGet, httpPost)
-import std/io (println)
-
-func callAPI() -> () ! {Net, IO} {
-  let response = httpGet("https://api.example.com/data");
-  println(response)
-}
-```
-
-**Net Security Features**:
-- ✅ HTTPS enforced (http:// requires `--net-allow-http`)
-- ✅ DNS rebinding prevention
-- ✅ IP blocking (localhost, private IPs, link-local)
-- ✅ Protocol blocking (file://, ftp://, data://)
-- ✅ Redirect validation (max 5 redirects)
-- ✅ Body size limits (5MB default)
-- ✅ Domain allowlist with wildcard support
-
-**✨ NEW: AI API Integration** (v0.3.9)
-```ailang
--- Complete OpenAI integration with JSON encoding and error handling
-import std/json (encode, jo, ja, kv, js, jnum)
-import std/net (httpRequest, NetError, Transport, InvalidHeader)
-import std/io (println)
-
-func chatOpenAI(prompt: string, apiKey: string) -> string ! {Net, IO} {
-  let url = "https://api.openai.com/v1/chat/completions";
-  let headers = [
-    {name: "Authorization", value: concat_String("Bearer ", apiKey)},
-    {name: "Content-Type", value: "application/json"}
-  ];
-  let body = encode(
-    jo([
-      kv("model", js("gpt-4o-mini")),
-      kv("messages", ja([jo([kv("role", js("user")), kv("content", js(prompt))])]))
-    ])
-  );
-
-  match httpRequest("POST", url, headers, body) {
-    Ok(resp) => if resp.ok then resp.body else concat_String("HTTP error: ", show(resp.status))
-    Err(err) => match err {
-      Transport(msg) => concat_String("Network error: ", msg)
-      InvalidHeader(hdr) => concat_String("Invalid header: ", hdr)
-      -- ... handle other NetError variants
-    }
-  }
-}
-```
-
-**Key features**:
-- ✅ `httpRequest()`: Custom headers, method control, `Result[HttpResponse, NetError]` return type
-- ✅ `Json` ADT: Type-safe JSON construction with helpers (`jo`, `ja`, `kv`, `js`, `jnum`)
-- ✅ JSON encoding: Full spec compliance with proper escaping and UTF-16 support
-- ✅ Error handling: Pattern match on `Result` and `NetError` for robust failure handling
-- ✅ Security: Header validation, Authorization stripping on cross-origin redirects
-
-See [examples/ai_call.ail](examples/ai_call.ail) for the complete working example.
-
-**✨ Block Expressions** (v0.3.0)
-```ailang
--- Blocks allow sequencing multiple expressions
-{
-  println("first");
-  println("second");
-  42  -- Value of block is the last expression
-}
-
--- Perfect for recursive functions with logging:
-func countdown(n: int) -> () ! {IO} {
-  if n <= 0 then {
-    println("Done!")
-  } else {
-    println(show(n));
-    countdown(n - 1)
-  }
-}
-```
-
-See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (48/66 passing).
-
-### Interactive REPL (Fully Functional)
-
-The REPL is the **most complete** part of AILANG v0.1.0, featuring full type inference and type classes:
+The REPL features full type inference and deterministic evaluation:
 
 ```bash
 ailang repl
@@ -234,9 +156,6 @@ Hello World :: String
 λ> :type \x. x + x
 \x. x + x :: ∀α. Num α ⇒ α → α
 
-λ> let compose = \f. \g. \x. f(g(x)) in compose (\x. x * 2) (\x. x + 1) 5
-12 :: Int
-
 λ> :quit
 ```
 
@@ -244,89 +163,51 @@ Hello World :: String
 
 See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 
-## What Works in v0.1.0
+---
 
-### ✅ Complete Type System
+## What AILANG Can Do (Implementation Status)
 
-- **Hindley-Milner Type Inference** - Full polymorphic type inference with let-polymorphism
-- **Type Classes** - `Num`, `Eq`, `Ord`, `Show` with dictionary-passing semantics
-- **Constraint Solving** - Type class constraint generation and resolution
-- **Defaulting** - Automatic defaulting for ambiguous numeric types (Int, Float)
-- **Type Checking** - Module interface checking, export resolution, import validation
+### ✅ Core Language
 
-### ✅ Lambda Calculus & Expressions
+- **Pure functional programming** - Lambda calculus, closures, recursion
+- **Hindley-Milner type inference** - Row polymorphism, let-polymorphism
+- **Built-in type class instances** - `Num`, `Eq`, `Ord`, `Show` (structural reflection planned for v0.4.0)
+- **Algebraic effects** - Capability-based security (IO, FS, Clock, Net)
+- **Pattern matching** - ADTs with exhaustiveness checking
+- **Module system** - Runtime execution, cross-module imports
+- **Block expressions** - `{ e1; e2; e3 }` for sequencing
+- **JSON support** - Parsing (`std/json.decode`), encoding (`std/json.encode`)
 
-- **Lambda Expressions** - First-class functions with closures and currying
-- **Function Composition** - Higher-order functions, partial application
-- **Let Bindings** - Polymorphic let expressions (up to 3 nested levels)
-- **Conditionals** - `if-then-else` expressions
-- **Block Expressions** - `{ e1; e2; e3 }` for sequencing (desugars to let chains) ✨ NEW in v0.3.0
-- **Operators** - Arithmetic (`+`, `-`, `*`, `/`), comparison (`==`, `<`, `>`, etc.), string concatenation (`++`)
+### ✅ Development Tools
 
-### ✅ Data Structures
+- **M-EVAL** - AI code generation benchmarks (multi-model support)
+- **M-EVAL-LOOP v2.0** - Native Go eval tools with 90%+ test coverage
+- **Structured error reporting** - JSON schemas for deterministic diagnostics
+- **Effect system runtime** - Hermetic testing with `MockEffContext`
 
-- **Lists** - `[1, 2, 3]` with type inference
-- **Records** - `{name: "Alice", age: 30}` with field access
-- **Tuples** - `(1, "hello", true)` for heterogeneous data
-- **Strings** - String literals with concatenation
+### 🔜 Deterministic Tooling (v0.3.15)
 
-### ✅ Module System (Type-Checking Only)
+- **`ailang normalize`** - Canonical code formatting
+- **`ailang suggest-imports`** - Automatic import resolution
+- **`ailang apply`** - Deterministic code edits from JSON plans
+- **`--emit-trace jsonl`** - Structured execution traces for training
 
-- **Module Declarations** - `module path/to/module`
-- **Import/Export** - `import stdlib/std/io (println)`, `export func main() ...`
-- **Path Resolution** - Correct module path resolution and validation
-- **Dependency Analysis** - Import graph construction, cycle detection
-- **Interface Generation** - Module signatures with exported types/functions
+### 🔮 Future (v0.4.0+)
 
-**Note**: Modules parse and type-check correctly but cannot execute until v0.2.0. See [LIMITATIONS.md](docs/LIMITATIONS.md#critical-limitation-module-execution-gap).
+- **Typed quasiquotes** - Deterministic AST templates
+- **Structural reflection** - Replace hardcoded type classes
+- **Schema registry** - Machine-readable type/effect definitions
+- **Capability budgets** - Resource-bounded effects
 
-### ✅ Interactive Development
+---
 
-- **Professional REPL** - Arrow key history, tab completion, persistent history (`~/.ailang_history`)
-- **Type Inspection** - `:type <expr>` shows qualified types with constraints
-- **Instance Inspection** - `:instances` lists available type class instances
-- **Debugging Tools** - `:dump-core`, `:dump-typed`, `:trace-defaulting`, `:dry-link`
-- **Auto-imports** - `stdlib/std/prelude` loaded automatically
+## 📊 Test Coverage
 
-### ✅ Error Reporting
+**Examples**: 48/66 passing (72.7%)
 
-- **Structured Errors** - JSON error output with schema versioning
-- **Deterministic Diagnostics** - Stable error messages, line/column positions
-- **Helpful Messages** - Type errors, parse errors, module loading errors
+All record subsumption, effect system (IO, FS, Clock, Net), type class, ADT, recursion, and block expression examples working.
 
-## What's Coming in v0.2.0
-
-### 🚀 v0.2.0 Roadmap (Module Execution & Effects)
-
-**M-R1: Module Execution Runtime** (~1,200 LOC, 1.5-2 weeks)
-- Module instance creation and initialization
-- Import resolution and linking at runtime
-- Top-level function execution
-- Exported function calls
-
-**M-R2: Algebraic Effects Foundation** (~800 LOC, 1-1.5 weeks)
-- Effect declarations and checking
-- Effect handler syntax (`with`, `handle`)
-- Capability-based effect system
-- Basic effects: `IO`, `FS`, `Net`
-
-**M-R3: Pattern Matching** (~600 LOC, 1 week)
-- `match` expressions
-- Pattern guards
-- Exhaustiveness checking
-- Constructor patterns for ADTs
-
-**Total Timeline**: 3.5-4.5 weeks for v0.2.0
-
-See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details.
-
-### 📋 Future Features (v0.3.0+)
-
-- Typed quasiquotes (SQL, HTML, JSON, regex)
-- CSP-based concurrency with channels
-- Session types for protocol verification
-- Property-based testing (`properties [...]`)
-- AI training data export
+See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 
 <!-- EXAMPLES_STATUS_START -->
 ## Status
@@ -432,27 +313,28 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 
 <!-- EXAMPLES_STATUS_END -->
 
+---
+
 ## Documentation
 
 ### User Documentation
-- **[LIMITATIONS.md](docs/LIMITATIONS.md)** - ⚠️ Read this first! Current v0.1.0 limitations and workarounds
 - **[Getting Started](docs/guides/getting-started.md)** - Installation and quick tutorial
-- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide (fully functional)
+- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide
 - **[Language Syntax](docs/reference/language-syntax.md)** - Complete language reference
-- **[Examples Status](examples/STATUS.md)** - Inventory of all 42 example files
-- **[Examples README](examples/README.md)** - How to use and understand examples
+- **[Examples Status](examples/STATUS.md)** - Inventory of all example files
+- **[LIMITATIONS.md](docs/LIMITATIONS.md)** - Current limitations and workarounds
 
 ### Development Documentation
-- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status with metrics
-- **[Development Guide](docs/guides/development.md)** - Contributing and development workflow
+- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status
+- **[Development Guide](docs/guides/development.md)** - Contributing workflow
 - **[CLAUDE.md](CLAUDE.md)** - Instructions for AI assistants working on AILANG
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
 
 ### Design & Architecture
-- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
 - **[Design Documents](design_docs/)** - Architecture and design decisions
-- **[v0.1.0 MVP Roadmap](design_docs/20250929/v0_1_0_mvp_roadmap.md)** - Current milestone plan
-- **[Showcase Issues](docs/SHOWCASE_ISSUES.md)** - Known parser/execution limitations discovered during example creation
+- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
+
+---
 
 ## Development
 
@@ -475,69 +357,72 @@ make watch-install
 # Check coverage
 make test-coverage-badge
 
-# AI Evaluation & Design Generation (NEW! ✨)
+# AI Evaluation & Design Generation
 make eval-suite          # Run AI benchmarks (AILANG vs Python)
 make eval-report         # Generate evaluation report
-make eval-analyze        # Analyze failures, generate design docs (auto-dedup)
-make eval-analyze-fresh  # Force new docs (disable dedup)
-make eval-to-design      # Full workflow: evals → analysis → design docs
+make eval-analyze        # Analyze failures, generate design docs
 ```
 
 See the [Development Guide](docs/guides/development.md) for detailed instructions.
+
+---
+
+## 📚 Specification Reference
+
+- **Core**: `/internal/types/`, `/internal/eval/`
+- **Effects**: `/internal/effects/`
+- **Builtins**: `/internal/builtins/spec.go`
+- **Standard Library**: `/stdlib/std/*`
+- **Design Docs**: `/design_docs/`
+
+---
 
 ## Project Structure
 
 ```
 ailang/
-├── cmd/ailang/       # CLI entry point
-├── internal/         # Core implementation
-│   ├── repl/         # Interactive REPL
-│   ├── lexer/        # Tokenizer
-│   ├── parser/       # Parser
-│   ├── types/        # Type system
-│   ├── eval/         # Evaluator
-│   └── ...           # Other components
-├── examples/         # Example programs
-├── docs/             # Documentation
-├── design_docs/      # Design documents
-└── scripts/          # CI/CD scripts
+├── cmd/ailang/         # CLI entry point
+├── internal/           # Core implementation
+│   ├── repl/           # Interactive REPL
+│   ├── lexer/          # Tokenizer
+│   ├── parser/         # Parser
+│   ├── types/          # Type system
+│   ├── eval/           # Evaluator
+│   ├── effects/        # Effect system runtime
+│   ├── builtins/       # Builtin registry
+│   └── eval_harness/   # AI evaluation framework
+├── stdlib/             # Standard library
+├── examples/           # Example programs
+├── docs/               # Documentation
+└── design_docs/        # Design documents
 ```
+
+---
 
 ## Contributing
 
 AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](docs/guides/development.md) for guidelines.
 
-## License
+---
+
+## ⚖️ License & Philosophy
+
+AILANG is **open infrastructure for Cognitive DevOps** — systems that write, test, and deploy themselves deterministically.
+
+**Our design north star: build languages AIs enjoy using.**
 
 Apache 2.0 - See [LICENSE](LICENSE) for details.
+
+---
 
 ## Acknowledgments
 
 AILANG draws inspiration from:
-- Haskell (type system, purity)
-- OCaml (module system, effects)
-- Rust (capability-based security)
-- Erlang/Go (CSP concurrency)
+- **Haskell** (type system, purity)
+- **OCaml** (module system, effects)
+- **Rust** (capability-based security)
+- **Idris/Agda** (reflection and metaprogramming)
 
 ---
 
-## FAQ
-
-**Q: Can I use AILANG for production code?**
-A: Not yet. v0.1.0 is an MVP focused on the type system. Module execution arrives in v0.2.0 (planned ~4 weeks).
-
-**Q: What's the difference between REPL and file execution?**
-A: The REPL is fully functional with type classes. File execution works for non-module files. Module files type-check but cannot execute until v0.2.0.
-
-**Q: Which examples actually work?**
-A: See [examples/STATUS.md](examples/STATUS.md). 12 examples execute successfully. The showcase examples in `examples/showcase/` demonstrate working features.
-
-**Q: How can I help or contribute?**
-A: See [Development Guide](docs/guides/development.md). We especially welcome testing, example creation, and documentation improvements.
-
-**Q: What makes AILANG "AI-first"?**
-A: Explicit effects, deterministic execution traces, structured errors, and typed metaprogramming make AILANG ideal for AI-assisted development and training data generation. See [AI-First Features](docs/ai-first-features.md).
-
----
-
-*For AI agents: This is an experimental functional language with complete Hindley-Milner type inference, type classes (Num/Eq/Ord/Show), and lambda calculus. The REPL is fully functional. Non-module file execution works for expressions and let bindings. Module files type-check but cannot execute (runtime coming in v0.2.0). See [LIMITATIONS.md](docs/LIMITATIONS.md) and [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*
+*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*

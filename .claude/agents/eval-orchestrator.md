@@ -211,18 +211,6 @@ cd docs && npm start
 # 6. Verify at http://localhost:3000/ailang/docs/benchmarks/performance
 ```
 
-**⚠️ CRITICAL - DO NOT use `make benchmark-dashboard` for releases!**
-- It uses `--multi-model` which aggregates latest per-model across ALL baselines
-- Will show mixed versions (e.g., gpt5 from v0.3.9, claude from v0.3.11)
-- Confuses users and doesn't reflect actual release performance
-- **Always use `ailang eval-report <specific_baseline_dir> <version>` for releases**
-
-**Action - Multi-version Dashboard** (rare, for homepage only):
-```bash
-# Only use this if user explicitly wants "best of each model" view
-make benchmark-dashboard
-```
-
 **Report back:**
 - Version published (e.g., "v0.3.12")
 - Success rates: **AILANG-only** (e.g., "47.6%"), not combined
@@ -505,20 +493,13 @@ Check `models.yml` for latest configuration including:
 **Solution**: ALWAYS use eval-orchestrator agent for release workflows
 **Prevention**: `/release` command now includes dashboard updates (step 13)
 
-### Pitfall 2: Using `make benchmark-dashboard` for Releases
-**Symptom**: Dashboard shows v0.3.9 even though v0.3.12 baseline exists
-**Cause**: Multi-model aggregation picks latest per-model, not latest version
-**Example**: Shows gpt5 from v0.3.9, claude from v0.3.11, gemini from v0.3.12
-**Solution**: Use `ailang eval-report <baseline_dir> <version>` instead
-**Prevention**: `/release` command now warns against this explicitly
-
-### Pitfall 3: Docusaurus Cache Not Cleared
+### Pitfall 2: Docusaurus Cache Not Cleared
 **Symptom**: "Uncaught runtime errors" or webpack chunk 404s in browser
 **Cause**: React components changed but webpack cache stale
 **Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
 **Prevention**: `/release` command includes cache clearing step
 
-### Pitfall 4: Wrong JSON File Used
+### Pitfall 3: Wrong JSON File Used
 **Symptom**: Dashboard shows "null" for aggregates, missing data
 **Cause**: Used performance matrix JSON instead of baseline results
 **Example**:
@@ -531,7 +512,7 @@ ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json > docs/s
 ```
 **Prevention**: Always use `ailang eval-report` output
 
-### Pitfall 5: Manually Editing Files
+### Pitfall 4: Manually Editing Files
 **Symptom**: JSON corruption, missing history, validation errors
 **Cause**: Trying to manually copy/edit dashboard files
 **Solution**: ALWAYS use `ailang eval-report` - it handles:

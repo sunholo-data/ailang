@@ -185,7 +185,7 @@ ailang eval-compare baselines/v0.3.6 current
 
 ### 5. Update Dashboard
 ```bash
-make benchmark-dashboard
+ailang eval-report eval_results/baselines/VERSION VERSION --format=json
 ```
 
 ## Natural Language Interface
@@ -224,7 +224,7 @@ See [architecture.md](architecture.md) for complete details.
 2. <make changes>               # Implement features/fixes
 3. ailang eval-validate BENCH   # Check specific fix
 4. ailang eval-compare ...      # Full comparison
-5. make benchmark-dashboard     # Update public dashboard
+5. ailang eval-report ...       # Update public dashboard
 6. Repeat!
 ```
 

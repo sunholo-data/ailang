@@ -44,7 +44,7 @@ export default function BenchmarkDashboard() {
       <div className={styles.error}>
         <p>⚠️ Could not load benchmark data: {error}</p>
         <p className={styles.errorHint}>
-          Try running: <code>make benchmark-dashboard</code>
+          Try running: <code>ailang eval-report eval_results/baselines/VERSION VERSION --format=json</code>
         </p>
       </div>
     );
@@ -55,7 +55,7 @@ export default function BenchmarkDashboard() {
       <div className={styles.error}>
         <p>⚠️ No benchmark data available</p>
         <p className={styles.errorHint}>
-          Run <code>make benchmark-dashboard</code> to generate metrics.
+          Run <code>ailang eval-report eval_results/baselines/VERSION VERSION --format=json</code> to generate metrics.
         </p>
       </div>
     );

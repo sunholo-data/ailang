@@ -464,7 +464,13 @@ help:
 	@echo "  make update-readme    - Update README with example status"
 	@echo "  make doctor           - Validate builtin registry"
 	@echo "  make test-regression-guards - Run regression guard tests"
+	@echo "  make test-builtin-consistency - Test builtin three-way parity"
+	@echo "  make test-stdlib-canaries - Test stdlib health (std/io, std/net)"
+	@echo "  make test-row-properties - Test row unification properties"
+	@echo "  make test-golden-types - Test builtin type snapshots"
+	@echo "  make test-repl-smoke - REPL smoke tests (:type command)"
 	@echo "  make ci               - Run full CI verification"
+	@echo "  make ci-strict        - Extended CI with A2 milestone gates"
 	@echo "  make fmt              - Format code"
 	@echo "  make fmt-check        - Check code formatting"
 	@echo "  make vet              - Run go vet"
@@ -478,7 +484,6 @@ help:
 	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
 	@echo "  make dev              - Quick development build"
 	@echo "  make quick-install    - Quick install without version info"
-	@echo "  make verify-examples-golden - Verify examples against golden files"
 	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
 	@echo "  make eval-suite       - Run AI benchmark suite"
 	@echo "  make eval-report      - Generate evaluation report"
@@ -486,12 +491,15 @@ help:
 	@echo "  make eval-analyze-fresh - Force new design docs (disable dedup)"
 	@echo "  make eval-to-design   - Full workflow: evals → analysis → design docs"
 	@echo "  make eval-clean       - Clean evaluation results"
+	@echo "  make build-wasm       - Build WASM binary for browser REPL"
+	@echo "  make docs-clean       - Clear Docusaurus build cache"
+	@echo "  make docs-restart     - Clear cache and restart dev server"
+	@echo "  make check-file-sizes - Check for files >800 lines (AI-friendly)"
+	@echo "  make report-file-sizes - Report all files >500 lines"
+	@echo "  make codebase-health  - Full codebase health metrics"
+	@echo "  make largest-files    - Show 20 largest files"
 	@echo "  make help             - Show this help"
-
-# Verify examples against golden stdout files
-.PHONY: verify-examples-golden
-verify-examples-golden:
-	@bash scripts/verify-examples.sh
+	@echo "  make help-release     - Show release workflow (eval + dashboard)"
 
 # Test stdlib interface freeze (SHA256 digest matching)
 EX_VERIFY := scripts/verify-examples.sh
@@ -694,31 +702,6 @@ eval-auto-improve-apply:
 		./tools/eval_auto_improve.sh --apply; \
 	fi
 
-# Benchmark dashboard generation
-.PHONY: benchmark-dashboard benchmark-deploy
-benchmark-dashboard:
-	@echo "📊 Generating benchmark dashboard (multi-model aggregation)..."
-	@mkdir -p docs/static/benchmarks docs/docs/benchmarks
-	@if [ ! -d "eval_results/baselines" ] || [ -z "$$(ls -A eval_results/baselines 2>/dev/null)" ]; then \
-		echo "⚠️  No baseline data found. Run 'make eval-baseline' first."; \
-		exit 1; \
-	fi
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
-	echo "  Version: $$VERSION"; \
-	echo "  Aggregating latest results per model from all baselines..."; \
-	$(BUILD_DIR)/$(BINARY) eval-report --multi-model $$VERSION --format=docusaurus > docs/docs/benchmarks/performance.md; \
-	$(BUILD_DIR)/$(BINARY) eval-report --multi-model $$VERSION --format=json > docs/static/benchmarks/latest.json; \
-	echo "✅ Dashboard generated!"; \
-	echo "  - Markdown: docs/docs/benchmarks/performance.md"; \
-	echo "  - JSON data: docs/static/benchmarks/latest.json"; \
-	echo ""; \
-	echo "Preview: cd docs && npm start"
-
-benchmark-deploy: benchmark-dashboard
-	@echo "🚀 Building and deploying docs..."
-	cd docs && npm run build && npm run deploy
-	@echo "✅ Deployed to GitHub Pages!"
-
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
@@ -906,8 +889,4 @@ help-release: ## Show release workflow (eval + dashboard)
 	@echo "Step 4: Restart dev server"
 	@echo "  cd docs && npm start"
 	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
-	@echo ""
-	@echo "⚠️  CRITICAL: DO NOT use 'make benchmark-dashboard' for releases!"
-	@echo "   It aggregates across versions (shows mixed model versions)"
-	@echo "   Always use 'ailang eval-report <specific_baseline_dir>' instead"
 	@echo ""

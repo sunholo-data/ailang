@@ -36,23 +36,8 @@ echo "" >> "$OUTPUT"
 echo "---" >> "$OUTPUT"
 echo "" >> "$OUTPUT"
 
-# CHANGELOG.md
-echo "# CHANGELOG" >> "$OUTPUT"
-echo "" >> "$OUTPUT"
-cat "$REPO_ROOT/CHANGELOG.md" >> "$OUTPUT"
-echo "" >> "$OUTPUT"
-echo "---" >> "$OUTPUT"
-echo "" >> "$OUTPUT"
-
-# CLAUDE.md (project instructions)
-if [ -f "$REPO_ROOT/CLAUDE.md" ]; then
-    echo "# CLAUDE.md (Project Instructions)" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    cat "$REPO_ROOT/CLAUDE.md" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "---" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-fi
+# CHANGELOG.md - EXCLUDED (internal version history, not needed for language learning)
+# CLAUDE.md - EXCLUDED (internal dev instructions, not needed for language learning)
 
 # Add all docs/ files
 echo "## Adding docs/ directory..."
@@ -67,24 +52,11 @@ if [ -f "$REPO_ROOT/docs/index.md" ]; then
     echo "" >> "$OUTPUT"
 fi
 
-# docs/guides/ (including subdirectories)
-if [ -d "$REPO_ROOT/docs/guides" ]; then
-    for file in "$REPO_ROOT/docs/guides"/*.md; do
-        if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            echo "# Guide: $filename" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-            cat "$file" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-            echo "---" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-        fi
-    done
-fi
-
-# docs/docs/guides/ (Docusaurus structure)
+# docs/docs/guides/ - KEEP only language learning guides, exclude internal dev docs
 if [ -d "$REPO_ROOT/docs/docs/guides" ]; then
-    for file in "$REPO_ROOT/docs/docs/guides"/*.md; do
+    # Language learning guides to keep
+    for guide in "getting-started.md" "ai-prompt-guide.md" "module_execution.md" "wasm-integration.md"; do
+        file="$REPO_ROOT/docs/docs/guides/$guide"
         if [ -f "$file" ]; then
             filename=$(basename "$file")
             echo "# Guide: $filename" >> "$OUTPUT"
@@ -95,23 +67,8 @@ if [ -d "$REPO_ROOT/docs/docs/guides" ]; then
             echo "" >> "$OUTPUT"
         fi
     done
-    # Include subdirectories (evaluation, etc.)
-    for subdir in "$REPO_ROOT/docs/docs/guides"/*; do
-        if [ -d "$subdir" ]; then
-            subdir_name=$(basename "$subdir")
-            for file in "$subdir"/*.md; do
-                if [ -f "$file" ]; then
-                    filename=$(basename "$file")
-                    echo "# Guide/$subdir_name: $filename" >> "$OUTPUT"
-                    echo "" >> "$OUTPUT"
-                    cat "$file" >> "$OUTPUT"
-                    echo "" >> "$OUTPUT"
-                    echo "---" >> "$OUTPUT"
-                    echo "" >> "$OUTPUT"
-                fi
-            done
-        fi
-    done
+    # EXCLUDED: development.md, agent-integration.md, benchmarking.md (internal dev docs)
+    # EXCLUDED: evaluation/ subdirectory (internal M-EVAL-LOOP docs)
 fi
 
 # docs/reference/
@@ -129,21 +86,23 @@ if [ -d "$REPO_ROOT/docs/reference" ]; then
     done
 fi
 
-# Add prompts/
+# Add prompts/ (latest version only)
 echo "## Adding prompts/ directory..."
 
-if [ -d "$REPO_ROOT/prompts" ]; then
-    for file in "$REPO_ROOT/prompts"/*.md; do
-        if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            echo "# AI Prompt: $filename" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-            cat "$file" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-            echo "---" >> "$OUTPUT"
-            echo "" >> "$OUTPUT"
-        fi
-    done
+if [ -f "$REPO_ROOT/prompts/versions.json" ]; then
+    # Extract active version from versions.json
+    ACTIVE_VERSION=$(jq -r '.active' "$REPO_ROOT/prompts/versions.json")
+    PROMPT_FILE=$(jq -r ".versions.\"$ACTIVE_VERSION\".file" "$REPO_ROOT/prompts/versions.json")
+
+    if [ -f "$REPO_ROOT/$PROMPT_FILE" ]; then
+        filename=$(basename "$PROMPT_FILE")
+        echo "# AI Teaching Prompt (Latest: $ACTIVE_VERSION)" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+        cat "$REPO_ROOT/$PROMPT_FILE" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+        echo "---" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+    fi
 fi
 
 # Add implementation status

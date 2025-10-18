@@ -116,9 +116,6 @@ func main() {
 	case "export-training":
 		exportTraining()
 
-	case "lsp":
-		runLSP()
-
 	case "eval":
 		runEval()
 
@@ -182,10 +179,20 @@ func printHelp() {
 	fmt.Printf("  %s           Type-check a file without running\n", cyan("check <file>"))
 	fmt.Printf("  %s        Output normalized JSON interface for a module\n", cyan("iface <module>"))
 	fmt.Printf("  %s           Export training data\n", cyan("export-training"))
-	fmt.Printf("  %s                        Start the Language Server Protocol server\n", cyan("lsp"))
+	fmt.Println()
+	fmt.Println("Evaluation & Benchmarking:")
 	fmt.Printf("  %s         Run AI benchmarks (AILANG vs Python)\n", cyan("eval [flags]"))
 	fmt.Printf("  %s     Run full benchmark suite (parallel)\n", cyan("eval-suite [flags]"))
 	fmt.Printf("  %s  Analyze eval results and generate design docs\n", cyan("eval-analyze [flags]"))
+	fmt.Printf("  %s <results_dir> <version>   Generate comprehensive eval report\n", cyan("eval-report"))
+	fmt.Printf("  %s <baseline> <new>    Compare two eval runs\n", cyan("eval-compare"))
+	fmt.Printf("  %s <results_dir> <version>    Performance matrix with stats\n", cyan("eval-matrix"))
+	fmt.Printf("  %s <results_dir>        Summarize eval results\n", cyan("eval-summary"))
+	fmt.Printf("  %s <benchmark> [baseline]  Validate specific fix\n", cyan("eval-validate"))
+	fmt.Println()
+	fmt.Println("Development Tools:")
+	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
+	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")
 	fmt.Println("  --caps <list>        Enable capabilities (comma-separated: IO,FS,Net)")
@@ -682,14 +689,6 @@ func exportTraining() {
 	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
 }
 
-func runLSP() {
-	fmt.Printf("%s Language Server v%s\n", bold("AILANG"), Version)
-	fmt.Println("Listening on stdio...")
-
-	// TODO: Implement LSP
-	fmt.Fprintf(os.Stderr, "%s: LSP not yet implemented\n", red("Error"))
-	os.Exit(1)
-}
 
 // handleStructuredError outputs structured JSON error reports
 func handleStructuredError(err error, compact bool) {
