@@ -29,8 +29,8 @@ func TestStrLenType(t *testing.T) {
 	require.NotNil(t, typ)
 
 	// Should be a function type
-	assert.Contains(t, typ.String(), "String")
-	assert.Contains(t, typ.String(), "Int")
+	assert.Contains(t, typ.String(), "string")
+	assert.Contains(t, typ.String(), "int")
 }
 
 // TestStrLenImpl tests the implementation

@@ -2,6 +2,10 @@
 -- Provides ADT for JSON values and encoding function
 module stdlib/std/json
 
+import stdlib/std/option (Option, Some, None)
+import stdlib/std/result (Result)
+import stdlib/std/list (foldl, foldr, map)
+
 -- JSON ADT with all JSON types
 export type Json =
   | JNull
@@ -12,8 +16,14 @@ export type Json =
   | JObject(List[{key: string, value: Json}])
 
 -- Encode JSON to string (Go-backed for correctness)
-export func encode(obj: Json) -> string {
-  _json_encode(obj)
+-- TODO: Migrate _json_encode to new builtin registry
+-- export func encode(obj: Json) -> string {
+--   _json_encode(obj)
+-- }
+
+-- Decode JSON from string (Go-backed for correctness)
+export func decode(s: string) -> Result[Json, string] {
+  _json_decode(s)
 }
 
 -- Convenience constructors (reduce AI fumbles)
@@ -46,3 +56,103 @@ export func jo(kvs: List[{key: string, value: Json}]) -> Json {
 export func kv(k: string, v: Json) -> {key: string, value: Json} {
   {key: k, value: v}
 }
+
+-- JSON Accessor Functions
+--
+-- NOTE (v0.3.14): Accessors are implemented but not exported pending a fix for
+-- constructor scope in the module system. When calling Some(...) or None from
+-- imported helper functions, the runtime cannot resolve the constructors.
+-- This is tracked in issue #XXX. Meanwhile, use direct pattern matching on Json ADT.
+--
+-- Target: v0.3.15
+
+-- Get value from object by key
+-- export func get(obj: Json, key: string) -> Option[Json] {
+--   match obj {
+--     JObject(kvs) => findInList(kvs, key),
+--     _ => None
+--   }
+-- }
+
+-- Helper: find key in list of key-value pairs
+func findInList(kvs: List[{key: string, value: Json}], key: string) -> Option[Json] {
+  match kvs {
+    [] => None,
+    [kv, ...rest] => if _str_eq(kv.key, key) then Some(kv.value) else findInList(rest, key)
+  }
+}
+
+-- Check if object has key
+-- export func has(obj: Json, key: string) -> bool {
+--   match get(obj, key) {
+--     Some(_) => true,
+--     None => false
+--   }
+-- }
+
+-- Get value from object by key with fallback
+-- export func getOr(obj: Json, key: string, default: Json) -> Json {
+--   match get(obj, key) {
+--     Some(v) => v,
+--     None => default
+--   }
+-- }
+
+-- Extract string value
+-- export func asString(j: Json) -> Option[string] {
+--   match j {
+--     JString(s) => Some(s),
+--     _ => None
+--   }
+-- }
+
+-- Extract number value
+-- export func asNumber(j: Json) -> Option[float] {
+--   match j {
+--     JNumber(n) => Some(n),
+--     _ => None
+--   }
+-- }
+
+-- Extract boolean value
+-- export func asBool(j: Json) -> Option[bool] {
+--   match j {
+--     JBool(b) => Some(b),
+--     _ => None
+--   }
+-- }
+
+-- Extract array value
+-- export func asArray(j: Json) -> Option[List[Json]] {
+--   match j {
+--     JArray(xs) => Some(xs),
+--     _ => None
+--   }
+-- }
+
+-- Extract object value as key-value list
+-- export func asObject(j: Json) -> Option[List[{key: string, value: Json}]] {
+--   match j {
+--     JObject(kvs) => Some(kvs),
+--     _ => None
+--   }
+-- }
+
+-- NOTE: keys() and values() commented out due to type inference limitations
+-- They will be added after type system improvements
+
+-- -- Get all keys from object (in source order)
+-- export func keys(obj: Json) -> List[string] {
+--   match asObject(obj) {
+--     Some(kvs) => map(\kv. kv.key, kvs),
+--     None => emptyStringList()
+--   }
+-- }
+
+-- -- Get all values from object (in source order)
+-- export func values(obj: Json) -> List[Json] {
+--   match asObject(obj) {
+--     Some(kvs) => map(\kv. kv.value, kvs),
+--     None => emptyJsonList()
+--   }
+-- }

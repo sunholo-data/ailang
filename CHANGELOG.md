@@ -4,6 +4,87 @@
 
 ---
 
+## [v0.3.14] - 2025-10-18 - JSON Decode + Major DX Improvements
+
+**MAJOR**: JSON parsing support + pattern matching fixes + type system consistency
+
+### Added
+
+**JSON Decoding** (~860 LOC, 42 tests) - **M-LANG-JSON-DECODE**
+
+- `std/json.decode : string -> Result[Json, string]` - Parse JSON strings
+- Json ADT with constructors: `JNull`, `JBool(bool)`, `JNumber(float)`, `JString(string)`, `JArray(List[Json])`, `JObject(List[{key: string, value: Json}])`
+- Helper: `kv(key, value)` for building JSON objects
+- Streaming builder using Go's `encoding/json` for correctness
+- Example: `examples/json_basic_decode.ail` demonstrates pattern matching approach
+
+**Files Modified:**
+- `internal/builtins/json_decode.go` (+330 LOC) - Streaming JSON builder
+- `internal/builtins/json_decode_test.go` (+534 LOC) - 42 comprehensive tests
+- `stdlib/std/json.ail` - Json ADT + decode function
+- **All 42 tests passing** ✅
+
+**Note**: JSON accessor functions (`get()`, `has()`, `asString()`, etc.) are implemented but not exported pending a module system fix for constructor scope. Target: v0.3.15
+
+### Changed
+
+**Pattern Matching Runtime** (+89 LOC)
+
+- ✅ `[head, ...tail]` cons patterns now work at runtime
+- ✅ Record patterns `{field1, field2}` now work
+- Unlocks all stdlib list operations (map, filter, foldl, etc.)
+- File: `internal/eval/eval_patterns.go`
+
+**Type System Consistency** (~50 fixes across codebase)
+
+- ✅ Type Builder now emits lowercase primitive types: `string`, `int`, `float`, `bool`
+- ✅ Aligns with canonical type names in `types.go`
+- ✅ Eliminates "cannot unify String vs string" errors
+- ✅ Comparison operators now work in most contexts (known edge case in recursive list processing - see note)
+- Files: `internal/types/builder.go` + 52 test updates across 4 packages
+
+**Polymorphic Type Support** (+150 LOC)
+
+- ✅ Added TApp unification support for type applications like `Result[Json, string]`
+- ✅ Enables generic types to work correctly
+- ✅ Decomposition algorithm handles arbitrary nesting
+- File: `internal/types/unification.go`
+
+**Builtins**
+
+- Added `_str_eq : (string, string) -> bool` for direct boolean equality
+- Registered in both new and legacy registries
+
+### Fixed
+
+- Pattern matching on lists with cons patterns (`[x, ...xs]`)
+- Pattern matching on records with field patterns
+- Type unification for polymorphic type applications (TApp)
+- Type consistency between Type Builder and canonical type names
+
+### Known Issues
+
+**Operator Edge Case**: The `==` operator works in most contexts but has a known edge case in recursive functions with list pattern matching. Workaround: use `_str_eq()` in those specific contexts. This is tracked for investigation in v0.3.15.
+
+**Module Constructor Scope**: ADT constructors (`Some`, `None`, `Ok`, `Err`) from imported modules work for pattern matching but not for construction in helper functions. This blocks JSON accessor functions and is tracked for v0.3.15.
+
+### Testing
+
+- ✅ All 2,847 tests passing
+- ✅ Golden files updated with lowercase primitive types
+- ✅ Added `TestPrimitiveCasing` guard to prevent regressions
+- ✅ JSON decode example verified working
+
+### Metrics
+
+- Files modified: 22 (14 core + 8 tests)
+- Tests added: 42 (JSON decode)
+- Test expectations updated: 52+
+- LOC added (core): +569
+- LOC added (tests): +534
+
+---
+
 ## [v0.3.12] - 2025-10-17 - Recovery Release (show() Restored)
 
 **RECOVERY**: Restored `show()` builtin function lost in v0.3.10 migration

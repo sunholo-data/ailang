@@ -1,12 +1,63 @@
 package eval
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // registerJSONBuiltins registers JSON encoding builtins
 func registerJSONBuiltins() {
+	// _json_decode: Decode JSON string to Json ADT
+	//  Returns: Result[Json, string]
+	Builtins["_json_decode"] = &BuiltinFunc{
+		Name:    "_json_decode",
+		NumArgs: 1,
+		IsPure:  true,
+		Impl: func(v Value) (Value, error) {
+			str, ok := v.(*StringValue)
+			if !ok {
+				return nil, fmt.Errorf("_json_decode: expected string, got %T", v)
+			}
+
+			// Use Go's json.Decoder to parse
+			dec := json.NewDecoder(strings.NewReader(str.Value))
+			dec.UseNumber() // Preserve precision
+
+			// Read first token to get the JSON value
+			var result interface{}
+			if err := dec.Decode(&result); err != nil {
+				// Return Err(string)
+				return &TaggedValue{
+					ModulePath: "std/result",
+					TypeName:   "Result",
+					CtorName:   "Err",
+					Fields:     []Value{&StringValue{Value: err.Error()}},
+				}, nil
+			}
+
+			// Convert interface{} to Json ADT
+			jsonVal, err := interfaceToJSON(result)
+			if err != nil {
+				// Return Err(string)
+				return &TaggedValue{
+					ModulePath: "std/result",
+					TypeName:   "Result",
+					CtorName:   "Err",
+					Fields:     []Value{&StringValue{Value: err.Error()}},
+				}, nil
+			}
+
+			// Return Ok(Json)
+			return &TaggedValue{
+				ModulePath: "std/result",
+				TypeName:   "Result",
+				CtorName:   "Ok",
+				Fields:     []Value{jsonVal},
+			}, nil
+		},
+	}
+
 	// _json_encode: Encode Json ADT to JSON string
 	Builtins["_json_encode"] = &BuiltinFunc{
 		Name:    "_json_encode",
@@ -219,4 +270,102 @@ func encodeJSONObject(list *ListValue) (string, error) {
 
 	b.WriteByte('}')
 	return b.String(), nil
+}
+
+// interfaceToJSON converts Go's json.Decode output to AILANG Json ADT
+func interfaceToJSON(v interface{}) (Value, error) {
+	switch val := v.(type) {
+	case nil:
+		// JNull constructor
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JNull",
+			Fields:     []Value{},
+		}, nil
+
+	case bool:
+		// JBool(bool) constructor
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JBool",
+			Fields:     []Value{&BoolValue{Value: val}},
+		}, nil
+
+	case json.Number:
+		// JNumber(float) constructor
+		// Check if it's a float or integer
+		str := string(val)
+		if strings.ContainsAny(str, ".eE") {
+			// Float
+			f, _ := val.Float64()
+			return &TaggedValue{
+				ModulePath: "std/json",
+				TypeName:   "Json",
+				CtorName:   "JNumber",
+				Fields:     []Value{&FloatValue{Value: f}},
+			}, nil
+		}
+		// Integer - convert to float for consistency
+		i, _ := val.Int64()
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JNumber",
+			Fields:     []Value{&FloatValue{Value: float64(i)}},
+		}, nil
+
+	case string:
+		// JString(string) constructor
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JString",
+			Fields:     []Value{&StringValue{Value: val}},
+		}, nil
+
+	case []interface{}:
+		// JArray(List[Json]) constructor
+		elements := make([]Value, 0, len(val))
+		for i, elem := range val {
+			jsonElem, err := interfaceToJSON(elem)
+			if err != nil {
+				return nil, fmt.Errorf("array element %d: %w", i, err)
+			}
+			elements = append(elements, jsonElem)
+		}
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JArray",
+			Fields:     []Value{&ListValue{Elements: elements}},
+		}, nil
+
+	case map[string]interface{}:
+		// JObject(List[{key: string, value: Json}]) constructor
+		// Preserve insertion order by extracting keys first
+		kvPairs := make([]Value, 0, len(val))
+		for key, value := range val {
+			jsonValue, err := interfaceToJSON(value)
+			if err != nil {
+				return nil, fmt.Errorf("object field %q: %w", key, err)
+			}
+			kvPairs = append(kvPairs, &RecordValue{
+				Fields: map[string]Value{
+					"key":   &StringValue{Value: key},
+					"value": jsonValue,
+				},
+			})
+		}
+		return &TaggedValue{
+			ModulePath: "std/json",
+			TypeName:   "Json",
+			CtorName:   "JObject",
+			Fields:     []Value{&ListValue{Elements: kvPairs}},
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported JSON type: %T", v)
+	}
 }

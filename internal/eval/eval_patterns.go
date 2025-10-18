@@ -170,6 +170,91 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 		}
 		return bindings, true
 
+	case *core.ListPattern:
+		// List pattern - value must be a ListValue
+		listVal, ok := value.(*ListValue)
+		if !ok {
+			return nil, false
+		}
+
+		// Case 1: Pattern is [elem1, elem2, ..., elemN] (exact match, no tail)
+		if p.Tail == nil {
+			// Must have exactly the same number of elements
+			if len(p.Elements) != len(listVal.Elements) {
+				return nil, false
+			}
+
+			// Match each element pattern
+			for i, elemPattern := range p.Elements {
+				elemBindings, ok := matchPattern(elemPattern, listVal.Elements[i])
+				if !ok {
+					return nil, false
+				}
+				// Merge bindings
+				for k, v := range elemBindings {
+					bindings[k] = v
+				}
+			}
+			return bindings, true
+		}
+
+		// Case 2: Pattern is [elem1, elem2, ..., elemN, ...tail]
+		// List must have at least len(p.Elements) elements
+		if len(listVal.Elements) < len(p.Elements) {
+			return nil, false
+		}
+
+		// Match the head elements
+		for i, elemPattern := range p.Elements {
+			elemBindings, ok := matchPattern(elemPattern, listVal.Elements[i])
+			if !ok {
+				return nil, false
+			}
+			// Merge bindings
+			for k, v := range elemBindings {
+				bindings[k] = v
+			}
+		}
+
+		// Match the tail (remaining elements)
+		tailElements := listVal.Elements[len(p.Elements):]
+		tailList := &ListValue{Elements: tailElements}
+		tailBindings, ok := matchPattern(*p.Tail, tailList)
+		if !ok {
+			return nil, false
+		}
+		// Merge tail bindings
+		for k, v := range tailBindings {
+			bindings[k] = v
+		}
+		return bindings, true
+
+	case *core.RecordPattern:
+		// Record pattern - value must be a RecordValue
+		recVal, ok := value.(*RecordValue)
+		if !ok {
+			return nil, false
+		}
+
+		// Match each field pattern
+		for fieldName, fieldPattern := range p.Fields {
+			fieldValue, ok := recVal.Fields[fieldName]
+			if !ok {
+				// Field not present in value
+				return nil, false
+			}
+
+			fieldBindings, ok := matchPattern(fieldPattern, fieldValue)
+			if !ok {
+				return nil, false
+			}
+			// Merge bindings
+			for k, v := range fieldBindings {
+				bindings[k] = v
+			}
+		}
+		return bindings, true
+
 	default:
 		// Other patterns not yet implemented
 		return nil, false

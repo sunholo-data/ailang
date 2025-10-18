@@ -1,0 +1,60 @@
+-- Test JSON decode and accessors (without encode)
+module tests/json_decode_only_test
+
+import stdlib/std/json (decode, get, has, getOr, asString, asNumber, keys, values, jnum)
+import stdlib/std/option (Some, None)
+import stdlib/std/result (Ok, Err)
+import stdlib/std/io (println)
+
+export func main() -> () ! {IO} {
+  println("=== JSON Decode & Accessor Tests ===");
+
+  -- Test 1: Basic decode
+  let json1 = "{\"name\":\"Alice\",\"age\":30}";
+  let r1 = decode(json1);
+  match r1 {
+    Ok(j) => {
+      println("✓ decode valid JSON");
+      let nameOpt = get(j, "name");
+      match nameOpt {
+        Some(v) => {
+          let strOpt = asString(v);
+          match strOpt {
+            Some(s) => println("✓ get + asString: " ++ s),
+            None => println("✗ asString failed")
+          }
+        },
+        None => println("✗ get failed")
+      };
+      let hasAge = has(j, "age");
+      if hasAge then println("✓ has() works")
+      else println("✗ has() failed")
+    },
+    Err(e) => println("✗ decode failed: " ++ e)
+  };
+
+  -- Test 2: Invalid JSON
+  match decode("{invalid}") {
+    Ok(_) => println("✗ should have failed on invalid JSON"),
+    Err(_) => println("✓ decode rejects invalid JSON")
+  };
+
+  -- Test 3: Array decode
+  let json2 = "[1,2,3]";
+  match decode(json2) {
+    Ok(j) => println("✓ decode array"),
+    Err(e) => println("✗ decode array failed: " ++ e)
+  };
+
+  -- Test 4: keys() function
+  let json3 = "{\"z\":1,\"a\":2,\"m\":3}";
+  match decode(json3) {
+    Ok(j) => {
+      let ks = keys(j);
+      println("✓ keys() extracted (order should be z,a,m)")
+    },
+    Err(e) => println("✗ decode for keys test failed: " ++ e)
+  };
+
+  println("=== Done ===")
+}

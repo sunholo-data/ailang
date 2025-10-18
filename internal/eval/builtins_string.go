@@ -132,6 +132,16 @@ func registerStringPrimitiveBuiltins() {
 		},
 	}
 
+	// _str_eq: check if two strings are equal (returns bool)
+	Builtins["_str_eq"] = &BuiltinFunc{
+		Name:    "_str_eq",
+		NumArgs: 2,
+		IsPure:  true,
+		Impl: func(a *StringValue, b *StringValue) (*BoolValue, error) {
+			return &BoolValue{Value: a.Value == b.Value}, nil
+		},
+	}
+
 	// _str_find: find first occurrence of substring (returns -1 if not found)
 	Builtins["_str_find"] = &BuiltinFunc{
 		Name:    "_str_find",

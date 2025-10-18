@@ -108,6 +108,7 @@ func registerStringPrimitiveMeta() {
 	Registry["_str_len"] = &BuiltinMeta{Name: "_str_len", NumArgs: 1, IsPure: true}
 	Registry["_str_slice"] = &BuiltinMeta{Name: "_str_slice", NumArgs: 3, IsPure: true}
 	Registry["_str_compare"] = &BuiltinMeta{Name: "_str_compare", NumArgs: 2, IsPure: true}
+	Registry["_str_eq"] = &BuiltinMeta{Name: "_str_eq", NumArgs: 2, IsPure: true}
 	Registry["_str_find"] = &BuiltinMeta{Name: "_str_find", NumArgs: 2, IsPure: true}
 	Registry["_str_upper"] = &BuiltinMeta{Name: "_str_upper", NumArgs: 1, IsPure: true}
 	Registry["_str_lower"] = &BuiltinMeta{Name: "_str_lower", NumArgs: 1, IsPure: true}
@@ -124,6 +125,7 @@ func registerIOMeta() {
 // registerJSONMeta registers metadata for JSON encoding builtins
 func registerJSONMeta() {
 	Registry["_json_encode"] = &BuiltinMeta{Name: "_json_encode", NumArgs: 1, IsPure: true}
+	Registry["_json_decode"] = &BuiltinMeta{Name: "_json_decode", NumArgs: 1, IsPure: true}
 }
 
 // registerNetMeta registers metadata for Net effect builtins

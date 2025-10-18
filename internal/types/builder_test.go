@@ -16,10 +16,10 @@ func TestPrimitiveTypes(t *testing.T) {
 		builder  func() Type
 		expected string
 	}{
-		{"String", b.String, "String"},
-		{"Int", b.Int, "Int"},
-		{"Bool", b.Bool, "Bool"},
-		{"Float", b.Float, "Float"},
+		{"String", b.String, "string"},
+		{"Int", b.Int, "int"},
+		{"Bool", b.Bool, "bool"},
+		{"Float", b.Float, "float"},
 		{"Unit", b.Unit, "()"},
 	}
 
@@ -27,6 +27,31 @@ func TestPrimitiveTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			typ := tt.builder()
 			assert.Equal(t, tt.expected, typ.String())
+		})
+	}
+}
+
+// TestPrimitiveCasing enforces lowercase primitive types to match AILANG source code
+func TestPrimitiveCasing(t *testing.T) {
+	b := NewBuilder()
+
+	// All primitives MUST be lowercase (except unit which is "()")
+	primitives := []struct {
+		typ      Type
+		name     string
+		mustNot  string
+	}{
+		{b.String(), "string", "String"},
+		{b.Int(), "int", "Int"},
+		{b.Bool(), "bool", "Bool"},
+		{b.Float(), "float", "Float"},
+	}
+
+	for _, tc := range primitives {
+		t.Run(tc.name, func(t *testing.T) {
+			formatted := tc.typ.String()
+			assert.Equal(t, tc.name, formatted, "Type must be lowercase")
+			assert.NotContains(t, formatted, tc.mustNot, "Type must NOT contain uppercase variant")
 		})
 	}
 }
@@ -63,7 +88,7 @@ func TestList(t *testing.T) {
 	assert.IsType(t, &TCon{}, app.Constructor)
 	assert.Equal(t, "List", app.Constructor.(*TCon).Name)
 	assert.Len(t, app.Args, 1)
-	assert.Equal(t, "Int", app.Args[0].(*TCon).Name)
+	assert.Equal(t, "int", app.Args[0].(*TCon).Name)
 }
 
 // TestApp tests multi-argument type application
@@ -77,7 +102,7 @@ func TestApp(t *testing.T) {
 	app := resultType.(*TApp)
 	assert.Equal(t, "Result", app.Constructor.(*TCon).Name)
 	assert.Len(t, app.Args, 2)
-	assert.Equal(t, "String", app.Args[0].(*TCon).Name)
+	assert.Equal(t, "string", app.Args[0].(*TCon).Name)
 	assert.Equal(t, "Error", app.Args[1].(*TCon).Name)
 }
 
@@ -104,9 +129,9 @@ func TestRecordWithFields(t *testing.T) {
 	record := rec.(*TRecord2)
 
 	assert.Len(t, record.Row.Labels, 3)
-	assert.Equal(t, "String", record.Row.Labels["name"].(*TCon).Name)
-	assert.Equal(t, "Int", record.Row.Labels["age"].(*TCon).Name)
-	assert.Equal(t, "Bool", record.Row.Labels["active"].(*TCon).Name)
+	assert.Equal(t, "string", record.Row.Labels["name"].(*TCon).Name)
+	assert.Equal(t, "int", record.Row.Labels["age"].(*TCon).Name)
+	assert.Equal(t, "bool", record.Row.Labels["active"].(*TCon).Name)
 }
 
 // TestRecordDuplicateField tests that duplicate field names panic
@@ -134,8 +159,8 @@ func TestRecWithPairs(t *testing.T) {
 	record := rec.(*TRecord2)
 
 	assert.Len(t, record.Row.Labels, 2)
-	assert.Equal(t, "Int", record.Row.Labels["x"].(*TCon).Name)
-	assert.Equal(t, "Int", record.Row.Labels["y"].(*TCon).Name)
+	assert.Equal(t, "int", record.Row.Labels["x"].(*TCon).Name)
+	assert.Equal(t, "int", record.Row.Labels["y"].(*TCon).Name)
 }
 
 // TestRecOddArgs tests that Rec with odd number of args panics
@@ -170,9 +195,9 @@ func TestFuncBasic(t *testing.T) {
 	fn := funcType.(*TFunc2)
 
 	assert.Len(t, fn.Params, 2)
-	assert.Equal(t, "String", fn.Params[0].(*TCon).Name)
-	assert.Equal(t, "Int", fn.Params[1].(*TCon).Name)
-	assert.Equal(t, "Bool", fn.Return.(*TCon).Name)
+	assert.Equal(t, "string", fn.Params[0].(*TCon).Name)
+	assert.Equal(t, "int", fn.Params[1].(*TCon).Name)
+	assert.Equal(t, "bool", fn.Return.(*TCon).Name)
 	assert.Empty(t, fn.EffectRow.Labels) // Pure function
 }
 
@@ -187,7 +212,7 @@ func TestFuncWithEffects(t *testing.T) {
 	fn := funcType.(*TFunc2)
 
 	assert.Len(t, fn.Params, 1)
-	assert.Equal(t, "String", fn.Params[0].(*TCon).Name)
+	assert.Equal(t, "string", fn.Params[0].(*TCon).Name)
 	assert.Equal(t, "()", fn.Return.(*TCon).Name)
 
 	// Check effects
@@ -248,8 +273,8 @@ func TestComplexType(t *testing.T) {
 	// Verify structure
 	fn := httpRequestType.(*TFunc2)
 	assert.Len(t, fn.Params, 4)
-	assert.Equal(t, "String", fn.Params[0].(*TCon).Name)
-	assert.Equal(t, "String", fn.Params[1].(*TCon).Name)
+	assert.Equal(t, "string", fn.Params[0].(*TCon).Name)
+	assert.Equal(t, "string", fn.Params[1].(*TCon).Name)
 
 	// Check return type is Result
 	returnType := fn.Return.(*TApp)
@@ -284,7 +309,7 @@ func TestNestedRecords(t *testing.T) {
 	assert.IsType(t, &TRecord2{}, centerType)
 	innerRec := centerType.(*TRecord2)
 	assert.Len(t, innerRec.Row.Labels, 2)
-	assert.Equal(t, "Int", innerRec.Row.Labels["x"].(*TCon).Name)
+	assert.Equal(t, "int", innerRec.Row.Labels["x"].(*TCon).Name)
 }
 
 // TestRowTail tests effect row polymorphism (future feature)
@@ -315,7 +340,7 @@ func TestTypeString(t *testing.T) {
 		{
 			"Simple function",
 			b.Func(b.String()).Returns(b.Int()).Build(),
-			"String",
+			"string",
 		},
 		{
 			"List type",
@@ -349,8 +374,8 @@ func TestBuilderReuse(t *testing.T) {
 	t2 := b.Int()
 	t3 := b.List(b.Bool())
 
-	assert.Equal(t, "String", t1.(*TCon).Name)
-	assert.Equal(t, "Int", t2.(*TCon).Name)
+	assert.Equal(t, "string", t1.(*TCon).Name)
+	assert.Equal(t, "int", t2.(*TCon).Name)
 	assert.IsType(t, &TApp{}, t3)
 }
 
@@ -361,9 +386,9 @@ func TestCompareWithManualConstruction(t *testing.T) {
 	// Manual construction
 	manual := &TFunc2{
 		Params: []Type{
-			&TCon{Name: "String"},
+			&TCon{Name: "string"},
 		},
-		Return: &TCon{Name: "Int"},
+		Return: &TCon{Name: "int"},
 		EffectRow: &Row{
 			Kind:   KRow{ElemKind: KEffect{}},
 			Labels: make(map[string]Type),

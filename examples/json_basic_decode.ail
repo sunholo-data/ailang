@@ -1,0 +1,32 @@
+-- Basic JSON decoding with direct pattern matching
+-- This example demonstrates JSON decode without using Option/Result helper functions
+--
+-- NOTE: Uses _str_eq() instead of == in recursive list processing due to a known
+-- edge case being investigated for v0.3.15. Simple == works fine in most contexts.
+module examples/json_basic_decode
+
+import std/json (Json, JNull, JString, JObject, decode)
+import std/result (Result, Ok, Err)
+
+-- Helper: Find a key in a list of key-value pairs
+-- Uses _str_eq() as workaround for == edge case in recursive functions
+func findKey(kvs: List[{key: string, value: Json}], target: string) -> Json {
+  match kvs {
+    [] => JNull,
+    [kv, ...rest] => if _str_eq(kv.key, target) then kv.value else findKey(rest, target)
+  }
+}
+
+-- Example: Decode and extract "Alice" from {"name":"Alice"}
+export func main() -> int {
+  let jsonStr = "{\"name\":\"Alice\",\"age\":30}";
+  let result = decode(jsonStr);
+  match result {
+    Ok(JObject(kvs)) => match findKey(kvs, "name") {
+      JString(s) => if _str_eq(s, "Alice") then 0 else 1,
+      _ => 2
+    },
+    Ok(_) => 3,
+    Err(_) => 4
+  }
+}

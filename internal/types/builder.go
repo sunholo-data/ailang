@@ -25,24 +25,24 @@ func NewBuilder() *Builder {
 
 // Primitive type constructors
 
-// String returns the String type
+// String returns the string type
 func (b *Builder) String() Type {
-	return &TCon{Name: "String"}
+	return &TCon{Name: "string"}
 }
 
-// Int returns the Int type
+// Int returns the int type
 func (b *Builder) Int() Type {
-	return &TCon{Name: "Int"}
+	return &TCon{Name: "int"}
 }
 
-// Bool returns the Bool type
+// Bool returns the bool type
 func (b *Builder) Bool() Type {
-	return &TCon{Name: "Bool"}
+	return &TCon{Name: "bool"}
 }
 
-// Float returns the Float type
+// Float returns the float type
 func (b *Builder) Float() Type {
-	return &TCon{Name: "Float"}
+	return &TCon{Name: "float"}
 }
 
 // Unit returns the unit type ()

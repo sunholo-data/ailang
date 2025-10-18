@@ -361,10 +361,82 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 			return nil, fmt.Errorf("cannot unify open record with %T", t2)
 		}
 
+	case *TApp:
+		// Type application unification (e.g., Result[Json, string])
+		if _, ok := t2.(*TApp); ok {
+			// Both are type applications - decompose and unify
+			h1, a1 := decomposeApp(t1)
+			h2, a2 := decomposeApp(t2)
+
+			// Require same head constructor
+			if !equalHead(h1, h2) {
+				return nil, fmt.Errorf("type constructor mismatch: %s vs %s", h1.String(), h2.String())
+			}
+
+			// Arity check
+			if len(a1) != len(a2) {
+				return nil, fmt.Errorf("arity mismatch: %s expects %d args, got %d", h1.String(), len(a1), len(a2))
+			}
+
+			// Unify each pair of args in order
+			for i := range a1 {
+				var err error
+				sub, err = u.Unify(a1[i], a2[i], sub)
+				if err != nil {
+					return nil, fmt.Errorf("failed to unify type argument %d: %w", i, err)
+				}
+			}
+			return sub, nil
+		}
+		if t2Var, ok := t2.(*TVar2); ok {
+			// Swap and retry
+			return u.Unify(t2Var, t1, sub)
+		}
+		return nil, fmt.Errorf("cannot unify type application with %T", t2)
+
 	default:
 		// Unhandled type - no more compatibility for old type system
 		return nil, fmt.Errorf("unhandled type in unification: %T", t1)
 	}
+}
+
+// decomposeApp decomposes a type application into (head constructor, args)
+// Handles nested TApp chains: TApp(TApp(Result, A), B) → (Result, [A, B])
+func decomposeApp(t Type) (head Type, args []Type) {
+	// Recursively collect args from nested TApp
+	switch app := t.(type) {
+	case *TApp:
+		// Get args from this node
+		currentArgs := app.Args
+
+		// Check if constructor is another TApp (nested application)
+		innerHead, innerArgs := decomposeApp(app.Constructor)
+
+		// Combine args: inner args first, then current args
+		allArgs := make([]Type, 0, len(innerArgs)+len(currentArgs))
+		allArgs = append(allArgs, innerArgs...)
+		allArgs = append(allArgs, currentArgs...)
+
+		return innerHead, allArgs
+	default:
+		// Base case: not a TApp, this is the head
+		return t, nil
+	}
+}
+
+// equalHead checks if two type heads are equal
+// For now, we check if they're the same TCon by name
+func equalHead(h1, h2 Type) bool {
+	// Both should be TCon for well-formed type applications
+	con1, ok1 := h1.(*TCon)
+	con2, ok2 := h2.(*TCon)
+
+	if ok1 && ok2 {
+		return con1.Name == con2.Name
+	}
+
+	// Fallback: use Equals for other cases (e.g., type variables)
+	return h1.Equals(h2)
 }
 
 // unifyRows unifies two row types (for TRecord2)
@@ -507,6 +579,18 @@ func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
 	case *TRecord2:
 		if t.Row != nil {
 			return u.occurs(varName, t.Row, varKind)
+		}
+		return false
+
+	case *TApp:
+		// Check constructor and all args
+		if u.occurs(varName, t.Constructor, varKind) {
+			return true
+		}
+		for _, arg := range t.Args {
+			if u.occurs(varName, arg, varKind) {
+				return true
+			}
 		}
 		return false
 

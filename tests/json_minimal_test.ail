@@ -1,0 +1,16 @@
+-- Minimal JSON decode test
+module tests/json_minimal_test
+
+import stdlib/std/json (decode)
+import stdlib/std/result (Ok, Err)
+import stdlib/std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Testing JSON decode...");
+  let r = decode("{\"x\":1}");
+  match r {
+    Ok(_) => println("✓ decode OK"),
+    Err(e) => println("✗ decode failed")
+  };
+  println("Done")
+}

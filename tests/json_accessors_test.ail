@@ -1,0 +1,214 @@
+-- Test JSON accessor functions
+module tests/json_accessors_test
+
+import stdlib/std/json (decode, get, has, getOr, asString, asNumber, asBool, asArray, asObject, keys, values, jn, jb, jnum, js, ja, jo, kv)
+import stdlib/std/option (Some, None)
+import stdlib/std/result (Ok, Err)
+import stdlib/std/io (println)
+
+-- Test decode with valid JSON
+func test_decode_valid() -> () ! {IO} {
+  let result = decode("{\"name\":\"Alice\",\"age\":30}");
+  match result {
+    | Ok(j) -> println("✓ decode valid JSON")
+    | Err(e) -> println("✗ decode valid JSON: " ++ e)
+  }
+}
+
+-- Test decode with invalid JSON
+func test_decode_invalid() -> () ! {IO} {
+  let result = decode("{invalid}");
+  match result {
+    | Ok(_) -> println("✗ decode invalid JSON: should have failed")
+    | Err(_) -> println("✓ decode invalid JSON returns Err")
+  }
+}
+
+-- Test get() accessor
+func test_get() -> () ! {IO} {
+  let obj = jo([kv("x", jnum(1.0)), kv("y", jnum(2.0))]);
+  match get(obj, "x") {
+    | Some(JNumber(n)) ->
+      if n == 1.0 then println("✓ get existing key")
+      else println("✗ get existing key: wrong value")
+    | _ -> println("✗ get existing key: wrong type")
+  };
+
+  match get(obj, "z") {
+    | None -> println("✓ get missing key returns None")
+    | Some(_) -> println("✗ get missing key: should be None")
+  }
+}
+
+-- Test has() predicate
+func test_has() -> () ! {IO} {
+  let obj = jo([kv("a", jnum(1.0))]);
+  if has(obj, "a") then println("✓ has existing key")
+  else println("✗ has existing key");
+
+  if has(obj, "b") then println("✗ has missing key")
+  else println("✓ has missing key returns false")
+}
+
+-- Test getOr() with fallback
+func test_getOr() -> () ! {IO} {
+  let obj = jo([kv("x", jnum(1.0))]);
+  let v1 = getOr(obj, "x", jnum(99.0));
+  match v1 {
+    | JNumber(n) ->
+      if n == 1.0 then println("✓ getOr existing key")
+      else println("✗ getOr existing key: wrong value")
+    | _ -> println("✗ getOr existing key: wrong type")
+  };
+
+  let v2 = getOr(obj, "y", jnum(99.0));
+  match v2 {
+    | JNumber(n) ->
+      if n == 99.0 then println("✓ getOr missing key uses default")
+      else println("✗ getOr missing key: wrong default")
+    | _ -> println("✗ getOr missing key: wrong type")
+  }
+}
+
+-- Test asString()
+func test_asString() -> () ! {IO} {
+  match asString(js("hello")) {
+    | Some(s) ->
+      if s == "hello" then println("✓ asString on JString")
+      else println("✗ asString: wrong value")
+    | None -> println("✗ asString on JString")
+  };
+
+  match asString(jnum(42.0)) {
+    | None -> println("✓ asString on JNumber returns None")
+    | Some(_) -> println("✗ asString on JNumber: should be None")
+  }
+}
+
+-- Test asNumber()
+func test_asNumber() -> () ! {IO} {
+  match asNumber(jnum(42.5)) {
+    | Some(n) ->
+      if n == 42.5 then println("✓ asNumber on JNumber")
+      else println("✗ asNumber: wrong value")
+    | None -> println("✗ asNumber on JNumber")
+  };
+
+  match asNumber(js("not a number")) {
+    | None -> println("✓ asNumber on JString returns None")
+    | Some(_) -> println("✗ asNumber on JString: should be None")
+  }
+}
+
+-- Test asBool()
+func test_asBool() -> () ! {IO} {
+  match asBool(jb(true)) {
+    | Some(b) ->
+      if b then println("✓ asBool on JBool(true)")
+      else println("✗ asBool: wrong value")
+    | None -> println("✗ asBool on JBool")
+  };
+
+  match asBool(jnum(1.0)) {
+    | None -> println("✓ asBool on JNumber returns None")
+    | Some(_) -> println("✗ asBool on JNumber: should be None")
+  }
+}
+
+-- Test asArray()
+func test_asArray() -> () ! {IO} {
+  let arr = ja([jnum(1.0), jnum(2.0), jnum(3.0)]);
+  match asArray(arr) {
+    | Some(xs) ->
+      let len = list_length(xs);
+      if len == 3 then println("✓ asArray on JArray")
+      else println("✗ asArray: wrong length")
+    | None -> println("✗ asArray on JArray")
+  };
+
+  match asArray(jnum(42.0)) {
+    | None -> println("✓ asArray on JNumber returns None")
+    | Some(_) -> println("✗ asArray on JNumber: should be None")
+  }
+}
+
+-- Helper: list length
+func list_length[a](xs: List[a]) -> int {
+  match xs {
+    | [] -> 0
+    | _ :: rest -> 1 + list_length(rest)
+  }
+}
+
+-- Test asObject()
+func test_asObject() -> () ! {IO} {
+  let obj = jo([kv("a", jnum(1.0))]);
+  match asObject(obj) {
+    | Some(kvs) ->
+      let len = list_length(kvs);
+      if len == 1 then println("✓ asObject on JObject")
+      else println("✗ asObject: wrong length")
+    | None -> println("✗ asObject on JObject")
+  };
+
+  match asObject(jnum(42.0)) {
+    | None -> println("✓ asObject on JNumber returns None")
+    | Some(_) -> println("✗ asObject on JNumber: should be None")
+  }
+}
+
+-- Test keys() - order preservation
+func test_keys() -> () ! {IO} {
+  let obj = jo([kv("z", jnum(1.0)), kv("a", jnum(2.0)), kv("m", jnum(3.0))]);
+  let ks = keys(obj);
+  let len = list_length(ks);
+  if len == 3 then println("✓ keys returns correct count")
+  else println("✗ keys: wrong count");
+
+  -- Check order preserved (z, a, m not alphabetical)
+  match ks {
+    | k1 :: k2 :: k3 :: [] ->
+      if k1 == "z" && k2 == "a" && k3 == "m" then
+        println("✓ keys preserves source order")
+      else
+        println("✗ keys: wrong order")
+    | _ -> println("✗ keys: wrong structure")
+  }
+}
+
+-- Test values() - order preservation
+func test_values() -> () ! {IO} {
+  let obj = jo([kv("a", jnum(10.0)), kv("b", jnum(20.0)), kv("c", jnum(30.0))]);
+  let vs = values(obj);
+  let len = list_length(vs);
+  if len == 3 then println("✓ values returns correct count")
+  else println("✗ values: wrong count");
+
+  -- Check values in order
+  match vs {
+    | JNumber(n1) :: JNumber(n2) :: JNumber(n3) :: [] ->
+      if n1 == 10.0 && n2 == 20.0 && n3 == 30.0 then
+        println("✓ values preserves source order")
+      else
+        println("✗ values: wrong order")
+    | _ -> println("✗ values: wrong structure")
+  }
+}
+
+-- Main entry point
+export func main() -> () ! {IO} {
+  println("=== JSON Accessor Tests ===");
+  test_decode_valid();
+  test_decode_invalid();
+  test_get();
+  test_has();
+  test_getOr();
+  test_asString();
+  test_asNumber();
+  test_asBool();
+  test_asArray();
+  test_asObject();
+  test_keys();
+  test_values();
+  println("=== Done ===")
+}

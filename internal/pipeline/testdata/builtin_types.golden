@@ -5,53 +5,55 @@
 # Format: <name> : <type_signature>
 #
 
-_io_print : String -> () ! {IO}
-_io_println : String -> () ! {IO}
-_io_readLine : () -> String ! {IO}
-_net_httpRequest : (String, String, List[{name: String, value: String}], String) -> Result[{body: String, headers: List[{name: String, value: String}], ok: Bool, status: Int}, NetError] ! {Net}
-_str_compare : (String, String) -> Int
-_str_find : (String, String) -> Int
-_str_len : String -> Int
-_str_lower : String -> String
-_str_slice : (String, Int, Int) -> String
-_str_trim : String -> String
-_str_upper : String -> String
-add_Float : (Float, Float) -> Float
-add_Int : (Int, Int) -> Int
-and_Bool : (Bool, Bool) -> Bool
-concat_String : (String, String) -> String
-div_Float : (Float, Float) -> Float
-div_Int : (Int, Int) -> Int
-eq_Bool : (Bool, Bool) -> Bool
-eq_Float : (Float, Float) -> Bool
-eq_Int : (Int, Int) -> Bool
-eq_String : (String, String) -> Bool
-floatToInt : Float -> Int
-ge_Float : (Float, Float) -> Bool
-ge_Int : (Int, Int) -> Bool
-ge_String : (String, String) -> Bool
-gt_Float : (Float, Float) -> Bool
-gt_Int : (Int, Int) -> Bool
-gt_String : (String, String) -> Bool
-intToFloat : Int -> Float
-le_Float : (Float, Float) -> Bool
-le_Int : (Int, Int) -> Bool
-le_String : (String, String) -> Bool
-lt_Float : (Float, Float) -> Bool
-lt_Int : (Int, Int) -> Bool
-lt_String : (String, String) -> Bool
-mod_Float : (Float, Float) -> Float
-mod_Int : (Int, Int) -> Int
-mul_Float : (Float, Float) -> Float
-mul_Int : (Int, Int) -> Int
-ne_Bool : (Bool, Bool) -> Bool
-ne_Float : (Float, Float) -> Bool
-ne_Int : (Int, Int) -> Bool
-ne_String : (String, String) -> Bool
-neg_Float : Float -> Float
-neg_Int : Int -> Int
-not_Bool : Bool -> Bool
-or_Bool : (Bool, Bool) -> Bool
+_io_print : string -> () ! {IO}
+_io_println : string -> () ! {IO}
+_io_readLine : () -> string ! {IO}
+_json_decode : string -> Result[Json, string]
+_net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_str_compare : (string, string) -> int
+_str_eq : (string, string) -> bool
+_str_find : (string, string) -> int
+_str_len : string -> int
+_str_lower : string -> string
+_str_slice : (string, int, int) -> string
+_str_trim : string -> string
+_str_upper : string -> string
+add_Float : (float, float) -> float
+add_Int : (int, int) -> int
+and_Bool : (bool, bool) -> bool
+concat_String : (string, string) -> string
+div_Float : (float, float) -> float
+div_Int : (int, int) -> int
+eq_Bool : (bool, bool) -> bool
+eq_Float : (float, float) -> bool
+eq_Int : (int, int) -> bool
+eq_String : (string, string) -> bool
+floatToInt : float -> int
+ge_Float : (float, float) -> bool
+ge_Int : (int, int) -> bool
+ge_String : (string, string) -> bool
+gt_Float : (float, float) -> bool
+gt_Int : (int, int) -> bool
+gt_String : (string, string) -> bool
+intToFloat : int -> float
+le_Float : (float, float) -> bool
+le_Int : (int, int) -> bool
+le_String : (string, string) -> bool
+lt_Float : (float, float) -> bool
+lt_Int : (int, int) -> bool
+lt_String : (string, string) -> bool
+mod_Float : (float, float) -> float
+mod_Int : (int, int) -> int
+mul_Float : (float, float) -> float
+mul_Int : (int, int) -> int
+ne_Bool : (bool, bool) -> bool
+ne_Float : (float, float) -> bool
+ne_Int : (int, int) -> bool
+ne_String : (string, string) -> bool
+neg_Float : float -> float
+neg_Int : int -> int
+not_Bool : bool -> bool
+or_Bool : (bool, bool) -> bool
 show : α -> string
-sub_Float : (Float, Float) -> Float
-sub_Int : (Int, Int) -> Int
+sub_Float : (float, float) -> float
+sub_Int : (int, int) -> int

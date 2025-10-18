@@ -33,7 +33,7 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			command: ":type _io_print",
 			mustContain: []string{
 				"! {IO}", // CRITICAL: Effect row must be present
-				"String", // Parameter type
+				"string", // Parameter type
 			},
 			mustNotContain: []string{
 				"error",
@@ -45,7 +45,7 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			command: ":type _io_println",
 			mustContain: []string{
 				"! {IO}",
-				"String",
+				"string",
 			},
 		},
 		{
@@ -53,7 +53,7 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			command: ":type _io_readLine",
 			mustContain: []string{
 				"! {IO}",
-				"String", // Return type
+				"string", // Return type
 			},
 		},
 		{
@@ -61,15 +61,15 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			command: ":type _net_httpRequest",
 			mustContain: []string{
 				"! {Net}", // CRITICAL: Net effect must be present
-				"String",
+				"string",
 			},
 		},
 		{
 			name:    ":type _str_len is pure (no effects)",
 			command: ":type _str_len",
 			mustContain: []string{
-				"String",
-				"Int",
+				"string",
+				"int",
 			},
 			mustNotContain: []string{
 				"! {", // No effect row for pure functions
@@ -79,7 +79,7 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			name:    ":type concat_String is pure",
 			command: ":type concat_String",
 			mustContain: []string{
-				"String",
+				"string",
 			},
 			mustNotContain: []string{
 				"! {",

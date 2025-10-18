@@ -18,6 +18,7 @@ func init() {
 	// Register string primitive builtins
 	registerStringLen()
 	registerStringCompare()
+	registerStringEq()
 	registerStringFind()
 	registerStringSlice()
 	registerStringTrim()
@@ -172,6 +173,32 @@ func strCompareImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 		return &eval.IntValue{Value: 1}, nil
 	}
 	return &eval.IntValue{Value: 0}, nil
+}
+
+// registerStringEq registers the _str_eq builtin (for JSON accessors)
+func registerStringEq() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_eq",
+		NumArgs: 2,
+		IsPure:  true,
+		Type:    makeStrEqType,
+		Impl:    strEqImpl,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_eq: %v", err))
+	}
+}
+
+func makeStrEqType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String()).Returns(T.Bool()).Build()
+}
+
+func strEqImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	a := args[0].(*eval.StringValue)
+	b := args[1].(*eval.StringValue)
+	return &eval.BoolValue{Value: a.Value == b.Value}, nil
 }
 
 // registerStringFind registers the _str_find builtin
