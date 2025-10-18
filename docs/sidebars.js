@@ -32,6 +32,7 @@ const sidebars = {
         'reference/language-syntax',
         'reference/implementation-status',
         'reference/repl-commands',
+        'reference/no-loops',
       ],
     },
     {
