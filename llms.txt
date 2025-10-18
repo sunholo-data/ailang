@@ -105,6 +105,82 @@ For detailed version history, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
+## 🔁 Why AILANG Has No Loops (and Never Will)
+
+AILANG intentionally omits `for`, `while`, and other open-ended loop constructs.
+This isn't a missing feature — it's a design decision rooted in **determinism and compositional reasoning**.
+
+### 🧠 For Humans, Loops Express Control. For AIs, Loops Obscure Structure.
+
+Traditional loops compress time into mutable state:
+
+```python
+sum = 0
+for i in range(0, 10):
+    sum = sum + i
+```
+
+This is compact for humans but **semantically opaque** for machines:
+the iteration count, state shape, and termination guarantee are **implicit**.
+
+AILANG replaces this with **total, analyzable recursion**:
+
+```ailang
+foldl(range(0, 10), 0, \acc, i. acc + i)
+```
+
+or **pattern matching**:
+
+```ailang
+func sum(list: List[Int]) -> Int {
+  match list {
+    [] => 0,
+    [x, ...xs] => x + sum(xs)
+  }
+}
+```
+
+Every iteration is a **pure function over data, not time** —
+which makes it statically decidable, effect-safe, and perfectly compositional.
+
+### ⚙️ The Deterministic Iteration Principle
+
+| Goal | Imperative Loops | AILANG Alternative |
+|------|-----------------|-------------------|
+| Repeat a computation | `for` / `while` | `map`, `fold`, `filter`, `rec` |
+| Aggregate results | mutable accumulator | `foldl` / `foldr` |
+| Early termination | `break` | `foldWhile` / `find` |
+| Parallel evaluation | scheduler threads | static task DAGs |
+| Verification | undecidable | total + effect-typed |
+
+### 🧩 Benefits
+
+- **Deterministic semantics**: iteration defined by data, not by time
+- **Static totality**: no halting ambiguity
+- **Composable reasoning**: works algebraically with higher-order functions
+- **Easier optimization**: map/fold can fuse or parallelize safely
+- **Simpler runtime**: no mutable counters or loop scopes
+
+### 💡 Future Syntactic Sugar
+
+For readability, AILANG may later support **comprehension syntax**:
+
+```ailang
+[ p.name for p in people if p.age >= 30 ]
+```
+
+…which **desugars deterministically** to:
+
+```ailang
+map(filter(people, \p. p.age >= 30), \p. p.name)
+```
+
+**No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
+
+For the formal rationale and algebraic laws, see [docs/design/NO_LOOPS.md](docs/design/NO_LOOPS.md).
+
+---
+
 ## Quick Start
 
 ### Installation
