@@ -1,8 +1,14 @@
+---
+sidebar_position: 4
+title: Why No Loops?
+description: Formal rationale for AILANG's exclusion of loops in favor of total recursion
+---
+
 # Why AILANG Has No Loops: Formal Rationale
 
 **Status**: Design Decision (Permanent)
 **Version**: v0.3.14+
-**Related**: [README § No Loops](../../README.md#-why-ailang-has-no-loops-and-never-will)
+**Related**: [README § No Loops](https://github.com/sunholo-data/ailang#-why-ailang-has-no-loops-and-never-will)
 
 ---
 
@@ -447,6 +453,6 @@ For AIs: **Reason about functions, not state machines.**
 
 ## See Also
 
-- [README § No Loops](../../README.md#-why-ailang-has-no-loops-and-never-will) - User-facing explanation
-- [LIMITATIONS.md](../LIMITATIONS.md) - Current language limitations
-- [design_docs/planned/M-TOOLING-DETERMINISTIC.md](../../design_docs/planned/M-TOOLING-DETERMINISTIC.md) - Deterministic tooling for AI agents
+- [README § No Loops](https://github.com/sunholo-data/ailang#-why-ailang-has-no-loops-and-never-will) - User-facing explanation
+- [Limitations](/docs/guides/limitations) - Current language limitations
+- [Getting Started](/docs/guides/getting-started) - Installation and quick start
