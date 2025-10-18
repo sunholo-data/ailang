@@ -1,7 +1,7 @@
 # AILANG: The AI-First Programming Language
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-32.5%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-32.6%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -331,25 +331,25 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-46%20passing%2037%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-52%20passing%2032%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-18 18:16:55 UTC*
+*Last updated: 2025-10-18 19:55:16 UTC*
 
-**Summary:** 46 passed, 37 failed, 4 skipped (Total: 87)
+**Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
-| `ai_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `ai_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
-| `claude_haiku_call.ail` | ❌ Fail | Error: type error in std/json (decl 0): undefin... |
+| `claude_haiku_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
@@ -365,6 +365,7 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
 | `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): u... |
+| `json_basic_decode.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `letrec_recursion.ail` | ✅ Pass |  |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -393,10 +394,10 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `test_effect_annotation.ail` | ✅ Pass |  |
-| `test_effect_capability.ail` | ❌ Fail | Error: type error in examples/test_effect_capab... |
-| `test_effect_fs.ail` | ❌ Fail | Error: type error in examples/test_effect_fs (d... |
-| `test_effect_io.ail` | ❌ Fail | Error: type error in examples/test_effect_io (d... |
-| `test_effect_io_simple.ail` | ❌ Fail | Error: type error in examples/test_effect_io_si... |
+| `test_effect_capability.ail` | ✅ Pass |  |
+| `test_effect_fs.ail` | ✅ Pass |  |
+| `test_effect_io.ail` | ✅ Pass |  |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect... |
 | `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
 | `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
 | `test_exhaustive_wildcard.ail` | ✅ Pass |  |
@@ -411,14 +412,14 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_import_func.ail` | ✅ Pass |  |
 | `test_integral.ail` | ✅ Pass |  |
 | `test_invocation.ail` | ✅ Pass |  |
-| `test_io_builtins.ail` | ❌ Fail | Error: type error in examples/test_io_builtins ... |
+| `test_io_builtins.ail` | ✅ Pass |  |
 | `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_modulo_works.ail` | ✅ Pass |  |
 | `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_pro... |
 | `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhos... |
 | `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security... |
-| `test_no_import.ail` | ❌ Fail | Error: type error in examples/test_no_import (d... |
+| `test_no_import.ail` | ✅ Pass |  |
 | `test_record_subsumption.ail` | ✅ Pass |  |
 | `test_single_guard.ail` | ✅ Pass |  |
 | `test_use_constructor.ail` | ✅ Pass |  |
