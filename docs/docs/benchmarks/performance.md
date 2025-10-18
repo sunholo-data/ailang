@@ -1,7 +1,3 @@
-Loading results from eval_results/baselines/0.3.14...
-Generating performance matrix...
-Generating docusaurus report...
-
 ---
 sidebar_position: 6
 title: Benchmark Performance
@@ -40,11 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Simple Print**: 100.0% success rate
-- **String Manipulation**: 100.0% success rate
 - **Fizzbuzz**: 100.0% success rate
 - **Records Person**: 100.0% success rate
 - **Nested Records**: 100.0% success rate
+- **String Manipulation**: 100.0% success rate
+- **Simple Print**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -75,7 +71,7 @@ Want to see AILANG in action?
 
 **Total Runs**: 227
 
-**Generated**: 2025-10-18 22:42:40
+**Generated**: 2025-10-18 22:52:34
 
 ### Model Performance Details
 

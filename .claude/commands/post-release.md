@@ -92,9 +92,11 @@ Run post-release tasks for an AILANG release: benchmarks, dashboard updates, and
 3. **Update website dashboard** (CRITICAL - often forgotten!)
    - **Generate dashboard files** (markdown + JSON with history preservation):
      ```bash
-     ailang eval-report eval_results/baselines/v$1 v$1 --format=docusaurus > docs/docs/benchmarks/performance.md
+     # Redirect only stdout, let stderr show progress
+     ailang eval-report eval_results/baselines/v$1 v$1 --format=docusaurus 2>/dev/null > docs/docs/benchmarks/performance.md
      ailang eval-report eval_results/baselines/v$1 v$1 --format=json
      ```
+   - **Note**: The `2>/dev/null` suppresses progress messages that would otherwise appear in the markdown file
    - **IMPORTANT**: The `--format=json` output is shown on stdout but the tool ALSO writes to `docs/static/benchmarks/latest.json` with history preservation. Do NOT redirect to file (bypasses history logic).
    - **Verify JSON is valid**:
      ```bash

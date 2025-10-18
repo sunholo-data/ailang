@@ -653,6 +653,8 @@ make lint                 # Run golangci-lint
 make fmt                  # Format all Go code
 make fmt-check            # Check if code is formatted
 make vet                  # Run go vet
+make ci                   # Run full CI verification locally
+make ci-strict            # Extended CI with A2 milestone gates (pre-release)
 ```
 
 ### Example Management
@@ -660,13 +662,13 @@ make vet                  # Run go vet
 make verify-examples      # Verify all example files work/fail
 make update-readme        # Update README with example status
 make flag-broken          # Add warning headers to broken examples
+make test-parity          # Test REPL/file parity (manual only, requires interactive REPL)
 ```
 
 ### Development Helpers
 ```bash
 make deps                 # Install all dependencies
 make clean                # Remove build artifacts and coverage files
-make ci                   # Run full CI verification locally
 make help                 # Show all available make targets
 ```
 
@@ -793,8 +795,10 @@ The `/release` command now includes:
 **Update website dashboard for specific version**:
 ```bash
 # Generate dashboard files (markdown + JSON with history)
-ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus > docs/docs/benchmarks/performance.md
-ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json > docs/static/benchmarks/latest.json
+# Note: 2>/dev/null suppresses progress messages that would appear in the markdown
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus 2>/dev/null > docs/docs/benchmarks/performance.md
+# DO NOT redirect JSON to file - it writes to docs/static/benchmarks/latest.json automatically with history preservation
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json
 
 # Verify JSON is valid
 jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
