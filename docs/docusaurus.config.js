@@ -100,19 +100,24 @@ const config = {
         },
         items: [
           {
+            to: '/docs/vision',
+            label: '✨ Vision',
+            position: 'left',
+          },
+          {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Documentation',
           },
           {
-            to: '/docs/playground',
-            label: '🎮 Playground',
+            to: '/docs/examples',
+            label: '📚 Examples',
             position: 'left',
           },
           {
-            href: 'https://github.com/sunholo-data/ailang/tree/main/examples',
-            label: 'Examples',
+            to: '/docs/playground',
+            label: '🎮 Playground',
             position: 'left',
           },
           {

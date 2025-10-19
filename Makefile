@@ -326,6 +326,8 @@ update-readme: build
 	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
 	@echo "Updating README with example status..."
 	@if [ -f examples_report.json ]; then go run ./scripts/update_readme.go; else echo "No examples report found, skipping README update"; fi
+	@echo "Updating docs examples page..."
+	@if [ -f examples_report.json ]; then go run ./scripts/update_docs_examples.go; else echo "No examples report found, skipping docs update"; fi
 
 # Generate test coverage badge
 test-coverage-badge:

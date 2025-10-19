@@ -277,24 +277,12 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 
 ---
 
-## 📊 Test Coverage
-
-**Examples**: 48/66 passing (72.7%)
-
-All record subsumption, effect system (IO, FS, Clock, Net), type class, ADT, recursion, and block expression examples working.
-
-See [examples/STATUS.md](examples/STATUS.md) for detailed status.
+## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-## Status
-
 ![Examples](https://img.shields.io/badge/examples-52%20passing%2032%20failing-red.svg)
 
-### Example Verification Status
-
-*Last updated: 2025-10-18 22:26:22 UTC*
-
-**Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
+**52/88 examples passing (59%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -389,6 +377,8 @@ See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 
 <!-- EXAMPLES_STATUS_END -->
 
+See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
+
 ---
 
 ## Documentation
@@ -396,11 +386,11 @@ See [examples/STATUS.md](examples/STATUS.md) for detailed status.
 📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site
 
 **Quick Links:**
+- **[Vision](https://sunholo-data.github.io/ailang/docs/vision)** - Why AILANG exists and what makes it different
+- **[Examples](https://sunholo-data.github.io/ailang/docs/examples)** - Interactive code examples with explanations
 - **[Getting Started](https://sunholo-data.github.io/ailang/docs/guides/getting-started)** - Installation and tutorial
-- **[Language Guide](https://sunholo-data.github.io/ailang/docs/category/language-guide)** - Syntax and features
-- **[REPL Guide](https://sunholo-data.github.io/ailang/docs/guides/repl)** - Interactive development
-- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation performance
-- **[Examples](https://sunholo-data.github.io/ailang/docs/examples/overview)** - Code examples and patterns
+- **[Language Reference](https://sunholo-data.github.io/ailang/docs/reference/language-syntax)** - Complete syntax guide
+- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
 
 ---
 

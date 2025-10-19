@@ -144,6 +144,41 @@ The agent knows how to:
 
 ---
 
+## 🛠️ AVAILABLE SKILLS
+
+**Skills are Anthropic Agent Skills (Oct 2025 spec) with progressive disclosure, executable scripts, and resource files.**
+
+### Available Skills
+
+- **use-ailang** - Write correct AILANG code with syntax reference and validation scripts
+- **skill-builder** - Create new skills with automated scaffolding and validation (meta-skill!)
+- **release-manager** - Create releases with automated pre-flight checks and verification
+- **post-release** - Run eval baselines and update website dashboard automatically
+- **sprint-planner** - Analyze design docs and create realistic, data-driven sprint plans
+- **sprint-executor** - Execute sprints with TDD, continuous linting, and progress tracking
+
+**Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
+
+**Creating new skills**: Use the `skill-builder` skill or see [.claude/skills/SKILLS_GUIDE.md](.claude/skills/SKILLS_GUIDE.md)
+
+### Using Skills
+
+Skills are invoked automatically by Claude when appropriate for the task. Just describe what you want:
+
+- "Create a skill for managing database migrations" → `skill-builder` skill
+- "Ready to release v0.3.14" → `release-manager` skill
+- "Update benchmarks" → `post-release` skill
+- "Help me write AILANG code" → `use-ailang` skill
+- "Plan the sprint" → `sprint-planner` skill
+
+### Skills vs Agents vs Commands
+
+- **Skills** (.claude/skills/): Focused workflows with progressive disclosure and automation
+- **Agents** (.claude/agents/): Complex autonomous reasoning (eval-orchestrator, codebase-organizer)
+- **Commands** (.claude/commands/): **Deprecated** - use skills instead
+
+---
+
 ## Project Overview
 
 **AILANG is a deterministic language designed for autonomous AI code synthesis and reasoning.**
@@ -779,16 +814,21 @@ ailang repl                                        # Start REPL
 
 ### Quick Reference
 
-**Run release command** (handles everything):
-```bash
-# Use the /release command - it now includes dashboard updates!
-/release 0.3.13
-```
+**Run release with the release-manager skill** (handles everything):
 
-The `/release` command now includes:
-- Running baseline evaluations (step 12)
-- **Updating website dashboard** (step 13) ← Critical!
-- Verification checklist (step 16)
+When ready to release, invoke the `release-manager` skill with the version number.
+
+The release-manager skill handles:
+- Pre-release verification (tests, linting, file sizes)
+- Version updates in documentation
+- Git tagging and pushing
+- CI/CD monitoring
+- Release verification
+
+After release completes, use the `post-release` skill to:
+- Run baseline evaluations
+- **Update website dashboard** ← Critical!
+- Update design docs and public documentation
 
 ### Manual Dashboard Update (if needed)
 

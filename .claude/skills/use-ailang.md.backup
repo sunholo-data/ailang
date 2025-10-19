@@ -1,0 +1,304 @@
+# Use AILANG Skill
+
+Write and run AILANG code following current syntax (v0.3.8+).
+
+## Overview
+
+AILANG is a pure functional programming language with Hindley-Milner type inference and algebraic effects. This skill provides guidance on AILANG syntax, CLI usage, and common patterns.
+
+**Key Resources:**
+- Full teaching prompt: [prompts/v0.3.8.md](prompts/v0.3.8.md)
+- Documentation: https://sunholo-data.github.io/ailang/
+- Examples: [examples/](examples/) directory
+- REPL commands: [docs/docs/reference/repl-commands.md](docs/docs/reference/repl-commands.md)
+
+## Quick Reference
+
+### MANDATORY Structure
+**EVERY AILANG program MUST have:**
+1. Module declaration: `module benchmark/solution` (first line)
+2. Imports (if using effects): `import std/io (println)`
+3. Functions: `export func main() -> () ! {IO} { ... }`
+
+### Basic Syntax Rules
+- Use `func` NOT `fn`, `function`, or `def`
+- Semicolons REQUIRED between statements in blocks
+- Pattern matching uses `=>` NOT `:` or `->`
+- NO `for`, `while`, `var`, `const`, or any imperative constructs
+- NO namespace syntax (`::`), use names directly
+
+### Example Template
+```ailang
+module benchmark/solution
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello, AILANG!")
+}
+```
+
+## What Works (v0.3.8+)
+
+### ✅ Core Language
+- **Module declarations**: `module path/to/module`
+- **Function declarations**: `export func name(params) -> Type { body }`
+- **Anonymous functions**: `func(x: int) -> int { x * 2 }`
+- **Recursive lambdas**: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
+- **Pattern matching**: Constructors, tuples, lists, wildcards, guards
+- **ADTs**: `type Option[a] = Some(a) | None`
+- **Records**: `{name: "Alice", age: 30}`, field access, updates `{rec | age: 31}`
+- **Block expressions**: `{ stmt1; stmt2; result }`
+
+### ✅ Type System
+- **Hindley-Milner inference**: Types are inferred automatically
+- **Polymorphism**: Generic types with `[a]` syntax
+- **Effect tracking**: `! {IO, FS, Clock, Net}` for side effects
+- **Numeric types**: `int`, `float` with conversions `intToFloat`, `floatToInt`
+
+### ✅ Standard Library
+- **Auto-imported std/prelude**: Comparisons (`<`, `>`, `==`, `!=`) work without imports
+- **std/io**: `println`, `readLine`, `readInt`
+- **std/fs**: `readFile`, `writeFile`, `listDir`
+- **std/clock**: `now`, `sleep`
+- **std/net**: `httpGet`, `httpPost`
+- **std/json**: `json.decode`, `json.encode`
+
+## Common Patterns
+
+### Recursion (NO LOOPS!)
+```ailang
+# Count down from n to 0
+export func countdown(n: int) -> () ! {IO} {
+  if n <= 0
+  then ()
+  else {
+    println(show(n));
+    countdown(n - 1)
+  }
+}
+```
+
+### Pattern Matching
+```ailang
+type Option[a] = Some(a) | None
+
+export func getOr[a](opt: Option[a], default: a) -> a {
+  match opt {
+    Some(x) => x,
+    None => default
+  }
+}
+```
+
+### Working with Lists
+```ailang
+export func sum(xs: [int]) -> int {
+  match xs {
+    [] => 0,
+    hd :: tl => hd + sum(tl)
+  }
+}
+```
+
+### Effects and IO
+```ailang
+module benchmark/solution
+
+import std/io (println, readLine)
+
+export func greet() -> () ! {IO} {
+  println("What's your name?");
+  let name = readLine();
+  println("Hello, " ++ name ++ "!")
+}
+
+export func main() -> () ! {IO} {
+  greet()
+}
+```
+
+### Record Updates
+```ailang
+type Person = {name: string, age: int}
+
+export func birthday(p: Person) -> Person {
+  {p | age: p.age + 1}
+}
+```
+
+## Limitations (Things That DON'T Work)
+
+### ❌ NO Imperative Constructs
+```
+# WRONG - These don't exist in AILANG
+for i in range(10) { ... }
+while x < 10 { ... }
+var x = 5; x = x + 1;
+break; continue;
+```
+
+### ❌ NO Error Propagation Operator (yet)
+```
+# WRONG - '?' doesn't exist yet
+let value = readFile("file.txt")?;
+```
+
+### ❌ NO Classes or Objects
+```
+# WRONG - AILANG is pure functional
+class Person { ... }
+new Person()
+```
+
+### ❌ NO Mutable State
+```
+# WRONG - Everything is immutable
+let mut x = 5;
+x = x + 1;
+```
+
+## Running AILANG Code
+
+### Install AILANG
+```bash
+# From releases (recommended)
+wget https://github.com/sunholo-data/ailang/releases/latest/download/ailang-<platform>.tar.gz
+tar xzf ailang-<platform>.tar.gz
+sudo mv ailang /usr/local/bin/
+
+# Or build from source
+git clone https://github.com/sunholo-data/ailang
+cd ailang
+make install
+```
+
+### Run a Module
+```bash
+# Run with effects (IO, FS, etc.)
+ailang run --caps IO,FS --entry main solution.ail
+
+# Run in REPL
+ailang repl
+
+# Type check only
+ailang check solution.ail
+```
+
+### REPL Commands
+```
+:type expr          # Show type of expression
+:help               # Show help
+:quit               # Exit REPL
+```
+
+## Best Practices
+
+### 1. Start with Module Declaration
+Always start your file with `module path/name`
+
+### 2. Import What You Use
+```ailang
+import std/io (println)        # Just what you need
+import std/fs (readFile)       # Specific functions
+```
+
+### 3. Use Type Annotations for Public Functions
+```ailang
+export func add(x: int, y: int) -> int {
+  x + y
+}
+```
+
+### 4. Pattern Match Exhaustively
+Cover all cases or use a wildcard:
+```ailang
+match opt {
+  Some(x) => x,
+  None => default
+}
+```
+
+### 5. Handle Effects Properly
+Declare all effects in function signatures:
+```ailang
+func readAndPrint() -> () ! {IO, FS} {
+  let content = readFile("data.txt");
+  println(content)
+}
+```
+
+## Common Mistakes and Fixes
+
+### Mistake: Forgetting Module Declaration
+```ailang
+# WRONG
+import std/io (println)
+func main() { ... }
+
+# CORRECT
+module benchmark/solution
+import std/io (println)
+export func main() -> () ! {IO} { ... }
+```
+
+### Mistake: Using Semicolons Incorrectly
+```ailang
+# WRONG - no semicolon before closing brace
+{ println("Hi"); println("Bye"); }
+
+# CORRECT - semicolon between statements
+{ println("Hi"); println("Bye") }
+```
+
+### Mistake: Pattern Matching Syntax
+```ailang
+# WRONG - using : or ->
+match x {
+  Some(v): v,
+  None -> 0
+}
+
+# CORRECT - use =>
+match x {
+  Some(v) => v,
+  None => 0
+}
+```
+
+### Mistake: Trying to Use Loops
+```ailang
+# WRONG - no loops!
+for i in 1..10 {
+  println(show(i))
+}
+
+# CORRECT - use recursion
+export func printRange(start: int, end: int) -> () ! {IO} {
+  if start > end
+  then ()
+  else {
+    println(show(start));
+    printRange(start + 1, end)
+  }
+}
+```
+
+## Getting Help
+
+- **Documentation**: https://sunholo-data.github.io/ailang/
+- **Examples**: Check `examples/` directory in the repo
+- **Teaching Prompt**: See `prompts/v0.3.8.md` for full syntax guide
+- **Issues**: https://github.com/sunholo-data/ailang/issues
+
+## Version Information
+
+This skill is based on **AILANG v0.3.8+** (October 2025).
+
+Key features by version:
+- v0.3.8: Multi-line ADTs, record updates, auto-import prelude
+- v0.3.7: Effect system with capability security
+- v0.3.6: Pattern matching with guards
+- v0.3.5: Numeric conversions, JSON support
+
+Check `CHANGELOG.md` for detailed version history.

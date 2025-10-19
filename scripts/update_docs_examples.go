@@ -30,29 +30,31 @@ func main() {
 	// Generate markdown table
 	statusTable := generateStatusTable(report)
 
-	// Read current README
-	readmeContent, err := os.ReadFile("README.md")
+	// Update docs/docs/examples.mdx
+	docsPath := "docs/docs/examples.mdx"
+	docsContent, err := os.ReadFile(docsPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading README: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading docs examples page: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Update README with new status
-	updatedContent := updateReadmeStatus(string(readmeContent), statusTable)
+	// Update docs page with new status
+	updatedContent := updateExamplesStatus(string(docsContent), statusTable)
 
-	// Write updated README
-	if err := os.WriteFile("README.md", []byte(updatedContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing README: %v\n", err)
+	// Write updated docs page
+	if err := os.WriteFile(docsPath, []byte(updatedContent), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing docs examples page: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("README updated successfully")
+	fmt.Println("Docs examples page updated successfully")
 }
 
 func generateStatusTable(report reporttypes.VerificationReport) string {
 	var sb strings.Builder
 
-	// Add badge
+	// Add badges
+	sb.WriteString("## Status\n\n")
 	sb.WriteString("![Examples](https://img.shields.io/badge/examples-")
 	if report.Failed == 0 {
 		sb.WriteString(fmt.Sprintf("%d%%20passing-brightgreen", report.Passed))
@@ -70,9 +72,15 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 	}
 	sb.WriteString(".svg)\n\n")
 
-	// Add summary with percentage
+	// Add summary
+	sb.WriteString("### Example Verification Status\n\n")
+	sb.WriteString(fmt.Sprintf("*Last updated: %s (Auto-updated by CI)*\n\n", report.Timestamp.Format("2006-01-02")))
+	sb.WriteString(fmt.Sprintf("**Summary:** %d passed, %d failed, %d skipped (Total: %d)\n\n",
+		report.Passed, report.Failed, report.Skipped, report.TotalExamples))
+
+	// Calculate percentage
 	percentage := float64(report.Passed) / float64(report.TotalExamples) * 100
-	sb.WriteString(fmt.Sprintf("**%d/%d examples passing (%.0f%%)** - Each example exercises specific language features, so this directly reflects implementation completeness.\n\n",
+	sb.WriteString(fmt.Sprintf("**Overall: %d/%d examples working (%.0f%%)**\n\n",
 		report.Passed, report.TotalExamples, percentage))
 
 	// Create status table
@@ -87,8 +95,8 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 			lines := strings.Split(result.Error, "\n")
 			if len(lines) > 0 {
 				firstLine := strings.TrimSpace(lines[0])
-				if len(firstLine) > 50 {
-					firstLine = firstLine[:47] + "..."
+				if len(firstLine) > 60 {
+					firstLine = firstLine[:57] + "..."
 				}
 				notes = firstLine
 			}
@@ -115,8 +123,8 @@ func getStatusIcon(status string) string {
 	}
 }
 
-func updateReadmeStatus(content, statusTable string) string {
-	// Look for markers in README
+func updateExamplesStatus(content, statusTable string) string {
+	// Look for markers in docs page
 	startMarker := "<!-- EXAMPLES_STATUS_START -->"
 	endMarker := "<!-- EXAMPLES_STATUS_END -->"
 
@@ -124,23 +132,8 @@ func updateReadmeStatus(content, statusTable string) string {
 	endIdx := strings.Index(content, endMarker)
 
 	if startIdx == -1 || endIdx == -1 {
-		// Markers not found, add them after the main title
-		lines := strings.Split(content, "\n")
-		for i, line := range lines {
-			if strings.HasPrefix(line, "# ") {
-				// Found main title, insert after it
-				newLines := append(lines[:i+1],
-					"",
-					startMarker,
-					statusTable,
-					endMarker,
-				)
-				newLines = append(newLines, lines[i+1:]...)
-				return strings.Join(newLines, "\n")
-			}
-		}
-		// No main title found, prepend
-		return startMarker + "\n" + statusTable + "\n" + endMarker + "\n\n" + content
+		fmt.Fprintf(os.Stderr, "Warning: EXAMPLES_STATUS markers not found in docs/docs/examples.mdx\n")
+		return content
 	}
 
 	// Replace content between markers

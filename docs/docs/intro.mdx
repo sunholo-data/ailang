@@ -11,6 +11,10 @@ import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Ico
 
 Welcome to the official documentation for AILANG, an experimental programming language designed from the ground up for AI-assisted software development.
 
+<div style={{padding: '1rem', backgroundColor: 'var(--ifm-color-primary-lightest)', borderRadius: '8px', marginBottom: '2rem'}}>
+  <Icon name="zap" inline /> **New to AILANG?** Read our [Vision](/docs/vision) to understand why AILANG exists and what makes it different from other programming languages.
+</div>
+
 ## What is AILANG?
 
 AILANG is a pure functional programming language that makes AI assistance a first-class citizen. It features:
@@ -90,19 +94,23 @@ AILANG v0.3.8 is now available with multi-line ADT parser fixes and operator low
 - <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
 - <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
 
-### <Icon name="wrench" size={18} /> Planned Features (v0.4.0+)
+### <Icon name="wrench" size={18} /> Coming in v0.4 "Deterministic Tooling"
 
-- <Icon name="idea" inline size={14} /> **Pattern Guards** - Boolean conditions in pattern matching
-- <Icon name="idea" inline size={14} /> **Error Propagation** - `?` operator for Result types
-- <Icon name="idea" inline size={14} /> **Typed Quasiquotes** - Safe metaprogramming with compile-time validation
-- <Icon name="idea" inline size={14} /> **CSP Concurrency** - Channel-based communication with session types
-- <Icon name="idea" inline size={14} /> **AI Training Export** - Execution trace collection (v1.0+)
+- <Icon name="idea" inline size={14} /> **Deterministic Normalization** - `ailang normalize` for canonical code formatting
+- <Icon name="idea" inline size={14} /> **Automated Import Suggestions** - `ailang suggest-imports` fixes missing imports
+- <Icon name="idea" inline size={14} /> **Deterministic Code Repair** - `ailang apply` for automated fixes
+- <Icon name="idea" inline size={14} /> **Total Recursion Combinators** - `fold`, `unfold`, `iterateN` for functional completeness
+- <Icon name="idea" inline size={14} /> **Runtime Reflection** - `reflectType`, `reflectEffect` for AI self-debugging (v0.4.1+)
+- <Icon name="idea" inline size={14} /> **Training Data Export** - `--emit-trace` for execution traces (v0.4.2+)
+
+See our [Vision](/docs/vision) for the full roadmap and measurable success criteria.
 
 ## Documentation Structure
 
+- <Icon name="book" inline /> **[Examples](/docs/examples)** - Interactive code examples with explanations
 - <Icon name="book" inline /> **[Guides](/docs/guides/getting-started)** - Tutorials and how-to guides
 - <Icon name="code" inline /> **[Reference](/docs/reference/language-syntax)** - Language specification and API docs
-- <Icon name="rocket" inline /> **[Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - Sample AILANG programs
+- <Icon name="play" inline /> **[Playground](/docs/playground)** - Try AILANG in your browser
 
 ## Contributing
 
@@ -122,6 +130,8 @@ AILANG is built on several key principles:
 3. <Icon name="bot" inline /> **AI-Friendly**: Every language feature considers AI tooling needs
 4. <Icon name="zap" inline /> **Deterministic**: Same input always produces same output
 5. <Icon name="info" inline /> **Traceable**: Complete execution history for debugging and training
+
+**Read the full [Vision](/docs/vision)** to understand why AILANG is designed for AIs first, humans second, and see empirical benchmarks showing 49% improvement in AI code generation success rates.
 
 ## Resources
 

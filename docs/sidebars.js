@@ -15,6 +15,8 @@
 const sidebars = {
   tutorialSidebar: [
     'intro',
+    'vision',
+    'examples',
     'playground',
     {
       type: 'category',
