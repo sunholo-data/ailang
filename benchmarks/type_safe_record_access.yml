@@ -1,0 +1,31 @@
+id: type_safe_record_access
+description: "Static type safety vs runtime crashes (Vision Problem 3)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates type-safe record/struct access.
+
+  Requirements:
+  1. Define a User record/struct with fields:
+     - name: string
+     - profile: nested record with:
+       - age: int
+       - city: string
+  2. Create a User instance: name="Alice", profile={age=30, city="NYC"}
+  3. Implement a function `getCity(user)` that safely accesses user.profile.city
+  4. Call getCity and print the result: "City: NYC"
+
+  Type safety requirements:
+  - Field access should be type-checked at compile time
+  - Accessing non-existent fields should be caught by type checker (not runtime error)
+  - Nested record types should be explicitly declared
+
+  Expected output:
+  "City: NYC"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  City: NYC

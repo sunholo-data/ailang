@@ -1,0 +1,39 @@
+id: explicit_state_threading
+description: "Explicit state threading vs implicit global state (Vision Problem 1)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that implements a counter with explicit state threading.
+
+  Requirements:
+  - Implement an `add(value, state)` function that returns a tuple: (newState, newState) where newState = state + value
+  - Implement a `multiply(value, state)` function that returns a tuple: (newState, newState) where newState = state * value
+  - Do NOT use global variables or mutable state
+  - Thread state explicitly through function calls
+  - Start with state = 0
+  - Call: add(5, state) -> capture new state
+  - Call: multiply(3, state) -> capture new state
+  - Call: add(10, state) -> capture final state
+  - Print each intermediate state
+
+  Expected computation:
+  - Start: 0
+  - After add(5, 0): 5
+  - After multiply(3, 5): 15
+  - After add(10, 15): 25
+
+  Print format (one per line):
+  "Initial: 0"
+  "After add: 5"
+  "After multiply: 15"
+  "After add: 25"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Initial: 0
+  After add: 5
+  After multiply: 15
+  After add: 25

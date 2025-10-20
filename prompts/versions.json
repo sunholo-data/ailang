@@ -54,8 +54,16 @@
       "hash": "f29acaa33a0e2c3161164e1e0b6337b912d553776f9ac97251f4aa30dc665830",
       "description": "v0.3.12 prompt with show() function emphasis - recovery release",
       "created": "2025-10-17",
-      "tags": ["production", "latest"],
+      "tags": ["production"],
       "notes": "Recovery release restoring show() builtin (accidentally removed in v0.3.10). Prominent show() examples added to teach proper string conversion. All v0.3.9 features included. Testing hypothesis: Emphasizing show() will reduce syntax errors and improve AILANG success rates from 0% baseline."
+    },
+    "v0.3.15": {
+      "file": "prompts/v0.3.15.md",
+      "hash": "c5c0648eb6f85d0abe8eb20528b8a0cab4c4c710492a6719c318df1689154204",
+      "description": "v0.3.15 prompt with vision goals: effect system, state threading, and canonical patterns",
+      "created": "2025-10-20",
+      "tags": ["production", "latest", "vision-aligned"],
+      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%→70%, State 0%→60%, Canonical 0%→70%. Expected: 36.5%→70% AILANG success."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",

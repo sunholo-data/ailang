@@ -2,6 +2,35 @@
 
 This directory contains benchmark specifications for measuring AI code generation efficiency in AILANG vs Python.
 
+## 🎯 Vision-Aligned Benchmarks
+
+**NEW**: Benchmarks specifically designed to test AILANG's vision goals and differentiation from Python.
+
+See **[VISION_BENCHMARKS.md](VISION_BENCHMARKS.md)** for detailed documentation on:
+- How benchmarks map to vision goals
+- Current vs future evaluation capabilities
+- Metrics tracking and success criteria
+
+| Benchmark | Vision Goal | Status |
+|-----------|-------------|--------|
+| `explicit_state_threading` | Explicit state vs implicit globals | 🆕 Ready |
+| `deterministic_list_transform` | One canonical form vs multiple ways | 🆕 Ready |
+| `effect_tracking_io_fs` | Explicit effect tracking (!: IO, FS) | 🆕 Ready |
+| `effect_pure_separation` | Pure vs effectful separation | 🆕 Ready |
+| `effect_composition` | Effect propagation in signatures | 🆕 Ready |
+| `exhaustive_pattern_matching` | Total functions, no crashes | 🆕 Ready |
+| `type_safe_record_access` | Static type safety vs runtime errors | 🆕 Ready |
+| `referential_transparency` | Same input → same output | 🆕 Ready |
+| `canonical_normalization` | Idiomatic, canonical code structure | 🆕 Ready |
+| `no_runtime_crashes_option` | Option types prevent null errors | 🆕 Ready |
+| `immutable_data_structures` | Immutable updates vs mutations | 🆕 Ready |
+
+**Key Differentiators**:
+- 🚀 **Explicit Effects**: AILANG forces effect declarations, Python doesn't track them
+- 🎯 **Determinism**: AILANG has one way to do things, Python has many
+- 🛡️ **Type Safety**: AILANG catches errors at compile time, Python at runtime
+- ✅ **Totality**: AILANG requires exhaustive patterns, Python allows missing cases
+
 ## Available Benchmarks
 
 ### Core Benchmarks (Existing)

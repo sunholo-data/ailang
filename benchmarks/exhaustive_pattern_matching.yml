@@ -1,0 +1,34 @@
+id: exhaustive_pattern_matching
+description: "Total functions with exhaustive pattern matching (no runtime crashes)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates exhaustive pattern matching.
+
+  Requirements:
+  1. Define a Status type with three variants: Pending, InProgress, Completed
+  2. Implement a function `describeStatus(status)` that pattern matches on ALL variants:
+     - Pending -> "Waiting to start"
+     - InProgress -> "Currently working"
+     - Completed -> "All done"
+  3. Create instances of all three statuses
+  4. Print description for each status
+
+  The pattern matching MUST be exhaustive:
+  - Compiler/type checker should verify all cases are covered
+  - No default/wildcard cases (each variant explicitly handled)
+  - Adding a new variant should require updating the match
+
+  Expected output (one per line):
+  "Waiting to start"
+  "Currently working"
+  "All done"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Waiting to start
+  Currently working
+  All done

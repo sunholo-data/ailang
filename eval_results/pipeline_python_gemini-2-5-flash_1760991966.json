@@ -1,0 +1,23 @@
+{
+  "id": "pipeline",
+  "lang": "python",
+  "model": "gemini-2-5-flash",
+  "seed": 42,
+  "input_tokens": 96,
+  "output_tokens": 97,
+  "total_tokens": 193,
+  "cost_usd": 0.00027130000000000004,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 50,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "2\n4\n6\n8\n10\n",
+  "timestamp": "2025-10-20T22:26:06.113095+02:00",
+  "code": "import sys\n\ndef main():\n    for line in sys.stdin:\n        try:\n            num = int(line.strip())\n            doubled_num = num * 2\n            print(doubled_num)\n        except ValueError:\n            # Optionally handle non-integer input, or just skip it as per problem statement's simplicity\n            pass\n\nif __name__ == '__main__':\n    main()",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}
