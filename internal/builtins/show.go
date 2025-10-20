@@ -24,6 +24,28 @@ func registerShow() {
 		IsPure:  true,
 		Type:    makeShowType,
 		Impl:    showImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Convert any value to its string representation",
+			LongDesc: `Polymorphic function that converts values to canonical string form.
+Works with all types: primitives (int, float, bool, string), lists, records, and ADTs.
+Handles special float values (NaN, Inf) and limits depth for recursive structures.`,
+			Params: []ParamDoc{
+				{Name: "value", Description: "Any value to convert to string"},
+			},
+			Returns: "String representation of the value",
+			Examples: []Example{
+				{Code: `show(42)`, Description: `Returns "42"`},
+				{Code: `show(3.14)`, Description: `Returns "3.14"`},
+				{Code: `show(true)`, Description: `Returns "true"`},
+				{Code: `show([1, 2, 3])`, Description: `Returns "[1, 2, 3]"`},
+				{Code: `show({x: 5, y: 10})`, Description: `Returns "{x: 5, y: 10}"`},
+			},
+			Since:     "v0.1.0",
+			Stability: StabilityStable,
+			Tags:      []string{"conversion", "string", "debug", "display", "polymorphic"},
+			Category:  "conversion",
+		},
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to register show: %v", err))

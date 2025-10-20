@@ -16,7 +16,9 @@ type EffectImpl func(*effects.EffContext, []eval.Value) (eval.Value, error)
 // - Metadata (name, arity, purity)
 // - Type signature
 // - Implementation
+// - Optional enhanced metadata (M-DX1.11)
 type BuiltinSpec struct {
+	// === Core Metadata (v0.3.10 - Required) ===
 	Module  string            // Module path (e.g., "std/net", "std/io")
 	Name    string            // Builtin name with _ prefix (e.g., "_net_httpRequest")
 	NumArgs int               // Number of arguments (for arity checking)
@@ -24,6 +26,11 @@ type BuiltinSpec struct {
 	Effect  string            // "" for pure functions, "Net"/"IO"/"FS" for effects
 	Type    func() types.Type // Type signature constructor (must return non-nil)
 	Impl    EffectImpl        // Implementation function
+
+	// === Enhanced Metadata (v0.3.15+ - Optional) ===
+	// All fields in Metadata are optional for backward compatibility.
+	// See internal/builtins/metadata.go for field documentation.
+	Metadata *BuiltinMetadata // Enhanced documentation and versioning info
 }
 
 // specRegistry holds all registered builtin specifications

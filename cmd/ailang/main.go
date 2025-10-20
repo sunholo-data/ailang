@@ -798,13 +798,22 @@ func runBuiltins() {
 		subcommand = flag.Arg(1)
 	}
 
-	if subcommand != "list" {
-		fmt.Println("Usage: ailang builtins list [--by-effect | --by-module]")
+	switch subcommand {
+	case "list":
+		runBuiltinsList()
+	case "check-migration":
+		runBuiltinsCheckMigration()
+	default:
+		fmt.Println("Usage: ailang builtins <subcommand>")
 		fmt.Println()
 		fmt.Println("Available subcommands:")
-		fmt.Println("  list    List all registered builtins")
+		fmt.Println("  list              List all registered builtins")
+		fmt.Println("  check-migration   Validate that all builtins have been migrated")
 		os.Exit(1)
 	}
+}
+
+func runBuiltinsList() {
 
 	// Parse additional flags for list command
 	listFlags := flag.NewFlagSet("list", flag.ExitOnError)
@@ -906,5 +915,30 @@ func sortStrings(s []string) {
 				s[j], s[j+1] = s[j+1], s[j]
 			}
 		}
+	}
+}
+
+// runBuiltinsCheckMigration validates that all builtins have been migrated
+func runBuiltinsCheckMigration() {
+	// Get current working directory as project root
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to get working directory: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Run migration validation
+	report, err := builtins.ValidateMigration(projectRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: migration validation failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Display report
+	fmt.Println(builtins.FormatReport(report))
+
+	// Exit with error code if migration is incomplete
+	if !report.IsClean {
+		os.Exit(1)
 	}
 }

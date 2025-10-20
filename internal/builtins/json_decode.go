@@ -26,6 +26,30 @@ func registerJSONDecode() {
 		IsPure:  true,
 		Type:    makeJSONDecodeType,
 		Impl:    jsonDecodeImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Parse a JSON string into a Json ADT value",
+			LongDesc: `Parses a JSON string using Go's encoding/json package and converts it to AILANG's Json algebraic data type.
+Supports all JSON types: objects, arrays, strings, numbers, booleans, and null.
+Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.`,
+			Params: []ParamDoc{
+				{Name: "input", Description: "JSON string to parse"},
+			},
+			Returns: "Result[Json, string] - Ok(Json) on success, Err(error message) on invalid JSON",
+			Examples: []Example{
+				{Code: `_json_decode("{\"name\":\"Alice\",\"age\":30}")`, Description: "Returns Ok(JObject(...))"},
+				{Code: `_json_decode("[1,2,3]")`, Description: "Returns Ok(JArray([JNumber(1.0), JNumber(2.0), JNumber(3.0)]))"},
+				{Code: `_json_decode("\"hello\"")`, Description: "Returns Ok(JString(\"hello\"))"},
+				{Code: `_json_decode("42")`, Description: "Returns Ok(JNumber(42.0))"},
+				{Code: `_json_decode("true")`, Description: "Returns Ok(JBool(true))"},
+				{Code: `_json_decode("null")`, Description: "Returns Ok(JNull)"},
+				{Code: `_json_decode("{invalid}")`, Description: "Returns Err(\"invalid json: ...\")"},
+			},
+			SeeAlso: []string{"std/json.encode", "std/json module"},
+			Since:     "v0.2.0",
+			Stability: StabilityStable,
+			Tags:      []string{"json", "parsing", "deserialization", "data", "result"},
+			Category:  "json",
+		},
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _json_decode: %v", err))
