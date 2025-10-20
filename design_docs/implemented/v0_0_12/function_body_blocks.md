@@ -1,9 +1,9 @@
 # Function Body Block Expressions
 
-**Status**: 📋 PLANNED
+**Status**: ✅ IMPLEMENTED (v0.0.12)
 **Priority**: P0 (HIGH - Usability)
-**Estimated Effort**: ~150 LOC, 4-6 hours
-**Target Release**: v0.3.6 or v0.4.0
+**Actual Effort**: ~150 LOC
+**Implemented**: 2025-10-02
 **Created**: 2025-10-13
 
 ---
@@ -347,11 +347,28 @@ Re-run M-EVAL benchmarks - expect improvements in:
 
 ## Implementation Checklist
 
-- [ ] Modify `parseFuncDecl()` to support both forms
-- [ ] Add parser tests for block-form functions
-- [ ] Create example file demonstrating both syntaxes
-- [ ] Update teaching prompt (prompts/v0.3.0.md)
-- [ ] Run full test suite
-- [ ] Run M-EVAL validation
-- [ ] Update CHANGELOG.md
-- [ ] Update README.md with new syntax
+- [x] Modify `parseFuncDecl()` to support both forms (parser_decl.go:451-479)
+- [x] Add parser tests for block-form functions
+- [x] Create example file demonstrating both syntaxes (examples/block_demo.ail)
+- [x] Update teaching prompt (prompts/v0.3.8.md)
+- [x] Run full test suite
+- [x] Run M-EVAL validation
+- [x] Update CHANGELOG.md (v0.0.12 entry)
+- [x] Update README.md with new syntax
+
+## Implementation Notes
+
+**Implemented in**: v0.0.12 (2025-10-02)
+
+**Implementation location**: `internal/parser/parser_decl.go` lines 451-479
+
+The implementation exactly matches the design:
+- Detects equation form (`=`) vs block form (`{`)
+- Reuses `parseFunctionBody()` for block parsing
+- Both forms produce identical AST structure (wrapped in Block)
+- Fully backward compatible
+
+**Examples in codebase**: 10+ examples use block syntax including:
+- `examples/block_demo.ail` - Demonstrates both forms
+- `examples/ai_call.ail` - Real-world usage
+- `examples/block_recursion.ail` - Multi-statement blocks
