@@ -18,14 +18,41 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--json" {
-		verifyExamplesJSON()
-	} else if len(os.Args) > 1 && os.Args[1] == "--markdown" {
+	// Parse flags
+	allExamples := false
+	threshold := 0.0
+	format := "plain"
+
+	for i := 1; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--json":
+			format = "json"
+		case "--markdown":
+			format = "markdown"
+		case "--all":
+			allExamples = true
+		case "--threshold":
+			if i+1 < len(os.Args) {
+				fmt.Sscanf(os.Args[i+1], "%f", &threshold)
+				i++
+			}
+		}
+	}
+
+	// Set global flag for findAllExamples
+	useAllExamples = allExamples
+
+	switch format {
+	case "json":
+		verifyExamplesJSON(threshold)
+	case "markdown":
 		verifyExamplesMarkdown()
-	} else {
-		verifyExamplesPlain()
+	default:
+		verifyExamplesPlain(threshold)
 	}
 }
+
+var useAllExamples = false
 
 func runExample(filename string) reporttypes.ExampleResult {
 	start := time.Now()
@@ -147,9 +174,14 @@ done:
 	return result
 }
 
-// findAllExamples finds all .ail files in examples/runnable/ directory
-// Only runnable examples are verified by CI (v0.3.14+)
+// findAllExamples finds all .ail files in examples/ directory
+// By default, only checks examples/runnable/ (CI mode)
+// With --all flag, checks all example directories
 func findAllExamples() ([]string, error) {
+	if useAllExamples {
+		return findAllExamplesLegacy()
+	}
+
 	var files []string
 	runnableDir := filepath.Join("examples", "runnable")
 
@@ -187,7 +219,7 @@ func findAllExamplesLegacy() ([]string, error) {
 	return files, err
 }
 
-func verifyExamplesPlain() {
+func verifyExamplesPlain(threshold float64) {
 	files, err := findAllExamples()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
@@ -226,18 +258,35 @@ func verifyExamplesPlain() {
 		}
 	}
 
+	total := passed + failed + skipped
+	passRate := 0.0
+	if total > 0 {
+		passRate = float64(passed) / float64(total) * 100.0
+	}
+
 	fmt.Println("\nSummary:")
-	fmt.Printf("  Total: %d\n", passed+failed+skipped)
+	fmt.Printf("  Total: %d\n", total)
 	fmt.Printf("  Passed: %d\n", passed)
 	fmt.Printf("  Failed: %d\n", failed)
 	fmt.Printf("  Skipped: %d\n", skipped)
+
+	// One-line summary (useful for CI)
+	fmt.Printf("\nExamples: %d/%d passed (%.1f%%)\n", passed, total, passRate)
+
+	// Threshold check
+	if threshold > 0 && passRate < threshold {
+		fmt.Fprintf(os.Stderr, "\n❌ FAIL: Pass rate %.1f%% is below threshold %.1f%%\n", passRate, threshold)
+		os.Exit(1)
+	} else if threshold > 0 {
+		fmt.Printf("✅ PASS: Pass rate %.1f%% meets threshold %.1f%%\n", passRate, threshold)
+	}
 
 	if failed > 0 {
 		os.Exit(1)
 	}
 }
 
-func verifyExamplesJSON() {
+func verifyExamplesJSON(threshold float64) {
 	files, err := findAllExamples()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
@@ -273,6 +322,17 @@ func verifyExamplesJSON() {
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(report); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Threshold check
+	passRate := 0.0
+	if report.TotalExamples > 0 {
+		passRate = float64(report.Passed) / float64(report.TotalExamples) * 100.0
+	}
+
+	if threshold > 0 && passRate < threshold {
+		fmt.Fprintf(os.Stderr, "Pass rate %.1f%% is below threshold %.1f%%\n", passRate, threshold)
 		os.Exit(1)
 	}
 

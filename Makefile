@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
+.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
 
 # Binary name
 BINARY=ailang
@@ -158,12 +158,21 @@ quick-install:
 	@go install ./cmd/ailang
 	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
 
-# Verify all examples
+# Verify all examples (CI mode - only checks examples/runnable/)
 verify-examples: build
 	@echo "Verifying examples..."
 	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
 	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
 	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
+
+# Verify ALL examples (all directories) with threshold gate
+verify-examples-all: build
+	@echo "Verifying all examples with threshold gate..."
+	@go run ./scripts/verify_examples.go --all --threshold 60
+
+# Quick example status (one-line summary)
+examples-status: build
+	@go run ./scripts/verify_examples.go --all 2>&1 | grep "Examples:"
 
 # Test operator lowering (golden tests)
 test-lowering: build
