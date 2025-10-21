@@ -42,6 +42,33 @@ else
     GAP_TEXT=""
 fi
 
+# Find previous version in history and calculate comparison
+PREV_VERSION=$(jq -r '.history | sort_by(.timestamp) | reverse | .[1].version // "none"' "$JSON_FILE" 2>/dev/null || echo "none")
+COMPARISON_TEXT="[Add comparison to previous version, e.g., \"+3.5% AILANG improvement from v0.3.X\"]"
+
+if [[ "$PREV_VERSION" != "none" ]] && [[ "$PREV_VERSION" != "null" ]] && [[ "$AILANG_RATE" != "N/A" ]]; then
+    # Try to get previous AILANG success rate (handle both old and new JSON formats)
+    # Note: In history, .languages is a string ("ailang,python"), data is in .languageStats
+    PREV_AILANG_RATE=$(jq -r --arg v "$PREV_VERSION" '
+        .history[] | select(.version == $v) |
+        .languageStats.ailang.success_rate // null
+    ' "$JSON_FILE" 2>/dev/null || echo "null")
+
+    if [[ "$PREV_AILANG_RATE" != "null" ]] && [[ "$PREV_AILANG_RATE" != "N/A" ]]; then
+        PREV_AILANG_PCT=$(echo "$PREV_AILANG_RATE * 100" | bc -l | xargs printf "%.1f")
+        DIFF=$(echo "($AILANG_RATE - $PREV_AILANG_RATE) * 100" | bc -l | xargs printf "%.1f")
+
+        # Format comparison text
+        if (( $(echo "$DIFF > 0" | bc -l) )); then
+            COMPARISON_TEXT="+${DIFF}% AILANG improvement from $PREV_VERSION (${PREV_AILANG_PCT}% → ${AILANG_PCT}%)"
+        elif (( $(echo "$DIFF < 0" | bc -l) )); then
+            COMPARISON_TEXT="${DIFF}% AILANG regression from $PREV_VERSION (${PREV_AILANG_PCT}% → ${AILANG_PCT}%)"
+        else
+            COMPARISON_TEXT="No change from $PREV_VERSION (${AILANG_PCT}%)"
+        fi
+    fi
+fi
+
 # Output CHANGELOG template
 echo "=== CHANGELOG.md Template ==="
 echo
@@ -55,7 +82,7 @@ cat << EOF
 - **Python**: ${PYTHON_PCT}% - Baseline for comparison
 ${GAP_TEXT:+- **$GAP_TEXT}
 
-**Comparison**: [Add comparison to previous version, e.g., "+3.5% AILANG improvement from v0.3.X"]
+**Comparison**: $COMPARISON_TEXT
 
 EOF
 
