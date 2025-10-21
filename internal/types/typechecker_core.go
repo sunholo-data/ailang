@@ -22,6 +22,7 @@ type CoreTypeChecker struct {
 	trackInstantiations bool                           // Whether to track instantiations
 	varCounter          int                            // Counter for generating fresh variable names
 	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
+	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -99,6 +100,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		CoreTI:              NewCoreTypeInfo(),
 	}
 }
 
@@ -116,6 +118,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		CoreTI:              NewCoreTypeInfo(),
 	}
 }
 
@@ -362,61 +365,76 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 
 // inferCore performs type inference on Core expressions
 func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) (typedast.TypedNode, *TypeEnv, error) {
+	var typedNode typedast.TypedNode
+	var env *TypeEnv
+	var err error
+
 	switch e := expr.(type) {
 	case *core.Lit:
-		return tc.inferLit(ctx, e)
+		typedNode, env, err = tc.inferLit(ctx, e)
 
 	case *core.Var:
-		return tc.inferVar(ctx, e)
+		typedNode, env, err = tc.inferVar(ctx, e)
 
 	case *core.VarGlobal:
-		return tc.inferVarGlobal(ctx, e)
+		typedNode, env, err = tc.inferVarGlobal(ctx, e)
 
 	case *core.Lambda:
-		return tc.inferLambda(ctx, e)
+		typedNode, env, err = tc.inferLambda(ctx, e)
 
 	case *core.Let:
-		return tc.inferLet(ctx, e)
+		typedNode, env, err = tc.inferLet(ctx, e)
 
 	case *core.LetRec:
-		return tc.inferLetRec(ctx, e)
+		typedNode, env, err = tc.inferLetRec(ctx, e)
 
 	case *core.App:
-		return tc.inferApp(ctx, e)
+		typedNode, env, err = tc.inferApp(ctx, e)
 
 	case *core.If:
-		return tc.inferIf(ctx, e)
+		typedNode, env, err = tc.inferIf(ctx, e)
 
 	case *core.BinOp:
-		return tc.inferBinOp(ctx, e)
+		typedNode, env, err = tc.inferBinOp(ctx, e)
 
 	case *core.UnOp:
-		return tc.inferUnOp(ctx, e)
+		typedNode, env, err = tc.inferUnOp(ctx, e)
 
 	case *core.Record:
-		return tc.inferRecord(ctx, e)
+		typedNode, env, err = tc.inferRecord(ctx, e)
 
 	case *core.RecordAccess:
-		return tc.inferRecordAccess(ctx, e)
+		typedNode, env, err = tc.inferRecordAccess(ctx, e)
 
 	case *core.RecordUpdate:
-		return tc.inferRecordUpdate(ctx, e)
+		typedNode, env, err = tc.inferRecordUpdate(ctx, e)
 
 	case *core.List:
-		return tc.inferList(ctx, e)
+		typedNode, env, err = tc.inferList(ctx, e)
 
 	case *core.Tuple:
-		return tc.inferTuple(ctx, e)
+		typedNode, env, err = tc.inferTuple(ctx, e)
 
 	case *core.Match:
-		return tc.inferMatch(ctx, e)
+		typedNode, env, err = tc.inferMatch(ctx, e)
 
 	case *core.Intrinsic:
-		return tc.inferIntrinsic(ctx, e)
+		typedNode, env, err = tc.inferIntrinsic(ctx, e)
 
 	default:
 		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
 	}
+
+	// If inference succeeded, store the type in CoreTI for operator lowering
+	if err == nil && typedNode != nil && expr != nil {
+		// Get the inferred type from the typed node
+		if inferredType, ok := typedNode.GetType().(Type); ok {
+			// Store mapping: Core NodeID → Type (principal type after inference)
+			tc.CoreTI.Set(expr.ID(), inferredType)
+		}
+	}
+
+	return typedNode, env, err
 }
 
 // formatErrors formats all collected errors
