@@ -1,5 +1,5 @@
 -- Import test: multiple imports from stdlib
-module examples/v3_3/imports
+module examples/snippets/v3_3/imports
 
 import std/io (println, print)
 

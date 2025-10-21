@@ -346,9 +346,9 @@ flag-broken: verify-examples
 test-imports-success: build
 	@echo "== Testing successful imports =="
 	@echo "  → imports_basic.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/snippets/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
 	@echo "  → imports.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/snippets/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
 	@echo "✓ Successful imports work"
 
 # Test that error cases produce correct JSON output
@@ -366,7 +366,7 @@ regen-import-error-goldens: build
 	@mkdir -p goldens
 	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
 	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
-	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
+	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/snippets/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
 	@echo "✓ Golden files regenerated"
 
 # Test REPL/file parity for imports
