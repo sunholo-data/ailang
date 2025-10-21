@@ -25,18 +25,11 @@ fi
 echo "Updating dashboard for $VERSION..."
 echo
 
-# Generate Docusaurus markdown (suppress progress stderr)
-echo "1/5 Generating Docusaurus markdown..."
-if ailang eval-report "$RESULTS_DIR" "$VERSION" --format=docusaurus 2>/dev/null > "$MARKDOWN_FILE"; then
-    echo "  ✓ Written to $MARKDOWN_FILE"
-else
-    echo "  ✗ Failed to generate markdown" >&2
-    exit 1
-fi
-echo
+# NOTE: We do NOT regenerate performance.md - it's a static template with React components
+# The React components read data from latest.json, so we only update the JSON file
 
 # Generate JSON with history preservation (writes to docs/static/benchmarks/latest.json automatically)
-echo "2/5 Generating dashboard JSON with history..."
+echo "1/3 Generating dashboard JSON with history..."
 if ailang eval-report "$RESULTS_DIR" "$VERSION" --format=json > /dev/null; then
     echo "  ✓ Written to $JSON_FILE (history preserved)"
 else
@@ -46,7 +39,7 @@ fi
 echo
 
 # Validate JSON (version in JSON matches what we passed)
-echo "3/5 Validating JSON..."
+echo "2/3 Validating JSON..."
 if VERSION_CHECK=$(jq -r '.version' "$JSON_FILE" 2>/dev/null) && [[ "$VERSION_CHECK" == "$VERSION" ]]; then
     SUCCESS_RATE=$(jq -r '.aggregates.finalSuccess' "$JSON_FILE" 2>/dev/null)
     echo "  ✓ Version: $VERSION_CHECK"
@@ -58,7 +51,7 @@ fi
 echo
 
 # Clear Docusaurus cache
-echo "4/5 Clearing Docusaurus cache..."
+echo "3/3 Clearing Docusaurus cache..."
 if (cd docs && npm run clear > /dev/null 2>&1); then
     echo "  ✓ Cache cleared"
 else
@@ -67,15 +60,17 @@ fi
 echo
 
 # Summary
-echo "5/5 Summary"
-echo "  ✓ Dashboard updated for $VERSION"
-echo "  ✓ Markdown: $MARKDOWN_FILE"
-echo "  ✓ JSON: $JSON_FILE"
+echo "✓ Dashboard JSON updated for $VERSION"
+echo "  Data file: $JSON_FILE"
+echo "  Template: $MARKDOWN_FILE (static - not modified)"
 echo
 echo "Next steps:"
 echo "  1. Test locally: cd docs && npm start"
 echo "  2. Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
-echo "  3. Verify timeline shows $VERSION"
-echo "  4. Commit: git add $MARKDOWN_FILE $JSON_FILE"
+echo "  3. Verify radar charts and timeline show $VERSION"
+echo "  4. Commit: git add $JSON_FILE"
 echo "  5. Commit: git commit -m 'Update benchmark dashboard for $VERSION'"
 echo "  6. Push: git push"
+echo
+echo "Note: performance.md is a static template with React components."
+echo "      The components read data from latest.json - no need to regenerate it."
