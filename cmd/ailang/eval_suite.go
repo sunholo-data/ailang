@@ -338,6 +338,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 
 	// Generate prompt
 	var prompt string
+	var actualPromptVersion string
 	if promptVersion != "" {
 		// Explicit version specified via --prompt-version flag
 		loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
@@ -349,6 +350,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			return false, fmt.Errorf("failed to load prompt version: %w", err)
 		}
 		prompt = customPrompt
+		actualPromptVersion = promptVersion
 		if spec.TaskPrompt != "" {
 			prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 		}
@@ -366,6 +368,8 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 				return false, fmt.Errorf("failed to load active prompt: %w", err)
 			}
 			prompt = activePrompt
+			// Track the actual version used from registry
+			actualPromptVersion = loader.GetActiveVersionID()
 			if spec.TaskPrompt != "" {
 				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 			}
@@ -381,8 +385,8 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 	// Execute with repair runner
 	ctx := context.Background()
 	repairRunner := eval_harness.NewRepairRunner(agent, runner, spec, timeout, selfRepair)
-	if promptVersion != "" {
-		repairRunner.SetPromptVersion(promptVersion)
+	if actualPromptVersion != "" {
+		repairRunner.SetPromptVersion(actualPromptVersion)
 	}
 
 	metrics, err := repairRunner.Run(ctx, prompt)

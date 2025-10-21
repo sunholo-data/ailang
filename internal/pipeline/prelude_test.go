@@ -42,8 +42,8 @@ export func main(x: int) -> () ! {IO} = print("hello")`,
 			expected: false,
 		},
 		{
-			name: "empty module",
-			code: `module test`,
+			name:     "empty module",
+			code:     `module test`,
 			expected: false,
 		},
 	}
@@ -200,8 +200,8 @@ func TestIsEntryModule(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "nil interface",
-			iface: nil,
+			name:     "nil interface",
+			iface:    nil,
 			expected: false,
 		},
 		{

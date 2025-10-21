@@ -115,6 +115,22 @@ func (l *PromptLoader) GetActivePrompt() (string, error) {
 	return l.LoadPrompt(versionID)
 }
 
+// GetActiveVersionID returns the active version ID (resolving "latest" if needed)
+func (l *PromptLoader) GetActiveVersionID() string {
+	if l.registry.Active == "" {
+		return ""
+	}
+
+	versionID := l.registry.Active
+
+	// Handle "latest" special value - find most recent version
+	if versionID == "latest" {
+		return l.findLatestVersion()
+	}
+
+	return versionID
+}
+
 // findLatestVersion returns the most recent version ID by comparing creation dates
 func (l *PromptLoader) findLatestVersion() string {
 	var latest string
