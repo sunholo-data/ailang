@@ -69,6 +69,7 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ### Major Milestones
 
+- **v0.3.16 (Oct 2025)**: Entry-Module Prelude - Automatic `print` builtin for benchmarks (AI-First DX)
 - **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes
 - **v0.3.12 (Oct 2025)**: Recovery Release - `show()` builtin restored (recovers 51% of benchmarks)
 - **v0.3.11 (Oct 2025)**: Critical row unification fix
@@ -280,9 +281,10 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-27%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/badge/examples-61%2F88%20passing-yellow.svg)
+![Runnable](https://img.shields.io/badge/runnable-27%2F27%20passing-brightgreen.svg)
 
-**27/27 examples passing (100%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**61/88 examples passing (69.3%)** - All 27 production-ready examples in `examples/runnable/` pass. Additional examples in `snippets/`, `tests/`, and `experimental/` directories are at various stages of completion.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
