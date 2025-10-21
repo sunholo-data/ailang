@@ -14,6 +14,7 @@ type InferenceContext struct {
 	freshCounter         int
 	path                 []string          // For error reporting
 	qualifiedConstraints []ClassConstraint // Non-ground constraints for qualified types
+	TypeInfo             TypeInfo          // Maps Surface AST expressions to their inferred types (principal types)
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -61,6 +62,7 @@ func NewInferenceContext() *InferenceContext {
 		constraints:  []TypeConstraint{},
 		freshCounter: 0,
 		path:         []string{},
+		TypeInfo:     NewTypeInfo(),
 	}
 }
 

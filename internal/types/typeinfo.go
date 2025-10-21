@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/core"
 )
 
 // TypeInfo maps AST expression nodes to their inferred types (principal types after generalization)
@@ -38,4 +39,54 @@ func (ti TypeInfo) Has(expr ast.Expr) bool {
 // NewTypeInfo creates a new TypeInfo map
 func NewTypeInfo() TypeInfo {
 	return make(TypeInfo)
+}
+
+// CoreTypeInfo maps Core expression NodeIDs to their inferred types (principal types after generalization)
+// This is populated during Core type checking and used during operator lowering
+type CoreTypeInfo map[uint64]Type
+
+// Must returns the type for the given Core NodeID, or panics with a helpful error if not found
+func (cti CoreTypeInfo) Must(nodeID uint64) Type {
+	if t, ok := cti[nodeID]; ok {
+		return t
+	}
+	panic(fmt.Sprintf("CoreTypeInfo.Must: no type found for Core NodeID %d\nThis is likely a compiler bug. The typechecker should have populated CoreTypeInfo for all Core expressions.", nodeID))
+}
+
+// Get returns the type for the given Core NodeID and a boolean indicating if it was found
+func (cti CoreTypeInfo) Get(nodeID uint64) (Type, bool) {
+	t, ok := cti[nodeID]
+	return t, ok
+}
+
+// Set stores a type for the given Core NodeID
+func (cti CoreTypeInfo) Set(nodeID uint64, t Type) {
+	cti[nodeID] = t
+}
+
+// Has checks if a type exists for the given Core NodeID
+func (cti CoreTypeInfo) Has(nodeID uint64) bool {
+	_, ok := cti[nodeID]
+	return ok
+}
+
+// GetForExpr is a convenience method to get the type for a Core expression
+func (cti CoreTypeInfo) GetForExpr(expr core.CoreExpr) (Type, bool) {
+	if expr == nil {
+		return nil, false
+	}
+	return cti.Get(expr.ID())
+}
+
+// MustForExpr is a convenience method that panics if the type is not found
+func (cti CoreTypeInfo) MustForExpr(expr core.CoreExpr) Type {
+	if expr == nil {
+		panic("CoreTypeInfo.MustForExpr: nil expression")
+	}
+	return cti.Must(expr.ID())
+}
+
+// NewCoreTypeInfo creates a new CoreTypeInfo map
+func NewCoreTypeInfo() CoreTypeInfo {
+	return make(CoreTypeInfo)
 }

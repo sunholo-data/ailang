@@ -122,3 +122,99 @@ func TestTypeInfo_PointerIdentity(t *testing.T) {
 		t.Errorf("TypeInfo should find expression by pointer identity")
 	}
 }
+
+// CoreTypeInfo tests
+
+func TestCoreTypeInfo_MustReturnsTypeWhenExists(t *testing.T) {
+	cti := NewCoreTypeInfo()
+	intType := &TCon{Name: "int"}
+	cti.Set(42, intType)
+
+	result := cti.Must(42)
+	if result != intType {
+		t.Errorf("Must() returned wrong type: got %v, want %v", result, intType)
+	}
+}
+
+func TestCoreTypeInfo_MustPanicsWhenMissing(t *testing.T) {
+	cti := NewCoreTypeInfo()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Must() did not panic for missing NodeID")
+		} else {
+			msg := r.(string)
+			if msg == "" {
+				t.Errorf("Must() panic message is empty")
+			}
+			t.Logf("Panic message: %s", msg)
+		}
+	}()
+
+	cti.Must(99)
+}
+
+func TestCoreTypeInfo_GetReturnsTypeAndTrue(t *testing.T) {
+	cti := NewCoreTypeInfo()
+	strType := &TCon{Name: "string"}
+	cti.Set(10, strType)
+
+	result, ok := cti.Get(10)
+	if !ok {
+		t.Errorf("Get() returned false for existing NodeID")
+	}
+	if result != strType {
+		t.Errorf("Get() returned wrong type: got %v, want %v", result, strType)
+	}
+}
+
+func TestCoreTypeInfo_GetReturnsFalseWhenMissing(t *testing.T) {
+	cti := NewCoreTypeInfo()
+
+	result, ok := cti.Get(99)
+	if ok {
+		t.Errorf("Get() returned true for missing NodeID")
+	}
+	if result != nil {
+		t.Errorf("Get() returned non-nil type for missing NodeID: %v", result)
+	}
+}
+
+func TestCoreTypeInfo_Has(t *testing.T) {
+	cti := NewCoreTypeInfo()
+	cti.Set(5, &TCon{Name: "bool"})
+
+	if !cti.Has(5) {
+		t.Errorf("Has() returned false for existing NodeID")
+	}
+	if cti.Has(99) {
+		t.Errorf("Has() returned true for missing NodeID")
+	}
+}
+
+func TestCoreTypeInfo_Set(t *testing.T) {
+	cti := NewCoreTypeInfo()
+	floatType := &TCon{Name: "float"}
+
+	cti.Set(20, floatType)
+
+	if !cti.Has(20) {
+		t.Errorf("Set() did not store type")
+	}
+
+	result := cti.Must(20)
+	if result != floatType {
+		t.Errorf("Set() stored wrong type: got %v, want %v", result, floatType)
+	}
+}
+
+func TestCoreTypeInfo_NewCoreTypeInfo(t *testing.T) {
+	cti := NewCoreTypeInfo()
+
+	if cti == nil {
+		t.Errorf("NewCoreTypeInfo() returned nil")
+	}
+	if len(cti) != 0 {
+		t.Errorf("NewCoreTypeInfo() returned non-empty map: %d entries", len(cti))
+	}
+}

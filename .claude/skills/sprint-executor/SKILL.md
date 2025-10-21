@@ -277,6 +277,15 @@ Test coverage: <percentage>"
 
 ## Resources
 
+### Developer Tools Reference
+See [`resources/developer_tools.md`](resources/developer_tools.md) for comprehensive reference of all available make targets, ailang commands, scripts, and workflows. Load this when you need to:
+- Know which test targets to use
+- Update golden files after parser changes
+- Verify stdlib changes
+- Run evals or compare baselines
+- Troubleshoot build/test/lint issues
+- Find the right tool for any development task
+
 ### Milestone Checklist
 See [`resources/milestone_checklist.md`](resources/milestone_checklist.md) for complete step-by-step checklist per milestone.
 
