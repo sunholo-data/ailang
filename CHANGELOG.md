@@ -2,6 +2,38 @@
 
 ## [v0.3.16] - 2025-10-21
 
+### Examples: Lambda Expressions Refactor
+
+**User Impact**: Improved lambda expression examples with focused, runnable tutorials
+
+**Added**:
+- ✅ **6 new focused lambda examples** (`examples/snippets/showcase/lambdas_*.ail`)
+  - `lambdas_basic.ail` - Basic syntax, identity, arithmetic, binary lambdas (49 LOC)
+  - `lambdas_curried.ail` - Currying, partial application, order matters (45 LOC)
+  - `lambdas_closures.ail` - Environment capture, closure factories (44 LOC)
+  - `lambdas_higher_order.ail` - Composition, map-like, function returning function (49 LOC)
+  - `lambdas_records.ail` - Creating/accessing/updating records with lambdas (59 LOC)
+  - `lambdas_advanced.ail` - Flip, Church numerals, CPS, combinators (51 LOC)
+  - All files runnable with `ailang run --caps IO --entry main`
+  - Total: 297 LOC of working examples
+
+**Changed**:
+- ✅ **Archived original lambda_expressions.ail** (moved to `examples/archive/`)
+  - Original file was 187 LOC of tutorial-style let-in chains
+  - Didn't fit entry-module pattern (needed deep nesting or block expressions)
+  - Split into 6 focused, pedagogical examples instead
+
+**Rationale**:
+- Better discoverability (clear file names vs monolithic tutorial)
+- Each file is independently runnable and testable
+- Matches existing showcase structure
+- Easier to maintain and extend
+- More focused learning: one concept per file
+
+**Design Doc**: `design_docs/planned/v0_3_16/lambda-expressions-example-refactor.md` (moved to implemented)
+
+---
+
 ### M-DX2: Operator Development Experience Improvements
 
 **Developer Experience**: 67% faster polymorphic operator development (2h → 30-60min)

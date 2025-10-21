@@ -1,0 +1,40 @@
+-- Showcase: Basic Lambda Syntax
+-- This example demonstrates the fundamental lambda expression syntax in AILANG.
+module examples/snippets/showcase/lambdas_basic
+
+export func main() -> () ! {IO} =
+  let _ = print("=== Basic Lambda Syntax ===") in
+
+  -- Identity function: simplest possible lambda
+  let id = \x. x in
+  let _ = print("Identity function:") in
+  let _ = print("  id(42) = " ++ show(id(42))) in
+  let _ = print("  id(\"hello\") = " ++ show(id("hello"))) in
+
+  -- Simple arithmetic lambda
+  let add_one = \x. x + 1 in
+  let _ = print("") in
+  let _ = print("Simple arithmetic lambda:") in
+  let _ = print("  add_one(5) = " ++ show(add_one(5))) in
+  let _ = print("  add_one(10) = " ++ show(add_one(10))) in
+
+  -- Lambda with expression body
+  let double = \x. x * 2 in
+  let _ = print("") in
+  let _ = print("Lambda with multiplication:") in
+  let _ = print("  double(3) = " ++ show(double(3))) in
+  let _ = print("  double(7) = " ++ show(double(7))) in
+
+  -- More complex expression
+  let complex = \x. x * 2 + 1 in
+  let _ = print("") in
+  let _ = print("Complex expression:") in
+  let _ = print("  complex(3) = " ++ show(complex(3))) in
+  let _ = print("  complex(5) = " ++ show(complex(5))) in
+
+  -- Binary lambda (addition)
+  let add = \x. \y. x + y in
+  let _ = print("") in
+  let _ = print("Binary lambda (add):") in
+  let _ = print("  add(10)(20) = " ++ show(add(10)(20))) in
+  print("  add(5)(7) = " ++ show(add(5)(7)))
