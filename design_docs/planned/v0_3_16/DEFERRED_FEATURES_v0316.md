@@ -1,306 +1,209 @@
-# Deferred Features from Original Sprint Ticket
 
-**Original Ticket**: v0.3.12 Sprint - Benchmark Recovery + Deterministic Tooling
-**Date Created**: 2025-10-18
-**Reason for Split**: Scope too large (38 hours); split into Phase 1 (v0.3.14) and Phase 2 (v0.3.15)
+🧭 AILANG Deferred Features (Post-Vision Alignment)
 
-This document tracks features from the original sprint ticket that were deferred to future versions.
+Version: 2025-10-21
+Supersedes: design_docs/20251018_deferred_features.md
+Context: After Vision Benchmark adoption and AI-First Design Principles
 
----
+⸻
 
-## Original Sprint Scope
+1. Purpose
 
-**Full Original Ticket** (5 days, 38 hours):
+This document tracks deferred or re-scoped features after the Vision transition.
+Earlier sprints (v0.3.12–v0.3.15) were designed around human-developer ergonomics (e.g., LSP, fix-its, wildcard imports).
+AILANG is now formally repositioned as an AI-First deterministic language, optimized for agent collaboration, reproducibility, and low token entropy.
 
-| Component | Est. Time | Status | Target Version |
-|-----------|-----------|--------|----------------|
-| std/json.decode | 12h | ✅ Planned | v0.3.14 (Phase 1) |
-| CLI: normalize | 6h | ✅ Planned | v0.3.15 (Phase 2) |
-| CLI: suggest imports | 6h | ✅ Planned | v0.3.15 (Phase 2) |
-| CLI: apply | 4h | ✅ Planned | v0.3.15 (Phase 2) |
-| Schemas + golden tests | 4h | ✅ Planned | v0.3.15 (Phase 2) |
-| import M (*) syntax | 2h | ❌ Deferred | v0.3.16+ |
-| FX001 fix-it diagnostic | 2h | ❌ Deferred | v0.3.16+ |
-| CI integration | 2h | ✅ Planned | v0.3.15 (Phase 2) |
+⸻
 
-**Total Planned**: 34h (v0.3.14 + v0.3.15)
-**Total Deferred**: 4h (v0.3.16+)
+2. AI-First Design Filter
 
----
+Every feature must satisfy at least one of the following:
 
-## Deferred to v0.3.16+
+✅ Reduce syntactic entropy
+✅ Preserve semantic clarity
+✅ Increase determinism
+✅ Lower token cost
 
-### 1. Import Wildcard Syntax: `import M (*)`
+Features that exist solely for human convenience (e.g., IDE integrations, syntax sugar) are now secondary.
 
-**Original Spec**:
-- Allow `import std/io (*)` to import all exported symbols
-- Parser desugaring: expand `(*)` into explicit list at parse time
-- Estimated: 2 hours
+⸻
 
-**Why Deferred**:
-- Language feature (requires parser changes)
-- Not critical for benchmark recovery (explicit imports work fine)
-- Phase 2 (v0.3.15) already has substantial scope
-- Low ROI: Convenience feature, not functional blocker
+3. Updated Classification of Deferred Items
 
-**Implementation Notes** (when picked up):
-1. Modify parser to recognize `*` in import symbol list
-2. During elaboration, resolve module exports
-3. Expand `import M (*)` → `import M (f1, f2, f3, ...)` in AST
-4. No runtime changes needed (desugared at compile time)
+Feature	Old Version	New Classification	New Target	Rationale
+import M (*)	v0.3.16	🟡 Optional Ergonomics	v0.3.17	Convenience feature, minimal AI impact. Safe post-benchmark cleanup.
+FX001 Fix-It (! {IO})	v0.3.16	🟢 AI-DX Core	v0.3.17	Evolves into auto-capability inference; high value for token and DX reduction.
+LSP / Local Daemon	v0.4.0	🔴 Human-DX Only	⟶ Reframed as Agent Bridge (v0.4.0)	Replace human IDE loop with MCP/A2A AI protocol.
+Effect Composer	v0.4.1	🟢 AI-DX Core	v0.4.1	Enables auto-capability inference and minimal effect sets.
+Test Generator	v0.4.2	🟡 Training Aid	v0.4.2	Generates benchmarks & dataset examples; not runtime-critical.
+Extended JSON (Schema/Streaming)	v0.4.3	🟢 Runtime Capability	v0.4.3	Expands JSON support for structured reasoning and PPA data use cases.
 
-**Files to Change**:
-- `internal/parser/parser.go` - Recognize `*` token
-- `internal/elaborate/elaborate.go` - Expand wildcard
-- `internal/loader/loader.go` - Cache module exports
-- Tests: `internal/parser/import_test.go`
 
-**Design Doc**: Create `design_docs/planned/M-PARSER-IMPORT-WILDCARD.md` when scheduled
+⸻
 
----
+4. Integration with Vision Benchmarks
 
-### 2. FX001 Diagnostic Fix-It (Auto-Add Effect Annotations)
+Vision Benchmark	Required Feature	Status / Target
+Referential Transparency	Deterministic Builtins, normalize	✅ v0.3.15
+Canonical Code Structure	Prelude + Normalizer	✅ v0.3.16
+Multi-Agent Collaboration	Agent Bridge (MCP/A2A)	🔜 v0.4.0
+Token Efficiency	Auto-Capability Composer	🔜 v0.4.1
+Deterministic Replay	Canonical AST + Schema Verification	✅ v0.3.15
+AI Tool Interop	Agent Bridge Protocol (ABP)	🔜 v0.4.0
 
-**Original Spec**:
-- Add automatic `! {IO}` fix-it for FX001 diagnostic (missing effect annotation)
-- New entry in diagnostics registry
-- Estimated: 2 hours
 
-**Why Deferred**:
-- Requires diagnostic infrastructure enhancement (not yet mature)
-- Phase 1's `normalize` command will handle this for fragments (different approach)
-- Not critical for benchmark recovery (normalize handles it)
-- Better to wait for full diagnostic system redesign (v0.4.0?)
+⸻
 
-**Current Workaround**:
-- Use `ailang normalize` to infer and add effects (Phase 2, v0.3.15)
-- Manual annotation by developers
+5. Revised Roadmap Sequence
 
-**Implementation Notes** (when picked up):
-1. Extend `internal/errors/diagnostics.go` with fix-it support
-2. Add effect inference to diagnostic emission
-3. Generate JSON edit suggestions (compatible with `apply` command)
-4. IDE integration via LSP (v0.4.0+)
+Version	Focus	Core Deliverables	AI-First Impact
+v0.3.15	Deterministic Tooling	normalize, suggest, apply, schema gates	Deterministic transformation pipeline
+v0.3.16	Benchmark Parity	Entry-module prelude, parse fixes, CI gates	Minimal syntactic entropy for examples
+v0.3.17	Auto-Capability Inference	FX001 → effect composer prototype	Lower token cost, better AI inference
+v0.4.0	Multi-Agent Runtime	Agent Bridge (ABP) replacing LSP	Parallel AI coding, MCP/A2A compatible
+v0.4.1	Effect Composer	Static + dynamic capability inference	True auto-capability inference
+v0.4.2	Test Generator	Property-based synthesis	Model training, coverage expansion
+v0.4.3	Extended JSON	Schema validation + streaming	Larger datasets, structured inputs
+v0.4.4	Token Optimization	Canonical import pruning	Benchmark efficiency, minimal entropy
 
-**Files to Change**:
-- `internal/errors/diagnostics.go` - Fix-it infrastructure
-- `internal/types/effects.go` - Effect inference (reuse from normalize)
-- `internal/pipeline/pipeline.go` - Emit fix-it JSON
-- Tests: `internal/errors/diagnostics_test.go`
 
-**Design Doc**: Create `design_docs/planned/M-DIAG-FIXIT.md` when scheduled
+⸻
 
----
+6. Feature Details
 
-## Features Pushed to v0.4.0+ (Beyond Original Scope)
+🟡 Import Wildcard Syntax: import M (*)
 
-These were mentioned in the original ticket's "Next Sprint Preview" but not part of core scope:
+Purpose: Convenience for AI-generated imports; expands at parse time.
+Design:
+	•	Parser recognizes (*), elaborator replaces with full export list.
+	•	Deterministic (no runtime lookup).
+Reason for Defer: Parser churn not justified during benchmark stabilization.
+Target: v0.3.17 (post-benchmark).
 
-### 1. Local Daemon + LSP Bridge (v0.4.0)
+⸻
 
-**Description**: Long-running daemon for real-time tooling
+🟢 FX001 Diagnostic → Auto Capability Inference
 
-**Why v0.4.0**:
-- Requires stable CLI tools first (v0.3.15)
-- Needs LSP protocol implementation (large scope)
-- IDE integration is separate milestone
+Purpose: Replace static fix-it with effect inference engine.
+Design:
+	•	Detect missing effects from call graph.
+	•	Suggest or apply ! {E} automatically.
+	•	Integrate with normalize and apply.
+Value: Core AI-DX feature — AIs emit correct code without manual effect tuning.
+Target: v0.3.17–v0.4.1 (unified with Effect Composer).
 
-**Components**:
-- Daemon: `ailangd` - Long-running process
-- LSP server: JSON-RPC over stdio
-- IDE plugins: VSCode, Vim, Emacs
-- Real-time: normalize, suggest imports, diagnostics
+⸻
 
-**Estimated**: 10-15 days
+🔵 Agent Bridge (Replaces LSP)
 
----
+Purpose: AI-to-AI protocol for orchestration (MCP/A2A compatible).
+Design:
+	•	Deterministic JSON-RPC protocol.
+	•	Calls: normalize, suggest, apply, verify, eval.
+	•	Compatible with A2A & MCP protocol standards.
+Impact: Enables multi-agent collaboration, deterministic coding swarms.
+Target: v0.4.0.
 
-### 2. Effect Composer (v0.4.1)
+⸻
 
-**Description**: Auto-infer minimal effect sets from function bodies
+🟢 Effect Composer
 
-**Why v0.4.1**:
-- Requires complete effect system (v0.3.14 has basics)
-- Needs dependency analysis (which calls require which effects)
-- Complex algorithm (effect inference with constraints)
+Purpose: Infer minimal ! {} effect sets automatically.
+Example:
 
-**Example**:
-```ailang
--- User writes:
-func processFile(path: string) {
-  let content = readFile(path)  -- requires FS
-  println(content)              -- requires IO
+func process() {
+  let text = readFile("x")   -- requires FS
+  println(text)              -- requires IO
 }
+-- becomes:
+func process() -> () ! {IO, FS}
 
--- Composer infers:
-func processFile(path: string) -> () ! {IO, FS} { ... }
-```
+Target: v0.4.1.
+Impact: Core to AI code correctness and minimal capability exposure.
 
-**Estimated**: 5-7 days
+⸻
 
----
+🟡 Test Generator
 
-### 3. Test Generator (v0.4.2)
+Purpose: Generate property-based tests from type signatures for AI training data.
+Example:
+add(x,y) → commutativity, associativity, identity tests.
+Target: v0.4.2.
+Impact: AI training, benchmarking, and continuous self-validation.
 
-**Description**: Generate test cases from function signatures
+⸻
 
-**Why v0.4.2**:
-- Requires property-based testing framework (not implemented)
-- Needs type-driven generation (complex)
-- Lower priority than core features
+🟢 Extended JSON Features
 
-**Example**:
-```ailang
--- User writes:
-export func add(x: int, y: int) -> int { x + y }
+Purpose: Support for structured reasoning, large input streams, and schema validation.
+Scope:
+	•	Unicode escape sequences (\uXXXX)
+	•	Streaming decode
+	•	Schema validation
+	•	decodeInto[T] (typed decode)
+Target: v0.4.3.
+Impact: Enables structured data ingestion and analysis workloads.
 
--- Generator creates:
--- Property: add(x, y) == add(y, x)  (commutative)
--- Property: add(add(x, y), z) == add(x, add(y, z))  (associative)
--- Property: add(x, 0) == x  (identity)
-```
+⸻
 
-**Estimated**: 8-10 days
+7. Philosophical Principles for Future Sprints
 
----
+AI-First Design Principle:
+Every new feature must reduce syntactic entropy or improve deterministic replay.
 
-### 4. Extended JSON Features (v0.4.3+)
+Reject features that:
+- Exist solely for human convenience (IDE UX, syntax sugar)
+- Introduce nondeterminism in parsing, evaluation, or imports
+- Increase token cost per operation
 
-**Description**: Beyond basic encode/decode
 
-**Features Deferred**:
-- Unicode escape sequences: `\uXXXX` (v0.3.14 skips this)
-- Streaming JSON parser (for large files >1MB)
-- JSON Schema validation (validate JSON against schema)
-- Pretty-printing with indentation
-- `decodeInto[T]` - Type-safe decode directly into ADTs
+⸻
 
-**Why Deferred**:
-- MVP decode/encode is sufficient for benchmarks
-- Unicode escapes rarely used in practice
-- Streaming not needed (benchmark JSON <10KB)
-- Schema validation is advanced feature
+8. Decision Log
 
-**Estimated**: 3-5 days (when needed)
+Decision	Date	Summary
+Sprint Split (v0.3.12 → v0.3.15)	2025-10-18	Original 38-hour sprint split into JSON Decode (Phase 1) and Tooling (Phase 2).
+Vision Realignment	2025-10-21	Re-classified roadmap under AI-First DX and Vision benchmarks.
+Remove LSP / Replace with Agent Bridge	2025-10-21	LSP no longer relevant; AI agents use MCP/A2A protocols.
+Auto Capability Composer replaces FX001	2025-10-21	Fold diagnostic fix-it into capability inference engine.
 
----
 
-## Prioritization for Future Sprints
+⸻
 
-**Recommended Order**:
-1. ✅ **v0.3.14** (Phase 1): JSON Decode - **IMMEDIATE**
-2. ✅ **v0.3.15** (Phase 2): Deterministic Tooling - **NEXT**
-3. **v0.3.16**: Import Wildcard + Minor Ergonomics (1-2 days)
-4. **v0.4.0**: LSP + Daemon (10-15 days)
-5. **v0.4.1**: Effect Composer (5-7 days)
-6. **v0.4.2**: Test Generator (8-10 days)
-7. **v0.4.3**: Extended JSON (3-5 days)
+9. Future Tracking
+	•	Milestone: “v0.3.17 – AI-DX Ergonomics”
+	•	Issues to Create:
+	•	#AIDEX-17-001: Auto-capability inference prototype (FX001→Composer)
+	•	#AIDEX-17-002: Import wildcard syntax desugaring
+	•	#AIDEX-40-001: Agent Bridge Protocol (MCP/A2A)
+	•	#AIDEX-41-001: Static + dynamic effect composer
+	•	#AIDEX-42-001: Property-based test generator
+	•	#AIDEX-43-001: Extended JSON streaming/schema validation
 
-**Rationale**:
-- v0.3.14-15: Benchmark recovery is **critical** (enables AI evaluation)
-- v0.3.16: Low-hanging ergonomics (quick wins)
-- v0.4.0+: Infrastructure for production use (LSP, tooling maturity)
+⸻
 
----
+10. Summary
 
-## Decision Log
+Scope	Status	Category	Priority
+JSON Decode (v0.3.14)	✅ Done	Core	P0
+Deterministic Tooling (v0.3.15)	🏗️ In Progress	Core	P0
+Prelude + Benchmarks (v0.3.16)	✅ Done	Core	P0
+Import Wildcard + FX001	⏳ Planned (v0.3.17)	Ergonomic / AI-DX	P1
+Agent Bridge + Composer	🔜 v0.4.0 – v0.4.1	Core AI-DX	P0
+Test Generator / Extended JSON	🕓 v0.4.2 – v0.4.3	Optional Runtime	P2
 
-### Why Split Original Sprint?
 
-**Original Estimate**: 38 hours (4.75 days at 8h/day)
+⸻
 
-**Actual Constraints**:
-- Recent velocity: ~500-700 LOC/day (from v0.3.10-13 work)
-- Original scope: ~2,355 LOC (tooling) + ~1,145 LOC (JSON) = ~3,500 LOC
-- Timeline: 3,500 LOC ÷ 600 LOC/day = **5.8 days**
-- Risk: Single large release increases bug risk
+📘 References
+	•	design_docs/implemented/M-LANG-JSON-DECODE.md
+	•	design_docs/implemented/M-DX1-Developer-Experience.md
+	•	design_docs/planned/20251013_auto_caps_capability_inference.md
+	•	benchmarks/VISION_BENCHMARKS.md
+	•	prompts/v0.3.16.md (Entry-Module Prelude Prompt)
 
-**Decision** (2025-10-18):
-- **Phase 1 (v0.3.14)**: JSON Decode (2-3 days) - **Critical path**
-- **Phase 2 (v0.3.15)**: Tooling (3-4 days) - **Depends on Phase 1**
-- **Deferred (v0.3.16+)**: Import wildcard, FX001 fix-it (1-2 days) - **Nice-to-have**
+⸻
 
-**Benefits**:
-- ✅ Faster feedback loop (test JSON decode immediately)
-- ✅ Lower risk (smaller releases, easier to debug)
-- ✅ Better documentation (focused design docs)
-- ✅ Parallel work possible (tooling team can plan Phase 2 while Phase 1 executes)
-
-### Why Defer Import Wildcard?
-
-**Arguments For Deferring**:
-1. Not on critical path for benchmark recovery
-2. Explicit imports work fine (verbose but clear)
-3. Parser changes are risky (could break existing code)
-4. Low ROI (convenience feature, not functionality)
-
-**Arguments Against Deferring**:
-1. Would reduce AI-generated import boilerplate
-2. Only 2 hours (small scope)
-3. User ergonomics improvement
-
-**Decision**: Defer to v0.3.16
-- Reasoning: Phase 2 already has 3-4 days of work; adding parser changes increases risk
-- Mitigation: `suggest imports` command (Phase 2) auto-generates explicit imports
-
-### Why Defer FX001 Fix-It?
-
-**Arguments For Deferring**:
-1. Diagnostic system needs redesign (not mature yet)
-2. `normalize` command (Phase 2) handles this for fragments
-3. Manual annotation works for developers
-4. LSP integration (v0.4.0) is better venue for fix-its
-
-**Arguments Against Deferring**:
-1. Would improve DX for new users
-2. Only 2 hours (small scope)
-
-**Decision**: Defer to v0.3.16+
-- Reasoning: `normalize` provides same functionality for AI-generated code (main use case)
-- Better to do it right in v0.4.0 with full LSP support than patch it in v0.3.15
-
----
-
-## Tracking
-
-**Issue Tracker**: (If using GitHub Issues)
-- Create milestone: "v0.3.16 - Ergonomics"
-- Create issues:
-  - #XXX: Import wildcard syntax `import M (*)`
-  - #XXX: FX001 diagnostic fix-it (auto-add effects)
-
-**Design Docs**: (When scheduled)
-- `design_docs/planned/M-PARSER-IMPORT-WILDCARD.md`
-- `design_docs/planned/M-DIAG-FIXIT.md`
-
-**Dependencies**:
-- Import wildcard: None (can be done anytime)
-- FX001 fix-it: Depends on `normalize` command (v0.3.15)
-
----
-
-## Summary
-
-**Original Sprint Scope**: 38 hours across 8 components
-
-**Execution Plan**:
-- ✅ **v0.3.14** (Phase 1): JSON Decode (12h) - **Planned**
-- ✅ **v0.3.15** (Phase 2): Tooling (22h) - **Planned**
-- ❌ **v0.3.16+** (Deferred): Import wildcard + FX001 (4h) - **Future**
-
-**Rationale**: Focus on critical path (benchmark recovery) first, defer ergonomics.
-
-**Next Actions**:
-1. Execute Phase 1 (v0.3.14) - JSON Decode
-2. Validate benchmarks pass
-3. Execute Phase 2 (v0.3.15) - Deterministic Tooling
-4. Schedule v0.3.16 for deferred features (or skip to v0.4.0)
-
----
-
-## References
-
-- **Phase 1 Design**: design_docs/20251018/M-LANG-JSON-DECODE.md
-- **Phase 2 Design**: design_docs/planned/M-TOOLING-DETERMINISTIC.md
-- **Original Sprint Ticket**: /plan-sprint command arguments (2025-10-18)
-- **Velocity Data**: CHANGELOG.md (v0.3.10-13 entries)
+Summary:
+This document supersedes the original v0.3.12–15 sprint ticket and redefines all deferred features under the Vision-aligned AI-First philosophy.
+The next immediate step is v0.3.17: Auto Capability Inference — merging FX001, normalize, and effect composer logic into one unified inference path, paving the way for multi-agent parallel coding in v0.4.0.

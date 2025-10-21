@@ -32,8 +32,8 @@ var OperatorTable = map[core.IntrinsicOp]OpMapping{
 	core.OpGt: {Builtin: "gt", Types: []string{"Int", "Float", "String"}},
 	core.OpGe: {Builtin: "ge", Types: []string{"Int", "Float", "String"}},
 
-	// String operations
-	core.OpConcat: {Builtin: "concat", Types: []string{"String"}},
+	// String and List operations
+	core.OpConcat: {Builtin: "concat", Types: []string{"String", "List"}},
 
 	// Boolean operations (short-circuit, handled specially)
 	core.OpAnd: {Builtin: "and", Types: []string{"Bool"}},

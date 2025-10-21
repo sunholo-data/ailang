@@ -12,6 +12,7 @@ import (
 type OpLowerer struct {
 	typeEnv             *types.TypeEnv
 	resolvedConstraints map[uint64]*types.ResolvedConstraint // NodeID → resolved constraint
+	bindings            map[string]core.CoreExpr             // Variable name → bound expression
 	errors              []error
 }
 
@@ -20,6 +21,7 @@ func NewOpLowerer(typeEnv *types.TypeEnv) *OpLowerer {
 	return &OpLowerer{
 		typeEnv:             typeEnv,
 		resolvedConstraints: make(map[uint64]*types.ResolvedConstraint),
+		bindings:            make(map[string]core.CoreExpr),
 		errors:              []error{},
 	}
 }
@@ -64,6 +66,9 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 		return l.lowerIntrinsic(e)
 
 	case *core.Let:
+		// Track bindings before lowering (for type inference of concat)
+		l.bindings[e.Name] = e.Value
+
 		return &core.Let{
 			CoreNode: e.CoreNode,
 			Name:     e.Name,
@@ -269,9 +274,6 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		}
 	}
 
-	// For non-short-circuiting operations, recursively lower the arguments
-	args := l.lowerExprs(intrinsic.Args)
-
 	// Determine the type suffix from resolved constraints
 	var typeSuffix string
 
@@ -282,23 +284,48 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	} else {
 		// Fallback to heuristics if no constraint available
 		// This handles cases like OpNot, OpConcat that don't use type classes
+		// NOTE: Check ORIGINAL args before lowering, since lowering may transform them
 		switch intrinsic.Op {
 		case core.OpNot:
 			typeSuffix = "Bool"
 		case core.OpConcat:
-			typeSuffix = "String"
+			// Check if we have list literals - if so, it's list concatenation
+			// Follow variable bindings to find the actual value
+			if len(intrinsic.Args) > 0 {
+				arg := intrinsic.Args[0]
+
+				// If it's a variable, look up what it's bound to
+				if v, ok := arg.(*core.Var); ok {
+					if binding, exists := l.bindings[v.Name]; exists {
+						arg = binding
+					}
+				}
+
+				// Check if the actual bound value is a List
+				if _, ok := arg.(*core.List); ok {
+					typeSuffix = "List"
+				} else {
+					// Default to String for backward compatibility
+					typeSuffix = "String"
+				}
+			} else {
+				typeSuffix = "String"
+			}
 		default:
 			// Default to Int for backward compatibility
 			typeSuffix = "Int"
 
 			// Check if we have float literals as last resort
-			if len(args) > 0 {
-				if lit, ok := args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
+			if len(intrinsic.Args) > 0 {
+				if lit, ok := intrinsic.Args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
 					typeSuffix = "Float"
 				}
 			}
 		}
 	}
+
+	// For non-short-circuiting operations, recursively lower the arguments
+	args := l.lowerExprs(intrinsic.Args)
 
 	// Get the builtin name from the operator table
 	builtinName, err := GetBuiltinName(intrinsic.Op, typeSuffix)
@@ -348,6 +375,13 @@ func getTypeSuffixFromType(t types.Type) string {
 	case types.TString:
 		return "String"
 	default:
+		// Check if it's a List type
+		if app, ok := t.(*types.TApp); ok {
+			if con, ok := app.Constructor.(*types.TCon); ok && con.Name == "List" {
+				return "List"
+			}
+		}
+
 		// For complex types, try to extract from string representation
 		typeStr := t.String()
 		// Handle common cases like "Int", "Float", "Bool", "String"
@@ -362,6 +396,10 @@ func getTypeSuffixFromType(t types.Type) string {
 		}
 		if typeStr == "String" || typeStr == "string" {
 			return "String"
+		}
+		// Check for List in string form
+		if len(typeStr) > 5 && typeStr[:5] == "List[" {
+			return "List"
 		}
 		// Default to Int for unknown types (backward compatibility)
 		return "Int"

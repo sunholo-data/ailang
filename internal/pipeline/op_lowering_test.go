@@ -147,6 +147,14 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 		{"TFloat", types.TFloat, "Float"},
 		{"TBool", types.TBool, "Bool"},
 		{"TString", types.TString, "String"},
+		{
+			"List[Int]",
+			&types.TApp{
+				Constructor: &types.TCon{Name: "List"},
+				Args:        []types.Type{types.TInt},
+			},
+			"List",
+		},
 	}
 
 	for _, tt := range tests {
@@ -154,6 +162,94 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 			result := getTypeSuffixFromType(tt.typ)
 			if result != tt.expected {
 				t.Errorf("Expected %s, got %s", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestOpLowering_Concat tests that concat operations are correctly
+// lowered to concat_String or concat_List based on operand types.
+// This locks in the behavior for the ++ operator.
+func TestOpLowering_Concat(t *testing.T) {
+	tests := []struct {
+		name           string
+		leftArg        core.CoreExpr
+		rightArg       core.CoreExpr
+		expectedBuiltin string
+	}{
+		{
+			name: "string concatenation",
+			leftArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 1},
+				Name:     "$tmp1",
+			},
+			rightArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 2},
+				Name:     "$tmp2",
+			},
+			expectedBuiltin: "concat_String",
+		},
+		{
+			name: "list concatenation",
+			leftArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 3},
+				Name:     "$tmp3",
+			},
+			rightArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 4},
+				Name:     "$tmp4",
+			},
+			expectedBuiltin: "concat_List",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create concat intrinsic
+			intrinsic := &core.Intrinsic{
+				CoreNode: core.CoreNode{NodeID: 100},
+				Op:       core.OpConcat,
+				Args:     []core.CoreExpr{tt.leftArg, tt.rightArg},
+			}
+
+			// Create lowerer with bindings
+			typeEnv := types.NewTypeEnv()
+			lowerer := NewOpLowerer(typeEnv)
+
+			// Set up bindings based on expected builtin
+			if tt.expectedBuiltin == "concat_String" {
+				lowerer.bindings = map[string]core.CoreExpr{
+					"$tmp1": &core.Lit{CoreNode: core.CoreNode{NodeID: 10}, Kind: core.StringLit, Value: "hello"},
+					"$tmp2": &core.Lit{CoreNode: core.CoreNode{NodeID: 11}, Kind: core.StringLit, Value: "world"},
+				}
+			} else {
+				lowerer.bindings = map[string]core.CoreExpr{
+					"$tmp3": &core.List{CoreNode: core.CoreNode{NodeID: 12}, Elements: []core.CoreExpr{
+						&core.Lit{CoreNode: core.CoreNode{NodeID: 13}, Kind: core.IntLit, Value: 1},
+					}},
+					"$tmp4": &core.List{CoreNode: core.CoreNode{NodeID: 14}, Elements: []core.CoreExpr{
+						&core.Lit{CoreNode: core.CoreNode{NodeID: 15}, Kind: core.IntLit, Value: 2},
+					}},
+				}
+			}
+
+			// Lower the intrinsic
+			lowered := lowerer.lowerExpr(intrinsic)
+
+			// Verify it was lowered to an App node
+			app, ok := lowered.(*core.App)
+			if !ok {
+				t.Fatalf("Expected App node, got %T", lowered)
+			}
+
+			// Verify the function is a builtin reference to the expected concat variant
+			builtinRef, ok := app.Func.(*core.VarGlobal)
+			if !ok {
+				t.Fatalf("Expected VarGlobal for builtin, got %T", app.Func)
+			}
+
+			if builtinRef.Ref.Name != tt.expectedBuiltin {
+				t.Errorf("Expected %s builtin, got %s", tt.expectedBuiltin, builtinRef.Ref.Name)
 			}
 		})
 	}
