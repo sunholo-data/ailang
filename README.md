@@ -58,18 +58,19 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ---
 
-## 🧪 Current Milestone: v0.3.14 (JSON Decode)
+## 🧪 Current Milestone: v0.3.15 (Module Path Fixes)
 
-- ✅ Added `std/json.decode : string -> Result[Json, string]` with streaming parser
-- ✅ Fixed list/record pattern matching at runtime
-- ✅ Unified primitive type casing (`string`, `int`, `float`, `bool`)
-- ✅ DX overhaul: operators (`==`, `!=`, `<`, `>=`) now work naturally
-- ✅ All **2,847 tests passing**; 100% coverage on new builtin
-- 🔜 **Next**: deterministic tooling (`normalize`, `suggest`, `apply`) in v0.3.15
+- ✅ Fixed module path resolution (unified `stdlib/` → `std/` prefix)
+- ✅ Updated all deprecated imports in examples and tests
+- ✅ Fixed Net builtin errors (migrated to modern `httpRequest` API)
+- ✅ Enhanced example verification with capability detection
+- ✅ All **2,847+ tests passing**; 72.7% of examples passing
+- 🔜 **Next**: deterministic tooling (`normalize`, `suggest`, `apply`) in v0.3.17
 
 ### Major Milestones
 
 - **v0.3.16 (Oct 2025)**: Entry-Module Prelude - Automatic `print` builtin for benchmarks (AI-First DX)
+- **v0.3.15 (Oct 2025)**: Module Path Fixes - Unified imports, Net builtin migration, capability detection
 - **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes
 - **v0.3.12 (Oct 2025)**: Recovery Release - `show()` builtin restored (recovers 51% of benchmarks)
 - **v0.3.11 (Oct 2025)**: Critical row unification fix

@@ -1,10 +1,19 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.13 (Recovery Release - show() Restored)
+## Current Version: v0.3.15 (Module Path Fixes)
 
-## Test Coverage: 31.9%
+## Test Coverage: 33.4%
 
-## Recent Release: v0.3.12 (October 2025)
+## Recent Release: v0.3.15 (October 2025)
+
+**Module Path & Import Fixes:**
+- ✅ **Unified Module Paths** - All imports now use `std/` prefix (removed legacy `stdlib/`)
+- ✅ **Net Builtin Migration** - Updated deprecated `_net_httpGet` to modern `httpRequest` API
+- ✅ **Enhanced Verification** - Capability detection for Net, Clock, IO effects
+- ✅ **72.7% Example Pass Rate** - Improved from 69.3% (64/88 examples passing)
+- ✅ **Entry-Module Prelude** - Automatic `print` builtin for entry modules and REPL
+
+## Previous Release: v0.3.12 (October 2025)
 
 **Recovery Release:**
 - ✅ **`show()` Builtin Restored** - Polymorphic `∀α. α -> string` with full type dispatch

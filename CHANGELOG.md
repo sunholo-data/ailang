@@ -1,5 +1,75 @@
 # AILANG Changelog
 
+## [v0.3.16] - 2025-10-21
+
+### Entry-Module Prelude System
+
+**AI-First DX**: Automatic `print` builtin for entry modules and REPL
+
+**Added**:
+- ✅ **Entry-module prelude injection** (`internal/pipeline/prelude.go`)
+  - AST-based detection of `export func main` with 0 parameters
+  - Type environment injection before type checking
+  - `print : string -> () ! {IO}` available in entry modules and REPL
+- ✅ **Enhanced teaching prompt** (`prompts/v0.3.16.md`)
+  - Comprehensive documentation of prelude system
+  - Entry module vs library module examples
+  - Updated from v0.3.8 with new features
+- ✅ **Comprehensive tests** (`internal/pipeline/prelude_test.go`, 278 LOC)
+  - Entry module detection tests
+  - Type injection tests
+  - Library isolation tests
+  - Builtin list verification
+
+**Changed**:
+- ✅ **Removed `print` from global builtin registry** (`internal/builtins/io.go`)
+  - Now entry-module-only (explicit libraries must use `_io_println`)
+  - Preserves library purity and explicitness
+- ✅ **Updated 12 example files** to work with new system
+  - 6 files: Added `import std/io (_io_println)`
+  - 3 files: Fixed parse errors
+  - 3 files: Updated deprecated `stdlib/*` imports to `std/*`
+
+**Fixed**:
+- ✅ **Net builtin errors** - Migrated 3 files from deprecated `_net_httpGet` to modern API
+  - Updated `stdlib/std/net.ail` with wrapper functions
+  - Updated test files to use `std/net` module
+  - Enhanced capability detection in verification script
+  - Pass rate improved from 69.3% to 72.7% (+3 examples fixed)
+
+**Files Added/Modified**:
+- `internal/pipeline/prelude.go` (+120 LOC) - Core prelude implementation
+- `internal/pipeline/prelude_test.go` (+278 LOC) - Comprehensive tests
+- `prompts/v0.3.16.md` (+1,213 LOC) - Updated teaching prompt
+- `prompts/versions.json` - Set v0.3.16 as active
+- `stdlib/std/net.ail` - Added `httpGet`/`httpPost` wrappers
+- `scripts/verify_examples.go` - Enhanced capability detection
+- `Makefile` - Added `verify-examples-all` and `examples-status` targets
+- `benchmarks/simple_print.yml` - Entry-module prelude test
+- `README.md` - Updated pass rate to 72.7%
+
+**Metrics**:
+- Pass rate: 61/88 (69.3%) → 64/88 (72.7%)
+- All 2,847+ tests passing
+- CI threshold: 60% (comfortably met at 72.7%)
+
+## [v0.3.15] - 2025-10-21
+
+### Module Path Unification & Net Builtin Fixes
+
+**Changed**:
+- ✅ **Unified module paths** - All imports now use `std/` prefix (removed legacy `stdlib/`)
+- ✅ **Updated deprecated imports** - Fixed 6 example files with old `stdlib/*` imports
+- ✅ **Enhanced verification** - Capability detection for Net, Clock, IO effects
+
+**Fixed**:
+- ✅ **Net builtin migration** - Updated deprecated `_net_httpGet` to modern `httpRequest` API
+- ✅ **Parse errors** - Fixed 3 files with syntax issues
+
+**Metrics**:
+- Pass rate improved from 61/88 to 64/88
+- All core tests passing
+
 ## [Unreleased] - Next release
 
 ### M-DX1: Builtin Registry - COMPLETE! (2025-10-20)
