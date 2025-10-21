@@ -1,4 +1,4 @@
-module examples/micro_block_seq
+module examples/runnable/micro_block_seq
 
 import std/io (println)
 

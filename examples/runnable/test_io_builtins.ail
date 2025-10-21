@@ -1,5 +1,5 @@
 -- Test builtin IO functions (M-R1 Phase 5)
-module examples/test_io_builtins
+module examples/runnable/test_io_builtins
 
 export func greet() -> () {
     _io_println("Hello from AILANG with builtins!")

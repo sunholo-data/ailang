@@ -2,7 +2,7 @@
 -- The module execution feature is planned for the next release.
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
-module examples/demos/hello_io
+module examples/runnable/demos/hello_io
 import std/io (println)
 
 export func main() -> () ! {IO} {

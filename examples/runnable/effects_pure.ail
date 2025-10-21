@@ -1,6 +1,6 @@
 -- Pure functional programming: basic list operations
 -- Demonstrates: list concat, arithmetic, pure computation
-module examples/effects_pure
+module examples/runnable/effects_pure
 
 -- Concatenate lists and compute length
 let list1 = [1, 2, 3]

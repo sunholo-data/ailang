@@ -1,6 +1,6 @@
 -- letrec_recursion.ail
 -- Demonstrates letrec keyword for recursive lambdas (v0.3.5)
-module examples/letrec_recursion
+module examples/runnable/letrec_recursion
 
 import std/io (println)
 

@@ -2,7 +2,7 @@
 -- Tests: ADT constructors, map function, getOrElse
 -- Expected output: 42
 
-module examples/micro_option_map
+module examples/runnable/micro_option_map
 import std/option (Option, Some, None, map, getOrElse)
 
 export pure func main() -> int {

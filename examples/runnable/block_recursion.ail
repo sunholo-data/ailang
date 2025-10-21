@@ -1,4 +1,4 @@
-module examples/block_recursion
+module examples/runnable/block_recursion
 
 import std/io (println)
 

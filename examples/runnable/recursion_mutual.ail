@@ -2,7 +2,7 @@
 -- Demonstrates mutually recursive functions
 -- Status: ✅ Working (M-R4 recursion support)
 
-module examples/recursion_mutual
+module examples/runnable/recursion_mutual
 
 import std/io (println)
 

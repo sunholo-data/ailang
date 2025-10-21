@@ -1,5 +1,5 @@
 -- Micro example: Record field access and aliasing
-module examples/micro_record_person
+module examples/runnable/micro_record_person
 
 import std/io (println)
 

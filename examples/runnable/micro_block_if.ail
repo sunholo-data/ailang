@@ -1,4 +1,4 @@
-module examples/micro_block_if
+module examples/runnable/micro_block_if
 
 import std/io (println)
 

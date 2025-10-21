@@ -1,4 +1,4 @@
-module examples/test_import_func
+module examples/runnable/test_import_func
 import stdlib/std/option (getOrElse)
 
 export pure func test() -> int {

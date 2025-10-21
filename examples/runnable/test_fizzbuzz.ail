@@ -2,7 +2,7 @@
 -- Tests modulo (%) and equality (==) operators together
 -- Exercises: % operator, == operator, && operator, if-then-else
 
-module examples/test_fizzbuzz
+module examples/runnable/test_fizzbuzz
 
 import std/io (println)
 

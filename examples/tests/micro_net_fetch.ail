@@ -1,6 +1,6 @@
 -- Test Net effect: Fetch from HTTPS URL
 -- Run with: ailang run --caps Net,IO --entry main examples/micro_net_fetch.ail
-module examples/micro_net_fetch
+module examples/runnable/micro_net_fetch
 
 export func main() -> () {
   _io_println("Fetching https://example.com...");

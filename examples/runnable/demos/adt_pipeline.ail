@@ -1,4 +1,4 @@
-module examples/demos/adt_pipeline
+module examples/runnable/demos/adt_pipeline
 import std/option (Some, None, map, getOrElse)
 
 -- Demonstrate ADT usage with Option type

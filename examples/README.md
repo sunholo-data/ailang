@@ -1,153 +1,205 @@
 # AILANG Examples
 
-This directory contains example programs demonstrating AILANG features.
+Example programs demonstrating AILANG features, organized by purpose and runnability.
+
+## Directory Structure (v0.3.14+)
+
+```
+examples/
+├── runnable/          # ✅ Full working programs (21 files) - CI verified
+├── snippets/          # 📝 Documentation code snippets (21 files)
+├── tests/             # 🧪 Test cases and edge cases (37 files)
+├── experimental/      # 🔬 Future features (9 files) - Not working yet
+└── plans/             # Design plan examples
+```
 
 ## Quick Start
 
-**Run an example:**
+### Running Examples
+
 ```bash
-ailang run examples/hello.ail
+# Run a simple program
+ailang run --caps IO examples/runnable/simple.ail --entry main
+
+# Run with multiple capabilities
+ailang run --caps IO,FS,Net examples/runnable/effects_basic.ail --entry main
+
+# Run JSON parsing example
+ailang run --caps IO examples/runnable/json_basic_decode.ail --entry main
 ```
 
-**Type-check an example:**
-```bash
-ailang check examples/option_demo.ail
-```
+### Using Snippets in REPL
 
-**Interactive exploration:**
 ```bash
 ailang repl
+> 2 + 3
+5
+> let x = 10 in x * 2
+20
 ```
 
-## Example Categories
+Copy expressions from `snippets/` files and paste into the REPL.
 
-### ✅ Working Examples (Ready to Run)
+## Categories
 
-Start here if you're new to AILANG! These examples work end-to-end:
+### [runnable/](runnable/) - Full Working Programs
+**Best for: Learning how to write complete AILANG programs**
 
-- **`hello.ail`** - Hello world with builtin functions
-- **`simple.ail`** - Let bindings and basic arithmetic
-- **`arithmetic.ail`** - Operator precedence and type inference
-- **`block_demo.ail`** - Multi-statement blocks with scoping
-- **`adt_simple.ail`** - Algebraic data type definitions
-- **`adt_option.ail`** - Using the Option ADT
-- **`effects_pure.ail`** - Pure function annotations
-- **`type_classes_working_reference.ail`** - Type classes and inference
+- ✅ All files have proper module structure with `export func main()`
+- ✅ Verified by CI (`make verify-examples`)
+- ✅ Expected to run without errors
+- ✅ Demonstrate real-world usage patterns
 
-### ⚠️ Type-Check Only (v0.2.0)
+**Examples**: ADTs, recursion, effects, blocks, JSON, I/O
 
-These examples demonstrate important features but cannot execute yet due to the module execution limitation:
+### [snippets/](snippets/) - Documentation Examples
+**Best for: Understanding AILANG syntax and features**
 
-- **`stdlib_demo.ail`** - Standard library showcase (IO, list, string, option)
-- **`option_demo.ail`** - Option ADT with stdlib functions
-- **`demos/hello_io.ail`** - IO effects demo
+- 📝 Single expressions and code fragments for tutorials
+- 📝 Not meant to be run directly (no module wrapper)
+- 📝 Can be copied into REPL for experimentation
+- 📝 Show syntax and language features clearly
 
-**What works**: Parsing ✓, Type-checking ✓
-**What doesn't**: Execution (planned for v0.2.0)
+**Examples**: hello world, arithmetic, lambdas, records, type classes
 
-### 📁 Module Examples
+### [tests/](tests/) - Test Cases
+**Best for: Understanding how specific features should behave**
 
-The `v3_3/` directory contains examples of the module system:
+- 🧪 Verify language behavior and edge cases
+- 🧪 Some intentionally fail (testing error handling)
+- 🧪 May require specific capabilities or external resources
+- 🧪 Not all are verified by CI
 
-- Module imports and exports
-- Polymorphic functions across modules
-- Import conflict resolution
-- Nested module structures
+**Examples**: effect system, pattern guards, module imports, builtins
 
-### 🔬 Experimental
+### [experimental/](experimental/) - Future Features
+**Best for: Seeing what's coming in future releases**
 
-The `experimental/` directory contains examples of planned features:
+- ⚠️ **DO NOT WORK** with current version
+- 🔬 Show intended future API and syntax
+- 🔬 Will become working examples when features ship
 
-- Concurrency with CSP
-- Web API integration
-- AI agent pipelines
-- Advanced algorithms
+**Examples**: AI agent integration, concurrency, HTTP servers
 
-**Note**: These use syntax that isn't finalized yet.
+## Example Index
 
-## Example Status
+### By Feature
 
-For a complete status report of all examples, see [STATUS.md](STATUS.md).
+**Basic Language**
+- Simple expressions: `runnable/simple.ail`
+- Arithmetic: `snippets/arithmetic.ail`
+- Functions: `snippets/func_expressions.ail`
+- Lambdas: `snippets/lambda_expressions.ail`, `snippets/showcase/02_lambdas.ail`
 
-**Summary (v0.1.0)**:
-- Total: 42 examples
-- ✅ Working: 12 (28.6%)
-- ⚠️ Type-checks only: 3 (7.1%)
-- ❌ Needs fixing: 27 (64.3%)
+**Data Types**
+- Records: `snippets/records.ail`, `runnable/micro_record_person.ail`
+- Lists: `snippets/list_patterns.ail`, `snippets/showcase/03_lists.ail`
+- ADTs: `runnable/adt_simple.ail`, `runnable/adt_option.ail`
+- Option type: `runnable/micro_option_map.ail`
 
-## Features Demonstrated
+**Control Flow**
+- Pattern matching: `runnable/patterns.ail`
+- Guards: `runnable/guards_basic.ail`, `tests/test_guard_bool.ail`
+- Blocks: `runnable/micro_block_if.ail`, `runnable/micro_block_seq.ail`
 
-### Type System
-- Hindley-Milner type inference (`simple.ail`, `arithmetic.ail`)
-- Type classes with constraints (`type_classes_working_reference.ail`)
-- Algebraic data types (`adt_simple.ail`, `adt_option.ail`)
-- Row polymorphism for extensible records
-- Effect tracking (`effects_pure.ail`)
+**Recursion**
+- Factorial: `runnable/recursion_factorial.ail`
+- Fibonacci: `runnable/recursion_fibonacci.ail`
+- Mutual recursion: `runnable/recursion_mutual.ail`
+- Quicksort: `runnable/recursion_quicksort.ail`
 
-### Language Features
-- Let bindings and lambdas (`simple.ail`)
-- Multi-statement blocks (`block_demo.ail`)
-- Pattern matching (type-level only in v0.1.0)
-- Module system (`v3_3/*.ail`)
-- Pure function annotations
+**Effects**
+- Basic I/O: `runnable/effects_basic.ail`, `runnable/demos/hello_io.ail`
+- Pure vs effectful: `runnable/effects_pure.ail`
+- Effect capabilities: `tests/test_effect_capability.ail`
 
-### Standard Library (Type Signatures)
-- **io**: print, println, readLine
-- **list**: map, filter, fold, length, etc.
-- **option**: Some, None, map, getOrElse
-- **result**: Ok, Err, map, unwrap
-- **string**: length, toUpper, toLower, etc.
+**Type System**
+- Type inference: `snippets/showcase/01_type_inference.ail`
+- Type classes: `snippets/typeclasses.ail`, `snippets/showcase/03_type_classes.ail`
+- Closures: `snippets/showcase/04_closures.ail`
 
-## Known Limitations (v0.1.0)
+**JSON**
+- JSON parsing: `runnable/json_basic_decode.ail`
 
-### Module Execution
-Currently, AILANG can parse and type-check modules but cannot execute them. This affects:
-- Calling standard library functions
-- Running module exports
-- Demo programs using stdlib
+**Modules**
+- Minimal module: `tests/test_module_minimal.ail`
+- Imports: `snippets/v3_3/imports.ail`, `tests/test_import_func.ail`
 
-**Workaround**: Use the REPL for interactive testing, or write non-module files (simple expressions).
+## CI Verification
 
-**Status**: Module execution is planned for v0.2.0.
+Only `runnable/` examples are verified by continuous integration:
 
-### Parser Limitations
-- Match expressions not yet implemented
-- Properties syntax not finalized
-- Some experimental syntax not stable
+```bash
+make verify-examples  # Runs all runnable examples
+```
+
+Expected pass rate: **95-100%** (21 examples, all should work)
+
+## Statistics (v0.3.14)
+
+| Category | Count | CI Verified | Expected Pass Rate |
+|----------|-------|-------------|-------------------|
+| Runnable | 21 | ✅ Yes | 95-100% |
+| Snippets | 21 | ❌ No | N/A (not runnable) |
+| Tests | 37 | ❌ No | ~80% (some test errors) |
+| Experimental | 9 | ❌ No | 0% (future features) |
+| **Total** | **88** | **21** | **24%** |
 
 ## Contributing Examples
 
-When adding new examples:
+### Adding Runnable Examples
 
-1. **Test that they work**:
-   ```bash
-   ailang run examples/your_example.ail
-   ```
+1. Create file in `examples/runnable/`
+2. Use proper module structure:
+```ailang
+module examples/my_example
 
-2. **Add clear comments** explaining what the example demonstrates
+export func main() ! {IO} -> string {
+  _io_println("Hello!");
+  "ok"
+}
+```
+3. Test it works: `ailang run --caps IO examples/runnable/my_example.ail --entry main`
+4. CI will automatically verify it
 
-3. **Update STATUS.md** with the new example's status
+### Adding Snippets
 
-4. **Use appropriate warnings** for v0.2.0 features:
-   ```ailang
-   -- ⚠️ NOTE: This example type-checks but cannot execute until v0.2.0
-   ```
+1. Create file in `examples/snippets/`
+2. Use simple expressions (no module wrapper needed):
+```ailang
+-- Demonstrates feature X
+let x = 10 in
+x * 2  -- Returns 20
+```
+3. Add comments showing expected output
+4. Test in REPL before committing
 
-## Getting Help
+### Adding Tests
 
-- **Documentation**: See `docs/` directory
-- **REPL Help**: Type `:help` in the REPL
-- **Issue Tracker**: https://github.com/sunholo-data/ailang/issues
+1. Create file in `examples/tests/` with `test_` prefix
+2. Document expected behavior (pass/fail, error message)
+3. Test manually with required capabilities
 
-## Next Steps
+## Migration from Old Structure (v0.3.14)
 
-After exploring these examples:
+**Before**:
+- All examples in flat `examples/` directory
+- CI verified everything (high failure rate)
+- Unclear which examples should work
 
-1. Try modifying them to experiment
-2. Use the REPL to test ideas interactively
-3. Check out the design docs in `design_docs/` to understand the language
-4. Watch for v0.2.0 which will add module execution!
+**After** (v0.3.14+):
+- Organized by purpose and runnability
+- CI only verifies `runnable/` examples
+- Clear expectations for each category
 
----
+This improves:
+- **Clarity**: Users know which examples should work
+- **CI reliability**: Only test runnable programs
+- **Documentation**: Snippets are clearly not full programs
 
-*For detailed status of each example, see [STATUS.md](STATUS.md)*
+## See Also
+
+- [AILANG Documentation](../docs/) - Full language reference
+- [CHANGELOG.md](../CHANGELOG.md) - Version history
+- [CONTRIBUTING.md](../docs/CONTRIBUTING.md) - Development guide
+- Each subdirectory has its own README with details

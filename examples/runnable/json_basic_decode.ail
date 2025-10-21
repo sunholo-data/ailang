@@ -3,7 +3,7 @@
 --
 -- NOTE: Uses _str_eq() instead of == in recursive list processing due to a known
 -- edge case being investigated for v0.3.15. Simple == works fine in most contexts.
-module examples/json_basic_decode
+module examples/runnable/json_basic_decode
 
 import std/json (Json, JNull, JString, JObject, decode)
 import std/result (Result, Ok, Err)

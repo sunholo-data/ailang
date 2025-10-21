@@ -2,7 +2,7 @@
 -- Demonstrates simple recursive function with LetRec
 -- Status: ✅ Working (M-R4 recursion support)
 
-module examples/recursion_factorial
+module examples/runnable/recursion_factorial
 
 import std/io (println)
 

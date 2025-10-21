@@ -2,7 +2,7 @@
 -- Demonstrates real-world recursion with list processing
 -- Status: ⚠️ Partial (list operations limited in current runtime)
 
-module examples/recursion_quicksort
+module examples/runnable/recursion_quicksort
 
 import std/io (println)
 
