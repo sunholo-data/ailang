@@ -37,13 +37,14 @@ Run evaluation baseline for a release version.
 # Dev models only (fast, cheap)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
 
-# All production models (for releases)
+# All production models (for releases) - accepts both formats
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14 --full
+.claude/skills/post-release/scripts/run_eval_baseline.sh v0.3.14 --full
 ```
 
 **Output:**
 ```
-Running eval baseline for v0.3.14...
+Running eval baseline for 0.3.14...
 Mode: FULL (all 6 production models)
 Expected cost: ~$0.50-1.00
 Expected time: ~15-20 minutes
@@ -51,7 +52,7 @@ Expected time: ~15-20 minutes
 [Running benchmarks...]
 
 ✓ Baseline complete
-  Results: eval_results/baselines/v0.3.14
+  Results: eval_results/baselines/0.3.14
   Files: 264 result files
 ```
 
@@ -59,7 +60,8 @@ Expected time: ~15-20 minutes
 - Runs `make eval-baseline` with appropriate flags
 - Tests both AILANG and Python implementations
 - Uses all 6 production models (--full) or 3 dev models (default)
-- Saves results to eval_results/baselines/vX.X.X/
+- Saves results to eval_results/baselines/X.X.X/ (version as given)
+- Accepts version with or without 'v' prefix
 
 ### `scripts/update_dashboard.sh <version>`
 Update website benchmark dashboard with new release data.
@@ -71,7 +73,7 @@ Update website benchmark dashboard with new release data.
 
 **Output:**
 ```
-Updating dashboard for v0.3.14...
+Updating dashboard for 0.3.14...
 
 1/5 Generating Docusaurus markdown...
   ✓ Written to docs/docs/benchmarks/performance.md
@@ -80,32 +82,33 @@ Updating dashboard for v0.3.14...
   ✓ Written to docs/static/benchmarks/latest.json (history preserved)
 
 3/5 Validating JSON...
-  ✓ Version: v0.3.14
+  ✓ Version: 0.3.14
   ✓ Success rate: 0.627
 
 4/5 Clearing Docusaurus cache...
   ✓ Cache cleared
 
 5/5 Summary
-  ✓ Dashboard updated for v0.3.14
+  ✓ Dashboard updated for 0.3.14
   ✓ Markdown: docs/docs/benchmarks/performance.md
   ✓ JSON: docs/static/benchmarks/latest.json
 
 Next steps:
   1. Test locally: cd docs && npm start
   2. Visit: http://localhost:3000/ailang/docs/benchmarks/performance
-  3. Verify timeline shows v0.3.14
+  3. Verify timeline shows 0.3.14
   4. Commit: git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
-  5. Commit: git commit -m 'Update benchmark dashboard for v0.3.14'
+  5. Commit: git commit -m 'Update benchmark dashboard for 0.3.14'
   6. Push: git push
 ```
 
 **What it does:**
 - Generates Docusaurus-formatted markdown
 - Updates dashboard JSON with history preservation
-- Validates JSON structure
+- Validates JSON structure (version matches input exactly)
 - Clears Docusaurus build cache
 - Provides next steps for testing and committing
+- Accepts version with or without 'v' prefix
 
 ### `scripts/extract_changelog_metrics.sh [json_file]`
 Extract benchmark metrics from dashboard JSON for CHANGELOG.
@@ -125,24 +128,26 @@ Extracting metrics from docs/static/benchmarks/latest.json...
 
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 62.7% success rate (264 total runs)
+**Overall Performance**: 59.1% success rate (399 total runs)
 
 **By Language:**
-- **AILANG**: 42.1% - New language, learning curve
-- **Python**: 83.3% - Baseline for comparison
-- **Gap: 41.2 percentage points (expected for new language)**
+- **AILANG**: 33.0% - New language, learning curve
+- **Python**: 87.0% - Baseline for comparison
+- **Gap: 54.0 percentage points (expected for new language)
 
-**Comparison**: [Add comparison to previous version, e.g., "+3.5% AILANG improvement from v0.3.X"]
+**Comparison**: -15.2% AILANG regression from 0.3.14 (48.2% → 33.0%)
 
 === End Template ===
 
-Use this template in CHANGELOG.md for v0.3.14
+Use this template in CHANGELOG.md for 0.3.15
 ```
 
 **What it does:**
 - Parses dashboard JSON for metrics
 - Calculates percentages and gap between AILANG/Python
-- Generates ready-to-paste CHANGELOG template
+- **Auto-compares with previous version from history**
+- **Formats comparison text automatically** (+X% improvement or -X% regression)
+- Generates ready-to-paste CHANGELOG template with no manual work needed
 
 ## Post-Release Workflow
 
@@ -219,24 +224,25 @@ This outputs a ready-to-paste template with:
 - AILANG-only rate (important!)
 - Python baseline rate
 - Gap analysis
+- **Automatic comparison with previous version** (no manual work!)
 
 **Update CHANGELOG.md:**
-- Paste template into CHANGELOG.md under version section
-- Add comparison to previous version (e.g., "+3.5% AILANG improvement")
-- List specific improvements or regressions
+- Paste the complete template into CHANGELOG.md under version section
+- The comparison is already calculated and formatted
+- Optionally add context about specific improvements or regressions
 
-**Example CHANGELOG entry:**
+**Example output (ready to paste):**
 ```markdown
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 58.8% success rate (67/114 runs)
+**Overall Performance**: 59.1% success rate (399 total runs)
 
 **By Language:**
-- **AILANG**: 38.6% (22/57) - New language, learning curve
-- **Python**: 78.9% (45/57) - Baseline for comparison
-- **Gap**: 40.3 percentage points (expected for new language)
+- **AILANG**: 33.0% - New language, learning curve
+- **Python**: 87.0% - Baseline for comparison
+- **Gap**: 54.0 percentage points (expected for new language)
 
-**Comparison**: +3.5% AILANG improvement from v0.3.7 (38.6% → 42.1%)
+**Comparison**: -15.2% AILANG regression from 0.3.14 (48.2% → 33.0%)
 ```
 
 ### 5. Update Design Docs
@@ -296,10 +302,40 @@ This skill loads information progressively:
 
 Scripts execute without loading into context window, saving tokens while providing powerful automation.
 
+## Recent Improvements (v0.3.15)
+
+### Version Format Handling
+All scripts now accept version with or without 'v' prefix:
+- ✅ `0.3.15` works
+- ✅ `v0.3.15` works
+- Scripts pass version to underlying tools exactly as given
+- No more "directory not found" errors due to version format mismatch
+
+### Auto-Comparison in Metrics
+The `extract_changelog_metrics.sh` script now:
+- Automatically finds previous version from history
+- Calculates AILANG performance difference
+- Formats comparison text ("+X% improvement" or "-X% regression")
+- Shows before/after percentages: "(48.2% → 33.0%)"
+- **Zero manual jq queries needed!**
+
+### Eliminated Manual Work
+Before v0.3.15, you needed to:
+- Run 15+ manual jq queries to extract metrics
+- Manually compare with previous version
+- Format comparison text yourself
+- Handle version prefix inconsistencies
+
+After v0.3.15:
+- **3 scripts do everything automatically**
+- No jq queries needed
+- No manual calculations
+- Version format doesn't matter
+
 ## Notes
 
 - This skill follows Anthropic's Agent Skills specification (Oct 2025)
-- Scripts handle most automation (eval baseline, dashboard, metrics extraction)
+- Scripts handle 100% of automation (eval baseline, dashboard, metrics extraction)
 - Can be run hours or even days after release
 - Dashboard JSON preserves history - never overwrites historical data
 - Always use `--full` flag for release baselines (all production models)
