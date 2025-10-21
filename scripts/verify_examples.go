@@ -88,11 +88,17 @@ func runExample(filename string) reporttypes.ExampleResult {
 
 	// Detect required capabilities
 	caps := []string{}
-	if strings.Contains(fileContent, "! {IO") || strings.Contains(fileContent, "_io_") {
+	if strings.Contains(fileContent, "! {IO") || strings.Contains(fileContent, "_io_") || strings.Contains(fileContent, "import std/io") {
 		caps = append(caps, "IO")
 	}
-	if strings.Contains(fileContent, "! {FS") || strings.Contains(fileContent, "_fs_") {
+	if strings.Contains(fileContent, "! {FS") || strings.Contains(fileContent, "_fs_") || strings.Contains(fileContent, "import std/fs") {
 		caps = append(caps, "FS")
+	}
+	if strings.Contains(fileContent, "! {Net") || strings.Contains(fileContent, "_net_") || strings.Contains(fileContent, "import std/net") {
+		caps = append(caps, "Net")
+	}
+	if strings.Contains(fileContent, "! {Clock") || strings.Contains(fileContent, "_clock_") || strings.Contains(fileContent, "import std/clock") {
+		caps = append(caps, "Clock")
 	}
 
 	// Detect entrypoint (look for export func NAME)

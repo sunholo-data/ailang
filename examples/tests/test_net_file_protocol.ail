@@ -2,8 +2,12 @@
 -- Run with: ailang run --caps Net,IO --entry main examples/test_net_file_protocol.ail
 module examples/tests/test_net_file_protocol
 
-export func main() -> () {
-  _io_println("Trying to fetch file:///etc/passwd...");
-  let content = _net_httpGet("file:///etc/passwd");
-  _io_println("ERROR: Should have been blocked!")
-}
+import std/net (httpRequest)
+import std/io (println)
+
+export func main() -> () ! {Net, IO} =
+  let _ = println("Trying to fetch file:///etc/passwd...") in
+  match httpRequest("GET", "file:///etc/passwd", [], "") {
+    Ok(resp) => println("ERROR: Should have been blocked!"),
+    Err(err) => println("✓ Correctly blocked file:// protocol")
+  }

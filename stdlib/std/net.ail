@@ -23,6 +23,7 @@ export type HttpResponse = {
 -- HTTP GET request (deprecated: use httpRequest for status codes/headers)
 --
 -- Fetches content from an HTTP/HTTPS URL.
+-- Implemented as a wrapper around httpRequest for backward compatibility.
 --
 -- Security features:
 --   - HTTPS enforced by default (http:// requires --net-allow-http)
@@ -50,14 +51,20 @@ export type HttpResponse = {
 --
 -- Example:
 --   let html = httpGet("https://example.com")
-export func httpGet(url: string) -> string ! {Net} {
-  _net_httpGet(url)
-}
+export func httpGet(url: string) -> string ! {Net} =
+  match httpRequest("GET", url, [], "") {
+    Ok(resp) => resp.body,
+    Err(Transport(msg)) => "E_NET_REQUEST_FAILED: " ++ msg,
+    Err(DisallowedHost(host)) => "E_NET_DOMAIN_BLOCKED: " ++ host,
+    Err(InvalidHeader(hdr)) => "E_NET_INVALID_HEADER: " ++ hdr,
+    Err(BodyTooLarge(size)) => "E_NET_BODY_TOO_LARGE: " ++ size
+  }
 
 -- HTTP POST request
 --
 -- Sends an HTTP POST request with the given body.
 -- Sets Content-Type: application/json by default.
+-- Implemented as a wrapper around httpRequest for backward compatibility.
 --
 -- Security features: Same as httpGet()
 --
@@ -72,9 +79,15 @@ export func httpGet(url: string) -> string ! {Net} {
 --
 -- Example:
 --   let response = httpPost("https://api.example.com/data", "{\"key\": \"value\"}")
-export func httpPost(url: string, body: string) -> string ! {Net} {
-  _net_httpPost(url, body)
-}
+export func httpPost(url: string, body: string) -> string ! {Net} =
+  let headers = [{name: "Content-Type", value: "application/json"}] in
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) => resp.body,
+    Err(Transport(msg)) => "E_NET_REQUEST_FAILED: " ++ msg,
+    Err(DisallowedHost(host)) => "E_NET_DOMAIN_BLOCKED: " ++ host,
+    Err(InvalidHeader(hdr)) => "E_NET_INVALID_HEADER: " ++ hdr,
+    Err(BodyTooLarge(size)) => "E_NET_BODY_TOO_LARGE: " ++ size
+  }
 
 -- HTTP request with custom headers and structured errors (v0.3.8+)
 --
