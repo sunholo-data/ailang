@@ -77,6 +77,63 @@ Ask user:
 - Estimated effort? (e.g., 2 days, 1 week)
 - Any dependencies on other features?
 
+**⚠️ IMPORTANT: Keep AILANG's Vision in Mind**
+
+**AI-first DX = Minimize Syntactic Entropy**
+
+The goal of every feature is to make AILANG the most **machine-decidable**, **context-efficient**, and **deterministic** language for AI coders.
+
+Before writing a design doc, verify that the proposed feature **strictly improves one or more** of the following metrics — and **does not degrade any**:
+
+| Principle | Definition | Design-time Test |
+|-----------|------------|------------------|
+| ✅ **Reduce Syntactic Noise** | Remove or infer repetitive scaffolding (imports, effect declarations, boilerplate) | "Can an AI express the same intent with fewer tokens or less redundancy?" |
+| ✅ **Preserve Semantic Clarity** | Keep meaning explicit and compositional even when syntax is inferred | "Would another AI (or static checker) interpret this code identically?" |
+| ✅ **Increase Determinism** | Ensure identical inputs produce identical ASTs and effects. Avoid implicit state, random order, or hidden magic. | "Could this feature be fully round-tripped through the compiler?" |
+| ✅ **Lower Token Cost** | Minimize the number of tokens and transformations needed for the AI to express intent and the compiler to verify it | "Does this feature shorten the conversational path from intent → executable?" |
+
+### 🧭 Implementation Guidance
+
+**Score the proposed feature across these axes:**
+
+| Axis | −1 (hurts) | 0 (neutral) | +1 (helps) |
+|------|------------|-------------|------------|
+| Syntactic Noise | adds boilerplate | — | removes boilerplate |
+| Semantic Clarity | adds ambiguity | — | clearer, self-describing |
+| Determinism | introduces nondeterminism | — | increases reproducibility |
+| Token Cost | increases context size | — | lowers token footprint |
+
+**Decision rule:**
+- Net score **> +1**: Move forward to draft
+- Net score **≤ 0**: Reject or redesign
+
+### 💡 Examples
+
+| Feature | Score | Why |
+|---------|-------|-----|
+| ✅ Entry-module Prelude (`print`) | **+3** | Removes boilerplate (+1), Deterministic injection (+1), Token savings (+1) |
+| ✅ Auto-cap inference (`!{IO}`) | **+2** | Syntactic noise ↓ (+1), Semantic clarity maintained (0), Token cost ↓ (+1) |
+| ❌ Global mutable state | **−2** | Violates determinism (−2) |
+| ⚠️ Optional type annotations | **±0** | Only if inference remains stable and predictable |
+
+### 🧠 Conceptual Frame
+
+**Think of every feature as a compression algorithm for code intent.**
+
+The better the compression, the lower the entropy, and the more efficiently an AI can operate in that linguistic medium.
+
+### What AILANG Is NOT Optimized For
+
+- ❌ IDE features (autocomplete, hover, refactoring)
+- ❌ Human concurrency patterns (CSP channels → static task graphs)
+- ❌ Familiar syntax from other languages (if it adds entropy)
+
+### Reference Documents
+
+- [VISION_BENCHMARKS.md](../../../benchmarks/VISION_BENCHMARKS.md) - Vision goals and success metrics
+- [Example Parity & Vision Alignment](../../../design_docs/planned/v0_3_15/example-parity-vision-alignment.md) - AI-first DX philosophy detailed
+- [Auto-Capability Inference](../../../design_docs/planned/20251013_auto_caps_capability_inference.md) - Example of entropy reduction
+
 **2. Choose Document Name**
 
 **Naming conventions:**

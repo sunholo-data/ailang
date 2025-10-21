@@ -70,6 +70,22 @@ cat > "$DOC_PATH" <<'EOF'
 **Estimated**: [Time estimate, e.g., 2 days]
 **Dependencies**: [None or list other features]
 
+## AI-First Alignment Check
+
+**Score this feature against AILANG's core principles:**
+
+| Principle | Impact | Score | Notes |
+|-----------|--------|-------|-------|
+| Reduce Syntactic Noise | [+/0/−] | [+1/0/−1] | [e.g., "Removes import boilerplate"] |
+| Preserve Semantic Clarity | [+/0/−] | [+1/0/−1] | [e.g., "Effects remain explicit in types"] |
+| Increase Determinism | [+/0/−] | [+1/0/−1] | [e.g., "Injection is deterministic per entry module"] |
+| Lower Token Cost | [+/0/−] | [+1/0/−1] | [e.g., "~30 token reduction per example"] |
+| **Net Score** | | **[Total]** | **Decision: [Move forward / Reject / Redesign]** |
+
+**Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
+
+**Reference:** See [AI-first DX philosophy](../v0_3_15/example-parity-vision-alignment.md#-design-principle-ai-first-dx)
+
 ## Problem Statement
 
 [What problem does this solve? Why is it needed?]
