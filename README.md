@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-33.4%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-33.8%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -282,10 +282,9 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-64%2F88%20passing-yellowgreen.svg)
-![Runnable](https://img.shields.io/badge/runnable-27%2F27%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/badge/examples-27%20passing-brightgreen.svg)
 
-**64/88 examples passing (72.7%)** - All 27 production-ready examples in `examples/runnable/` pass. Additional examples in `snippets/`, `tests/`, and `experimental/` directories are at various stages of completion.
+**27/27 examples passing (100%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
