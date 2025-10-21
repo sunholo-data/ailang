@@ -281,10 +281,10 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-61%2F88%20passing-yellow.svg)
+![Examples](https://img.shields.io/badge/examples-64%2F88%20passing-yellowgreen.svg)
 ![Runnable](https://img.shields.io/badge/runnable-27%2F27%20passing-brightgreen.svg)
 
-**61/88 examples passing (69.3%)** - All 27 production-ready examples in `examples/runnable/` pass. Additional examples in `snippets/`, `tests/`, and `experimental/` directories are at various stages of completion.
+**64/88 examples passing (72.7%)** - All 27 production-ready examples in `examples/runnable/` pass. Additional examples in `snippets/`, `tests/`, and `experimental/` directories are at various stages of completion.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
