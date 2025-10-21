@@ -3,10 +3,10 @@
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
 module examples/snippets/stdlib_demo
-import stdlib/std/io (println)
-import stdlib/std/list (map)
-import stdlib/std/string (toUpper)
-import stdlib/std/option (Some, getOrElse)
+import std/io (println)
+import std/list (map)
+import std/string (toUpper)
+import std/option (Some, getOrElse)
 
 export func main() -> () ! {IO} {
   let s = toUpper("hello");

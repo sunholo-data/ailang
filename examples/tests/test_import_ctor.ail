@@ -1,5 +1,5 @@
 module examples/tests/test_import_ctor
-import stdlib/std/option (Some)
+import std/option (Some)
 
 export pure func test() -> int {
   42

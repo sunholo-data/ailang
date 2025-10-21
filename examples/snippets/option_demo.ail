@@ -3,7 +3,7 @@
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
 module examples/snippets/option_demo
-import stdlib/std/option (Some, None, map, getOrElse)
+import std/option (Some, None, map, getOrElse)
 
 export pure func main() -> int {
   let val1 = getOrElse(Some(42), 0) in

@@ -1,5 +1,5 @@
 module examples/tests/test_use_constructor
-import stdlib/std/option (Option, Some, None, getOrElse)
+import std/option (Option, Some, None, getOrElse)
 
 export pure func testSome() -> int {
   let x = Some(42) in
