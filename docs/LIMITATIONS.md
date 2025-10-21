@@ -49,47 +49,99 @@ For now, use named functions for recursion. This aligns with AILANG's goal of se
 
 ---
 
-### Float Comparisons in Lambda Bodies (Pre-existing Bug)
+### Polymorphic Operators in Lambda Bodies (Architectural Limitation)
 
-**Status**: Known bug (pre-dates M-DX3)
-**Since**: Unknown (likely v0.1.0)
-**Affects**: Comparison operators (`>`, `<`, `>=`, `<=`, `==`, `!=`) on Float values inside lambda expressions
-**Fixed for Int in**: v0.3.17 (M-DX3)
+**Status**: Architectural limitation - requires monomorphization (v0.4.0+)
+**Since**: v0.1.0 (fundamental to current compilation pipeline)
+**Affects**: ALL operators (`>`, `<`, `+`, `-`, etc.) with polymorphic types inside lambda expressions
+**Partially Fixed in**: v0.3.18 (M-DX4) - simple cases now work
 
 **Problem**:
-Float comparisons panic at runtime when used in lambda bodies:
+Operators with polymorphic operands (lambda parameters) default to Int at compile time, causing runtime panics when called with other types:
 
 ```ailang
--- ❌ This panics:
-let max = \x. \y. if x > y then x else y in
+-- ❌ This panics with Float arguments:
+let maxFloat = \x. \y. if x > y then x else y in
+maxFloat(3.14)(2.71)  -- panic: interface conversion: eval.Value is *eval.FloatValue, not *eval.IntValue
+
+-- ❌ This panics with String arguments:
+let concat3 = \a. \b. \c. a ++ b ++ c in
+concat3("hello")(" ")("world")  -- panic: expects String, got IntValue
+```
+
+**What Works Now** (v0.3.18+):
+```ailang
+-- ✅ Simple comparisons work:
 let f1 = 3.14 in
 let f2 = 2.71 in
-max(f1)(f2)  -- panic: interface conversion: eval.Value is *eval.FloatValue, not *eval.IntValue
+if f1 > f2 then f1 else f2  -- Correctly uses gt_Float
+
+-- ✅ Direct arithmetic works:
+let x = 3.14 + 2.71 in  -- Correctly uses add_Float
+x * 2.0                  -- Correctly uses mul_Float
 ```
 
 **Root Cause**:
-The operator lowering phase (`internal/pipeline/op_lowering.go`) correctly identifies comparison operators should use operand types (not result type Bool), but CoreTypeInfo doesn't have type information for Float variables. This causes the lowering to default to "Int" suffix, calling `gt_Int` instead of `gt_Float`.
+AILANG lacks **monomorphization** - the compiler pass that specializes polymorphic functions when called with concrete types. The current pipeline:
 
-**Why Int Works but Float Doesn't**:
-M-DX3 (v0.3.17) fixed comparison operators for Int by using operand types instead of result type. However, the fix relies on CoreTypeInfo having the operand's type. For some reason, Float literal types aren't being stored in CoreTypeInfo, causing fallback to the default (Int).
+1. **Type Inference**: Lambda parameters get polymorphic types (`α`)
+2. **Operator Lowering**: Happens on lambda BODY before knowing call-site argument types
+3. **Defaulting**: Ambiguous types default to Int
+4. **Runtime**: Receives Float values but code expects Int → panic
+
+**Why This Happens**:
+The lambda `\x. \y. x > y` correctly has polymorphic type `Ord a => a -> a -> Bool`. At compile time, `x` and `y` are type variables, not concrete types. Operator lowering must choose a specific builtin (`gt_Int`, `gt_Float`, etc.) but doesn't know which type `a` will be at runtime.
+
+**Correct Behavior for AILANG's Design**:
+This is NOT a bug in type inference or CoreTypeInfo population - it's a **missing compiler pass**. Two solutions exist:
+
+1. **Monomorphization** (Rust, MLton): Clone function body for each concrete type it's called with
+2. **Dictionary Passing** (Haskell): Pass type class dictionaries at runtime
+
+AILANG currently does neither, so polymorphic operators default to Int.
 
 **Workaround**:
-None currently. Float comparisons don't work in lambda bodies. Use Float comparisons outside lambdas:
+Use top-level named functions or explicit type annotations:
 
 ```ailang
--- ✅ This works:
-let f1 = 3.14 in
-let f2 = 2.71 in
-if f1 > f2 then f1 else f2  -- Works outside lambda
+-- ✅ Option 1: Named functions (get specialized at call site)
+func maxFloat(x: float, y: float) -> float =
+  if x > y then x else y
+
+maxFloat(3.14, 2.71)  -- Works!
+
+-- ✅ Option 2: Avoid polymorphic operators in lambdas
+let max = \x. \y. {
+  let cmp = x > y in  -- Move comparison out of conditional
+  if cmp then x else y
+} in
+-- Still fails - comparison still polymorphic!
+
+-- ✅ Option 3: Use simple cases only
+let result = 3.14 > 2.71 in  -- Works (M-DX4 fixed this)
+if result then 3.14 else 2.71
 ```
 
-**Status**:
-This is out of scope for M-DX3, which focused on Int comparisons (the originally reported bug). Float comparisons need investigation into why CoreTypeInfo isn't populated for Float literals/variables.
+**Technical Details**:
+M-DX4 (v0.3.18) fixed CoreTypeInfo population:
+- CoreTI now has concrete types after defaulting (was: type variables)
+- Simple float comparisons work (3.14 > 2.71)
+- Lambda parameters remain polymorphic (correct behavior!)
+- Substitution chains fully resolved (α37 → α38 → Float)
+
+See `M-DX4-IMPLEMENTATION-REPORT.md` for complete analysis.
+
+**Future Plan**:
+v0.4.0 will implement monomorphization:
+- Detect polymorphic function calls with concrete arguments
+- Clone function body for each concrete type
+- Re-run operator lowering on specialized version
+- Estimated effort: 2-3 weeks
 
 **Related Issues**:
-- See `design_docs/implemented/v0_3_17/m-dx3-lambda-dx-fixes.md` for Int comparison fix
-- See `internal/pipeline/op_lowering_comparison_test.go` for Int comparison tests
-- Float comparison tests currently don't exist (would fail)
+- See `M-DX4-IMPLEMENTATION-REPORT.md` for root cause analysis
+- See `design_docs/planned/v0_3_18/m-dx4-coreti-population-gaps.md` for design
+- See `M-DX4-AUDIT-FINDINGS.md` for investigation details
 
 ---
 

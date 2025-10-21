@@ -90,3 +90,51 @@ func (cti CoreTypeInfo) MustForExpr(expr core.CoreExpr) Type {
 func NewCoreTypeInfo() CoreTypeInfo {
 	return make(CoreTypeInfo)
 }
+
+// ApplySubstitution applies a type substitution to all entries in CoreTypeInfo
+// This is critical for fixing the CoreTI population gaps bug (M-DX4):
+// After defaulting resolves type variables (e.g., t1 → Float), we must update
+// CoreTypeInfo with the concrete types, not leave them as type variables.
+//
+// Note: Substitutions may form chains (e.g., α37 → α38 → float).
+// We repeatedly apply the substitution until we reach a fixed point to fully resolve chains.
+func (cti CoreTypeInfo) ApplySubstitution(sub Substitution) {
+	for nodeID, typ := range cti {
+		// Apply substitution repeatedly until no more changes (resolve chains)
+		prev := typ
+		for {
+			next := ApplySubstitution(sub, prev)
+			// Check if we reached a fixed point
+			if typesIdentical(next, prev) {
+				break
+			}
+			prev = next
+		}
+		cti[nodeID] = prev
+	}
+}
+
+// typesIdentical checks if two types are identical (same structure, same names)
+// Used to detect fixed points in substitution application
+func typesIdentical(t1, t2 Type) bool {
+	// Quick check: same pointer
+	if t1 == t2 {
+		return true
+	}
+
+	// Check by type
+	switch v1 := t1.(type) {
+	case *TVar2:
+		if v2, ok := t2.(*TVar2); ok {
+			return v1.Name == v2.Name
+		}
+	case *TCon:
+		if v2, ok := t2.(*TCon); ok {
+			return v1.Name == v2.Name
+		}
+	// For other types, use string comparison as fallback
+	default:
+		return t1.String() == t2.String()
+	}
+	return false
+}

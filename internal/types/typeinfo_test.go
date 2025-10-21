@@ -218,3 +218,86 @@ func TestCoreTypeInfo_NewCoreTypeInfo(t *testing.T) {
 		t.Errorf("NewCoreTypeInfo() returned non-empty map: %d entries", len(cti))
 	}
 }
+
+func TestCoreTypeInfo_ApplySubstitution(t *testing.T) {
+	// Create type variables
+	tv1 := &TVar2{Name: "t1", Kind: Star}
+	tv2 := &TVar2{Name: "t2", Kind: Star}
+
+	// Create CoreTypeInfo with type variables
+	cti := NewCoreTypeInfo()
+	cti.Set(1, tv1)                      // Node 1 has type variable t1
+	cti.Set(2, tv2)                      // Node 2 has type variable t2
+	cti.Set(3, TInt)                     // Node 3 has concrete type Int
+	cti.Set(4, &TList{Element: tv1})     // Node 4 has List[t1]
+	cti.Set(5, &TFunc2{                  // Node 5 has function t1 -> t2
+		Params:    []Type{tv1},
+		Return:    tv2,
+		EffectRow: EmptyEffectRow(),
+	})
+
+	// Create substitution: {t1 → Float, t2 → String}
+	sub := Substitution{
+		"t1": TFloat,
+		"t2": TString,
+	}
+
+	// Apply substitution
+	cti.ApplySubstitution(sub)
+
+	// Verify t1 → Float
+	result1, ok1 := cti.Get(1)
+	if !ok1 {
+		t.Errorf("Node 1 missing after substitution")
+	}
+	if result1 != TFloat {
+		t.Errorf("Node 1: expected TFloat, got %v", result1)
+	}
+
+	// Verify t2 → String
+	result2, ok2 := cti.Get(2)
+	if !ok2 {
+		t.Errorf("Node 2 missing after substitution")
+	}
+	if result2 != TString {
+		t.Errorf("Node 2: expected TString, got %v", result2)
+	}
+
+	// Verify Int unchanged
+	result3, ok3 := cti.Get(3)
+	if !ok3 {
+		t.Errorf("Node 3 missing after substitution")
+	}
+	if result3 != TInt {
+		t.Errorf("Node 3: expected TInt, got %v", result3)
+	}
+
+	// Verify List[t1] → List[Float]
+	result4, ok4 := cti.Get(4)
+	if !ok4 {
+		t.Errorf("Node 4 missing after substitution")
+	}
+	list4, ok := result4.(*TList)
+	if !ok {
+		t.Errorf("Node 4: expected TList, got %T", result4)
+	} else if list4.Element != TFloat {
+		t.Errorf("Node 4: expected List[Float], got List[%v]", list4.Element)
+	}
+
+	// Verify t1 -> t2 became Float -> String
+	result5, ok5 := cti.Get(5)
+	if !ok5 {
+		t.Errorf("Node 5 missing after substitution")
+	}
+	func5, ok := result5.(*TFunc2)
+	if !ok {
+		t.Errorf("Node 5: expected TFunc2, got %T", result5)
+	} else {
+		if len(func5.Params) != 1 || func5.Params[0] != TFloat {
+			t.Errorf("Node 5: expected param Float, got %v", func5.Params)
+		}
+		if func5.Return != TString {
+			t.Errorf("Node 5: expected return String, got %v", func5.Return)
+		}
+	}
+}

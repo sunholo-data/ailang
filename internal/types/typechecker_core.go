@@ -204,6 +204,11 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		unsolved = defaultedConstraints
 	}
 
+	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
+	// This ensures CoreTI has concrete types (Int, Float, etc.) instead of type variables.
+	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
+	tc.CoreTI.ApplySubstitution(sub)
+
 	// Apply final substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
@@ -331,6 +336,10 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	} else if tc.debugMode {
 		fmt.Println("[debug] No defaulting applied")
 	}
+
+	// M-DX4 FIX V2: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
+	// Must be AFTER composition so we have the complete substitution with chains resolved
+	tc.CoreTI.ApplySubstitution(sub)
 
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)

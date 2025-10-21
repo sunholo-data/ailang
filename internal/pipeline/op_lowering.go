@@ -321,16 +321,30 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			if constraint, ok := l.resolvedConstraints[typeNode]; ok {
 				typeSuffix = getTypeSuffixFromType(constraint.Type)
 			} else {
+				// M-DX4: For polymorphic operands, check if the INTRINSIC itself has a constraint
+				// This handles cases where lambda parameters are polymorphic but the comparison
+				// at the call site has been resolved
+				if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+					typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
+				} else {
+					// Last resort: use default based on operator
+					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+				}
+			}
+		}
+	} else {
+		if constraint, ok := l.resolvedConstraints[typeNode]; ok {
+			// Fallback to resolved constraints if CoreTI unavailable
+			typeSuffix = getTypeSuffixFromType(constraint.Type)
+		} else {
+			// M-DX4: For polymorphic operands, check if the INTRINSIC itself has a constraint
+			if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+				typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
+			} else {
 				// Last resort: use default based on operator
 				typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 			}
 		}
-	} else if constraint, ok := l.resolvedConstraints[typeNode]; ok {
-		// Fallback to resolved constraints if CoreTI unavailable
-		typeSuffix = getTypeSuffixFromType(constraint.Type)
-	} else {
-		// Last resort: use default based on operator
-		typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 	}
 
 	// For non-short-circuiting operations, recursively lower the arguments
