@@ -5,7 +5,7 @@
 -- This file demonstrates the bug described in M-R7
 -- Status: EXPECTED TO FAIL in v0.3.0-alpha4
 
-module examples/bug_modulo_operator
+module examples/tests/bug_modulo_operator
 
 export func main() -> int {
   -- BUG: This should work but fails with ambiguous type variable

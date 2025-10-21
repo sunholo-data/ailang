@@ -1,4 +1,4 @@
-module examples/test_import_ctor
+module examples/tests/test_import_ctor
 import stdlib/std/option (Some)
 
 export pure func test() -> int {

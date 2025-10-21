@@ -1,5 +1,5 @@
 -- Test: Float equality works
-module examples/test_float_eq_works
+module examples/tests/test_float_eq_works
 
 export func main() -> bool {
   0.0 == 0.0

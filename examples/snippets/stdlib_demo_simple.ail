@@ -1,6 +1,6 @@
 -- Simple stdlib demo - Demonstrates basic IO builtins
 -- Status: ✅ Works with v0.2.0-rc1
-module examples/stdlib_demo_simple
+module examples/snippets/stdlib_demo_simple
 
 -- Simple greeting using println
 export func main() -> () {

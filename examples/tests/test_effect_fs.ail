@@ -2,7 +2,7 @@
 -- Run with: ailang run examples/test_effect_fs.ail --caps FS,IO
 -- NOTE: Uses raw builtins (stdlib wrappers don't parse yet)
 
-module examples/test_effect_fs
+module examples/tests/test_effect_fs
 
 export func main() -> () {
   -- Direct builtin calls bypass type checking

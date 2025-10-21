@@ -1,4 +1,4 @@
-module examples/demos/effects_pure
+module examples/tests/demos/effects_pure
 import std/list (map, foldl)
 
 -- Demonstrate pure functions with list operations

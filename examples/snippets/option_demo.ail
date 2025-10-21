@@ -2,7 +2,7 @@
 -- The module execution feature is planned for the next release.
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
-module examples/option_demo
+module examples/snippets/option_demo
 import stdlib/std/option (Some, None, map, getOrElse)
 
 export pure func main() -> int {

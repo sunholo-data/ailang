@@ -2,7 +2,7 @@
 -- The module execution feature is planned for the next release.
 -- Current status: Parses ✓, Type-checks ✓, Executes ✗
 
-module examples/stdlib_demo
+module examples/snippets/stdlib_demo
 import stdlib/std/io (println)
 import stdlib/std/list (map)
 import stdlib/std/string (toUpper)

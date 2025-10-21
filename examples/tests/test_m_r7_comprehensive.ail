@@ -1,7 +1,7 @@
 -- Comprehensive M-R7 Test Cases
 -- Testing modulo and float comparison edge cases
 
-module examples/test_m_r7_comprehensive
+module examples/tests/test_m_r7_comprehensive
 
 -- Test 1: Basic modulo
 export func test_modulo_basic() -> int {

@@ -2,7 +2,7 @@
 -- Documents RT_REC_001: recursive value error
 -- Status: ✅ Conceptual (demonstrates error conditions)
 
-module examples/recursion_error
+module examples/tests/recursion_error
 
 import std/io (println)
 

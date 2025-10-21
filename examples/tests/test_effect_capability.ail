@@ -1,4 +1,4 @@
-module examples/test_effect_capability
+module examples/tests/test_effect_capability
 
 export func main() -> () {
   let x = _io_println("test");
