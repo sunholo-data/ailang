@@ -19,7 +19,7 @@ if [[ $# -gt 1 ]] && [[ "$2" == "--full" ]]; then
     FULL_FLAG="FULL=true"
 fi
 
-echo "Running eval baseline for v$VERSION..."
+echo "Running eval baseline for $VERSION..."
 if [[ -n "$FULL_FLAG" ]]; then
     echo "Mode: FULL (all 6 production models)"
     echo "Expected cost: ~\$0.50-1.00"
@@ -31,15 +31,15 @@ else
 fi
 echo
 
-# Run baseline
+# Run baseline (pass version exactly as given)
 if [[ -n "$FULL_FLAG" ]]; then
     make eval-baseline EVAL_VERSION="$VERSION" FULL=true
 else
     make eval-baseline EVAL_VERSION="$VERSION"
 fi
 
-# Show results location
-RESULTS_DIR="eval_results/baselines/v$VERSION"
+# Show results location (tools/eval_baseline.sh uses VERSION as-is)
+RESULTS_DIR="eval_results/baselines/$VERSION"
 if [[ -d "$RESULTS_DIR" ]]; then
     FILE_COUNT=$(find "$RESULTS_DIR" -name "*.json" | wc -l | tr -d ' ')
     echo
