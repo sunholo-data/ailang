@@ -1,21 +1,13 @@
 id: simple_print
-description: "Simple print test - designed to test repair mechanism"
-languages: ["python"]
+description: "Simple print statement (entry-module prelude test)"
+languages: ["python", "ailang"]
 entrypoint: "main"
-caps: []
+caps: ["IO"]
 difficulty: "trivial"
-expected_gain: "high"
+expected_gain: "very_high"
 task_prompt: |
-  Write a Python program that prints exactly:
-  Hello World
-  The answer is 42
-
-  Requirements:
-  - Two lines of output
-  - First line: "Hello World"
-  - Second line: "The answer is 42"
+  Write a program that prints the string "Hello, World!" to stdout (without a trailing newline).
 
   Output only the code, no explanations.
 expected_stdout: |
-  Hello World
-  The answer is 42
+  Hello, World!
