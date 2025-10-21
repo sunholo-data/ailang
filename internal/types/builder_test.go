@@ -37,9 +37,9 @@ func TestPrimitiveCasing(t *testing.T) {
 
 	// All primitives MUST be lowercase (except unit which is "()")
 	primitives := []struct {
-		typ      Type
-		name     string
-		mustNot  string
+		typ     Type
+		name    string
+		mustNot string
 	}{
 		{b.String(), "string", "String"},
 		{b.Int(), "int", "Int"},

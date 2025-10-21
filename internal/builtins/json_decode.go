@@ -44,7 +44,7 @@ Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.
 				{Code: `_json_decode("null")`, Description: "Returns Ok(JNull)"},
 				{Code: `_json_decode("{invalid}")`, Description: "Returns Err(\"invalid json: ...\")"},
 			},
-			SeeAlso: []string{"std/json.encode", "std/json module"},
+			SeeAlso:   []string{"std/json.encode", "std/json module"},
 			Since:     "v0.2.0",
 			Stability: StabilityStable,
 			Tags:      []string{"json", "parsing", "deserialization", "data", "result"},

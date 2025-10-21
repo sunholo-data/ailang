@@ -689,7 +689,6 @@ func exportTraining() {
 	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
 }
 
-
 // handleStructuredError outputs structured JSON error reports
 func handleStructuredError(err error, compact bool) {
 	// Try to extract a structured Report using errors.AsReport
