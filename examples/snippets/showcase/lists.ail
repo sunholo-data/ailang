@@ -1,0 +1,7 @@
+-- Showcase: Lists and Strings
+-- Both use the ++ operator!
+module examples/snippets/showcase/lists
+
+export func main() -> () ! {IO} =
+  let numbers = [1, 2, 3] ++ [4, 5] in
+  print("Concatenation works for lists and strings!")

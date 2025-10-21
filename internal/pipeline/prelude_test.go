@@ -175,6 +175,17 @@ export func helper() -> () ! {IO} = print("should fail")`
 	}
 }
 
+// TestPrelude_EntryModuleMissingIO tests effect checking behavior
+// Note: This test verifies that print usage requires IO effect in the type signature
+// TODO: Once runModule path supports prelude, this should show effect-specific diagnostic
+func TestPrelude_EntryModuleMissingIO(t *testing.T) {
+	t.Skip("TODO: Effect diagnostic test needs runModule path with prelude - testing via manual verification for now")
+
+	// When implemented, this should verify:
+	// 1. Entry module with print("x") but main() -> () (no ! {IO})
+	// 2. Should get helpful error: "print requires IO effect. Add ! {IO} to main signature"
+}
+
 // TestPrelude_Shadowing tests that user definitions can shadow print
 // TODO: This test needs proper syntax and pipeline path
 func TestPrelude_Shadowing(t *testing.T) {
