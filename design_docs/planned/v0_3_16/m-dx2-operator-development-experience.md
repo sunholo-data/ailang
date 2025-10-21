@@ -60,6 +60,7 @@
 
 **Success Metrics:**
 - Type-guided lowering eliminates ANF binding traversal
+- `++` lowering uses TypeInfo; code passes with ANF lookups disabled for this operator
 - Core IR helpers reduce boilerplate by 50%
 - Debug tools (`ailang debug ast`) provide instant ANF/type visibility
 - Runtime errors include actionable diagnostic messages
@@ -87,56 +88,107 @@ Build on M-DX1's success (builtin registry + Type DSL) by addressing the next la
 
 1. **TypeInfo Map** (typechecker → lowering)
    - Store `map[NodeID]types.Type` during type inference
+   - Use stable NodeIDs (assigned during parsing, preserved through passes)
+   - Store **principal types** (post-generalization, not intermediate unification states)
    - Pass to lowering context via `LoweringContext.TypeInfo`
    - Select builtin variants by type, not ANF shape
+   - **Lifecycle**: Created during typechecking, used during lowering, freed after lowering (no persistence)
+   - **Wrapper type** for safety:
+     ```go
+     type TypeInfo map[NodeID]types.Type
+     func (ti TypeInfo) Must(id NodeID) types.Type // friendly error if missing
+     ```
 
-2. **Core Helpers** (`internal/core/helpers.go`)
+2. **Operator Table as Source of Truth**
+   - Maintain single operator registry: `op_table[OpConcat].Variants`
+   - Each variant: `{Type: types.Type, Builtin: string}`
+   - Lowering consults table and picks by type match (no hardcoded builtin names)
+   - **Fallback behavior**: If type unknown/ambiguous → clear compile error:
+     ```
+     "Operator ++ supports String | List; inferred type: <ambiguous>
+      Add explicit type annotation to disambiguate."
+     ```
+   - Never silently choose variant by ANF shape
+
+3. **Core Helpers** (`internal/core/helpers.go`)
    - `ResolveValue(expr, binds)`: Follow `Var` bindings to terminal value
    - `IsListValue(expr, binds)`: Check if resolved value is a list
-   - Used by lowering to simplify type checks
+   - Used by lowering to simplify type checks (when TypeInfo unavailable)
+   - **Tested with depth 0-5 var chains** (fuzz-style test)
 
-3. **Debug Tool** (`cmd/ailang/debug.go`)
-   - `ailang debug ast file.ail --show-types`
-   - Prints: Surface AST → Core ANF → Type annotations
+4. **Debug Tool** (`cmd/ailang/debug.go`)
+   - `ailang debug ast <file> [flags]`
+   - **Flags**:
+     - `--surface` (default) / `--core` - Which AST to show
+     - `--show-types` - Add `NodeID: Type` annotations
+     - `--node <id>` - Filter to specific subtree
+     - `--compact` - No whitespace (for logs/CI)
+     - `--limit <n>` - Max nodes to print (default 1000, prevents gigantic dumps)
+   - **Legend**: Print one-line type legend when `--show-types` enabled
    - Re-uses existing pretty-printers + new TypeInfo formatter
 
-4. **Runtime Error Wrapper** (`internal/eval/builtins.go`)
-   - Wrap builtin invocations with type assertions
-   - On mismatch: `"++ lowering selected concat_String, but received List at runtime"`
-   - Include likely causes + fix suggestions
+5. **Runtime Error Helper** (`internal/eval/builtin_errors.go`)
+   - Centralized error constructor:
+     ```go
+     func ArgTypeMismatch(fn string, argIdx int, want, got string, hint string) error
+     ```
+   - On mismatch: Include expected type, received type, likely causes, fix suggestions
+   - **Smart hint**: If type-guided lowering enabled and mismatch occurs → suggest filing bug with `ailang debug ast --show-types` output
 
-5. **Documentation** (`docs/architecture/`, `docs/guides/`)
+6. **Documentation** (`docs/architecture/`, `docs/guides/`)
    - `ANF.md`: Why ANF exists, how to read it, common patterns
    - `adding-operators.md`: Step-by-step checklist for polymorphic operators
 
 ### Implementation Plan
 
 **Phase 1: Type-Guided Lowering** (~2-3 hours)
-- [ ] Add `TypeInfo map[int]types.Type` to typechecker
-- [ ] Populate during type inference (annotate each AST node)
+- [ ] Add `TypeInfo` wrapper type with `Must()` helper
+- [ ] Ensure NodeIDs are stable (assigned during parsing, preserved through passes)
+- [ ] Populate TypeInfo during type inference with **principal types** (post-generalization)
 - [ ] Pass `TypeInfo` to lowering via `LoweringContext`
-- [ ] Update `lowerBinaryOp()` to select builtin by type, not shape
-- [ ] Test with `++` operator (should work without ANF traversal)
+- [ ] Build operator table with variants: `op_table[OpConcat].Variants = [{Type, Builtin}]`
+- [ ] Update `lowerBinaryOp()` to:
+  - Consult operator table (no hardcoded builtin names)
+  - Select variant by type match
+  - Emit compile error if type unknown/ambiguous (with helpful message)
+- [ ] Delete ANF binding-chase branch from `++` lowering
+- [ ] Test: `++` works without ANF traversal (regression guard)
 
 **Phase 2: Core IR Helpers** (~45 minutes)
 - [ ] Create `internal/core/helpers.go`
 - [ ] Implement `ResolveValue(expr CoreExpr, binds map[string]CoreExpr) CoreExpr`
 - [ ] Implement `IsListValue(expr CoreExpr, binds map[string]CoreExpr) bool`
-- [ ] Add unit tests (10 cases covering Var chains, nested Lets, literals)
-- [ ] Use in lowering pass (simplify existing ANF traversal)
+- [ ] Add unit tests:
+  - Simple Var lookup
+  - Nested Var chains (depth 0-5, fuzz-style test)
+  - Var not in bindings
+  - Non-Var expressions
+- [ ] Use in lowering pass (simplify existing ANF traversal where TypeInfo unavailable)
 
 **Phase 3: Debug CLI** (~2-3 hours)
 - [ ] Add `cmd/ailang/debug.go` with `debugASTCmd`
-- [ ] Implement `--show-types` flag (print TypeInfo alongside nodes)
+- [ ] Implement flags:
+  - `--surface` (default) / `--core` - Which AST to print
+  - `--show-types` - Add NodeID: Type annotations
+  - `--node <id>` - Filter to subtree
+  - `--compact` - No whitespace (for logs)
+  - `--limit <n>` - Max nodes (default 1000)
+- [ ] Print one-line legend when `--show-types` enabled
 - [ ] Re-use existing AST printers from pipeline
 - [ ] Add TypeInfo formatter (pretty-print types per node)
-- [ ] Test with examples: `ailang debug ast examples/list_ops.ail --show-types`
+- [ ] Test with examples:
+  - `ailang debug ast examples/list_ops.ail --show-types`
+  - `ailang debug ast examples/factorial.ail --core --compact`
 
 **Phase 4: Error Messages** (~45 minutes)
-- [ ] Add `checkBuiltinArgType()` helper in `internal/eval/builtins.go`
-- [ ] Wrap String builtin casts: `if !ok { return builtin mismatch error }`
-- [ ] Include diagnostic: expected type, received type, likely causes
-- [ ] Add test: call `_str_concat` with List → expect helpful error
+- [ ] Create `internal/eval/builtin_errors.go`
+- [ ] Implement `ArgTypeMismatch(fn, argIdx, want, got, hint)` helper
+- [ ] Wrap String builtin casts with type checks
+- [ ] Include diagnostic: expected type, received type, likely causes, fix suggestions
+- [ ] Add smart hint: If type-guided lowering enabled → suggest filing bug with `ailang debug ast --show-types`
+- [ ] Add tests:
+  - Call `_str_concat` with List → expect helpful error
+  - Call `_list_concat` with String → expect helpful error
 - [ ] Update error schema if needed
 
 **Phase 5: Documentation** (~1.5-2 hours)
@@ -154,22 +206,27 @@ Build on M-DX1's success (builtin registry + Type DSL) by addressing the next la
 ### Files to Modify/Create
 
 **New files:**
+- `internal/types/typeinfo.go` - TypeInfo wrapper type (~30 LOC)
 - `internal/core/helpers.go` - Core IR helpers (~50 LOC)
-- `internal/core/helpers_test.go` - Tests (~100 LOC)
-- `cmd/ailang/debug.go` - Debug CLI (~150 LOC)
+- `internal/core/helpers_test.go` - Tests (~120 LOC including fuzz-style)
+- `internal/eval/builtin_errors.go` - Error helpers (~60 LOC)
+- `cmd/ailang/debug.go` - Debug CLI (~200 LOC with all flags)
 - `docs/architecture/ANF.md` - ANF guide (~300 lines)
 - `docs/guides/adding-operators.md` - Operator guide (~400 lines)
 
 **Modified files:**
-- `internal/types/typechecker.go` - Add TypeInfo map (~20 LOC)
+- `internal/parser/parser.go` - Ensure stable NodeIDs (~10 LOC)
+- `internal/types/typechecker.go` - Populate TypeInfo with principal types (~30 LOC)
 - `internal/pipeline/lowering_context.go` - Pass TypeInfo (~10 LOC)
-- `internal/pipeline/op_lowering.go` - Use types instead of shapes (~30 LOC)
-- `internal/eval/builtins.go` - Wrap builtin casts (~40 LOC)
+- `internal/pipeline/op_table.go` - Add Variants to operator registry (~40 LOC)
+- `internal/pipeline/op_lowering.go` - Type-guided selection, delete ANF chase (~50 LOC)
+- `internal/builtins/string.go` - Use ArgTypeMismatch helper (~20 LOC)
+- `internal/builtins/list.go` - Use ArgTypeMismatch helper (~20 LOC)
 - `cmd/ailang/main.go` - Register debug command (~5 LOC)
 - `CLAUDE.md` - Link to new docs (~10 LOC)
 
-**Total new code:** ~750 LOC
-**Total modified code:** ~115 LOC
+**Total new code:** ~860 LOC
+**Total modified code:** ~195 LOC
 
 ## Examples
 
@@ -199,22 +256,36 @@ func lowerBinaryOp(op string, left, right CoreExpr, binds map[string]CoreExpr) C
 ```go
 // internal/pipeline/op_lowering.go
 func (lc *LoweringContext) lowerBinaryOp(op string, left, right CoreExpr, leftID, rightID int) CoreExpr {
-    // Look up type from typechecker
-    leftType := lc.TypeInfo[leftID]
+    // Look up type from typechecker (principal type)
+    leftType := lc.TypeInfo.Must(leftID)
 
-    // Decide builtin by type, not shape
-    switch leftType.(type) {
-    case *types.TList:
-        return &AppExpr{Func: &VarExpr{Name: "_list_concat"}, Args: []CoreExpr{left, right}}
-    case *types.TString:
-        return &AppExpr{Func: &VarExpr{Name: "_str_concat"}, Args: []CoreExpr{left, right}}
-    default:
-        panic(fmt.Sprintf("++ operator not supported for type %v", leftType))
+    // Consult operator table (source of truth)
+    opDef := lc.OpTable[op]
+
+    // Select variant by type match
+    for _, variant := range opDef.Variants {
+        if types.Matches(leftType, variant.Type) {
+            return &AppExpr{
+                Func: &VarExpr{Name: variant.Builtin},
+                Args: []CoreExpr{left, right},
+            }
+        }
     }
+
+    // No variant matched → clear compile error
+    return lc.Error(
+        "Operator %s supports %s; inferred type: %v\n"+
+        "Add explicit type annotation to disambiguate.",
+        op, opDef.SupportedTypes(), leftType,
+    )
 }
 ```
 
-**Impact:** No more ANF traversal. Type is authoritative source.
+**Impact:**
+- No ANF traversal needed
+- Type is authoritative source
+- Operator table is single source of truth (no hardcoded builtin names)
+- Clear error messages for ambiguous cases
 
 ### Example 2: Core IR Helpers
 
@@ -313,12 +384,17 @@ Fix:
 ## Testing Strategy
 
 **Unit tests:**
-- `internal/core/helpers_test.go`: 10 cases for ResolveValue/IsListValue
+- `internal/types/typeinfo_test.go`: TypeInfo wrapper
+  - `Must()` returns type when ID exists
+  - `Must()` panics with helpful error when ID missing
+- `internal/core/helpers_test.go`: ResolveValue/IsListValue
   - Simple Var lookup
-  - Nested Var chains (a → b → c → literal)
+  - Nested Var chains (depth 0-5, fuzz-style test)
   - Var not in bindings
   - Non-Var expressions
-- `internal/eval/builtins_test.go`: Type mismatch errors
+- `internal/eval/builtin_errors_test.go`: Error formatting
+  - `ArgTypeMismatch()` produces helpful messages
+  - Smart hint included when type-guided lowering enabled
   - Call String builtin with List → expect helpful error
   - Call List builtin with String → expect helpful error
 
@@ -327,9 +403,19 @@ Fix:
   - `[1,2] ++ [3,4]` → selects `_list_concat`
   - `"foo" ++ "bar"` → selects `_str_concat`
   - Type annotation drives selection, not shape
+  - **Regression guard**: Remove ANF lookup code, test still passes
+- `internal/pipeline/op_table_test.go`: Operator registry
+  - All operators have variants
+  - Variant types match builtin signatures
 - `cmd/ailang/debug_test.go`: CLI output
   - Run `debug ast examples/list_ops.ail --show-types`
   - Assert output contains ANF and type annotations
+  - Test `--compact`, `--node`, `--limit` flags
+
+**Stability tests:**
+- `internal/parser/nodeid_test.go`: NodeID stability
+  - Parse same file twice → NodeIDs identical
+  - Parse → lower → NodeIDs unchanged for same nodes
 
 **Manual testing:**
 - Add new operator (`**` for exponentiation) using new guides
@@ -370,10 +456,12 @@ Fix:
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| TypeInfo map increases memory | Low | Only used during compilation, freed after lowering |
-| Debug CLI output too verbose | Medium | Add `--compact` flag to show only types or only ANF |
+| TypeInfo map increases memory | Low | Only used during compilation, freed after lowering; no persistence |
+| Debug CLI output too verbose | Medium | Add `--compact` flag + `--limit` (default 1000 nodes) |
 | ANF doc gets outdated | Low | Link from error messages so it's used frequently |
-| Type-guided lowering breaks existing code | High | Extensive tests + verify all examples still work |
+| Type-guided lowering breaks existing code | High | Extensive tests + verify all examples still work + regression guards |
+| Stale/unstable NodeIDs | Medium | Unit test: parse same file twice → NodeIDs identical; preserve IDs through passes |
+| Performance degradation | Low | TypeInfo lookups are O(1); only adds ~100µs to compile time |
 
 ## References
 
@@ -408,6 +496,49 @@ Fix:
    - Eliminate redundant Lets
    - Inline single-use bindings
    - Currently ANF is unoptimized (doesn't matter for correctness)
+
+## Implementation Checklist (Tight & Shippable)
+
+When ready to implement, follow this checklist:
+
+**Phase 1: TypeInfo Plumbing**
+- [ ] Add `TypeInfo` wrapper type with `Must()` helper
+- [ ] Ensure NodeIDs stable (assigned during parsing, preserved through passes)
+- [ ] Store principal types (post-generalization) during type inference
+- [ ] Pass TypeInfo into lowering context
+
+**Phase 2: Operator Table & Type-Guided Lowering**
+- [ ] Build operator table with variants: `{Type, Builtin}`
+- [ ] Switch `++` lowering to type-guided selection (consult table)
+- [ ] Delete ANF binding-chase branch
+- [ ] Add compile error for unknown/ambiguous types
+- [ ] **Critical test**: Verify `++` works with ANF lookups disabled
+
+**Phase 3: Core Helpers**
+- [ ] Implement `core.ResolveValue()` and `core.IsListValue()`
+- [ ] Add tests (depth 0-5 var chains, fuzz-style)
+- [ ] Use in lowering where TypeInfo unavailable
+
+**Phase 4: Debug CLI**
+- [ ] Implement `ailang debug ast` with `--show-types`, `--core`, `--node`, `--compact`, `--limit`
+- [ ] Print one-line legend when `--show-types` enabled
+- [ ] Test with examples
+
+**Phase 5: Error Messages**
+- [ ] Create `builtin_errors.go` with `ArgTypeMismatch()` helper
+- [ ] Wrap builtin arg casts with type checks
+- [ ] Add smart hint (suggest filing bug with debug output)
+- [ ] Test: wrong builtin variant → helpful error
+
+**Phase 6: Documentation**
+- [ ] Write `docs/architecture/ANF.md`
+- [ ] Write `docs/guides/adding-operators.md`
+- [ ] Link from `CLAUDE.md` and `CONTRIBUTING.md`
+
+**Phase 7: Regression Guards**
+- [ ] Test: `++` lowering fails if ANF lookup code re-added
+- [ ] Test: NodeIDs stable across parses
+- [ ] Verify all examples still work
 
 ---
 
