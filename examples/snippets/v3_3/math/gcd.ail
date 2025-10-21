@@ -1,5 +1,5 @@
 -- GCD/LCM module for import testing
-module examples/v3_3/math/gcd
+module examples/snippets/v3_3/math/gcd
 
 export pure func gcd(a: int, b: int) -> int {
   if b == 0 then a else gcd(b, a % b)
