@@ -52,21 +52,28 @@ func main() {
 func generateStatusTable(report reporttypes.VerificationReport) string {
 	var sb strings.Builder
 
-	// Add badges
-	sb.WriteString("## Status\n\n")
+	// Add badge
 	sb.WriteString("![Examples](https://img.shields.io/badge/examples-")
 	if report.Failed == 0 {
 		sb.WriteString(fmt.Sprintf("%d%%20passing-brightgreen", report.Passed))
 	} else {
-		sb.WriteString(fmt.Sprintf("%d%%20passing%%20%d%%20failing-red", report.Passed, report.Failed))
+		sb.WriteString(fmt.Sprintf("%d%%20passing%%20%d%%20failing-", report.Passed, report.Failed))
+		// Choose color based on percentage
+		percentage := float64(report.Passed) / float64(report.TotalExamples) * 100
+		if percentage >= 80 {
+			sb.WriteString("green")
+		} else if percentage >= 60 {
+			sb.WriteString("orange")
+		} else {
+			sb.WriteString("red")
+		}
 	}
 	sb.WriteString(".svg)\n\n")
 
-	// Add summary
-	sb.WriteString("### Example Verification Status\n\n")
-	sb.WriteString(fmt.Sprintf("*Last updated: %s*\n\n", report.Timestamp.Format("2006-01-02 15:04:05 UTC")))
-	sb.WriteString(fmt.Sprintf("**Summary:** %d passed, %d failed, %d skipped (Total: %d)\n\n",
-		report.Passed, report.Failed, report.Skipped, report.TotalExamples))
+	// Add summary with percentage
+	percentage := float64(report.Passed) / float64(report.TotalExamples) * 100
+	sb.WriteString(fmt.Sprintf("**%d/%d examples passing (%.0f%%)** - Each example exercises specific language features, so this directly reflects implementation completeness.\n\n",
+		report.Passed, report.TotalExamples, percentage))
 
 	// Create status table
 	sb.WriteString("| Example File | Status | Notes |\n")

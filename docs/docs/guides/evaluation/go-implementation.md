@@ -305,9 +305,9 @@ func ExportToPostgres(results []*BenchmarkResult, connStr string) error {
 
 - [Migration Guide](migration-guide.md) - Before/after comparison
 - [Eval Loop Guide](eval-loop.md) - Automated workflow
-- [API Reference](../../../../internal/eval_analysis/) - GoDoc comments
-- [CLI Usage](../../../../README.md#evaluation) - Command examples
-- [Design Doc](../../../../design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - System architecture
+- [API Reference](https://github.com/sunholo-data/ailang/tree/main/internal/eval_analysis) - GoDoc comments
+- [CLI Usage](https://github.com/sunholo-data/ailang#evaluation) - Command examples
+- [Design Doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/M-EVAL-LOOP_self_improving_feedback.md) - System architecture
 
 ---
 

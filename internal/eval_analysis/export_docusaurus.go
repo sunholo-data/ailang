@@ -12,6 +12,141 @@ import (
 	"github.com/sunholo/ailang/internal/eval_harness"
 )
 
+// loadExistingDashboard reads the existing dashboard JSON file and returns its structure
+// If the file doesn't exist, returns an empty dashboard with an empty history array
+func loadExistingDashboard(path string) (*DashboardJSON, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return &DashboardJSON{History: []HistoryEntry{}}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var dashboard DashboardJSON
+	if err := json.Unmarshal(data, &dashboard); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	return &dashboard, nil
+}
+
+// mergeHistory adds a new entry to the dashboard history or updates an existing entry
+// If the version already exists, it updates that entry. Otherwise, prepends the new entry.
+// History is maintained in reverse chronological order (newest first)
+func mergeHistory(dashboard *DashboardJSON, newEntry HistoryEntry) {
+	// Check for duplicate version
+	for i, entry := range dashboard.History {
+		if entry.Version == newEntry.Version {
+			// Update existing entry
+			dashboard.History[i] = newEntry
+			return
+		}
+	}
+
+	// Prepend new entry (reverse chronological order)
+	dashboard.History = append([]HistoryEntry{newEntry}, dashboard.History...)
+}
+
+// buildHistoryEntryFromMatrix creates a HistoryEntry from a PerformanceMatrix and results
+func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*BenchmarkResult) HistoryEntry {
+	successCount := 0
+	for _, r := range results {
+		if r.StdoutOk {
+			successCount++
+		}
+	}
+
+	successRate := 0.0
+	if matrix.TotalRuns > 0 {
+		successRate = float64(successCount) / float64(matrix.TotalRuns)
+	}
+
+	// Build language stats
+	langStats := make(map[string]interface{})
+	for lang, stats := range matrix.Languages {
+		if stats.TotalRuns > 0 {
+			langStats[lang] = map[string]interface{}{
+				"success_rate": stats.SuccessRate,
+				"total_runs":   stats.TotalRuns,
+			}
+		}
+	}
+
+	// Determine languages string
+	languages := ""
+	if len(matrix.Languages) > 0 {
+		langList := make([]string, 0, len(matrix.Languages))
+		for lang := range matrix.Languages {
+			langList = append(langList, lang)
+		}
+		sort.Strings(langList)
+		languages = strings.Join(langList, ",")
+	}
+
+	return HistoryEntry{
+		Version:       matrix.Version,
+		Timestamp:     matrix.Timestamp.Format(time.RFC3339),
+		SuccessRate:   successRate,
+		TotalRuns:     matrix.TotalRuns,
+		SuccessCount:  successCount,
+		Languages:     languages,
+		LanguageStats: langStats,
+	}
+}
+
+// writeJSONAtomic writes JSON data to a file atomically
+// Uses a temp file + rename to ensure all-or-nothing writes
+func writeJSONAtomic(path string, data interface{}) error {
+	jsonBytes, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	tmpPath := path + ".tmp"
+
+	// Write to temp file
+	if err := os.WriteFile(tmpPath, jsonBytes, 0644); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	// Validate temp file
+	tmpData, err := os.ReadFile(tmpPath)
+	if err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to read temp file: %w", err)
+	}
+
+	// Parse and validate
+	if dashboard, ok := data.(*DashboardJSON); ok {
+		var test DashboardJSON
+		if err := json.Unmarshal(tmpData, &test); err != nil {
+			os.Remove(tmpPath)
+			return fmt.Errorf("validation failed: %w", err)
+		}
+
+		if err := test.Validate(); err != nil {
+			os.Remove(tmpPath)
+			return fmt.Errorf("validation failed: %w", err)
+		}
+
+		// Verify version matches
+		if test.Version != dashboard.Version {
+			os.Remove(tmpPath)
+			return fmt.Errorf("version mismatch after marshaling: expected %s, got %s",
+				dashboard.Version, test.Version)
+		}
+	}
+
+	// Atomic rename (on Unix, overwrites atomically)
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to rename: %w", err)
+	}
+
+	return nil
+}
+
 // ExportDocusaurusMDX generates an MDX file with React components for Docusaurus
 func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string {
 	var sb strings.Builder
@@ -207,7 +342,12 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 }
 
 // ExportBenchmarkJSON exports benchmark data as JSON for client-side rendering
-func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results []*BenchmarkResult) (string, error) {
+func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results []*BenchmarkResult, outputPath string) (string, error) {
+	// Load existing dashboard to preserve history
+	dashboard, err := loadExistingDashboard(outputPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to load existing dashboard: %w", err)
+	}
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
 		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
@@ -395,18 +535,38 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		historyJS[i] = histEntry
 	}
 
-	data := map[string]interface{}{
-		"version":    matrix.Version,
-		"timestamp":  time.Now().Format(time.RFC3339),
-		"totalRuns":  matrix.TotalRuns,
-		"aggregates": aggregatesJS,
-		"models":     modelsJS,
-		"benchmarks": benchmarksJS,
-		"languages":  matrix.Languages,
-		"history":    historyJS,
+	// Build history entry for current version from matrix
+	newHistoryEntry := buildHistoryEntryFromMatrix(matrix, results)
+
+	// Merge with existing history (preserves old entries, updates if version exists)
+	mergeHistory(dashboard, newHistoryEntry)
+
+	// Build languages map for dashboard (matches existing format)
+	languagesMap := make(map[string]interface{})
+	for lang, stats := range matrix.Languages {
+		languagesMap[lang] = map[string]interface{}{
+			"total_runs":   stats.TotalRuns,
+			"success_rate": stats.SuccessRate,
+			"avg_tokens":   stats.AvgTokens,
+		}
 	}
 
-	jsonBytes, err := json.MarshalIndent(data, "", "  ")
+	// Update dashboard with current version data
+	dashboard.Version = matrix.Version
+	dashboard.Timestamp = time.Now().Format(time.RFC3339)
+	dashboard.TotalRuns = matrix.TotalRuns
+	dashboard.Aggregates = aggregatesJS
+	dashboard.Models = modelsJS
+	dashboard.Benchmarks = benchmarksJS
+	dashboard.Languages = languagesMap
+
+	// Write atomically
+	if err := writeJSONAtomic(outputPath, dashboard); err != nil {
+		return "", fmt.Errorf("failed to write dashboard: %w", err)
+	}
+
+	// Return JSON string for backwards compatibility (stdout redirection)
+	jsonBytes, err := json.MarshalIndent(dashboard, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON: %w", err)
 	}

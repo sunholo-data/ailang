@@ -147,8 +147,33 @@ done:
 	return result
 }
 
-// findAllExamples recursively finds all .ail files in the examples directory
+// findAllExamples finds all .ail files in examples/runnable/ directory
+// Only runnable examples are verified by CI (v0.3.14+)
 func findAllExamples() ([]string, error) {
+	var files []string
+	runnableDir := filepath.Join("examples", "runnable")
+
+	// Check if runnable directory exists
+	if _, err := os.Stat(runnableDir); os.IsNotExist(err) {
+		// Fallback to old behavior if runnable/ doesn't exist yet
+		return findAllExamplesLegacy()
+	}
+
+	err := filepath.Walk(runnableDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".ail") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
+}
+
+// findAllExamplesLegacy recursively finds all .ail files in the examples directory
+// Used as fallback for backward compatibility
+func findAllExamplesLegacy() ([]string, error) {
 	var files []string
 	err := filepath.Walk("examples", func(path string, info os.FileInfo, err error) error {
 		if err != nil {

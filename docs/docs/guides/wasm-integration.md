@@ -216,13 +216,13 @@ The browser version has these limitations compared to the CLI:
 
 | Feature | CLI | WASM |
 |---------|-----|------|
-| Expression evaluation | ✅ | ✅ |
-| Type inference | ✅ | ✅ |
-| Pattern matching | ✅ | ✅ |
-| Type classes | ✅ | ✅ |
-| File I/O (`FS` effect) | ✅ | ❌ |
-| Module imports | ✅ | ❌ |
-| History persistence | ✅ | ❌ |
+| Expression evaluation | Yes | Yes |
+| Type inference | Yes | Yes |
+| Pattern matching | Yes | Yes |
+| Type classes | Yes | Yes |
+| File I/O (`FS` effect) | Yes | No |
+| Module imports | Yes | No |
+| History persistence | Yes | No |
 
 ## Deployment
 

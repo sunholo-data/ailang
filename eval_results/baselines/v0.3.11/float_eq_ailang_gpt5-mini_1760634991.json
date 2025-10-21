@@ -1,0 +1,23 @@
+{
+  "id": "float_eq",
+  "lang": "ailang",
+  "model": "gpt5-mini",
+  "seed": 42,
+  "input_tokens": 49,
+  "output_tokens": 26,
+  "total_tokens": 75,
+  "cost_usd": 0.00006425,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 7,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "true",
+  "timestamp": "2025-10-16T19:16:31.033205+02:00",
+  "code": "func main() {\n    print(0.0 == 0.0)\n}",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}

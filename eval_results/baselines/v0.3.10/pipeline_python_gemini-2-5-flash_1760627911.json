@@ -1,0 +1,23 @@
+{
+  "id": "pipeline",
+  "lang": "python",
+  "model": "gemini-2-5-flash",
+  "seed": 42,
+  "input_tokens": 96,
+  "output_tokens": 40,
+  "total_tokens": 136,
+  "cost_usd": 0.00012880000000000001,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 32,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "2\n4\n6\n8\n10\n",
+  "timestamp": "2025-10-16T17:18:31.589412+02:00",
+  "code": "import sys\n\nfor line in sys.stdin:\n    num = int(line.strip())\n    doubled_num = num * 2\n    print(doubled_num)",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}

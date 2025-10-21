@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files
+.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
 
 # Binary name
 BINARY=ailang
@@ -326,6 +326,8 @@ update-readme: build
 	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
 	@echo "Updating README with example status..."
 	@if [ -f examples_report.json ]; then go run ./scripts/update_readme.go; else echo "No examples report found, skipping README update"; fi
+	@echo "Updating docs examples page..."
+	@if [ -f examples_report.json ]; then go run ./scripts/update_docs_examples.go; else echo "No examples report found, skipping docs update"; fi
 
 # Generate test coverage badge
 test-coverage-badge:
@@ -399,6 +401,52 @@ ci: deps fmt-check vet lint test test-coverage-badge test-lowering verify-no-shi
 ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions test-imports test-recursion test-iface-determinism verify-examples
 	@echo "✓ Strict CI verification complete (A2 milestone)"
 
+# Doctor command - validate builtin registry
+doctor: build
+	@echo "Running builtin registry validation..."
+	@AILANG_BUILTINS_REGISTRY=1 $(BUILD_DIR)/$(BINARY) doctor builtins
+
+# Regression guard tests (critical for preventing v0.3.10-style bugs)
+.PHONY: test-regression-guards
+test-regression-guards:
+	@echo "Running regression guard tests..."
+	@echo "  → Builtin consistency (three-way parity)"
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
+	@echo "  → Builtin type golden snapshots"
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
+	@echo "  → REPL smoke tests (:type command)"
+	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
+	@echo "  → Stdlib canaries (std/io, std/net)"
+	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
+	@echo "  → Row unification properties"
+	@$(GOTEST) -v ./internal/types -run TestRowUnification
+	@echo "✓ All regression guards passed"
+
+.PHONY: test-builtin-consistency
+test-builtin-consistency:
+	@echo "Testing builtin consistency..."
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
+
+.PHONY: test-stdlib-canaries
+test-stdlib-canaries:
+	@echo "Testing stdlib canaries..."
+	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
+
+.PHONY: test-row-properties
+test-row-properties:
+	@echo "Testing row unification properties..."
+	@$(GOTEST) -v ./internal/types -run TestRowUnification
+
+.PHONY: test-golden-types
+test-golden-types:
+	@echo "Testing builtin type golden snapshots..."
+	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
+
+.PHONY: test-repl-smoke
+test-repl-smoke:
+	@echo "Testing REPL smoke tests..."
+	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -416,7 +464,15 @@ help:
 	@echo "  make verify-examples  - Verify all examples"
 	@echo "  make flag-broken      - Add warning headers to broken examples"
 	@echo "  make update-readme    - Update README with example status"
+	@echo "  make doctor           - Validate builtin registry"
+	@echo "  make test-regression-guards - Run regression guard tests"
+	@echo "  make test-builtin-consistency - Test builtin three-way parity"
+	@echo "  make test-stdlib-canaries - Test stdlib health (std/io, std/net)"
+	@echo "  make test-row-properties - Test row unification properties"
+	@echo "  make test-golden-types - Test builtin type snapshots"
+	@echo "  make test-repl-smoke - REPL smoke tests (:type command)"
 	@echo "  make ci               - Run full CI verification"
+	@echo "  make ci-strict        - Extended CI with A2 milestone gates"
 	@echo "  make fmt              - Format code"
 	@echo "  make fmt-check        - Check code formatting"
 	@echo "  make vet              - Run go vet"
@@ -430,7 +486,6 @@ help:
 	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
 	@echo "  make dev              - Quick development build"
 	@echo "  make quick-install    - Quick install without version info"
-	@echo "  make verify-examples-golden - Verify examples against golden files"
 	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
 	@echo "  make eval-suite       - Run AI benchmark suite"
 	@echo "  make eval-report      - Generate evaluation report"
@@ -438,12 +493,15 @@ help:
 	@echo "  make eval-analyze-fresh - Force new design docs (disable dedup)"
 	@echo "  make eval-to-design   - Full workflow: evals → analysis → design docs"
 	@echo "  make eval-clean       - Clean evaluation results"
+	@echo "  make build-wasm       - Build WASM binary for browser REPL"
+	@echo "  make docs-clean       - Clear Docusaurus build cache"
+	@echo "  make docs-restart     - Clear cache and restart dev server"
+	@echo "  make check-file-sizes - Check for files >800 lines (AI-friendly)"
+	@echo "  make report-file-sizes - Report all files >500 lines"
+	@echo "  make codebase-health  - Full codebase health metrics"
+	@echo "  make largest-files    - Show 20 largest files"
 	@echo "  make help             - Show this help"
-
-# Verify examples against golden stdout files
-.PHONY: verify-examples-golden
-verify-examples-golden:
-	@bash scripts/verify-examples.sh
+	@echo "  make help-release     - Show release workflow (eval + dashboard)"
 
 # Test stdlib interface freeze (SHA256 digest matching)
 EX_VERIFY := scripts/verify-examples.sh
@@ -568,8 +626,17 @@ eval-prompt-hash:
 .PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
 
 eval-baseline: build
-	@echo "Storing baseline for current version..."
-	@./tools/eval_baseline.sh
+	@if [ -z "$(EVAL_VERSION)" ]; then \
+		echo "Error: EVAL_VERSION parameter required"; \
+		echo ""; \
+		echo "Usage:"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10 FULL=true"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@echo "Storing baseline for version $(EVAL_VERSION)..."
+	@VERSION=$(EVAL_VERSION) ./tools/eval_baseline.sh
 
 eval-diff: build
 	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
@@ -637,31 +704,6 @@ eval-auto-improve-apply:
 		./tools/eval_auto_improve.sh --apply; \
 	fi
 
-# Benchmark dashboard generation
-.PHONY: benchmark-dashboard benchmark-deploy
-benchmark-dashboard:
-	@echo "📊 Generating benchmark dashboard (multi-model aggregation)..."
-	@mkdir -p docs/static/benchmarks docs/docs/benchmarks
-	@if [ ! -d "eval_results/baselines" ] || [ -z "$$(ls -A eval_results/baselines 2>/dev/null)" ]; then \
-		echo "⚠️  No baseline data found. Run 'make eval-baseline' first."; \
-		exit 1; \
-	fi
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
-	echo "  Version: $$VERSION"; \
-	echo "  Aggregating latest results per model from all baselines..."; \
-	$(BUILD_DIR)/$(BINARY) eval-report --multi-model $$VERSION --format=docusaurus > docs/docs/benchmarks/performance.md; \
-	$(BUILD_DIR)/$(BINARY) eval-report --multi-model $$VERSION --format=json > docs/static/benchmarks/latest.json; \
-	echo "✅ Dashboard generated!"; \
-	echo "  - Markdown: docs/docs/benchmarks/performance.md"; \
-	echo "  - JSON data: docs/static/benchmarks/latest.json"; \
-	echo ""; \
-	echo "Preview: cd docs && npm start"
-
-benchmark-deploy: benchmark-dashboard
-	@echo "🚀 Building and deploying docs..."
-	cd docs && npm run build && npm run deploy
-	@echo "✅ Deployed to GitHub Pages!"
-
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
@@ -723,8 +765,8 @@ docs-restart: docs-clean
 build-wasm:
 	@echo "Building WASM binary..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=js GOARCH=wasm $(GOBUILD) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
-	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm"
+	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
+	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm ($(VERSION))"
 	@echo ""
 	@echo "Next steps for Docusaurus integration:"
 	@echo "  1. Copy $(BUILD_DIR)/$(BINARY).wasm to your-site/static/wasm/"
@@ -830,3 +872,23 @@ largest-files:
 	@find internal -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
 
+
+.PHONY: help-release
+help-release: ## Show release workflow (eval + dashboard)
+	@echo "📦 RELEASE WORKFLOW"
+	@echo ""
+	@echo "Step 1: Run baseline evaluation"
+	@echo "  make eval-baseline EVAL_VERSION=v0.3.X              # 3 dev models (fast, ~\$$0.22)"
+	@echo "  make eval-baseline EVAL_VERSION=v0.3.X FULL=true    # All 6 models (slow, ~\$$1.50)"
+	@echo ""
+	@echo "Step 2: Update website dashboard"
+	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=docusaurus > docs/docs/benchmarks/performance.md"
+	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=json > docs/static/benchmarks/latest.json"
+	@echo ""
+	@echo "Step 3: Clear Docusaurus cache"
+	@echo "  cd docs && npm run clear"
+	@echo ""
+	@echo "Step 4: Restart dev server"
+	@echo "  cd docs && npm start"
+	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
+	@echo ""

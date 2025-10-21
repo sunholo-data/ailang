@@ -1,0 +1,30 @@
+id: effect_pure_separation
+description: "Pure vs effectful function separation (type system enforcement)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates separation of pure and effectful functions.
+
+  Requirements:
+  1. Implement a PURE function `double(x)` that returns x * 2 (no side effects)
+  2. Implement a PURE function `add(a, b)` that returns a + b (no side effects)
+  3. Implement an EFFECTFUL function `printResult(label, value)` that prints "{label}: {value}" (has IO)
+  4. Implement an EFFECTFUL function `compute_and_print()` that:
+     - Calls double(5) to get 10
+     - Calls add(10, 3) to get 13
+     - Calls printResult("Result", 13)
+
+  Key constraint:
+  - Pure functions CANNOT call effectful functions
+  - Effectful functions CAN call pure functions
+  - This should be enforced by the type system or clearly documented
+
+  Expected output:
+  "Result: 13"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Result: 13

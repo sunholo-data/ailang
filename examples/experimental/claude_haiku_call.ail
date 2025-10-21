@@ -1,0 +1,102 @@
+-- Example: Real Claude Haiku API call using AILANG
+-- Demonstrates HTTP headers, JSON encoding, and Result-based error handling
+--
+-- Usage:
+--   export ANTHROPIC_API_KEY="sk-ant-..."
+--   ailang run --caps Net,IO --entry main examples/claude_haiku_call.ail
+--
+-- Requirements:
+--   - ANTHROPIC_API_KEY environment variable must be set
+--   - Net and IO capabilities required
+--
+-- Note: This example uses a placeholder API key. To run it:
+--   1. Get an API key from https://console.anthropic.com/
+--   2. Replace the placeholder in the main() function with your actual key
+--   3. Or modify the code to read from environment variables (when getEnv() is available)
+
+module examples/claude_haiku_call
+
+import std/json (encode, jo, ja, kv, js, jnum)
+import std/net (httpRequest, NetError, Transport, DisallowedHost, InvalidHeader, BodyTooLarge)
+import std/io (println)
+
+-- chatClaude sends a message to Claude Haiku and returns the response
+-- Parameters:
+--   prompt: The message to send to Claude
+--   apiKey: Your Anthropic API key (from console.anthropic.com)
+-- Returns: String containing the full JSON response from the API
+export func chatClaude(prompt: string, apiKey: string) -> string ! {Net, IO} {
+  let url = "https://api.anthropic.com/v1/messages";
+
+  -- Set up required headers for Anthropic API
+  let headers = [
+    {name: "x-api-key", value: apiKey},
+    {name: "anthropic-version", value: "2023-06-01"},
+    {name: "content-type", value: "application/json"}
+  ];
+
+  -- Build JSON request body using the Json ADT
+  let body = encode(
+    jo([
+      kv("model", js("claude-3-5-haiku-20241022")),
+      kv("max_tokens", jnum(100.0)),
+      kv("messages", ja([
+        jo([
+          kv("role", js("user")),
+          kv("content", js(prompt))
+        ])
+      ]))
+    ])
+  );
+
+  println("Calling Claude Haiku API...");
+
+  -- Make the HTTP POST request with Result-based error handling
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) =>
+      if resp.ok then {
+        println(concat_String("✓ Status: ", show(resp.status)));
+        resp.body
+      } else {
+        concat_String("HTTP error: ", show(resp.status))
+      }
+    Err(err) => match err {
+      Transport(msg) => concat_String("Network error: ", msg)
+      DisallowedHost(host) => concat_String("Blocked host: ", host)
+      InvalidHeader(hdr) => concat_String("Invalid header: ", hdr)
+      BodyTooLarge(size) => concat_String("Body too large: ", size)
+    }
+  }
+}
+
+export func main() -> () ! {Net, IO} {
+  println("===========================================");
+  println("AILANG + Claude Haiku API Example");
+  println("===========================================");
+  println("");
+  println("This example demonstrates:");
+  println("  • HTTP POST with custom headers");
+  println("  • JSON encoding for API requests");
+  println("  • Result-based error handling");
+  println("  • Real AI API integration");
+  println("");
+
+  -- IMPORTANT: Replace this placeholder with your actual API key
+  -- Get your key from: https://console.anthropic.com/
+  let apiKey = "<YOUR_ANTHROPIC_API_KEY>";
+
+  let prompt = "Write a haiku about functional programming";
+
+  println(concat_String("Prompt: ", prompt));
+  println("");
+
+  let response = chatClaude(prompt, apiKey);
+
+  println("");
+  println("Response from Claude:");
+  println("---");
+  println(response);
+  println("---");
+  println("");
+  println("✓ Example completed successfully!")
+}

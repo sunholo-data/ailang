@@ -20,6 +20,8 @@ func init() {
 	registerBooleanMeta()
 	registerStringPrimitiveMeta()
 	registerIOMeta()
+	registerJSONMeta()
+	registerNetMeta()
 }
 
 // GetBuiltinNames returns all registered builtin names
@@ -106,6 +108,7 @@ func registerStringPrimitiveMeta() {
 	Registry["_str_len"] = &BuiltinMeta{Name: "_str_len", NumArgs: 1, IsPure: true}
 	Registry["_str_slice"] = &BuiltinMeta{Name: "_str_slice", NumArgs: 3, IsPure: true}
 	Registry["_str_compare"] = &BuiltinMeta{Name: "_str_compare", NumArgs: 2, IsPure: true}
+	Registry["_str_eq"] = &BuiltinMeta{Name: "_str_eq", NumArgs: 2, IsPure: true}
 	Registry["_str_find"] = &BuiltinMeta{Name: "_str_find", NumArgs: 2, IsPure: true}
 	Registry["_str_upper"] = &BuiltinMeta{Name: "_str_upper", NumArgs: 1, IsPure: true}
 	Registry["_str_lower"] = &BuiltinMeta{Name: "_str_lower", NumArgs: 1, IsPure: true}
@@ -117,4 +120,17 @@ func registerIOMeta() {
 	Registry["_io_print"] = &BuiltinMeta{Name: "_io_print", NumArgs: 1, IsPure: false}
 	Registry["_io_println"] = &BuiltinMeta{Name: "_io_println", NumArgs: 1, IsPure: false}
 	Registry["_io_readLine"] = &BuiltinMeta{Name: "_io_readLine", NumArgs: 0, IsPure: false}
+}
+
+// registerJSONMeta registers metadata for JSON encoding builtins
+func registerJSONMeta() {
+	Registry["_json_encode"] = &BuiltinMeta{Name: "_json_encode", NumArgs: 1, IsPure: true}
+	Registry["_json_decode"] = &BuiltinMeta{Name: "_json_decode", NumArgs: 1, IsPure: true}
+}
+
+// registerNetMeta registers metadata for Net effect builtins
+func registerNetMeta() {
+	Registry["_net_httpGet"] = &BuiltinMeta{Name: "_net_httpGet", NumArgs: 1, IsPure: false}
+	Registry["_net_httpPost"] = &BuiltinMeta{Name: "_net_httpPost", NumArgs: 2, IsPure: false}
+	Registry["_net_httpRequest"] = &BuiltinMeta{Name: "_net_httpRequest", NumArgs: 4, IsPure: false}
 }

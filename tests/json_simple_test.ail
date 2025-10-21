@@ -1,0 +1,36 @@
+-- Simple JSON decode/encode test
+module tests/json_simple_test
+
+import stdlib/std/json (decode, encode, get, asString, jn, jb, jnum, js, ja, jo, kv)
+import stdlib/std/option (Some, None)
+import stdlib/std/result (Ok, Err)
+import stdlib/std/io (println)
+
+export func main() -> () ! {IO} {
+  -- Test decode
+  let json_str = "{\"name\":\"Alice\",\"age\":30}";
+  let result = decode(json_str);
+  match result {
+    Ok(j) => {
+      println("✓ decode OK");
+      -- Test encode round-trip
+      let encoded = encode(j);
+      println("Encoded: " ++ encoded)
+    },
+    Err(e) => println("✗ decode failed: " ++ e)
+  };
+
+  -- Test get accessor
+  let obj = jo([kv("x", jnum(42.0))]);
+  match get(obj, "x") {
+    Some(v) => println("✓ get OK"),
+    None => println("✗ get failed")
+  };
+
+  -- Test asString accessor
+  let s = js("hello");
+  match asString(s) {
+    Some(str) => println("✓ asString: " ++ str),
+    None => println("✗ asString failed")
+  }
+}

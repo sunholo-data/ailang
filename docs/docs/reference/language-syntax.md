@@ -4,7 +4,7 @@ This reference documents the **currently working** syntax in AILANG v0.3.0. Feat
 
 ## Basic Constructs
 
-```ailang
+```typescript
 -- Comments use double dash
 let x = 5 in x + 1                 -- Immutable binding with scope
 \x. x * 2                          -- Lambda function
@@ -16,7 +16,7 @@ if x > 0 then "pos" else "neg"     -- Conditional expression
 
 ## Module System ✅
 
-```ailang
+```typescript
 -- Define a module
 module examples/math
 
@@ -43,7 +43,7 @@ ailang run --caps IO,FS --entry main examples/math.ail
 
 ### Function Declarations ✅
 
-```ailang
+```typescript
 -- Pure function (no effects)
 export func add(x: int, y: int) -> int {
   x + y
@@ -70,7 +70,7 @@ export func isOdd(n: int) -> bool {
 ```
 
 ### 🚧 Inline Tests (Planned)
-```ailang
+```typescript
 -- NOT YET IMPLEMENTED
 export func factorial(n: int) -> int
   tests [
@@ -84,7 +84,7 @@ export func factorial(n: int) -> int
 
 ## Lambda Expressions ✅
 
-```ailang
+```typescript
 -- Basic lambda syntax
 let add = \x y. x + y in
 let add5 = add(5) in  -- Partial application (currying)
@@ -105,7 +105,7 @@ add10(5)  -- Result: 15
 
 ## Pattern Matching ✅
 
-```ailang
+```typescript
 -- ADT definition
 type Option[a] = Some(a) | None
 
@@ -141,7 +141,7 @@ match (1, "hello") {
 
 ## Records ✅
 
-```ailang
+```typescript
 -- Record literals
 let person = {name: "Alice", age: 30}
 
@@ -168,7 +168,7 @@ getName({name: "Bob", id: 123})     -- ✅ Works! Subsumption
 
 ### 🚧 Row Polymorphism (Partial - requires AILANG_RECORDS_V2=1)
 
-```ailang
+```typescript
 -- Opt-in with environment variable
 export AILANG_RECORDS_V2=1
 
@@ -180,7 +180,7 @@ func getName[r](obj: {name: string | r}) -> string {
 
 ## Block Expressions ✅
 
-```ailang
+```typescript
 -- Sequential statements in blocks
 {
   let x = 5;
@@ -207,7 +207,7 @@ if x > 0 then {
 
 ## Effects and Capabilities ✅
 
-```ailang
+```typescript
 module examples/demo
 
 import std/io (println)
@@ -246,7 +246,7 @@ ailang run --caps IO,FS,Clock,Net --entry processData demo.ail
 
 ### 🚧 Quasiquotes (Planned v0.4.0+)
 
-```ailang
+```typescript
 -- NOT YET IMPLEMENTED
 let query = sql"""
   SELECT * FROM users
@@ -260,7 +260,7 @@ let page = html"""
 
 ### 🚧 Error Propagation (Planned)
 
-```ailang
+```typescript
 -- NOT YET IMPLEMENTED
 func readAndProcess() -> Result[Data] ! {FS} {
   let content = readFile("input.txt")?  -- ? operator not yet available
@@ -272,7 +272,7 @@ func readAndProcess() -> Result[Data] ! {FS} {
 
 ## Concurrency (CSP)
 
-```ailang
+```typescript
 func worker(ch: Channel[Task]) ! {Async} {
   loop {
     let task <- ch       -- Receive from channel
@@ -289,7 +289,7 @@ parallel {
 
 ## Type Classes
 
-```ailang
+```typescript
 -- Type class instances (REPL only currently)
 let sum = 1 + 2 + 3             -- Works: 6
 let calc = 10 * 5 - 20 / 4      -- Works: 45

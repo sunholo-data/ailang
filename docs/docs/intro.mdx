@@ -1,0 +1,146 @@
+---
+sidebar_position: 1
+title: Introduction
+description: AILANG is an AI-first programming language designed for AI-assisted development
+slug: /
+---
+
+import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+
+# AILANG: AI-First Programming Language
+
+Welcome to the official documentation for AILANG, an experimental programming language designed from the ground up for AI-assisted software development.
+
+<div style={{padding: '1rem', backgroundColor: 'var(--ifm-color-primary-lightest)', borderRadius: '8px', marginBottom: '2rem'}}>
+  <Icon name="zap" inline /> **New to AILANG?** Read our [Vision](/docs/vision) to understand why AILANG exists and what makes it different from other programming languages.
+</div>
+
+## What is AILANG?
+
+AILANG is a pure functional programming language that makes AI assistance a first-class citizen. It features:
+
+- <Icon name="zap" inline /> **Pure Functional Programming**: Immutable data and explicit effects
+- <Icon name="target" inline /> **Algebraic Effects System**: Track and control side effects in the type system
+- <Icon name="code" inline /> **Type Classes**: Num, Eq, Ord, Show with dictionary-passing semantics
+- <Icon name="brain" inline /> **Pattern Matching**: Algebraic data types with exhaustiveness checking
+- <Icon name="rocket" inline /> **Auto-Import Prelude**: Zero imports needed for type classes and comparisons
+- <Icon name="bot" inline /> **AI-Optimized Design**: Generate structured execution traces for model training
+
+## Quick Example
+
+```typescript
+-- Module with effects (v0.3.0)
+module examples/hello
+
+import std/io (println)
+import std/net (httpGet)
+
+-- Recursive factorial function
+export func factorial(n: int) -> int {
+  if n <= 1 then 1 else n * factorial(n - 1)
+}
+
+-- Function with multiple effects
+export func main() -> () ! {IO, Net} {
+  println("Factorial of 5 is:");
+  println(show(factorial(5)));
+
+  let response = httpGet("https://api.example.com/data");
+  println(response)
+}
+```
+
+Run with: `ailang run --caps IO,Net --entry main examples/hello.ail`
+
+## Getting Started
+
+### <Icon name="bot" size={20} /> For AI Agents
+
+- <Icon name="rocket" inline /> **[AI Agent Integration Guide](/docs/guides/agent-integration)**
+  Quick start for AI coding agents (Claude, GPT, Gemini)
+
+- <Icon name="book" inline /> **[Teaching Prompt v0.3.8](/docs/prompts/v0.3.8)**
+  Complete AILANG syntax guide for AI models
+
+### <Icon name="user" size={20} /> For Human Developers
+
+- <Icon name="rocket" inline /> **[Installation Guide](/docs/guides/getting-started)**
+  Install AILANG and run your first program
+
+- <Icon name="book" inline /> **[Language Tutorial](/docs/guides/development)**
+  Learn the basics of AILANG programming
+
+- <Icon name="code" inline /> **[Language Reference](/docs/reference/language-syntax)**
+  Complete syntax and semantics reference
+
+- <Icon name="wrench" inline /> **[REPL Commands](/docs/reference/repl-commands)**
+  Interactive development with the AILANG REPL
+
+## Current Status: v0.3.8 (October 2025)
+
+AILANG v0.3.8 is now available with multi-line ADT parser fixes and operator lowering improvements! Check the [implementation status](/docs/reference/implementation-status) for complete details.
+
+### <CheckIcon size={18} /> Working Features (v0.3.8)
+
+- <CheckIcon inline size={14} /> **Recursion** - Self-recursion, mutual recursion, with stack overflow protection
+- <CheckIcon inline size={14} /> **Block Expressions** - Multi-statement blocks with proper scoping
+- <CheckIcon inline size={14} /> **Records** - Record literals, field access, subsumption
+- <CheckIcon inline size={14} /> **Type System** - Hindley-Milner inference with type classes (Num, Eq, Ord, Show)
+- <CheckIcon inline size={14} /> **Pattern Matching** - Constructors, tuples, lists, wildcards, guards
+- <CheckIcon inline size={14} /> **Module System** - Cross-module imports, entrypoint execution
+- <CheckIcon inline size={14} /> **Effect System** - IO, FS, Clock, Net with capability-based security
+  - **Clock Effect**: Monotonic time, sleep, deterministic mode
+  - **Net Effect**: HTTP GET/POST with DNS rebinding prevention, IP blocking
+- <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
+- <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
+
+### <Icon name="wrench" size={18} /> Coming in v0.4 "Deterministic Tooling"
+
+- <Icon name="idea" inline size={14} /> **Deterministic Normalization** - `ailang normalize` for canonical code formatting
+- <Icon name="idea" inline size={14} /> **Automated Import Suggestions** - `ailang suggest-imports` fixes missing imports
+- <Icon name="idea" inline size={14} /> **Deterministic Code Repair** - `ailang apply` for automated fixes
+- <Icon name="idea" inline size={14} /> **Total Recursion Combinators** - `fold`, `unfold`, `iterateN` for functional completeness
+- <Icon name="idea" inline size={14} /> **Runtime Reflection** - `reflectType`, `reflectEffect` for AI self-debugging (v0.4.1+)
+- <Icon name="idea" inline size={14} /> **Training Data Export** - `--emit-trace` for execution traces (v0.4.2+)
+
+See our [Vision](/docs/vision) for the full roadmap and measurable success criteria.
+
+## Documentation Structure
+
+- <Icon name="book" inline /> **[Examples](/docs/examples)** - Interactive code examples with explanations
+- <Icon name="book" inline /> **[Guides](/docs/guides/getting-started)** - Tutorials and how-to guides
+- <Icon name="code" inline /> **[Reference](/docs/reference/language-syntax)** - Language specification and API docs
+- <Icon name="play" inline /> **[Playground](/docs/playground)** - Try AILANG in your browser
+
+## Contributing
+
+AILANG is open source and welcomes contributions! Visit our [GitHub repository](https://github.com/sunholo-data/ailang) to:
+
+- Report issues
+- Submit pull requests
+- Join design discussions
+- Review the roadmap
+
+## Design Philosophy
+
+AILANG is built on several key principles:
+
+1. <Icon name="target" inline /> **Explicit Over Implicit**: All effects and dependencies are visible in types
+2. <Icon name="check" inline /> **Correctness by Construction**: Make invalid states unrepresentable
+3. <Icon name="bot" inline /> **AI-Friendly**: Every language feature considers AI tooling needs
+4. <Icon name="zap" inline /> **Deterministic**: Same input always produces same output
+5. <Icon name="info" inline /> **Traceable**: Complete execution history for debugging and training
+
+**Read the full [Vision](/docs/vision)** to understand why AILANG is designed for AIs first, humans second, and see empirical benchmarks showing 49% improvement in AI code generation success rates.
+
+## Resources
+
+- [GitHub Repository](https://github.com/sunholo-data/ailang)
+- [Design Documentation](https://github.com/sunholo-data/ailang/tree/main/design_docs)
+- [Change Log](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
+- [Development Setup](/docs/guides/development)
+- [llms.txt](https://sunholo-data.github.io/ailang/llms.txt) - AI-readable project documentation
+
+---
+
+<WarningIcon inline size={16} /> *AILANG is an experimental language under active development. APIs and syntax may change.*

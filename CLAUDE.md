@@ -2,6 +2,68 @@
 
 ## ⚠️ CRITICAL PRINCIPLES
 
+### 0. NEVER DESTROY LOCAL WORK WITH GIT OPERATIONS
+
+**🚨 ABSOLUTELY FORBIDDEN GIT OPERATIONS:**
+
+**NEVER run these commands - they destroy uncommitted work:**
+- ❌ `git checkout <branch>` when there are uncommitted changes
+- ❌ `git pull` on a branch with local commits (use `git status` first!)
+- ❌ `git reset --hard`
+- ❌ `git clean -fd`
+- ❌ `git stash` followed by branch switching that causes fast-forward
+- ❌ Any command that would overwrite or discard user's work
+
+**The Dev Branch Disaster (October 2025):**
+```bash
+# ❌ WRONG - This destroyed local work on dev branch
+git stash                    # Hides user's work
+git checkout dev             # Switches branch
+git pull                     # Fast-forwards, making stashed work incompatible
+# Result: User's uncommitted work on dev branch is LOST
+```
+
+**✅ CORRECT approach when user asks to fix something on another branch:**
+
+1. **ALWAYS check git status first:**
+   ```bash
+   git status  # See what branch we're on and what's uncommitted
+   ```
+
+2. **If there are uncommitted changes, ASK THE USER:**
+   ```
+   "I see you have uncommitted changes on the current branch.
+    How would you like me to handle them before switching branches?
+    Options:
+    1. Commit them first
+    2. Create a new branch from here for the fix
+    3. Tell me it's safe to stash them"
+   ```
+
+3. **If fixing docs/CI issues, work on CURRENT branch:**
+   - If it's a simple fix (broken links, typos, CI failures), make the fix on whatever branch you're on
+   - Push to that branch, don't force a branch switch
+   - User can merge/cherry-pick later if needed
+
+4. **NEVER assume it's safe to discard or stash work:**
+   - User's uncommitted work may represent hours of effort
+   - Stashing can cause conflicts or make work hard to recover
+   - Switching branches can trigger unwanted merges/rebases
+
+**Recovery if you've already done damage:**
+```bash
+git reflog                   # Find lost commits
+git stash list               # Find stashed work
+git stash show -p stash@{0}  # Preview stashed changes
+git fsck --lost-found        # Find orphaned commits
+```
+
+**Safe alternatives:**
+- ✅ Make fixes on current branch, push, let user handle merging
+- ✅ Ask user before ANY branch switching
+- ✅ Create new branches instead of switching to existing ones
+- ✅ Use `git status` before every git operation
+
 ### 1. ALWAYS USE EXISTING TOOLS FIRST
 
 **Before writing ANY new script or code:**
@@ -82,35 +144,88 @@ The agent knows how to:
 
 ---
 
+## 🛠️ AVAILABLE SKILLS
+
+**Skills are Anthropic Agent Skills (Oct 2025 spec) with progressive disclosure, executable scripts, and resource files.**
+
+### Available Skills
+
+- **use-ailang** - Write correct AILANG code with syntax reference and validation scripts
+- **skill-builder** - Create new skills with automated scaffolding and validation (meta-skill!)
+- **release-manager** - Create releases with automated pre-flight checks and verification
+- **post-release** - Run eval baselines and update website dashboard automatically
+- **sprint-planner** - Analyze design docs and create realistic, data-driven sprint plans
+- **sprint-executor** - Execute sprints with TDD, continuous linting, and progress tracking
+
+**Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
+
+**Creating new skills**: Use the `skill-builder` skill or see [.claude/skills/SKILLS_GUIDE.md](.claude/skills/SKILLS_GUIDE.md)
+
+### Using Skills
+
+Skills are invoked automatically by Claude when appropriate for the task. Just describe what you want:
+
+- "Create a skill for managing database migrations" → `skill-builder` skill
+- "Ready to release v0.3.14" → `release-manager` skill
+- "Update benchmarks" → `post-release` skill
+- "Help me write AILANG code" → `use-ailang` skill
+- "Plan the sprint" → `sprint-planner` skill
+
+### Skills vs Agents vs Commands
+
+- **Skills** (.claude/skills/): Focused workflows with progressive disclosure and automation
+- **Agents** (.claude/agents/): Complex autonomous reasoning (eval-orchestrator, codebase-organizer)
+- **Commands** (.claude/commands/): **Deprecated** - use skills instead
+
+---
+
 ## Project Overview
-AILANG is an AI-first programming language designed for AI-assisted development. It features:
-- ✅ **Pure functional programming** - First-class functions, closures, lambda calculus
-- ✅ **Algebraic effects** - Capability-based effect system (IO, FS) with runtime security
-- ✅ **Hindley-Milner type inference** - Full type system with type classes and row polymorphism
-- ❌ Typed quasiquotes for safe metaprogramming (planned v0.4.0+)
-- ❌ CSP-based concurrency with session types (planned v0.4.0+)
-- ❌ Deterministic execution for AI training data generation (planned v0.4.0+)
-- File extension: `.ail`
+
+**AILANG is a deterministic language designed for autonomous AI code synthesis and reasoning.**
+
+Unlike human-oriented languages built around IDEs and concurrency, AILANG prioritizes:
+- **Machine decidability** - Deterministic semantics for AI reasoning
+- **Semantic transparency** - Every construct can be reflected and verified
+- **Compositional determinism** - Predictable evaluation and type inference
+
+File extension: `.ail`
 
 ## What AILANG Can Do (Implementation Status)
 
-**Language Features** (see [CHANGELOG.md](CHANGELOG.md) for version history):
-- ✅ Pure functional programming (lambda calculus, closures, recursion)
-- ✅ Hindley-Milner type inference with type classes and row polymorphism
-- ✅ Algebraic effects with capability-based security (IO, FS)
-- ✅ Pattern matching with ADTs
-- ✅ Module system with runtime execution
-- ✅ Interactive REPL with full type checking
-- ✅ Block expressions `{ e1; e2; e3 }` for sequencing
-- ❌ Typed quasiquotes (planned)
-- ❌ CSP concurrency (planned)
-- ❌ AI training data export (planned)
+**✅ Core Language** (v0.3.14 - Stable):
+- Pure functional programming (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism and TApp unification
+- Built-in type class instances (Num, Eq, Ord, Show) - hardcoded, not user-extensible
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution and cross-module imports
+- Interactive REPL with full type checking
+- Block expressions `{ e1; e2; e3 }` for sequencing
+- JSON support (parsing via `std/json.decode`, encoding via `std/json.encode`)
 
-**Development Tools:**
-- ✅ M-EVAL: AI code generation benchmarks (multi-model support)
-- ✅ M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
-- ✅ Plan validation and code scaffolding (`internal/planning/`)
-- ✅ Structured error reporting with JSON schemas
+**✅ Development Tools** (Stable):
+- M-EVAL: AI code generation benchmarks (multi-model support)
+- M-EVAL-LOOP v2.0: Native Go eval tools with 90%+ test coverage
+- Structured error reporting with JSON schemas
+- Builtin registry with hermetic testing (`MockEffContext`)
+
+**🔜 Deterministic Tooling** (v0.3.15 - Next):
+- Canonical normalization (`ailang normalize file.ail`)
+- Import suggestion (`ailang suggest-imports file.ail`)
+- Deterministic code edits (`ailang apply plan.json file.ail`)
+- Training data export (`--emit-trace jsonl` for AI self-training)
+
+**🔮 Reflection & Meta-Programming** (v0.4.0+ - Future):
+- Typed quasiquotes (deterministic AST templates) - lexer token exists
+- Structural reflection (`reflect(typeOf(f))`) - replaces hardcoded type classes
+- Schema registry (machine-readable type/effect definitions)
+- Capability budgets (resource-bounded effects: `! {IO @limit=2}`)
+
+**❌ Removed: Human-Oriented Features**
+- CSP concurrency / session types → Replaced by static effect-typed task graphs
+- LSP server → Replaced by deterministic JSON-RPC API (`ailangd`)
+- IDE-centric DX (autocompletion, hover) → AIs use CLI/API
+- User-defined type classes → Deferred to structural reflection (v0.4.0+)
 
 **Quick Test:**
 ```bash
@@ -184,6 +299,315 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
+### Adding Builtin Functions (✅ M-DX1 - COMPLETE!)
+
+**AILANG has a modern builtin development system that reduces implementation time from 7.5h to 2.5h (-67%).**
+
+**Status**: 🎉 **M-DX1 COMPLETE (Oct 2025)** - All 52 builtins migrated, organized, and fully documented!
+
+#### Quick Start (2.5 hours instead of 7.5)
+
+**Step 1: Register the builtin with metadata** (~30 min)
+```go
+// internal/builtins/string.go (or appropriate module file)
+func init() {
+    registerMyBuiltin()
+}
+
+func registerMyBuiltin() {
+    RegisterEffectBuiltin(BuiltinSpec{
+        Module:  "std/string",
+        Name:    "_str_reverse",
+        NumArgs: 1,
+        IsPure:  true,        // or false with Effect: "IO"
+        Type:    makeReverseType,
+        Impl:    strReverseImpl,
+        Metadata: &BuiltinMetadata{
+            Description: "Reverse a string (Unicode-aware)",
+            Params: []ParamDoc{
+                {Name: "s", Description: "String to reverse"},
+            },
+            Returns: "Reversed string",
+            Examples: []Example{
+                {Code: `_str_reverse("hello")`, Description: "Returns \"olleh\""},
+                {Code: `_str_reverse("🎉🎊")`, Description: "Returns \"🎊🎉\""},
+            },
+            Since:     "v0.3.15",
+            Stability: StabilityStable,
+            Tags:      []string{"string", "reverse", "unicode"},
+            Category:  "string",
+        },
+    })
+}
+
+func makeReverseType() types.Type {
+    T := types.NewBuilder()
+    return T.Func(T.String()).Returns(T.String())
+}
+
+func strReverseImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+    str := args[0].(*eval.StringValue).Value
+    runes := []rune(str)
+    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+        runes[i], runes[j] = runes[j], runes[i]
+    }
+    return &eval.StringValue{Value: string(runes)}, nil
+}
+```
+
+**Step 2: Write hermetic tests** (~1 hour)
+```go
+// internal/builtins/register_test.go
+func TestStrReverse(t *testing.T) {
+    ctx := testctx.NewMockEffContext()
+
+    tests := []struct {
+        input    string
+        expected string
+    }{
+        {"hello", "olleh"},
+        {"", ""},
+        {"🎉", "🎉"},
+    }
+
+    for _, tt := range tests {
+        result, err := strReverseImpl(ctx, []eval.Value{
+            testctx.MakeString(tt.input),
+        })
+        assert.NoError(t, err)
+        assert.Equal(t, tt.expected, testctx.GetString(result))
+    }
+}
+```
+
+**Step 3: Validate and inspect** (~30 min)
+```bash
+# Validate the builtin (no feature flag needed since v0.3.10!)
+ailang doctor builtins
+# ✅ All builtins are valid!
+
+# List all builtins
+ailang builtins list --by-module
+# # std/string (8)
+#   _str_compare                   [pure]
+#   _str_find                      [pure]
+#   _str_len                       [pure]
+#   _str_lower                     [pure]
+#   _str_reverse                   [pure]
+#   _str_slice                     [pure]
+#   _str_trim                      [pure]
+#   _str_upper                     [pure]
+
+# Test in REPL (when M-DX1.6 is implemented)
+ailang repl
+> :type _str_reverse
+string -> string
+```
+
+**Step 4: Wire to runtime** (~30 min)
+- Already done! The registry automatically wires to runtime/link (no feature flag needed since v0.3.10)
+
+#### Key Components
+
+**Central Registry** (`internal/builtins/spec.go`):
+- Single-point registration with `RegisterEffectBuiltin()`
+- Compile-time validation (arity, types, impl, effects)
+- ✅ No feature flag needed (default since v0.3.10)
+- Freeze-safe (no registration after init)
+- 49 builtins migrated (v0.3.10)
+
+**Type Builder DSL** (`internal/types/builder.go`):
+- Fluent API: `T.Func(args...).Returns(ret).Effects(effs...)`
+- Reduces type construction from 35→10 lines (-71%)
+- Methods: `String()`, `Int()`, `Bool()`, `List()`, `Record()`, `Func()`, `Returns()`, `Effects()`
+
+**Test Harness** (`internal/effects/testctx/`):
+- `MockEffContext` with HTTP/FS mocking
+- Value constructors: `MakeString()`, `MakeInt()`, `MakeRecord()`, etc.
+- Value extractors: `GetString()`, `GetInt()`, `GetRecord()`, etc.
+- Hermetic testing (no real network/FS)
+
+**Validation & Inspection**:
+- `ailang doctor builtins` - Health checks with actionable diagnostics
+- `ailang builtins list` - Browse registry (--by-effect, --by-module)
+- 6 validation rules: type, impl, arity, effect consistency, module
+
+#### Examples
+
+**Pure function:**
+```go
+RegisterEffectBuiltin(BuiltinSpec{
+    Module:  "std/string",
+    Name:    "_str_len",
+    NumArgs: 1,
+    IsPure:  true,
+    Type:    func() types.Type {
+        T := types.NewBuilder()
+        return T.Func(T.String()).Returns(T.Int())
+    },
+    Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+        s := args[0].(*eval.StringValue).Value
+        return &eval.IntValue{Value: len([]rune(s))}, nil
+    },
+})
+```
+
+**Effect function with HTTP:**
+```go
+RegisterEffectBuiltin(BuiltinSpec{
+    Module:  "std/net",
+    Name:    "_net_httpRequest",
+    NumArgs: 4,
+    Effect:  "Net",
+    Type:    makeHTTPRequestType,
+    Impl:    effects.NetHTTPRequest,  // Uses ctx.GetHTTPClient()
+})
+```
+
+**Complex types with records:**
+```go
+func makeHTTPRequestType() types.Type {
+    T := types.NewBuilder()
+
+    headerType := T.Record(
+        types.Field("name", T.String()),
+        types.Field("value", T.String()),
+    )
+
+    responseType := T.Record(
+        types.Field("status", T.Int()),
+        types.Field("headers", T.List(headerType)),
+        types.Field("body", T.String()),
+    )
+
+    return T.Func(
+        T.String(),           // url
+        T.String(),           // method
+        T.List(headerType),   // headers
+        T.String(),           // body
+    ).Returns(
+        T.App("Result", responseType, T.Con("NetError")),
+    ).Effects("Net")
+}
+```
+
+#### Testing Patterns
+
+**Hermetic HTTP tests:**
+```go
+func TestNetHTTPRequest(t *testing.T) {
+    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(200)
+        w.Write([]byte(`{"status": "ok"}`))
+    }))
+    defer server.Close()
+
+    ctx := testctx.NewMockEffContext()
+    ctx.GrantAll("Net")
+    ctx.SetHTTPClient(server.Client())
+
+    result, err := effects.NetHTTPRequest(ctx,
+        testctx.MakeString(server.URL),
+        testctx.MakeString("GET"),
+        testctx.MakeList([]eval.Value{}),
+        testctx.MakeString(""),
+    )
+
+    assert.NoError(t, err)
+    resp := testctx.GetRecord(result)
+    assert.Equal(t, 200, testctx.GetInt(resp["status"]))
+}
+```
+
+#### Migration from Legacy Registry
+
+**Before (legacy, 4 files, 35 lines of types):**
+```go
+// internal/eval/builtins.go
+registry.Register("_str_len", func(args []Value) (Value, error) { ... })
+
+// internal/link/builtin_module.go
+iface.Decls["_str_len"] = &iface.FuncDecl{
+    Type: &types.TFunc2{
+        Params: []types.Type{&types.TCon{Name: "String"}},
+        Return: &types.TCon{Name: "Int"},
+        EffectRow: &types.Row{Kind: types.KEffect{}, Labels: map[string]types.Type{}, Tail: nil},
+    },
+}
+
+// internal/runtime/builtins.go
+br.RegisterPure("_str_len", ...)
+
+// internal/types/builtins.go
+builtinTypes["_str_len"] = ...
+```
+
+**After (new registry, 1 file, 10 lines):**
+```go
+// internal/builtins/register.go
+RegisterEffectBuiltin(BuiltinSpec{
+    Module:  "std/string",
+    Name:    "_str_len",
+    NumArgs: 1,
+    IsPure:  true,
+    Type: func() types.Type {
+        T := types.NewBuilder()
+        return T.Func(T.String()).Returns(T.Int())
+    },
+    Impl: strLenImpl,
+})
+```
+
+#### Metrics
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Files to edit | 4 | 1 | -75% |
+| Type construction LOC | 35 | 10 | -71% |
+| Development time | 7.5h | 2.5h | -67% |
+| Test setup LOC | ~50 | ~15 | -70% |
+
+#### Status
+
+**🎉 M-DX1 COMPLETE (October 2025) - 90% done!**
+
+**Core Infrastructure (v0.3.9-alpha3 through v0.3.10):**
+- ✅ M-DX1.1: Central Registry with validation
+- ✅ M-DX1.2: Type Builder DSL
+- ✅ M-DX1.3: Doctor + List CLI commands
+- ✅ M-DX1.4: Test Harness with mocking
+- ✅ M-DX1.5: Complete builtin migration (52 builtins)
+- ✅ Removed feature flag - new registry is default
+- ✅ 100% test coverage on new code
+
+**Documentation & Organization (October 2025):**
+- ✅ M-DX1.11: Enhanced metadata system with 11 fields
+- ✅ M-DX1.12: File organization (split 785-line file into 7 modules)
+- ✅ M-DX1.13: Migration safety validator (`ailang builtins check-migration`)
+- ✅ M-DX1.14: **Complete documentation (52/52 builtins = 100%)** 🎉
+  - All builtins have descriptions, params, returns, examples
+  - Searchable tags, version tracking, stability indicators
+  - Files: string.go (9), math.go (37), io.go (3), net.go (1), show.go (1), json_decode.go (1)
+
+**Optional Polish (v0.3.15+):**
+- ⏳ Enhanced CLI (`--verbose`, `search` command) (~2h)
+- ⏳ REPL :type command (~0.5h)
+- ⏳ Error diagnostics improvements (~0.5h)
+
+**Verify builtin health:**
+```bash
+ailang doctor builtins              # Validate all 52 builtins
+ailang builtins list                # List all builtins
+ailang builtins list --by-module    # List by module
+ailang builtins check-migration     # Check for orphaned builtins
+```
+
+**For full documentation, see:**
+- Session summary: [M-DX1-FINAL-SUMMARY.md](M-DX1-FINAL-SUMMARY.md)
+- Design rationale: `design_docs/planned/easier-ailang-dev.md`
+- Test coverage: `internal/builtins/*_test.go`, `internal/effects/testctx/*_test.go`
+- Changelog: See v0.3.10+ entries in `CHANGELOG.md`
+
 ### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
 
 **When user asks about evaluations, benchmarks, or testing AI code generation:**
@@ -204,10 +628,89 @@ The agent handles all eval workflows:
 - [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
 - [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
 
+**⚠️ CRITICAL: Running Multiple Models**
+
+**The `ailang eval-suite` command OVERWRITES the output directory by default!**
+
+```bash
+# ❌ WRONG - Second run overwrites first run's results
+ailang eval-suite --models gpt5
+ailang eval-suite --models claude-sonnet-4-5  # DELETES gpt5 results!
+
+# ✅ CORRECT - Run all models in ONE command
+ailang eval-suite --models gpt5,claude-sonnet-4-5,gemini-2-5-pro
+
+# ✅ ALSO CORRECT - Use different output directories
+ailang eval-suite --models gpt5 --output eval_results/gpt5_only
+ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
+
+# ✅ NEW (v0.3.14+) - Resume interrupted runs without losing progress
+ailang eval-suite --full --skip-existing  # Skips benchmarks with existing results
+```
+
+**Resuming interrupted eval runs (v0.3.14+):**
+- Use `--skip-existing` flag to skip benchmarks that already have result files
+- Useful when eval baseline times out or is interrupted
+- Checks for existing result files (pattern: `benchmarkID_lang_model_*.json`)
+- Example: If 219/264 runs completed before timeout, `--skip-existing` runs only the missing 45
+- Added in v0.3.14 to handle long-running baselines on slower machines
+
+**Default model sets:**
+- `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
+- `ailang eval-suite --full` → Reads from `extended_suite` in models.yml (all 6 models: gpt5, gpt5-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-2-5-pro, gemini-2-5-flash)
+
+**Quick reference - Common eval commands:**
+```bash
+# Update benchmark dashboard (PRESERVES HISTORY!)
+ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
+# ✅ Automatically writes to docs/static/benchmarks/latest.json
+# ✅ Preserves all historical versions
+# ✅ Validates before writing
+# ✅ Atomic writes (no corruption)
+
+# Generate markdown dashboard
+ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+
+# Run baseline (REQUIRES explicit version!)
+make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models (3 cheap models)
+make eval-baseline EVAL_VERSION=v0.3.10 FULL=true    # Uses ALL 6 models (extended_suite)
+
+# Compare two baselines
+ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
+
+# Generate performance matrix
+ailang eval-matrix eval_results/baselines/v0.3.9 v0.3.9
+```
+
+**⚠️ CRITICAL - Dashboard Update Workflow (v0.3.10+)**
+
+**The dashboard JSON now preserves history automatically!**
+
+```bash
+# ✅ CORRECT - Safe, preserves history
+ailang eval-report eval_results/baselines/v0.3.10 v0.3.10 --format=json
+# Reads existing latest.json → merges history → validates → writes atomically
+
+# ❌ WRONG - Don't redirect stdout (bypasses history preservation)
+ailang eval-report ... --format=json > docs/static/benchmarks/latest.json
+```
+
+**How it works:**
+1. Loads existing `docs/static/benchmarks/latest.json`
+2. Builds new entry from current results
+3. Merges into history (updates if version exists, appends if new)
+4. Validates JSON structure (no duplicates, required fields present)
+5. Writes atomically (temp file + rename, no partial writes)
+6. Also prints to stdout (for backwards compatibility)
+
 **DO NOT**:
 - ❌ Create new bash scripts for evals - agents use existing `ailang eval-*` commands
 - ❌ Duplicate agent logic - just invoke the appropriate agent
 - ❌ Write custom analysis tools - extend `internal/eval_analysis/` if needed
+- ❌ Run multiple `ailang eval-suite` commands to same directory - results will be overwritten!
+- ❌ Search for dashboard generation scripts - just use `ailang eval-report`
+- ❌ Redirect `--format=json` to file (bypasses history preservation logic!)
+- ❌ Manually edit latest.json (use eval-report to update it)
 
 ### Code Quality & Coverage
 ```bash
@@ -217,6 +720,8 @@ make lint                 # Run golangci-lint
 make fmt                  # Format all Go code
 make fmt-check            # Check if code is formatted
 make vet                  # Run go vet
+make ci                   # Run full CI verification locally
+make ci-strict            # Extended CI with A2 milestone gates (pre-release)
 ```
 
 ### Example Management
@@ -224,13 +729,13 @@ make vet                  # Run go vet
 make verify-examples      # Verify all example files work/fail
 make update-readme        # Update README with example status
 make flag-broken          # Add warning headers to broken examples
+make test-parity          # Test REPL/file parity (manual only, requires interactive REPL)
 ```
 
 ### Development Helpers
 ```bash
 make deps                 # Install all dependencies
 make clean                # Remove build artifacts and coverage files
-make ci                   # Run full CI verification locally
 make help                 # Show all available make targets
 ```
 
@@ -301,7 +806,7 @@ Example entry:
 
 **When writing AILANG code during development:**
 Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.0.md](prompts/v0.3.0.md)
+- **Current version**: [prompts/v0.3.8.md](prompts/v0.3.8.md)
 - Validated through multi-model testing (Claude, GPT, Gemini)
 - Covers syntax, limitations, common pitfalls, and working examples
 
@@ -313,7 +818,7 @@ ailang repl                                        # Start REPL
 ```
 
 **For detailed syntax, limitations, and examples:**
-- See [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete AILANG teaching prompt
+- See [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete AILANG teaching prompt
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 
@@ -334,6 +839,69 @@ ailang repl                                        # Start REPL
 **For detailed contributing guidelines:**
 - See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
 - See [design_docs/](design_docs/) - Architecture and design decisions
+
+## 🎯 RELEASE WORKFLOW - READ THIS FIRST!
+
+**When user says "ready to release" or "update dashboard":**
+
+### Quick Reference
+
+**Run release with the release-manager skill** (handles everything):
+
+When ready to release, invoke the `release-manager` skill with the version number.
+
+The release-manager skill handles:
+- Pre-release verification (tests, linting, file sizes)
+- Version updates in documentation
+- Git tagging and pushing
+- CI/CD monitoring
+- Release verification
+
+After release completes, use the `post-release` skill to:
+- Run baseline evaluations
+- **Update website dashboard** ← Critical!
+- Update design docs and public documentation
+
+### Manual Dashboard Update (if needed)
+
+**Update website dashboard for specific version**:
+```bash
+# Generate dashboard files (markdown + JSON with history)
+# Note: 2>/dev/null suppresses progress messages that would appear in the markdown
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus 2>/dev/null > docs/docs/benchmarks/performance.md
+# DO NOT redirect JSON to file - it writes to docs/static/benchmarks/latest.json automatically with history preservation
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json
+
+# Verify JSON is valid
+jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
+
+# Clear Docusaurus cache (prevents webpack errors)
+cd docs && npm run clear
+
+# Test locally (optional)
+cd docs && npm start
+# Visit: http://localhost:3000/ailang/docs/benchmarks/performance
+
+# Commit and push
+git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
+git commit -m "Update benchmark dashboard for v0.3.12"
+git push
+```
+
+### Common Issues
+
+**Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
+**Solution**: Use `ailang eval-report` with specific baseline directory
+
+**Problem**: "Uncaught runtime errors" / webpack chunk errors
+**Cause**: Docusaurus build cache stale
+**Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
+
+**Problem**: Dashboard JSON shows "null" for aggregates
+**Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
+**Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
+
+---
 
 ## 📐 Code Organization Principles (AI-First Design)
 
@@ -729,7 +1297,7 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 ## Reference Documentation
 
 **For detailed guides, see:**
-- **AILANG Syntax**: [prompts/v0.3.0.md](prompts/v0.3.0.md) - Complete teaching prompt
+- **AILANG Syntax**: [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete teaching prompt
 - **REPL Guide**: [docs/guides/repl.md](docs/guides/repl.md) - Interactive development
 - **Limitations**: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known issues and workarounds
 - **Contributing**: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflow

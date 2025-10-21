@@ -4,7 +4,7 @@
 
 AILANG includes a built-in benchmarking system (M-EVAL) to empirically measure AI efficiency when generating code in AILANG vs Python. This helps validate AILANG's core value proposition: reducing AI token usage and improving code generation success rates.
 
-**⚠️ Current Phase: Baseline Single-Shot (M-EVAL Phase 1)**
+**NOTE: Current Phase: Baseline Single-Shot (M-EVAL Phase 1)**
 
 This guide covers **single-shot code generation** — one prompt, one response, no iteration. This provides baseline data on:
 - Initial token efficiency
@@ -66,25 +66,25 @@ ailang eval --benchmark adt_option --model claude-3 --seed 42
 
 | Benchmark | Compile | Runtime | Output | Status |
 |-----------|---------|---------|--------|--------|
-| adt_option | ✅ | ✅ | ✅ | **PASS** |
-| cli_args | ❌ | ❌ | ❌ | FAIL |
-| error_handling | ✅ | ✅ | ✅ | **PASS** |
-| fizzbuzz | ✅ | ✅ | ✅ | **PASS** |
-| float_eq | ❌ | ❌ | ❌ | FAIL |
-| higher_order_functions | ✅ | ✅ | ✅ | **PASS** |
-| json_parse | ❌ | ❌ | ❌ | FAIL |
-| list_comprehension | ✅ | ✅ | ❌ | FAIL |
-| list_operations | ✅ | ✅ | ✅ | **PASS** |
-| nested_records | ✅ | ✅ | ✅ | **PASS** |
-| numeric_modulo | ✅ | ❌ | ❌ | FAIL |
-| pattern_matching_complex | ❌ | ❌ | ❌ | FAIL |
-| pipeline | ❌ | ❌ | ❌ | FAIL |
-| record_update | ✅ | ✅ | ✅ | **PASS** |
-| records_person | ✅ | ✅ | ✅ | **PASS** |
-| recursion_factorial | ✅ | ✅ | ❌ | FAIL |
-| recursion_fibonacci | ❌ | ❌ | ❌ | FAIL |
-| string_manipulation | ✅ | ✅ | ✅ | **PASS** |
-| targeted_repair_test | ✅ | ✅ | ✅ | **PASS** |
+| adt_option | Yes | Yes | Yes | **PASS** |
+| cli_args | No | No | No | FAIL |
+| error_handling | Yes | Yes | Yes | **PASS** |
+| fizzbuzz | Yes | Yes | Yes | **PASS** |
+| float_eq | No | No | No | FAIL |
+| higher_order_functions | Yes | Yes | Yes | **PASS** |
+| json_parse | No | No | No | FAIL |
+| list_comprehension | Yes | Yes | No | FAIL |
+| list_operations | Yes | Yes | Yes | **PASS** |
+| nested_records | Yes | Yes | Yes | **PASS** |
+| numeric_modulo | Yes | No | No | FAIL |
+| pattern_matching_complex | No | No | No | FAIL |
+| pipeline | No | No | No | FAIL |
+| record_update | Yes | Yes | Yes | **PASS** |
+| records_person | Yes | Yes | Yes | **PASS** |
+| recursion_factorial | Yes | Yes | No | FAIL |
+| recursion_fibonacci | No | No | No | FAIL |
+| string_manipulation | Yes | Yes | Yes | **PASS** |
+| targeted_repair_test | Yes | Yes | Yes | **PASS** |
 
 **Key Insights:**
 - **Strong areas:** Records, ADTs, basic recursion, string operations
@@ -158,8 +158,8 @@ fizzbuzz,ailang,gpt-4,42,180,0.0054,true,true,true,80,none
 
 | Benchmark | Lang | Tokens | Cost | Compile | Run | Pass | Duration |
 |-----------|------|--------|------|---------|-----|------|----------|
-| fizzbuzz | python | 290 | $0.0087 | ✅ | ✅ | ✅ | 0.12s |
-| fizzbuzz | ailang | 180 | $0.0054 | ✅ | ✅ | ✅ | 0.08s |
+| fizzbuzz | python | 290 | $0.0087 | Yes | Yes | Yes | 0.12s |
+| fizzbuzz | ailang | 180 | $0.0054 | Yes | Yes | Yes | 0.08s |
 
 ## Summary
 - **Avg Token Reduction:** 37.9%

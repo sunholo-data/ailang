@@ -45,7 +45,7 @@ The REPL auto-imports `std/prelude` on startup, providing:
 
 ## Example Session
 
-```ailang
+```typescript
 λ> 1 + 2
 3 :: Int
 

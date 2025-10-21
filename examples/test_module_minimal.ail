@@ -1,5 +1,0 @@
-module examples/test_module_minimal
-
-export func hello() -> string {
-  "hello"
-}

@@ -366,5 +366,4 @@ Future enhancements could include:
 
 - [Design Document](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/M-EVAL-LOOP_self_improving_feedback.md)
 - [CHANGELOG Entry](https://github.com/sunholo-data/ailang/blob/dev/CHANGELOG.md)
-- [Evaluation Guide](./README.md)
 - [Benchmarking Guide](../benchmarking.md)

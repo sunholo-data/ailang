@@ -1,0 +1,30 @@
+id: canonical_normalization
+description: "One canonical form for semantically equivalent code"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates canonical code structure.
+
+  Requirements:
+  1. Implement a function `filterEvens(numbers)` that returns only even numbers from a list
+  2. Implement a function `sumList(numbers)` that returns the sum of a list
+  3. Use these functions to:
+     - Start with list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+     - Filter to get evens: [2, 4, 6, 8, 10]
+     - Sum the evens: 30
+  4. Print: "Sum of evens: 30"
+
+  Write the MOST IDIOMATIC code for <LANG>:
+  - Use standard library functions where available
+  - Prefer functional composition over loops
+  - Use the canonical, recommended style for the language
+
+  Expected output:
+  "Sum of evens: 30"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum of evens: 30

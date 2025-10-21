@@ -1,0 +1,14 @@
+{
+  "version": "v0.3.7-46-g2cfa80a",
+  "timestamp": "2025-10-15T22:52:07Z",
+  "models": "claude-haiku-4-5,gemini-2-5-flash,gpt5-mini",
+  "full_suite": false,
+  "languages": "python,ailang",
+  "parallel": 5,
+  "total_runs": 126,
+  "success_count": 20,
+  "fail_count": 106,
+  "git_commit": "2cfa80a8462557d787419af83473053bfb03f37f",
+  "git_branch": "dev",
+  "git_dirty": true
+}

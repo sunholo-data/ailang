@@ -332,7 +332,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	// Infer argument types
 	var argNodes []typedast.TypedNode
 	var argTypes []Type
-	var allEffects []*Row
+	var argEffects []*Row
 
 	for _, arg := range app.Args {
 		argNode, _, err := tc.inferCore(ctx, arg)
@@ -341,14 +341,15 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		}
 		argNodes = append(argNodes, argNode)
 		argTypes = append(argTypes, getType(argNode))
-		allEffects = append(allEffects, getEffectRow(argNode))
+		argEffects = append(argEffects, getEffectRow(argNode))
 	}
 
-	// Create result type variable
+	// Create result type variable and fresh effect row for the function's effects
 	resultType := ctx.freshTypeVar()
 	effectRow := ctx.freshEffectRow()
 
 	// Unify function type with expected type
+	// The effectRow variable will be unified with the function's actual effect row
 	expectedFuncType := &TFunc2{
 		Params:    argTypes,
 		EffectRow: effectRow,
@@ -361,15 +362,19 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Path:  []string{"function application at " + app.Span().String()},
 	})
 
-	// Combine effects
-	allEffects = append(allEffects, getEffectRow(funcNode), effectRow)
+	// CRITICAL FIX: Application effects come from:
+	// 1. Argument evaluation effects (argEffects)
+	// 2. The function's effect row (effectRow, after unification with function type)
+	// DO NOT include getEffectRow(funcNode) - function values themselves are pure!
+	// The effectRow variable will be resolved by the unifier to match the function's type.
+	appEffects := append(argEffects, effectRow)
 
 	return &typedast.TypedApp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    app.ID(),
 			Span:      app.Span(),
 			Type:      resultType,
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: combineEffectList(appEffects),
 			Core:      app,
 		},
 		Func: funcNode,

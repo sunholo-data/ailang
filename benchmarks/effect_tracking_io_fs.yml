@@ -1,0 +1,33 @@
+id: effect_tracking_io_fs
+description: "Explicit effect tracking: IO and FS effects in function signatures"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates explicit effect tracking.
+
+  Requirements:
+  1. Implement a PURE function `computeSum(a, b)` that returns a + b (no side effects)
+  2. Implement a function `printSum(a, b)` that computes sum and prints it (has IO effect)
+  3. Implement a function `logToFile(filename, message)` that writes message to file (has IO and FS effects)
+  4. In main:
+     - Call computeSum(10, 20) and store result
+     - Call printSum(10, 20) to print "Sum: 30"
+     - Call logToFile("output.txt", "Sum was 30")
+     - Print "Done"
+
+  The function signatures should make effects explicit:
+  - Pure functions: no effect annotations
+  - IO functions: should be marked as having IO effects
+  - IO+FS functions: should be marked as having both effects
+
+  Expected output:
+  "Sum: 30"
+  "Done"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum: 30
+  Done

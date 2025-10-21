@@ -1,40 +1,174 @@
-# AILANG: The AI-First Programming Language
+# 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-28.7%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-32.3%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-AILANG is a purely functional programming language designed specifically for AI-assisted software development. It features static typing with algebraic effects, typed quasiquotes for safe string handling, CSP-based concurrency with session types, and automatic generation of training data for AI model improvement.
+AILANG is a purely functional, effect-typed language designed for **autonomous code synthesis and reasoning**. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
 
-## Current Version: v0.3.8 (Bug Fixes)
+---
 
-**🎯 What Works**: Full module execution, **auto-import std/prelude** (zero imports for comparisons!), **record update syntax** (`{base | field: value}`), **anonymous function syntax** (`func(x: int) -> int { x * 2 }`), **letrec keyword** for recursive lambdas, **numeric conversions** (`intToFloat`, `floatToInt`), **Clock effect** (monotonic time), **Net effect** (HTTP GET/POST with security), **record subsumption**, **row polymorphism** (opt-in), complete Hindley-Milner type inference, type classes (Num, Eq, Ord, Show), lambda calculus, REPL with full type checking, module execution runtime, effect system (IO, FS, Clock, Net with capability security), cross-module imports, pattern matching with exhaustiveness checking, **block expressions**, and **recursion support**.
+## 🧩 Core Philosophy
 
-**✅ Major Milestones**:
-- **v0.3.6 (Oct 2025)**: AI usability improvements - auto-import, record updates, error detection
-  - Auto-import std/prelude: Zero imports needed for comparisons and typeclasses
-  - Record update syntax: `{person | age: 30}` for functional updates
-  - Error detection: Identifies wrong language/imperative syntax for self-repair
-  - M-EVAL benchmark: 52.6% success rate on Claude Sonnet 4.5 (+17.5% improvement from v0.3.5 baseline)
-- **v0.3.5 (Oct 2025)**: Anonymous function syntax, letrec keyword, numeric conversions
-  - New syntax: `func(x: int) -> int { x * 2 }` for inline lambdas
-  - REPL recursive lambdas: `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
-  - Type conversions: `intToFloat(42)`, `floatToInt(3.14)` for mixed arithmetic
-- **Clock effect** with monotonic time and virtual time for deterministic execution
-- **Net effect** with full Phase 2 PM security hardening:
-  - DNS rebinding prevention
-  - Protocol validation (https enforced, file:// blocked)
-  - IP blocking (localhost, private IPs, link-local)
-  - Redirect validation with IP re-check
-  - Body size limits (5MB default)
-  - Domain allowlist with wildcard support
-- Records support subsumption: functions accepting `{id: int}` work with larger records
-- Row polymorphism available via `AILANG_RECORDS_V2=1`
+**For humans, a language is a tool for expression.**
+**For AIs, it's a substrate for reasoning.**
 
-**📊 Test Coverage**: 48/66 examples passing (72.7%). All record subsumption, effect system (IO, FS, Clock, Net), type class, ADT, recursion, and block expression examples working. See [examples/STATUS.md](examples/STATUS.md) for details.
+AILANG minimizes ambiguity and maximizes predictability. Every construct — type, effect, or expression — has **deterministic semantics** that can be reflected, verified, and serialized.
 
-**📖 Documentation**: [Implementation Status](docs/reference/implementation-status.md) | [CHANGELOG.md](CHANGELOG.md)
+---
+
+## 🏗️ Architecture Overview
+
+| Layer | Description | Status |
+|-------|-------------|--------|
+| **1. Core Semantics** | Pure functional core with algebraic data types (ADTs), first-class effects, and Hindley-Milner type inference. | ✅ Stable |
+| **2. Type System** | Polymorphic effects (`! {IO, ε}`), `Result` and `Option` types, and fully deterministic unification (TApp-aware). | ✅ Stable |
+| **3. Reflection & Meta-Programming** | Typed quasiquotes and semantic reflection (`reflect(typeOf(f))`) for deterministic code generation. | 🔜 v0.4.x |
+| **4. Deterministic Tooling** | Canonical `normalize`, `suggest`, and `apply` commands; JSON schema output; `--emit-trace jsonl` for training data. | 🔜 v0.3.15 |
+| **5. Schema & Hashing Layer** | Machine-readable type/effect registry and versioned semantic hashes for reproducible builds. | 🔜 v0.4.x |
+| **6. Runtime & Effects** | Deterministic evaluator with explicit effect rows; supports IO, FS, Net, Clock; no hidden state or global scheduler. | ✅ Stable |
+| **7. Cognitive Interfaces** | JSONL trace export for AI self-training; deterministic edit plans for autonomous refactoring. | 🔜 v0.4.x |
+| **8. Future Extensions** | Capability budgets (`! {IO @limit=2}`), semantic DAG scheduler (`schedule { a >> b \| c }`). | 🔮 v0.5.x+ |
+
+---
+
+## ❌ Removed / Deprecated Human-Oriented Features
+
+| Removed Feature | Reason for Removal |
+|----------------|-------------------|
+| **CSP Concurrency / Session Types** | Replaced by static effect-typed task graphs; no runtime scheduler needed. |
+| **Unstructured Macros** | Replaced by typed quasiquotes (deterministic AST templates). |
+| **Type Classes** | Replaced by structural reflection and record-based traits; removes implicit resolution. |
+| **LSP Server** | Superseded by deterministic JSON-RPC API (`ailangd`) exposing parser/typechecker directly. |
+| **IDE-centric DX Features** | AIs interact via CLI / API; autocompletion and hover text are unnecessary. |
+
+---
+
+## 🔮 AI-Native Roadmap
+
+| Milestone | Goal | Example Deliverable |
+|-----------|------|-------------------|
+| **v0.3.15 – Deterministic Tooling** | Canonical normalization, symbol import suggestion, JSON trace export | `ailang suggest-imports file.ail` |
+| **v0.4.0 – Meta & Reflection Layer** | Typed quasiquotes + reflection API | `quote (x) -> x + 1 : (int)->int` |
+| **v0.4.2 – Schema Registry** | Machine-readable type/effect schemas for deterministic builds | `/schemas/std/io.json` |
+| **v0.5.x – Unified Registry Runtime** | Remove legacy builtin registry; single spec source | `RegisterBuiltin(spec)` unified |
+| **v0.6.x – Capability Budgets & DAG Scheduler** | Deterministic parallelism via static scheduling | `schedule { parse >> decode \| validate }` |
+| **v1.0 – Cognitive Autonomy** | Full round-trip reasoning: AI reads, edits, compiles, evaluates, and self-trains from traces | `--emit-trace jsonl` → fine-tuned validator |
+
+---
+
+## 🧪 Current Milestone: v0.3.14 (JSON Decode)
+
+- ✅ Added `std/json.decode : string -> Result[Json, string]` with streaming parser
+- ✅ Fixed list/record pattern matching at runtime
+- ✅ Unified primitive type casing (`string`, `int`, `float`, `bool`)
+- ✅ DX overhaul: operators (`==`, `!=`, `<`, `>=`) now work naturally
+- ✅ All **2,847 tests passing**; 100% coverage on new builtin
+- 🔜 **Next**: deterministic tooling (`normalize`, `suggest`, `apply`) in v0.3.15
+
+### Major Milestones
+
+- **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes
+- **v0.3.12 (Oct 2025)**: Recovery Release - `show()` builtin restored (recovers 51% of benchmarks)
+- **v0.3.11 (Oct 2025)**: Critical row unification fix
+- **v0.3.10 (Oct 2025)**: M-DX1 Developer Experience - Builtin system migration (-67% dev time)
+- **v0.3.9 (Oct 2025)**: AI API Integration - HTTP headers, JSON encoding, OpenAI example
+- **v0.3.6 (Oct 2025)**: AI usability - auto-import, record updates, error detection
+- **v0.3.5 (Oct 2025)**: Anonymous functions, `letrec`, numeric conversions
+
+For detailed version history, see [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## 💡 Why AILANG Works Better for AIs
+
+| Human Need | Human Feature | AI Equivalent in AILANG |
+|-----------|---------------|------------------------|
+| IDE assistance | LSP / autocompletion | Deterministic type/query API |
+| Asynchronous code | Threads / goroutines | Static task DAGs with effects |
+| Code reuse | Inheritance / traits | Structural reflection & records |
+| Debugging | Interactive debugger | Replayable evaluation trace |
+| Logging | `print` / `console` | `--emit-trace jsonl` structured logs |
+| Macros | text substitution | Typed quasiquotes (semantic macros) |
+
+---
+
+## 🔁 Why AILANG Has No Loops (and Never Will)
+
+AILANG intentionally omits `for`, `while`, and other open-ended loop constructs.
+This isn't a missing feature — it's a design decision rooted in **determinism and compositional reasoning**.
+
+### 🧠 For Humans, Loops Express Control. For AIs, Loops Obscure Structure.
+
+Traditional loops compress time into mutable state:
+
+```python
+sum = 0
+for i in range(0, 10):
+    sum = sum + i
+```
+
+This is compact for humans but **semantically opaque** for machines:
+the iteration count, state shape, and termination guarantee are **implicit**.
+
+AILANG replaces this with **total, analyzable recursion**:
+
+```ailang
+foldl(range(0, 10), 0, \acc, i. acc + i)
+```
+
+or **pattern matching**:
+
+```ailang
+func sum(list: List[Int]) -> Int {
+  match list {
+    [] => 0,
+    [x, ...xs] => x + sum(xs)
+  }
+}
+```
+
+Every iteration is a **pure function over data, not time** —
+which makes it statically decidable, effect-safe, and perfectly compositional.
+
+### ⚙️ The Deterministic Iteration Principle
+
+| Goal | Imperative Loops | AILANG Alternative |
+|------|-----------------|-------------------|
+| Repeat a computation | `for` / `while` | `map`, `fold`, `filter`, `rec` |
+| Aggregate results | mutable accumulator | `foldl` / `foldr` |
+| Early termination | `break` | `foldWhile` / `find` |
+| Parallel evaluation | scheduler threads | static task DAGs |
+| Verification | undecidable | total + effect-typed |
+
+### 🧩 Benefits
+
+- **Deterministic semantics**: iteration defined by data, not by time
+- **Static totality**: no halting ambiguity
+- **Composable reasoning**: works algebraically with higher-order functions
+- **Easier optimization**: map/fold can fuse or parallelize safely
+- **Simpler runtime**: no mutable counters or loop scopes
+
+### 💡 Future Syntactic Sugar
+
+For readability, AILANG may later support **comprehension syntax**:
+
+```ailang
+[ p.name for p in people if p.age >= 30 ]
+```
+
+…which **desugars deterministically** to:
+
+```ailang
+map(filter(people, \p. p.age >= 30), \p. p.name)
+```
+
+**No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
+
+For the formal rationale and algebraic laws, see the [Why No Loops?](https://sunholo-data.github.io/ailang/docs/reference/no-loops) documentation.
+
+---
 
 ## Quick Start
 
@@ -54,8 +188,6 @@ For detailed installation instructions, see the [Getting Started Guide](docs/gui
 
 ### Hello World (Module Execution)
 
-AILANG v0.2.0 now executes module files with effects:
-
 ```ailang
 -- examples/demos/hello_io.ail
 module examples/demos/hello_io
@@ -63,13 +195,13 @@ module examples/demos/hello_io
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  println("Hello from AILANG v0.2.0!")
+  println("Hello from AILANG v0.3.14!")
 }
 ```
 
 ```bash
 ailang run --caps IO examples/demos/hello_io.ail
-# Output: Hello from AILANG v0.2.0!
+# Output: Hello from AILANG v0.3.14!
 ```
 
 **Important**: Flags must come BEFORE the filename:
@@ -81,75 +213,9 @@ ailang run --caps IO --entry main file.ail
 ailang run file.ail --caps IO --entry main
 ```
 
-More examples:
-```bash
-ailang run examples/arithmetic.ail                        # Arithmetic
-ailang run examples/simple.ail                            # Let bindings
-ailang run --caps IO --entry main examples/micro_block_seq.ail  # Block expressions
-ailang run --caps IO --entry greet examples/test_io_builtins.ail  # IO effects
-ailang run --caps Clock,IO --entry main examples/micro_clock_measure.ail  # Clock effect ✨ NEW
-ailang run --caps Net,IO --entry main examples/demo_ai_api.ail  # Net effect (API calls) ✨ NEW
-ailang run --entry greet examples/test_invocation.ail     # Cross-function calls
-```
+### Interactive REPL
 
-**✨ NEW: Clock & Net Effects** (v0.3.0-alpha4)
-```ailang
--- Clock effect: Monotonic time (immune to NTP/DST)
-import std/clock (now, sleep)
-
-func benchmark() -> int ! {Clock, IO} {
-  let start = now();
-  sleep(100);  -- Sleep 100ms
-  let elapsed = now() - start;
-  elapsed
-}
-```
-
-```ailang
--- Net effect: HTTP GET/POST with security hardening
-import std/net (httpGet, httpPost)
-import std/io (println)
-
-func callAPI() -> () ! {Net, IO} {
-  let response = httpGet("https://api.example.com/data");
-  println(response)
-}
-```
-
-**Net Security Features**:
-- ✅ HTTPS enforced (http:// requires `--net-allow-http`)
-- ✅ DNS rebinding prevention
-- ✅ IP blocking (localhost, private IPs, link-local)
-- ✅ Protocol blocking (file://, ftp://, data://)
-- ✅ Redirect validation (max 5 redirects)
-- ✅ Body size limits (5MB default)
-- ✅ Domain allowlist with wildcard support
-
-**✨ Block Expressions** (v0.3.0)
-```ailang
--- Blocks allow sequencing multiple expressions
-{
-  println("first");
-  println("second");
-  42  -- Value of block is the last expression
-}
-
--- Perfect for recursive functions with logging:
-func countdown(n: int) -> () ! {IO} {
-  if n <= 0 then {
-    println("Done!")
-  } else {
-    println(show(n));
-    countdown(n - 1)
-  }
-}
-```
-
-See [examples/STATUS.md](examples/STATUS.md) for complete example inventory (48/66 passing).
-
-### Interactive REPL (Fully Functional)
-
-The REPL is the **most complete** part of AILANG v0.1.0, featuring full type inference and type classes:
+The REPL features full type inference and deterministic evaluation:
 
 ```bash
 ailang repl
@@ -166,9 +232,6 @@ Hello World :: String
 λ> :type \x. x + x
 \x. x + x :: ∀α. Num α ⇒ α → α
 
-λ> let compose = \f. \g. \x. f(g(x)) in compose (\x. x * 2) (\x. x + 1) 5
-12 :: Int
-
 λ> :quit
 ```
 
@@ -176,111 +239,63 @@ Hello World :: String
 
 See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 
-## What Works in v0.1.0
+---
 
-### ✅ Complete Type System
+## What AILANG Can Do (Implementation Status)
 
-- **Hindley-Milner Type Inference** - Full polymorphic type inference with let-polymorphism
-- **Type Classes** - `Num`, `Eq`, `Ord`, `Show` with dictionary-passing semantics
-- **Constraint Solving** - Type class constraint generation and resolution
-- **Defaulting** - Automatic defaulting for ambiguous numeric types (Int, Float)
-- **Type Checking** - Module interface checking, export resolution, import validation
+### ✅ Core Language
 
-### ✅ Lambda Calculus & Expressions
+- **Pure functional programming** - Lambda calculus, closures, recursion
+- **Hindley-Milner type inference** - Row polymorphism, let-polymorphism
+- **Built-in type class instances** - `Num`, `Eq`, `Ord`, `Show` (structural reflection planned for v0.4.0)
+- **Algebraic effects** - Capability-based security (IO, FS, Clock, Net)
+- **Pattern matching** - ADTs with exhaustiveness checking
+- **Module system** - Runtime execution, cross-module imports
+- **Block expressions** - `{ e1; e2; e3 }` for sequencing
+- **JSON support** - Parsing (`std/json.decode`), encoding (`std/json.encode`)
 
-- **Lambda Expressions** - First-class functions with closures and currying
-- **Function Composition** - Higher-order functions, partial application
-- **Let Bindings** - Polymorphic let expressions (up to 3 nested levels)
-- **Conditionals** - `if-then-else` expressions
-- **Block Expressions** - `{ e1; e2; e3 }` for sequencing (desugars to let chains) ✨ NEW in v0.3.0
-- **Operators** - Arithmetic (`+`, `-`, `*`, `/`), comparison (`==`, `<`, `>`, etc.), string concatenation (`++`)
+### ✅ Development Tools
 
-### ✅ Data Structures
+- **M-EVAL** - AI code generation benchmarks (multi-model support)
+- **M-EVAL-LOOP v2.0** - Native Go eval tools with 90%+ test coverage
+- **Structured error reporting** - JSON schemas for deterministic diagnostics
+- **Effect system runtime** - Hermetic testing with `MockEffContext`
 
-- **Lists** - `[1, 2, 3]` with type inference
-- **Records** - `{name: "Alice", age: 30}` with field access
-- **Tuples** - `(1, "hello", true)` for heterogeneous data
-- **Strings** - String literals with concatenation
+### 🔜 Deterministic Tooling (v0.3.15)
 
-### ✅ Module System (Type-Checking Only)
+- **`ailang normalize`** - Canonical code formatting
+- **`ailang suggest-imports`** - Automatic import resolution
+- **`ailang apply`** - Deterministic code edits from JSON plans
+- **`--emit-trace jsonl`** - Structured execution traces for training
 
-- **Module Declarations** - `module path/to/module`
-- **Import/Export** - `import stdlib/std/io (println)`, `export func main() ...`
-- **Path Resolution** - Correct module path resolution and validation
-- **Dependency Analysis** - Import graph construction, cycle detection
-- **Interface Generation** - Module signatures with exported types/functions
+### 🔮 Future (v0.4.0+)
 
-**Note**: Modules parse and type-check correctly but cannot execute until v0.2.0. See [LIMITATIONS.md](docs/LIMITATIONS.md#critical-limitation-module-execution-gap).
+- **Typed quasiquotes** - Deterministic AST templates
+- **Structural reflection** - Replace hardcoded type classes
+- **Schema registry** - Machine-readable type/effect definitions
+- **Capability budgets** - Resource-bounded effects
 
-### ✅ Interactive Development
+---
 
-- **Professional REPL** - Arrow key history, tab completion, persistent history (`~/.ailang_history`)
-- **Type Inspection** - `:type <expr>` shows qualified types with constraints
-- **Instance Inspection** - `:instances` lists available type class instances
-- **Debugging Tools** - `:dump-core`, `:dump-typed`, `:trace-defaulting`, `:dry-link`
-- **Auto-imports** - `stdlib/std/prelude` loaded automatically
-
-### ✅ Error Reporting
-
-- **Structured Errors** - JSON error output with schema versioning
-- **Deterministic Diagnostics** - Stable error messages, line/column positions
-- **Helpful Messages** - Type errors, parse errors, module loading errors
-
-## What's Coming in v0.2.0
-
-### 🚀 v0.2.0 Roadmap (Module Execution & Effects)
-
-**M-R1: Module Execution Runtime** (~1,200 LOC, 1.5-2 weeks)
-- Module instance creation and initialization
-- Import resolution and linking at runtime
-- Top-level function execution
-- Exported function calls
-
-**M-R2: Algebraic Effects Foundation** (~800 LOC, 1-1.5 weeks)
-- Effect declarations and checking
-- Effect handler syntax (`with`, `handle`)
-- Capability-based effect system
-- Basic effects: `IO`, `FS`, `Net`
-
-**M-R3: Pattern Matching** (~600 LOC, 1 week)
-- `match` expressions
-- Pattern guards
-- Exhaustiveness checking
-- Constructor patterns for ADTs
-
-**Total Timeline**: 3.5-4.5 weeks for v0.2.0
-
-See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details.
-
-### 📋 Future Features (v0.3.0+)
-
-- Typed quasiquotes (SQL, HTML, JSON, regex)
-- CSP-based concurrency with channels
-- Session types for protocol verification
-- Property-based testing (`properties [...]`)
-- AI training data export
+## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-## Status
+![Examples](https://img.shields.io/badge/examples-52%20passing%2032%20failing-red.svg)
 
-![Examples](https://img.shields.io/badge/examples-52%20passing%2029%20failing-red.svg)
-
-### Example Verification Status
-
-*Last updated: 2025-10-15 09:21:05 UTC*
-
-**Summary:** 52 passed, 29 failed, 4 skipped (Total: 85)
+**52/88 examples passing (59%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `adt_option.ail` | ✅ Pass |  |
 | `adt_simple.ail` | ✅ Pass |  |
+| `ai_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
 | `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl ... |
 | `block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `block_recursion.ail` | ✅ Pass |  |
 | `bug_float_comparison.ail` | ✅ Pass |  |
 | `bug_modulo_operator.ail` | ✅ Pass |  |
-| `demo_ai_api.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `claude_haiku_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
+| `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl... |
 | `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `demos/adt_pipeline.ail` | ✅ Pass |  |
 | `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
@@ -294,7 +309,8 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `guards_basic.ail` | ✅ Pass |  |
-| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): t... |
+| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): u... |
+| `json_basic_decode.ail` | ✅ Pass |  |
 | `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expression... |
 | `letrec_recursion.ail` | ✅ Pass |  |
 | `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
@@ -302,10 +318,10 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `micro_block_seq.ail` | ✅ Pass |  |
 | `micro_clock_measure.ail` | ❌ Fail | Error: type error in examples/micro_clock_measu... |
 | `micro_io_echo.ail` | ✅ Pass |  |
-| `micro_net_fetch.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `micro_net_fetch.ail` | ❌ Fail | Error: type error in examples/micro_net_fetch (... |
 | `micro_option_map.ail` | ✅ Pass |  |
 | `micro_record_person.ail` | ✅ Pass |  |
-| `numeric_conversion.ail` | ✅ Pass |  |
+| `numeric_conversion.ail` | ❌ Fail | Error: type error in examples/numeric_conversio... |
 | `option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `patterns.ail` | ✅ Pass |  |
 | `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3):... |
@@ -345,9 +361,9 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 | `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load exa... |
 | `test_module_minimal.ail` | ✅ Pass |  |
 | `test_modulo_works.ail` | ✅ Pass |  |
-| `test_net_file_protocol.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_localhost.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
-| `test_net_security.ail` | ❌ Fail | Error: execution failed: effect 'Net' requires ... |
+| `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_pro... |
+| `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhos... |
+| `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security... |
 | `test_no_import.ail` | ✅ Pass |  |
 | `test_record_subsumption.ail` | ✅ Pass |  |
 | `test_single_guard.ail` | ✅ Pass |  |
@@ -361,27 +377,22 @@ See [v0.2.0 Roadmap](design_docs/planned/v0_2_0_module_execution.md) for details
 
 <!-- EXAMPLES_STATUS_END -->
 
+See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
+
+---
+
 ## Documentation
 
-### User Documentation
-- **[LIMITATIONS.md](docs/LIMITATIONS.md)** - ⚠️ Read this first! Current v0.1.0 limitations and workarounds
-- **[Getting Started](docs/guides/getting-started.md)** - Installation and quick tutorial
-- **[REPL Commands](docs/reference/repl-commands.md)** - Interactive REPL guide (fully functional)
-- **[Language Syntax](docs/reference/language-syntax.md)** - Complete language reference
-- **[Examples Status](examples/STATUS.md)** - Inventory of all 42 example files
-- **[Examples README](examples/README.md)** - How to use and understand examples
+📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site
 
-### Development Documentation
-- **[Implementation Status](docs/reference/implementation-status.md)** - Detailed component status with metrics
-- **[Development Guide](docs/guides/development.md)** - Contributing and development workflow
-- **[CLAUDE.md](CLAUDE.md)** - Instructions for AI assistants working on AILANG
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
+**Quick Links:**
+- **[Vision](https://sunholo-data.github.io/ailang/docs/vision)** - Why AILANG exists and what makes it different
+- **[Examples](https://sunholo-data.github.io/ailang/docs/examples)** - Interactive code examples with explanations
+- **[Getting Started](https://sunholo-data.github.io/ailang/docs/guides/getting-started)** - Installation and tutorial
+- **[Language Reference](https://sunholo-data.github.io/ailang/docs/reference/language-syntax)** - Complete syntax guide
+- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
 
-### Design & Architecture
-- **[AI-First Features](docs/ai-first-features.md)** - Why AILANG is designed for AI collaboration
-- **[Design Documents](design_docs/)** - Architecture and design decisions
-- **[v0.1.0 MVP Roadmap](design_docs/20250929/v0_1_0_mvp_roadmap.md)** - Current milestone plan
-- **[Showcase Issues](docs/SHOWCASE_ISSUES.md)** - Known parser/execution limitations discovered during example creation
+---
 
 ## Development
 
@@ -404,69 +415,72 @@ make watch-install
 # Check coverage
 make test-coverage-badge
 
-# AI Evaluation & Design Generation (NEW! ✨)
+# AI Evaluation & Design Generation
 make eval-suite          # Run AI benchmarks (AILANG vs Python)
 make eval-report         # Generate evaluation report
-make eval-analyze        # Analyze failures, generate design docs (auto-dedup)
-make eval-analyze-fresh  # Force new docs (disable dedup)
-make eval-to-design      # Full workflow: evals → analysis → design docs
+make eval-analyze        # Analyze failures, generate design docs
 ```
 
-See the [Development Guide](docs/guides/development.md) for detailed instructions.
+See the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for detailed instructions.
+
+---
+
+## 📚 Specification Reference
+
+- **Core**: `/internal/types/`, `/internal/eval/`
+- **Effects**: `/internal/effects/`
+- **Builtins**: `/internal/builtins/spec.go`
+- **Standard Library**: `/stdlib/std/*`
+- **Design Docs**: `/design_docs/`
+
+---
 
 ## Project Structure
 
 ```
 ailang/
-├── cmd/ailang/       # CLI entry point
-├── internal/         # Core implementation
-│   ├── repl/         # Interactive REPL
-│   ├── lexer/        # Tokenizer
-│   ├── parser/       # Parser
-│   ├── types/        # Type system
-│   ├── eval/         # Evaluator
-│   └── ...           # Other components
-├── examples/         # Example programs
-├── docs/             # Documentation
-├── design_docs/      # Design documents
-└── scripts/          # CI/CD scripts
+├── cmd/ailang/         # CLI entry point
+├── internal/           # Core implementation
+│   ├── repl/           # Interactive REPL
+│   ├── lexer/          # Tokenizer
+│   ├── parser/         # Parser
+│   ├── types/          # Type system
+│   ├── eval/           # Evaluator
+│   ├── effects/        # Effect system runtime
+│   ├── builtins/       # Builtin registry
+│   └── eval_harness/   # AI evaluation framework
+├── stdlib/             # Standard library
+├── examples/           # Example programs
+├── docs/               # Documentation
+└── design_docs/        # Design documents
 ```
+
+---
 
 ## Contributing
 
-AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](docs/guides/development.md) for guidelines.
+AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for guidelines.
 
-## License
+---
+
+## ⚖️ License & Philosophy
+
+AILANG is **open infrastructure for Cognitive DevOps** — systems that write, test, and deploy themselves deterministically.
+
+**Our design north star: build languages AIs enjoy using.**
 
 Apache 2.0 - See [LICENSE](LICENSE) for details.
+
+---
 
 ## Acknowledgments
 
 AILANG draws inspiration from:
-- Haskell (type system, purity)
-- OCaml (module system, effects)
-- Rust (capability-based security)
-- Erlang/Go (CSP concurrency)
+- **Haskell** (type system, purity)
+- **OCaml** (module system, effects)
+- **Rust** (capability-based security)
+- **Idris/Agda** (reflection and metaprogramming)
 
 ---
 
-## FAQ
-
-**Q: Can I use AILANG for production code?**
-A: Not yet. v0.1.0 is an MVP focused on the type system. Module execution arrives in v0.2.0 (planned ~4 weeks).
-
-**Q: What's the difference between REPL and file execution?**
-A: The REPL is fully functional with type classes. File execution works for non-module files. Module files type-check but cannot execute until v0.2.0.
-
-**Q: Which examples actually work?**
-A: See [examples/STATUS.md](examples/STATUS.md). 12 examples execute successfully. The showcase examples in `examples/showcase/` demonstrate working features.
-
-**Q: How can I help or contribute?**
-A: See [Development Guide](docs/guides/development.md). We especially welcome testing, example creation, and documentation improvements.
-
-**Q: What makes AILANG "AI-first"?**
-A: Explicit effects, deterministic execution traces, structured errors, and typed metaprogramming make AILANG ideal for AI-assisted development and training data generation. See [AI-First Features](docs/ai-first-features.md).
-
----
-
-*For AI agents: This is an experimental functional language with complete Hindley-Milner type inference, type classes (Num/Eq/Ord/Show), and lambda calculus. The REPL is fully functional. Non-module file execution works for expressions and let bindings. Module files type-check but cannot execute (runtime coming in v0.2.0). See [LIMITATIONS.md](docs/LIMITATIONS.md) and [Implementation Status](docs/reference/implementation-status.md) for exact capabilities.*
+*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://sunholo-data.github.io/ailang/) for exact capabilities.*

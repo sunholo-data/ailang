@@ -3,7 +3,24 @@
 
 module std/net
 
--- HTTP GET request
+import std/result (Result)
+
+-- Network error types
+export type NetError =
+  | Transport(string)      -- DNS, timeout, TLS, connection errors
+  | DisallowedHost(string) -- Domain not in allowlist
+  | InvalidHeader(string)  -- Blocked or malformed header
+  | BodyTooLarge(string)   -- Response exceeds size limit
+
+-- HTTP response with full metadata
+export type HttpResponse = {
+  status: int,                           -- HTTP status code (200, 404, etc.)
+  headers: List[{name: string, value: string}], -- Response headers (preserved order)
+  body: string,                          -- Response body
+  ok: bool                               -- true if status 200-299
+}
+
+-- HTTP GET request (deprecated: use httpRequest for status codes/headers)
 --
 -- Fetches content from an HTTP/HTTPS URL.
 --
@@ -57,4 +74,45 @@ export func httpGet(url: string) -> string ! {Net} {
 --   let response = httpPost("https://api.example.com/data", "{\"key\": \"value\"}")
 export func httpPost(url: string, body: string) -> string ! {Net} {
   _net_httpPost(url, body)
+}
+
+-- HTTP request with custom headers and structured errors (v0.3.8+)
+--
+-- Advanced HTTP client with full control over method, headers, and error handling.
+--
+-- Security features:
+--   - Same as httpGet() plus:
+--   - Header validation (blocks hop-by-hop, Host override, etc.)
+--   - Authorization stripped on cross-origin redirects
+--   - Method whitelist (GET, POST only in v0.3.8)
+--
+-- Args:
+--   method: String - HTTP method ("GET", "POST")
+--   url: String - Target URL
+--   headers: List[{name, value}] - Custom headers (Authorization, Content-Type, etc.)
+--   body: String - Request body (empty for GET)
+--
+-- Returns:
+--   Result[HttpResponse, NetError] - Ok(response) or Err(error)
+--
+-- Error handling:
+--   - Transport/DisallowedHost/InvalidHeader/BodyTooLarge → Err(NetError)
+--   - HTTP 4xx/5xx → Ok(HttpResponse) with status code
+--
+-- Example:
+--   let headers = [{name: "Authorization", value: "Bearer token"}];
+--   match httpRequest("POST", url, headers, body) {
+--     Ok(resp) -> if resp.ok then resp.body else "Error"
+--     Err(Transport(msg)) -> "Network error: " ++ msg
+--     Err(DisallowedHost(host)) -> "Blocked: " ++ host
+--     Err(InvalidHeader(hdr)) -> "Bad header: " ++ hdr
+--     Err(BodyTooLarge(size)) -> "Too large: " ++ size
+--   }
+export func httpRequest(
+  method: string,
+  url: string,
+  headers: List[{name: string, value: string}],
+  body: string
+) -> Result[HttpResponse, NetError] ! {Net} {
+  _net_httpRequest(method, url, headers, body)
 }

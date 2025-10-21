@@ -10,6 +10,12 @@ import (
 	"github.com/sunholo/ailang/internal/repl"
 )
 
+// Version information (injected at build time via -ldflags)
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+)
+
 // WasmREPL wraps the REPL for browser use
 type WasmREPL struct {
 	repl   *repl.REPL
@@ -19,7 +25,7 @@ type WasmREPL struct {
 // NewWasmREPL creates a new browser-ready REPL
 func NewWasmREPL() *WasmREPL {
 	w := &WasmREPL{
-		repl:   repl.New(),
+		repl:   repl.NewWithVersion(Version, BuildTime),
 		output: &bytes.Buffer{},
 	}
 
@@ -81,9 +87,9 @@ func resetREPL(this js.Value, args []js.Value) interface{} {
 // getVersion returns version info
 func getVersion(this js.Value, args []js.Value) interface{} {
 	return map[string]interface{}{
-		"version":   "v0.3.0",
-		"buildTime": "wasm",
-		"platform":  "browser",
+		"version":   Version,
+		"buildTime": BuildTime,
+		"platform":  "browser/wasm",
 	}
 }
 

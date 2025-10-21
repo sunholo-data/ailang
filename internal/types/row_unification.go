@@ -69,26 +69,23 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 
 	case r1.Tail != nil && r2.Tail == nil:
 		// r1 open, r2 closed - r1's tail gets r2's unique labels
-		if len(only2) > 0 {
-			return nil, fmt.Errorf("closed row missing labels: %v", ru.labelNames(only2))
-		}
-		// r1.Tail := only1 (which should be empty for successful unification)
+		// CRITICAL FIX: Assign only2 (r2's unique labels) to r1.Tail, not only1!
+		// This allows open row r1 to unify with closed row r2 by accepting r2's labels.
 		sub[r1.Tail.Name] = &Row{
 			Kind:   r1.Kind,
-			Labels: only1,
-			Tail:   nil,
+			Labels: only2, // r2's unique labels, not only1!
+			Tail:   nil,   // Close the row after adding r2's labels
 		}
 
 	case r1.Tail == nil && r2.Tail != nil:
 		// r1 closed, r2 open - r2's tail gets r1's unique labels
-		if len(only1) > 0 {
-			return nil, fmt.Errorf("closed row missing labels: %v", ru.labelNames(only1))
-		}
-		// r2.Tail := only2
+		// CRITICAL FIX: Assign only1 (r1's unique labels) to r2.Tail, not only2!
+		// This allows open row r2 to unify with closed row r1 by accepting r1's labels.
+		// For example: {IO} (closed) unifies with {} | ε (open) by setting ε := {IO}
 		sub[r2.Tail.Name] = &Row{
 			Kind:   r2.Kind,
-			Labels: only2,
-			Tail:   nil,
+			Labels: only1, // r1's unique labels, not only2!
+			Tail:   nil,   // Close the row after adding r1's labels
 		}
 
 	case r1.Tail != nil && r2.Tail != nil:

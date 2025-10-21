@@ -50,7 +50,7 @@ func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
-	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)")
+	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all 6 models from extended_suite (gpt5, gpt5-mini, claude-sonnet-4-5, claude-haiku-4-5, gemini-2-5-pro, gemini-2-5-flash)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
@@ -59,6 +59,7 @@ func runEvalSuite() {
 	maxConcurrent := fs.Int("parallel", 5, "Maximum concurrent API calls (0 = sequential)")
 	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
+	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -71,11 +72,21 @@ func runEvalSuite() {
 		// User specified models explicitly
 		modelList = strings.Split(*models, ",")
 	} else if *fullSuite {
-		// Full suite: use expensive/comprehensive models
-		modelList = []string{"gpt5", "claude-sonnet-4-5", "gemini-2-5-pro"}
+		// Full suite: use extended suite (all 6 models) from models.yml
+		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.ExtendedSuite) > 0 {
+			modelList = eval_harness.GlobalModelsConfig.ExtendedSuite
+		} else {
+			// Fallback if models.yml not loaded
+			modelList = []string{"gpt5", "gpt5-mini", "claude-sonnet-4-5", "claude-haiku-4-5", "gemini-2-5-pro", "gemini-2-5-flash"}
+		}
 	} else {
-		// Default: use cheaper/faster dev models
-		modelList = []string{"gpt5-mini", "gemini-2-5-flash"}
+		// Default: use dev models from models.yml
+		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.DevModels) > 0 {
+			modelList = eval_harness.GlobalModelsConfig.DevModels
+		} else {
+			// Fallback if models.yml not loaded
+			modelList = []string{"gpt5-mini", "claude-haiku-4-5", "gemini-2-5-flash"}
+		}
 	}
 	var benchmarkList []string
 	if *benchmarks == "" {
@@ -118,22 +129,46 @@ func runEvalSuite() {
 	// Check API keys
 	checkAPIKeys(modelList)
 
-	// Clean previous results
-	fmt.Printf("%s Cleaning previous results...\n", cyan("→"))
-	cleanResults(*outputDir)
+	// Clean previous results (unless resuming)
+	if !*skipExisting {
+		fmt.Printf("%s Cleaning previous results...\n", cyan("→"))
+		cleanResults(*outputDir)
+	} else {
+		fmt.Printf("%s Resuming run (skipping existing results)...\n", cyan("→"))
+	}
 
 	// Build job list
 	var jobs []Job
+	skippedCount := 0
 	for _, model := range modelList {
 		for _, benchmark := range benchmarkList {
 			for _, lang := range langList {
-				jobs = append(jobs, Job{
+				job := Job{
 					Model:     model,
 					Benchmark: benchmark,
 					Language:  lang,
-				})
+				}
+
+				// Check if result already exists (if resuming)
+				if *skipExisting {
+					// Result filename format: benchmarkID_lang_model_timestamp.json
+					// We check for any file matching the pattern (ignoring timestamp)
+					pattern := filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model))
+					matches, _ := filepath.Glob(pattern)
+					if len(matches) > 0 {
+						skippedCount++
+						continue // Skip this job
+					}
+				}
+
+				jobs = append(jobs, job)
 			}
 		}
+	}
+
+	if *skipExisting && skippedCount > 0 {
+		fmt.Printf("Skipped %d existing results\n", skippedCount)
+		fmt.Println()
 	}
 
 	// Run benchmarks with concurrency control
@@ -181,19 +216,37 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 	}
 
 	var (
-		wg      sync.WaitGroup
-		results = make([]SuiteResult, len(jobs))
-		sem     = make(chan struct{}, maxConcurrent) // Semaphore for concurrency control
-		mu      sync.Mutex                           // Protect progress counter
+		wg           sync.WaitGroup
+		results      = make([]SuiteResult, len(jobs))
+		sem          = make(chan struct{}, maxConcurrent) // Semaphore for concurrency control
+		mu           sync.Mutex                           // Protect progress counter
+		failureCount int                                  // Track consecutive failures
+		aborted      bool                                 // Early abort flag
 	)
 
 	completed := 0
 	totalJobs := len(jobs)
 
 	for i, job := range jobs {
+		// Check if we should abort early
+		mu.Lock()
+		if aborted {
+			mu.Unlock()
+			break
+		}
+		mu.Unlock()
+
 		wg.Add(1)
 		go func(idx int, j Job) {
 			defer wg.Done()
+
+			// Check abort flag before starting work
+			mu.Lock()
+			if aborted {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
 
 			// Acquire semaphore
 			sem <- struct{}{}
@@ -222,8 +275,22 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 
 			if success {
 				fmt.Printf("  %s Completed\n", green("✓"))
+				mu.Lock()
+				failureCount = 0 // Reset failure count on success
+				mu.Unlock()
 			} else {
 				fmt.Printf("  %s Failed: %v\n", red("✗"), err)
+				mu.Lock()
+				failureCount++
+				// Abort if first 50 results are all failures
+				if completed >= 50 && failureCount >= 50 {
+					if !aborted {
+						aborted = true
+						fmt.Printf("\n%s Aborting: First 50 results all failed - likely system issue!\n", red("🚨"))
+						fmt.Printf("Check: interpreter debug output, missing API keys, or broken prompt.\n\n")
+					}
+				}
+				mu.Unlock()
 			}
 		}(i, job)
 	}

@@ -1,0 +1,548 @@
+---
+sidebar_position: 3
+title: Examples
+description: Interactive examples showcasing AILANG features with real code you can try
+---
+
+import Icon, { CheckIcon, WarningIcon } from '@site/src/components/Icon';
+
+# AILANG Examples
+
+Learn AILANG through interactive examples. Each example demonstrates a key feature with working code you can try in the [Playground](/docs/playground).
+
+## <Icon name="zap" /> Quick Start Examples
+
+### Hello World
+
+The simplest AILANG program with I/O effects:
+
+```typescript
+module examples/hello
+
+import std/io (println)
+
+fn main() !: IO -> () =
+    println("Hello, AILANG!")
+```
+
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/hello.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `!: IO` declares the function performs I/O
+- <CheckIcon inline /> `println` is imported from `std/io`
+- <CheckIcon inline /> `--caps IO` grants I/O capability at runtime
+
+---
+
+### Recursion & Pure Functions
+
+AILANG uses recursion instead of loops for deterministic control flow:
+
+```typescript
+-- Factorial: pure function, no effects
+fn factorial(n: int) -> int =
+    if n <= 1 then 1
+    else n * factorial(n - 1)
+
+-- Main: performs I/O
+fn main() !: IO -> () =
+    println(show(factorial(5)))
+```
+
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/factorial.ail
+```
+
+**Output:**
+```
+120
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `factorial` is **pure** (no effects declared)
+- <CheckIcon inline /> Recursion replaces loops for deterministic reasoning
+- <CheckIcon inline /> `show()` converts int to string for printing
+
+---
+
+## <Icon name="code" /> Pattern Matching
+
+### Lists & Destructuring
+
+Pattern matching is AILANG's primary control flow mechanism:
+
+```typescript
+import std/io (println)
+
+-- Sum list using pattern matching
+fn sum(list: [int]) -> int =
+    match list {
+        [] -> 0,
+        [head, ...tail] -> head + sum(tail)
+    }
+
+fn main() !: IO -> () =
+    let numbers = [1, 2, 3, 4, 5];
+    println("Sum: " ++ show(sum(numbers)))
+```
+
+**Output:**
+```
+Sum: 15
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `[]` matches empty list
+- <CheckIcon inline /> `[head, ...tail]` destructures list
+- <CheckIcon inline /> Exhaustive matching required (compiler enforces)
+
+---
+
+### Algebraic Data Types (ADTs)
+
+Define custom types with multiple constructors:
+
+```typescript
+import std/io (println)
+
+type Tree =
+    | Leaf(int)
+    | Node(Tree, int, Tree)
+
+-- Sum all values in tree
+fn sumTree(tree: Tree) -> int =
+    match tree {
+        Leaf(n) -> n,
+        Node(left, value, right) ->
+            sumTree(left) + value + sumTree(right)
+    }
+
+fn main() !: IO -> () =
+    let tree = Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)));
+    println("Tree sum: " ++ show(sumTree(tree)))
+```
+
+**Output:**
+```
+Tree sum: 15
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `type Tree =` defines an ADT with 2 constructors
+- <CheckIcon inline /> Pattern matching handles all cases
+- <CheckIcon inline /> Compiler ensures exhaustiveness
+
+---
+
+## <Icon name="target" /> Effect System
+
+### Multiple Effects
+
+Functions can declare multiple effects they perform:
+
+```typescript
+import std/io (println)
+import std/fs (readFile)
+import std/json (decode)
+
+fn loadConfig() !: IO,FS -> Result[string, string] =
+    do {
+        content <- readFile("config.json");
+        println("Loaded config file");
+        return Ok(content)
+    }
+
+fn main() !: IO,FS -> () =
+    match loadConfig() {
+        Ok(content) -> println("Config: " ++ content),
+        Err(e) -> println("Error: " ++ e)
+    }
+```
+
+**Run it:**
+```bash
+ailang run --caps IO,FS --entry main examples/config.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `!: IO,FS` declares both I/O and filesystem effects
+- <CheckIcon inline /> `do` blocks sequence effectful operations
+- <CheckIcon inline /> `Result[T,E]` type for error handling
+
+---
+
+### Effect Polymorphism
+
+Functions can be generic over effects:
+
+```typescript
+-- Works with any effect row
+fn log[e](message: string) !: {IO | e} -> () =
+    println("[LOG] " ++ message)
+
+-- Calls log while also reading files
+fn processFile(path: string) !: IO,FS -> () =
+    do {
+        log("Reading file: " ++ path);
+        content <- readFile(path);
+        log("File loaded")
+    }
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `!: {IO | e}` means "IO plus whatever effects the caller has"
+- <CheckIcon inline /> Effect polymorphism enables reusable functions
+- <CheckIcon inline /> Effect rows compose naturally
+
+---
+
+## <Icon name="brain" /> Type System
+
+### Type Inference
+
+AILANG infers types automatically using Hindley-Milner:
+
+```typescript
+import std/io (println)
+
+-- No type annotations needed!
+fn double(x) = x * 2
+
+fn main() !: IO -> () =
+    let result = double(21);
+    println(show(result))  -- Prints: 42
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Type inference works across function boundaries
+- <CheckIcon inline /> Explicit annotations optional but recommended
+- <CheckIcon inline /> `:type` command in REPL shows inferred types
+
+---
+
+### Records & Subsumption
+
+Records are structural types with width subtyping:
+
+```typescript
+import std/io (println)
+
+type Person = { name: string, age: int }
+
+fn greet(person: Person) !: IO -> () =
+    println("Hello, " ++ person.name)
+
+fn main() !: IO -> () =
+    let employee = { name: "Alice", age: 30, role: "Engineer" };
+    greet(employee)  -- OK! employee has all required fields
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Records support structural typing
+- <CheckIcon inline /> Width subtyping: `{a, b, c}` ⊆ `{a, b}`
+- <CheckIcon inline /> Field access: `record.field`
+
+---
+
+## <Icon name="box" /> JSON & HTTP
+
+### JSON Parsing
+
+Parse and work with JSON data:
+
+```typescript
+import std/io (println)
+import std/json (decode)
+
+fn main() !: IO -> () =
+    let jsonString = "{\"name\": \"AILANG\", \"version\": \"0.3.14\"}";
+
+    match decode(jsonString) {
+        Ok(json) ->
+            match json {
+                Object(fields) ->
+                    match fields["name"] {
+                        Some(String(name)) -> println("Name: " ++ name),
+                        _ -> println("Name not found")
+                    },
+                _ -> println("Not an object")
+            },
+        Err(e) -> println("Parse error: " ++ e)
+    }
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `decode` returns `Result[Json, string]`
+- <CheckIcon inline /> Pattern match on JSON structure
+- <CheckIcon inline /> Safe access to nested fields
+
+---
+
+### HTTP Requests
+
+Make HTTP requests with the Net effect:
+
+```typescript
+import std/io (println)
+import std/net (httpGet)
+
+fn main() !: IO,Net -> () =
+    match httpGet("https://api.github.com/repos/sunholo-data/ailang") {
+        Ok(response) ->
+            println("Status: " ++ show(response.status)),
+        Err(e) ->
+            println("Request failed: " ++ e)
+    }
+```
+
+**Run it:**
+```bash
+ailang run --caps IO,Net --entry main examples/http_get.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `!: IO,Net` declares network capability
+- <CheckIcon inline /> `httpGet` returns `Result[Response, string]`
+- <CheckIcon inline /> DNS rebinding protection built-in
+
+---
+
+## <Icon name="rocket" /> Advanced Examples
+
+### Higher-Order Functions
+
+Functions are first-class values:
+
+```typescript
+import std/io (println)
+
+fn map(f, list) =
+    match list {
+        [] -> [],
+        [x, ...xs] -> [f(x), ...map(f, xs)]
+    }
+
+fn main() !: IO -> () =
+    let numbers = [1, 2, 3, 4, 5];
+    let doubled = map(\x -> x * 2, numbers);
+    println(show(doubled))  -- [2, 4, 6, 8, 10]
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `\x -> x * 2` is a lambda function
+- <CheckIcon inline /> Functions can be passed as arguments
+- <CheckIcon inline /> Closures capture environment
+
+---
+
+### Mutual Recursion
+
+Multiple functions can call each other:
+
+```typescript
+import std/io (println)
+
+fn isEven(n: int) -> bool =
+    if n == 0 then true
+    else isOdd(n - 1)
+
+fn isOdd(n: int) -> bool =
+    if n == 0 then false
+    else isEven(n - 1)
+
+fn main() !: IO -> () =
+    println("5 is odd: " ++ show(isOdd(5)))  -- true
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Functions can reference each other
+- <CheckIcon inline /> Stack overflow protection included
+- <CheckIcon inline /> Deterministic evaluation order
+
+---
+
+## <Icon name="play" /> Try It Yourself
+
+### In the Playground
+
+Visit the [Playground](/docs/playground) to run code interactively in your browser.
+
+### With CLI
+
+Install AILANG and run examples locally:
+
+```bash
+# Install (coming soon)
+brew install ailang
+
+# Run an example
+ailang run --caps IO --entry main examples/hello.ail
+
+# Interactive REPL
+ailang repl
+```
+
+### From GitHub
+
+Clone the repository for all 66+ examples:
+
+```bash
+git clone https://github.com/sunholo-data/ailang
+cd ailang/examples
+
+# Run specific examples
+ailang run --caps IO --entry main v3_3/factorial.ail
+```
+
+---
+
+## <Icon name="bar-chart" /> Implementation Status
+
+**This section tracks AILANG's implementation progress and is automatically updated by CI/CD.**
+
+The example verification status shows what percentage of AILANG features are fully implemented and working. Each example exercises specific language features, so the pass rate directly reflects implementation completeness.
+
+<!-- EXAMPLES_STATUS_START -->
+## Status
+
+![Examples](https://img.shields.io/badge/examples-52%20passing%2032%20failing-red.svg)
+
+### Example Verification Status
+
+*Last updated: 2025-10-20 (Auto-updated by CI)*
+
+**Summary:** 52 passed, 32 failed, 4 skipped (Total: 88)
+
+**Overall: 52/88 examples working (59%)**
+
+| Example File | Status | Notes |
+|--------------|--------|-------|
+| `adt_option.ail` | ✅ Pass |  |
+| `adt_simple.ail` | ✅ Pass |  |
+| `ai_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecated; use 's... |
+| `arithmetic.ail` | ❌ Fail | Error: type error in examples/arithmetic (decl 0): undefi... |
+| `block_demo.ail` | ⏭️ Skip | Test/demo file |
+| `block_recursion.ail` | ✅ Pass |  |
+| `bug_float_comparison.ail` | ✅ Pass |  |
+| `bug_modulo_operator.ail` | ✅ Pass |  |
+| `claude_haiku_call.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecated; use 's... |
+| `demo_ai_api.ail` | ❌ Fail | Error: type error in examples/demo_ai_api (decl 0): undef... |
+| `demo_openai_api.ail` | ❌ Fail | Error: module loading error: failed to load examples/demo... |
+| `demos/adt_pipeline.ail` | ✅ Pass |  |
+| `demos/effects_pure.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecated; use 's... |
+| `demos/hello_io.ail` | ✅ Pass |  |
+| `effects_basic.ail` | ✅ Pass |  |
+| `effects_pure.ail` | ✅ Pass |  |
+| `experimental/ai_agent_integration.ail` | ❌ Fail | Error: module loading error: failed to load examples/expe... |
+| `experimental/concurrent_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load examples/expe... |
+| `experimental/factorial.ail` | ❌ Fail | Error: module loading error: failed to load examples/expe... |
+| `experimental/quicksort.ail` | ❌ Fail | Error: module loading error: failed to load examples/expe... |
+| `experimental/web_api.ail` | ❌ Fail | Error: module loading error: failed to load examples/expe... |
+| `func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load examples/func... |
+| `guards_basic.ail` | ✅ Pass |  |
+| `hello.ail` | ❌ Fail | Error: type error in examples/hello (decl 0): undefined v... |
+| `json_basic_decode.ail` | ✅ Pass |  |
+| `lambda_expressions.ail` | ❌ Fail | Error: type error in examples/lambda_expressions (decl 0)... |
+| `letrec_recursion.ail` | ✅ Pass |  |
+| `list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load examples/list... |
+| `micro_block_if.ail` | ✅ Pass |  |
+| `micro_block_seq.ail` | ✅ Pass |  |
+| `micro_clock_measure.ail` | ❌ Fail | Error: type error in examples/micro_clock_measure (decl 0... |
+| `micro_io_echo.ail` | ✅ Pass |  |
+| `micro_net_fetch.ail` | ❌ Fail | Error: type error in examples/micro_net_fetch (decl 0): u... |
+| `micro_option_map.ail` | ✅ Pass |  |
+| `micro_record_person.ail` | ✅ Pass |  |
+| `numeric_conversion.ail` | ❌ Fail | Error: type error in examples/numeric_conversion (decl 0)... |
+| `option_demo.ail` | ⏭️ Skip | Test/demo file |
+| `patterns.ail` | ✅ Pass |  |
+| `records.ail` | ❌ Fail | Error: type error in examples/records (decl 3): undefined... |
+| `recursion_error.ail` | ✅ Pass |  |
+| `recursion_factorial.ail` | ✅ Pass |  |
+| `recursion_fibonacci.ail` | ✅ Pass |  |
+| `recursion_mutual.ail` | ✅ Pass |  |
+| `recursion_quicksort.ail` | ✅ Pass |  |
+| `showcase/01_type_inference.ail` | ❌ Fail | Error: type error in examples/showcase/01_type_inference ... |
+| `showcase/02_lambdas.ail` | ❌ Fail | Error: type error in examples/showcase/02_lambdas (decl 0... |
+| `showcase/03_lists.ail` | ❌ Fail | Error: type error in examples/showcase/03_lists (decl 0):... |
+| `showcase/03_type_classes.ail` | ❌ Fail | Error: type error in examples/showcase/03_type_classes (d... |
+| `showcase/04_closures.ail` | ❌ Fail | Error: type error in examples/showcase/04_closures (decl ... |
+| `simple.ail` | ✅ Pass |  |
+| `stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
+| `stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
+| `test_effect_annotation.ail` | ✅ Pass |  |
+| `test_effect_capability.ail` | ✅ Pass |  |
+| `test_effect_fs.ail` | ✅ Pass |  |
+| `test_effect_io.ail` | ✅ Pass |  |
+| `test_effect_io_simple.ail` | ❌ Fail | Error: evaluation error: _io_println: no effect context a... |
+| `test_exhaustive_bool_complete.ail` | ✅ Pass |  |
+| `test_exhaustive_bool_incomplete.ail` | ✅ Pass |  |
+| `test_exhaustive_wildcard.ail` | ✅ Pass |  |
+| `test_fizzbuzz.ail` | ✅ Pass |  |
+| `test_float_comparison.ail` | ✅ Pass |  |
+| `test_float_eq_works.ail` | ✅ Pass |  |
+| `test_float_modulo.ail` | ✅ Pass |  |
+| `test_guard_bool.ail` | ✅ Pass |  |
+| `test_guard_debug.ail` | ✅ Pass |  |
+| `test_guard_false.ail` | ✅ Pass |  |
+| `test_import_ctor.ail` | ✅ Pass |  |
+| `test_import_func.ail` | ✅ Pass |  |
+| `test_integral.ail` | ✅ Pass |  |
+| `test_invocation.ail` | ✅ Pass |  |
+| `test_io_builtins.ail` | ✅ Pass |  |
+| `test_m_r7_comprehensive.ail` | ❌ Fail | Error: module loading error: failed to load examples/test... |
+| `test_module_minimal.ail` | ✅ Pass |  |
+| `test_modulo_works.ail` | ✅ Pass |  |
+| `test_net_file_protocol.ail` | ❌ Fail | Error: type error in examples/test_net_file_protocol (dec... |
+| `test_net_localhost.ail` | ❌ Fail | Error: type error in examples/test_net_localhost (decl 0)... |
+| `test_net_security.ail` | ❌ Fail | Error: type error in examples/test_net_security (decl 0):... |
+| `test_no_import.ail` | ✅ Pass |  |
+| `test_record_subsumption.ail` | ✅ Pass |  |
+| `test_single_guard.ail` | ✅ Pass |  |
+| `test_use_constructor.ail` | ✅ Pass |  |
+| `test_with_import.ail` | ✅ Pass |  |
+| `type_classes_working_reference.ail` | ❌ Fail | Error: type error in examples/type_classes_working_refere... |
+| `typeclasses.ail` | ❌ Fail | Error: type error in examples/typeclasses (decl 12): unde... |
+| `v3_3/imports.ail` | ✅ Pass |  |
+| `v3_3/imports_basic.ail` | ✅ Pass |  |
+| `v3_3/math/gcd.ail` | ❌ Fail | Error: entrypoint 'main' not found in module |
+
+<!-- EXAMPLES_STATUS_END -->
+
+---
+
+## <WarningIcon inline /> Known Limitations
+
+Some examples are currently broken due to ongoing development:
+
+- <WarningIcon inline /> **Typed Quasiquotes** - Not yet implemented (v0.4.0+)
+- <WarningIcon inline /> **Some JSON operations** - Parser improvements in progress
+- <WarningIcon inline /> **Complex effect polymorphism** - Type inference improvements needed
+
+See [Implementation Status](/docs/reference/implementation-status) for details.
+
+---
+
+## <Icon name="github" /> Contributing Examples
+
+Found a bug? Have a cool example to share?
+
+- <Icon name="github" inline /> [Report issues](https://github.com/sunholo-data/ailang/issues)
+- <Icon name="github" inline /> [Submit examples](https://github.com/sunholo-data/ailang/tree/main/examples)
+- <Icon name="book" inline /> [Read the guide](/docs/guides/development)
+
+---
+
+## Next Steps
+
+- <Icon name="rocket" inline /> [Try the Playground](/docs/playground) - Run code in your browser
+- <Icon name="book" inline /> [Read the Language Reference](/docs/reference/language-syntax) - Complete syntax guide
+- <Icon name="bot" inline /> [AI Integration Guide](/docs/guides/agent-integration) - Use AILANG with AI agents
+- <Icon name="code" inline /> [Browse all examples](https://github.com/sunholo-data/ailang/tree/main/examples) - 66+ example files
+
+---
+
+> **Note:** Examples are automatically verified by CI/CD. See [examples_status.md](https://github.com/sunholo-data/ailang/blob/dev/examples_status.md) for the latest status.

@@ -9,9 +9,9 @@ AILANG is an AI-first programming language designed for AI-assisted software dev
 
 ## Quick Links
 
-- **[Get Started](/ailang/docs/)** - Installation and first steps
+- **[Get Started](/docs/)** - Installation and first steps
 - **[Examples](https://github.com/sunholo-data/ailang/tree/main/examples)** - Sample AILANG programs
-- **[llms.txt](/ailang/llms.txt)** - AI-readable documentation
+- **[llms.txt](https://sunholo-data.github.io/ailang/llms.txt)** - AI-readable documentation
 - **[GitHub](https://github.com/sunholo-data/ailang)** - Source code and issues
 
 ## Features
@@ -26,4 +26,4 @@ AILANG is an AI-first programming language designed for AI-assisted software dev
 
 ✅ Recursion, blocks, records, pattern matching, type classes, effects (IO, FS, Clock, Net)
 
-[View full documentation →](/ailang/docs/)
+[View full documentation →](/docs/)

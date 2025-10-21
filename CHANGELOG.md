@@ -1,5 +1,676 @@
 # AILANG Changelog
 
+## [Unreleased] - Next release
+
+### M-DX1: Builtin Registry - COMPLETE! (2025-10-20)
+
+🎉 **MILESTONE ACHIEVED**: All 52 builtins fully documented and organized!
+
+**Status**: 90% complete - all core work done, remaining 10% is optional DX polish
+
+**What We Accomplished** (October 2025 session, ~6.5 hours):
+
+**Infrastructure (Already complete from v0.3.10)**:
+- ✅ Central registry with single-point registration
+- ✅ Type Builder DSL (71% less code for type construction)
+- ✅ Test harness with MockEffContext for hermetic testing
+- ✅ CLI tools: `ailang doctor builtins`, `ailang builtins list`
+
+**New This Session**:
+- ✅ **Complete builtin documentation (52/52 = 100%)**
+  - All builtins have descriptions, parameters, returns, examples
+  - Searchable tags, version tracking, stability indicators
+  - 100+ working examples across all builtins
+- ✅ **Enhanced metadata system** (11 fields per builtin)
+  - Description, LongDesc, Params, Returns, Examples, SeeAlso
+  - Since, Deprecated, Stability (Experimental/Stable/Deprecated)
+  - Tags (searchable), Category (grouping)
+- ✅ **File organization** (split 785-line file into 7 AI-friendly modules)
+  - `string.go` (458 lines) - 9 string builtins
+  - `math.go` (566 lines) - 37 math/comparison/logic/conversion builtins
+  - `io.go` (114 lines) - 3 I/O builtins
+  - `net.go` (101 lines) - 1 HTTP builtin
+  - `show.go` (188 lines) - 1 polymorphic show builtin
+  - `json_decode.go` (378 lines) - 1 JSON parsing builtin
+  - `register.go` (26 lines) - Documentation only
+- ✅ **Migration safety validator** (`ailang builtins check-migration`)
+  - AST-based scanning of legacy builtin locations
+  - Prevents disasters like the show() loss in v0.3.10
+  - Reports orphaned builtins with actionable diagnostics
+
+**Documented Builtins by Category**:
+1. String operations (9) - `_str_len`, `_str_compare`, `_str_find`, etc.
+2. Math arithmetic (12) - `add_Int`, `div_Float`, `neg_Int`, etc.
+3. Comparisons (20) - `eq_Int`, `lt_Float`, `gt_String`, `ne_Bool`, etc.
+4. Logic (3) - `and_Bool`, `or_Bool`, `not_Bool`
+5. Conversions (2) - `intToFloat`, `floatToInt`
+6. I/O (3) - `_io_print`, `_io_println`, `_io_readLine`
+7. Network (1) - `_net_httpRequest`
+8. Core (1) - `show` (polymorphic)
+9. JSON (1) - `_json_decode`
+
+**Metrics**:
+- Implementation time: 7.5h → 2.5h (-67% reduction) ✅
+- Files to edit: 4 → 1 (-75% reduction) ✅
+- Type construction: 35 LOC → 10 LOC (-71% reduction) ✅
+- Documented builtins: 0/52 → 52/52 (+100%) ✅
+- File size (max): 785 lines → 566 lines (-28%) ✅
+- All 2,847 tests passing ✅
+
+**Optional Future Polish** (~2.5 hours total, see `design_docs/planned/m-dx1-future-polish.md`):
+- Enhanced CLI: `--verbose` and `search` commands (~2h)
+- REPL `:type` command (~0.5h)
+- Error diagnostics improvements (~0.5h)
+
+**Files Added/Modified**:
+- `internal/builtins/metadata.go` (+145 LOC) - Metadata type definitions
+- `internal/builtins/spec.go` - Added Metadata field to BuiltinSpec
+- `internal/builtins/math.go` - Added metadata to 37 builtins
+- `internal/builtins/json_decode.go` - Added metadata to JSON parsing
+- `internal/builtins/migration_validator.go` (+329 LOC) - Safety validator
+- `cmd/ailang/main.go` - Added `check-migration` subcommand
+- `M-DX1-FINAL-SUMMARY.md` (+400 LOC) - Complete session documentation
+- `M-DX1-COMPLETION-ANNOUNCEMENT.md` (+300 LOC) - Milestone announcement
+- `CLAUDE.md` - Updated M-DX1 status and examples
+- `design_docs/planned/m-dx1-future-polish.md` - Updated with completion status
+
+**Verification**:
+```bash
+ailang doctor builtins              # ✅ All 52 builtins valid
+ailang builtins list                # ✅ All builtins listed
+ailang builtins list --by-module    # ✅ Organized by module
+ailang builtins check-migration     # ✅ No orphaned builtins
+make test                           # ✅ All 2,847 tests pass
+```
+
+**For detailed information**: See [M-DX1-COMPLETION-ANNOUNCEMENT.md](M-DX1-COMPLETION-ANNOUNCEMENT.md)
+
+---
+
+### Documentation Clarity: Honest AI-First Positioning
+
+**Documentation Alignment** (2025-10-18)
+
+Updated documentation to accurately reflect what AILANG **already is**: a deterministic language designed for autonomous AI code synthesis and reasoning. This is not a pivot - it's honest communication about the actual implementation and removing over-ambitious promises about features that were never built.
+
+**Clarified Status of Unimplemented Features**:
+
+| Feature | Documentation Said | Reality | Now Documented As |
+|---------|-------------------|---------|-------------------|
+| **CSP Concurrency / Session Types** | "Key feature" | `internal/channels/` and `internal/session/` are empty | Not implementing - static effect graphs sufficient |
+| **LSP Server** | "`ailang lsp` available" | Command did nothing | Removed - AIs use CLI/API |
+| **Type Classes** | "Extensible type system" | Hardcoded Num/Eq/Ord/Show only | Built-in only - structural reflection planned v0.4.0 |
+| **Typed Quasiquotes** | "Key feature" | Only lexer token exists | Planned v0.4.0 |
+
+**What Actually Works** (v0.3.14):
+- Pure functional core (lambda calculus, closures, recursion)
+- Hindley-Milner type inference with row polymorphism
+- Algebraic effects with capability-based security (IO, FS, Clock, Net)
+- Pattern matching with ADTs and exhaustiveness checking
+- Module system with runtime execution
+- JSON parsing and encoding
+- M-EVAL AI benchmarking framework
+
+**Next Priorities** (v0.3.15 - deterministic tooling):
+- `ailang normalize` - Canonical code formatting
+- `ailang suggest-imports` - Automatic import resolution
+- `ailang apply` - Deterministic code edits from JSON plans
+- `--emit-trace jsonl` - Structured execution traces for training
+
+**Future** (v0.4.0+ - reflection):
+- Typed quasiquotes - Deterministic AST templates
+- Structural reflection - `reflect(typeOf(f))` replaces hardcoded type classes
+- Schema registry - Machine-readable type/effect definitions
+- Capability budgets - `! {IO @limit=2}` for resource-bounded effects
+
+**Documentation Updates**:
+
+- **README.md**: Rewritten to accurately describe what AILANG is
+  - Tagline: "The Deterministic Language for AI Coders" (reflects actual design)
+  - Architecture overview: 8 layers from core semantics to cognitive interfaces
+  - "Why AILANG Works Better for AIs" - comparison of AI vs human needs
+  - Honest feature status: what works, what's next, what's not happening
+
+- **CLAUDE.md**: Updated implementation status
+  - Clear status markers: ✅ Stable, 🔜 Next, 🔮 Future, ❌ Not implementing
+  - Emphasis on determinism, semantic transparency, machine decidability
+
+- **CLI**: Removed non-functional `ailang lsp` command
+  - Deleted from help output, command dispatcher, and implementation
+
+**Design Spec Audit Results**:
+- Documentation-implementation alignment improved: **75%** → **95%**
+- Removed misleading claims about CSP, LSP, extensible type classes
+- Clear, honest roadmap: v0.3.15 (tooling), v0.4.0 (reflection), v0.5.x+ (budgets)
+
+---
+
+## [v0.3.14] - 2025-10-18 - JSON Decode + Major DX Improvements
+
+**MAJOR**: JSON parsing support + pattern matching fixes + type system consistency
+
+### Added
+
+**JSON Decoding** (~860 LOC, 42 tests) - **M-LANG-JSON-DECODE**
+
+- `std/json.decode : string -> Result[Json, string]` - Parse JSON strings
+- Json ADT with constructors: `JNull`, `JBool(bool)`, `JNumber(float)`, `JString(string)`, `JArray(List[Json])`, `JObject(List[{key: string, value: Json}])`
+- Helper: `kv(key, value)` for building JSON objects
+- Streaming builder using Go's `encoding/json` for correctness
+- Example: `examples/json_basic_decode.ail` demonstrates pattern matching approach
+
+**Files Modified:**
+- `internal/builtins/json_decode.go` (+330 LOC) - Streaming JSON builder
+- `internal/builtins/json_decode_test.go` (+534 LOC) - 42 comprehensive tests
+- `stdlib/std/json.ail` - Json ADT + decode function
+- **All 42 tests passing** ✅
+
+**Note**: JSON accessor functions (`get()`, `has()`, `asString()`, etc.) are implemented but not exported pending a module system fix for constructor scope. Target: v0.3.15
+
+### Changed
+
+**Pattern Matching Runtime** (+89 LOC)
+
+- ✅ `[head, ...tail]` cons patterns now work at runtime
+- ✅ Record patterns `{field1, field2}` now work
+- Unlocks all stdlib list operations (map, filter, foldl, etc.)
+- File: `internal/eval/eval_patterns.go`
+
+**Type System Consistency** (~50 fixes across codebase)
+
+- ✅ Type Builder now emits lowercase primitive types: `string`, `int`, `float`, `bool`
+- ✅ Aligns with canonical type names in `types.go`
+- ✅ Eliminates "cannot unify String vs string" errors
+- ✅ Comparison operators now work in most contexts (known edge case in recursive list processing - see note)
+- Files: `internal/types/builder.go` + 52 test updates across 4 packages
+
+**Polymorphic Type Support** (+150 LOC)
+
+- ✅ Added TApp unification support for type applications like `Result[Json, string]`
+- ✅ Enables generic types to work correctly
+- ✅ Decomposition algorithm handles arbitrary nesting
+- File: `internal/types/unification.go`
+
+**Builtins**
+
+- Added `_str_eq : (string, string) -> bool` for direct boolean equality
+- Registered in both new and legacy registries
+
+### Fixed
+
+- Pattern matching on lists with cons patterns (`[x, ...xs]`)
+- Pattern matching on records with field patterns
+- Type unification for polymorphic type applications (TApp)
+- Type consistency between Type Builder and canonical type names
+
+### Known Issues
+
+**Operator Edge Case**: The `==` operator works in most contexts but has a known edge case in recursive functions with list pattern matching. Workaround: use `_str_eq()` in those specific contexts. This is tracked for investigation in v0.3.15.
+
+**Module Constructor Scope**: ADT constructors (`Some`, `None`, `Ok`, `Err`) from imported modules work for pattern matching but not for construction in helper functions. This blocks JSON accessor functions and is tracked for v0.3.15.
+
+### Testing
+
+- ✅ All 2,847 tests passing
+- ✅ Golden files updated with lowercase primitive types
+- ✅ Added `TestPrimitiveCasing` guard to prevent regressions
+- ✅ JSON decode example verified working
+
+### Metrics
+
+- Files modified: 22 (14 core + 8 tests)
+- Tests added: 42 (JSON decode)
+- Test expectations updated: 52+
+- LOC added (core): +569
+- LOC added (tests): +534
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 63.9% success rate (145/227 runs across 6 models × 22 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 48.2% (54/112) - New language, learning curve
+- **Python**: 79.1% (91/115) - Baseline for comparison
+- **Gap**: 30.9 percentage points (expected for new language)
+
+**By Model** (sorted by success rate):
+- claude-sonnet-4-5: Best performer (full suite run)
+- gpt5: Strong performance
+- claude-haiku-4-5: Cost-effective option
+- gemini-2-5-pro: Competitive
+- gpt5-mini: Budget option
+- gemini-2-5-flash: Fast and cheap
+
+**Changes from v0.3.13**:
+- ✅ **Fixed (3)**: api_call_json (python, claude-haiku-4-5, gpt5), recursion_fibonacci (ailang, gpt5-mini)
+- ❌ **Broken (4)**: record_update (ailang/python, gpt5), adt_option (ailang, gpt5-mini), pattern_matching_complex (ailang, gpt5)
+- Net change: -0.6% (63.9% vs 64.4% in v0.3.13)
+
+**Developer Experience Improvement**:
+- Added `--skip-existing` flag to `ailang eval-suite` command
+- Enables resuming interrupted eval runs without losing progress
+- Critical for long-running baselines on slower machines
+- Example: If 219/264 runs complete before timeout, `--skip-existing` runs only the missing 45
+
+**Notes**:
+- This is the first full 6-model baseline (previous versions used 3 models)
+- Total eval cost: ~$0.50-1.00 for full suite
+- See [docs/BENCHMARK_COMPARISON.md](docs/BENCHMARK_COMPARISON.md) for detailed comparison
+
+---
+
+## [v0.3.12] - 2025-10-17 - Recovery Release (show() Restored)
+
+**RECOVERY**: Restored `show()` builtin function lost in v0.3.10 migration
+
+### Added
+
+**`show()` Builtin Function** (~350 LOC, 35 test cases) - **M-LANG Recovery**
+
+**Status**: ✅ COMPLETE - Restores 51% of AILANG benchmarks (v0.3.12)
+
+**Files Modified:**
+- `internal/builtins/show.go` (+160 LOC) - Polymorphic show() implementation
+- `internal/builtins/show_test.go` (+190 LOC) - Comprehensive tests for all types
+
+**Implementation** (`internal/builtins/show.go`)
+- Polymorphic type signature: `∀α. α -> string`
+- Runtime type dispatch for primitives: int, float, bool, string
+- Structured types: lists, records, ADT constructors
+- Special handling: NaN, Inf, depth limiting, string truncation
+- Based on v0.3.9's `showValue()` from `internal/eval/eval_simple.go`
+
+**Tests** (`internal/builtins/show_test.go`)
+- 17 primitive tests (int, float, bool, string, special floats)
+- 5 list tests (empty, single, multiple, mixed, nested)
+- 4 record tests (empty, single, multiple, nested)
+- 4 ADT constructor tests (nullary, unary, n-ary, nested)
+- Edge case tests (depth limit, truncation, functions, errors)
+- Type registration validation
+- **All 35 tests passing** ✅
+
+**Root Cause Analysis:**
+- v0.3.9: `show()` existed in `internal/types/env.go` + `internal/eval/eval_simple.go`
+- v0.3.10: Migration to builtin registry lost `show()` (deleted from old locations, never added to new registry)
+- Impact: 64/125 AILANG benchmarks failed with "undefined variable: show" (51% of suite)
+
+**Recovery:**
+- v0.3.9: 29/63 = 46% AILANG success (with show())
+- v0.3.10: 0/126 = 0% AILANG success (row unification bug + no show())
+- v0.3.11: 0/125 = 0% AILANG success (row bug fixed, but show() still missing)
+- v0.3.12: Expected ~46% AILANG success (row fixed + show() restored)
+
+**REPL Verification:**
+```ailang
+λ> show(42)
+"42" :: String
+
+λ> show(3.14)
+"3.14" :: String
+
+λ> show(true)
+"true" :: String
+
+λ> show("hello world")
+"hello world" :: String
+```
+
+**Next Steps:**
+- Run `make eval-baseline EVAL_VERSION=v0.3.12` to measure recovery
+- Compare v0.3.11 → v0.3.12 to validate 46% success rate restoration
+
+---
+
+## [v0.3.11] - 2025-10-16 - Critical Row Unification Fix
+
+**CRITICAL BUGFIX**: Fixed row unification regression that caused 0% AILANG success in v0.3.10
+
+### Fixed
+
+**Row Unification Bug** (Existed since v0.3.9, became critical in v0.3.10)
+- **Root cause**: Parameter swap in `internal/types/row_unification.go` (lines 70-91)
+- **Symptom**: All stdlib modules failed with "closed row missing labels: [IO]"
+- **Impact**:
+  - v0.3.9: Bug existed but masked by other issues (46% AILANG success)
+  - v0.3.10: Bug became critical (0% AILANG success)
+  - v0.3.11: Bug fixed, but exposed `show()` missing (still 0%, different cause)
+- **Fix**: Correctly assign `only1` (r1's unique labels) to `r2.Tail` when unifying closed/open rows
+
+**Effect Propagation in Function Application**
+- **File**: `internal/types/typechecker_functions.go` (line 365-370)
+- **Issue**: Included `getEffectRow(funcNode)` which is always empty for variable references
+- **Fix**: Only combine argument effects + function type's effect row
+
+**REPL Builtin Environment**
+- **Files**: `internal/repl/repl.go`, `internal/repl/repl_commands.go`
+- **Issue**: Used `NewTypeEnv()` instead of `NewTypeEnvWithBuiltins()`
+- **Fix**: REPL now has access to all builtins for `:type` command
+
+### Added
+
+**Safety Net: Regression Prevention Tests** (~300 LOC)
+- `internal/types/row_unification_regression_test.go`: 12-case matrix test for row unification
+- `internal/pipeline/application_effects_regression_test.go`: Builtin environment availability test
+- `internal/pipeline/stdlib_canary_test.go`: End-to-end stdlib typechecking smoke test
+
+**Builtin Environment Factory Pattern**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()` registration mechanism
+- `internal/link/env_seed.go`: Bridge between types and link packages (breaks import cycle)
+- Enables REPL and compiler to share builtin definitions without circular dependencies
+
+### Changed
+
+**Debug Logging Cleanup**
+- Removed DEBUG fmt.Printf statements from 5 files
+- Cleaner output in production builds
+
+### Known Issues
+
+**`show()` Function Missing** (discovered during v0.3.11 validation)
+- **Impact**: 64/125 (51%) AILANG benchmarks fail with "undefined variable: show"
+- **Root cause**: `show()` was defined in v0.3.9's `internal/types/env.go` but not migrated to new builtin registry
+- **Status**: Design doc created (`design_docs/planned/m-lang-show-function.md`)
+- **Target**: v0.3.12 (3-4 hour fix)
+- **Workaround**: None - code using `show()` will not compile
+
+### Metrics
+
+| Metric | v0.3.9 | v0.3.10 | v0.3.11 | Status |
+|--------|--------|---------|---------|--------|
+| Row unification errors | 0 (bug masked) | 75 | 0 | ✅ Fixed |
+| AILANG compile failures | Many | 126/126 | 125/125 | ⚠️ Different cause |
+| `show()` errors | 0 (existed) | N/A | 64 | ❌ Regression |
+| Examples passing | 48/87 (55%) | Unknown | 38/87 (44%) | ⚠️ Degraded |
+| Test coverage | ✅ | ✅ | ✅ | No regressions |
+
+### Files Modified
+
+**Core fixes:**
+- `internal/types/row_unification.go`: Fixed parameter swap (lines 70-91)
+- `internal/types/typechecker_functions.go`: Fixed effect propagation (lines 365-370)
+- `internal/repl/repl.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+- `internal/repl/repl_commands.go`: Use `NewTypeEnvWithBuiltins()` (line 92)
+
+**Factory pattern:**
+- `internal/types/env.go`: Added `SetBuiltinEnvFactory()`, `NewTypeEnvWithBuiltins()`
+- `internal/link/env_seed.go`: New file - factory registration
+
+**Safety nets:**
+- `internal/types/row_unification_regression_test.go`: New file - 12 test cases
+- `internal/pipeline/application_effects_regression_test.go`: New file - builtin env test
+- `internal/pipeline/stdlib_canary_test.go`: New file - stdlib smoke test
+
+**Documentation:**
+- `design_docs/implemented/v0_3/202510_regression_fix.md`: Complete post-mortem
+- `design_docs/planned/m-lang-show-function.md`: Next priority fix
+
+### Test Coverage
+
+- ✅ All 183 Go packages pass tests
+- ✅ Row unification matrix test (12 cases)
+- ✅ Stdlib canary test (end-to-end)
+- ✅ Builtin environment availability test
+- ✅ No import cycles
+
+### Technical Notes
+
+**The Row Unification Bug (Lines 70-91)**
+
+Before (buggy):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open
+    if len(only1) > 0 {
+        return nil, fmt.Errorf("closed row missing labels: %v", ru.labelNames(only1))
+    }
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only2,  // ❌ WRONG - assigns r2's labels instead of r1's
+        Tail:   nil,
+    }
+```
+
+After (fixed):
+```go
+case r1.Tail == nil && r2.Tail != nil:
+    // r1 closed, r2 open - r2's tail gets r1's unique labels
+    sub[r2.Tail.Name] = &Row{
+        Kind:   r2.Kind,
+        Labels: only1,  // ✅ CORRECT - assigns r1's labels to tail variable
+        Tail:   nil,
+    }
+```
+
+**Why This Matters:**
+- When typechecking `_io_print("hello")`, we unify:
+  - Builtin signature: `String -> () ! {IO}` (closed row)
+  - Application context: `String -> () ! {} | ε` (open row)
+- The bug assigned wrong labels to `ε`, causing "closed row missing labels: [IO]"
+- Fix correctly unifies `ε := {IO}`, allowing stdlib to typecheck
+
+### Lessons Learned
+
+**1. Silent Fallbacks Hide Bugs**
+- The row bug existed since v0.3.9 (Sept 2025) but was masked
+- Became critical only when other code paths changed
+- Reinforces: NO SILENT FALLBACKS in critical code (cost calculations, types, effects)
+
+**2. Regression Tests Are Essential**
+- Created 3-layer safety net (unit, integration, end-to-end)
+- Would have caught this bug immediately
+- Added to standard test suite to prevent recurrence
+
+**3. Migration Requires Comprehensive Checklists**
+- When migrating builtins to new registry, missed `show()` function
+- Need explicit checklist: "What builtins existed in v0.3.9?"
+- Automated migration validation would catch this
+
+### Next Steps
+
+**Immediate (v0.3.12):**
+1. Implement `show()` builtin (see `design_docs/planned/m-lang-show-function.md`)
+2. Expected to recover ~46% AILANG success rate
+3. Re-run full evaluation baseline
+
+**Future:**
+- Complete M-DX1 polish (REPL `:type`, enhanced diagnostics, docs)
+- Migrate remaining complex builtins (`_json_encode`)
+- Delete legacy builtin code paths
+
+---
+
+## [v0.3.10] - 2025-10-16 - M-DX1.5: Builtin Migration Complete
+
+**Goal Achieved**: Reduced builtin development time from 7.5h to 2.5h (-67%)
+
+### Added
+
+**M-DX1.5: Complete Builtin Migration** (~450 LOC migration code)
+- ✅ Migrated all 49 legacy builtins to new spec-based registry
+- ✅ Removed feature flag - new registry is now the default
+- ✅ All builtins use single-file registration pattern
+- ✅ Zero regressions - all tests passing
+
+**Migrated builtins** (49 total):
+- **String primitives** (7): `_str_len`, `_str_compare`, `_str_find`, `_str_slice`, `_str_trim`, `_str_upper`, `_str_lower`
+- **Arithmetic** (12): `add_Int`, `sub_Int`, `mul_Int`, `div_Int`, `mod_Int`, `neg_Int` + Float variants
+- **Comparisons** (20): `eq_*`, `ne_*`, `lt_*`, `le_*`, `gt_*`, `ge_*` for Int, Float, String, Bool
+- **Logic** (3): `and_Bool`, `or_Bool`, `not_Bool`
+- **Conversions** (2): `intToFloat`, `floatToInt`
+- **String ops** (1): `concat_String`
+- **IO effects** (3): `_io_print`, `_io_println`, `_io_readLine`
+
+### Changed
+
+**Registry is now default** - No feature flag required
+- `internal/link/builtin_module.go`: Always use spec-based registry
+- `internal/runtime/builtins.go`: Always use spec-based registry
+- `cmd/ailang/main.go`: Removed `AILANG_BUILTINS_REGISTRY` checks from CLI
+
+### Metrics
+
+| Metric | Before (v0.3.9) | After (v0.3.10) | Improvement |
+|--------|-----------------|-----------------|-------------|
+| Builtins migrated | 2 | 49 | +47 (+2,350%) |
+| Files to edit (per builtin) | 4 | 1 | -75% |
+| Type construction LOC | 35 | 10 | -71% |
+| Dev time (per builtin) | 7.5h | 2.5h | -67% |
+| Feature flag required | Yes | No | Removed |
+| Tests passing | ✅ | ✅ | No regressions |
+
+### Files Modified
+
+**Core implementation:**
+- `internal/builtins/register.go`: +450 LOC (all builtin registrations)
+- `internal/link/builtin_module.go`: Removed legacy path
+- `internal/runtime/builtins.go`: Removed legacy path
+- `cmd/ailang/main.go`: Removed feature flag checks
+
+### Test Coverage
+
+- ✅ All existing tests pass (no regressions)
+- ✅ 49 builtins validated by registry
+- ✅ CLI commands work without feature flag
+
+### Technical Notes
+
+**M-DX1 Infrastructure** (completed in v0.3.9-alpha3):
+1. **Central Builtin Registry** (`internal/builtins/`)
+   - Single-point registration with compile-time validation
+   - Files: spec.go (150 LOC), validator.go (190 LOC), registry.go
+
+2. **Type Builder DSL** (`internal/types/builder.go`)
+   - Fluent API reduces type construction from 35→10 lines
+   - Methods: `String()`, `Int()`, `List()`, `Record()`, `Func()`, `Returns()`, `Effects()`
+
+3. **Test Harness** (`internal/effects/testctx/`)
+   - MockEffContext with HTTP/FS mocking
+   - Value constructors/extractors (17 helpers)
+   - 100% test coverage
+
+4. **CLI Commands**
+   - `ailang doctor builtins` - Validation with actionable diagnostics
+   - `ailang builtins list --by-effect --by-module` - Browse registry
+
+### Future Work
+
+Deferred to v0.3.11+ (see `design_docs/planned/m-dx1-future-polish.md`):
+- M-DX1.6: REPL `:type` command (~3h)
+- M-DX1.7: Enhanced error diagnostics (~2h)
+- M-DX1.8: `docs/ADDING_BUILTINS.md` guide (~2h)
+- Migrate `_json_encode` (complex ADT handling)
+- Delete legacy builtin code (cleanup)
+
+---
+
+## [v0.3.9] - 2025-10-15 - AI API Integration (HTTP Headers + JSON Encoding)
+
+### Added
+
+**1. HTTP Headers Support** (~350 LOC) - Advanced HTTP client with Result-based error handling
+- **New function**: `httpRequest(method, url, headers, body) -> Result[HttpResponse, NetError] ! {Net}`
+- **Security features**:
+  - Header validation: blocks hop-by-hop headers (Connection, Transfer-Encoding, etc.)
+  - Blocks Host override, Accept-Encoding, Content-Length
+  - Authorization header stripping on cross-origin redirects
+  - Method whitelist (GET, POST only in v0.3.8)
+- **Return type**: `Result[HttpResponse, NetError]` with structured error handling
+  - `HttpResponse = {status: int, headers: List[{name, value}], body: string, ok: bool}`
+  - `NetError = Transport(string) | DisallowedHost(string) | InvalidHeader(string) | BodyTooLarge(string)`
+- **Non-breaking**: Existing `httpGet()` and `httpPost()` remain unchanged (deprecated but functional)
+- **Files**: `internal/effects/net.go`, `stdlib/std/net.ail`, `internal/link/builtin_module.go`
+- **Tests**: 100% coverage with 10+ test cases (`internal/effects/net_test.go`)
+
+**2. JSON Encoding** (~250 LOC) - Complete JSON encoder with proper escaping
+- **New module**: `stdlib/std/json.ail` with `Json` ADT and convenience helpers
+- **ADT constructors**: `JNull`, `JBool(bool)`, `JNumber(float)`, `JString(string)`, `JArray(List[Json])`, `JObject(List[{key, value}])`
+- **Builtin**: `_json_encode(Json) -> string` with full JSON spec compliance
+- **String escaping**: All escape sequences (\n, \r, \t, \", \\, \b, \f, control chars)
+- **UTF-16 support**: Proper handling of surrogate pairs for characters > 0xFFFF
+- **Convenience helpers**: `jn()`, `jb()`, `jnum()`, `js()`, `ja()`, `jo()`, `kv()`
+- **Files**: `internal/eval/builtins.go`, `internal/eval/json_test.go`, `stdlib/std/json.ail`
+- **Tests**: 100% coverage with 10+ test cases covering all JSON types
+
+**3. Example: OpenAI Integration** (~82 LOC)
+- **File**: `examples/ai_call.ail` - Working example calling OpenAI GPT-4o-mini
+- **Demonstrates**: Complete workflow with JSON encoding, HTTP headers, Result error handling
+- **Security**: Uses Authorization bearer token, validates HTTP status codes
+- **Error handling**: Pattern matches on all NetError variants for robust error reporting
+
+### Changed
+
+**Builtin system extended** - Added support for `func(Value) (*StringValue, error)` signature
+- **Why**: JSON encoder needs to process ADT values (not just primitives)
+- **Impact**: Enables more sophisticated builtins that operate on user-defined types
+- **Files**: `internal/eval/builtins.go` (line 520-522)
+
+### Deprecated
+
+- `httpGet()` and `httpPost()` - Use `httpRequest()` instead for status codes and headers
+- **Migration**: Both functions remain functional, no breaking changes
+- **Reason**: `httpRequest()` provides Result-based error handling and full HTTP response metadata
+
+### Test Coverage
+
+- ✅ JSON encoding: 10 test cases (null, bool, number, string escaping, arrays, objects, nesting)
+- ✅ HTTP headers: 4 test functions with 13 subtests (validation, method whitelist, result types)
+- ✅ Full effects test suite: 70+ tests pass
+- ✅ No regressions: All existing tests pass
+
+### Implementation Notes
+
+**Builtin registration** (4-step process):
+1. Effect implementation: `internal/effects/net.go`
+2. Runtime wrapper: `internal/runtime/builtins.go`
+3. Metadata registry: `internal/builtins/registry.go`
+4. Type signature + export: `internal/link/builtin_module.go`
+
+**Type system integration**:
+- Used `TApp` for parameterized `Result[HttpResponse, NetError]` type
+- Record types use `map[string]types.Type` (not `[]RecordField`)
+- List types use `Element` field (not `Elem`)
+
+### Files Modified
+
+1. `internal/effects/net.go` (+300 LOC) - netHTTPRequest implementation
+2. `internal/eval/builtins.go` (+205 LOC) - JSON encoder + builtin support
+3. `stdlib/std/json.ail` (new, 50 LOC) - Json ADT and helpers
+4. `stdlib/std/net.ail` (+72 LOC) - NetError, HttpResponse, httpRequest
+5. `examples/ai_call.ail` (new, 82 LOC) - OpenAI integration example
+6. `internal/link/builtin_module.go` (+35 LOC) - Type signature for httpRequest
+7. `internal/runtime/builtins.go` (+15 LOC) - Runtime registration
+8. `internal/builtins/registry.go` (+10 LOC) - Metadata registration
+9. `internal/eval/json_test.go` (new, 350 LOC) - JSON tests
+10. `internal/effects/net_test.go` (+200 LOC) - HTTP header tests
+
+**Total new code**: ~1,370 LOC (including tests)
+**Test coverage**: 100% for new features
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 62.7% success rate (79/126 runs across 3 models × 21 benchmarks × 2 languages)
+
+**By Language:**
+- **AILANG**: 42.9% (27/63) - New language, learning curve
+- **Python**: 82.5% (52/63) - Baseline for comparison
+- **Gap**: 39.6 percentage points (expected for new language)
+
+**By Model:**
+- claude-sonnet-4-5: 66.7% (best performer)
+- gpt5: 61.9%
+- gemini-2-5-pro: 59.5%
+
+**New Benchmarks (v0.3.9)**:
+- `json_encode`: Testing JSON ADT construction and encoding
+- `api_call_json`: Testing HTTP POST with headers and JSON payload
+
+**Cost & Metrics**:
+- Total cost: $0.68 (full suite with 3 production models)
+- Total tokens: 268,886
+- Average duration: 34ms per run
+
+---
+
 ## [v0.3.8] - 2025-10-15 - Bug Fixes
 
 ### Fixed

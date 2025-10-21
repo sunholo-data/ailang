@@ -24,8 +24,12 @@ const config = {
   projectName: 'ailang', // Usually your repo name.
   trailingSlash: false,
 
-  onBrokenLinks: 'warn', // Changed from 'throw' to allow migration - will fix broken links later
+  onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
+  onBrokenAnchors: 'warn',
+
+  // Static assets are not checked for broken links - they are copied as-is
+  staticDirectories: ['static'],
 
   // Load Go's WebAssembly support for AILANG REPL
   scripts: [
@@ -96,10 +100,20 @@ const config = {
         },
         items: [
           {
+            to: '/docs/vision',
+            label: '✨ Vision',
+            position: 'left',
+          },
+          {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
             label: 'Documentation',
+          },
+          {
+            to: '/docs/examples',
+            label: '📚 Examples',
+            position: 'left',
           },
           {
             to: '/docs/playground',
@@ -107,12 +121,7 @@ const config = {
             position: 'left',
           },
           {
-            href: 'https://github.com/sunholo-data/ailang/tree/main/examples',
-            label: 'Examples',
-            position: 'left',
-          },
-          {
-            href: '/ailang/llms.txt',
+            href: 'https://sunholo-data.github.io/ailang/llms.txt',
             label: 'llms.txt',
             position: 'right',
           },
@@ -165,7 +174,7 @@ const config = {
               },
               {
                 label: 'llms.txt',
-                href: '/ailang/llms.txt',
+                href: 'https://sunholo-data.github.io/ailang/llms.txt',
               },
             ],
           },
@@ -176,6 +185,7 @@ const config = {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
         additionalLanguages: ['bash', 'json', 'javascript', 'typescript', 'go'],
+        // Note: AILANG syntax highlighting coming soon - use 'typescript' for now
       },
       colorMode: {
         defaultMode: 'dark',

@@ -1,9 +1,3 @@
-layout: page
-title: AI Prompt - python
-parent: AI Prompts
-nav_order: 1
----
-
 # Python Programming Guidelines
 
 You are an expert Python programmer. Write clean, idiomatic Python 3 code.

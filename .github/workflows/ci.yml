@@ -55,7 +55,13 @@ jobs:
       run: make verify-no-shim
       env:
         AILANG_REQUIRE_LOWERING: "true"
-    
+
+    - name: Validate builtin registry (M-DX1.3)
+      run: make doctor
+
+    - name: Run regression guard tests (v0.3.10 prevention)
+      run: make test-regression-guards
+
     - name: Generate test coverage
       run: |
         go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)
@@ -119,12 +125,12 @@ jobs:
         
         echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
     
-    - name: Commit README updates
+    - name: Commit README and docs updates
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: 'Update example verification status and coverage [skip ci]'
-        file_pattern: 'README.md'
+        file_pattern: 'README.md docs/docs/examples.mdx'
         commit_user_name: github-actions[bot]
         commit_user_email: github-actions[bot]@users.noreply.github.com
 

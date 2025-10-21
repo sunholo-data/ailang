@@ -1,0 +1,32 @@
+id: immutable_data_structures
+description: "Immutable data structures vs mutable state (predictable updates)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates immutable data structure updates.
+
+  Requirements:
+  1. Create a record/dict representing a person: {name: "Alice", age: 25, city: "NYC"}
+  2. Create an updated version with age = 26 (original record unchanged)
+  3. Create another updated version with city = "SF" (based on original, not the age-updated one)
+  4. Print all three records to verify originals are unchanged:
+     - Original: "Alice, 25, NYC"
+     - Updated age: "Alice, 26, NYC"
+     - Updated city: "Alice, 25, SF"
+
+  Key property: Updates create NEW records, originals never mutate.
+  This enables referential transparency and safe concurrent access.
+
+  Expected output (one per line):
+  "Alice, 25, NYC"
+  "Alice, 26, NYC"
+  "Alice, 25, SF"
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Alice, 25, NYC
+  Alice, 26, NYC
+  Alice, 25, SF

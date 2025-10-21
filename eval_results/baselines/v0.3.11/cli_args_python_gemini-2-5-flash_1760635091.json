@@ -1,0 +1,23 @@
+{
+  "id": "cli_args",
+  "lang": "python",
+  "model": "gemini-2-5-flash",
+  "seed": 42,
+  "input_tokens": 80,
+  "output_tokens": 112,
+  "total_tokens": 192,
+  "cost_usd": 0.000304,
+  "compile_ok": true,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 16,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "runtime_error",
+  "expected_stdout": "15\n",
+  "timestamp": "2025-10-16T19:18:11.813139+02:00",
+  "code": "import sys\n\nif len(sys.argv) \u003c 2:\n    sys.exit(1)\n\nfilename = sys.argv[1]\ntotal_sum = 0.0\n\ntry:\n    with open(filename, 'r') as f:\n        for line in f:\n            number_str = line.strip()\n            if number_str:\n                total_sum += float(number_str)\nexcept FileNotFoundError:\n    sys.exit(1)\n\nprint(total_sum)",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}
