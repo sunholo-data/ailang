@@ -592,6 +592,12 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Create a local TypeEnv for this module (inherits from global builtins)
 		moduleTypeEnv := types.NewTypeEnvWithBuiltins()
 
+		// Entry-module prelude injection (BEFORE type checking)
+		// Detect entry modules by scanning AST for 'export func main' with 0 params
+		if IsEntryModuleFromAST(unit.Surface) {
+			moduleTypeEnv = InjectPrelude(moduleTypeEnv)
+		}
+
 		typeChecker := types.NewCoreTypeCheckerWithInstances(cfg.InstEnv)
 		typeChecker.EnableTraceDefaulting(cfg.TraceDefaulting)
 		if cfg.TrackInstantiations {
@@ -653,6 +659,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		if err != nil {
 			return result, fmt.Errorf("interface build error in %s: %w", modID, err)
 		}
+
 		unit.Iface = unitIface
 		modLinker.RegisterIface(unitIface)
 

@@ -20,6 +20,10 @@ func init() {
 // ============================================================================
 
 func registerIO() {
+	// NOTE: 'print' is NOT registered here - it's entry-module prelude only
+	// See internal/pipeline/prelude.go for prelude injection
+	// Libraries must use explicit 'import std/io (_io_println)'
+
 	// _io_print
 	impl1 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		s := args[0].(*eval.StringValue)

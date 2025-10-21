@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -86,10 +87,15 @@ func NewWithVersion(version, buildTime string) *REPL {
 	// Enable experimental binop shim for REPL (handles float equality until OpLowering is complete)
 	evaluator.SetExperimentalBinopShim(true)
 
+	// Create type environment with builtins and inject prelude
+	// REPL always gets prelude (print, etc.) for convenience
+	typeEnv := types.NewTypeEnvWithBuiltins()
+	typeEnv = pipeline.InjectPrelude(typeEnv)
+
 	r := &REPL{
 		config:          &Config{},
-		env:             evaluator.Env(),                // Share the evaluator's environment (for persistent let bindings)
-		typeEnv:         types.NewTypeEnvWithBuiltins(), // Load all 49 builtins from spec registry
+		env:             evaluator.Env(), // Share the evaluator's environment (for persistent let bindings)
+		typeEnv:         typeEnv,         // Type env with builtins + prelude
 		instEnv:         types.NewInstanceEnv(),
 		dictReg:         types.NewDictionaryRegistry(),
 		instances:       make(map[string]core.DictValue),

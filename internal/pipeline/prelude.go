@@ -1,0 +1,119 @@
+package pipeline
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/iface"
+	"github.com/sunholo/ailang/internal/types"
+)
+
+// InjectPrelude adds prelude type bindings to a type environment.
+//
+// The prelude is a curated set of convenience functions designed to reduce
+// syntactic friction for entry modules and REPL use. It provides commonly-used
+// functions without requiring explicit imports.
+//
+// **AI-First Design Philosophy:**
+// "Minimize syntactic entropy" - teach the compiler to carry context so the AI doesn't have to.
+// The prelude removes boilerplate (e.g., `import std/io (println)`) while preserving AILANG's
+// core principle: effects remain explicit in type signatures (! {IO}).
+//
+// **Prelude contents:**
+//   - print : string -> () ! {IO}   -- Alias to _io_println
+//
+// **Shadowing:** User definitions shadow prelude (no warning, intentional)
+//
+// **Entry Module Detection:** Caller is responsible for determining if this is an entry module.
+// Use IsEntryModuleFromAST(file) to check before type checking.
+//
+// **Note:** This only injects TYPE bindings. Value bindings are injected separately
+// in the evaluator via InjectPreludeValues().
+func InjectPrelude(env *types.TypeEnv) *types.TypeEnv {
+	// Debug logging (controlled by DEBUG_PRELUDE env var)
+	if os.Getenv("DEBUG_PRELUDE") != "" {
+		fmt.Fprintf(os.Stderr, "prelude: injecting type for [print]\n")
+	}
+
+	// Inject print type: string -> () ! {IO}
+	T := types.NewBuilder()
+	printType := T.Func(T.String()).Returns(T.Unit()).Effects("IO")
+
+	// Wrap in a scheme (no type variables)
+	printScheme := &types.Scheme{
+		TypeVars: []string{},
+		RowVars:  []string{},
+		Type:     printType,
+	}
+
+	env = env.ExtendScheme("print", printScheme)
+	return env
+}
+
+// TODO: InjectPreludeValues - inject runtime value bindings for print
+// For now, print resolution happens via the global resolver looking up builtins
+// Future enhancement: inject print as an actual binding in the eval environment
+
+// IsEntryModule checks if the given public environment contains an exported main function.
+//
+// An entry module is defined as:
+//   - Module exports a function named "main"
+//   - The main function has arity 0 (no parameters)
+//
+// Entry modules get the prelude injected automatically. Library modules do not.
+func IsEntryModule(publicEnv *iface.Iface) bool {
+	if publicEnv == nil {
+		return false
+	}
+
+	// Check if there's an exported symbol named "main"
+	mainItem, exists := publicEnv.Exports["main"]
+	if !exists {
+		return false
+	}
+
+	// Check if it's a function type
+	if mainItem.Type == nil {
+		return false
+	}
+
+	// Extract the actual type from the scheme
+	mainType := mainItem.Type.Type
+
+	// Check if it's a function with 0 parameters
+	if fn, ok := mainType.(*types.TFunc2); ok {
+		// A 0-arity function has no parameters
+		return len(fn.Params) == 0
+	}
+
+	return false
+}
+
+// IsEntryModuleFromAST checks if the given AST file contains an exported main function.
+//
+// This is used for early detection before type checking, allowing prelude injection
+// to happen before type checking rather than after.
+//
+// An entry module is defined as:
+//   - File contains a function declaration named "main"
+//   - The main function is exported (IsExport = true)
+//   - The main function has 0 parameters
+//
+// Entry modules get the prelude injected automatically. Library modules do not.
+func IsEntryModuleFromAST(file *ast.File) bool {
+	if file == nil {
+		return false
+	}
+
+	// Scan top-level declarations for exported main function
+	for _, decl := range file.Decls {
+		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+			if funcDecl.Name == "main" && funcDecl.IsExport && len(funcDecl.Params) == 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
