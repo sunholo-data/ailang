@@ -53,7 +53,7 @@ cat << EOF
 **By Language:**
 - **AILANG**: ${AILANG_PCT}% - New language, learning curve
 - **Python**: ${PYTHON_PCT}% - Baseline for comparison
-$(if [[ -n "$GAP_TEXT" ]]; then echo "- **$GAP_TEXT""; fi)
+${GAP_TEXT:+- **$GAP_TEXT}
 
 **Comparison**: [Add comparison to previous version, e.g., "+3.5% AILANG improvement from v0.3.X"]
 

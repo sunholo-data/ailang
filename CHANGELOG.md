@@ -70,6 +70,19 @@
 - Pass rate improved from 61/88 to 64/88
 - All core tests passing
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 59.1% success rate (399 total runs)
+
+**By Language:**
+- **AILANG**: 33.0% - New language, learning curve
+- **Python**: 87.0% - Baseline for comparison
+- **Gap**: 54.0 percentage points (expected for new language)
+
+**Comparison**: -15.2% AILANG regression from v0.3.14 (48.2% → 33.0%)
+
+**Analysis**: The regression is likely due to the entry-module prelude changes from v0.3.16 being already in the codebase when this baseline was run. The benchmark suite may need updates to work with the new `print` scoping rules.
+
 ## [Unreleased] - Next release
 
 ### M-DX1: Builtin Registry - COMPLETE! (2025-10-20)
