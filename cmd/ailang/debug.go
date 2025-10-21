@@ -18,7 +18,10 @@ func runDebug() {
 	showTypesFlag := debugCmd.Bool("show-types", false, "Show inferred types for expressions")
 	compactFlag := debugCmd.Bool("compact", false, "Compact output (no indentation)")
 
-	debugCmd.Parse(os.Args[2:])
+	if err := debugCmd.Parse(os.Args[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	if debugCmd.NArg() == 0 {
 		fmt.Fprintf(os.Stderr, "%s: missing subcommand\n", red("Error"))

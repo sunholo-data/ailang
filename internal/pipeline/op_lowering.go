@@ -14,7 +14,7 @@ type OpLowerer struct {
 	resolvedConstraints map[uint64]*types.ResolvedConstraint // NodeID → resolved constraint
 	bindings            map[string]core.CoreExpr             // Variable name → bound expression
 	errors              []error
-	CoreTI              types.CoreTypeInfo                   // Core NodeID → inferred types (for type-guided lowering)
+	CoreTI              types.CoreTypeInfo // Core NodeID → inferred types (for type-guided lowering)
 }
 
 // NewOpLowerer creates a new operation lowerer

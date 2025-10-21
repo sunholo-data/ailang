@@ -172,9 +172,9 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 // This locks in the behavior for the ++ operator.
 func TestOpLowering_Concat(t *testing.T) {
 	tests := []struct {
-		name           string
-		leftArg        core.CoreExpr
-		rightArg       core.CoreExpr
+		name            string
+		leftArg         core.CoreExpr
+		rightArg        core.CoreExpr
 		expectedBuiltin string
 	}{
 		{

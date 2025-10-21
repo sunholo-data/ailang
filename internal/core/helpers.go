@@ -4,13 +4,15 @@ package core
 // This is useful when you need to inspect what a variable is bound to in ANF form.
 //
 // ANF (A-Normal Form) represents complex expressions as sequences of let-bindings:
-//   let x = [1, 2, 3] in
-//   let y = x in
-//   let z = y in
-//   z ++ [4, 5]
+//
+//	let x = [1, 2, 3] in
+//	let y = x in
+//	let z = y in
+//	z ++ [4, 5]
 //
 // In this example, ResolveValue(z, bindings) will follow the chain:
-//   z → y → x → [1, 2, 3]
+//
+//	z → y → x → [1, 2, 3]
 //
 // Parameters:
 //   - expr: The Core expression to resolve
@@ -26,13 +28,14 @@ package core
 // ResolveValue is a fallback for non-typed passes and debug utilities.
 //
 // Example usage:
-//   bindings := map[string]CoreExpr{
-//       "x": &List{Elements: [...]},
-//       "y": &Var{Name: "x"},
-//       "z": &Var{Name: "y"},
-//   }
-//   resolved := ResolveValue(&Var{Name: "z"}, bindings)
-//   // resolved is &List{Elements: [...]}
+//
+//	bindings := map[string]CoreExpr{
+//	    "x": &List{Elements: [...]},
+//	    "y": &Var{Name: "x"},
+//	    "z": &Var{Name: "y"},
+//	}
+//	resolved := ResolveValue(&Var{Name: "z"}, bindings)
+//	// resolved is &List{Elements: [...]}
 func ResolveValue(expr CoreExpr, bindings map[string]CoreExpr) CoreExpr {
 	visited := make(map[string]struct{})
 	return resolveValueWithVisited(expr, bindings, visited)

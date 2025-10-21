@@ -23,12 +23,13 @@ func (e *BuiltinError) Error() string {
 // ArgTypeMismatch creates a helpful error when an argument has the wrong type
 //
 // Examples:
-//   ArgTypeMismatch("_str_len", "string", "int")
-//   → "Runtime error in _str_len: expected string, got int"
 //
-//   ArgTypeMismatch("_list_concat", "list", "string")
-//   → "Runtime error in _list_concat: expected list, got string
-//      Hint: Use ++ for list concatenation, not string concatenation"
+//	ArgTypeMismatch("_str_len", "string", "int")
+//	→ "Runtime error in _str_len: expected string, got int"
+//
+//	ArgTypeMismatch("_list_concat", "list", "string")
+//	→ "Runtime error in _list_concat: expected list, got string
+//	   Hint: Use ++ for list concatenation, not string concatenation"
 func ArgTypeMismatch(builtin string, expected string, got string) error {
 	hint := getSmartHint(builtin, expected, got)
 	return &BuiltinError{
