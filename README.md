@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-34.0%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-34.3%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -282,35 +282,35 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-27%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/badge/examples-18%20passing%209%20failing-orange.svg)
 
-**27/27 examples passing (100%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**18/27 examples passing (67%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `runnable/adt_option.ail` | ✅ Pass |  |
 | `runnable/adt_simple.ail` | ✅ Pass |  |
-| `runnable/block_recursion.ail` | ✅ Pass |  |
-| `runnable/bug_float_comparison.ail` | ✅ Pass |  |
-| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
+| `runnable/block_recursion.ail` | ❌ Fail | Error: lowering error in examples/runnable/bloc... |
+| `runnable/bug_float_comparison.ail` | ❌ Fail | panic: interface conversion: eval.Value is *eva... |
+| `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: lowering error in examples/runnable/demo... |
 | `runnable/demos/hello_io.ail` | ✅ Pass |  |
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/guards_basic.ail` | ✅ Pass |  |
+| `runnable/guards_basic.ail` | ❌ Fail | Error: lowering error in examples/runnable/guar... |
 | `runnable/json_basic_decode.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Error: lowering error in examples/runnable/letr... |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
 | `runnable/micro_block_seq.ail` | ✅ Pass |  |
 | `runnable/micro_io_echo.ail` | ✅ Pass |  |
 | `runnable/micro_option_map.ail` | ✅ Pass |  |
 | `runnable/micro_record_person.ail` | ✅ Pass |  |
 | `runnable/patterns.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ✅ Pass |  |
-| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
-| `runnable/recursion_mutual.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ❌ Fail | Error: lowering error in examples/runnable/recu... |
+| `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: lowering error in examples/runnable/recu... |
+| `runnable/recursion_mutual.ail` | ❌ Fail | panic: interface conversion: eval.Value is *eva... |
 | `runnable/recursion_quicksort.ail` | ✅ Pass |  |
 | `runnable/simple.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ❌ Fail | panic: interface conversion: eval.Value is *eva... |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
 | `runnable/test_import_func.ail` | ✅ Pass |  |
 | `runnable/test_io_builtins.ail` | ✅ Pass |  |
