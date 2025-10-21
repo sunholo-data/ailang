@@ -37,4 +37,14 @@ export func main() -> () ! {IO} =
   let _ = print("") in
   let _ = print("Binary lambda (add):") in
   let _ = print("  add(10)(20) = " ++ show(add(10)(20))) in
-  print("  add(5)(7) = " ++ show(add(5)(7)))
+  let _ = print("  add(5)(7) = " ++ show(add(5)(7))) in
+
+  -- Comparison operators in lambdas (fixed in v0.3.17!)
+  let max = \x. \y. if x > y then x else y in
+  let min = \x. \y. if x < y then x else y in
+  let abs = \x. if x < 0 then 0 - x else x in
+  let _ = print("") in
+  let _ = print("Comparison operators in lambdas:") in
+  let _ = print("  max(10)(5) = " ++ show(max(10)(5))) in
+  let _ = print("  min(10)(5) = " ++ show(min(10)(5))) in
+  print("  abs(-7) = " ++ show(abs(0 - 7)))

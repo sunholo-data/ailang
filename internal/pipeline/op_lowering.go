@@ -247,6 +247,17 @@ func (l *OpLowerer) lowerExprs(exprs []core.CoreExpr) []core.CoreExpr {
 	return result
 }
 
+// isComparisonOrEqualityOp returns true for comparison and equality operators
+// These operators return Bool but need to be lowered based on operand types
+func isComparisonOrEqualityOp(op core.IntrinsicOp) bool {
+	switch op {
+	case core.OpLt, core.OpLe, core.OpGt, core.OpGe, core.OpEq, core.OpNe:
+		return true
+	default:
+		return false
+	}
+}
+
 // lowerIntrinsic performs type-directed lowering of an intrinsic operation
 func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	// Special handling for short-circuiting boolean operations
@@ -279,9 +290,20 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	// Determine the type suffix using type-guided lowering
 	var typeSuffix string
 
+	// For comparison and equality operators, use the operand type (not result type Bool)
+	// For other operators, use the intrinsic's result type
+	var typeNode uint64
+	if isComparisonOrEqualityOp(intrinsic.Op) && len(intrinsic.Args) > 0 {
+		// Use first operand's type for comparison/equality
+		typeNode = intrinsic.Args[0].ID()
+	} else {
+		// Use intrinsic's own type for arithmetic, boolean, etc.
+		typeNode = intrinsic.ID()
+	}
+
 	// First, try to use CoreTI (principal types from type inference)
 	// This is the preferred method and eliminates ANF guessing
-	if inferredType, ok := l.CoreTI.Get(intrinsic.ID()); ok {
+	if inferredType, ok := l.CoreTI.Get(typeNode); ok {
 		head := types.Head(inferredType)
 		switch head {
 		case types.HeadInt:
@@ -296,14 +318,14 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			typeSuffix = "List"
 		default:
 			// Unknown head - try resolved constraints as fallback
-			if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+			if constraint, ok := l.resolvedConstraints[typeNode]; ok {
 				typeSuffix = getTypeSuffixFromType(constraint.Type)
 			} else {
 				// Last resort: use default based on operator
 				typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 			}
 		}
-	} else if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+	} else if constraint, ok := l.resolvedConstraints[typeNode]; ok {
 		// Fallback to resolved constraints if CoreTI unavailable
 		typeSuffix = getTypeSuffixFromType(constraint.Type)
 	} else {

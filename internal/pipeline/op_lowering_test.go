@@ -22,6 +22,12 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 		},
 	}
 
+	// CoreTI: intrinsic itself has type Bool (result), operands have type Float
+	coreTI := types.NewCoreTypeInfo()
+	coreTI.Set(intrinsic.ID(), types.TBool)        // Result type
+	coreTI.Set(intrinsic.Args[0].ID(), types.TFloat) // Operand type (variable b)
+	coreTI.Set(intrinsic.Args[1].ID(), types.TFloat) // Operand type (literal 0.0)
+
 	// Create resolved constraint that says this == operation uses Float type
 	resolvedConstraints := map[uint64]*types.ResolvedConstraint{
 		42: {
@@ -30,11 +36,17 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 			Type:      types.TFloat,
 			Method:    "eq",
 		},
+		1: { // For the first argument (variable b)
+			NodeID:    1,
+			ClassName: "Eq",
+			Type:      types.TFloat,
+			Method:    "eq",
+		},
 	}
 
-	// Create OpLowerer with resolved constraints
+	// Create OpLowerer with CoreTI and resolved constraints
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
+	lowerer := NewOpLowerer(typeEnv, coreTI)
 	lowerer.SetResolvedConstraints(resolvedConstraints)
 
 	// Lower the intrinsic
