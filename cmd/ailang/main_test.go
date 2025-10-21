@@ -246,6 +246,89 @@ func TestCLI_Builtins_ListByModule(t *testing.T) {
 	}
 }
 
+func TestCLI_Debug_AST_Golden(t *testing.T) {
+	testFile := filepath.Join("cmd", "ailang", "testdata", "debug_ast_simple.ail")
+
+	stdout, stderr, exitCode := runCLI(t, "debug", "--show-types", "ast", testFile)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d. Stderr: %s", exitCode, stderr)
+	}
+
+	// Read golden file (from project root, where test runs)
+	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Failed to get project root: %v", err)
+	}
+	goldenFile := filepath.Join(projectRoot, "cmd", "ailang", "testdata", "debug_ast_simple.golden")
+
+	goldenBytes, err := os.ReadFile(goldenFile)
+	if err != nil {
+		t.Fatalf("Failed to read golden file %s: %v", goldenFile, err)
+	}
+	golden := string(goldenBytes)
+
+	// Compare output to golden
+	// Note: Type variable names (α1, α2, etc.) may vary between runs due to type inference
+	// For now, we'll do a structural comparison - check that key elements are present
+	expectedElements := []string{
+		"=== Core AST (ANF) ===",
+		"Program:",
+		"Let(xs)",
+		"Let(ys)",
+		"List[3]",
+		"Intrinsic(11)",
+		"Arg[0]: Var(xs)",
+		"Arg[1]: Var(ys)",
+		":: [int]", // At least some concrete types should appear
+	}
+
+	for _, elem := range expectedElements {
+		if !strings.Contains(stdout, elem) {
+			t.Errorf("Expected debug output to contain %q, got:\n%s", elem, stdout)
+		}
+	}
+
+	// Also verify the general structure matches
+	stdoutLines := strings.Split(strings.TrimSpace(stdout), "\n")
+	goldenLines := strings.Split(strings.TrimSpace(golden), "\n")
+
+	if len(stdoutLines) != len(goldenLines) {
+		t.Errorf("Expected %d output lines (matching golden), got %d.\nGolden:\n%s\nActual:\n%s",
+			len(goldenLines), len(stdoutLines), golden, stdout)
+	}
+}
+
+func TestCLI_Debug_AST_NoTypes(t *testing.T) {
+	testFile := filepath.Join("cmd", "ailang", "testdata", "debug_ast_simple.ail")
+
+	stdout, stderr, exitCode := runCLI(t, "debug", "ast", testFile)
+
+	if exitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d. Stderr: %s", exitCode, stderr)
+	}
+
+	// Without --show-types, should still show structure but no type annotations
+	expectedElements := []string{
+		"=== Core AST (ANF) ===",
+		"Program:",
+		"Let(xs)",
+		"Let(ys)",
+		"Intrinsic(11)",
+	}
+
+	for _, elem := range expectedElements {
+		if !strings.Contains(stdout, elem) {
+			t.Errorf("Expected debug output to contain %q, got:\n%s", elem, stdout)
+		}
+	}
+
+	// Should NOT contain type annotations when --show-types is off
+	if strings.Contains(stdout, "::") {
+		t.Errorf("Expected no type annotations without --show-types flag, but found '::' in output:\n%s", stdout)
+	}
+}
+
 func TestCLI_InvalidCommand(t *testing.T) {
 	_, stderr, exitCode := runCLI(t, "invalid-command")
 

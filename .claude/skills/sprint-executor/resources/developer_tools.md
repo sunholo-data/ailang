@@ -354,6 +354,56 @@ make fuzz-parser               # Fuzz test parser (short run)
 make fuzz-parser-long          # Long-running fuzz test
 ```
 
+## Debug & Introspection
+
+### Debug AST Command
+
+**NEW in v0.3.16**: Inspect Core AST (ANF) and inferred types
+
+```bash
+# Show Core AST with node IDs
+ailang debug ast example.ail
+
+# Show Core AST with inferred types
+ailang debug --show-types ast example.ail
+
+# Compact output (no indentation)
+ailang debug --compact ast example.ail
+```
+
+**Example output** (`ailang debug --show-types ast concat.ail`):
+```
+=== Core AST (ANF) ===
+Program:
+  [0] Let(xs) [#13] :: [α7]:
+    Value: List[3] [#4] :: [α1]:
+      [0]: Lit(1) [#1] :: α1
+      [1]: Lit(2) [#2] :: α2
+      [2]: Lit(3) [#3] :: α3
+    Body:  Let(ys) [#12] :: [α7]:
+      Value: List[3] [#8] :: [α4]:
+        [0]: Lit(4) [#5] :: α4
+        [1]: Lit(5) [#6] :: α5
+        [2]: Lit(6) [#7] :: α6
+      Body:  Intrinsic(11) [#11] :: [α7]:
+        Arg[0]: Var(xs) [#9] :: [int]
+        Arg[1]: Var(ys) [#10] :: [int]
+```
+
+**Use cases**:
+- Debug operator lowering (see which types were inferred for operators)
+- Understand ANF transformations (see Let bindings, Intrinsics)
+- Validate type inference results (verify CoreTypeInfo is populated correctly)
+- Learn AILANG internals (see how surface syntax becomes Core AST)
+- Investigate type errors (see where inference stopped)
+
+**What you see**:
+- `[#N]` - Node ID (used by CoreTypeInfo for type-guided lowering)
+- `:: Type` - Inferred type from type checker (when --show-types used)
+- `Intrinsic(N)` - Operator intrinsics (e.g., 11 = OpConcat for `++`)
+- `Let` bindings - ANF explicit sequencing
+- `VarGlobal` - Builtin function references
+
 ## Utilities
 
 ```bash
@@ -495,6 +545,8 @@ cd docs && npm run clear && npm start
 | Format code | `make fmt` |
 | Lint code | `make lint` |
 | Verify examples | `make verify-examples` |
+| Debug AST and types | `ailang debug --show-types ast <file>` |
+| Inspect Core AST | `ailang debug ast <file>` |
 | Start docs server | `make docs-serve` |
 | Clear docs cache | `make docs-clean` |
 | Release new version | Use `release-manager` skill |

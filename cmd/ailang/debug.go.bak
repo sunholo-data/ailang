@@ -1,0 +1,199 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/elaborate"
+	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/types"
+)
+
+func runDebug() {
+	debugCmd := flag.NewFlagSet("debug", flag.ExitOnError)
+	showTypesFlag := debugCmd.Bool("show-types", false, "Show inferred types for expressions")
+	compactFlag := debugCmd.Bool("compact", false, "Compact output (no indentation)")
+
+	debugCmd.Parse(os.Args[2:])
+
+	if debugCmd.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, "%s: missing subcommand\n", red("Error"))
+		printDebugHelp()
+		os.Exit(1)
+	}
+
+	subcommand := debugCmd.Arg(0)
+
+	switch subcommand {
+	case "ast":
+		if debugCmd.NArg() < 2 {
+			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+			fmt.Println("Usage: ailang debug ast [flags] <file.ail>")
+			os.Exit(1)
+		}
+		runDebugAST(debugCmd.Arg(1), *showTypesFlag, *compactFlag)
+
+	default:
+		fmt.Fprintf(os.Stderr, "%s: unknown debug subcommand '%s'\n", red("Error"), subcommand)
+		printDebugHelp()
+		os.Exit(1)
+	}
+}
+
+func printDebugHelp() {
+	fmt.Println(bold("ailang debug") + " - Debug and introspection utilities")
+	fmt.Println()
+	fmt.Println("Subcommands:")
+	fmt.Println("  ast <file>     Show Core AST (ANF) with optional type information")
+	fmt.Println()
+	fmt.Println("Flags for 'debug ast':")
+	fmt.Println("  --show-types        Show inferred types for expressions")
+	fmt.Println("  --compact           Compact output (no indentation)")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ailang debug ast example.ail")
+	fmt.Println("  ailang debug ast --show-types example.ail")
+	fmt.Println("  ailang debug ast --compact example.ail")
+}
+
+func runDebugAST(filename string, showTypes bool, compact bool) {
+	// Read file
+	source, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Parse
+	l := lexer.New(string(source), filename)
+	p := parser.New(l)
+	prog := p.Parse()
+
+	// Elaborate to Core AST
+	typeEnv := types.NewTypeEnv()
+	elab := elaborate.NewElaborator(typeEnv)
+	coreProg, err := elab.Elaborate(prog)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Elaboration error"), err)
+		os.Exit(1)
+	}
+
+	var coreTI types.CoreTypeInfo
+
+	if showTypes {
+		// Type check to populate CoreTI
+		typeChecker := types.NewCoreTypeChecker()
+		for _, decl := range coreProg.Decls {
+			_, _, _, _, err := typeChecker.InferWithConstraints(decl, typeEnv)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", yellow("Type error"), err)
+				// Continue anyway - show partial types
+			}
+		}
+		coreTI = typeChecker.CoreTI
+	}
+
+	fmt.Println(cyan("=== Core AST (ANF) ==="))
+	printCoreAST(coreProg, coreTI, compact, 0)
+	fmt.Println()
+}
+
+func printCoreAST(prog *core.Program, coreTI types.CoreTypeInfo, compact bool, depth int) {
+	indent := ""
+	if !compact {
+		indent = strings.Repeat("  ", depth)
+	}
+
+	fmt.Printf("%sProgram:\n", indent)
+	for i, decl := range prog.Decls {
+		fmt.Printf("%s  [%d] ", indent, i)
+		printCoreExpr(decl, coreTI, compact, depth+1)
+	}
+}
+
+func printCoreExpr(expr core.CoreExpr, coreTI types.CoreTypeInfo, compact bool, depth int) {
+	indent := ""
+	if !compact {
+		indent = strings.Repeat("  ", depth)
+	}
+
+	// Node ID annotation
+	nodeID := ""
+	if expr != nil {
+		nodeID = fmt.Sprintf(" [#%d]", expr.ID())
+	}
+
+	// Type annotation
+	typeStr := ""
+	if coreTI != nil && expr != nil {
+		if t, ok := coreTI.Get(expr.ID()); ok {
+			typeStr = fmt.Sprintf(" :: %s", green(t.String()))
+		}
+	}
+
+	switch e := expr.(type) {
+	case *core.Lit:
+		fmt.Printf("Lit(%v)%s%s\n", e.Value, nodeID, typeStr)
+
+	case *core.Var:
+		fmt.Printf("Var(%s)%s%s\n", e.Name, nodeID, typeStr)
+
+	case *core.VarGlobal:
+		fmt.Printf("VarGlobal(%s.%s)%s%s\n", e.Ref.Module, e.Ref.Name, nodeID, typeStr)
+
+	case *core.Let:
+		fmt.Printf("Let(%s)%s%s:\n", e.Name, nodeID, typeStr)
+		fmt.Printf("%s  Value: ", indent)
+		printCoreExpr(e.Value, coreTI, compact, depth+1)
+		fmt.Printf("%s  Body:  ", indent)
+		printCoreExpr(e.Body, coreTI, compact, depth+1)
+
+	case *core.Lambda:
+		params := make([]string, len(e.Params))
+		for i, p := range e.Params {
+			params[i] = p.Name
+		}
+		fmt.Printf("Lambda([%s])%s%s:\n", strings.Join(params, ", "), nodeID, typeStr)
+		fmt.Printf("%s  Body: ", indent)
+		printCoreExpr(e.Body, coreTI, compact, depth+1)
+
+	case *core.App:
+		fmt.Printf("App%s%s:\n", nodeID, typeStr)
+		fmt.Printf("%s  Func: ", indent)
+		printCoreExpr(e.Func, coreTI, compact, depth+1)
+		for i, arg := range e.Args {
+			fmt.Printf("%s  Arg[%d]: ", indent, i)
+			printCoreExpr(arg, coreTI, compact, depth+1)
+		}
+
+	case *core.If:
+		fmt.Printf("If%s%s:\n", nodeID, typeStr)
+		fmt.Printf("%s  Cond: ", indent)
+		printCoreExpr(e.Cond, coreTI, compact, depth+1)
+		fmt.Printf("%s  Then: ", indent)
+		printCoreExpr(e.Then, coreTI, compact, depth+1)
+		fmt.Printf("%s  Else: ", indent)
+		printCoreExpr(e.Else, coreTI, compact, depth+1)
+
+	case *core.List:
+		fmt.Printf("List[%d]%s%s:\n", len(e.Elements), nodeID, typeStr)
+		for i, elem := range e.Elements {
+			fmt.Printf("%s  [%d]: ", indent, i)
+			printCoreExpr(elem, coreTI, compact, depth+1)
+		}
+
+	case *core.Intrinsic:
+		fmt.Printf("Intrinsic(%s)%s%s:\n", e.Op, nodeID, typeStr)
+		for i, arg := range e.Args {
+			fmt.Printf("%s  Arg[%d]: ", indent, i)
+			printCoreExpr(arg, coreTI, compact, depth+1)
+		}
+
+	default:
+		fmt.Printf("%T%s%s\n", expr, nodeID, typeStr)
+	}
+}

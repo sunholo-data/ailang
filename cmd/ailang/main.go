@@ -146,6 +146,9 @@ func main() {
 	case "builtins":
 		runBuiltins()
 
+	case "debug":
+		runDebug()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
@@ -193,6 +196,7 @@ func printHelp() {
 	fmt.Println("Development Tools:")
 	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
 	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
+	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")
 	fmt.Println("  --caps <list>        Enable capabilities (comma-separated: IO,FS,Net)")

@@ -110,7 +110,7 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	}
 
 	// Step 5.5: Lower intrinsic operations to dictionary calls
-	lowerer := pipeline.NewOpLowerer(r.typeEnv)
+	lowerer := pipeline.NewOpLowerer(r.typeEnv, typeChecker.CoreTI)
 	loweredProg, err := lowerer.Lower(elaboratedProg)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Op lowering error"), err)

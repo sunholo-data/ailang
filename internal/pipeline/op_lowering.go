@@ -14,15 +14,17 @@ type OpLowerer struct {
 	resolvedConstraints map[uint64]*types.ResolvedConstraint // NodeID → resolved constraint
 	bindings            map[string]core.CoreExpr             // Variable name → bound expression
 	errors              []error
+	CoreTI              types.CoreTypeInfo                   // Core NodeID → inferred types (for type-guided lowering)
 }
 
 // NewOpLowerer creates a new operation lowerer
-func NewOpLowerer(typeEnv *types.TypeEnv) *OpLowerer {
+func NewOpLowerer(typeEnv *types.TypeEnv, coreTI types.CoreTypeInfo) *OpLowerer {
 	return &OpLowerer{
 		typeEnv:             typeEnv,
 		resolvedConstraints: make(map[uint64]*types.ResolvedConstraint),
 		bindings:            make(map[string]core.CoreExpr),
 		errors:              []error{},
+		CoreTI:              coreTI,
 	}
 }
 
@@ -274,54 +276,39 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		}
 	}
 
-	// Determine the type suffix from resolved constraints
+	// Determine the type suffix using type-guided lowering
 	var typeSuffix string
 
-	// Look up the resolved constraint for this intrinsic node
-	if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
-		// Use the type from the resolved constraint
-		typeSuffix = getTypeSuffixFromType(constraint.Type)
-	} else {
-		// Fallback to heuristics if no constraint available
-		// This handles cases like OpNot, OpConcat that don't use type classes
-		// NOTE: Check ORIGINAL args before lowering, since lowering may transform them
-		switch intrinsic.Op {
-		case core.OpNot:
-			typeSuffix = "Bool"
-		case core.OpConcat:
-			// Check if we have list literals - if so, it's list concatenation
-			// Follow variable bindings to find the actual value
-			if len(intrinsic.Args) > 0 {
-				arg := intrinsic.Args[0]
-
-				// If it's a variable, look up what it's bound to
-				if v, ok := arg.(*core.Var); ok {
-					if binding, exists := l.bindings[v.Name]; exists {
-						arg = binding
-					}
-				}
-
-				// Check if the actual bound value is a List
-				if _, ok := arg.(*core.List); ok {
-					typeSuffix = "List"
-				} else {
-					// Default to String for backward compatibility
-					typeSuffix = "String"
-				}
-			} else {
-				typeSuffix = "String"
-			}
-		default:
-			// Default to Int for backward compatibility
+	// First, try to use CoreTI (principal types from type inference)
+	// This is the preferred method and eliminates ANF guessing
+	if inferredType, ok := l.CoreTI.Get(intrinsic.ID()); ok {
+		head := types.Head(inferredType)
+		switch head {
+		case types.HeadInt:
 			typeSuffix = "Int"
-
-			// Check if we have float literals as last resort
-			if len(intrinsic.Args) > 0 {
-				if lit, ok := intrinsic.Args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
-					typeSuffix = "Float"
-				}
+		case types.HeadFloat:
+			typeSuffix = "Float"
+		case types.HeadString:
+			typeSuffix = "String"
+		case types.HeadBool:
+			typeSuffix = "Bool"
+		case types.HeadList:
+			typeSuffix = "List"
+		default:
+			// Unknown head - try resolved constraints as fallback
+			if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+				typeSuffix = getTypeSuffixFromType(constraint.Type)
+			} else {
+				// Last resort: use default based on operator
+				typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 			}
 		}
+	} else if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+		// Fallback to resolved constraints if CoreTI unavailable
+		typeSuffix = getTypeSuffixFromType(constraint.Type)
+	} else {
+		// Last resort: use default based on operator
+		typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 	}
 
 	// For non-short-circuiting operations, recursively lower the arguments
@@ -360,6 +347,22 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 // AddError adds an error to the lowerer
 func (l *OpLowerer) AddError(err error) {
 	l.errors = append(l.errors, err)
+}
+
+// getDefaultTypeSuffix returns a default type suffix based on operator semantics
+// This is used as a last resort when type information is unavailable
+func getDefaultTypeSuffix(op core.IntrinsicOp) string {
+	switch op {
+	case core.OpNot:
+		return "Bool"
+	case core.OpConcat:
+		// Default to String for backward compatibility
+		// (List concatenation is less common in fallback scenarios)
+		return "String"
+	default:
+		// Most operators default to Int
+		return "Int"
+	}
 }
 
 // getTypeSuffixFromType extracts the type suffix from a resolved type

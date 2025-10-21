@@ -34,7 +34,7 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 
 	// Create OpLowerer with resolved constraints
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
 	lowerer.SetResolvedConstraints(resolvedConstraints)
 
 	// Lower the intrinsic
@@ -82,7 +82,7 @@ func TestOpLowering_IntEquality(t *testing.T) {
 	}
 
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
 	lowerer.SetResolvedConstraints(resolvedConstraints)
 
 	lowered := lowerer.lowerExpr(intrinsic)
@@ -115,7 +115,7 @@ func TestOpLowering_FallbackToHeuristics(t *testing.T) {
 
 	// No resolved constraints - should fall back to heuristics
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
 	lowerer.SetResolvedConstraints(map[uint64]*types.ResolvedConstraint{})
 
 	lowered := lowerer.lowerExpr(intrinsic)
@@ -212,26 +212,25 @@ func TestOpLowering_Concat(t *testing.T) {
 				Args:     []core.CoreExpr{tt.leftArg, tt.rightArg},
 			}
 
-			// Create lowerer with bindings
+			// Create lowerer with CoreTI populated
 			typeEnv := types.NewTypeEnv()
-			lowerer := NewOpLowerer(typeEnv)
+			coreTI := types.NewCoreTypeInfo()
 
-			// Set up bindings based on expected builtin
+			// Populate CoreTI with the type of the concat intrinsic
+			// The type of ++ depends on what it's concatenating
 			if tt.expectedBuiltin == "concat_String" {
-				lowerer.bindings = map[string]core.CoreExpr{
-					"$tmp1": &core.Lit{CoreNode: core.CoreNode{NodeID: 10}, Kind: core.StringLit, Value: "hello"},
-					"$tmp2": &core.Lit{CoreNode: core.CoreNode{NodeID: 11}, Kind: core.StringLit, Value: "world"},
-				}
+				// For string concatenation, the intrinsic returns string
+				coreTI.Set(intrinsic.ID(), types.TString)
 			} else {
-				lowerer.bindings = map[string]core.CoreExpr{
-					"$tmp3": &core.List{CoreNode: core.CoreNode{NodeID: 12}, Elements: []core.CoreExpr{
-						&core.Lit{CoreNode: core.CoreNode{NodeID: 13}, Kind: core.IntLit, Value: 1},
-					}},
-					"$tmp4": &core.List{CoreNode: core.CoreNode{NodeID: 14}, Elements: []core.CoreExpr{
-						&core.Lit{CoreNode: core.CoreNode{NodeID: 15}, Kind: core.IntLit, Value: 2},
-					}},
+				// For list concatenation, the intrinsic returns List[int]
+				listType := &types.TApp{
+					Constructor: &types.TCon{Name: "List"},
+					Args:        []types.Type{types.TInt},
 				}
+				coreTI.Set(intrinsic.ID(), listType)
 			}
+
+			lowerer := NewOpLowerer(typeEnv, coreTI)
 
 			// Lower the intrinsic
 			lowered := lowerer.lowerExpr(intrinsic)
