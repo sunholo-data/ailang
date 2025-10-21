@@ -88,9 +88,17 @@
       "created": "2025-10-05",
       "tags": ["control", "python"],
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
+    },
+    "v0.3.16": {
+      "file": "prompts/v0.3.16.md",
+      "hash": "f6e1e7a39e35aa7a7116d11f8fb9d01b1be7862b0723a1ed3d8ed8b76030501d",
+      "description": "v0.3.16 prompt with entry-module prelude - automatic print builtin for benchmarks",
+      "created": "2025-10-21",
+      "tags": ["production", "latest", "ai-first"],
+      "notes": "Entry-module prelude: print builtin automatically available in modules with 'export func main' (no import needed). Libraries still explicit. AI-First DX: minimize syntactic entropy for benchmarks while keeping libraries explicit. All v0.3.15 features included."
     }
   },
-  "active": "v0.3.12",
+  "active": "v0.3.16",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
