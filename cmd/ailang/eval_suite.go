@@ -56,7 +56,7 @@ func runEvalSuite() {
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for code execution")
-	maxConcurrent := fs.Int("parallel", 5, "Maximum concurrent API calls (0 = sequential)")
+	maxConcurrent := fs.Int("parallel", 10, "Maximum concurrent API calls across all providers (0 = sequential, recommended: 10-15)")
 	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
@@ -137,12 +137,23 @@ func runEvalSuite() {
 		fmt.Printf("%s Resuming run (skipping existing results)...\n", cyan("→"))
 	}
 
-	// Build job list
+	// Build job list in round-robin order by model
+	// This interleaves models to distribute API calls across providers (OpenAI, Anthropic, Google)
+	// allowing higher parallelism without hitting single-provider rate limits.
+	//
+	// Example with 3 models, 2 benchmarks, 2 languages:
+	//   Old order: [m1/b1/l1, m1/b1/l2, m1/b2/l1, m1/b2/l2, m2/b1/l1, ...]
+	//   New order: [m1/b1/l1, m2/b1/l1, m3/b1/l1, m1/b1/l2, m2/b1/l2, ...]
+	//
+	// With --parallel 10 and 3 providers, this means ~3-4 concurrent calls per provider
+	// instead of 10 calls to the same provider.
 	var jobs []Job
 	skippedCount := 0
-	for _, model := range modelList {
-		for _, benchmark := range benchmarkList {
-			for _, lang := range langList {
+	for _, lang := range langList {
+		// For each benchmark, create jobs for all models (round-robin)
+		for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
+			for _, model := range modelList {
+				benchmark := benchmarkList[benchIdx]
 				job := Job{
 					Model:     model,
 					Benchmark: benchmark,

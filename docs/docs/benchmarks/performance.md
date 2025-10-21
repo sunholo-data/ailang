@@ -36,11 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Pattern Matching Complex**: 100.0% success rate
 - **Referential Transparency**: 100.0% success rate
-- **Type Safe Record Access**: 100.0% success rate
 - **Simple Print**: 100.0% success rate
+- **Pattern Matching Complex**: 100.0% success rate
 - **Recursion Fibonacci**: 100.0% success rate
+- **Type Safe Record Access**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -71,7 +71,7 @@ Want to see AILANG in action?
 
 **Total Runs**: 399
 
-**Generated**: 2025-10-21 18:58:30
+**Generated**: 2025-10-21 19:07:24
 
 ### Model Performance Details
 

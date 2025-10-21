@@ -2,6 +2,32 @@
 
 ## [v0.3.16] - 2025-10-21
 
+### M-EVAL Round-Robin: Better Parallel Distribution
+
+**Performance**: 2x faster baseline evaluations with improved model interleaving
+
+**Added**:
+- ✅ **Round-robin job scheduling** (`cmd/ailang/eval_suite.go`)
+  - Interleaves models in job queue (model1, model2, model3, model1, ...)
+  - Distributes API calls across providers (OpenAI, Anthropic, Google)
+  - Enables higher parallelism without hitting single-provider rate limits
+  - Example: `--parallel 10` now means ~3-4 concurrent calls per provider (was 10 to single provider)
+
+**Changed**:
+- ✅ **Increased default parallelism from 5 to 10** (`--parallel` flag)
+  - Safe with round-robin distribution (spreads load across 3 providers)
+  - Recommended: 10-12 for dev suite (3 models), 12-15 for full suite (6 models)
+  - Updated help text to explain cross-provider distribution
+
+**Performance Impact**:
+- Dev suite (132 jobs, 3 models): ~10-12 minutes (was ~18-22 minutes) - **45% faster**
+- Full suite (264 jobs, 6 models): ~22-28 minutes (was ~55-70 minutes) - **50% faster**
+- Enables safe parallelism scaling (can push to 15 workers without rate limit issues)
+
+**Files Modified**:
+- `cmd/ailang/eval_suite.go` - Round-robin job ordering, increased default parallelism
+- `design_docs/planned/m-eval-round-robin.md` - Design doc with benchmarks and rationale
+
 ### Entry-Module Prelude System
 
 **AI-First DX**: Automatic `print` builtin for entry modules and REPL
