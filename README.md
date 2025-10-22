@@ -58,16 +58,17 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ---
 
-## 🧪 Current Milestone: v0.3.16 (Lambda Expressions Refactor)
+## 🧪 Current Milestone: v0.3.17 (CoreTypeInfo Validation & Monomorphization)
 
-- ✅ Refactored lambda expression examples into 6 focused tutorials
-- ✅ All examples runnable with entry-module pattern
-- ✅ Total 297 LOC of working lambda examples
+- ✅ CoreTypeInfo validation pass with comprehensive diagnostics
+- ✅ Call-site monomorphization infrastructure (foundation for v0.4.0)
+- ✅ Enhanced compiler diagnostics with debug flags
 - ✅ All **2,847+ tests passing**; 100% of examples passing
-- 🔜 **Next**: Lambda DX fixes (comparison operators) in v0.3.17
+- 🔜 **Next**: Deterministic tooling (normalize, suggest-imports) in v0.3.18
 
 ### Major Milestones
 
+- **v0.3.17 (Oct 2025)**: CoreTypeInfo Validation & Monomorphization - Compiler diagnostics + call-site specialization
 - **v0.3.16 (Oct 2025)**: Lambda Expressions Refactor - 6 focused tutorials, entry-module pattern
 - **v0.3.15 (Oct 2025)**: Module Path Fixes - Unified imports, Net builtin migration, capability detection
 - **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes

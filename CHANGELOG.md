@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.3.17] - 2025-10-22
 
 ### M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering
 
