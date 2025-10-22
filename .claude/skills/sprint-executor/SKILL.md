@@ -43,6 +43,11 @@ When adding error messages, help text, or documentation links in code:
 
 **Website**: https://sunholo-data.github.io/ailang/
 
+**Documentation Source**: The website documentation lives in this repo at `docs/`
+- Markdown files: `docs/docs/` (guides, reference, etc.)
+- Static assets: `docs/static/`
+- Docusaurus config: `docs/docusaurus.config.js`
+
 **Common Documentation Paths**:
 - Language syntax: `/docs/reference/language-syntax`
 - Module system: `/docs/guides/module_execution`
@@ -55,7 +60,10 @@ When adding error messages, help text, or documentation links in code:
 https://sunholo-data.github.io/ailang/docs/reference/language-syntax
 ```
 
-**Best Practice**: Check that documentation URLs actually exist before using them in error messages or help text!
+**Best Practices**:
+- Check that documentation URLs actually exist before using them in error messages or help text
+- Look in `docs/docs/` to verify the file exists locally
+- Use `ls docs/docs/reference/` or `ls docs/docs/guides/` to find available pages
 
 ## Available Scripts
 

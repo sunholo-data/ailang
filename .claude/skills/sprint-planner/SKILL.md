@@ -34,6 +34,11 @@ When planning sprints that involve adding error messages, help text, or document
 
 **Website**: https://sunholo-data.github.io/ailang/
 
+**Documentation Source**: The website documentation lives in this repo at `docs/`
+- Markdown files: `docs/docs/` (guides, reference, etc.)
+- Static assets: `docs/static/`
+- Docusaurus config: `docs/docusaurus.config.js`
+
 **Common Documentation Paths**:
 - Language syntax: `/docs/reference/language-syntax`
 - Module system: `/docs/guides/module_execution`
@@ -48,7 +53,10 @@ When planning sprints that involve adding error messages, help text, or document
 https://sunholo-data.github.io/ailang/docs/reference/language-syntax
 ```
 
-**Best Practice**: When planning features that include documentation links, verify the URLs exist before including them in sprint estimates!
+**Best Practices**:
+- When planning features that include documentation links, verify the URLs exist before including them in sprint estimates
+- Look in `docs/docs/` to verify the file exists locally
+- Use `ls docs/docs/reference/` or `ls docs/docs/guides/` to find available pages
 
 ## Available Scripts
 
