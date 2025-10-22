@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-34.6%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-35.0%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
