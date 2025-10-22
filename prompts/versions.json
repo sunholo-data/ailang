@@ -132,7 +132,7 @@
     },
     "v0.3.17": {
       "file": "prompts/v0.3.17.md",
-      "hash": "89f7e70dc1874586d9f30cb23733cad44af124766ff92ae2c20796c3772b2255",
+      "hash": "c9ea90ecd7db264cf4cd2024c985bbcf109b7e4d12406be098f33b65c85ad977",
       "description": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples",
       "created": "2025-10-22",
       "tags": [
