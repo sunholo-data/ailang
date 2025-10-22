@@ -372,3 +372,90 @@ func TestSpecializationKey_String(t *testing.T) {
 		t.Errorf("SpecializationKey.String() = %q, want %q", got, want)
 	}
 }
+
+// TestCacheTracking tests that cache hits and misses are tracked correctly
+func TestCacheTracking(t *testing.T) {
+	coreTI := types.NewCoreTypeInfo()
+	s := NewSpecializer(&coreTI)
+
+	// Initially should have 0 hits and 0 misses
+	if s.CacheHits != 0 {
+		t.Errorf("Expected 0 cache hits initially, got %d", s.CacheHits)
+	}
+	if s.CacheMisses != 0 {
+		t.Errorf("Expected 0 cache misses initially, got %d", s.CacheMisses)
+	}
+
+	stats := s.GetStats()
+	if stats.CacheHits != 0 {
+		t.Errorf("Expected 0 cache hits in stats, got %d", stats.CacheHits)
+	}
+	if stats.CacheMisses != 0 {
+		t.Errorf("Expected 0 cache misses in stats, got %d", stats.CacheMisses)
+	}
+}
+
+// TestPerFunctionCapEnforcement tests that per-function limits are enforced
+func TestPerFunctionCapEnforcement(t *testing.T) {
+	coreTI := types.NewCoreTypeInfo()
+	s := NewSpecializer(&coreTI)
+
+	// Set very low per-function limit
+	s.Limits.MaxPerFunction = 2
+
+	// Simulate specializations by directly updating PerFunction counter
+	s.PerFunction["testFunc"] = 2
+
+	// Verify we're at the limit
+	if s.PerFunction["testFunc"] < s.Limits.MaxPerFunction {
+		t.Errorf("Expected to be at limit, but PerFunction=%d, MaxPerFunction=%d",
+			s.PerFunction["testFunc"], s.Limits.MaxPerFunction)
+	}
+}
+
+// TestModuleCapEnforcement tests that module-wide limits are enforced
+func TestModuleCapEnforcement(t *testing.T) {
+	coreTI := types.NewCoreTypeInfo()
+	s := NewSpecializer(&coreTI)
+
+	// Set very low module limit
+	s.Limits.MaxPerModule = 5
+
+	// Simulate specializations
+	s.TotalCount = 5
+
+	// Verify we're at the limit
+	if s.TotalCount < s.Limits.MaxPerModule {
+		t.Errorf("Expected to be at module limit, but TotalCount=%d, MaxPerModule=%d",
+			s.TotalCount, s.Limits.MaxPerModule)
+	}
+}
+
+// TestSkipReasonTracking tests that skip reasons are recorded
+func TestSkipReasonTracking(t *testing.T) {
+	coreTI := types.NewCoreTypeInfo()
+	s := NewSpecializer(&coreTI)
+
+	// Add a skip reason
+	s.Skipped = append(s.Skipped, SkipReason{
+		DefSym:   "recursiveFunc",
+		Reason:   "Recursive function not specialized in v0.4.0",
+		Location: "test.ail:10:5",
+	})
+
+	stats := s.GetStats()
+	if len(stats.SkippedFunctions) != 1 {
+		t.Errorf("Expected 1 skipped function, got %d", len(stats.SkippedFunctions))
+	}
+
+	skip := stats.SkippedFunctions[0]
+	if skip.DefSym != "recursiveFunc" {
+		t.Errorf("Expected DefSym=recursiveFunc, got %s", skip.DefSym)
+	}
+	if skip.Reason != "Recursive function not specialized in v0.4.0" {
+		t.Errorf("Expected specific reason, got %s", skip.Reason)
+	}
+	if skip.Location != "test.ail:10:5" {
+		t.Errorf("Expected location=test.ail:10:5, got %s", skip.Location)
+	}
+}

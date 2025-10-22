@@ -4,6 +4,7 @@ package pipeline
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -44,6 +45,9 @@ type Specializer struct {
 	TotalCount  int                                 // Total specialization count
 	Limits      SpecializationLimits                // Resource limits
 	Skipped     []SkipReason                        // Functions skipped (for diagnostics)
+	nextNodeID  uint64                              // Counter for fresh node IDs
+	CacheHits   int                                 // Number of cache hits
+	CacheMisses int                                 // Number of cache misses
 }
 
 // SkipReason describes why a function was not specialized
@@ -62,7 +66,15 @@ func NewSpecializer(coreTI *types.CoreTypeInfo) *Specializer {
 		TotalCount:  0,
 		Limits:      DefaultSpecializationLimits(),
 		Skipped:     make([]SkipReason, 0),
+		nextNodeID:  1000000, // Start high to avoid conflicts with existing IDs
 	}
+}
+
+// freshNodeID generates a fresh node ID for cloned expressions
+func (s *Specializer) freshNodeID() uint64 {
+	id := s.nextNodeID
+	s.nextNodeID++
+	return id
 }
 
 // canonicalTypeFingerprint produces a stable, normalized string representation of types
@@ -226,21 +238,47 @@ func generateSpecializedName(defSym string, argTypes []types.Type, fingerprint s
 
 // isPolymorphic checks if a type contains type variables
 func isPolymorphic(t types.Type) bool {
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   isPolymorphic(%s) type=%T\n", t, t)
+	}
 	switch typ := t.(type) {
 	case *types.TVar:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TVar, returning true\n")
+		}
+		return true
+	case *types.TVar2:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TVar2, returning true\n")
+		}
 		return true
 	case *types.TApp:
-		for _, arg := range typ.Args {
+		for i, arg := range typ.Args {
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     TApp arg[%d]: %s\n", i, arg)
+			}
 			if isPolymorphic(arg) {
 				return true
 			}
 		}
 		return false
 	case *types.TFunc2:
-		for _, p := range typ.Params {
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     TFunc2 with %d params\n", len(typ.Params))
+		}
+		for i, p := range typ.Params {
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     Checking param[%d]: %s (type=%T)\n", i, p, p)
+			}
 			if isPolymorphic(p) {
+				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> param[%d] is polymorphic, returning true\n", i)
+				}
 				return true
 			}
+		}
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     Checking return: %s\n", typ.Return)
 		}
 		if isPolymorphic(typ.Return) {
 			return true
@@ -252,6 +290,9 @@ func isPolymorphic(t types.Type) bool {
 					return true
 				}
 			}
+		}
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TFunc2 not polymorphic, returning false\n")
 		}
 		return false
 	case *types.TRecord:
@@ -285,6 +326,8 @@ type SpecializationStats struct {
 	TotalSpecializations int
 	PerFunction          map[string]int
 	SkippedFunctions     []SkipReason
+	CacheHits            int
+	CacheMisses          int
 }
 
 // GetStats returns specialization statistics for debugging
@@ -293,6 +336,8 @@ func (s *Specializer) GetStats() SpecializationStats {
 		TotalSpecializations: s.TotalCount,
 		PerFunction:          s.PerFunction,
 		SkippedFunctions:     s.Skipped,
+		CacheHits:            s.CacheHits,
+		CacheMisses:          s.CacheMisses,
 	}
 }
 
@@ -450,7 +495,7 @@ func (s *Specializer) Specialize(prog *core.Program) (*core.Program, error) {
 	newDecls := make([]core.CoreExpr, 0, len(prog.Decls))
 
 	for _, decl := range prog.Decls {
-		specialized, err := s.specializeExpr(decl, make(map[string]types.Type))
+		specialized, err := s.specializeExpr(decl, make(map[string]types.Type), make(map[string]core.CoreExpr))
 		if err != nil {
 			return nil, err
 		}
@@ -469,23 +514,27 @@ func (s *Specializer) Specialize(prog *core.Program) (*core.Program, error) {
 
 // specializeExpr recursively specializes an expression
 // env maps variable names to their types (for tracking polymorphic bindings)
-func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Type) (core.CoreExpr, error) {
+// bindings maps variable names to their Core expressions (for Var→Lam resolution)
+func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Type, bindings map[string]core.CoreExpr) (core.CoreExpr, error) {
 	switch e := expr.(type) {
 	case *core.Let:
 		// Specialize the value
-		newValue, err := s.specializeExpr(e.Value, env)
+		newValue, err := s.specializeExpr(e.Value, env, bindings)
 		if err != nil {
 			return nil, err
 		}
 
-		// Add binding to environment
+		// Add binding to environment and bindings map
 		newEnv := copyEnv(env)
 		if typ, ok := s.CoreTI.Get(e.Value.ID()); ok {
 			newEnv[e.Name] = typ
 		}
 
+		newBindings := copyBindings(bindings)
+		newBindings[e.Name] = newValue // Map variable to its value for resolution
+
 		// Specialize the body
-		newBody, err := s.specializeExpr(e.Body, newEnv)
+		newBody, err := s.specializeExpr(e.Body, newEnv, newBindings)
 		if err != nil {
 			return nil, err
 		}
@@ -507,7 +556,7 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 			})
 
 			// Still need to specialize the body, but skip the bindings
-			newBody, err := s.specializeExpr(e.Body, env)
+			newBody, err := s.specializeExpr(e.Body, env, bindings)
 			if err != nil {
 				return nil, err
 			}
@@ -522,6 +571,7 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		// For non-recursive letrec, specialize each binding
 		newBindings := make([]core.RecBinding, len(e.Bindings))
 		newEnv := copyEnv(env)
+		newBindingsMap := copyBindings(bindings)
 
 		for i, binding := range e.Bindings {
 			// Check if binding is self-recursive
@@ -533,7 +583,7 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 				})
 				newBindings[i] = binding // Keep original
 			} else {
-				specialized, err := s.specializeExpr(binding.Value, newEnv)
+				specialized, err := s.specializeExpr(binding.Value, newEnv, newBindingsMap)
 				if err != nil {
 					return nil, err
 				}
@@ -543,13 +593,14 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 				}
 			}
 
-			// Add to environment for subsequent bindings
+			// Add to environment and bindings map for subsequent bindings
 			if typ, ok := s.CoreTI.Get(binding.Value.ID()); ok {
 				newEnv[binding.Name] = typ
 			}
+			newBindingsMap[binding.Name] = binding.Value
 		}
 
-		newBody, err := s.specializeExpr(e.Body, newEnv)
+		newBody, err := s.specializeExpr(e.Body, newEnv, newBindingsMap)
 		if err != nil {
 			return nil, err
 		}
@@ -563,10 +614,11 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 	case *core.Lambda:
 		// Specialize lambda body
 		newEnv := copyEnv(env)
+		newBindings := copyBindings(bindings)
 		// Note: We don't know parameter types here without more context
 		// Lambda specialization happens when applied
 
-		newBody, err := s.specializeExpr(e.Body, newEnv)
+		newBody, err := s.specializeExpr(e.Body, newEnv, newBindings)
 		if err != nil {
 			return nil, err
 		}
@@ -581,23 +633,89 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		// This is the key case: function application
 		// Check if this is a call to a polymorphic function with concrete arguments
 
-		// First, specialize the function and arguments
-		newFunc, err := s.specializeExpr(e.Func, env)
-		if err != nil {
-			return nil, err
-		}
-
+		// First, specialize arguments (bottom-up)
 		newArgs := make([]core.CoreExpr, len(e.Args))
+		argTypes := make([]types.Type, len(e.Args))
 		for i, arg := range e.Args {
-			newArgs[i], err = s.specializeExpr(arg, env)
+			var err error
+			newArgs[i], err = s.specializeExpr(arg, env, bindings)
 			if err != nil {
 				return nil, err
 			}
+			// Get argument type
+			if typ, ok := s.CoreTI.Get(arg.ID()); ok {
+				argTypes[i] = typ
+			}
 		}
 
-		// TODO (Day 2.3): Check if function is polymorphic and arguments are concrete
-		// If so, specialize the function for these concrete types
-		// For now, just return the specialized app
+		// Resolve the callee to find the underlying lambda
+		// This handles both inline lambdas and Var-bound lambdas
+		var lambda *core.Lambda
+		var lambdaID uint64
+
+		if lam, ok := e.Func.(*core.Lambda); ok {
+			// Direct lambda application
+			lambda = lam
+			lambdaID = lam.ID()
+		} else if v, ok := e.Func.(*core.Var); ok {
+			// Var-bound lambda - resolve through bindings
+			resolved := core.ResolveValue(v, bindings)
+			if lam, ok := resolved.(*core.Lambda); ok {
+				lambda = lam
+				lambdaID = lam.ID()
+			}
+		}
+
+		// If we found a lambda (either inline or via Var resolution), try to specialize it
+		if lambda != nil {
+			// Check if lambda has polymorphic type and all arguments are concrete
+			if funcType, ok := s.CoreTI.Get(lambdaID); ok {
+				// Debug logging
+				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Found lambda, type=%s (type=%T), isPoly=%v, allConc=%v\n",
+						funcType, funcType, isPolymorphic(funcType), allConcrete(argTypes))
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   argTypes: %v (len=%d)\n", argTypes, len(argTypes))
+					if fn, ok := funcType.(*types.TFunc2); ok {
+						fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Params: %v (len=%d)\n", fn.Params, len(fn.Params))
+						fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Return: %s (type=%T)\n", fn.Return, fn.Return)
+					}
+				}
+				if isPolymorphic(funcType) && allConcrete(argTypes) {
+					// Attempt to specialize this lambda
+					if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+						fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Calling specializeLambda with argTypes=%v\n", argTypes)
+					}
+					specialized, err := s.specializeLambda(lambda, argTypes, env)
+					if err != nil {
+						if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+							fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] specializeLambda returned error: %v\n", err)
+						}
+						return nil, err
+					}
+					if specialized != nil {
+						if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+							fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Got specialized lambda, returning specialized App\n")
+						}
+						// Return application with specialized lambda
+						return &core.App{
+							CoreNode: e.CoreNode,
+							Func:     specialized,
+							Args:     newArgs,
+						}, nil
+					} else {
+						if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+							fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] specializeLambda returned nil (skipped)\n")
+						}
+					}
+				}
+			}
+		}
+
+		// Otherwise, just specialize the function normally
+		newFunc, err := s.specializeExpr(e.Func, env, bindings)
+		if err != nil {
+			return nil, err
+		}
 
 		return &core.App{
 			CoreNode: e.CoreNode,
@@ -606,15 +724,15 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		}, nil
 
 	case *core.If:
-		newCond, err := s.specializeExpr(e.Cond, env)
+		newCond, err := s.specializeExpr(e.Cond, env, bindings)
 		if err != nil {
 			return nil, err
 		}
-		newThen, err := s.specializeExpr(e.Then, env)
+		newThen, err := s.specializeExpr(e.Then, env, bindings)
 		if err != nil {
 			return nil, err
 		}
-		newElse, err := s.specializeExpr(e.Else, env)
+		newElse, err := s.specializeExpr(e.Else, env, bindings)
 		if err != nil {
 			return nil, err
 		}
@@ -627,14 +745,14 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		}, nil
 
 	case *core.Match:
-		newScrutinee, err := s.specializeExpr(e.Scrutinee, env)
+		newScrutinee, err := s.specializeExpr(e.Scrutinee, env, bindings)
 		if err != nil {
 			return nil, err
 		}
 
 		newArms := make([]core.MatchArm, len(e.Arms))
 		for i, arm := range e.Arms {
-			newBody, err := s.specializeExpr(arm.Body, env)
+			newBody, err := s.specializeExpr(arm.Body, env, bindings)
 			if err != nil {
 				return nil, err
 			}
@@ -653,11 +771,11 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		}, nil
 
 	case *core.BinOp:
-		newLeft, err := s.specializeExpr(e.Left, env)
+		newLeft, err := s.specializeExpr(e.Left, env, bindings)
 		if err != nil {
 			return nil, err
 		}
-		newRight, err := s.specializeExpr(e.Right, env)
+		newRight, err := s.specializeExpr(e.Right, env, bindings)
 		if err != nil {
 			return nil, err
 		}
@@ -670,7 +788,7 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		}, nil
 
 	case *core.UnOp:
-		newOperand, err := s.specializeExpr(e.Operand, env)
+		newOperand, err := s.specializeExpr(e.Operand, env, bindings)
 		if err != nil {
 			return nil, err
 		}
@@ -699,4 +817,382 @@ func copyEnv(env map[string]types.Type) map[string]types.Type {
 		newEnv[k] = v
 	}
 	return newEnv
+}
+
+// copyBindings creates a shallow copy of a bindings map
+func copyBindings(bindings map[string]core.CoreExpr) map[string]core.CoreExpr {
+	newBindings := make(map[string]core.CoreExpr, len(bindings))
+	for k, v := range bindings {
+		newBindings[k] = v
+	}
+	return newBindings
+}
+
+// specializeLambda attempts to specialize a polymorphic lambda for concrete argument types
+// Returns nil if specialization is not possible or not beneficial
+func (s *Specializer) specializeLambda(lambda *core.Lambda, argTypes []types.Type, env map[string]types.Type) (*core.Lambda, error) {
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] specializeLambda: START with lambda.Params=%v, argTypes=%v\n", lambda.Params, argTypes)
+	}
+
+	// Check module-wide cap
+	if s.TotalCount >= s.Limits.MaxPerModule {
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] specializeLambda: SKIP - module limit reached\n")
+		}
+		s.Skipped = append(s.Skipped, SkipReason{
+			DefSym:   "(lambda)",
+			Reason:   fmt.Sprintf("Module specialization limit reached (%d/%d)", s.TotalCount, s.Limits.MaxPerModule),
+			Location: lambda.OriginalSpan().String(),
+		})
+		return nil, nil
+	}
+
+	// Check per-function cap (using "(lambda)" as the function key for anonymous lambdas)
+	funcKey := "(lambda)"
+	if s.PerFunction[funcKey] >= s.Limits.MaxPerFunction {
+		s.Skipped = append(s.Skipped, SkipReason{
+			DefSym:   funcKey,
+			Reason:   fmt.Sprintf("Per-function specialization limit reached (%d/%d)", s.PerFunction[funcKey], s.Limits.MaxPerFunction),
+			Location: lambda.OriginalSpan().String(),
+		})
+		return nil, nil
+	}
+
+	// Build type substitution map from parameters to argument types
+	// For now, simplified: assume 1:1 mapping between params and argTypes
+	typeSubst := make(map[string]types.Type)
+	for i, param := range lambda.Params {
+		if i < len(argTypes) {
+			typeSubst[param] = argTypes[i]
+		}
+	}
+
+	// Generate cache key
+	fingerprint := canonicalTypeFingerprint(argTypes)
+	key := SpecializationKey{
+		DefSym:           "(lambda)",
+		TypesFingerprint: fingerprint,
+	}
+
+	// Check cache
+	if cached, ok := s.Cache[key]; ok {
+		s.CacheHits++
+		if cachedLambda, ok := cached.(*core.Lambda); ok {
+			return cachedLambda, nil
+		}
+	}
+	s.CacheMisses++
+
+	// Clone the lambda body with fresh node IDs and type substitution
+	clonedBody, err := s.cloneExpr(lambda.Body, typeSubst)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create specialized lambda with fresh node ID
+	specialized := &core.Lambda{
+		CoreNode: core.CoreNode{
+			NodeID:   s.freshNodeID(),
+			CoreSpan: lambda.CoreSpan,
+			OrigSpan: lambda.OrigSpan,
+		},
+		Params: lambda.Params, // Keep same parameter names (simple approach)
+		Body:   clonedBody,
+	}
+
+	// Populate CoreTypeInfo for the specialized lambda
+	// Use the concrete function type (argTypes -> returnType)
+	if lambdaType, ok := s.CoreTI.Get(lambda.ID()); ok {
+		// Apply type substitution to the lambda's type
+		specializedType := substituteType(lambdaType, typeSubst)
+		s.CoreTI.Set(specialized.ID(), specializedType)
+	}
+
+	// Cache the specialized lambda
+	s.Cache[key] = specialized
+
+	// Increment counters
+	s.TotalCount++
+	s.PerFunction["(lambda)"]++
+
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] specializeLambda: SUCCESS - created specialized lambda (count=%d)\n", s.TotalCount)
+	}
+
+	return specialized, nil
+}
+
+// cloneExpr recursively clones an expression with fresh node IDs
+// and applies type substitution to all types in CoreTypeInfo
+func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.Type) (core.CoreExpr, error) {
+	switch e := expr.(type) {
+	case *core.Var:
+		cloned := &core.Var{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Name: e.Name,
+		}
+		// Apply type substitution
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.Lit:
+		cloned := &core.Lit{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Kind:  e.Kind,
+			Value: e.Value,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.Lambda:
+		clonedBody, err := s.cloneExpr(e.Body, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		cloned := &core.Lambda{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Params: e.Params,
+			Body:   clonedBody,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.App:
+		clonedFunc, err := s.cloneExpr(e.Func, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		clonedArgs := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			clonedArgs[i], err = s.cloneExpr(arg, typeSubst)
+			if err != nil {
+				return nil, err
+			}
+		}
+		cloned := &core.App{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Func: clonedFunc,
+			Args: clonedArgs,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.If:
+		clonedCond, err := s.cloneExpr(e.Cond, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		clonedThen, err := s.cloneExpr(e.Then, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		clonedElse, err := s.cloneExpr(e.Else, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		cloned := &core.If{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Cond: clonedCond,
+			Then: clonedThen,
+			Else: clonedElse,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.BinOp:
+		clonedLeft, err := s.cloneExpr(e.Left, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		clonedRight, err := s.cloneExpr(e.Right, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		cloned := &core.BinOp{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Op:    e.Op,
+			Left:  clonedLeft,
+			Right: clonedRight,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.Intrinsic:
+		// Clone arguments recursively
+		clonedArgs := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			clonedArg, err := s.cloneExpr(arg, typeSubst)
+			if err != nil {
+				return nil, err
+			}
+			clonedArgs[i] = clonedArg
+		}
+
+		cloned := &core.Intrinsic{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Op:   e.Op,
+			Args: clonedArgs,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.DictApp:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Cloning DictApp: method=%s\n", e.Method)
+		}
+		// Clone dictionary reference
+		clonedDict, err := s.cloneExpr(e.Dict, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+
+		// Clone arguments
+		clonedArgs := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			clonedArgs[i], err = s.cloneExpr(arg, typeSubst)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		cloned := &core.DictApp{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Dict:   clonedDict,
+			Method: e.Method,
+			Args:   clonedArgs,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	case *core.DictRef:
+		// DictRef needs special handling - update the TypeName based on type substitution
+		// The TypeName field determines which type class instance to use (e.g., "Int" vs "Float")
+
+		// Get the original type from CoreTypeInfo
+		var newTypeName string
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			// Apply substitution to the type
+			substitutedType := substituteType(typ, typeSubst)
+			// Normalize the substituted type to get the new TypeName
+			newTypeName = types.NormalizeTypeName(substitutedType)
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] DictRef: oldTypeName=%s, newTypeName=%s, class=%s\n",
+					e.TypeName, newTypeName, e.ClassName)
+			}
+		} else {
+			// Fallback: keep original TypeName
+			newTypeName = e.TypeName
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] DictRef: no type info, keeping oldTypeName=%s\n", e.TypeName)
+			}
+		}
+
+		cloned := &core.DictRef{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			ClassName: e.ClassName,
+			TypeName:  newTypeName, // Updated TypeName based on substitution
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
+	// For other expression types, return as-is for now (v0.4.0 simplification)
+	default:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] cloneExpr: default case for type %T\n", expr)
+		}
+		return expr, nil
+	}
+}
+
+// substituteType applies a type substitution to a type
+func substituteType(typ types.Type, subst map[string]types.Type) types.Type {
+	switch t := typ.(type) {
+	case *types.TVar:
+		// If we have a substitution for this variable, use it
+		if concrete, ok := subst[t.Name]; ok {
+			return concrete
+		}
+		return typ
+	case *types.TFunc2:
+		// Substitute in parameters and return type
+		newParams := make([]types.Type, len(t.Params))
+		for i, p := range t.Params {
+			newParams[i] = substituteType(p, subst)
+		}
+		newReturn := substituteType(t.Return, subst)
+		return &types.TFunc2{
+			Params:    newParams,
+			Return:    newReturn,
+			EffectRow: t.EffectRow, // Keep effects as-is for now
+		}
+	case *types.TApp:
+		// Substitute in constructor and args
+		newConstructor := substituteType(t.Constructor, subst)
+		newArgs := make([]types.Type, len(t.Args))
+		for i, arg := range t.Args {
+			newArgs[i] = substituteType(arg, subst)
+		}
+		return &types.TApp{
+			Constructor: newConstructor,
+			Args:        newArgs,
+		}
+	default:
+		// For concrete types (TCon, etc.), no substitution needed
+		return typ
+	}
 }

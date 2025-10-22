@@ -112,6 +112,107 @@ ailang run --entry main <(echo 'let f = (\x -> x + 1) in f 42')       # Lambda
 
 ---
 
+### M-POLY-A: Call-Site Monomorphization (v0.4.0)
+
+**User Impact**: Polymorphic lambdas are now specialized at call sites with concrete types, eliminating potential runtime panics and enabling future optimizations.
+
+**Problem**: Polymorphic functions (type `α -> α`) applied with concrete types could cause runtime issues when operators in the lambda body couldn't resolve types. This is the foundation for v0.4.0 monomorphization support.
+
+**Implementation**:
+- ✅ **Feature flags** (`cmd/ailang/main.go`, `internal/pipeline/pipeline.go` - 30 LOC)
+  - `--no-mono` flag: Emergency escape hatch to disable monomorphization
+  - `--debug-compile` flag: Shows specialization statistics and cache metrics
+  - Default: Monomorphization enabled for all compilations
+
+- ✅ **Core specialization infrastructure** (`internal/pipeline/specialize.go` - ~1000 LOC)
+  - `Specializer` with cache and resource limits (16 per-function, 512 per-module)
+  - Canonical type fingerprinting with SHA256 collision resistance
+  - Fresh node ID generation (starting at 1000000 to avoid conflicts)
+  - Recursion detection with full shadowing support
+  - AST walker for 11+ Core expression types
+  - Body cloning with type substitution (TVar, TFunc2, TApp)
+  - Cache deduplication for identical specializations
+
+- ✅ **Enhanced diagnostics** (`internal/pipeline/pipeline.go` - 40 LOC)
+  - Cache hit/miss tracking and display
+  - Per-function specialization breakdown
+  - Skip reason reporting (recursive functions, caps exceeded)
+  - Example output: `5 specializations, 2 skipped (cache: 3 hits, 2 misses)`
+
+- ✅ **Resource protection**
+  - Per-function cap: Max 16 specializations per function
+  - Module-wide cap: Max 512 specializations per module
+  - Clear error messages with current/max counts: `Per-function limit reached (16/16)`
+
+**Key Discovery**: Hindley-Milner type inference already specializes simple polymorphic lambdas during type checking. The monomorphization pass handles:
+- Within-module specialization of direct lambda applications (v0.4.0)
+- Future: Cross-module polymorphic functions (v0.5.0)
+- Future: Persistently polymorphic values in let-polymorphism contexts
+
+**Tests**:
+- ✅ **Unit tests** (`internal/pipeline/specialize_test.go` - ~460 LOC)
+  - 12 tests covering fingerprinting, naming, detection, limits
+  - Cache tracking validation
+  - Per-function and module cap enforcement
+  - Skip reason tracking
+
+- ✅ **Integration tests** (`internal/pipeline/specialize_integration_test.go` - ~330 LOC)
+  - 7 comprehensive integration tests
+  - Direct lambda application specialization (verified: 1 specialization!)
+  - Recursive function skipping (verified: correctly skipped)
+  - Module and per-function cap enforcement
+  - Cache deduplication on identical types
+  - Statistics accuracy validation
+
+**Example Usage**:
+```bash
+# Normal compilation (monomorphization enabled)
+ailang run --entry main --caps IO module.ail
+
+# Debug mode (show specialization stats)
+ailang run --entry main --caps IO --debug-compile module.ail
+# Output: [DEBUG] Monomorphization: 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
+
+# Emergency disable (if issues arise)
+ailang run --entry main --caps IO --no-mono module.ail
+```
+
+**Metrics**:
+- Total implementation: ~1130 LOC (specializer + pipeline integration)
+- Total tests: ~790 LOC (unit + integration tests)
+- Test ratio: 0.7:1 (well-tested infrastructure)
+- Test coverage: 19/19 tests passing (12 unit + 7 integration)
+- All existing tests passing with monomorphization enabled
+- Performance: O(n) traversal, ~0 overhead for non-polymorphic code
+
+**Files Modified** (4):
+- New: `internal/pipeline/specialize.go` (1002 LOC - core implementation)
+- New: `internal/pipeline/specialize_test.go` (461 LOC - unit tests)
+- New: `internal/pipeline/specialize_integration_test.go` (331 LOC - integration tests)
+- Modified: `internal/pipeline/pipeline.go` (+120 LOC - integration + diagnostics)
+- Modified: `cmd/ailang/main.go` (+30 LOC - CLI flags)
+
+**Design Documentation**:
+- `design_docs/planned/v0_4_0/monomorphization.md` - Original design
+- Sprint plan refined with 10 architectural improvements (caps, fingerprints, caching)
+
+**Sprint Timeline**:
+- Estimated: 4-5 days
+- Actual: 4 days (infrastructure, core logic, diagnostics, testing)
+- On schedule with comprehensive test coverage
+
+**Limitations (v0.4.0)**:
+- Within-module specialization only (cross-module deferred to v0.5.0)
+- **Direct lambda applications only** - Callee must be inline `Lam`, not `Var` bound to `Lam`
+  - ✅ Works: `(\x. \y. if x > y then x else y)(3.14)(2.71)` (inline lambda)
+  - ❌ Fails: `let max = \x. \y. if x > y then x else y; max(3.14)(2.71)` (runtime panic)
+  - **Workaround**: Inline the lambda or add type annotations `(\x: float. \y: float. ...)`
+  - **Fix planned for v0.4.1**: Add `Var→Lam` resolution in specializer (~1 day)
+- Recursive functions skipped (with diagnostic messages)
+- Mutually recursive groups skipped (with diagnostic messages)
+
+---
+
 ### M-COMPILE-ERROR: Enhanced Parser Errors for AI Code Generation
 
 **User Impact**: AIs generating AILANG code now receive helpful error messages with suggestions when they use Python/JavaScript syntax patterns

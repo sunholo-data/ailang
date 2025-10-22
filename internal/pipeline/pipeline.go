@@ -246,9 +246,27 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 		specializationStats = specializer.GetStats()
 		if cfg.DebugCompile {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization: %d specializations, %d skipped\n",
+			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization: %d specializations, %d skipped (cache: %d hits, %d misses)\n",
 				specializationStats.TotalSpecializations,
-				len(specializationStats.SkippedFunctions))
+				len(specializationStats.SkippedFunctions),
+				specializationStats.CacheHits,
+				specializationStats.CacheMisses)
+
+			// Show per-function breakdown if there were specializations
+			if specializationStats.TotalSpecializations > 0 {
+				fmt.Fprintln(os.Stderr, "[DEBUG] Per-function specializations:")
+				for fn, count := range specializationStats.PerFunction {
+					fmt.Fprintf(os.Stderr, "[DEBUG]   %s: %d\n", fn, count)
+				}
+			}
+
+			// Show skip reasons if any
+			if len(specializationStats.SkippedFunctions) > 0 {
+				fmt.Fprintln(os.Stderr, "[DEBUG] Skipped functions:")
+				for _, skip := range specializationStats.SkippedFunctions {
+					fmt.Fprintf(os.Stderr, "[DEBUG]   %s: %s\n", skip.DefSym, skip.Reason)
+				}
+			}
 		}
 	} else {
 		// User explicitly disabled monomorphization
@@ -683,8 +701,25 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 			stats := specializer.GetStats()
 			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization (module %s): %d specializations, %d skipped\n",
-					modID, stats.TotalSpecializations, len(stats.SkippedFunctions))
+				fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization (module %s): %d specializations, %d skipped (cache: %d hits, %d misses)\n",
+					modID, stats.TotalSpecializations, len(stats.SkippedFunctions),
+					stats.CacheHits, stats.CacheMisses)
+
+				// Show per-function breakdown if there were specializations
+				if stats.TotalSpecializations > 0 {
+					fmt.Fprintf(os.Stderr, "[DEBUG] Module %s per-function specializations:\n", modID)
+					for fn, count := range stats.PerFunction {
+						fmt.Fprintf(os.Stderr, "[DEBUG]   %s: %d\n", fn, count)
+					}
+				}
+
+				// Show skip reasons if any
+				if len(stats.SkippedFunctions) > 0 {
+					fmt.Fprintf(os.Stderr, "[DEBUG] Module %s skipped functions:\n", modID)
+					for _, skip := range stats.SkippedFunctions {
+						fmt.Fprintf(os.Stderr, "[DEBUG]   %s: %s\n", skip.DefSym, skip.Reason)
+					}
+				}
 			}
 		} else if cfg.DebugCompile {
 			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization disabled for module %s\n", modID)

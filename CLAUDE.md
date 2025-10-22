@@ -171,6 +171,98 @@ Validated nodes may carry polymorphic types (α, β, etc.); these are accepted a
 - Tests: `internal/pipeline/validate_coretypeinfo_test.go` (417 LOC, 8/8 passing)
 - Benchmarks: `internal/pipeline/validate_coretypeinfo_bench_test.go` (117 LOC)
 
+### 4. MONOMORPHIZATION - CALL-SITE SPECIALIZATION (v0.4.0)
+
+**ENABLED BY DEFAULT**: Polymorphic lambdas are automatically specialized at call sites with concrete types (M-POLY-A).
+
+**What it does:**
+- Specializes polymorphic functions (type `α -> α`) when called with concrete types
+- Eliminates runtime type resolution overhead
+- Foundation for future cross-module optimization (v0.5.0)
+
+**The Pipeline:**
+```go
+// Phase 3.5: Monomorphization (runs after type checking, before lowering)
+// File pipeline:   internal/pipeline/pipeline.go:228-265
+// Module pipeline: internal/pipeline/pipeline.go:680-723
+
+specializer := NewSpecializer(&typeChecker.CoreTI)
+specializedProg, err := specializer.Specialize(coreProg)
+if err != nil {
+    return result, fmt.Errorf("monomorphization error: %w", err)
+}
+coreProg = specializedProg
+```
+
+**Resource Limits (prevent runaway specialization):**
+- **Per-function cap**: 16 specializations per function
+- **Module-wide cap**: 512 specializations per module
+- Both limits enforced automatically with clear diagnostics
+
+**CLI Flags:**
+```bash
+# Normal compilation (monomorphization enabled)
+ailang run --entry main --caps IO module.ail
+
+# Debug mode (show specialization stats)
+ailang run --entry main --caps IO --debug-compile module.ail
+# Output: [DEBUG] Monomorphization: 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
+
+# Emergency escape hatch (disable monomorphization)
+ailang run --entry main --caps IO --no-mono module.ail
+```
+
+**Debug Output Example:**
+```
+[DEBUG] Monomorphization (module mymodule): 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
+[DEBUG] Module mymodule per-function specializations:
+[DEBUG]   map: 3
+[DEBUG]   filter: 2
+[DEBUG] Module mymodule skipped functions:
+[DEBUG]   recursiveSum: Recursive function not specialized in v0.4.0
+[DEBUG]   mutualGroup: Mutually recursive bindings not specialized in v0.4.0
+```
+
+**What Gets Specialized (v0.4.0):**
+- ✅ **Inline lambda applications**: `(\x. \y. if x > y then x else y)(3.14)(2.71)` ← Works!
+- ✅ Concrete argument types that can be statically determined
+- ✅ Non-recursive lambdas
+
+**What Gets Skipped (v0.4.0):**
+- ❌ **Var-bound lambdas**: `let max = \x. \y. if x > y then x else y; max(3.14)(2.71)` ← Runtime panic!
+  - **Why**: Specializer only checks if callee is `Lam`, not if it's `Var` bound to `Lam`
+  - **Workaround**: Inline the lambda or add type annotations: `\x: float. \y: float. ...`
+  - **Fix**: v0.4.1 will add `Var→Lam` resolution (~1 day implementation)
+- ⏭️ Recursive functions (diagnostic message explains why)
+- ⏭️ Mutually recursive groups (diagnostic message explains why)
+- ⏭️ Functions hitting per-function cap (16 limit)
+- ⏭️ Modules hitting module cap (512 limit)
+
+**Key Discovery:**
+Hindley-Milner type inference already specializes simple polymorphic lambdas during type checking. The monomorphization pass is designed for:
+- More complex polymorphic patterns
+- Cross-module polymorphism (v0.5.0)
+- Persistently polymorphic values in let-polymorphism contexts
+
+**Implementation:**
+- Core: `internal/pipeline/specialize.go` (1002 LOC)
+- Unit tests: `internal/pipeline/specialize_test.go` (461 LOC, 12/12 passing)
+- Integration tests: `internal/pipeline/specialize_integration_test.go` (331 LOC, 7/7 passing)
+- Pipeline integration: `internal/pipeline/pipeline.go` (+120 LOC)
+
+**Performance:**
+- O(n) traversal of Core AST
+- Negligible overhead for non-polymorphic code
+- Cache deduplication prevents redundant specializations
+
+**Troubleshooting:**
+
+If you encounter issues:
+1. Check debug output: `ailang run --debug-compile your_file.ail`
+2. Look for skip reasons in the output
+3. Verify you're not hitting caps (16 per-function, 512 per-module)
+4. As last resort, disable with `--no-mono` flag
+
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
 → **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
