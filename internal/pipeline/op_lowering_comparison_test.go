@@ -26,7 +26,7 @@ func TestComparisonWithIntOperands(t *testing.T) {
 
 	// CoreTI: intrinsic itself has type Bool (the result), operands have type Int
 	coreTI := types.NewCoreTypeInfo()
-	coreTI.Set(intrinsic.ID(), types.TBool)       // Result type
+	coreTI.Set(intrinsic.ID(), types.TBool)        // Result type
 	coreTI.Set(intrinsic.Args[0].ID(), types.TInt) // Operand type
 	coreTI.Set(intrinsic.Args[1].ID(), types.TInt)
 

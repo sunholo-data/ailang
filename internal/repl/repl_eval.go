@@ -109,6 +109,12 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 		return
 	}
 
+	// Step 5.4: Validate CoreTypeInfo before lowering (M-DX4)
+	if err := pipeline.ValidateCoreTypeInfo(elaboratedProg, typeChecker.CoreTI); err != nil {
+		fmt.Fprintf(out, "%s: %v\n", red("CoreTypeInfo validation error"), err)
+		return
+	}
+
 	// Step 5.5: Lower intrinsic operations to dictionary calls
 	lowerer := pipeline.NewOpLowerer(r.typeEnv, typeChecker.CoreTI)
 	loweredProg, err := lowerer.Lower(elaboratedProg)

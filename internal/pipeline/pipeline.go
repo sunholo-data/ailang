@@ -223,6 +223,12 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// Phase 3.5: Operator Lowering
 	start = time.Now()
 
+	// Validate CoreTypeInfo before lowering (M-DX4)
+	// This ensures every Core node has type information before lowering begins
+	if err := ValidateCoreTypeInfo(coreProg, typeChecker.CoreTI); err != nil {
+		return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
+	}
+
 	// Check if shim is forbidden in CI mode (before any other logic)
 	if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 		return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim")
@@ -621,6 +627,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 
 		// Phase 3.5: Operator Lowering
+		// Validate CoreTypeInfo before lowering (M-DX4)
+		if err := ValidateCoreTypeInfo(unit.Core, typeChecker.CoreTI); err != nil {
+			return result, fmt.Errorf("CoreTypeInfo validation failed in %s: %w", modID, err)
+		}
+
 		// Check if shim is forbidden in CI mode (before any other logic)
 		if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 			return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim in module %s", modID)

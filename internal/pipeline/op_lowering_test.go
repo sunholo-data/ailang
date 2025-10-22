@@ -24,7 +24,7 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 
 	// CoreTI: intrinsic itself has type Bool (result), operands have type Float
 	coreTI := types.NewCoreTypeInfo()
-	coreTI.Set(intrinsic.ID(), types.TBool)        // Result type
+	coreTI.Set(intrinsic.ID(), types.TBool)          // Result type
 	coreTI.Set(intrinsic.Args[0].ID(), types.TFloat) // Operand type (variable b)
 	coreTI.Set(intrinsic.Args[1].ID(), types.TFloat) // Operand type (literal 0.0)
 

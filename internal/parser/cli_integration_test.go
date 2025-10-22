@@ -30,7 +30,7 @@ print(response.statusCode)`
 		"namespace imports not yet supported",
 		"import std/net (httpRequest)",
 		"import std/json (encode, decode)",
-		"https://sunholo-data.github.io/ailang/docs/language/modules",
+		"https://sunholo-data.github.io/ailang/docs/guides/module_execution",
 	}
 
 	for _, check := range checks {
@@ -73,7 +73,7 @@ const HEADERS = {"X-Test-Header": "value123"}`
 		"'const' keyword doesn't exist",
 		"let name = value in",
 		"immutable by default",
-		"https://sunholo-data.github.io/ailang/docs/language/basics",
+		"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
 	}
 
 	for _, check := range checks {
@@ -116,7 +116,7 @@ headers = {"X-Test-Header": "value123"}`
 		"bare assignment not supported",
 		"let url = ... in",
 		"requires 'let' keyword",
-		"https://sunholo-data.github.io/ailang/docs/language/basics",
+		"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
 	}
 
 	for _, check := range checks {

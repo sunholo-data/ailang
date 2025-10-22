@@ -226,11 +226,11 @@ func TestCoreTypeInfo_ApplySubstitution(t *testing.T) {
 
 	// Create CoreTypeInfo with type variables
 	cti := NewCoreTypeInfo()
-	cti.Set(1, tv1)                      // Node 1 has type variable t1
-	cti.Set(2, tv2)                      // Node 2 has type variable t2
-	cti.Set(3, TInt)                     // Node 3 has concrete type Int
-	cti.Set(4, &TList{Element: tv1})     // Node 4 has List[t1]
-	cti.Set(5, &TFunc2{                  // Node 5 has function t1 -> t2
+	cti.Set(1, tv1)                  // Node 1 has type variable t1
+	cti.Set(2, tv2)                  // Node 2 has type variable t2
+	cti.Set(3, TInt)                 // Node 3 has concrete type Int
+	cti.Set(4, &TList{Element: tv1}) // Node 4 has List[t1]
+	cti.Set(5, &TFunc2{              // Node 5 has function t1 -> t2
 		Params:    []Type{tv1},
 		Return:    tv2,
 		EffectRow: EmptyEffectRow(),
