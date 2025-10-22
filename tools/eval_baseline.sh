@@ -48,7 +48,7 @@ fi
 FULL_SUITE="${FULL:-false}"  # Set FULL=true for full expensive suite
 MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
-PARALLEL="${PARALLEL:-5}"
+PARALLEL="${PARALLEL:-10}"
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 
