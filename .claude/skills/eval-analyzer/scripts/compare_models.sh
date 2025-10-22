@@ -11,15 +11,27 @@ set -euo pipefail
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <baseline_dir>" >&2
+    echo "" >&2
+    echo "Example:" >&2
+    echo "  $0 eval_results/baselines/v0.3.16" >&2
     exit 1
 fi
 
 BASELINE_DIR="$1"
+
+if [ ! -d "$BASELINE_DIR" ]; then
+    echo "Error: Directory not found: $BASELINE_DIR" >&2
+    exit 1
+fi
+
 SUMMARY="$BASELINE_DIR/summary.jsonl"
 
 if [ ! -f "$SUMMARY" ]; then
     echo "→ Generating summary.jsonl..." >&2
-    bin/ailang eval-summary "$BASELINE_DIR" >&2
+    if ! bin/ailang eval-summary "$BASELINE_DIR" >&2; then
+        echo "Error: Failed to generate summary" >&2
+        exit 1
+    fi
 fi
 
 echo "=== Model Comparison for AILANG in $(basename $BASELINE_DIR) ==="

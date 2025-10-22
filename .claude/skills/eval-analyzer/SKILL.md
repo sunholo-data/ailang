@@ -105,27 +105,22 @@ ailang eval-analyze -results eval_results/baselines/v0.3.16 -dry-run
 - runtime_error frequency (crashes)
 - Which benchmarks fail most
 
-### Step 3: Deep Dive with jq Queries
+### Step 3: Deep Dive with Helper Scripts
+
+Use the provided helper scripts for detailed analysis:
 
 ```bash
-# Generate queryable summary
-ailang eval-summary eval_results/baselines/v0.3.16
+# Failure analysis with error categorization
+.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16
 
-# Set variable for convenience
-SUMMARY=eval_results/baselines/v0.3.16/summary.jsonl
+# Model performance comparison
+.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
 
-# Error code distribution
-jq -s 'group_by(.err_code) | map({code: .[0].err_code, count: length}) | sort_by(-.count)' $SUMMARY
-
-# Top 20 failing AILANG benchmarks
-jq -s 'map(select(.lang == "ailang" and .stdout_ok == false)) | group_by(.id) | map({benchmark: .[0].id, failures: length, success_rate: ((6 - length) * 100 / 6 | floor)}) | sort_by(.success_rate) | .[:20]' $SUMMARY
-
-# Model performance on AILANG
-jq -s 'map(select(.lang == "ailang")) | group_by(.model) | map({model: .[0].model, success: map(select(.stdout_ok)) | length, total: length, rate: (map(select(.stdout_ok)) | length) / length * 100 | round}) | sort_by(-.rate)' $SUMMARY
-
-# Cost analysis by model
-jq -s 'group_by(.model) | map({model: .[0].model, total_cost: (map(.cost_usd) | add | . * 100 | round / 100), runs: length, avg_cost: ((map(.cost_usd) | add) / length * 1000 | round / 1000)}) | sort_by(-.total_cost)' $SUMMARY
+# Examine specific benchmark failures
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
 ```
+
+**For custom jq queries**, see [`resources/jq_queries.md`](resources/jq_queries.md)
 
 ### Step 4: Compare with Previous Version
 
@@ -143,43 +138,6 @@ Based on the data, identify:
 3. **Benchmark Hotspots**: Benchmarks with 100% failure rate
 4. **Cost Efficiency**: Which models give best success/cost ratio
 5. **Trends**: Improvements or regressions vs previous version
-
-## Common Queries
-
-**All queries assume:**
-```bash
-SUMMARY=eval_results/baselines/v0.3.16/summary.jsonl
-```
-
-**Error categories for AILANG:**
-```bash
-jq -s 'map(select(.lang == "ailang" and .stdout_ok == false)) | group_by(.error_category) | map({category: .[0].error_category, count: length}) | sort_by(-.count)' $SUMMARY
-```
-
-**Which models fail most on AILANG:**
-```bash
-jq -s 'map(select(.lang == "ailang")) | group_by(.model) | map({model: .[0].model, fail_rate: (map(select(.stdout_ok == false)) | length) / length * 100 | floor}) | sort_by(-.fail_rate)' $SUMMARY
-```
-
-**Benchmarks where all models fail:**
-```bash
-jq -s 'map(select(.lang == "ailang" and .stdout_ok == false)) | group_by(.id) | map({benchmark: .[0].id, failures: length}) | map(select(.failures == 6))' $SUMMARY
-```
-
-**Average tokens by model:**
-```bash
-jq -s 'group_by(.model) | map({model: .[0].model, avg_tokens: (map(.total_tokens) | add / length | floor)})' $SUMMARY
-```
-
-**First-attempt success rate:**
-```bash
-jq -s 'map(select(.lang == "ailang")) | {total: length, first_ok: map(select(.first_attempt_ok)) | length, rate: (map(select(.first_attempt_ok)) | length) / length * 100}' $SUMMARY
-```
-
-**Repair effectiveness:**
-```bash
-jq -s 'map(select(.repair_used == true)) | {total_repairs: length, successful: map(select(.repair_ok)) | length, rate: (map(select(.repair_ok)) | length) / length * 100}' $SUMMARY
-```
 
 ## Key Metrics to Track
 
@@ -229,18 +187,90 @@ ailang eval-summary eval_results/baselines/v0.3.16
 
 **Solution**: Run without `-dry-run` to generate design docs
 
+## Helper Scripts
+
+The skill includes helper scripts in `scripts/` directory:
+
+### quick_summary.sh
+
+Fast overview using eval-matrix.
+
+```bash
+.claude/skills/eval-analyzer/scripts/quick_summary.sh eval_results/baselines/v0.3.16
+```
+
+**Output**: Overall stats, model performance, language breakdown, top error codes.
+
+### analyze_failures.sh
+
+Detailed failure analysis with error categorization.
+
+```bash
+.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16 ailang
+```
+
+**Output**: Overall statistics, error categories, top failing benchmarks, model performance, error codes.
+
+### compare_models.sh
+
+Model-by-model performance comparison.
+
+```bash
+.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
+```
+
+**Output**: Success rates, first-attempt vs final, cost analysis, token usage, best model per benchmark.
+
+### examine_code.sh
+
+Inspect generated code from specific benchmarks.
+
+```bash
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json gpt5
+```
+
+**Output**: Generated code, compiler errors, success status, error codes for each model run.
+
+### examine_prompts.sh
+
+View prompts used for specific benchmarks.
+
+```bash
+.claude/skills/eval-analyzer/scripts/examine_prompts.sh eval_results/baselines/v0.3.16 api_call_json
+```
+
+**Output**: System prompt, user prompt, success status for benchmark runs.
+
+### verify_prompt_accuracy.sh
+
+Check if prompt documentation matches actual implementation.
+
+```bash
+.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.16
+```
+
+**Output**: Reports false limitations, undocumented features, and prompt-code mismatches.
+
+**Use this**: After creating new prompt versions to catch documentation bugs!
+
 ## Resources
 
+### Analysis Documents
+
+- [`resources/failure_analysis_v0.3.16.md`](resources/failure_analysis_v0.3.16.md) - Comprehensive analysis of v0.3.16 eval results with root cause analysis
+
 ### Common jq Patterns
+
 See [`resources/jq_queries.md`](resources/jq_queries.md) for more query examples and patterns.
 
 ## Progressive Disclosure
 
 This skill loads information progressively:
 
-1. **Always loaded**: This SKILL.md file (workflow + common commands)
-2. **Execute as needed**: `ailang eval-*` commands (analysis happens externally)
-3. **Load on demand**: `resources/jq_queries.md` (extended query library)
+1. **Always loaded**: This SKILL.md file (workflow + commands + scripts)
+2. **Execute as needed**: `ailang eval-*` commands and helper scripts
+3. **Load on demand**: `resources/jq_queries.md`, analysis documents
 
 ## Notes
 

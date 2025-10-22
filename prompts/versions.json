@@ -6,7 +6,10 @@
       "hash": "e36ab2dfbdb985095a74302386c3681b426698d59a04513deb894eaf7f689663",
       "description": "Baseline teaching prompt for v0.3.0 with records, recursion, blocks, Clock/Net effects",
       "created": "2025-10-05",
-      "tags": ["baseline", "production"],
+      "tags": [
+        "baseline",
+        "production"
+      ],
       "notes": "Original teaching prompt from v0.3.0 release. Comprehensive coverage of language features with clear syntax rules and examples."
     },
     "v0.3.0-hints": {
@@ -14,7 +17,10 @@
       "hash": "28653b83b6399896728d807f9bf3305b999b7a3108a4e570a288e9c3a88846be",
       "description": "Enhanced v0.3.0 prompt with explicit error pattern warnings and prevention guidance",
       "created": "2025-10-08",
-      "tags": ["experimental", "error-hints"],
+      "tags": [
+        "experimental",
+        "error-hints"
+      ],
       "notes": "Adds 6 common error pattern sections (PAR_001, TC_REC_001, TC_INT_001, EQ_001, CAP_001, MOD_001) with wrong/correct examples. Hypothesis: Explicit error warnings reduce first-attempt failures and improve repair success rate."
     },
     "v0.3.2": {
@@ -22,7 +28,10 @@
       "hash": "c29549fb36585bf775d4425cc615f78436866960d25347086f4c6a1f656b93a7",
       "description": "v0.3.2 prompt with Planning & Scaffolding Protocol - proactive architecture validation",
       "created": "2025-10-10",
-      "tags": ["production", "planning"],
+      "tags": [
+        "production",
+        "planning"
+      ],
       "notes": "Adds proactive architecture planning with :propose and :scaffold commands. Includes plan schema, validation rules, and best practices. Teaches AI agents to validate architecture BEFORE coding. Derived from v0.3.0-hints with 24 validation error codes added."
     },
     "v0.3.5": {
@@ -30,7 +39,9 @@
       "hash": "15edab8d4b814bbd04cebaa70b8abeac94757c26a8499aa9a2236731080e0f2f",
       "description": "v0.3.5 prompt with anonymous functions (func literals), letrec, and numeric conversions",
       "created": "2025-10-14",
-      "tags": ["production"],
+      "tags": [
+        "production"
+      ],
       "notes": "Adds support for: 1) Anonymous function syntax func(x) -> T { body }, 2) letrec keyword for recursive lambdas, 3) intToFloat/floatToInt builtins. Derived from v0.3.0 baseline."
     },
     "v0.3.8": {
@@ -38,7 +49,9 @@
       "hash": "91fed29dd5b991549cddd7a492b1afe790eb0a74c8da9bf29dcb46c2546a9665",
       "description": "v0.3.8 prompt with auto-import std/prelude, record updates, and multi-line ADTs",
       "created": "2025-10-15",
-      "tags": ["production"],
+      "tags": [
+        "production"
+      ],
       "notes": "Major improvements: 1) std/prelude auto-imported (no more Ord/Eq imports needed), 2) Record update syntax {r | field: val}, 3) Multi-line ADTs with optional leading pipe, 4) Operator lowering fixes. 49.1% success rate (+10.5% from v0.3.7). All v0.3.5 features included."
     },
     "v0.3.9": {
@@ -46,7 +59,9 @@
       "hash": "7cb721b1876618bcdfb13ca9f699b3a697bcdeaa627f4ff062e67001470a450d",
       "description": "v0.3.9 prompt with JSON encoding and HTTP headers for AI API integration",
       "created": "2025-10-15",
-      "tags": ["production"],
+      "tags": [
+        "production"
+      ],
       "notes": "AI API integration features: 1) JSON encoding with std/json (encode, jo, ja, kv, js, jnum), 2) HTTP headers with httpRequest() and Result-based error handling, 3) NetError ADT (Transport, InvalidHeader, DisallowedHost, BodyTooLarge), 4) Verified with real Claude Haiku API call. All v0.3.8 features included."
     },
     "v0.3.12": {
@@ -54,7 +69,9 @@
       "hash": "f29acaa33a0e2c3161164e1e0b6337b912d553776f9ac97251f4aa30dc665830",
       "description": "v0.3.12 prompt with show() function emphasis - recovery release",
       "created": "2025-10-17",
-      "tags": ["production"],
+      "tags": [
+        "production"
+      ],
       "notes": "Recovery release restoring show() builtin (accidentally removed in v0.3.10). Prominent show() examples added to teach proper string conversion. All v0.3.9 features included. Testing hypothesis: Emphasizing show() will reduce syntax errors and improve AILANG success rates from 0% baseline."
     },
     "v0.3.15": {
@@ -62,7 +79,11 @@
       "hash": "c5c0648eb6f85d0abe8eb20528b8a0cab4c4c710492a6719c318df1689154204",
       "description": "v0.3.15 prompt with vision goals: effect system, state threading, and canonical patterns",
       "created": "2025-10-20",
-      "tags": ["production", "latest", "vision-aligned"],
+      "tags": [
+        "production",
+        "latest",
+        "vision-aligned"
+      ],
       "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%→70%, State 0%→60%, Canonical 0%→70%. Expected: 36.5%→70% AILANG success."
     },
     "v0.3.6": {
@@ -70,7 +91,10 @@
       "hash": "064185768dae63412f235f1c27c17da0ab8cd4725e2c42bb70195c895a2ef53e",
       "description": "v0.3.6 prompt with anti-patterns, mandatory structure, and import checklist",
       "created": "2025-10-14",
-      "tags": ["experimental", "failed"],
+      "tags": [
+        "experimental",
+        "failed"
+      ],
       "notes": "FAILED: Two iterations showed 10% worse performance than v0.3.5. Longer prompts with anti-patterns and import checklists caused information overload. Conclusion: Prompt engineering is counter-productive; language changes (auto-import, record update syntax) are the solution."
     },
     "v0.2.0": {
@@ -78,7 +102,9 @@
       "hash": "PLACEHOLDER",
       "description": "Teaching prompt for v0.2.0 with module runtime and effect system",
       "created": "2025-09-28",
-      "tags": ["historical"],
+      "tags": [
+        "historical"
+      ],
       "notes": "Pre-records, pre-recursion, pre-blocks. Kept for historical comparison."
     },
     "python": {
@@ -86,7 +112,10 @@
       "hash": "PLACEHOLDER",
       "description": "Python language teaching prompt (control/reference)",
       "created": "2025-10-05",
-      "tags": ["control", "python"],
+      "tags": [
+        "control",
+        "python"
+      ],
       "notes": "Used for baseline comparison - how well do models do with Python vs AILANG?"
     },
     "v0.3.16": {
@@ -94,11 +123,26 @@
       "hash": "f6e1e7a39e35aa7a7116d11f8fb9d01b1be7862b0723a1ed3d8ed8b76030501d",
       "description": "v0.3.16 prompt with entry-module prelude - automatic print builtin for benchmarks",
       "created": "2025-10-21",
-      "tags": ["production", "latest", "ai-first"],
+      "tags": [
+        "production",
+        "latest",
+        "ai-first"
+      ],
       "notes": "Entry-module prelude: print builtin automatically available in modules with 'export func main' (no import needed). Libraries still explicit. AI-First DX: minimize syntactic entropy for benchmarks while keeping libraries explicit. All v0.3.15 features included."
+    },
+    "v0.3.17": {
+      "file": "prompts/v0.3.17.md",
+      "hash": "7f66b150ba378f0c76469a724804830b51e9b5b11b41b86ae351202a9912855a",
+      "description": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples",
+      "created": "2025-10-22",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples"
     }
   },
-  "active": "v0.3.16",
+  "active": "v0.3.17",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
