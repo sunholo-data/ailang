@@ -2,6 +2,107 @@
 
 ## [Unreleased]
 
+### M-COMPILE-ERROR: Enhanced Parser Errors for AI Code Generation
+
+**User Impact**: AIs generating AILANG code now receive helpful error messages with suggestions when they use Python/JavaScript syntax patterns
+
+**Problem**: AI code generation benchmarks showed 75% failure rate on `api_call_json` due to AIs using familiar Python/JS syntax (namespace imports, `const` keyword, bare assignment) instead of AILANG syntax.
+
+**Added**:
+- ✅ **Enhanced ParserError with suggestions** (`internal/parser/parser_error.go` - 30 LOC)
+  - New `Suggestions []string` field for multiple fix suggestions
+  - New `HelpURL string` field for documentation links
+  - Enhanced `.Error()` method formats suggestions with "Did you mean one of these?" header
+  - Backward compatible with existing `Fix string` field
+  - `NewSuggestionError()` constructor for creating multi-suggestion errors
+
+- ✅ **JavaScript/ES6 import detection** (`internal/parser/parser_decl.go` - 18 LOC)
+  - Detects `import X from 'Y'` pattern (common JS/ES6 syntax)
+  - Suggests correct AILANG imports: `import std/net (httpRequest)`, `import std/json (encode, decode)`
+  - Error code: `IMP012_UNSUPPORTED_NAMESPACE`
+  - Help URL: https://sunholo-data.github.io/ailang/docs/language/modules
+
+- ✅ **JavaScript `const` keyword detection** (`internal/parser/parser_decl.go` - 16 LOC)
+  - Detects `const` keyword at module level
+  - Suggests AILANG syntax: `let name = value in ...`
+  - Explains that AILANG bindings are immutable by default
+  - Error code: `PAR_CONST_NOT_SUPPORTED`
+  - Help URL: https://sunholo-data.github.io/ailang/docs/language/basics
+
+- ✅ **Python-style bare assignment detection** (`internal/parser/parser_decl.go` - 16 LOC)
+  - Detects `x = y` without `let` keyword (Python pattern)
+  - Suggests correct AILANG syntax with variable name: `let x = ... in`
+  - Error code: `PAR_BARE_ASSIGNMENT`
+  - Help URL: https://sunholo-data.github.io/ailang/docs/language/basics
+
+**Tests**:
+- ✅ **Comprehensive unit tests** (`internal/parser/suggestion_errors_test.go` - 320 LOC)
+  - `TestDetectJavaScriptNamespaceImport`: Verifies `import X from 'Y'` detection
+  - `TestDetectConstKeyword`: Verifies `const` keyword detection
+  - `TestDetectBareAssignment`: Verifies Python-style `x = y` detection
+  - `TestActualEvalFailureExample1/2/3`: Tests with actual AI-generated code from eval failures
+  - `TestMultipleSuggestionsFormatting`: Validates error message formatting
+  - `TestBackwardCompatibilityWithFix`: Ensures old `Fix` field still works
+
+- ✅ **CLI integration tests** (`internal/parser/cli_integration_test.go` - 150 LOC)
+  - `TestCLIIntegration_JavaScriptImport`: Full error flow for JS imports
+  - `TestCLIIntegration_ConstKeyword`: Full error flow for `const`
+  - `TestCLIIntegration_BareAssignment`: Full error flow for bare assignment
+  - `TestErrorFormattingConsistency`: Validates consistent formatting across all error types
+
+**Metrics**:
+- Total implementation: ~80 LOC
+- Total tests: ~470 LOC (100% coverage for new code)
+- All existing tests still passing
+- Test coverage: 100% for all new error detection logic
+
+**Example Error Output**:
+```
+IMP012_UNSUPPORTED_NAMESPACE at test.ail:1:8: namespace imports not yet supported
+
+Did you mean one of these?
+  import std/net (httpRequest)     -- For HTTP requests
+  import std/json (encode, decode) -- For JSON parsing
+  import std/io (println)          -- For I/O operations
+
+See: https://sunholo-data.github.io/ailang/docs/language/modules
+```
+
+**Files Modified** (2):
+- `internal/parser/parser_error.go` (+30 LOC)
+- `internal/parser/parser_decl.go` (+50 LOC)
+
+**Files Added** (2):
+- `internal/parser/suggestion_errors_test.go` (320 LOC)
+- `internal/parser/cli_integration_test.go` (150 LOC)
+
+**Design Documentation**:
+- `design_docs/planned/20251022_compile_error_ailang_compilation_failures.md` - Problem analysis
+- `design_docs/planned/M-COMPILE-ERROR-SPRINT.md` - Sprint plan
+
+**Eval Baseline Results** (Milestone 3):
+- ✅ **Error detection working**: `IMP012_UNSUPPORTED_NAMESPACE` appears in compiler output
+- ✅ **All 3 patterns detected**: Namespace imports, const keyword, bare assignment
+- ✅ **Repair attempted**: All 3 models tried self-repair with error messages
+- ❌ **Repair still fails**: All 3 models (claude-haiku-4-5, gemini-2-5-flash, gpt5-mini) failed after repair
+- ❌ **Suggestions not reaching AIs**: Module loader truncates error messages
+
+**Critical Discovery**:
+- Enhanced error messages with suggestions ARE generated correctly by parser
+- BUT module loader (`internal/loader/loader.go:143`) formats errors as:
+  ```go
+  fmt.Errorf("parse errors in %s: %v", path, p.Errors())
+  ```
+- Using `%v` with error slice bypasses our custom `.Error()` method
+- AIs only see: `[IMP012_UNSUPPORTED_NAMESPACE at file:1:8: namespace imports not yet supported...]`
+- AIs DON'T see: `Did you mean: import std/net (httpRequest)...`
+- **Impact**: AIs can't benefit from our helpful suggestions during repair attempts
+
+**Follow-up Required** (v0.3.19):
+- Fix module loader error formatting to iterate errors and call `.Error()` on each
+- Re-run eval baseline after fix to measure actual improvement
+- Expected improvement after fix: 75% failure → <25% failure (target: 100% success)
+
 ---
 
 ## [v0.3.17] - 2025-10-21

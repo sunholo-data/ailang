@@ -9,17 +9,37 @@ import (
 
 // ParserError represents a structured parser error with fix suggestions
 type ParserError struct {
-	Code       string
-	Message    string
-	Pos        ast.Pos
-	NearToken  lexer.Token
-	Expected   []lexer.TokenType
-	Fix        string
-	Confidence float64
+	Code        string
+	Message     string
+	Pos         ast.Pos
+	NearToken   lexer.Token
+	Expected    []lexer.TokenType
+	Fix         string // Deprecated: use Suggestions instead
+	Suggestions []string
+	HelpURL     string
+	Confidence  float64
 }
 
 func (e *ParserError) Error() string {
-	return fmt.Sprintf("%s at %s: %s", e.Code, e.Pos, e.Message)
+	msg := fmt.Sprintf("%s at %s: %s", e.Code, e.Pos, e.Message)
+
+	// Add suggestions if available
+	if len(e.Suggestions) > 0 {
+		msg += "\n\nDid you mean one of these?"
+		for _, suggestion := range e.Suggestions {
+			msg += "\n  " + suggestion
+		}
+	} else if e.Fix != "" {
+		// Backward compatibility with single Fix field
+		msg += "\n\nSuggestion: " + e.Fix
+	}
+
+	// Add help URL if available
+	if e.HelpURL != "" {
+		msg += "\n\nSee: " + e.HelpURL
+	}
+
+	return msg
 }
 
 // NewParserError creates a structured parser error with fix suggestion
@@ -32,6 +52,19 @@ func NewParserError(code string, pos ast.Pos, nearToken lexer.Token, message str
 		Expected:   expected,
 		Fix:        fix,
 		Confidence: 0.85, // Default confidence for parser fixes
+	}
+}
+
+// NewSuggestionError creates a parser error with multiple suggestions and optional help URL
+func NewSuggestionError(code string, pos ast.Pos, nearToken lexer.Token, message string, suggestions []string, helpURL string) *ParserError {
+	return &ParserError{
+		Code:        code,
+		Message:     message,
+		Pos:         pos,
+		NearToken:   nearToken,
+		Suggestions: suggestions,
+		HelpURL:     helpURL,
+		Confidence:  0.85,
 	}
 }
 

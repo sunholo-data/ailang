@@ -117,6 +117,26 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 
 	p.nextToken() // consume 'import'
 
+	// Detect JavaScript/ES6 pattern: "import X from 'Y'"
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.IDENT) {
+		// Check if next identifier is "from" (common JS pattern)
+		if p.peekToken.Literal == "from" {
+			p.errors = append(p.errors, NewSuggestionError(
+				"IMP012_UNSUPPORTED_NAMESPACE",
+				p.curPos(),
+				p.curToken,
+				"namespace imports not yet supported (JavaScript-style 'import X from Y' syntax)",
+				[]string{
+					"import std/net (httpRequest)     -- For HTTP requests",
+					"import std/json (encode, decode) -- For JSON parsing",
+					"import std/io (println)          -- For I/O operations",
+				},
+				"https://sunholo-data.github.io/ailang/docs/language/modules",
+			))
+			return nil
+		}
+	}
+
 	// Parse import path - can be string or path segments: ./relative, ../parent, std/io
 	if p.curTokenIs(lexer.STRING) {
 		imp.Path = p.curToken.Literal
@@ -298,6 +318,42 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		return p.parseClassDeclaration()
 	case lexer.INSTANCE:
 		return p.parseInstanceDeclaration()
+	case lexer.IDENT:
+		// Detect JavaScript/Python patterns that AIs commonly generate
+		if p.curToken.Literal == "const" {
+			// JavaScript const keyword
+			err := NewSuggestionError(
+				"PAR_CONST_NOT_SUPPORTED",
+				p.curPos(),
+				p.curToken,
+				"'const' keyword doesn't exist in AILANG",
+				[]string{
+					"Use: let name = value in ...",
+					"Note: All bindings in AILANG are immutable by default",
+				},
+				"https://sunholo-data.github.io/ailang/docs/language/basics",
+			)
+			p.errors = append(p.errors, err)
+			return nil
+		}
+		// Check for bare assignment (Python-style: x = y without let)
+		if p.peekTokenIs(lexer.ASSIGN) {
+			err := NewSuggestionError(
+				"PAR_BARE_ASSIGNMENT",
+				p.curPos(),
+				p.curToken,
+				"bare assignment not supported (missing 'let' keyword)",
+				[]string{
+					fmt.Sprintf("Use: let %s = ... in", p.curToken.Literal),
+					"AILANG requires 'let' keyword for bindings",
+				},
+				"https://sunholo-data.github.io/ailang/docs/language/basics",
+			)
+			p.errors = append(p.errors, err)
+			return nil
+		}
+		// Otherwise treat as expression
+		return p.parseExpression(LOWEST)
 	default:
 		// Try to parse as an expression (for script-style files)
 		return p.parseExpression(LOWEST)
