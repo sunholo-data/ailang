@@ -790,7 +790,7 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.16)
+# AI Teaching Prompt (Latest: v0.3.17)
 
 # AILANG AI Teaching Prompt (v0.3.16 - Entry-Module Prelude)
 
@@ -900,14 +900,24 @@ export func main() -> () ! {IO} {
 - ✅ **Block expressions** - `{ stmt1; stmt2; result }` for sequencing
 - ✅ **Records** - Record literals, field access, updates, subsumption
 - ✅ **Type system fixes** - Modulo operator (`%`) and float comparison (`==`) both work correctly
+- ✅ **HTTP headers** - `httpRequest()` with custom headers and Result-based error handling (since v0.3.9)
+- ✅ **JSON encoding** - `std/json` module with `encode()`, `jo()`, `ja()`, `kv()` for building JSON
 
-**⚠️ LIMITATIONS:**
-- ⚠️ NO `for`/`while` loops - use recursion
-- ⚠️ NO `var` - everything is immutable
-- ⚠️ NO error propagation operator `?` (yet)
-- ⚠️ NO custom HTTP headers (OpenAI/Claude APIs blocked until v0.4.0)
-- ⚠️ NO list spread patterns `[x, ...rest]` (yet) - use Cons constructor
-- ⚠️ `show` is a builtin - do NOT import it
+**⚠️ CRITICAL LIMITATIONS - What AILANG Does NOT Have:**
+
+**Syntax that does NOT exist:**
+- ❌ NO `for`/`while` loops → use recursion or map/filter
+- ❌ NO list comprehensions `[x*2 for x in list]` → use recursion or `map`
+- ❌ NO function type syntax `func(T) -> U` → use lambda values `\x. expr`
+- ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
+- ❌ NO mutable variables `var` or `let mut` → everything is immutable
+- ❌ NO assignment `x = y` → use `let x = y in expr`
+- ❌ NO error propagation `?` → use pattern matching on Result
+- ❌ NO list spread `[x, ...rest]` → use Cons constructor in patterns
+
+**Important notes:**
+- `show` is a builtin - do NOT import it
+- Higher-order functions use lambda values, not type annotations
 
 ## 📋 IMPORT CHECKLIST - Read Before Writing Code!
 
@@ -930,7 +940,9 @@ export func main() -> () ! {IO} {
 - `println` → `import std/io (println)` (still requires import)
 - `readFile`, `writeFile` → `import std/fs (readFile, writeFile)`
 - `now`, `sleep` → `import std/clock (now, sleep)`
-- `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)`
+- `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)` (simple wrappers)
+- `httpRequest` → `import std/net (httpRequest)` **for custom headers and full control**
+- JSON encoding → `import std/json (encode, jo, ja, kv, js, jnum)`
 - `show` → builtin, **DO NOT IMPORT**
 - `<`, `>`, `<=`, `>=`, `==`, `!=` → **AUTO-IMPORTED, NO IMPORT NEEDED!**
 
@@ -951,6 +963,152 @@ export func main() -> () ! {IO} {
 ```
 
 **IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
+
+## 🔥 HTTP POST with JSON Example (Complete)
+
+**Common use case: Making HTTP POST requests with custom headers and JSON body**
+
+```ailang
+module benchmark/solution
+
+import std/net (httpRequest)
+import std/json (encode, jo, kv, js, jnum)
+
+export func main() -> () ! {Net, IO} {
+  -- Build JSON body
+  let jsonBody = encode(jo([
+    kv("message", js("Hello from AILANG")),
+    kv("count", jnum(42.0))
+  ]));
+
+  -- Custom headers
+  let headers = [
+    {name: "Content-Type", value: "application/json"},
+    {name: "X-Custom-Header", value: "myvalue"}
+  ];
+
+  -- Make POST request
+  match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
+    Ok(resp) => print(show(resp.status)),
+    Err(_) => print("error")
+  }
+}
+```
+
+**Key points:**
+- `httpRequest(method, url, headers, body)` - 4 arguments, returns `Result[HttpResponse, NetError]`
+- Headers are list of records: `[{name: string, value: string}]`
+- JSON encoding: use `std/json` functions (`jo`, `kv`, `js`, `jnum`)
+- Pattern match on Result to handle success/error
+- Access response with `resp.status`, `resp.body`, `resp.headers`
+
+## 🔥 Higher-Order Functions (Lambda Values, NOT Type Annotations!)
+
+**CRITICAL**: AILANG does NOT have `func(T) -> U` type syntax. Use **lambda values** instead!
+
+**Common use case: Compose, map, filter**
+
+```ailang
+module benchmark/solution
+
+-- ❌ WRONG - func(b) -> c is NOT valid type syntax
+export func compose[a, b, c](f: func(b) -> c, g: func(a) -> b) -> func(a) -> c {
+  func(x: a) -> c { f(g(x)) }
+}
+
+-- ✅ CORRECT - Use lambda values
+export func main() -> () ! {IO} =
+  -- Compose: apply g, then f
+  let compose = \f. \g. \x. f(g(x)) in
+  let double = \x. x * 2 in
+  let addOne = \x. x + 1 in
+  let addOneThenDouble = compose(double)(addOne) in
+  let result = addOneThenDouble(5) in  -- (5 + 1) * 2 = 12
+  print(show(result))
+```
+
+**List operations with higher-order functions:**
+
+```ailang
+module benchmark/solution
+
+export func main() -> () ! {IO} =
+  -- Map: apply function to each element
+  let map = \f. \xs.
+    match xs {
+      [] => [],
+      Cons(x, rest) => Cons(f(x), map(f)(rest))
+    } in
+
+  -- Filter: keep elements that satisfy predicate
+  let filter = \pred. \xs.
+    match xs {
+      [] => [],
+      Cons(x, rest) =>
+        if pred(x)
+        then Cons(x, filter(pred)(rest))
+        else filter(pred)(rest)
+    } in
+
+  let square = \x. x * x in
+  let isEven = \x. x % 2 == 0 in
+  let nums = [1, 2, 3, 4, 5] in
+  let squared = map(square)(nums) in
+  let evens = filter(isEven)(nums) in
+  print("Squared: " ++ show(squared) ++ ", Evens: " ++ show(evens))
+```
+
+**Key points:**
+- Use `\param. body` for lambda syntax (NOT `func(param) -> Type`)
+- Currying: `\f. \g. \x.` means function takes 3 arguments separately
+- No first-class function types - pass lambdas as values
+- Pattern match on lists with `[]` and `Cons(head, tail)`
+
+## 🔥 List Operations (Recursion, NO Comprehensions!)
+
+**CRITICAL**: AILANG has NO list comprehensions `[x*2 for x in list]`. Use recursion!
+
+**Common patterns: sum, length, filter**
+
+```ailang
+module benchmark/solution
+
+-- Recursive sum
+export func sum(xs: List[int]) -> int =
+  match xs {
+    [] => 0,
+    Cons(x, rest) => x + sum(rest)
+  }
+
+-- Recursive length (polymorphic)
+export func length[a](xs: List[a]) -> int =
+  match xs {
+    [] => 0,
+    Cons(_, rest) => 1 + length(rest)
+  }
+
+-- Recursive filter
+export func filter[a](pred: a -> bool, xs: List[a]) -> List[a] =
+  match xs {
+    [] => [],
+    Cons(x, rest) =>
+      if pred(x)
+      then Cons(x, filter(pred, rest))
+      else filter(pred, rest)
+  }
+
+export func main() -> () ! {IO} =
+  let nums = [1, 2, 3, 4, 5] in
+  let total = sum(nums) in
+  let count = length(nums) in
+  print("Sum: " ++ show(total) ++ ", Count: " ++ show(count))
+```
+
+**Key points:**
+- Use `List[T]` for type annotations (NOT `[T]` in function signatures)
+- Pattern match with `[]` (empty) and `Cons(head, tail)` (non-empty)
+- List literals `[1, 2, 3]` work in expressions, not type annotations
+- No list comprehensions - write recursive functions instead
 
 ## 🔥 NEW (v0.3.16): Entry-Module Prelude - `print` Builtin
 
@@ -1059,9 +1217,29 @@ export func logToFile(filename: string, message: string) -> () ! {IO, FS} {
   writeFile(filename, message)
 }
 
--- Function with Net effect
+-- Function with Net effect (simple)
 export func fetchData(url: string) -> string ! {Net} {
   httpGet(url)
+}
+
+-- Function with Net effect + custom headers (v0.3.9+)
+export func postWithHeaders(url: string, body: string) -> string ! {Net, IO} {
+  let headers = [
+    {name: "Content-Type", value: "application/json"},
+    {name: "X-Custom-Header", value: "value"}
+  ];
+  match httpRequest("POST", url, headers, body) {
+    Ok(resp) => resp.body,
+    Err(Transport(msg)) => {
+      println("Network error: " ++ msg);
+      ""
+    },
+    Err(InvalidHeader(hdr)) => {
+      println("Invalid header: " ++ hdr);
+      ""
+    },
+    Err(_) => ""
+  }
 }
 ```
 
