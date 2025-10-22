@@ -140,7 +140,13 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	p := parser.New(l)
 	file := p.ParseFile()
 	if len(p.Errors()) > 0 {
-		return nil, fmt.Errorf("parse errors in %s: %v", path, p.Errors())
+		// Format each error individually to preserve custom .Error() methods
+		// (e.g., ParserError with suggestions)
+		var errorMsgs []string
+		for _, err := range p.Errors() {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		return nil, fmt.Errorf("parse errors in %s:\n%s", path, strings.Join(errorMsgs, "\n\n"))
 	}
 
 	// Extract imports from the file

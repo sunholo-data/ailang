@@ -131,7 +131,7 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 					"import std/json (encode, decode) -- For JSON parsing",
 					"import std/io (println)          -- For I/O operations",
 				},
-				"https://sunholo-data.github.io/ailang/docs/language/modules",
+				"https://sunholo-data.github.io/ailang/docs/guides/module_execution",
 			))
 			return nil
 		}
@@ -331,7 +331,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 					"Use: let name = value in ...",
 					"Note: All bindings in AILANG are immutable by default",
 				},
-				"https://sunholo-data.github.io/ailang/docs/language/basics",
+				"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
 			)
 			p.errors = append(p.errors, err)
 			return nil
@@ -347,7 +347,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 					fmt.Sprintf("Use: let %s = ... in", p.curToken.Literal),
 					"AILANG requires 'let' keyword for bindings",
 				},
-				"https://sunholo-data.github.io/ailang/docs/language/basics",
+				"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
 			)
 			p.errors = append(p.errors, err)
 			return nil
