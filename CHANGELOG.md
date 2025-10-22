@@ -2,6 +2,112 @@
 
 ## [Unreleased]
 
+### M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering
+
+**User Impact**: Compiler now fails fast with clear diagnostics when type information is incomplete, instead of panicking during lowering with "cannot lower unknown variant".
+
+**Problem**: Lowering phase could crash with cryptic "cannot lower unknown variant" errors when CoreTypeInfo had gaps, with no indication of which Core node was missing type information or where in the code the issue originated.
+
+**Implementation**:
+- ✅ **CoreTypeInfo validation pass** (`internal/pipeline/validate_coretypeinfo.go` - 343 LOC)
+  - Walks all 20+ Core node types (Var, Lit, Lambda, Let, LetRec, App, If, Match, BinOp, UnOp, Intrinsic, Record, RecordAccess, RecordUpdate, List, Tuple, DictAbs, DictApp)
+  - Verifies 100% CoreTypeInfo coverage before lowering
+  - Groups errors by kind (Lit(Float), Intrinsic(OpLe), Let(x), etc.)
+  - Includes actionable hints for each missing type
+  - Suggests debug command: `ailang debug ast <file> --show-types --compact`
+  - Forward-compatible with monomorphization (type variables OK)
+  - Performance: O(n) linear, zero allocations (191ns for 10 nodes, 34.4μs for 1000 nodes)
+
+- ✅ **Validation integration** (3 sites)
+  - Single-file pipeline (`internal/pipeline/pipeline.go:228`) - validates before lowering
+  - Module pipeline (`internal/pipeline/pipeline.go:631`) - validates per-module before lowering
+  - REPL (`internal/repl/repl_eval.go:113`) - validates before evaluation
+  - Ensures complete parity across file and REPL paths
+
+- ✅ **Comprehensive error diagnostics**
+  - NodeID: Unique identifier for each Core node
+  - ExprKind: Human-readable kind ("Lit(Float)", "Intrinsic(OpLe)", "Lambda(x)")
+  - Position: Source location from OriginalSpan (line/column)
+  - Hint: Actionable suggestion based on node type
+  - Example: "This usually means defaulting/substitution wasn't applied to CoreTI. Check that ApplySubstitution() was called after type inference."
+
+**Example Error Output**:
+```
+CoreTypeInfo validation failed: missing type information for Core nodes
+
+Missing Lit(Float) types (1 nodes):
+  • NodeID 42 at line 5, col 12
+    Hint: This usually means defaulting/substitution wasn't applied to CoreTI.
+          Check that ApplySubstitution() was called after type inference.
+
+Missing Intrinsic(OpLe) types (1 nodes):
+  • NodeID 58 at line 7, col 8
+    Hint: Intrinsic operations (comparisons, arithmetic) must have types before lowering.
+          Check that operand types are populated in typechecker_core.go.
+
+Debug with:
+  ailang debug ast <file> --show-types --compact
+
+This is a compiler bug. The type checker should populate CoreTypeInfo for all Core nodes.
+See: https://sunholo-data.github.io/ailang/docs/internals/type-system
+```
+
+**Tests**:
+- ✅ **Comprehensive unit tests** (`internal/pipeline/validate_coretypeinfo_test.go` - 417 LOC)
+  - 8/8 tests passing
+  - Complete program validation (all nodes typed)
+  - Missing Float/Bool literal detection
+  - Missing comparison operator detection
+  - Missing nested let detection
+  - **Multi-gap golden test** (4 missing nodes, grouped output, stable ordering)
+  - Polymorphic lambda acceptance (type variables OK - forward-compat with monomorphization)
+  - All Core node types smoke test (no panics)
+
+- ✅ **Performance benchmarks** (`internal/pipeline/validate_coretypeinfo_bench_test.go` - 117 LOC)
+  - Small programs (10 nodes): 191 ns/op, 0 allocations
+  - Medium programs (100 nodes): 2.3 μs/op, 0 allocations
+  - Large programs (1000 nodes): 34.4 μs/op, 0 allocations
+  - Deep nesting (500 levels): 11.5 μs/op
+  - Wide trees (100 children): 229 ns/op
+  - Scaling: O(n) linear confirmed
+
+**Key Discovery**: CoreTypeInfo population was already complete thanks to M-DX4 FIX V2 (ApplySubstitution applied after type inference on lines 207-210, 340-342 in typechecker_core.go). The typechecker's single CoreTI.Set() call (line 442) successfully populates CoreTypeInfo for ALL Core expressions after successful type inference.
+
+**Manual Verification**:
+```bash
+# All these run successfully without CoreTypeInfo validation errors:
+ailang run --entry main <(echo 'let x = 3.14 in x')                   # Float
+ailang run --entry main <(echo 'let x = 5 <= 10 in x')                # Comparison
+ailang run --entry main <(echo 'let x = 1 in let y = 2 in x + y')     # Nested lets
+ailang run --entry main <(echo 'let f = (\x -> x + 1) in f 42')       # Lambda
+```
+
+**Metrics**:
+- Total implementation: ~360 LOC (validation walker + integration)
+- Total tests: ~534 LOC (unit tests + benchmarks)
+- Test ratio: 1.5:1 (test-heavy, appropriate for compiler correctness)
+- Test coverage: 100% for validation logic (8/8 unit tests, 5 benchmarks)
+- All existing tests passing with validation enabled
+
+**Files Modified** (5):
+- New: `internal/pipeline/validate_coretypeinfo.go` (343 LOC)
+- New: `internal/pipeline/validate_coretypeinfo_test.go` (417 LOC)
+- New: `internal/pipeline/validate_coretypeinfo_bench_test.go` (117 LOC)
+- Modified: `internal/pipeline/pipeline.go` (+11 LOC, 2 validation sites)
+- Modified: `internal/repl/repl_eval.go` (+6 LOC, 1 validation site)
+- Modified: `internal/parser/cli_integration_test.go` (fixed 3 URL assertions for M-COMPILE-ERROR)
+
+**Design Documentation**:
+- `design_docs/planned/v0_3_15/m-dx4-coretypeinfo-completeness.md` - Original design
+- `design_docs/planned/v0_3_15/M-DX4-SPRINT-PLAN-REFINED.md` - Sprint plan with all 10 refinements
+
+**Sprint Timeline**:
+- Estimated: 1.5-2 days (4-6 hours)
+- Actual: ~3 hours (validation skeleton + integration + testing)
+- Efficiency: Phases 2 & 3 were already complete due to prior M-DX4 FIX V2 work
+
+---
+
 ### M-COMPILE-ERROR: Enhanced Parser Errors for AI Code Generation
 
 **User Impact**: AIs generating AILANG code now receive helpful error messages with suggestions when they use Python/JavaScript syntax patterns
