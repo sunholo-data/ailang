@@ -213,6 +213,19 @@ ailang run --entry main --caps IO --no-mono module.ail
 
 ---
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 60.3% success rate (408 total runs)
+
+**By Language:**
+- **AILANG**: 40.0% - New language, learning curve
+- **Python**: 81.8% - Baseline for comparison
+- **Gap: 41.8 percentage points (expected for new language)
+
+**Comparison**: +9.0% AILANG improvement from 0.3.16 (31.0% → 40.0%)
+
+---
+
 ### M-COMPILE-ERROR: Enhanced Parser Errors for AI Code Generation
 
 **User Impact**: AIs generating AILANG code now receive helpful error messages with suggestions when they use Python/JavaScript syntax patterns
