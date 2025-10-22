@@ -442,3 +442,261 @@ func isMutuallyRecursive(bindings []core.RecBinding) bool {
 
 	return false
 }
+
+// Specialize performs monomorphization on a Core program
+// Returns the specialized program and any errors encountered
+func (s *Specializer) Specialize(prog *core.Program) (*core.Program, error) {
+	// Specialize each top-level declaration
+	newDecls := make([]core.CoreExpr, 0, len(prog.Decls))
+
+	for _, decl := range prog.Decls {
+		specialized, err := s.specializeExpr(decl, make(map[string]types.Type))
+		if err != nil {
+			return nil, err
+		}
+		newDecls = append(newDecls, specialized)
+	}
+
+	// Create new program with specialized declarations
+	result := &core.Program{
+		Decls: newDecls,
+		Meta:  prog.Meta,
+		Flags: prog.Flags,
+	}
+
+	return result, nil
+}
+
+// specializeExpr recursively specializes an expression
+// env maps variable names to their types (for tracking polymorphic bindings)
+func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Type) (core.CoreExpr, error) {
+	switch e := expr.(type) {
+	case *core.Let:
+		// Specialize the value
+		newValue, err := s.specializeExpr(e.Value, env)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add binding to environment
+		newEnv := copyEnv(env)
+		if typ, ok := s.CoreTI.Get(e.Value.ID()); ok {
+			newEnv[e.Name] = typ
+		}
+
+		// Specialize the body
+		newBody, err := s.specializeExpr(e.Body, newEnv)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Let{
+			CoreNode: e.CoreNode,
+			Name:     e.Name,
+			Value:    newValue,
+			Body:     newBody,
+		}, nil
+
+	case *core.LetRec:
+		// Skip recursive bindings (v0.4.0 policy)
+		if isMutuallyRecursive(e.Bindings) {
+			s.Skipped = append(s.Skipped, SkipReason{
+				DefSym:   "(letrec group)",
+				Reason:   "Mutually recursive bindings not specialized in v0.4.0",
+				Location: e.OriginalSpan().String(),
+			})
+
+			// Still need to specialize the body, but skip the bindings
+			newBody, err := s.specializeExpr(e.Body, env)
+			if err != nil {
+				return nil, err
+			}
+
+			return &core.LetRec{
+				CoreNode: e.CoreNode,
+				Bindings: e.Bindings, // Keep original bindings
+				Body:     newBody,
+			}, nil
+		}
+
+		// For non-recursive letrec, specialize each binding
+		newBindings := make([]core.RecBinding, len(e.Bindings))
+		newEnv := copyEnv(env)
+
+		for i, binding := range e.Bindings {
+			// Check if binding is self-recursive
+			if isRecursive(binding.Value, binding.Name) {
+				s.Skipped = append(s.Skipped, SkipReason{
+					DefSym:   binding.Name,
+					Reason:   "Recursive function not specialized in v0.4.0",
+					Location: e.OriginalSpan().String(),
+				})
+				newBindings[i] = binding // Keep original
+			} else {
+				specialized, err := s.specializeExpr(binding.Value, newEnv)
+				if err != nil {
+					return nil, err
+				}
+				newBindings[i] = core.RecBinding{
+					Name:  binding.Name,
+					Value: specialized,
+				}
+			}
+
+			// Add to environment for subsequent bindings
+			if typ, ok := s.CoreTI.Get(binding.Value.ID()); ok {
+				newEnv[binding.Name] = typ
+			}
+		}
+
+		newBody, err := s.specializeExpr(e.Body, newEnv)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.LetRec{
+			CoreNode: e.CoreNode,
+			Bindings: newBindings,
+			Body:     newBody,
+		}, nil
+
+	case *core.Lambda:
+		// Specialize lambda body
+		newEnv := copyEnv(env)
+		// Note: We don't know parameter types here without more context
+		// Lambda specialization happens when applied
+
+		newBody, err := s.specializeExpr(e.Body, newEnv)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Lambda{
+			CoreNode: e.CoreNode,
+			Params:   e.Params,
+			Body:     newBody,
+		}, nil
+
+	case *core.App:
+		// This is the key case: function application
+		// Check if this is a call to a polymorphic function with concrete arguments
+
+		// First, specialize the function and arguments
+		newFunc, err := s.specializeExpr(e.Func, env)
+		if err != nil {
+			return nil, err
+		}
+
+		newArgs := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			newArgs[i], err = s.specializeExpr(arg, env)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// TODO (Day 2.3): Check if function is polymorphic and arguments are concrete
+		// If so, specialize the function for these concrete types
+		// For now, just return the specialized app
+
+		return &core.App{
+			CoreNode: e.CoreNode,
+			Func:     newFunc,
+			Args:     newArgs,
+		}, nil
+
+	case *core.If:
+		newCond, err := s.specializeExpr(e.Cond, env)
+		if err != nil {
+			return nil, err
+		}
+		newThen, err := s.specializeExpr(e.Then, env)
+		if err != nil {
+			return nil, err
+		}
+		newElse, err := s.specializeExpr(e.Else, env)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.If{
+			CoreNode: e.CoreNode,
+			Cond:     newCond,
+			Then:     newThen,
+			Else:     newElse,
+		}, nil
+
+	case *core.Match:
+		newScrutinee, err := s.specializeExpr(e.Scrutinee, env)
+		if err != nil {
+			return nil, err
+		}
+
+		newArms := make([]core.MatchArm, len(e.Arms))
+		for i, arm := range e.Arms {
+			newBody, err := s.specializeExpr(arm.Body, env)
+			if err != nil {
+				return nil, err
+			}
+			newArms[i] = core.MatchArm{
+				Pattern: arm.Pattern,
+				Guard:   arm.Guard,
+				Body:    newBody,
+			}
+		}
+
+		return &core.Match{
+			CoreNode:   e.CoreNode,
+			Scrutinee:  newScrutinee,
+			Arms:       newArms,
+			Exhaustive: e.Exhaustive,
+		}, nil
+
+	case *core.BinOp:
+		newLeft, err := s.specializeExpr(e.Left, env)
+		if err != nil {
+			return nil, err
+		}
+		newRight, err := s.specializeExpr(e.Right, env)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.BinOp{
+			CoreNode: e.CoreNode,
+			Op:       e.Op,
+			Left:     newLeft,
+			Right:    newRight,
+		}, nil
+
+	case *core.UnOp:
+		newOperand, err := s.specializeExpr(e.Operand, env)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.UnOp{
+			CoreNode: e.CoreNode,
+			Op:       e.Op,
+			Operand:  newOperand,
+		}, nil
+
+	// Atomic expressions - no specialization needed
+	case *core.Var, *core.VarGlobal, *core.Lit, *core.Intrinsic:
+		return expr, nil
+
+	// TODO: Handle other expression types (Record, List, Tuple, etc.)
+	default:
+		// For now, return expression as-is
+		return expr, nil
+	}
+}
+
+// copyEnv creates a shallow copy of an environment map
+func copyEnv(env map[string]types.Type) map[string]types.Type {
+	newEnv := make(map[string]types.Type, len(env))
+	for k, v := range env {
+		newEnv[k] = v
+	}
+	return newEnv
+}

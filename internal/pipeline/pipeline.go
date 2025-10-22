@@ -236,11 +236,19 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	var specializationStats SpecializationStats
 	if !cfg.DisableMonomorphization {
 		specializer := NewSpecializer(&typeChecker.CoreTI)
-		// TODO: Implement specialization pass (Day 2)
-		// For now, just track that it's enabled
+
+		// Run specialization pass
+		specializedProg, err := specializer.Specialize(coreProg)
+		if err != nil {
+			return result, fmt.Errorf("monomorphization error: %w", err)
+		}
+		coreProg = specializedProg
+
 		specializationStats = specializer.GetStats()
 		if cfg.DebugCompile {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization enabled\n")
+			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization: %d specializations, %d skipped\n",
+				specializationStats.TotalSpecializations,
+				len(specializationStats.SkippedFunctions))
 		}
 	} else {
 		// User explicitly disabled monomorphization
@@ -252,8 +260,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	result.PhaseTimings["monomorphization"] = time.Since(start).Milliseconds()
 	if cfg.DebugCompile && !cfg.DisableMonomorphization {
-		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization: %d specializations (%dms)\n",
-			specializationStats.TotalSpecializations,
+		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization complete (%dms)\n",
 			result.PhaseTimings["monomorphization"])
 	}
 
@@ -666,12 +673,18 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Perform monomorphization unless explicitly disabled
 		if !cfg.DisableMonomorphization {
 			specializer := NewSpecializer(&typeChecker.CoreTI)
-			// TODO: Implement specialization pass (Day 2)
-			// For now, just track that it's enabled
+
+			// Run specialization pass on module
+			specializedProg, err := specializer.Specialize(unit.Core)
+			if err != nil {
+				return result, fmt.Errorf("monomorphization error in %s: %w", modID, err)
+			}
+			unit.Core = specializedProg
+
 			stats := specializer.GetStats()
 			if cfg.DebugCompile {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization (module %s): %d specializations\n",
-					modID, stats.TotalSpecializations)
+				fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization (module %s): %d specializations, %d skipped\n",
+					modID, stats.TotalSpecializations, len(stats.SkippedFunctions))
 			}
 		} else if cfg.DebugCompile {
 			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization disabled for module %s\n", modID)
