@@ -125,6 +125,52 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
+### 3. CORETYPEINFO INVARIANT - COMPLETE TYPE COVERAGE
+
+**CRITICAL COMPILER INVARIANT**: Every Core node must have an entry in CoreTypeInfo before lowering; validation enforces this (M-DX4).
+
+**The Contract:**
+```go
+// ✅ ENFORCED - Validation runs before lowering in all paths
+// File pipeline:   internal/pipeline/pipeline.go:228
+// Module pipeline: internal/pipeline/pipeline.go:631
+// REPL:            internal/repl/repl_eval.go:113
+
+if err := ValidateCoreTypeInfo(coreProg, typeChecker.CoreTI); err != nil {
+    return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
+}
+```
+
+**Why this matters:**
+- Lowering relies on CoreTypeInfo for type-directed code generation
+- Missing types cause "cannot lower unknown variant" panics with no context
+- Validation provides clear diagnostics: NodeID, ExprKind, Position, Hint
+- Forward-compatible: Polymorphic types (type variables) are accepted
+
+**Validated properties:**
+- ✅ All 20+ Core node types checked (Var, Lit, Lambda, Let, LetRec, App, If, Match, BinOp, UnOp, Intrinsic, Record, List, Tuple, DictAbs, DictApp, etc.)
+- ✅ Presence required, not concreteness (type variables OK for polymorphic code)
+- ✅ Performance: O(n) linear, zero allocations (191ns for 10 nodes, 34μs for 1000 nodes)
+
+**Error example:**
+```
+CoreTypeInfo validation failed: missing type information for Core nodes
+
+Missing Lit(Float) types (1 nodes):
+  • NodeID 42 at line 5, col 12
+    Hint: This usually means defaulting/substitution wasn't applied to CoreTI.
+
+Debug with: ailang debug ast <file> --show-types --compact
+```
+
+**Monomorphization compatibility (v0.4.0+):**
+Validated nodes may carry polymorphic types (α, β, etc.); these are accepted as long as a type exists. Monomorphization will later specialize them to concrete types before final codegen. The validator checks *presence*, not *concreteness*.
+
+**Implementation:**
+- Validator: `internal/pipeline/validate_coretypeinfo.go` (343 LOC)
+- Tests: `internal/pipeline/validate_coretypeinfo_test.go` (417 LOC, 8/8 passing)
+- Benchmarks: `internal/pipeline/validate_coretypeinfo_bench_test.go` (117 LOC)
+
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
 → **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
