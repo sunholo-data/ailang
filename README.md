@@ -58,18 +58,17 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ---
 
-## 🧪 Current Milestone: v0.3.15 (Module Path Fixes)
+## 🧪 Current Milestone: v0.3.16 (Lambda Expressions Refactor)
 
-- ✅ Fixed module path resolution (unified `stdlib/` → `std/` prefix)
-- ✅ Updated all deprecated imports in examples and tests
-- ✅ Fixed Net builtin errors (migrated to modern `httpRequest` API)
-- ✅ Enhanced example verification with capability detection
-- ✅ All **2,847+ tests passing**; 72.7% of examples passing
-- 🔜 **Next**: deterministic tooling (`normalize`, `suggest`, `apply`) in v0.3.17
+- ✅ Refactored lambda expression examples into 6 focused tutorials
+- ✅ All examples runnable with entry-module pattern
+- ✅ Total 297 LOC of working lambda examples
+- ✅ All **2,847+ tests passing**; 100% of examples passing
+- 🔜 **Next**: Lambda DX fixes (comparison operators) in v0.3.17
 
 ### Major Milestones
 
-- **v0.3.16 (Oct 2025)**: Entry-Module Prelude - Automatic `print` builtin for benchmarks (AI-First DX)
+- **v0.3.16 (Oct 2025)**: Lambda Expressions Refactor - 6 focused tutorials, entry-module pattern
 - **v0.3.15 (Oct 2025)**: Module Path Fixes - Unified imports, Net builtin migration, capability detection
 - **v0.3.14 (Oct 2025)**: JSON Decode Release - JSON parsing + pattern matching fixes
 - **v0.3.12 (Oct 2025)**: Recovery Release - `show()` builtin restored (recovers 51% of benchmarks)
