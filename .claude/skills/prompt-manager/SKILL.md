@@ -1,310 +1,242 @@
 ---
 name: Prompt Manager
-description: Manage AILANG teaching prompts. Use when user asks to create new prompt version, update prompt, fix prompt documentation, or verify prompt accuracy against implementation.
+description: Optimize and manage AILANG teaching prompts for maximum conciseness and accuracy. Use when user asks to create/update prompts, optimize prompt length, or verify prompt accuracy.
 ---
 
 # Prompt Manager
 
-Manage AILANG teaching prompt versions with automated accuracy verification and version control.
+**Mission:** Create concise, accurate teaching prompts with maximum information density.
 
-## Quick Start
+## Core Principle: Token Efficiency
 
-**Most common usage:**
-```bash
-# User says: "Create a new prompt version fixing the httpRequest documentation"
-# This skill will:
-# 1. Create new prompt version from base
-# 2. Guide you through edits
-# 3. Verify prompt accuracy against implementation
-# 4. Update versions.json with new hash
-```
+**Target:** ~4000 tokens per prompt (currently ~8000+)
+**Strategy:** Reference external docs, use tables, consolidate examples
+**Validation:** Maintain eval success rates while reducing prompt size
 
 ## When to Use This Skill
 
-Invoke this skill when:
-- User asks to "create new prompt" or "update prompt"
-- User wants to "fix prompt documentation" or "add feature to prompt"
-- After implementing new language features (update prompt to match)
-- Before running eval baselines (verify prompt accuracy first!)
-- User mentions "prompt-code mismatch" or "false limitation"
+Invoke when user mentions:
+- "Create new prompt" / "update prompt" / "optimize prompt"
+- "Make prompt more concise" / "reduce prompt length"
+- "Fix prompt documentation" / "prompt-code mismatch"
+- After implementing language features (keep prompt synchronized)
+- Before eval baselines (verify accuracy)
 
-## Available Scripts
+## Quick Reference Scripts
 
-### `scripts/create_prompt_version.sh`
-
-Create a new prompt version based on an existing version.
-
-**Usage:**
+### Create New Version
 ```bash
 .claude/skills/prompt-manager/scripts/create_prompt_version.sh <new_version> <base_version> "<description>"
 ```
+Creates versioned prompt file, computes hash, updates versions.json
 
-**Example:**
-```bash
-.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Fix httpRequest documentation and remove false HTTP headers limitation"
-```
-
-**What it does:**
-1. Validates version format (vX.Y.Z)
-2. Checks base version exists
-3. Copies base prompt to new file
-4. Computes SHA256 hash
-5. Adds entry to `prompts/versions.json`
-6. Sets new version as active
-
-**Output:**
-```
-Creating new prompt version: v0.3.17
-  Base: v0.3.16 (prompts/v0.3.16.md)
-  New:  prompts/v0.3.17.md
-  Description: Fix httpRequest documentation
-
-✓ Copied prompts/v0.3.16.md → prompts/v0.3.17.md
-✓ Computed hash: f6e1e7a39e35aa7a7116d11f8fb9d01b1be7862b0723a1ed3d8ed8b76030501d
-✓ Added v0.3.17 to prompts/versions.json
-✓ Set as active version
-
-Next steps:
-  1. Edit prompts/v0.3.17.md to make your changes
-  2. Run .claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
-  3. Update hash: .claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
-  4. Test with: ailang repl (check if changes work)
-  5. Commit: git add prompts/v0.3.17.md prompts/versions.json
-```
-
-### `scripts/update_hash.sh`
-
-Update SHA256 hash in versions.json after editing a prompt file.
-
-**Usage:**
+### Update Hash
 ```bash
 .claude/skills/prompt-manager/scripts/update_hash.sh <version>
 ```
+Recomputes SHA256 after edits
 
-**Example:**
+### Verify Accuracy
 ```bash
-.claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
+.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh <version>
+```
+Catches prompt-code mismatches, false limitations
+
+### Analyze Size & Optimization Opportunities
+```bash
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
+```
+Shows: word count, section sizes, code blocks, tables, optimization opportunities
+
+### Test Prompt Effectiveness
+```bash
+.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.18
+```
+Runs AILANG-only eval (no Python) with dev models to test prompt effectiveness
+
+## Optimization Workflow
+
+### 1. Analyze Current Prompt
+```bash
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.16.md
 ```
 
-**What it does:**
-1. Reads prompt file path from versions.json
-2. Computes new SHA256 hash
-3. Updates hash in versions.json
-4. Reports old vs new hash
-
-**Output:**
+**Sample output:**
 ```
-Updating hash for v0.3.17
-  File: prompts/v0.3.17.md
-  Old hash: f6e1e7a39e35aa7a7116d11f8fb9d01b1be7862b0723a1ed3d8ed8b76030501d
-  New hash: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
-✓ Updated hash in prompts/versions.json
+Total words: 4358 (target: <4000)
+Total lines: 1214 (target: <200)
+⚠️  OVER TARGET by 358 words (8%)
+
+Code blocks: 60 (target: 5-10 comprehensive)
+Table rows: 0 (target: 10+ tables)
+
+Top sections by size:
+  719 words - Effect System
+  435 words - List Operations
+  368 words - Algebraic Data Types
 ```
 
-## Workflow
+**High-ROI optimization areas identified by script:**
+- 60 code blocks → consolidate to 5-10 comprehensive examples
+- 0 tables → convert builtin/syntax docs to tables
+- Large sections → link details to external docs
 
-### 1. Create New Prompt Version
+### 2. Create Optimized Version
+```bash
+.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Optimize for conciseness (-50% tokens)"
+```
 
-Use when adding features or fixing bugs in the teaching prompt.
+### 3. Apply Optimization Strategies
+
+**Reference [resources/prompt_optimization.md](resources/prompt_optimization.md) for:**
+- Tables vs prose (builtin docs)
+- Consolidating examples
+- Linking to external docs
+- Progressive disclosure patterns
+
+**Key techniques:**
+1. **Replace prose with tables** - Builtin functions, syntax rules
+2. **Consolidate examples** - 8 comprehensive > 24 scattered
+3. **Link to docs** - Type system details → docs/guides/types.md
+4. **Quick reference** - 1-screen summary at top
+5. **Remove redundancy** - Historical notes → CHANGELOG.md
+
+### 4. Validate Optimization
+
+**⚠️ CRITICAL: Must validate AFTER each optimization step!**
 
 ```bash
-# Create from current active version
-.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Your changes description"
-```
+# 1. Check new size
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
 
-**Tips:**
-- Use semantic versioning (vMAJOR.MINOR.PATCH)
-- Increment PATCH for bug fixes (v0.3.16 → v0.3.17)
-- Increment MINOR for new features (v0.3.17 → v0.4.0)
-- Keep description concise but specific
-
-### 2. Edit the Prompt File
-
-Make your changes to the new prompt file:
-
-```bash
-# Open in editor
-code prompts/v0.3.17.md  # or vim, etc.
-```
-
-**Common edits:**
-- Remove false limitations (e.g., "NO custom HTTP headers")
-- Add documentation for new features
-- Update examples with working code
-- Fix incorrect syntax examples
-- Add new imports to checklist
-
-### 3. Verify Prompt Accuracy
-
-**Critical step** - catches prompt-code mismatches:
-
-```bash
+# 2. Verify accuracy (no false limitations)
 .claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
-```
 
-**What it checks:**
-- False limitations (prompt says NO but feature exists)
-- Undocumented features (feature exists but not in prompt)
-- Prompt-implementation mismatches
-
-**Example output:**
-```
-=== Prompt Accuracy Check for v0.3.17 ===
-Prompt file: prompts/v0.3.17.md
-
---- Checking for False Limitations ---
-✓ No false HTTP headers limitation found
-
---- Checking for Undocumented Features ---
-✓ httpRequest() exists in stdlib
-✓ httpRequest() documented in prompt
-
---- Summary ---
-✓ No prompt accuracy issues found!
-```
-
-**If issues found:**
-- Edit prompt to fix false limitations
-- Add documentation for undocumented features
-- Re-run verification until clean
-
-### 4. Update Hash
-
-After making edits, update the hash:
-
-```bash
+# 3. Update hash
 .claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
+
+# 4. TEST PROMPT EFFECTIVENESS (CRITICAL!)
+.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
+# This runs AILANG-only eval (no Python baseline) with dev models
+# Target: >40% AILANG success rate
 ```
 
-**Why:** Hash integrity ensures prompt content matches metadata.
+**Success criteria:**
+- ✅ Token reduction: 10-20% per iteration (NOT >50% in one step!)
+- ✅ AILANG success rate: >40% (if <40%, revert and try smaller optimization)
+- ✅ All external links resolve
+- ✅ No increase in compilation errors
+- ✅ Examples still work in REPL
 
-### 5. Test Changes
+**⚠️ If success rate drops >10%, REVERT and try smaller optimization**
 
-Test that the prompt works correctly:
-
-```bash
-# Quick syntax test in REPL
-ailang repl
-> :type httpRequest  # Check if documented features work
-
-# Test with example code
-ailang run --caps Net,IO examples/api_call.ail
-
-# Test with eval benchmarks (RECOMMENDED)
-# First: Quick test with one model (~2-3 min)
-ailang eval-suite --models gpt5-mini --output eval_results/test_v0.3.17_quick
-
-# If quick test passes: Run with all dev models (~7-8 min)
-ailang eval-suite --output eval_results/test_v0.3.17_dev
-
-# Compare results
-ailang eval-compare eval_results/baselines/0.3.16 eval_results/test_v0.3.17_dev
+### 5. Document Optimization
+Add header to optimized prompt:
+```markdown
+---
+Version: v0.3.17
+Optimized: 2025-10-22
+Token reduction: -54% (8200 → 3800 tokens)
+Baseline: v0.3.16→v0.3.17 success rate maintained
+---
 ```
 
-**Why test with eval-suite:**
-- Catches regressions in prompt quality
-- Validates that documented features work in practice
-- Shows if success rates improve (e.g., fixing httpRequest should improve api_call_json benchmark)
-- Quick feedback loop before committing
-
-### 6. Commit Changes
-
+### 6. Commit
 ```bash
 git add prompts/v0.3.17.md prompts/versions.json
-git commit -m "feat: Add v0.3.17 prompt with httpRequest documentation
+git commit -m "feat: Optimize v0.3.17 prompt for conciseness
 
-- Remove false 'NO custom HTTP headers' limitation
-- Add httpRequest() documentation with examples
-- Update import checklist with httpRequest
-- Fix prompt-code mismatch found by verify_prompt_accuracy.sh"
+- Reduced tokens: 8200 → 3800 (-54%)
+- Builtin docs: prose → tables + reference ailang builtins list
+- Examples: 24 scattered → 8 consolidated comprehensive
+- Type system: moved details to docs/guides/types.md
+- Added quick reference section at top
+- Validated: eval success rate maintained"
 ```
+
+## Optimization Strategies (Summary)
+
+**Full guide:** [resources/prompt_optimization.md](resources/prompt_optimization.md)
+
+### Quick Wins
+1. **Tables > Prose** - Builtin docs, syntax rules (-67% tokens)
+2. **Consolidate Examples** - 8 comprehensive > 24 scattered (-56% tokens)
+3. **Link to Docs** - Move detailed explanations to external docs (-76% tokens)
+4. **Quick Reference** - 1-screen summary at top
+5. **Remove Redundancy** - Historical notes → CHANGELOG.md, implementation details → code links
+
+### Anti-Patterns
+- ❌ Explaining "why" (move to design docs)
+- ❌ Historical context (move to changelog)
+- ❌ Implementation details (link to code)
+- ❌ Verbose examples (show, don't tell)
+- ❌ Apologetic limitations (be direct)
+
+### Optimization Checklist
+- [ ] Token count <4000 words
+- [ ] All external links resolve
+- [ ] Examples work in REPL
+- [ ] Eval baseline success rate maintained
+- [ ] Hash updated in versions.json
+- [ ] Optimization metrics documented in prompt header
 
 ## Common Tasks
 
+**Detailed workflows:** [resources/workflow_guide.md](resources/workflow_guide.md)
+
 ### Fix False Limitation
+Create version → Remove "❌ NO X" → Add "✅ X" with examples → Verify → Commit
 
-**Scenario:** Feature exists but prompt says it doesn't
+### Add Feature
+Create version → Add to capabilities table → Add consolidated example → Verify → Commit
 
-**Steps:**
-1. Create new prompt version
-2. Search for false limitation text
-3. Remove limitation from list
-4. Add feature to capabilities section
-5. Add usage examples
-6. Verify with `verify_prompt_accuracy.sh`
-7. Update hash and commit
-
-**Example:**
-```bash
-# Step 1
-.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Remove false HTTP headers limitation"
-
-# Step 2-5: Edit prompts/v0.3.17.md
-# Remove: "⚠️ NO custom HTTP headers"
-# Add: "✅ HTTP headers - httpRequest() with custom headers (since v0.3.9)"
-# Add examples from v0.3.9 prompt
-
-# Step 6
-.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
-
-# Step 7
-.claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
-git add prompts/v0.3.17.md prompts/versions.json
-git commit -m "fix: Remove false HTTP headers limitation from prompt"
-```
-
-### Add New Feature Documentation
-
-**Scenario:** Implemented new builtin/feature, need to document in prompt
-
-**Steps:**
-1. Create new prompt version
-2. Add to capabilities list
-3. Add to import checklist (if applicable)
-4. Add usage examples
-5. Add to quick reference section
-6. Verify and commit
-
-### Update Active Version
-
-**Scenario:** Switch back to older prompt for testing
-
-```bash
-# Manually edit prompts/versions.json
-jq '.active = "v0.3.16"' prompts/versions.json > tmp.json && mv tmp.json prompts/versions.json
-```
-
-## Resources
-
-### Prompt Structure Guide
-
-See [`resources/prompt_structure.md`](resources/prompt_structure.md) for:
-- Required sections for teaching prompts
-- Best practices for examples
-- How to document limitations
-- Common pitfalls to avoid
+### Optimize for Conciseness
+Analyze size → Identify high-ROI sections → Apply techniques → Validate success rate → Document metrics → Commit
 
 ## Progressive Disclosure
 
-This skill loads information progressively:
-
-1. **Always loaded**: This SKILL.md file (workflow + scripts)
-2. **Execute as needed**: `create_prompt_version.sh`, `update_hash.sh`
-3. **Load on demand**: `resources/prompt_structure.md` (detailed guide)
+1. **Always loaded:** skill.md (this file - workflow + optimization principles)
+2. **Load for optimization:** resources/prompt_optimization.md (detailed strategies)
+3. **Load for workflows:** resources/workflow_guide.md (detailed examples)
+4. **Execute as needed:** Scripts (create_prompt_version.sh, update_hash.sh)
 
 ## Integration
 
-Works with:
-- **eval-analyzer** skill - `verify_prompt_accuracy.sh` catches prompt bugs
-- **post-release** skill - Run baselines after prompt changes
-- `prompts/versions.json` - Version registry with hashes
-- `ailang eval-suite` - Test prompt effectiveness
+- **eval-analyzer:** verify_prompt_accuracy.sh catches mismatches
+- **post-release:** Run baselines after optimization
+- **ailang builtins list:** Reference instead of duplicating
+- **docs/guides/:** Link to instead of explaining
 
-## Notes
+## Success Metrics
 
-- Always verify prompt accuracy before running eval baselines
-- Use `verify_prompt_accuracy.sh` to catch documentation bugs
-- Keep prompt file sizes reasonable (<2000 lines)
-- Include concrete examples, not just descriptions
-- Test prompts with REPL before committing
-- Hash must be updated after any edits
+**Target prompt profile:**
+- Tokens: <4000 (~30-40% reduction from current, in 3 iterations)
+- Lines: <300 (currently 500+)
+- Examples: 40-50 (not <30!)
+- Tables: 10+ for reference data
+- AILANG success rate: >40%
+
+## ⚠️ Lessons from v0.3.18 Failure
+
+**What happened:** Optimized v0.3.17 → v0.3.18 with -59% token reduction (5189 → 2126 words)
+**Result:** AILANG success rate collapsed to 4.8% (from expected ~40-60%)
+
+**Root causes:**
+1. **Too aggressive** - removed >50% content in one step
+2. **Over-consolidated** - 64 → 21 examples (lost pattern variety)
+3. **Tables replaced prose** - lost explanatory context for syntax rules
+4. **Removed negatives** - "what NOT to do" examples are critical
+5. **No incremental validation** - didn't test after each change
+
+**Critical lessons:**
+- ❌ DON'T optimize >20% per iteration
+- ❌ DON'T reduce examples below 40 total
+- ❌ DON'T replace all syntax prose with tables
+- ❌ DON'T link critical syntax to external docs (AIs can't follow links)
+- ❌ DON'T skip eval testing between iterations
+- ✅ DO optimize incrementally (3 iterations of 10-15% each)
+- ✅ DO keep negative examples ("what NOT to do")
+- ✅ DO validate with test_prompt.sh after EACH change
+- ✅ DO maintain pattern repetition (models need to see things 3-5 times)
+
+**Full analysis:** [OPTIMIZATION_FAILURE_ANALYSIS.md](OPTIMIZATION_FAILURE_ANALYSIS.md)

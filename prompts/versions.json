@@ -140,9 +140,31 @@
         "latest"
       ],
       "notes": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples"
+    },
+    "v0.3.18": {
+      "file": "prompts/v0.3.18.md",
+      "hash": "c6e6e59841e75827656305cadd0d5b4bd9d210ce7b4505f0bcd3a344160d1820",
+      "description": "Optimize for conciseness: tables, consolidated examples, external links (-40% tokens)",
+      "created": "2025-10-22",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Optimize for conciseness: tables, consolidated examples, external links (-40% tokens)"
+    },
+    "v0.3.19": {
+      "file": "prompts/v0.3.19.md",
+      "hash": "821c4a033fc237df1a2e6e3fc7c6708106022e83820ac1fcf76a737fb499610f",
+      "description": "Phase 1 optimization: builtin tables, quick reference, keep all examples (target: -15%)",
+      "created": "2025-10-22",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Phase 1 optimization: builtin tables, quick reference, keep all examples (target: -15%)"
     }
   },
-  "active": "v0.3.17",
+  "active": "v0.3.19",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
