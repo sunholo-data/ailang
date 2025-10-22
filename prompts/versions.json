@@ -136,8 +136,7 @@
       "description": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples",
       "created": "2025-10-22",
       "tags": [
-        "production",
-        "latest"
+        "production"
       ],
       "notes": "Fix httpRequest documentation: remove false HTTP headers limitation and add httpRequest() examples"
     },
@@ -147,10 +146,10 @@
       "description": "Optimize for conciseness: tables, consolidated examples, external links (-40% tokens)",
       "created": "2025-10-22",
       "tags": [
-        "production",
-        "latest"
+        "experimental",
+        "failed"
       ],
-      "notes": "Optimize for conciseness: tables, consolidated examples, external links (-40% tokens)"
+      "notes": "FAILED: Over-optimization (-59% tokens) collapsed success rate to 4.8%. Removed too many examples and context. See .claude/skills/prompt-manager/OPTIMIZATION_FAILURE_ANALYSIS.md"
     },
     "v0.3.19": {
       "file": "prompts/v0.3.19.md",
@@ -159,9 +158,10 @@
       "created": "2025-10-22",
       "tags": [
         "production",
-        "latest"
+        "latest",
+        "optimized"
       ],
-      "notes": "Phase 1 optimization: builtin tables, quick reference, keep all examples (target: -15%)"
+      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189→5058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
     }
   },
   "active": "v0.3.19",
