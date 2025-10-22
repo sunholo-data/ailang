@@ -790,17 +790,28 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.17)
+# AI Teaching Prompt (Latest: v0.3.19)
 
-# AILANG AI Teaching Prompt (v0.3.16 - Entry-Module Prelude)
+# AILANG v0.3.19 - AI Teaching Prompt
 
-**CRITICAL: You MUST write code in AILANG syntax. This is NOT Python, NOT Rust, NOT JavaScript.**
+**CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
-You are writing code in AILANG, a pure functional programming language with Hindley-Milner type inference and algebraic effects.
+AILANG is a pure functional language with Hindley-Milner type inference and algebraic effects.
 
-**NEW in v0.3.16**: Entry modules and REPL now have automatic `print` builtin - no import needed!
+**Quick Reference:**
+- Module: `module path/name` (required first line)
+- Import: `import "std/io" (println)` (quotes required)
+- Function: `export func name(x: int) -> int ! {IO} { body }`
+- Lambda: `\x. x * 2` or `func(x: int) -> int { x * 2 }`
+- Pattern: `match x { | 0 => a | n => b }` (use `=>` not `:` or `->`)
+- Effect: `! {IO, FS, Net}` after return type
+- ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
+- Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
+- List: `[]` | `::(head, tail)` | `match xs { | [] => ... | ::(h,t) => ... }`
 
-## ⚠️ CRITICAL: What AILANG is NOT
+**Entry module prelude (v0.3.16+):** `print` builtin available in entry modules (no import needed!)
+
+## Critical: What AILANG is NOT
 
 **DO NOT generate code like this - these will FAIL:**
 
@@ -880,46 +891,28 @@ export func main() -> () ! {IO} {
 - Pattern matching uses `=>` NOT `:` or `->`
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
 
-## Current Version: v0.3.16 (October 2025)
+## What Works (v0.3.16+)
 
-**✅ WHAT WORKS:**
-- ✅ **Module declarations** - `module path/to/module`
-- ✅ **Function declarations** - `export func name(params) -> Type { body }`
-- ✅ **Anonymous functions** - `func(x: int) -> int { x * 2 }` (inline lambdas)
-- ✅ **Recursive lambdas** - `letrec fib = \n. if n < 2 then n else fib(n-1) + fib(n-2) in ...`
-- ✅ **Numeric conversions** - `intToFloat(42)`, `floatToInt(3.14)`
-- ✅ **Auto-import std/prelude** - Zero imports needed for comparisons (`<`, `>`, `==`, `!=`)
-- ✅ **Entry-module prelude** - `print` builtin available in entry modules (no import needed!)
-- ✅ **Record updates** - `{base | field: value}` functional updates
-- ✅ **Multi-line ADTs** - Optional leading pipe `type Tree = | Leaf | Node`
-- ✅ **Import statements** - `import std/io (println)`, `import std/clock (now, sleep)`, `import std/net (httpGet)`
-- ✅ **Pattern matching** - Constructors, tuples, lists, wildcards, **guards** (`if` conditions)
-- ✅ **Effect system** - `! {IO, FS, Clock, Net}` for side effects with capability security
-- ✅ **ADTs** - Algebraic data types: `type Option[a] = Some(a) | None`
-- ✅ **Recursion** - Self-recursive and mutually-recursive functions with stack overflow protection
-- ✅ **Block expressions** - `{ stmt1; stmt2; result }` for sequencing
-- ✅ **Records** - Record literals, field access, updates, subsumption
-- ✅ **Type system fixes** - Modulo operator (`%`) and float comparison (`==`) both work correctly
-- ✅ **HTTP headers** - `httpRequest()` with custom headers and Result-based error handling (since v0.3.9)
-- ✅ **JSON encoding** - `std/json` module with `encode()`, `jo()`, `ja()`, `kv()` for building JSON
+Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net}`), recursion, numeric conversions, HTTP with headers, JSON encoding.
 
-**⚠️ CRITICAL LIMITATIONS - What AILANG Does NOT Have:**
+**Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
 
-**Syntax that does NOT exist:**
-- ❌ NO `for`/`while` loops → use recursion or map/filter
-- ❌ NO list comprehensions `[x*2 for x in list]` → use recursion or `map`
+## Critical Limitations
+
+**Syntax that does NOT exist (use alternatives):**
+- ❌ NO `for`/`while` loops → use recursion
+- ❌ NO list comprehensions `[x*2 for x in list]` → use `map` or recursion
+- ❌ NO tuple destructuring `let (x, y) = pair` → use record fields or pattern match in function
 - ❌ NO function type syntax `func(T) -> U` → use lambda values `\x. expr`
 - ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
-- ❌ NO mutable variables `var` or `let mut` → everything is immutable
+- ❌ NO mutable variables `var`/`let mut` → everything immutable
 - ❌ NO assignment `x = y` → use `let x = y in expr`
-- ❌ NO error propagation `?` → use pattern matching on Result
-- ❌ NO list spread `[x, ...rest]` → use Cons constructor in patterns
+- ❌ NO error propagation `?` → pattern match on Result
+- ❌ NO list spread `[x, ...rest]` → use `::(h, t)` in patterns
 
-**Important notes:**
-- `show` is a builtin - do NOT import it
-- Higher-order functions use lambda values, not type annotations
+**Important:** `show` is builtin (don't import). Higher-order functions use lambda values, not type annotations.
 
-## 📋 IMPORT CHECKLIST - Read Before Writing Code!
+## IMPORT CHECKLIST - Read Before Writing Code!
 
 **std/prelude is AUTO-IMPORTED!**
 
@@ -964,7 +957,7 @@ export func main() -> () ! {IO} {
 
 **IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
 
-## 🔥 HTTP POST with JSON Example (Complete)
+## HTTP POST with JSON Example (Complete)
 
 **Common use case: Making HTTP POST requests with custom headers and JSON body**
 
@@ -1002,7 +995,7 @@ export func main() -> () ! {Net, IO} {
 - Pattern match on Result to handle success/error
 - Access response with `resp.status`, `resp.body`, `resp.headers`
 
-## 🔥 Higher-Order Functions (Lambda Values, NOT Type Annotations!)
+## Higher-Order Functions (Lambda Values, NOT Type Annotations!)
 
 **CRITICAL**: AILANG does NOT have `func(T) -> U` type syntax. Use **lambda values** instead!
 
@@ -1064,7 +1057,7 @@ export func main() -> () ! {IO} =
 - No first-class function types - pass lambdas as values
 - Pattern match on lists with `[]` and `Cons(head, tail)`
 
-## 🔥 List Operations (Recursion, NO Comprehensions!)
+## List Operations (Recursion, NO Comprehensions!)
 
 **CRITICAL**: AILANG has NO list comprehensions `[x*2 for x in list]`. Use recursion!
 
@@ -1110,7 +1103,7 @@ export func main() -> () ! {IO} =
 - List literals `[1, 2, 3]` work in expressions, not type annotations
 - No list comprehensions - write recursive functions instead
 
-## 🔥 NEW (v0.3.16): Entry-Module Prelude - `print` Builtin
+## NEW (v0.3.16): Entry-Module Prelude - `print` Builtin
 
 **Entry modules (modules with `export func main`) automatically get the `print` builtin - no import needed!**
 
@@ -1425,7 +1418,7 @@ export func logFile(path: string) -> () ! {IO, FS} {
 }
 ```
 
-## 🔥 NEW: Explicit State Threading
+## NEW: Explicit State Threading
 
 **AILANG has NO mutable global variables. State must be threaded explicitly through function parameters.**
 
@@ -1898,7 +1891,7 @@ export func countdown(n: int) -> () ! {IO} {
 }
 ```
 
-## 🔥 NEW: Canonical List Operations
+## NEW: Canonical List Operations
 
 **AILANG provides canonical ways to transform lists - use these patterns!**
 
