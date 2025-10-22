@@ -3,6 +3,7 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -32,19 +33,21 @@ const (
 
 // Config contains pipeline configuration options
 type Config struct {
-	Mode                  Mode                  // Execution mode (Check or Eval)
-	JSON                  bool                  // Output JSON format
-	Compact               bool                  // Use compact JSON
-	DumpCore              bool                  // Show Core AST
-	DumpCoreLowered       bool                  // Show Core after lowering
-	DumpTyped             bool                  // Show Typed AST
-	TraceDefaulting       bool                  // Trace type defaulting
-	DryLink               bool                  // Show linking without eval
-	RequireLowering       bool                  // Fail if operators not lowered
-	ExperimentalBinopShim bool                  // Feature flag for operator shim
-	FailOnShim            bool                  // Fail if shim would be used (CI mode)
-	TrackInstantiations   bool                  // Track polymorphic type instantiations
-	LedgerHook            func(decision string) // Optional decision hook
+	Mode                    Mode                  // Execution mode (Check or Eval)
+	JSON                    bool                  // Output JSON format
+	Compact                 bool                  // Use compact JSON
+	DumpCore                bool                  // Show Core AST
+	DumpCoreLowered         bool                  // Show Core after lowering
+	DumpTyped               bool                  // Show Typed AST
+	TraceDefaulting         bool                  // Trace type defaulting
+	DryLink                 bool                  // Show linking without eval
+	RequireLowering         bool                  // Fail if operators not lowered
+	ExperimentalBinopShim   bool                  // Feature flag for operator shim
+	FailOnShim              bool                  // Fail if shim would be used (CI mode)
+	TrackInstantiations     bool                  // Track polymorphic type instantiations
+	LedgerHook              func(decision string) // Optional decision hook
+	DisableMonomorphization bool                  // Disable monomorphization pass (emergency escape hatch)
+	DebugCompile            bool                  // Show compilation statistics (specialization counts, etc.)
 
 	// Environment from REPL (optional)
 	TypeEnv   *types.TypeEnv
@@ -220,14 +223,42 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		result.Instantiations = typeChecker.DumpInstantiations()
 	}
 
-	// Phase 3.5: Operator Lowering
+	// Phase 3.5: Monomorphization (v0.4.0)
 	start = time.Now()
 
-	// Validate CoreTypeInfo before lowering (M-DX4)
-	// This ensures every Core node has type information before lowering begins
+	// Validate CoreTypeInfo before specialization (M-DX4)
+	// This ensures every Core node has type information before monomorphization/lowering begins
 	if err := ValidateCoreTypeInfo(coreProg, typeChecker.CoreTI); err != nil {
 		return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
 	}
+
+	// Perform monomorphization unless explicitly disabled
+	var specializationStats SpecializationStats
+	if !cfg.DisableMonomorphization {
+		specializer := NewSpecializer(&typeChecker.CoreTI)
+		// TODO: Implement specialization pass (Day 2)
+		// For now, just track that it's enabled
+		specializationStats = specializer.GetStats()
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization enabled\n")
+		}
+	} else {
+		// User explicitly disabled monomorphization
+		// This is an emergency escape hatch - emit diagnostic
+		if cfg.DebugCompile {
+			fmt.Fprintln(os.Stderr, "[DEBUG] Monomorphization disabled via --no-mono (emergency use only)")
+		}
+	}
+
+	result.PhaseTimings["monomorphization"] = time.Since(start).Milliseconds()
+	if cfg.DebugCompile && !cfg.DisableMonomorphization {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization: %d specializations (%dms)\n",
+			specializationStats.TotalSpecializations,
+			result.PhaseTimings["monomorphization"])
+	}
+
+	// Phase 3.6: Operator Lowering
+	start = time.Now()
 
 	// Check if shim is forbidden in CI mode (before any other logic)
 	if cfg.FailOnShim && cfg.ExperimentalBinopShim {
@@ -626,12 +657,27 @@ func runModule(cfg Config, src Source) (Result, error) {
 			typeChecker.FillOperatorMethods(decl)
 		}
 
-		// Phase 3.5: Operator Lowering
-		// Validate CoreTypeInfo before lowering (M-DX4)
+		// Phase 3.5: Monomorphization (v0.4.0)
+		// Validate CoreTypeInfo before specialization (M-DX4)
 		if err := ValidateCoreTypeInfo(unit.Core, typeChecker.CoreTI); err != nil {
 			return result, fmt.Errorf("CoreTypeInfo validation failed in %s: %w", modID, err)
 		}
 
+		// Perform monomorphization unless explicitly disabled
+		if !cfg.DisableMonomorphization {
+			specializer := NewSpecializer(&typeChecker.CoreTI)
+			// TODO: Implement specialization pass (Day 2)
+			// For now, just track that it's enabled
+			stats := specializer.GetStats()
+			if cfg.DebugCompile {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization (module %s): %d specializations\n",
+					modID, stats.TotalSpecializations)
+			}
+		} else if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization disabled for module %s\n", modID)
+		}
+
+		// Phase 3.6: Operator Lowering
 		// Check if shim is forbidden in CI mode (before any other logic)
 		if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 			return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim in module %s", modID)

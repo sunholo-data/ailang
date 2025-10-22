@@ -51,6 +51,8 @@ func main() {
 		requireLoweringFlag     = flag.Bool("require-lowering", false, "Require operator lowering pass")
 		trackInstantiationsFlag = flag.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
 		maxRecursionDepthFlag   = flag.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
+		noMonoFlag              = flag.Bool("no-mono", false, "Disable monomorphization (emergency escape hatch)")
+		debugCompileFlag        = flag.Bool("debug-compile", false, "Show compilation statistics (specialization counts, etc.)")
 	)
 
 	flag.Parse()
@@ -95,7 +97,7 @@ func main() {
 			fmt.Println("Usage: ailang watch <file.ail>")
 			os.Exit(1)
 		}
-		watchFile(flag.Arg(1), *traceFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *maxRecursionDepthFlag)
+		watchFile(flag.Arg(1), *traceFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *maxRecursionDepthFlag)
 
 	case "check":
 		if flag.NArg() < 2 {
@@ -234,6 +236,8 @@ func runCommand() {
 	failOnShimFlag := fs.Bool("fail-on-shim", false, "Fail if operator shim would be used (CI mode)")
 	requireLoweringFlag := fs.Bool("require-lowering", false, "Require operator lowering pass")
 	trackInstantiationsFlag := fs.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
+	noMonoFlag := fs.Bool("no-mono", false, "Disable monomorphization (emergency escape hatch)")
+	debugCompileFlag := fs.Bool("debug-compile", false, "Show compilation statistics (specialization counts, etc.)")
 	entryFlag := fs.String("entry", "main", "Entrypoint function name to execute")
 	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
@@ -256,10 +260,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -327,13 +331,15 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	}
 
 	cfg := pipeline.Config{
-		Mode:                  mode,
-		TraceDefaulting:       trace,
-		ExperimentalBinopShim: binopShim,
-		FailOnShim:            failOnShim,
-		RequireLowering:       requireLowering,
-		TrackInstantiations:   trackInstantiations,
-		GlobalResolver:        builtinResolver, // Provide builtin access for type checking
+		Mode:                    mode,
+		TraceDefaulting:         trace,
+		ExperimentalBinopShim:   binopShim,
+		FailOnShim:              failOnShim,
+		RequireLowering:         requireLowering,
+		TrackInstantiations:     trackInstantiations,
+		DisableMonomorphization: noMono,
+		DebugCompile:            debugCompile,
+		GlobalResolver:          builtinResolver, // Provide builtin access for type checking
 	}
 	src := pipeline.Source{
 		Code:     string(content),
@@ -577,14 +583,14 @@ func runTests(path string) {
 	fmt.Printf("\n%s All tests passed!\n", green("✓"))
 }
 
-func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, maxRecursionDepth int) {
+func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, maxRecursionDepth int) {
 	fmt.Printf("%s Watching %s for changes...\n", cyan("👁"), filename)
 	fmt.Println("Press Ctrl+C to stop")
 
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact/quiet for watch mode)
 	// Default to main entrypoint with null args for watch mode, no caps
-	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, "main", "null", true, false, "", maxRecursionDepth)
+	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, "main", "null", true, false, "", maxRecursionDepth)
 }
 
 func checkFile(filename string) {
