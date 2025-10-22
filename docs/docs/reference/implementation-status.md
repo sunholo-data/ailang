@@ -1,17 +1,17 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.15 (Module Path Fixes)
+## Current Version: v0.3.16 (Lambda Expressions Refactor)
 
 ## Test Coverage: 33.4%
 
-## Recent Release: v0.3.15 (October 2025)
+## Recent Release: v0.3.16 (October 2025)
 
-**Module Path & Import Fixes:**
-- ✅ **Unified Module Paths** - All imports now use `std/` prefix (removed legacy `stdlib/`)
-- ✅ **Net Builtin Migration** - Updated deprecated `_net_httpGet` to modern `httpRequest` API
-- ✅ **Enhanced Verification** - Capability detection for Net, Clock, IO effects
-- ✅ **72.7% Example Pass Rate** - Improved from 69.3% (64/88 examples passing)
-- ✅ **Entry-Module Prelude** - Automatic `print` builtin for entry modules and REPL
+**Lambda Examples Refactor:**
+- ✅ **6 Focused Lambda Tutorials** - Split into pedagogical examples (basic, curried, closures, higher-order, records, advanced)
+- ✅ **Entry-Module Pattern** - All examples runnable with `ailang run --caps IO --entry main`
+- ✅ **297 LOC Working Examples** - Comprehensive lambda expression coverage
+- ✅ **100% Example Pass Rate** - All lambda examples passing
+- ✅ **Improved DX** - Better learning path for lambda expressions
 
 ## Previous Release: v0.3.12 (October 2025)
 
