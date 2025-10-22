@@ -37,6 +37,26 @@ Invoke this skill when:
 4. **Pause for Breath**: Stop at natural breakpoints for review and approval
 5. **Track Everything**: Use TodoWrite to maintain visible progress
 
+## Documentation URLs
+
+When adding error messages, help text, or documentation links in code:
+
+**Website**: https://sunholo-data.github.io/ailang/
+
+**Common Documentation Paths**:
+- Language syntax: `/docs/reference/language-syntax`
+- Module system: `/docs/guides/module_execution`
+- Getting started: `/docs/guides/getting-started`
+- REPL guide: `/docs/guides/getting-started#repl`
+- Implementation status: `/docs/reference/implementation-status`
+
+**Full URL Example**:
+```
+https://sunholo-data.github.io/ailang/docs/reference/language-syntax
+```
+
+**Best Practice**: Check that documentation URLs actually exist before using them in error messages or help text!
+
 ## Available Scripts
 
 ### `scripts/validate_prerequisites.sh`

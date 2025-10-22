@@ -28,6 +28,28 @@ Invoke this skill when:
 - User wants to know how long implementation will take
 - User needs to prioritize work for upcoming development
 
+## Documentation URLs
+
+When planning sprints that involve adding error messages, help text, or documentation links:
+
+**Website**: https://sunholo-data.github.io/ailang/
+
+**Common Documentation Paths**:
+- Language syntax: `/docs/reference/language-syntax`
+- Module system: `/docs/guides/module_execution`
+- Getting started: `/docs/guides/getting-started`
+- REPL guide: `/docs/guides/getting-started#repl`
+- Implementation status: `/docs/reference/implementation-status`
+- Benchmarking: `/docs/guides/benchmarking`
+- Evaluation: `/docs/guides/evaluation/README`
+
+**Full URL Example**:
+```
+https://sunholo-data.github.io/ailang/docs/reference/language-syntax
+```
+
+**Best Practice**: When planning features that include documentation links, verify the URLs exist before including them in sprint estimates!
+
 ## Available Scripts
 
 ### `scripts/analyze_velocity.sh [days]`
