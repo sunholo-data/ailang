@@ -1,0 +1,23 @@
+{
+  "id": "pipeline",
+  "lang": "python",
+  "model": "gpt5",
+  "seed": 42,
+  "input_tokens": 101,
+  "output_tokens": 68,
+  "total_tokens": 169,
+  "cost_usd": 0.0008062500000000001,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 47,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "expected_stdout": "2\n4\n6\n8\n10\n",
+  "timestamp": "2025-10-22T12:33:08.442358+02:00",
+  "code": "import sys\n\nfor line in sys.stdin:\n    s = line.strip()\n    if not s:\n        continue\n    try:\n        print(int(s) * 2)\n    except ValueError:\n        try:\n            print(float(s) * 2)\n        except ValueError:\n            continue",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}

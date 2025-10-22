@@ -1,0 +1,23 @@
+{
+  "id": "print_missing_effect",
+  "lang": "ailang",
+  "model": "gemini-2-5-flash",
+  "seed": 42,
+  "input_tokens": 8758,
+  "output_tokens": 24,
+  "total_tokens": 8782,
+  "cost_usd": 0.0026873999999999995,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 21,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "stdout": "Hello!\n",
+  "timestamp": "2025-10-22T11:15:02.541234+02:00",
+  "code": "module benchmark/solution\n\nexport func main() -\u003e () ! {IO} {\n  print(\"Hello!\")\n}",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}
