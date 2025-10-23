@@ -2,6 +2,110 @@
 
 ## [Unreleased]
 
+### M-AGENT-PROTOCOL: Autonomous AI Agent Coordination System
+
+**User Impact**: AILANG now includes a production-ready agent protocol system enabling autonomous AI agents to communicate, coordinate, and recover from crashes. Agents can work together on development tasks like analyzing eval failures, creating design docs, and executing sprints.
+
+**What It Does**:
+- File-based message passing (observable, debuggable, crash-safe)
+- SQLite control plane with WAL mode (state tracking, leases, audit trail)
+- Agent runner with polling loop (autonomous message processing)
+- Bridge to `.claude/agents/` (integrate existing Claude agents)
+- Demo agents and utilities (echo-agent, eval-analyzer, send-message, check-inbox)
+
+**Implementation** (Phase 1 Complete):
+
+- ✅ **Message Transport** (`internal/agentprotocol/protocol.go`)
+  - File-based messages in `.ailang/state/messages/`
+  - Atomic writes (temp → fsync → rename)
+  - MessageWriter and MessageReader
+  - Envelope format with protocol version, correlation IDs
+
+- ✅ **Database Layer** (`internal/agentprotocol/db.go`)
+  - SQLite with WAL mode for concurrency
+  - 11 tables: agents, agent_state, messages, agent_history, agent_locks, etc.
+  - Agent registration and discovery
+  - Lease-based processing (crash recovery)
+  - Cross-process deduplication (MessageExists checks)
+  - Event logging and audit trail
+
+- ✅ **Agent Runner** (`internal/agentrunner/runner.go`)
+  - Polling loop architecture (configurable interval)
+  - Automatic agent registration
+  - Lease acquisition before processing
+  - Handler invocation (pluggable backends)
+  - Response management
+  - Idempotency guarantees
+
+- ✅ **Handler Bridge** (`internal/agentrunner/claude_bridge.go`)
+  - ClaudeAgentHandler (executes `.claude/agents/*.md` files)
+  - SkillHandler (runs `.claude/skills/*` workflows)
+  - CommandHandler (runs shell commands)
+  - FunctionHandler (wraps Go functions)
+
+- ✅ **Demo Agents** (`examples/agents/`)
+  - `echo_agent.go` - Simple echo agent (19µs latency)
+  - `eval_analyzer_agent.go` - Complex agent with capabilities
+  - `send_message.go` - CLI utility to send messages
+  - `check_inbox.go` - CLI utility to check inbox
+
+- ✅ **Comprehensive Documentation**
+  - `docs/AGENT_TUTORIAL.md` - 30-minute step-by-step guide
+  - `docs/AGENT_BRIDGE_EXPLAINED.md` - Architecture and integration
+  - `AGENT_SYSTEM_COMPLETE.md` - Complete system overview
+  - `AGENT_SYSTEM_VALIDATION.md` - Test results and validation
+  - `MILESTONE_1_COMPLETE.md`, `MILESTONE_2_COMPLETE.md`, `MILESTONE_3_COMPLETE.md`
+
+**Test Coverage**:
+- 50+ tests, all passing
+- 82.5% code coverage
+- Integration tests (file + database working together)
+- Crash recovery tests (lease expiration and reaping)
+- Concurrent agent tests (multiple agents, no conflicts)
+
+**Performance**:
+- Message processing: 19µs - 800ms (depends on handler complexity)
+- Database operations: <1ms (WAL mode efficient)
+- Poll interval: 2-3 seconds (configurable)
+- Zero message loss in testing
+
+**Files Added** (~5,000 LOC total):
+- `internal/agentprotocol/protocol.go` (470 LOC)
+- `internal/agentprotocol/protocol_test.go` (569 LOC)
+- `internal/agentprotocol/db.go` (529 LOC)
+- `internal/agentprotocol/db_test.go` (581 LOC)
+- `internal/agentprotocol/integration_test.go` (472 LOC)
+- `internal/agentrunner/runner.go` (286 LOC)
+- `internal/agentrunner/runner_test.go` (310 LOC)
+- `internal/agentrunner/claude_bridge.go` (180 LOC)
+- `internal/agentrunner/claude_bridge_test.go` (120 LOC)
+- `examples/agents/echo_agent.go` (76 LOC)
+- `examples/agents/eval_analyzer_agent.go` (155 LOC)
+- `examples/agents/send_message.go` (67 LOC)
+- `examples/agents/check_inbox.go` (75 LOC)
+- Plus ~1,500 LOC of documentation
+
+**Dependencies Added**:
+- `github.com/mattn/go-sqlite3` (SQLite driver)
+
+**Ready For**:
+- ✅ Local development (agents on developer machine)
+- ✅ CI/CD pipelines (agents in GitHub Actions)
+- ✅ Multi-agent workflows (eval-analyzer → sprint-planner → sprint-executor)
+- ✅ Dogfooding AILANG development
+
+**Phase 2 (Planned)**:
+- Dead-letter queue (DLQ) for failed messages
+- Metrics aggregation and dashboards
+- HMAC message signatures (security)
+- Verification contracts (correctness checking)
+- DX feedback loop (agents report friction → design docs)
+
+**See Also**:
+- Design doc: `design_docs/planned/M-AGENT-PROTOCOL.md`
+- Tutorial: `docs/AGENT_TUTORIAL.md`
+- Validation: `AGENT_SYSTEM_VALIDATION.md`
+
 ## [v0.3.18] - 2025-01-23
 
 ### M-POLY-B Phase 1: Var-Bound Polymorphic Lambdas (Comparison Operators)

@@ -12,10 +12,25 @@ import (
 )
 
 // ClaudeAgentHandler bridges Claude agents (.claude/agents/*.md) with the agent protocol.
-// It executes Claude agents as subprocesses using the Anthropic Agent SDK.
+// It executes full Claude agents using the Anthropic Agent SDK.
+//
+// This is DIFFERENT from NewClaudeCLIHandler (in llm_cli_handler.go):
+// - ClaudeAgentHandler: Executes .claude/agents/*.md files with full agent context (tools, MCP, state)
+// - NewClaudeCLIHandler: Simple prompt-response via "claude" CLI (no agent file required)
+//
+// Use ClaudeAgentHandler when:
+// - You have a .claude/agents/*.md file defining the agent
+// - Agent needs tools, MCP servers, or persistent state
+// - You want full agent execution (not just LLM chat)
+//
+// Use NewClaudeCLIHandler when:
+// - You just need a quick LLM response
+// - No agent file required
+// - Simple prompt-response pattern
 type ClaudeAgentHandler struct {
 	AgentFile string // Path to .claude/agents/agent-name.md
 	WorkDir   string // Working directory for the agent
+	Model     string // Model to use (e.g., "claude-sonnet-4-5")
 }
 
 // NewClaudeAgentHandler creates a handler that executes a Claude agent.
