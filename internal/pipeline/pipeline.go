@@ -224,6 +224,24 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		result.Instantiations = typeChecker.DumpInstantiations()
 	}
 
+	// Phase 3.4: Dictionary Elaboration (M-POLY-B)
+	// Transform operators (BinOp, UnOp) to dictionary applications (DictApp)
+	// This matches REPL behavior and is required for correct operator resolution
+	start = time.Now()
+
+	resolved := typeChecker.GetResolvedConstraints()
+	elaboratedProg, err := elaborate.ElaborateWithDictionaries(coreProg, resolved)
+	if err != nil {
+		return result, fmt.Errorf("dictionary elaboration error: %w", err)
+	}
+	coreProg = elaboratedProg
+
+	result.PhaseTimings["dict_elaboration"] = time.Since(start).Milliseconds()
+	if cfg.DebugCompile {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Dictionary elaboration complete (%dms)\n",
+			result.PhaseTimings["dict_elaboration"])
+	}
+
 	// Phase 3.5: Monomorphization (v0.4.0)
 	start = time.Now()
 
@@ -708,6 +726,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// This populates the Method field in resolved constraints before lowering
 		for _, decl := range unit.Core.Decls {
 			typeChecker.FillOperatorMethods(decl)
+		}
+
+		// Phase 3.4: Dictionary Elaboration (M-POLY-B)
+		// Transform operators (BinOp, UnOp) to dictionary applications (DictApp)
+		// This matches REPL behavior and is required for correct operator resolution
+		resolved := typeChecker.GetResolvedConstraints()
+		elaboratedProg, err := elaborate.ElaborateWithDictionaries(unit.Core, resolved)
+		if err != nil {
+			return result, fmt.Errorf("dictionary elaboration error in %s: %w", modID, err)
+		}
+		unit.Core = elaboratedProg
+
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Dictionary elaboration complete for module %s\n", modID)
 		}
 
 		// Phase 3.5: Monomorphization (v0.4.0)

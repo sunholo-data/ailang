@@ -799,12 +799,42 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 			Operand:  newOperand,
 		}, nil
 
+	case *core.DictApp:
+		// Dictionary applications (elaborated operators)
+		newDict, err := s.specializeExpr(e.Dict, env, bindings)
+		if err != nil {
+			return nil, err
+		}
+
+		newArgs := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			newArgs[i], err = s.specializeExpr(arg, env, bindings)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &core.DictApp{
+			CoreNode: e.CoreNode,
+			Dict:     newDict,
+			Method:   e.Method,
+			Args:     newArgs,
+		}, nil
+
 	// Atomic expressions - no specialization needed
 	case *core.Var, *core.VarGlobal, *core.Lit, *core.Intrinsic:
 		return expr, nil
 
 	// TODO: Handle other expression types (Record, List, Tuple, etc.)
 	default:
+		// In DEBUG_STRICT mode, panic to force developer to add case
+		if os.Getenv("DEBUG_STRICT") != "" {
+			panic(fmt.Sprintf("specializeExpr: unhandled node type %T (NodeID %d). "+
+				"Add a case for this type or explicitly mark as unsupported. "+
+				"This error only appears when DEBUG_STRICT=1 is set.",
+				expr, expr.ID()))
+		}
+
 		// For now, return expression as-is
 		return expr, nil
 	}
@@ -859,13 +889,40 @@ func (s *Specializer) specializeLambda(lambda *core.Lambda, argTypes []types.Typ
 		return nil, nil
 	}
 
-	// Build type substitution map from parameters to argument types
-	// For now, simplified: assume 1:1 mapping between params and argTypes
+	// Build type substitution map from TYPE VARIABLES to argument types
+	// The lambda's type in CoreTI has TVars for parameters (e.g., α1 -> α2 -> α3)
+	// We need to map those TVars to the concrete argTypes
 	typeSubst := make(map[string]types.Type)
-	for i, param := range lambda.Params {
-		if i < len(argTypes) {
-			typeSubst[param] = argTypes[i]
+
+	// Extract TVars from lambda's function type
+	if lambdaType, ok := s.CoreTI.Get(lambda.ID()); ok {
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] lambda type from CoreTI: %v (type: %T)\n", lambdaType, lambdaType)
 		}
+
+		// Collect parameter TVars from the function type
+		paramTVars := extractParamTVars(lambdaType, len(lambda.Params))
+
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] extracted paramTVars: %v\n", paramTVars)
+		}
+
+		// Map each TVar to its concrete type
+		for i, tvar := range paramTVars {
+			if i < len(argTypes) && tvar != "" {
+				typeSubst[tvar] = argTypes[i]
+			}
+		}
+
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] typeSubst built: %v\n", typeSubst)
+		}
+	} else {
+		// Fallback: if lambda type not in CoreTI, can't specialize properly
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] WARNING: lambda type not in CoreTI, skipping\n")
+		}
+		return nil, nil
 	}
 
 	// Generate cache key
@@ -885,6 +942,9 @@ func (s *Specializer) specializeLambda(lambda *core.Lambda, argTypes []types.Typ
 	s.CacheMisses++
 
 	// Clone the lambda body with fresh node IDs and type substitution
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] lambda.Body type: %T, NodeID: %d\n", lambda.Body, lambda.Body.ID())
+	}
 	clonedBody, err := s.cloneExpr(lambda.Body, typeSubst)
 	if err != nil {
 		return nil, err
@@ -926,6 +986,9 @@ func (s *Specializer) specializeLambda(lambda *core.Lambda, argTypes []types.Typ
 // cloneExpr recursively clones an expression with fresh node IDs
 // and applies type substitution to all types in CoreTypeInfo
 func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.Type) (core.CoreExpr, error) {
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] cloneExpr: type=%T, NodeID=%d\n", expr, expr.ID())
+	}
 	switch e := expr.(type) {
 	case *core.Var:
 		cloned := &core.Var{
@@ -1031,6 +1094,9 @@ func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.T
 		return cloned, nil
 
 	case *core.BinOp:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Cloning BinOp: %s (NodeID %d)\n", e.Op, e.ID())
+		}
 		clonedLeft, err := s.cloneExpr(e.Left, typeSubst)
 		if err != nil {
 			return nil, err
@@ -1081,12 +1147,22 @@ func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.T
 
 	case *core.DictApp:
 		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Cloning DictApp: method=%s\n", e.Method)
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] Cloning DictApp: method=%s, NodeID=%d\n", e.Method, e.ID())
+			if dictRef, ok := e.Dict.(*core.DictRef); ok {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Original DictRef: class=%s, type=%s, NodeID=%d\n",
+					dictRef.ClassName, dictRef.TypeName, dictRef.ID())
+			}
 		}
 		// Clone dictionary reference
 		clonedDict, err := s.cloneExpr(e.Dict, typeSubst)
 		if err != nil {
 			return nil, err
+		}
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			if dictRef, ok := clonedDict.(*core.DictRef); ok {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Cloned DictRef: class=%s, type=%s, NodeID=%d\n",
+					dictRef.ClassName, dictRef.TypeName, dictRef.ID())
+			}
 		}
 
 		// Clone arguments
@@ -1150,8 +1226,43 @@ func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.T
 		}
 		return cloned, nil
 
+	case *core.Let:
+		// Clone Let value and body
+		clonedValue, err := s.cloneExpr(e.Value, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+		clonedBody, err := s.cloneExpr(e.Body, typeSubst)
+		if err != nil {
+			return nil, err
+		}
+
+		cloned := &core.Let{
+			CoreNode: core.CoreNode{
+				NodeID:   s.freshNodeID(),
+				CoreSpan: e.CoreSpan,
+				OrigSpan: e.OrigSpan,
+			},
+			Name:  e.Name,
+			Value: clonedValue,
+			Body:  clonedBody,
+		}
+		if typ, ok := s.CoreTI.Get(e.ID()); ok {
+			s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+		}
+		return cloned, nil
+
 	// For other expression types, return as-is for now (v0.4.0 simplification)
 	default:
+		// In DEBUG_STRICT mode, panic to force developer to add case
+		if os.Getenv("DEBUG_STRICT") != "" {
+			panic(fmt.Sprintf("cloneExpr: unhandled node type %T (NodeID %d). "+
+				"Add a case for this type or explicitly mark as unsupported. "+
+				"This error only appears when DEBUG_STRICT=1 is set.",
+				expr, expr.ID()))
+		}
+
+		// In verbose mode, log warning
 		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
 			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] cloneExpr: default case for type %T\n", expr)
 		}
@@ -1163,6 +1274,13 @@ func (s *Specializer) cloneExpr(expr core.CoreExpr, typeSubst map[string]types.T
 func substituteType(typ types.Type, subst map[string]types.Type) types.Type {
 	switch t := typ.(type) {
 	case *types.TVar:
+		// If we have a substitution for this variable, use it
+		if concrete, ok := subst[t.Name]; ok {
+			return concrete
+		}
+		return typ
+	case *types.TVar2:
+		// TVar2 from the new type system (v2)
 		// If we have a substitution for this variable, use it
 		if concrete, ok := subst[t.Name]; ok {
 			return concrete
@@ -1195,4 +1313,72 @@ func substituteType(typ types.Type, subst map[string]types.Type) types.Type {
 		// For concrete types (TCon, etc.), no substitution needed
 		return typ
 	}
+}
+
+// extractParamTVars extracts type variable names from a function type's parameters
+// For a type like (α1 -> α2 -> β), returns ["α1", "α2"]
+// This is used to build the type substitution map during specialization
+func extractParamTVars(funcType types.Type, expectedParams int) []string {
+	var tvars []string
+
+	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE] extractParamTVars: funcType=%v, expectedParams=%d\n", funcType, expectedParams)
+	}
+
+	// Unwrap TFunc2 to get parameter types
+	switch ft := funcType.(type) {
+	case *types.TFunc2:
+		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   TFunc2.Params=%v (len=%d)\n", ft.Params, len(ft.Params))
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   TFunc2.Return=%v\n", ft.Return)
+		}
+
+		// Collect TVars from parameters
+		for i, paramType := range ft.Params {
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Param[%d]: type=%T, value=%v\n", i, paramType, paramType)
+			}
+
+			if tvar, ok := paramType.(*types.TVar); ok {
+				tvars = append(tvars, tvar.Name)
+				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Param[%d]: TVar %s\n", i, tvar.Name)
+				}
+			} else if tvar2, ok := paramType.(*types.TVar2); ok {
+				// Maybe it's TVar2?
+				tvars = append(tvars, tvar2.Name)
+				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Param[%d]: TVar2 %s\n", i, tvar2.Name)
+				}
+			} else {
+				// Parameter is not a TVar (already concrete)
+				// Add empty string as placeholder
+				tvars = append(tvars, "")
+				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Param[%d]: Concrete type %v (type=%T)\n", i, paramType, paramType)
+				}
+			}
+		}
+
+		// If the function type has more parameters (curried), extract from Return
+		if len(tvars) < expectedParams {
+			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   Need more params, recursing into Return...\n")
+			}
+			// Recursively extract from return type
+			moreTVars := extractParamTVars(ft.Return, expectedParams-len(tvars))
+			tvars = append(tvars, moreTVars...)
+		}
+
+	case *types.TVar:
+		// The whole function is a type variable (shouldn't happen for monomorphization)
+		// but handle gracefully
+		return []string{}
+
+	default:
+		// Not a function type or TVar - no parameters to extract
+		return []string{}
+	}
+
+	return tvars
 }

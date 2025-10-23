@@ -877,6 +877,85 @@ make clean                # Remove build artifacts and coverage files
 make help                 # Show all available make targets
 ```
 
+### Debug Flags
+
+**AILANG provides environment variables for verbose debugging and strict error checking:**
+
+#### `DEBUG_STRICT=1` - Catch Silent Failures Early
+
+**What it does**: Makes incomplete switch statements and unhandled cases **fail loudly** with panic instead of silently returning unchanged values.
+
+**When to use**:
+- During development of new compiler passes
+- When debugging AST traversal code
+- To catch missing cases in switch statements
+- In CI to enforce completeness
+
+**Example**:
+```bash
+# Normal mode - unhandled cases return unchanged (silent failure)
+$ ailang run test.ail
+# ✓ May complete successfully even with bugs!
+
+# Strict mode - unhandled cases panic immediately
+$ DEBUG_STRICT=1 ailang run test.ail
+panic: cloneExpr: unhandled node type *core.Record (NodeID 42).
+    Add a case for this type or explicitly mark as unsupported.
+# ✓ Bug caught immediately!
+```
+
+**Affected functions** (as of v0.4.1):
+- `internal/pipeline/specialize.go`:
+  - `cloneExpr()` - Cloning during monomorphization
+  - `specializeExpr()` - Specializing expressions
+
+**See Also**: [M-DX8: Silent Failure Prevention](design_docs/planned/v0_4_1/m-dx8-silent-failure-prevention.md)
+
+#### `DEBUG_MONO_VERBOSE=1` - Monomorphization Tracing
+
+**What it does**: Logs detailed information about monomorphization (polymorphic function specialization).
+
+**When to use**:
+- Debugging type substitution issues
+- Understanding which functions are specialized
+- Tracking down operator re-linking problems
+
+**Example**:
+```bash
+$ DEBUG_MONO_VERBOSE=1 ailang run --entry main --debug-compile test.ail
+[DEBUG_MONO_VERBOSE] Found lambda, type=α2 -> α2 -> α2, isPoly=true
+[DEBUG_MONO_VERBOSE] lambda type from CoreTI: α2 -> (α2 -> α2)
+[DEBUG_MONO_VERBOSE] extracted paramTVars: [α2]
+[DEBUG_MONO_VERBOSE] typeSubst built: map[α2:float]
+[DEBUG_MONO_VERBOSE] Cloning DictApp: method=gt
+[DEBUG_MONO_VERBOSE]   Original DictRef: class=Ord, type=Int, NodeID=15
+[DEBUG_MONO_VERBOSE]   Cloned DictRef: class=Ord, type=float, NodeID=42
+```
+
+#### `DEBUG_OPERATOR_LOWERING=1` - Operator Resolution Tracing
+
+**What it does**: Logs operator lowering decisions (BinOp/DictApp → Intrinsic).
+
+**When to use**:
+- Debugging operator dispatch issues
+- Understanding which builtin is selected
+- Tracking type-guided operator selection
+
+#### Combining Debug Flags
+
+**Recommended combinations**:
+
+```bash
+# Development mode - catch bugs early + verbose output
+$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang run test.ail
+
+# CI mode - strict checking only (no verbose output)
+$ DEBUG_STRICT=1 make test
+
+# Deep debugging - all flags
+$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 DEBUG_OPERATOR_LOWERING=1 ailang run --debug-compile test.ail
+```
+
 #### Keeping `ailang` Up to Date
 
 **After making code changes to the ailang binary:**
