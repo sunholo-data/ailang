@@ -14,16 +14,36 @@
 // **Phase Requirements**:
 //   - Pre-monomorphization: CoreTI may contain TVars for polymorphic code (VALID)
 //   - Post-monomorphization: Specialized bodies should have concrete types
-//   - Lowering phase: Operators need concrete heads; TVars trigger fallback to ResolvedConstraints
+//   - Post-VarResolution (v0.3.18+): Monomorphic Var nodes get concrete types
+//   - Lowering phase: Operators need concrete heads; TVars trigger fallback
 //
 // **Validation**:
 //   - ValidateCoreTypeInfo (internal/pipeline) checks 100% coverage before lowering
 //   - Validation accepts TVars as valid (checks presence, not concreteness)
 //   - Use --debug-compile flag to see telemetry of CoreTI hits/misses during lowering
 //
+// **Why TVars Remain After Type Inference (v0.3.18)**:
+//
+// After Hindley-Milner unification and ApplySubstitution, some Var nodes may still
+// have TVars in CoreTI. This happens because:
+//
+//   1. Let-bound variables: The substitution tracks Let bindings but doesn't always
+//      resolve Var references to their binding's concrete type
+//   2. Polymorphic preservation: Lambda parameters intentionally keep TVars until
+//      call-site specialization (M-POLY-B)
+//
+// The VarResolver (internal/pipeline/resolve_vars.go) is a WORKAROUND that propagates
+// monomorphic types from Let bindings to Var usages. It only propagates concrete types
+// (Int, Float, String, Bool, List) and preserves polymorphism for lambda params.
+//
+// **Future (M-POLY-B, v0.4.1+)**: Var-bound polymorphic lambdas will be re-elaborated
+// after monomorphization, which will naturally resolve all operator types in specialized
+// bodies. The VarResolver is a pragmatic bridge until then.
+//
 // **Debug**:
 //   - ailang debug ast <file> --show-types --compact: Inspect CoreTI for a file
 //   - ailang run --debug-compile <file>: See lowering telemetry (CoreTI coverage)
+//   - Look for "Var type resolution complete" in debug output
 //
 // See: design_docs/planned/v0_3_18/M-DX4-SPRINT-PLAN.md
 package types
