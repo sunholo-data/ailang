@@ -138,17 +138,88 @@ We need to ensure cloned lambdas use the correct dispatch mechanism.
    - Test multiple type specializations (Int, Float, String)
    - Test nested operators and complex expressions
 
+### Phase 1 Investigation Results (COMPLETE - 2025-10-23)
+
+**✅ Investigation complete! Root cause identified.**
+
+**Key Discovery: Dictionary Elaboration Only Runs in REPL, Not File Pipeline**
+
+The operator linking flow is:
+1. **Surface AST** → BinOp (`>`)
+2. **Type checking** → Creates CoreTI + ResolvedConstraints map
+3. **[REPL ONLY]** → Dictionary elaboration (BinOp → DictApp w/ TypeName)
+4. **Monomorphization** → Clones lambdas, applies type substitution to CoreTI
+5. **Var Resolution** → M-DX4 workaround for monomorphic cases
+6. **Operator Lowering** → BinOp/Intrinsic → typed builtin (gt_Float vs gt_Int)
+
+**The Problem:**
+- **REPL** calls `ElaborateWithDictionaries()` at line 92 of `internal/repl/repl_eval.go` ✅
+- **File pipeline** NEVER calls dictionary elaboration! ❌
+- Monomorphization clones operators but they remain as BinOp (not DictApp)
+- Cloned operators get fresh NodeIDs and type substitution applied to CoreTI
+- But type substitution changes `α2 → float`, which still has Head=Unknown during lowering!
+- Lowering falls back to Default (Int), causing runtime type mismatch
+
+**Test Results:**
+
+**Inline Lambda (Works):**
+```bash
+$ ailang run --debug-compile /tmp/test_inline_max.ail
+[DEBUG] Monomorphization: 0 specializations, 0 skipped
+[DEBUG M-DX4] NodeID 1: type=float, head=Float  ← Float recognized!
+[DEBUG] CoreTI hits: 1 (100.0%)
+Result: 3.14 ✅
+```
+
+**Var-Bound Lambda (Fails):**
+```bash
+$ ailang run --debug-compile /tmp/test_varbound_max.ail
+[DEBUG] Monomorphization: 1 specializations, 0 skipped
+[DEBUG M-DX4] NodeID 1: type=α2, head=Unknown  ← TVar not resolved!
+[DEBUG] Default fallback: 2 (100.0%)
+panic: interface conversion: *FloatValue, not *IntValue ❌
+```
+
+**Why Inline Works:**
+- No monomorphization needed (direct application)
+- Type inference resolves types BEFORE any cloning
+- CoreTI already has concrete types (float) when lowering runs
+
+**Why Var-Bound Fails:**
+- Lambda cloned during monomorphization
+- Type substitution applied: `α2 → float`
+- BUT substitution creates new TVar, not concrete TCon!
+- Head(TVar) = Unknown → Default fallback → Int → panic
+
+**Root Cause: substituteType() Creates TVars Instead of Concrete Types**
+
+Need to check how `substituteType()` works in the specializer:
+
+```go
+// internal/pipeline/specialize.go line ~941
+s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+```
+
+The issue is likely that `substituteType()` recursively substitutes type variables but doesn't collapse them to concrete types when the substitution map contains concrete types.
+
+**Investigation Files:**
+- Test cases: `/tmp/test_inline_max.ail`, `/tmp/test_varbound_max.ail`
+- Pipeline: `internal/pipeline/pipeline.go` (no dict elaboration in file path!)
+- REPL: `internal/repl/repl_eval.go:92` (dict elaboration present)
+- Specializer: `internal/pipeline/specialize.go:928-1077` (cloneExpr function)
+- Lowering: `internal/pipeline/op_lowering.go:298-400` (lowerIntrinsic function)
+
 ### Implementation Plan
 
-**Phase 1: Understand Operator Linking** (~2-4 hours)
+**Phase 1: Understand Operator Linking** (~2-4 hours) ✅ COMPLETE
 
-- [ ] Add comprehensive debug logging to trace operator lifecycle
-- [ ] Compare inline lambda vs var-bound lambda execution paths
-- [ ] Document findings in M-POLY-B-INVESTIGATION.md
-- [ ] Verify hypothesis: operators are linked before monomorphization
-- [ ] Determine if BinOp → DictApp transformation happens (and when)
+- [x] Add comprehensive debug logging to trace operator lifecycle
+- [x] Compare inline lambda vs var-bound lambda execution paths
+- [x] Document findings (see Investigation Results above)
+- [x] Verify hypothesis: operators are linked before monomorphization ← **FALSE! Dict elaboration missing from file pipeline**
+- [x] Determine if BinOp → DictApp transformation happens (and when) ← **Only in REPL!**
 
-**Deliverable:** Clear understanding of operator resolution mechanism
+**Deliverable:** Clear understanding of operator resolution mechanism ✅
 
 **Phase 2: Implement Re-Elaboration** (~4-8 hours)
 
