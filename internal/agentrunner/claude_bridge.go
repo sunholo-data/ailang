@@ -38,6 +38,7 @@ func NewClaudeAgentHandler(agentFile, workDir string) *ClaudeAgentHandler {
 	return &ClaudeAgentHandler{
 		AgentFile: agentFile,
 		WorkDir:   workDir,
+		Model:     "claude-sonnet-4-5", // Default model
 	}
 }
 
@@ -83,27 +84,36 @@ func (h *ClaudeAgentHandler) buildPrompt(msg *agentprotocol.Envelope) string {
 	return sb.String()
 }
 
-// executeClaudeAgent runs the Claude agent as a subprocess.
-// This assumes the Anthropic Agent SDK is available and configured.
+// executeClaudeAgent runs the Claude agent via the Claude CLI.
+// Requires: Claude CLI installed (https://docs.claude.com/claude-code)
+// Install: npm install -g @anthropic-ai/claude-agent-sdk
 func (h *ClaudeAgentHandler) executeClaudeAgent(prompt string) (string, error) {
-	// For now, we'll simulate Claude agent execution by reading the agent file
-	// and returning a mock response. In production, this would use the Anthropic Agent SDK.
-
-	// Read agent file to understand what it does
+	// Read agent file content
 	agentContent, err := os.ReadFile(h.AgentFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read agent file: %w", err)
 	}
 
-	// TODO: Integrate with Anthropic Agent SDK
-	// For now, return a simulated response
-	response := fmt.Sprintf("Agent executed successfully.\nAgent file: %s\nPrompt length: %d chars\n\nNOTE: This is a mock response. Full integration with Anthropic Agent SDK pending.",
-		filepath.Base(h.AgentFile),
-		len(prompt))
+	// Build full prompt: agent instructions + message context
+	fullPrompt := string(agentContent) + "\n\n" + prompt
 
-	_ = agentContent // Will be used when SDK integration is complete
+	// Execute Claude CLI with agent mode
+	// claude --prompt "..." --model <model>
+	var cmd *exec.Cmd
+	if h.Model != "" {
+		cmd = exec.Command("claude", "--prompt", fullPrompt, "--model", h.Model)
+	} else {
+		cmd = exec.Command("claude", "--prompt", fullPrompt)
+	}
+	cmd.Dir = h.WorkDir
 
-	return response, nil
+	// Capture output
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("claude CLI execution failed: %w\nOutput: %s", err, string(output))
+	}
+
+	return string(output), nil
 }
 
 // SkillHandler bridges AILANG skills (.claude/skills/*) with the agent protocol.

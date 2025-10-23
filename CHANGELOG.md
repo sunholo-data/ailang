@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### ClaudeAgentHandler: Real Claude CLI Integration
+
+**User Impact**: ClaudeAgentHandler now executes real Claude agents via Claude CLI (no more mocks!).
+
+**Changes**:
+- ✅ Replaced mock execution with real `claude` CLI command
+- ✅ Reads `.claude/agents/*.md` file and injects message context
+- ✅ Executes with configurable model (default: claude-sonnet-4-5)
+- ✅ Returns actual Claude output
+
+**Requirements**:
+- Install: `npm install -g @anthropic-ai/claude-agent-sdk`
+- Configure: `export ANTHROPIC_API_KEY=your_key`
+
+**Files Modified**:
+- `internal/agentrunner/claude_bridge.go` (+10 LOC, real CLI integration)
+
+---
+
 ### M-AGENT-PROTOCOL: Autonomous AI Agent Coordination System
 
 **User Impact**: AILANG now includes a production-ready agent protocol system enabling autonomous AI agents to communicate, coordinate, and recover from crashes. Agents can work together on development tasks like analyzing eval failures, creating design docs, and executing sprints.
