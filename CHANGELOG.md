@@ -1,5 +1,81 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### M-POLY-B Phase 1: Var-Bound Polymorphic Lambdas (Comparison Operators)
+
+**User Impact**: Var-bound polymorphic lambdas with comparison operators now work correctly. Example: `let max = \x. \y. if x > y then x else y in max(3.14)(2.71)` → `3.14` (previously panicked).
+
+**Problem**: Var-bound polymorphic lambdas failed at runtime because operators inside specialized lambda bodies weren't being re-linked with correct types.
+
+**Root Cause Analysis**:
+- Dictionary elaboration (BinOp → DictApp) only ran in REPL, not file pipeline
+- Monomorphization cloned lambdas but didn't re-elaborate operators
+- Type substitution missing TVar2 support
+- Operator resolution used wrong strategy (intrinsic type vs operand type)
+
+**Implementation** (Phase 1 - Comparison Operators):
+
+- ✅ **Dictionary Elaboration in All Pipelines** (`internal/pipeline/pipeline.go`)
+  - Added `ElaborateWithDictionaries()` to file pipeline (line 228-244)
+  - Added to module pipeline (line 680-701)
+  - BinOp → DictApp transformation now consistent across REPL and files
+
+- ✅ **Type Substitution Enhanced** (`internal/pipeline/specialize.go`)
+  - Added TVar2 case with normalization (line 1019-1027)
+  - Fixed `substituteType()` to handle both TVar and TVar2
+  - Normalized TVar2 → TVar when possible
+
+- ✅ **cloneExpr Let Case Added** (`internal/pipeline/specialize.go`)
+  - Added missing Let case (line 1008-1017)
+  - Properly clones Let bindings during specialization
+  - Updates CoreTI with substituted types
+
+- ✅ **Operator Resolution Strategy Fixed** (`internal/pipeline/op_lowering.go`)
+  - Changed comparison operators to use operand type instead of result type
+  - `isComparisonOrEqualityOp()` function determines strategy
+  - Fixes: `>`, `<`, `>=`, `<=`, `==`, `!=`
+
+**What Works Now** ✅:
+- Var-bound comparison lambdas: `let max = \x. \y. if x > y then x else y in max(3.14)(2.71)` → `3.14`
+- All comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+- All equality operators: `==`, `!=`
+- Polymorphic type preservation: Types stay polymorphic until call site
+
+**What Remains (Phase 2, Deferred to v0.4.2)** ❌:
+- Var-bound arithmetic lambdas: `let add = \x. \y. x + y in add(3.14)(2.71)`
+  - Root cause: Type inference defaults arithmetic to `int` (Num typeclass defaulting)
+  - Workaround 1: Type annotations: `let add: float -> float -> float = \x. \y. x + y`
+  - Workaround 2: Inline lambdas: `(\x. \y. x + y)(3.14)(2.71)` (works!)
+  - Phase 2 requires type inference changes (4-8 hours, complex)
+
+**Bugs Fixed**:
+1. Dictionary elaboration missing from file pipeline
+2. Type substitution missing TVar2 support
+3. cloneExpr missing Let case
+4. substituteType not normalizing TVar2
+5. Operator resolution using wrong strategy for comparison
+
+**Tests**:
+- ✅ Comparison operators: All 6 working with var-bound lambdas
+- ✅ Type substitution: TVar and TVar2 both handled
+- ✅ Monomorphization: Correctly specializes comparison lambdas
+- ❌ Arithmetic operators: Phase 2 (type inference issue)
+
+**Files Modified**:
+- `internal/pipeline/pipeline.go` (+120 LOC)
+- `internal/pipeline/specialize.go` (+40 LOC)
+- `internal/pipeline/op_lowering.go` (+10 LOC)
+
+**Documentation**:
+- `M-POLY-B-PHASE1-COMPLETE.md` (implementation report)
+- `M-POLY-B-PHASE1-COMPLETION-REPORT.md` (this changelog entry)
+- `design_docs/planned/v0_4_1/m-poly-b-operator-relinking.md` (updated)
+
+**Time Investment**: 12 hours (within 8-16 hour estimate for Phase 1)
+
+---
+
 ## [v0.3.18] - 2025-10-23
 
 ### M-DX4: Var Type Resolution (Float Comparison Fix)

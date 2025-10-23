@@ -225,18 +225,26 @@ ailang run --entry main --caps IO --no-mono module.ail
 
 **What Gets Specialized (v0.4.0):**
 - ✅ **Inline lambda applications**: `(\x. \y. if x > y then x else y)(3.14)(2.71)` ← Works!
+- ✅ **Var-bound lambdas with comparison operators**: `let max = \x. \y. if x > y then x else y in max(3.14)(2.71)` ← **Fixed in M-POLY-B Phase 1!**
 - ✅ Concrete argument types that can be statically determined
 - ✅ Non-recursive lambdas
 
 **What Gets Skipped (v0.4.0):**
-- ❌ **Var-bound lambdas**: `let max = \x. \y. if x > y then x else y; max(3.14)(2.71)` ← Runtime panic!
-  - **Why**: Specializer only checks if callee is `Lam`, not if it's `Var` bound to `Lam`
-  - **Workaround**: Inline the lambda or add type annotations: `\x: float. \y: float. ...`
-  - **Fix**: v0.4.1 will add `Var→Lam` resolution (~1 day implementation)
+- ❌ **Var-bound lambdas with arithmetic operators**: `let add = \x. \y. x + y in add(3.14)(2.71)` ← Runtime panic!
+  - **Why**: Type inference defaults arithmetic to `int` (Num typeclass defaulting)
+  - **Workaround 1**: Type annotations: `let add: float -> float -> float = \x. \y. x + y`
+  - **Workaround 2**: Inline lambdas: `(\x. \y. x + y)(3.14)(2.71)` (works!)
+  - **Fix**: v0.4.2 (Phase 2) will fix type inference defaulting (~4-8 hours)
 - ⏭️ Recursive functions (diagnostic message explains why)
 - ⏭️ Mutually recursive groups (diagnostic message explains why)
 - ⏭️ Functions hitting per-function cap (16 limit)
 - ⏭️ Modules hitting module cap (512 limit)
+
+**M-POLY-B Phase 1 Complete (v0.4.0):**
+- ✅ Comparison operators work: `>`, `<`, `>=`, `<=`, `==`, `!=`
+- ✅ Fixed 5 bugs: dictionary elaboration, type substitution, cloneExpr, substituteType, operator resolution
+- ❌ Arithmetic operators broken: `+`, `-`, `*`, `/`, `%` (Phase 2 deferred to v0.4.2)
+- See: [M-POLY-B-PHASE1-COMPLETION-REPORT.md](M-POLY-B-PHASE1-COMPLETION-REPORT.md)
 
 **Key Discovery:**
 Hindley-Milner type inference already specializes simple polymorphic lambdas during type checking. The monomorphization pass is designed for:

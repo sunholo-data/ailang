@@ -1,9 +1,9 @@
 # M-POLY-B: Operator Re-Linking in Monomorphization
 
-**Status**: Planned
-**Target**: v0.4.1
-**Priority**: P0 (High) - Blocks M-POLY-A completion
-**Estimated**: 1-2 days (10-16 hours)
+**Status**: ✅ Phase 1 COMPLETE / ❌ Phase 2 DEFERRED to v0.4.2
+**Target**: v0.4.0 (Phase 1) / v0.4.2 (Phase 2)
+**Priority**: P0 (High) - Phase 1 shipped, Phase 2 requires type system work
+**Actual Time**: 12 hours (Phase 1)
 **Dependencies**: M-POLY-A (v0.4.0 - Var→Lam resolution infrastructure)
 
 ## AI-First Alignment Check
@@ -142,6 +142,11 @@ We need to ensure cloned lambdas use the correct dispatch mechanism.
 
 **✅ Investigation complete! Root cause identified.**
 
+**Status Update (2025-10-23 Evening):**
+- ✅ **Comparison operators FIXED** - Var-bound polymorphic lambdas work for `>`, `<`, `>=`, `<=`, `==`, `!=`
+- ❌ **Arithmetic operators BROKEN** - Var-bound polymorphic lambdas fail for `+`, `-`, `*`, `/`
+- 🔍 **New root cause identified** - Type inference defaults arithmetic to `int` instead of `float`
+
 **Key Discovery: Dictionary Elaboration Only Runs in REPL, Not File Pipeline**
 
 The operator linking flow is:
@@ -152,62 +157,82 @@ The operator linking flow is:
 5. **Var Resolution** → M-DX4 workaround for monomorphic cases
 6. **Operator Lowering** → BinOp/Intrinsic → typed builtin (gt_Float vs gt_Int)
 
-**The Problem:**
+**The Problem (PARTIALLY FIXED in M-POLY-B Phase 1):**
 - **REPL** calls `ElaborateWithDictionaries()` at line 92 of `internal/repl/repl_eval.go` ✅
 - **File pipeline** NEVER calls dictionary elaboration! ❌
 - Monomorphization clones operators but they remain as BinOp (not DictApp)
 - Cloned operators get fresh NodeIDs and type substitution applied to CoreTI
-- But type substitution changes `α2 → float`, which still has Head=Unknown during lowering!
-- Lowering falls back to Default (Int), causing runtime type mismatch
+- Type substitution applied: `α2 → float`
+- ✅ **FIXED for comparison**: Uses operand type (line 335 in op_lowering.go)
+- ❌ **BROKEN for arithmetic**: Uses intrinsic result type (line 338 in op_lowering.go), which defaults to `int`
 
 **Test Results:**
 
-**Inline Lambda (Works):**
+**Comparison Operators (WORKS - Fixed in Phase 1):**
 ```bash
-$ ailang run --debug-compile /tmp/test_inline_max.ail
-[DEBUG] Monomorphization: 0 specializations, 0 skipped
+$ ailang run --debug-compile /tmp/test_gt_inline.ail
 [DEBUG M-DX4] NodeID 1: type=float, head=Float  ← Float recognized!
-[DEBUG] CoreTI hits: 1 (100.0%)
+Result: 3.14 ✅
+
+$ ailang run /tmp/test_varbound_max.ail
+# let max = \x. \y. if x > y then x else y in max(3.14)(2.71)
 Result: 3.14 ✅
 ```
 
-**Var-Bound Lambda (Fails):**
+**Arithmetic Operators (BROKEN - New Discovery):**
 ```bash
-$ ailang run --debug-compile /tmp/test_varbound_max.ail
-[DEBUG] Monomorphization: 1 specializations, 0 skipped
-[DEBUG M-DX4] NodeID 1: type=α2, head=Unknown  ← TVar not resolved!
-[DEBUG] Default fallback: 2 (100.0%)
+$ ailang run --debug-compile /tmp/test_add_inline.ail
+[DEBUG M-DX4] NodeID 3: type=int, head=Int  ← WRONG! Should be float
 panic: interface conversion: *FloatValue, not *IntValue ❌
+
+# Even inline arithmetic fails!
+# (\x. \y. x + y)(3.14)(2.71)  ← Expected: 5.85, Actual: panic
 ```
 
-**Why Inline Works:**
-- No monomorphization needed (direct application)
-- Type inference resolves types BEFORE any cloning
-- CoreTI already has concrete types (float) when lowering runs
+**Critical Discovery: The operator lowering uses different strategies for different operators!**
 
-**Why Var-Bound Fails:**
-- Lambda cloned during monomorphization
-- Type substitution applied: `α2 → float`
-- BUT substitution creates new TVar, not concrete TCon!
-- Head(TVar) = Unknown → Default fallback → Int → panic
-
-**Root Cause: substituteType() Creates TVars Instead of Concrete Types**
-
-Need to check how `substituteType()` works in the specializer:
-
+From `internal/pipeline/op_lowering.go:330-339`:
 ```go
-// internal/pipeline/specialize.go line ~941
-s.CoreTI.Set(cloned.ID(), substituteType(typ, typeSubst))
+// For comparison and equality operators, use the operand type (not result type Bool)
+// For other operators, use the intrinsic's result type
+var typeNode uint64
+if isComparisonOrEqualityOp(intrinsic.Op) && len(intrinsic.Args) > 0 {
+    // Use first operand's type for comparison/equality
+    typeNode = intrinsic.Args[0].ID()  // ✅ This works!
+} else {
+    // Use intrinsic's own type for arithmetic, boolean, etc.
+    typeNode = intrinsic.ID()  // ❌ This defaults to int!
+}
 ```
 
-The issue is likely that `substituteType()` recursively substitutes type variables but doesn't collapse them to concrete types when the substitution map contains concrete types.
+**Root Cause: Type Inference Defaults Arithmetic to Int**
+
+The type checker is inferring `type=int` for arithmetic operators even when both operands are floats. This is a **type inference defaulting bug**, not specific to monomorphization.
+
+**Why Comparison Works:**
+- Uses **operand's type** (first argument of `>`)
+- `Lit(3.14)` has type `float` in CoreTI
+- Lowering correctly selects `gt_Float`
+
+**Why Arithmetic Fails:**
+- Uses **intrinsic's result type**
+- Type checker infers result as `int` (defaulting rule)
+- Lowering incorrectly selects `_int_add` instead of `_float_add`
+- Runtime panic: FloatValue passed to Int builtin
 
 **Investigation Files:**
-- Test cases: `/tmp/test_inline_max.ail`, `/tmp/test_varbound_max.ail`
+- Test cases: `/tmp/test_inline_max.ail` (works), `/tmp/test_varbound_max.ail` (works), `/tmp/test_add_inline.ail` (fails)
 - Pipeline: `internal/pipeline/pipeline.go` (no dict elaboration in file path!)
 - REPL: `internal/repl/repl_eval.go:92` (dict elaboration present)
 - Specializer: `internal/pipeline/specialize.go:928-1077` (cloneExpr function)
-- Lowering: `internal/pipeline/op_lowering.go:298-400` (lowerIntrinsic function)
+- Lowering: `internal/pipeline/op_lowering.go:298-442` (lowerIntrinsic function)
+
+**Phase 1 Bugs Fixed (M-POLY-B-PHASE1-COMPLETE.md):**
+1. ✅ Dictionary elaboration missing from file pipeline → Added to both pipelines
+2. ✅ Type substitution missing TVar2 support → Added TVar2 case
+3. ✅ cloneExpr missing Let case → Added Let case
+4. ✅ substituteType missing TVar2 normalization → Added normalization
+5. ✅ Operator resolution using wrong strategy → **PARTIALLY FIXED** (comparison works, arithmetic doesn't)
 
 ### Implementation Plan
 
@@ -221,8 +246,75 @@ The issue is likely that `substituteType()` recursively substitutes type variabl
 
 **Deliverable:** Clear understanding of operator resolution mechanism ✅
 
-**Phase 2: Implement Re-Elaboration** (~4-8 hours)
+**Phase 2: Fix Arithmetic Operator Type Resolution** (~4-8 hours) **← BLOCKED ON TYPE INFERENCE**
 
+**Status:** BLOCKED - Root cause is in type inference, not operator lowering
+
+**Critical Discovery (2025-10-23 Evening):**
+
+The problem is **NOT** in operator lowering - it's in **type inference defaulting**.
+
+**Evidence:**
+```bash
+# Comparison lambda: Stays polymorphic
+DEBUG_MONO_VERBOSE=1 ailang run /tmp/test_varbound_max.ail
+# Found lambda, type=α2 -> α2 -> α2, isPoly=true  ← POLYMORPHIC!
+
+# Arithmetic lambda: Defaults to Int during type checking
+DEBUG_MONO_VERBOSE=1 ailang run /tmp/test_varbound_add.ail
+# Found lambda, type=int -> int -> int, isPoly=false  ← MONOMORPHIC!
+```
+
+**Root Cause:**
+- Type checker defaults `\x. \y. x + y` to `int -> int -> int` **during type inference**
+- Comparison operators stay polymorphic: `\x. \y. if x > y then x else y` → `α -> α -> α`
+- By the time monomorphization runs, arithmetic lambda is already monomorphic (wrong type!)
+- Monomorphizer correctly skips it (`isPoly=false`)
+- Runtime panic: `int` builtin receives `float` arguments
+
+**Why Option A Failed:**
+- Modified operator lowering to use operand types
+- But operand types are lambda parameters (`Var(x)`), not call-site arguments (`Lit(3.14)`)
+- Lambda parameters have polymorphic types (or defaulted types), not concrete types
+- The fix needs to happen **earlier in the pipeline** (type checking)
+
+**Two possible approaches:**
+
+**Option B: Fix type inference defaulting rules** ← REQUIRED
+- Investigate `internal/types/infer.go` or `internal/types/typechecker_core.go`
+- Find where arithmetic operators trigger `int` defaulting
+- Comparison operators (Ord typeclass) don't trigger defaulting - why?
+- Arithmetic operators (Num typeclass) trigger defaulting - why?
+- Make Num typeclass behave like Ord typeclass (stay polymorphic)
+- Pro: Fixes root cause
+- Con: Complex, may affect other parts of type system, ~4-8 hours
+
+**Option C: Add type annotations to work around** ← WORKAROUND
+- Users can annotate: `let add: float -> float -> float = \x. \y. x + y`
+- Doesn't fix the bug, but provides escape hatch
+- Pro: Immediate workaround available
+- Con: Requires manual annotations, defeats purpose of type inference
+
+**Recommended:** Investigate Option B, but this is a **deeper type system issue** than initially thought.
+
+**Tasks:**
+- [ ] Find type inference defaulting logic in `internal/types/`
+- [ ] Understand why Ord typeclass doesn't trigger defaulting
+- [ ] Understand why Num typeclass triggers defaulting to `int`
+- [ ] Modify defaulting rules to keep Num polymorphic until call site
+- [ ] Test: `let add = \x. \y. x + y in add(3.14)(2.71)` should return `5.85`
+- [ ] Test all arithmetic operators: `+`, `-`, `*`, `/`, `%`
+- [ ] Document the fix in M-POLY-B-PHASE2-COMPLETE.md
+
+**Deliverable:** Arithmetic operators stay polymorphic until call site (like comparison operators)
+
+**Phase 3: Implement Re-Elaboration (DEFERRED)** (~4-8 hours)
+
+**Status:** DEFERRED - Not needed after Phase 1 fix
+
+The original plan was to re-elaborate operators after monomorphization. However, the Phase 1 fix (adding dictionary elaboration to file pipeline + using operand types for comparison) eliminated the need for re-elaboration. Phase 2 will complete the fix by extending the operand-type strategy to arithmetic operators.
+
+**Original tasks (kept for reference):**
 - [ ] Create `ElaborateExpr()` function for partial elaboration
 - [ ] Refactor `ElaborateWithDictionaries()` to use `ElaborateExpr()`
 - [ ] Add tests for re-elaboration (ensure idempotence)
@@ -230,25 +322,27 @@ The issue is likely that `substituteType()` recursively substitutes type variabl
 - [ ] Build ResolvedConstraint map from type substitution
 - [ ] Update CoreTypeInfo with re-elaborated nodes
 
-**Deliverable:** Working re-elaboration infrastructure
+**Deliverable:** Working re-elaboration infrastructure (DEFERRED)
 
-**Phase 3: Testing & Validation** (~2 hours)
+**Phase 4: Comprehensive Testing** (~2 hours)
 
-- [ ] Add integration tests for Var-bound lambda specialization
-- [ ] Test all operator types: `+`, `-`, `*`, `/`, `>`, `<`, `==`, etc.
+- [x] Test comparison operators with var-bound lambdas ✅ (Fixed in Phase 1)
+- [ ] Test arithmetic operators with var-bound lambdas (Blocked on Phase 2)
+- [ ] Test string concatenation (`++`) with var-bound lambdas
+- [ ] Test boolean operators (`&&`, `||`) with var-bound lambdas
 - [ ] Test multiple type instantiations: Int, Float, String
 - [ ] Verify no performance regression (benchmark against inline lambdas)
 - [ ] Test edge cases: nested operators, multiple operators in one lambda
 
-**Deliverable:** All tests passing, bug fixed
+**Deliverable:** All operators work, comprehensive test coverage
 
-**Phase 4: Documentation & Cleanup** (~1 hour)
+**Phase 5: Documentation & Cleanup** (~1 hour)
 
-- [ ] Remove verbose DEBUG_MONO_VERBOSE logging
-- [ ] Update CHANGELOG.md: Remove v0.4.0 limitation
-- [ ] Update CLAUDE.md: Remove "Direct lambda applications only" note
-- [ ] Add operator re-linking section to monomorphization.md
-- [ ] Clean up test files (test_max_fixed.ail, test_inline_max.ail)
+- [ ] Update CHANGELOG.md: Document Phase 1 fix (comparison operators)
+- [ ] Update CHANGELOG.md: Document Phase 2 fix (arithmetic operators) when complete
+- [ ] Update CLAUDE.md: Remove "Direct lambda applications only" limitation
+- [ ] Create M-POLY-B-IMPLEMENTATION.md with full implementation report
+- [ ] Clean up test files and move to examples/ if useful
 
 **Deliverable:** Clean, documented implementation
 
