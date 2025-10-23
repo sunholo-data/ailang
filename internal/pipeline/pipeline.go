@@ -47,6 +47,7 @@ type Config struct {
 	TrackInstantiations     bool                  // Track polymorphic type instantiations
 	LedgerHook              func(decision string) // Optional decision hook
 	DisableMonomorphization bool                  // Disable monomorphization pass (emergency escape hatch)
+	DisableVarResolution    bool                  // Disable Var type resolution (M-DX4 workaround, default enabled)
 	DebugCompile            bool                  // Show compilation statistics (specialization counts, etc.)
 
 	// Environment from REPL (optional)
@@ -280,6 +281,22 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	if cfg.DebugCompile && !cfg.DisableMonomorphization {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Monomorphization complete (%dms)\n",
 			result.PhaseTimings["monomorphization"])
+	}
+
+	// Phase 3.5.5: Var Type Resolution (M-DX4 workaround)
+	// Resolve Var types from monomorphic bindings to fix operand types for lowering.
+	// This propagates concrete types from Let bindings to Var usages when the binding
+	// has a monomorphic type (Int, Float, etc.) but the Var still has a TVar.
+	//
+	// This is a WORKAROUND for M-DX4. The principled fix (M-POLY-B) will re-elaborate
+	// specialized bodies after monomorphization.
+	if !cfg.DisableVarResolution {
+		resolver := NewVarResolver(typeChecker.CoreTI)
+		resolver.Resolve(coreProg)
+
+		if cfg.DebugCompile {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Var type resolution complete\n")
+		}
 	}
 
 	// Phase 3.6: Operator Lowering
@@ -737,6 +754,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 
 		// Phase 3.6: Operator Lowering
+		// Phase 3.5.5: Var Type Resolution (M-DX4 workaround) for this module
+		if !cfg.DisableVarResolution {
+			resolver := NewVarResolver(typeChecker.CoreTI)
+			resolver.Resolve(unit.Core)
+
+			if cfg.DebugCompile {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Var type resolution complete for module %s\n", modID)
+			}
+		}
+
 		// Check if shim is forbidden in CI mode (before any other logic)
 		if cfg.FailOnShim && cfg.ExperimentalBinopShim {
 			return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim in module %s", modID)
