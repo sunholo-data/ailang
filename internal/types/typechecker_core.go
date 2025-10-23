@@ -1,3 +1,31 @@
+// Package types implements Hindley-Milner type inference for AILANG's Core AST.
+//
+// # CoreTypeInfo Contract (M-DX4)
+//
+// CoreTypeInfo (CoreTI) is a mapping from Core NodeID to inferred Type. It is the
+// source of truth for type-guided code generation during lowering.
+//
+// **Contract**:
+//   - CoreTI is TOTAL for all Core nodes after type checking completes
+//   - Types may be type variables (TVar) before specialization/monomorphization
+//   - Lowering of overloaded operators requires non-TVar heads (concrete types)
+//   - If a Core node has no CoreTI entry, that is a COMPILER BUG
+//
+// **Phase Requirements**:
+//   - Pre-monomorphization: CoreTI may contain TVars for polymorphic code (VALID)
+//   - Post-monomorphization: Specialized bodies should have concrete types
+//   - Lowering phase: Operators need concrete heads; TVars trigger fallback to ResolvedConstraints
+//
+// **Validation**:
+//   - ValidateCoreTypeInfo (internal/pipeline) checks 100% coverage before lowering
+//   - Validation accepts TVars as valid (checks presence, not concreteness)
+//   - Use --debug-compile flag to see telemetry of CoreTI hits/misses during lowering
+//
+// **Debug**:
+//   - ailang debug ast <file> --show-types --compact: Inspect CoreTI for a file
+//   - ailang run --debug-compile <file>: See lowering telemetry (CoreTI coverage)
+//
+// See: design_docs/planned/v0_3_18/M-DX4-SPRINT-PLAN.md
 package types
 
 import (
