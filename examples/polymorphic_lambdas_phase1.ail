@@ -1,0 +1,59 @@
+-- Polymorphic Lambdas - Phase 1 Status (M-POLY-B)
+--
+-- This example demonstrates what WORKS and what DOESN'T with polymorphic lambdas
+-- as of M-POLY-B Phase 1 (v0.4.0)
+--
+-- Run with: ailang run --entry main examples/polymorphic_lambdas_phase1.ail
+
+-- ========================================
+-- ✅ COMPARISON OPERATORS (WORKING)
+-- ========================================
+-- Var-bound polymorphic lambdas with comparison operators work correctly!
+
+-- Generic max function - works with any comparable type
+let max = \x. \y. if x > y then x else y in
+let min = \x. \y. if x < y then x else y in
+
+-- Test with floats
+let maxFloat = max(3.14)(2.71) in  -- Returns: 3.14
+let minFloat = min(3.14)(2.71) in  -- Returns: 2.71
+
+-- Test with integers
+let maxInt = max(42)(17) in  -- Returns: 42
+let minInt = min(42)(17) in  -- Returns: 17
+
+-- Test with strings (lexicographic)
+let maxStr = max("hello")("world") in  -- Returns: "world"
+let minStr = min("hello")("world") in  -- Returns: "hello"
+
+-- ========================================
+-- ❌ ARITHMETIC OPERATORS (BROKEN)
+-- ========================================
+-- Var-bound polymorphic lambdas with arithmetic operators DON'T work yet.
+--
+-- THIS WOULD PANIC:
+-- let add = \x. \y. x + y in
+-- add(3.14)(2.71)  -- ❌ panic: FloatValue, not IntValue
+--
+-- ROOT CAUSE:
+-- Type inference defaults arithmetic to 'int' (Num typeclass defaulting)
+-- By the time monomorphization runs, lambda is already int->int->int
+-- Runtime panic when you pass floats
+--
+-- WORKAROUND:
+-- Currently NONE that work reliably.
+-- Use concrete types for now: maxFloat vs maxInt, not generic max
+--
+-- FUTURE (Phase 2, v0.4.2):
+-- Fix type inference to keep Num polymorphic (like Ord)
+-- Then arithmetic will work like comparison
+
+-- Output what works
+{
+  comparison_works: {
+    floats: { max: maxFloat, min: minFloat },
+    ints: { max: maxInt, min: minInt },
+    strings: { max: maxStr, min: minStr }
+  },
+  arithmetic_broken: "See comments for Phase 2 status"
+}
