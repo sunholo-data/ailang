@@ -1,5 +1,109 @@
 # AILANG Changelog
 
+## [v0.3.18] - 2025-10-23
+
+### M-DX4: Var Type Resolution (Float Comparison Fix)
+
+**User Impact**: Float comparisons in let-bound variables now work correctly instead of panicking. Example: `let f1 = 3.14 in let f2 = 2.71 in f1 > f2` → `true` (previously panicked with "interface conversion: FloatValue is not IntValue").
+
+**Problem**: After type inference and ApplySubstitution, Var nodes bound to monomorphic values (like float literals) still had unresolved type variables (TVars) in CoreTypeInfo. This caused operator lowering to fall back to Default (Int), resulting in runtime type mismatches when float values were used.
+
+**Root Cause Analysis**:
+- Hindley-Milner unification creates substitution mapping type variables to concrete types
+- ApplySubstitution resolves type variable chains BUT doesn't always propagate Let binding types to Var usages
+- Example: `let x = 3.14 in x > 0.0`
+  - Literal `3.14` has CoreTI entry: `float`
+  - Var `x` has CoreTI entry: `α4` (type variable, unresolved!)
+  - Operator lowering sees `α4`, Head=Unknown, falls back to Default (Int)
+  - Runtime: expects IntValue, receives FloatValue → panic
+
+**Implementation** (Option B: Pragmatic Workaround):
+
+- ✅ **Var Type Resolver** (`internal/pipeline/resolve_vars.go` - 175 LOC)
+  - Post-inference pass that propagates monomorphic types from Let bindings to Var usages
+  - Conservative rules:
+    - Only propagates concrete types (Int, Float, String, Bool, List)
+    - Preserves polymorphism (lambda params, polymorphic let-bindings stay as TVars)
+    - Respects shadowing (inner bindings override outer)
+    - Idempotent (running twice has no effect)
+  - Integrated at pipeline Phase 3.5.5 (after type checking, before lowering)
+  - Zero allocations, O(n) traversal
+  - Enabled by default, `--disable-var-resolution` flag to disable
+
+- ✅ **Pipeline Integration** (`internal/pipeline/pipeline.go`)
+  - Added VarResolver pass in both file and module pipelines
+  - Debug output: "Var type resolution complete" when `--debug-compile` enabled
+  - Config flag: `DisableVarResolution` (default: false)
+
+- ✅ **Enhanced Telemetry** (`internal/pipeline/op_lowering.go`)
+  - Track CoreTI hits/misses per operator
+  - Report via `--debug-compile`: "Lowering telemetry: X operators, Y% CoreTI hits"
+  - Fallback categories: CoreTI-hit, ResolvedConstraints, Default
+
+- ✅ **Documentation** (`internal/types/typechecker_core.go`)
+  - Enhanced CoreTypeInfo contract with TVar guidance
+  - Explains why TVars remain after type inference
+  - Documents VarResolver as pragmatic workaround until M-POLY-B
+
+**What Works Now** ✅:
+- Direct float comparisons: `3.14 > 2.71` → `true`
+- Let-bound float vars: `let x = 3.14 in x > 0.0` → `true`
+- Let chains: `let f1 = 3.14 in let f2 = 2.71 in f1 > f2` → `true`
+- Shadowing: `let x = 3.14 in let x = 42 in x > 0` → `true` (int comparison)
+- Direct lambda apps: `(\x. x > 0.0)(3.14)` → `true`
+
+**What Remains (Deferred to M-POLY-B, v0.4.1+)** ❌:
+- Var-bound polymorphic lambdas: `let maxF = \x. \y. if x > y then x else y in maxF(3.14)(2.71)`
+  - Currently: Compiles, panics at runtime (operators still have TVars in specialized body)
+  - M-POLY-B will fix: Re-elaborate specialized bodies after monomorphization
+
+**Tests**:
+- ✅ **Unit tests** (`internal/pipeline/resolve_vars_test.go` - 387 LOC)
+  - 7/7 tests passing
+  - `TestVarResolverMonomorphicFloat`: Basic float propagation
+  - `TestVarResolverLetChain`: Propagation through ANF chains
+  - `TestVarResolverPolymorphicParam`: Lambda params stay polymorphic
+  - `TestVarResolverMixedBindings`: Selective mono vs poly
+  - `TestVarResolverIdempotent`: Running twice has no effect
+  - `TestVarResolverNestedLet`: Shadowing resolution
+  - `TestVarResolverNonMonomorphic`: Polymorphic bindings not propagated
+
+- ✅ **Integration tests** (manual verification)
+  - Float comparison: `let f1 = 3.14 in let f2 = 2.71 in f1 > f2` → `true` (100% CoreTI hits)
+  - Polymorphic lambda: Compiles, panics at runtime (expected, deferred to M-POLY-B)
+
+**Debug Output Example**:
+```bash
+$ ailang run --debug-compile test.ail
+[DEBUG] Monomorphization (module test): 0 specializations, 0 skipped
+[DEBUG] Var type resolution complete for module test
+[DEBUG M-DX4] NodeID 3: type=float, head=Float
+[DEBUG] Lowering telemetry for module test:
+[DEBUG] Lowering telemetry: 1 operators processed
+[DEBUG]   CoreTI hits: 1 (100.0%)
+[DEBUG]   CoreTI misses: 0 (0.0%)
+true
+```
+
+**Metrics**:
+- Implementation: ~175 LOC (resolver) + ~50 LOC (integration/telemetry)
+- Tests: ~387 LOC unit tests
+- Test coverage: 7/7 unit tests passing, manual integration verification
+- All existing tests still passing
+
+**Files Modified** (4):
+- New: `internal/pipeline/resolve_vars.go` (175 LOC)
+- New: `internal/pipeline/resolve_vars_test.go` (387 LOC)
+- Modified: `internal/pipeline/pipeline.go` (+~30 LOC, VarResolver integration)
+- Modified: `internal/pipeline/op_lowering.go` (+~20 LOC, telemetry)
+- Modified: `internal/types/typechecker_core.go` (+20 LOC, documentation)
+
+**See Also**:
+- Design doc: `design_docs/planned/v0_3_18/M-DX4-SPRINT-PLAN.md`
+- Future work: `design_docs/planned/v0_4_1/m-poly-b-operator-relinking.md`
+
+---
+
 ## [v0.3.17] - 2025-10-22
 
 ### M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering
