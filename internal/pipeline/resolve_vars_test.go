@@ -37,9 +37,9 @@ func TestVarResolverMonomorphicFloat(t *testing.T) {
 	prog := &core.Program{Decls: []core.CoreExpr{letExpr}}
 
 	// Set initial CoreTI
-	coreTI.Set(lit.ID(), floatType)      // Literal has concrete type
-	coreTI.Set(varX.ID(), tvar)          // Var has TVar (unresolved)
-	coreTI.Set(letExpr.ID(), floatType)  // Let result type
+	coreTI.Set(lit.ID(), floatType)     // Literal has concrete type
+	coreTI.Set(varX.ID(), tvar)         // Var has TVar (unresolved)
+	coreTI.Set(letExpr.ID(), floatType) // Let result type
 
 	// Run resolver
 	resolver := NewVarResolver(coreTI)
@@ -91,9 +91,9 @@ func TestVarResolverLetChain(t *testing.T) {
 	prog := &core.Program{Decls: []core.CoreExpr{outerLet}}
 
 	// Set initial CoreTI
-	coreTI.Set(lit.ID(), floatType)       // Literal has concrete type
-	coreTI.Set(varX.ID(), tvar1)          // First Var has TVar
-	coreTI.Set(varY.ID(), tvar2)          // Second Var has TVar
+	coreTI.Set(lit.ID(), floatType) // Literal has concrete type
+	coreTI.Set(varX.ID(), tvar1)    // First Var has TVar
+	coreTI.Set(varY.ID(), tvar2)    // Second Var has TVar
 	coreTI.Set(innerLet.ID(), floatType)
 	coreTI.Set(outerLet.ID(), floatType)
 

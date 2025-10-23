@@ -27,10 +27,10 @@
 // After Hindley-Milner unification and ApplySubstitution, some Var nodes may still
 // have TVars in CoreTI. This happens because:
 //
-//   1. Let-bound variables: The substitution tracks Let bindings but doesn't always
-//      resolve Var references to their binding's concrete type
-//   2. Polymorphic preservation: Lambda parameters intentionally keep TVars until
-//      call-site specialization (M-POLY-B)
+//  1. Let-bound variables: The substitution tracks Let bindings but doesn't always
+//     resolve Var references to their binding's concrete type
+//  2. Polymorphic preservation: Lambda parameters intentionally keep TVars until
+//     call-site specialization (M-POLY-B)
 //
 // The VarResolver (internal/pipeline/resolve_vars.go) is a WORKAROUND that propagates
 // monomorphic types from Let bindings to Var usages. It only propagates concrete types
