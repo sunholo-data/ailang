@@ -1,10 +1,10 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.16 (Lambda Expressions Refactor)
+## Current Version: v0.3.18 (M-POLY-B Phase 1)
 
 ## Test Coverage: 33.4%
 
-## Recent Release: v0.3.16 (October 2025)
+## Recent Release: v0.3.18 (January 2025)
 
 **Lambda Examples Refactor:**
 - ✅ **6 Focused Lambda Tutorials** - Split into pedagogical examples (basic, curried, closures, higher-order, records, advanced)

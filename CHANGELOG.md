@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.3.18] - 2025-01-23
+
 ### M-POLY-B Phase 1: Var-Bound Polymorphic Lambdas (Comparison Operators)
 
 **User Impact**: Var-bound polymorphic lambdas with comparison operators now work correctly. Example: `let max = \x. \y. if x > y then x else y in max(3.14)(2.71)` → `3.14` (previously panicked).
