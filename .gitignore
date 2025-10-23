@@ -40,3 +40,6 @@ bin/ailang
 examples_report.json
 examples_status.md
 coverage.txt
+
+# Agent protocol runtime state (like .git/)
+.ailang/

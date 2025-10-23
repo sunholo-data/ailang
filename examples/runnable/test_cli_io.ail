@@ -1,0 +1,6 @@
+-- Simple IO test for CLI tests
+module examples/runnable/test_cli_io
+
+export func main() -> () ! {IO} {
+  _io_println("Hello from AILANG!")
+}
