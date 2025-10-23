@@ -8,6 +8,14 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// FallbackEvent tracks when CoreTI lookup misses during lowering
+type FallbackEvent struct {
+	Op       core.IntrinsicOp
+	NodeID   uint64
+	Fallback string // "CoreTI-hit", "ResolvedConstraints", "Default"
+	Location string // Source location if available
+}
+
 // OpLowerer performs type-directed lowering of intrinsic operations
 type OpLowerer struct {
 	typeEnv             *types.TypeEnv
@@ -15,6 +23,10 @@ type OpLowerer struct {
 	bindings            map[string]core.CoreExpr             // Variable name → bound expression
 	errors              []error
 	CoreTI              types.CoreTypeInfo // Core NodeID → inferred types (for type-guided lowering)
+
+	// M-DX4: Telemetry for tracking CoreTI coverage (gated by --debug-compile)
+	telemetry       []FallbackEvent
+	enableTelemetry bool
 }
 
 // NewOpLowerer creates a new operation lowerer
@@ -25,6 +37,30 @@ func NewOpLowerer(typeEnv *types.TypeEnv, coreTI types.CoreTypeInfo) *OpLowerer 
 		bindings:            make(map[string]core.CoreExpr),
 		errors:              []error{},
 		CoreTI:              coreTI,
+		telemetry:           []FallbackEvent{},
+		enableTelemetry:     false, // Enable with SetEnableTelemetry(true)
+	}
+}
+
+// SetEnableTelemetry enables/disables fallback telemetry tracking
+func (l *OpLowerer) SetEnableTelemetry(enable bool) {
+	l.enableTelemetry = enable
+}
+
+// GetTelemetry returns collected telemetry events
+func (l *OpLowerer) GetTelemetry() []FallbackEvent {
+	return l.telemetry
+}
+
+// trackFallback records a fallback event for telemetry
+func (l *OpLowerer) trackFallback(op core.IntrinsicOp, nodeID uint64, fallback string, location string) {
+	if l.enableTelemetry {
+		l.telemetry = append(l.telemetry, FallbackEvent{
+			Op:       op,
+			NodeID:   nodeID,
+			Fallback: fallback,
+			Location: location,
+		})
 	}
 }
 
@@ -301,6 +337,13 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		typeNode = intrinsic.ID()
 	}
 
+	// M-DX4: Get location for telemetry (if available)
+	location := ""
+	pos := intrinsic.OriginalSpan()
+	if pos.Line > 0 {
+		location = fmt.Sprintf("line %d", pos.Line)
+	}
+
 	// First, try to use CoreTI (principal types from type inference)
 	// This is the preferred method and eliminates ANF guessing
 	if inferredType, ok := l.CoreTI.Get(typeNode); ok {
@@ -308,31 +351,42 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		switch head {
 		case types.HeadInt:
 			typeSuffix = "Int"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		case types.HeadFloat:
 			typeSuffix = "Float"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		case types.HeadString:
 			typeSuffix = "String"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		case types.HeadBool:
 			typeSuffix = "Bool"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		case types.HeadList:
 			typeSuffix = "List"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
 		default:
-			// Unknown head - try resolved constraints as fallback
+			// Unknown head (TVar or unknown) - try resolved constraints as fallback
 			if constraint, ok := l.resolvedConstraints[typeNode]; ok {
 				typeSuffix = getTypeSuffixFromType(constraint.Type)
+				l.trackFallback(intrinsic.Op, typeNode, "ResolvedConstraints", location)
 			} else {
 				// M-DX4: For polymorphic operands, check if the INTRINSIC itself has a constraint
 				// This handles cases where lambda parameters are polymorphic but the comparison
 				// at the call site has been resolved
 				if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
 					typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
+					l.trackFallback(intrinsic.Op, intrinsic.ID(), "ResolvedConstraints-intrinsic", location)
 				} else {
 					// Last resort: use default based on operator
 					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+					l.trackFallback(intrinsic.Op, typeNode, "Default", location)
 				}
 			}
 		}
 	} else {
+		// CoreTI miss - track this as a gap
+		l.trackFallback(intrinsic.Op, typeNode, "CoreTI-miss", location)
+
 		if constraint, ok := l.resolvedConstraints[typeNode]; ok {
 			// Fallback to resolved constraints if CoreTI unavailable
 			typeSuffix = getTypeSuffixFromType(constraint.Type)
