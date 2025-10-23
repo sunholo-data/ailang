@@ -3,6 +3,7 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
@@ -348,6 +349,12 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	// This is the preferred method and eliminates ANF guessing
 	if inferredType, ok := l.CoreTI.Get(typeNode); ok {
 		head := types.Head(inferredType)
+
+		// M-DX4 DEBUG: Log the type and head we got
+		if l.enableTelemetry {
+			fmt.Fprintf(os.Stderr, "[DEBUG M-DX4] NodeID %d: type=%v, head=%v\n", typeNode, inferredType, head)
+		}
+
 		switch head {
 		case types.HeadInt:
 			typeSuffix = "Int"
