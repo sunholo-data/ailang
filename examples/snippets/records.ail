@@ -24,7 +24,7 @@ person.name
 
 -- Multiple field access
 let user = {id: 123, email: "test@example.com"} in
-show_Int(user.id) ++ " - " ++ user.email
+show(user.id) ++ " - " ++ user.email
 -- Output: "123 - test@example.com"
 
 -- =======================
@@ -97,7 +97,7 @@ ops.double(21)
 -- Note: Record patterns not yet implemented
 -- Future syntax will look like:
 -- match person {
---   {name, age} => name ++ " is " ++ show_Int(age)
+--   {name, age} => name ++ " is " ++ show(age)
 -- }
 
 -- =======================

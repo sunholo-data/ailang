@@ -2,9 +2,9 @@
 -- Provides ADT for JSON values and encoding function
 module std/json
 
-import stdlib/std/option (Option, Some, None)
-import stdlib/std/result (Result)
-import stdlib/std/list (foldl, foldr, map)
+import std/option (Option, Some, None)
+import std/result (Result)
+import std/list (foldl, foldr, map)
 
 -- JSON ADT with all JSON types
 export type Json =

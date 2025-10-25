@@ -69,20 +69,20 @@ true == true
 -- SHOW TYPE CLASS
 -- =======================
 
--- Showing integers
-show_Int(42)
+-- Showing integers (using implicit dictionary passing)
+show(42)
 -- Output: "42"
 
 -- Showing floats
-show_Float(3.14159)
+show(3.14159)
 -- Output: "3.14159"
 
 -- Showing booleans
-show_Bool(true)
+show(true)
 -- Output: "true"
 
 -- Showing strings (identity)
-show_String("Hello, AILANG!")
+show("Hello, AILANG!")
 -- Output: "Hello, AILANG!"
 
 -- =======================
@@ -94,7 +94,7 @@ show_String("Hello, AILANG!")
 -- Output: "Hello, World!"
 
 -- Building messages
-"The answer is " ++ show_Int(42)
+"The answer is " ++ show(42)
 -- Output: "The answer is 42"
 
 -- =======================
@@ -103,12 +103,12 @@ show_String("Hello, AILANG!")
 
 -- Identity function is polymorphic
 let id = \x. x in
-show_Int(id(42)) ++ ", " ++ show_String(id("hello"))
+show(id(42)) ++ ", " ++ show(id("hello"))
 -- Output: "42, hello"
 
 -- Generic comparison
 let equals = \x y. x == y in
-show_Bool(equals(1)(1)) ++ ", " ++ show_Bool(equals("a")("b"))
+show(equals(1)(1)) ++ ", " ++ show(equals("a")("b"))
 -- Output: "true, false"
 
 -- =======================
@@ -117,10 +117,10 @@ show_Bool(equals(1)(1)) ++ ", " ++ show_Bool(equals("a")("b"))
 
 -- Combining multiple type classes
 let result = if 10 > 5 then 42 else 0 in
-show_Int(result) ++ " is the answer"
+show(result) ++ " is the answer"
 -- Output: "42 is the answer"
 
 -- Numeric polymorphism
 let double = \x. x * 2 in
-show_Int(double(21)) ++ ", " ++ show_Float(double(3.14))
+show(double(21)) ++ ", " ++ show(double(3.14))
 -- Output: "42, 6.28"

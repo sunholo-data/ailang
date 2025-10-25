@@ -107,10 +107,11 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
 	} else if strings.HasPrefix(canonPath, "std/") {
-		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "stdlib/"
+		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "std/" (v0.3.20+)
+		// Note: Before v0.3.20, stdlib files were in stdlib/std/, now they're in std/
 		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
 		if stdlibPath == "" {
-			stdlibPath = "stdlib"
+			stdlibPath = "." // Current directory (std/ is at root)
 		}
 		stdPath := filepath.Join(stdlibPath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "stdlib: "+stdPath)
