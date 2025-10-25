@@ -15,11 +15,16 @@
 #   }
 # }
 #
+# Input:
+#   stdin - JSON payload from Claude Code (hook event data)
+#
 # Environment variables:
-#   CLAUDE_HOOK_JSON - JSON payload from Claude Code
 #   STATE_DIR - Agent protocol state directory (default: .ailang/state)
 
 set -euo pipefail
+
+# Read hook JSON from stdin (Claude Code sends hook data via stdin, not env var)
+HOOK_JSON=$(cat || echo "{}")
 
 # Configuration
 # Use home directory by default (where ailang CLI stores state)
@@ -39,19 +44,13 @@ log() {
 
 log "=== Stop Hook (Agent Handoff) Started ==="
 
-# Parse Claude hook JSON
-if [ -z "${CLAUDE_HOOK_JSON:-}" ]; then
-    log "ERROR: CLAUDE_HOOK_JSON not set"
-    echo "ERROR: CLAUDE_HOOK_JSON environment variable not set" >&2
-    exit 1
-fi
-
-log "Received hook event: $CLAUDE_HOOK_JSON"
+# Parse Claude hook JSON from stdin
+log "Received hook event: $HOOK_JSON"
 
 # Extract session info
-SESSION_ID=$(echo "$CLAUDE_HOOK_JSON" | jq -r '.sessionId // "unknown"')
-USER_ID=$(echo "$CLAUDE_HOOK_JSON" | jq -r '.userId // "unknown"')
-EVENT_TYPE=$(echo "$CLAUDE_HOOK_JSON" | jq -r '.event // "Stop"')
+SESSION_ID=$(echo "$HOOK_JSON" | jq -r '.sessionId // "unknown"')
+USER_ID=$(echo "$HOOK_JSON" | jq -r '.userId // "unknown"')
+EVENT_TYPE=$(echo "$HOOK_JSON" | jq -r '.event // "Stop"')
 
 log "Session ID: $SESSION_ID"
 log "User ID: $USER_ID"

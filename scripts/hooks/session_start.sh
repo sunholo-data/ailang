@@ -15,12 +15,17 @@
 #   }
 # }
 #
+# Input:
+#   stdin - JSON payload from Claude Code (hook event data)
+#
 # Environment variables:
-#   CLAUDE_HOOK_JSON - JSON payload from Claude Code
 #   CLAUDE_ENV_FILE - File to write environment variables to (provided by Claude Code)
 #   STATE_DIR - Agent protocol state directory (default: .ailang/state)
 
 set -euo pipefail
+
+# Read hook JSON from stdin (Claude Code sends hook data via stdin, not env var)
+HOOK_JSON=$(cat || echo "{}")
 
 # Configuration
 # Use home directory by default (where ailang CLI stores state)
@@ -67,13 +72,11 @@ fi
 touch "$LOCK_FILE"
 log "Created lock file to prevent duplicate execution"
 
-# Parse Claude hook JSON (if provided)
-if [ -n "${CLAUDE_HOOK_JSON:-}" ]; then
-    SESSION_ID=$(echo "$CLAUDE_HOOK_JSON" | jq -r '.sessionId // "unknown"')
-    USER_ID=$(echo "$CLAUDE_HOOK_JSON" | jq -r '.userId // "unknown"')
-    log "Session ID: $SESSION_ID"
-    log "User ID: $USER_ID"
-fi
+# Parse Claude hook JSON from stdin
+SESSION_ID=$(echo "$HOOK_JSON" | jq -r '.sessionId // "unknown"')
+USER_ID=$(echo "$HOOK_JSON" | jq -r '.userId // "unknown"')
+log "Session ID: $SESSION_ID"
+log "User ID: $USER_ID"
 
 # Check TWO inbox locations:
 # 1. Home directory: ~/.ailang/state/messages/inbox/user/_unread/

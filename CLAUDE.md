@@ -2,32 +2,41 @@
 
 ## 🚀 SESSION START ROUTINE
 
-**⚠️ CURRENT STATUS: Hook output doesn't reliably appear in Claude's context**
+**At the start of EVERY session, I MUST check for agent messages.**
 
-While the SessionStart hook runs successfully (verified in logs), the output doesn't consistently appear in my context. **Use the pragmatic workflow below instead.**
+The SessionStart hook automatically runs and should inject inbox messages into my context. If messages appear in system reminders, I acknowledge them. If not, I manually check the inbox.
 
-### Pragmatic Workflow (RECOMMENDED)
+### What I Do at Session Start
 
-**When you start a new session and expect agent messages:**
+**Step 1: Check system reminders for agent messages**
+- The SessionStart hook injects messages automatically
+- If I see inbox messages in system reminders → proceed to Step 3
 
-1. **User asks me to check inbox** (or I proactively check after major operations)
-2. **I run the inbox command:**
-   ```bash
-   ailang agent inbox --unread-only claude-code
-   ```
-3. **I see the messages and tell you about them**
-4. **I acknowledge after handling them:**
-   ```bash
-   ailang agent ack <message-id>
-   # or if I complete all tasks:
-   ailang agent ack --all
-   ```
-5. **If I fail to complete a task, I un-acknowledge it:**
-   ```bash
-   ailang agent unack <message-id>
-   ```
+**Step 2: Fallback - Manual inbox check (if no messages in system reminders)**
+```bash
+ailang agent inbox --unread-only claude-code
+```
+- This checks both inbox locations (see below)
+- If messages exist but didn't appear in system reminders, they'll show here
 
-### Why Two Inbox Locations?
+**Step 3: When I find messages (from hook OR manual check)**
+1. **Tell you about them**: "I found 2 unread messages from agents..."
+2. **Summarize content**: Explain what the agents reported
+3. **Ask what to do**: "Would you like me to review the sprint plan?"
+
+**Step 4: After handling messages**
+```bash
+ailang agent ack <message-id>    # Acknowledge specific message
+# OR
+ailang agent ack --all           # Acknowledge all messages
+```
+
+**Step 5: If I fail to complete a task**
+```bash
+ailang agent unack <message-id>  # Moves back to _unread for next session
+```
+
+### Two Inbox Locations
 
 **User Inbox** (`~/.ailang/state/messages/inbox/user/`):
 - Home directory, persists across projects
@@ -36,38 +45,38 @@ While the SessionStart hook runs successfully (verified in logs), the output doe
 
 **Claude-Code Inbox** (`.ailang/state/messages/claude-code/`):
 - Project directory, specific to this codebase
-- For messages TO claude-code agent (SessionStart hook queries this)
+- For messages TO claude-code agent (checked by SessionStart hook)
 - Check with: `ailang agent inbox --unread-only claude-code`
 
-### My Responsibilities When I See Messages
-
-1. ✅ **Tell you about them** - "I found 2 unread messages from agents..."
-2. ✅ **Summarize content** - Explain what the agents reported
-3. ✅ **Ask for next steps** - "Would you like me to review the sprint plan?"
-4. ✅ **Acknowledge when done** - `ailang agent ack <message-id>` or `ailang agent ack --all`
-5. ✅ **Un-acknowledge if I fail** - `ailang agent unack <message-id>` (moves back to _unread for next session)
+The SessionStart hook checks BOTH locations automatically.
 
 ### Technical Details (Background Info)
 
 **Hooks Configuration:**
-- Hooks are configured in `.claude/settings.local.json` (NOT separate hooks.json file)
+- Hooks are configured in `.claude/settings.local.json`
 - Hook commands use `$CLAUDE_PROJECT_DIR` for absolute paths
 - All hook activity logged to `~/.ailang/state/hooks.log`
 
 **SessionStart Hook:**
 - Script: `scripts/hooks/session_start.sh`
+- Reads hook event JSON from stdin (Claude Code standard)
 - Checks both inbox locations on every session start
-- Outputs message summaries to stdout
+- Outputs message summaries to stdout (appears in system reminders)
 - **Does NOT auto-mark as read** (prevents race conditions)
-- **Known Limitation**: Output doesn't reliably inject into Claude Code context
+
+**Stop Hook (Agent Handoff):**
+- Script: `scripts/hooks/agent_handoff.sh`
+- Reads hook event JSON from stdin
+- Detects design docs created in session (last 5 minutes)
+- Sends handoff messages to sprint-planner agent
 
 **Message Lifecycle:**
 1. Agent sends message → lands in `_unread` or `.pending.json`
-2. Claude checks inbox manually (or hook tries to show it)
+2. SessionStart hook injects into Claude's context (or manual check)
 3. Claude acknowledges → moves to `_processed` or `_read`
 4. If Claude fails → un-acknowledge → back to `_unread` for retry
 
-**Manual inbox check (if needed):**
+**Manual inbox commands:**
 ```bash
 # Check user inbox (home directory: ~/.ailang/state/messages/inbox/user/)
 ailang agent inbox user
