@@ -1,6 +1,7 @@
 -- Type Classes & Dictionary-Passing Demo
 -- This example demonstrates AILANG's type class resolution system
 -- All type class constraints are resolved to dictionary calls during compilation
+module examples/snippets/type_classes_working_reference
 
 -- Basic Arithmetic with Num type class
 -- These operations are transformed to dictionary calls
