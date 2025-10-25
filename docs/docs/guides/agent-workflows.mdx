@@ -104,6 +104,21 @@ Preview (most recent):
   Message ID: msg_20251025_143022_def456
 ```
 
+:::info Making Claude Aware of Messages
+The terminal notification shows you the message exists, BUT Claude (the AI assistant) can't see it automatically due to Claude Code's architecture.
+
+**To inform Claude:**
+- Tell Claude: "Check for agent messages"
+- Or ask: "Any messages from agents?"
+- Claude will run: `ailang agent inbox user`
+
+**How it works:**
+1. SessionStart hook forwards messages from user inbox
+2. You see terminal notification (visible to you)
+3. You tell Claude to check inbox (makes it visible to AI)
+4. Claude runs `ailang agent inbox user` to display messages
+:::
+
 ### Step 5: Review Results
 
 ```bash

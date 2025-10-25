@@ -79,14 +79,28 @@ Create `.claude/hooks.json`:
 ```json title=".claude/hooks.json"
 {
   "hooks": {
-    "Stop": {
-      "command": "bash scripts/hooks/agent_handoff.sh",
-      "timeout": 30
-    },
-    "SessionStart": {
-      "command": "bash scripts/hooks/session_start.sh",
-      "timeout": 10
-    }
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/hooks/agent_handoff.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/hooks/session_start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -243,8 +257,9 @@ ailang agent send sprint-planner '{
 
 **4. User Notification (SessionStart Hook)**
 
-Next time you start Claude Code:
+Next time you start Claude Code, the SessionStart hook runs automatically and:
 
+**What you see (in terminal):**
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║  📬 You have 1 unread message(s) from agents              ║
@@ -254,8 +269,40 @@ To view messages, run:
   ailang agent inbox user
 ```
 
-You run the command and see:
+**What Claude Code sees (after forwarding):**
+The hook also forwards messages to `.ailang/state/messages/claude-code/` inbox.
 
+:::info Important: Claude Can't See Messages Automatically
+Due to Claude Code's architecture, hooks output to the terminal but **cannot inject content into the AI's context**.
+
+**To make Claude aware of messages:**
+- Tell Claude: "Check for agent messages" or "Any messages from agents?"
+- Claude will then read `.ailang/state/messages/claude-code/` inbox
+- Or Claude runs the session start routine automatically (if configured in CLAUDE.md)
+:::
+
+**Check messages:**
+
+<Tabs groupId="check-methods">
+<TabItem value="user" label="View in Terminal">
+
+```bash
+# View your inbox (human-readable)
+ailang agent inbox user
+```
+
+</TabItem>
+<TabItem value="claude" label="Show to Claude">
+
+```bash
+# Make messages visible to Claude Code assistant
+ailang agent inbox user
+```
+
+</TabItem>
+</Tabs>
+
+**Example output:**
 ```
 📬 User Inbox (1 message)
 ================================================================================

@@ -34,10 +34,10 @@ mkdir -p "$(dirname "$LOG_FILE")"
 
 # Log function
 log() {
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >> "$LOG_FILE"
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] [Stop] $*" >> "$LOG_FILE"
 }
 
-log "=== Agent Handoff Hook Started ==="
+log "=== Stop Hook (Agent Handoff) Started ==="
 
 # Parse Claude hook JSON
 if [ -z "${CLAUDE_HOOK_JSON:-}" ]; then
@@ -130,5 +130,5 @@ EOF
     fi
 done
 
-log "=== Agent Handoff Hook Completed ==="
+log "=== Stop Hook (Agent Handoff) Completed ==="
 exit 0

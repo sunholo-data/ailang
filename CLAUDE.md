@@ -1,5 +1,93 @@
 # Claude Instructions for AILANG Development
 
+## 🚀 SESSION START ROUTINE
+
+**Messages from autonomous agents are automatically injected into your context at session start!**
+
+**⚠️ IMPORTANT: Hooks Configuration**
+- Hooks are configured in `.claude/settings.local.json` (NOT a separate hooks.json file)
+- Hook commands use `$CLAUDE_PROJECT_DIR` for absolute paths
+- Check logs at `~/.ailang/state/hooks.log` to verify hooks are running
+- If hooks aren't working, verify configuration is in the correct settings file
+
+The SessionStart hook automatically:
+1. Checks the user inbox for unread messages from autonomous agents
+2. Outputs message content to stdout, which Claude Code automatically adds to your context
+3. **Does NOT mark messages as read** - you must explicitly acknowledge them
+
+**What you'll see:**
+When a session starts with unread messages, they appear in your context like this:
+```
+📬 You have 2 unread message(s) from autonomous agents:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+From: sprint-planner
+Time: 2025-10-25T13:33:02Z
+Message:
+{
+  "message": "Sprint v0.4.2 ready to execute",
+  "milestones": 5,
+  "status": "ready",
+  "estimated_hours": "12-16"
+}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 These messages are from autonomous agents that completed work.
+   Review the messages above and decide if any action is needed.
+```
+
+**Your responsibilities when you see these messages:**
+1. **Acknowledge them to the user** - Tell the user you received messages from agents
+2. **Summarize the content** - Explain what the agents reported
+3. **Ask for next steps** - "Would you like me to review the sprint plan?" or "Should I proceed with the implementation?"
+4. **Mark messages as acknowledged** - Use `ailang agent ack <message-id>` or `ailang agent ack --all` to move messages to processed folder
+5. **Un-acknowledge if you fail** - If you can't complete the task (errors, blockers, need user help), use `ailang agent unack <message-id>` to move it back to unread for the next session
+
+**How it works (technical details):**
+- SessionStart hook configured in `.claude/settings.local.json`
+- Hook script: `scripts/hooks/session_start.sh`
+- UserPromptSubmit hook also configured (runs on every user message)
+- Stop hook runs when session ends (for agent handoffs)
+- The hook script queries both inbox locations:
+  - Home directory: `~/.ailang/state/messages/inbox/user/_unread/`
+  - Project directory: `.ailang/state/messages/claude-code/`
+- Hook outputs plain text to stdout (appears in system reminders)
+- Messages are **NOT** automatically marked as read - prevents race conditions in multi-session scenarios
+- Use `ailang agent ack <message-id>` to acknowledge individual messages (moves to `_processed`)
+- Use `ailang agent ack --all` to acknowledge all unread messages at once
+- Use `ailang agent unack <message-id>` to move acknowledged messages back to `_unread` if task failed
+- All hook activity is logged to `~/.ailang/state/hooks.log`
+- **Known Issue**: Claude Code's context injection may not always work - check logs to verify hooks are running
+
+**Manual inbox check (if needed):**
+```bash
+# Check user inbox (home directory: ~/.ailang/state/messages/inbox/user/)
+ailang agent inbox user
+ailang agent inbox --unread-only user
+
+# Check claude-code inbox (project directory: .ailang/state/messages/claude-code/)
+ailang agent inbox claude-code
+ailang agent inbox --unread-only claude-code
+
+# NOTE: Flags must come BEFORE agent ID!
+# ✅ Correct:   ailang agent inbox --unread-only claude-code
+# ❌ Incorrect: ailang agent inbox claude-code --unread-only
+
+# Acknowledge a specific message (moves to _processed)
+ailang agent ack msg_20251025_155729_a5f3e77ee975
+
+# Acknowledge all unread messages at once
+ailang agent ack --all
+
+# Un-acknowledge a message if task failed (moves back to _unread)
+ailang agent unack msg_20251025_155729_a5f3e77ee975
+
+# Archive old messages
+ailang agent inbox user --archive
+```
+
+---
+
 ## ⚠️ CRITICAL PRINCIPLES
 
 ### 0. NEVER DESTROY LOCAL WORK WITH GIT OPERATIONS

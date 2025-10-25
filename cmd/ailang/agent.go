@@ -31,6 +31,10 @@ func agentCommand() {
 		agentSendCommand()
 	case "inbox":
 		agentInboxCommand()
+	case "ack", "acknowledge":
+		agentAckCommand()
+	case "unack", "unacknowledge":
+		agentUnackCommand()
 	case "help", "--help", "-h":
 		printAgentHelp()
 	default:
@@ -46,6 +50,8 @@ func printAgentHelp() {
 	fmt.Println("Subcommands:")
 	fmt.Println("  send     Send a message to an agent")
 	fmt.Println("  inbox    Check inbox for messages")
+	fmt.Println("  ack      Acknowledge and mark messages as read")
+	fmt.Println("  unack    Move acknowledged messages back to unread")
 	fmt.Println("  top      Show agent queue status and metrics")
 	fmt.Println("  dlq      Manage dead letter queue")
 	fmt.Println("  help     Show this help message")
@@ -55,6 +61,9 @@ func printAgentHelp() {
 	fmt.Println("  ailang agent send --to-user '{\"status\": \"complete\"}'")
 	fmt.Println("  ailang agent inbox user                # Check user inbox")
 	fmt.Println("  ailang agent inbox --unread-only       # Only show unread")
+	fmt.Println("  ailang agent ack msg_20251025_154821   # Acknowledge message")
+	fmt.Println("  ailang agent ack --all                 # Acknowledge all messages")
+	fmt.Println("  ailang agent unack msg_20251025_154821 # Move back to unread")
 	fmt.Println("  ailang agent top                       # Show current status")
 	fmt.Println("  ailang agent dlq --list                # List failed messages")
 }
@@ -408,18 +417,22 @@ func agentInboxCommand() {
 	var agentID string
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: missing agent ID\n", red("Error"))
-		fmt.Fprintf(os.Stderr, "Usage: ailang agent inbox <agent-id> [flags]\n")
-		fmt.Fprintf(os.Stderr, "Example: ailang agent inbox user\n")
+		fmt.Fprintf(os.Stderr, "Usage: ailang agent inbox [flags] <agent-id>\n")
+		fmt.Fprintf(os.Stderr, "Examples:\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent inbox user\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent inbox --unread-only claude-code\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent inbox --unread-only user\n")
 		os.Exit(1)
 	}
 	agentID = fs.Arg(0)
 
-	// Special handling for user inbox
-	isUserInbox := agentID == "user"
-
-	if isUserInbox {
+	// Special handling for user and claude-code inboxes
+	switch agentID {
+	case "user":
 		showUserInbox(*stateDir, *unreadOnly, *readOnly, *archived, *archive, *limit)
-	} else {
+	case "claude-code":
+		showClaudeCodeInbox(*unreadOnly, *limit)
+	default:
 		showAgentInbox(*stateDir, agentID, *limit)
 	}
 }
@@ -518,6 +531,101 @@ func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveA
 	}
 }
 
+func showClaudeCodeInbox(unreadOnly bool, limit int) {
+	// Claude-code inbox is in project directory
+	inboxDir := ".ailang/state/messages/claude-code"
+	processedDir := filepath.Join(inboxDir, "_processed")
+
+	var messages []*agentprotocol.Envelope
+	var folder string
+
+	if unreadOnly {
+		folder = "unread"
+		// Read *.pending.json files from main directory
+		files, err := filepath.Glob(filepath.Join(inboxDir, "*.pending.json"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to scan inbox: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		for _, filePath := range files {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: failed to read %s: %v\n", yellow("Warning"), filePath, err)
+				continue
+			}
+
+			var msg agentprotocol.Envelope
+			if err := json.Unmarshal(data, &msg); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: failed to parse %s: %v\n", yellow("Warning"), filePath, err)
+				continue
+			}
+
+			messages = append(messages, &msg)
+		}
+	} else {
+		folder = "unread + processed"
+		// Read both unread (*.pending.json) and processed (_processed/*.json)
+		unreadFiles, _ := filepath.Glob(filepath.Join(inboxDir, "*.pending.json"))
+		processedFiles, _ := filepath.Glob(filepath.Join(processedDir, "*.json"))
+
+		allFiles := append(unreadFiles, processedFiles...)
+
+		for _, filePath := range allFiles {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+
+			var msg agentprotocol.Envelope
+			if err := json.Unmarshal(data, &msg); err != nil {
+				continue
+			}
+
+			messages = append(messages, &msg)
+		}
+	}
+
+	// Apply limit
+	if len(messages) > limit {
+		messages = messages[:limit]
+	}
+
+	// Display messages
+	if len(messages) == 0 {
+		fmt.Printf("%s No messages in %s folder\n", green("✓"), folder)
+		return
+	}
+
+	fmt.Printf("%s %s Inbox (%d message%s)\n", bold("📬"), cyan("claude-code"), len(messages), pluralize(len(messages)))
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println()
+
+	for i, msg := range messages {
+		fmt.Printf("%s Message %d/%d\n", bold("▶"), i+1, len(messages))
+		fmt.Printf("  ID: %s\n", cyan(msg.MessageID))
+		fmt.Printf("  From: %s\n", msg.FromAgent)
+		fmt.Printf("  Type: %s\n", msg.MessageType)
+		fmt.Printf("  Timestamp: %s\n", msg.Timestamp)
+
+		if msg.CorrelationID != "" {
+			fmt.Printf("  Correlation: %s\n", msg.CorrelationID)
+		}
+
+		// Display payload preview
+		if msg.Payload != nil {
+			payloadJSON, _ := json.Marshal(msg.Payload)
+			preview := string(payloadJSON)
+			if len(preview) > 200 {
+				preview = preview[:197] + "..."
+			}
+			fmt.Printf("  Payload: %s\n", preview)
+		}
+
+		fmt.Println()
+	}
+}
+
 func showAgentInbox(stateDir string, agentID string, limit int) {
 	reader := agentprotocol.NewMessageReader(stateDir)
 
@@ -582,4 +690,194 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
+}
+
+// agentAckCommand handles acknowledgment of messages
+func agentAckCommand() {
+	fs := flag.NewFlagSet("agent ack", flag.ExitOnError)
+	stateDir := fs.String("state-dir", getDefaultStateDir(), "State directory")
+	all := fs.Bool("all", false, "Acknowledge all unread messages")
+
+	fs.Parse(flag.Args()[2:])
+
+	// Get message IDs or patterns
+	args := fs.Args()
+
+	if *all {
+		ackAllMessages(*stateDir)
+		return
+	}
+
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "%s: missing message ID or pattern\n", red("Error"))
+		fmt.Fprintf(os.Stderr, "Usage: ailang agent ack <message-id>\n")
+		fmt.Fprintf(os.Stderr, "       ailang agent ack --all\n")
+		fmt.Fprintf(os.Stderr, "Examples:\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent ack msg_20251025_154821_ff2abd75af09\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent ack --all\n")
+		os.Exit(1)
+	}
+
+	messageID := args[0]
+	if err := ackMessage(*stateDir, messageID); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s Message %s acknowledged\n", green("✓"), messageID)
+}
+
+func ackMessage(stateDir, messageID string) error {
+	// Try to acknowledge from different inbox locations
+	locations := []struct {
+		dir  string
+		name string
+	}{
+		{filepath.Join(stateDir, "messages", "inbox", "user", "_unread"), "user inbox"},
+		{filepath.Join(".", ".ailang", "state", "messages", "claude-code"), "claude-code inbox"},
+	}
+
+	for _, loc := range locations {
+		// Try different filename patterns
+		patterns := []string{
+			messageID + ".json",
+			messageID + ".pending.json",
+			messageID, // In case user provides full filename
+		}
+
+		for _, pattern := range patterns {
+			srcPath := filepath.Join(loc.dir, pattern)
+			if _, err := os.Stat(srcPath); err == nil {
+				// Found the message, move it to processed/read
+				var dstDir string
+				if strings.Contains(loc.dir, "claude-code") {
+					dstDir = filepath.Join(".", ".ailang", "state", "messages", "claude-code", "_processed")
+				} else {
+					dstDir = filepath.Join(stateDir, "messages", "inbox", "user", "_read")
+				}
+
+				if err := os.MkdirAll(dstDir, 0755); err != nil {
+					return fmt.Errorf("failed to create directory: %w", err)
+				}
+
+				dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
+				if err := os.Rename(srcPath, dstPath); err != nil {
+					return fmt.Errorf("failed to move message: %w", err)
+				}
+
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("message not found: %s", messageID)
+}
+
+func ackAllMessages(stateDir string) {
+	count := 0
+	locations := []string{
+		filepath.Join(stateDir, "messages", "inbox", "user", "_unread"),
+		filepath.Join(".", ".ailang", "state", "messages", "claude-code"),
+	}
+
+	for _, srcDir := range locations {
+		files, err := filepath.Glob(filepath.Join(srcDir, "*.json"))
+		if err != nil {
+			continue
+		}
+
+		for _, srcPath := range files {
+			messageID := strings.TrimSuffix(filepath.Base(srcPath), ".json")
+			if err := ackMessage(stateDir, messageID); err == nil {
+				count++
+			}
+		}
+	}
+
+	if count == 0 {
+		fmt.Println("No messages to acknowledge")
+	} else {
+		fmt.Printf("%s Acknowledged %d message%s\n", green("✓"), count, pluralize(count))
+	}
+}
+
+// agentUnackCommand handles un-acknowledgment of messages (move back to unread)
+func agentUnackCommand() {
+	fs := flag.NewFlagSet("agent unack", flag.ExitOnError)
+	stateDir := fs.String("state-dir", getDefaultStateDir(), "State directory")
+
+	fs.Parse(flag.Args()[2:])
+
+	// Get message IDs
+	args := fs.Args()
+
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "%s: missing message ID\n", red("Error"))
+		fmt.Fprintf(os.Stderr, "Usage: ailang agent unack <message-id>\n")
+		fmt.Fprintf(os.Stderr, "Examples:\n")
+		fmt.Fprintf(os.Stderr, "  ailang agent unack msg_20251025_154821_ff2abd75af09\n")
+		os.Exit(1)
+	}
+
+	messageID := args[0]
+	if err := unackMessage(*stateDir, messageID); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s Message %s moved back to unread\n", green("✓"), messageID)
+}
+
+func unackMessage(stateDir, messageID string) error {
+	// Try to unacknowledge from different processed/read locations
+	locations := []struct {
+		srcDir string
+		dstDir string
+		name   string
+	}{
+		{
+			srcDir: filepath.Join(stateDir, "messages", "inbox", "user", "_read"),
+			dstDir: filepath.Join(stateDir, "messages", "inbox", "user", "_unread"),
+			name:   "user inbox",
+		},
+		{
+			srcDir: filepath.Join(".", ".ailang", "state", "messages", "claude-code", "_processed"),
+			dstDir: filepath.Join(".", ".ailang", "state", "messages", "claude-code"),
+			name:   "claude-code inbox",
+		},
+	}
+
+	for _, loc := range locations {
+		// Try different filename patterns
+		patterns := []string{
+			messageID + ".json",
+			messageID + ".pending.json",
+			messageID, // In case user provides full filename
+		}
+
+		for _, pattern := range patterns {
+			srcPath := filepath.Join(loc.srcDir, pattern)
+			if _, err := os.Stat(srcPath); err == nil {
+				// Found the message, move it back to unread
+				if err := os.MkdirAll(loc.dstDir, 0755); err != nil {
+					return fmt.Errorf("failed to create directory: %w", err)
+				}
+
+				// For claude-code inbox, change filename from .json back to .pending.json
+				dstFilename := filepath.Base(srcPath)
+				if strings.Contains(loc.dstDir, "claude-code") && !strings.HasSuffix(dstFilename, ".pending.json") {
+					dstFilename = strings.TrimSuffix(dstFilename, ".json") + ".pending.json"
+				}
+
+				dstPath := filepath.Join(loc.dstDir, dstFilename)
+				if err := os.Rename(srcPath, dstPath); err != nil {
+					return fmt.Errorf("failed to move message: %w", err)
+				}
+
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("message not found in processed/read folders: %s", messageID)
 }
