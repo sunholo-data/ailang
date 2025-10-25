@@ -1,6 +1,6 @@
 # M-DX4 Sprint Plan: CoreTypeInfo Completeness (REFINED)
 
-**Status**: Ready to Execute ✅
+**Status**: ✅ Implemented (v0.3.18)
 **Created**: 2025-10-22
 **Sprint Duration**: 1.5 days (4-6 hours total)
 **Priority**: P0 - Compiler Correctness

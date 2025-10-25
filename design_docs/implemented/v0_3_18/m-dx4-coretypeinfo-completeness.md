@@ -1,7 +1,8 @@
 # M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering
 
-**Status**: Planned
-**Target**: v0.3.15
+**Status**: ✅ Implemented (v0.3.18)
+**Original Target**: v0.3.15
+**Actual Delivery**: v0.3.18
 **Priority**: P0 - High (Compiler Correctness)
 **Estimated**: 6 hours (4h implementation + 1.5h testing + 0.5h docs)
 **Dependencies**: None

@@ -1,5 +1,7 @@
 # Sprint Plan: M-DX4 CoreTypeInfo Population Gaps
 
+**Status**: ✅ Implemented (v0.3.18)
+
 ## Summary
 
 Fix operator lowering for float comparisons in lambdas by ensuring CoreTypeInfo contains complete type information for all operands, eliminating runtime panics when wrong builtins are called.
