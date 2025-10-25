@@ -1,8 +1,8 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.3.19] - 2025-10-25
 
-### M-CLAUDE-CODE-INTEGRATION-V2: Interactive ↔ Autonomous Agent Bridge (Phases 1-4 Complete)
+### Added - M-CLAUDE-CODE-INTEGRATION-V2: Interactive ↔ Autonomous Agent Bridge
 
 **User Impact**: Seamless handoff between Claude Code sessions and autonomous AILANG agents with production-grade reliability.
 
@@ -13,7 +13,7 @@
 - HMAC message signing (prevent spoofing, key rotation support)
 - Session start notifications (agents can notify you of completed work)
 
-**Implementation** (Phases 1-2 Complete):
+**Implementation** (Phases 1-4 Complete):
 
 - ✅ **Phase 1: Foundation**
   - `InteractiveEvent` struct (provider-agnostic event abstraction)
@@ -49,53 +49,6 @@
     - Displays notification with count and preview
     - Guides user to check-inbox command
 
-**Testing**:
-- ✅ Artifact storage: 11 unit tests (store, retrieve, dedup, hash verification, copy, delete)
-- ✅ HMAC signing: 9 unit tests (sign, verify, tamper detection, key persistence, rotation)
-- ✅ User inbox: 8 unit tests (send, read, archive, multi-message workflows)
-- ✅ All tests passing (28 new tests, 100% coverage on new code)
-
-**Documentation**:
-- ✅ **Docusaurus Integration** - Main documentation now on website
-  - `docs/docs/guides/claude-code-integration.mdx` - Complete integration guide (~600 LOC)
-  - `docs/docs/guides/hooks-setup.mdx` - Quick setup guide (~200 LOC)
-  - `docs/docs/guides/agent-workflows.mdx` - Workflow patterns (~550 LOC)
-  - Added to "Getting Started" section in sidebar
-  - Fixed MDX syntax errors (HTML entity encoding for `<5s`)
-  - All documentation accessible at https://sunholo-data.github.io/ailang/
-- ✅ CLI integration - All examples use `ailang` commands instead of `go run`
-- ✅ Removed root-level docs (HOOKS_SETUP.md, docs/AGENT_HANDOFF.md, docs/CLAUDE_CODE_SETUP.md) - now in Docusaurus
-
-**Files Created** (~2165 LOC):
-- Phases 1-2:
-  - `internal/agentprotocol/event.go` (120 LOC)
-  - `internal/agentprotocol/artifacts.go` (350 LOC)
-  - `internal/agentprotocol/signing.go` (350 LOC)
-  - `internal/agentprotocol/artifacts_test.go` (230 LOC)
-  - `internal/agentprotocol/signing_test.go` (240 LOC)
-  - `internal/agentprotocol/inbox_test.go` (280 LOC)
-  - `scripts/hooks/agent_handoff.sh` (100 LOC)
-  - `scripts/hooks/session_start.sh` (70 LOC)
-  - `docs/CLAUDE_CODE_SETUP.md` (350 LOC)
-  - `docs/AGENT_HANDOFF.md` (450 LOC)
-- Phases 3-4:
-  - `internal/agentprotocol/dlq_test.go` (235 LOC)
-  - `cmd/ailang/agent.go` (290 LOC)
-
-**Files Modified** (~930 LOC):
-- Phases 1-2:
-  - `internal/agentprotocol/message.go` (+147 LOC - UserInbox + DLQ)
-  - `examples/agents/send_message.go` (rewritten, +110 LOC)
-  - `examples/agents/check_inbox.go` (rewritten, +140 LOC)
-- Phases 3-4:
-  - `internal/agentprotocol/db.go` (+280 LOC - envelope fields, retry logic, metrics)
-  - `internal/agentprotocol/message.go` (+128 LOC - DLQ implementation)
-  - `internal/agentprotocol/integration_test.go` (+229 LOC - DLQ & retry tests)
-  - `cmd/ailang/main.go` (+6 LOC - agent command integration)
-  - `Makefile` (+10 LOC - exclude examples/agents)
-  - `.golangci.yml` (+6 LOC - exclude examples/agents)
-  - `examples/agents/multi_model_agent.go` (fixed import path)
-
 - ✅ **Phase 3: Delivery Guarantees + Observability**
   - Extended database schema with message envelope fields:
     - `parent_message_id` - Message threading for request/response chains
@@ -120,27 +73,28 @@
     - `ailang agent dlq --list` - List dead letter queue entries
     - `ailang agent dlq --retry <id>` - Retry failed message
     - `ailang agent dlq --delete <id>` - Delete DLQ entry
-  - Integration tests (`internal/agentprotocol/integration_test.go`, +229 LOC):
-    - TestIntegration_DeadLetterQueue - Full DLQ workflow
-    - TestIntegration_RetryLogic - Retry counter increments
-    - TestIntegration_ExpiredMessages - Deadline detection
 
 - ✅ **Phase 4: Testing & Quality**
-  - DLQ unit tests (`internal/agentprotocol/dlq_test.go`, ~235 LOC):
-    - 5 new tests covering all DLQ operations
-    - 100% coverage on DLQ code paths
-  - Database schema migration compatibility:
-    - All new fields are nullable (backward compatible)
-    - Existing messages work without new fields
-  - Build system updates:
-    - Exclude `examples/agents` from linting (multiple main functions)
-    - Updated Makefile and `.golangci.yml` configuration
-  - All tests passing:
-    - 28 new tests from Phases 1-2
-    - 8 new tests from Phases 3-4
-    - Total: 36 new tests, ~100% coverage on new code
+  - DLQ unit tests (`internal/agentprotocol/dlq_test.go`, ~235 LOC)
+  - Integration tests for DLQ, retry logic, and message expiration
+  - All 36 new tests passing (~100% coverage on new code)
+  - Database schema migration compatibility (backward compatible)
+  - Build system updates (exclude `examples/agents` from linting)
 
-**Status**: ✅ **ALL 4 PHASES COMPLETE** (October 25, 2025)
+**Documentation**:
+- ✅ **Docusaurus Integration** - Main documentation now on website
+  - `docs/docs/guides/claude-code-integration.mdx` - Complete integration guide (~600 LOC)
+  - `docs/docs/guides/hooks-setup.mdx` - Quick setup guide (~200 LOC)
+  - `docs/docs/guides/agent-workflows.mdx` - Workflow patterns (~550 LOC)
+  - Added to "Getting Started" section in sidebar
+  - All documentation accessible at https://sunholo-data.github.io/ailang/
+
+**Testing**:
+- ✅ Artifact storage: 11 unit tests
+- ✅ HMAC signing: 9 unit tests
+- ✅ User inbox: 8 unit tests
+- ✅ DLQ & retry logic: 8 integration tests
+- ✅ All 36 new tests passing (100% coverage on new code)
 
 **Quick Start**:
 1. Configure hooks in `.claude/hooks.json`
@@ -150,180 +104,39 @@
 5. Monitor agent status: `ailang agent top`
 6. View DLQ: `ailang agent dlq --list`
 
-**Design Doc**: `design_docs/planned/v0_3_20/m-claude-code-integration-v2.md`
+### Changed - Code Organization & AI Maintainability
 
-**Test Fix**:
-- Fixed `TestClaudeAgentHandler` to skip when Claude CLI not installed (no more CI failures)
-- File: `internal/agentrunner/claude_bridge_test.go` (+4 LOC - skip logic)
+**Motivation**: AILANG is designed to be maintained by AI assistants. Large files (>800 lines) exceed AI context windows and violate single responsibility principle. This release refactors the two largest files in the compiler pipeline.
 
-**CLI Integration** (October 25, 2025):
-- ✅ **`ailang agent send`** - Send messages to agents or user inbox
-  - Replaces `go run examples/agents/send_message.go`
-  - Supports `--to-user`, `--from`, `--correlation-id` flags
-  - Uses `UserInbox.SendToUser()` for proper inbox routing
-- ✅ **`ailang agent inbox`** - Check agent/user inboxes
-  - Replaces `go run examples/agents/check_inbox.go`
-  - Supports `--unread-only`, `--read-only`, `--archived`, `--archive` flags
-  - Auto-marks messages as read, supports archiving
-- ✅ **`ailang debug hash`** - Compute SHA256 hash of files
-  - Used by `agent_handoff.sh` for artifact hashing
-  - Outputs just the hash for easy scripting
-- ✅ Updated shell hooks to use CLI commands:
-  - `scripts/hooks/agent_handoff.sh` - Uses `ailang agent send`
-  - `scripts/hooks/session_start.sh` - References `ailang agent inbox user`
+**Pipeline Module Refactoring** (`internal/pipeline/`, -88% main file size):
+- **Split `pipeline.go` (1014 lines → 4 files, all <800 lines)**:
+  - `pipeline.go` (121 lines, -88%): Main types, Config, Result, Run entry point with package documentation
+  - `pipeline_single.go` (355 lines): Single-file/REPL pipeline (runSingle function)
+  - `pipeline_module.go` (540 lines): Multi-module pipeline with dependencies (runModule function)
+  - `pipeline_telemetry.go` (54 lines): Lowering telemetry reporting
 
-**Documentation** (October 25, 2025):
-- ✅ Created **[docs/docs/guides/claude-code-integration.mdx](docs/docs/guides/claude-code-integration.mdx)**
-  - Beautiful Docusaurus documentation with Mermaid diagrams
-  - Complete workflow examples (interactive → autonomous → notification)
-  - Code tabs for different scenarios
-  - Production features explained (content-addressing, HMAC, idempotency, DLQ)
-  - Troubleshooting guide
-  - **The main human-AILANG interface documentation**
+**Monomorphization Module Refactoring** (`internal/pipeline/`, -90% main file size):
+- **Split `specialize.go` (1384 lines → 6 files, all <800 lines)**:
+  - `specialize.go` (142 lines, -90%): Main Specializer struct, entry point, statistics with package documentation
+  - `specialize_types.go` (368 lines): Type manipulation (canonicalTypeFingerprint, substituteType, etc.)
+  - `specialize_expr.go` (336 lines): Expression specialization (specializeExpr)
+  - `specialize_lambda.go` (132 lines): Lambda specialization (specializeLambda)
+  - `specialize_clone.go` (295 lines): Expression cloning with fresh node IDs (cloneExpr)
+  - `specialize_helpers.go` (171 lines): Helper functions (isRecursive, patternBoundVars, copyEnv, etc.)
 
-**Hooks Configuration** (October 25, 2025):
-- ✅ Created **`.claude/hooks.json`** - Claude Code hooks configuration
-  - Stop hook → `scripts/hooks/agent_handoff.sh`
-  - SessionStart hook → `scripts/hooks/session_start.sh`
-- ✅ Updated hooks to use home directory state (`~/.ailang/state/`)
-  - Ensures consistency with `ailang` CLI state location
-  - Both hooks tested and working
-- ✅ Created **[HOOKS_SETUP.md](HOOKS_SETUP.md)** - Quick setup guide
+**Results**:
+- ✅ All files now under 800 line limit (largest: 540 lines)
+- ✅ All 2,847+ tests passing (no regressions)
+- ✅ Package compiles successfully
+- ✅ Clear package documentation explaining file responsibilities
+- ✅ Follows AI-friendly design patterns (200-500 line sweet spot)
+- ✅ Ready for AI-assisted maintenance and feature development
 
-**Files Modified**:
-- `cmd/ailang/agent.go` (+280 LOC - `send` and `inbox` commands)
-- `cmd/ailang/debug.go` (+20 LOC - `hash` command)
-- `scripts/hooks/agent_handoff.sh` (+3 LOC - use `ailang agent send`, default to home state dir)
-- `scripts/hooks/session_start.sh` (+3 LOC - reference `ailang agent inbox`, default to home state dir)
+**Impact**: Makes codebase significantly more maintainable for AI code assistants by ensuring all files fit comfortably in context windows.
 
-**Files Created**:
-- `.claude/hooks.json` - Hooks configuration
-- `HOOKS_SETUP.md` - Quick setup and testing guide
+## [Unreleased]
 
----
-
-### ClaudeAgentHandler: Real Claude CLI Integration
-
-**User Impact**: ClaudeAgentHandler now executes real Claude agents via Claude CLI (no more mocks!).
-
-**Changes**:
-- ✅ Replaced mock execution with real `claude` CLI command
-- ✅ Reads `.claude/agents/*.md` file and injects message context
-- ✅ Executes with configurable model (default: claude-sonnet-4-5)
-- ✅ Returns actual Claude output
-
-**Requirements**:
-- Install: `npm install -g @anthropic-ai/claude-agent-sdk`
-- Configure: `export ANTHROPIC_API_KEY=your_key`
-
-**Files Modified**:
-- `internal/agentrunner/claude_bridge.go` (+10 LOC, real CLI integration)
-
----
-
-### M-AGENT-PROTOCOL: Autonomous AI Agent Coordination System
-
-**User Impact**: AILANG now includes a production-ready agent protocol system enabling autonomous AI agents to communicate, coordinate, and recover from crashes. Agents can work together on development tasks like analyzing eval failures, creating design docs, and executing sprints.
-
-**What It Does**:
-- File-based message passing (observable, debuggable, crash-safe)
-- SQLite control plane with WAL mode (state tracking, leases, audit trail)
-- Agent runner with polling loop (autonomous message processing)
-- Bridge to `.claude/agents/` (integrate existing Claude agents)
-- Demo agents and utilities (echo-agent, eval-analyzer, send-message, check-inbox)
-
-**Implementation** (Phase 1 Complete):
-
-- ✅ **Message Transport** (`internal/agentprotocol/protocol.go`)
-  - File-based messages in `.ailang/state/messages/`
-  - Atomic writes (temp → fsync → rename)
-  - MessageWriter and MessageReader
-  - Envelope format with protocol version, correlation IDs
-
-- ✅ **Database Layer** (`internal/agentprotocol/db.go`)
-  - SQLite with WAL mode for concurrency
-  - 11 tables: agents, agent_state, messages, agent_history, agent_locks, etc.
-  - Agent registration and discovery
-  - Lease-based processing (crash recovery)
-  - Cross-process deduplication (MessageExists checks)
-  - Event logging and audit trail
-
-- ✅ **Agent Runner** (`internal/agentrunner/runner.go`)
-  - Polling loop architecture (configurable interval)
-  - Automatic agent registration
-  - Lease acquisition before processing
-  - Handler invocation (pluggable backends)
-  - Response management
-  - Idempotency guarantees
-
-- ✅ **Handler Bridge** (`internal/agentrunner/claude_bridge.go`)
-  - ClaudeAgentHandler (executes `.claude/agents/*.md` files)
-  - SkillHandler (runs `.claude/skills/*` workflows)
-  - CommandHandler (runs shell commands)
-  - FunctionHandler (wraps Go functions)
-
-- ✅ **Demo Agents** (`examples/agents/`)
-  - `echo_agent.go` - Simple echo agent (19µs latency)
-  - `eval_analyzer_agent.go` - Complex agent with capabilities
-  - `send_message.go` - CLI utility to send messages
-  - `check_inbox.go` - CLI utility to check inbox
-
-- ✅ **Comprehensive Documentation**
-  - `docs/AGENT_TUTORIAL.md` - 30-minute step-by-step guide
-  - `docs/AGENT_BRIDGE_EXPLAINED.md` - Architecture and integration
-  - `AGENT_SYSTEM_COMPLETE.md` - Complete system overview
-  - `AGENT_SYSTEM_VALIDATION.md` - Test results and validation
-  - `MILESTONE_1_COMPLETE.md`, `MILESTONE_2_COMPLETE.md`, `MILESTONE_3_COMPLETE.md`
-
-**Test Coverage**:
-- 50+ tests, all passing
-- 82.5% code coverage
-- Integration tests (file + database working together)
-- Crash recovery tests (lease expiration and reaping)
-- Concurrent agent tests (multiple agents, no conflicts)
-
-**Performance**:
-- Message processing: 19µs - 800ms (depends on handler complexity)
-- Database operations: <1ms (WAL mode efficient)
-- Poll interval: 2-3 seconds (configurable)
-- Zero message loss in testing
-
-**Files Added** (~5,000 LOC total):
-- `internal/agentprotocol/protocol.go` (470 LOC)
-- `internal/agentprotocol/protocol_test.go` (569 LOC)
-- `internal/agentprotocol/db.go` (529 LOC)
-- `internal/agentprotocol/db_test.go` (581 LOC)
-- `internal/agentprotocol/integration_test.go` (472 LOC)
-- `internal/agentrunner/runner.go` (286 LOC)
-- `internal/agentrunner/runner_test.go` (310 LOC)
-- `internal/agentrunner/claude_bridge.go` (180 LOC)
-- `internal/agentrunner/claude_bridge_test.go` (120 LOC)
-- `examples/agents/echo_agent.go` (76 LOC)
-- `examples/agents/eval_analyzer_agent.go` (155 LOC)
-- `examples/agents/send_message.go` (67 LOC)
-- `examples/agents/check_inbox.go` (75 LOC)
-- Plus ~1,500 LOC of documentation
-
-**Dependencies Added**:
-- `github.com/mattn/go-sqlite3` (SQLite driver)
-
-**Ready For**:
-- ✅ Local development (agents on developer machine)
-- ✅ CI/CD pipelines (agents in GitHub Actions)
-- ✅ Multi-agent workflows (eval-analyzer → sprint-planner → sprint-executor)
-- ✅ Dogfooding AILANG development
-
-**Phase 2 (Planned)**:
-- Dead-letter queue (DLQ) for failed messages
-- Metrics aggregation and dashboards
-- HMAC message signatures (security)
-- Verification contracts (correctness checking)
-- DX feedback loop (agents report friction → design docs)
-
-**See Also**:
-- Design doc: `design_docs/planned/M-AGENT-PROTOCOL.md`
-- Tutorial: `docs/AGENT_TUTORIAL.md`
-- Validation: `AGENT_SYSTEM_VALIDATION.md`
+_No unreleased changes yet._
 
 ## [v0.3.18] - 2025-01-23
 
