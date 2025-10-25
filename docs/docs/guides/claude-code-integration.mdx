@@ -17,15 +17,23 @@ This is the **primary way humans interact with AILANG**—through Claude Code fo
 :::
 
 :::success Ready to Use in AILANG Repo!
-**Already working in the AILANG repository?** The hooks are configured and ready to go! Just:
+**Already working in the AILANG repository?** The hooks are configured and ready to go!
 
+:::warning Pragmatic Workflow
+SessionStart hooks run successfully but output doesn't reliably appear in Claude's context. **Manual checking works well**: Ask Claude to run `ailang agent inbox --unread-only claude-code` at the start of each session.
+:::
+
+**Test commands:**
 ```bash
-# Test it right now:
-ailang agent send --to-user '{"message": "Hooks work", "status": "ready"}'
-ailang agent inbox user
+# Send test message
+ailang agent send --to-user '{"message": "Test", "status": "ready"}'
 
-# Or trigger the SessionStart hook:
-bash scripts/hooks/session_start.sh
+# Check inbox (FLAGS BEFORE AGENT ID!)
+ailang agent inbox --unread-only user
+ailang agent inbox --unread-only claude-code
+
+# Acknowledge messages
+ailang agent ack --all
 ```
 
 See [Hooks Setup Guide](./hooks-setup.mdx) for more details.

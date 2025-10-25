@@ -2,7 +2,9 @@
 
 **Status**: ✅ COMPLETE (October 2025)
 **Version**: v0.3.14+
-**Implementation Time**: ~3 hours
+**Implementation Time**: ~5 hours (including troubleshooting and documentation)
+
+**Current State**: Fully functional via CLI commands. SessionStart hook runs but output doesn't reliably appear in Claude Code's context.
 
 ## Problem Statement
 
@@ -224,9 +226,33 @@ ls -la .ailang/state/messages/claude-code/_processed/
 
 ## Known Limitations
 
-1. **Hook output reliability**: SessionStart hook output may not always appear in Claude Code context (Claude Code limitation, not our bug)
-2. **Manual fallback required**: If hook output doesn't appear, user must manually run `ailang agent inbox` to see messages
-3. **No automatic retry**: If ack command fails, user must retry manually
+1. **Hook output reliability**: SessionStart hook output does NOT reliably appear in Claude Code context
+   - **Root Cause**: Claude Code's system reminder injection is unreliable/not working as documented
+   - **Evidence**: Hook runs successfully (verified in logs), outputs to stdout, but context doesn't receive it
+   - **Impact**: Medium - workaround via manual `ailang agent inbox` command works well
+
+2. **Manual workflow required**: User must ask Claude to check inbox, Claude runs `ailang agent inbox --unread-only claude-code`
+
+3. **Two inbox locations**: User inbox vs claude-code inbox can be confusing
+   - Solution: Documentation clearly explains the two locations and when to use each
+
+4. **Flag ordering requirement**: Flags must come BEFORE agent ID (`ailang agent inbox --unread-only claude-code`)
+   - This is a Go flag package limitation, documented in help text
+
+## Pragmatic Workflow (CURRENT BEST PRACTICE)
+
+**What works reliably:**
+
+1. User starts new session and says: "Check inbox" or "Any agent messages?"
+2. Claude runs: `ailang agent inbox --unread-only claude-code`
+3. Claude sees messages, summarizes them to user
+4. Claude processes the tasks
+5. Claude acknowledges: `ailang agent ack --all` (or per-message)
+6. If Claude fails: `ailang agent unack <msg-id>` to retry in next session
+
+**What doesn't work:**
+- ❌ Automatic context injection via SessionStart hook (unreliable)
+- ❌ Hook output appearing as system reminders (Claude Code limitation)
 
 ## Future Enhancements
 
@@ -234,13 +260,14 @@ ls -la .ailang/state/messages/claude-code/_processed/
 2. **Acknowledgment with reply**: `ailang agent ack <id> --reply "message"`
 3. **Expiration-based auto-ack**: Auto-acknowledge messages older than N days
 4. **Acknowledgment history**: Track which sessions acknowledged which messages
+5. **Hook reliability**: Investigate alternative injection methods if Claude Code fixes system reminder support
 
 ## Metrics
 
-- **Lines Changed**: ~150 lines (removed auto-mark-as-read, added ack command)
-- **Files Modified**: 4 (session_start.sh, agent.go, settings.local.json, CLAUDE.md)
-- **Test Coverage**: Manual testing (no automated tests yet)
-- **Development Time**: ~3 hours (including debugging and documentation)
+- **Lines Changed**: ~300 lines (removed auto-mark-as-read, added ack/unack commands, added claude-code inbox support)
+- **Files Modified**: 5 (session_start.sh, agent.go, settings.local.json, CLAUDE.md, design doc)
+- **Test Coverage**: Manual testing + verified hook execution via logs
+- **Development Time**: ~5 hours (including debugging, flag ordering fix, documentation sweep)
 
 ## Related Documents
 

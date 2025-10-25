@@ -2,62 +2,70 @@
 
 ## 🚀 SESSION START ROUTINE
 
-**Messages from autonomous agents are automatically injected into your context at session start!**
+**⚠️ CURRENT STATUS: Hook output doesn't reliably appear in Claude's context**
 
-**⚠️ IMPORTANT: Hooks Configuration**
-- Hooks are configured in `.claude/settings.local.json` (NOT a separate hooks.json file)
+While the SessionStart hook runs successfully (verified in logs), the output doesn't consistently appear in my context. **Use the pragmatic workflow below instead.**
+
+### Pragmatic Workflow (RECOMMENDED)
+
+**When you start a new session and expect agent messages:**
+
+1. **User asks me to check inbox** (or I proactively check after major operations)
+2. **I run the inbox command:**
+   ```bash
+   ailang agent inbox --unread-only claude-code
+   ```
+3. **I see the messages and tell you about them**
+4. **I acknowledge after handling them:**
+   ```bash
+   ailang agent ack <message-id>
+   # or if I complete all tasks:
+   ailang agent ack --all
+   ```
+5. **If I fail to complete a task, I un-acknowledge it:**
+   ```bash
+   ailang agent unack <message-id>
+   ```
+
+### Why Two Inbox Locations?
+
+**User Inbox** (`~/.ailang/state/messages/inbox/user/`):
+- Home directory, persists across projects
+- For messages TO the user from any agent
+- Check with: `ailang agent inbox --unread-only user`
+
+**Claude-Code Inbox** (`.ailang/state/messages/claude-code/`):
+- Project directory, specific to this codebase
+- For messages TO claude-code agent (SessionStart hook queries this)
+- Check with: `ailang agent inbox --unread-only claude-code`
+
+### My Responsibilities When I See Messages
+
+1. ✅ **Tell you about them** - "I found 2 unread messages from agents..."
+2. ✅ **Summarize content** - Explain what the agents reported
+3. ✅ **Ask for next steps** - "Would you like me to review the sprint plan?"
+4. ✅ **Acknowledge when done** - `ailang agent ack <message-id>` or `ailang agent ack --all`
+5. ✅ **Un-acknowledge if I fail** - `ailang agent unack <message-id>` (moves back to _unread for next session)
+
+### Technical Details (Background Info)
+
+**Hooks Configuration:**
+- Hooks are configured in `.claude/settings.local.json` (NOT separate hooks.json file)
 - Hook commands use `$CLAUDE_PROJECT_DIR` for absolute paths
-- Check logs at `~/.ailang/state/hooks.log` to verify hooks are running
-- If hooks aren't working, verify configuration is in the correct settings file
+- All hook activity logged to `~/.ailang/state/hooks.log`
 
-The SessionStart hook automatically:
-1. Checks the user inbox for unread messages from autonomous agents
-2. Outputs message content to stdout, which Claude Code automatically adds to your context
-3. **Does NOT mark messages as read** - you must explicitly acknowledge them
+**SessionStart Hook:**
+- Script: `scripts/hooks/session_start.sh`
+- Checks both inbox locations on every session start
+- Outputs message summaries to stdout
+- **Does NOT auto-mark as read** (prevents race conditions)
+- **Known Limitation**: Output doesn't reliably inject into Claude Code context
 
-**What you'll see:**
-When a session starts with unread messages, they appear in your context like this:
-```
-📬 You have 2 unread message(s) from autonomous agents:
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-From: sprint-planner
-Time: 2025-10-25T13:33:02Z
-Message:
-{
-  "message": "Sprint v0.4.2 ready to execute",
-  "milestones": 5,
-  "status": "ready",
-  "estimated_hours": "12-16"
-}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 These messages are from autonomous agents that completed work.
-   Review the messages above and decide if any action is needed.
-```
-
-**Your responsibilities when you see these messages:**
-1. **Acknowledge them to the user** - Tell the user you received messages from agents
-2. **Summarize the content** - Explain what the agents reported
-3. **Ask for next steps** - "Would you like me to review the sprint plan?" or "Should I proceed with the implementation?"
-4. **Mark messages as acknowledged** - Use `ailang agent ack <message-id>` or `ailang agent ack --all` to move messages to processed folder
-5. **Un-acknowledge if you fail** - If you can't complete the task (errors, blockers, need user help), use `ailang agent unack <message-id>` to move it back to unread for the next session
-
-**How it works (technical details):**
-- SessionStart hook configured in `.claude/settings.local.json`
-- Hook script: `scripts/hooks/session_start.sh`
-- UserPromptSubmit hook also configured (runs on every user message)
-- Stop hook runs when session ends (for agent handoffs)
-- The hook script queries both inbox locations:
-  - Home directory: `~/.ailang/state/messages/inbox/user/_unread/`
-  - Project directory: `.ailang/state/messages/claude-code/`
-- Hook outputs plain text to stdout (appears in system reminders)
-- Messages are **NOT** automatically marked as read - prevents race conditions in multi-session scenarios
-- Use `ailang agent ack <message-id>` to acknowledge individual messages (moves to `_processed`)
-- Use `ailang agent ack --all` to acknowledge all unread messages at once
-- Use `ailang agent unack <message-id>` to move acknowledged messages back to `_unread` if task failed
-- All hook activity is logged to `~/.ailang/state/hooks.log`
-- **Known Issue**: Claude Code's context injection may not always work - check logs to verify hooks are running
+**Message Lifecycle:**
+1. Agent sends message → lands in `_unread` or `.pending.json`
+2. Claude checks inbox manually (or hook tries to show it)
+3. Claude acknowledges → moves to `_processed` or `_read`
+4. If Claude fails → un-acknowledge → back to `_unread` for retry
 
 **Manual inbox check (if needed):**
 ```bash

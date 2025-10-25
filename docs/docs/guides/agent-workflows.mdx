@@ -10,21 +10,26 @@ import { ArrowRight, CheckCircle, Play, Users } from 'lucide-react';
 
 This guide demonstrates real-world workflows for handing off work between interactive Claude Code sessions and autonomous AILANG agents.
 
+:::info Pragmatic Workflow
+SessionStart hooks run successfully but output doesn't reliably appear in Claude's context. **Use manual inbox checking instead**: Ask Claude to run `ailang agent inbox --unread-only claude-code` at the start of each session.
+:::
+
 ## Quick Reference
 
 **Key Commands:**
 ```bash
-# View user inbox
-ailang agent inbox user
+# Check inboxes (FLAGS BEFORE AGENT ID!)
+ailang agent inbox --unread-only claude-code  # Project-specific
+ailang agent inbox --unread-only user          # Global
 
-# Send to agent
+# Acknowledge messages
+ailang agent ack msg_20251025_155729_a5f3e77ee975  # Single message
+ailang agent ack --all                              # All messages
+ailang agent unack msg_20251025_155729_a5f3e77ee975 # Un-acknowledge (retry)
+
+# Send messages
 ailang agent send <agent> '<json-payload>'
-
-# Send to user
 ailang agent send --to-user '<json-payload>'
-
-# Wait for response
-ailang agent send --wait 30s <agent> '<json>'
 ```
 
 ## Workflow 1: Design → Implement → Notify
@@ -86,18 +91,19 @@ The sprint-planner agent (running separately):
 → Sends completion message to user inbox
 ```
 
-### Step 4: Next Session (Notification)
+### Step 4: Next Session (Check Inbox)
 
 You start a new Claude Code session:
 
-```bash
-# session_start.sh runs automatically:
-╔═══════════════════════════════════════════════════════════╗
-║  📬 You have 1 unread message(s) from agents              ║
-╚═══════════════════════════════════════════════════════════╝
+```
+You: "Check inbox"
 
-To view messages, run:
-  ailang agent inbox user
+Claude: *runs: ailang agent inbox --unread-only claude-code*
+Claude: "I found 1 message from sprint-executor:
+        The import fix has been implemented and tested.
+        All 15 tests passing. Ready to review."
+
+You: "Great! Show me the changes"
 
 Preview (most recent):
   From: sprint-executor

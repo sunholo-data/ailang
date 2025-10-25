@@ -8,9 +8,9 @@ import { AlertCircle, CheckCircle, Play, Terminal } from 'lucide-react';
 
 # Claude Code Hooks Setup
 
-**Status**: ✅ **Ready to Use** (October 25, 2025)
+**Status**: ⚠️ **Partially Working** (October 25, 2025)
 
-The AILANG repository is configured with Claude Code hooks for seamless interactive ↔ autonomous agent integration.
+The AILANG repository is configured with Claude Code hooks for agent integration. Hooks execute successfully but output doesn't reliably appear in Claude's context. **Manual workflow is recommended.**
 
 ## What's Configured
 
@@ -24,43 +24,38 @@ The AILANG repository is configured with Claude Code hooks for seamless interact
 2. **SessionStart Hook** (`scripts/hooks/session_start.sh`)
    - **Triggers**: When you start a Claude Code session
    - **Actions**:
-     - Checks user inbox for messages from autonomous agents
-     - Displays notification with unread count and preview
-     - **Forwards messages to Claude Code assistant inbox** (makes them visible to AI)
-     - Marks forwarded messages as read
+     - Checks both inbox locations (user + claude-code)
+     - Outputs message summaries to stdout
+     - **Does NOT auto-mark as read** (prevents race conditions)
+   - **⚠️ Known Issue**: Output doesn't reliably appear in Claude's context
+   - **Workaround**: Ask Claude to run `ailang agent inbox --unread-only claude-code`
 
 ### Configuration File
 
-`.claude/hooks.json` - Already created and ready to use!
+`.claude/settings.local.json` - Hooks configured here (NOT hooks.json!)
 
-```json title=".claude/hooks.json"
+```json title=".claude/settings.local.json"
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/hooks/agent_handoff.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/hooks/session_start.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
+    "Stop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/agent_handoff.sh",
+        "timeout": 30
+      }]
+    }],
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh",
+        "timeout": 10
+      }]
+    }]
   }
 }
 ```
+
+**Note**: Hooks must use `$CLAUDE_PROJECT_DIR` for absolute paths.
 
 ## Quick Test
 
@@ -73,12 +68,18 @@ ailang agent send --to-user '{"message": "Testing hooks", "status": "ready"}'
 ### Test 2: Check Your Inbox
 
 ```bash
-ailang agent inbox user
+# Check user inbox
+ailang agent inbox --unread-only user
+
+# Check claude-code inbox (project-specific)
+ailang agent inbox --unread-only claude-code
 ```
+
+**⚠️ Note**: Flags must come BEFORE agent ID!
 
 **Expected output:**
 ```
-📬 User Inbox (1 message)
+📬 user Inbox (1 message)
 ================================================================================
 
 ▶ Message 1/1
@@ -96,50 +97,102 @@ bash scripts/hooks/session_start.sh
 
 **Expected output:**
 ```
-╔═══════════════════════════════════════════════════════════╗
-║  📬 You have 1 unread message(s) from agents              ║
-╚═══════════════════════════════════════════════════════════╝
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📬 AGENT INBOX: 1 unread message(s) from autonomous agents
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-To view messages, run:
-  ailang agent inbox user
+From: cli-sender
+Time: 2025-10-25T12:00:00Z
+Message: {"message":"Testing hooks","status":"ready"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 Review the messages above and decide if any action is needed.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-The hook also forwards the message to the Claude Code assistant inbox, making it visible to the AI in the current session.
-
-**To verify forwarding worked:**
+**To verify hook executed:**
 ```bash
 tail -10 ~/.ailang/state/hooks.log
-# Should show: "Successfully forwarded message msg_... from cli-sender to claude-code"
+# Should show: "Found 1 unread message(s) across all inbox locations"
 ```
+
+**⚠️ Known Issue**: This output doesn't reliably appear in Claude Code's context. Use the manual workflow instead.
+
+## Pragmatic Workflow (RECOMMENDED)
+
+**Since automatic context injection doesn't reliably work, use this manual workflow:**
+
+### When Starting a New Session
+
+1. **You ask Claude**: "Check inbox" or "Any agent messages?"
+
+2. **Claude runs**:
+   ```bash
+   ailang agent inbox --unread-only claude-code
+   ```
+
+3. **Claude sees messages** and tells you about them
+
+4. **Claude processes tasks** (reviews sprint, implements features, etc.)
+
+5. **Claude acknowledges when done**:
+   ```bash
+   # If all tasks completed successfully:
+   ailang agent ack --all
+
+   # If specific task completed:
+   ailang agent ack msg_20251025_155729_a5f3e77ee975
+
+   # If task failed (to retry in next session):
+   ailang agent unack msg_20251025_155729_a5f3e77ee975
+   ```
 
 ## How It Works
 
-### Message Forwarding (SessionStart Hook)
+### Two Inbox Locations
 
-When you start a Claude Code session, the SessionStart hook automatically:
+**User Inbox** (`~/.ailang/state/messages/inbox/user/`):
+- Home directory, persists across projects
+- For messages TO the user from any agent
+- Check with: `ailang agent inbox --unread-only user`
 
-1. **Checks user inbox** for unread messages at `~/.ailang/state/messages/inbox/user/_unread/`
-2. **Displays notification** to you in the terminal
-3. **Forwards messages** to Claude Code assistant inbox (project-local: `.ailang/state/messages/claude-code/`)
-4. **Marks as read** by moving messages to `~/.ailang/state/messages/inbox/user/_read/`
+**Claude-Code Inbox** (`.ailang/state/messages/claude-code/`):
+- Project directory, specific to this codebase
+- For messages TO claude-code agent
+- Check with: `ailang agent inbox --unread-only claude-code`
+- SessionStart hook queries this location
 
-This ensures that both you AND the AI assistant are aware of messages from autonomous agents.
+### SessionStart Hook Behavior
 
-**Message Format (forwarded to Claude Code):**
-```json
-{
-  "original_message_id": "msg_...",
-  "from_agent": "sprint-planner",
-  "original_timestamp": "2025-10-25T12:00:00Z",
-  "content": {
-    "status": "completed",
-    "milestone": "5/5",
-    "result": "Implementation complete"
-  }
-}
+When you start a Claude Code session, the SessionStart hook:
+
+1. **Checks both inboxes** for unread messages
+2. **Outputs summary** to stdout (formatted, human-readable)
+3. **Does NOT auto-mark as read** (prevents race conditions)
+4. **Logs activity** to `~/.ailang/state/hooks.log`
+
+**⚠️ Known Limitation**: Hook output doesn't reliably appear in Claude's context (Claude Code limitation).
+
+### Message Lifecycle
+
 ```
+1. Agent sends message
+   ↓
+2. Lands in _unread or .pending.json
+   ↓
+3. Claude checks inbox (user asks)
+   ↓
+4. Claude processes task
+   ↓
+5a. SUCCESS → ailang agent ack
+   ↓
+   Moves to _processed or _read
 
-**Note:** Due to Claude Code architecture, the AI assistant can only see forwarded messages if you explicitly show them (e.g., by running `cat .ailang/state/messages/claude-code/*.json` or asking the assistant to check). The hook prepares messages for AI consumption but doesn't automatically inject them into the conversation context.
+5b. FAILURE → ailang agent unack
+   ↓
+   Moves back to _unread
+   ↓
+   Next session sees it again
+```
 
 ### Agent Handoff Workflow Example
 
