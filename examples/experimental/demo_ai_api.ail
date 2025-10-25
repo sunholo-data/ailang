@@ -3,9 +3,11 @@
 -- Run with: ailang run --caps Net,IO --entry main examples/demo_ai_api.ail
 module examples/experimental/demo_ai_api
 
-export func main() -> () {
+import std/net (httpGet)
+
+export func main() -> () ! {IO, Net} {
   _io_println("Calling httpbin.org API for testing...");
-  let response = _net_httpGet("https://httpbin.org/get");
+  let response = httpGet("https://httpbin.org/get");
   _io_println("Response from API:");
   _io_println("Length: " ++ show(_str_len(response)) ++ " bytes");
   _io_println("Success!")
