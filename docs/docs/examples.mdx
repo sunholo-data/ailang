@@ -409,15 +409,15 @@ The example verification status shows what percentage of AILANG features are ful
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-27%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/badge/examples-27%20passing%201%20failing-green.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-10-22 (Auto-updated by CI)*
+*Last updated: 2025-10-25 (Auto-updated by CI)*
 
-**Summary:** 27 passed, 0 failed, 0 skipped (Total: 27)
+**Summary:** 27 passed, 1 failed, 0 skipped (Total: 28)
 
-**Overall: 27/27 examples working (100%)**
+**Overall: 27/28 examples working (96%)**
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -430,7 +430,7 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/json_basic_decode.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecated; use 's... |
 | `runnable/letrec_recursion.ail` | ✅ Pass |  |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
 | `runnable/micro_block_seq.ail` | ✅ Pass |  |
@@ -443,6 +443,7 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/recursion_mutual.ail` | ✅ Pass |  |
 | `runnable/recursion_quicksort.ail` | ✅ Pass |  |
 | `runnable/simple.ail` | ✅ Pass |  |
+| `runnable/test_cli_io.ail` | ✅ Pass |  |
 | `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
 | `runnable/test_import_func.ail` | ✅ Pass |  |
