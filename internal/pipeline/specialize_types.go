@@ -3,10 +3,11 @@ package pipeline
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/sunholo/ailang/internal/types"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // canonicalTypeFingerprint produces a stable, normalized string representation of types

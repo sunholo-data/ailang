@@ -2,9 +2,10 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
-	"os"
 )
 
 // cloneExpr recursively clones an expression with fresh node IDs

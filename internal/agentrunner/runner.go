@@ -80,12 +80,16 @@ func (r *Runner) Run() error {
 	defer ticker.Stop()
 
 	// Initial scan
-	r.poll()
+	if err := r.poll(); err != nil {
+		log.Printf("[%s] Poll error: %v", r.config.AgentID, err)
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			r.poll()
+			if err := r.poll(); err != nil {
+				log.Printf("[%s] Poll error: %v", r.config.AgentID, err)
+			}
 		case <-sigChan:
 			log.Printf("[%s] Received shutdown signal", r.config.AgentID)
 			r.Stop()
@@ -106,7 +110,9 @@ func (r *Runner) RunOnce() error {
 // poll scans for messages and processes them.
 func (r *Runner) poll() error {
 	// Update heartbeat
-	r.db.UpdateAgentStatus(r.config.AgentID, "active")
+	if err := r.db.UpdateAgentStatus(r.config.AgentID, "active"); err != nil {
+		log.Printf("[%s] WARNING: Failed to update agent status: %v", r.config.AgentID, err)
+	}
 
 	// Scan for pending messages
 	pending, err := r.reader.ScanPendingMessages(r.config.AgentID)
@@ -123,7 +129,9 @@ func (r *Runner) poll() error {
 
 	for _, msgPath := range pending {
 		if err := r.processMessage(msgPath); err != nil {
-			r.handleError(fmt.Errorf("process message failed: %w", err))
+			if handleErr := r.handleError(fmt.Errorf("process message failed: %w", err)); handleErr != nil {
+				log.Printf("[%s] WARNING: Failed to handle error: %v", r.config.AgentID, handleErr)
+			}
 			// Continue to next message (don't let one failure block others)
 		}
 	}
@@ -190,7 +198,9 @@ func (r *Runner) processMessage(msgPath string) error {
 	}
 
 	// Log event
-	r.db.LogEvent(r.config.AgentID, msg.MessageID, "message_received", fmt.Sprintf(`{"from": "%s"}`, msg.FromAgent))
+	if logErr := r.db.LogEvent(r.config.AgentID, msg.MessageID, "message_received", fmt.Sprintf(`{"from": "%s"}`, msg.FromAgent)); logErr != nil {
+		log.Printf("[%s] WARNING: Failed to log event: %v", r.config.AgentID, logErr)
+	}
 
 	// Process message with handler
 	startTime := time.Now()
@@ -199,17 +209,27 @@ func (r *Runner) processMessage(msgPath string) error {
 
 	if err != nil {
 		// Mark as failed
-		r.db.UpdateMessageStatus(msg.MessageID, "failed")
-		r.db.LogEvent(r.config.AgentID, msg.MessageID, "processing_failed", fmt.Sprintf(`{"error": "%s"}`, err.Error()))
+		if updateErr := r.db.UpdateMessageStatus(msg.MessageID, "failed"); updateErr != nil {
+			log.Printf("[%s] WARNING: Failed to update message status: %v", r.config.AgentID, updateErr)
+		}
+		if logErr := r.db.LogEvent(r.config.AgentID, msg.MessageID, "processing_failed", fmt.Sprintf(`{"error": "%s"}`, err.Error())); logErr != nil {
+			log.Printf("[%s] WARNING: Failed to log event: %v", r.config.AgentID, logErr)
+		}
 		return fmt.Errorf("handler failed: %w", err)
 	}
 
 	// Record metrics
-	r.db.RecordMetric(r.config.AgentID, "processing_latency_ms", float64(duration.Milliseconds()))
+	if metricErr := r.db.RecordMetric(r.config.AgentID, "processing_latency_ms", float64(duration.Milliseconds())); metricErr != nil {
+		log.Printf("[%s] WARNING: Failed to record metric: %v", r.config.AgentID, metricErr)
+	}
 
 	// Mark as completed
-	r.db.MarkMessageProcessed(msg.MessageID)
-	r.db.LogEvent(r.config.AgentID, msg.MessageID, "processing_completed", "")
+	if markErr := r.db.MarkMessageProcessed(msg.MessageID); markErr != nil {
+		log.Printf("[%s] WARNING: Failed to mark message as processed: %v", r.config.AgentID, markErr)
+	}
+	if logErr := r.db.LogEvent(r.config.AgentID, msg.MessageID, "processing_completed", ""); logErr != nil {
+		log.Printf("[%s] WARNING: Failed to log event: %v", r.config.AgentID, logErr)
+	}
 
 	// Send response (if request type and response payload provided)
 	if msg.MessageType == "request" && responsePayload != nil {
@@ -248,7 +268,7 @@ func (r *Runner) sendResponse(originalMsg *agentprotocol.Envelope, payload map[s
 	}
 
 	// Record response in database
-	r.db.RecordMessage(&agentprotocol.MessageRecord{
+	if recErr := r.db.RecordMessage(&agentprotocol.MessageRecord{
 		MessageID:     responseEnv.MessageID,
 		CorrelationID: responseEnv.CorrelationID,
 		TraceID:       responseEnv.TraceID,
@@ -257,7 +277,10 @@ func (r *Runner) sendResponse(originalMsg *agentprotocol.Envelope, payload map[s
 		MessageType:   responseEnv.MessageType,
 		Status:        "pending",
 		CreatedAt:     time.Now().UTC(),
-	})
+		RetryCount:    0,
+	}); recErr != nil {
+		log.Printf("[%s] WARNING: Failed to record response message: %v", r.config.AgentID, recErr)
+	}
 
 	log.Printf("[%s] Sent response %s to %s", r.config.AgentID, responseEnv.MessageID, responseEnv.ToAgent)
 
@@ -269,7 +292,9 @@ func (r *Runner) Stop() {
 	log.Printf("[%s] Stopping agent runner...", r.config.AgentID)
 
 	// Update status to idle
-	r.db.UpdateAgentStatus(r.config.AgentID, "idle")
+	if err := r.db.UpdateAgentStatus(r.config.AgentID, "idle"); err != nil {
+		log.Printf("[%s] WARNING: Failed to update agent status to idle: %v", r.config.AgentID, err)
+	}
 
 	// Signal stop
 	close(r.stop)

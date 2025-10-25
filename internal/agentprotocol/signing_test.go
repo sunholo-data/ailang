@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -273,6 +274,10 @@ func TestMessageSigner_KeyFileFormat(t *testing.T) {
 }
 
 func TestMessageSigner_FilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping file permission test on Windows")
+	}
+
 	tempDir := t.TempDir()
 
 	_, err := NewMessageSigner(tempDir)

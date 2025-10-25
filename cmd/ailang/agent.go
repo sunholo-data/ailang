@@ -76,7 +76,10 @@ func agentTopCommand() {
 	watchMode := fs.Bool("watch", false, "Watch mode (refresh every 2 seconds)")
 	_ = watchMode // TODO: implement watch mode
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Open database
 	db, err := agentprotocol.NewDB(*stateDir)
@@ -178,7 +181,10 @@ func agentDLQCommand() {
 	retryFlag := fs.String("retry", "", "Retry message by ID")
 	deleteFlag := fs.String("delete", "", "Delete message by ID")
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	dlq := agentprotocol.NewDeadLetterQueue(*stateDir)
 
@@ -311,7 +317,10 @@ func agentSendCommand() {
 	wait := fs.Duration("wait", 0, "Wait for response (e.g., 30s, 5m)")
 	correlationID := fs.String("correlation-id", "", "Correlation ID for tracking")
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Validate arguments
 	if fs.NArg() < 1 {
@@ -411,7 +420,10 @@ func agentInboxCommand() {
 	archive := fs.Bool("archive", false, "Move messages to archive after viewing")
 	limit := fs.Int("limit", 10, "Maximum number of messages to show")
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Get agent ID
 	var agentID string
@@ -698,7 +710,10 @@ func agentAckCommand() {
 	stateDir := fs.String("state-dir", getDefaultStateDir(), "State directory")
 	all := fs.Bool("all", false, "Acknowledge all unread messages")
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Get message IDs or patterns
 	args := fs.Args()
@@ -806,7 +821,10 @@ func agentUnackCommand() {
 	fs := flag.NewFlagSet("agent unack", flag.ExitOnError)
 	stateDir := fs.String("state-dir", getDefaultStateDir(), "State directory")
 
-	fs.Parse(flag.Args()[2:])
+	if err := fs.Parse(flag.Args()[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Get message IDs
 	args := fs.Args()

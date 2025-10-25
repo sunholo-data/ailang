@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -466,6 +467,10 @@ func TestMarkSeen(t *testing.T) {
 
 // TestWriteMessageErrorHandling tests error paths in WriteMessage.
 func TestWriteMessageErrorHandling(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping file permission test on Windows")
+	}
+
 	tmpDir := t.TempDir()
 	writer := NewMessageWriter(tmpDir)
 

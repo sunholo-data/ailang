@@ -285,11 +285,9 @@ func validatePath(path string) error {
 		return fmt.Errorf("path contains '..': %s", path)
 	}
 
-	// Reject absolute paths (we only store relative paths in metadata)
-	if filepath.IsAbs(path) {
-		// Allow absolute paths but convert to relative for storage
-		// This is actually fine - we just store the path for reference
-	}
+	// Check for absolute paths (we only store relative paths in metadata)
+	// Note: We allow absolute paths but this is just for validation
+	_ = filepath.IsAbs(path) // Intentionally not used - just checking path structure
 
 	return nil
 }
