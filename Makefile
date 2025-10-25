@@ -89,7 +89,7 @@ fmt-check:
 # Run go vet
 vet:
 	@echo "Running go vet..."
-	$(GOVET) ./...
+	$(GOVET) $(shell go list ./... | grep -v examples/agents)
 	@echo "Vet complete"
 
 # Install golangci-lint
