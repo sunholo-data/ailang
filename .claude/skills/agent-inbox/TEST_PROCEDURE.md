@@ -136,13 +136,10 @@ rm .ailang/state/messages/claude-code/_processed/test_*.json
 Instead of manual test messages, trigger a real agent to send a message:
 
 ```bash
-# Example: Send message from sprint-planner agent
-./bin/send-message claude-code '{
-  "from_agent": "sprint-planner",
-  "payload": {
-    "message": "Real test from sprint-planner",
-    "status": "testing"
-  }
+# Example: Send message to claude-code agent
+ailang agent send --from sprint-planner claude-code '{
+  "message": "Real test from sprint-planner",
+  "status": "testing"
 }'
 
 # Then exit and start new session

@@ -212,7 +212,7 @@ ailang agent unack msg_20251025_155729_a5f3e77ee975
 **Test command used**:
 ```bash
 # Send test message
-./bin/send-message claude-code '{"test": "acknowledgment system", "timestamp": "now"}'
+ailang agent send claude-code '{"test": "acknowledgment system", "timestamp": "now"}'
 
 # Start new session, check if message appears
 # (should see message in context via SessionStart hook)
