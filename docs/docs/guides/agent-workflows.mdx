@@ -1,3 +1,11 @@
+---
+sidebar_position: 6
+title: Agent Workflows
+description: Real-world workflows for interactive ↔ autonomous agent handoff
+---
+
+import { ArrowRight, CheckCircle, Play, Users } from 'lucide-react';
+
 # Agent Handoff Workflows
 
 This guide demonstrates real-world workflows for handing off work between interactive Claude Code sessions and autonomous AILANG agents.
@@ -7,16 +15,16 @@ This guide demonstrates real-world workflows for handing off work between intera
 **Key Commands:**
 ```bash
 # View user inbox
-go run examples/agents/check_inbox.go user
+ailang agent inbox user
 
 # Send to agent
-go run examples/agents/send_message.go <agent> '<json-payload>'
+ailang agent send <agent> '<json-payload>'
 
 # Send to user
-go run examples/agents/send_message.go --to-user '<json-payload>'
+ailang agent send --to-user '<json-payload>'
 
 # Wait for response
-go run examples/agents/send_message.go --wait 30s <agent> '<json>'
+ailang agent send --wait 30s <agent> '<json>'
 ```
 
 ## Workflow 1: Design → Implement → Notify
@@ -43,7 +51,7 @@ When you stop the session (or it times out), the Stop hook fires:
 # agent_handoff.sh runs automatically:
 → Detects design_docs/planned/M-IMPORT-FIX.md (modified < 5 min ago)
 → Computes hash: sha256:a1b2c3...
-→ Stores artifact in .ailang/state/artifacts/
+→ Stores artifact in ~/.ailang/state/artifacts/
 → Sends message to sprint-planner:
   {
     "task": "implement_design_doc",
@@ -89,7 +97,7 @@ You start a new Claude Code session:
 ╚═══════════════════════════════════════════════════════════╝
 
 To view messages, run:
-  go run examples/agents/check_inbox.go user
+  ailang agent inbox user
 
 Preview (most recent):
   From: sprint-executor
@@ -99,29 +107,27 @@ Preview (most recent):
 ### Step 5: Review Results
 
 ```bash
-$ go run examples/agents/check_inbox.go user
+$ ailang agent inbox user
 
-📬 Unread messages for user (1 total):
+📬 User Inbox (1 message)
+================================================================================
 
-─────────────────────────────────────────────────────────
-Message #1
-─────────────────────────────────────────────────────────
-Message ID:     msg_20251025_143022_def456
-From:           sprint-executor
-Type:           notification
-Correlation ID: cycle_20251025_001
-
-Payload:
-                {
-                  "status": "completed",
-                  "task": "implement M-IMPORT-FIX",
-                  "tests_passed": true,
-                  "files_modified": [
-                    "internal/loader/import_resolver.go",
-                    "internal/loader/import_resolver_test.go"
-                  ],
-                  "commit": "abc123def456"
-                }
+▶ Message 1/1
+  ID: msg_20251025_143022_def456
+  From: sprint-executor
+  Type: notification
+  Correlation ID: cycle_20251025_001
+  Payload:
+    {
+      "status": "completed",
+      "task": "implement M-IMPORT-FIX",
+      "tests_passed": true,
+      "files_modified": [
+        "internal/loader/import_resolver.go",
+        "internal/loader/import_resolver_test.go"
+      ],
+      "commit": "abc123def456"
+    }
 
   ✓ Marked as read
 
@@ -134,7 +140,7 @@ Total: 1 message(s)
 
 ```bash
 # Send query with --wait flag
-$ go run examples/agents/send_message.go --wait 1m eval-analyzer '{
+$ ailang agent send --wait 1m eval-analyzer '{
   "action": "summarize_failures",
   "baseline": "eval_results/baselines/v0.3.19"
 }'
@@ -201,7 +207,7 @@ Next time you start Claude Code:
 
 Check details:
 ```bash
-$ go run examples/agents/check_inbox.go user
+$ ailang agent inbox user
 # ... message details displayed ...
 ```
 
@@ -239,7 +245,7 @@ Each agent sends messages to the next agent in the pipeline using the correlatio
     "parent_message_id": "msg_xyz",          # References design doc message
     "to_agent": "sprint-executor",
     "payload": {
-      "sprint_plan_path": ".ailang/state/sprints/current_sprint.json",
+      "sprint_plan_path": "~/.ailang/state/sprints/current_sprint.json",
       "tasks": 5
     }
   }
@@ -319,13 +325,6 @@ if err := signer.VerifyMessage(msg); err != nil {
 }
 ```
 
-### Key Rotation
-
-```bash
-# Generate new signing key (invalidates old signatures)
-go run tools/rotate_signing_key.go
-```
-
 ## Inbox Management
 
 ### Read/Unread/Archive Flow
@@ -348,19 +347,19 @@ _archive/      ← Long-term storage
 
 ```bash
 # View unread (marks as read automatically)
-go run examples/agents/check_inbox.go user
+ailang agent inbox user
 
 # View without marking as read
-go run examples/agents/check_inbox.go --unread-only user
+ailang agent inbox user --unread-only
 
 # View read messages
-go run examples/agents/check_inbox.go --read-only user
+ailang agent inbox user --read-only
 
 # View and archive
-go run examples/agents/check_inbox.go --archive user
+ailang agent inbox user --archive
 
 # View archived
-go run examples/agents/check_inbox.go --archived user
+ailang agent inbox user --archived
 ```
 
 ## Best Practices
@@ -422,37 +421,37 @@ msg.Payload = map[string]interface{}{
 
 **Check inbox:**
 ```bash
-ls -la .ailang/state/messages/inbox/user/_unread/
+ls -la ~/.ailang/state/messages/inbox/user/_unread/
 ```
 
 **Check agent inbox:**
 ```bash
-ls -la .ailang/state/messages/<agent-id>/
+ls -la ~/.ailang/state/messages/<agent-id>/
 ```
 
 **Verify message was sent:**
 ```bash
 # Look for confirmation in CLI output
 ✓ Message sent to sprint-planner
-  Path: .ailang/state/messages/sprint-planner/msg_xyz.pending.json
+  Path: ~/.ailang/state/messages/sprint-planner/msg_xyz.pending.json
 ```
 
 ### Artifact not found
 
 **List all artifacts:**
 ```bash
-ls -la .ailang/state/artifacts/sha256/
+ls -la ~/.ailang/state/artifacts/sha256/
 ```
 
 **Verify hash is correct:**
 ```bash
-# Compute hash manually
-sha256sum design_docs/planned/M-TEST.md
+# Compute hash using ailang CLI
+ailang debug hash design_docs/planned/M-TEST.md
 ```
 
 **Check artifact metadata:**
 ```bash
-cat .ailang/state/artifacts/sha256/abc123.../metadata.json
+cat ~/.ailang/state/artifacts/sha256/abc123.../metadata.json
 ```
 
 ### Hook not firing
@@ -469,16 +468,18 @@ ls -la scripts/hooks/
 
 **Check hook logs:**
 ```bash
-tail -50 .ailang/state/hooks.log
+tail -50 ~/.ailang/state/hooks.log
 ```
 
-## Next Steps
+## Related Documentation
 
-- Read [CLAUDE_CODE_SETUP.md](CLAUDE_CODE_SETUP.md) for installation
-- See [M-AGENT-PROTOCOL design doc](../design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md) for protocol details
-- Explore autonomous agent examples in `examples/agents/`
-- Try the E2E workflow in `internal/agentprotocol/demo_test.go`
+- **[Claude Code Integration Guide](./claude-code-integration.mdx)** - Main integration guide
+- **[Hooks Setup](./hooks-setup.mdx)** - Quick setup guide
+
+**Design documents** (GitHub):
+- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete specification
+- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Protocol details
 
 ---
 
-**Last updated:** 2025-10-25 (v0.3.20)
+**Last updated:** October 25, 2025 (v0.3.20)

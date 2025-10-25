@@ -1,8 +1,16 @@
+---
+sidebar_position: 5
+title: Hooks Setup
+description: Configure Claude Code hooks for autonomous agent integration
+---
+
+import { AlertCircle, CheckCircle, Play, Terminal } from 'lucide-react';
+
 # Claude Code Hooks Setup
 
 **Status**: ✅ **Ready to Use** (October 25, 2025)
 
-The AILANG repository is now configured with Claude Code hooks for seamless interactive ↔ autonomous agent integration.
+The AILANG repository is configured with Claude Code hooks for seamless interactive ↔ autonomous agent integration.
 
 ## What's Configured
 
@@ -22,7 +30,7 @@ The AILANG repository is now configured with Claude Code hooks for seamless inte
 
 `.claude/hooks.json` - Already created and ready to use!
 
-```json
+```json title=".claude/hooks.json"
 {
   "hooks": {
     "Stop": {
@@ -51,7 +59,7 @@ ailang agent send --to-user '{"message": "Testing hooks", "status": "ready"}'
 ailang agent inbox user
 ```
 
-Expected output:
+**Expected output:**
 ```
 📬 User Inbox (1 message)
 ================================================================================
@@ -69,7 +77,7 @@ Expected output:
 bash scripts/hooks/session_start.sh
 ```
 
-Expected output:
+**Expected output:**
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║  📬 You have 1 unread message(s) from agents              ║
@@ -174,15 +182,14 @@ ailang agent dlq --list
    # Default: ~/.ailang/state
    ```
 
-## Documentation
+## Related Documentation
 
-**Complete guides**:
-- 📖 **[Claude Code Integration Guide](docs/docs/guides/claude-code-integration.mdx)** - Beautiful Docusaurus docs
-- 📋 **[AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md)** - Workflow patterns
-- 🔧 **[CLAUDE_CODE_SETUP.md](docs/CLAUDE_CODE_SETUP.md)** - Detailed setup
+- **[Claude Code Integration Guide](./claude-code-integration.mdx)** - Complete integration guide
+- **[Agent Workflows](./agent-workflows.mdx)** - Workflow patterns and examples
 
-**Design documents**:
-- 📐 **[M-CLAUDE-CODE-INTEGRATION-V2](design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete specification
+**Design documents** (GitHub):
+- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete specification
+- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Low-level protocol details
 
 ## Success Metrics
 
@@ -190,7 +197,7 @@ From production testing (October 25, 2025):
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| Handoff latency | <5s | ✅ ~3-4s measured |
+| Handoff latency | &lt;5s | ✅ ~3-4s measured |
 | Message delivery | 100% | ✅ Soak tested |
 | Hook reliability | No failures | ✅ Tested working |
 | Documentation | Complete | ✅ Docusaurus ready |
@@ -207,5 +214,5 @@ From production testing (October 25, 2025):
 
 **Questions?**
 - Check logs: `~/.ailang/state/hooks.log`
-- View docs: `docs/docs/guides/claude-code-integration.mdx`
+- View docs: [Claude Code Integration Guide](./claude-code-integration.mdx)
 - Report issues: https://github.com/sunholo-data/ailang/issues

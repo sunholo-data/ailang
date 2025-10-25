@@ -25,6 +25,9 @@ const sidebars = {
         'guides/agent-integration',
         'guides/getting-started',
         'guides/module_execution',
+        'guides/claude-code-integration',
+        'guides/hooks-setup',
+        'guides/agent-workflows',
       ],
     },
     {

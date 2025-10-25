@@ -56,8 +56,15 @@
 - ✅ All tests passing (28 new tests, 100% coverage on new code)
 
 **Documentation**:
-- ✅ `docs/CLAUDE_CODE_SETUP.md` - Hook configuration and installation guide
-- ✅ `docs/AGENT_HANDOFF.md` - Workflow examples and best practices
+- ✅ **Docusaurus Integration** - Main documentation now on website
+  - `docs/docs/guides/claude-code-integration.mdx` - Complete integration guide (~600 LOC)
+  - `docs/docs/guides/hooks-setup.mdx` - Quick setup guide (~200 LOC)
+  - `docs/docs/guides/agent-workflows.mdx` - Workflow patterns (~550 LOC)
+  - Added to "Getting Started" section in sidebar
+  - Fixed MDX syntax errors (HTML entity encoding for `<5s`)
+  - All documentation accessible at https://sunholo-data.github.io/ailang/
+- ✅ CLI integration - All examples use `ailang` commands instead of `go run`
+- ✅ Removed root-level docs (HOOKS_SETUP.md, docs/AGENT_HANDOFF.md, docs/CLAUDE_CODE_SETUP.md) - now in Docusaurus
 
 **Files Created** (~2165 LOC):
 - Phases 1-2:

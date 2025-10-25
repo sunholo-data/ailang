@@ -28,7 +28,7 @@ ailang agent inbox user
 bash scripts/hooks/session_start.sh
 ```
 
-See [HOOKS_SETUP.md](../../../HOOKS_SETUP.md) for more details.
+See [Hooks Setup Guide](./hooks-setup.mdx) for more details.
 :::
 
 ---
@@ -455,11 +455,11 @@ From the design document (M-CLAUDE-CODE-INTEGRATION-V2):
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| Handoff latency (median) | <5s | <CheckIcon inline size={14} /> Achieved |
+| Handoff latency (median) | &lt;5s | <CheckIcon inline size={14} /> Achieved |
 | Message delivery | 100% | <CheckIcon inline size={14} /> Soak tested |
 | Artifact storage | Hash-addressed | <CheckIcon inline size={14} /> Implemented |
 | Security | HMAC signed | <CheckIcon inline size={14} /> Enabled |
-| Test coverage | >90% | <CheckIcon inline size={14} /> 100% on new code |
+| Test coverage | &gt;90% | <CheckIcon inline size={14} /> 100% on new code |
 
 ---
 
@@ -609,10 +609,12 @@ ailang agent dlq --list
 
 ## 📚 Related Documentation
 
-- **[M-CLAUDE-CODE-INTEGRATION-V2.md](../../design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete design document
-- **[AGENT_HANDOFF.md](../../docs/AGENT_HANDOFF.md)** - Workflow examples and patterns
-- **[CLAUDE_CODE_SETUP.md](../../docs/CLAUDE_CODE_SETUP.md)** - Detailed setup guide
-- **[Agent Protocol](../../design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Low-level protocol details
+- **[Hooks Setup Guide](./hooks-setup.mdx)** - Quick setup and configuration guide
+- **[Agent Workflows](./agent-workflows.mdx)** - Workflow examples and patterns
+
+**Design documents** (GitHub):
+- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete design document
+- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Low-level protocol details
 
 ---
 
