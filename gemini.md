@@ -59,7 +59,7 @@ The SessionStart hook checks BOTH locations automatically.
 
 **SessionStart Hook:**
 - Script: `scripts/hooks/session_start.sh`
-- Reads hook event JSON from stdin (Claude Code standard)
+- Reads hook event JSON from stdin (Gemini Code standard)
 - Checks both inbox locations on every session start
 - Outputs message summaries to stdout (appears in system reminders)
 - **Does NOT auto-mark as read** (prevents race conditions)
@@ -73,8 +73,8 @@ The SessionStart hook checks BOTH locations automatically.
 **Message Lifecycle:**
 1. Agent sends message → lands in `_unread` or `.pending.json`
 2. SessionStart hook injects into Gemini's context (or manual check)
-3. Claude acknowledges → moves to `_processed` or `_read`
-4. If Claude fails → un-acknowledge → back to `_unread` for retry
+3. Gemini → moves to `_processed` or `_read`
+4. If Gemini fails → un-acknowledge → back to `_unread` for retry
 
 **Manual inbox commands:**
 ```bash
