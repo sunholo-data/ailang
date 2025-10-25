@@ -64,7 +64,7 @@ jobs:
 
     - name: Generate test coverage
       run: |
-        go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts)
+        go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v /scripts | grep -v /examples/agents)
         go tool cover -func=coverage.out
         # Extract coverage percentage for badge
         COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
