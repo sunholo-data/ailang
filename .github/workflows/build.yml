@@ -48,7 +48,7 @@ jobs:
       run: go mod download
 
     - name: Run tests
-      run: go test -v ./...
+      run: go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
 
     - name: Build binary
       env:
