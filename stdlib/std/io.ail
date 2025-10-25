@@ -1,4 +1,4 @@
-module stdlib/std/io
+module std/io
 
 -- Wrappers around Go builtins (_io_print, _io_println, _io_readLine)
 -- Effects are tracked at the type level with ! {IO}

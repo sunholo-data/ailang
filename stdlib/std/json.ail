@@ -1,6 +1,6 @@
 -- JSON encoding for AILANG
 -- Provides ADT for JSON values and encoding function
-module stdlib/std/json
+module std/json
 
 import stdlib/std/option (Option, Some, None)
 import stdlib/std/result (Result)

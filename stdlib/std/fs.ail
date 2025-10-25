@@ -1,4 +1,4 @@
-module stdlib/std/fs
+module std/fs
 
 -- Filesystem operations with capability-based security
 -- All operations require FS capability grant

@@ -1,4 +1,4 @@
-module stdlib/std/option
+module std/option
 
 export type Option[a] = Some(a) | None
 

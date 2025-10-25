@@ -1,4 +1,4 @@
-module stdlib/std/list
+module std/list
 import stdlib/std/option (Option, Some, None)
 
 export pure func length[a](xs: [a]) -> int {

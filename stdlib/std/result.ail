@@ -1,4 +1,4 @@
-module stdlib/std/result
+module std/result
 
 export type Result[a, e] = Ok(a) | Err(e)
 

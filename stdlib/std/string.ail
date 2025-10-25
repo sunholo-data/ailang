@@ -1,4 +1,4 @@
-module stdlib/std/string
+module std/string
 
 -- Wrappers for built-in string primitives
 -- The underlying _str_* functions are registered in Go
