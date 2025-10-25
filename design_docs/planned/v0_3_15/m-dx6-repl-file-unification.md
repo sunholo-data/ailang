@@ -1,10 +1,27 @@
 # M-DX6: REPL/File Semantic Unification
 
-**Status**: Planned
-**Target**: v0.3.15
-**Priority**: P1 - Medium (DX Improvement)
-**Estimated**: 8 hours (4h pipeline unification + 2h prelude handling + 1.5h capability checks + 0.5h docs)
+**Status**: 🟡 Partially Implemented (v0.3.17)
+**Target**: v0.3.15 → Deferred to v0.4.x
+**Priority**: P2 - Low (Core parity exists, full unification nice-to-have)
+**Estimated**: 6 hours remaining (4h Pipeline.Run integration + 1.5h --strict mode + 0.5h docs)
 **Dependencies**: None
+
+## Current Implementation Status (v0.3.17)
+
+**✅ Implemented:**
+- Prelude injection: REPL uses `pipeline.InjectPrelude()` (same as file mode)
+- CoreTypeInfo validation: REPL validates before evaluation (M-DX4)
+- Operator lowering: REPL uses `pipeline.NewOpLowerer()` (same as file mode)
+- Parser parity: Test suite ensures REPL and file parsing consistency ([internal/parser/repl_parity_test.go](../../internal/parser/repl_parity_test.go), 220 LOC)
+- Dictionary elaboration: REPL uses same dictionary-passing as file mode
+
+**❌ Not Implemented (Deferred):**
+- Full pipeline unification: REPL doesn't use `Pipeline.Run()` (has custom 482-line evaluation flow)
+- `--strict` flag: No capability enforcement mode for REPL
+- Virtual module context: REPL doesn't instantiate formal module context
+- `docs/guides/repl_vs_file.md`: No flow diagram documentation
+
+**Key Insight:** The critical parity issues (prelude, type checking, operator lowering, validation) are already solved. The remaining work (using `Pipeline.Run()` directly) is a code quality improvement, not a user-facing issue.
 
 ## AI-First Alignment Check
 
@@ -241,5 +258,61 @@ $ ailang repl --strict --caps IO
 
 ---
 
+## Implementation Report (v0.3.17)
+
+**What Was Delivered:**
+
+The core semantic parity between REPL and file mode has been achieved through incremental improvements across multiple versions:
+
+**v0.3.0-v0.3.10:**
+- REPL uses `pipeline.InjectPrelude()` - same prelude injection as file mode
+- REPL has access to all builtins via `types.NewTypeEnvWithBuiltins()`
+- Parser parity tests ensure identical AST generation (13 test cases)
+
+**v0.3.17 (M-DX4):**
+- REPL uses `pipeline.ValidateCoreTypeInfo()` before evaluation
+- REPL uses `pipeline.NewOpLowerer()` for operator lowering
+- Identical type-guided lowering as file mode
+
+**Current REPL Pipeline (internal/repl/repl_eval.go):**
+```
+1. Parse              → lexer.New() + parser.New()
+2. Elaborate          → elaborate.NewElaborator()
+3. Type check         → types.NewCoreTypeChecker()
+4. Dict elaboration   → elaborate.ElaborateWithDictionaries()
+5. Validate CoreTI    → pipeline.ValidateCoreTypeInfo() [M-DX4]
+6. Lower operators    → pipeline.NewOpLowerer() [M-DX4]
+7. Link dictionaries  → link.NewLinker()
+8. Evaluate           → evaluator.Eval()
+```
+
+**File Pipeline (internal/pipeline/pipeline_single.go):**
+```
+Pipeline.Run() does all of the above in one call
+```
+
+**Why Not Fully Unified:**
+
+The REPL's custom pipeline (~482 LOC) handles features that `Pipeline.Run()` doesn't support:
+- **Incremental definitions**: Let bindings persist across REPL inputs
+- **Type environment persistence**: Type info saved between commands
+- **Interactive commands**: `:type`, `:help`, `:import` commands
+- **Show flags**: `--show-core`, `--show-typed`, `--dry-link` for debugging
+
+**To fully unify**, we'd need to either:
+1. Make `Pipeline.Run()` support incremental mode (complex, REPL-specific behavior)
+2. Refactor REPL to wrap `Pipeline.Run()` (loses fine-grained control)
+
+**Current Decision:** Keep custom REPL pipeline since core parity is achieved. If user-facing bugs emerge, revisit full unification in v0.4.x.
+
+**Remaining Work (Low Priority):**
+- `--strict` flag for capability enforcement (nice-to-have for testing production code in REPL)
+- `docs/guides/repl_vs_file.md` flow diagram (documentation improvement)
+- Formal virtual module context (code quality, no user impact)
+
+**User Impact:** None. REPL and file mode produce identical results for equivalent code.
+
+---
+
 **Document created**: 2025-10-22
-**Last updated**: 2025-10-22
+**Last updated**: 2025-10-26 (Status updated - partially implemented)
