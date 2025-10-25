@@ -56,16 +56,17 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ---
 
-## 🧪 Current Milestone: v0.3.17 (CoreTypeInfo Validation & Monomorphization)
+## 🧪 Current Milestone: v0.3.19 (Code Organization & AI Maintainability)
 
-- ✅ CoreTypeInfo validation pass with comprehensive diagnostics
-- ✅ Call-site monomorphization infrastructure (foundation for v0.4.0)
-- ✅ Enhanced compiler diagnostics with debug flags
+- ✅ Pipeline refactoring: 2 large files → 10 focused modules (all <800 lines)
+- ✅ AI-friendly file sizes: `pipeline.go` (1014→121 lines), `specialize.go` (1384→142 lines)
+- ✅ Enhanced package documentation with clear file responsibilities
 - ✅ All **2,847+ tests passing**; 100% of examples passing
-- 🔜 **Next**: Deterministic tooling (normalize, suggest-imports) in v0.3.18
+- 🔜 **Next**: Deterministic tooling (normalize, suggest-imports) in v0.3.20
 
 ### Major Milestones
 
+- **v0.3.19 (Oct 2025)**: Code Organization & AI Maintainability - Pipeline refactoring (10 focused files)
 - **v0.3.17 (Oct 2025)**: CoreTypeInfo Validation & Monomorphization - Compiler diagnostics + call-site specialization
 - **v0.3.16 (Oct 2025)**: Lambda Expressions Refactor - 6 focused tutorials, entry-module pattern
 - **v0.3.15 (Oct 2025)**: Module Path Fixes - Unified imports, Net builtin migration, capability detection
