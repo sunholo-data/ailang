@@ -1,10 +1,28 @@
 # M-DX5: Inference Visibility & Debug Tooling
 
-**Status**: Planned
-**Target**: v0.3.15
-**Priority**: P1 - Medium (DX Improvement)
-**Estimated**: 6 hours (3h CLI implementation + 2h trace instrumentation + 1h docs)
-**Dependencies**: M-DX4 (CoreTypeInfo validation provides foundation)
+**Status**: 🟡 Partially Implemented (v0.3.17)
+**Target**: v0.3.15 → Deferred to v0.4.x
+**Priority**: P2 - Low (DX Enhancement - core functionality exists)
+**Estimated**: 4 hours remaining (2h trace instrumentation + 1h query mode + 1h docs)
+**Dependencies**: M-DX4 ✅ Complete (CoreTypeInfo validation implemented)
+
+## Current Implementation Status (v0.3.17)
+
+**✅ Implemented:**
+- `ailang debug ast --show-types` - Shows Core AST with inferred types for all nodes
+- `--compact` flag - Compact output mode
+- Colorized output (using terminal colors)
+- CoreTypeInfo validation in pipeline (finds gaps automatically)
+- NodeID annotations for all Core expressions
+
+**❌ Not Implemented (Deferred):**
+- Separate `ailang debug types` subcommand
+- `--trace-inference` - Step-by-step inference trace
+- `--query <expr>` - Lookup type for specific expression
+- `internal/types/trace.go` - InferenceTrace struct
+- `docs/architecture/types.md` - Type system documentation
+
+**Decision:** Core need is met by `ailang debug ast --show-types`. Advanced features (inference tracing, query mode) are nice-to-have and deferred to v0.4.x when user demand justifies the complexity.
 
 ## AI-First Alignment Check
 
@@ -234,5 +252,47 @@ Breakdown:
 
 ---
 
+## Implementation Report (v0.3.17)
+
+**What Was Delivered:**
+
+Instead of implementing the full M-DX5 vision as a separate `ailang debug types` subcommand, M-DX4 (v0.3.17) delivered the core functionality through `ailang debug ast --show-types`:
+
+```bash
+# Show Core AST with type annotations
+ailang debug ast --show-types example.ail
+
+# Output includes:
+# - NodeID for every Core expression [#42]
+# - Type annotations :: float for expressions when available
+# - Colorized output (cyan for headers, green for types, yellow for warnings)
+# - Compact mode: ailang debug ast --show-types --compact example.ail
+```
+
+**CoreTypeInfo validation** automatically runs in the pipeline (M-DX4) and shows clear diagnostics when type information is missing:
+
+```
+CoreTypeInfo validation failed: missing type information for Core nodes
+
+Missing Lit(Float) types (1 nodes):
+  • NodeID 42 at line 5, col 12
+    Hint: This usually means defaulting/substitution wasn't applied to CoreTI.
+
+Debug with: ailang debug ast <file> --show-types --compact
+```
+
+**Why the simplified implementation:**
+- Core need (inspecting types) is fully met by `ailang debug ast --show-types`
+- Inference tracing would add complexity without clear user demand
+- Query mode is better suited for REPL (future M-DX7)
+- Documentation exists in CHANGELOG.md v0.3.17
+
+**Remaining work (deferred to v0.4.x):**
+- `--trace-inference` - Step-by-step inference trace (if users request it)
+- `--query <expr>` - Better as REPL feature (:type command)
+- `docs/architecture/types.md` - Comprehensive type system documentation
+
+---
+
 **Document created**: 2025-10-22
-**Last updated**: 2025-10-22
+**Last updated**: 2025-10-26 (Status updated - partially implemented)
