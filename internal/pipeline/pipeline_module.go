@@ -537,4 +537,3 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 	return result, nil
 }
-

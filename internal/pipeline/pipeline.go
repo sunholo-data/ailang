@@ -6,7 +6,7 @@
 //   - pipeline.go: Main types, Config, Result, Run entry point (THIS FILE)
 //   - pipeline_single.go: Single-file/REPL pipeline (runSingle)
 //   - pipeline_module.go: Multi-module pipeline with dependencies (runModule)
-//   - pipeline_telemetry.go: Lowering telemetry reporting  
+//   - pipeline_telemetry.go: Lowering telemetry reporting
 //   - pipeline_helpers.go: Utility functions
 //   - pipeline_types.go: CompileUnit and related types
 //   - lower.go: Operator lowering pass
@@ -16,7 +16,7 @@
 //
 // # Usage
 //
-//   result, err := pipeline.Run(cfg, src)
+//	result, err := pipeline.Run(cfg, src)
 //
 // # See Also
 //

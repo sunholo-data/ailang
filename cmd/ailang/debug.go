@@ -217,7 +217,7 @@ func runDebugHash(filename string) {
 
 	// Compute hash
 	hash := agentprotocol.ComputeHash(content)
-	
+
 	// Print hash (just the hash, for easy script usage)
 	fmt.Println(hash)
 }

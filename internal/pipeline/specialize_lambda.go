@@ -2,9 +2,9 @@ package pipeline
 
 import (
 	"fmt"
-	"os"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
+	"os"
 )
 
 // Returns nil if specialization is not possible or not beneficial

@@ -12,9 +12,9 @@
 //
 // # Usage
 //
-//   specializer := NewSpecializer(&typeChecker.CoreTI)
-//   specializedProg, err := specializer.Specialize(coreProg)
-//   stats := specializer.GetStats()
+//	specializer := NewSpecializer(&typeChecker.CoreTI)
+//	specializedProg, err := specializer.Specialize(coreProg)
+//	stats := specializer.GetStats()
 //
 // # See Also
 //

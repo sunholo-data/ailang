@@ -3,10 +3,10 @@ package pipeline
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/sunholo/ailang/internal/types"
 	"os"
 	"sort"
 	"strings"
-	"github.com/sunholo/ailang/internal/types"
 )
 
 // canonicalTypeFingerprint produces a stable, normalized string representation of types
@@ -252,7 +252,6 @@ func allConcrete(typs []types.Type) bool {
 	}
 	return true
 }
-
 
 // substituteType applies a type substitution to a type
 func substituteType(typ types.Type, subst map[string]types.Type) types.Type {

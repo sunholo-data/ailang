@@ -352,4 +352,3 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	return result, nil
 }
-
