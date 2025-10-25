@@ -141,7 +141,7 @@ func (h *SkillHandler) HandleMessage(msg *agentprotocol.Envelope) (map[string]in
 	scriptsDir := filepath.Join(skillDir, "scripts")
 	if _, err := os.Stat(scriptsDir); os.IsNotExist(err) {
 		return map[string]interface{}{
-			"status": "no_scripts",
+			"status":  "no_scripts",
 			"message": fmt.Sprintf("Skill '%s' has no scripts directory", h.SkillName),
 		}, nil
 	}

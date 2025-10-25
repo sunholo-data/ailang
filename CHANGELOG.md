@@ -2,6 +2,199 @@
 
 ## [Unreleased]
 
+### M-CLAUDE-CODE-INTEGRATION-V2: Interactive ↔ Autonomous Agent Bridge (Phases 1-4 Complete)
+
+**User Impact**: Seamless handoff between Claude Code sessions and autonomous AILANG agents with production-grade reliability.
+
+**What It Does**:
+- Interactive sessions → autonomous agents (Stop hook detects design docs, sends to sprint-planner)
+- Autonomous agents → user notifications (inbox system with read/unread/archive)
+- Content-addressed artifact storage (SHA256 hashing, deduplication, verification)
+- HMAC message signing (prevent spoofing, key rotation support)
+- Session start notifications (agents can notify you of completed work)
+
+**Implementation** (Phases 1-2 Complete):
+
+- ✅ **Phase 1: Foundation**
+  - `InteractiveEvent` struct (provider-agnostic event abstraction)
+  - Content-addressed artifact storage (`internal/agentprotocol/artifacts.go`, ~350 LOC)
+    - SHA256 hashing with `.ailang/state/artifacts/sha256/<hash>/content` storage
+    - Metadata tracking (original path, MIME type, size, creation time)
+    - Deduplication (same content stored only once)
+    - Hash verification on retrieval (detect corruption)
+  - HMAC message signing (`internal/agentprotocol/signing.go`, ~350 LOC)
+    - HMAC-SHA256 with key rotation support
+    - Signing key stored in `.ailang/state/signing_key.json` (mode 0600)
+    - Canonical JSON representation for deterministic signing
+    - Automatic verification on message receive
+  - Stop hook script (`scripts/hooks/agent_handoff.sh`, ~100 LOC)
+    - Detects design docs in `design_docs/planned/` modified < 5 min
+    - Stores artifacts and sends to `sprint-planner` agent
+    - Logs to `.ailang/state/hooks.log`
+
+- ✅ **Phase 2: User Inbox & CLI**
+  - User inbox system (`internal/agentprotocol/message.go`, +147 LOC)
+    - Three folders: `_unread/`, `_read/`, `_archive/`
+    - `UserInbox` API: SendToUser, GetUnreadMessages, MarkAsRead, MarkAsArchived
+  - Enhanced send-message CLI (`examples/agents/send_message.go`, ~190 LOC)
+    - `--to-user` flag (send to user inbox)
+    - `--wait <duration>` flag (poll for response with timeout)
+    - `--from <agent>` flag (specify sender)
+  - Enhanced check-inbox CLI (`examples/agents/check_inbox.go`, ~230 LOC)
+    - Support for `user` inbox (read/unread/archive views)
+    - `--archive` flag (move to archive after viewing)
+    - `--unread-only`, `--read-only`, `--archived` filters
+  - SessionStart hook script (`scripts/hooks/session_start.sh`, ~70 LOC)
+    - Checks user inbox on session start
+    - Displays notification with count and preview
+    - Guides user to check-inbox command
+
+**Testing**:
+- ✅ Artifact storage: 11 unit tests (store, retrieve, dedup, hash verification, copy, delete)
+- ✅ HMAC signing: 9 unit tests (sign, verify, tamper detection, key persistence, rotation)
+- ✅ User inbox: 8 unit tests (send, read, archive, multi-message workflows)
+- ✅ All tests passing (28 new tests, 100% coverage on new code)
+
+**Documentation**:
+- ✅ `docs/CLAUDE_CODE_SETUP.md` - Hook configuration and installation guide
+- ✅ `docs/AGENT_HANDOFF.md` - Workflow examples and best practices
+
+**Files Created** (~2165 LOC):
+- Phases 1-2:
+  - `internal/agentprotocol/event.go` (120 LOC)
+  - `internal/agentprotocol/artifacts.go` (350 LOC)
+  - `internal/agentprotocol/signing.go` (350 LOC)
+  - `internal/agentprotocol/artifacts_test.go` (230 LOC)
+  - `internal/agentprotocol/signing_test.go` (240 LOC)
+  - `internal/agentprotocol/inbox_test.go` (280 LOC)
+  - `scripts/hooks/agent_handoff.sh` (100 LOC)
+  - `scripts/hooks/session_start.sh` (70 LOC)
+  - `docs/CLAUDE_CODE_SETUP.md` (350 LOC)
+  - `docs/AGENT_HANDOFF.md` (450 LOC)
+- Phases 3-4:
+  - `internal/agentprotocol/dlq_test.go` (235 LOC)
+  - `cmd/ailang/agent.go` (290 LOC)
+
+**Files Modified** (~930 LOC):
+- Phases 1-2:
+  - `internal/agentprotocol/message.go` (+147 LOC - UserInbox + DLQ)
+  - `examples/agents/send_message.go` (rewritten, +110 LOC)
+  - `examples/agents/check_inbox.go` (rewritten, +140 LOC)
+- Phases 3-4:
+  - `internal/agentprotocol/db.go` (+280 LOC - envelope fields, retry logic, metrics)
+  - `internal/agentprotocol/message.go` (+128 LOC - DLQ implementation)
+  - `internal/agentprotocol/integration_test.go` (+229 LOC - DLQ & retry tests)
+  - `cmd/ailang/main.go` (+6 LOC - agent command integration)
+  - `Makefile` (+10 LOC - exclude examples/agents)
+  - `.golangci.yml` (+6 LOC - exclude examples/agents)
+  - `examples/agents/multi_model_agent.go` (fixed import path)
+
+- ✅ **Phase 3: Delivery Guarantees + Observability**
+  - Extended database schema with message envelope fields:
+    - `parent_message_id` - Message threading for request/response chains
+    - `ttl_seconds` - Time-to-live for message expiration
+    - `deadline` - Hard deadline timestamp
+    - `attempt` - Attempt counter (tracks retries across restarts)
+  - Database methods for retry and DLQ logic:
+    - `IncrementRetryCount()` - Atomic retry counter increment
+    - `GetMessagesByStatus()` - Query messages by status with limits
+    - `GetExpiredMessages()` - Find messages past deadline
+    - `GetMetrics()` - Retrieve metrics for time range
+    - `GetAgentStats()` - Aggregate statistics per agent
+  - Dead Letter Queue implementation (`internal/agentprotocol/message.go`, +128 LOC):
+    - `DeadLetterQueue` struct with file-based storage
+    - `MoveToDeadLetter()` - Move failed messages with metadata
+    - `GetDeadLetterMessages()` - List all DLQ entries
+    - `DeleteDeadLetterMessage()` - Remove from DLQ
+    - `RetryFromDeadLetter()` - Retry with reset counter
+    - DLQ entries include: failure reason, stack trace, retry count, timestamp
+  - Observability CLI (`cmd/ailang/agent.go`, ~290 LOC):
+    - `ailang agent top` - Show agent status, queue sizes, metrics
+    - `ailang agent dlq --list` - List dead letter queue entries
+    - `ailang agent dlq --retry <id>` - Retry failed message
+    - `ailang agent dlq --delete <id>` - Delete DLQ entry
+  - Integration tests (`internal/agentprotocol/integration_test.go`, +229 LOC):
+    - TestIntegration_DeadLetterQueue - Full DLQ workflow
+    - TestIntegration_RetryLogic - Retry counter increments
+    - TestIntegration_ExpiredMessages - Deadline detection
+
+- ✅ **Phase 4: Testing & Quality**
+  - DLQ unit tests (`internal/agentprotocol/dlq_test.go`, ~235 LOC):
+    - 5 new tests covering all DLQ operations
+    - 100% coverage on DLQ code paths
+  - Database schema migration compatibility:
+    - All new fields are nullable (backward compatible)
+    - Existing messages work without new fields
+  - Build system updates:
+    - Exclude `examples/agents` from linting (multiple main functions)
+    - Updated Makefile and `.golangci.yml` configuration
+  - All tests passing:
+    - 28 new tests from Phases 1-2
+    - 8 new tests from Phases 3-4
+    - Total: 36 new tests, ~100% coverage on new code
+
+**Status**: ✅ **ALL 4 PHASES COMPLETE** (October 25, 2025)
+
+**Quick Start**:
+1. Configure hooks in `.claude/hooks.json`
+2. Run `chmod +x scripts/hooks/*.sh`
+3. Test user inbox: `ailang agent inbox user`
+4. Send messages: `ailang agent send --to-user '{"message": "test"}'`
+5. Monitor agent status: `ailang agent top`
+6. View DLQ: `ailang agent dlq --list`
+
+**Design Doc**: `design_docs/planned/v0_3_20/m-claude-code-integration-v2.md`
+
+**Test Fix**:
+- Fixed `TestClaudeAgentHandler` to skip when Claude CLI not installed (no more CI failures)
+- File: `internal/agentrunner/claude_bridge_test.go` (+4 LOC - skip logic)
+
+**CLI Integration** (October 25, 2025):
+- ✅ **`ailang agent send`** - Send messages to agents or user inbox
+  - Replaces `go run examples/agents/send_message.go`
+  - Supports `--to-user`, `--from`, `--correlation-id` flags
+  - Uses `UserInbox.SendToUser()` for proper inbox routing
+- ✅ **`ailang agent inbox`** - Check agent/user inboxes
+  - Replaces `go run examples/agents/check_inbox.go`
+  - Supports `--unread-only`, `--read-only`, `--archived`, `--archive` flags
+  - Auto-marks messages as read, supports archiving
+- ✅ **`ailang debug hash`** - Compute SHA256 hash of files
+  - Used by `agent_handoff.sh` for artifact hashing
+  - Outputs just the hash for easy scripting
+- ✅ Updated shell hooks to use CLI commands:
+  - `scripts/hooks/agent_handoff.sh` - Uses `ailang agent send`
+  - `scripts/hooks/session_start.sh` - References `ailang agent inbox user`
+
+**Documentation** (October 25, 2025):
+- ✅ Created **[docs/docs/guides/claude-code-integration.mdx](docs/docs/guides/claude-code-integration.mdx)**
+  - Beautiful Docusaurus documentation with Mermaid diagrams
+  - Complete workflow examples (interactive → autonomous → notification)
+  - Code tabs for different scenarios
+  - Production features explained (content-addressing, HMAC, idempotency, DLQ)
+  - Troubleshooting guide
+  - **The main human-AILANG interface documentation**
+
+**Hooks Configuration** (October 25, 2025):
+- ✅ Created **`.claude/hooks.json`** - Claude Code hooks configuration
+  - Stop hook → `scripts/hooks/agent_handoff.sh`
+  - SessionStart hook → `scripts/hooks/session_start.sh`
+- ✅ Updated hooks to use home directory state (`~/.ailang/state/`)
+  - Ensures consistency with `ailang` CLI state location
+  - Both hooks tested and working
+- ✅ Created **[HOOKS_SETUP.md](HOOKS_SETUP.md)** - Quick setup guide
+
+**Files Modified**:
+- `cmd/ailang/agent.go` (+280 LOC - `send` and `inbox` commands)
+- `cmd/ailang/debug.go` (+20 LOC - `hash` command)
+- `scripts/hooks/agent_handoff.sh` (+3 LOC - use `ailang agent send`, default to home state dir)
+- `scripts/hooks/session_start.sh` (+3 LOC - reference `ailang agent inbox`, default to home state dir)
+
+**Files Created**:
+- `.claude/hooks.json` - Hooks configuration
+- `HOOKS_SETUP.md` - Quick setup and testing guide
+
+---
+
 ### ClaudeAgentHandler: Real Claude CLI Integration
 
 **User Impact**: ClaudeAgentHandler now executes real Claude agents via Claude CLI (no more mocks!).

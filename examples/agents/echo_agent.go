@@ -13,10 +13,12 @@ import (
 // EchoAgent is a simple demo agent that echoes messages back to the sender.
 //
 // Usage:
-//   go run examples/agents/echo_agent.go
+//
+//	go run examples/agents/echo_agent.go
 //
 // In another terminal:
-//   go run examples/agents/send_message.go echo-agent '{"message": "Hello!"}'
+//
+//	go run examples/agents/send_message.go echo-agent '{"message": "Hello!"}'
 //
 // The echo agent will:
 // 1. Receive the message

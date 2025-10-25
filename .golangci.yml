@@ -1,7 +1,8 @@
 run:
-  # Exclude scripts directory since they are standalone executables
+  # Exclude scripts and examples/agents directories since they are standalone executables
   skip-dirs:
     - scripts
+    - examples/agents
   skip-files:
     - ".*_test.go"  # Optional: uncomment if you want to skip test files for some linters
   
@@ -44,8 +45,18 @@ linters-settings:
         disabled: false
         
 issues:
+  # Exclude directories with multiple standalone main executables
+  exclude-dirs:
+    - examples/agents
+
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
+    # Exclude examples/agents directory (standalone executables with multiple main functions)
+    - path: examples/agents/
+      linters:
+        - typecheck
+        - unused
+
     # Exclude scripts directory from all linters
     - path: scripts/
       linters:

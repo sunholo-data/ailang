@@ -11,21 +11,27 @@ import (
 )
 
 func TestClaudeAgentHandler(t *testing.T) {
+	// Skip if claude CLI is not installed
+	_, err := os.Stat("/usr/local/bin/claude")
+	if err != nil {
+		t.Skip("Skipping TestClaudeAgentHandler: claude CLI not found in PATH")
+	}
+
 	tmpDir := t.TempDir()
 
 	// Create a mock agent file
 	agentFile := tmpDir + "/test-agent.md"
-	err := os.WriteFile(agentFile, []byte("# Test Agent\nThis is a test agent."), 0644)
+	err = os.WriteFile(agentFile, []byte("# Test Agent\nThis is a test agent."), 0644)
 	require.NoError(t, err)
 
 	handler := NewClaudeAgentHandler(agentFile, tmpDir)
 
 	msg := &agentprotocol.Envelope{
-		MessageID:  "msg_001",
-		FromAgent:  "sender",
-		ToAgent:    "receiver",
+		MessageID:   "msg_001",
+		FromAgent:   "sender",
+		ToAgent:     "receiver",
 		MessageType: "request",
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 		Payload: map[string]interface{}{
 			"task": "test",
 		},
@@ -43,11 +49,11 @@ func TestSkillHandler(t *testing.T) {
 	handler := NewSkillHandler("test-skill", tmpDir)
 
 	msg := &agentprotocol.Envelope{
-		MessageID:  "msg_001",
-		FromAgent:  "sender",
-		ToAgent:    "receiver",
+		MessageID:   "msg_001",
+		FromAgent:   "sender",
+		ToAgent:     "receiver",
 		MessageType: "request",
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	response, err := handler.HandleMessage(msg)
@@ -62,11 +68,11 @@ func TestCommandHandler(t *testing.T) {
 	handler := NewCommandHandler("echo", []string{"test"}, tmpDir)
 
 	msg := &agentprotocol.Envelope{
-		MessageID:  "msg_001",
-		FromAgent:  "sender",
-		ToAgent:    "receiver",
+		MessageID:   "msg_001",
+		FromAgent:   "sender",
+		ToAgent:     "receiver",
 		MessageType: "request",
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	response, err := handler.HandleMessage(msg)
@@ -84,11 +90,11 @@ func TestFunctionHandler(t *testing.T) {
 	})
 
 	msg := &agentprotocol.Envelope{
-		MessageID:  "msg_001",
-		FromAgent:  "test-sender",
-		ToAgent:    "receiver",
+		MessageID:   "msg_001",
+		FromAgent:   "test-sender",
+		ToAgent:     "receiver",
 		MessageType: "request",
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	response, err := handler.HandleMessage(msg)

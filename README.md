@@ -31,19 +31,6 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 | **7. Cognitive Interfaces** | JSONL trace export for AI self-training; deterministic edit plans for autonomous refactoring. | 🔜 v0.4.x |
 | **8. Future Extensions** | Capability budgets (`! {IO @limit=2}`), semantic DAG scheduler (`schedule { a >> b \| c }`). | 🔮 v0.5.x+ |
 
----
-
-## ❌ Removed / Deprecated Human-Oriented Features
-
-| Removed Feature | Reason for Removal |
-|----------------|-------------------|
-| **CSP Concurrency / Session Types** | Replaced by static effect-typed task graphs; no runtime scheduler needed. |
-| **Unstructured Macros** | Replaced by typed quasiquotes (deterministic AST templates). |
-| **Type Classes** | Replaced by structural reflection and record-based traits; removes implicit resolution. |
-| **LSP Server** | Superseded by deterministic JSON-RPC API (`ailangd`) exposing parser/typechecker directly. |
-| **IDE-centric DX Features** | AIs interact via CLI / API; autocompletion and hover text are unnecessary. |
-
----
 
 ## 🔮 AI-Native Roadmap
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/agentprotocol"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/lexer"
@@ -40,6 +41,14 @@ func runDebug() {
 		}
 		runDebugAST(debugCmd.Arg(1), *showTypesFlag, *compactFlag)
 
+	case "hash":
+		if debugCmd.NArg() < 2 {
+			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+			fmt.Println("Usage: ailang debug hash <file>")
+			os.Exit(1)
+		}
+		runDebugHash(debugCmd.Arg(1))
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown debug subcommand '%s'\n", red("Error"), subcommand)
 		printDebugHelp()
@@ -52,6 +61,7 @@ func printDebugHelp() {
 	fmt.Println()
 	fmt.Println("Subcommands:")
 	fmt.Println("  ast <file>     Show Core AST (ANF) with optional type information")
+	fmt.Println("  hash <file>    Compute SHA256 hash of a file (for artifacts)")
 	fmt.Println()
 	fmt.Println("Flags for 'debug ast':")
 	fmt.Println("  --show-types        Show inferred types for expressions")
@@ -60,7 +70,7 @@ func printDebugHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ailang debug ast example.ail")
 	fmt.Println("  ailang debug ast --show-types example.ail")
-	fmt.Println("  ailang debug ast --compact example.ail")
+	fmt.Println("  ailang debug hash design_docs/planned/M-FIX-123.md")
 }
 
 func runDebugAST(filename string, showTypes bool, compact bool) {
@@ -195,4 +205,19 @@ func printCoreExpr(expr core.CoreExpr, coreTI types.CoreTypeInfo, compact bool, 
 	default:
 		fmt.Printf("%T%s%s\n", expr, nodeID, typeStr)
 	}
+}
+
+func runDebugHash(filename string) {
+	// Read file
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Compute hash
+	hash := agentprotocol.ComputeHash(content)
+	
+	// Print hash (just the hash, for easy script usage)
+	fmt.Println(hash)
 }

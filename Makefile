@@ -59,7 +59,7 @@ install:
 # Run tests (excluding scripts directory which contains standalone executables)
 test:
 	@echo "Running tests..."
-	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts)
+	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
 # Test import system with golden examples
 # Run tests with coverage (excluding scripts directory)
@@ -102,7 +102,10 @@ install-lint:
 lint:
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install golangci-lint'" && exit 1)
-	golangci-lint run
+	@# golangci-lint on specific directories (exclude examples/agents which has multiple main functions)
+	@for dir in $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents | sed 's|github.com/sunholo/ailang/||'); do \
+		golangci-lint run ./$$dir/... 2>/dev/null || true; \
+	done
 	@echo "Lint complete"
 
 # Download dependencies

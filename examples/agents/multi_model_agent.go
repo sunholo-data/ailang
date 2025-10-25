@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/yourusername/ailang/internal/agentprotocol"
-	"github.com/yourusername/ailang/internal/agentrunner"
+	"github.com/sunholo/ailang/internal/agentprotocol"
+	"github.com/sunholo/ailang/internal/agentrunner"
 )
 
 func main() {

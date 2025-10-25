@@ -470,3 +470,233 @@ func TestIntegration_CrossProcessDeduplication(t *testing.T) {
 	t.Log("  - Duplicate insert ignored (idempotency)")
 	t.Log("  - Works across different agent processes")
 }
+
+// TestIntegration_DeadLetterQueue tests the full DLQ workflow:
+// message fails -> moves to DLQ -> can be retried or deleted.
+func TestIntegration_DeadLetterQueue(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	db, err := NewDB(tmpDir)
+	require.NoError(t, err)
+	defer db.Close()
+
+	dlq := NewDeadLetterQueue(tmpDir)
+
+	t.Log("Step 1: Create a failing message")
+
+	env := &Envelope{
+		ProtocolVersion: "1.0.0",
+		MessageID:       "msg_failing_123",
+		FromAgent:       "agent-a",
+		ToAgent:         "agent-b",
+		MessageType:     "request",
+		Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		Retries:         3,
+		Payload:         map[string]interface{}{"task": "process_data"},
+	}
+
+	// Record message in database
+	db.RecordMessage(&MessageRecord{
+		MessageID:   env.MessageID,
+		FromAgent:   env.FromAgent,
+		ToAgent:     env.ToAgent,
+		MessageType: env.MessageType,
+		Status:      "processing",
+		CreatedAt:   time.Now().UTC(),
+		RetryCount:  3,
+		Attempt:     3,
+	})
+
+	t.Log("Step 2: Simulate max retries exceeded - move to DLQ")
+
+	dlqPath, err := dlq.MoveToDeadLetter(env, "max retries exceeded", "error processing message")
+	require.NoError(t, err)
+	assert.FileExists(t, dlqPath)
+
+	// Update message status in DB
+	db.UpdateMessageStatus(env.MessageID, "failed")
+
+	t.Log("Step 3: Verify message in DLQ")
+
+	entries, err := dlq.GetDeadLetterMessages()
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "msg_failing_123", entries[0].MessageID)
+	assert.Equal(t, "max retries exceeded", entries[0].FailureReason)
+	assert.Equal(t, 3, entries[0].RetryCount)
+
+	t.Log("Step 4: Verify message status in database")
+
+	record, err := db.GetMessage(env.MessageID)
+	require.NoError(t, err)
+	assert.Equal(t, "failed", record.Status)
+	assert.Equal(t, 3, record.RetryCount)
+
+	t.Log("Step 5: Retry message from DLQ")
+
+	retried, err := dlq.RetryFromDeadLetter(env.MessageID)
+	require.NoError(t, err)
+	assert.Equal(t, env.MessageID, retried.MessageID)
+	assert.Equal(t, 0, retried.Retries, "retries should be reset")
+
+	// Verify DLQ is empty
+	entries, err = dlq.GetDeadLetterMessages()
+	require.NoError(t, err)
+	assert.Len(t, entries, 0, "DLQ should be empty after retry")
+
+	t.Log("✅ Dead letter queue test PASSED!")
+	t.Log("  - Message moved to DLQ after max retries")
+	t.Log("  - DLQ entry contains failure metadata")
+	t.Log("  - Message can be retried from DLQ")
+	t.Log("  - Retry resets counter for fresh attempt")
+}
+
+// TestIntegration_RetryLogic tests the retry logic with incrementing counters.
+func TestIntegration_RetryLogic(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	db, err := NewDB(tmpDir)
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Log("Step 1: Create initial message")
+
+	env := &Envelope{
+		ProtocolVersion: "1.0.0",
+		MessageID:       "msg_retry_test",
+		FromAgent:       "agent-a",
+		ToAgent:         "agent-b",
+		MessageType:     "request",
+		Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		Retries:         0,
+	}
+
+	// Record initial message
+	db.RecordMessage(&MessageRecord{
+		MessageID:   env.MessageID,
+		FromAgent:   env.FromAgent,
+		ToAgent:     env.ToAgent,
+		MessageType: env.MessageType,
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+		RetryCount:  0,
+		Attempt:     1,
+	})
+
+	t.Log("Step 2: Simulate first failure - increment retry count")
+
+	err = db.IncrementRetryCount(env.MessageID)
+	require.NoError(t, err)
+
+	record, err := db.GetMessage(env.MessageID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, record.RetryCount)
+	assert.Equal(t, 2, record.Attempt)
+
+	t.Log("Step 3: Simulate second failure - increment again")
+
+	err = db.IncrementRetryCount(env.MessageID)
+	require.NoError(t, err)
+
+	record, err = db.GetMessage(env.MessageID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, record.RetryCount)
+	assert.Equal(t, 3, record.Attempt)
+
+	t.Log("Step 4: Simulate third failure - increment again")
+
+	err = db.IncrementRetryCount(env.MessageID)
+	require.NoError(t, err)
+
+	record, err = db.GetMessage(env.MessageID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, record.RetryCount)
+	assert.Equal(t, 4, record.Attempt)
+
+	t.Log("Step 5: Check if max retries reached (threshold: 3)")
+
+	const maxRetries = 3
+	if record.RetryCount >= maxRetries {
+		t.Log("  - Max retries reached, should move to DLQ")
+		db.UpdateMessageStatus(env.MessageID, "failed")
+	}
+
+	t.Log("✅ Retry logic test PASSED!")
+	t.Log("  - Retry counter increments correctly")
+	t.Log("  - Attempt counter tracks total attempts")
+	t.Log("  - Max retries detection works")
+}
+
+// TestIntegration_ExpiredMessages tests retrieval of messages past their deadline.
+func TestIntegration_ExpiredMessages(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	db, err := NewDB(tmpDir)
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Log("Step 1: Create messages with deadlines")
+
+	// Message 1: Already expired
+	expired1 := &MessageRecord{
+		MessageID:   "msg_expired_1",
+		FromAgent:   "agent-a",
+		ToAgent:     "agent-b",
+		MessageType: "request",
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+		TTLSeconds:  60,
+		Deadline:    ptrTime(time.Now().UTC().Add(-10 * time.Second)), // 10 seconds ago
+		Attempt:     1,
+	}
+
+	// Message 2: Not yet expired
+	notExpired := &MessageRecord{
+		MessageID:   "msg_not_expired",
+		FromAgent:   "agent-a",
+		ToAgent:     "agent-b",
+		MessageType: "request",
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+		TTLSeconds:  60,
+		Deadline:    ptrTime(time.Now().UTC().Add(10 * time.Second)), // 10 seconds from now
+		Attempt:     1,
+	}
+
+	// Message 3: Expired but already completed (should be ignored)
+	expiredCompleted := &MessageRecord{
+		MessageID:   "msg_expired_completed",
+		FromAgent:   "agent-a",
+		ToAgent:     "agent-b",
+		MessageType: "request",
+		Status:      "completed",
+		CreatedAt:   time.Now().UTC(),
+		TTLSeconds:  60,
+		Deadline:    ptrTime(time.Now().UTC().Add(-5 * time.Second)),
+		Attempt:     1,
+	}
+
+	db.RecordMessage(expired1)
+	db.RecordMessage(notExpired)
+	db.RecordMessage(expiredCompleted)
+
+	t.Log("Step 2: Retrieve expired messages")
+
+	expired, err := db.GetExpiredMessages(10)
+	require.NoError(t, err)
+
+	t.Log("Step 3: Verify only pending/processing expired messages returned")
+
+	assert.Len(t, expired, 1, "should only return 1 expired pending message")
+	assert.Equal(t, "msg_expired_1", expired[0].MessageID)
+
+	t.Log("✅ Expired messages test PASSED!")
+	t.Log("  - Expired pending messages detected")
+	t.Log("  - Non-expired messages ignored")
+	t.Log("  - Completed messages ignored")
+}
+
+// Helper function to create time pointer
+func ptrTime(t time.Time) *time.Time {
+	return &t
+}

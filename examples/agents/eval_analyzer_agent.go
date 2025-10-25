@@ -21,13 +21,15 @@ import (
 // 5. Sends response
 //
 // Usage:
-//   go run examples/agents/eval_analyzer_agent.go
+//
+//	go run examples/agents/eval_analyzer_agent.go
 //
 // Send it a message:
-//   go run examples/agents/send_message.go eval-analyzer '{
-//     "action": "analyze_failures",
-//     "eval_results": "eval_results/latest.json"
-//   }'
+//
+//	go run examples/agents/send_message.go eval-analyzer '{
+//	  "action": "analyze_failures",
+//	  "eval_results": "eval_results/latest.json"
+//	}'
 func main() {
 	stateDir := ".ailang/state"
 	if len(os.Args) > 1 {
@@ -167,14 +169,14 @@ Implement high-priority fixes first for maximum impact.
 
 	// Return response
 	return map[string]interface{}{
-		"status":            "completed",
-		"design_doc":        designDocPath,
+		"status":             "completed",
+		"design_doc":         designDocPath,
 		"design_doc_content": designDoc,
-		"failures_analyzed": len(failures),
-		"failures":          failures,
-		"high_priority":     2,
-		"medium_priority":   1,
-		"recommendation":    "Implement high-priority fixes first",
+		"failures_analyzed":  len(failures),
+		"failures":           failures,
+		"high_priority":      2,
+		"medium_priority":    1,
+		"recommendation":     "Implement high-priority fixes first",
 	}, nil
 }
 
@@ -201,11 +203,11 @@ func reportDXFriction(msg *agentprotocol.Envelope) (map[string]interface{}, erro
 	time.Sleep(200 * time.Millisecond)
 
 	frictionReport := map[string]interface{}{
-		"id":            fmt.Sprintf("friction_%d", time.Now().Unix()),
-		"friction_type": frictionType,
-		"severity":      severity,
-		"description":   description,
-		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+		"id":             fmt.Sprintf("friction_%d", time.Now().Unix()),
+		"friction_type":  frictionType,
+		"severity":       severity,
+		"description":    description,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"ailang_version": "v0.3.18",
 	}
 
@@ -213,8 +215,8 @@ func reportDXFriction(msg *agentprotocol.Envelope) (map[string]interface{}, erro
 	log.Printf("✅ Friction report created:\n%s", string(reportJSON))
 
 	return map[string]interface{}{
-		"status": "recorded",
-		"report": frictionReport,
+		"status":  "recorded",
+		"report":  frictionReport,
 		"message": "DX friction recorded successfully",
 	}, nil
 }

@@ -39,16 +39,20 @@ type AgentState struct {
 
 // MessageRecord represents a message in the database.
 type MessageRecord struct {
-	MessageID     string
-	CorrelationID string
-	TraceID       string
-	FromAgent     string
-	ToAgent       string
-	MessageType   string
-	Status        string // pending, processing, completed, failed
-	CreatedAt     time.Time
-	ProcessedAt   *time.Time
-	RetryCount    int
+	MessageID       string
+	CorrelationID   string
+	TraceID         string
+	ParentMessageID string
+	FromAgent       string
+	ToAgent         string
+	MessageType     string
+	Status          string // pending, processing, completed, failed
+	CreatedAt       time.Time
+	ProcessedAt     *time.Time
+	RetryCount      int
+	TTLSeconds      int
+	Deadline        *time.Time
+	Attempt         int
 }
 
 // AgentLock represents a resource lease.
@@ -129,6 +133,7 @@ CREATE TABLE IF NOT EXISTS messages (
     message_id TEXT PRIMARY KEY,
     correlation_id TEXT,
     trace_id TEXT,
+    parent_message_id TEXT,
     from_agent TEXT NOT NULL,
     to_agent TEXT NOT NULL,
     message_type TEXT CHECK(message_type IN ('request', 'response', 'notification')) NOT NULL,
@@ -136,14 +141,19 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMP,
     retry_count INTEGER NOT NULL DEFAULT 0,
+    ttl_seconds INTEGER,
+    deadline TIMESTAMP,
+    attempt INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY(from_agent) REFERENCES agents(agent_id),
     FOREIGN KEY(to_agent) REFERENCES agents(agent_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_correlation ON messages(correlation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_trace ON messages(trace_id);
+CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id);
 CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
 CREATE INDEX IF NOT EXISTS idx_messages_to_agent ON messages(to_agent, status);
+CREATE INDEX IF NOT EXISTS idx_messages_deadline ON messages(deadline);
 
 -- Agent history (audit log)
 CREATE TABLE IF NOT EXISTS agent_history (
@@ -349,20 +359,24 @@ func (db *DB) UpdateAgentStatus(agentID, status string) error {
 // RecordMessage records a message in the database for deduplication and tracking.
 func (db *DB) RecordMessage(record *MessageRecord) error {
 	query := `
-INSERT INTO messages (message_id, correlation_id, trace_id, from_agent, to_agent, message_type, status, created_at, retry_count)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO messages (message_id, correlation_id, trace_id, parent_message_id, from_agent, to_agent, message_type, status, created_at, retry_count, ttl_seconds, deadline, attempt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(message_id) DO NOTHING
 `
 	_, err := db.conn.Exec(query,
 		record.MessageID,
 		record.CorrelationID,
 		record.TraceID,
+		record.ParentMessageID,
 		record.FromAgent,
 		record.ToAgent,
 		record.MessageType,
 		record.Status,
 		record.CreatedAt,
 		record.RetryCount,
+		record.TTLSeconds,
+		record.Deadline,
+		record.Attempt,
 	)
 	return err
 }
@@ -370,17 +384,21 @@ ON CONFLICT(message_id) DO NOTHING
 // GetMessage retrieves a message record by ID.
 func (db *DB) GetMessage(messageID string) (*MessageRecord, error) {
 	query := `
-SELECT message_id, correlation_id, trace_id, from_agent, to_agent, message_type, status, created_at, processed_at, retry_count
+SELECT message_id, correlation_id, trace_id, parent_message_id, from_agent, to_agent, message_type, status, created_at, processed_at, retry_count, ttl_seconds, deadline, attempt
 FROM messages
 WHERE message_id = ?
 `
 	var record MessageRecord
 	var processedAt sql.NullTime
+	var parentMessageID sql.NullString
+	var ttlSeconds sql.NullInt64
+	var deadline sql.NullTime
 
 	err := db.conn.QueryRow(query, messageID).Scan(
 		&record.MessageID,
 		&record.CorrelationID,
 		&record.TraceID,
+		&parentMessageID,
 		&record.FromAgent,
 		&record.ToAgent,
 		&record.MessageType,
@@ -388,6 +406,9 @@ WHERE message_id = ?
 		&record.CreatedAt,
 		&processedAt,
 		&record.RetryCount,
+		&ttlSeconds,
+		&deadline,
+		&record.Attempt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -399,6 +420,15 @@ WHERE message_id = ?
 
 	if processedAt.Valid {
 		record.ProcessedAt = &processedAt.Time
+	}
+	if parentMessageID.Valid {
+		record.ParentMessageID = parentMessageID.String
+	}
+	if ttlSeconds.Valid {
+		record.TTLSeconds = int(ttlSeconds.Int64)
+	}
+	if deadline.Valid {
+		record.Deadline = &deadline.Time
 	}
 
 	return &record, nil
@@ -526,4 +556,214 @@ VALUES (?, ?, ?)
 `
 	_, err := db.conn.Exec(query, agentID, metricName, metricValue)
 	return err
+}
+
+// IncrementRetryCount increments the retry count for a message.
+func (db *DB) IncrementRetryCount(messageID string) error {
+	query := `UPDATE messages SET retry_count = retry_count + 1, attempt = attempt + 1 WHERE message_id = ?`
+	_, err := db.conn.Exec(query, messageID)
+	return err
+}
+
+// GetMessagesByStatus retrieves messages with a given status.
+func (db *DB) GetMessagesByStatus(status string, limit int) ([]*MessageRecord, error) {
+	query := `
+SELECT message_id, correlation_id, trace_id, parent_message_id, from_agent, to_agent, message_type, status, created_at, processed_at, retry_count, ttl_seconds, deadline, attempt
+FROM messages
+WHERE status = ?
+ORDER BY created_at ASC
+LIMIT ?
+`
+	rows, err := db.conn.Query(query, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []*MessageRecord
+	for rows.Next() {
+		var record MessageRecord
+		var processedAt sql.NullTime
+		var parentMessageID sql.NullString
+		var ttlSeconds sql.NullInt64
+		var deadline sql.NullTime
+
+		if err := rows.Scan(
+			&record.MessageID,
+			&record.CorrelationID,
+			&record.TraceID,
+			&parentMessageID,
+			&record.FromAgent,
+			&record.ToAgent,
+			&record.MessageType,
+			&record.Status,
+			&record.CreatedAt,
+			&processedAt,
+			&record.RetryCount,
+			&ttlSeconds,
+			&deadline,
+			&record.Attempt,
+		); err != nil {
+			return nil, err
+		}
+
+		if processedAt.Valid {
+			record.ProcessedAt = &processedAt.Time
+		}
+		if parentMessageID.Valid {
+			record.ParentMessageID = parentMessageID.String
+		}
+		if ttlSeconds.Valid {
+			record.TTLSeconds = int(ttlSeconds.Int64)
+		}
+		if deadline.Valid {
+			record.Deadline = &deadline.Time
+		}
+
+		messages = append(messages, &record)
+	}
+
+	return messages, rows.Err()
+}
+
+// GetExpiredMessages retrieves messages past their deadline.
+func (db *DB) GetExpiredMessages(limit int) ([]*MessageRecord, error) {
+	query := `
+SELECT message_id, correlation_id, trace_id, parent_message_id, from_agent, to_agent, message_type, status, created_at, processed_at, retry_count, ttl_seconds, deadline, attempt
+FROM messages
+WHERE deadline IS NOT NULL AND deadline < ? AND status IN ('pending', 'processing')
+ORDER BY deadline ASC
+LIMIT ?
+`
+	rows, err := db.conn.Query(query, time.Now().UTC(), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []*MessageRecord
+	for rows.Next() {
+		var record MessageRecord
+		var processedAt sql.NullTime
+		var parentMessageID sql.NullString
+		var ttlSeconds sql.NullInt64
+		var deadline sql.NullTime
+
+		if err := rows.Scan(
+			&record.MessageID,
+			&record.CorrelationID,
+			&record.TraceID,
+			&parentMessageID,
+			&record.FromAgent,
+			&record.ToAgent,
+			&record.MessageType,
+			&record.Status,
+			&record.CreatedAt,
+			&processedAt,
+			&record.RetryCount,
+			&ttlSeconds,
+			&deadline,
+			&record.Attempt,
+		); err != nil {
+			return nil, err
+		}
+
+		if processedAt.Valid {
+			record.ProcessedAt = &processedAt.Time
+		}
+		if parentMessageID.Valid {
+			record.ParentMessageID = parentMessageID.String
+		}
+		if ttlSeconds.Valid {
+			record.TTLSeconds = int(ttlSeconds.Int64)
+		}
+		if deadline.Valid {
+			record.Deadline = &deadline.Time
+		}
+
+		messages = append(messages, &record)
+	}
+
+	return messages, rows.Err()
+}
+
+// GetMetrics retrieves metrics for an agent within a time range.
+func (db *DB) GetMetrics(agentID, metricName string, since time.Time) ([]float64, error) {
+	query := `
+SELECT metric_value
+FROM agent_metrics
+WHERE agent_id = ? AND metric_name = ? AND timestamp >= ?
+ORDER BY timestamp ASC
+`
+	rows, err := db.conn.Query(query, agentID, metricName, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var values []float64
+	for rows.Next() {
+		var value float64
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+
+	return values, rows.Err()
+}
+
+// GetAgentStats retrieves aggregate statistics for an agent.
+func (db *DB) GetAgentStats(agentID string) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+
+	// Count messages by status
+	statusQuery := `
+SELECT status, COUNT(*)
+FROM messages
+WHERE to_agent = ?
+GROUP BY status
+`
+	rows, err := db.conn.Query(statusQuery, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	statusCounts := make(map[string]int)
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		statusCounts[status] = count
+	}
+	stats["message_counts"] = statusCounts
+
+	// Get recent metric values
+	metricsQuery := `
+SELECT metric_name, AVG(metric_value) as avg_value
+FROM agent_metrics
+WHERE agent_id = ? AND timestamp >= datetime('now', '-1 hour')
+GROUP BY metric_name
+`
+	rows, err = db.conn.Query(metricsQuery, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	metricValues := make(map[string]float64)
+	for rows.Next() {
+		var name string
+		var value float64
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		metricValues[name] = value
+	}
+	stats["metrics"] = metricValues
+
+	return stats, nil
 }
