@@ -91,6 +91,31 @@ To view messages, run:
 
 ### Workflow Example
 
+```mermaid
+graph TD
+    A["You: Create design doc<br/>in Claude Code"] --> B["Claude Code creates<br/>design_docs/planned/M-FIX-123.md"]
+    B --> C["You: Stop session"]
+    C --> D["Stop Hook fires"]
+    D --> E["Compute SHA256 hash<br/>Store artifact"]
+    E --> F["Send to sprint-planner"]
+    F --> G["Autonomous agents<br/>implement & test"]
+    G --> H["Report to user inbox"]
+    H --> I["Next session:<br/>SessionStart hook"]
+    I --> J["You: Check inbox<br/>See completion!"]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style C fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style G fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style H fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style I fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style J fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+```
+
+**Step by step:**
 1. **You**: "Analyze eval failures and create a design doc"
 2. **Claude Code**: Creates `design_docs/planned/M-FIX-123.md`
 3. **You**: "Looks good" (session stops)

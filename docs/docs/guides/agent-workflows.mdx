@@ -215,20 +215,22 @@ $ ailang agent inbox user
 
 **Scenario:** Work flows through multiple agents with handoffs.
 
-```
-Interactive Session
-      ↓
-   [Stop Hook]
-      ↓
-sprint-planner  → Creates sprint plan
-      ↓
-sprint-executor → Implements code
-      ↓
-test-runner     → Runs tests
-      ↓
-verifier        → Reviews code
-      ↓
-   User Inbox   ← Notification
+```mermaid
+graph TD
+    A["Interactive Session"] --> B["Stop Hook"]
+    B --> C["sprint-planner<br/>(Creates sprint plan)"]
+    C --> D["sprint-executor<br/>(Implements code)"]
+    D --> E["test-runner<br/>(Runs tests)"]
+    E --> F["verifier<br/>(Reviews code)"]
+    F --> G["User Inbox<br/>(Notification)"]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style D fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style G fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
 ```
 
 Each agent sends messages to the next agent in the pipeline using the correlation_id to track the workflow.

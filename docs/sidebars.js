@@ -22,12 +22,18 @@ const sidebars = {
       type: 'category',
       label: 'Getting Started',
       items: [
-        'guides/agent-integration',
         'guides/getting-started',
         'guides/module_execution',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Agent Integration',
+      items: [
         'guides/claude-code-integration',
         'guides/hooks-setup',
         'guides/agent-workflows',
+        'guides/agent-integration',
       ],
     },
     {

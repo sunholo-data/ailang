@@ -12,6 +12,12 @@ const config = {
   tagline: 'AI-first programming language for AI-assisted development',
   favicon: 'img/favicon.ico',
 
+  markdown: {
+    mermaid: true,
+  },
+
+  themes: ['@docusaurus/theme-mermaid'],
+
   // Set the production url of your site here
   url: 'https://sunholo-data.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
@@ -101,7 +107,7 @@ const config = {
         items: [
           {
             to: '/docs/vision',
-            label: '✨ Vision',
+            label: 'Vision',
             position: 'left',
           },
           {
@@ -112,12 +118,12 @@ const config = {
           },
           {
             to: '/docs/examples',
-            label: '📚 Examples',
+            label: 'Examples',
             position: 'left',
           },
           {
             to: '/docs/playground',
-            label: '🎮 Playground',
+            label: 'Playground',
             position: 'left',
           },
           {
