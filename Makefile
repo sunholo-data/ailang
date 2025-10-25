@@ -62,12 +62,18 @@ test:
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
 # Test import system with golden examples
-# Run tests with coverage (excluding scripts directory)
+# Run tests with coverage (excluding scripts directory and examples/agents)
 test-coverage:
 	@echo "Running tests with coverage..."
-	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts)
+	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+# Run tests with coverage for CI (race detection enabled)
+test-coverage-ci:
+	@echo "Running tests with coverage (CI mode)..."
+	@$(GOTEST) -race -coverprofile=coverage.out -covermode=atomic $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+	@$(GOCMD) tool cover -func=coverage.out
 
 # Format code
 fmt:
