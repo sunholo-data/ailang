@@ -5,6 +5,8 @@
 # Format: <name> : <type_signature>
 #
 
+_clock_now : () -> int ! {Clock}
+_clock_sleep : int -> () ! {Clock}
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}

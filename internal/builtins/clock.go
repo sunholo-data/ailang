@@ -15,7 +15,7 @@ func init() {
 
 // _clock_now: Get current Unix timestamp in milliseconds
 func registerClockNow() {
-	RegisterEffectBuiltin(BuiltinSpec{
+	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/clock",
 		Name:    "_clock_now",
 		NumArgs: 0,
@@ -35,6 +35,9 @@ func registerClockNow() {
 			Category:  "clock",
 		},
 	})
+	if err != nil {
+		panic("failed to register _clock_now builtin: " + err.Error())
+	}
 }
 
 func makeClockNowType() types.Type {
@@ -55,7 +58,7 @@ func clockNowImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 
 // _clock_sleep: Sleep for specified milliseconds
 func registerClockSleep() {
-	RegisterEffectBuiltin(BuiltinSpec{
+	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/clock",
 		Name:    "_clock_sleep",
 		NumArgs: 1,
@@ -78,6 +81,9 @@ func registerClockSleep() {
 			Category:  "clock",
 		},
 	})
+	if err != nil {
+		panic("failed to register _clock_sleep builtin: " + err.Error())
+	}
 }
 
 func makeClockSleepType() types.Type {
