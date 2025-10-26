@@ -270,10 +270,11 @@ func parseInput(t *testing.T, input string) *ast.File {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser errors:\n")
+		// Print errors BEFORE Fatalf (M-DX9 pattern)
 		for _, err := range p.Errors() {
-			t.Logf("  %s", err)
+			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	return file
