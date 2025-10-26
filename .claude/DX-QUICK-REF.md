@@ -423,16 +423,115 @@ ailang eval-suite --models gpt5 --output eval_results/gpt5_only
 
 ---
 
+---
+
+## Parser Development DX (M-DX9)
+
+### Common Parser Gotchas
+
+**Token position bugs (30% of dev time waste!):**
+```go
+// ❌ WRONG - parseExpression leaves you AT last token, not AFTER
+expr := p.parseExpression(LOWEST)
+if p.curTokenIs(lexer.COMMA) { ... }  // BUG!
+
+// ✅ CORRECT - Call nextToken after parsing
+expr := p.parseExpression(LOWEST)
+p.nextToken()  // Move to next token
+if p.curTokenIs(lexer.COMMA) { ... }  // Works!
+```
+
+**Test error printing:**
+```go
+// ❌ WRONG - Errors hidden (t.Fatalf stops before loop)
+if len(p.Errors()) != 0 {
+    t.Fatalf("parser had %d errors:", len(p.Errors()))
+    for _, err := range p.Errors() { ... }  // Never executes!
+}
+
+// ✅ CORRECT - Print BEFORE Fatalf
+if len(p.Errors()) != 0 {
+    for _, err := range p.Errors() {
+        t.Errorf("  %s", err)
+    }
+    t.Fatalf("parser had %d errors", len(p.Errors()))
+}
+
+// ✅ BETTER - Use helper
+AssertNoErrors(t, p)  // From internal/parser/test_helpers.go
+```
+
+**AST type gotchas:**
+```go
+// ❌ WRONG type names
+expr.(*ast.Variable)      // Use ast.Identifier
+expr.(*ast.IntLiteral)    // Use ast.Literal
+lit.Value.(int)           // Lexer returns int64!
+
+// ✅ CORRECT
+expr.(*ast.Identifier)
+lit := expr.(*ast.Literal)
+val := lit.Value.(int64)  // Not int!
+```
+
+### Parser Test Helpers
+
+**Location:** `internal/parser/test_helpers.go`
+
+```go
+// Basic assertions
+AssertNoErrors(t, p)
+AssertTokenPosition(t, p, lexer.INT, lexer.COMMA)
+
+// Literal assertions
+AssertLiteralInt(t, expr, 42)
+AssertLiteralString(t, expr, "hello")
+
+// Structure assertions
+AssertIdentifier(t, expr, "x")
+fn := AssertFuncDecl(t, file.Decls[0], "factorial")
+AssertSimpleType(t, fn.ReturnType, "int")
+```
+
+### Debug Flags (v0.3.15+)
+
+```bash
+# Show token flow through parser
+DEBUG_PARSER=1 ailang run test.ail
+
+# Catch incomplete switch statements
+DEBUG_STRICT=1 ailang run test.ail
+
+# Debug monomorphization
+DEBUG_MONO_VERBOSE=1 ailang run --debug-compile test.ail
+```
+
+### Quick Type Lookup
+
+```bash
+# Find AST types
+grep "^type.*struct" internal/ast/ast.go | head -20
+
+# Check if keyword exists
+grep -i "forall" internal/lexer/token.go
+```
+
+**See also:** CLAUDE.md "Parser Developer Experience Guide" section
+
+---
+
 ## See Also
 
 - **CLAUDE.md** - Comprehensive development guide (detailed workflows, principles, examples)
+  - **Parser Developer Experience Guide** - Full parser DX documentation (M-DX9)
 - **sprint-executor/resources/developer_tools.md** - Complete tool reference (all make targets, detailed descriptions)
 - **design_docs/planned/v0_3_16/dx-tools-documentation-audit.md** - Full audit of all tools
 - **.claude/skills/README.md** - Skills overview and usage
 - **docs/docs/guides/development.md** - Development guide for humans
 - **docs/docs/guides/evaluation/** - Detailed eval system documentation
+- **internal/parser/test_helpers.go** - Parser test helper functions (M-DX9)
 
 ---
 
-**Last updated**: 2025-10-21 for v0.3.16 development
+**Last updated**: 2025-10-26 for M-DX9 (Parser DX improvements)
 **Purpose**: Quick task-based reference for AILANG developers (human and AI)
