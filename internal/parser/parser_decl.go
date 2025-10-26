@@ -470,7 +470,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 		if p.peekTokenIs(lexer.LBRACKET) {
 			p.nextToken() // move to LBRACKET
-			// fn.Tests = p._parseTestsBlock() // TODO: Implement tests block
+			fn.Tests = p.parseTestsBlock()
 			// parseTestsBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()
@@ -597,6 +597,147 @@ func (p *Parser) parseClassDeclaration() ast.Node {
 func (p *Parser) parseInstanceDeclaration() ast.Node {
 	// TODO: Implement instance declaration parsing
 	return nil
+}
+
+// parseTestsBlock parses inline test cases: tests [(input1, expected1), (input2, expected2)]
+// Expects to be called after 'tests' keyword and positioned at LBRACKET
+// Leaves parser positioned at RBRACKET
+func (p *Parser) parseTestsBlock() []*ast.TestCase {
+	if !p.curTokenIs(lexer.LBRACKET) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected [ to start tests block", "Check syntax")
+		return nil
+	}
+
+	p.nextToken() // consume LBRACKET, move to first test case or RBRACKET
+
+	var tests []*ast.TestCase
+
+	// Handle empty tests block: tests []
+	if p.curTokenIs(lexer.RBRACKET) {
+		return tests
+	}
+
+	for {
+		// Skip newlines and commas between test cases
+		for p.curTokenIs(lexer.NEWLINE) || p.curTokenIs(lexer.COMMA) {
+			p.nextToken()
+		}
+
+		// Check for end of tests block
+		if p.curTokenIs(lexer.RBRACKET) {
+			break
+		}
+
+		// Parse test case: (input, expected) or ((input1, input2), expected)
+		testCase := p.parseTestCase()
+		if testCase != nil {
+			tests = append(tests, testCase)
+		}
+
+		// Skip trailing newlines
+		for p.curTokenIs(lexer.NEWLINE) {
+			p.nextToken()
+		}
+
+		// Check if we're done or continuing
+		if p.curTokenIs(lexer.RBRACKET) {
+			break
+		}
+		if p.curTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			continue
+		}
+
+		// If we reach here without RBRACKET or COMMA, it's an error
+		if !p.curTokenIs(lexer.RBRACKET) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected , or ] in tests block", "Check syntax")
+			break
+		}
+	}
+
+	return tests
+}
+
+// parseTestCase parses a single test case: (input, expected) or ((input1, input2, ...), expected)
+func (p *Parser) parseTestCase() *ast.TestCase {
+	pos := p.curPos()
+
+	if !p.curTokenIs(lexer.LPAREN) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected ( to start test case", "Check syntax")
+		return nil
+	}
+
+	p.nextToken() // consume LPAREN
+
+	// Parse inputs - could be single value or tuple of values
+	var inputs []ast.Expr
+
+	// Check if inputs are wrapped in parens: ((input1, input2), expected)
+	if p.curTokenIs(lexer.LPAREN) {
+		// Multi-arg test: ((arg1, arg2), expected)
+		p.nextToken() // consume inner LPAREN
+
+		for {
+			if p.curTokenIs(lexer.RPAREN) {
+				break
+			}
+
+			input := p.parseExpression(LOWEST)
+			if input != nil {
+				inputs = append(inputs, input)
+			}
+
+			if p.curTokenIs(lexer.COMMA) {
+				p.nextToken() // consume comma
+			} else if !p.curTokenIs(lexer.RPAREN) {
+				p.report("PAR_UNEXPECTED_TOKEN", "expected , or ) in test inputs", "Check syntax")
+				return nil
+			}
+		}
+
+		if !p.curTokenIs(lexer.RPAREN) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected ) to close test inputs", "Check syntax")
+			return nil
+		}
+		p.nextToken() // consume inner RPAREN
+
+		if !p.curTokenIs(lexer.COMMA) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected , between inputs and expected value", "Check syntax")
+			return nil
+		}
+		p.nextToken() // consume comma
+	} else {
+		// Single-arg test: (input, expected)
+		input := p.parseExpression(LOWEST)
+		if input != nil {
+			inputs = append(inputs, input)
+		}
+
+		if !p.curTokenIs(lexer.COMMA) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected , between input and expected value", "Check syntax")
+			return nil
+		}
+		p.nextToken() // consume comma
+	}
+
+	// Parse expected value
+	expected := p.parseExpression(LOWEST)
+	if expected == nil {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected output value in test case", "Check syntax")
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.RPAREN) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected ) to close test case", "Check syntax")
+		return nil
+	}
+	p.nextToken() // consume RPAREN
+
+	return &ast.TestCase{
+		Inputs:   inputs,
+		Expected: expected,
+		Pos:      pos,
+	}
 }
 
 // peekIsContextualKeyword checks if the peek token is a specific keyword
