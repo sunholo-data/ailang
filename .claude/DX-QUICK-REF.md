@@ -6,8 +6,31 @@
 
 ### ...look up an API (NEW v0.3.15!)
 
-**⚠️ Use `make doc` FIRST - 80% faster than grep!**
+**⚠️ CRITICAL: Discover API BEFORE writing code!**
 
+**Anti-pattern (costs 20+ min fixing):**
+```go
+// ❌ Write code with assumed API
+value := tagged.Tag    // Assumed field
+data := tagged.Value   // Assumed field
+
+// Compile → Error → grep → fix → recompile
+```
+
+**Correct pattern (saves 20 min):**
+```bash
+# Step 1: Discover API FIRST
+make doc PKG=internal/eval | grep -A 10 "type TaggedValue"
+# Output shows: CtorName string, Fields []Value (not .Tag/.Value!)
+
+# Step 2: Write code with CORRECT API
+value := tagged.CtorName
+data := tagged.Fields
+
+# Step 3: Compile once → Success ✓
+```
+
+**Quick API lookup:**
 ```bash
 # Find constructor signature
 make doc PKG=internal/testing | grep "NewCollector"
@@ -33,7 +56,9 @@ make doc
 - `internal/eval` - Core AST evaluator
 - `internal/builtins` - Builtin function registry
 
-**Time savings**: ~30 sec vs 5-10 min manual grep (80% reduction)
+**Time savings**:
+- **API lookup**: ~30 sec vs 5-10 min manual grep (80% reduction)
+- **Discover-first workflow**: Saves 20+ min of compile/fix cycles per unknown API
 
 **See also**: CLAUDE.md "Common API Patterns" section for common mistakes and gotchas
 

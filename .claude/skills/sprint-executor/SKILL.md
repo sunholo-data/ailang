@@ -184,6 +184,21 @@ Ready to proceed to next milestone.
 - Keep functions small and focused
 
 #### Step 3: Write Tests
+
+**⚠️ TDD REMINDER (M-TESTING Learning):**
+
+Consider writing tests BEFORE or ALONGSIDE implementation for:
+- **Complex algorithms** (shrinking, generators, property evaluation)
+- **API integration** (using unfamiliar packages like internal/eval)
+- **Error handling paths** (multiple failure modes)
+
+**Benefits of TDD/Test-First:**
+- Discover API issues earlier (before writing 500 lines)
+- Better design from testability constraints
+- Catch bugs in development, not at checkpoint
+- Example: Day 7 wrote 530 lines → 23 API errors. Tests first would find these at ~50 lines.
+
+**Standard Testing:**
 - Create/update test files (*_test.go)
 - Aim for comprehensive coverage (all acceptance criteria)
 - Include edge cases and error conditions
@@ -305,6 +320,28 @@ Test coverage: <percentage>"
 - Sprint plan updated at each milestone
 - CHANGELOG.md grows incrementally
 - Git commits create audit trail
+
+**Implementation Status Tracking (M-TESTING Learning):**
+
+When creating stubs for progressive development, document them explicitly in milestone summaries:
+
+```markdown
+## Implementation Status (Milestone X Complete)
+
+✅ **Complete**: CLI parsing, file walking, reporter integration
+⏳ **Stubbed**: Test execution (returns skip for now)
+📋 **Next**: Wire up pipeline/eval integration (Day X+1)
+
+**Stub Locations** (for handoff/continuation):
+- cmd/ailang/test.go:127 (executeUnitTest) - Returns skip
+- cmd/ailang/test.go:139 (executePropertyTest) - Returns skip
+```
+
+**Why this matters:**
+- Clear handoff points between milestones
+- No surprises about what's functional vs stubbed
+- Easy to find what needs wiring in next milestone
+- Validates progressive development strategy
 
 ### Pause Points
 - After each milestone completion
