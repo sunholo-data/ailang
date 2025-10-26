@@ -472,3 +472,147 @@ func TestGeneratorInterface_ListGenerator(t *testing.T) {
 		t.Errorf("expected ListValue, got %T", val)
 	}
 }
+
+// TestPropertyRunner_ShrinkInt tests shrinking integers to minimal counterexample.
+func TestPropertyRunner_ShrinkInt(t *testing.T) {
+	config := DefaultConfig()
+	runner := NewPropertyRunner(config, 100)
+	shrinker := NewIntShrinker()
+
+	// Property: all integers must be < 50
+	// This will fail for values >= 50
+	original := &eval.IntValue{Value: 100}
+
+	// Predicate: returns true if property holds, false if fails
+	predicate := func(v eval.Value) bool {
+		intVal := v.(*eval.IntValue)
+		return intVal.Value < 50 // Property holds if < 50
+	}
+
+	// Shrink to minimal failure
+	shrunk := runner.ShrinkValue(original, shrinker, predicate)
+	shrunkInt := shrunk.(*eval.IntValue)
+
+	// Should shrink 100 down to 50 (minimal value that fails the property)
+	if shrunkInt.Value != 50 {
+		t.Errorf("expected minimal failing value 50, got %d", shrunkInt.Value)
+	}
+}
+
+// TestPropertyRunner_ShrinkList tests shrinking lists to minimal counterexample.
+func TestPropertyRunner_ShrinkList(t *testing.T) {
+	config := DefaultConfig()
+	runner := NewPropertyRunner(config, 100)
+	elemShrinker := NewIntShrinker()
+	shrinker := NewListShrinker(elemShrinker)
+
+	// Start with a large list containing a failing value
+	original := &eval.ListValue{Elements: []eval.Value{
+		&eval.IntValue{Value: 1},
+		&eval.IntValue{Value: 2},
+		&eval.IntValue{Value: 100}, // This value fails
+		&eval.IntValue{Value: 4},
+		&eval.IntValue{Value: 5},
+	}}
+
+	// Property: all elements must be < 50
+	predicate := func(v eval.Value) bool {
+		listVal := v.(*eval.ListValue)
+		for _, elem := range listVal.Elements {
+			if elem.(*eval.IntValue).Value >= 50 {
+				return false // Property fails if any element >= 50
+			}
+		}
+		return true // Property holds if all elements < 50
+	}
+
+	// Shrink to minimal failure
+	shrunk := runner.ShrinkValue(original, shrinker, predicate)
+	shrunkList := shrunk.(*eval.ListValue)
+
+	// Should shrink to minimal failing case
+	if len(shrunkList.Elements) >= len(original.Elements) {
+		t.Errorf("shrunk list should be smaller than original: got %d, original %d",
+			len(shrunkList.Elements), len(original.Elements))
+	}
+
+	// At least one element should still fail the property
+	foundFailing := false
+	for _, elem := range shrunkList.Elements {
+		if elem.(*eval.IntValue).Value >= 50 {
+			foundFailing = true
+			break
+		}
+	}
+	if !foundFailing {
+		t.Error("shrunk list should still contain failing element")
+	}
+}
+
+// TestPropertyRunner_ShrinkString tests shrinking strings to minimal counterexample.
+func TestPropertyRunner_ShrinkString(t *testing.T) {
+	config := DefaultConfig()
+	runner := NewPropertyRunner(config, 100)
+	shrinker := NewStringShrinker()
+
+	// Property: string length must be < 5
+	original := &eval.StringValue{Value: "hello world"} // 11 chars, fails
+
+	predicate := func(v eval.Value) bool {
+		strVal := v.(*eval.StringValue)
+		return len(strVal.Value) < 5 // Property holds if < 5 chars
+	}
+
+	// Shrink to minimal failure
+	shrunk := runner.ShrinkValue(original, shrinker, predicate)
+	shrunkStr := shrunk.(*eval.StringValue)
+
+	// Should shrink to a 5-character string (minimal failing length)
+	if len(shrunkStr.Value) != 5 {
+		t.Errorf("expected minimal failing length 5, got %d (%q)",
+			len(shrunkStr.Value), shrunkStr.Value)
+	}
+}
+
+// TestPropertyRunner_ShrinkNoSmallerFailure tests when no smaller failure exists.
+func TestPropertyRunner_ShrinkNoSmallerFailure(t *testing.T) {
+	config := DefaultConfig()
+	runner := NewPropertyRunner(config, 100)
+	shrinker := NewIntShrinker()
+
+	// Property: value must be != 42
+	original := &eval.IntValue{Value: 42}
+
+	predicate := func(v eval.Value) bool {
+		intVal := v.(*eval.IntValue)
+		return intVal.Value != 42 // Only 42 fails
+	}
+
+	// Try to shrink
+	shrunk := runner.ShrinkValue(original, shrinker, predicate)
+	shrunkInt := shrunk.(*eval.IntValue)
+
+	// Should stay at 42 (0 passes, so we can't shrink to 0)
+	if shrunkInt.Value != 42 {
+		t.Errorf("expected value to stay at 42, got %d", shrunkInt.Value)
+	}
+}
+
+// TestPropertyRunner_ShrinkNilShrinker tests behavior with nil shrinker.
+func TestPropertyRunner_ShrinkNilShrinker(t *testing.T) {
+	config := DefaultConfig()
+	runner := NewPropertyRunner(config, 100)
+
+	original := &eval.IntValue{Value: 100}
+
+	predicate := func(v eval.Value) bool {
+		return v.(*eval.IntValue).Value < 50
+	}
+
+	// Shrink with nil shrinker should return original
+	shrunk := runner.ShrinkValue(original, nil, predicate)
+
+	if shrunk != original {
+		t.Error("should return original when shrinker is nil")
+	}
+}

@@ -225,3 +225,40 @@ func (pr *PropertyRunner) GenerateList(elemGen Generator, maxLen int) []eval.Val
 
 	return elements
 }
+
+// ShrinkValue attempts to shrink a failing value to find a minimal counterexample.
+// It uses the provided shrinker and predicate function.
+// Returns the minimal shrunk value that still fails, or the original if no smaller failure found.
+func (pr *PropertyRunner) ShrinkValue(
+	original eval.Value,
+	shrinker Shrinker,
+	predicate func(eval.Value) bool,
+) eval.Value {
+	if shrinker == nil {
+		return original // Can't shrink without a shrinker
+	}
+
+	// Start with original failing value
+	current := original
+	improved := true
+
+	// Keep shrinking while we find smaller failures
+	// Limit iterations to prevent infinite loops (max 100 shrink attempts)
+	for iteration := 0; iteration < 100 && improved; iteration++ {
+		improved = false
+		shrinks := shrinker.Shrink(current)
+
+		// Try each shrunk value in order (shrinkers return them from simplest to complex)
+		for _, candidate := range shrinks {
+			// Check if this shrunk value still fails the property
+			if !predicate(candidate) {
+				// Found a smaller failure!
+				current = candidate
+				improved = true
+				break // Take first (simplest) failing shrink
+			}
+		}
+	}
+
+	return current
+}
