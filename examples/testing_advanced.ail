@@ -1,0 +1,234 @@
+// Advanced Testing Examples for AILANG
+// Demonstrates custom generators, shrinking, and complex properties
+
+// ============================================================================
+// Custom Type Tests (ADTs)
+// ============================================================================
+
+// Binary Tree ADT
+type Tree =
+  | Leaf(int)
+  | Node(Tree, int, Tree)
+
+// Test tree construction
+test "leaf construction" =
+  match Leaf(42) {
+    | Leaf(x) -> x == 42
+    | Node(_, _, _) -> false
+  }
+
+test "node construction" =
+  let tree = Node(Leaf(1), 2, Leaf(3)) in
+  match tree {
+    | Node(_, x, _) -> x == 2
+    | Leaf(_) -> false
+  }
+
+// Tree properties
+property "tree depth is non-negative" (t: Tree) =
+  depth(t) >= 0
+
+property "tree size is positive" (t: Tree) =
+  size(t) > 0
+
+// Tree traversal tests
+test "inorder traversal of simple tree" =
+  let tree = Node(Leaf(1), 2, Leaf(3)) in
+  inorder(tree) == [1, 2, 3]
+
+test "preorder traversal of simple tree" =
+  let tree = Node(Leaf(1), 2, Leaf(3)) in
+  preorder(tree) == [2, 1, 3]
+
+// Helper functions for trees
+let depth = \t.
+  match t {
+    | Leaf(_) -> 1
+    | Node(left, _, right) -> 1 + max(depth(left), depth(right))
+  }
+
+let size = \t.
+  match t {
+    | Leaf(_) -> 1
+    | Node(left, _, right) -> 1 + size(left) + size(right)
+  }
+
+let inorder = \t.
+  match t {
+    | Leaf(x) -> [x]
+    | Node(left, x, right) -> inorder(left) ++ [x] ++ inorder(right)
+  }
+
+let preorder = \t.
+  match t {
+    | Leaf(x) -> [x]
+    | Node(left, x, right) -> [x] ++ preorder(left) ++ preorder(right)
+  }
+
+// ============================================================================
+// Record Tests
+// ============================================================================
+
+// Point record
+type Point = { x: int, y: int }
+
+test "point construction" =
+  let p = { x = 10, y = 20 } in
+  p.x == 10 && p.y == 20
+
+test "point equality" =
+  let p1 = { x = 5, y = 10 } in
+  let p2 = { x = 5, y = 10 } in
+  p1 == p2
+
+property "point distance is non-negative" (p1: Point, p2: Point) =
+  distance(p1, p2) >= 0.0
+
+property "point distance is symmetric" (p1: Point, p2: Point) =
+  distance(p1, p2) == distance(p2, p1)
+
+// Helper for distance
+let distance = \p1 p2.
+  let dx = float(p1.x - p2.x) in
+  let dy = float(p1.y - p2.y) in
+  sqrt(dx * dx + dy * dy)
+
+// ============================================================================
+// Stateful Property Tests (Shrinking Demonstration)
+// ============================================================================
+
+// These tests demonstrate shrinking behavior when they fail
+
+property "all positive integers are less than 1000" (x: int) =
+  // This will fail for x >= 1000
+  // Shrinking should find minimal counterexample: 1000
+  x < 1000
+
+property "all non-empty lists have length < 100" (xs: list(int)) =
+  // This will fail for long lists
+  // Shrinking should find minimal counterexample: list of length 100
+  length(xs) < 100 || xs == []
+
+property "strings shorter than 50 chars only" (s: string) =
+  // This will fail for long strings
+  // Shrinking should find minimal counterexample: 50-char string
+  length(s) < 50
+
+// ============================================================================
+// Conditional Property Tests
+// ============================================================================
+
+// Properties with preconditions (implications)
+
+property "division by non-zero" (x: int, y: int) =
+  // If y is not zero, then division works
+  y != 0 ==> (x / y) * y + (x % y) == x
+
+property "non-empty list has head" (xs: list(int)) =
+  // If list is non-empty, head exists
+  length(xs) > 0 ==> head(xs) != null
+
+property "positive numbers are greater than zero" (x: int) =
+  x > 0 ==> x >= 1
+
+// ============================================================================
+// Recursive Data Structure Properties
+// ============================================================================
+
+// List properties with recursion
+property "appending empty list is identity" (xs: list(int)) =
+  append(xs, []) == xs
+
+property "appending non-empty list increases length" (xs: list(int), ys: list(int)) =
+  length(ys) > 0 ==> length(append(xs, ys)) > length(xs)
+
+// Tree balancing properties (if implemented)
+property "balanced tree has log depth" (xs: list(int)) =
+  let tree = buildBalancedTree(xs) in
+  let n = length(xs) in
+  depth(tree) <= ceil(log2(n + 1))
+
+// ============================================================================
+// Composition Properties
+// ============================================================================
+
+property "map fusion" (f: int -> int, g: int -> int, xs: list(int)) =
+  // map(f, map(g, xs)) == map(f ∘ g, xs)
+  let composed = \x. f(g(x)) in
+  map(f, map(g, xs)) == map(composed, xs)
+
+property "filter composition" (p: int -> bool, q: int -> bool, xs: list(int)) =
+  // filter(p, filter(q, xs)) == filter(λx. p(x) ∧ q(x), xs)
+  let both = \x. p(x) && q(x) in
+  filter(p, filter(q, xs)) == filter(both, xs)
+
+// ============================================================================
+// Algebraic Properties
+// ============================================================================
+
+// Monoid laws for lists
+property "list concatenation has identity" (xs: list(int)) =
+  // Identity: xs ++ [] = xs = [] ++ xs
+  (xs ++ [] == xs) && ([] ++ xs == xs)
+
+property "list concatenation is associative" (xs: list(int), ys: list(int), zs: list(int)) =
+  // Associativity: (xs ++ ys) ++ zs = xs ++ (ys ++ zs)
+  (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
+
+// Functor laws for Option
+property "option functor identity" (mx: Option(int)) =
+  // map(id, mx) = mx
+  let id = \x. x in
+  map(id, mx) == mx
+
+property "option functor composition" (f: int -> int, g: int -> int, mx: Option(int)) =
+  // map(f ∘ g, mx) = map(f, map(g, mx))
+  let composed = \x. f(g(x)) in
+  map(composed, mx) == map(f, map(g, mx))
+
+// ============================================================================
+// Error Handling Properties
+// ============================================================================
+
+property "result map preserves Ok" (f: int -> int, x: int) =
+  mapResult(f, Ok(x)) == Ok(f(x))
+
+property "result map preserves Err" (f: int -> int, err: string) =
+  mapResult(f, Err(err)) == Err(err)
+
+property "result flatMap chains" (f: int -> Result(int, string), x: int) =
+  // flatMap(f, Ok(x)) should apply f
+  match flatMap(f, Ok(x)) {
+    | Ok(_) -> true
+    | Err(_) -> false
+  }
+
+// ============================================================================
+// Performance Properties (Asymptotic Behavior)
+// ============================================================================
+
+// These properties test performance characteristics
+
+property "map is O(n)" (xs: list(int)) =
+  // Map execution time should be linear in list length
+  // (This would need timing infrastructure to test properly)
+  let doubled = map(\x. x * 2, xs) in
+  length(doubled) == length(xs)
+
+property "append is O(n+m)" (xs: list(int), ys: list(int)) =
+  // Append result length should be sum of inputs
+  length(xs ++ ys) == length(xs) + length(ys)
+
+// ============================================================================
+// QuickCheck-Style Generators (Metadata for Property Testing)
+// ============================================================================
+
+// These comments guide the property test framework on how to generate values
+
+// @generator Tree: balanced tree with depth 0-5
+// @generator Point: x,y in range -1000 to 1000
+// @generator non-empty list: length 1-100
+// @generator short string: length 0-20 chars
+// @generator positive int: range 1-1000
+
+// Note: Actual generator integration would be implemented in the testing framework
