@@ -162,9 +162,21 @@
         "optimized"
       ],
       "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189→5058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
+    },
+    "v0.3.20": {
+      "file": "prompts/v0.3.20.md",
+      "hash": "a49dadd4264a07a1c70bcb8ffd03680313e6a8f7289eff06716b74ff3d41b48b",
+      "description": "Add property-based testing syntax (test/property keywords) from M-TESTING",
+      "created": "2025-10-26",
+      "tags": [
+        "production",
+        "latest",
+        "testing"
+      ],
+      "notes": "Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
     }
   },
-  "active": "v0.3.19",
+  "active": "v0.3.20",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
