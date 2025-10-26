@@ -281,9 +281,9 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-27%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-28%20passing-brightgreen.svg)
 
-**27/28 examples passing (96%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**28/28 examples passing (100%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -296,7 +296,7 @@ See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ❌ Fail | Warning: import path 'stdlib/std/*' is deprecat... |
+| `runnable/json_basic_decode.ail` | ✅ Pass |  |
 | `runnable/letrec_recursion.ail` | ✅ Pass |  |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
 | `runnable/micro_block_seq.ail` | ✅ Pass |  |
