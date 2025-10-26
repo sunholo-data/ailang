@@ -1624,6 +1624,158 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 - `internal/parser/parser.go` - `nextToken()` wrapper
 - Any parser code that checks for or handles whitespace
 
+---
+
+## Parser Developer Experience Guide
+
+**⚠️ READ THIS BEFORE WRITING PARSER CODE - Saves 30% of development time!**
+
+This section documents critical parser conventions that prevent token position bugs (the #1 time sink in parser development).
+
+### Parser Token Position Convention
+
+**CRITICAL:** AILANG parser functions follow this convention:
+- **Input:** Parser is AT the first token to parse
+- **Output:** Parser is AT the last token of what was parsed (NOT after it)
+
+**Example:**
+```go
+// To parse "42" followed by a comma:
+p.nextToken() // move to 42
+expr := p.parseExpression(LOWEST)  // parses "42", leaves cur=42 (NOT comma!)
+p.nextToken() // NOW we're at comma ✓
+```
+
+**Functions following this convention:**
+- `parseExpression()` - Leaves parser AT the last token of the expression
+- `parseType()` - Leaves parser AT the last token of the type
+- `parsePattern()` - Leaves parser AT the last token of the pattern
+- Most parser functions follow this pattern
+
+**When writing new parser functions:**
+- ✅ ALWAYS call `p.nextToken()` AFTER calling these functions
+- ❌ DON'T call `p.nextToken()` BEFORE - the caller handles positioning
+- ✅ Document your function if it deviates from this convention
+
+**Debugging token positions:**
+```go
+// Use DEBUG_PARSER=1 to see token flow:
+// $ DEBUG_PARSER=1 ailang run test.ail
+// [ENTER parseExpression] cur=INT peek=COMMA
+// [EXIT parseExpression] cur=INT peek=COMMA  ← Still AT the INT!
+```
+
+### Common AST Types Reference
+
+**Quick type lookup:**
+```bash
+grep "^type.*struct" internal/ast/ast.go | head -20
+```
+
+**Expression types:**
+- **Literals**: `ast.Literal` with `Kind` field (IntLit, StringLit, BoolLit, FloatLit, UnitLit)
+  - ⚠️ **GOTCHA**: Lexer returns `int64`, not `int` for IntLit
+  - ✅ Access: `lit.Value.(int64)`
+  - ❌ Wrong: `lit.Value.(int)` (will panic!)
+- **Lists**: `ast.List` with `Elements []Expr`
+- **Variables**: `ast.Variable` with `Name string`
+- **Function calls**: `ast.FuncCall` with `Func Expr, Args []Expr`
+- **Lambdas**: `ast.Lambda` with `Params []*ast.Param, Body Expr`
+- **Blocks**: `ast.Block` with `Exprs []Expr`
+
+**Type types:**
+- **Simple types**: `ast.SimpleType` with `Name string` (e.g., "int", "bool", "string")
+- **List types**: `ast.ListType` with `Element Type`
+- **Function types**: `ast.FuncType` with `Params []Type, Return Type, Effects *ast.EffectRow`
+- **Type applications**: `ast.TypeApp` with `Con string, Args []Type`
+
+**Pattern types:**
+- **Variable pattern**: `ast.VarPattern` with `Name string`
+- **Constructor pattern**: `ast.ConstructorPattern` with `Name string, Args []Pattern`
+- **Literal pattern**: `ast.LiteralPattern` with `Value Literal`
+- **Wildcard pattern**: `ast.WildcardPattern` (matches anything)
+
+### Quick Token Lookup
+
+**Check if a keyword exists:**
+```bash
+grep -i "forall" internal/lexer/token.go
+# Output: FORALL token exists!
+```
+
+**Common testing keywords (already in lexer):**
+- `FORALL`, `EXISTS` - Quantifiers
+- `TEST`, `TESTS` - Test blocks
+- `PROPERTY`, `PROPERTIES` - Property-based tests
+- `ASSERT` - Assertions
+
+**If you see an identifier instead of a keyword:**
+- Lexer returns token type, not `lexer.IDENT` for keywords
+- ✅ Use `lexer.FORALL`, not `lexer.IDENT + literal check`
+- ❌ Wrong: `p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "forall"`
+- ✅ Right: `p.curTokenIs(lexer.FORALL)`
+
+### Parsing Optional Sections After Optional Sections
+
+**Pattern for parsing `properties` that can appear after optional `tests`:**
+
+```go
+// properties can be in PEEK (no tests) or CUR (after tests)
+if p.peekTokenIs(lexer.PROPERTIES) || p.curTokenIs(lexer.PROPERTIES) {
+    // If in peek, advance to it
+    if p.peekTokenIs(lexer.PROPERTIES) {
+        p.nextToken()
+    }
+    // Now always at PROPERTIES
+    properties := p.parsePropertiesBlock()
+}
+```
+
+**Why:** Previous optional section may or may not advance the parser, so check both positions.
+
+### Test Error Printing Pattern
+
+**❌ WRONG - Errors are hidden:**
+```go
+if len(p.Errors()) != 0 {
+    t.Fatalf("parser had %d errors:", len(p.Errors()))
+    // ⚠️ This never executes! t.Fatalf stops immediately
+    for _, err := range p.Errors() {
+        t.Errorf("  %s", err)
+    }
+}
+```
+
+**✅ CORRECT - Errors are visible:**
+```go
+if len(p.Errors()) != 0 {
+    // Print errors BEFORE Fatalf
+    for _, err := range p.Errors() {
+        t.Errorf("  %s", err)
+    }
+    t.Fatalf("parser had %d errors", len(p.Errors()))
+}
+```
+
+### Debug Mode (Coming in v0.3.15)
+
+**Enable token position tracing:**
+```bash
+DEBUG_PARSER=1 ailang run test.ail
+```
+
+**Output example:**
+```
+[ENTER parseTestsBlock] cur=LBRACE peek=TEST
+[ENTER parseTestCase] cur=TEST peek=LPAREN
+[EXIT parseTestCase] cur=RPAREN peek=COMMA
+[EXIT parseTestsBlock] cur=RBRACE peek=PROPERTIES
+```
+
+**See also:** M-DX9 Parser Developer Experience (design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md)
+
+---
+
 ## Reference Documentation
 
 **For detailed guides, see:**
