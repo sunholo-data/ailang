@@ -838,9 +838,9 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.19)
+# AI Teaching Prompt (Latest: v0.3.20)
 
-# AILANG v0.3.19 - AI Teaching Prompt
+# AILANG v0.3.20 - AI Teaching Prompt
 
 **CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -856,6 +856,7 @@ AILANG is a pure functional language with Hindley-Milner type inference and alge
 - ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
 - Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
 - List: `[]` | `::(head, tail)` | `match xs { | [] => ... | ::(h,t) => ... }`
+- **Testing (v0.3.20+):** `test "name" = expr` | `property "name" (x: int) = expr`
 
 **Entry module prelude (v0.3.16+):** `print` builtin available in entry modules (no import needed!)
 
@@ -939,9 +940,9 @@ export func main() -> () ! {IO} {
 - Pattern matching uses `=>` NOT `:` or `->`
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
 
-## What Works (v0.3.16+)
+## What Works (v0.3.20+)
 
-Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net}`), recursion, numeric conversions, HTTP with headers, JSON encoding.
+Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net}`), recursion, numeric conversions, HTTP with headers, JSON encoding, **property-based testing**.
 
 **Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
 
@@ -1004,6 +1005,57 @@ export func main() -> () ! {IO} {
 ```
 
 **IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
+
+## Testing (v0.3.20+)
+
+**Property-based testing with automatic counterexample shrinking**
+
+### Unit Tests (Simple Assertions)
+
+```ailang
+test "name" = boolean_expression
+```
+
+**Examples:**
+```ailang
+test "addition works" = 1 + 1 == 2
+test "list operations" = head([1, 2, 3]) == 1
+test "string concat" = "hello" ++ " world" == "hello world"
+```
+
+### Property Tests (QuickCheck-Style)
+
+```ailang
+property "name" (param: type, ...) = boolean_expression
+```
+
+**Examples:**
+```ailang
+// Commutativity
+property "addition is commutative" (x: int, y: int) =
+  x + y == y + x
+
+// Associativity
+property "concat is associative" (a: string, b: string, c: string) =
+  (a ++ b) ++ c == a ++ (b ++ c)
+
+// Identity
+property "zero is identity" (x: int) =
+  x + 0 == x && 0 + x == x
+```
+
+**Supported types:** `int`, `float`, `bool`, `string`, `list(T)`, `Option(T)`, `Result(T, E)`, custom ADTs
+
+**Running tests:**
+```bash
+ailang test file.ail                    # Run all tests
+ailang test file.ail --format json      # JSON output for CI
+```
+
+**How it works:**
+1. Generates 100 random test cases per property
+2. Runs property on each case
+3. If failure found, shrinks to minimal counterexample
 
 ## HTTP POST with JSON Example (Complete)
 
