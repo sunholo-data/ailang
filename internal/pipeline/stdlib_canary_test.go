@@ -154,7 +154,7 @@ func findStdlibPath(t *testing.T) string {
 	// As of v0.3.20, stdlib files moved from stdlib/std/ to std/
 	// This function now returns the root directory containing std/
 	candidates := []string{
-		"../..",     // From internal/pipeline/ to root
+		"../..",    // From internal/pipeline/ to root
 		"../../..", // From deeper nested directories
 		filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "sunholo", "ailang"),
 	}

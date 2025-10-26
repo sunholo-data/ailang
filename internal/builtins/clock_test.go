@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/sunholo/ailang/internal/effects/testctx"
 	"github.com/sunholo/ailang/internal/eval"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestClockNow(t *testing.T) {
