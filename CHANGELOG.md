@@ -1,5 +1,92 @@
 # AILANG Changelog
 
+## [v0.3.20] - 2025-10-26
+
+### Added - M-TESTING: Property-Based Testing Infrastructure
+
+**User Impact**: QuickCheck-style property-based testing with automatic shrinking for deterministic validation and CI/CD integration.
+
+**What It Does**:
+- Property-based testing (100 random test cases per property)
+- Automatic shrinking to minimal counterexamples when tests fail
+- `ailang test` CLI command with JSON/human output formats
+- Type-aware generators for all AILANG types
+- CI/CD ready with exit codes and JSON schema
+
+**Implementation** (Days 6-10 Complete):
+
+- ✅ **Day 6: Basic Generators**
+  - IntGenerator, FloatGenerator, BoolGenerator, StringGenerator, ListGenerator
+  - PropertyRunner with deterministic seeding
+  - GenConfig for customizable generation parameters
+  - 30 tests passing
+  - Files: `internal/testing/generator.go` (+230 LOC), `generator_test.go` (+529 LOC)
+
+- ✅ **Day 7: Advanced Generators**
+  - Combinators: MapGenerator, FilterGenerator, OneOfGenerator, FrequencyGenerator, SizedGenerator
+  - Complex types: ADTGenerator, RecordGenerator, TupleGenerator
+  - Helpers: OptionGenerator, ResultGenerator
+  - 85 tests total (84 pass + 1 skip)
+  - Files: `internal/testing/generator_advanced.go` (+271 LOC), `generator_advanced_test.go` (+530 LOC)
+
+- ✅ **Day 8: Shrinking Algorithm**
+  - Shrinker interface with 6 implementations
+  - IntShrinker, FloatShrinker, StringShrinker (basic types)
+  - ListShrinker, ADTShrinker, NoOpShrinker (complex types)
+  - PropertyRunner.ShrinkValue() integration
+  - Binary search toward simplest values, bounded iterations (max 100)
+  - 110 tests total (109 pass + 1 skip)
+  - Files: `internal/testing/shrink.go` (+300 LOC), `shrink_test.go` (+537 LOC)
+
+- ✅ **Day 9: CLI Command**
+  - `ailang test [path]` command with flag parsing
+  - `--format human|json` for output control
+  - `--no-color` for CI environments
+  - Integration with internal/testing.RunTestsFromFile()
+  - Exit codes: 0=pass, 1=fail
+  - Files: `cmd/ailang/test.go` (+142 LOC), `cmd/ailang/main.go` (+17 LOC)
+
+- ✅ **Day 10: Documentation & Examples**
+  - Customer-facing guide: `docs/TESTING.md` (+650 LOC)
+  - AI-focused guide: `prompts/testing_guide_ai.md` (+650 LOC)
+  - Basic examples: `examples/testing_basic.ail` (+149 LOC)
+  - Advanced examples: `examples/testing_advanced.ail` (+248 LOC)
+  - CI/CD integration (GitHub Actions, GitLab CI, CircleCI)
+  - README update with testing section
+
+**Code Organization Improvements**:
+- Split `internal/parser/parser_decl.go` (1085 → 5 files, all <320 LOC)
+- Split `internal/ast/ast.go` (918 → 4 files, all <490 LOC)
+- All files now under 800 lines (AI-friendly for context windows)
+- Clear package documentation and file responsibilities
+
+**Test Infrastructure**:
+- Test syntax: `test "name" = boolean_expression`
+- Property syntax: `property "name" (x: type, ...) = boolean_expression`
+- 110 tests passing (109 pass + 1 skip)
+- Test-to-code ratio: 1.5x
+
+**CI/CD Integration**:
+- JSON output schema for machine parsing
+- Exit codes for automation (0=pass, 1=fail)
+- Pre-commit hook examples
+- GitHub Actions workflow example
+- GitLab CI and CircleCI configurations
+
+**Files Added**: 13 files (~5,750 lines total)
+- Production code: ~1,550 lines
+- Test code: ~2,350 lines
+- Documentation: ~1,650 lines
+- Examples: ~400 lines
+
+**Files Split**: 9 files (better AI maintainability)
+- Parser split: 5 focused files (file, func, testing, test_decl, decl routing)
+- AST split: 4 focused files (core, expr, decl, type)
+
+**Breaking Changes**: None
+
+**Migration Notes**: None required
+
 ## [v0.3.19] - 2025-10-25
 
 ### Added - M-CLAUDE-CODE-INTEGRATION-V2: Interactive ↔ Autonomous Agent Bridge

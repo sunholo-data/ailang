@@ -76,12 +76,12 @@ func TestFormatToken(t *testing.T) {
 		{
 			name:     "Plus operator",
 			token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-			expected: "+(+)",  // tok.Type.String() returns "+"
+			expected: "+(+)", // tok.Type.String() returns "+"
 		},
 		{
 			name:     "Keyword let",
 			token:    lexer.Token{Type: lexer.LET, Literal: "let"},
-			expected: "let(let)",  // tok.Type.String() returns "let"
+			expected: "let(let)", // tok.Type.String() returns "let"
 		},
 		{
 			name:     "LPAREN",

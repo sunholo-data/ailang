@@ -16,11 +16,11 @@ const (
 
 // TestResult represents the outcome of a single test execution.
 type TestResult struct {
-	Name     string      // Test name
-	Status   TestStatus  // Pass/fail/skip
+	Name     string        // Test name
+	Status   TestStatus    // Pass/fail/skip
 	Duration time.Duration // Execution time
-	Error    string      // Error message (if failed)
-	Location string      // Source location (file:line:col)
+	Error    string        // Error message (if failed)
+	Location string        // Source location (file:line:col)
 }
 
 // PropertyResult represents the outcome of a property-based test.
@@ -36,26 +36,26 @@ type PropertyResult struct {
 
 // SuiteResult aggregates results from all tests in a test suite.
 type SuiteResult struct {
-	ModulePath      string            // Module path
-	Tests           []TestResult      // All test results
-	Properties      []PropertyResult  // All property results
-	TotalTests      int               // Total number of tests
-	PassedTests     int               // Number of passing tests
-	FailedTests     int               // Number of failing tests
-	SkippedTests    int               // Number of skipped tests
-	TotalDuration   time.Duration     // Total execution time
+	ModulePath    string           // Module path
+	Tests         []TestResult     // All test results
+	Properties    []PropertyResult // All property results
+	TotalTests    int              // Total number of tests
+	PassedTests   int              // Number of passing tests
+	FailedTests   int              // Number of failing tests
+	SkippedTests  int              // Number of skipped tests
+	TotalDuration time.Duration    // Total execution time
 }
 
 // NewSuiteResult creates a new empty suite result.
 func NewSuiteResult(modulePath string) *SuiteResult {
 	return &SuiteResult{
-		ModulePath:   modulePath,
-		Tests:        []TestResult{},
-		Properties:   []PropertyResult{},
-		TotalTests:   0,
-		PassedTests:  0,
-		FailedTests:  0,
-		SkippedTests: 0,
+		ModulePath:    modulePath,
+		Tests:         []TestResult{},
+		Properties:    []PropertyResult{},
+		TotalTests:    0,
+		PassedTests:   0,
+		FailedTests:   0,
+		SkippedTests:  0,
 		TotalDuration: 0,
 	}
 }
