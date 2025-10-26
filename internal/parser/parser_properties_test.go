@@ -24,10 +24,11 @@ func TestParseProperties_SingleProperty(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	if len(file.Decls) != 1 {
@@ -93,10 +94,11 @@ func TestParseProperties_MultipleProperties(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -142,10 +144,11 @@ func TestParseProperties_MultipleBinders(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -196,10 +199,11 @@ func TestParseProperties_EmptyBlock(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -228,10 +232,11 @@ func TestParseProperties_WithNewlines(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -258,10 +263,11 @@ func TestParseProperties_TrailingComma(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -294,10 +300,11 @@ func TestParseProperties_NoProperties(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -328,10 +335,11 @@ func TestParseProperties_WithTests(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)

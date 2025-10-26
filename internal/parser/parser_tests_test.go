@@ -26,10 +26,11 @@ func TestParseInlineTests_SingleArg(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	if len(file.Decls) != 1 {
@@ -93,10 +94,11 @@ func TestParseInlineTests_MultiArg(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -147,10 +149,11 @@ func TestParseInlineTests_EmptyBlock(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -177,10 +180,11 @@ func TestParseInlineTests_StringInputs(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -217,10 +221,11 @@ func TestParseInlineTests_BooleanInputs(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -258,10 +263,11 @@ func TestParseInlineTests_ListInputs(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -316,10 +322,11 @@ func TestParseInlineTests_WithNewlines(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -347,10 +354,11 @@ func TestParseInlineTests_TrailingComma(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -377,10 +385,11 @@ func TestParseInlineTests_ComplexExpressions(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
@@ -410,10 +419,11 @@ func TestParseInlineTests_NoTests(t *testing.T) {
 	file := p.ParseFile()
 
 	if len(p.Errors()) != 0 {
-		t.Fatalf("parser had %d errors:", len(p.Errors()))
+		// Print errors BEFORE Fatalf
 		for _, err := range p.Errors() {
 			t.Errorf("  %s", err)
 		}
+		t.Fatalf("parser had %d errors", len(p.Errors()))
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
