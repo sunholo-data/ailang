@@ -479,24 +479,24 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	}
 
 	// Parse properties if present (before body)
-	// Check for both PROPERTIES token (legacy) and contextual "properties" keyword
-	if p.peekTokenIs(lexer.PROPERTIES) || p.peekIsContextualKeyword("properties") {
-		p.nextToken() // consume 'properties'
-		// Skip newlines after 'properties'
-		for p.peekTokenIs(lexer.NEWLINE) {
-			p.nextToken()
+	// Check for both PROPERTIES token and contextual "properties" keyword
+	// Could be in peek (no tests block) or cur (after tests block)
+	if p.peekTokenIs(lexer.PROPERTIES) || p.peekIsContextualKeyword("properties") ||
+		p.curTokenIs(lexer.PROPERTIES) || (p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "properties") {
+		// If in peek, advance to it
+		if p.peekTokenIs(lexer.PROPERTIES) || p.peekIsContextualKeyword("properties") {
+			p.nextToken() // move to 'properties'
 		}
-		if p.peekTokenIs(lexer.LBRACKET) {
-			p.nextToken() // move to LBRACKET
-			// fn.Properties = p._parsePropertiesBlock() // TODO: Implement properties block
+		// Now cur='properties', peek=next (should be [)
+		if !p.peekTokenIs(lexer.LBRACKET) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected [ after properties keyword", "Check syntax")
+		} else {
+			p.nextToken() // move to LBRACKET, now cur=[, peek=first_property_token
+			fn.Properties = p.parsePropertiesBlock()
 			// parsePropertiesBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()
 			}
-		}
-		// Skip newlines after properties block
-		for p.curTokenIs(lexer.NEWLINE) {
-			p.nextToken()
 		}
 	}
 
@@ -738,6 +738,172 @@ func (p *Parser) parseTestCase() *ast.TestCase {
 		Inputs:   inputs,
 		Expected: expected,
 		Pos:      pos,
+	}
+}
+
+// parsePropertiesBlock parses a properties block: [ property1, property2, ... ]
+// Expects to be AT LBRACKET when called.
+// Returns with parser AT RBRACKET.
+func (p *Parser) parsePropertiesBlock() []*ast.Property {
+	if !p.curTokenIs(lexer.LBRACKET) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected [ to start properties block", "Check syntax")
+		return nil
+	}
+
+	p.nextToken() // consume LBRACKET, move to first property or RBRACKET
+
+	var properties []*ast.Property
+
+	// Handle empty properties block: properties []
+	if p.curTokenIs(lexer.RBRACKET) {
+		return properties
+	}
+
+	for {
+		// Skip newlines and commas between properties
+		for p.curTokenIs(lexer.NEWLINE) || p.curTokenIs(lexer.COMMA) {
+			p.nextToken()
+		}
+
+		// Check for end of properties block
+		if p.curTokenIs(lexer.RBRACKET) {
+			break
+		}
+
+		// Parse property: forall(...) => expr
+		property := p.parseProperty()
+		if property != nil {
+			properties = append(properties, property)
+		}
+
+		// Skip trailing newlines
+		for p.curTokenIs(lexer.NEWLINE) {
+			p.nextToken()
+		}
+
+		// Check if we're done or continuing
+		if p.curTokenIs(lexer.RBRACKET) {
+			break
+		}
+		if p.curTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			continue
+		}
+
+		// If we reach here without RBRACKET or COMMA, it's an error
+		if !p.curTokenIs(lexer.RBRACKET) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected , or ] in properties block", "Check syntax")
+			break
+		}
+	}
+
+	return properties
+}
+
+// parseProperty parses a single property: forall(x: Type, y: Type) => expr
+// Properties can optionally have names for documentation purposes.
+func (p *Parser) parseProperty() *ast.Property {
+	pos := p.curPos()
+
+	// Optional property name (for standalone property blocks in future)
+	var name string
+
+	// Check for 'forall' keyword
+	if !p.curTokenIs(lexer.FORALL) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected forall in property", "Check syntax")
+		return nil
+	}
+
+	p.nextToken() // consume FORALL
+
+	// Parse binders: (x: Type, y: Type)
+	if !p.curTokenIs(lexer.LPAREN) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected ( after forall", "Check syntax")
+		return nil
+	}
+
+	p.nextToken() // consume LPAREN
+
+	var binders []*ast.Binder
+
+	// Parse binders list
+	for {
+		if p.curTokenIs(lexer.RPAREN) {
+			break
+		}
+
+		binder := p.parseBinder()
+		if binder != nil {
+			binders = append(binders, binder)
+		}
+
+		if p.curTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+		} else if !p.curTokenIs(lexer.RPAREN) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected , or ) in forall binders", "Check syntax")
+			return nil
+		}
+	}
+
+	if !p.curTokenIs(lexer.RPAREN) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected ) to close forall binders", "Check syntax")
+		return nil
+	}
+	p.nextToken() // consume RPAREN
+
+	// Expect '=>' (FARROW token)
+	if !p.curTokenIs(lexer.FARROW) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected => after forall binders", "Check syntax")
+		return nil
+	}
+	p.nextToken() // consume FARROW (=>)
+
+	// Parse property expression (predicate)
+	expr := p.parseExpression(LOWEST)
+	if expr == nil {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected expression in property", "Check syntax")
+		return nil
+	}
+	p.nextToken() // advance past the expression
+
+	return &ast.Property{
+		Name:    name, // Empty for inline properties
+		Binders: binders,
+		Expr:    expr,
+		Pos:     pos,
+	}
+}
+
+// parseBinder parses a forall binder: name: Type
+func (p *Parser) parseBinder() *ast.Binder {
+	pos := p.curPos()
+
+	if !p.curTokenIs(lexer.IDENT) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected identifier in binder", "Check syntax")
+		return nil
+	}
+
+	name := p.curToken.Literal
+	p.nextToken() // consume name
+
+	if !p.curTokenIs(lexer.COLON) {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected : after binder name", "Check syntax")
+		return nil
+	}
+	p.nextToken() // consume COLON
+
+	// Parse type
+	typ := p.parseType()
+	if typ == nil {
+		p.report("PAR_UNEXPECTED_TOKEN", "expected type in binder", "Check syntax")
+		return nil
+	}
+	p.nextToken() // advance past the type
+
+	return &ast.Binder{
+		Name: name,
+		Type: typ,
+		Pos:  pos,
 	}
 }
 
