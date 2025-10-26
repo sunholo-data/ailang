@@ -35,7 +35,7 @@ func TestAssertNoErrors(t *testing.T) {
 // TestAssertErrorCount tests the error count assertion helper
 func TestAssertErrorCount(t *testing.T) {
 	// This input has syntax errors
-	input := "let x ="  // Missing expression
+	input := "let x =" // Missing expression
 	l := lexer.New(input, "test.ail")
 	p := New(l)
 	p.ParseFile()

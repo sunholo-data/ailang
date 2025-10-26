@@ -80,8 +80,8 @@ func (g *OneOfGenerator) Generate(rng *rand.Rand) eval.Value {
 
 // FrequencyGenerator chooses generators with weighted probability.
 type FrequencyGenerator struct {
-	weights    []int
-	generators []Generator
+	weights     []int
+	generators  []Generator
 	totalWeight int
 }
 
@@ -93,8 +93,8 @@ func NewFrequencyGenerator(weights []int, generators []Generator) *FrequencyGene
 		total += w
 	}
 	return &FrequencyGenerator{
-		weights:    weights,
-		generators: generators,
+		weights:     weights,
+		generators:  generators,
 		totalWeight: total,
 	}
 }

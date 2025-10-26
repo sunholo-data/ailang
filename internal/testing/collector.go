@@ -10,11 +10,11 @@ import (
 
 // TestCase represents a single test case extracted from the AST.
 type TestCase struct {
-	Name        string      // Test name (from test "name" { ... })
-	Body        []ast.Expr  // Test body expressions
-	Location    ast.Pos     // Source location
-	IsInline    bool        // true for tests[...], false for test "name" {}
-	FunctionCtx string      // Function name if this is an inline test
+	Name        string     // Test name (from test "name" { ... })
+	Body        []ast.Expr // Test body expressions
+	Location    ast.Pos    // Source location
+	IsInline    bool       // true for tests[...], false for test "name" {}
+	FunctionCtx string     // Function name if this is an inline test
 }
 
 // PropertyCase represents a property-based test extracted from the AST.
@@ -27,9 +27,9 @@ type PropertyCase struct {
 
 // TestSuite represents all tests and properties extracted from a module.
 type TestSuite struct {
-	ModulePath string          // Module path (e.g., "std/list")
-	Tests      []TestCase      // All test cases
-	Properties []PropertyCase  // All property cases
+	ModulePath string         // Module path (e.g., "std/list")
+	Tests      []TestCase     // All test cases
+	Properties []PropertyCase // All property cases
 }
 
 // Collector extracts tests and properties from an AST.
@@ -101,7 +101,7 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 			// In full implementation, we'd evaluate this properly
 			tc := TestCase{
 				Name:        fmt.Sprintf("%s_test_%d", funcName, i+1), // e.g., "factorial_test_1"
-				Body:        []ast.Expr{testCase.Expected},             // Store expected as body for now
+				Body:        []ast.Expr{testCase.Expected},            // Store expected as body for now
 				Location:    testCase.Pos,
 				IsInline:    true,
 				FunctionCtx: funcName,

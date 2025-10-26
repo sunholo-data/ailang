@@ -140,11 +140,11 @@ func TestReporter_JSON_FailingTest(t *testing.T) {
 func TestReporter_JSON_PropertyResult(t *testing.T) {
 	result := NewSuiteResult("test.ail")
 	result.AddPropertyResult(PropertyResult{
-		Name:         "prop1",
-		Status:       StatusPass,
-		TestsRun:     100,
-		Duration:     500 * time.Millisecond,
-		Location:     "test.ail:20:1",
+		Name:     "prop1",
+		Status:   StatusPass,
+		TestsRun: 100,
+		Duration: 500 * time.Millisecond,
+		Location: "test.ail:20:1",
 	})
 
 	var buf bytes.Buffer
