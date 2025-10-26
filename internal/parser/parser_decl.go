@@ -463,22 +463,18 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	// Parse tests if present (before body)
 	// Check for both TESTS token (legacy) and contextual "tests" keyword
 	if p.peekTokenIs(lexer.TESTS) || p.peekIsContextualKeyword("tests") {
-		p.nextToken() // consume 'tests'
-		// Skip newlines after 'tests'
-		for p.peekTokenIs(lexer.NEWLINE) {
-			p.nextToken()
-		}
-		if p.peekTokenIs(lexer.LBRACKET) {
-			p.nextToken() // move to LBRACKET
+		p.nextToken() // consume 'tests', now cur=tests, peek=next
+		// Now cur should be "tests" identifier
+		// Look for [ which should be next (peek)
+		if !p.peekTokenIs(lexer.LBRACKET) {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected [ after tests keyword", "Check syntax")
+		} else {
+			p.nextToken() // move to LBRACKET, now cur=[, peek=first_test_token
 			fn.Tests = p.parseTestsBlock()
 			// parseTestsBlock leaves us at RBRACKET, move past it
 			if p.curTokenIs(lexer.RBRACKET) {
 				p.nextToken()
 			}
-		}
-		// Skip newlines after tests block
-		for p.curTokenIs(lexer.NEWLINE) {
-			p.nextToken()
 		}
 	}
 
@@ -686,6 +682,7 @@ func (p *Parser) parseTestCase() *ast.TestCase {
 			if input != nil {
 				inputs = append(inputs, input)
 			}
+			p.nextToken() // advance past the input expression
 
 			if p.curTokenIs(lexer.COMMA) {
 				p.nextToken() // consume comma
@@ -709,9 +706,12 @@ func (p *Parser) parseTestCase() *ast.TestCase {
 	} else {
 		// Single-arg test: (input, expected)
 		input := p.parseExpression(LOWEST)
-		if input != nil {
-			inputs = append(inputs, input)
+		if input == nil {
+			p.report("PAR_UNEXPECTED_TOKEN", "expected input value in test case", "Check syntax")
+			return nil
 		}
+		inputs = append(inputs, input)
+		p.nextToken() // advance past the input expression
 
 		if !p.curTokenIs(lexer.COMMA) {
 			p.report("PAR_UNEXPECTED_TOKEN", "expected , between input and expected value", "Check syntax")
@@ -726,6 +726,7 @@ func (p *Parser) parseTestCase() *ast.TestCase {
 		p.report("PAR_UNEXPECTED_TOKEN", "expected output value in test case", "Check syntax")
 		return nil
 	}
+	p.nextToken() // advance past the expected expression
 
 	if !p.curTokenIs(lexer.RPAREN) {
 		p.report("PAR_UNEXPECTED_TOKEN", "expected ) to close test case", "Check syntax")
