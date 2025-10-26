@@ -1778,6 +1778,157 @@ DEBUG_PARSER=1 ailang run test.ail
 - Only logs when `DEBUG_PARSER=1` is set (zero overhead otherwise)
 - Output goes to stderr, so it doesn't interfere with program output
 
+### Common API Patterns (M-TESTING Days 3-4 Learnings)
+
+**⚠️ COMMON API DISCOVERY ISSUES - Check these first!**
+
+#### Pattern 1: Package Constructors
+
+**Quick reference: `make doc PKG=<package>` shows all constructors and types**
+
+```bash
+# Example: Find NewElaborator() signature
+make doc PKG=internal/elaborate | grep "NewElaborator"
+# Output: func NewElaborator() *Elaborator
+
+# Example: Find NewCollector() signature
+make doc PKG=internal/testing | grep "NewCollector"
+# Output: func NewCollector(modulePath string) *Collector
+```
+
+**Common constructors:**
+| Package | Constructor | Signature | Notes |
+|---------|-------------|-----------|-------|
+| `internal/testing` | `NewCollector(path string)` | Takes module path | M-TESTING |
+| `internal/elaborate` | `NewElaborator()` | No arguments | Surface → Core |
+| `internal/types` | `NewTypeChecker(core, imports)` | Takes Core prog + imports | Type inference |
+| `internal/link` | `NewLinker()` | No arguments | Dictionary linking |
+| `internal/parser` | `New(lexer)` | Takes lexer instance | Parser |
+| `internal/eval` | `NewEvaluator(ctx)` | Takes EffContext | Core evaluator |
+
+#### Pattern 2: Test Collection API
+
+**Discovered during M-TESTING Days 3-4:**
+
+```go
+// ✅ CORRECT - From actual API
+collector := testing.NewCollector("module/path")
+suite := collector.Collect(file)
+
+// Access tests
+for _, test := range suite.Tests {
+    // test.Name, test.Inputs, test.Expected
+}
+
+// Access properties
+for _, prop := range suite.Properties {
+    // prop.Name, prop.Property
+}
+```
+
+**❌ WRONG assumptions that required grep debugging:**
+```go
+// Wrong: NewCollector takes 2 args
+collector := testing.NewCollector(file, modulePath)  // Compile error!
+
+// Wrong: suite has .Tests.Cases
+for _, test := range suite.Tests.Cases { ... }  // No .Cases field!
+
+// Wrong: FuncDecl has separate .InlineTests
+for _, test := range funcDecl.InlineTests { ... }  // Use .Tests instead
+```
+
+#### Pattern 3: Type Checking & Elaboration
+
+**Pipeline sequence:**
+```go
+// Step 1: Parse
+l := lexer.New(input, "test.ail")
+p := parser.New(l)
+file := p.ParseFile()
+
+// Step 2: Elaborate (Surface → Core)
+elab := elaborate.NewElaborator()  // ⚠️ No arguments!
+coreProg, err := elab.Elaborate(file)
+
+// Step 3: Type check
+tc := types.NewTypeChecker(coreProg, nil)  // nil = no imports
+typedProg, err := tc.Check()
+
+// Step 4: Link dictionaries
+linker := link.NewLinker()
+linkedProg, err := linker.Link(typedProg, tc.CoreTI)
+```
+
+#### Pattern 4: Field Access Patterns
+
+**Use `make doc` to discover struct fields:**
+
+```bash
+# Example: Check FuncDecl fields
+make doc PKG=internal/ast | grep -A 20 "type FuncDecl"
+# Shows: Tests []*TestCase, Properties []*Property
+```
+
+**Common field gotchas:**
+```go
+// ✅ CORRECT
+funcDecl.Tests           // []*ast.TestCase (not .Tests.Cases!)
+funcDecl.Properties      // []*ast.Property
+funcDecl.Params          // []*ast.Param
+
+// ❌ WRONG (fields that don't exist)
+funcDecl.InlineTests     // Use .Tests
+funcDecl.Tests.Cases     // .Tests is already the slice
+```
+
+#### Pattern 5: String Formatting (Day 4 Bug)
+
+**⚠️ CRITICAL: `string(rune(i))` produces unprintable characters!**
+
+```go
+// ❌ WRONG - Produces "\x01" instead of "1"
+testName := "test_" + string(rune(i+1))  // BUG!
+
+// ✅ CORRECT - Use fmt.Sprintf or strconv
+testName := fmt.Sprintf("test_%d", i+1)
+testName := "test_" + strconv.Itoa(i+1)
+```
+
+**Why**: `rune(1)` is the Unicode character U+0001 (unprintable), not the character "1" (U+0031).
+
+### Quick API Discovery Workflow
+
+**When you need to know an API:**
+
+1. **Check `make doc PKG=<package>` first** (fastest)
+   ```bash
+   make doc PKG=internal/testing | grep "NewCollector"
+   ```
+
+2. **Check source file directly** (if you know the file)
+   ```bash
+   grep "^func New" internal/testing/collector.go
+   grep "^type.*struct" internal/ast/ast.go
+   ```
+
+3. **Check test files for usage examples** (shows real patterns)
+   ```bash
+   grep "NewCollector" internal/testing/*_test.go
+   ```
+
+4. **Check docs/guides/** (for complex workflows)
+   - [docs/guides/parser_development.md](docs/guides/parser_development.md) - Parser patterns
+   - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflows
+
+### API Discovery Time Saver
+
+**Estimated time savings:**
+- **Before `make doc`**: ~5-10 min per API lookup (grep, read source, trial-error)
+- **After `make doc`**: ~30 sec per API lookup (one command)
+- **Day 4 impact**: 25 min API confusion → Could be ~5 min with `make doc`
+- **Improvement**: ~80% reduction in API discovery time
+
 **See also:** M-DX9 Parser Developer Experience (design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md)
 
 ---

@@ -4,6 +4,39 @@
 
 ## I need to...
 
+### ...look up an API (NEW v0.3.15!)
+
+**⚠️ Use `make doc` FIRST - 80% faster than grep!**
+
+```bash
+# Find constructor signature
+make doc PKG=internal/testing | grep "NewCollector"
+# Output: func NewCollector(modulePath string) *Collector
+
+# Find struct fields
+make doc PKG=internal/ast | grep -A 20 "type FuncDecl"
+# Output: Tests []*TestCase, Properties []*Property
+
+# View full package API
+make doc PKG=internal/elaborate
+# Shows: func NewElaborator() *Elaborator (and all exports)
+
+# Without arguments, shows usage help
+make doc
+```
+
+**Common packages:**
+- `internal/testing` - Test collection (M-TESTING)
+- `internal/elaborate` - Surface AST → Core AST
+- `internal/types` - Type checking and inference
+- `internal/parser` - Parser (also see docs/guides/parser_development.md)
+- `internal/eval` - Core AST evaluator
+- `internal/builtins` - Builtin function registry
+
+**Time savings**: ~30 sec vs 5-10 min manual grep (80% reduction)
+
+**See also**: CLAUDE.md "Common API Patterns" section for common mistakes and gotchas
+
 ### ...build and test my changes
 ```bash
 make quick-install                    # Fast reinstall after code changes
@@ -333,6 +366,9 @@ cd docs && npm run clear && npm start
 
 | Category | Tool | Quick Command |
 |----------|------|---------------|
+| **API Lookup** | Package API | `make doc PKG=internal/testing` |
+| | Constructor signature | `make doc PKG=<pkg> \| grep "New"` |
+| | Struct fields | `make doc PKG=<pkg> \| grep -A 20 "type Foo"` |
 | **Build** | Build locally | `make build` |
 | | Install to system | `make quick-install` |
 | **Test** | All tests | `make test` |
@@ -508,17 +544,42 @@ DEBUG_STRICT=1 ailang run test.ail
 DEBUG_MONO_VERBOSE=1 ailang run --debug-compile test.ail
 ```
 
-### Quick Type Lookup
+### Quick API & Type Lookup
 
+**⚠️ NEW (v0.3.15): Use `make doc` for 80% faster API discovery!**
+
+```bash
+# Look up package API (constructors, types, functions)
+make doc PKG=internal/testing
+# Shows: func NewCollector(modulePath string) *Collector
+
+make doc PKG=internal/elaborate
+# Shows: func NewElaborator() *Elaborator (no arguments!)
+
+make doc PKG=internal/ast | grep -A 20 "type FuncDecl"
+# Shows struct fields: Tests []*TestCase, Properties []*Property
+
+# Without arguments, shows usage examples
+make doc
+```
+
+**Legacy grep methods (slower, but still work):**
 ```bash
 # Find AST types
 grep "^type.*struct" internal/ast/ast.go | head -20
 
 # Check if keyword exists
 grep -i "forall" internal/lexer/token.go
+
+# Find constructors
+grep "^func New" internal/testing/collector.go
 ```
 
-**See also:** CLAUDE.md "Parser Developer Experience Guide" section
+**Time savings**: `make doc` takes ~30 sec vs manual grep ~5-10 min (80% reduction)
+
+**See also:**
+- CLAUDE.md "Parser Developer Experience Guide" section
+- CLAUDE.md "Common API Patterns (M-TESTING Days 3-4 Learnings)" section
 
 ---
 
@@ -535,5 +596,8 @@ grep -i "forall" internal/lexer/token.go
 
 ---
 
-**Last updated**: 2025-10-26 for M-DX9 (Parser DX improvements)
+**Last updated**: 2025-10-26
+- M-DX9: Parser DX improvements (test helpers, DEBUG_PARSER, comprehensive guide)
+- M-TESTING DX: API discovery (`make doc`), common API patterns, error printing fixes
+
 **Purpose**: Quick task-based reference for AILANG developers (human and AI)

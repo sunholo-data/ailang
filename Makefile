@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
+.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
 
 # Binary name
 BINARY=ailang
@@ -465,11 +465,35 @@ test-repl-smoke:
 	@echo "Testing REPL smoke tests..."
 	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
 
+# Show Go package documentation
+.PHONY: doc
+doc:
+	@if [ -z "$(PKG)" ]; then \
+		echo "Usage: make doc PKG=<package>"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make doc PKG=internal/testing        # Show testing package docs"; \
+		echo "  make doc PKG=internal/elaborate      # Show elaborate package docs"; \
+		echo "  make doc PKG=internal/types          # Show types package docs"; \
+		echo "  make doc PKG=internal/parser         # Show parser package docs"; \
+		echo ""; \
+		echo "Common packages:"; \
+		echo "  internal/testing      - Test collection and property-based testing"; \
+		echo "  internal/elaborate    - Surface AST to Core AST elaboration"; \
+		echo "  internal/types        - Type system and type checking"; \
+		echo "  internal/parser       - Parser (see also: docs/guides/parser_development.md)"; \
+		echo "  internal/eval         - Core AST evaluator"; \
+		echo "  internal/builtins     - Builtin function registry"; \
+		exit 1; \
+	fi
+	@go doc -all github.com/sunholo/ailang/$(PKG)
+
 # Show help
 help:
 	@echo "Available targets:"
 	@echo "  make build            - Build the binary"
 	@echo "  make install          - Install binary to GOPATH/bin"
+	@echo "  make doc PKG=<pkg>    - Show Go package documentation (e.g., make doc PKG=internal/testing)"
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
 	@echo "  make test-parser      - Run parser tests"
