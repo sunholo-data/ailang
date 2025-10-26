@@ -240,6 +240,60 @@ Hello World :: String
 
 See [REPL Commands](docs/reference/repl-commands.md) for full reference.
 
+### Property-Based Testing
+
+AILANG includes QuickCheck-style property-based testing for deterministic validation:
+
+```ailang
+// Unit tests
+test "addition works" = 1 + 1 == 2
+
+// Property tests (100 random cases)
+property "addition commutes" (x: int, y: int) =
+  x + y == y + x
+
+property "list reversal" (xs: list(int)) =
+  reverse(reverse(xs)) == xs
+```
+
+Run tests:
+```bash
+ailang test examples/testing_basic.ail
+```
+
+Output:
+```
+→ Running tests in examples/testing_basic.ail
+
+Test Results
+Module: All Tests
+
+Tests:
+  ✓ addition works
+
+Properties:
+  ✓ addition commutes (100 cases)
+  ✓ list reversal (100 cases)
+
+✓ All tests passed
+
+3 tests: 3 passed, 0 failed, 0 skipped (0.3s)
+```
+
+**Features**:
+- **Automatic shrinking**: When a property fails, finds minimal counterexample
+- **Configurable generation**: Control ranges, sizes, and random seeds
+- **CI/CD integration**: JSON output, exit codes, GitHub Actions examples
+- **Type-aware generators**: Built-in support for all AILANG types
+
+**Examples**:
+- [Basic testing examples](examples/testing_basic.ail) - Unit tests and simple properties
+- [Advanced testing examples](examples/testing_advanced.ail) - ADTs, trees, algebraic laws
+
+**Documentation**:
+- [Testing Guide](docs/TESTING.md) - Complete user documentation
+- [AI Testing Guide](prompts/testing_guide_ai.md) - Property patterns for AI agents
+
 ---
 
 ## What AILANG Can Do (Implementation Status)
