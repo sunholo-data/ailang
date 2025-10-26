@@ -1,6 +1,6 @@
 -- Showcase: Closures
 -- This example demonstrates how lambdas capture their environment.
-module examples/snippets/showcase/lambdas_closures
+module examples/runnable/lambdas_closures
 
 export func main() -> () ! {IO} =
   let _ = print("=== Closures ===") in

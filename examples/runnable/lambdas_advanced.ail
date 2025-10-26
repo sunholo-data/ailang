@@ -1,6 +1,6 @@
 -- Showcase: Advanced Lambda Patterns
 -- This example demonstrates advanced functional programming patterns.
-module examples/snippets/showcase/lambdas_advanced
+module examples/runnable/lambdas_advanced
 
 export func main() -> () ! {IO} =
   let _ = print("=== Advanced Lambda Patterns ===") in

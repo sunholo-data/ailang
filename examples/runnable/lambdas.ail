@@ -1,6 +1,6 @@
 -- Showcase: Lambda Expressions & Composition
 -- Functions are first-class values
-module examples/snippets/showcase/lambdas
+module examples/runnable/lambdas
 
 export func main() -> () ! {IO} =
   let compose = \f. \g. \x. f(g(x)) in

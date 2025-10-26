@@ -19,9 +19,8 @@ import (
 
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
-	cache              map[string]*LoadedModule
-	basePath           string // Base directory for relative imports
-	warnedLegacyStdlib bool   // Track if we've warned about stdlib/std/* usage
+	cache    map[string]*LoadedModule
+	basePath string // Base directory for relative imports
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -57,35 +56,20 @@ func (ml *ModuleLoader) Preload(path string, loaded *LoadedModule) {
 	ml.cache[canonicalID] = loaded
 }
 
-// canonicalizeModulePath normalizes import paths and detects legacy patterns
+// canonicalizeModulePath normalizes import paths
 //
-// Returns the canonical path and a flag indicating if a legacy pattern was used.
-// Legacy pattern: "stdlib/std/io" → canonical: "std/io" (legacy=true)
-// Modern pattern: "std/io" → canonical: "std/io" (legacy=false)
-func canonicalizeModulePath(path string) (string, bool) {
-	legacy := false
+// Returns the canonical path.
+// Modern pattern: "std/io" → canonical: "std/io"
+func canonicalizeModulePath(path string) string {
 	// Strip leading "./" or ".\" for cross-platform safety
 	path = strings.TrimPrefix(strings.TrimPrefix(path, "./"), ".\\")
-
-	// Detect and normalize legacy stdlib/std/* pattern
-	if strings.HasPrefix(path, "stdlib/std/") {
-		path = strings.TrimPrefix(path, "stdlib/")
-		legacy = true
-	}
-
-	return path, legacy
+	return path
 }
 
 // Load loads a module by path
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
-	// Canonicalize the import path and check for legacy patterns
-	canonPath, isLegacy := canonicalizeModulePath(path)
-
-	// Emit one-time warning for legacy stdlib/std/* usage
-	if isLegacy && !ml.warnedLegacyStdlib {
-		fmt.Fprintf(os.Stderr, "Warning: import path 'stdlib/std/*' is deprecated; use 'std/*' instead\n")
-		ml.warnedLegacyStdlib = true
-	}
+	// Canonicalize the import path
+	canonPath := canonicalizeModulePath(path)
 
 	// Use canonicalized path for all subsequent operations
 	canonicalID := CanonicalModuleID(canonPath)
@@ -107,14 +91,13 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
 	} else if strings.HasPrefix(canonPath, "std/") {
-		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "std/" (v0.3.20+)
-		// Note: Before v0.3.20, stdlib files were in stdlib/std/, now they're in std/
+		// Standard library path - resolve from AILANG_STDLIB_PATH or default to "std/"
 		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
 		if stdlibPath == "" {
 			stdlibPath = "." // Current directory (std/ is at root)
 		}
 		stdPath := filepath.Join(stdlibPath, canonPath) + ".ail"
-		searchTrace = append(searchTrace, "stdlib: "+stdPath)
+		searchTrace = append(searchTrace, "std: "+stdPath)
 		fullPath = stdPath
 	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
@@ -194,12 +177,12 @@ func (ml *ModuleLoader) resolvePath(path string) string {
 		return filepath.Join(ml.basePath, path) + ".ail"
 	}
 
-	// Handle stdlib imports (always relative to stdlib root)
+	// Handle standard library imports (always relative to std root)
 	if strings.HasPrefix(path, "std/") {
-		// Resolve from AILANG_STDLIB_PATH env or default to "stdlib/"
+		// Resolve from AILANG_STDLIB_PATH env or default to current directory
 		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
 		if stdlibPath == "" {
-			stdlibPath = "stdlib"
+			stdlibPath = "." // std/ is at repository root
 		}
 		return filepath.Join(stdlibPath, path) + ".ail"
 	}

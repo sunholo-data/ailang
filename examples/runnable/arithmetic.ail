@@ -1,5 +1,5 @@
 -- arithmetic.ail - Basic arithmetic expressions
-module examples/snippets/arithmetic
+module examples/runnable/arithmetic
 
 -- Entry module with exported main function
 -- Gets print prelude automatically (no import needed)

@@ -1,6 +1,6 @@
 -- Showcase: Closures
 -- Functions capture their environment
-module examples/snippets/showcase/closures
+module examples/runnable/closures
 
 export func main() -> () ! {IO} =
   let makeAdder = \n. \x. x + n in

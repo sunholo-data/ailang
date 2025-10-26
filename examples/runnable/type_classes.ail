@@ -1,6 +1,6 @@
 -- Showcase: Type Classes
 -- Operators work on different types!
-module examples/snippets/showcase/type_classes
+module examples/runnable/type_classes
 
 export func main() -> () ! {IO} =
   let intSum = 5 + 10 in

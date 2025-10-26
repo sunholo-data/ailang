@@ -1,6 +1,6 @@
 -- Showcase: Type Inference
 -- The type checker automatically infers types!
-module examples/snippets/showcase/type_inference
+module examples/runnable/type_inference
 
 export func main() -> () ! {IO} =
   let double = \x. x * 2 in

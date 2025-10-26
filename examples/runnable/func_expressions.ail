@@ -1,6 +1,6 @@
 -- func_expressions.ail
 -- Demonstrates anonymous function syntax (v0.3.5)
-module examples/snippets/func_expressions
+module examples/runnable/func_expressions
 
 import std/io (println)
 

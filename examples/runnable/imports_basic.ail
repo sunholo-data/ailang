@@ -1,5 +1,5 @@
 -- Basic import test: imports std/io and uses println
-module examples/snippets/v3_3/imports_basic
+module examples/runnable/imports_basic
 
 import std/io (println)
 

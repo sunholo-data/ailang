@@ -1,6 +1,6 @@
 -- Showcase: Curried Functions
 -- This example demonstrates currying and partial application in AILANG.
-module examples/snippets/showcase/lambdas_curried
+module examples/runnable/lambdas_curried
 
 export func main() -> () ! {IO} =
   let _ = print("=== Curried Functions ===") in

@@ -1,5 +1,5 @@
 -- hello.ail - Simple hello world program
-module examples/snippets/hello
+module examples/runnable/hello
 
 -- Entry module with exported main function
 -- Gets print prelude automatically (no import needed)

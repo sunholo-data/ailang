@@ -1,4 +1,4 @@
-module examples/snippets/list_patterns
+module examples/runnable/list_patterns
 import std/io (println)
 import std/list (length, head, tail)
 import std/option (Some, None)

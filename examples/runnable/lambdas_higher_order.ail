@@ -1,6 +1,6 @@
 -- Showcase: Higher-Order Functions
 -- This example demonstrates functions that take or return functions.
-module examples/snippets/showcase/lambdas_higher_order
+module examples/runnable/lambdas_higher_order
 
 export func main() -> () ! {IO} =
   let _ = print("=== Higher-Order Functions ===") in

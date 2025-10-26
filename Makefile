@@ -447,7 +447,7 @@ test-builtin-consistency:
 
 .PHONY: test-stdlib-canaries
 test-stdlib-canaries:
-	@echo "Testing stdlib canaries..."
+	@echo "Testing std/ library canaries..."
 	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
 
 .PHONY: test-row-properties
@@ -485,7 +485,7 @@ help:
 	@echo "  make doctor           - Validate builtin registry"
 	@echo "  make test-regression-guards - Run regression guard tests"
 	@echo "  make test-builtin-consistency - Test builtin three-way parity"
-	@echo "  make test-stdlib-canaries - Test stdlib health (std/io, std/net)"
+	@echo "  make test-stdlib-canaries - Test std/ library health (std/io, std/net)"
 	@echo "  make test-row-properties - Test row unification properties"
 	@echo "  make test-golden-types - Test builtin type snapshots"
 	@echo "  make test-repl-smoke - REPL smoke tests (:type command)"
@@ -504,7 +504,7 @@ help:
 	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
 	@echo "  make dev              - Quick development build"
 	@echo "  make quick-install    - Quick install without version info"
-	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
+	@echo "  make test-stdlib-freeze - Verify std/ library interfaces haven't changed"
 	@echo "  make eval-suite       - Run AI benchmark suite"
 	@echo "  make eval-report      - Generate evaluation report"
 	@echo "  make eval-analyze     - Analyze failures, generate design docs (with dedup)"
@@ -521,9 +521,9 @@ help:
 	@echo "  make help             - Show this help"
 	@echo "  make help-release     - Show release workflow (eval + dashboard)"
 
-# Test stdlib interface freeze (SHA256 digest matching)
+# Test standard library interface freeze (SHA256 digest matching)
 EX_VERIFY := scripts/verify-examples.sh
-STDLIB := stdlib/std/option.ail stdlib/std/result.ail stdlib/std/list.ail stdlib/std/string.ail stdlib/std/io.ail
+STDLIB := std/option.ail std/result.ail std/list.ail std/string.ail std/io.ail
 FREEZE_DIR := goldens/stdlib
 TOOLS := ailang
 
@@ -547,13 +547,13 @@ test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
 	  fi; \
 	done; \
 	exit $$ok
-# Stdlib interface freeze/verify targets
+# Standard library interface freeze/verify targets
 freeze-stdlib:
-	@echo "Freezing stdlib interfaces..."
+	@echo "Freezing std/ library interfaces..."
 	@tools/freeze-stdlib.sh
 
 verify-stdlib:
-	@echo "Verifying stdlib interface stability..."
+	@echo "Verifying std/ library interface stability..."
 	@tools/verify-stdlib.sh
 
 # Evaluation benchmarks
