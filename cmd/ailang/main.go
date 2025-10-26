@@ -85,11 +85,25 @@ func main() {
 		runREPL(*learnFlag, *traceFlag)
 
 	case "test":
-		path := "."
-		if flag.NArg() >= 2 {
-			path = flag.Arg(1)
+		// Test command with flags
+		testFlags := flag.NewFlagSet("test", flag.ExitOnError)
+		formatFlag := testFlags.String("format", "human", "Output format: human or json")
+		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
+		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
+
+		testFlags.Parse(flag.Args()[1:])
+
+		if *helpTestFlag {
+			printTestHelp()
+			return
 		}
-		runTests(path)
+
+		path := "."
+		if testFlags.NArg() >= 1 {
+			path = testFlags.Arg(0)
+		}
+
+		runTestsV2(path, *formatFlag, !*noColorFlag)
 
 	case "watch":
 		if flag.NArg() < 2 {
