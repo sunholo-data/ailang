@@ -9,6 +9,9 @@ import (
 
 // parseExpression parses an expression with precedence
 func (p *Parser) parseExpression(precedence int) ast.Expr {
+	p.debugEnter("parseExpression")
+	defer p.debugExit("parseExpression")
+
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)

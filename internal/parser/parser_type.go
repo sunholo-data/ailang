@@ -8,6 +8,9 @@ import (
 // parseType parses a type expression
 // Handles: identifiers, type variables, lists, tuples, functions
 func (p *Parser) parseType() ast.Type {
+	p.debugEnter("parseType")
+	defer p.debugExit("parseType")
+
 	switch p.curToken.Type {
 	case lexer.LBRACE:
 		// Record type expression: { field: Type, ... }

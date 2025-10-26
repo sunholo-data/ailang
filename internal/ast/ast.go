@@ -107,7 +107,27 @@ type Pattern interface {
 	patternNode()
 }
 
-// Identifier represents a variable or function name
+// Identifier represents a variable or function name.
+//
+// Usage example:
+//
+//	ident := &ast.Identifier{
+//	    Name: "factorial",
+//	    Pos:  p.curToken.Pos,
+//	}
+//
+// Common pattern in parser:
+//
+//	if p.curTokenIs(lexer.IDENT) {
+//	    return &ast.Identifier{Name: p.curToken.Literal, Pos: p.curToken.Pos}
+//	}
+//
+// Type assertions:
+//
+//	ident, ok := expr.(*ast.Identifier)
+//	if ok {
+//	    fmt.Println("Variable name:", ident.Name)
+//	}
 type Identifier struct {
 	Name string
 	Pos  Pos
@@ -118,7 +138,35 @@ func (i *Identifier) Position() Pos  { return i.Pos }
 func (i *Identifier) exprNode()      {}
 func (i *Identifier) patternNode()   {}
 
-// Literal represents a literal value
+// Literal represents a literal value.
+//
+// ⚠️ CRITICAL GOTCHA: Lexer returns int64 for integers, NOT int!
+//
+// Usage example:
+//
+//	lit := &ast.Literal{
+//	    Kind:  ast.IntLit,
+//	    Value: int64(42),  // ⚠️ Must be int64, not int!
+//	    Pos:   p.curToken.Pos,
+//	}
+//
+// Type assertions (CORRECT):
+//
+//	lit := expr.(*ast.Literal)
+//	if lit.Kind == ast.IntLit {
+//	    val := lit.Value.(int64)  // ✅ CORRECT - int64
+//	    fmt.Println("Integer:", val)
+//	}
+//
+// Type assertions (WRONG):
+//
+//	val := lit.Value.(int)  // ❌ WRONG - will panic! Lexer returns int64
+//
+// Common parser pattern:
+//
+//	case lexer.INT:
+//	    val, _ := strconv.ParseInt(p.curToken.Literal, 10, 64)
+//	    return &ast.Literal{Kind: ast.IntLit, Value: val, Pos: p.curToken.Pos}
 type Literal struct {
 	Kind  LiteralKind
 	Value interface{}
@@ -169,7 +217,28 @@ func (u *UnaryOp) String() string {
 func (u *UnaryOp) Position() Pos { return u.Pos }
 func (u *UnaryOp) exprNode()     {}
 
-// Lambda represents a lambda expression
+// Lambda represents a lambda expression.
+//
+// Usage example:
+//
+//	lambda := &ast.Lambda{
+//	    Params: []*ast.Param{
+//	        {Name: "x", Type: nil, Pos: pos1},
+//	        {Name: "y", Type: nil, Pos: pos2},
+//	    },
+//	    Body:    bodyExpr,
+//	    Effects: []string{"IO"},
+//	    Pos:     p.curToken.Pos,
+//	}
+//
+// Common parser pattern:
+//
+//	// Parse: \x y. x + y
+//	p.nextToken() // skip \
+//	params := p.parseParams()
+//	p.expectToken(lexer.DOT)
+//	body := p.parseExpression(LOWEST)
+//	return &ast.Lambda{Params: params, Body: body, Pos: startPos}
 type Lambda struct {
 	Params  []*Param
 	Body    Expr
@@ -226,7 +295,25 @@ func (f *FuncLit) String() string {
 func (f *FuncLit) Position() Pos { return f.Pos }
 func (f *FuncLit) exprNode()     {}
 
-// FuncCall represents a function application
+// FuncCall represents a function application.
+//
+// Usage example:
+//
+//	call := &ast.FuncCall{
+//	    Func: &ast.Identifier{Name: "factorial", Pos: pos},
+//	    Args: []ast.Expr{
+//	        &ast.Literal{Kind: ast.IntLit, Value: int64(5), Pos: pos},
+//	    },
+//	    Pos: p.curToken.Pos,
+//	}
+//
+// Common parser pattern:
+//
+//	// Parse: factorial(5)
+//	func := p.parseExpression(CALL) // parses "factorial"
+//	p.nextToken() // move to LPAREN
+//	args := p.parseCallArguments() // parses "(5)"
+//	return &ast.FuncCall{Func: func, Args: args, Pos: startPos}
 type FuncCall struct {
 	Func Expr
 	Args []Expr
@@ -330,7 +417,33 @@ func (m *Match) String() string {
 func (m *Match) Position() Pos { return m.Pos }
 func (m *Match) exprNode()     {}
 
-// List represents a list literal
+// List represents a list literal.
+//
+// Usage example:
+//
+//	list := &ast.List{
+//	    Elements: []ast.Expr{
+//	        &ast.Literal{Kind: ast.IntLit, Value: int64(1), Pos: pos},
+//	        &ast.Literal{Kind: ast.IntLit, Value: int64(2), Pos: pos},
+//	        &ast.Literal{Kind: ast.IntLit, Value: int64(3), Pos: pos},
+//	    },
+//	    Pos: p.curToken.Pos,
+//	}
+//
+// Common parser pattern:
+//
+//	// Parse: [1, 2, 3]
+//	p.nextToken() // skip [
+//	elements := []ast.Expr{}
+//	for !p.curTokenIs(lexer.RBRACKET) {
+//	    elements = append(elements, p.parseExpression(LOWEST))
+//	    if p.peekTokenIs(lexer.COMMA) {
+//	        p.nextToken() // move to comma
+//	        p.nextToken() // move past comma
+//	    }
+//	}
+//	p.nextToken() // skip ]
+//	return &ast.List{Elements: elements, Pos: startPos}
 type List struct {
 	Elements []Expr
 	Pos      Pos
@@ -477,7 +590,41 @@ func (r *Recv) exprNode()     {}
 
 // Top-level declarations
 
-// FuncDecl represents a function declaration
+// FuncDecl represents a function declaration.
+//
+// Usage example:
+//
+//	funcDecl := &ast.FuncDecl{
+//	    Name:       "factorial",
+//	    TypeParams: []string{},
+//	    Params: []*ast.Param{
+//	        {Name: "n", Type: intType, Pos: pos},
+//	    },
+//	    ReturnType: intType,
+//	    Effects:    []string{},
+//	    Tests:      []*ast.TestCase{},
+//	    Properties: []*ast.Property{},
+//	    Body:       bodyExpr,
+//	    IsPure:     true,
+//	    IsExport:   false,
+//	    Pos:        p.curToken.Pos,
+//	}
+//
+// Common parser pattern:
+//
+//	// Parse: func factorial(n: int) -> int { ... }
+//	p.nextToken() // skip "func"
+//	name := p.curToken.Literal
+//	p.nextToken() // move to LPAREN
+//	params := p.parseFunctionParams()
+//	returnType := p.parseReturnType()
+//	effects := p.parseEffects()
+//	body := p.parseExpression(LOWEST)
+//	return &ast.FuncDecl{
+//	    Name: name, Params: params,
+//	    ReturnType: returnType, Effects: effects,
+//	    Body: body, Pos: startPos,
+//	}
 type FuncDecl struct {
 	Name       string
 	TypeParams []string // Generic type parameters

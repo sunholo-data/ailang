@@ -496,13 +496,15 @@ AssertSimpleType(t, fn.ReturnType, "int")
 ### Debug Flags (v0.3.15+)
 
 ```bash
-# Show token flow through parser
+# Show token flow through parser (✅ IMPLEMENTED)
 DEBUG_PARSER=1 ailang run test.ail
+# Output: [ENTER parseExpression] cur=INT(42) peek=PLUS(+)
+#         [EXIT parseExpression] cur=INT(42) peek=PLUS(+)
 
-# Catch incomplete switch statements
+# Catch incomplete switch statements (v0.4.1+)
 DEBUG_STRICT=1 ailang run test.ail
 
-# Debug monomorphization
+# Debug monomorphization (v0.4.0+)
 DEBUG_MONO_VERBOSE=1 ailang run --debug-compile test.ail
 ```
 

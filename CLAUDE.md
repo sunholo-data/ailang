@@ -1757,7 +1757,7 @@ if len(p.Errors()) != 0 {
 }
 ```
 
-### Debug Mode (Coming in v0.3.15)
+### Debug Mode (v0.3.15+)
 
 **Enable token position tracing:**
 ```bash
@@ -1766,11 +1766,17 @@ DEBUG_PARSER=1 ailang run test.ail
 
 **Output example:**
 ```
-[ENTER parseTestsBlock] cur=LBRACE peek=TEST
-[ENTER parseTestCase] cur=TEST peek=LPAREN
-[EXIT parseTestCase] cur=RPAREN peek=COMMA
-[EXIT parseTestsBlock] cur=RBRACE peek=PROPERTIES
+[ENTER parseType] cur=IDENT(int) peek=,
+[EXIT parseType] cur=IDENT(int) peek=,
+[ENTER parseExpression] cur=IDENT(x) peek=+
+[EXIT parseExpression] cur=IDENT(x) peek=+
 ```
+
+**How it works:**
+- Shows ENTER/EXIT for `parseExpression()`, `parseType()`, and other key parser functions
+- Displays current (`cur`) and next (`peek`) tokens with their values
+- Only logs when `DEBUG_PARSER=1` is set (zero overhead otherwise)
+- Output goes to stderr, so it doesn't interfere with program output
 
 **See also:** M-DX9 Parser Developer Experience (design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md)
 
