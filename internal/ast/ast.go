@@ -675,6 +675,40 @@ func (f *FuncDecl) String() string {
 func (f *FuncDecl) Position() Pos { return f.Pos }
 func (f *FuncDecl) stmtNode()     {}
 
+// TestDecl represents a top-level test block: test "name" { ... }
+type TestDecl struct {
+	Name string
+	Body []Expr // Test body (assertions, expressions)
+	Pos  Pos
+}
+
+func (t *TestDecl) String() string { return fmt.Sprintf("test %q", t.Name) }
+func (t *TestDecl) Position() Pos  { return t.Pos }
+func (t *TestDecl) stmtNode()      {}
+
+// PropertyDecl represents a top-level property block: property "name" { forall(...) => expr }
+type PropertyDecl struct {
+	Name     string
+	Property *Property // The property specification
+	Pos      Pos
+}
+
+func (p *PropertyDecl) String() string { return fmt.Sprintf("property %q", p.Name) }
+func (p *PropertyDecl) Position() Pos  { return p.Pos }
+func (p *PropertyDecl) stmtNode()      {}
+
+// AssertStmt represents an assertion: assert expr
+type AssertStmt struct {
+	Condition Expr
+	Message   string // Optional failure message
+	Pos       Pos
+}
+
+func (a *AssertStmt) String() string { return fmt.Sprintf("assert %s", a.Condition) }
+func (a *AssertStmt) Position() Pos  { return a.Pos }
+func (a *AssertStmt) stmtNode()      {}
+func (a *AssertStmt) exprNode()      {} // AssertStmt can be used as expression in test bodies
+
 // TypeDecl represents a type declaration
 type TypeDecl struct {
 	Name       string
