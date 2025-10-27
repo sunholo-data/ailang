@@ -858,9 +858,9 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.21)
+# AI Teaching Prompt (Latest: v0.3.22)
 
-# AILANG v0.3.21 - AI Teaching Prompt (Pattern Syntax Fix)
+# AILANG v0.3.22 - AI Teaching Prompt (Enhanced Error Messages + HTTP Early)
 
 **CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -965,6 +965,44 @@ export func main() -> () ! {IO} {
 Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net}`), recursion, numeric conversions, HTTP with headers, JSON encoding, **property-based testing**.
 
 **Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
+
+## HTTP POST with JSON Example (Complete - Common Use Case!)
+
+**Many benchmarks require making HTTP POST requests with custom headers and JSON body. Here's the complete pattern:**
+
+```ailang
+module benchmark/solution
+
+import std/net (httpRequest)
+import std/json (encode, jo, kv, js, jnum)
+
+export func main() -> () ! {Net, IO} {
+  -- Build JSON body
+  let jsonBody = encode(jo([
+    kv("message", js("Hello from AILANG")),
+    kv("count", jnum(42.0))
+  ]));
+
+  -- Custom headers
+  let headers = [
+    {name: "Content-Type", value: "application/json"},
+    {name: "X-Custom-Header", value: "myvalue"}
+  ];
+
+  -- Make POST request
+  match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
+    Ok(resp) => print(show(resp.status)),
+    Err(_) => print("error")
+  }
+}
+```
+
+**Key points:**
+- `httpRequest(method, url, headers, body)` - 4 arguments, returns `Result[HttpResponse, NetError]`
+- Headers are list of records: `[{name: string, value: string}]`
+- JSON encoding: use `std/json` functions (`jo`, `kv`, `js`, `jnum`)
+- Pattern match on Result to handle success/error
+- Access response with `resp.status`, `resp.body`, `resp.headers`
 
 ## Critical Limitations
 
@@ -1076,44 +1114,6 @@ ailang test file.ail --format json      # JSON output for CI
 1. Generates 100 random test cases per property
 2. Runs property on each case
 3. If failure found, shrinks to minimal counterexample
-
-## HTTP POST with JSON Example (Complete)
-
-**Common use case: Making HTTP POST requests with custom headers and JSON body**
-
-```ailang
-module benchmark/solution
-
-import std/net (httpRequest)
-import std/json (encode, jo, kv, js, jnum)
-
-export func main() -> () ! {Net, IO} {
-  -- Build JSON body
-  let jsonBody = encode(jo([
-    kv("message", js("Hello from AILANG")),
-    kv("count", jnum(42.0))
-  ]));
-
-  -- Custom headers
-  let headers = [
-    {name: "Content-Type", value: "application/json"},
-    {name: "X-Custom-Header", value: "myvalue"}
-  ];
-
-  -- Make POST request
-  match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
-    Ok(resp) => print(show(resp.status)),
-    Err(_) => print("error")
-  }
-}
-```
-
-**Key points:**
-- `httpRequest(method, url, headers, body)` - 4 arguments, returns `Result[HttpResponse, NetError]`
-- Headers are list of records: `[{name: string, value: string}]`
-- JSON encoding: use `std/json` functions (`jo`, `kv`, `js`, `jnum`)
-- Pattern match on Result to handle success/error
-- Access response with `resp.status`, `resp.body`, `resp.headers`
 
 ## Higher-Order Functions (Lambda Values, NOT Type Annotations!)
 
