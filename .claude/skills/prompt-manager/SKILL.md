@@ -106,16 +106,21 @@ Top sections by size:
 **⚠️ CRITICAL: Must validate AFTER each optimization step!**
 
 ```bash
-# 1. Check new size
+# 1. CHECK ALL CODE EXAMPLES (NEW REQUIREMENT!)
+# Extract and test every AILANG code block in the prompt
+# This catches syntax errors that cause regressions
+.claude/skills/prompt-manager/scripts/validate_all_code.sh prompts/v0.3.17.md
+
+# 2. Check new size
 .claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
 
-# 2. Verify accuracy (no false limitations)
+# 3. Verify accuracy (no false limitations)
 .claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
 
-# 3. Update hash
+# 4. Update hash
 .claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
 
-# 4. TEST PROMPT EFFECTIVENESS (CRITICAL!)
+# 5. TEST PROMPT EFFECTIVENESS (CRITICAL!)
 .claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
 # This runs AILANG-only eval (no Python baseline) with dev models
 # Target: >40% AILANG success rate
@@ -216,7 +221,9 @@ Analyze size → Identify high-ROI sections → Apply techniques → Validate su
 - Tables: 10+ for reference data
 - AILANG success rate: >40%
 
-## ⚠️ Lessons from v0.3.18 Failure
+## ⚠️ Lessons from v0.3.18 and v0.3.20 Failures
+
+### v0.3.18 Failure: Over-Optimization
 
 **What happened:** Optimized v0.3.17 → v0.3.18 with -59% token reduction (5189 → 2126 words)
 **Result:** AILANG success rate collapsed to 4.8% (from expected ~40-60%)
@@ -228,15 +235,24 @@ Analyze size → Identify high-ROI sections → Apply techniques → Validate su
 4. **Removed negatives** - "what NOT to do" examples are critical
 5. **No incremental validation** - didn't test after each change
 
+### v0.3.20 Failure: Incorrect Syntax in Examples
+
+**What happened:** Prompt had 3 syntax errors: (1) `match { | pattern =>` (wrong), (2) `import "std/io"` (wrong), (3) `let (x, y) = tuple` (wrong)
+**Result:** -4.8% regression (40.0% → 35.2%), 18 benchmarks failed with PAR_001 compile errors
+
+**Root cause:** No validation that code examples in prompt actually work with AILANG parser
+
 **Critical lessons:**
 - ❌ DON'T optimize >20% per iteration
 - ❌ DON'T reduce examples below 40 total
 - ❌ DON'T replace all syntax prose with tables
 - ❌ DON'T link critical syntax to external docs (AIs can't follow links)
 - ❌ DON'T skip eval testing between iterations
+- ❌ **DON'T trust code examples without testing them** (NEW!)
 - ✅ DO optimize incrementally (3 iterations of 10-15% each)
 - ✅ DO keep negative examples ("what NOT to do")
 - ✅ DO validate with test_prompt.sh after EACH change
 - ✅ DO maintain pattern repetition (models need to see things 3-5 times)
+- ✅ **DO extract and test ALL code blocks in prompt** (NEW!)
 
 **Full analysis:** [OPTIMIZATION_FAILURE_ANALYSIS.md](OPTIMIZATION_FAILURE_ANALYSIS.md)
