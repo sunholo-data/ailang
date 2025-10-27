@@ -77,7 +77,64 @@ Shows what changed between two versions.
 ailang eval-compare eval_results/baselines/v0.3.15 eval_results/baselines/v0.3.16
 ```
 
-## Workflow
+## Agent Analysis Scripts (NEW!)
+
+**For agent-based evaluation results** (Python vs AILANG comparisons with Claude Code):
+
+### 1. Agent KPIs - Minimize Tokens & Turns
+
+Shows efficiency metrics for agent runs - **key for optimizing language and prompts**.
+
+```bash
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
+```
+
+**Output:**
+- Average turns, tokens, cost by language (Python vs AILANG)
+- Most expensive benchmarks (by turns) - candidates for optimization
+- Most efficient benchmarks - learn from these
+- Success rates and performance comparison
+
+**Goal**: Minimize agent turns and tokens → indicates clearer prompts and simpler language.
+
+### 2. Agent Transcripts - View AILANG Conversations
+
+View full agent conversation logs to understand what happened.
+
+```bash
+# View all transcripts
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
+
+# View only failures
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
+
+# View specific benchmark
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
+```
+
+**Output:**
+- Turn-by-turn conversation showing agent's thought process
+- Metrics: turns, tokens, duration
+- Success/failure status with error category
+- First 100 lines of transcript (with hint to view full)
+
+**Use for**: Understanding why AILANG solutions fail or take many turns.
+
+### 3. Python vs AILANG Comparison
+
+Use the existing `tools/compare_agents.sh` script for side-by-side comparison:
+
+```bash
+./tools/compare_agents.sh eval_results/WITH_ALL_FIXES
+```
+
+**Output:**
+- Side-by-side metrics table
+- Solution code comparison
+- Transcripts for failed solutions (automatic)
+- Winner indicators for each metric
+
+## Standard Eval Workflow (Non-Agent)
 
 ### Step 1: Get High-Level Overview
 
