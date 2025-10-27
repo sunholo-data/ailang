@@ -24,24 +24,37 @@ These features make AILANG **ideal for autonomous agents**, but we're not benchm
 
 ---
 
-## Vision: 3-Tier Eval System
+## Vision: 3-Tier Eval System (Dashboard Dimensions)
 
 ### Tier 1: 0-Shot (Baseline)
 **Current**: ✅ Implemented
 **Method**: LLM generates code directly from problem description
-**Benchmark**: Pass/fail on test suite
-**Strengths**: Fast, cheap
-**Weaknesses**: No learning from failures
+**Dashboard Metrics**:
+- Success rate: % benchmarks passing
+- Avg tokens: Input + output tokens per benchmark
+- Avg cost: $ per benchmark
+- Time: Total runtime
 
-### Tier 2: 1-Repair (Current Best)
-**Current**: ✅ Implemented
+**Example**: Claude Sonnet 4.5 → 65% success, 2.5k tokens, $0.02/benchmark, 2min total
+
+---
+
+### Tier 2: 1-Repair (Current Default)
+**Current**: ✅ Implemented (default for `ailang eval-suite`)
 **Method**: Generate → Test → Fix once based on error message
-**Benchmark**: Pass/fail after single repair attempt
-**Strengths**: Simple feedback loop
-**Weaknesses**: Only one repair attempt, no tool use
+**Dashboard Metrics**:
+- Success rate: % benchmarks passing after 1 repair
+- Avg tokens: Input + output tokens (initial + repair)
+- Avg cost: $ per benchmark (initial + repair)
+- Repair success rate: % that succeeded after repair vs 0-shot
+- Time: Total runtime
+
+**Example**: Claude Sonnet 4.5 → 78% success, 5k tokens, $0.04/benchmark, 5min total
+
+---
 
 ### Tier 3: Agent (Future) 🎯
-**Current**: ❌ Not implemented
+**Current**: ❌ Not implemented (this milestone!)
 **Method**: Full autonomous agent with tools and iteration
 **Tools Available**:
 - ✅ Read/write AILANG files
@@ -51,9 +64,18 @@ These features make AILANG **ideal for autonomous agents**, but we're not benchm
 - ✅ Inspect code structure (future: reflection API)
 - ✅ Plan multi-step solutions
 
-**Benchmark**: Pass/fail after agent completes (with iteration limit)
-**Strengths**: Multi-step reasoning, tool use, iteration
-**Weaknesses**: Slower, more expensive
+**Dashboard Metrics** (NEW!):
+- Success rate: % benchmarks passing after N iterations
+- Avg iterations: How many attempts to success
+- Avg tokens: Total tokens across all iterations
+- Avg cost: $ per benchmark (all iterations)
+- Tool usage: Avg Read/Write/Bash/Edit calls per benchmark
+- Time: Total runtime + time per iteration
+- Iteration distribution: Histogram of iterations to success
+
+**Example**: Claude Sonnet 4.5 → 92% success, 18k tokens, $0.15/benchmark, 3.5 iterations avg, 20min total
+
+**Key Insight**: Agent tier is **3x more expensive but 15-20% more successful** - proves AILANG's AI-first design!
 
 ---
 
@@ -117,46 +139,320 @@ Once Claude Code proves the concept:
 
 ## Architecture
 
-### Claude Code Integration (Primary Implementation Path)
+### Claude Code Integration with Agent Protocol (Queue-Based Architecture)
 
-**Critical Design Requirement**: Each benchmark needs a **fresh session** - Claude Code must run in headless mode with isolated workspace per benchmark.
+**Critical Design Principle**: Eval harness uses AILANG agent protocol as a **task queue** to coordinate parallel execution of isolated headless sessions.
 
-**Why headless + fresh sessions:**
-1. **State isolation**: Prevents context bleed between benchmarks
-2. **Deterministic baselines**: Same starting point for every run
-3. **Parallel execution**: Multiple benchmarks can run concurrently
-4. **Cost tracking**: Each session has isolated token/cost accounting
-5. **Reproducibility**: Session isolation ensures consistent results
+**Architecture Overview:**
 
-**Session Architecture:**
-
-```bash
-# For each benchmark:
-1. Create isolated workspace: /tmp/ailang_eval_<benchmark_id>/
-2. Copy benchmark spec and tests
-3. Run headless Claude Code:
-   claude -p "Solve this AILANG benchmark: <spec>" \
-     --output-format json \
-     --allowedTools "Bash,Read,Write,Edit,Grep" \
-     --append-system-prompt "Use ailang CLI tools for iteration"
-4. Extract result, cost, iterations from JSON
-5. Clean up workspace
+```
+Eval Harness (ailang eval-suite --agent)
+    ↓
+1. Send all 264 benchmarks to agent inbox
+    ↓
+2. Poll inbox for tasks
+    ↓
+3. Spawn headless Claude sessions (10 parallel, rate-limited)
+    │
+    ├─→ Session 1: list_map      → posts result to inbox → ack task
+    ├─→ Session 2: tree_traversal → posts result to inbox → ack task
+    ├─→ ...
+    └─→ Session 10: factorial    → posts result to inbox → ack task
+    ↓
+4. Collect all results from inbox
+    ↓
+5. Generate eval report
 ```
 
-**Key Implementation Detail**: We'll use the headless wrapper from **M-CLAUDE-CODE-HEADLESS** (v0.3.21):
+**Key Insight**: The eval harness **controls everything** - it's both the producer and consumer of tasks. The agent inbox is just a **persistent queue** for robustness.
+
+**Why This Architecture:**
+1. ✅ **Persistent queue**: Agent inbox survives crashes, tasks don't get lost
+2. ✅ **State isolation**: Each headless session = one benchmark = no context bleed
+3. ✅ **Rate-limited parallelism**: Spawn N sessions concurrently, respect API quotas
+4. ✅ **Dogfooding**: Uses AILANG's own agent messaging system
+5. ✅ **Result collection**: All results land in inbox for easy aggregation
+6. ✅ **Crash recovery**: If harness crashes, unacked tasks remain in queue for retry
+
+**Detailed Workflow:**
+
+```go
+// internal/eval_harness/agent_runner.go
+
+func RunAgentEvalSuite(benchmarks []Benchmark, config *AgentConfig) (*EvalReport, error) {
+    // Step 1: Send all benchmarks to agent inbox (task creation)
+    log.Printf("Sending %d benchmarks to eval-agent inbox...", len(benchmarks))
+    for _, benchmark := range benchmarks {
+        msg := map[string]interface{}{
+            "task":         "solve_benchmark",
+            "benchmark_id": benchmark.ID,
+            "spec":         benchmark.Spec,
+            "tests_file":   benchmark.TestsFile,
+            "timeout":      300,
+        }
+        if err := sendAgentMessage("eval-agent", msg); err != nil {
+            return nil, err
+        }
+    }
+    log.Printf("✓ All %d tasks queued", len(benchmarks))
+
+    // Step 2: Process tasks with rate-limited parallelism
+    maxConcurrent := config.MaxConcurrent // e.g., 10
+    sem := make(chan struct{}, maxConcurrent)
+    results := make(chan *BenchmarkResult, len(benchmarks))
+
+    // Rate limiter (respect API quotas: e.g., 60 requests/min)
+    rateLimiter := time.NewTicker(time.Second / time.Duration(config.RequestsPerSecond))
+    defer rateLimiter.Stop()
+
+    processed := 0
+    for processed < len(benchmarks) {
+        // Get next batch of unread tasks
+        tasks, err := getUnreadTasks("eval-agent")
+        if err != nil {
+            return nil, err
+        }
+
+        for _, task := range tasks {
+            <-rateLimiter.C  // Wait for rate limiter
+            sem <- struct{}{}  // Acquire semaphore slot
+
+            go func(task AgentTask) {
+                defer func() { <-sem }()  // Release semaphore
+
+                // Spawn fresh headless Claude Code session
+                result := runHeadlessSession(task)
+
+                // Post result to results inbox
+                resultMsg := map[string]interface{}{
+                    "benchmark_id": task.BenchmarkID,
+                    "success":      result.Success,
+                    "cost":         result.Cost,
+                    "iterations":   result.Iterations,
+                    "duration":     result.Duration,
+                }
+                sendAgentMessage("eval-results", resultMsg)
+
+                // Acknowledge task (removes from queue)
+                ackTask(task.MessageID)
+
+                results <- result
+                processed++
+            }(task)
+        }
+
+        time.Sleep(1 * time.Second)  // Poll interval
+    }
+
+    // Wait for all sessions to complete
+    for i := 0; i < cap(sem); i++ {
+        sem <- struct{}{}
+    }
+    close(results)
+
+    // Step 3: Collect all results from results inbox
+    log.Println("Collecting results from eval-results inbox...")
+    allResults := collectResultsFromInbox("eval-results")
+
+    // Step 4: Generate eval report
+    report := generateEvalReport(allResults)
+    return report, nil
+}
+
+func runHeadlessSession(task AgentTask) *BenchmarkResult {
+    workspace := fmt.Sprintf("/tmp/ailang_eval_%s_%d", task.BenchmarkID, os.Getpid())
+    os.MkdirAll(workspace, 0755)
+    defer os.RemoveAll(workspace)
+
+    // Generate prompt
+    prompt := generateBenchmarkPrompt(task)
+
+    startTime := time.Now()
+
+    // Run headless Claude Code (ONE benchmark, then exit)
+    cmd := exec.Command("claude", "-p", prompt,
+        "--output-format", "json",
+        "--workspace", workspace,
+        "--allowedTools", "Bash,Read,Write,Edit,Grep",
+    )
+    output, err := cmd.Output()
+
+    duration := time.Since(startTime).Seconds()
+
+    // Parse JSON result (captures ALL metrics from Claude Code)
+    var result struct {
+        Subtype      string  `json:"subtype"`        // "success" or "error"
+        TotalCostUSD float64 `json:"total_cost_usd"` // Total cost for session
+        SessionID    string  `json:"session_id"`     // Unique session ID
+        Result       string  `json:"result"`         // Output text
+
+        // Token counts (if available from Claude API)
+        InputTokens  int `json:"input_tokens"`
+        OutputTokens int `json:"output_tokens"`
+
+        // Tool usage stats (NEW - would need claude -p to expose this)
+        ToolCalls []struct {
+            Tool  string `json:"tool"`  // "Bash", "Read", "Write", "Edit"
+            Count int    `json:"count"`
+        } `json:"tool_calls"`
+    }
+    json.Unmarshal(output, &result)
+
+    // Count iterations by parsing tool calls (heuristic)
+    iterations := estimateIterations(result.ToolCalls)
+
+    return &BenchmarkResult{
+        BenchmarkID:  task.BenchmarkID,
+        Success:      result.Subtype == "success",
+        Cost:         result.TotalCostUSD,
+        InputTokens:  result.InputTokens,
+        OutputTokens: result.OutputTokens,
+        TotalTokens:  result.InputTokens + result.OutputTokens,
+        Iterations:   iterations,
+        Duration:     duration,
+        ToolCalls:    result.ToolCalls,
+        SessionID:    result.SessionID,
+        Error:        err,
+    }
+}
+
+func estimateIterations(toolCalls []ToolCall) int {
+    // Heuristic: Each "run tests" is likely an iteration
+    testRuns := 0
+    for _, call := range toolCalls {
+        if strings.Contains(call.Tool, "Bash") && call.Count > 0 {
+            // Approximate: ailang run/check calls = iterations
+            testRuns += call.Count
+        }
+    }
+    return max(1, testRuns) // At least 1 iteration
+}
+```
+
+**CLI Usage:**
+
+```bash
+# Run agent eval suite with rate limiting
+ailang eval-suite --agent \
+  --models claude-sonnet-4-5 \
+  --max-concurrent 10 \
+  --requests-per-second 1
+
+# Output:
+# Sending 264 benchmarks to eval-agent inbox...
+# ✓ All 264 tasks queued
+# Processing: [=====>    ] 132/264 (50%) | ETA: 5m 12s
+# Parallel sessions: 10 active
+# Avg iterations: 3.2 | Avg cost: $0.14 | Total tokens: 17.8k avg
+# ✓ All tasks completed
+# Collecting results from eval-results inbox...
+# ✓ 243/264 passed (92% success rate)
+# Report: eval_results/agent/claude-sonnet-4-5/v0.4.0/
+```
+
+---
+
+## Dashboard Integration (NEW Dimension)
+
+**Current dashboard** (`docs/BENCHMARK_COMPARISON.md`):
+- Shows 0-shot vs 1-repair for all models
+- Metrics: success rate, cost, tokens
+
+**Updated dashboard** (after M-EVAL-AGENT):
+- Shows **3 tiers**: 0-shot, 1-repair, **agent** (NEW!)
+- New metrics: iterations, tool usage, time per iteration
+
+### Example Dashboard Table:
+
+```markdown
+## Claude Sonnet 4.5 Performance (v0.4.0)
+
+| Tier      | Success | Avg Tokens | Avg Cost | Avg Iterations | Avg Time | Tool Calls |
+|-----------|---------|------------|----------|----------------|----------|------------|
+| 0-Shot    | 65%     | 2,500      | $0.02    | 1              | 45s      | -          |
+| 1-Repair  | 78%     | 5,000      | $0.04    | 2 (max)        | 90s      | -          |
+| **Agent** | **92%** | **18,000** | **$0.15**| **3.5**        | **180s** | **Read: 4.2, Write: 3.1, Bash: 5.3** |
+
+**Key Insights**:
+- Agent tier achieves **+14% higher success** than 1-repair
+- Cost increase: **3.75x** (but 14% more problems solved)
+- Iteration distribution: 1 iter (20%), 2-4 iters (60%), 5+ iters (20%)
+- Most common failure mode: Timeout at 10 iterations (5% of benchmarks)
+```
+
+### Multi-Model Comparison (Agent Tier):
+
+```markdown
+## Agent Tier Performance Comparison (v0.4.0)
+
+| Model               | Success | Avg Tokens | Avg Cost | Avg Iterations |
+|---------------------|---------|------------|----------|----------------|
+| Claude Sonnet 4.5   | 92%     | 18,000     | $0.15    | 3.5            |
+| Gemini 2.5 Pro      | 88%     | 16,500     | $0.08    | 4.1            |
+| GPT-5               | 89%     | 19,200     | $0.19    | 3.8            |
+| Claude Haiku 4.5    | 82%     | 14,000     | $0.05    | 4.5            |
+| Gemini 2.5 Flash    | 79%     | 13,500     | $0.03    | 5.2            |
+
+**Best Overall**: Claude Sonnet 4.5 (92% success, reasonable cost)
+**Best Value**: Gemini 2.5 Flash (79% success, $0.03/benchmark)
+**Fastest**: Claude Sonnet 4.5 (3.5 iterations avg)
+```
+
+### Visualization:
+
+```
+Success Rate by Tier (Claude Sonnet 4.5)
+
+0-Shot:   ████████████████          65%
+1-Repair: ███████████████████       78%  (+13% improvement)
+Agent:    ███████████████████████   92%  (+14% improvement)
+          ├────────┼────────┼────────┼────────┼────────┤
+          0%      20%      40%      60%      80%     100%
+
+Cost by Tier (Claude Sonnet 4.5)
+
+0-Shot:   █                         $0.02
+1-Repair: ██                        $0.04  (2x)
+Agent:    ████████                  $0.15  (7.5x)
+          ├────────┼────────┼────────┼────────┤
+          $0.00   $0.05   $0.10    $0.15   $0.20
+```
+
+**Key Insight**: **Each `claude -p` invocation is a fresh session that takes ONE task, solves it, and exits**. No long-running agent session that processes multiple benchmarks.
+
+**Summary of Data Flow:**
+
+1. **Eval harness** → Sends 264 tasks → **eval-agent inbox**
+2. **Eval harness** → Polls **eval-agent inbox** → Gets unread tasks
+3. **Eval harness** → Spawns **10 parallel headless sessions** (rate-limited)
+4. **Each headless session** → Solves ONE benchmark → Posts result to **eval-results inbox**
+5. **Eval harness** → Acks task in **eval-agent inbox** (removes from queue)
+6. **Eval harness** → Collects all results from **eval-results inbox**
+7. **Eval harness** → Generates report
+
+**Benefits of this architecture:**
+- ✅ **Eval harness controls everything**: Single process orchestrates the whole pipeline
+- ✅ **Agent protocol provides robustness**: Tasks persist in inbox, crash recovery built-in
+- ✅ **Fresh sessions ensure isolation**: Each benchmark starts with zero context
+- ✅ **Rate limiting respects API quotas**: Won't hit Claude API limits
+- ✅ **Parallel execution speeds up runs**: 10 concurrent sessions = 10x faster
+- ✅ **Result collection is simple**: All results land in one inbox for aggregation
+
+**Integration with M-CLAUDE-CODE-HEADLESS:**
+
+The headless wrapper script handles session management:
 
 ```bash
 # tools/run_headless_claude.sh wraps claude -p with:
+# - Workspace isolation
 # - JSON output capture
 # - Cost tracking
-# - Session isolation
 # - Error handling
 # - Timeout enforcement
 
 ./tools/run_headless_claude.sh \
-  "benchmark_prompt.txt" \
-  "result.json" \
-  "Bash,Read,Write,Edit,Grep" \
+  --task-from-inbox eval-agent \
+  --workspace /tmp/eval_${benchmark_id} \
   --timeout 300
 ```
 

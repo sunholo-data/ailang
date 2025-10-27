@@ -37,7 +37,6 @@ LOCK_FILE="${STATE_DIR}/session_start.lock"
 # Detect project root (where .claude/ directory is)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SEND_MESSAGE_BIN="$PROJECT_ROOT/bin/send-message"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"

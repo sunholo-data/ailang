@@ -100,6 +100,6 @@ func (m *MultiModelAgentHandler) HandleMessage(msg *agentprotocol.Envelope) (map
 // runner.Run()
 //
 // // Send message with model choice:
-// ./bin/send-message multi-model-agent '{"model": "gemini-2-5-pro", "action": "analyze"}'
-// ./bin/send-message multi-model-agent '{"model": "gpt-4", "action": "analyze"}'
-// ./bin/send-message multi-model-agent '{"action": "analyze"}'  // Uses default (Claude)
+// ailang agent send multi-model-agent '{"model": "gemini-2-5-pro", "action": "analyze"}'
+// ailang agent send multi-model-agent '{"model": "gpt-4", "action": "analyze"}'
+// ailang agent send multi-model-agent '{"action": "analyze"}'  // Uses default (Claude)

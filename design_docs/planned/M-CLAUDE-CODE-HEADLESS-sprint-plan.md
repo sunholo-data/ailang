@@ -71,20 +71,31 @@
 # - Workspace isolation
 # - Error handling
 # - Logging
+# - OPTIONAL: Task from agent inbox
 
+# Basic usage (prompt-based):
 ./tools/run_headless_claude.sh \
   "prompt_or_file.txt" \
   "output.json" \
   "Bash,Read,Write,Edit"
+
+# Advanced usage (agent task-based):
+./tools/run_headless_claude.sh \
+  --task-from-inbox eval-agent \
+  --workspace /tmp/eval_task_$$ \
+  --timeout 300
 ```
 
 **Implementation checklist**:
 - [ ] Parse CLI arguments (prompt, output file, allowed tools)
+- [ ] **Optional**: Support `--task-from-inbox <agent-id>` to pull task from agent queue
 - [ ] Create workspace directory if needed
 - [ ] Run `claude -p` with `--output-format json`
 - [ ] Capture output to file
 - [ ] Extract `session_id`, `total_cost_usd`, `result` from JSON
 - [ ] Send errors to user inbox (via `ailang agent send --to-user`)
+- [ ] **If task from inbox**: Acknowledge task with `ailang agent ack <message-id>`
+- [ ] **If task from inbox**: Send result back with `ailang agent send --to-user`
 - [ ] Log to `.ailang/state/headless_output/YYYYMMDD_HHMMSS.log`
 - [ ] Exit with claude's exit code
 
@@ -101,6 +112,11 @@ echo "List files in current directory" > /tmp/prompt.txt
 
 # Test 3: Error handling (invalid tool)
 ./tools/run_headless_claude.sh "test" /tmp/test3.json "InvalidTool" # Should fail gracefully
+
+# Test 4: Agent inbox integration
+ailang agent send test-agent '{"task": "list files", "workspace": "/tmp/test"}'
+./tools/run_headless_claude.sh --task-from-inbox test-agent --timeout 60
+# Should pull task, execute, acknowledge, and post result
 ```
 
 ---

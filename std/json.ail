@@ -16,10 +16,9 @@ export type Json =
   | JObject(List[{key: string, value: Json}])
 
 -- Encode JSON to string (Go-backed for correctness)
--- TODO: Migrate _json_encode to new builtin registry
--- export func encode(obj: Json) -> string {
---   _json_encode(obj)
--- }
+export func encode(obj: Json) -> string {
+  _json_encode(obj)
+}
 
 -- Decode JSON from string (Go-backed for correctness)
 export func decode(s: string) -> Result[Json, string] {
