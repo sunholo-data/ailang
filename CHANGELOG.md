@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.3.23] - 2025-10-27
+## [v0.3.22] - 2025-10-27
 
 ### Added - JSON Encoding Support
 

@@ -11,6 +11,7 @@ _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
+_json_encode : Json -> string
 _net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool

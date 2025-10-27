@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/effects/testctx"
-	"github.com/sunholo/ailang/internal/eval"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/sunholo/ailang/internal/effects/testctx"
+	"github.com/sunholo/ailang/internal/eval"
 )
 
 // Test individual JSON types
