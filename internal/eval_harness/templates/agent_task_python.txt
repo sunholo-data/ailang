@@ -26,7 +26,6 @@ Expected output:
 
 2. **Compare output carefully:**
    - Check that every line matches expected output
-   - No extra blank lines
    - No extra spaces or formatting differences
 
 3. **If output doesn't match:**
@@ -44,7 +43,6 @@ You have access to standard Python tools:
 
 ## Tips
 
-- Use `print()` for output (automatically adds newline)
 - Standard library is available
 - Python 3.x syntax
 
