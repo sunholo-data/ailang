@@ -286,7 +286,7 @@ if [[ $EXIT_CODE -eq 0 ]]; then
     ./scripts/auto_handoff.sh
 else
     echo "❌ Baseline failed"
-    ./bin/send-message user '{
+    ailang agent send --to-user '{
       "type": "error",
       "source": "nightly_eval_baseline",
       "exit_code": '"$EXIT_CODE"'
@@ -318,7 +318,7 @@ fi
 
 # Send report to user inbox
 REPORT=$(jq -r '.result' "/tmp/weekly_report_$(date +%Y%m%d).json")
-./bin/send-message user '{
+ailang agent send --to-user '{
   "type": "weekly_report",
   "report": "'"$REPORT"'"
 }'

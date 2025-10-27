@@ -76,7 +76,89 @@ Based on AILANG's design advantages for agents:
 
 ---
 
+## Why Claude Code is the Ideal First Implementation
+
+**Claude Code is the pragmatic way AILANG will be used in practice:**
+
+### 1. Native Tool Integration
+- **Built-in tools**: Bash, Read, Write, Edit, Grep - exactly what's needed for AILANG development
+- **No custom tooling**: Don't need to implement file I/O or shell access
+- **Real-world workflow**: Matches how developers actually use AILANG
+
+### 2. Iteration is Natural
+- **Multi-turn by design**: Claude Code sessions are inherently iterative
+- **Error feedback loops**: Read error → edit code → run again → repeat
+- **Type-check → test → fix**: Natural workflow for AILANG development
+
+### 3. Fresh Sessions = Deterministic Benchmarks
+- **Headless mode**: `claude -p` creates isolated session per benchmark
+- **No state bleed**: Each benchmark starts from clean slate
+- **Reproducible**: Same prompt + tools = consistent behavior (modulo LLM sampling)
+
+### 4. Cost-Effective for Development
+- **Pay-per-use**: Only pay for benchmark runs that happen
+- **No infrastructure**: Don't need to host agent runtime
+- **Transparent pricing**: Headless JSON includes `total_cost_usd`
+
+### 5. Dogfooding AILANG's Design
+- **AILANG was built for this**: Deterministic semantics, explicit effects, machine-readable errors
+- **Validates vision**: If Claude Code + AILANG works well, it proves the AI-first design
+- **Marketing**: "AILANG benchmarks show 15-20% improvement with agent workflows" = powerful message
+
+### 6. Other Providers Later
+Once Claude Code proves the concept:
+- **Gemini Agents**: Similar headless API (when available)
+- **OpenAI o1**: Reasoning models (CLI-based)
+- **Custom frameworks**: LangChain, AutoGPT, etc.
+
+**Decision**: Start with Claude Code, expand to others in Phase 2+
+
+---
+
 ## Architecture
+
+### Claude Code Integration (Primary Implementation Path)
+
+**Critical Design Requirement**: Each benchmark needs a **fresh session** - Claude Code must run in headless mode with isolated workspace per benchmark.
+
+**Why headless + fresh sessions:**
+1. **State isolation**: Prevents context bleed between benchmarks
+2. **Deterministic baselines**: Same starting point for every run
+3. **Parallel execution**: Multiple benchmarks can run concurrently
+4. **Cost tracking**: Each session has isolated token/cost accounting
+5. **Reproducibility**: Session isolation ensures consistent results
+
+**Session Architecture:**
+
+```bash
+# For each benchmark:
+1. Create isolated workspace: /tmp/ailang_eval_<benchmark_id>/
+2. Copy benchmark spec and tests
+3. Run headless Claude Code:
+   claude -p "Solve this AILANG benchmark: <spec>" \
+     --output-format json \
+     --allowedTools "Bash,Read,Write,Edit,Grep" \
+     --append-system-prompt "Use ailang CLI tools for iteration"
+4. Extract result, cost, iterations from JSON
+5. Clean up workspace
+```
+
+**Key Implementation Detail**: We'll use the headless wrapper from **M-CLAUDE-CODE-HEADLESS** (v0.3.21):
+
+```bash
+# tools/run_headless_claude.sh wraps claude -p with:
+# - JSON output capture
+# - Cost tracking
+# - Session isolation
+# - Error handling
+# - Timeout enforcement
+
+./tools/run_headless_claude.sh \
+  "benchmark_prompt.txt" \
+  "result.json" \
+  "Bash,Read,Write,Edit,Grep" \
+  --timeout 300
+```
 
 ### Agent Benchmark Runner
 
@@ -84,14 +166,18 @@ Based on AILANG's design advantages for agents:
 // internal/eval_harness/agent_runner.go
 
 type AgentBenchmarkConfig struct {
-    Provider     string  // "claude", "gemini", "openai"
+    Provider     string  // "claude-code", "claude-cli", "gemini", "openai"
     Model        string  // "claude-sonnet-4-5", "gemini-2.5-pro", etc.
-    AgentFile    string  // Path to .claude/agents/*.md or nil for CLI
+
+    // Claude Code specific
+    HeadlessMode bool    // true = use headless wrapper, false = SDK (not recommended for evals)
+    WorkspaceDir string  // Isolated workspace per benchmark
+
     MaxIterations int    // e.g., 10
     TimeoutSeconds int   // e.g., 300 (5 minutes)
 
     // Tools available to agent
-    Tools []string  // ["read_file", "write_file", "run_tests", "type_check"]
+    Tools []string  // ["Bash", "Read", "Write", "Edit", "Grep"]
 }
 
 type AgentBenchmarkResult struct {
@@ -241,26 +327,86 @@ for _, provider := range providers {
    - Timeout (failure)
 ```
 
-### Example Agent Session (Claude)
+### Example Agent Session (Claude Code - Headless)
+
+**Benchmark**: `list_map` - Implement map function over lists
+
+**Workspace**: `/tmp/ailang_eval_list_map_20251027_143022/`
+
+**Prompt** (sent to headless Claude Code):
+```
+You are solving an AILANG benchmark. Your task is to implement the `map` function that applies a function to each element of a list.
+
+Benchmark ID: list_map
+Language: AILANG
+Tools Available: Bash, Read, Write, Edit, Grep
+
+Files in workspace:
+- README.md: Problem description
+- tests.ail: Test cases you must pass
+- solution.ail: Your implementation goes here (currently empty)
+
+Instructions:
+1. Read README.md to understand the problem
+2. Write your implementation in solution.ail
+3. Use `ailang check solution.ail` to type-check
+4. Use `ailang run --entry test --caps IO tests.ail` to run tests
+5. Iterate until all tests pass
+6. You have 10 iterations max and 5 minutes timeout
+
+IMPORTANT: AILANG syntax reference is in /workspace/syntax_reference.md
+```
+
+**Session Flow**:
 
 ```
 [Iteration 1]
-Agent: I'll implement the list_map function.
-  Tool: write_file(path="solution.ail", code="...")
-  Tool: type_check(path="solution.ail")
-  Result: ✓ Type check passed
-  Tool: run_tests(path="solution.ail")
-  Result: ✗ 2/5 tests failed
-    - Empty list handling incorrect
-    - Type mismatch in result
+Claude Code: Let me read the problem description first.
+  Tool: Read(README.md)
+  Output: "Implement map :: (a -> b) -> [a] -> [b]"
+
+Claude Code: I'll write an initial implementation.
+  Tool: Write(solution.ail, "...")
+  Tool: Bash("ailang check solution.ail")
+  Output: ✓ Type check passed
+
+  Tool: Bash("ailang run --entry test --caps IO tests.ail")
+  Output: ✗ Test 2/5 failed: Empty list case returns error
 
 [Iteration 2]
-Agent: I see the issue - need to handle empty list case.
-  Tool: write_file(path="solution.ail", code="...improved...")
-  Tool: run_tests(path="solution.ail")
-  Result: ✓ All tests passed!
+Claude Code: I need to handle the empty list case in the pattern match.
+  Tool: Edit(solution.ail, old="...", new="...")
+  Tool: Bash("ailang run --entry test --caps IO tests.ail")
+  Output: ✗ Test 4/5 failed: Type mismatch in result
 
-Final Result: SUCCESS (2 iterations, 45 seconds)
+[Iteration 3]
+Claude Code: The issue is in how I'm constructing the result list. Let me fix that.
+  Tool: Edit(solution.ail, old="...", new="...")
+  Tool: Bash("ailang check solution.ail")
+  Output: ✓ Type check passed
+  Tool: Bash("ailang run --entry test --caps IO tests.ail")
+  Output: ✓ All 5 tests passed!
+
+Final Result: SUCCESS (3 iterations, 47 seconds, $0.12)
+```
+
+**JSON Output** (captured by headless wrapper):
+```json
+{
+  "type": "result",
+  "subtype": "success",
+  "session_id": "abc123",
+  "total_cost_usd": 0.12,
+  "result": "All tests passed! Implementation complete.",
+  "iterations": 3,
+  "duration_seconds": 47,
+  "tool_calls": [
+    {"tool": "Read", "count": 2},
+    {"tool": "Write", "count": 1},
+    {"tool": "Edit", "count": 2},
+    {"tool": "Bash", "count": 5}
+  ]
+}
 ```
 
 ---
@@ -374,15 +520,55 @@ Note: Agent tier is more expensive but achieves 92% vs 78% success rate.
 
 ## Implementation Phases
 
-### Phase 1: Single Provider (Claude) (~1 week)
+### Phase 0: Prerequisites (v0.3.21) [REQUIRED FIRST]
 
-1. ✅ Agent protocol system (already done in v0.3.19!)
-2. ⏳ Create AgentBenchmarkRunner
-3. ⏳ Implement 4 basic tools (read/write/typecheck/test)
-4. ⏳ Integrate with existing eval_harness
-5. ⏳ Run pilot with 10 benchmarks
+**Dependency**: M-CLAUDE-CODE-HEADLESS must be implemented first!
 
-**Deliverable**: Proof-of-concept showing agent outperforms 1-repair
+1. ✅ Agent protocol system (v0.3.19 - done!)
+2. ✅ Claude Code hooks integration (v0.3.20 - done!)
+3. ⏳ **Headless wrapper scripts** (v0.3.21 - BLOCKING)
+   - `tools/run_headless_claude.sh` - Wrapper for `claude -p`
+   - JSON output capture with session_id, cost, result
+   - Workspace isolation per invocation
+   - Error handling and timeouts
+
+**Why this blocks**: We can't run agent evals without headless mode. Each benchmark needs a fresh Claude Code session, which requires the headless wrapper.
+
+**Estimated**: 2-3 days (see M-CLAUDE-CODE-HEADLESS design doc)
+
+**Status**: 🚧 Blocked until M-CLAUDE-CODE-HEADLESS ships
+
+---
+
+### Phase 1: Claude Code Integration (~1 week)
+
+**Once M-CLAUDE-CODE-HEADLESS is done:**
+
+1. ⏳ Create `ClaudeCodeBenchmarkRunner` (wraps headless wrapper)
+   - Workspace creation/cleanup per benchmark
+   - Prompt construction (benchmark spec → Claude Code task)
+   - JSON result parsing (extract success, iterations, cost)
+   - Integration with existing `AgentBenchmarkResult` struct
+
+2. ⏳ Benchmark prompt engineering
+   - System prompt: "You are solving AILANG benchmarks. Use `ailang check`, `ailang run`, iterate until tests pass."
+   - Include AILANG syntax reference (from prompts/v0.3.X.md)
+   - Examples of using ailang CLI tools
+   - Iteration strategies
+
+3. ⏳ CLI integration
+   - `ailang eval-suite --agent --provider claude-code`
+   - `ailang eval-benchmark <id> --agent --provider claude-code`
+   - Automatic workspace management (create/cleanup)
+
+4. ⏳ Run pilot with 10 benchmarks
+   - Select: 2 simple, 5 medium, 3 complex benchmarks
+   - Compare: 0-shot vs 1-repair vs Claude Code agent
+   - Measure: success rate, iterations, cost, time
+
+**Deliverable**: Proof-of-concept showing Claude Code agent outperforms 1-repair
+
+**Estimated**: 1 week (assuming Phase 0 complete)
 
 ### Phase 2: Multi-Provider (~3 days)
 
@@ -494,13 +680,22 @@ Use agents to build AILANG itself:
 ---
 
 **Created**: October 23, 2025
+**Updated**: October 27, 2025 (Claude Code integration specifics added)
 **Target Version**: v0.4.0
 **Dependencies**:
-- v0.3.19 (Agent protocol system) ✅
-- v0.3.20 (SDK integration for ClaudeAgentHandler)
-- Reflection API (future, v0.5.0+)
+- ✅ v0.3.19 (Agent protocol system) - Complete
+- ✅ v0.3.20 (Claude Code hooks integration) - Complete
+- 🚧 **v0.3.21 (M-CLAUDE-CODE-HEADLESS) - BLOCKING** - Required for headless wrapper
+- ⏳ Reflection API (future, v0.5.0+) - For advanced tools
+
+**Critical Path**:
+1. M-CLAUDE-CODE-HEADLESS (v0.3.21) must ship first
+2. Then M-EVAL-AGENT Phase 1 can begin
+3. Phase 1 deliverable: Claude Code agent benchmarks working
 
 **Related**:
 - M-EVAL: Original eval harness
 - M-EVAL-LOOP: Go-based eval tools
-- M-AGENT-PROTOCOL: Agent communication system
+- M-AGENT-PROTOCOL: Agent communication system (v0.3.19)
+- M-CLAUDE-CODE-INTEGRATION-HOOKS: Interactive Claude Code integration (v0.3.20)
+- **M-CLAUDE-CODE-HEADLESS**: Headless mode wrapper (v0.3.21) - REQUIRED FIRST
