@@ -7,7 +7,7 @@
 ## Recent Release: v0.3.19 (October 2025)
 
 **Code Organization & AI Maintainability:**
-- ✅ **Pipeline Refactoring** - 2 large files → 10 focused modules (all <800 lines)
+- ✅ **Pipeline Refactoring** - 2 large files → 10 focused modules (all &lt;800 lines)
 - ✅ **AI-Friendly File Sizes** - `pipeline.go` (1014→121 lines, -88%), `specialize.go` (1384→142 lines, -90%)
 - ✅ **Enhanced Documentation** - Package-level docs explaining file responsibilities
 - ✅ **Test Coverage Maintained** - All 2,847+ tests passing after refactoring
