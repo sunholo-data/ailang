@@ -1,0 +1,23 @@
+{
+  "id": "print_missing_effect",
+  "lang": "ailang",
+  "model": "gpt5-mini",
+  "seed": 42,
+  "input_tokens": 9817,
+  "output_tokens": 31,
+  "total_tokens": 9848,
+  "cost_usd": 0.0025162500000000003,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": false,
+  "duration_ms": 5,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "logic_error",
+  "stdout": "Hello, World!\n",
+  "timestamp": "2025-10-27T09:10:13.010525+01:00",
+  "code": "module benchmark/solution\n\nexport func main() -\u003e () ! {IO} {\n  print(\"Hello!\")\n}",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}

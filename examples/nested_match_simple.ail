@@ -1,0 +1,37 @@
+module examples/nested_match_simple
+
+import std/io (println)
+
+type Option[a] = Some(a) | None
+
+export func simpleNested(opt: Option[int]) -> int {
+  match opt {
+    Some(x) => match Some(x + 1) {
+      Some(y) => y,
+      None => 0
+    },
+    None => -1
+  }
+}
+
+export func stateThreading(initial: int) -> int {
+  let r1 = (initial + 5, initial + 5);
+  match r1 {
+    (value1, state1) => {
+      let r2 = (state1 * 3, state1 * 3);
+      match r2 {
+        (value2, state2) => {
+          let r3 = (state2 + 10, state2 + 10);
+          match r3 {
+            (state3, _) => state3
+          }
+        }
+      }
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  println("Simple nested: " ++ show(simpleNested(Some(5))));
+  println("State threading: " ++ show(stateThreading(0)))
+}

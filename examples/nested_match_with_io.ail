@@ -1,0 +1,29 @@
+module examples/nested_match_with_io
+
+import std/io (println)
+
+export func add(value: int, state: int) -> (int, int) {
+  let newState = state + value;
+  (newState, newState)
+}
+
+export func test() -> () ! {IO} {
+  let state0 = 0;
+  println("Initial: " ++ show(state0));
+  let r1 = add(5, state0);
+  match r1 {
+    (state1, _) => {
+      println("After add: " ++ show(state1));
+      let r2 = add(3, state1);
+      match r2 {
+        (state2, _) => {
+          println("After add 2: " ++ show(state2));
+          let r3 = add(10, state2);
+          match r3 {
+            (state3, _) => println("Final: " ++ show(state3))
+          }
+        }
+      }
+    }
+  }
+}

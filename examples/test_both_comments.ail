@@ -1,0 +1,10 @@
+module examples/test_both_comments
+
+// C-style comment works now
+-- Haskell-style comment still works
+
+export func test() -> int {
+  let x = 42; // Inline comment
+  let y = 10; -- Also inline
+  x + y
+}

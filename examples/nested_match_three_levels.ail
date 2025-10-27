@@ -1,0 +1,20 @@
+module examples/nested_match_three_levels
+
+// Test 3-level nested match with blocks (like AI generates)
+
+export func test() -> int {
+  let r1 = (1, 2);
+  match r1 {
+    (a, b) => {
+      let r2 = (3, 4);
+      match r2 {
+        (c, d) => {
+          let r3 = (5, 6);
+          match r3 {
+            (e, f) => e + f
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,0 @@
-module test_max_fixed
-
-export func main() -> () ! {IO} = {
-  let max = \x. \y. if x > y then x else y;
-  print(show(max(3.14)(2.71)))
-}

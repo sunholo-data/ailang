@@ -347,23 +347,33 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 
 		// Parse remaining expressions in the block
 		for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+			// Check if next token is RBRACE (end of block)
 			if p.peekTokenIs(lexer.RBRACE) {
 				p.nextToken()
 				break
 			}
 
-			if !p.expectPeek(lexer.SEMICOLON) {
-				return nil
-			}
-			p.nextToken() // move past semicolon
+			// Check for semicolon (more expressions follow)
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken() // move to SEMICOLON
+				p.nextToken() // move past SEMICOLON
 
-			if p.curTokenIs(lexer.RBRACE) {
-				// Trailing semicolon before }
-				break
+				// Check for trailing semicolon
+				if p.curTokenIs(lexer.RBRACE) {
+					break
+				}
+
+				expr := p.parseExpression(LOWEST)
+				block.Exprs = append(block.Exprs, expr)
+				continue
 			}
 
-			expr := p.parseExpression(LOWEST)
-			block.Exprs = append(block.Exprs, expr)
+			// No semicolon and no RBRACE in peek.
+			// This could be valid if we're at the end of the block but the block
+			// is used in a context where something else follows (e.g., comma in match arm).
+			// Check if we're at a reasonable stopping point.
+			// For now, we'll break and let the caller handle it.
+			break
 		}
 
 		if !p.curTokenIs(lexer.RBRACE) {

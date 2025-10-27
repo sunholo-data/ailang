@@ -1,0 +1,13 @@
+module examples/nested_match_no_comment
+
+export func test() -> int {
+  let x = (1, 2);
+  match x {
+    (a, b) => {
+      let y = (3, 4);
+      match y {
+        (c, d) => c + d
+      }
+    }
+  }
+}

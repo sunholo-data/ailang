@@ -1,0 +1,18 @@
+module examples/match_arm_block_io
+
+import std/io (println)
+
+// Match arm with block: println THEN nested match
+
+export func test() -> () ! {IO} {
+  let x = (1, 2);
+  match x {
+    (a, b) => {
+      println("Before");
+      let y = (3, 4);
+      match y {
+        (c, d) => println("Done")
+      }
+    }
+  }
+}
