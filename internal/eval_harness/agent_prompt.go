@@ -438,6 +438,20 @@ Expected output:
 - Run your solution with: ailang run --entry main --caps {{CAPS}} solution.ail
 - Your solution must produce output matching the expected output exactly
 
+## Verification (REQUIRED)
+
+**Before finishing, you MUST verify your solution works correctly:**
+
+1. **Run your solution:** ` + "`ailang run --entry main --caps {{CAPS}} solution.ail`" + `
+2. **Check the output matches expected output exactly** (no extra newlines, spaces, etc.)
+3. **If output doesn't match, fix and re-run until it matches**
+4. **Only finish once you've confirmed output is correct**
+
+**Available tools:** You have access to ` + "`ailang`" + ` command for:
+- Running code: ` + "`ailang run`" + `
+- Type checking: ` + "`ailang check`" + `
+- Testing: ` + "`ailang test`" + `
+
 Good luck!`
 }
 

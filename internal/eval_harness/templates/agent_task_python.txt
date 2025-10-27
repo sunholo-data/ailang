@@ -1,0 +1,51 @@
+You are solving a Python benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Requirements
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
+
+## Verification Steps (REQUIRED!)
+
+**You MUST verify your solution before finishing:**
+
+1. **Run your solution:**
+   ```
+   python3 solution.py
+   ```
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra blank lines
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**
+
+## Available Tools
+
+You have access to standard Python tools:
+- **Run code:** `python3 solution.py`
+- **Check syntax:** `python3 -m py_compile solution.py`
+
+## Tips
+
+- Use `print()` for output (automatically adds newline)
+- Standard library is available
+- Python 3.x syntax
+
+Good luck!
