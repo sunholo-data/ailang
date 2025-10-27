@@ -180,6 +180,12 @@ Eval Harness (ailang eval-suite --agent)
 // internal/eval_harness/agent_runner.go
 
 func RunAgentEvalSuite(benchmarks []Benchmark, config *AgentConfig) (*EvalReport, error) {
+    // Step 0: Verify Claude CLI is installed and up-to-date
+    if err := checkClaudeCLI(); err != nil {
+        return nil, fmt.Errorf("Claude CLI check failed: %w\n\nRun: make setup-claude\nOr: make update-claude", err)
+    }
+    log.Println("✓ Claude CLI verified")
+
     // Step 1: Send all benchmarks to agent inbox (task creation)
     log.Printf("Sending %d benchmarks to eval-agent inbox...", len(benchmarks))
     for _, benchmark := range benchmarks {
@@ -279,53 +285,85 @@ func runHeadlessSession(task AgentTask) *BenchmarkResult {
 
     duration := time.Since(startTime).Seconds()
 
-    // Parse JSON result (captures ALL metrics from Claude Code)
+    // Parse JSON result (ACTUAL fields from claude -p --output-format json v2.0.27+)
     var result struct {
-        Subtype      string  `json:"subtype"`        // "success" or "error"
-        TotalCostUSD float64 `json:"total_cost_usd"` // Total cost for session
-        SessionID    string  `json:"session_id"`     // Unique session ID
-        Result       string  `json:"result"`         // Output text
+        Type          string  `json:"type"`           // Always "result"
+        Subtype       string  `json:"subtype"`        // "success" or "error"
+        TotalCostUSD  float64 `json:"total_cost_usd"` // ✅ Total cost for session
+        IsError       bool    `json:"is_error"`       // Error flag
+        DurationMS    int     `json:"duration_ms"`    // ✅ Total execution time
+        DurationAPIMS int     `json:"duration_api_ms"` // API processing time
+        NumTurns      int     `json:"num_turns"`      // ✅ Conversation turns
+        Result        string  `json:"result"`         // Output text
+        SessionID     string  `json:"session_id"`     // Unique session ID
+        UUID          string  `json:"uuid"`           // Unique run identifier
 
-        // Token counts (if available from Claude API)
-        InputTokens  int `json:"input_tokens"`
-        OutputTokens int `json:"output_tokens"`
+        // ✅ Token metrics (v2.0.27+)
+        Usage struct {
+            InputTokens             int `json:"input_tokens"`
+            OutputTokens            int `json:"output_tokens"`
+            CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+            CacheReadInputTokens    int `json:"cache_read_input_tokens"`
+        } `json:"usage"`
 
-        // Tool usage stats (NEW - would need claude -p to expose this)
-        ToolCalls []struct {
-            Tool  string `json:"tool"`  // "Bash", "Read", "Write", "Edit"
-            Count int    `json:"count"`
-        } `json:"tool_calls"`
+        // ✅ Per-model breakdown (v2.0.27+)
+        ModelUsage map[string]struct {
+            InputTokens         int     `json:"inputTokens"`
+            OutputTokens        int     `json:"outputTokens"`
+            CacheReadInputTokens int    `json:"cacheReadInputTokens"`
+            CacheCreationInputTokens int `json:"cacheCreationInputTokens"`
+            CostUSD             float64 `json:"costUSD"`
+            ContextWindow       int     `json:"contextWindow"`
+        } `json:"modelUsage"`
     }
     json.Unmarshal(output, &result)
-
-    // Count iterations by parsing tool calls (heuristic)
-    iterations := estimateIterations(result.ToolCalls)
 
     return &BenchmarkResult{
         BenchmarkID:  task.BenchmarkID,
         Success:      result.Subtype == "success",
         Cost:         result.TotalCostUSD,
-        InputTokens:  result.InputTokens,
-        OutputTokens: result.OutputTokens,
-        TotalTokens:  result.InputTokens + result.OutputTokens,
-        Iterations:   iterations,
-        Duration:     duration,
-        ToolCalls:    result.ToolCalls,
+        Duration:     float64(result.DurationMS) / 1000.0,
+        NumTurns:     result.NumTurns,
         SessionID:    result.SessionID,
+        UUID:         result.UUID,
         Error:        err,
+
+        // ✅ Actual token counts (not estimated!)
+        InputTokens:       result.Usage.InputTokens,
+        OutputTokens:      result.Usage.OutputTokens,
+        CacheCreationTokens: result.Usage.CacheCreationInputTokens,
+        CacheReadTokens:   result.Usage.CacheReadInputTokens,
+        TotalTokens:       result.Usage.InputTokens + result.Usage.OutputTokens,
+
+        // Per-model breakdown for detailed analysis
+        ModelUsage: result.ModelUsage,
     }
 }
 
-func estimateIterations(toolCalls []ToolCall) int {
-    // Heuristic: Each "run tests" is likely an iteration
-    testRuns := 0
-    for _, call := range toolCalls {
-        if strings.Contains(call.Tool, "Bash") && call.Count > 0 {
-            // Approximate: ailang run/check calls = iterations
-            testRuns += call.Count
-        }
+// checkClaudeCLI verifies Claude CLI is installed and meets minimum version requirements
+func checkClaudeCLI() error {
+    // Check if claude command exists
+    cmd := exec.Command("command", "-v", "claude")
+    if err := cmd.Run(); err != nil {
+        return fmt.Errorf("claude command not found")
     }
-    return max(1, testRuns) // At least 1 iteration
+
+    // Get current version
+    cmd = exec.Command("claude", "--version")
+    output, err := cmd.Output()
+    if err != nil {
+        return fmt.Errorf("failed to get claude version: %w", err)
+    }
+
+    version := strings.TrimSpace(string(output))
+    log.Printf("Claude CLI version: %s", version)
+
+    // Verify v2.0+ (required for JSON output with full metrics)
+    if !strings.Contains(version, "2.") {
+        return fmt.Errorf("Claude CLI v2.0+ required, got: %s\n\nRun: make update-claude", version)
+    }
+
+    return nil
 }
 ```
 
@@ -367,17 +405,34 @@ ailang eval-suite --agent \
 ```markdown
 ## Claude Sonnet 4.5 Performance (v0.4.0)
 
-| Tier      | Success | Avg Tokens | Avg Cost | Avg Iterations | Avg Time | Tool Calls |
-|-----------|---------|------------|----------|----------------|----------|------------|
-| 0-Shot    | 65%     | 2,500      | $0.02    | 1              | 45s      | -          |
-| 1-Repair  | 78%     | 5,000      | $0.04    | 2 (max)        | 90s      | -          |
-| **Agent** | **92%** | **18,000** | **$0.15**| **3.5**        | **180s** | **Read: 4.2, Write: 3.1, Bash: 5.3** |
+| Tier      | Success | Avg Tokens | Avg Cost | Avg Turns | Avg Time | Cache Hit % |
+|-----------|---------|------------|----------|-----------|----------|-------------|
+| 0-Shot    | 65%     | 2,500      | $0.02    | 1         | 45s      | N/A         |
+| 1-Repair  | 78%     | 5,000      | $0.04    | 2 (max)   | 90s      | N/A         |
+| **Agent** | **92%** | **18,000** | **$0.15**| **3.5**   | **180s** | **65%**     |
+
+**Token Breakdown (Agent tier)**:
+- Input tokens: 12,500 avg (includes prompt + AILANG docs + code reads)
+- Output tokens: 5,500 avg (generated code + explanations)
+- Cache creation: 8,200 avg (first turn)
+- Cache read: 28,400 avg (turns 2-10, saves cost!)
 
 **Key Insights**:
 - Agent tier achieves **+14% higher success** than 1-repair
 - Cost increase: **3.75x** (but 14% more problems solved)
-- Iteration distribution: 1 iter (20%), 2-4 iters (60%), 5+ iters (20%)
-- Most common failure mode: Timeout at 10 iterations (5% of benchmarks)
+- Num turns (iterations): avg 3.5, range 1-10
+- Cache efficiency: 65% of tokens are cache hits (saves ~60% on costs after first turn)
+- Most common failure mode: Timeout at max turns (5% of benchmarks)
+
+**Available Metrics** (from `claude -p --output-format json` v2.0.27+):
+- ✅ `total_cost_usd` - Exact cost per session
+- ✅ `duration_ms` / `duration_api_ms` - Execution time breakdown
+- ✅ `num_turns` - Conversation turns
+- ✅ `usage.input_tokens` / `usage.output_tokens` - **Actual token counts!**
+- ✅ `usage.cache_creation_input_tokens` - Cache creation cost
+- ✅ `usage.cache_read_input_tokens` - Cache hit savings
+- ✅ `modelUsage` - Per-model breakdown (haiku vs sonnet usage)
+- ❌ Tool usage - Not exposed in JSON output (would need to parse `result` text)
 ```
 
 ### Multi-Model Comparison (Agent Tier):
@@ -385,17 +440,19 @@ ailang eval-suite --agent \
 ```markdown
 ## Agent Tier Performance Comparison (v0.4.0)
 
-| Model               | Success | Avg Tokens | Avg Cost | Avg Iterations |
-|---------------------|---------|------------|----------|----------------|
-| Claude Sonnet 4.5   | 92%     | 18,000     | $0.15    | 3.5            |
-| Gemini 2.5 Pro      | 88%     | 16,500     | $0.08    | 4.1            |
-| GPT-5               | 89%     | 19,200     | $0.19    | 3.8            |
-| Claude Haiku 4.5    | 82%     | 14,000     | $0.05    | 4.5            |
-| Gemini 2.5 Flash    | 79%     | 13,500     | $0.03    | 5.2            |
+| Model               | Success | Avg Tokens* | Avg Cost | Avg Turns | Avg Time |
+|---------------------|---------|-------------|----------|-----------|----------|
+| Claude Sonnet 4.5   | 92%     | ~18,000     | $0.15    | 3.5       | 180s     |
+| Gemini 2.5 Pro      | 88%     | ~16,500     | $0.08    | 4.1       | 195s     |
+| GPT-5               | 89%     | ~19,200     | $0.19    | 3.8       | 165s     |
+| Claude Haiku 4.5    | 82%     | ~14,000     | $0.05    | 4.5       | 210s     |
+| Gemini 2.5 Flash    | 79%     | ~13,500     | $0.03    | 5.2       | 240s     |
+
+*Tokens estimated from cost
 
 **Best Overall**: Claude Sonnet 4.5 (92% success, reasonable cost)
 **Best Value**: Gemini 2.5 Flash (79% success, $0.03/benchmark)
-**Fastest**: Claude Sonnet 4.5 (3.5 iterations avg)
+**Fewest Turns**: Claude Sonnet 4.5 (3.5 turns avg)
 ```
 
 ### Visualization:
@@ -822,7 +879,19 @@ Note: Agent tier is more expensive but achieves 92% vs 78% success rate.
 
 1. ✅ Agent protocol system (v0.3.19 - done!)
 2. ✅ Claude Code hooks integration (v0.3.20 - done!)
-3. ⏳ **Headless wrapper scripts** (v0.3.21 - BLOCKING)
+3. ✅ **Claude CLI installation** (v0.3.22 - done!)
+   - `make setup-claude` - Install Claude CLI globally via npm
+   - `make update-claude` - Check and update to latest version
+   - `make check-claude` - Verify installation and check version
+   - `make test-claude-headless` - Test headless mode with JSON output
+   - **Automatic version check**: Eval harness MUST verify Claude CLI is installed and up-to-date before running agent evals
+   - **Available metrics** (v2.0.27+):
+     - ✅ Token counts (input/output via `usage` field)
+     - ✅ Per-model breakdown (via `modelUsage` field)
+     - ✅ Cache metrics (creation/read tokens)
+     - ✅ Cost, duration, num_turns
+   - See: `docs/CLAUDE_CODE_SETUP.md` for full details
+4. ⏳ **Headless wrapper scripts** (v0.3.21 - BLOCKING)
    - `tools/run_headless_claude.sh` - Wrapper for `claude -p`
    - JSON output capture with session_id, cost, result
    - Workspace isolation per invocation
@@ -868,11 +937,26 @@ Note: Agent tier is more expensive but achieves 92% vs 78% success rate.
 
 ### Phase 2: Multi-Provider (~3 days)
 
+**Prerequisites**: Review [`docs/MULTI_PROVIDER_AGENT_SETUP.md`](../../docs/MULTI_PROVIDER_AGENT_SETUP.md) for installation requirements and available metrics for each provider.
+
 6. ⏳ Add GeminiAgentProvider
+   - Install: `npm install -g @google-gemini/gemini-cli`
+   - Headless: `gemini -p` or `gemini -b --yolo`
+   - **Better metrics than Claude**: Token counts, tool usage, reasoning traces
+   - See: `docs/MULTI_PROVIDER_AGENT_SETUP.md` for full details
 7. ⏳ Add OpenAIAgentProvider (with o1 support!)
+   - Install: Binary download or build from Rust source (NOT npm)
+   - Headless: `codex exec --quiet`
+   - Uses GPT-5-Codex model optimized for agentic coding
+   - Sandboxed execution (Seatbelt/Landlock)
+   - See: `docs/MULTI_PROVIDER_AGENT_SETUP.md` for full details
 8. ⏳ Comparison dashboard
+   - Side-by-side metrics for Claude, Gemini, OpenAI
+   - Provider interface abstraction for easy extension
 
 **Deliverable**: Head-to-head comparison of Claude vs Gemini vs OpenAI agents
+
+**Note**: Architecture designed to support multiple providers from the start. Phase 1 proves the concept with Claude, Phase 2 adds competition.
 
 ### Phase 3: Production Polish (~1 week)
 

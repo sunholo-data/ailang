@@ -13,11 +13,16 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 ```bash
 # User says: "Run post-release tasks for v0.3.14"
 # This skill will:
-# 1. Run eval baseline (all models, both languages)
+# 1. Run eval baseline (ALL 6 PRODUCTION MODELS, both languages) - ALWAYS USE --full FOR RELEASES
 # 2. Update website dashboard (markdown + JSON with history)
 # 3. Extract metrics for CHANGELOG
 # 4. Guide through design doc and public doc updates
 ```
+
+**🚨 CRITICAL: For releases, ALWAYS use --full flag by default**
+- Dev models (without --full) are only for quick testing/validation, NOT releases
+- Users expect full benchmark results when they say "post-release" or "update dashboard"
+- Never start with dev models and then try to add production models later
 
 ## When to Use This Skill
 
@@ -32,14 +37,16 @@ Invoke this skill when:
 ### `scripts/run_eval_baseline.sh <version> [--full]`
 Run evaluation baseline for a release version.
 
+**🚨 CRITICAL: ALWAYS use --full for releases!**
+
 **Usage:**
 ```bash
-# Dev models only (fast, cheap)
-.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
-
-# All production models (for releases) - accepts both formats
+# ✅ CORRECT - For releases (ALL 6 production models)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14 --full
 .claude/skills/post-release/scripts/run_eval_baseline.sh v0.3.14 --full
+
+# ❌ WRONG - Only use without --full for quick testing/validation
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
 ```
 
 **Output:**
@@ -162,8 +169,11 @@ If release doesn't exist, run `release-manager` skill first.
 
 ### 2. Run Eval Baseline
 
-**For releases (recommended):**
+**🚨 CRITICAL: ALWAYS use --full for releases!**
+
+**Correct workflow:**
 ```bash
+# ✅ ALWAYS do this for releases - ONE command, let it complete
 .claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X --full
 ```
 
@@ -172,13 +182,22 @@ This runs all 6 production models with both AILANG and Python.
 **Cost**: ~$0.50-1.00
 **Time**: ~15-20 minutes
 
-**If baseline times out or is interrupted:**
+**❌ WRONG workflow (what happened with v0.3.22):**
 ```bash
-bin/ailang eval-suite --full --langs python,ailang --parallel 5 \
-  --output ./eval_results/baselines/vX.X.X --self-repair --skip-existing
+# DON'T do this for releases!
+.claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X  # Missing --full!
+# Then try to add production models later with --skip-existing
+# Result: Confusion, multiple processes, incomplete baseline
 ```
 
-The `--skip-existing` flag skips benchmarks that already have result files, allowing resumption of interrupted runs.
+**If baseline times out or is interrupted:**
+```bash
+# Resume with ALL 6 models (maintains --full semantics)
+ailang eval-suite --full --langs python,ailang --parallel 5 \
+  --output eval_results/baselines/X.X.X --skip-existing
+```
+
+The `--skip-existing` flag skips benchmarks that already have result files, allowing resumption of interrupted runs. But ONLY use this for recovery, not as a strategy to "add more models later".
 
 ### 3. Update Website Dashboard
 

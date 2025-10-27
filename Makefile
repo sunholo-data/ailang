@@ -920,6 +920,62 @@ largest-files:
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
 
 
+.PHONY: setup-claude
+setup-claude: ## Install Claude CLI globally for headless mode
+	@echo "Installing Claude CLI globally..."
+	@npm install -g @anthropic-ai/claude-code
+	@echo "✓ Claude CLI installed"
+	@claude --version
+
+.PHONY: update-claude
+update-claude: ## Update Claude CLI to latest version
+	@echo "Checking for Claude CLI updates..."
+	@CURRENT=$$(claude --version 2>/dev/null | grep -o '[0-9.]*' | head -1); \
+	LATEST=$$(npm view @anthropic-ai/claude-code version); \
+	if [ -z "$$CURRENT" ]; then \
+		echo "❌ Claude CLI not installed. Run: make setup-claude"; \
+		exit 1; \
+	fi; \
+	echo "Current version: $$CURRENT"; \
+	echo "Latest version:  $$LATEST"; \
+	if [ "$$CURRENT" = "$$LATEST" ]; then \
+		echo "✓ Already up to date!"; \
+	else \
+		echo ""; \
+		echo "Updating from $$CURRENT to $$LATEST..."; \
+		npm install -g @anthropic-ai/claude-code@latest; \
+		echo "✓ Updated to $$(claude --version)"; \
+	fi
+
+.PHONY: check-claude
+check-claude: ## Verify Claude CLI is installed and working
+	@command -v claude >/dev/null 2>&1 || { \
+		echo "❌ Claude CLI not found."; \
+		echo ""; \
+		echo "Install with: make setup-claude"; \
+		echo "Or manually: npm install -g @anthropic-ai/claude-code"; \
+		echo ""; \
+		echo "See docs/CLAUDE_CODE_SETUP.md for troubleshooting"; \
+		exit 1; \
+	}
+	@echo "✓ Claude CLI found: $$(which claude)"
+	@echo "✓ Version: $$(claude --version)"
+
+.PHONY: test-claude-headless
+test-claude-headless: check-claude ## Test Claude headless mode
+	@echo "Testing Claude headless mode..."
+	@OUTPUT=$$(claude -p "echo test" --output-format json 2>&1); \
+	if echo "$$OUTPUT" | jq -e '.subtype == "success"' >/dev/null 2>&1; then \
+		echo "✓ Claude headless mode working"; \
+		echo ""; \
+		echo "Available metrics:"; \
+		echo "$$OUTPUT" | jq -r 'keys | .[]' | sed 's/^/  - /'; \
+	else \
+		echo "✗ Claude headless mode failed"; \
+		echo "Output: $$OUTPUT"; \
+		exit 1; \
+	fi
+
 .PHONY: help-release
 help-release: ## Show release workflow (eval + dashboard)
 	@echo "📦 RELEASE WORKFLOW"
