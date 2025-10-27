@@ -198,9 +198,20 @@
         "m-eval-http-fix"
       ],
       "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 → line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
+    },
+    "v0.3.23": {
+      "file": "prompts/v0.3.23.md",
+      "hash": "c2dcdb4594ad0d79d7ee9104a8383ac697cadea54426a8bae795e5b02a7e3d06",
+      "description": "Add note: print() auto-adds newline, don't concatenate \\n",
+      "created": "2025-10-28",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add note: print() auto-adds newline, don't concatenate \\n"
     }
   },
-  "active": "v0.3.22",
+  "active": "v0.3.23",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
