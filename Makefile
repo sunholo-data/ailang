@@ -369,9 +369,9 @@ flag-broken: verify-examples
 test-imports-success: build
 	@echo "== Testing successful imports =="
 	@echo "  → imports_basic.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/snippets/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
 	@echo "  → imports.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/snippets/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
 	@echo "✓ Successful imports work"
 
 # Test that error cases produce correct JSON output
