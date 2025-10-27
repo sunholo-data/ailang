@@ -59,6 +59,13 @@ type AgentBenchmarkResult struct {
 	SolutionCode  string `json:"solution_code,omitempty"`  // Generated solution code
 	SessionLog    string `json:"session_log,omitempty"`    // Full Claude session log
 	PromptVersion string `json:"prompt_version,omitempty"` // Version of teaching prompt used
+
+	// Validation flags (match standard eval format for downstream compatibility)
+	CompileOk bool   `json:"compile_ok"` // Did solution parse/compile?
+	RuntimeOk bool   `json:"runtime_ok"` // Did solution run without error?
+	StdoutOk  bool   `json:"stdout_ok"`  // Did output match expected?
+	Stdout    string `json:"stdout,omitempty"`
+	Stderr    string `json:"stderr,omitempty"`
 }
 
 // TokenUsage captures detailed token metrics
@@ -125,8 +132,31 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	}
 
 	// Create placeholder solution file that Claude will overwrite
-	solutionFilename := getSolutionFilename(language)
-	solutionPath := filepath.Join(workspace, solutionFilename)
+	// For AILANG: Create benchmark/ subdirectory and pre-populate with correct module declaration
+	// For Python: Create solution.py in workspace root
+	var solutionPath string
+	var placeholder string
+
+	if language == "ailang" {
+		// Create benchmark/ subdirectory
+		benchmarkDir := filepath.Join(workspace, "benchmark")
+		if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create benchmark dir: %w", err)
+		}
+
+		// Create solution.ail with correct module declaration
+		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
+		placeholder = `module benchmark/solution
+
+// TODO: Add your solution code here
+// The module declaration above is correct - just add your function definitions below
+
+`
+	} else {
+		// Python - simple placeholder in workspace root
+		solutionPath = filepath.Join(workspace, "solution.py")
+		placeholder = "# TODO: Write your Python solution here\n"
+	}
 
 	// Generate split prompts: system (language knowledge) + task (benchmark description)
 	// System prompt loaded from prompts/versions.json (versioned teaching prompts)
@@ -136,7 +166,7 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate prompts: %w", err)
 	}
-	placeholder := fmt.Sprintf("# TODO: Write your %s solution here\n", language)
+
 	if err := os.WriteFile(solutionPath, []byte(placeholder), 0644); err != nil {
 		return nil, fmt.Errorf("failed to create solution placeholder: %w", err)
 	}
@@ -152,8 +182,8 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		return nil, fmt.Errorf("headless session failed: %w", err)
 	}
 
-	// Parse result and determine success
-	success := determineSuccess(result, spec, workspace, language)
+	// Parse result and determine success - returns detailed validation results
+	validation := determineSuccess(result, spec, workspace, language)
 
 	// Read solution code from workspace BEFORE defer cleanup runs
 	// Claude should have written to solution.py or solution.ail
@@ -178,6 +208,9 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	// Use transcript from result directly (already formatted)
 	sessionLog := result.Transcript
 
+	// Overall success is when all validations pass
+	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
+
 	return &AgentBenchmarkResult{
 		BenchmarkID: spec.ID,
 		Success:     success,
@@ -194,6 +227,12 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		SolutionCode:  string(solutionCode),
 		SessionLog:    string(sessionLog),
 		PromptVersion: promptVersion, // Track which prompt version was used
+		// Validation flags (match standard eval format)
+		CompileOk: validation.CompileOk,
+		RuntimeOk: validation.RuntimeOk,
+		StdoutOk:  validation.StdoutOk,
+		Stdout:    validation.Stdout,
+		Stderr:    validation.Stderr,
 	}, nil
 }
 
@@ -309,45 +348,91 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 	return &result, nil
 }
 
-// determineSuccess checks if the benchmark succeeded
-func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspace string, language string) bool {
-	// If Claude session errored, it's a failure
+// ValidationResult holds detailed validation results for agent benchmarks
+type ValidationResult struct {
+	CompileOk bool
+	RuntimeOk bool
+	StdoutOk  bool
+	Stdout    string
+	Stderr    string
+}
+
+// determineSuccess checks if the benchmark succeeded and returns detailed validation results
+func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspace string, language string) ValidationResult {
+	// If Claude session errored, everything fails
 	if result.IsError || result.Subtype != "success" {
-		return false
+		return ValidationResult{
+			CompileOk: false,
+			RuntimeOk: false,
+			StdoutOk:  false,
+			Stderr:    result.Result,
+		}
 	}
 
 	// Check if solution file exists and has content
-	solutionFilename := getSolutionFilename(language)
-	solutionPath := filepath.Join(workspace, solutionFilename)
+	// For AILANG: benchmark/solution.ail
+	// For Python: solution.py
+	var solutionPath string
+	if language == "ailang" {
+		solutionPath = filepath.Join(workspace, "benchmark", "solution.ail")
+	} else {
+		solutionPath = filepath.Join(workspace, "solution.py")
+	}
+
 	solutionContent, err := os.ReadFile(solutionPath)
 	if err != nil || len(solutionContent) == 0 {
-		return false
+		return ValidationResult{
+			CompileOk: false,
+			RuntimeOk: false,
+			StdoutOk:  false,
+			Stderr:    fmt.Sprintf("Solution file not found or empty: %v", err),
+		}
 	}
 
 	// Run solution based on language
 	if language == "python" {
 		// Run Python solution
 		cmd := exec.Command("python3", solutionPath)
-		output, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return false
+			return ValidationResult{
+				CompileOk: true,  // Python doesn't have compile phase
+				RuntimeOk: false, // Runtime error
+				StdoutOk:  false,
+				Stdout:    string(output),
+				Stderr:    fmt.Sprintf("Python execution failed: %v", err),
+			}
 		}
-		return CompareOutput(spec.ExpectedOut, string(output))
+		stdoutOk := CompareOutput(spec.ExpectedOut, string(output))
+		return ValidationResult{
+			CompileOk: true,
+			RuntimeOk: true,
+			StdoutOk:  stdoutOk,
+			Stdout:    string(output),
+		}
 	}
 
 	// Run AILANG solution
 	runner := NewAILANGRunner("", spec.Caps)
 	runResult, err := runner.Run(string(solutionContent), 10*time.Second)
 	if err != nil {
-		return false
+		return ValidationResult{
+			CompileOk: false, // Compilation failed
+			RuntimeOk: false,
+			StdoutOk:  false,
+			Stderr:    err.Error(),
+		}
 	}
 
-	// Check if output matches
-	if !runResult.RuntimeOk {
-		return false
+	// AILANG ran - check runtime and output
+	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	return ValidationResult{
+		CompileOk: runResult.CompileOk,
+		RuntimeOk: runResult.RuntimeOk,
+		StdoutOk:  stdoutOk,
+		Stdout:    runResult.Stdout,
+		Stderr:    runResult.Stderr,
 	}
-
-	return CompareOutput(spec.ExpectedOut, runResult.Stdout)
 }
 
 // getErrorMessage extracts error message from result

@@ -198,9 +198,54 @@ for python_file in "${PYTHON_FILES[@]}"; do
     fi
     echo ""
 
-    # Check for transcripts
-    if jq -e '.agent_transcript' "$python_file" > /dev/null 2>&1; then
-        echo "📝 Full transcripts available in JSON .agent_transcript field"
+    # Show transcripts for failed solutions
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📝 Agent Transcripts"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Python transcript (show if failed)
+    if [[ "$py_success" != "true" ]]; then
+        echo "🐍 Python Agent Conversation (FAILED):"
+        echo "────────────────────────────────────────────────────────────────────────"
+        py_transcript=$(jq -r '.agent_transcript // "No transcript available"' "$python_file")
+        if [[ "$py_transcript" != "No transcript available" ]]; then
+            echo "$py_transcript"
+        else
+            py_stderr=$(jq -r '.stderr // ""' "$python_file")
+            if [[ -n "$py_stderr" ]]; then
+                echo "Error details:"
+                echo "$py_stderr" | head -20
+            else
+                echo "(No transcript or error details available)"
+            fi
+        fi
+        echo ""
+    else
+        echo "🐍 Python: ✅ PASSED (transcript available via: jq '.agent_transcript' $python_file)"
+        echo ""
+    fi
+
+    # AILANG transcript (show if failed)
+    if [[ "$ai_success" != "true" ]]; then
+        echo "🔷 AILANG Agent Conversation (FAILED):"
+        echo "────────────────────────────────────────────────────────────────────────"
+        ai_transcript=$(jq -r '.agent_transcript // "No transcript available"' "$ailang_file")
+        if [[ "$ai_transcript" != "No transcript available" ]]; then
+            echo "$ai_transcript"
+        else
+            ai_stderr=$(jq -r '.stderr // ""' "$ailang_file")
+            if [[ -n "$ai_stderr" ]]; then
+                echo "Error details:"
+                echo "$ai_stderr" | head -20
+            else
+                echo "(No transcript or error details available)"
+            fi
+        fi
+        echo ""
+    else
+        echo "🔷 AILANG: ✅ PASSED (transcript available via: jq '.agent_transcript' $ailang_file)"
+        echo ""
     fi
 
     echo ""

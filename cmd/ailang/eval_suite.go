@@ -396,7 +396,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		logger := eval_harness.NewMetricsLogger(outputDir)
 
 		// Convert AgentBenchmarkResult to RunMetrics format for logging
-		// Agent mode produces different result structure but we normalize to RunMetrics for consistency
+		// Agent mode now uses standard validation fields (compile_ok, runtime_ok, stdout_ok)
 		metrics := &eval_harness.RunMetrics{
 			ID:             result.BenchmarkID,
 			Lang:           lang,
@@ -406,38 +406,29 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			OutputTokens:   result.Usage.OutputTokens,
 			TotalTokens:    result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 			CostUSD:        result.Cost,
-			CompileOk:      result.Success, // Agent handles compile internally
-			RuntimeOk:      result.Success, // Agent handles runtime internally
-			StdoutOk:       result.Success, // Agent validates output
+			// Use standard validation fields from agent runner
+			CompileOk:      result.CompileOk,
+			RuntimeOk:      result.RuntimeOk,
+			StdoutOk:       result.StdoutOk,
 			DurationMs:     int64(result.DurationMS),
-			ErrorCategory:  eval_harness.CategorizeError(result.Success, result.Success, result.Success),
+			// Use standard error categorization (same as standard eval mode)
+			ErrorCategory:  eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk),
+			Stdout:         result.Stdout,
+			Stderr:         result.Stderr,
+			ExpectedStdout: spec.ExpectedOut,
 			Timestamp:      time.Now(),
 			PromptVersion:  result.PromptVersion, // Track actual prompt version used (e.g., v0.3.22 for AILANG, python for Python)
 			FirstAttemptOk: result.Success,
 			RepairUsed:     false, // Agent mode doesn't use standard repair loop
 			RepairOk:       false, // Agent mode doesn't use standard repair loop
 			Caps:           spec.Caps,
+			Code:           result.SolutionCode,
+			// Store agent KPI metrics (turns, transcript) for comparison with standard mode
+			AgentTurns:      result.NumTurns,
+			AgentTranscript: result.SessionLog,
 		}
 
-		// Add expected output (required for compatibility with dashboard/analysis tools)
-		metrics.ExpectedStdout = spec.ExpectedOut
-
-		// Add error message if failed
-		if !result.Success {
-			metrics.Stderr = result.Error
-			if result.Error != "" {
-				metrics.ErrorCategory = eval_harness.ErrorCategoryCompile // Default to compile error
-			}
-		}
-
-		// Add solution code for inspection
-		metrics.Code = result.SolutionCode
-
-		// Store agent KPI metrics (turns, transcript) for comparison with standard mode
-		metrics.AgentTurns = result.NumTurns
-		metrics.AgentTranscript = result.SessionLog
-
-		// Also append transcript to stderr for backward compatibility with existing tools
+		// Append transcript to stderr for backward compatibility with existing tools
 		if result.SessionLog != "" {
 			metrics.Stderr += "\n\n=== Claude Session Transcript ===\n" + result.SessionLog
 		}
