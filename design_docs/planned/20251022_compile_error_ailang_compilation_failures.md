@@ -1,7 +1,7 @@
 # AILANG: Compilation Failures
 
 **Discovered**: AI Eval Analysis - 2025-10-22
-**Frequency**: 3 failures across 1 benchmark(s)
+**Frequency**: 6 failures across 1 benchmark(s)
 **Priority**: P0 (Critical - Must Ship)
 **Estimated**:  LOC, 
 **Category**: compile_error
@@ -21,6 +21,9 @@ AIs are generating Python/JavaScript-style syntax when attempting HTTP/JSON oper
 - **Significance**: P0 - Blocks real-world use cases (API calls, JSON parsing)
 - **Workaround**: None - parse errors prevent execution entirely
 
+
+
+**Last Updated**: 2025-10-25 (merged 3 new failures)
 ## Evidence from AI Eval
 
 **Affected Benchmarks**: api_call_json
@@ -100,6 +103,78 @@ payload = {"message": "Hello from AILANG", "count": 42}
 response = http.post(url, headers=headers, body=json.encode(payload))
 print(response.status_code)
 ```
+
+
+### Additional Examples (Latest Analysis)
+
+**Error 1:**
+```
+Error: module loading error: failed to load benchmark/solution.ail (search trace: [Loading module: benchmark/solution.ail]): parse errors in benchmark/solution.ail:
+IMP012_UNSUPPORTED_NAMESPACE at benchmark/solution.ail:1:8: namespace imports not yet supported
+
+Suggestion: Use selective import: import module/path (symbol1, symbol2)
+
+PAR_NO_PREFIX_PARSE at benchmark/solution.ail:3:1: unexpected token in expression: #
+
+Suggestion: This token cannot start an expression
+
+PAR_NO_PREFIX_PARSE at bench...
+```
+
+**Generated Code:**
+```ailang
+import http
+
+# Make HTTP POST request with headers and body
+headers = {
+    "X-Test-Header": "value123",
+    "Content-Type": "application/json"
+}
+
+body = {
+    "message": "Hello from AILANG",
+    "count": 42
+}
+
+response = http.post("https://httpbin.org/post", headers=headers, body=body)
+
+# Print only the status code
+print(response.status_code)
+```
+
+---
+
+**Error 2:**
+```
+Error: module loading error: failed to load benchmark/solution.ail (search trace: [Loading module: benchmark/solution.ail]): parse errors in benchmark/solution.ail:
+PAR_BARE_ASSIGNMENT at benchmark/solution.ail:1:5: bare assignment not supported (missing 'let' keyword)
+
+Did you mean one of these?
+  Use: let url = ... in
+  AILANG requires 'let' keyword for bindings
+
+See: https://sunholo-data.github.io/ailang/docs/language/basics
+
+PAR_NO_PREFIX_PARSE at benchmark/solution.ail:1:9: unexpected token...
+```
+
+**Generated Code:**
+```ailang
+SET url = STR "https://httpbin.org/post"
+SET headers = MAP {
+    STR "X-Test-Header": STR "value123",
+    STR "Content-Type": STR "application/json"
+}
+SET body_data = MAP {
+    STR "message": STR "Hello from AILANG",
+    STR "count": NUM 42
+}
+SET json_body = JSON.stringify(body_data)
+SET response = HTTP.post(url, headers, json_body)
+PRINT response.status_code
+```
+
+---
 
 ---
 

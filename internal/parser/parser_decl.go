@@ -76,10 +76,10 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		if p.curToken.Literal == "const" {
 			// JavaScript const keyword
 			err := NewSuggestionError(
-				"PAR_CONST_NOT_SUPPORTED",
+				"PAR014",
 				p.curPos(),
 				p.curToken,
-				"'const' keyword doesn't exist in AILANG",
+				"'const' keyword doesn't exist in AILANG (JavaScript/TypeScript pattern detected)",
 				[]string{
 					"Use: let name = value in ...",
 					"Note: All bindings in AILANG are immutable by default",
@@ -92,7 +92,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		// Check for bare assignment (Python-style: x = y without let)
 		if p.peekTokenIs(lexer.ASSIGN) {
 			err := NewSuggestionError(
-				"PAR_BARE_ASSIGNMENT",
+				"PAR015",
 				p.curPos(),
 				p.curToken,
 				"bare assignment not supported (missing 'let' keyword)",

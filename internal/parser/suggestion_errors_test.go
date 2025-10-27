@@ -59,17 +59,17 @@ func TestDetectConstKeyword(t *testing.T) {
 		t.Fatal("expected at least one error, got none")
 	}
 
-	// Find the PAR_CONST_NOT_SUPPORTED error
+	// Find the PAR014 error
 	var err *ParserError
 	for _, e := range p.errors {
-		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR_CONST_NOT_SUPPORTED" {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR014" {
 			err = pe
 			break
 		}
 	}
 
 	if err == nil {
-		t.Fatal("expected PAR_CONST_NOT_SUPPORTED error")
+		t.Fatal("expected PAR014 error")
 	}
 
 	errorMsg := err.Error()
@@ -102,17 +102,17 @@ func TestDetectBareAssignment(t *testing.T) {
 		t.Fatal("expected at least one error, got none")
 	}
 
-	// Find the PAR_BARE_ASSIGNMENT error
+	// Find the PAR015 error
 	var err *ParserError
 	for _, e := range p.errors {
-		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR_BARE_ASSIGNMENT" {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR015" {
 			err = pe
 			break
 		}
 	}
 
 	if err == nil {
-		t.Fatal("expected PAR_BARE_ASSIGNMENT error")
+		t.Fatal("expected PAR015 error")
 	}
 
 	errorMsg := err.Error()
@@ -120,6 +120,7 @@ func TestDetectBareAssignment(t *testing.T) {
 		t.Errorf("error message should mention bare assignment: %s", errorMsg)
 	}
 
+	// Check for variable-specific suggestion (parser_decl.go provides actual variable name)
 	if !strings.Contains(errorMsg, "let url = ... in") {
 		t.Errorf("error should suggest let binding with variable name: %s", errorMsg)
 	}
@@ -202,8 +203,8 @@ const HEADERS = {
 		t.Fatalf("expected *ParserError, got %T", p.errors[0])
 	}
 
-	if err.Code != "PAR_CONST_NOT_SUPPORTED" {
-		t.Errorf("expected PAR_CONST_NOT_SUPPORTED, got %s", err.Code)
+	if err.Code != "PAR014" {
+		t.Errorf("expected PAR014, got %s", err.Code)
 	}
 
 	// Verify suggestions mention let
@@ -235,7 +236,7 @@ headers = {"X-Test-Header": "value123", "Content-Type": "application/json"}`
 	foundBareAssignment := false
 	for _, e := range p.errors {
 		if err, ok := e.(*ParserError); ok {
-			if err.Code == "PAR_BARE_ASSIGNMENT" {
+			if err.Code == "PAR015" {
 				foundBareAssignment = true
 				break
 			}
@@ -243,7 +244,7 @@ headers = {"X-Test-Header": "value123", "Content-Type": "application/json"}`
 	}
 
 	if !foundBareAssignment {
-		t.Error("expected PAR_BARE_ASSIGNMENT error for 'url = ...'")
+		t.Error("expected PAR015 error for 'url = ...'")
 	}
 }
 

@@ -106,6 +106,42 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 	msg := fmt.Sprintf("unexpected token in expression: %s", t)
 	fix := "This token cannot start an expression"
 
+	// Detect "const" keyword (JavaScript/TypeScript pattern)
+	if t == lexer.IDENT && p.curToken.Literal == "const" {
+		err := NewSuggestionError(
+			"PAR014",
+			p.curPos(),
+			p.curToken,
+			"'const' keyword doesn't exist in AILANG (JavaScript/TypeScript pattern detected)",
+			[]string{
+				"Use: let name = value in ...",
+				"Note: All bindings in AILANG are immutable by default",
+			},
+			"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+		)
+		p.errors = append(p.errors, err)
+		return
+	}
+
+	// Detect bare assignment (Python pattern): IDENT followed by ASSIGN
+	if t == lexer.ASSIGN {
+		// Look back at previous token to see if it was IDENT
+		// This indicates pattern: identifier = value (without 'let')
+		err := NewSuggestionError(
+			"PAR015",
+			p.curPos(),
+			p.curToken,
+			"bare assignment not supported (missing 'let' keyword)",
+			[]string{
+				"Use: let name = value in ...",
+				"AILANG requires 'let' keyword for bindings",
+			},
+			"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+		)
+		p.errors = append(p.errors, err)
+		return
+	}
+
 	// Enhanced context-aware hints for common delimiter issues
 	if t == lexer.RBRACE || t == lexer.RPAREN || t == lexer.RBRACKET {
 		fix = "Check for unmatched delimiters or missing expression"

@@ -53,17 +53,17 @@ const HEADERS = {"X-Test-Header": "value123"}`
 		t.Fatal("expected at least one error")
 	}
 
-	// Find the PAR_CONST_NOT_SUPPORTED error
+	// Find the PAR014 error
 	var constError *ParserError
 	for _, e := range p.errors {
-		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR_CONST_NOT_SUPPORTED" {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR014" {
 			constError = pe
 			break
 		}
 	}
 
 	if constError == nil {
-		t.Fatal("expected PAR_CONST_NOT_SUPPORTED error")
+		t.Fatal("expected PAR014 error")
 	}
 
 	errorMsg := constError.Error()
@@ -96,17 +96,17 @@ headers = {"X-Test-Header": "value123"}`
 		t.Fatal("expected at least one error")
 	}
 
-	// Find the PAR_BARE_ASSIGNMENT error
+	// Find the PAR015 error
 	var bareAssignError *ParserError
 	for _, e := range p.errors {
-		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR_BARE_ASSIGNMENT" {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR015" {
 			bareAssignError = pe
 			break
 		}
 	}
 
 	if bareAssignError == nil {
-		t.Fatal("expected PAR_BARE_ASSIGNMENT error")
+		t.Fatal("expected PAR015 error")
 	}
 
 	errorMsg := bareAssignError.Error()
@@ -141,12 +141,12 @@ func TestErrorFormattingConsistency(t *testing.T) {
 		{
 			name:  "const keyword",
 			input: `const X = 1`,
-			code:  "PAR_CONST_NOT_SUPPORTED",
+			code:  "PAR014",
 		},
 		{
 			name:  "bare assignment",
 			input: `x = 1`,
-			code:  "PAR_BARE_ASSIGNMENT",
+			code:  "PAR015",
 		},
 	}
 
