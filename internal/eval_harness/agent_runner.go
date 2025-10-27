@@ -147,9 +147,11 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		// Create solution.ail with correct module declaration
 		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
 		placeholder = `module benchmark/solution
+// ⚠️ DO NOT CHANGE THE MODULE DECLARATION ABOVE! ⚠️
+// It MUST match the file path (benchmark/solution.ail)
+// Changing it will cause MOD010 error: "module declaration doesn't match canonical path"
 
-// TODO: Add your solution code here
-// The module declaration above is correct - just add your function definitions below
+// TODO: Add your solution code below this line
 
 `
 	} else {
