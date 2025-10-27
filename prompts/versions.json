@@ -182,14 +182,25 @@
       "created": "2025-10-26",
       "tags": [
         "production",
-        "latest",
         "testing",
         "hotfix"
       ],
       "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% → 40.0%+"
+    },
+    "v0.3.22": {
+      "file": "prompts/v0.3.22.md",
+      "hash": "7c9581898e9a8617d4ebbd301ec0d7b17823be250dce6894fc9a99c166f106f8",
+      "description": "Enhanced error messages (PAR014, PAR015) + HTTP example repositioned early",
+      "created": "2025-10-27",
+      "tags": [
+        "production",
+        "latest",
+        "m-eval-http-fix"
+      ],
+      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 → line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
     }
   },
-  "active": "v0.3.21",
+  "active": "v0.3.22",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
