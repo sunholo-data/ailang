@@ -1,6 +1,7 @@
 package eval_harness
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // AgentBenchmarkConfig configures agent-based evaluation
@@ -19,6 +22,7 @@ type AgentBenchmarkConfig struct {
 	WorkspaceDir      string   // Base workspace directory
 	AllowedTools      []string // Tools agent can use
 	ClaudePath        string   // Path to claude CLI
+	ClaudeModel       string   // Claude model to use (haiku, sonnet, opus, or full name)
 }
 
 // DefaultAgentConfig returns sensible defaults
@@ -30,7 +34,8 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 		MaxIterations:     10,
 		WorkspaceDir:      "/tmp/ailang_eval",
 		AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-		ClaudePath:        "claude", // Use PATH
+		ClaudePath:        "claude",  // Use PATH
+		ClaudeModel:       "haiku",   // Default to Haiku for cost efficiency
 	}
 }
 
@@ -49,6 +54,10 @@ type AgentBenchmarkResult struct {
 	// Token usage details
 	Usage      TokenUsage            `json:"usage"`
 	ModelUsage map[string]ModelStats `json:"modelUsage"`
+
+	// Solution and session log for inspection
+	SolutionCode string `json:"solution_code,omitempty"` // Generated solution code
+	SessionLog   string `json:"session_log,omitempty"`   // Full Claude session log
 }
 
 // TokenUsage captures detailed token metrics
@@ -88,7 +97,13 @@ type ClaudeHeadlessResult struct {
 }
 
 // RunAgentBenchmark runs a single benchmark using Claude Code headless mode
-func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig) (*AgentBenchmarkResult, error) {
+// language parameter specifies which language to run (ailang, python, etc.)
+func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, language string) (*AgentBenchmarkResult, error) {
+	// Default to ailang if not specified
+	if language == "" {
+		language = "ailang"
+	}
+
 	// Check Claude CLI is available
 	if err := checkClaudeCLI(config.ClaudePath); err != nil {
 		return nil, fmt.Errorf("Claude CLI check failed: %w", err)
@@ -99,24 +114,46 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig) (*Agent
 	if err := os.MkdirAll(workspace, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
-	defer os.RemoveAll(workspace) // Cleanup after execution
 
-	// Prepare workspace files
-	if err := prepareWorkspace(workspace, spec); err != nil {
+	// Only cleanup workspace if DEBUG_AGENT is not set (allows inspection)
+	if os.Getenv("DEBUG_AGENT") == "" {
+		defer os.RemoveAll(workspace)
+	} else {
+		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
+	}
+
+	// Generate enhanced prompt with full syntax reference for the specified language
+	prompt, syntaxRef, err := EnhancedGenerateAgentPrompt(spec, config, language)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate prompt: %w", err)
+	}
+
+	// Prepare workspace files with full syntax reference
+	if err := PrepareWorkspaceWithSyntax(workspace, spec, syntaxRef); err != nil {
 		return nil, fmt.Errorf("failed to prepare workspace: %w", err)
 	}
 
-	// Generate agent prompt
-	prompt := generateAgentPrompt(spec, config)
-
-	// Run headless Claude session
-	result, err := runHeadlessSession(prompt, workspace, config)
+	// Run headless Claude session (use streaming if DEBUG_AGENT is set for real-time visibility)
+	var result *ClaudeHeadlessResult
+	if os.Getenv("DEBUG_AGENT") != "" {
+		result, err = runHeadlessSessionStreaming(prompt, workspace, config)
+	} else {
+		result, err = runHeadlessSession(prompt, workspace, config)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("headless session failed: %w", err)
 	}
 
 	// Parse result and determine success
 	success := determineSuccess(result, spec, workspace)
+
+	// Capture solution code
+	solutionPath := filepath.Join(workspace, "solution.ail")
+	solutionCode, _ := os.ReadFile(solutionPath) // Ignore error, field will be empty if read fails
+
+	// Capture session log
+	sessionLogPath := filepath.Join(workspace, "claude_session.log")
+	sessionLog, _ := os.ReadFile(sessionLogPath) // Ignore error, field will be empty if read fails
 
 	return &AgentBenchmarkResult{
 		BenchmarkID: spec.ID,
@@ -130,6 +167,9 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig) (*Agent
 		Result:      result.Result,
 		Usage:       result.Usage,
 		ModelUsage:  result.ModelUsage,
+		// Add solution and session log for inspection
+		SolutionCode: string(solutionCode),
+		SessionLog:   string(sessionLog),
 	}, nil
 }
 
@@ -156,89 +196,37 @@ func checkClaudeCLI(claudePath string) error {
 	return nil
 }
 
-// prepareWorkspace creates workspace files for the agent
-func prepareWorkspace(workspace string, spec *BenchmarkSpec) error {
-	// Create README.md with problem description
-	readme := fmt.Sprintf(`# %s
-
-%s
-
-## Task
-
-%s
-
-## Expected Output
-
-%s
-`, spec.ID, spec.Description, spec.TaskPrompt, spec.ExpectedOut)
-
-	if err := os.WriteFile(filepath.Join(workspace, "README.md"), []byte(readme), 0644); err != nil {
-		return fmt.Errorf("failed to write README.md: %w", err)
-	}
-
-	// Create empty solution.ail stub
-	solutionStub := `// Your implementation goes here
-// Use 'ailang check solution.ail' to type-check
-// Use 'ailang run --entry main --caps IO solution.ail' to test
-`
-	if err := os.WriteFile(filepath.Join(workspace, "solution.ail"), []byte(solutionStub), 0644); err != nil {
-		return fmt.Errorf("failed to write solution.ail: %w", err)
-	}
-
-	// Create syntax_reference.md (embed AILANG syntax)
-	// For now, reference the active prompt - will be enhanced in Milestone 1.2
-	syntaxRef := `# AILANG Syntax Reference
-
-See the active AILANG teaching prompt for complete syntax reference.
-
-Key constructs:
-- Functions: func name(x: int): int = x + 1
-- Let bindings: let x = 42 in x + 1
-- Lambdas: \x. x + 1
-- Pattern matching: match expr with | Some(x) -> x | None -> 0
-- Effects: func read_file(path: string): string ! {IO, FS}
-`
-	if err := os.WriteFile(filepath.Join(workspace, "syntax_reference.md"), []byte(syntaxRef), 0644); err != nil {
-		return fmt.Errorf("failed to write syntax_reference.md: %w", err)
-	}
-
-	return nil
-}
-
-// generateAgentPrompt creates the prompt for the agent
-func generateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig) string {
-	return fmt.Sprintf(`You are solving an AILANG benchmark in an isolated workspace.
-
-Workspace files:
-- README.md: Problem description and expected output
-- solution.ail: Your implementation (currently a stub)
-- syntax_reference.md: AILANG language syntax
-
-Your task:
-1. Read README.md to understand the problem
-2. Read syntax_reference.md for AILANG syntax
-3. Implement solution in solution.ail
-4. Run: ailang check solution.ail (type check)
-5. Run: ailang run --entry main --caps %s solution.ail (execute)
-6. Compare output with expected output in README.md
-7. Iterate until output matches
-
-Timeout: %d seconds
-Max iterations: %d
-Success: Output matches expected output exactly (after trimming whitespace)
-
-IMPORTANT: The solution must be in solution.ail, not in a comment or inline code block.
-`, strings.Join(spec.Caps, ","), config.TimeoutSeconds, config.MaxIterations)
-}
+// Note: prepareWorkspace and generateAgentPrompt moved to agent_prompt.go
+// for better organization and enhanced prompt generation with full syntax reference
 
 // runHeadlessSession executes Claude Code in headless mode
 func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
-	// Build command: claude -p <prompt> --output-format json --workspace <dir> --allowedTools <tools>
+	// Generate UUID for session ID (Claude CLI requires valid UUID)
+	sessionID := uuid.New().String()
+
+	// Build command: claude -p <prompt> --output-format json --model <model> --session-id <id>
+	// Note: --add-dir grants tool access to workspace directory
 	cmd := exec.Command(config.ClaudePath, "-p", prompt,
 		"--output-format", "json",
-		"--workspace", workspace,
+		"--model", config.ClaudeModel,
+		"--session-id", sessionID,
+		"--add-dir", workspace,
 		"--allowedTools", strings.Join(config.AllowedTools, ","),
 	)
+
+	// Set working directory to workspace so relative paths work
+	cmd.Dir = workspace
+
+	// DEBUG: Capture stderr for visibility
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
+	// DEBUG: If DEBUG_AGENT is set, print command being run
+	if os.Getenv("DEBUG_AGENT") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Running: %s\n", strings.Join(cmd.Args, " "))
+		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace: %s\n", workspace)
+		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Prompt length: %d chars\n", len(prompt))
+	}
 
 	// Set timeout
 	timeout := time.Duration(config.TimeoutSeconds) * time.Second
@@ -256,15 +244,36 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 	select {
 	case <-time.After(timeout):
 		_ = cmd.Process.Kill()
+		stderr := stderrBuf.String()
+		if stderr != "" {
+			fmt.Fprintf(os.Stderr, "[TIMEOUT] Claude stderr:\n%s\n", stderr)
+		}
 		return nil, fmt.Errorf("claude session timed out after %d seconds", config.TimeoutSeconds)
 	case err := <-done:
 		if err != nil {
-			// Check for stderr
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				return nil, fmt.Errorf("claude failed: %s", string(exitErr.Stderr))
+			stderr := stderrBuf.String()
+			if stderr != "" {
+				fmt.Fprintf(os.Stderr, "[ERROR] Claude stderr:\n%s\n", stderr)
 			}
-			return nil, fmt.Errorf("claude failed: %w", err)
+			return nil, fmt.Errorf("claude failed: %w\nStderr: %s", err, stderr)
 		}
+	}
+
+	// DEBUG: Print stderr even on success if DEBUG_AGENT is set
+	if os.Getenv("DEBUG_AGENT") != "" {
+		stderr := stderrBuf.String()
+		if stderr != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Claude stderr:\n%s\n", stderr)
+		}
+	}
+
+	// Save session log to workspace for inspection
+	logPath := filepath.Join(workspace, "claude_session.log")
+	logData := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nStderr:\n%s\n\nJSON Output:\n%s\n",
+		prompt, stderrBuf.String(), string(output))
+	if err := os.WriteFile(logPath, []byte(logData), 0644); err != nil {
+		// Don't fail if we can't write log, just warn
+		fmt.Fprintf(os.Stderr, "[WARN] Failed to write session log: %v\n", err)
 	}
 
 	// Parse JSON result

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -37,80 +36,8 @@ func TestCheckClaudeCLI(t *testing.T) {
 	// If no error, Claude is properly installed
 }
 
-func TestPrepareWorkspace(t *testing.T) {
-	// Create temporary workspace
-	tmpDir := t.TempDir()
-
-	spec := &BenchmarkSpec{
-		ID:          "test_benchmark",
-		Description: "Test description",
-		TaskPrompt:  "Write a function that returns 42",
-		ExpectedOut: "42",
-		Caps:        []string{"IO"},
-	}
-
-	err := prepareWorkspace(tmpDir, spec)
-	if err != nil {
-		t.Fatalf("prepareWorkspace failed: %v", err)
-	}
-
-	// Check README.md exists
-	readmePath := filepath.Join(tmpDir, "README.md")
-	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
-		t.Error("README.md was not created")
-	}
-
-	readmeContent, _ := os.ReadFile(readmePath)
-	readmeStr := string(readmeContent)
-	if !strings.Contains(readmeStr, "test_benchmark") {
-		t.Error("README.md does not contain benchmark ID")
-	}
-	if !strings.Contains(readmeStr, "Test description") {
-		t.Error("README.md does not contain description")
-	}
-
-	// Check solution.ail exists
-	solutionPath := filepath.Join(tmpDir, "solution.ail")
-	if _, err := os.Stat(solutionPath); os.IsNotExist(err) {
-		t.Error("solution.ail was not created")
-	}
-
-	// Check syntax_reference.md exists
-	syntaxPath := filepath.Join(tmpDir, "syntax_reference.md")
-	if _, err := os.Stat(syntaxPath); os.IsNotExist(err) {
-		t.Error("syntax_reference.md was not created")
-	}
-}
-
-func TestGenerateAgentPrompt(t *testing.T) {
-	spec := &BenchmarkSpec{
-		ID:          "test_benchmark",
-		Description: "Test description",
-		TaskPrompt:  "Write a function that returns 42",
-		ExpectedOut: "42",
-		Caps:        []string{"IO", "FS"},
-	}
-
-	config := DefaultAgentConfig()
-	prompt := generateAgentPrompt(spec, config)
-
-	// Check prompt contains key elements
-	if !strings.Contains(prompt, "AILANG benchmark") {
-		t.Error("Prompt does not mention AILANG benchmark")
-	}
-	if !strings.Contains(prompt, "README.md") {
-		t.Error("Prompt does not mention README.md")
-	}
-	if !strings.Contains(prompt, "solution.ail") {
-		t.Error("Prompt does not mention solution.ail")
-	}
-	if !strings.Contains(prompt, "ailang check") {
-		t.Error("Prompt does not mention ailang check command")
-	}
-	if !strings.Contains(prompt, "IO,FS") {
-		t.Error("Prompt does not include capabilities")
-	}
-}
+// Note: TestPrepareWorkspace and TestGenerateAgentPrompt moved to agent_prompt_test.go
+// These functions are now tested in their dedicated test file
 
 func TestClaudeHeadlessResultParsing(t *testing.T) {
 	// Test parsing of actual Claude headless JSON output

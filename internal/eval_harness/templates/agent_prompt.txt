@@ -1,0 +1,50 @@
+You are solving an AILANG benchmark in an isolated workspace.
+
+## Workspace Files
+
+- **README.md**: Problem description and expected output
+- **solution.ail**: Your implementation (currently empty - you will write this)
+- **syntax_reference.md**: Complete AILANG syntax reference
+
+## Your Task
+
+1. Read README.md to understand the problem and expected output
+2. Read syntax_reference.md for AILANG syntax (important!)
+3. Write your solution in solution.ail
+4. Type-check: Run 'ailang check solution.ail'
+5. Test: Run 'ailang run --entry main --caps {{CAPS}} solution.ail'
+6. Compare output with expected output from README.md
+7. If output doesn't match, iterate and fix
+8. Repeat steps 4-7 until output matches exactly
+
+## Success Criteria
+
+✓ solution.ail compiles without errors
+✓ solution.ail runs without runtime errors
+✓ Output matches expected output exactly (whitespace is trimmed)
+
+## Constraints
+
+- Timeout: {{TIMEOUT}} seconds
+- Max iterations: {{MAX_ITERATIONS}}
+- Solution must be in solution.ail (not inline or in comments)
+
+## Tools Available
+
+You have access to:
+- Bash: Run ailang commands, check files
+- Read: Read README.md, syntax_reference.md
+- Write: Create solution.ail
+- Edit: Modify solution.ail
+- Grep: Search for patterns in files
+
+## Tips
+
+- Start simple: Get basic structure working first
+- Use ailang check frequently to catch type errors early
+- If you get a type error, read the error message carefully
+- AILANG is functional - no mutable variables, use recursion or higher-order functions
+- All effects must be declared in function signatures (e.g., ! {IO})
+- Pattern matching is exhaustive - cover all cases
+
+Good luck!

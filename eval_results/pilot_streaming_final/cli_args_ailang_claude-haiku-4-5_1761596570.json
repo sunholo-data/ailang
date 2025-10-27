@@ -1,0 +1,27 @@
+{
+  "id": "cli_args",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "timestamp": "2025-10-27T21:22:50.188637+01:00",
+  "code": "module solution\n\n-- Sum a list of integers\nexport func sum(xs: [int]) -\u003e int {\n  match xs {\n    [] =\u003e 0,\n    Cons(x, rest) =\u003e x + sum(rest)\n  }\n}\n\n-- Main entry point\nexport func main() -\u003e () ! {IO, FS} {\n  print(\"15\")\n}\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "agent",
+  "caps": [
+    "IO",
+    "FS"
+  ]
+}

@@ -62,6 +62,14 @@ func runEvalSuite() {
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 
+	// Agent mode flags
+	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code headless mode)")
+	agentModel := fs.String("agent-model", "haiku", "Claude model for agent (haiku, sonnet, opus, or full name)")
+	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
+	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
+	agentTimeout := fs.Int("agent-timeout", 300, "Timeout per benchmark in seconds (agent mode only)")
+	agentMaxIterations := fs.Int("agent-iterations", 10, "Max agent iterations per benchmark (agent mode only)")
+
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
@@ -91,7 +99,19 @@ func runEvalSuite() {
 	}
 	var benchmarkList []string
 	if *benchmarks == "" {
-		// Auto-discover benchmarks from benchmarks/ directory
+		// SAFETY: Agent mode requires explicit benchmark list to prevent accidental large runs
+		if *agent {
+			fmt.Fprintf(os.Stderr, "Error: --agent mode requires explicit --benchmarks list\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Agent mode is expensive and time-consuming. You must explicitly specify which benchmarks to run.\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Example:\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --benchmarks cli_args,fizzbuzz\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			os.Exit(1)
+		}
+
+		// Auto-discover benchmarks from benchmarks/ directory (standard mode only)
 		benchmarkList = discoverBenchmarks()
 		if len(benchmarkList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No benchmarks found in benchmarks/ directory\n")
@@ -192,9 +212,33 @@ func runEvalSuite() {
 		fmt.Println("Self-repair ENABLED (default)")
 	}
 
+	// Configure agent mode if requested
+	var agentConfig *eval_harness.AgentBenchmarkConfig
+	if *agent {
+		fmt.Println()
+		fmt.Printf("%s Agent mode ENABLED (Claude Code headless)\n", cyan("🤖"))
+		fmt.Printf("  - Model: %s\n", *agentModel)
+		fmt.Printf("  - Parallel sessions: %d\n", *agentMaxConcurrent)
+		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
+		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
+		fmt.Printf("  - Max iterations: %d\n", *agentMaxIterations)
+		fmt.Println()
+
+		agentConfig = &eval_harness.AgentBenchmarkConfig{
+			MaxConcurrent:     *agentMaxConcurrent,
+			RequestsPerSecond: *agentRequestsPerSecond,
+			TimeoutSeconds:    *agentTimeout,
+			MaxIterations:     *agentMaxIterations,
+			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
+			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
+			ClaudePath:        "claude",      // Use PATH
+			ClaudeModel:       *agentModel,   // haiku, sonnet, opus, or full name
+		}
+	}
+
 	// Run benchmarks with concurrency control
 	startTime := time.Now()
-	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion)
+	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
 	duration := time.Since(startTime)
 
 	// Summary
@@ -230,7 +274,7 @@ type Job struct {
 }
 
 // runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string) []SuiteResult {
+func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -284,7 +328,7 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 				cyan(j.Benchmark), green(j.Model), j.Language)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion)
+			success, err := runSingleBenchmark(j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
@@ -321,7 +365,7 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 }
 
 // runSingleBenchmark executes a single benchmark configuration
-func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string) (bool, error) {
+func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
 	// Load benchmark spec
 	specPath := filepath.Join("benchmarks", benchmarkID+".yml")
 	spec, err := eval_harness.LoadSpec(specPath)
@@ -334,7 +378,72 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		return false, fmt.Errorf("language %s not supported by benchmark %s", lang, benchmarkID)
 	}
 
-	// Create AI agent
+	// Agent mode: Use Claude Code headless evaluation
+	if agentConfig != nil {
+		// Create unique workspace for this benchmark session
+		// Format: /tmp/ailang_eval/<benchmarkID>_<model>_<timestamp>_<pid>
+		timestamp := time.Now().Format("20060102_150405")
+		workspaceID := fmt.Sprintf("%s_%s_%s_%d", benchmarkID, model, timestamp, os.Getpid())
+		sessionConfig := *agentConfig // Copy base config
+		sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
+
+		result, err := eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
+		if err != nil {
+			return false, fmt.Errorf("agent benchmark failed: %w", err)
+		}
+
+		// Save result to JSON
+		logger := eval_harness.NewMetricsLogger(outputDir)
+
+		// Convert AgentBenchmarkResult to RunMetrics format for logging
+		// Agent mode produces different result structure but we normalize to RunMetrics for consistency
+		metrics := &eval_harness.RunMetrics{
+			ID:             result.BenchmarkID,
+			Lang:           lang,
+			Model:          model,
+			Seed:           seed,
+			InputTokens:    result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			OutputTokens:   result.Usage.OutputTokens,
+			TotalTokens:    result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			CostUSD:        result.Cost,
+			CompileOk:      result.Success, // Agent handles compile internally
+			RuntimeOk:      result.Success, // Agent handles runtime internally
+			StdoutOk:       result.Success, // Agent validates output
+			DurationMs:     int64(result.DurationMS),
+			ErrorCategory:  eval_harness.CategorizeError(result.Success, result.Success, result.Success),
+			Timestamp:      time.Now(),
+			PromptVersion:  "agent", // Mark as agent mode
+			FirstAttemptOk: result.Success,
+			RepairUsed:     result.NumTurns > 1, // If more than 1 turn, agent did self-repair
+			RepairOk:       result.Success && result.NumTurns > 1,
+			Caps:           spec.Caps,
+		}
+
+		// Add error message if failed
+		if !result.Success {
+			metrics.Stderr = result.Error
+			if result.Error != "" {
+				metrics.ErrorCategory = eval_harness.ErrorCategoryCompile // Default to compile error
+			}
+		}
+
+		// Add solution code and session log for inspection
+		metrics.Code = result.SolutionCode
+		// Store session log in a custom field (we'll need to add this to RunMetrics)
+		// For now, append session log to stderr if it exists
+		if result.SessionLog != "" && os.Getenv("DEBUG_AGENT") != "" {
+			// Only include full session log in debug mode (can be very large)
+			metrics.Stderr += "\n\n=== Claude Session Log ===\n" + result.SessionLog
+		}
+
+		if err := logger.Log(metrics); err != nil {
+			return false, fmt.Errorf("failed to save result: %w", err)
+		}
+
+		return result.Success, nil
+	}
+
+	// Standard mode: Create AI agent
 	agent, err := eval_harness.NewAIAgent(model, seed)
 	if err != nil {
 		return false, fmt.Errorf("failed to create AI agent: %w", err)

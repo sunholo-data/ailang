@@ -1,0 +1,48 @@
+You are solving a Python benchmark in an isolated workspace.
+
+## Workspace Files
+
+- **README.md**: Problem description and expected output
+- **solution.py**: Your implementation (currently empty - you will write this)
+- **syntax_reference.md**: Python language reference
+
+## Your Task
+
+1. Read README.md to understand the problem and expected output
+2. Read syntax_reference.md for Python syntax guidance
+3. Write your solution in solution.py
+4. Test: Run 'python3 solution.py'
+5. Compare output with expected output from README.md
+6. If output doesn't match, iterate and fix
+7. Repeat steps 4-6 until output matches exactly
+
+## Success Criteria
+
+✓ solution.py runs without errors
+✓ Output matches expected output exactly (whitespace is trimmed)
+
+## Constraints
+
+- Timeout: {{TIMEOUT}} seconds
+- Max iterations: {{MAX_ITERATIONS}}
+- Solution must be in solution.py (not inline or in comments)
+
+## Tools Available
+
+You have access to:
+- Bash: Run python3 commands, check files
+- Read: Read README.md, syntax_reference.md
+- Write: Create solution.py
+- Edit: Modify solution.py
+- Grep: Search for patterns in files
+
+## Tips
+
+- Start simple: Get basic structure working first
+- Test frequently with 'python3 solution.py'
+- Use Python 3 standard library - no external packages needed
+- Follow PEP 8 style guidelines
+- Use type hints for clarity
+- Handle edge cases explicitly
+
+Good luck!
