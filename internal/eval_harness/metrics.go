@@ -46,6 +46,10 @@ type RunMetrics struct {
 	BinaryHash string   `json:"binary_hash,omitempty"` // SHA256 of ailang binary
 	StdlibHash string   `json:"stdlib_hash,omitempty"` // SHA256 of stdlib
 	Caps       []string `json:"caps,omitempty"`        // Capabilities granted
+
+	// Agent mode KPIs (M-EVAL-AGENT)
+	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
+	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
 }
 
 // ErrorCategory constants

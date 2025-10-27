@@ -94,6 +94,7 @@ type ClaudeHeadlessResult struct {
 	ModelUsage        map[string]ModelStats `json:"modelUsage"`
 	PermissionDenials []interface{}         `json:"permission_denials"`
 	UUID              string                `json:"uuid"`
+	Transcript        string                `json:"-"` // Full conversation transcript (not in JSON, set by streaming)
 }
 
 // RunAgentBenchmark runs a single benchmark using Claude Code headless mode
@@ -133,27 +134,35 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		return nil, fmt.Errorf("failed to prepare workspace: %w", err)
 	}
 
-	// Run headless Claude session (use streaming if DEBUG_AGENT is set for real-time visibility)
+	// Run headless Claude session with streaming (always enabled for transcript capture)
+	// Streaming mode captures full conversation log which is essential for debugging failures
 	var result *ClaudeHeadlessResult
-	if os.Getenv("DEBUG_AGENT") != "" {
-		result, err = runHeadlessSessionStreaming(prompt, workspace, config)
-	} else {
-		result, err = runHeadlessSession(prompt, workspace, config)
-	}
+	result, err = runHeadlessSessionStreaming(prompt, workspace, config)
 	if err != nil {
+		// Still try to capture partial results even if session failed
+		// (though with recent changes, runHeadlessSessionStreaming should return a result, not error)
 		return nil, fmt.Errorf("headless session failed: %w", err)
 	}
 
 	// Parse result and determine success
 	success := determineSuccess(result, spec, workspace)
 
-	// Capture solution code
-	solutionPath := filepath.Join(workspace, "solution.ail")
+	// Write transcript to file BEFORE defer cleanup (transcript is returned in result.Transcript)
+	// This ensures the file exists when we try to read it back
+	if result.Transcript != "" {
+		sessionLogPath := filepath.Join(workspace, "claude_session.log")
+		if err := os.WriteFile(sessionLogPath, []byte(result.Transcript), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to write session log: %v\n", err)
+		}
+	}
+
+	// Capture solution code (use language-specific filename)
+	solutionFilename := getSolutionFilename(language)
+	solutionPath := filepath.Join(workspace, solutionFilename)
 	solutionCode, _ := os.ReadFile(solutionPath) // Ignore error, field will be empty if read fails
 
-	// Capture session log
-	sessionLogPath := filepath.Join(workspace, "claude_session.log")
-	sessionLog, _ := os.ReadFile(sessionLogPath) // Ignore error, field will be empty if read fails
+	// Use transcript from result directly (already formatted)
+	sessionLog := result.Transcript
 
 	return &AgentBenchmarkResult{
 		BenchmarkID: spec.ID,
@@ -323,4 +332,17 @@ func getErrorMessage(result *ClaudeHeadlessResult) string {
 		return result.Result
 	}
 	return ""
+}
+
+// getSolutionFilename returns the language-specific solution filename
+func getSolutionFilename(language string) string {
+	switch language {
+	case "python":
+		return "solution.py"
+	case "ailang":
+		return "solution.ail"
+	default:
+		// Default to ailang for backward compatibility
+		return "solution.ail"
+	}
 }

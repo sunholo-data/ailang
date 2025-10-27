@@ -414,10 +414,13 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			Timestamp:      time.Now(),
 			PromptVersion:  "agent", // Mark as agent mode
 			FirstAttemptOk: result.Success,
-			RepairUsed:     result.NumTurns > 1, // If more than 1 turn, agent did self-repair
-			RepairOk:       result.Success && result.NumTurns > 1,
+			RepairUsed:     false, // Agent mode doesn't use standard repair loop
+			RepairOk:       false, // Agent mode doesn't use standard repair loop
 			Caps:           spec.Caps,
 		}
+
+		// Add expected output (required for compatibility with dashboard/analysis tools)
+		metrics.ExpectedStdout = spec.ExpectedOut
 
 		// Add error message if failed
 		if !result.Success {
@@ -427,13 +430,16 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			}
 		}
 
-		// Add solution code and session log for inspection
+		// Add solution code for inspection
 		metrics.Code = result.SolutionCode
-		// Store session log in a custom field (we'll need to add this to RunMetrics)
-		// For now, append session log to stderr if it exists
-		if result.SessionLog != "" && os.Getenv("DEBUG_AGENT") != "" {
-			// Only include full session log in debug mode (can be very large)
-			metrics.Stderr += "\n\n=== Claude Session Log ===\n" + result.SessionLog
+
+		// Store agent KPI metrics (turns, transcript) for comparison with standard mode
+		metrics.AgentTurns = result.NumTurns
+		metrics.AgentTranscript = result.SessionLog
+
+		// Also append transcript to stderr for backward compatibility with existing tools
+		if result.SessionLog != "" {
+			metrics.Stderr += "\n\n=== Claude Session Transcript ===\n" + result.SessionLog
 		}
 
 		if err := logger.Log(metrics); err != nil {

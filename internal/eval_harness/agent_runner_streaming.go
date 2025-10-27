@@ -67,6 +67,7 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 	done := make(chan error, 1)
 	var finalResult *ClaudeHeadlessResult
 	var currentMessage strings.Builder
+	var transcriptBuf strings.Builder // Accumulate full conversation for session log
 	var turnNum int
 
 	go func() {
@@ -113,6 +114,7 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 				case "message_start":
 					turnNum++
 					fmt.Fprintf(os.Stderr, "\n[TURN %d] ==========================================\n", turnNum)
+					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d] ==========================================\n", turnNum))
 					currentMessage.Reset()
 
 				case "content_block_start":
@@ -123,6 +125,7 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 						if blockType == "tool_use" {
 							toolName, _ := contentBlock["name"].(string)
 							fmt.Fprintf(os.Stderr, "[TOOL USE] %s\n", toolName)
+							transcriptBuf.WriteString(fmt.Sprintf("[TOOL USE] %s\n", toolName))
 						}
 					}
 
@@ -134,6 +137,7 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 						if deltaType == "text_delta" {
 							text, _ := delta["text"].(string)
 							currentMessage.WriteString(text)
+							transcriptBuf.WriteString(text) // Also accumulate in transcript
 							// Print token by token for visibility
 							fmt.Fprintf(os.Stderr, "%s", text)
 						}
@@ -186,24 +190,57 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 	case <-timer.C:
 		_ = cmd.Process.Kill()
 		fmt.Fprintf(os.Stderr, "\n[ERROR] Claude session timed out after %d seconds\n", config.TimeoutSeconds)
-		return nil, fmt.Errorf("claude session timed out after %d seconds", config.TimeoutSeconds)
+
+		// Build transcript for return (file write happens in caller, before workspace cleanup)
+		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nTranscript:\n%s\n\nTimeout after %d seconds\n",
+			prompt, transcriptBuf.String(), config.TimeoutSeconds)
+
+		// Return partial result with what we captured before timeout
+		return &ClaudeHeadlessResult{
+			Type:       "result",
+			Subtype:    "timeout",
+			IsError:    true,
+			Result:     fmt.Sprintf("Session timed out after %d seconds", config.TimeoutSeconds),
+			NumTurns:   turnNum,
+			DurationMS: config.TimeoutSeconds * 1000,
+			SessionID:  sessionID,
+			Transcript: transcript,
+		}, nil // Return result, not error, so caller can still log partial data
 
 	case err := <-done:
+		// Build transcript for return (file write happens in caller, before workspace cleanup)
+		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nTranscript:\n%s\n",
+			prompt, transcriptBuf.String())
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n[ERROR] Claude failed: %v\n", err)
-			return nil, fmt.Errorf("claude failed: %w", err)
+			// Return partial result even on error, so we can capture transcript
+			result := &ClaudeHeadlessResult{
+				Type:       "result",
+				Subtype:    "error",
+				IsError:    true,
+				Result:     fmt.Sprintf("Claude execution error: %v", err),
+				NumTurns:   turnNum,
+				DurationMS: int(time.Since(time.Now().Add(-time.Duration(config.TimeoutSeconds)*time.Second)).Milliseconds()),
+				SessionID:  sessionID,
+				Transcript: transcript,
+			}
+			return result, nil // Return result, not error, so caller can still log partial data
 		}
 
 		if finalResult == nil {
 			// No structured result, but session completed
 			return &ClaudeHeadlessResult{
-				Type:     "result",
-				IsError:  false,
-				Result:   "Session completed (see workspace for solution.ail)",
-				NumTurns: turnNum,
+				Type:       "result",
+				IsError:    false,
+				Result:     "Session completed (see workspace for solution.ail)",
+				NumTurns:   turnNum,
+				Transcript: transcript,
 			}, nil
 		}
 
+		// Attach transcript to finalResult
+		finalResult.Transcript = transcript
 		return finalResult, nil
 	}
 }
