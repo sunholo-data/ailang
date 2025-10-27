@@ -132,6 +132,10 @@ func TestDetermineSuccess(t *testing.T) {
 	// Create test workspace
 	tmpDir := t.TempDir()
 
+	// Create benchmark/ subdirectory (matches actual workspace structure)
+	benchmarkDir := filepath.Join(tmpDir, "benchmark")
+	os.MkdirAll(benchmarkDir, 0755)
+
 	spec := &BenchmarkSpec{
 		ID:          "test_benchmark",
 		Description: "Test",
@@ -144,7 +148,8 @@ func TestDetermineSuccess(t *testing.T) {
 		IsError: true,
 		Subtype: "error",
 	}
-	if determineSuccess(errorResult, spec, tmpDir) {
+	result := determineSuccess(errorResult, spec, tmpDir, "ailang")
+	if result.StdoutOk {
 		t.Error("Expected failure for error result")
 	}
 
@@ -153,25 +158,31 @@ func TestDetermineSuccess(t *testing.T) {
 		IsError: false,
 		Subtype: "success",
 	}
-	if determineSuccess(successResult, spec, tmpDir) {
+	result = determineSuccess(successResult, spec, tmpDir, "ailang")
+	if result.StdoutOk {
 		t.Error("Expected failure when solution.ail missing")
 	}
 
 	// Test case 3: Success result with empty solution
-	os.WriteFile(filepath.Join(tmpDir, "solution.ail"), []byte(""), 0644)
-	if determineSuccess(successResult, spec, tmpDir) {
+	os.WriteFile(filepath.Join(tmpDir, "benchmark", "solution.ail"), []byte(""), 0644)
+	result = determineSuccess(successResult, spec, tmpDir, "ailang")
+	if result.StdoutOk {
 		t.Error("Expected failure for empty solution")
 	}
 
 	// Test case 4: Success result with valid solution (will test actual execution)
-	validSolution := `func main(): int = 42`
-	os.WriteFile(filepath.Join(tmpDir, "solution.ail"), []byte(validSolution), 0644)
+	validSolution := `module benchmark/solution
+
+export func main() -> () ! {IO} = {
+  print("42")
+}`
+	os.WriteFile(filepath.Join(tmpDir, "benchmark", "solution.ail"), []byte(validSolution), 0644)
 
 	// Note: This will actually try to run ailang, so it may fail if ailang not in PATH
 	// But the test structure is correct
-	success := determineSuccess(successResult, spec, tmpDir)
+	validationResult := determineSuccess(successResult, spec, tmpDir, "ailang")
 	// We don't assert here because it depends on ailang being available
-	_ = success
+	_ = validationResult
 }
 
 func TestGetErrorMessage(t *testing.T) {
