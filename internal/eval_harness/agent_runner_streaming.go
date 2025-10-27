@@ -14,16 +14,22 @@ import (
 
 // runHeadlessSessionStreaming executes Claude in headless mode with real-time message streaming
 // This is used when DEBUG_AGENT=1 to provide visibility into what Claude is doing
-func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
+// systemPrompt contains language knowledge (loaded from prompts/versions.json)
+// taskPrompt contains the benchmark task description
+func runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
 
 	// Build command with stream-json for real-time NDJSON events
+	// --system-prompt: Language knowledge (AILANG/Python syntax reference)
+	// -p: Task prompt (benchmark description and expected output)
 	// --output-format stream-json: Get structured JSON events as they happen
 	// --include-partial-messages: Show thinking process token by token
 	// --permission-mode bypassPermissions: Skip approval prompts for automated execution
 	// --verbose: Show detailed execution information
-	cmd := exec.Command(config.ClaudePath, "-p", prompt,
+	cmd := exec.Command(config.ClaudePath,
+		"--system-prompt", systemPrompt,
+		"-p", taskPrompt,
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
@@ -192,8 +198,8 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 		fmt.Fprintf(os.Stderr, "\n[ERROR] Claude session timed out after %d seconds\n", config.TimeoutSeconds)
 
 		// Build transcript for return (file write happens in caller, before workspace cleanup)
-		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nTranscript:\n%s\n\nTimeout after %d seconds\n",
-			prompt, transcriptBuf.String(), config.TimeoutSeconds)
+		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nTask Prompt:\n%s\n\nTranscript:\n%s\n\nTimeout after %d seconds\n",
+			taskPrompt, transcriptBuf.String(), config.TimeoutSeconds)
 
 		// Return partial result with what we captured before timeout
 		return &ClaudeHeadlessResult{
@@ -209,8 +215,8 @@ func runHeadlessSessionStreaming(prompt, workspace string, config AgentBenchmark
 
 	case err := <-done:
 		// Build transcript for return (file write happens in caller, before workspace cleanup)
-		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nPrompt:\n%s\n\nTranscript:\n%s\n",
-			prompt, transcriptBuf.String())
+		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nTask Prompt:\n%s\n\nTranscript:\n%s\n",
+			taskPrompt, transcriptBuf.String())
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n[ERROR] Claude failed: %v\n", err)

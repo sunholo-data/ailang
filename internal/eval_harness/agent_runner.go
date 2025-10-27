@@ -56,8 +56,9 @@ type AgentBenchmarkResult struct {
 	ModelUsage map[string]ModelStats `json:"modelUsage"`
 
 	// Solution and session log for inspection
-	SolutionCode string `json:"solution_code,omitempty"` // Generated solution code
-	SessionLog   string `json:"session_log,omitempty"`   // Full Claude session log
+	SolutionCode  string `json:"solution_code,omitempty"`  // Generated solution code
+	SessionLog    string `json:"session_log,omitempty"`    // Full Claude session log
+	PromptVersion string `json:"prompt_version,omitempty"` // Version of teaching prompt used
 }
 
 // TokenUsage captures detailed token metrics
@@ -110,8 +111,8 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		return nil, fmt.Errorf("Claude CLI check failed: %w", err)
 	}
 
-	// Create isolated workspace for this benchmark
-	workspace := filepath.Join(config.WorkspaceDir, fmt.Sprintf("%s_%d", spec.ID, os.Getpid()))
+	// Create isolated workspace for this benchmark (include language for separation)
+	workspace := filepath.Join(config.WorkspaceDir, fmt.Sprintf("%s_%s_%d", spec.ID, language, os.Getpid()))
 	if err := os.MkdirAll(workspace, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
@@ -123,21 +124,28 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
 	}
 
-	// Generate enhanced prompt with full syntax reference for the specified language
-	prompt, syntaxRef, err := EnhancedGenerateAgentPrompt(spec, config, language)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate prompt: %w", err)
-	}
+	// Create placeholder solution file that Claude will overwrite
+	solutionFilename := getSolutionFilename(language)
+	solutionPath := filepath.Join(workspace, solutionFilename)
 
-	// Prepare workspace files with full syntax reference
-	if err := PrepareWorkspaceWithSyntax(workspace, spec, syntaxRef); err != nil {
-		return nil, fmt.Errorf("failed to prepare workspace: %w", err)
+	// Generate split prompts: system (language knowledge) + task (benchmark description)
+	// System prompt loaded from prompts/versions.json (versioned teaching prompts)
+	// Task prompt loaded from generic .txt templates
+	// Pass solutionPath so prompt can include full path
+	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config, language, "", solutionPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate prompts: %w", err)
+	}
+	placeholder := fmt.Sprintf("# TODO: Write your %s solution here\n", language)
+	if err := os.WriteFile(solutionPath, []byte(placeholder), 0644); err != nil {
+		return nil, fmt.Errorf("failed to create solution placeholder: %w", err)
 	}
 
 	// Run headless Claude session with streaming (always enabled for transcript capture)
 	// Streaming mode captures full conversation log which is essential for debugging failures
+	// Uses --system-prompt flag for language knowledge, -p for task instructions
 	var result *ClaudeHeadlessResult
-	result, err = runHeadlessSessionStreaming(prompt, workspace, config)
+	result, err = runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace, config)
 	if err != nil {
 		// Still try to capture partial results even if session failed
 		// (though with recent changes, runHeadlessSessionStreaming should return a result, not error)
@@ -145,7 +153,18 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	}
 
 	// Parse result and determine success
-	success := determineSuccess(result, spec, workspace)
+	success := determineSuccess(result, spec, workspace, language)
+
+	// Read solution code from workspace BEFORE defer cleanup runs
+	// Claude should have written to solution.py or solution.ail
+	solutionCode, err := os.ReadFile(solutionPath)
+	if err != nil {
+		// If file doesn't exist or can't be read, solution is empty
+		solutionCode = []byte{}
+		if os.Getenv("DEBUG_AGENT") != "" {
+			fmt.Fprintf(os.Stderr, "[WARN] Could not read solution file %s: %v\n", solutionPath, err)
+		}
+	}
 
 	// Write transcript to file BEFORE defer cleanup (transcript is returned in result.Transcript)
 	// This ensures the file exists when we try to read it back
@@ -155,11 +174,6 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 			fmt.Fprintf(os.Stderr, "[WARN] Failed to write session log: %v\n", err)
 		}
 	}
-
-	// Capture solution code (use language-specific filename)
-	solutionFilename := getSolutionFilename(language)
-	solutionPath := filepath.Join(workspace, solutionFilename)
-	solutionCode, _ := os.ReadFile(solutionPath) // Ignore error, field will be empty if read fails
 
 	// Use transcript from result directly (already formatted)
 	sessionLog := result.Transcript
@@ -177,8 +191,9 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		Usage:       result.Usage,
 		ModelUsage:  result.ModelUsage,
 		// Add solution and session log for inspection
-		SolutionCode: string(solutionCode),
-		SessionLog:   string(sessionLog),
+		SolutionCode:  string(solutionCode),
+		SessionLog:    string(sessionLog),
+		PromptVersion: promptVersion, // Track which prompt version was used
 	}, nil
 }
 
@@ -295,20 +310,32 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 }
 
 // determineSuccess checks if the benchmark succeeded
-func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspace string) bool {
+func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspace string, language string) bool {
 	// If Claude session errored, it's a failure
 	if result.IsError || result.Subtype != "success" {
 		return false
 	}
 
-	// Check if solution.ail exists and has content
-	solutionPath := filepath.Join(workspace, "solution.ail")
+	// Check if solution file exists and has content
+	solutionFilename := getSolutionFilename(language)
+	solutionPath := filepath.Join(workspace, solutionFilename)
 	solutionContent, err := os.ReadFile(solutionPath)
 	if err != nil || len(solutionContent) == 0 {
 		return false
 	}
 
-	// Try to run the solution and compare output
+	// Run solution based on language
+	if language == "python" {
+		// Run Python solution
+		cmd := exec.Command("python3", solutionPath)
+		output, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+		return CompareOutput(spec.ExpectedOut, string(output))
+	}
+
+	// Run AILANG solution
 	runner := NewAILANGRunner("", spec.Caps)
 	runResult, err := runner.Run(string(solutionContent), 10*time.Second)
 	if err != nil {

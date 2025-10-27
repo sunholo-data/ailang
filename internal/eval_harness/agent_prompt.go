@@ -325,3 +325,143 @@ You have access to:
 Good luck!
 `
 }
+
+// LoadSystemPromptForLanguage loads the versioned teaching prompt for a language
+// This is used with Claude CLI's --system-prompt flag
+func LoadSystemPromptForLanguage(language string, promptVersion string) (string, string, error) {
+	versionsPath := "prompts/versions.json"
+	loader, err := NewPromptLoader(versionsPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create prompt loader: %w", err)
+	}
+
+	var prompt string
+	var versionUsed string
+
+	switch language {
+	case "ailang":
+		// Use specified version or active version
+		if promptVersion != "" {
+			prompt, err = loader.LoadPrompt(promptVersion)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to load AILANG prompt version %s: %w", promptVersion, err)
+			}
+			versionUsed = promptVersion
+		} else {
+			prompt, err = loader.GetActivePrompt()
+			if err != nil {
+				return "", "", fmt.Errorf("failed to load active AILANG prompt: %w", err)
+			}
+			// Get active version ID from registry
+			if loader.registry != nil && loader.registry.Active != "" {
+				versionUsed = loader.registry.Active
+			} else {
+				versionUsed = "active"
+			}
+		}
+
+	case "python":
+		// Python uses "python" entry from versions.json
+		prompt, err = loader.LoadPrompt("python")
+		if err != nil {
+			return "", "", fmt.Errorf("failed to load Python prompt: %w", err)
+		}
+		versionUsed = "python"
+
+	default:
+		return "", "", fmt.Errorf("unsupported language: %s", language)
+	}
+
+	return prompt, versionUsed, nil
+}
+
+// LoadTaskPromptTemplate loads the generic .txt template for the initial agent prompt
+// This explains the benchmark task (what to solve), not the language syntax
+func LoadTaskPromptTemplate(language string) (string, error) {
+	var templatePath string
+	switch language {
+	case "python":
+		templatePath = "internal/eval_harness/templates/agent_task_python.txt"
+	case "ailang":
+		templatePath = "internal/eval_harness/templates/agent_task_ailang.txt"
+	default:
+		return "", fmt.Errorf("unsupported language: %s", language)
+	}
+
+	data, err := os.ReadFile(templatePath)
+	if err != nil {
+		// Fallback to hardcoded template if file not found
+		return getDefaultTaskTemplate(language), nil
+	}
+
+	return string(data), nil
+}
+
+// getDefaultTaskTemplate returns a fallback task template
+func getDefaultTaskTemplate(language string) string {
+	if language == "python" {
+		return `You are solving a Python benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Constraints
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output exactly
+
+Good luck!`
+	}
+
+	return `You are solving an AILANG benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Constraints
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Run your solution with: ailang run --entry main --caps {{CAPS}} solution.ail
+- Your solution must produce output matching the expected output exactly
+
+Good luck!`
+}
+
+// GenerateAgentPromptsWithSystemPrompt generates split prompts for --system-prompt flag
+// Returns: (systemPrompt, taskPrompt, promptVersionUsed, error)
+func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, language string, promptVersion string, solutionPath string) (string, string, string, error) {
+	// Load system prompt (language knowledge)
+	systemPrompt, versionUsed, err := LoadSystemPromptForLanguage(language, promptVersion)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to load system prompt: %w", err)
+	}
+
+	// Load task prompt template
+	taskTemplate, err := LoadTaskPromptTemplate(language)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to load task template: %w", err)
+	}
+
+	// Replace placeholders in task prompt
+	taskPrompt := strings.ReplaceAll(taskTemplate, "{{DESCRIPTION}}", spec.Description+"\n\n"+spec.TaskPrompt)
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{EXPECTED_OUTPUT}}", spec.ExpectedOut)
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CAPS}}", strings.Join(spec.Caps, ","))
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
+
+	return systemPrompt, taskPrompt, versionUsed, nil
+}

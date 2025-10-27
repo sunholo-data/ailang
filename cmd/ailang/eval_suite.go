@@ -412,7 +412,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			DurationMs:     int64(result.DurationMS),
 			ErrorCategory:  eval_harness.CategorizeError(result.Success, result.Success, result.Success),
 			Timestamp:      time.Now(),
-			PromptVersion:  "agent", // Mark as agent mode
+			PromptVersion:  result.PromptVersion, // Track actual prompt version used (e.g., v0.3.22 for AILANG, python for Python)
 			FirstAttemptOk: result.Success,
 			RepairUsed:     false, // Agent mode doesn't use standard repair loop
 			RepairOk:       false, // Agent mode doesn't use standard repair loop
