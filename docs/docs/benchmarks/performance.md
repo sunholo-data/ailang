@@ -2,21 +2,14 @@
 sidebar_position: 6
 title: Benchmark Performance
 description: Real-world AI code generation performance metrics for AILANG
-last_updated: 2025-10-18
+last_updated: 2025-10-27
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
-import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 
 # AI Code Generation Benchmarks
 
 Real-world performance metrics for AILANG vs Python across multiple AI models.
-
-## Model Comparison (Radar Plot)
-
-<ModelRadarComparison />
-
-## Detailed Results
 
 <BenchmarkDashboard />
 
@@ -43,11 +36,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Fizzbuzz**: 100.0% success rate
-- **Records Person**: 100.0% success rate
-- **Nested Records**: 100.0% success rate
-- **String Manipulation**: 100.0% success rate
+- **Referential Transparency**: 100.0% success rate
+- **Type Safe Record Access**: 100.0% success rate
+- **Recursion Fibonacci**: 100.0% success rate
 - **Simple Print**: 100.0% success rate
+- **Explicit State Threading**: 91.7% success rate
 
 ## How Benchmarks Guide Development
 
@@ -74,49 +67,62 @@ Want to see AILANG in action?
 
 ## Technical Details
 
-**Version**: 0.3.14
+**Version**: v0.3.21
 
-**Total Runs**: 227
+**Total Runs**: 376
 
-**Generated**: 2025-10-18 22:52:34
+**Generated**: 2025-10-27 13:31:30
 
 ### Model Performance Details
 
 | Model | Runs | 0-Shot | Final | Avg Tokens | Cost/Run | Baseline |
 |-------|------|--------|-------|------------|----------|----------|
-| Claude Sonnet 4.5 | 42 | 64.3% | 71.4% | 2523 | $0.0090 | 0.3.14 |
-| gpt5-mini | 31 | 71.0% | 71.0% | 2396 | $0.0008 | 0.3.14 |
-| gpt5 | 42 | 59.5% | 61.9% | 2267 | $0.0037 | 0.3.14 |
-| Gemini 2.5 Pro | 39 | 61.5% | 61.5% | 2150 | $0.0041 | 0.3.14 |
-| claude-haiku-4-5 | 42 | 50.0% | 59.5% | 2633 | $0.0033 | 0.3.14 |
-| gemini-2-5-flash | 31 | 51.6% | 58.1% | 2676 | $0.0010 | 0.3.14 |
+| gpt5 | 68 | 60.3% | 61.8% | 4322 | $0.0065 | v0.3.21 |
+| gpt5-mini | 57 | 57.9% | 57.9% | 5122 | $0.0015 | v0.3.21 |
+| claude-haiku-4-5 | 58 | 50.0% | 56.9% | 6045 | $0.0069 | v0.3.21 |
+| gemini-2-5-flash | 57 | 52.6% | 56.1% | 5878 | $0.0021 | v0.3.21 |
+| Claude Sonnet 4.5 | 68 | 55.9% | 55.9% | 5045 | $0.0170 | v0.3.21 |
+| Gemini 2.5 Pro | 68 | 52.9% | 52.9% | 4784 | $0.0075 | v0.3.21 |
 
 ### Benchmark Details
 
 | Benchmark | Success Rate | Avg Tokens | Languages |
 |-----------|--------------|------------|-----------|
-| ✅ Fizzbuzz | 100.0% | 129 | ailang, python |
-| ✅ Nested Records | 100.0% | 211 | ailang, python |
-| ✅ Records Person | 100.0% | 120 | ailang, python |
-| ✅ Simple Print | 100.0% | 20 | python |
-| ✅ String Manipulation | 100.0% | 101 | ailang, python |
-| ⚠️ Adt Option | 91.7% | 273 | ailang, python |
-| ⚠️ Pattern Matching Complex | 91.7% | 378 | ailang, python |
-| ⚠️ Recursion Fibonacci | 91.7% | 84 | ailang, python |
-| ⚠️ Recursion Factorial | 83.3% | 80 | ailang, python |
-| ⚠️ Error Handling | 80.0% | 552 | ailang, python |
-| ⚠️ Targeted Repair Test | 80.0% | 53 | ailang |
-| ⚠️ Record Update | 58.3% | 160 | ailang, python |
-| ⚠️ Higher Order Functions | 55.6% | 171 | ailang, python |
-| ⚠️ Json Encode | 50.0% | 95 | ailang, python |
-| ⚠️ Json Parse | 50.0% | 88 | ailang, python |
-| ⚠️ List Operations | 50.0% | 243 | ailang, python |
-| ❌ Numeric Modulo | 45.5% | 30 | ailang, python |
-| ❌ Api Call Json | 33.3% | 131 | ailang, python |
-| ❌ List Comprehension | 33.3% | 296 | ailang, python |
-| ❌ Float Eq | 18.2% | 23 | ailang, python |
-| ❌ Cli Args | 0.0% | 128 | ailang, python |
-| ❌ Pipeline | 0.0% | 52 | ailang, python |
+| ✅ Recursion Fibonacci | 100.0% | 85 | ailang, python |
+| ✅ Referential Transparency | 100.0% | 136 | ailang, python |
+| ✅ Simple Print | 100.0% | 27 | ailang, python |
+| ✅ Type Safe Record Access | 100.0% | 121 | ailang, python |
+| ⚠️ Explicit State Threading | 91.7% | 217 | ailang, python |
+| ⚠️ Print With Show | 88.9% | 36 | ailang, python |
+| ⚠️ Records Person | 88.9% | 128 | ailang, python |
+| ⚠️ Recursion Factorial | 88.9% | 73 | ailang, python |
+| ⚠️ Pattern Matching Complex | 83.3% | 325 | ailang, python |
+| ⚠️ Immutable Data Structures | 81.8% | 162 | ailang, python |
+| ⚠️ String Manipulation | 77.8% | 108 | ailang, python |
+| ⚠️ Higher Order Functions | 75.0% | 178 | ailang, python |
+| ⚠️ Fizzbuzz | 70.0% | 135 | ailang, python |
+| ⚠️ Error Handling | 66.7% | 445 | ailang, python |
+| ⚠️ Nested Records | 66.7% | 129 | ailang, python |
+| ⚠️ Adt Option | 58.3% | 267 | ailang, python |
+| ⚠️ Effect Composition | 58.3% | 437 | ailang, python |
+| ⚠️ Canonical Normalization | 50.0% | 203 | ailang, python |
+| ⚠️ Effect Pure Separation | 50.0% | 227 | ailang, python |
+| ⚠️ Effect Tracking Io Fs | 50.0% | 254 | ailang, python |
+| ⚠️ List Operations | 50.0% | 172 | ailang, python |
+| ⚠️ Numeric Modulo | 50.0% | 28 | ailang, python |
+| ⚠️ Targeted Repair Test | 50.0% | 42 | ailang |
+| ❌ Json Encode | 45.5% | 96 | ailang, python |
+| ❌ Json Parse | 45.5% | 101 | ailang, python |
+| ❌ Deterministic List Transform | 41.7% | 142 | ailang, python |
+| ❌ Exhaustive Pattern Matching | 41.7% | 167 | ailang, python |
+| ❌ Float Eq | 41.7% | 28 | ailang, python |
+| ❌ No Runtime Crashes Option | 41.7% | 486 | ailang, python |
+| ❌ List Comprehension | 33.3% | 312 | ailang, python |
+| ❌ Api Call Json | 16.7% | 118 | ailang, python |
+| ❌ Print Missing Effect | 16.7% | 30 | ailang |
+| ❌ Record Update | 11.1% | 159 | ailang, python |
+| ❌ Cli Args | 0.0% | 154 | ailang, python |
+| ❌ Pipeline | 0.0% | 58 | ailang, python |
 
 ---
 

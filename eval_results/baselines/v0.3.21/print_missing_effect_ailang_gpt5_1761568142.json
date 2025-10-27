@@ -1,0 +1,23 @@
+{
+  "id": "print_missing_effect",
+  "lang": "ailang",
+  "model": "gpt5",
+  "seed": 42,
+  "input_tokens": 9817,
+  "output_tokens": 31,
+  "total_tokens": 9848,
+  "cost_usd": 0.01258125,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": true,
+  "duration_ms": 5,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "Error: module loading error: failed to load benchmark/solution.ail (search trace: [Loading module: benchmark/solution.ail]): parse errors in benchmark/solution.ail:\nPAR_NO_PREFIX_PARSE at benchmark/solution.ail:5:2: unexpected token in expression: ++\n\nSuggestion: This token cannot start an expression\n\nPAR_NO_PREFIX_PARSE at benchmark/solution.ail:5:13: unexpected token in expression: )\n\nSuggestion: Check for unmatched delimiters or missing expression\n\nHint: Unexpected closing parenthesis ')'.\n      - Check that all opening parentheses '(' have matching closing ones\n      - Verify function calls and tuple patterns are properly closed\n\nSuggested workaround: Try simplifying nested constructs or using let bindings.\n\nPAR_NO_PREFIX_PARSE at benchmark/solution.ail:6:1: unexpected token in expression: }\n\nSuggestion: Check for unmatched delimiters or missing expression\n\nHint: Unexpected closing brace '}'.\n      - Check that all opening braces '{' have matching closing braces\n      - Verify match expressions and block statements are properly closed\n\nSuggested workaround: Try simplifying nested constructs or using let bindings.\n",
+  "timestamp": "2025-10-27T13:29:02.829566+01:00",
+  "code": "module benchmark/solution\n\nexport func main() -\u003e () ! {IO} {\n  print(\"Hello!\")\n}",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false
+}
