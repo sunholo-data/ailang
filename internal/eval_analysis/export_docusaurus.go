@@ -159,12 +159,18 @@ func ExportDocusaurusMDX(matrix *PerformanceMatrix, history []*Baseline) string 
 	sb.WriteString(fmt.Sprintf("last_updated: %s\n", time.Now().Format("2006-01-02")))
 	sb.WriteString("---\n\n")
 
-	// Import React component
-	sb.WriteString("import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';\n\n")
+	// Import React components
+	sb.WriteString("import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';\n")
+	sb.WriteString("import ModelRadarComparison from '@site/src/components/ModelRadarComparison';\n\n")
 
 	// Hero section
 	sb.WriteString("# AI Code Generation Benchmarks\n\n")
 	sb.WriteString("Real-world performance metrics for AILANG vs Python across multiple AI models.\n\n")
+
+	// Model Radar Comparison (at the top)
+	sb.WriteString("## Model Comparison\n\n")
+	sb.WriteString("Compare AI model performance across multiple dimensions:\n\n")
+	sb.WriteString("<ModelRadarComparison />\n\n")
 
 	// Dashboard component
 	sb.WriteString("<BenchmarkDashboard />\n\n")

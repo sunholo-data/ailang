@@ -6,10 +6,17 @@ last_updated: 2025-10-27
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
+import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 
 # AI Code Generation Benchmarks
 
 Real-world performance metrics for AILANG vs Python across multiple AI models.
+
+## Model Comparison
+
+Compare AI model performance across multiple dimensions:
+
+<ModelRadarComparison />
 
 <BenchmarkDashboard />
 
@@ -39,8 +46,8 @@ AILANG excels at these problem types:
 - **Referential Transparency**: 100.0% success rate
 - **Type Safe Record Access**: 100.0% success rate
 - **Higher Order Functions**: 100.0% success rate
-- **Print With Show**: 100.0% success rate
 - **Simple Print**: 100.0% success rate
+- **Print With Show**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -71,7 +78,7 @@ Want to see AILANG in action?
 
 **Total Runs**: 408
 
-**Generated**: 2025-10-27 18:16:13
+**Generated**: 2025-10-27 18:47:11
 
 ### Model Performance Details
 
