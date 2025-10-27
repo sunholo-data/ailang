@@ -56,19 +56,20 @@ AILANG minimizes ambiguity and maximizes predictability. Every construct — typ
 
 ---
 
-## 🧪 Current Milestone: v0.3.20 (Property-Based Testing)
+## 🧪 Current Milestone: v0.3.22 (JSON Encoding Support)
 
-- ✅ QuickCheck-style property-based testing with automatic shrinking
-- ✅ `ailang test` CLI command with JSON/human output formats
-- ✅ Type-aware generators for all AILANG types (int, float, string, list, ADT, etc.)
-- ✅ CI/CD integration (GitHub Actions, GitLab CI, CircleCI examples)
-- ✅ Comprehensive documentation (customer & AI-focused guides)
-- ✅ Code organization: All files <800 lines (parser & AST split into focused modules)
-- ✅ All **110 testing framework tests passing**; all examples verified
-- 🔜 **Next**: Deterministic tooling (normalize, suggest-imports) in v0.3.21
+- ✅ Complete JSON encoding implementation (`_json_encode` builtin)
+- ✅ RFC 8259 compliant string escaping
+- ✅ Uncommented `encode()` function in std/json.ail
+- ✅ 27 comprehensive tests (unit + roundtrip)
+- ✅ Unblocks api_call_json benchmark (no more IMP010 errors)
+- ✅ All **137 tests passing** (27 new JSON encode tests)
+- 🔜 **Next**: Deterministic tooling (normalize, suggest-imports) in v0.3.23
 
 ### Major Milestones
 
+- **v0.3.22 (Oct 2025)**: M-JSON-ENCODE - JSON encoding support for HTTP POST workflows
+- **v0.3.21 (Oct 2025)**: Parser regression fixes for nested match expressions in blocks
 - **v0.3.20 (Oct 2025)**: M-TESTING - Property-based testing infrastructure + code organization
 - **v0.3.19 (Oct 2025)**: Code Organization & AI Maintainability - Pipeline refactoring (10 focused files)
 - **v0.3.17 (Oct 2025)**: CoreTypeInfo Validation & Monomorphization - Compiler diagnostics + call-site specialization
