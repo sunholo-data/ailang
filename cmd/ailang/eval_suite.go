@@ -57,7 +57,8 @@ func runEvalSuite() {
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for code execution")
 	maxConcurrent := fs.Int("parallel", 10, "Maximum concurrent API calls across all providers (0 = sequential, recommended: 10-15)")
-	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
+	selfRepair := fs.Bool("self-repair", true, "Enable single-shot self-repair on errors (default: true)")
+	noSelfRepair := fs.Bool("no-self-repair", false, "Disable self-repair (run without error correction)")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 
@@ -182,9 +183,18 @@ func runEvalSuite() {
 		fmt.Println()
 	}
 
+	// Handle --no-self-repair flag (overrides --self-repair=true default)
+	finalSelfRepair := *selfRepair
+	if *noSelfRepair {
+		finalSelfRepair = false
+		fmt.Println("Self-repair DISABLED (--no-self-repair)")
+	} else {
+		fmt.Println("Self-repair ENABLED (default)")
+	}
+
 	// Run benchmarks with concurrency control
 	startTime := time.Now()
-	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, *selfRepair, *promptVersion)
+	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion)
 	duration := time.Since(startTime)
 
 	// Summary
