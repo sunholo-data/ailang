@@ -36,6 +36,7 @@ Invoke this skill when:
 3. **Document as You Go**: Update CHANGELOG.md and sprint plan progressively
 4. **Pause for Breath**: Stop at natural breakpoints for review and approval
 5. **Track Everything**: Use TodoWrite to maintain visible progress
+6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
 
 ## Documentation URLs
 
@@ -167,6 +168,15 @@ Ready to proceed to next milestone.
 - Add start timestamp
 - Commit sprint plan update (optional)
 
+#### 5. Initial DX Review
+- Review what tasks we're about to do
+- Consider what tools/helpers would make this sprint easier
+- **Small DX improvements (<30 min)**: Add them to the milestone plan immediately
+  - Examples: Helper functions, test utilities, debug flags, make targets
+- **Large DX improvements (>30 min)**: Create design doc in `design_docs/planned/vX_Y/m-dx*.md`
+  - Examples: New skill, major refactor, architectural change
+- Document DX improvement decisions in sprint plan
+
 ### Phase 2: Execute Milestones
 
 **For each milestone in the sprint:**
@@ -178,10 +188,48 @@ Ready to proceed to next milestone.
 - Estimate LOC if not already specified
 
 #### Step 2: Implement
+
+**During implementation, think about DX:**
 - Write implementation code following the task breakdown
 - Follow design patterns from sprint plan
 - Add inline comments for complex logic
 - Keep functions small and focused
+
+**DX-aware implementation:**
+- If you're writing boilerplate, could it be a helper function?
+- If you're debugging something, could a debug flag help?
+- If you're looking things up repeatedly, should it be documented?
+- If an error message confused you, would it confuse others?
+- If a test is verbose, could test helpers make it cleaner?
+
+**Examples:**
+```go
+// ❌ Before DX thinking
+if p.Errors() != nil {
+    // Manually check each error...
+}
+
+// ✅ After DX thinking - Add helper
+AssertNoErrors(t, p)  // Helper added for reuse
+
+// ❌ Before DX thinking
+// Manually inspecting tokens with fmt.Printf
+fmt.Printf("cur=%v peek=%v\n", p.curToken, p.peekToken)
+
+// ✅ After DX thinking - Add debug mode
+// DEBUG_PARSER=1 automatically traces token flow
+
+// ❌ Before DX thinking
+return fmt.Errorf("parse error")
+
+// ✅ After DX thinking - Actionable error
+return fmt.Errorf("parse error at line %d: expected RPAREN after argument list, got %s. See docs/guides/parser_development.md#common-issues", p.curToken.Line, p.curToken.Type)
+```
+
+**When to act on DX ideas:**
+- 🟢 **Quick (<15 min)**: Do it now as part of this milestone
+- 🟡 **Medium (15-30 min)**: Note in TODO list, do at end of milestone if time allows
+- 🔴 **Large (>30 min)**: Note for design doc in reflection step
 
 #### Step 3: Write Tests
 
@@ -242,12 +290,53 @@ make lint  # MUST PASS
 - Add actual LOC vs estimated
 - Note any deviations from plan
 
-#### Step 6: Pause for Breath
+#### Step 6: DX Reflection
+
+**After each milestone, reflect on the development experience:**
+
+**Ask yourself:**
+- What was painful during this milestone?
+- What took longer than expected due to tooling gaps?
+- What did we have to lookup multiple times?
+- What errors/bugs could better tooling prevent?
+
+**Categorize DX improvements:**
+
+**🟢 Quick wins (<15 min) - Do immediately:**
+- Add helper function to reduce boilerplate
+- Add debug flag for better visibility
+- Improve error message with actionable suggestion
+- Add make target for common workflow
+- Document pattern in code comments
+
+**🟡 Medium improvements (15-30 min) - Add to current sprint if time allows:**
+- Create test utility package
+- Add validation script
+- Improve CLI flag organization
+- Add comprehensive examples
+
+**🔴 Large improvements (>30 min) - Create design doc:**
+- New skill for complex workflow
+- Major architectural change
+- New developer tool or subsystem
+- Significant codebase reorganization
+
+**Document in milestone summary:**
+```markdown
+## DX Improvements (Milestone X)
+
+✅ **Applied**: Added `AssertNoErrors(t, p)` test helper (5 min)
+📝 **Deferred**: Created M-DX10 design doc for parser AST viewer tool (estimated 2 hours)
+💡 **Considered**: Better REPL error messages (added to backlog)
+```
+
+#### Step 7: Pause for Breath
 
 **After each milestone:**
 - Show summary of what was completed
 - Show current sprint progress (X of Y milestones done)
 - Show velocity (LOC/day vs planned)
+- Show DX improvements made/planned
 - Ask user: "Ready to continue to next milestone?" or "Need to review/adjust?"
 - If user says "pause" or "stop", save current state and exit gracefully
 
@@ -291,9 +380,169 @@ Test coverage: <percentage>"
 - Highlight any issues or deviations
 - Suggest next steps (new sprint, release, etc.)
 
-#### 5. Identify Bumps
-- What could AILANG do better to make a smoother coding sprint?
-- Is it worth adding a new design doc to help ease how we make AILANG?
+#### 5. DX Impact Summary
+
+**Consolidate all DX improvements made during sprint:**
+
+```markdown
+## DX Improvements Summary (Sprint M-XXX)
+
+### Applied During Sprint
+✅ **Test Helpers** (Day 2, 10 min): Added `AssertNoErrors()` and `AssertLiteralInt()` helpers
+   - Impact: Reduced test boilerplate by ~30%
+   - Files: internal/parser/test_helpers.go
+
+✅ **Debug Flag** (Day 4, 5 min): Added `DEBUG_PARSER=1` for token tracing
+   - Impact: Eliminated 2 hours of token position debugging
+   - Files: internal/parser/debug.go
+
+✅ **Make Target** (Day 6, 3 min): Added `make update-golden` for parser test updates
+   - Impact: Simplified golden file workflow
+   - Files: Makefile
+
+### Design Docs Created
+📝 **M-DX10**: Parser AST Viewer Tool (estimated 2 hours)
+   - Rationale: Spent 45 min manually inspecting AST structures
+   - Expected ROI: Save ~30 min per future parser sprint
+   - File: design_docs/planned/v0_4_0/m-dx10-ast-viewer.md
+
+📝 **M-DX11**: Unified Error Message System (estimated 4 hours)
+   - Rationale: Error messages inconsistent across lexer/parser/type checker
+   - Expected ROI: Easier debugging for AI and humans
+   - File: design_docs/planned/v0_4_0/m-dx11-error-system.md
+
+### Considered But Deferred
+💡 **REPL history search**: Nice-to-have, low impact vs effort
+💡 **Syntax highlighting**: Human-focused, AILANG is AI-first
+💡 **Auto-completion**: Deferred until reflection system complete
+
+### Total DX Investment This Sprint
+- Time spent: 18 min (quick wins)
+- Time saved: ~3 hours (estimated, based on future sprint projections)
+- Design docs: 2 (total estimated effort: 6 hours for future sprints)
+- **Net impact**: Positive ROI even in current sprint
+```
+
+**Key Questions for Future:**
+- Which DX improvements should be prioritized next?
+- Are there patterns in pain points (e.g., parser work always needs better debugging)?
+- Should any DX improvements be added to "Definition of Done" for future sprints?
+
+## DX Improvement Patterns
+
+**Common DX improvements to watch for during sprints:**
+
+### 1. Repetitive Boilerplate → Helper Functions
+
+**Signals:**
+- Copying/pasting the same test setup code
+- Same validation logic repeated across functions
+- Common error handling patterns duplicated
+
+**Quick fixes (5-15 min):**
+- Extract to helper function in same package
+- Add to `*_helpers.go` file
+- Document with usage example
+- Add tests for helper if complex
+
+**Example:** M-DX9 added `AssertNoErrors(t, p)` after noticing parser test boilerplate.
+
+### 2. Hard-to-Debug Issues → Debug Flags
+
+**Signals:**
+- Adding temporary `fmt.Printf()` statements
+- Manually tracing execution flow
+- Repeatedly inspecting internal state
+
+**Quick fixes (5-10 min):**
+- Add `DEBUG_<SUBSYSTEM>=1` environment variable check
+- Gate debug output behind flag (zero overhead when off)
+- Document in CLAUDE.md or code comments
+
+**Example:** M-DX9 added `DEBUG_PARSER=1` for token flow tracing.
+
+### 3. Manual Workflows → Make Targets
+
+**Signals:**
+- Running multi-step commands repeatedly
+- Forgetting command flags or order
+- Different team members using different commands
+
+**Quick fixes (3-5 min):**
+- Add `make <target>` with clear name
+- Document what it does in `make help`
+- Show example usage in relevant docs
+
+**Example:** `make update-golden` for parser test golden files.
+
+### 4. Confusing APIs → Documentation
+
+**Signals:**
+- Looking up API signatures multiple times
+- Trial-and-error with function arguments
+- Grep-diving to understand usage
+
+**Quick fixes (10-20 min):**
+- Add package-level godoc with examples
+- Document common patterns in CLAUDE.md
+- Add usage examples to function comments
+- Create `make doc PKG=<package>` target if missing
+
+**Example:** M-TESTING documented common API patterns in CLAUDE.md.
+
+### 5. Poor Error Messages → Actionable Errors
+
+**Signals:**
+- Error doesn't explain what went wrong
+- No suggestion for how to fix
+- Missing context (line numbers, file names)
+
+**Quick fixes (5-15 min):**
+- Add context to error message
+- Suggest fix or workaround
+- Link to documentation if relevant
+- Include values that triggered error
+
+**Example:**
+```go
+// ❌ Before
+return fmt.Errorf("parse error")
+
+// ✅ After
+return fmt.Errorf("parse error at %s:%d: expected RPAREN, got %s. Did you forget to close the argument list? See: https://sunholo-data.github.io/ailang/docs/guides/parser_development#common-issues",
+    p.filename, p.curToken.Line, p.curToken.Type)
+```
+
+### 6. Painful Testing → Test Utilities
+
+**Signals:**
+- Verbose test setup/teardown
+- Repeated value construction
+- Brittle test assertions
+
+**Quick fixes (10-20 min):**
+- Create test helper package (e.g., `testctx/`)
+- Add value constructors (e.g., `MakeString()`, `MakeInt()`)
+- Add assertion helpers (e.g., `AssertNoErrors()`)
+
+**Example:** M-DX1 added `testctx` package for builtin testing.
+
+### DX ROI Calculator
+
+**When deciding whether to implement a DX improvement:**
+
+```
+Time saved per use × Expected uses = Total savings
+If Total savings > Implementation time + Maintenance → DO IT
+```
+
+**Examples:**
+- Helper function: 2 min × 20 uses = 40 min saved, costs 10 min → ROI = 4x ✅
+- Debug flag: 15 min × 5 uses = 75 min saved, costs 8 min → ROI = 9x ✅
+- Documentation: 5 min × 30 uses = 150 min saved, costs 20 min → ROI = 7.5x ✅
+- New skill: 30 min × 2 uses = 60 min saved, costs 120 min → ROI = 0.5x ❌ (create design doc for later)
+
+**Note:** ROI compounds over time as more developers/sprints benefit!
 
 ## Key Features
 
@@ -356,8 +605,10 @@ When creating stubs for progressive development, document them explicitly in mil
 - **If implementation unclear**: Ask for clarification, don't guess
 - **If milestone takes much longer than estimated**: Pause and reassess
 
-**Parser debugging (M-DX9):**
+**Parser debugging (M-DX9, v0.3.21):**
 - Use `DEBUG_PARSER=1 ailang run test.ail` to trace token flow
+- Use `DEBUG_DELIMITERS=1 ailang run test.ail` to trace delimiter matching (nested braces, match expressions)
+- Enhanced error messages now show context depth and suggest DEBUG_DELIMITERS=1 for deep nesting
 - Check [docs/guides/parser_development.md](docs/guides/parser_development.md) for troubleshooting
 - Common issues documented in CLAUDE.md "Parser Developer Experience Guide" section
 
@@ -385,19 +636,35 @@ When creating stubs for progressive development, document them explicitly in mil
    - `AssertDeclCount/FuncDecl/TypeDecl(t, file, ...)` - Check declarations
    - All helpers call `t.Helper()` for clean stack traces
 
-3. **Debug Tooling**: [internal/parser/debug.go](../../internal/parser/debug.go)
+3. **Debug Tooling**: [internal/parser/debug.go](../../internal/parser/debug.go), [internal/parser/delimiter_trace.go](../../internal/parser/delimiter_trace.go)
    - `DEBUG_PARSER=1` environment variable for token flow tracing
    - Shows ENTER/EXIT with cur/peek tokens for parseExpression, parseType
    - Zero overhead when disabled
    - Example: `DEBUG_PARSER=1 ailang run test.ail`
 
-4. **AST Usage Examples**: [internal/ast/ast.go](../../internal/ast/ast.go)
+   **NEW v0.3.21: Delimiter Stack Tracer**
+   - `DEBUG_DELIMITERS=1` environment variable for delimiter matching tracing
+   - Shows opening/closing of `{` `}` with context (match, block, case, function)
+   - Visual indentation shows nesting depth
+   - Detects delimiter mismatches and shows expected vs actual
+   - Shows stack state on errors
+   - Example: `DEBUG_DELIMITERS=1 ailang run test.ail`
+   - **Use when**: Debugging nested match expressions, finding unmatched braces, understanding complex nesting
+
+4. **Enhanced Error Messages** (v0.3.21): [internal/parser/parser_error.go](../../internal/parser/parser_error.go)
+   - Context-aware hints for delimiter errors
+   - Shows nesting depth when inside nested constructs
+   - Suggests DEBUG_DELIMITERS=1 for deep nesting issues
+   - Specific guidance for `}`, `)`, `]` errors
+   - Actionable workarounds (simplify nesting, use let bindings)
+
+5. **AST Usage Examples**: [internal/ast/ast.go](../../internal/ast/ast.go)
    - Comprehensive documentation on 6 major AST types
    - Usage examples for Identifier, Literal, Lambda, FuncCall, List, FuncDecl
    - ⚠️ **CRITICAL**: int64 vs int gotcha prominently documented
    - Common parser patterns for each type
 
-5. **Quick Reference**: CLAUDE.md "Parser Developer Experience Guide" section
+6. **Quick Reference**: CLAUDE.md "Parser Developer Experience Guide" section
    - Token position convention
    - Common AST types
    - Quick token lookup
@@ -483,6 +750,14 @@ funcDecl.InlineTests  // Doesn't exist! Use .Tests
 **Time savings**: 80% reduction (5-10 min → 30 sec per lookup)
 
 **Full reference**: See CLAUDE.md "Common API Patterns" section
+
+### DX Quick Reference
+See [`resources/dx_quick_reference.md`](resources/dx_quick_reference.md) for quick reference card on DX improvements. Use during sprint execution to:
+- Quickly decide whether to implement a DX improvement (decision matrix)
+- Identify common DX patterns and their fixes
+- Calculate ROI for improvements
+- Use reflection questions after each milestone
+- Apply documentation templates
 
 ### Developer Tools Reference
 See [`resources/developer_tools.md`](resources/developer_tools.md) for comprehensive reference of all available make targets, ailang commands, scripts, and workflows. Load this when you need to:

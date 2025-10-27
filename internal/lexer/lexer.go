@@ -119,6 +119,11 @@ func (l *Lexer) NextToken() Token {
 	case '*':
 		tok = NewToken(STAR, string(l.ch), line, column, l.file)
 	case '/':
+		// Check for single-line comment (//)
+		if l.peekChar() == '/' {
+			l.skipComment()
+			return l.NextToken()
+		}
 		// Check for regex literal
 		if l.isRegexStart() {
 			return l.readRegex(line, column)

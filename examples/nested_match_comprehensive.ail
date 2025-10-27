@@ -1,4 +1,4 @@
-module nested_match_comprehensive
+module examples/nested_match_comprehensive
 
 // Comprehensive test file for nested match expression parsing
 // Created as part of M-PARSER regression fix (v0.3.21)
@@ -115,8 +115,7 @@ export func matchTree(t: Tree) -> int {
 
 // === Test 8: State Threading Pattern (Regression Case) ===
 // This is the pattern that failed in explicit_state_threading benchmark
-
-type State = (int, int)
+// Note: AILANG doesn't support type aliases yet, so we use (int, int) directly
 
 export func stateThreading(initial: int) -> int {
   let r1 = add(5, initial);
@@ -135,12 +134,12 @@ export func stateThreading(initial: int) -> int {
   }
 }
 
-func add(x: int, state: int) -> State {
+func add(x: int, state: int) -> (int, int) {
   let newState = state + x;
   (newState, newState)
 }
 
-func multiply(x: int, state: int) -> State {
+func multiply(x: int, state: int) -> (int, int) {
   let newState = state * x;
   (newState, newState)
 }

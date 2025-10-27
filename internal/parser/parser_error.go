@@ -105,9 +105,37 @@ func (p *Parser) peekError(t lexer.TokenType) {
 func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 	msg := fmt.Sprintf("unexpected token in expression: %s", t)
 	fix := "This token cannot start an expression"
+
+	// Enhanced context-aware hints for common delimiter issues
 	if t == lexer.RBRACE || t == lexer.RPAREN || t == lexer.RBRACKET {
 		fix = "Check for unmatched delimiters or missing expression"
+
+		// Provide specific hints based on context
+		if t == lexer.RBRACE {
+			// Check if we're in a deeply nested construct
+			delimDepth := len(globalDelimiterTracer.stack)
+			if delimDepth > 0 {
+				fix += fmt.Sprintf("\n\nContext: Inside nested construct (depth=%d)", delimDepth)
+				fix += "\nHint: This may indicate a parser issue with deeply nested match expressions in blocks."
+				fix += "\n      Try enabling DEBUG_DELIMITERS=1 to trace delimiter matching."
+			} else {
+				fix += "\n\nHint: Unexpected closing brace '}'."
+				fix += "\n      - Check that all opening braces '{' have matching closing braces"
+				fix += "\n      - Verify match expressions and block statements are properly closed"
+			}
+		} else if t == lexer.RPAREN {
+			fix += "\n\nHint: Unexpected closing parenthesis ')'."
+			fix += "\n      - Check that all opening parentheses '(' have matching closing ones"
+			fix += "\n      - Verify function calls and tuple patterns are properly closed"
+		} else if t == lexer.RBRACKET {
+			fix += "\n\nHint: Unexpected closing bracket ']'."
+			fix += "\n      - Check that all opening brackets '[' have matching closing ones"
+			fix += "\n      - Verify list literals are properly closed"
+		}
+
+		fix += "\n\nSuggested workaround: Try simplifying nested constructs or using let bindings."
 	}
+
 	err := NewParserError(
 		"PAR_NO_PREFIX_PARSE",
 		p.curPos(),

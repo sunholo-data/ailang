@@ -168,6 +168,8 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 	match.Expr = p.parseExpression(LOWEST)
 
 	p.expectPeek(lexer.LBRACE)
+	p.traceDelimiterOpen(delimCtxMatch)
+	p.traceDelimiterToken(lexer.LBRACE, "consume")
 	p.nextToken()
 
 	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
@@ -188,6 +190,10 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 	// We should already be at RBRACE
 	if !p.curTokenIs(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
+		p.traceDelimiterStack()
+	} else {
+		p.traceDelimiterToken(lexer.RBRACE, "found")
+		p.traceDelimiterClose(delimCtxMatch)
 	}
 
 	return match
@@ -209,7 +215,21 @@ func (p *Parser) parseCase() *ast.Case {
 
 	p.expectPeek(lexer.FARROW)
 	p.nextToken()
-	c.Body = p.parseExpression(LOWEST)
+
+	// Option B: Special-case block arms to use parseBlockOrExpression()
+	// This ensures proper delimiter tracking for nested match expressions in blocks.
+	// Background: Match arms can be either simple expressions OR blocks containing
+	// multiple statements including nested matches. When a block is used, we need
+	// the same delimiter tracking that function/lambda bodies use.
+	if p.curTokenIs(lexer.LBRACE) {
+		// Parse as block using the same logic as function bodies
+		p.traceDelimiterOpen(delimCtxCase)
+		c.Body = p.parseBlockOrExpression()
+		p.traceDelimiterClose(delimCtxCase)
+	} else {
+		// Parse as simple expression
+		c.Body = p.parseExpression(LOWEST)
+	}
 
 	return c
 }
@@ -288,6 +308,8 @@ func (p *Parser) parseFuncLitWithParams(pos ast.Pos, params []*ast.Param) ast.Ex
 func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// We're at LBRACE
 	startPos := p.curPos()
+	p.traceDelimiterOpen(delimCtxBlock)
+	p.traceDelimiterToken(lexer.LBRACE, "consume")
 	p.nextToken() // consume LBRACE
 
 	// Check for empty block: {}
@@ -307,12 +329,14 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// Keep parsing while we see semicolons
 	for p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to SEMICOLON
-		p.nextToken() // move past SEMICOLON
 
-		// Check for trailing semicolon before RBRACE
-		if p.curTokenIs(lexer.RBRACE) {
+		// Check for trailing semicolon (next token is RBRACE)
+		// Keep cursor at semicolon so peek is RBRACE for expectPeek below
+		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
+
+		p.nextToken() // move past SEMICOLON
 
 		exprs = append(exprs, p.parseExpression(LOWEST))
 	}
@@ -320,8 +344,12 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// Expect closing brace
 	if !p.expectPeek(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected '}' to close function body at %s", p.peekToken.Position()))
+		p.traceDelimiterStack()
 		return nil
 	}
+
+	p.traceDelimiterToken(lexer.RBRACE, "found")
+	p.traceDelimiterClose(delimCtxBlock)
 
 	// If single expression, return it directly (not as block)
 	if len(exprs) == 1 {

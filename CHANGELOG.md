@@ -1,5 +1,79 @@
 # AILANG Changelog
 
+## [v0.3.21] - 2025-10-27
+
+### Fixed - Parser Regression: Nested Match Expressions in Blocks
+
+**User Impact**: AI-generated code with nested match expressions in block contexts now parses correctly. Fixes PAR_NO_PREFIX_PARSE errors on closing braces.
+
+**What Was Broken**:
+- 3-level nested match expressions with IO effects failed to parse
+- Match arms containing blocks with nested matches triggered delimiter tracking bugs
+- Trailing semicolons in match arm blocks caused parser errors
+- 64 eval benchmark failures in v0.3.20 (gpt5-mini explicit_state_threading pattern)
+
+**What Was Fixed**:
+1. **Primary Fix (Option B)**: Modified `parseCase()` to detect block arms and use `parseBlockOrExpression()` for proper delimiter tracking (~12 LOC in `internal/parser/parser_expr.go`)
+2. **Trailing Semicolon Bug**: Fixed `parseBlockOrExpression()` and `parseFunctionBody()` to handle trailing semicolons correctly (~20 LOC across 2 files)
+3. **Test Coverage**: Added 11 comprehensive regression tests covering 2-level, 3-level nesting, IO effects, edge cases (empty blocks, comments, whitespace, error recovery)
+
+**Files Modified**:
+- `internal/parser/parser_expr.go` (+30 LOC): `parseCase()` fix, `parseBlockOrExpression()` trailing semicolon fix
+- `internal/parser/parser_func.go` (+10 LOC): `parseFunctionBody()` trailing semicolon fix
+- `internal/parser/parser_match_nested_test.go` (+425 LOC NEW): 11 regression tests
+
+**Validation**:
+- ✅ All 11 new regression tests pass
+- ✅ Full test suite passes (no regressions)
+- ✅ Original failing example (examples/nested_match_ai_generated.ail) executes correctly
+- ✅ Linting passes (pre-existing unused function warnings unrelated to changes)
+
+### Added - DX Improvements: Delimiter Tracer & Enhanced Errors
+
+**User Impact**: Better debugging tools for parser issues, especially for AI code generators encountering nested construct problems.
+
+**What Was Added**:
+
+1. **Delimiter Stack Tracer** (`DEBUG_DELIMITERS=1`):
+   - Runtime delimiter tracking showing opening/closing of `{` `}` with context
+   - Visual indentation showing nesting depth (0-6+ levels)
+   - Context labels: match, block, case, function, lambda, record, list
+   - Mismatch detection showing expected vs actual delimiters
+   - Stack inspection on errors
+   - Zero overhead when disabled
+   - Example: `DEBUG_DELIMITERS=1 ailang run test.ail`
+   - Files: `internal/parser/delimiter_trace.go` (+140 LOC NEW)
+
+2. **Enhanced Error Messages** (Context-Aware):
+   - `PAR_NO_PREFIX_PARSE` errors now show nesting depth when inside nested constructs
+   - Suggests `DEBUG_DELIMITERS=1` for deep nesting issues (depth > 0)
+   - Specific hints for `}`, `)`, `]` errors with actionable guidance
+   - Suggests workarounds (simplify nesting, use let bindings)
+   - Files: `internal/parser/parser_error.go` (+35 LOC)
+
+3. **Documentation Updates**:
+   - `.claude/DX-QUICK-REF.md`: Added DEBUG_DELIMITERS=1 documentation
+   - `.claude/skills/sprint-executor/SKILL.md`: Updated parser debugging section with new tools
+
+**Example Enhanced Error**:
+```
+PAR_NO_PREFIX_PARSE at test.ail:10:9: unexpected token in expression: }
+
+Suggestion: Check for unmatched delimiters or missing expression
+
+Context: Inside nested construct (depth=5)
+Hint: This may indicate a parser issue with deeply nested match expressions in blocks.
+      Try enabling DEBUG_DELIMITERS=1 to trace delimiter matching.
+
+Suggested workaround: Try simplifying nested constructs or using let bindings.
+```
+
+**Total Impact**:
+- **Bug Fix**: ~60 LOC across 3 files
+- **DX Features**: ~180 LOC across 2 new files + documentation
+- **Test Coverage**: +425 LOC, 11 comprehensive tests
+- **Estimated eval improvement**: PAR_NO_PREFIX_PARSE errors should drop from 64 → <20 in next baseline
+
 ## [v0.3.20] - 2025-10-26
 
 ### Added - M-TESTING: Property-Based Testing Infrastructure

@@ -126,7 +126,7 @@ func TestInvalidModuleSyntax(t *testing.T) {
 		{"module_no_name", "module"},
 		{"module_trailing_slash", "module Foo/"},
 		{"module_leading_slash", "module /Foo"},
-		{"module_double_slash", "module Foo//Bar"},
+		{"module_invalid_char", "module Foo@Bar"}, // Changed from //Bar (now valid comment)
 		{"import_no_name", "import"},
 		{"import_bare", "import Foo"}, // IMP012: namespace imports not supported
 		{"import_empty_parens", "import Foo ()"},

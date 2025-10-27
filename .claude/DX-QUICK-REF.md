@@ -562,6 +562,14 @@ DEBUG_PARSER=1 ailang run test.ail
 # Output: [ENTER parseExpression] cur=INT(42) peek=PLUS(+)
 #         [EXIT parseExpression] cur=INT(42) peek=PLUS(+)
 
+# Show delimiter matching and nesting (✅ NEW v0.3.21!)
+DEBUG_DELIMITERS=1 ailang run test.ail
+# Output: [DELIM_OPEN match] match { at 22:12 (depth=0)
+#         [DELIM_OPEN block]   block { at 23:20 (depth=1)
+#         [DELIM_CLOSE block]  block } at 35:5 (opened at 23:20, depth=1)
+#         [DELIM_CLOSE match] match } at 36:3 (opened at 22:12, depth=0)
+# Use for: Debugging nested match expressions, finding unmatched braces
+
 # Catch incomplete switch statements (v0.4.1+)
 DEBUG_STRICT=1 ailang run test.ail
 
@@ -621,7 +629,8 @@ grep "^func New" internal/testing/collector.go
 
 ---
 
-**Last updated**: 2025-10-26
+**Last updated**: 2025-10-27
+- v0.3.21: Delimiter tracer (`DEBUG_DELIMITERS=1`), enhanced error messages with context
 - M-DX9: Parser DX improvements (test helpers, DEBUG_PARSER, comprehensive guide)
 - M-TESTING DX: API discovery (`make doc`), common API patterns, error printing fixes
 

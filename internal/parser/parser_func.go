@@ -208,12 +208,14 @@ func (p *Parser) parseFunctionBody() ast.Expr {
 	// Continue parsing while we see semicolons
 	for p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to SEMICOLON
-		p.nextToken() // move past SEMICOLON
 
-		// Skip trailing semicolon before closing brace
-		if p.curTokenIs(lexer.RBRACE) {
+		// Check for trailing semicolon (next token is RBRACE)
+		// Don't advance past it so caller can consume the RBRACE
+		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
+
+		p.nextToken() // move past SEMICOLON
 
 		expr = p.parseExpression(LOWEST)
 		if expr != nil {
