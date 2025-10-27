@@ -859,7 +859,7 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.22)
+# AI Teaching Prompt (Latest: v0.3.23)
 
 # AILANG v0.3.22 - AI Teaching Prompt (Enhanced Error Messages + HTTP Early)
 
@@ -1232,7 +1232,7 @@ export func main() -> () ! {IO} =
 
 **Signature:** `print : string -> () ! {IO}`
 
-**What it does:** Prints a string to stdout (no newline added)
+**What it does:** Prints a string to stdout **with automatic newline** (don't concatenate `"\n"`!)
 
 **Where it's available:**
 - ✅ Entry modules (modules with `export func main` with 0 parameters)
@@ -1270,6 +1270,26 @@ export func main() -> () ! {IO} = {
   print("Line 2");
   print("Line 3")
 }
+```
+
+**❌ WRONG - Don't concatenate newlines (print already adds one!):**
+```ailang
+module benchmark/solution
+
+export func main() -> () ! {IO} = {
+  print("Fizz" ++ "\n")  -- ❌ Creates double newlines!
+}
+-- Output: "Fizz\n\n" (blank line after each print)
+```
+
+**✅ CORRECT - No manual newlines needed:**
+```ailang
+module benchmark/solution
+
+export func main() -> () ! {IO} = {
+  print("Fizz")  -- ✅ Automatic newline added
+}
+-- Output: "Fizz\n" (one newline only)
 ```
 
 ### Library Module Pattern
