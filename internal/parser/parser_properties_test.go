@@ -309,7 +309,7 @@ func TestParseProperties_NoProperties(t *testing.T) {
 
 	fn := file.Decls[0].(*ast.FuncDecl)
 
-	if fn.Properties != nil && len(fn.Properties) != 0 {
+	if len(fn.Properties) != 0 {
 		t.Errorf("expected no properties, got %d", len(fn.Properties))
 	}
 }

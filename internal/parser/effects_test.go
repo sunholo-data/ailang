@@ -185,7 +185,7 @@ func TestLambdaEffectAnnotationParsing(t *testing.T) {
 
 			// Check effects
 			if tt.expectedEffects == nil {
-				if lambda.Effects != nil && len(lambda.Effects) > 0 {
+				if len(lambda.Effects) > 0 {
 					t.Errorf("expected no effects, got %v", lambda.Effects)
 				}
 			} else {
@@ -274,7 +274,7 @@ func TestFunctionTypeEffectAnnotationParsing(t *testing.T) {
 
 			// Check effects
 			if tt.expectedEffects == nil {
-				if funcType.Effects != nil && len(funcType.Effects) > 0 {
+				if len(funcType.Effects) > 0 {
 					t.Errorf("expected no effects, got %v", funcType.Effects)
 				}
 			} else {

@@ -1,10 +1,7 @@
 run:
-  # Exclude scripts and examples/agents directories since they are standalone executables
-  skip-dirs:
-    - scripts
-    - examples/agents
-  skip-files:
-    - ".*_test.go"  # Optional: uncomment if you want to skip test files for some linters
+  timeout: 5m
+  tests: true
+  build-tags: []
   
 linters:
   enable:
@@ -15,7 +12,7 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - gofmt
+    # gofmt is checked separately via 'make fmt-check' to avoid caching issues
     - goimports
     - misspell
     - revive
@@ -63,17 +60,36 @@ issues:
         - typecheck
         - unused
         
-    # Exclude test files from some linters  
+    # Exclude test files from some linters
     - path: _test\.go
       linters:
         - dupl
         - gosec
+        - errcheck  # Test setup often intentionally ignores errors
         
     # Don't complain about unused test helpers
     - path: _test\.go
       text: "is unused"
       linters:
         - unused
+
+    # Allow empty branches in test code (often used for clarity or future TODOs)
+    - path: _test\.go
+      text: "SA9003: empty branch"
+      linters:
+        - staticcheck
+
+    # Allow possible nil dereferences in test code (tests check nil explicitly)
+    - path: _test\.go
+      text: "SA5011: possible nil pointer dereference"
+      linters:
+        - staticcheck
+
+    # Allow invalid variadic calls in tests (often testing error handling)
+    - path: _test\.go
+      text: "SA5012: variadic argument"
+      linters:
+        - staticcheck
 
     # Don't complain about unused functions in testutil.go (they're helper functions)
     - path: testutil\.go

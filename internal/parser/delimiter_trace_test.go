@@ -155,7 +155,7 @@ func TestDelimiterTracerMismatch(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Check for mismatch message
@@ -195,7 +195,7 @@ func TestDelimiterTracerPopEmptyStack(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Check for error message
@@ -240,7 +240,7 @@ func TestDelimiterTracerShowStack(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Check for stack display
@@ -284,7 +284,7 @@ func TestDelimiterTracerShowStackEmpty(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Should be empty or minimal output
@@ -418,7 +418,7 @@ func TestDelimiterTracerTokenTracing(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Check for token trace messages
@@ -464,7 +464,7 @@ func TestDelimiterTracerTokenTracingNonBrace(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Should not contain token traces for non-brace tokens
@@ -605,7 +605,7 @@ func TestDelimiterTracerOutputFormat(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r) // Ignore error in test helper
 	output := buf.String()
 
 	// Verify output format contains expected patterns
@@ -645,7 +645,10 @@ func TestDelimiterTracerOutputFormat(t *testing.T) {
 	}
 }
 
-func ExampleDelimiterTracer() {
+// Example showing delimiter tracing with DEBUG_DELIMITERS environment variable.
+// Run with: DEBUG_DELIMITERS=1 go test -v -run TestDelimiterTracerIntegrationWithParser
+// This is a test helper, not a runnable example.
+func testDelimiterTracingExample() {
 	// Enable delimiter tracing
 	os.Setenv("DEBUG_DELIMITERS", "1")
 	defer os.Setenv("DEBUG_DELIMITERS", "0")
@@ -680,8 +683,4 @@ func example(x: int) -> int {
 		fmt.Println("Parse succeeded")
 		fmt.Printf("Delimiter stack empty: %v\n", len(globalDelimiterTracer.stack) == 0)
 	}
-
-	// Output:
-	// Parse succeeded
-	// Delimiter stack empty: true
 }

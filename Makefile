@@ -107,11 +107,16 @@ install-lint:
 # Run linter (requires golangci-lint)
 lint:
 	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install golangci-lint'" && exit 1)
-	@# golangci-lint on specific directories (exclude examples/agents which has multiple main functions)
-	@for dir in $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents | sed 's|github.com/sunholo/ailang/||'); do \
-		golangci-lint run ./$$dir/... 2>/dev/null || true; \
-	done
+	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install-golangci-lint'" && exit 1)
+	@# Run golangci-lint (config excludes examples/agents via .golangci.yml)
+	@# Note: "(related information)" lines from staticcheck are just context, not actual errors
+	@# We check for real errors by filtering out those context lines
+	@golangci-lint run ./cmd/... ./internal/... ./testutil/... 2>&1 | tee /tmp/lint.out || true
+	@if grep -v "(related information)" /tmp/lint.out | grep -q "^internal\|^cmd\|^testutil"; then \
+		echo ""; \
+		echo "❌ Lint errors found (see above)"; \
+		exit 1; \
+	fi
 	@echo "Lint complete"
 
 # Download dependencies

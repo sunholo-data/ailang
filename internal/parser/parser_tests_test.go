@@ -427,7 +427,7 @@ func TestParseInlineTests_NoTests(t *testing.T) {
 	}
 
 	fn := file.Decls[0].(*ast.FuncDecl)
-	if fn.Tests != nil && len(fn.Tests) != 0 {
+	if len(fn.Tests) != 0 {
 		t.Fatalf("expected no tests, got %d", len(fn.Tests))
 	}
 }

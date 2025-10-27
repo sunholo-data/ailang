@@ -91,7 +91,7 @@ func main() {
 		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
 		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
-		testFlags.Parse(flag.Args()[1:])
+		_ = testFlags.Parse(flag.Args()[1:]) // Parse errors handled by flags package
 
 		if *helpTestFlag {
 			printTestHelp()
@@ -578,6 +578,7 @@ func runREPL(learn bool, trace bool) {
 	r.Start(os.Stdin, os.Stdout)
 }
 
+//nolint:unused // TODO: Implement test runner functionality
 func runTests(path string) {
 	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)
 
