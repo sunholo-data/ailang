@@ -105,9 +105,46 @@ ailang eval-analyze -results eval_results/baselines/v0.3.16 -dry-run
 - runtime_error frequency (crashes)
 - Which benchmarks fail most
 
-### Step 3: Deep Dive with Helper Scripts
+### Step 3: Query with jq (Custom Analysis)
 
-Use the provided helper scripts for detailed analysis:
+Use jq queries on summary.jsonl for custom analysis:
+
+```bash
+# Ensure summary exists
+ailang eval-summary eval_results/baselines/v0.3.20
+
+# AILANG-only success rate (all models)
+jq -s 'map(select(.lang == "ailang")) |
+  {total: length, success: (map(select(.stdout_ok == true)) | length),
+   rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
+  eval_results/baselines/v0.3.20/summary.jsonl
+
+# Dev models only (useful for prompt testing)
+jq -s 'map(select(.lang == "ailang" and
+  (.model == "gpt5-mini" or .model == "claude-haiku-4-5" or .model == "gemini-2-5-flash"))) |
+  {total: length, success: (map(select(.stdout_ok == true)) | length),
+   rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
+  eval_results/baselines/v0.3.20/summary.jsonl
+
+# Check specific benchmark across all models
+jq -s 'map(select(.benchmark == "explicit_state_threading" and .lang == "ailang")) |
+  map({model, success: .stdout_ok, error: .error_category})' \
+  eval_results/baselines/v0.3.20/summary.jsonl
+
+# Compare two versions (dev models AILANG-only)
+jq -s 'map(select(.lang == "ailang" and
+  (.model == "gpt5-mini" or .model == "claude-haiku-4-5" or .model == "gemini-2-5-flash"))) |
+  {total: length, success: (map(select(.stdout_ok == true)) | length),
+   rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
+  eval_results/baselines/v0.3.20/summary.jsonl \
+  eval_results/baselines/v0.3.21/summary.jsonl
+```
+
+**For more jq patterns**, see [`resources/jq_queries.md`](resources/jq_queries.md)
+
+### Step 4: Deep Dive with Helper Scripts
+
+Use the provided helper scripts for detailed code inspection:
 
 ```bash
 # Failure analysis with error categorization
@@ -119,8 +156,6 @@ Use the provided helper scripts for detailed analysis:
 # Examine specific benchmark failures
 .claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
 ```
-
-**For custom jq queries**, see [`resources/jq_queries.md`](resources/jq_queries.md)
 
 ### Step 4: Compare with Previous Version
 
