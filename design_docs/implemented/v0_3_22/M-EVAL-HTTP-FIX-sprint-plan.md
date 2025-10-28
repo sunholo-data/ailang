@@ -1,9 +1,16 @@
 # Sprint Plan: M-EVAL-HTTP - Fix HTTP/JSON Syntax Errors (75% AILANG Failure Rate)
 
+## Status: ✅ IMPLEMENTED (v0.3.17 + v0.3.22) | ❌ SUCCESS METRICS NOT ACHIEVED
+
+**Completed**: October 2025 (Milestones 1-2)
+**Validation**: v0.3.22 baseline run (Milestone 3)
+**Result**: Implementation complete, but AIs still failing at same rate
+**Actual Duration**: ~8 hours (Milestone 1: 6h, Milestone 2: 2h)
+
 ## Summary
 Reduce AI-generated HTTP/JSON syntax errors from 75% to <10% by enhancing parser error messages and improving prompt placement. The v0.3.21 prompt **already has HTTP examples** (line 218), but they appear too late for AIs to notice them before generating code.
 
-**Duration:** 2-3 days
+**Original Duration:** 2-3 days
 **Dependencies:** None - can start immediately
 **Risk Level:** Low (no language changes, only error messages + prompt reorganization)
 
@@ -309,3 +316,103 @@ Design doc estimated 4-6 hours, but includes:
 - **Minimum acceptable**: 50% → 75% (25pp improvement)
 - **Target**: 75% → 90% (15% residual failure acceptable)
 - **Stretch**: 75% → 100% (perfect, but unlikely due to API variance)
+
+---
+
+## Implementation Summary
+
+### What Was Built
+
+**Milestone 1: Enhanced Parser Errors** ✅ (v0.3.17, M-COMPILE-ERROR)
+- Enhanced ParserError with Suggestions field
+- Detection for 3 patterns:
+  1. JavaScript namespace imports: `import X from 'Y'` → IMP012_UNSUPPORTED_NAMESPACE
+  2. Const keyword: `const x = y` → PAR014
+  3. Bare assignment: `x = y` → PAR015
+- Files: `internal/parser/parser_error.go` (+30 LOC), `parser_decl.go` (+50 LOC)
+- Tests: 470 LOC (100% passing)
+- **Completed**: v0.3.17 (Oct 2025)
+
+**Milestone 2: Prompt Reorganization** ✅ (v0.3.22)
+- HTTP POST example moved from line 218 → line 107 (early position!)
+- Prompt title: "AI Teaching Prompt (Enhanced Error Messages + HTTP Early)"
+- Anti-pattern warnings in "Critical: What AILANG is NOT" section (lines 21-83)
+- Files: `prompts/v0.3.22.md` (new version)
+- **Completed**: Oct 27, 2025 (commit 1a8d322)
+
+**Milestone 3: Validation & Eval Baseline** ⏳ PARTIAL (v0.3.22)
+- Eval baseline run on Oct 27, 2025
+- Files exist: `eval_results/baselines/v0.3.22/api_call_json_*`
+- **Result**: FAILED - AIs still generating wrong syntax at ~same rate
+
+### Actual Results (v0.3.22 Eval Baseline)
+
+**Test Case**: `api_call_json` benchmark (dev models)
+
+**Example (gpt5-mini)**:
+```python
+# AI generated (STILL WRONG):
+url = "https://httpbin.org/post"  # ❌ Bare assignment (PAR015)
+headers = {"X-Test-Header": "value123", ...}  # ❌ Python dict syntax
+body = {"message": "Hello from AILANG", ...}  # ❌ Python dict syntax
+resp = http.post(url, headers=headers, json=body)  # ❌ Python OOP
+print(resp.status_code)
+```
+
+**Parser Errors (CORRECT)**: PAR015 with full suggestions shown
+**Self-Repair**: Attempted but FAILED (repair_ok=false)
+
+**Metrics**:
+- **Target**: 75% failure → <25% failure (50pp improvement)
+- **Actual**: ~100% failure (no improvement observed)
+- **compile_ok**: false (all tested models)
+- **repair_ok**: false (self-repair attempts failed)
+
+### Why It Didn't Work
+
+**Root Cause Analysis**:
+1. **Enhanced errors ARE working**: Parser detects patterns and shows suggestions
+2. **Prompt reorganization worked**: HTTP example is at line 107 (early!)
+3. **BUT AIs ignore both**: Still generate Python/JS syntax on first attempt
+4. **AND self-repair fails**: Even with error messages, AIs can't fix the code
+
+**Hypothesis**:
+- AIs default to Python/JS patterns regardless of prompt position
+- Error messages alone insufficient for self-repair
+- May require:
+  - More prominent anti-pattern warnings (red boxes, ALL CAPS)
+  - Simpler examples (less realistic HTTP code)
+  - Teaching prompts restructured around "DON'T" examples first
+  - Better self-repair prompts (not just parser errors)
+
+### Conclusion
+
+**Implementation Status**: ✅ COMPLETE
+- All code implemented and tested
+- All files modified as planned
+- Prompt reorganized successfully
+
+**Success Metrics**: ❌ NOT ACHIEVED
+- api_call_json still failing at ~100% rate
+- No measurable improvement from baseline
+- Self-repair still failing
+
+**Recommendation**:
+- Mark as "implemented but ineffective"
+- Consider alternative approaches:
+  - More aggressive prompt engineering (anti-patterns FIRST)
+  - Better self-repair loop (provide correct example in repair prompt)
+  - Simpler teaching examples (less realistic, more syntax-focused)
+  - Eval harness improvements (better repair prompts)
+
+**Files**:
+- Parser errors: v0.3.17 (M-COMPILE-ERROR)
+- Prompt: `prompts/v0.3.22.md`
+- Eval baseline: `eval_results/baselines/v0.3.22/`
+- Commit: 1a8d322 (Oct 27, 2025)
+
+---
+
+*Sprint completed: October 2025*
+*Success metrics: Not achieved*
+*Status: Implementation complete, efficacy unproven*
