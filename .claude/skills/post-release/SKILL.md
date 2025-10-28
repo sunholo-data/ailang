@@ -264,6 +264,39 @@ This outputs a ready-to-paste template with:
 **Comparison**: -15.2% AILANG regression from 0.3.14 (48.2% → 33.0%)
 ```
 
+### 4a. Analyze Agent Evaluation Results (NEW!)
+
+**Check agent efficiency metrics:**
+```bash
+# Get KPIs (turns, tokens, cost by language)
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/X.X.X
+```
+
+**Key metrics to track:**
+- **Avg Turns**: AILANG vs Python (target: ≤1.5x gap)
+- **Avg Tokens**: AILANG vs Python (target: ≤2.0x gap)
+- **Success Rate**: Both should be 100% (agent mode corrects mistakes)
+
+**If AILANG significantly worse than Python:**
+1. Identify expensive benchmarks (from "Most Expensive" section)
+2. View transcripts to understand issues: `.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/X.X.X <benchmark>`
+3. File optimization tasks for next release
+4. See [eval-analyzer skill's agent_optimization_guide.md](../.claude/skills/eval-analyzer/resources/agent_optimization_guide.md) for strategies
+
+**Example good result:**
+```
+🐍 Python: 10.6 avg turns, 58k tokens, 100% success
+🔷 AILANG: 12.0 avg turns, 72k tokens, 100% success
+Gap: 1.13x turns, 1.24x tokens ✅ (within target!)
+```
+
+**Example needs work:**
+```
+🐍 Python: 10.6 avg turns, 58k tokens, 100% success
+🔷 AILANG: 18.0 avg turns, 178k tokens, 100% success
+Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
+```
+
 ### 5. Update Design Docs
 
 - Move completed design docs from `design_docs/planned/` to `design_docs/implemented/vX_Y/`

@@ -11,14 +11,29 @@ Analyze AILANG evaluation baseline results to identify failure patterns, compare
 
 **Most common usage:**
 ```bash
-# User says: "Analyze the v0.3.16 eval results"
+# User says: "Analyze the v0.3.24 eval results"
 # This skill will:
-# 1. Run eval-analyze to categorize failures
-# 2. Generate summary with jq queries
-# 3. Identify top failing benchmarks
-# 4. Show model performance comparison
-# 5. Provide actionable recommendations
+# 1. Run eval-analyze to categorize failures (standard eval)
+# 2. Run agent KPIs to analyze efficiency (agent eval)
+# 3. Generate summary with jq queries
+# 4. Identify top failing benchmarks
+# 5. Show model performance comparison
+# 6. Provide optimization recommendations
 ```
+
+**For agent evaluation analysis** (NEW - optimization focus):
+```bash
+# Step 1: Get efficiency metrics (turns, tokens, cost)
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/v0.3.24
+
+# Step 2: Investigate expensive benchmarks
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/v0.3.24 simple_print
+
+# Step 3: Compare Python vs AILANG
+./tools/compare_agents.sh eval_results/baselines/v0.3.24
+```
+
+**See [`resources/agent_optimization_guide.md`](resources/agent_optimization_guide.md) for complete optimization strategies.**
 
 ## When to Use This Skill
 
