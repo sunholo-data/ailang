@@ -532,18 +532,28 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 	var actualPromptVersion string
 	if promptVersion != "" {
 		// Explicit version specified via --prompt-version flag
-		loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
-		if err != nil {
-			return false, fmt.Errorf("failed to create prompt loader: %w", err)
-		}
-		customPrompt, err := loader.LoadPrompt(promptVersion)
-		if err != nil {
-			return false, fmt.Errorf("failed to load prompt version: %w", err)
-		}
-		prompt = customPrompt
-		actualPromptVersion = promptVersion
-		if spec.TaskPrompt != "" {
-			prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+		if lang == "python" {
+			// Python always uses prompts/python.md (not versioned)
+			prompt = spec.PromptForLanguage("python")
+			actualPromptVersion = "python"
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		} else {
+			// AILANG uses versioned prompts from prompts/versions.json
+			loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+			if err != nil {
+				return false, fmt.Errorf("failed to create prompt loader: %w", err)
+			}
+			customPrompt, err := loader.LoadPrompt(promptVersion)
+			if err != nil {
+				return false, fmt.Errorf("failed to load prompt version: %w", err)
+			}
+			prompt = customPrompt
+			actualPromptVersion = promptVersion
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
 		}
 	} else {
 		// Try spec.PromptFiles first, then fall back to active version from registry

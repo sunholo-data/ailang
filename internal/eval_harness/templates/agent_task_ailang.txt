@@ -23,7 +23,7 @@ Expected output:
 
 1. **Run your solution:**
    ```
-   ailang run --entry main --caps {{CAPS}} solution.ail
+   ailang run --entry main --caps {{CAPS}} benchmark/solution.ail
    ```
 
 2. **Compare output carefully:**
