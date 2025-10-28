@@ -67,12 +67,18 @@ func runEvalSuite() {
 	agentModel := fs.String("agent-model", "haiku", "Claude model for agent (haiku, sonnet, opus, or full name)")
 	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
-	agentTimeout := fs.Int("agent-timeout", 300, "Timeout per benchmark in seconds (agent mode only)")
+	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 	agentMaxIterations := fs.Int("agent-iterations", 10, "Max agent iterations per benchmark (agent mode only)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Initialize models configuration
+	if err := eval_harness.InitModelsConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not load models.yml: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Continuing with fallback model lists\n")
 	}
 
 	// Determine model list
@@ -131,6 +137,43 @@ func runEvalSuite() {
 	}
 	for i := range langList {
 		langList[i] = strings.TrimSpace(langList[i])
+	}
+
+	// Filter models for agent mode
+	if *agent {
+		if eval_harness.GlobalModelsConfig == nil {
+			fmt.Fprintf(os.Stderr, "Error: models.yml not loaded, cannot determine agent support\n")
+			os.Exit(1)
+		}
+
+		// Filter to only models that support agent eval
+		originalModels := modelList
+		modelList = eval_harness.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
+
+		// Warn about skipped models
+		if len(modelList) < len(originalModels) {
+			skipped := []string{}
+			for _, model := range originalModels {
+				if !eval_harness.GlobalModelsConfig.SupportsAgentEval(model) {
+					skipped = append(skipped, model)
+				}
+			}
+			fmt.Fprintf(os.Stderr, "%s Agent mode: Skipping %d unsupported model(s): %v\n",
+				yellow("⚠️"), len(skipped), skipped)
+			fmt.Fprintf(os.Stderr, "   These models require CLI integration (not yet implemented)\n")
+			fmt.Fprintf(os.Stderr, "   Only Claude models support agent eval currently\n")
+			fmt.Println()
+		}
+
+		if len(modelList) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No models support agent evaluation\n")
+			fmt.Fprintf(os.Stderr, "Agent mode currently only supports Claude models (claude-sonnet-4-5, claude-haiku-4-5)\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Example:\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --models claude-haiku-4-5 --benchmarks fizzbuzz\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			os.Exit(1)
+		}
 	}
 
 	// Calculate total runs
@@ -215,9 +258,22 @@ func runEvalSuite() {
 	// Configure agent mode if requested
 	var agentConfig *eval_harness.AgentBenchmarkConfig
 	if *agent {
+		// Use --agent-model if provided (backward compatibility), otherwise use first model's agent_model_name
+		agentModelToUse := *agentModel
+		if agentModelToUse == "" && len(modelList) > 0 {
+			// Get agent model name from first model in list
+			if name, err := eval_harness.GlobalModelsConfig.GetAgentModelName(modelList[0]); err == nil {
+				agentModelToUse = name
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: Could not determine agent model name for %s: %v\n", modelList[0], err)
+				os.Exit(1)
+			}
+		}
+
 		fmt.Println()
-		fmt.Printf("%s Agent mode ENABLED (Claude Code headless)\n", cyan("🤖"))
-		fmt.Printf("  - Model: %s\n", *agentModel)
+		fmt.Printf("%s Agent mode ENABLED (Claude Code)\n", cyan("🤖"))
+		fmt.Printf("  - Models: %v\n", modelList)
+		fmt.Printf("  - Agent CLI model: %s\n", agentModelToUse)
 		fmt.Printf("  - Parallel sessions: %d\n", *agentMaxConcurrent)
 		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
 		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
@@ -231,8 +287,8 @@ func runEvalSuite() {
 			MaxIterations:     *agentMaxIterations,
 			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
 			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-			ClaudePath:        "claude",      // Use PATH
-			ClaudeModel:       *agentModel,   // haiku, sonnet, opus, or full name
+			ClaudePath:        "claude",         // Use PATH
+			ClaudeModel:       agentModelToUse,  // Get from models.yml
 		}
 	}
 

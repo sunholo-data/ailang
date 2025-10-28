@@ -15,6 +15,7 @@ Expected output:
 - Write your solution to: **{{SOLUTION_PATH}}**
 - Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
 - Read {{SOLUTION_PATH}} file first so you know the template to write to
+- If your solution is impossible due to Python language limitations - stop and report
 
 ## Verification Steps (REQUIRED!)
 
