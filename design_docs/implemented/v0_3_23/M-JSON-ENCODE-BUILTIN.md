@@ -1,9 +1,9 @@
 # M-JSON-ENCODE: Implement Missing JSON Encode Builtin
 
-**Status**: Planned
-**Target**: v0.3.23
+**Status**: ✅ Implemented (v0.3.23)
+**Completed**: October 2025
 **Priority**: P0 (Critical - Blocks api_call_json benchmark)
-**Estimated**: 4-6 hours
+**Actual Time**: ~4 hours (as estimated)
 
 ## Problem Statement
 
@@ -389,6 +389,44 @@ let jsonString = encode(payload)  -- ✓ Returns: {"message":"Hello","count":42}
 
 ---
 
+## Implementation Summary
+
+**Completed**: October 2025 (v0.3.23)
+
+**What Was Built**:
+1. **Core Implementation**: `internal/builtins/json_encode.go` (~270 LOC)
+   - Type signature: `Json -> string`
+   - RFC 8259 compliant string escaping
+   - Efficient number formatting (removes unnecessary decimals)
+   - Recursive encoding for nested structures
+
+2. **Test Coverage**: `internal/builtins/json_encode_test.go` (~390 LOC, 27 tests)
+   - All JSON types (null, bool, number, string, array, object)
+   - String escaping (quotes, backslashes, control chars, unicode)
+   - Edge cases (empty arrays/objects, nested structures)
+   - Roundtrip tests: `decode(encode(x)) == Ok(x)`
+   - **100% passing** ✅
+
+3. **Integration**: `std/json.ail`
+   - Uncommented `encode()` function (lines 19-21)
+   - Works with helper functions: `jo()`, `kv()`, `js()`, `jnum()`, etc.
+
+**Verification**:
+```bash
+$ ailang builtins list --by-module | grep "std/json"
+# std/json (2)
+  _json_decode                   [pure]
+  _json_encode                   [pure]  ← NEW!
+
+$ go test ./internal/builtins -run TestJSON
+PASS
+ok  	github.com/sunholo/ailang/internal/builtins	0.206s
+```
+
+**Impact**: Unblocked `api_call_json` benchmark - AIs can now use JSON encoding in AILANG programs!
+
+---
+
 *Created: 2025-10-27*
-*Blocks: M-EVAL-HTTP-FIX Milestone 3 completion*
-*Priority: P0 - Critical blocker for API benchmarks*
+*Implemented: October 2025*
+*Version: v0.3.23*
