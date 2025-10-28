@@ -369,12 +369,14 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	agentSuccessCount := 0
 	totalAgentTurns := 0
 	agentTotalTokens := 0
+	totalAgentCost := 0.0
 	for _, r := range agentResults {
 		if r.StdoutOk {
 			agentSuccessCount++
 		}
 		totalAgentTurns += r.AgentTurns
 		agentTotalTokens += r.TotalTokens
+		totalAgentCost += r.CostUSD
 	}
 
 	avgAgentTurns := 0.0
@@ -385,6 +387,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	agentSuccessRate := 0.0
 	if len(agentResults) > 0 {
 		agentSuccessRate = float64(agentSuccessCount) / float64(len(agentResults))
+	}
+
+	avgAgentCost := 0.0
+	if len(agentResults) > 0 {
+		avgAgentCost = totalAgentCost / float64(len(agentResults))
 	}
 
 	// Convert aggregates to camelCase for JavaScript
@@ -401,6 +408,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"agentSuccessRate": agentSuccessRate,
 		"avgAgentTurns":    avgAgentTurns,
 		"agentTotalTokens": agentTotalTokens,
+		"avgAgentCost":     avgAgentCost,
 	}
 
 	// Group results by benchmark ID and language for code samples and stats
@@ -525,6 +533,26 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		benchmarksJS[id] = benchmark
 	}
 
+	// Calculate per-model agent statistics
+	modelAgentStats := make(map[string]struct {
+		runs        int
+		success     int
+		totalTurns  int
+		totalTokens int
+		totalCost   float64
+	})
+	for _, r := range agentResults {
+		stats := modelAgentStats[r.Model]
+		stats.runs++
+		if r.StdoutOk {
+			stats.success++
+		}
+		stats.totalTurns += r.AgentTurns
+		stats.totalTokens += r.TotalTokens
+		stats.totalCost += r.CostUSD
+		modelAgentStats[r.Model] = stats
+	}
+
 	// Convert models to camelCase for JavaScript (nested aggregates)
 	modelsJS := make(map[string]interface{})
 	for name, stats := range matrix.Models {
@@ -569,7 +597,43 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			}
 			modelData["benchmarks"] = benchBreakdown
 		}
+		// Add agent-specific stats for this model
+		if agentStats, ok := modelAgentStats[name]; ok && agentStats.runs > 0 {
+			modelData["agentStats"] = map[string]interface{}{
+				"runs":        agentStats.runs,
+				"successRate": float64(agentStats.success) / float64(agentStats.runs),
+				"avgTurns":    float64(agentStats.totalTurns) / float64(agentStats.runs),
+				"avgTokens":   float64(agentStats.totalTokens) / float64(agentStats.runs),
+				"avgCost":     agentStats.totalCost / float64(agentStats.runs),
+			}
+		}
 		modelsJS[name] = modelData
+	}
+
+	// Add agent-only models (models that ran agents but not standard evals)
+	for modelName, agentStats := range modelAgentStats {
+		if _, exists := modelsJS[modelName]; !exists && agentStats.runs > 0 {
+			// Create minimal model entry with only agent stats
+			modelsJS[modelName] = map[string]interface{}{
+				"totalRuns": 0, // No standard runs
+				"aggregates": map[string]interface{}{
+					"zeroShotSuccess":   0.0,
+					"finalSuccess":      0.0,
+					"repairUsed":        0,
+					"repairSuccessRate": 0.0,
+					"totalTokens":       0,
+					"totalCostUSD":      0.0,
+					"avgDurationMs":     0.0,
+				},
+				"agentStats": map[string]interface{}{
+					"runs":        agentStats.runs,
+					"successRate": float64(agentStats.success) / float64(agentStats.runs),
+					"avgTurns":    float64(agentStats.totalTurns) / float64(agentStats.runs),
+					"avgTokens":   float64(agentStats.totalTokens) / float64(agentStats.runs),
+					"avgCost":     agentStats.totalCost / float64(agentStats.runs),
+				},
+			}
+		}
 	}
 
 	// Transform history to include calculated success rates and per-language breakdown

@@ -1,0 +1,156 @@
+{
+  "files": [
+    {
+      "file": "llms.txt",
+      "stats": {
+        "total_words": 7913,
+        "unique_words": 1422,
+        "average_word_length": 5.069,
+        "top_words": [
+          {
+            "word": "ailang",
+            "count": 170
+          },
+          {
+            "word": "io",
+            "count": 141
+          },
+          {
+            "word": "x",
+            "count": 136
+          },
+          {
+            "word": "func",
+            "count": 136
+          },
+          {
+            "word": "ail",
+            "count": 134
+          },
+          {
+            "word": "export",
+            "count": 113
+          },
+          {
+            "word": "int",
+            "count": 111
+          },
+          {
+            "word": "println",
+            "count": 94
+          },
+          {
+            "word": "let",
+            "count": 89
+          },
+          {
+            "word": "3",
+            "count": 85
+          }
+        ]
+      }
+    },
+    {
+      "file": "input.txt",
+      "stats": {
+        "total_words": 9,
+        "unique_words": 9,
+        "average_word_length": 1.222,
+        "top_words": [
+          {
+            "word": "1",
+            "count": 1
+          },
+          {
+            "word": "2",
+            "count": 1
+          },
+          {
+            "word": "3",
+            "count": 1
+          },
+          {
+            "word": "4",
+            "count": 1
+          },
+          {
+            "word": "5",
+            "count": 1
+          },
+          {
+            "word": "abc",
+            "count": 1
+          },
+          {
+            "word": "6",
+            "count": 1
+          },
+          {
+            "word": "7",
+            "count": 1
+          },
+          {
+            "word": "8",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "coverage.txt",
+      "stats": {
+        "total_words": 2,
+        "unique_words": 2,
+        "average_word_length": 1.5,
+        "top_words": [
+          {
+            "word": "35",
+            "count": 1
+          },
+          {
+            "word": "3",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "output.txt",
+      "stats": {
+        "total_words": 16,
+        "unique_words": 7,
+        "average_word_length": 4.688,
+        "top_words": [
+          {
+            "word": "squared",
+            "count": 4
+          },
+          {
+            "word": "even",
+            "count": 4
+          },
+          {
+            "word": "number",
+            "count": 4
+          },
+          {
+            "word": "4",
+            "count": 1
+          },
+          {
+            "word": "16",
+            "count": 1
+          },
+          {
+            "word": "36",
+            "count": 1
+          },
+          {
+            "word": "64",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ]
+}

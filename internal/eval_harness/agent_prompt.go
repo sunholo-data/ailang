@@ -35,7 +35,6 @@ func GenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, synta
 	// Replace placeholders
 	template = strings.ReplaceAll(template, "{{CAPS}}", strings.Join(spec.Caps, ","))
 	template = strings.ReplaceAll(template, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
-	template = strings.ReplaceAll(template, "{{MAX_ITERATIONS}}", fmt.Sprintf("%d", config.MaxIterations))
 
 	return template
 }
@@ -79,7 +78,6 @@ func getDefaultAILANGTemplate() string {
 ## Constraints
 
 - Timeout: {{TIMEOUT}} seconds
-- Max iterations: {{MAX_ITERATIONS}}
 - Solution must be in solution.ail (not inline or in comments)
 
 ## Tools Available
@@ -301,7 +299,6 @@ func getDefaultPythonTemplate() string {
 ## Constraints
 
 - Timeout: {{TIMEOUT}} seconds
-- Max iterations: {{MAX_ITERATIONS}}
 - Solution must be in solution.py (not inline or in comments)
 
 ## Tools Available

@@ -18,7 +18,6 @@ type AgentBenchmarkConfig struct {
 	MaxConcurrent     int      // Max parallel Claude sessions
 	RequestsPerSecond int      // API rate limit
 	TimeoutSeconds    int      // Timeout per benchmark
-	MaxIterations     int      // Max agent iterations
 	WorkspaceDir      string   // Base workspace directory
 	AllowedTools      []string // Tools agent can use
 	ClaudePath        string   // Path to claude CLI
@@ -31,7 +30,6 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 		MaxConcurrent:     10,
 		RequestsPerSecond: 1, // Conservative for API quotas
 		TimeoutSeconds:    300,
-		MaxIterations:     10,
 		WorkspaceDir:      "/tmp/ailang_eval",
 		AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
 		ClaudePath:        "claude",  // Use PATH

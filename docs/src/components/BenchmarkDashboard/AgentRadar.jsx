@@ -132,6 +132,12 @@ export default function AgentRadar({ data }) {
           </div>
           <div className={styles.statLabel}>Total Tokens</div>
         </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>
+            ${(data.aggregates.avgAgentCost || 0).toFixed(3)}
+          </div>
+          <div className={styles.statLabel}>Avg Cost</div>
+        </div>
       </div>
 
       <div className={styles.agentNotes}>

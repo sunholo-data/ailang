@@ -98,6 +98,83 @@ for lang in python ailang; do
     echo ""
 done
 
+# Per-model breakdown
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🤖 KPIs by Model (Agent CLI used for code generation)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Get unique models
+models=$(find "$RESULTS_DIR" -name "*.json" -type f -exec jq -r 'select(.eval_mode == "agent") | .model' {} \; | sort -u)
+
+for model in $models; do
+    model_files=$(find "$RESULTS_DIR" -name "*_${model}_*.json" -type f)
+
+    if [[ -z "$model_files" ]]; then
+        continue
+    fi
+
+    echo "📱 $model"
+
+    for lang in ailang python; do
+        lang_model_files=$(find "$RESULTS_DIR" -name "*_${lang}_${model}_*.json" -type f)
+
+        if [[ -z "$lang_model_files" ]]; then
+            continue
+        fi
+
+        # Calculate aggregate stats
+        total_turns=0
+        total_tokens=0
+        total_cost=0
+        success_count=0
+        count=0
+
+        for file in $lang_model_files; do
+            eval_mode=$(jq -r '.eval_mode // ""' "$file")
+            if [[ "$eval_mode" != "agent" ]]; then
+                continue
+            fi
+
+            turns=$(jq -r '.agent_turns // 0' "$file")
+            tokens=$(jq -r '.total_tokens // 0' "$file")
+            cost=$(jq -r '.cost_usd // 0' "$file")
+            success=$(jq -r '(.compile_ok and .runtime_ok and .stdout_ok)' "$file")
+
+            total_turns=$((total_turns + turns))
+            total_tokens=$((total_tokens + tokens))
+            total_cost=$(echo "$total_cost + $cost" | bc -l)
+            count=$((count + 1))
+
+            if [[ "$success" == "true" ]]; then
+                success_count=$((success_count + 1))
+            fi
+        done
+
+        if [[ $count -eq 0 ]]; then
+            continue
+        fi
+
+        # Calculate averages
+        avg_turns=$(echo "scale=1; $total_turns / $count" | bc -l)
+        avg_tokens=$(echo "scale=0; $total_tokens / $count" | bc -l)
+        avg_cost=$(echo "scale=4; $total_cost / $count" | bc -l)
+        success_rate=$(echo "scale=1; $success_count * 100 / $count" | bc -l)
+
+        # Display per-model per-language stats
+        if [[ "$lang" == "python" ]]; then
+            lang_icon="🐍"
+        else
+            lang_icon="🔷"
+        fi
+
+        printf "   %s %-8s: %4.1f turns, %6s tokens, \$%.4f/bench, %.0f%% success (%d/%d)\n" \
+            "$lang_icon" "$lang" "$avg_turns" "$avg_tokens" "$avg_cost" "$success_rate" "$success_count" "$count"
+    done
+
+    echo ""
+done
+
 # Top 5 most expensive benchmarks (by turns)
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "⏱️  Most Expensive (by turns - candidates for optimization)"

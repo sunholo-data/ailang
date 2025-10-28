@@ -154,6 +154,23 @@ func CategorizeErrorWithCode(code, stderr string) (ErrCode, *RepairHint) {
 	return CategorizeErrorCode(stderr)
 }
 
+// ValidatePythonCode checks if Python code accidentally contains AILANG syntax
+// Returns error code and hint if AILANG syntax detected, otherwise returns ("", nil)
+func ValidatePythonCode(code string) (ErrCode, *RepairHint) {
+	// AILANG-specific patterns that should NEVER appear in Python code
+	ailangPatterns := regexp.MustCompile(`(?m)(^module\s+|^export\s+func\s+|!\s*\{IO\}|!\s*\{FS\}|!\s*\{Net\}|match\s+\w+\s+\{|\bmatch\s+\w+\s+with\b)`)
+
+	if ailangPatterns.MatchString(code) {
+		return WRONG_LANG, &RepairHint{
+			Title: "AILANG syntax in Python code",
+			Why:   "Generated AILANG code instead of Python. Keywords like 'module', 'export func', '! {IO}', 'match' are AILANG-specific.",
+			How:   "Rewrite using Python syntax: Use 'def' for functions, 'import' for modules, no effect annotations, no pattern matching with 'match' keyword (use if/elif or match statement in Python 3.10+). Start with 'def main():' not 'export func main()'.",
+		}
+	}
+
+	return "", nil
+}
+
 // FormatRepairPrompt creates the repair guidance injection for retry attempts.
 // This prompt is appended to the original benchmark prompt to guide the AI
 // toward fixing the specific error that occurred.

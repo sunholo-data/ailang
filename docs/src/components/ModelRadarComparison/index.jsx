@@ -143,9 +143,30 @@ export default function ModelRadarComparison() {
           <p className={styles.subtitle}>How close is AILANG to Python baseline?</p>
           <ResponsiveContainer width="100%" height={350}>
             <RadarChart data={radarData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="model" />
-              <PolarRadiusAxis angle={90} domain={[-50, 50]} />
+              <PolarGrid
+                stroke="var(--ifm-color-emphasis-300)"
+                radialLines={true}
+                gridType="polygon"
+              />
+              <PolarAngleAxis
+                dataKey="model"
+                tick={{ fill: 'var(--ifm-color-emphasis-800)', fontSize: 11 }}
+              />
+              <PolarRadiusAxis
+                angle={90}
+                domain={[-50, 50]}
+                tick={{
+                  fill: 'var(--ifm-color-emphasis-700)',
+                  fontSize: 10
+                }}
+                tickFormatter={(value) => {
+                  // Format to 1 decimal place, emphasize 0
+                  const formatted = value.toFixed(1);
+                  return formatted;
+                }}
+                ticks={[-50, -25, 0, 25, 50]}
+                axisLine={{ stroke: 'var(--ifm-color-emphasis-700)', strokeWidth: 2 }}
+              />
               <Tooltip formatter={formatTooltip} />
               <Legend />
               <Radar
@@ -168,7 +189,7 @@ export default function ModelRadarComparison() {
             </RadarChart>
           </ResponsiveContainer>
           <div className={styles.chartNote}>
-            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue.
+            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The outer edge (0%) represents parity with Python.
           </div>
         </div>
 

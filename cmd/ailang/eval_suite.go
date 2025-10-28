@@ -64,11 +64,10 @@ func runEvalSuite() {
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code headless mode)")
-	agentModel := fs.String("agent-model", "haiku", "Claude model for agent (haiku, sonnet, opus, or full name)")
+	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
 	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
-	agentMaxIterations := fs.Int("agent-iterations", 10, "Max agent iterations per benchmark (agent mode only)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -276,37 +275,31 @@ func runEvalSuite() {
 	// Configure agent mode if requested
 	var agentConfig *eval_harness.AgentBenchmarkConfig
 	if *agent {
-		// Use --agent-model if provided (backward compatibility), otherwise use first model's agent_model_name
-		agentModelToUse := *agentModel
-		if agentModelToUse == "" && len(modelList) > 0 {
-			// Get agent model name from first model in list
-			if name, err := eval_harness.GlobalModelsConfig.GetAgentModelName(modelList[0]); err == nil {
-				agentModelToUse = name
-			} else {
-				fmt.Fprintf(os.Stderr, "Error: Could not determine agent model name for %s: %v\n", modelList[0], err)
-				os.Exit(1)
-			}
-		}
+		// Agent CLI model will be determined per-job based on the code generation model
+		// (unless --agent-model is explicitly provided as override)
+		agentModelOverride := *agentModel
 
 		fmt.Println()
 		fmt.Printf("%s Agent mode ENABLED (Claude Code)\n", cyan("🤖"))
 		fmt.Printf("  - Models: %v\n", modelList)
-		fmt.Printf("  - Agent CLI model: %s\n", agentModelToUse)
+		if agentModelOverride != "" {
+			fmt.Printf("  - Agent CLI model: %s (override)\n", agentModelOverride)
+		} else {
+			fmt.Printf("  - Agent CLI model: per-model lookup from models.yml\n")
+		}
 		fmt.Printf("  - Parallel sessions: %d\n", *agentMaxConcurrent)
 		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
 		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
-		fmt.Printf("  - Max iterations: %d\n", *agentMaxIterations)
 		fmt.Println()
 
 		agentConfig = &eval_harness.AgentBenchmarkConfig{
 			MaxConcurrent:     *agentMaxConcurrent,
 			RequestsPerSecond: *agentRequestsPerSecond,
 			TimeoutSeconds:    *agentTimeout,
-			MaxIterations:     *agentMaxIterations,
 			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
 			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-			ClaudePath:        "claude",         // Use PATH
-			ClaudeModel:       agentModelToUse,  // Get from models.yml
+			ClaudePath:        "claude", // Use PATH
+			ClaudeModel:       agentModelOverride, // Empty unless override specified
 		}
 	}
 
@@ -461,6 +454,15 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		sessionConfig := *agentConfig // Copy base config
 		sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
 
+		// Look up agent model for this specific code generation model (if not overridden)
+		if sessionConfig.ClaudeModel == "" {
+			agentModelName, err := eval_harness.GlobalModelsConfig.GetAgentModelName(model)
+			if err != nil {
+				return false, fmt.Errorf("could not determine agent model for %s: %w", model, err)
+			}
+			sessionConfig.ClaudeModel = agentModelName
+		}
+
 		result, err := eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
 		if err != nil {
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
@@ -534,7 +536,11 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		// Explicit version specified via --prompt-version flag
 		if lang == "python" {
 			// Python always uses prompts/python.md (not versioned)
-			prompt = spec.PromptForLanguage("python")
+			pythonPromptData, err := os.ReadFile("prompts/python.md")
+			if err != nil {
+				return false, fmt.Errorf("failed to load Python prompt: %w", err)
+			}
+			prompt = string(pythonPromptData)
 			actualPromptVersion = "python"
 			if spec.TaskPrompt != "" {
 				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
@@ -556,21 +562,35 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			}
 		}
 	} else {
-		// Try spec.PromptFiles first, then fall back to active version from registry
-		prompt = spec.PromptForLanguage(lang)
-		if prompt == "" && lang == "ailang" {
-			// No prompt in spec, use active version from registry
-			loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+		// No explicit prompt version specified
+		if lang == "python" {
+			// Python always uses prompts/python.md (not versioned)
+			pythonPromptData, err := os.ReadFile("prompts/python.md")
 			if err != nil {
-				return false, fmt.Errorf("failed to create prompt loader: %w", err)
+				return false, fmt.Errorf("failed to load Python prompt: %w", err)
 			}
-			activePrompt, err := loader.GetActivePrompt()
-			if err != nil {
-				return false, fmt.Errorf("failed to load active prompt: %w", err)
+			prompt = string(pythonPromptData)
+			actualPromptVersion = "python"
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 			}
-			prompt = activePrompt
-			// Track the actual version used from registry
-			actualPromptVersion = loader.GetActiveVersionID()
+		} else {
+			// AILANG: Try spec.PromptFiles first, then fall back to active version from registry
+			prompt = spec.PromptForLanguage(lang)
+			if prompt == "" {
+				// No prompt in spec, use active version from registry
+				loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+				if err != nil {
+					return false, fmt.Errorf("failed to create prompt loader: %w", err)
+				}
+				activePrompt, err := loader.GetActivePrompt()
+				if err != nil {
+					return false, fmt.Errorf("failed to load active prompt: %w", err)
+				}
+				prompt = activePrompt
+				// Track the actual version used from registry
+				actualPromptVersion = loader.GetActiveVersionID()
+			}
 			if spec.TaskPrompt != "" {
 				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 			}
