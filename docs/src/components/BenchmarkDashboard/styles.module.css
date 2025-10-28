@@ -652,3 +652,77 @@
   background: var(--ifm-color-primary-darkest);
   border-left-color: var(--ifm-color-primary-light);
 }
+
+/* Agent Evaluation Styles */
+.agentStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.statCard {
+  text-align: center;
+  padding: 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agentNotes {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--ifm-color-info-contrast-background);
+  border-left: 4px solid var(--ifm-color-info);
+  border-radius: 4px;
+}
+
+.agentNotes p {
+  margin: 0.5rem 0;
+}
+
+.agentNotes strong {
+  color: var(--ifm-color-info-dark);
+}
+
+.noData {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.noDataHint {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-500);
+  margin-top: 0.5rem;
+}
+
+[data-theme='dark'] .statCard {
+  background: var(--ifm-color-emphasis-200);
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .agentNotes {
+  background: var(--ifm-color-info-dark);
+  border-left-color: var(--ifm-color-info-light);
+}
+
+@media (max-width: 768px) {
+  .agentStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

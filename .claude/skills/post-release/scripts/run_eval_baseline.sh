@@ -31,21 +31,57 @@ else
 fi
 echo
 
-# Run baseline (pass version exactly as given)
+# Step 1: Run standard eval baseline (pass version exactly as given)
+echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
 if [[ -n "$FULL_FLAG" ]]; then
     make eval-baseline EVAL_VERSION="$VERSION" FULL=true
 else
     make eval-baseline EVAL_VERSION="$VERSION"
 fi
 
-# Show results location (tools/eval_baseline.sh uses VERSION as-is)
+# Step 2: Run agent eval on curated benchmarks
+echo
+echo "=== Step 2/2: Agent Eval (multi-turn) ==="
+echo "Running agent eval on curated benchmarks..."
+echo "Benchmarks: fizzbuzz, recursion_factorial, simple_print, record_update, recursion_fibonacci"
+echo
+
 RESULTS_DIR="eval_results/baselines/$VERSION"
+
+# Agent eval uses haiku/sonnet models based on --full flag
+if [[ -n "$FULL_FLAG" ]]; then
+    # Full mode: run both haiku and sonnet (via --full, auto-filtered from extended_suite)
+    echo "Mode: FULL (haiku + sonnet via --full flag)"
+    ailang eval-suite --agent --full \
+        --benchmarks fizzbuzz,recursion_factorial,simple_print,record_update,recursion_fibonacci \
+        --langs ailang,python \
+        --agent-parallel 1 \
+        --agent-timeout 60 \
+        --output "$RESULTS_DIR" \
+        --prompt-version v0.3.23
+else
+    # Dev mode: haiku only (default dev_models, auto-filtered to Claude only)
+    echo "Mode: DEV (haiku only via dev_models)"
+    ailang eval-suite --agent \
+        --benchmarks fizzbuzz,recursion_factorial,simple_print,record_update,recursion_fibonacci \
+        --langs ailang,python \
+        --agent-parallel 1 \
+        --agent-timeout 60 \
+        --output "$RESULTS_DIR" \
+        --prompt-version v0.3.23
+fi
+
+# Show combined results
+echo
 if [[ -d "$RESULTS_DIR" ]]; then
-    FILE_COUNT=$(find "$RESULTS_DIR" -name "*.json" | wc -l | tr -d ' ')
-    echo
+    STANDARD_COUNT=$(find "$RESULTS_DIR/standard" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
+    AGENT_COUNT=$(find "$RESULTS_DIR/agent" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
+    TOTAL_COUNT=$((STANDARD_COUNT + AGENT_COUNT))
     echo "✓ Baseline complete"
     echo "  Results: $RESULTS_DIR"
-    echo "  Files: $FILE_COUNT result files"
+    echo "  Standard eval: $STANDARD_COUNT files"
+    echo "  Agent eval: $AGENT_COUNT files"
+    echo "  Total: $TOTAL_COUNT files"
 else
     echo "✗ Results directory not found: $RESULTS_DIR" >&2
     exit 1

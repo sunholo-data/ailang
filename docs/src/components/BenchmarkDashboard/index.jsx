@@ -5,6 +5,7 @@ import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
+import AgentRadar from './AgentRadar';
 import styles from './styles.module.css';
 
 export default function BenchmarkDashboard() {
@@ -154,6 +155,11 @@ export default function BenchmarkDashboard() {
           <ModelTokenChart models={models} />
         </div>
       )}
+
+      {/* Agent Evaluation Radar */}
+      <div className={styles.section}>
+        <AgentRadar data={data} />
+      </div>
 
       {/* Success Trend */}
       {history && history.length > 1 && (

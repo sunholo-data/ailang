@@ -227,10 +227,28 @@ func runEvalSuite() {
 				// Check if result already exists (if resuming)
 				if *skipExisting {
 					// Result filename format: benchmarkID_lang_model_timestamp.json
-					// We check for any file matching the pattern (ignoring timestamp)
-					pattern := filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model))
-					matches, _ := filepath.Glob(pattern)
-					if len(matches) > 0 {
+					// Check in appropriate subdirectory based on eval mode
+					var patterns []string
+					if *agent {
+						// Agent mode: check agent/ subdirectory
+						patterns = append(patterns, filepath.Join(*outputDir, "agent", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+					} else {
+						// Standard mode: check standard/ subdirectory
+						patterns = append(patterns, filepath.Join(*outputDir, "standard", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+					}
+					// Also check root directory for legacy results
+					patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+
+					foundExisting := false
+					for _, pattern := range patterns {
+						matches, _ := filepath.Glob(pattern)
+						if len(matches) > 0 {
+							foundExisting = true
+							break
+						}
+					}
+
+					if foundExisting {
 						skippedCount++
 						continue // Skip this job
 					}
@@ -482,6 +500,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			// Store agent KPI metrics (turns, transcript) for comparison with standard mode
 			AgentTurns:      result.NumTurns,
 			AgentTranscript: result.SessionLog,
+			EvalMode:        eval_harness.EvalModeAgent, // Mark as agent evaluation
 		}
 
 		// Append transcript to stderr for backward compatibility with existing tools

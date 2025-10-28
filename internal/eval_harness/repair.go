@@ -36,6 +36,7 @@ func (r *RepairRunner) SetPromptVersion(version string) {
 func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, error) {
 	metrics := NewRunMetrics(r.spec.ID, r.runner.Language(), r.agent.friendlyName, r.agent.seed)
 	metrics.PromptVersion = r.promptVersion // Track prompt version for A/B testing
+	metrics.EvalMode = EvalModeStandard     // Mark as standard evaluation (0-shot + self-repair)
 
 	// First attempt
 	firstResult, err := r.runSingleAttempt(ctx, prompt)

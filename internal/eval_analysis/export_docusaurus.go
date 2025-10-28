@@ -354,6 +354,39 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	if err != nil {
 		return "", fmt.Errorf("failed to load existing dashboard: %w", err)
 	}
+	// Separate standard vs agent results for different metrics
+	var standardResults, agentResults []*BenchmarkResult
+	for _, r := range results {
+		if r.EvalMode == "agent" {
+			agentResults = append(agentResults, r)
+		} else {
+			// Default to standard if eval_mode not set (legacy results)
+			standardResults = append(standardResults, r)
+		}
+	}
+
+	// Calculate agent-specific metrics
+	agentSuccessCount := 0
+	totalAgentTurns := 0
+	agentTotalTokens := 0
+	for _, r := range agentResults {
+		if r.StdoutOk {
+			agentSuccessCount++
+		}
+		totalAgentTurns += r.AgentTurns
+		agentTotalTokens += r.TotalTokens
+	}
+
+	avgAgentTurns := 0.0
+	if len(agentResults) > 0 {
+		avgAgentTurns = float64(totalAgentTurns) / float64(len(agentResults))
+	}
+
+	agentSuccessRate := 0.0
+	if len(agentResults) > 0 {
+		agentSuccessRate = float64(agentSuccessCount) / float64(len(agentResults))
+	}
+
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
 		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
@@ -363,6 +396,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"totalTokens":       matrix.Aggregates.TotalTokens,
 		"totalCostUSD":      matrix.Aggregates.TotalCostUSD,
 		"avgDurationMs":     matrix.Aggregates.AvgDurationMs,
+		// Agent metrics (M-EVAL-AGENT)
+		"agentRuns":        len(agentResults),
+		"agentSuccessRate": agentSuccessRate,
+		"avgAgentTurns":    avgAgentTurns,
+		"agentTotalTokens": agentTotalTokens,
 	}
 
 	// Group results by benchmark ID and language for code samples and stats
@@ -397,6 +435,33 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 		// Use output tokens (not total)
 		stats.AvgTokens = (stats.AvgTokens*float64(stats.TotalRuns-1) + float64(r.OutputTokens)) / float64(stats.TotalRuns)
+	}
+
+	// Collect agent-specific stats per benchmark+language
+	agentBenchStats := make(map[string]map[string]struct {
+		runs    int
+		success int
+		turns   int
+		tokens  int
+	}) // benchmarkID -> language -> stats
+
+	for _, r := range agentResults {
+		if agentBenchStats[r.ID] == nil {
+			agentBenchStats[r.ID] = make(map[string]struct {
+				runs    int
+				success int
+				turns   int
+				tokens  int
+			})
+		}
+		stats := agentBenchStats[r.ID][r.Lang]
+		stats.runs++
+		if r.StdoutOk {
+			stats.success++
+		}
+		stats.turns += r.AgentTurns
+		stats.tokens += r.TotalTokens
+		agentBenchStats[r.ID][r.Lang] = stats
 	}
 
 	// Convert benchmarks to camelCase for JavaScript
@@ -438,6 +503,25 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			}
 			benchmark["languageStats"] = langStatsJS
 		}
+
+		// Add agent-specific stats per language
+		if agentStats, ok := agentBenchStats[id]; ok {
+			agentLangStats := make(map[string]interface{})
+			for lang, astats := range agentStats {
+				if astats.runs > 0 {
+					agentLangStats[lang] = map[string]interface{}{
+						"runs":        astats.runs,
+						"successRate": float64(astats.success) / float64(astats.runs),
+						"avgTurns":    float64(astats.turns) / float64(astats.runs),
+						"avgTokens":   float64(astats.tokens) / float64(astats.runs),
+					}
+				}
+			}
+			if len(agentLangStats) > 0 {
+				benchmark["agentStats"] = agentLangStats
+			}
+		}
+
 		benchmarksJS[id] = benchmark
 	}
 
@@ -547,14 +631,42 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)
 
+	// Calculate per-language agent statistics
+	langAgentStats := make(map[string]struct {
+		runs    int
+		success int
+		turns   int
+		tokens  int
+	})
+	for _, r := range agentResults {
+		stats := langAgentStats[r.Lang]
+		stats.runs++
+		if r.StdoutOk {
+			stats.success++
+		}
+		stats.turns += r.AgentTurns
+		stats.tokens += r.TotalTokens
+		langAgentStats[r.Lang] = stats
+	}
+
 	// Build languages map for dashboard (matches existing format)
 	languagesMap := make(map[string]interface{})
 	for lang, stats := range matrix.Languages {
-		languagesMap[lang] = map[string]interface{}{
+		langData := map[string]interface{}{
 			"total_runs":   stats.TotalRuns,
 			"success_rate": stats.SuccessRate,
 			"avg_tokens":   stats.AvgTokens,
 		}
+
+		// Add agent metrics if available for this language
+		if agentStats, ok := langAgentStats[lang]; ok && agentStats.runs > 0 {
+			langData["agent_runs"] = agentStats.runs
+			langData["agent_success_rate"] = float64(agentStats.success) / float64(agentStats.runs)
+			langData["agent_avg_turns"] = float64(agentStats.turns) / float64(agentStats.runs)
+			langData["agent_avg_tokens"] = float64(agentStats.tokens) / float64(agentStats.runs)
+		}
+
+		languagesMap[lang] = langData
 	}
 
 	// Update dashboard with current version data

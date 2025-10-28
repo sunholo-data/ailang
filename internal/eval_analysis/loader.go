@@ -10,27 +10,38 @@ import (
 
 // LoadResults loads all benchmark results from a directory
 // Returns results sorted by timestamp (newest first)
+// Supports both flat structure and subdirectories (standard/, agent/)
 func LoadResults(dir string) ([]*BenchmarkResult, error) {
 	// Check if directory exists
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("directory not found: %s", dir)
 	}
 
-	// Find all JSON files
-	pattern := filepath.Join(dir, "*.json")
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("failed to glob %s: %w", pattern, err)
+	var allMatches []string
+
+	// Search patterns: root directory + subdirectories
+	patterns := []string{
+		filepath.Join(dir, "*.json"),         // Legacy: root directory
+		filepath.Join(dir, "standard", "*.json"), // Standard eval results
+		filepath.Join(dir, "agent", "*.json"),    // Agent eval results
 	}
 
-	if len(matches) == 0 {
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("failed to glob %s: %w", pattern, err)
+		}
+		allMatches = append(allMatches, matches...)
+	}
+
+	if len(allMatches) == 0 {
 		return nil, fmt.Errorf("no JSON files found in %s", dir)
 	}
 
 	var results []*BenchmarkResult
 	var errors []string
 
-	for _, path := range matches {
+	for _, path := range allMatches {
 		// Skip baseline.json metadata file
 		if filepath.Base(path) == "baseline.json" {
 			continue
