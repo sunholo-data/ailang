@@ -48,6 +48,12 @@ for lang in python ailang; do
     count=0
 
     for file in $lang_files; do
+        # Skip non-agent results (eval_mode must be "agent")
+        eval_mode=$(jq -r '.eval_mode // ""' "$file")
+        if [[ "$eval_mode" != "agent" ]]; then
+            continue
+        fi
+
         turns=$(jq -r '.agent_turns // 0' "$file")
         input_tokens=$(jq -r '.input_tokens // 0' "$file")
         output_tokens=$(jq -r '.output_tokens // 0' "$file")
@@ -98,7 +104,7 @@ echo "⏱️  Most Expensive (by turns - candidates for optimization)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-find "$RESULTS_DIR" -name "*.json" -type f -exec jq -r '{id, lang, turns: .agent_turns, tokens: .total_tokens, cost: .cost_usd, success: (.compile_ok and .runtime_ok and .stdout_ok)} | "\(.turns)|\(.id)|\(.lang)|\(.tokens)|\(.cost)|\(.success)"' {} \; | \
+find "$RESULTS_DIR" -name "*.json" -type f -exec jq -r 'select(.eval_mode == "agent") | {id, lang, turns: .agent_turns, tokens: .total_tokens, cost: .cost_usd, success: (.compile_ok and .runtime_ok and .stdout_ok)} | "\(.turns)|\(.id)|\(.lang)|\(.tokens)|\(.cost)|\(.success)"' {} \; | \
     sort -t'|' -k1 -rn | \
     head -5 | \
     while IFS='|' read -r turns id lang tokens cost success; do
@@ -114,7 +120,7 @@ echo "🏆 Most Efficient (lowest turns among successes - learn from these)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-find "$RESULTS_DIR" -name "*.json" -type f -exec jq -r 'select(.compile_ok and .runtime_ok and .stdout_ok) | {id, lang, turns: .agent_turns, tokens: .total_tokens, cost: .cost_usd} | "\(.turns)|\(.id)|\(.lang)|\(.tokens)|\(.cost)"' {} \; | \
+find "$RESULTS_DIR" -name "*.json" -type f -exec jq -r 'select(.eval_mode == "agent" and .compile_ok and .runtime_ok and .stdout_ok) | {id, lang, turns: .agent_turns, tokens: .total_tokens, cost: .cost_usd} | "\(.turns)|\(.id)|\(.lang)|\(.tokens)|\(.cost)"' {} \; | \
     sort -t'|' -k1 -n | \
     head -5 | \
     while IFS='|' read -r turns id lang tokens cost; do

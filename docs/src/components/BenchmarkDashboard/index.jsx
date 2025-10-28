@@ -5,7 +5,7 @@ import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
-import AgentRadar from './AgentRadar';
+import RadarCharts from './RadarCharts';
 import styles from './styles.module.css';
 
 export default function BenchmarkDashboard() {
@@ -156,9 +156,13 @@ export default function BenchmarkDashboard() {
         </div>
       )}
 
-      {/* Agent Evaluation Radar */}
+      {/* Evaluation Modes Comparison */}
       <div className={styles.section}>
-        <AgentRadar data={data} />
+        <h3>Evaluation Approaches</h3>
+        <p className={styles.sectionSubtitle}>
+          Comparing 0-shot, self-repair, and multi-turn agent evaluation modes
+        </p>
+        <RadarCharts data={data} />
       </div>
 
       {/* Success Trend */}

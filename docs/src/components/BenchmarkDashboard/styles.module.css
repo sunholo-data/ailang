@@ -726,3 +726,157 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Agent Section in Benchmark Cards */
+.agentSection {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--ifm-color-emphasis-50);
+  border-radius: 8px;
+  border: 2px solid var(--ifm-color-primary-lighter);
+}
+
+.agentTitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: var(--ifm-color-primary-darker);
+}
+
+.agentSubtitle {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.agentCard {
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.agentCardHeader {
+  padding: 0.75rem;
+  background: var(--ifm-color-primary-lightest);
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 2px solid var(--ifm-color-primary-lighter);
+}
+
+.agentMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.agentMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agentLabel {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agentValue {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--ifm-color-primary-dark);
+}
+
+.agentComparison {
+  padding: 1rem;
+  background: var(--ifm-color-info-contrast-background);
+  border-left: 3px solid var(--ifm-color-info);
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.agentComparison p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+[data-theme='dark'] .agentSection {
+  background: var(--ifm-color-emphasis-200);
+  border-color: var(--ifm-color-primary-dark);
+}
+
+[data-theme='dark'] .agentCard {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .agentCardHeader {
+  background: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] .agentComparison {
+  background: var(--ifm-color-info-darker);
+}
+
+/* Radar Charts Grid (4 charts in 2x2 layout) */
+.radarGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .radarGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radarCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.radarTitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.radarSubtitle {
+  margin: 0 0 1rem 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.radarCard .noData {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.9rem;
+}
+
+.radarCard .noDataHint {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-400);
+  margin-top: 0.5rem;
+}
+
+[data-theme='dark'] .radarCard {
+  background: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-300);
+}

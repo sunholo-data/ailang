@@ -625,8 +625,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		historyJS[i] = histEntry
 	}
 
-	// Build history entry for current version from matrix
-	newHistoryEntry := buildHistoryEntryFromMatrix(matrix, results)
+	// Build history entry for current version from matrix (only standard results for historical comparison)
+	newHistoryEntry := buildHistoryEntryFromMatrix(matrix, standardResults)
 
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)

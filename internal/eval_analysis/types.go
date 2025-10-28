@@ -197,6 +197,9 @@ type SummaryEntry struct {
 	DurationMs     int64   `json:"duration_ms"`
 	Timestamp      string  `json:"timestamp"`
 	Stderr         string  `json:"stderr,omitempty"`
+	// Agent evaluation fields (M-EVAL-AGENT)
+	EvalMode   string `json:"eval_mode,omitempty"`   // "standard" or "agent"
+	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
 }
 
 // DashboardJSON represents the structure of docs/static/benchmarks/latest.json
@@ -270,6 +273,8 @@ func (r *BenchmarkResult) ToSummaryEntry() *SummaryEntry {
 		DurationMs:     r.DurationMs,
 		Timestamp:      r.Timestamp.Format(time.RFC3339),
 		Stderr:         r.Stderr,
+		EvalMode:       r.EvalMode,
+		AgentTurns:     r.AgentTurns,
 	}
 }
 

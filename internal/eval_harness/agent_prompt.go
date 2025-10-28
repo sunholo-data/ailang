@@ -477,5 +477,15 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
 
+	// Replace <LANG> placeholder with actual language name (used in 31/35 benchmarks)
+	// e.g., "Write a program in <LANG>" → "Write a program in Python"
+	languageName := language
+	if language == "python" {
+		languageName = "Python"
+	} else if language == "ailang" {
+		languageName = "AILANG"
+	}
+	taskPrompt = strings.ReplaceAll(taskPrompt, "<LANG>", languageName)
+
 	return systemPrompt, taskPrompt, versionUsed, nil
 }
