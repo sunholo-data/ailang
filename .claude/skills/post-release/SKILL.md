@@ -310,6 +310,24 @@ Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
 - Remove outdated examples or references
 - Add new examples to website
 - Update `docs/guides/evaluation/` if significant benchmark improvements
+- **Update `docs/LIMITATIONS.md`**:
+  - Remove limitations that were fixed in this release
+  - Add new known limitations discovered during development/testing
+  - Update workarounds if they changed
+  - Update version numbers in "Since" and "Fixed in" fields
+  - **Test examples**: Verify that limitations listed still exist and workarounds still work
+    ```bash
+    # Test examples from LIMITATIONS.md
+    # Example: Test Y-combinator still fails (should fail)
+    echo 'let Y = \f. (\x. f(x(x)))(\x. f(x(x))) in Y' | ailang repl
+
+    # Example: Test named recursion works (should succeed)
+    ailang run examples/factorial.ail
+
+    # Example: Test polymorphic operator limitation (should panic with floats)
+    # Create test file and verify behavior matches documentation
+    ```
+  - Commit changes: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
 ## Resources
 

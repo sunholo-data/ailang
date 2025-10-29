@@ -98,6 +98,13 @@ git push
 - [ ] Remove old references or outdated examples
 - [ ] Add new examples to website if applicable
 - [ ] Update docs/guides/evaluation/ with significant improvements
+- [ ] **Update docs/LIMITATIONS.md**:
+  - [ ] Remove limitations fixed in this release
+  - [ ] Add new limitations discovered during development
+  - [ ] Update workarounds if they changed
+  - [ ] Update version numbers ("Since", "Fixed in" fields)
+  - [ ] Test examples in LIMITATIONS.md still work/fail as documented
+  - [ ] Commit: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
 ## Final Verification
 
@@ -108,6 +115,7 @@ git push
 - [ ] Dashboard JSON preserves history (multiple versions)
 - [ ] Design docs moved to implemented/
 - [ ] Public docs updated
+- [ ] **docs/LIMITATIONS.md updated and tested**
 - [ ] All changes committed and pushed
 
 ## Notes
