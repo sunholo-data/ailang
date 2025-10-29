@@ -175,7 +175,7 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	// Streaming mode captures full conversation log which is essential for debugging failures
 	// Uses --system-prompt flag for language knowledge, -p for task instructions
 	var result *ClaudeHeadlessResult
-	result, err = runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace, config)
+	result, err = runHeadlessSessionStreaming(spec, systemPrompt, taskPrompt, workspace, config)
 	if err != nil {
 		// Still try to capture partial results even if session failed
 		// (though with recent changes, runHeadlessSessionStreaming should return a result, not error)

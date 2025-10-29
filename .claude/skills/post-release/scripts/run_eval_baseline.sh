@@ -43,7 +43,18 @@ fi
 echo
 echo "=== Step 2/2: Agent Eval (multi-turn) ==="
 echo "Running agent eval on curated benchmarks..."
-echo "Benchmarks: fizzbuzz, recursion_factorial, simple_print, record_update, recursion_fibonacci"
+
+# Current agent benchmark suite (Tier 1: Smoke Tests - 5 benchmarks)
+# See: BENCHMARK_AUDIT_ANALYSIS.md for full recommended suite (25 benchmarks)
+# Tier 1 (Smoke Tests): Fast sanity checks, 95-100% expected agent success
+AGENT_BENCHMARKS="fizzbuzz,recursion_factorial,recursion_fibonacci,simple_print,record_update"
+
+# Future expansion (v0.3.25+): Add Tier 2-4 benchmarks
+# Tier 2 (Differentiators): higher_order_functions, pattern_matching_complex, effect_composition, etc.
+# Tier 3 (Vision): immutable_data_structures, no_runtime_crashes_option, etc.
+# Tier 4 (New): csv_to_json_converter, multi_module_imports, state_machine_traffic_light, etc.
+
+echo "Benchmarks: $AGENT_BENCHMARKS"
 echo
 
 RESULTS_DIR="eval_results/baselines/$VERSION"
@@ -53,7 +64,7 @@ if [[ -n "$FULL_FLAG" ]]; then
     # Full mode: run both haiku and sonnet (via --full, auto-filtered from extended_suite)
     echo "Mode: FULL (haiku + sonnet via --full flag)"
     ailang eval-suite --agent --full \
-        --benchmarks fizzbuzz,recursion_factorial,simple_print,record_update,recursion_fibonacci \
+        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 1 \
         --agent-timeout 60 \
@@ -63,7 +74,7 @@ else
     # Dev mode: haiku only (default dev_models, auto-filtered to Claude only)
     echo "Mode: DEV (haiku only via dev_models)"
     ailang eval-suite --agent \
-        --benchmarks fizzbuzz,recursion_factorial,simple_print,record_update,recursion_fibonacci \
+        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 1 \
         --agent-timeout 60 \

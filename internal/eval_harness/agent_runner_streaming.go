@@ -16,7 +16,7 @@ import (
 // This is used when DEBUG_AGENT=1 to provide visibility into what Claude is doing
 // systemPrompt contains language knowledge (loaded from prompts/versions.json)
 // taskPrompt contains the benchmark task description
-func runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
+func runHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
 
@@ -64,8 +64,12 @@ func runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace string, con
 		return nil, fmt.Errorf("failed to start claude: %w", err)
 	}
 
-	// Set up timeout
-	timeout := time.Duration(config.TimeoutSeconds) * time.Second
+	// Set up timeout - use spec timeout if set, otherwise use config default
+	timeoutSeconds := config.TimeoutSeconds
+	if spec.Timeout > 0 {
+		timeoutSeconds = spec.Timeout
+	}
+	timeout := time.Duration(timeoutSeconds) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
@@ -195,20 +199,20 @@ func runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace string, con
 	select {
 	case <-timer.C:
 		_ = cmd.Process.Kill()
-		fmt.Fprintf(os.Stderr, "\n[ERROR] Claude session timed out after %d seconds\n", config.TimeoutSeconds)
+		fmt.Fprintf(os.Stderr, "\n[ERROR] Claude session timed out after %d seconds\n", timeoutSeconds)
 
 		// Build transcript for return (file write happens in caller, before workspace cleanup)
 		transcript := fmt.Sprintf("=== Claude Session Log ===\n\nTask Prompt:\n%s\n\nTranscript:\n%s\n\nTimeout after %d seconds\n",
-			taskPrompt, transcriptBuf.String(), config.TimeoutSeconds)
+			taskPrompt, transcriptBuf.String(), timeoutSeconds)
 
 		// Return partial result with what we captured before timeout
 		return &ClaudeHeadlessResult{
 			Type:       "result",
 			Subtype:    "timeout",
 			IsError:    true,
-			Result:     fmt.Sprintf("Session timed out after %d seconds", config.TimeoutSeconds),
+			Result:     fmt.Sprintf("Session timed out after %d seconds", timeoutSeconds),
 			NumTurns:   turnNum,
-			DurationMS: config.TimeoutSeconds * 1000,
+			DurationMS: timeoutSeconds * 1000,
 			SessionID:  sessionID,
 			Transcript: transcript,
 		}, nil // Return result, not error, so caller can still log partial data
@@ -227,7 +231,7 @@ func runHeadlessSessionStreaming(systemPrompt, taskPrompt, workspace string, con
 				IsError:    true,
 				Result:     fmt.Sprintf("Claude execution error: %v", err),
 				NumTurns:   turnNum,
-				DurationMS: int(time.Since(time.Now().Add(-time.Duration(config.TimeoutSeconds)*time.Second)).Milliseconds()),
+				DurationMS: int(time.Since(time.Now().Add(-time.Duration(timeoutSeconds)*time.Second)).Milliseconds()),
 				SessionID:  sessionID,
 				Transcript: transcript,
 			}

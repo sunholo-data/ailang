@@ -1,0 +1,145 @@
+id: config_file_parser
+description: "Parse and validate JSON configuration file with error handling"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "very_high"
+timeout: 90  # Medium complexity: 90 seconds
+task_prompt: |
+  Build a configuration file parser in <LANG> with validation and error handling.
+
+  <LANG=AILANG> Write to: benchmark/solution.ail
+
+  **Task Steps**:
+
+  1. **Create JSON config file "app_config.json"** with this exact content:
+     ```json
+     {
+       "app_name": "MyApp",
+       "version": "1.0.0",
+       "port": 8080,
+       "features": ["logging", "auth", "api"]
+     }
+     ```
+
+  2. **Define Config record type**:
+     ```ailang
+     type Config = {
+       app_name: string,
+       version: string,
+       port: int,
+       features: List[string]
+     }
+     ```
+
+  3. **Implement loadConfig(filename: string) !: FS -> Config**:
+     - Read file using std/io.readFile
+     - Parse JSON using std/json.decode
+     - Extract fields and build Config record
+     - Validate:
+       * port must be between 1024 and 65535
+       * version must match "X.Y.Z" format (simple check: contains two dots)
+       * features list must not be empty
+     - Return Config record
+
+  4. **Main function**:
+     - Call loadConfig("app_config.json")
+     - Print: "Loaded MyApp v1.0.0 on port 8080 with 3 features"
+     - Format: "Loaded {app_name} v{version} on port {port} with {N} features"
+
+  **AILANG Implementation Hints**:
+  ```ailang
+  module benchmark/solution
+  import std/io (readFile, writeFile, println)
+  import std/json (decode, Json)
+
+  type Config = {
+    app_name: string,
+    version: string,
+    port: int,
+    features: List[string]
+  }
+
+  // Helper to validate port range
+  func validatePort(port: int) -> bool =
+    port >= 1024 && port <= 65535
+
+  // Helper to validate version format (contains two dots)
+  func validateVersion(ver: string) -> bool =
+    // Simple check: count dots
+    ...
+
+  // Helper to extract field from JSON object
+  func getField(json: Json, field: string) -> Json = ...
+
+  func loadConfig(filename: string) !: FS -> Config =
+    let content = readFile(filename) in
+    match decode(content) with
+    | Ok(json) ->
+        // Extract fields from JSON
+        let app_name = ... in
+        let version = ... in
+        let port = ... in
+        let features = ... in
+
+        // Validate
+        if validatePort(port) && validateVersion(version) then
+          { app_name: app_name, version: version, port: port, features: features }
+        else
+          // Return default or error
+          ...
+    | Err(msg) ->
+        // Handle parse error
+        ...
+
+  func main() !: IO,FS -> () =
+    // Create config file
+    let configJson = "{\"app_name\":\"MyApp\",\"version\":\"1.0.0\",\"port\":8080,\"features\":[\"logging\",\"auth\",\"api\"]}" in
+    let _ = writeFile("app_config.json", configJson) in
+
+    // Load and validate config
+    let config = loadConfig("app_config.json") in
+
+    // Print result
+    let numFeatures = ... in  // count features list
+    println("Loaded " ++ config.app_name ++ " v" ++ config.version ++ " on port " ++ show(config.port) ++ " with " ++ show(numFeatures) ++ " features")
+  ```
+
+  **Verify your solution**:
+  ```bash
+  ailang run --entry main --caps IO,FS benchmark/solution.ail
+  ```
+
+  <LANG=PYTHON>
+  Write to: solution.py
+
+  ```python
+  import json
+
+  # Create config file
+  config_data = {
+      "app_name": "MyApp",
+      "version": "1.0.0",
+      "port": 8080,
+      "features": ["logging", "auth", "api"]
+  }
+  with open("app_config.json", "w") as f:
+      json.dump(config_data, f)
+
+  # Load and validate
+  with open("app_config.json", "r") as f:
+      config = json.load(f)
+
+  # Validate
+  assert 1024 <= config["port"] <= 65535, "Invalid port"
+  assert config["version"].count(".") == 2, "Invalid version"
+  assert len(config["features"]) > 0, "No features"
+
+  # Print result
+  num_features = len(config["features"])
+  print(f"Loaded {config['app_name']} v{config['version']} on port {config['port']} with {num_features} features")
+  ```
+
+expected_stdout: |
+  Loaded MyApp v1.0.0 on port 8080 with 3 features

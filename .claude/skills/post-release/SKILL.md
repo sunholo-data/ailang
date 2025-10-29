@@ -64,10 +64,22 @@ Expected time: ~15-20 minutes
 ```
 
 **What it does:**
-- Runs `make eval-baseline` with appropriate flags
-- Tests both AILANG and Python implementations
-- Uses all 6 production models (--full) or 3 dev models (default)
-- Saves results to eval_results/baselines/X.X.X/ (version as given)
+- **Step 1**: Runs `make eval-baseline` (standard 0-shot + repair evaluation)
+  - Tests both AILANG and Python implementations
+  - Uses all 6 production models (--full) or 3 dev models (default)
+  - Tests all benchmarks in benchmarks/ directory
+- **Step 2**: Runs agent eval on curated benchmark suite
+  - **Current suite**: 5 smoke test benchmarks (Tier 1)
+    - fizzbuzz, recursion_factorial, recursion_fibonacci, simple_print, record_update
+    - Expected agent success: 95-100%
+  - **Future expansion** (v0.3.25+): 25 benchmarks across 4 tiers
+    - See BENCHMARK_AUDIT_ANALYSIS.md for full recommended suite
+    - Tier 2: Agent differentiators (11 benchmarks)
+    - Tier 3: Vision features (4 benchmarks)
+    - Tier 4: New benchmarks (6 benchmarks)
+  - Uses haiku+sonnet (--full) or haiku only (default)
+  - Tests both AILANG and Python implementations
+- Saves combined results to eval_results/baselines/X.X.X/
 - Accepts version with or without 'v' prefix
 
 ### `scripts/update_dashboard.sh <version>`

@@ -1,0 +1,177 @@
+id: log_file_analyzer
+description: "Parse log file and compute statistics with aggregation"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "high"
+timeout: 90  # Medium complexity: 90 seconds
+task_prompt: |
+  Analyze a log file and compute statistics in <LANG>.
+
+  <LANG=AILANG> Write to: benchmark/solution.ail
+
+  **Task Steps**:
+
+  1. **Create log file "app.log"** with this exact content:
+     ```
+     2024-10-29 10:00:00 INFO User logged in: alice
+     2024-10-29 10:01:15 ERROR Database connection failed
+     2024-10-29 10:02:30 INFO User logged in: bob
+     2024-10-29 10:03:45 WARNING High memory usage: 85%
+     2024-10-29 10:05:00 ERROR API timeout: /users endpoint
+     2024-10-29 10:06:15 INFO User logged out: alice
+     ```
+
+  2. **Parse log entries**:
+     - Each line has format: "{timestamp} {level} {message}"
+     - Extract: timestamp (string), level (INFO/ERROR/WARNING), message (string)
+     - Split by spaces to parse
+
+  3. **Compute statistics**:
+     - Total number of log entries: 6
+     - Count by level:
+       * INFO: 3 entries
+       * ERROR: 2 entries
+       * WARNING: 1 entry
+     - Calculate percentages (round to nearest int)
+     - Extract unique users mentioned in messages (alice, bob)
+
+  4. **Output format** (print to stdout):
+     ```
+     Total log entries: 6
+     INFO: 3 (50%)
+     ERROR: 2 (33%)
+     WARNING: 1 (17%)
+     Unique users: alice, bob
+     ```
+
+  **AILANG Implementation Hints**:
+  ```ailang
+  module benchmark/solution
+  import std/io (readFile, writeFile, println)
+
+  type LogEntry = {
+    timestamp: string,
+    level: string,
+    message: string
+  }
+
+  type LogStats = {
+    total: int,
+    info_count: int,
+    error_count: int,
+    warning_count: int,
+    users: List[string]
+  }
+
+  // Helper to split string
+  func split(s: string, delim: string) -> List[string] = ...
+
+  // Helper to parse a log line
+  func parseLogLine(line: string) -> LogEntry =
+    // Split by spaces: "2024-10-29 10:00:00 INFO User logged in: alice"
+    // timestamp = "2024-10-29 10:00:00" (first 2 words)
+    // level = "INFO" (3rd word)
+    // message = rest
+    ...
+
+  // Helper to extract users from message (look for "user" keyword followed by name)
+  func extractUser(message: string) -> Option[string] = ...
+
+  // Helper to calculate percentage
+  func percentage(count: int, total: int) -> int =
+    (count * 100) / total
+
+  func analyzeLog(filename: string) !: FS -> LogStats =
+    let content = readFile(filename) in
+    let lines = split(content, "\n") in
+    let entries = ... in  // parse each line
+
+    // Count by level
+    let info_count = ... in
+    let error_count = ... in
+    let warning_count = ... in
+
+    // Extract unique users
+    let users = ... in
+
+    {
+      total: 6,
+      info_count: info_count,
+      error_count: error_count,
+      warning_count: warning_count,
+      users: users
+    }
+
+  func main() !: IO,FS -> () =
+    // Create log file
+    let logContent = "2024-10-29 10:00:00 INFO User logged in: alice\n2024-10-29 10:01:15 ERROR Database connection failed\n2024-10-29 10:02:30 INFO User logged in: bob\n2024-10-29 10:03:45 WARNING High memory usage: 85%\n2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n2024-10-29 10:06:15 INFO User logged out: alice" in
+    let _ = writeFile("app.log", logContent) in
+
+    // Analyze log
+    let stats = analyzeLog("app.log") in
+
+    // Print results
+    let _ = println("Total log entries: " ++ show(stats.total)) in
+    let _ = println("INFO: " ++ show(stats.info_count) ++ " (" ++ show(percentage(stats.info_count, stats.total)) ++ "%)") in
+    let _ = println("ERROR: " ++ show(stats.error_count) ++ " (" ++ show(percentage(stats.error_count, stats.total)) ++ "%)") in
+    let _ = println("WARNING: " ++ show(stats.warning_count) ++ " (" ++ show(percentage(stats.warning_count, stats.total)) ++ "%)") in
+    println("Unique users: alice, bob")
+  ```
+
+  **Verify your solution**:
+  ```bash
+  ailang run --entry main --caps IO,FS benchmark/solution.ail
+  ```
+
+  <LANG=PYTHON>
+  Write to: solution.py
+
+  ```python
+  import re
+
+  # Create log file
+  log_content = """2024-10-29 10:00:00 INFO User logged in: alice
+  2024-10-29 10:01:15 ERROR Database connection failed
+  2024-10-29 10:02:30 INFO User logged in: bob
+  2024-10-29 10:03:45 WARNING High memory usage: 85%
+  2024-10-29 10:05:00 ERROR API timeout: /users endpoint
+  2024-10-29 10:06:15 INFO User logged out: alice"""
+
+  with open("app.log", "w") as f:
+      f.write(log_content)
+
+  # Parse log
+  counts = {"INFO": 0, "ERROR": 0, "WARNING": 0}
+  users = set()
+
+  with open("app.log", "r") as f:
+      for line in f:
+          parts = line.strip().split()
+          if len(parts) >= 3:
+              level = parts[2]
+              counts[level] += 1
+
+              # Extract users
+              if "alice" in line.lower():
+                  users.add("alice")
+              if "bob" in line.lower():
+                  users.add("bob")
+
+  total = sum(counts.values())
+
+  # Print results
+  print(f"Total log entries: {total}")
+  print(f"INFO: {counts['INFO']} ({counts['INFO']*100//total}%)")
+  print(f"ERROR: {counts['ERROR']} ({counts['ERROR']*100//total}%)")
+  print(f"WARNING: {counts['WARNING']} ({counts['WARNING']*100//total}%)")
+  print(f"Unique users: {', '.join(sorted(users))}")
+  ```
+
+expected_stdout: |
+  Total log entries: 6
+  INFO: 3 (50%)
+  ERROR: 2 (33%)
+  WARNING: 1 (17%)
+  Unique users: alice, bob

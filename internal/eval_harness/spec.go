@@ -20,6 +20,7 @@ type BenchmarkSpec struct {
 	ExpectedOut  string            `yaml:"expected_stdout"`
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
+	Timeout      int               `yaml:"timeout"` // Agent timeout in seconds (default: 60)
 }
 
 // LoadSpec loads a benchmark spec from a YAML file
