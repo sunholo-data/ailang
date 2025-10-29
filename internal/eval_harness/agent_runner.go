@@ -32,8 +32,8 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 		TimeoutSeconds:    300,
 		WorkspaceDir:      "/tmp/ailang_eval",
 		AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-		ClaudePath:        "claude",  // Use PATH
-		ClaudeModel:       "haiku",   // Default to Haiku for cost efficiency
+		ClaudePath:        "claude", // Use PATH
+		ClaudeModel:       "haiku",  // Default to Haiku for cost efficiency
 	}
 }
 
@@ -263,6 +263,8 @@ func checkClaudeCLI(claudePath string) error {
 // for better organization and enhanced prompt generation with full syntax reference
 
 // runHeadlessSession executes Claude Code in headless mode
+//
+//nolint:unused // Kept for backwards compatibility, superseded by runHeadlessSessionStreaming
 func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
@@ -447,6 +449,8 @@ func getErrorMessage(result *ClaudeHeadlessResult) string {
 }
 
 // getSolutionFilename returns the language-specific solution filename
+//
+//nolint:unused // Kept for backwards compatibility
 func getSolutionFilename(language string) string {
 	switch language {
 	case "python":

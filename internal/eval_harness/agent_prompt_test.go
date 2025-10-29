@@ -419,8 +419,8 @@ func TestSystemPromptLanguageSeparation(t *testing.T) {
 	registry := PromptRegistry{
 		SchemaVersion: "1.0",
 		Versions: map[string]PromptVersion{
-			"python":     {File: "prompts/python.md", Hash: "PLACEHOLDER"},
-			"v0.3.23":    {File: "prompts/ailang.md", Hash: "PLACEHOLDER"},
+			"python":  {File: "prompts/python.md", Hash: "PLACEHOLDER"},
+			"v0.3.23": {File: "prompts/ailang.md", Hash: "PLACEHOLDER"},
 		},
 		Active: "v0.3.23",
 	}

@@ -231,7 +231,7 @@ func runHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 				IsError:    true,
 				Result:     fmt.Sprintf("Claude execution error: %v", err),
 				NumTurns:   turnNum,
-				DurationMS: int(time.Since(time.Now().Add(-time.Duration(timeoutSeconds)*time.Second)).Milliseconds()),
+				DurationMS: int(time.Since(time.Now().Add(-time.Duration(timeoutSeconds) * time.Second)).Milliseconds()),
 				SessionID:  sessionID,
 				Transcript: transcript,
 			}

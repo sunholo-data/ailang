@@ -40,9 +40,9 @@ type BenchmarkResult struct {
 	PromptVersion string `json:"prompt_version,omitempty"`
 
 	// Agent evaluation metrics (M-EVAL-AGENT)
-	EvalMode        string `json:"eval_mode,omitempty"`         // "standard" or "agent"
-	AgentTurns      int    `json:"agent_turns,omitempty"`       // Number of conversation turns
-	AgentTranscript string `json:"agent_transcript,omitempty"`  // Full session log
+	EvalMode        string `json:"eval_mode,omitempty"`        // "standard" or "agent"
+	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
+	AgentTranscript string `json:"agent_transcript,omitempty"` // Full session log
 
 	// Reproducibility
 	BinaryHash string   `json:"binary_hash,omitempty"`

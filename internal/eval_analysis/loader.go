@@ -21,7 +21,7 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 
 	// Search patterns: root directory + subdirectories
 	patterns := []string{
-		filepath.Join(dir, "*.json"),         // Legacy: root directory
+		filepath.Join(dir, "*.json"),             // Legacy: root directory
 		filepath.Join(dir, "standard", "*.json"), // Standard eval results
 		filepath.Join(dir, "agent", "*.json"),    // Agent eval results
 	}

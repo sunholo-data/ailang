@@ -1,5 +1,52 @@
 # AILANG Changelog
 
+## [v0.3.23] - 2025-10-29
+
+### Added - Per-Benchmark Agent Timeout Control
+
+**User Impact**: Enables fine-grained cost control for agent evaluation by allowing each benchmark to specify its own timeout.
+
+**What Was Missing**:
+- All agent benchmarks used a global 60-second timeout (hardcoded in AgentBenchmarkConfig)
+- No way to give complex benchmarks more time without affecting all benchmarks
+- Easy benchmarks wasted time, hard benchmarks hit timeout prematurely
+
+**What Was Implemented**:
+1. **Core Feature**: Per-benchmark timeout field in BenchmarkSpec (~30 LOC)
+   - Added `Timeout int` field to BenchmarkSpec YAML schema
+   - Default: Uses config.TimeoutSeconds (60s) if not specified
+   - Backwards compatible: Existing benchmarks continue to use 60s default
+   - Files: `internal/eval_harness/spec.go`, `internal/eval_harness/agent_runner_streaming.go`
+
+2. **Benchmark Updates**: Added timeout metadata to 6 new benchmarks
+   - Medium complexity (90s): csv_to_json_converter, config_file_parser, log_file_analyzer
+   - Hard complexity (120s): multi_module_imports, state_machine_traffic_light, tree_transformation_pipeline
+   - Rationale: Tiered timeouts (60s/90s/120s) balance cost control with success rate
+
+3. **Testing & Validation**: Verified timeout feature works correctly
+   - Python benchmarks: 100% success with 60s timeouts (baseline validation)
+   - AILANG benchmarks: Agents reached Turn 7-19 with extended timeouts (vs Turn 0-6 with 60s)
+   - Timeout messages confirmed correct values (90s and 120s)
+
+**Benefits**:
+- ✅ **Cost control**: Hard cap prevents runaway costs
+- ✅ **Flexibility**: Easy benchmarks finish fast, hard ones get more time
+- ✅ **Transparency**: Clear timeout values in benchmark YAML
+- ✅ **Optimization**: Can tune timeouts based on observed success rates
+
+**Documentation**:
+- NEW: `PER_BENCHMARK_TIMEOUT_RESULTS.md` - Implementation analysis and test results
+- NEW: `NEW_BENCHMARK_TEST_RESULTS.md` - Python baseline validation (6/6 success)
+- NEW: `BENCHMARK_AUDIT_ANALYSIS.md` - Full audit of 38 existing benchmarks
+
+**Code Changes**: 30 LOC across 3 files
+- `internal/eval_harness/spec.go` (+1 LOC)
+- `internal/eval_harness/agent_runner_streaming.go` (+5 LOC)
+- `internal/eval_harness/agent_runner.go` (+1 LOC)
+- 6 benchmark YAMLs updated with timeout metadata
+
+**Next Steps**: Run full eval baseline to validate timeout effectiveness across all models and benchmarks.
+
 ## [v0.3.22] - 2025-10-27
 
 ### Added - JSON Encoding Support

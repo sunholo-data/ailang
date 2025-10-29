@@ -298,7 +298,7 @@ func runEvalSuite() {
 			TimeoutSeconds:    *agentTimeout,
 			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
 			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-			ClaudePath:        "claude", // Use PATH
+			ClaudePath:        "claude",           // Use PATH
 			ClaudeModel:       agentModelOverride, // Empty unless override specified
 		}
 	}
@@ -474,19 +474,19 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		// Convert AgentBenchmarkResult to RunMetrics format for logging
 		// Agent mode now uses standard validation fields (compile_ok, runtime_ok, stdout_ok)
 		metrics := &eval_harness.RunMetrics{
-			ID:             result.BenchmarkID,
-			Lang:           lang,
-			Model:          model,
-			Seed:           seed,
-			InputTokens:    result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
-			OutputTokens:   result.Usage.OutputTokens,
-			TotalTokens:    result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
-			CostUSD:        result.Cost,
+			ID:           result.BenchmarkID,
+			Lang:         lang,
+			Model:        model,
+			Seed:         seed,
+			InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			OutputTokens: result.Usage.OutputTokens,
+			TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			CostUSD:      result.Cost,
 			// Use standard validation fields from agent runner
-			CompileOk:      result.CompileOk,
-			RuntimeOk:      result.RuntimeOk,
-			StdoutOk:       result.StdoutOk,
-			DurationMs:     int64(result.DurationMS),
+			CompileOk:  result.CompileOk,
+			RuntimeOk:  result.RuntimeOk,
+			StdoutOk:   result.StdoutOk,
+			DurationMs: int64(result.DurationMS),
 			// Use standard error categorization (same as standard eval mode)
 			ErrorCategory:  eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk),
 			Stdout:         result.Stdout,

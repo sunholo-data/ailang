@@ -803,15 +803,15 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	// Calculate per-language agent statistics with turn efficiency breakdown
 	langAgentStats := make(map[string]struct {
-		runs          int
-		success       int
-		turns         int
-		tokens        int
-		cost          float64
-		successTurns  int // Total turns for successful runs
-		successCount  int // Count of successful runs (for avg)
-		failureTurns  int // Total turns for failed runs
-		failureCount  int // Count of failed runs (for avg)
+		runs         int
+		success      int
+		turns        int
+		tokens       int
+		cost         float64
+		successTurns int // Total turns for successful runs
+		successCount int // Count of successful runs (for avg)
+		failureTurns int // Total turns for failed runs
+		failureCount int // Count of failed runs (for avg)
 	})
 	for _, r := range agentResults {
 		stats := langAgentStats[r.Lang]

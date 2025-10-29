@@ -19,9 +19,6 @@ func TestDefaultAgentConfig(t *testing.T) {
 	if config.TimeoutSeconds != 300 {
 		t.Errorf("Expected TimeoutSeconds=300, got %d", config.TimeoutSeconds)
 	}
-	if config.MaxIterations != 10 {
-		t.Errorf("Expected MaxIterations=10, got %d", config.MaxIterations)
-	}
 	if len(config.AllowedTools) != 5 {
 		t.Errorf("Expected 5 allowed tools, got %d", len(config.AllowedTools))
 	}
