@@ -1,5 +1,27 @@
 # AILANG Changelog
 
+## [v0.3.24] - 2025-10-29
+
+### Fixed - Windows Build Cross-Platform Compatibility
+
+**Issue**: v0.3.23 release had Windows build failures due to line-ending differences in prompt files causing SHA256 hash mismatches in tests.
+
+**Root Cause**: Windows CI was checking out `prompts/*.md` files with CRLF line endings while macOS/Linux used LF, causing different file hashes despite identical content.
+
+**Fix**: Added `.gitattributes` rule to force LF line endings for all `prompts/*.md` files across all platforms.
+
+```gitattributes
+# Force LF for prompt files (prevents hash mismatches on Windows)
+prompts/*.md text eol=lf
+```
+
+**Impact**:
+- ✅ Windows build now passes all tests
+- ✅ Consistent file hashes across macOS, Linux, and Windows
+- ✅ v0.3.23 per-benchmark timeout feature now available on all platforms
+
+**Files Modified**: 1 LOC in `.gitattributes`
+
 ## [v0.3.23] - 2025-10-29
 
 ### Added - Per-Benchmark Agent Timeout Control
