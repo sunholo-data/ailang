@@ -454,6 +454,11 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		sessionConfig := *agentConfig // Copy base config
 		sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
 
+		// Use per-benchmark timeout from YAML if specified, otherwise use default from flag
+		if spec.Timeout > 0 {
+			sessionConfig.TimeoutSeconds = spec.Timeout
+		}
+
 		// Look up agent model for this specific code generation model (if not overridden)
 		if sessionConfig.ClaudeModel == "" {
 			agentModelName, err := eval_harness.GlobalModelsConfig.GetAgentModelName(model)

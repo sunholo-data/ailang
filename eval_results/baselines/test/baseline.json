@@ -1,0 +1,13 @@
+{
+  "version": "test",
+  "git_describe": "v0.3.23-6-g9c9d14e",
+  "timestamp": "2025-10-29T18:07:25Z",
+  "models": "claude-haiku-4-5,gemini-2-5-flash,gpt5-mini",
+  "full_suite": false,
+  "languages": "python,ailang",
+  "parallel": 10,
+  "total_runs": 240,
+  "git_commit": "9c9d14ea5fc8f4a6ff55feef6896dbb34a63c461",
+  "git_branch": "dev",
+  "git_dirty": true
+}

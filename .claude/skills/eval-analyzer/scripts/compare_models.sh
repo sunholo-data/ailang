@@ -44,7 +44,7 @@ jq -s '
   group_by(.model) | 
   map({
     model: .[0].model,
-    success_rate: (map(select(.stdout_ok)) | length) / length * 100 | round,
+    success_rate: ((map(select(.stdout_ok)) | length) / (. | length) * 100 | round),
     total: length,
     success: map(select(.stdout_ok)) | length,
     failed: map(select(.stdout_ok == false)) | length
@@ -60,8 +60,8 @@ jq -s '
   group_by(.model) | 
   map({
     model: .[0].model,
-    first_attempt: (map(select(.first_attempt_ok)) | length) / length * 100 | round,
-    final_success: (map(select(.stdout_ok)) | length) / length * 100 | round,
+    first_attempt: ((map(select(.first_attempt_ok)) | length) / (. | length) * 100 | round),
+    final_success: ((map(select(.stdout_ok)) | length) / (. | length) * 100 | round),
     repair_helped: ((map(select(.stdout_ok)) | length) - (map(select(.first_attempt_ok)) | length))
   }) | 
   sort_by(-.final_success)
@@ -111,7 +111,7 @@ jq -s '
     benchmark: .[0].id,
     models: group_by(.model) | map({
       model: .[0].model,
-      success: map(select(.stdout_ok)) | length > 0
+      success: (map(select(.stdout_ok)) | length > 0)
     }),
     variance: (
       group_by(.model) | 

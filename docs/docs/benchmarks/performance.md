@@ -43,10 +43,10 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Explicit State Threading**: 100.0% success rate
-- **Fizzbuzz**: 100.0% success rate
 - **Type Safe Record Access**: 100.0% success rate
+- **Adt Option**: 100.0% success rate
 - **Recursion Fibonacci**: 100.0% success rate
+- **Explicit State Threading**: 100.0% success rate
 - **String Manipulation**: 100.0% success rate
 
 ## How Benchmarks Guide Development
@@ -78,7 +78,7 @@ Want to see AILANG in action?
 
 **Total Runs**: 458
 
-**Generated**: 2025-10-29 18:56:41
+**Generated**: 2025-10-29 19:50:37
 
 ### Model Performance Details
 

@@ -25,4 +25,4 @@ export func writeFile(path: string, content: string) -> () ! {FS} = _fs_writeFil
 -- Returns true if file or directory exists
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func exists(path: string) -> bool ! {FS} = _fs_exists(path)
+export func fileExists(path: string) -> bool ! {FS} = _fs_exists(path)
