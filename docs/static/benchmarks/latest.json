@@ -1,6 +1,6 @@
 {
   "version": "v0.3.24",
-  "timestamp": "2025-10-29T19:50:42+01:00",
+  "timestamp": "2025-10-29T19:56:48+01:00",
   "totalRuns": 458,
   "aggregates": {
     "agentBenchmarks": [
@@ -8,17 +8,19 @@
       "csv_to_json_converter",
       "fizzbuzz",
       "log_file_analyzer",
+      "multi_module_imports",
       "record_update",
       "recursion_factorial",
       "recursion_fibonacci",
       "simple_print",
+      "state_machine_traffic_light",
       "tree_transformation_pipeline"
     ],
-    "agentRuns": 26,
-    "agentSuccessRate": 1,
-    "agentTotalTokens": 2471978,
-    "avgAgentCost": 0.04193670576923077,
-    "avgAgentTurns": 12.423076923076923,
+    "agentRuns": 44,
+    "agentSuccessRate": 0.75,
+    "agentTotalTokens": 3715028,
+    "avgAgentCost": 0.03570097954545455,
+    "avgAgentTurns": 15.636363636363637,
     "avgDurationMs": 38.95851528384279,
     "finalSuccess": 0.5262008733624454,
     "repairSuccessRate": 0.08875739644970414,
@@ -30,11 +32,11 @@
   "models": {
     "claude-haiku-4-5": {
       "agentStats": {
-        "avgCost": 0.02319530384615385,
-        "avgTokens": 103247.69230769231,
-        "avgTurns": 13.153846153846153,
-        "runs": 13,
-        "successRate": 1
+        "avgCost": 0.023929575,
+        "avgTokens": 101041.22727272728,
+        "avgTurns": 18.045454545454547,
+        "runs": 22,
+        "successRate": 0.7727272727272727
       },
       "aggregates": {
         "avgDurationMs": 28.883116883116884,
@@ -309,11 +311,11 @@
     },
     "claude-sonnet-4-5": {
       "agentStats": {
-        "avgCost": 0.06067810769230768,
-        "avgTokens": 86904.46153846153,
-        "avgTurns": 11.692307692307692,
-        "runs": 13,
-        "successRate": 1
+        "avgCost": 0.047472384090909085,
+        "avgTokens": 67823.68181818182,
+        "avgTurns": 13.227272727272727,
+        "runs": 22,
+        "successRate": 0.7272727272727273
       },
       "aggregates": {
         "avgDurationMs": 29.55263157894737,
@@ -1782,28 +1784,34 @@
     },
     "config_file_parser": {
       "agentStats": {
+        "ailang": {
+          "avgTokens": 0,
+          "avgTurns": 14.5,
+          "runs": 2,
+          "successRate": 0
+        },
         "python": {
-          "avgTokens": 64548,
-          "avgTurns": 10,
-          "runs": 1,
+          "avgTokens": 71169.5,
+          "avgTurns": 11.5,
+          "runs": 2,
           "successRate": 1
         }
       },
       "avgTokens": 917.75,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (readFile, writeFile, println)\nimport std/json (decode, Json, j_get, j_str, j_num, j_arr, j_obj)\n\ntype Config = {\n  app_name: string,\n  version: string,\n  port: int,\n  features: [string]\n}\n\nexport func countDots(s: string) -\u003e int =\n  match s {\n    \"\" =\u003e 0,\n    _ =\u003e if String.head(s) == '.' then 1 + countDots(String.tail(s)) else countDots(String.tail(s))\n  }\n\nexport func validatePort(port: int) -\u003e bool =\n  port \u003e= 1024 \u0026\u0026 port \u003c= 65535\n\nexport func validateVersion(ver: string) -\u003e bool =\n  countDots(ver) == 2\n\nexport func listLength[a](xs: [a]) -\u003e int =\n  match xs {\n    [] =\u003e 0,\n    Cons(_, rest) =\u003e 1 + listLength(rest)\n  }\n\nexport func jsonToStringList(json: Json) -\u003e [string] =\n  match json {\n    j_arr(items) =\u003e {\n      let rec toList = \\acc. \\remaining.\n        match remaining {\n          [] =\u003e acc,\n          Cons(item, rest) =\u003e\n            match item {\n              j_str(s) =\u003e toList(Cons(s, acc), rest),\n              _ =\u003e toList(acc, rest)\n            }\n        } in\n      toList([], items)\n    },\n    _ =\u003e []\n  }\n\nexport func loadConfig(filename: string) -\u003e Config ! {FS} =\n  let content = readFile(filename) in\n  match decode(content) {\n    Ok(json) =\u003e {\n      match json {\n        j_obj(fields) =\u003e {\n          let app_name = match j_get(\"app_name\", fields) {\n            Some(j_str(s)) =\u003e s,\n            _ =\u003e \"Unknown\"\n          } in\n          let version = match j_get(\"version\", fields) {\n            Some(j_str(s)) =\u003e s,\n            _ =\u003e \"0.0.0\"\n          } in\n          let port_val = match j_get(\"port\", fields) {\n            Some(j_num(n)) =\u003e floatToInt(n),\n            _ =\u003e 8080\n          } in\n          let features_json = match j_get(\"features\", fields) {\n            Some(arr) =\u003e arr,\n            _ =\u003e j_arr([])\n          } in\n          let features = jsonToStringList(features_json) in\n\n          if validatePort(port_val) \u0026\u0026 validateVersion(version) \u0026\u0026 listLength(features) \u003e 0\n          then {\n            app_name: app_name,\n            version: version,\n            port: port_val,\n            features: features\n          }\n          else {\n            app_name: \"DefaultApp\",\n            version: \"1.0.0\",\n            port: 8080,\n            features: []\n          }\n        },\n        _ =\u003e {\n          app_name: \"DefaultApp\",\n          version: \"1.0.0\",\n          port: 8080,\n          features: []\n        }\n      }\n    },\n    Err(_) =\u003e {\n      app_name: \"DefaultApp\",\n      version: \"1.0.0\",\n      port: 8080,\n      features: []\n    }\n  }\n\nexport func main() -\u003e () ! {IO, FS} =\n  let configJson = \"{\\\"app_name\\\":\\\"MyApp\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"port\\\":8080,\\\"features\\\":[\\\"logging\\\",\\\"auth\\\",\\\"api\\\"]}\" in\n  let _ = writeFile(\"app_config.json\", configJson) in\n  let config = loadConfig(\"app_config.json\") in\n  let numFeatures = listLength(config.features) in\n  println(\"Loaded \" ++ config.app_name ++ \" v\" ++ config.version ++ \" on port \" ++ show(config.port) ++ \" with \" ++ show(numFeatures) ++ \" features\")",
+        "ailang": "module benchmark/solution\n// ⚠️ DO NOT CHANGE THE MODULE DECLARATION ABOVE! ⚠️\n// It MUST match the file path (benchmark/solution.ail)\n// Changing it will cause MOD010 error: \"module declaration doesn't match canonical path\"\n\nimport std/io (readFile, writeFile, println)\nimport std/json (decode, Json, JObject, JString, JNumber, JArray)\n\n// Helper to extract string field from JSON object\nexport func getStringField(obj: List[(string, Json)], field: string) -\u003e string =\n  match obj {\n    [] =\u003e \"\",\n    Cons(pair, rest) =\u003e\n      match pair {\n        (key, val) =\u003e\n          if key == field\n          then match val {\n            JString(s) =\u003e s,\n            _ =\u003e \"\"\n          }\n          else getStringField(rest, field)\n      }\n  }\n\n// Helper to extract int field from JSON object\nexport func getIntField(obj: List[(string, Json)], field: string) -\u003e int =\n  match obj {\n    [] =\u003e 0,\n    Cons(pair, rest) =\u003e\n      match pair {\n        (key, val) =\u003e\n          if key == field\n          then match val {\n            JNumber(n) =\u003e floatToInt(n),\n            _ =\u003e 0\n          }\n          else getIntField(rest, field)\n      }\n  }\n\n// Helper to extract array field from JSON object\nexport func getArrayField(obj: List[(string, Json)], field: string) -\u003e List[Json] =\n  match obj {\n    [] =\u003e [],\n    Cons(pair, rest) =\u003e\n      match pair {\n        (key, val) =\u003e\n          if key == field\n          then match val {\n            JArray(arr) =\u003e arr,\n            _ =\u003e []\n          }\n          else getArrayField(rest, field)\n      }\n  }\n\n// Convert JSON array to string list\nexport func jsonArrayToStringList(arr: List[Json]) -\u003e List[string] =\n  match arr {\n    [] =\u003e [],\n    Cons(elem, rest) =\u003e\n      match elem {\n        JString(s) =\u003e Cons(s, jsonArrayToStringList(rest)),\n        _ =\u003e jsonArrayToStringList(rest)\n      }\n  }\n\n// Count list length\nexport func listLength[a](xs: List[a]) -\u003e int =\n  match xs {\n    [] =\u003e 0,\n    Cons(_, rest) =\u003e 1 + listLength(rest)\n  }\n\nexport func loadAndPrintConfig(filename: string) -\u003e () ! {IO, FS} =\n  let content = readFile(filename) in\n  match decode(content) {\n    Ok(json_val) =\u003e\n      match json_val {\n        JObject(fields) =\u003e\n          let app_name = getStringField(fields, \"app_name\") in\n          let version = getStringField(fields, \"version\") in\n          let port = getIntField(fields, \"port\") in\n          let featuresJson = getArrayField(fields, \"features\") in\n          let features = jsonArrayToStringList(featuresJson) in\n          let numFeatures = listLength(features) in\n          println(\"Loaded \" ++ app_name ++ \" v\" ++ version ++ \" on port \" ++ show(port) ++ \" with \" ++ show(numFeatures) ++ \" features\"),\n        _ =\u003e println(\"Error: Invalid JSON structure\")\n      },\n    Err(_) =\u003e println(\"Error: Failed to parse JSON\")\n  }\n\nexport func main() -\u003e () ! {IO, FS} =\n  let configJson = \"{\\\"app_name\\\":\\\"MyApp\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"port\\\":8080,\\\"features\\\":[\\\"logging\\\",\\\"auth\\\",\\\"api\\\"]}\" in\n  let _ = writeFile(\"app_config.json\", configJson) in\n  loadAndPrintConfig(\"app_config.json\")\n",
         "python": "import json\nfrom pathlib import Path\nfrom typing import TypedDict, List\n\n\nclass Config(TypedDict):\n    \"\"\"Configuration record type\"\"\"\n    app_name: str\n    version: str\n    port: int\n    features: List[str]\n\n\ndef validate_port(port: int) -\u003e bool:\n    \"\"\"Validate that port is in valid range (1024-65535)\"\"\"\n    return 1024 \u003c= port \u003c= 65535\n\n\ndef validate_version(version: str) -\u003e bool:\n    \"\"\"Validate version format (X.Y.Z - contains exactly two dots)\"\"\"\n    return version.count(\".\") == 2\n\n\ndef validate_features(features: List[str]) -\u003e bool:\n    \"\"\"Validate that features list is not empty\"\"\"\n    return len(features) \u003e 0\n\n\ndef load_config(filename: str) -\u003e Config:\n    \"\"\"Load, parse, and validate JSON configuration file\"\"\"\n    try:\n        # Read file\n        with open(filename, \"r\") as f:\n            content = f.read()\n\n        # Parse JSON\n        data = json.loads(content)\n\n        # Extract fields\n        app_name = data.get(\"app_name\", \"\")\n        version = data.get(\"version\", \"\")\n        port = data.get(\"port\", 0)\n        features = data.get(\"features\", [])\n\n        # Validate\n        if not validate_port(port):\n            raise ValueError(f\"Invalid port: {port}. Must be between 1024 and 65535\")\n\n        if not validate_version(version):\n            raise ValueError(f\"Invalid version format: {version}. Must be X.Y.Z format\")\n\n        if not validate_features(features):\n            raise ValueError(\"Features list must not be empty\")\n\n        # Build and return Config record\n        config: Config = {\n            \"app_name\": app_name,\n            \"version\": version,\n            \"port\": port,\n            \"features\": features\n        }\n\n        return config\n\n    except json.JSONDecodeError as e:\n        raise ValueError(f\"Failed to parse JSON: {e}\")\n    except FileNotFoundError as e:\n        raise ValueError(f\"Config file not found: {e}\")\n\n\ndef main() -\u003e None:\n    \"\"\"Main function\"\"\"\n    # Create config file\n    config_data = {\n        \"app_name\": \"MyApp\",\n        \"version\": \"1.0.0\",\n        \"port\": 8080,\n        \"features\": [\"logging\", \"auth\", \"api\"]\n    }\n\n    with open(\"app_config.json\", \"w\") as f:\n        json.dump(config_data, f)\n\n    # Load and validate config\n    config = load_config(\"app_config.json\")\n\n    # Print result\n    num_features = len(config[\"features\"])\n    print(f\"Loaded {config['app_name']} v{config['version']} on port {config['port']} with {num_features} features\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1093,
+          "avgTokens": 819.75,
           "successRate": 0,
-          "totalRuns": 6
+          "totalRuns": 8
         },
         "python": {
-          "avgTokens": 868.5714285714286,
+          "avgTokens": 908.5,
           "successRate": 1,
-          "totalRuns": 7
+          "totalRuns": 8
         }
       },
       "languages": [
@@ -1816,6 +1824,12 @@
     },
     "csv_to_json_converter": {
       "agentStats": {
+        "ailang": {
+          "avgTokens": 0,
+          "avgTurns": 12,
+          "runs": 2,
+          "successRate": 0
+        },
         "python": {
           "avgTokens": 85261.5,
           "avgTurns": 15.5,
@@ -1825,14 +1839,14 @@
       },
       "avgTokens": 765.75,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (readFile, writeFile, println)\nimport std/json (encode, jo, kv, js, jnum, ja)\nimport std/string (split, contains)\nimport std/convert (intFromString)\n\n-- Define Option type (if not implicitly available in prelude)\ntype Option[a] = Some(a) | None\n\n-- Helper to parse age from string\n-- Returns Some(positive_int) or None\nexport func parseAge(s: string) -\u003e Option[int] {\n  match intFromString(s) {\n    Some(n) if n \u003e 0 =\u003e Some(n),\n    _ =\u003e None -- Covers None from intFromString or non-positive integer\n  }\n}\n\n-- Helper to validate email\n-- Checks if the email string contains \"@\"\nexport func validateEmail(email: string) -\u003e bool {\n  contains(email, \"@\")\n}\n\n-- Recursive helper to filter elements from a list based on a predicate\nfunc filter[a](pred: func(a) -\u003e bool, xs: List[a]) -\u003e List[a] {\n  match xs {\n    [] =\u003e [],\n    ::(x, rest) =\u003e\n      if pred(x)\n      then ::(x, filter(pred, rest))\n      else filter(pred, rest)\n  }\n}\n\n-- Recursive helper to reverse a list (using an accumulator for efficiency)\nfunc reverse[a](xs: List[a]) -\u003e List[a] {\n  letrec rev_acc = \\list. \\acc.\n    match list {\n      [] =\u003e acc,\n      ::(h, t) =\u003e rev_acc(t)(::(h, acc))\n    } in\n  rev_acc(xs)([])\n}\n\n-- Recursive helper to get the length of a list\nfunc length[a](xs: List[a]) -\u003e int {\n  match xs {\n    [] =\u003e 0,\n    ::(_, rest) =\u003e 1 + length(rest)\n  }\n}\n\n-- Recursive function to process data lines, validate, and convert to JSON objects\n-- Returns a list of valid JSON objects (std/json.JsonValue)\nfunc processDataLines(\n  lines: List[string],\n  validUsersAcc: List[JsonValue]\n) -\u003e List[JsonValue] {\n  match lines {\n    [] =\u003e validUsersAcc,\n    ::(line, rest) =\u003e\n      let parts = split(line, \",\") in\n      match parts {\n        -- Expecting exactly 3 parts: name, ageStr, email\n        ::(name, ::(ageStr, ::(email, []))) =\u003e\n          let ageOpt = parseAge(ageStr) in\n          if validateEmail(email)\n          then match ageOpt {\n            Some(age) =\u003e\n              let userJson = jo([\n                kv(\"name\", js(name)),\n                kv(\"age\", jnum(intToFloat(age))), -- JSON numbers are floats in std/json\n                kv(\"email\", js(email))\n              ]) in\n              -- Prepend to accumulator, will reverse at the end\n              processDataLines(rest, ::(userJson, validUsersAcc))\n            None =\u003e\n              -- Invalid age (e.g., \"notanumber\" or \u003c= 0)\n              processDataLines(rest, validUsersAcc)\n          }\n          else\n            -- Invalid email (e.g., \"noatsymbol.com\")\n            processDataLines(rest, validUsersAcc)\n        _ =\u003e\n          -- Malformed line (e.g., not 3 comma-separated parts)\n          processDataLines(rest, validUsersAcc)\n      }\n  }\n}\n\n-- Main entry point of the program\nexport func main() -\u003e () ! {IO, FS} {\n  -- 1. Create input CSV file \"users.csv\"\n  let csvContent = \"name,age,email\\nAlice,30,alice@example.com\\nBob,25,bob@example.com\\nCarol,35,carol@example.com\" in\n  let _ = writeFile(\"users.csv\", csvContent);\n\n  -- 2. Parse the CSV file\n  let fileContent = readFile(\"users.csv\");\n  -- Split by newline, then filter out any empty strings that might result from trailing newlines\n  let allLines = split(fileContent, \"\\n\");\n  let nonEmptyLines = filter(\\s. s != \"\", allLines);\n\n  match nonEmptyLines {\n    [] =\u003e println(\"Error: CSV file is empty or contains no data lines.\"),\n    ::(headerLine, dataLines) =\u003e\n      -- Headers are 'name,age,email' - we assume this structure and don't need to parse `headerLine` further for this task.\n      -- The `processDataLines` function processes data based on this expected structure.\n\n      -- Process data lines, accumulating valid users. The result will be in reverse order.\n      let reversedValidUsers = processDataLines(dataLines, []);\n      -- Reverse the list to maintain the original order of valid rows from the CSV.\n      let validUsers = reverse(reversedValidUsers);\n\n      -- 3. Convert to JSON array\n      let jsonArray = ja(validUsers);\n      let jsonString = encode(jsonArray);\n\n      -- 4. Write JSON to \"users.json\" file\n      let _ = writeFile(\"users.json\", jsonString);\n\n      -- 5. Print to stdout the confirmation message\n      println(\"Converted \" ++ show(length(validUsers)) ++ \" valid rows to users.json\")\n  }\n}",
+        "ailang": "module benchmark/solution\n\n-- Helper to split string by delimiter (simple version)\nexport func split(s: string, delim: string) -\u003e [string] {\n  letrec splitHelper = \\pos. \\acc.\n    if pos \u003e= _str_len(s)\n    then acc\n    else {\n      let idx = _str_find(s, delim);\n      if idx == -1\n      then {\n        let lastPart = _str_slice(s, pos, _str_len(s));\n        [lastPart] ++ acc\n      }\n      else {\n        let beforeDelim = _str_slice(s, 0, idx);\n        let afterDelim = _str_slice(s, idx + _str_len(delim), _str_len(s));\n        [beforeDelim] ++ splitHelper(0, [afterDelim] ++ acc)\n      }\n    } in\n  splitHelper(0, [])\n}\n\n-- Helper to check if string contains a substring\nexport func contains(s: string, c: string) -\u003e bool {\n  _str_find(s, c) != -1\n}\n\n-- Helper to parse age from string\nexport func parseAge(s: string) -\u003e Option[int] {\n  let trimmed = _str_trim(s);\n  match tryParseInt(trimmed) {\n    Some(n) =\u003e if n \u003e 0 then Some(n) else None,\n    None =\u003e None\n  }\n}\n\n-- Helper to validate email\nexport func validateEmail(email: string) -\u003e bool {\n  contains(email, \"@\")\n}\n\n-- Parse a CSV row into fields\nexport func parseRow(line: string) -\u003e [string] {\n  split(line, \",\")\n}\n\n-- Create JSON object from row data\nexport func rowToJson(headers: [string], fields: [string]) -\u003e Option[{name: string, age: int, email: string}] {\n  match (headers, fields) {\n    (Cons(h1, Cons(h2, Cons(h3, _))), Cons(name, Cons(ageStr, Cons(email, _)))) =\u003e {\n      match parseAge(ageStr) {\n        Some(age) =\u003e {\n          if validateEmail(email)\n          then Some({name: _str_trim(name), age: age, email: _str_trim(email)})\n          else None\n        },\n        None =\u003e None\n      }\n    },\n    _ =\u003e None\n  }\n}\n\n-- Convert rows to JSON objects\nexport func rowsToJsonObjects(headers: [string], lines: [string]) -\u003e [{name: string, age: int, email: string}] {\n  match lines {\n    [] =\u003e [],\n    Cons(line, rest) =\u003e {\n      let fields = parseRow(line);\n      match rowToJson(headers, fields) {\n        Some(obj) =\u003e [obj] ++ rowsToJsonObjects(headers, rest),\n        None =\u003e rowsToJsonObjects(headers, rest)\n      }\n    }\n  }\n}\n\n-- Helper to get list length\nexport func listLength[a](xs: [a]) -\u003e int {\n  match xs {\n    [] =\u003e 0,\n    Cons(_, rest) =\u003e 1 + listLength(rest)\n  }\n}\n\n-- Build JSON manually from objects\nexport func buildJsonString(objs: [{name: string, age: int, email: string}]) -\u003e string {\n  let objStrings = match objs {\n    [] =\u003e [],\n    Cons(obj, rest) =\u003e {\n      let objStr = \"{\\\"name\\\": \\\"\" ++ obj.name ++ \"\\\", \\\"age\\\": \" ++ show(obj.age) ++ \", \\\"email\\\": \\\"\" ++ obj.email ++ \"\\\"}\";\n      [objStr] ++ buildJsonString(rest)\n    }\n  };\n\n  let joined = joinStrings(objStrings, \", \");\n  \"[\" ++ joined ++ \"]\"\n}\n\n-- Join strings with separator\nexport func joinStrings(strs: [string], sep: string) -\u003e string {\n  match strs {\n    [] =\u003e \"\",\n    Cons(s, rest) =\u003e {\n      match rest {\n        [] =\u003e s,\n        _ =\u003e s ++ sep ++ joinStrings(rest, sep)\n      }\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  -- Create users.csv\n  let csvContent = \"name,age,email\\nAlice,30,alice@example.com\\nBob,25,bob@example.com\\nCarol,35,carol@example.com\";\n  let _ = _fs_writeFile(\"users.csv\", csvContent);\n\n  -- Read CSV file\n  let fileContent = _fs_readFile(\"users.csv\");\n\n  -- Split into lines\n  let allLines = split(fileContent, \"\\n\");\n\n  -- Extract headers and data rows\n  match allLines {\n    Cons(headerLine, dataLines) =\u003e {\n      let headers = parseRow(headerLine);\n\n      -- Convert to JSON objects\n      let jsonObjects = rowsToJsonObjects(headers, dataLines);\n\n      -- Create JSON string\n      let jsonArray = buildJsonString(jsonObjects);\n\n      -- Write JSON file\n      let _ = _fs_writeFile(\"users.json\", jsonArray);\n\n      -- Print confirmation\n      let count = listLength(jsonObjects);\n      _io_println(\"Converted \" ++ show(count) ++ \" valid rows to users.json\")\n    },\n    _ =\u003e _io_println(\"Error: Could not parse CSV\")\n  }\n}\n",
         "python": "import csv\nimport json\nfrom pathlib import Path\nfrom typing import List, Dict, Any, Optional\n\n\ndef create_input_csv_file(file_path: Path) -\u003e None:\n    \"\"\"Creates the 'users.csv' file with specified content.\"\"\"\n    csv_content = (\n        \"name,age,email\\n\"\n        \"Alice,30,alice@example.com\\n\"\n        \"Bob,25,bob@example.com\\n\"\n        \"Carol,35,carol@example.com\\n\"\n        \"David,-5,invalid_age@example.com\\n\"\n        \"Eve,28,invalid-email\\n\"\n        \"Frank,40,frank@example.com\\n\"\n    )\n    file_path.write_text(csv_content)\n\n\ndef validate_user_row(row: Dict[str, str]) -\u003e Optional[Dict[str, Any]]:\n    \"\"\"\n    Validates a single user row.\n    Returns a validated and typed dictionary if valid, otherwise None.\n    \"\"\"\n    name = row.get(\"name\")\n    age_str = row.get(\"age\")\n    email = row.get(\"email\")\n\n    if not all([name, age_str, email]):\n        return None  # Skip if any required field is missing\n\n    try:\n        age = int(age_str)\n        if not (age \u003e 0):\n            return None  # Age must be a positive integer\n    except ValueError:\n        return None  # Age must be an integer\n\n    if \"@\" not in email:\n        return None  # Email must contain \"@\" symbol\n\n    return {\"name\": name, \"age\": age, \"email\": email}\n\n\ndef convert_csv_to_json(\n    csv_file_path: Path, json_file_path: Path\n) -\u003e int:\n    \"\"\"\n    Parses a CSV file, validates rows, and converts valid rows to a JSON array.\n    Writes the JSON array to a file and returns the count of valid rows.\n    \"\"\"\n    valid_users: List[Dict[str, Any]] = []\n\n    with csv_file_path.open(mode=\"r\", newline=\"\", encoding=\"utf-8\") as csv_f:\n        reader = csv.DictReader(csv_f)\n        for row in reader:\n            validated_row = validate_user_row(row)\n            if validated_row:\n                valid_users.append(validated_row)\n\n    with json_file_path.open(mode=\"w\", encoding=\"utf-8\") as json_f:\n        json.dump(valid_users, json_f, indent=2)\n\n    return len(valid_users)\n\n\ndef main() -\u003e None:\n    \"\"\"Main function to orchestrate the CSV to JSON conversion.\"\"\"\n    csv_path = Path(\"users.csv\")\n    json_path = Path(\"users.json\")\n\n    create_input_csv_file(csv_path)\n    valid_rows_count = convert_csv_to_json(csv_path, json_path)\n\n    print(f\"Converted {valid_rows_count} valid rows to {json_path.name}\")\n\n\nif __name__ == \"__main__\":\n    main()"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1043.3333333333333,
+          "avgTokens": 782.5,
           "successRate": 0,
-          "totalRuns": 6
+          "totalRuns": 8
         },
         "python": {
           "avgTokens": 696.5,
@@ -2254,10 +2268,16 @@
     },
     "log_file_analyzer": {
       "agentStats": {
+        "ailang": {
+          "avgTokens": 217965.5,
+          "avgTurns": 20.5,
+          "runs": 2,
+          "successRate": 0.5
+        },
         "python": {
-          "avgTokens": 118527,
-          "avgTurns": 19,
-          "runs": 1,
+          "avgTokens": 109368,
+          "avgTurns": 17.5,
+          "runs": 2,
           "successRate": 1
         }
       },
@@ -2268,14 +2288,14 @@
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 1692,
-          "successRate": 0.16666666666666666,
-          "totalRuns": 6
+          "avgTokens": 2402.875,
+          "successRate": 0.25,
+          "totalRuns": 8
         },
         "python": {
-          "avgTokens": 855.7142857142857,
-          "successRate": 0.8571428571428571,
-          "totalRuns": 7
+          "avgTokens": 961.125,
+          "successRate": 0.875,
+          "totalRuns": 8
         }
       },
       "languages": [
@@ -2287,21 +2307,35 @@
       "totalRuns": 12
     },
     "multi_module_imports": {
+      "agentStats": {
+        "ailang": {
+          "avgTokens": 0,
+          "avgTurns": 32,
+          "runs": 2,
+          "successRate": 0
+        },
+        "python": {
+          "avgTokens": 190409.5,
+          "avgTurns": 34.5,
+          "runs": 2,
+          "successRate": 1
+        }
+      },
       "avgTokens": 357.4166666666667,
       "codeSamples": {
-        "ailang": "module benchmark/data\n\ntype User = { name: string, age: int, email: string }\n\nexport func validateEmail(email: string) -\u003e bool {\n  true\n}\n\n\nmodule benchmark/storage\nimport benchmark/data (User)\nimport std/fs (readFile, writeFile)\n\nexport func saveUser(user: User, filename: string) -\u003e () ! {FS} {\n  let json = \"{\\\"name\\\":\\\"\" ++ user.name ++ \"\\\",\\\"age\\\":\" ++ show(user.age) ++ \",\\\"email\\\":\\\"\" ++ user.email ++ \"\\\"}\" in\n  writeFile(filename, json)\n}\n\nexport func loadUser(filename: string) -\u003e User ! {FS} {\n  let content = readFile(filename) in\n  { name: \"Alice\", age: 30, email: \"alice@example.com\" }\n}\n\n\nmodule benchmark/solution\nimport benchmark/data (User, validateEmail)\nimport benchmark/storage (saveUser, loadUser)\nimport std/io (println)\n\nexport func main() -\u003e () ! {IO, FS} {\n  let user = { name: \"Alice\", age: 30, email: \"alice@example.com\" };\n  let valid = validateEmail(user.email);\n  println(\"Email valid: \" ++ show(valid));\n  saveUser(user, \"user.json\");\n  let loaded = loadUser(\"user.json\");\n  println(\"Loaded: \" ++ loaded.name ++ \", age \" ++ show(loaded.age))\n}",
-        "python": "# benchmark/data.py\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass User:\n    name: str\n    age: int\n    email: str\n\n\ndef validate_email(email: str) -\u003e bool:\n    \"\"\"Simple email validation: check for presence of '@'.\"\"\"\n    return \"@\" in email\n\n\n# benchmark/storage.py\nimport json\nfrom pathlib import Path\nfrom typing import Union\n\nfrom benchmark.data import User\n\n\nPathLike = Union[str, Path]\n\n\ndef save_user(user: User, filename: PathLike) -\u003e None:\n    path = Path(filename)\n    data = {\"name\": user.name, \"age\": user.age, \"email\": user.email}\n    with path.open(\"w\", encoding=\"utf-8\") as fh:\n        json.dump(data, fh)\n\n\ndef load_user(filename: PathLike) -\u003e User:\n    path = Path(filename)\n    with path.open(\"r\", encoding=\"utf-8\") as fh:\n        data = json.load(fh)\n    return User(name=data[\"name\"], age=int(data[\"age\"]), email=data[\"email\"])\n\n\n# benchmark/solution.py\nfrom benchmark.data import User, validate_email\nfrom benchmark.storage import save_user, load_user\n\n\ndef main() -\u003e None:\n    user = User(name=\"Alice\", age=30, email=\"alice@example.com\")\n    valid = validate_email(user.email)\n    print(f\"Email valid: {valid}\")\n\n    save_user(user, \"user.json\")\n    loaded = load_user(\"user.json\")\n    print(f\"Loaded: {loaded.name}, age {loaded.age}\")\n\n\nif __name__ == \"__main__\":\n    main()"
+        "ailang": "module benchmark/solution\n\nimport data (User, validateEmail)\nimport storage (saveUser, loadUser)\n\nexport func main() -\u003e () ! {IO, FS} {\n  let user = {name: \"Alice\", age: 30, email: \"alice@example.com\"} in\n  let valid = validateEmail(user.email) in\n  let _ = print(\"Email valid: \" ++ show(valid)) in\n  let _ = saveUser(user, \"user.json\") in\n  let loaded = loadUser(\"user.json\") in\n  print(\"Loaded: \" ++ loaded.name ++ \", age \" ++ show(loaded.age))\n}\n",
+        "python": "from data import User, validateEmail\nfrom storage import saveUser, loadUser\n\ndef main():\n    user = User(\"Alice\", 30, \"alice@example.com\")\n    valid = validateEmail(user.email)\n    print(f\"Email valid: {'true' if valid else 'false'}\")\n\n    saveUser(user, \"user.json\")\n    loaded = loadUser(\"user.json\")\n    print(f\"Loaded: {loaded.name}, age {loaded.age}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 352.8333333333333,
+          "avgTokens": 264.625,
           "successRate": 0,
-          "totalRuns": 6
+          "totalRuns": 8
         },
         "python": {
-          "avgTokens": 362,
-          "successRate": 0,
-          "totalRuns": 6
+          "avgTokens": 910.5,
+          "successRate": 0.25,
+          "totalRuns": 8
         }
       },
       "languages": [
@@ -2700,21 +2734,35 @@
       "totalRuns": 12
     },
     "state_machine_traffic_light": {
+      "agentStats": {
+        "ailang": {
+          "avgTokens": 0,
+          "avgTurns": 17.5,
+          "runs": 2,
+          "successRate": 0
+        },
+        "python": {
+          "avgTokens": 124150,
+          "avgTurns": 19,
+          "runs": 2,
+          "successRate": 1
+        }
+      },
       "avgTokens": 543.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype State =\n  | Green(int)\n  | Yellow(int)\n  | Red(int)\n\ntype Event =\n  | Tick\n  | Reset\n\nexport func transition(state: State, event: Event) -\u003e State {\n  match event {\n    Tick =\u003e match state {\n      Green(timer) =\u003e if timer \u003e 0 then Green(timer - 1) else Yellow(3),\n      Yellow(timer) =\u003e if timer \u003e 0 then Yellow(timer - 1) else Red(10),\n      Red(timer) =\u003e if timer \u003e 0 then Red(timer - 1) else Green(20)\n    },\n    Reset =\u003e Green(20)\n  }\n}\n\nexport func showState(state: State) -\u003e string {\n  match state {\n    Green(n) =\u003e \"GREEN (\" ++ show(n) ++ \"sec)\",\n    Yellow(n) =\u003e \"YELLOW (\" ++ show(n) ++ \"sec)\",\n    Red(n) =\u003e \"RED (\" ++ show(n) ++ \"sec)\"\n  }\n}\n\nexport func applyAndPrint(state: State, event: Event) -\u003e State ! {IO} {\n  let newState = transition(state, event);\n  print(showState(newState));\n  newState\n}\n\nexport func main() -\u003e () ! {IO} {\n  let s0 = Green(20);\n  let s1 = applyAndPrint(s0, Tick);\n  let s2 = applyAndPrint(s1, Tick);\n  let s3 = applyAndPrint(s2, Tick);\n  let s4 = applyAndPrint(s3, Tick);\n  let s5 = applyAndPrint(s4, Tick);\n  let s6 = applyAndPrint(s5, Tick);\n  let s7 = applyAndPrint(s6, Tick);\n  let s8 = applyAndPrint(s7, Tick);\n  let s9 = applyAndPrint(s8, Tick);\n  let s10 = applyAndPrint(s9, Tick);\n  let s11 = applyAndPrint(s10, Tick);\n  let s12 = applyAndPrint(s11, Tick);\n  let s13 = applyAndPrint(s12, Tick);\n  let s14 = applyAndPrint(s13, Tick);\n  let s15 = applyAndPrint(s14, Tick);\n  let s16 = applyAndPrint(s15, Tick);\n  let s17 = applyAndPrint(s16, Tick);\n  let s18 = applyAndPrint(s17, Tick);\n  let s19 = applyAndPrint(s18, Tick);\n  let s20 = applyAndPrint(s19, Tick);\n  let s21 = applyAndPrint(s20, Tick);\n  let s22 = applyAndPrint(s21, Tick);\n  let s23 = applyAndPrint(s22, Tick);\n  let s24 = applyAndPrint(s23, Tick);\n  let s25 = applyAndPrint(s24, Tick);\n  let s26 = applyAndPrint(s25, Reset);\n  let s27 = applyAndPrint(s26, Tick);\n  let s28 = applyAndPrint(s27, Tick);\n  let s29 = applyAndPrint(s28, Tick);\n  let s30 = applyAndPrint(s29, Tick);\n  let s31 = applyAndPrint(s30, Tick);\n  ()\n}",
-        "python": "from dataclasses import dataclass\nfrom typing import Union\n\n@dataclass\nclass Green:\n    timer: int\n\n@dataclass\nclass Yellow:\n    timer: int\n\n@dataclass\nclass Red:\n    timer: int\n\nclass Tick:\n    pass\n\nclass Reset:\n    pass\n\nStateType = Union[Green, Yellow, Red]\nEventType = Union[Tick, Reset]\n\ndef transition(state: StateType, event: EventType) -\u003e StateType:\n    if isinstance(event, Tick):\n        if isinstance(state, Green):\n            if state.timer \u003e 0:\n                return Green(state.timer - 1)\n            else:\n                return Yellow(3)\n        elif isinstance(state, Yellow):\n            if state.timer \u003e 0:\n                return Yellow(state.timer - 1)\n            else:\n                return Red(10)\n        elif isinstance(state, Red):\n            if state.timer \u003e 0:\n                return Red(state.timer - 1)\n            else:\n                return Green(20)\n    elif isinstance(event, Reset):\n        return Green(20)\n    # This point should theoretically be unreachable with exhaustive type checking\n    # and properly constructed inputs based on the ADT definitions.\n    # In a production system, one might raise an error here for robustness.\n    # For this specific task's ADT-like exhaustive matching, all defined cases are covered.\n    raise ValueError(f\"Unhandled state-event combination: {state}, {event}\")\n\n\ndef show_state(state: StateType) -\u003e str:\n    if isinstance(state, Green):\n        return f\"GREEN ({state.timer}sec)\"\n    elif isinstance(state, Yellow):\n        return f\"YELLOW ({state.timer}sec)\"\n    elif isinstance(state, Red):\n        return f\"RED ({state.timer}sec)\"\n    # This point should theoretically be unreachable with exhaustive type checking\n    # and properly constructed inputs.\n    raise ValueError(f\"Unknown state type: {state}\")\n\n\ndef main() -\u003e None:\n    current_state: StateType = Green(20)\n\n    # Apply 25 Tick events\n    for _ in range(25):\n        current_state = transition(current_state, Tick())\n        print(show_state(current_state))\n\n    # Apply 1 Reset event\n    current_state = transition(current_state, Reset())\n    print(show_state(current_state))\n\n    # Apply 5 more Tick events\n    for _ in range(5):\n        current_state = transition(current_state, Tick())\n        print(show_state(current_state))\n\n\nif __name__ == \"__main__\":\n    main()"
+        "python": "from dataclasses import dataclass\n\n@dataclass\nclass Green:\n    timer: int\n\n@dataclass\nclass Yellow:\n    timer: int\n\n@dataclass\nclass Red:\n    timer: int\n\nclass Tick:\n    pass\n\nclass Reset:\n    pass\n\ndef transition(state, event):\n    if isinstance(event, Tick):\n        if isinstance(state, Green):\n            if state.timer \u003e 1:\n                return Green(state.timer - 1)\n            else:\n                return Yellow(3)\n        elif isinstance(state, Yellow):\n            if state.timer \u003e 1:\n                return Yellow(state.timer - 1)\n            else:\n                return Red(10)\n        elif isinstance(state, Red):\n            if state.timer \u003e 1:\n                return Red(state.timer - 1)\n            else:\n                return Green(20)\n    elif isinstance(event, Reset):\n        return Green(20)\n\ndef show_state(state):\n    if isinstance(state, Green):\n        return f\"GREEN ({state.timer}sec)\"\n    elif isinstance(state, Yellow):\n        return f\"YELLOW ({state.timer}sec)\"\n    elif isinstance(state, Red):\n        return f\"RED ({state.timer}sec)\"\n\ndef main():\n    state = Green(20)\n\n    # Apply 25 Ticks\n    for _ in range(25):\n        state = transition(state, Tick())\n        print(show_state(state))\n\n    # Apply Reset\n    state = transition(state, Reset())\n    print(show_state(state))\n\n    # Apply 5 more Ticks\n    for _ in range(5):\n        state = transition(state, Tick())\n        print(show_state(state))\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 603.1666666666666,
+          "avgTokens": 452.375,
           "successRate": 0,
-          "totalRuns": 6
+          "totalRuns": 8
         },
         "python": {
-          "avgTokens": 483.8333333333333,
-          "successRate": 0,
-          "totalRuns": 6
+          "avgTokens": 1112.75,
+          "successRate": 0.25,
+          "totalRuns": 8
         }
       },
       "languages": [
@@ -2772,6 +2820,12 @@
     },
     "tree_transformation_pipeline": {
       "agentStats": {
+        "ailang": {
+          "avgTokens": 0,
+          "avgTurns": 18,
+          "runs": 2,
+          "successRate": 0
+        },
         "python": {
           "avgTokens": 84731.5,
           "avgTurns": 13,
@@ -2781,14 +2835,14 @@
       },
       "avgTokens": 694.7142857142857,
       "codeSamples": {
-        "ailang": "module benchmark/solution\n\nimport std/io (println)\n\ntype Tree =\n  | Leaf(int)\n  | Node(Tree, int, Tree)\n\nexport func mapTree(fn: func(int) -\u003e int, tree: Tree) -\u003e Tree {\n  match tree {\n    Leaf(v) =\u003e Leaf(fn(v)),\n    Node(left, v, right) =\u003e Node(mapTree(fn, left), fn(v), mapTree(fn, right))\n  }\n}\n\nexport func foldTree(fn: func(int) -\u003e func(int) -\u003e int, acc: int, tree: Tree) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e fn(acc)(v),\n    Node(left, v, right) =\u003e\n      let accLeft = foldTree(fn, acc, left);\n      let accV = fn(accLeft)(v);\n      foldTree(fn, accV, right)\n  }\n}\n\nexport func concatLists(a: [int], b: [int]) -\u003e [int] {\n  match a {\n    [] =\u003e b,\n    Cons(h, t) =\u003e Cons(h, concatLists(t, b))\n  }\n}\n\nexport func treeToList(tree: Tree) -\u003e [int] {\n  match tree {\n    Leaf(v) =\u003e [v],\n    Node(left, v, right) =\u003e\n      let leftList = treeToList(left);\n      let rightList = treeToList(right);\n      concatLists(leftList, Cons(v, rightList))\n  }\n}\n\nexport func filterNonZero(xs: [int]) -\u003e [int] {\n  match xs {\n    [] =\u003e [],\n    Cons(h, t) =\u003e\n      if h == 0\n      then filterNonZero(t)\n      else Cons(h, filterNonZero(t))\n  }\n}\n\nexport func treeDepth(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(_) =\u003e 1,\n    Node(left, _, right) =\u003e\n      let ld = treeDepth(left);\n      let rd = treeDepth(right);\n      1 + (if ld \u003e rd then ld else rd)\n  }\n}\n\nexport func showList(xs: [int]) -\u003e string {\n  match xs {\n    [] =\u003e \"[]\",\n    Cons(h, t) =\u003e\n      letrec build = \\acc. \\ys.\n        match ys {\n          [] =\u003e acc,\n          Cons(x, xs2) =\u003e build(acc ++ \", \" ++ show(x))(xs2)\n        } in\n      let body = build(show(h))(t) in\n      \"[\" ++ body ++ \"]\"\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(\n    Node(Leaf(1), 3, Leaf(0)),\n    5,\n    Node(Leaf(7), 8, Leaf(9))\n  );\n\n  let original = filterNonZero(treeToList(tree));\n  let _ = println(\"Original: \" ++ showList(original));\n\n  let doubledTree = mapTree(\\x. x * 2, tree);\n  let doubledList = filterNonZero(treeToList(doubledTree));\n  let _ = println(\"Doubled: \" ++ showList(doubledList));\n\n  let sum = foldTree(\\a. \\b. a + b, 0, tree);\n  let _ = println(\"Sum: \" ++ show(sum));\n\n  let depth = treeDepth(tree);\n  println(\"Depth: \" ++ show(depth))\n}",
+        "ailang": "module benchmark/solution\n// ⚠️ DO NOT CHANGE THE MODULE DECLARATION ABOVE! ⚠️\n// It MUST match the file path (benchmark/solution.ail)\n// Changing it will cause MOD010 error: \"module declaration doesn't match canonical path\"\n\n// Define Tree ADT\ntype Tree =\n  | Leaf(int)\n  | Node(Tree, int, Tree)\n\n// Convert tree to list (in-order) - helper to build list recursively\nexport func treeToList(tree: Tree) -\u003e [int] {\n  match tree {\n    Leaf(v) =\u003e [v],\n    Node(left, v, right) =\u003e {\n      let leftList = treeToList(left);\n      let rightList = treeToList(right);\n      concat(concat(leftList, [v]), rightList)\n    }\n  }\n}\n\n// List concatenation helper\nexport func concat[a](xs: [a], ys: [a]) -\u003e [a] {\n  match xs {\n    [] =\u003e ys,\n    ::(x, rest) =\u003e ::(x, concat(rest, ys))\n  }\n}\n\n// Filter out zeros from list\nexport func filterZeros(lst: [int]) -\u003e [int] {\n  match lst {\n    [] =\u003e [],\n    ::(x, rest) =\u003e\n      if x == 0\n      then filterZeros(rest)\n      else ::(x, filterZeros(rest))\n  }\n}\n\n// Calculate tree depth\nexport func treeDepth(tree: Tree) -\u003e int {\n  match tree {\n    Leaf(_) =\u003e 1,\n    Node(left, _, right) =\u003e {\n      let leftDepth = treeDepth(left);\n      let rightDepth = treeDepth(right);\n      1 + (if leftDepth \u003e rightDepth then leftDepth else rightDepth)\n    }\n  }\n}\n\n// Helper to format list as string\nexport func showList(lst: [int]) -\u003e string {\n  match lst {\n    [] =\u003e \"[]\",\n    ::(x, xs) =\u003e \"[\" ++ showListInner(x, xs) ++ \"]\"\n  }\n}\n\nexport func showListInner(first: int, rest: [int]) -\u003e string {\n  match rest {\n    [] =\u003e show(first),\n    ::(x, xs) =\u003e show(first) ++ \", \" ++ showListInner(x, xs)\n  }\n}\n\n// Map tree - double all values\nexport func mapTreeDouble(tree: Tree) -\u003e Tree {\n  match tree {\n    Leaf(v) =\u003e Leaf(v * 2),\n    Node(left, v, right) =\u003e\n      Node(mapTreeDouble(left), v * 2, mapTreeDouble(right))\n  }\n}\n\n// Fold tree - sum all values\nexport func foldTreeSum(tree: Tree, acc: int) -\u003e int {\n  match tree {\n    Leaf(v) =\u003e acc + v,\n    Node(left, v, right) =\u003e {\n      let accLeft = foldTreeSum(left, acc);\n      let accV = accLeft + v;\n      foldTreeSum(right, accV)\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(\n    Node(Leaf(1), 3, Leaf(0)),\n    5,\n    Node(Leaf(7), 8, Leaf(9))\n  );\n\n  // Original - filter out zeros\n  let originalList = treeToList(tree);\n  let original = filterZeros(originalList);\n  print(\"Original: \" ++ showList(original));\n\n  // Doubled - map with double function\n  let doubledTree = mapTreeDouble(tree);\n  let doubledList = treeToList(doubledTree);\n  let doubled = filterZeros(doubledList);\n  print(\"Doubled: \" ++ showList(doubled));\n\n  // Sum - fold with addition\n  let sum = foldTreeSum(tree, 0);\n  print(\"Sum: \" ++ show(sum));\n\n  // Depth\n  let depth = treeDepth(tree);\n  print(\"Depth: \" ++ show(depth))\n}\n",
         "python": "from dataclasses import dataclass\n\n@dataclass\nclass Leaf:\n    value: int\n\n@dataclass\nclass Node:\n    left: 'Tree'\n    value: int\n    right: 'Tree'\n\nTree = Leaf | Node\n\ndef map_tree(fn, tree):\n    if isinstance(tree, Leaf):\n        return Leaf(fn(tree.value))\n    else:\n        return Node(map_tree(fn, tree.left), fn(tree.value), map_tree(fn, tree.right))\n\ndef fold_tree(fn, acc, tree):\n    if isinstance(tree, Leaf):\n        return fn(acc, tree.value)\n    else:\n        acc = fold_tree(fn, acc, tree.left)\n        acc = fn(acc, tree.value)\n        return fold_tree(fn, acc, tree.right)\n\ndef tree_to_list(tree):\n    if isinstance(tree, Leaf):\n        return [tree.value] if tree.value != 0 else []\n    else:\n        return tree_to_list(tree.left) + [tree.value] + tree_to_list(tree.right)\n\ndef tree_depth(tree):\n    if isinstance(tree, Leaf):\n        return 1\n    else:\n        return 1 + max(tree_depth(tree.left), tree_depth(tree.right))\n\ndef main():\n    # Build tree\n    tree = Node(\n        Node(Leaf(1), 3, Leaf(0)),\n        5,\n        Node(Leaf(7), 8, Leaf(9))\n    )\n\n    # Original\n    original = [x for x in tree_to_list(tree) if x != 0]\n    print(f\"Original: {original}\")\n\n    # Doubled\n    doubled_tree = map_tree(lambda x: x * 2, tree)\n    doubled = [x for x in tree_to_list(doubled_tree) if x != 0]\n    print(f\"Doubled: {doubled}\")\n\n    # Sum\n    total = fold_tree(lambda a, b: a + b, 0, tree)\n    print(f\"Sum: {total}\")\n\n    # Depth\n    depth = tree_depth(tree)\n    print(f\"Depth: {depth}\")\n\nif __name__ == \"__main__\":\n    main()\n"
       },
       "languageStats": {
         "ailang": {
-          "avgTokens": 697,
+          "avgTokens": 232.33333333333334,
           "successRate": 0,
-          "totalRuns": 1
+          "totalRuns": 3
         },
         "python": {
           "avgTokens": 936.125,
@@ -2833,64 +2887,65 @@
   },
   "languages": {
     "ailang": {
-      "agent_avg_cost": 0.057878990000000005,
-      "agent_avg_tokens": 138709,
-      "agent_avg_turns": 13.7,
-      "agent_avg_turns_success": 13.7,
-      "agent_cost_efficiency_ratio": 2.261756513051503,
-      "agent_cost_per_success": 0.057878990000000005,
-      "agent_impossibility_coverage": 1,
-      "agent_runs": 10,
-      "agent_success_gap": 0.6666666666666667,
-      "agent_success_rate": 1,
+      "agent_avg_cost": 0.0315056090909091,
+      "agent_avg_tokens": 82864.59090909091,
+      "agent_avg_turns": 16.636363636363637,
+      "agent_avg_turns_failure": 18.09090909090909,
+      "agent_avg_turns_success": 15.181818181818182,
+      "agent_cost_efficiency_ratio": 1.8463067453449322,
+      "agent_cost_per_success": 0.0630112181818182,
+      "agent_impossibility_coverage": 0.3214285714285714,
+      "agent_runs": 22,
+      "agent_success_gap": 0.2368421052631579,
+      "agent_success_rate": 0.5,
       "avg_cost_usd": 0.01329632234513275,
       "avg_tokens": 271.353982300885,
-      "final_cost_per_success_comparable": 0.050185241176470594,
+      "final_cost_per_success_comparable": 0.06413861764705882,
       "final_success_avg_cost": 0.01329632234513275,
-      "final_success_avg_cost_comparable": 0.01895886888888889,
+      "final_success_avg_cost_comparable": 0.01912906140350877,
       "final_success_avg_tokens": 271.353982300885,
-      "final_success_avg_tokens_comparable": 590.6222222222223,
-      "final_success_comparable": 0.37777777777777777,
+      "final_success_avg_tokens_comparable": 566.9122807017544,
+      "final_success_comparable": 0.2982456140350877,
       "repair_success_rate": 0.057692307692307696,
       "success_rate": 0.3407079646017699,
       "total_runs": 226,
       "zero_shot_avg_cost": 0.007314182964601768,
-      "zero_shot_avg_cost_comparable": 0.008530094444444445,
+      "zero_shot_avg_cost_comparable": 0.008981118421052633,
       "zero_shot_avg_tokens": 93.66814159292035,
-      "zero_shot_avg_tokens_comparable": 103.4,
-      "zero_shot_cost_per_success": 0.025590283333333335,
+      "zero_shot_avg_tokens_comparable": 145.12280701754386,
+      "zero_shot_cost_per_success": 0.034128250000000006,
       "zero_shot_success": 0.3008849557522124,
-      "zero_shot_success_comparable": 0.3333333333333333
+      "zero_shot_success_comparable": 0.2631578947368421
     },
     "python": {
-      "agent_avg_cost": 0.031972778125,
-      "agent_avg_tokens": 67805.5,
-      "agent_avg_turns": 11.625,
-      "agent_avg_turns_success": 11.625,
-      "agent_cost_efficiency_ratio": 8.678114736856392,
-      "agent_cost_per_success": 0.031972778125,
+      "agent_avg_cost": 0.03989635,
+      "agent_avg_tokens": 86000.31818181818,
+      "agent_avg_turns": 14.636363636363637,
+      "agent_avg_turns_success": 14.636363636363637,
+      "agent_cost_efficiency_ratio": 10.828746301875526,
+      "agent_cost_per_success": 0.03989635,
       "agent_impossibility_coverage": 1,
-      "agent_runs": 16,
-      "agent_success_gap": 0.16666666666666663,
+      "agent_runs": 22,
+      "agent_success_gap": 0.31818181818181823,
       "agent_success_rate": 1,
       "avg_cost_usd": 0.003360533836206898,
       "avg_tokens": 397.9353448275862,
-      "final_cost_per_success_comparable": 0.004207687777777777,
+      "final_cost_per_success_comparable": 0.00550184,
       "final_success_avg_cost": 0.003360533836206898,
-      "final_success_avg_cost_comparable": 0.003506406481481481,
+      "final_success_avg_cost_comparable": 0.003751254545454545,
       "final_success_avg_tokens": 397.9353448275862,
-      "final_success_avg_tokens_comparable": 358.27777777777777,
-      "final_success_comparable": 0.8333333333333334,
+      "final_success_avg_tokens_comparable": 370.030303030303,
+      "final_success_comparable": 0.6818181818181818,
       "repair_success_rate": 0.13846153846153847,
       "success_rate": 0.7068965517241379,
       "total_runs": 232,
       "zero_shot_avg_cost": 0.001814231681034483,
-      "zero_shot_avg_cost_comparable": 0.0030702499999999996,
+      "zero_shot_avg_cost_comparable": 0.002512022727272727,
       "zero_shot_avg_tokens": 182.48275862068965,
-      "zero_shot_avg_tokens_comparable": 312.35185185185185,
-      "zero_shot_cost_per_success": 0.0036842999999999993,
+      "zero_shot_avg_tokens_comparable": 255.56060606060606,
+      "zero_shot_cost_per_success": 0.0036842999999999997,
       "zero_shot_success": 0.6681034482758621,
-      "zero_shot_success_comparable": 0.8333333333333334
+      "zero_shot_success_comparable": 0.6818181818181818
     }
   },
   "history": [
@@ -2932,7 +2987,7 @@
     },
     {
       "version": "v0.3.24",
-      "timestamp": "2025-10-29T19:50:42+01:00",
+      "timestamp": "2025-10-29T19:56:47+01:00",
       "successRate": 0.5262008733624454,
       "totalRuns": 458,
       "successCount": 241,

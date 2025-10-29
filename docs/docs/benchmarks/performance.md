@@ -43,11 +43,11 @@ These benchmarks demonstrate:
 
 AILANG excels at these problem types:
 
-- **Type Safe Record Access**: 100.0% success rate
 - **Adt Option**: 100.0% success rate
 - **Recursion Fibonacci**: 100.0% success rate
+- **Fizzbuzz**: 100.0% success rate
+- **Type Safe Record Access**: 100.0% success rate
 - **Explicit State Threading**: 100.0% success rate
-- **String Manipulation**: 100.0% success rate
 
 ## How Benchmarks Guide Development
 
@@ -78,7 +78,7 @@ Want to see AILANG in action?
 
 **Total Runs**: 458
 
-**Generated**: 2025-10-29 19:50:37
+**Generated**: 2025-10-29 19:56:43
 
 ### Model Performance Details
 
@@ -87,8 +87,8 @@ Want to see AILANG in action?
 | Gemini 2.5 Pro | 76 | 53.9% | 55.3% | 5401 | $0.0096 | v0.3.24 |
 | claude-haiku-4-5 | 77 | 45.5% | 54.5% | 5880 | $0.0070 | v0.3.24 |
 | gpt5 | 75 | 45.3% | 52.0% | 5361 | $0.0092 | v0.3.24 |
-| gpt5-mini | 76 | 48.7% | 51.3% | 4921 | $0.0017 | v0.3.24 |
 | Claude Sonnet 4.5 | 76 | 50.0% | 51.3% | 5582 | $0.0199 | v0.3.24 |
+| gpt5-mini | 76 | 48.7% | 51.3% | 4921 | $0.0017 | v0.3.24 |
 | gemini-2-5-flash | 78 | 48.7% | 51.3% | 5453 | $0.0024 | v0.3.24 |
 
 ### Benchmark Details
