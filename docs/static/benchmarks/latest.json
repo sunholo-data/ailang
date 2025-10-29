@@ -1,6 +1,6 @@
 {
   "version": "v0.3.23",
-  "timestamp": "2025-10-29T08:15:14+01:00",
+  "timestamp": "2025-10-29T18:03:22+01:00",
   "totalRuns": 272,
   "aggregates": {
     "agentBenchmarks": [
@@ -2017,7 +2017,7 @@
   "history": [
     {
       "version": "v0.3.23",
-      "timestamp": "2025-10-29T08:15:14+01:00",
+      "timestamp": "2025-10-29T18:03:21+01:00",
       "successRate": 0.5919117647058824,
       "totalRuns": 272,
       "successCount": 161,
