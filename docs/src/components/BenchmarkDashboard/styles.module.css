@@ -880,3 +880,333 @@
   background: var(--ifm-background-color);
   border-color: var(--ifm-color-emphasis-300);
 }
+
+/* Comparison Table */
+.comparisonTableContainer {
+  margin-top: 3rem;
+  margin-bottom: 2rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.tableDescription {
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* Wrapper for horizontal scroll on mobile */
+.tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
+
+.comparisonTable {
+  width: 100%;
+  min-width: 600px; /* Prevent table from getting too cramped */
+  border-collapse: collapse;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Desktop: use more width */
+@media (min-width: 997px) {
+  .comparisonTable {
+    min-width: 800px;
+  }
+}
+
+.comparisonTable thead {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.comparisonTable th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  border-bottom: 2px solid var(--ifm-color-emphasis-300);
+}
+
+.comparisonTable td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-900);
+}
+
+.tableCell {
+  text-align: right;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.9rem;
+}
+
+.tableRowHeader td {
+  background: var(--ifm-color-primary-lightest);
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+}
+
+.languageHeader {
+  color: var(--ifm-color-primary-darker);
+  font-size: 1.05rem;
+}
+
+.highlightRow {
+  background: var(--ifm-color-emphasis-50);
+}
+
+.highlightRow td {
+  font-weight: 600;
+}
+
+.derivedMetricsHeader td {
+  background: var(--ifm-color-info-contrast-background);
+  color: var(--ifm-color-info-dark);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-top: 2px solid var(--ifm-color-info);
+}
+
+.goodValue {
+  color: var(--ifm-color-success-dark);
+  font-weight: 600;
+}
+
+.badValue {
+  color: var(--ifm-color-danger-dark);
+  font-weight: 600;
+}
+
+.tableFootnote {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-left: 4px solid var(--ifm-color-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.tableFootnote p {
+  margin: 0.5rem 0;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.tableFootnote ul {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.tableFootnote li {
+  margin: 0.5rem 0;
+  color: var(--ifm-color-emphasis-700);
+}
+
+[data-theme='dark'] .comparisonTable {
+  background: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .comparisonTable thead {
+  background: var(--ifm-color-emphasis-200);
+}
+
+[data-theme='dark'] .tableRowHeader td {
+  background: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] .highlightRow {
+  background: var(--ifm-color-emphasis-200);
+}
+
+[data-theme='dark'] .derivedMetricsHeader td {
+  background: var(--ifm-color-info-darker);
+}
+
+[data-theme='dark'] .tableFootnote {
+  background: var(--ifm-color-emphasis-200);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .comparisonTableContainer {
+    margin-top: 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .tableDescription {
+    font-size: 0.85rem;
+  }
+
+  .comparisonTable th,
+  .comparisonTable td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .tableCell {
+    font-size: 0.8rem;
+  }
+
+  .tableFootnote {
+    font-size: 0.85rem;
+    padding: 0.75rem;
+  }
+
+  .tableFootnote ul {
+    padding-left: 1.25rem;
+  }
+
+  .tableFootnote li {
+    font-size: 0.8rem;
+  }
+}
+
+/* Very small mobile */
+@media (max-width: 480px) {
+  .comparisonTable th,
+  .comparisonTable td {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .tableCell {
+    font-size: 0.75rem;
+  }
+
+  .languageHeader {
+    font-size: 0.95rem;
+  }
+}
+
+/* Repair Effectiveness Section */
+.repairEffectivenessContainer {
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sectionDescription {
+  margin-bottom: 2rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.repairChartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 996px) {
+  .repairChartsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.repairChartCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chartCardTitle {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.chartCardSubtitle {
+  margin: 0 0 1rem 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.insightBox {
+  background: var(--ifm-color-emphasis-100);
+  border-left: 4px solid var(--ifm-color-primary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.insightBox h4 {
+  margin: 0 0 1rem 0;
+  color: var(--ifm-color-primary-darker);
+  font-size: 1.15rem;
+}
+
+.insightContent {
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.insightRow {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--ifm-background-color);
+  border-radius: 4px;
+}
+
+.insightRow strong {
+  color: var(--ifm-color-primary-darker);
+}
+
+.insightRow em {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.9rem;
+}
+
+.highlightGood {
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  background: var(--ifm-color-success-dark);
+  border-radius: 4px;
+  border: 1px solid var(--ifm-color-success-darker);
+}
+
+.highlightBad {
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  background: var(--ifm-color-danger-dark);
+  border-radius: 4px;
+  border: 1px solid var(--ifm-color-danger-darker);
+}
+
+.insightSummary {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--ifm-color-primary-light);
+  font-weight: 500;
+}
+
+[data-theme='dark'] .repairChartCard {
+  background: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .insightBox {
+  background: var(--ifm-color-emphasis-200);
+  border-left-color: var(--ifm-color-primary-light);
+}
+
+[data-theme='dark'] .insightRow {
+  background: var(--ifm-color-emphasis-100);
+}

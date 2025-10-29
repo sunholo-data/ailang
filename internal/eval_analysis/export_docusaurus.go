@@ -394,6 +394,17 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		avgAgentCost = totalAgentCost / float64(len(agentResults))
 	}
 
+	// Build list of agent benchmark IDs (sorted for consistent output)
+	agentBenchmarkIDs := make(map[string]bool)
+	for _, r := range agentResults {
+		agentBenchmarkIDs[r.ID] = true
+	}
+	agentBenchmarkList := make([]string, 0, len(agentBenchmarkIDs))
+	for id := range agentBenchmarkIDs {
+		agentBenchmarkList = append(agentBenchmarkList, id)
+	}
+	sort.Strings(agentBenchmarkList)
+
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
 		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
@@ -409,6 +420,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"avgAgentTurns":    avgAgentTurns,
 		"agentTotalTokens": agentTotalTokens,
 		"avgAgentCost":     avgAgentCost,
+		"agentBenchmarks":  agentBenchmarkList, // Sorted list of benchmark IDs for fair comparison
 	}
 
 	// Group results by benchmark ID and language for code samples and stats
@@ -695,21 +707,127 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)
 
-	// Calculate per-language agent statistics
+	// Calculate per-language zero-shot, final, and cost metrics from standard results
+	// (agentBenchmarkIDs already built earlier for aggregatesJS)
+	langStandardStats := make(map[string]struct {
+		// Zero-shot only (firstAttemptOk)
+		zeroShotRuns    int
+		zeroShotSuccess int
+		zeroShotTokens  int
+		zeroShotCost    float64
+		// Final (including repairs)
+		finalRuns    int
+		finalSuccess int
+		finalTokens  int
+		finalCost    float64
+		// Repair-specific
+		repairAttempts int
+		repairSuccess  int
+	})
+
+	// Also track stats for agent-comparable benchmarks only (fair comparison)
+	langAgentComparableStats := make(map[string]struct {
+		zeroShotRuns    int
+		zeroShotSuccess int
+		zeroShotTokens  int
+		zeroShotCost    float64
+		finalRuns       int
+		finalSuccess    int
+		finalTokens     int
+		finalCost       float64
+	})
+
+	for _, r := range standardResults {
+		stats := langStandardStats[r.Lang]
+
+		// Zero-shot metrics: Count ALL runs, but look at first attempt only
+		// Success rate: based on first_attempt_ok across all runs
+		// Tokens/cost: only from non-repair runs (repair inflates these metrics)
+		stats.zeroShotRuns++
+		if r.FirstAttemptOk {
+			stats.zeroShotSuccess++
+		}
+		if !r.RepairUsed {
+			// Only count tokens/cost from non-repair runs for accurate per-attempt metrics
+			if r.OutputTokens > 0 {
+				stats.zeroShotTokens += r.OutputTokens
+			}
+			stats.zeroShotCost += r.CostUSD
+		}
+
+		// Final metrics (including repair attempts) - use ALL runs
+		stats.finalRuns++
+		if r.StdoutOk {
+			stats.finalSuccess++
+		}
+		stats.finalTokens += r.OutputTokens
+		stats.finalCost += r.CostUSD
+
+		// Repair metrics
+		if r.RepairUsed {
+			stats.repairAttempts++
+			if r.StdoutOk {
+				stats.repairSuccess++
+			}
+		}
+
+		langStandardStats[r.Lang] = stats
+
+		// Track agent-comparable metrics (same benchmarks as agent ran)
+		if agentBenchmarkIDs[r.ID] {
+			comparableStats := langAgentComparableStats[r.Lang]
+
+			// Zero-shot: Count ALL runs, look at first attempt only
+			comparableStats.zeroShotRuns++
+			if r.FirstAttemptOk {
+				comparableStats.zeroShotSuccess++
+			}
+			if !r.RepairUsed {
+				// Only count tokens/cost from non-repair runs for accurate per-attempt metrics
+				if r.OutputTokens > 0 {
+					comparableStats.zeroShotTokens += r.OutputTokens
+				}
+				comparableStats.zeroShotCost += r.CostUSD
+			}
+
+			// Final: all runs
+			comparableStats.finalRuns++
+			if r.StdoutOk {
+				comparableStats.finalSuccess++
+			}
+			comparableStats.finalTokens += r.OutputTokens
+			comparableStats.finalCost += r.CostUSD
+			langAgentComparableStats[r.Lang] = comparableStats
+		}
+	}
+
+	// Calculate per-language agent statistics with turn efficiency breakdown
 	langAgentStats := make(map[string]struct {
-		runs    int
-		success int
-		turns   int
-		tokens  int
+		runs          int
+		success       int
+		turns         int
+		tokens        int
+		cost          float64
+		successTurns  int // Total turns for successful runs
+		successCount  int // Count of successful runs (for avg)
+		failureTurns  int // Total turns for failed runs
+		failureCount  int // Count of failed runs (for avg)
 	})
 	for _, r := range agentResults {
 		stats := langAgentStats[r.Lang]
 		stats.runs++
-		if r.StdoutOk {
-			stats.success++
-		}
 		stats.turns += r.AgentTurns
 		stats.tokens += r.TotalTokens
+		stats.cost += r.CostUSD
+
+		if r.StdoutOk {
+			stats.success++
+			stats.successTurns += r.AgentTurns
+			stats.successCount++
+		} else {
+			stats.failureTurns += r.AgentTurns
+			stats.failureCount++
+		}
 		langAgentStats[r.Lang] = stats
 	}
 
@@ -722,12 +840,88 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			"avg_tokens":   stats.AvgTokens,
 		}
 
+		// Add zero-shot, final, and cost metrics from standard results
+		if stdStats, ok := langStandardStats[lang]; ok && stdStats.zeroShotRuns > 0 {
+			// Zero-shot only metrics
+			langData["zero_shot_success"] = float64(stdStats.zeroShotSuccess) / float64(stdStats.zeroShotRuns)
+			langData["zero_shot_avg_tokens"] = float64(stdStats.zeroShotTokens) / float64(stdStats.zeroShotRuns)
+			langData["zero_shot_avg_cost"] = stdStats.zeroShotCost / float64(stdStats.zeroShotRuns)
+
+			// Final metrics (including repairs)
+			if stdStats.finalRuns > 0 {
+				langData["final_success_avg_tokens"] = float64(stdStats.finalTokens) / float64(stdStats.finalRuns)
+				langData["final_success_avg_cost"] = stdStats.finalCost / float64(stdStats.finalRuns)
+			}
+
+			// Repair metrics
+			if stdStats.repairAttempts > 0 {
+				langData["repair_success_rate"] = float64(stdStats.repairSuccess) / float64(stdStats.repairAttempts)
+			}
+
+			// Overall average cost
+			langData["avg_cost_usd"] = stdStats.finalCost / float64(stdStats.finalRuns)
+		}
+
 		// Add agent metrics if available for this language
 		if agentStats, ok := langAgentStats[lang]; ok && agentStats.runs > 0 {
 			langData["agent_runs"] = agentStats.runs
-			langData["agent_success_rate"] = float64(agentStats.success) / float64(agentStats.runs)
+			agentSuccessRate := float64(agentStats.success) / float64(agentStats.runs)
+			langData["agent_success_rate"] = agentSuccessRate
 			langData["agent_avg_turns"] = float64(agentStats.turns) / float64(agentStats.runs)
 			langData["agent_avg_tokens"] = float64(agentStats.tokens) / float64(agentStats.runs)
+			agentAvgCost := agentStats.cost / float64(agentStats.runs)
+			langData["agent_avg_cost"] = agentAvgCost
+
+			// Agent turn efficiency breakdown
+			if agentStats.successCount > 0 {
+				langData["agent_avg_turns_success"] = float64(agentStats.successTurns) / float64(agentStats.successCount)
+			}
+			if agentStats.failureCount > 0 {
+				langData["agent_avg_turns_failure"] = float64(agentStats.failureTurns) / float64(agentStats.failureCount)
+			}
+
+			// Add agent-comparable standard metrics (same benchmarks as agent) for fair comparison
+			if comparableStats, ok := langAgentComparableStats[lang]; ok && comparableStats.zeroShotRuns > 0 {
+				zeroShotSuccess := float64(comparableStats.zeroShotSuccess) / float64(comparableStats.zeroShotRuns)
+				zeroShotAvgCost := comparableStats.zeroShotCost / float64(comparableStats.zeroShotRuns)
+
+				langData["zero_shot_success_comparable"] = zeroShotSuccess
+				langData["zero_shot_avg_tokens_comparable"] = float64(comparableStats.zeroShotTokens) / float64(comparableStats.zeroShotRuns)
+				langData["zero_shot_avg_cost_comparable"] = zeroShotAvgCost
+
+				if comparableStats.finalRuns > 0 {
+					finalSuccess := float64(comparableStats.finalSuccess) / float64(comparableStats.finalRuns)
+					finalAvgCost := comparableStats.finalCost / float64(comparableStats.finalRuns)
+					langData["final_success_comparable"] = finalSuccess
+					langData["final_success_avg_tokens_comparable"] = float64(comparableStats.finalTokens) / float64(comparableStats.finalRuns)
+					langData["final_success_avg_cost_comparable"] = finalAvgCost
+
+					// Cost per success for repair approach
+					if finalSuccess > 0 {
+						langData["final_cost_per_success_comparable"] = finalAvgCost / finalSuccess
+					}
+				}
+
+				// Derived metrics showing agent superiority on hard benchmarks
+				// 1. Success rate gap (agent - 0-shot): higher = agent more valuable
+				langData["agent_success_gap"] = agentSuccessRate - zeroShotSuccess
+
+				// 2. Impossibility coverage: of 0-shot failures, what % did agent solve?
+				if zeroShotSuccess < 1.0 {
+					impossibilityCoverage := (agentSuccessRate - zeroShotSuccess) / (1.0 - zeroShotSuccess)
+					langData["agent_impossibility_coverage"] = impossibilityCoverage
+				}
+
+				// 3. Cost efficiency ratio: agent cost/success vs 0-shot cost/success
+				// Lower ratio = better (agent justifies its cost)
+				if zeroShotSuccess > 0 && agentSuccessRate > 0 {
+					zeroShotCostPerSuccess := zeroShotAvgCost / zeroShotSuccess
+					agentCostPerSuccess := agentAvgCost / agentSuccessRate
+					langData["agent_cost_per_success"] = agentCostPerSuccess
+					langData["zero_shot_cost_per_success"] = zeroShotCostPerSuccess
+					langData["agent_cost_efficiency_ratio"] = agentCostPerSuccess / zeroShotCostPerSuccess
+				}
+			}
 		}
 
 		languagesMap[lang] = langData

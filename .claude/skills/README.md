@@ -79,6 +79,25 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: validate_prerequisites.sh, milestone_checkpoint.sh
 - **Resources**: milestone_checklist.md
 
+### Automation & Integration
+
+**[headless-runner/](headless-runner/)** - Run Claude Code in headless/programmatic mode
+- Execute Claude from scripts, CI/CD pipelines, and autonomous agents
+- Full access to project configuration (skills, agents, commands)
+- Multi-turn conversations with session management
+- AILANG agent messaging integration (task claiming, handoffs, error handling)
+- Comprehensive workflow patterns (single agent, pipeline, load balancing, retry/DLQ)
+- **Scripts**: test_headless.sh, run_with_retry.sh
+- **Resources**: cli_reference.md, examples.md, agent_workflows.md, troubleshooting.md
+- **Use for**: Building autonomous agents, CI/CD integration, scheduled workflows
+
+**[agent-inbox/](agent-inbox/)** - Check and process AILANG agent messages
+- Check inbox for messages from autonomous agents
+- Acknowledge messages to claim tasks
+- Send results for agent-to-agent handoffs
+- Message format reference and workflow patterns
+- **Resources**: Integrated with headless-runner for full automation
+
 ## How Skills Work
 
 ### Discovery (YAML Frontmatter)
