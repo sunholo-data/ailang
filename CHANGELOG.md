@@ -84,6 +84,24 @@ func main() -> string ! {Env} =
     getEnvOr("PORT", "8080")
 ```
 
+### Fixed
+
+**Critical Result Type Bug** (bb68921):
+- **Issue**: `envGetEnv` returned bare `EnvError` instead of wrapping it in `Err()` Result constructor
+- **Impact**: All error cases caused "no pattern matched in match expression" runtime errors
+- **Example**: `getEnv("NONEXISTENT")` returned `NotFound("...")` instead of `Err(NotFound("..."))`
+- **Fix**: Added `makeErrResult()` helper function to properly wrap EnvError in Err() constructor
+- **Type Fix**: Changed `Result(T, E)` to `Result[T, E]` in std/env.ail (square brackets, not parentheses)
+
+**Examples Added**:
+- env_simple.ail - Basic getEnvOr usage (~10 LOC)
+- env_basic.ail - Demonstrates getEnv, hasEnv, getEnvOr (~35 LOC)
+- env_allowlist.ail - Security allowlist demonstration (~60 LOC)
+- env_config.ail - Configuration management pattern (~60 LOC)
+- env_snapshot.ail - Snapshot semantics demonstration (~50 LOC)
+
+All examples tested and verified working with M-ENV implementation.
+
 **Test Coverage**: 47 tests (12 env + 35 redaction), all passing
 
 ## [v0.3.25] - 2025-10-29
