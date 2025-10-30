@@ -263,8 +263,15 @@ func runCommand() {
 	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
-	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net)")
+	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env)")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
+
+	// Env capability flags
+	allowEnvFlag := fs.String("allow-env", "", "Allowed environment variables (comma-separated: API_KEY,DEBUG)")
+	allowEnvFileFlag := fs.String("allow-env-file", "", "File containing allowed environment variables (one per line)")
+	envFlag := fs.String("env", "", "Override environment variables (comma-separated: KEY=value,FOO=bar)")
+	envSnapshotFlag := fs.String("env-snapshot", "", "Load environment snapshot from JSON file")
+	writeEnvSnapshotFlag := fs.String("write-env-snapshot", "", "Write environment snapshot to JSON file and exit")
 
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
@@ -281,10 +288,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -462,6 +469,84 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 				}
 			}
 		}
+
+		// Process environment variable flags
+		// 1. Override env vars with --env KEY=VALUE,FOO=bar
+		if env != "" {
+			for _, pair := range strings.Split(env, ",") {
+				parts := strings.SplitN(pair, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					value := strings.TrimSpace(parts[1])
+					effCtx.EnvSnapshot[key] = value
+				} else {
+					fmt.Fprintf(os.Stderr, "%s: invalid --env format '%s' (expected KEY=VALUE)\n", red("Error"), pair)
+					os.Exit(1)
+				}
+			}
+		}
+
+		// 2. Load snapshot from JSON file with --env-snapshot
+		if envSnapshot != "" {
+			snapshotData, err := os.ReadFile(envSnapshot)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot read snapshot file '%s': %v\n", red("Error"), envSnapshot, err)
+				os.Exit(1)
+			}
+			var snapshot map[string]string
+			if err := json.Unmarshal(snapshotData, &snapshot); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: invalid snapshot JSON in '%s': %v\n", red("Error"), envSnapshot, err)
+				os.Exit(1)
+			}
+			// Replace snapshot with loaded data
+			effCtx.EnvSnapshot = snapshot
+		}
+
+		// 3. Set allowlist with --allow-env KEY1,KEY2
+		if allowEnv != "" {
+			allowlist := []string{}
+			for _, key := range strings.Split(allowEnv, ",") {
+				key = strings.TrimSpace(key)
+				if key != "" {
+					allowlist = append(allowlist, key)
+				}
+			}
+			effCtx.EnvAllowlist = allowlist
+		}
+
+		// 4. Load allowlist from file with --allow-env-file
+		if allowEnvFile != "" {
+			allowlistData, err := os.ReadFile(allowEnvFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot read allowlist file '%s': %v\n", red("Error"), allowEnvFile, err)
+				os.Exit(1)
+			}
+			allowlist := []string{}
+			for _, line := range strings.Split(string(allowlistData), "\n") {
+				line = strings.TrimSpace(line)
+				// Skip empty lines and comments
+				if line != "" && !strings.HasPrefix(line, "#") {
+					allowlist = append(allowlist, line)
+				}
+			}
+			effCtx.EnvAllowlist = allowlist
+		}
+
+		// 5. Write snapshot and exit with --write-env-snapshot
+		if writeEnvSnapshot != "" {
+			snapshotJSON, err := json.MarshalIndent(effCtx.EnvSnapshot, "", "  ")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot marshal snapshot: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			if err := os.WriteFile(writeEnvSnapshot, snapshotJSON, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot write snapshot file '%s': %v\n", red("Error"), writeEnvSnapshot, err)
+				os.Exit(1)
+			}
+			fmt.Printf("%s Environment snapshot written to %s\n", green("✓"), writeEnvSnapshot)
+			os.Exit(0)
+		}
+
 		rt.GetEvaluator().SetEffContext(effCtx)
 
 		// Set recursion depth limit
@@ -611,8 +696,8 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact/quiet for watch mode)
-	// Default to main entrypoint with null args for watch mode, no caps
-	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, "main", "null", true, false, "", maxRecursionDepth)
+	// Default to main entrypoint with null args for watch mode, no caps, no env overrides
+	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, "main", "null", true, false, "", maxRecursionDepth, "", "", "", "", "")
 }
 
 func checkFile(filename string) {
