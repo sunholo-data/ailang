@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SessionStart": {
+      "command": "$CLAUDE_PROJECT_DIR/scripts/hooks/session_start.sh"
+    },
+    "Stop": {
+      "command": "$CLAUDE_PROJECT_DIR/scripts/hooks/agent_handoff.sh"
+    }
+  }
+}
