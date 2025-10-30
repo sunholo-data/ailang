@@ -51,7 +51,9 @@ log "=== Session Start Hook Started ==="
 # Prevent duplicate execution within 3 seconds
 # Claude Code seems to run SessionStart hook twice on session start
 if [ -f "$LOCK_FILE" ]; then
-    LOCK_AGE=$(($(date +%s) - $(stat -f %m "$LOCK_FILE" 2>/dev/null || stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0)))
+    # Try both macOS and Linux stat formats
+    LOCK_MTIME=$(stat -c %Y "$LOCK_FILE" 2>/dev/null || stat -f %m "$LOCK_FILE" 2>/dev/null || echo 0)
+    LOCK_AGE=$(($(date +%s) - LOCK_MTIME))
     if [ "$LOCK_AGE" -lt 3 ]; then
         log "Skipping duplicate execution (lock file age: ${LOCK_AGE}s)"
         # Output empty context to avoid breaking Claude Code
@@ -109,8 +111,34 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
         log "Exported AGENT_INBOX_COUNT=0 to CLAUDE_ENV_FILE"
     fi
 
+    # Detect environment even when no messages
+    detect_environment() {
+        if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
+            echo "cloud"
+        elif [[ "${CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE:-}" == "cloud_default" ]]; then
+            echo "cloud"
+        elif [[ "${IS_SANDBOX:-}" == "yes" ]] && [[ -f "/.dockerenv" ]]; then
+            echo "cloud"
+        else
+            echo "local"
+        fi
+    }
+
+    ENV_TYPE=$(detect_environment)
+    log "Execution environment: $ENV_TYPE"
+
+    # Build environment-aware context
+    if [[ "$ENV_TYPE" == "cloud" ]]; then
+        NO_MESSAGES_CONTEXT="📭 Agent inbox: No unread messages from autonomous agents.
+
+🌐 Web UI environment detected. For ailang commands, use: export PATH=\$PATH:/root/go/bin"
+    else
+        NO_MESSAGES_CONTEXT="📭 Agent inbox: No unread messages from autonomous agents.
+
+💻 Local development environment detected."
+    fi
+
     # Output plain text (will appear in system reminders)
-    NO_MESSAGES_CONTEXT="📭 Agent inbox: No unread messages from autonomous agents."
     echo "$NO_MESSAGES_CONTEXT"
 
     log "Outputted 'no messages' context to Claude"
@@ -166,6 +194,29 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     log "Exported AGENT_INBOX_MESSAGES (base64 encoded JSON) to CLAUDE_ENV_FILE"
 fi
 
+# Detect execution environment
+detect_environment() {
+    if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
+        echo "cloud"
+    elif [[ "${CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE:-}" == "cloud_default" ]]; then
+        echo "cloud"
+    elif [[ "${IS_SANDBOX:-}" == "yes" ]] && [[ -f "/.dockerenv" ]]; then
+        echo "cloud"
+    else
+        echo "local"
+    fi
+}
+
+ENV_TYPE=$(detect_environment)
+log "Execution environment: $ENV_TYPE"
+
+# Build environment-aware tips
+if [[ "$ENV_TYPE" == "cloud" ]]; then
+    ENV_TIP="🌐 Web UI environment detected. For ailang commands, use: export PATH=\$PATH:/root/go/bin"
+else
+    ENV_TIP="💻 Local development environment detected."
+fi
+
 # Build formatted context string for Claude
 CONTEXT_MESSAGE=$(cat <<EOF
 
@@ -176,6 +227,8 @@ CONTEXT_MESSAGE=$(cat <<EOF
 $(echo "$MESSAGES_JSON" | jq -r '.[] | "From: \(.from)\nTime: \(.timestamp)\nMessage: \(.payload | tojson)\n"')
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💡 Review the messages above and decide if any action is needed.
+
+$ENV_TIP
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 EOF
