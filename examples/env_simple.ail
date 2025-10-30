@@ -1,0 +1,15 @@
+module examples/env_simple
+
+-- Simplest possible environment variable example
+
+import std/io(println)
+import std/env(getEnvOr)
+
+export func main() -> () ! {Env, IO} {
+  {
+    println("=== Simple Env Demo ===");
+    let path = getEnvOr("PATH", "not set");
+    println("PATH: " ++ path);
+    ()
+  }
+}

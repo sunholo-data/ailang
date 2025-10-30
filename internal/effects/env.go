@@ -65,7 +65,8 @@ func envGetEnv(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if ctx.EnvAllowlist != nil {
 		if !isInAllowlist(name, ctx.EnvAllowlist) {
 			// Return Err(NotAllowed) Result
-			return makeEnvError("NotAllowed", fmt.Sprintf("environment variable %q not in allowlist. Use --allow-env %s or add to allowlist file", name, name)), nil
+			errValue := makeEnvError("NotAllowed", fmt.Sprintf("environment variable %q not in allowlist. Use --allow-env %s or add to allowlist file", name, name))
+			return makeErrResult(errValue), nil
 		}
 	}
 
@@ -73,7 +74,8 @@ func envGetEnv(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	value, exists := ctx.EnvSnapshot[name]
 	if !exists {
 		// Return Err(NotFound) Result
-		return makeEnvError("NotFound", fmt.Sprintf("environment variable %q not found", name)), nil
+		errValue := makeEnvError("NotFound", fmt.Sprintf("environment variable %q not found", name))
+		return makeErrResult(errValue), nil
 	}
 
 	// Return Ok(value) Result
@@ -169,5 +171,15 @@ func makeOkResult(value eval.Value) eval.Value {
 		TypeName:   "Result",
 		CtorName:   "Ok",
 		Fields:     []eval.Value{value},
+	}
+}
+
+// makeErrResult creates Err(error) Result
+func makeErrResult(errValue eval.Value) eval.Value {
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Err",
+		Fields:     []eval.Value{errValue},
 	}
 }

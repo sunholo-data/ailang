@@ -1,0 +1,50 @@
+module examples/env_snapshot
+
+-- Demonstrates snapshot semantics and reproducibility
+-- Shows that env vars are frozen at program start
+--
+-- Usage:
+--   # Create a snapshot
+--   ailang run --caps Env --write-env-snapshot /tmp/env.json examples/env_snapshot.ail
+--
+--   # Load from snapshot (reproducible execution)
+--   ailang run --caps Env --env-snapshot /tmp/env.json examples/env_snapshot.ail
+--
+--   # Override specific variables
+--   ailang run --caps Env --env TEST_VAR=override examples/env_snapshot.ail
+
+import std/io(println)
+import std/env(getEnv, hasEnv, getEnvOr)
+import std/result(Ok, Err)
+
+export func main() -> () ! {Env, IO} {
+  {
+    println("=== Environment Snapshot Demo ===");
+    println(" ");
+    println("Note: This snapshot was captured at program start.");
+    println("External changes to environment are ignored.");
+    println(" ");
+
+    -- Show environment snapshot
+    println("Environment Snapshot:");
+    println(" ");
+
+    -- Show PATH
+    let path = getEnvOr("PATH", "not set");
+    println("PATH: " ++ path);
+
+    -- Show USER/USERNAME
+    let user = getEnvOr("USER", getEnvOr("USERNAME", "unknown"));
+    println("User: " ++ user);
+
+    -- Show HOME
+    let home = getEnvOr("HOME", getEnvOr("USERPROFILE", "not set"));
+    println("Home: " ++ home);
+
+    -- Show custom variable (avoiding match in block)
+    let testVar = getEnvOr("TEST_VAR", "not set");
+    println("TEST_VAR: " ++ testVar);
+
+    ()
+  }
+}

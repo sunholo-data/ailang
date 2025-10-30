@@ -1,0 +1,36 @@
+module examples/env_basic
+
+-- Basic environment variable access example
+-- Demonstrates getEnv, hasEnv, and getEnvOr functions
+--
+-- Usage:
+--   ailang run --caps Env,IO --entry main examples/env_basic.ail
+--   ailang run --caps Env,IO --allow-env PATH,HOME --entry main examples/env_basic.ail
+--   ailang run --caps Env,IO --env DEBUG=true --entry main examples/env_basic.ail
+
+import std/io(println)
+import std/env(getEnv, hasEnv, getEnvOr, EnvError)
+import std/result(Result, Ok, Err)
+
+export func main() -> () ! {Env, IO} {
+  {
+    println("=== Environment Variable Demo ===");
+    println(" ");
+
+    -- Check debug mode using hasEnv
+    let debugStatus = if hasEnv("DEBUG") then "Debug mode is enabled" else "Production mode";
+    println(debugStatus);
+    println(" ");
+
+    -- Get PATH with fallback using getEnvOr
+    let path = getEnvOr("PATH", "/usr/bin:/bin");
+    println("PATH: " ++ path);
+    println(" ");
+
+    -- Get HOME directory using getEnvOr
+    let home = getEnvOr("HOME", "not set");
+    println("HOME: " ++ home);
+
+    ()
+  }
+}
