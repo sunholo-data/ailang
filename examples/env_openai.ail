@@ -1,0 +1,83 @@
+module examples/env_openai
+
+-- Demonstrates reading OPENAI_API_KEY from environment and making API calls
+--
+-- Usage:
+--   export OPENAI_API_KEY=sk-proj-...
+--   ailang run --caps Env,Net,IO --entry main examples/env_openai.ail
+--
+-- With allowlist (recommended):
+--   ailang run --caps Env,Net,IO --allow-env OPENAI_API_KEY --entry main examples/env_openai.ail
+
+import std/io(println)
+import std/env(getEnv, EnvError)
+import std/net(httpRequest, HttpResponse, NetError)
+import std/result(Result, Ok, Err)
+
+-- Make OpenAI API request to list models
+func listModels(apiKey: string) -> string ! {Net} =
+  let headers = [
+    {name: "Authorization", value: "Bearer " ++ apiKey},
+    {name: "Content-Type", value: "application/json"}
+  ] in
+  match httpRequest("GET", "https://api.openai.com/v1/models", headers, "") {
+    Ok(resp) => if resp.ok then resp.body else "HTTP error (non-200 status)"
+    Err(Transport(msg)) => "Network error: " ++ msg
+    Err(DisallowedHost(host)) => "Blocked host: " ++ host
+    Err(InvalidHeader(hdr)) => "Invalid header: " ++ hdr
+    Err(BodyTooLarge(size)) => "Response too large: " ++ size
+  }
+
+-- Extract API key or return error string
+func extractKey(result: Result[string, EnvError]) -> string =
+  match result {
+    Ok(key) => key
+    Err(NotFound(_)) => "ERROR_NOT_FOUND"
+    Err(NotAllowed(_)) => "ERROR_NOT_ALLOWED"
+  }
+
+export func main() -> () ! {Env, Net, IO} {
+  {
+    println("=== OpenAI API Demo with Env Vars ===");
+    println(" ");
+
+    -- Try to get API key from environment
+    let apiKeyResult = getEnv("OPENAI_API_KEY");
+    let key = extractKey(apiKeyResult);
+
+    -- Check if we got a valid key or an error
+    let isNotFound = key == "ERROR_NOT_FOUND";
+    let isNotAllowed = key == "ERROR_NOT_ALLOWED";
+
+    -- Handle errors
+    let dummy1 = if isNotFound then {
+      println("Error: OPENAI_API_KEY not found");
+      println(" ");
+      println("Please set your API key:");
+      println("  export OPENAI_API_KEY=sk-proj-...");
+      ()
+    } else ();
+
+    let dummy2 = if isNotAllowed then {
+      println("Error: OPENAI_API_KEY not in allowlist");
+      println(" ");
+      println("Run with:");
+      println("  ailang run --caps Env,Net,IO --allow-env OPENAI_API_KEY --entry main examples/env_openai.ail");
+      ()
+    } else ();
+
+    -- Make API call if we have a valid key
+    let hasValidKey = not isNotFound && not isNotAllowed;
+    let dummy3 = if hasValidKey then {
+      println("Found OPENAI_API_KEY (redacted)");
+      println("Calling OpenAI API...");
+      println(" ");
+      let response = listModels(key);
+      println("Response:");
+      println(response);
+      ()
+    } else ();
+
+    ()
+  }
+}
