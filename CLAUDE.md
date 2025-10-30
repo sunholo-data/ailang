@@ -1136,7 +1136,7 @@ Example entry:
 
 **When writing AILANG code during development:**
 Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.8.md](prompts/v0.3.8.md)
+- **Current version**: [prompts/v0.3.24.md](prompts/v0.3.24.md)
 - Validated through multi-model testing (Claude, GPT, Gemini)
 - Covers syntax, limitations, common pitfalls, and working examples
 
@@ -1147,8 +1147,13 @@ ailang repl                                        # Start REPL
 :type expr                                         # Check type in REPL
 ```
 
+**Critical syntax notes:**
+- **Zero-arg calls:** Use `f ()` (space required) NOT `f()` - by design (ML-style application)
+- **Type parameters:** Use `[T]` NOT `(T)` - distinguishes type/term application
+- **Match in blocks:** Known parser bug (nested delimiter tracking) - extract to helper function
+
 **For detailed syntax, limitations, and examples:**
-- See [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete AILANG teaching prompt
+- See [prompts/v0.3.24.md](prompts/v0.3.24.md) - Complete AILANG teaching prompt
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 

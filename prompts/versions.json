@@ -212,7 +212,7 @@
     },
     "v0.3.24": {
       "file": "prompts/v0.3.24.md",
-      "hash": "f5c33a538e4c8f838c9b2cacd5c26aa0166588488d075edc63ae95f605d21f1b",
+      "hash": "e115302dad2f4b0345e8e31934319e7f495a1894d19864777ca3e4dde234f231",
       "description": "Add zero-argument function call syntax documentation",
       "created": "2025-10-30",
       "tags": [
