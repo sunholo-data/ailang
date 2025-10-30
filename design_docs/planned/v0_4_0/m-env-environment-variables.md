@@ -275,10 +275,20 @@ export func main() -> () ! {IO, Net, Env} {
 }
 ```
 
-**Usage:**
+**Usage (with allowlist for security):**
 ```bash
 export OPENAI_API_KEY="sk-proj-..."
-ailang run --caps IO,Net,Env --entry main openai_example.ail
+ailang run --caps IO,Net,Env --allow-env OPENAI_API_KEY --entry main openai_example.ail
+# If key is missing or not allowed, error is clear and doesn't leak value
+```
+
+**Production usage (with snapshot for reproducibility):**
+```bash
+# Create snapshot once
+ailang run --caps Env --allow-env OPENAI_API_KEY --write-env-snapshot openai.env.json --entry main openai_example.ail
+
+# Later runs use exact snapshot (no surprises from env changes)
+ailang run --caps IO,Net,Env --env-snapshot openai.env.json --entry main openai_example.ail
 ```
 
 ### Example 2: Conditional Configuration
@@ -305,25 +315,44 @@ export func main() -> () ! {IO, Env} {
 }
 ```
 
-**Usage:**
+**Usage (with injection for testing):**
 ```bash
-# Development (default)
+# Development (default - no env var set)
 ailang run --caps IO,Env --entry main config.ail
 # API URL: http://localhost:8080
 
-# Staging
-export AILANG_ENV=staging
-ailang run --caps IO,Env --entry main config.ail
+# Staging (inject without mutating OS)
+ailang run --caps IO,Env --env AILANG_ENV=staging --entry main config.ail
 # API URL: https://api.staging.com
 
-# Production
+# Production (inject specific value)
+ailang run --caps IO,Env --env AILANG_ENV=prod --entry main config.ail
+# API URL: https://api.production.com
+
+# Or use actual OS env (snapshot still applies)
 export AILANG_ENV=prod
 ailang run --caps IO,Env --entry main config.ail
 # API URL: https://api.production.com
 ```
 
-### Example 3: Missing Environment Variable Handling
+### Example 3: Missing Environment Variable Handling (with getEnvOr)
 
+**Using the DX helper:**
+```ailang
+import std/env (getEnvOr)
+import std/io (println)
+
+-- Simplified: getEnvOr handles empty/missing gracefully
+export func main() -> () ! {IO, Env} {
+  let apiKey = getEnvOr("API_KEY", "default-key-for-dev");
+  let timeout = getEnvOr("TIMEOUT_MS", "5000");
+
+  println("Using API key: " ++ apiKey);
+  println("Timeout: " ++ timeout ++ "ms")
+}
+```
+
+**Manual pattern (if you don't want std/env dependency):**
 ```ailang
 import std/env (hasEnv, getEnv)
 import std/io (println)
@@ -354,57 +383,122 @@ export func main() -> () ! {IO, Env} {
 }
 ```
 
+**Recommended idiom:** Use `getEnvOr` for optional config, manual checks for required config.
+
 ## Success Criteria
 
-- [x] `getEnv(name)` returns string value or "" if not set
-- [x] `hasEnv(name)` returns true if var exists, false otherwise
-- [x] Both functions require `Env` capability (fail with clear error if missing)
-- [x] Cannot enumerate all env vars (security: no `listEnv()` function)
-- [x] Type signatures include `! {Env}` effect
-- [x] Works in REPL, modules, and files
-- [x] OpenAI example works with real API key from environment
-- [x] Gemini example works with real API key from environment
-- [x] All tests passing (unit + integration)
-- [x] Documentation updated (CHANGELOG, CLAUDE.md, teaching prompt)
-- [x] `ailang doctor builtins` passes validation
+**Core functionality:**
+- [ ] `getEnv(name)` returns string value from snapshot, or "" if not set
+- [ ] `hasEnv(name)` returns true if var exists in snapshot, false otherwise
+- [ ] Both functions require `Env` capability (fail with clear error if missing)
+- [ ] Cannot enumerate all env vars (security: no `listEnv()` function)
+- [ ] Type signatures include `! {Env}` effect, marked impure in metadata
+
+**Security features:**
+- [ ] Allowlist enforcement: `--allow-env` restricts readable keys
+- [ ] Allowlist error messages are actionable (suggest `--allow-env KEY`)
+- [ ] Redaction: sensitive values never appear in errors/logs/panics
+- [ ] No env var enumeration possible (runtime or reflection)
+
+**Determinism features:**
+- [ ] Snapshot captured once at program start, immutable thereafter
+- [ ] External env changes during execution don't affect reads
+- [ ] `--env KEY=VALUE` injection overrides OS values
+- [ ] `--env-snapshot path.json` provides exact reproducible environment
+- [ ] `--write-env-snapshot` captures snapshot for later replay
+
+**DX features:**
+- [ ] `getEnvOr(name, default)` helper works correctly
+- [ ] Works in REPL, modules, and files with same semantics
+- [ ] Case-insensitive on Windows, case-sensitive on POSIX
+
+**Integration:**
+- [ ] OpenAI example works with real API key + allowlist
+- [ ] Gemini example works with real API key + allowlist
+- [ ] Config example demonstrates snapshot + injection
+
+**Quality:**
+- [ ] All 20+ tests passing (unit + integration + security + platform)
+- [ ] Documentation updated (CHANGELOG, CLAUDE.md, teaching prompt, CAPABILITIES.md)
+- [ ] `ailang doctor builtins` passes validation
+- [ ] No regressions in existing tests
 
 ## Testing Strategy
 
-**Unit tests (`internal/effects/env_test.go`):**
-- `TestEnvGetEnv_ExistingVar` - Read existing env var
+**Unit tests (`internal/effects/env_test.go` - ~350 LOC):**
+
+*Basic functionality:*
+- `TestEnvGetEnv_ExistingVar` - Read existing env var from snapshot
 - `TestEnvGetEnv_MissingVar` - Missing var returns empty string
-- `TestEnvGetEnv_EmptyVar` - Empty var returns empty string (distinguish from missing)
+- `TestEnvGetEnv_EmptyVar` - Empty var returns "" (distinguish via hasEnv)
 - `TestEnvHasEnv_ExistingVar` - Var exists returns true
 - `TestEnvHasEnv_MissingVar` - Missing var returns false
 - `TestEnvRequiresCapability` - Fails without Env capability
 - `TestEnvWrongArgType` - Fails if arg is not string
 - `TestEnvWrongArgCount` - Fails if arg count != 1
 
+*Allowlist tests:*
+- `TestEnv_Allowlist_AllowsExplicitKey` - Allowed key works
+- `TestEnv_Allowlist_BlocksNonListedKey` - Disallowed key gives actionable error
+- `TestEnv_Allowlist_NilMeansAllowAll` - No allowlist = all keys allowed
+- `TestEnv_Allowlist_FileLoader` - `--allow-env-file` parsing
+
+*Snapshot tests:*
+- `TestEnv_Snapshot_FrozenAcrossRun` - External mutations don't affect snapshot
+- `TestEnv_CLIInject_OverridesOS` - `--env KEY=VALUE` takes precedence
+- `TestEnv_Snapshot_File_RoundTrip` - Save + load produces identical behavior
+- `TestEnv_Snapshot_File_OverridesAll` - Snapshot beats injections and OS
+
+*Redaction tests (`internal/effects/redact_test.go` - ~100 LOC):*
+- `TestEnv_Redaction_InErrorsAndLogs` - Secrets never in output
+- `TestEnv_Redaction_DisableWithEnvVar` - `AILANG_REDACT_ENV=off` works
+- `TestEnv_Redaction_PatternMatching` - Key/secret/token/password detected
+- `TestEnv_Redaction_AllowlistImpliesSecret` - Allow-listed keys always redacted
+
+*Platform tests:*
+- `TestEnv_Windows_CaseInsensitiveKeys` - Windows case-folding (skip on non-Windows)
+- `TestEnv_UTF8_NamesAndValues` - Unicode support
+
 **Integration tests:**
-- Parse and compile `std/env.ail` successfully
+- Parse and compile `std/env.ail` successfully (including `getEnvOr`)
 - Import `std/env` in other modules
-- End-to-end: Set env var, run program, verify output
+- End-to-end: Inject var, run program, verify output matches expectation
+- REPL: Verify `--caps Env` required, error messages don't leak values
 
 **Security tests:**
 - Verify no way to enumerate env vars (no `listEnv` or reflection)
+- Verify allowlist bypass impossible (try reflection, try numeric iteration)
 - Verify capability enforcement (cannot read without `--caps Env`)
-- Verify no CRLF injection in env var values (if they contain newlines)
 
 **Manual testing:**
 ```bash
-# Test getEnv
+# Test basic getEnv with snapshot
 export TEST_VAR="hello"
 ailang repl --caps Env
 > import std/env (getEnv)
 > getEnv("TEST_VAR")
 "hello"
 
-# Test hasEnv
-> import std/env (hasEnv)
-> hasEnv("TEST_VAR")
-true
-> hasEnv("NONEXISTENT")
-false
+# Change OS env externally (snapshot should not change)
+# In another terminal: export TEST_VAR="changed"
+> getEnv("TEST_VAR")
+"hello"  -- Still original value (snapshot frozen)
+
+# Test allowlist enforcement
+ailang repl --caps Env --allow-env ALLOWED_KEY
+> import std/env (getEnv)
+> getEnv("ALLOWED_KEY")
+""  -- Works (even though not set)
+> getEnv("SECRET_KEY")
+Error: E_ENV_NOT_ALLOWED: environment variable "SECRET_KEY" is not allow-listed; run with --allow-env SECRET_KEY
+
+# Test redaction
+> getEnv("API_KEY")  -- Assume API_KEY is in allowlist but not set
+Error: ... (error message does NOT contain API_KEY value even if it existed)
+
+# Test injection
+ailang run --caps Env --env TEST=injected --entry main test.ail
+# Uses "injected" even if OS has different value
 
 # Test capability requirement
 ailang repl  # NO --caps Env
@@ -429,36 +523,115 @@ Error: E_ENV_CAP_MISSING: Env capability not granted
 - Follow Unix philosophy: do one thing well (read env vars)
 - Application logic handles validation, parsing, defaults
 
+## Operational Knobs
+
+**CLI flags for environment variable control:**
+
+| Flag | Arguments | Purpose | Example |
+|------|-----------|---------|---------|
+| `--caps Env` | - | Grant coarse Env capability | `ailang run --caps Env ...` |
+| `--allow-env` | CSV of keys | Restrict readable env vars (least-privilege) | `--allow-env OPENAI_API_KEY,AILANG_ENV` |
+| `--allow-env-file` | Path to file | Load allowlist from file (one key per line) | `--allow-env-file .env.allow` |
+| `--env` | KEY=VALUE | Inject env var (overrides OS, can repeat) | `--env API_KEY=test123 --env ENV=dev` |
+| `--env-file` | Path to file | Load env vars from dotenv file (optional) | `--env-file .env.test` |
+| `--env-snapshot` | Path to JSON | Load exact env snapshot (overrides all) | `--env-snapshot prod.env.json` |
+| `--write-env-snapshot` | Path to JSON | Save env snapshot after loading | `--write-env-snapshot out.env.json` |
+
+**Environment variables (control AILANG behavior):**
+
+| Variable | Values | Purpose |
+|----------|--------|---------|
+| `AILANG_REDACT_ENV` | `off` / `on` (default: `on`) | Disable redaction for local debugging |
+
+**Precedence order (highest to lowest):**
+1. `--env-snapshot` (exact snapshot, wins over everything)
+2. `--env KEY=VALUE` (per-run injection)
+3. `--env-file` (bulk injection from file)
+4. OS environment variables (captured at program start)
+
+**Allowlist behavior:**
+- If `--allow-env` or `--allow-env-file` provided: Only listed keys readable
+- If neither provided: All keys readable (nil allowlist = allow all)
+- Allowlist applies regardless of snapshot/injection source
+
+**Case sensitivity:**
+- POSIX systems: Case-sensitive (FOO != foo)
+- Windows: Case-insensitive (FOO == foo, uses case-fold for lookups)
+
+**File formats:**
+
+*.env.allow* (allowlist file):
+```
+# Comments and empty lines ignored
+OPENAI_API_KEY
+GEMINI_API_KEY
+AILANG_ENV
+# One key per line
+```
+
+*.env* (dotenv file, optional in v0.4.0):
+```
+# Standard dotenv format
+API_KEY=value-here
+ENV=production
+```
+
+*snapshot.json* (env snapshot):
+```json
+{
+  "API_KEY": "sk-proj-...",
+  "ENV": "production",
+  "PATH": "/usr/bin:/bin"
+}
+```
+
+**Static analysis (future):**
+- If `getEnv("LITERAL")` called with string literal, can extract declared reads
+- Enables `ailang doctor env` to validate allowlists against actual usage
+- Powers CI policy: "only these keys are allowed in production"
+
 ## Timeline
 
 **Day 1** (8 hours):
-- Morning (4h): Phase 1 - Effect implementation + unit tests
-- Afternoon (4h): Phase 2 - Builtin registration + validation
+- Morning (4h): Phase 1 - Core effect implementation + basic tests
+- Afternoon (4h): Phase 2 - Snapshot system + CLI parsing
 
 **Day 2** (8 hours):
-- Morning (3h): Phase 3 - Standard library wrapper + integration tests
-- Midday (3h): Phase 4 - Examples (OpenAI, Gemini) + security tests
-- Afternoon (2h): Phase 5 - Documentation + CHANGELOG
+- Morning (3h): Phase 3 - Allowlist system + enforcement
+- Midday (3h): Phase 4 - Redaction system + security tests
+- Afternoon (2h): Phase 5 - Builtin registration + validation
 
-**Total: ~16 hours across 2 days**
+**Day 3** (8 hours):
+- Morning (2h): Phase 6 - Standard library + getEnvOr helper
+- Midday (4h): Phase 7 - Comprehensive testing (20+ tests)
+- Afternoon (2h): Phases 8-9 - Examples + documentation
 
-**Buffer:** +4 hours for unexpected issues (testing edge cases, debugging)
+**Total: ~24 hours across 3 days**
+
+**Buffer:** +4 hours for unexpected issues (platform differences, edge cases, debugging)
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| **Security: Env var enumeration** | High | No `listEnv` function, only read specific vars by name |
-| **Determinism concerns** | Medium | Document that env vars reduce determinism (use --env flags for tests) |
-| **Windows PATH separator issues** | Low | Only reading vars, not parsing paths (user responsibility) |
-| **Empty vs missing vars** | Low | `hasEnv` distinguishes existence, `getEnv` returns "" for both |
+| **Security: Env var enumeration** | High | No `listEnv` function, only read specific vars by name; comprehensive tests |
+| **Security: Allowlist bypass** | High | Enforce in every read; test reflection/iteration attempts; comprehensive tests |
+| **Security: Secrets in logs/errors** | High | Redaction system with pattern matching + allowlist; `AILANG_REDACT_ENV=off` for debug |
+| **Determinism: TOCTOU races** | Medium | Snapshot captured once at start, frozen; tests verify immutability |
+| **Determinism: Reproducibility** | Medium | `--env-snapshot` + `--write-env-snapshot` enable exact replay; JSON round-trip tested |
+| **Platform: Windows case sensitivity** | Low | Case-folding on Windows (`strings.EqualFold`); platform-specific tests |
+| **DX: Empty vs missing vars** | Low | `hasEnv` distinguishes; `getEnvOr` helper handles both; documented idiom |
 | **CRLF injection in env values** | Low | Values are opaque strings, user validates if needed |
-| **Capability bypass** | High | Strict enforcement in effect functions, comprehensive tests |
+| **Capability bypass** | High | Strict enforcement in effect functions, comprehensive tests, no reflection holes |
+| **Performance: Snapshot size** | Low | Env is small (<1KB typically), one-time copy; acceptable overhead |
 
-**Critical security invariant:**
+**Critical security invariants:**
 - ✅ **Cannot read env without Env capability** - Enforced in `envGetEnv` and `envHasEnv`
-- ✅ **Cannot enumerate env vars** - No API to list all keys
-- ✅ **Audit trail optional** - Could add logging in future (not blocking)
+- ✅ **Cannot enumerate env vars** - No API to list all keys, no reflection, tested against bypass
+- ✅ **Cannot bypass allowlist** - Enforced on every read, nil = allow all, tested
+- ✅ **Secrets never in output** - Redaction system intercepts errors/logs/panics
+- ✅ **Snapshot immutable** - Frozen at creation, external changes ignored, tested
+- ✅ **Precedence deterministic** - Snapshot > injection > file > OS, well-defined, tested
 
 ## References
 
@@ -472,19 +645,26 @@ Error: E_ENV_CAP_MISSING: Env capability not granted
 ## Future Work
 
 **Potential v0.5.0+ enhancements:**
-- **Audit logging**: Log all env var accesses for security review
+- **Audit logging**: Log all env var accesses for security review (opt-in)
 - **Env var schemas**: Declare required/optional vars in module manifests
-- **Type-safe env vars**: `getEnvInt`, `getEnvBool` with parsing errors
-- **Default value support**: `getEnvOr(name, default)` convenience function
-- **Environment isolation**: Mock env vars for testing (`--env KEY=VALUE` flag)
-- **Dotenv integration**: Built-in `.env` file parsing (if widely requested)
+- **Type-safe env vars**: `getEnvInt`, `getEnvBool` with `Result` return for parsing errors
+- **Static analysis**: `ailang doctor env` to validate allowlists against actual usage
+- **CI policy enforcement**: Fail build if non-allowed keys accessed
+- **Dotenv file loader**: `--env-file` implementation (wire is ready, just needs parser)
+- **Env var validation**: Custom validators in module manifest
 
 **Not planned:**
 - Environment variable modification (out of scope for AILANG's deterministic model)
+- Dynamic env var changes during execution (snapshot is immutable by design)
+- Process-level environment manipulation (`setenv`, `unsetenv` at OS level)
 
 ---
 
 **Document created**: 2025-10-30
 **Last updated**: 2025-10-30
 **Author**: Claude (design-doc-creator skill)
-**Version**: v1.0 (initial draft)
+**Version**: v2.0 (enhanced with security & determinism features)
+
+**Changelog:**
+- v1.0 (2025-10-30): Initial draft with basic getEnv/hasEnv
+- v2.0 (2025-10-30): Added allowlist, snapshot semantics, redaction, getEnvOr helper, comprehensive security features (based on review feedback)
