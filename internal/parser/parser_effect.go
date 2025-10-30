@@ -20,6 +20,7 @@ func (p *Parser) parseEffectAnnotation() []string {
 		"DB":    true,
 		"Trace": true,
 		"Async": true,
+		"Env":   true, // Environment variable access (v0.4.0+)
 	}
 
 	// We're at the BANG token
