@@ -859,7 +859,7 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.23)
+# AI Teaching Prompt (Latest: v0.3.24)
 
 # AILANG v0.3.22 - AI Teaching Prompt (Enhanced Error Messages + HTTP Early)
 
@@ -874,6 +874,7 @@ AILANG is a pure functional language with Hindley-Milner type inference and alge
 - Lambda: `\x. x * 2` or `func(x: int) -> int { x * 2 }`
 - Pattern: `match x { 0 => a, n => b }` (use `=>` not `:` or `->`, use commas between arms)
 - Effect: `! {IO, FS, Net}` after return type
+- **Zero-arg call: `f ()` (SPACE required!)** NOT `f()` (parse error)
 - ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
 - Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
 - List: `[]` | `::(head, tail)` | `match xs { [] => ..., ::(h,t) => ... }`
@@ -925,6 +926,13 @@ def add(x):
 ```
 AILANG has NO global mutable state. Thread state explicitly!
 
+❌ **WRONG - C-style zero-argument calls:**
+```ailang
+getMessage()    -- ❌ Parse error!
+render()        -- ❌ Parse error!
+```
+AILANG uses ML-style syntax: `f ()` (space required) NOT `f()`
+
 **✅ CORRECT - Functional AILANG:**
 ```ailang
 module benchmark/solution
@@ -960,6 +968,7 @@ export func main() -> () ! {IO} {
 - Semicolons REQUIRED between statements in blocks
 - Pattern matching uses `=>` NOT `:` or `->`
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
+- **Zero-arg calls:** Use `f ()` (space!) NOT `f()` - empty parens without space are parse errors
 
 ## What Works (v0.3.20+)
 
