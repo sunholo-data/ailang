@@ -209,9 +209,20 @@
         "latest"
       ],
       "notes": "Add note: print() auto-adds newline, don't concatenate \\n"
+    },
+    "v0.3.24": {
+      "file": "prompts/v0.3.24.md",
+      "hash": "f5c33a538e4c8f838c9b2cacd5c26aa0166588488d075edc63ae95f605d21f1b",
+      "description": "Add zero-argument function call syntax documentation",
+      "created": "2025-10-30",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add zero-argument function call syntax documentation"
     }
   },
-  "active": "v0.3.23",
+  "active": "v0.3.24",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
