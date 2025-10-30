@@ -1,5 +1,91 @@
 # AILANG Changelog
 
+## [v0.4.0] - 2025-10-30
+
+### Added - Environment Variable Support (M-ENV)
+
+**User Impact**: Access environment variables with capability-based security, snapshot semantics, and automatic redaction.
+
+**What Was Added**:
+1. **Env Effect**: New capability for environment variable access (~740 LOC core + ~440 LOC tests = ~1,180 LOC)
+   - `getEnv(name)`: Returns `Result(String, EnvError)` with Ok/NotFound/NotAllowed
+   - `hasEnv(name)`: Returns `bool` for existence check
+   - `getEnvOr(name, default)`: Convenience wrapper with fallback
+   - Snapshot semantics: Immutable snapshot captured at program start (external changes ignored)
+   - Allowlist enforcement: Restrict access with `--allow-env` or `--allow-env-file`
+   - No enumeration: Cannot list all variables (security by design)
+
+2. **CLI Flags** (cmd/ailang/main.go: +95 LOC):
+   - `--caps Env`: Enable Env capability
+   - `--allow-env KEY1,KEY2`: Restrict to specific variables
+   - `--allow-env-file path.txt`: Load allowlist from file (one per line, # for comments)
+   - `--env KEY=value,FOO=bar`: Override specific variables
+   - `--env-snapshot path.json`: Load snapshot from JSON file
+   - `--write-env-snapshot path.json`: Write snapshot to JSON and exit
+
+3. **Redaction System** (internal/effects/redact.go: ~200 LOC, 35 tests):
+   - Pattern matching: Detects sensitive names (key, secret, token, password, credential)
+   - Error redaction: Removes API keys, tokens, Base64 strings from error messages
+   - `AILANG_REDACT_ENV=off`: Disable redaction for debugging
+   - Example: `API_KEY=sk-proj-abc123` → `API_KEY=[REDACTED]`
+
+4. **Standard Library** (std/env.ail: ~80 LOC):
+   - `getEnv(name)`: Get variable with Result type
+   - `hasEnv(name)`: Check existence
+   - `getEnvOr(name, default)`: Get with fallback
+   - `EnvError` ADT: `NotFound(String) | NotAllowed(String)`
+
+**Files Added/Modified**:
+- internal/effects/env.go: 170 LOC (effect operations)
+- internal/effects/env_test.go: 320 LOC (12 tests)
+- internal/effects/context.go: +50 LOC (snapshot fields)
+- internal/effects/redact.go: 200 LOC (redaction system)
+- internal/effects/redact_test.go: 240 LOC (35 tests)
+- internal/builtins/env.go: 120 LOC (builtin registration)
+- std/env.ail: 80 LOC (stdlib module)
+- cmd/ailang/main.go: +95 LOC (CLI flags)
+- internal/parser/parser_effect.go: +1 LOC (Env effect)
+
+**Security Invariants Verified**:
+- ✅ Cannot read env without Env capability
+- ✅ Cannot enumerate env vars (no list function)
+- ✅ Cannot bypass allowlist (enforced in getEnv/hasEnv)
+- ✅ Secrets never in errors/logs (redaction works)
+- ✅ Snapshot immutable (external changes ignored)
+
+**Example Usage**:
+```bash
+# Basic usage (all variables allowed)
+ailang run --caps Env program.ail
+
+# Security: Allowlist enforcement
+ailang run --caps Env --allow-env API_KEY,DEBUG program.ail
+
+# Testing: Override variables
+ailang run --caps Env --env API_KEY=test_key program.ail
+
+# Reproducibility: Save/load snapshots
+ailang run --caps Env --write-env-snapshot env.json program.ail
+ailang run --caps Env --env-snapshot env.json program.ail
+```
+
+**Example AILANG Code**:
+```ailang
+import std/env(getEnv, hasEnv, getEnvOr)
+
+func main() -> string ! {Env} =
+  if hasEnv("DEBUG") then
+    match getEnv("API_KEY") {
+      Ok(key) => "Debug mode with key"
+      Err(NotFound) => "Debug mode, no key"
+      Err(NotAllowed) => "API_KEY not in allowlist"
+    }
+  else
+    getEnvOr("PORT", "8080")
+```
+
+**Test Coverage**: 47 tests (12 env + 35 redaction), all passing
+
 ## [v0.3.25] - 2025-10-29
 
 ### Fixed - Stdlib Reserved Keyword Bug (M-BUG-STDLIB-RESERVED-KEYWORD)
