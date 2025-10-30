@@ -74,7 +74,7 @@ func TestStdlibModulesCanBeParsed(t *testing.T) {
 func TestStdlibNoReservedKeywordsAsIdentifiers(t *testing.T) {
 	// List of reserved keywords that should never appear as function/variable names
 	reservedKeywords := []string{
-		"exists",  // The bug we fixed!
+		"exists", // The bug we fixed!
 		"forall",
 		"test",
 		"tests",
