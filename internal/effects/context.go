@@ -15,10 +15,12 @@ import (
 // Thread-safety: EffContext is typically created once per evaluation and
 // should not be mutated concurrently.
 type EffContext struct {
-	Caps  map[string]Capability // Effect name → Capability grant
-	Env   EffEnv                // Environment configuration
-	Clock *ClockContext         // Clock effect state (monotonic time)
-	Net   *NetContext           // Net effect configuration (security settings)
+	Caps         map[string]Capability // Effect name → Capability grant
+	Env          EffEnv                // Environment configuration
+	Clock        *ClockContext         // Clock effect state (monotonic time)
+	Net          *NetContext           // Net effect configuration (security settings)
+	EnvSnapshot  map[string]string     // Env effect: immutable snapshot of environment variables
+	EnvAllowlist []string              // Env effect: allowed variable names (nil = allow all)
 }
 
 // EffEnv provides deterministic effect execution configuration
@@ -132,10 +134,12 @@ func NewNetContext() *NetContext {
 //	ctx.Grant(NewCapability("Net"))
 func NewEffContext() *EffContext {
 	return &EffContext{
-		Caps:  make(map[string]Capability),
-		Env:   loadEffEnv(),
-		Clock: NewClockContext(), // Initialize monotonic time anchor
-		Net:   NewNetContext(),   // Initialize secure network defaults
+		Caps:         make(map[string]Capability),
+		Env:          loadEffEnv(),
+		Clock:        NewClockContext(), // Initialize monotonic time anchor
+		Net:          NewNetContext(),   // Initialize secure network defaults
+		EnvSnapshot:  captureEnvSnapshot(),
+		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 	}
 }
 
@@ -231,4 +235,35 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// captureEnvSnapshot creates an immutable snapshot of environment variables
+//
+// Captures all environment variables from os.Environ() into a map.
+// This snapshot is frozen at context creation time and never updated,
+// ensuring deterministic behavior even if the OS environment changes.
+//
+// Returns:
+//   - Map of environment variable name → value
+//
+// Example:
+//
+//	snapshot := captureEnvSnapshot()
+//	// snapshot["PATH"] = "/usr/bin:/bin"
+//	// snapshot["HOME"] = "/Users/mark"
+func captureEnvSnapshot() map[string]string {
+	snapshot := make(map[string]string)
+	for _, pair := range os.Environ() {
+		// Split "KEY=VALUE" into key and value
+		// Handle edge case: "KEY=" (empty value) vs "KEY" (no equals)
+		for i := 0; i < len(pair); i++ {
+			if pair[i] == '=' {
+				key := pair[:i]
+				value := pair[i+1:]
+				snapshot[key] = value
+				break
+			}
+		}
+	}
+	return snapshot
 }

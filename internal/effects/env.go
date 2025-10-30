@@ -1,0 +1,173 @@
+package effects
+
+import (
+	"fmt"
+
+	"github.com/sunholo/ailang/internal/eval"
+)
+
+// init registers Env effect operations
+func init() {
+	RegisterOp("Env", "getEnv", envGetEnv)
+	RegisterOp("Env", "hasEnv", envHasEnv)
+}
+
+// envGetEnv implements Env.getEnv(name: String) -> Result(String, EnvError)
+//
+// Retrieves an environment variable value from the immutable snapshot.
+// Respects allowlist if configured. Never accesses os.Getenv() directly.
+//
+// Parameters:
+//   - ctx: Effect context with EnvSnapshot and optional EnvAllowlist
+//   - args: [StringValue] - the environment variable name
+//
+// Returns:
+//   - Result(Ok(StringValue), Err(EnvError))
+//   - Ok if variable exists and is allowed
+//   - Err(NotFound) if variable doesn't exist
+//   - Err(NotAllowed) if variable not in allowlist
+//   - Error if wrong arguments or missing Env capability
+//
+// Security:
+//   - Snapshot semantics: external changes ignored after program start
+//   - Allowlist enforcement: blocks enumeration attacks
+//   - No reflection: cannot list all variables
+//
+// Example AILANG code:
+//
+//	match getEnv("API_KEY") {
+//	  Ok(key) => httpRequest(url, "GET", [("Authorization", "Bearer " ++ key)], "")
+//	  Err(NotFound) => fail("API_KEY not set")
+//	}
+//
+// With allowlist:
+//
+//	ailang run --caps Env --allow-env API_KEY,DEBUG app.ail
+func envGetEnv(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	// Check capability
+	if !ctx.HasCap("Env") {
+		return nil, fmt.Errorf("getEnv: Env capability required. Use --caps Env flag")
+	}
+
+	// Validate arguments
+	if len(args) != 1 {
+		return nil, fmt.Errorf("getEnv: expected 1 argument, got %d", len(args))
+	}
+
+	nameVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("getEnv: expected String, got %T", args[0])
+	}
+
+	name := nameVal.Value
+
+	// Check allowlist if configured
+	if ctx.EnvAllowlist != nil {
+		if !isInAllowlist(name, ctx.EnvAllowlist) {
+			// Return Err(NotAllowed) Result
+			return makeEnvError("NotAllowed", fmt.Sprintf("environment variable %q not in allowlist. Use --allow-env %s or add to allowlist file", name, name)), nil
+		}
+	}
+
+	// Lookup in snapshot
+	value, exists := ctx.EnvSnapshot[name]
+	if !exists {
+		// Return Err(NotFound) Result
+		return makeEnvError("NotFound", fmt.Sprintf("environment variable %q not found", name)), nil
+	}
+
+	// Return Ok(value) Result
+	return makeOkResult(&eval.StringValue{Value: value}), nil
+}
+
+// envHasEnv implements Env.hasEnv(name: String) -> Bool
+//
+// Checks if an environment variable exists in the immutable snapshot.
+// Respects allowlist if configured.
+//
+// Parameters:
+//   - ctx: Effect context with EnvSnapshot and optional EnvAllowlist
+//   - args: [StringValue] - the environment variable name
+//
+// Returns:
+//   - BoolValue: true if variable exists and is allowed, false otherwise
+//   - Error if wrong arguments or missing Env capability
+//
+// Security:
+//   - Snapshot semantics: external changes ignored after program start
+//   - Allowlist enforcement: returns false for non-allowed variables
+//   - No enumeration: cannot discover variable names
+//
+// Example AILANG code:
+//
+//	if hasEnv("DEBUG") then
+//	  print("Debug mode enabled")
+//	else
+//	  print("Production mode")
+func envHasEnv(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	// Check capability
+	if !ctx.HasCap("Env") {
+		return nil, fmt.Errorf("hasEnv: Env capability required. Use --caps Env flag")
+	}
+
+	// Validate arguments
+	if len(args) != 1 {
+		return nil, fmt.Errorf("hasEnv: expected 1 argument, got %d", len(args))
+	}
+
+	nameVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("hasEnv: expected String, got %T", args[0])
+	}
+
+	name := nameVal.Value
+
+	// Check allowlist if configured
+	if ctx.EnvAllowlist != nil {
+		if !isInAllowlist(name, ctx.EnvAllowlist) {
+			// Not in allowlist → return false (don't reveal existence)
+			return &eval.BoolValue{Value: false}, nil
+		}
+	}
+
+	// Check existence in snapshot
+	_, exists := ctx.EnvSnapshot[name]
+	return &eval.BoolValue{Value: exists}, nil
+}
+
+// isInAllowlist checks if a variable name is in the allowlist
+func isInAllowlist(name string, allowlist []string) bool {
+	for _, allowed := range allowlist {
+		if allowed == name {
+			return true
+		}
+	}
+	return false
+}
+
+// makeEnvError creates an EnvError Result
+//
+// EnvError ADT:
+//
+//	type EnvError =
+//	  | NotFound(String)   -- Variable doesn't exist
+//	  | NotAllowed(String) -- Variable not in allowlist
+func makeEnvError(constructor, message string) eval.Value {
+	// Create tagged value: NotFound("message") or NotAllowed("message")
+	return &eval.TaggedValue{
+		ModulePath: "std/env",
+		TypeName:   "EnvError",
+		CtorName:   constructor,
+		Fields:     []eval.Value{&eval.StringValue{Value: message}},
+	}
+}
+
+// makeOkResult creates Ok(value) Result
+func makeOkResult(value eval.Value) eval.Value {
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Ok",
+		Fields:     []eval.Value{value},
+	}
+}
