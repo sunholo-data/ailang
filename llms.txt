@@ -1042,7 +1042,7 @@ module benchmark/solution
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  if 5 > 3 then println("Works!") else ()  // ✅ NO import needed!
+  if 5 > 3 then println("Works!") else ()  // Comparison operators auto-imported!
 }
 ```
 
