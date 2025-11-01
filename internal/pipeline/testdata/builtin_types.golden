@@ -7,6 +7,8 @@
 
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
+_env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
+_env_hasEnv : string -> bool ! {Env}
 _fs_exists : string -> bool ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}

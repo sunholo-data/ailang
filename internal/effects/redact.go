@@ -10,10 +10,10 @@ import (
 var (
 	// Patterns that match sensitive variable names
 	sensitiveKeyPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)key`),       // API_KEY, SECRET_KEY, etc.
-		regexp.MustCompile(`(?i)secret`),    // SECRET, CLIENT_SECRET, etc.
-		regexp.MustCompile(`(?i)token`),     // TOKEN, AUTH_TOKEN, etc.
-		regexp.MustCompile(`(?i)password`),  // PASSWORD, DB_PASSWORD, etc.
+		regexp.MustCompile(`(?i)key`),        // API_KEY, SECRET_KEY, etc.
+		regexp.MustCompile(`(?i)secret`),     // SECRET, CLIENT_SECRET, etc.
+		regexp.MustCompile(`(?i)token`),      // TOKEN, AUTH_TOKEN, etc.
+		regexp.MustCompile(`(?i)password`),   // PASSWORD, DB_PASSWORD, etc.
 		regexp.MustCompile(`(?i)credential`), // CREDENTIAL, CREDENTIALS, etc.
 	}
 

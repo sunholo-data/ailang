@@ -97,12 +97,18 @@ func TestEnvGetEnv_NotFound(t *testing.T) {
 
 	// Should return Err(NotFound) Result
 	tagged := result.(*eval.TaggedValue)
-	if tagged.CtorName != "NotFound" {
-		t.Fatalf("expected NotFound, got %s", tagged.CtorName)
+	if tagged.CtorName != "Err" {
+		t.Fatalf("expected Err Result, got %s", tagged.CtorName)
+	}
+
+	// Unwrap the Err to get the EnvError
+	envErr := tagged.Fields[0].(*eval.TaggedValue)
+	if envErr.CtorName != "NotFound" {
+		t.Fatalf("expected NotFound error, got %s", envErr.CtorName)
 	}
 
 	// Check error message
-	msgVal := tagged.Fields[0].(*eval.StringValue)
+	msgVal := envErr.Fields[0].(*eval.StringValue)
 	if msgVal.Value == "" {
 		t.Error("expected non-empty error message")
 	}
@@ -162,8 +168,14 @@ func TestEnvGetEnv_Allowlist(t *testing.T) {
 	}
 
 	tagged = result.(*eval.TaggedValue)
-	if tagged.CtorName != "NotAllowed" {
-		t.Errorf("expected NotAllowed for non-allowed variable, got %s", tagged.CtorName)
+	if tagged.CtorName != "Err" {
+		t.Errorf("expected Err Result for non-allowed variable, got %s", tagged.CtorName)
+	}
+
+	// Unwrap the Err to get the EnvError
+	envErr2 := tagged.Fields[0].(*eval.TaggedValue)
+	if envErr2.CtorName != "NotAllowed" {
+		t.Errorf("expected NotAllowed error, got %s", envErr2.CtorName)
 	}
 }
 

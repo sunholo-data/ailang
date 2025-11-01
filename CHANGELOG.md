@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.4.0] - 2025-10-30
+## [v0.4.0] - 2025-11-01
 
 ### Added - Environment Variable Support (M-ENV)
 

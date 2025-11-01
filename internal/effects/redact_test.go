@@ -103,9 +103,9 @@ func TestRedactErrorMessage(t *testing.T) {
 	defer func() { redactionEnabled = original }()
 
 	tests := []struct {
-		name     string
-		message  string
-		contains string // redacted message should contain this
+		name       string
+		message    string
+		contains   string // redacted message should contain this
 		notContain string // redacted message should NOT contain this
 	}{
 		{
@@ -209,9 +209,9 @@ func TestFormatEnvError(t *testing.T) {
 	defer func() { redactionEnabled = original }()
 
 	tests := []struct {
-		name      string
-		varName   string
-		errMsg    string
+		name         string
+		varName      string
+		errMsg       string
 		wantContains []string
 	}{
 		{
