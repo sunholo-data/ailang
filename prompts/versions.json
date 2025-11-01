@@ -223,7 +223,7 @@
     },
     "v0.4.0": {
       "file": "prompts/v0.4.0.md",
-      "hash": "277b8c59d210499dcd13f8774549673203c71ef67c4e7a2460824293d0cd5b5d",
+      "hash": "5b6f4b3efbed2ba441275169c6709a8c482096b2bc1c6c07196b199f4e3c53bd",
       "description": "Add Env effect, Net effect, and v0.4.0 features",
       "created": "2025-11-01",
       "tags": [
