@@ -859,9 +859,9 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.3.24)
+# AI Teaching Prompt (Latest: v0.4.0)
 
-# AILANG v0.3.22 - AI Teaching Prompt (Enhanced Error Messages + HTTP Early)
+# AILANG v0.4.0 - AI Teaching Prompt (Environment Variables + Net Effects)
 
 **CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -873,7 +873,7 @@ AILANG is a pure functional language with Hindley-Milner type inference and alge
 - Function: `export func name(x: int) -> int ! {IO} { body }`
 - Lambda: `\x. x * 2` or `func(x: int) -> int { x * 2 }`
 - Pattern: `match x { 0 => a, n => b }` (use `=>` not `:` or `->`, use commas between arms)
-- Effect: `! {IO, FS, Net}` after return type
+- Effect: `! {IO, FS, Net, Env}` after return type
 - **Zero-arg call: `f ()` (SPACE required!)** NOT `f()` (parse error)
 - ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
 - Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
@@ -970,9 +970,9 @@ export func main() -> () ! {IO} {
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
 - **Zero-arg calls:** Use `f ()` (space!) NOT `f()` - empty parens without space are parse errors
 
-## What Works (v0.3.20+)
+## What Works (v0.4.0)
 
-Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net}`), recursion, numeric conversions, HTTP with headers, JSON encoding, **property-based testing**.
+Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net, Env}`), recursion, numeric conversions, HTTP with headers, JSON encoding, **property-based testing**, **environment variables**.
 
 **Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
 
@@ -1053,6 +1053,7 @@ export func main() -> () ! {IO} {
 - `now`, `sleep` → `import std/clock (now, sleep)`
 - `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)` (simple wrappers)
 - `httpRequest` → `import std/net (httpRequest)` **for custom headers and full control**
+- `getEnv`, `hasEnv`, `getEnvOr` → `import std/env (getEnv, hasEnv, getEnvOr)` **for environment variables (v0.4.0+)**
 - JSON encoding → `import std/json (encode, jo, ja, kv, js, jnum)`
 - `show` → builtin, **DO NOT IMPORT**
 - `<`, `>`, `<=`, `>=`, `==`, `!=` → **AUTO-IMPORTED, NO IMPORT NEEDED!**
@@ -1385,6 +1386,22 @@ export func postWithHeaders(url: string, body: string) -> string ! {Net, IO} {
     Err(_) => ""
   }
 }
+
+-- Function with Env effect (v0.4.0+)
+export func getApiKey() -> string ! {Env} {
+  match getEnv("API_KEY") {
+    Ok(key) => key,
+    Err(NotFound(msg)) => "",
+    Err(NotAllowed(msg)) => ""
+  }
+}
+
+-- Function with Env effect + fallback (v0.4.0+)
+export func getPort() -> int ! {Env} {
+  let portStr = getEnvOr("PORT", "8080");
+  -- Parse portStr to int (simplified)
+  8080
+}
 ```
 
 **Effect Declaration Pattern**: `-> ReturnType ! {Effect1, Effect2}`
@@ -1523,6 +1540,42 @@ export func displayTotal(items: [int]) -> () ! {IO} {
 
 export func main() -> () ! {IO} {
   displayTotal([1, 2, 3, 4, 5])
+}
+```
+
+**Example 4: Environment variables (v0.4.0+)**
+```ailang
+module benchmark/solution
+
+import std/io (println)
+import std/env (getEnv, hasEnv, getEnvOr)
+
+-- Check if env variable exists
+export func checkApiKey() -> () ! {Env, IO} {
+  if hasEnv("API_KEY")
+  then println("API_KEY is set")
+  else println("API_KEY not found")
+}
+
+-- Get env variable with error handling
+export func getConfig() -> string ! {Env} {
+  match getEnv("CONFIG_PATH") {
+    Ok(path) => path,
+    Err(NotFound(msg)) => "/default/config.json",
+    Err(NotAllowed(msg)) => "/default/config.json"
+  }
+}
+
+-- Get env variable with fallback
+export func getPort() -> string ! {Env} {
+  getEnvOr("PORT", "8080")
+}
+
+export func main() -> () ! {Env, IO} {
+  checkApiKey();
+  let config = getConfig();
+  let port = getPort();
+  println("Config: " ++ config ++ ", Port: " ++ port)
 }
 ```
 
