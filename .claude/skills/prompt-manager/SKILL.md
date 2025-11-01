@@ -42,6 +42,12 @@ Recomputes SHA256 after edits
 ```
 Catches prompt-code mismatches, false limitations
 
+### Check Examples Coverage
+```bash
+.claude/skills/prompt-manager/scripts/check_examples_coverage.sh <version>
+```
+Verifies that features used in working examples are documented in prompt
+
 ### Analyze Size & Optimization Opportunities
 ```bash
 .claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
@@ -117,10 +123,14 @@ Top sections by size:
 # 3. Verify accuracy (no false limitations)
 .claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
 
-# 4. Update hash
+# 4. Check examples coverage (NEW - v0.4.1+)
+.claude/skills/prompt-manager/scripts/check_examples_coverage.sh v0.3.17
+# Ensures working examples are documented in prompt
+
+# 5. Update hash
 .claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
 
-# 5. TEST PROMPT EFFECTIVENESS (CRITICAL!)
+# 6. TEST PROMPT EFFECTIVENESS (CRITICAL!)
 .claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
 # This runs AILANG-only eval (no Python baseline) with dev models
 # Target: >40% AILANG success rate

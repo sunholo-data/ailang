@@ -278,36 +278,103 @@ Validated nodes may carry polymorphic types (α, β, etc.); these are accepted a
 
 ### 4. MONOMORPHIZATION - CALL-SITE SPECIALIZATION (v0.4.0)
 
-**ENABLED BY DEFAULT**: Polymorphic lambdas specialized at call sites (M-POLY-A).
+**ENABLED BY DEFAULT**: Polymorphic lambdas are automatically specialized at call sites with concrete types (M-POLY-A).
 
-**Quick reference:**
+**What it does:**
+- Specializes polymorphic functions (type `α -> α`) when called with concrete types
+- Eliminates runtime type resolution overhead
+- Foundation for future cross-module optimization (v0.5.0)
+
+**The Pipeline:**
+```go
+// Phase 3.5: Monomorphization (runs after type checking, before lowering)
+// File pipeline:   internal/pipeline/pipeline.go:228-265
+// Module pipeline: internal/pipeline/pipeline.go:680-723
+
+specializer := NewSpecializer(&typeChecker.CoreTI)
+specializedProg, err := specializer.Specialize(coreProg)
+if err != nil {
+    return result, fmt.Errorf("monomorphization error: %w", err)
+}
+coreProg = specializedProg
+```
+
+**Resource Limits (prevent runaway specialization):**
+- **Per-function cap**: 16 specializations per function
+- **Module-wide cap**: 512 specializations per module
+- Both limits enforced automatically with clear diagnostics
+
+**CLI Flags:**
 ```bash
-# Normal compilation (enabled by default)
+# Normal compilation (monomorphization enabled)
 ailang run --entry main --caps IO module.ail
 
 # Debug mode (show specialization stats)
-ailang run --debug-compile module.ail
+ailang run --entry main --caps IO --debug-compile module.ail
+# Output: [DEBUG] Monomorphization: 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
 
-# Disable (emergency escape hatch)
-ailang run --no-mono module.ail
+# Emergency escape hatch (disable monomorphization)
+ailang run --entry main --caps IO --no-mono module.ail
 ```
 
-**What works (v0.4.0):**
-- ✅ Inline lambdas: `(\x. \y. if x > y then x else y)(3.14)(2.71)`
-- ✅ Comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+**Debug Output Example:**
+```
+[DEBUG] Monomorphization (module mymodule): 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
+[DEBUG] Module mymodule per-function specializations:
+[DEBUG]   map: 3
+[DEBUG]   filter: 2
+[DEBUG] Module mymodule skipped functions:
+[DEBUG]   recursiveSum: Recursive function not specialized in v0.4.0
+[DEBUG]   mutualGroup: Mutually recursive bindings not specialized in v0.4.0
+```
 
-**Known issue (v0.4.0):**
-- ❌ Arithmetic operators need type annotations: `let add: float -> float -> float = \x. \y. x + y`
-- **Workaround**: Use inline lambdas or add type annotations
-- **Fix**: Coming in v0.4.2 (Phase 2)
+**What Gets Specialized (v0.4.0):**
+- ✅ **Inline lambda applications**: `(\x. \y. if x > y then x else y)(3.14)(2.71)` ← Works!
+- ✅ **Var-bound lambdas with comparison operators**: `let max = \x. \y. if x > y then x else y in max(3.14)(2.71)` ← **Fixed in M-POLY-B Phase 1!**
+- ✅ Concrete argument types that can be statically determined
+- ✅ Non-recursive lambdas
 
-**Resource limits:**
-- Per-function: 16 specializations
-- Per-module: 512 specializations
+**What Gets Skipped (v0.4.0):**
+- ❌ **Var-bound lambdas with arithmetic operators**: `let add = \x. \y. x + y in add(3.14)(2.71)` ← Runtime panic!
+  - **Why**: Type inference defaults arithmetic to `int` (Num typeclass defaulting)
+  - **Workaround 1**: Type annotations: `let add: float -> float -> float = \x. \y. x + y`
+  - **Workaround 2**: Inline lambdas: `(\x. \y. x + y)(3.14)(2.71)` (works!)
+  - **Fix**: v0.4.2 (Phase 2) will fix type inference defaulting (~4-8 hours)
+- ⏭️ Recursive functions (diagnostic message explains why)
+- ⏭️ Mutually recursive groups (diagnostic message explains why)
+- ⏭️ Functions hitting per-function cap (16 limit)
+- ⏭️ Modules hitting module cap (512 limit)
 
-**For complete documentation:**
-- See [design_docs/implemented/v0_4_0/monomorphization.md](design_docs/implemented/v0_4_0/monomorphization.md)
-- See [M-POLY-B-PHASE1-COMPLETION-REPORT.md](M-POLY-B-PHASE1-COMPLETION-REPORT.md)
+**M-POLY-B Phase 1 Complete (v0.4.0):**
+- ✅ Comparison operators work: `>`, `<`, `>=`, `<=`, `==`, `!=`
+- ✅ Fixed 5 bugs: dictionary elaboration, type substitution, cloneExpr, substituteType, operator resolution
+- ❌ Arithmetic operators broken: `+`, `-`, `*`, `/`, `%` (Phase 2 deferred to v0.4.2)
+- See: [M-POLY-B-PHASE1-COMPLETION-REPORT.md](M-POLY-B-PHASE1-COMPLETION-REPORT.md)
+
+**Key Discovery:**
+Hindley-Milner type inference already specializes simple polymorphic lambdas during type checking. The monomorphization pass is designed for:
+- More complex polymorphic patterns
+- Cross-module polymorphism (v0.5.0)
+- Persistently polymorphic values in let-polymorphism contexts
+
+**Implementation:**
+- Core: `internal/pipeline/specialize.go` (1002 LOC)
+- Unit tests: `internal/pipeline/specialize_test.go` (461 LOC, 12/12 passing)
+- Integration tests: `internal/pipeline/specialize_integration_test.go` (331 LOC, 7/7 passing)
+- Pipeline integration: `internal/pipeline/pipeline.go` (+120 LOC)
+
+**Performance:**
+- O(n) traversal of Core AST
+- Negligible overhead for non-polymorphic code
+- Cache deduplication prevents redundant specializations
+
+**Troubleshooting:**
+
+If you encounter issues:
+1. Check debug output: `ailang run --debug-compile your_file.ail`
+2. Look for skip reasons in the output
+3. Verify you're not hitting caps (16 per-function, 512 per-module)
+4. As last resort, disable with `--no-mono` flag
 
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
@@ -643,38 +710,98 @@ make help                 # Show all available make targets
 
 ### Debug Flags
 
-**Quick reference table:**
+**AILANG provides environment variables for verbose debugging and strict error checking:**
 
-| Flag | Purpose | Use When |
-|------|---------|----------|
-| `DEBUG_STRICT=1` | Fail loudly on unhandled cases | Development, CI |
-| `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues |
-| `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
-| `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
+#### `DEBUG_STRICT=1` - Catch Silent Failures Early
 
-**Recommended combinations:**
+**What it does**: Makes incomplete switch statements and unhandled cases **fail loudly** with panic instead of silently returning unchanged values.
+
+**When to use**:
+- During development of new compiler passes
+- When debugging AST traversal code
+- To catch missing cases in switch statements
+- In CI to enforce completeness
+
+**Example**:
 ```bash
-# Development mode
-DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang run test.ail
+# Normal mode - unhandled cases return unchanged (silent failure)
+$ ailang run test.ail
+# ✓ May complete successfully even with bugs!
 
-# CI mode
-DEBUG_STRICT=1 make test
-
-# Parser debugging
-DEBUG_PARSER=1 ailang run test.ail
+# Strict mode - unhandled cases panic immediately
+$ DEBUG_STRICT=1 ailang run test.ail
+panic: cloneExpr: unhandled node type *core.Record (NodeID 42).
+    Add a case for this type or explicitly mark as unsupported.
+# ✓ Bug caught immediately!
 ```
 
-**For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)
+**Affected functions** (as of v0.4.1):
+- `internal/pipeline/specialize.go`:
+  - `cloneExpr()` - Cloning during monomorphization
+  - `specializeExpr()` - Specializing expressions
+
+**See Also**: [M-DX8: Silent Failure Prevention](design_docs/planned/v0_4_1/m-dx8-silent-failure-prevention.md)
+
+#### `DEBUG_MONO_VERBOSE=1` - Monomorphization Tracing
+
+**What it does**: Logs detailed information about monomorphization (polymorphic function specialization).
+
+**When to use**:
+- Debugging type substitution issues
+- Understanding which functions are specialized
+- Tracking down operator re-linking problems
+
+**Example**:
+```bash
+$ DEBUG_MONO_VERBOSE=1 ailang run --entry main --debug-compile test.ail
+[DEBUG_MONO_VERBOSE] Found lambda, type=α2 -> α2 -> α2, isPoly=true
+[DEBUG_MONO_VERBOSE] lambda type from CoreTI: α2 -> (α2 -> α2)
+[DEBUG_MONO_VERBOSE] extracted paramTVars: [α2]
+[DEBUG_MONO_VERBOSE] typeSubst built: map[α2:float]
+[DEBUG_MONO_VERBOSE] Cloning DictApp: method=gt
+[DEBUG_MONO_VERBOSE]   Original DictRef: class=Ord, type=Int, NodeID=15
+[DEBUG_MONO_VERBOSE]   Cloned DictRef: class=Ord, type=float, NodeID=42
+```
+
+#### `DEBUG_OPERATOR_LOWERING=1` - Operator Resolution Tracing
+
+**What it does**: Logs operator lowering decisions (BinOp/DictApp → Intrinsic).
+
+**When to use**:
+- Debugging operator dispatch issues
+- Understanding which builtin is selected
+- Tracking type-guided operator selection
+
+#### Combining Debug Flags
+
+**Recommended combinations**:
+
+```bash
+# Development mode - catch bugs early + verbose output
+$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang run test.ail
+
+# CI mode - strict checking only (no verbose output)
+$ DEBUG_STRICT=1 make test
+
+# Deep debugging - all flags
+$ DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 DEBUG_OPERATOR_LOWERING=1 ailang run --debug-compile test.ail
+```
 
 #### Keeping `ailang` Up to Date
 
-**After making code changes:**
+**After making code changes to the ailang binary:**
 ```bash
-make quick-install  # Fast reinstall (recommended)
+make quick-install  # Fast reinstall (recommended for development)
+# OR
 make install        # Full reinstall with version info
 ```
 
-**Important**: `ailang` in PATH points to `/Users/mark/go/bin/ailang` (system), NOT `bin/ailang` (local). Always reinstall after building.
+**Important**: The `ailang` command in your PATH points to `/Users/mark/go/bin/ailang` (system install), NOT `bin/ailang` (local build). Always run `make install` or `make quick-install` after building to update the system binary. Otherwise your changes won't be used when running `ailang` commands.
+
+**For local testing without install:**
+```bash
+./bin/ailang <command>  # Use local build directly
+```
 
 ### IMPORTANT: Keeping Documentation Updated
 
@@ -766,36 +893,299 @@ ailang repl                                        # Start REPL
 - See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
 - See [design_docs/](design_docs/) - Architecture and design decisions
 
-## 🎯 RELEASE WORKFLOW
+## 🎯 RELEASE WORKFLOW - READ THIS FIRST!
 
-**For releases**: Use the `release-manager` skill
-**After release**: Use the `post-release` skill to update dashboard
+**When user says "ready to release" or "update dashboard":**
 
-**Quick reference:**
-- **release-manager** handles: verification, tagging, CI/CD monitoring
-- **post-release** handles: eval baselines, dashboard updates, docs
+### Quick Reference
 
-**For manual workflows**: See [docs/guides/release.md](docs/guides/release.md)
+**Run release with the release-manager skill** (handles everything):
+
+When ready to release, invoke the `release-manager` skill with the version number.
+
+The release-manager skill handles:
+- Pre-release verification (tests, linting, file sizes)
+- Version updates in documentation
+- Git tagging and pushing
+- CI/CD monitoring
+- Release verification
+
+After release completes, use the `post-release` skill to:
+- Run baseline evaluations
+- **Update website dashboard** ← Critical!
+- Update design docs and public documentation
+
+### Manual Dashboard Update (if needed)
+
+**Update website dashboard for specific version**:
+```bash
+# Generate dashboard files (markdown + JSON with history)
+# Note: 2>/dev/null suppresses progress messages that would appear in the markdown
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus 2>/dev/null > docs/docs/benchmarks/performance.md
+# DO NOT redirect JSON to file - it writes to docs/static/benchmarks/latest.json automatically with history preservation
+ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json
+
+# Verify JSON is valid
+jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
+
+# Clear Docusaurus cache (prevents webpack errors)
+cd docs && npm run clear
+
+# Test locally (optional)
+cd docs && npm start
+# Visit: http://localhost:3000/ailang/docs/benchmarks/performance
+
+# Commit and push
+git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
+git commit -m "Update benchmark dashboard for v0.3.12"
+git push
+```
+
+### Common Issues
+
+**Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
+**Solution**: Use `ailang eval-report` with specific baseline directory
+
+**Problem**: "Uncaught runtime errors" / webpack chunk errors
+**Cause**: Docusaurus build cache stale
+**Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
+
+**Problem**: Dashboard JSON shows "null" for aggregates
+**Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
+**Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
 
 ---
 
-## 📐 Code Organization Principles
+## 📐 Code Organization Principles (AI-First Design)
 
-**AILANG is designed for AI maintenance. Keep files small and focused.**
+### File Size Guidelines
 
-**File size targets:**
-- Sweet spot: 200-500 lines
-- Acceptable: 500-800 lines
-- Critical: 1200+ lines (MUST split)
+**AILANG is designed to be maintained by AI assistants. Keep files small and focused.**
+
+**Target file sizes:**
+- **Sweet spot**: 200-500 lines per file
+- **Acceptable**: 500-800 lines
+- **Problematic**: 800-1200 lines (consider splitting)
+- **Critical**: 1200+ lines (MUST split before adding features)
+
+**Why small files matter for AI:**
+- Fits in AI context window (I can see the whole file at once)
+- Single responsibility principle naturally enforced
+- Easy to understand the full structure in one read
+- Reduces merge conflicts
+- Enables better testing isolation
 
 **Check file sizes:**
 ```bash
-make check-file-sizes    # Fails CI if >800 lines
-make report-file-sizes   # Show files >500 lines
+make check-file-sizes    # Fails CI if any file >800 lines
+make report-file-sizes   # Shows all files >500 lines
+wc -l internal/path/file.go  # Check specific file
 ```
 
-**For refactoring**: Use `codebase-organizer` agent  
-**For detailed patterns**: See [docs/guides/file-organization.md](docs/guides/file-organization.md)
+### Current Technical Debt
+
+**Check current status:**
+```bash
+make report-file-sizes    # Detailed report of files >500 lines
+make codebase-health      # Overall codebase metrics
+make largest-files        # Top 20 largest files
+```
+
+As of October 2025, ~10 files exceed the 800 line limit (out of 183 total). Run `make report-file-sizes` for the current list.
+
+**Before modifying these files:**
+1. Check if splitting is needed first
+2. Run tests before/after: `make test`
+3. Use the `codebase-organizer` agent for safe refactoring
+
+### File Organization Patterns
+
+#### Pattern 1: One Concept Per File
+
+```
+❌ BAD: Everything in one file
+internal/parser/parser.go (2518 lines)
+  - Expression parsing
+  - Statement parsing
+  - Type parsing
+  - Pattern parsing
+  - Module parsing
+
+✅ GOOD: Split by responsibility
+internal/parser/
+  ├── parser.go (200 lines)         # Main struct, entry points, package docs
+  ├── expressions.go (300 lines)    # parseExpression, parseLambda, parseCall
+  ├── statements.go (250 lines)     # parseLetDecl, parseFuncDecl, parseType
+  ├── types.go (200 lines)          # parseType, parseEffects, parseTypeParams
+  ├── patterns.go (280 lines)       # parsePattern, parseConstructor
+  ├── modules.go (150 lines)        # parseModule, parseImport, parseExport
+  └── helpers.go (140 lines)        # parseParams, parseBlock, utility functions
+```
+
+#### Pattern 2: Main File as Table of Contents
+
+Every package should have a main file (usually `pkg.go` or matching package name) that serves as navigation:
+
+```go
+// internal/parser/parser.go (200 lines max)
+package parser
+
+// Package parser implements AILANG source code parsing.
+//
+// # Architecture
+//
+// The parser is split into several files by responsibility:
+//   - parser.go: Main Parser struct and entry points (THIS FILE)
+//   - expressions.go: Expression parsing (literals, lambdas, calls, etc.)
+//   - statements.go: Top-level declarations (func, type, let)
+//   - types.go: Type annotation parsing
+//   - patterns.go: Pattern matching syntax
+//   - modules.go: Module system (import/export)
+//
+// # Usage
+//
+//   p := parser.New(lexer)
+//   file, err := p.Parse()
+//
+// # See Also
+//
+//   - internal/ast: AST node definitions
+//   - internal/lexer: Token generation
+//   - docs/parser/README.md: Detailed parser documentation
+
+// Parser is the main entry point for parsing AILANG source code.
+type Parser struct { /* ... */ }
+
+// Parse parses a complete AILANG source file.
+// Implementation delegates to parseFile() in statements.go.
+func (p *Parser) Parse() (*ast.File, error) { /* ... */ }
+```
+
+#### Pattern 3: Tests Next to Implementation
+
+```
+✅ GOOD: Focused test files
+internal/parser/
+  ├── expressions.go
+  ├── expressions_test.go (300 lines focused tests)
+  ├── statements.go
+  ├── statements_test.go (250 lines focused tests)
+  └── integration_test.go (end-to-end tests)
+
+❌ BAD: One giant test file
+  └── parser_test.go (5000 lines)
+```
+
+#### Pattern 4: Clear File Naming
+
+File names should match the main functions they contain:
+
+```
+✅ GOOD:
+expressions.go → parseExpression(), parseCall(), parseLambda()
+statements.go  → parseLetDecl(), parseFuncDecl(), parseTypeDecl()
+patterns.go    → parsePattern(), parseConstructor()
+
+❌ BAD:
+parse_stuff.go → everything mixed together
+utils.go       → vague, no clear responsibility
+```
+
+### Adding New Features (File Size Rules)
+
+**Before adding any new feature to a file:**
+
+```bash
+# 1. Check current file size
+wc -l internal/types/typechecker_core.go
+# Output: 2736 lines
+
+# 2. If >800 lines, STOP and split first
+# 3. If 500-800 lines, consider if new feature pushes it over 800
+# 4. If <500 lines, proceed normally
+
+# 5. After changes, verify size
+wc -l internal/types/typechecker_core.go
+make check-file-sizes  # Fails if >800 lines
+```
+
+**Splitting workflow:**
+
+```bash
+# Option 1: Use the codebase-organizer agent (recommended)
+# This agent safely refactors files while ensuring tests pass
+
+# Option 2: Manual split (if you understand the code deeply)
+make test                    # Baseline - all tests pass
+# ... split files ...
+make test                    # Verify - all tests still pass
+git add internal/types/*.go
+git commit -m "Split typechecker_core.go into 8 files (AI-friendly)"
+```
+
+### Package Documentation Standards
+
+Every package with >3 files MUST have a README.md:
+
+```markdown
+# internal/parser
+
+Parser for AILANG source code.
+
+## Files
+
+- `parser.go` - Main Parser struct, entry points
+- `expressions.go` - Expression parsing: literals, lambdas, calls, operators
+- `statements.go` - Declarations: func, type, let, import, export
+- `types.go` - Type annotations: simple types, effects, type parameters
+- `patterns.go` - Pattern matching: constructors, literals, wildcards, guards
+- `modules.go` - Module system: module declarations, import resolution
+- `helpers.go` - Shared utilities: parameter parsing, block parsing
+
+## Entry Points
+
+- `Parse()` → `parseFile()` in statements.go
+- `parseExpression()` in expressions.go
+- `parseType()` in types.go
+- `parsePattern()` in patterns.go
+
+## Cross-references
+
+- Consumes: `internal/lexer` (tokens)
+- Produces: `internal/ast` (syntax tree)
+- Used by: `internal/pipeline`, `internal/repl`
+```
+
+### Automated Code Organization
+
+**Use the codebase-organizer agent** for safe refactoring:
+
+The `codebase-organizer` agent is available in `.claude/agents/codebase-organizer.md`. It:
+- Monitors file sizes across the codebase
+- Identifies files that need splitting
+- Safely refactors large files into smaller, focused modules
+- Ensures all tests pass before/after refactoring
+- Maintains git history and commit hygiene
+
+**Example usage:**
+```bash
+# Ask Claude to invoke the agent:
+"Please use the codebase-organizer agent to check for files that need splitting"
+
+# Or for specific refactoring:
+"Use the codebase-organizer agent to split internal/parser/parser.go"
+```
+
+### Measuring Success
+
+```bash
+# CI checks (automatically run on PRs)
+make check-file-sizes     # Fails if any file >800 lines
+
+# Status reports
+make report-file-sizes    # Lists all files >500 lines
+make codebase-health      # Full codebase metrics
+```
 
 **Goal metrics:**
 - 0 files over 800 lines ✅
@@ -959,44 +1349,310 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 
 ---
 
-## Parser Development
+## Parser Developer Experience Guide
 
-**For parser development, use the `parser-developer` skill.**
+**⚠️ READ THIS BEFORE WRITING PARSER CODE - Saves 30% of development time!**
 
-**Critical conventions (saves 30% development time):**
-1. **Token position**: Parser leaves cursor AT last token (not after)
-2. **No NEWLINE tokens**: Lexer skips `\n` as whitespace
-3. **Use `DEBUG_PARSER=1`**: Trace token positions for debugging
-4. **Use `make doc PKG=<package>`**: API discovery (80% faster)
+This section documents critical parser conventions that prevent token position bugs (the #1 time sink in parser development).
 
-**Common gotchas:**
-- ❌ IntLit is `int64`, not `int` (will panic if wrong!)
-- ❌ Never check for `lexer.NEWLINE` (lexer never generates it)
-- ❌ Print errors BEFORE `t.Fatalf` in tests
-- ❌ `string(rune(i))` produces unprintable chars (use `fmt.Sprintf`)
+### Parser Token Position Convention
 
-**Quick reference:**
+**CRITICAL:** AILANG parser functions follow this convention:
+- **Input:** Parser is AT the first token to parse
+- **Output:** Parser is AT the last token of what was parsed (NOT after it)
+
+**Example:**
+```go
+// To parse "42" followed by a comma:
+p.nextToken() // move to 42
+expr := p.parseExpression(LOWEST)  // parses "42", leaves cur=42 (NOT comma!)
+p.nextToken() // NOW we're at comma ✓
+```
+
+**Functions following this convention:**
+- `parseExpression()` - Leaves parser AT the last token of the expression
+- `parseType()` - Leaves parser AT the last token of the type
+- `parsePattern()` - Leaves parser AT the last token of the pattern
+- Most parser functions follow this pattern
+
+**When writing new parser functions:**
+- ✅ ALWAYS call `p.nextToken()` AFTER calling these functions
+- ❌ DON'T call `p.nextToken()` BEFORE - the caller handles positioning
+- ✅ Document your function if it deviates from this convention
+
+**Debugging token positions:**
+```go
+// Use DEBUG_PARSER=1 to see token flow:
+// $ DEBUG_PARSER=1 ailang run test.ail
+// [ENTER parseExpression] cur=INT peek=COMMA
+// [EXIT parseExpression] cur=INT peek=COMMA  ← Still AT the INT!
+```
+
+### Common AST Types Reference
+
+**Quick type lookup:**
 ```bash
-# Debug parser token flow
-DEBUG_PARSER=1 ailang run test.ail
-
-# Find API signatures
-make doc PKG=internal/parser | grep "parseExpression"
-
-# Check AST types
 grep "^type.*struct" internal/ast/ast.go | head -20
 ```
 
-**Common constructors:**
-- `parser.New(lexer)` - Takes lexer instance
-- `elaborate.NewElaborator()` - No arguments (Surface → Core)
-- `types.NewTypeChecker(core, imports)` - Takes Core prog + imports
-- `link.NewLinker()` - No arguments (Dictionary linking)
+**Expression types:**
+- **Literals**: `ast.Literal` with `Kind` field (IntLit, StringLit, BoolLit, FloatLit, UnitLit)
+  - ⚠️ **GOTCHA**: Lexer returns `int64`, not `int` for IntLit
+  - ✅ Access: `lit.Value.(int64)`
+  - ❌ Wrong: `lit.Value.(int)` (will panic!)
+- **Lists**: `ast.List` with `Elements []Expr`
+- **Variables**: `ast.Variable` with `Name string`
+- **Function calls**: `ast.FuncCall` with `Func Expr, Args []Expr`
+- **Lambdas**: `ast.Lambda` with `Params []*ast.Param, Body Expr`
+- **Blocks**: `ast.Block` with `Exprs []Expr`
 
-**For detailed guide:**
-- Use the `parser-developer` skill for complete conventions
-- See `design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md` for design docs
-- See `docs/CONTRIBUTING.md` for development workflows
+**Type types:**
+- **Simple types**: `ast.SimpleType` with `Name string` (e.g., "int", "bool", "string")
+- **List types**: `ast.ListType` with `Element Type`
+- **Function types**: `ast.FuncType` with `Params []Type, Return Type, Effects *ast.EffectRow`
+- **Type applications**: `ast.TypeApp` with `Con string, Args []Type`
+
+**Pattern types:**
+- **Variable pattern**: `ast.VarPattern` with `Name string`
+- **Constructor pattern**: `ast.ConstructorPattern` with `Name string, Args []Pattern`
+- **Literal pattern**: `ast.LiteralPattern` with `Value Literal`
+- **Wildcard pattern**: `ast.WildcardPattern` (matches anything)
+
+### Quick Token Lookup
+
+**Check if a keyword exists:**
+```bash
+grep -i "forall" internal/lexer/token.go
+# Output: FORALL token exists!
+```
+
+**Common testing keywords (already in lexer):**
+- `FORALL`, `EXISTS` - Quantifiers
+- `TEST`, `TESTS` - Test blocks
+- `PROPERTY`, `PROPERTIES` - Property-based tests
+- `ASSERT` - Assertions
+
+**If you see an identifier instead of a keyword:**
+- Lexer returns token type, not `lexer.IDENT` for keywords
+- ✅ Use `lexer.FORALL`, not `lexer.IDENT + literal check`
+- ❌ Wrong: `p.curTokenIs(lexer.IDENT) && p.curToken.Literal == "forall"`
+- ✅ Right: `p.curTokenIs(lexer.FORALL)`
+
+### Parsing Optional Sections After Optional Sections
+
+**Pattern for parsing `properties` that can appear after optional `tests`:**
+
+```go
+// properties can be in PEEK (no tests) or CUR (after tests)
+if p.peekTokenIs(lexer.PROPERTIES) || p.curTokenIs(lexer.PROPERTIES) {
+    // If in peek, advance to it
+    if p.peekTokenIs(lexer.PROPERTIES) {
+        p.nextToken()
+    }
+    // Now always at PROPERTIES
+    properties := p.parsePropertiesBlock()
+}
+```
+
+**Why:** Previous optional section may or may not advance the parser, so check both positions.
+
+### Test Error Printing Pattern
+
+**❌ WRONG - Errors are hidden:**
+```go
+if len(p.Errors()) != 0 {
+    t.Fatalf("parser had %d errors:", len(p.Errors()))
+    // ⚠️ This never executes! t.Fatalf stops immediately
+    for _, err := range p.Errors() {
+        t.Errorf("  %s", err)
+    }
+}
+```
+
+**✅ CORRECT - Errors are visible:**
+```go
+if len(p.Errors()) != 0 {
+    // Print errors BEFORE Fatalf
+    for _, err := range p.Errors() {
+        t.Errorf("  %s", err)
+    }
+    t.Fatalf("parser had %d errors", len(p.Errors()))
+}
+```
+
+### Debug Mode (v0.3.15+)
+
+**Enable token position tracing:**
+```bash
+DEBUG_PARSER=1 ailang run test.ail
+```
+
+**Output example:**
+```
+[ENTER parseType] cur=IDENT(int) peek=,
+[EXIT parseType] cur=IDENT(int) peek=,
+[ENTER parseExpression] cur=IDENT(x) peek=+
+[EXIT parseExpression] cur=IDENT(x) peek=+
+```
+
+**How it works:**
+- Shows ENTER/EXIT for `parseExpression()`, `parseType()`, and other key parser functions
+- Displays current (`cur`) and next (`peek`) tokens with their values
+- Only logs when `DEBUG_PARSER=1` is set (zero overhead otherwise)
+- Output goes to stderr, so it doesn't interfere with program output
+
+### Common API Patterns (M-TESTING Days 3-4 Learnings)
+
+**⚠️ COMMON API DISCOVERY ISSUES - Check these first!**
+
+#### Pattern 1: Package Constructors
+
+**Quick reference: `make doc PKG=<package>` shows all constructors and types**
+
+```bash
+# Example: Find NewElaborator() signature
+make doc PKG=internal/elaborate | grep "NewElaborator"
+# Output: func NewElaborator() *Elaborator
+
+# Example: Find NewCollector() signature
+make doc PKG=internal/testing | grep "NewCollector"
+# Output: func NewCollector(modulePath string) *Collector
+```
+
+**Common constructors:**
+| Package | Constructor | Signature | Notes |
+|---------|-------------|-----------|-------|
+| `internal/testing` | `NewCollector(path string)` | Takes module path | M-TESTING |
+| `internal/elaborate` | `NewElaborator()` | No arguments | Surface → Core |
+| `internal/types` | `NewTypeChecker(core, imports)` | Takes Core prog + imports | Type inference |
+| `internal/link` | `NewLinker()` | No arguments | Dictionary linking |
+| `internal/parser` | `New(lexer)` | Takes lexer instance | Parser |
+| `internal/eval` | `NewEvaluator(ctx)` | Takes EffContext | Core evaluator |
+
+#### Pattern 2: Test Collection API
+
+**Discovered during M-TESTING Days 3-4:**
+
+```go
+// ✅ CORRECT - From actual API
+collector := testing.NewCollector("module/path")
+suite := collector.Collect(file)
+
+// Access tests
+for _, test := range suite.Tests {
+    // test.Name, test.Inputs, test.Expected
+}
+
+// Access properties
+for _, prop := range suite.Properties {
+    // prop.Name, prop.Property
+}
+```
+
+**❌ WRONG assumptions that required grep debugging:**
+```go
+// Wrong: NewCollector takes 2 args
+collector := testing.NewCollector(file, modulePath)  // Compile error!
+
+// Wrong: suite has .Tests.Cases
+for _, test := range suite.Tests.Cases { ... }  // No .Cases field!
+
+// Wrong: FuncDecl has separate .InlineTests
+for _, test := range funcDecl.InlineTests { ... }  // Use .Tests instead
+```
+
+#### Pattern 3: Type Checking & Elaboration
+
+**Pipeline sequence:**
+```go
+// Step 1: Parse
+l := lexer.New(input, "test.ail")
+p := parser.New(l)
+file := p.ParseFile()
+
+// Step 2: Elaborate (Surface → Core)
+elab := elaborate.NewElaborator()  // ⚠️ No arguments!
+coreProg, err := elab.Elaborate(file)
+
+// Step 3: Type check
+tc := types.NewTypeChecker(coreProg, nil)  // nil = no imports
+typedProg, err := tc.Check()
+
+// Step 4: Link dictionaries
+linker := link.NewLinker()
+linkedProg, err := linker.Link(typedProg, tc.CoreTI)
+```
+
+#### Pattern 4: Field Access Patterns
+
+**Use `make doc` to discover struct fields:**
+
+```bash
+# Example: Check FuncDecl fields
+make doc PKG=internal/ast | grep -A 20 "type FuncDecl"
+# Shows: Tests []*TestCase, Properties []*Property
+```
+
+**Common field gotchas:**
+```go
+// ✅ CORRECT
+funcDecl.Tests           // []*ast.TestCase (not .Tests.Cases!)
+funcDecl.Properties      // []*ast.Property
+funcDecl.Params          // []*ast.Param
+
+// ❌ WRONG (fields that don't exist)
+funcDecl.InlineTests     // Use .Tests
+funcDecl.Tests.Cases     // .Tests is already the slice
+```
+
+#### Pattern 5: String Formatting (Day 4 Bug)
+
+**⚠️ CRITICAL: `string(rune(i))` produces unprintable characters!**
+
+```go
+// ❌ WRONG - Produces "\x01" instead of "1"
+testName := "test_" + string(rune(i+1))  // BUG!
+
+// ✅ CORRECT - Use fmt.Sprintf or strconv
+testName := fmt.Sprintf("test_%d", i+1)
+testName := "test_" + strconv.Itoa(i+1)
+```
+
+**Why**: `rune(1)` is the Unicode character U+0001 (unprintable), not the character "1" (U+0031).
+
+### Quick API Discovery Workflow
+
+**When you need to know an API:**
+
+1. **Check `make doc PKG=<package>` first** (fastest)
+   ```bash
+   make doc PKG=internal/testing | grep "NewCollector"
+   ```
+
+2. **Check source file directly** (if you know the file)
+   ```bash
+   grep "^func New" internal/testing/collector.go
+   grep "^type.*struct" internal/ast/ast.go
+   ```
+
+3. **Check test files for usage examples** (shows real patterns)
+   ```bash
+   grep "NewCollector" internal/testing/*_test.go
+   ```
+
+4. **Check docs/guides/** (for complex workflows)
+   - [docs/guides/parser_development.md](docs/guides/parser_development.md) - Parser patterns
+   - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Development workflows
+
+### API Discovery Time Saver
+
+**Estimated time savings:**
+- **Before `make doc`**: ~5-10 min per API lookup (grep, read source, trial-error)
+- **After `make doc`**: ~30 sec per API lookup (one command)
+- **Day 4 impact**: 25 min API confusion → Could be ~5 min with `make doc`
+- **Improvement**: ~80% reduction in API discovery time
+
+**See also:** M-DX9 Parser Developer Experience (design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md)
 
 ---
 

@@ -285,10 +285,21 @@ make lint  # MUST PASS
 - Key design decisions
 - Files modified/created
 
+**Create/update example files (CRITICAL - ALWAYS REQUIRED):**
+- **Every new language feature MUST have a corresponding example file**
+- Create `examples/feature_name.ail` for the new feature
+- Include comprehensive examples showing all capabilities
+- Add comments explaining the behavior and expected output
+- ⚠️ **Test that examples actually work**: `ailang run examples/feature_name.ail`
+- ⚠️ **Add warning headers to examples that don't work yet** (use `make flag-broken`)
+- Document example files created in CHANGELOG.md
+- See CLAUDE.md "IMPORTANT: Example Files Required" section
+
 **Update sprint plan:**
 - Mark milestone as ✅
 - Add actual LOC vs estimated
 - Note any deviations from plan
+- **List example files created/updated**
 
 #### Step 6: DX Reflection
 
@@ -353,12 +364,17 @@ make test-coverage-badge # Coverage check
 
 #### 2. Documentation Review
 - Verify CHANGELOG.md is complete
+- **Verify example files created and tested** (CRITICAL)
+  - Every new feature should have `examples/feature_name.ail`
+  - Run `make verify-examples` to check all examples
+  - Check that new examples are documented in CHANGELOG.md
 - Verify sprint plan shows all milestones as ✅
 - Update sprint plan with final metrics:
   - Total LOC (actual vs estimated)
   - Total time (actual vs estimated)
   - Velocity achieved
   - Test coverage achieved
+  - **Example files created** (list them)
   - Any deviations from plan
 
 #### 3. Final Commit

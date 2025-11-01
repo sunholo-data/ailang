@@ -144,11 +144,15 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
 - **Milestone Breakdown**: For each milestone:
   - Name and description
   - Estimated LOC (implementation + tests)
+  - **Example files to create/update** (CRITICAL - required for every new feature)
   - Dependencies
   - Acceptance criteria
   - Risk factors
 - **Task List**: Day-by-day breakdown (if < 1 week) or weekly (if longer)
-- **Success Metrics**: Test coverage target, examples to work, docs to update
+- **Success Metrics**:
+  - Test coverage target
+  - **Example files created and verified working** (CRITICAL - see CLAUDE.md)
+  - Docs to update
 
 ### 6. Present for Feedback
 
@@ -197,7 +201,8 @@ git commit -m "Add M-<milestone> sprint plan"
 - [ ] Test files: Coverage, test counts, test patterns
 - [ ] Code files: Actual implementation, not just stubs
 - [ ] TODO/FIXME: Inline comments about future work
-- [ ] Example files: What works vs what's broken
+- [ ] **Example files: What works vs what's broken** (check `examples/` directory)
+- [ ] **Example coverage: Does every new feature have a working example?** (CRITICAL)
 
 ### Gap Analysis Checklist
 - [ ] Features in design doc but not implemented

@@ -227,13 +227,23 @@
       "description": "Add Env effect, Net effect, and v0.4.0 features",
       "created": "2025-11-01",
       "tags": [
+        "production"
+      ],
+      "notes": "Add Env effect, Net effect, and v0.4.0 features"
+    },
+    "v0.4.1": {
+      "file": "prompts/v0.4.1.md",
+      "hash": "b1dccf8b01c8898cbc520f3c87e090f5d290f48179db101fe4ffcebce6ef1dfb",
+      "description": "Phase 1+2: JSON/HTTP fixes + comprehensive anti-patterns (53 easy wins)",
+      "created": "2025-11-01",
+      "tags": [
         "production",
         "latest"
       ],
-      "notes": "Add Env effect, Net effect, and v0.4.0 features"
+      "notes": "PHASE 1 (20 fixes): JSON decode documentation (decode(), Json ADT), HTTP anti-patterns (NO http.post()), simplicity emphasis. PHASE 2 (53 fixes): Critical Limitations expanded with NO func(T)->U, NO x::rest, NO import \"quotes\", NO list.map(). Common Mistakes section adds wrong/correct examples for list patterns, imports, function types. Based on V0.4.0_FAILURE_ROOT_CAUSE_ANALYSIS showing 68% failures are prompt-fixable. Expected improvement: 49% → 62-66% AILANG success rate."
     }
   },
-  "active": "v0.4.0",
+  "active": "v0.4.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

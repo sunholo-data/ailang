@@ -25,6 +25,23 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Resources**: syntax_quick_ref.md, common_patterns.md
 - **Public-facing**: Can be shared with the community
 
+**[builtin-developer/](builtin-developer/)** - Add new AILANG builtin functions
+- Modern registry system with M-DX1 (67% faster development)
+- Type Builder DSL and hermetic testing with MockEffContext
+- Automatic wiring to runtime/link
+- Complete validation and inspection tools
+- **Scripts**: validate_builtins.sh, check_builtin_health.sh
+- **Resources**: type_builder_examples.md, testing_patterns.md
+- **Time savings**: 2.5h instead of 7.5h per builtin
+
+**[parser-developer/](parser-developer/)** - Master AILANG parser development
+- Critical token positioning conventions (saves 30% development time)
+- AST type quick reference and common patterns
+- API discovery with make doc (80% faster)
+- Debug mode tracing (DEBUG_PARSER=1)
+- **Scripts**: trace_parser.sh, check_ast_types.sh, find_api.sh
+- **Resources**: token_positioning.md, ast_quick_reference.md, common_patterns.md, api_discovery.md
+
 **[skill-builder/](skill-builder/)** - Create new Anthropic Agent Skills
 - Scaffolds new skill directory structure with templates
 - Validates skills against Anthropic specification
