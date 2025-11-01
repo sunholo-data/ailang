@@ -220,9 +220,20 @@
         "latest"
       ],
       "notes": "Add zero-argument function call syntax documentation"
+    },
+    "v0.4.0": {
+      "file": "prompts/v0.4.0.md",
+      "hash": "277b8c59d210499dcd13f8774549673203c71ef67c4e7a2460824293d0cd5b5d",
+      "description": "Add Env effect, Net effect, and v0.4.0 features",
+      "created": "2025-11-01",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add Env effect, Net effect, and v0.4.0 features"
     }
   },
-  "active": "v0.3.24",
+  "active": "v0.4.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
