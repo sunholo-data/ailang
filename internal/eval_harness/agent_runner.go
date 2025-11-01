@@ -122,6 +122,13 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
+	// Create minimal .git folder so Claude treats workspace as standalone project
+	// This prevents Claude from walking up and finding the parent AILANG repo
+	gitDir := filepath.Join(workspace, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create .git folder: %w", err)
+	}
+
 	// Only cleanup workspace if DEBUG_AGENT is not set (allows inspection)
 	if os.Getenv("DEBUG_AGENT") == "" {
 		defer os.RemoveAll(workspace)
@@ -281,6 +288,22 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 
 	// Set working directory to workspace so relative paths work
 	cmd.Dir = workspace
+
+	// Override environment to make workspace the "project" directory
+	// This prevents Claude from finding the parent AILANG repo and creating files there
+	env := os.Environ()
+	// Remove parent project dir markers
+	filteredEnv := make([]string, 0, len(env))
+	for _, e := range env {
+		// Skip environment variables that might leak parent project context
+		if strings.HasPrefix(e, "PWD=") || strings.HasPrefix(e, "OLDPWD=") {
+			continue
+		}
+		filteredEnv = append(filteredEnv, e)
+	}
+	// Set PWD to workspace so Claude knows this is the "project"
+	filteredEnv = append(filteredEnv, fmt.Sprintf("PWD=%s", workspace))
+	cmd.Env = filteredEnv
 
 	// DEBUG: Capture stderr for visibility
 	var stderrBuf bytes.Buffer
