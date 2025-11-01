@@ -1,3 +1,0 @@
-This is an example file.
-It has a few lines.
-And some words to count.

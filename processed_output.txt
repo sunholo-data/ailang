@@ -1,4 +1,0 @@
-Processed: HELLO, PYTHON WORLD! (Length: 20)
-Processed: THIS IS A TEST LINE. (Length: 20)
-Processed: ANOTHER ONE (Length: 11)
-Processed: CLEAN CODE IS GOOD (Length: 18)

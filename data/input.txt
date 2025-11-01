@@ -1,5 +1,0 @@
-hello world
-python programming
-clean code
-
-final line

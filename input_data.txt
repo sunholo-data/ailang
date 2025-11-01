@@ -1,4 +1,0 @@
-hello world
-python programming guidelines
-  clean, idiomatic python 3  
-using pathlib is great
