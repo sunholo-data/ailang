@@ -33,7 +33,7 @@ fi
 
 echo "Testing prompt: $VERSION"
 echo "  File: $PROMPT_FILE"
-echo "  Models: dev models (gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)"
+echo "  Models: dev models (claude-haiku-4-5)"
 echo "  Languages: AILANG only (not Python)"
 echo "  Benchmarks: All AILANG-compatible benchmarks"
 echo ""
@@ -47,7 +47,7 @@ echo ""
 
 # Run eval with AILANG only
 ailang eval-suite \
-  --models gpt5-mini,claude-haiku-4-5,gemini-2-5-flash \
+  --models claude-haiku-4-5 \
   --langs ailang \
   --output "$OUTPUT_DIR"
 
