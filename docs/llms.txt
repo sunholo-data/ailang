@@ -859,9 +859,9 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.4.0)
+# AI Teaching Prompt (Latest: v0.4.1)
 
-# AILANG v0.4.0 - AI Teaching Prompt (Environment Variables + Net Effects)
+# AILANG v0.4.1 - AI Teaching Prompt (JSON Decode + Environment Variables + Net Effects)
 
 **CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -970,15 +970,17 @@ export func main() -> () ! {IO} {
 - NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
 - **Zero-arg calls:** Use `f ()` (space!) NOT `f()` - empty parens without space are parse errors
 
-## What Works (v0.4.0)
+## What Works (v0.4.1)
 
-Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net, Env}`), recursion, numeric conversions, HTTP with headers, JSON encoding, **property-based testing**, **environment variables**.
+Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net, Env}`), recursion, numeric conversions, HTTP with headers, **JSON encoding/decoding**, **property-based testing**, **environment variables**.
 
 **Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
 
 ## HTTP POST with JSON Example (Complete - Common Use Case!)
 
-**Many benchmarks require making HTTP POST requests with custom headers and JSON body. Here's the complete pattern:**
+**⚠️ Keep it simple: If you only need the HTTP status code, just print `resp.status` - don't parse `resp.body` unnecessarily.**
+
+**HTTP POST with JSON payload and custom headers:**
 
 ```ailang
 module benchmark/solution
@@ -1001,7 +1003,7 @@ export func main() -> () ! {Net, IO} {
 
   -- Make POST request
   match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
-    Ok(resp) => print(show(resp.status)),
+    Ok(resp) => print(show(resp.status)),  -- ✅ Just print status!
     Err(_) => print("error")
   }
 }
@@ -1013,6 +1015,97 @@ export func main() -> () ! {Net, IO} {
 - JSON encoding: use `std/json` functions (`jo`, `kv`, `js`, `jnum`)
 - Pattern match on Result to handle success/error
 - Access response with `resp.status`, `resp.body`, `resp.headers`
+- **Keep it simple**: Only parse `resp.body` if you actually need data from it - printing `resp.status` is often enough
+
+---
+
+## JSON Decoding with Pattern Matching (Separate Use Case)
+
+**⚠️ IMPORTANT: This is a SEPARATE pattern from HTTP requests. Don't combine them unless you actually need to parse response bodies!**
+
+**Parsing JSON data and extracting values:**
+
+```ailang
+module benchmark/solution
+
+import std/json (Json, JNull, JString, JNumber, JObject, decode)
+import std/result (Result, Ok, Err)
+
+-- Helper: Find a key in a JSON object
+func findKey(kvs: List[{key: string, value: Json}], target: string) -> Json {
+  match kvs {
+    [] => JNull,
+    [kv, ...rest] => if _str_eq(kv.key, target) then kv.value else findKey(rest, target)
+  }
+}
+
+-- Example: Parse {"name":"Alice","age":30} and extract name
+export func main() -> int {
+  let jsonStr = "{\"name\":\"Alice\",\"age\":30}";
+  let result = decode(jsonStr);
+  match result {
+    Ok(JObject(kvs)) => match findKey(kvs, "name") {
+      JString(s) => if _str_eq(s, "Alice") then 0 else 1,
+      _ => 2
+    },
+    Ok(_) => 3,
+    Err(_) => 4
+  }
+}
+```
+
+**Key points:**
+- `decode(jsonStr)` - Returns `Result[Json, string]`
+- JSON ADT constructors: `JNull`, `JBool(bool)`, `JNumber(float)`, `JString(string)`, `JArray(List[Json])`, `JObject(List[{key: string, value: Json}])`
+- Pattern match on Result first: `Ok(json)` or `Err(msg)`
+- Pattern match on Json constructors to extract values
+- JObject contains list of `{key: string, value: Json}` records
+- Use helper function to find keys in object
+
+**JSON ADT Constructors:**
+```ailang
+type Json =
+  | JNull
+  | JBool(bool)
+  | JNumber(float)
+  | JString(string)
+  | JArray(List[Json])
+  | JObject(List[{key: string, value: Json}])
+```
+
+**Complete example with HTTP + JSON decode:**
+```ailang
+module benchmark/solution
+
+import std/net (httpRequest)
+import std/json (Json, JObject, JString, decode)
+
+-- Helper: Find key in JSON object
+func findKey(kvs: List[{key: string, value: Json}], target: string) -> Json {
+  match kvs {
+    [] => JNull,
+    [kv, ...rest] => if _str_eq(kv.key, target) then kv.value else findKey(rest, target)
+  }
+}
+
+export func main() -> () ! {Net, IO} {
+  -- Make request
+  match httpRequest("GET", "https://api.example.com/user/123", [], "") {
+    Ok(resp) => {
+      -- Parse response body
+      match decode(resp.body) {
+        Ok(JObject(kvs)) => match findKey(kvs, "name") {
+          JString(name) => print("User: " ++ name),
+          _ => print("No name found")
+        },
+        Ok(_) => print("Invalid JSON format"),
+        Err(msg) => print("Parse error: " ++ msg)
+      }
+    },
+    Err(_) => print("HTTP error")
+  }
+}
+```
 
 ## Critical Limitations
 
@@ -1020,15 +1113,22 @@ export func main() -> () ! {Net, IO} {
 - ❌ NO `for`/`while` loops → use recursion
 - ❌ NO list comprehensions `[x*2 for x in list]` → use `map` or recursion
 - ❌ NO tuple destructuring `let (x, y) = pair` → use record fields or pattern match in function
-- ❌ NO function type syntax `func(T) -> U` → use lambda values `\x. expr`
+- ❌ NO function type syntax `func(T) -> U` in type annotations → use lambda values with inferred types
+- ❌ NO Haskell-style list cons `x::rest` → use `::(x, rest)` or `Cons(x, rest)` constructor syntax
+- ❌ NO quoted imports `import "std/io"` → use `import std/io` (no quotes!)
 - ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
+- ❌ NO `http.post()`, `http.get()`, `http()` functions → use `httpRequest("POST", url, headers, body)` from `std/net`
+- ❌ NO `json.encode()`, `JSON.parse()`, `parse_json()` → use `encode(jo([...]))` and `decode(jsonStr)` from `std/json`
+- ❌ NO named parameters `http.post(url=..., body=...)` → AILANG uses positional parameters only
 - ❌ NO mutable variables `var`/`let mut` → everything immutable
 - ❌ NO assignment `x = y` → use `let x = y in expr`
 - ❌ NO error propagation `?` → pattern match on Result
-- ❌ NO list spread `[x, ...rest]` → use `::(h, t)` in patterns
+- ❌ NO list spread `[x, ...rest]` in literals → use `::(h, t)` in patterns
+- ❌ NO Python/JS method calls `list.map()`, `list.append()` → use standalone functions
+- ❌ **DON'T overcomplicate** → Keep solutions simple - only add complexity when actually needed
 - 🐛 **Known parser bug:** Match inside statement blocks has delimiter tracking issues → **Workaround:** Extract to helper function or use as final block expression (fix in progress)
 
-**Important:** `show` is builtin (don't import). Higher-order functions use lambda values, not type annotations.
+**Important:** `show` is builtin (don't import). Higher-order functions use lambda values, not type annotations. **Keep solutions focused - don't combine unrelated patterns unnecessarily.**
 
 ## IMPORT CHECKLIST - Read Before Writing Code!
 
@@ -1051,10 +1151,11 @@ export func main() -> () ! {IO} {
 - `println` → `import std/io (println)` (still requires import)
 - `readFile`, `writeFile` → `import std/fs (readFile, writeFile)`
 - `now`, `sleep` → `import std/clock (now, sleep)`
-- `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)` (simple wrappers)
-- `httpRequest` → `import std/net (httpRequest)` **for custom headers and full control**
+- `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)` (simple wrappers - use for GET with no headers)
+- `httpRequest` → `import std/net (httpRequest)` **ONLY way to make HTTP POST/custom headers (no http.post()!)**
 - `getEnv`, `hasEnv`, `getEnvOr` → `import std/env (getEnv, hasEnv, getEnvOr)` **for environment variables (v0.4.0+)**
 - JSON encoding → `import std/json (encode, jo, ja, kv, js, jnum)`
+- JSON decoding → `import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject, decode)` **for parsing JSON (v0.4.1+)**
 - `show` → builtin, **DO NOT IMPORT**
 - `<`, `>`, `<=`, `>=`, `==`, `!=` → **AUTO-IMPORTED, NO IMPORT NEEDED!**
 
@@ -2278,6 +2379,27 @@ import std/io (println)
 println(show(42))
 ```
 
+❌ **Don't use invented HTTP APIs:**
+```ailang
+-- ❌ These DON'T exist in AILANG!
+http.post(url, json=body, headers=h)
+http("POST", url, body: json)
+response = http.post(url, headers, body)
+```
+
+✅ **Use httpRequest from std/net:**
+```ailang
+import std/net (httpRequest)
+import std/json (encode, jo, kv, js, jnum)
+
+let jsonBody = encode(jo([kv("message", js("Hello")), kv("count", jnum(42.0))]));
+let headers = [{name: "Content-Type", value: "application/json"}];
+match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
+  Ok(resp) => print(show(resp.status)),
+  Err(_) => print("error")
+}
+```
+
 ❌ **Don't forget module and export:**
 ```ailang
 func main() {  -- ❌ Missing 'module' declaration and 'export'
@@ -2328,6 +2450,74 @@ export func increment(counter: int) -> int {
 }
 
 -- Call: let newCounter = increment(counter)
+```
+
+❌ **Don't use Haskell-style list cons:**
+```ailang
+-- ❌ Parse error - x::rest looks natural but doesn't work!
+match xs {
+  [] => 0,
+  x::rest => x + sum(rest)
+}
+```
+
+✅ **Use constructor syntax:**
+```ailang
+-- ✅ CORRECT - ::(x, rest) is a constructor call
+match xs {
+  [] => 0,
+  ::(x, rest) => x + sum(rest)
+}
+
+-- ✅ ALSO CORRECT - Cons is the same as ::
+match xs {
+  [] => 0,
+  Cons(x, rest) => x + sum(rest)
+}
+```
+
+❌ **Don't use quoted imports (from Python/JS):**
+```ailang
+-- ❌ Parse error - quotes not allowed!
+import "std/io" (println)
+import "std/net" (httpRequest)
+```
+
+✅ **Import without quotes:**
+```ailang
+-- ✅ CORRECT - no quotes on module path
+import std/io (println)
+import std/net (httpRequest)
+```
+
+❌ **Don't use func(T) -> U in type annotations:**
+```ailang
+-- ❌ Parse error - func(T) -> U not valid type syntax!
+export func map[a, b](f: func(a) -> b, xs: [a]) -> [b] {
+  match xs {
+    [] => [],
+    ::(x, rest) => ::(f(x), map(f, rest))
+  }
+}
+```
+
+✅ **Use lambda values OR inferred types:**
+```ailang
+-- ✅ Option 1: Lambda values (let inference figure it out)
+export func map[a, b](f, xs) {
+  match xs {
+    [] => [],
+    ::(x, rest) => ::(f(x), map(f, rest))
+  }
+}
+
+-- ✅ Option 2: Use arrow syntax in type annotation
+export func map[a, b](f: a -> b, xs: [a]) -> [b] {
+  match xs {
+    [] => [],
+    ::(x, rest) => ::(f(x), map(f, rest))
+  }
+}
 ```
 
 ## Quick Reference
@@ -2396,7 +2586,7 @@ export func loop(n: int) -> () ! {IO} {
 
 ---
 
-**This is v0.3.15 - Focus on: Effect System, State Threading, Canonical Patterns**
+**This is v0.4.1 - Focus on: JSON Decode, Effect System, State Threading, Environment Variables**
 
 ---
 
