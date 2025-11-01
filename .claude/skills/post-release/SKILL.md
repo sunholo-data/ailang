@@ -1,6 +1,6 @@
 ---
 name: AILANG Post-Release Tasks
-description: Run post-release tasks including eval baselines, dashboard updates, and documentation. Use after successful release to update benchmarks and website. Invoke when user says "post-release tasks", "update dashboard", or after completing a release.
+description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 19-benchmark agent suite + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
@@ -69,14 +69,16 @@ Expected time: ~15-20 minutes
   - Uses all 6 production models (--full) or 3 dev models (default)
   - Tests all benchmarks in benchmarks/ directory
 - **Step 2**: Runs agent eval on curated benchmark suite
-  - **Current suite**: 5 smoke test benchmarks (Tier 1)
-    - fizzbuzz, recursion_factorial, recursion_fibonacci, simple_print, record_update
-    - Expected agent success: 95-100%
-  - **Future expansion** (v0.3.25+): 25 benchmarks across 4 tiers
-    - See BENCHMARK_AUDIT_ANALYSIS.md for full recommended suite
-    - Tier 2: Agent differentiators (11 benchmarks)
-    - Tier 3: Vision features (4 benchmarks)
-    - Tier 4: New benchmarks (6 benchmarks)
+  - **Current suite** (v0.4.0+): 19 benchmarks across 2 tiers
+    - **Tier 1 (Smoke Tests - 8)**: fizzbuzz, recursion_factorial, recursion_fibonacci,
+      simple_print, records_person, list_operations, string_manipulation, nested_records
+      - Expected: 95-100% success
+    - **Tier 2 (Differentiators - 11)**: higher_order_functions, pattern_matching_complex,
+      record_update, effect_composition, effect_tracking_io_fs, effect_pure_separation,
+      exhaustive_pattern_matching, type_safe_record_access, explicit_state_threading,
+      deterministic_list_transform, referential_transparency
+      - Expected: 60-80% success (agent outperforms 0-shot)
+    - See BENCHMARK_AUDIT_ANALYSIS.md for detailed rationale
   - Uses haiku+sonnet (--full) or haiku only (default)
   - Tests both AILANG and Python implementations
 - Saves combined results to eval_results/baselines/X.X.X/
