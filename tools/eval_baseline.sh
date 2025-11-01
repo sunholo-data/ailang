@@ -13,7 +13,7 @@
 #   FULL=true - Use expensive models (gpt5, claude-sonnet-4-5, gemini-2-5-pro)
 #   MODELS=... - Custom model list (comma-separated)
 #   LANGS=... - Languages to test (default: python,ailang)
-#   PARALLEL=N - Number of parallel jobs (default: 5)
+#   PARALLEL=N - Number of parallel jobs (default: 15)
 #
 # This script:
 # 1. Runs full benchmark suite (using ailang eval-suite)
@@ -48,7 +48,7 @@ fi
 FULL_SUITE="${FULL:-false}"  # Set FULL=true for full expensive suite
 MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
-PARALLEL="${PARALLEL:-10}"
+PARALLEL="${PARALLEL:-15}"
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 

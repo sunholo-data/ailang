@@ -44,15 +44,19 @@ echo
 echo "=== Step 2/2: Agent Eval (multi-turn) ==="
 echo "Running agent eval on curated benchmarks..."
 
-# Current agent benchmark suite (Tier 1: Smoke Tests - 5 benchmarks)
-# See: BENCHMARK_AUDIT_ANALYSIS.md for full recommended suite (25 benchmarks)
-# Tier 1 (Smoke Tests): Fast sanity checks, 95-100% expected agent success
-AGENT_BENCHMARKS="fizzbuzz,recursion_factorial,recursion_fibonacci,simple_print,record_update"
-
-# Future expansion (v0.3.25+): Add Tier 2-4 benchmarks
-# Tier 2 (Differentiators): higher_order_functions, pattern_matching_complex, effect_composition, etc.
-# Tier 3 (Vision): immutable_data_structures, no_runtime_crashes_option, etc.
-# Tier 4 (New): csv_to_json_converter, multi_module_imports, state_machine_traffic_light, etc.
+# Full agent benchmark suite (19 benchmarks) - v0.4.0+
+# See: BENCHMARK_AUDIT_ANALYSIS.md for detailed rationale
+#
+# Tier 1 - Smoke Tests (8): Fast sanity checks, 95-100% expected success
+#   fizzbuzz, recursion_factorial, recursion_fibonacci, simple_print
+#   records_person, list_operations, string_manipulation, nested_records
+#
+# Tier 2 - Differentiators (11): Agent should outperform 0-shot (60-80% vs 30-50%)
+#   higher_order_functions, pattern_matching_complex, record_update
+#   effect_composition, effect_tracking_io_fs, effect_pure_separation
+#   exhaustive_pattern_matching, type_safe_record_access
+#   explicit_state_threading, deterministic_list_transform, referential_transparency
+AGENT_BENCHMARKS="fizzbuzz,recursion_factorial,recursion_fibonacci,simple_print,records_person,list_operations,string_manipulation,nested_records,higher_order_functions,pattern_matching_complex,record_update,effect_composition,effect_tracking_io_fs,effect_pure_separation,exhaustive_pattern_matching,type_safe_record_access,explicit_state_threading,deterministic_list_transform,referential_transparency"
 
 echo "Benchmarks: $AGENT_BENCHMARKS"
 echo
@@ -66,20 +70,16 @@ if [[ -n "$FULL_FLAG" ]]; then
     ailang eval-suite --agent --full \
         --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
-        --agent-parallel 1 \
-        --agent-timeout 60 \
-        --output "$RESULTS_DIR" \
-        --prompt-version v0.3.23
+        --agent-parallel 2 \
+        --output "$RESULTS_DIR"
 else
     # Dev mode: haiku only (default dev_models, auto-filtered to Claude only)
     echo "Mode: DEV (haiku only via dev_models)"
     ailang eval-suite --agent \
         --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
-        --agent-parallel 1 \
-        --agent-timeout 60 \
-        --output "$RESULTS_DIR" \
-        --prompt-version v0.3.23
+        --agent-parallel 2 \
+        --output "$RESULTS_DIR"
 fi
 
 # Show combined results
