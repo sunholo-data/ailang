@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Label } from 'recharts';
 import styles from './styles.module.css';
 
 export default function RepairEffectiveness({ data }) {
@@ -66,6 +66,32 @@ export default function RepairEffectiveness({ data }) {
     }] : [])
   ];
 
+  // Data for impossibility coverage visualization (stacked bar showing gap closing)
+  const getImpossibilityCoverageData = (langData) => {
+    const zeroShot = langData.zero_shot_success_comparable || 0;
+    const agent = langData.agent_success_rate || 0;
+    const agentImprovement = agent - zeroShot;
+    const remainingGap = 1.0 - agent;
+
+    return {
+      zeroShotPct: zeroShot * 100,
+      agentImprovementPct: agentImprovement * 100,
+      remainingGapPct: remainingGap * 100,
+      impossibilityCoverage: langData.agent_impossibility_coverage || 0
+    };
+  };
+
+  const impossibilityData = [
+    ...(languages.ailang ? [{
+      language: 'AILANG',
+      ...getImpossibilityCoverageData(languages.ailang)
+    }] : []),
+    ...(languages.python ? [{
+      language: 'Python',
+      ...getImpossibilityCoverageData(languages.python)
+    }] : [])
+  ];
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
@@ -75,6 +101,29 @@ export default function RepairEffectiveness({ data }) {
           <p className={styles.tooltipLabel}>{label}</p>
           <p className={styles.tooltipValue}>
             {metricName}: <strong>{value.toFixed(1)}%</strong>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const ImpossibilityCoverageTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      // Find the data entry to get impossibility coverage
+      const dataEntry = impossibilityData.find(d => d.language === label);
+      const coverage = dataEntry ? (dataEntry.impossibilityCoverage * 100).toFixed(1) : 0;
+
+      return (
+        <div className={styles.chartTooltip}>
+          <p className={styles.tooltipLabel}><strong>{label}</strong></p>
+          {payload.map((entry, index) => (
+            <p key={index} className={styles.tooltipValue}>
+              {entry.name}: <strong>{entry.value.toFixed(1)}%</strong>
+            </p>
+          ))}
+          <p className={styles.tooltipValue} style={{ marginTop: '8px', borderTop: '1px solid var(--ifm-color-emphasis-300)', paddingTop: '8px' }}>
+            <strong>Impossibility Coverage: {coverage}%</strong>
           </p>
         </div>
       );
@@ -140,6 +189,42 @@ export default function RepairEffectiveness({ data }) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* Chart 3: Impossibility Coverage (Gap Closing) */}
+        <div className={styles.repairChartCard} style={{ gridColumn: 'span 2' }}>
+          <h4 className={styles.chartCardTitle}>Impossibility Coverage: Closing the Gap</h4>
+          <p className={styles.chartCardSubtitle}>How much of the "impossible" (0-shot failures) did agent solve?</p>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={impossibilityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--ifm-color-emphasis-300)" />
+              <XAxis
+                dataKey="language"
+                tick={{ fill: 'var(--ifm-color-emphasis-800)' }}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fill: 'var(--ifm-color-emphasis-600)' }}
+                label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft', fill: 'var(--ifm-color-emphasis-700)' }}
+              />
+              <Tooltip content={<ImpossibilityCoverageTooltip />} />
+              <Bar dataKey="zeroShotPct" stackId="a" fill="var(--ifm-color-primary)" name="0-Shot Success" />
+              <Bar dataKey="agentImprovementPct" stackId="a" fill="var(--ifm-color-success)" name="Agent Improvement" />
+              <Bar dataKey="remainingGapPct" stackId="a" fill="var(--ifm-color-danger-light)" name="Still Unsolved" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div style={{ marginTop: '12px', fontSize: '0.9em', color: 'var(--ifm-color-emphasis-700)' }}>
+            <strong>Reading this chart:</strong>
+            <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
+              <li><span style={{ color: 'var(--ifm-color-primary)', fontWeight: 'bold' }}>■</span> Bottom section = 0-shot solved these</li>
+              <li><span style={{ color: 'var(--ifm-color-success)', fontWeight: 'bold' }}>■</span> Middle section = Agent closed this much of the gap (impossibility coverage)</li>
+              <li><span style={{ color: 'var(--ifm-color-danger)', fontWeight: 'bold' }}>■</span> Top section = Still unsolved even with agent</li>
+            </ul>
+            <p style={{ marginTop: '8px' }}>
+              <strong>Python 100% coverage:</strong> Agent solved ALL benchmarks that 0-shot failed (8.8% → 0% unsolved).<br/>
+              <strong>AILANG 38.6% coverage:</strong> Agent solved 38.6% of what 0-shot failed (38.6% → 23.7% still unsolved).
+            </p>
+          </div>
         </div>
       </div>
 
