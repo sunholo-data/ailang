@@ -392,7 +392,7 @@ ailang eval-suite --agent \
 
 ## Dashboard Integration (NEW Dimension)
 
-**Current dashboard** (`docs/BENCHMARK_COMPARISON.md`):
+**Current dashboard** (`docs/static/benchmarks/latest.json`):
 - Shows 0-shot vs 1-repair for all models
 - Metrics: success rate, cost, tokens
 

@@ -316,7 +316,7 @@ ailang run --no-mono module.ail
 The agent knows how to:
 - Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
 - Compare results, validate fixes, generate reports
-- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
+- Update the benchmark dashboard (docs/static/benchmarks/latest.json)
 - Use all available models and their pricing
 - Route to appropriate `ailang eval-*` commands
 
@@ -570,8 +570,8 @@ ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
 # ✅ Validates before writing
 # ✅ Atomic writes (no corruption)
 
-# Generate markdown dashboard
-ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+# Generate markdown dashboard (DEPRECATED - use JSON dashboard instead)
+# ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
 
 # Run baseline (REQUIRES explicit version!)
 make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models (3 cheap models)

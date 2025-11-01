@@ -127,7 +127,7 @@ the foundation for AI-driven code reasoning.
 
 **Key Insight:** Deterministic semantics + explicit effects = measurably better AI code generation.
 
-*See [docs/BENCHMARK_COMPARISON.md](BENCHMARK_COMPARISON.md) for full results.*
+*See [static/benchmarks/latest.json](static/benchmarks/latest.json) for current benchmark results.*
 
 ---
 

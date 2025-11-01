@@ -1635,7 +1635,7 @@ Updated documentation to accurately reflect what AILANG **already is**: a determ
 **Notes**:
 - This is the first full 6-model baseline (previous versions used 3 models)
 - Total eval cost: ~$0.50-1.00 for full suite
-- See [docs/BENCHMARK_COMPARISON.md](docs/BENCHMARK_COMPARISON.md) for detailed comparison
+- See [archive/2025-10/analysis/BENCHMARK_COMPARISON_v0.3.9.md](archive/2025-10/analysis/BENCHMARK_COMPARISON_v0.3.9.md) for historical comparison (current dashboard: [docs/static/benchmarks/latest.json](docs/static/benchmarks/latest.json))
 
 ---
 

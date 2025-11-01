@@ -387,7 +387,7 @@ If you encounter issues:
 The agent knows how to:
 - Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
 - Compare results, validate fixes, generate reports
-- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
+- Update the benchmark dashboard (docs/static/benchmarks/latest.json)
 - Use all available models and their pricing
 - Route to appropriate `ailang eval-*` commands
 
