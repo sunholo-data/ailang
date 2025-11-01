@@ -150,7 +150,8 @@ export default function RepairEffectiveness({ data }) {
           {ailangMetrics && (
             <div className={styles.insightRow}>
               <strong>AILANG:</strong> Repairs fix <span className={styles.highlightGood}>{ailangMetrics.repairLift.toFixed(0)}%</span> of failures,
-              making each success <span className={styles.highlightGood}>{Math.abs(ailangMetrics.costEfficiencyChange).toFixed(0)}% cheaper</span>.
+              making each success <span className={ailangMetrics.costEfficiencyChange < 0 ? styles.highlightGood : styles.highlightBad}>
+                {Math.abs(ailangMetrics.costEfficiencyChange).toFixed(0)}% {ailangMetrics.costEfficiencyChange < 0 ? 'cheaper' : 'more expensive'}</span>.
               <br/>
               <em>→ Compiler feedback is highly valuable for this new language</em>
             </div>

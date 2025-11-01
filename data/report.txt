@@ -1,0 +1,20 @@
+Sales Summary Report
+====================
+
+Product: PROD-001
+  5 x $19.99 = $99.95
+
+Product: PROD-002
+  2 x $250.00 = $500.00
+
+Product: PROD-003
+  10 x $7.50 = $75.00
+
+Product: PROD-004
+  3 x $49.99 = $149.97
+
+Product: PROD-005
+  1 x $99.95 = $99.95
+
+====================
+Grand Total: $924.87
