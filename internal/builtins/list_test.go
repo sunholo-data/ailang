@@ -8,6 +8,200 @@ import (
 	"github.com/sunholo/ailang/internal/eval"
 )
 
+// TestListCons tests the :: (cons) builtin implementation
+func TestListCons(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		head     eval.Value
+		tail     []eval.Value
+		expected []eval.Value
+	}{
+		{
+			name:     "cons int to non-empty list",
+			head:     testctx.MakeInt(1),
+			tail:     []eval.Value{testctx.MakeInt(2), testctx.MakeInt(3)},
+			expected: []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+		{
+			name:     "cons int to empty list",
+			head:     testctx.MakeInt(42),
+			tail:     []eval.Value{},
+			expected: []eval.Value{testctx.MakeInt(42)},
+		},
+		{
+			name: "cons string to string list",
+			head: testctx.MakeString("hello"),
+			tail: []eval.Value{
+				testctx.MakeString("world"),
+				testctx.MakeString("foo"),
+			},
+			expected: []eval.Value{
+				testctx.MakeString("hello"),
+				testctx.MakeString("world"),
+				testctx.MakeString("foo"),
+			},
+		},
+		{
+			name: "cons list to list of lists",
+			head: &eval.ListValue{Elements: []eval.Value{testctx.MakeInt(1)}},
+			tail: []eval.Value{
+				&eval.ListValue{Elements: []eval.Value{testctx.MakeInt(2)}},
+				&eval.ListValue{Elements: []eval.Value{testctx.MakeInt(3)}},
+			},
+			expected: []eval.Value{
+				&eval.ListValue{Elements: []eval.Value{testctx.MakeInt(1)}},
+				&eval.ListValue{Elements: []eval.Value{testctx.MakeInt(2)}},
+				&eval.ListValue{Elements: []eval.Value{testctx.MakeInt(3)}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the builtin implementation
+			result, err := listConsImpl(ctx.EffContext, []eval.Value{
+				tt.head,
+				&eval.ListValue{Elements: tt.tail},
+			})
+
+			// Check no error
+			assert.NoError(t, err)
+
+			// Extract result list
+			resultList := testctx.GetList(result)
+
+			// Check length
+			assert.Equal(t, len(tt.expected), len(resultList), "result length mismatch")
+
+			// Check each element
+			for i, expectedVal := range tt.expected {
+				assert.Equal(t, expectedVal, resultList[i], "element %d mismatch", i)
+			}
+		})
+	}
+}
+
+// TestListConsTypeMismatch tests error handling for wrong types
+func TestListConsTypeMismatch(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name string
+		head eval.Value
+		tail eval.Value
+	}{
+		{
+			name: "second arg is int instead of list",
+			head: testctx.MakeInt(1),
+			tail: testctx.MakeInt(42),
+		},
+		{
+			name: "second arg is string instead of list",
+			head: testctx.MakeInt(1),
+			tail: testctx.MakeString("not a list"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := listConsImpl(ctx.EffContext, []eval.Value{tt.head, tt.tail})
+			assert.Error(t, err, "expected error for type mismatch")
+		})
+	}
+}
+
+// TestListConsRegistration verifies the builtin is properly registered
+func TestListConsRegistration(t *testing.T) {
+	// Check the builtin is registered
+	spec, ok := GetSpec("::")
+	assert.True(t, ok, ":: should be registered")
+	assert.NotNil(t, spec)
+
+	// Verify metadata
+	assert.Equal(t, "std/list", spec.Module)
+	assert.Equal(t, "::", spec.Name)
+	assert.Equal(t, 2, spec.NumArgs)
+	assert.True(t, spec.IsPure)
+	assert.Equal(t, "", spec.Effect)
+
+	// Verify metadata is present
+	assert.NotNil(t, spec.Metadata)
+	assert.NotEmpty(t, spec.Metadata.Description)
+	assert.Len(t, spec.Metadata.Params, 2)
+	assert.NotEmpty(t, spec.Metadata.Returns)
+	assert.NotEmpty(t, spec.Metadata.Examples)
+}
+
+// TestListConsProperties tests mathematical properties of cons
+func TestListConsProperties(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	t.Run("length property: len(x :: xs) == 1 + len(xs)", func(t *testing.T) {
+		head := testctx.MakeInt(1)
+		tail := []eval.Value{testctx.MakeInt(2), testctx.MakeInt(3)}
+
+		result, err := listConsImpl(ctx.EffContext, []eval.Value{
+			head,
+			&eval.ListValue{Elements: tail},
+		})
+
+		assert.NoError(t, err)
+		resultList := testctx.GetList(result)
+		assert.Equal(t, 1+len(tail), len(resultList))
+	})
+
+	t.Run("singleton property: x :: [] == [x]", func(t *testing.T) {
+		head := testctx.MakeInt(42)
+
+		result, err := listConsImpl(ctx.EffContext, []eval.Value{
+			head,
+			&eval.ListValue{Elements: []eval.Value{}},
+		})
+
+		assert.NoError(t, err)
+		resultList := testctx.GetList(result)
+		assert.Equal(t, 1, len(resultList))
+		assert.Equal(t, head, resultList[0])
+	})
+
+	t.Run("head property: first element of (x :: xs) is x", func(t *testing.T) {
+		head := testctx.MakeInt(99)
+		tail := []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)}
+
+		result, err := listConsImpl(ctx.EffContext, []eval.Value{
+			head,
+			&eval.ListValue{Elements: tail},
+		})
+
+		assert.NoError(t, err)
+		resultList := testctx.GetList(result)
+		assert.Equal(t, head, resultList[0])
+	})
+}
+
+// TestListConsImmutability verifies that cons does not mutate inputs
+func TestListConsImmutability(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	head := testctx.MakeInt(1)
+	tail := []eval.Value{testctx.MakeInt(2), testctx.MakeInt(3)}
+
+	tailList := &eval.ListValue{Elements: tail}
+
+	// Save original length
+	tailLen := len(tail)
+
+	// Perform cons
+	_, err := listConsImpl(ctx.EffContext, []eval.Value{head, tailList})
+	assert.NoError(t, err)
+
+	// Verify tail was not mutated
+	assert.Equal(t, tailLen, len(tailList.Elements), "tail list should not be mutated")
+	assert.Equal(t, testctx.MakeInt(2), tailList.Elements[0], "tail list first element should be unchanged")
+}
+
 // TestListConcat tests the concat_List builtin implementation
 func TestListConcat(t *testing.T) {
 	ctx := testctx.NewMockEffContext()

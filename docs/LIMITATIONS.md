@@ -2,6 +2,55 @@
 
 This document tracks known limitations, workarounds, and design constraints in AILANG.
 
+## Recent Improvements
+
+### Syntactic Sugar (v0.4.1 - NEW!)
+
+**Status**: ✅ Implemented
+**Since**: v0.4.1 (November 2, 2025)
+**Impact**: Makes AILANG more ergonomic while preserving canonical forms
+
+**What's Now Available**:
+
+1. **Infix Cons Operator** (`x :: xs`):
+   ```ailang
+   -- ✅ Sugar syntax (v0.4.1+):
+   let list = 1 :: 2 :: 3 :: []
+
+   -- Desugars to canonical: ::(1, ::(2, ::(3, [])))
+
+   -- Works in patterns too:
+   match list {
+     [] => 0,
+     h :: t => h + sum(t)
+   }
+   ```
+
+2. **Function Type Arrows** (`int -> bool`):
+   ```ailang
+   -- ✅ Sugar syntax (v0.4.1+):
+   let f: int -> bool = \x. x > 0
+
+   -- Desugars to canonical: funcType int bool
+
+   -- Multi-argument types:
+   let add: int -> int -> int = \x. \y. x + y
+   ```
+
+3. **Zero-Argument Calls** (`f()` in expressions):
+   ```ailang
+   -- ✅ Works in expression contexts:
+   let result = if ready() then compute() else 0
+
+   -- ⚠️ Top-level still requires space: main ()
+   ```
+
+**Disable Sugar**: Use `--strict-syntax` flag or `:strict` REPL command to reject all sugar and require canonical forms.
+
+**See Also**: `prompts/v0.4.1.md` for complete syntax guide, `CHANGELOG.md` for technical details.
+
+---
+
 ## Type System Limitations
 
 ### Y-Combinator and Recursive Lambdas (By Design)

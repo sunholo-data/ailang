@@ -86,6 +86,8 @@ func registerConversionMeta() {
 // registerStringMeta registers metadata for string operation builtins
 func registerStringMeta() {
 	Registry["concat_String"] = &BuiltinMeta{Name: "concat_String", NumArgs: 2, IsPure: true}
+	Registry["concat_List"] = &BuiltinMeta{Name: "concat_List", NumArgs: 2, IsPure: true}
+	Registry["::"] = &BuiltinMeta{Name: "::", NumArgs: 2, IsPure: true}
 	Registry["eq_String"] = &BuiltinMeta{Name: "eq_String", NumArgs: 2, IsPure: true}
 	Registry["ne_String"] = &BuiltinMeta{Name: "ne_String", NumArgs: 2, IsPure: true}
 	Registry["lt_String"] = &BuiltinMeta{Name: "lt_String", NumArgs: 2, IsPure: true}

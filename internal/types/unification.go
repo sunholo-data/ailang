@@ -127,6 +127,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		if t2List, ok := t2.(*TList); ok {
 			return u.Unify(t1.Element, t2List.Element, sub)
 		}
+		// Special case: TList{Element: a} can unify with TApp("List", a)
+		if t2App, ok := t2.(*TApp); ok {
+			h2, a2 := decomposeApp(t2App)
+			if headCon, ok := h2.(*TCon); ok && headCon.Name == "List" && len(a2) == 1 {
+				// TList{Element: a} ~ TApp("List", a)
+				return u.Unify(t1.Element, a2[0], sub)
+			}
+		}
 		if t2Var, ok := t2.(*TVar2); ok {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
@@ -387,6 +395,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				}
 			}
 			return sub, nil
+		}
+		// Special case: TApp("List", a) can unify with TList{Element: a}
+		if t2List, ok := t2.(*TList); ok {
+			h1, a1 := decomposeApp(t1)
+			if headCon, ok := h1.(*TCon); ok && headCon.Name == "List" && len(a1) == 1 {
+				// TApp("List", a) ~ TList{Element: a}
+				return u.Unify(a1[0], t2List.Element, sub)
+			}
 		}
 		if t2Var, ok := t2.(*TVar2); ok {
 			// Swap and retry

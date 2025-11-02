@@ -12,12 +12,88 @@ import (
 // These provide operations on lists
 
 func init() {
+	registerListCons()
 	registerListConcat()
 }
 
 // ============================================================================
 // List Operations
 // ============================================================================
+
+// registerListCons registers the :: (cons) builtin
+// This implements the S-CONS sugar (v0.4.1): x :: xs desugars to ::(x, xs)
+func registerListCons() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/list",
+		Name:    "::",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "", // Pure function
+		Type:    makeListConsType,
+		Impl:    listConsImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Prepend an element to a list (cons operator)",
+			LongDesc:    "Constructs a new list with the given element prepended to the existing list. This is the fundamental list construction operation. Does not modify the input list.",
+			Params: []ParamDoc{
+				{Name: "head", Description: "Element to prepend"},
+				{Name: "tail", Description: "List to prepend to"},
+			},
+			Returns: "New list with head prepended to tail",
+			Examples: []Example{
+				{Code: `1 :: [2, 3]`, Description: "Returns [1, 2, 3]"},
+				{Code: `"a" :: ["b", "c"]`, Description: "Returns [\"a\", \"b\", \"c\"]"},
+				{Code: `1 :: []`, Description: "Returns [1]"},
+				{Code: `1 :: 2 :: []`, Description: "Returns [1, 2] (right-associative)"},
+			},
+			SeeAlso:   []string{"concat_List"},
+			Since:     "v0.4.1",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "cons", "prepend", "construct"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register :: cons: %v", err))
+	}
+}
+
+// makeListConsType builds the type signature for :: (cons)
+// Type: forall a. (a, List[a]) -> List[a]
+func makeListConsType() types.Type {
+	T := types.NewBuilder()
+	// Create a type variable 'a' for the element type
+	a := T.Var("a")
+	listA := T.App("List", a)
+	return T.Func(a, listA).Returns(listA).Build()
+}
+
+// listConsImpl is the implementation for :: (cons)
+// Prepends an element to a list by creating a new list.
+//
+// IMPORTANT: This function does NOT mutate the input list. It creates a new
+// list with the element prepended. The input list remains unchanged,
+// preserving referential transparency and enabling safe reuse.
+func listConsImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// Extract arguments: head element and tail list
+	head := args[0]
+
+	tail, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf(":: expected List for second argument, got %T", args[1])
+	}
+
+	// Create result list with pre-allocated capacity to avoid extra allocations
+	// Capacity = 1 + len(tail) ensures single allocation
+	result := make([]eval.Value, 0, 1+len(tail.Elements))
+
+	// Prepend head, then append tail elements (shallow copy of element references)
+	// Input list is NOT modified
+	result = append(result, head)
+	result = append(result, tail.Elements...)
+
+	return &eval.ListValue{Elements: result}, nil
+}
 
 // registerListConcat registers the concat_List builtin
 // This implements the ++ operator for lists
