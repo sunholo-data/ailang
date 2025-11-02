@@ -1,5 +1,47 @@
 # AILANG Changelog
 
+## [v0.4.2] - 2025-11-02
+
+### Fixed - List Pattern Parser Bug (M-DX10)
+
+**User Impact**: Parser now accepts `::` (cons) constructor patterns in match expressions. Previously valid AILANG code that used `::` patterns would fail with `PAR_UNEXPECTED_TOKEN`.
+
+**What Was Fixed**:
+1. **Parser**: Added `lexer.DCOLON` case to `parsePattern()` (~11 LOC in parser_pattern.go)
+   - `::` is now recognized as a valid list constructor pattern
+   - Syntax: `::(head, tail)` for cons patterns
+   - Example: `match xs { [] => 0, ::(x, rest) => x + sum(rest) }`
+
+2. **Elaborator**: Added special handling for `::` constructor patterns (~22 LOC in patterns.go)
+   - `::` patterns elaborate to `ListPattern` with one element and a tail
+   - Required because lists are `ListValue` at runtime, not `TaggedValue` with constructor
+
+3. **Tests**: Comprehensive test suite (~150 LOC in list_cons_pattern_test.go)
+   - Basic cons patterns: `::(x, rest)`
+   - Multiple arms: `[] => ..., ::(h, t) => ...`
+   - Nested cons: `::(_, ::(x, rest))`
+   - With tuples: `::((k, v), rest)`
+   - Error case: `::` without arguments
+
+4. **Example File**: Working demonstration (99 LOC in examples/list_pattern_cons.ail)
+   - 6 example functions using `::` patterns
+   - Demonstrates sum, length, nested patterns, tuples
+   - Fully runnable with `ailang run --entry main --caps IO examples/list_pattern_cons.ail`
+
+**Files Modified**:
+- internal/parser/parser_pattern.go: +11 LOC (parser fix)
+- internal/elaborate/patterns.go: +22 LOC (elaborator fix)
+- internal/parser/list_cons_pattern_test.go: +150 LOC (NEW - 7 tests, all passing)
+- examples/list_pattern_cons.ail: +99 LOC (NEW - working example)
+
+**Technical Details**:
+- **Root Cause**: Parser's `parsePattern()` had no case for `lexer.DCOLON` token
+- **Parser Fix**: Recognize `::` as constructor and call `parseConstructorPattern("::")`
+- **Elaborator Fix**: Convert `::(head, tail)` to `ListPattern{Elements: [head], Tail: tail}`
+- **Why Two Fixes**: Lists are `ListValue` at runtime, not `TaggedValue`, so pattern type must match
+
+**Resolves**: M-DX10, json_parse benchmark false negatives with claude-haiku-4-5
+
 ## [v0.4.0] - 2025-11-01
 
 ### Added - Environment Variable Support (M-ENV)

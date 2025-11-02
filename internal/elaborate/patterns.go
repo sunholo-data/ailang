@@ -83,7 +83,30 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 	case *ast.WildcardPattern:
 		return &core.WildcardPattern{}, nil
 	case *ast.ConstructorPattern:
-		// Elaborate nested patterns
+		// Special case: :: (cons) constructor for lists
+		// ::(head, tail) should elaborate to a ListPattern with one element and a tail
+		if p.Name == "::" {
+			if len(p.Patterns) != 2 {
+				return nil, fmt.Errorf(":: constructor requires exactly 2 arguments (head and tail), got %d", len(p.Patterns))
+			}
+			// Elaborate head pattern
+			headPat, err := e.elaboratePattern(p.Patterns[0])
+			if err != nil {
+				return nil, err
+			}
+			// Elaborate tail pattern
+			tailPat, err := e.elaboratePattern(p.Patterns[1])
+			if err != nil {
+				return nil, err
+			}
+			// Create ListPattern with one element and a tail
+			return &core.ListPattern{
+				Elements: []core.CorePattern{headPat},
+				Tail:     &tailPat,
+			}, nil
+		}
+
+		// General constructor pattern (ADT constructors)
 		var args []core.CorePattern
 		for _, argPat := range p.Patterns {
 			coreArg, err := e.elaboratePattern(argPat)

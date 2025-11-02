@@ -27,6 +27,17 @@ func (p *Parser) parsePattern() ast.Pattern {
 			Value: p.literalValue(),
 			Pos:   p.curPos(),
 		}
+	case lexer.DCOLON:
+		// Handle :: (cons) constructor pattern
+		// :: is the list constructor, equivalent to Cons in other languages
+		name := "::"
+		if p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken() // move to LPAREN
+			return p.parseConstructorPattern(name)
+		}
+		// :: without arguments is invalid (must be ::(head, tail))
+		p.report("PAT_INVALID_CONS", ":: constructor requires arguments in pattern", "Use ::(head, tail) pattern or [] for empty list")
+		return nil
 	case lexer.LBRACKET:
 		return p.parseListPattern()
 	case lexer.LBRACE:

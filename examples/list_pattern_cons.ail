@@ -1,0 +1,98 @@
+// List pattern matching with :: (cons) constructor
+//
+// This example demonstrates the :: (cons) pattern syntax for matching list structures.
+// The :: constructor is equivalent to Cons in other functional languages.
+//
+// Pattern syntax:
+//   [] => ...                    # Empty list
+//   ::(head, tail) => ...        # Non-empty list (cons cell)
+//   ::(x, ::(y, rest)) => ...    # Nested cons patterns
+//
+// The :: pattern allows destructuring lists into head and tail components.
+
+module examples/list_pattern_cons
+
+import std/io (println)
+
+// Example 1: Basic list sum using :: pattern
+func sum(xs: List[int]) -> int {
+  match xs {
+    [] => 0,
+    ::(x, rest) => x + sum(rest)
+  }
+}
+
+// Example 2: List length using :: pattern
+func length(xs: List[int]) -> int {
+  match xs {
+    [] => 0,
+    ::(_, rest) => 1 + length(rest)
+  }
+}
+
+// Example 3: Multiple pattern arms with ::
+func describe(xs: List[int]) -> string {
+  match xs {
+    [] => "empty list",
+    ::(x, []) => "singleton: " ++ show(x),
+    ::(x, ::(y, [])) => "pair: " ++ show(x) ++ ", " ++ show(y),
+    ::(x, rest) => "list starting with " ++ show(x)
+  }
+}
+
+// Example 4: Nested :: patterns - get second element
+func secondElement(xs: List[int]) -> int {
+  match xs {
+    ::(_, ::(x, rest)) => x,
+    _ => 0
+  }
+}
+
+// Example 5: :: pattern with tuple elements
+func firstKey(kvs: List[(string, int)]) -> string {
+  match kvs {
+    [] => "",
+    ::((k, v), rest) => k
+  }
+}
+
+// Example 6: :: pattern with tuple to get first value
+func firstValue(kvs: List[(string, int)]) -> int {
+  match kvs {
+    [] => 0,
+    ::((k, v), rest) => v
+  }
+}
+
+// Main function to demonstrate all examples
+export func main() -> () ! {IO} {
+  println("=== List Pattern Matching with :: (cons) ===");
+  println("");
+
+  // Test sum
+  let nums = [1, 2, 3, 4, 5];
+  println("sum([1, 2, 3, 4, 5]) = " ++ show(sum(nums)));
+
+  // Test length
+  println("length([1, 2, 3, 4, 5]) = " ++ show(length(nums)));
+
+  // Test describe
+  println("");
+  println("describe([]) = " ++ describe([]));
+  println("describe([42]) = " ++ describe([42]));
+  println("describe([1, 2]) = " ++ describe([1, 2]));
+  println("describe([1, 2, 3]) = " ++ describe([1, 2, 3]));
+
+  // Test secondElement
+  println("");
+  println("secondElement([1, 2, 3]) = " ++ show(secondElement([1, 2, 3])));
+  println("secondElement([1]) = " ++ show(secondElement([1])));
+
+  // Test firstKey and firstValue
+  println("");
+  let kvs = [("a", 1), ("b", 2), ("c", 3)];
+  println("firstKey([(\"a\", 1), ...]) = " ++ firstKey(kvs));
+  println("firstValue([(\"a\", 1), ...]) = " ++ show(firstValue(kvs)));
+
+  ()
+}
