@@ -971,23 +971,21 @@ let add: int -> int -> int = \x. \y. x + y
 
 ### S-CALL0: Zero-Argument Calls (`f()`)
 
-**⚠️ Known Limitation:** S-CALL0 only works in **expression contexts** (inside lambdas, if/then, function arguments). At top-level/statement-level, you MUST still use the canonical `f ()` syntax with a space.
-
-**Sugar:** `f()` (zero-arg call, works in expressions only)
+**Sugar:** `f()` (zero-arg call, works at both statement and expression level)
 **Canonical:** `f (())` (function applied to unit)
 
 ```ailang
--- ✅ WORKS: Expression context (inside lambda, if/then, etc.)
+-- ✅ WORKS: Expression context
 let result = if ready() then compute() else 0
 
--- ❌ FAILS: Top-level/statement context
-main()         -- Parse error!
+-- ✅ WORKS: Statement/top-level context (v0.4.1+)
+main()         -- Now works at top level!
 
--- ✅ CORRECT: Use canonical syntax at top level
-main ()        -- Works (space required!)
+-- ✅ ALSO WORKS: Canonical syntax (always available)
+main (())      -- Explicit unit application
 ```
 
-**Workaround:** Use canonical `f ()` syntax with space until statement-level parsing is updated (tracked in `m-s-call0-statement-parsing.md`).
+The lexer creates a UNIT token for `()` without spaces, enabling the sugar to work seamlessly at all levels.
 
 ### Strict Syntax Mode
 
