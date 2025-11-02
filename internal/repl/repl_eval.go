@@ -20,12 +20,16 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 1: Parse
 	l := lexer.New(input, "<repl>")
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(r.config.StrictSyntaxMode)
 	program := p.Parse()
 
 	if len(p.Errors()) > 0 {
 		r.printParserErrors(p.Errors(), out)
 		return
 	}
+
+	// Track if syntactic sugar was used (for user feedback)
+	sugarUsed := p.SugarUsed()
 
 	// Step 2: Elaborate to Core (with dictionary-passing)
 	elaborator := elaborate.NewElaborator()
@@ -188,7 +192,11 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	r.lastResult = result
 
 	// Pretty print result with type on the same line
-	fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
+	if sugarUsed {
+		fmt.Fprintf(out, "%s :: %s %s\n", formatValue(result), cyan(prettyType), dim("(desugared)"))
+	} else {
+		fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
+	}
 }
 
 // initBuiltins initializes built-in type class instances

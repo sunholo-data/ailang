@@ -30,6 +30,7 @@ func (p *Parser) parsePattern() ast.Pattern {
 	case lexer.DCOLON:
 		// Handle :: (cons) constructor pattern
 		// :: is the list constructor, equivalent to Cons in other languages
+		// See internal/elaborate/patterns.go for elaboration to ListPattern (not ConstructorPattern!)
 		name := "::"
 		if p.peekTokenIs(lexer.LPAREN) {
 			p.nextToken() // move to LPAREN

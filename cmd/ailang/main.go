@@ -53,6 +53,7 @@ func main() {
 		maxRecursionDepthFlag   = flag.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 		noMonoFlag              = flag.Bool("no-mono", false, "Disable monomorphization (emergency escape hatch)")
 		debugCompileFlag        = flag.Bool("debug-compile", false, "Show compilation statistics (specialization counts, etc.)")
+		strictSyntaxFlag        = flag.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
 	)
 
 	flag.Parse()
@@ -75,6 +76,9 @@ func main() {
 		return
 	}
 
+	// Check for stale binary (DX: prevents confusion when testing changes)
+	checkStaleBinary()
+
 	command := flag.Arg(0)
 
 	switch command {
@@ -82,7 +86,7 @@ func main() {
 		runCommand()
 
 	case "repl":
-		runREPL(*learnFlag, *traceFlag)
+		runREPL(*learnFlag, *traceFlag, *strictSyntaxFlag)
 
 	case "test":
 		// Test command with flags
@@ -114,12 +118,18 @@ func main() {
 		watchFile(flag.Arg(1), *traceFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *maxRecursionDepthFlag)
 
 	case "check":
-		if flag.NArg() < 2 {
+		// Parse check subcommand flags
+		checkFS := flag.NewFlagSet("check", flag.ExitOnError)
+		strictSyntaxCheck := checkFS.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
+
+		_ = checkFS.Parse(flag.Args()[1:])
+
+		if checkFS.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang check <file.ail>")
+			fmt.Println("Usage: ailang check [--strict-syntax] <file.ail>")
 			os.Exit(1)
 		}
-		checkFile(flag.Arg(1))
+		checkFile(checkFS.Arg(0), *strictSyntaxCheck)
 
 	case "iface":
 		if flag.NArg() < 2 {
@@ -172,6 +182,56 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
 		os.Exit(1)
+	}
+}
+
+// checkStaleBinary warns if the binary is older than recent source changes
+// This prevents confusion when testing changes with an old binary
+func checkStaleBinary() {
+	// Get the binary's executable path
+	execPath, err := os.Executable()
+	if err != nil {
+		return // Can't determine, skip check
+	}
+
+	// Get binary modification time
+	binaryInfo, err := os.Stat(execPath)
+	if err != nil {
+		return // Can't stat binary, skip check
+	}
+	binaryTime := binaryInfo.ModTime()
+
+	// Check key source directories for recent changes
+	// We check parser and elaborator since those are most commonly modified
+	checkDirs := []string{
+		"internal/parser",
+		"internal/elaborate",
+		"internal/eval",
+		"cmd/ailang",
+	}
+
+	for _, dir := range checkDirs {
+		// Walk directory to find most recent .go file
+		newerFound := false
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil // Skip errors
+			}
+			if !info.IsDir() && strings.HasSuffix(path, ".go") {
+				if info.ModTime().After(binaryTime) {
+					newerFound = true
+					return filepath.SkipDir // Found one, stop walking
+				}
+			}
+			return nil
+		})
+
+		if newerFound {
+			// Found source files newer than binary
+			fmt.Fprintf(os.Stderr, "%s Binary may be stale (source files modified after build)\n", yellow("⚠"))
+			fmt.Fprintf(os.Stderr, "  Run '%s' to rebuild\n", bold("make quick-install"))
+			return // Only warn once
+		}
 	}
 }
 
@@ -259,6 +319,7 @@ func runCommand() {
 	trackInstantiationsFlag := fs.Bool("track-instantiations", false, "Track and dump polymorphic type instantiations")
 	noMonoFlag := fs.Bool("no-mono", false, "Disable monomorphization (emergency escape hatch)")
 	debugCompileFlag := fs.Bool("debug-compile", false, "Show compilation statistics (specialization counts, etc.)")
+	strictSyntaxFlagRun := fs.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
 	entryFlag := fs.String("entry", "main", "Entrypoint function name to execute")
 	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
@@ -288,10 +349,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -367,6 +428,7 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		TrackInstantiations:     trackInstantiations,
 		DisableMonomorphization: noMono,
 		DebugCompile:            debugCompile,
+		StrictSyntaxMode:        strictSyntax,
 		GlobalResolver:          builtinResolver, // Provide builtin access for type checking
 	}
 	src := pipeline.Source{
@@ -654,11 +716,14 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	}
 }
 
-func runREPL(learn bool, trace bool) {
+func runREPL(learn bool, trace bool, strictSyntax bool) {
 	// Use the new REPL implementation with version info
 	r := repl.NewWithVersion(Version, BuildTime)
 	if trace {
 		r.EnableTrace()
+	}
+	if strictSyntax {
+		r.SetStrictSyntaxMode(true)
 	}
 	r.Start(os.Stdin, os.Stdout)
 }
@@ -697,10 +762,10 @@ func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, req
 	// TODO: Implement file watching
 	// For now, just run the file once (no json/compact/quiet for watch mode)
 	// Default to main entrypoint with null args for watch mode, no caps, no env overrides
-	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, "main", "null", true, false, "", maxRecursionDepth, "", "", "", "", "")
+	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, "", maxRecursionDepth, "", "", "", "", "")
 }
 
-func checkFile(filename string) {
+func checkFile(filename string, strictSyntax bool) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -716,7 +781,8 @@ func checkFile(filename string) {
 
 	// Use unified pipeline in dry-run mode (no evaluation)
 	cfg := pipeline.Config{
-		DryLink: true, // Don't evaluate, just check
+		DryLink:          true, // Don't evaluate, just check
+		StrictSyntaxMode: strictSyntax,
 	}
 	src := pipeline.Source{
 		Code:     string(content),

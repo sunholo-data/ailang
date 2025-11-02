@@ -31,12 +31,13 @@ var (
 
 // Config holds REPL configuration
 type Config struct {
-	TraceDefaulting bool
-	ShowCore        bool
-	ShowTyped       bool
-	DryLink         bool
-	Verbose         bool
-	ImportedModules []string
+	TraceDefaulting  bool
+	ShowCore         bool
+	ShowTyped        bool
+	DryLink          bool
+	Verbose          bool
+	StrictSyntaxMode bool
+	ImportedModules  []string
 }
 
 // REPL represents the Read-Eval-Print Loop
@@ -118,6 +119,11 @@ func (r *REPL) EnableTrace() {
 	r.config.Verbose = true
 }
 
+// SetStrictSyntaxMode enables or disables strict syntax mode
+func (r *REPL) SetStrictSyntaxMode(strict bool) {
+	r.config.StrictSyntaxMode = strict
+}
+
 // getPrompt returns the REPL prompt with active capabilities
 func (r *REPL) getPrompt() string {
 	if len(r.effContext.Caps) == 0 {
@@ -179,7 +185,7 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	line.SetCompleter(func(line string) (c []string) {
 		if strings.HasPrefix(line, ":") {
 			commands := []string{":help", ":quit", ":type", ":import", ":dump-core",
-				":dump-typed", ":dry-link", ":trace-defaulting", ":instances",
+				":dump-typed", ":dry-link", ":strict", ":trace-defaulting", ":instances",
 				":history", ":clear", ":reset"}
 			for _, cmd := range commands {
 				if strings.HasPrefix(cmd, line) {

@@ -42,6 +42,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	start := time.Now()
 	l := lexer.New(src.Code, src.Filename)
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
 
 	var astFile *ast.File
 	if src.IsREPL {

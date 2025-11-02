@@ -19,8 +19,9 @@ import (
 
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
-	cache    map[string]*LoadedModule
-	basePath string // Base directory for relative imports
+	cache            map[string]*LoadedModule
+	basePath         string // Base directory for relative imports
+	strictSyntaxMode bool   // When true, syntactic sugar is not allowed
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -38,9 +39,15 @@ type LoadedModule struct {
 // NewModuleLoader creates a new module loader
 func NewModuleLoader(basePath string) *ModuleLoader {
 	return &ModuleLoader{
-		cache:    make(map[string]*LoadedModule),
-		basePath: basePath,
+		cache:            make(map[string]*LoadedModule),
+		basePath:         basePath,
+		strictSyntaxMode: false, // Default: allow syntactic sugar
 	}
+}
+
+// SetStrictSyntaxMode enables or disables strict syntax mode
+func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
+	ml.strictSyntaxMode = strict
 }
 
 // Preload adds a pre-loaded module to the cache
@@ -122,6 +129,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Parse file
 	l := lexer.New(string(content), fullPath)
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(ml.strictSyntaxMode)
 	file := p.ParseFile()
 	if len(p.Errors()) > 0 {
 		// Format each error individually to preserve custom .Error() methods

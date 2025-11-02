@@ -85,6 +85,8 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 	case *ast.ConstructorPattern:
 		// Special case: :: (cons) constructor for lists
 		// ::(head, tail) should elaborate to a ListPattern with one element and a tail
+		// CRITICAL: Must be ListPattern (not ConstructorPattern) because lists are ListValue at runtime
+		// See internal/eval/eval_patterns.go - ListPattern matches ListValue, ConstructorPattern matches TaggedValue
 		if p.Name == "::" {
 			if len(p.Patterns) != 2 {
 				return nil, fmt.Errorf(":: constructor requires exactly 2 arguments (head and tail), got %d", len(p.Patterns))

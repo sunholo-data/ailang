@@ -63,6 +63,7 @@ type Config struct {
 	DisableMonomorphization bool                  // Disable monomorphization pass (emergency escape hatch)
 	DisableVarResolution    bool                  // Disable Var type resolution (M-DX4 workaround, default enabled)
 	DebugCompile            bool                  // Show compilation statistics (specialization counts, etc.)
+	StrictSyntaxMode        bool                  // Disable syntactic sugar (require canonical syntax)
 
 	// Environment from REPL (optional)
 	TypeEnv   *types.TypeEnv

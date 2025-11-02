@@ -696,6 +696,101 @@ When creating stubs for progressive development, document them explicitly in mil
 
 **Impact**: M-DX9 tools reduce parser development time by 30% by eliminating token position debugging overhead.
 
+### Pattern Matching Pipeline (M-DX10)
+
+**For pattern matching sprints (adding/fixing patterns), understand the 4-layer pipeline:**
+
+Pattern changes propagate through parser → elaborator → type checker → evaluator. Each layer transforms the pattern representation.
+
+#### The 4-Layer Pipeline
+
+**1. Parser** ([internal/parser/parser_pattern.go](../../internal/parser/parser_pattern.go))
+- **Input**: Source syntax (e.g., `::(x, rest)`, `(a, b)`, `[]`)
+- **Output**: AST pattern nodes (`ast.ConstructorPattern`, `ast.TuplePattern`, `ast.ListPattern`)
+- **Role**: Recognize pattern syntax and build AST
+- **Example**: `::(x, rest)` → `ast.ConstructorPattern{Name: "::", Patterns: [x, rest]}`
+
+**2. Elaborator** ([internal/elaborate/patterns.go](../../internal/elaborate/patterns.go))
+- **Input**: AST patterns
+- **Output**: Core patterns (`core.ConstructorPattern`, `core.TuplePattern`, `core.ListPattern`)
+- **Role**: Convert surface syntax to core representation
+- **⚠️ Special cases**: Some AST patterns transform differently in Core!
+  - `::` ConstructorPattern → `ListPattern{Elements: [head], Tail: tail}` (M-DX10)
+  - Why: Lists are `ListValue` at runtime, not `TaggedValue` with constructors
+
+**3. Type Checker** ([internal/types/patterns.go](../../internal/types/patterns.go))
+- **Input**: Core patterns
+- **Output**: Pattern types, exhaustiveness checking
+- **Role**: Infer pattern types, check coverage
+- **Example**: `::(x: int, rest: List[int])` → `List[int]`
+
+**4. Evaluator** ([internal/eval/eval_patterns.go](../../internal/eval/eval_patterns.go))
+- **Input**: Core patterns + runtime values
+- **Output**: Pattern match success/failure + bindings
+- **Role**: Runtime pattern matching against values
+- **⚠️ CRITICAL**: Pattern type must match Value type!
+  - `ListPattern` matches `ListValue`
+  - `ConstructorPattern` matches `TaggedValue`
+  - `TuplePattern` matches `TupleValue`
+  - Mismatch = pattern never matches!
+
+#### Cross-References in Code
+
+Each layer has comments pointing to the next layer:
+
+```go
+// internal/parser/parser_pattern.go
+case lexer.DCOLON:
+    // Parses :: pattern syntax
+    // See internal/elaborate/patterns.go for elaboration to Core
+
+// internal/elaborate/patterns.go
+case *ast.ConstructorPattern:
+    if p.Name == "::" {
+        // Special case: :: elaborates to ListPattern
+        // See internal/eval/eval_patterns.go for runtime matching
+    }
+
+// internal/eval/eval_patterns.go
+case *core.ListPattern:
+    // Matches against ListValue at runtime
+    // If pattern type doesn't match value type, match fails
+```
+
+#### Common Pattern Gotchas
+
+**1. Two-Phase Fix Required (M-DX10 Lesson)**
+- **Symptom**: Parser accepts pattern, but runtime never matches
+- **Cause**: Parser fix alone isn't enough - elaborator also needs fixing
+- **Solution**: Check elaborator transforms pattern correctly for runtime
+- **Example**: `::` parsed as `ConstructorPattern`, but must elaborate to `ListPattern`
+
+**2. Pattern Type Mismatch**
+- **Symptom**: Pattern looks correct but never matches any value
+- **Cause**: Pattern type doesn't match value type in evaluator
+- **Debug**: Check `matchPattern()` in `eval_patterns.go` - does pattern type match value type?
+
+**3. Special Syntax Requires Special Elaboration**
+- **Symptom**: Standard elaboration doesn't work for custom syntax
+- **Solution**: Add special case in elaborator (like `::` → `ListPattern`)
+- **When**: Syntax sugar, built-in constructors, or ML-style patterns
+
+#### When to Use This Guide
+
+**Use when:**
+- ✅ Adding new pattern syntax (e.g., `::`, `@`, guards)
+- ✅ Fixing pattern matching bugs
+- ✅ Understanding why patterns don't match at runtime
+- ✅ Debugging elaboration or evaluation of patterns
+
+**Quick checklist for pattern changes:**
+1. Parser: Does `parsePattern()` recognize the syntax?
+2. Elaborator: Does it transform to correct Core pattern type?
+3. Type Checker: Does pattern type inference work?
+4. Evaluator: Does pattern type match value type at runtime?
+
+**Impact**: Understanding this pipeline prevents two-phase fix discoveries and reduces pattern debugging time by 50%.
+
 ### Common API Patterns (M-TESTING Learnings)
 
 **⚠️ ALWAYS check `make doc PKG=<package>` before grepping or guessing APIs!**

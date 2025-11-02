@@ -43,6 +43,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// Phase 1: Load module and dependencies
 	start := time.Now()
 	modLoader := loader.NewModuleLoader(".")
+	modLoader.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
 	modules, err := modLoader.LoadAll([]string{src.Filename})
 	if err != nil {
 		return result, fmt.Errorf("module loading error: %w", err)
