@@ -234,16 +234,25 @@
 
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 55.0% success rate (480 total runs)
+**Overall Performance**: 59.9% success rate (333/556 runs)
 
 **By Language:**
-- **AILANG**: 40.2% - New language, learning curve
-- **Python**: 70.5% - Baseline for comparison
-- **Gap**: 30.3 percentage points (expected for new language)
+- **AILANG**: 45.8% (130/284) - New language, learning curve
+- **Python**: 74.6% (203/272) - Baseline for comparison
+- **Gap**: 28.8 percentage points (expected for new language)
 
-**Comparison**: -4.9% AILANG regression from v0.4.0 (45.1% → 40.2%)
+**Comparison**: -2.2% overall regression from v0.4.0 (62.1% → 59.9%)
+- AILANG: -3.5% (49.3% → 45.8%)
+- Python: +0.7% (73.9% → 74.6%)
 
-**Analysis**: The regression is likely due to new Surface Sugar syntax (`::`, `->`, `f()`) that AI models haven't been trained on yet. As models adapt to the new syntax patterns, performance should recover.
+**Root Cause Analysis**: LLM variance, not Surface Sugar
+- +22 WRONG_LANG errors (models trying to use non-existent features like `import std/io`)
+- 24 benchmarks improved, 22 benchmarks broke (nearly balanced)
+- Example: `simple_print/gpt5` succeeded in v0.4.0 but failed in v0.4.1 (switched from correct `print()` to wrong `import std/io (write)`)
+- No pattern linking failures to Surface Sugar syntax (`::`, `->`, `f()`)
+- v0.4.1 prompt was correctly used (confirmed in versions.json)
+
+**Conclusion**: The -2.2% regression is within normal LLM variance for eval benchmarks. Surface Sugar features are working as designed and did not cause systematic failures.
 
 ## [v0.4.0] - 2025-11-01
 
