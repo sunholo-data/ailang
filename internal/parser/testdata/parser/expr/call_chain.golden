@@ -2,55 +2,85 @@
   "file": {
     "decls": [
       {
-        "name": "foo",
-        "type": "Identifier"
-      },
-      {
-        "field": "bar",
-        "record": {
-          "kind": "Unit",
-          "type": "Literal"
+        "args": [
+          {
+            "kind": "Unit",
+            "type": "Literal"
+          }
+        ],
+        "func": {
+          "field": "baz",
+          "record": {
+            "args": [
+              {
+                "kind": "Unit",
+                "type": "Literal"
+              }
+            ],
+            "func": {
+              "field": "bar",
+              "record": {
+                "args": [
+                  {
+                    "kind": "Unit",
+                    "type": "Literal"
+                  }
+                ],
+                "func": {
+                  "name": "foo",
+                  "type": "Identifier"
+                },
+                "type": "FuncCall"
+              },
+              "type": "RecordAccess"
+            },
+            "type": "FuncCall"
+          },
+          "type": "RecordAccess"
         },
-        "type": "RecordAccess"
-      },
-      {
-        "field": "baz",
-        "record": {
-          "kind": "Unit",
-          "type": "Literal"
-        },
-        "type": "RecordAccess"
-      },
-      {
-        "kind": "Unit",
-        "type": "Literal"
+        "type": "FuncCall"
       }
     ],
     "path": "test://unit",
     "statements": [
       {
-        "name": "foo",
-        "type": "Identifier"
-      },
-      {
-        "field": "bar",
-        "record": {
-          "kind": "Unit",
-          "type": "Literal"
+        "args": [
+          {
+            "kind": "Unit",
+            "type": "Literal"
+          }
+        ],
+        "func": {
+          "field": "baz",
+          "record": {
+            "args": [
+              {
+                "kind": "Unit",
+                "type": "Literal"
+              }
+            ],
+            "func": {
+              "field": "bar",
+              "record": {
+                "args": [
+                  {
+                    "kind": "Unit",
+                    "type": "Literal"
+                  }
+                ],
+                "func": {
+                  "name": "foo",
+                  "type": "Identifier"
+                },
+                "type": "FuncCall"
+              },
+              "type": "RecordAccess"
+            },
+            "type": "FuncCall"
+          },
+          "type": "RecordAccess"
         },
-        "type": "RecordAccess"
-      },
-      {
-        "field": "baz",
-        "record": {
-          "kind": "Unit",
-          "type": "Literal"
-        },
-        "type": "RecordAccess"
-      },
-      {
-        "kind": "Unit",
-        "type": "Literal"
+        "type": "FuncCall"
       }
     ],
     "type": "File"

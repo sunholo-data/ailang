@@ -379,8 +379,8 @@ func (t Token) Precedence() int {
 		return 9 // PRODUCT
 	case NOT:
 		return 10 // PREFIX (unary operators)
-	case LPAREN:
-		return 11 // CALL (function application)
+	case LPAREN, UNIT:
+		return 11 // CALL (function application) - UNIT handles f() sugar
 	case DOT:
 		return 12 // DOT_ACCESS (field access - highest)
 	default:

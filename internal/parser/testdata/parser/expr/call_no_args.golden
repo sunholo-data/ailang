@@ -2,23 +2,33 @@
   "file": {
     "decls": [
       {
-        "name": "foo",
-        "type": "Identifier"
-      },
-      {
-        "kind": "Unit",
-        "type": "Literal"
+        "args": [
+          {
+            "kind": "Unit",
+            "type": "Literal"
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
       }
     ],
     "path": "test://unit",
     "statements": [
       {
-        "name": "foo",
-        "type": "Identifier"
-      },
-      {
-        "kind": "Unit",
-        "type": "Literal"
+        "args": [
+          {
+            "kind": "Unit",
+            "type": "Literal"
+          }
+        ],
+        "func": {
+          "name": "foo",
+          "type": "Identifier"
+        },
+        "type": "FuncCall"
       }
     ],
     "type": "File"

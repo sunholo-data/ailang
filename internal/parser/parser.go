@@ -95,6 +95,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.APPEND, p.parseInfixExpression)
 	p.registerInfix(lexer.DCOLON, p.parseConsExpression) // S-CONS: :: sugar
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
+	p.registerInfix(lexer.UNIT, p.parseZeroArgCall) // S-CALL0: f() sugar (expression context)
 	p.registerInfix(lexer.DOT, p.parseRecordAccess)
 	p.registerInfix(lexer.LARROW, p.parseSendExpression)
 

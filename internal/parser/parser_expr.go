@@ -511,6 +511,46 @@ func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
 	return call
 }
 
+// parseZeroArgCall handles S-CALL0 sugar in expression context: f() → f(())
+// This is called when the lexer creates a UNIT token for () without spaces
+func (p *Parser) parseZeroArgCall(fn ast.Expr) ast.Expr {
+	// Check strict mode
+	if p.strictSyntaxMode {
+		p.reportSugarError("CALL0", "f()", "f (())")
+		// Return the function expression unchanged
+		return fn
+	}
+
+	// Mark that sugar was used
+	p.sugarUsed = true
+
+	// Create call with unit argument
+	// Get position from the function expression
+	var fnPos ast.Pos
+	switch f := fn.(type) {
+	case *ast.Identifier:
+		fnPos = f.Pos
+	case *ast.FuncCall:
+		fnPos = f.Pos
+	default:
+		fnPos = p.curPos()
+	}
+
+	call := &ast.FuncCall{
+		Func: fn,
+		Args: []ast.Expr{
+			&ast.Literal{
+				Kind:  ast.UnitLit,
+				Value: nil,
+				Pos:   p.curPos(),
+			},
+		},
+		Pos: fnPos,
+	}
+
+	return call
+}
+
 func (p *Parser) parseCallArguments() []ast.Expr {
 	args := []ast.Expr{}
 

@@ -7,17 +7,140 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 )
 
-// TODO: S-CALL0 sugar requires statement-level parsing changes
-// Current limitation: f() without space is parsed as two separate tokens
-// at top level. Requires deeper parser refactoring to support.
-// For now, canonical syntax f (()) works fine.
+// TestSugarCall0_TopLevel tests S-CALL0 sugar at statement level: f() desugars to f(())
+func TestSugarCall0_TopLevel(t *testing.T) {
+	input := `myFunc()`
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
 
-// TestSugarCall0_Skip documents the S-CALL0 limitation
-func TestSugarCall0_Skip(t *testing.T) {
-	t.Skip("S-CALL0 requires statement-level parsing changes - deferred to follow-up")
-	// The issue: myFunc() is parsed as [myFunc, ()] at statement level
-	// The fix requires: detecting () immediately after identifier at parse level
-	// Workaround: Use canonical f (()) syntax (with space and explicit unit)
+	AssertNoErrors(t, p)
+
+	// Check that sugar was used
+	if !p.SugarUsed() {
+		t.Fatalf("Expected sugarUsed=true for () syntax")
+	}
+
+	// Should have one statement
+	if len(file.Statements) != 1 {
+		t.Fatalf("Expected 1 statement, got %d", len(file.Statements))
+	}
+
+	// Should be a FuncCall
+	funcCall, ok := file.Statements[0].(*ast.FuncCall)
+	if !ok {
+		t.Fatalf("Expected FuncCall, got %T", file.Statements[0])
+	}
+
+	// Function should be myFunc
+	AssertIdentifier(t, funcCall.Func, "myFunc")
+
+	// Should have 1 arg: unit literal
+	if len(funcCall.Args) != 1 {
+		t.Fatalf("Expected 1 argument (unit), got %d", len(funcCall.Args))
+	}
+
+	// Arg should be unit literal
+	unitLit, ok := funcCall.Args[0].(*ast.Literal)
+	if !ok {
+		t.Fatalf("Expected Literal for unit arg, got %T", funcCall.Args[0])
+	}
+	if unitLit.Kind != ast.UnitLit {
+		t.Errorf("Expected UnitLit, got %v", unitLit.Kind)
+	}
+}
+
+// TestSugarCall0_MultipleTopLevel tests multiple S-CALL0 calls at top level
+func TestSugarCall0_MultipleTopLevel(t *testing.T) {
+	input := `func1()
+func2()`
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	AssertNoErrors(t, p)
+
+	// Should have two statements
+	if len(file.Statements) != 2 {
+		t.Fatalf("Expected 2 statements, got %d", len(file.Statements))
+	}
+
+	// First statement: func1()
+	funcCall1, ok := file.Statements[0].(*ast.FuncCall)
+	if !ok {
+		t.Fatalf("Expected FuncCall for first statement, got %T", file.Statements[0])
+	}
+	AssertIdentifier(t, funcCall1.Func, "func1")
+
+	// Second statement: func2()
+	funcCall2, ok := file.Statements[1].(*ast.FuncCall)
+	if !ok {
+		t.Fatalf("Expected FuncCall for second statement, got %T", file.Statements[1])
+	}
+	AssertIdentifier(t, funcCall2.Func, "func2")
+}
+
+// TestSugarCall0_ExpressionContext tests S-CALL0 in expression context (already worked)
+func TestSugarCall0_ExpressionContext(t *testing.T) {
+	input := `let x = if true then myFunc() else 0`
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	AssertNoErrors(t, p)
+
+	// Check that sugar was used
+	if !p.SugarUsed() {
+		t.Fatalf("Expected sugarUsed=true for () syntax")
+	}
+
+	// Should have one statement
+	if len(file.Statements) != 1 {
+		t.Fatalf("Expected 1 statement, got %d", len(file.Statements))
+	}
+
+	letExpr, ok := file.Statements[0].(*ast.Let)
+	if !ok {
+		t.Fatalf("Expected Let expression, got %T", file.Statements[0])
+	}
+
+	// Value should be an If expression
+	ifExpr, ok := letExpr.Value.(*ast.If)
+	if !ok {
+		t.Fatalf("Expected If expression, got %T", letExpr.Value)
+	}
+
+	// Then branch should be FuncCall
+	funcCall, ok := ifExpr.Then.(*ast.FuncCall)
+	if !ok {
+		t.Fatalf("Expected FuncCall in then branch, got %T", ifExpr.Then)
+	}
+
+	AssertIdentifier(t, funcCall.Func, "myFunc")
+
+	// Should have unit arg
+	if len(funcCall.Args) != 1 {
+		t.Fatalf("Expected 1 argument, got %d", len(funcCall.Args))
+	}
+
+	unitLit, ok := funcCall.Args[0].(*ast.Literal)
+	if !ok || unitLit.Kind != ast.UnitLit {
+		t.Fatalf("Expected unit literal argument")
+	}
+}
+
+// TestSugarCall0_StrictMode tests that S-CALL0 is rejected in strict mode
+func TestSugarCall0_StrictMode(t *testing.T) {
+	input := `myFunc()`
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	p.SetStrictSyntaxMode(true)
+	_ = p.ParseFile()
+
+	// Should have an error
+	if len(p.Errors()) == 0 {
+		t.Fatalf("Expected error in strict mode, got none")
+	}
 }
 
 // TestSugarCons_Basic tests S-CONS sugar: x :: xs desugars to ::(x, xs)
@@ -205,7 +328,7 @@ func TestSugar_AllDisabled(t *testing.T) {
 		name  string
 		input string
 	}{
-		// call0 skipped - requires statement-level parsing changes
+		{"call0", `myFunc()`},
 		{"cons", `let x = 1 :: []`},
 		{"arrowtype", `let f: int -> bool = undefined`},
 	}

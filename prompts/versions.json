@@ -233,14 +233,14 @@
     },
     "v0.4.1": {
       "file": "prompts/v0.4.1.md",
-      "hash": "b88de4cfe512ebd93b8d4cd1567ee594d2907a4ac12156c63c5ff935c0804025",
-      "description": "Syntactic sugar (S-CONS ::, S-ARROWTYPE ->, S-CALL0) + pattern limitation docs",
+      "hash": "55c85e468a56cf834b39c734a90c06b718cc8e84a4d384ec6e31221741498337",
+      "description": "Syntactic sugar (S-CONS ::, S-ARROWTYPE ->, S-CALL0) + M-S-CALL0 statement-level support",
       "created": "2025-11-02",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "Added syntactic sugar documentation: S-CONS (:: cons operator, expressions only), S-ARROWTYPE (-> function types), S-CALL0 (f() zero-arg calls). IMPORTANT: :: sugar only works in expressions, NOT in patterns - use ::(h, t) in match. Includes --strict-syntax flag documentation. Fixed pattern matching examples to use canonical ::(h, t) form."
+      "notes": "Added syntactic sugar documentation: S-CONS (:: cons operator, expressions only), S-ARROWTYPE (-> function types), S-CALL0 (f() zero-arg calls, NOW WORKS at statement level!). IMPORTANT: :: sugar only works in expressions, NOT in patterns - use ::(h, t) in match. Includes --strict-syntax flag documentation. M-S-CALL0: Completed statement-level parsing for f() calls."
     }
   },
   "active": "v0.4.1",

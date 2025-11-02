@@ -106,9 +106,71 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 			return nil
 		}
 		// Otherwise treat as expression
-		return p.parseExpression(LOWEST)
+		expr := p.parseExpression(LOWEST)
+
+		// S-CALL0: Check for statement-level zero-arg call pattern: f()
+		// The lexer tokenizes () as a single UNIT token when there's no space.
+		// If we just parsed an identifier and peekToken is UNIT, this is f()
+		if ident, ok := expr.(*ast.Identifier); ok {
+			if p.peekTokenIs(lexer.UNIT) {
+				// Detected f() pattern: identifier followed by () unit literal
+				// This should be a zero-arg function call, not an identifier followed by unit
+				p.nextToken() // advance to UNIT token
+
+				// Check strict mode
+				if p.strictSyntaxMode {
+					p.reportSugarError("CALL0", "f()", "f (())")
+					return expr // Return identifier unchanged
+				}
+
+				// Create call expression with unit argument
+				p.sugarUsed = true
+				call := &ast.FuncCall{
+					Func: ident,
+					Args: []ast.Expr{
+						&ast.Literal{
+							Kind:  ast.UnitLit,
+							Value: nil,
+							Pos:   p.curPos(),
+						},
+					},
+					Pos: ident.Pos,
+				}
+				return call
+			}
+		}
+
+		return expr
 	default:
 		// Try to parse as an expression (for script-style files)
-		return p.parseExpression(LOWEST)
+		expr := p.parseExpression(LOWEST)
+
+		// S-CALL0: Check for statement-level zero-arg call pattern: f()
+		if ident, ok := expr.(*ast.Identifier); ok {
+			if p.peekTokenIs(lexer.UNIT) {
+				p.nextToken() // advance to UNIT token
+
+				if p.strictSyntaxMode {
+					p.reportSugarError("CALL0", "f()", "f (())")
+					return expr
+				}
+
+				p.sugarUsed = true
+				call := &ast.FuncCall{
+					Func: ident,
+					Args: []ast.Expr{
+						&ast.Literal{
+							Kind:  ast.UnitLit,
+							Value: nil,
+							Pos:   p.curPos(),
+						},
+					},
+					Pos: ident.Pos,
+				}
+				return call
+			}
+		}
+
+		return expr
 	}
 }

@@ -2,6 +2,63 @@
 
 ## [v0.4.2] - 2025-11-02
 
+### Fixed - Statement-Level S-CALL0 Support (M-S-CALL0)
+
+**User Impact**: The `f()` zero-arg call syntax now works at **both** statement and expression levels. Previously required `f ()` with space at top level.
+
+**What Was Fixed**:
+1. **Statement-Level Lookahead** (~60 LOC in parser_decl.go)
+   - Added detection for identifier followed by UNIT token in `parseTopLevelDecl()`
+   - Handles both IDENT case and default case for full coverage
+   - Creates FuncCall with unit argument when pattern detected
+   - Respects `strictSyntaxMode` flag
+
+2. **Expression-Level Infix Handler** (~45 LOC in parser_expr.go)
+   - Registered UNIT as infix operator (precedence 11 - CALL level)
+   - New `parseZeroArgCall()` function for expression contexts
+   - Seamlessly integrates with existing Pratt parser
+
+3. **UNIT Token Precedence** (~1 LOC in lexer/token.go)
+   - Added UNIT to CALL precedence level (11)
+   - Enables Pratt parser to invoke infix handler for `f()`
+
+4. **Comprehensive Tests** (~150 LOC in sugar_test.go)
+   - Top-level zero-arg calls: `myFunc()`
+   - Multiple top-level calls: `func1(); func2()`
+   - Expression contexts: `if true then myFunc() else 0`
+   - Strict mode rejection tests
+   - All 4 S-CALL0 tests passing (previously 1 was skipped)
+
+5. **Example File** (~40 LOC in examples/sugar_call0.ail)
+   - Demonstrates statement-level calls
+   - Shows expression-level calls (still work)
+   - Explains lexer UNIT token behavior
+   - Documents canonical syntax equivalence
+
+6. **Documentation Updates**
+   - prompts/v0.4.1.md: Removed "expression only" limitation warning
+   - prompts/versions.json: Updated hash and notes
+
+**Files Modified**:
+- internal/parser/parser_decl.go: +60 LOC (statement-level detection)
+- internal/parser/parser_expr.go: +45 LOC (expression-level handler)
+- internal/lexer/token.go: +1 LOC (UNIT precedence)
+- internal/parser/sugar_test.go: +150 LOC (4 new tests, replaced skip)
+- examples/sugar_call0.ail: +40 LOC (NEW)
+- prompts/v0.4.1.md: Updated (removed limitation)
+- prompts/versions.json: Updated hash
+
+**Technical Details**:
+- **Root Cause**: Lexer creates single UNIT token for `()` without spaces
+  - `f()` tokenizes as: IDENT + UNIT (not LPAREN + RPAREN!)
+  - This broke both statement-level and expression-level parsing
+- **Dual Fix Required**:
+  - Statement level: Manual detection in parseTopLevelDecl (no Pratt parser)
+  - Expression level: Register UNIT as infix operator (Pratt parser handles it)
+- **Why UNIT Precedence Matters**: Without precedence 11, Pratt parser never enters infix loop
+
+**Resolves**: M-S-CALL0, design_docs/planned/v0_4_1/m-s-call0-statement-parsing.md
+
 ### Fixed - List Pattern Parser Bug (M-DX10)
 
 **User Impact**: Parser now accepts `::` (cons) constructor patterns in match expressions. Previously valid AILANG code that used `::` patterns would fail with `PAR_UNEXPECTED_TOKEN`.
@@ -90,11 +147,11 @@
    - Syntax: `let f: int -> bool = \x. x > 0`
    - Refactored type parser with goto pattern for single arrow check point
 
-3. **S-CALL0: Zero-Argument Calls** (~15 LOC in parser_expr.go, expression context only)
+3. **S-CALL0: Zero-Argument Calls** (~15 LOC in parser_expr.go, v0.4.1 baseline)
    - Sugar: `f()` → Canonical: `f (())`
-   - ⚠️ **Known Limitation**: Only works in expression contexts (inside lambdas, if/then, function args)
-   - Top-level/statement-level still requires `f ()` with space
-   - Workaround documented in design doc: `m-s-call0-statement-parsing.md`
+   - Initial implementation: Expression contexts only
+   - ⚠️ **Initial Limitation**: Statement-level required `f ()` with space
+   - ✅ **Fixed in v0.4.2**: Now works at both statement and expression levels (see M-S-CALL0 above)
 
 4. **Strict Syntax Mode** (~120 LOC across parser + pipeline + repl)
    - CLI: `--strict-syntax` flag for `run`, `check`, `repl` commands
@@ -139,12 +196,9 @@
 - S-CALL0: Skipped (documented limitation)
 - Integration: Multiple sugars combined
 
-**Known Limitations**:
-- S-CALL0 requires statement-level parsing changes (~4-6 hours)
-- Tracked in design doc with 3 solution approaches
-- Workaround: Use canonical `f ()` syntax with space at top level
+**Resolves**: M-SUGAR milestone (baseline), Surface Sugar Pack design doc
 
-**Resolves**: M-SUGAR milestone, Surface Sugar Pack design doc
+**Note**: S-CALL0 statement-level support completed in v0.4.2 (M-S-CALL0)
 
 **Total Impact**: ~1,000 LOC (600 new + 400 modified), 7 new tests, 0 regressions
 
