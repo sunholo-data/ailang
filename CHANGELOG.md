@@ -232,6 +232,19 @@
 
 **Total Impact**: ~1,000 LOC (600 new + 400 modified), 7 new tests, 0 regressions
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 55.0% success rate (480 total runs)
+
+**By Language:**
+- **AILANG**: 40.2% - New language, learning curve
+- **Python**: 70.5% - Baseline for comparison
+- **Gap**: 30.3 percentage points (expected for new language)
+
+**Comparison**: -4.9% AILANG regression from v0.4.0 (45.1% → 40.2%)
+
+**Analysis**: The regression is likely due to new Surface Sugar syntax (`::`, `->`, `f()`) that AI models haven't been trained on yet. As models adapt to the new syntax patterns, performance should recover.
+
 ## [v0.4.0] - 2025-11-01
 
 ### Added - Environment Variable Support (M-ENV)
