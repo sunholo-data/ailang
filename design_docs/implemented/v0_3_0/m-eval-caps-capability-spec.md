@@ -1,10 +1,42 @@
 # M-EVAL-CAPS: Capability Specification in Benchmark YAML
 
-**Status**: Planned
-**Target**: v0.4.2
+**Status**: ✅ IMPLEMENTED (v0.3.0 or earlier)
+**Completed**: 2025-11-02 (documentation and final benchmark updates)
+**Original Target**: v0.4.2
+**Actual Implementation**: v0.3.0 or earlier
 **Priority**: P1 (Medium-High)
-**Estimated**: 1 day (4h implementation + 2h testing + 2h docs)
-**Dependencies**: None
+
+---
+
+## ✅ Implementation Note (2025-11-02)
+
+**This feature was ALREADY FULLY IMPLEMENTED in v0.3.0 or earlier!**
+
+**What we found:**
+- Schema support: ✅ `BenchmarkSpec.Caps []string` existed since v0.2.0-v0.3.0
+- Runner integration: ✅ Passes `--caps` flag correctly (runner.go:170-172)
+- Agent integration: ✅ Agent runner also uses caps (agent_runner.go:441)
+- Benchmark coverage: ✅ 39 of 41 benchmarks already had caps specified
+- Real-world validation: ✅ Benchmarks work correctly in v0.3.16 baseline (zero CAP_001 errors except test-specific case)
+
+**What we completed (2025-11-02):**
+- Added `caps: ["IO"]` to `float_eq.yml` (previously missing)
+- Added `caps: ["IO"]` to `numeric_modulo.yml` (previously missing)
+- Moved design doc from `planned/v0_4_1/` to `implemented/v0_3_0/`
+- **Result**: 41/41 benchmarks now have capability specifications ✅
+
+**Evidence from v0.3.16 baseline:**
+- `api_call_json` with `caps: ["Net", "IO"]` - ✅ Works perfectly (12/12 model runs successful)
+- `simple_print` with `caps: ["IO"]` - ✅ Works perfectly (12/12 model runs successful)
+- Only CAP_001 errors: 3 occurrences in `targeted_repair_test` (test-specific, not system issue)
+
+**Files changed (completion):**
+- `benchmarks/float_eq.yml`: Added `caps` and `entrypoint`
+- `benchmarks/numeric_modulo.yml`: Added `caps` and `entrypoint`
+
+---
+
+## Original Design Doc (Historical Reference)
 
 ## AI-First Alignment Check
 

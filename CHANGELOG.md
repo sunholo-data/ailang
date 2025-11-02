@@ -2,6 +2,36 @@
 
 ## [v0.4.2] - 2025-11-02
 
+### Completed - M-EVAL-CAPS Benchmark Capability Coverage
+
+**User Impact**: All 41 benchmarks now have explicit capability specifications, ensuring accurate eval results with zero false negatives from capability mismatches.
+
+**What Was Completed**:
+1. **Added caps to final 2 benchmarks** (~2 LOC)
+   - `benchmarks/float_eq.yml`: Added `caps: ["IO"]` and `entrypoint: "main"`
+   - `benchmarks/numeric_modulo.yml`: Added `caps: ["IO"]` and `entrypoint: "main"`
+   - Result: 41/41 benchmarks (100%) now have capability specifications
+
+2. **Documentation** (~40 LOC in design doc)
+   - Moved `m-eval-caps-capability-spec.md` to `implemented/v0_3_0/`
+   - Added implementation completion note with evidence
+   - Documented that core feature was already implemented in v0.3.0
+
+**Discovery**: Core caps system was ALREADY implemented in v0.3.0 or earlier:
+- Schema support existed: `BenchmarkSpec.Caps []string` (spec.go:16)
+- Runner integration worked: Passes `--caps` flag (runner.go:170-172)
+- 39/41 benchmarks already had caps specified
+- Real-world validation: v0.3.16 baseline shows zero CAP_001 errors (except test-specific case)
+
+**Files Modified**:
+- benchmarks/float_eq.yml: +2 LOC
+- benchmarks/numeric_modulo.yml: +2 LOC
+- design_docs/implemented/v0_3_0/m-eval-caps-capability-spec.md: Moved + updated
+
+**Resolves**: M-EVAL-CAPS (documentation completion)
+
+## [v0.4.2] - 2025-11-02
+
 ### Fixed - Statement-Level S-CALL0 Support (M-S-CALL0)
 
 **User Impact**: The `f()` zero-arg call syntax now works at **both** statement and expression levels. Previously required `f ()` with space at top level.
