@@ -5,6 +5,7 @@
 # Format: <name> : <type_signature>
 #
 
+:: : (a, List[a]) -> List[a]
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _env_getEnv : string -> Result[string, EnvError[string]] ! {Env}

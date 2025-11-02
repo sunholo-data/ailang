@@ -108,7 +108,7 @@ func collectTypeVars(typ types.Type, vars map[string]bool) {
 		for _, fieldType := range t.Fields {
 			collectTypeVars(fieldType, vars)
 		}
-	// For simple types (TInt, TString, etc.), no type vars
+		// For simple types (TInt, TString, etc.), no type vars
 	}
 }
 
