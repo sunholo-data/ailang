@@ -2,35 +2,63 @@
 
 ## [v0.4.2] - 2025-11-02
 
+### Fixed - CRITICAL: S-CALL0 Zero-Arg Builtin Bug (M-S-CALL0-FIX) ⚠️ HOTFIX
+
+**User Impact**: **stdlib (std/io) was completely broken in v0.4.1** due to S-CALL0 syntax conflicting with zero-arg builtins. This hotfix restores functionality.
+
+**Root Cause**:
+- Parser sugar `f()` desugars to `f(())` (adds unit argument)
+- Builtins registered with `() -> T` (truly zero-arg, no params)
+- Type checker saw 0 params vs 1 arg → arity mismatch
+- **Impact**: 100% of code importing `std/io` failed to compile
+
+**What Was Fixed**:
+1. **Zero-Arg Functions Now Take Unit Parameter** (semantic change)
+   - `func f() -> T` is now sugar for `func f(_: ()) -> T`
+   - Aligns with S-CALL0 semantics where `f()` means `f(())`
+   - All zero-arg functions (user + builtin) now have 1 parameter (unit)
+
+2. **Builtin Updates** (~10 LOC in internal/builtins/io.go)
+   - `_io_readLine`: NumArgs: 0 → 1
+   - Type: `T.Func().Returns(T.String())` → `T.Func(T.Unit()).Returns(T.String())`
+
+3. **Parser Updates** (~20 LOC in internal/parser/parser_func.go)
+   - Add implicit unit parameter for `func f()` syntax
+   - Applies to both generic and non-generic functions
+
+4. **Entry Module Detection** (~15 LOC in internal/pipeline/prelude.go)
+   - Accept both zero-param and unit-param `main()` functions
+   - Ensures `export func main()` is still recognized
+
+5. **Test Updates** (~1 LOC in internal/pipeline/builtin_consistency_test.go)
+   - Update `_io_readLine` expected arity: 0 → 1
+
+**Discovered During**: v0.4.1 post-release evaluation analysis
+- Haiku AILANG dropped from 58.3% to 4.9% (86% failures were `WRONG_LANG` trying to import `std/io`)
+- v0.4.1 prompt is actually 6x better than v0.4.0 (proves it's stdlib bug, not prompt issue)
+- See design doc: `design_docs/planned/v0_4_1/m-s-call0-zero-arg-builtin-bug.md`
+
+**Files Modified**:
+- internal/builtins/io.go: Updated `_io_readLine` signature
+- internal/parser/parser_func.go: Add implicit unit parameter
+- internal/pipeline/prelude.go: Accept both zero/unit-param main
+- internal/pipeline/builtin_consistency_test.go: Update expected arity
+
+**Testing**: All 600+ tests passing, manual verification of `std/io` import works
+
+**Resolves**: M-S-CALL0-FIX (P0 BLOCKER)
+
+---
+
 ### Completed - M-EVAL-CAPS Benchmark Capability Coverage
 
 **User Impact**: All 41 benchmarks now have explicit capability specifications, ensuring accurate eval results with zero false negatives from capability mismatches.
 
-**What Was Completed**:
-1. **Added caps to final 2 benchmarks** (~2 LOC)
-   - `benchmarks/float_eq.yml`: Added `caps: ["IO"]` and `entrypoint: "main"`
-   - `benchmarks/numeric_modulo.yml`: Added `caps: ["IO"]` and `entrypoint: "main"`
-   - Result: 41/41 benchmarks (100%) now have capability specifications
-
-2. **Documentation** (~40 LOC in design doc)
-   - Moved `m-eval-caps-capability-spec.md` to `implemented/v0_3_0/`
-   - Added implementation completion note with evidence
-   - Documented that core feature was already implemented in v0.3.0
-
-**Discovery**: Core caps system was ALREADY implemented in v0.3.0 or earlier:
-- Schema support existed: `BenchmarkSpec.Caps []string` (spec.go:16)
-- Runner integration worked: Passes `--caps` flag (runner.go:170-172)
-- 39/41 benchmarks already had caps specified
-- Real-world validation: v0.3.16 baseline shows zero CAP_001 errors (except test-specific case)
-
-**Files Modified**:
-- benchmarks/float_eq.yml: +2 LOC
-- benchmarks/numeric_modulo.yml: +2 LOC
-- design_docs/implemented/v0_3_0/m-eval-caps-capability-spec.md: Moved + updated
+**Files Modified**: 2 benchmark YML files updated
 
 **Resolves**: M-EVAL-CAPS (documentation completion)
 
-## [v0.4.2] - 2025-11-02
+---
 
 ### Fixed - Statement-Level S-CALL0 Support (M-S-CALL0)
 
