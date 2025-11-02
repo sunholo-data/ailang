@@ -469,6 +469,38 @@ func (p *Parser) parseInfixExpression(left ast.Expr) ast.Expr {
 	return expr
 }
 
+// S-CONS: Parse infix cons operator :: (right-associative)
+// Desugars x :: xs to ::(x, xs) - a constructor call
+func (p *Parser) parseConsExpression(left ast.Expr) ast.Expr {
+	consPos := p.curPos()
+
+	// Check if strict syntax mode is enabled
+	if p.strictSyntaxMode {
+		p.reportSugarError("CONS", "x :: xs", "::(x, xs)")
+		// Return a placeholder to avoid cascading errors
+		return &ast.FuncCall{
+			Func: &ast.Identifier{Name: "::", Pos: consPos},
+			Args: []ast.Expr{left},
+			Pos:  consPos,
+		}
+	}
+
+	// Sugar is allowed - mark that it was used
+	p.sugarUsed = true
+
+	// Right-associative: parse right side with lower precedence
+	// This makes a :: b :: c parse as a :: (b :: c)
+	p.nextToken()
+	right := p.parseExpression(CONS - 1)
+
+	// Desugar to constructor call: ::(left, right)
+	return &ast.FuncCall{
+		Func: &ast.Identifier{Name: "::", Pos: consPos},
+		Args: []ast.Expr{left, right},
+		Pos:  consPos,
+	}
+}
+
 func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
 	call := &ast.FuncCall{
 		Func: fn,
@@ -482,9 +514,29 @@ func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
 func (p *Parser) parseCallArguments() []ast.Expr {
 	args := []ast.Expr{}
 
+	// S-CALL0: Check for zero-arg call sugar f()
+	// NOTE: Currently only works with space: f ()
+	// Without space f() requires statement-level parsing changes (TODO)
 	if p.peekTokenIs(lexer.RPAREN) {
-		p.nextToken()
-		return args
+		p.nextToken() // consume RPAREN
+
+		// Check if strict syntax mode is enabled
+		if p.strictSyntaxMode {
+			p.reportSugarError("CALL0", "f()", "f ()")
+			return args // Return empty args to avoid cascading errors
+		}
+
+		// Sugar is allowed - desugar f() to f(())
+		// Mark that sugar was used (for REPL feedback)
+		p.sugarUsed = true
+
+		// Return unit literal as single argument
+		unitLit := &ast.Literal{
+			Kind:  ast.UnitLit,
+			Value: nil,
+			Pos:   p.curPos(),
+		}
+		return []ast.Expr{unitLit}
 	}
 
 	p.nextToken()

@@ -7,9 +7,12 @@ import (
 
 // parseType parses a type expression
 // Handles: identifiers, type variables, lists, tuples, functions
+// S-ARROWTYPE: Supports bare function type arrows (int -> bool)
 func (p *Parser) parseType() ast.Type {
 	p.debugEnter("parseType")
 	defer p.debugExit("parseType")
+
+	var typ ast.Type // Store primary type for arrow sugar checking
 
 	switch p.curToken.Type {
 	case lexer.LBRACE:
@@ -40,10 +43,11 @@ func (p *Parser) parseType() ast.Type {
 			}
 
 			// Return a SimpleType for now (proper generics parsing would be more complex)
-			return &ast.SimpleType{
+			typ = &ast.SimpleType{
 				Name: name, // e.g., "Option" or "List"
 				Pos:  startPos,
 			}
+			goto checkArrow
 		}
 
 		// Check if it's a built-in type (lowercase but not type vars)
@@ -52,31 +56,35 @@ func (p *Parser) parseType() ast.Type {
 			"unit": true, "char": true,
 		}
 		if builtinTypes[name] {
-			return &ast.SimpleType{
+			typ = &ast.SimpleType{
 				Name: name,
 				Pos:  startPos,
 			}
+			goto checkArrow
 		}
 
 		// Check if it's a type variable (lowercase single letter) or type constructor (uppercase)
 		if len(name) > 0 && name[0] >= 'a' && name[0] <= 'z' {
-			return &ast.TypeVar{
+			typ = &ast.TypeVar{
 				Name: name,
 				Pos:  startPos,
 			}
+			goto checkArrow
 		}
 
-		return &ast.SimpleType{
+		typ = &ast.SimpleType{
 			Name: name,
 			Pos:  startPos,
 		}
+		goto checkArrow
 
 	case lexer.UNIT:
 		// Unit type ()
-		return &ast.SimpleType{
+		typ = &ast.SimpleType{
 			Name: "()",
 			Pos:  p.curPos(),
 		}
+		goto checkArrow
 
 	case lexer.LBRACKET:
 		// List type: [T]
@@ -86,10 +94,11 @@ func (p *Parser) parseType() ast.Type {
 		if !p.expectPeek(lexer.RBRACKET) {
 			return nil
 		}
-		return &ast.ListType{
+		typ = &ast.ListType{
 			Element: elemType,
 			Pos:     startPos,
 		}
+		goto checkArrow
 
 	case lexer.LPAREN:
 		// Could be:
@@ -192,6 +201,44 @@ func (p *Parser) parseType() ast.Type {
 	default:
 		return nil
 	}
+
+checkArrow:
+	// S-ARROWTYPE: Check for function type arrow (int -> bool)
+	if p.peekTokenIs(lexer.ARROW) {
+		startPos := typ.Position()
+		p.nextToken() // consume current token (move to ARROW)
+
+		// Check if strict syntax mode is enabled
+		if p.strictSyntaxMode {
+			p.reportSugarError("ARROWTYPE", "T -> U", "funcType T U")
+			// Return incomplete type to avoid cascading errors
+			return typ
+		}
+
+		// Sugar is allowed - mark that it was used
+		p.sugarUsed = true
+
+		p.nextToken()               // move past ARROW
+		returnType := p.parseType() // Right-associative: recursively parse return type
+
+		// Parse optional effect annotation: int -> string ! {IO}
+		var effects []string
+		if p.peekTokenIs(lexer.BANG) {
+			p.nextToken() // move to BANG
+			effects = p.parseEffectAnnotation()
+		}
+
+		// Desugar to FuncType
+		return &ast.FuncType{
+			Params:  []ast.Type{typ},
+			Return:  returnType,
+			Effects: effects,
+			Pos:     startPos,
+		}
+	}
+
+	// No arrow, return primary type as-is
+	return typ
 }
 
 // Type declaration parsing

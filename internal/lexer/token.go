@@ -369,18 +369,20 @@ func (t Token) Precedence() int {
 		return 4 // EQUALS
 	case LT, GT, LTE, GTE:
 		return 5 // LESSGREATER
+	case DCOLON:
+		return 6 // CONS (:: list cons - right associative, S-CONS sugar)
 	case APPEND:
-		return 6 // APPEND (++ string concatenation)
+		return 7 // APPEND (++ string concatenation)
 	case PLUS, MINUS:
-		return 7 // SUM
+		return 8 // SUM
 	case STAR, SLASH, PERCENT:
-		return 8 // PRODUCT
+		return 9 // PRODUCT
 	case NOT:
-		return 9 // PREFIX (unary operators)
+		return 10 // PREFIX (unary operators)
 	case LPAREN:
-		return 10 // CALL (function application)
+		return 11 // CALL (function application)
 	case DOT:
-		return 11 // DOT_ACCESS (field access - highest)
+		return 12 // DOT_ACCESS (field access - highest)
 	default:
 		return 0
 	}
