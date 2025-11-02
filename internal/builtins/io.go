@@ -100,7 +100,7 @@ func registerIO() {
 	}
 	type3 := func() types.Type {
 		T := types.NewBuilder()
-		return T.Func(T.Unit()).Returns(T.String()).Effects("IO")  // Fixed: () -> string means (()) -> string
+		return T.Func(T.Unit()).Returns(T.String()).Effects("IO") // Fixed: () -> string means (()) -> string
 	}
 	err = RegisterEffectBuiltin(BuiltinSpec{
 		Module: "std/io", Name: "_io_readLine", NumArgs: 1, IsPure: false, Effect: "IO", Type: type3, Impl: impl3,

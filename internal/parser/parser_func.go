@@ -68,7 +68,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		// FIXED (v0.4.2): Add implicit unit parameter for S-CALL0 compatibility
 		fn.Params = []*ast.Param{
 			{
-				Name: "_",  // Unnamed parameter (convention for ignored params)
+				Name: "_", // Unnamed parameter (convention for ignored params)
 				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
 				Pos:  p.curPos(),
 			},
@@ -85,7 +85,7 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		p.nextToken()
 		fn.Params = []*ast.Param{
 			{
-				Name: "_",  // Unnamed parameter (convention for ignored params)
+				Name: "_", // Unnamed parameter (convention for ignored params)
 				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
 				Pos:  p.curPos(),
 			},
