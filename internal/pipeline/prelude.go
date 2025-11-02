@@ -109,8 +109,21 @@ func IsEntryModuleFromAST(file *ast.File) bool {
 	// Scan top-level declarations for exported main function
 	for _, decl := range file.Decls {
 		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-			if funcDecl.Name == "main" && funcDecl.IsExport && len(funcDecl.Params) == 0 {
-				return true
+			if funcDecl.Name == "main" && funcDecl.IsExport {
+				// Fixed v0.4.2: Accept both zero-param (old) and unit-param (new with S-CALL0)
+				// Zero params: export func main() -> () (old, but still may exist)
+				// Unit param: export func main(_: ()) -> () (new, implicit from parser)
+				if len(funcDecl.Params) == 0 {
+					return true
+				}
+				if len(funcDecl.Params) == 1 {
+					// Check if single param is unit type
+					if simpleType, ok := funcDecl.Params[0].Type.(*ast.SimpleType); ok {
+						if simpleType.Name == "()" {
+							return true
+						}
+					}
+				}
 			}
 		}
 	}

@@ -1,0 +1,10 @@
+Word Count Report
+====================
+Line 1: 8 words
+Line 2: 7 words
+Line 3: 9 words
+Line 4: 7 words
+Line 5: 8 words
+--------------------
+Total lines processed: 5
+Average words per line: 7.80

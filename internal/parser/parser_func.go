@@ -65,7 +65,14 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 
 	if hasTypeParams && p.curTokenIs(lexer.UNIT) {
 		// Generic function with unit parameter: func name[T]()
-		fn.Params = []*ast.Param{}
+		// FIXED (v0.4.2): Add implicit unit parameter for S-CALL0 compatibility
+		fn.Params = []*ast.Param{
+			{
+				Name: "_",  // Unnamed parameter (convention for ignored params)
+				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
+				Pos:  p.curPos(),
+			},
+		}
 		p.nextToken() // consume UNIT
 	} else if hasTypeParams && p.curTokenIs(lexer.LPAREN) {
 		// Generic function with parameters: func name[T](x: T)
@@ -73,8 +80,16 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		fn.Params = p.parseParams()
 	} else if !hasTypeParams && p.peekTokenIs(lexer.UNIT) {
 		// Non-generic function with unit parameter: func name()
+		// FIXED (v0.4.2): Add implicit unit parameter for S-CALL0 compatibility
+		// Zero-arg syntax func f() is sugar for func f(_: ()) - takes unit parameter
 		p.nextToken()
-		fn.Params = []*ast.Param{}
+		fn.Params = []*ast.Param{
+			{
+				Name: "_",  // Unnamed parameter (convention for ignored params)
+				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
+				Pos:  p.curPos(),
+			},
+		}
 	} else {
 		// Non-generic function with parameters: func name(x: int)
 		p.expectPeek(lexer.LPAREN)

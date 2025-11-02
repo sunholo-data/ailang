@@ -1,0 +1,10 @@
+Result: 1
+Result: 4
+Result: 9
+Result: 16
+Result: 25
+Result: 36
+Result: 49
+Result: 64
+Result: 81
+Result: 100

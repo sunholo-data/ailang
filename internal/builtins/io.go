@@ -91,20 +91,23 @@ func registerIO() {
 	}
 
 	// _io_readLine (stub for v0.3.10)
+	// FIXED (v0.4.2): Changed from 0-arg to unit-arg to fix S-CALL0 compatibility
+	// Zero-arg builtins now take unit as their parameter: () -> T means (()) -> T
 	impl3 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		// Stub: return empty string
+		// args[0] is the unit value (ignored)
 		return &eval.StringValue{Value: ""}, nil
 	}
 	type3 := func() types.Type {
 		T := types.NewBuilder()
-		return T.Func().Returns(T.String()).Effects("IO")
+		return T.Func(T.Unit()).Returns(T.String()).Effects("IO")  // Fixed: () -> string means (()) -> string
 	}
 	err = RegisterEffectBuiltin(BuiltinSpec{
-		Module: "std/io", Name: "_io_readLine", NumArgs: 0, IsPure: false, Effect: "IO", Type: type3, Impl: impl3,
+		Module: "std/io", Name: "_io_readLine", NumArgs: 1, IsPure: false, Effect: "IO", Type: type3, Impl: impl3,
 
 		Metadata: &BuiltinMetadata{
 			Description: "Read a line from stdin (stub implementation)",
-			LongDesc:    "Currently returns empty string. Full implementation pending.",
+			LongDesc:    "Currently returns empty string. Full implementation pending. Takes unit as parameter for S-CALL0 compatibility.",
 			Returns:     "String read from stdin (currently always empty)",
 			Since:       "v0.3.10",
 			Stability:   StabilityExperimental,
