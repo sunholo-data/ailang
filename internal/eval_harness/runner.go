@@ -12,6 +12,68 @@ import (
 	"time"
 )
 
+// MaxOutputSize is the maximum size (in bytes) for stdout/stderr capture
+// This prevents infinite loop bugs from generating gigabyte-sized JSON files
+const MaxOutputSize = 1 * 1024 * 1024 // 1 MB
+
+// LimitedWriter wraps an io.Writer and limits the total bytes written
+// Once the limit is reached, subsequent writes are discarded and a truncation message is appended
+type LimitedWriter struct {
+	buf       *bytes.Buffer
+	limit     int64
+	written   int64
+	truncated bool
+}
+
+// NewLimitedWriter creates a new LimitedWriter with the specified byte limit
+func NewLimitedWriter(limit int64) *LimitedWriter {
+	return &LimitedWriter{
+		buf:   &bytes.Buffer{},
+		limit: limit,
+	}
+}
+
+// Write implements io.Writer with size limiting
+func (lw *LimitedWriter) Write(p []byte) (n int, err error) {
+	// If already truncated, discard all writes
+	if lw.truncated {
+		return len(p), nil
+	}
+
+	// Check if this write would exceed the limit
+	remaining := lw.limit - lw.written
+	if int64(len(p)) <= remaining {
+		// Entire write fits within limit
+		n, err = lw.buf.Write(p)
+		lw.written += int64(n)
+		return n, err
+	}
+
+	// Partial write - write what we can, then truncate
+	if remaining > 0 {
+		lw.buf.Write(p[:remaining])
+		lw.written += remaining
+	}
+
+	// Mark as truncated and add message
+	lw.truncated = true
+	truncationMsg := fmt.Sprintf("\n\n[OUTPUT TRUNCATED - exceeded %d byte limit]\n", lw.limit)
+	lw.buf.WriteString(truncationMsg)
+
+	// Report full length written to avoid errors
+	return len(p), nil
+}
+
+// String returns the buffered content (possibly truncated)
+func (lw *LimitedWriter) String() string {
+	return lw.buf.String()
+}
+
+// Truncated returns true if output was truncated
+func (lw *LimitedWriter) Truncated() bool {
+	return lw.truncated
+}
+
 // RunResult captures the outcome of running generated code
 type RunResult struct {
 	Stdout       string
@@ -208,9 +270,11 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	cmd := exec.Command(r.ailangPath, args...)
 	cmd.Dir = workspace // Run from isolated workspace
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Use limited writers to prevent infinite loop bugs from generating gigabyte-sized output
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	// Start command
 	if err := cmd.Start(); err != nil {

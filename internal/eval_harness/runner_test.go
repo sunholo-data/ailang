@@ -130,3 +130,114 @@ func TestGetRunner(t *testing.T) {
 		})
 	}
 }
+
+func TestLimitedWriter_WithinLimit(t *testing.T) {
+	lw := NewLimitedWriter(100)
+
+	// Write data within limit
+	data := []byte("Hello, World!")
+	n, err := lw.Write(data)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	if n != len(data) {
+		t.Errorf("Expected %d bytes written, got %d", len(data), n)
+	}
+
+	output := lw.String()
+	if output != "Hello, World!" {
+		t.Errorf("Expected 'Hello, World!', got '%s'", output)
+	}
+
+	if lw.Truncated() {
+		t.Error("Expected Truncated() to be false")
+	}
+}
+
+func TestLimitedWriter_ExceedsLimit(t *testing.T) {
+	lw := NewLimitedWriter(10)
+
+	// Write data that exceeds limit
+	data := []byte("This is a very long string that exceeds the limit")
+	n, err := lw.Write(data)
+	if err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	// Should report full length to avoid errors
+	if n != len(data) {
+		t.Errorf("Expected %d bytes written, got %d", len(data), n)
+	}
+
+	output := lw.String()
+	// Should contain first 10 bytes + truncation message
+	if !strings.HasPrefix(output, "This is a ") {
+		t.Errorf("Expected output to start with 'This is a ', got '%s'", output)
+	}
+	if !strings.Contains(output, "[OUTPUT TRUNCATED") {
+		t.Errorf("Expected truncation message in output, got '%s'", output)
+	}
+
+	if !lw.Truncated() {
+		t.Error("Expected Truncated() to be true")
+	}
+}
+
+func TestLimitedWriter_MultipleWrites(t *testing.T) {
+	lw := NewLimitedWriter(20)
+
+	// Multiple writes within limit
+	lw.Write([]byte("Hello"))
+	lw.Write([]byte(" "))
+	lw.Write([]byte("World"))
+
+	output := lw.String()
+	if output != "Hello World" {
+		t.Errorf("Expected 'Hello World', got '%s'", output)
+	}
+
+	if lw.Truncated() {
+		t.Error("Expected Truncated() to be false")
+	}
+}
+
+func TestLimitedWriter_MultipleWritesExceedLimit(t *testing.T) {
+	lw := NewLimitedWriter(10)
+
+	// Multiple writes that exceed limit
+	lw.Write([]byte("Hello"))
+	lw.Write([]byte(" World"))
+	lw.Write([]byte(" Extra"))
+
+	output := lw.String()
+	// Should contain first 10 bytes + truncation message
+	if !strings.HasPrefix(output, "Hello Worl") {
+		t.Errorf("Expected output to start with 'Hello Worl', got '%s'", output)
+	}
+	if !strings.Contains(output, "[OUTPUT TRUNCATED") {
+		t.Errorf("Expected truncation message in output, got '%s'", output)
+	}
+
+	if !lw.Truncated() {
+		t.Error("Expected Truncated() to be true")
+	}
+}
+
+func TestLimitedWriter_WriteAfterTruncation(t *testing.T) {
+	lw := NewLimitedWriter(5)
+
+	// First write exceeds limit
+	lw.Write([]byte("Hello World"))
+
+	// Subsequent writes should be discarded
+	originalOutput := lw.String()
+	lw.Write([]byte("More data"))
+	newOutput := lw.String()
+
+	if originalOutput != newOutput {
+		t.Error("Expected subsequent writes after truncation to be discarded")
+	}
+
+	if !lw.Truncated() {
+		t.Error("Expected Truncated() to be true")
+	}
+}

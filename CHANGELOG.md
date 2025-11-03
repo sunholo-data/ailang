@@ -50,6 +50,77 @@
 
 ---
 
+### Fixed - CRITICAL: Eval Harness Security Issues ⚠️ HOTFIX
+
+**Two critical eval harness bugs discovered during v0.4.2 validation:**
+
+#### 1. Race Condition - Output Corruption (P0)
+
+**User Impact**: Parallel benchmarks were overwriting each other's code, causing wrong output to be captured (e.g., fibonacci benchmark outputting "All results equal: true" from referential_transparency).
+
+**Root Cause**:
+- All parallel benchmarks wrote to same file: `benchmark/solution.ail`
+- Parallelism: 10-15 concurrent jobs
+- Race condition window: file gets overwritten mid-execution
+
+**What Was Fixed**:
+- **Isolated Workspaces** (~50 LOC in internal/eval_harness/runner.go)
+  - Each benchmark gets unique workspace: `.eval_workspace/<timestamp>_<pid>/`
+  - Maintains valid module path: `benchmark/solution` (prevents MOD010 errors)
+  - Stdlib symlinked into each workspace for imports
+  - Workspace cleaned up after execution
+
+**Validation**:
+- Stress test with 20 concurrent jobs: NO corruption detected
+- Validation script: `tools/validate_eval_results.py`
+- Test script: `tools/test_eval_race_condition.sh`
+
+**Files Modified**:
+- internal/eval_harness/runner.go: Isolated workspace implementation
+- .gitignore: Added `.eval_workspace/` exclusion
+
+#### 2. Infinite Output Bug - 1GB JSON Files (P0)
+
+**User Impact**: AI-generated code with infinite loops created 1GB+ JSON files, blocking git commits and consuming disk space.
+
+**Root Cause**:
+- Python code with infinite loop: `while True: print(input())` → EOF error loop
+- Runs for 30 seconds (timeout), printing millions of error messages
+- Eval harness captured ALL stdout → 1GB in JSON `stdout` field
+
+**What Was Fixed**:
+- **Output Size Limiting** (~70 LOC in internal/eval_harness/runner.go)
+  - `LimitedWriter` caps stdout/stderr at 1MB each
+  - Truncation message appended when limit exceeded
+  - Prevents runaway output from consuming resources
+
+**Implementation**:
+```go
+const MaxOutputSize = 1 * 1024 * 1024  // 1 MB
+
+type LimitedWriter struct {
+    buf       *bytes.Buffer
+    limit     int64
+    written   int64
+    truncated bool
+}
+```
+
+**Testing**:
+- 5 unit tests in internal/eval_harness/runner_test.go
+- Test script: `tools/test_output_limit.sh`
+- All tests passing
+
+**Files Modified**:
+- internal/eval_harness/runner.go: LimitedWriter implementation
+- internal/eval_harness/runner_test.go: Unit tests
+
+**Impact**: v0.4.2 baseline re-run with fixed harness shows +2.4pp improvement over v0.4.0 (48.0% vs 45.5%)
+
+**Resolves**: M-EVAL-HARNESS-SECURITY (P0 BLOCKER)
+
+---
+
 ### Completed - M-EVAL-CAPS Benchmark Capability Coverage
 
 **User Impact**: All 41 benchmarks now have explicit capability specifications, ensuring accurate eval results with zero false negatives from capability mismatches.
