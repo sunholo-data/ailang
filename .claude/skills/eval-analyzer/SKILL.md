@@ -92,6 +92,50 @@ Shows what changed between two versions.
 ailang eval-compare eval_results/baselines/v0.3.15 eval_results/baselines/v0.3.16
 ```
 
+### 5. Fair Comparison (RECOMMENDED) - `fair_comparison.py`
+
+**Use this for accurate version comparisons!** The `eval-compare` command may include duplicates or different model sets. This script normalizes data for apple-to-apples comparison.
+
+```bash
+.claude/skills/eval-analyzer/scripts/fair_comparison.py
+```
+
+**What it does:**
+- Deduplicates runs (keeps last run per benchmark+model)
+- Filters to dev models only (gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
+- AILANG only (ignores Python results)
+- Shows net fixes vs regressions
+- Per-model breakdown
+
+**Output:**
+```
+v0.4.0: 56/123 = 45.5%
+v0.4.2: 59/123 = 48.0%
+Delta:  +3 (+2.4pp)
+
+✅ Fixed:   11 benchmarks
+❌ Broken:  8 benchmarks
+NET:       +3 benchmarks
+```
+
+**When to use:** Before making decisions based on eval results (e.g., reverting changes, merging PRs).
+
+### 6. Validate Results - `validate_eval_results.py`
+
+**Check for output corruption and race conditions** in eval results.
+
+```bash
+python3 tools/validate_eval_results.py eval_results/baselines/v0.4.2
+```
+
+**Checks:**
+- Output corruption (fibonacci outputting "All results equal", etc.)
+- Duplicate runs for same benchmark+model
+- Code hash validation (if available)
+- Success rate statistics
+
+**When to use:** After running eval baselines, especially if results look suspicious.
+
 ## Agent Analysis Scripts (NEW!)
 
 **For agent-based evaluation results** (Python vs AILANG comparisons with Claude Code):

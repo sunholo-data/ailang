@@ -2,6 +2,8 @@ package eval_harness
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,16 +14,18 @@ import (
 
 // RunResult captures the outcome of running generated code
 type RunResult struct {
-	Stdout      string
-	Stderr      string
-	ExitCode    int
-	Duration    time.Duration // Total time (startup + compile + execution)
-	CompileTime time.Duration // Time spent in compilation/type-checking (if separate)
-	ExecuteTime time.Duration // Time spent in actual code execution (if measurable)
-	CompileOk   bool
-	RuntimeOk   bool
-	StdoutOk    bool
-	TimedOut    bool
+	Stdout       string
+	Stderr       string
+	ExitCode     int
+	Duration     time.Duration // Total time (startup + compile + execution)
+	CompileTime  time.Duration // Time spent in compilation/type-checking (if separate)
+	ExecuteTime  time.Duration // Time spent in actual code execution (if measurable)
+	CompileOk    bool
+	RuntimeOk    bool
+	StdoutOk     bool
+	TimedOut     bool
+	CodeHash     string // SHA256 hash of executed code (for validation)
+	WorkspaceDir string // Path to isolated workspace (for debugging)
 }
 
 // LanguageRunner executes code in a specific language
@@ -144,24 +148,49 @@ func (r *AILANGRunner) Language() string {
 
 // Run executes AILANG code
 func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
+	// Calculate code hash for validation
+	codeHash := sha256.Sum256([]byte(code))
+	codeHashStr := hex.EncodeToString(codeHash[:])
+
 	// Get current working directory (repo root for stdlib access)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Create benchmark directory in current directory
-	benchmarkDir := filepath.Join(cwd, "benchmark")
+	// Create unique isolated workspace to avoid race conditions
+	// Pattern: <cwd>/.eval_workspace/<timestamp>_<pid>
+	// Using project directory instead of /tmp keeps module paths valid and avoids MOD010 errors
+	workspace := filepath.Join(cwd, ".eval_workspace", fmt.Sprintf("%d_%d", time.Now().UnixNano(), os.Getpid()))
+	if err := os.MkdirAll(workspace, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create workspace: %w", err)
+	}
+	defer os.RemoveAll(workspace) // Clean up entire workspace after execution
+
+	// Create benchmark directory in workspace
+	benchmarkDir := filepath.Join(workspace, "benchmark")
 	if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create benchmark dir: %w", err)
 	}
+
+	// Always use solution.ail (module path will be benchmark/solution)
 	tmpFile := filepath.Join(benchmarkDir, "solution.ail")
 
 	// Write code to file
 	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write code: %w", err)
 	}
-	defer os.Remove(tmpFile) // Clean up after execution
+
+	// Symlink stdlib into workspace for module imports
+	stdlibSrc := filepath.Join(cwd, "stdlib")
+	stdlibDst := filepath.Join(workspace, "stdlib")
+	if err := os.Symlink(stdlibSrc, stdlibDst); err != nil {
+		// If symlink fails (e.g., on Windows), copy stdlib directory
+		// For now, just log the error - stdlib access will fail but tests can still run
+		if os.Getenv("DEBUG_EVAL") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_EVAL] Failed to symlink stdlib: %v\n", err)
+		}
+	}
 
 	// Build command with flags BEFORE filename (required by ailang CLI)
 	args := []string{"run", "--entry", "main", "--quiet"}
@@ -171,13 +200,13 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		args = append(args, "--caps", strings.Join(r.caps, ","))
 	}
 
-	// Add filename last
+	// Add relative path to solution file from workspace
 	args = append(args, "benchmark/solution.ail")
 
-	// Execute with timeout from current directory (for stdlib access)
+	// Execute with timeout from workspace directory (for module path resolution and stdlib access)
 	start := time.Now()
 	cmd := exec.Command(r.ailangPath, args...)
-	cmd.Dir = cwd // Run from current directory
+	cmd.Dir = workspace // Run from isolated workspace
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -186,11 +215,13 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	// Start command
 	if err := cmd.Start(); err != nil {
 		return &RunResult{
-			Stderr:    err.Error(),
-			ExitCode:  -1,
-			Duration:  time.Since(start),
-			CompileOk: false,
-			RuntimeOk: false,
+			Stderr:       err.Error(),
+			ExitCode:     -1,
+			Duration:     time.Since(start),
+			CompileOk:    false,
+			RuntimeOk:    false,
+			CodeHash:     codeHashStr,
+			WorkspaceDir: workspace,
 		}, nil
 	}
 
@@ -206,13 +237,15 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		// Wait for the goroutine to finish after kill to avoid race
 		<-done
 		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    "execution timed out",
-			ExitCode:  -1,
-			Duration:  timeout,
-			CompileOk: true,
-			RuntimeOk: false,
-			TimedOut:  true,
+			Stdout:       stdout.String(),
+			Stderr:       "execution timed out",
+			ExitCode:     -1,
+			Duration:     timeout,
+			CompileOk:    true,
+			RuntimeOk:    false,
+			TimedOut:     true,
+			CodeHash:     codeHashStr,
+			WorkspaceDir: workspace,
 		}, nil
 	case err := <-done:
 		duration := time.Since(start)
@@ -238,12 +271,14 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		}
 
 		return &RunResult{
-			Stdout:    stdout.String(),
-			Stderr:    stderr.String(),
-			ExitCode:  exitCode,
-			Duration:  duration,
-			CompileOk: compileOk,
-			RuntimeOk: runtimeOk,
+			Stdout:       stdout.String(),
+			Stderr:       stderr.String(),
+			ExitCode:     exitCode,
+			Duration:     duration,
+			CompileOk:    compileOk,
+			RuntimeOk:    runtimeOk,
+			CodeHash:     codeHashStr,
+			WorkspaceDir: workspace,
 		}, nil
 	}
 }

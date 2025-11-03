@@ -41,5 +41,13 @@ examples_report.json
 examples_status.md
 coverage.txt
 
+# Eval harness runtime artifacts
+benchmark/solution*.ail
+benchmark/__pycache__/
+data/
+output/
+*.pyc
+.eval_workspace/
+
 # Agent protocol runtime state (like .git/)
 .ailang/

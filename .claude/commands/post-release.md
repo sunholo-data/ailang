@@ -1,10 +1,12 @@
 ---
 description: Run post-release tasks (benchmarks, dashboard, docs) after a release
+allowed-tools:
+  - Bash(ailang:*)
+  - Bash(make:*)
+  - Read
+  - Write
 ---
 
-Use the Skill tool to invoke the **post-release** skill.
+Invoke the **post-release** skill to run post-release tasks for version $1.
 
-Example:
-```
-<invoke name="Skill">
-<parameter name="command">post-release
+See [.claude/skills/post-release/SKILL.md](.claude/skills/post-release/SKILL.md) for details.

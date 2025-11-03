@@ -81,10 +81,22 @@ func IsEntryModule(publicEnv *iface.Iface) bool {
 	// Extract the actual type from the scheme
 	mainType := mainItem.Type.Type
 
-	// Check if it's a function with 0 parameters
+	// Check if it's a function with 0 parameters or 1 unit parameter
+	// Fixed v0.4.2: Accept both zero-param and unit-param (for S-CALL0 compatibility)
 	if fn, ok := mainType.(*types.TFunc2); ok {
-		// A 0-arity function has no parameters
-		return len(fn.Params) == 0
+		// Zero params: func main() -> () (old style, may still exist)
+		if len(fn.Params) == 0 {
+			return true
+		}
+		// Unit param: func main(_: ()) -> () (new style with S-CALL0)
+		if len(fn.Params) == 1 {
+			// Check if the parameter is unit type
+			if tcon, ok := fn.Params[0].(*types.TCon); ok {
+				if tcon.Name == "()" {
+					return true
+				}
+			}
+		}
 	}
 
 	return false
