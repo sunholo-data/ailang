@@ -14,6 +14,7 @@
 #   MODELS=... - Custom model list (comma-separated)
 #   LANGS=... - Languages to test (default: python,ailang)
 #   PARALLEL=N - Number of parallel jobs (default: 15)
+#   RESUME=true - Resume interrupted run (skip existing results, don't delete)
 #
 # This script:
 # 1. Runs full benchmark suite (using ailang eval-suite)
@@ -39,13 +40,16 @@ if [ -z "$VERSION" ]; then
   echo "Usage:"
   echo "  VERSION=v0.3.10 ./tools/eval_baseline.sh"
   echo "  VERSION=v0.3.10 FULL=true ./tools/eval_baseline.sh"
+  echo "  VERSION=v0.3.10 RESUME=true ./tools/eval_baseline.sh"
   echo ""
   echo "Or use make target:"
-  echo "  make eval-baseline VERSION=v0.3.10"
+  echo "  make eval-baseline EVAL_VERSION=v0.3.10"
+  echo "  make eval-baseline EVAL_VERSION=v0.3.10 RESUME=true"
   echo ""
   exit 1
 fi
 FULL_SUITE="${FULL:-false}"  # Set FULL=true for full expensive suite
+RESUME="${RESUME:-false}"  # Set RESUME=true to skip existing results
 MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
 PARALLEL="${PARALLEL:-15}"
@@ -75,19 +79,26 @@ echo ""
 
 # Check if baseline already exists
 if [ -d "$BASELINE_DIR" ]; then
-  echo -e "${YELLOW}⚠ Warning: Baseline for $VERSION already exists${NC}"
-  echo ""
-  read -p "Overwrite existing baseline? (y/N) " -n 1 -r
-  echo ""
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Aborted"
-    exit 1
+  if [ "$RESUME" = "true" ]; then
+    EXISTING_COUNT=$(find "$BASELINE_DIR" -name "*.json" -type f | wc -l | tr -d ' ')
+    echo -e "${CYAN}→ Resuming existing baseline ($EXISTING_COUNT results found)${NC}"
+  else
+    echo -e "${YELLOW}⚠ Warning: Baseline for $VERSION already exists${NC}"
+    echo ""
+    read -p "Overwrite existing baseline? (y/N) " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "Aborted"
+      exit 1
+    fi
+    rm -rf "$BASELINE_DIR"
+    # Create baseline directory
+    mkdir -p "$BASELINE_DIR"
   fi
-  rm -rf "$BASELINE_DIR"
+else
+  # Create baseline directory
+  mkdir -p "$BASELINE_DIR"
 fi
-
-# Create baseline directory
-mkdir -p "$BASELINE_DIR"
 
 # Run benchmark suite with parallel execution
 echo -e "${CYAN}Running benchmark suite...${NC}"
@@ -105,6 +116,11 @@ elif [ "$FULL_SUITE" = "true" ]; then
   CMD+=(--full)
 fi
 # Otherwise, use default (dev models)
+
+# Add --skip-existing if resuming
+if [ "$RESUME" = "true" ]; then
+  CMD+=(--skip-existing)
+fi
 
 "${CMD[@]}"
 

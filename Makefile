@@ -679,11 +679,12 @@ eval-baseline: build
 		echo "Usage:"; \
 		echo "  make eval-baseline EVAL_VERSION=v0.3.10"; \
 		echo "  make eval-baseline EVAL_VERSION=v0.3.10 FULL=true"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10 RESUME=true"; \
 		echo ""; \
 		exit 1; \
 	fi
 	@echo "Storing baseline for version $(EVAL_VERSION)..."
-	@VERSION=$(EVAL_VERSION) ./tools/eval_baseline.sh
+	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) ./tools/eval_baseline.sh
 
 eval-diff: build
 	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
