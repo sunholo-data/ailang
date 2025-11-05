@@ -807,7 +807,7 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.4.1)
+# AI Teaching Prompt (Latest: v0.4.2)
 
 # AILANG v0.4.1 - AI Teaching Prompt (Syntactic Sugar + JSON Decode + Environment Variables + Net Effects)
 
@@ -1138,6 +1138,72 @@ export func main() -> () ! {Net, IO} {
 }
 ```
 
+## String Parsing with Option Types (v0.4.3+)
+
+**Safe parsing of user input to numbers:**
+
+```ailang
+module benchmark/solution
+
+import std/string (stringToInt, stringToFloat)
+import std/option (Option, Some, None, getOrElse)
+import std/io (println)
+
+-- Parse and validate age (reject negative)
+pure func parseAge(input: string) -> Option[int] {
+  match stringToInt(input) {
+    Some(age) => if age >= 0 then Some(age) else None,
+    None => None
+  }
+}
+
+export func main() -> () ! {IO} {
+  -- Valid integer
+  match stringToInt("42") {
+    Some(n) => println("Parsed: " ++ show(n)),
+    None => println("Invalid number")
+  };
+
+  -- Invalid input
+  match stringToInt("abc") {
+    Some(n) => println("Should not happen"),
+    None => println("Correctly rejected 'abc'")
+  };
+
+  -- Float parsing
+  match stringToFloat("3.14") {
+    Some(f) => println("Pi: " ++ show(f)),
+    None => println("Invalid float")
+  };
+
+  -- With default value
+  let age = getOrElse(stringToInt("invalid"), 18);
+  println("Age with default: " ++ show(age));
+
+  ()
+}
+```
+
+**Key points:**
+- `stringToInt(s: string) -> Option[int]` - Parse string to integer, returns Some(n) or None
+- `stringToFloat(s: string) -> Option[float]` - Parse string to float, returns Some(f) or None
+- Both return `Option[T]` from `std/option` - NO exceptions!
+- Pattern match on Some/None to handle success/failure
+- Use `getOrElse(option, default)` for fallback values
+- Supports: signed numbers (+/-), scientific notation (1e-10), decimals
+- Rejects: empty strings, mixed alphanumeric, invalid formats
+
+**Common pattern - validation:**
+```ailang
+-- Validate positive numbers
+pure func parsePositive(s: string) -> Option[int] {
+  match stringToInt(s) {
+    Some(n) => if n > 0 then Some(n) else None,
+    None => None
+  }
+}
+```
+
 ## Critical Limitations
 
 **Syntax that does NOT exist (use alternatives):**
@@ -1145,7 +1211,7 @@ export func main() -> () ! {Net, IO} {
 - ❌ NO list comprehensions `[x*2 for x in list]` → use `map` or recursion
 - ❌ NO tuple destructuring `let (x, y) = pair` → use record fields or pattern match in function
 - ❌ NO function type syntax `func(T) -> U` in type annotations → use lambda values with inferred types
-- ❌ NO Haskell-style list cons `x::rest` → use `::(x, rest)` or `Cons(x, rest)` constructor syntax
+- ❌ NO Haskell-style list cons in patterns `h::t` → use `::(h, t)` (in expressions: use `x :: xs` sugar)
 - ❌ NO quoted imports `import "std/io"` → use `import std/io` (no quotes!)
 - ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
 - ❌ NO `http.post()`, `http.get()`, `http()` functions → use `httpRequest("POST", url, headers, body)` from `std/net`
@@ -1187,8 +1253,24 @@ export func main() -> () ! {IO} {
 - `getEnv`, `hasEnv`, `getEnvOr` → `import std/env (getEnv, hasEnv, getEnvOr)` **for environment variables (v0.4.0+)**
 - JSON encoding → `import std/json (encode, jo, ja, kv, js, jnum)`
 - JSON decoding → `import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject, decode)` **for parsing JSON (v0.4.1+)**
+- String parsing → `import std/string (stringToInt, stringToFloat)` **returns Option[T] (v0.4.3+)**
 - `show` → builtin, **DO NOT IMPORT**
 - `<`, `>`, `<=`, `>=`, `==`, `!=` → **AUTO-IMPORTED, NO IMPORT NEEDED!**
+
+**Standard Library Module Reference:**
+
+| Module | Functions | Import Example |
+|--------|-----------|----------------|
+| `std/io` | `print`, `println`, `readLine` | `import std/io (println)` |
+| `std/fs` | `readFile`, `writeFile`, `fileExists` | `import std/fs (readFile)` |
+| `std/net` | `httpRequest`, `httpGet`, `httpPost`, `httpFormPost` | `import std/net (httpRequest)` |
+| `std/json` | `encode`, `decode`, `jo`, `ja`, `kv`, `js`, `jnum` | `import std/json (encode, decode)` |
+| `std/env` | `getEnv`, `hasEnv`, `getEnvOr` | `import std/env (getEnv)` |
+| `std/clock` | `now`, `sleep` | `import std/clock (now)` |
+| `std/string` | `stringToInt`, `stringToFloat`, `length`, `toUpper`, `toLower`, etc. | `import std/string (stringToInt)` |
+| `std/prelude` | `show`, comparison ops, type class instances | **AUTO-IMPORTED** (no import needed) |
+
+**⚠️ Common mistake:** `readFile` is in `std/fs`, NOT `std/io`!
 
 **IMPORTANT**: If you see error "No instance for Ord" or "No instance for Eq", you may have set `AILANG_NO_PRELUDE=1`. This is rare - std/prelude is auto-imported by default.
 
@@ -1294,7 +1376,7 @@ export func main() -> () ! {IO} =
   let map = \f. \xs.
     match xs {
       [] => [],
-      Cons(x, rest) => Cons(f(x), map(f)(rest))
+      Cons(x, rest) => f(x) :: map(f)(rest)
     } in
 
   -- Filter: keep elements that satisfy predicate
@@ -1303,7 +1385,7 @@ export func main() -> () ! {IO} =
       [] => [],
       Cons(x, rest) =>
         if pred(x)
-        then Cons(x, filter(pred)(rest))
+        then x :: filter(pred)(rest)
         else filter(pred)(rest)
     } in
 
@@ -1350,7 +1432,7 @@ export func filter[a](pred: a -> bool, xs: List[a]) -> List[a] =
     [] => [],
     Cons(x, rest) =>
       if pred(x)
-      then Cons(x, filter(pred, rest))
+      then x :: filter(pred, rest)
       else filter(pred, rest)
   }
 
@@ -2259,7 +2341,7 @@ import std/io (println)
 export func map[a, b](f: func(a) -> b, xs: [a]) -> [b] {
   match xs {
     [] => [],
-    Cons(x, rest) => Cons(f(x), map(f, rest))
+    Cons(x, rest) => f(x) :: map(f, rest)
   }
 }
 
@@ -2287,7 +2369,7 @@ export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
     [] => [],
     Cons(x, rest) =>
       if pred(x)
-      then Cons(x, filter(pred, rest))
+      then x :: filter(pred, rest)
       else filter(pred, rest)
   }
 }
@@ -2338,7 +2420,7 @@ export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
     [] => [],
     Cons(x, rest) =>
       if pred(x)
-      then Cons(x, filter(pred, rest))
+      then x :: filter(pred, rest)
       else filter(pred, rest)
   }
 }
