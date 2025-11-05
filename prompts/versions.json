@@ -241,9 +241,20 @@
         "latest"
       ],
       "notes": "Added syntactic sugar documentation: S-CONS (:: cons operator, expressions only), S-ARROWTYPE (-> function types), S-CALL0 (f() zero-arg calls, NOW WORKS at statement level!). IMPORTANT: :: sugar only works in expressions, NOT in patterns - use ::(h, t) in match. Includes --strict-syntax flag documentation. M-S-CALL0: Completed statement-level parsing for f() calls."
+    },
+    "v0.4.2": {
+      "file": "prompts/v0.4.2.md",
+      "hash": "20224e40be293c222426c5ba98532ef33b19cefcbe6ce58af2dd7fe17f3c990a",
+      "description": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation",
+      "created": "2025-11-05",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation"
     }
   },
-  "active": "v0.4.1",
+  "active": "v0.4.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

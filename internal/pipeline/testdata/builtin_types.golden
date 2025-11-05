@@ -27,6 +27,8 @@ _str_lower : string -> string
 _str_slice : (string, int, int) -> string
 _str_trim : string -> string
 _str_upper : string -> string
+_stringToFloat : string -> Option[float]
+_stringToInt : string -> Option[int]
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool

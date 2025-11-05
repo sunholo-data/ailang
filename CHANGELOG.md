@@ -1,5 +1,51 @@
 # AILANG Changelog
 
+## [v0.4.3] - 2025-11-05
+
+### Added - String Parsing Builtins (M-DX10) 🎯 Eval Fix
+
+**User Impact**: AI models can now safely parse string input to numbers using Option types, fixing 3 eval benchmark failures.
+
+**What Was Added**:
+1. **New Builtin Functions** (~156 LOC in internal/builtins/string.go)
+   - `_stringToInt(s: string) -> Option[int]`: Parse string to integer, returns Some(n) or None
+   - `_stringToFloat(s: string) -> Option[float]`: Parse string to float, returns Some(f) or None
+   - Both use Go's strconv package (ParseInt, ParseFloat)
+   - Return TaggedValue with "std/option" type (Some/None constructors)
+
+2. **Comprehensive Tests** (~214 LOC in internal/builtins/string_test.go)
+   - 35+ test cases covering valid/invalid inputs
+   - Integer: "42", "-123", "abc", "3.14", overflow, scientific notation
+   - Float: "3.14", "1e-10", "abc", multiple dots, invalid scientific
+   - Edge cases: empty strings, whitespace, sign handling
+   - Error handling: wrong argument types
+
+3. **Standard Library Exports** (~2 LOC in std/string.ail)
+   - `stringToInt(s: string) -> Option[int]`
+   - `stringToFloat(s: string) -> Option[float]`
+   - Import std/option for Option type
+
+4. **Example File** (examples/string_parsing.ail, 98 LOC)
+   - Demonstrates parsing with pattern matching
+   - Shows validation (e.g., age >= 0)
+   - Uses getOrElse for default values
+   - All tests passing with expected output
+
+**Eval Impact**:
+- **Fixes 2 benchmarks**: `effect_composition`, `error_handling` (both need `_str_to_int`)
+- **Note**: `tree_transformation_pipeline` still broken (needs `Cons` constructor, separate issue)
+
+**Files Modified**:
+- internal/builtins/string.go: +156 LOC (2 new functions + registration)
+- internal/builtins/string_test.go: +214 LOC (NEW, 35+ test cases)
+- std/string.ail: +3 LOC (import + 2 exports)
+- examples/string_parsing.ail: +98 LOC (NEW, working example)
+- internal/pipeline/testdata/builtin_types.golden: +2 LOC (updated snapshot)
+
+**Testing**: All tests passing (8 test functions, 35+ sub-tests), lint clean, example verified working
+
+**Resolves**: M-DX10 (P1 - Eval Failures)
+
 ## [v0.4.2] - 2025-11-02
 
 ### Fixed - CRITICAL: S-CALL0 Zero-Arg Builtin Bug (M-S-CALL0-FIX) ⚠️ HOTFIX

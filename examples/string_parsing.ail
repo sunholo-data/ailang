@@ -1,0 +1,97 @@
+module examples/string_parsing
+
+-- Demonstrates string-to-number parsing with Option types
+-- Shows how to safely parse user input using pattern matching
+
+import std/string (stringToInt, stringToFloat)
+import std/option (Option, Some, None, getOrElse)
+import std/io (println)
+
+-- Parse an age string and validate it
+pure func parseAge(input: string) -> Option[int] {
+  match stringToInt(input) {
+    Some(age) => if age >= 0 then Some(age) else None,
+    None => None
+  }
+}
+
+-- Parse a price string (handles decimals)
+pure func parsePrice(input: string) -> Option[float] {
+  stringToFloat(input)
+}
+
+-- Test valid integer parsing
+pure func testValidInt() -> string {
+  match stringToInt("42") {
+    Some(n) => "✓ stringToInt(\"42\") = Some(42)",
+    None => "✗ Failed to parse valid int"
+  }
+}
+
+-- Test invalid integer parsing
+pure func testInvalidInt() -> string {
+  match stringToInt("abc") {
+    Some(n) => "✗ Should have returned None",
+    None => "✓ stringToInt(\"abc\") = None (expected)"
+  }
+}
+
+-- Test valid float parsing
+pure func testValidFloat() -> string {
+  match stringToFloat("3.14") {
+    Some(f) => "✓ stringToFloat(\"3.14\") = Some(3.14)",
+    None => "✗ Failed to parse valid float"
+  }
+}
+
+-- Test invalid float parsing
+pure func testInvalidFloat() -> string {
+  match stringToFloat("not-a-number") {
+    Some(f) => "✗ Should have returned None",
+    None => "✓ stringToFloat(\"not-a-number\") = None (expected)"
+  }
+}
+
+-- Test getOrElse with default value
+pure func testDefault() -> string {
+  let result = getOrElse(stringToInt("invalid"), 99);
+  "✓ getOrElse with default: 99"
+}
+
+-- Test age validation
+pure func testAgeValidation() -> string {
+  match parseAge("25") {
+    Some(age) => "✓ Valid age: 25",
+    None => "✗ Age validation failed"
+  }
+}
+
+-- Test negative age rejection
+pure func testNegativeAge() -> string {
+  match parseAge("-5") {
+    Some(age) => "✗ Should reject negative age",
+    None => "✓ Negative age rejected (expected)"
+  }
+}
+
+-- Main function demonstrating the parsing functions
+export func main() -> () ! {IO} {
+  { println("=== String Parsing Examples (M-DX10) ===");
+    println("");
+    println("Integer parsing:");
+    println(testValidInt());
+    println(testInvalidInt());
+    println("");
+    println("Float parsing:");
+    println(testValidFloat());
+    println(testInvalidFloat());
+    println("");
+    println("Option helpers:");
+    println(testDefault());
+    println("");
+    println("Validation:");
+    println(testAgeValidation());
+    println(testNegativeAge());
+    ()
+  }
+}
