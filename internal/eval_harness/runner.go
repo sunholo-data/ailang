@@ -244,8 +244,8 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	}
 
 	// Symlink stdlib into workspace for module imports
-	stdlibSrc := filepath.Join(cwd, "stdlib")
-	stdlibDst := filepath.Join(workspace, "stdlib")
+	stdlibSrc := filepath.Join(cwd, "std")
+	stdlibDst := filepath.Join(workspace, "std")
 	if err := os.Symlink(stdlibSrc, stdlibDst); err != nil {
 		// If symlink fails (e.g., on Windows), copy stdlib directory
 		// For now, just log the error - stdlib access will fail but tests can still run

@@ -1,0 +1,13 @@
+{
+  "version": "v0.4.2.1-test",
+  "git_describe": "v0.4.2-7-g9dd5a060",
+  "timestamp": "2025-11-05T16:02:02Z",
+  "models": "claude-haiku-4-5",
+  "full_suite": false,
+  "languages": "python,ailang",
+  "parallel": 15,
+  "total_runs": 80,
+  "git_commit": "9dd5a060e62b8f69cc2f414b4da9a9945860f636",
+  "git_branch": "dev",
+  "git_dirty": true
+}
