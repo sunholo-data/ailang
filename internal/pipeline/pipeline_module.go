@@ -322,6 +322,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 			return result, fmt.Errorf("CoreTypeInfo validation failed in %s: %w", modID, err)
 		}
 
+		// Validate effects (M-SOUNDNESS)
+		if err := ValidateEffects(unit.Core, typeChecker.CoreTI); err != nil {
+			return result, fmt.Errorf("effect checking failed in %s: %w", modID, err)
+		}
+
 		// Perform monomorphization unless explicitly disabled
 		if !cfg.DisableMonomorphization {
 			specializer := NewSpecializer(&typeChecker.CoreTI)

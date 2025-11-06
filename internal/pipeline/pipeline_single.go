@@ -162,6 +162,12 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
 	}
 
+	// Validate effects (M-SOUNDNESS)
+	// This ensures functions declare all effects they use
+	if err := ValidateEffects(coreProg, typeChecker.CoreTI); err != nil {
+		return result, fmt.Errorf("effect checking failed: %w", err)
+	}
+
 	// Perform monomorphization unless explicitly disabled
 	var specializationStats SpecializationStats
 	if !cfg.DisableMonomorphization {
