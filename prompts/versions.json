@@ -244,7 +244,7 @@
     },
     "v0.4.2": {
       "file": "prompts/v0.4.2.md",
-      "hash": "20224e40be293c222426c5ba98532ef33b19cefcbe6ce58af2dd7fe17f3c990a",
+      "hash": "e00cb28557c2ed5c08199d95efa9e61460a15e016b69930513b73ba7f45d161e",
       "description": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation",
       "created": "2025-11-05",
       "tags": [
