@@ -10,8 +10,11 @@ if [[ $# -eq 0 ]]; then
 fi
 
 VERSION="$1"
-# Handle both v0.3.15 and 0.3.15 formats
-RESULTS_DIR="eval_results/baselines/$VERSION"
+
+# Normalize version: ensure directory always has "v" prefix
+# Strip any existing "v" prefix first, then add it
+VERSION_NORMALIZED="${VERSION#v}"
+RESULTS_DIR="eval_results/baselines/v$VERSION_NORMALIZED"
 MARKDOWN_FILE="docs/docs/benchmarks/performance.md"
 JSON_FILE="docs/static/benchmarks/latest.json"
 

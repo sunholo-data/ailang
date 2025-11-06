@@ -32,7 +32,11 @@ fi
 
 VERSION="$1"
 FULL_FLAG=""
-RESULTS_DIR="eval_results/baselines/$VERSION"
+
+# Normalize version: ensure directory always has "v" prefix
+# Strip any existing "v" prefix first, then add it
+VERSION_NORMALIZED="${VERSION#v}"
+RESULTS_DIR="eval_results/baselines/v$VERSION_NORMALIZED"
 
 if [[ $# -gt 1 ]] && [[ "$2" == "--full" ]]; then
     FULL_FLAG="FULL=true"
