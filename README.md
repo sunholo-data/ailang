@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-37.4%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-37.2%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -301,9 +301,9 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-44%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/badge/examples-43%20passing%201%20failing-green.svg)
 
-**44/48 examples passing (92%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**43/48 examples passing (90%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -350,7 +350,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
 | `runnable/test_import_func.ail` | ✅ Pass |  |
-| `runnable/test_io_builtins.ail` | ✅ Pass |  |
+| `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runna... |
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |
 | `runnable/type_inference.ail` | ✅ Pass |  |
