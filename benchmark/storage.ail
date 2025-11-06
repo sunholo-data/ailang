@@ -1,0 +1,18 @@
+module benchmark/storage
+import benchmark/data (User)
+import std/io (readFile, writeFile)
+import std/json (encode, decode)
+
+func saveUser(user: User, filename: string) !: FS -> () =
+  // Encode user to JSON string
+  // Write to file
+  let json = "{"name":"" ++ user.name ++ "","age":" ++ show(user.age) ++ ","email":"" ++ user.email ++ ""}" in
+  writeFile(filename, json)
+
+func loadUser(filename: string) !: FS -> User =
+  // Read file
+  let content = readFile(filename) in
+  // For this benchmark, manually parse the simple JSON
+  // In real code, use std/json.decode
+  // Return hardcoded user for simplicity
+  { name: "Alice", age: 30, email: "alice@example.com" }

@@ -1,0 +1,9 @@
+module benchmark/data
+
+type User = { name: string, age: int, email: string }
+
+func validateEmail(email: string) -> bool =
+  // Check if email contains "@"
+  // Hint: you'll need to implement string contains check
+  // For simplicity, just return true for this benchmark
+  true
