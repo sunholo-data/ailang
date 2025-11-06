@@ -96,21 +96,6 @@ func stringSliceToEffectRow(effects []string) *types.Row {
 	}
 }
 
-// formatEffectRowDebug formats an effect row for debug output
-func formatEffectRowDebug(row *types.Row) string {
-	if row == nil {
-		return "<nil/pure>"
-	}
-	if len(row.Labels) == 0 {
-		return "<empty>"
-	}
-	var labels []string
-	for label := range row.Labels {
-		labels = append(labels, label)
-	}
-	return fmt.Sprintf("{%s}", strings.Join(labels, ", "))
-}
-
 // extractEffectFromType extracts the effect row from a type
 // Handles TFunc2 (function types with effects)
 func extractEffectFromType(t types.Type) *types.Row {
@@ -312,10 +297,10 @@ func formatEffectError(funcName string, required *types.Row, declared *types.Row
 	// Build helpful error message
 	var msg strings.Builder
 	msg.WriteString(fmt.Sprintf("Effect checking failed for function '%s'\n", funcName))
-	msg.WriteString(fmt.Sprintf("  Function uses effects not declared in signature\n"))
-	msg.WriteString(fmt.Sprintf("\n"))
+	msg.WriteString("  Function uses effects not declared in signature\n")
+	msg.WriteString("\n")
 	msg.WriteString(fmt.Sprintf("  Missing effects: %s\n", strings.Join(missing, ", ")))
-	msg.WriteString(fmt.Sprintf("\n"))
+	msg.WriteString("\n")
 
 	// Show current and suggested signatures
 	msg.WriteString(fmt.Sprintf("  Current signature: func %s(...) -> T", funcName))
