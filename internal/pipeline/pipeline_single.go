@@ -164,7 +164,8 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	// Validate effects (M-SOUNDNESS)
 	// This ensures functions declare all effects they use
-	if err := ValidateEffects(coreProg, typeChecker.CoreTI); err != nil {
+	// Compare declared effects from Surface AST with required effects from Core AST
+	if err := ValidateEffects(result.Artifacts.AST, coreProg, typeChecker.CoreTI); err != nil {
 		return result, fmt.Errorf("effect checking failed: %w", err)
 	}
 

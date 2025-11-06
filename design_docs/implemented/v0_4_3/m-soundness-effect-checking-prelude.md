@@ -1,9 +1,11 @@
 # M-SOUNDNESS: Effect Checking for Entry Module Prelude
 
-**Status:** Planned
+**Status:** ✅ IMPLEMENTED (2025-11-06)
 **Version:** v0.4.3
 **Priority:** **CRITICAL** - Type system soundness issue
-**Estimated Effort:** 4-8 hours
+**Actual Effort:** ~3 hours (1 session)
+
+> **Implementation Report:** See [M-SOUNDNESS-COMPLETION-REPORT.md](M-SOUNDNESS-COMPLETION-REPORT.md) for complete details.
 
 ## Problem Statement
 

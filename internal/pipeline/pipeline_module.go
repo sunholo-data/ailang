@@ -323,7 +323,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 
 		// Validate effects (M-SOUNDNESS)
-		if err := ValidateEffects(unit.Core, typeChecker.CoreTI); err != nil {
+		// Compare declared effects from Surface AST with required effects from Core AST
+		if err := ValidateEffects(unit.Surface, unit.Core, typeChecker.CoreTI); err != nil {
 			return result, fmt.Errorf("effect checking failed in %s: %w", modID, err)
 		}
 

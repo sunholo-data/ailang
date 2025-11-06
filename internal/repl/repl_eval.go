@@ -120,7 +120,9 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	}
 
 	// Step 5.4.5: Validate effects (M-SOUNDNESS)
-	if err := pipeline.ValidateEffects(elaboratedProg, typeChecker.CoreTI); err != nil {
+	// Note: REPL doesn't preserve Surface AST, so we pass nil
+	// Effect validation is primarily for module files where explicit declarations matter
+	if err := pipeline.ValidateEffects(nil, elaboratedProg, typeChecker.CoreTI); err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Effect checking error"), err)
 		return
 	}

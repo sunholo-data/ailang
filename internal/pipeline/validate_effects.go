@@ -4,55 +4,111 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
 )
 
 // ValidateEffects validates that functions declare all effects they use
+// Compares declared effects from Surface AST with required effects from Core AST
 // Returns error if a function uses effects not declared in its signature
-func ValidateEffects(coreProg *core.Program, coreTypeInfo types.CoreTypeInfo) error {
+func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo) error {
+	// Early return for empty programs
+	if len(coreProg.Decls) == 0 {
+		return nil
+	}
+
+	// Build map of function names to their declared effects from Surface AST
+	declaredEffects := make(map[string][]string)
+	if surfaceAST != nil {
+		for _, funcDecl := range surfaceAST.Funcs {
+			declaredEffects[funcDecl.Name] = funcDecl.Effects
+		}
+	}
+
+	// Walk all top-level declarations
+	// Note: Top-level declarations are often wrapped in Let/LetRec nodes
 	for _, decl := range coreProg.Decls {
-		// Get the name from metadata (if available)
-		name := getDeclName(decl, coreProg.Meta)
-
-		// Extract declared effects from function signature
-		declared := extractDeclaredEffects(decl, coreTypeInfo)
-
-		// Collect required effects from function body
-		required := collectRequiredEffects(decl, coreTypeInfo)
-
-		// Check if required effects are subsumed by declared effects
-		if !types.SubsumeEffectRows(required, declared) {
-			return formatEffectError(name, required, declared)
+		if err := validateDecl(decl, declaredEffects, coreTypeInfo); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-// getDeclName extracts the name of a declaration from metadata
-func getDeclName(decl core.CoreExpr, meta map[string]*core.DeclMeta) string {
-	// Try to find metadata by searching for a matching declaration
-	for name, m := range meta {
-		// Match by checking if the decl is a lambda with this name
-		// (This is a heuristic; in practice, metadata is keyed by name)
-		_ = m
-		return name // Return first name found (TODO: better matching)
-	}
-	return "<unknown>"
-}
+// validateDecl validates a single declaration, handling Let/LetRec specially
+func validateDecl(decl core.CoreExpr, declaredEffects map[string][]string, typeInfo types.CoreTypeInfo) error {
+	// If this is a LetRec, validate each binding as a separate function
+	if letRec, ok := decl.(*core.LetRec); ok {
+		for _, binding := range letRec.Bindings {
+			// Get declared effects from Surface AST
+			surfaceDeclaredEffects := declaredEffects[binding.Name]
+			declared := stringSliceToEffectRow(surfaceDeclaredEffects)
 
-// extractDeclaredEffects extracts the effect row from a function's type signature
-// Returns nil for pure functions (no effects declared)
-func extractDeclaredEffects(decl core.CoreExpr, typeInfo types.CoreTypeInfo) *types.Row {
-	funcType, ok := typeInfo.Get(decl.ID())
-	if !ok {
-		// No type info - shouldn't happen if CoreTypeInfo validation passed
+			// Collect required effects from Core AST
+			required := collectRequiredEffects(binding.Value, typeInfo)
+
+			if !types.SubsumeEffectRows(required, declared) {
+				return formatEffectError(binding.Name, required, declared)
+			}
+		}
 		return nil
 	}
 
-	// Extract effect row from function type
-	return extractEffectFromType(funcType)
+	// If this is a Let, validate the binding and recurse on body
+	if let, ok := decl.(*core.Let); ok {
+		// Get declared effects from Surface AST
+		surfaceDeclaredEffects := declaredEffects[let.Name]
+		declared := stringSliceToEffectRow(surfaceDeclaredEffects)
+
+		// Collect required effects from Core AST
+		required := collectRequiredEffects(let.Value, typeInfo)
+
+		if !types.SubsumeEffectRows(required, declared) {
+			return formatEffectError(let.Name, required, declared)
+		}
+
+		// Also validate the body
+		return validateDecl(let.Body, declaredEffects, typeInfo)
+	}
+
+	// For other declarations (shouldn't happen in normal flow)
+	return nil
+}
+
+// stringSliceToEffectRow converts a slice of effect label strings to an effect row
+// Returns nil for empty slice (pure function)
+func stringSliceToEffectRow(effects []string) *types.Row {
+	if len(effects) == 0 {
+		return nil // Pure (no effects)
+	}
+
+	labels := make(map[string]types.Type)
+	for _, effect := range effects {
+		labels[effect] = &types.TCon{Name: effect} // Effect labels map to their names as types
+	}
+
+	return &types.Row{
+		Kind:   types.KRow{ElemKind: types.KEffect{}},
+		Labels: labels,
+		Tail:   nil, // Closed row (no extension)
+	}
+}
+
+// formatEffectRowDebug formats an effect row for debug output
+func formatEffectRowDebug(row *types.Row) string {
+	if row == nil {
+		return "<nil/pure>"
+	}
+	if len(row.Labels) == 0 {
+		return "<empty>"
+	}
+	var labels []string
+	for label := range row.Labels {
+		labels = append(labels, label)
+	}
+	return fmt.Sprintf("{%s}", strings.Join(labels, ", "))
 }
 
 // extractEffectFromType extracts the effect row from a type
