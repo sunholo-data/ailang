@@ -32,6 +32,7 @@ fi
 
 VERSION="$1"
 FULL_FLAG=""
+RESULTS_DIR="eval_results/baselines/$VERSION"
 
 if [[ $# -gt 1 ]] && [[ "$2" == "--full" ]]; then
     FULL_FLAG="FULL=true"
@@ -84,8 +85,6 @@ AGENT_BENCHMARKS="fizzbuzz,recursion_factorial,recursion_fibonacci,simple_print,
 
 echo "Benchmarks: $AGENT_BENCHMARKS"
 echo
-
-RESULTS_DIR="eval_results/baselines/$VERSION"
 
 # Pre-flight validation and configuration summary
 echo "=== Pre-Flight Check ==="
