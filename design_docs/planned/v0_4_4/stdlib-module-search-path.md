@@ -3,7 +3,7 @@
 **Status**: Planned
 **Target**: v0.4.4
 **Priority**: P0 (High) - Blocks agent eval benchmarks
-**Estimated**: 2 days (8h implementation + 6h testing + 2h docs)
+**Estimated**: 3 days (12h implementation + 8h testing + 4h docs)
 **Dependencies**: None
 
 ## AI-First Alignment Check
@@ -14,9 +14,9 @@
 |-----------|--------|-------|-------|
 | Reduce Syntactic Noise | 0 | 0 | No syntax changes |
 | Preserve Semantic Clarity | + | +1 | Makes imports work consistently regardless of working directory |
-| Increase Determinism | + | +1 | Same code produces same results from any directory |
+| Increase Determinism | ++ | +2 | Same code + same stdlib version = identical results; version pinning prevents silent skew |
 | Lower Token Cost | 0 | 0 | No change to code written by AI |
-| **Net Score** | | **+2** | **Decision: Move forward** |
+| **Net Score** | | **+3** | **Decision: Move forward with version pinning** |
 
 **Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
 
@@ -72,117 +72,286 @@ Error: module loading error: failed to load std/fs: LDR001: module not found: st
 
 ### Overview
 
-Add a **global stdlib search path** mechanism to the module loader that checks standard locations for stdlib modules when relative paths fail.
+Add a **global stdlib search path** mechanism to the module loader that checks standard locations for **`std/*` imports only** when relative paths fail.
 
-**Search order:**
-1. Current working directory (existing behavior)
-2. Relative to source file location (existing behavior)
-3. **NEW:** `AILANG_STDLIB_PATH` environment variable
-4. **NEW:** Compiled-in default (`/usr/local/share/ailang/std`, `~/.ailang/std`)
-5. **NEW:** Relative to `ailang` binary location (`$BINARY_DIR/../std`)
+**Key Design Decisions:**
 
-This mirrors Go's module system, Python's site-packages, and other language stdlib mechanisms.
+1. **Scoped to `std/*` only** - Global search only applies to imports with `std/` prefix. Project modules continue using existing relative resolution. This prevents surprising shadowing and keeps resolution predictable.
+
+2. **Version pinning** - Stdlib includes a `VERSION` file; compiler embeds expected version and checks for mismatches. Prevents silent version skew between compiler and stdlib.
+
+3. **Platform-aware paths** - Uses OS-specific data directories (XDG on Linux, `%APPDATA%` on Windows, `~/Library/Application Support` on macOS).
+
+4. **Path hygiene** - Sanitizes module names (allows only `[a-zA-Z0-9_/-]`; rejects `..`, absolute paths). Treats names as logical IDs, never evaluates raw filesystem traversals.
+
+5. **Observable diagnostics** - `--trace-loader` flag shows search trace with helpful hints when modules not found.
+
+**Search order (for `std/*` imports only):**
+1. Project-relative (existing behavior - preserves local overrides)
+2. Source-file-relative (existing behavior)
+3. **NEW:** Binary-relative (`$BINARY_DIR/../std`) - "just works" for installed binaries
+4. **NEW:** `--stdlib-path` CLI flag - explicit override for CI/testing
+5. **NEW:** `AILANG_STDLIB_PATH` environment variable (colon/semicolon separated path list)
+6. **NEW:** User data directory (platform-specific)
+   - Linux: `$XDG_DATA_HOME/ailang/std` or `~/.local/share/ailang/std`
+   - macOS: `~/Library/Application Support/ailang/std`
+   - Windows: `%APPDATA%\ailang\std`
+7. **NEW:** System data directories
+   - `/usr/local/share/ailang/std`
+   - `/usr/share/ailang/std`
+
+This mirrors Go's module system, Python's site-packages, and Rust's CARGO_HOME.
 
 ### Architecture
 
 **Module Loader Changes (`internal/loader/`):**
 
 ```go
-// ModuleSearchPath defines where to look for modules
-type ModuleSearchPath struct {
-    // WorkingDir: Current directory (existing)
-    WorkingDir string
+// StdlibResolver handles stdlib module resolution
+type StdlibResolver struct {
+    // Cached paths (computed once per process)
+    searchPaths []string
+    once        sync.Once
 
-    // SourceRelative: Relative to source file (existing)
-    SourceRelative string
+    // Negative cache: module name -> tried paths
+    negativeCache map[string][]string
+    cacheMutex    sync.RWMutex
 
-    // StdlibPaths: Global stdlib locations (NEW)
-    StdlibPaths []string
+    // CLI override
+    cliOverridePath string
+
+    // Version checking
+    expectedVersion string // Embedded at compile time
 }
 
-// SearchForModule tries each path in order
-func (l *Loader) SearchForModule(moduleName string) (string, error) {
-    // 1. Try working directory
-    // 2. Try source-relative
-    // 3. Try each stdlib path (NEW)
-    // 4. Return LDR001 if not found
+// ResolveStdlib resolves std/* imports only
+func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
+    // 1. Check this is a std/* import
+    if !strings.HasPrefix(moduleName, "std/") {
+        return "", ErrNotStdlibModule
+    }
+
+    // 2. Sanitize module name (security)
+    if err := validateModuleName(moduleName); err != nil {
+        return "", err
+    }
+
+    // 3. Check negative cache
+    if cached, ok := r.checkNegativeCache(moduleName); ok {
+        return "", errWithSearchTrace(moduleName, cached)
+    }
+
+    // 4. Try each search path
+    r.once.Do(r.initializeSearchPaths)
+    triedPaths := []string{}
+
+    for _, base := range r.searchPaths {
+        fullPath := filepath.Join(base, moduleName+".ail")
+        if fileExists(fullPath) {
+            // 5. Verify stdlib version
+            if err := r.checkStdlibVersion(base); err != nil {
+                log.Warnf("stdlib at %s: %v", base, err)
+                continue
+            }
+            return fullPath, nil
+        }
+        triedPaths = append(triedPaths, fullPath)
+    }
+
+    // 6. Cache negative result
+    r.cacheNegative(moduleName, triedPaths)
+    return "", errWithSearchTrace(moduleName, triedPaths)
 }
 
-// GetStdlibPaths returns stdlib search paths in priority order (NEW)
-func GetStdlibPaths() []string {
+// initializeSearchPaths builds the search path list once
+func (r *StdlibResolver) initializeSearchPaths() {
     paths := []string{}
 
-    // 1. Environment variable (highest priority)
-    if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
-        paths = append(paths, envPath)
+    // 1. CLI flag (highest priority)
+    if r.cliOverridePath != "" {
+        paths = append(paths, r.cliOverridePath)
     }
 
-    // 2. User directory
-    if homeDir, err := os.UserHomeDir(); err == nil {
-        paths = append(paths, filepath.Join(homeDir, ".ailang/std"))
-    }
-
-    // 3. Relative to binary
+    // 2. Binary-relative (tends to "just work")
     if exePath, err := os.Executable(); err == nil {
-        exeDir := filepath.Dir(exePath)
+        realPath, _ := filepath.EvalSymlinks(exePath) // Follow symlinks
+        exeDir := filepath.Dir(realPath)
         paths = append(paths, filepath.Join(exeDir, "..", "std"))
     }
 
-    // 4. System-wide (for installed binaries)
-    paths = append(paths, "/usr/local/share/ailang/std")
+    // 3. AILANG_STDLIB_PATH (colon/semicolon separated)
+    if envPaths := os.Getenv("AILANG_STDLIB_PATH"); envPaths != "" {
+        sep := getPathSeparator() // ':' on POSIX, ';' on Windows
+        for _, p := range strings.Split(envPaths, sep) {
+            if p = strings.TrimSpace(p); p != "" {
+                paths = append(paths, p)
+            }
+        }
+    }
 
-    return paths
+    // 4. User data directory (platform-specific)
+    if userDataDir := getUserDataDir(); userDataDir != "" {
+        paths = append(paths, filepath.Join(userDataDir, "ailang", "std"))
+    }
+
+    // 5. System data directories
+    paths = append(paths, "/usr/local/share/ailang/std")
+    paths = append(paths, "/usr/share/ailang/std")
+
+    r.searchPaths = paths
+}
+
+// getUserDataDir returns OS-specific user data directory
+func getUserDataDir() string {
+    switch runtime.GOOS {
+    case "linux", "freebsd", "openbsd", "netbsd":
+        if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
+            return xdg
+        }
+        if home := os.Getenv("HOME"); home != "" {
+            return filepath.Join(home, ".local", "share")
+        }
+    case "darwin":
+        if home := os.Getenv("HOME"); home != "" {
+            return filepath.Join(home, "Library", "Application Support")
+        }
+    case "windows":
+        if appData := os.Getenv("APPDATA"); appData != "" {
+            return appData
+        }
+    }
+    return ""
+}
+
+// validateModuleName ensures path hygiene (security)
+func validateModuleName(name string) error {
+    // Allow only [a-zA-Z0-9_/-]
+    for _, ch := range name {
+        if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+             (ch >= '0' && ch <= '9') || ch == '_' || ch == '/' || ch == '-') {
+            return fmt.Errorf("invalid character in module name: %q", ch)
+        }
+    }
+    // Reject .. and absolute paths
+    if strings.Contains(name, "..") || filepath.IsAbs(name) {
+        return fmt.Errorf("module name cannot contain '..' or be absolute")
+    }
+    return nil
+}
+
+// checkStdlibVersion verifies VERSION file matches expected version
+func (r *StdlibResolver) checkStdlibVersion(stdlibRoot string) error {
+    versionFile := filepath.Join(stdlibRoot, "VERSION")
+    data, err := os.ReadFile(versionFile)
+    if err != nil {
+        return fmt.Errorf("missing VERSION file")
+    }
+    actualVersion := strings.TrimSpace(string(data))
+    if actualVersion != r.expectedVersion {
+        return fmt.Errorf("version mismatch: expected %s, found %s",
+            r.expectedVersion, actualVersion)
+    }
+    return nil
+}
+
+// errWithSearchTrace creates a helpful error message
+func errWithSearchTrace(moduleName string, triedPaths []string) error {
+    msg := fmt.Sprintf("LDR001: module not found: %s\nsearched:\n", moduleName)
+    for _, p := range triedPaths {
+        msg += fmt.Sprintf("  %s\n", p)
+    }
+    msg += "\ntip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path\n"
+    return errors.New(msg)
 }
 ```
 
 **Components:**
-1. **StdlibPath Resolution** - Find stdlib location at runtime
-2. **Module Search Enhancement** - Check stdlib paths after relative paths
-3. **Caching** - Cache resolved stdlib path (computed once per process)
-4. **Diagnostics** - Log search trace when module not found (for debugging)
+1. **StdlibPath Resolution** - Find stdlib location at runtime with platform-aware logic
+2. **Scoped Resolution** - Only applies to `std/*` imports; project modules unaffected
+3. **Version Pinning** - Check `VERSION` file in stdlib root; warn/fail on mismatch
+4. **Path Sanitization** - Validate module names to prevent directory traversal attacks
+5. **Positive Caching** - Cache resolved stdlib root (computed once per process)
+6. **Negative Caching** - Cache failed lookups to avoid repeated filesystem hits (O(1) retries)
+7. **Diagnostics** - Detailed search trace with helpful hints when modules not found
+8. **CLI Override** - `--stdlib-path` flag for CI/testing without environment variables
 
 ### Implementation Plan
 
-**Phase 1: Core Search Path Logic** (~4 hours)
-- [ ] Add `GetStdlibPaths()` function to `internal/loader/loader.go`
-- [ ] Add `AILANG_STDLIB_PATH` environment variable support
-- [ ] Implement binary-relative path resolution
-- [ ] Add stdlib path caching
-- [ ] Unit tests for path resolution (15+ test cases)
+**Phase 1: Core Infrastructure** (~6 hours)
+- [ ] Create `std/VERSION` file with current version (v0.4.4)
+- [ ] Embed expected stdlib version in binary at compile time
+- [ ] Create `internal/loader/stdlib_resolver.go` with `StdlibResolver` struct
+- [ ] Implement `validateModuleName()` with security checks
+- [ ] Implement platform-specific `getUserDataDir()`
+- [ ] Implement `getPathSeparator()` for Windows vs POSIX
+- [ ] Add positive and negative caching logic
+- [ ] Unit tests for path resolution (20+ test cases)
+- [ ] Unit tests for module name sanitization (10+ test cases)
 
-**Phase 2: Module Loader Integration** (~2 hours)
-- [ ] Modify `Loader.LoadModule()` to use stdlib paths
-- [ ] Update search trace logging to include stdlib paths tried
+**Phase 2: Module Loader Integration** (~3 hours)
+- [ ] Modify `Loader.LoadModule()` to check `std/*` prefix
+- [ ] Integrate `StdlibResolver` into loader
+- [ ] Add `--stdlib-path` CLI flag to `cmd/ailang/main.go`
+- [ ] Update search trace logging with detailed diagnostics
 - [ ] Preserve existing behavior for project-relative imports
-- [ ] Add integration test with temp directory
+- [ ] Add integration test: load `std/io` from `/tmp` with `--stdlib-path`
 
-**Phase 3: Eval Harness Integration** (~2 hours)
-- [ ] Update `internal/eval_harness/runner.go` to set `AILANG_STDLIB_PATH`
-- [ ] Point to actual project stdlib directory
-- [ ] Test agent eval benchmarks locally
+**Phase 3: Version Checking & Diagnostics** (~3 hours)
+- [ ] Implement `checkStdlibVersion()` with VERSION file parsing
+- [ ] Add `--trace-loader` flag for verbose diagnostics
+- [ ] Add `--strict` flag to fail (vs warn) on version mismatch
+- [ ] Implement helpful error messages with search trace
+- [ ] Add environment variable `AILANG_DEBUG=loader` support
+- [ ] Unit tests for version checking (5+ test cases)
+
+**Phase 4: Eval Harness & CLI Integration** (~2 hours)
+- [ ] Update `internal/eval_harness/runner.go` to use `--stdlib-path` flag
+- [ ] Point to actual project stdlib directory in eval runs
+- [ ] Test agent eval benchmarks locally (4 failing benchmarks)
 - [ ] Verify all 4 failing benchmarks now pass
+- [ ] Add `--stdlib-path` to eval harness command recording
 
-**Phase 4: Testing & Documentation** (~8 hours)
+**Phase 5: Testing** (~6 hours)
 - [ ] Run full test suite (ensure zero new failures)
 - [ ] Run agent eval baseline (verify ≥85% success rate)
-- [ ] Update CLAUDE.md with `AILANG_STDLIB_PATH` usage
-- [ ] Add examples to documentation
+- [ ] Test Windows path separators and %APPDATA%
+- [ ] Test XDG_DATA_HOME on Linux
+- [ ] Test symlink resolution for binary-relative paths
+- [ ] Test security: reject `std/../../etc/passwd`
+- [ ] Test negative caching (repeated failures are O(1))
+- [ ] Test version mismatch warnings
+- [ ] Test `--stdlib-path` vs `AILANG_STDLIB_PATH` precedence
+- [ ] Manual testing from `/tmp`, `~/Downloads`, Docker containers
+
+**Phase 6: Documentation** (~4 hours)
+- [ ] Create `docs/guides/stdlib-resolution.md` (comprehensive guide)
+- [ ] Update CLAUDE.md with `AILANG_STDLIB_PATH` and `--stdlib-path` usage
+- [ ] Update `cmd/ailang/help.go` with stdlib-path flag help
+- [ ] Add Docker/container deployment examples
+- [ ] Document version pinning mechanism
+- [ ] Document shadowing behavior (local std/ doesn't override global)
+- [ ] Add troubleshooting section with common errors
 - [ ] Update installation guide for different deployment scenarios
 
 ### Files to Modify/Create
 
 **New files:**
-- `internal/loader/stdlib_path.go` - Stdlib path resolution logic (~100 LOC)
-- `internal/loader/stdlib_path_test.go` - Unit tests (~200 LOC)
+- `std/VERSION` - Version identifier file (1 line: `v0.4.4`)
+- `internal/loader/stdlib_resolver.go` - Stdlib resolution logic (~300 LOC)
+- `internal/loader/stdlib_resolver_test.go` - Unit tests (~400 LOC)
+- `docs/guides/stdlib-resolution.md` - Comprehensive guide (~150 LOC)
 
 **Modified files:**
-- `internal/loader/loader.go` - Integrate stdlib paths into search (~30 LOC added)
-- `internal/loader/loader_test.go` - Integration tests (~50 LOC added)
-- `internal/eval_harness/runner.go` - Set `AILANG_STDLIB_PATH` in eval environment (~10 LOC)
-- `CLAUDE.md` - Document `AILANG_STDLIB_PATH` usage (~20 LOC)
-- `docs/guides/modules.md` - Document module search behavior (~50 LOC)
+- `internal/loader/loader.go` - Integrate `StdlibResolver` (~50 LOC added)
+- `internal/loader/loader_test.go` - Integration tests (~80 LOC added)
+- `cmd/ailang/main.go` - Add `--stdlib-path` and `--trace-loader` flags (~30 LOC)
+- `cmd/ailang/help.go` - Document new flags (~40 LOC)
+- `internal/eval_harness/runner.go` - Use `--stdlib-path` flag (~15 LOC)
+- `Makefile` - Embed version at build time via `-ldflags` (~5 LOC)
+- `CLAUDE.md` - Document stdlib resolution (~100 LOC)
+- `docs/guides/modules.md` - Update module search behavior (~80 LOC)
 
-**Total new code:** ~460 LOC (test-heavy, production code is ~140 LOC)
+**Total new code:** ~1250 LOC (60% tests, 40% production code + docs)
 
 ## Examples
 
@@ -204,14 +373,18 @@ Error: LDR001: module not found: std/fs
 
 **After (v0.4.4 - WORKS):**
 ```bash
-# Eval harness sets AILANG_STDLIB_PATH
-$ export AILANG_STDLIB_PATH=/Users/mark/dev/sunholo/ailang/std
+# Eval harness uses --stdlib-path flag
 $ cd /tmp/ailang_eval/benchmark_xyz
-$ ailang run --entry main --caps IO,FS benchmark/solution.ail
+$ ailang run --entry main --caps IO,FS --stdlib-path /Users/mark/dev/sunholo/ailang/std benchmark/solution.ail
 → Type checking...
 → Effect checking...
 ✓ Running benchmark/solution.ail
 [output]
+
+# OR use environment variable
+$ export AILANG_STDLIB_PATH=/Users/mark/dev/sunholo/ailang/std
+$ ailang run --entry main --caps IO,FS benchmark/solution.ail
+[works!]
 ```
 
 ### Example 2: Manual Usage from Any Directory
@@ -232,7 +405,27 @@ $ ailang run --entry main test.ail
 # Works! Loader finds std/io via binary-relative path
 ```
 
-### Example 3: CI/CD Deployment
+### Example 3: Helpful Error Diagnostics
+
+**Scenario:** User forgets to set stdlib path
+
+```bash
+$ cd ~/Downloads
+$ ailang run test.ail --trace-loader
+Error: module loading error: failed to load std/io
+LDR001: module not found: std/io
+searched:
+  ./std/io.ail
+  ~/Downloads/std/io.ail
+  /usr/local/bin/../std/io.ail
+  ~/.local/share/ailang/std/io.ail
+  /usr/local/share/ailang/std/io.ail
+  /usr/share/ailang/std/io.ail
+
+tip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path
+```
+
+### Example 4: CI/CD Deployment
 
 **Scenario:** Docker container with installed `ailang` binary
 
@@ -241,9 +434,31 @@ $ ailang run --entry main test.ail
 COPY ailang /usr/local/bin/ailang
 COPY std /usr/local/share/ailang/std
 
-# Works from any directory
+# Binary-relative path resolution "just works"
 WORKDIR /app
 CMD ["ailang", "run", "--entry", "main", "app.ail"]
+```
+
+**Scenario:** GitHub Actions CI
+
+```yaml
+- name: Run AILANG tests
+  run: |
+    ailang test --stdlib-path ./std tests/*.ail
+```
+
+### Example 5: Version Mismatch Warning
+
+**Scenario:** User has outdated stdlib
+
+```bash
+$ ailang run --strict test.ail
+Warning: stdlib version mismatch at /usr/local/share/ailang/std
+  expected: v0.4.4
+  found: v0.4.2
+
+Use --stdlib-path to specify a different stdlib location
+Error: strict mode: refusing to run with mismatched stdlib version
 ```
 
 ## Success Criteria
@@ -263,30 +478,83 @@ CMD ["ailang", "run", "--entry", "main", "app.ail"]
 
 ## Testing Strategy
 
-**Unit tests (`internal/loader/stdlib_path_test.go`):**
-- `GetStdlibPaths()` with `AILANG_STDLIB_PATH` set
-- `GetStdlibPaths()` without environment variable
-- Binary-relative path resolution (mock executable path)
-- Home directory expansion (`~/.ailang/std`)
-- Search path priority order
-- Edge cases: no home dir, no executable path, etc.
+**Unit tests (`internal/loader/stdlib_resolver_test.go`):**
+- **Path resolution** (8 tests):
+  - Binary-relative path with symlink resolution
+  - `AILANG_STDLIB_PATH` with single path
+  - `AILANG_STDLIB_PATH` with multiple paths (colon-separated on POSIX, semicolon on Windows)
+  - `--stdlib-path` CLI flag overrides environment variable
+  - Platform-specific user data dir (XDG, %APPDATA%, ~/Library)
+  - Search order precedence
+  - Empty/missing environment variables
+  - Edge cases: no home dir, no executable path
+
+- **Module name sanitization** (10 tests):
+  - Valid names: `std/io`, `std/fs`, `std/result`
+  - Invalid characters rejected: `std/../../etc/passwd`, `std/foo@bar`, `std/foo\0bar`
+  - Absolute paths rejected: `/etc/passwd`, `C:\Windows\System32`
+  - Relative traversal rejected: `std/../etc`, `std/./../../secrets`
+  - Valid hyphen/underscore: `std/json-parser`, `std/http_client`
+  - Empty module name rejected
+  - Module name without `std/` prefix (returns ErrNotStdlibModule)
+
+- **Caching** (5 tests):
+  - Positive cache: resolved path reused on subsequent calls
+  - Negative cache: failed lookups return cached error immediately
+  - Negative cache stores tried paths for diagnostics
+  - Cache is thread-safe (concurrent access)
+  - Cache cleared on resolver recreation
+
+- **Version checking** (7 tests):
+  - VERSION file matches expected version (success)
+  - VERSION file mismatch (warning logged, continues in non-strict mode)
+  - VERSION file mismatch with `--strict` (fails immediately)
+  - Missing VERSION file (warning logged, continues)
+  - Malformed VERSION file (warning logged)
+  - Multiple stdlib paths: skip mismatched versions, use matching one
+  - Version embedded correctly at compile time via `-ldflags`
 
 **Integration tests (`internal/loader/loader_test.go`):**
-- Load `std/io` from temp directory with `AILANG_STDLIB_PATH` set
-- Load `std/fs` from temp directory with binary-relative path
-- Load project module (existing behavior preserved)
-- Load fails with clear error message when module truly doesn't exist
+- Load `std/io` from temp directory with `--stdlib-path` flag
+- Load `std/fs` from temp directory with `AILANG_STDLIB_PATH` env var
+- Load project module `foo/bar` (not `std/*`) uses existing relative resolution
+- Load fails with clear error message and search trace
+- Error message includes helpful hints
+- `--trace-loader` outputs verbose search path
+- Project-local `std/io.ail` shadows global stdlib (if present)
+- Stdlib resolution works from any working directory (`/tmp`, `~/Downloads`, etc.)
+
+**Platform-specific tests:**
+- **Windows**: Path separator (semicolon), %APPDATA%, drive letters, UNC paths
+- **macOS**: ~/Library/Application Support, symlinks in /usr/local/bin
+- **Linux**: XDG_DATA_HOME, /usr/local/share, /usr/share
+
+**Security tests:**
+- Reject `std/../../etc/passwd` (directory traversal)
+- Reject `std/foo\0bar` (null byte injection)
+- Reject absolute paths in module names
+- Reject special characters in module names
+- symlink attacks: ensure realpath resolution
+
+**Performance tests:**
+- Negative cache: repeated failures are O(1) (not O(n) filesystem hits)
+- Positive cache: resolved path reused (measured with benchmarks)
+- Search path initialization only happens once per process
 
 **Agent eval tests:**
 - Run `ailang eval-suite --benchmarks effect_composition,effect_tracking_io_fs,deterministic_list_transform,exhaustive_pattern_matching`
-- Verify all 4 benchmarks pass
-- Compare agent AILANG success rate to v0.4.2 baseline
+- Verify all 4 benchmarks pass with `--stdlib-path` flag
+- Compare agent AILANG success rate to v0.4.2 baseline (target: ≥85%)
+- Ensure eval harness records `--stdlib-path` in run metadata
 
 **Manual testing:**
 - `cd /tmp && ailang run --entry main /tmp/test.ail` (with `import std/io`)
-- Run from `~/Downloads` directory
-- Run from Docker container with installed binary
-- Verify search trace in error messages
+- Run from `~/Downloads` directory (binary-relative path should work)
+- Run from Docker container with installed binary to /usr/local/bin
+- Verify search trace in error messages with `--trace-loader`
+- Test GitHub Actions CI workflow with `--stdlib-path ./std`
+- Test version mismatch warning with outdated stdlib
+- Test `--strict` mode fails on version mismatch
 
 ## Non-Goals
 
@@ -300,31 +568,47 @@ CMD ["ailang", "run", "--entry", "main", "app.ail"]
 ## Timeline
 
 **Day 1** (8 hours):
-- Phase 1: Implement `GetStdlibPaths()` and unit tests (4h)
-- Phase 2: Integrate into module loader (2h)
-- Phase 3: Update eval harness (2h)
+- Phase 1: Core infrastructure (6h)
+  - VERSION file, sanitization, platform-specific paths, caching
+  - Unit tests for path resolution and sanitization
+- Phase 2: Module loader integration (2h)
 
 **Day 2** (8 hours):
-- Phase 4: Full testing (4h)
-  - Run test suite
-  - Run agent eval benchmarks
-  - Manual testing from temp directories
-- Phase 4: Documentation (2h)
-  - Update CLAUDE.md
-  - Update module guide
-- Buffer for unexpected issues (2h)
+- Phase 3: Version checking & diagnostics (3h)
+  - VERSION file checking, --trace-loader, error messages
+- Phase 4: Eval harness integration (2h)
+  - Update eval harness to use --stdlib-path
+  - Test 4 failing benchmarks locally
+- Phase 5: Testing (3h)
+  - Run full test suite
+  - Platform-specific tests
+  - Security tests
 
-**Total: ~16 hours across 2 days**
+**Day 3** (8 hours):
+- Phase 5: Testing (continued) (4h)
+  - Agent eval baseline (full run)
+  - Manual testing (Docker, CI, etc.)
+  - Performance benchmarks
+- Phase 6: Documentation (4h)
+  - Create stdlib-resolution.md guide
+  - Update CLAUDE.md, help text, installation docs
+  - Add troubleshooting section
+
+**Total: ~24 hours across 3 days**
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Breaking existing imports | High | Preserve search order: project-relative first, stdlib last |
-| Performance regression | Medium | Cache stdlib path (computed once), minimal overhead |
-| Security: Untrusted stdlib injection | Medium | `AILANG_STDLIB_PATH` requires explicit user configuration |
-| Platform differences (Windows paths) | Medium | Use `filepath.Join()` for cross-platform compatibility |
-| Binary not in PATH | Low | Provide clear error if stdlib not found, suggest `AILANG_STDLIB_PATH` |
+| Breaking existing imports | High | Preserve search order: project-relative first, stdlib last; scope global search to `std/*` only |
+| Performance regression | Medium | Cache stdlib path (computed once per process); negative caching for failed lookups |
+| Security: Directory traversal attacks | High | Sanitize module names (allow only `[a-zA-Z0-9_/-]`); reject `..` and absolute paths |
+| Security: Untrusted stdlib injection | Medium | `AILANG_STDLIB_PATH` requires explicit user configuration; version pinning detects mismatches |
+| Platform differences (Windows paths) | Medium | Use `filepath.Join()` for cross-platform compatibility; test on Windows, macOS, Linux |
+| Binary not in PATH | Low | Provide clear error if stdlib not found with search trace and hints |
+| Version skew (mismatched stdlib) | High | VERSION file checked at runtime; `--strict` mode fails on mismatch; warnings logged |
+| Symlink attacks | Medium | Use `filepath.EvalSymlinks()` for binary-relative paths; validate resolved paths |
+| Shadow behavior confusion | Medium | Document clearly that project-local `std/` overrides global stdlib (first in search order) |
 
 ## References
 
@@ -339,13 +623,21 @@ CMD ["ailang", "run", "--entry", "main", "app.ail"]
 
 ## Future Work
 
-- **Package manager** (v0.5.0+): Third-party module registry with versioning
-- **Module aliasing**: `import std/io as io`
-- **Selective imports with renaming**: `import std/fs (readFile as read)`
-- **Module preloading**: Cache parsed stdlib modules for faster startup
-- **Stdlib versioning**: Pin specific stdlib version independently of compiler
+**Post-v0.4.4 enhancements:**
+- **Stdlib SHA256 checksums** - Add CHECKSUMS file for integrity verification
+- **--allow-stdlib-shadow** - Opt-in flag to allow project-local `std/` to shadow global stdlib
+- **Module aliasing** - `import std/io as io` (syntax change, deferred)
+- **Selective imports with renaming** - `import std/fs (readFile as read)` (syntax change, deferred)
+- **Module preloading** - Cache parsed stdlib modules for faster startup (~10% speedup potential)
+- **Package manager** (v0.5.0+) - Third-party module registry with versioning
+- **Stdlib versioning independence** - Pin specific stdlib version independently of compiler (requires package manager)
+
+**Out of scope (not aligned with AILANG vision):**
+- IDE-specific features (autocompletion based on stdlib path)
+- Network-based module loading (security concerns, determinism impact)
+- Dynamic stdlib discovery (breaks determinism)
 
 ---
 
 **Document created**: 2025-11-06
-**Last updated**: 2025-11-06
+**Last updated**: 2025-11-06 (revised with version pinning, scoping, and security enhancements)
