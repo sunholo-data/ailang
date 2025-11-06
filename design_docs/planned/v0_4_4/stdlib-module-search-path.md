@@ -363,66 +363,104 @@ func errWithSearchTrace(moduleName string, triedPaths []string) error {
 $ cat /tmp/ailang_eval/benchmark_xyz/benchmark/solution.ail
 module benchmark/solution
 import std/fs (readFile, writeFile)
-export func main() -> () ! {IO, FS} { ... }
+import std/io (println)
+
+export func main() -> () ! {IO, FS} {
+  writeFile("test.txt", "42");
+  let content = readFile("test.txt");
+  println(content)
+}
 
 # Agent runs from temp directory
 $ cd /tmp/ailang_eval/benchmark_xyz
-$ ailang run --entry main --caps IO,FS benchmark/solution.ail
-Error: LDR001: module not found: std/fs
+$ ailang run --caps IO,FS --entry main benchmark/solution.ail
+Error: module loading error: failed to load std/fs: LDR001: module not found: std/fs
 ```
 
 **After (v0.4.4 - WORKS):**
 ```bash
-# Eval harness uses --stdlib-path flag
+# Eval harness uses --stdlib-path flag (flags BEFORE filename)
 $ cd /tmp/ailang_eval/benchmark_xyz
-$ ailang run --entry main --caps IO,FS --stdlib-path /Users/mark/dev/sunholo/ailang/std benchmark/solution.ail
+$ ailang run --caps IO,FS --entry main --stdlib-path /Users/mark/dev/sunholo/ailang/std benchmark/solution.ail
 → Type checking...
 → Effect checking...
 ✓ Running benchmark/solution.ail
-[output]
+42
 
-# OR use environment variable
+# OR use environment variable (colon-separated on POSIX)
 $ export AILANG_STDLIB_PATH=/Users/mark/dev/sunholo/ailang/std
-$ ailang run --entry main --caps IO,FS benchmark/solution.ail
-[works!]
+$ ailang run --caps IO,FS --entry main benchmark/solution.ail
+→ Type checking...
+→ Effect checking...
+✓ Running benchmark/solution.ail
+42
 ```
 
 ### Example 2: Manual Usage from Any Directory
 
 **Scenario:** User wants to run AILANG code from Downloads folder
 
+**Code in test.ail:**
+```ailang
+module test
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello from Downloads!")
+}
+```
+
 **Before (v0.4.3 - FAILS):**
 ```bash
 $ cd ~/Downloads
-$ ailang run --entry main test.ail
-Error: LDR001: module not found: std/io
+$ cat test.ail  # Contains the code above
+$ ailang run --caps IO --entry main test.ail
+Error: module loading error: failed to load std/io: LDR001: module not found: std/io
 ```
 
 **After (v0.4.4 - WORKS):**
 ```bash
 $ cd ~/Downloads
-$ ailang run --entry main test.ail
+$ ailang run --caps IO --entry main test.ail
+→ Type checking...
+→ Effect checking...
+✓ Running test.ail
+Hello from Downloads!
+
 # Works! Loader finds std/io via binary-relative path
+# (assuming ailang is installed to /usr/local/bin and std is at /usr/local/share/ailang/std)
 ```
 
 ### Example 3: Helpful Error Diagnostics
 
-**Scenario:** User forgets to set stdlib path
+**Scenario:** User forgets to set stdlib path, uses --trace-loader for debugging
 
+**Code in test.ail:**
+```ailang
+module test
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello!")
+}
+```
+
+**With --trace-loader flag (flags BEFORE filename):**
 ```bash
 $ cd ~/Downloads
-$ ailang run test.ail --trace-loader
+$ ailang run --caps IO --entry main --trace-loader test.ail
 Error: module loading error: failed to load std/io
 LDR001: module not found: std/io
 searched:
-  ./std/io.ail
-  ~/Downloads/std/io.ail
-  /usr/local/bin/../std/io.ail
-  ~/.local/share/ailang/std/io.ail
-  /usr/local/share/ailang/std/io.ail
-  /usr/share/ailang/std/io.ail
+  ./std/io.ail (not found)
+  ~/Downloads/std/io.ail (not found)
+  /usr/local/bin/../std (not found)
+  ~/.local/share/ailang/std/io.ail (not found)
+  /usr/local/share/ailang/std/io.ail (not found)
+  /usr/share/ailang/std/io.ail (not found)
 
 tip: set AILANG_STDLIB_PATH=/path/to/ailang/std or use --stdlib-path
+example: ailang run --caps IO --entry main --stdlib-path /path/to/ailang/std test.ail
 ```
 
 ### Example 4: CI/CD Deployment
@@ -435,30 +473,66 @@ COPY ailang /usr/local/bin/ailang
 COPY std /usr/local/share/ailang/std
 
 # Binary-relative path resolution "just works"
+# ailang finds std at /usr/local/bin/../share/ailang/std
 WORKDIR /app
-CMD ["ailang", "run", "--entry", "main", "app.ail"]
+COPY app.ail .
+
+# Flags BEFORE filename: --caps, --entry, then filename
+CMD ["ailang", "run", "--caps", "IO,FS", "--entry", "main", "app.ail"]
 ```
 
-**Scenario:** GitHub Actions CI
+**Scenario:** GitHub Actions CI with explicit stdlib path
 
 ```yaml
-- name: Run AILANG tests
+- name: Build AILANG binary
+  run: make build
+
+- name: Run AILANG tests with stdlib path
   run: |
-    ailang test --stdlib-path ./std tests/*.ail
+    # Flags BEFORE filename pattern
+    ./bin/ailang test --stdlib-path ./std tests/*.ail
 ```
 
 ### Example 5: Version Mismatch Warning
 
-**Scenario:** User has outdated stdlib
+**Scenario:** User has outdated stdlib installed system-wide
 
+**Code in test.ail:**
+```ailang
+module test
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  println("Hello!")
+}
+```
+
+**Without --strict (warns but continues):**
 ```bash
-$ ailang run --strict test.ail
+$ ailang run --caps IO --entry main test.ail
 Warning: stdlib version mismatch at /usr/local/share/ailang/std
-  expected: v0.4.4
-  found: v0.4.2
+  compiler expects: v0.4.4
+  stdlib found: v0.4.2
+  This may cause runtime errors or unexpected behavior.
 
-Use --stdlib-path to specify a different stdlib location
-Error: strict mode: refusing to run with mismatched stdlib version
+→ Type checking...
+→ Effect checking...
+✓ Running test.ail
+Hello!
+```
+
+**With --strict (fails immediately):**
+```bash
+$ ailang run --caps IO --entry main --strict test.ail
+Error: stdlib version mismatch at /usr/local/share/ailang/std
+  compiler expects: v0.4.4
+  stdlib found: v0.4.2
+
+Strict mode: refusing to run with mismatched stdlib version.
+Use --stdlib-path to specify a different stdlib location.
+
+Example:
+  ailang run --caps IO --entry main --stdlib-path /path/to/v0.4.4/std test.ail
 ```
 
 ## Success Criteria
