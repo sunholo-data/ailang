@@ -98,16 +98,27 @@ func stringSliceToEffectRow(effects []string) *types.Row {
 
 // extractEffectFromType extracts the effect row from a type
 // Handles TFunc2 (function types with effects)
+// Normalizes empty effect rows to nil (pure functions)
 func extractEffectFromType(t types.Type) *types.Row {
 	switch typ := t.(type) {
 	case *types.TFunc2:
 		// Function type with effects
-		return typ.EffectRow
+		row := typ.EffectRow
+		// Normalize: empty effect row = nil (pure)
+		if row != nil && len(row.Labels) == 0 {
+			return nil
+		}
+		return row
 	case *types.TApp:
 		// Type application - might be a partially applied function
 		// Check if the constructor is a function
 		if fn, ok := typ.Constructor.(*types.TFunc2); ok {
-			return fn.EffectRow
+			row := fn.EffectRow
+			// Normalize: empty effect row = nil (pure)
+			if row != nil && len(row.Labels) == 0 {
+				return nil
+			}
+			return row
 		}
 		// Also check arguments recursively
 		for _, arg := range typ.Args {
