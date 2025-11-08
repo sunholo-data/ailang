@@ -1,0 +1,278 @@
+package messaging
+
+import (
+	"database/sql"
+	"fmt"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+// Schema defines the SQLite database schema for the collaboration hub.
+// This schema extends the existing file-based agent inbox (.ailang/state/messages/)
+// to provide ordering guarantees, real-time updates, and effect-gated approvals.
+
+const schemaVersion = "1.0.0"
+
+// InitDB creates and initializes a new SQLite database with the collaboration hub schema.
+// Returns the database connection and any error encountered.
+//
+// The database is configured with:
+// - WAL mode for write concurrency
+// - NORMAL synchronous mode for performance
+// - 5 second busy timeout for lock contention
+func InitDB(dbPath string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Configure database for concurrent access
+	if err := configureDB(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to configure database: %w", err)
+	}
+
+	// Create schema
+	if err := createSchema(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	return db, nil
+}
+
+// configureDB sets SQLite pragmas for performance and concurrency
+func configureDB(db *sql.DB) error {
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL",   // Write-Ahead Logging for concurrency
+		"PRAGMA synchronous=NORMAL", // Balance safety and performance
+		"PRAGMA busy_timeout=5000",  // 5 second timeout for locks
+		"PRAGMA foreign_keys=ON",    // Enforce foreign key constraints
+		"PRAGMA temp_store=MEMORY",  // Store temp tables in memory
+		"PRAGMA cache_size=-64000",  // 64MB cache (negative = KB)
+	}
+
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			return fmt.Errorf("failed to execute %s: %w", pragma, err)
+		}
+	}
+
+	return nil
+}
+
+// createSchema creates all tables and indices
+func createSchema(db *sql.DB) error {
+	// Execute schema in a transaction for atomicity
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback() // Ignore error - commit will fail if needed
+	}()
+
+	// Create schema_version table first
+	if _, err := tx.Exec(schemaVersionTable); err != nil {
+		return fmt.Errorf("failed to create schema_version table: %w", err)
+	}
+
+	// Insert schema version
+	if _, err := tx.Exec("INSERT INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
+		return fmt.Errorf("failed to insert schema version: %w", err)
+	}
+
+	// Create core tables
+	tables := []struct {
+		name   string
+		schema string
+	}{
+		{"threads", threadsTable},
+		{"messages", messagesTable},
+		{"subscriptions", subscriptionsTable},
+		{"approvals", approvalsTable},
+		{"attachments", attachmentsTable},
+		{"replay_snapshots", replaySnapshotsTable},
+	}
+
+	for _, table := range tables {
+		if _, err := tx.Exec(table.schema); err != nil {
+			return fmt.Errorf("failed to create %s table: %w", table.name, err)
+		}
+	}
+
+	// Create indices
+	indices := []string{
+		messagesThreadSeqIndex,
+		messagesToIndex,
+		messagesCreatedIndex,
+		threadsStatusIndex,
+		subscriptionsThreadIndex,
+		approvalsStatusIndex,
+		attachmentsMessageIndex,
+		replayThreadIndex,
+	}
+
+	for _, index := range indices {
+		if _, err := tx.Exec(index); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// Schema version tracking
+const schemaVersionTable = `
+CREATE TABLE IF NOT EXISTS schema_version (
+    version TEXT PRIMARY KEY,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+)`
+
+// Threads table - conversation threads between humans and instances
+const threadsTable = `
+CREATE TABLE IF NOT EXISTS threads (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    created_by_type TEXT NOT NULL,
+    created_by_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    context_json TEXT,
+    last_seq INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+
+    CHECK (created_by_type IN ('human', 'ailang_instance')),
+    CHECK (status IN ('active', 'paused', 'resolved', 'archived'))
+)`
+
+// Messages table - individual messages within threads
+const messagesTable = `
+CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    message_seq INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+
+    -- Routing
+    from_type TEXT NOT NULL,
+    from_id TEXT NOT NULL,
+    to_type TEXT,
+    to_id TEXT,
+
+    -- Content
+    kind TEXT NOT NULL,
+    subject TEXT,
+    content TEXT,
+    metadata_json TEXT,
+
+    -- State
+    delivery_state TEXT NOT NULL DEFAULT 'pending',
+    business_state TEXT DEFAULT 'open',
+
+    -- Threading
+    reply_to TEXT,
+
+    -- Soft delete
+    deleted_at INTEGER,
+
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to) REFERENCES messages(id) ON DELETE SET NULL,
+
+    UNIQUE (thread_id, message_seq),
+    CHECK (from_type IN ('human', 'ailang_instance')),
+    CHECK (to_type IN ('human', 'ailang_instance', 'broadcast') OR to_type IS NULL),
+    CHECK (kind IN ('directive', 'question', 'proposal', 'status', 'result')),
+    CHECK (delivery_state IN ('pending', 'visible', 'acked')),
+    CHECK (business_state IN ('open', 'resolved', 'archived') OR business_state IS NULL)
+)`
+
+// Subscriptions table - which instances/humans watch which threads
+const subscriptionsTable = `
+CREATE TABLE IF NOT EXISTS subscriptions (
+    instance_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    from_seq INTEGER NOT NULL DEFAULT 0,
+    subscribed_at INTEGER NOT NULL,
+    last_ack_seq INTEGER DEFAULT 0,
+
+    PRIMARY KEY (instance_id, thread_id),
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE
+)`
+
+// Approvals table - effect-gated approval workflow
+const approvalsTable = `
+CREATE TABLE IF NOT EXISTS approvals (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    instance_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+
+    -- What the agent wants to do
+    effect_delta_json TEXT NOT NULL,
+    proposal TEXT NOT NULL,
+    impact TEXT NOT NULL,
+    estimated_cost REAL,
+
+    -- Approval state
+    status TEXT NOT NULL DEFAULT 'pending',
+    reviewed_by TEXT,
+    reviewed_at INTEGER,
+    review_notes TEXT,
+
+    -- Capability token
+    capability_token TEXT,
+    token_expires_at INTEGER,
+
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+    CHECK (impact IN ('low', 'medium', 'high')),
+    CHECK (status IN ('pending', 'approved', 'rejected', 'modified'))
+)`
+
+// Attachments table - large payloads separate from messages
+const attachmentsTable = `
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    content_type TEXT,
+    path TEXT,
+    blob BLOB,
+    size_bytes INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    CHECK (kind IN ('code', 'diff', 'test_output', 'artifact'))
+)`
+
+// Replay snapshots table - deterministic replay metadata
+const replaySnapshotsTable = `
+CREATE TABLE IF NOT EXISTS replay_snapshots (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+
+    -- Full context to reproduce
+    model_id TEXT NOT NULL,
+    model_version TEXT,
+    temperature REAL,
+    seed INTEGER,
+    top_p REAL,
+    tool_list_json TEXT,
+    prompt_slate_json TEXT,
+    prompt_checksum TEXT,
+
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+)`
+
+// Indices for performance
+const messagesThreadSeqIndex = `CREATE INDEX IF NOT EXISTS idx_messages_thread_seq ON messages(thread_id, message_seq)`
+const messagesToIndex = `CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_type, to_id, delivery_state)`
+const messagesCreatedIndex = `CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at, id)`
+const threadsStatusIndex = `CREATE INDEX IF NOT EXISTS idx_threads_status ON threads(status, updated_at)`
+const subscriptionsThreadIndex = `CREATE INDEX IF NOT EXISTS idx_subscriptions_thread ON subscriptions(thread_id)`
+const approvalsStatusIndex = `CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, created_at)`
+const attachmentsMessageIndex = `CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)`
+const replayThreadIndex = `CREATE INDEX IF NOT EXISTS idx_replay_thread ON replay_snapshots(thread_id, created_at)`

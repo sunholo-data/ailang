@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 // agentAckCommand handles acknowledgment of messages
@@ -48,6 +50,13 @@ func agentAckCommand() {
 
 // ackMessage acknowledges a single message by moving it from unread to read/processed
 func ackMessage(stateDir, messageID string) error {
+	// Check if SQLite database exists
+	dbPath := messaging.GetDefaultDatabasePath()
+	if messaging.DatabaseExists(dbPath) {
+		return ackMessageSQLite(dbPath, messageID)
+	}
+
+	// Fall back to file-based inbox
 	// Try to acknowledge from different inbox locations
 	locations := []struct {
 		dir  string
@@ -95,6 +104,14 @@ func ackMessage(stateDir, messageID string) error {
 
 // ackAllMessages acknowledges all unread messages
 func ackAllMessages(stateDir string) {
+	// Check if SQLite database exists
+	dbPath := messaging.GetDefaultDatabasePath()
+	if messaging.DatabaseExists(dbPath) {
+		ackAllMessagesSQLite(dbPath)
+		return
+	}
+
+	// Fall back to file-based inbox
 	count := 0
 	locations := []string{
 		filepath.Join(stateDir, "messages", "inbox", "user", "_unread"),
@@ -154,6 +171,13 @@ func agentUnackCommand() {
 
 // unackMessage moves a message back from read/processed to unread
 func unackMessage(stateDir, messageID string) error {
+	// Check if SQLite database exists
+	dbPath := messaging.GetDefaultDatabasePath()
+	if messaging.DatabaseExists(dbPath) {
+		return unackMessageSQLite(dbPath, messageID)
+	}
+
+	// Fall back to file-based inbox
 	// Try to unacknowledge from different processed/read locations
 	locations := []struct {
 		srcDir string
@@ -205,4 +229,48 @@ func unackMessage(stateDir, messageID string) error {
 	}
 
 	return fmt.Errorf("message not found in processed/read folders: %s", messageID)
+}
+
+// ackMessageSQLite acknowledges a message in SQLite database
+func ackMessageSQLite(dbPath, messageID string) error {
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer store.Close()
+
+	return store.MarkAsAcked(messageID)
+}
+
+// ackAllMessagesSQLite acknowledges all messages in SQLite database
+func ackAllMessagesSQLite(dbPath string) {
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to open database: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	count, err := store.MarkAllAsAcked("human", "user")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to acknowledge messages: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if count == 0 {
+		fmt.Println("No messages to acknowledge")
+	} else {
+		fmt.Printf("%s Acknowledged %d message%s\n", green("✓"), count, pluralize(int(count)))
+	}
+}
+
+// unackMessageSQLite moves a message back to pending in SQLite database
+func unackMessageSQLite(dbPath, messageID string) error {
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer store.Close()
+
+	return store.MarkAsUnacked(messageID)
 }

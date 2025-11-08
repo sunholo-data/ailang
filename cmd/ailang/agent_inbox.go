@@ -8,10 +8,19 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/agentprotocol"
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 // showUserInbox displays messages from the user inbox
 func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveAfter bool, limit int) {
+	// Check if SQLite database exists
+	dbPath := messaging.GetDefaultDatabasePath()
+	if messaging.DatabaseExists(dbPath) {
+		showUserInboxSQLite(dbPath, unreadOnly, limit)
+		return
+	}
+
+	// Fall back to file-based inbox
 	inbox := agentprotocol.NewUserInbox(stateDir)
 
 	// Determine which folder to read from
@@ -255,6 +264,69 @@ func showAgentInbox(stateDir string, agentID string, limit int) {
 				preview = preview[:197] + "..."
 			}
 			fmt.Printf("  Payload: %s\n", preview)
+		}
+
+		fmt.Println()
+	}
+}
+
+// showUserInboxSQLite displays messages from SQLite database
+func showUserInboxSQLite(dbPath string, unreadOnly bool, limit int) {
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to open database: %v\n", red("Error"), err)
+		fmt.Fprintf(os.Stderr, "Falling back to file-based inbox...\n")
+		return
+	}
+	defer store.Close()
+
+	// Determine delivery state filter
+	deliveryState := ""
+	if unreadOnly {
+		deliveryState = "pending"
+	}
+
+	// Get messages for user
+	messages, err := store.GetMessages("human", "user", deliveryState)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to retrieve messages: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Apply limit
+	if len(messages) > limit {
+		messages = messages[:limit]
+	}
+
+	// Display messages
+	if len(messages) == 0 {
+		folder := "all"
+		if unreadOnly {
+			folder = "unread"
+		}
+		fmt.Printf("%s No messages in %s folder\n", green("✓"), folder)
+		return
+	}
+
+	fmt.Printf("%s %s Inbox (%d message%s) [SQLite]\n", bold("📬"), cyan("User"), len(messages), pluralize(len(messages)))
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println()
+
+	for i, msg := range messages {
+		fmt.Printf("%s Message %d/%d\n", bold("▶"), i+1, len(messages))
+		fmt.Printf("  ID: %s\n", cyan(msg.ID))
+		fmt.Printf("  From: %s (%s)\n", msg.FromID, msg.FromType)
+		fmt.Printf("  Kind: %s\n", msg.Kind)
+		fmt.Printf("  Created: %s\n", msg.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  State: %s\n", msg.DeliveryState)
+
+		// Display content preview
+		if msg.Content != "" {
+			preview := msg.Content
+			if len(preview) > 200 {
+				preview = preview[:197] + "..."
+			}
+			fmt.Printf("  Content: %s\n", preview)
 		}
 
 		fmt.Println()
