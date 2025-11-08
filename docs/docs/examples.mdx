@@ -5,10 +5,13 @@ description: Interactive examples showcasing AILANG features with real code you 
 ---
 
 import Icon, { CheckIcon, WarningIcon } from '@site/src/components/Icon';
+import CodeBlock from '@theme/CodeBlock';
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
 
 # AILANG Examples
 
-Learn AILANG through interactive examples. Each example demonstrates a key feature with working code you can try in the [Playground](/docs/playground).
+Learn AILANG through interactive examples. Each example demonstrates a key feature with **real working code** from the repository.
 
 ## <Icon name="zap" /> Quick Start Examples
 
@@ -16,18 +19,13 @@ Learn AILANG through interactive examples. Each example demonstrates a key featu
 
 The simplest AILANG program with I/O effects:
 
-```typescript
-module examples/hello
-
-import std/io (println)
-
-fn main() !: IO -> () =
-    println("Hello, AILANG!")
-```
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/hello.ail
+ailang run --caps IO --entry main examples/runnable/hello.ail
 ```
 
 **Key concepts:**
@@ -41,25 +39,20 @@ ailang run --caps IO --entry main examples/hello.ail
 
 AILANG uses recursion instead of loops for deterministic control flow:
 
-```typescript
--- Factorial: pure function, no effects
-fn factorial(n: int) -> int =
-    if n <= 1 then 1
-    else n * factorial(n - 1)
-
--- Main: performs I/O
-fn main() !: IO -> () =
-    println(show(factorial(5)))
-```
+<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+  {FactorialExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/factorial.ail
+ailang run --entry factorial examples/runnable/recursion_factorial.ail
 ```
 
-**Output:**
-```
-120
+**Test it:**
+```bash
+# Test factorial(5)
+echo "factorial(5)" | ailang repl --load examples/runnable/recursion_factorial.ail
+# Output: 120
 ```
 
 **Key concepts:**

@@ -3,6 +3,7 @@ sidebar_position: 1
 ---
 
 import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # Getting Started with AILANG
 
@@ -33,7 +34,7 @@ ailang --version
 
 **Provide your AI agent with the current AILANG syntax guide:**
 
-<Icon name="book" inline /> **[AILANG v0.3.8 Teaching Prompt](/docs/prompts/v0.3.8)**
+<Icon name="book" inline /> **[AILANG {ACTIVE_PROMPT} Teaching Prompt](/docs/prompts/{ACTIVE_PROMPT})**
 
 This prompt teaches AI models:
 - <CheckIcon inline size={14} /> Correct AILANG syntax (not Python/Rust/JavaScript)
@@ -42,16 +43,16 @@ This prompt teaches AI models:
 - <CheckIcon inline size={14} /> Record updates, pattern matching, ADTs
 - <CheckIcon inline size={14} /> Auto-imported std/prelude (no manual imports for comparisons)
 
-**Copy the full prompt** from [prompts/v0.3.8.md](/docs/prompts/v0.3.8) and include it in your AI agent's system prompt or context.
+**Copy the full prompt** from [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT}) and include it in your AI agent's system prompt or context.
 
 ### Step 3: Test AI Code Generation
 
 Ask your AI agent to write AILANG code:
 
 ```
-Using AILANG v0.3.8, write a program that reads a file and counts the number of lines.
+Using AILANG {ACTIVE_PROMPT}, write a program that reads a file and counts the number of lines.
 
-[Include full v0.3.8 prompt here]
+[Include full {ACTIVE_PROMPT} prompt here]
 ```
 
 **Expected output:**
@@ -78,12 +79,12 @@ export func main() -> () ! {IO, FS} {
 ailang run --caps IO,FS --entry main solution.ail
 ```
 
-### <Icon name="target" inline /> AI Success Metrics (v0.3.8)
+### <Icon name="target" inline /> AI Success Metrics
 
-**Current benchmark results:**
-- **AILANG**: 49.1% success rate (28/57 benchmarks)
-- **Improvement**: +10.5% from v0.3.7 (38.6% → 49.1%)
-- **Best model**: Claude Sonnet 4.5 (68.4% across all tasks)
+**Latest benchmark results:**
+- Check [Benchmark Dashboard](/docs/benchmarks/performance) for current metrics
+- **Best model**: Claude Sonnet 4.5 (consistently highest success rates)
+- Results updated after each release
 
 See [AI Prompt Guide](/docs/guides/ai-prompt-guide) for detailed instructions.
 
@@ -122,22 +123,18 @@ make verify-examples # Test example files
 
 ## <Icon name="rocket" inline /> Quick Start
 
-### Hello World (v0.3.8 Module Syntax)
+### Hello World
 
-```typescript
--- hello.ail
-module examples/hello
+import CodeBlock from '@theme/CodeBlock';
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
 
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Hello, AILANG!")
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
 
 Run it:
 ```bash
-ailang run --caps IO --entry main hello.ail
+ailang run --caps IO --entry main examples/runnable/hello.ail
 ```
 
 <WarningIcon inline size={14} /> **Note**: Flags must come BEFORE the filename when using `ailang run`.
@@ -191,7 +188,7 @@ Hello World :: String
 λ> :quit
 ```
 
-## <Icon name="check" inline /> Working Examples (v0.3.8)
+## <Icon name="check" inline /> Working Examples
 
 The following examples are confirmed to work with the current implementation:
 

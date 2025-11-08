@@ -51,3 +51,4 @@ output/
 
 # Agent protocol runtime state (like .git/)
 .ailang/
+cmd/ailang/prompts/

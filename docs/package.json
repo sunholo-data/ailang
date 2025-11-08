@@ -28,7 +28,8 @@
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.5.2",
     "@docusaurus/tsconfig": "3.5.2",
-    "@docusaurus/types": "3.5.2"
+    "@docusaurus/types": "3.5.2",
+    "raw-loader": "^4.0.2"
   },
   "engines": {
     "node": ">=18.0"

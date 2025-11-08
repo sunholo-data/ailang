@@ -314,9 +314,9 @@ cd docs && npm run clear && rm -rf .docusaurus build && npm start
 ### Documentation Sync
 
 ```bash
-# Sync prompts to docs site
-make sync-prompts              # Copies prompts/ to docs/prompts/ with Jekyll frontmatter
-tools/sync-prompts.sh
+# Sync prompts to docs site (Docusaurus)
+make sync-prompts              # Copies prompts/ to docs/docs/prompts/
+docs/scripts/sync-prompts.sh   # (Active prompt + recent versions)
 
 # Generate LLM-friendly context
 make generate-llms-txt         # Creates docs/static/llms.txt

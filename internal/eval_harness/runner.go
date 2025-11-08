@@ -243,19 +243,14 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		return nil, fmt.Errorf("failed to write code: %w", err)
 	}
 
-	// Symlink stdlib into workspace for module imports
-	stdlibSrc := filepath.Join(cwd, "std")
-	stdlibDst := filepath.Join(workspace, "std")
-	if err := os.Symlink(stdlibSrc, stdlibDst); err != nil {
-		// If symlink fails (e.g., on Windows), copy stdlib directory
-		// For now, just log the error - stdlib access will fail but tests can still run
-		if os.Getenv("DEBUG_EVAL") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_EVAL] Failed to symlink stdlib: %v\n", err)
-		}
-	}
+	// Use --stdlib-path flag instead of symlinking (more reliable, especially on Windows)
+	stdlibPath := filepath.Join(cwd, "std")
 
 	// Build command with flags BEFORE filename (required by ailang CLI)
 	args := []string{"run", "--entry", "main", "--quiet"}
+
+	// Add stdlib path (ensures stdlib can be found from isolated workspace)
+	args = append(args, "--stdlib-path", stdlibPath)
 
 	// Add capabilities if specified
 	if len(r.caps) > 0 {

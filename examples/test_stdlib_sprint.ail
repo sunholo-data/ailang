@@ -1,0 +1,7 @@
+module examples/test_stdlib_sprint
+
+import std/io (println)
+
+export func main() {
+  println("Stdlib resolution working from project directory!")
+}

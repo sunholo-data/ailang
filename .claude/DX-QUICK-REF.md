@@ -170,7 +170,7 @@ make largest-files                    # Top 20 largest files
 ### ...update documentation
 ```bash
 # Sync prompts to docs site
-make sync-prompts                     # Copies prompts/ to docs/prompts/
+make sync-prompts                     # Copies prompts/ to docs/docs/prompts/ (Docusaurus)
 
 # Generate LLM-friendly context
 make generate-llms-txt                # Creates docs/static/llms.txt

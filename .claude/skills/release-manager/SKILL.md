@@ -123,6 +123,7 @@ Update these files:
 - **README.md**: Change "Current Version: vX.X.X"
 - **docs/reference/implementation-status.md**: Change "Current Version: vX.X.X"
 - **CHANGELOG.md**: Change `## [Unreleased]` to `## [vX.X.X] - YYYY-MM-DD`
+- **std/VERSION**: Change to `vX.X.X` (used by stdlib resolver for version checking)
 
 ### 3. Post-Update Verification (CRITICAL)
 
@@ -137,7 +138,7 @@ If either fails, fix before committing.
 ### 4. Commit Changes
 
 ```bash
-git add README.md CHANGELOG.md docs/reference/implementation-status.md
+git add README.md CHANGELOG.md docs/reference/implementation-status.md std/VERSION
 git commit -m "Release vX.X.X"
 ```
 

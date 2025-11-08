@@ -25,15 +25,23 @@ LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Bu
 # Default target
 all: test build
 
+# Prepare prompts for embedding (copy to cmd/ailang for embed directive)
+prepare-embed:
+	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
+		echo "Copying prompts for embedding..."; \
+		rm -rf cmd/ailang/prompts; \
+		cp -r prompts cmd/ailang/prompts; \
+	fi
+
 # Build the binary
-build:
+build: prepare-embed
 	@echo "Building $(BINARY)..."
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
 
 # Install the binary to $GOPATH/bin
-install:
+install: prepare-embed
 	@echo "Installing $(BINARY)..."
 	@go install $(LDFLAGS) ./cmd/ailang
 	@echo "✓ Installed to $$(go env GOPATH)/bin/$(BINARY)"
@@ -131,6 +139,7 @@ clean:
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
+	rm -rf cmd/ailang/prompts
 	rm -f coverage.out coverage.html
 	rm -f coverage.parser.out coverage.lexer.out
 	rm -f .parser_coverage .lexer_coverage
@@ -168,7 +177,7 @@ dev:
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go
 
 # Quick install (useful for development)
-quick-install:
+quick-install: prepare-embed
 	@go install ./cmd/ailang
 	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
 
@@ -755,8 +764,8 @@ eval-auto-improve-apply:
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
-	@echo "Syncing prompts/ to docs/prompts/..."
-	@./tools/sync-prompts.sh
+	@echo "Syncing prompts/ to docs/docs/prompts/ (Docusaurus)..."
+	@./docs/scripts/sync-prompts.sh
 
 .PHONY: generate-llms-txt
 generate-llms-txt:
@@ -832,7 +841,7 @@ build-wasm:
 check-file-sizes:
 	@echo "Checking for files >800 lines..."
 	@FOUND=0; \
-	for file in $$(find internal -name "*.go"); do \
+	for file in $$(find internal cmd -name "*.go"); do \
 		SIZE=$$(wc -l < "$$file"); \
 		if [ $$SIZE -gt 800 ]; then \
 			echo "❌ $$file: $$SIZE lines (exceeds 800 line limit)"; \
@@ -855,7 +864,7 @@ report-file-sizes:
 	@echo ""
 	@echo "CRITICAL (>800 lines):"
 	@CRITICAL=0; \
-	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
 		if [ $$SIZE -gt 800 ]; then \
 			echo "⚠️ $$FILE: $$SIZE lines"; \
 			CRITICAL=$$((CRITICAL + 1)); \
@@ -865,7 +874,7 @@ report-file-sizes:
 	@echo ""
 	@echo "WARNING (500-800 lines):"
 	@WARNING=0; \
-	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
 		if [ $$SIZE -gt 500 ] && [ $$SIZE -le 800 ]; then \
 			echo "⚠️ $$FILE: $$SIZE lines"; \
 			WARNING=$$((WARNING + 1)); \
@@ -873,8 +882,8 @@ report-file-sizes:
 	done; \
 	if [ $$WARNING -eq 0 ]; then echo "  (none)"; fi
 	@echo ""
-	@CRITICAL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
-	WARNING=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	@CRITICAL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	WARNING=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
 	echo "Summary: $$CRITICAL files exceed 800 lines, $$WARNING files between 500-800 lines"; \
 	if [ $$CRITICAL -gt 0 ]; then \
 		echo ""; \
@@ -887,17 +896,17 @@ codebase-health:
 	@echo "=== Codebase Health Report ==="
 	@echo ""
 	@echo "File Size Metrics:"
-	@TOTAL=$$(find internal -name "*.go" | wc -l | tr -d ' '); \
-	SUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
+	@TOTAL=$$(find internal cmd -name "*.go" | wc -l | tr -d ' '); \
+	SUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
 	AVG=$$(echo "$$SUM / $$TOTAL" | bc); \
 	echo "  Total files: $$TOTAL"; \
 	echo "  Total lines: $$SUM"; \
 	echo "  Average size: $$AVG lines/file"
 	@echo ""
 	@echo "File Size Distribution:"
-	@SMALL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
-	MEDIUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
-	LARGE=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	@SMALL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
+	MEDIUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	LARGE=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
 	echo "  ≤500 lines (good): $$SMALL files"; \
 	echo "  500-800 lines (acceptable): $$MEDIUM files"; \
 	echo "  >800 lines (needs split): $$LARGE files"; \
@@ -911,13 +920,13 @@ codebase-health:
 	echo "Goal metrics:"; \
 	if [ $$LARGE -eq 0 ]; then echo "  - 0 files >800 lines ✅"; else echo "  - 0 files >800 lines ❌"; fi; \
 	if [ $$MEDIUM -lt 5 ]; then echo "  - <5 files 500-800 lines ✅"; else echo "  - <5 files 500-800 lines ⚠️"; fi; \
-	AVG=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
+	AVG=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
 	if [ $$AVG -ge 300 ] && [ $$AVG -le 400 ]; then echo "  - Average 300-400 lines ✅"; else echo "  - Average 300-400 lines ⚠️"; fi
 
 .PHONY: largest-files
 largest-files:
 	@echo "=== 20 Largest Files ==="
-	@find internal -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
+	@find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
 
 

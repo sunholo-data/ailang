@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -9,17 +9,16 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/effects"
-	ailangErrors "github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/repl"
+	"github.com/sunholo/ailang/internal/prompt"
 	"github.com/sunholo/ailang/internal/runtime"
-	"github.com/sunholo/ailang/internal/runtime/argdecode"
 	"github.com/sunholo/ailang/internal/schema"
-	"github.com/sunholo/ailang/internal/types"
 )
+
+//go:embed all:prompts
+var embeddedPrompts embed.FS
 
 var (
 	// Version info - set by ldflags during build
@@ -39,6 +38,10 @@ var (
 )
 
 func main() {
+	// Set embedded filesystem for prompts (bundled in binary)
+	// This allows `ailang prompt` to work from anywhere without prompts/ directory
+	prompt.SetEmbeddedFS(embeddedPrompts)
+
 	var (
 		versionFlag             = flag.Bool("version", false, "Print version information")
 		helpFlag                = flag.Bool("help", false, "Show help")
@@ -178,130 +181,14 @@ func main() {
 	case "agent":
 		agentCommand()
 
+	case "prompt":
+		runPrompt()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
 		os.Exit(1)
 	}
-}
-
-// checkStaleBinary warns if the binary is older than recent source changes
-// This prevents confusion when testing changes with an old binary
-func checkStaleBinary() {
-	// Get the binary's executable path
-	execPath, err := os.Executable()
-	if err != nil {
-		return // Can't determine, skip check
-	}
-
-	// Get binary modification time
-	binaryInfo, err := os.Stat(execPath)
-	if err != nil {
-		return // Can't stat binary, skip check
-	}
-	binaryTime := binaryInfo.ModTime()
-
-	// Check key source directories for recent changes
-	// We check parser and elaborator since those are most commonly modified
-	checkDirs := []string{
-		"internal/parser",
-		"internal/elaborate",
-		"internal/eval",
-		"cmd/ailang",
-	}
-
-	for _, dir := range checkDirs {
-		// Walk directory to find most recent .go file
-		newerFound := false
-		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil // Skip errors
-			}
-			if !info.IsDir() && strings.HasSuffix(path, ".go") {
-				if info.ModTime().After(binaryTime) {
-					newerFound = true
-					return filepath.SkipDir // Found one, stop walking
-				}
-			}
-			return nil
-		})
-
-		if newerFound {
-			// Found source files newer than binary
-			fmt.Fprintf(os.Stderr, "%s Binary may be stale (source files modified after build)\n", yellow("⚠"))
-			fmt.Fprintf(os.Stderr, "  Run '%s' to rebuild\n", bold("make quick-install"))
-			return // Only warn once
-		}
-	}
-}
-
-func printVersion() {
-	fmt.Printf("AILANG %s\n", bold(Version))
-	if Commit != "unknown" {
-		fmt.Printf("Commit: %s\n", Commit)
-	}
-	if BuildTime != "unknown" {
-		fmt.Printf("Built:  %s\n", BuildTime)
-	}
-	fmt.Println("\nThe AI-First Programming Language")
-	fmt.Println("Copyright (c) 2025")
-}
-
-func printHelp() {
-	fmt.Println(bold("AILANG - The AI-First Programming Language"))
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  ailang <command> [arguments]")
-	fmt.Println()
-	fmt.Println("Commands:")
-	fmt.Printf("  %s             Run an AILANG program\n", cyan("run [flags] <file>"))
-	fmt.Printf("  %s                       Start the interactive REPL\n", cyan("repl"))
-	fmt.Printf("  %s                   Run tests\n", cyan("test [path]"))
-	fmt.Printf("  %s           Watch file for changes and auto-reload\n", cyan("watch <file>"))
-	fmt.Printf("  %s           Type-check a file without running\n", cyan("check <file>"))
-	fmt.Printf("  %s        Output normalized JSON interface for a module\n", cyan("iface <module>"))
-	fmt.Printf("  %s           Export training data\n", cyan("export-training"))
-	fmt.Println()
-	fmt.Println("Evaluation & Benchmarking:")
-	fmt.Printf("  %s         Run AI benchmarks (AILANG vs Python)\n", cyan("eval [flags]"))
-	fmt.Printf("  %s     Run full benchmark suite (parallel)\n", cyan("eval-suite [flags]"))
-	fmt.Printf("  %s  Analyze eval results and generate design docs\n", cyan("eval-analyze [flags]"))
-	fmt.Printf("  %s <results_dir> <version>   Generate comprehensive eval report\n", cyan("eval-report"))
-	fmt.Printf("  %s <baseline> <new>    Compare two eval runs\n", cyan("eval-compare"))
-	fmt.Printf("  %s <results_dir> <version>    Performance matrix with stats\n", cyan("eval-matrix"))
-	fmt.Printf("  %s <results_dir>        Summarize eval results\n", cyan("eval-summary"))
-	fmt.Printf("  %s <benchmark> [baseline]  Validate specific fix\n", cyan("eval-validate"))
-	fmt.Println()
-	fmt.Println("Development Tools:")
-	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
-	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
-	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))
-	fmt.Println()
-	fmt.Println("Agent Protocol:")
-	fmt.Printf("  %s                  Show agent queue status and metrics\n", cyan("agent top"))
-	fmt.Printf("  %s                  Manage dead letter queue\n", cyan("agent dlq [flags]"))
-	fmt.Println()
-	fmt.Println("Run Command Flags (must come BEFORE filename):")
-	fmt.Println("  --caps <list>        Enable capabilities (comma-separated: IO,FS,Net)")
-	fmt.Println("  --entry <name>       Entrypoint function name (default: main)")
-	fmt.Println("  --args-json <json>   JSON arguments to pass to entrypoint")
-	fmt.Println("  --trace              Enable execution tracing")
-	fmt.Println("  --print              Print return value (default: true)")
-	fmt.Println("  --no-print           Suppress output (exit code only)")
-	fmt.Println()
-	fmt.Println("Global Flags:")
-	fmt.Println("  --version            Print version information")
-	fmt.Println("  --help               Show this help message")
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Printf("  %s                        # Start REPL\n", cyan("ailang repl"))
-	fmt.Printf("  %s              # Run program with IO capability\n", cyan("ailang run --caps IO hello.ail"))
-	fmt.Printf("  %s  # Run with custom entrypoint\n", cyan("ailang run --caps IO --entry test main.ail"))
-	fmt.Printf("  %s                  # Type-check without running\n", cyan("ailang check src/"))
-	fmt.Printf("  %s            # Run AI benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
-	fmt.Println()
-	fmt.Println(yellow("Note: For 'run' command, flags must come BEFORE the filename"))
-	fmt.Println(yellow("      Example: ailang run --caps IO file.ail  (NOT: ailang run file.ail --caps IO)"))
 }
 
 func runCommand() {
@@ -327,6 +214,11 @@ func runCommand() {
 	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env)")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
+	// Stdlib resolution flags
+	stdlibPathFlag := fs.String("stdlib-path", "", "Path to stdlib directory (overrides AILANG_STDLIB_PATH)")
+	traceLoaderFlag := fs.Bool("trace-loader", false, "Enable module loader tracing")
+	strictVersionFlag := fs.Bool("strict", false, "Fail on stdlib version mismatch")
+
 	// Env capability flags
 	allowEnvFlag := fs.String("allow-env", "", "Allowed environment variables (comma-separated: API_KEY,DEBUG)")
 	allowEnvFileFlag := fs.String("allow-env-file", "", "File containing allowed environment variables (one per line)")
@@ -349,10 +241,20 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
+	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
+func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
+	// Configure stdlib resolver via environment variables
+	// CLI flags override environment variables
+	if stdlibPath != "" {
+		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
+	}
+	// Note: traceLoader and strictVersion will need ModuleRuntime integration (TODO: follow-up)
+	// For now, they're accepted but not fully wired up
+	_ = traceLoader
+	_ = strictVersion
+
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -457,248 +359,45 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 	// Entrypoint resolution and execution
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
-		// Module mode - look up and call entrypoint
-		fnExport, exists := result.Interface.Exports[entry]
-		if !exists {
-			// Auto-select entrypoint if possible
-			if entry == "main" {
-				// Try to auto-select an unambiguous entrypoint
-				var zeroArgFuncs []string
-				for name, export := range result.Interface.Exports {
-					if export.Type != nil {
-						if fnType, isFn := export.Type.Type.(*types.TFunc2); isFn {
-							if len(fnType.Params) == 0 {
-								zeroArgFuncs = append(zeroArgFuncs, name)
-							}
-						}
-					}
-				}
-
-				// Case 1: Exactly one zero-arg function
-				if len(zeroArgFuncs) == 1 {
-					entry = zeroArgFuncs[0]
-					fnExport = result.Interface.Exports[entry]
-					exists = true
-				} else if len(zeroArgFuncs) > 1 {
-					// Case 2: Multiple zero-arg functions, try "test"
-					for _, name := range zeroArgFuncs {
-						if name == "test" {
-							entry = name
-							fnExport = result.Interface.Exports[entry]
-							exists = true
-							break
-						}
-					}
-				}
-			}
-
-			if !exists {
-				fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' not found in module\n", red("Error"), entry)
-				fmt.Fprintf(os.Stderr, "Available exports: ")
-				exportNames := []string{}
-				for name := range result.Interface.Exports {
-					exportNames = append(exportNames, name)
-				}
-				fmt.Fprintf(os.Stderr, "%v\n", exportNames)
-				os.Exit(1)
-			}
-		}
-
-		// Check function type and decode arguments
-		scheme := fnExport.Type
-		if scheme == nil {
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' has no type information\n", red("Error"), entry)
-			os.Exit(1)
-		}
-
-		// The entrypoint must be a function type
-		fnType, isFn := scheme.Type.(*types.TFunc2)
-		if !isFn {
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' is not a function (has type %s)\n", red("Error"), entry, scheme.Type)
-			os.Exit(1)
-		}
-
 		// Module execution with runtime (v0.2.0+)
 		rt := runtime.NewModuleRuntime(filepath.Dir(filename))
 
 		// Set up effect context with capability grants
 		effCtx := effects.NewEffContext()
-		if caps != "" {
-			for _, capName := range strings.Split(caps, ",") {
-				capName = strings.TrimSpace(capName)
-				if capName != "" {
-					effCtx.Grant(effects.NewCapability(capName))
-				}
-			}
-		}
+		grantCapabilities(effCtx, caps)
 
 		// Process environment variable flags
-		// 1. Override env vars with --env KEY=VALUE,FOO=bar
-		if env != "" {
-			for _, pair := range strings.Split(env, ",") {
-				parts := strings.SplitN(pair, "=", 2)
-				if len(parts) == 2 {
-					key := strings.TrimSpace(parts[0])
-					value := strings.TrimSpace(parts[1])
-					effCtx.EnvSnapshot[key] = value
-				} else {
-					fmt.Fprintf(os.Stderr, "%s: invalid --env format '%s' (expected KEY=VALUE)\n", red("Error"), pair)
-					os.Exit(1)
-				}
-			}
+		envConfig := envFlags{
+			allowEnv:         allowEnv,
+			allowEnvFile:     allowEnvFile,
+			env:              env,
+			envSnapshot:      envSnapshot,
+			writeEnvSnapshot: writeEnvSnapshot,
 		}
-
-		// 2. Load snapshot from JSON file with --env-snapshot
-		if envSnapshot != "" {
-			snapshotData, err := os.ReadFile(envSnapshot)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot read snapshot file '%s': %v\n", red("Error"), envSnapshot, err)
-				os.Exit(1)
-			}
-			var snapshot map[string]string
-			if err := json.Unmarshal(snapshotData, &snapshot); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: invalid snapshot JSON in '%s': %v\n", red("Error"), envSnapshot, err)
-				os.Exit(1)
-			}
-			// Replace snapshot with loaded data
-			effCtx.EnvSnapshot = snapshot
-		}
-
-		// 3. Set allowlist with --allow-env KEY1,KEY2
-		if allowEnv != "" {
-			allowlist := []string{}
-			for _, key := range strings.Split(allowEnv, ",") {
-				key = strings.TrimSpace(key)
-				if key != "" {
-					allowlist = append(allowlist, key)
-				}
-			}
-			effCtx.EnvAllowlist = allowlist
-		}
-
-		// 4. Load allowlist from file with --allow-env-file
-		if allowEnvFile != "" {
-			allowlistData, err := os.ReadFile(allowEnvFile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot read allowlist file '%s': %v\n", red("Error"), allowEnvFile, err)
-				os.Exit(1)
-			}
-			allowlist := []string{}
-			for _, line := range strings.Split(string(allowlistData), "\n") {
-				line = strings.TrimSpace(line)
-				// Skip empty lines and comments
-				if line != "" && !strings.HasPrefix(line, "#") {
-					allowlist = append(allowlist, line)
-				}
-			}
-			effCtx.EnvAllowlist = allowlist
-		}
-
-		// 5. Write snapshot and exit with --write-env-snapshot
-		if writeEnvSnapshot != "" {
-			snapshotJSON, err := json.MarshalIndent(effCtx.EnvSnapshot, "", "  ")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot marshal snapshot: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-			if err := os.WriteFile(writeEnvSnapshot, snapshotJSON, 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot write snapshot file '%s': %v\n", red("Error"), writeEnvSnapshot, err)
-				os.Exit(1)
-			}
-			fmt.Printf("%s Environment snapshot written to %s\n", green("✓"), writeEnvSnapshot)
+		if shouldExit := setupEnvContext(effCtx, envConfig); shouldExit {
 			os.Exit(0)
 		}
 
 		rt.GetEvaluator().SetEffContext(effCtx)
 
-		// Set recursion depth limit
-		if maxRecursionDepth > 0 {
-			rt.GetEvaluator().SetMaxRecursionDepth(maxRecursionDepth)
+		// Execute module entrypoint
+		execParams := moduleExecParams{
+			filename:          filename,
+			iface:             result.Interface,
+			modules:           result.Modules,
+			entry:             entry,
+			argsJSON:          argsJSON,
+			print:             print,
+			noprint:           noprint,
+			maxRecursionDepth: maxRecursionDepth,
 		}
-
-		// Pre-load modules from pipeline result
-		if result.Modules != nil {
-			for path, loaded := range result.Modules {
-				rt.PreloadModule(path, loaded)
-			}
-		}
-
-		// Load and evaluate module
-		inst, err := rt.LoadAndEvaluate(result.Interface.Module)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: module evaluation failed: %v\n", red("Error"), err)
+		if err := executeModuleEntrypoint(rt, execParams); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
-		}
-
-		// Get entrypoint
-		entrypointVal, err := inst.GetExport(entry)
-		if err != nil {
-			// RUN_NO_ENTRY
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' not found in module %s\n",
-				red("Error"), entry, result.Interface.Module)
-			fmt.Fprintf(os.Stderr, "  Available exports: %s\n",
-				strings.Join(runtime.GetExportNames(inst), ", "))
-			os.Exit(1)
-		}
-
-		// Check arity
-		arity, err := runtime.GetArity(entrypointVal)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' is not a function: %v\n",
-				red("Error"), entry, err)
-			os.Exit(1)
-		}
-		if arity > 1 {
-			// RUN_MULTIARG_UNSUPPORTED
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' takes %d parameters. v0.2.0 supports 0 or 1.\n",
-				red("Error"), entry, arity)
-			fmt.Fprintf(os.Stderr, "  Suggestion: wrap as 'wrapper(p:{...}) -> ...' and pass --args-json\n")
-			os.Exit(1)
-		}
-
-		// Validate and decode arguments
-		var args []eval.Value
-		if len(fnType.Params) == 0 {
-			// Zero-arg function - argsJSON must be null
-			if argsJSON != "null" {
-				fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' takes no arguments, but --args-json was provided\n", red("Error"), entry)
-				os.Exit(1)
-			}
-			args = []eval.Value{} // Empty args
-		} else if len(fnType.Params) == 1 {
-			// Single-arg function - decode JSON to match parameter type
-			argVal, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: failed to decode arguments: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-			args = []eval.Value{argVal}
-		} else {
-			// Multi-arg functions not yet supported
-			fmt.Fprintf(os.Stderr, "%s: entrypoint '%s' has %d parameters (only 0 or 1 supported in v0.2.0)\n", red("Error"), entry, len(fnType.Params))
-			os.Exit(1)
-		}
-
-		// Call the entrypoint function
-		execResult, err := runtime.CallEntrypoint(rt, inst, entry, args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: execution failed: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-
-		// Print result if not Unit and not suppressed
-		if execResult.Type() != "unit" && !noprint {
-			if print {
-				fmt.Println(execResult.String())
-			}
 		}
 	} else {
 		// Non-module mode - print result if evaluated by pipeline (ModeEval)
-		if result.Value != nil && result.Value.Type() != "unit" && !noprint {
-			if print {
-				fmt.Println(result.Value.String())
-			}
-		}
+		printNonModuleResult(result.Value, print, noprint)
 	}
 
 	// Dump instantiations if tracking
@@ -713,414 +412,5 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 				fmt.Printf("      Type: %s\n", inst["type"])
 			}
 		}
-	}
-}
-
-func runREPL(learn bool, trace bool, strictSyntax bool) {
-	// Use the new REPL implementation with version info
-	r := repl.NewWithVersion(Version, BuildTime)
-	if trace {
-		r.EnableTrace()
-	}
-	if strictSyntax {
-		r.SetStrictSyntaxMode(true)
-	}
-	r.Start(os.Stdin, os.Stdout)
-}
-
-//nolint:unused // TODO: Implement test runner functionality
-func runTests(path string) {
-	fmt.Printf("%s Running tests in %s\n", cyan("→"), path)
-
-	// Find all .ail files with tests
-	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if strings.HasSuffix(p, ".ail") {
-			// TODO: Check if file has tests and run them
-			fmt.Printf("  %s %s\n", green("✓"), p)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// TODO: Implement test runner
-	fmt.Printf("\n%s All tests passed!\n", green("✓"))
-}
-
-func watchFile(filename string, trace bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, maxRecursionDepth int) {
-	fmt.Printf("%s Watching %s for changes...\n", cyan("👁"), filename)
-	fmt.Println("Press Ctrl+C to stop")
-
-	// TODO: Implement file watching
-	// For now, just run the file once (no json/compact/quiet for watch mode)
-	// Default to main entrypoint with null args for watch mode, no caps, no env overrides
-	runFile(filename, trace, 0, false, false, false, false, binopShim, failOnShim, requireLowering, trackInstantiations, noMono, debugCompile, false, "main", "null", true, false, "", maxRecursionDepth, "", "", "", "", "")
-}
-
-func checkFile(filename string, strictSyntax bool) {
-	// Read the file
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
-		os.Exit(1)
-	}
-
-	// Type check
-	fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
-
-	// Effect check
-	fmt.Printf("%s Effect checking...\n", cyan("→"))
-
-	// Use unified pipeline in dry-run mode (no evaluation)
-	cfg := pipeline.Config{
-		DryLink:          true, // Don't evaluate, just check
-		StrictSyntaxMode: strictSyntax,
-	}
-	src := pipeline.Source{
-		Code:     string(content),
-		Filename: filename,
-		IsREPL:   false,
-	}
-
-	result, err := pipeline.Run(cfg, src)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Check for any errors
-	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
-		}
-		os.Exit(1)
-	}
-
-	fmt.Printf("\n%s No errors found!\n", green("✓"))
-}
-
-func outputInterface(modulePath string) {
-	// Read the file
-	filename := modulePath
-	if !strings.HasSuffix(filename, ".ail") {
-		// Try to resolve as module path
-		filename = strings.ReplaceAll(modulePath, "/", string(filepath.Separator)) + ".ail"
-	}
-
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
-		os.Exit(1)
-	}
-
-	// Type check and build interface
-	cfg := pipeline.Config{
-		DryLink: true, // Don't evaluate, just check
-	}
-	src := pipeline.Source{
-		Code:     string(content),
-		Filename: filename,
-		IsREPL:   false,
-	}
-
-	result, err := pipeline.Run(cfg, src)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Check for errors
-	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
-		}
-		os.Exit(1)
-	}
-
-	// Get the interface
-	if result.Interface == nil {
-		fmt.Fprintf(os.Stderr, "%s: no interface generated for module\n", red("Error"))
-		os.Exit(1)
-	}
-
-	// Output normalized JSON
-	jsonBytes, err := result.Interface.ToNormalizedJSON()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to serialize interface: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	fmt.Println(string(jsonBytes))
-}
-
-func exportTraining() {
-	fmt.Printf("%s Exporting training data...\n", cyan("→"))
-
-	// TODO: Implement training data export
-	fmt.Printf("  Analyzing execution traces...\n")
-	fmt.Printf("  Filtering high-quality traces (score > 0.8)...\n")
-	fmt.Printf("  Formatting for fine-tuning...\n")
-
-	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
-}
-
-// handleStructuredError outputs structured JSON error reports
-func handleStructuredError(err error, compact bool) {
-	// Try to extract a structured Report using errors.AsReport
-	if rep, ok := ailangErrors.AsReport(err); ok {
-		outputJSON(rep, compact)
-		return
-	}
-
-	// Fallback: wrap in generic error
-	generic := ailangErrors.NewGeneric("runtime", err)
-	outputJSON(generic, compact)
-}
-
-// outputJSON marshals and prints JSON
-func outputJSON(v interface{}, compact bool) {
-	var data []byte
-	var err error
-
-	if compact {
-		data, err = json.Marshal(v)
-	} else {
-		data, err = json.MarshalIndent(v, "", "  ")
-	}
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
-		return
-	}
-
-	fmt.Println(string(data))
-}
-
-// runDoctor implements `ailang doctor builtins` command
-func runDoctor() {
-	subcommand := ""
-	if flag.NArg() >= 2 {
-		subcommand = flag.Arg(1)
-	}
-
-	if subcommand != "builtins" {
-		fmt.Println("Usage: ailang doctor builtins")
-		fmt.Println()
-		fmt.Println("Available subcommands:")
-		fmt.Println("  builtins    Validate the builtin function registry")
-		os.Exit(1)
-	}
-
-	// Validate builtins from new spec-based registry (M-DX1 complete in v0.3.10)
-	errors := builtins.ValidateBuiltins()
-
-	if len(errors) == 0 {
-		fmt.Println("✅ All builtins are valid!")
-
-		// Show stats
-		stats := builtins.GetRegistryStats()
-		fmt.Printf("\nRegistry Statistics:\n")
-		fmt.Printf("  Total:      %d builtins\n", stats.Total)
-		fmt.Printf("  Pure:       %d\n", stats.Pure)
-		fmt.Printf("  Effectful:  %d\n", stats.Effect)
-		fmt.Printf("\nBy Effect:\n")
-		for effect, count := range stats.ByEffect {
-			fmt.Printf("  %-10s %d\n", effect+":", count)
-		}
-		fmt.Printf("\nBy Module:\n")
-		for module, count := range stats.ByModule {
-			fmt.Printf("  %-20s %d\n", module+":", count)
-		}
-		return
-	}
-
-	// Report errors
-	errorCount := 0
-	warningCount := 0
-	for _, err := range errors {
-		if err.Severity == "error" {
-			errorCount++
-		} else {
-			warningCount++
-		}
-	}
-
-	fmt.Printf("❌ Found %d errors, %d warnings\n\n", errorCount, warningCount)
-
-	for i, err := range errors {
-		icon := "⚠️"
-		if err.Severity == "error" {
-			icon = "❌"
-		}
-
-		fmt.Printf("%d. %s %s: %s\n", i+1, icon, err.Builtin, err.Message)
-		fmt.Printf("   Location: %s\n", err.Location)
-		fmt.Printf("   Fix: %s\n", err.Fix)
-		fmt.Println()
-	}
-
-	// Exit with error if any errors found
-	if errorCount > 0 {
-		os.Exit(1)
-	}
-}
-
-// runBuiltins implements `ailang builtins list` command
-func runBuiltins() {
-	subcommand := ""
-	if flag.NArg() >= 2 {
-		subcommand = flag.Arg(1)
-	}
-
-	switch subcommand {
-	case "list":
-		runBuiltinsList()
-	case "check-migration":
-		runBuiltinsCheckMigration()
-	default:
-		fmt.Println("Usage: ailang builtins <subcommand>")
-		fmt.Println()
-		fmt.Println("Available subcommands:")
-		fmt.Println("  list              List all registered builtins")
-		fmt.Println("  check-migration   Validate that all builtins have been migrated")
-		os.Exit(1)
-	}
-}
-
-func runBuiltinsList() {
-
-	// Parse additional flags for list command
-	listFlags := flag.NewFlagSet("list", flag.ExitOnError)
-	byEffect := listFlags.Bool("by-effect", false, "Group by effect type")
-	byModule := listFlags.Bool("by-module", false, "Group by module")
-	_ = listFlags.Parse(flag.Args()[2:]) // ExitOnError means this never returns an error we can handle
-
-	// Get all specs from new registry (M-DX1 complete in v0.3.10)
-	specs := builtins.AllSpecs()
-
-	if len(specs) == 0 {
-		fmt.Println("No builtins registered")
-		return
-	}
-
-	// Choose display mode
-	if *byEffect {
-		listBuiltinsByEffect(specs)
-	} else if *byModule {
-		listBuiltinsByModule(specs)
-	} else {
-		listAllBuiltins(specs)
-	}
-}
-
-func listAllBuiltins(specs map[string]*builtins.BuiltinSpec) {
-	// Get sorted names
-	names := make([]string, 0, len(specs))
-	for name := range specs {
-		names = append(names, name)
-	}
-	sortStrings(names)
-
-	fmt.Printf("Total: %d builtins\n\n", len(specs))
-
-	for _, name := range names {
-		spec := specs[name]
-		effect := "pure"
-		if !spec.IsPure {
-			effect = strings.ToLower(spec.Effect)
-		}
-		fmt.Printf("  %-30s [%s] %s\n", name, effect, spec.Module)
-	}
-}
-
-func listBuiltinsByEffect(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByEffect()
-
-	// Sort effect names
-	effects := make([]string, 0, len(grouped))
-	for effect := range grouped {
-		effects = append(effects, effect)
-	}
-	sortStrings(effects)
-
-	for _, effect := range effects {
-		names := grouped[effect]
-		fmt.Printf("# %s (%d)\n", effect, len(names))
-		for _, name := range names {
-			spec := specs[name]
-			fmt.Printf("  %-30s %s\n", name, spec.Module)
-		}
-		fmt.Println()
-	}
-}
-
-func listBuiltinsByModule(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByModule()
-
-	// Sort module names
-	modules := make([]string, 0, len(grouped))
-	for module := range grouped {
-		modules = append(modules, module)
-	}
-	sortStrings(modules)
-
-	for _, module := range modules {
-		names := grouped[module]
-		fmt.Printf("# %s (%d)\n", module, len(names))
-		for _, name := range names {
-			spec := specs[name]
-			effect := "pure"
-			if !spec.IsPure {
-				effect = strings.ToLower(spec.Effect)
-			}
-			fmt.Printf("  %-30s [%s]\n", name, effect)
-		}
-		fmt.Println()
-	}
-}
-
-// sortStrings sorts a string slice in place
-func sortStrings(s []string) {
-	// Simple bubble sort for small slices
-	n := len(s)
-	for i := 0; i < n-1; i++ {
-		for j := 0; j < n-i-1; j++ {
-			if s[j] > s[j+1] {
-				s[j], s[j+1] = s[j+1], s[j]
-			}
-		}
-	}
-}
-
-// runBuiltinsCheckMigration validates that all builtins have been migrated
-func runBuiltinsCheckMigration() {
-	// Get current working directory as project root
-	projectRoot, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to get working directory: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Run migration validation
-	report, err := builtins.ValidateMigration(projectRoot)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: migration validation failed: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Display report
-	fmt.Println(builtins.FormatReport(report))
-
-	// Exit with error code if migration is incomplete
-	if !report.IsClean {
-		os.Exit(1)
 	}
 }

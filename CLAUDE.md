@@ -723,13 +723,62 @@ Example entry:
 - These examples will be used in documentation and tutorials
 - Always test examples before documenting them as working
 
+#### 4. Documentation Website - Example Import Pattern
+
+**CRITICAL: Never embed code examples directly in documentation!**
+
+The website uses **raw-loader** to import actual example files from `examples/`. This ensures:
+- Examples always match working code
+- Syntax changes automatically propagate to docs
+- No manual updates needed when examples change
+- One less maintenance burden
+
+**Correct pattern** (import from examples/):
+```mdx
+import CodeBlock from '@theme/CodeBlock';
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
+```
+
+**Wrong pattern** (embedded code):
+```mdx
+❌ DON'T DO THIS:
+```typescript
+module examples/hello
+-- This code will drift out of sync!
+```
+```
+
+**Files that use example imports:**
+- `docs/docs/intro.mdx` - Hello world and factorial
+- `docs/docs/examples.mdx` - Multiple working examples
+- `docs/docs/guides/getting-started.mdx` - Tutorial examples
+
+**Configuration:**
+- Raw-loader configured in `docs/docusaurus.config.js`
+- Uses webpack plugin to handle `.ail` files
+- Examples imported from `@site/../examples/` path
+
 ### Writing AILANG Code
 
 **When writing AILANG code during development:**
 Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.24.md](prompts/v0.3.24.md)
+
+**Get the teaching prompt:**
+```bash
+ailang prompt                           # Display current/active prompt
+ailang prompt --version v0.3.24         # Display specific version
+ailang prompt --list                    # List all available versions
+ailang prompt > syntax.md               # Save to file
+```
+
+- Prompts are version-locked and tracked in `prompts/versions.json`
 - Validated through multi-model testing (Claude, GPT, Gemini)
 - Covers syntax, limitations, common pitfalls, and working examples
+- Each prompt version corresponds to a specific AILANG version
 
 **Quick reference:**
 ```bash
@@ -744,7 +793,7 @@ ailang repl                                        # Start REPL
 - **Match in blocks:** Known parser bug (nested delimiter tracking) - extract to helper function
 
 **For detailed syntax, limitations, and examples:**
-- See [prompts/v0.3.24.md](prompts/v0.3.24.md) - Complete AILANG teaching prompt
+- Use `ailang prompt` to get the latest teaching prompt
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 

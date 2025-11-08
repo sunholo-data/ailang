@@ -22,6 +22,73 @@ Invoke when user mentions:
 - After implementing language features (keep prompt synchronized)
 - Before eval baselines (verify accuracy)
 
+## CLI Integration (v0.4.4+)
+
+**NEW**: Prompts are now accessible via `ailang prompt` command (single source of truth).
+
+### Display Prompts
+```bash
+# Get current/active prompt
+ailang prompt
+
+# Get specific version
+ailang prompt --version v0.3.24
+
+# List all available versions
+ailang prompt --list
+
+# Show metadata
+ailang prompt --version v0.4.2 --info
+```
+
+### For Development
+```bash
+# Save prompt to file for editing
+ailang prompt > temp_prompt.md
+
+# Pipe to pager for reading
+ailang prompt | less
+
+# Quick syntax reference
+ailang prompt | grep -A 20 "Quick Reference"
+```
+
+**Implementation**:
+- Loader: `internal/prompt/loader.go` (reads from `prompts/versions.json`)
+- CLI: `cmd/ailang/prompt.go`
+- Eval harness uses `internal/prompt` package (single source of truth)
+
+### Workflow: Editing Existing Prompts
+
+**IMPORTANT**: When you edit a prompt file (e.g., `prompts/v0.4.2.md`), you MUST update its hash in `prompts/versions.json` for downstream users!
+
+```bash
+# 1. Edit the prompt file
+vim prompts/v0.4.2.md
+
+# 2. Update the hash in versions.json (REQUIRED!)
+.claude/skills/prompt-manager/scripts/update_hash.sh v0.4.2
+
+# 3. Verify downstream users see the change
+ailang prompt --version v0.4.2 | head -20
+
+# 4. If this is the active version, verify default users see it
+ailang prompt | head -20
+```
+
+**Why this matters**:
+- `ailang prompt` reads from `prompts/versions.json` → uses File field to locate prompt
+- Eval harness uses `internal/prompt` package → same versions.json source
+- Hash is stored but not validated by CLI (for dev flexibility)
+- **Best practice**: Keep hash updated so it reflects actual file content
+- Update versions.json = update for ALL downstream consumers (CLI, eval harness, agents)
+
+**Single Source of Truth**: `prompts/versions.json` is the registry. Update it, and everyone sees the change.
+
+**Note**: The eval harness's legacy `PromptLoader` (different from `internal/prompt`) DOES validate hashes. We're migrating to the simpler loader that doesn't validate (for easier development iteration).
+
+---
+
 ## Quick Reference Scripts
 
 ### Create New Version

@@ -1,10 +1,15 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.19 (Code Organization & AI Maintainability)
+> **Note**: This page shows historical releases. For the absolute latest status:
+> - **Current version**: Check `git describe --tags` or [GitHub releases](https://github.com/sunholo-data/ailang/releases)
+> - **Test coverage**: Run `make test-coverage-badge` in the repo
+> - **Features**: See [CHANGELOG.md](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
 
-## Test Coverage: 35.0%
+## Latest Stable Release
 
-## Recent Release: v0.3.19 (October 2025)
+Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) for the current stable version.
+
+## Release History
 
 **Code Organization & AI Maintainability:**
 - ✅ **Pipeline Refactoring** - 2 large files → 10 focused modules (all &lt;800 lines)

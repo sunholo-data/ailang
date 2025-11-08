@@ -20,8 +20,9 @@ import (
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
 	cache            map[string]*LoadedModule
-	basePath         string // Base directory for relative imports
-	strictSyntaxMode bool   // When true, syntactic sugar is not allowed
+	basePath         string          // Base directory for relative imports
+	strictSyntaxMode bool            // When true, syntactic sugar is not allowed
+	stdlibResolver   *StdlibResolver // Stdlib path resolver (initialized lazily)
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -48,6 +49,12 @@ func NewModuleLoader(basePath string) *ModuleLoader {
 // SetStrictSyntaxMode enables or disables strict syntax mode
 func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 	ml.strictSyntaxMode = strict
+}
+
+// ConfigureStdlibResolver configures the stdlib resolver with CLI flags
+// Call this before loading any stdlib modules
+func (ml *ModuleLoader) ConfigureStdlibResolver(cliPath string, traceEnabled, strictMode bool) {
+	ml.stdlibResolver = NewStdlibResolver(cliPath, traceEnabled, strictMode)
 }
 
 // Preload adds a pre-loaded module to the cache
@@ -98,14 +105,19 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
 	} else if strings.HasPrefix(canonPath, "std/") {
-		// Standard library path - resolve from AILANG_STDLIB_PATH or default to "std/"
-		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-		if stdlibPath == "" {
-			stdlibPath = "." // Current directory (std/ is at root)
+		// Standard library path - use StdlibResolver
+		// Initialize resolver lazily if not configured
+		if ml.stdlibResolver == nil {
+			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
-		stdPath := filepath.Join(stdlibPath, canonPath) + ".ail"
-		searchTrace = append(searchTrace, "std: "+stdPath)
-		fullPath = stdPath
+
+		resolvedPath, err := ml.stdlibResolver.ResolveStdlib(canonPath)
+		if err != nil {
+			// StdlibResolver already provides detailed error with search trace
+			return nil, err
+		}
+		fullPath = resolvedPath
+		searchTrace = append(searchTrace, "std: "+resolvedPath)
 	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
