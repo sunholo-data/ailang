@@ -12,80 +12,84 @@ export const App: React.FC = () => {
   const instanceId = 'user'; // or get from auth
 
   const handleApprove = async (approvalId: string, notes: string) => {
-    console.log('Approving:', approvalId, notes);
-    // TODO: Call backend API to approve
-    // await fetch(`/api/approvals/${approvalId}/approve`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ notes }),
-    // });
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/approvals/${approvalId}/approve`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes }),
+        }
+      );
 
-    // Update local state
-    setApprovals((prev) =>
-      prev.map((a) =>
-        a.id === approvalId
-          ? { ...a, status: 'approved', reviewed_by: 'user', review_notes: notes }
-          : a
-      )
-    );
+      if (!response.ok) {
+        console.error('Failed to approve:', await response.text());
+        return;
+      }
+
+      // Update local state
+      setApprovals((prev) =>
+        prev.map((a) =>
+          a.id === approvalId
+            ? { ...a, status: 'approved', reviewed_by: 'user', review_notes: notes }
+            : a
+        )
+      );
+    } catch (error) {
+      console.error('Error approving:', error);
+    }
   };
 
   const handleReject = async (approvalId: string, notes: string) => {
-    console.log('Rejecting:', approvalId, notes);
-    // TODO: Call backend API to reject
-    // await fetch(`/api/approvals/${approvalId}/reject`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ notes }),
-    // });
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/approvals/${approvalId}/reject`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes }),
+        }
+      );
 
-    // Update local state
-    setApprovals((prev) =>
-      prev.map((a) =>
-        a.id === approvalId
-          ? { ...a, status: 'rejected', reviewed_by: 'user', review_notes: notes }
-          : a
-      )
-    );
+      if (!response.ok) {
+        console.error('Failed to reject:', await response.text());
+        return;
+      }
+
+      // Update local state
+      setApprovals((prev) =>
+        prev.map((a) =>
+          a.id === approvalId
+            ? { ...a, status: 'rejected', reviewed_by: 'user', review_notes: notes }
+            : a
+        )
+      );
+    } catch (error) {
+      console.error('Error rejecting:', error);
+    }
   };
 
-  // Mock approvals for demo
+  // Fetch approvals from backend API
   React.useEffect(() => {
-    // In a real app, fetch these from the backend API
-    const mockApprovals: Approval[] = [
-      {
-        id: 'approval_1',
-        thread_id: 'thread_1',
-        instance_id: 'agent1',
-        created_at: Date.now() - 3600000,
-        effect_delta_json: JSON.stringify({
-          cap_type: 'FS',
-          paths: ['src/', 'docs/'],
-          budget_delta: 0.5,
-        }),
-        proposal: 'Read source files for analysis',
-        impact: 'low',
-        estimated_cost: 0.5,
-        status: 'pending',
-      },
-      {
-        id: 'approval_2',
-        thread_id: 'thread_2',
-        instance_id: 'agent2',
-        created_at: Date.now() - 1800000,
-        effect_delta_json: JSON.stringify({
-          cap_type: 'Net',
-          paths: [],
-          budget_delta: 5.0,
-        }),
-        proposal: 'Make external API calls to fetch documentation',
-        impact: 'high',
-        estimated_cost: 5.0,
-        status: 'pending',
-      },
-    ];
+    const fetchApprovals = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/approvals?status=pending');
+        if (!response.ok) {
+          console.error('Failed to fetch approvals:', await response.text());
+          return;
+        }
+        const data: Approval[] = await response.json();
+        setApprovals(data);
+      } catch (error) {
+        console.error('Error fetching approvals:', error);
+      }
+    };
 
-    setApprovals(mockApprovals);
+    fetchApprovals();
+
+    // Poll for new approvals every 5 seconds
+    const interval = setInterval(fetchApprovals, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -104,7 +108,7 @@ export const App: React.FC = () => {
             onClick={() => setActiveTab('approvals')}
           >
             🔒 Approvals
-            {approvals.filter((a) => a.status === 'pending').length > 0 && (
+            {approvals && approvals.filter((a) => a.status === 'pending').length > 0 && (
               <span className="badge">
                 {approvals.filter((a) => a.status === 'pending').length}
               </span>
@@ -125,7 +129,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      <style jsx>{`
+      <style>{`
         .app {
           display: flex;
           flex-direction: column;

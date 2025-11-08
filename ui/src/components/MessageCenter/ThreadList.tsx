@@ -5,6 +5,7 @@ interface ThreadListProps {
   threads: Thread[];
   selectedThreadId: string | null;
   onSelectThread: (threadId: string) => void;
+  onCreateThread: (title: string) => void;
   unreadCounts: Map<string, number>;
 }
 
@@ -12,8 +13,15 @@ export const ThreadList: React.FC<ThreadListProps> = ({
   threads,
   selectedThreadId,
   onSelectThread,
+  onCreateThread,
   unreadCounts,
 }) => {
+  const handleCreateThread = () => {
+    const title = prompt('Enter thread title:');
+    if (title && title.trim()) {
+      onCreateThread(title.trim());
+    }
+  };
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -48,7 +56,9 @@ export const ThreadList: React.FC<ThreadListProps> = ({
     <div className="thread-list">
       <div className="thread-list-header">
         <h2>Threads</h2>
-        <button className="new-thread-btn">+ New Thread</button>
+        <button className="new-thread-btn" onClick={handleCreateThread}>
+          + New Thread
+        </button>
       </div>
 
       <div className="thread-list-items">
@@ -95,7 +105,7 @@ export const ThreadList: React.FC<ThreadListProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .thread-list {
           display: flex;
           flex-direction: column;

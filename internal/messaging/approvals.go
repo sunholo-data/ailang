@@ -13,20 +13,20 @@ import (
 
 // Approval represents an approval request for effect-gated actions
 type Approval struct {
-	ID              string
-	ThreadID        string
-	InstanceID      string
-	CreatedAt       time.Time
-	EffectDeltaJSON string
-	Proposal        string
-	Impact          string
-	EstimatedCost   float64
-	Status          string
-	ReviewedBy      string
-	ReviewedAt      time.Time
-	ReviewNotes     string
-	CapabilityToken string
-	TokenExpiresAt  time.Time
+	ID              string    `json:"id"`
+	ThreadID        string    `json:"thread_id"`
+	InstanceID      string    `json:"instance_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	EffectDeltaJSON string    `json:"effect_delta_json"`
+	Proposal        string    `json:"proposal"`
+	Impact          string    `json:"impact"`
+	EstimatedCost   float64   `json:"estimated_cost"`
+	Status          string    `json:"status"`
+	ReviewedBy      string    `json:"reviewed_by,omitempty"`
+	ReviewedAt      time.Time `json:"reviewed_at,omitempty"`
+	ReviewNotes     string    `json:"review_notes,omitempty"`
+	CapabilityToken string    `json:"capability_token,omitempty"`
+	TokenExpiresAt  time.Time `json:"token_expires_at,omitempty"`
 }
 
 // EffectDelta represents the effect capabilities being requested

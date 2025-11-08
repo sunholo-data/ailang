@@ -39,18 +39,18 @@ func (s *Store) Close() error {
 
 // Message represents a message in the collaboration hub (simplified view for CLI)
 type Message struct {
-	ID            string
-	ThreadID      string
-	MessageSeq    int
-	CreatedAt     time.Time
-	FromType      string
-	FromID        string
-	ToType        string
-	ToID          string
-	Kind          string
-	Content       string
-	DeliveryState string
-	BusinessState string
+	ID            string    `json:"id"`
+	ThreadID      string    `json:"thread_id"`
+	MessageSeq    int       `json:"message_seq"`
+	CreatedAt     time.Time `json:"created_at"`
+	FromType      string    `json:"from_type"`
+	FromID        string    `json:"from_id"`
+	ToType        string    `json:"to_type"`
+	ToID          string    `json:"to_id"`
+	Kind          string    `json:"kind"`
+	Content       string    `json:"content"`
+	DeliveryState string    `json:"delivery_state"`
+	BusinessState string    `json:"business_state"`
 }
 
 // GetMessages retrieves messages for a specific recipient.
@@ -280,15 +280,15 @@ func ConvertToAgentProtocolEnvelope(msg Message) (*agentprotocol.Envelope, error
 
 // Thread represents a conversation thread
 type Thread struct {
-	ID            string
-	Title         string
-	CreatedAt     time.Time
-	CreatedByType string
-	CreatedByID   string
-	Status        string
-	ContextJSON   string
-	LastSeq       int
-	UpdatedAt     time.Time
+	ID            string    `json:"id"`
+	Title         string    `json:"title"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedByType string    `json:"created_by_type"`
+	CreatedByID   string    `json:"created_by_id"`
+	Status        string    `json:"status"`
+	ContextJSON   string    `json:"context_json,omitempty"`
+	LastSeq       int       `json:"last_seq"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // CreateThread creates a new thread in the database.
@@ -346,6 +346,67 @@ func (s *Store) GetThread(threadID string) (*Thread, error) {
 	}
 
 	return &thread, nil
+}
+
+// GetThreadsByStatus returns all threads matching a status filter
+// If status is empty, returns all threads
+func (s *Store) GetThreadsByStatus(status string, limit int) ([]Thread, error) {
+	var query string
+	var args []interface{}
+
+	if status == "" {
+		query = `
+			SELECT id, title, created_at, created_by_type, created_by_id, status, context_json, last_seq, updated_at
+			FROM threads
+			ORDER BY updated_at DESC
+			LIMIT ?
+		`
+		args = []interface{}{limit}
+	} else {
+		query = `
+			SELECT id, title, created_at, created_by_type, created_by_id, status, context_json, last_seq, updated_at
+			FROM threads
+			WHERE status = ?
+			ORDER BY updated_at DESC
+			LIMIT ?
+		`
+		args = []interface{}{status, limit}
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query threads: %w", err)
+	}
+	defer rows.Close()
+
+	var threads []Thread
+	for rows.Next() {
+		var thread Thread
+		var createdAtMs, updatedAtMs int64
+		var contextJSON sql.NullString
+
+		err := rows.Scan(
+			&thread.ID, &thread.Title, &createdAtMs, &thread.CreatedByType, &thread.CreatedByID,
+			&thread.Status, &contextJSON, &thread.LastSeq, &updatedAtMs,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan thread: %w", err)
+		}
+
+		thread.CreatedAt = time.UnixMilli(createdAtMs)
+		thread.UpdatedAt = time.UnixMilli(updatedAtMs)
+		if contextJSON.Valid {
+			thread.ContextJSON = contextJSON.String
+		}
+
+		threads = append(threads, thread)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating threads: %w", err)
+	}
+
+	return threads, nil
 }
 
 // CreateMessage creates a new message in a thread with automatic message_seq allocation.

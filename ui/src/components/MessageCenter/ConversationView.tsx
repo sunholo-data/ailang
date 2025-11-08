@@ -141,7 +141,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .conversation-view {
           display: flex;
           flex-direction: column;

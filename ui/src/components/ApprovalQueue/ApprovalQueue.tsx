@@ -201,7 +201,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .approval-queue {
           display: flex;
           flex-direction: column;

@@ -3,20 +3,20 @@
 export interface Thread {
   id: string;
   title: string;
-  created_at: number;
+  created_at: string | number;
   created_by_type: string;
   created_by_id: string;
   status: 'active' | 'paused' | 'resolved' | 'archived';
   context_json?: string;
   last_seq: number;
-  updated_at: number;
+  updated_at: string | number;
 }
 
 export interface Message {
   id: string;
   thread_id: string;
   message_seq: number;
-  created_at: number;
+  created_at: string | number;
   from_type: string;
   from_id: string;
   to_type: string;
@@ -33,14 +33,14 @@ export interface Approval {
   id: string;
   thread_id: string;
   instance_id: string;
-  created_at: number;
+  created_at: string | number;
   effect_delta_json: string;
   proposal: string;
   impact: 'low' | 'medium' | 'high';
   estimated_cost: number;
   status: 'pending' | 'approved' | 'rejected' | 'modified';
   reviewed_by?: string;
-  reviewed_at?: number;
+  reviewed_at?: string | number;
   review_notes?: string;
   capability_token?: string;
   token_expires_at?: number;
@@ -83,7 +83,7 @@ export interface MessageEvent {
   id: string;
   thread_id: string;
   message_seq: number;
-  created_at: number;
+  created_at: string | number;
   from_type: string;
   from_id: string;
   to_type: string;
@@ -109,5 +109,5 @@ export interface ThreadStateEvent {
   thread_id: string;
   status: string;
   last_seq: number;
-  updated_at: number;
+  updated_at: string | number;
 }

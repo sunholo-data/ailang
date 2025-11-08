@@ -103,62 +103,91 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     async (content: string, kind: string) => {
       if (!selectedThreadId) return;
 
-      // In a real app, this would call an API endpoint
-      // For now, we'll just add it optimistically to the UI
-      const newMessage: Message = {
-        id: `temp_${Date.now()}`,
-        thread_id: selectedThreadId,
-        message_seq: (messages.get(selectedThreadId)?.length || 0) + 1,
-        created_at: Date.now(),
-        from_type: 'human',
-        from_id: 'user',
-        to_type: 'ailang_instance',
-        to_id: instanceId,
-        kind: kind as any,
-        content,
-        delivery_state: 'pending',
-        business_state: 'open',
-      };
+      try {
+        const response = await fetch('http://localhost:8080/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            thread_id: selectedThreadId,
+            from_type: 'human',
+            from_id: 'user',
+            to_type: 'ailang_instance',
+            to_id: instanceId,
+            kind,
+            content,
+          }),
+        });
 
-      setMessages((prev) => {
-        const threadMessages = prev.get(selectedThreadId) || [];
-        return new Map(prev).set(selectedThreadId, [...threadMessages, newMessage]);
-      });
+        if (!response.ok) {
+          console.error('Failed to send message:', await response.text());
+          return;
+        }
 
-      // TODO: Send to backend API
-      console.log('TODO: Send message to backend', newMessage);
+        const sentMessage: Message = await response.json();
+
+        // Add to messages (optimistic update - will also arrive via WebSocket)
+        setMessages((prev) => {
+          const threadMessages = prev.get(selectedThreadId) || [];
+          // Avoid duplicates
+          if (!threadMessages.find((m) => m.id === sentMessage.id)) {
+            return new Map(prev).set(selectedThreadId, [...threadMessages, sentMessage]);
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
     },
-    [selectedThreadId, messages, instanceId]
+    [selectedThreadId, instanceId]
   );
 
   // Load threads from API on mount
   useEffect(() => {
-    // TODO: Fetch threads from backend API
-    // For now, using mock data
-    const mockThreads: Thread[] = [
-      {
-        id: 'thread_1',
-        title: 'Backend Development',
-        created_at: Date.now() - 3600000,
-        created_by_type: 'human',
-        created_by_id: 'user',
-        status: 'active',
-        last_seq: 5,
-        updated_at: Date.now() - 600000,
-      },
-      {
-        id: 'thread_2',
-        title: 'UI Design Review',
-        created_at: Date.now() - 7200000,
-        created_by_type: 'human',
-        created_by_id: 'user',
-        status: 'active',
-        last_seq: 12,
-        updated_at: Date.now() - 120000,
-      },
-    ];
+    const fetchThreads = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/threads');
+        if (!response.ok) {
+          console.error('Failed to fetch threads:', await response.text());
+          return;
+        }
+        const data: Thread[] = await response.json();
+        setThreads(data);
+      } catch (error) {
+        console.error('Error fetching threads:', error);
+      }
+    };
 
-    setThreads(mockThreads);
+    fetchThreads();
+  }, []);
+
+  // Create a new thread
+  const handleCreateThread = useCallback(async (title: string) => {
+    try {
+      const response = await fetch('http://localhost:8080/api/threads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          created_by_type: 'human',
+          created_by_id: 'user',
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to create thread:', await response.text());
+        return;
+      }
+
+      const newThread: Thread = await response.json();
+      setThreads((prev) => [newThread, ...prev]);
+      setSelectedThreadId(newThread.id);
+    } catch (error) {
+      console.error('Error creating thread:', error);
+    }
   }, []);
 
   const selectedMessages = selectedThreadId ? messages.get(selectedThreadId) || [] : [];
@@ -179,6 +208,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
             threads={threads}
             selectedThreadId={selectedThreadId}
             onSelectThread={handleSelectThread}
+            onCreateThread={handleCreateThread}
             unreadCounts={unreadCounts}
           />
         </div>
@@ -198,7 +228,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .message-center {
           display: flex;
           flex-direction: column;

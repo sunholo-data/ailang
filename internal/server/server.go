@@ -94,16 +94,66 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /api/threads - List all threads
+// POST /api/threads - Create a new thread
 func (s *Server) handleThreads(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleGetThreads(w, r)
+	case http.MethodPost:
+		s.handleCreateThread(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleGetThreads(w http.ResponseWriter, r *http.Request) {
+	// Get all threads with status filter
+	status := r.URL.Query().Get("status")
+
+	threads, err := s.store.GetThreadsByStatus(status, 100)
+	if err != nil {
+		http.Error(w, "Failed to get threads", http.StatusInternalServerError)
 		return
 	}
 
-	// TODO: Implement pagination and filtering
-	// For now, return empty array (frontend uses mock data)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode([]interface{}{})
+	json.NewEncoder(w).Encode(threads)
+}
+
+func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Title         string `json:"title"`
+		CreatedByType string `json:"created_by_type"`
+		CreatedByID   string `json:"created_by_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if body.Title == "" {
+		http.Error(w, "title is required", http.StatusBadRequest)
+		return
+	}
+
+	// Default values
+	if body.CreatedByType == "" {
+		body.CreatedByType = "human"
+	}
+	if body.CreatedByID == "" {
+		body.CreatedByID = "user"
+	}
+
+	thread, err := s.store.CreateThread(body.Title, body.CreatedByType, body.CreatedByID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create thread: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(thread)
 }
 
 // GET /api/threads/{id} - Get a specific thread
@@ -131,12 +181,19 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /api/messages?thread_id={id} - Get messages for a thread
+// POST /api/messages - Send a message
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleGetMessages(w, r)
+	case http.MethodPost:
+		s.handleSendMessage(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
+}
 
+func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	threadID := r.URL.Query().Get("thread_id")
 	if threadID == "" {
 		http.Error(w, "thread_id required", http.StatusBadRequest)
@@ -152,6 +209,64 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(messages)
+}
+
+func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ThreadID string `json:"thread_id"`
+		FromType string `json:"from_type"`
+		FromID   string `json:"from_id"`
+		ToType   string `json:"to_type"`
+		ToID     string `json:"to_id"`
+		Kind     string `json:"kind"`
+		Content  string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if body.ThreadID == "" || body.Content == "" {
+		http.Error(w, "thread_id and content are required", http.StatusBadRequest)
+		return
+	}
+
+	// Default values
+	if body.FromType == "" {
+		body.FromType = "human"
+	}
+	if body.FromID == "" {
+		body.FromID = "user"
+	}
+	if body.ToType == "" {
+		body.ToType = "ailang_instance"
+	}
+	if body.ToID == "" {
+		body.ToID = "default"
+	}
+	if body.Kind == "" {
+		body.Kind = "directive"
+	}
+
+	message, err := s.store.CreateMessage(
+		body.ThreadID,
+		body.FromType, body.FromID,
+		body.ToType, body.ToID,
+		body.Kind,
+		body.Content,
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create message: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast message to WebSocket subscribers
+	s.wsServer.BroadcastMessage(body.ThreadID, message)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(message)
 }
 
 // GET /api/approvals?status={status} - Get approvals by status
