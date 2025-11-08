@@ -163,7 +163,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Sync prompts/ to docs/prompts/
-      run: ./tools/sync-prompts.sh
+      run: ./docs/scripts/sync-prompts.sh
 
     - name: Generate llms.txt
       run: ./tools/generate-llms-txt.sh

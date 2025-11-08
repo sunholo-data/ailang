@@ -65,7 +65,7 @@ install: prepare-embed
 	fi
 
 # Run tests (excluding scripts directory which contains standalone executables)
-test:
+test: prepare-embed
 	@echo "Running tests..."
 	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
@@ -101,7 +101,7 @@ fmt-check:
 	@echo "Code formatting check passed"
 
 # Run go vet
-vet:
+vet: prepare-embed
 	@echo "Running go vet..."
 	$(GOVET) $(shell go list ./... | grep -v examples/agents)
 	@echo "Vet complete"
@@ -113,7 +113,7 @@ install-lint:
 	@echo "golangci-lint installed"
 
 # Run linter (requires golangci-lint)
-lint:
+lint: prepare-embed
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install-golangci-lint'" && exit 1)
 	@# Run golangci-lint (config excludes examples/agents via .golangci.yml)
