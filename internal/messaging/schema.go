@@ -3,6 +3,8 @@ package messaging
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -21,6 +23,12 @@ const schemaVersion = "1.0.0"
 // - NORMAL synchronous mode for performance
 // - 5 second busy timeout for lock contention
 func InitDB(dbPath string) (*sql.DB, error) {
+	// Ensure the database directory exists
+	dbDir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create database directory %s: %w", dbDir, err)
+	}
+
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -77,8 +85,8 @@ func createSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create schema_version table: %w", err)
 	}
 
-	// Insert schema version
-	if _, err := tx.Exec("INSERT INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
+	// Insert schema version (ignore if already exists)
+	if _, err := tx.Exec("INSERT OR IGNORE INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
 		return fmt.Errorf("failed to insert schema version: %w", err)
 	}
 

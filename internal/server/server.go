@@ -1,8 +1,10 @@
 package server
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
@@ -10,6 +12,9 @@ import (
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/websocket"
 )
+
+//go:embed dist
+var uiAssets embed.FS
 
 // Server represents the HTTP server for the collaboration hub
 type Server struct {
@@ -57,12 +62,21 @@ func (s *Server) Start() error {
 	// Health check
 	mux.HandleFunc("/health", s.handleHealth)
 
+	// Serve static UI files from embedded dist folder
+	distFS, err := fs.Sub(uiAssets, "dist")
+	if err != nil {
+		return fmt.Errorf("failed to load UI assets: %w", err)
+	}
+	fileServer := http.FileServer(http.FS(distFS))
+	mux.Handle("/", fileServer)
+
 	// CORS middleware
 	handler := s.corsMiddleware(mux)
 
 	log.Printf("Starting HTTP server on %s", s.httpAddr)
 	log.Printf("WebSocket endpoint: ws://%s/ws", s.httpAddr)
 	log.Printf("REST API: http://%s/api/", s.httpAddr)
+	log.Printf("UI: http://%s/", s.httpAddr)
 
 	return http.ListenAndServe(s.httpAddr, handler)
 }

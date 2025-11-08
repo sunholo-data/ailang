@@ -7,14 +7,15 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'messages' | 'approvals'>('messages');
   const [approvals, setApprovals] = useState<Approval[]>([]);
 
-  // WebSocket URL - update this to match your backend
-  const websocketUrl = 'ws://localhost:8080/ws';
+  // WebSocket URL - dynamically use current host/port
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const websocketUrl = `${protocol}//${window.location.host}/ws`;
   const instanceId = 'user'; // or get from auth
 
   const handleApprove = async (approvalId: string, notes: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/approvals/${approvalId}/approve`,
+        `/api/approvals/${approvalId}/approve`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -43,7 +44,7 @@ export const App: React.FC = () => {
   const handleReject = async (approvalId: string, notes: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/approvals/${approvalId}/reject`,
+        `/api/approvals/${approvalId}/reject`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -73,7 +74,7 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     const fetchApprovals = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/approvals?status=pending');
+        const response = await fetch('/api/approvals?status=pending');
         if (!response.ok) {
           console.error('Failed to fetch approvals:', await response.text());
           return;

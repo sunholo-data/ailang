@@ -379,7 +379,8 @@ func (s *Store) GetThreadsByStatus(status string, limit int) ([]Thread, error) {
 	}
 	defer rows.Close()
 
-	var threads []Thread
+	// Initialize as empty slice (not nil) so JSON marshals to [] instead of null
+	threads := []Thread{}
 	for rows.Next() {
 		var thread Thread
 		var createdAtMs, updatedAtMs int64

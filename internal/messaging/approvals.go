@@ -156,7 +156,8 @@ func (s *Store) GetApprovalsByStatus(status string, limit int) ([]Approval, erro
 	}
 	defer rows.Close()
 
-	var approvals []Approval
+	// Initialize as empty slice (not nil) so JSON marshals to [] instead of null
+	approvals := []Approval{}
 	for rows.Next() {
 		var approval Approval
 		var createdAtMs int64

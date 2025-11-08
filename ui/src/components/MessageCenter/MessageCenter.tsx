@@ -104,7 +104,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
       if (!selectedThreadId) return;
 
       try {
-        const response = await fetch('http://localhost:8080/api/messages', {
+        const response = await fetch('/api/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
   useEffect(() => {
     const fetchThreads = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/threads');
+        const response = await fetch('/api/threads');
         if (!response.ok) {
           console.error('Failed to fetch threads:', await response.text());
           return;
@@ -165,7 +165,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
   // Create a new thread
   const handleCreateThread = useCallback(async (title: string) => {
     try {
-      const response = await fetch('http://localhost:8080/api/threads', {
+      const response = await fetch('/api/threads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
