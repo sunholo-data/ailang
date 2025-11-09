@@ -400,3 +400,203 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// TestAgent_ApprovalWorkflow tests that directives requiring capabilities request approval
+func TestAgent_ApprovalWorkflow(t *testing.T) {
+	// Create temp database
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create store and thread
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open store: %v", err)
+	}
+	defer store.Close()
+
+	thread, err := store.CreateThread("Approval Test", "human", "user")
+	if err != nil {
+		t.Fatalf("Failed to create thread: %v", err)
+	}
+
+	// Create agent
+	agent, err := NewAgent("test-agent", dbPath, 1)
+	if err != nil {
+		t.Fatalf("Failed to create agent: %v", err)
+	}
+	defer agent.Close()
+
+	// Create a directive that requires file system access
+	directive := "Create a file called test.txt with hello world"
+	msg, err := store.CreateMessage(
+		thread.ID,
+		"human", "user",
+		"ailang_instance", "test-agent",
+		"directive",
+		directive,
+	)
+	if err != nil {
+		t.Fatalf("Failed to create directive message: %v", err)
+	}
+
+	// Process message in background (will wait for approval)
+	ctx := context.Background()
+	done := make(chan error, 1)
+	go func() {
+		done <- agent.processMessage(ctx, msg)
+	}()
+
+	// Wait a bit for approval request to be created
+	time.Sleep(100 * time.Millisecond)
+
+	// Check that an approval request was created
+	approvals, err := store.GetApprovalsByStatus("pending", 10)
+	if err != nil {
+		t.Fatalf("Failed to get approvals: %v", err)
+	}
+
+	if len(approvals) != 1 {
+		t.Fatalf("Expected 1 pending approval, got %d", len(approvals))
+	}
+
+	approval := approvals[0]
+	if approval.ThreadID != thread.ID {
+		t.Errorf("Expected approval in thread %s, got %s", thread.ID, approval.ThreadID)
+	}
+
+	t.Logf("Approval request created:")
+	t.Logf("  ID: %s", approval.ID)
+	t.Logf("  Proposal: %s", approval.Proposal)
+	t.Logf("  Impact: %s", approval.Impact)
+	t.Logf("  Estimated cost: $%.2f", approval.EstimatedCost)
+
+	// Approve the request
+	err = store.ApproveApproval(approval.ID, "test-user", "Approved for testing", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to approve: %v", err)
+	}
+
+	// Wait for processing to complete (or timeout)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Logf("Processing completed with error: %v", err)
+			// This is expected if Claude execution fails/times out
+			// The important part is that approval workflow worked
+		} else {
+			t.Log("Processing completed successfully")
+		}
+	case <-time.After(70 * time.Second):
+		t.Fatal("Processing timed out (this test takes ~60s if Claude execution happens)")
+	}
+
+	// Verify approval was marked as processed
+	finalApproval, err := store.GetApproval(approval.ID)
+	if err != nil {
+		t.Fatalf("Failed to get final approval: %v", err)
+	}
+
+	if finalApproval.Status != "approved" {
+		t.Errorf("Expected approval status 'approved', got %s", finalApproval.Status)
+	}
+}
+
+// TestAgent_ApprovalRejection tests that rejected approvals prevent execution
+func TestAgent_ApprovalRejection(t *testing.T) {
+	// Create temp database
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create store and thread
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open store: %v", err)
+	}
+	defer store.Close()
+
+	thread, err := store.CreateThread("Rejection Test", "human", "user")
+	if err != nil {
+		t.Fatalf("Failed to create thread: %v", err)
+	}
+
+	// Create agent
+	agent, err := NewAgent("test-agent", dbPath, 1)
+	if err != nil {
+		t.Fatalf("Failed to create agent: %v", err)
+	}
+	defer agent.Close()
+
+	// Create a directive that requires file system access
+	directive := "Delete all files in the system"
+	msg, err := store.CreateMessage(
+		thread.ID,
+		"human", "user",
+		"ailang_instance", "test-agent",
+		"directive",
+		directive,
+	)
+	if err != nil {
+		t.Fatalf("Failed to create directive message: %v", err)
+	}
+
+	// Process message in background (will wait for approval)
+	ctx := context.Background()
+	done := make(chan error, 1)
+	go func() {
+		done <- agent.processMessage(ctx, msg)
+	}()
+
+	// Wait for approval request
+	time.Sleep(100 * time.Millisecond)
+
+	// Get approval request
+	approvals, err := store.GetApprovalsByStatus("pending", 10)
+	if err != nil {
+		t.Fatalf("Failed to get approvals: %v", err)
+	}
+
+	if len(approvals) != 1 {
+		t.Fatalf("Expected 1 pending approval, got %d", len(approvals))
+	}
+
+	approval := approvals[0]
+
+	// Reject the request
+	err = store.RejectApproval(approval.ID, "test-user", "Too dangerous!")
+	if err != nil {
+		t.Fatalf("Failed to reject: %v", err)
+	}
+
+	// Wait for processing to complete
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("Expected error when approval rejected, got nil")
+		}
+		if !strings.Contains(err.Error(), "rejected") {
+			t.Errorf("Expected 'rejected' error, got: %v", err)
+		}
+		t.Logf("Processing correctly failed with: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Processing timed out")
+	}
+
+	// Verify a rejection message was sent to the UI
+	messages, err := store.GetMessages("human", "user", "")
+	if err != nil {
+		t.Fatalf("Failed to get messages: %v", err)
+	}
+
+	var foundRejection bool
+	for _, m := range messages {
+		if m.Kind == "result" && strings.Contains(m.Content, "rejected") {
+			foundRejection = true
+			t.Logf("Found rejection message: %s", m.Content[:min(100, len(m.Content))])
+			break
+		}
+	}
+
+	if !foundRejection {
+		t.Error("Expected rejection message to be sent to UI, but none found")
+	}
+}

@@ -16,6 +16,7 @@ type Agent struct {
 	instanceID   string
 	client       *messaging.Client
 	executor     *agent.DirectiveExecutor
+	detector     *agent.CapabilityDetector
 	pollInterval time.Duration
 }
 
@@ -32,10 +33,14 @@ func NewAgent(instanceID string, dbPath string, pollIntervalSec int) (*Agent, er
 	workspaceBase := filepath.Join(filepath.Dir(dbPath), "workspaces")
 	executor := agent.NewDirectiveExecutor(workspaceBase)
 
+	// Create capability detector
+	detector := agent.NewCapabilityDetector()
+
 	return &Agent{
 		instanceID:   instanceID,
 		client:       client,
 		executor:     executor,
+		detector:     detector,
 		pollInterval: time.Duration(pollIntervalSec) * time.Second,
 	}, nil
 }
@@ -105,6 +110,49 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 
 	if msg.Kind == "directive" {
 		log.Printf("  [DIRECTIVE] Executing: %s", msg.Content)
+
+		// Detect required capabilities
+		deltas := a.detector.DetectCapabilities(msg.Content)
+		if len(deltas) > 0 {
+			log.Printf("  [APPROVAL] Directive requires capabilities: %v", deltas)
+
+			// Request approval
+			proposal := a.detector.FormatProposal(deltas)
+			impactLevel := a.detector.ClassifyImpact(deltas)             // "low", "medium", or "high"
+			impactDesc := a.detector.FormatImpact(deltas)                // Human-readable description
+			estimatedCost := a.detector.CalculateTotalCost(deltas, 0.01) // Base execution cost $0.01
+
+			// Include impact description in proposal for human review
+			fullProposal := fmt.Sprintf("%s\n\nImpact: %s", proposal, impactDesc)
+
+			approvalID, err := a.client.RequestApproval(msg.ThreadID, deltas[0], fullProposal, impactLevel, estimatedCost)
+			if err != nil {
+				log.Printf("  [ERROR] Failed to request approval: %v", err)
+				return fmt.Errorf("failed to request approval: %w", err)
+			}
+
+			log.Printf("  [APPROVAL] Requested approval %s (cost: $%.2f)", approvalID, estimatedCost)
+
+			// Wait for approval (60 second timeout)
+			approved, err := a.client.WaitForApproval(approvalID, 60*time.Second)
+			if err != nil {
+				log.Printf("  [APPROVAL] Approval timed out: %v", err)
+				// Send timeout message to UI
+				_, _ = a.client.SendResult(msg.ThreadID, fmt.Sprintf("⏱️ Approval request timed out\n\nThe directive required approval but timed out after 60 seconds.\n\nDirective: %s", msg.Content))
+				return fmt.Errorf("approval timeout: %w", err)
+			}
+
+			if !approved {
+				log.Printf("  [APPROVAL] Rejected")
+				// Send rejection message to UI
+				_, _ = a.client.SendResult(msg.ThreadID, fmt.Sprintf("❌ Directive rejected\n\nThe directive was rejected by the user.\n\nDirective: %s", msg.Content))
+				return fmt.Errorf("directive rejected")
+			}
+
+			log.Printf("  [APPROVAL] Approved! Proceeding with execution")
+		} else {
+			log.Printf("  [APPROVAL] No special capabilities required, proceeding")
+		}
 
 		// Execute directive via Claude Code
 		result, err := a.executor.Execute(msg.Content)
