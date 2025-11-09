@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -598,5 +599,134 @@ func TestAgent_ApprovalRejection(t *testing.T) {
 
 	if !foundRejection {
 		t.Error("Expected rejection message to be sent to UI, but none found")
+	}
+}
+
+// TestAgent_WorkClaiming tests that multiple agents don't process the same message
+func TestAgent_WorkClaiming(t *testing.T) {
+	// Create temp database
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create store and thread
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open store: %v", err)
+	}
+	defer store.Close()
+
+	thread, err := store.CreateThread("Multi-Agent Test", "human", "user")
+	if err != nil {
+		t.Fatalf("Failed to create thread: %v", err)
+	}
+
+	// Create 3 messages
+	var messageIDs []string
+	for i := 0; i < 3; i++ {
+		msg, err := store.CreateMessage(
+			thread.ID,
+			"human", "user",
+			"ailang_instance", "test-agent",
+			"directive",
+			fmt.Sprintf("Message %d", i),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create message %d: %v", i, err)
+		}
+		messageIDs = append(messageIDs, msg.ID)
+	}
+
+	// Create two agents
+	agent1, err := NewAgent("agent-1", dbPath, 1)
+	if err != nil {
+		t.Fatalf("Failed to create agent 1: %v", err)
+	}
+	defer agent1.Close()
+
+	agent2, err := NewAgent("agent-2", dbPath, 1)
+	if err != nil {
+		t.Fatalf("Failed to create agent 2: %v", err)
+	}
+	defer agent2.Close()
+
+	// Try to claim all messages with both agents
+	var claimed1, claimed2 int
+	for _, msgID := range messageIDs {
+		// Agent 1 tries to claim
+		err1 := agent1.client.ClaimMessage(msgID)
+		if err1 == nil {
+			claimed1++
+		}
+
+		// Agent 2 tries to claim
+		err2 := agent2.client.ClaimMessage(msgID)
+		if err2 == nil {
+			claimed2++
+		}
+
+		// Exactly one should succeed
+		if (err1 == nil && err2 == nil) || (err1 != nil && err2 != nil) {
+			t.Errorf("Message %s: expected exactly one agent to claim, got err1=%v, err2=%v", msgID, err1, err2)
+		}
+	}
+
+	t.Logf("Agent 1 claimed %d messages", claimed1)
+	t.Logf("Agent 2 claimed %d messages", claimed2)
+
+	// Total claims should equal total messages
+	if claimed1+claimed2 != 3 {
+		t.Errorf("Expected 3 total claims, got %d", claimed1+claimed2)
+	}
+}
+
+// TestAgent_BroadcastStatus tests agent-to-agent status messaging
+func TestAgent_BroadcastStatus(t *testing.T) {
+	// Create temp database
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	// Create store and thread
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open store: %v", err)
+	}
+	defer store.Close()
+
+	thread, err := store.CreateThread("Broadcast Test", "human", "user")
+	if err != nil {
+		t.Fatalf("Failed to create thread: %v", err)
+	}
+
+	// Create agent
+	agent, err := NewAgent("test-agent", dbPath, 1)
+	if err != nil {
+		t.Fatalf("Failed to create agent: %v", err)
+	}
+	defer agent.Close()
+
+	// Broadcast a status
+	statusMsg := "Starting work on directive..."
+	_, err = agent.client.BroadcastStatus(thread.ID, statusMsg)
+	if err != nil {
+		t.Fatalf("Failed to broadcast status: %v", err)
+	}
+
+	// Check that the status message was created
+	messages, err := store.GetMessages("broadcast", "", "")
+	if err != nil {
+		t.Fatalf("Failed to get messages: %v", err)
+	}
+
+	var foundStatus bool
+	for _, m := range messages {
+		if m.Kind == "status" && strings.Contains(m.Content, statusMsg) {
+			foundStatus = true
+			t.Logf("Found status message: %s", m.Content)
+			break
+		}
+	}
+
+	if !foundStatus {
+		t.Error("Expected status broadcast, but none found")
 	}
 }

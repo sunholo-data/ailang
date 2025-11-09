@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS messages (
     CHECK (from_type IN ('human', 'ailang_instance')),
     CHECK (to_type IN ('human', 'ailang_instance', 'broadcast') OR to_type IS NULL),
     CHECK (kind IN ('directive', 'question', 'proposal', 'status', 'result')),
-    CHECK (delivery_state IN ('pending', 'visible', 'acked')),
+    CHECK (delivery_state IN ('pending', 'visible', 'claimed', 'acked')),
     CHECK (business_state IN ('open', 'resolved', 'archived') OR business_state IS NULL)
 )`
 

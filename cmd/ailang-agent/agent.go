@@ -86,6 +86,16 @@ func (a *Agent) poll(ctx context.Context) error {
 
 	// Process each message
 	for _, msg := range messages {
+		// Try to claim the message (atomic operation to prevent duplicate work)
+		if err := a.client.ClaimMessage(msg.ID); err != nil {
+			log.Printf("Failed to claim message %s (another agent may have claimed it): %v", msg.ID, err)
+			// Another agent claimed this message, skip it
+			continue
+		}
+
+		log.Printf("Successfully claimed message %s", msg.ID)
+
+		// Process the claimed message
 		if err := a.processMessage(ctx, msg); err != nil {
 			log.Printf("Failed to process message %s: %v", msg.ID, err)
 			// Continue processing other messages even if one fails

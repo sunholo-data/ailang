@@ -118,10 +118,30 @@ func (c *Client) SendResult(threadID, result string) (*Message, error) {
 	return c.PublishMessage(threadID, "human", "user", "result", result)
 }
 
+// SendStatusToAgent sends a status update to another agent instance
+func (c *Client) SendStatusToAgent(threadID, targetAgentID, status string) (*Message, error) {
+	return c.PublishMessage(threadID, "ailang_instance", targetAgentID, "status", status)
+}
+
+// BroadcastStatus sends a status update to all agents watching a thread
+func (c *Client) BroadcastStatus(threadID, status string) (*Message, error) {
+	return c.PublishMessage(threadID, "broadcast", "", "status", status)
+}
+
 // AcknowledgeMessage marks a message as acknowledged
 func (c *Client) AcknowledgeMessage(messageID string) error {
 	if err := c.store.MarkAsAcked(messageID); err != nil {
 		return fmt.Errorf("failed to acknowledge message: %w", err)
+	}
+	return nil
+}
+
+// ClaimMessage atomically claims a message for processing.
+// This prevents other agents from processing the same message.
+// Returns nil if successfully claimed, error if already claimed by another agent.
+func (c *Client) ClaimMessage(messageID string) error {
+	if err := c.store.ClaimMessage(messageID, c.instanceID); err != nil {
+		return fmt.Errorf("failed to claim message: %w", err)
 	}
 	return nil
 }

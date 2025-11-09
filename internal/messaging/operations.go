@@ -155,6 +155,34 @@ func (s *Store) MarkAsUnacked(messageID string) error {
 	return nil
 }
 
+// ClaimMessage atomically claims a pending message for processing.
+// Returns nil if the message was successfully claimed by this caller.
+// Returns error if message doesn't exist or was already claimed by another agent.
+func (s *Store) ClaimMessage(messageID, claimedBy string) error {
+	result, err := s.db.Exec(`
+		UPDATE messages
+		SET delivery_state = 'claimed'
+		WHERE id = ?
+		  AND delivery_state = 'pending'
+		  AND deleted_at IS NULL
+	`, messageID)
+
+	if err != nil {
+		return fmt.Errorf("failed to claim message: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("message %s already claimed or not found", messageID)
+	}
+
+	return nil
+}
+
 // MarkAllAsAcked updates all pending/visible messages for a recipient to 'acked'.
 func (s *Store) MarkAllAsAcked(toType, toID string) (int64, error) {
 	result, err := s.db.Exec(`
