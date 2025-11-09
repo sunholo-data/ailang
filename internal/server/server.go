@@ -18,10 +18,10 @@ var uiAssets embed.FS
 
 // Server represents the HTTP server for the collaboration hub
 type Server struct {
-	store     *messaging.Store
-	wsServer  *websocket.Server
-	httpAddr  string
-	dbPath    string
+	store    *messaging.Store
+	wsServer *websocket.Server
+	httpAddr string
+	dbPath   string
 }
 
 // NewServer creates a new HTTP server
@@ -100,11 +100,13 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 // Health check endpoint
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":      "healthy",
 		"connections": s.wsServer.GetConnectionCount(),
 		"timestamp":   time.Now().Unix(),
-	})
+	}); err != nil {
+		log.Printf("Failed to encode health response: %v", err)
+	}
 }
 
 // GET /api/threads - List all threads
@@ -131,7 +133,9 @@ func (s *Server) handleGetThreads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(threads)
+	if err := json.NewEncoder(w).Encode(threads); err != nil {
+		log.Printf("Failed to encode threads response: %v", err)
+	}
 }
 
 func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +171,9 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(thread)
+	if err := json.NewEncoder(w).Encode(thread); err != nil {
+		log.Printf("Failed to encode thread response: %v", err)
+	}
 }
 
 // GET /api/threads/{id} - Get a specific thread
@@ -191,7 +197,9 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(thread)
+	if err := json.NewEncoder(w).Encode(thread); err != nil {
+		log.Printf("Failed to encode thread response: %v", err)
+	}
 }
 
 // GET /api/messages?thread_id={id} - Get messages for a thread
@@ -222,7 +230,9 @@ func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	if err := json.NewEncoder(w).Encode(messages); err != nil {
+		log.Printf("Failed to encode messages response: %v", err)
+	}
 }
 
 func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +290,9 @@ func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(message)
+	if err := json.NewEncoder(w).Encode(message); err != nil {
+		log.Printf("Failed to encode message response: %v", err)
+	}
 }
 
 // GET /api/approvals?status={status} - Get approvals by status
@@ -302,7 +314,9 @@ func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(approvals)
+	if err := json.NewEncoder(w).Encode(approvals); err != nil {
+		log.Printf("Failed to encode approvals response: %v", err)
+	}
 }
 
 // POST /api/approvals/{id}/approve - Approve an approval request
@@ -354,11 +368,13 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
 		"action":  action,
 		"message": fmt.Sprintf("Approval %s successfully", action+"d"),
-	})
+	}); err != nil {
+		log.Printf("Failed to encode approval response: %v", err)
+	}
 }
 
 // Close closes the server and releases resources
