@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"time"
 
+	"github.com/sunholo/ailang/internal/agent"
 	"github.com/sunholo/ailang/internal/messaging"
 )
 
@@ -13,6 +15,7 @@ import (
 type Agent struct {
 	instanceID   string
 	client       *messaging.Client
+	executor     *agent.DirectiveExecutor
 	pollInterval time.Duration
 }
 
@@ -24,9 +27,15 @@ func NewAgent(instanceID string, dbPath string, pollIntervalSec int) (*Agent, er
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	// Create directive executor
+	// Use .ailang/state/workspaces for execution workspaces
+	workspaceBase := filepath.Join(filepath.Dir(dbPath), "workspaces")
+	executor := agent.NewDirectiveExecutor(workspaceBase)
+
 	return &Agent{
 		instanceID:   instanceID,
 		client:       client,
+		executor:     executor,
 		pollInterval: time.Duration(pollIntervalSec) * time.Second,
 	}, nil
 }
@@ -94,12 +103,36 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 	log.Printf("  To: %s/%s", msg.ToType, msg.ToID)
 	log.Printf("  Content: %s", msg.Content)
 
-	// For Phase 1, we just log the message
-	// Phase 2 will add actual execution via Claude Code
-
 	if msg.Kind == "directive" {
-		log.Printf("  [DIRECTIVE] Would execute: %s", msg.Content)
-		// TODO: Execute directive via Claude Code (Phase 2)
+		log.Printf("  [DIRECTIVE] Executing: %s", msg.Content)
+
+		// Execute directive via Claude Code
+		result, err := a.executor.Execute(msg.Content)
+		if err != nil {
+			log.Printf("  [ERROR] Execution failed: %v", err)
+			return fmt.Errorf("directive execution failed: %w", err)
+		}
+
+		// Log execution results
+		log.Printf("  [RESULT] Success=%v, Duration=%dms, Cost=$%.4f, Turns=%d",
+			result.Success, result.DurationMS, result.Cost, result.NumTurns)
+		log.Printf("  [RESULT] Output: %s", result.Output)
+
+		if len(result.FilesCreated) > 0 {
+			log.Printf("  [FILES] Created %d file(s):", len(result.FilesCreated))
+			for _, file := range result.FilesCreated {
+				log.Printf("    - %s", file)
+			}
+		}
+
+		if !result.Success {
+			log.Printf("  [ERROR] %s", result.Error)
+			return fmt.Errorf("directive failed: %s", result.Error)
+		}
+
+		// Phase 3 will send result back to UI via message bus
+		// For now, we just log the result
+
 	} else {
 		log.Printf("  [INFO] Message kind '%s' not yet supported", msg.Kind)
 	}

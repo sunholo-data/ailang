@@ -12,11 +12,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// runHeadlessSessionStreaming executes Claude in headless mode with real-time message streaming
+// RunHeadlessSessionStreaming executes Claude in headless mode with real-time message streaming
 // This is used when DEBUG_AGENT=1 to provide visibility into what Claude is doing
 // systemPrompt contains language knowledge (loaded from prompts/versions.json)
 // taskPrompt contains the benchmark task description
-func runHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
+//
+// Exported for use by internal/agent package for directive execution
+func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
 

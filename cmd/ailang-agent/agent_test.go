@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -187,6 +188,11 @@ func TestAgent_Close(t *testing.T) {
 func TestAgent_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Skip unless explicitly enabled (executes real Claude Code, costs money)
+	if os.Getenv("TEST_AGENT_INTEGRATION") == "" {
+		t.Skip("Skipping agent integration test (set TEST_AGENT_INTEGRATION=1 to enable)")
 	}
 
 	// Create temp database

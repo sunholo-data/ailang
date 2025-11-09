@@ -1,0 +1,179 @@
+package agent
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/sunholo/ailang/internal/eval_harness"
+)
+
+// DirectiveExecutor executes user directives using Claude Code
+type DirectiveExecutor struct {
+	config        eval_harness.AgentBenchmarkConfig
+	workspaceBase string
+}
+
+// NewDirectiveExecutor creates a new executor with default configuration
+func NewDirectiveExecutor(workspaceBase string) *DirectiveExecutor {
+	config := eval_harness.DefaultAgentConfig()
+
+	// Override defaults for agent execution
+	config.TimeoutSeconds = 300 // 5 minutes for directives
+	config.WorkspaceDir = workspaceBase
+	config.ClaudeModel = "haiku" // Fast and cost-effective for most directives
+
+	return &DirectiveExecutor{
+		config:        config,
+		workspaceBase: workspaceBase,
+	}
+}
+
+// DirectiveResult contains the result of executing a directive
+type DirectiveResult struct {
+	Success      bool       // Overall success (completed without errors)
+	DurationMS   int        // Execution time in milliseconds
+	NumTurns     int        // Number of Claude turns
+	Cost         float64    // Total cost in USD
+	SessionID    string     // Claude session ID
+	Transcript   string     // Full conversation transcript
+	Output       string     // Final result text from Claude
+	Error        string     // Error message if failed
+	Workspace    string     // Path to workspace directory
+	FilesCreated []string   // List of files created (relative to workspace)
+	TokensUsed   TokenUsage // Token usage breakdown
+}
+
+// TokenUsage captures token metrics
+type TokenUsage struct {
+	InputTokens              int
+	OutputTokens             int
+	CacheReadInputTokens     int
+	CacheCreationInputTokens int
+}
+
+// Execute executes a directive using Claude Code
+func (e *DirectiveExecutor) Execute(directive string) (*DirectiveResult, error) {
+	// Create unique workspace for this execution
+	workspace := filepath.Join(e.config.WorkspaceDir, fmt.Sprintf("directive_%s_%d",
+		uuid.New().String()[:8], time.Now().Unix()))
+
+	if err := os.MkdirAll(workspace, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create workspace: %w", err)
+	}
+
+	// Create minimal .git folder so Claude treats workspace as standalone project
+	// This prevents Claude from walking up and finding the parent AILANG repo
+	gitDir := filepath.Join(workspace, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create .git folder: %w", err)
+	}
+
+	// Cleanup workspace after execution (unless DEBUG_AGENT is set)
+	if os.Getenv("DEBUG_AGENT") == "" {
+		defer os.RemoveAll(workspace)
+	}
+
+	// Create minimal spec for eval harness
+	spec := &eval_harness.BenchmarkSpec{
+		ID:      "directive_" + uuid.New().String()[:8],
+		Timeout: e.config.TimeoutSeconds,
+	}
+
+	// Execute directive via eval harness
+	// No system prompt - directives are self-contained instructions
+	// Use directive as task prompt
+	result, err := eval_harness.RunHeadlessSessionStreaming(
+		spec,
+		"",        // systemPrompt (empty for directives)
+		directive, // taskPrompt (the user's directive)
+		workspace,
+		e.config,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("execution failed: %w", err)
+	}
+
+	// List files created in workspace
+	filesCreated, err := listFiles(workspace)
+	if err != nil {
+		// Log warning but don't fail - file listing is informational
+		filesCreated = []string{}
+	}
+
+	// Convert ClaudeHeadlessResult to DirectiveResult
+	return &DirectiveResult{
+		Success:      !result.IsError && result.Subtype == "success",
+		DurationMS:   result.DurationMS,
+		NumTurns:     result.NumTurns,
+		Cost:         result.TotalCostUSD,
+		SessionID:    result.SessionID,
+		Transcript:   result.Transcript,
+		Output:       result.Result,
+		Error:        getErrorMessage(result),
+		Workspace:    workspace,
+		FilesCreated: filesCreated,
+		TokensUsed: TokenUsage{
+			InputTokens:              result.Usage.InputTokens,
+			OutputTokens:             result.Usage.OutputTokens,
+			CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+			CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+		},
+	}, nil
+}
+
+// ExecuteWithModel executes a directive using a specific Claude model
+func (e *DirectiveExecutor) ExecuteWithModel(directive string, model string) (*DirectiveResult, error) {
+	// Temporarily override model
+	originalModel := e.config.ClaudeModel
+	e.config.ClaudeModel = model
+	defer func() {
+		e.config.ClaudeModel = originalModel
+	}()
+
+	return e.Execute(directive)
+}
+
+// getErrorMessage extracts error message from Claude result
+func getErrorMessage(result *eval_harness.ClaudeHeadlessResult) string {
+	if result.IsError {
+		return result.Result
+	}
+	if result.Subtype == "error" || result.Subtype == "timeout" {
+		return result.Result
+	}
+	return ""
+}
+
+// listFiles recursively lists all files in a directory (relative paths)
+func listFiles(dir string) ([]string, error) {
+	var files []string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories and .git folder
+		if info.IsDir() {
+			if info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Get relative path from workspace root
+		relPath, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+
+		files = append(files, relPath)
+		return nil
+	})
+
+	return files, err
+}
