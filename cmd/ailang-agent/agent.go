@@ -127,11 +127,22 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 
 		if !result.Success {
 			log.Printf("  [ERROR] %s", result.Error)
-			return fmt.Errorf("directive failed: %s", result.Error)
 		}
 
-		// Phase 3 will send result back to UI via message bus
-		// For now, we just log the result
+		// Format and send result back to UI
+		formatted := agent.FormatResult(result)
+		log.Printf("  [SENDING] Publishing result to thread %s", msg.ThreadID)
+		if _, err := a.client.SendResult(msg.ThreadID, formatted); err != nil {
+			log.Printf("  [ERROR] Failed to send result: %v", err)
+			return fmt.Errorf("failed to send result: %w", err)
+		}
+
+		log.Printf("  [SUCCESS] Result published to UI")
+
+		// Return error if directive failed (for proper error handling)
+		if !result.Success {
+			return fmt.Errorf("directive failed: %s", result.Error)
+		}
 
 	} else {
 		log.Printf("  [INFO] Message kind '%s' not yet supported", msg.Kind)
