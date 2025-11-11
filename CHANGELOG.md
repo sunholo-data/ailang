@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased - v0.4.6]
+## [v0.4.4] - 2025-11-11
 
 ### Added - S-CONS Pattern Sugar (x :: xs) 🎯 DX Improvement
 

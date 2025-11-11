@@ -252,9 +252,20 @@
         "latest"
       ],
       "notes": "Fix stdlib docs + remove Cons reference + clarify S-CONS limitation"
+    },
+    "v0.4.4": {
+      "file": "prompts/v0.4.4.md",
+      "hash": "27e5b7a3839ddf178ba24133c7997641dc3b4c62432bd5285f326236100882a4",
+      "description": "Add S-CONS pattern sugar (x :: xs syntax)",
+      "created": "2025-11-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add S-CONS pattern sugar (x :: xs syntax)"
     }
   },
-  "active": "v0.4.2",
+  "active": "v0.4.4",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
