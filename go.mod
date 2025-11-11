@@ -5,6 +5,8 @@ go 1.22
 require (
 	github.com/fatih/color v1.16.0
 	github.com/google/go-cmp v0.7.0
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/peterh/liner v1.2.2
 	github.com/stretchr/testify v1.11.1
@@ -14,8 +16,6 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.3 // indirect

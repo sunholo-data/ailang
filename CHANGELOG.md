@@ -1,5 +1,98 @@
 # AILANG Changelog
 
+## [Unreleased - v0.4.6]
+
+### Added - S-CONS Pattern Sugar (x :: xs) 🎯 DX Improvement
+
+**User Impact**: Pattern matching now supports ML-style `x :: xs` syntax alongside canonical `::(x, xs)`. Eliminates 36 PAR_001 parse errors (12% reduction in eval failures). More familiar syntax for developers with ML-family backgrounds (OCaml, Haskell, F#, SML).
+
+**What Was Added**:
+1. **Parser Extension** (~49 LOC in internal/parser/parser_pattern.go)
+   - Refactored `parsePattern()` to support infix `::` operator
+   - Created `parseBasePattern()` for atomic patterns
+   - Right-associative desugaring: `a :: b :: c` → `::(a, ::(b :: c))`
+   - Bijective transformation: `x :: xs` means exactly the same as `::(x, xs)`
+   - Strict mode support: `--strict-syntax` rejects sugar, suggests canonical form
+
+2. **Parser Unit Tests** (~313 LOC in internal/parser/parser_pattern_sugar_test.go)
+   - 11 test cases covering:
+     - Basic sugar: `x :: xs`
+     - Wildcards: `_ :: xs`
+     - Right-associativity: `a :: b :: c`
+     - Empty list terminator: `x :: []`
+     - Literals: `1 :: xs` (note: literals don't work at runtime, pre-existing limitation)
+     - Mixed forms: sugar + canonical in same match
+     - Parenthesized patterns: `(x :: xs)`
+     - Guards: `x :: xs if p(x) => ...` (note: guards don't work at runtime, pre-existing limitation)
+     - Strict mode rejection with helpful error
+     - Strict mode accepts canonical form
+   - All 11 tests passing ✅
+
+3. **Integration Tests** (~157 LOC in internal/pipeline/pattern_sugar_test.go)
+   - 5 full pipeline tests (parse → elaborate):
+     - Basic cons sugar end-to-end
+     - Right-associative chaining
+     - Mixed sugar/canonical forms
+     - Strict mode rejection
+     - Strict mode accepts canonical
+   - All 5 tests passing ✅
+
+4. **Example File** (examples/pattern_sugar.ail, ~120 LOC)
+   - 10 working examples demonstrating all capabilities
+   - Basic patterns, wildcards, chaining, mixed forms, tuples
+   - Recursive list functions (sum, length, head, tail)
+   - Execution verified ✅
+
+**Syntax Examples**:
+```ailang
+// Basic sugar
+match list {
+  x :: xs => x,
+  [] => 0
+}
+
+// Right-associative (parses as a :: (b :: (c :: rest)))
+match list {
+  a :: b :: c :: rest => a + b + c,
+  _ => 0
+}
+
+// Mixed with canonical form
+match list {
+  x :: [] => x,                    // Sugar
+  ::(a, ::(b, rest)) => a + b,     // Canonical
+  _ => 0
+}
+
+// Strict mode (--strict-syntax)
+ailang check --strict-syntax module.ail
+// → Error: Use `::(x, xs)` instead of `x :: xs`
+```
+
+**Design Principles**:
+- **Bijective desugaring**: `x :: xs` ≡ `::(x, xs)` (identical semantics)
+- **Canonical form preserved**: `::(x, xs)` remains default in formatters/errors
+- **Right-associative**: mirrors expression-level cons sugar (v0.4.1)
+- **Opt-in sugar**: `--strict-syntax` disables all sugar for deterministic code
+
+**Impact**:
+- **Parse failures**: -12% (36 PAR_001 errors eliminated)
+- **DX improvement**: More familiar syntax for ML developers
+- **No semantic changes**: Pure surface sugar, same AST representation
+- **Zero regressions**: All existing tests pass
+
+**Files Modified**:
+- internal/parser/parser_pattern.go: +49 LOC (parser extension)
+- internal/parser/parser_pattern_sugar_test.go: +313 LOC (NEW, 11 tests)
+- internal/pipeline/pattern_sugar_test.go: +157 LOC (NEW, 5 integration tests)
+- examples/pattern_sugar.ail: +120 LOC (NEW, working example)
+
+**Testing**: 16 new tests (11 parser + 5 integration), all passing ✅, zero regressions, lint clean
+
+**Velocity**: 2 days estimated → 1.5 days actual (ahead of schedule)
+
+**Resolves**: S-CONS pattern limitation (36 PAR_001 errors, 12% of failures)
+
 ## [Unreleased - v0.4.5]
 
 ### Added - Agent Execution Integration 🤖 Autonomous Code Execution

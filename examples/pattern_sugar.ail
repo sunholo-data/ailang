@@ -1,0 +1,133 @@
+// S-CONS Pattern Sugar Example (v0.4.3)
+//
+// This example demonstrates the new x :: xs pattern syntax (cons sugar).
+// Prior to v0.4.3, only the verbose ::(x, xs) canonical form was supported.
+// Now both forms work identically, with x :: xs as optional syntactic sugar.
+//
+// Pattern syntax:
+//   x :: xs          # Sugar form (NEW in v0.4.3)
+//   ::(x, xs)        # Canonical form (still works)
+//   a :: b :: c      # Right-associative: a :: (b :: c)
+//   _ :: xs          # Wildcard with sugar
+//   1 :: xs          # Literal with sugar
+//   x :: []          # Empty list terminator
+//
+// The sugar is bijective: x :: xs means exactly the same as ::(x, xs)
+// Canonical form remains the default output for formatters and error messages.
+// In --strict-syntax mode, only the canonical form is allowed.
+
+module examples/pattern_sugar
+
+import std/io (println)
+
+// Example 1: Basic head extraction with sugar
+// Compare with canonical form in examples/list_pattern_cons.ail
+func head(list: List[int]) -> int {
+  match list {
+    x :: xs => x,     // NEW sugar syntax
+    [] => 0
+  }
+}
+
+// Example 2: Tail extraction with wildcard
+func tail(list: List[int]) -> List[int] {
+  match list {
+    _ :: xs => xs,    // Wildcard + sugar
+    [] => []
+  }
+}
+
+// Example 3: Right-associativity demonstration
+// Pattern a :: b :: c means a :: (b :: c)
+// This matches lists with at least 2 elements
+func sumFirstTwo(list: List[int]) -> int {
+  match list {
+    a :: b :: c => a + b,   // Right-associative chaining
+    _ => 0
+  }
+}
+
+// Example 4: Three-element list with sugar
+func sumThree(list: List[int]) -> int {
+  match list {
+    a :: b :: c :: rest => a + b + c,
+    _ => 0
+  }
+}
+
+// Example 5: Mixed sugar and canonical forms in same match
+// Both forms are equivalent and can be used together
+func describe(list: List[int]) -> string {
+  match list {
+    [] => "empty",
+    x :: [] => "singleton: " ++ show(x),            // Sugar
+    ::(x, ::(y, [])) => "pair: " ++ show(x) ++ ", " ++ show(y),  // Canonical
+    x :: y :: rest => "many: starts with " ++ show(x) ++ ", " ++ show(y),  // Sugar
+    _ => "other"
+  }
+}
+
+// Example 6: Nested patterns with tuples
+func firstPair(kvs: List[(string, int)]) -> (string, int) {
+  match kvs {
+    (k, v) :: rest => (k, v),
+    [] => ("", 0)
+  }
+}
+
+// Example 9: Recursive list sum using sugar
+func sum(xs: List[int]) -> int {
+  match xs {
+    x :: xs => x + sum(xs),
+    [] => 0
+  }
+}
+
+// Example 10: List length using sugar
+func length(xs: List[int]) -> int {
+  match xs {
+    _ :: xs => 1 + length(xs),
+    [] => 0
+  }
+}
+
+// Main function to demonstrate all examples
+export func main() -> () ! {IO} {
+  println("=== S-CONS Pattern Sugar Examples (v0.4.3) ===");
+  println("");
+
+  let nums = [1, 2, 3, 4, 5];
+  let empty: List[int] = [];
+  let single = [42];
+
+  // Test head and tail
+  println("head([1,2,3,4,5]) = " ++ show(head(nums)));
+  println("tail([1,2,3,4,5]) = " ++ show(tail(nums)));
+  println("");
+
+  // Test right-associativity
+  println("sumFirstTwo([1,2,3,4,5]) = " ++ show(sumFirstTwo(nums)));
+  println("sumThree([1,2,3,4,5]) = " ++ show(sumThree(nums)));
+  println("");
+
+  // Test describe with mixed forms
+  println("describe([]) = " ++ describe(empty));
+  println("describe([42]) = " ++ describe(single));
+  println("describe([1,2]) = " ++ describe([1, 2]));
+  println("describe([1,2,3,4,5]) = " ++ describe(nums));
+  println("");
+
+  // Test recursive functions
+  println("sum([1,2,3,4,5]) = " ++ show(sum(nums)));
+  println("length([1,2,3,4,5]) = " ++ show(length(nums)));
+  println("");
+
+  // Test with tuples
+  let kvs = [("a", 1), ("b", 2), ("c", 3)];
+  let pair = firstPair(kvs);
+  println("firstPair([(\"a\",1),...]) = " ++ show(pair));
+  println("");
+
+  println("✓ All examples complete!");
+  ()
+}
