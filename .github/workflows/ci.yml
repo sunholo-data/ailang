@@ -22,7 +22,10 @@ jobs:
     
     - name: Install dependencies
       run: make deps
-    
+
+    - name: Build binaries
+      run: make install
+
     - name: Run tests
       run: make test
 

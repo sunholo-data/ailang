@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,6 +98,11 @@ func TestAgent_Poll(t *testing.T) {
 
 // TestAgent_ProcessMessage tests individual message processing
 func TestAgent_ProcessMessage(t *testing.T) {
+	// Skip if claude binary not available (e.g., in CI)
+	if _, err := exec.LookPath("claude"); err != nil {
+		t.Skip("Skipping: claude binary not found (required for agent execution)")
+	}
+
 	// Create temp database
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
