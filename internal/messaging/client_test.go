@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -422,9 +423,12 @@ func TestStartStopPolling(t *testing.T) {
 	// Create a thread and message
 	thread, _ := client.store.CreateThread("Test Thread", "human", "user")
 
+	var mu sync.Mutex
 	callCount := 0
 	callback := func(messages []*Message) error {
+		mu.Lock()
 		callCount++
+		mu.Unlock()
 		return nil
 	}
 
@@ -440,7 +444,11 @@ func TestStartStopPolling(t *testing.T) {
 	// Stop polling
 	client.StopPolling()
 
-	if callCount == 0 {
+	mu.Lock()
+	count := callCount
+	mu.Unlock()
+
+	if count == 0 {
 		t.Error("Expected callback to be called at least once")
 	}
 }
