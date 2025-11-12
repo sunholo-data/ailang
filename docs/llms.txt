@@ -807,9 +807,9 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.4.2)
+# AI Teaching Prompt (Latest: v0.4.4)
 
-# AILANG v0.4.1 - AI Teaching Prompt (Syntactic Sugar + JSON Decode + Environment Variables + Net Effects)
+# AILANG v0.4.4 - AI Teaching Prompt (Pattern Sugar + Syntactic Sugar + JSON Decode + Environment Variables + Net Effects)
 
 **CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
 
@@ -825,10 +825,10 @@ AILANG is a pure functional language with Hindley-Milner type inference and alge
 - **Zero-arg call: `f ()` (SPACE required!)** NOT `f()` at top-level (v0.4.1: `f()` works in expressions)
 - ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
 - Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
-- List: `[]` | `x :: xs` (sugar v0.4.1+, expressions only) | `match xs { [] => ..., ::(h, t) => ... }` (patterns use canonical)
+- List: `[]` | `x :: xs` (sugar v0.4.1+) | `match xs { [] => ..., x :: xs => ... }` (sugar v0.4.4+) | `::(h, t)` (canonical)
 - Type: `int -> bool` (sugar v0.4.1+) or `funcType int bool` (canonical)
 - **Testing (v0.3.20+):** `test "name" = expr` | `property "name" (x: int) = expr`
-- **Sugar (v0.4.1+):** `::` cons, `->` arrow types, `f()` expr calls | Disable: `--strict-syntax`
+- **Sugar (v0.4.1+):** `::` cons (expressions + patterns v0.4.4+), `->` arrow types, `f()` expr calls | Disable: `--strict-syntax`
 
 **Entry module prelude (v0.3.16+):** `print` builtin available in entry modules (no import needed!)
 
@@ -932,25 +932,44 @@ AILANG v0.4.1 introduces optional syntactic sugar for common patterns. These des
 
 ### S-CONS: Infix Cons Operator (`::`)
 
-**Sugar:** `x :: xs` (infix cons for lists, **expression contexts only**)
-**Canonical:** `::(x, xs)` (function call)
+**Sugar:** `x :: xs` (infix cons for lists, **works in both expressions AND patterns** since v0.4.4)
+**Canonical:** `::(x, xs)` (function call, still works everywhere)
 **Right-associative:** `1 :: 2 :: []` → `::(1, ::(2, []))`
 
-**⚠️ Important:** S-CONS sugar only works in **expressions**. In **patterns**, you must use the canonical form `::(h, t)`.
+**✅ Both forms are equivalent:** `x :: xs` ≡ `::(x, xs)` (bijective desugaring)
 
 ```ailang
 -- ✅ Sugar syntax works in expressions
 let list = 1 :: 2 :: 3 :: []
 
--- Desugars to canonical form
-let list = ::(1, ::(2, ::(3, [])))
-
--- ⚠️ Pattern matching requires CANONICAL form
+-- ✅ Sugar syntax NOW WORKS in patterns (v0.4.4+)
 match list {
   [] => 0,
-  ::(h, t) => h + sumList(t)  -- Must use ::(h, t), NOT h :: t
+  x :: xs => x + sumList(xs)  -- Sugar form (NEW!)
+}
+
+-- ✅ Canonical form still works everywhere
+match list {
+  [] => 0,
+  ::(h, t) => h + sumList(t)  -- Canonical form
+}
+
+-- ✅ Right-associative chaining works
+match list {
+  a :: b :: c => a + b,  -- Means: a :: (b :: c)
+  _ => 0
+}
+
+-- ✅ Mixed forms in same match (both are equivalent)
+match list {
+  x :: [] => "singleton",
+  ::(x, ::(y, [])) => "pair",  -- Canonical
+  x :: y :: rest => "many",     -- Sugar
+  _ => "other"
 }
 ```
+
+**Note:** In `--strict-syntax` mode, only the canonical form `::(x, xs)` is allowed.
 
 ### S-ARROWTYPE: Function Type Arrows (`->`)
 
@@ -1211,7 +1230,7 @@ pure func parsePositive(s: string) -> Option[int] {
 - ❌ NO list comprehensions `[x*2 for x in list]` → use `map` or recursion
 - ❌ NO tuple destructuring `let (x, y) = pair` → use record fields or pattern match in function
 - ❌ NO function type syntax `func(T) -> U` in type annotations → use lambda values with inferred types
-- ❌ NO Haskell-style list cons in patterns `h::t` → use `::(h, t)` (in expressions: use `x :: xs` sugar)
+- ✅ Haskell-style list cons works in patterns since v0.4.4: `x :: xs` (desugars to `::(x, xs)`)
 - ❌ NO quoted imports `import "std/io"` → use `import std/io` (no quotes!)
 - ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
 - ❌ NO `http.post()`, `http.get()`, `http()` functions → use `httpRequest("POST", url, headers, body)` from `std/net`
@@ -1376,14 +1395,14 @@ export func main() -> () ! {IO} =
   let map = \f. \xs.
     match xs {
       [] => [],
-      Cons(x, rest) => f(x) :: map(f)(rest)
+      x :: rest => f(x) :: map(f)(rest)  -- v0.4.4+ sugar syntax
     } in
 
   -- Filter: keep elements that satisfy predicate
   let filter = \pred. \xs.
     match xs {
       [] => [],
-      Cons(x, rest) =>
+      x :: rest =>  -- v0.4.4+ sugar syntax
         if pred(x)
         then x :: filter(pred)(rest)
         else filter(pred)(rest)
@@ -1401,7 +1420,7 @@ export func main() -> () ! {IO} =
 - Use `\param. body` for lambda syntax (NOT `func(param) -> Type`)
 - Currying: `\f. \g. \x.` means function takes 3 arguments separately
 - No first-class function types - pass lambdas as values
-- Pattern match on lists with `[]` and `Cons(head, tail)`
+- Pattern match on lists with `[]` and `x :: xs` (sugar v0.4.4+) or `::(x, xs)` (canonical)
 
 ## List Operations (Recursion, NO Comprehensions!)
 
@@ -1416,21 +1435,21 @@ module benchmark/solution
 export func sum(xs: List[int]) -> int =
   match xs {
     [] => 0,
-    Cons(x, rest) => x + sum(rest)
+    x :: rest => x + sum(rest)  -- v0.4.4+ sugar syntax
   }
 
 -- Recursive length (polymorphic)
 export func length[a](xs: List[a]) -> int =
   match xs {
     [] => 0,
-    Cons(_, rest) => 1 + length(rest)
+    _ :: rest => 1 + length(rest)  -- v0.4.4+ sugar syntax
   }
 
 -- Recursive filter
 export func filter[a](pred: a -> bool, xs: List[a]) -> List[a] =
   match xs {
     [] => [],
-    Cons(x, rest) =>
+    x :: rest =>  -- v0.4.4+ sugar syntax
       if pred(x)
       then x :: filter(pred, rest)
       else filter(pred, rest)
@@ -1445,7 +1464,7 @@ export func main() -> () ! {IO} =
 
 **Key points:**
 - Use `List[T]` for type annotations (NOT `[T]` in function signatures)
-- Pattern match with `[]` (empty) and `Cons(head, tail)` (non-empty)
+- Pattern match with `[]` (empty) and `x :: xs` (sugar v0.4.4+) or `::(x, xs)` (canonical)
 - List literals `[1, 2, 3]` work in expressions, not type annotations
 - No list comprehensions - write recursive functions instead
 
@@ -1742,7 +1761,7 @@ import std/io (println)
 export func calculateTotal(items: [int]) -> int {
   match items {
     [] => 0,
-    Cons(x, xs) => x + calculateTotal(xs)
+    x :: xs => x + calculateTotal(xs)  -- v0.4.4+ sugar syntax
   }
 }
 
@@ -1949,7 +1968,7 @@ export func processItem(item: int, acc: int) -> int {
 export func processAll(items: [int], acc: int) -> int {
   match items {
     [] => acc,
-    Cons(x, xs) => {
+    x :: xs => {  -- v0.4.4+ sugar syntax
       let newAcc = processItem(x, acc);
       processAll(xs, newAcc)
     }
@@ -2277,10 +2296,16 @@ match result {
   None => println("No value")
 }
 
--- List matching
+-- List matching (v0.4.4+: sugar syntax supported!)
 match xs {
   [] => println("Empty"),
-  Cons(x, xs) => println("Head: " ++ show(x))
+  x :: xs => println("Head: " ++ show(x))  -- Sugar (v0.4.4+)
+}
+
+-- Alternative: Canonical form (still works)
+match xs {
+  [] => println("Empty"),
+  ::(x, xs) => println("Head: " ++ show(x))  -- Canonical
 }
 
 -- Tuple matching
@@ -2288,7 +2313,13 @@ match pair {
   (x, y) => x + y
 }
 
--- Nested patterns
+-- Nested patterns (v0.4.4+: sugar works!)
+match xs {
+  a :: b :: c => a + b,  -- Right-associative: a :: (b :: c)
+  _ => 0
+}
+
+-- Tree patterns
 match tree {
   Leaf(v) => v,
   Node(Leaf(x), v, Leaf(y)) => x + v + y,
@@ -2341,7 +2372,7 @@ import std/io (println)
 export func map[a, b](f: func(a) -> b, xs: [a]) -> [b] {
   match xs {
     [] => [],
-    Cons(x, rest) => f(x) :: map(f, rest)
+    x :: rest => f(x) :: map(f, rest)  -- v0.4.4+ sugar syntax
   }
 }
 
@@ -2367,7 +2398,7 @@ import std/io (println)
 export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
   match xs {
     [] => [],
-    Cons(x, rest) =>
+    x :: rest =>  -- v0.4.4+ sugar syntax
       if pred(x)
       then x :: filter(pred, rest)
       else filter(pred, rest)
@@ -2395,7 +2426,7 @@ import std/io (println)
 export func foldl[a, b](f: func(b, a) -> b, acc: b, xs: [a]) -> b {
   match xs {
     [] => acc,
-    Cons(x, rest) => foldl(f, f(acc, x), rest)
+    x :: rest => foldl(f, f(acc, x), rest)  -- v0.4.4+ sugar syntax
   }
 }
 
@@ -2418,7 +2449,7 @@ import std/io (println)
 export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
   match xs {
     [] => [],
-    Cons(x, rest) =>
+    x :: rest =>  -- v0.4.4+ sugar syntax
       if pred(x)
       then x :: filter(pred, rest)
       else filter(pred, rest)
@@ -2428,7 +2459,7 @@ export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
 export func foldl[a, b](f: func(b, a) -> b, acc: b, xs: [a]) -> b {
   match xs {
     [] => acc,
-    Cons(x, rest) => foldl(f, f(acc, x), rest)
+    x :: rest => foldl(f, f(acc, x), rest)  -- v0.4.4+ sugar syntax
   }
 }
 
@@ -2456,7 +2487,7 @@ for i in [1, 2, 3] { println(i) }  -- ❌ NOT supported
 export func printAll(xs: [int]) -> () ! {IO} {
   match xs {
     [] => (),
-    Cons(x, rest) => {
+    x :: rest => {  -- v0.4.4+ sugar syntax
       println(show(x));
       printAll(rest)
     }
@@ -2576,16 +2607,16 @@ match xs {
 
 ✅ **Use constructor syntax:**
 ```ailang
--- ✅ CORRECT - ::(x, rest) is a constructor call
+-- ✅ CORRECT - ::(x, rest) is canonical form
 match xs {
   [] => 0,
   ::(x, rest) => x + sum(rest)
 }
 
--- ✅ ALSO CORRECT - Cons is the same as ::
+-- ✅ ALSO CORRECT (v0.4.4+) - x :: xs is sugar form
 match xs {
   [] => 0,
-  Cons(x, rest) => x + sum(rest)
+  x :: rest => x + sum(rest)  -- Sugar syntax
 }
 ```
 
@@ -2669,7 +2700,7 @@ let updated = {r | age: 31};
 let xs = [1, 2, 3];
 match xs {
   [] => ...,
-  Cons(x, rest) => ...
+  x :: rest => ...  -- v0.4.4+ sugar syntax
 }
 
 -- Recursion
