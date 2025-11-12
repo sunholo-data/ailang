@@ -171,13 +171,15 @@ jobs:
     - name: Generate llms.txt
       run: ./tools/generate-llms-txt.sh
 
-    - name: Commit documentation updates
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: 'Docs: Auto-sync prompts and generate llms.txt [skip ci]'
-        file_pattern: 'docs/docs/prompts/*.md docs/llms.txt llms.txt'
-        commit_user_name: github-actions[bot]
-        commit_user_email: github-actions[bot]@users.noreply.github.com
+    # Disabled: Auto-commit causes race condition with test job
+    # Run sync-prompts.sh and generate-llms-txt.sh manually before releases
+    # - name: Commit documentation updates
+    #   uses: stefanzweifel/git-auto-commit-action@v5
+    #   with:
+    #     commit_message: 'Docs: Auto-sync prompts and generate llms.txt [skip ci]'
+    #     file_pattern: 'docs/docs/prompts/*.md docs/llms.txt llms.txt'
+    #     commit_user_name: github-actions[bot]
+    #     commit_user_email: github-actions[bot]@users.noreply.github.com
 
   lint:
     runs-on: ubuntu-latest
