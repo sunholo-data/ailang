@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-37.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-38.3%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -301,9 +301,9 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-43%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-22%20passing%2022%20failing-red.svg)
 
-**43/48 examples passing (90%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**22/48 examples passing (46%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -311,45 +311,45 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/block_recursion.ail` | ✅ Pass |  |
+| `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/closures.ail` | ✅ Pass |  |
-| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
-| `runnable/demos/hello_io.ail` | ✅ Pass |  |
-| `runnable/effects_basic.ail` | ✅ Pass |  |
+| `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/func_expressions.ail` | ✅ Pass |  |
+| `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
-| `runnable/imports.ail` | ✅ Pass |  |
-| `runnable/imports_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/lambdas.ail` | ✅ Pass |  |
 | `runnable/lambdas_advanced.ail` | ✅ Pass |  |
 | `runnable/lambdas_closures.ail` | ✅ Pass |  |
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ✅ Pass |  |
-| `runnable/list_patterns.ail` | ✅ Pass |  |
-| `runnable/micro_block_if.ail` | ✅ Pass |  |
-| `runnable/micro_block_seq.ail` | ✅ Pass |  |
-| `runnable/micro_io_echo.ail` | ✅ Pass |  |
-| `runnable/micro_option_map.ail` | ✅ Pass |  |
-| `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_block_if.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_block_seq.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_io_echo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_option_map.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_record_person.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/patterns.ail` | ✅ Pass |  |
 | `runnable/records.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ✅ Pass |  |
-| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
-| `runnable/recursion_mutual.ail` | ✅ Pass |  |
-| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_mutual.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_quicksort.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/simple.ail` | ✅ Pass |  |
 | `runnable/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/test_cli_io.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
-| `runnable/test_import_func.ail` | ✅ Pass |  |
+| `runnable/test_import_func.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runna... |
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |

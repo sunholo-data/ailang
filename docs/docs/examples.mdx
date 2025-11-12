@@ -402,15 +402,15 @@ The example verification status shows what percentage of AILANG features are ful
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-43%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-22%20passing%2022%20failing-red.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-11-06 (Auto-updated by CI)*
+*Last updated: 2025-11-12 (Auto-updated by CI)*
 
-**Summary:** 43 passed, 1 failed, 4 skipped (Total: 48)
+**Summary:** 22 passed, 22 failed, 4 skipped (Total: 48)
 
-**Overall: 43/48 examples working (90%)**
+**Overall: 22/48 examples working (46%)**
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -418,45 +418,45 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/block_recursion.ail` | ✅ Pass |  |
+| `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/closures.ail` | ✅ Pass |  |
-| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
-| `runnable/demos/hello_io.ail` | ✅ Pass |  |
-| `runnable/effects_basic.ail` | ✅ Pass |  |
+| `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std/option (s... |
+| `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/func_expressions.ail` | ✅ Pass |  |
+| `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
-| `runnable/imports.ail` | ✅ Pass |  |
-| `runnable/imports_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std/json (sea... |
 | `runnable/lambdas.ail` | ✅ Pass |  |
 | `runnable/lambdas_advanced.ail` | ✅ Pass |  |
 | `runnable/lambdas_closures.ail` | ✅ Pass |  |
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ✅ Pass |  |
-| `runnable/list_patterns.ail` | ✅ Pass |  |
-| `runnable/micro_block_if.ail` | ✅ Pass |  |
-| `runnable/micro_block_seq.ail` | ✅ Pass |  |
-| `runnable/micro_io_echo.ail` | ✅ Pass |  |
-| `runnable/micro_option_map.ail` | ✅ Pass |  |
-| `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/micro_block_if.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/micro_block_seq.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/micro_io_echo.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/micro_option_map.ail` | ❌ Fail | Error: module loading error: failed to load std/option (s... |
+| `runnable/micro_record_person.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/option_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/patterns.ail` | ✅ Pass |  |
 | `runnable/records.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ✅ Pass |  |
-| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
-| `runnable/recursion_mutual.ail` | ✅ Pass |  |
-| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/recursion_mutual.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
+| `runnable/recursion_quicksort.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/simple.ail` | ✅ Pass |  |
 | `runnable/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/test_cli_io.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ❌ Fail | Error: module loading error: failed to load std/io (searc... |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
-| `runnable/test_import_func.ail` | ✅ Pass |  |
+| `runnable/test_import_func.ail` | ❌ Fail | Error: module loading error: failed to load std/option (s... |
 | `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runnable/test_i... |
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |
