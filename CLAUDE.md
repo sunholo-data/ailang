@@ -169,6 +169,56 @@ git fsck --lost-found        # Find orphaned commits
 - ✅ Create new branches instead of switching to existing ones
 - ✅ Use `git status` before every git operation
 
+### 0.1. VERIFY GITHUB ACCOUNT BEFORE RELEASES/TAGS
+
+**⚠️ CRITICAL: Multi-account authentication issues (November 2025)**
+
+The developer uses multiple GitHub accounts (personal and work projects). The `gh` CLI may have the wrong account active, causing release/tag operations to fail.
+
+**The GitHub Account Mismatch (November 2025):**
+```bash
+# ❌ WRONG - Active account is for wrong project
+gh auth status
+# Shows: Active account: rw-markedmondson (Rockwool project)
+# But this repo needs: MarkEdmondson1234
+
+gh release create v0.4.4  # FAILS with auth error
+git push origin v0.4.4     # FAILS with auth error
+```
+
+**✅ CORRECT approach before ANY release or git push operations:**
+
+1. **ALWAYS check active GitHub account:**
+   ```bash
+   gh auth status
+   ```
+
+2. **Verify the active account matches the repo owner:**
+   - This repo (sunholo-data/ailang) needs: `MarkEdmondson1234`
+   - If active account is `rw-markedmondson` → WRONG ACCOUNT
+
+3. **Switch to correct account if needed:**
+   ```bash
+   gh auth switch --user MarkEdmondson1234
+   ```
+
+4. **Then proceed with release operations:**
+   ```bash
+   git push origin v0.4.4              # Push tag
+   gh release create v0.4.4 ...        # Create release
+   ```
+
+**Checklist for releases:**
+- [ ] Check `gh auth status` - verify active account
+- [ ] Switch account if needed: `gh auth switch --user MarkEdmondson1234`
+- [ ] Push tag to remote BEFORE creating release
+- [ ] Create release using `gh release create`
+
+**Why this matters:**
+- Wrong account = authentication failures
+- Tag must be on remote before release creation
+- Saves frustration and debugging time
+
 ### 1. ALWAYS USE EXISTING TOOLS FIRST
 
 **Before writing ANY new script or code:**
