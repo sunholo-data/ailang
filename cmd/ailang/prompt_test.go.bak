@@ -78,7 +78,6 @@ func TestPromptCommand_List(t *testing.T) {
 
 // TestPromptCommand_Info tests the --info flag
 func TestPromptCommand_Info(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--version", "v0.3.24", "--info")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -112,7 +111,6 @@ func TestPromptCommand_Info(t *testing.T) {
 
 // TestPromptCommand_Default tests getting the default/active prompt
 func TestPromptCommand_Default(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -134,7 +132,6 @@ func TestPromptCommand_Default(t *testing.T) {
 
 // TestPromptCommand_SpecificVersion tests getting a specific version
 func TestPromptCommand_SpecificVersion(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--version", "v0.3.24")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -156,7 +153,6 @@ func TestPromptCommand_SpecificVersion(t *testing.T) {
 
 // TestPromptCommand_Latest tests the "latest" keyword
 func TestPromptCommand_Latest(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--version", "latest")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -206,7 +202,6 @@ func TestPromptCommand_InvalidVersion(t *testing.T) {
 
 // TestPromptCommand_Piping tests that output is suitable for piping
 func TestPromptCommand_Piping(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -231,7 +226,6 @@ func TestPromptCommand_Piping(t *testing.T) {
 
 // TestPromptCommand_InfoWithoutVersion tests --info requires --version
 func TestPromptCommand_InfoWithoutVersion(t *testing.T) {
-	skipIfBinaryNotAvailable(t)
 	// When --info is used without --version, it should default to latest
 	cmd := exec.Command("ailang", "prompt", "--info")
 	output, err := cmd.CombinedOutput()
