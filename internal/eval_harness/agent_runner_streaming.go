@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,6 +44,21 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	)
 
 	cmd.Dir = workspace
+
+	// Set up environment for AILANG stdlib resolution
+	// Need to find stdlib directory relative to eval harness (typically <project>/std/)
+	// Get current working directory (should be project root when running tests/evals)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+	stdlibPath := filepath.Join(cwd, "std")
+
+	// Set environment with AILANG_STDLIB_PATH so imports work
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
+	env = append(env, fmt.Sprintf("PWD=%s", workspace)) // Make workspace the "project" directory
+	cmd.Env = env
 
 	// Claude's stream-json output goes to stdout
 	stdout, err := cmd.StdoutPipe()

@@ -5,14 +5,17 @@
 set -euo pipefail
 
 VERSION="${1:-}"
-RESULTS_DIR="${2:-eval_results/baselines/$VERSION}"
-JSON_FILE="docs/static/benchmarks/latest.json"
 
 if [[ -z "$VERSION" ]]; then
     echo "Usage: $0 <version> [results_dir]" >&2
     echo "Example: $0 0.4.1" >&2
     exit 1
 fi
+
+# Normalize version: ensure directory always has "v" prefix
+VERSION_NORMALIZED="${VERSION#v}"
+RESULTS_DIR="${2:-eval_results/baselines/v$VERSION_NORMALIZED}"
+JSON_FILE="docs/static/benchmarks/latest.json"
 
 if [[ ! -d "$RESULTS_DIR" ]]; then
     echo "Error: Results directory not found: $RESULTS_DIR" >&2
@@ -68,7 +71,13 @@ OVERALL_PCT=$(echo "$OVERALL_RATE * 100" | bc -l | xargs printf "%.1f")
 PREV_VERSION=$(jq -r '.history | sort_by(.timestamp) | reverse | .[1].version // "none"' "$JSON_FILE" 2>/dev/null || echo "none")
 
 # Try to get previous version's summary.jsonl if it exists
-PREV_RESULTS_DIR="eval_results/baselines/$PREV_VERSION"
+# Normalize previous version path too
+if [[ "$PREV_VERSION" != "none" ]] && [[ "$PREV_VERSION" != "null" ]]; then
+    PREV_VERSION_NORMALIZED="${PREV_VERSION#v}"
+    PREV_RESULTS_DIR="eval_results/baselines/v$PREV_VERSION_NORMALIZED"
+else
+    PREV_RESULTS_DIR="eval_results/baselines/$PREV_VERSION"
+fi
 PREV_SUMMARY="$PREV_RESULTS_DIR/summary.jsonl"
 
 if [[ "$PREV_VERSION" != "none" ]] && [[ "$PREV_VERSION" != "null" ]] && [[ -f "$PREV_SUMMARY" ]]; then

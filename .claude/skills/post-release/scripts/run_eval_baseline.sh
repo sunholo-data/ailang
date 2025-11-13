@@ -54,17 +54,17 @@ else
 fi
 echo
 
-# Step 1: Run standard eval baseline (pass version exactly as given)
+# Step 1: Run standard eval baseline (pass normalized version WITH v prefix)
 echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
 if [[ -n "$FULL_FLAG" ]]; then
     monitor_progress "$RESULTS_DIR" 480 "Standard" &
     MONITOR_PID=$!
-    make eval-baseline EVAL_VERSION="$VERSION" FULL=true
+    make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
     kill $MONITOR_PID 2>/dev/null || true
 else
     monitor_progress "$RESULTS_DIR" 246 "Standard" &
     MONITOR_PID=$!
-    make eval-baseline EVAL_VERSION="$VERSION"
+    make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
     kill $MONITOR_PID 2>/dev/null || true
 fi
 
