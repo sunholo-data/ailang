@@ -34,7 +34,7 @@ ailang --version
 
 **Provide your AI agent with the current AILANG syntax guide:**
 
-<Icon name="book" inline /> **[AILANG v0.4.4 Teaching Prompt](/docs/prompts/v0.4.4)**
+<Icon name="book" inline /> **[AILANG {ACTIVE_PROMPT} Teaching Prompt](/docs/prompts/{ACTIVE_PROMPT})**
 
 This prompt teaches AI models:
 - <CheckIcon inline size={14} /> Correct AILANG syntax (not Python/Rust/JavaScript)
@@ -43,16 +43,16 @@ This prompt teaches AI models:
 - <CheckIcon inline size={14} /> Record updates, pattern matching, ADTs
 - <CheckIcon inline size={14} /> Auto-imported std/prelude (no manual imports for comparisons)
 
-**Copy the full prompt** from [prompts/v0.4.4.md](/docs/prompts/v0.4.4) and include it in your AI agent's system prompt or context.
+**Copy the full prompt** from [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT}) and include it in your AI agent's system prompt or context.
 
 ### Step 3: Test AI Code Generation
 
 Ask your AI agent to write AILANG code:
 
 ```
-Using AILANG v0.4.4, write a program that reads a file and counts the number of lines.
+Using AILANG {ACTIVE_PROMPT}, write a program that reads a file and counts the number of lines.
 
-[Include full v0.4.4 prompt here]
+[Include full {ACTIVE_PROMPT} prompt here]
 ```
 
 **Expected output:**

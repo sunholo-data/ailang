@@ -13,11 +13,11 @@ import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 ---
 
-## <Icon name="book" inline /> Canonical Prompt (v0.4.4)
+## <Icon name="book" inline /> Canonical Prompt ({ACTIVE_PROMPT})
 
 **The official AILANG teaching prompt is maintained at**:
 
-### [prompts/v0.4.4.md](../prompts/v0.4.4)
+### [prompts/{ACTIVE_PROMPT}.md](../prompts/{ACTIVE_PROMPT})
 
 This prompt is:
 - <CheckIcon inline size={14} /> **Validated through eval benchmarks** - Tested across GPT-5, Gemini 2.5 Pro, Claude Sonnet 4.5
@@ -29,7 +29,7 @@ This prompt is:
 
 ## <Icon name="info" inline /> Quick Reference
 
-**Current version**: {STABLE_RELEASE} (Teaching prompt: v0.4.4)
+**Current version**: {STABLE_RELEASE} (Teaching prompt: {ACTIVE_PROMPT})
 
 **Core Features**:
 - <CheckIcon inline size={14} /> Module execution with effects
@@ -48,7 +48,7 @@ This prompt is:
 - See [Implementation Status](/docs/reference/implementation-status) for current limitations
 - See [LIMITATIONS.md](https://github.com/sunholo-data/ailang/blob/main/docs/LIMITATIONS.md) for workarounds
 
-**For complete syntax guide**, see [prompts/v0.4.4.md](/docs/prompts/v0.4.4)
+**For complete syntax guide**, see [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT})
 
 ---
 
@@ -56,14 +56,14 @@ This prompt is:
 
 ### For AI Code Generation
 
-When asking an AI model (Claude, GPT, Gemini) to write AILANG code, provide the full prompt from [prompts/v0.4.4.md](/docs/prompts/v0.4.4).
+When asking an AI model (Claude, GPT, Gemini) to write AILANG code, provide the full prompt from [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT}).
 
 **Example usage**:
 ```
 I need you to write AILANG code to solve this problem: [problem description]
 
 First, read this AILANG syntax guide:
-[paste contents of prompts/v0.4.4.md]
+[paste contents of prompts/{ACTIVE_PROMPT}.md]
 
 Now write the code.
 ```
@@ -87,7 +87,7 @@ See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benc
 
 ## <Icon name="rocket" inline /> Current Prompt
 
-**Version**: v0.4.4 - [View full prompt](/docs/prompts/v0.4.4)
+**Version**: {ACTIVE_PROMPT} - [View full prompt](/docs/prompts/{ACTIVE_PROMPT})
 
 **Core Features Documented**:
 - Multi-line ADTs: `type Tree = | Leaf | Node`
