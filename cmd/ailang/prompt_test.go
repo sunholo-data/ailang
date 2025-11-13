@@ -8,8 +8,17 @@ import (
 	"testing"
 )
 
+// skipIfBinaryNotAvailable skips the test if ailang binary is not in PATH
+func skipIfBinaryNotAvailable(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not in PATH - skipping integration test")
+	}
+}
+
 // TestPromptCommand_Help tests the --help flag
 func TestPromptCommand_Help(t *testing.T) {
+	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--help")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -38,6 +47,7 @@ func TestPromptCommand_Help(t *testing.T) {
 
 // TestPromptCommand_List tests the --list flag
 func TestPromptCommand_List(t *testing.T) {
+	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--list")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -170,6 +180,7 @@ func TestPromptCommand_Latest(t *testing.T) {
 
 // TestPromptCommand_InvalidVersion tests error handling for invalid version
 func TestPromptCommand_InvalidVersion(t *testing.T) {
+	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt", "--version", "v99.99.99")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -254,6 +265,7 @@ func TestPromptCommand_InGlobalPath(t *testing.T) {
 
 // TestPromptCommand_EndsWithNewline tests that prompt ends with newline for piping
 func TestPromptCommand_EndsWithNewline(t *testing.T) {
+	skipIfBinaryNotAvailable(t)
 	cmd := exec.Command("ailang", "prompt")
 	output, err := cmd.Output()
 	if err != nil {
