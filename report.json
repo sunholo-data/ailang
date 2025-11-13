@@ -1,0 +1,455 @@
+{
+  "summary": {
+    "files": 72,
+    "errors": 0,
+    "word_count": {
+      "total": 95820,
+      "mean": 1330.8333333333333,
+      "median": 142.0
+    },
+    "line_count": {
+      "total": 19195,
+      "mean": 266.59722222222223,
+      "median": 19.5
+    },
+    "char_count": {
+      "total": 667700,
+      "mean": 9273.611111111111,
+      "median": 853.0
+    }
+  },
+  "files": [
+    {
+      "path": "llms.txt",
+      "line_count": 2828,
+      "word_count": 10767,
+      "char_count": 72948
+    },
+    {
+      "path": "example_output.txt",
+      "line_count": 4,
+      "word_count": 9,
+      "char_count": 62
+    },
+    {
+      "path": "word_count_report.txt",
+      "line_count": 4,
+      "word_count": 11,
+      "char_count": 92
+    },
+    {
+      "path": "output_squared_odds.txt",
+      "line_count": 4,
+      "word_count": 4,
+      "char_count": 10
+    },
+    {
+      "path": "example_input.txt",
+      "line_count": 5,
+      "word_count": 9,
+      "char_count": 71
+    },
+    {
+      "path": "sample_input.txt",
+      "line_count": 3,
+      "word_count": 24,
+      "char_count": 125
+    },
+    {
+      "path": "input.txt",
+      "line_count": 5,
+      "word_count": 10,
+      "char_count": 62
+    },
+    {
+      "path": "coverage.txt",
+      "line_count": 1,
+      "word_count": 1,
+      "char_count": 5
+    },
+    {
+      "path": "report.txt",
+      "line_count": 10,
+      "word_count": 34,
+      "char_count": 194
+    },
+    {
+      "path": "input_numbers.txt",
+      "line_count": 8,
+      "word_count": 8,
+      "char_count": 20
+    },
+    {
+      "path": "example.txt",
+      "line_count": 3,
+      "word_count": 15,
+      "char_count": 81
+    },
+    {
+      "path": "test.txt",
+      "line_count": 1,
+      "word_count": 1,
+      "char_count": 5
+    },
+    {
+      "path": "processed_data.txt",
+      "line_count": 5,
+      "word_count": 39,
+      "char_count": 266
+    },
+    {
+      "path": "input_data.txt",
+      "line_count": 6,
+      "word_count": 39,
+      "char_count": 266
+    },
+    {
+      "path": "word_counts.txt",
+      "line_count": 100,
+      "word_count": 200,
+      "char_count": 899
+    },
+    {
+      "path": "demo_data.txt",
+      "line_count": 4,
+      "word_count": 6,
+      "char_count": 34
+    },
+    {
+      "path": "output.txt",
+      "line_count": 1,
+      "word_count": 3,
+      "char_count": 10
+    },
+    {
+      "path": "count.txt",
+      "line_count": 1,
+      "word_count": 1,
+      "char_count": 2
+    },
+    {
+      "path": "output/processed_results.txt",
+      "line_count": 10,
+      "word_count": 20,
+      "char_count": 108
+    },
+    {
+      "path": "output/greetings.txt",
+      "line_count": 3,
+      "word_count": 13,
+      "char_count": 84
+    },
+    {
+      "path": "output/squared_numbers.txt",
+      "line_count": 5,
+      "word_count": 5,
+      "char_count": 12
+    },
+    {
+      "path": "output/results.txt",
+      "line_count": 2,
+      "word_count": 9,
+      "char_count": 49
+    },
+    {
+      "path": "output/processed_data.txt",
+      "line_count": 10,
+      "word_count": 10,
+      "char_count": 25
+    },
+    {
+      "path": "output/modulo_results.txt",
+      "line_count": 11,
+      "word_count": 33,
+      "char_count": 187
+    },
+    {
+      "path": "docs/llms.txt",
+      "line_count": 2828,
+      "word_count": 10767,
+      "char_count": 72948
+    },
+    {
+      "path": "temp_data/numbers.txt",
+      "line_count": 10,
+      "word_count": 9,
+      "char_count": 39
+    },
+    {
+      "path": "temp_data/squares.txt",
+      "line_count": 5,
+      "word_count": 5,
+      "char_count": 14
+    },
+    {
+      "path": "temp_data/output.txt",
+      "line_count": 3,
+      "word_count": 20,
+      "char_count": 100
+    },
+    {
+      "path": "temp_data/data.txt",
+      "line_count": 10,
+      "word_count": 10,
+      "char_count": 26
+    },
+    {
+      "path": "data/adults.txt",
+      "line_count": 2,
+      "word_count": 2,
+      "char_count": 14
+    },
+    {
+      "path": "docs/static/llms.txt",
+      "line_count": 11482,
+      "word_count": 50103,
+      "char_count": 359742
+    },
+    {
+      "path": "docs/node_modules/jsesc/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/he/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/punycode/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/chrome-trace-event/LICENSE.txt",
+      "line_count": 23,
+      "word_count": 176,
+      "char_count": 1104
+    },
+    {
+      "path": "docs/node_modules/signal-exit/LICENSE.txt",
+      "line_count": 16,
+      "word_count": 118,
+      "char_count": 748
+    },
+    {
+      "path": "docs/node_modules/regexpu-core/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/unicode-match-property-ecmascript/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/tslib/CopyrightNotice.txt",
+      "line_count": 15,
+      "word_count": 104,
+      "char_count": 807
+    },
+    {
+      "path": "docs/node_modules/tslib/LICENSE.txt",
+      "line_count": 12,
+      "word_count": 101,
+      "char_count": 644
+    },
+    {
+      "path": "docs/node_modules/typescript/LICENSE.txt",
+      "line_count": 55,
+      "word_count": 1409,
+      "char_count": 9142
+    },
+    {
+      "path": "docs/node_modules/typescript/ThirdPartyNoticeText.txt",
+      "line_count": 193,
+      "word_count": 5589,
+      "char_count": 37574
+    },
+    {
+      "path": "docs/node_modules/baseline-browser-mapping/LICENSE.txt",
+      "line_count": 201,
+      "word_count": 1581,
+      "char_count": 11357
+    },
+    {
+      "path": "docs/node_modules/regenerate/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/regjsgen/LICENSE-MIT.txt",
+      "line_count": 22,
+      "word_count": 171,
+      "char_count": 1099
+    },
+    {
+      "path": "docs/node_modules/deepmerge/license.txt",
+      "line_count": 21,
+      "word_count": 176,
+      "char_count": 1116
+    },
+    {
+      "path": "docs/node_modules/path-is-inside/LICENSE.txt",
+      "line_count": 47,
+      "word_count": 296,
+      "char_count": 1879
+    },
+    {
+      "path": "docs/node_modules/html-escaper/LICENSE.txt",
+      "line_count": 19,
+      "word_count": 170,
+      "char_count": 1089
+    },
+    {
+      "path": "docs/node_modules/opener/LICENSE.txt",
+      "line_count": 47,
+      "word_count": 296,
+      "char_count": 1879
+    },
+    {
+      "path": "docs/node_modules/unicode-emoji-modifier-base/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/unicode-match-property-value-ecmascript/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/address/LICENSE.txt",
+      "line_count": 22,
+      "word_count": 186,
+      "char_count": 1194
+    },
+    {
+      "path": "docs/node_modules/unicode-canonical-property-names-ecmascript/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/unicode-property-aliases-ecmascript/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/cssesc/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/emoji-regex/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/regenerate-unicode-properties/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/rw/test/utf8.txt",
+      "line_count": 1,
+      "word_count": 1,
+      "char_count": 6
+    },
+    {
+      "path": "docs/node_modules/recharts/umd/Recharts.js.LICENSE.txt",
+      "line_count": 21,
+      "word_count": 87,
+      "char_count": 615
+    },
+    {
+      "path": "docs/node_modules/@pnpm/network.ca-file/fixtures/ca-file1.txt",
+      "line_count": 14,
+      "word_count": 15,
+      "char_count": 182
+    },
+    {
+      "path": "docs/node_modules/@pnpm/network.ca-file/dist/fixtures/ca-file1.txt",
+      "line_count": 14,
+      "word_count": 15,
+      "char_count": 182
+    },
+    {
+      "path": "docs/node_modules/webpack-bundle-analyzer/public/viewer.js.LICENSE.txt",
+      "line_count": 10,
+      "word_count": 23,
+      "char_count": 200
+    },
+    {
+      "path": "docs/node_modules/@webassemblyjs/leb128/LICENSE.txt",
+      "line_count": 194,
+      "word_count": 1498,
+      "char_count": 10381
+    },
+    {
+      "path": "docs/node_modules/ansi-align/node_modules/emoji-regex/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "docs/node_modules/cli-table3/node_modules/emoji-regex/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "internal/eval_harness/templates/agent_task_python.txt",
+      "line_count": 51,
+      "word_count": 172,
+      "char_count": 1199
+    },
+    {
+      "path": "internal/eval_harness/templates/agent_task_ailang.txt",
+      "line_count": 52,
+      "word_count": 200,
+      "char_count": 1399
+    },
+    {
+      "path": "tests/results/summary.txt",
+      "line_count": 2,
+      "word_count": 14,
+      "char_count": 99
+    },
+    {
+      "path": "ui/node_modules/jsesc/LICENSE-MIT.txt",
+      "line_count": 20,
+      "word_count": 166,
+      "char_count": 1077
+    },
+    {
+      "path": "ui/node_modules/typescript/LICENSE.txt",
+      "line_count": 55,
+      "word_count": 1409,
+      "char_count": 9142
+    },
+    {
+      "path": "ui/node_modules/typescript/ThirdPartyNoticeText.txt",
+      "line_count": 193,
+      "word_count": 5589,
+      "char_count": 37574
+    },
+    {
+      "path": "ui/node_modules/baseline-browser-mapping/LICENSE.txt",
+      "line_count": 201,
+      "word_count": 1581,
+      "char_count": 11357
+    }
+  ]
+}
