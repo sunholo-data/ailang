@@ -7,45 +7,37 @@ difficulty: "hard"
 expected_gain: "very_high"
 timeout: 120  # Hard complexity: 120 seconds
 task_prompt: |
-  Implement a traffic light state machine in <LANG> using algebraic data types and exhaustive pattern matching.
-
-  <LANG=AILANG> Write to: benchmark/solution.ail
+  Implement a traffic light state machine in <LANG> using algebraic data types (or equivalent) and exhaustive pattern matching.
 
   **Task Requirements**:
 
-  1. **Define State ADT** (3 variants):
-     ```ailang
-     type State =
-       | Green(int)      // Green light with remaining seconds
-       | Yellow(int)     // Yellow light with remaining seconds
-       | Red(int)        // Red light with remaining seconds
-     ```
+  1. **Define State Type** (3 variants):
+     - Green state with an integer timer (remaining seconds)
+     - Yellow state with an integer timer
+     - Red state with an integer timer
 
-  2. **Define Event ADT** (2 variants):
-     ```ailang
-     type Event =
-       | Tick    // Time passes (1 second)
-       | Reset   // Reset to initial state
-     ```
+  2. **Define Event Type** (2 variants):
+     - Tick event (time passes, 1 second)
+     - Reset event (reset to initial state)
 
-  3. **Implement transition(state: State, event: Event) -> State**:
-     - **Green + Tick**: If timer > 0, decrement timer; else transition to Yellow(3)
-     - **Yellow + Tick**: If timer > 0, decrement timer; else transition to Red(10)
-     - **Red + Tick**: If timer > 0, decrement timer; else transition to Green(20)
-     - **Any state + Reset**: Return Green(20)
-     - Must be **exhaustive** (all 8 cases handled)
+  3. **Implement transition function** that takes a state and event, returns new state:
+     - **Green + Tick**: If timer > 1, decrement timer; else transition to Yellow with timer=3
+     - **Yellow + Tick**: If timer > 1, decrement timer; else transition to Red with timer=10
+     - **Red + Tick**: If timer > 1, decrement timer; else transition to Green with timer=20
+     - **Any state + Reset**: Return Green with timer=20
+     - Must handle **all combinations exhaustively** (all state/event combinations must be covered)
 
-  4. **Implement showState(state: State) -> string**:
-     - Green(n) → "GREEN (Nsec)"
-     - Yellow(n) → "YELLOW (Nsec)"
-     - Red(n) → "RED (Nsec)"
+  4. **Implement display function** that takes a state and returns a formatted string:
+     - Green state with timer N → "GREEN (Nsec)"
+     - Yellow state with timer N → "YELLOW (Nsec)"
+     - Red state with timer N → "RED (Nsec)"
 
   5. **Main simulation**:
-     - Start with Green(20)
-     - Apply 25 Tick events
-     - Then 1 Reset event
-     - Then 5 more Tick events
-     - Print state after EACH transition (31 lines total)
+     - Start with Green state (timer=20)
+     - Apply 25 Tick events (print state after each)
+     - Apply 1 Reset event (print state after)
+     - Apply 5 more Tick events (print state after each)
+     - Total output: 31 lines
 
   **Expected sequence** (first 10 lines):
   ```
@@ -61,142 +53,15 @@ task_prompt: |
   GREEN (10sec)
   ```
 
-  **AILANG Implementation Hints**:
-  ```ailang
-  module benchmark/solution
-  import std/io (println)
-
-  type State =
-    | Green(int)
-    | Yellow(int)
-    | Red(int)
-
-  type Event =
-    | Tick
-    | Reset
-
-  func transition(state: State, event: Event) -> State =
-    match event with
-    | Tick ->
-        match state with
-        | Green(timer) ->
-            if timer > 0 then
-              Green(timer - 1)
-            else
-              Yellow(3)
-        | Yellow(timer) ->
-            if timer > 0 then
-              Yellow(timer - 1)
-            else
-              Red(10)
-        | Red(timer) ->
-            if timer > 0 then
-              Red(timer - 1)
-            else
-              Green(20)
-    | Reset ->
-        Green(20)
-
-  func showState(state: State) -> string =
-    match state with
-    | Green(n) -> "GREEN (" ++ show(n) ++ "sec)"
-    | Yellow(n) -> "YELLOW (" ++ show(n) ++ "sec)"
-    | Red(n) -> "RED (" ++ show(n) ++ "sec)"
-
-  // Helper to apply event and print
-  func applyAndPrint(state: State, event: Event) !: IO -> State =
-    let newState = transition(state, event) in
-    let _ = println(showState(newState)) in
-    newState
-
-  func main() !: IO -> () =
-    // Start with Green(20)
-    let s0 = Green(20) in
-
-    // Apply 25 Ticks
-    let s1 = applyAndPrint(s0, Tick) in   // GREEN (19sec)
-    let s2 = applyAndPrint(s1, Tick) in   // GREEN (18sec)
-    // ... continue for 25 total ticks
-
-    // Apply Reset
-    let s26 = applyAndPrint(s25, Reset) in  // GREEN (20sec)
-
-    // Apply 5 more Ticks
-    let s27 = applyAndPrint(s26, Tick) in
-    // ... continue for 5 more ticks
-    ()
-  ```
-
-  **Verify your solution**:
-  ```bash
-  ailang run --entry main --caps IO benchmark/solution.ail
-  ```
+  <LANG=AILANG>
+  Write to: benchmark/solution.ail
+  Module name: benchmark/solution
+  Entry point: main
+  Required capabilities: IO
 
   <LANG=PYTHON>
   Write to: solution.py
-
-  Use dataclasses or simple classes for State and Event.
-
-  ```python
-  from dataclasses import dataclass
-
-  @dataclass
-  class Green:
-      timer: int
-
-  @dataclass
-  class Yellow:
-      timer: int
-
-  @dataclass
-  class Red:
-      timer: int
-
-  class Tick:
-      pass
-
-  class Reset:
-      pass
-
-  def transition(state, event):
-      if isinstance(event, Tick):
-          if isinstance(state, Green):
-              return Green(state.timer - 1) if state.timer > 0 else Yellow(3)
-          elif isinstance(state, Yellow):
-              return Yellow(state.timer - 1) if state.timer > 0 else Red(10)
-          elif isinstance(state, Red):
-              return Red(state.timer - 1) if state.timer > 0 else Green(20)
-      elif isinstance(event, Reset):
-          return Green(20)
-
-  def show_state(state):
-      if isinstance(state, Green):
-          return f"GREEN ({state.timer}sec)"
-      elif isinstance(state, Yellow):
-          return f"YELLOW ({state.timer}sec)"
-      elif isinstance(state, Red):
-          return f"RED ({state.timer}sec)"
-
-  def main():
-      state = Green(20)
-
-      # Apply 25 Ticks
-      for _ in range(25):
-          state = transition(state, Tick())
-          print(show_state(state))
-
-      # Apply Reset
-      state = transition(state, Reset())
-      print(show_state(state))
-
-      # Apply 5 more Ticks
-      for _ in range(5):
-          state = transition(state, Tick())
-          print(show_state(state))
-
-  if __name__ == "__main__":
-      main()
-  ```
+  Entry point: main() function
 
 expected_stdout: |
   GREEN (19sec)
