@@ -25,11 +25,6 @@ func validateModuleName(name string) error {
 		return fmt.Errorf("module name cannot contain '..': %s", name)
 	}
 
-	// Check for absolute paths
-	if filepath.IsAbs(name) {
-		return fmt.Errorf("module name cannot be an absolute path: %s", name)
-	}
-
 	// Check for null bytes (security)
 	if strings.Contains(name, "\x00") {
 		return fmt.Errorf("module name cannot contain null bytes: %s", name)
@@ -37,9 +32,16 @@ func validateModuleName(name string) error {
 
 	// Allow only alphanumeric, underscore, hyphen, forward slash
 	// This prevents shell injection and other attacks
+	// Note: Checked BEFORE filepath.IsAbs() to ensure consistent error messages across platforms
+	// (Windows drive letters like "c:" and UNC paths contain invalid chars, not just absolute paths)
 	validPattern := regexp.MustCompile(`^[a-zA-Z0-9_/-]+$`)
 	if !validPattern.MatchString(name) {
 		return fmt.Errorf("module name contains invalid characters (only [a-zA-Z0-9_/-] allowed): %s", name)
+	}
+
+	// Check for absolute paths (after regex, for Unix-style absolute paths like /etc/passwd)
+	if filepath.IsAbs(name) {
+		return fmt.Errorf("module name cannot be an absolute path: %s", name)
 	}
 
 	// Check for suspicious patterns

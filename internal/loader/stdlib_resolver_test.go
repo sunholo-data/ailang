@@ -126,13 +126,13 @@ func TestValidateModuleName(t *testing.T) {
 			name:      "Windows drive letter C:",
 			input:     "c:/windows",
 			shouldErr: true,
-			errMsg:    "contains invalid characters", // Caught by regex check (colon not allowed)
+			errMsg:    "contains invalid characters", // Colon not allowed in [a-zA-Z0-9_/-]
 		},
 		{
 			name:      "UNC path",
 			input:     "\\\\server\\share",
 			shouldErr: true,
-			errMsg:    "contains invalid characters",
+			errMsg:    "contains invalid characters", // Backslashes not allowed in [a-zA-Z0-9_/-]
 		},
 	}
 
