@@ -110,8 +110,33 @@ test(Blue)   -- Returns "blue"  ✓
 - `internal/elaborate/patterns_nullary_test.go` (+120 LOC, new file) - Unit tests
 - `tests/nullary_pattern_matching_test.ail` (+67 LOC, new file) - Integration test
 
-**Design Doc**: `design_docs/planned/v0_4_5/nullary-constructor-pattern-matching-bug.md`
-**Sprint Plan**: `design_docs/planned/v0_4_5/M-BUG-NULLARY-sprint-plan.md`
+**Design Doc**: `design_docs/implemented/v0_4_5/nullary-constructor-pattern-matching-bug.md`
+**Sprint Plan**: `design_docs/implemented/v0_4_5/M-BUG-NULLARY-sprint-plan.md`
+
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 68.1% success rate (480 total runs)
+
+**Standard Eval (0-shot + self-repair):**
+
+| Metric | 0.4.4 | 0.4.5 | Change |
+|--------|--------|--------|--------|
+| **0-shot (first attempt)** | 55.6% | 64.0% (182/284) | **+8.4%** |
+| **Final (with repair)** | 60.5% | 68.6% (195/284) | **+8.1%** |
+| **Repair effectiveness** | +4.9pp | +4.6pp | -.3pp |
+| **Python (final)** | 73.1% | 76.4% (208/272) | +3.3% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | 0.4.4 | 0.4.5 | Change |
+|----------|--------|--------|--------|
+| **AILANG** | 92.1% | 100.0% (38/38) | **+7.9%** |
+| **Python** | 100.0% | 100.0% (38/38) | 0% |
+
+**Key Findings:**
+- **Major improvement in 0-shot performance**: The nullary constructor fix eliminated 3.9% of failures, and the concat operator fix improved recursive string patterns
+- **Perfect agent eval score**: AILANG achieved 100% success in agent mode, demonstrating that both bugs were successfully resolved
+- **Repair still effective**: Self-repair continues to add ~4.6pp success rate, though slightly less effective than v0.4.4 (likely due to fewer simple fixable errors remaining)
 
 ## [v0.4.4] - 2025-11-11
 

@@ -14,9 +14,10 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 # User says: "Run post-release tasks for v0.3.14"
 # This skill will:
 # 1. Run eval baseline (ALL 6 PRODUCTION MODELS, both languages) - ALWAYS USE --full FOR RELEASES
-# 2. Update website dashboard (markdown + JSON with history)
-# 3. Extract metrics for CHANGELOG
-# 4. Guide through design doc and public doc updates
+# 2. Update website dashboard (JSON with history preservation)
+# 3. Extract metrics and UPDATE CHANGELOG.md automatically
+# 4. Move design docs from planned/ to implemented/
+# 5. Commit all changes to git
 ```
 
 **🚨 CRITICAL: For releases, ALWAYS use --full flag by default**
@@ -247,36 +248,52 @@ git push
 
 ### 4. Extract Metrics for CHANGELOG
 
-**Use the automation script:**
+**Generate metrics template:**
 ```bash
-.claude/skills/post-release/scripts/extract_changelog_metrics.sh
+.claude/skills/post-release/scripts/extract_changelog_metrics.sh X.X.X
 ```
 
-This outputs a ready-to-paste template with:
+This outputs a formatted template with:
 - Overall success rate
-- AILANG-only rate (important!)
-- Python baseline rate
-- Gap analysis
+- Standard eval metrics (0-shot, final with repair, repair effectiveness)
+- Agent eval metrics by language
 - **Automatic comparison with previous version** (no manual work!)
 
-**Update CHANGELOG.md:**
-- Paste the complete template into CHANGELOG.md under version section
-- The comparison is already calculated and formatted
-- Optionally add context about specific improvements or regressions
+**Update CHANGELOG.md automatically:**
+1. Run the script to generate the template
+2. Insert the "Benchmark Results (M-EVAL)" section into CHANGELOG.md
+3. Place it after the feature/fix sections and before the next version
+4. Add context about specific improvements or regressions in "Key Findings"
+5. Update any design doc references from `planned/` to `implemented/`
 
-**Example output (ready to paste):**
+**Example section to insert:**
 ```markdown
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 59.1% success rate (399 total runs)
+**Overall Performance**: 68.1% success rate (480 total runs)
 
-**By Language:**
-- **AILANG**: 33.0% - New language, learning curve
-- **Python**: 87.0% - Baseline for comparison
-- **Gap**: 54.0 percentage points (expected for new language)
+**Standard Eval (0-shot + self-repair):**
 
-**Comparison**: -15.2% AILANG regression from 0.3.14 (48.2% → 33.0%)
+| Metric | 0.4.4 | 0.4.5 | Change |
+|--------|--------|--------|--------|
+| **0-shot (first attempt)** | 55.6% | 64.0% (182/284) | **+8.4%** |
+| **Final (with repair)** | 60.5% | 68.6% (195/284) | **+8.1%** |
+| **Repair effectiveness** | +4.9pp | +4.6pp | -.3pp |
+| **Python (final)** | 73.1% | 76.4% (208/272) | +3.3% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | 0.4.4 | 0.4.5 | Change |
+|----------|--------|--------|--------|
+| **AILANG** | 92.1% | 100.0% (38/38) | **+7.9%** |
+| **Python** | 100.0% | 100.0% (38/38) | 0% |
+
+**Key Findings:**
+- Major improvement in 0-shot performance
+- Perfect agent eval score achieved
 ```
+
+**IMPORTANT**: Don't just output the template - actually edit CHANGELOG.md to insert it!
 
 ### 4a. Analyze Agent Evaluation Results (NEW!)
 

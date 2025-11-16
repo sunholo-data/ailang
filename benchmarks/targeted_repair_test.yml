@@ -1,34 +1,23 @@
 id: targeted_repair_test
-description: "Targeted test to validate repair mechanism works"
+description: "Fix broken AILANG code with common syntax errors"
 languages: ["ailang"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "trivial"
 expected_gain: "high"
 task_prompt: |
-  Write an AILANG program that computes 2 + 2 and prints the result.
+  Fix the broken AILANG code below. The program should compute 2 + 2 and print the result (4).
 
-  AILANG Syntax Guide (IMPORTANT - Follow exactly):
-  - Module declaration: Not needed for single-file programs
-  - Import: `import std/io (println)`
-  - Function: `let main = { println(4) }` OR `let main = println(4)`
-  - Numbers: Just write them: 1, 2, 42
-  - Arithmetic: Use infix: 2 + 2
-  - Print: Use `println(expr)`
-  - Block syntax: If you need multiple statements: `{ stmt1; stmt2; result }`
-    CRITICAL: Semicolons BETWEEN statements, NOT after the last one
-  - Let binding: `let x = expr in body` OR for top-level: `let x = expr`
-
-  Example AILANG program:
-  ```
-  import std/io (println)
+  **Broken Code**:
+  ```ailang
+  import std/io (println);
 
   let main = {
     let result = 2 + 2;
-    println(result)
+    println(result);
   }
   ```
 
-  Write EXACTLY this style. Output only the code.
+  **Task**: Identify and fix all syntax errors to make the code compile and run correctly.
 expected_stdout: |
   4

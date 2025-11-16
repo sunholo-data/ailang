@@ -9,9 +9,7 @@ timeout: 90  # Medium complexity: 90 seconds
 task_prompt: |
   Convert a CSV file to JSON in <LANG> with validation.
 
-  <LANG=AILANG> Write to: benchmark/solution.ail
-
-  **Task Steps**:
+  **Task Requirements**:
 
   1. **Create input CSV file "users.csv"** with this exact content:
      ```
@@ -22,10 +20,9 @@ task_prompt: |
      ```
 
   2. **Parse the CSV file**:
-     - Read file contents
-     - Split by newlines to get rows
-     - First row is headers (name,age,email)
-     - Parse remaining rows into structured data
+     - Read the file contents
+     - Parse headers and data rows
+     - Create structured data from the CSV
 
   3. **Validate each row**:
      - Age must be a positive integer
@@ -33,7 +30,7 @@ task_prompt: |
      - Skip any invalid rows (don't include in output)
 
   4. **Convert to JSON array**:
-     Use std/json.encode to create JSON array of objects like:
+     Create a JSON array of objects like:
      ```json
      [
        {"name": "Alice", "age": 30, "email": "alice@example.com"},
@@ -45,81 +42,6 @@ task_prompt: |
   5. **Write JSON to "users.json" file**
 
   6. **Print to stdout**: "Converted 3 valid rows to users.json"
-
-  **AILANG Implementation Hints**:
-  ```ailang
-  module benchmark/solution
-  import std/io (readFile, writeFile, println)
-  import std/json (encode)
-
-  // Helper to split string by delimiter
-  func split(s: string, delim: string) -> List[string] = ...
-
-  // Helper to parse age from string
-  func parseAge(s: string) -> Option[int] = ...
-
-  // Helper to validate email
-  func validateEmail(email: string) -> bool =
-    // Check if contains "@"
-    ...
-
-  func main() !: IO,FS -> () =
-    // 1. Create users.csv
-    let csvContent = "name,age,email\nAlice,30,alice@example.com\nBob,25,bob@example.com\nCarol,35,carol@example.com" in
-    let _ = writeFile("users.csv", csvContent) in
-
-    // 2. Read and parse CSV
-    // ... split lines, parse each row
-
-    // 3. Convert to JSON
-    // ... use std/json.encode
-
-    // 4. Write users.json
-    // ... use writeFile
-
-    // 5. Print confirmation
-    println("Converted 3 valid rows to users.json")
-  ```
-
-  **Verify your solution**:
-  ```bash
-  ailang run --entry main --caps IO,FS benchmark/solution.ail
-  ```
-
-  <LANG=PYTHON>
-  Write to: solution.py
-
-  Use csv and json modules to parse and convert.
-
-  ```python
-  import csv
-  import json
-
-  # Create CSV file
-  with open("users.csv", "w") as f:
-      f.write("name,age,email\n")
-      f.write("Alice,30,alice@example.com\n")
-      f.write("Bob,25,bob@example.com\n")
-      f.write("Carol,35,carol@example.com\n")
-
-  # Parse CSV
-  users = []
-  with open("users.csv", "r") as f:
-      reader = csv.DictReader(f)
-      for row in reader:
-          # Validate
-          if "@" in row["email"] and int(row["age"]) > 0:
-              users.append({
-                  "name": row["name"],
-                  "age": int(row["age"]),
-                  "email": row["email"]
-              })
-
-  # Write JSON
-  with open("users.json", "w") as f:
-      json.dump(users, f)
-
-  print(f"Converted {len(users)} valid rows to users.json")
   ```
 
 expected_stdout: |
