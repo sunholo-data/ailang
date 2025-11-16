@@ -263,9 +263,20 @@
         "latest"
       ],
       "notes": "Add S-CONS pattern sugar (x :: xs syntax)"
+    },
+    "v0.4.5": {
+      "file": "prompts/v0.4.5.md",
+      "hash": "391bee8f43b2036fb07d4bef5a98ff5b09b7eac8073f808b62f399acced0a3dc",
+      "description": "Fix string concatenation (++) operator type inference",
+      "created": "2025-11-16",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Fix string concatenation (++) operator type inference"
     }
   },
-  "active": "v0.4.4",
+  "active": "v0.4.5",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

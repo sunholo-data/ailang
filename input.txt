@@ -1,5 +1,0 @@
-Hello, World!
-  This is a test line.
-
-Python Programming.
-END

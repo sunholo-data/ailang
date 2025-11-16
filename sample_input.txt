@@ -1,3 +1,0 @@
-This is a sample text file.
-It has multiple lines and some words.
-We will count all the words in this file for demonstration.

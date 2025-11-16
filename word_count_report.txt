@@ -1,4 +1,0 @@
---- Word Count Report ---
-File: 'sample_input.txt'
-Total words: 24
--------------------------

@@ -1,6 +1,0 @@
-This is a demonstration of clean Python code.
-It follows established guidelines and best practices.
-
-Each function has a clear purpose and type hints.
-Error handling and resource management are included.
-Idiomatic Python constructs like list comprehensions are used.
