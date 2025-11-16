@@ -52,7 +52,7 @@ For detailed roadmap and design philosophy, see:
 
 ## 📋 Version & Release History
 
-**Current version**: v0.4.0 (November 2025)
+**Current version**: v0.4.5 (November 2025)
 
 For detailed release notes, version history, and upcoming features, see [CHANGELOG.md](CHANGELOG.md).
 
