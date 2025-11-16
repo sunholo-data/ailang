@@ -255,7 +255,7 @@
     },
     "v0.4.4": {
       "file": "prompts/v0.4.4.md",
-      "hash": "27e5b7a3839ddf178ba24133c7997641dc3b4c62432bd5285f326236100882a4",
+      "hash": "13c233d045c60ef45e884f9fc434a3fd7898fa0c43eeef9ae93d3ed2b3ab387e",
       "description": "Add S-CONS pattern sugar (x :: xs syntax)",
       "created": "2025-11-11",
       "tags": [
