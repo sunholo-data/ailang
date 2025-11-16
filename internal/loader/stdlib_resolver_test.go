@@ -146,7 +146,15 @@ func TestValidateModuleName(t *testing.T) {
 					return
 				}
 				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf("expected error containing %q, got %q", tt.errMsg, err.Error())
+				// Platform-specific handling for absolute path test
+				// On Windows, /etc/passwd isn't absolute, so it hits suspicious pattern check
+				if tt.name == "absolute path unix" && runtime.GOOS == "windows" {
+					if !strings.Contains(err.Error(), "contains suspicious pattern") {
+						t.Errorf("expected error containing 'contains suspicious pattern' (Windows), got %q", err.Error())
+					}
+				} else {
+						t.Errorf("expected error containing %q, got %q", tt.errMsg, err.Error())
+				}
 				}
 			} else {
 				if err != nil {

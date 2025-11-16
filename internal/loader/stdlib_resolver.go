@@ -39,16 +39,20 @@ func validateModuleName(name string) error {
 		return fmt.Errorf("module name contains invalid characters (only [a-zA-Z0-9_/-] allowed): %s", name)
 	}
 
-	// Check for absolute paths (after regex, for Unix-style absolute paths like /etc/passwd)
+	// Check for absolute paths BEFORE suspicious patterns
+	// This ensures consistent error messages (absolute paths are rejected uniformly)
+	// Note: On Unix, /etc/passwd is absolute; on Windows it's not (hence falls to suspicious check)
 	if filepath.IsAbs(name) {
 		return fmt.Errorf("module name cannot be an absolute path: %s", name)
 	}
 
-	// Check for suspicious patterns
+	// Check for suspicious patterns (after IsAbs, to catch platform-specific edge cases)
+	// On Windows: /etc/passwd isn't absolute, so caught here
+	// On Unix: /etc/passwd caught by IsAbs above
 	suspicious := []string{
-		"/etc/", "/usr/", "/var/", "/sys/", "/proc/",
-		"c:", "C:", "d:", "D:", // Windows drive letters
-		"\\\\", // UNC paths
+		"/etc/", "/usr/", "/var/", "/sys/", "/proc/", // Unix system dirs
+		"c:", "C:", "d:", "D:", // Windows drive letters (caught by regex, but defense in depth)
+		"\\\\", // UNC paths (caught by regex, but defense in depth)
 	}
 	lowerName := strings.ToLower(name)
 	for _, pattern := range suspicious {
