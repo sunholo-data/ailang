@@ -28,6 +28,12 @@
 
 Type annotations from function signatures in Surface AST are not properly threaded through to Core type checking. This causes parameters with explicit type annotations to appear as unconstrained type variables (`α1`, `α2`) during type inference, preventing early detection of type errors.
 
+**The Invariant We Need to Enforce:**
+
+> **If a parameter `x` is annotated as type `τ` in the Surface AST, then in Core and in the type environment, `x` must have type `τ` (modulo renaming of type variables), and any attempt to use it inconsistently is a type error.**
+
+This is not currently enforced. Type annotations are effectively decorative, which violates user expectations and reduces type safety.
+
 **Current State:**
 - Function parameters like `func foo(s: string, xs: [int])` are parsed correctly in Surface AST
 - During elaboration (Surface → Core), type annotations are lost
@@ -67,6 +73,26 @@ Error: Type mismatch at line 4
   Left operand:  s: string
   Right operand: xs: [int]
 ```
+
+## The Role of Type Annotations in AILANG
+
+**AILANG Philosophy:**
+
+Type annotations in AILANG are **hard constraints**, not optional hints. When a programmer (or AI model) writes `x: string`, they are making an explicit assertion about the program's semantics. The type system must enforce this assertion.
+
+**Contrast with other languages:**
+- **Haskell**: Annotations are optional hints; inference can narrow or specialize them
+- **TypeScript**: Annotations are assertions but can be overridden by inference in some cases
+- **Rust**: Annotations are hard constraints when provided
+- **AILANG**: Follows the Rust model - annotations are non-negotiable contracts
+
+**Why this matters for AI code generation:**
+1. **Determinism**: AI models need predictable feedback - no "sometimes annotations matter, sometimes they don't"
+2. **Early errors**: Catch mismatches at type-check time, not after code generation completes
+3. **Trust**: If code type-checks, it should run without type-related panics
+4. **Composability**: Annotations serve as verified documentation for function boundaries
+
+This fix moves AILANG from "annotations are decorative" (current buggy state) to "annotations are contracts" (intended behavior).
 
 ## Goals
 
@@ -133,6 +159,24 @@ Implement full bidirectional type checking where types flow both up and down the
 
 ### Architecture
 
+**Core Principle: Annotations as Hard Constraints**
+
+When a parameter has a type annotation, that annotation **replaces** the fresh type variable that would normally be created. The annotated type is the parameter's type - not a constraint on it, not a hint, but the actual type.
+
+**Implementation semantics:**
+```go
+// Current (buggy) behavior
+param_type := ctx.freshTypeVar()  // Always create fresh var
+// Annotation ignored!
+
+// New (correct) behavior
+if param.Annotation != nil {
+    param_type := elaborateType(param.Annotation)  // Use annotation
+} else {
+    param_type := ctx.freshTypeVar()  // Fall back to inference
+}
+```
+
 **Components:**
 
 1. **Core AST Extension** (internal/core/core.go)
@@ -148,13 +192,99 @@ Implement full bidirectional type checking where types flow both up and down the
 
 3. **Type Checker Updates** (internal/types/typechecker_functions.go)
    - In `inferLambda()`, check if `lam.ParamTypes` is non-nil
-   - If yes, use annotated types instead of fresh type variables
-   - Still add to environment for body type checking
-   - Unify with inferred types to catch mismatches
+   - If yes, **replace** fresh type variables with the annotated types (not layer on top)
+   - Add annotated types directly to environment for body type checking
+   - Parameter types are fixed at annotation values - no further unification needed
+   - If usage conflicts with annotation, constraint solving will fail with error
 
 4. **Error Reporting** (internal/types/errors.go)
-   - Improve error messages to show annotated vs inferred types
-   - Example: "Expected string (from annotation), got [int] (inferred)"
+   - Improve error messages to show parameter annotations in context
+   - Example: "Cannot concatenate string and [int]. Left operand: s: string (annotated), Right operand: xs: [int] (annotated)"
+   - Focus on clarity: what went wrong, what types were involved, where they came from
+
+### Handling Polymorphism
+
+**Type parameters require careful handling:**
+
+When a function uses type parameters (e.g., `func concat[a](xs: [a], ys: [a]) -> [a]`), the parameter annotations contain type variables (e.g., `a`). These must be handled consistently:
+
+1. **Type parameter scope**: Type variables `a`, `b`, etc. are scoped to the function declaration
+2. **Consistent mapping**: All occurrences of `a` in parameter annotations map to the same fresh type variable during elaboration
+3. **Elaboration creates mapping**: When elaborating `[a]`, create fresh type var `α1` and map `a → α1`
+4. **Reuse across parameters**: Second occurrence of `[a]` reuses `α1`, not `α2`
+5. **Type checking proceeds normally**: Constraint solving unifies `α1` across all uses
+
+**Example elaboration:**
+```ailang
+// Surface AST
+func concat[a](xs: [a], ys: [a]) -> [a]
+
+// Elaboration phase
+// Create mapping: a → α1 (fresh)
+// Convert [a] → TList(α1)
+// Result: ParamTypes = [TList(α1), TList(α1)]
+
+// Core AST
+Lambda {
+  ParamTypes: [TList(TVar(α1)), TList(TVar(α1))],
+  Body: ...
+}
+```
+
+**Key insight**: Type parameters are still type variables (not concrete types), so constraint solving still works. The difference from current behavior is that *all* occurrences of a type parameter map to the *same* type variable, enforcing consistency.
+
+### Interaction with v0.4.5 Expected-Type Fix
+
+**This fix complements the v0.4.5 concat operator fix:**
+
+**v0.4.5 added:**
+- `expectedType` field to `InferenceContext`
+- Expected type threaded to Match arm bodies (tail position only)
+- `++` operator checks expected type if both operands are type variables
+
+**v0.4.6 adds:**
+- Parameter type annotations threaded to Core type checking
+- Annotations become hard constraints in the type environment
+
+**How they interact:**
+
+1. **Parameters get concrete types from annotations** (v0.4.6)
+   ```ailang
+   func join(sep: string, xs: [int]) -> string { ... }
+   // sep: string (annotated), xs: [int] (annotated)
+   ```
+
+2. **Match arms get expected type from return annotation** (v0.4.5)
+   ```ailang
+   match xs {
+     x :: rest => show(x) ++ sep ++ join(sep, rest)
+     // Expected type: string (from return annotation)
+   }
+   ```
+
+3. **`++` operator has concrete left operand, type variable right operand**
+   ```ailang
+   show(x) ++ sep
+   // Left: string (inferred from show)
+   // Right: string (annotated parameter)
+   // Result: string concat ✓
+
+   sep ++ join(sep, rest)
+   // Left: string (annotated parameter)
+   // Right: α1 (recursive call, not yet resolved)
+   // Expected type: string (from Match arm context)
+   // v0.4.5 fix: Use expected type → string concat ✓
+   ```
+
+**Together, these fixes enable the recursive string join case:**
+- v0.4.6 gives parameters their annotated types
+- v0.4.5 resolves ambiguous `++` calls using expected-type context
+- Constraint solving unifies everything
+
+**Important:** These are orthogonal fixes:
+- v0.4.6 works even without v0.4.5 (parameter types are still enforced)
+- v0.4.5 works even without v0.4.6 (expected-type threading still helps inference)
+- Together, they cover more cases than either alone
 
 ### Implementation Plan
 
@@ -167,16 +297,18 @@ Implement full bidirectional type checking where types flow both up and down the
 **Phase 2: Elaboration Threading** (~5 hours)
 - [ ] Extract type annotations from `ast.FuncDecl.Params` in `elaborateFuncDecl()`
 - [ ] Convert `ast.Type` to `types.Type` using existing helpers
+- [ ] Handle polymorphic type annotations: create mapping from type param names (`a`, `b`) to fresh type vars (`α1`, `α2`)
+- [ ] Ensure consistent mapping: all occurrences of `a` map to same `α1` across all parameters
 - [ ] Thread param types through `normalizeLambda()` to Core Lambda
-- [ ] Handle polymorphic type annotations (type parameters)
-- [ ] Add tests for elaboration with type annotations
+- [ ] Add tests for elaboration with type annotations (both monomorphic and polymorphic)
 
 **Phase 3: Type Checker Integration** (~6 hours)
-- [ ] Modify `inferLambda()` to use `lam.ParamTypes` if present
-- [ ] Replace fresh type vars with annotated types for params
-- [ ] Add constraint: annotated type ~ inferred type
-- [ ] Improve error messages for annotation mismatches
-- [ ] Add tests for type checking with annotations
+- [ ] Modify `inferLambda()` to check if `lam.ParamTypes` is non-nil
+- [ ] If annotations present: use annotated types directly (don't create fresh type vars)
+- [ ] Add annotated types to environment for body type checking
+- [ ] No explicit unification needed - constraint solving will catch conflicts
+- [ ] Improve error messages to show parameter annotations in conflict messages
+- [ ] Add tests for type checking with annotations (monomorphic and polymorphic)
 
 **Phase 4: Testing & Documentation** (~3 hours)
 - [ ] Unskip `TestConcatMixedTypes` and verify it fails correctly
@@ -226,13 +358,14 @@ panic: interface conversion: eval.Value is *eval.ListValue, not *eval.StringValu
 **After (v0.4.6):**
 ```bash
 $ ailang check test/broken.ail
-Error: Type mismatch in function 'broken' at line 4
+Error: Type mismatch at line 4, column 3
   Cannot concatenate string and list
 
-  Left operand:  s: string (from parameter annotation)
-  Right operand: xs: [int] (from parameter annotation)
+  Expression: s ++ xs
+  Left:  s: string
+  Right: xs: [int]
 
-  The ++ operator requires both operands to be the same type (string or list).
+  The ++ operator requires both operands to have the same type (both string or both list).
 ```
 
 ### Example 2: Correct Type Inference (Should Still Work)
@@ -332,14 +465,41 @@ ailang check /tmp/test_mixed.ail
 # Expected: Type error (not "No errors found!")
 ```
 
+## Scope and Risk Assessment
+
+**What's in scope:**
+- Function parameter type annotations only
+- Both monomorphic (concrete) and polymorphic (type parameter) annotations
+- Minimal changes to Core AST, elaboration, and type checker
+- Error message improvements for parameter-related type errors
+
+**What's explicitly out of scope:**
+- Let-binding annotations (`let x: int = ...`) - Deferred to future work
+- Full bidirectional type checking - Too large, would require major refactor
+- General error message improvements - Separate UX effort
+- Type annotations on match patterns - Deferred to future work
+- Type annotations on lambda parameters (inline lambdas) - Deferred to future work
+
+**Risk level: LOW**
+
+This is a well-scoped, surgical change:
+1. **Minimal surface area**: Only function parameters, not all bindings
+2. **Existing patterns**: Similar to how effect annotations work
+3. **Testable**: Easy to write comprehensive tests for parameter annotations
+4. **Backwards compatible**: Annotations are optional, existing code unchanged
+5. **Orthogonal to other systems**: Doesn't interact with effects, modules, or evaluation
+
+**Estimated effort: 18 hours** (conservative, includes comprehensive testing)
+
 ## Non-Goals
 
 **Not in this feature:**
-- Full bidirectional type checking - Too large, separate effort
-- Type inference for unannotated parameters - Already works via Hindley-Milner
-- Better error messages in general - Separate UX improvement
-- Support for type annotations on let-bindings - Deferred to future work
-- Return type annotation checking - Already works (via function signature)
+- Full bidirectional type checking - Major refactor, weeks of work
+- Type inference improvements for unannotated code - Already works via Hindley-Milner
+- General error message system overhaul - Separate UX improvement effort
+- Let-binding annotations (`let x: int = ...`) - Deferred to v0.5.0+
+- Return type annotation checking - Already works (return type is part of function signature)
+- Lambda parameter annotations - Deferred to future work (less common use case)
 
 ## Timeline
 
@@ -404,7 +564,45 @@ ailang check /tmp/test_mixed.ail
 - Establishes pattern for threading Surface AST info to type checker
 - Proves value of compile-time vs runtime type checking
 
+## Follow-Up Questions for Future Versions
+
+**This fix deliberately leaves some questions open for future work:**
+
+1. **Let-binding annotations** (v0.5.0+)
+   - Should `let x: int = 42` be supported?
+   - If yes, same "hard constraint" semantics as function parameters?
+   - What about pattern bindings? (`let (x: int, y: string) = ...`)
+
+2. **Full bidirectional type checking** (v0.5.0+)
+   - Should expected types flow down for *all* expressions, not just Match arms?
+   - What's the right balance between inference and annotation requirements?
+   - Can we maintain "AI-friendly" error messages with bidirectional typing?
+
+3. **Lambda parameter annotations** (v0.5.0+)
+   - Should inline lambdas support `\(x: int). x + 1`?
+   - Less common in ML-style languages, but could reduce verbosity
+   - What's the syntax? Parentheses required for annotated params?
+
+4. **Annotation inference** (Future)
+   - Can we infer "obvious" annotations to reduce boilerplate?
+   - Example: `let f = \x. x + 1` → infer `x: int` from `+` operator?
+   - Risk: Makes type checking less deterministic
+
+**These questions are deliberately deferred** to keep v0.4.6 focused and low-risk. We'll revisit based on user feedback and AI code generation patterns.
+
 ---
 
 **Document created**: 2025-11-16
 **Last updated**: 2025-11-16
+**Status**: Planned (pending architectural review approval)
+
+**Changelog:**
+- 2025-11-16: Initial version
+- 2025-11-16: Incorporated architectural feedback
+  - Added "Role of Annotations in AILANG" section
+  - Clarified "hard constraint" vs "hint" semantics
+  - Added polymorphism handling section
+  - Added interaction with v0.4.5 expected-type fix
+  - Added scope and risk assessment
+  - Added follow-up questions for future versions
+  - Improved error message examples
