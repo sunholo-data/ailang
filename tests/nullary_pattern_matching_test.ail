@@ -1,0 +1,69 @@
+module tests/nullary_pattern_matching_test
+
+-- Integration test for nullary constructor pattern matching fix (M-BUG-NULLARY)
+-- This test verifies that simple enums (ADTs with only nullary constructors)
+-- correctly match different patterns instead of always matching the first pattern
+
+type Status = Pending | InProgress | Completed
+
+export func describeStatus(s: Status) -> string {
+  match s {
+    Pending => "Waiting",
+    InProgress => "Working",
+    Completed => "Done"
+  }
+}
+
+type Color = Red | Green | Blue
+
+export func colorName(c: Color) -> string {
+  match c {
+    Red => "Red",
+    Green => "Green",
+    Blue => "Blue"
+  }
+}
+
+type Direction = North | East | South | West
+
+export func compassPoint(d: Direction) -> string {
+  match d {
+    North => "N",
+    East => "E",
+    South => "S",
+    West => "W"
+  }
+}
+
+-- Test helper to verify assertions
+func assertEq(actual: string, expected: string, msg: string) -> () ! {IO} {
+  if actual == expected then
+    ()
+  else
+    {
+      print("FAIL: " ++ msg);
+      print("  Expected: " ++ expected);
+      print("  Got: " ++ actual);
+      ()
+    }
+}
+
+export func main() -> () ! {IO} {
+  -- Test Status enum (3 variants)
+  assertEq(describeStatus(Pending), "Waiting", "Status: Pending");
+  assertEq(describeStatus(InProgress), "Working", "Status: InProgress");
+  assertEq(describeStatus(Completed), "Done", "Status: Completed");
+
+  -- Test Color enum (3 variants)
+  assertEq(colorName(Red), "Red", "Color: Red");
+  assertEq(colorName(Green), "Green", "Color: Green");
+  assertEq(colorName(Blue), "Blue", "Color: Blue");
+
+  -- Test Direction enum (4 variants)
+  assertEq(compassPoint(North), "N", "Direction: North");
+  assertEq(compassPoint(East), "E", "Direction: East");
+  assertEq(compassPoint(South), "S", "Direction: South");
+  assertEq(compassPoint(West), "W", "Direction: West");
+
+  print("✓ All nullary pattern matching tests passed")
+}

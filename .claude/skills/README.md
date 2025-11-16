@@ -42,15 +42,6 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: trace_parser.sh, check_ast_types.sh, find_api.sh
 - **Resources**: token_positioning.md, ast_quick_reference.md, common_patterns.md, api_discovery.md
 
-**[skill-builder/](skill-builder/)** - Create new Anthropic Agent Skills
-- Scaffolds new skill directory structure with templates
-- Validates skills against Anthropic specification
-- Includes YAML frontmatter, scripts, and resources
-- Automated skill creation and validation
-- **Scripts**: create_skill.sh, validate_skill.sh
-- **Resources**: skill_template.md
-- **Meta-skill**: Use to build more skills!
-
 **[design-doc-creator/](design-doc-creator/)** - Create AILANG design documents
 - Creates design docs in correct format and location
 - Handles both planned/ and implemented/ workflow
@@ -343,10 +334,12 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 7 (including meta-skills!)
-**Total scripts**: 13 executable automation scripts
-**Total resources**: 9 reference files
-**Total lines**: ~3,500 lines of structured, reusable content
+**Total skills**: 12 (project-specific)
+**Total scripts**: 15 executable automation scripts
+**Total resources**: 10+ reference files
+**Total lines**: ~4,000 lines of structured, reusable content
+
+**Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
 
 ## Best Practices
 

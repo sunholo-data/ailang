@@ -1,5 +1,68 @@
 # AILANG Changelog
 
+## [v0.4.5] - 2025-11-16
+
+### Fixed - Nullary Constructor Pattern Matching (M-BUG-NULLARY) 🐛 Critical Bug Fix
+
+**User Impact**: Simple enum types (ADTs with only nullary constructors) now work correctly in pattern matching. Before this fix, all values matched the first pattern, breaking type safety guarantees. This enables production use of enum types like `type Status = Pending | InProgress | Completed`.
+
+**What Was Fixed**:
+1. **Elaboration Fix** (~13 LOC in internal/elaborate/patterns.go)
+   - Root cause: Nullary constructors (`Red`, `Green`, `Blue`) were being elaborated as `VarPattern` instead of `ConstructorPattern`
+   - Variable patterns always match and bind, causing all three values to match the first pattern
+   - Fix: Check if identifier is a known nullary constructor (arity=0) in elaborator's constructor map
+   - If yes, create `ConstructorPattern` with empty args; otherwise create `VarPattern`
+   - Location: `elaboratePattern()` function, line 79-90
+
+2. **Test Coverage** (~120 LOC total)
+   - Unit tests: 6 test cases in `internal/elaborate/patterns_nullary_test.go`
+     - Nullary constructors (Red, Green, Blue, None) → ConstructorPattern ✓
+     - Variable patterns → VarPattern ✓
+     - Non-nullary constructors with arity >0 → VarPattern ✓
+   - Integration test: `tests/nullary_pattern_matching_test.ail` (~67 LOC)
+     - Tests Status (3 variants), Color (3 variants), Direction (4 variants)
+     - All 10 pattern matches verify correct behavior ✓
+
+3. **Benchmark Impact**:
+   - `exhaustive_pattern_matching` benchmark: **96.1% → 100% success** ✓
+   - 3 out of 76 eval failures (3.9%) eliminated with this single fix
+   - Tested with gpt5-mini, confirmed 100% success rate
+
+**Before the fix:**
+```ailang
+type Color = Red | Green | Blue
+func test(c: Color) -> string {
+  match c {
+    Red => "red",
+    Green => "green",  -- Never matched!
+    Blue => "blue"     -- Never matched!
+  }
+}
+test(Green)  -- Returned "red" (WRONG!)
+```
+
+**After the fix:**
+```ailang
+test(Red)    -- Returns "red"   ✓
+test(Green)  -- Returns "green" ✓
+test(Blue)   -- Returns "blue"  ✓
+```
+
+**Technical Details**:
+- Bug discovered during v0.4.4 eval analysis (EVAL_ANALYSIS_v0_4_4.md)
+- Investigation time: ~2 hours (debug logging revealed VarPattern issue)
+- Fix time: <1 hour (single function change in elaborator)
+- Testing time: ~1 hour (unit + integration tests)
+- Total effort: 3-4 hours (within sprint plan estimate of 3-5 hours)
+
+**Files Modified**:
+- `internal/elaborate/patterns.go` (+13 LOC) - Fix nullary constructor elaboration
+- `internal/elaborate/patterns_nullary_test.go` (+120 LOC, new file) - Unit tests
+- `tests/nullary_pattern_matching_test.ail` (+67 LOC, new file) - Integration test
+
+**Design Doc**: `design_docs/planned/v0_4_5/nullary-constructor-pattern-matching-bug.md`
+**Sprint Plan**: `design_docs/planned/v0_4_5/M-BUG-NULLARY-sprint-plan.md`
+
 ## [v0.4.4] - 2025-11-11
 
 ### Added - S-CONS Pattern Sugar (x :: xs) 🎯 DX Improvement
