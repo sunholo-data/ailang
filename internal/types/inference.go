@@ -15,6 +15,7 @@ type InferenceContext struct {
 	path                 []string          // For error reporting
 	qualifiedConstraints []ClassConstraint // Non-ground constraints for qualified types
 	TypeInfo             TypeInfo          // Maps Surface AST expressions to their inferred types (principal types)
+	expectedType         *Type             // Expected type from context (e.g., function return type in tail position)
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -69,6 +70,14 @@ func NewInferenceContext() *InferenceContext {
 // SetEnv sets the type environment for the inference context
 func (ctx *InferenceContext) SetEnv(env *TypeEnv) {
 	ctx.env = env
+}
+
+// withExpectedType creates a shallow copy of the context with an expected type set.
+// This is used to thread expected types through tail-position expressions in functions.
+func (ctx *InferenceContext) withExpectedType(t Type) *InferenceContext {
+	newCtx := *ctx // Shallow copy
+	newCtx.expectedType = &t
+	return &newCtx
 }
 
 // Infer performs type inference on an expression

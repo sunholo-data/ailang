@@ -70,6 +70,7 @@ type CoreTypeChecker struct {
 	trackInstantiations bool                           // Whether to track instantiations
 	varCounter          int                            // Counter for generating fresh variable names
 	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
+	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
 }
 
@@ -148,6 +149,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 	}
 }
@@ -166,6 +168,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 	}
 }

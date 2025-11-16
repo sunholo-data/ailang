@@ -57,8 +57,13 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 			allEffects = append(allEffects, getEffectRow(guardNode))
 		}
 
-		// Type check body
-		bodyNode, _, err := tc.inferCore(ctx, arm.Body)
+		// Type check body with expected type (if available)
+		bodyCtx := ctx
+		if ctx.expectedType != nil {
+			// Thread expected type to arm body (tail position)
+			bodyCtx = ctx.withExpectedType(*ctx.expectedType)
+		}
+		bodyNode, _, err := tc.inferCore(bodyCtx, arm.Body)
 		if err != nil {
 			return nil, oldEnv, err
 		}
