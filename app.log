@@ -1,0 +1,6 @@
+2024-10-29 10:00:00 INFO User logged in: alice
+2024-10-29 10:01:15 ERROR Database connection failed
+2024-10-29 10:02:30 INFO User logged in: bob
+2024-10-29 10:03:45 WARNING High memory usage: 85%
+2024-10-29 10:05:00 ERROR API timeout: /users endpoint
+2024-10-29 10:06:15 INFO User logged out: alice
