@@ -94,8 +94,14 @@ func registerIO() {
 	// FIXED (v0.4.2): Changed from 0-arg to unit-arg to fix S-CALL0 compatibility
 	// Zero-arg builtins now take unit as their parameter: () -> T means (()) -> T
 	impl3 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		// Validate unit argument (defense against type system bugs)
+		if len(args) != 1 {
+			panic("internal invariant violation: _io_readLine expects exactly 1 argument (unit)")
+		}
+		if _, ok := args[0].(*eval.UnitValue); !ok {
+			panic("internal invariant violation: _io_readLine expected unit argument")
+		}
 		// Stub: return empty string
-		// args[0] is the unit value (ignored)
 		return &eval.StringValue{Value: ""}, nil
 	}
 	type3 := func() types.Type {

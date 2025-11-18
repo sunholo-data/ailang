@@ -838,7 +838,12 @@ ailang repl                                        # Start REPL
 ```
 
 **Critical syntax notes:**
-- **Zero-arg calls:** Use `f ()` (space required) NOT `f()` - by design (ML-style application)
+- **⚠️ NULLARY FUNCTIONS BROKEN (v0.4.5):** Nullary functions (zero-arg) cannot be called from AILANG code
+  - **Affected**: `_env_getArgs`, `_clock_now`, `_io_readLine`
+  - **Issue**: No syntax to call them - `f` returns function object, `f()` is arity mismatch
+  - **Workaround**: Use direct Go implementation via `effects.Call()` (Go tests only)
+  - **Fix planned**: M-DX10 in v0.4.6 (see [design doc](design_docs/planned/v0_4_6/m-dx10-nullary-function-calls.md))
+  - **Status**: CLI args feature implemented but not usable from AILANG until M-DX10 is fixed
 - **Type parameters:** Use `[T]` NOT `(T)` - distinguishes type/term application
 - **Match in blocks:** Known parser bug (nested delimiter tracking) - extract to helper function
 

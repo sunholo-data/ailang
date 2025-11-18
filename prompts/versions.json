@@ -277,7 +277,7 @@
     },
     "v0.4.6": {
       "file": "prompts/v0.4.6.md",
-      "hash": "42c281cf220406a308c9ae0c298358881c5815f8001c592741f682b01bdab53a",
+      "hash": "d364ad831df4deca0c953fff1b4f7a1ca4044591dad4facef05555b5c2ae6682",
       "description": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities",
       "created": "2025-11-18",
       "tags": [

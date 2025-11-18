@@ -81,8 +81,8 @@ func NewWithVersion(version, buildTime string) *REPL {
 	evaluator.SetGlobalResolver(builtinResolver)
 
 	// Create effect context (grant IO by default for REPL convenience)
-	effContext := effects.NewEffContext()
-	effContext.Grant(effects.NewCapability("IO")) // Allow println, readLine, etc. in REPL
+	effContext := effects.NewEffContext([]string{}) // REPL has no CLI arguments
+	effContext.Grant(effects.NewCapability("IO"))   // Allow println, readLine, etc. in REPL
 	evaluator.SetEffContext(effContext)
 
 	// Enable experimental binop shim for REPL (handles float equality until OpLowering is complete)

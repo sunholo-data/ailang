@@ -49,7 +49,6 @@ models:
       Same pricing as GPT-5, but may use fewer tokens on simple tasks.
       Reasoning tokens tracked separately in usage stats.
       24-hour extended prompt caching available.
-      Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
   gpt5-1-instant:
@@ -66,7 +65,6 @@ models:
       Can use adaptive reasoning on complex tasks while staying fast on simple ones.
       Same pricing as GPT-5.1 Thinking mode.
       Good for development iteration with high intelligence.
-      Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
   # Anthropic Claude Sonnet 4.5 (released September 2025)
@@ -137,28 +135,49 @@ models:
       Context caching: $0.03 per 1M.
       Agent eval support: Not yet implemented (requires Gemini CLI integration).
 
+  # Google Gemini 3 Pro (announced November 2025 - NOT YET AVAILABLE IN VERTEX AI)
+  # UNCOMMENT WHEN AVAILABLE:
+  # gemini-3-pro:
+  #   api_name: "gemini-3-pro-preview-11-2025"  # TBD - verify exact API name when available
+  #   provider: "google"
+  #   description: "Gemini 3 Pro - state-of-the-art reasoning"
+  #   env_var: "GOOGLE_API_KEY"
+  #   agent_cli: null  # Google Gemini CLI not yet implemented
+  #   pricing:
+  #     input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
+  #     output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)
+  #   notes: |
+  #     Google's latest model - announced Nov 18, 2025.
+  #     State-of-the-art: 23.4% MathArena Apex, 1487 Elo WebDev Arena.
+  #     1M token context window.
+  #     Pricing: $2/$12 per 1M (≤200k), $4/$18 per 1M (>200k).
+  #     NOTE: Not yet available in Vertex AI (as of 2025-11-18).
+  #     Monitor: Check Vertex AI weekly for availability.
+  #     Agent eval support: Not yet implemented (requires Gemini CLI integration).
+
 # Default model for benchmarks
 default: "claude-sonnet-4-5"
 
 # Recommended model set for comprehensive evaluation
 benchmark_suite:
-  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5 (same price, better performance)
+  - "gpt5-1"                # NEW: Replace gpt5 with gpt5-1 (better performance, same price)
   - "claude-sonnet-4-5"
   - "gemini-2-5-pro"
 
 # Extended model set (includes smaller/faster variants)
 extended_suite:
-  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5
-  - "gpt5-1-instant"  # Added: Fast variant for quick iteration
+  - "gpt5-1"                # NEW: Main reasoning model
+  - "gpt5-1-instant"        # NEW: Fast variant
   - "gpt5-mini"
   - "claude-sonnet-4-5"
   - "claude-haiku-4-5"
   - "gemini-2-5-pro"
   - "gemini-2-5-flash"
+  # - "gemini-3-pro"       # ADD WHEN AVAILABLE
 
 # Development/testing models (cheaper, faster)
 dev_models:
-  - "gpt5-1-instant"  # Added: Fast development with high intelligence
+  - "gpt5-1-instant"        # NEW: Fast, intelligent development model
   - "gpt5-mini"
   - "claude-haiku-4-5"
   - "gemini-2-5-flash"
@@ -180,3 +199,5 @@ dev_models:
 # - Update pricing from official documentation
 # - Keep old model versions for historical comparison
 # - Update agent_cli field when new agent CLIs are implemented
+# - GPT-5.1 uses max_completion_tokens instead of max_tokens
+# - Gemini 3 Pro: Monitor Vertex AI for availability

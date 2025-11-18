@@ -16,8 +16,8 @@ func TestClockNow(t *testing.T) {
 	// Get current time before calling builtin
 	before := time.Now().UnixMilli()
 
-	// Call _clock_now
-	result, err := clockNowImpl(ctx.EffContext, []eval.Value{})
+	// Call _clock_now with unit argument
+	result, err := clockNowImpl(ctx.EffContext, []eval.Value{&eval.UnitValue{}})
 
 	// Get current time after calling builtin
 	after := time.Now().UnixMilli()
@@ -34,7 +34,7 @@ func TestClockNowRequiresCapability(t *testing.T) {
 	ctx := testctx.NewMockEffContext()
 	// Don't grant Clock capability
 
-	_, err := clockNowImpl(ctx.EffContext, []eval.Value{})
+	_, err := clockNowImpl(ctx.EffContext, []eval.Value{&eval.UnitValue{}})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Clock")

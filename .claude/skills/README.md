@@ -89,6 +89,16 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 
 ### Automation & Integration
 
+**[model-manager/](model-manager/)** - Test, validate, and add new AI models to eval suite
+- Test API access to new models (OpenAI, Anthropic, Google)
+- Find correct API model names and pricing
+- Update models.yml configuration safely
+- Run test benchmarks to verify end-to-end
+- Vertex AI compatibility checking for Gemini models
+- **Scripts**: test_model_access.sh, verify_vertex_model.sh, update_models_yml.sh, run_test_benchmark.sh, find_model_info.sh
+- **Resources**: provider_endpoints.md, pricing_guide.md
+- **Use for**: Adding GPT-5.1, Gemini 3 Pro, and other new models to benchmarks
+
 **[headless-runner/](headless-runner/)** - Run Claude Code in headless/programmatic mode
 - Execute Claude from scripts, CI/CD pipelines, and autonomous agents
 - Full access to project configuration (skills, agents, commands)
@@ -334,10 +344,10 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 12 (project-specific)
-**Total scripts**: 15 executable automation scripts
-**Total resources**: 10+ reference files
-**Total lines**: ~4,000 lines of structured, reusable content
+**Total skills**: 13 (project-specific)
+**Total scripts**: 20 executable automation scripts
+**Total resources**: 12+ reference files
+**Total lines**: ~4,500 lines of structured, reusable content
 
 **Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
 

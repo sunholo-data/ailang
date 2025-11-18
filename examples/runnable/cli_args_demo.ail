@@ -1,0 +1,42 @@
+module examples/runnable/cli_args_demo
+
+-- Demonstrates CLI argument access using getArgs()
+-- Shows unit-argument model: getArgs() is sugar for getArgs(())
+
+import std/env (getArgs)
+import std/io (println)
+import std/list (length)
+
+-- Helper: Format greeting
+func greet(name: string) -> string = "Hello, " ++ name ++ "!"
+
+-- Entry point
+export func main() -> () ! {IO, Env} {
+  let args = getArgs();  -- Zero-arg call: desugars to getArgs(())
+  let count = length(args);
+
+  match args {
+    [] => {
+      println("Usage: ailang run --caps IO,Env examples/runnable/cli_args_demo.ail <name> [<name> ...]");
+      println("No arguments provided!")
+    }
+    [name] => {
+      println("Received 1 argument:");
+      println(greet(name))
+    }
+    [first, second] => {
+      println("Received 2 arguments:");
+      println(greet(first));
+      println(greet(second))
+    }
+    first :: rest => {
+      println("Received " ++ show(count) ++ " arguments:");
+      println(greet(first));
+      println("...and " ++ show(length(rest)) ++ " more")
+    }
+  }
+}
+
+-- Usage examples:
+--   ailang run --caps IO,Env examples/runnable/cli_args_demo.ail Alice
+--   ailang run --caps IO,Env examples/runnable/cli_args_demo.ail Alice Bob Charlie

@@ -10,7 +10,7 @@ import (
 // TestEnvGetEnv_Success tests successful environment variable retrieval
 func TestEnvGetEnv_Success(t *testing.T) {
 	// Setup
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"TEST_VAR": "test_value",
@@ -53,7 +53,7 @@ func TestEnvGetEnv_Success(t *testing.T) {
 
 // TestEnvGetEnv_EmptyValue tests retrieval of empty environment variable
 func TestEnvGetEnv_EmptyValue(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"EMPTY": "",
@@ -81,7 +81,7 @@ func TestEnvGetEnv_EmptyValue(t *testing.T) {
 
 // TestEnvGetEnv_NotFound tests missing environment variable
 func TestEnvGetEnv_NotFound(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"EXISTS": "value",
@@ -116,7 +116,7 @@ func TestEnvGetEnv_NotFound(t *testing.T) {
 
 // TestEnvGetEnv_NoCapability tests capability requirement
 func TestEnvGetEnv_NoCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// Don't grant Env capability
 	ctx.EnvSnapshot = map[string]string{
 		"TEST": "value",
@@ -138,7 +138,7 @@ func TestEnvGetEnv_NoCapability(t *testing.T) {
 
 // TestEnvGetEnv_Allowlist tests allowlist enforcement
 func TestEnvGetEnv_Allowlist(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"ALLOWED":     "allowed_value",
@@ -181,7 +181,7 @@ func TestEnvGetEnv_Allowlist(t *testing.T) {
 
 // TestEnvHasEnv_Success tests successful existence check
 func TestEnvHasEnv_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"EXISTS": "value",
@@ -222,7 +222,7 @@ func TestEnvHasEnv_Success(t *testing.T) {
 
 // TestEnvHasEnv_NoCapability tests capability requirement
 func TestEnvHasEnv_NoCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// Don't grant Env capability
 	ctx.EnvSnapshot = map[string]string{
 		"TEST": "value",
@@ -239,7 +239,7 @@ func TestEnvHasEnv_NoCapability(t *testing.T) {
 
 // TestEnvHasEnv_Allowlist tests allowlist enforcement
 func TestEnvHasEnv_Allowlist(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 	ctx.EnvSnapshot = map[string]string{
 		"ALLOWED":     "value",
@@ -300,7 +300,7 @@ func TestSnapshotImmutability(t *testing.T) {
 	defer os.Unsetenv("AILANG_IMMUTABLE_TEST")
 
 	// Create context (captures snapshot)
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 
 	// Change OS environment
@@ -333,7 +333,7 @@ func TestSnapshotImmutability(t *testing.T) {
 
 // TestEnvGetEnv_WrongArgCount tests argument validation
 func TestEnvGetEnv_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 
 	// No arguments
@@ -354,7 +354,7 @@ func TestEnvGetEnv_WrongArgCount(t *testing.T) {
 
 // TestEnvGetEnv_WrongArgType tests type validation
 func TestEnvGetEnv_WrongArgType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Env"))
 
 	// Wrong argument type

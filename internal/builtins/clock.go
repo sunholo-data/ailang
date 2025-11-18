@@ -18,7 +18,7 @@ func registerClockNow() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/clock",
 		Name:    "_clock_now",
-		NumArgs: 0,
+		NumArgs: 1, // Unit-argument model: expects one argument (unit)
 		Effect:  "Clock",
 		Type:    makeClockNowType,
 		Impl:    clockNowImpl,
@@ -42,10 +42,19 @@ func registerClockNow() {
 
 func makeClockNowType() types.Type {
 	T := types.NewBuilder()
-	return T.Func().Returns(T.Int()).Effects("Clock")
+	// Unit-argument model: () -> int ! {Clock}
+	return T.Func(T.Unit()).Returns(T.Int()).Effects("Clock")
 }
 
 func clockNowImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// Validate unit argument (defense against type system bugs)
+	if len(args) != 1 {
+		panic("internal invariant violation: _clock_now expects exactly 1 argument (unit)")
+	}
+	if _, ok := args[0].(*eval.UnitValue); !ok {
+		panic("internal invariant violation: _clock_now expected unit argument")
+	}
+
 	// Check Clock capability
 	if err := ctx.RequireCap("Clock"); err != nil {
 		return nil, err

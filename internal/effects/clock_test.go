@@ -10,7 +10,7 @@ import (
 
 // TestClockNow_RealTime verifies that now() returns a reasonable timestamp
 func TestClockNow_RealTime(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	// Real time mode (monotonic)
@@ -39,7 +39,7 @@ func TestClockNow_RealTime(t *testing.T) {
 // strictly non-decreasing. This protects against NTP adjustments, DST changes,
 // and manual clock changes.
 func TestClockNow_Monotonic(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	// Call now() 10 times with small delays
@@ -67,7 +67,7 @@ func TestClockNow_Monotonic(t *testing.T) {
 
 // TestClockSleep_RealDelay verifies that sleep() actually blocks for the specified duration
 func TestClockSleep_RealDelay(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	start := time.Now()
@@ -99,7 +99,7 @@ func TestClockVirtualTime_Deterministic(t *testing.T) {
 		// Set AILANG_SEED to enable virtual time
 		os.Setenv("AILANG_SEED", "42")
 
-		ctx := NewEffContext()
+		ctx := NewEffContext([]string{})
 		ctx.Grant(NewCapability("Clock"))
 
 		// Virtual now (should be 0)
@@ -145,7 +145,7 @@ func TestClockVirtualTime_Deterministic(t *testing.T) {
 
 // TestClockSleep_NegativeDuration verifies that sleep() rejects negative durations
 func TestClockSleep_NegativeDuration(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	_, err := clockSleep(ctx, []eval.Value{&eval.IntValue{Value: -100}})
@@ -162,7 +162,7 @@ func TestClockSleep_NegativeDuration(t *testing.T) {
 
 // TestClockNow_NoCapability verifies that now() fails without Clock capability
 func TestClockNow_NoCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// Do NOT grant Clock capability
 
 	_, err := Call(ctx, "Clock", "now", []eval.Value{})
@@ -184,7 +184,7 @@ func TestClockNow_NoCapability(t *testing.T) {
 
 // TestClockSleep_NoCapability verifies that sleep() fails without Clock capability
 func TestClockSleep_NoCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// Do NOT grant Clock capability
 
 	_, err := Call(ctx, "Clock", "sleep", []eval.Value{&eval.IntValue{Value: 100}})
@@ -205,7 +205,7 @@ func TestClockSleep_NoCapability(t *testing.T) {
 
 // TestClockNow_WrongArgCount verifies error handling for wrong argument count
 func TestClockNow_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	_, err := clockNow(ctx, []eval.Value{&eval.IntValue{Value: 42}})
@@ -222,7 +222,7 @@ func TestClockNow_WrongArgCount(t *testing.T) {
 
 // TestClockSleep_WrongArgType verifies error handling for wrong argument type
 func TestClockSleep_WrongArgType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Clock"))
 
 	_, err := clockSleep(ctx, []eval.Value{&eval.StringValue{Value: "not an int"}})

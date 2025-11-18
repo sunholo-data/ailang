@@ -1,0 +1,26 @@
+module tests/cli_args_test
+
+import std/list (length)
+
+-- NOTE: Using direct _env_getArgs builtin due to nullary function syntax issue
+-- TODO: Update to use std/env.getArgs() wrapper once syntax is fixed
+
+-- Helper function to print each argument
+func printArgs(xs: [string]) -> () ! {IO} =
+  match xs {
+    [] => (),
+    x :: rest => {
+      _io_println("arg: " ++ x);
+      printArgs(rest)
+    }
+  }
+
+export func main() -> () ! {IO, Env} {
+  let args = _env_getArgs;
+
+  -- Test 1: Print number of args
+  _io_println("argc: " ++ show(length(args)));
+
+  -- Test 2: Print each arg
+  printArgs(args)
+}

@@ -22,7 +22,7 @@ func TestNewCapability(t *testing.T) {
 }
 
 func TestNewEffContext(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 
 	if ctx.Caps == nil {
 		t.Error("expected Caps map to be initialized")
@@ -39,7 +39,7 @@ func TestNewEffContext(t *testing.T) {
 }
 
 func TestGrantCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 
 	ioCap := NewCapability("IO")
 	ctx.Grant(ioCap)
@@ -54,7 +54,7 @@ func TestGrantCapability(t *testing.T) {
 }
 
 func TestGrantMultipleCapabilities(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 
 	ctx.Grant(NewCapability("IO"))
 	ctx.Grant(NewCapability("FS"))
@@ -73,7 +73,7 @@ func TestGrantMultipleCapabilities(t *testing.T) {
 }
 
 func TestGrantIdempotent(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 
 	ctx.Grant(NewCapability("IO"))
 	ctx.Grant(NewCapability("IO")) // Grant same cap twice
@@ -84,7 +84,7 @@ func TestGrantIdempotent(t *testing.T) {
 }
 
 func TestRequireCap_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	err := ctx.RequireCap("IO")
@@ -94,7 +94,7 @@ func TestRequireCap_Success(t *testing.T) {
 }
 
 func TestRequireCap_Missing(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 
 	err := ctx.RequireCap("IO")
 	if err == nil {

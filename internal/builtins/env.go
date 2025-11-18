@@ -107,4 +107,52 @@ CLI usage:
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _env_hasEnv: %v", err))
 	}
+
+	// _env_getArgs
+	impl3 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		// Validate unit argument (defense against type system bugs)
+		if len(args) != 1 {
+			panic("internal invariant violation: _env_getArgs expects exactly 1 argument (unit)")
+		}
+		if _, ok := args[0].(*eval.UnitValue); !ok {
+			panic("internal invariant violation: _env_getArgs expected unit argument")
+		}
+		// Pass unit argument to effect handler (unit-argument model)
+		return effects.Call(ctx, "Env", "getArgs", args)
+	}
+	type3 := func() types.Type {
+		T := types.NewBuilder()
+		// Unit-argument model: () -> [string] ! {Env}
+		return T.Func(T.Unit()).Returns(T.List(T.String())).Effects("Env")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/env", Name: "_env_getArgs", NumArgs: 1, IsPure: false, Effect: "Env", Type: type3, Impl: impl3,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Get command-line arguments as list of strings",
+			Params:      []ParamDoc{},
+			Returns:     "[String] - List of command-line arguments (excluding program name)",
+			Examples: []Example{
+				{Code: `match _env_getArgs() { [] => "No args", [name] => "Hello " ++ name, _ => "Multiple args" }`, Description: "Pattern match on arguments"},
+				{Code: `length(_env_getArgs())`, Description: "Count number of arguments"},
+			},
+			LongDesc: `Security features:
+- Requires Env capability (use --caps Env)
+- Read-only access to fixed arguments
+- Arguments exclude program name (argv[1:] in C terms)
+- Empty list if no arguments provided
+
+CLI usage:
+  ailang run --caps Env program.ail arg1 arg2  # Returns ["arg1", "arg2"]
+  ailang run --caps Env program.ail            # Returns []`,
+			SeeAlso:   []string{"_env_getEnv", "_env_hasEnv"},
+			Since:     "v0.4.6",
+			Stability: StabilityStable,
+			Tags:      []string{"env", "cli", "arguments", "argv"},
+			Category:  "env",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _env_getArgs: %v", err))
+	}
 }

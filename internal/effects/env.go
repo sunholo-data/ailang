@@ -10,6 +10,7 @@ import (
 func init() {
 	RegisterOp("Env", "getEnv", envGetEnv)
 	RegisterOp("Env", "hasEnv", envHasEnv)
+	RegisterOp("Env", "getArgs", envGetArgs)
 }
 
 // envGetEnv implements Env.getEnv(name: String) -> Result(String, EnvError)
@@ -182,4 +183,63 @@ func makeErrResult(errValue eval.Value) eval.Value {
 		CtorName:   "Err",
 		Fields:     []eval.Value{errValue},
 	}
+}
+
+// envGetArgs implements Env.getArgs() -> [String]
+//
+// Retrieves command-line arguments passed to the AILANG program.
+// Arguments exclude the program name (equivalent to argv[1:] in C).
+//
+// Parameters:
+//   - ctx: Effect context with Args field
+//   - args: [] - no arguments (nullary function)
+//
+// Returns:
+//   - ListValue containing StringValues for each CLI argument
+//   - Empty list if no arguments provided
+//   - Error if Env capability not granted
+//
+// Security:
+//   - Requires Env capability
+//   - Read-only access to fixed arguments
+//   - No modification possible
+//
+// Example AILANG code:
+//
+//	match getArgs() {
+//	  [] => println("No arguments"),
+//	  [name] => println("Hello, " ++ name ++ "!"),
+//	  _ => println("Multiple arguments provided")
+//	}
+//
+// CLI usage:
+//
+//	ailang run --caps Env program.ail arg1 arg2
+//	# getArgs() returns ["arg1", "arg2"]
+func envGetArgs(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	// Check capability
+	if !ctx.HasCap("Env") {
+		return nil, fmt.Errorf("getArgs: Env capability required. Use --caps Env flag")
+	}
+
+	// Validate unit argument (unit-argument model)
+	if len(args) != 1 {
+		return nil, fmt.Errorf("getArgs: expected 1 argument (unit), got %d", len(args))
+	}
+	if _, ok := args[0].(*eval.UnitValue); !ok {
+		return nil, fmt.Errorf("getArgs: expected unit argument, got %T", args[0])
+	}
+
+	// Convert CLI args to AILANG list
+	var result eval.Value = &eval.ListValue{Elements: []eval.Value{}}
+
+	if len(ctx.Args) > 0 {
+		elements := make([]eval.Value, len(ctx.Args))
+		for i, arg := range ctx.Args {
+			elements[i] = &eval.StringValue{Value: arg}
+		}
+		result = &eval.ListValue{Elements: elements}
+	}
+
+	return result, nil
 }

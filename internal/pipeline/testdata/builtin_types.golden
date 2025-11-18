@@ -8,6 +8,7 @@
 :: : (a, List[a]) -> List[a]
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
+_env_getArgs : () -> List[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _fs_exists : string -> bool ! {FS}

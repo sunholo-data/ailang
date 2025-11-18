@@ -21,6 +21,7 @@ type EffContext struct {
 	Net          *NetContext           // Net effect configuration (security settings)
 	EnvSnapshot  map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist []string              // Env effect: allowed variable names (nil = allow all)
+	Args         []string              // CLI arguments passed to the program (excluding program name)
 }
 
 // EffEnv provides deterministic effect execution configuration
@@ -117,22 +118,26 @@ func NewNetContext() *NetContext {
 	}
 }
 
-// NewEffContext creates a new effect context
+// NewEffContext creates a new effect context with command-line arguments
 //
 // The context is initialized with no capabilities granted (deny-by-default)
 // and environment loaded from OS environment variables.
+//
+// Parameters:
+//   - args: Command-line arguments passed to the program (excluding program name)
 //
 // Returns:
 //   - A new EffContext ready to use
 //
 // Example:
 //
-//	ctx := NewEffContext()
+//	ctx := NewEffContext([]string{"arg1", "arg2"})
 //	ctx.Grant(NewCapability("IO"))
 //	ctx.Grant(NewCapability("FS"))
 //	ctx.Grant(NewCapability("Clock"))
 //	ctx.Grant(NewCapability("Net"))
-func NewEffContext() *EffContext {
+//	ctx.Grant(NewCapability("Env"))
+func NewEffContext(args []string) *EffContext {
 	return &EffContext{
 		Caps:         make(map[string]Capability),
 		Env:          loadEffEnv(),
@@ -140,6 +145,7 @@ func NewEffContext() *EffContext {
 		Net:          NewNetContext(),   // Initialize secure network defaults
 		EnvSnapshot:  captureEnvSnapshot(),
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
+		Args:         args,
 	}
 }
 

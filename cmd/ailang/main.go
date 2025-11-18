@@ -247,10 +247,18 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
-	runFile(filename, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
+
+	// Extract program arguments (everything after the filename)
+	// e.g., "ailang run program.ail arg1 arg2" → programArgs = ["arg1", "arg2"]
+	programArgs := []string{}
+	if fs.NArg() > 1 {
+		programArgs = fs.Args()[1:] // Skip filename, take remaining args
+	}
+
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag)
 }
 
-func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string) {
 	// Configure stdlib resolver via environment variables
 	// CLI flags override environment variables
 	if stdlibPath != "" {
@@ -369,7 +377,7 @@ func runFile(filename string, trace bool, seed int, virtualTime bool, jsonOutput
 		rt := runtime.NewModuleRuntime(filepath.Dir(filename))
 
 		// Set up effect context with capability grants
-		effCtx := effects.NewEffContext()
+		effCtx := effects.NewEffContext(programArgs)
 		grantCapabilities(effCtx, caps)
 
 		// Process environment variable flags

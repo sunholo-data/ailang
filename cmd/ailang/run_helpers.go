@@ -250,11 +250,12 @@ func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string) (
 	var args []eval.Value
 
 	if len(fnType.Params) == 0 {
-		// Zero-arg function - argsJSON must be null
+		// M-DX10: Zero-arg functions in surface syntax are actually unit-arg in core
+		// Pass unit argument for entry invocation
 		if argsJSON != "null" {
 			return nil, fmt.Errorf("entrypoint '%s' takes no arguments, but --args-json was provided", entry)
 		}
-		args = []eval.Value{} // Empty args
+		args = []eval.Value{&eval.UnitValue{}} // Unit-argument model
 	} else if len(fnType.Params) == 1 {
 		// Single-arg function - decode JSON to match parameter type
 		argVal, err := argdecode.DecodeJSON(argsJSON, fnType.Params[0])
