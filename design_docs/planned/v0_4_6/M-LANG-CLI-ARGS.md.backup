@@ -1,69 +1,36 @@
 # M-LANG-CLI-ARGS: Command-Line Arguments Access
 
 **Status**: Planned
-**Target**: v0.4.6
-**Priority**: P1 (High)
-**Estimated**: 6 hours
-**Dependencies**: Env capability (already implemented in v0.4.4)
-**Impact**: +2.1% eval success rate (cli_args benchmark: 0% → 80%+)
-
-## AI-First DX Scoring
-
-**Feature evaluation against AILANG's design principles:**
-
-| Axis | Score | Justification |
-|------|-------|---------------|
-| **Syntactic Noise** | +1 | Removes need for complex arg parsing boilerplate |
-| **Semantic Clarity** | +1 | Explicit `! {Env}` effect makes external dependency clear |
-| **Determinism** | +1 | Read-only, capability-gated access to fixed process state |
-| **Token Cost** | +1 | Simple API (`getArgs()`), no arg parsing DSL needed |
-| **Total** | **+4** | ✅ Strong alignment with AI-first principles |
-
-**Decision**: **APPROVE** - Net score +4 indicates excellent fit for AILANG.
-
-**Why this feature aligns with AILANG's vision:**
-- **Minimal API surface**: Single function `getArgs()` vs complex flag parsing libraries
-- **Compositional**: Returns `[string]`, works with existing pattern matching and list operations
-- **Explicit effects**: `! {Env}` makes external dependency visible to AI models
-- **No magic**: No automatic `main(args)` injection, no implicit behavior
-- **Capability-based**: Requires explicit `--caps Env` grant, security model clear
-- **Consistent**: Extends existing `std/env` (`getEnv`, `hasEnv`) with same patterns
+**Version Target**: v0.4.6
+**Priority**: HIGH
+**Effort**: 6 hours (updated from 3-4h to include capability enforcement, careful CLI parsing, eval harness integration)
+**Impact**: +2.1% eval success rate (77% total with prompt improvements)
+**Dependencies**: Env capability (already implemented)
+**Consistency**: Extends existing `std/env` module (`getEnv`, `hasEnv`)
 
 ## Problem Statement
 
 The `cli_args` benchmark fails across all 6 models (0% success rate) because **AILANG has no way to access command-line arguments**.
 
-**Current State:**
-- Programs cannot read arguments passed to `ailang run program.ail arg1 arg2`
-- No workaround available (unlike other missing features where patterns exist)
-- Benchmark impact: 6/284 failures (2.1%)
-- Real-world impact: CLI tools, scripts, utilities cannot be built
+**Current workaround**: None - programs cannot access `argv`
 
-**Why This Matters:**
-- **For AI models**: Common benchmark pattern across all languages (Python `sys.argv`, Node `process.argv`)
-- **For users**: Essential for command-line tools (the primary use case for AILANG programs)
-- **For ecosystem**: Blocks development of CLI utilities, testing frameworks, build tools
+**User request**: Common use case for CLI tools, utilities, scripts
 
-**User request**: Consistent with AILANG philosophy (deterministic, explicit effects, capability-based)
+**Eval impact**: 6/284 failures (2.1%), but represents fundamental limitation for real-world programs
 
 ## Goals
 
-**Primary Goal**: Enable programs to access command-line arguments through a simple, effect-typed API
+1. **Provide access to command-line arguments** passed to `ailang run`
+2. **Functional, effect-typed design** (not global mutable state)
+3. **Simple API** that models can understand and use correctly
+4. **Consistent with AILANG philosophy** (deterministic, explicit effects)
 
-**Success Metrics:**
-- `cli_args` benchmark: 0% → 80%+ success rate
-- API simplicity: Single function `getArgs() -> [string] ! {Env}`
-- Consistency: Aligns with existing `std/env` module (`getEnv`, `hasEnv`)
-- Security: Capability-gated (requires `--caps Env`)
-- Teaching: Models can learn from clear examples in one prompt iteration
+**Non-goals**:
+- Complex argument parsing libraries (flags, options, etc.) - keep simple
+- Env variables (already implemented via `getEnv`/`hasEnv`)
+- Process spawning, piping
 
-**Non-Goals:**
-- Complex argument parsing libraries (flags, options, subcommands)
-- Environment variable access (already implemented via `getEnv`/`hasEnv`)
-- Process spawning or piping
-- REPL support for arguments (doesn't make sense for interactive shell)
-
-## Solution Design
+## Design
 
 ### Design Philosophy: Alignment with Env Capability
 
@@ -75,25 +42,25 @@ The `cli_args` benchmark fails across all 6 models (0% success rate) because **A
 - Come from outside the pure world
 - NOT streaming I/O (that's what `IO` is for)
 
-**Consistency with existing implementation:**
+**Consistency with existing implementation**:
 - `getEnv(name: string) -> string ! {Env}` - read environment variable
 - `hasEnv(name: string) -> bool ! {Env}` - check if env var exists
 - `getArgs() -> [string] ! {Env}` - **NEW**: read CLI arguments
 
-**All three functions:**
+**All three functions**:
 - Live in `std/env` module
 - Use `! {Env}` effect (not `! {IO}`)
 - Require `--caps Env` capability at runtime
 - Return `E_ENV_CAP_MISSING` if capability not granted
 
-**This design maintains a single coherent story:**
-*"All reads from the process environment (env vars, CLI args) are `! {Env}` and require `--caps Env`."*
+**This design maintains a single coherent story**:
+"All reads from the process environment (env vars, CLI args) are `! {Env}` and require `--caps Env`."
 
 ### API: `std/env.getArgs`
 
-**Module**: `std/env` (existing stdlib module)
+**Module**: `std/env` (existing stdlib module for environment/OS interaction)
 
-**Function signature:**
+**Function signature**:
 ```ailang
 export func getArgs() -> [string] ! {Env}
 ```
@@ -102,7 +69,7 @@ export func getArgs() -> [string] ! {Env}
 
 **Effect**: `! {Env}` - reading from process environment (consistent with `getEnv`, `hasEnv`)
 
-**Example usage:**
+**Example usage**:
 ```ailang
 module myapp/main
 
@@ -115,14 +82,14 @@ export func main() -> () ! {IO, Env} {
   println("Number of arguments: " ++ show(length(args)));
 
   match args {
-    [] => println("Usage: program <name>"),
+    [] => println("No arguments provided"),
     [name] => println("Hello, " ++ name ++ "!"),
     _ => println("Too many arguments")
   }
 }
 ```
 
-**Running:**
+**Running**:
 ```bash
 $ ailang run --entry main --caps IO,Env myapp/main.ail Alice
 Number of arguments: 1
@@ -130,70 +97,10 @@ Hello, Alice!
 
 $ ailang run --entry main --caps IO,Env myapp/main.ail
 Number of arguments: 0
-Usage: program <name>
+No arguments provided
 ```
 
-### Design Decisions
-
-#### 1. Effect Choice: Why `! {Env}` (not `! {IO}`)?
-
-**Rationale**: Arguments are part of the process environment, like environment variables
-
-**Arguments for `! {Env}`:**
-- ✅ **Consistent with existing Env capability** (`getEnv`, `hasEnv`)
-- ✅ **Conceptually aligned**: CLI args and env vars are both "process environment"
-- ✅ **Fixed for process lifetime** (not streaming I/O)
-- ✅ **Read-only external input** (same category as env vars)
-- ✅ **Enables future testing mechanisms** (override args like env vars)
-
-**Why not `! {IO}`?**
-- IO is for actual I/O streaming (stdin/stdout, files, sockets)
-- CLI args don't involve ongoing I/O operations
-- Would be inconsistent: `getEnv ! {Env}` but `getArgs ! {IO}`?
-
-**Why not pure?**
-- Arguments come from outside the program (external input)
-- Different invocations can have different arguments
-- Must be explicit about external dependencies
-
-**Decision**: `! {Env}` for consistency with existing environment access patterns
-
-#### 2. Return Value: `[string]` vs Other Options
-
-**Option 1: `[string]` (CHOSEN)**
-```ailang
-getArgs() -> [string]
--- Returns: ["arg1", "arg2", "arg3"]
-```
-**Pros:**
-- ✅ Simple, functional
-- ✅ Matches Haskell (`getArgs :: IO [String]`)
-- ✅ Easy to pattern match
-- ✅ Composes with existing list functions
-
-**Option 2: `{argc: int, argv: [string]}`**
-```ailang
-getArgs() -> {argc: int, argv: [string]}
--- Returns: {argc: 3, argv: ["arg1", "arg2", "arg3"]}
-```
-**Cons:**
-- ❌ Redundant (can compute `argc` from `length(argv)`)
-- ❌ More complex API
-- ❌ Doesn't follow functional style
-
-**Option 3: Include program name**
-```ailang
-getArgs() -> [string]
--- Returns: ["program_name", "arg1", "arg2"]
-```
-**Cons:**
-- ❌ Program name not useful in AILANG context (no `argv[0]` equivalent)
-- ❌ Inconsistent with modern languages (most skip program name)
-- ❌ Confusing for benchmarks (expect args only)
-
-**Decision**: Return `[string]` (arguments only, no program name)
-
-#### 3. Alternative Rejected: Main Function Signature
+### Alternative: Main Function Signature (Rejected)
 
 **Option**: Automatically pass args to `main` function
 ```ailang
@@ -202,13 +109,68 @@ export func main(args: [string]) -> () ! {IO} {
 }
 ```
 
-**Rejected because:**
+**Rejected because**:
 1. Breaks existing code (all `main` functions have signature `() -> ()`)
 2. Less flexible (what if you don't need args?)
-3. Inconsistent with other effects (`readFile`, `getEnv` are explicit)
+3. Inconsistent with other effects (readFile, getEnv, etc.)
 4. Makes `main` special (not just another function)
 
 **Decision**: Use explicit `getArgs()` function for clarity and consistency
+
+### Effect Choice: Why `! {Env}` (not `! {IO}`)?
+
+**Rationale**: Arguments are part of the process environment, like environment variables
+
+**Arguments for `! {Env}`**:
+- ✅ **Consistent with existing Env capability** (`getEnv`, `hasEnv`)
+- ✅ **Conceptually aligned**: CLI args and env vars are both "process environment"
+- ✅ **Fixed for process lifetime** (not streaming I/O)
+- ✅ **Read-only external input** (same category as env vars)
+- ✅ **Enables future `--env-like` testing mechanisms** (override args for testing)
+
+**Why not `! {IO}`?**:
+- IO is for actual I/O streaming (stdin/stdout, files, sockets)
+- CLI args don't involve ongoing I/O operations
+- Would be inconsistent to have `getEnv ! {Env}` but `getArgs ! {IO}`
+
+**Why not pure?**:
+- Arguments come from outside the program (external input)
+- Different invocations can have different arguments
+- Must be explicit about external dependencies
+
+**Decision**: `! {Env}` for consistency with existing environment access patterns
+
+### Return Value: `[string]` vs Other Options
+
+**Option 1**: `[string]` (CHOSEN)
+```ailang
+getArgs() -> [string]
+-- Returns: ["arg1", "arg2", "arg3"]
+```
+**Pros**:
+- ✅ Simple, functional
+- ✅ Matches Haskell (`getArgs :: IO [String]`)
+- ✅ Easy to pattern match
+
+**Option 2**: `{argc: int, argv: [string]}`
+```ailang
+getArgs() -> {argc: int, argv: [string]}
+-- Returns: {argc: 3, argv: ["arg1", "arg2", "arg3"]}
+```
+**Cons**:
+- ❌ Redundant (can compute `argc` from `length(argv)`)
+- ❌ More complex API
+
+**Option 3**: Include program name
+```ailang
+getArgs() -> [string]
+-- Returns: ["program_name", "arg1", "arg2"]
+```
+**Cons**:
+- ❌ Program name not useful in AILANG context
+- ❌ Inconsistent with modern CLIs (most languages skip it)
+
+**Decision**: Return `[string]` (arguments only, no program name)
 
 ## Implementation Plan
 
@@ -216,14 +178,14 @@ export func main(args: [string]) -> () ! {IO} {
 
 **File**: `internal/builtins/spec.go`
 
-**Add builtin** (following M-DX1 convention):
+**Add builtin** (following M-DX1 pattern):
 ```go
 {
 	Name:      "_env_getArgs",
 	Module:    "std/env",
 	Type:      types.NewBuilder().
-		Func(nil).              // No parameters (nullary function)
-		WithEffect("Env").      // Env effect
+		Func(nil). // No parameters
+		WithEffect("Env").
 		Returns(types.TList(types.TString)),
 	GoImpl:    builtins.EnvGetArgs,
 	Pure:      false,
@@ -231,14 +193,9 @@ export func main(args: [string]) -> () ! {IO} {
 },
 ```
 
-**Note**: Following the M-DX1 builtin convention:
-- Builtin name: `_env_getArgs` (underscored, module-prefixed)
+**Note**: Following the M-DX1 convention:
+- Builtin name: `_env_getArgs` (underscored, in module `std/env`)
 - Wrapper function in `std/env.ail`: `getArgs()`
-- Go implementation: `EnvGetArgs` in `internal/builtins/env.go`
-
-This matches existing pattern:
-- `_env_getEnv` → `getEnv()` → `EnvGetEnv`
-- `_env_hasEnv` → `hasEnv()` → `EnvHasEnv`
 
 **File**: `internal/builtins/env.go` (extend existing file)
 
@@ -271,7 +228,7 @@ func EnvGetArgs(ctx eval.EffectContext, args []eval.Value) (eval.Value, error) {
 
 **File**: `internal/effects/context.go`
 
-**Add to EffectContext interface:**
+**Add to EffectContext**:
 ```go
 type EffectContext interface {
 	// ... existing methods ...
@@ -300,7 +257,7 @@ func (ctx *RealEffContext) GetArgs() []string {
 
 **File**: `internal/runtime/runtime.go`
 
-**Pass args to effect context:**
+**Pass args to effect context**:
 ```go
 func Run(prog *core.Program, caps []string, args []string) error {
 	// ... existing code ...
@@ -357,7 +314,7 @@ func runCommand(c *cli.Context) error {
 }
 ```
 
-**Testing CLI argument parsing:**
+**Testing CLI argument parsing**:
 ```go
 // Add tests for various invocation styles:
 // - ailang run test.ail a b c
@@ -422,7 +379,7 @@ export func main() -> () ! {IO, Env} {
 }
 ```
 
-**Test cases:**
+**Test cases**:
 ```bash
 # Test: No arguments
 ailang run --caps IO,Env tests/cli_args_test.ail
@@ -502,7 +459,7 @@ func TestEnvGetArgs(t *testing.T) {
 }
 ```
 
-**Critical test coverage:**
+**Critical tests**:
 1. ✅ Works with Env capability
 2. ✅ Fails with clear error without Env capability
 3. ✅ Handles empty args list
@@ -513,13 +470,13 @@ func TestEnvGetArgs(t *testing.T) {
 
 **File**: `prompts/v0.4.6.md`
 
-**Add to stdlib section (std/env):**
+**Add to stdlib section (std/env)**:
 ```markdown
 ### Process Environment (std/env)
 
 **Import**: `import std/env (getEnv, hasEnv, getArgs)`
 
-**Environment variables:**
+**Environment variables**:
 ```ailang
 import std/env (getEnv, hasEnv)
 
@@ -531,7 +488,7 @@ export func main() -> () ! {Env} {
 }
 ```
 
-**Command-line arguments:**
+**Command-line arguments**:
 ```ailang
 import std/env (getArgs)
 import std/io (println)
@@ -547,13 +504,13 @@ export func main() -> () ! {IO, Env} {
 }
 ```
 
-**Running with arguments:**
+**Running with arguments**:
 ```bash
 ailang run --entry main --caps IO,Env app.ail Alice
 # args = ["Alice"]
 ```
 
-**Important notes:**
+**Important notes**:
 - All `std/env` functions require `! {Env}` effect
 - `getArgs()` returns arguments only (excludes program name)
 - Empty list `[]` if no arguments provided
@@ -582,11 +539,11 @@ match args {
 
 **File**: `docs/guides/cli-arguments.md` (new guide)
 
-**Content**: Usage examples, common patterns (help text, flag parsing, argument validation)
+**Content**: Usage examples, common patterns (help text, flag parsing, etc.)
 
 ### Phase 5: Eval Testing (1.5 hours)
 
-**Critical: Update eval harness to pass args**
+**Critical: Update eval harness to pass args**:
 
 **File**: `internal/eval_harness/runner.go`
 
@@ -604,7 +561,7 @@ func RunBenchmark(bench *Benchmark, model string) (*Result, error) {
 }
 ```
 
-**Verification test:**
+**Verification test**:
 ```go
 // Ensure AILANG sees the args the evaluator thinks it's passing
 func TestEvalHarnessPassesArgs(t *testing.T) {
@@ -617,7 +574,7 @@ func TestEvalHarnessPassesArgs(t *testing.T) {
 }
 ```
 
-**Run targeted eval:**
+**Run targeted eval**:
 ```bash
 # Test cli_args benchmark specifically
 ailang eval-suite --benchmarks cli_args \
@@ -629,251 +586,89 @@ ailang eval-suite --benchmarks cli_args \
 
 **If failures persist**: Iterate on teaching prompt examples
 
-**Run full baseline:**
+**Run full baseline**:
 ```bash
 make eval-baseline EVAL_VERSION=v0.4.6 FULL=true
 ```
 
-**Expected improvement:**
+**Expected improvement**:
 - cli_args: 0% → 80%+
 - Overall: 75% → 77%+ (with prompt improvements)
 
-### Files to Modify/Create
-
-**New files:**
-- `tests/cli_args_test.ail` (~30 LOC) - Integration test
-- `docs/guides/cli-arguments.md` (~200 LOC) - User guide
-
-**Modified files:**
-- `internal/builtins/spec.go` (+10 LOC) - Register `_env_getArgs`
-- `internal/builtins/env.go` (+25 LOC) - `EnvGetArgs` implementation
-- `internal/builtins/env_test.go` (+45 LOC) - Unit tests
-- `internal/effects/context.go` (+10 LOC) - Add `GetArgs()` method
-- `internal/runtime/runtime.go` (+5 LOC) - Pass args to context
-- `cmd/ailang/main.go` (+20 LOC) - Parse and pass CLI args
-- `std/env.ail` (+8 LOC) - Add `getArgs()` wrapper
-- `prompts/v0.4.6.md` (+50 LOC) - Teaching prompt section
-- `internal/eval_harness/runner.go` (+5 LOC) - Pass args to runtime
-
-**Total new code**: ~408 LOC
-
-## Examples
-
-### Example 1: Basic Argument Access
-
-**AILANG code:**
-```ailang
-module examples/hello_args
-
-import std/env (getArgs)
-import std/io (println)
-
-export func main() -> () ! {IO, Env} {
-  match getArgs() {
-    [] => println("Hello, World!"),
-    [name] => println("Hello, " ++ name ++ "!"),
-    _ => println("Too many arguments")
-  }
-}
-```
-
-**Usage:**
-```bash
-$ ailang run --caps IO,Env examples/hello_args.ail
-Hello, World!
-
-$ ailang run --caps IO,Env examples/hello_args.ail Alice
-Hello, Alice!
-
-$ ailang run --caps IO,Env examples/hello_args.ail Alice Bob
-Too many arguments
-```
-
-### Example 2: Argument Validation
-
-**AILANG code:**
-```ailang
-module examples/validate_args
-
-import std/env (getArgs)
-import std/io (println)
-import std/list (length)
-
-func validateArgs(args: [string]) -> bool =
-  length(args) == 2
-
-export func main() -> () ! {IO, Env} {
-  let args = getArgs();
-
-  if validateArgs(args) then {
-    match args {
-      [input, output] => {
-        println("Input: " ++ input);
-        println("Output: " ++ output)
-      },
-      _ => println("Unexpected pattern")
-    }
-  } else {
-    println("Usage: program <input> <output>")
-  }
-}
-```
-
-### Example 3: Flag Parsing (Manual)
-
-**AILANG code:**
-```ailang
-module examples/flags
-
-import std/env (getArgs)
-import std/io (println)
-
-export func main() -> () ! {IO, Env} {
-  match getArgs() {
-    ["--help"] => println("Usage: program [--help | --version | <name>]"),
-    ["--version"] => println("Version 1.0.0"),
-    [name] => println("Hello, " ++ name ++ "!"),
-    [] => println("Hello, World!"),
-    _ => println("Error: Too many arguments")
-  }
-}
-```
-
-**Before this feature (IMPOSSIBLE):**
-```ailang
--- No way to access arguments at all!
--- Can only write programs with hard-coded data
-```
-
-**After this feature (SIMPLE):**
-```ailang
-import std/env (getArgs)
--- Simple, explicit, compositional
-let args = getArgs();
-match args { ... }
-```
-
-## Testing Strategy
-
-**Unit tests:**
-- `EnvGetArgs` with/without capability (`internal/builtins/env_test.go`)
-- Empty args, single arg, multiple args, args with spaces
-- Error cases (no capability, invalid inputs)
-- Test coverage: 100% on new code
-
-**Integration tests:**
-- End-to-end: `ailang run --caps IO,Env tests/cli_args_test.ail arg1 arg2`
-- Capability enforcement: Run without `--caps Env`, expect error
-- CLI parsing: Test multiple invocation styles
-- Eval harness: Verify args passed through correctly
-
-**Manual testing:**
-- Run examples from docs (`examples/hello_args.ail`)
-- Test various argument patterns (none, one, many, with spaces)
-- Verify error messages are helpful
-
-**Benchmark testing:**
-- Run `cli_args` benchmark against all 6 models
-- Target: 0% → 80%+ success rate
-- Analyze failures, update prompt if needed
-
 ## Security Considerations
 
-**Capability-based security:**
-- Requires explicit `--caps Env` grant
-- Without capability, fails with `E_ENV_CAP_MISSING`
+**No special security concerns**:
+- ✅ Read-only access (can't modify args)
+- ✅ Requires explicit `! {Env}` effect (capability-based security)
+- ✅ Must grant `--caps Env` explicitly
+- ✅ No shell injection (just strings)
+- ✅ No process spawning or elevation
+
+**Capability enforcement**:
+- Without `--caps Env`, `getArgs()` fails with `E_ENV_CAP_MISSING`
 - Clear error message guides user to add capability
 - Consistent with `getEnv`/`hasEnv` security model
 
-**No special security concerns:**
-- ✅ Read-only access (can't modify args)
-- ✅ No shell injection (just strings)
-- ✅ No process spawning or elevation
-- ✅ No file system access (separate capability)
+**Best practices**:
+- ✅ Don't trust user input (validate in application code)
+- ✅ Sanitize before using in file paths or commands
+- ✅ Use pattern matching to validate expected argument structure
 
-**Best practices for users:**
-- Validate argument structure with pattern matching
-- Sanitize before using in file paths or external commands
-- Don't trust user input (same as any CLI program)
+## Alternatives Considered
+
+### Alt 1: Environment Variables Only
+**Rejected**: CLI args are more common for simple tools
+
+### Alt 2: Complex Argument Parser
+**Rejected**: Too complex for v0.4.6. Keep simple, add parsing library later if needed.
+
+### Alt 3: REPL Support
+**Question**: Should REPL support args?
+**Answer**: No - REPL is interactive, doesn't make sense. Only `ailang run` supports args.
+
+## Migration and Compatibility
+
+**Breaking changes**: None (new feature)
+
+**Deprecations**: None
+
+**Backwards compatibility**: Existing code unaffected
 
 ## Success Criteria
 
-- [ ] `_env_getArgs` builtin implemented with capability enforcement
-- [ ] `std/env` module extended with `getArgs()` wrapper
-- [ ] Unit tests pass (100% coverage, including capability checks)
-- [ ] Integration tests pass (`tests/cli_args_test.ail`)
-- [ ] Capability enforcement tested (with and without `--caps Env`)
-- [ ] CLI argument parsing works for all invocation styles
-- [ ] Eval harness passes args to runtime correctly
-- [ ] Teaching prompt includes examples with anti-patterns
-- [ ] `cli_args` benchmark: 0% → 80%+ success rate
-- [ ] Overall eval: 75% → 77%+ success
-- [ ] Documentation updated (CLAUDE.md, prompts/, docs/)
-- [ ] All tests passing
-- [ ] No regressions in existing tests
+1. ✅ `_env_getArgs` builtin implemented with capability enforcement
+2. ✅ `std/env` module extended with `getArgs()` wrapper
+3. ✅ Unit tests pass (100% coverage, including capability checks)
+4. ✅ Integration tests pass (cli_args_test.ail)
+5. ✅ Capability enforcement tested (with and without `--caps Env`)
+6. ✅ CLI argument parsing works for all invocation styles
+7. ✅ Eval harness passes args to runtime correctly
+8. ✅ Teaching prompt includes CLI args example with anti-patterns
+9. ✅ `cli_args` benchmark: 0% → 80%+ success
+10. ✅ Overall eval: 75% → 77%+ success (with prompt improvements)
 
 ## Timeline
 
-**Phase 1** (Builtin + Capability): 1.5 hours
-- Create builtin spec with correct type signature
-- Implement `EnvGetArgs` with capability check
-- Add to effect context interface
-- Wire through runtime and CLI
+- **Phase 1** (Builtin + Capability): 1.5 hours
+- **Phase 2** (Stdlib): 30 minutes
+- **Phase 3** (Tests + Capability tests): 1.5 hours
+- **Phase 4** (Docs + Anti-patterns): 1 hour
+- **Phase 5** (Eval + Harness): 1.5 hours
 
-**Phase 2** (Stdlib): 30 minutes
-- Extend `std/env.ail` with `getArgs()` wrapper
-- Document function with examples
+**Total**: 6 hours (updated from 4 hours to account for:)
+- Capability enforcement implementation and testing
+- More careful CLI argument parsing
+- Eval harness integration
+- Anti-patterns documentation
 
-**Phase 3** (Tests): 1.5 hours
-- Unit tests (capability, args handling)
-- Integration tests (`tests/cli_args_test.ail`)
-- CLI parsing tests
+**Target completion**: v0.4.6 release (early December 2025)
 
-**Phase 4** (Docs): 1 hour
-- Update teaching prompt with examples
-- Add anti-patterns section
-- Create user guide
+## Related Work
 
-**Phase 5** (Eval): 1.5 hours
-- Update eval harness
-- Run targeted benchmark
-- Iterate on prompt if needed
-
-**Total: 6 hours** (accounts for capability enforcement, careful CLI parsing, eval integration)
-
-**Target completion**: v0.4.6 release (December 2025)
-
-## Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
-| CLI parsing breaks existing invocations | High | Test all invocation styles; careful parsing logic |
-| Models hallucinate `argv[0]` or `argc()` | Medium | Add explicit anti-patterns section to prompt |
-| Capability check broken | High | Comprehensive unit tests for capability enforcement |
-| Eval harness doesn't pass args | High | Add verification test before running benchmarks |
-| Teaching prompt unclear | Medium | Include multiple examples with different patterns |
-
-## Non-Goals
-
-**Not in this feature:**
-- Complex argument parsing library (flags, options, subcommands) - Keep simple, defer to user code
-- Automatic `main(args)` injection - Explicit is better than implicit
-- REPL argument support - Doesn't make sense for interactive shell
-- Argument validation framework - Use pattern matching
-- Process environment modification - Read-only, consistent with Env design
-
-**Deferred to future work:**
-- `--env-like` testing flag for overriding args (useful for tests)
-- Standard library flag parsing utilities
-- Argument schema/validation DSL
-
-## References
-
-- **Existing Env capability**: `std/env` module with `getEnv`, `hasEnv`
-- **M-DX1 builtin pattern**: Naming convention (`_env_*`), type builder
-- **Haskell prior art**: `getArgs :: IO [String]` (but we use `! {Env}`)
-- **Eval framework**: `internal/eval_harness/` for benchmark testing
-- **Teaching prompt**: `prompts/v0.4.6.md` with anti-patterns
+- **Env capability implementation**: Existing `getEnv`/`hasEnv` in `std/env`
+- **Prompt improvements**: `teaching-prompt-improvements.md`
+- **Eval analysis**: `EVAL_FAILURE_ANALYSIS_v0_4_5.md`
+- **Implementation gaps**: `implementation-gaps-analysis.md`
 
 ## Implementation Notes
 
@@ -881,7 +676,7 @@ match args { ... }
 
 **1. Type Signature (Builtin Spec)**
 
-The correct implementation must be:
+The original draft had an incorrect type signature. The correct implementation must be:
 
 ```go
 Type: types.NewBuilder().
@@ -890,7 +685,7 @@ Type: types.NewBuilder().
     Returns(types.TList(types.TString))
 ```
 
-**NOT**:
+NOT:
 ```go
 Type: types.Func(types.TList(types.TString), types.TIO(types.TUnit))
 // ❌ This is [string] -> IO(()) which is completely wrong!
@@ -938,16 +733,3 @@ Following the established pattern:
 This matches:
 - `_env_getEnv` → `getEnv()` → `EnvGetEnv`
 - `_env_hasEnv` → `hasEnv()` → `EnvHasEnv`
-
-## Future Work
-
-**Potential enhancements (not committed):**
-- Testing utilities: `--args "arg1,arg2"` CLI flag to override args (similar to `--env`)
-- Standard library: `std/cli` module with common patterns (help text, flag parsing)
-- Schema validation: Declarative argument schemas with auto-validation
-- Environment parity: Unified `std/env` API for all process environment access
-
-**Builds on this feature:**
-- CLI testing framework (can now test programs that take arguments)
-- Build tools and scripts (can pass configuration via args)
-- Benchmarking tools (can parameterize benchmark runs)

@@ -274,9 +274,20 @@
         "latest"
       ],
       "notes": "Fix string concatenation (++) operator type inference"
+    },
+    "v0.4.6": {
+      "file": "prompts/v0.4.6.md",
+      "hash": "42c281cf220406a308c9ae0c298358881c5815f8001c592741f682b01bdab53a",
+      "description": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities",
+      "created": "2025-11-18",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities"
     }
   },
-  "active": "v0.4.5",
+  "active": "v0.4.6",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
