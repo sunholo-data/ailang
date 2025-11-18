@@ -163,63 +163,54 @@ export func main(args: [string]) -> () ! {IO} {
 
 **Design doc**: Create `M-LANG-CLI-ARGS.md`
 
-### ❌ Gap 2: HTTP/Network Capabilities (MEDIUM PRIORITY)
+### ✅ HTTP/Network Capabilities - ALREADY IMPLEMENTED! (CORRECTION)
 
-**Status**: NOT IMPLEMENTED
+**Status**: FULLY IMPLEMENTED (v0.3.8+)
 **Benchmark**: `api_call_json` (6/6 failures)
 **Impact**: 2.1% of failures (6/284)
 
-**What models expect**:
+**What models generate** (WRONG):
 ```python
 import requests
 response = requests.get("https://api.example.com/users")
 data = response.json()
 ```
 
-**What AILANG needs**:
+**What AILANG actually has** (CORRECT):
 ```ailang
-import std/http (get, HttpResponse)
+import std/net (httpRequest, HttpResponse)
 
-export func main() -> () ! {IO, Net} {
-  let response = get("https://api.example.com/users");
-  match response {
+export func main() -> () ! {Net, IO} {
+  match httpRequest("GET", "https://api.example.com/users", [], "") {
     Ok(resp) => println(resp.body),
-    Err(msg) => println("Error: " ++ msg)
+    Err(Transport(msg)) => println("Error: " ++ msg)
   }
 }
 ```
 
-**Design considerations**:
-1. **New effect**: `! {Net}` for network operations
-   - Separate from `IO` (different capability)
-   - Allows fine-grained permission control
+**Actually implemented** (std/net.ail):
+- ✅ `httpGet(url)` - Simple GET requests
+- ✅ `httpPost(url, body)` - Simple POST requests
+- ✅ `httpRequest(method, url, headers, body)` - Advanced with custom headers
+- ✅ `Net` effect type (capability-based security)
+- ✅ Security features: HTTPS enforcement, IP blocking, DNS rebinding prevention
+- ✅ Types: `HttpResponse`, `NetError` ADT
+- ✅ Examples in teaching prompt (v0.4.5)
 
-2. **Functions needed**:
-   - `get(url: string) -> Result[HttpResponse, string]`
-   - `post(url: string, body: string) -> Result[HttpResponse, string]`
-   - `HttpResponse` type: `{status: int, body: string, headers: {key: string, value: string}}`
+**Why it fails** (model behavior issue, NOT implementation gap):
+1. **Strong Python priors**: Models default to `requests.post()` syntax
+2. **Complexity**: JSON encoding + HTTP + headers + Result handling
+3. **Teaching prompt examples exist** but models ignore them
+4. **Models generate Python/shell syntax** instead of functional AILANG
 
-3. **Complexity**: Higher than CLI args
-   - HTTP client implementation
-   - Error handling (timeouts, DNS, SSL)
-   - Response parsing
-   - Effect system extension (new capability)
+**Root cause**: This is a **model training issue**, not a language limitation!
 
-**Implementation estimate**: 12-16 hours
-- Effect system extension (~2 hours)
-- HTTP client builtin (~4 hours)
-- std/http module (~2 hours)
-- Tests (~3 hours)
-- Documentation (~1 hour)
-- Eval testing (~2 hours)
+**Recommendation**: LOW PRIORITY - Focus on higher-impact prompt fixes
+- Simplify HTTP examples in teaching prompt (show simpler cases first)
+- Add "Common Mistakes" section comparing Python vs AILANG HTTP
+- Expected improvement: 0% → 30-50% (optimistic, low ROI)
 
-**Recommendation**: DEFER to v0.5.0 or later
-- Higher complexity
-- Only 2.1% of failures
-- Can work around with file I/O for now
-- Requires careful security design
-
-**Design doc**: Create `M-LANG-HTTP-NET-EFFECT.md` (for future)
+**See detailed analysis**: `api-call-json-deep-dive.md`
 
 ### ❌ Gap 3: Module System - Multiple Modules Per Project (PROMPT ISSUE, NOT IMPLEMENTATION GAP)
 
@@ -309,11 +300,12 @@ func approxEq(a: float, b: float, eps: float) -> bool =
 **v0.4.6 Target**: 77%+ 0-shot success rate
 
 ### Medium Priority (v0.5.0)
-3. **🟡 HTTP/Network Effect** (M-LANG-HTTP-NET-EFFECT.md)
-   - Fixes 2.1% of failures (6/284)
-   - Effort: 12-16 hours
-   - Complex: New effect, HTTP client, error handling
-   - **Rationale**: Defer until effect system is more mature
+3. **🟡 HTTP Examples in Teaching Prompt** (api-call-json-deep-dive.md)
+   - HTTP IS ALREADY IMPLEMENTED! (std/net)
+   - Issue: Models have strong Python priors
+   - Effort: 2-3 hours (simplify examples, add common mistakes)
+   - Impact: 77% → 78% (optimistic, 0% → 50% on api_call_json)
+   - **Rationale**: Low ROI, focus on higher-impact fixes first
 
 ### Low Priority (Future)
 4. **Approximate Float Equality** - Nice to have for scientific computing
