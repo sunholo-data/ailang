@@ -136,17 +136,24 @@ case "$PROVIDER" in
         echo "✓ GCP project: $PROJECT_ID"
 
         # Test API call (Vertex AI)
-        REGION="us-central1"
-        URL="https://$REGION-aiplatform.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/publishers/google/models/$MODEL:generateContent"
+        # Try global endpoint first (required for newer models like Gemini 3)
+        LOCATION="global"
+        URL="https://aiplatform.googleapis.com/v1/projects/$PROJECT_ID/locations/$LOCATION/publishers/google/models/$MODEL:generateContent"
+
+        echo "✓ Testing with global endpoint"
 
         RESPONSE=$(curl -s -X POST "$URL" \
           -H "Authorization: Bearer $ACCESS_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{
-            "contents": [{
+            "contents": {
               "role": "user",
-              "parts": [{"text": "Say hello in exactly 3 words"}]
-            }]
+              "parts": [
+                {
+                  "text": "Say hello in exactly 3 words"
+                }
+              ]
+            }
           }')
 
         # Check for errors
@@ -157,7 +164,8 @@ case "$PROVIDER" in
             if [ "$ERROR_CODE" = "404" ]; then
                 echo ""
                 echo "Model not available in Vertex AI yet."
-                echo "Recommendation: Check again in 1-2 weeks, or try Google AI Studio"
+                echo "Recommendation: Check again in 1-2 weeks"
+                echo "Note: Newer models (Gemini 3+) require global endpoint"
             else
                 echo "$RESPONSE" | python3 -m json.tool
             fi
@@ -172,6 +180,13 @@ case "$PROVIDER" in
 
         echo "✓ Model: $MODEL"
         echo "✓ Tokens: $INPUT_TOKENS input, $OUTPUT_TOKENS output"
+
+        # Check for reasoning tokens (Gemini 3+)
+        REASONING_TOKENS=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['usageMetadata'].get('thoughtsTokenCount', 0))" 2>/dev/null || echo "0")
+        if [ "$REASONING_TOKENS" != "0" ]; then
+            echo "✓ Reasoning tokens: $REASONING_TOKENS (adaptive reasoning enabled)"
+        fi
+
         echo ""
         echo "✓ Ready to add to models.yml"
         ;;

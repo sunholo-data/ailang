@@ -137,6 +137,25 @@ models:
       Context caching: $0.03 per 1M.
       Agent eval support: Not yet implemented (requires Gemini CLI integration).
 
+  # Google Gemini 3 Pro (released November 2025)
+  gemini-3-pro:
+    api_name: "gemini-3-pro-preview"
+    provider: "google"
+    description: "Gemini 3 Pro Preview with advanced reasoning"
+    env_var: "GOOGLE_API_KEY"
+    agent_cli: null  # Google Gemini CLI not yet implemented
+    pricing:
+      input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
+      output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)
+    notes: |
+      Google's latest model with advanced reasoning capabilities.
+      Similar to GPT-5.1, uses adaptive reasoning with separate thoughtsTokenCount.
+      1M token context window, tops LMArena leaderboard (1501 Elo).
+      Pricing: $2.00/$12.00 per 1M (≤200k), $4.00/$18.00 per 1M (>200k).
+      Currently in preview - available on Vertex AI global endpoint.
+      Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
+      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+
 # Default model for benchmarks
 default: "claude-sonnet-4-5"
 
@@ -153,6 +172,7 @@ extended_suite:
   - "gpt5-mini"
   - "claude-sonnet-4-5"
   - "claude-haiku-4-5"
+  - "gemini-3-pro"  # Added: Gemini 3 Pro with reasoning (Nov 2025)
   - "gemini-2-5-pro"
   - "gemini-2-5-flash"
 

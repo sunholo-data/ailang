@@ -43,18 +43,22 @@ if [ -z "$PROJECT_ID" ]; then
 fi
 echo "✓ GCP project: $PROJECT_ID"
 
-# Test API call
-REGION="us-central1"
-URL="https://$REGION-aiplatform.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/publishers/google/models/$MODEL:generateContent"
+# Test API call (use global endpoint for newer models)
+LOCATION="global"
+URL="https://aiplatform.googleapis.com/v1/projects/$PROJECT_ID/locations/$LOCATION/publishers/google/models/$MODEL:generateContent"
 
 RESPONSE=$(curl -s -X POST "$URL" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "contents": [{
+    "contents": {
       "role": "user",
-      "parts": [{"text": "test"}]
-    }]
+      "parts": [
+        {
+          "text": "test"
+        }
+      ]
+    }
   }')
 
 # Check for errors
@@ -66,6 +70,7 @@ if echo "$RESPONSE" | grep -q '"error"'; then
         echo ""
         echo "Recommendation: Monitor for availability, check again in 1-2 weeks"
         echo "Note: New models are typically announced before Vertex AI rollout"
+        echo "Note: Testing with global endpoint (required for Gemini 3+)"
         exit 1
     else
         echo "✗ Error: $ERROR_CODE"
