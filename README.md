@@ -303,7 +303,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 <!-- EXAMPLES_STATUS_START -->
 ![Examples](https://img.shields.io/badge/examples-22%20passing%2022%20failing-red.svg)
 
-**22/48 examples passing (46%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**22/49 examples passing (45%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -313,6 +313,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
+| `runnable/cli_args_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/closures.ail` | ✅ Pass |  |
 | `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
