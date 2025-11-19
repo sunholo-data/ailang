@@ -1259,8 +1259,7 @@
   color: var(--ifm-color-emphasis-600);
 }
 
-
-/* Comparison Table - COMPACT VERSION */
+/* Comparison Table */
 .tableContainer {
   margin-top: 2rem;
   overflow-x: auto;
@@ -1271,24 +1270,22 @@
 .comparisonTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   background: var(--ifm-card-background-color);
-  table-layout: fixed;
 }
 
 .comparisonTable thead tr:first-child th {
   background: var(--ifm-color-emphasis-100);
   font-weight: 600;
   text-align: center;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem;
   border-bottom: 1px solid var(--ifm-color-emphasis-300);
-  font-size: 0.8rem;
 }
 
 .comparisonTable thead tr:nth-child(2) th {
   background: var(--ifm-color-emphasis-50);
-  padding: 0.4rem 0.5rem;
-  font-size: 0.75rem;
+  padding: 0.5rem;
+  font-size: 0.85rem;
   text-align: center;
   border-bottom: 2px solid var(--ifm-color-emphasis-300);
 }
@@ -1324,7 +1321,7 @@
 }
 
 .comparisonTable tbody td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem;
   text-align: center;
 }
 
@@ -1335,8 +1332,6 @@
   left: 0;
   background: var(--ifm-card-background-color);
   z-index: 5;
-  width: 20%;
-  font-size: 0.85rem;
 }
 
 .comparisonTable tbody tr:hover .tableModelName {
@@ -1345,30 +1340,25 @@
 
 .tableNumber {
   font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
-  white-space: nowrap;
 }
 
 .successBadge {
   display: inline-block;
-  padding: 0.2rem 0.4rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
   color: white;
   font-weight: 600;
-  font-size: 0.8rem;
-  min-width: 36px;
+  font-size: 0.85rem;
 }
 
 .gapPositive {
   color: var(--ifm-color-success-dark);
   font-weight: 600;
-  font-size: 0.85rem;
 }
 
 .gapNegative {
   color: var(--ifm-color-danger-dark);
   font-weight: 600;
-  font-size: 0.85rem;
 }
 
 .ratioHigher {
@@ -1395,12 +1385,11 @@
 }
 
 .tableFootnote {
-  padding: 0.6rem;
+  padding: 0.75rem;
   background: var(--ifm-color-emphasis-50);
   border-top: 1px solid var(--ifm-color-emphasis-300);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--ifm-color-emphasis-700);
-  line-height: 1.4;
 }
 
 .tableFootnote strong {

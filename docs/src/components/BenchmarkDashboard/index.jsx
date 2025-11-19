@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
+import ModelComparisonTable from './ModelComparisonTable';
 import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
+import PerModelTrend from './PerModelTrend';
+import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
 import styles from './styles.module.css';
 
@@ -142,6 +145,7 @@ export default function BenchmarkDashboard() {
         <div className={styles.section}>
           <h3>Model Performance Comparison</h3>
           <ModelChart models={models} />
+          <ModelComparisonTable models={models} />
         </div>
       )}
 
@@ -170,6 +174,28 @@ export default function BenchmarkDashboard() {
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
           <SuccessTrend history={history} languages={languages} />
+        </div>
+      )}
+
+      {/* Per-Model Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
+        <div className={styles.section}>
+          <h3>Success Rate by Model Over Time</h3>
+          <p className={styles.sectionSubtitle}>
+            Track how each AI model's performance evolves across AILANG versions
+          </p>
+          <PerModelTrend history={history} />
+        </div>
+      )}
+
+      {/* Model Delta Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Gap by Model</h3>
+          <p className={styles.sectionSubtitle}>
+            Positive values indicate AILANG outperforms Python for that model
+          </p>
+          <ModelDeltaTrend history={history} />
         </div>
       )}
 

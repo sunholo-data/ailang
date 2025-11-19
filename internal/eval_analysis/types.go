@@ -224,6 +224,7 @@ type HistoryEntry struct {
 	SuccessCount  int                    `json:"successCount"`
 	Languages     string                 `json:"languages"`
 	LanguageStats map[string]interface{} `json:"languageStats,omitempty"`
+	ModelStats    map[string]interface{} `json:"modelStats,omitempty"` // Per-model, per-language stats for trend charts
 }
 
 // Validate checks if a DashboardJSON structure is valid

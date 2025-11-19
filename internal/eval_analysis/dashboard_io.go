@@ -70,6 +70,26 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 		}
 	}
 
+	// Build per-model stats (for trend charts)
+	modelStats := make(map[string]interface{})
+	for modelName, modelData := range matrix.Models {
+		if modelData.Languages != nil && len(modelData.Languages) > 0 {
+			modelLangStats := make(map[string]interface{})
+			for lang, langData := range modelData.Languages {
+				if langData.TotalRuns > 0 {
+					modelLangStats[lang] = map[string]interface{}{
+						"successRate": langData.SuccessRate,
+						"totalRuns":   langData.TotalRuns,
+						"avgTokens":   langData.AvgTokens,
+					}
+				}
+			}
+			if len(modelLangStats) > 0 {
+				modelStats[modelName] = modelLangStats
+			}
+		}
+	}
+
 	// Determine languages string
 	languages := ""
 	if len(matrix.Languages) > 0 {
@@ -81,7 +101,7 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 		languages = strings.Join(langList, ",")
 	}
 
-	return HistoryEntry{
+	entry := HistoryEntry{
 		Version:       matrix.Version,
 		Timestamp:     matrix.Timestamp.Format(time.RFC3339),
 		SuccessRate:   successRate,
@@ -90,6 +110,13 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 		Languages:     languages,
 		LanguageStats: langStats,
 	}
+
+	// Only add ModelStats if we have data (keeps backward compatibility)
+	if len(modelStats) > 0 {
+		entry.ModelStats = modelStats
+	}
+
+	return entry
 }
 
 // writeJSONAtomic writes JSON data to a file atomically
