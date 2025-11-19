@@ -4,7 +4,54 @@ This document tracks known limitations, workarounds, and design constraints in A
 
 ## Recent Improvements
 
-### Syntactic Sugar (v0.4.1 - NEW!)
+### CLI Arguments & Zero-Argument Functions (v0.4.6 - NEW!)
+
+**Status**: ✅ Fully Implemented
+**Since**: v0.4.6 (November 18, 2025)
+**Impact**: CLI args feature now fully functional, zero-arg functions work universally
+
+**What's Now Available**:
+
+1. **Command-Line Arguments**:
+   ```ailang
+   -- ✅ Access CLI args (v0.4.6+):
+   import std/env
+
+   export func main() -> () ! {IO, Env} {
+     let args = getArgs() in
+     print(show(args))
+   }
+
+   -- Run: ailang run --caps IO,Env --entry main module.ail Alice Bob
+   -- Output: ["Alice", "Bob"]
+   ```
+
+2. **Zero-Argument Function Calls**:
+   ```ailang
+   -- ✅ Works everywhere (v0.4.6+):
+   now()           -- Clock builtin
+   getArgs()       -- Env builtin
+   readLine()      -- IO builtin
+
+   -- ✅ First-class values:
+   let f = getArgs in f()
+
+   -- ✅ Higher-order functions:
+   let callTwice[a](g: () -> a) -> (a, a) = (g(), g())
+   callTwice(now)
+   ```
+
+**What Was Fixed**:
+- Zero-arg builtins (`_env_getArgs`, `_clock_now`, `_io_readLine`) now use unit-argument model
+- Entry point invocation fixed: `main()` properly called as `main(())`
+- Stdlib wrappers work correctly: `getArgs()`, `now()`, `readLine()`
+- S-CALL0 sugar works in all contexts (expressions, statements, lambdas, match arms)
+
+**See Also**: `design_docs/implemented/v0_4_6/M-DX10.md`, `CHANGELOG.md` for technical details, `examples/runnable/cli_args_demo.ail` for working example.
+
+---
+
+### Syntactic Sugar (v0.4.1)
 
 **Status**: ✅ Implemented
 **Since**: v0.4.1 (November 2, 2025)
@@ -37,12 +84,16 @@ This document tracks known limitations, workarounds, and design constraints in A
    let add: int -> int -> int = \x. \y. x + y
    ```
 
-3. **Zero-Argument Calls** (`f()` in expressions):
+3. **Zero-Argument Calls** (`f()` everywhere):
    ```ailang
-   -- ✅ Works in expression contexts:
+   -- ✅ Works universally (v0.4.6 - M-DX10):
    let result = if ready() then compute() else 0
 
-   -- ⚠️ Top-level still requires space: main ()
+   -- ✅ Works at top-level too:
+   main()
+
+   -- ✅ CLI args access:
+   let args = getArgs() in print(show(args))
    ```
 
 **Disable Sugar**: Use `--strict-syntax` flag or `:strict` REPL command to reject all sugar and require canonical forms.
