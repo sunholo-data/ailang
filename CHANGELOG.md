@@ -1536,6 +1536,40 @@ _No unreleased changes yet._
 - ✅ All existing tests pass
 - ✅ 2.5x faster than estimated (4h actual vs 10h estimate)
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 68.9% success rate (639 total runs across 8 models)
+
+**Standard Eval (0-shot + self-repair):**
+
+| Metric | 0.4.5 | 0.4.6 | Change |
+|--------|--------|--------|--------|
+| **0-shot (first attempt)** | 64.0% | 64.2% (235/366) | **+0.2%** |
+| **Final (with repair)** | 68.6% | 66.9% (245/366) | **-1.7%** |
+| **Repair effectiveness** | +4.6pp | +2.7pp | **-1.9pp** |
+| **Python (final)** | 76.4% | 77.6% (271/349) | +1.2% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | 0.4.5 | 0.4.6 | Change |
+|----------|--------|--------|--------|
+| **AILANG** | 100.0% | 100.0% (38/38) | **0%** |
+| **Python** | 100.0% | 100.0% (38/38) | **0%** |
+
+**Key Findings:**
+
+- **New Models Tested**: Expanded model suite to 8 models (up from 6):
+  - Added: `gpt5-1`, `gpt5-1-instant`, `gemini-3-pro`
+  - Retained: `gpt5-mini`, `claude-sonnet-4-5`, `claude-haiku-4-5`, `gemini-2-5-pro`, `gemini-2-5-flash`
+- **Stability**: Overall performance stable at ~69% with minor variations
+  - 0-shot success maintained at 64% (slight +0.2% improvement)
+  - Final success decreased slightly (-1.7%), within normal variance range
+- **Python Performance**: Improved slightly to 77.6% (+1.2%)
+- **Agent Eval**: Perfect 100% success for both AILANG and Python remains unchanged
+- **Repair Effectiveness**: Decreased from +4.6pp to +2.7pp (-1.9pp)
+  - Suggests models are getting better at 0-shot generation
+  - Self-repair still provides value but less critical than before
+
 ## [v0.3.18] - 2025-01-23
 
 ### M-POLY-B Phase 1: Var-Bound Polymorphic Lambdas (Comparison Operators)
