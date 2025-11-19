@@ -1,0 +1,3 @@
+This is a sample text file.
+It has several lines and words.
+Let's count them all. Python is great!

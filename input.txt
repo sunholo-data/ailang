@@ -1,4 +1,5 @@
-10
-20
-30
-40
+This is the first line.
+Here is a second line of text.
+
+Python is a versatile language.
+Follow PEP 8 for clean code.

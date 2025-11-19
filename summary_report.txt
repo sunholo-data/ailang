@@ -1,0 +1,7 @@
+Statistics Report
+=================
+Count: 52
+Sum: 24822
+Average: 477.35
+Min: 8
+Max: 1000
