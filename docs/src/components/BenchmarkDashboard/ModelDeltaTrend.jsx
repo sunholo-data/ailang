@@ -146,7 +146,7 @@ export default function ModelDeltaTrend({ history }) {
           {Array.from(allModels).map(modelName => (
             <Line
               key={modelName}
-              type="monotone"
+              type="linear"
               dataKey={modelName}
               stroke={MODEL_COLORS[modelName] || '#999'}
               strokeWidth={2}

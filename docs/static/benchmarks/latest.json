@@ -1,6 +1,6 @@
 {
-  "version": "0.4.6",
-  "timestamp": "2025-11-19T20:53:02+01:00",
+  "version": "v0.4.6",
+  "timestamp": "2025-11-20T17:54:49+01:00",
   "totalRuns": 639,
   "aggregates": {
     "agentBenchmarks": [
@@ -3613,6 +3613,876 @@
   },
   "history": [
     {
+      "version": "0.3.14",
+      "timestamp": "2025-10-18T20:30:58Z",
+      "successRate": 0.6387665198237885,
+      "totalRuns": 227,
+      "successCount": 145,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.48214285714285715,
+          "total_runs": 112
+        },
+        "python": {
+          "success_rate": 0.7913043478260869,
+          "total_runs": 115
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 171.95238095238096,
+            "successRate": 0.47619047619047616,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 261.76190476190476,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 21
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 160.52380952380952,
+            "successRate": 0.5238095238095238,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 138.47619047619048,
+            "successRate": 0.9047619047619048,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 178.26666666666668,
+            "successRate": 0.5333333333333333,
+            "totalRuns": 15
+          },
+          "python": {
+            "avgTokens": 157.8125,
+            "successRate": 0.625,
+            "totalRuns": 16
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 171.38888888888889,
+            "successRate": 0.4444444444444444,
+            "totalRuns": 18
+          },
+          "python": {
+            "avgTokens": 155.33333333333334,
+            "successRate": 0.7619047619047619,
+            "totalRuns": 21
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 149.28571428571428,
+            "successRate": 0.38095238095238093,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 109.71428571428571,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 124.4375,
+            "successRate": 0.5625,
+            "totalRuns": 16
+          },
+          "python": {
+            "avgTokens": 115.4,
+            "successRate": 0.8666666666666667,
+            "totalRuns": 15
+          }
+        }
+      }
+    },
+    {
+      "version": "0.3.15",
+      "timestamp": "2025-10-21T16:57:43Z",
+      "successRate": 0.5914786967418546,
+      "totalRuns": 399,
+      "successCount": 236,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.3300970873786408,
+          "total_runs": 206
+        },
+        "python": {
+          "success_rate": 0.8704663212435233,
+          "total_runs": 193
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 174.97142857142856,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 350.6666666666667,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 182.14285714285714,
+            "successRate": 0.37142857142857144,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 161.42424242424244,
+            "successRate": 0.9393939393939394,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 171.11428571428573,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 154,
+            "successRate": 0.8787878787878788,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 163.4516129032258,
+            "successRate": 0.2903225806451613,
+            "totalRuns": 31
+          },
+          "python": {
+            "avgTokens": 230.21428571428572,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 28
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 153.65714285714284,
+            "successRate": 0.3142857142857143,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 122.0909090909091,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 135.28571428571428,
+            "successRate": 0.2571428571428571,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 138.75757575757575,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        }
+      }
+    },
+    {
+      "version": "0.3.16",
+      "timestamp": "2025-10-22T09:22:00Z",
+      "successRate": 0.5735294117647058,
+      "totalRuns": 408,
+      "successCount": 234,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.30952380952380953,
+          "total_runs": 210
+        },
+        "python": {
+          "success_rate": 0.8535353535353535,
+          "total_runs": 198
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 199.02857142857144,
+            "successRate": 0.3142857142857143,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 409.42424242424244,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 187.25714285714287,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 140.63636363636363,
+            "successRate": 0.9393939393939394,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 183.88571428571427,
+            "successRate": 0.37142857142857144,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 141.63636363636363,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 158.68571428571428,
+            "successRate": 0.2857142857142857,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 216.78787878787878,
+            "successRate": 0.9090909090909091,
+            "totalRuns": 33
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 158.42857142857142,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 123.48484848484848,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 138.31428571428572,
+            "successRate": 0.2,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 126.93939393939394,
+            "successRate": 0.7878787878787878,
+            "totalRuns": 33
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.10",
+      "timestamp": "2025-10-16T15:19:14Z",
+      "successRate": 0.38492063492063494,
+      "totalRuns": 252,
+      "successCount": 97,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0,
+          "total_runs": 126
+        },
+        "python": {
+          "success_rate": 0.7698412698412699,
+          "total_runs": 126
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 191.14285714285714,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 269.2857142857143,
+            "successRate": 0.5714285714285714,
+            "totalRuns": 21
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 170.76190476190476,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 120.80952380952381,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 180.38095238095238,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 167.23809523809524,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 156.38095238095238,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 149.47619047619048,
+            "successRate": 0.8095238095238095,
+            "totalRuns": 21
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 133.14285714285714,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 107.47619047619048,
+            "successRate": 0.8095238095238095,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 136.42857142857142,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 132.85714285714286,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.11",
+      "timestamp": "0001-01-01T00:00:00Z",
+      "successRate": 0.3665338645418327,
+      "totalRuns": 251,
+      "successCount": 92,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0,
+          "total_runs": 125
+        },
+        "python": {
+          "success_rate": 0.7301587301587301,
+          "total_runs": 126
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 178.4,
+            "successRate": 0,
+            "totalRuns": 20
+          },
+          "python": {
+            "avgTokens": 228.23809523809524,
+            "successRate": 0.47619047619047616,
+            "totalRuns": 21
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 164.71428571428572,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 113.76190476190476,
+            "successRate": 0.7619047619047619,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 154.47619047619048,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 142.95238095238096,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 169.61904761904762,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 155.14285714285714,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 21
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 137.1904761904762,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 102.38095238095238,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 133.66666666666666,
+            "successRate": 0,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 117.76190476190476,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.12",
+      "timestamp": "2025-10-17T12:06:07Z",
+      "successRate": 0.626984126984127,
+      "totalRuns": 126,
+      "successCount": 79,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.47619047619047616,
+          "total_runs": 63
+        },
+        "python": {
+          "success_rate": 0.7777777777777778,
+          "total_runs": 63
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 172.61904761904762,
+            "successRate": 0.5238095238095238,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 288.04761904761904,
+            "successRate": 0.7619047619047619,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 184,
+            "successRate": 0.38095238095238093,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 131.52380952380952,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 144.42857142857142,
+            "successRate": 0.5238095238095238,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 123.76190476190476,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.21",
+      "timestamp": "0001-01-01T00:00:00Z",
+      "successRate": 0.5691489361702128,
+      "totalRuns": 376,
+      "successCount": 214,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.36666666666666664,
+          "total_runs": 210
+        },
+        "python": {
+          "success_rate": 0.8253012048192772,
+          "total_runs": 166
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 195.68571428571428,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 346.4347826086956,
+            "successRate": 0.8260869565217391,
+            "totalRuns": 23
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 171.65714285714284,
+            "successRate": 0.3142857142857143,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 145.63636363636363,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 187.31428571428572,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 196.27272727272728,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 22
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 158.11428571428573,
+            "successRate": 0.22857142857142856,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 192.12121212121212,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 135.28571428571428,
+            "successRate": 0.45714285714285713,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 124.96969696969697,
+            "successRate": 0.7878787878787878,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 142.8,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 160.22727272727272,
+            "successRate": 0.8636363636363636,
+            "totalRuns": 22
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.21-with-repair",
+      "timestamp": "0001-01-01T00:00:00Z",
+      "successRate": 0.4095238095238095,
+      "totalRuns": 210,
+      "successCount": 86,
+      "languages": "ailang",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.4095238095238095,
+          "total_runs": 210
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 189.57142857142858,
+            "successRate": 0.4857142857142857,
+            "totalRuns": 35
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 217.17142857142858,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 230.71428571428572,
+            "successRate": 0.4,
+            "totalRuns": 35
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 407.0285714285714,
+            "successRate": 0.37142857142857144,
+            "totalRuns": 35
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 238.37142857142857,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 35
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 212.37142857142857,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 35
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.3.7-46-g2cfa80a",
+      "timestamp": "2025-10-15T22:52:07Z",
+      "successRate": 0.5873015873015873,
+      "totalRuns": 126,
+      "successCount": 74,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.4603174603174603,
+          "total_runs": 63
+        },
+        "python": {
+          "success_rate": 0.7142857142857143,
+          "total_runs": 63
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 204.0952380952381,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 203,
+            "successRate": 0.6190476190476191,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 168.28571428571428,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 125.42857142857143,
+            "successRate": 0.6666666666666666,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 147.9047619047619,
+            "successRate": 0.5238095238095238,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 135.0952380952381,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.4.2.1-test",
+      "timestamp": "2025-11-05T16:02:02Z",
+      "successRate": 0.5625,
+      "totalRuns": 80,
+      "successCount": 45,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.43902439024390244,
+          "total_runs": 41
+        },
+        "python": {
+          "success_rate": 0.6923076923076923,
+          "total_runs": 39
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 325.390243902439,
+            "successRate": 0.43902439024390244,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 471.7692307692308,
+            "successRate": 0.6923076923076923,
+            "totalRuns": 39
+          }
+        }
+      }
+    },
+    {
+      "version": "v0.4.6",
+      "timestamp": "2025-11-20T17:54:48+01:00",
+      "successRate": 0.6885758998435054,
+      "totalRuns": 639,
+      "successCount": 440,
+      "languages": "ailang,python",
+      "languageStats": {
+        "ailang": {
+          "success_rate": 0.6310975609756098,
+          "total_runs": 328
+        },
+        "python": {
+          "success_rate": 0.7491961414790996,
+          "total_runs": 311
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 311.390243902439,
+            "successRate": 0.6341463414634146,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 384.8421052631579,
+            "successRate": 0.7105263157894737,
+            "totalRuns": 38
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 273.7317073170732,
+            "successRate": 0.6341463414634146,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 206.46153846153845,
+            "successRate": 0.7692307692307693,
+            "totalRuns": 39
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 313.390243902439,
+            "successRate": 0.5853658536585366,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 411.97435897435895,
+            "successRate": 0.7435897435897436,
+            "totalRuns": 39
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 226.1219512195122,
+            "successRate": 0.6585365853658537,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 446.3076923076923,
+            "successRate": 0.7692307692307693,
+            "totalRuns": 39
+          }
+        },
+        "gemini-3-pro": {
+          "ailang": {
+            "avgTokens": 311.5609756097561,
+            "successRate": 0.7317073170731707,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 351.8205128205128,
+            "successRate": 0.7692307692307693,
+            "totalRuns": 39
+          }
+        },
+        "gpt5-1": {
+          "ailang": {
+            "avgTokens": 252.1951219512195,
+            "successRate": 0.5853658536585366,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 428.0769230769231,
+            "successRate": 0.7948717948717948,
+            "totalRuns": 39
+          }
+        },
+        "gpt5-1-instant": {
+          "ailang": {
+            "avgTokens": 202.85365853658536,
+            "successRate": 0.6585365853658537,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 154.3846153846154,
+            "successRate": 0.717948717948718,
+            "totalRuns": 39
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 218.70731707317074,
+            "successRate": 0.5609756097560976,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 406.53846153846155,
+            "successRate": 0.717948717948718,
+            "totalRuns": 39
+          }
+        }
+      }
+    },
+    {
       "version": "0.4.6",
       "timestamp": "2025-11-19T20:53:02+01:00",
       "successRate": 0.6885758998435054,
@@ -3650,19 +4520,93 @@
     },
     {
       "version": "0.4.4",
-      "timestamp": "2025-11-13T20:16:58+01:00",
-      "successRate": 0.6208333333333333,
-      "totalRuns": 480,
-      "successCount": 298,
+      "timestamp": "2025-11-13T18:41:38Z",
+      "successRate": 0.6672661870503597,
+      "totalRuns": 556,
+      "successCount": 371,
       "languages": "ailang,python",
       "languageStats": {
         "ailang": {
-          "success_rate": 0.556910569105691,
-          "total_runs": 246
+          "success_rate": 0.6056338028169014,
+          "total_runs": 284
         },
         "python": {
-          "success_rate": 0.688034188034188,
-          "total_runs": 234
+          "success_rate": 0.7316176470588235,
+          "total_runs": 272
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 542.4,
+            "successRate": 0.6666666666666666,
+            "totalRuns": 60
+          },
+          "python": {
+            "avgTokens": 551.4137931034483,
+            "successRate": 0.7758620689655172,
+            "totalRuns": 58
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 467.98333333333335,
+            "successRate": 0.6833333333333333,
+            "totalRuns": 60
+          },
+          "python": {
+            "avgTokens": 411.8103448275862,
+            "successRate": 0.8275862068965517,
+            "totalRuns": 58
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 353.5609756097561,
+            "successRate": 0.4878048780487805,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 500.2564102564103,
+            "successRate": 0.717948717948718,
+            "totalRuns": 39
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 244.5121951219512,
+            "successRate": 0.6585365853658537,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 435.6666666666667,
+            "successRate": 0.6923076923076923,
+            "totalRuns": 39
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 230.8780487804878,
+            "successRate": 0.5365853658536586,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 483.05128205128204,
+            "successRate": 0.6410256410256411,
+            "totalRuns": 39
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 230.1951219512195,
+            "successRate": 0.5365853658536586,
+            "totalRuns": 41
+          },
+          "python": {
+            "avgTokens": 398.87179487179486,
+            "successRate": 0.6666666666666666,
+            "totalRuns": 39
+          }
         }
       }
     },
@@ -3830,7 +4774,7 @@
     },
     {
       "version": "v0.3.22",
-      "timestamp": "2025-10-27T18:15:55+01:00",
+      "timestamp": "2025-10-27T17:05:15Z",
       "successRate": 0.6127450980392157,
       "totalRuns": 408,
       "successCount": 250,
@@ -3844,11 +4788,85 @@
           "success_rate": 0.8484848484848485,
           "total_runs": 198
         }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 200.5142857142857,
+            "successRate": 0.45714285714285713,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 335.24242424242425,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 183.5142857142857,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 151.72727272727272,
+            "successRate": 0.9090909090909091,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 200.37142857142857,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 151.45454545454547,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 159.31428571428572,
+            "successRate": 0.37142857142857144,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 199.57575757575756,
+            "successRate": 0.8787878787878788,
+            "totalRuns": 33
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 139.82857142857142,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 123.78787878787878,
+            "successRate": 0.7878787878787878,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 149.65714285714284,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 136.24242424242425,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        }
       }
     },
     {
       "version": "0.3.20",
-      "timestamp": "2025-10-26T21:03:13+01:00",
+      "timestamp": "2025-10-26T20:02:35Z",
       "successRate": 0.597051597051597,
       "totalRuns": 407,
       "successCount": 243,
@@ -3862,11 +4880,85 @@
           "success_rate": 0.8578680203045685,
           "total_runs": 197
         }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 195.74285714285713,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 299.5,
+            "successRate": 0.84375,
+            "totalRuns": 32
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 169.4857142857143,
+            "successRate": 0.2571428571428571,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 153.0909090909091,
+            "successRate": 0.9393939393939394,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 169.97142857142856,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 179.8181818181818,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 166.4857142857143,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 208.54545454545453,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 139.97142857142856,
+            "successRate": 0.3142857142857143,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 120.42424242424242,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 133.31428571428572,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 146.72727272727272,
+            "successRate": 0.8484848484848485,
+            "totalRuns": 33
+          }
+        }
       }
     },
     {
       "version": "0.3.17",
-      "timestamp": "2025-10-22T22:02:32+02:00",
+      "timestamp": "2025-10-22T20:01:30Z",
       "successRate": 0.6029411764705882,
       "totalRuns": 408,
       "successCount": 246,
@@ -3880,11 +4972,85 @@
           "success_rate": 0.8181818181818182,
           "total_runs": 198
         }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 206.5142857142857,
+            "successRate": 0.4,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 308.3939393939394,
+            "successRate": 0.7575757575757576,
+            "totalRuns": 33
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 184.28571428571428,
+            "successRate": 0.34285714285714286,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 146.78787878787878,
+            "successRate": 0.9090909090909091,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 180.88571428571427,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 161.3939393939394,
+            "successRate": 0.7878787878787878,
+            "totalRuns": 33
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 162.82857142857142,
+            "successRate": 0.3142857142857143,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 193.5151515151515,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 139.22857142857143,
+            "successRate": 0.45714285714285713,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 126.6969696969697,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 151.6,
+            "successRate": 0.45714285714285713,
+            "totalRuns": 35
+          },
+          "python": {
+            "avgTokens": 147.8181818181818,
+            "successRate": 0.8181818181818182,
+            "totalRuns": 33
+          }
+        }
       }
     },
     {
       "version": "v0.3.13",
-      "timestamp": "2025-10-17T16:05:23+02:00",
+      "timestamp": "0001-01-01T00:00:00Z",
       "successRate": 0.6444444444444445,
       "totalRuns": 180,
       "successCount": 116,
@@ -3897,6 +5063,75 @@
         "python": {
           "success_rate": 0.8068181818181818,
           "total_runs": 88
+        }
+      },
+      "modelStats": {
+        "claude-haiku-4-5": {
+          "ailang": {
+            "avgTokens": 183.52631578947367,
+            "successRate": 0.47368421052631576,
+            "totalRuns": 19
+          },
+          "python": {
+            "avgTokens": 242,
+            "successRate": 0.6111111111111112,
+            "totalRuns": 18
+          }
+        },
+        "claude-sonnet-4-5": {
+          "ailang": {
+            "avgTokens": 158.61904761904762,
+            "successRate": 0.5238095238095238,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 136.85714285714286,
+            "successRate": 0.9047619047619048,
+            "totalRuns": 21
+          }
+        },
+        "gemini-2-5-flash": {
+          "ailang": {
+            "avgTokens": 107,
+            "successRate": 1,
+            "totalRuns": 3
+          }
+        },
+        "gemini-2-5-pro": {
+          "ailang": {
+            "avgTokens": 213.71428571428572,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 7
+          },
+          "python": {
+            "avgTokens": 173.85714285714286,
+            "successRate": 0.7142857142857143,
+            "totalRuns": 7
+          }
+        },
+        "gpt5": {
+          "ailang": {
+            "avgTokens": 133.9047619047619,
+            "successRate": 0.47619047619047616,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 106.42857142857143,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
+        },
+        "gpt5-mini": {
+          "ailang": {
+            "avgTokens": 137.47619047619048,
+            "successRate": 0.42857142857142855,
+            "totalRuns": 21
+          },
+          "python": {
+            "avgTokens": 128,
+            "successRate": 0.8571428571428571,
+            "totalRuns": 21
+          }
         }
       }
     }

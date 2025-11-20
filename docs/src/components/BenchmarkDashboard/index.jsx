@@ -129,14 +129,25 @@ export default function BenchmarkDashboard() {
         </div>
       </div>
 
-      {/* Language Comparison Chart */}
-      {languages && Object.keys(languages).length > 1 && (
+      {/* Per-Model Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
         <div className={styles.section}>
-          <h3>AILANG vs Python Performance</h3>
+          <h3>Success Rate by Model Over Time</h3>
           <p className={styles.sectionSubtitle}>
-            Direct comparison of AI code generation success rates and efficiency
+            Track how each AI model's performance evolves across AILANG versions
           </p>
-          <LanguageChart languages={languages} />
+          <PerModelTrend history={history} />
+        </div>
+      )}
+
+      {/* Model Delta Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Gap by Model</h3>
+          <p className={styles.sectionSubtitle}>
+            Positive values indicate AILANG outperforms Python for that model
+          </p>
+          <ModelDeltaTrend history={history} />
         </div>
       )}
 
@@ -146,6 +157,17 @@ export default function BenchmarkDashboard() {
           <h3>Model Performance Comparison</h3>
           <ModelChart models={models} />
           <ModelComparisonTable models={models} />
+        </div>
+      )}
+
+      {/* Language Comparison Chart */}
+      {languages && Object.keys(languages).length > 1 && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Performance</h3>
+          <p className={styles.sectionSubtitle}>
+            Direct comparison of AI code generation success rates and efficiency
+          </p>
+          <LanguageChart languages={languages} />
         </div>
       )}
 
@@ -174,28 +196,6 @@ export default function BenchmarkDashboard() {
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
           <SuccessTrend history={history} languages={languages} />
-        </div>
-      )}
-
-      {/* Per-Model Trend */}
-      {history && history.length > 1 && history.some(h => h.modelStats) && (
-        <div className={styles.section}>
-          <h3>Success Rate by Model Over Time</h3>
-          <p className={styles.sectionSubtitle}>
-            Track how each AI model's performance evolves across AILANG versions
-          </p>
-          <PerModelTrend history={history} />
-        </div>
-      )}
-
-      {/* Model Delta Trend */}
-      {history && history.length > 1 && history.some(h => h.modelStats) && (
-        <div className={styles.section}>
-          <h3>AILANG vs Python Gap by Model</h3>
-          <p className={styles.sectionSubtitle}>
-            Positive values indicate AILANG outperforms Python for that model
-          </p>
-          <ModelDeltaTrend history={history} />
         </div>
       )}
 

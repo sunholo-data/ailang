@@ -313,57 +313,50 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 	}
 
-	// Transform history to include calculated success rates and per-language breakdown
-	historyJS := make([]map[string]interface{}, len(history))
-	for i, baseline := range history {
-		successRate := 0.0
-		if baseline.TotalBenchmarks > 0 {
-			successRate = float64(baseline.SuccessCount) / float64(baseline.TotalBenchmarks)
+	// Process historical baselines to build complete history with per-model stats
+	// Load results for each baseline and generate matrix to get modelStats
+	for _, baseline := range history {
+		// Load results for this baseline if not already loaded
+		if len(baseline.Results) == 0 {
+			// Try to find the baseline directory (handle versions with/without "v" prefix)
+			var loadedResults []*BenchmarkResult
+			var err error
+
+			// Try version as-is first
+			baselineDir := fmt.Sprintf("eval_results/baselines/%s", baseline.Version)
+			loadedResults, err = LoadResults(baselineDir)
+
+			// If failed and version doesn't start with "v", try adding "v" prefix
+			if err != nil && !strings.HasPrefix(baseline.Version, "v") {
+				baselineDir = fmt.Sprintf("eval_results/baselines/v%s", baseline.Version)
+				loadedResults, err = LoadResults(baselineDir)
+			}
+
+			// If failed and version starts with "v", try removing "v" prefix
+			if err != nil && strings.HasPrefix(baseline.Version, "v") {
+				baselineDir = fmt.Sprintf("eval_results/baselines/%s", strings.TrimPrefix(baseline.Version, "v"))
+				loadedResults, err = LoadResults(baselineDir)
+			}
+
+			if err == nil {
+				baseline.Results = loadedResults
+			}
 		}
 
-		histEntry := map[string]interface{}{
-			"version":      baseline.Version,
-			"timestamp":    baseline.Timestamp.Format(time.RFC3339),
-			"successRate":  successRate,
-			"totalRuns":    baseline.TotalBenchmarks,
-			"successCount": baseline.SuccessCount,
-			"languages":    baseline.Languages, // May be "ailang", "python", or "ailang,python"
-		}
-
-		// Calculate per-language stats from results if available
+		// If we have results, generate a matrix and use buildHistoryEntryFromMatrix
+		// to get complete stats including per-model breakdown
 		if len(baseline.Results) > 0 {
-			langStats := make(map[string]*LanguageStats)
-			for _, result := range baseline.Results {
-				lang := result.Lang
-				if lang == "" {
-					continue
-				}
-				if langStats[lang] == nil {
-					langStats[lang] = &LanguageStats{}
-				}
-				langStats[lang].TotalRuns++
-				// Success = compile_ok && runtime_ok && stdout_ok
-				if result.CompileOk && result.RuntimeOk && result.StdoutOk {
-					langStats[lang].SuccessRate += 1.0
-				}
-			}
-
-			// Calculate final success rates
-			langStatsJS := make(map[string]interface{})
-			for lang, stats := range langStats {
-				if stats.TotalRuns > 0 {
-					langStatsJS[lang] = map[string]interface{}{
-						"success_rate": stats.SuccessRate / float64(stats.TotalRuns),
-						"total_runs":   stats.TotalRuns,
-					}
-				}
-			}
-			if len(langStatsJS) > 0 {
-				histEntry["languageStats"] = langStatsJS
+			// Generate matrix from baseline results
+			baselineMatrix, err := GenerateMatrix(baseline.Results, baseline.Version)
+			if err == nil {
+				// Build history entry with modelStats
+				histEntry := buildHistoryEntryFromMatrix(baselineMatrix, baseline.Results)
+				// Preserve the original baseline timestamp (don't use current time)
+				histEntry.Timestamp = baseline.Timestamp.Format(time.RFC3339)
+				// Merge this entry into the dashboard history
+				mergeHistory(dashboard, histEntry)
 			}
 		}
-
-		historyJS[i] = histEntry
 	}
 
 	// Build history entry for current version from matrix (only standard results for historical comparison)
