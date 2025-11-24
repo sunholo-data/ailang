@@ -1,0 +1,31 @@
+id: string_split
+description: "Test string splitting functionality with various delimiters"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "easy"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that demonstrates string splitting with different delimiters.
+
+  Requirements:
+  1. Split "Alice,Bob,Charlie" by comma and print count + first element
+  2. Split "line1\nline2\nline3" by newline and print count
+  3. Split "hello" into individual characters and print count
+  4. Split "a,,c" by comma (preserving empty field) and print count
+  5. Split "" (empty string) by "" (empty delimiter) and print count
+
+  Expected output format (one line per test):
+  - CSV: count=3, first=Alice
+  - Lines: count=3
+  - Chars: count=5
+  - Empty fields: count=3
+  - Empty split: count=0
+
+  Output only the code, no explanations.
+expected_stdout: |
+  CSV: count=3, first=Alice
+  Lines: count=3
+  Chars: count=5
+  Empty fields: count=3
+  Empty split: count=0

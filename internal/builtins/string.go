@@ -26,6 +26,7 @@ func init() {
 	registerStringConcat()
 	registerStringToInt()
 	registerStringToFloat()
+	registerStrSplit()
 }
 
 // ============================================================================
@@ -611,4 +612,75 @@ func stringToFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 		CtorName:   "Some",
 		Fields:     []eval.Value{&eval.FloatValue{Value: f}},
 	}, nil
+}
+
+// registerStrSplit registers the _str_split builtin
+func registerStrSplit() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_split",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrSplitType,
+		Impl:    strSplitImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Split string by delimiter into list of strings",
+			LongDesc:    "Splits a string at each occurrence of the delimiter. Empty delimiter splits into individual UTF-8 codepoints. Matches Go's strings.Split() semantics exactly, including edge cases.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to split"},
+				{Name: "delimiter", Description: "Delimiter to split on (empty = split into characters)"},
+			},
+			Returns: "[string] - List of substrings",
+			Examples: []Example{
+				{Code: `_str_split("a,b,c", ",")`, Description: `Returns ["a", "b", "c"]`},
+				{Code: `_str_split("hello", "")`, Description: `Returns ["h", "e", "l", "l", "o"]`},
+				{Code: `_str_split("", ",")`, Description: `Returns [""] (single empty string)`},
+				{Code: `_str_split("", "")`, Description: `Returns [] (empty list - special case)`},
+			},
+			SeeAlso:   []string{"_str_slice", "_str_find", "_str_trim"},
+			Since:     "v0.4.7",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "split", "parse", "delimiter", "list"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_split: %v", err))
+	}
+}
+
+// makeStrSplitType builds the type signature for _str_split
+// Type: string -> string -> [string]
+func makeStrSplitType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String()).Returns(T.List(T.String())).Build()
+}
+
+// strSplitImpl is the implementation for _str_split
+// Uses Go's strings.Split for exact standard behavior
+func strSplitImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// Extract string arguments (note: pointers!)
+	str, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_split: first argument must be string, got %T", args[0])
+	}
+
+	delim, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_split: second argument must be string, got %T", args[1])
+	}
+
+	// Use Go's strings.Split for exact standard behavior
+	// This handles all edge cases including split("", "") -> []
+	parts := strings.Split(str.Value, delim.Value)
+
+	// Convert []string to [string] (ListValue with Elements slice)
+	elements := make([]eval.Value, len(parts))
+	for i, part := range parts {
+		elements[i] = &eval.StringValue{Value: part}
+	}
+
+	return &eval.ListValue{Elements: elements}, nil
 }

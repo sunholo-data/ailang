@@ -214,3 +214,107 @@ func TestStringToFloatWrongArgType(t *testing.T) {
 		t.Error("stringToFloatImpl() should return error for wrong arg type, got nil")
 	}
 }
+
+// TestStrSplit tests the _str_split builtin comprehensively
+func TestStrSplit(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		delimiter string
+		expected  []string
+	}{
+		{"basic comma", "a,b,c", ",", []string{"a", "b", "c"}},
+		{"no delimiter found", "hello", ",", []string{"hello"}},
+		{"empty fields", "a,,c", ",", []string{"a", "", "c"}},
+		{"leading delimiter", ",b,c", ",", []string{"", "b", "c"}},
+		{"trailing delimiter", "a,b,", ",", []string{"a", "b", ""}},
+		{"empty string with delimiter", "", ",", []string{""}},
+		{"empty string empty delimiter", "", "", []string{}}, // Special case!
+		{"multi-char delimiter", "a::b::c", "::", []string{"a", "b", "c"}},
+		{"empty delimiter", "abc", "", []string{"a", "b", "c"}},
+		{"newlines", "line1\nline2\nline3", "\n", []string{"line1", "line2", "line3"}},
+		{"tabs", "col1\tcol2\tcol3", "\t", []string{"col1", "col2", "col3"}},
+		{"unicode", "café", "", []string{"c", "a", "f", "é"}},
+		{"emoji", "hi🎉bye", "", []string{"h", "i", "🎉", "b", "y", "e"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := testctx.NewMockEffContext()
+			args := []eval.Value{
+				&eval.StringValue{Value: tt.input},
+				&eval.StringValue{Value: tt.delimiter},
+			}
+
+			result, err := strSplitImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strSplitImpl() failed: %v", err)
+			}
+
+			// Result should be a ListValue
+			listVal, ok := result.(*eval.ListValue)
+			if !ok {
+				t.Fatalf("expected *eval.ListValue, got %T", result)
+			}
+
+			// Convert Elements to []string for comparison
+			var got []string
+			for _, elem := range listVal.Elements {
+				strVal, ok := elem.(*eval.StringValue)
+				if !ok {
+					t.Fatalf("expected *eval.StringValue in list, got %T", elem)
+				}
+				got = append(got, strVal.Value)
+			}
+
+			if len(got) != len(tt.expected) {
+				t.Errorf("split(%q, %q) length = %d, want %d\ngot: %v\nwant: %v",
+					tt.input, tt.delimiter, len(got), len(tt.expected), got, tt.expected)
+				return
+			}
+
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("split(%q, %q)[%d] = %q, want %q\ngot: %v\nwant: %v",
+						tt.input, tt.delimiter, i, got[i], tt.expected[i], got, tt.expected)
+				}
+			}
+		})
+	}
+}
+
+// TestStrSplitWrongArgType tests error handling for wrong argument types
+func TestStrSplitWrongArgType(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	// Test first arg wrong type
+	args := []eval.Value{
+		&eval.IntValue{Value: 42},
+		&eval.StringValue{Value: ","},
+	}
+	_, err := strSplitImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strSplitImpl() should return error for wrong first arg type, got nil")
+	}
+
+	// Test second arg wrong type
+	args = []eval.Value{
+		&eval.StringValue{Value: "hello"},
+		&eval.IntValue{Value: 42},
+	}
+	_, err = strSplitImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strSplitImpl() should return error for wrong second arg type, got nil")
+	}
+}
+
+// TestStrSplitType verifies the type signature is correctly constructed
+func TestStrSplitType(t *testing.T) {
+	typ := makeStrSplitType()
+	if typ == nil {
+		t.Error("makeStrSplitType() returned nil")
+	}
+	// Type should be: String -> String -> [String]
+	// We can't easily inspect the curried function structure here,
+	// but we verify it builds without panicking
+}
