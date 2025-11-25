@@ -26,6 +26,7 @@ _str_find : (string, string) -> int
 _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string
+_str_split : (string, string) -> List[string]
 _str_trim : string -> string
 _str_upper : string -> string
 _stringToFloat : string -> Option[float]
