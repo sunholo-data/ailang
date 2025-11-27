@@ -51,11 +51,37 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 		Location: testCase.Location.String(),
 	}
 
-	// For inline tests, Body contains tuple expressions: (input, expected)
+	// For inline tests, use the harness-based approach
 	if testCase.IsInline {
-		// Each expression in Body should be a tuple (input, expected)
+		// Get source file from executor (must be set via SetSourceFile)
+		if r.executor.sourceFile == nil {
+			result.Status = StatusFail
+			result.Error = "source file not set on executor (call SetSourceFile first)"
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		// Extract function binding from source
+		binding, err := r.executor.ExtractFunctionBinding(testCase.FunctionCtx, r.executor.sourceFile)
+		if err != nil {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("failed to extract function binding: %v", err)
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		// Evaluate all tests using harness builder
+		actualsTuple, err := r.executor.EvaluateInlineTestsWithHarness(*binding, []TestCase{testCase})
+		if err != nil {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("harness evaluation failed: %v", err)
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		// Compare each actual to expected
 		for i, expr := range testCase.Body {
-			// Expected format: Tuple with 2 elements
+			// Expected format: Tuple with 2 elements (input, expected)
 			tuple, ok := expr.(*ast.Tuple)
 			if !ok || len(tuple.Elements) != 2 {
 				result.Status = StatusFail
@@ -64,25 +90,16 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 				return result
 			}
 
-			input := tuple.Elements[0]
 			expected := tuple.Elements[1]
 
-			// Build function call: functionName(input)
-			// FunctionCtx contains the function name being tested
-			functionCall := &ast.FuncCall{
-				Func: &ast.Identifier{Name: testCase.FunctionCtx},
-				Args: []ast.Expr{input},
-				Pos:  input.Position(),
-			}
-
-			// Evaluate function call
-			actualValue, err := r.executor.EvaluateExpression(functionCall)
-			if err != nil {
+			// Get actual value from tuple
+			if i >= len(actualsTuple.Elements) {
 				result.Status = StatusFail
-				result.Error = fmt.Sprintf("test %d: failed to evaluate %s(%v): %v", i, testCase.FunctionCtx, input, err)
+				result.Error = fmt.Sprintf("test %d: harness returned %d values, expected at least %d", i, len(actualsTuple.Elements), i+1)
 				result.Duration = time.Since(start)
 				return result
 			}
+			actualValue := actualsTuple.Elements[i]
 
 			// Evaluate expected expression
 			expectedValue, err := r.executor.EvaluateExpression(expected)

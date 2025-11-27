@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
 )
@@ -85,6 +86,125 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 	}
 
 	return result.Value, nil
+}
+
+// EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
+// This is the PREFERRED method for inline tests (fixes scoping issues in EvaluateExpression).
+//
+// Given:
+//   - binding: Core LetRec binding for the function being tested
+//   - tests: List of inline test cases with (input, expected) tuples
+//
+// Returns:
+//   - Tuple of actual result values
+//   - Error if harness evaluation fails
+//
+// Example:
+//   binding = LetRec("factorial", λn. if n <= 1 then 1 else n * factorial(n-1))
+//   tests = [(0, 1), (1, 1), (5, 120)]
+//   result = EvaluateInlineTestsWithHarness(binding, tests)
+//   → TupleValue([IntValue(1), IntValue(1), IntValue(120)])
+func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {
+	// Build test harness using the harness builder
+	harnessExpr := BuildInlineTestHarness(binding, tests)
+
+	// Wrap harness in a Core program for evaluation
+	coreProg := &core.Program{
+		Decls: []core.CoreExpr{harnessExpr},
+	}
+
+	// Evaluate the harness
+	// Note: We use the eval package directly since we already have Core
+	evaluator := eval.NewCoreEvaluator()
+	result, err := evaluator.EvalCoreProgram(coreProg)
+	if err != nil {
+		return nil, fmt.Errorf("harness evaluation failed: %w", err)
+	}
+
+	// Result should be a tuple of actual values
+	tupleResult, ok := result.(*eval.TupleValue)
+	if !ok {
+		return nil, fmt.Errorf("harness should return tuple, got %T", result)
+	}
+
+	return tupleResult, nil
+}
+
+// ExtractFunctionBinding extracts a Core LetRec binding for a function from source code.
+// This runs the source through elaboration to get the Core program, then extracts the binding.
+//
+// Given:
+//   - functionName: Name of the function to extract
+//   - sourceFile: The full source AST (for function definitions context)
+//
+// Returns:
+//   - Core LetRec binding for the function
+//   - Error if function not found or elaboration fails
+func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.File) (*core.RecBinding, error) {
+	// Build source code string from AST
+	// We need to reconstruct the source to run through the pipeline
+	source := e.reconstructSource(sourceFile)
+
+	// Run through pipeline to get Core
+	cfg := pipeline.Config{
+		Mode: pipeline.ModeEval,
+	}
+	src := pipeline.Source{
+		Code:     source,
+		Filename: e.modulePath,
+		IsREPL:   false,
+	}
+
+	result, err := pipeline.Run(cfg, src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to elaborate source: %w", err)
+	}
+
+	// Extract the LetRec binding from the Core program
+	if result.Artifacts.Core == nil {
+		return nil, fmt.Errorf("pipeline did not produce Core program")
+	}
+
+	// Search for the function binding in Core.Decls
+	for _, decl := range result.Artifacts.Core.Decls {
+		if letRec, ok := decl.(*core.LetRec); ok {
+			for _, binding := range letRec.Bindings {
+				if binding.Name == functionName {
+					return &binding, nil
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
+}
+
+// reconstructSource rebuilds source code from AST (simplified version).
+// This is a temporary solution - ideally we'd preserve original source.
+func (e *Executor) reconstructSource(file *ast.File) string {
+	var source string
+
+	// Add module declaration if present
+	if file.Module != nil {
+		source += fmt.Sprintf("module %s\n\n", file.Module.Path)
+	}
+
+	// Add function definitions
+	for _, f := range file.Funcs {
+		if f.IsPure {
+			source += fmt.Sprintf("pure func %s(", f.Name)
+			for i, param := range f.Params {
+				if i > 0 {
+					source += ", "
+				}
+				source += fmt.Sprintf("%s: %v", param.Name, param.Type)
+			}
+			source += fmt.Sprintf(") -> %v {\n", f.ReturnType)
+			source += "  " + fmt.Sprintf("%v", f.Body) + "\n}\n\n"
+		}
+	}
+
+	return source
 }
 
 // CompareValues checks if two values are equal.
