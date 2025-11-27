@@ -22,7 +22,14 @@ import std/io (println)
 
 // Example 1: Basic head extraction with sugar
 // Compare with canonical form in examples/list_pattern_cons.ail
-func head(list: List[int]) -> int {
+pure func head(list: List[int]) -> int
+  tests [
+    ([1, 2, 3], 1),
+    ([42], 42),
+    ([10, 20, 30], 10),
+    ([], 0)
+  ]
+{
   match list {
     x :: xs => x,     // NEW sugar syntax
     [] => 0
@@ -30,6 +37,7 @@ func head(list: List[int]) -> int {
 }
 
 // Example 2: Tail extraction with wildcard
+// NOTE: Inline tests for List return types not yet supported (M-TESTING-LIST-EXPECTED)
 func tail(list: List[int]) -> List[int] {
   match list {
     _ :: xs => xs,    // Wildcard + sugar
@@ -40,7 +48,15 @@ func tail(list: List[int]) -> List[int] {
 // Example 3: Right-associativity demonstration
 // Pattern a :: b :: c means a :: (b :: c)
 // This matches lists with at least 2 elements
-func sumFirstTwo(list: List[int]) -> int {
+pure func sumFirstTwo(list: List[int]) -> int
+  tests [
+    ([1, 2, 3, 4, 5], 3),
+    ([10, 20], 30),
+    ([5, 7, 9], 12),
+    ([1], 0),
+    ([], 0)
+  ]
+{
   match list {
     a :: b :: c => a + b,   // Right-associative chaining
     _ => 0
@@ -48,7 +64,16 @@ func sumFirstTwo(list: List[int]) -> int {
 }
 
 // Example 4: Three-element list with sugar
-func sumThree(list: List[int]) -> int {
+pure func sumThree(list: List[int]) -> int
+  tests [
+    ([1, 2, 3, 4, 5], 6),
+    ([10, 20, 30], 60),
+    ([1, 2, 3], 6),
+    ([1, 2], 0),
+    ([1], 0),
+    ([], 0)
+  ]
+{
   match list {
     a :: b :: c :: rest => a + b + c,
     _ => 0
@@ -57,7 +82,15 @@ func sumThree(list: List[int]) -> int {
 
 // Example 5: Mixed sugar and canonical forms in same match
 // Both forms are equivalent and can be used together
-func describe(list: List[int]) -> string {
+pure func describe(list: List[int]) -> string
+  tests [
+    ([], "empty"),
+    ([42], "singleton: 42"),
+    ([1, 2], "pair: 1, 2"),
+    ([1, 2, 3], "many: starts with 1, 2"),
+    ([10, 20, 30, 40], "many: starts with 10, 20")
+  ]
+{
   match list {
     [] => "empty",
     x :: [] => "singleton: " ++ show(x),            // Sugar
@@ -76,7 +109,15 @@ func firstPair(kvs: List[(string, int)]) -> (string, int) {
 }
 
 // Example 9: Recursive list sum using sugar
-func sum(xs: List[int]) -> int {
+pure func sum(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 6),
+    ([10, 20, 30], 60),
+    ([1, 2, 3, 4, 5], 15)
+  ]
+{
   match xs {
     x :: xs => x + sum(xs),
     [] => 0
@@ -84,7 +125,15 @@ func sum(xs: List[int]) -> int {
 }
 
 // Example 10: List length using sugar
-func length(xs: List[int]) -> int {
+pure func length(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 3),
+    ([1, 2, 3, 4, 5], 5),
+    ([10, 20, 30, 40, 50, 60], 6)
+  ]
+{
   match xs {
     _ :: xs => 1 + length(xs),
     [] => 0

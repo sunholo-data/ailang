@@ -48,31 +48,37 @@ if ailang eval-suite \
     echo ""
     echo "✓ Benchmark completed"
 
-    # Check results
-    RESULT_FILE=$(find "$TEMP_DIR" -name "${BENCHMARK}_ailang_${MODEL}_*.json" | head -1)
+    # Check results (search recursively in subdirectories like standard/)
+    RESULT_FILE=$(find "$TEMP_DIR" -name "${BENCHMARK}_ailang_${MODEL}_*.json" -type f 2>/dev/null | head -1)
 
     if [ -z "$RESULT_FILE" ]; then
-        echo "⚠ No result file found"
-        echo "Check $TEMP_DIR for details"
-        exit 1
+        echo "⚠ No result file found for ailang"
+        # Try Python result as fallback
+        RESULT_FILE=$(find "$TEMP_DIR" -name "${BENCHMARK}_python_${MODEL}_*.json" -type f 2>/dev/null | head -1)
+        if [ -z "$RESULT_FILE" ]; then
+            echo "⚠ No result file found at all"
+            echo "Check $TEMP_DIR for details"
+            exit 1
+        fi
+        echo "Using Python result file instead"
     fi
 
-    # Parse result
-    RESULT=$(python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r['result'])")
-    INPUT_TOKENS=$(python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r.get('input_tokens', 0))")
-    OUTPUT_TOKENS=$(python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r.get('output_tokens', 0))")
-    COST=$(python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r.get('cost', 0))")
+    # Parse result - JSON uses stdout_ok (bool), not result (string)
+    PASSED=$(python3 -c "import json; r = json.load(open('$RESULT_FILE')); print('true' if r.get('stdout_ok', False) else 'false')")
+    INPUT_TOKENS=$(python3 -c "import json; r = json.load(open('$RESULT_FILE')); print(r.get('input_tokens', 0))")
+    OUTPUT_TOKENS=$(python3 -c "import json; r = json.load(open('$RESULT_FILE')); print(r.get('output_tokens', 0))")
+    COST=$(python3 -c "import json; r = json.load(open('$RESULT_FILE')); print(r.get('cost_usd', r.get('cost', 0)))")
 
-    if [ "$RESULT" = "PASS" ]; then
+    if [ "$PASSED" = "true" ]; then
         echo "✓ Result: PASS"
     else
-        echo "✗ Result: $RESULT"
+        echo "✗ Result: FAIL"
         echo ""
         echo "Generated code:"
-        python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r.get('generated_code', 'N/A'))"
+        python3 -c "import json; r = json.load(open('$RESULT_FILE')); print(r.get('code', r.get('generated_code', 'N/A')))"
         echo ""
         echo "Error:"
-        python3 -c "import sys, json; r = json.load(open('$RESULT_FILE')); print(r.get('error', 'N/A'))"
+        python3 -c "import json; r = json.load(open('$RESULT_FILE')); print(r.get('error', r.get('stderr', 'N/A')))"
         exit 1
     fi
 

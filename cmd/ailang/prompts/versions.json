@@ -285,9 +285,20 @@
         "latest"
       ],
       "notes": "Add teaching improvements: What NOT to have, multi-module, JSON, operators, effects emphasis, HTTP/Net capabilities"
+    },
+    "v0.4.7": {
+      "file": "prompts/v0.4.7.md",
+      "hash": "ccb809d10a778d8149c1af2d352ba47c2bd362a4fdf5c6bc06c37eb645f277bb",
+      "description": "Add inline tests documentation with cross-function deps (M-TESTING-DEPS)",
+      "created": "2025-11-27",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add inline tests documentation with cross-function deps (M-TESTING-DEPS)"
     }
   },
-  "active": "v0.4.6",
+  "active": "v0.4.7",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

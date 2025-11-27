@@ -103,6 +103,25 @@ models:
       ~3x cheaper than Sonnet, competitive with GPT-5-mini and Gemini Flash.
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
+  # Anthropic Claude Opus 4.5 (released November 2025)
+  claude-opus-4-5:
+    api_name: "claude-opus-4-5-20251101"
+    provider: "anthropic"
+    description: "Claude Opus 4.5 - most intelligent model"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "opus"  # Pass to --agent-model flag
+    pricing:
+      input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
+      output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
+    notes: |
+      Anthropic's most intelligent model, state-of-the-art for coding.
+      80.9% SWE-bench score - reclaims coding crown.
+      200K context window, 64K max output tokens.
+      66% cheaper than previous Opus ($15/$75 → $5/$25).
+      Cache reads: $0.50/M (0.1x base). Batch: 50% off.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
+
   # Google Gemini 2.5 Pro (released March 2025)
   gemini-2-5-pro:
     api_name: "gemini-2.5-pro"
@@ -170,6 +189,7 @@ extended_suite:
   - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5
   - "gpt5-1-instant"  # Added: Fast variant for quick iteration
   - "gpt5-mini"
+  - "claude-opus-4-5"  # Added: Most intelligent model (Nov 2025)
   - "claude-sonnet-4-5"
   - "claude-haiku-4-5"
   - "gemini-3-pro"  # Added: Gemini 3 Pro with reasoning (Nov 2025)
