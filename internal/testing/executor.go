@@ -455,3 +455,169 @@ func equalValues(a, b eval.Value) bool {
 	}
 	return false
 }
+
+// EvaluateInlineTestsWithCluster evaluates inline tests for a function with cross-function dependencies.
+// This method automatically detects dependencies and includes them in the test harness.
+//
+// Given:
+//   - functionName: Name of the function being tested
+//   - tests: List of inline test cases
+//   - coreProg: The Core program containing all function definitions (should be pure-only)
+//
+// Returns:
+//   - Tuple of actual result values
+//   - Error if evaluation fails
+//
+// Note: This assumes coreProg contains only pure functions (e.g., after stripNonPureFunctions).
+// Purity checking is skipped since the input is pre-filtered.
+func (e *Executor) EvaluateInlineTestsWithCluster(
+	functionName string,
+	tests []TestCase,
+	coreProg *core.Program,
+) (*eval.TupleValue, error) {
+	// Build call graph from Core program
+	g := BuildCallGraph(coreProg)
+
+	// Compute SCCs
+	sccs := ComputeSCCs(g)
+
+	// Get the dependency closure (all functions reachable from functionName)
+	closure := GetDependencyClosure(g, sccs, functionName)
+	if closure == nil {
+		return nil, fmt.Errorf("function '%s' not found in call graph", functionName)
+	}
+
+	// Build pure cluster directly from call graph bindings
+	// Since coreProg was pre-filtered to pure functions, no purity check needed
+	bindings := make([]core.RecBinding, 0, len(closure))
+	names := make(map[string]bool)
+	for _, name := range closure {
+		if binding, ok := g.Bindings[name]; ok {
+			bindings = append(bindings, *binding)
+			names[name] = true
+		}
+	}
+
+	cluster := &PureCluster{
+		FuncName: functionName,
+		Bindings: bindings,
+		Names:    names,
+	}
+
+	// Build cluster test harness
+	harnessExpr := BuildClusterTestHarness(cluster, tests)
+
+	// Wrap harness in a Core program for evaluation
+	harnessProgram := &core.Program{
+		Decls: []core.CoreExpr{harnessExpr},
+	}
+
+	// Evaluate the harness
+	evaluator := eval.NewCoreEvaluator()
+
+	// Set up builtin resolver so arithmetic/comparison operators work
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
+	evaluator.SetGlobalResolver(resolver)
+
+	result, err := evaluator.EvalCoreProgram(harnessProgram)
+	if err != nil {
+		return nil, fmt.Errorf("cluster harness evaluation failed: %w", err)
+	}
+
+	// Result should be a tuple of actual values
+	tupleResult, ok := result.(*eval.TupleValue)
+	if !ok {
+		return nil, fmt.Errorf("harness should return tuple, got %T", result)
+	}
+
+	return tupleResult, nil
+}
+
+// ExtractPureClusterForFunction extracts the pure dependency cluster for a function from source code.
+// This runs the source through the pipeline, builds call graph, computes SCCs, and returns the cluster.
+//
+// Returns:
+//   - PureCluster containing all pure functions needed to test the target function
+//   - Core program (pre-filtered to pure functions)
+//   - Error if function not found or pipeline fails
+func (e *Executor) ExtractPureClusterForFunction(
+	functionName string,
+	sourceFile *ast.File,
+) (*PureCluster, *core.Program, error) {
+	// Read original source file
+	sourceCode, err := os.ReadFile(e.modulePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read source file: %w", err)
+	}
+
+	// Strip out non-pure functions (ensures all remaining functions are pure)
+	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
+
+	// Run through pipeline to get Core
+	cfg := pipeline.Config{
+		Mode: pipeline.ModeEval,
+	}
+	src := pipeline.Source{
+		Code:     strippedSource,
+		Filename: e.modulePath,
+		IsREPL:   false,
+	}
+
+	result, err := pipeline.Run(cfg, src)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to elaborate source: %w", err)
+	}
+
+	if result.Artifacts.Core == nil {
+		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
+	}
+
+	coreProg := result.Artifacts.Core
+
+	// Build call graph
+	g := BuildCallGraph(coreProg)
+
+	// Compute SCCs
+	sccs := ComputeSCCs(g)
+
+	// Get dependency closure
+	closure := GetDependencyClosure(g, sccs, functionName)
+	if closure == nil {
+		return nil, nil, fmt.Errorf("function '%s' not found in call graph", functionName)
+	}
+
+	// Build cluster directly (purity already ensured by stripping non-pure functions)
+	bindings := make([]core.RecBinding, 0, len(closure))
+	names := make(map[string]bool)
+	for _, name := range closure {
+		if binding, ok := g.Bindings[name]; ok {
+			bindings = append(bindings, *binding)
+			names[name] = true
+		}
+	}
+
+	cluster := &PureCluster{
+		FuncName: functionName,
+		Bindings: bindings,
+		Names:    names,
+	}
+
+	return cluster, coreProg, nil
+}
+
+// HasCrossFunctionDependencies checks if a function has dependencies on other user-defined functions.
+// This is useful to determine whether to use the simple harness or cluster harness.
+func (e *Executor) HasCrossFunctionDependencies(
+	functionName string,
+	coreProg *core.Program,
+) bool {
+	g := BuildCallGraph(coreProg)
+	sccs := ComputeSCCs(g)
+
+	// Get the dependency closure
+	closure := GetDependencyClosure(g, sccs, functionName)
+
+	// If closure has more than one function, there are dependencies
+	return len(closure) > 1
+}

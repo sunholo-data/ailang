@@ -220,6 +220,97 @@ func astLitKindToCore(kind ast.LiteralKind) core.LitKind {
 	}
 }
 
+// BuildClusterTestHarness creates a synthetic Core expression for testing a function
+// with cross-function dependencies.
+//
+// Given a pure cluster (function under test + all dependencies) and test cases, builds:
+//
+//	LetRec([f, g1, g2, ...],
+//	  Let("_test_1", App(f, arg_1),
+//	    Let("_test_2", App(f, arg_2),
+//	      Tuple([_test_1, _test_2])
+//	    )
+//	  )
+//	)
+//
+// All cluster bindings are in scope via the shared LetRec.
+func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) core.CoreExpr {
+	if len(tests) == 0 {
+		// No tests - return unit
+		return &core.Lit{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Kind:  core.UnitLit,
+			Value: nil,
+		}
+	}
+
+	// Build nested Lets for test evaluation (same as single-binding version)
+	testVarNames := make([]string, len(tests))
+	for i := range tests {
+		testVarNames[i] = fmt.Sprintf("_test_%d", i+1)
+	}
+
+	// Innermost: Tuple of test result variables
+	tupleElements := make([]core.CoreExpr, len(tests))
+	for i, varName := range testVarNames {
+		tupleElements[i] = &core.Var{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name: varName,
+		}
+	}
+
+	var body core.CoreExpr = &core.Tuple{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Elements: tupleElements,
+	}
+
+	// Build nested Lets from innermost outward (reverse order)
+	for i := len(tests) - 1; i >= 0; i-- {
+		testCase := tests[i]
+		varName := testVarNames[i]
+
+		if len(testCase.Body) == 0 {
+			panic(fmt.Sprintf("test case %d has empty body", i))
+		}
+
+		tupleExpr, ok := testCase.Body[0].(*ast.Tuple)
+		if !ok {
+			panic(fmt.Sprintf("test case %d body is not a tuple", i))
+		}
+
+		inputExpr := tupleExpr.Elements[0]
+
+		// Call the function under test (not dependencies)
+		functionCall := buildFunctionCall(cluster.FuncName, inputExpr)
+
+		body = &core.Let{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name:  varName,
+			Value: functionCall,
+			Body:  body,
+		}
+	}
+
+	// Outermost: LetRec with ALL cluster bindings
+	harness := &core.LetRec{
+		CoreNode: core.CoreNode{
+			NodeID: nextNodeID(),
+		},
+		Bindings: cluster.Bindings,
+		Body:     body,
+	}
+
+	return harness
+}
+
 // Global node ID counter for test harness (simple approach for now).
 var nodeIDCounter uint64 = 100000 // Start high to avoid conflicts
 
