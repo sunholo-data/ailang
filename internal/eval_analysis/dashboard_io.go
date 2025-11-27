@@ -73,7 +73,7 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 	// Build per-model stats (for trend charts)
 	modelStats := make(map[string]interface{})
 	for modelName, modelData := range matrix.Models {
-		if modelData.Languages != nil && len(modelData.Languages) > 0 {
+		if len(modelData.Languages) > 0 {
 			modelLangStats := make(map[string]interface{})
 			for lang, langData := range modelData.Languages {
 				if langData.TotalRuns > 0 {
