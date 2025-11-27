@@ -101,6 +101,29 @@ func add(x: int, y: int) -> int
 }
 ```
 
+### Important: Main Functions Don't Interfere! ✅
+
+Files with `export func main()` can keep them - no need to comment out!
+
+```ailang
+// This works perfectly:
+pure func factorial(n: int) -> int
+  tests [...]
+{
+  ...
+}
+
+export func main() -> () ! {IO} {
+  println("factorial(5) = " ++ show(factorial(5)))
+}
+
+// Both work:
+// - ailang test examples/factorial.ail    (runs inline tests)
+// - ailang run --caps IO --entry main ... (runs main)
+```
+
+The test system extracts only the function with tests, so main doesn't interfere.
+
 ### Migration Guidelines
 
 1. **Test count**: Aim for 3-5 tests per function (edge cases + normal cases)
