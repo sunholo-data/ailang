@@ -102,10 +102,11 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 //   - Error if harness evaluation fails
 //
 // Example:
-//   binding = LetRec("factorial", λn. if n <= 1 then 1 else n * factorial(n-1))
-//   tests = [(0, 1), (1, 1), (5, 120)]
-//   result = EvaluateInlineTestsWithHarness(binding, tests)
-//   → TupleValue([IntValue(1), IntValue(1), IntValue(120)])
+//
+//	binding = LetRec("factorial", λn. if n <= 1 then 1 else n * factorial(n-1))
+//	tests = [(0, 1), (1, 1), (5, 120)]
+//	result = EvaluateInlineTestsWithHarness(binding, tests)
+//	→ TupleValue([IntValue(1), IntValue(1), IntValue(120)])
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {
 	// Build test harness using the harness builder
 	harnessExpr := BuildInlineTestHarness(binding, tests)
@@ -303,41 +304,6 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
-}
-
-// reconstructSource rebuilds source code from AST (simplified version).
-// This is a temporary solution - ideally we'd preserve original source.
-// If functionName is provided, only that function is included.
-func (e *Executor) reconstructSource(file *ast.File, functionName string) string {
-	var source string
-
-	// NOTE: DO NOT include module declaration here!
-	// Including "module X" triggers module loading in the pipeline,
-	// which causes "module not found" errors for test files.
-	// ModeEval works without module declarations.
-
-	// Add function definitions (only the specified function if name provided)
-	for _, f := range file.Funcs {
-		// Skip if we're looking for a specific function and this isn't it
-		if functionName != "" && f.Name != functionName {
-			continue
-		}
-
-		// Only include pure functions
-		if f.IsPure {
-			source += fmt.Sprintf("pure func %s(", f.Name)
-			for i, param := range f.Params {
-				if i > 0 {
-					source += ", "
-				}
-				source += fmt.Sprintf("%s: %v", param.Name, param.Type)
-			}
-			source += fmt.Sprintf(") -> %v {\n", f.ReturnType)
-			source += "  " + fmt.Sprintf("%v", f.Body) + "\n}\n\n"
-		}
-	}
-
-	return source
 }
 
 // EvaluateLiteral converts an AST literal expression to an eval.Value.

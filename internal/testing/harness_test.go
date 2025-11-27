@@ -10,7 +10,7 @@ import (
 func TestBuildInlineTestHarness_EmptyTests(t *testing.T) {
 	// Arrange
 	binding := core.RecBinding{
-		Name: "factorial",
+		Name:  "factorial",
 		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
 	}
 	tests := []TestCase{}
@@ -27,7 +27,7 @@ func TestBuildInlineTestHarness_EmptyTests(t *testing.T) {
 func TestBuildInlineTestHarness_SingleTest(t *testing.T) {
 	// Arrange
 	binding := core.RecBinding{
-		Name: "factorial",
+		Name:  "factorial",
 		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
 	}
 
@@ -102,7 +102,7 @@ func TestBuildInlineTestHarness_SingleTest(t *testing.T) {
 func TestBuildInlineTestHarness_MultipleTests(t *testing.T) {
 	// Arrange
 	binding := core.RecBinding{
-		Name: "factorial",
+		Name:  "factorial",
 		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
 	}
 
@@ -189,7 +189,7 @@ func TestBuildInlineTestHarness_MultipleTests(t *testing.T) {
 func TestBuildInlineTestHarness_MultiArgFunction(t *testing.T) {
 	// Arrange
 	binding := core.RecBinding{
-		Name: "add",
+		Name:  "add",
 		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
 	}
 
@@ -221,38 +221,29 @@ func TestBuildInlineTestHarness_MultiArgFunction(t *testing.T) {
 		t.Fatalf("Expected Let, got %T", letRec.Body)
 	}
 
-	// Value should be nested App: ((add 1) 2) (curried application)
-	app2, ok := let.Value.(*core.App)
+	// Value should be single App with all args: App(add, [1, 2])
+	// (NOT curried - multi-arg functions use single App with multiple args)
+	app, ok := let.Value.(*core.App)
 	if !ok {
-		t.Fatalf("Expected outer App, got %T", let.Value)
+		t.Fatalf("Expected App, got %T", let.Value)
 	}
 
-	app1, ok := app2.Func.(*core.App)
-	if !ok {
-		t.Fatalf("Expected inner App, got %T", app2.Func)
-	}
-
-	// app1.Func should be Var("add")
-	funcVar, ok := app1.Func.(*core.Var)
+	// app.Func should be Var("add")
+	funcVar, ok := app.Func.(*core.Var)
 	if !ok || funcVar.Name != "add" {
-		t.Errorf("Expected Var('add'), got %T", app1.Func)
+		t.Errorf("Expected Var('add'), got %T", app.Func)
 	}
 
-	// app1.Args should be [1]
-	if len(app1.Args) != 1 {
-		t.Errorf("Expected 1 arg in first app, got %d", len(app1.Args))
-	}
-
-	// app2.Args should be [2]
-	if len(app2.Args) != 1 {
-		t.Errorf("Expected 1 arg in second app, got %d", len(app2.Args))
+	// app.Args should be [1, 2] (both args in single App)
+	if len(app.Args) != 2 {
+		t.Errorf("Expected 2 args in App, got %d", len(app.Args))
 	}
 }
 
 func TestBuildInlineTestHarness_NodeIDsUnique(t *testing.T) {
 	// Arrange
 	binding := core.RecBinding{
-		Name: "test",
+		Name:  "test",
 		Value: &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "lambda"},
 	}
 
