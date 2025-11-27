@@ -68,53 +68,124 @@ export pure func lcm(a: int, b: int) -> int
 
 ## Solution Design
 
+### Target UX (Mental Model)
+
+For the AI/user mental model, the end-state should be:
+
+> "Inline tests can call any pure function in the same module, including helpers and mutually recursive groups. If it compiles and is pure, you can test it inline."
+
 ### Overview
 
-Add static dependency analysis that walks function bodies to identify referenced user-defined functions, then include those dependencies in the test harness.
+Build a call-graph over Core AST, compute **Strongly Connected Components (SCCs)** for mutual recursion detection, then synthesize a "cluster harness" containing the function under test plus its entire pure dependency closure.
 
 ### Architecture
 
 **Components:**
-1. **Dependency Analyzer** (`internal/testing/deps.go`): Walks Core AST to find function references
-2. **Transitive Closure**: Computes all dependencies recursively
-3. **Enhanced Harness Builder**: Includes dependencies in synthetic test program
-4. **Mutual Recursion Detector**: Groups mutually recursive functions together
+1. **Call Graph Builder** (`internal/testing/callgraph.go`): Build dependency graph over Core bindings
+2. **SCC Computer**: Tarjan's algorithm to find mutually recursive groups
+3. **Pure Cluster Extractor**: Collect SCC + transitive pure dependencies
+4. **Cluster Harness Builder**: LetRec over entire cluster with test body
+
+### Key Concepts
+
+**Call Graph:**
+- Nodes: top-level function/value bindings in a module
+- Edges: `f → g` if the Core body of `f` references `g`
+- Built on elaborated Core AST (all sugar resolved, actual `Var` references visible)
+
+**Strongly Connected Components (SCCs):**
+- SCCs naturally capture mutual recursion: `{isEven, isOdd}` form one SCC
+- A single self-recursive function is its own SCC
+- Non-recursive functions are singleton SCCs
+
+**Pure Cluster:**
+- For function `f` under test, the pure cluster is:
+  1. The SCC containing `f`
+  2. All SCCs reachable from that SCC via the call graph
+  3. **Gated on purity**: every function in the cluster must have effect row `{}` (pure)
+- If any dependency has effects, the cluster is not pure → test rejected with clear error
+
+**Cluster Harness:**
+Instead of the current single-binding harness:
+```
+LetRec(f, λ_f, test_body(f))
+```
+
+We synthesize a multi-binding harness:
+```
+LetRec(
+  [ f  ↦ λ_f,
+    g1 ↦ λ_g1,
+    g2 ↦ λ_g2,
+    ...
+  ],
+  test_body(f)
+)
+```
+
+Where `test_body(f)` is the existing nested-Let harness (calls to `f` with test inputs, returning results).
 
 ### Implementation Plan
 
-**Phase 1: Dependency Analyzer** (~4 hours)
-- [ ] Create `internal/testing/deps.go`
-- [ ] Implement `FindDependencies` using Core AST walker
-- [ ] Implement `TransitiveDependencies` with cycle detection
-- [ ] Add unit tests for dependency analysis
+**Phase 1: Call Graph & SCC** (~6 hours)
+- [ ] Create `internal/testing/callgraph.go`
+- [ ] Implement `BuildCallGraph(module) -> Graph[string, string]`
+- [ ] Walk Core AST, collect `Var` references per binding
+- [ ] Implement Tarjan's SCC algorithm (or use existing graph lib)
+- [ ] Unit tests: single function, chain, mutual recursion
 
-**Phase 2: Enhanced Harness** (~4 hours)
-- [ ] Modify `BuildTestHarness` signature to accept dependencies
-- [ ] Update harness building to include all dependencies
-- [ ] Handle ordering (dependencies before dependents)
-- [ ] Add tests for multi-function harness
+**Phase 2: Pure Cluster Extraction** (~4 hours)
+- [ ] Implement `ExtractPureCluster(funcName, callGraph, sccs, effectInfo) -> []Binding`
+- [ ] Start from function's SCC
+- [ ] BFS/DFS to collect reachable bindings
+- [ ] Gate on effect row `{}` for each binding
+- [ ] Return error if cluster contains effectful function
+- [ ] Unit tests: pure cluster, effectful rejection
 
-**Phase 3: Mutual Recursion** (~4 hours)
-- [ ] Implement `FindMutuallyRecursive` detection
-- [ ] Group mutually recursive functions in single LetRec
-- [ ] Add tests for isEven/isOdd pattern
+**Phase 3: Cluster Harness Builder** (~4 hours)
+- [ ] Modify `BuildTestHarness` to accept `[]core.RecBinding` cluster
+- [ ] Synthesize single `LetRec` with all bindings
+- [ ] Test body references function under test
+- [ ] Integration tests with lcm/gcd, isEven/isOdd
 
-**Phase 4: Integration & Testing** (~4 hours)
-- [ ] Update `TestExecutor` to use dependency analyzer
-- [ ] Enable `lcm` tests in examples/snippets/v3_3/math/gcd.ail
-- [ ] Add comprehensive test suite
+**Phase 4: Integration & Polish** (~4 hours)
+- [ ] Wire into `TestExecutor`
+- [ ] Add `--dump-inline-harness` flag for debugging (optional)
+- [ ] Enable lcm, isEven/isOdd tests in examples
 - [ ] Update documentation
 
 ### Files to Modify/Create
 
 **New files:**
-- `internal/testing/deps.go` - Dependency analyzer (~150 LOC)
-- `internal/testing/deps_test.go` - Unit tests (~200 LOC)
+- `internal/testing/callgraph.go` - Call graph + SCC (~200 LOC)
+- `internal/testing/callgraph_test.go` - Unit tests (~250 LOC)
+- `internal/testing/cluster.go` - Pure cluster extraction (~100 LOC)
 
 **Modified files:**
-- `internal/testing/harness.go` - Accept dependencies (~30 LOC changes)
-- `internal/testing/executor.go` - Integrate analyzer (~50 LOC changes)
+- `internal/testing/harness.go` - Cluster harness builder (~50 LOC changes)
+- `internal/testing/executor.go` - Integrate call graph (~30 LOC changes)
 - `examples/snippets/v3_3/math/gcd.ail` - Enable lcm tests (~5 LOC)
+
+### Edge Cases
+
+**Mutual recursion across module "sections":**
+```typescript
+func isEven(n) = if n == 0 then true else isOdd(n - 1)
+func isOdd(n)  = if n == 0 then false else isEven(n - 1)
+```
+Both end up in same SCC; both go into the LetRec binding vector; tests on either work.
+
+**Polymorphic helpers:**
+Locally defined polymorphic helpers (e.g., `map`) are just another binding. As long as effect row is pure, they join the cluster.
+
+**Kitchen-sink modules:**
+Large modules where "everything depends on everything" result in big clusters. Fine for v1 - harness includes more bindings but still works. Optimize later if perf becomes issue.
+
+**Dependency on effectful function:**
+```typescript
+pure func foo() = bar()   -- bar has effects
+```
+Cluster extraction fails with clear error: "Cannot test foo: dependency bar has effect row {IO}"
 
 ## Examples
 
@@ -203,15 +274,20 @@ pure func isOdd(n: int) -> bool
 ## Timeline
 
 **Day 1** (8 hours):
-- Phase 1: Dependency Analyzer
-- Phase 2: Enhanced Harness
+- Phase 1: Call Graph & SCC (6 hours)
+- Phase 2: Pure Cluster Extraction (start)
 
 **Day 2** (8 hours):
-- Phase 3: Mutual Recursion
-- Phase 4: Integration & Testing
-- Documentation
+- Phase 2: Pure Cluster Extraction (complete, 2 hours)
+- Phase 3: Cluster Harness Builder (4 hours)
+- Phase 4: Integration & Polish (2 hours)
 
-**Total: ~16 hours across 2 days**
+**Day 3** (4 hours - buffer):
+- Documentation
+- Additional edge case testing
+- `--dump-inline-harness` debug flag
+
+**Total: ~18-20 hours across 2-3 days**
 
 ## Risks & Mitigations
 
@@ -229,9 +305,22 @@ pure func isOdd(n: int) -> bool
 
 ## Future Work
 
+**Next milestone after DEPS:**
+- **M-TESTING-PROPERTY**: Property-based / inline generators on top of cluster harness
+  - Same cluster logic applies
+  - Different harness body (quantified cases instead of enumerated)
+  - Executor drives property harness N times with random seeds
+  - DEPS pays dividends here - getting cluster harness right enables property tests
+
+**Later:**
 - **M-TESTING-IMPORTS**: Cross-module dependency support
 - **Dependency visualization**: `ailang test --show-deps` to display dependency graph
 - **Selective dependency inclusion**: Allow tests to exclude certain dependencies
+
+## Open Questions
+
+1. **Harness debugging**: Should we add `--dump-inline-harness` flag to emit synthetic Core for inspection?
+2. **Property tests location**: Same `tests` block, separate `properties` keyword, or separate file?
 
 ---
 

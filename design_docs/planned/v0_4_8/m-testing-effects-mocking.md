@@ -1,10 +1,10 @@
-# M-TESTING-EFFECTS: Effect Mocking for Inline Tests
+# M-TESTING-EFFECTS v1: IO Transcript Testing
 
 **Status**: Planned
-**Target**: v0.4.8+
+**Target**: v0.4.9+ (after M-TESTING-DEPS and M-TESTING-PROPERTY)
 **Priority**: P2 (Low)
-**Estimated**: 3-4 days
-**Dependencies**: M-TESTING-DEPS (v0.4.8)
+**Estimated**: 2 days
+**Dependencies**: M-TESTING-DEPS (v0.4.8), M-TESTING-PROPERTY (v0.4.8+)
 
 ## AI-First Alignment Check
 
@@ -12,11 +12,11 @@
 
 | Principle | Impact | Score | Notes |
 |-----------|--------|-------|-------|
-| Reduce Syntactic Noise | + | +1 | Inline mocks vs external test fixtures |
-| Preserve Semantic Clarity | + | +1 | Mock specifications explicit in test syntax |
-| Increase Determinism | + | +1 | Tests are hermetic, no real IO/FS/Net calls |
-| Lower Token Cost | + | +1 | AI can test effectful functions without boilerplate |
-| **Net Score** | | **+4** | **Decision: Move forward** |
+| Reduce Syntactic Noise | + | +1 | Inline transcript assertion vs external test setup |
+| Preserve Semantic Clarity | + | +1 | `prints [...]` makes expected output explicit |
+| Increase Determinism | + | +1 | Tests are hermetic, recording context instead of real stdout |
+| Lower Token Cost | 0 | 0 | Adds new syntax, but simple and focused |
+| **Net Score** | | **+3** | **Decision: Move forward (narrow scope)** |
 
 **Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
 
@@ -24,223 +24,222 @@
 
 ## Problem Statement
 
-Inline tests currently only work for **pure functions**. Functions with effects (`! IO`, `! FS`, `! Net`, `! Clock`) cannot be tested inline because:
+After M-TESTING-DEPS lands, inline tests will cover all **pure functions** in a module. However, many real programs have functions that perform IO - logging, printing status, writing output.
 
-1. The test harness runs in a pure context (no effect handlers)
-2. There's no syntax for specifying mock effect responses
-3. Effect execution requires capability tokens that tests don't have
-
-**Current State:**
-- Only pure functions can be tested inline (22 functions in M-TESTING-INLINE-CORE)
-- Functions with effects require manual testing via `main` function
-- No way to specify deterministic responses for IO/FS/Net/Clock operations
-- Existing `MockEffContext` in Go tests not exposed to AILANG test syntax
+**Current State (post-DEPS):**
+- ✅ Pure functions with dependencies can be tested inline
+- ❌ Functions with any effects still cannot be tested inline
+- Workaround: test via `main` function or Go tests
 
 **Impact:**
-- AI code generators cannot test effectful functions inline
-- Reduces test coverage to pure functions only
-- Real-world programs heavily use effects (file I/O, HTTP, time)
+- Common logging/output functions untestable inline
+- AI code generators cannot verify output behavior
 
-### Error Example
+## Scope: Extremely Narrow v1
 
-```typescript
--- This FAILS: function has IO effect
-func greet(name: string) -> string ! IO
-  tests [("Alice", "Hello, Alice!")]  -- Error: unhandled effect IO
-{
-  _io_print("Greeting: " ++ name);
-  "Hello, " ++ name ++ "!"
-}
-```
+> **v1 is embarrassingly constrained by design.**
+
+We do NOT build a full effect mocking system in v1. Instead:
+
+**v1 Scope:**
+- IO write-only transcripts (logging-like effects)
+- Functions `f : A -> B ! {IO}` that only call `println`/`_io_print`
+- Harness records IO transcript instead of writing to stdout
+- Test asserts on transcript (lines printed)
+
+**Explicitly NOT in v1:**
+- ❌ FS (file system) - temp directories, cleanup, determinism issues
+- ❌ Net (network) - external dependencies, flakiness
+- ❌ Clock - seed handling, time zones
+- ❌ IO read (`_io_readLine`) - requires mock input sequences
+- ❌ Arbitrary mock specifications - too complex for v1
 
 ## Goals
 
-**Primary Goal:** Enable inline tests for effectful functions by providing a mock specification syntax.
+**Primary Goal:** Enable inline tests for IO-printing functions by asserting on output transcripts.
 
 **Success Metrics:**
-- IO effects can be mocked in inline tests
-- FS effects can be mocked in inline tests
-- Clock effects can be mocked in inline tests
-- Net effects can be mocked in inline tests
-- Unmocked effect calls fail with clear error messages
-- Tests remain hermetic (no real side effects)
+- Functions that only call `_io_print`/`println` can be tested
+- Test syntax is simple: `prints ["line1", "line2"]`
+- Tests are hermetic (no real stdout writes)
+- Clear error messages for unsupported effect calls
 
 ## Solution Design
 
-### Overview
+### Target UX (Mental Model)
 
-Add a `mocks` clause to test case syntax that specifies expected effect calls and their return values. The test harness intercepts effect calls and returns mocked values.
-
-### Syntax Design
-
-**Option A: Per-test-case mocks (Preferred)**
 ```typescript
-func readConfig(path: string) -> string ! FS
-  tests [
-    ("config.json", "{\"key\": \"value\"}")
-      mocks { _fs_readFile("config.json") => "{\"key\": \"value\"}" }
-  ]
+func greet(name: string) -> () ! IO
+  prints ["Hello, " ++ name]
 {
-  _fs_readFile(path)
+  println("Hello, " ++ name)
 }
 ```
 
-**Option B: Shared mocks block**
+Test harness runs `greet("Alice")` with a recording IO context, compares transcript to `["Hello, Alice"]`.
+
+### Syntax
+
+**New `prints` clause** (instead of `tests`):
+
 ```typescript
-func readConfig(path: string) -> string ! FS
-  tests [
-    ("config.json", "{\"key\": \"value\"}"),
-    ("other.json", "{}")
-  ]
-  mocks {
-    _fs_readFile("config.json") => "{\"key\": \"value\"}",
-    _fs_readFile("other.json") => "{}"
+-- For functions that print and return unit
+func greet(name: string) -> () ! IO
+  prints ["Hello, " ++ name]
+{
+  println("Hello, " ++ name)
+}
+
+-- Multiple test cases
+func greetMany(names: List[string]) -> () ! IO
+  prints {
+    (["Alice"], ["Hello, Alice"]),
+    (["Bob", "Carol"], ["Hello, Bob", "Hello, Carol"])
   }
 {
-  _fs_readFile(path)
+  forEach(names, \n. println("Hello, " ++ n))
 }
 ```
+
+**Key design decisions:**
+- `prints` is a new keyword (not overloading `tests`)
+- Single argument: expected transcript (list of lines)
+- Multiple cases: `prints { (input, transcript), ... }`
+- Return value is implicitly `()` and not asserted
 
 ### Architecture
 
 **Components:**
-1. **Mock Registry** (`internal/testing/mocks.go`): Maps builtin calls to mock responses
-2. **Test Effect Context** (`internal/testing/testctx.go`): Intercepts effect calls during test execution
-3. **Parser Extensions**: Parse `mocks` clause in test syntax
-4. **Harness Integration**: Inject mock context into evaluator
+1. **Recording IO Context**: Implements IO effect by appending to buffer
+2. **Transcript Comparator**: Compares expected vs actual lines
+3. **Parser Extension**: `prints` clause parsing
+4. **Effect Gate**: Reject functions with non-IO effects or IO reads
+
+**Recording IO Context:**
+```go
+type RecordingIOContext struct {
+    transcript []string
+}
+
+func (r *RecordingIOContext) Print(s string) {
+    r.transcript = append(r.transcript, s)
+}
+
+func (r *RecordingIOContext) ReadLine() (string, error) {
+    return "", fmt.Errorf("_io_readLine not supported in prints tests")
+}
+```
 
 ### Implementation Plan
 
-**Phase 1: Mock Registry** (~8 hours)
-- [ ] Create `internal/testing/mocks.go`
-- [ ] Implement `MockRegistry` with builtin name → response mapping
-- [ ] Implement `MockSpec` with argument matching (exact, wildcard)
-- [ ] Add unit tests for registry matching logic
+**Phase 1: Recording IO Context** (~4 hours)
+- [ ] Create `internal/testing/recordio.go`
+- [ ] Implement `RecordingIOContext` with transcript buffer
+- [ ] Reject `_io_readLine` calls with clear error
+- [ ] Unit tests for recording context
 
-**Phase 2: Test Effect Context** (~4 hours)
-- [ ] Create `TestEffectContext` implementing `effects.EffectContext`
-- [ ] Route effect calls through mock registry
-- [ ] Return error for unmocked effect calls (fail loudly)
-- [ ] Integration tests with mock context
+**Phase 2: Parser & AST** (~4 hours)
+- [ ] Add `PRINTS` keyword to lexer
+- [ ] Parse `prints [...]` and `prints { ... }` clauses
+- [ ] Create `ast.PrintsSpec` node type
+- [ ] Parser tests
 
-**Phase 3: Parser Extensions** (~8 hours)
-- [ ] Add `MOCKS` keyword to lexer
-- [ ] Parse `mocks { ... }` block in test cases
-- [ ] Create `ast.MockSpec` node type
-- [ ] Parser tests for mock syntax
+**Phase 3: Harness Integration** (~6 hours)
+- [ ] Build harness that uses `RecordingIOContext`
+- [ ] Extract transcript after execution
+- [ ] Compare expected vs actual transcripts
+- [ ] Error reporting for mismatches
 
-**Phase 4: Harness Integration** (~8 hours)
-- [ ] Modify `TestExecutor` to build mock registry from test case
-- [ ] Pass `TestEffectContext` to evaluator
-- [ ] End-to-end tests with IO, FS, Clock, Net mocks
-- [ ] Documentation and examples
+**Phase 4: Effect Gating** (~2 hours)
+- [ ] Reject functions with FS, Net, Clock effects
+- [ ] Reject functions with IO read effects
+- [ ] Clear error messages explaining limitations
 
 ### Files to Modify/Create
 
 **New files:**
-- `internal/testing/mocks.go` - Mock registry (~150 LOC)
-- `internal/testing/mocks_test.go` - Unit tests (~200 LOC)
-- `internal/testing/testctx.go` - Test effect context (~100 LOC)
+- `internal/testing/recordio.go` - Recording IO context (~80 LOC)
+- `internal/testing/recordio_test.go` - Unit tests (~100 LOC)
+- `internal/testing/transcript.go` - Transcript comparison (~50 LOC)
 
 **Modified files:**
-- `internal/lexer/token.go` - Add MOCKS keyword (~5 LOC)
-- `internal/parser/parser.go` - Parse mocks clause (~100 LOC)
-- `internal/ast/ast.go` - Add MockSpec node (~30 LOC)
-- `internal/testing/executor.go` - Integrate mock context (~50 LOC)
-- `internal/testing/harness.go` - Pass mocks to harness (~30 LOC)
+- `internal/lexer/token.go` - Add PRINTS keyword (~3 LOC)
+- `internal/parser/parser.go` - Parse prints clause (~50 LOC)
+- `internal/ast/ast.go` - Add PrintsSpec node (~20 LOC)
+- `internal/testing/executor.go` - Execute prints tests (~100 LOC)
 
 ## Examples
 
-### Example 1: IO Mocking
+### Example 1: Simple Greeting
 
-**Before:**
 ```typescript
-func prompt(message: string) -> string ! IO
-  -- Cannot test: requires IO effect
+func greet(name: string) -> () ! IO
+  prints ["Hello, " ++ name]
 {
-  _io_print(message);
+  println("Hello, " ++ name)
+}
+-- greet("Alice") prints ["Hello, Alice"] ✓
+```
+
+### Example 2: Multiple Lines
+
+```typescript
+func banner(title: string) -> () ! IO
+  prints ["========", title, "========"]
+{
+  println("========");
+  println(title);
+  println("========")
+}
+-- banner("Welcome") prints ["========", "Welcome", "========"] ✓
+```
+
+### Example 3: Multiple Test Cases
+
+```typescript
+func logLevel(level: string, msg: string) -> () ! IO
+  prints {
+    (("INFO", "started"), ["[INFO] started"]),
+    (("ERROR", "failed"), ["[ERROR] failed"])
+  }
+{
+  println("[" ++ level ++ "] " ++ msg)
+}
+```
+
+### Example 4: What's NOT Supported
+
+```typescript
+-- ❌ NOT SUPPORTED: IO read
+func prompt(msg: string) -> string ! IO
+  -- Cannot use prints: function reads input
+{
+  println(msg);
   _io_readLine()
 }
-```
 
-**After:**
-```typescript
-func prompt(message: string) -> string ! IO
-  tests [
-    ("Name: ", "Alice")
-      mocks {
-        _io_print("Name: ") => (),
-        _io_readLine() => "Alice"
-      }
-  ]
+-- ❌ NOT SUPPORTED: FS effect
+func saveConfig(path: string) -> () ! FS
+  -- Cannot use prints: function has FS effect
 {
-  _io_print(message);
-  _io_readLine()
+  _fs_writeFile(path, "{}")
 }
-```
 
-### Example 2: FS Mocking
-
-```typescript
-func loadJson(path: string) -> string ! FS
-  tests [
-    ("data.json", "{\"key\": \"value\"}")
-      mocks { _fs_readFile("data.json") => "{\"key\": \"value\"}" }
-  ]
+-- ❌ NOT SUPPORTED: Net effect
+func fetchData(url: string) -> string ! Net
+  -- Cannot use prints: function has Net effect
 {
-  _fs_readFile(path)
-}
-```
-
-### Example 3: Clock Mocking
-
-```typescript
-func timestamp() -> int ! Clock
-  tests [
-    ((), 1699900000)
-      mocks { _clock_now() => 1699900000 }
-  ]
-{
-  _clock_now()
-}
-```
-
-### Example 4: Error Simulation
-
-```typescript
-func safeRead(path: string) -> string ! FS
-  tests [
-    ("missing.txt", "default")
-      mocks { _fs_readFile("missing.txt") => error "File not found" }
-  ]
-{
-  -- Would need error handling syntax
-  _fs_readFile(path)
-}
-```
-
-### Example 5: Wildcard Matching
-
-```typescript
-func logger(msg: string) -> () ! IO
-  tests [
-    ("hello", ())
-      mocks { _io_print(*) => () }  -- Match any argument
-  ]
-{
-  _io_print("[LOG] " ++ msg)
+  _net_httpGet(url)
 }
 ```
 
 ## Success Criteria
 
-- [ ] IO effects can be mocked (`_io_print`, `_io_readLine`)
-- [ ] FS effects can be mocked (`_fs_readFile`, `_fs_writeFile`)
-- [ ] Clock effects can be mocked (`_clock_now`)
-- [ ] Net effects can be mocked (`_net_httpGet`)
-- [ ] Unmocked effect calls fail with clear error messages
-- [ ] Wildcard argument matching works
-- [ ] Error simulation works (`=> error "message"`)
+- [ ] `prints` syntax parses correctly
+- [ ] Functions calling only `println`/`_io_print` can be tested
+- [ ] Transcript comparison works (exact match)
+- [ ] Clear error for `_io_readLine` calls
+- [ ] Clear error for FS/Net/Clock effects
 - [ ] All tests passing
 - [ ] Documentation updated
 - [ ] Examples added
@@ -248,71 +247,69 @@ func logger(msg: string) -> () ! IO
 ## Testing Strategy
 
 **Unit tests:**
-- Mock registry argument matching (exact, wildcard)
-- Mock registry response lookup
-- TestEffectContext routing
+- `RecordingIOContext` captures prints correctly
+- Transcript comparison: exact match, mismatch detection
+- Parser handles `prints` syntax
 
 **Integration tests:**
-- IO mock end-to-end
-- FS mock end-to-end
-- Clock mock end-to-end
-- Net mock end-to-end
-- Unmocked call error handling
+- Simple `greet` function end-to-end
+- Multi-line output
+- Multiple test cases
+- Error cases: IO read, FS, Net
 
 **Manual testing:**
-- Create example files with mocked effects
+- Create example files with `prints` tests
 - Verify `ailang test` runs successfully
 
-## Non-Goals
+## Non-Goals (Explicitly Deferred)
 
-**Not in this feature:**
-- State-dependent mocks - Mocks that change based on previous calls (future)
-- Partial mocking - Some effects mocked, others real (complex, risky)
-- Mock generators - Procedural mock value generation (future)
-- Property-based mocking - Integration with property-based testing (see M-TESTING-PROPERTY)
-- Call verification - Assert mock was called N times (future enhancement)
+| Feature | Why Deferred |
+|---------|--------------|
+| FS mocking | Temp dirs, cleanup, determinism issues |
+| Net mocking | External deps, flakiness, auth |
+| Clock mocking | Seeds, time zones, complexity |
+| IO read mocking | Requires mock input sequences |
+| Arbitrary mock syntax | v2 - full `mocks { ... }` system |
+| Transcript patterns | v2 - regex/glob matching |
 
 ## Timeline
 
 **Day 1** (8 hours):
-- Phase 1: Mock Registry
+- Phase 1: Recording IO Context (4 hours)
+- Phase 2: Parser & AST (4 hours)
 
 **Day 2** (8 hours):
-- Phase 2: Test Effect Context
-- Phase 3: Parser Extensions (start)
+- Phase 3: Harness Integration (6 hours)
+- Phase 4: Effect Gating (2 hours)
 
-**Day 3** (8 hours):
-- Phase 3: Parser Extensions (complete)
-- Phase 4: Harness Integration (start)
-
-**Day 4** (8 hours):
-- Phase 4: Harness Integration (complete)
-- Documentation and examples
-
-**Total: ~32 hours across 4 days**
+**Total: ~16 hours across 2 days**
 
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Syntax complexity | Medium | Start with simple mock block, add features incrementally |
-| Type safety of mocks | High | Leverage existing type checker for mock argument types |
-| Performance overhead | Low | Mock lookup is O(n) per call; use hashmap if needed |
-| Eval integration | Medium | Use existing MockEffContext pattern from Go tests |
+| Scope creep (adding more effects) | High | Hard gate: only IO print in v1 |
+| User confusion (why no FS?) | Medium | Clear docs, error messages explaining v1 scope |
+| Transcript comparison fragility | Low | Start with exact match, add patterns in v2 |
 
 ## References
 
-- [M-TESTING-INLINE-CORE design doc](../v0_4_7/m-testing-inline-core-evaluation.md)
 - [M-TESTING-DEPS design doc](m-testing-deps-cross-function-dependencies.md)
 - [MockEffContext pattern](../../../internal/effects/testctx/) - Existing Go test infrastructure
 - [Effect system](../../../internal/effects/effects.go)
 
-## Future Work
+## Future Work (v2+)
 
-- **Call verification**: Assert that mocks were called expected number of times
-- **Sequence mocks**: Return different values on successive calls
-- **State-dependent mocks**: Mock responses based on accumulated state
-- **Mock generators**: Generate mock values procedurally
+**M-TESTING-EFFECTS v2:**
+- Full `mocks { builtin(args) => result }` syntax
+- IO read mocking with input sequences
+- FS mocking with virtual filesystem
+- Clock mocking with deterministic timestamps
+
+**M-TESTING-EFFECTS v3:**
+- Net mocking with recorded responses
+- Transcript patterns (regex/glob)
+- Call verification (assert mock called N times)
 
 ---
 
