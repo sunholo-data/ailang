@@ -12,11 +12,6 @@ task_prompt: |
   3. Creates another update changing only the city to "SF"
   4. Prints all three records in format: "{name}, {age}, {city}"
 
-  Requirements:
-  - For AILANG: Use record update syntax {r | field: value}
-  - For Python: Use dict update or dataclass replace
-  - Each update creates a NEW record (immutable)
-
   Output only the code, no explanations.
 expected_stdout: |
   Alice, 30, NYC
