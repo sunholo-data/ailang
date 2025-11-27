@@ -80,74 +80,106 @@ We need a mechanism to evaluate Core programs where declarations reference each 
 2. **Module-Level Environment** - Build persistent environment across declarations
 3. **Synthetic Module Evaluation** - Use ModuleRuntime for proper scoping
 
-### Approach 1: Nested LetRec Elaboration (RECOMMENDED)
+### Approach 1: Per-Function Test Harness Transformation (RECOMMENDED)
 
-**Problem:** Current elaboration creates flat array:
+**Problem:** Current elaboration creates flat array where bindings don't persist:
 ```
-Decls = [LetRec(f, ...), App(f, ...)]
+Decls = [LetRec(f, ...), App(f, ...)]  // f not in scope for App!
 ```
 
-**Solution:** Nest subsequent declarations in LetRec body:
+**Solution:** Build a synthetic Core expression per tested function (test-only, doesn't affect normal compilation):
+
 ```
-Decls = [
-  LetRec(f, lambda,
-    Let(_result, App(f, arg),  // Nested test expression
-      Var(_result)              // Return test result
+TestHarness(f) :=
+  LetRec("f", λ_f,
+    Let("_test_1", App(f, arg_1),
+      Let("_test_2", App(f, arg_2),
+        Tuple([_test_1, _test_2])  // Returns actual results
+      )
     )
   )
-]
 ```
+
+**Key semantic points:**
+1. **Test-only transformation**: Normal compilation/execution is unchanged; this is purely for test evaluation
+2. **Returns actuals, not pass/fail**: Harness evaluates to tuple of actual results; Go compares to expected values
+3. **Type of harness body**: `Tuple([_test_1, ...])` has type `(τ₁, τ₂, ...)`, not the function's return type; this is fine
+4. **Scoping**: Function `f` is in scope for all test calls via LetRec body
 
 **Advantages:**
 - ✅ Uses existing Core semantics (no new evaluation logic)
-- ✅ Works with current pipeline phases
-- ✅ Minimal changes to executor
+- ✅ Minimal blast radius (no whole-file elaboration changes)
+- ✅ Easy to test in isolation
 - ✅ Preserves all type information
+- ✅ Clear separation: normal vs. test evaluation paths
 
 **Architecture:**
 
-**Component 1: Elaborator Enhancement**
-Modify `internal/elaborate/elaborator.go` to support "synthetic module mode":
-- When elaborating test expressions, wrap in nested Let instead of appending to Decls[]
-- Function LetRec body becomes: `Let(_test_expr, test_call, body)`
-- Preserves function body but adds test evaluation
+**Component 1: Test Harness Builder** (NEW)
+Add `internal/testing/harness.go` - builds synthetic Core expressions:
+
+```go
+// BuildInlineTestHarness creates a Core expression for evaluating inline tests
+// Input: Core LetRec binding for function f, list of test specifications
+// Output: Core expression that evaluates all tests and returns tuple of actuals
+func BuildInlineTestHarness(
+    binding *core.LetRecBinding,
+    tests []TestSpec,
+) core.Expr
+```
 
 **Component 2: Test Executor Update**
-Update `internal/testing/executor.go` to request nested elaboration:
-- Pass flag/mode to elaborator: `ElaborateWithNesting()`
-- Extract result from nested structure
+Update `internal/testing/executor.go`:
+- Extract LetRec binding from elaborated module
+- Call `BuildInlineTestHarness()` to construct test expression
+- Evaluate harness expression in empty environment
+- Compare returned tuple to expected values
 
 **Implementation Complexity:** Low (~4-6 hours)
-- Modify 1 file significantly: `elaborator.go`
-- Update 1 file minimally: `executor.go`
+- NEW: `internal/testing/harness.go` (~80 LOC) - transformer
+- UPDATE: `internal/testing/executor.go` (~30 LOC) - use transformer
+- NO CHANGES to elaborator or evaluator
 - All existing tests should still pass
 
-### Approach 2: Module-Level Environment
+### Approach 2: Test-Only Environment Accumulation (VIABLE FALLBACK)
 
-**Problem:** CoreEvaluator evaluates each declaration in fresh environment.
+**Problem:** Simple harness transformation (Approach 1) may not handle cross-definition references (helpers, constants).
 
-**Solution:** Maintain persistent environment across Eval() calls:
+**Solution:** Test-executor-only environment accumulation:
+
 ```go
-env := eval.NewEnvironment()
-evaluator := eval.NewCoreEvaluatorWithEnv(env)
-for _, decl := range prog.Decls {
-    value, err := evaluator.Eval(decl) // env persists
+// Test executor only - NOT exposed as general API
+func evalDeclsWithEnv(prog *core.Program) (*eval.Env, error) {
+    env := eval.NewEnvironment()
+    evaluator := eval.NewCoreEvaluatorWithEnv(env)
+    for _, decl := range prog.Decls {
+        _, err := evaluator.Eval(decl) // env accumulates bindings
+        if err != nil { return nil, err }
+    }
+    return env, nil
 }
+
+// Then evaluate test harness in that env:
+testEnv, _ := evalDeclsWithEnv(module)
+result, _ := evaluator.EvalInEnv(testHarness, testEnv)
 ```
 
 **Advantages:**
-- ✅ No elaborator changes
-- ✅ Straightforward implementation
+- ✅ Handles cross-definition references (helpers, constants)
+- ✅ No CoreEvaluator API changes (test-local helper)
+- ✅ Can combine with Approach 1 harness transform
 
 **Disadvantages:**
-- ❌ Requires CoreEvaluator API changes
-- ❌ May affect REPL and other consumers
-- ❌ LetRec semantics unclear with persistent env
+- ❌ Requires small test-executor helper (~50 LOC)
+- ❌ Slightly more complex than pure transformation
 
-**Implementation Complexity:** Medium (~8-12 hours)
-- Modify `internal/eval/eval_evaluator.go`
-- Update all CoreEvaluator call sites
-- Extensive testing needed
+**Use case:** If testing reveals that functions under test reference other top-level bindings (helpers, constants) and simple harness transformation doesn't handle them, use this as fallback.
+
+**Implementation Complexity:** Low-Medium (~6-8 hours)
+- NEW: `internal/testing/envaccum.go` (~50 LOC) - test-only helper
+- UPDATE: `internal/testing/executor.go` (~40 LOC) - use accumulated env
+- NO CHANGES to evaluator public API
+- Scoped to test executor only
 
 ### Approach 3: ModuleRuntime Integration
 
@@ -174,45 +206,69 @@ result := runtime.ExecuteModule(syntheticModule)
 - Filesystem abstraction layer
 - Risk of breaking module system
 
-### Recommended Approach: Nested LetRec (Approach 1)
+### Recommended Approach: Test Harness Transformation (Approach 1)
 
 **Rationale:**
-- Lowest risk and complexity
+- Lowest risk and complexity (~4-6 hours)
 - Uses existing Core semantics correctly
-- Minimal API surface changes
-- Easy to test and verify
+- Zero changes to elaborator/evaluator (isolated to test code)
+- Easy to test and verify in isolation
+- Clear conceptual model: "per-function test harness"
+- Approach 2 available as fallback if cross-definition scoping issues arise
+
+**Decision:** Start with Approach 1 (simple harness transform). If testing reveals issues with functions that reference helpers/constants, add Approach 2's env accumulation as a compatibility layer.
 
 ### Implementation Plan
 
-**Phase 1: Elaborator Nesting Support** (~3-4 hours)
-- [ ] Add `ElaborateFileWithTestEval()` method to elaborator
-- [ ] Modify function declaration elaboration to nest test expressions
-- [ ] Create synthetic Let bindings for test results
-- [ ] Unit test nested elaboration with simple examples
+**Phase 1: Test Harness Builder** (~3-4 hours)
+- [ ] Create `internal/testing/harness.go`
+- [ ] Implement `BuildInlineTestHarness(binding, tests)` function
+  - Takes Core LetRec binding + test specs
+  - Returns synthetic Core expression with nested Lets
+  - Handles single and multiple test cases
+- [ ] Unit test harness building with simple examples
+  - Single test case
+  - Multiple test cases
+  - Multi-argument functions
 
 **Phase 2: Executor Integration** (~2-3 hours)
-- [ ] Update Executor to use new elaboration mode
-- [ ] Extract test result from nested structure
-- [ ] Handle multiple tests per function (nested Lets)
+- [ ] Update `internal/testing/executor.go`
+  - Extract LetRec binding from elaborated module
+  - Call `BuildInlineTestHarness()` for each tested function
+  - Evaluate harness expression
+  - Extract tuple results and compare to expected values
 - [ ] Integration test with factorial example
+- [ ] **Verify cross-definition scoping**: Test functions that reference helpers/constants
 
 **Phase 3: Testing & Validation** (~2-3 hours)
 - [ ] Verify all M-TESTING-INLINE integration tests pass
 - [ ] Test with multiple inline tests per function
-- [ ] Test with recursive functions
-- [ ] Ensure no regression in normal module execution
-- [ ] Update documentation
+- [ ] Test with recursive functions (factorial, fibonacci)
+- [ ] **Test cross-module references** (helper functions, constants)
+- [ ] Ensure no regression in normal module execution (run full test suite)
+- [ ] Update documentation with implementation notes
+
+**Contingency: If Phase 2 reveals cross-definition issues:**
+- [ ] Add `internal/testing/envaccum.go` (Approach 2)
+- [ ] Modify executor to build accumulated environment
+- [ ] Evaluate harness in that environment
+- [ ] Add integration tests for helper function references
 
 ### Files to Modify/Create
 
+**New files:**
+- `internal/testing/harness.go` - Test harness builder (~80 LOC)
+  - `BuildInlineTestHarness(binding, tests)` - Core transformer
+
 **Modified files:**
-- `internal/elaborate/elaborator.go` - Add nesting mode (~60 LOC added)
-- `internal/testing/executor.go` - Use nesting mode (~20 LOC changed)
-- `internal/testing/executor_test.go` - Add tests (~100 LOC added)
+- `internal/testing/executor.go` - Use harness builder (~30 LOC changed)
+- `internal/testing/harness_test.go` - Unit tests for builder (~120 LOC)
+- `internal/testing/executor_test.go` - Integration tests (~50 LOC added)
 
-**No new files needed.**
+**Contingency (if needed):**
+- `internal/testing/envaccum.go` - Environment accumulator (~50 LOC)
 
-**Total estimated changes:** ~180 LOC
+**Total estimated changes:** ~280 LOC (base) or ~330 LOC (with contingency)
 
 ## Examples
 
@@ -337,10 +393,11 @@ LetRec("add", lambda([x, y], BinOp(x, +, y)),
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Nested elaboration breaks type checking | High | Run full type checker on nested AST, validate CoreTypeInfo |
-| Performance degradation | Low | Nesting is only for test execution, not production code |
-| Breaks existing elaboration | High | Feature flag + extensive regression testing |
-| Complex multi-test nesting | Medium | Start with single test, iterate to multiple |
+| **Cross-definition scoping**: Functions under test that reference helpers/constants may fail if those bindings aren't in harness scope | High | **Phase 2 explicit verification**: Test functions that reference other top-level definitions. If fails, implement Approach 2 (env accumulation) as compatibility layer. |
+| Nested harness breaks type checking | Medium | Harness returns `Tuple([actuals])`, not function type; this is expected. Validate with type checker in tests. |
+| Performance degradation | Low | Harness evaluation is only for tests, not production code path. |
+| Complex multi-test nesting | Low | Harness builder handles this mechanically (fold over tests to build nested Lets). |
+| Breaks existing test infrastructure | Medium | No changes to collector/runner; only executor changes. Run full test suite to verify. |
 
 ## Alternative Approaches Tried
 
