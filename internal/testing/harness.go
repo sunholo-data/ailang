@@ -151,7 +151,7 @@ func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
 	}
 }
 
-// astExprToCore converts a simple AST expression to Core (literals only for now).
+// astExprToCore converts a simple AST expression to Core (literals and composite types).
 // This is a minimal converter for test harness construction.
 func astExprToCore(expr ast.Expr) core.CoreExpr {
 	switch e := expr.(type) {
@@ -164,12 +164,24 @@ func astExprToCore(expr ast.Expr) core.CoreExpr {
 			Value: e.Value,
 		}
 	case *ast.Tuple:
-		// Shouldn't happen in single-arg case, but handle it
+		// Convert tuple elements
 		elements := make([]core.CoreExpr, len(e.Elements))
 		for i, elem := range e.Elements {
 			elements[i] = astExprToCore(elem)
 		}
 		return &core.Tuple{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Elements: elements,
+		}
+	case *ast.List:
+		// Convert list elements
+		elements := make([]core.CoreExpr, len(e.Elements))
+		for i, elem := range e.Elements {
+			elements[i] = astExprToCore(elem)
+		}
+		return &core.List{
 			CoreNode: core.CoreNode{
 				NodeID: nextNodeID(),
 			},

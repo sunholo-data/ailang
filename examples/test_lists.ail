@@ -1,0 +1,61 @@
+module examples/test_lists
+
+// Test list length
+pure func length(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 3),
+    ([1, 2, 3, 4, 5], 5)
+  ]
+{
+  match xs {
+    [] => 0,
+    ::(x, rest) => 1 + length(rest)
+  }
+}
+
+// Test list sum
+pure func sum(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 6),
+    ([10, 20, 30], 60)
+  ]
+{
+  match xs {
+    [] => 0,
+    ::(x, rest) => x + sum(rest)
+  }
+}
+
+// Test list head (first element)
+pure func headOrZero(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([5], 5),
+    ([1, 2, 3], 1)
+  ]
+{
+  match xs {
+    [] => 0,
+    ::(x, _) => x
+  }
+}
+
+// Test list contains
+pure func contains(xs: List[int], target: int) -> bool
+  tests [
+    (([], 5), false),
+    (([1], 1), true),
+    (([1], 2), false),
+    (([1, 2, 3], 2), true),
+    (([1, 2, 3], 4), false)
+  ]
+{
+  match xs {
+    [] => false,
+    ::(x, rest) => if x == target then true else contains(rest, target)
+  }
+}

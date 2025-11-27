@@ -1,0 +1,71 @@
+module examples/test_edge_cases
+
+// Test with zero
+pure func isZero(x: int) -> bool
+  tests [
+    (0, true),
+    (1, false),
+    (-1, false),
+    (100, false)
+  ]
+{
+  x == 0
+}
+
+// Test with negative results
+pure func negate(x: int) -> int
+  tests [
+    (5, -5),
+    (-3, 3),
+    (0, 0)
+  ]
+{
+  0 - x
+}
+
+// Test with floats
+pure func half(x: float) -> float
+  tests [
+    (10.0, 5.0),
+    (0.0, 0.0),
+    (-4.0, -2.0)
+  ]
+{
+  x / 2.0
+}
+
+// Test string equality
+pure func isFoo(s: string) -> bool
+  tests [
+    ("foo", true),
+    ("bar", false),
+    ("", false)
+  ]
+{
+  s == "foo"
+}
+
+// Test with three parameters
+pure func sum3(x: int, y: int, z: int) -> int
+  tests [
+    ((1, 2, 3), 6),
+    ((0, 0, 0), 0),
+    ((-1, 1, 0), 0),
+    ((10, 20, 30), 60)
+  ]
+{
+  x + y + z
+}
+
+// Test nested conditionals
+pure func classify(x: int) -> string
+  tests [
+    (-5, "negative"),
+    (0, "zero"),
+    (5, "positive")
+  ]
+{
+  if x < 0 then "negative"
+  else if x == 0 then "zero"
+  else "positive"
+}
