@@ -15,7 +15,14 @@ module examples/list_pattern_cons
 import std/io (println)
 
 // Example 1: Basic list sum using :: pattern
-func sum(xs: List[int]) -> int {
+pure func sum(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 6),
+    ([10, 20, 30], 60)
+  ]
+{
   match xs {
     [] => 0,
     ::(x, rest) => x + sum(rest)
@@ -23,7 +30,14 @@ func sum(xs: List[int]) -> int {
 }
 
 // Example 2: List length using :: pattern
-func length(xs: List[int]) -> int {
+pure func length(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 3),
+    ([1, 2, 3, 4, 5], 5)
+  ]
+{
   match xs {
     [] => 0,
     ::(_, rest) => 1 + length(rest)
@@ -31,7 +45,14 @@ func length(xs: List[int]) -> int {
 }
 
 // Example 3: Multiple pattern arms with ::
-func describe(xs: List[int]) -> string {
+pure func describe(xs: List[int]) -> string
+  tests [
+    ([], "empty list"),
+    ([42], "singleton: 42"),
+    ([1, 2], "pair: 1, 2"),
+    ([1, 2, 3], "list starting with 1")
+  ]
+{
   match xs {
     [] => "empty list",
     ::(x, []) => "singleton: " ++ show(x),
@@ -41,7 +62,14 @@ func describe(xs: List[int]) -> string {
 }
 
 // Example 4: Nested :: patterns - get second element
-func secondElement(xs: List[int]) -> int {
+pure func secondElement(xs: List[int]) -> int
+  tests [
+    ([1, 2, 3], 2),
+    ([10, 20], 20),
+    ([1], 0),
+    ([], 0)
+  ]
+{
   match xs {
     ::(_, ::(x, rest)) => x,
     _ => 0

@@ -1,11 +1,25 @@
 -- GCD/LCM module for import testing
 module examples/snippets/v3_3/math/gcd
 
-export pure func gcd(a: int, b: int) -> int {
+export pure func gcd(a: int, b: int) -> int
+  tests [
+    ((12, 8), 4),
+    ((54, 24), 6),
+    ((48, 18), 6),
+    ((100, 50), 50),
+    ((17, 19), 1),
+    ((0, 5), 5),
+    ((7, 0), 7)
+  ]
+{
   if b == 0 then a else gcd(b, a % b)
 }
 
-export pure func lcm(a: int, b: int) -> int {
+export pure func lcm(a: int, b: int) -> int
+  -- Note: Inline tests not supported for functions with cross-function dependencies
+  -- (lcm calls gcd, but test harness only extracts single function)
+  -- TODO: M-TESTING-DEPS - Support cross-function dependencies in test harness
+{
   (a * b) / gcd(a, b)
 }
 
