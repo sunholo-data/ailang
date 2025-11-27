@@ -85,7 +85,7 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 		inputExpr := tupleExpr.Elements[0]
 
 		// Build function call: functionName(input)
-		// For multi-arg functions, input will be a tuple we need to uncurry
+		// For multi-arg functions, input will be a tuple we need to pass as multiple args
 		functionCall := buildFunctionCall(binding.Name, inputExpr)
 
 		// Wrap in Let binding
@@ -112,7 +112,9 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 }
 
 // buildFunctionCall builds a Core App expression for calling a function with given argument(s).
-// Handles both single-arg and multi-arg (curried) function calls.
+// Handles both single-arg and multi-arg function calls.
+// IMPORTANT: Core Lambda can have multiple params, so App should pass all args at once,
+// not as curried applications.
 func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
 	funcVar := &core.Var{
 		CoreNode: core.CoreNode{
@@ -121,28 +123,25 @@ func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
 		Name: functionName,
 	}
 
-	// Convert input AST expression to Core
-	// For now, we only handle literals and tuples
-	inputCore := astExprToCore(inputExpr)
-
 	// Check if input is a tuple (multi-arg function)
 	if tuple, ok := inputExpr.(*ast.Tuple); ok && len(tuple.Elements) > 1 {
-		// Multi-arg function: f(a, b, c) becomes ((f a) b) c (curried)
-		var app core.CoreExpr = funcVar
-		for _, elem := range tuple.Elements {
-			elemCore := astExprToCore(elem)
-			app = &core.App{
-				CoreNode: core.CoreNode{
-					NodeID: nextNodeID(),
-				},
-				Func: app,
-				Args: []core.CoreExpr{elemCore},
-			}
+		// Multi-arg function: f(a, b, c) becomes App(f, [a, b, c])
+		// Convert all tuple elements to Core
+		args := make([]core.CoreExpr, len(tuple.Elements))
+		for i, elem := range tuple.Elements {
+			args[i] = astExprToCore(elem)
 		}
-		return app
+		return &core.App{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Func: funcVar,
+			Args: args,
+		}
 	}
 
 	// Single-arg function: f(a)
+	inputCore := astExprToCore(inputExpr)
 	return &core.App{
 		CoreNode: core.CoreNode{
 			NodeID: nextNodeID(),
@@ -175,6 +174,16 @@ func astExprToCore(expr ast.Expr) core.CoreExpr {
 				NodeID: nextNodeID(),
 			},
 			Elements: elements,
+		}
+	case *ast.UnaryOp:
+		// Handle unary operations like -3
+		operand := astExprToCore(e.Expr)
+		return &core.UnOp{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Op:      e.Op,
+			Operand: operand,
 		}
 	default:
 		panic(fmt.Sprintf("unsupported AST expression type in test harness: %T", expr))

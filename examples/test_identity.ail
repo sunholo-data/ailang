@@ -1,0 +1,12 @@
+module examples/test_identity
+
+// Identity function - simplest possible
+pure func identity(x: int) -> int
+  tests [
+    (5, 5),
+    (0, 0),
+    (-3, -3)
+  ]
+{
+  x
+}

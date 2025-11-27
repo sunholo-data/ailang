@@ -193,12 +193,26 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	// Search for the function binding in Core.Decls
+	// Handle both LetRec (recursive functions) and Let (non-recursive functions)
 	for _, decl := range result.Artifacts.Core.Decls {
+		// Try LetRec first (recursive functions like factorial)
 		if letRec, ok := decl.(*core.LetRec); ok {
 			for _, binding := range letRec.Bindings {
 				if binding.Name == functionName {
 					return &binding, nil
 				}
+			}
+		}
+
+		// Also try Let (non-recursive functions like identity, add, max)
+		if let, ok := decl.(*core.Let); ok {
+			if let.Name == functionName {
+				// Convert Let to RecBinding format
+				binding := core.RecBinding{
+					Name:  let.Name,
+					Value: let.Value,
+				}
+				return &binding, nil
 			}
 		}
 	}
@@ -328,7 +342,28 @@ func (e *Executor) reconstructSource(file *ast.File, functionName string) string
 
 // EvaluateLiteral converts an AST literal expression to an eval.Value.
 // This is a simplified version that only handles basic literals (int, float, bool, string).
+// Also handles UnaryOp for negative numbers.
 func (e *Executor) EvaluateLiteral(expr ast.Expr) (eval.Value, error) {
+	// Handle UnaryOp (e.g., -3)
+	if unop, ok := expr.(*ast.UnaryOp); ok {
+		if unop.Op == "-" {
+			// Get the operand value
+			operand, err := e.EvaluateLiteral(unop.Expr)
+			if err != nil {
+				return nil, err
+			}
+			// Negate it
+			if intVal, ok := operand.(*eval.IntValue); ok {
+				return &eval.IntValue{Value: -intVal.Value}, nil
+			}
+			if floatVal, ok := operand.(*eval.FloatValue); ok {
+				return &eval.FloatValue{Value: -floatVal.Value}, nil
+			}
+			return nil, fmt.Errorf("cannot negate non-numeric value: %T", operand)
+		}
+		return nil, fmt.Errorf("unsupported unary operator: %s", unop.Op)
+	}
+
 	lit, ok := expr.(*ast.Literal)
 	if !ok {
 		return nil, fmt.Errorf("expected literal expression, got %T", expr)
