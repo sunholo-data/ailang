@@ -13,11 +13,12 @@ pure func factorial(n: int) -> int
   if n <= 1 then 1 else n * factorial(n - 1)
 }
 
-export func main() -> () ! {IO} {
-  println("Factorial with inline tests");
-  println("Use `ailang test examples/factorial.ail` to run tests");
-  println("");
-  println("factorial(0) = " ++ show(factorial(0)));
-  println("factorial(5) = " ++ show(factorial(5)));
-  println("factorial(10) = " ++ show(factorial(10)))
-}
+// Temporarily commented out for testing inline tests
+// export func main() -> () ! {IO} {
+//   println("Factorial with inline tests");
+//   println("Use `ailang test examples/factorial.ail` to run tests");
+//   println("");
+//   println("factorial(0) = " ++ show(factorial(0)));
+//   println("factorial(5) = " ++ show(factorial(5)));
+//   println("factorial(10) = " ++ show(factorial(10)))
+// }

@@ -101,8 +101,8 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 			}
 			actualValue := actualsTuple.Elements[i]
 
-			// Evaluate expected expression
-			expectedValue, err := r.executor.EvaluateExpression(expected)
+			// Evaluate expected expression (should be a simple literal)
+			expectedValue, err := r.executor.EvaluateLiteral(expected)
 			if err != nil {
 				result.Status = StatusFail
 				result.Error = fmt.Sprintf("test %d: failed to evaluate expected: %v", i, err)

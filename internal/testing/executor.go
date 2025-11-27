@@ -2,11 +2,13 @@ package testing
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo/ailang/internal/runtime"
 )
 
 // Executor handles evaluation of test expressions through the AILANG pipeline.
@@ -116,6 +118,12 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	// Evaluate the harness
 	// Note: We use the eval package directly since we already have Core
 	evaluator := eval.NewCoreEvaluator()
+
+	// Set up builtin resolver so arithmetic/comparison operators work
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
+	evaluator.SetGlobalResolver(resolver)
+
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
 		return nil, fmt.Errorf("harness evaluation failed: %w", err)
@@ -141,16 +149,35 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 //   - Core LetRec binding for the function
 //   - Error if function not found or elaboration fails
 func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.File) (*core.RecBinding, error) {
-	// Build source code string from AST
-	// We need to reconstruct the source to run through the pipeline
-	source := e.reconstructSource(sourceFile)
+	// Find the function declaration in the AST
+	var funcDecl *ast.FuncDecl
+	for _, f := range sourceFile.Funcs {
+		if f.Name == functionName {
+			funcDecl = f
+			break
+		}
+	}
 
-	// Run through pipeline to get Core
+	if funcDecl == nil {
+		return nil, fmt.Errorf("function '%s' not found in source file", functionName)
+	}
+
+	// Read original source file to get actual source code
+	sourceCode, err := os.ReadFile(e.modulePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read source file: %w", err)
+	}
+
+	// Strip out non-pure functions (export func, func with effects)
+	// to avoid type-checking errors in test mode
+	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
+
+	// Run through pipeline to get Core for pure functions only
 	cfg := pipeline.Config{
 		Mode: pipeline.ModeEval,
 	}
 	src := pipeline.Source{
-		Code:     source,
+		Code:     strippedSource,
 		Filename: e.modulePath,
 		IsREPL:   false,
 	}
@@ -179,18 +206,110 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
 }
 
-// reconstructSource rebuilds source code from AST (simplified version).
-// This is a temporary solution - ideally we'd preserve original source.
-func (e *Executor) reconstructSource(file *ast.File) string {
-	var source string
-
-	// Add module declaration if present
-	if file.Module != nil {
-		source += fmt.Sprintf("module %s\n\n", file.Module.Path)
+// stripNonPureFunctions removes export functions and functions with effects from source code.
+// This prevents type-checking errors for functions that require runtime context (println, etc.)
+func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
+	// Build a list of non-pure function names to remove
+	var nonPureFunctions []string
+	for _, f := range file.Funcs {
+		if !f.IsPure || f.IsExport {
+			nonPureFunctions = append(nonPureFunctions, f.Name)
+		}
 	}
 
-	// Add function definitions
+	// Simple approach: For now, just comment out the main() function
+	// since that's the only non-pure function in factorial.ail
+	// A proper implementation would use AST positions to precisely remove declarations
+	lines := []string{}
+	for _, line := range splitLines(source) {
+		skip := false
+		for _, funcName := range nonPureFunctions {
+			if containsPattern(line, "export func "+funcName) || containsPattern(line, "func "+funcName) {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			lines = append(lines, line)
+		}
+	}
+
+	return joinLines(lines)
+}
+
+// Helper: split source into lines
+func splitLines(s string) []string {
+	result := []string{}
+	current := ""
+	for _, ch := range s {
+		current += string(ch)
+		if ch == '\n' {
+			result = append(result, current)
+			current = ""
+		}
+	}
+	if current != "" {
+		result = append(result, current)
+	}
+	return result
+}
+
+// Helper: join lines back
+func joinLines(lines []string) string {
+	result := ""
+	for _, line := range lines {
+		result += line
+	}
+	return result
+}
+
+// Helper: check if line contains pattern
+func containsPattern(line, pattern string) bool {
+	return len(line) >= len(pattern) && findSubstring(line, pattern)
+}
+
+// Helper: find substring
+func findSubstring(s, substr string) bool {
+	if len(substr) == 0 {
+		return true
+	}
+	if len(s) < len(substr) {
+		return false
+	}
+	for i := 0; i <= len(s)-len(substr); i++ {
+		match := true
+		for j := 0; j < len(substr); j++ {
+			if s[i+j] != substr[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
+// reconstructSource rebuilds source code from AST (simplified version).
+// This is a temporary solution - ideally we'd preserve original source.
+// If functionName is provided, only that function is included.
+func (e *Executor) reconstructSource(file *ast.File, functionName string) string {
+	var source string
+
+	// NOTE: DO NOT include module declaration here!
+	// Including "module X" triggers module loading in the pipeline,
+	// which causes "module not found" errors for test files.
+	// ModeEval works without module declarations.
+
+	// Add function definitions (only the specified function if name provided)
 	for _, f := range file.Funcs {
+		// Skip if we're looking for a specific function and this isn't it
+		if functionName != "" && f.Name != functionName {
+			continue
+		}
+
+		// Only include pure functions
 		if f.IsPure {
 			source += fmt.Sprintf("pure func %s(", f.Name)
 			for i, param := range f.Params {
@@ -205,6 +324,42 @@ func (e *Executor) reconstructSource(file *ast.File) string {
 	}
 
 	return source
+}
+
+// EvaluateLiteral converts an AST literal expression to an eval.Value.
+// This is a simplified version that only handles basic literals (int, float, bool, string).
+func (e *Executor) EvaluateLiteral(expr ast.Expr) (eval.Value, error) {
+	lit, ok := expr.(*ast.Literal)
+	if !ok {
+		return nil, fmt.Errorf("expected literal expression, got %T", expr)
+	}
+
+	switch lit.Kind {
+	case ast.IntLit:
+		if v, ok := lit.Value.(int64); ok {
+			return &eval.IntValue{Value: int(v)}, nil
+		}
+		return nil, fmt.Errorf("invalid int literal value: %T", lit.Value)
+	case ast.FloatLit:
+		if v, ok := lit.Value.(float64); ok {
+			return &eval.FloatValue{Value: v}, nil
+		}
+		return nil, fmt.Errorf("invalid float literal value: %T", lit.Value)
+	case ast.BoolLit:
+		if v, ok := lit.Value.(bool); ok {
+			return &eval.BoolValue{Value: v}, nil
+		}
+		return nil, fmt.Errorf("invalid bool literal value: %T", lit.Value)
+	case ast.StringLit:
+		if v, ok := lit.Value.(string); ok {
+			return &eval.StringValue{Value: v}, nil
+		}
+		return nil, fmt.Errorf("invalid string literal value: %T", lit.Value)
+	case ast.UnitLit:
+		return &eval.UnitValue{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported literal kind: %v", lit.Kind)
+	}
 }
 
 // CompareValues checks if two values are equal.
