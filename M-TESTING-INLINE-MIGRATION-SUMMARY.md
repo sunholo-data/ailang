@@ -18,7 +18,7 @@
 | test_simple.ail | add, max, negate | 10 | ✅ |
 | test_edge_cases.ail | various | 20 | ✅ |
 | test_lists.ail | length, sum, headOrZero, contains | 16 | ✅ |
-| **TOTAL** | **22 functions** | **108 tests** | **✅** |
+| **TOTAL** | **22 functions** | **98 tests** | **✅** |
 
 ## Known Limitations
 
@@ -81,11 +81,11 @@
 
 ## Success Metrics
 
-- ✅ 108 inline tests passing
+- ✅ 98 inline tests passing
 - ✅ 22 pure functions with comprehensive test coverage
 - ✅ Main functions coexist with inline tests
 - ✅ Zero false positives or test brittleness
-- ✅ Fast execution (~50-100ms per file)
+- ✅ Fast execution (~10-60ms per file)
 
 ## Conclusion
 
