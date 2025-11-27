@@ -1,7 +1,7 @@
 from data import User, validateEmail
 from storage import saveUser, loadUser
 
-def main():
+def main() -> None:
     user = User("Alice", 30, "alice@example.com")
     valid = validateEmail(user.email)
     print(f"Email valid: {valid}")

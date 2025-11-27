@@ -1,16 +1,21 @@
 import json
+from pathlib import Path
 from data import User
+from typing import Any, Dict
 
-def saveUser(user, filename):
-    data = {
+def saveUser(user: User, filename: str) -> None:
+    data: Dict[str, Any] = {
         "name": user.name,
         "age": user.age,
         "email": user.email
     }
-    with open(filename, "w") as f:
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
         json.dump(data, f)
 
-def loadUser(filename):
-    with open(filename, "r") as f:
+def loadUser(filename: str) -> User:
+    path = Path(filename)
+    with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
     return User(data["name"], data["age"], data["email"])

@@ -6,7 +6,7 @@ import std/json (encode, decode)
 func saveUser(user: User, filename: string) !: FS -> () =
   // Encode user to JSON string
   // Write to file
-  let json = "{"name":"" ++ user.name ++ "","age":" ++ show(user.age) ++ ","email":"" ++ user.email ++ ""}" in
+  let json = "{\"name\":\"" ++ user.name ++ "\",\"age\":" ++ show(user.age) ++ \",\"email\":\"" ++ user.email ++ "\"}" in
   writeFile(filename, json)
 
 func loadUser(filename: string) !: FS -> User =
