@@ -188,6 +188,76 @@ Hello World :: String
 λ> :quit
 ```
 
+## <Icon name="check" inline /> Testing Your Code
+
+**NEW in v0.4.5**: AILANG now supports **inline tests** for pure functions!
+
+### Writing Inline Tests
+
+Add tests directly to your function definitions:
+
+```typescript
+-- Single-parameter function
+pure func factorial(n: int) -> int
+  tests [
+    (0, 1),
+    (1, 1),
+    (5, 120),
+    (10, 3628800)
+  ]
+{
+  if n <= 1 then 1 else n * factorial(n - 1)
+}
+
+-- Multi-parameter functions use tuple syntax
+pure func add(x: int, y: int) -> int
+  tests [
+    ((1, 2), 3),
+    ((5, 7), 12)
+  ]
+{
+  x + y
+}
+```
+
+### Running Tests
+
+```bash
+ailang test examples/factorial.ail
+```
+
+Output:
+```
+→ Running tests in examples/factorial.ail
+
+Test Results
+Module: All Tests
+
+Tests:
+  ✓ factorial_test_1 (1.5ms)
+  ✓ factorial_test_2 (800µs)
+  ✓ factorial_test_3 (1.2ms)
+  ✓ factorial_test_4 (900µs)
+
+────────────────────────────────────────────
+✓ All tests passed!
+
+4 tests: 4 passed, 0 failed, 0 skipped (4.4ms)
+```
+
+**Key features:**
+- <CheckIcon inline size={14} /> Tests run automatically on every test invocation
+- <CheckIcon inline size={14} /> Fast execution (~10-60ms per file)
+- <CheckIcon inline size={14} /> Works alongside `export func main()` - no conflicts!
+- <CheckIcon inline size={14} /> Supports all data types: int, float, bool, string, lists, tuples
+
+**Limitations:**
+- Only works for self-contained pure functions
+- Functions calling other user-defined functions not yet supported
+- Effect mocking not yet supported
+
+See the [Language Reference](/docs/reference/language-syntax#inline-tests-v045) for complete documentation.
+
 ## <Icon name="check" inline /> Working Examples
 
 The following examples are confirmed to work with the current implementation:
