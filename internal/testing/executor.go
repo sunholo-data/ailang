@@ -221,13 +221,14 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
 }
 
-// stripNonPureFunctions removes export functions and functions with effects from source code.
+// stripNonPureFunctions removes functions with effects from source code.
 // This prevents type-checking errors for functions that require runtime context (println, etc.)
+// Note: Exported pure functions are KEPT (they're testable via inline tests).
 func (e *Executor) stripNonPureFunctions(source string, file *ast.File) string {
 	// Build a list of non-pure function names to remove
 	var nonPureFunctions []string
 	for _, f := range file.Funcs {
-		if !f.IsPure || f.IsExport {
+		if !f.IsPure {
 			nonPureFunctions = append(nonPureFunctions, f.Name)
 		}
 	}

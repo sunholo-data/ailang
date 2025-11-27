@@ -16,9 +16,14 @@ export pure func gcd(a: int, b: int) -> int
 }
 
 export pure func lcm(a: int, b: int) -> int
-  -- Note: Inline tests not supported for functions with cross-function dependencies
-  -- (lcm calls gcd, but test harness only extracts single function)
-  -- TODO: M-TESTING-DEPS - Support cross-function dependencies in test harness
+  -- Now supported! M-TESTING-DEPS enables testing functions with cross-function dependencies
+  tests [
+    ((4, 6), 12),
+    ((3, 5), 15),
+    ((12, 18), 36),
+    ((7, 3), 21),
+    ((1, 10), 10)
+  ]
 {
   (a * b) / gcd(a, b)
 }

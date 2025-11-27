@@ -70,13 +70,28 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 			return result
 		}
 
-		// Evaluate all tests using harness builder
-		actualsTuple, err := r.executor.EvaluateInlineTestsWithHarness(*binding, []TestCase{testCase})
-		if err != nil {
-			result.Status = StatusFail
-			result.Error = fmt.Sprintf("harness evaluation failed: %v", err)
-			result.Duration = time.Since(start)
-			return result
+		// Check if function has cross-function dependencies
+		// If so, use cluster evaluation to include all dependencies
+		var actualsTuple *eval.TupleValue
+		cluster, coreProg, clusterErr := r.executor.ExtractPureClusterForFunction(testCase.FunctionCtx, r.executor.sourceFile)
+		if clusterErr == nil && cluster != nil && cluster.HasDependencies() {
+			// Function has dependencies - use cluster harness
+			actualsTuple, err = r.executor.EvaluateInlineTestsWithCluster(testCase.FunctionCtx, []TestCase{testCase}, coreProg)
+			if err != nil {
+				result.Status = StatusFail
+				result.Error = fmt.Sprintf("cluster harness evaluation failed: %v", err)
+				result.Duration = time.Since(start)
+				return result
+			}
+		} else {
+			// No dependencies or cluster extraction failed - use single-binding harness
+			actualsTuple, err = r.executor.EvaluateInlineTestsWithHarness(*binding, []TestCase{testCase})
+			if err != nil {
+				result.Status = StatusFail
+				result.Error = fmt.Sprintf("harness evaluation failed: %v", err)
+				result.Duration = time.Since(start)
+				return result
+			}
 		}
 
 		// Compare each actual to expected

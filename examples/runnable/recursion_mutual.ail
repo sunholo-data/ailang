@@ -7,14 +7,28 @@ module examples/runnable/recursion_mutual
 import std/io (println)
 
 -- Mutually recursive functions to test even/odd
--- Note: Inline tests not supported for mutually recursive functions
--- (test harness extracts single function, but isEven/isOdd depend on each other)
--- TODO: M-TESTING-DEPS - Support cross-function dependencies in test harness
-export func isEven(n: int) -> bool {
+-- Now supported! M-TESTING-DEPS enables testing mutually recursive functions
+export pure func isEven(n: int) -> bool
+  tests [
+    (0, true),
+    (1, false),
+    (2, true),
+    (10, true),
+    (17, false)
+  ]
+{
   if n == 0 then true else isOdd(n - 1)
 }
 
-export func isOdd(n: int) -> bool {
+export pure func isOdd(n: int) -> bool
+  tests [
+    (0, false),
+    (1, true),
+    (2, false),
+    (10, false),
+    (17, true)
+  ]
+{
   if n == 0 then false else isEven(n - 1)
 }
 
