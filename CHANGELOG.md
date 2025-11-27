@@ -1,5 +1,67 @@
 # AILANG Changelog
 
+## [v0.4.7] - 2025-11-27
+
+### Added - Cross-Function Dependency Support for Inline Tests (M-TESTING-DEPS) 🧪
+
+**User Impact**: Inline tests now work for functions that call other user-defined functions! This enables testing functions like `lcm` that depend on `gcd`, and mutual recursion patterns like `isEven`/`isOdd`.
+
+**What Was Added**:
+1. **Call Graph Analysis** (~200 LOC in internal/testing/)
+   - Tarjan's algorithm for strongly connected component (SCC) detection
+   - Identifies mutual recursion (isEven↔isOdd) and chain dependencies (lcm→gcd)
+   - Pure cluster extraction includes all dependencies automatically
+
+2. **Cluster Harness Building** (~150 LOC)
+   - Multi-binding LetRec for testing functions with dependencies
+   - Strips non-pure functions to prevent type-checking errors
+   - Preserves exported pure functions (fix: was incorrectly stripping them)
+
+3. **Runner Integration** (~50 LOC in internal/testing/runner.go)
+   - Automatically detects if function has cross-function dependencies
+   - Routes to cluster evaluation or single-binding evaluation as appropriate
+   - Seamless UX - users don't need to know about the underlying complexity
+
+4. **New Example File** (`examples/test_cross_function_deps.ail`)
+   - 38 tests demonstrating 4 dependency patterns:
+     - Chain dependencies (lcm→gcd)
+     - Mutual recursion (isEven↔isOdd)
+     - Helper function chains (sumOfSquares→square)
+     - Multi-level chains (power→multiply→add)
+
+**Example:**
+```ailang
+-- GCD (Euclidean algorithm)
+export pure func gcd(a: int, b: int) -> int
+  tests [((12, 8), 4), ((15, 5), 5), ((7, 3), 1)]
+{ if b == 0 then a else gcd(b, a % b) }
+
+-- LCM calls gcd - tests work automatically!
+export pure func lcm(a: int, b: int) -> int
+  tests [((4, 6), 12), ((3, 5), 15), ((12, 18), 36)]
+{ (a * b) / gcd(a, b) }
+```
+
+**Total inline tests**: 150+ tests across 12+ example files (up from 98 in v0.4.6)
+
+### Added - Claude Opus 4.5 to Model Manager
+
+- Added `claude-opus-4-5` to eval suite (`claude-opus-4-5-20251101`)
+- Pricing: $5/$25 per million tokens (input/output)
+- 80.9% SWE-bench score - state-of-the-art for coding
+- Full agent CLI support via Claude Code
+
+### Changed - Teaching Prompt v0.4.7
+
+- Added inline tests to key examples (factorial, sum, length, treeSum, add)
+- Added "Cross-Function Dependencies" section showcasing M-TESTING-DEPS
+- Examples now serve as executable documentation
+
+### Fixed - Model Manager Script
+
+- Fixed `run_test_benchmark.sh` JSON parsing (key was `stdout_ok` not `result`)
+- Fixed recursive file search for results in subdirectories
+
 ## [v0.4.5] - 2025-11-16
 
 ### Fixed - String Concatenation (`++`) Operator Type Inference (M-BUG-CONCAT-INFERENCE) 🐛
