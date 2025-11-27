@@ -4,34 +4,29 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/types"
 )
 
 // Executor handles evaluation of test expressions through the AILANG pipeline.
 type Executor struct {
-	typeEnv      *types.TypeEnv
-	instEnv      *types.InstanceEnv
-	dictReg      *types.DictionaryRegistry
-	evalEnv      *eval.Environment
-	coreEval     *eval.CoreEvaluator
-	modulePath   string
-	enableDebug  bool
+	modulePath  string
+	sourceFile  *ast.File // Full source file for context
+	enableDebug bool
 }
 
-// NewExecutor creates a new test executor with default environments.
+// NewExecutor creates a new test executor.
 func NewExecutor(modulePath string) *Executor {
 	return &Executor{
-		typeEnv:     types.NewTypeEnvWithBuiltins(),
-		instEnv:     types.LoadBuiltinInstances(),
-		dictReg:     types.NewDictionaryRegistry(),
-		evalEnv:     eval.NewEnvironment(),
-		coreEval:    eval.NewCoreEvaluator(),
 		modulePath:  modulePath,
+		sourceFile:  nil,
 		enableDebug: false,
 	}
+}
+
+// SetSourceFile sets the source file to provide context for test evaluation.
+func (e *Executor) SetSourceFile(file *ast.File) {
+	e.sourceFile = file
 }
 
 // SetDebug enables debug output for test execution.
@@ -39,83 +34,57 @@ func (e *Executor) SetDebug(debug bool) {
 	e.enableDebug = debug
 }
 
-// EvaluateExpression evaluates a Surface AST expression through the full pipeline.
-// This follows the same pattern as REPL evaluation (pipeline_single.go).
+// EvaluateExpression evaluates a Surface AST expression through the pipeline.
+// Uses ModeEval to properly handle function definitions and expression evaluation.
 func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
-	// Phase 1: For simple evaluation, just wrap the expression directly
-	// The pipeline will handle the rest
-	syntheticFile := &ast.File{
-		Module: &ast.ModuleDecl{
-			Path: "_test/expr",
-			Pos:  ast.Pos{Line: 1, Column: 1},
-		},
-		Statements: []ast.Node{expr},
+	// Build synthetic source with pure functions + test expression
+	// NOTE: No module declaration - this triggers ModeEval for direct evaluation
+	var sourceParts []string
+
+	// Include pure function definitions (not main() with effects)
+	if e.sourceFile != nil {
+		for _, f := range e.sourceFile.Funcs {
+			if f.IsPure {
+				// Reconstruct function source from AST
+				// This is a simplified reconstruction - full version would preserve exact source
+				funcSrc := fmt.Sprintf("pure func %s(", f.Name)
+				for i, param := range f.Params {
+					if i > 0 {
+						funcSrc += ", "
+					}
+					funcSrc += fmt.Sprintf("%s: %v", param.Name, param.Type)
+				}
+				funcSrc += fmt.Sprintf(") -> %v {\n", f.ReturnType)
+				funcSrc += "  " + fmt.Sprintf("%v", f.Body) + "\n}\n\n"
+				sourceParts = append(sourceParts, funcSrc)
+			}
+		}
 	}
 
-	// Phase 2: Elaborate to Core
-	elaborator := elaborate.NewElaboratorWithPath(e.modulePath)
-	elaborator.AddBuiltinsToGlobalEnv()
-	coreProg, err := elaborator.ElaborateFile(syntheticFile)
+	// Add test expression
+	sourceParts = append(sourceParts, fmt.Sprintf("%v", expr))
+
+	source := ""
+	for _, part := range sourceParts {
+		source += part
+	}
+
+	// Use pipeline with ModeEval (non-module evaluation)
+	cfg := pipeline.Config{
+		Mode: pipeline.ModeEval,
+	}
+	src := pipeline.Source{
+		Code:     source,
+		Filename: "_test.ail",
+		IsREPL:   false,
+	}
+
+	result, err := pipeline.Run(cfg, src)
 	if err != nil {
-		return nil, fmt.Errorf("elaboration error: %w", err)
+		return nil, err
 	}
 
-	if len(coreProg.Decls) == 0 {
-		return nil, fmt.Errorf("elaboration produced no declarations")
-	}
-
-	// Phase 3: Type Check
-	typeChecker := types.NewCoreTypeCheckerWithInstances(e.instEnv)
-	coreExpr := coreProg.Decls[0]
-	typedNode, _, _, constraints, err := typeChecker.InferWithConstraints(coreExpr, e.typeEnv)
-	if err != nil {
-		return nil, fmt.Errorf("type error: %w", err)
-	}
-
-	// Phase 3.4: Dictionary Elaboration
-	resolved := typeChecker.GetResolvedConstraints()
-	elaboratedProg, err := elaborate.ElaborateWithDictionaries(coreProg, resolved)
-	if err != nil {
-		return nil, fmt.Errorf("dictionary elaboration error: %w", err)
-	}
-
-	// Phase 3.5: Validate CoreTypeInfo before monomorphization
-	if err := pipeline.ValidateCoreTypeInfo(elaboratedProg, typeChecker.CoreTI); err != nil {
-		return nil, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
-	}
-
-	// Phase 3.6: Monomorphization
-	specializer := pipeline.NewSpecializer(&typeChecker.CoreTI)
-	specializedProg, err := specializer.Specialize(elaboratedProg)
-	if err != nil {
-		return nil, fmt.Errorf("monomorphization error: %w", err)
-	}
-
-	// Phase 4: Var Type Resolution (modifies in place)
-	resolver := pipeline.NewVarResolver(typeChecker.CoreTI)
-	resolver.Resolve(specializedProg)
-
-	// Phase 5: Operator Lowering
-	lowerer := pipeline.NewOpLowerer(e.typeEnv, typeChecker.CoreTI)
-	loweredProg, err := lowerer.Lower(specializedProg)
-	if err != nil {
-		return nil, fmt.Errorf("operator lowering error: %w", err)
-	}
-
-	// Phase 6: Evaluate
-	if len(loweredProg.Decls) == 0 {
-		return nil, fmt.Errorf("no declarations to evaluate")
-	}
-
-	value, err := e.coreEval.Eval(loweredProg.Decls[0])
-	if err != nil {
-		return nil, fmt.Errorf("runtime error: %w", err)
-	}
-
-	_ = typedNode
-	_ = constraints
-
-	return value, nil
+	return result.Value, nil
 }
 
 // CompareValues checks if two values are equal.

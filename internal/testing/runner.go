@@ -205,6 +205,8 @@ func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
 
 	// Run tests
 	runner := NewRunner(filePath)
+	// Provide source file context to executor
+	runner.executor.SetSourceFile(ast)
 	result := runner.RunSuite(suite)
 
 	return result, nil

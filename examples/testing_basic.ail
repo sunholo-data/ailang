@@ -1,3 +1,5 @@
+module testing/basic
+
 // Basic Testing Examples for AILANG
 // Demonstrates unit tests and property-based tests
 
@@ -138,3 +140,12 @@ property "map preserves length" (xs: list(int), f: int -> int) =
 
 property "filter reduces or preserves length" (xs: list(int), p: int -> bool) =
   length(filter(p, xs)) <= length(xs)
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+export func main() -> () ! {IO} {
+  println("Basic Testing Examples");
+  println("Use `ailang test examples/testing_basic.ail` to run tests")
+}

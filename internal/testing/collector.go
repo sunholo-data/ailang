@@ -97,11 +97,31 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 	if decl.Tests != nil {
 		for i, testCase := range decl.Tests {
 			// Each TestCase has Inputs and Expected fields
-			// For now, we create a test expression that checks: funcName(inputs...) == expected
-			// In full implementation, we'd evaluate this properly
+			// Build tuple of (inputs, expected) for each test case
+			// For single-arg functions: (input, expected)
+			// For multi-arg functions: ((arg1, arg2, ...), expected)
+
+			var inputExpr ast.Expr
+			if len(testCase.Inputs) == 1 {
+				// Single argument: use it directly
+				inputExpr = testCase.Inputs[0]
+			} else {
+				// Multiple arguments: wrap in tuple
+				inputExpr = &ast.Tuple{
+					Elements: testCase.Inputs,
+					Pos:      testCase.Pos,
+				}
+			}
+
+			// Build tuple: (input, expected)
+			tupleExpr := &ast.Tuple{
+				Elements: []ast.Expr{inputExpr, testCase.Expected},
+				Pos:      testCase.Pos,
+			}
+
 			tc := TestCase{
 				Name:        fmt.Sprintf("%s_test_%d", funcName, i+1), // e.g., "factorial_test_1"
-				Body:        []ast.Expr{testCase.Expected},            // Store expected as body for now
+				Body:        []ast.Expr{tupleExpr},                    // Store as tuple (input, expected)
 				Location:    testCase.Pos,
 				IsInline:    true,
 				FunctionCtx: funcName,
