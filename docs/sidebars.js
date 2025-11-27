@@ -33,6 +33,7 @@ const sidebars = {
         'guides/claude-code-integration',
         'guides/hooks-setup',
         'guides/agent-workflows',
+        'guides/state-system-workflow',
         'guides/agent-integration',
       ],
     },

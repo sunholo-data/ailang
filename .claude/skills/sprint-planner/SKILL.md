@@ -58,6 +58,24 @@ https://sunholo-data.github.io/ailang/docs/reference/language-syntax
 - Look in `docs/docs/` to verify the file exists locally
 - Use `ls docs/docs/reference/` or `ls docs/docs/guides/` to find available pages
 
+## Role in Long-Running Agent Pattern
+
+**sprint-planner acts as the "Initializer" agent** in the two-phase pattern from [Anthropic's long-running agent article](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
+
+- **Initializer (sprint-planner)**: Creates infrastructure for execution
+  - Analyzes design docs and calculates velocity
+  - Creates markdown sprint plan (human-readable)
+  - **NEW**: Creates JSON progress file (machine-readable)
+  - Sets up session resumption infrastructure
+  - Sends handoff message to sprint-executor
+
+- **Coding Agent (sprint-executor)**: Works incrementally across sessions
+  - Reads JSON progress file on each session start
+  - Updates only `passes` field as milestones complete
+  - Can pause/resume work across multiple sessions
+
+This separation enables **multi-session continuity** - sprints can span days or weeks with Claude resuming work from where it left off.
+
 ## Available Scripts
 
 ### `scripts/analyze_velocity.sh [days]`
@@ -94,7 +112,41 @@ Based on CHANGELOG entries and git history, estimate:
 - Current development pace
 ```
 
+### `scripts/create_sprint_json.sh <sprint_id> <sprint_plan_md> [design_doc_md]`
+**NEW**: Create structured JSON progress file for multi-session sprint execution.
+
+**Usage:**
+```bash
+# Create JSON progress file from sprint plan
+.claude/skills/sprint-planner/scripts/create_sprint_json.sh \
+  "M-S1" \
+  "design_docs/planned/v0_4_0/m-s1-sprint-plan.md" \
+  "design_docs/planned/v0_4_0/m-s1-parser-improvements.md"
+```
+
+**What it does:**
+- Creates `.ailang/state/sprints/sprint_<id>.json` with feature list
+- Implements "constrained modification" pattern (only `passes` field changes)
+- Enables session resumption via structured state
+- Provides template for milestone details (to be filled in)
+
+**Output:**
+- JSON progress file at `.ailang/state/sprints/sprint_<id>.json`
+- Validation check
+- Next steps instructions (edit JSON, send handoff message)
+
+**File Organization:**
+Sprint JSON files are stored in `.ailang/state/sprints/` to keep the state directory organized.
+
+**Integration with sprint-executor:**
+After creating the JSON file, sprint-executor can:
+- Resume work across multiple Claude Code sessions
+- Track progress programmatically
+- Update velocity metrics automatically
+
 ## Sprint Planning Workflow
+
+**CRITICAL: Always end by handing off to sprint-executor after user approval!**
 
 ### 1. Read and Analyze Design Document
 
@@ -168,7 +220,7 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
 
 **Once approved:**
 ```bash
-# Create sprint plan document
+# Create sprint plan document (markdown - human-readable)
 # Naming: M-<type><number>.md (M-P1 for parser, M-T1 for types, etc.)
 ```
 
@@ -180,10 +232,55 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
 - Estimated LOC
 - Dependencies
 
-**Commit:**
+**NEW: Create JSON progress file (machine-readable):**
+```bash
+# Create structured progress file for multi-session execution
+.claude/skills/sprint-planner/scripts/create_sprint_json.sh \
+  "<sprint-id>" \
+  "design_docs/planned/vX_Y/<sprint-id>-plan.md" \
+  "design_docs/planned/vX_Y/<feature>-design.md"
+
+# Edit the generated JSON to fill in actual milestone details
+# Location: .ailang/state/sprints/sprint_<id>.json
+```
+
+### 8. ALWAYS Hand Off to sprint-executor
+
+**CRITICAL: After creating an approved sprint plan, ALWAYS hand off to sprint-executor immediately.**
+
+This is the standard workflow:
+1. **sprint-planner** (this skill): Creates plan + JSON progress file
+2. **sprint-executor** (implementation agent): Executes the plan with TDD
+
+**Send handoff message:**
+```bash
+ailang agent send sprint-executor '{
+  "type": "plan_ready",
+  "correlation_id": "sprint_<sprint-id>_<date>",
+  "sprint_id": "<sprint-id>",
+  "plan_path": "design_docs/planned/vX_Y/<sprint-id>-plan.md",
+  "progress_path": ".ailang/state/sprints/sprint_<id>.json",
+  "estimated_duration": "X days (Y hours)",
+  "milestones": [
+    {"id": "M1", "name": "...", "estimated_hours": X},
+    {"id": "M2", "name": "...", "estimated_hours": Y}
+  ],
+  "discovery": "Key findings from analysis",
+  "total_loc_estimate": N,
+  "risk_level": "low|medium|high"
+}'
+```
+
+**Why this workflow?**
+- sprint-executor specializes in TDD, continuous linting, progress tracking
+- Enables multi-session work (sprints can span days/weeks)
+- Proper separation of concerns: planning vs execution
+
+**Optional: Commit before handoff:**
 ```bash
 git add design_docs/YYYYMMDD/M-<milestone>.md
-git commit -m "Add M-<milestone> sprint plan"
+git add .ailang/state/sprints/sprint_<id>.json
+git commit -m "Add M-<milestone> sprint plan with JSON progress tracking"
 ```
 
 ## Analysis Framework

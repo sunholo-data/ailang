@@ -50,15 +50,19 @@ func agentAckCommand() {
 
 // ackMessage acknowledges a single message by moving it from unread to read/processed
 func ackMessage(stateDir, messageID string) error {
-	// Check if SQLite database exists
+	// Try SQLite database first if it exists
 	dbPath := messaging.GetDefaultDatabasePath()
 	if messaging.DatabaseExists(dbPath) {
-		return ackMessageSQLite(dbPath, messageID)
+		err := ackMessageSQLite(dbPath, messageID)
+		if err == nil {
+			return nil // Success - message found in SQLite
+		}
+		// Message not in SQLite, try file-based inbox
 	}
 
 	// Fall back to file-based inbox
-	// Try to acknowledge from different inbox locations
-	locations := []struct {
+	// First try legacy locations (user inbox, claude-code)
+	legacyLocations := []struct {
 		dir  string
 		name string
 	}{
@@ -66,7 +70,7 @@ func ackMessage(stateDir, messageID string) error {
 		{filepath.Join(".", ".ailang", "state", "messages", "claude-code"), "claude-code inbox"},
 	}
 
-	for _, loc := range locations {
+	for _, loc := range legacyLocations {
 		// Try different filename patterns
 		patterns := []string{
 			messageID + ".json",
@@ -95,6 +99,56 @@ func ackMessage(stateDir, messageID string) error {
 				}
 
 				return nil
+			}
+		}
+	}
+
+	// Try agent-specific inboxes (e.g., sprint-executor, sprint-planner, etc.)
+	// Scan all subdirectories under ~/.ailang/state/messages/
+	messagesDir := filepath.Join(stateDir, "messages")
+	entries, err := os.ReadDir(messagesDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			// Skip legacy inbox structure
+			if entry.Name() == "inbox" {
+				continue
+			}
+
+			agentDir := filepath.Join(messagesDir, entry.Name())
+
+			// Try different filename patterns
+			patterns := []string{
+				messageID + ".json",
+				messageID + ".pending.json",
+				messageID, // In case user provides full filename
+			}
+
+			for _, pattern := range patterns {
+				srcPath := filepath.Join(agentDir, pattern)
+				if _, err := os.Stat(srcPath); err == nil {
+					// Found the message, move it to _processed subdirectory
+					dstDir := filepath.Join(agentDir, "_processed")
+					if err := os.MkdirAll(dstDir, 0755); err != nil {
+						return fmt.Errorf("failed to create directory: %w", err)
+					}
+
+					// Change filename from .pending.json to .json when moving to processed
+					dstFilename := filepath.Base(srcPath)
+					if strings.HasSuffix(dstFilename, ".pending.json") {
+						dstFilename = strings.TrimSuffix(dstFilename, ".pending.json") + ".json"
+					}
+
+					dstPath := filepath.Join(dstDir, dstFilename)
+					if err := os.Rename(srcPath, dstPath); err != nil {
+						return fmt.Errorf("failed to move message: %w", err)
+					}
+
+					return nil
+				}
 			}
 		}
 	}
@@ -171,15 +225,19 @@ func agentUnackCommand() {
 
 // unackMessage moves a message back from read/processed to unread
 func unackMessage(stateDir, messageID string) error {
-	// Check if SQLite database exists
+	// Try SQLite database first if it exists
 	dbPath := messaging.GetDefaultDatabasePath()
 	if messaging.DatabaseExists(dbPath) {
-		return unackMessageSQLite(dbPath, messageID)
+		err := unackMessageSQLite(dbPath, messageID)
+		if err == nil {
+			return nil // Success - message found in SQLite
+		}
+		// Message not in SQLite, try file-based inbox
 	}
 
 	// Fall back to file-based inbox
-	// Try to unacknowledge from different processed/read locations
-	locations := []struct {
+	// First try legacy locations
+	legacyLocations := []struct {
 		srcDir string
 		dstDir string
 		name   string
@@ -196,7 +254,7 @@ func unackMessage(stateDir, messageID string) error {
 		},
 	}
 
-	for _, loc := range locations {
+	for _, loc := range legacyLocations {
 		// Try different filename patterns
 		patterns := []string{
 			messageID + ".json",
@@ -224,6 +282,56 @@ func unackMessage(stateDir, messageID string) error {
 				}
 
 				return nil
+			}
+		}
+	}
+
+	// Try agent-specific inboxes (e.g., sprint-executor, sprint-planner, etc.)
+	// Scan all subdirectories under ~/.ailang/state/messages/
+	messagesDir := filepath.Join(stateDir, "messages")
+	entries, err := os.ReadDir(messagesDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			// Skip legacy inbox structure
+			if entry.Name() == "inbox" {
+				continue
+			}
+
+			agentDir := filepath.Join(messagesDir, entry.Name())
+			processedDir := filepath.Join(agentDir, "_processed")
+
+			// Try different filename patterns in _processed subdirectory
+			patterns := []string{
+				messageID + ".json",
+				messageID + ".pending.json",
+				messageID, // In case user provides full filename
+			}
+
+			for _, pattern := range patterns {
+				srcPath := filepath.Join(processedDir, pattern)
+				if _, err := os.Stat(srcPath); err == nil {
+					// Found the message, move it back to main agent directory
+					if err := os.MkdirAll(agentDir, 0755); err != nil {
+						return fmt.Errorf("failed to create directory: %w", err)
+					}
+
+					// Change filename from .json back to .pending.json
+					dstFilename := filepath.Base(srcPath)
+					if !strings.HasSuffix(dstFilename, ".pending.json") {
+						dstFilename = strings.TrimSuffix(dstFilename, ".json") + ".pending.json"
+					}
+
+					dstPath := filepath.Join(agentDir, dstFilename)
+					if err := os.Rename(srcPath, dstPath); err != nil {
+						return fmt.Errorf("failed to move message: %w", err)
+					}
+
+					return nil
+				}
 			}
 		}
 	}

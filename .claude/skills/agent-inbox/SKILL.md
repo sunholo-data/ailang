@@ -162,15 +162,44 @@ ailang agent send --to-user --from "claude-code" '{
 }'
 ```
 
+## Correlation IDs (NEW)
+
+**Messages now support correlation IDs for tracking handoff chains!**
+
+Based on [Anthropic's long-running agent patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), correlation IDs link related messages across agent handoffs:
+
+```json
+{
+  "message_id": "msg_20251127_103045_abc123",
+  "correlation_id": "sprint_M-S1",  // ← Links all messages in workflow
+  "reply_to": "msg_20251127_100000_def456",  // ← Links to parent message
+  "from": "sprint-executor",
+  "to": "user",
+  "type": "milestone_complete",
+  "payload": { ... }
+}
+```
+
+**Benefits:**
+- Track entire workflow: design-doc → sprint-plan → execution
+- Filter messages by workflow: `grep "Correlation: sprint_M-S1"`
+- Debug multi-agent interactions
+- Resume work from where you left off
+
+**For complete specification**, see [`resources/message_format.md`](resources/message_format.md)
+
 ## Message Types
 
 ### Completion Notification
 ```json
 {
-  "from_agent": "sprint-executor",
+  "type": "sprint_complete",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-executor",
+  "to": "user",
   "payload": {
-    "status": "completed",
-    "milestone": "5/5",
+    "sprint_id": "M-S1",
+    "milestones_complete": 5,
     "result": "All tests passing, docs updated",
     "artifacts": ["eval_results/baselines/v0.3.15/"]
   }
@@ -180,11 +209,15 @@ ailang agent send --to-user --from "claude-code" '{
 ### Handoff Instruction
 ```json
 {
-  "from_agent": "sprint-planner",
+  "type": "plan_ready",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-planner",
+  "to": "sprint-executor",
   "payload": {
-    "status": "plan_ready",
-    "design_doc": "design_docs/planned/M-FIX-123.md",
-    "next_steps": "Review plan, approve for execution"
+    "sprint_id": "M-S1",
+    "plan_path": "design_docs/planned/M-S1-plan.md",
+    "progress_path": ".ailang/state/sprints/sprint_M-S1.json",
+    "next_steps": "Begin execution with session_start.sh"
   }
 }
 ```
@@ -192,10 +225,13 @@ ailang agent send --to-user --from "claude-code" '{
 ### Error Report
 ```json
 {
-  "from_agent": "sprint-executor",
+  "type": "error",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-executor",
+  "to": "user",
   "payload": {
-    "status": "error",
-    "milestone": "3/5",
+    "sprint_id": "M-S1",
+    "milestone_id": "M-S1.3",
     "error": "Tests failing: 5 benchmarks broken",
     "details": ".ailang/state/logs/sprint-executor.log"
   }

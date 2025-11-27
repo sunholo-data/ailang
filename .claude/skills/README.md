@@ -351,6 +351,70 @@ To share publicly:
 
 **Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
 
+## Long-Running Agent Patterns (NEW)
+
+**Our skills now implement patterns from [Anthropic's long-running agent article](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)!**
+
+### Multi-Session Continuity
+
+Skills can now span multiple Claude Code sessions with no loss of context:
+
+**Pattern**: Initializer + Coding Agent
+- **sprint-planner** (Initializer): Creates JSON progress file + infrastructure
+- **sprint-executor** (Coding Agent): Resumes work from JSON across sessions
+
+### Key Features Implemented
+
+#### 1. Session Startup Routine
+Every continuing session starts with context check:
+- `.claude/skills/sprint-executor/scripts/session_start.sh`
+- Checks pwd, reads JSON progress, reviews git log, runs tests
+- Prints "Here's where we left off" summary
+
+#### 2. Structured Progress Tracking (JSON)
+Machine-readable state files replace markdown-only tracking:
+- `.ailang/state/sprints/sprint_<id>.json` - Sprint progress
+- `.ailang/state/release_<version>.json` - Release progress
+- Follows "constrained modification" pattern (only specific fields change)
+
+#### 3. Correlation IDs
+Messages linked across agent handoffs:
+- `correlation_id: "sprint_M-S1"` - Track entire workflow
+- `reply_to: "<message_id>"` - Link conversation threads
+- Filter messages by workflow: `grep "Correlation: sprint_M-S1"`
+
+#### 4. End-to-End Testing
+Test as users would, not just unit tests:
+- `.claude/skills/sprint-executor/scripts/acceptance_test.sh`
+- Tests: parser (run examples), builtin (REPL), e2e (full pipeline)
+
+### Workflow Diagram
+
+```
+Session 1:
+  design-doc-creator → sprint-planner (creates JSON)
+    └─ JSON: .ailang/state/sprints/sprint_M-S1.json
+    └─ Message: correlation_id="sprint_M-S1"
+
+Session 2:
+  sprint-executor → session_start.sh (reads JSON)
+    └─ Implements M-S1.1, M-S1.2
+    └─ Updates JSON (passes=true/false)
+    └─ Message: milestone_complete, correlation_id="sprint_M-S1"
+
+Session 3:
+  sprint-executor → session_start.sh (resumes from JSON)
+    └─ Continues M-S1.3, M-S1.4
+    └─ Updates JSON
+    └─ Message: sprint_complete, correlation_id="sprint_M-S1"
+```
+
+### Documentation
+
+- Sprint JSON Schema: `.claude/skills/sprint-executor/resources/json_progress_schema.md`
+- Message Format: `.claude/skills/agent-inbox/resources/message_format.md`
+- Release State: `.claude/skills/release-manager/resources/release_state_schema.md`
+
 ## Best Practices
 
 1. **Keep SKILL.md concise** - Overview only, details in resources
@@ -360,6 +424,9 @@ To share publicly:
 5. **Test scripts** - Ensure they work before committing
 6. **Document assumptions** - Make prerequisites clear
 7. **Version control** - Skills evolve with AILANG, keep them updated
+8. **NEW: Session resumption** - Always provide session_start scripts for long-running work
+9. **NEW: JSON state files** - Use structured state for machine-readable progress
+10. **NEW: Correlation IDs** - Link messages across agent handoffs
 
 ## References
 
