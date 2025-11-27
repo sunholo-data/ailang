@@ -2,9 +2,11 @@ package testing
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/eval"
 )
 
 // Runner executes tests and properties.
@@ -113,19 +115,84 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 	return result
 }
 
-// runProperty executes a property-based test (stub for now).
-// Full implementation in Days 6-8 with generators and shrinking.
+// runProperty executes a property-based test with generators and shrinking.
 func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	start := time.Now()
 
 	result := PropertyResult{
 		Name:     propCase.Name,
-		Status:   StatusSkip, // Skip for now, implement in Days 6-8
 		Location: propCase.Location.String(),
 		TestsRun: 0,
-		Error:    "Property-based testing not yet implemented (Days 6-8)",
 	}
 
+	// Number of test cases to generate per property
+	const numTests = 100
+
+	// Create generators for each binder based on type
+	generators := make([]Generator, len(propCase.Property.Binders))
+	shrinkers := make([]Shrinker, len(propCase.Property.Binders))
+
+	for i, binder := range propCase.Property.Binders {
+		gen, shrink := r.createGeneratorForType(binder.Type)
+		if gen == nil {
+			result.Status = StatusSkip
+			result.Error = fmt.Sprintf("no generator for type %v", binder.Type)
+			result.Duration = time.Since(start)
+			return result
+		}
+		generators[i] = gen
+		shrinkers[i] = shrink
+	}
+
+	// Run property tests
+	config := DefaultConfig()
+	rng := newRNG(config.Seed)
+
+	for testNum := 0; testNum < numTests; testNum++ {
+		// Generate values for all forall parameters
+		generatedValues := make([]eval.Value, len(generators))
+		for i, gen := range generators {
+			generatedValues[i] = gen.Generate(rng)
+		}
+
+		// Bind generated values to property expression
+		boundExpr := r.bindPropertyValues(propCase.Property, generatedValues)
+
+		// Evaluate the property expression (should return bool)
+		resultValue, err := r.executor.EvaluateExpression(boundExpr)
+		if err != nil {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("test %d: evaluation failed: %v", testNum, err)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		// Check if result is a boolean
+		boolVal, ok := resultValue.(*eval.BoolValue)
+		if !ok {
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("test %d: property must return bool, got %T", testNum, resultValue)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		// If property fails, try to shrink to minimal counterexample
+		if !boolVal.Value {
+			counterexample := r.shrinkCounterexample(propCase.Property, generatedValues, shrinkers)
+			result.Status = StatusFail
+			result.Error = fmt.Sprintf("property failed on input: %v", counterexample)
+			result.TestsRun = testNum + 1
+			result.Duration = time.Since(start)
+			return result
+		}
+
+		result.TestsRun++
+	}
+
+	// All tests passed
+	result.Status = StatusPass
 	result.Duration = time.Since(start)
 	return result
 }
@@ -141,4 +208,151 @@ func RunTestsFromFile(filePath string, ast *ast.File) (*SuiteResult, error) {
 	result := runner.RunSuite(suite)
 
 	return result, nil
+}
+
+// createGeneratorForType creates a generator and shrinker for the given type.
+func (r *Runner) createGeneratorForType(typ ast.Type) (Generator, Shrinker) {
+	// Check for simple types
+	if simpleType, ok := typ.(*ast.SimpleType); ok {
+		switch simpleType.Name {
+		case "int":
+			config := DefaultConfig()
+			return NewIntGenerator(config.MinInt, config.MaxInt), NewIntShrinker()
+		case "float":
+			config := DefaultConfig()
+			return NewFloatGenerator(config.MinFloat, config.MaxFloat), NewFloatShrinker()
+		case "bool":
+			return NewBoolGenerator(), NewNoOpShrinker()
+		case "string":
+			config := DefaultConfig()
+			return NewStringGenerator(0, config.MaxSize, ""), NewStringShrinker()
+		}
+	}
+
+	// Check for list types [a]
+	if listType, ok := typ.(*ast.ListType); ok {
+		// Create generator for element type
+		elemGen, elemShrink := r.createGeneratorForType(listType.Element)
+		if elemGen == nil {
+			return nil, nil
+		}
+		config := DefaultConfig()
+		return NewListGenerator(elemGen, 0, config.MaxSize), NewListShrinker(elemShrink)
+	}
+
+	// Unsupported type
+	return nil, nil
+}
+
+// bindPropertyValues binds generated values to forall parameters in a property expression.
+// For: forall(x: int, y: int) => x + y == y + x
+// With values: [5, 10]
+// Returns: let x = 5 in let y = 10 in (x + y == y + x)
+func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value) ast.Expr {
+	expr := property.Expr
+
+	// Bind in reverse order (innermost first)
+	for i := len(property.Binders) - 1; i >= 0; i-- {
+		binder := property.Binders[i]
+		value := values[i]
+
+		// Convert eval.Value to ast.Expr (literal)
+		valueLit := r.valueToLiteral(value)
+
+		// Wrap in let binding
+		expr = &ast.Let{
+			Name:  binder.Name,
+			Value: valueLit,
+			Body:  expr,
+			Pos:   property.Pos,
+		}
+	}
+
+	return expr
+}
+
+// valueToLiteral converts an eval.Value to an ast.Literal expression.
+func (r *Runner) valueToLiteral(value eval.Value) ast.Expr {
+	switch v := value.(type) {
+	case *eval.IntValue:
+		return &ast.Literal{
+			Kind:  ast.IntLit,
+			Value: v.Value,
+		}
+	case *eval.FloatValue:
+		return &ast.Literal{
+			Kind:  ast.FloatLit,
+			Value: v.Value,
+		}
+	case *eval.BoolValue:
+		return &ast.Literal{
+			Kind:  ast.BoolLit,
+			Value: v.Value,
+		}
+	case *eval.StringValue:
+		return &ast.Literal{
+			Kind:  ast.StringLit,
+			Value: v.Value,
+		}
+	case *eval.ListValue:
+		// Convert list elements
+		elements := make([]ast.Expr, len(v.Elements))
+		for i, elem := range v.Elements {
+			elements[i] = r.valueToLiteral(elem)
+		}
+		return &ast.List{Elements: elements}
+	default:
+		// For unsupported types, return a unit literal
+		return &ast.Literal{
+			Kind:  ast.UnitLit,
+			Value: struct{}{},
+		}
+	}
+}
+
+// shrinkCounterexample finds the minimal counterexample using shrinking.
+func (r *Runner) shrinkCounterexample(property *ast.Property, failingValues []eval.Value, shrinkers []Shrinker) []eval.Value {
+	// Try shrinking each parameter independently
+	minimal := make([]eval.Value, len(failingValues))
+	copy(minimal, failingValues)
+
+	for i, shrinker := range shrinkers {
+		if shrinker == nil {
+			continue
+		}
+
+		// Try all shrunk values for this parameter
+		shrunkValues := shrinker.Shrink(failingValues[i])
+		for _, shrunk := range shrunkValues {
+			// Replace this parameter with shrunk value
+			testValues := make([]eval.Value, len(minimal))
+			copy(testValues, minimal)
+			testValues[i] = shrunk
+
+			// Test if property still fails with shrunk value
+			boundExpr := r.bindPropertyValues(property, testValues)
+			result, err := r.executor.EvaluateExpression(boundExpr)
+			if err != nil {
+				continue // Skip if evaluation fails
+			}
+
+			boolVal, ok := result.(*eval.BoolValue)
+			if ok && !boolVal.Value {
+				// Property still fails with shrunk value - use this
+				minimal[i] = shrunk
+				// Continue shrinking this parameter
+				break
+			}
+		}
+	}
+
+	return minimal
+}
+
+// newRNG creates a random number generator.
+func newRNG(seed int64) *rand.Rand {
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+	return rand.New(rand.NewSource(seed))
 }
