@@ -62,6 +62,31 @@ export pure func lcm(a: int, b: int) -> int
 - Fixed `run_test_benchmark.sh` JSON parsing (key was `stdout_ok` not `result`)
 - Fixed recursive file search for results in subdirectories
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 69.2% success rate (737 total runs)
+
+**Standard Eval (0-shot + self-repair):**
+
+| Metric | 0.4.6 | v0.4.7 | Change |
+|--------|--------|--------|--------|
+| **0-shot (first attempt)** | 64.2% | 65.0% (286/440) | **+0.8%** |
+| **Final (with repair)** | 66.9% | 67.9% (299/440) | **+1.0%** |
+| **Repair effectiveness** | +2.7pp | +2.9pp | **+0.2pp** |
+| **Python (final)** | 77.6% | 79.1% (335/423) | +1.5% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | 0.4.6 | v0.4.7 | Change |
+|----------|--------|--------|--------|
+| **AILANG** | 100.0% | 96.7% (60/62) | **-3.3%** |
+| **Python** | 100.0% | 100.0% (64/64) | 0% |
+
+**Key Findings:**
+- Steady improvement in standard eval (+1% final success rate)
+- Claude Opus 4.5 added to eval suite - first release with 9 production models
+- Minor agent eval regression (-3.3% AILANG) likely due to 2 edge case failures
+
 ## [v0.4.5] - 2025-11-16
 
 ### Fixed - String Concatenation (`++`) Operator Type Inference (M-BUG-CONCAT-INFERENCE) 🐛
