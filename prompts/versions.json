@@ -296,9 +296,20 @@
         "latest"
       ],
       "notes": "Add inline tests documentation with cross-function deps (M-TESTING-DEPS)"
+    },
+    "v0.4.8": {
+      "file": "prompts/v0.4.8.md",
+      "hash": "caac8628f5ffb74f0028494f62d21be482425f247d89d5c10c9d0d04689f447c",
+      "description": "Add mandatory template, stronger structure emphasis",
+      "created": "2025-11-28",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add mandatory template, stronger structure emphasis"
     }
   },
-  "active": "v0.4.7",
+  "active": "v0.4.8",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
