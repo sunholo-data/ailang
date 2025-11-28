@@ -1,0 +1,21 @@
+{
+  "file": {
+    "imports": [
+      {
+        "path": "std/option",
+        "symbolAliases": {
+          "flatMap": "optionFlatMap",
+          "map": "optionMap"
+        },
+        "symbols": [
+          "map",
+          "flatMap"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}

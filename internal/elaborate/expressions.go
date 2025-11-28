@@ -609,7 +609,21 @@ func (e *Elaborator) normalizeRecord(rec *ast.Record) (core.CoreExpr, error) {
 }
 
 // normalizeRecordAccess handles field access
+// Also handles qualified module access (e.g., List.map for import std/list as List)
 func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr, error) {
+	// Check for module alias qualified access (e.g., List.map)
+	if ident, ok := acc.Record.(*ast.Identifier); ok {
+		qualifiedName := fmt.Sprintf("%s.%s", ident.Name, acc.Field)
+		if ref, ok := e.globalEnv[qualifiedName]; ok {
+			// This is a qualified module access, resolve to global reference
+			return &core.VarGlobal{
+				CoreNode: e.makeNode(acc.Position()),
+				Ref:      ref,
+			}, nil
+		}
+	}
+
+	// Standard record field access
 	record, binds, err := e.normalizeToAtomic(acc.Record)
 	if err != nil {
 		return nil, err

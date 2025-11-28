@@ -129,13 +129,21 @@ func runModule(cfg Config, src Source) (Result, error) {
 					for _, sym := range imp.Symbols {
 						found := false
 
+						// Determine the name to bind (use alias if present)
+						bindName := sym
+						if imp.SymbolAliases != nil {
+							if alias, ok := imp.SymbolAliases[sym]; ok {
+								bindName = alias
+							}
+						}
+
 						// Try to import as a regular export (function/value)
 						if item, ok := depIface.GetExport(sym); ok {
 							key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 							externalTypes[key] = item.Type
-							globalRefs[sym] = item.Ref
+							globalRefs[bindName] = item.Ref // Use alias name for binding
 							if cfg.TraceDefaulting {
-								fmt.Printf("  Import value %s -> %s (%s)\n", sym, key, item.Type)
+								fmt.Printf("  Import value %s as %s -> %s (%s)\n", sym, bindName, key, item.Type)
 							}
 							found = true
 						}
@@ -203,6 +211,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 						if !found && cfg.TraceDefaulting {
 							fmt.Printf("  Symbol %s not found in %s\n", sym, imp.Path)
+						}
+					}
+				}
+
+				// Handle module alias: import std/list as List
+				// Add all exports with qualified names (List.map, List.filter, etc.)
+				if imp.ModuleAlias != "" {
+					for name, item := range depIface.Exports {
+						qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, name)
+						key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
+						externalTypes[key] = item.Type
+						globalRefs[qualifiedName] = item.Ref
+						if cfg.TraceDefaulting {
+							fmt.Printf("  Module alias %s.%s -> %s\n", imp.ModuleAlias, name, key)
 						}
 					}
 				}

@@ -1,0 +1,21 @@
+{
+  "file": {
+    "imports": [
+      {
+        "path": "std/list",
+        "symbolAliases": {
+          "map": "listMap"
+        },
+        "symbols": [
+          "length",
+          "map",
+          "filter"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}

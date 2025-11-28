@@ -13,61 +13,70 @@ import (
 
 // showUserInbox displays messages from the user inbox
 func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveAfter bool, limit int) {
-	// Check if SQLite database exists
-	dbPath := messaging.GetDefaultDatabasePath()
-	if messaging.DatabaseExists(dbPath) {
-		showUserInboxSQLite(dbPath, unreadOnly, limit)
-		return
-	}
+	// ALWAYS check file-based inbox first (agent send --to-user writes here)
+	// Then also check SQLite for messages from the messaging system
+	fileInbox := agentprotocol.NewUserInbox(stateDir)
 
-	// Fall back to file-based inbox
-	inbox := agentprotocol.NewUserInbox(stateDir)
-
-	// Determine which folder to read from
-	var messages []*agentprotocol.Envelope
-	var err error
+	// Get file-based messages
+	var fileMessages []*agentprotocol.Envelope
+	var fileErr error
 	var folder string
 
 	if archivedFlag {
 		folder = "archived"
-		messages, err = inbox.GetArchivedMessages()
+		fileMessages, fileErr = fileInbox.GetArchivedMessages()
 	} else if readOnly {
 		folder = "read"
-		messages, err = inbox.GetReadMessages()
+		fileMessages, fileErr = fileInbox.GetReadMessages()
 	} else if unreadOnly {
 		folder = "unread"
-		messages, err = inbox.GetUnreadMessages()
+		fileMessages, fileErr = fileInbox.GetUnreadMessages()
 	} else {
 		// Default: show unread first
-		folder = "unread + read"
-		unread, err1 := inbox.GetUnreadMessages()
-		read, err2 := inbox.GetReadMessages()
+		folder = "all"
+		unread, err1 := fileInbox.GetUnreadMessages()
+		read, err2 := fileInbox.GetReadMessages()
 		if err1 != nil {
-			err = err1
+			fileErr = err1
 		} else if err2 != nil {
-			err = err2
+			fileErr = err2
 		} else {
-			messages = append(unread, read...)
+			fileMessages = append(unread, read...)
 		}
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to read inbox: %v\n", red("Error"), err)
-		os.Exit(1)
+	if fileErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to read file inbox: %v\n", yellow("Warning"), fileErr)
 	}
 
+	// Also check SQLite if it exists
+	dbPath := messaging.GetDefaultDatabasePath()
+	if messaging.DatabaseExists(dbPath) {
+		// Show combined view - file messages first (from agent protocol)
+		if len(fileMessages) > 0 {
+			displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit)
+		}
+		// Then show SQLite messages
+		showUserInboxSQLite(dbPath, unreadOnly, limit)
+		return
+	}
+
+	// No SQLite - just show file-based inbox
+	if len(fileMessages) == 0 {
+		fmt.Printf("%s No messages in %s folder\n", green("✓"), folder)
+		return
+	}
+	displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit)
+}
+
+// displayFileMessages shows file-based inbox messages
+func displayFileMessages(messages []*agentprotocol.Envelope, folder string, archiveAfter bool, inbox *agentprotocol.UserInbox, limit int) {
 	// Apply limit
 	if len(messages) > limit {
 		messages = messages[:limit]
 	}
 
-	// Display messages
-	if len(messages) == 0 {
-		fmt.Printf("%s No messages in %s folder\n", green("✓"), folder)
-		return
-	}
-
-	fmt.Printf("%s %s Inbox (%d message%s)\n", bold("📬"), cyan("User"), len(messages), pluralize(len(messages)))
+	fmt.Printf("%s %s Inbox - File-based (%d message%s)\n", bold("📬"), cyan("User"), len(messages), pluralize(len(messages)))
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Println()
 
@@ -94,15 +103,15 @@ func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveA
 
 		fmt.Println()
 
-		// Mark as read if unread
-		if !readOnly && !archivedFlag {
+		// Mark as read after viewing (unless viewing archived)
+		if folder != "archived" && folder != "read" && inbox != nil {
 			if err := inbox.MarkAsRead(msg.MessageID); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: failed to mark as read: %v\n", yellow("Warning"), err)
 			}
 		}
 
 		// Archive if requested
-		if archiveAfter && !archivedFlag {
+		if archiveAfter && folder != "archived" && inbox != nil {
 			if err := inbox.MarkAsArchived(msg.MessageID); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: failed to archive: %v\n", yellow("Warning"), err)
 			}
@@ -110,7 +119,7 @@ func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveA
 	}
 
 	if archiveAfter {
-		fmt.Printf("%s All messages archived\n", green("✓"))
+		fmt.Printf("%s All file-based messages archived\n", green("✓"))
 	}
 }
 

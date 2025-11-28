@@ -74,10 +74,12 @@ type ModuleDecl struct {
 
 // ImportDecl represents an import declaration
 type ImportDecl struct {
-	Path    string   // Module path to import
-	Symbols []string // Selective imports (empty = whole module)
-	Pos     Pos
-	Span    Span
+	Path          string            // Module path to import
+	Symbols       []string          // Selective imports (empty = whole module)
+	ModuleAlias   string            // Module alias: "import std/list as List" -> "List"
+	SymbolAliases map[string]string // Symbol aliases: original -> alias (e.g., "length" -> "stringLength")
+	Pos           Pos
+	Span          Span
 }
 
 func (f *File) String() string {
@@ -101,10 +103,25 @@ func (m *ModuleDecl) String() string {
 func (m *ModuleDecl) Position() Pos { return m.Pos }
 
 func (i *ImportDecl) String() string {
-	if len(i.Symbols) > 0 {
-		return fmt.Sprintf("import %s (%s)", i.Path, strings.Join(i.Symbols, ", "))
+	var result string
+	if i.ModuleAlias != "" {
+		result = fmt.Sprintf("import %s as %s", i.Path, i.ModuleAlias)
+	} else {
+		result = fmt.Sprintf("import %s", i.Path)
 	}
-	return fmt.Sprintf("import %s", i.Path)
+	if len(i.Symbols) > 0 {
+		// Format symbols with aliases
+		var symStrs []string
+		for _, sym := range i.Symbols {
+			if alias, ok := i.SymbolAliases[sym]; ok {
+				symStrs = append(symStrs, fmt.Sprintf("%s as %s", sym, alias))
+			} else {
+				symStrs = append(symStrs, sym)
+			}
+		}
+		result += fmt.Sprintf(" (%s)", strings.Join(symStrs, ", "))
+	}
+	return result
 }
 func (i *ImportDecl) Position() Pos { return i.Pos }
 

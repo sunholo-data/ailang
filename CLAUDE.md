@@ -838,6 +838,11 @@ ailang repl                                        # Start REPL
 ```
 
 **Critical syntax notes:**
+- **Import Aliasing (v0.4.8):** Rename modules and symbols on import
+  - **Module alias:** `import std/list as List` → enables qualified access `List.length(xs)`, `List.map(f, xs)`
+  - **Symbol alias:** `import std/list (length as listLength)` → use `listLength(xs)` directly
+  - **Combined:** `import std/list as List (map, filter)` → direct access to `map`, `filter` + qualified `List.*`
+  - **Use case:** Resolve name clashes when importing from multiple modules
 - **⚠️ NULLARY FUNCTIONS BROKEN (v0.4.5):** Nullary functions (zero-arg) cannot be called from AILANG code
   - **Affected**: `_env_getArgs`, `_clock_now`, `_io_readLine`
   - **Issue**: No syntax to call them - `f` returns function object, `f()` is arity mismatch

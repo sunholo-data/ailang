@@ -201,14 +201,49 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 		imp.Path = path
 	}
 
+	// Check for module aliasing: import std/list as List
+	if p.peekTokenIs(lexer.AS) {
+		p.nextToken() // consume 'as'
+		p.nextToken() // move to alias identifier
+
+		if !p.curTokenIs(lexer.IDENT) {
+			p.errors = append(p.errors, NewParserError(errors.IMP001, p.curPos(), p.curToken,
+				"expected module alias identifier after 'as'",
+				[]lexer.TokenType{lexer.IDENT},
+				"Provide a module alias: import std/list as List"))
+			return nil
+		}
+		imp.ModuleAlias = p.curToken.Literal
+	}
+
 	// Check for selective imports: import module (symbol1, symbol2)
+	// or: import module as Alias (symbol1, symbol2)
 	if p.peekTokenIs(lexer.LPAREN) {
 		p.nextToken() // consume (
 		p.nextToken() // move to first symbol
 
-		for !p.curTokenIs(lexer.RPAREN) {
+		// Initialize SymbolAliases map if needed
+		imp.SymbolAliases = make(map[string]string)
+
+		for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
 			if p.curTokenIs(lexer.IDENT) {
-				imp.Symbols = append(imp.Symbols, p.curToken.Literal)
+				symbolName := p.curToken.Literal
+				imp.Symbols = append(imp.Symbols, symbolName)
+
+				// Check for symbol aliasing: symbol as alias
+				if p.peekTokenIs(lexer.AS) {
+					p.nextToken() // consume 'as'
+					p.nextToken() // move to alias identifier
+
+					if !p.curTokenIs(lexer.IDENT) {
+						p.errors = append(p.errors, NewParserError(errors.IMP001, p.curPos(), p.curToken,
+							"expected symbol alias identifier after 'as'",
+							[]lexer.TokenType{lexer.IDENT},
+							"Provide a symbol alias: import std/string (length as stringLength)"))
+						return nil
+					}
+					imp.SymbolAliases[symbolName] = p.curToken.Literal
+				}
 			}
 
 			if p.peekTokenIs(lexer.COMMA) {
@@ -222,14 +257,15 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 		if !p.expectPeek(lexer.RPAREN) {
 			return nil
 		}
-	} else {
-		// Namespace imports not supported - require selective import
+	} else if imp.ModuleAlias == "" {
+		// No module alias and no selective imports - require one or the other
 		p.errors = append(p.errors, NewParserError("IMP012_UNSUPPORTED_NAMESPACE", p.curPos(), p.curToken,
 			"namespace imports not yet supported",
-			[]lexer.TokenType{lexer.LPAREN},
-			"Use selective import: import module/path (symbol1, symbol2)"))
+			[]lexer.TokenType{lexer.LPAREN, lexer.AS},
+			"Use selective import: import module/path (symbol1, symbol2)\nOr module alias: import std/list as List"))
 		return nil
 	}
+	// If ModuleAlias is set but no selective imports, that's valid (creates qualified namespace)
 
 	endPos := p.curPos()
 	imp.Span = ast.Span{Start: startPos, End: endPos}

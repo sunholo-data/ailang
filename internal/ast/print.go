@@ -94,8 +94,14 @@ func simplify(node interface{}) interface{} {
 			"type": "ImportDecl",
 			"path": n.Path,
 		}
+		if n.ModuleAlias != "" {
+			m["moduleAlias"] = n.ModuleAlias
+		}
 		if len(n.Symbols) > 0 {
 			m["symbols"] = n.Symbols
+		}
+		if len(n.SymbolAliases) > 0 {
+			m["symbolAliases"] = n.SymbolAliases
 		}
 		return m
 

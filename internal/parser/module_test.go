@@ -75,6 +75,32 @@ func TestImportDeclarations(t *testing.T) {
 			"import Foo (a, b, c)",
 			"module/import_multiple_symbols",
 		},
+		// Import aliasing tests (M-IMPORT-ALIASING)
+		{
+			"import_module_alias",
+			"import std/list as List",
+			"module/import_module_alias",
+		},
+		{
+			"import_symbol_alias",
+			"import std/string (length as stringLength)",
+			"module/import_symbol_alias",
+		},
+		{
+			"import_module_alias_with_symbols",
+			"import std/list as List (map, filter)",
+			"module/import_module_alias_with_symbols",
+		},
+		{
+			"import_multiple_symbol_aliases",
+			"import std/option (map as optionMap, flatMap as optionFlatMap)",
+			"module/import_multiple_symbol_aliases",
+		},
+		{
+			"import_mixed_symbol_aliases",
+			"import std/list (length, map as listMap, filter)",
+			"module/import_mixed_symbol_aliases",
+		},
 	}
 
 	for _, tt := range tests {

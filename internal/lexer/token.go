@@ -49,6 +49,7 @@ const (
 	SEND
 	RECV
 	TIMEOUT
+	AS // as (import aliasing)
 
 	// Operators
 	PLUS      // +
@@ -155,6 +156,7 @@ var tokens = map[TokenType]string{
 	SEND:       "send",
 	RECV:       "recv",
 	TIMEOUT:    "timeout",
+	AS:         "as",
 
 	PLUS:      "+",
 	MINUS:     "-",
@@ -253,6 +255,7 @@ var keywords = map[string]TokenType{
 	"send":       SEND,
 	"recv":       RECV,
 	"timeout":    TIMEOUT,
+	"as":         AS,
 	"true":       TRUE,
 	"false":      FALSE,
 	"not":        NOT,
