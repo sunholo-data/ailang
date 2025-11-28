@@ -239,12 +239,55 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
   "<sprint-id>" \
   "design_docs/planned/vX_Y/<sprint-id>-plan.md" \
   "design_docs/planned/vX_Y/<feature>-design.md"
-
-# Edit the generated JSON to fill in actual milestone details
-# Location: .ailang/state/sprints/sprint_<id>.json
 ```
 
-### 8. ALWAYS Hand Off to sprint-executor
+### 8. MANDATORY: Populate JSON with Real Milestones
+
+**The script creates a TEMPLATE - you MUST populate it with real data!**
+
+The `create_sprint_json.sh` script generates placeholder content. **Before handing off to sprint-executor, you MUST edit the JSON file to include actual milestones.**
+
+**Required edits to `.ailang/state/sprints/sprint_<id>.json`:**
+
+1. **Replace placeholder features array** with real milestones:
+   ```json
+   "features": [
+     {
+       "id": "M1_ACTUAL_NAME",
+       "description": "Real description from your sprint plan",
+       "estimated_loc": 150,
+       "dependencies": [],
+       "acceptance_criteria": [
+         "Actual criterion from sprint plan",
+         "Another real criterion"
+       ],
+       "passes": null,
+       "started": null,
+       "completed": null,
+       "notes": null
+     }
+   ]
+   ```
+
+2. **Update velocity estimates** to match your sprint plan:
+   ```json
+   "velocity": {
+     "target_loc_per_day": 150,
+     "estimated_total_loc": 670,
+     "estimated_days": 4
+   }
+   ```
+
+**Validation checklist before handoff:**
+- [ ] No milestone has `"id": "MILESTONE_ID"` (placeholder)
+- [ ] Each milestone has real acceptance criteria (not "Criterion 1")
+- [ ] `estimated_total_loc` matches sum of milestone LOC
+- [ ] `estimated_days` matches sprint plan duration
+- [ ] At least 2 milestones defined
+
+**sprint-executor will REJECT the sprint if placeholders remain!**
+
+### 9. ALWAYS Hand Off to sprint-executor
 
 **CRITICAL: After creating an approved sprint plan, ALWAYS hand off to sprint-executor immediately.**
 

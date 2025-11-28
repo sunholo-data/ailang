@@ -1,6 +1,6 @@
 ---
 name: AILANG Post-Release Tasks
-description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 19-benchmark agent suite + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
+description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 46-benchmark suite (medium/hard/stretch) + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
@@ -69,17 +69,13 @@ Expected time: ~15-20 minutes
   - Tests both AILANG and Python implementations
   - Uses all 6 production models (--full) or 3 dev models (default)
   - Tests all benchmarks in benchmarks/ directory
-- **Step 2**: Runs agent eval on curated benchmark suite
-  - **Current suite** (v0.4.0+): 19 benchmarks across 2 tiers
-    - **Tier 1 (Smoke Tests - 8)**: fizzbuzz, recursion_factorial, recursion_fibonacci,
-      simple_print, records_person, list_operations, string_manipulation, nested_records
-      - Expected: 95-100% success
-    - **Tier 2 (Differentiators - 11)**: higher_order_functions, pattern_matching_complex,
-      record_update, effect_composition, effect_tracking_io_fs, effect_pure_separation,
-      exhaustive_pattern_matching, type_safe_record_access, explicit_state_threading,
-      deterministic_list_transform, referential_transparency
-      - Expected: 60-80% success (agent outperforms 0-shot)
-    - See BENCHMARK_AUDIT_ANALYSIS.md for detailed rationale
+- **Step 2**: Runs agent eval on full benchmark suite
+  - **Current suite** (v0.4.8+): 46 benchmarks (trimmed from 56)
+    - Removed: trivial benchmarks (print tests), most easy benchmarks
+    - Kept: fizzbuzz (1 easy for validation), all medium/hard/stretch benchmarks
+    - **Stretch goals** (6 new): symbolic_diff, mini_interpreter, lambda_calc,
+      graph_bfs, type_unify, red_black_tree
+    - Expected: ~55-70% success rate with haiku, higher with sonnet/opus
   - Uses haiku+sonnet (--full) or haiku only (default)
   - Tests both AILANG and Python implementations
 - Saves combined results to eval_results/baselines/X.X.X/

@@ -1,0 +1,31 @@
+id: gcd_lcm
+description: "Compute GCD and LCM using Euclidean algorithm (math + mutual recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements `gcd(a, b)` using the Euclidean algorithm:
+     - If b is 0, return a
+     - Otherwise, return gcd(b, a % b)  (use modulo operator)
+
+  2. Implements `lcm(a, b)` using the formula:
+     - lcm(a, b) = (a * b) / gcd(a, b)
+
+  3. Computes and prints:
+     - GCD of 48 and 18
+     - LCM of 48 and 18
+
+  Print one number per line: first the GCD, then the LCM.
+
+  Expected:
+  - GCD(48, 18) = 6
+  - LCM(48, 18) = 144
+
+  Output only the code, no explanations.
+expected_stdout: |
+  6
+  144

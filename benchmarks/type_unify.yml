@@ -1,0 +1,38 @@
+id: type_unify
+description: "Simple type unification algorithm (type inference building block)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements simple type unification:
+
+  1. Define a Type ADT:
+     - TVar(string) - type variable (e.g., "a", "b")
+     - TInt - integer type
+     - TBool - boolean type
+     - TFunc(Type, Type) - function type: arg -> result
+
+  2. Define a substitution as a list of (varName, Type) pairs
+
+  3. Implement `apply(subst, type)` - apply substitution to a type
+
+  4. Implement `unify(t1, t2)` that returns a substitution (or fails):
+     - unify(TInt, TInt) = []
+     - unify(TBool, TBool) = []
+     - unify(TVar(a), t) = [(a, t)] (occurs check omitted for simplicity)
+     - unify(t, TVar(a)) = [(a, t)]
+     - unify(TFunc(a1, r1), TFunc(a2, r2)) = unify(a1, a2) ++ unify(r1, r2)
+     - unify(_, _) = fail
+
+  5. Unify these types and print if they unify:
+     - TFunc(TVar("a"), TInt) with TFunc(TBool, TVar("b"))
+     - Expected: a=TBool, b=TInt
+
+  Print "a = TBool" and "b = TInt" on separate lines.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  a = TBool
+  b = TInt

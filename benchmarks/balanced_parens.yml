@@ -1,0 +1,28 @@
+id: balanced_parens
+description: "Check if parentheses are balanced (parsing + recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements a function `isBalanced` that checks if parentheses in a string are balanced
+     - Uses a counter: increment for '(', decrement for ')'
+     - Balanced if counter never goes negative and ends at zero
+
+  2. Tests these strings and prints "true" or "false" for each:
+     - "(())"     -> true  (balanced)
+     - "(()"      -> false (unbalanced - missing close)
+     - "())()"    -> false (unbalanced - close before open)
+     - "()(())"   -> true  (balanced)
+
+  Print one result per line, in the order given above.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  true
+  false
+  false
+  true

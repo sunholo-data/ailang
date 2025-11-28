@@ -73,41 +73,40 @@ echo
 echo "=== Step 2/2: Agent Eval (multi-turn) ==="
 echo "Running agent eval on curated benchmarks..."
 
-# Full agent benchmark suite (19 benchmarks) - v0.4.0+
-# See: BENCHMARK_AUDIT_ANALYSIS.md for detailed rationale
+# Full agent benchmark suite (v0.4.8+) - 46 benchmarks
+# Trimmed from 56: removed trivial (4) and easy (6, kept fizzbuzz)
+# See: benchmark-manager skill for details
 #
-# Tier 1 - Smoke Tests (8): Fast sanity checks, 95-100% expected success
-#   fizzbuzz, recursion_factorial, recursion_fibonacci, simple_print
-#   records_person, list_operations, string_manipulation, nested_records
+# Categories:
+#   - 1 easy (fizzbuzz): validation benchmark
+#   - ~19 medium: core language features
+#   - ~17 hard: complex algorithms and effects
+#   - 6 stretch goals: symbolic_diff, mini_interpreter, lambda_calc, graph_bfs, type_unify, red_black_tree
 #
-# Tier 2 - Differentiators (11): Agent should outperform 0-shot (60-80% vs 30-50%)
-#   higher_order_functions, pattern_matching_complex, record_update
-#   effect_composition, effect_tracking_io_fs, effect_pure_separation
-#   exhaustive_pattern_matching, type_safe_record_access
-#   explicit_state_threading, deterministic_list_transform, referential_transparency
-AGENT_BENCHMARKS="fizzbuzz,recursion_factorial,recursion_fibonacci,simple_print,records_person,list_operations,string_manipulation,nested_records,higher_order_functions,pattern_matching_complex,record_update,effect_composition,effect_tracking_io_fs,effect_pure_separation,exhaustive_pattern_matching,type_safe_record_access,explicit_state_threading,deterministic_list_transform,referential_transparency"
+# All benchmarks now run - no separate curated list (redundant)
+AGENT_BENCHMARKS=""  # Empty = run all benchmarks in benchmarks/ directory
 
-echo "Benchmarks: $AGENT_BENCHMARKS"
+echo "Benchmarks: all 46 benchmarks"
 echo
 
 # Pre-flight validation and configuration summary
 echo "=== Pre-Flight Check ==="
 echo "Version: $VERSION"
 echo "Mode: ${FULL_FLAG:-DEV}"
-echo "Agent benchmarks: 19 (Tier 1: 8, Tier 2: 11)"
+echo "Benchmarks: 46 (1 easy, ~19 medium, ~17 hard, 6 stretch)"
 echo "Agent parallelism: 2"
 echo "Agent timeout: default (no override)"
 echo "Prompt version: latest (auto-selected)"
 echo
 echo "Expected results:"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "  Standard eval: ~480 files (41 benchmarks × 6 models × 2 langs)"
-    echo "  Agent eval: ~76 files (19 benchmarks × 2 models × 2 langs)"
-    echo "  Total: ~556 files"
+    echo "  Standard eval: ~552 files (46 benchmarks × 6 models × 2 langs)"
+    echo "  Agent eval: ~184 files (46 benchmarks × 2 models × 2 langs)"
+    echo "  Total: ~736 files"
 else
-    echo "  Standard eval: ~246 files (41 benchmarks × 3 models × 2 langs)"
-    echo "  Agent eval: ~38 files (19 benchmarks × 1 model × 2 langs)"
-    echo "  Total: ~284 files"
+    echo "  Standard eval: ~276 files (46 benchmarks × 3 models × 2 langs)"
+    echo "  Agent eval: ~92 files (46 benchmarks × 1 model × 2 langs)"
+    echo "  Total: ~368 files"
 fi
 echo
 echo "Starting in 3 seconds... (Ctrl-C to abort)"
@@ -115,13 +114,13 @@ sleep 3
 echo
 
 # Agent eval uses haiku/sonnet models based on --full flag
+# No --benchmarks filter = runs all benchmarks in benchmarks/ directory
 if [[ -n "$FULL_FLAG" ]]; then
     # Full mode: run both haiku and sonnet (via --full, auto-filtered from extended_suite)
     echo "Mode: FULL (haiku + sonnet via --full flag)"
-    monitor_progress "$RESULTS_DIR" 76 "Agent" &
+    monitor_progress "$RESULTS_DIR" 184 "Agent" &
     MONITOR_PID=$!
     ailang eval-suite --agent --full \
-        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
@@ -129,10 +128,9 @@ if [[ -n "$FULL_FLAG" ]]; then
 else
     # Dev mode: haiku only (default dev_models, auto-filtered to Claude only)
     echo "Mode: DEV (haiku only via dev_models)"
-    monitor_progress "$RESULTS_DIR" 38 "Agent" &
+    monitor_progress "$RESULTS_DIR" 92 "Agent" &
     MONITOR_PID=$!
     ailang eval-suite --agent \
-        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
@@ -159,15 +157,15 @@ fi
 echo
 echo "=== Validation ==="
 
-# Check file counts
+# Check file counts (46 benchmarks × models × 2 langs)
 if [[ -n "$FULL_FLAG" ]]; then
-    EXPECTED_STANDARD=480
-    EXPECTED_AGENT=76
-    EXPECTED_TOTAL=556
+    EXPECTED_STANDARD=552   # 46 × 6 × 2
+    EXPECTED_AGENT=184      # 46 × 2 × 2
+    EXPECTED_TOTAL=736
 else
-    EXPECTED_STANDARD=246
-    EXPECTED_AGENT=38
-    EXPECTED_TOTAL=284
+    EXPECTED_STANDARD=276   # 46 × 3 × 2
+    EXPECTED_AGENT=92       # 46 × 1 × 2
+    EXPECTED_TOTAL=368
 fi
 
 # Allow 5% tolerance for filtering/failures

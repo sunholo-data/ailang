@@ -1,0 +1,31 @@
+id: binary_tree_sum
+description: "Define binary tree ADT and sum all values (ADT + recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Defines a binary tree data type with:
+     - Leaf nodes containing an integer value
+     - Branch nodes containing a left subtree, an integer value, and a right subtree
+
+  2. Creates this tree:
+           5
+          / \
+         3   8
+        / \   \
+       1   4   10
+
+  3. Implements a function `treeSum` that recursively sums all values in the tree
+
+  4. Prints the sum of all values in the tree
+
+  The tree has values: 5, 3, 8, 1, 4, 10
+  Expected sum: 5 + 3 + 8 + 1 + 4 + 10 = 31
+
+  Output only the code, no explanations.
+expected_stdout: |
+  31

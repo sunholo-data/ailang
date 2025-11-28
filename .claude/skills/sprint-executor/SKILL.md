@@ -76,6 +76,20 @@ See script documentation for full output format.
 ### `scripts/validate_prerequisites.sh`
 Validate prerequisites before starting sprint execution (tests, linting, git status).
 
+### `scripts/validate_sprint_json.sh <sprint_id>` **NEW**
+**REQUIRED before starting any sprint.** Validates that sprint JSON has real milestones (not placeholders).
+
+**What it checks:**
+- No placeholder milestone IDs (`MILESTONE_ID`)
+- No placeholder acceptance criteria (`Criterion 1/2`)
+- At least 2 milestones defined
+- All milestones have custom values (not defaults)
+- Dependencies reference valid milestone IDs
+
+**Exit codes:**
+- `0` - Valid JSON, ready for execution
+- `1` - Invalid JSON or placeholders detected (sprint-planner must fix)
+
 ### `scripts/milestone_checkpoint.sh <milestone_name>`
 Run checkpoint after completing a milestone (tests, linting, git diff).
 
@@ -97,11 +111,14 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 
 ### Phase 1: Initialize Sprint (first session only)
 
-1. **Read Sprint Plan** - Parse markdown + load JSON progress file (`.ailang/state/sprints/sprint_<id>.json`)
-2. **Validate Prerequisites** - Run `validate_prerequisites.sh` (tests, linting, git status)
-3. **Create Todo List** - Use TodoWrite to track all milestones
-4. **Initial Status Update** - Mark sprint as "🔄 In Progress"
-5. **Initial DX Review** - Consider tools/helpers that would make sprint easier (see [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md))
+1. **Validate Sprint JSON** - Run `validate_sprint_json.sh <sprint-id>` **REQUIRED FIRST**
+   - If validation fails, STOP and notify user that sprint-planner must fix the JSON
+   - Do NOT proceed with placeholder milestones
+2. **Read Sprint Plan** - Parse markdown + load JSON progress file (`.ailang/state/sprints/sprint_<id>.json`)
+3. **Validate Prerequisites** - Run `validate_prerequisites.sh` (tests, linting, git status)
+4. **Create Todo List** - Use TodoWrite to track all milestones
+5. **Initial Status Update** - Mark sprint as "🔄 In Progress"
+6. **Initial DX Review** - Consider tools/helpers that would make sprint easier (see [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md))
 
 ### Phase 2: Execute Milestones
 
@@ -199,7 +216,8 @@ This skill loads information progressively:
 - All existing tests pass
 - All existing linting passes
 - Sprint plan approved and documented
-- **JSON progress file created by sprint-planner** (for multi-session sprints)
+- **JSON progress file created AND POPULATED by sprint-planner** (not just template!)
+- **JSON must pass validation**: `scripts/validate_sprint_json.sh <sprint-id>`
 
 ## Failure Recovery
 

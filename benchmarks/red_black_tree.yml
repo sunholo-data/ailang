@@ -1,0 +1,29 @@
+id: red_black_tree
+description: "Red-black tree insertion with balancing (advanced data structure)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements red-black tree insertion:
+
+  1. Define Color = Red | Black
+
+  2. Define RBTree = Empty | Node(Color, RBTree, int, RBTree)
+
+  3. Implement `balance(color, left, value, right)` that fixes red-red violations:
+     - Pattern match on the 4 rotation cases (left-left, left-right, right-left, right-right)
+     - Return balanced Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))
+
+  4. Implement `insert(x, tree)` that inserts and recolors root to black
+
+  5. Implement `inorder(tree)` to get sorted values
+
+  6. Insert these values: [7, 3, 18, 10, 22, 8, 11, 26]
+
+  7. Print the inorder traversal (should be sorted)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  [3, 7, 8, 10, 11, 18, 22, 26]

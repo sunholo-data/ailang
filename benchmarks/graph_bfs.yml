@@ -1,0 +1,40 @@
+id: graph_bfs
+description: "Breadth-first search on a graph (queue simulation + visited tracking)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements breadth-first search:
+
+  1. Represent a graph as an adjacency list: [(node, [neighbors])]
+     Example: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]
+
+  2. Implement BFS that returns nodes in visit order from a starting node
+     - Use a queue (list where you add to end, remove from front)
+     - Track visited nodes to avoid cycles
+     - Helper: `contains(x, list)` to check if node is visited
+     - Helper: `enqueue(x, queue)` to add to end of queue
+
+  3. Run BFS on this graph starting from node 1:
+     ```
+         1
+        / \
+       2   3
+       |  / \
+       4    5
+     ```
+     Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]
+
+  4. Print visited nodes in BFS order, one per line
+
+  Expected order: 1, 2, 3, 4, 5 (may vary based on neighbor order)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  1
+  2
+  3
+  4
+  5

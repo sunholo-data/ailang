@@ -1,0 +1,32 @@
+id: lambda_calc
+description: "Lambda calculus evaluator with substitution (advanced functional programming)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that evaluates lambda calculus expressions:
+
+  1. Define a Term type:
+     - TVar(string) - variable
+     - TLam(string, Term) - lambda abstraction: λx.body
+     - TApp(Term, Term) - application: f x
+
+  2. Implement `subst(term, var, replacement)` - substitute var with replacement in term
+     - Be careful with variable capture (for simplicity, assume no shadowing)
+
+  3. Implement `eval(term)` using call-by-value:
+     - Variables evaluate to themselves
+     - Lambdas are values
+     - For App(f, arg): evaluate f, evaluate arg, if f is a lambda, substitute and evaluate
+
+  4. Evaluate: (λx. λy. x) 1 2
+     - As AST: TApp(TApp(TLam("x", TLam("y", TVar("x"))), TVar("1")), TVar("2"))
+     - This is the K combinator applied to 1 and 2
+
+  5. Print the result (should be "1" or TVar("1"))
+
+  Output only the code, no explanations.
+expected_stdout: |
+  1
