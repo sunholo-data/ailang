@@ -289,6 +289,42 @@ Analyze size → Identify high-ROI sections → Apply techniques → Validate su
 - **ailang builtins list:** Reference instead of duplicating
 - **docs/guides/:** Link to instead of explaining
 
+## ⚠️ CRITICAL: Benchmark YAML Field Usage (v0.4.8 Discovery)
+
+**Benchmarks use TWO different fields for prompts:**
+
+| Field | Effect | When to Use |
+|-------|--------|-------------|
+| `prompt:` | **REPLACES** the teaching prompt | Only for language-agnostic tasks |
+| `task_prompt:` | **APPENDS** to teaching prompt | Use this for AILANG benchmarks! |
+
+**Example - WRONG (teaching prompt ignored):**
+```yaml
+prompt: |
+  Write a program that parses JSON...
+```
+
+**Example - CORRECT (teaching prompt + task):**
+```yaml
+task_prompt: |
+  Write a program that parses JSON...
+```
+
+**Why this matters:** If `prompt:` is used, AILANG models don't see the teaching prompt at all - they only see the task description. They won't know AILANG syntax!
+
+**Best practice:** Always load the current AILANG teaching prompt (`ailang prompt`) when editing prompts or benchmarks, so you understand what models will see.
+
+## ⚠️ When Editing Prompts: Load AILANG Syntax First
+
+Before modifying the AILANG teaching prompt, load it to understand the syntax:
+```bash
+ailang prompt > /tmp/current_prompt.md
+# Read and understand AILANG syntax patterns
+# Then make informed edits
+```
+
+This prevents introducing syntax errors or patterns that don't match AILANG's actual capabilities.
+
 ## Success Metrics
 
 **Target prompt profile:**
