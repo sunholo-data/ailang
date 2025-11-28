@@ -157,9 +157,37 @@ the foundation for AI-driven code reasoning.
 
 ---
 
-## Future Horizons — Multi-Agent Coordination
+## Future Horizons — Shared Semantic State
 
-Once reflection and normalization are stable, AILANG will enable **multi-agent cooperation**:
+Once reflection and normalization are stable, AILANG will enable **multi-agent cooperation** through a fundamentally new primitive: **shared semantic memory**.
+
+> *For the full technical vision, see [Shared Semantic State — AILANG's Cognitive Kernel](/docs/architecture/shared-semantic-state)*
+
+### Why This Changes Everything
+
+Traditional languages assume AI is external — models are called, not integrated. AILANG treats shared semantic memory as a language-level construct, not an infrastructure accident.
+
+This is the same conceptual leap that:
+- **Lisp** made for symbolic computation
+- **SQL** made for relational data
+- **CUDA** made for massive parallelism
+
+**AILANG is doing it for AI-native distributed cognition.**
+
+### The Killer Analogy
+
+> **Shared semantic state is to AI agents what shared GPU global memory is to CUDA kernels.**
+
+Before CUDA: GPU threads had no shared space → limited coordination.
+After CUDA: Shared memory → massive unlock in speed + capability.
+
+**AILANG is doing the same but for cooperating minds.**
+
+---
+
+## Multi-Agent Cooperation in Practice
+
+With shared semantic state, AILANG enables **multi-agent cooperation**:
 
 ### Example: Two AIs Refactor a Module
 
@@ -201,12 +229,18 @@ fn verifyRefactor(original, refactored) =
 
 ### Key Capabilities for Multi-Agent Systems
 
-- **Shared Effect Algebra** — AIs coordinate through explicit effect declarations
-- **Canonical Normalization** — `normalize()` ensures AIs compare semantically equivalent forms
-- **Cryptographic Proofs** — Hash-based verification prevents adversarial code changes
-- **Equivalence Checking** — Automated verification that refactorings preserve behavior
+| Capability | What It Enables |
+|------------|-----------------|
+| **Shared Semantic Memory** | Agents think together in latent space, not message-passing |
+| **CAS-Based Coordination** | Deterministic, linearizable updates without race conditions |
+| **Semantic Frame Types** | Unified substrate for plans, beliefs, world state, and memories |
+| **Effect-Tracked Caching** | Training data includes memory patterns — agents learn to cache |
+| **Canonical Normalization** | `normalize()` ensures AIs compare semantically equivalent forms |
+| **Cryptographic Proofs** | Hash-based verification prevents adversarial code changes |
 
-**The vision:** A language where AIs can reason about, improve, and trust each other's code.
+**The vision:** A language where AIs can reason about, improve, and **trust** each other's code — because they share state, not just messages.
+
+> *See [Shared Semantic State](/docs/architecture/shared-semantic-state) for the complete technical vision.*
 
 ---
 

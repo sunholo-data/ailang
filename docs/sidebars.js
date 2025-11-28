@@ -16,6 +16,13 @@ const sidebars = {
   tutorialSidebar: [
     'intro',
     'vision',
+    {
+      type: 'category',
+      label: 'Architecture',
+      items: [
+        'architecture/shared-semantic-state',
+      ],
+    },
     'examples',
     'playground',
     {
@@ -35,6 +42,7 @@ const sidebars = {
         'guides/agent-workflows',
         'guides/state-system-workflow',
         'guides/agent-integration',
+        'guides/agent-messaging',
       ],
     },
     {
@@ -45,6 +53,7 @@ const sidebars = {
         'reference/implementation-status',
         'reference/repl-commands',
         'reference/no-loops',
+        'reference/limitations',
       ],
     },
     {
@@ -62,6 +71,8 @@ const sidebars = {
       label: 'Development',
       items: [
         'guides/development',
+        'guides/testing',
+        'guides/debugging',
         'guides/wasm-integration',
         'guides/benchmarking',
       ],
