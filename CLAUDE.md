@@ -103,6 +103,43 @@ ailang agent unack msg_20251025_155729_a5f3e77ee975
 ailang agent inbox user --archive
 ```
 
+### Responding to External Projects
+
+When external projects (like stapledons_voyage) send bug reports or feature requests, use the **ailang-feedback** skill (global, in `~/.claude/skills/`):
+
+```bash
+# Use the send_response.sh script (recommended)
+~/.claude/skills/ailang-feedback/scripts/send_response.sh PROJECT "Title" "Message"
+
+# Examples:
+~/.claude/skills/ailang-feedback/scripts/send_response.sh stapledons_voyage \
+  "Bug acknowledged" "Design doc created for v0.4.9"
+
+~/.claude/skills/ailang-feedback/scripts/send_response.sh stapledons_voyage \
+  "Answer: intToFloat exists" "Use intToFloat(n) from std/prelude"
+
+# Or use ailang directly (avoid hyphens in JSON values):
+ailang agent send PROJECT '{"type":"response","title":"Title","description":"Message","priority":"medium"}'
+```
+
+**Workflow for handling external feedback:**
+1. Review messages in SessionStart hook output
+2. For bugs: Create design docs using `design-doc-creator` skill
+3. For doc questions: Answer directly or note documentation gap
+4. Send responses: `~/.claude/skills/ailang-feedback/scripts/send_response.sh`
+5. Acknowledge: `ailang agent ack --all`
+
+**Common response types:**
+- `response` - Reply to bug report or feature request
+- `acknowledgment` - Confirm receipt
+- `resolution` - Bug fixed or feature shipped
+
+**File locations:**
+- Outgoing responses: `~/.ailang/state/messages/PROJECT_NAME/*.pending.json`
+- External projects pick up messages when they check their inbox
+
+**Full skill documentation:** `~/.claude/skills/ailang-feedback/SKILL.md`
+
 ---
 
 ## ⚠️ CRITICAL PRINCIPLES

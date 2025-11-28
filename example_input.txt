@@ -1,6 +1,0 @@
-hello world
-
-  python programming  
-   file handling example   
-  end of file  
-    

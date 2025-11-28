@@ -1,4 +1,0 @@
-This is a sample line.
-Another line with some words.
-
-Final line.

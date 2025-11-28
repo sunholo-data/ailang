@@ -1,9 +1,0 @@
-Word Frequency Report
-=====================
-
-is             : 3
-python         : 2
-great          : 1
-readable       : 1
-code           : 1
-poetry         : 1
