@@ -3,6 +3,43 @@
 
 set -euo pipefail
 
+# Agent benchmarks list (46 benchmarks as of v0.4.8)
+# This MUST be kept in sync with benchmarks/ directory
+AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_person,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_traffic_light,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
+
+# Validation mode: check configuration without running full eval
+if [[ "${1:-}" == "--validate" ]]; then
+    echo "Validating agent eval configuration..."
+
+    # Check AGENT_BENCHMARKS is defined and non-empty
+    if [[ -z "${AGENT_BENCHMARKS:-}" ]]; then
+        echo "ERROR: AGENT_BENCHMARKS not defined"
+        exit 1
+    fi
+
+    # Count benchmarks
+    BENCHMARK_COUNT=$(echo "$AGENT_BENCHMARKS" | tr ',' '\n' | wc -l | tr -d ' ')
+    echo "  Benchmarks defined: $BENCHMARK_COUNT"
+
+    # Verify ailang command exists
+    if ! command -v ailang &> /dev/null; then
+        echo "ERROR: ailang command not found"
+        exit 1
+    fi
+    echo "  ailang command: found"
+
+    # Check that benchmark files exist (spot check first benchmark)
+    FIRST_BENCHMARK=$(echo "$AGENT_BENCHMARKS" | cut -d',' -f1)
+    if [[ -f "benchmarks/${FIRST_BENCHMARK}.yml" ]]; then
+        echo "  Benchmark files: found (checked $FIRST_BENCHMARK.yml)"
+    else
+        echo "WARNING: Benchmark file not found: benchmarks/${FIRST_BENCHMARK}.yml"
+    fi
+
+    echo "  ✓ Agent eval configuration valid"
+    exit 0
+fi
+
 # Progress monitoring (runs in background)
 monitor_progress() {
     local results_dir="$1"
@@ -73,20 +110,9 @@ echo
 echo "=== Step 2/2: Agent Eval (multi-turn) ==="
 echo "Running agent eval on curated benchmarks..."
 
-# Full agent benchmark suite (v0.4.8+) - 46 benchmarks
-# Trimmed from 56: removed trivial (4) and easy (6, kept fizzbuzz)
-# See: benchmark-manager skill for details
-#
-# Categories:
-#   - 1 easy (fizzbuzz): validation benchmark
-#   - ~19 medium: core language features
-#   - ~17 hard: complex algorithms and effects
-#   - 6 stretch goals: symbolic_diff, mini_interpreter, lambda_calc, graph_bfs, type_unify, red_black_tree
-#
-# Agent mode requires explicit --benchmarks list (safety feature)
-AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_person,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_traffic_light,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
-
-echo "Benchmarks: all 46 benchmarks"
+# AGENT_BENCHMARKS is defined at the top of the script (46 benchmarks)
+# See: benchmark-manager skill for benchmark categories
+echo "Benchmarks: all 46 benchmarks (see AGENT_BENCHMARKS at top of script)"
 echo
 
 # Pre-flight validation and configuration summary

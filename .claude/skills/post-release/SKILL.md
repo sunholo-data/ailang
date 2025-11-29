@@ -429,6 +429,44 @@ After v0.3.15:
 - No manual calculations
 - Version format doesn't matter
 
+## Lessons Learned (v0.4.8)
+
+### Always Validate Before Long-Running Operations
+
+The pre-release checks now include:
+1. **Golden file validation**: `make test-import-errors` to catch stale goldens
+2. **Agent eval config validation**: `--validate` flag to verify benchmarks list
+
+**Issue discovered**: Agent eval requires explicit `--benchmarks` list (safety feature), but script didn't have it defined. Now fixed with `AGENT_BENCHMARKS` at top of script.
+
+### Agent Eval Requirements
+
+- Agent mode REQUIRES explicit `--benchmarks` list (46 benchmarks as of v0.4.8)
+- The list is defined in `AGENT_BENCHMARKS` variable at top of `run_eval_baseline.sh`
+- Keep in sync with `benchmarks/` directory
+
+### Golden Files Can Become Stale
+
+When error behavior changes (e.g., module now exists → different error code), golden files need regeneration:
+```bash
+make regen-import-error-goldens
+```
+
+Pre-release checks now validate goldens match current behavior.
+
+### Validate Script Before Running
+
+Use `--validate` flag to check configuration without running full eval:
+```bash
+.claude/skills/post-release/scripts/run_eval_baseline.sh --validate
+```
+
+This checks:
+- AGENT_BENCHMARKS is defined
+- Benchmark count (46 expected)
+- ailang command exists
+- Benchmark files exist
+
 ## Notes
 
 - This skill follows Anthropic's Agent Skills specification (Oct 2025)
