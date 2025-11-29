@@ -8,6 +8,8 @@ export interface Thread {
   created_by_id: string;
   status: 'active' | 'paused' | 'resolved' | 'archived';
   context_json?: string;
+  target_agent?: string;  // Which agent this conversation is with
+  workspace?: string;     // Working directory for this thread (persisted)
   last_seq: number;
   updated_at: string | number;
 }

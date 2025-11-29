@@ -328,7 +328,7 @@ func TestCreateThread(t *testing.T) {
 
 	store := NewStore(db)
 
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestGetThread(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	created, err := store.CreateThread("Test Thread", "human", "user1")
+	created, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -399,7 +399,7 @@ func TestCreateMessage(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread first
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -447,7 +447,7 @@ func TestCreateMessageSequencing(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestGetMessagesFromSeq(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -535,7 +535,7 @@ func TestGetMessagesFromSeqWithLimit(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestSubscribe(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -610,7 +610,7 @@ func TestSubscribeDuplicate(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}
@@ -648,7 +648,7 @@ func TestUpdateAckSeq(t *testing.T) {
 	store := NewStore(db)
 
 	// Create thread and subscribe
-	thread, err := store.CreateThread("Test Thread", "human", "user1")
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "")
 	if err != nil {
 		t.Fatalf("CreateThread failed: %v", err)
 	}

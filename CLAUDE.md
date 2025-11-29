@@ -427,6 +427,7 @@ The agent knows how to:
 - **post-release** - Run eval baselines and update website dashboard automatically
 - **sprint-planner** - Analyze design docs and create realistic, data-driven sprint plans
 - **sprint-executor** - Execute sprints with TDD, continuous linting, and progress tracking
+- **collaboration-hub** - Develop and modify the Collaboration Hub UI (React frontend)
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -441,6 +442,7 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Update benchmarks" → `post-release` skill
 - "Help me write AILANG code" → `use-ailang` skill
 - "Plan the sprint" → `sprint-planner` skill
+- "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
 
 ### Skills vs Agents vs Commands
 
@@ -569,6 +571,37 @@ make test           # Run all tests
 make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
+
+### Collaboration Hub Server
+
+**For developing or modifying the Collaboration Hub UI**, use the `collaboration-hub` skill.
+
+**Starting the server:**
+```bash
+ailang serve                    # Start on default port 1957
+ailang serve --port 8080        # Use custom port
+ailang serve --db /tmp/test.db  # Use custom database
+```
+
+**Key endpoints:**
+- **UI**: http://localhost:1957/
+- **WebSocket**: ws://localhost:1957/ws
+- **REST API**: http://localhost:1957/api/
+- **Health**: http://localhost:1957/health
+
+**After UI changes:**
+```bash
+cd ui && npm run build                              # Build React app
+cp -r ui/dist/* internal/server/dist/               # Copy to server
+ailang serve                                        # Restart server
+```
+
+**Architecture:**
+- **Backend**: `internal/server/` (Go HTTP server with SQLite)
+- **Frontend**: `ui/` (React + TypeScript + Vite)
+- **Database**: `~/.ailang/state/collaboration.db`
+
+**For complete guide**: Use the `collaboration-hub` skill
 
 ### Adding Builtin Functions
 

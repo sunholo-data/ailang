@@ -3,6 +3,7 @@ import { Approval, EffectDelta } from '../../types';
 
 interface ApprovalQueueProps {
   approvals: Approval[];
+  history?: Approval[];
   onApprove: (approvalId: string, notes: string) => void;
   onReject: (approvalId: string, notes: string) => void;
 }
@@ -65,9 +66,11 @@ const Icons = {
 
 export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   approvals,
+  history = [],
   onApprove,
   onReject,
 }) => {
+  const [showHistory, setShowHistory] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Map<string, string>>(new Map());
 
@@ -260,6 +263,81 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* History Section */}
+        {history.length > 0 && (
+          <div className="history-section">
+            <div
+              className="history-header"
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              <h3>
+                {showHistory ? Icons.chevronDown : Icons.chevronUp}
+                Review History
+              </h3>
+              <span className="history-count">{history.length} decisions</span>
+            </div>
+
+            {showHistory && (
+              <div className="history-list">
+                {history.map((approval) => {
+                  const isExpanded = expandedId === `history-${approval.id}`;
+
+                  return (
+                    <div
+                      key={`history-${approval.id}`}
+                      className={`history-card ${approval.status}`}
+                      onClick={() => setExpandedId(isExpanded ? null : `history-${approval.id}`)}
+                    >
+                      <div className="history-card-header">
+                        <div className="history-status">
+                          <span className={`status-icon ${approval.status}`}>
+                            {approval.status === 'approved' ? Icons.check : Icons.x}
+                          </span>
+                          <span className="history-proposal">{approval.proposal}</span>
+                        </div>
+                        <div className="history-meta">
+                          <span className="history-agent">{approval.instance_id}</span>
+                          <span className={`history-badge ${approval.status}`}>
+                            {approval.status}
+                          </span>
+                          <span className="history-time">
+                            {approval.reviewed_at ? formatTimestamp(approval.reviewed_at) : formatTimestamp(approval.created_at)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="history-details">
+                          <div className="detail-row">
+                            <span className="detail-label">Reviewed by</span>
+                            <span className="detail-value">{approval.reviewed_by || 'Unknown'}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="detail-label">Cost</span>
+                            <span className="detail-value">${approval.estimated_cost.toFixed(2)}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="detail-label">Impact</span>
+                            <span className={`detail-value impact-text ${approval.impact}`}>
+                              {approval.impact.toUpperCase()}
+                            </span>
+                          </div>
+                          {approval.review_notes && (
+                            <div className="detail-row full-width">
+                              <span className="detail-label">Notes</span>
+                              <span className="detail-value notes">{approval.review_notes}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -684,6 +762,191 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
         }
 
+        /* History Section */
+        .history-section {
+          margin-top: var(--space-6);
+          border-top: 1px solid var(--border-subtle);
+          padding-top: var(--space-4);
+        }
+
+        .history-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          padding: var(--space-2) 0;
+          margin-bottom: var(--space-4);
+        }
+
+        .history-header h3 {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          font-size: var(--text-sm);
+          font-weight: var(--font-semibold);
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .history-header h3 svg {
+          width: 14px;
+          height: 14px;
+        }
+
+        .history-count {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-elevated);
+          border-radius: var(--radius-sm);
+        }
+
+        .history-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-2);
+        }
+
+        .history-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          padding: var(--space-3);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .history-card:hover {
+          background: var(--bg-hover);
+          border-color: var(--border-default);
+        }
+
+        .history-card.approved {
+          border-left: 3px solid var(--color-success);
+        }
+
+        .history-card.rejected {
+          border-left: 3px solid var(--color-danger);
+        }
+
+        .history-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--space-3);
+        }
+
+        .history-status {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          flex: 1;
+          min-width: 0;
+        }
+
+        .status-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: var(--radius-full);
+          flex-shrink: 0;
+        }
+
+        .status-icon.approved {
+          background: rgba(16, 185, 129, 0.15);
+          color: var(--color-success);
+        }
+
+        .status-icon.rejected {
+          background: rgba(239, 68, 68, 0.15);
+          color: var(--color-danger);
+        }
+
+        .history-proposal {
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .history-meta {
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+          flex-shrink: 0;
+        }
+
+        .history-agent {
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          color: var(--text-tertiary);
+        }
+
+        .history-badge {
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          text-transform: uppercase;
+          padding: 2px var(--space-2);
+          border-radius: var(--radius-sm);
+        }
+
+        .history-badge.approved {
+          background: rgba(16, 185, 129, 0.15);
+          color: var(--color-success);
+        }
+
+        .history-badge.rejected {
+          background: rgba(239, 68, 68, 0.15);
+          color: var(--color-danger);
+        }
+
+        .history-time {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        .history-details {
+          margin-top: var(--space-3);
+          padding-top: var(--space-3);
+          border-top: 1px solid var(--border-subtle);
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: var(--space-3);
+        }
+
+        .detail-row {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-1);
+        }
+
+        .detail-row.full-width {
+          grid-column: 1 / -1;
+        }
+
+        .detail-row .detail-label {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        .detail-row .detail-value {
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+        }
+
+        .detail-row .detail-value.notes {
+          font-size: var(--text-xs);
+          color: var(--text-secondary);
+          background: var(--bg-elevated);
+          padding: var(--space-2);
+          border-radius: var(--radius-sm);
+          white-space: pre-wrap;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
           .queue-header,
@@ -709,6 +972,20 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
           .detail-item.full-width {
             grid-column: span 1;
+          }
+
+          .history-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .history-meta {
+            width: 100%;
+            margin-top: var(--space-2);
+          }
+
+          .history-details {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

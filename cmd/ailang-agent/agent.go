@@ -167,10 +167,21 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 	log.Printf("  To: %s/%s", msg.ToType, msg.ToID)
 	log.Printf("  Content: %s", msg.Content)
 
-	// Parse workspace from metadata
-	workspace := parseWorkspace(msg.MetadataJSON)
+	// Get workspace from thread (persisted at thread level)
+	// Falls back to message metadata for backward compatibility
+	workspace, err := a.client.GetThreadWorkspace(msg.ThreadID)
+	if err != nil {
+		log.Printf("  [WORKSPACE] Warning: could not get thread workspace: %v", err)
+		workspace = ""
+	}
+	if workspace == "" {
+		// Fallback to message metadata (legacy support)
+		workspace = parseWorkspace(msg.MetadataJSON)
+	}
 	if workspace != "" {
 		log.Printf("  [WORKSPACE] Using: %s", workspace)
+	} else {
+		log.Printf("  [WORKSPACE] None set - will create temporary workspace")
 	}
 
 	if msg.Kind == "directive" {
@@ -261,8 +272,8 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 		log.Printf("  [QUESTION] Answering: %s", msg.Content)
 
 		// Questions don't require approval - they're just read-only queries
-		// Execute without workspace (creates a temporary one)
-		result, err := a.executor.Execute(msg.Content)
+		// Use thread workspace if set, otherwise creates a temporary one
+		result, err := a.executor.ExecuteInWorkspace(msg.Content, workspace)
 		if err != nil {
 			log.Printf("  [ERROR] Question answering failed: %v", err)
 			return fmt.Errorf("question answering failed: %w", err)

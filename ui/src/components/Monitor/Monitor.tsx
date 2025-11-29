@@ -121,11 +121,20 @@ const Icons = {
   ),
 };
 
+// Track previous values for trend indicators
+interface TrendData {
+  prevCost: number;
+  prevTokensIn: number;
+  prevTokensOut: number;
+  timestamp: number;
+}
+
 export const Monitor: React.FC = () => {
   const [data, setData] = useState<MonitorResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [telemetry, setTelemetry] = useState<Map<string, TelemetryEvent>>(new Map());
+  const [trends, setTrends] = useState<TrendData>({ prevCost: 0, prevTokensIn: 0, prevTokensOut: 0, timestamp: 0 });
 
   const fetchMonitorData = useCallback(async () => {
     try {
@@ -252,11 +261,40 @@ export const Monitor: React.FC = () => {
     return { ...proc, hasLiveTelemetry: false };
   };
 
-  // Calculate total tokens from telemetry
-  const totalTokens = Array.from(telemetry.values()).reduce(
-    (acc, t) => ({ in: acc.in + t.tokens_in, out: acc.out + t.tokens_out }),
-    { in: 0, out: 0 }
+  // Calculate totals from telemetry (live data)
+  const telemetryTotals = Array.from(telemetry.values()).reduce(
+    (acc, t) => ({
+      tokens_in: acc.tokens_in + t.tokens_in,
+      tokens_out: acc.tokens_out + t.tokens_out,
+      cost: acc.cost + t.cost,
+      turns: acc.turns + t.turns,
+    }),
+    { tokens_in: 0, tokens_out: 0, cost: 0, turns: 0 }
   );
+
+  // Use telemetry cost if available, otherwise fall back to API summary
+  const totalCost = telemetryTotals.cost > 0 ? telemetryTotals.cost : (data?.summary.total_cost || 0);
+  const totalTokens = { in: telemetryTotals.tokens_in, out: telemetryTotals.tokens_out };
+  const hasLiveTelemetry = telemetry.size > 0;
+
+  // Update trends every 2 seconds
+  useEffect(() => {
+    if (hasLiveTelemetry) {
+      const now = Date.now();
+      if (now - trends.timestamp > 2000) {
+        setTrends({
+          prevCost: totalCost,
+          prevTokensIn: totalTokens.in,
+          prevTokensOut: totalTokens.out,
+          timestamp: now,
+        });
+      }
+    }
+  }, [totalCost, totalTokens.in, totalTokens.out, hasLiveTelemetry, trends.timestamp]);
+
+  // Calculate if values are increasing
+  const costTrend = totalCost > trends.prevCost && trends.prevCost > 0 ? 'up' : null;
+  const tokensTrend = (totalTokens.in + totalTokens.out) > (trends.prevTokensIn + trends.prevTokensOut) && (trends.prevTokensIn + trends.prevTokensOut) > 0 ? 'up' : null;
 
   const formatTokens = (count: number): string => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -283,16 +321,27 @@ export const Monitor: React.FC = () => {
           <span className="summary-value">{data?.summary.total_memory_mb.toFixed(0) || '0'} MB</span>
           <span className="summary-label">Memory</span>
         </div>
-        <div className="summary-item">
+        <div className={`summary-item ${hasLiveTelemetry ? 'live' : ''}`}>
           <span className="summary-icon">{Icons.dollar}</span>
-          <span className="summary-value">{formatCost(data?.summary.total_cost || 0)}</span>
-          <span className="summary-label">Cost</span>
+          <span className="summary-value">
+            {formatCost(totalCost)}
+            {costTrend === 'up' && <span className="trend-up">▲</span>}
+          </span>
+          <span className="summary-label">Cost {hasLiveTelemetry && <span className="live-indicator">●</span>}</span>
         </div>
-        {(totalTokens.in > 0 || totalTokens.out > 0) && (
-          <div className="summary-item">
-            <span className="summary-icon">{Icons.tokens}</span>
-            <span className="summary-value">{formatTokens(totalTokens.in + totalTokens.out)}</span>
-            <span className="summary-label">Tokens</span>
+        <div className={`summary-item ${hasLiveTelemetry ? 'live' : ''}`}>
+          <span className="summary-icon">{Icons.tokens}</span>
+          <span className="summary-value">
+            {formatTokens(totalTokens.in)}↓ / {formatTokens(totalTokens.out)}↑
+            {tokensTrend === 'up' && <span className="trend-up">▲</span>}
+          </span>
+          <span className="summary-label">Tokens {hasLiveTelemetry && <span className="live-indicator">●</span>}</span>
+        </div>
+        {telemetryTotals.turns > 0 && (
+          <div className="summary-item live">
+            <span className="summary-icon">{Icons.message}</span>
+            <span className="summary-value">{telemetryTotals.turns}</span>
+            <span className="summary-label">Turns <span className="live-indicator">●</span></span>
           </div>
         )}
         {(data?.summary.warning_count || 0) > 0 && (
@@ -304,6 +353,7 @@ export const Monitor: React.FC = () => {
         )}
         <div className="summary-spacer" />
         <div className="summary-update">
+          {hasLiveTelemetry && <span className="live-badge-summary">LIVE</span>}
           Last update: {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Never'}
         </div>
       </div>
@@ -514,6 +564,48 @@ export const Monitor: React.FC = () => {
         .summary-label {
           font-size: var(--text-xs);
           color: var(--text-tertiary);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .summary-item.live .summary-value {
+          color: var(--color-primary);
+        }
+
+        .trend-up {
+          color: var(--color-success);
+          font-size: 10px;
+          margin-left: 4px;
+          animation: trend-flash 0.5s ease-out;
+        }
+
+        @keyframes trend-flash {
+          0% { opacity: 0; transform: scale(1.5); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+
+        .live-indicator {
+          color: var(--color-primary);
+          font-size: 8px;
+          animation: live-blink 1s ease-in-out infinite;
+        }
+
+        @keyframes live-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+
+        .live-badge-summary {
+          display: inline-block;
+          font-size: 9px;
+          font-weight: var(--font-bold);
+          color: var(--color-primary);
+          background: rgba(37, 194, 160, 0.15);
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          margin-right: var(--space-2);
+          animation: live-blink 1s ease-in-out infinite;
         }
 
         .summary-spacer {
@@ -523,6 +615,8 @@ export const Monitor: React.FC = () => {
         .summary-update {
           font-size: var(--text-xs);
           color: var(--text-tertiary);
+          display: flex;
+          align-items: center;
         }
 
         /* Process Grid */

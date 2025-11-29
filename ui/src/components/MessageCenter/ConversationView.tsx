@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Message } from '../../types';
+import { Message, Thread } from '../../types';
 
 interface ConversationViewProps {
-  threadId: string;
+  thread?: Thread;
   messages: Message[];
   onSendMessage: (content: string, kind: string, workspace?: string) => void;
+  onWorkspaceChange?: (workspace: string) => void;  // Callback to save workspace to thread
 }
 
 // Icons
@@ -75,9 +76,10 @@ const getKindIcon = (kind: string) => {
 };
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
-  threadId,
+  thread,
   messages,
   onSendMessage,
+  onWorkspaceChange,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = React.useState('');
@@ -85,9 +87,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [workspace, setWorkspace] = React.useState<string>('');
   const [showWorkspaceInput, setShowWorkspaceInput] = React.useState<boolean>(false);
 
+  // Load workspace from thread when thread changes
+  useEffect(() => {
+    if (thread?.workspace) {
+      setWorkspace(thread.workspace);
+    } else {
+      setWorkspace('');
+    }
+  }, [thread?.id, thread?.workspace]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Save workspace to thread when changed
+  const handleWorkspaceChange = (newWorkspace: string) => {
+    setWorkspace(newWorkspace);
+    if (onWorkspaceChange) {
+      onWorkspaceChange(newWorkspace);
+    }
+  };
 
   const handleSend = () => {
     if (inputValue.trim()) {
@@ -115,16 +134,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     return id;
   };
 
+  if (!thread) {
+    return null;
+  }
+
   return (
     <div className="conversation-view">
       {/* Header */}
       <div className="conversation-header">
         <div className="header-info">
-          <span className="thread-label">Thread</span>
-          <span className="thread-id" title={threadId}>{truncateId(threadId)}</span>
+          <h2 className="thread-title">{thread.title}</h2>
+          {thread.target_agent && (
+            <span className="thread-agent-badge">
+              {Icons.bot}
+              {thread.target_agent}
+            </span>
+          )}
         </div>
         <div className="header-stats">
           <span className="message-count">{messages.length} messages</span>
+          <span className="thread-id" title={thread.id}>{truncateId(thread.id)}</span>
         </div>
       </div>
 
@@ -168,12 +197,20 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                     {message.kind === 'result' || !isHuman ? (
                       <ReactMarkdown
                         components={{
-                          // Custom link renderer for file:// URLs
-                          a: ({ href, children }) => (
-                            <a href={href} target="_blank" rel="noopener noreferrer">
-                              {children}
-                            </a>
-                          ),
+                          // Custom link renderer - convert local paths to file:// URLs
+                          a: ({ href, children }) => {
+                            // Convert absolute local paths to file:// protocol
+                            let finalHref = href;
+                            if (href && href.startsWith('/') && !href.startsWith('//')) {
+                              // Looks like a local filesystem path, convert to file:// URL
+                              finalHref = `file://${href}`;
+                            }
+                            return (
+                              <a href={finalHref} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            );
+                          },
                           // Code blocks with syntax highlighting placeholder
                           code: ({ className, children, ...props }) => {
                             const isInline = !className;
@@ -209,37 +246,46 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
       {/* Input Area */}
       <div className="input-area">
-        {/* Workspace selector row */}
-        <div className="workspace-row">
-          <button
-            onClick={() => setShowWorkspaceInput(!showWorkspaceInput)}
-            className={`workspace-toggle ${workspace ? 'has-workspace' : ''}`}
-            title={workspace || 'Set working directory'}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>{workspace ? 'Workspace set' : 'Set workspace'}</span>
-          </button>
-          {workspace && (
-            <span className="workspace-path" title={workspace}>
-              {workspace.length > 40 ? `...${workspace.slice(-37)}` : workspace}
-            </span>
-          )}
-        </div>
-
+        {/* Workspace expanded input row */}
         {showWorkspaceInput && (
           <div className="workspace-input-row">
             <input
               type="text"
               value={workspace}
-              onChange={(e) => setWorkspace(e.target.value)}
+              onChange={(e) => handleWorkspaceChange(e.target.value)}
+              onBlur={() => {
+                // Save on blur (when user finishes typing)
+                if (onWorkspaceChange) {
+                  onWorkspaceChange(workspace);
+                }
+              }}
               placeholder="/path/to/working/directory (leave empty for fresh workspace)"
               className="workspace-input"
             />
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/select-folder');
+                  const data = await response.json();
+                  if (!data.cancelled && data.path) {
+                    handleWorkspaceChange(data.path);
+                  }
+                } catch (err) {
+                  console.error('Failed to open folder picker:', err);
+                }
+              }}
+              className="workspace-browse"
+              title="Browse for folder"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+            </button>
             {workspace && (
               <button
-                onClick={() => { setWorkspace(''); setShowWorkspaceInput(false); }}
+                onClick={() => { handleWorkspaceChange(''); setShowWorkspaceInput(false); }}
                 className="workspace-clear"
               >
                 Clear
@@ -249,6 +295,16 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         )}
 
         <div className="input-wrapper">
+          {/* Workspace button on the LEFT */}
+          <button
+            onClick={() => setShowWorkspaceInput(!showWorkspaceInput)}
+            className={`workspace-toggle ${workspace ? 'has-workspace' : ''}`}
+            title={workspace || 'Set working directory'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
           <select
             value={messageKind}
             onChange={(e) => setMessageKind(e.target.value)}
@@ -261,7 +317,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
+            placeholder={workspace ? `Message (workspace: ${workspace.split('/').pop()})` : "Type a message..."}
             rows={1}
           />
           <button
@@ -298,20 +354,36 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         .header-info {
           display: flex;
           align-items: center;
-          gap: var(--space-2);
+          gap: var(--space-3);
         }
 
-        .thread-label {
+        .thread-title {
+          font-size: var(--text-base);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .thread-agent-badge {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
           font-size: var(--text-xs);
-          color: var(--text-tertiary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+          font-weight: var(--font-medium);
+          color: var(--color-primary);
+          padding: 2px 8px;
+          background: rgba(37, 194, 160, 0.1);
+          border-radius: var(--radius-sm);
+        }
+
+        .thread-agent-badge svg {
+          opacity: 0.8;
         }
 
         .thread-id {
-          font-size: var(--text-sm);
+          font-size: var(--text-xs);
           font-family: var(--font-mono);
-          color: var(--text-secondary);
+          color: var(--text-tertiary);
           padding: var(--space-1) var(--space-2);
           background: var(--bg-elevated);
           border-radius: var(--radius-sm);
@@ -319,7 +391,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
         .header-stats {
           display: flex;
-          gap: var(--space-4);
+          align-items: center;
+          gap: var(--space-3);
         }
 
         .message-count {
@@ -580,47 +653,37 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           border-top: 1px solid var(--border-subtle);
         }
 
-        /* Workspace selector */
-        .workspace-row {
-          display: flex;
-          align-items: center;
-          gap: var(--space-2);
-          margin-bottom: var(--space-2);
-        }
-
+        /* Workspace toggle button in input row */
         .workspace-toggle {
           display: flex;
           align-items: center;
-          gap: var(--space-1);
-          padding: var(--space-1) var(--space-2);
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          padding: 0;
           background: var(--bg-elevated);
           color: var(--text-tertiary);
-          font-size: var(--text-xs);
           border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-sm);
+          border-radius: var(--radius-md);
           cursor: pointer;
           transition: all var(--transition-fast);
+          flex-shrink: 0;
         }
 
         .workspace-toggle:hover {
           color: var(--text-secondary);
           border-color: var(--border-default);
+          background: var(--bg-hover);
         }
 
         .workspace-toggle.has-workspace {
           color: var(--color-primary);
           border-color: var(--color-primary);
-          background: rgba(37, 194, 160, 0.1);
+          background: rgba(37, 194, 160, 0.15);
         }
 
-        .workspace-path {
-          font-size: var(--text-xs);
-          font-family: var(--font-mono);
-          color: var(--text-tertiary);
-          max-width: 300px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        .workspace-toggle.has-workspace:hover {
+          background: rgba(37, 194, 160, 0.25);
         }
 
         .workspace-input-row {
@@ -650,6 +713,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
         .workspace-input::placeholder {
           color: var(--text-tertiary);
+        }
+
+        .workspace-browse {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-elevated);
+          color: var(--text-secondary);
+          font-size: var(--text-xs);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .workspace-browse:hover {
+          color: var(--color-primary);
+          border-color: var(--color-primary);
+          background: rgba(37, 194, 160, 0.1);
         }
 
         .workspace-clear {

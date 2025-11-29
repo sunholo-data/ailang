@@ -32,7 +32,7 @@ func TestPollMessages(t *testing.T) {
 	defer client.Close()
 
 	// Create a thread and message
-	thread, _ := client.store.CreateThread("Test Thread", "human", "user")
+	thread, _ := client.store.CreateThread("Test Thread", "human", "user", "")
 	_, _ = client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Do something")
 
 	// Poll for messages
@@ -58,7 +58,7 @@ func TestPublishMessage(t *testing.T) {
 	defer client.Close()
 
 	// Create a thread
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	// Publish a message
 	msg, err := client.PublishMessage(thread.ID, "human", "user", "status", "Working on it")
@@ -82,7 +82,7 @@ func TestSendStatus(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	msg, err := client.SendStatus(thread.ID, "Processing request")
 	if err != nil {
@@ -105,7 +105,7 @@ func TestSendQuestion(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	msg, err := client.SendQuestion(thread.ID, "Should I proceed?")
 	if err != nil {
@@ -125,7 +125,7 @@ func TestSendResult(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	msg, err := client.SendResult(thread.ID, "Task completed successfully")
 	if err != nil {
@@ -146,7 +146,7 @@ func TestAcknowledgeMessage(t *testing.T) {
 	defer client.Close()
 
 	// Create message
-	thread, _ := client.store.CreateThread("Test Thread", "human", "user")
+	thread, _ := client.store.CreateThread("Test Thread", "human", "user", "")
 	msg, _ := client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Test")
 
 	// Acknowledge it
@@ -170,7 +170,7 @@ func TestRequestApproval(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	effectDelta := &EffectDelta{
 		CapType:     "FS",
@@ -206,7 +206,7 @@ func TestCheckApprovalStatus(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "IO", Paths: []string{}, BudgetDelta: 1.0}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Test", "low", 1.0)
 
@@ -242,7 +242,7 @@ func TestWaitForApprovalApproved(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{}, BudgetDelta: 0.5}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Test", "low", 0.5)
 
@@ -271,7 +271,7 @@ func TestWaitForApprovalRejected(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "Net", Paths: []string{}, BudgetDelta: 5.0}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Expensive", "high", 5.0)
 
@@ -300,7 +300,7 @@ func TestWaitForApprovalTimeout(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{}, BudgetDelta: 0.5}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Test", "low", 0.5)
 
@@ -319,7 +319,7 @@ func TestGetCapabilityToken(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{"src/"}, BudgetDelta: 0.5}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Test", "low", 0.5)
 
@@ -345,7 +345,7 @@ func TestGetCapabilityTokenNotApproved(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{}, BudgetDelta: 0.5}
 	approvalID, _ := client.RequestApproval(thread.ID, effectDelta, "Test", "low", 0.5)
 
@@ -364,7 +364,7 @@ func TestSubscribeToThread(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	err = client.SubscribeToThread(thread.ID)
 	if err != nil {
@@ -383,7 +383,7 @@ func TestClientUpdateAckSeq(t *testing.T) {
 	}
 	defer client.Close()
 
-	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	_ = client.SubscribeToThread(thread.ID)
 
 	err = client.UpdateAckSeq(thread.ID, 5)
@@ -400,7 +400,7 @@ func TestClientGetThread(t *testing.T) {
 	}
 	defer client.Close()
 
-	created, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	created, _ := client.store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	thread, err := client.GetThread(created.ID)
 	if err != nil {
@@ -421,7 +421,7 @@ func TestStartStopPolling(t *testing.T) {
 	defer client.Close()
 
 	// Create a thread and message
-	thread, _ := client.store.CreateThread("Test Thread", "human", "user")
+	thread, _ := client.store.CreateThread("Test Thread", "human", "user", "")
 
 	var mu sync.Mutex
 	callCount := 0

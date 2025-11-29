@@ -6,6 +6,8 @@ interface ThreadListProps {
   selectedThreadId: string | null;
   onSelectThread: (threadId: string) => void;
   onCreateThread: (title: string) => void;
+  onDeleteThread: (threadId: string) => void;
+  onRenameThread: (threadId: string, newTitle: string) => void;
   unreadCounts: Map<string, number>;
 }
 
@@ -40,6 +42,29 @@ const Icons = {
       <line x1="16" y1="3" x2="14" y2="21" />
     </svg>
   ),
+  edit: (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  ),
+  trash: (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  check: (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  x: (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
 };
 
 export const ThreadList: React.FC<ThreadListProps> = ({
@@ -47,10 +72,15 @@ export const ThreadList: React.FC<ThreadListProps> = ({
   selectedThreadId,
   onSelectThread,
   onCreateThread,
+  onDeleteThread,
+  onRenameThread,
   unreadCounts,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreateThread = () => {
     if (newTitle.trim()) {
@@ -68,6 +98,50 @@ export const ThreadList: React.FC<ThreadListProps> = ({
       setIsCreating(false);
       setNewTitle('');
     }
+  };
+
+  const handleStartEdit = (thread: Thread, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingThreadId(thread.id);
+    setEditTitle(thread.title);
+  };
+
+  const handleSaveEdit = (threadId: string) => {
+    if (editTitle.trim() && editTitle.trim() !== threads.find(t => t.id === threadId)?.title) {
+      onRenameThread(threadId, editTitle.trim());
+    }
+    setEditingThreadId(null);
+    setEditTitle('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingThreadId(null);
+    setEditTitle('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, threadId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEdit(threadId);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const handleDeleteClick = (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDeleteId(threadId);
+  };
+
+  const handleConfirmDelete = (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeleteThread(threadId);
+    setConfirmDeleteId(null);
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDeleteId(null);
   };
 
   const formatTimestamp = (timestamp: number | string) => {
@@ -135,12 +209,14 @@ export const ThreadList: React.FC<ThreadListProps> = ({
           threads.map((thread) => {
             const unreadCount = unreadCounts.get(thread.id) || 0;
             const isSelected = thread.id === selectedThreadId;
+            const isEditing = editingThreadId === thread.id;
+            const isConfirmingDelete = confirmDeleteId === thread.id;
 
             return (
               <div
                 key={thread.id}
                 className={`thread-item ${isSelected ? 'selected' : ''} ${unreadCount > 0 ? 'has-unread' : ''}`}
-                onClick={() => onSelectThread(thread.id)}
+                onClick={() => !isEditing && onSelectThread(thread.id)}
               >
                 {/* Status Dot */}
                 <div className={`status-dot ${thread.status}`} />
@@ -148,21 +224,84 @@ export const ThreadList: React.FC<ThreadListProps> = ({
                 {/* Content */}
                 <div className="thread-content">
                   <div className="thread-title-row">
-                    <span className="thread-title">{thread.title}</span>
-                    <span className="thread-time">{formatTimestamp(thread.updated_at)}</span>
+                    {isEditing ? (
+                      <div className="edit-title-form" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={(e) => handleEditKeyDown(e, thread.id)}
+                          autoFocus
+                        />
+                        <button className="edit-action save" onClick={() => handleSaveEdit(thread.id)} title="Save">
+                          {Icons.check}
+                        </button>
+                        <button className="edit-action cancel" onClick={handleCancelEdit} title="Cancel">
+                          {Icons.x}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="thread-title">{thread.title}</span>
+                        <span className="thread-time">{formatTimestamp(thread.updated_at)}</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="thread-meta">
-                    <span className="thread-creator">
-                      {thread.created_by_type === 'human' ? Icons.user : Icons.bot}
-                      {thread.created_by_id}
-                    </span>
+                    {thread.target_agent && (
+                      <span className="thread-agent" title={`Target: ${thread.target_agent}`}>
+                        {Icons.bot}
+                        {thread.target_agent}
+                      </span>
+                    )}
                     <span className="thread-seq">#{thread.last_seq}</span>
                   </div>
                 </div>
 
+                {/* Action Buttons - shown on hover */}
+                {!isEditing && !isConfirmingDelete && (
+                  <div className="thread-actions">
+                    <button
+                      className="action-btn edit"
+                      onClick={(e) => handleStartEdit(thread, e)}
+                      title="Rename"
+                    >
+                      {Icons.edit}
+                    </button>
+                    <button
+                      className="action-btn delete"
+                      onClick={(e) => handleDeleteClick(thread.id, e)}
+                      title="Delete"
+                    >
+                      {Icons.trash}
+                    </button>
+                  </div>
+                )}
+
+                {/* Delete Confirmation */}
+                {isConfirmingDelete && (
+                  <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
+                    <span className="confirm-text">Delete?</span>
+                    <button
+                      className="confirm-btn yes"
+                      onClick={(e) => handleConfirmDelete(thread.id, e)}
+                      title="Confirm delete"
+                    >
+                      {Icons.check}
+                    </button>
+                    <button
+                      className="confirm-btn no"
+                      onClick={handleCancelDelete}
+                      title="Cancel"
+                    >
+                      {Icons.x}
+                    </button>
+                  </div>
+                )}
+
                 {/* Unread Badge */}
-                {unreadCount > 0 && (
+                {unreadCount > 0 && !isConfirmingDelete && (
                   <span className="unread-badge">{unreadCount}</span>
                 )}
               </div>
@@ -423,6 +562,27 @@ export const ThreadList: React.FC<ThreadListProps> = ({
           opacity: 0.7;
         }
 
+        .thread-agent {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          font-size: var(--text-xs);
+          font-weight: var(--font-medium);
+          color: var(--color-primary);
+          padding: 2px 6px;
+          background: rgba(37, 194, 160, 0.1);
+          border-radius: var(--radius-sm);
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .thread-agent svg {
+          flex-shrink: 0;
+          opacity: 0.8;
+        }
+
         .thread-seq {
           font-size: var(--text-xs);
           font-family: var(--font-mono);
@@ -443,6 +603,143 @@ export const ThreadList: React.FC<ThreadListProps> = ({
           font-weight: var(--font-bold);
           border-radius: var(--radius-full);
           flex-shrink: 0;
+        }
+
+        /* Thread Actions */
+        .thread-actions {
+          display: none;
+          align-items: center;
+          gap: var(--space-1);
+          flex-shrink: 0;
+        }
+
+        .thread-item:hover .thread-actions {
+          display: flex;
+        }
+
+        .action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: var(--bg-elevated);
+          color: var(--text-tertiary);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .action-btn:hover {
+          color: var(--text-primary);
+          border-color: var(--border-default);
+        }
+
+        .action-btn.edit:hover {
+          color: var(--color-primary);
+          border-color: var(--color-primary);
+        }
+
+        .action-btn.delete:hover {
+          color: var(--color-error);
+          border-color: var(--color-error);
+        }
+
+        /* Edit Title Form */
+        .edit-title-form {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          flex: 1;
+        }
+
+        .edit-title-form input {
+          flex: 1;
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-base);
+          color: var(--text-primary);
+          font-size: var(--text-sm);
+          border: 1px solid var(--color-primary);
+          border-radius: var(--radius-sm);
+          outline: none;
+        }
+
+        .edit-action {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .edit-action.save {
+          color: var(--color-success);
+        }
+
+        .edit-action.save:hover {
+          background: rgba(34, 197, 94, 0.1);
+        }
+
+        .edit-action.cancel {
+          color: var(--text-tertiary);
+        }
+
+        .edit-action.cancel:hover {
+          color: var(--text-secondary);
+          background: var(--bg-hover);
+        }
+
+        /* Delete Confirmation */
+        .delete-confirm {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          padding: var(--space-1) var(--space-2);
+          background: rgba(239, 68, 68, 0.1);
+          border-radius: var(--radius-sm);
+        }
+
+        .confirm-text {
+          font-size: var(--text-xs);
+          font-weight: var(--font-medium);
+          color: var(--color-error);
+        }
+
+        .confirm-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .confirm-btn.yes {
+          color: var(--color-error);
+        }
+
+        .confirm-btn.yes:hover {
+          background: var(--color-error);
+          color: white;
+        }
+
+        .confirm-btn.no {
+          color: var(--text-tertiary);
+        }
+
+        .confirm-btn.no:hover {
+          color: var(--text-secondary);
+          background: var(--bg-hover);
         }
       `}</style>
     </div>

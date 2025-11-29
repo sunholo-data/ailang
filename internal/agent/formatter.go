@@ -6,6 +6,25 @@ import (
 	"time"
 )
 
+// MaxOutputSize is the maximum size of output to include in formatted results (50KB)
+const MaxOutputSize = 50 * 1024
+
+// truncateOutput truncates text to maxLen characters, adding a note if truncated
+func truncateOutput(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	// Find a good break point (newline) near the truncation point
+	truncated := text[:maxLen]
+	if idx := strings.LastIndex(truncated, "\n"); idx > maxLen*3/4 {
+		truncated = truncated[:idx]
+	}
+	lines := strings.Count(text, "\n")
+	truncatedLines := strings.Count(truncated, "\n")
+	return fmt.Sprintf("%s\n\n... **[Output truncated: showing %d of %d lines, %d of %d bytes]**",
+		truncated, truncatedLines, lines, len(truncated), len(text))
+}
+
 // FormatResult formats a DirectiveResult as markdown for display in the UI
 func FormatResult(result *DirectiveResult) string {
 	var sb strings.Builder
@@ -40,18 +59,18 @@ func FormatResult(result *DirectiveResult) string {
 		sb.WriteString("\n")
 	}
 
-	// Output/Error
+	// Output/Error (truncated to prevent UI issues with large responses)
 	if result.Success {
 		if result.Output != "" {
 			sb.WriteString("### Result\n\n")
-			sb.WriteString(result.Output)
+			sb.WriteString(truncateOutput(result.Output, MaxOutputSize))
 			sb.WriteString("\n\n")
 		}
 	} else {
 		if result.Error != "" {
 			sb.WriteString("### Error\n\n")
 			sb.WriteString("```\n")
-			sb.WriteString(result.Error)
+			sb.WriteString(truncateOutput(result.Error, MaxOutputSize))
 			sb.WriteString("\n```\n\n")
 		}
 	}
@@ -97,14 +116,14 @@ func FormatResultWithTranscript(result *DirectiveResult) string {
 	// Standard result formatting
 	sb.WriteString(FormatResult(result))
 
-	// Add transcript
+	// Add transcript (truncated for large transcripts)
 	if result.Transcript != "" {
 		sb.WriteString("---\n\n")
 		sb.WriteString("### Full Transcript\n\n")
 		sb.WriteString("<details>\n")
 		sb.WriteString("<summary>Click to expand conversation</summary>\n\n")
 		sb.WriteString("```\n")
-		sb.WriteString(result.Transcript)
+		sb.WriteString(truncateOutput(result.Transcript, MaxOutputSize))
 		sb.WriteString("\n```\n\n")
 		sb.WriteString("</details>\n")
 	}

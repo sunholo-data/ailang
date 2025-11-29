@@ -90,12 +90,18 @@ func (c *Client) StopPolling() {
 
 // PublishMessage sends a message to a recipient
 func (c *Client) PublishMessage(threadID, toType, toID, kind, content string) (*Message, error) {
+	return c.PublishMessageWithMetadata(threadID, toType, toID, kind, content, "")
+}
+
+// PublishMessageWithMetadata sends a message to a recipient with optional metadata
+func (c *Client) PublishMessageWithMetadata(threadID, toType, toID, kind, content, metadataJSON string) (*Message, error) {
 	msg, err := c.store.CreateMessage(
 		threadID,
 		"ailang_instance", c.instanceID, // from
 		toType, toID, // to
 		kind,
 		content,
+		metadataJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message: %w", err)
@@ -239,4 +245,13 @@ func (c *Client) GetThread(threadID string) (*Thread, error) {
 		return nil, fmt.Errorf("failed to get thread: %w", err)
 	}
 	return thread, nil
+}
+
+// GetThreadWorkspace retrieves the workspace path for a thread
+func (c *Client) GetThreadWorkspace(threadID string) (string, error) {
+	thread, err := c.store.GetThread(threadID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get thread: %w", err)
+	}
+	return thread.Workspace, nil
 }

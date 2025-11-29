@@ -177,6 +177,10 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
         }
         const data: Thread[] = await response.json();
         setThreads(data);
+        // Auto-select the first/most recent thread if none selected
+        if (data.length > 0 && !selectedThreadId) {
+          setSelectedThreadId(data[0].id);
+        }
       } catch (error) {
         console.error('Error fetching threads:', error);
       }
@@ -194,6 +198,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
           title,
           created_by_type: 'human',
           created_by_id: 'user',
+          target_agent: instanceId, // Associate thread with current target agent
         }),
       });
 
@@ -208,7 +213,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     } catch (error) {
       console.error('Error creating thread:', error);
     }
-  }, []);
+  }, [instanceId]);
 
   // Fetch running agents
   const fetchAgents = useCallback(async () => {
@@ -274,6 +279,90 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
       setRunningAgents((prev) => prev.filter((a) => a.instance_id !== agentId));
     } catch (error) {
       console.error('Error stopping agent:', error);
+    }
+  }, []);
+
+  // Update thread workspace
+  const handleWorkspaceChange = useCallback(async (workspace: string) => {
+    if (!selectedThreadId) return;
+
+    try {
+      const response = await fetch(`/api/threads/${selectedThreadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update workspace:', await response.text());
+        return;
+      }
+
+      // Update local thread state
+      const updatedThread: Thread = await response.json();
+      setThreads((prev) => prev.map((t) => (t.id === selectedThreadId ? updatedThread : t)));
+    } catch (error) {
+      console.error('Error updating workspace:', error);
+    }
+  }, [selectedThreadId]);
+
+  // Delete a thread
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    try {
+      const response = await fetch(`/api/threads/${threadId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error('Failed to delete thread:', await response.text());
+        return;
+      }
+
+      // Remove from local state
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+
+      // Clear messages for this thread
+      setMessages((prev) => {
+        const updated = new Map(prev);
+        updated.delete(threadId);
+        return updated;
+      });
+
+      // Clear unread count
+      setUnreadCounts((prev) => {
+        const updated = new Map(prev);
+        updated.delete(threadId);
+        return updated;
+      });
+
+      // If deleted thread was selected, clear selection
+      if (selectedThreadId === threadId) {
+        setSelectedThreadId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting thread:', error);
+    }
+  }, [selectedThreadId]);
+
+  // Rename a thread
+  const handleRenameThread = useCallback(async (threadId: string, newTitle: string) => {
+    try {
+      const response = await fetch(`/api/threads/${threadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to rename thread:', await response.text());
+        return;
+      }
+
+      // Update local thread state
+      const updatedThread: Thread = await response.json();
+      setThreads((prev) => prev.map((t) => (t.id === threadId ? updatedThread : t)));
+    } catch (error) {
+      console.error('Error renaming thread:', error);
     }
   }, []);
 
@@ -352,6 +441,8 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
             selectedThreadId={selectedThreadId}
             onSelectThread={handleSelectThread}
             onCreateThread={handleCreateThread}
+            onDeleteThread={handleDeleteThread}
+            onRenameThread={handleRenameThread}
             unreadCounts={unreadCounts}
           />
         </aside>
@@ -359,9 +450,10 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
         <main className="conversation-panel">
           {selectedThreadId ? (
             <ConversationView
-              threadId={selectedThreadId}
+              thread={threads.find(t => t.id === selectedThreadId)}
               messages={selectedMessages}
               onSendMessage={handleSendMessage}
+              onWorkspaceChange={handleWorkspaceChange}
             />
           ) : (
             <div className="empty-state">

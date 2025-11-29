@@ -38,6 +38,7 @@ interface AgentInfo {
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'messages' | 'approvals' | 'monitor'>('messages');
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [approvalHistory, setApprovalHistory] = useState<Approval[]>([]);
   const [targetAgent, setTargetAgent] = useState<string>('my-agent');
   const [knownAgents, setKnownAgents] = useState<AgentInfo[]>([]);
   const [customAgent, setCustomAgent] = useState<string>('');
@@ -113,13 +114,19 @@ export const App: React.FC = () => {
         return;
       }
 
-      setApprovals((prev) =>
-        prev.map((a) =>
-          a.id === approvalId
-            ? { ...a, status: 'approved', reviewed_by: 'user', review_notes: notes }
-            : a
-        )
-      );
+      // Move to history with updated status
+      const approved = approvals.find((a) => a.id === approvalId);
+      if (approved) {
+        const updatedApproval = {
+          ...approved,
+          status: 'approved' as const,
+          reviewed_by: 'user',
+          review_notes: notes,
+          reviewed_at: Date.now(),
+        };
+        setApprovalHistory((prev) => [updatedApproval, ...prev]);
+      }
+      setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
     } catch (error) {
       console.error('Error approving:', error);
     }
@@ -138,13 +145,19 @@ export const App: React.FC = () => {
         return;
       }
 
-      setApprovals((prev) =>
-        prev.map((a) =>
-          a.id === approvalId
-            ? { ...a, status: 'rejected', reviewed_by: 'user', review_notes: notes }
-            : a
-        )
-      );
+      // Move to history with updated status
+      const rejected = approvals.find((a) => a.id === approvalId);
+      if (rejected) {
+        const updatedApproval = {
+          ...rejected,
+          status: 'rejected' as const,
+          reviewed_by: 'user',
+          review_notes: notes,
+          reviewed_at: Date.now(),
+        };
+        setApprovalHistory((prev) => [updatedApproval, ...prev]);
+      }
+      setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
     } catch (error) {
       console.error('Error rejecting:', error);
     }
@@ -154,13 +167,37 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     const fetchApprovals = async () => {
       try {
-        const response = await fetch('/api/approvals?status=pending');
-        if (!response.ok) {
-          console.error('Failed to fetch approvals:', await response.text());
-          return;
+        // Fetch pending approvals
+        const pendingResponse = await fetch('/api/approvals?status=pending');
+        if (pendingResponse.ok) {
+          const pendingData: Approval[] = await pendingResponse.json();
+          setApprovals(pendingData);
         }
-        const data: Approval[] = await response.json();
-        setApprovals(data);
+
+        // Fetch approval history (approved and rejected)
+        const [approvedResponse, rejectedResponse] = await Promise.all([
+          fetch('/api/approvals?status=approved'),
+          fetch('/api/approvals?status=rejected'),
+        ]);
+
+        const history: Approval[] = [];
+        if (approvedResponse.ok) {
+          const approved: Approval[] = await approvedResponse.json();
+          history.push(...approved);
+        }
+        if (rejectedResponse.ok) {
+          const rejected: Approval[] = await rejectedResponse.json();
+          history.push(...rejected);
+        }
+
+        // Sort by reviewed_at descending (most recent first)
+        history.sort((a, b) => {
+          const aTime = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
+          const bTime = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
+          return bTime - aTime;
+        });
+
+        setApprovalHistory(history);
       } catch (error) {
         console.error('Error fetching approvals:', error);
       }
@@ -264,6 +301,7 @@ export const App: React.FC = () => {
         {activeTab === 'approvals' && (
           <ApprovalQueue
             approvals={approvals}
+            history={approvalHistory}
             onApprove={handleApprove}
             onReject={handleReject}
           />

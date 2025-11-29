@@ -18,7 +18,7 @@ func TestCreateApproval(t *testing.T) {
 	defer store.Close()
 
 	// Create a thread first
-	thread, err := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, err := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestGetApproval(t *testing.T) {
 	defer store.Close()
 
 	// Create thread and approval
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "IO", Paths: []string{}, BudgetDelta: 1.0}
 	created, _ := store.CreateApproval(thread.ID, "agent1", effectDelta, "Test proposal", "medium", 1.0)
 
@@ -108,7 +108,7 @@ func TestGetApprovalsByStatus(t *testing.T) {
 	defer store.Close()
 
 	// Create thread and multiple approvals
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{}, BudgetDelta: 0.5}
 
 	// Create 3 pending approvals
@@ -149,7 +149,7 @@ func TestApproveApproval(t *testing.T) {
 	defer store.Close()
 
 	// Create thread and approval
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "FS", Paths: []string{"src/"}, BudgetDelta: 0.5}
 	approval, _ := store.CreateApproval(thread.ID, "agent1", effectDelta, "Test proposal", "low", 0.5)
 
@@ -188,7 +188,7 @@ func TestApproveApprovalAlreadyProcessed(t *testing.T) {
 	defer store.Close()
 
 	// Create and approve
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "IO", Paths: []string{}, BudgetDelta: 1.0}
 	approval, _ := store.CreateApproval(thread.ID, "agent1", effectDelta, "Test", "low", 1.0)
 	_ = store.ApproveApproval(approval.ID, "user1", "OK", 24*time.Hour)
@@ -209,7 +209,7 @@ func TestRejectApproval(t *testing.T) {
 	defer store.Close()
 
 	// Create thread and approval
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	effectDelta := &EffectDelta{CapType: "Net", Paths: []string{}, BudgetDelta: 5.0}
 	approval, _ := store.CreateApproval(thread.ID, "agent1", effectDelta, "Expensive operation", "high", 5.0)
 

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -180,6 +181,7 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		Title         string `json:"title"`
 		CreatedByType string `json:"created_by_type"`
 		CreatedByID   string `json:"created_by_id"`
+		TargetAgent   string `json:"target_agent"` // Which agent this conversation is with
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -200,7 +202,7 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		body.CreatedByID = "user"
 	}
 
-	thread, err := s.store.CreateThread(body.Title, body.CreatedByType, body.CreatedByID)
+	thread, err := s.store.CreateThread(body.Title, body.CreatedByType, body.CreatedByID, body.TargetAgent)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create thread: %v", err), http.StatusInternalServerError)
 		return
@@ -214,12 +216,9 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /api/threads/{id} - Get a specific thread
+// PUT /api/threads/{id} - Update thread settings (workspace, title, etc.)
+// DELETE /api/threads/{id} - Delete a thread and all its messages
 func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Extract thread ID from path
 	threadID := r.URL.Path[len("/api/threads/"):]
 	if threadID == "" {
@@ -227,15 +226,84 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thread, err := s.store.GetThread(threadID)
-	if err != nil {
-		http.Error(w, "Thread not found", http.StatusNotFound)
-		return
-	}
+	switch r.Method {
+	case http.MethodGet:
+		thread, err := s.store.GetThread(threadID)
+		if err != nil {
+			http.Error(w, "Thread not found", http.StatusNotFound)
+			return
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(thread); err != nil {
-		log.Printf("Failed to encode thread response: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(thread); err != nil {
+			log.Printf("Failed to encode thread response: %v", err)
+		}
+
+	case http.MethodPut:
+		var body struct {
+			Workspace string  `json:"workspace"`
+			Title     *string `json:"title"` // Use pointer to distinguish between empty and not provided
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Update thread title if provided
+		if body.Title != nil && *body.Title != "" {
+			if err := s.store.UpdateThreadTitle(threadID, *body.Title); err != nil {
+				http.Error(w, fmt.Sprintf("Failed to update thread title: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Update thread workspace if provided (can be empty to clear)
+		if body.Workspace != "" || body.Title == nil {
+			// Only update workspace if explicitly provided or if title wasn't the only update
+			if body.Workspace != "" {
+				if err := s.store.SetThreadWorkspace(threadID, body.Workspace); err != nil {
+					http.Error(w, fmt.Sprintf("Failed to update thread: %v", err), http.StatusInternalServerError)
+					return
+				}
+			}
+		}
+
+		// Return updated thread
+		thread, err := s.store.GetThread(threadID)
+		if err != nil {
+			http.Error(w, "Thread not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(thread); err != nil {
+			log.Printf("Failed to encode thread response: %v", err)
+		}
+
+	case http.MethodDelete:
+		// Delete the thread and all associated data
+		if err := s.store.DeleteThread(threadID); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				http.Error(w, "Thread not found", http.StatusNotFound)
+			} else {
+				http.Error(w, fmt.Sprintf("Failed to delete thread: %v", err), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		log.Printf("Deleted thread %s", threadID)
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"status":  "success",
+			"message": fmt.Sprintf("Thread %s deleted", threadID),
+		}); err != nil {
+			log.Printf("Failed to encode delete response: %v", err)
+		}
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -274,13 +342,14 @@ func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		ThreadID string `json:"thread_id"`
-		FromType string `json:"from_type"`
-		FromID   string `json:"from_id"`
-		ToType   string `json:"to_type"`
-		ToID     string `json:"to_id"`
-		Kind     string `json:"kind"`
-		Content  string `json:"content"`
+		ThreadID     string `json:"thread_id"`
+		FromType     string `json:"from_type"`
+		FromID       string `json:"from_id"`
+		ToType       string `json:"to_type"`
+		ToID         string `json:"to_id"`
+		Kind         string `json:"kind"`
+		Content      string `json:"content"`
+		MetadataJSON string `json:"metadata_json"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -316,6 +385,7 @@ func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 		body.ToType, body.ToID,
 		body.Kind,
 		body.Content,
+		body.MetadataJSON,
 	)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create message: %v", err), http.StatusInternalServerError)
@@ -630,38 +700,92 @@ func (s *Server) Close() error {
 
 // handleSelectFolder opens a native folder picker dialog and returns the selected path
 // GET /api/select-folder
+// Cross-platform: uses osascript (macOS), zenity/kdialog (Linux), PowerShell (Windows)
 func (s *Server) handleSelectFolder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Use osascript on macOS to open a native folder picker
-	// This displays a Finder dialog and returns the selected path
-	script := `tell application "System Events"
-		activate
-		set folderPath to POSIX path of (choose folder with prompt "Select workspace directory")
-		return folderPath
-	end tell`
-
-	cmd := exec.Command("osascript", "-e", script)
-	output, err := cmd.Output()
+	path, err := openFolderPicker()
 	if err != nil {
 		// User cancelled or error occurred
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"cancelled": true,
 			"path":      "",
+			"error":     err.Error(),
 		})
 		return
 	}
-
-	// Clean up the path (remove trailing newline)
-	path := strings.TrimSpace(string(output))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"cancelled": false,
 		"path":      path,
 	})
+}
+
+// openFolderPicker opens a native folder picker dialog and returns the selected path
+// Cross-platform implementation:
+// - macOS: osascript (AppleScript)
+// - Linux: zenity (GTK) or kdialog (KDE)
+// - Windows: PowerShell with FolderBrowserDialog
+func openFolderPicker() (string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS: Use osascript with AppleScript
+		script := `tell application "System Events"
+			activate
+			set folderPath to POSIX path of (choose folder with prompt "Select workspace directory")
+			return folderPath
+		end tell`
+		cmd := exec.Command("osascript", "-e", script)
+		output, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("folder picker cancelled or failed: %w", err)
+		}
+		return strings.TrimSpace(string(output)), nil
+
+	case "linux":
+		// Linux: Try zenity first (GTK), fall back to kdialog (KDE)
+		if _, err := exec.LookPath("zenity"); err == nil {
+			cmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Select workspace directory")
+			output, err := cmd.Output()
+			if err != nil {
+				return "", fmt.Errorf("folder picker cancelled or failed: %w", err)
+			}
+			return strings.TrimSpace(string(output)), nil
+		}
+		if _, err := exec.LookPath("kdialog"); err == nil {
+			cmd := exec.Command("kdialog", "--getexistingdirectory", ".", "--title", "Select workspace directory")
+			output, err := cmd.Output()
+			if err != nil {
+				return "", fmt.Errorf("folder picker cancelled or failed: %w", err)
+			}
+			return strings.TrimSpace(string(output)), nil
+		}
+		return "", fmt.Errorf("no folder picker available (install zenity or kdialog)")
+
+	case "windows":
+		// Windows: Use PowerShell with FolderBrowserDialog
+		script := `Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = "Select workspace directory"
+$dialog.ShowNewFolderButton = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+    Write-Output $dialog.SelectedPath
+} else {
+    exit 1
+}`
+		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+		output, err := cmd.Output()
+		if err != nil {
+			return "", fmt.Errorf("folder picker cancelled or failed: %w", err)
+		}
+		return strings.TrimSpace(string(output)), nil
+
+	default:
+		return "", fmt.Errorf("folder picker not supported on %s", runtime.GOOS)
+	}
 }
