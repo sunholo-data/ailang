@@ -21,8 +21,8 @@ type Agent struct {
 	detector     *agent.CapabilityDetector
 	pollInterval time.Duration
 	// Track active tasks for concurrency
-	activeTasks  map[string]bool
-	taskMutex    sync.Mutex
+	activeTasks map[string]bool
+	taskMutex   sync.Mutex
 }
 
 // NewAgent creates a new agent instance

@@ -111,12 +111,31 @@ type Result struct {
 //
 // For simple expressions/REPL, routes to runSingle (pipeline_single.go).
 // For files with potential imports, routes to runModule (pipeline_module.go).
+//
+// Pipeline metrics are collected when AILANG_METRICS=1 is set.
+// Use AILANG_METRICS_VERBOSE=1 for detailed timing breakdown to stderr.
+// Use AILANG_HUB_URL to send metrics to the collaboration hub.
 func Run(cfg Config, src Source) (Result, error) {
+	// Initialize metrics collector (only active if AILANG_METRICS=1)
+	isModule := !(src.IsREPL || src.Filename == "" || src.Filename == "<repl>")
+	metrics := NewMetricsCollector(src.Filename, isModule)
+
+	var result Result
+	var err error
+
 	// For simple expressions/REPL, use the original single-file pipeline
 	if src.IsREPL || src.Filename == "" || src.Filename == "<repl>" {
-		return runSingle(cfg, src)
+		result, err = runSingle(cfg, src)
+	} else {
+		// For files with potential imports, use the module pipeline
+		result, err = runModule(cfg, src)
 	}
 
-	// For files with potential imports, use the module pipeline
-	return runModule(cfg, src)
+	// Record metrics from result and finalize
+	if metrics.IsEnabled() {
+		metrics.RecordFromResult(&result)
+		metrics.Finalize()
+	}
+
+	return result, err
 }

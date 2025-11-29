@@ -18,6 +18,7 @@ const (
 	EventTypePing        EventType = "ping"
 	EventTypePong        EventType = "pong"
 	EventTypeThreadState EventType = "thread_state"
+	EventTypeTelemetry   EventType = "telemetry" // Process telemetry updates
 )
 
 // Event represents a WebSocket message envelope
@@ -74,6 +75,18 @@ type ThreadStateEvent struct {
 	Status    string `json:"status"`
 	LastSeq   int    `json:"last_seq"`
 	UpdatedAt int64  `json:"updated_at"`
+}
+
+// TelemetryEvent - Server sends process telemetry updates
+type TelemetryEvent struct {
+	InstanceID  string  `json:"instance_id"`
+	PID         int     `json:"pid"`
+	Turns       int     `json:"turns"`
+	TokensIn    int     `json:"tokens_in"`
+	TokensOut   int     `json:"tokens_out"`
+	Cost        float64 `json:"cost"`
+	Status      string  `json:"status"` // running, completed, error
+	DurationSec int     `json:"duration_sec"`
 }
 
 // NewEvent creates a new event with timestamp
@@ -176,4 +189,9 @@ func NewPongEvent() (*Event, error) {
 		Type:      EventTypePong,
 		Timestamp: time.Now().UnixMilli(),
 	}, nil
+}
+
+// NewTelemetryEvent creates a telemetry event
+func NewTelemetryEvent(telem *TelemetryEvent) (*Event, error) {
+	return NewEvent(EventTypeTelemetry, telem)
 }

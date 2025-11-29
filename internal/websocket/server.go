@@ -401,3 +401,25 @@ func (s *Server) GetConnectionCount() int {
 	defer s.mu.RUnlock()
 	return len(s.connections)
 }
+
+// BroadcastTelemetry broadcasts a telemetry update to ALL connected clients
+// This is used for real-time process monitoring updates
+func (s *Server) BroadcastTelemetry(telem *TelemetryEvent) {
+	event, err := NewTelemetryEvent(telem)
+	if err != nil {
+		log.Printf("WebSocket: failed to create telemetry event: %v", err)
+		return
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, conn := range s.connections {
+		select {
+		case conn.send <- event:
+		default:
+			// Connection is slow, skip (telemetry is best-effort)
+			log.Printf("WebSocket: connection %s is slow, skipping telemetry", conn.id)
+		}
+	}
+}

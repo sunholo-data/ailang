@@ -20,6 +20,12 @@ type ProcessStats struct {
 	MemoryMB    float64   `json:"memory_mb"`
 	Status      string    `json:"status"` // running, completed, failed
 
+	// Source information - where the process was started from
+	Source    string `json:"source"`              // "ui", "eval", "cli", "agent"
+	Command   string `json:"command,omitempty"`   // Short command description
+	FullCmd   string `json:"full_cmd,omitempty"`  // Full command line (for debugging)
+	StoppedAt *time.Time `json:"stopped_at,omitempty"` // When the process stopped
+
 	// Telemetry from Claude sessions (populated when available)
 	Turns     int     `json:"turns,omitempty"`
 	TokensIn  int     `json:"tokens_in,omitempty"`
@@ -31,6 +37,7 @@ type ProcessStats struct {
 type MonitorResponse struct {
 	Timestamp time.Time      `json:"timestamp"`
 	Processes []ProcessStats `json:"processes"`
+	History   []ProcessStats `json:"history,omitempty"` // Recently completed/failed processes
 	Summary   MonitorSummary `json:"summary"`
 }
 
@@ -54,14 +61,70 @@ func (s *Server) handleMonitor(w http.ResponseWriter, r *http.Request) {
 	stats := s.collectProcessStats()
 	summary := s.calculateSummary(stats)
 
+	// Get recent history (processes that completed in last 5 minutes)
+	history := s.getRecentHistory()
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(MonitorResponse{
 		Timestamp: time.Now(),
 		Processes: stats,
+		History:   history,
 		Summary:   summary,
 	}); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+// getRecentHistory returns processes that completed within the last 5 minutes
+func (s *Server) getRecentHistory() []ProcessStats {
+	s.processHistoryMu.RLock()
+	defer s.processHistoryMu.RUnlock()
+
+	cutoff := time.Now().Add(-5 * time.Minute)
+	var recent []ProcessStats
+
+	for _, proc := range s.processHistory {
+		if proc.StoppedAt != nil && proc.StoppedAt.After(cutoff) {
+			recent = append(recent, proc)
+		}
+	}
+
+	return recent
+}
+
+// AddToHistory adds a completed/failed process to history
+func (s *Server) AddToHistory(proc ProcessStats) {
+	s.processHistoryMu.Lock()
+	defer s.processHistoryMu.Unlock()
+
+	now := time.Now()
+	proc.StoppedAt = &now
+
+	s.processHistory = append(s.processHistory, proc)
+
+	// Clean up old entries (keep last 50 or last 10 minutes)
+	s.cleanupHistoryLocked()
+}
+
+// cleanupHistoryLocked removes old history entries (must be called with lock held)
+func (s *Server) cleanupHistoryLocked() {
+	cutoff := time.Now().Add(-10 * time.Minute)
+	maxEntries := 50
+
+	// Remove entries older than cutoff
+	newHistory := make([]ProcessStats, 0, len(s.processHistory))
+	for _, proc := range s.processHistory {
+		if proc.StoppedAt != nil && proc.StoppedAt.After(cutoff) {
+			newHistory = append(newHistory, proc)
+		}
+	}
+
+	// Keep only last maxEntries
+	if len(newHistory) > maxEntries {
+		newHistory = newHistory[len(newHistory)-maxEntries:]
+	}
+
+	s.processHistory = newHistory
 }
 
 // collectProcessStats gathers CPU/memory for all tracked and discovered processes
@@ -70,17 +133,21 @@ func (s *Server) collectProcessStats() []ProcessStats {
 	defer s.agentsMu.RUnlock()
 
 	trackedPIDs := make(map[int]bool)
+	currentlySeenPIDs := make(map[int]bool)
 	var stats []ProcessStats
 
 	// First, add tracked agents (spawned via UI)
 	for _, agent := range s.agents {
 		trackedPIDs[agent.PID] = true
+		currentlySeenPIDs[agent.PID] = true
 		stat := ProcessStats{
 			InstanceID:  agent.InstanceID,
 			PID:         agent.PID,
 			StartedAt:   agent.StartedAt,
 			DurationSec: int(time.Since(agent.StartedAt).Seconds()),
 			Status:      "running",
+			Source:      "ui",            // UI-spawned agents
+			Command:     "ailang-agent",  // Default command for UI agents
 		}
 
 		// Check if process is still running
@@ -108,6 +175,8 @@ func (s *Server) collectProcessStats() []ProcessStats {
 	// This catches processes not spawned via the UI
 	orphaned := findAILangProcesses()
 	for _, proc := range orphaned {
+		currentlySeenPIDs[proc.PID] = true
+
 		// Skip if already tracked
 		if trackedPIDs[proc.PID] {
 			continue
@@ -116,10 +185,67 @@ func (s *Server) collectProcessStats() []ProcessStats {
 		cpu, mem := getTotalResourceUsage(proc.PID)
 		proc.CPUPercent = cpu
 		proc.MemoryMB = mem
+
+		// Check for external telemetry (from self-reporting processes like eval suite)
+		if extTelem := s.GetExternalTelemetry(proc.PID); extTelem != nil {
+			proc.InstanceID = extTelem.InstanceID
+			proc.Turns = extTelem.Turns
+			proc.TokensIn = extTelem.TokensIn
+			proc.TokensOut = extTelem.TokensOut
+			proc.Cost = extTelem.Cost
+			if extTelem.Status != "" {
+				proc.Status = extTelem.Status
+			}
+		}
+
 		stats = append(stats, proc)
 	}
 
+	// Detect disappeared processes and add them to history
+	s.detectDisappearedProcesses(currentlySeenPIDs)
+
+	// Update previously seen with current state
+	s.updatePreviouslySeen(stats)
+
 	return stats
+}
+
+// detectDisappearedProcesses finds processes that were seen before but are now gone
+func (s *Server) detectDisappearedProcesses(currentlySeenPIDs map[int]bool) {
+	// First, collect disappeared processes while holding the lock
+	var disappeared []ProcessStats
+	var disappearedPIDs []int
+
+	s.previouslySeenMu.Lock()
+	for pid, proc := range s.previouslySeen {
+		if !currentlySeenPIDs[pid] {
+			proc.Status = "completed"
+			disappeared = append(disappeared, proc)
+			disappearedPIDs = append(disappearedPIDs, pid)
+		}
+	}
+	// Remove from previouslySeen
+	for _, pid := range disappearedPIDs {
+		delete(s.previouslySeen, pid)
+	}
+	s.previouslySeenMu.Unlock()
+
+	// Then, add to history without holding previouslySeenMu (avoids deadlock)
+	for _, proc := range disappeared {
+		s.AddToHistory(proc)
+	}
+}
+
+// updatePreviouslySeen updates the map with currently running processes
+func (s *Server) updatePreviouslySeen(stats []ProcessStats) {
+	s.previouslySeenMu.Lock()
+	defer s.previouslySeenMu.Unlock()
+
+	for _, stat := range stats {
+		if stat.Status == "running" {
+			s.previouslySeen[stat.PID] = stat
+		}
+	}
 }
 
 // calculateSummary computes aggregate statistics
@@ -247,16 +373,44 @@ func findAILangProcesses() []ProcessStats {
 			continue
 		}
 
-		// Determine process type from command line
+		// Determine process type and source from command line
 		instanceID := fmt.Sprintf("process_%d", pid)
+		source := "cli"
+		command := "ailang"
 		status := "running"
 
-		if strings.Contains(cmdLine, "eval-suite") || strings.Contains(cmdLine, "eval-benchmark") {
+		if strings.Contains(cmdLine, "eval-suite") {
 			instanceID = fmt.Sprintf("eval_%d", pid)
-		} else if strings.Contains(cmdLine, "ailang run") || strings.Contains(cmdLine, "ailang-run") {
+			source = "eval"
+			command = "eval-suite"
+		} else if strings.Contains(cmdLine, "eval-benchmark") {
+			instanceID = fmt.Sprintf("eval_%d", pid)
+			source = "eval"
+			command = "eval-benchmark"
+		} else if strings.Contains(cmdLine, "ailang run") {
 			instanceID = fmt.Sprintf("run_%d", pid)
+			source = "cli"
+			// Extract filename if possible
+			command = extractRunCommand(cmdLine)
 		} else if strings.Contains(cmdLine, "ailang-agent") {
-			instanceID = fmt.Sprintf("agent_%d", pid)
+			// Extract --instance-id value if present
+			agentInstanceID := extractFlagValue(cmdLine, "--instance-id")
+			if agentInstanceID != "" {
+				instanceID = agentInstanceID
+				command = agentInstanceID
+			} else {
+				instanceID = fmt.Sprintf("agent_%d", pid)
+				command = "agent"
+			}
+			source = "agent"
+		} else if strings.Contains(cmdLine, "ailang repl") {
+			instanceID = fmt.Sprintf("repl_%d", pid)
+			source = "cli"
+			command = "repl"
+		} else if strings.Contains(cmdLine, "ailang check") {
+			instanceID = fmt.Sprintf("check_%d", pid)
+			source = "cli"
+			command = "check"
 		}
 
 		// Get process start time using ps
@@ -274,10 +428,51 @@ func findAILangProcesses() []ProcessStats {
 			MemoryMB:    mem,
 			Status:      status,
 			DurationSec: durationSec,
+			Source:      source,
+			Command:     command,
+			FullCmd:     cmdLine,
 		})
 	}
 
 	return stats
+}
+
+// extractRunCommand extracts a short description from an "ailang run" command
+func extractRunCommand(cmdLine string) string {
+	parts := strings.Split(cmdLine, " ")
+	for i, p := range parts {
+		if p == "run" && i+1 < len(parts) {
+			// Skip flags and get filename
+			for j := i + 1; j < len(parts); j++ {
+				if !strings.HasPrefix(parts[j], "-") && !strings.HasPrefix(parts[j], "--") {
+					// Get just the filename, not full path
+					filename := parts[j]
+					if idx := strings.LastIndex(filename, "/"); idx >= 0 {
+						filename = filename[idx+1:]
+					}
+					return "run " + filename
+				}
+			}
+			break
+		}
+	}
+	return "run"
+}
+
+// extractFlagValue extracts the value of a flag from a command line
+// e.g., extractFlagValue("ailang-agent --instance-id my-agent", "--instance-id") returns "my-agent"
+func extractFlagValue(cmdLine, flag string) string {
+	parts := strings.Fields(cmdLine)
+	for i, p := range parts {
+		if p == flag && i+1 < len(parts) {
+			return parts[i+1]
+		}
+		// Also handle --flag=value format
+		if strings.HasPrefix(p, flag+"=") {
+			return strings.TrimPrefix(p, flag+"=")
+		}
+	}
+	return ""
 }
 
 // parseElapsedTime parses ps etime format (e.g., "12:34" for mm:ss, "1-12:34:56" for days)

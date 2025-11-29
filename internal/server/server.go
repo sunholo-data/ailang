@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +39,18 @@ type Server struct {
 	// Process management for spawned agents
 	agentsMu sync.RWMutex
 	agents   map[string]*AgentProcess
+
+	// External telemetry from self-reporting processes (eval suite, etc.)
+	externalTelemetryMu sync.RWMutex
+	externalTelemetry   map[int]*websocket.TelemetryEvent // keyed by PID
+
+	// Process history for recently completed/failed processes
+	processHistoryMu sync.RWMutex
+	processHistory   []ProcessStats // Recent history, oldest first
+
+	// Track previously seen processes for history detection
+	previouslySeenMu sync.RWMutex
+	previouslySeen   map[int]ProcessStats // keyed by PID
 }
 
 // NewServer creates a new HTTP server
@@ -49,11 +63,13 @@ func NewServer(dbPath string, httpAddr string) (*Server, error) {
 	wsServer := websocket.NewServer(store)
 
 	return &Server{
-		store:    store,
-		wsServer: wsServer,
-		httpAddr: httpAddr,
-		dbPath:   dbPath,
-		agents:   make(map[string]*AgentProcess),
+		store:             store,
+		wsServer:          wsServer,
+		httpAddr:          httpAddr,
+		dbPath:            dbPath,
+		agents:            make(map[string]*AgentProcess),
+		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
+		previouslySeen:    make(map[int]ProcessStats),
 	}, nil
 }
 
@@ -77,6 +93,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/agents", s.handleAgents)
 	mux.HandleFunc("/api/agents/", s.handleAgentStop)
 	mux.HandleFunc("/api/monitor", s.handleMonitor)
+	mux.HandleFunc("/api/telemetry", s.handleTelemetryReport)
+	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 
 	// Health check
 	mux.HandleFunc("/health", s.handleHealth)
@@ -460,13 +478,22 @@ func (s *Server) handleSpawnAgent(w http.ResponseWriter, r *http.Request) {
 
 	// Spawn the agent process
 	cmd := exec.Command("ailang-agent", "--instance-id", body.InstanceID, "--db", s.dbPath)
-	cmd.Stdout = os.Stdout
+
+	// Create telemetry parser to capture and broadcast stdout telemetry
+	// We don't know the PID yet, so use 0 and update after Start()
+	telemetryParser := NewTelemetryParser(body.InstanceID, 0, s.wsServer)
+
+	// Tee stdout to both os.Stdout (for logging) and telemetry parser
+	cmd.Stdout = NewTeeWriter(os.Stdout, telemetryParser)
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to spawn agent: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Update telemetry parser with actual PID
+	telemetryParser.pid = cmd.Process.Pid
 
 	// Track the process
 	agent := &AgentProcess{
@@ -482,11 +509,19 @@ func (s *Server) handleSpawnAgent(w http.ResponseWriter, r *http.Request) {
 
 	// Start goroutine to clean up when process exits
 	go func() {
-		cmd.Wait()
+		exitErr := cmd.Wait()
+		if exitErr != nil {
+			log.Printf("Agent %s (PID %d) exited with error: %v", body.InstanceID, agent.PID, exitErr)
+		} else {
+			log.Printf("Agent %s (PID %d) exited normally", body.InstanceID, agent.PID)
+		}
+
+		// Broadcast final telemetry update
+		telemetryParser.MarkComplete(exitErr)
+
 		s.agentsMu.Lock()
 		delete(s.agents, body.InstanceID)
 		s.agentsMu.Unlock()
-		log.Printf("Agent %s (PID %d) exited", body.InstanceID, agent.PID)
 	}()
 
 	log.Printf("Spawned agent %s with PID %d", body.InstanceID, agent.PID)
@@ -512,35 +547,121 @@ func (s *Server) handleAgentStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// First, try to find in tracked agents (UI-spawned)
 	s.agentsMu.Lock()
 	agent, exists := s.agents[instanceID]
-	if !exists {
+	if exists {
+		// Kill the tracked process
+		if err := agent.cmd.Process.Signal(os.Interrupt); err != nil {
+			// Try harder with SIGKILL
+			_ = agent.cmd.Process.Kill()
+		}
+		delete(s.agents, instanceID)
 		s.agentsMu.Unlock()
+		log.Printf("Stopped tracked agent %s (PID %d)", instanceID, agent.PID)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "success",
+			"message": fmt.Sprintf("Agent %s stopped", instanceID),
+		})
+		return
+	}
+	s.agentsMu.Unlock()
+
+	// Not a tracked agent - try to extract PID from instance_id pattern
+	// Patterns: agent_<pid>, eval_<pid>, run_<pid>, process_<pid>, external_<pid>
+	var pid int
+	for _, prefix := range []string{"agent_", "eval_", "run_", "process_", "external_"} {
+		if len(instanceID) > len(prefix) && instanceID[:len(prefix)] == prefix {
+			pidStr := instanceID[len(prefix):]
+			// Handle patterns like eval_IMP001_abc12345 (take last numeric part)
+			parts := splitLast(pidStr, "_")
+			if p, err := strconv.Atoi(parts); err == nil {
+				pid = p
+				break
+			}
+		}
+	}
+
+	if pid == 0 {
 		http.Error(w, "Agent not found or not running", http.StatusNotFound)
 		return
 	}
 
-	// Kill the process
-	if err := agent.cmd.Process.Signal(os.Interrupt); err != nil {
-		// Try harder with SIGKILL
-		agent.cmd.Process.Kill()
+	// Kill the discovered process by PID
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Process %d not found: %v", pid, err), http.StatusNotFound)
+		return
 	}
 
-	delete(s.agents, instanceID)
-	s.agentsMu.Unlock()
+	// Try SIGTERM first, then SIGKILL
+	if err := proc.Signal(os.Interrupt); err != nil {
+		if err := proc.Kill(); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to kill process %d: %v", pid, err), http.StatusInternalServerError)
+			return
+		}
+	}
 
-	log.Printf("Stopped agent %s (PID %d)", instanceID, agent.PID)
+	log.Printf("Stopped discovered process %s (PID %d)", instanceID, pid)
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
-		"message": fmt.Sprintf("Agent %s stopped", instanceID),
-	}); err != nil {
-		log.Printf("Failed to encode agent stop response: %v", err)
+		"message": fmt.Sprintf("Process %s (PID %d) stopped", instanceID, pid),
+	})
+}
+
+// splitLast returns the last segment after underscore, or the whole string if no underscore
+func splitLast(s, sep string) string {
+	for i := len(s) - 1; i >= 0; i-- {
+		if string(s[i]) == sep {
+			return s[i+1:]
+		}
 	}
+	return s
 }
 
 // Close closes the server and releases resources
 func (s *Server) Close() error {
 	return s.store.Close()
+}
+
+// handleSelectFolder opens a native folder picker dialog and returns the selected path
+// GET /api/select-folder
+func (s *Server) handleSelectFolder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Use osascript on macOS to open a native folder picker
+	// This displays a Finder dialog and returns the selected path
+	script := `tell application "System Events"
+		activate
+		set folderPath to POSIX path of (choose folder with prompt "Select workspace directory")
+		return folderPath
+	end tell`
+
+	cmd := exec.Command("osascript", "-e", script)
+	output, err := cmd.Output()
+	if err != nil {
+		// User cancelled or error occurred
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cancelled": true,
+			"path":      "",
+		})
+		return
+	}
+
+	// Clean up the path (remove trailing newline)
+	path := strings.TrimSpace(string(output))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"cancelled": false,
+		"path":      path,
+	})
 }

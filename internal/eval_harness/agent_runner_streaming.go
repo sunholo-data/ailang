@@ -23,6 +23,11 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()
 
+	// Set up telemetry reporter to send updates to collaboration hub (if running)
+	// Uses AILANG_HUB_URL env var (e.g., "http://localhost:8090")
+	instanceID := fmt.Sprintf("eval_%s_%s", spec.ID, sessionID[:8])
+	telemetry := NewTelemetryReporter("", instanceID)
+
 	// Build command with stream-json for real-time NDJSON events
 	// --system-prompt: Language knowledge (AILANG/Python syntax reference)
 	// -p: Task prompt (benchmark description and expected output)
@@ -141,6 +146,7 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 				switch streamType {
 				case "message_start":
 					turnNum++
+					telemetry.IncrementTurn() // Report turn to collaboration hub
 					fmt.Fprintf(os.Stderr, "\n[TURN %d] ==========================================\n", turnNum)
 					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d] ==========================================\n", turnNum))
 					currentMessage.Reset()
@@ -198,6 +204,12 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 					done <- fmt.Errorf("failed to parse final result: %w", err)
 					return
 				}
+				// Report final telemetry to collaboration hub
+				telemetry.Complete(
+					finalResult.Usage.InputTokens,
+					finalResult.Usage.OutputTokens,
+					finalResult.TotalCostUSD,
+				)
 				fmt.Fprintf(os.Stderr, "\n[DEBUG_AGENT] ========== SESSION COMPLETE ==========\n")
 				fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Turns: %d\n", finalResult.NumTurns)
 				fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Duration: %dms\n", finalResult.DurationMS)
@@ -217,6 +229,7 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	select {
 	case <-timer.C:
 		_ = cmd.Process.Kill()
+		telemetry.Error() // Report timeout to collaboration hub
 		fmt.Fprintf(os.Stderr, "\n[ERROR] Claude session timed out after %d seconds\n", timeoutSeconds)
 
 		// Build transcript for return (file write happens in caller, before workspace cleanup)
@@ -241,6 +254,7 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 			taskPrompt, transcriptBuf.String())
 
 		if err != nil {
+			telemetry.Error() // Report error to collaboration hub
 			fmt.Fprintf(os.Stderr, "\n[ERROR] Claude failed: %v\n", err)
 			// Return partial result even on error, so we can capture transcript
 			result := &ClaudeHeadlessResult{
