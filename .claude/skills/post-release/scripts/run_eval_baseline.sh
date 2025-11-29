@@ -83,8 +83,8 @@ echo "Running agent eval on curated benchmarks..."
 #   - ~17 hard: complex algorithms and effects
 #   - 6 stretch goals: symbolic_diff, mini_interpreter, lambda_calc, graph_bfs, type_unify, red_black_tree
 #
-# All benchmarks now run - no separate curated list (redundant)
-AGENT_BENCHMARKS=""  # Empty = run all benchmarks in benchmarks/ directory
+# Agent mode requires explicit --benchmarks list (safety feature)
+AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_person,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_traffic_light,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
 
 echo "Benchmarks: all 46 benchmarks"
 echo
@@ -114,13 +114,14 @@ sleep 3
 echo
 
 # Agent eval uses haiku/sonnet models based on --full flag
-# No --benchmarks filter = runs all benchmarks in benchmarks/ directory
+# --benchmarks is required for agent mode (safety feature)
 if [[ -n "$FULL_FLAG" ]]; then
     # Full mode: run both haiku and sonnet (via --full, auto-filtered from extended_suite)
     echo "Mode: FULL (haiku + sonnet via --full flag)"
     monitor_progress "$RESULTS_DIR" 184 "Agent" &
     MONITOR_PID=$!
     ailang eval-suite --agent --full \
+        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
@@ -131,6 +132,7 @@ else
     monitor_progress "$RESULTS_DIR" 92 "Agent" &
     MONITOR_PID=$!
     ailang eval-suite --agent \
+        --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
