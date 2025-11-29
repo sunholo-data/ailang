@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MessageCenter } from './components/MessageCenter/MessageCenter';
 import { ApprovalQueue } from './components/ApprovalQueue/ApprovalQueue';
+import { Monitor } from './components/Monitor/Monitor';
 import { Approval } from './types';
 
 // Icons as inline SVGs for a clean, professional look
@@ -13,6 +14,11 @@ const Icons = {
   shield: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  activity: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   ),
   logo: (
@@ -30,7 +36,7 @@ interface AgentInfo {
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'messages' | 'approvals'>('messages');
+  const [activeTab, setActiveTab] = useState<'messages' | 'approvals' | 'monitor'>('messages');
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [targetAgent, setTargetAgent] = useState<string>('my-agent');
   const [knownAgents, setKnownAgents] = useState<AgentInfo[]>([]);
@@ -196,6 +202,13 @@ export const App: React.FC = () => {
               <span className="nav-badge">{pendingCount}</span>
             )}
           </button>
+          <button
+            className={`nav-tab ${activeTab === 'monitor' ? 'active' : ''}`}
+            onClick={() => setActiveTab('monitor')}
+          >
+            <span className="nav-icon">{Icons.activity}</span>
+            <span className="nav-label">Monitor</span>
+          </button>
         </nav>
 
         <div className="header-meta">
@@ -245,14 +258,18 @@ export const App: React.FC = () => {
       </header>
 
       <main className="app-content">
-        {activeTab === 'messages' ? (
+        {activeTab === 'messages' && (
           <MessageCenter websocketUrl={websocketUrl} instanceId={targetAgent} />
-        ) : (
+        )}
+        {activeTab === 'approvals' && (
           <ApprovalQueue
             approvals={approvals}
             onApprove={handleApprove}
             onReject={handleReject}
           />
+        )}
+        {activeTab === 'monitor' && (
+          <Monitor />
         )}
       </main>
 

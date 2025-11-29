@@ -7,6 +7,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -16,12 +19,24 @@ import (
 //go:embed dist
 var uiAssets embed.FS
 
+// AgentProcess tracks a running agent process
+type AgentProcess struct {
+	InstanceID string    `json:"instance_id"`
+	PID        int       `json:"pid"`
+	StartedAt  time.Time `json:"started_at"`
+	cmd        *exec.Cmd
+}
+
 // Server represents the HTTP server for the collaboration hub
 type Server struct {
 	store    *messaging.Store
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
+
+	// Process management for spawned agents
+	agentsMu sync.RWMutex
+	agents   map[string]*AgentProcess
 }
 
 // NewServer creates a new HTTP server
@@ -38,6 +53,7 @@ func NewServer(dbPath string, httpAddr string) (*Server, error) {
 		wsServer: wsServer,
 		httpAddr: httpAddr,
 		dbPath:   dbPath,
+		agents:   make(map[string]*AgentProcess),
 	}, nil
 }
 
@@ -59,6 +75,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/approvals", s.handleApprovals)
 	mux.HandleFunc("/api/approvals/", s.handleApproval)
 	mux.HandleFunc("/api/agents", s.handleAgents)
+	mux.HandleFunc("/api/agents/", s.handleAgentStop)
+	mux.HandleFunc("/api/monitor", s.handleMonitor)
 
 	// Health check
 	mux.HandleFunc("/health", s.handleHealth)
@@ -378,22 +396,147 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /api/agents - List known agent IDs
+// GET /api/agents - List known agent IDs and running agents
+// POST /api/agents - Spawn a new agent process
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleGetAgents(w, r)
+	case http.MethodPost:
+		s.handleSpawnAgent(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
+}
 
-	agents, err := s.store.GetKnownAgents()
+func (s *Server) handleGetAgents(w http.ResponseWriter, r *http.Request) {
+	// Get known agents from database
+	knownAgents, err := s.store.GetKnownAgents()
 	if err != nil {
 		http.Error(w, "Failed to get agents", http.StatusInternalServerError)
 		return
 	}
 
+	// Get running agents
+	s.agentsMu.RLock()
+	runningAgents := make([]*AgentProcess, 0, len(s.agents))
+	for _, agent := range s.agents {
+		runningAgents = append(runningAgents, agent)
+	}
+	s.agentsMu.RUnlock()
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(agents); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"known":   knownAgents,
+		"running": runningAgents,
+	}); err != nil {
 		log.Printf("Failed to encode agents response: %v", err)
+	}
+}
+
+func (s *Server) handleSpawnAgent(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		InstanceID string `json:"instance_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if body.InstanceID == "" {
+		http.Error(w, "instance_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// Check if agent already running
+	s.agentsMu.RLock()
+	if _, exists := s.agents[body.InstanceID]; exists {
+		s.agentsMu.RUnlock()
+		http.Error(w, "Agent with this instance_id is already running", http.StatusConflict)
+		return
+	}
+	s.agentsMu.RUnlock()
+
+	// Spawn the agent process
+	cmd := exec.Command("ailang-agent", "--instance-id", body.InstanceID, "--db", s.dbPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to spawn agent: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Track the process
+	agent := &AgentProcess{
+		InstanceID: body.InstanceID,
+		PID:        cmd.Process.Pid,
+		StartedAt:  time.Now(),
+		cmd:        cmd,
+	}
+
+	s.agentsMu.Lock()
+	s.agents[body.InstanceID] = agent
+	s.agentsMu.Unlock()
+
+	// Start goroutine to clean up when process exits
+	go func() {
+		cmd.Wait()
+		s.agentsMu.Lock()
+		delete(s.agents, body.InstanceID)
+		s.agentsMu.Unlock()
+		log.Printf("Agent %s (PID %d) exited", body.InstanceID, agent.PID)
+	}()
+
+	log.Printf("Spawned agent %s with PID %d", body.InstanceID, agent.PID)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(agent); err != nil {
+		log.Printf("Failed to encode agent response: %v", err)
+	}
+}
+
+// DELETE /api/agents/{id} - Stop a running agent
+func (s *Server) handleAgentStop(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract instance ID from path
+	instanceID := r.URL.Path[len("/api/agents/"):]
+	if instanceID == "" {
+		http.Error(w, "Instance ID required", http.StatusBadRequest)
+		return
+	}
+
+	s.agentsMu.Lock()
+	agent, exists := s.agents[instanceID]
+	if !exists {
+		s.agentsMu.Unlock()
+		http.Error(w, "Agent not found or not running", http.StatusNotFound)
+		return
+	}
+
+	// Kill the process
+	if err := agent.cmd.Process.Signal(os.Interrupt); err != nil {
+		// Try harder with SIGKILL
+		agent.cmd.Process.Kill()
+	}
+
+	delete(s.agents, instanceID)
+	s.agentsMu.Unlock()
+
+	log.Printf("Stopped agent %s (PID %d)", instanceID, agent.PID)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": fmt.Sprintf("Agent %s stopped", instanceID),
+	}); err != nil {
+		log.Printf("Failed to encode agent stop response: %v", err)
 	}
 }
 

@@ -4,6 +4,12 @@ import { ConversationView } from './ConversationView';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { Thread, Message, MessageEvent } from '../../types';
 
+interface RunningAgent {
+  instance_id: string;
+  pid: number;
+  started_at: string;
+}
+
 interface MessageCenterProps {
   websocketUrl: string;
   instanceId: string;
@@ -35,6 +41,11 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Map<string, Message[]>>(new Map());
   const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
+
+  // Agent management
+  const [runningAgents, setRunningAgents] = useState<RunningAgent[]>([]);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [newAgentId, setNewAgentId] = useState('');
 
   // WebSocket connection
   const { isConnected, subscribe, acknowledge } = useWebSocket({
@@ -199,6 +210,73 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     }
   }, []);
 
+  // Fetch running agents
+  const fetchAgents = useCallback(async () => {
+    try {
+      const response = await fetch('/api/agents');
+      if (!response.ok) {
+        console.error('Failed to fetch agents:', await response.text());
+        return;
+      }
+      const data = await response.json();
+      setRunningAgents(data.running || []);
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+    }
+  }, []);
+
+  // Fetch agents on mount and periodically
+  useEffect(() => {
+    fetchAgents();
+    const interval = setInterval(fetchAgents, 5000); // Refresh every 5s
+    return () => clearInterval(interval);
+  }, [fetchAgents]);
+
+  // Launch a new agent
+  const handleLaunchAgent = useCallback(async () => {
+    if (!newAgentId.trim()) return;
+
+    try {
+      const response = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instance_id: newAgentId.trim() }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Failed to launch agent:', error);
+        alert(`Failed to launch agent: ${error}`);
+        return;
+      }
+
+      const agent: RunningAgent = await response.json();
+      setRunningAgents((prev) => [...prev, agent]);
+      setNewAgentId('');
+      setShowAgentModal(false);
+    } catch (error) {
+      console.error('Error launching agent:', error);
+    }
+  }, [newAgentId]);
+
+  // Stop an agent
+  const handleStopAgent = useCallback(async (agentId: string) => {
+    try {
+      const response = await fetch(`/api/agents/${agentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error('Failed to stop agent:', await response.text());
+        return;
+      }
+
+      setRunningAgents((prev) => prev.filter((a) => a.instance_id !== agentId));
+    } catch (error) {
+      console.error('Error stopping agent:', error);
+    }
+  }, []);
+
   const selectedMessages = selectedThreadId ? messages.get(selectedThreadId) || [] : [];
 
   return (
@@ -211,8 +289,60 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
         </div>
         <div className="status-meta">
           <span className="thread-count">{threads.length} threads</span>
+          <span className="agent-count">{runningAgents.length} agents</span>
+          <button className="launch-agent-btn" onClick={() => setShowAgentModal(true)}>
+            + Agent
+          </button>
         </div>
       </div>
+
+      {/* Running Agents Bar */}
+      {runningAgents.length > 0 && (
+        <div className="agents-bar">
+          {runningAgents.map((agent) => (
+            <div key={agent.instance_id} className="agent-chip">
+              <span className="agent-pulse" />
+              <span className="agent-name">{agent.instance_id}</span>
+              <span className="agent-pid">PID {agent.pid}</span>
+              <button
+                className="agent-stop-btn"
+                onClick={() => handleStopAgent(agent.instance_id)}
+                title="Stop agent"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Launch Agent Modal */}
+      {showAgentModal && (
+        <div className="modal-overlay" onClick={() => setShowAgentModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Launch New Agent</h3>
+            <input
+              type="text"
+              value={newAgentId}
+              onChange={(e) => setNewAgentId(e.target.value)}
+              placeholder="Enter instance ID (e.g., agent-2)"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleLaunchAgent();
+                if (e.key === 'Escape') setShowAgentModal(false);
+              }}
+            />
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowAgentModal(false)}>
+                Cancel
+              </button>
+              <button className="launch-btn" onClick={handleLaunchAgent}>
+                Launch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className="center-layout">
@@ -295,9 +425,176 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
           gap: var(--space-4);
         }
 
-        .thread-count {
+        .thread-count, .agent-count {
           font-size: var(--text-xs);
           color: var(--text-tertiary);
+        }
+
+        .launch-agent-btn {
+          padding: var(--space-1) var(--space-2);
+          font-size: var(--text-xs);
+          font-weight: var(--font-medium);
+          color: var(--color-primary);
+          background: transparent;
+          border: 1px solid var(--color-primary);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .launch-agent-btn:hover {
+          background: var(--color-primary);
+          color: var(--text-inverse);
+        }
+
+        /* Running Agents Bar */
+        .agents-bar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-2);
+          padding: var(--space-2) var(--space-4);
+          background: var(--bg-elevated);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .agent-chip {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          font-size: var(--text-xs);
+        }
+
+        .agent-pulse {
+          width: 8px;
+          height: 8px;
+          background: var(--color-success);
+          border-radius: var(--radius-full);
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.9); }
+        }
+
+        .agent-name {
+          font-weight: var(--font-medium);
+          color: var(--text-primary);
+        }
+
+        .agent-pid {
+          color: var(--text-tertiary);
+          font-family: var(--font-mono);
+        }
+
+        .agent-stop-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          background: transparent;
+          color: var(--text-tertiary);
+          border: none;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 14px;
+          line-height: 1;
+          transition: all var(--transition-fast);
+        }
+
+        .agent-stop-btn:hover {
+          background: var(--color-danger);
+          color: var(--text-inverse);
+        }
+
+        /* Modal */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .modal-content {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: var(--space-6);
+          width: 400px;
+          max-width: 90vw;
+        }
+
+        .modal-content h3 {
+          font-size: var(--text-lg);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin-bottom: var(--space-4);
+        }
+
+        .modal-content input {
+          width: 100%;
+          padding: var(--space-2) var(--space-3);
+          background: var(--bg-base);
+          color: var(--text-primary);
+          font-size: var(--text-sm);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          margin-bottom: var(--space-4);
+        }
+
+        .modal-content input:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 2px rgba(37, 194, 160, 0.1);
+        }
+
+        .modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: var(--space-2);
+        }
+
+        .modal-actions .cancel-btn {
+          padding: var(--space-2) var(--space-4);
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
+          color: var(--text-secondary);
+          background: transparent;
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .modal-actions .cancel-btn:hover {
+          background: var(--bg-hover);
+        }
+
+        .modal-actions .launch-btn {
+          padding: var(--space-2) var(--space-4);
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
+          color: var(--text-inverse);
+          background: var(--color-primary);
+          border: none;
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .modal-actions .launch-btn:hover {
+          background: var(--color-primary-light);
         }
 
         /* Layout */
