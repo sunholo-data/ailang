@@ -75,11 +75,21 @@ func FormatResult(result *DirectiveResult) string {
 		}
 	}
 
-	// Files created
+	// Files created (capped to prevent UI overload)
 	if len(result.FilesCreated) > 0 {
-		sb.WriteString("### Files Created\n\n")
-		for _, file := range result.FilesCreated {
+		const maxFilesToShow = 50
+		sb.WriteString("### Files in Workspace\n\n")
+		filesToShow := result.FilesCreated
+		truncated := false
+		if len(filesToShow) > maxFilesToShow {
+			filesToShow = filesToShow[:maxFilesToShow]
+			truncated = true
+		}
+		for _, file := range filesToShow {
 			sb.WriteString(fmt.Sprintf("- `%s`\n", file))
+		}
+		if truncated {
+			sb.WriteString(fmt.Sprintf("\n*... and %d more files (total: %d)*\n", len(result.FilesCreated)-maxFilesToShow, len(result.FilesCreated)))
 		}
 		sb.WriteString("\n")
 	}

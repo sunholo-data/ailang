@@ -15,6 +15,7 @@ import (
 type Approval struct {
 	ID              string    `json:"id"`
 	ThreadID        string    `json:"thread_id"`
+	ThreadTitle     string    `json:"thread_title,omitempty"` // Title of the associated thread
 	InstanceID      string    `json:"instance_id"`
 	CreatedAt       time.Time `json:"created_at"`
 	EffectDeltaJSON string    `json:"effect_delta_json"`
@@ -134,16 +135,17 @@ func (s *Store) GetApproval(approvalID string) (*Approval, error) {
 	return &approval, nil
 }
 
-// GetApprovalsByStatus retrieves approvals by status
+// GetApprovalsByStatus retrieves approvals by status, including thread titles
 func (s *Store) GetApprovalsByStatus(status string, limit int) ([]Approval, error) {
 	query := `
-		SELECT id, thread_id, instance_id, created_at,
-		       effect_delta_json, proposal, impact, estimated_cost,
-		       status, reviewed_by, reviewed_at, review_notes,
-		       capability_token, token_expires_at
-		FROM approvals
-		WHERE status = ?
-		ORDER BY created_at DESC
+		SELECT a.id, a.thread_id, COALESCE(t.title, '') as thread_title, a.instance_id, a.created_at,
+		       a.effect_delta_json, a.proposal, a.impact, a.estimated_cost,
+		       a.status, a.reviewed_by, a.reviewed_at, a.review_notes,
+		       a.capability_token, a.token_expires_at
+		FROM approvals a
+		LEFT JOIN threads t ON a.thread_id = t.id
+		WHERE a.status = ?
+		ORDER BY a.created_at DESC
 	`
 
 	if limit > 0 {
@@ -166,7 +168,7 @@ func (s *Store) GetApprovalsByStatus(status string, limit int) ([]Approval, erro
 		var reviewedBy, reviewNotes, capabilityToken sql.NullString
 
 		err := rows.Scan(
-			&approval.ID, &approval.ThreadID, &approval.InstanceID, &createdAtMs,
+			&approval.ID, &approval.ThreadID, &approval.ThreadTitle, &approval.InstanceID, &createdAtMs,
 			&approval.EffectDeltaJSON, &approval.Proposal, &approval.Impact, &approval.EstimatedCost,
 			&approval.Status, &reviewedBy, &reviewedAtMs, &reviewNotes,
 			&capabilityToken, &tokenExpiresAtMs,

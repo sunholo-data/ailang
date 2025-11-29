@@ -34,6 +34,7 @@ export interface Message {
 export interface Approval {
   id: string;
   thread_id: string;
+  thread_title?: string;  // Title of the associated thread
   instance_id: string;
   created_at: string | number;
   effect_delta_json: string;

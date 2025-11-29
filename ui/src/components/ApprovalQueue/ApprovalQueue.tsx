@@ -6,6 +6,7 @@ interface ApprovalQueueProps {
   history?: Approval[];
   onApprove: (approvalId: string, notes: string) => void;
   onReject: (approvalId: string, notes: string) => void;
+  onNavigateToThread?: (threadId: string) => void;
 }
 
 // Icons
@@ -55,6 +56,11 @@ const Icons = {
       <polyline points="12 6 12 12 16 14" />
     </svg>
   ),
+  message: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
   sparkles: (
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
@@ -69,6 +75,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   history = [],
   onApprove,
   onReject,
+  onNavigateToThread,
 }) => {
   const [showHistory, setShowHistory] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -155,6 +162,19 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                       <div className="proposal-info">
                         <span className="proposal-text">{approval.proposal}</span>
                         <div className="proposal-meta">
+                          {approval.thread_title && (
+                            <span
+                              className="meta-item thread-link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigateToThread?.(approval.thread_id);
+                              }}
+                              title="Go to thread"
+                            >
+                              {Icons.message}
+                              {approval.thread_title}
+                            </span>
+                          )}
                           <span className="meta-item">
                             {Icons.bot}
                             {approval.instance_id}
@@ -296,7 +316,22 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                           <span className={`status-icon ${approval.status}`}>
                             {approval.status === 'approved' ? Icons.check : Icons.x}
                           </span>
-                          <span className="history-proposal">{approval.proposal}</span>
+                          <div className="history-info">
+                            <span className="history-proposal">{approval.proposal}</span>
+                            {approval.thread_title && (
+                              <span
+                                className="history-thread"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigateToThread?.(approval.thread_id);
+                                }}
+                                title="Go to thread"
+                              >
+                                {Icons.message}
+                                {approval.thread_title}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="history-meta">
                           <span className="history-agent">{approval.instance_id}</span>
@@ -528,6 +563,24 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           gap: var(--space-1);
           font-size: var(--text-xs);
           color: var(--text-tertiary);
+        }
+
+        .meta-item.thread-link {
+          color: var(--color-primary);
+          cursor: pointer;
+          padding: 2px 6px;
+          background: rgba(37, 194, 160, 0.1);
+          border-radius: var(--radius-sm);
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          transition: all var(--transition-fast);
+        }
+
+        .meta-item.thread-link:hover {
+          background: rgba(37, 194, 160, 0.2);
+          color: var(--color-primary-light);
         }
 
         .header-right {
@@ -839,10 +892,36 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
         .history-status {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: var(--space-2);
           flex: 1;
           min-width: 0;
+        }
+
+        .history-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .history-thread {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          font-size: var(--text-xs);
+          color: var(--color-primary);
+          cursor: pointer;
+          max-width: fit-content;
+          padding: 1px 4px;
+          background: rgba(37, 194, 160, 0.1);
+          border-radius: var(--radius-sm);
+          transition: all var(--transition-fast);
+        }
+
+        .history-thread:hover {
+          background: rgba(37, 194, 160, 0.2);
         }
 
         .status-icon {

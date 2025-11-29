@@ -43,6 +43,7 @@ export const App: React.FC = () => {
   const [knownAgents, setKnownAgents] = useState<AgentInfo[]>([]);
   const [customAgent, setCustomAgent] = useState<string>('');
   const [showCustomInput, setShowCustomInput] = useState<boolean>(false);
+  const [navigateToThreadId, setNavigateToThreadId] = useState<string | null>(null);
 
   // WebSocket URL - dynamically use current host/port
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -210,6 +211,17 @@ export const App: React.FC = () => {
 
   const pendingCount = approvals?.filter((a) => a.status === 'pending').length || 0;
 
+  // Handler for navigating to a thread from approval queue
+  const handleNavigateToThread = (threadId: string) => {
+    setNavigateToThreadId(threadId);
+    setActiveTab('messages');
+  };
+
+  // Clear navigation state after navigating
+  const handleThreadNavigated = () => {
+    setNavigateToThreadId(null);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -296,7 +308,12 @@ export const App: React.FC = () => {
 
       <main className="app-content">
         {activeTab === 'messages' && (
-          <MessageCenter websocketUrl={websocketUrl} instanceId={targetAgent} />
+          <MessageCenter
+            websocketUrl={websocketUrl}
+            instanceId={targetAgent}
+            initialThreadId={navigateToThreadId}
+            onThreadNavigated={handleThreadNavigated}
+          />
         )}
         {activeTab === 'approvals' && (
           <ApprovalQueue
@@ -304,6 +321,7 @@ export const App: React.FC = () => {
             history={approvalHistory}
             onApprove={handleApprove}
             onReject={handleReject}
+            onNavigateToThread={handleNavigateToThread}
           />
         )}
         {activeTab === 'monitor' && (

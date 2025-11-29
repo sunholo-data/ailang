@@ -169,7 +169,25 @@ func getErrorMessage(result *eval_harness.ClaudeHeadlessResult) string {
 	return ""
 }
 
-// listFiles recursively lists all files in a directory (relative paths)
+// Maximum files to collect (prevents memory issues with large workspaces)
+const maxFilesToCollect = 500
+
+// Directories to skip when listing files (commonly huge)
+var skipDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+	"vendor":       true,
+	".venv":        true,
+	"venv":         true,
+	"__pycache__":  true,
+	".cache":       true,
+	"dist":         true,
+	"build":        true,
+	".next":        true,
+	"coverage":     true,
+}
+
+// listFiles recursively lists files in a directory (relative paths), capped at maxFilesToCollect
 func listFiles(dir string) ([]string, error) {
 	var files []string
 
@@ -178,9 +196,14 @@ func listFiles(dir string) ([]string, error) {
 			return err
 		}
 
-		// Skip directories and .git folder
+		// Stop if we've collected enough files
+		if len(files) >= maxFilesToCollect {
+			return filepath.SkipAll
+		}
+
+		// Skip commonly large directories
 		if info.IsDir() {
-			if info.Name() == ".git" {
+			if skipDirs[info.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -195,6 +218,11 @@ func listFiles(dir string) ([]string, error) {
 		files = append(files, relPath)
 		return nil
 	})
+
+	// filepath.SkipAll returns an error, but it's expected
+	if err == filepath.SkipAll {
+		err = nil
+	}
 
 	return files, err
 }

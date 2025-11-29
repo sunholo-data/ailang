@@ -13,6 +13,8 @@ interface RunningAgent {
 interface MessageCenterProps {
   websocketUrl: string;
   instanceId: string;
+  initialThreadId?: string | null;  // Thread to navigate to when mounting
+  onThreadNavigated?: () => void;   // Callback when navigation is complete
 }
 
 // Connection status icon
@@ -36,6 +38,8 @@ const StatusIcon = ({ connected }: { connected: boolean }) => (
 export const MessageCenter: React.FC<MessageCenterProps> = ({
   websocketUrl,
   instanceId,
+  initialThreadId,
+  onThreadNavigated,
 }) => {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -188,6 +192,26 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
 
     fetchThreads();
   }, []);
+
+  // Handle external navigation to a specific thread
+  useEffect(() => {
+    if (initialThreadId && threads.length > 0) {
+      const threadExists = threads.some(t => t.id === initialThreadId);
+      if (threadExists) {
+        setSelectedThreadId(initialThreadId);
+        // Clear unread count for this thread
+        setUnreadCounts((prev) => {
+          const updated = new Map(prev);
+          updated.delete(initialThreadId);
+          return updated;
+        });
+      }
+      // Notify parent that navigation is complete
+      if (onThreadNavigated) {
+        onThreadNavigated();
+      }
+    }
+  }, [initialThreadId, threads, onThreadNavigated]);
 
   const handleCreateThread = useCallback(async (title: string) => {
     try {
@@ -366,6 +390,56 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     }
   }, []);
 
+  // Approve an approval request
+  const handleApproveRequest = useCallback(async (approvalId: string, notes: string) => {
+    try {
+      const response = await fetch(`/api/approvals/${approvalId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewed_by: 'user',
+          review_notes: notes,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Failed to approve request:', error);
+        alert(`Failed to approve: ${error}`);
+        return;
+      }
+
+      console.log('Approval approved successfully');
+    } catch (error) {
+      console.error('Error approving request:', error);
+    }
+  }, []);
+
+  // Reject an approval request
+  const handleRejectRequest = useCallback(async (approvalId: string, notes: string) => {
+    try {
+      const response = await fetch(`/api/approvals/${approvalId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewed_by: 'user',
+          review_notes: notes,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Failed to reject request:', error);
+        alert(`Failed to reject: ${error}`);
+        return;
+      }
+
+      console.log('Approval rejected successfully');
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+    }
+  }, []);
+
   const selectedMessages = selectedThreadId ? messages.get(selectedThreadId) || [] : [];
 
   return (
@@ -454,6 +528,8 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
               messages={selectedMessages}
               onSendMessage={handleSendMessage}
               onWorkspaceChange={handleWorkspaceChange}
+              onApproveRequest={handleApproveRequest}
+              onRejectRequest={handleRejectRequest}
             />
           ) : (
             <div className="empty-state">

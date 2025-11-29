@@ -1,12 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message, Thread } from '../../types';
+
+// Maximum characters to display before truncating (10KB)
+const MAX_DISPLAY_LENGTH = 10 * 1024;
+// Maximum lines to show before truncating
+const MAX_DISPLAY_LINES = 200;
 
 interface ConversationViewProps {
   thread?: Thread;
   messages: Message[];
   onSendMessage: (content: string, kind: string, workspace?: string) => void;
   onWorkspaceChange?: (workspace: string) => void;  // Callback to save workspace to thread
+  onApproveRequest?: (approvalId: string, notes: string) => void;
+  onRejectRequest?: (approvalId: string, notes: string) => void;
 }
 
 // Icons
@@ -62,6 +69,17 @@ const Icons = {
       <path d="M12 7v4" />
     </svg>
   ),
+  check: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  x: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
 };
 
 const getKindIcon = (kind: string) => {
@@ -80,12 +98,56 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   messages,
   onSendMessage,
   onWorkspaceChange,
+  onApproveRequest,
+  onRejectRequest,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = React.useState('');
   const [messageKind, setMessageKind] = React.useState<string>('directive');
   const [workspace, setWorkspace] = React.useState<string>('');
   const [showWorkspaceInput, setShowWorkspaceInput] = React.useState<boolean>(false);
+  const [approvalNotes, setApprovalNotes] = React.useState<Map<string, string>>(new Map());
+  const [handledApprovals, setHandledApprovals] = React.useState<Set<string>>(new Set());
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+
+  // Helper to check if content needs truncation and get truncated version
+  const getTruncatedContent = (content: string): { needsTruncation: boolean; truncated: string; fullLength: number; lineCount: number } => {
+    const lineCount = (content.match(/\n/g) || []).length + 1;
+    const needsTruncation = content.length > MAX_DISPLAY_LENGTH || lineCount > MAX_DISPLAY_LINES;
+
+    if (!needsTruncation) {
+      return { needsTruncation: false, truncated: content, fullLength: content.length, lineCount };
+    }
+
+    // Truncate by character limit first
+    let truncated = content.slice(0, MAX_DISPLAY_LENGTH);
+
+    // Then truncate by line limit if still too many lines
+    const lines = truncated.split('\n');
+    if (lines.length > MAX_DISPLAY_LINES) {
+      truncated = lines.slice(0, MAX_DISPLAY_LINES).join('\n');
+    }
+
+    // Try to end at a newline for cleaner display
+    const lastNewline = truncated.lastIndexOf('\n');
+    if (lastNewline > truncated.length * 0.8) {
+      truncated = truncated.slice(0, lastNewline);
+    }
+
+    return { needsTruncation: true, truncated, fullLength: content.length, lineCount };
+  };
+
+  const toggleMessageExpanded = (messageId: string) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
 
   // Load workspace from thread when thread changes
   useEffect(() => {
@@ -134,6 +196,53 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     return id;
   };
 
+  // Parse approval ID from message metadata
+  const getApprovalId = (message: Message): string | null => {
+    if (!message.metadata_json) return null;
+    try {
+      const metadata = JSON.parse(message.metadata_json);
+      return metadata.approval_id || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Handle approval action
+  const handleApprove = (approvalId: string) => {
+    const notes = approvalNotes.get(approvalId) || '';
+    if (onApproveRequest) {
+      onApproveRequest(approvalId, notes);
+      setHandledApprovals(prev => new Set(prev).add(approvalId));
+      setApprovalNotes(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(approvalId);
+        return newMap;
+      });
+    }
+  };
+
+  // Handle rejection action
+  const handleReject = (approvalId: string) => {
+    const notes = approvalNotes.get(approvalId) || '';
+    if (!notes.trim()) {
+      alert('Please provide a reason for rejection');
+      return;
+    }
+    if (onRejectRequest) {
+      onRejectRequest(approvalId, notes);
+      setHandledApprovals(prev => new Set(prev).add(approvalId));
+      setApprovalNotes(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(approvalId);
+        return newMap;
+      });
+    }
+  };
+
+  const updateApprovalNotes = (approvalId: string, notes: string) => {
+    setApprovalNotes(prev => new Map(prev).set(approvalId, notes));
+  };
+
   if (!thread) {
     return null;
   }
@@ -173,6 +282,9 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           messages.map((message, index) => {
             const isHuman = message.from_type === 'human';
             const showAvatar = index === 0 || messages[index - 1].from_type !== message.from_type;
+            const isExpanded = expandedMessages.has(message.id);
+            const { needsTruncation, truncated, fullLength, lineCount } = getTruncatedContent(message.content);
+            const displayContent = isExpanded ? message.content : truncated;
 
             return (
               <div
@@ -222,11 +334,74 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                           },
                         }}
                       >
-                        {message.content}
+                        {displayContent}
                       </ReactMarkdown>
                     ) : (
-                      message.content
+                      displayContent
                     )}
+
+                    {/* Truncation indicator and expand/collapse button */}
+                    {needsTruncation && (
+                      <div className="truncation-notice">
+                        <button
+                          className="expand-btn"
+                          onClick={() => toggleMessageExpanded(message.id)}
+                        >
+                          {isExpanded ? (
+                            <>Show less</>
+                          ) : (
+                            <>Show more ({Math.round(fullLength / 1024)}KB, {lineCount} lines)</>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Inline Approval UI for approval_request messages */}
+                    {message.kind === 'approval_request' && (() => {
+                      const approvalId = getApprovalId(message);
+                      const isHandled = approvalId && handledApprovals.has(approvalId);
+
+                      if (!approvalId) return null;
+
+                      return (
+                        <div className="inline-approval">
+                          {isHandled ? (
+                            <div className="approval-handled">
+                              {Icons.check}
+                              <span>Action taken</span>
+                            </div>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="approval-notes-input"
+                                placeholder="Notes (required for rejection)..."
+                                value={approvalNotes.get(approvalId) || ''}
+                                onChange={(e) => updateApprovalNotes(approvalId, e.target.value)}
+                              />
+                              <div className="approval-actions">
+                                <button
+                                  className="reject-btn"
+                                  onClick={() => handleReject(approvalId)}
+                                  title="Reject"
+                                >
+                                  {Icons.x}
+                                  Reject
+                                </button>
+                                <button
+                                  className="approve-btn"
+                                  onClick={() => handleApprove(approvalId)}
+                                  title="Approve"
+                                >
+                                  {Icons.check}
+                                  Approve
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="message-footer">
                     <span className="message-seq">#{message.message_seq}</span>
@@ -847,6 +1022,115 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           border-radius: var(--radius-sm);
           font-family: var(--font-mono);
           font-size: 10px;
+        }
+
+        /* Inline Approval UI */
+        .inline-approval {
+          margin-top: var(--space-3);
+          padding: var(--space-3);
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+        }
+
+        .approval-notes-input {
+          width: 100%;
+          padding: var(--space-2);
+          background: var(--bg-base);
+          color: var(--text-primary);
+          font-size: var(--text-sm);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          margin-bottom: var(--space-2);
+        }
+
+        .approval-notes-input:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 2px rgba(37, 194, 160, 0.15);
+        }
+
+        .approval-notes-input::placeholder {
+          color: var(--text-tertiary);
+        }
+
+        .approval-actions {
+          display: flex;
+          gap: var(--space-2);
+          justify-content: flex-end;
+        }
+
+        .approve-btn, .reject-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-2) var(--space-3);
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
+          border: none;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .approve-btn {
+          background: var(--color-success);
+          color: var(--text-inverse);
+        }
+
+        .approve-btn:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .reject-btn {
+          background: var(--bg-surface);
+          color: var(--color-danger);
+          border: 1px solid var(--color-danger);
+        }
+
+        .reject-btn:hover {
+          background: var(--color-danger);
+          color: var(--text-inverse);
+        }
+
+        .approval-handled {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          color: var(--text-tertiary);
+          font-size: var(--text-sm);
+        }
+
+        .approval-handled svg {
+          color: var(--color-success);
+        }
+
+        /* Truncation notice */
+        .truncation-notice {
+          margin-top: var(--space-2);
+          padding-top: var(--space-2);
+          border-top: 1px dashed var(--border-subtle);
+        }
+
+        .expand-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          font-size: var(--text-xs);
+          font-weight: var(--font-medium);
+          color: var(--color-primary);
+          background: rgba(37, 194, 160, 0.1);
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .expand-btn:hover {
+          background: rgba(37, 194, 160, 0.2);
+          border-color: var(--color-primary);
         }
       `}</style>
     </div>
