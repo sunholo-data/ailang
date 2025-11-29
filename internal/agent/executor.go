@@ -54,25 +54,46 @@ type TokenUsage struct {
 	CacheCreationInputTokens int
 }
 
-// Execute executes a directive using Claude Code
+// Execute executes a directive using Claude Code in a fresh workspace
 func (e *DirectiveExecutor) Execute(directive string) (*DirectiveResult, error) {
-	// Create unique workspace for this execution
-	workspace := filepath.Join(e.config.WorkspaceDir, fmt.Sprintf("directive_%s_%d",
-		uuid.New().String()[:8], time.Now().Unix()))
+	return e.ExecuteInWorkspace(directive, "")
+}
 
-	if err := os.MkdirAll(workspace, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create workspace: %w", err)
+// ExecuteInWorkspace executes a directive in a specific workspace directory
+// If workspacePath is empty, creates a fresh workspace
+func (e *DirectiveExecutor) ExecuteInWorkspace(directive string, workspacePath string) (*DirectiveResult, error) {
+	var workspace string
+	var createdFreshWorkspace bool
+
+	if workspacePath != "" {
+		// Use specified workspace
+		workspace = workspacePath
+		// Verify it exists
+		if _, err := os.Stat(workspace); os.IsNotExist(err) {
+			return nil, fmt.Errorf("specified workspace does not exist: %s", workspace)
+		}
+	} else {
+		// Create unique workspace for this execution
+		workspace = filepath.Join(e.config.WorkspaceDir, fmt.Sprintf("directive_%s_%d",
+			uuid.New().String()[:8], time.Now().Unix()))
+		createdFreshWorkspace = true
+
+		if err := os.MkdirAll(workspace, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create workspace: %w", err)
+		}
+
+		// Create minimal .git folder so Claude treats workspace as standalone project
+		// This prevents Claude from walking up and finding the parent AILANG repo
+		gitDir := filepath.Join(workspace, ".git")
+		if err := os.MkdirAll(gitDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create .git folder: %w", err)
+		}
 	}
 
-	// Create minimal .git folder so Claude treats workspace as standalone project
-	// This prevents Claude from walking up and finding the parent AILANG repo
-	gitDir := filepath.Join(workspace, ".git")
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create .git folder: %w", err)
-	}
-
-	// Cleanup workspace after execution (unless DEBUG_AGENT is set)
-	if os.Getenv("DEBUG_AGENT") == "" {
+	// Keep workspaces by default for inspection via UI
+	// Set CLEANUP_AGENT_WORKSPACES=1 to auto-delete after execution
+	// Only clean up fresh workspaces, not user-specified ones
+	if createdFreshWorkspace && os.Getenv("CLEANUP_AGENT_WORKSPACES") == "1" {
 		defer os.RemoveAll(workspace)
 	}
 

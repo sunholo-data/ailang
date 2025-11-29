@@ -9,6 +9,24 @@ interface MessageCenterProps {
   instanceId: string;
 }
 
+// Connection status icon
+const StatusIcon = ({ connected }: { connected: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    {connected ? (
+      <>
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </>
+    ) : (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </>
+    )}
+  </svg>
+);
+
 export const MessageCenter: React.FC<MessageCenterProps> = ({
   websocketUrl,
   instanceId,
@@ -45,17 +63,17 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
       business_state: 'open',
     };
 
-    // Add to messages
     setMessages((prev) => {
       const threadMessages = prev.get(msg.thread_id) || [];
-      // Avoid duplicates
       if (!threadMessages.find((m) => m.id === msg.id)) {
-        return new Map(prev).set(msg.thread_id, [...threadMessages, msg].sort((a, b) => a.message_seq - b.message_seq));
+        return new Map(prev).set(
+          msg.thread_id,
+          [...threadMessages, msg].sort((a, b) => a.message_seq - b.message_seq)
+        );
       }
       return prev;
     });
 
-    // Update unread count if not the selected thread
     if (msg.thread_id !== selectedThreadId) {
       setUnreadCounts((prev) => {
         const current = prev.get(msg.thread_id) || 0;
@@ -63,52 +81,48 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
       });
     }
 
-    // Auto-acknowledge
     acknowledge(msg.thread_id, msg.message_seq);
   }
 
-  // Handle batch of messages
   function handleBatch(batch: any) {
     batch.messages.forEach((msgEvent: MessageEvent) => {
       handleNewMessage(msgEvent);
     });
   }
 
-  // Select a thread
   const handleSelectThread = useCallback(
     (threadId: string) => {
       setSelectedThreadId(threadId);
 
-      // Clear unread count for this thread
       setUnreadCounts((prev) => {
         const updated = new Map(prev);
         updated.delete(threadId);
         return updated;
       });
 
-      // Subscribe to thread if connected
       if (isConnected) {
         const threadMessages = messages.get(threadId) || [];
-        const lastSeq = threadMessages.length > 0
-          ? Math.max(...threadMessages.map((m) => m.message_seq))
-          : 0;
+        const lastSeq =
+          threadMessages.length > 0
+            ? Math.max(...threadMessages.map((m) => m.message_seq))
+            : 0;
         subscribe(threadId, lastSeq);
       }
     },
     [isConnected, subscribe, messages]
   );
 
-  // Send a message
   const handleSendMessage = useCallback(
-    async (content: string, kind: string) => {
+    async (content: string, kind: string, workspace?: string) => {
       if (!selectedThreadId) return;
+
+      // Build metadata if workspace is specified
+      const metadata = workspace ? JSON.stringify({ workspace }) : undefined;
 
       try {
         const response = await fetch('/api/messages', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             thread_id: selectedThreadId,
             from_type: 'human',
@@ -117,6 +131,7 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
             to_id: instanceId,
             kind,
             content,
+            metadata_json: metadata,
           }),
         });
 
@@ -127,10 +142,8 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
 
         const sentMessage: Message = await response.json();
 
-        // Add to messages (optimistic update - will also arrive via WebSocket)
         setMessages((prev) => {
           const threadMessages = prev.get(selectedThreadId) || [];
-          // Avoid duplicates
           if (!threadMessages.find((m) => m.id === sentMessage.id)) {
             return new Map(prev).set(selectedThreadId, [...threadMessages, sentMessage]);
           }
@@ -143,7 +156,6 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     [selectedThreadId, instanceId]
   );
 
-  // Load threads from API on mount
   useEffect(() => {
     const fetchThreads = async () => {
       try {
@@ -162,14 +174,11 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     fetchThreads();
   }, []);
 
-  // Create a new thread
   const handleCreateThread = useCallback(async (title: string) => {
     try {
       const response = await fetch('/api/threads', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
           created_by_type: 'human',
@@ -194,16 +203,20 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
 
   return (
     <div className="message-center">
-      <div className="connection-status">
-        {isConnected ? (
-          <span className="status-connected">● Connected</span>
-        ) : (
-          <span className="status-disconnected">○ Disconnected</span>
-        )}
+      {/* Status Bar */}
+      <div className="status-bar">
+        <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+          <StatusIcon connected={isConnected} />
+          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+        </div>
+        <div className="status-meta">
+          <span className="thread-count">{threads.length} threads</span>
+        </div>
       </div>
 
+      {/* Main Layout */}
       <div className="center-layout">
-        <div className="threads-panel">
+        <aside className="threads-panel">
           <ThreadList
             threads={threads}
             selectedThreadId={selectedThreadId}
@@ -211,9 +224,9 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
             onCreateThread={handleCreateThread}
             unreadCounts={unreadCounts}
           />
-        </div>
+        </aside>
 
-        <div className="conversation-panel">
+        <main className="conversation-panel">
           {selectedThreadId ? (
             <ConversationView
               threadId={selectedThreadId}
@@ -221,38 +234,73 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
               onSendMessage={handleSendMessage}
             />
           ) : (
-            <div className="no-selection">
-              <p>Select a thread to view messages</p>
+            <div className="empty-state">
+              <div className="empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3>Select a conversation</h3>
+              <p>Choose a thread from the sidebar or create a new one to get started</p>
             </div>
           )}
-        </div>
+        </main>
       </div>
 
       <style>{`
         .message-center {
           display: flex;
           flex-direction: column;
-          height: 100vh;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          height: 100%;
+          background: var(--bg-base);
         }
 
-        .connection-status {
-          padding: 0.5rem 1rem;
-          background: #f8f9fa;
-          border-bottom: 1px solid #e0e0e0;
-          font-size: 0.875rem;
+        /* Status Bar */
+        .status-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: var(--space-2) var(--space-4);
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
-        .status-connected {
-          color: #28a745;
-          font-weight: 500;
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          font-size: var(--text-xs);
+          font-weight: var(--font-medium);
         }
 
-        .status-disconnected {
-          color: #dc3545;
-          font-weight: 500;
+        .status-indicator.connected {
+          color: var(--color-success);
         }
 
+        .status-indicator.connected svg {
+          filter: drop-shadow(0 0 4px var(--color-success));
+        }
+
+        .status-indicator.disconnected {
+          color: var(--color-danger);
+        }
+
+        .status-indicator.disconnected svg {
+          filter: drop-shadow(0 0 4px var(--color-danger));
+        }
+
+        .status-meta {
+          display: flex;
+          align-items: center;
+          gap: var(--space-4);
+        }
+
+        .thread-count {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        /* Layout */
         .center-layout {
           flex: 1;
           display: flex;
@@ -261,20 +309,71 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
 
         .threads-panel {
           width: 320px;
-          border-right: 1px solid #e0e0e0;
+          border-right: 1px solid var(--border-subtle);
+          flex-shrink: 0;
         }
 
         .conversation-panel {
           flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
-        .no-selection {
+        /* Empty State */
+        .empty-state {
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           height: 100%;
-          color: #666;
-          font-size: 1.125rem;
+          padding: var(--space-8);
+          text-align: center;
+        }
+
+        .empty-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 80px;
+          height: 80px;
+          background: var(--bg-surface);
+          border-radius: var(--radius-xl);
+          margin-bottom: var(--space-4);
+          color: var(--text-tertiary);
+        }
+
+        .empty-state h3 {
+          font-size: var(--text-lg);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin-bottom: var(--space-2);
+        }
+
+        .empty-state p {
+          font-size: var(--text-sm);
+          color: var(--text-tertiary);
+          max-width: 300px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .threads-panel {
+            width: 280px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .center-layout {
+            flex-direction: column;
+          }
+
+          .threads-panel {
+            width: 100%;
+            height: 200px;
+            border-right: none;
+            border-bottom: 1px solid var(--border-subtle);
+          }
         }
       `}</style>
     </div>

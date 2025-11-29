@@ -65,12 +65,11 @@ func FormatResult(result *DirectiveResult) string {
 		sb.WriteString("\n")
 	}
 
-	// Workspace location (for debugging)
+	// Workspace location - prominent link for inspection
 	if result.Workspace != "" {
-		sb.WriteString("<details>\n")
-		sb.WriteString("<summary>Debug Info</summary>\n\n")
-		sb.WriteString(fmt.Sprintf("**Workspace**: `%s`\n\n", result.Workspace))
-		sb.WriteString("</details>\n")
+		sb.WriteString("### Workspace\n\n")
+		sb.WriteString(fmt.Sprintf("📁 [Open workspace folder](%s)\n\n", result.Workspace))
+		sb.WriteString(fmt.Sprintf("*Path: `%s`*\n\n", result.Workspace))
 	}
 
 	return sb.String()

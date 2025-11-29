@@ -58,6 +58,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/messages", s.handleMessages)
 	mux.HandleFunc("/api/approvals", s.handleApprovals)
 	mux.HandleFunc("/api/approvals/", s.handleApproval)
+	mux.HandleFunc("/api/agents", s.handleAgents)
 
 	// Health check
 	mux.HandleFunc("/health", s.handleHealth)
@@ -374,6 +375,25 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 		"message": fmt.Sprintf("Approval %s successfully", action+"d"),
 	}); err != nil {
 		log.Printf("Failed to encode approval response: %v", err)
+	}
+}
+
+// GET /api/agents - List known agent IDs
+func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	agents, err := s.store.GetKnownAgents()
+	if err != nil {
+		http.Error(w, "Failed to get agents", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(agents); err != nil {
+		log.Printf("Failed to encode agents response: %v", err)
 	}
 }
 

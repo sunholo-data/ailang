@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
+.PHONY: build build-agent build-all test run clean install install-agent install-all fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
 
 # Binary name
 BINARY=ailang
@@ -39,6 +39,27 @@ build: prepare-embed
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
+
+# Build ailang-agent binary
+build-agent:
+	@echo "Building ailang-agent..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/ailang-agent ./cmd/ailang-agent
+	@echo "Build complete: $(BUILD_DIR)/ailang-agent"
+
+# Install ailang-agent to $GOPATH/bin
+install-agent:
+	@echo "Installing ailang-agent..."
+	@go install $(LDFLAGS) ./cmd/ailang-agent
+	@echo "✓ Installed to $$(go env GOPATH)/bin/ailang-agent"
+
+# Build all binaries (ailang + ailang-agent)
+build-all: build build-agent
+	@echo "✓ All binaries built"
+
+# Install all binaries
+install-all: install install-agent
+	@echo "✓ All binaries installed"
 
 # Install the binary to $GOPATH/bin
 install: prepare-embed
@@ -505,8 +526,12 @@ doc:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  make build            - Build the binary"
-	@echo "  make install          - Install binary to GOPATH/bin"
+	@echo "  make build            - Build the ailang binary"
+	@echo "  make build-agent      - Build the ailang-agent binary"
+	@echo "  make build-all        - Build all binaries (ailang + ailang-agent)"
+	@echo "  make install          - Install ailang to GOPATH/bin"
+	@echo "  make install-agent    - Install ailang-agent to GOPATH/bin"
+	@echo "  make install-all      - Install all binaries"
 	@echo "  make doc PKG=<pkg>    - Show Go package documentation (e.g., make doc PKG=internal/testing)"
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"

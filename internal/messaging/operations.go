@@ -49,6 +49,7 @@ type Message struct {
 	ToID          string    `json:"to_id"`
 	Kind          string    `json:"kind"`
 	Content       string    `json:"content"`
+	MetadataJSON  string    `json:"metadata_json"`
 	DeliveryState string    `json:"delivery_state"`
 	BusinessState string    `json:"business_state"`
 }
@@ -58,7 +59,7 @@ type Message struct {
 func (s *Store) GetMessages(toType, toID string, deliveryState string) ([]Message, error) {
 	query := `
 		SELECT id, thread_id, message_seq, created_at, from_type, from_id, to_type, to_id,
-		       kind, content, delivery_state, business_state
+		       kind, content, COALESCE(metadata_json, '') as metadata_json, delivery_state, business_state
 		FROM messages
 		WHERE to_type = ? AND to_id = ? AND deleted_at IS NULL
 	`
@@ -87,7 +88,7 @@ func (s *Store) GetMessages(toType, toID string, deliveryState string) ([]Messag
 		err := rows.Scan(
 			&msg.ID, &msg.ThreadID, &msg.MessageSeq, &createdAtMs,
 			&msg.FromType, &msg.FromID, &toTypeNullable, &toIDNullable,
-			&msg.Kind, &msg.Content, &msg.DeliveryState, &msg.BusinessState,
+			&msg.Kind, &msg.Content, &msg.MetadataJSON, &msg.DeliveryState, &msg.BusinessState,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
@@ -519,7 +520,7 @@ func (s *Store) CreateMessage(threadID, fromType, fromID, toType, toID, kind, co
 func (s *Store) GetMessagesFromSeq(threadID string, fromSeq int, limit int) ([]Message, error) {
 	query := `
 		SELECT id, thread_id, message_seq, created_at, from_type, from_id, to_type, to_id,
-		       kind, content, delivery_state, business_state
+		       kind, content, COALESCE(metadata_json, '') as metadata_json, delivery_state, business_state
 		FROM messages
 		WHERE thread_id = ? AND message_seq > ? AND deleted_at IS NULL
 		ORDER BY message_seq ASC
@@ -544,7 +545,7 @@ func (s *Store) GetMessagesFromSeq(threadID string, fromSeq int, limit int) ([]M
 		err := rows.Scan(
 			&msg.ID, &msg.ThreadID, &msg.MessageSeq, &createdAtMs,
 			&msg.FromType, &msg.FromID, &toTypeNullable, &toIDNullable,
-			&msg.Kind, &msg.Content, &msg.DeliveryState, &msg.BusinessState,
+			&msg.Kind, &msg.Content, &msg.MetadataJSON, &msg.DeliveryState, &msg.BusinessState,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
@@ -613,4 +614,68 @@ func generateRandomID(length int) string {
 	}
 
 	return fmt.Sprintf("%x", bytes)
+}
+
+// AgentInfo represents information about a known agent
+type AgentInfo struct {
+	ID         string `json:"id"`
+	LastActive int64  `json:"last_active,omitempty"`
+}
+
+// GetKnownAgents returns a list of known agent IDs from the database
+func (s *Store) GetKnownAgents() ([]AgentInfo, error) {
+	// Query for distinct agent IDs from multiple sources:
+	// 1. Messages sent to ailang_instance (to_id)
+	// 2. Subscriptions (instance_id)
+	// 3. Messages claimed by agents (claimed_by)
+	query := `
+		SELECT DISTINCT agent_id, MAX(last_active) as last_active FROM (
+			-- Agents that received messages
+			SELECT DISTINCT to_id as agent_id, created_at as last_active
+			FROM messages
+			WHERE to_type = 'ailang_instance' AND to_id IS NOT NULL AND to_id != ''
+
+			UNION
+
+			-- Agents with subscriptions
+			SELECT DISTINCT instance_id as agent_id, subscribed_at as last_active
+			FROM subscriptions
+			WHERE instance_id IS NOT NULL AND instance_id != ''
+
+			UNION
+
+			-- Agents that claimed messages
+			SELECT DISTINCT claimed_by as agent_id, claimed_at as last_active
+			FROM messages
+			WHERE claimed_by IS NOT NULL AND claimed_by != ''
+		)
+		GROUP BY agent_id
+		ORDER BY last_active DESC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query agents: %w", err)
+	}
+	defer rows.Close()
+
+	var agents []AgentInfo
+	for rows.Next() {
+		var agent AgentInfo
+		var lastActive sql.NullInt64
+		if err := rows.Scan(&agent.ID, &lastActive); err != nil {
+			return nil, fmt.Errorf("failed to scan agent: %w", err)
+		}
+		if lastActive.Valid {
+			agent.LastActive = lastActive.Int64
+		}
+		agents = append(agents, agent)
+	}
+
+	// Always include a default agent if none found
+	if len(agents) == 0 {
+		agents = append(agents, AgentInfo{ID: "my-agent"})
+	}
+
+	return agents, rows.Err()
 }

@@ -1,11 +1,78 @@
 import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Message } from '../../types';
 
 interface ConversationViewProps {
   threadId: string;
   messages: Message[];
-  onSendMessage: (content: string, kind: string) => void;
+  onSendMessage: (content: string, kind: string, workspace?: string) => void;
 }
+
+// Icons
+const Icons = {
+  send: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  ),
+  directive: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+    </svg>
+  ),
+  question: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  status: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  ),
+  result: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  lock: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
+  user: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  bot: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <circle cx="12" cy="5" r="2" />
+      <path d="M12 7v4" />
+    </svg>
+  ),
+};
+
+const getKindIcon = (kind: string) => {
+  switch (kind) {
+    case 'directive': return Icons.directive;
+    case 'question': return Icons.question;
+    case 'status': return Icons.status;
+    case 'result': return Icons.result;
+    case 'approval_request': return Icons.lock;
+    default: return Icons.directive;
+  }
+};
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
   threadId,
@@ -15,15 +82,16 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = React.useState('');
   const [messageKind, setMessageKind] = React.useState<string>('directive');
+  const [workspace, setWorkspace] = React.useState<string>('');
+  const [showWorkspaceInput, setShowWorkspaceInput] = React.useState<boolean>(false);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSend = () => {
     if (inputValue.trim()) {
-      onSendMessage(inputValue, messageKind);
+      onSendMessage(inputValue, messageKind, workspace || undefined);
       setInputValue('');
     }
   };
@@ -35,77 +103,103 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     }
   };
 
-  const formatTimestamp = (timestamp: number) => {
+  const formatTimestamp = (timestamp: number | string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getMessageIcon = (kind: string) => {
-    switch (kind) {
-      case 'directive':
-        return '📋';
-      case 'question':
-        return '❓';
-      case 'status':
-        return '📊';
-      case 'result':
-        return '✅';
-      case 'approval_request':
-        return '🔒';
-      default:
-        return '💬';
+  const truncateId = (id: string) => {
+    if (id.length > 12) {
+      return `${id.slice(0, 8)}...`;
     }
-  };
-
-  const getMessageColor = (fromType: string) => {
-    return fromType === 'human' ? '#007bff' : '#28a745';
+    return id;
   };
 
   return (
     <div className="conversation-view">
+      {/* Header */}
       <div className="conversation-header">
-        <h3>Thread: {threadId}</h3>
-        <div className="header-actions">
-          <button className="action-btn">⭐ Pin</button>
-          <button className="action-btn">🔕 Mute</button>
-          <button className="action-btn">📁 Archive</button>
+        <div className="header-info">
+          <span className="thread-label">Thread</span>
+          <span className="thread-id" title={threadId}>{truncateId(threadId)}</span>
+        </div>
+        <div className="header-stats">
+          <span className="message-count">{messages.length} messages</span>
         </div>
       </div>
 
+      {/* Messages */}
       <div className="messages-container">
         {messages.length === 0 ? (
           <div className="empty-messages">
+            <div className="empty-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
             <p>No messages yet</p>
-            <p className="hint">Start the conversation by sending a message</p>
+            <span className="hint">Send a message to start the conversation</span>
           </div>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const isHuman = message.from_type === 'human';
+            const showAvatar = index === 0 || messages[index - 1].from_type !== message.from_type;
 
             return (
               <div
                 key={message.id}
                 className={`message ${isHuman ? 'human' : 'agent'}`}
               >
-                <div className="message-header">
-                  <span className="message-icon">{getMessageIcon(message.kind)}</span>
-                  <span className="message-sender">
-                    {isHuman ? '👤' : '🤖'} {message.from_id}
-                  </span>
-                  <span className="message-kind">{message.kind}</span>
-                  <span className="message-seq">#{message.message_seq}</span>
-                  <span className="message-time">
-                    {formatTimestamp(message.created_at)}
-                  </span>
+                {/* Avatar */}
+                <div className={`message-avatar ${showAvatar ? 'visible' : ''}`}>
+                  {showAvatar && (isHuman ? Icons.user : Icons.bot)}
                 </div>
 
-                <div className="message-content">{message.content}</div>
-
-                {message.delivery_state !== 'acked' && (
-                  <div className="message-status">
-                    {message.delivery_state === 'pending' ? '📤' : '📭'}
+                {/* Content */}
+                <div className="message-body">
+                  {showAvatar && (
+                    <div className="message-meta">
+                      <span className="sender-name">{message.from_id}</span>
+                      <span className="kind-badge">{getKindIcon(message.kind)} {message.kind}</span>
+                      <span className="message-time">{formatTimestamp(message.created_at)}</span>
+                    </div>
+                  )}
+                  <div className="message-content">
+                    {message.kind === 'result' || !isHuman ? (
+                      <ReactMarkdown
+                        components={{
+                          // Custom link renderer for file:// URLs
+                          a: ({ href, children }) => (
+                            <a href={href} target="_blank" rel="noopener noreferrer">
+                              {children}
+                            </a>
+                          ),
+                          // Code blocks with syntax highlighting placeholder
+                          code: ({ className, children, ...props }) => {
+                            const isInline = !className;
+                            return isInline ? (
+                              <code className="inline-code" {...props}>{children}</code>
+                            ) : (
+                              <code className={className} {...props}>{children}</code>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    ) : (
+                      message.content
+                    )}
                   </div>
-                )}
+                  <div className="message-footer">
+                    <span className="message-seq">#{message.message_seq}</span>
+                    {message.delivery_state !== 'acked' && (
+                      <span className={`delivery-status ${message.delivery_state}`}>
+                        {message.delivery_state === 'pending' ? 'sending...' : 'delivered'}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })
@@ -113,8 +207,48 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="message-input">
-        <div className="input-controls">
+      {/* Input Area */}
+      <div className="input-area">
+        {/* Workspace selector row */}
+        <div className="workspace-row">
+          <button
+            onClick={() => setShowWorkspaceInput(!showWorkspaceInput)}
+            className={`workspace-toggle ${workspace ? 'has-workspace' : ''}`}
+            title={workspace || 'Set working directory'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>{workspace ? 'Workspace set' : 'Set workspace'}</span>
+          </button>
+          {workspace && (
+            <span className="workspace-path" title={workspace}>
+              {workspace.length > 40 ? `...${workspace.slice(-37)}` : workspace}
+            </span>
+          )}
+        </div>
+
+        {showWorkspaceInput && (
+          <div className="workspace-input-row">
+            <input
+              type="text"
+              value={workspace}
+              onChange={(e) => setWorkspace(e.target.value)}
+              placeholder="/path/to/working/directory (leave empty for fresh workspace)"
+              className="workspace-input"
+            />
+            {workspace && (
+              <button
+                onClick={() => { setWorkspace(''); setShowWorkspaceInput(false); }}
+                className="workspace-clear"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="input-wrapper">
           <select
             value={messageKind}
             onChange={(e) => setMessageKind(e.target.value)}
@@ -122,22 +256,24 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           >
             <option value="directive">Directive</option>
             <option value="question">Question</option>
-            <option value="status">Status</option>
-            <option value="result">Result</option>
           </select>
-        </div>
-
-        <div className="input-area">
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-            rows={3}
+            placeholder="Type a message..."
+            rows={1}
           />
-          <button onClick={handleSend} className="send-btn">
-            Send
+          <button
+            onClick={handleSend}
+            className="send-btn"
+            disabled={!inputValue.trim()}
+          >
+            {Icons.send}
           </button>
+        </div>
+        <div className="input-hint">
+          Press <kbd>Enter</kbd> to send, <kbd>Shift + Enter</kbd> for new line
         </div>
       </div>
 
@@ -146,170 +282,488 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           display: flex;
           flex-direction: column;
           height: 100%;
-          background: white;
+          background: var(--bg-base);
         }
 
+        /* Header */
         .conversation-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 1rem;
-          border-bottom: 1px solid #e0e0e0;
+          justify-content: space-between;
+          padding: var(--space-3) var(--space-4);
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
-        .conversation-header h3 {
-          margin: 0;
-          font-size: 1.125rem;
-          font-weight: 600;
-        }
-
-        .header-actions {
+        .header-info {
           display: flex;
-          gap: 0.5rem;
+          align-items: center;
+          gap: var(--space-2);
         }
 
-        .action-btn {
-          padding: 0.25rem 0.75rem;
-          background: #f5f5f5;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.8125rem;
+        .thread-label {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .action-btn:hover {
-          background: #e0e0e0;
+        .thread-id {
+          font-size: var(--text-sm);
+          font-family: var(--font-mono);
+          color: var(--text-secondary);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-elevated);
+          border-radius: var(--radius-sm);
         }
 
+        .header-stats {
+          display: flex;
+          gap: var(--space-4);
+        }
+
+        .message-count {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        /* Messages Container */
         .messages-container {
           flex: 1;
           overflow-y: auto;
-          padding: 1rem;
-          background: #fafafa;
+          padding: var(--space-4);
         }
 
         .empty-messages {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
           text-align: center;
-          padding: 2rem;
-          color: #666;
+          color: var(--text-tertiary);
+        }
+
+        .empty-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 64px;
+          height: 64px;
+          background: var(--bg-surface);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--space-3);
+        }
+
+        .empty-messages p {
+          font-size: var(--text-sm);
+          margin-bottom: var(--space-1);
         }
 
         .empty-messages .hint {
-          font-size: 0.875rem;
-          color: #999;
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
         }
 
+        /* Message */
         .message {
-          margin-bottom: 1rem;
-          padding: 0.75rem;
-          border-radius: 8px;
-          background: white;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
-
-        .message.human {
-          border-left: 3px solid #007bff;
-        }
-
-        .message.agent {
-          border-left: 3px solid #28a745;
-        }
-
-        .message-header {
           display: flex;
-          gap: 0.5rem;
+          gap: var(--space-3);
+          margin-bottom: var(--space-3);
+        }
+
+        .message-avatar {
+          width: 32px;
+          height: 32px;
+          display: flex;
           align-items: center;
-          margin-bottom: 0.5rem;
-          font-size: 0.8125rem;
-          color: #666;
+          justify-content: center;
+          border-radius: var(--radius-full);
+          flex-shrink: 0;
+          visibility: hidden;
         }
 
-        .message-icon {
-          font-size: 1rem;
+        .message-avatar.visible {
+          visibility: visible;
         }
 
-        .message-sender {
-          font-weight: 500;
+        .message.human .message-avatar {
+          background: var(--bg-elevated);
+          color: var(--text-secondary);
         }
 
-        .message-kind {
-          background: #e0e0e0;
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
+        .message.agent .message-avatar {
+          background: rgba(37, 194, 160, 0.15);
+          color: var(--color-primary);
         }
 
-        .message-seq {
-          color: #999;
-          font-size: 0.75rem;
+        .message-body {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .message-meta {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          margin-bottom: var(--space-1);
+        }
+
+        .sender-name {
+          font-size: var(--text-sm);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+        }
+
+        .kind-badge {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+          padding: 2px var(--space-2);
+          background: var(--bg-elevated);
+          border-radius: var(--radius-sm);
         }
 
         .message-time {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
           margin-left: auto;
-          color: #999;
         }
 
         .message-content {
-          color: #333;
-          line-height: 1.5;
-          white-space: pre-wrap;
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+          line-height: 1.6;
+          word-break: break-word;
+          padding: var(--space-3);
+          background: var(--bg-surface);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-subtle);
         }
 
-        .message-status {
-          margin-top: 0.5rem;
-          text-align: right;
-          font-size: 0.75rem;
+        /* Markdown styles */
+        .message-content h2 {
+          font-size: var(--text-lg);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin: 0 0 var(--space-3) 0;
+          padding-bottom: var(--space-2);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
-        .message-input {
-          border-top: 1px solid #e0e0e0;
-          padding: 1rem;
-          background: white;
+        .message-content h3 {
+          font-size: var(--text-base);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin: var(--space-4) 0 var(--space-2) 0;
         }
 
-        .input-controls {
-          margin-bottom: 0.5rem;
+        .message-content p {
+          margin: 0 0 var(--space-2) 0;
+        }
+
+        .message-content p:last-child {
+          margin-bottom: 0;
+        }
+
+        .message-content ul, .message-content ol {
+          margin: var(--space-2) 0;
+          padding-left: var(--space-5);
+        }
+
+        .message-content li {
+          margin: var(--space-1) 0;
+        }
+
+        .message-content pre {
+          background: var(--bg-base);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          padding: var(--space-3);
+          overflow-x: auto;
+          margin: var(--space-2) 0;
+        }
+
+        .message-content pre code {
+          background: none;
+          padding: 0;
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          color: var(--text-primary);
+        }
+
+        .message-content .inline-code {
+          background: var(--bg-elevated);
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          color: var(--color-primary);
+        }
+
+        .message-content a {
+          color: var(--color-primary);
+          text-decoration: none;
+        }
+
+        .message-content a:hover {
+          text-decoration: underline;
+        }
+
+        .message-content details {
+          margin: var(--space-3) 0;
+          padding: var(--space-2);
+          background: var(--bg-base);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+        }
+
+        .message-content summary {
+          cursor: pointer;
+          font-weight: var(--font-medium);
+          color: var(--text-secondary);
+          padding: var(--space-1);
+        }
+
+        .message-content summary:hover {
+          color: var(--text-primary);
+        }
+
+        .message-content strong {
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+        }
+
+        .message-content hr {
+          border: none;
+          border-top: 1px solid var(--border-subtle);
+          margin: var(--space-4) 0;
+        }
+
+        .message.human .message-content {
+          border-left: 2px solid var(--color-info);
+        }
+
+        .message.agent .message-content {
+          border-left: 2px solid var(--color-primary);
+        }
+
+        .message-footer {
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+          margin-top: var(--space-1);
+          padding-left: var(--space-3);
+        }
+
+        .message-seq {
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          color: var(--text-tertiary);
+        }
+
+        .delivery-status {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        .delivery-status.pending {
+          color: var(--color-warning);
+        }
+
+        /* Input Area */
+        .input-area {
+          padding: var(--space-4);
+          background: var(--bg-surface);
+          border-top: 1px solid var(--border-subtle);
+        }
+
+        /* Workspace selector */
+        .workspace-row {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          margin-bottom: var(--space-2);
+        }
+
+        .workspace-toggle {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-elevated);
+          color: var(--text-tertiary);
+          font-size: var(--text-xs);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .workspace-toggle:hover {
+          color: var(--text-secondary);
+          border-color: var(--border-default);
+        }
+
+        .workspace-toggle.has-workspace {
+          color: var(--color-primary);
+          border-color: var(--color-primary);
+          background: rgba(37, 194, 160, 0.1);
+        }
+
+        .workspace-path {
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          color: var(--text-tertiary);
+          max-width: 300px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .workspace-input-row {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          margin-bottom: var(--space-2);
+        }
+
+        .workspace-input {
+          flex: 1;
+          padding: var(--space-2);
+          background: var(--bg-base);
+          color: var(--text-primary);
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-sm);
+          transition: all var(--transition-fast);
+        }
+
+        .workspace-input:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 2px rgba(37, 194, 160, 0.15);
+        }
+
+        .workspace-input::placeholder {
+          color: var(--text-tertiary);
+        }
+
+        .workspace-clear {
+          padding: var(--space-1) var(--space-2);
+          background: transparent;
+          color: var(--text-tertiary);
+          font-size: var(--text-xs);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .workspace-clear:hover {
+          color: var(--color-danger);
+          border-color: var(--color-danger);
+        }
+
+        .input-wrapper {
+          display: flex;
+          align-items: flex-end;
+          gap: var(--space-2);
+          background: var(--bg-base);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: var(--space-2);
+          transition: border-color var(--transition-fast);
+        }
+
+        .input-wrapper:focus-within {
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(37, 194, 160, 0.1);
         }
 
         .kind-selector {
-          padding: 0.5rem;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
-          font-size: 0.875rem;
+          padding: var(--space-2) var(--space-3);
+          padding-right: var(--space-6);
+          background: var(--bg-elevated);
+          color: var(--text-secondary);
+          font-size: var(--text-xs);
+          border: none;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right var(--space-2) center;
         }
 
-        .input-area {
-          display: flex;
-          gap: 0.5rem;
+        .kind-selector:focus {
+          outline: none;
         }
 
-        .input-area textarea {
+        .input-wrapper textarea {
           flex: 1;
-          padding: 0.75rem;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
-          font-family: inherit;
-          font-size: 0.9375rem;
+          min-height: 40px;
+          max-height: 150px;
+          padding: var(--space-2);
+          background: transparent;
+          color: var(--text-primary);
+          font-family: var(--font-sans);
+          font-size: var(--text-sm);
+          line-height: 1.5;
+          border: none;
           resize: none;
         }
 
-        .input-area textarea:focus {
+        .input-wrapper textarea:focus {
           outline: none;
-          border-color: #007bff;
+        }
+
+        .input-wrapper textarea::placeholder {
+          color: var(--text-tertiary);
         }
 
         .send-btn {
-          padding: 0.75rem 1.5rem;
-          background: #007bff;
-          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          background: var(--color-primary);
+          color: var(--text-inverse);
           border: none;
-          border-radius: 4px;
+          border-radius: var(--radius-md);
           cursor: pointer;
-          font-weight: 500;
+          transition: all var(--transition-fast);
+          flex-shrink: 0;
         }
 
-        .send-btn:hover {
-          background: #0056b3;
+        .send-btn:hover:not(:disabled) {
+          background: var(--color-primary-light);
+          transform: translateY(-1px);
+        }
+
+        .send-btn:disabled {
+          background: var(--bg-elevated);
+          color: var(--text-tertiary);
+          cursor: not-allowed;
+        }
+
+        .input-hint {
+          margin-top: var(--space-2);
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+          text-align: center;
+        }
+
+        .input-hint kbd {
+          padding: 2px 6px;
+          background: var(--bg-elevated);
+          border-radius: var(--radius-sm);
+          font-family: var(--font-mono);
+          font-size: 10px;
         }
       `}</style>
     </div>

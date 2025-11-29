@@ -7,6 +7,62 @@ interface ApprovalQueueProps {
   onReject: (approvalId: string, notes: string) => void;
 }
 
+// Icons
+const Icons = {
+  check: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  x: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  chevronDown: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  ),
+  chevronUp: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="18 15 12 9 6 15" />
+    </svg>
+  ),
+  bot: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <circle cx="12" cy="5" r="2" />
+      <path d="M12 7v4" />
+    </svg>
+  ),
+  dollar: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
+  folder: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  clock: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  sparkles: (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+      <path d="M5 19l.5 1.5L7 21l-1.5.5L5 23l-.5-1.5L3 21l1.5-.5L5 19z" />
+      <path d="M19 13l.5 1.5L21 15l-1.5.5L19 17l-.5-1.5L17 15l1.5-.5L19 13z" />
+    </svg>
+  ),
+};
+
 export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   approvals,
   onApprove,
@@ -23,35 +79,14 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
     }
   };
 
-  const getImpactColor = (impact: string) => {
-    switch (impact) {
-      case 'low':
-        return '#28a745';
-      case 'medium':
-        return '#ffc107';
-      case 'high':
-        return '#dc3545';
-      default:
-        return '#6c757d';
-    }
-  };
-
-  const getImpactIcon = (impact: string) => {
-    switch (impact) {
-      case 'low':
-        return '🟢';
-      case 'medium':
-        return '🟡';
-      case 'high':
-        return '🔴';
-      default:
-        return '⚪';
-    }
-  };
-
-  const formatTimestamp = (timestamp: number) => {
+  const formatTimestamp = (timestamp: number | string) => {
     const date = new Date(timestamp);
-    return date.toLocaleString();
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const handleApprove = (approvalId: string) => {
@@ -78,126 +113,154 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
   return (
     <div className="approval-queue">
+      {/* Header */}
       <div className="queue-header">
-        <h2>Approval Queue</h2>
-        <span className="count-badge">{pendingApprovals.length} pending</span>
+        <div className="header-title">
+          <h2>Approval Queue</h2>
+          <span className="pending-count">
+            {pendingApprovals.length} pending
+          </span>
+        </div>
       </div>
 
-      <div className="approvals-list">
+      {/* Approvals List */}
+      <div className="approvals-container">
         {pendingApprovals.length === 0 ? (
           <div className="empty-state">
-            <p>✨ No pending approvals</p>
-            <p className="hint">All requests have been reviewed</p>
+            <div className="empty-icon">{Icons.sparkles}</div>
+            <h3>All caught up!</h3>
+            <p>No pending approvals to review</p>
           </div>
         ) : (
-          pendingApprovals.map((approval) => {
-            const effectDelta = parseEffectDelta(approval.effect_delta_json);
-            const isExpanded = expandedId === approval.id;
+          <div className="approvals-list">
+            {pendingApprovals.map((approval) => {
+              const effectDelta = parseEffectDelta(approval.effect_delta_json);
+              const isExpanded = expandedId === approval.id;
 
-            return (
-              <div key={approval.id} className="approval-card">
+              return (
                 <div
-                  className="approval-header"
-                  onClick={() => setExpandedId(isExpanded ? null : approval.id)}
+                  key={approval.id}
+                  className={`approval-card impact-${approval.impact}`}
                 >
-                  <div className="approval-title">
-                    <span className="impact-icon">
-                      {getImpactIcon(approval.impact)}
-                    </span>
-                    <span className="proposal">{approval.proposal}</span>
+                  {/* Card Header */}
+                  <div
+                    className="card-header"
+                    onClick={() => setExpandedId(isExpanded ? null : approval.id)}
+                  >
+                    <div className="header-left">
+                      <div className={`impact-indicator ${approval.impact}`} />
+                      <div className="proposal-info">
+                        <span className="proposal-text">{approval.proposal}</span>
+                        <div className="proposal-meta">
+                          <span className="meta-item">
+                            {Icons.bot}
+                            {approval.instance_id}
+                          </span>
+                          <span className="meta-item">
+                            {Icons.clock}
+                            {formatTimestamp(approval.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="header-right">
+                      <span className="cost-badge">
+                        {Icons.dollar}
+                        ${approval.estimated_cost.toFixed(2)}
+                      </span>
+                      <span className={`impact-badge ${approval.impact}`}>
+                        {approval.impact}
+                      </span>
+                      <button className="expand-btn">
+                        {isExpanded ? Icons.chevronUp : Icons.chevronDown}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="approval-meta">
-                    <span className="instance">🤖 {approval.instance_id}</span>
-                    <span className="cost">${approval.estimated_cost.toFixed(2)}</span>
-                    <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="approval-details">
-                    <div className="detail-section">
-                      <h4>Effect Details</h4>
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="card-details">
+                      {/* Effect Details */}
                       {effectDelta && (
-                        <div className="effect-info">
-                          <div className="info-row">
-                            <span className="label">Capability:</span>
-                            <span className="value">{effectDelta.cap_type}</span>
-                          </div>
-                          <div className="info-row">
-                            <span className="label">Budget Delta:</span>
-                            <span className="value">
-                              ${effectDelta.budget_delta.toFixed(2)}
-                            </span>
-                          </div>
-                          {effectDelta.paths.length > 0 && (
-                            <div className="info-row">
-                              <span className="label">Paths:</span>
-                              <div className="paths">
-                                {effectDelta.paths.map((path, idx) => (
-                                  <span key={idx} className="path">
-                                    {path}
-                                  </span>
-                                ))}
-                              </div>
+                        <div className="detail-section">
+                          <h4>Effect Details</h4>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <span className="detail-label">Capability</span>
+                              <span className="detail-value code">{effectDelta.cap_type}</span>
                             </div>
-                          )}
+                            <div className="detail-item">
+                              <span className="detail-label">Budget Delta</span>
+                              <span className="detail-value">${effectDelta.budget_delta.toFixed(2)}</span>
+                            </div>
+                            {effectDelta.paths.length > 0 && (
+                              <div className="detail-item full-width">
+                                <span className="detail-label">Paths</span>
+                                <div className="paths-list">
+                                  {effectDelta.paths.map((path, idx) => (
+                                    <span key={idx} className="path-tag">
+                                      {Icons.folder}
+                                      {path}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
-                    </div>
 
-                    <div className="detail-section">
-                      <h4>Request Info</h4>
-                      <div className="info-row">
-                        <span className="label">Thread:</span>
-                        <span className="value">{approval.thread_id}</span>
+                      {/* Request Info */}
+                      <div className="detail-section">
+                        <h4>Request Info</h4>
+                        <div className="detail-grid">
+                          <div className="detail-item">
+                            <span className="detail-label">Thread</span>
+                            <span className="detail-value code">{approval.thread_id}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-label">Impact Level</span>
+                            <span className={`detail-value impact-text ${approval.impact}`}>
+                              {approval.impact.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="info-row">
-                        <span className="label">Requested:</span>
-                        <span className="value">
-                          {formatTimestamp(approval.created_at)}
-                        </span>
-                      </div>
-                      <div className="info-row">
-                        <span className="label">Impact:</span>
-                        <span
-                          className="value"
-                          style={{ color: getImpactColor(approval.impact) }}
-                        >
-                          {approval.impact.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
 
-                    <div className="review-section">
-                      <h4>Review Notes</h4>
-                      <textarea
-                        value={reviewNotes.get(approval.id) || ''}
-                        onChange={(e) => updateNotes(approval.id, e.target.value)}
-                        placeholder="Add notes about your decision..."
-                        rows={3}
-                      />
+                      {/* Review Section */}
+                      <div className="review-section">
+                        <h4>Review Notes</h4>
+                        <textarea
+                          value={reviewNotes.get(approval.id) || ''}
+                          onChange={(e) => updateNotes(approval.id, e.target.value)}
+                          placeholder="Add notes about your decision (required for rejection)..."
+                          rows={3}
+                        />
 
-                      <div className="action-buttons">
-                        <button
-                          className="reject-btn"
-                          onClick={() => handleReject(approval.id)}
-                        >
-                          ❌ Reject
-                        </button>
-                        <button
-                          className="approve-btn"
-                          onClick={() => handleApprove(approval.id)}
-                        >
-                          ✅ Approve
-                        </button>
+                        <div className="action-buttons">
+                          <button
+                            className="reject-btn"
+                            onClick={() => handleReject(approval.id)}
+                          >
+                            {Icons.x}
+                            Reject
+                          </button>
+                          <button
+                            className="approve-btn"
+                            onClick={() => handleApprove(approval.id)}
+                          >
+                            {Icons.check}
+                            Approve
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -206,211 +269,447 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           display: flex;
           flex-direction: column;
           height: 100%;
-          background: #f5f5f5;
+          background: var(--bg-base);
         }
 
+        /* Header */
         .queue-header {
+          padding: var(--space-4) var(--space-6);
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .header-title {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 1rem;
-          background: white;
-          border-bottom: 1px solid #e0e0e0;
+          gap: var(--space-3);
         }
 
-        .queue-header h2 {
-          margin: 0;
-          font-size: 1.25rem;
-          font-weight: 600;
+        .header-title h2 {
+          font-size: var(--text-lg);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
         }
 
-        .count-badge {
-          background: #007bff;
-          color: white;
-          padding: 0.25rem 0.75rem;
-          border-radius: 12px;
-          font-size: 0.875rem;
-          font-weight: 500;
+        .pending-count {
+          padding: var(--space-1) var(--space-3);
+          background: rgba(37, 194, 160, 0.15);
+          color: var(--color-primary);
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          border-radius: var(--radius-full);
         }
 
-        .approvals-list {
+        /* Container */
+        .approvals-container {
           flex: 1;
           overflow-y: auto;
-          padding: 1rem;
+          padding: var(--space-4) var(--space-6);
         }
 
+        /* Empty State */
         .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: var(--space-12);
           text-align: center;
-          padding: 3rem 1rem;
-          color: #666;
+        }
+
+        .empty-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 80px;
+          height: 80px;
+          background: var(--bg-surface);
+          border-radius: var(--radius-xl);
+          color: var(--color-primary);
+          margin-bottom: var(--space-4);
+        }
+
+        .empty-state h3 {
+          font-size: var(--text-lg);
+          font-weight: var(--font-semibold);
+          color: var(--text-primary);
+          margin-bottom: var(--space-2);
         }
 
         .empty-state p {
-          margin: 0.5rem 0;
+          font-size: var(--text-sm);
+          color: var(--text-tertiary);
         }
 
-        .empty-state .hint {
-          font-size: 0.875rem;
-          color: #999;
+        /* Approvals List */
+        .approvals-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-4);
         }
 
+        /* Approval Card */
         .approval-card {
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          margin-bottom: 1rem;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-lg);
           overflow: hidden;
+          transition: all var(--transition-base);
         }
 
-        .approval-header {
-          padding: 1rem;
+        .approval-card:hover {
+          border-color: var(--border-default);
+          box-shadow: var(--shadow-md);
+        }
+
+        .approval-card.impact-low {
+          border-left: 3px solid var(--color-success);
+        }
+
+        .approval-card.impact-medium {
+          border-left: 3px solid var(--color-warning);
+        }
+
+        .approval-card.impact-high {
+          border-left: 3px solid var(--color-danger);
+        }
+
+        /* Card Header */
+        .card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: var(--space-4);
           cursor: pointer;
-          transition: background 0.2s;
+          transition: background var(--transition-fast);
         }
 
-        .approval-header:hover {
-          background: #f8f9fa;
+        .card-header:hover {
+          background: var(--bg-hover);
         }
 
-        .approval-title {
+        .header-left {
           display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .impact-icon {
-          font-size: 1.25rem;
-        }
-
-        .proposal {
-          font-weight: 500;
-          font-size: 1rem;
-        }
-
-        .approval-meta {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-          font-size: 0.875rem;
-          color: #666;
-        }
-
-        .instance {
+          align-items: flex-start;
+          gap: var(--space-3);
           flex: 1;
+          min-width: 0;
         }
 
-        .cost {
-          font-weight: 600;
-          color: #333;
+        .impact-indicator {
+          width: 10px;
+          height: 10px;
+          border-radius: var(--radius-full);
+          flex-shrink: 0;
+          margin-top: 6px;
         }
 
-        .expand-icon {
-          color: #999;
-          font-size: 0.75rem;
+        .impact-indicator.low {
+          background: var(--color-success);
+          box-shadow: 0 0 8px var(--color-success);
         }
 
-        .approval-details {
-          border-top: 1px solid #e0e0e0;
-          padding: 1rem;
-          background: #fafafa;
+        .impact-indicator.medium {
+          background: var(--color-warning);
+          box-shadow: 0 0 8px var(--color-warning);
+        }
+
+        .impact-indicator.high {
+          background: var(--color-danger);
+          box-shadow: 0 0 8px var(--color-danger);
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.2); }
+        }
+
+        .proposal-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .proposal-text {
+          display: block;
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
+          color: var(--text-primary);
+          margin-bottom: var(--space-1);
+        }
+
+        .proposal-meta {
+          display: flex;
+          align-items: center;
+          gap: var(--space-4);
+        }
+
+        .meta-item {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: var(--space-3);
+          flex-shrink: 0;
+        }
+
+        .cost-badge {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-elevated);
+          color: var(--text-secondary);
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          border-radius: var(--radius-sm);
+        }
+
+        .impact-badge {
+          padding: var(--space-1) var(--space-2);
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-radius: var(--radius-sm);
+        }
+
+        .impact-badge.low {
+          background: rgba(16, 185, 129, 0.15);
+          color: var(--color-success-light);
+        }
+
+        .impact-badge.medium {
+          background: rgba(245, 158, 11, 0.15);
+          color: var(--color-warning-light);
+        }
+
+        .impact-badge.high {
+          background: rgba(239, 68, 68, 0.15);
+          color: var(--color-danger-light);
+        }
+
+        .expand-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          background: transparent;
+          color: var(--text-tertiary);
+          border: none;
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .expand-btn:hover {
+          background: var(--bg-elevated);
+          color: var(--text-primary);
+        }
+
+        /* Card Details */
+        .card-details {
+          padding: var(--space-4);
+          background: var(--bg-elevated);
+          border-top: 1px solid var(--border-subtle);
         }
 
         .detail-section {
-          margin-bottom: 1rem;
+          margin-bottom: var(--space-4);
         }
 
-        .detail-section h4 {
-          margin: 0 0 0.5rem 0;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #333;
-        }
-
-        .effect-info {
-          background: white;
-          padding: 0.75rem;
-          border-radius: 4px;
-        }
-
-        .info-row {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 0.5rem;
-          font-size: 0.875rem;
-        }
-
-        .info-row:last-child {
+        .detail-section:last-child {
           margin-bottom: 0;
         }
 
-        .label {
-          font-weight: 500;
-          color: #666;
-          min-width: 100px;
+        .detail-section h4 {
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: var(--space-3);
         }
 
-        .value {
-          color: #333;
+        .detail-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: var(--space-3);
         }
 
-        .paths {
+        .detail-item {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-1);
+        }
+
+        .detail-item.full-width {
+          grid-column: span 2;
+        }
+
+        .detail-label {
+          font-size: var(--text-xs);
+          color: var(--text-tertiary);
+        }
+
+        .detail-value {
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+        }
+
+        .detail-value.code {
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-base);
+          border-radius: var(--radius-sm);
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .detail-value.impact-text.low {
+          color: var(--color-success);
+        }
+
+        .detail-value.impact-text.medium {
+          color: var(--color-warning);
+        }
+
+        .detail-value.impact-text.high {
+          color: var(--color-danger);
+        }
+
+        .paths-list {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.25rem;
+          gap: var(--space-2);
         }
 
-        .path {
-          background: #e0e0e0;
-          padding: 0.125rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-family: monospace;
+        .path-tag {
+          display: flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          background: var(--bg-base);
+          color: var(--text-secondary);
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          border-radius: var(--radius-sm);
+        }
+
+        /* Review Section */
+        .review-section {
+          padding-top: var(--space-4);
+          border-top: 1px solid var(--border-subtle);
+        }
+
+        .review-section h4 {
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: var(--space-2);
         }
 
         .review-section textarea {
           width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
-          font-family: inherit;
-          font-size: 0.875rem;
+          padding: var(--space-3);
+          background: var(--bg-base);
+          color: var(--text-primary);
+          font-family: var(--font-sans);
+          font-size: var(--text-sm);
+          line-height: 1.5;
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
           resize: vertical;
-          margin-bottom: 0.75rem;
+          margin-bottom: var(--space-3);
+        }
+
+        .review-section textarea:focus {
+          outline: none;
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(37, 194, 160, 0.1);
+        }
+
+        .review-section textarea::placeholder {
+          color: var(--text-tertiary);
         }
 
         .action-buttons {
           display: flex;
-          gap: 0.5rem;
           justify-content: flex-end;
+          gap: var(--space-2);
         }
 
-        .reject-btn,
-        .approve-btn {
-          padding: 0.5rem 1.5rem;
+        .reject-btn, .approve-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          padding: var(--space-2) var(--space-4);
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
           border: none;
-          border-radius: 4px;
-          font-weight: 500;
+          border-radius: var(--radius-md);
           cursor: pointer;
-          font-size: 0.875rem;
+          transition: all var(--transition-fast);
         }
 
         .reject-btn {
-          background: #dc3545;
-          color: white;
+          background: transparent;
+          color: var(--color-danger);
+          border: 1px solid var(--color-danger);
         }
 
         .reject-btn:hover {
-          background: #c82333;
+          background: var(--color-danger);
+          color: white;
         }
 
         .approve-btn {
-          background: #28a745;
+          background: var(--color-success);
           color: white;
         }
 
         .approve-btn:hover {
-          background: #218838;
+          background: var(--color-success-light);
+          transform: translateY(-1px);
+          box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .queue-header,
+          .approvals-container {
+            padding-left: var(--space-4);
+            padding-right: var(--space-4);
+          }
+
+          .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-3);
+          }
+
+          .header-right {
+            width: 100%;
+            justify-content: flex-start;
+          }
+
+          .detail-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .detail-item.full-width {
+            grid-column: span 1;
+          }
         }
       `}</style>
     </div>

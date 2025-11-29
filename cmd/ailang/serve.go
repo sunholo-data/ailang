@@ -16,7 +16,7 @@ import (
 
 func serveCommand(args []string) error {
 	// Default values
-	port := "1956"
+	port := "1957"
 	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
 
 	// Parse flags
@@ -38,7 +38,7 @@ func serveCommand(args []string) error {
 			fmt.Println("Start the AILANG Collaboration Hub HTTP server")
 			fmt.Println("")
 			fmt.Println("Options:")
-			fmt.Println("  --port PORT   HTTP server port (default: 1956)")
+			fmt.Println("  --port PORT   HTTP server port (default: 1957)")
 			fmt.Println("  --db PATH     Database path (default: ~/.ailang/state/collaboration.db)")
 			fmt.Println("  --help, -h    Show this help message")
 			fmt.Println("")

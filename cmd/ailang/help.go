@@ -109,7 +109,7 @@ func printHelp() {
 	fmt.Printf("  %s                  Manage dead letter queue\n", cyan("agent dlq [flags]"))
 	fmt.Println()
 	fmt.Println("Collaboration:")
-	fmt.Printf("  %s [--port PORT]         Start Collaboration Hub server (default port: 1956)\n", cyan("serve"))
+	fmt.Printf("  %s [--port PORT]         Start Collaboration Hub server (default port: 1957)\n", cyan("serve"))
 	fmt.Println()
 	fmt.Println("Run Command Flags (must come BEFORE filename):")
 	fmt.Println("  --caps <list>        Enable capabilities (comma-separated: IO,FS,Net)")
