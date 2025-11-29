@@ -76,6 +76,22 @@ step(w)  -- Returns { tick: 1 }
 
 ---
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 69.2% success rate (828 total runs across 9 models)
+
+**Standard Eval (0-shot + self-repair):**
+| Metric | v0.4.8 |
+|--------|--------|
+| 0-shot (first attempt) | 55.3% (229/414) |
+| Final (with repair) | 60.6% (251/414) |
+| Repair effectiveness | +5.3pp |
+| Python (final) | 77.7% (322/414) |
+
+**Models tested**: gpt5, gpt5-instant, gpt5-mini, claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5, gemini-3-pro, gemini-2-5-pro, gemini-2-5-flash
+
+---
+
 ## [v0.4.7] - 2025-11-27
 
 ### Added - Cross-Function Dependency Support for Inline Tests (M-TESTING-DEPS) 🧪
