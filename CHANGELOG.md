@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased] - v0.4.9
+## [v0.4.8] - 2025-11-29
 
 ### Fixed - Match Expression Recursion (M-BUG-RECURSION-DEPTH) 🐛
 
