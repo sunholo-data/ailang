@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-38.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-39.3%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -301,9 +301,9 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-22%20passing%2022%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-22%20passing%2023%20failing-red.svg)
 
-**22/49 examples passing (45%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**22/50 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -342,6 +342,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/records.ail` | ✅ Pass |  |
 | `runnable/recursion_factorial.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_match.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/recursion_mutual.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/recursion_quicksort.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/simple.ail` | ✅ Pass |  |
