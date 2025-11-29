@@ -92,6 +92,7 @@ Validate prerequisites before starting sprint execution (tests, linting, git sta
 
 ### `scripts/milestone_checkpoint.sh <milestone_name>`
 Run checkpoint after completing a milestone (tests, linting, git diff).
+**Now includes JSON update reminder!** Shows current milestone statuses and prompts you to update the sprint JSON.
 
 ### `scripts/acceptance_test.sh <milestone_id> <test_type>` **NEW**
 Run end-to-end acceptance tests (parser, builtin, examples, REPL, e2e).
@@ -132,9 +133,12 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
    - CHANGELOG.md (what, LOC, key decisions)
    - Example files (REQUIRED for new features)
    - Sprint plan markdown (mark milestone as ✅)
-   - **JSON progress file** (update `passes`, `actual_loc`, `completed`)
-6. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
-7. **Pause for Breath** - Show progress, ask user if ready to continue
+6. **Update Sprint JSON** ⚠️ **CRITICAL** - The checkpoint script reminds you!
+   - Update `passes: true/false` in `.ailang/state/sprints/sprint_<id>.json`
+   - Set `completed: "<ISO timestamp>"`
+   - Add `notes: "<summary of what was done>"`
+7. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
+8. **Pause for Breath** - Show progress, ask user if ready to continue
 
 **Quick tips:**
 - Use parser test helpers from `internal/parser/test_helpers.go`

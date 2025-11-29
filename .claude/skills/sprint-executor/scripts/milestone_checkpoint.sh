@@ -4,11 +4,26 @@
 set -euo pipefail
 
 MILESTONE_NAME="${1:-Unknown Milestone}"
+SPRINT_DIR=".ailang/state/sprints"
 
 echo "Running checkpoint for: $MILESTONE_NAME"
 echo
 
 FAILURES=0
+
+# 0. Find current sprint JSON
+CURRENT_SPRINT=""
+SPRINT_ID=""
+if [[ -d "$SPRINT_DIR" ]]; then
+    # Find in_progress sprint
+    for f in "$SPRINT_DIR"/sprint_*.json; do
+        if [[ -f "$f" ]] && grep -q '"status": "in_progress"' "$f" 2>/dev/null; then
+            CURRENT_SPRINT="$f"
+            SPRINT_ID=$(basename "$f" .json | sed 's/sprint_//')
+            break
+        fi
+    done
+fi
 
 # 1. Run tests
 echo "1/4 Running tests..."
@@ -67,6 +82,33 @@ echo
 # Summary
 if [[ $FAILURES -eq 0 ]]; then
     echo "✓ Milestone checkpoint passed!"
+    echo
+
+    # 5. Sprint JSON reminder
+    if [[ -n "$CURRENT_SPRINT" ]]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📋 SPRINT JSON UPDATE REQUIRED"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo
+        echo "Sprint: $SPRINT_ID"
+        echo "File:   $CURRENT_SPRINT"
+        echo
+        echo "Current milestone status:"
+        # Show milestone statuses from JSON
+        if command -v jq &> /dev/null; then
+            jq -r '.features[] | "  • \(.id): passes=\(.passes // "null"), completed=\(.completed // "null")"' "$CURRENT_SPRINT" 2>/dev/null || echo "  (could not parse JSON)"
+        else
+            grep -E '"id"|"passes"|"completed"' "$CURRENT_SPRINT" | head -20 || echo "  (jq not available)"
+        fi
+        echo
+        echo "⚠️  After completing $MILESTONE_NAME:"
+        echo "   1. Update passes: true/false in the JSON"
+        echo "   2. Set completed: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
+        echo "   3. Add notes about what was done"
+        echo
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    fi
+    echo
     echo "Ready to proceed to next milestone."
     exit 0
 else

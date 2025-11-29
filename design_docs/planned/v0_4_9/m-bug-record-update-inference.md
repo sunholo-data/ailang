@@ -3,7 +3,7 @@
 **Status**: Planned
 **Target**: v0.4.9
 **Priority**: P1 (Medium) - Affects immutable update patterns
-**Estimated**: 1-2 days
+**Estimated**: 1-2 days (~8-10 hours)
 **Dependencies**: None
 **Reported by**: stapledons_voyage (agent inbox)
 
@@ -21,58 +21,76 @@
 
 Record update syntax `{base | field: value}` fails with error: "record update requires base to be a record type, got *types.TVar2".
 
-**Reproduction:**
+**Verified Reproduction (2025-11-29):**
 ```ailang
-type World = { tick: int, entities: [Entity] }
+-- FAILS: Lambda parameter (even with type annotation)
+type World = { tick: int }
+let step: World -> World = \world. {world | tick: world.tick + 1}
+-- ERROR: record update requires base to be a record type, got *types.TVar2
 
-func step(world: World) -> World {
-  let newTick = world.tick + 1
-  {world | tick: newTick}  -- ERROR: record update requires base to be a record type, got *types.TVar2
-}
+-- FAILS: Lambda without type annotation
+let step = \world. {world | tick: world.tick + 1}
+-- ERROR: record update requires base to be a record type, got *types.TVar2
+
+-- WORKS: Let-bound record with inferred type
+let person = { name: "Alice", age: 25 }
+let updated = {person | age: 30}  -- ✓ Works
 ```
+
+**Pattern:** Fails whenever the base expression's type flows through a type variable (lambda parameters), works when the type is fully known at binding time (let-bound records).
 
 **Current Workaround:** Construct new record explicitly:
 ```ailang
-func step(world: World) -> World {
-  { tick: world.tick + 1, entities: world.entities }
-}
+let step: World -> World = \world. { tick: world.tick + 1 }
 ```
 
-**Current State:**
-- Record update syntax parses correctly
-- Type inference fails when base expression type not yet resolved
-- The ailang prompt documents `{base | field: val}` syntax
-- Works when constructing new record explicitly
-
 **Impact:**
-- Verbose code for immutable updates
-- Extra maintenance burden (must update all fields)
+- Verbose code for immutable updates (must list ALL fields)
+- Extra maintenance burden when adding record fields
 - Breaks common functional programming patterns
 
 ## Root Cause Analysis
 
-The error message "got *types.TVar2" indicates the type checker is seeing an unresolved type variable instead of a concrete record type.
+**Location:** `internal/types/typechecker_data.go:99-122` (`inferRecordUpdate` function)
 
-**Likely cause:** Type inference order issue
-1. `world` has type `World` in function signature
-2. When checking `{world | tick: newTick}`, the checker gets `world`'s type
-3. But the type hasn't been substituted yet (still a TVar)
-4. Record update check fails because TVar is not a record type
+**The bug (verified by code reading):**
+```go
+// Line 101-106: Infer base type
+baseNode, _, err := tc.inferCore(ctx, upd.Base)
+baseType := getType(baseNode)
 
-**Expected behavior:**
-1. Look up `world` in environment → type is `World`
-2. Substitute any type variables → `World` is already concrete
-3. Check that `World` is a record type → yes
-4. Check that `tick` is a field of `World` → yes
-5. Proceed with update
+// Line 110-122: Switch on base type - FAILS for TVar2
+switch t := baseType.(type) {
+case *TRecord:   // ...
+case *TRecord2:  // ...
+case *TRecordOpen: // ...
+default:
+    // FAILS HERE: TVar2 is not a record type yet
+    return nil, ctx.env, fmt.Errorf("record update requires base to be a record type, got %T", baseType)
+}
+```
+
+**Why the original design doc's fix won't work:**
+The proposed fix suggested applying substitution before the check:
+```go
+baseType = tc.substitute(baseType)  // ❌ Won't work
+```
+
+This doesn't work because:
+1. During inference, constraints are **accumulated** but not yet **solved**
+2. `SolveConstraints()` is called **after** inference completes
+3. There is no partial substitution available during `inferRecordUpdate`
+4. The type variable hasn't been unified with anything yet
+
+**The real fix needs to be constraint-based** (like `inferRecordAccess` at lines 67-82).
 
 ## Goals
 
-**Primary Goal:** Record update syntax works when base expression has a known record type.
+**Primary Goal:** Record update syntax works when base expression's type flows through type variables.
 
 **Success Metrics:**
-- `{world | field: val}` works for typed function parameters
-- `{world | field: val}` works for let-bound records
+- `{world | field: val}` works for lambda parameters
+- `{world | field: val}` works for let-bound records (already works)
 - Clear error if base type is genuinely not a record
 - Row polymorphism preserved (can update open records)
 
@@ -80,69 +98,106 @@ The error message "got *types.TVar2" indicates the type checker is seeing an unr
 
 ### Overview
 
-Fix type inference to resolve the base expression's type before checking if it's a record type.
+Refactor `inferRecordUpdate` to use **constraint-based type checking** instead of eager type inspection, following the pattern established in `inferRecordAccess`.
 
 ### Architecture
 
-**Investigation points:**
-1. Where record update is type-checked
-2. Why substitution isn't applied before the record check
-3. Whether this is a unification ordering issue
-
-**Proposed Fix:**
-
-In the type checker for record update expressions:
-1. Infer type of base expression
-2. Apply current substitution to resolve type variables
-3. Then check if result is a record type
+**The correct approach** (based on `inferRecordAccess` pattern at lines 67-82):
 
 ```go
-// Before (pseudocode):
-func (tc *TypeChecker) checkRecordUpdate(expr *ast.RecordUpdate) (types.Type, error) {
-    baseType := tc.infer(expr.Base)
-    if !isRecordType(baseType) {
-        return nil, fmt.Errorf("requires record type, got %v", baseType)
+func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.RecordUpdate) (typedast.TypedNode, *TypeEnv, error) {
+    // 1. Infer base record type
+    baseNode, _, err := tc.inferCore(ctx, upd.Base)
+    if err != nil {
+        return nil, ctx.env, err
     }
-    // ...
-}
+    baseType := getType(baseNode)
 
-// After:
-func (tc *TypeChecker) checkRecordUpdate(expr *ast.RecordUpdate) (types.Type, error) {
-    baseType := tc.infer(expr.Base)
-    baseType = tc.substitute(baseType)  // Resolve type variables
-    if !isRecordType(baseType) {
-        return nil, fmt.Errorf("requires record type, got %v", baseType)
+    // 2. Create fresh type variables for updated fields
+    fieldTypes := make(map[string]Type)
+    for fieldName := range upd.Updates {
+        fieldTypes[fieldName] = ctx.freshTypeVar()
     }
-    // ...
+
+    // 3. Create a row variable for other fields (row polymorphism)
+    rowVar := &RowVar{Name: ctx.freshRowVarName(), Kind: RecordRow}
+
+    // 4. Create constraint: base must be record with at least these fields
+    expectedRecord := &TRecordOpen{
+        Fields: fieldTypes,
+        Row:    rowVar,  // Open for additional fields
+    }
+    ctx.addConstraint(TypeEq{
+        Left:  baseType,
+        Right: expectedRecord,
+        Path:  []string{"record update base at " + upd.Span().String()},
+    })
+
+    // 5. Type check updated field values
+    updatedFields := make(map[string]typedast.TypedNode)
+    for fieldName, fieldValue := range upd.Updates {
+        valueNode, _, err := tc.inferCore(ctx, fieldValue)
+        if err != nil {
+            return nil, ctx.env, err
+        }
+
+        // Unify value type with expected field type
+        ctx.addConstraint(TypeEq{
+            Left:  getType(valueNode),
+            Right: fieldTypes[fieldName],
+            Path:  []string{"record update field '" + fieldName + "'"},
+        })
+
+        updatedFields[fieldName] = valueNode
+    }
+
+    // 6. Result type is same as base (record update preserves structure)
+    return &typedast.TypedRecord{
+        TypedExpr: typedast.TypedExpr{
+            NodeID:    upd.ID(),
+            Span:      upd.Span(),
+            Type:      baseType,  // Same type as base
+            EffectRow: getEffectRow(baseNode),
+            Core:      upd,
+        },
+        Fields: updatedFields,
+    }, ctx.env, nil
 }
 ```
 
+**Key insight:** By using `ctx.addConstraint(TypeEq{...})` instead of checking the type immediately, we defer resolution to the constraint solver which runs AFTER inference completes.
+
 ### Implementation Plan
 
-**Phase 1: Diagnosis** (~2 hours)
-- [ ] Find record update type checking code
-- [ ] Add debug logging to see actual types
-- [ ] Identify exactly where substitution is missing
+**Phase 1: Implement Constraint-Based Approach** (~4 hours)
+- [ ] Modify `inferRecordUpdate` in `internal/types/typechecker_data.go`
+- [ ] Replace eager type check with constraint generation
+- [ ] Ensure row variable handling is correct
+- [ ] Preserve existing behavior for concrete record types
 
-**Phase 2: Fix** (~3 hours)
-- [ ] Apply substitution before record type check
-- [ ] Handle row polymorphism correctly
-- [ ] Add test cases
+**Phase 2: Testing** (~3 hours)
+- [ ] Add test: lambda parameter with type annotation
+- [ ] Add test: lambda parameter without type annotation
+- [ ] Add test: let-bound record (regression test)
+- [ ] Add test: multiple field updates
+- [ ] Add test: error case (updating non-record)
+- [ ] Add test: row polymorphic record
 
-**Phase 3: Testing** (~2 hours)
-- [ ] Test with typed parameters
-- [ ] Test with let-bound records
-- [ ] Test with nested records
-- [ ] Test error case (updating non-record)
+**Phase 3: Examples & Documentation** (~1 hour)
+- [ ] Create `examples/record_update.ail`
+- [ ] Update CHANGELOG.md
+- [ ] Respond to stapledons_voyage
 
 ### Files to Modify
 
 **Modified files:**
-- `internal/types/checker.go` - Record update inference (~20 LOC)
-- `internal/types/unify.go` - May need substitution fix (~10 LOC)
+- `internal/types/typechecker_data.go:99-162` - Refactor `inferRecordUpdate` (~40 LOC net change)
 
 **New files:**
-- `tests/record_update_test.go` - Additional test cases (~50 LOC)
+- `examples/record_update.ail` - Working example (~20 LOC)
+- `tests/record_update_inference_test.ail` - Test cases (~40 LOC)
+
+**Total estimated LOC:** ~100 LOC (including tests)
 
 ## Examples
 
@@ -150,21 +205,22 @@ func (tc *TypeChecker) checkRecordUpdate(expr *ast.RecordUpdate) (types.Type, er
 
 **Current (Fails):**
 ```ailang
-type World = { tick: int, entities: [Entity] }
+type World = { tick: int }
 
-func step(world: World) -> World {
-  {world | tick: world.tick + 1}
-}
+-- Lambda with type annotation - FAILS
+let step: World -> World = \world. {world | tick: world.tick + 1}
 -- ERROR: record update requires base to be a record type, got *types.TVar2
 ```
 
 **After Fix:**
 ```ailang
--- Same code works
-func step(world: World) -> World {
-  {world | tick: world.tick + 1}
-}
--- Returns World with updated tick
+type World = { tick: int }
+
+-- Lambda with type annotation - WORKS
+let step: World -> World = \world. {world | tick: world.tick + 1}
+
+let w = { tick: 0 }
+step(w)  -- Returns { tick: 1 }
 ```
 
 ### Example 2: Multiple Field Update
@@ -172,54 +228,72 @@ func step(world: World) -> World {
 ```ailang
 type State = { x: int, y: int, active: bool }
 
-func move(s: State, dx: int, dy: int) -> State {
-  {s | x: s.x + dx, y: s.y + dy}
-}
+-- Currently FAILS, should work after fix
+let move: State -> int -> int -> State = \s dx dy. {s | x: s.x + dx, y: s.y + dy}
+
+let s = { x: 0, y: 0, active: true }
+move(s)(5)(10)  -- Returns { x: 5, y: 10, active: true }
 ```
 
-### Example 3: Nested Record Update
+### Example 3: Let-Bound Record (Already Works)
 
 ```ailang
-type Player = { pos: { x: int, y: int }, health: int }
-
-func heal(p: Player, amount: int) -> Player {
-  {p | health: min(100, p.health + amount)}
-}
+-- This already works - no lambda parameter involved
+let person = { name: "Alice", age: 25 }
+let updated = {person | age: 30}
+updated.age  -- Returns 30
 ```
 
-### Example 4: Row Polymorphic Update
+### Example 4: Row Polymorphic Update (Future Enhancement)
 
 ```ailang
-func setName[r](rec: { name: string | r }) -> { name: string | r } {
-  {rec | name: "updated"}
-}
+-- Row polymorphism - may need additional work beyond this fix
+let setName: { name: string | r } -> { name: string | r } = \rec. {rec | name: "updated"}
+
+let user = { name: "Alice", email: "alice@example.com" }
+setName(user)  -- Should return { name: "updated", email: "alice@example.com" }
 ```
 
 ## Success Criteria
 
-- [ ] `{base | field: val}` works with typed function parameters
-- [ ] `{base | field: val}` works with let-bound records
-- [ ] Multiple field updates work
-- [ ] Nested field access works in update
-- [ ] Row polymorphism preserved
-- [ ] Clear error for non-record base types
+- [ ] `{base | field: val}` works with lambda parameters (main bug fix)
+- [ ] `{base | field: val}` continues to work with let-bound records (regression)
+- [ ] Multiple field updates work: `{s | x: 1, y: 2}`
+- [ ] Field access in update value works: `{s | x: s.x + 1}`
+- [ ] Clear error for genuinely non-record base types
 - [ ] All existing tests pass
-- [ ] Examples added
+- [ ] Example file added and verified
 
 ## Testing Strategy
 
-**Unit tests:**
-- Record update with concrete types
-- Record update with type inference
-- Multiple field updates
-- Nested record updates
+**Unit tests** (`tests/record_update_inference_test.ail`):
+```ailang
+-- Test 1: Lambda with type annotation
+type T1 = { x: int }
+let f1: T1 -> T1 = \t. {t | x: t.x + 1}
+assert f1({ x: 5 }).x == 6
 
-**Integration tests:**
-- Game state update patterns
-- Complex record hierarchies
+-- Test 2: Lambda without type annotation (type flows from usage)
+let f2 = \t. {t | x: t.x + 1}
+assert f2({ x: 5 }).x == 6
+
+-- Test 3: Let-bound record (regression)
+let r3 = { x: 10, y: 20 }
+let r3b = {r3 | x: 15}
+assert r3b.x == 15
+assert r3b.y == 20
+
+-- Test 4: Multiple field update
+type T4 = { a: int, b: int, c: int }
+let f4: T4 -> T4 = \t. {t | a: 1, b: 2}
+assert f4({ a: 0, b: 0, c: 3 }).c == 3
+
+-- Test 5: Error case (should fail type check)
+-- let bad = \x. {x | name: "test"}  -- x is not known to be a record
+```
 
 **Manual testing:**
-- Run stapledons_voyage code after fix
+- Verify stapledons_voyage use case works after fix
 
 ## Non-Goals
 
@@ -227,39 +301,47 @@ func setName[r](rec: { name: string | r }) -> { name: string | r } {
   - Nested field update syntax (`{rec | pos.x: newX}`)
   - Lens-based updates
   - Partial record construction
+  - Full row polymorphism support (may need follow-up)
 
 ## Timeline
 
-**Day 1** (4 hours):
-- Diagnosis and fix implementation
+**Day 1** (~5 hours):
+- Implement constraint-based fix in `inferRecordUpdate`
+- Add basic test cases
+- Verify existing tests pass
 
-**Day 2** (3 hours):
-- Testing and edge cases
+**Day 2** (~3 hours):
+- Edge case testing
+- Create example file
+- Update CHANGELOG.md
+- Respond to stapledons_voyage
 
-**Total: ~7 hours across 2 days**
+**Total: ~8 hours across 2 days**
 
 ## Risks & Mitigations
 
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
-| Row polymorphism interaction | Medium | Test with open records |
-| Substitution in wrong place | Low | Check similar patterns in codebase |
-| Breaking other type inference | High | Run full test suite |
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|-----------|
+| Row polymorphism edge cases | Medium | Medium | Test open records, may defer complex cases |
+| Unification order issues | High | Low | Follow `inferRecordAccess` pattern exactly |
+| Breaking let-bound record updates | High | Low | Add regression test first |
+| Result type inference | Medium | Medium | Use base type as result type initially |
 
 ## References
 
 - stapledons_voyage bug report (agent inbox, 2025-11-28)
-- `internal/types/checker.go` - Type checker
-- `internal/types/unify.go` - Unification and substitution
-- Row polymorphism documentation
+- `internal/types/typechecker_data.go:99-162` - `inferRecordUpdate` function (bug location)
+- `internal/types/typechecker_data.go:59-95` - `inferRecordAccess` function (pattern to follow)
+- `internal/types/inference.go:564-615` - Constraint solving mechanism
 
 ## Future Work
 
-- Nested field update syntax
+- Row polymorphic record updates
+- Nested field update syntax (`{rec | pos.x: newX}`)
 - Lens-style deep updates
 - Record spread operator
 
 ---
 
 **Document created**: 2025-11-28
-**Last updated**: 2025-11-28
+**Last updated**: 2025-11-29 (verified root cause, updated fix approach)

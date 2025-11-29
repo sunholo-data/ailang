@@ -1,5 +1,81 @@
 # AILANG Changelog
 
+## [Unreleased] - v0.4.9
+
+### Fixed - Match Expression Recursion (M-BUG-RECURSION-DEPTH) 🐛
+
+**User Impact**: Recursive functions using `match` expressions now work correctly. Previously, even simple recursive functions like `count(1)` caused infinite recursion when using `match` with integer literal patterns.
+
+**Root Cause**: Integer literal patterns (like `0`) in match expressions were stored as `int64` in the Core AST, but `matchPattern()` only checked for `int` type assertions. This caused literal patterns to **never match**, so the wildcard `_` always matched, leading to infinite recursion because the base case never triggered.
+
+**What Was Fixed**:
+- Added `int64` type checking in `matchPattern()` for `LitPattern` with `IntValue` scrutinees
+- Integer literal patterns now correctly match against `IntValue` regardless of whether stored as `int` or `int64`
+
+**Before (Failed - Infinite Recursion):**
+```ailang
+pure func count(n: int) -> int {
+  match n {
+    0 => 0,           -- Never matched! (0 stored as int64)
+    _ => 1 + count(n-1)  -- Always matched, including n=0
+  }
+}
+count(1)  -- ERROR: max recursion depth exceeded
+```
+
+**After (Works):**
+```ailang
+pure func count(n: int) -> int {
+  match n {
+    0 => 0,           -- Now matches correctly
+    _ => 1 + count(n-1)
+  }
+}
+count(1000)  -- Returns 1000
+```
+
+**Files Changed:**
+- `internal/eval/eval_patterns.go` - Added int64 pattern matching (~15 LOC)
+- `internal/eval/recursion_test.go` - Added regression tests (~140 LOC)
+- `examples/runnable/recursion_match.ail` - New example file (~60 LOC)
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
+### Fixed - Record Update Type Inference (M-BUG-RECORD-UPDATE-INFERENCE) 🐛
+
+**User Impact**: Record update syntax `{base | field: value}` now works correctly with lambda parameters. Previously failed with "record update requires base to be a record type, got *types.TVar2".
+
+**What Was Fixed**:
+- Refactored `inferRecordUpdate` to use constraint-based type checking
+- Follows the same pattern as `inferRecordAccess` (defers type checking to constraint solver)
+- Record updates now work with: typed lambda parameters, untyped lambdas, let-bound records
+
+**Before (Failed):**
+```ailang
+type World = { tick: int }
+let step: World -> World = \world. {world | tick: world.tick + 1}
+-- ERROR: record update requires base to be a record type, got *types.TVar2
+```
+
+**After (Works):**
+```ailang
+type World = { tick: int }
+let step: World -> World = \world. {world | tick: world.tick + 1}
+let w = { tick: 0 }
+step(w)  -- Returns { tick: 1 }
+```
+
+**Files Changed:**
+- `internal/types/typechecker_data.go` - Constraint-based fix (~40 LOC net)
+- `examples/record_update.ail` - New example file (~60 LOC)
+- `tests/record_update_regression_test.ail` - Regression tests
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
 ## [v0.4.7] - 2025-11-27
 
 ### Added - Cross-Function Dependency Support for Inline Tests (M-TESTING-DEPS) 🧪

@@ -33,6 +33,15 @@
 - [ ] Update sprint plan with completion status (✅)
 - [ ] Add metrics (actual LOC vs estimated, time spent)
 
+## Sprint JSON Update (CRITICAL)
+**⚠️ The checkpoint script will remind you, but DON'T SKIP THIS!**
+- [ ] Update `.ailang/state/sprints/sprint_<id>.json`:
+  - Set `passes: true` (or `false` if failing)
+  - Set `completed: "<ISO timestamp>"`
+  - Add `notes: "<what was done>"`
+- [ ] If sprint is fully complete, change `status: "completed"`
+- File path shown in checkpoint output
+
 ## Pause for Breath
 - [ ] Show summary of what was completed
 - [ ] Show current sprint progress (X of Y milestones done)

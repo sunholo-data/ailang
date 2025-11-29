@@ -234,6 +234,11 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Elaborate to Core
 		elaborator := elaborate.NewElaboratorWithPath(string(modID))
 		elaborator.SetGlobalEnv(globalRefs)
+		// Share the pipeline's module loader with the elaborator
+		// CRITICAL: The elaborator creates its own loader with filepath.Dir(modID) as basePath
+		// which would be wrong for subdirectory modules (e.g., "sim/world" -> basePath "sim")
+		// By sharing the pipeline's loader (basePath "."), we ensure correct resolution
+		elaborator.SetModuleLoader(modLoader)
 		// Add builtins to global environment so they can be referenced
 		elaborator.AddBuiltinsToGlobalEnv()
 

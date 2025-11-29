@@ -1,0 +1,26 @@
+module tests/record_update_regression_test
+
+-- Record Update Regression Test
+-- Tests that let-bound record updates work (should pass before and after fix)
+-- All tests use inline let bindings to be self-contained
+
+-- Test 1: Simple let-bound record update
+test "updated.age should be 30" {
+  let person = { name: "Alice", age: 25 };
+  let updated = {person | age: 30};
+  updated.age == 30
+}
+
+-- Test 2: Multiple field update on let-bound record
+test "moved coordinates updated correctly" {
+  let point = { x: 0, y: 0, z: 0 };
+  let moved = {point | x: 10, y: 20};
+  moved.x == 10 && moved.y == 20 && moved.z == 0
+}
+
+-- Test 3: Record update with expression value
+test "incremented count should be 6" {
+  let counter = { count: 5 };
+  let incremented = {counter | count: counter.count + 1};
+  incremented.count == 6
+}

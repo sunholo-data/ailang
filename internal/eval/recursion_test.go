@@ -366,6 +366,149 @@ func TestDeepRecursion(t *testing.T) {
 	}
 }
 
+// TestMatchRecursion_IntLiteralPattern tests recursion with match and integer literal patterns
+// This is a regression test for the bug where integer literals (stored as int64) didn't match
+// against IntValues, causing infinite recursion in recursive functions using match.
+// See: M-BUG-RECURSION-DEPTH
+func TestMatchRecursion_IntLiteralPattern(t *testing.T) {
+	// Build: letrec count = λn. match n { 0 => 0, _ => 1 + count(n-1) } in count(10)
+	// Expected: 10
+
+	// Match expression: match n { 0 => 0, _ => 1 + count(n-1) }
+	matchExpr := &core.Match{
+		Scrutinee: &core.Var{Name: "n"},
+		Arms: []core.MatchArm{
+			{
+				// Pattern: 0 (literal)
+				// CRITICAL: Use int64 here to match parser behavior
+				Pattern: &core.LitPattern{Value: int64(0)},
+				Body:    &core.Lit{Kind: core.IntLit, Value: 0},
+			},
+			{
+				// Pattern: _ (wildcard)
+				Pattern: &core.WildcardPattern{},
+				Body: &core.BinOp{
+					Op:   "+",
+					Left: &core.Lit{Kind: core.IntLit, Value: 1},
+					Right: &core.App{
+						Func: &core.Var{Name: "count"},
+						Args: []core.CoreExpr{
+							&core.BinOp{
+								Op:    "-",
+								Left:  &core.Var{Name: "n"},
+								Right: &core.Lit{Kind: core.IntLit, Value: 1},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// count = λn. <match>
+	countLambda := &core.Lambda{
+		Params: []string{"n"},
+		Body:   matchExpr,
+	}
+
+	// letrec count = <lambda> in count(10)
+	letrec := &core.LetRec{
+		Bindings: []core.RecBinding{
+			{Name: "count", Value: countLambda},
+		},
+		Body: &core.App{
+			Func: &core.Var{Name: "count"},
+			Args: []core.CoreExpr{
+				&core.Lit{Kind: core.IntLit, Value: 10},
+			},
+		},
+	}
+
+	evaluator := NewCoreEvaluator()
+	evaluator.SetExperimentalBinopShim(true)
+	result, err := evaluator.evalCore(letrec)
+
+	if err != nil {
+		t.Fatalf("Expected match recursion to succeed, got error: %v", err)
+	}
+
+	intVal, ok := result.(*IntValue)
+	if !ok {
+		t.Fatalf("Expected IntValue, got %T: %v", result, result)
+	}
+
+	if intVal.Value != 10 {
+		t.Errorf("Expected count(10) = 10, got %d", intVal.Value)
+	}
+}
+
+// TestMatchRecursion_DeepInt64Patterns tests that int64 literal patterns work at depth
+func TestMatchRecursion_DeepInt64Patterns(t *testing.T) {
+	// Build: letrec count = λn. match n { 0 => 0, _ => 1 + count(n-1) } in count(1000)
+	// Expected: 1000 (verifies fix works at depth)
+
+	matchExpr := &core.Match{
+		Scrutinee: &core.Var{Name: "n"},
+		Arms: []core.MatchArm{
+			{
+				Pattern: &core.LitPattern{Value: int64(0)},
+				Body:    &core.Lit{Kind: core.IntLit, Value: 0},
+			},
+			{
+				Pattern: &core.WildcardPattern{},
+				Body: &core.BinOp{
+					Op:   "+",
+					Left: &core.Lit{Kind: core.IntLit, Value: 1},
+					Right: &core.App{
+						Func: &core.Var{Name: "count"},
+						Args: []core.CoreExpr{
+							&core.BinOp{
+								Op:    "-",
+								Left:  &core.Var{Name: "n"},
+								Right: &core.Lit{Kind: core.IntLit, Value: 1},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	countLambda := &core.Lambda{
+		Params: []string{"n"},
+		Body:   matchExpr,
+	}
+
+	letrec := &core.LetRec{
+		Bindings: []core.RecBinding{
+			{Name: "count", Value: countLambda},
+		},
+		Body: &core.App{
+			Func: &core.Var{Name: "count"},
+			Args: []core.CoreExpr{
+				&core.Lit{Kind: core.IntLit, Value: 1000},
+			},
+		},
+	}
+
+	evaluator := NewCoreEvaluator()
+	evaluator.SetExperimentalBinopShim(true)
+	result, err := evaluator.evalCore(letrec)
+
+	if err != nil {
+		t.Fatalf("Expected deep match recursion to succeed, got error: %v", err)
+	}
+
+	intVal, ok := result.(*IntValue)
+	if !ok {
+		t.Fatalf("Expected IntValue, got %T: %v", result, result)
+	}
+
+	if intVal.Value != 1000 {
+		t.Errorf("Expected count(1000) = 1000, got %d", intVal.Value)
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && findSubstring(s, substr))

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -374,7 +373,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
 		// Module execution with runtime (v0.2.0+)
-		rt := runtime.NewModuleRuntime(filepath.Dir(filename))
+		// Use CWD as base path for module resolution, not file directory.
+		// This ensures imports like "sim/protocol" from "sim/world.ail" resolve
+		// from project root, not relative to the importing file's directory.
+		// Fix for: LDR001 module not found when importing from subdirectories
+		rt := runtime.NewModuleRuntime(".")
 
 		// Set up effect context with capability grants
 		effCtx := effects.NewEffContext(programArgs)

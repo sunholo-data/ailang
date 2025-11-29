@@ -2,18 +2,30 @@ package eval
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/dtree"
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// debugMatch enables debug output for pattern matching when DEBUG_MATCH=1
+var debugMatch = os.Getenv("DEBUG_MATCH") == "1"
+
 // evalCoreMatch evaluates pattern matching
 func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
+	if debugMatch {
+		fmt.Printf("[MATCH] Evaluating match with %d arms\n", len(match.Arms))
+	}
+
 	// Evaluate scrutinee
 	scrutineeVal, err := e.evalCore(match.Scrutinee)
 	if err != nil {
 		return nil, err
+	}
+
+	if debugMatch {
+		fmt.Printf("[MATCH] Scrutinee value: %v (type: %T)\n", scrutineeVal, scrutineeVal)
 	}
 
 	// Decision tree optimization: compile to tree if beneficial
@@ -28,8 +40,14 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 
 	// Linear evaluation (current default implementation)
 	// Try each arm
-	for _, arm := range match.Arms {
+	for i, arm := range match.Arms {
+		if debugMatch {
+			fmt.Printf("[MATCH] Trying arm %d, pattern type: %T\n", i, arm.Pattern)
+		}
 		bindings, matched := matchPattern(arm.Pattern, scrutineeVal)
+		if debugMatch {
+			fmt.Printf("[MATCH] Arm %d matched: %v, bindings: %v\n", i, matched, bindings)
+		}
 		if !matched {
 			continue
 		}
@@ -92,9 +110,24 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 
 	case *core.LitPattern:
 		// Literal pattern matches if values are equal
+		if debugMatch {
+			fmt.Printf("[MATCH] LitPattern: pattern value=%v (type %T), scrutinee=%v (type %T)\n",
+				p.Value, p.Value, value, value)
+		}
 		switch v := value.(type) {
 		case *IntValue:
+			if debugMatch {
+				fmt.Printf("[MATCH] IntValue comparison: pattern=%v (type %T), value=%d\n",
+					p.Value, p.Value, v.Value)
+			}
+			// Check both int and int64 types (parser may use either)
 			if i, ok := p.Value.(int); ok && i == v.Value {
+				return bindings, true
+			}
+			if i64, ok := p.Value.(int64); ok && int(i64) == v.Value {
+				if debugMatch {
+					fmt.Printf("[MATCH] int64 match succeeded!\n")
+				}
 				return bindings, true
 			}
 		case *FloatValue:

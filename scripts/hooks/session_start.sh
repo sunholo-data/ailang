@@ -100,6 +100,63 @@ done
 # Count total unread messages
 UNREAD_COUNT="${#ALL_MESSAGES[@]}"
 
+# Function to check for active sprint and return context
+get_sprint_context() {
+    local SPRINT_DIR="$PROJECT_ROOT/.ailang/state/sprints"
+    local SPRINT_CONTEXT=""
+
+    if [ -d "$SPRINT_DIR" ]; then
+        for SPRINT_FILE in "$SPRINT_DIR"/sprint_*.json; do
+            if [ -f "$SPRINT_FILE" ] && grep -q '"status": "in_progress"' "$SPRINT_FILE" 2>/dev/null; then
+                local SPRINT_ID=$(jq -r '.sprint_id // "unknown"' "$SPRINT_FILE" 2>/dev/null)
+                local DESIGN_DOC=$(jq -r '.design_doc // ""' "$SPRINT_FILE" 2>/dev/null)
+                local TOTAL_MILESTONES=$(jq '.features | length' "$SPRINT_FILE" 2>/dev/null || echo 0)
+                local COMPLETED=$(jq '[.features[] | select(.passes == true)] | length' "$SPRINT_FILE" 2>/dev/null || echo 0)
+                local NEXT_MILESTONE=$(jq -r '.features[] | select(.passes == null) | .id' "$SPRINT_FILE" 2>/dev/null | head -1)
+                local NEXT_DESCRIPTION=$(jq -r --arg id "$NEXT_MILESTONE" '.features[] | select(.id == $id) | .description' "$SPRINT_FILE" 2>/dev/null)
+                local NEXT_CRITERIA=$(jq -r --arg id "$NEXT_MILESTONE" '.features[] | select(.id == $id) | .acceptance_criteria // [] | .[]' "$SPRINT_FILE" 2>/dev/null | head -5)
+
+                if [ -n "$NEXT_MILESTONE" ]; then
+                    SPRINT_CONTEXT="
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏃 ACTIVE SPRINT: $SPRINT_ID
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Progress: $COMPLETED/$TOTAL_MILESTONES milestones complete
+Design doc: $DESIGN_DOC
+JSON file: $SPRINT_FILE
+
+▶ NEXT MILESTONE: $NEXT_MILESTONE
+  $NEXT_DESCRIPTION
+
+Acceptance criteria:
+$(echo "$NEXT_CRITERIA" | sed 's/^/  • /')
+
+💡 Use this milestone's criteria to guide your work.
+   Run checkpoint when done: .claude/skills/sprint-executor/scripts/milestone_checkpoint.sh $NEXT_MILESTONE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                else
+                    SPRINT_CONTEXT="
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏃 ACTIVE SPRINT: $SPRINT_ID (ALL MILESTONES COMPLETE!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Progress: $COMPLETED/$TOTAL_MILESTONES milestones complete ✅
+
+💡 Sprint appears complete. Consider:
+   1. Update JSON status to \"completed\"
+   2. Final commit with sprint summary
+   3. Move design doc to implemented/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                fi
+                log "Found active sprint: $SPRINT_ID ($COMPLETED/$TOTAL_MILESTONES complete)"
+                break
+            fi
+        done
+    fi
+    echo "$SPRINT_CONTEXT"
+}
+
 if [ "$UNREAD_COUNT" -eq 0 ]; then
     log "No unread messages in any inbox location"
 
@@ -109,11 +166,18 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
         log "Exported AGENT_INBOX_COUNT=0 to CLAUDE_ENV_FILE"
     fi
 
-    # Output plain text (will appear in system reminders)
-    NO_MESSAGES_CONTEXT="📭 Agent inbox: No unread messages from autonomous agents."
-    echo "$NO_MESSAGES_CONTEXT"
+    # Check for active sprint even when no inbox messages
+    SPRINT_CONTEXT=$(get_sprint_context)
 
-    log "Outputted 'no messages' context to Claude"
+    # Output context (will appear in system reminders)
+    if [ -n "$SPRINT_CONTEXT" ]; then
+        echo "📭 Agent inbox: No unread messages from autonomous agents."
+        echo "$SPRINT_CONTEXT"
+    else
+        echo "📭 Agent inbox: No unread messages from autonomous agents."
+    fi
+
+    log "Outputted context to Claude"
     exit 0
 fi
 
@@ -166,6 +230,9 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     log "Exported AGENT_INBOX_MESSAGES (base64 encoded JSON) to CLAUDE_ENV_FILE"
 fi
 
+# Get sprint context using the function defined earlier
+SPRINT_CONTEXT=$(get_sprint_context)
+
 # Build formatted context string for Claude
 CONTEXT_MESSAGE=$(cat <<EOF
 
@@ -177,7 +244,7 @@ $(echo "$MESSAGES_JSON" | jq -r '.[] | "From: \(.from)\nTime: \(.timestamp)\nMes
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💡 Review the messages above and decide if any action is needed.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
+$SPRINT_CONTEXT
 EOF
 )
 
