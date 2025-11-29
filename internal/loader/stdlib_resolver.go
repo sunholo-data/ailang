@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+// BinaryVersion is the version of the ailang binary.
+// Set by main.go from build-time ldflags.
+// Used to validate stdlib version compatibility.
+var BinaryVersion = "dev"
+
 // validateModuleName validates a stdlib module name for security
 // Prevents directory traversal and other attacks
 func validateModuleName(name string) error {
@@ -141,7 +146,7 @@ func NewStdlibResolver(cliPath string, traceEnabled, strictMode bool) *StdlibRes
 		cliOverridePath: cliPath,
 		traceEnabled:    traceEnabled,
 		strictMode:      strictMode,
-		expectedVersion: "v0.4.4", // TODO: Embed from build flags
+		expectedVersion: BinaryVersion, // Uses package-level variable set by main.go
 	}
 }
 

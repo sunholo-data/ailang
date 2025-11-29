@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/prompt"
 	"github.com/sunholo/ailang/internal/runtime"
@@ -59,6 +60,10 @@ func main() {
 	)
 
 	flag.Parse()
+
+	// Set binary version for stdlib compatibility check
+	// Version is set by ldflags at build time (e.g., "v0.4.8")
+	loader.BinaryVersion = Version
 
 	// Set compact mode globally if flag is provided
 	if *compactFlag {
