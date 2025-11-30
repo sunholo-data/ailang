@@ -230,6 +230,10 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 			log.Printf("  [APPROVAL] No special capabilities required, proceeding")
 		}
 
+		// Send "running" status to UI before starting execution
+		_, _ = a.client.BroadcastStatus(msg.ThreadID, "🔄 **Running**\n\nExecuting directive...")
+		log.Printf("  [STATUS] Sent running status to UI")
+
 		// Execute directive via Claude Code (optionally in specified workspace)
 		result, err := a.executor.ExecuteInWorkspace(msg.Content, workspace)
 		if err != nil {
@@ -253,10 +257,30 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 			log.Printf("  [ERROR] %s", result.Error)
 		}
 
-		// Format and send result back to UI
+		// Format and send result back to UI with structured metadata
 		formatted := agent.FormatResult(result)
 		log.Printf("  [SENDING] Publishing result to thread %s", msg.ThreadID)
-		if _, err := a.client.SendResult(msg.ThreadID, formatted); err != nil {
+
+		// Serialize execution stats as metadata for aggregation
+		statsMetadata := map[string]interface{}{
+			"execution_stats": map[string]interface{}{
+				"success":               result.Success,
+				"duration_ms":           result.DurationMS,
+				"num_turns":             result.NumTurns,
+				"cost":                  result.Cost,
+				"session_id":            result.SessionID,
+				"input_tokens":          result.TokensUsed.InputTokens,
+				"output_tokens":         result.TokensUsed.OutputTokens,
+				"cache_read_tokens":     result.TokensUsed.CacheReadInputTokens,
+				"cache_creation_tokens": result.TokensUsed.CacheCreationInputTokens,
+				"files_created_count":   len(result.FilesCreated),
+				"files_created":         result.FilesCreated,
+				"workspace":             result.Workspace,
+			},
+		}
+		metadataJSON, _ := json.Marshal(statsMetadata)
+
+		if _, err := a.client.SendResultWithMetadata(msg.ThreadID, formatted, string(metadataJSON)); err != nil {
 			log.Printf("  [ERROR] Failed to send result: %v", err)
 			return fmt.Errorf("failed to send result: %w", err)
 		}
@@ -270,6 +294,10 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 
 	} else if msg.Kind == "question" {
 		log.Printf("  [QUESTION] Answering: %s", msg.Content)
+
+		// Send "running" status to UI before starting
+		_, _ = a.client.BroadcastStatus(msg.ThreadID, "🔄 **Thinking**\n\nProcessing question...")
+		log.Printf("  [STATUS] Sent running status to UI")
 
 		// Questions don't require approval - they're just read-only queries
 		// Use thread workspace if set, otherwise creates a temporary one
@@ -288,7 +316,26 @@ func (a *Agent) processMessage(ctx context.Context, msg *messaging.Message) erro
 			response = fmt.Sprintf("## Failed to answer\n\n%s", result.Error)
 		}
 
-		if _, err := a.client.SendResult(msg.ThreadID, response); err != nil {
+		// Serialize execution stats as metadata for aggregation
+		statsMetadata := map[string]interface{}{
+			"execution_stats": map[string]interface{}{
+				"success":               result.Success,
+				"duration_ms":           result.DurationMS,
+				"num_turns":             result.NumTurns,
+				"cost":                  result.Cost,
+				"session_id":            result.SessionID,
+				"input_tokens":          result.TokensUsed.InputTokens,
+				"output_tokens":         result.TokensUsed.OutputTokens,
+				"cache_read_tokens":     result.TokensUsed.CacheReadInputTokens,
+				"cache_creation_tokens": result.TokensUsed.CacheCreationInputTokens,
+				"files_created_count":   len(result.FilesCreated),
+				"files_created":         result.FilesCreated,
+				"workspace":             result.Workspace,
+			},
+		}
+		metadataJSON, _ := json.Marshal(statsMetadata)
+
+		if _, err := a.client.SendResultWithMetadata(msg.ThreadID, response, string(metadataJSON)); err != nil {
 			log.Printf("  [ERROR] Failed to send answer: %v", err)
 			return fmt.Errorf("failed to send answer: %w", err)
 		}

@@ -101,6 +101,10 @@ func createSchema(db *sql.DB) error {
 		{"approvals", approvalsTable},
 		{"attachments", attachmentsTable},
 		{"replay_snapshots", replaySnapshotsTable},
+		{"agents", agentsTable},
+		{"metrics_aggregates", metricsAggregatesTable},
+		{"approval_history", approvalHistoryTable},
+		{"instance_history", instanceHistoryTable},
 	}
 
 	for _, table := range tables {
@@ -119,6 +123,9 @@ func createSchema(db *sql.DB) error {
 		approvalsStatusIndex,
 		attachmentsMessageIndex,
 		replayThreadIndex,
+		metricsAggregatesPeriodIndex,
+		approvalHistoryThreadIndex,
+		instanceHistoryAgentIndex,
 	}
 
 	for _, index := range indices {
@@ -275,6 +282,79 @@ CREATE TABLE IF NOT EXISTS replay_snapshots (
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
 )`
 
+// Agents table - tracks registered AI agents
+const agentsTable = `
+CREATE TABLE IF NOT EXISTS agents (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'idle',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_active_at INTEGER,
+    config_json TEXT,
+
+    CHECK (status IN ('idle', 'running', 'error'))
+)`
+
+// Metrics aggregates table - pre-computed metrics at different scopes and periods
+const metricsAggregatesTable = `
+CREATE TABLE IF NOT EXISTS metrics_aggregates (
+    id TEXT PRIMARY KEY,
+    scope_type TEXT NOT NULL,
+    scope_id TEXT NOT NULL,
+    period TEXT NOT NULL,
+    period_start INTEGER NOT NULL,
+
+    total_runs INTEGER NOT NULL DEFAULT 0,
+    total_tokens INTEGER NOT NULL DEFAULT 0,
+    total_cost_cents INTEGER NOT NULL DEFAULT 0,
+    total_duration_ms INTEGER NOT NULL DEFAULT 0,
+    total_files_modified INTEGER NOT NULL DEFAULT 0,
+
+    avg_tokens_per_run REAL DEFAULT 0,
+    avg_cost_per_run REAL DEFAULT 0,
+    avg_duration_per_run REAL DEFAULT 0,
+
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+
+    UNIQUE(scope_type, scope_id, period, period_start),
+    CHECK (scope_type IN ('global', 'agent', 'thread')),
+    CHECK (period IN ('minute', 'hour', 'day'))
+)`
+
+// Approval history table - audit trail for approval actions
+const approvalHistoryTable = `
+CREATE TABLE IF NOT EXISTS approval_history (
+    id TEXT PRIMARY KEY,
+    approval_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    proposal TEXT,
+    impact TEXT,
+    estimated_cost REAL,
+    capability_token TEXT,
+    created_at INTEGER NOT NULL,
+
+    CHECK (action IN ('created', 'approved', 'rejected', 'expired'))
+)`
+
+// Instance history table - tracks agent instance lifecycles
+const instanceHistoryTable = `
+CREATE TABLE IF NOT EXISTS instance_history (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    instance_id TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    ended_at INTEGER,
+    exit_code INTEGER,
+    total_tokens INTEGER DEFAULT 0,
+    total_cost_cents INTEGER DEFAULT 0,
+    thread_count INTEGER DEFAULT 0
+)`
+
 // Indices for performance
 const messagesThreadSeqIndex = `CREATE INDEX IF NOT EXISTS idx_messages_thread_seq ON messages(thread_id, message_seq)`
 const messagesToIndex = `CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_type, to_id, delivery_state)`
@@ -284,3 +364,6 @@ const subscriptionsThreadIndex = `CREATE INDEX IF NOT EXISTS idx_subscriptions_t
 const approvalsStatusIndex = `CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, created_at)`
 const attachmentsMessageIndex = `CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)`
 const replayThreadIndex = `CREATE INDEX IF NOT EXISTS idx_replay_thread ON replay_snapshots(thread_id, created_at)`
+const metricsAggregatesPeriodIndex = `CREATE INDEX IF NOT EXISTS idx_metrics_period ON metrics_aggregates(scope_type, period, period_start)`
+const approvalHistoryThreadIndex = `CREATE INDEX IF NOT EXISTS idx_approval_history_thread ON approval_history(thread_id, created_at)`
+const instanceHistoryAgentIndex = `CREATE INDEX IF NOT EXISTS idx_instance_history_agent ON instance_history(agent_id, started_at)`

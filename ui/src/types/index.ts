@@ -114,3 +114,143 @@ export interface ThreadStateEvent {
   last_seq: number;
   updated_at: string | number;
 }
+
+// Hierarchy Types for Agent/Thread Tree View
+
+export interface Badge {
+  type: 'unread' | 'pending' | 'running';
+  count: number;
+}
+
+export interface HierarchyNode {
+  type: 'root' | 'agent' | 'thread';
+  id: string;
+  label: string;
+  status?: 'active' | 'idle' | 'pending';
+  badges?: Badge[];
+  children?: HierarchyNode[];
+}
+
+export interface ThreadStats {
+  id: string;
+  title: string;
+  unread_count: number;
+  pending_approvals: number;
+  running_processes: number;
+  last_message_at?: string;
+}
+
+export interface AgentStats {
+  agent_id: string;
+  status: 'active' | 'idle' | 'pending';
+  thread_count: number;
+  unread_messages: number;
+  pending_approvals: number;
+  running_processes: number;
+  last_activity?: string;
+  threads?: ThreadStats[];
+}
+
+export interface ExecutionStats {
+  total_executions: number;
+  successful_executions: number;
+  failed_executions: number;
+  total_duration_ms: number;
+  total_cost: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cache_read_tokens: number;
+  total_cache_create_tokens: number;
+  total_files_created: number;
+}
+
+// Per-message execution metadata (extracted from metadata_json)
+export interface ExecutionMetadata {
+  success: boolean;
+  duration_ms: number;
+  num_turns: number;
+  cost: number;
+  session_id: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  files_created_count: number;
+  files_created: string[];
+  workspace: string;
+}
+
+export interface AggregateStats {
+  total_agents: number;
+  active_agents: number;
+  idle_agents: number;
+  pending_approvals: number;
+  running_processes: number;
+  total_threads: number;
+  execution: ExecutionStats;
+}
+
+export interface HierarchyResponse {
+  root: HierarchyNode;
+  aggregate: AggregateStats;
+}
+
+// Selection state for hierarchy navigation
+export type SelectionType = 'overview' | 'agent' | 'thread';
+
+export interface Selection {
+  type: SelectionType;
+  agentId?: string;
+  threadId?: string;
+}
+
+// Aggregated metrics from /api/metrics endpoint
+export interface AggregatedMetrics {
+  scope_type: 'global' | 'agent' | 'thread';
+  scope_id: string;
+  total_runs: number;
+  total_tokens: number;
+  total_cost: number;
+  total_duration_ms: number;
+  total_files_modified: number;
+  avg_tokens_per_run: number;
+  avg_cost_per_run: number;
+  avg_duration_per_run: number;
+}
+
+// Metrics trend data point
+export interface MetricsTrendPoint {
+  period_start: number;
+  runs: number;
+  tokens: number;
+  cost: number;
+  duration_ms: number;
+}
+
+// Approval history entry
+export interface ApprovalHistoryEntry {
+  id: string;
+  approval_id: string;
+  thread_id: string;
+  agent_id: string;
+  action: 'created' | 'approved' | 'rejected' | 'expired';
+  actor: string;
+  proposal?: string;
+  impact?: string;
+  estimated_cost?: number;
+  capability_token?: string;
+  created_at: number;
+}
+
+// Instance history entry
+export interface InstanceHistoryEntry {
+  id: string;
+  agent_id: string;
+  instance_id: string;
+  started_at: number;
+  ended_at?: number;
+  exit_code?: number;
+  total_tokens: number;
+  total_cost_cents: number;
+  thread_count: number;
+}

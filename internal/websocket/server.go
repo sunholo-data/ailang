@@ -26,6 +26,9 @@ const (
 	PongWait       = 60 * time.Second
 	PingPeriod     = (PongWait * 9) / 10
 	MaxMessageSize = 10 * 1024 // 10KB
+
+	// Database polling for agent messages (agents write directly to DB)
+	PollInterval = 500 * time.Millisecond
 )
 
 var upgrader = websocket.Upgrader{
@@ -45,6 +48,10 @@ type Server struct {
 	broadcast   chan *BroadcastMessage
 	register    chan *Connection
 	unregister  chan *Connection
+
+	// Polling state: track last seen seq for each subscribed thread
+	threadSeqMu sync.RWMutex
+	threadSeq   map[string]int // threadID -> last seen message_seq
 }
 
 // Connection represents a WebSocket client connection
@@ -80,11 +87,15 @@ func NewServer(store *messaging.Store) *Server {
 		broadcast:   make(chan *BroadcastMessage, 256),
 		register:    make(chan *Connection),
 		unregister:  make(chan *Connection),
+		threadSeq:   make(map[string]int),
 	}
 }
 
 // Run starts the WebSocket server event loop
 func (s *Server) Run() {
+	// Start database polling goroutine for agent messages
+	go s.pollDatabaseForNewMessages()
+
 	for {
 		select {
 		case conn := <-s.register:
@@ -108,6 +119,78 @@ func (s *Server) Run() {
 	}
 }
 
+// pollDatabaseForNewMessages polls the database for new messages in subscribed threads
+// This is needed because agents write directly to the database, bypassing the REST API
+func (s *Server) pollDatabaseForNewMessages() {
+	ticker := time.NewTicker(PollInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.checkForNewMessages()
+	}
+}
+
+// checkForNewMessages checks all subscribed threads for new messages
+func (s *Server) checkForNewMessages() {
+	// Collect all subscribed threads across all connections
+	subscribedThreads := make(map[string]int) // threadID -> min lastAckSeq
+
+	s.mu.RLock()
+	for _, conn := range s.connections {
+		conn.mu.RLock()
+		for threadID, sub := range conn.subscriptions {
+			if existing, ok := subscribedThreads[threadID]; !ok || sub.LastAckSeq < existing {
+				subscribedThreads[threadID] = sub.LastAckSeq
+			}
+		}
+		conn.mu.RUnlock()
+	}
+	s.mu.RUnlock()
+
+	if len(subscribedThreads) == 0 {
+		return // No subscriptions, nothing to poll
+	}
+
+	// For each subscribed thread, check for new messages since last seen
+	for threadID, minAckSeq := range subscribedThreads {
+		s.threadSeqMu.RLock()
+		lastSeen := s.threadSeq[threadID]
+		s.threadSeqMu.RUnlock()
+
+		// Use the higher of lastSeen or minAckSeq
+		fromSeq := lastSeen
+		if minAckSeq > fromSeq {
+			fromSeq = minAckSeq
+		}
+
+		// Query for new messages
+		messages, err := s.store.GetMessagesFromSeq(threadID, fromSeq, MaxBatchSize)
+		if err != nil {
+			continue // Silently skip errors in polling
+		}
+
+		if len(messages) == 0 {
+			continue
+		}
+
+		// Update last seen seq
+		maxSeq := fromSeq
+		for _, msg := range messages {
+			if msg.MessageSeq > maxSeq {
+				maxSeq = msg.MessageSeq
+			}
+			// Broadcast each new message
+			s.broadcastToThread(threadID, &msg)
+		}
+
+		s.threadSeqMu.Lock()
+		if maxSeq > s.threadSeq[threadID] {
+			s.threadSeq[threadID] = maxSeq
+		}
+		s.threadSeqMu.Unlock()
+	}
+}
+
 // broadcastToThread sends a message to all subscribers of a thread
 func (s *Server) broadcastToThread(threadID string, msg *messaging.Message) {
 	s.mu.RLock()
@@ -121,16 +204,17 @@ func (s *Server) broadcastToThread(threadID string, msg *messaging.Message) {
 		if subscribed && msg.MessageSeq > sub.LastAckSeq {
 			// Send message to this connection
 			event, err := NewMessageEvent(&MessageEvent{
-				ID:         msg.ID,
-				ThreadID:   msg.ThreadID,
-				MessageSeq: msg.MessageSeq,
-				CreatedAt:  msg.CreatedAt.UnixMilli(),
-				FromType:   msg.FromType,
-				FromID:     msg.FromID,
-				ToType:     msg.ToType,
-				ToID:       msg.ToID,
-				Kind:       msg.Kind,
-				Content:    msg.Content,
+				ID:           msg.ID,
+				ThreadID:     msg.ThreadID,
+				MessageSeq:   msg.MessageSeq,
+				CreatedAt:    msg.CreatedAt.UnixMilli(),
+				FromType:     msg.FromType,
+				FromID:       msg.FromID,
+				ToType:       msg.ToType,
+				ToID:         msg.ToID,
+				Kind:         msg.Kind,
+				Content:      msg.Content,
+				MetadataJSON: msg.MetadataJSON,
 			})
 			if err != nil {
 				log.Printf("WebSocket: failed to create message event: %v", err)
@@ -292,6 +376,13 @@ func (c *Connection) handleSubscribe(event *Event) {
 	}
 	c.mu.Unlock()
 
+	// Initialize thread sequence tracking for polling (prevents re-sending old messages)
+	c.server.threadSeqMu.Lock()
+	if existing := c.server.threadSeq[sub.ThreadID]; sub.FromSeq > existing {
+		c.server.threadSeq[sub.ThreadID] = sub.FromSeq
+	}
+	c.server.threadSeqMu.Unlock()
+
 	log.Printf("WebSocket: connection %s subscribed to thread %s from seq %d", c.id, sub.ThreadID, sub.FromSeq)
 
 	// Send missed messages (resume from last ack)
@@ -318,16 +409,17 @@ func (c *Connection) sendMissedMessages(threadID string, fromSeq int) {
 	var msgEvents []MessageEvent
 	for _, msg := range messages {
 		msgEvents = append(msgEvents, MessageEvent{
-			ID:         msg.ID,
-			ThreadID:   msg.ThreadID,
-			MessageSeq: msg.MessageSeq,
-			CreatedAt:  msg.CreatedAt.UnixMilli(),
-			FromType:   msg.FromType,
-			FromID:     msg.FromID,
-			ToType:     msg.ToType,
-			ToID:       msg.ToID,
-			Kind:       msg.Kind,
-			Content:    msg.Content,
+			ID:           msg.ID,
+			ThreadID:     msg.ThreadID,
+			MessageSeq:   msg.MessageSeq,
+			CreatedAt:    msg.CreatedAt.UnixMilli(),
+			FromType:     msg.FromType,
+			FromID:       msg.FromID,
+			ToType:       msg.ToType,
+			ToID:         msg.ToID,
+			Kind:         msg.Kind,
+			Content:      msg.Content,
+			MetadataJSON: msg.MetadataJSON,
 		})
 	}
 

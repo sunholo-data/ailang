@@ -21,9 +21,9 @@ type ProcessStats struct {
 	Status      string    `json:"status"` // running, completed, failed
 
 	// Source information - where the process was started from
-	Source    string `json:"source"`              // "ui", "eval", "cli", "agent"
-	Command   string `json:"command,omitempty"`   // Short command description
-	FullCmd   string `json:"full_cmd,omitempty"`  // Full command line (for debugging)
+	Source    string     `json:"source"`               // "ui", "eval", "cli", "agent"
+	Command   string     `json:"command,omitempty"`    // Short command description
+	FullCmd   string     `json:"full_cmd,omitempty"`   // Full command line (for debugging)
 	StoppedAt *time.Time `json:"stopped_at,omitempty"` // When the process stopped
 
 	// Telemetry from Claude sessions (populated when available)
@@ -146,8 +146,8 @@ func (s *Server) collectProcessStats() []ProcessStats {
 			StartedAt:   agent.StartedAt,
 			DurationSec: int(time.Since(agent.StartedAt).Seconds()),
 			Status:      "running",
-			Source:      "ui",            // UI-spawned agents
-			Command:     "ailang-agent",  // Default command for UI agents
+			Source:      "ui",           // UI-spawned agents
+			Command:     "ailang-agent", // Default command for UI agents
 		}
 
 		// Check if process is still running

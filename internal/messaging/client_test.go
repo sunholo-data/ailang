@@ -33,7 +33,7 @@ func TestPollMessages(t *testing.T) {
 
 	// Create a thread and message
 	thread, _ := client.store.CreateThread("Test Thread", "human", "user", "")
-	_, _ = client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Do something")
+	_, _ = client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Do something", "")
 
 	// Poll for messages
 	messages, err := client.PollMessages()
@@ -147,7 +147,7 @@ func TestAcknowledgeMessage(t *testing.T) {
 
 	// Create message
 	thread, _ := client.store.CreateThread("Test Thread", "human", "user", "")
-	msg, _ := client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Test")
+	msg, _ := client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Test", "")
 
 	// Acknowledge it
 	err = client.AcknowledgeMessage(msg.ID)
@@ -436,7 +436,7 @@ func TestStartStopPolling(t *testing.T) {
 	client.StartPolling(100*time.Millisecond, callback)
 
 	// Create a message
-	_, _ = client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Test")
+	_, _ = client.store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Test", "")
 
 	// Wait for polling to trigger
 	time.Sleep(250 * time.Millisecond)

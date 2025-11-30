@@ -100,7 +100,7 @@ func TestSubscribeAndSendMessages(t *testing.T) {
 	defer store.Close()
 
 	// Create a thread
-	thread, err := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, err := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestAckEvent(t *testing.T) {
 	defer store.Close()
 
 	// Create thread and subscribe
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 	store.Subscribe("test_client", thread.ID)
 
 	// Create HTTP test server
@@ -189,10 +189,10 @@ func TestBroadcastMessage(t *testing.T) {
 	defer store.Close()
 
 	// Create thread
-	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1")
+	thread, _ := store.CreateThread("Test Thread", "ailang_instance", "agent1", "")
 
 	// Create message in database
-	_, err := store.CreateMessage(thread.ID, "ailang_instance", "agent1", "human", "user", "status", "Test message")
+	_, err := store.CreateMessage(thread.ID, "ailang_instance", "agent1", "human", "user", "status", "Test message", "")
 	if err != nil {
 		t.Fatalf("Failed to create message: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestBroadcastMessage(t *testing.T) {
 	wsConn.ReadMessage()
 
 	// Broadcast new message
-	newMsg, _ := store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Do something")
+	newMsg, _ := store.CreateMessage(thread.ID, "human", "user", "ailang_instance", "agent1", "directive", "Do something", "")
 	server.BroadcastMessage(thread.ID, newMsg)
 
 	// Read broadcast message

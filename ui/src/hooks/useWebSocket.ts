@@ -8,13 +8,42 @@ import {
   ErrorEvent,
 } from '../types';
 
+// Connection state type for global tracking
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
+// Global connection state singleton
+let globalConnectionState: ConnectionState = 'disconnected';
+let globalReconnectAttempts = 0;
+const globalListeners = new Set<(state: ConnectionState, attempts: number) => void>();
+
+function setGlobalState(state: ConnectionState, attempts: number) {
+  globalConnectionState = state;
+  globalReconnectAttempts = attempts;
+  globalListeners.forEach((listener) => listener(state, attempts));
+}
+
+export function subscribeToGlobalConnection(
+  listener: (state: ConnectionState, attempts: number) => void
+): () => void {
+  globalListeners.add(listener);
+  listener(globalConnectionState, globalReconnectAttempts);
+  return () => globalListeners.delete(listener);
+}
+
+// Exponential backoff with jitter
+function getBackoffDelay(attempt: number, baseDelay = 1000, maxDelay = 30000): number {
+  const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+  const jitter = delay * Math.random() * 0.3;
+  return Math.round(delay + jitter);
+}
+
 interface UseWebSocketOptions {
   url: string;
   instanceId: string;
   onMessage?: (message: MessageEvent) => void;
   onBatch?: (batch: BatchEvent) => void;
   onError?: (error: ErrorEvent) => void;
-  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
 }
 
 export const useWebSocket = ({
@@ -23,11 +52,12 @@ export const useWebSocket = ({
   onMessage,
   onBatch,
   onError,
-  reconnectInterval = 5000,
+  maxReconnectAttempts = 10,
 }: UseWebSocketOptions) => {
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
   const subscriptions = useRef<Map<string, number>>(new Map()); // threadID -> from_seq
 
@@ -37,10 +67,15 @@ export const useWebSocket = ({
       const wsUrl = `${url}?instance_id=${instanceId}`;
       ws.current = new WebSocket(wsUrl);
 
+      // Update global state
+      setGlobalState(reconnectAttempts > 0 ? 'reconnecting' : 'connecting', reconnectAttempts);
+
       ws.current.onopen = () => {
         console.log('WebSocket connected');
         setIsConnected(true);
         setConnectionError(null);
+        setReconnectAttempts(0);
+        setGlobalState('connected', 0);
 
         // Re-subscribe to all threads after reconnection
         subscriptions.current.forEach((fromSeq, threadId) => {
@@ -65,18 +100,28 @@ export const useWebSocket = ({
       ws.current.onclose = () => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
+        setGlobalState('disconnected', reconnectAttempts);
 
-        // Attempt to reconnect
-        reconnectTimeout.current = setTimeout(() => {
-          console.log('Attempting to reconnect...');
-          connect();
-        }, reconnectInterval);
+        // Attempt to reconnect with exponential backoff
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const delay = getBackoffDelay(reconnectAttempts);
+          console.log(`WebSocket reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+
+          reconnectTimeout.current = setTimeout(() => {
+            setReconnectAttempts((prev) => prev + 1);
+            connect();
+          }, delay);
+        } else {
+          console.error('Max reconnection attempts reached');
+          setConnectionError('Connection lost. Please refresh the page.');
+        }
       };
     } catch (err) {
       console.error('Failed to connect to WebSocket:', err);
       setConnectionError('Failed to connect');
+      setGlobalState('disconnected', reconnectAttempts);
     }
-  }, [url, instanceId, reconnectInterval]);
+  }, [url, instanceId, reconnectAttempts, maxReconnectAttempts]);
 
   // Handle incoming WebSocket events
   const handleEvent = useCallback(

@@ -75,24 +75,8 @@ func FormatResult(result *DirectiveResult) string {
 		}
 	}
 
-	// Files created (capped to prevent UI overload)
-	if len(result.FilesCreated) > 0 {
-		const maxFilesToShow = 50
-		sb.WriteString("### Files in Workspace\n\n")
-		filesToShow := result.FilesCreated
-		truncated := false
-		if len(filesToShow) > maxFilesToShow {
-			filesToShow = filesToShow[:maxFilesToShow]
-			truncated = true
-		}
-		for _, file := range filesToShow {
-			sb.WriteString(fmt.Sprintf("- `%s`\n", file))
-		}
-		if truncated {
-			sb.WriteString(fmt.Sprintf("\n*... and %d more files (total: %d)*\n", len(result.FilesCreated)-maxFilesToShow, len(result.FilesCreated)))
-		}
-		sb.WriteString("\n")
-	}
+	// NOTE: Files are now sent via metadata for the collapsible UI button
+	// (see cmd/ailang-agent/agent.go - files_created in execution_stats)
 
 	// Workspace location - prominent link for inspection
 	if result.Workspace != "" {

@@ -1,6 +1,24 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Message, Thread } from '../../types';
+import { Message, Thread, ExecutionMetadata } from '../../types';
+
+// Helper to parse execution metadata from a message
+const parseExecutionMetadata = (metadataJson?: string): ExecutionMetadata | null => {
+  if (!metadataJson) return null;
+  try {
+    const metadata = JSON.parse(metadataJson);
+    return metadata.execution_stats || null;
+  } catch {
+    return null;
+  }
+};
+
+// Helper to check if a status message is a "running" indicator
+const isRunningStatus = (message: Message): boolean => {
+  if (message.kind !== 'status') return false;
+  const content = message.content.toLowerCase();
+  return content.includes('running') || content.includes('thinking') || content.includes('executing') || content.includes('processing');
+};
 
 // Maximum characters to display before truncating (10KB)
 const MAX_DISPLAY_LENGTH = 10 * 1024;
@@ -80,6 +98,22 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
+  file: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  ),
+  folder: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  spinner: (
+    <svg className="spinner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  ),
 };
 
 const getKindIcon = (kind: string) => {
@@ -109,6 +143,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [approvalNotes, setApprovalNotes] = React.useState<Map<string, string>>(new Map());
   const [handledApprovals, setHandledApprovals] = React.useState<Set<string>>(new Set());
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
   // Helper to check if content needs truncation and get truncated version
   const getTruncatedContent = (content: string): { needsTruncation: boolean; truncated: string; fullLength: number; lineCount: number } => {
@@ -286,10 +321,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             const { needsTruncation, truncated, fullLength, lineCount } = getTruncatedContent(message.content);
             const displayContent = isExpanded ? message.content : truncated;
 
+            const isRunning = isRunningStatus(message);
+
             return (
               <div
                 key={message.id}
-                className={`message ${isHuman ? 'human' : 'agent'}`}
+                className={`message ${isHuman ? 'human' : 'agent'}${isRunning ? ' running-status' : ''}`}
               >
                 {/* Avatar */}
                 <div className={`message-avatar ${showAvatar ? 'visible' : ''}`}>
@@ -301,7 +338,9 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   {showAvatar && (
                     <div className="message-meta">
                       <span className="sender-name">{message.from_id}</span>
-                      <span className="kind-badge">{getKindIcon(message.kind)} {message.kind}</span>
+                      <span className={`kind-badge${isRunning ? ' running' : ''}`}>
+                        {isRunning ? Icons.spinner : getKindIcon(message.kind)} {message.kind}
+                      </span>
                       <span className="message-time">{formatTimestamp(message.created_at)}</span>
                     </div>
                   )}
@@ -398,6 +437,62 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                                 </button>
                               </div>
                             </>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Files Created Section for result messages */}
+                    {message.kind === 'result' && (() => {
+                      const execMeta = parseExecutionMetadata(message.metadata_json);
+                      if (!execMeta || !execMeta.files_created || execMeta.files_created.length === 0) {
+                        return null;
+                      }
+
+                      const isFilesExpanded = expandedFiles.has(message.id);
+                      const toggleFiles = () => {
+                        setExpandedFiles(prev => {
+                          const next = new Set(prev);
+                          if (next.has(message.id)) {
+                            next.delete(message.id);
+                          } else {
+                            next.add(message.id);
+                          }
+                          return next;
+                        });
+                      };
+
+                      return (
+                        <div className="files-created-section">
+                          <button
+                            className={`files-toggle-btn ${isFilesExpanded ? 'expanded' : ''}`}
+                            onClick={toggleFiles}
+                          >
+                            {Icons.file}
+                            <span>Files Created ({execMeta.files_created.length})</span>
+                            {execMeta.workspace && (
+                              <span className="workspace-badge" title={execMeta.workspace}>
+                                {Icons.folder}
+                                {execMeta.workspace.split('/').pop()}
+                              </span>
+                            )}
+                            <span className="toggle-chevron">{isFilesExpanded ? '▼' : '▶'}</span>
+                          </button>
+                          {isFilesExpanded && (
+                            <ul className="files-list">
+                              {execMeta.files_created.map((file, idx) => (
+                                <li key={idx} className="file-item">
+                                  <a
+                                    href={`file://${execMeta.workspace ? execMeta.workspace + '/' : ''}${file}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={file}
+                                  >
+                                    {file}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </div>
                       );
@@ -1131,6 +1226,150 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         .expand-btn:hover {
           background: rgba(37, 194, 160, 0.2);
           border-color: var(--color-primary);
+        }
+
+        /* Files Created Section */
+        .files-created-section {
+          margin-top: var(--space-3);
+        }
+
+        .files-toggle-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          width: 100%;
+          padding: var(--space-2) var(--space-3);
+          background: var(--bg-base);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          font-size: var(--text-sm);
+          font-weight: var(--font-medium);
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+
+        .files-toggle-btn:hover {
+          background: var(--bg-hover);
+          border-color: var(--border-default);
+        }
+
+        .files-toggle-btn.expanded {
+          border-bottom-left-radius: 0;
+          border-bottom-right-radius: 0;
+          border-bottom-color: transparent;
+        }
+
+        .files-toggle-btn svg {
+          color: var(--color-primary);
+          flex-shrink: 0;
+        }
+
+        .toggle-chevron {
+          margin-left: auto;
+          font-size: 10px;
+          color: var(--text-tertiary);
+        }
+
+        .workspace-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: 2px var(--space-2);
+          font-size: var(--text-xs);
+          font-weight: var(--font-normal);
+          font-family: var(--font-mono);
+          color: var(--text-tertiary);
+          background: var(--bg-elevated);
+          border-radius: var(--radius-sm);
+        }
+
+        .workspace-badge svg {
+          color: var(--text-tertiary);
+          width: 12px;
+          height: 12px;
+        }
+
+        .files-list {
+          margin: 0;
+          padding: var(--space-2);
+          list-style: none;
+          background: var(--bg-base);
+          border: 1px solid var(--border-subtle);
+          border-top: none;
+          border-bottom-left-radius: var(--radius-md);
+          border-bottom-right-radius: var(--radius-md);
+          max-height: 300px;
+          overflow-y: auto;
+        }
+
+        .file-item {
+          padding: var(--space-1) var(--space-2);
+          font-size: var(--text-xs);
+          font-family: var(--font-mono);
+          border-radius: var(--radius-sm);
+          transition: background var(--transition-fast);
+        }
+
+        .file-item:hover {
+          background: var(--bg-hover);
+        }
+
+        .file-item a {
+          display: block;
+          color: var(--color-info);
+          text-decoration: none;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .file-item a:hover {
+          text-decoration: underline;
+          color: var(--color-primary);
+        }
+
+        /* Running Status Animation */
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes pulse-border {
+          0%, 100% {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 8px rgba(37, 194, 160, 0.3);
+          }
+          50% {
+            border-color: var(--color-success);
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+          }
+        }
+
+        .spinner-icon {
+          animation: spin 1s linear infinite;
+        }
+
+        .message.running-status {
+          animation: pulse-border 2s ease-in-out infinite;
+          border-left: 3px solid var(--color-primary);
+        }
+
+        .message.running-status .message-content {
+          background: linear-gradient(135deg, rgba(37, 194, 160, 0.05), rgba(16, 185, 129, 0.02));
+        }
+
+        .kind-badge.running {
+          color: var(--color-primary);
+          background: rgba(37, 194, 160, 0.15);
+        }
+
+        .kind-badge.running svg {
+          color: var(--color-primary);
         }
       `}</style>
     </div>

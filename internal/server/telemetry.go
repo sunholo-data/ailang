@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/websocket"
 )
 
@@ -297,8 +298,23 @@ func (s *Server) handleTelemetryReport(w http.ResponseWriter, r *http.Request) {
 		DurationSec: 0,
 	})
 
+	// Record metrics when a run completes
+	// This bridges telemetry reports from evals/agents to the metrics aggregation system
+	if req.Status == "completed" && (req.TokensIn > 0 || req.TokensOut > 0) {
+		stats := &messaging.MessageExecutionStats{
+			DurationMS:   0, // Not tracked in telemetry request
+			InputTokens:  req.TokensIn,
+			OutputTokens: req.TokensOut,
+			CostCents:    int(req.Cost * 100), // Convert dollars to cents
+			FilesCreated: nil,
+		}
+		// Use instance_id as agent_id, create a synthetic thread for telemetry runs
+		threadID := fmt.Sprintf("telemetry_%s", req.InstanceID)
+		_ = s.store.RecordMetrics(threadID, req.InstanceID, stats)
+	}
+
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // GetExternalTelemetry returns stored telemetry for a PID (used by monitor)

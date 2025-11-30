@@ -58,7 +58,7 @@ func TestAgent_Poll(t *testing.T) {
 	defer store.Close()
 
 	// First create a thread
-	thread, err := store.CreateThread("Test Thread", "human", "user")
+	thread, err := store.CreateThread("Test Thread", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -70,6 +70,7 @@ func TestAgent_Poll(t *testing.T) {
 		"ailang_instance", "test-agent",
 		"directive",
 		"Create hello.txt",
+		"",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create message: %v", err)
@@ -114,7 +115,7 @@ func TestAgent_ProcessMessage(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Test Thread", "human", "user")
+	thread, err := store.CreateThread("Test Thread", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -246,7 +247,7 @@ func TestAgent_Integration(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Integration Test", "human", "user")
+	thread, err := store.CreateThread("Integration Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -259,6 +260,7 @@ func TestAgent_Integration(t *testing.T) {
 			"ailang_instance", "test-agent",
 			"directive",
 			"Directive "+string(rune('A'+i)),
+			"",
 		)
 		if err != nil {
 			t.Fatalf("Failed to create message %d: %v", i, err)
@@ -311,7 +313,7 @@ func TestAgent_ResultPublishing(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Result Publishing Test", "human", "user")
+	thread, err := store.CreateThread("Result Publishing Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -324,6 +326,7 @@ func TestAgent_ResultPublishing(t *testing.T) {
 		"ailang_instance", "test-agent",
 		"directive",
 		directive,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create directive message: %v", err)
@@ -421,7 +424,7 @@ func TestAgent_ApprovalWorkflow(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Approval Test", "human", "user")
+	thread, err := store.CreateThread("Approval Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -441,6 +444,7 @@ func TestAgent_ApprovalWorkflow(t *testing.T) {
 		"ailang_instance", "test-agent",
 		"directive",
 		directive,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create directive message: %v", err)
@@ -521,7 +525,7 @@ func TestAgent_ApprovalRejection(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Rejection Test", "human", "user")
+	thread, err := store.CreateThread("Rejection Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -541,6 +545,7 @@ func TestAgent_ApprovalRejection(t *testing.T) {
 		"ailang_instance", "test-agent",
 		"directive",
 		directive,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("Failed to create directive message: %v", err)
@@ -621,7 +626,7 @@ func TestAgent_WorkClaiming(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Multi-Agent Test", "human", "user")
+	thread, err := store.CreateThread("Multi-Agent Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}
@@ -635,6 +640,7 @@ func TestAgent_WorkClaiming(t *testing.T) {
 			"ailang_instance", "test-agent",
 			"directive",
 			fmt.Sprintf("Message %d", i),
+			"",
 		)
 		if err != nil {
 			t.Fatalf("Failed to create message %d: %v", i, err)
@@ -698,7 +704,7 @@ func TestAgent_BroadcastStatus(t *testing.T) {
 	}
 	defer store.Close()
 
-	thread, err := store.CreateThread("Broadcast Test", "human", "user")
+	thread, err := store.CreateThread("Broadcast Test", "human", "user", "")
 	if err != nil {
 		t.Fatalf("Failed to create thread: %v", err)
 	}

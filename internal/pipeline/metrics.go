@@ -14,47 +14,47 @@ import (
 type PipelineMetrics struct {
 	// Timing metrics (milliseconds)
 	// Single-file pipeline phases
-	LexTime            int64 `json:"lex_ms,omitempty"`
-	ParseTime          int64 `json:"parse_ms,omitempty"`
-	ElaborateTime      int64 `json:"elaborate_ms,omitempty"`
-	TypeCheckTime      int64 `json:"typecheck_ms,omitempty"`
-	DictElabTime       int64 `json:"dict_elab_ms,omitempty"`
-	MonomorphTime      int64 `json:"monomorph_ms,omitempty"`
-	LowerTime          int64 `json:"lower_ms,omitempty"`
-	LinkTime           int64 `json:"link_ms,omitempty"`
-	ANFVerifyTime      int64 `json:"anf_verify_ms,omitempty"`
+	LexTime       int64 `json:"lex_ms,omitempty"`
+	ParseTime     int64 `json:"parse_ms,omitempty"`
+	ElaborateTime int64 `json:"elaborate_ms,omitempty"`
+	TypeCheckTime int64 `json:"typecheck_ms,omitempty"`
+	DictElabTime  int64 `json:"dict_elab_ms,omitempty"`
+	MonomorphTime int64 `json:"monomorph_ms,omitempty"`
+	LowerTime     int64 `json:"lower_ms,omitempty"`
+	LinkTime      int64 `json:"link_ms,omitempty"`
+	ANFVerifyTime int64 `json:"anf_verify_ms,omitempty"`
 
 	// Module pipeline phases
-	LoadTime           int64 `json:"load_ms,omitempty"`    // Module loading (for multi-module)
-	TopoTime           int64 `json:"topo_ms,omitempty"`    // Topological sort
-	CompileTime        int64 `json:"compile_ms,omitempty"` // All modules compilation (aggregate)
+	LoadTime    int64 `json:"load_ms,omitempty"`    // Module loading (for multi-module)
+	TopoTime    int64 `json:"topo_ms,omitempty"`    // Topological sort
+	CompileTime int64 `json:"compile_ms,omitempty"` // All modules compilation (aggregate)
 
 	// Shared phases
-	EvalTime           int64 `json:"eval_ms,omitempty"`
-	TotalTime          int64 `json:"total_ms"`
+	EvalTime  int64 `json:"eval_ms,omitempty"`
+	TotalTime int64 `json:"total_ms"`
 
 	// Resource metrics
-	MemoryDeltaBytes   int64 `json:"memory_delta_bytes"`
-	AllocsCount        int64 `json:"allocs_count"`
+	MemoryDeltaBytes int64 `json:"memory_delta_bytes"`
+	AllocsCount      int64 `json:"allocs_count"`
 
 	// Compilation stats
-	ModulesCompiled    int   `json:"modules_compiled"`
-	Specializations    int   `json:"specializations"`
-	OperatorsLowered   int   `json:"operators_lowered"`
+	ModulesCompiled  int `json:"modules_compiled"`
+	Specializations  int `json:"specializations"`
+	OperatorsLowered int `json:"operators_lowered"`
 
 	// Context
-	Filename           string `json:"filename"`
-	IsModule           bool   `json:"is_module"`
-	Timestamp          int64  `json:"timestamp"`
+	Filename  string `json:"filename"`
+	IsModule  bool   `json:"is_module"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 // MetricsCollector collects pipeline metrics
 type MetricsCollector struct {
-	enabled        bool
-	hubURL         string
-	startMem       runtime.MemStats
-	startTime      time.Time
-	metrics        PipelineMetrics
+	enabled   bool
+	hubURL    string
+	startMem  runtime.MemStats
+	startTime time.Time
+	metrics   PipelineMetrics
 }
 
 // NewMetricsCollector creates a new metrics collector

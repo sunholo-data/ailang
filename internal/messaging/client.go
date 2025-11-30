@@ -124,6 +124,11 @@ func (c *Client) SendResult(threadID, result string) (*Message, error) {
 	return c.PublishMessage(threadID, "human", "user", "result", result)
 }
 
+// SendResultWithMetadata sends a completion result with structured execution stats
+func (c *Client) SendResultWithMetadata(threadID, result, metadataJSON string) (*Message, error) {
+	return c.PublishMessageWithMetadata(threadID, "human", "user", "result", result, metadataJSON)
+}
+
 // SendStatusToAgent sends a status update to another agent instance
 func (c *Client) SendStatusToAgent(threadID, targetAgentID, status string) (*Message, error) {
 	return c.PublishMessage(threadID, "ailang_instance", targetAgentID, "status", status)

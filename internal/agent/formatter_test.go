@@ -28,6 +28,8 @@ func TestFormatResult(t *testing.T) {
 	formatted := FormatResult(result)
 
 	// Verify key elements are present
+	// NOTE: Files are no longer in markdown output - they're sent via metadata
+	// for the collapsible UI button (see cmd/ailang-agent/agent.go)
 	tests := []struct {
 		name     string
 		contains string
@@ -38,8 +40,7 @@ func TestFormatResult(t *testing.T) {
 		{"Turns", "3"},
 		{"Session ID", "test-session-123"},
 		{"Output", "Task completed successfully!"},
-		{"File 1", "hello.txt"},
-		{"File 2", "world.txt"},
+		// Files removed - now sent via metadata for UI button
 		{"Input tokens", "1,000 tokens"},
 		{"Output tokens", "500 tokens"},
 		{"Workspace", "/tmp/test-workspace"},

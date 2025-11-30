@@ -73,6 +73,9 @@ func (s *Store) CreateApproval(threadID, instanceID string, effectDelta *EffectD
 		return nil, fmt.Errorf("failed to create approval: %w", err)
 	}
 
+	// Record approval history (best effort - don't fail if history recording fails)
+	_ = s.RecordApprovalHistory(approvalID, threadID, instanceID, "created", "system", proposal, impact, &estimatedCost, "")
+
 	return &Approval{
 		ID:              approvalID,
 		ThreadID:        threadID,
@@ -234,6 +237,9 @@ func (s *Store) ApproveApproval(approvalID, reviewedBy string, reviewNotes strin
 		return fmt.Errorf("failed to approve approval: %w", err)
 	}
 
+	// Record approval history (best effort)
+	_ = s.RecordApprovalHistory(approvalID, approval.ThreadID, approval.InstanceID, "approved", reviewedBy, approval.Proposal, approval.Impact, &approval.EstimatedCost, token)
+
 	return nil
 }
 
@@ -261,6 +267,9 @@ func (s *Store) RejectApproval(approvalID, reviewedBy string, reviewNotes string
 	if err != nil {
 		return fmt.Errorf("failed to reject approval: %w", err)
 	}
+
+	// Record approval history (best effort)
+	_ = s.RecordApprovalHistory(approvalID, approval.ThreadID, approval.InstanceID, "rejected", reviewedBy, approval.Proposal, approval.Impact, &approval.EstimatedCost, "")
 
 	return nil
 }

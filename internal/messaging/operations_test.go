@@ -410,6 +410,7 @@ func TestCreateMessage(t *testing.T) {
 		"ailang_instance", "agent1",
 		"human", "user1",
 		"directive", `{"task": "test"}`,
+		"",
 	)
 
 	if err != nil {
@@ -439,6 +440,82 @@ func TestCreateMessage(t *testing.T) {
 	}
 }
 
+// TestCreateMessageAutoRecordsMetrics tests that CreateMessage automatically records metrics for result messages
+func TestCreateMessageAutoRecordsMetrics(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	store := NewStore(db)
+
+	// Create thread first
+	thread, err := store.CreateThread("Test Thread", "human", "user1", "test-agent")
+	if err != nil {
+		t.Fatalf("CreateThread failed: %v", err)
+	}
+
+	// Create a result message with execution_stats metadata (simulating what the agent sends)
+	metadataJSON := `{
+		"execution_stats": {
+			"success": true,
+			"duration_ms": 5000,
+			"input_tokens": 1000,
+			"output_tokens": 500,
+			"cost": 0.15,
+			"files_created": ["file1.go", "file2.go"]
+		}
+	}`
+
+	msg, err := store.CreateMessage(
+		thread.ID,
+		"ailang_instance", "test-agent",
+		"human", "user1",
+		"result", "Execution completed successfully",
+		metadataJSON,
+	)
+
+	if err != nil {
+		t.Fatalf("CreateMessage failed: %v", err)
+	}
+
+	if msg.Kind != "result" {
+		t.Errorf("Expected kind 'result', got %s", msg.Kind)
+	}
+
+	// Verify metrics were automatically recorded
+	metrics, err := store.GetMetrics("global", "")
+	if err != nil {
+		t.Fatalf("GetMetrics failed: %v", err)
+	}
+
+	if metrics.TotalRuns != 1 {
+		t.Errorf("Expected 1 total run, got %d", metrics.TotalRuns)
+	}
+
+	if metrics.TotalTokens != 1500 { // 1000 input + 500 output
+		t.Errorf("Expected 1500 total tokens, got %d", metrics.TotalTokens)
+	}
+
+	// Verify agent-level metrics were recorded
+	agentMetrics, err := store.GetAgentMetrics("test-agent")
+	if err != nil {
+		t.Fatalf("GetAgentMetrics failed: %v", err)
+	}
+
+	if agentMetrics.TotalRuns != 1 {
+		t.Errorf("Expected 1 agent run, got %d", agentMetrics.TotalRuns)
+	}
+
+	// Verify thread-level metrics were recorded
+	threadMetrics, err := store.GetThreadMetrics(thread.ID)
+	if err != nil {
+		t.Fatalf("GetThreadMetrics failed: %v", err)
+	}
+
+	if threadMetrics.TotalRuns != 1 {
+		t.Errorf("Expected 1 thread run, got %d", threadMetrics.TotalRuns)
+	}
+}
+
 // TestCreateMessageSequencing tests that message_seq is monotonic
 func TestCreateMessageSequencing(t *testing.T) {
 	db := setupTestDB(t)
@@ -459,6 +536,7 @@ func TestCreateMessageSequencing(t *testing.T) {
 			"ailang_instance", "agent1",
 			"human", "user1",
 			"directive", fmt.Sprintf("message %d", i),
+			"",
 		)
 
 		if err != nil {
@@ -501,6 +579,7 @@ func TestGetMessagesFromSeq(t *testing.T) {
 			"ailang_instance", "agent1",
 			"human", "user1",
 			"directive", fmt.Sprintf("message %d", i),
+			"",
 		)
 		if err != nil {
 			t.Fatalf("CreateMessage %d failed: %v", i, err)
@@ -547,6 +626,7 @@ func TestGetMessagesFromSeqWithLimit(t *testing.T) {
 			"ailang_instance", "agent1",
 			"human", "user1",
 			"directive", fmt.Sprintf("message %d", i),
+			"",
 		)
 		if err != nil {
 			t.Fatalf("CreateMessage %d failed: %v", i, err)
