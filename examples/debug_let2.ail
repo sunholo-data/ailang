@@ -1,0 +1,10 @@
+module examples/debug_let2
+
+import std/io (println)
+
+export func main() -> () ! {IO} {
+    println("Step 1");
+    let a = 1 in
+    let b = 2 in
+    println("Step 2: " ++ show(a + b))
+}

@@ -1,5 +1,48 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Fixed - Module-Level Let Binding Scope (M-BUG-MODULE-LET-SCOPE)
+
+**User Impact**: Module-level `let` bindings are now accessible inside function bodies in the same module. Previously, attempting to reference a module-level constant from within a function resulted in "undefined variable" errors.
+
+**Root Cause**: In `internal/elaborate/file.go`, functions were elaborated before module-level let bindings were processed. The let bindings were never added to the symbol scope used when elaborating function bodies.
+
+**What Was Fixed**:
+- Added `collectModuleLets()` to extract module-level let bindings before function elaboration
+- Modified `ElaborateFile` to wrap function declarations in module-level lets
+- Added `extractExportsFromExpr()` in interface builder for recursive export extraction from nested Let structures
+
+**Before (Failed):**
+```ailang
+module game/config
+
+let tileSize: int = 8
+
+pure func getTileSize() -> int {
+    tileSize  -- ERROR: undefined variable: tileSize
+}
+```
+
+**After (Works):**
+```ailang
+module game/config
+
+let tileSize: int = 8
+
+pure func getTileSize() -> int {
+    tileSize  -- Returns: 8
+}
+```
+
+**Files Changed:**
+- `internal/elaborate/file.go` - Added module-level let collection and wrapping (~50 LOC)
+- `internal/iface/builder.go` - Added recursive export extraction (~30 LOC)
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
 ## [v0.4.8] - 2025-11-29
 
 ### Fixed - Match Expression Recursion (M-BUG-RECURSION-DEPTH) 🐛

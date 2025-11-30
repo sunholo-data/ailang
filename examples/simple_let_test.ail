@@ -1,0 +1,10 @@
+module examples/simple_let_test
+
+import std/io (println)
+
+let x: int = 42
+
+export func main() -> () ! {IO} {
+    println("Hello!");
+    println("x = " ++ show(x))
+}

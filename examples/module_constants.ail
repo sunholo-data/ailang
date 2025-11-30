@@ -1,0 +1,19 @@
+module examples/module_constants
+
+import std/io (println)
+
+-- Module-level constants (M-BUG-MODULE-LET-SCOPE fix)
+let tileSize: int = 8
+let gridWidth: int = 64
+
+-- Simple test: function accessing module-level let
+pure func getTileSize() -> int {
+    tileSize
+}
+
+export func main() -> () ! {IO} {
+    println("Testing module-level lets...");
+    let ts = getTileSize() in
+    println("tileSize from function: " ++ show(ts));
+    println("gridWidth direct: " ++ show(gridWidth))
+}

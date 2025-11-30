@@ -18,6 +18,7 @@ Create a complete AILANG release with version bump, changelog update, git tag, a
 # 3. Create git tag
 # 4. Push to trigger CI/CD
 # 5. Verify release artifacts
+# 6. Broadcast release notification with changelog
 ```
 
 ## When to Use This Skill
@@ -102,6 +103,54 @@ Verifying release v0.3.14...
 URL: https://github.com/sunholo-data/ailang/releases/tag/v0.3.14
 ```
 
+### `scripts/broadcast_release.sh <version>`
+Broadcast release notification with changelog to all projects.
+
+**Usage:**
+```bash
+.claude/skills/release-manager/scripts/broadcast_release.sh 0.4.5
+```
+
+**What it does:**
+1. Extracts the changelog entry for the given version
+2. Creates a structured release notification message
+3. Broadcasts to the user inbox (global notification point)
+4. Projects receive notification when they check their inbox
+
+**Output:**
+```
+Extracting changelog for v0.4.5...
+Broadcasting release notification...
+
+Release notification broadcast for v0.4.5
+Projects can check their inbox with: ailang agent inbox --unread-only user
+
+Changelog excerpt:
+---
+## [v0.4.5] - 2025-11-30
+
+### Added
+- Import aliasing support
+- CLI arguments feature
+
+### Fixed
+- Parser recovery improvements
+...
+---
+```
+
+**Message format sent:**
+```json
+{
+  "type": "release_notification",
+  "title": "AILANG v0.4.5 Released",
+  "version": "v0.4.5",
+  "description": "## [v0.4.5] - 2025-11-30\n\n### Added\n...",
+  "priority": "high",
+  "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.4.5"
+}
+```
+
 ## Release Workflow
 
 ### 1. Pre-Release Verification (CRITICAL)
@@ -183,7 +232,22 @@ Expected binaries:
 - ailang-linux-amd64.tar.gz (Linux)
 - ailang-windows-amd64.zip (Windows)
 
-### 9. Handle CI Failures
+### 9. Broadcast Release Notification
+
+**Notify all projects about the new release:**
+```bash
+.claude/skills/release-manager/scripts/broadcast_release.sh X.X.X
+```
+
+This extracts the changelog entry for the version and broadcasts it to the user inbox.
+External projects will see the notification when they check their inbox.
+
+**What gets broadcast:**
+- Version number and release date
+- Full changelog section (Added, Changed, Fixed, etc.)
+- Link to GitHub release page
+
+### 10. Handle CI Failures
 
 If CI fails after push:
 ```bash
@@ -197,13 +261,14 @@ git commit -m "Fix CI: <issue>"
 git push
 ```
 
-### 10. Summary
+### 11. Summary
 
 Show user:
 - ✓ Version vX.X.X released
 - ✓ Git tag created
 - ✓ Release URL: https://github.com/sunholo-data/ailang/releases/tag/vX.X.X
 - ✓ CI workflow status
+- ✓ Release notification broadcast to projects
 - **Next step**: Run `post-release` skill to update benchmarks and dashboard
 
 ## Resources

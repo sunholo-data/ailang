@@ -53,7 +53,6 @@ func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, t
 
 // Build constructs the interface from a Core program
 func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
-	// DEBUG: fmt.Printf("DEBUG Build: module=%s, astFile=%v\n", b.module, astFile != nil)
 	iface := NewIface(b.module)
 
 	// Extract exportable bindings from the program
@@ -63,9 +62,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Process each export
-	// DEBUG: fmt.Printf("DEBUG: Processing %d exports for module %s\n", len(exports), b.module)
 	for name, binding := range exports {
-		// DEBUG: fmt.Printf("DEBUG:   Processing export %s\n", name)
 		// Get the type from the environment
 		typ, err := b.typeEnv.Lookup(name)
 		if err != nil {
@@ -162,43 +159,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, error) {
 	exports := make(map[string]core.CoreExpr)
 
-	// DEBUG: Show metadata
-	// if prog.Meta != nil {
-	// 	fmt.Printf("DEBUG BuildInterface: module %s has metadata with %d entries\n", b.module, len(prog.Meta))
-	// 	for name, meta := range prog.Meta {
-	// 		fmt.Printf("  %s: IsExport=%v, IsPure=%v\n", name, meta.IsExport, meta.IsPure)
-	// 	}
-	// } else {
-	// 	fmt.Printf("DEBUG BuildInterface: module %s has NO metadata\n", b.module)
-	// }
-
 	// Use metadata to determine exports
 	if prog.Meta != nil {
 		for _, decl := range prog.Decls {
-			switch d := decl.(type) {
-			case *core.Let:
-				// DEBUG: fmt.Printf("DEBUG: Found Let %s\n", d.Name)
-				if meta, ok := prog.Meta[d.Name]; ok {
-					// Only export explicitly marked functions that don't start with underscore
-					if meta.IsExport && !strings.HasPrefix(d.Name, "_") {
-						// DEBUG: fmt.Printf("DEBUG: Adding export %s\n", d.Name)
-						exports[d.Name] = d.Value
-					}
-				}
-			case *core.LetRec:
-				// DEBUG: fmt.Printf("DEBUG: Found LetRec with %d bindings\n", len(d.Bindings))
-				for _, binding := range d.Bindings {
-					// DEBUG: fmt.Printf("DEBUG:   Binding %s\n", binding.Name)
-					if meta, ok := prog.Meta[binding.Name]; ok {
-						// DEBUG: fmt.Printf("DEBUG:     Has metadata: IsExport=%v\n", meta.IsExport)
-						if meta.IsExport && !strings.HasPrefix(binding.Name, "_") {
-							// DEBUG: fmt.Printf("DEBUG: Adding export %s from LetRec\n", binding.Name)
-							exports[binding.Name] = binding.Value
-						}
-					}
-					// No else needed - if no metadata, we skip the binding
-				}
-			}
+			// Recursively extract exports from nested Let/LetRec structures
+			b.extractExportsFromExpr(decl, prog.Meta, exports)
 		}
 	} else {
 		// Fallback: no metadata means no exports (safer than exporting everything)
@@ -206,6 +171,37 @@ func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, 
 	}
 
 	return exports, nil
+}
+
+// extractExportsFromExpr recursively extracts exports from nested Let/LetRec structures
+// This handles module-level lets that wrap function declarations
+func (b *Builder) extractExportsFromExpr(expr core.CoreExpr, meta map[string]*core.DeclMeta, exports map[string]core.CoreExpr) {
+	switch d := expr.(type) {
+	case *core.Let:
+		if m, ok := meta[d.Name]; ok {
+			// Only export explicitly marked functions that don't start with underscore
+			if m.IsExport && !strings.HasPrefix(d.Name, "_") {
+				exports[d.Name] = d.Value
+			}
+		}
+		// Recursively check the body for nested Let/LetRec
+		if d.Body != nil {
+			b.extractExportsFromExpr(d.Body, meta, exports)
+		}
+
+	case *core.LetRec:
+		for _, binding := range d.Bindings {
+			if m, ok := meta[binding.Name]; ok {
+				if m.IsExport && !strings.HasPrefix(binding.Name, "_") {
+					exports[binding.Name] = binding.Value
+				}
+			}
+		}
+		// Recursively check the body for nested Let/LetRec
+		if d.Body != nil {
+			b.extractExportsFromExpr(d.Body, meta, exports)
+		}
+	}
 }
 
 // generalizeType converts a type to a type scheme, generalizing at module boundary
