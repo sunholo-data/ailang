@@ -148,6 +148,22 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 		}
 		return nil
 
+	case *core.RecordUpdate:
+		if !topLevel {
+			return fmt.Errorf("record update must be let-bound in ANF")
+		}
+		// Base must be atomic
+		if !core.IsAtomic(e.Base) {
+			return fmt.Errorf("base record in update must be atomic, got %T", e.Base)
+		}
+		// All update values must be atomic
+		for name, value := range e.Updates {
+			if !core.IsAtomic(value) {
+				return fmt.Errorf("record update field '%s' must be atomic, got %T", name, value)
+			}
+		}
+		return nil
+
 	case *core.List:
 		if !topLevel {
 			return fmt.Errorf("list construction must be let-bound in ANF")
@@ -252,6 +268,17 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 	case *core.RecordAccess:
 		if !core.IsAtomic(e.Record) {
 			return fmt.Errorf("record must be atomic")
+		}
+		return nil
+
+	case *core.RecordUpdate:
+		if !core.IsAtomic(e.Base) {
+			return fmt.Errorf("base record must be atomic")
+		}
+		for name, value := range e.Updates {
+			if !core.IsAtomic(value) {
+				return fmt.Errorf("update field '%s' must be atomic", name)
+			}
 		}
 		return nil
 

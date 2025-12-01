@@ -45,12 +45,22 @@ let enemies = [
 ]
 
 
--- Example 5: Intermediate let binding (for reference - old workaround)
--- This still works and may be clearer for very complex structures
+-- Example 5: Record update with nested value
+-- Update a record field with a new nested record
 
-let innerPos = { x: 50, y: 60 }
-let npc2 = { pos: innerPos, name: "archer" }
-let npc2X = npc2.pos.x  -- 50
+let hero = { pos: { x: 0, y: 0 }, name: "hero", hp: 100 }
+let movedHero = { hero | pos: { x: 5, y: 10 } }
+let movedHP = movedHero.hp  -- 100 (preserved from original)
+
+
+-- Example 6: Chained updates (requires intermediate let binding)
+-- Parser doesn't support nested { base | ... } syntax directly
+
+let point = { x: 0, y: 0 }
+let point2 = { point | x: 5 }
+let point3 = { point2 | y: 10 }
+let finalX = point3.x  -- 5
+let finalY = point3.y  -- 10
 
 
 -- Final expression shows the simple case works

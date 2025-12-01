@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed - Record Update ANF Verification
+
+**User Impact**: Record updates with nested values now work correctly. Previously, `{ npc | pos: { x: 5, y: 10 } }` failed with "unknown expression type in ANF verification".
+
+**What Was Fixed**: Added missing `*core.RecordUpdate` case to ANF verifier in both `verifyExpr` and `verifySimpleOrAtomic` functions.
+
+**Files Changed:**
+- `internal/elaborate/verify.go` - Added RecordUpdate verification (~25 LOC)
+- `examples/nested_records.ail` - Added record update examples
+
+---
+
 ### Fixed - Inline Nested Record Literals (M-BUG-NESTED-RECORD-ANF)
 
 **User Impact**: Inline nested record literals now work correctly. Previously, code like `{ pos: { x: 10, y: 20 }, name: "guard" }` failed with "ANF verification error: let bindings are not simple calls".
