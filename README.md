@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-38.0%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-37.9%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -301,9 +301,9 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-22%20passing%2023%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-23%20passing%2024%20failing-red.svg)
 
-**22/50 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**23/52 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -315,6 +315,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/cli_args_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/closures.ail` | ✅ Pass |  |
+| `runnable/conway_grid.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
@@ -322,6 +323,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
+| `runnable/imported_adt_types.ail` | ✅ Pass |  |
 | `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std... |
