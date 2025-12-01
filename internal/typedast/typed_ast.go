@@ -129,6 +129,12 @@ type TypedList struct {
 	Elements []TypedNode
 }
 
+// TypedArray represents typed array construction
+type TypedArray struct {
+	TypedExpr
+	Elements []TypedNode
+}
+
 // TypedTuple represents typed tuple construction
 type TypedTuple struct {
 	TypedExpr
@@ -206,6 +212,10 @@ func (t TypedRecordAccess) String() string {
 
 func (t TypedList) String() string {
 	return fmt.Sprintf("[...] : %s", t.Type)
+}
+
+func (t TypedArray) String() string {
+	return fmt.Sprintf("#[...] : %s", t.Type)
 }
 
 // Typed patterns

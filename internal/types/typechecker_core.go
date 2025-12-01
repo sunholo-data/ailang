@@ -472,6 +472,9 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.List:
 		typedNode, env, err = tc.inferList(ctx, e)
 
+	case *core.Array:
+		typedNode, env, err = tc.inferArray(ctx, e)
+
 	case *core.Tuple:
 		typedNode, env, err = tc.inferTuple(ctx, e)
 

@@ -59,6 +59,16 @@ func (l *ListType) String() string { return fmt.Sprintf("[%s]", l.Element) }
 func (l *ListType) Position() Pos  { return l.Pos }
 func (l *ListType) typeNode()      {}
 
+// ArrayType represents array types Array[T]
+type ArrayType struct {
+	Element Type
+	Pos     Pos
+}
+
+func (a *ArrayType) String() string { return fmt.Sprintf("Array[%s]", a.Element) }
+func (a *ArrayType) Position() Pos  { return a.Pos }
+func (a *ArrayType) typeNode()      {}
+
 // TupleType represents tuple types
 type TupleType struct {
 	Elements []Type

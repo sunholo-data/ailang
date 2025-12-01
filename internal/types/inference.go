@@ -354,6 +354,38 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 		totalEffects := UnionEffects(allEffects...)
 		return &TList{Element: elemType}, totalEffects, nil
 
+	case *ast.Array:
+		if len(e.Elements) == 0 {
+			// Empty array - fresh type variable for element
+			elemType := ctx.freshTypeVar()
+			return &TArray{Element: elemType}, EmptyEffectRow(), nil
+		}
+
+		// Infer first element type
+		elemType, effects, err := ctx.Infer(e.Elements[0])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		allEffects := []*Row{effects}
+
+		// All elements must have same type
+		for i := 1; i < len(e.Elements); i++ {
+			otherType, otherEffects, err := ctx.Infer(e.Elements[i])
+			if err != nil {
+				return nil, nil, err
+			}
+			ctx.addConstraint(TypeEq{
+				Left:  elemType,
+				Right: otherType,
+				Path:  append(ctx.path, fmt.Sprintf("element[%d]", i)),
+			})
+			allEffects = append(allEffects, otherEffects)
+		}
+
+		totalEffects := UnionEffects(allEffects...)
+		return &TArray{Element: elemType}, totalEffects, nil
+
 	case *ast.Tuple:
 		elemTypes := make([]Type, len(e.Elements))
 		allEffects := []*Row{}
@@ -633,6 +665,8 @@ func collectFreeTypeVars(t Type, free map[string]bool) {
 		collectFreeTypeVars(t.Return, free)
 	case *TList:
 		collectFreeTypeVars(t.Element, free)
+	case *TArray:
+		collectFreeTypeVars(t.Element, free)
 	case *TTuple:
 		for _, e := range t.Elements {
 			collectFreeTypeVars(e, free)
@@ -694,16 +728,13 @@ func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, _ []Type) er
 	return nil
 }
 
-// findFreeVariables finds all free variables in an expression, excluding bound parameters
+// findFreeVariables finds free variables in an expression, excluding bound parameters
 func findFreeVariables(expr ast.Expr, boundParams []string) map[string]bool {
 	freeVars := make(map[string]bool)
 	boundSet := make(map[string]bool)
-
-	// Mark parameters as bound
 	for _, param := range boundParams {
 		boundSet[param] = true
 	}
-
 	findFreeVarsHelper(expr, freeVars, boundSet)
 	return freeVars
 }
@@ -716,13 +747,10 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 
 	switch e := expr.(type) {
 	case *ast.Identifier:
-		// If identifier is not bound, it's a free variable
 		if !bound[e.Name] {
 			freeVars[e.Name] = true
 		}
-
 	case *ast.Lambda:
-		// Create new bound set including lambda parameters
 		newBound := make(map[string]bool)
 		for k, v := range bound {
 			newBound[k] = v
@@ -731,59 +759,41 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 			newBound[param.Name] = true
 		}
 		findFreeVarsHelper(e.Body, freeVars, newBound)
-
 	case *ast.Let:
-		// Let binding creates a new scope
 		findFreeVarsHelper(e.Value, freeVars, bound)
-
-		// Create new bound set including let variable
 		newBound := make(map[string]bool)
 		for k, v := range bound {
 			newBound[k] = v
 		}
 		newBound[e.Name] = true
 		findFreeVarsHelper(e.Body, freeVars, newBound)
-
 	case *ast.BinaryOp:
 		findFreeVarsHelper(e.Left, freeVars, bound)
 		findFreeVarsHelper(e.Right, freeVars, bound)
-
 	case *ast.UnaryOp:
 		findFreeVarsHelper(e.Expr, freeVars, bound)
-
 	case *ast.FuncCall:
 		findFreeVarsHelper(e.Func, freeVars, bound)
 		for _, arg := range e.Args {
 			findFreeVarsHelper(arg, freeVars, bound)
 		}
-
 	case *ast.If:
 		findFreeVarsHelper(e.Condition, freeVars, bound)
 		findFreeVarsHelper(e.Then, freeVars, bound)
 		if e.Else != nil {
 			findFreeVarsHelper(e.Else, freeVars, bound)
 		}
-
 	case *ast.List:
 		for _, elem := range e.Elements {
 			findFreeVarsHelper(elem, freeVars, bound)
 		}
-
 	case *ast.Record:
 		for _, field := range e.Fields {
 			findFreeVarsHelper(field.Value, freeVars, bound)
 		}
-
 	case *ast.RecordAccess:
 		findFreeVarsHelper(e.Record, freeVars, bound)
-
-	case *ast.Literal:
-		// Literals don't contain variables
-
-	default:
-		// For other expression types, conservatively assume no free variables
-		// In a real implementation, you'd handle all expression types
+	case *ast.Literal: // no-op
+	default: // conservatively assume no free variables
 	}
 }
-
-// getParamNames extracts parameter names from lambda parameters

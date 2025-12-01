@@ -144,6 +144,26 @@ func (t *TList) Substitute(subs map[string]Type) Type {
 	return &TList{Element: t.Element.Substitute(subs)}
 }
 
+// TArray represents an array type with O(1) indexed access
+type TArray struct {
+	Element Type
+}
+
+func (t *TArray) String() string {
+	return fmt.Sprintf("Array[%s]", t.Element.String())
+}
+
+func (t *TArray) Equals(other Type) bool {
+	if o, ok := other.(*TArray); ok {
+		return t.Element.Equals(o.Element)
+	}
+	return false
+}
+
+func (t *TArray) Substitute(subs map[string]Type) Type {
+	return &TArray{Element: t.Element.Substitute(subs)}
+}
+
 // TTuple represents a tuple type
 type TTuple struct {
 	Elements []Type

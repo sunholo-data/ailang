@@ -159,6 +159,11 @@ func (v *validator) walkExpr(expr core.CoreExpr) {
 			v.walkExpr(elem)
 		}
 
+	case *core.Array:
+		for _, elem := range e.Elements {
+			v.walkExpr(elem)
+		}
+
 	case *core.Tuple:
 		for _, elem := range e.Elements {
 			v.walkExpr(elem)
@@ -261,6 +266,9 @@ func (v *validator) exprKind(expr core.CoreExpr) string {
 
 	case *core.List:
 		return fmt.Sprintf("List(%d elements)", len(e.Elements))
+
+	case *core.Array:
+		return fmt.Sprintf("Array(%d elements)", len(e.Elements))
 
 	case *core.Tuple:
 		return fmt.Sprintf("Tuple(%d elements)", len(e.Elements))

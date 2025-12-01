@@ -10,6 +10,7 @@ const (
 	HeadString
 	HeadBool
 	HeadList
+	HeadArray
 	HeadRecord
 	HeadFunc
 	HeadUnit
@@ -52,6 +53,10 @@ func Head(t Type) TypeHead {
 		// TList is the dedicated list type
 		return HeadList
 
+	case *TArray:
+		// TArray is the dedicated array type (O(1) indexed)
+		return HeadArray
+
 	case *TApp:
 		// Check if it's a List type application (alternative representation)
 		if con, ok := typ.Constructor.(*TCon); ok {
@@ -89,6 +94,8 @@ func (th TypeHead) String() string {
 		return "Bool"
 	case HeadList:
 		return "List"
+	case HeadArray:
+		return "Array"
 	case HeadRecord:
 		return "Record"
 	case HeadFunc:

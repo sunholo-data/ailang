@@ -150,6 +150,24 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		}
 		return nil, fmt.Errorf("cannot unify list type with %T", t2)
 
+	case *TArray:
+		// Array type unification
+		if t2Array, ok := t2.(*TArray); ok {
+			return u.Unify(t1.Element, t2Array.Element, sub)
+		}
+		// Special case: TArray{Element: a} can unify with TApp("Array", a)
+		if t2App, ok := t2.(*TApp); ok {
+			h2, a2 := decomposeApp(t2App)
+			if headCon, ok := h2.(*TCon); ok && headCon.Name == "Array" && len(a2) == 1 {
+				return u.Unify(t1.Element, a2[0], sub)
+			}
+		}
+		if t2Var, ok := t2.(*TVar2); ok {
+			// Swap and retry
+			return u.Unify(t2Var, t1, sub)
+		}
+		return nil, fmt.Errorf("cannot unify array type with %T", t2)
+
 	case *TTuple:
 		// Tuple type unification
 		if t2Tuple, ok := t2.(*TTuple); ok {
@@ -363,6 +381,10 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 
 		case *TVar:
 			// Swap and retry
+			return u.Unify(t2, t1, sub)
+
+		case *TVar2:
+			// Swap and retry - TVar2 should unify with open record
 			return u.Unify(t2, t1, sub)
 
 		default:
@@ -582,6 +604,9 @@ func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
 		return false
 
 	case *TList:
+		return u.occurs(varName, t.Element, varKind)
+
+	case *TArray:
 		return u.occurs(varName, t.Element, varKind)
 
 	case *TTuple:

@@ -1,5 +1,176 @@
 # AILANG Changelog
 
+## [v0.4.10] - 2025-12-01
+
+### Added - Array Type with O(1) Indexed Access (M-ARRAY-TYPE)
+
+**User Impact**: New `Array[T]` type for O(1) random access operations, enabling efficient game grids and lookup tables.
+
+**Syntax:**
+- Literal: `#[1, 2, 3, 4, 5]` (hash + brackets)
+- Type: `Array[int]`, `Array[string]`, `Array[{x: int, y: int}]`
+
+**Available Operations (via `import std/array as A`):**
+| Function | Cost | Description |
+|----------|------|-------------|
+| `A.make(n, v)` | O(n) | Create array of size n with default value v |
+| `A.get(arr, i)` | O(1) | Get element at index (error if out of bounds) |
+| `A.getOpt(arr, i)` | O(1) | Safe get: Some(elem) if in bounds, None otherwise |
+| `A.set(arr, i, v)` | O(n) | Return NEW array with element at index updated (copy-on-write) |
+| `A.length(arr)` | O(1) | Get array length |
+| `A.fromList(xs)` | O(n) | Convert list to array |
+| `A.toList(arr)` | O(n) | Convert array to list |
+| `A.unsafeGet(arr, i)` | O(1) | Get element (panics if out of bounds - use with caution) |
+
+**Example:**
+```ailang
+module examples/array_grid
+import std/array as A
+
+let grid = A.make(25, 0)                    -- 5x5 grid of zeros
+let updated = A.set(grid, 12, 42)           -- Set center cell
+let value = A.get(updated, 12)              -- Returns 42
+let len = A.length(updated)                 -- Returns 25
+```
+
+**Key Characteristics:**
+- **0-based indexing** (first element at index 0, last at `length - 1`)
+- Arrays are **immutable** - `set` returns a NEW array (O(n) copy-on-write)
+- **O(1)** for reads: `get`, `getOpt`, `length`
+- **O(n)** for updates: `set` (creates full copy), `fromList`, `toList`
+- Use `getOpt` for safe access returning `Option[a]` instead of errors
+- Designed for game grids, lookup tables, read-heavy workloads
+
+**Files Added/Changed:**
+- `internal/types/types.go` - Added TArray type
+- `internal/eval/value.go` - Added ArrayValue with Get/Set methods
+- `internal/builtins/array.go` - 7 array builtins (~400 LOC)
+- `internal/builtins/array_test.go` - Unit tests (~290 LOC)
+- `std/array.ail` - Stdlib module (~35 LOC)
+- `examples/array_basic.ail` - Basic operations example
+- `examples/array_grid.ail` - 2D grid game example
+- `prompts/v0.4.10.md` - Updated teaching prompt
+
+**Design Doc:** `design_docs/planned/v0_5_0/m-array-type.md`
+
+---
+
+### Fixed - TVar2 Unification with Records in List Patterns (M-BUG-TVAR2-LIST-PATTERN)
+
+**User Impact**: Record field access through list pattern bindings now works correctly. Previously, code like `match positions { pos :: rest => pos.x, [] => 0 }` failed with "type unification failed: cannot unify open record with *types.TVar2".
+
+**Root Cause**: The unification code in `internal/types/unification.go` handled `TRecordOpen` unification with `*TVar` but not with `*TVar2`. When list pattern bindings created fresh type variables (`TVar2`), the record field access couldn't unify properly.
+
+**What Was Fixed**: Added a `case *TVar2:` clause to `TRecordOpen` unification that swaps and retries (matching the existing `*TVar` behavior).
+
+**Before (Failed):**
+```ailang
+let getFirstX = \positions. match positions {
+    pos :: rest => pos.x,  -- ERROR: cannot unify open record with *types.TVar2
+    [] => 0
+}
+```
+
+**After (Works):**
+```ailang
+let getFirstX = \positions. match positions {
+    pos :: rest => pos.x,  -- Works! Returns the x field
+    [] => 0
+}
+
+-- Nested record access also works:
+match entities { e :: rest => e.pos.x, [] => 0 }
+```
+
+**Files Changed:**
+- `internal/types/unification.go` - Added TVar2 case (~4 LOC)
+- `examples/list_pattern_records.ail` - New example file
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
+### Fixed - ADT Constructors in Test Harness Scope (M-BUG-ADT-TEST-HARNESS-SCOPE)
+
+**User Impact**: Inline tests with ADT constructor inputs now work correctly. Previously, tests like `tests [(North, 0), (South, 180)]` failed with "undefined variable: North" because ADT constructors weren't in scope during test harness evaluation.
+
+**Root Cause**: The test harness (`internal/testing/harness.go`) converted AST to Core and evaluated it directly, but the evaluator environment didn't include ADT constructor bindings from the source file's type declarations.
+
+**What Was Fixed**:
+- Added `ConstructorClosure` value type to `internal/eval/value.go` for constructors with data
+- Added handler for `*ConstructorClosure` in `evalCoreApp` to create `TaggedValue` when applied
+- Added `injectADTConstructors` helper to extract ADT constructors from source file and inject into evaluator environment
+
+**Before (Failed):**
+```ailang
+type Direction = North | South | East | West
+
+pure func directionToDegrees(d: Direction) -> int
+    tests [(North, 0), (East, 90)]  -- ERROR: undefined variable: North
+{ ... }
+```
+
+**After (Works):**
+```ailang
+type Direction = North | South | East | West
+
+pure func directionToDegrees(d: Direction) -> int
+    tests [(North, 0), (East, 90), (South, 180), (West, 270)]  -- All pass!
+{ ... }
+
+-- Also works with data constructors:
+type Option[a] = Some(a) | None
+tests [((Some(42), 0), 42), ((None, 100), 100)]
+```
+
+**Files Changed:**
+- `internal/eval/value.go` - Added ConstructorClosure type (~26 LOC)
+- `internal/eval/eval_operations.go` - Added ConstructorClosure handler (~4 LOC)
+- `internal/testing/executor.go` - Added injectADTConstructors helper (~45 LOC)
+- `examples/adt_test_harness.ail` - New example file
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
+### Fixed - Imported ADT Type Pollution (M-BUG-IMPORTED-ADT-TYPE-POLLUTION)
+
+**User Impact**: ADT constructors with different field types can now coexist in the same module without causing type pollution. Previously, using `PatternPatrol([Direction])` and `PatternRandomWalk(int)` in the same file caused "No instance for Num[[Direction]] in scope" because int literals were incorrectly typed as `[Direction]`.
+
+**Root Cause**: In `internal/iface/builder.go`, the interface builder used placeholder type variables (`TVar2{a0}`, `TVar2{a1}`, etc.) for constructor field types instead of extracting actual types from the AST. When multiple constructors had different field types, they shared these placeholders, causing incorrect type unification.
+
+**What Was Fixed**:
+- Added `astTypeToInternalType()` helper function to convert AST types to internal types
+- Modified AST processing loop to extract actual field types from algebraic type constructors
+- Constructor field types now use real types (`TList{TInt}`, `TCon{Direction}`, etc.) instead of placeholders
+
+**Before (Failed):**
+```ailang
+type MovementPattern =
+    | PatternPatrol([Direction])
+    | PatternRandomWalk(int)  -- int literal '30' became [Direction]!
+
+let npc = { pattern: PatternRandomWalk(30), moveCounter: 30 }
+-- ERROR: No instance for Num[[Direction]] in scope
+```
+
+**After (Works):**
+```ailang
+type MovementPattern =
+    | PatternPatrol([Direction])
+    | PatternRandomWalk(int)
+
+let npc = { pattern: PatternRandomWalk(30), moveCounter: 30 }  -- Works!
+```
+
+**Files Changed:**
+- `internal/iface/builder.go` - Added astTypeToInternalType helper (~80 LOC)
+- `examples/runnable/imported_adt_types.ail` - New example file
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
 ## [v0.4.9] - 2025-12-01
 
 ### Fixed - Record Update ANF Verification

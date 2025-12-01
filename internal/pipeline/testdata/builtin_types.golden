@@ -6,6 +6,13 @@
 #
 
 :: : (a, List[a]) -> List[a]
+_array_from_list : List[a] -> Array[a]
+_array_get : (Array[a], int) -> a
+_array_length : Array[a] -> int
+_array_make : (int, a) -> Array[a]
+_array_set : (Array[a], int, a) -> Array[a]
+_array_to_list : Array[a] -> List[a]
+_array_unsafe_get : (Array[a], int) -> a
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _env_getArgs : () -> List[string] ! {Env}

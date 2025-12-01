@@ -2,143 +2,91 @@
 
 ## 🚀 SESSION START ROUTINE
 
-**At the start of EVERY session, I MUST check for agent messages.**
+**At the start of EVERY session, check for agent messages.**
 
-The SessionStart hook automatically runs and should inject inbox messages into my context. If messages appear in system reminders, I acknowledge them. If not, I manually check the inbox.
+### 📬 Message Commands (Quick Reference)
 
-### What I Do at Session Start
-
-**Step 1: Check system reminders for agent messages**
-- The SessionStart hook injects messages automatically
-- If I see inbox messages in system reminders → proceed to Step 3
-
-**Step 2: Fallback - Manual inbox check (if no messages in system reminders)**
 ```bash
-ailang agent inbox --unread-only claude-code
-```
-- This checks both inbox locations (see below)
-- If messages exist but didn't appear in system reminders, they'll show here
+# READ MESSAGES
+ailang agent inbox user              # All messages in user inbox
+ailang agent inbox claude-code       # All messages in claude-code inbox
+ailang agent inbox --unread-only user        # Only unread (user)
+ailang agent inbox --unread-only claude-code # Only unread (claude-code)
 
-**Step 3: When I find messages (from hook OR manual check)**
-1. **Tell you about them**: "I found 2 unread messages from agents..."
-2. **Summarize content**: Explain what the agents reported
-3. **Ask what to do**: "Would you like me to review the sprint plan?"
+# ACKNOWLEDGE (mark as read)
+ailang agent ack --all               # Acknowledge all unread
+ailang agent ack MSG_ID              # Acknowledge specific message
 
-**Step 4: After handling messages**
-```bash
-ailang agent ack <message-id>    # Acknowledge specific message
-# OR
-ailang agent ack --all           # Acknowledge all messages
+# UN-ACKNOWLEDGE (mark as unread again)
+ailang agent unack MSG_ID            # Move back to unread
+
+# SEND RESPONSE to external project
+ailang agent send PROJECT '{"type":"response","title":"Title","description":"Message"}'
 ```
 
-**Step 5: If I fail to complete a task**
-```bash
-ailang agent unack <message-id>  # Moves back to _unread for next session
-```
+**⚠️ Flags BEFORE arguments:** `ailang agent inbox --unread-only user` (not `inbox user --unread-only`)
+
+### Session Start Workflow
+
+1. **SessionStart hook runs automatically** - injects unread messages into system reminders
+2. **If no messages in reminders**, manually check: `ailang agent inbox --unread-only user`
+3. **When messages exist**: Summarize to user, ask what to do
+4. **After handling**: `ailang agent ack --all`
+5. **If task fails**: `ailang agent unack MSG_ID` (moves back for retry)
 
 ### Two Inbox Locations
 
-**User Inbox** (`~/.ailang/state/messages/inbox/user/`):
-- Home directory, persists across projects
-- For messages TO the user from any agent
-- Check with: `ailang agent inbox --unread-only user`
+| Inbox | Location | Purpose |
+|-------|----------|---------|
+| **user** | `~/.ailang/state/messages/inbox/user/` | Messages TO user from agents |
+| **claude-code** | `.ailang/state/messages/claude-code/` | Messages TO claude-code agent |
 
-**Claude-Code Inbox** (`.ailang/state/messages/claude-code/`):
-- Project directory, specific to this codebase
-- For messages TO claude-code agent (checked by SessionStart hook)
-- Check with: `ailang agent inbox --unread-only claude-code`
-
-The SessionStart hook checks BOTH locations automatically.
-
-### Technical Details (Background Info)
-
-**Hooks Configuration:**
-- Hooks are configured in `.claude/settings.local.json`
-- Hook commands use `$CLAUDE_PROJECT_DIR` for absolute paths
-- All hook activity logged to `~/.ailang/state/hooks.log`
-
-**SessionStart Hook:**
-- Script: `scripts/hooks/session_start.sh`
-- Reads hook event JSON from stdin (Claude Code standard)
-- Checks both inbox locations on every session start
-- Outputs message summaries to stdout (appears in system reminders)
-- **Does NOT auto-mark as read** (prevents race conditions)
-
-**Stop Hook (Agent Handoff):**
-- Script: `scripts/hooks/agent_handoff.sh`
-- Reads hook event JSON from stdin
-- Detects design docs created in session (last 5 minutes)
-- Sends handoff messages to sprint-planner agent
-
-**Message Lifecycle:**
-1. Agent sends message → lands in `_unread` or `.pending.json`
-2. SessionStart hook injects into Claude's context (or manual check)
-3. Claude acknowledges → moves to `_processed` or `_read`
-4. If Claude fails → un-acknowledge → back to `_unread` for retry
-
-**Manual inbox commands:**
-```bash
-# Check user inbox (home directory: ~/.ailang/state/messages/inbox/user/)
-ailang agent inbox user
-ailang agent inbox --unread-only user
-
-# Check claude-code inbox (project directory: .ailang/state/messages/claude-code/)
-ailang agent inbox claude-code
-ailang agent inbox --unread-only claude-code
-
-# NOTE: Flags must come BEFORE agent ID!
-# ✅ Correct:   ailang agent inbox --unread-only claude-code
-# ❌ Incorrect: ailang agent inbox claude-code --unread-only
-
-# Acknowledge a specific message (moves to _processed)
-ailang agent ack msg_20251025_155729_a5f3e77ee975
-
-# Acknowledge all unread messages at once
-ailang agent ack --all
-
-# Un-acknowledge a message if task failed (moves back to _unread)
-ailang agent unack msg_20251025_155729_a5f3e77ee975
-
-# Archive old messages
-ailang agent inbox user --archive
-```
+The SessionStart hook checks BOTH automatically.
 
 ### Responding to External Projects
 
-When external projects (like stapledons_voyage) send bug reports or feature requests, use the **ailang-feedback** skill (global, in `~/.claude/skills/`):
+For bug reports/feature requests from external projects (e.g., stapledons_voyage):
 
 ```bash
-# Use the send_response.sh script (recommended)
+# Recommended: Use the response script
 ~/.claude/skills/ailang-feedback/scripts/send_response.sh PROJECT "Title" "Message"
 
-# Examples:
+# Example
 ~/.claude/skills/ailang-feedback/scripts/send_response.sh stapledons_voyage \
   "Bug acknowledged" "Design doc created for v0.4.9"
-
-~/.claude/skills/ailang-feedback/scripts/send_response.sh stapledons_voyage \
-  "Answer: intToFloat exists" "Use intToFloat(n) from std/prelude"
-
-# Or use ailang directly (avoid hyphens in JSON values):
-ailang agent send PROJECT '{"type":"response","title":"Title","description":"Message","priority":"medium"}'
 ```
 
-**Workflow for handling external feedback:**
-1. Review messages in SessionStart hook output
-2. For bugs: Create design docs using `design-doc-creator` skill
-3. For doc questions: Answer directly or note documentation gap
-4. Send responses: `~/.claude/skills/ailang-feedback/scripts/send_response.sh`
-5. Acknowledge: `ailang agent ack --all`
+**Response workflow:**
+1. Review messages (from SessionStart hook or `ailang agent inbox`)
+2. For bugs: Create design docs
+3. Send response: `~/.claude/skills/ailang-feedback/scripts/send_response.sh`
+4. Acknowledge: `ailang agent ack --all`
 
-**Common response types:**
-- `response` - Reply to bug report or feature request
-- `acknowledgment` - Confirm receipt
-- `resolution` - Bug fixed or feature shipped
+### Technical Details
 
-**File locations:**
-- Outgoing responses: `~/.ailang/state/messages/PROJECT_NAME/*.pending.json`
-- External projects pick up messages when they check their inbox
+<details>
+<summary>Click to expand hook configuration details</summary>
 
-**Full skill documentation:** `~/.claude/skills/ailang-feedback/SKILL.md`
+**Hooks:**
+- Configured in `.claude/settings.local.json`
+- Logged to `~/.ailang/state/hooks.log`
+
+**SessionStart Hook** (`scripts/hooks/session_start.sh`):
+- Checks both inbox locations on session start
+- Outputs to stdout (appears in system reminders)
+- Does NOT auto-mark as read
+
+**Stop Hook** (`scripts/hooks/agent_handoff.sh`):
+- Detects design docs created in session
+- Sends handoff messages to sprint-planner
+
+**Message Lifecycle:**
+1. Agent sends → `_unread/` or `.pending.json`
+2. Hook injects into context
+3. `ack` → moves to `_processed/`
+4. `unack` → back to `_unread/`
+
+</details>
 
 ---
 

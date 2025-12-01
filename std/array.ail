@@ -1,0 +1,72 @@
+module std/array
+import std/option (Option, Some, None)
+import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
+
+-- ============================================================================
+-- AILANG Array Module
+-- ============================================================================
+-- Arrays provide O(1) indexed access, unlike lists which are O(n).
+--
+-- INDEXING: 0-based (first element at index 0, last at length-1)
+-- IMMUTABILITY: All operations return new arrays (copy-on-write)
+--
+-- COST MODEL:
+--   make(n, v)     O(n)  - allocates n elements
+--   get(arr, i)    O(1)  - direct index lookup
+--   set(arr, i, v) O(n)  - copies entire array (immutable semantics)
+--   length(arr)    O(1)  - stored metadata
+--   fromList(xs)   O(n)  - converts each element
+--   toList(arr)    O(n)  - converts each element
+--
+-- TIP: For hot loops, minimize set() calls by batching updates
+-- or using intermediate data structures.
+-- ============================================================================
+
+-- Array creation
+
+-- Create array of given size, all elements initialized to default. O(n).
+export pure func make[a](size: int, default: a) -> Array[a] {
+  _array_make(size, default)
+}
+
+-- Convert list to array. O(n). Use when you need O(1) indexed access.
+export pure func fromList[a](xs: [a]) -> Array[a] {
+  _array_from_list(xs)
+}
+
+-- Convert array to list. O(n). Use for list operations (map, filter, foldl).
+export pure func toList[a](arr: Array[a]) -> [a] {
+  _array_to_list(arr)
+}
+
+-- Array access
+-- Returns number of elements. O(1).
+export pure func length[a](arr: Array[a]) -> int {
+  _array_length(arr)
+}
+
+-- Get element at index (0-based). Throws error if idx < 0 or idx >= length.
+export pure func get[a](arr: Array[a], idx: int) -> a {
+  _array_get(arr, idx)
+}
+
+-- Safe get: returns Some(element) if in bounds, None otherwise.
+export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
+  if idx < 0 then None
+  else if idx >= _array_length(arr) then None
+  else Some(_array_get(arr, idx))
+}
+
+-- Unsafe get: panics if out of bounds. Use only when you've verified bounds.
+export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
+  _array_unsafe_get(arr, idx)
+}
+
+-- Array modification (immutable - returns new array)
+
+-- Set element at index, returning NEW array. O(n) due to copy-on-write.
+-- Original array is unchanged (immutable semantics).
+-- TIP: For many updates, consider building a list and using fromList.
+export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
+  _array_set(arr, idx, val)
+}

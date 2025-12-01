@@ -217,6 +217,63 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 	}, ctx.env, nil
 }
 
+// inferArray infers type of array construction
+func (tc *CoreTypeChecker) inferArray(ctx *InferenceContext, arr *core.Array) (*typedast.TypedArray, *TypeEnv, error) {
+	if len(arr.Elements) == 0 {
+		// Empty array - polymorphic
+		elemType := ctx.freshTypeVar()
+		return &typedast.TypedArray{
+			TypedExpr: typedast.TypedExpr{
+				NodeID:    arr.ID(),
+				Span:      arr.Span(),
+				Type:      &TArray{Element: elemType},
+				EffectRow: EmptyEffectRow(),
+				Core:      arr,
+			},
+			Elements: nil,
+		}, ctx.env, nil
+	}
+
+	// Non-empty array - all elements must have same type
+	var elements []typedast.TypedNode
+	var allEffects []*Row
+
+	firstElem, _, err := tc.inferCore(ctx, arr.Elements[0])
+	if err != nil {
+		return nil, ctx.env, err
+	}
+	elements = append(elements, firstElem)
+	allEffects = append(allEffects, getEffectRow(firstElem))
+	elemType := getType(firstElem)
+
+	for i := 1; i < len(arr.Elements); i++ {
+		elemNode, _, err := tc.inferCore(ctx, arr.Elements[i])
+		if err != nil {
+			return nil, ctx.env, err
+		}
+		elements = append(elements, elemNode)
+		allEffects = append(allEffects, getEffectRow(elemNode))
+
+		// All elements must have same type
+		ctx.addConstraint(TypeEq{
+			Left:  getType(elemNode),
+			Right: elemType,
+			Path:  []string{fmt.Sprintf("array element %d at %s", i, arr.Span())},
+		})
+	}
+
+	return &typedast.TypedArray{
+		TypedExpr: typedast.TypedExpr{
+			NodeID:    arr.ID(),
+			Span:      arr.Span(),
+			Type:      &TArray{Element: elemType},
+			EffectRow: combineEffectList(allEffects),
+			Core:      arr,
+		},
+		Elements: elements,
+	}, ctx.env, nil
+}
+
 // inferTuple infers type of tuple construction
 func (tc *CoreTypeChecker) inferTuple(ctx *InferenceContext, tuple *core.Tuple) (*typedast.TypedTuple, *TypeEnv, error) {
 	// Infer types for all elements

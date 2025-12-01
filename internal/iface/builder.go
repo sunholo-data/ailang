@@ -18,6 +18,88 @@ type Builder struct {
 	typeEnv *types.TypeEnv
 }
 
+// astTypeToInternalType converts an AST type to an internal type
+// This is used during interface building to get actual constructor field types
+func astTypeToInternalType(t ast.Type) types.Type {
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		switch typ.Name {
+		case "int":
+			return types.TInt
+		case "float":
+			return types.TFloat
+		case "string":
+			return types.TString
+		case "bool":
+			return types.TBool
+		case "()":
+			return types.TUnit
+		case "bytes":
+			return types.TBytes
+		default:
+			// Type variable or constructor
+			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' {
+				return &types.TVar2{Name: typ.Name, Kind: types.Star}
+			}
+			return &types.TCon{Name: typ.Name}
+		}
+
+	case *ast.FuncType:
+		paramTypes := make([]types.Type, len(typ.Params))
+		for i, p := range typ.Params {
+			paramTypes[i] = astTypeToInternalType(p)
+		}
+		var effectRow *types.Row
+		if len(typ.Effects) > 0 {
+			labels := make(map[string]types.Type)
+			for _, e := range typ.Effects {
+				labels[e] = types.TUnit
+			}
+			effectRow = &types.Row{
+				Kind:   types.EffectRow,
+				Labels: labels,
+				Tail:   nil,
+			}
+		} else {
+			effectRow = types.EmptyEffectRow()
+		}
+		return &types.TFunc2{
+			Params:    paramTypes,
+			EffectRow: effectRow,
+			Return:    astTypeToInternalType(typ.Return),
+		}
+
+	case *ast.ListType:
+		return &types.TList{
+			Element: astTypeToInternalType(typ.Element),
+		}
+
+	case *ast.ArrayType:
+		return &types.TArray{
+			Element: astTypeToInternalType(typ.Element),
+		}
+
+	case *ast.TupleType:
+		elements := make([]types.Type, len(typ.Elements))
+		for i, e := range typ.Elements {
+			elements[i] = astTypeToInternalType(e)
+		}
+		return &types.TTuple{Elements: elements}
+
+	case *ast.RecordType:
+		// Convert record type fields
+		labels := make(map[string]types.Type)
+		for _, f := range typ.Fields {
+			labels[f.Name] = astTypeToInternalType(f.Type)
+		}
+		return &types.TRecord{Fields: labels, Row: nil}
+
+	default:
+		// Unknown type, return type variable
+		return &types.TVar2{Name: "unknown", Kind: types.Star}
+	}
+}
+
 // NewBuilder creates a new interface builder
 func NewBuilder(module string, typeEnv *types.TypeEnv) *Builder {
 	return &Builder{
@@ -128,14 +210,21 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						iface.AddType(typeDecl.Name, arity)
 						// DEBUG: fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
 
-						// Extract constructors from algebraic types
+						// Extract constructors from algebraic types with ACTUAL field types
+						// This fixes the type pollution bug where placeholder TVar2s were shared
 						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
 							// DEBUG: fmt.Printf("DEBUG: Type %s is algebraic with %d constructors\n", typeDecl.Name, len(algType.Constructors))
-							for range algType.Constructors {
-								// Add constructor to exports (will be importable)
-								// The actual constructor scheme was already added above
-								// Just mark it as exportable here
-								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s\n", typeDecl.Name, ctor.Name)
+							for _, ctor := range algType.Constructors {
+								// Convert AST field types to internal types
+								fieldTypes := make([]types.Type, len(ctor.Fields))
+								for i, field := range ctor.Fields {
+									fieldTypes[i] = astTypeToInternalType(field)
+								}
+								resultType := &types.TCon{Name: typeDecl.Name}
+
+								// Update/add constructor with actual field types (overwriting placeholders)
+								iface.AddConstructor(typeDecl.Name, ctor.Name, fieldTypes, resultType)
+								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s with fields %v\n", typeDecl.Name, ctor.Name, fieldTypes)
 							}
 						}
 					}

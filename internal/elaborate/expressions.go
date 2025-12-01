@@ -95,6 +95,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.List:
 		return e.normalizeList(ex)
 
+	case *ast.Array:
+		return e.normalizeArray(ex)
+
 	case *ast.Tuple:
 		return e.normalizeTuple(ex)
 
@@ -721,6 +724,28 @@ func (e *Elaborator) normalizeList(list *ast.List) (core.CoreExpr, error) {
 
 	result := &core.List{
 		CoreNode: e.makeNode(list.Position()),
+		Elements: elements,
+	}
+
+	return e.wrapWithBindings(result, allBindings), nil
+}
+
+// normalizeArray handles array construction
+func (e *Elaborator) normalizeArray(arr *ast.Array) (core.CoreExpr, error) {
+	var elements []core.CoreExpr
+	var allBindings []binding
+
+	for _, elem := range arr.Elements {
+		atomic, binds, err := e.normalizeToAtomic(elem)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, atomic)
+		allBindings = append(allBindings, binds...)
+	}
+
+	result := &core.Array{
+		CoreNode: e.makeNode(arr.Position()),
 		Elements: elements,
 	}
 

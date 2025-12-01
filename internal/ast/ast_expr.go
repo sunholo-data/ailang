@@ -359,6 +359,23 @@ func (l *List) String() string {
 func (l *List) Position() Pos { return l.Pos }
 func (l *List) exprNode()     {}
 
+// Array represents an array literal #[1, 2, 3]
+// Arrays provide O(1) indexed access unlike linked lists
+type Array struct {
+	Elements []Expr
+	Pos      Pos
+}
+
+func (a *Array) String() string {
+	elems := []string{}
+	for _, e := range a.Elements {
+		elems = append(elems, e.String())
+	}
+	return fmt.Sprintf("#[%s]", strings.Join(elems, ", "))
+}
+func (a *Array) Position() Pos { return a.Pos }
+func (a *Array) exprNode()     {}
+
 // Tuple represents a tuple
 type Tuple struct {
 	Elements []Expr

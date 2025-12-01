@@ -125,6 +125,9 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
 	evaluator.SetGlobalResolver(resolver)
 
+	// Inject ADT constructor bindings from source file so test inputs like (North, 0) work
+	e.injectADTConstructors(evaluator)
+
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
 		return nil, fmt.Errorf("harness evaluation failed: %w", err)
@@ -521,6 +524,9 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
 	evaluator.SetGlobalResolver(resolver)
 
+	// Inject ADT constructor bindings from source file so test inputs like (North, 0) work
+	e.injectADTConstructors(evaluator)
+
 	result, err := evaluator.EvalCoreProgram(harnessProgram)
 	if err != nil {
 		return nil, fmt.Errorf("cluster harness evaluation failed: %w", err)
@@ -621,4 +627,48 @@ func (e *Executor) HasCrossFunctionDependencies(
 
 	// If closure has more than one function, there are dependencies
 	return len(closure) > 1
+}
+
+// injectADTConstructors extracts ADT constructor information from the source file
+// and injects them into the evaluator's environment as ConstructorClosure values.
+// This enables test harness evaluation to properly resolve ADT constructors like North, Just, etc.
+func (e *Executor) injectADTConstructors(evaluator *eval.CoreEvaluator) {
+	if e.sourceFile == nil {
+		return
+	}
+
+	env := evaluator.Env()
+
+	// Type declarations are in Decls ([]Node)
+	for _, decl := range e.sourceFile.Decls {
+		typeDecl, ok := decl.(*ast.TypeDecl)
+		if !ok {
+			continue
+		}
+
+		// Only process ADTs (algebraic types)
+		if adt, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
+			typeName := typeDecl.Name
+			for _, ctor := range adt.Constructors {
+				ctorName := ctor.Name
+				arity := len(ctor.Fields)
+
+				if arity == 0 {
+					// Nullary constructor - bind directly to TaggedValue
+					env.Set(ctorName, &eval.TaggedValue{
+						TypeName: typeName,
+						CtorName: ctorName,
+						Fields:   []eval.Value{},
+					})
+				} else {
+					// Constructor with data - bind to ConstructorClosure
+					env.Set(ctorName, &eval.ConstructorClosure{
+						TypeName: typeName,
+						CtorName: ctorName,
+						Arity:    arity,
+					})
+				}
+			}
+		}
+	}
 }

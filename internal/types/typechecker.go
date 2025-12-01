@@ -244,6 +244,11 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			Element: tc.astTypeToType(typ.Element),
 		}
 
+	case *ast.ArrayType:
+		return &TArray{
+			Element: tc.astTypeToType(typ.Element),
+		}
+
 	case *ast.TupleType:
 		elements := make([]Type, len(typ.Elements))
 		for i, e := range typ.Elements {

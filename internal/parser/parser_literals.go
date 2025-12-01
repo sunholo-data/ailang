@@ -168,6 +168,40 @@ func (p *Parser) parseListLiteral() ast.Expr {
 	return list
 }
 
+// parseArrayLiteral parses array literals: #[1, 2, 3]
+func (p *Parser) parseArrayLiteral() ast.Expr {
+	arr := &ast.Array{
+		Pos: p.curPos(),
+	}
+
+	// Current token is HASH, expect LBRACKET next
+	if !p.expectPeek(lexer.LBRACKET) {
+		return nil
+	}
+
+	p.nextToken() // move past LBRACKET
+
+	for !p.curTokenIs(lexer.RBRACKET) && !p.curTokenIs(lexer.EOF) {
+		arr.Elements = append(arr.Elements, p.parseExpression(LOWEST))
+
+		if p.peekTokenIs(lexer.RBRACKET) {
+			p.nextToken()
+			break
+		}
+
+		if !p.expectPeek(lexer.COMMA) {
+			break
+		}
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.RBRACKET) {
+		p.expectPeek(lexer.RBRACKET)
+	}
+
+	return arr
+}
+
 func (p *Parser) parseRecordLiteral() ast.Expr {
 	startPos := p.curPos()
 	p.nextToken() // move past LBRACE

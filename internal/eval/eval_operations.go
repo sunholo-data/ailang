@@ -71,6 +71,10 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 	case *BuiltinFunction:
 		return fn.Fn(args)
 
+	case *ConstructorClosure:
+		// ADT constructor application - creates a TaggedValue
+		return fn.Apply(args)
+
 	default:
 		return nil, fmt.Errorf("cannot apply non-function value: %T", fnVal)
 	}

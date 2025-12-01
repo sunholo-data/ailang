@@ -176,6 +176,18 @@ func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
 		}
 		return nil
 
+	case *core.Array:
+		if !topLevel {
+			return fmt.Errorf("array construction must be let-bound in ANF")
+		}
+		// All elements must be atomic
+		for i, elem := range e.Elements {
+			if !core.IsAtomic(elem) {
+				return fmt.Errorf("array element %d must be atomic, got %T", i, elem)
+			}
+		}
+		return nil
+
 	// Dictionary nodes
 	case *core.DictAbs:
 		// Body continues verification
@@ -261,6 +273,14 @@ func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
 		for i, elem := range e.Elements {
 			if !core.IsAtomic(elem) {
 				return fmt.Errorf("element %d must be atomic", i)
+			}
+		}
+		return nil
+
+	case *core.Array:
+		for i, elem := range e.Elements {
+			if !core.IsAtomic(elem) {
+				return fmt.Errorf("array element %d must be atomic", i)
 			}
 		}
 		return nil
