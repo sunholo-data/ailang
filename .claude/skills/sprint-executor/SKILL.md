@@ -97,6 +97,23 @@ Run checkpoint after completing a milestone (tests, linting, git diff).
 ### `scripts/acceptance_test.sh <milestone_id> <test_type>` **NEW**
 Run end-to-end acceptance tests (parser, builtin, examples, REPL, e2e).
 
+### `scripts/finalize_sprint.sh <sprint_id> [version]` **NEW**
+Finalize a completed sprint by moving design docs and updating status.
+
+**What it does:**
+- Moves design doc from `planned/` to `implemented/<version>/`
+- Moves sprint plan markdown to `implemented/<version>/`
+- Updates design doc status to "IMPLEMENTED"
+- Updates sprint JSON status to "completed"
+- Updates file paths in sprint JSON
+
+**When to use:** After all milestones pass and sprint is complete.
+
+**Example:**
+```bash
+.claude/skills/sprint-executor/scripts/finalize_sprint.sh M-BUG-RECORD-UPDATE-INFERENCE v0_4_9
+```
+
 ## Execution Flow
 
 ### Phase 0: Session Resumption (for continuing sprints)
@@ -153,8 +170,13 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 1. **Final Testing** - Run `make test`, `make lint`, `make test-coverage-badge`
 2. **Documentation Review** - Verify CHANGELOG.md, example files, sprint plan complete
 3. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
-4. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
-5. **DX Impact Summary** - Document improvements made during sprint
+4. **Move Design Docs** - Run `finalize_sprint.sh <sprint-id> [version]` to:
+   - Move design docs from `planned/` to `implemented/<version>/`
+   - Update design doc status to IMPLEMENTED
+   - Update sprint JSON status to "completed"
+   - Update file paths in sprint JSON
+5. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
+6. **DX Impact Summary** - Document improvements made during sprint
 
 ## Key Features
 
