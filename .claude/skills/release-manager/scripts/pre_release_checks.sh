@@ -58,7 +58,7 @@ echo
 # Agent eval configuration validation
 echo "5/5 Validating agent eval configuration..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 if "$PROJECT_ROOT/.claude/skills/post-release/scripts/run_eval_baseline.sh" --validate > /tmp/pre_release_agent.log 2>&1; then
     echo "  ✓ Agent eval configuration valid"
 else
