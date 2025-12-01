@@ -197,6 +197,40 @@ func astExprToCore(expr ast.Expr) core.CoreExpr {
 			Op:      e.Op,
 			Operand: operand,
 		}
+	case *ast.Identifier:
+		// Handle identifiers (including ADT constructors like None, True, False)
+		return &core.Var{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Name: e.Name,
+		}
+	case *ast.FuncCall:
+		// Handle function/constructor application like Some(5), Pair(1, 2)
+		fn := astExprToCore(e.Func)
+		args := make([]core.CoreExpr, len(e.Args))
+		for i, arg := range e.Args {
+			args[i] = astExprToCore(arg)
+		}
+		return &core.App{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Func: fn,
+			Args: args,
+		}
+	case *ast.Record:
+		// Handle record literals like {x: 1, y: 2}
+		fields := make(map[string]core.CoreExpr)
+		for _, field := range e.Fields {
+			fields[field.Name] = astExprToCore(field.Value)
+		}
+		return &core.Record{
+			CoreNode: core.CoreNode{
+				NodeID: nextNodeID(),
+			},
+			Fields: fields,
+		}
 	default:
 		panic(fmt.Sprintf("unsupported AST expression type in test harness: %T", expr))
 	}

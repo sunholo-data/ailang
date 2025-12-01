@@ -43,6 +43,71 @@ pure func getTileSize() -> int {
 
 ---
 
+### Fixed - Test Harness ADT Constructor Support
+
+**User Impact**: Test harness now supports ADT constructors in test inputs/outputs. Previously, using values like `None`, `Some(5)`, or `Pair(1, 2)` in test cases caused a panic.
+
+**What Was Fixed**:
+- Added `*ast.Identifier` support for nullary constructors (e.g., `None`, `True`)
+- Added `*ast.FuncCall` support for constructor application (e.g., `Some(5)`, `Pair(1, 2)`)
+- Added `*ast.Record` support for record literals in test cases
+
+**Files Changed:**
+- `internal/testing/harness.go` - Added cases to `astExprToCore` (~35 LOC)
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
+### Fixed - List Concatenation Operator (++) Dispatch
+
+**User Impact**: The `++` operator now correctly works with lists. Previously, using `++` on lists caused a runtime panic because the operator was incorrectly dispatched to string concatenation instead of list concatenation.
+
+**Root Cause**: In `internal/types/type_head.go`, the `Head()` function only checked for list types represented as `TApp{Constructor: TCon{Name: "List"}}` but AILANG uses a dedicated `TList` type struct. When the type head lookup failed, the operator lowering defaulted to "String" suffix, calling `strConcatImpl` instead of `listConcatImpl`.
+
+**What Was Fixed**:
+- Added `*TList` case to `Head()` function to return `HeadList`
+- Now both `TList` and `TApp{List}` representations are recognized as list types
+
+**Before (Failed):**
+```ailang
+pure func range(n: int) -> [int] {
+    match n {
+        0 => [],
+        _ => range(n - 1) ++ [n - 1]  -- PANIC: interface conversion error
+    }
+}
+```
+
+**After (Works):**
+```ailang
+pure func range(n: int) -> [int] {
+    match n {
+        0 => [],
+        _ => range(n - 1) ++ [n - 1]  -- Returns: [0, 1, 2, ..., n-1]
+    }
+}
+```
+
+**Debug output before fix:**
+```
+[DEBUG M-DX4] NodeID 44: type=[int], head=Unknown
+```
+
+**Debug output after fix:**
+```
+[DEBUG M-DX4] NodeID 44: type=[int], head=List
+```
+
+**Files Changed:**
+- `internal/types/type_head.go` - Added `*TList` case to `Head()` function (~3 LOC)
+
+**Test file added:** `examples/test_list_recursion.ail`
+
+**Reported by:** stapledons_voyage (via agent inbox) - This fix also resolves the "64-item recursion hang" which was actually a symptom of the `++` dispatch bug.
+
+---
+
 ## [v0.4.8] - 2025-11-29
 
 ### Fixed - Match Expression Recursion (M-BUG-RECURSION-DEPTH) 🐛

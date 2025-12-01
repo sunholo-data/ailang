@@ -1,0 +1,45 @@
+module examples/test_list_recursion
+
+-- Test list recursion with various sizes
+-- Reported: 64-item list causes hang
+
+-- Simple list length function
+pure func length[T](xs: [T]) -> int {
+    match xs {
+        [] => 0,
+        _ :: rest => 1 + length(rest)
+    }
+}
+
+-- Sum all elements in a list
+pure func sum(xs: [int]) -> int {
+    match xs {
+        [] => 0,
+        x :: rest => x + sum(rest)
+    }
+}
+
+-- Generate a list of n integers (0 to n-1)
+pure func range(n: int) -> [int] {
+    match n {
+        0 => [],
+        _ => range(n - 1) ++ [n - 1]
+    }
+}
+
+-- Test with small lists first
+export pure func test10() -> int {
+    sum(range(10))
+}
+
+export pure func test50() -> int {
+    sum(range(50))
+}
+
+export pure func test64() -> int {
+    sum(range(64))
+}
+
+export pure func test100() -> int {
+    sum(range(100))
+}

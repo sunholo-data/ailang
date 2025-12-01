@@ -48,8 +48,12 @@ func Head(t Type) TypeHead {
 			return HeadUnknown
 		}
 
+	case *TList:
+		// TList is the dedicated list type
+		return HeadList
+
 	case *TApp:
-		// Check if it's a List type application
+		// Check if it's a List type application (alternative representation)
 		if con, ok := typ.Constructor.(*TCon); ok {
 			if con.Name == "List" {
 				return HeadList
