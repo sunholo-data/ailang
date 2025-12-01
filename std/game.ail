@@ -1,0 +1,17 @@
+module std/game
+
+-- Game-specific clock builtins for frame timing
+-- Effects are tracked at the type level with ! {Clock}
+-- Values are set by the game engine before each frame via SetGameClock()
+
+-- delta_time: Get time since last frame in seconds
+-- Use for frame-rate independent physics and movement
+export func delta_time() -> float ! {Clock} = _game_delta_time()
+
+-- total_time: Get total game time in seconds since start
+-- Use for time-based game logic (timers, animations)
+export func total_time() -> float ! {Clock} = _game_total_time()
+
+-- frame_count: Get current frame number (starts at 0)
+-- Use for frame-based logic (every N frames do X)
+export func frame_count() -> int ! {Clock} = _game_frame_count()

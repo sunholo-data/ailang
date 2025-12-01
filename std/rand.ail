@@ -1,0 +1,21 @@
+module std/rand
+
+-- Wrappers around Go builtins (_rand_int, _rand_float, _rand_bool, _rand_seed)
+-- Effects are tracked at the type level with ! {Rand}
+-- Using equation-form exports for thin wrappers
+
+-- rand_int: Generate random integer in range [min, max] inclusive
+-- Set a seed first with rand_seed() for deterministic behavior
+export func rand_int(min: int, max: int) -> int ! {Rand} = _rand_int(min, max)
+
+-- rand_float: Generate random float in range [min, max)
+-- Set a seed first with rand_seed() for deterministic behavior
+export func rand_float(min: float, max: float) -> float ! {Rand} = _rand_float(min, max)
+
+-- rand_bool: Generate random boolean (50/50 chance)
+-- Set a seed first with rand_seed() for deterministic behavior
+export func rand_bool() -> bool ! {Rand} = _rand_bool()
+
+-- rand_seed: Set random seed for deterministic generation
+-- Use this for reproducible random sequences (game replays, testing)
+export func rand_seed(seed: int) -> () ! {Rand} = _rand_seed(seed)

@@ -21,12 +21,19 @@ _env_hasEnv : string -> bool ! {Env}
 _fs_exists : string -> bool ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
+_game_delta_time : () -> float ! {Clock}
+_game_frame_count : () -> int ! {Clock}
+_game_total_time : () -> float ! {Clock}
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
 _net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_rand_bool : () -> bool ! {Rand}
+_rand_float : (float, float) -> float ! {Rand}
+_rand_int : (int, int) -> int ! {Rand}
+_rand_seed : int -> () ! {Rand}
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
