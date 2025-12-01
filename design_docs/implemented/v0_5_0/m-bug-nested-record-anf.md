@@ -1,6 +1,6 @@
 # M-BUG-NESTED-RECORD-ANF: ANF Completion for Let RHS
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.5.0
 **Priority**: P1 (Medium) - Affects common functional programming patterns
 **Estimated**: 4-6 hours
