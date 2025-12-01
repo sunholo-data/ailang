@@ -320,7 +320,7 @@ The Collaboration Hub is functional but has some limitations:
 3. **No persistent config** - All settings via CLI flags
 4. **No agent status UI** - Can't see if agent is running from the web UI
 
-These are addressed in the planned [Background Agent Daemon](/docs/roadmap#v050) feature.
+These are planned for v0.5.0 (Background Agent Daemon feature).
 
 ## See Also
 
