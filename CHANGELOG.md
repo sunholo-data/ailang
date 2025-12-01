@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.4.9] - 2025-12-01
 
 ### Fixed - Record Update ANF Verification
 
