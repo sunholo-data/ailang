@@ -394,12 +394,45 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			return nil, err
 		}
 
-		return &core.Let{
+		// ANF completion: if the value is a nested Let expression, flatten it.
+		// This handles cases like: let npc = { pos: { x: 10, y: 20 } } where
+		// the nested record normalization produces Let bindings in the value.
+		//
+		// Before flattening: Let npc = (Let $tmp1 = inner in outer) in body
+		// After flattening:  Let $tmp1 = inner in Let npc = outer in body
+		innerBindings, flattenedValue := extractLetBindings(value)
+
+		if len(innerBindings) == 0 {
+			// No nested lets - simple case
+			return &core.Let{
+				CoreNode: e.makeNode(let.Position()),
+				Name:     let.Name,
+				Value:    flattenedValue,
+				Body:     body,
+			}, nil
+		}
+
+		// Build flattened structure: inner bindings outermost, user binding innermost
+		// Start with: Let name = flattenedValue in body
+		result := &core.Let{
 			CoreNode: e.makeNode(let.Position()),
 			Name:     let.Name,
-			Value:    value,
+			Value:    flattenedValue,
 			Body:     body,
-		}, nil
+		}
+
+		// Wrap with inner bindings in reverse order (innermost binding becomes outermost let)
+		for i := len(innerBindings) - 1; i >= 0; i-- {
+			bind := innerBindings[i]
+			result = &core.Let{
+				CoreNode: e.makeNode(bind.Value.Span()),
+				Name:     bind.Name,
+				Value:    bind.Value,
+				Body:     result,
+			}
+		}
+
+		return result, nil
 	}
 }
 

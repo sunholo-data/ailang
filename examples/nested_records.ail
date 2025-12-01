@@ -1,0 +1,57 @@
+module examples/nested_records
+
+-- Nested Record Examples
+-- Demonstrates inline nested record literals (fixed in v0.5.0: M-BUG-NESTED-RECORD-ANF)
+-- Previously failed with: "ANF verification error: let bindings are not simple calls"
+
+-- Example 1: Basic nested record
+-- This was the main bug fix - inline nested records now work
+
+let npc = { pos: { x: 10, y: 20 }, name: "guard" }
+let posX = npc.pos.x  -- 10
+
+
+-- Example 2: Deeply nested records (3+ levels)
+-- Game state with nested player data
+
+let game = {
+    player: {
+        pos: { x: 0, y: 0 },
+        stats: { hp: 100, mp: 50 }
+    },
+    level: 1
+}
+let playerHP = game.player.stats.hp  -- 100
+
+
+-- Example 3: Multiple fields with nested records
+-- All fields get proper temporary bindings
+
+let entity = {
+    position: { x: 5, y: 10 },
+    velocity: { dx: 1, dy: 2 },
+    active: true
+}
+let velY = entity.velocity.dy  -- 2
+
+
+-- Example 4: Nested records in lists
+-- List of entities with nested position data
+
+let enemies = [
+    { pos: { x: 10, y: 10 }, hp: 50 },
+    { pos: { x: 20, y: 20 }, hp: 75 },
+    { pos: { x: 30, y: 30 }, hp: 100 }
+]
+
+
+-- Example 5: Intermediate let binding (for reference - old workaround)
+-- This still works and may be clearer for very complex structures
+
+let innerPos = { x: 50, y: 60 }
+let npc2 = { pos: innerPos, name: "archer" }
+let npc2X = npc2.pos.x  -- 50
+
+
+-- Final expression shows the simple case works
+npc.pos.x

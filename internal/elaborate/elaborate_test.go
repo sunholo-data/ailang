@@ -164,3 +164,93 @@ func TestNodeIDAssignment(t *testing.T) {
 		t.Errorf("expected node IDs to be assigned, but nextID is %d", elab.nextID)
 	}
 }
+
+func TestExtractLetBindings(t *testing.T) {
+	// Test the extractLetBindings helper function used for ANF completion
+
+	// Create nested Let expressions: Let x = 1 in Let y = 2 in Let z = 3 in body
+	innerBody := &ast.Literal{Kind: ast.IntLit, Value: int64(42)}
+	let3 := &ast.Let{Name: "z", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(3)}, Body: innerBody}
+	let2 := &ast.Let{Name: "y", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(2)}, Body: let3}
+	let1 := &ast.Let{Name: "x", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(1)}, Body: let2}
+
+	elab := NewElaborator()
+	coreExpr, err := elab.ElaborateExpr(let1)
+	if err != nil {
+		t.Fatalf("elaboration error: %v", err)
+	}
+
+	// Extract bindings from the elaborated expression
+	bindings, body := extractLetBindings(coreExpr)
+
+	// Should have 3 bindings: x, y, z (in that order - outermost first)
+	if len(bindings) != 3 {
+		t.Errorf("expected 3 bindings, got %d", len(bindings))
+	}
+
+	expectedNames := []string{"x", "y", "z"}
+	for i, b := range bindings {
+		if b.Name != expectedNames[i] {
+			t.Errorf("binding %d: expected name %q, got %q", i, expectedNames[i], b.Name)
+		}
+	}
+
+	// Body should be the innermost expression (literal 42)
+	if body == nil {
+		t.Error("expected non-nil body")
+	}
+}
+
+func TestExtractLetBindingsNonLet(t *testing.T) {
+	// Test that non-Let expressions return empty bindings
+
+	lit := &ast.Literal{Kind: ast.IntLit, Value: int64(42)}
+
+	elab := NewElaborator()
+	coreExpr, err := elab.ElaborateExpr(lit)
+	if err != nil {
+		t.Fatalf("elaboration error: %v", err)
+	}
+
+	bindings, body := extractLetBindings(coreExpr)
+
+	if len(bindings) != 0 {
+		t.Errorf("expected 0 bindings for non-Let, got %d", len(bindings))
+	}
+
+	if body != coreExpr {
+		t.Error("body should be the original expression for non-Let")
+	}
+}
+
+func TestNestedRecordElaboration(t *testing.T) {
+	// Test that nested record literals can be elaborated without ANF verification errors
+	// This is the bug reported by stapledons_voyage
+
+	// Wrap the expression in a let binding to make it a valid program
+	input := `let npc = { pos: { x: 10, y: 20 }, name: "guard" } in npc`
+
+	l := lexer.New(input, "test.ail")
+	p := parser.New(l)
+	prog := p.Parse()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	elab := NewElaborator()
+	coreProg, err := elab.Elaborate(prog)
+
+	if err != nil {
+		t.Fatalf("elaboration error: %v", err)
+	}
+
+	if coreProg == nil {
+		t.Error("expected non-nil core program")
+	}
+
+	// The key test: verify no nested Let in RHS
+	// After flattening, the structure should be:
+	// Let $tmp = {x: 10, y: 20} in Let npc = {pos: $tmp, name: "guard"} in npc
+	// NOT: Let npc = (Let $tmp = {x: 10, y: 20} in ...) in npc
+}

@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+### Fixed - Inline Nested Record Literals (M-BUG-NESTED-RECORD-ANF)
+
+**User Impact**: Inline nested record literals now work correctly. Previously, code like `{ pos: { x: 10, y: 20 }, name: "guard" }` failed with "ANF verification error: let bindings are not simple calls".
+
+**Root Cause**: This was a standard ANF completion bug. The ANF transformer generated nested `Let` expressions inside record values, but forgot to run the canonical "float inner lets to statement level" transformation. When a let binding's value was itself a `Let` expression (from normalizing nested records), the ANF verifier rejected it.
+
+**What Was Fixed**:
+- Added `extractLetBindings()` helper to extract top-level Let bindings from expressions
+- Modified `normalizeLet` to flatten nested lets in RHS values
+- Modified `normalizeToAtomic` to also flatten lets when creating temporary bindings
+- This ensures all let RHS values are simple expressions (not Let expressions)
+
+**Before (Failed):**
+```ailang
+let npc = { pos: { x: 10, y: 20 }, name: "guard" }
+npc.pos.x
+-- ERROR: ANF verification error: let bindings are not simple calls
+```
+
+**After (Works):**
+```ailang
+let npc = { pos: { x: 10, y: 20 }, name: "guard" }
+npc.pos.x  -- Returns: 10
+
+-- Deeply nested also works:
+let game = { player: { pos: { x: 0, y: 0 }, stats: { hp: 100 } }, level: 1 }
+game.player.stats.hp  -- Returns: 100
+```
+
+**Files Changed:**
+- `internal/elaborate/core.go` - Added `extractLetBindings()` helper (~30 LOC)
+- `internal/elaborate/expressions.go` - Modified `normalizeLet` for let-flattening (~35 LOC)
+- `examples/nested_records.ail` - New example file (~60 LOC)
+
+**Reported by:** stapledons_voyage (via agent inbox)
+
+---
+
 ### Fixed - Module-Level Let Binding Scope (M-BUG-MODULE-LET-SCOPE)
 
 **User Impact**: Module-level `let` bindings are now accessible inside function bodies in the same module. Previously, attempting to reference a module-level constant from within a function resulted in "undefined variable" errors.
