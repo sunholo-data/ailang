@@ -1,6 +1,6 @@
 # M-GAME-E2: AI Effect (General-Purpose AI Oracle)
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.5.1
 **Priority**: P1 - High (Contract requirement)
 **Estimated**: 3-4 days (~350 LOC)

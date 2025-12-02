@@ -1,0 +1,25 @@
+-- AI Effect Example
+-- Demonstrates calling Claude AI from AILANG
+--
+-- Run with stub handler (testing):
+--   ailang run --caps IO,AI --ai-stub --entry main examples/runnable/ai_effect.ail
+--
+-- Run with Claude Haiku (requires ANTHROPIC_API_KEY):
+--   ailang run --caps IO,AI --ai-anthropic claude-haiku-4-5-20251001 --entry main examples/runnable/ai_effect.ail
+--
+-- The AI effect is a general-purpose AI oracle:
+-- - String→string interface (JSON by convention)
+-- - Pluggable handlers (stub, Anthropic, custom)
+-- - No silent fallbacks (nil handler = error)
+
+module examples/runnable/ai_effect
+
+import std/ai (call)
+import std/io (println)
+
+-- Ask the AI a question and print the response
+export func main() -> () ! {IO, AI} {
+    println("Asking AI: What is the capital of France?");
+    let response = call("What is the capital of France? Reply in one word.");
+    println("AI says: " ++ response)
+}

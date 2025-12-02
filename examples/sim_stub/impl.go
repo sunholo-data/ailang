@@ -10,6 +10,13 @@
 // 1. Accept DebugContext as parameter (host-controlled)
 // 2. Call Log() and Assert() during execution
 // 3. Host collects debug output after each step
+//
+// AI EFFECT EXAMPLE:
+// This implementation also shows how to use the AI effect:
+// 1. Create AIHandler (StubAIHandler for testing, real handler for prod)
+// 2. Create AIContext with the handler
+// 3. Call AIContext.Call(input) to invoke AI
+// 4. Handle errors explicitly (nil handler = ErrNoAIHandler)
 
 package main
 

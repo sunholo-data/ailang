@@ -89,6 +89,64 @@ debugCtx.Reset()              // Clear for next tick
 
 ---
 
+### Added - AI Effect for General-Purpose AI Oracle (M-GAME-E2)
+
+**User Impact**: New `AI` effect for calling external AI/ML systems. String→string interface (JSON by convention), pluggable handlers, no silent fallbacks.
+
+**Usage:**
+```ailang
+import std/ai as AI
+import std/json
+
+func choose_action(ctx: NPCContext) -> Action ! {AI} {
+    let input = json.encode(ctx);
+    let output = AI.call(input);
+    match json.decode[Action](output) {
+        Ok(action) => action,
+        Err(_)     => Wait  -- Safe fallback
+    }
+}
+```
+
+**Run with AI capability:**
+```bash
+ailang run --caps IO,AI --entry main game.ail
+```
+
+**Features:**
+| Feature | Description |
+|---------|-------------|
+| `AI.call(input)` | Call AI oracle with string input, returns string |
+| String→string | JSON by convention, not enforced |
+| Pluggable handlers | StubAIHandler for tests, custom handlers for prod |
+| No silent fallback | Nil handler returns `ErrNoAIHandler` |
+
+**Host Integration (Go):**
+```go
+// Testing: Use stub handler
+aiHandler := game.NewStubAIHandler()
+aiHandler.SetDefaultResponse(`{"kind":"Wait"}`)
+aiCtx := game.NewAIContext(aiHandler)
+
+// Production: Implement your own AIHandler interface
+aiCtx := game.NewAIContext(yourOpenAIHandler)
+
+// Call AI
+output, err := aiCtx.Call(input)  // err if handler nil
+```
+
+**Files Added/Changed:**
+- `std/ai.ail` - AI module with `call` wrapper
+- `internal/effects/ai.go` - AIContext, AIHandler, StubAIHandler types
+- `internal/builtins/ai.go` - `_ai_call` builtin
+- `internal/gen/golang/ai.go` - Go codegen for AI effect
+- `internal/parser/parser_effect.go` - Added AI to known effects
+- `examples/sim_stub/gen/game/ai_types.go` - Generated AI types example
+
+**Design Doc:** `design_docs/planned/v0_5_0/M-GAME-E2-ai-effect.md`
+
+---
+
 ### ABI Stability Promise (v0.5.x)
 
 **The Go interop ABI is now "stable preview":**

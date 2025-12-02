@@ -22,6 +22,7 @@ func (p *Parser) parseEffectAnnotation() []string {
 		"Async": true,
 		"Env":   true, // Environment variable access (v0.4.0+)
 		"Debug": true, // Structured tracing/assertions (v0.4.10+, ghost effect)
+		"AI":    true, // General-purpose AI oracle (v0.5.1+)
 	}
 
 	// We're at the BANG token
@@ -39,7 +40,7 @@ func (p *Parser) parseEffectAnnotation() []string {
 		if !p.curTokenIs(lexer.IDENT) {
 			p.report("PAR_EFF004_INVALID",
 				"effect name must be an identifier",
-				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug")
+				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug, AI")
 			continue
 		}
 

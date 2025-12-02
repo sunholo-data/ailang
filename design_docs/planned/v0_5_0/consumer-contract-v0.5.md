@@ -406,7 +406,7 @@ To verify AILANG fulfills this contract, we expect:
 | RNG effect | v0.5.1 | Planned |
 | **Debug effect (Go codegen)** | **v0.4.10** | **✅ Implemented** |
 | **Debug release mode (build tags)** | **v0.4.10** | **✅ Implemented** |
-| AI effect | v0.5.1 | Planned |
+| **AI effect** | **v0.4.10** | **✅ Implemented** |
 | `extern func` | v0.5.2 | Planned |
 | CLI flags (`--out`, `--package-name`) | v0.5.2 | Planned |
 | ABI "stable preview" | v0.5.3 | Planned |

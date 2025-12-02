@@ -1,6 +1,6 @@
 # Sim Stub Example
 
-A minimal simulation example demonstrating the AILANG -> Go code generation workflow, including the **Debug effect** for structured tracing.
+A minimal simulation example demonstrating the AILANG -> Go code generation workflow, including the **Debug effect** for structured tracing and the **AI effect** for pluggable AI oracle.
 
 ## Overview
 
@@ -10,6 +10,7 @@ This example shows:
 3. **Generated Go types** from AILANG ADTs
 4. **Deterministic simulation** with fixed seed
 5. **Debug effect** for logging and assertions (ghost effect - erasable in release mode)
+6. **AI effect** for pluggable AI calls (string→string, JSON by convention)
 
 ## Files
 
@@ -27,6 +28,7 @@ sim_stub/
         ├── types.go              # Generated type definitions
         ├── debug_types_debug.go  # Debug context (full implementation)
         ├── debug_types_release.go # Debug context (no-op for release)
+        ├── ai_types.go           # AI effect types and context
         ├── handlers.go           # Effect handler interfaces
         └── extern_stubs.go       # Generated function stubs
 ```
@@ -159,3 +161,53 @@ go build -tags release .
 4. **Auto-injected locations**: Source positions added by compiler
 
 See [docs/guides/go-interop.md](../../docs/docs/guides/go-interop.md) for complete documentation.
+
+## AI Effect
+
+The AI effect provides a pluggable AI oracle for calling external AI/ML systems. It uses a simple string→string interface (JSON by convention).
+
+### Host Integration Pattern
+
+```go
+// 1. Create AI handler (StubAIHandler for testing)
+aiHandler := game.NewStubAIHandler()
+aiHandler.SetDefaultResponse(`{"action":"wait"}`)
+
+// 2. Create AI context
+aiCtx := game.NewAIContext(aiHandler)
+
+// 3. Call AI from your game logic
+func ChooseAction(ctx game.NPCContext, ai *game.AIContext) (game.Action, error) {
+    input, _ := json.Marshal(ctx)
+    output, err := ai.Call(string(input))
+    if err != nil {
+        return game.Wait{}, err  // ErrNoAIHandler if nil handler
+    }
+    var action game.Action
+    json.Unmarshal([]byte(output), &action)
+    return action, nil
+}
+```
+
+### Production vs Testing
+
+```go
+// Testing: Use stub handler with canned responses
+handler := game.NewStubAIHandler()
+handler.SetResponse(`{"health":50}`, `{"action":"heal"}`)
+aiCtx := game.NewAIContext(handler)
+
+// Production: Implement your own AIHandler
+type OpenAIHandler struct { client *openai.Client }
+func (h *OpenAIHandler) Call(input string) (string, error) {
+    // Call OpenAI API...
+}
+aiCtx := game.NewAIContext(&OpenAIHandler{client: myClient})
+```
+
+### Design Principles
+
+1. **String→string interface**: JSON by convention, not enforced
+2. **Neutral naming**: `AI.call` not `AI.decide` (not game-flavored)
+3. **No silent fallback**: Nil handler returns `ErrNoAIHandler`
+4. **Pluggable handlers**: Swap between stub/OpenAI/Ollama without recompiling

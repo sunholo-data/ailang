@@ -6,6 +6,7 @@
 #
 
 :: : (a, List[a]) -> List[a]
+_ai_call : string -> string ! {AI}
 _array_from_list : List[a] -> Array[a]
 _array_get : (Array[a], int) -> a
 _array_length : Array[a] -> int
