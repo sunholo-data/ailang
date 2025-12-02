@@ -414,6 +414,6 @@ If upgrading from v0.4.x:
 
 If you encounter ABI-related issues:
 
-1. Check the [CHANGELOG](../../../CHANGELOG.md) for known issues
+1. Check the [CHANGELOG](https://github.com/sunholo-data/ailang/blob/dev/CHANGELOG.md) for known issues
 2. File an issue at [github.com/sunholo-data/ailang/issues](https://github.com/sunholo-data/ailang/issues)
 3. Include: AILANG version, Go version, generated code sample

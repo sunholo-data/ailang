@@ -18,7 +18,8 @@ package game
 // init_world is an extern function declared in AILANG.
 //
 // AILANG signature:
-//   extern func init_world(seed: int) -> World
+//
+//	extern func init_world(seed: int) -> World
 //
 // Implement this function to provide the behavior.
 // See docs/guides/go-interop.md for type mapping reference.
@@ -29,11 +30,11 @@ func Init_world(seed int64) *World {
 // step is an extern function declared in AILANG.
 //
 // AILANG signature:
-//   extern func step(world: World, input: FrameInput) -> FrameOutput
+//
+//	extern func step(world: World, input: FrameInput) -> FrameOutput
 //
 // Implement this function to provide the behavior.
 // See docs/guides/go-interop.md for type mapping reference.
 func Step(world *World, input *FrameInput) *FrameOutput {
 	panic("not implemented: step")
 }
-
