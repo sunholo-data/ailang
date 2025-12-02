@@ -400,16 +400,17 @@ To verify AILANG fulfills this contract, we expect:
 
 | Feature | Minimum AILANG Version | Status |
 |---------|------------------------|--------|
-| Go codegen | v0.5.0 | Planned |
-| ADT → discriminator structs | v0.5.0 | Planned |
-| `export func` | v0.5.0 | Planned |
+| **Go codegen** | **v0.5.0** | **✅ Implemented** |
+| **ADT → discriminator structs** | **v0.5.0** | **✅ Implemented** |
+| **`export func`** | **v0.5.0** | **✅ Implemented** |
 | RNG effect | v0.5.1 | Planned |
 | **Debug effect (Go codegen)** | **v0.4.10** | **✅ Implemented** |
 | **Debug release mode (build tags)** | **v0.4.10** | **✅ Implemented** |
 | **AI effect** | **v0.4.10** | **✅ Implemented** |
-| `extern func` | v0.5.2 | Planned |
-| CLI flags (`--out`, `--package-name`) | v0.5.2 | Planned |
-| ABI "stable preview" | v0.5.3 | Planned |
+| **AI effect multi-provider CLI** | **v0.5.0** | **✅ Implemented** |
+| **`extern func`** | **v0.5.0** | **✅ Implemented** |
+| **CLI flags (`--out`, `--package-name`)** | **v0.5.0** | **✅ Implemented** |
+| **ABI "stable preview"** | **v0.5.0** | **✅ Implemented** |
 
 ---
 

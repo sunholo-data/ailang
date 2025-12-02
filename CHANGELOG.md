@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased] - v0.5.1
+## [Unreleased] - v0.5.0
 
 ### Added - Sim Stub Example & CI Integration (M-GAME-D)
 
@@ -144,6 +144,40 @@ output, err := aiCtx.Call(input)  // err if handler nil
 - `examples/sim_stub/gen/game/ai_types.go` - Generated AI types example
 
 **Design Doc:** `design_docs/planned/v0_5_0/M-GAME-E2-ai-effect.md`
+
+---
+
+### Added - Multi-Provider AI Effect CLI Flag
+
+**User Impact**: The `--ai` CLI flag now supports multiple providers with automatic detection from model name.
+
+**Usage:**
+```bash
+# Anthropic (Claude)
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail
+
+# OpenAI (GPT)
+ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail
+
+# Google (Gemini)
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+**Features:**
+| Feature | Description |
+|---------|-------------|
+| Model lookup | Uses `models.yml` for api_name, provider, env_var |
+| Prefix guessing | Falls back to `claude-*`→anthropic, `gpt*`→openai, `gemini-*`→google |
+| Extensible | Add new providers by implementing handler + switch case |
+
+**Environment Variables:**
+- `ANTHROPIC_API_KEY` for Claude models
+- `OPENAI_API_KEY` for GPT models
+- `GOOGLE_API_KEY` for Gemini models
+
+**Files Changed:**
+- `cmd/ailang/main.go` - Changed `--ai-anthropic` to `--ai`
+- `cmd/ailang/ai_handlers.go` - Added OpenAIHandler, GoogleHandler, provider detection
 
 ---
 
