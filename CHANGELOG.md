@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased] - v0.5.0
+## [v0.5.0] - 2025-12-02
 
 ### Added - Sim Stub Example & CI Integration (M-GAME-D)
 
