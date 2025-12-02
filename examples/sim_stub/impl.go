@@ -4,10 +4,17 @@
 // NOTE: This file is NOT generated - it's the user's implementation.
 // The generated stubs in gen/game/extern_stubs.go show the signatures
 // but this file provides the actual logic.
+//
+// DEBUG EFFECT EXAMPLE:
+// This implementation demonstrates how to use the Debug effect:
+// 1. Accept DebugContext as parameter (host-controlled)
+// 2. Call Log() and Assert() during execution
+// 3. Host collects debug output after each step
 
 package main
 
 import (
+	"fmt"
 	"math/rand"
 
 	"github.com/sunholo/ailang/examples/sim_stub/gen/game"
@@ -15,25 +22,34 @@ import (
 
 // InitWorld creates a new world with the given seed
 // This is a deterministic function - same seed always produces same result
-func InitWorld(seed int64) *game.World {
+func InitWorld(seed int64, debug *game.DebugContext) *game.World {
 	// Initialize RNG with seed
 	rng := rand.New(rand.NewSource(seed))
 
+	value := rng.Int63n(100)
+
+	// Debug: Log initialization
+	debug.Log(fmt.Sprintf("Initializing world with seed=%d, initial_value=%d", seed, value), "impl.go:InitWorld")
+
 	return &game.World{
 		Tick:  0,
-		Value: rng.Int63n(100), // Start with random value 0-99
+		Value: value, // Start with random value 0-99
 		Seed:  seed,
 	}
 }
 
 // Step advances the simulation by one tick
 // Returns the new world state and frame output
-func Step(world *game.World, input *game.FrameInput) (*game.World, *game.FrameOutput) {
+// Debug context is used for logging and assertions during execution
+func Step(world *game.World, input *game.FrameInput, debug *game.DebugContext) (*game.World, *game.FrameOutput) {
 	// Recreate RNG from seed + tick for determinism
 	rng := rand.New(rand.NewSource(world.Seed + world.Tick))
 
 	// Calculate delta (-5 to +5)
 	delta := rng.Int63n(11) - 5
+
+	// Debug: Log the computation
+	debug.Log(fmt.Sprintf("tick=%d: delta=%d", world.Tick+1, delta), "impl.go:Step")
 
 	// Create new world state
 	newWorld := &game.World{
@@ -41,6 +57,10 @@ func Step(world *game.World, input *game.FrameInput) (*game.World, *game.FrameOu
 		Value: world.Value + delta,
 		Seed:  world.Seed,
 	}
+
+	// Debug: Assert invariants
+	debug.Assert(newWorld.Tick > world.Tick, "tick should increase", "impl.go:Step")
+	debug.Assert(newWorld.Seed == world.Seed, "seed should be preserved", "impl.go:Step")
 
 	// Create output
 	output := &game.FrameOutput{

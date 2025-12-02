@@ -20,6 +20,7 @@ func compileCommand() {
 	emitGoFlag := fs.Bool("emit-go", false, "Generate Go source code")
 	outFlag := fs.String("out", "gen", "Output directory for generated files")
 	packageNameFlag := fs.String("package-name", "", "Go package name (default: derived from module name)")
+	releaseFlag := fs.Bool("release", false, "Release mode: erase Debug effect (zero-cost)")
 
 	// Help flag
 	helpFlag := fs.Bool("help", false, "Show help for compile command")
@@ -63,7 +64,11 @@ func compileCommand() {
 		fmt.Fprintf(os.Stderr, "%s: file should have .ail extension\n", yellow("Warning"))
 	}
 
-	fmt.Printf("%s Compiling %s\n", cyan("→"), filename)
+	if *releaseFlag {
+		fmt.Printf("%s Compiling %s (RELEASE MODE - Debug erased)\n", cyan("→"), filename)
+	} else {
+		fmt.Printf("%s Compiling %s\n", cyan("→"), filename)
+	}
 
 	// Run the pipeline to parse and type-check
 	cfg := pipeline.Config{
@@ -150,6 +155,57 @@ func compileCommand() {
 		fmt.Printf("%s Generated %s\n", green("✓"), typesFile)
 	}
 
+	// Generate Debug effect types with build tags for debug/release modes
+	fmt.Printf("%s Generating Debug effect types (debug and release modes)\n", cyan("→"))
+	debugGen := gen.NewDebugGenerator(pkgName)
+
+	// Generate debug mode file (full implementation)
+	debugCodeDebug, err := debugGen.GenerateDebugTypesDebug()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: debug types (debug) generation failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	debugFileDebug := filepath.Join(outDir, "debug_types_debug.go")
+	if err := os.WriteFile(debugFileDebug, debugCodeDebug, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot write debug types file: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	fmt.Printf("%s Generated %s\n", green("✓"), debugFileDebug)
+
+	// Generate release mode file (no-op implementation)
+	debugCodeRelease, err := debugGen.GenerateDebugTypesRelease()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: debug types (release) generation failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	debugFileRelease := filepath.Join(outDir, "debug_types_release.go")
+	if err := os.WriteFile(debugFileRelease, debugCodeRelease, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot write debug types file: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	fmt.Printf("%s Generated %s\n", green("✓"), debugFileRelease)
+
+	// Generate effect handlers (includes Debug, Rand, Clock)
+	fmt.Printf("%s Generating effect handlers\n", cyan("→"))
+	effectsGen := gen.NewEffectsGenerator(pkgName)
+	handlers := []gen.EffectHandler{
+		gen.DefaultDebugHandler(),
+		gen.DefaultRandHandler(),
+		gen.DefaultClockHandler(),
+	}
+	handlersCode, err := effectsGen.GenerateHandlers(handlers)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: handlers generation failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	handlersFile := filepath.Join(outDir, "handlers.go")
+	if err := os.WriteFile(handlersFile, handlersCode, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot write handlers file: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	fmt.Printf("%s Generated %s\n", green("✓"), handlersFile)
+
 	// Generate extern function stubs
 	if len(externFuncs) > 0 {
 		fmt.Printf("%s Generating extern stubs (%d extern functions)\n", cyan("→"), len(externFuncs))
@@ -185,7 +241,9 @@ func compileCommand() {
 
 	fmt.Printf("\n%s Compilation complete!\n", green("✓"))
 	fmt.Printf("  Output: %s/\n", outDir)
-	fmt.Printf("\n  %s Build with: cd %s && go build\n", cyan("→"), *outFlag)
+	fmt.Printf("\n  %s Build commands:\n", cyan("→"))
+	fmt.Printf("    Debug mode:   cd %s && go build\n", *outFlag)
+	fmt.Printf("    Release mode: cd %s && go build -tags release\n", *outFlag)
 }
 
 // sanitizePackageName converts a string to a valid Go package name
@@ -225,6 +283,7 @@ Options:
   --emit-go              Generate Go source code (required)
   --out <dir>            Output directory (default: "gen")
   --package-name <name>  Go package name (default: derived from module)
+  --release              Mark this as a release build (info only)
   -h, --help             Show this help message
 
 Examples:
@@ -236,12 +295,19 @@ Examples:
 
 Output Structure:
   <out>/<package>/
-  ├── types.go        # Generated ADT types
-  ├── extern_stubs.go # Stubs for extern functions (implement these)
-  └── funcs.go        # Generated functions (experimental)
+  ├── types.go              # Generated ADT types
+  ├── debug_types_debug.go  # Debug effect (full implementation, //go:build !release)
+  ├── debug_types_release.go# Debug effect (no-ops, //go:build release)
+  ├── handlers.go           # Effect handler interfaces (Debug, Rand, Clock)
+  ├── extern_stubs.go       # Stubs for extern functions (implement these)
+  └── funcs.go              # Generated functions (experimental)
 
-After generation, build with:
-  cd <out> && go build`)
+Build Commands:
+  Debug mode (default):  cd <out> && go build
+  Release mode (no-op):  cd <out> && go build -tags release
+
+The Debug effect uses Go build tags for zero-cost release builds.
+In release mode, all Debug operations (Log, Assert) are no-ops.`)
 }
 
 // generateExternStubs generates Go stub code for extern functions

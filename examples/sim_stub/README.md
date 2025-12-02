@@ -1,6 +1,6 @@
 # Sim Stub Example
 
-A minimal simulation example demonstrating the AILANG -> Go code generation workflow.
+A minimal simulation example demonstrating the AILANG -> Go code generation workflow, including the **Debug effect** for structured tracing.
 
 ## Overview
 
@@ -9,22 +9,26 @@ This example shows:
 2. **Extern function declarations** for Go-implemented functions
 3. **Generated Go types** from AILANG ADTs
 4. **Deterministic simulation** with fixed seed
+5. **Debug effect** for logging and assertions (ghost effect - erasable in release mode)
 
 ## Files
 
 ```
 sim_stub/
-├── world.ail          # AILANG types and extern function declarations
-├── impl.go            # Go implementation of extern functions
-├── main.go            # Go driver that runs the simulation
-├── go.mod             # Go module file
-├── Makefile           # Build automation
-├── expected_output.txt # Golden file for CI testing
-├── README.md          # This file
-└── gen/               # Generated code (gitignored)
+├── world.ail              # AILANG types and extern function declarations
+├── impl.go                # Go implementation with Debug effect usage
+├── main.go                # Go driver with Debug context lifecycle
+├── go.mod                 # Go module file
+├── Makefile               # Build automation
+├── expected_output.txt    # Golden file for CI testing
+├── README.md              # This file
+└── gen/                   # Generated code (gitignored)
     └── game/
-        ├── types.go       # Generated type definitions
-        └── extern_stubs.go # Generated function stubs
+        ├── types.go              # Generated type definitions
+        ├── debug_types_debug.go  # Debug context (full implementation)
+        ├── debug_types_release.go # Debug context (no-op for release)
+        ├── handlers.go           # Effect handler interfaces
+        └── extern_stubs.go       # Generated function stubs
 ```
 
 ## Usage
@@ -106,5 +110,52 @@ This makes it suitable for:
 | `bool` | `bool` |
 | `{ field: T }` | `*StructName` |
 | `[T]` | `[]T` |
+
+## Debug Effect
+
+The Debug effect provides structured tracing for debugging and testing. It's a **ghost effect** - erasable in release mode for zero-cost production builds.
+
+### Host Integration Pattern
+
+```go
+// 1. Create Debug context (host-controlled)
+debugCtx := game.NewDebugContext()
+
+// 2. In your game loop
+for tick := 0; tick < maxTicks; tick++ {
+    debugCtx.Reset()                    // Clear for this step
+    debugCtx.SetTimestamp(int64(tick))  // Set logical time
+
+    // 3. Call game logic (passes debug context)
+    world, output = Step(world, input, debugCtx)
+
+    // 4. Check assertions
+    if debugCtx.HasFailedAssertions() {
+        for _, a := range debugCtx.FailedAssertions() {
+            log.Printf("FAIL at %s: %s", a.Location, a.Message)
+        }
+    }
+}
+
+// 5. Collect all debug data
+data := debugCtx.Collect()
+```
+
+### Building Debug vs Release
+
+```bash
+# Debug mode (default) - Debug.log/assert collect data
+go build .
+
+# Release mode - Debug operations are zero-cost no-ops
+go build -tags release .
+```
+
+### Design Principles
+
+1. **Write-only from game code**: Can Log/Assert, cannot read traces
+2. **Host-controlled lifecycle**: Only host calls Collect()/Reset()
+3. **Ghost effect**: Erased at build time in release mode
+4. **Auto-injected locations**: Source positions added by compiler
 
 See [docs/guides/go-interop.md](../../docs/docs/guides/go-interop.md) for complete documentation.

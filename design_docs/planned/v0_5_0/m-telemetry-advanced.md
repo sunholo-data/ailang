@@ -9,6 +9,31 @@
 
 This design doc proposes additional telemetry features for the AILANG pipeline, building on the low-overhead metrics implemented in M-AGENT-MONITOR Phase 3. These features provide deeper visibility into compilation and runtime behavior but come with higher performance overhead.
 
+## Relationship to Debug Effect (M-GAME-E1)
+
+**Pipeline Telemetry and Debug Effect are complementary, not competing:**
+
+| Feature | Pipeline Telemetry (this doc) | Debug Effect (M-GAME-E1) |
+|---------|-------------------------------|--------------------------|
+| **Purpose** | Compiler/runtime performance metrics | Game/simulation runtime tracing |
+| **Audience** | AILANG developers, CI/CD | Game developers, AI harnesses |
+| **Controlled by** | Environment variables (`AILANG_METRICS=1`) | AILANG code (`! {Debug}`) |
+| **Data type** | Timing, memory, type inference stats | Log messages, assertions |
+| **Collection** | Automatic during pipeline phases | Host calls `DebugContext.Collect()` |
+| **Release mode** | Always available (behind env var) | Erased (ghost effect, zero cost) |
+
+**When to use which:**
+- **Pipeline Telemetry**: "Why is compilation slow?" / "How much memory does type inference use?"
+- **Debug Effect**: "What happened during game tick #42?" / "Which invariants failed?"
+
+**They work together:**
+```bash
+# Compiler performance + game debugging in same run
+AILANG_METRICS=1 ailang run --caps IO,Debug --entry main game.ail
+```
+
+The Debug effect data flows through the same telemetry WebSocket when connected to Collaboration Hub, but is semantically distinct from pipeline metrics.
+
 ## Current State (v0.5.0)
 
 ### Low-Overhead Metrics (Implemented)

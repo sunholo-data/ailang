@@ -119,10 +119,38 @@ What should we build? High-level approach.
 - Related DX improvements: M-DX*, M-DX*
 ```
 
+## Debug Effect for Runtime Tracing (v0.4.10+)
+
+When implementing features that need runtime tracing, use the Debug effect:
+
+```ailang
+import std/debug as Debug
+
+func update(e: Entity) -> Entity ! {Debug} {
+    Debug.check(e.health >= 0, "health must be non-negative");
+    Debug.log("updating entity " ++ show(e.id));
+    -- ... entity logic
+}
+```
+
+**Key benefits:**
+- **Write-only**: AILANG code writes, host collects - no branching on debug state
+- **Ghost effect**: Erased in `--release` mode (zero runtime cost in production)
+- **Structured output**: `DebugContext.Collect()` returns JSON-serializable data
+- **Assertions don't throw**: `Debug.check(false, msg)` records failure but continues
+
+**Run with Debug capability:**
+```bash
+ailang run --caps IO,Debug --entry main game.ail
+```
+
+**Note:** Use `Debug.check` not `Debug.assert` (`assert` is a reserved keyword).
+
 ## Quick Tips
 
 - **Before implementation**: Ask "How can I make this easier for next time?"
 - **During debugging**: "Could a debug flag save me 10+ min?"
+- **For AILANG code**: "Should I add Debug.log/check here?"
 - **During testing**: "Will I write this test pattern again?"
 - **After error**: "Would this message confuse me tomorrow?"
 - **End of milestone**: "What took the most time? Could tooling help?"

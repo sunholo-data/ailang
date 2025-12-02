@@ -201,6 +201,166 @@ extern func read_file(path: string) -> string
 extern func write_file(path: string, content: string) -> ()
 ```
 
+## Debug Effect Host Contract
+
+The Debug effect provides structured tracing for debugging and testing. It is a **ghost effect** - erasable in release mode for zero-cost production builds.
+
+### Generated Files
+
+Running `ailang compile --emit-go` generates:
+
+| File | Purpose | Build Tag |
+|------|---------|-----------|
+| `debug_types_debug.go` | Full implementation (collects traces) | `//go:build !release` |
+| `debug_types_release.go` | No-op implementation (zero cost) | `//go:build release` |
+
+### DebugContext Interface
+
+The generated DebugContext implements this contract:
+
+```go
+type DebugContext struct {
+    // ... internal state
+}
+
+// Host lifecycle methods (HOST-ONLY - not callable from AILANG)
+func NewDebugContext() *DebugContext
+func (d *DebugContext) SetTimestamp(t int64)  // Host sets logical time
+func (d *DebugContext) Collect() DebugOutput  // Host reads accumulated data
+func (d *DebugContext) Reset()                // Clear for next step
+
+// Effect operation handlers (called by generated AILANG code)
+func (d *DebugContext) Log(msg, location string)
+func (d *DebugContext) Assert(cond bool, msg, location string)
+
+// Query methods
+func (d *DebugContext) HasFailedAssertions() bool
+func (d *DebugContext) FailedAssertions() []AssertionResult
+```
+
+### Output Types
+
+```go
+type DebugOutput struct {
+    Logs       []LogEntry
+    Assertions []AssertionResult
+}
+
+type LogEntry struct {
+    Message   string  // Log message
+    Location  string  // Source location (file.ail:42)
+    Timestamp int64   // Logical time (host-defined)
+}
+
+type AssertionResult struct {
+    Passed   bool    // Whether assertion passed
+    Message  string  // Assertion message
+    Location string  // Source location (file.ail:42)
+}
+```
+
+### Host Integration Example
+
+```go
+func main() {
+    debugCtx := game.NewDebugContext()
+
+    for tick := 0; tick < 1000; tick++ {
+        // 1. Reset and set timestamp for this step
+        debugCtx.Reset()
+        debugCtx.SetTimestamp(int64(tick))
+
+        // 2. Run AILANG code (Debug.log/assert calls accumulate)
+        world, output, err := game.Step(world, input, debugCtx)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        // 3. Host collects and handles debug output
+        debugData := debugCtx.Collect()
+
+        // Check for assertion failures
+        if debugCtx.HasFailedAssertions() {
+            for _, a := range debugCtx.FailedAssertions() {
+                log.Printf("ASSERTION FAILED at %s: %s", a.Location, a.Message)
+            }
+        }
+    }
+}
+```
+
+### Building Debug vs Release
+
+```bash
+# Debug mode (default) - Debug effect collects traces
+go build .
+
+# Release mode - Debug effect is zero-cost no-ops
+go build -tags release .
+```
+
+### JSON Schema for DebugOutput
+
+The `DebugOutput` structure can be serialized to JSON for external tooling:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DebugOutput",
+  "type": "object",
+  "properties": {
+    "logs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "location": { "type": "string", "pattern": "^.+:\\d+$" },
+          "timestamp": { "type": "integer" }
+        },
+        "required": ["message", "location", "timestamp"]
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "passed": { "type": "boolean" },
+          "message": { "type": "string" },
+          "location": { "type": "string", "pattern": "^.+:\\d+$" }
+        },
+        "required": ["passed", "message", "location"]
+      }
+    }
+  },
+  "required": ["logs", "assertions"]
+}
+```
+
+Example JSON output:
+
+```json
+{
+  "logs": [
+    {"message": "tick=1: delta=4", "location": "impl.go:Step", "timestamp": 1},
+    {"message": "tick=2: delta=-2", "location": "impl.go:Step", "timestamp": 2}
+  ],
+  "assertions": [
+    {"passed": true, "message": "tick should increase", "location": "impl.go:Step"},
+    {"passed": true, "message": "seed should be preserved", "location": "impl.go:Step"}
+  ]
+}
+```
+
+### Design Principles
+
+1. **Write-only from AILANG**: Code can only write Debug.log/Debug.assert, cannot read its own trace
+2. **Host-controlled lifecycle**: Only the host can Collect() and Reset()
+3. **Ghost effect**: Erased at build time in release mode, not just no-op at runtime
+4. **Auto-injected locations**: Source positions added by compiler, not passed by user
+5. **Abstract timestamps**: Host defines what timestamp means (tick, test index, etc.)
+
 ## Working Example
 
 See `examples/sim_stub/` for a complete working example demonstrating:
@@ -209,11 +369,16 @@ See `examples/sim_stub/` for a complete working example demonstrating:
 - Generated Go types and stubs
 - Go implementation
 - Deterministic simulation
+- **Debug effect usage** with host-controlled lifecycle
 
 ```bash
-# Run the example
+# Run the example (debug mode)
 cd examples/sim_stub
 make run
+
+# Build in release mode (Debug operations become no-ops)
+go build -tags release .
+./sim_stub
 ```
 
 ## ABI Stability

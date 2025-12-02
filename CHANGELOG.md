@@ -37,6 +37,58 @@ make test           # Verify deterministic output
 
 ---
 
+### Added - Debug Effect for Runtime Tracing (M-GAME-E1)
+
+**User Impact**: New `Debug` effect for structured runtime tracing and assertions. Write-only from AILANG, host collects. Zero-cost in release mode (ghost effect).
+
+**Usage:**
+```ailang
+import std/debug as Debug
+
+func update(e: Entity) -> Entity ! {Debug} {
+    Debug.check(e.health >= 0, "health must be non-negative");
+    Debug.log("updating entity " ++ show(e.id));
+    -- ... entity logic
+    e
+}
+```
+
+**Run with Debug capability:**
+```bash
+ailang run --caps IO,Debug --entry main game.ail
+```
+
+**Features:**
+| Feature | Description |
+|---------|-------------|
+| `Debug.log(msg)` | Write trace message (host collects) |
+| `Debug.check(cond, msg)` | Record assertion (doesn't throw, continues execution) |
+| Ghost effect | Erased in `--release` mode (zero runtime cost) |
+| Write-only | Only host calls `DebugContext.Collect()` |
+
+**Note:** We use `check` instead of `assert` because `assert` is a reserved keyword in AILANG.
+
+**Host Integration (Go):**
+```go
+debugCtx := effects.NewDebugContext()
+debugCtx.SetTimestamp(int64(tick))
+// ... run AILANG code ...
+output := debugCtx.Collect()  // Host-only operation
+debugCtx.Reset()              // Clear for next tick
+```
+
+**Files Added/Changed:**
+- `std/debug.ail` - Debug module with `log` and `check` wrappers
+- `internal/effects/debug.go` - DebugContext, LogEntry, AssertionResult types
+- `internal/builtins/debug.go` - `_debug_log` and `_debug_check` builtins
+- `internal/parser/parser_effect.go` - Added Debug to known effects
+- `examples/runnable/debug_effect.ail` - Complete example
+- `prompts/v0.4.10.md` - Updated teaching prompt with Debug effect
+
+**Design Doc:** `design_docs/planned/v0_5_0/M-GAME-E1-debug-effect.md`
+
+---
+
 ### ABI Stability Promise (v0.5.x)
 
 **The Go interop ABI is now "stable preview":**

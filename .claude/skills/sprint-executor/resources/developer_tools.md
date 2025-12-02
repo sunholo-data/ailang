@@ -356,6 +356,33 @@ make fuzz-parser-long          # Long-running fuzz test
 
 ## Debug & Introspection
 
+### Debug Effect (v0.4.10+) - Runtime Tracing
+
+For debugging AILANG code at runtime, use the Debug effect:
+
+```ailang
+import std/debug as Debug
+
+func update(e: Entity) -> Entity ! {Debug} {
+    Debug.check(e.health >= 0, "health must be non-negative");
+    Debug.log("updating entity " ++ show(e.id));
+    -- ... entity logic
+}
+```
+
+**Run with Debug capability:**
+```bash
+ailang run --caps IO,Debug --entry main game.ail
+```
+
+**Key features:**
+- `Debug.log(msg)` - Write trace message (host collects)
+- `Debug.check(cond, msg)` - Record assertion (doesn't throw, continues execution)
+- Ghost effect - erased in `--release` mode (zero runtime cost)
+- Write-only from AILANG - only host calls `DebugContext.Collect()`
+
+**Note:** Use `Debug.check` not `Debug.assert` (`assert` is a reserved keyword).
+
 ### Debug AST Command
 
 **NEW in v0.3.16**: Inspect Core AST (ANF) and inferred types

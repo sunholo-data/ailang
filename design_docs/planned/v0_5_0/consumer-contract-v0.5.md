@@ -382,30 +382,34 @@ To verify AILANG fulfills this contract, we expect:
 1. Minimal `world.ail` with types matching this pattern
 2. Minimal `main.go` driver that runs 10 ticks
 3. CI job that compiles → builds → runs → validates output
+4. **Debug effect demonstration** with DebugContext lifecycle ✅ (v0.4.10+)
+5. **Build-tagged release mode** with no-op Debug implementation ✅ (v0.4.10+)
 
 ### We Verify
 
 1. Our types compile with AILANG codegen
 2. Generated Go code builds without errors
 3. Step function executes deterministically with same seed
-4. Debug output accessible in FrameOutput
+4. Debug output accessible via DebugContext.Collect() ✅ (host-controlled)
 5. Extern stubs generate with correct signatures
+6. Release mode builds successfully with `-tags release` ✅
 
 ---
 
 ## Version Compatibility
 
-| Feature | Minimum AILANG Version |
-|---------|------------------------|
-| Go codegen | v0.5.0 |
-| ADT → discriminator structs | v0.5.0 |
-| `export func` | v0.5.0 |
-| RNG effect | v0.5.1 |
-| Debug effect | v0.5.1 |
-| AI effect | v0.5.1 |
-| `extern func` | v0.5.2 |
-| CLI flags (`--out`, `--package-name`) | v0.5.2 |
-| ABI "stable preview" | v0.5.3 |
+| Feature | Minimum AILANG Version | Status |
+|---------|------------------------|--------|
+| Go codegen | v0.5.0 | Planned |
+| ADT → discriminator structs | v0.5.0 | Planned |
+| `export func` | v0.5.0 | Planned |
+| RNG effect | v0.5.1 | Planned |
+| **Debug effect (Go codegen)** | **v0.4.10** | **✅ Implemented** |
+| **Debug release mode (build tags)** | **v0.4.10** | **✅ Implemented** |
+| AI effect | v0.5.1 | Planned |
+| `extern func` | v0.5.2 | Planned |
+| CLI flags (`--out`, `--package-name`) | v0.5.2 | Planned |
+| ABI "stable preview" | v0.5.3 | Planned |
 
 ---
 

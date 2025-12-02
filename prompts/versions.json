@@ -310,7 +310,7 @@
     },
     "v0.4.10": {
       "file": "prompts/v0.4.10.md",
-      "hash": "456b90c270a34f3eeea889a98f63509dcf83eff1adcbfa4d8e32ab7799e6105d",
+      "hash": "b1c4215de2c2a2137a4418cbc8f980d672aebdbab46379580fbf8f8fca318321",
       "description": "Add Array type with O(1) indexed access",
       "created": "2025-12-01",
       "tags": [
