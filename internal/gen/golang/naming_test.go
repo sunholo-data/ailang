@@ -61,6 +61,8 @@ func TestToGoTypeName(t *testing.T) {
 		{"FrameInput", "FrameInput"},
 		{"tree", "Tree"},
 		{"", ""},
+		{"$a", "A"},       // Type variable
+		{"$foo", "Foo"},   // Type variable
 	}
 
 	for _, tt := range tests {
@@ -106,6 +108,9 @@ func TestToGoFuncName(t *testing.T) {
 		{"init_world", false, "initWorld"},
 		{"factorial", true, "Factorial"},
 		{"factorial", false, "factorial"},
+		{"$a", true, "A"},       // Type variable
+		{"$a", false, "a"},      // Type variable
+		{"$foo_bar", true, "FooBar"},  // Type variable
 	}
 
 	for _, tt := range tests {
@@ -242,6 +247,29 @@ func TestEscapeKeyword(t *testing.T) {
 			result := EscapeKeyword(tt.input)
 			if result != tt.expected {
 				t.Errorf("EscapeKeyword(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToGoVarName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"world", "world"},
+		{"frame_input", "frameInput"},
+		{"HelloWorld", "helloWorld"},
+		{"$a", "a"},             // Type variable - $ stripped
+		{"$foo", "foo"},         // Type variable
+		{"$foo_bar", "fooBar"},  // Type variable with underscore
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := ToGoVarName(tt.input)
+			if result != tt.expected {
+				t.Errorf("ToGoVarName(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

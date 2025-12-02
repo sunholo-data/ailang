@@ -60,18 +60,24 @@ func ToCamelCase(s string) string {
 
 // ToGoTypeName converts an AILANG type name to a valid Go type name.
 // AILANG types are already PascalCase, so this is mostly a passthrough
-// with validation.
+// with validation. Also strips $ prefix from type variables.
 //
 // Examples:
 //
 //	"Tree"       -> "Tree"
 //	"FrameInput" -> "FrameInput"
+//	"$a"         -> "A" (type variable)
 func ToGoTypeName(s string) string {
-	// AILANG type names are already PascalCase
-	// Just ensure first character is uppercase
+	// Strip $ prefix from type variables
+	if len(s) > 0 && s[0] == '$' {
+		s = s[1:]
+	}
 	if s == "" {
 		return ""
 	}
+	// Sanitize invalid characters
+	s = SanitizeGoIdentifier(s)
+	// Ensure first character is uppercase
 	runes := []rune(s)
 	runes[0] = unicode.ToUpper(runes[0])
 	return string(runes)
@@ -91,6 +97,7 @@ func ToGoFieldName(s string) string {
 
 // ToGoFuncName converts an AILANG function name to a Go function name.
 // Exported functions use PascalCase, private functions use camelCase.
+// Also strips $ prefix from type variables.
 //
 // Examples:
 //
@@ -99,6 +106,12 @@ func ToGoFieldName(s string) string {
 //	"init_world", true  -> "InitWorld"
 //	"init_world", false -> "initWorld"
 func ToGoFuncName(s string, exported bool) string {
+	// Strip $ prefix from type variables
+	if len(s) > 0 && s[0] == '$' {
+		s = s[1:]
+	}
+	// Sanitize invalid characters
+	s = SanitizeGoIdentifier(s)
 	if exported {
 		return ToPascalCase(s)
 	}
@@ -107,12 +120,21 @@ func ToGoFuncName(s string, exported bool) string {
 
 // ToGoVarName converts an AILANG variable name to a Go variable name.
 // Variables are always package-private (camelCase).
+// Also sanitizes invalid characters like $ (from type variables).
 //
 // Examples:
 //
-//	"world"      -> "world"
+//	"world"       -> "world"
 //	"frame_input" -> "frameInput"
+//	"$a"          -> "a"   (type variable)
+//	"$foo_bar"    -> "fooBar"
 func ToGoVarName(s string) string {
+	// Strip $ prefix from type variables
+	if len(s) > 0 && s[0] == '$' {
+		s = s[1:]
+	}
+	// Sanitize any remaining invalid characters
+	s = SanitizeGoIdentifier(s)
 	return ToCamelCase(s)
 }
 
