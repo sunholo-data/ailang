@@ -145,6 +145,25 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n\n")
+
+	g.writef("// Cons prepends an element to a list (cons operator).\n")
+	g.writef("// AILANG: head :: tail\n")
+	g.writef("func Cons(head interface{}, tail interface{}) []interface{} {\n")
+	g.indent++
+	g.writef("if tail == nil {\n")
+	g.indent++
+	g.writef("return []interface{}{head}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("list, ok := tail.([]interface{})\n")
+	g.writef("if !ok {\n")
+	g.indent++
+	g.writef("return []interface{}{head}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return append([]interface{}{head}, list...)\n")
+	g.indent--
+	g.writef("}\n\n")
 }
 
 // generateDecl generates Go code for a Core declaration.
@@ -378,6 +397,35 @@ func (g *Generator) generateLambda(lam *core.Lambda) error {
 
 // generateApp generates a Go function application.
 func (g *Generator) generateApp(app *core.App) error {
+	// Special handling for cons operator (::)
+	if v, ok := app.Func.(*core.Var); ok && v.Name == "::" {
+		g.write("Cons(")
+		for i, arg := range app.Args {
+			if i > 0 {
+				g.write(", ")
+			}
+			if err := g.generateExpr(arg); err != nil {
+				return err
+			}
+		}
+		g.write(")")
+		return nil
+	}
+	// Also check for VarGlobal with :: name
+	if v, ok := app.Func.(*core.VarGlobal); ok && v.Ref.Name == "::" {
+		g.write("Cons(")
+		for i, arg := range app.Args {
+			if i > 0 {
+				g.write(", ")
+			}
+			if err := g.generateExpr(arg); err != nil {
+				return err
+			}
+		}
+		g.write(")")
+		return nil
+	}
+
 	if err := g.generateExpr(app.Func); err != nil {
 		return err
 	}
@@ -521,6 +569,20 @@ func (g *Generator) generateMatchArm(arm *core.MatchArm) error {
 
 // generateBinOp generates a Go binary operation.
 func (g *Generator) generateBinOp(binop *core.BinOp) error {
+	// Handle cons operator specially - it's not a simple binary op in Go
+	if binop.Op == "::" {
+		g.write("Cons(")
+		if err := g.generateExpr(binop.Left); err != nil {
+			return err
+		}
+		g.write(", ")
+		if err := g.generateExpr(binop.Right); err != nil {
+			return err
+		}
+		g.write(")")
+		return nil
+	}
+
 	g.write("(")
 	if err := g.generateExpr(binop.Left); err != nil {
 		return err
