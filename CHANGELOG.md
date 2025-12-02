@@ -1,5 +1,93 @@
 # AILANG Changelog
 
+## [v0.5.1] - 2025-12-02
+
+### Added - API Discovery Commands (M-DX-API-DISCOVERY)
+
+**User Impact**: Discover function signatures without trial-and-error. No more guessing `rand_int(4)` vs `rand_int(0, 4)`.
+
+**New Commands:**
+```bash
+ailang builtins show _rand_int     # Full docs for a builtin
+ailang builtins list --verbose     # All builtins with signatures
+ailang builtins list --by-module --verbose  # Grouped by module
+```
+
+**Example Output:**
+```
+_rand_int: (int, int) -> int ! {Rand}
+
+Usage:
+  import std/rand (rand_int)
+  rand_int(...)
+
+Description:
+  Generate random integer in range [min, max] inclusive
+
+Parameters:
+  min:         Minimum value (inclusive)
+  max:         Maximum value (inclusive)
+```
+
+**Features:**
+- `--verbose` flag shows full signatures and descriptions
+- `show <name>` command with fuzzy search ("Did you mean:")
+- Shows public import path for internal builtins (`_rand_int` → `rand_int`)
+
+**Files Changed:**
+- `cmd/ailang/doctor.go` - Added ~220 LOC for verbose/show commands
+
+---
+
+### Added - v0.5.1 Teaching Prompt with Effect Module APIs
+
+**User Impact**: Teaching prompt now documents all effect module function signatures upfront.
+
+**New Section: Effect Module APIs**
+- `std/rand` - rand_int, rand_float, rand_bool, rand_seed
+- `std/debug` - log, check
+- `std/clock` - now
+- `std/ai` - infer
+- `std/game` - get_player_state, tick
+
+**DX Pattern Documented:**
+```bash
+ailang builtins show _rand_int     # Full docs for a builtin
+ailang builtins list --by-module --verbose  # All builtins with signatures
+```
+
+**Files Added:**
+- `cmd/ailang/prompts/v0.5.1.md` - New prompt with Effect Module APIs section
+
+---
+
+### Fixed - Go Codegen for Record Update (M-CODEGEN-RECORDUPDATE)
+
+**User Impact**: `ailang compile --emit-go` now works with record update syntax.
+
+**Before:**
+```
+unsupported expression type: *core.RecordUpdate
+```
+
+**After:**
+```go
+func UpdateAge(person interface{}, newAge interface{}) interface{} {
+    return RecordUpdate(person, map[string]interface{}{"age": newAge})
+}
+```
+
+**AILANG Syntax:**
+```ailang
+export func updateAge(person: {name: string, age: int}, newAge: int) =
+  { person | age: newAge }
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added RecordUpdate case and runtime helper
+
+---
+
 ## [v0.5.0] - 2025-12-02
 
 ### Added - Sim Stub Example & CI Integration (M-GAME-D)

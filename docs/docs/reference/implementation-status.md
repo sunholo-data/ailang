@@ -11,6 +11,18 @@ Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) 
 
 ## Release History
 
+### v0.5.1 (December 2025)
+
+**API Discovery & DX Improvements:**
+- ✅ **`ailang builtins show <name>`** - Full documentation for any builtin with fuzzy search
+- ✅ **`--verbose` Flag** - Shows signatures and descriptions in builtins list
+- ✅ **Public Import Path** - Shows `import std/rand (rand_int)` for internal builtins
+- ✅ **Effect Module APIs** - v0.5.1 prompt documents all effect module signatures
+
+**Go Codegen Improvements:**
+- ✅ **RecordUpdate Support** - `{ base | field: value }` now generates valid Go code
+- ✅ **Runtime Helper** - `RecordUpdate()` function added to generated preamble
+
 ### v0.4.5 (November 2025)
 
 **Inline Testing System (M-TESTING-INLINE):**
