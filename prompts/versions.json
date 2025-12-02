@@ -318,9 +318,20 @@
         "latest"
       ],
       "notes": "Add Array type with O(1) indexed access"
+    },
+    "v0.5.0": {
+      "file": "prompts/v0.5.0.md",
+      "hash": "a424574c44234f591f3a5c72b0a9ebfd7d9b4eb3a7ae144c9c0c7c80d9dd9e42",
+      "description": "Add AI effect for multi-provider AI oracle",
+      "created": "2025-12-02",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add AI effect for multi-provider AI oracle"
     }
   },
-  "active": "v0.4.10",
+  "active": "v0.5.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
