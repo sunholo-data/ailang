@@ -238,7 +238,28 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 		return nil
 
 	case *core.VarGlobal:
-		// Check if this is an ADT constructor
+		// Check if this is an ADT factory call (from elaboration)
+		// Elaborator generates: $adt.make_TypeName_CtorName
+		if e.Ref.Module == "$adt" && strings.HasPrefix(e.Ref.Name, "make_") {
+			// Parse "make_TypeName_CtorName" to get the constructor info
+			parts := strings.SplitN(e.Ref.Name[5:], "_", 2) // Skip "make_"
+			if len(parts) == 2 {
+				typeName := parts[0]
+				ctorName := parts[1]
+				// Generate Go constructor name: New + TypeName + CtorName
+				goFuncName := "New" + ToPascalCase(typeName) + ToPascalCase(ctorName)
+
+				// Check if this is a nullary constructor (needs to be called immediately)
+				if ctorInfo, ok := g.adtConstructors[ctorName]; ok && ctorInfo.FieldCount == 0 {
+					g.write(goFuncName + "()")
+				} else {
+					g.write(goFuncName)
+				}
+				return nil
+			}
+		}
+
+		// Check if this is a registered ADT constructor by name
 		if ctorInfo, ok := g.adtConstructors[e.Ref.Name]; ok {
 			// Generate the proper constructor function call
 			if ctorInfo.FieldCount == 0 {
