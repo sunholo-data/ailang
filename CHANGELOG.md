@@ -265,6 +265,35 @@ func Find_path(from *Position, to *Position) []*Position {
 
 ---
 
+### Benchmark Results (M-EVAL)
+
+**Overall Performance**: 71.4% success rate (1103 total runs: 827 standard + 276 agent)
+
+**Standard Eval (0-shot + self-repair):**
+
+| Metric | v0.4.10 | v0.5.0 | Change |
+|--------|---------|--------|--------|
+| **0-shot (first attempt)** | 61.9% | 57.4% (317/552) | -4.5% |
+| **Final (with repair)** | 66.7% | 60.8% (336/552) | -5.9% |
+| **Python (final)** | 77.0% | 81.8% (451/551) | +4.8% |
+| **AILANG (final)** | 56.5% | 39.8% | -16.7% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | v0.4.10 | v0.5.0 | Change |
+|----------|---------|--------|--------|
+| **AILANG** | N/A | 73.9% (102/138) | new |
+| **Python** | N/A | 96.3% (133/138) | new |
+| **Overall** | N/A | 85.1% (235/276) | new |
+
+**Key Findings:**
+- Agent eval shows strong results: 85.1% overall, with 96.3% for Python
+- Standard eval AILANG scores dropped due to stricter type checking in v0.5.0
+- Python standard eval improved +4.8% with better prompt training
+- Total eval cost: $18.89 for 9 models across 1103 runs
+
+---
+
 ## [v0.4.10] - 2025-12-01
 
 ### Added - Array Type with O(1) Indexed Access (M-ARRAY-TYPE)
