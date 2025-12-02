@@ -19,6 +19,14 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 )
 
+// ADTConstructorInfo holds information about an ADT constructor.
+type ADTConstructorInfo struct {
+	TypeName    string // The ADT type name (e.g., "Selection")
+	CtorName    string // The constructor name (e.g., "SelectionNone")
+	GoFuncName  string // The Go constructor function name (e.g., "NewSelectionSelectionNone")
+	FieldCount  int    // Number of fields (0 for nullary constructors)
+}
+
 // Generator produces Go source code from AILANG Core AST.
 type Generator struct {
 	// PackageName is the Go package name for generated code
@@ -29,6 +37,9 @@ type Generator struct {
 
 	// prog is the current program being generated (for accessing DeclMeta)
 	prog *core.Program
+
+	// adtConstructors maps constructor names to their info
+	adtConstructors map[string]*ADTConstructorInfo
 
 	// output buffer for generated code
 	buf bytes.Buffer
@@ -43,8 +54,22 @@ type Generator struct {
 // New creates a new Generator with the specified package name.
 func New(packageName string) *Generator {
 	return &Generator{
-		PackageName: packageName,
-		TypeMapper:  NewTypeMapper(),
+		PackageName:     packageName,
+		TypeMapper:      NewTypeMapper(),
+		adtConstructors: make(map[string]*ADTConstructorInfo),
+	}
+}
+
+// RegisterADTConstructor registers an ADT constructor for proper code generation.
+// This enables VarGlobal references to ADT constructors to generate the correct
+// Go constructor function calls (e.g., NewSelectionSelectionNone() instead of SelectionNone).
+func (g *Generator) RegisterADTConstructor(typeName, ctorName string, fieldCount int) {
+	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
+	g.adtConstructors[ctorName] = &ADTConstructorInfo{
+		TypeName:   typeName,
+		CtorName:   ctorName,
+		GoFuncName: goFuncName,
+		FieldCount: fieldCount,
 	}
 }
 
@@ -213,7 +238,20 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 		return nil
 
 	case *core.VarGlobal:
-		// For global references, use the local name
+		// Check if this is an ADT constructor
+		if ctorInfo, ok := g.adtConstructors[e.Ref.Name]; ok {
+			// Generate the proper constructor function call
+			if ctorInfo.FieldCount == 0 {
+				// Nullary constructor: call with no args
+				g.write(ctorInfo.GoFuncName + "()")
+			} else {
+				// Constructor with fields - just reference the function
+				// (it will be called with App)
+				g.write(ctorInfo.GoFuncName)
+			}
+			return nil
+		}
+		// For other global references, use PascalCase
 		g.write(ToPascalCase(e.Ref.Name))
 		return nil
 

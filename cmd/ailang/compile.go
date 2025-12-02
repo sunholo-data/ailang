@@ -224,6 +224,16 @@ func compileCommand() {
 	if coreProg != nil && len(coreProg.Decls) > 0 {
 		fmt.Printf("%s Generating functions (%d declarations)\n", cyan("→"), len(coreProg.Decls))
 		codeGen := gen.New(pkgName)
+
+		// Register ADT constructors so the generator can produce correct references
+		for _, td := range typeDecls {
+			if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+				for _, ctor := range adt.Constructors {
+					codeGen.RegisterADTConstructor(td.Name, ctor.Name, len(ctor.Fields))
+				}
+			}
+		}
+
 		funcsCode, err := codeGen.Generate(coreProg)
 		if err != nil {
 			// Function generation is experimental - warn but continue
