@@ -41,6 +41,9 @@ type Generator struct {
 	// adtConstructors maps constructor names to their info
 	adtConstructors map[string]*ADTConstructorInfo
 
+	// topLevelFuncs maps original function names to their Go names
+	topLevelFuncs map[string]string
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -57,6 +60,7 @@ func New(packageName string) *Generator {
 		PackageName:     packageName,
 		TypeMapper:      NewTypeMapper(),
 		adtConstructors: make(map[string]*ADTConstructorInfo),
+		topLevelFuncs:   make(map[string]string),
 	}
 }
 
@@ -164,6 +168,186 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("return append([]interface{}{head}, list...)\n")
 	g.indent--
 	g.writef("}\n\n")
+
+	// Integer arithmetic helpers (from dictionary resolution)
+	g.writef("// AddInt adds two integers.\n")
+	g.writef("func AddInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) + toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// SubInt subtracts two integers.\n")
+	g.writef("func SubInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) - toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// MulInt multiplies two integers.\n")
+	g.writef("func MulInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) * toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// DivInt divides two integers.\n")
+	g.writef("func DivInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) / toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// ModInt returns integer modulo.\n")
+	g.writef("func ModInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) %% toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Float arithmetic helpers
+	g.writef("// AddFloat adds two floats.\n")
+	g.writef("func AddFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) + toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// SubFloat subtracts two floats.\n")
+	g.writef("func SubFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) - toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// MulFloat multiplies two floats.\n")
+	g.writef("func MulFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) * toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// DivFloat divides two floats.\n")
+	g.writef("func DivFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) / toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Type conversion helpers
+	g.writef("// IntToFloat converts int to float.\n")
+	g.writef("func IntToFloat(a interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return float64(toInt64(a))\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// FloatToInt converts float to int.\n")
+	g.writef("func FloatToInt(a interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return int64(toFloat64(a))\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Comparison helpers
+	g.writef("// EqInt compares two integers for equality.\n")
+	g.writef("func EqInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) == toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// LtInt compares two integers (less than).\n")
+	g.writef("func LtInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) < toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// LeInt compares two integers (less or equal).\n")
+	g.writef("func LeInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) <= toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// GtInt compares two integers (greater than).\n")
+	g.writef("func GtInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) > toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// GeInt compares two integers (greater or equal).\n")
+	g.writef("func GeInt(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toInt64(a) >= toInt64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Negation helper
+	g.writef("// NegInt negates an integer.\n")
+	g.writef("func NegInt(a interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return -toInt64(a)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// NegFloat negates a float.\n")
+	g.writef("func NegFloat(a interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return -toFloat64(a)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Type conversion utility functions
+	g.writef("// toInt64 converts interface{} to int64.\n")
+	g.writef("func toInt64(v interface{}) int64 {\n")
+	g.indent++
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case int64:\n")
+	g.indent++
+	g.writef("return x\n")
+	g.indent--
+	g.writef("case int:\n")
+	g.indent++
+	g.writef("return int64(x)\n")
+	g.indent--
+	g.writef("case float64:\n")
+	g.indent++
+	g.writef("return int64(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("return 0\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// toFloat64 converts interface{} to float64.\n")
+	g.writef("func toFloat64(v interface{}) float64 {\n")
+	g.indent++
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case float64:\n")
+	g.indent++
+	g.writef("return x\n")
+	g.indent--
+	g.writef("case int64:\n")
+	g.indent++
+	g.writef("return float64(x)\n")
+	g.indent--
+	g.writef("case int:\n")
+	g.indent++
+	g.writef("return float64(x)\n")
+	g.indent--
+	g.writef("default:\n")
+	g.indent++
+	g.writef("return 0\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("}\n\n")
 }
 
 // generateDecl generates Go code for a Core declaration.
@@ -226,6 +410,9 @@ func (g *Generator) generateTopLevelLetRec(letrec *core.LetRec) error {
 func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 
+	// Register this function name mapping for recursive references
+	g.topLevelFuncs[name] = funcName
+
 	// Build parameter list
 	var params []string
 	for _, p := range lam.Params {
@@ -253,7 +440,12 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 		return g.generateLit(e)
 
 	case *core.Var:
-		g.write(ToGoVarName(e.Name))
+		// Check if this is a reference to a top-level function
+		if goName, ok := g.topLevelFuncs[e.Name]; ok {
+			g.write(goName)
+		} else {
+			g.write(ToGoVarName(e.Name))
+		}
 		return nil
 
 	case *core.VarGlobal:
@@ -535,18 +727,51 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.writef("\n")
 	g.writef("_ = _scrutinee // suppress unused\n")
 
-	// Generate pattern matching - simplified for now
-	g.writef("switch _s := _scrutinee.(type) {\n")
-	for _, arm := range match.Arms {
-		if err := g.generateMatchArm(&arm); err != nil {
-			return err
+	// Determine if we need a type switch or value switch
+	needsTypeSwitch := g.patternsNeedTypeSwitch(match.Arms)
+
+	if needsTypeSwitch {
+		// Type switch for ADT constructors
+		g.writef("switch _s := _scrutinee.(type) {\n")
+		for _, arm := range match.Arms {
+			if err := g.generateMatchArmTypeSwitch(&arm); err != nil {
+				return err
+			}
+		}
+		g.writef("default:\n")
+		g.indent++
+		g.writef("_ = _s\n")
+		g.writef("panic(\"non-exhaustive match\")\n")
+		g.indent--
+	} else {
+		// Value switch for literals and wildcards
+		g.writef("switch _scrutinee {\n")
+		hasDefault := false
+		for _, arm := range match.Arms {
+			if isWildcardOrVarPattern(arm.Pattern) {
+				hasDefault = true
+				g.writef("default:\n")
+			} else {
+				if err := g.generateMatchArmValueSwitch(&arm); err != nil {
+					return err
+				}
+				continue
+			}
+			g.indent++
+			g.writef("return ")
+			if err := g.generateExpr(arm.Body); err != nil {
+				return err
+			}
+			g.writef("\n")
+			g.indent--
+		}
+		if !hasDefault {
+			g.writef("default:\n")
+			g.indent++
+			g.writef("panic(\"non-exhaustive match\")\n")
+			g.indent--
 		}
 	}
-	g.writef("default:\n")
-	g.indent++
-	g.writef("_ = _s\n")
-	g.writef("panic(\"non-exhaustive match\")\n")
-	g.indent--
 	g.writef("}\n")
 
 	g.indent--
@@ -554,9 +779,77 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	return nil
 }
 
-// generateMatchArm generates a case clause for pattern matching.
-func (g *Generator) generateMatchArm(arm *core.MatchArm) error {
-	g.writef("case interface{}:\n")
+// patternsNeedTypeSwitch returns true if patterns include ADT constructors.
+func (g *Generator) patternsNeedTypeSwitch(arms []core.MatchArm) bool {
+	for _, arm := range arms {
+		if _, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// isWildcardOrVarPattern returns true if pattern is wildcard or variable binding.
+func isWildcardOrVarPattern(p core.CorePattern) bool {
+	switch p.(type) {
+	case *core.WildcardPattern, *core.VarPattern:
+		return true
+	default:
+		return false
+	}
+}
+
+// generateMatchArmValueSwitch generates a case clause for value-based matching.
+func (g *Generator) generateMatchArmValueSwitch(arm *core.MatchArm) error {
+	switch p := arm.Pattern.(type) {
+	case *core.LitPattern:
+		switch v := p.Value.(type) {
+		case int64:
+			g.writef("case int64(%d):\n", v)
+		case int:
+			g.writef("case int64(%d):\n", v)
+		case float64:
+			g.writef("case float64(%v):\n", v)
+		case bool:
+			g.writef("case %v:\n", v)
+		case string:
+			g.writef("case %q:\n", v)
+		default:
+			g.writef("case %v:\n", v)
+		}
+	case *core.ListPattern:
+		if len(p.Elements) == 0 {
+			// Empty list pattern - check for empty slice
+			g.writef("case []interface{}{}:\n")
+		} else {
+			// Non-empty list - needs more complex handling
+			g.writef("default: // TODO: complex list pattern\n")
+		}
+	default:
+		g.writef("default:\n")
+	}
+	g.indent++
+	g.writef("return ")
+	if err := g.generateExpr(arm.Body); err != nil {
+		return err
+	}
+	g.writef("\n")
+	g.indent--
+	return nil
+}
+
+// generateMatchArmTypeSwitch generates a case clause for type-based matching.
+func (g *Generator) generateMatchArmTypeSwitch(arm *core.MatchArm) error {
+	switch p := arm.Pattern.(type) {
+	case *core.ConstructorPattern:
+		// ADT constructor pattern - match on struct type
+		goTypeName := ToGoTypeName(p.Name)
+		g.writef("case *%s:\n", goTypeName)
+	case *core.WildcardPattern, *core.VarPattern:
+		g.writef("default:\n")
+	default:
+		g.writef("case interface{}:\n")
+	}
 	g.indent++
 	g.writef("return ")
 	if err := g.generateExpr(arm.Body); err != nil {
