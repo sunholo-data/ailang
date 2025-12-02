@@ -1,7 +1,7 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-38.6%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-39.0%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
@@ -301,14 +301,15 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-23%20passing%2024%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-23%20passing%2026%20failing-red.svg)
 
-**23/52 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**23/54 examples passing (43%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `runnable/adt_option.ail` | ✅ Pass |  |
 | `runnable/adt_simple.ail` | ✅ Pass |  |
+| `runnable/ai_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
@@ -316,6 +317,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/cli_args_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/closures.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/debug_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
