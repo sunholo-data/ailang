@@ -366,6 +366,30 @@ See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/ex
 
 ---
 
+## 🔗 Go Interop (v0.5.x)
+
+AILANG can compile to Go for game development and performance-critical applications:
+
+```bash
+# Generate Go code from AILANG
+ailang compile --emit-go --package-name game world.ail
+```
+
+**Features:**
+- Type generation (records → Go structs)
+- Extern function stubs (implement in Go)
+- Deterministic output (fixed seeds)
+
+**ABI Stability (v0.5.x):** The Go interop ABI is "stable preview":
+- Primitive type mapping is stable
+- Record/struct generation is stable
+- Breaking changes announced in CHANGELOG
+- Full stability guaranteed in v0.6.0
+
+📖 See **[Go Interop Guide](docs/docs/guides/go-interop.md)** for complete documentation.
+
+---
+
 ## Documentation
 
 📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site

@@ -198,6 +198,100 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	return fn
 }
 
+// parseExternFunctionDeclaration parses an extern func declaration (Go-implemented function)
+// Syntax: extern func name(params) -> ReturnType
+// Extern functions have no body - they are implemented in Go
+func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
+	startPos := p.curPos()
+
+	if !p.curTokenIs(lexer.FUNC) {
+		p.peekError(lexer.FUNC)
+		return nil
+	}
+
+	fn := &ast.FuncDecl{
+		IsExtern: true,
+		Pos:      startPos,
+		Origin:   "extern_func_decl",
+	}
+
+	if !p.expectPeek(lexer.IDENT) {
+		return nil
+	}
+	fn.Name = p.curToken.Literal
+
+	// Validate: extern functions cannot use underscore-prefixed names
+	if strings.HasPrefix(fn.Name, "_") {
+		p.errors = append(p.errors, NewParserError(
+			"EXT001",
+			p.curPos(),
+			p.curToken,
+			fmt.Sprintf("extern function '%s' cannot have underscore-prefix (reserved for builtins)", fn.Name),
+			nil,
+			"Use a public name without leading underscore"))
+		return nil
+	}
+
+	// Extern functions cannot have type parameters (must be monomorphic)
+	if p.peekTokenIs(lexer.LBRACKET) {
+		p.errors = append(p.errors, NewParserError(
+			"EXT002",
+			p.curPos(),
+			p.curToken,
+			"extern functions cannot be polymorphic (no type parameters)",
+			nil,
+			"Extern functions must use concrete types like int, float, string"))
+		return nil
+	}
+
+	// Parse parameters
+	if p.peekTokenIs(lexer.UNIT) {
+		// Zero-arg extern: extern func name()
+		p.nextToken()
+		fn.Params = []*ast.Param{
+			{
+				Name: "_",
+				Type: &ast.SimpleType{Name: "()", Pos: p.curPos()},
+				Pos:  p.curPos(),
+			},
+		}
+	} else {
+		if !p.expectPeek(lexer.LPAREN) {
+			return nil
+		}
+		fn.Params = p.parseParams()
+	}
+
+	// Extern functions must have explicit return type
+	if !p.peekTokenIs(lexer.ARROW) {
+		p.errors = append(p.errors, NewParserError(
+			"EXT003",
+			p.curPos(),
+			p.curToken,
+			"extern functions must have explicit return type",
+			[]lexer.TokenType{lexer.ARROW},
+			"Add '-> ReturnType' after parameters"))
+		return nil
+	}
+
+	p.nextToken() // move to ARROW
+	p.nextToken() // move past ARROW to start of type
+	fn.ReturnType = p.parseType()
+
+	// Parse effects if present: ! {IO, FS}
+	if p.peekTokenIs(lexer.BANG) {
+		p.nextToken() // move to BANG
+		fn.Effects = p.parseEffectAnnotation()
+	}
+
+	// Extern functions have no body
+	fn.Body = nil
+
+	endPos := p.curPos()
+	fn.Span = ast.Span{Start: startPos, End: endPos}
+	return fn
+}
+
 // parseFunctionBody parses a function body as a block of semicolon-separated expressions
 // Assumes we're currently AT the LBRACE token
 // Returns either a single expression or a Block containing multiple expressions

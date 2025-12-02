@@ -356,6 +356,11 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 func collectFuncSigs(file *ast.File) []*FuncSig {
 	var funcs []*FuncSig
 	for _, f := range file.Funcs {
+		// Skip extern functions - they have no body to elaborate
+		// Extern functions are handled separately in codegen (extern_stubs.go)
+		if f.IsExtern {
+			continue
+		}
 		funcs = append(funcs, astFuncToSig(f))
 	}
 	return funcs

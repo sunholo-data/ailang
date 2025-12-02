@@ -1,5 +1,126 @@
 # AILANG Changelog
 
+## [Unreleased] - v0.5.1
+
+### Added - Sim Stub Example & CI Integration (M-GAME-D)
+
+**User Impact**: Complete working example demonstrating AILANG → Go code generation workflow with CI validation.
+
+**New Example: `examples/sim_stub/`**
+- `world.ail` - AILANG types and extern function declarations
+- `impl.go` - Go implementation of extern functions
+- `main.go` - Go driver that runs 10 deterministic ticks
+- `Makefile` - Build workflow (generate, build, test)
+- `expected_output.txt` - Golden file for CI testing
+
+**Usage:**
+```bash
+cd examples/sim_stub
+make run            # Generate, build, and run
+make test           # Verify deterministic output
+```
+
+**CI Integration:**
+- New `make test-sim-stub` target in root Makefile
+- New `.github/workflows/test-game-codegen.yml` workflow
+- Validates: AILANG compile → Go build → run → compare output
+
+**Elaborator Fix:**
+- Extern functions (nil Body) now correctly skipped during elaboration
+- Previously caused "normalization received nil expression" error
+
+**Files Added/Changed:**
+- `examples/sim_stub/` - Complete example (~250 LOC)
+- `internal/elaborate/file.go` - Skip extern functions in collectFuncSigs
+- `Makefile` - Added test-sim-stub target
+- `.github/workflows/test-game-codegen.yml` - CI workflow
+
+---
+
+### ABI Stability Promise (v0.5.x)
+
+**The Go interop ABI is now "stable preview":**
+
+| Component | Stability | Notes |
+|-----------|-----------|-------|
+| Type mapping (primitives) | ✅ Stable | int→int64, float→float64, string, bool |
+| Record type generation | ✅ Stable | Struct field ordering preserved |
+| Extern function signatures | ✅ Stable | Generated stubs won't break |
+| ADT discriminator format | ⚠️ Preview | May change before v0.6.0 |
+| Generic type handling | ⚠️ Preview | Currently uses interface{} |
+
+**What this means:**
+- Safe to use in production for non-generic, non-ADT code
+- Breaking changes will be announced in CHANGELOG with migration path
+- Full stability guaranteed starting v0.6.0
+
+**Documentation:**
+- `docs/docs/guides/go-interop.md` - Comprehensive Go interop guide
+- `README.md` - Added Go Interop section with ABI stability notice
+
+---
+
+### Added - Go Code Generation & Extern Functions (M-GAME-C)
+
+**User Impact**: New `ailang compile` command generates Go source code from AILANG types and extern function declarations, enabling seamless Go interop for game development.
+
+**New CLI Command:**
+```bash
+ailang compile --emit-go --out gen --package-name game world.ail
+```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--emit-go` | Generate Go source code (required) |
+| `--out <dir>` | Output directory (default: "gen") |
+| `--package-name <name>` | Go package name (default: derived from module) |
+
+**Extern Functions:**
+Declare Go-implemented functions in AILANG with type-safe signatures:
+```ailang
+type Position = { x: int, y: int }
+
+extern func find_path(from: Position, to: Position) -> [Position]
+extern func calculate_distance(a: Position, b: Position) -> float
+```
+
+**Generated Output:**
+- `types.go` - ADT types as Go structs with constructors
+- `extern_stubs.go` - Function stubs to implement in Go
+- `funcs.go` - Compiled functions (experimental)
+
+**Example Generated Stub:**
+```go
+// find_path is an extern function declared in AILANG.
+//
+// AILANG signature:
+//   extern func find_path(from: Position, to: Position) -> [Position]
+//
+// Implement this function to provide the behavior.
+func Find_path(from *Position, to *Position) []*Position {
+    panic("not implemented: find_path")
+}
+```
+
+**Error Codes:**
+| Code | Description |
+|------|-------------|
+| EXT001 | Underscore prefix not allowed (reserved for builtins) |
+| EXT002 | Polymorphic extern functions not supported |
+| EXT003 | Missing explicit return type |
+
+**Files Added/Changed:**
+- `cmd/ailang/compile.go` - Compile subcommand (~330 LOC)
+- `internal/lexer/token.go` - Added EXTERN token
+- `internal/parser/parser_func.go` - parseExternFunctionDeclaration (~95 LOC)
+- `internal/ast/ast_decl.go` - Added IsExtern field to FuncDecl
+- `docs/docs/guides/go-interop.md` - Comprehensive interop guide
+
+**Design Doc:** `design_docs/planned/v0_5_0/M-GAME-C-compiler-ux-extern.md`
+
+---
+
 ## [v0.4.10] - 2025-12-01
 
 ### Added - Array Type with O(1) Indexed Access (M-ARRAY-TYPE)

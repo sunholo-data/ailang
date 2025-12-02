@@ -43,6 +43,23 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		)
 		p.errors = append(p.errors, err)
 		return nil
+	case lexer.EXTERN:
+		// Handle extern function declaration (Go-implemented functions)
+		if p.peekTokenIs(lexer.FUNC) {
+			p.nextToken() // consume 'extern'
+			return p.parseExternFunctionDeclaration()
+		}
+		// Error: extern must be followed by func
+		err := NewParserError(
+			"PAR_EXTERN_REQUIRES_FUNC",
+			p.curPos(),
+			p.curToken,
+			"extern must be followed by 'func'",
+			[]lexer.TokenType{lexer.FUNC},
+			"Use 'extern func name(params) -> ReturnType'",
+		)
+		p.errors = append(p.errors, err)
+		return nil
 	case lexer.PURE:
 		// Check if it's a pure function declaration
 		if p.peekTokenIs(lexer.FUNC) {

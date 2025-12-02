@@ -35,6 +35,7 @@ const (
 	MODULE
 	IMPORT
 	EXPORT
+	EXTERN // extern func declarations for Go interop
 	FORALL
 	EXISTS
 	TEST
@@ -142,6 +143,7 @@ var tokens = map[TokenType]string{
 	MODULE:     "module",
 	IMPORT:     "import",
 	EXPORT:     "export",
+	EXTERN:     "extern",
 	FORALL:     "forall",
 	EXISTS:     "exists",
 	TEST:       "test",
@@ -241,6 +243,7 @@ var keywords = map[string]TokenType{
 	"module":     MODULE,
 	"import":     IMPORT,
 	"export":     EXPORT,
+	"extern":     EXTERN,
 	"forall":     FORALL,
 	"exists":     EXISTS,
 	"test":       TEST,
@@ -349,7 +352,7 @@ func (t Token) IsKeyword() bool {
 	switch t.Type {
 	case FUNC, PURE, LET, IN, IF, THEN, ELSE,
 		MATCH, WITH, TYPE, CLASS, INSTANCE,
-		MODULE, IMPORT, EXPORT,
+		MODULE, IMPORT, EXPORT, EXTERN,
 		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
 		SEND, RECV, TIMEOUT,

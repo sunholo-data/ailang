@@ -1,0 +1,355 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/sunholo/ailang/internal/ast"
+	gen "github.com/sunholo/ailang/internal/gen/golang"
+	"github.com/sunholo/ailang/internal/pipeline"
+)
+
+// compileCommand handles the 'ailang compile' subcommand
+func compileCommand() {
+	fs := flag.NewFlagSet("compile", flag.ExitOnError)
+
+	// Output flags
+	emitGoFlag := fs.Bool("emit-go", false, "Generate Go source code")
+	outFlag := fs.String("out", "gen", "Output directory for generated files")
+	packageNameFlag := fs.String("package-name", "", "Go package name (default: derived from module name)")
+
+	// Help flag
+	helpFlag := fs.Bool("help", false, "Show help for compile command")
+	fs.BoolVar(helpFlag, "h", false, "Show help for compile command")
+
+	// Parse flags
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *helpFlag {
+		printCompileHelp()
+		return
+	}
+
+	// Check for filename argument
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+		printCompileHelp()
+		os.Exit(1)
+	}
+
+	filename := fs.Arg(0)
+
+	// Validate flags
+	if !*emitGoFlag {
+		fmt.Fprintf(os.Stderr, "%s: --emit-go is required (other backends not yet supported)\n", red("Error"))
+		os.Exit(1)
+	}
+
+	// Read the source file
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
+		os.Exit(1)
+	}
+
+	// Check file extension
+	if !strings.HasSuffix(filename, ".ail") {
+		fmt.Fprintf(os.Stderr, "%s: file should have .ail extension\n", yellow("Warning"))
+	}
+
+	fmt.Printf("%s Compiling %s\n", cyan("→"), filename)
+
+	// Run the pipeline to parse and type-check
+	cfg := pipeline.Config{
+		Mode: pipeline.ModeCheck, // Parse + type-check only, no eval
+	}
+	src := pipeline.Source{
+		Code:     string(content),
+		Filename: filename,
+	}
+
+	result, err := pipeline.Run(cfg, src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: compilation failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if len(result.Errors) > 0 {
+		fmt.Fprintf(os.Stderr, "%s: errors:\n", red("Error"))
+		for _, e := range result.Errors {
+			fmt.Fprintf(os.Stderr, "  %s\n", e)
+		}
+		os.Exit(1)
+	}
+
+	file := result.Artifacts.AST
+	coreProg := result.Artifacts.Core
+
+	// Determine package name
+	pkgName := *packageNameFlag
+	if pkgName == "" {
+		// Derive from module name or filename
+		if file != nil && file.Module != nil && file.Module.Path != "" {
+			// Use last component of module path
+			parts := strings.Split(file.Module.Path, "/")
+			pkgName = sanitizePackageName(parts[len(parts)-1])
+		} else {
+			// Use filename without extension
+			base := filepath.Base(filename)
+			pkgName = sanitizePackageName(strings.TrimSuffix(base, ".ail"))
+		}
+	}
+
+	fmt.Printf("%s Package name: %s\n", cyan("→"), pkgName)
+
+	// Create output directory
+	outDir := filepath.Join(*outFlag, pkgName)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot create output directory '%s': %v\n", red("Error"), outDir, err)
+		os.Exit(1)
+	}
+
+	// Extract type declarations from AST
+	var typeDecls []*ast.TypeDecl
+	var externFuncs []*ast.FuncDecl
+	if file != nil {
+		for _, decl := range file.Decls {
+			if td, ok := decl.(*ast.TypeDecl); ok {
+				typeDecls = append(typeDecls, td)
+			}
+		}
+		// Extract extern functions from Funcs
+		for _, fn := range file.Funcs {
+			if fn.IsExtern {
+				externFuncs = append(externFuncs, fn)
+			}
+		}
+	}
+
+	// Generate types from ADTs
+	if len(typeDecls) > 0 {
+		fmt.Printf("%s Generating types (%d type declarations)\n", cyan("→"), len(typeDecls))
+		adtGen := gen.NewADTGenerator(pkgName)
+		typesCode, err := adtGen.GenerateTypeDecls(typeDecls)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: type generation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		typesFile := filepath.Join(outDir, "types.go")
+		if err := os.WriteFile(typesFile, typesCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write types file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), typesFile)
+	}
+
+	// Generate extern function stubs
+	if len(externFuncs) > 0 {
+		fmt.Printf("%s Generating extern stubs (%d extern functions)\n", cyan("→"), len(externFuncs))
+		stubsCode := generateExternStubs(pkgName, externFuncs)
+
+		stubsFile := filepath.Join(outDir, "extern_stubs.go")
+		if err := os.WriteFile(stubsFile, stubsCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write stubs file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), stubsFile)
+	}
+
+	// Generate functions from Core AST
+	// Note: Function generation is experimental and may produce incomplete code
+	if coreProg != nil && len(coreProg.Decls) > 0 {
+		fmt.Printf("%s Generating functions (%d declarations)\n", cyan("→"), len(coreProg.Decls))
+		codeGen := gen.New(pkgName)
+		funcsCode, err := codeGen.Generate(coreProg)
+		if err != nil {
+			// Function generation is experimental - warn but continue
+			fmt.Fprintf(os.Stderr, "%s: function generation skipped (experimental): %v\n", yellow("Warning"), err)
+			fmt.Fprintf(os.Stderr, "  Type generation succeeded - use generated types in your Go code\n")
+		} else {
+			funcsFile := filepath.Join(outDir, "funcs.go")
+			if err := os.WriteFile(funcsFile, funcsCode, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot write functions file: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			fmt.Printf("%s Generated %s\n", green("✓"), funcsFile)
+		}
+	}
+
+	fmt.Printf("\n%s Compilation complete!\n", green("✓"))
+	fmt.Printf("  Output: %s/\n", outDir)
+	fmt.Printf("\n  %s Build with: cd %s && go build\n", cyan("→"), *outFlag)
+}
+
+// sanitizePackageName converts a string to a valid Go package name
+func sanitizePackageName(name string) string {
+	// Replace invalid characters
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		if r >= 'A' && r <= 'Z' {
+			return r + ('a' - 'A') // lowercase
+		}
+		if r == '_' || r == '-' {
+			return '_'
+		}
+		return -1 // remove
+	}, name)
+
+	// Ensure doesn't start with number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "pkg" + result
+	}
+
+	if result == "" {
+		result = "generated"
+	}
+
+	return result
+}
+
+func printCompileHelp() {
+	fmt.Println(`Usage: ailang compile [options] <file.ail>
+
+Compile AILANG source to other languages.
+
+Options:
+  --emit-go              Generate Go source code (required)
+  --out <dir>            Output directory (default: "gen")
+  --package-name <name>  Go package name (default: derived from module)
+  -h, --help             Show this help message
+
+Examples:
+  # Generate Go code from world.ail
+  ailang compile --emit-go world.ail
+
+  # Specify output directory and package name
+  ailang compile --emit-go --out gen/ --package-name game world.ail
+
+Output Structure:
+  <out>/<package>/
+  ├── types.go        # Generated ADT types
+  ├── extern_stubs.go # Stubs for extern functions (implement these)
+  └── funcs.go        # Generated functions (experimental)
+
+After generation, build with:
+  cd <out> && go build`)
+}
+
+// generateExternStubs generates Go stub code for extern functions
+func generateExternStubs(pkgName string, funcs []*ast.FuncDecl) []byte {
+	var buf strings.Builder
+
+	buf.WriteString("// Code generated by ailang. DO NOT EDIT.\n")
+	buf.WriteString("// Extern function stubs - implement these in your Go code.\n\n")
+	buf.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
+
+	buf.WriteString("// TODO: Implement these extern functions.\n")
+	buf.WriteString("// Copy the signatures below and add your implementation.\n")
+	buf.WriteString("//\n")
+	buf.WriteString("// Type mapping (AILANG -> Go):\n")
+	buf.WriteString("//   int    -> int64\n")
+	buf.WriteString("//   float  -> float64\n")
+	buf.WriteString("//   string -> string\n")
+	buf.WriteString("//   bool   -> bool\n")
+	buf.WriteString("//   [T]    -> []T (slice)\n")
+	buf.WriteString("//   { field: T } -> *TypeName (pointer to generated struct)\n")
+	buf.WriteString("//\n\n")
+
+	for _, fn := range funcs {
+		// Generate doc comment with AILANG signature
+		buf.WriteString(fmt.Sprintf("// %s is an extern function declared in AILANG.\n", fn.Name))
+		buf.WriteString("//\n")
+		buf.WriteString("// AILANG signature:\n")
+		buf.WriteString(fmt.Sprintf("//   extern func %s(", fn.Name))
+		for i, param := range fn.Params {
+			if param.Name == "_" && param.Type.String() == "()" {
+				continue
+			}
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(fmt.Sprintf("%s: %s", param.Name, param.Type.String()))
+		}
+		buf.WriteString(")")
+		if fn.ReturnType != nil {
+			buf.WriteString(fmt.Sprintf(" -> %s", fn.ReturnType.String()))
+		}
+		buf.WriteString("\n//\n")
+		buf.WriteString("// Implement this function to provide the behavior.\n")
+		buf.WriteString("// See docs/guides/go-interop.md for type mapping reference.\n")
+
+		// Generate function signature
+		buf.WriteString(fmt.Sprintf("func %s(", capitalize(fn.Name)))
+
+		// Generate parameters
+		for i, param := range fn.Params {
+			if param.Name == "_" && param.Type.String() == "()" {
+				// Skip unit parameters
+				continue
+			}
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(fmt.Sprintf("%s %s", param.Name, ailangTypeToGo(param.Type)))
+		}
+		buf.WriteString(")")
+
+		// Generate return type
+		if fn.ReturnType != nil {
+			buf.WriteString(fmt.Sprintf(" %s", ailangTypeToGo(fn.ReturnType)))
+		}
+
+		buf.WriteString(" {\n")
+		buf.WriteString("\tpanic(\"not implemented: ")
+		buf.WriteString(fn.Name)
+		buf.WriteString("\")\n")
+		buf.WriteString("}\n\n")
+	}
+
+	return []byte(buf.String())
+}
+
+// capitalize makes the first letter uppercase (for exported Go functions)
+func capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// ailangTypeToGo converts an AILANG type to a Go type string
+func ailangTypeToGo(t ast.Type) string {
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		switch typ.Name {
+		case "int":
+			return "int64"
+		case "float":
+			return "float64"
+		case "string":
+			return "string"
+		case "bool":
+			return "bool"
+		case "()":
+			return "struct{}"
+		default:
+			// Assume it's a user-defined type
+			return "*" + capitalize(typ.Name)
+		}
+	case *ast.ListType:
+		return "[]" + ailangTypeToGo(typ.Element)
+	case *ast.RecordType:
+		return "map[string]interface{}"
+	default:
+		return "interface{}"
+	}
+}

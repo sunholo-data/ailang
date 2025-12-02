@@ -1,0 +1,44 @@
+name: Test Game Codegen
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'internal/gen/**'
+      - 'internal/elaborate/**'
+      - 'internal/parser/**'
+      - 'cmd/ailang/compile.go'
+      - 'examples/sim_stub/**'
+      - '.github/workflows/test-game-codegen.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'internal/gen/**'
+      - 'internal/elaborate/**'
+      - 'internal/parser/**'
+      - 'cmd/ailang/compile.go'
+      - 'examples/sim_stub/**'
+      - '.github/workflows/test-game-codegen.yml'
+
+jobs:
+  test-game-codegen:
+    name: Test AILANG -> Go Codegen Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build AILANG compiler
+        run: make build
+
+      - name: Install AILANG
+        run: make install
+
+      - name: Run sim_stub codegen test
+        run: make test-sim-stub

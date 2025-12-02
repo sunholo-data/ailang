@@ -1,0 +1,16 @@
+Sim Stub Example
+================
+Initial world: tick=0, value=75, seed=42
+
+Tick 1: value=79
+Tick 2: value=80
+Tick 3: value=82
+Tick 4: value=80
+Tick 5: value=82
+Tick 6: value=80
+Tick 7: value=81
+Tick 8: value=85
+Tick 9: value=90
+Tick 10: value=85
+
+Simulation complete!

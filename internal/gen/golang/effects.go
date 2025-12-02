@@ -9,7 +9,7 @@ import (
 
 // EffectHandler describes an effect that needs a handler implementation.
 type EffectHandler struct {
-	Name    string         // Effect name (e.g., "Rand", "Clock")
+	Name    string // Effect name (e.g., "Rand", "Clock")
 	Methods []HandlerMethod
 }
 

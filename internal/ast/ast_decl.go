@@ -50,9 +50,10 @@ type FuncDecl struct {
 	Effects    []string
 	Tests      []*TestCase
 	Properties []*Property
-	Body       Expr
+	Body       Expr // nil for extern functions
 	IsPure     bool
 	IsExport   bool // Export flag
+	IsExtern   bool // Extern flag - function implemented in Go, no body
 	Pos        Pos
 	Span       Span   // For SID calculation
 	SID        string // Stable ID (calculated post-parse)

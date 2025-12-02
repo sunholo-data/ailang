@@ -194,6 +194,9 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "compile":
+		compileCommand()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()

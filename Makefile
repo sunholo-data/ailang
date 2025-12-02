@@ -500,6 +500,11 @@ test-repl-smoke:
 	@echo "Testing REPL smoke tests..."
 	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
 
+.PHONY: test-sim-stub
+test-sim-stub: install
+	@echo "Testing sim_stub example (Go codegen pipeline)..."
+	@cd examples/sim_stub && make clean && make test
+
 # Show Go package documentation
 .PHONY: doc
 doc:

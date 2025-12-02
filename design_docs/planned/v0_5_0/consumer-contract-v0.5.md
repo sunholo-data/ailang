@@ -116,33 +116,45 @@ func generate_map(seed: int) -> Map ! {RNG} {
 **We use in AILANG:**
 ```ailang
 func update_entity(e: Entity) -> Entity ! {Debug} {
+    -- Locations auto-injected by compiler
     Debug.assert(e.health >= 0, "health must be non-negative")
     Debug.log("updating entity " ++ show(e.id))
     ...
 }
 
 func step(world: World, input: FrameInput) -> (World, FrameOutput) ! {RNG, Debug} {
-    let result = process_tick(world, input)
-    let debug_data = Debug.collect()
-    (result.world, { draw_cmds = result.cmds, debug = debug_data })
+    -- Debug writes accumulate during execution
+    -- Host collects after step returns (not callable from AILANG)
+    process_tick(world, input)
 }
 ```
 
 **Guarantees:**
 - Assertions collected, not thrown
-- `Debug.collect()` returns all logs/assertions from current tick
+- Debug is **write-only** from AILANG (no `collect()` in language)
+- Host calls `DebugContext.Collect()` after step returns
 - Structured output for eval harness consumption
-- `--release` mode compiles out debug overhead
+- `--release` mode **erases Debug from effect rows** (ghost effect)
+- Location strings auto-injected by compiler
 
-**We define DebugOutput in our protocol:**
+**DebugOutput schema (shared across backends):**
 ```ailang
 type DebugOutput = {
     logs: [LogEntry],
     assertions: [AssertionResult]
 }
 
-type LogEntry = { message: string, location: string }
+type LogEntry = { message: string, location: string, timestamp: int }
 type AssertionResult = { passed: bool, message: string, location: string }
+```
+
+**Host integration (Go example):**
+```go
+debugCtx := game.NewDebugContext()
+debugCtx.SetTimestamp(int64(tick))
+world, output, err := game.Step(world, input, debugCtx, rngCtx)
+debugData := debugCtx.Collect()  // Host-only operation
+debugCtx.Reset()  // Clear for next tick
 ```
 
 ### 6. AI Effect with Pluggable Handler (v0.5.1+)
@@ -150,27 +162,50 @@ type AssertionResult = { passed: bool, message: string, location: string }
 **AILANG core provides:**
 ```ailang
 effect AI {
-    decide(input: string) -> string  -- JSON-in/JSON-out
+    call(input: string) -> string  -- Opaque string→string, JSON by convention
 }
 ```
 
 **We wrap with our own typed interface:**
 ```ailang
 type NPCContext = { position: Vec2, health: int, nearby: [Entity] }
-type NPCAction = { kind: string, target: Vec2 }
+type NPCAction =
+  | Move(Vec2)
+  | Attack(int)
+  | Wait
 
 func choose_action(ctx: NPCContext) -> NPCAction ! {AI} {
     let input = std/json.encode(ctx)
-    let output = AI.decide(input)
-    std/json.decode[NPCAction](output)
+    let output = AI.call(input)
+    match std/json.decode[NPCAction](output) {
+        Ok(action) => action,
+        Err(_)     => Wait  -- Safe fallback
+    }
 }
 ```
 
 **Guarantees:**
-- Generic JSON interface (AILANG core doesn't know our domain)
+- Generic string→string interface (JSON by convention, not enforced)
+- Operation named `call` (neutral), not `decide` (game-flavored)
 - Handler pluggable at Go runtime level
-- Default stub returns deterministic placeholder
+- Nil handler = **error** (no silent stub fallback)
+- Explicit stub handler for tests: `game.NewStubAIHandler()`
 - Can swap to real AI without recompiling AILANG
+
+**Host integration (Go example):**
+```go
+// EXPLICIT handler choice - no silent fallback
+var aiHandler game.AIHandler
+switch os.Getenv("GAME_AI_MODE") {
+case "openai":
+    aiHandler = NewOpenAIHandler(os.Getenv("OPENAI_API_KEY"))
+case "stub":
+    aiHandler = game.NewStubAIHandler()
+default:
+    log.Fatal("GAME_AI_MODE must be set")
+}
+aiCtx := game.NewAIContext(aiHandler)
+```
 
 ### 7. Extern Functions for Performance Kernels (v0.5.2+)
 
