@@ -348,12 +348,13 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		if len(p.Args) > 0 {
 			variantFieldName := ToPascalCase(p.Name)
 			for i, arg := range p.Args {
-				if vp, ok := arg.(*core.VarPattern); ok {
+				if vp, ok := arg.(*core.VarPattern); ok && vp.Name != "_" {
+					// Skip binding for wildcard patterns (name == "_")
 					goVarName := ToGoVarName(vp.Name)
 					g.writef("%s := _adt.%s.Value%d\n", goVarName, variantFieldName, i)
 					g.writef("_ = %s // suppress unused\n", goVarName)
 				}
-				// Wildcards don't need binding
+				// Wildcards (_) and non-VarPattern args don't need binding
 			}
 		}
 

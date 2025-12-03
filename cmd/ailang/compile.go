@@ -276,6 +276,13 @@ func compileCommand() {
 			// Function generation is experimental - warn but continue
 			fmt.Fprintf(os.Stderr, "%s: function generation skipped (experimental): %v\n", yellow("Warning"), err)
 			fmt.Fprintf(os.Stderr, "  Type generation succeeded - use generated types in your Go code\n")
+			// Write raw code for debugging
+			if len(funcsCode) > 0 {
+				rawFile := filepath.Join(outDir, "funcs_raw.go.txt")
+				if werr := os.WriteFile(rawFile, funcsCode, 0644); werr == nil {
+					fmt.Fprintf(os.Stderr, "  Raw code written to %s for debugging\n", rawFile)
+				}
+			}
 		} else {
 			funcsFile := filepath.Join(outDir, "funcs.go")
 			if err := os.WriteFile(funcsFile, funcsCode, 0644); err != nil {
