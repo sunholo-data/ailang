@@ -391,7 +391,7 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 }
 
 // mapEffectBuiltinToHandler maps AILANG effect builtin names to Go handler method calls.
-// Returns empty string if not an effect builtin.
+// Returns empty string if not an effect builtin (pure functions like string/array ops).
 func mapEffectBuiltinToHandler(name string) string {
 	// Effect builtins follow pattern: _effect_method
 	// Wrapper functions follow pattern: effect_method (no underscore prefix)
@@ -413,12 +413,32 @@ func mapEffectBuiltinToHandler(name string) string {
 		// Clock effect - stdlib wrappers
 		"clock_now":   "handlers.Clock.Now",
 		"clock_sleep": "handlers.Clock.Sleep",
+		// Game effect - maps to Clock (alternative API for game engines)
+		"_game_delta_time":  "handlers.Clock.DeltaTime",
+		"_game_total_time":  "handlers.Clock.TotalTime",
+		"_game_frame_count": "handlers.Clock.FrameCount",
 		// Debug effect - builtins
 		"_debug_log":   "handlers.Debug.Log",
 		"_debug_check": "handlers.Debug.Assert",
 		// Debug effect - stdlib wrappers
 		"debug_log":   "handlers.Debug.Log",
 		"debug_check": "handlers.Debug.Assert",
+		// IO effect - use inline Log helper (simpler than full handler)
+		"_io_print":   "Log",
+		"_io_println": "Log",
+		"io_print":    "Log",
+		"io_println":  "Log",
 	}
 	return effectMappings[name]
 }
+
+// Note: These builtins are NOT effect builtins and don't need handler mapping:
+// - Pure string ops: _str_* (compiled to Go string operations)
+// - Pure array ops: _array_* (compiled to Go slice operations)
+// - Pure JSON ops: _json_decode, _json_encode (compiled inline)
+// - Pure conversions: _stringToInt, _stringToFloat (compiled inline)
+// - Effect builtins needing new handlers (not yet supported in Go codegen):
+//   - FS: _fs_exists, _fs_readFile, _fs_writeFile
+//   - Net: _net_httpGet, _net_httpPost, _net_httpRequest
+//   - Env: _env_getArgs, _env_getEnv, _env_hasEnv
+//   - AI: _ai_call
