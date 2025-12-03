@@ -609,10 +609,24 @@ func (g *Generator) writeRuntimeHelpers() {
 
 // writeADTSliceConverters generates type-safe slice conversion functions for ADT types.
 // M-DX12: These enable [ADT] fields to be typed slices in generated Go structs.
+// M-DX22: Now generates converters for ALL ADT types (not just those in slice fields).
 func (g *Generator) writeADTSliceConverters() {
+	// M-DX22: Collect ALL ADT types - both explicitly registered and from constructors
+	allTypes := make(map[string]bool)
+
+	// Include explicitly registered slice types (M-DX12)
+	for typeName := range g.adtSliceTypes {
+		allTypes[typeName] = true
+	}
+
+	// M-DX22: Include all ADT types from registered constructors
+	for _, info := range g.adtConstructors {
+		allTypes[info.TypeName] = true
+	}
+
 	// Sort for deterministic output
 	var sortedTypes []string
-	for typeName := range g.adtSliceTypes {
+	for typeName := range allTypes {
 		sortedTypes = append(sortedTypes, typeName)
 	}
 	// Sort alphabetically

@@ -122,6 +122,31 @@ selection := FieldGet(world, "selection").(*Selection)
 
 **Source**: DX feedback from `stapledons_voyage` agent.
 
+### Added - Auto-Generate ADT Slice Converters (M-DX22)
+
+**User Impact**: All ADT types now get `convertToXxxSlice` functions generated automatically, eliminating manual boilerplate.
+
+**Before (manual runtime.go):**
+```go
+// Users had to write these manually for each ADT type
+func convertToNPCSlice(v interface{}) []*NPC { ... }
+func convertToTileSlice(v interface{}) []*Tile { ... }
+func convertToDrawCmdSlice(v interface{}) []*DrawCmd { ... }
+```
+
+**After (auto-generated):**
+```go
+// All ADT types get converters automatically in funcs.go
+// No manual runtime.go needed!
+```
+
+**How it works**: The code generator now iterates all ADT types from registered constructors (not just types used in slice fields).
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Use allADTTypes from constructors (~10 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.3] - 2025-12-03
 
 ### Added - Named ADT Constructor Fields (M-DX11-NAMED-ADT)
