@@ -313,11 +313,13 @@ func (g *Generator) isADTConstructorExpr(expr core.CoreExpr) bool {
 }
 
 // generateRecordAccess generates field access.
+// M-DX18: Uses FieldGet helper to handle both maps and typed structs.
 func (g *Generator) generateRecordAccess(ra *core.RecordAccess) error {
+	g.writef("FieldGet(")
 	if err := g.generateExpr(ra.Record); err != nil {
 		return err
 	}
-	g.writef(".(map[string]interface{})[%q]", ra.Field)
+	g.writef(", %q)", ra.Field)
 	return nil
 }
 

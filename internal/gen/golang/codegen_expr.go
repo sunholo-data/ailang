@@ -125,18 +125,21 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 }
 
 // generateLit generates a Go literal.
+// M-DX17: Wrap numeric literals in explicit type conversions for interface{} compatibility.
 func (g *Generator) generateLit(lit *core.Lit) error {
 	switch lit.Kind {
 	case core.IntLit:
+		// M-DX17: Wrap in int64() for consistent interface{} type assertions
 		if v, ok := lit.Value.(int64); ok {
-			g.writef("%d", v)
+			g.writef("int64(%d)", v)
 		} else if v, ok := lit.Value.(int); ok {
-			g.writef("%d", v)
+			g.writef("int64(%d)", v)
 		} else {
-			g.writef("%v", lit.Value)
+			g.writef("int64(%v)", lit.Value)
 		}
 	case core.FloatLit:
-		g.writef("%v", lit.Value)
+		// M-DX17: Wrap in float64() for consistent interface{} type assertions
+		g.writef("float64(%v)", lit.Value)
 	case core.BoolLit:
 		g.writef("%v", lit.Value)
 	case core.StringLit:

@@ -92,6 +92,44 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// M-DX18: FieldGet helper for accessing fields on maps or typed structs
+	g.writef("// FieldGet retrieves a field from a record (map or typed struct).\n")
+	g.writef("// M-DX18: Handles both map[string]interface{} and typed structs.\n")
+	g.writef("func FieldGet(record interface{}, field string) interface{} {\n")
+	g.indent++
+
+	// Handle map case
+	g.writef("// Handle map[string]interface{}\n")
+	g.writef("if m, ok := record.(map[string]interface{}); ok {\n")
+	g.indent++
+	g.writef("return m[field]\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Handle typed struct using reflection
+	g.writef("// Handle typed struct using reflection\n")
+	g.writef("val := reflect.ValueOf(record)\n")
+	g.writef("if val.Kind() == reflect.Ptr {\n")
+	g.indent++
+	g.writef("val = val.Elem()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if val.Kind() == reflect.Struct {\n")
+	g.indent++
+	g.writef("// Convert field name to PascalCase (AILANG lowercase -> Go PascalCase)\n")
+	g.writef("goField := strings.ToUpper(field[:1]) + field[1:]\n")
+	g.writef("f := val.FieldByName(goField)\n")
+	g.writef("if f.IsValid() {\n")
+	g.indent++
+	g.writef("return f.Interface()\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	g.writef("// Cons prepends an element to a list (cons operator).\n")
 	g.writef("// AILANG: head :: tail\n")
 	g.writef("func Cons(head interface{}, tail interface{}) []interface{} {\n")

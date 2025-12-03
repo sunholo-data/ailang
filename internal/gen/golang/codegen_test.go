@@ -233,10 +233,11 @@ func TestGenerateIfExpression(t *testing.T) {
 	}
 
 	// Check for both branches
-	if !strings.Contains(codeStr, "return 1") {
+	// M-DX17: Integer literals are now wrapped in int64()
+	if !strings.Contains(codeStr, "return int64(1)") {
 		t.Errorf("Missing then branch")
 	}
-	if !strings.Contains(codeStr, "return 2") {
+	if !strings.Contains(codeStr, "return int64(2)") {
 		t.Errorf("Missing else branch")
 	}
 }
@@ -380,7 +381,8 @@ func TestGenerateFunctionApplication(t *testing.T) {
 	codeStr := string(code)
 
 	// Check for function call syntax - with CallFunc wrapper for lambda variables
-	if !strings.Contains(codeStr, "1, 2)") {
+	// M-DX17: Integer literals are now wrapped in int64()
+	if !strings.Contains(codeStr, "int64(1), int64(2))") {
 		t.Errorf("Missing function call with args, got:\n%s", codeStr)
 	}
 }

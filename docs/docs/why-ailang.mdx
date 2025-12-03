@@ -1,0 +1,192 @@
+---
+sidebar_position: 1
+title: Why AILANG
+description: A language built for AI-driven worlds - simulation, game engines, and autonomous agents
+---
+
+import Icon from '@site/src/components/Icon';
+
+# Why AILANG Exists
+
+## A Language Built for AI-Driven Worlds
+
+Modern game engines and simulations are built on Go, Rust, C#, or C++.
+These are fantastic host languages — but they are not designed for AI-generated logic, deterministic simulation, or hot-swappable behavior systems.
+
+**AILANG was created to fill that gap.**
+
+It doesn't replace Go.
+It gives Go something it never had: a **safe, deterministic, AI-native language** for world logic and agent behavior.
+
+---
+
+## What AILANG Brings to the Table
+
+### 1. AI-Native Programming
+
+AILANG is designed from first principles for AI code generation:
+
+- <Icon name="check" inline /> **Small, regular syntax** — easy for models to learn and generate
+- <Icon name="check" inline /> **Algebraic effects** instead of ad-hoc contexts
+- <Icon name="check" inline /> **Pattern matching and ADTs** for high-level logic
+- <Icon name="check" inline /> **Purity-by-default** with explicit side effects
+- <Icon name="check" inline /> **Teaching prompts** that allow models to "think in AILANG"
+
+The result is simple:
+
+> **LLMs can reliably produce correct AILANG on the first attempt** —
+> code that would be far more error-prone in Go or Python.
+
+For a future where AI writes and maintains game logic, this matters.
+
+---
+
+### 2. Deterministic, Replayable Simulations
+
+Game and simulation engines depend on deterministic stepping:
+
+- Tick-by-tick world updates
+- Predictable RNG
+- Record/replay debugging
+- Multiplayer sync
+- Agent-based modeling
+
+**AILANG enforces deterministic semantics:**
+
+- <Icon name="check" inline /> **Pure functions** for world updates
+- <Icon name="check" inline /> **Explicit `!{Effects}`** for nondeterminism
+- <Icon name="check" inline /> **Isolation** of RNG, Debug, IO, AI effects
+- <Icon name="check" inline /> **Immutable values** and referential transparency
+
+This lets engines:
+
+- Replay any session reliably
+- Time-travel during debugging
+- Fuzz-test logic
+- Run multiplayer deterministically
+
+**Go cannot provide these guarantees without heavy developer discipline.**
+AILANG enforces them automatically.
+
+---
+
+### 3. Safe, Hot-Swappable Logic
+
+AILANG behaves like a scripting language with the rigor of a typed functional language.
+
+You can:
+
+- <Icon name="rocket" inline /> Dynamically load behaviors
+- <Icon name="rocket" inline /> Allow safe user modding
+- <Icon name="rocket" inline /> Sandbox agent logic
+- <Icon name="rocket" inline /> Update entity scripts without recompiling the engine
+- <Icon name="rocket" inline /> Ship patches that change world logic without touching the engine binary
+
+**AILANG isn't just code — it's portable, sandboxed logic-as-data.**
+
+---
+
+### 4. A Clean Host Runtime: Go
+
+AILANG logic compiles directly to Go:
+
+- <Icon name="check" inline /> Zero-cost abstractions
+- <Icon name="check" inline /> Native performance
+- <Icon name="check" inline /> Seamless interop with Go structs and types
+- <Icon name="check" inline /> Debug, AI, RNG, and IO effects mapped to Go interfaces
+- <Icon name="check" inline /> Stub handlers for testing
+- <Icon name="check" inline /> Real handlers for production
+
+This gives developers the best of both worlds:
+
+> **Write high-level game logic in AILANG.**
+> **Run it as fast Go code.**
+
+---
+
+### 5. A Platform for Intelligent Agents
+
+AILANG is the first language with a **built-in AI effect**, allowing:
+
+- <Icon name="bot" inline /> LLM-driven NPCs
+- <Icon name="bot" inline /> Autonomous agents
+- <Icon name="bot" inline /> Decision-making trees backed by local or remote models
+- <Icon name="bot" inline /> Deterministic stub handlers for testing
+- <Icon name="bot" inline /> JSON-in/JSON-out contract for type-safe wrapping
+
+This positions AILANG perfectly for:
+
+- Large-scale simulations
+- Emergent behavior research
+- Interactive story engines
+- Agent evolution environments
+- AI-first game design
+
+**It is a unified substrate for human code and AI strategies.**
+
+---
+
+## In Short: Why Not Just Use Go?
+
+Because Go is a **systems language**.
+AILANG is a **simulation language**, built for:
+
+| Capability | Go | AILANG |
+|------------|:--:|:------:|
+| AI-native coding | | <Icon name="check" inline /> |
+| Deterministic effects | | <Icon name="check" inline /> |
+| Pure logic semantics | | <Icon name="check" inline /> |
+| Hot-reloadable logic | | <Icon name="check" inline /> |
+| Safe sandbox | | <Icon name="check" inline /> |
+| Mod-friendly | | <Icon name="check" inline /> |
+| Simplifies agent behavior | | <Icon name="check" inline /> |
+| Compiles to fast Go | <Icon name="check" inline /> | <Icon name="check" inline /> |
+
+**Go is the engine.**
+**AILANG is the mind.**
+
+Together they form a new kind of game architecture:
+**AI-driven, deterministic, safe, moddable, and future-proof.**
+
+---
+
+## Where We're Going
+
+AILANG is evolving into a complete agent programming ecosystem:
+
+### Planned Capabilities
+
+| Feature | Status |
+|---------|--------|
+| **Simulation profiles** (Game, Web, Robotics, Science) | In Progress |
+| **Debug effects** for structured replay | <Icon name="check" inline /> Complete |
+| **AI effect** for autonomous behavior | <Icon name="check" inline /> Complete |
+| **Go codegen** as fast native runtime | <Icon name="check" inline /> Complete |
+| **WebAssembly backend** | Planned |
+| **Deterministic distributed simulation** | Planned |
+| **Agent frameworks** powered by LLMs | In Development |
+
+### AILANG's Mission
+
+> **Give developers and AI a shared language for building worlds.**
+>
+> A language with mathematical clarity, deterministic behavior,
+> and seamless integration with modern engines.
+
+**This is why AILANG exists.**
+**And this is why Go + AILANG is strictly more powerful than Go alone.**
+
+---
+
+## Get Started
+
+Ready to explore AILANG?
+
+- <Icon name="rocket" inline /> **[Getting Started Guide](/docs/guides/getting-started)** — Install and write your first AILANG program
+- <Icon name="code" inline /> **[Playground](/docs/playground)** — Try AILANG in your browser
+- <Icon name="book" inline /> **[Language Reference](/docs/reference/language-syntax)** — Complete syntax guide
+- <Icon name="github" inline /> **[GitHub](https://github.com/sunholo-data/ailang)** — Source code and issues
+
+---
+
+> **AILANG — When the coder is the model.**

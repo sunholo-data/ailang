@@ -1,5 +1,60 @@
 # AILANG Changelog
 
+## [v0.5.4] - 2025-12-03
+
+### Fixed - Integer Literals as int64 (M-DX17)
+
+**User Impact**: Integer literals in generated Go code now use explicit `int64()` conversion, preventing runtime panics when type-asserting interface values.
+
+**Before (runtime panic):**
+```go
+var w interface{} = 8     // Go infers 'int' (not int64)
+return w.(int64)          // PANIC: interface {} is int, not int64
+```
+
+**After (works correctly):**
+```go
+var w interface{} = int64(8)  // Explicit int64 type
+return w.(int64)              // Works - types match!
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_expr.go` - Wrap int literals in `int64()`, float in `float64()` (~5 LOC)
+- `internal/gen/golang/codegen_test.go` - Updated test assertions (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - FieldGet for Typed Struct Access (M-DX18)
+
+**User Impact**: Record field access now works correctly with both typed structs and maps, enabling the full game loop to work without panics.
+
+**Before (runtime panic):**
+```go
+// step function generated:
+world.(map[string]interface{})["tick"]  // PANIC: world is *World, not map!
+```
+
+**After (works with both types):**
+```go
+// step function generates:
+FieldGet(world, "tick")  // Works with *World AND map[string]interface{}
+```
+
+**How it works**: The `FieldGet` runtime helper detects the type at runtime:
+1. If `map[string]interface{}` → use map access
+2. If typed struct pointer → use reflection with PascalCase field names
+3. Converts AILANG field names (lowercase) to Go field names (PascalCase)
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Added `FieldGet` helper (~40 LOC)
+- `internal/gen/golang/codegen_ops.go` - Updated `generateRecordAccess` to use `FieldGet` (~5 LOC)
+
+**Tests:**
+- Game loop simulation test: 100 consecutive `step()` calls all preserve types
+- Backwards compatibility: map-based records still work
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.3] - 2025-12-03
 
 ### Added - Named ADT Constructor Fields (M-DX11-NAMED-ADT)
