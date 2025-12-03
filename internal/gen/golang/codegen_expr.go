@@ -58,6 +58,13 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 			}
 			return nil
 		}
+
+		// Check if this is an effect builtin that needs handler qualification
+		if handlerCall := mapEffectBuiltinToHandler(e.Ref.Name); handlerCall != "" {
+			g.write(handlerCall)
+			return nil
+		}
+
 		// For other global references, use PascalCase
 		g.write(ToPascalCase(e.Ref.Name))
 		return nil
@@ -381,4 +388,37 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// mapEffectBuiltinToHandler maps AILANG effect builtin names to Go handler method calls.
+// Returns empty string if not an effect builtin.
+func mapEffectBuiltinToHandler(name string) string {
+	// Effect builtins follow pattern: _effect_method
+	// Wrapper functions follow pattern: effect_method (no underscore prefix)
+	// Map to: handlers.Effect.Method
+	effectMappings := map[string]string{
+		// Rand effect - builtins
+		"_rand_int":   "handlers.Rand.RandInt",
+		"_rand_float": "handlers.Rand.RandFloat",
+		"_rand_bool":  "handlers.Rand.RandBool",
+		"_rand_seed":  "handlers.Rand.SetSeed",
+		// Rand effect - stdlib wrappers (std/rand exports these)
+		"rand_int":   "handlers.Rand.RandInt",
+		"rand_float": "handlers.Rand.RandFloat",
+		"rand_bool":  "handlers.Rand.RandBool",
+		"rand_seed":  "handlers.Rand.SetSeed",
+		// Clock effect - builtins
+		"_clock_now":   "handlers.Clock.Now",
+		"_clock_sleep": "handlers.Clock.Sleep",
+		// Clock effect - stdlib wrappers
+		"clock_now":   "handlers.Clock.Now",
+		"clock_sleep": "handlers.Clock.Sleep",
+		// Debug effect - builtins
+		"_debug_log":   "handlers.Debug.Log",
+		"_debug_check": "handlers.Debug.Assert",
+		// Debug effect - stdlib wrappers
+		"debug_log":   "handlers.Debug.Log",
+		"debug_check": "handlers.Debug.Assert",
+	}
+	return effectMappings[name]
 }
