@@ -120,7 +120,7 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
-	// Extract type declarations from AST
+	// Extract type declarations from AST (current module)
 	var typeDecls []*ast.TypeDecl
 	var externFuncs []*ast.FuncDecl
 	if file != nil {
@@ -133,6 +133,26 @@ func compileCommand() {
 		for _, fn := range file.Funcs {
 			if fn.IsExtern {
 				externFuncs = append(externFuncs, fn)
+			}
+		}
+	}
+
+	// Extract type declarations from imported modules (cross-module ADT support)
+	// Skip the current module to avoid duplicate type declarations
+	currentModPath := ""
+	if file != nil && file.Module != nil {
+		currentModPath = file.Module.Path
+	}
+	for _, mod := range result.Modules {
+		if mod.File != nil {
+			// Skip current module (already extracted above)
+			if mod.File.Module != nil && mod.File.Module.Path == currentModPath {
+				continue
+			}
+			for _, decl := range mod.File.Decls {
+				if td, ok := decl.(*ast.TypeDecl); ok {
+					typeDecls = append(typeDecls, td)
+				}
 			}
 		}
 	}
@@ -225,11 +245,28 @@ func compileCommand() {
 		fmt.Printf("%s Generating functions (%d declarations)\n", cyan("→"), len(coreProg.Decls))
 		codeGen := gen.New(pkgName)
 
-		// Register ADT constructors so the generator can produce correct references
+		// Register ADT constructors from current module (with field types for proper type assertions)
 		for _, td := range typeDecls {
 			if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
 				for _, ctor := range adt.Constructors {
-					codeGen.RegisterADTConstructor(td.Name, ctor.Name, len(ctor.Fields))
+					fieldTypes := extractFieldTypes(ctor.Fields)
+					codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
+				}
+			}
+		}
+
+		// Register ADT constructors from imported modules (cross-module ADT support)
+		for _, mod := range result.Modules {
+			if mod.File != nil {
+				for _, decl := range mod.File.Decls {
+					if td, ok := decl.(*ast.TypeDecl); ok {
+						if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+							for _, ctor := range adt.Constructors {
+								fieldTypes := extractFieldTypes(ctor.Fields)
+								codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -400,6 +437,15 @@ func capitalize(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// extractFieldTypes extracts Go type strings from AST constructor fields
+func extractFieldTypes(fields []ast.Type) []string {
+	types := make([]string, len(fields))
+	for i, field := range fields {
+		types[i] = ailangTypeToGo(field)
+	}
+	return types
 }
 
 // ailangTypeToGo converts an AILANG type to a Go type string

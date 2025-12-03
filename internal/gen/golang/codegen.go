@@ -175,7 +175,9 @@ func (g *Generator) formatOutput() ([]byte, error) {
 }
 
 // getSliceConversion returns the runtime conversion function name for a slice type.
-// Returns empty string if not a slice type.
+// Returns empty string if not a slice type or if conversion is not supported.
+// Only primitive slice types (int64, string, records) are converted.
+// ADT slices (e.g., []*Direction) must be handled without conversion.
 func (g *Generator) getSliceConversion(goType string) string {
 	switch goType {
 	case "[]int64":
@@ -185,12 +187,8 @@ func (g *Generator) getSliceConversion(goType string) string {
 	case "[]map[string]interface{}", "[]map[string]any":
 		return "ConvertToRecordSlice"
 	default:
-		// Check for generic slice pattern
-		if strings.HasPrefix(goType, "[]") {
-			// For other slice types, use record slice as fallback
-			// This handles nested ADT slices, etc.
-			return "ConvertToRecordSlice"
-		}
+		// Don't convert ADT slices or other complex types
+		// They stay as []interface{} and callers handle type assertions
 		return ""
 	}
 }

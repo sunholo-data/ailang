@@ -272,10 +272,19 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 
 	case *ast.ListType:
 		elemType := g.mapASTType(typ.Element)
+		// For ADT/user-defined element types, use interface{} to avoid runtime type mismatch
+		// AILANG runtime passes []interface{}, not []*ADTType
+		if isUserDefinedType(elemType) {
+			return "interface{}"
+		}
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.ArrayType:
 		elemType := g.mapASTType(typ.Element)
+		// Same as ListType - use interface{} for ADT element types
+		if isUserDefinedType(elemType) {
+			return "interface{}"
+		}
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.TupleType:
@@ -292,6 +301,21 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 
 	default:
 		return "interface{}"
+	}
+}
+
+// isUserDefinedType returns true if the Go type is a user-defined type (ADT, struct, etc.)
+// rather than a primitive type. Used to determine if slice elements need interface{} wrapping.
+func isUserDefinedType(goType string) bool {
+	// Primitives that don't need interface{} wrapping
+	switch goType {
+	case "int64", "float64", "bool", "string", "interface{}", "struct{}",
+		"map[string]interface{}", "map[string]any", "[]interface{}":
+		return false
+	default:
+		// Pointers to types (e.g., *Direction) are user-defined
+		// Named types (e.g., Direction, NPC) are user-defined
+		return true
 	}
 }
 
