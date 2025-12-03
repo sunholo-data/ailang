@@ -214,3 +214,95 @@ func DefaultClockHandler() EffectHandler {
 		},
 	}
 }
+
+// DefaultFSHandler returns the default FS effect handler definition.
+func DefaultFSHandler() EffectHandler {
+	return EffectHandler{
+		Name: "FS",
+		Methods: []HandlerMethod{
+			{
+				Name:       "Exists",
+				Params:     []Param{{Name: "path", Type: "string"}},
+				Returns:    []string{"bool"},
+				Doc:        "Exists checks if a file or directory exists.",
+				ExampleDoc: "_, err := os.Stat(path); return err == nil",
+			},
+			{
+				Name:       "ReadFile",
+				Params:     []Param{{Name: "path", Type: "string"}},
+				Returns:    []string{"string", "error"},
+				Doc:        "ReadFile reads the contents of a file.",
+				ExampleDoc: "data, err := os.ReadFile(path); return string(data), err",
+			},
+			{
+				Name:       "WriteFile",
+				Params:     []Param{{Name: "path", Type: "string"}, {Name: "content", Type: "string"}},
+				Returns:    []string{"error"},
+				Doc:        "WriteFile writes content to a file.",
+				ExampleDoc: "return os.WriteFile(path, []byte(content), 0644)",
+			},
+		},
+	}
+}
+
+// DefaultNetHandler returns the default Net effect handler definition.
+func DefaultNetHandler() EffectHandler {
+	return EffectHandler{
+		Name: "Net",
+		Methods: []HandlerMethod{
+			{
+				Name:       "HttpGet",
+				Params:     []Param{{Name: "url", Type: "string"}},
+				Returns:    []string{"string", "error"},
+				Doc:        "HttpGet performs an HTTP GET request.",
+				ExampleDoc: "resp, err := http.Get(url); ...",
+			},
+			{
+				Name:       "HttpPost",
+				Params:     []Param{{Name: "url", Type: "string"}, {Name: "body", Type: "string"}},
+				Returns:    []string{"string", "error"},
+				Doc:        "HttpPost performs an HTTP POST request.",
+				ExampleDoc: "resp, err := http.Post(url, \"application/json\", ...)",
+			},
+			{
+				Name:       "HttpRequest",
+				Params:     []Param{{Name: "method", Type: "string"}, {Name: "url", Type: "string"}, {Name: "headers", Type: "map[string]string"}, {Name: "body", Type: "string"}},
+				Returns:    []string{"string", "error"},
+				Doc:        "HttpRequest performs a custom HTTP request.",
+				ExampleDoc: "req, _ := http.NewRequest(method, url, ...)",
+			},
+		},
+	}
+}
+
+// DefaultEnvHandler returns the default Env effect handler definition.
+func DefaultEnvHandler() EffectHandler {
+	return EffectHandler{
+		Name: "Env",
+		Methods: []HandlerMethod{
+			{
+				Name:       "GetEnv",
+				Params:     []Param{{Name: "key", Type: "string"}},
+				Returns:    []string{"string"},
+				Doc:        "GetEnv gets an environment variable value.",
+				ExampleDoc: "return os.Getenv(key)",
+			},
+			{
+				Name:       "HasEnv",
+				Params:     []Param{{Name: "key", Type: "string"}},
+				Returns:    []string{"bool"},
+				Doc:        "HasEnv checks if an environment variable exists.",
+				ExampleDoc: "_, ok := os.LookupEnv(key); return ok",
+			},
+			{
+				Name:       "GetArgs",
+				Params:     []Param{},
+				Returns:    []string{"[]string"},
+				Doc:        "GetArgs returns command-line arguments.",
+				ExampleDoc: "return os.Args[1:]",
+			},
+		},
+	}
+}
+
+// Note: DefaultAIHandler is defined in ai.go

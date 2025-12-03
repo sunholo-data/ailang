@@ -205,13 +205,17 @@ func compileCommand() {
 	}
 	fmt.Printf("%s Generated %s\n", green("✓"), debugFileRelease)
 
-	// Generate effect handlers (includes Debug, Rand, Clock)
+	// Generate effect handlers (includes Debug, Rand, Clock, FS, Net, Env, AI)
 	fmt.Printf("%s Generating effect handlers\n", cyan("→"))
 	effectsGen := gen.NewEffectsGenerator(pkgName)
 	handlers := []gen.EffectHandler{
 		gen.DefaultDebugHandler(),
 		gen.DefaultRandHandler(),
 		gen.DefaultClockHandler(),
+		gen.DefaultFSHandler(),
+		gen.DefaultNetHandler(),
+		gen.DefaultEnvHandler(),
+		gen.DefaultAIHandler(),
 	}
 	handlersCode, err := effectsGen.GenerateHandlers(handlers)
 	if err != nil {

@@ -428,6 +428,34 @@ func mapEffectBuiltinToHandler(name string) string {
 		"_io_println": "Log",
 		"io_print":    "Log",
 		"io_println":  "Log",
+		// FS effect - builtins
+		"_fs_exists":    "handlers.FS.Exists",
+		"_fs_readFile":  "handlers.FS.ReadFile",
+		"_fs_writeFile": "handlers.FS.WriteFile",
+		// FS effect - stdlib wrappers
+		"fs_exists":    "handlers.FS.Exists",
+		"fs_readFile":  "handlers.FS.ReadFile",
+		"fs_writeFile": "handlers.FS.WriteFile",
+		// Net effect - builtins
+		"_net_httpGet":     "handlers.Net.HttpGet",
+		"_net_httpPost":    "handlers.Net.HttpPost",
+		"_net_httpRequest": "handlers.Net.HttpRequest",
+		// Net effect - stdlib wrappers
+		"net_httpGet":     "handlers.Net.HttpGet",
+		"net_httpPost":    "handlers.Net.HttpPost",
+		"net_httpRequest": "handlers.Net.HttpRequest",
+		// Env effect - builtins
+		"_env_getArgs": "handlers.Env.GetArgs",
+		"_env_getEnv":  "handlers.Env.GetEnv",
+		"_env_hasEnv":  "handlers.Env.HasEnv",
+		// Env effect - stdlib wrappers
+		"env_getArgs": "handlers.Env.GetArgs",
+		"env_getEnv":  "handlers.Env.GetEnv",
+		"env_hasEnv":  "handlers.Env.HasEnv",
+		// AI effect - builtins
+		"_ai_call": "handlers.AI.Call",
+		// AI effect - stdlib wrappers
+		"ai_call": "handlers.AI.Call",
 	}
 	return effectMappings[name]
 }
@@ -437,8 +465,3 @@ func mapEffectBuiltinToHandler(name string) string {
 // - Pure array ops: _array_* (compiled to Go slice operations)
 // - Pure JSON ops: _json_decode, _json_encode (compiled inline)
 // - Pure conversions: _stringToInt, _stringToFloat (compiled inline)
-// - Effect builtins needing new handlers (not yet supported in Go codegen):
-//   - FS: _fs_exists, _fs_readFile, _fs_writeFile
-//   - Net: _net_httpGet, _net_httpPost, _net_httpRequest
-//   - Env: _env_getArgs, _env_getEnv, _env_hasEnv
-//   - AI: _ai_call
