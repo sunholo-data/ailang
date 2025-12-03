@@ -12,6 +12,7 @@ ailang agent inbox user              # All messages in user inbox
 ailang agent inbox claude-code       # All messages in claude-code inbox
 ailang agent inbox --unread-only user        # Only unread (user)
 ailang agent inbox --unread-only claude-code # Only unread (claude-code)
+ailang agent inbox --full user               # Full content (no truncation)
 
 # ACKNOWLEDGE (mark as read)
 ailang agent ack --all               # Acknowledge all unread

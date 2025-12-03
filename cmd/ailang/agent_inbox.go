@@ -12,7 +12,7 @@ import (
 )
 
 // showUserInbox displays messages from the user inbox
-func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveAfter bool, limit int) {
+func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveAfter bool, limit int, full bool) {
 	// ALWAYS check file-based inbox first (agent send --to-user writes here)
 	// Then also check SQLite for messages from the messaging system
 	fileInbox := agentprotocol.NewUserInbox(stateDir)
@@ -54,10 +54,10 @@ func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveA
 	if messaging.DatabaseExists(dbPath) {
 		// Show combined view - file messages first (from agent protocol)
 		if len(fileMessages) > 0 {
-			displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit)
+			displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit, full)
 		}
 		// Then show SQLite messages
-		showUserInboxSQLite(dbPath, unreadOnly, limit)
+		showUserInboxSQLite(dbPath, unreadOnly, limit, full)
 		return
 	}
 
@@ -66,11 +66,11 @@ func showUserInbox(stateDir string, unreadOnly, readOnly, archivedFlag, archiveA
 		fmt.Printf("%s No messages in %s folder\n", green("✓"), folder)
 		return
 	}
-	displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit)
+	displayFileMessages(fileMessages, folder, archiveAfter, fileInbox, limit, full)
 }
 
 // displayFileMessages shows file-based inbox messages
-func displayFileMessages(messages []*agentprotocol.Envelope, folder string, archiveAfter bool, inbox *agentprotocol.UserInbox, limit int) {
+func displayFileMessages(messages []*agentprotocol.Envelope, folder string, archiveAfter bool, inbox *agentprotocol.UserInbox, limit int, full bool) {
 	// Apply limit
 	if len(messages) > limit {
 		messages = messages[:limit]
@@ -91,14 +91,16 @@ func displayFileMessages(messages []*agentprotocol.Envelope, folder string, arch
 			fmt.Printf("  Correlation: %s\n", msg.CorrelationID)
 		}
 
-		// Display payload preview
+		// Display payload (full or preview)
 		if msg.Payload != nil {
-			payloadJSON, _ := json.Marshal(msg.Payload)
-			preview := string(payloadJSON)
-			if len(preview) > 200 {
-				preview = preview[:197] + "..."
+			payloadJSON, _ := json.MarshalIndent(msg.Payload, "  ", "  ")
+			content := string(payloadJSON)
+			if !full && len(content) > 200 {
+				content = content[:197] + "..."
+				fmt.Printf("  Payload: %s\n", content)
+			} else {
+				fmt.Printf("  Payload:\n  %s\n", content)
 			}
-			fmt.Printf("  Payload: %s\n", preview)
 		}
 
 		fmt.Println()
@@ -124,7 +126,7 @@ func displayFileMessages(messages []*agentprotocol.Envelope, folder string, arch
 }
 
 // showClaudeCodeInbox displays messages from the claude-code inbox
-func showClaudeCodeInbox(unreadOnly bool, limit int) {
+func showClaudeCodeInbox(unreadOnly bool, limit int, full bool) {
 	// Claude-code inbox is in project directory
 	inboxDir := ".ailang/state/messages/claude-code"
 	processedDir := filepath.Join(inboxDir, "_processed")
@@ -205,14 +207,16 @@ func showClaudeCodeInbox(unreadOnly bool, limit int) {
 			fmt.Printf("  Correlation: %s\n", msg.CorrelationID)
 		}
 
-		// Display payload preview
+		// Display payload (full or preview)
 		if msg.Payload != nil {
-			payloadJSON, _ := json.Marshal(msg.Payload)
-			preview := string(payloadJSON)
-			if len(preview) > 200 {
-				preview = preview[:197] + "..."
+			payloadJSON, _ := json.MarshalIndent(msg.Payload, "  ", "  ")
+			content := string(payloadJSON)
+			if !full && len(content) > 200 {
+				content = content[:197] + "..."
+				fmt.Printf("  Payload: %s\n", content)
+			} else {
+				fmt.Printf("  Payload:\n  %s\n", content)
 			}
-			fmt.Printf("  Payload: %s\n", preview)
 		}
 
 		fmt.Println()
@@ -220,7 +224,7 @@ func showClaudeCodeInbox(unreadOnly bool, limit int) {
 }
 
 // showAgentInbox displays messages for a specific agent
-func showAgentInbox(stateDir string, agentID string, limit int) {
+func showAgentInbox(stateDir string, agentID string, limit int, full bool) {
 	reader := agentprotocol.NewMessageReader(stateDir)
 
 	// Get pending message file paths
@@ -266,13 +270,16 @@ func showAgentInbox(stateDir string, agentID string, limit int) {
 			fmt.Printf("  Correlation: %s\n", msg.CorrelationID)
 		}
 
+		// Display payload (full or preview)
 		if msg.Payload != nil {
-			payloadJSON, _ := json.Marshal(msg.Payload)
-			preview := string(payloadJSON)
-			if len(preview) > 200 {
-				preview = preview[:197] + "..."
+			payloadJSON, _ := json.MarshalIndent(msg.Payload, "  ", "  ")
+			content := string(payloadJSON)
+			if !full && len(content) > 200 {
+				content = content[:197] + "..."
+				fmt.Printf("  Payload: %s\n", content)
+			} else {
+				fmt.Printf("  Payload:\n  %s\n", content)
 			}
-			fmt.Printf("  Payload: %s\n", preview)
 		}
 
 		fmt.Println()
@@ -280,7 +287,7 @@ func showAgentInbox(stateDir string, agentID string, limit int) {
 }
 
 // showUserInboxSQLite displays messages from SQLite database
-func showUserInboxSQLite(dbPath string, unreadOnly bool, limit int) {
+func showUserInboxSQLite(dbPath string, unreadOnly bool, limit int, full bool) {
 	store, err := messaging.OpenStore(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to open database: %v\n", red("Error"), err)
@@ -329,13 +336,15 @@ func showUserInboxSQLite(dbPath string, unreadOnly bool, limit int) {
 		fmt.Printf("  Created: %s\n", msg.CreatedAt.Format("2006-01-02 15:04:05"))
 		fmt.Printf("  State: %s\n", msg.DeliveryState)
 
-		// Display content preview
+		// Display content (full or preview)
 		if msg.Content != "" {
-			preview := msg.Content
-			if len(preview) > 200 {
-				preview = preview[:197] + "..."
+			content := msg.Content
+			if !full && len(content) > 200 {
+				content = content[:197] + "..."
+				fmt.Printf("  Content: %s\n", content)
+			} else {
+				fmt.Printf("  Content:\n  %s\n", content)
 			}
-			fmt.Printf("  Content: %s\n", preview)
 		}
 
 		fmt.Println()

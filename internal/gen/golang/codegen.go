@@ -348,6 +348,88 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("}\n")
 	g.indent--
 	g.writef("}\n\n")
+
+	// CallFunc helper for calling interface{} values as functions
+	g.writef("// CallFunc calls an interface{} as a function with the given arguments.\n")
+	g.writef("// Used for lambdas stored in variables.\n")
+	g.writef("func CallFunc(f interface{}, args ...interface{}) interface{} {\n")
+	g.indent++
+	g.writef("switch fn := f.(type) {\n")
+	g.writef("case func() interface{}:\n")
+	g.indent++
+	g.writef("return fn()\n")
+	g.indent--
+	g.writef("case func(interface{}) interface{}:\n")
+	g.indent++
+	g.writef("if len(args) >= 1 {\n")
+	g.indent++
+	g.writef("return fn(args[0])\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("case func(interface{}, interface{}) interface{}:\n")
+	g.indent++
+	g.writef("if len(args) >= 2 {\n")
+	g.indent++
+	g.writef("return fn(args[0], args[1])\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("case func(interface{}, interface{}, interface{}) interface{}:\n")
+	g.indent++
+	g.writef("if len(args) >= 3 {\n")
+	g.indent++
+	g.writef("return fn(args[0], args[1], args[2])\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("case func(...interface{}) interface{}:\n")
+	g.indent++
+	g.writef("return fn(args...)\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("panic(\"CallFunc: unsupported function type\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ListHead helper for list destructuring
+	g.writef("// ListHead returns the first element of a list.\n")
+	g.writef("func ListHead(list interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if l, ok := list.([]interface{}); ok && len(l) > 0 {\n")
+	g.indent++
+	g.writef("return l[0]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ListTail helper for list destructuring
+	g.writef("// ListTail returns all but the first element of a list.\n")
+	g.writef("func ListTail(list interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if l, ok := list.([]interface{}); ok && len(l) > 0 {\n")
+	g.indent++
+	g.writef("return l[1:]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ListLen helper for list length check
+	g.writef("// ListLen returns the length of a list.\n")
+	g.writef("func ListLen(list interface{}) int {\n")
+	g.indent++
+	g.writef("if l, ok := list.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("return len(l)\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return 0\n")
+	g.indent--
+	g.writef("}\n\n")
 }
 
 // generateDecl generates Go code for a Core declaration.
@@ -618,19 +700,43 @@ func (g *Generator) generateApp(app *core.App) error {
 		return nil
 	}
 
-	if err := g.generateExpr(app.Func); err != nil {
-		return err
-	}
-	g.write("(")
-	for i, arg := range app.Args {
-		if i > 0 {
-			g.write(", ")
+	// Check if function is a variable that needs type assertion
+	needsAssertion := false
+	if v, ok := app.Func.(*core.Var); ok {
+		// Check if it's NOT a known top-level function
+		if _, isTopLevel := g.topLevelFuncs[v.Name]; !isTopLevel {
+			needsAssertion = true
 		}
-		if err := g.generateExpr(arg); err != nil {
+	}
+
+	if needsAssertion {
+		// Lambda stored in variable - needs type assertion
+		g.write("CallFunc(")
+		if err := g.generateExpr(app.Func); err != nil {
 			return err
 		}
+		for _, arg := range app.Args {
+			g.write(", ")
+			if err := g.generateExpr(arg); err != nil {
+				return err
+			}
+		}
+		g.write(")")
+	} else {
+		if err := g.generateExpr(app.Func); err != nil {
+			return err
+		}
+		g.write("(")
+		for i, arg := range app.Args {
+			if i > 0 {
+				g.write(", ")
+			}
+			if err := g.generateExpr(arg); err != nil {
+				return err
+			}
+		}
+		g.write(")")
 	}
-	g.write(")")
 	return nil
 }
 
@@ -727,43 +833,59 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.writef("\n")
 	g.writef("_ = _scrutinee // suppress unused\n")
 
+	// Check if any patterns need if-else (list patterns can't use switch)
+	needsIfElse := g.patternsNeedIfElse(match.Arms)
+
+	if needsIfElse {
+		// Use if-else chain for complex patterns (lists, etc.)
+		return g.generateMatchIfElse(match)
+	}
+
 	// Determine if we need a type switch or value switch
 	needsTypeSwitch := g.patternsNeedTypeSwitch(match.Arms)
 
 	if needsTypeSwitch {
 		// Type switch for ADT constructors
 		g.writef("switch _s := _scrutinee.(type) {\n")
+		hasDefault := false
 		for _, arm := range match.Arms {
+			if isWildcardOrVarPattern(arm.Pattern) {
+				hasDefault = true
+			}
 			if err := g.generateMatchArmTypeSwitch(&arm); err != nil {
 				return err
 			}
 		}
-		g.writef("default:\n")
-		g.indent++
-		g.writef("_ = _s\n")
-		g.writef("panic(\"non-exhaustive match\")\n")
-		g.indent--
+		if !hasDefault {
+			g.writef("default:\n")
+			g.indent++
+			g.writef("_ = _s\n")
+			g.writef("panic(\"non-exhaustive match\")\n")
+			g.indent--
+		}
 	} else {
 		// Value switch for literals and wildcards
 		g.writef("switch _scrutinee {\n")
 		hasDefault := false
 		for _, arm := range match.Arms {
 			if isWildcardOrVarPattern(arm.Pattern) {
+				if hasDefault {
+					continue // Skip duplicate default
+				}
 				hasDefault = true
 				g.writef("default:\n")
+				g.indent++
+				g.writef("return ")
+				if err := g.generateExpr(arm.Body); err != nil {
+					return err
+				}
+				g.writef("\n")
+				g.indent--
 			} else {
 				if err := g.generateMatchArmValueSwitch(&arm); err != nil {
 					return err
 				}
-				continue
 			}
-			g.indent++
-			g.writef("return ")
-			if err := g.generateExpr(arm.Body); err != nil {
-				return err
-			}
-			g.writef("\n")
-			g.indent--
 		}
 		if !hasDefault {
 			g.writef("default:\n")
@@ -777,6 +899,175 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// generateMatchIfElse generates if-else chains for complex pattern matching.
+func (g *Generator) generateMatchIfElse(match *core.Match) error {
+	first := true
+	for _, arm := range match.Arms {
+		if isWildcardOrVarPattern(arm.Pattern) {
+			// Wildcard/var is the else case
+			if first {
+				g.writef("// default case\n")
+			} else {
+				g.writef("} else {\n")
+			}
+			g.indent++
+
+			// If it's a VarPattern, bind the variable
+			if vp, ok := arm.Pattern.(*core.VarPattern); ok {
+				g.writef("%s := _scrutinee\n", ToGoVarName(vp.Name))
+				g.writef("_ = %s // suppress unused\n", ToGoVarName(vp.Name))
+			}
+
+			g.writef("return ")
+			if err := g.generateExpr(arm.Body); err != nil {
+				return err
+			}
+			g.writef("\n")
+			g.indent--
+			if !first {
+				g.writef("}\n")
+			}
+			g.indent--
+			g.write("}()")
+			return nil
+		}
+
+		cond, bindings, err := g.generatePatternCondition(arm.Pattern, "_scrutinee")
+		if err != nil {
+			return err
+		}
+
+		if first {
+			g.writef("if %s {\n", cond)
+			first = false
+		} else {
+			g.writef("} else if %s {\n", cond)
+		}
+		g.indent++
+
+		// Generate bindings
+		for _, binding := range bindings {
+			g.writef("%s\n", binding)
+		}
+
+		g.writef("return ")
+		if err := g.generateExpr(arm.Body); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+	}
+
+	// No wildcard - add panic
+	if first {
+		g.writef("panic(\"non-exhaustive match\")\n")
+	} else {
+		g.writef("} else {\n")
+		g.indent++
+		g.writef("panic(\"non-exhaustive match\")\n")
+		g.indent--
+		g.writef("}\n")
+	}
+
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
+// generatePatternCondition generates the condition for a pattern and variable bindings.
+func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee string) (string, []string, error) {
+	var bindings []string
+
+	switch pat := p.(type) {
+	case *core.LitPattern:
+		switch v := pat.Value.(type) {
+		case int64:
+			return fmt.Sprintf("%s == int64(%d)", scrutinee, v), nil, nil
+		case int:
+			return fmt.Sprintf("%s == int64(%d)", scrutinee, v), nil, nil
+		case float64:
+			return fmt.Sprintf("%s == float64(%v)", scrutinee, v), nil, nil
+		case bool:
+			return fmt.Sprintf("%s == %v", scrutinee, v), nil, nil
+		case string:
+			return fmt.Sprintf("%s == %q", scrutinee, v), nil, nil
+		default:
+			return fmt.Sprintf("%s == %v", scrutinee, v), nil, nil
+		}
+
+	case *core.ListPattern:
+		if len(pat.Elements) == 0 && pat.Tail == nil {
+			// Empty list: []
+			return fmt.Sprintf("ListLen(%s) == 0", scrutinee), nil, nil
+		}
+		// List with elements or cons pattern
+		if pat.Tail != nil {
+			// Cons pattern: head :: tail or [a, b, ...rest]
+			minLen := len(pat.Elements)
+			cond := fmt.Sprintf("ListLen(%s) >= %d", scrutinee, minLen)
+
+			// Bind head elements
+			for i, elem := range pat.Elements {
+				if vp, ok := elem.(*core.VarPattern); ok {
+					binding := fmt.Sprintf("%s := ListHead(%s)", ToGoVarName(vp.Name), scrutinee)
+					bindings = append(bindings, binding)
+					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(vp.Name)))
+					// For next element, need to get from tail
+					if i < len(pat.Elements)-1 {
+						scrutinee = fmt.Sprintf("ListTail(%s)", scrutinee)
+					}
+				}
+			}
+
+			// Bind tail
+			if tailPat, ok := (*pat.Tail).(*core.VarPattern); ok {
+				// Calculate tail start position
+				if len(pat.Elements) > 0 {
+					tailExpr := scrutinee
+					for range pat.Elements {
+						tailExpr = fmt.Sprintf("ListTail(%s)", tailExpr)
+					}
+					binding := fmt.Sprintf("%s := %s", ToGoVarName(tailPat.Name), tailExpr)
+					bindings = append(bindings, binding)
+					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
+				} else {
+					binding := fmt.Sprintf("%s := ListTail(%s)", ToGoVarName(tailPat.Name), scrutinee)
+					bindings = append(bindings, binding)
+					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
+				}
+			}
+
+			return cond, bindings, nil
+		}
+		// Fixed-length list pattern
+		cond := fmt.Sprintf("ListLen(%s) == %d", scrutinee, len(pat.Elements))
+		return cond, bindings, nil
+
+	case *core.VarPattern:
+		// Var pattern always matches, binding is generated separately
+		binding := fmt.Sprintf("%s := %s", ToGoVarName(pat.Name), scrutinee)
+		bindings = append(bindings, binding)
+		bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(pat.Name)))
+		return "true", bindings, nil
+
+	case *core.WildcardPattern:
+		return "true", nil, nil
+
+	default:
+		return "true", nil, nil
+	}
+}
+
+// patternsNeedIfElse returns true if patterns need if-else (list patterns can't use switch).
+func (g *Generator) patternsNeedIfElse(arms []core.MatchArm) bool {
+	for _, arm := range arms {
+		if _, ok := arm.Pattern.(*core.ListPattern); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // patternsNeedTypeSwitch returns true if patterns include ADT constructors.

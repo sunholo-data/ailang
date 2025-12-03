@@ -59,7 +59,8 @@ func printAgentHelp() {
 	fmt.Println("  ailang agent send sprint-planner '{\"task\": \"plan\"}'")
 	fmt.Println("  ailang agent send --to-user '{\"status\": \"complete\"}'")
 	fmt.Println("  ailang agent inbox user                # Check user inbox")
-	fmt.Println("  ailang agent inbox --unread-only       # Only show unread")
+	fmt.Println("  ailang agent inbox --unread-only user  # Only show unread")
+	fmt.Println("  ailang agent inbox --full user         # Show full message content")
 	fmt.Println("  ailang agent ack msg_20251025_154821   # Acknowledge message")
 	fmt.Println("  ailang agent ack --all                 # Acknowledge all messages")
 	fmt.Println("  ailang agent unack msg_20251025_154821 # Move back to unread")
@@ -374,6 +375,7 @@ func agentInboxCommand() {
 	archived := fs.Bool("archived", false, "Show archived messages")
 	archive := fs.Bool("archive", false, "Move messages to archive after viewing")
 	limit := fs.Int("limit", 10, "Maximum number of messages to show")
+	full := fs.Bool("full", false, "Show full message content without truncation")
 
 	if err := fs.Parse(flag.Args()[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -396,10 +398,10 @@ func agentInboxCommand() {
 	// Special handling for user and claude-code inboxes
 	switch agentID {
 	case "user":
-		showUserInbox(*stateDir, *unreadOnly, *readOnly, *archived, *archive, *limit)
+		showUserInbox(*stateDir, *unreadOnly, *readOnly, *archived, *archive, *limit, *full)
 	case "claude-code":
-		showClaudeCodeInbox(*unreadOnly, *limit)
+		showClaudeCodeInbox(*unreadOnly, *limit, *full)
 	default:
-		showAgentInbox(*stateDir, agentID, *limit)
+		showAgentInbox(*stateDir, agentID, *limit, *full)
 	}
 }

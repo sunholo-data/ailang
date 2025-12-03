@@ -378,8 +378,8 @@ func TestGenerateFunctionApplication(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Check for function call syntax
-	if !strings.Contains(codeStr, "(1, 2)") {
+	// Check for function call syntax - with CallFunc wrapper for lambda variables
+	if !strings.Contains(codeStr, "1, 2)") {
 		t.Errorf("Missing function call with args, got:\n%s", codeStr)
 	}
 }
