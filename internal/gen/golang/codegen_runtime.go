@@ -68,6 +68,47 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.indent++
 	g.writef("field.Set(valReflect)\n")
 	g.indent--
+
+	// M-DX20: Handle pointer to value conversion
+	g.writef("} else if valReflect.Kind() == reflect.Ptr && field.Kind() != reflect.Ptr {\n")
+	g.indent++
+	g.writef("// M-DX20: Dereference pointer if field expects value type\n")
+	g.writef("if valReflect.Elem().Type().AssignableTo(field.Type()) {\n")
+	g.indent++
+	g.writef("field.Set(valReflect.Elem())\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+
+	// M-DX19: Handle slice conversion via reflection
+	g.writef("} else if valReflect.Kind() == reflect.Slice && field.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("// M-DX19: Convert []interface{} to typed slice via reflection\n")
+	g.writef("elemType := field.Type().Elem()\n")
+	g.writef("newSlice := reflect.MakeSlice(field.Type(), valReflect.Len(), valReflect.Len())\n")
+	g.writef("for i := 0; i < valReflect.Len(); i++ {\n")
+	g.indent++
+	g.writef("elem := valReflect.Index(i)\n")
+	g.writef("// Handle interface{} elements\n")
+	g.writef("if elem.Kind() == reflect.Interface {\n")
+	g.indent++
+	g.writef("elem = elem.Elem()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if elem.Type().AssignableTo(elemType) {\n")
+	g.indent++
+	g.writef("newSlice.Index(i).Set(elem)\n")
+	g.indent--
+	g.writef("} else if elem.Type().ConvertibleTo(elemType) {\n")
+	g.indent++
+	g.writef("newSlice.Index(i).Set(elem.Convert(elemType))\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("field.Set(newSlice)\n")
+	g.indent--
+
 	g.writef("} else if valReflect.Type().ConvertibleTo(field.Type()) {\n")
 	g.indent++
 	g.writef("field.Set(valReflect.Convert(field.Type()))\n")
@@ -121,6 +162,12 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("f := val.FieldByName(goField)\n")
 	g.writef("if f.IsValid() {\n")
 	g.indent++
+	g.writef("// M-DX21: Return pointer for struct-typed fields (AILANG expects *Struct)\n")
+	g.writef("if f.Kind() == reflect.Struct && f.CanAddr() {\n")
+	g.indent++
+	g.writef("return f.Addr().Interface()\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("return f.Interface()\n")
 	g.indent--
 	g.writef("}\n")

@@ -55,6 +55,73 @@ FieldGet(world, "tick")  // Works with *World AND map[string]interface{}
 
 **Source**: DX feedback from `stapledons_voyage` agent.
 
+### Fixed - RecordUpdate Slice Conversion (M-DX19)
+
+**User Impact**: RecordUpdate now correctly converts `[]interface{}` to typed slices when updating struct fields.
+
+**Before (runtime panic):**
+```go
+// Updating a []*Entity field with []interface{} from AILANG
+RecordUpdate(world, map[string]interface{}{"entities": entities})
+// PANIC: cannot assign []interface{} to []*Entity
+```
+
+**After (works correctly):**
+```go
+// RecordUpdate uses reflection to convert slice element-by-element
+// []interface{} -> []*Entity via ConvertibleTo/AssignableTo checks
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Added slice conversion logic (~15 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - RecordUpdate Pointer Dereference (M-DX20)
+
+**User Impact**: RecordUpdate correctly dereferences pointers when the field expects a value type.
+
+**Before (runtime panic):**
+```go
+// Field expects Selection (value), got *Selection (pointer)
+RecordUpdate(world, map[string]interface{}{"selection": selectionPtr})
+// PANIC: cannot assign *Selection to Selection
+```
+
+**After (works correctly):**
+```go
+// RecordUpdate detects pointer-to-value mismatch and dereferences
+// *Selection -> Selection via Elem() call
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Added pointer dereference logic (~8 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - FieldGet Returns Pointers for Struct Fields (M-DX21)
+
+**User Impact**: FieldGet returns pointers for struct-typed fields, matching AILANG's expectation that nested records are pointers.
+
+**Before (type mismatch):**
+```go
+// FieldGet returns Selection (value), but code expects *Selection
+selection := FieldGet(world, "selection").(Selection)
+// Works, but downstream code may expect *Selection
+```
+
+**After (returns pointer):**
+```go
+// FieldGet detects struct fields and returns addressable pointer
+selection := FieldGet(world, "selection").(*Selection)
+// Matches AILANG's structural semantics
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Added struct field pointer return (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.3] - 2025-12-03
 
 ### Added - Named ADT Constructor Fields (M-DX11-NAMED-ADT)
