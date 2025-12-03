@@ -157,9 +157,47 @@ the foundation for AI-driven code reasoning.
 
 ---
 
+## Near-Term Horizon — Execution Profiles (v0.6)
+
+AILANG's Go codegen revealed a deeper truth: **AILANG is not a game scripting language—it's a deterministic state-machine DSL with pluggable effect contexts**.
+
+### The Three Execution Profiles
+
+| Profile | Entry Shape | Primary Use | Effect Budget |
+|---------|-------------|-------------|---------------|
+| **SimProfile** | `step(World, Input) -> (World, Output)` | Games, RL envs, agent sims | RNG, Debug, AI |
+| **ServiceProfile** | `handle(Request) -> Response` | Microservices, agent tools | AI, Debug |
+| **CliProfile** | `main(args) -> ()` | CLI tools, utilities | IO, FS, Env, Debug |
+
+### Why This Matters
+
+The same AILANG code can target:
+- **Game engines** (stapledon)
+- **Multi-agent simulations** (RL environments)
+- **Cognitive microservices** (LLM-powered handlers)
+- **CLI tools** (standalone binaries)
+- **Agent frameworks** (tool-using AI cores)
+
+All from **one IR and one compiler**. No language fragmentation.
+
+### Profile Selection
+
+```bash
+# Explicit profile
+ailang compile mymod.ail --profile sim --emit-go
+ailang compile tool.ail --profile cli --emit-go
+
+# Auto-detection from entry function shape
+ailang compile mymod.ail --emit-go
+```
+
+> *See [Execution Profiles Design Doc](/docs/architecture/execution-profiles) for the complete architecture.*
+
+---
+
 ## Future Horizons — Shared Semantic State
 
-Once reflection and normalization are stable, AILANG will enable **multi-agent cooperation** through a fundamentally new primitive: **shared semantic memory**.
+Once reflection, normalization, and profiles are stable, AILANG will enable **multi-agent cooperation** through a fundamentally new primitive: **shared semantic memory**.
 
 > *For the full technical vision, see [Shared Semantic State — AILANG's Cognitive Kernel](/docs/architecture/shared-semantic-state)*
 
@@ -258,16 +296,17 @@ fn verifyRefactor(original, refactored) =
 
 ## Timeline
 
-| Phase | Focus | Target |
+| Phase | Focus | Status |
 |--------|--------|--------|
-| **v0.3.14** | JSON decode + stable core | Week 1 |
-| **v0.3.15** | Deterministic tooling (`normalize`, `suggest`, `apply`) | Week 3 |
-| **v0.3.16** | Total recursion combinators + import ergonomics | Week 5 |
-| **v0.4.0** | Public launch with deterministic tooling | Week 7 |
-| **v0.4.1** | Runtime reflection (monomorphic types) | Week 9 |
-| **v0.4.2** | Training data export + polymorphic reflection | Week 11 |
+| **v0.3.x** | JSON decode + stable core | ✅ Complete |
+| **v0.4.x** | Monomorphization + type system maturity | ✅ Complete |
+| **v0.5.x** | Go codegen + AI effect + game support | ✅ In Progress |
+| **v0.6.0** | **Execution Profiles** — formalized SimProfile, ServiceProfile, CliProfile | Planned |
+| **v0.6.1** | AgentProfile — tool-using AI agent cores | Planned |
+| **v0.7.0** | WASM codegen + batch profiles | Future |
+| **v0.8.0** | Shared semantic state + multi-agent cooperation | Future |
 
-**Note:** Reflection deferred to v0.4.1+ to derisk public launch. v0.4.0 ships with `normalize → suggest → apply` pipeline, which is sufficient to demonstrate AI-native design.
+**Current focus:** v0.5.x completing Go codegen for game modules, preparing for formal execution profiles in v0.6.
 
 ---
 

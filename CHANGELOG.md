@@ -52,6 +52,135 @@ Suggestions:
 
 **Total:** ~157 LOC implementation + tests
 
+### Added - Execution Profiles Architecture Design (v0.6.0 Planning)
+
+**Strategic Architecture Document**: Formalized AILANG's execution profiles model.
+
+AILANG is not a game scripting language—it's a **deterministic state-machine DSL** with pluggable effect contexts that can target multiple domains:
+
+| Profile | Entry Shape | Use Cases |
+|---------|-------------|-----------|
+| **SimProfile** | `step(World, Input) -> (World, Output)` | Games, RL envs, agent sims |
+| **ServiceProfile** | `handle(Request) -> Response` | Microservices, agent tools |
+| **CliProfile** | `main(args) -> ()` | CLI tools, utilities |
+
+All profiles share the same IR and compiler—only the entry wrappers differ.
+
+**Design Documents Created:**
+- [design_docs/planned/v0_6_0/execution-profiles.md](design_docs/planned/v0_6_0/execution-profiles.md) - Full technical specification
+- [docs/docs/architecture/execution-profiles.mdx](docs/docs/architecture/execution-profiles.mdx) - Website architecture doc
+- [docs/docs/vision.mdx](docs/docs/vision.mdx) - Updated with profiles roadmap
+
+**Next Steps**: Phase 2 Go codegen fixes, then formal `--profile` flag in v0.6.0.
+
+### Added - Go Codegen Phase 2 Design Doc
+
+**Planning document for remaining Go codegen fixes** needed to unblock stapledon:
+
+- Slice type assertions (runtime type conversion)
+- Missing runtime helpers (Show, ConcatString, Log)
+- Cross-module function generation
+
+See [design_docs/planned/v0_5_2/m-game-b-phase2-go-codegen.md](design_docs/planned/v0_5_2/m-game-b-phase2-go-codegen.md)
+
+### Fixed - Go Codegen: Cross-Module ADT Type Resolution
+
+**Bug**: Go codegen failed with "cannot determine ADT type for match expression" when pattern matching on ADT types defined in imported modules.
+
+**Root Cause**: `RegisterADTConstructor()` only registered constructors from the current module's type declarations, missing ADTs from imported modules.
+
+**Fix**: Extended `cmd/ailang/compile.go` to iterate over `result.Modules` and register ADT constructors from all loaded modules:
+
+```go
+// Register ADT constructors from imported modules (cross-module ADT support)
+for _, mod := range result.Modules {
+    if mod.File != nil {
+        for _, decl := range mod.File.Decls {
+            if td, ok := decl.(*ast.TypeDecl); ok {
+                if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+                    for _, ctor := range adt.Constructors {
+                        codeGen.RegisterADTConstructor(td.Name, ctor.Name, len(ctor.Fields))
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Added cross-module ADT constructor registration (~15 LOC)
+
+### Fixed - Go Codegen: Generate types.go from Imported ADTs
+
+**Bug**: When compiling modules that import ADT types from other modules, types.go was not generated, causing the generated funcs.go to reference missing constructors like `NewSelectionTile()`.
+
+**Root Cause**: Type declarations were only extracted from the current module's AST, not from imported modules.
+
+**Fix**: Extended type declaration extraction in `cmd/ailang/compile.go` to also collect ADT types from `result.Modules`:
+
+```go
+// Extract type declarations from imported modules (cross-module ADT support)
+for _, mod := range result.Modules {
+    if mod.File != nil {
+        for _, decl := range mod.File.Decls {
+            if td, ok := decl.(*ast.TypeDecl); ok {
+                typeDecls = append(typeDecls, td)
+            }
+        }
+    }
+}
+```
+
+Now `ailang compile --emit-go` generates a complete types.go with ADT types from both the current module and all imported modules.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Added imported module type extraction (~10 LOC)
+
+### Fixed - Go Codegen: Type Assertions for ADT Constructor Arguments
+
+**Bug**: Generated funcs.go failed to compile with type errors like:
+```
+cannot use x (variable of type interface{}) as int64 value in argument to NewSelectionTile: need type assertion
+```
+
+**Root Cause**: Generated code uses `interface{}` for all intermediate values, but ADT constructors expect concrete types (int64, float64, etc.).
+
+**Fix**:
+1. Extended `ADTConstructorInfo` to include field types
+2. Added `RegisterADTConstructorWithTypes()` to register constructors with type information
+3. Modified `generateApp()` to add type assertions when calling ADT constructors
+
+**Generated code before:**
+```go
+return NewSelectionTile(x, y)  // ERROR: x is interface{}
+```
+
+**Generated code after:**
+```go
+return NewSelectionTile(x.(int64), y.(int64))  // OK: proper type assertions
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Extended ADTConstructorInfo with FieldTypes (~15 LOC)
+- `internal/gen/golang/codegen_expr.go` - Added type assertions in generateApp() (~40 LOC)
+- `cmd/ailang/compile.go` - Extract field types when registering constructors (~10 LOC)
+
+### Fixed - Go Codegen: Type Conversions for Literal Constants
+
+**Bug**: Type assertions were being applied to literal constants, causing invalid Go:
+```go
+NewDrawCmdRect(8.(int64), ...)  // ERROR: 8 is not an interface
+```
+
+**Fix**: Check if argument is a literal (`*core.Lit`) and use type conversion instead:
+```go
+NewDrawCmdRect(int64(8), ...)  // OK: type conversion
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_expr.go` - Distinguish literals from interface values (~10 LOC)
+
 ---
 
 ## [v0.5.1] - 2025-12-02
