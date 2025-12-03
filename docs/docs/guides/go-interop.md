@@ -188,18 +188,117 @@ type SomeData struct {
 - Constructor data stored in nullable fields
 - Use type switch on `Tag` for pattern matching
 
-### Effect Handlers (Experimental)
+### Effect Handlers
 
-Effect handlers are not yet fully supported in Go codegen. Current workaround:
+AILANG effects (Rand, Clock, FS, Net, Env, AI) are compiled to Go interface calls. The generated code expects you to implement handler interfaces and initialize them before use.
 
-1. Use extern functions for effectful operations
-2. Implement handlers in Go
+#### How Effect Handler Codegen Works
+
+When you compile AILANG code with effects:
 
 ```ailang
--- Declare intent, implement in Go
-extern func read_file(path: string) -> string
-extern func write_file(path: string, content: string) -> ()
+module game/step
+
+import std/rand (rand_int)
+
+export func rollDice() -> int ! {Rand} {
+  rand_int(1, 6)
+}
 ```
+
+The compiler generates:
+
+1. **Handler interfaces** in `effects.go`:
+```go
+// RandHandler provides the Rand effect implementation.
+type RandHandler interface {
+    RandInt(min, max int64) int64
+}
+```
+
+2. **Handlers struct** to collect all handlers:
+```go
+type Handlers struct {
+    Debug DebugHandler
+    Rand  RandHandler
+    Clock ClockHandler
+    FS    FSHandler
+    Net   NetHandler
+    Env   EnvHandler
+    AI    AIHandler
+}
+```
+
+3. **Init function** to initialize the global handlers:
+```go
+func Init(h Handlers) {
+    handlers = h
+}
+
+var handlers Handlers
+```
+
+4. **Function code** that calls handlers:
+```go
+func RollDice() int64 {
+    return handlers.Rand.RandInt(1, 6)
+}
+```
+
+#### Implementing Handlers
+
+Game developers implement the handler interfaces for their platform:
+
+```go
+package main
+
+import "mygame/gen/game"
+
+// Implement RandHandler
+type MyRandHandler struct {
+    seed uint64
+}
+
+func (r *MyRandHandler) RandInt(min, max int64) int64 {
+    // Your deterministic RNG implementation
+    r.seed = r.seed*1103515245 + 12345
+    return min + int64(r.seed)%(max-min+1)
+}
+
+func main() {
+    // Initialize handlers before using any AILANG code
+    game.Init(game.Handlers{
+        Rand: &MyRandHandler{seed: 12345},
+        // ... other handlers
+    })
+
+    // Now you can call AILANG functions
+    result := game.RollDice()
+}
+```
+
+#### Available Effect Handlers
+
+| Handler | Methods | Purpose |
+|---------|---------|---------|
+| `DebugHandler` | `Log(msg, loc)`, `Assert(cond, msg, loc)`, `Collect()` | Debugging and tracing |
+| `RandHandler` | `RandInt(min, max)`, `RandFloat()` | Deterministic random numbers |
+| `ClockHandler` | `Now()`, `DeltaTime()` | Time and game loop timing |
+| `FSHandler` | `Exists(path)`, `ReadFile(path)`, `WriteFile(path, content)` | File system operations |
+| `NetHandler` | `HttpGet(url)`, `HttpPost(url, body)` | Network requests |
+| `EnvHandler` | `GetEnv(key)` | Environment variables |
+| `AIHandler` | `Call(prompt, opts)` | AI model calls |
+
+#### Handler Implementation Tips
+
+1. **Keep handlers stateless if possible** - easier to test and reason about
+2. **Use deterministic implementations for Rand** - enables replay and testing
+3. **Mock handlers for testing** - inject test doubles via Init()
+4. **Initialize once at startup** - don't call Init() multiple times
+
+#### Legacy: Extern Functions
+
+For custom operations not covered by the built-in effect handlers, you can use extern functions (see [Extern Functions](#extern-functions) above).
 
 ## Debug Effect Host Contract
 
