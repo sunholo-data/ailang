@@ -329,6 +329,11 @@ func compileCommand() {
 				continue
 			}
 
+			// M-DX23: Set CoreTypeInfo for typed function signatures
+			if res.Artifacts.CoreTI != nil {
+				codeGen.SetCoreTypeInfo(res.Artifacts.CoreTI)
+			}
+
 			funcsCode, err := codeGen.Generate(coreProg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: function generation failed for file %d: %v\n", yellow("Warning"), i+1, err)

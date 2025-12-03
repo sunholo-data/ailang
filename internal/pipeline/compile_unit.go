@@ -4,6 +4,7 @@ import (
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/iface"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // ConstructorInfo holds information about a constructor for interface building
@@ -19,6 +20,7 @@ type CompileUnit struct {
 	ID           string                      // Module ID/path
 	Surface      *ast.File                   // Parsed AST
 	Core         *core.Program               // Core representation
+	CoreTI       types.CoreTypeInfo          // M-DX23: Type info for Core expressions
 	Iface        *iface.Iface                // Module interface
 	TypeEnv      interface{}                 // Type environment (placeholder)
 	Constructors map[string]*ConstructorInfo // ADT constructors defined in this module

@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // ADTConstructorInfo holds information about an ADT constructor.
@@ -73,6 +74,10 @@ type Generator struct {
 	// skipRuntimeHelpers skips generating runtime helpers (for multi-file compilation)
 	skipRuntimeHelpers bool
 
+	// coreTypeInfo maps Core expression NodeIDs to AILANG types
+	// M-DX23: Used to generate typed function signatures
+	coreTypeInfo types.CoreTypeInfo
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -87,6 +92,13 @@ type Generator struct {
 // Use this when compiling multiple files to avoid duplicate declarations.
 func (g *Generator) SetSkipRuntimeHelpers(skip bool) {
 	g.skipRuntimeHelpers = skip
+}
+
+// SetCoreTypeInfo provides type information for generating typed function signatures.
+// M-DX23: When set, functions will be generated with concrete parameter and return types
+// instead of interface{}.
+func (g *Generator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
+	g.coreTypeInfo = cti
 }
 
 // New creates a new Generator with the specified package name.

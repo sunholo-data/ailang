@@ -65,20 +65,35 @@ func (g *Generator) generateTopLevelLetRec(letrec *core.LetRec) error {
 }
 
 // generateFuncFromLambda generates a Go function from a Lambda expression.
+// M-DX23: When CoreTypeInfo is available, generates typed signatures instead of interface{}.
 func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 
 	// Register this function name mapping for recursive references
 	g.topLevelFuncs[name] = funcName
 
+	// M-DX23: Try to get typed signature from CoreTypeInfo
+	paramTypes, returnType := g.getTypedSignature(lam)
+
 	// Build parameter list
 	var params []string
-	for _, p := range lam.Params {
-		// Type information would come from TypeInfo - for now use interface{}
-		params = append(params, fmt.Sprintf("%s interface{}", ToGoVarName(p)))
+	for i, p := range lam.Params {
+		var paramType string
+		if i < len(paramTypes) {
+			paramType = string(paramTypes[i])
+		} else {
+			paramType = "interface{}"
+		}
+		params = append(params, fmt.Sprintf("%s %s", ToGoVarName(p), paramType))
 	}
 
-	g.writef("func %s(%s) interface{} {\n", funcName, strings.Join(params, ", "))
+	// Use typed return type or fall back to interface{}
+	retType := "interface{}"
+	if returnType != "" {
+		retType = string(returnType)
+	}
+
+	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)
 	g.indent++
 	g.writef("return ")
 	if err := g.generateExpr(lam.Body); err != nil {
@@ -89,4 +104,26 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	g.writef("}\n\n")
 
 	return nil
+}
+
+// getTypedSignature extracts typed parameter and return types from CoreTypeInfo.
+// M-DX23: Returns nil/empty if type info is unavailable or not a function type.
+func (g *Generator) getTypedSignature(lam *core.Lambda) ([]GoType, GoType) {
+	if g.coreTypeInfo == nil {
+		return nil, ""
+	}
+
+	// Look up the Lambda's type by NodeID
+	lamType, ok := g.coreTypeInfo[lam.NodeID]
+	if !ok {
+		return nil, ""
+	}
+
+	// Extract function signature using TypeMapper
+	paramTypes, returnType, ok := g.TypeMapper.ExtractFuncSignature(lamType)
+	if !ok {
+		return nil, ""
+	}
+
+	return paramTypes, returnType
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 func TestGeneratePureFunction_Factorial(t *testing.T) {
@@ -798,5 +799,97 @@ func TestGenerateADTSliceConverter(t *testing.T) {
 	}
 	if cameraIdx > drawCmdIdx {
 		t.Errorf("Converters should be sorted alphabetically (Camera before DrawCmd), got Camera at %d, DrawCmd at %d", cameraIdx, drawCmdIdx)
+	}
+}
+
+// M-DX23: Test typed function signatures with CoreTypeInfo
+func TestGenerateTypedFunctionSignature(t *testing.T) {
+	// Create a Lambda with a known NodeID
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 42}, // Known NodeID
+		Params:   []string{"world"},
+		Body:     &core.Var{Name: "world"}, // Simple identity function
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name:  "step",
+				Value: lam,
+				Body:  &core.Var{Name: "step"},
+			},
+		},
+		Meta: map[string]*core.DeclMeta{
+			"step": {IsExport: true},
+		},
+	}
+
+	// Set up CoreTypeInfo with a typed function signature
+	// step: *World -> *World
+	coreTypeInfo := make(types.CoreTypeInfo)
+	worldType := &types.TCon{Name: "World"}
+	funcType := &types.TFunc2{
+		Params:    []types.Type{worldType},
+		EffectRow: nil,
+		Return:    worldType,
+	}
+	coreTypeInfo[42] = funcType // Map Lambda's NodeID to its type
+
+	gen := New("game")
+	gen.SetCoreTypeInfo(coreTypeInfo)
+
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should have typed parameter (World not interface{})
+	if !strings.Contains(codeStr, "world World") {
+		t.Errorf("Expected typed parameter 'world World', got:\n%s", codeStr)
+	}
+
+	// Should have typed return type (World not interface{})
+	if !strings.Contains(codeStr, ") World {") {
+		t.Errorf("Expected typed return type 'World', got:\n%s", codeStr)
+	}
+}
+
+// M-DX23: Test fallback to interface{} when CoreTypeInfo is not available
+func TestGenerateFallbackToInterface(t *testing.T) {
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 100},
+		Params:   []string{"x"},
+		Body:     &core.Var{Name: "x"},
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name:  "identity",
+				Value: lam,
+				Body:  &core.Var{Name: "identity"},
+			},
+		},
+	}
+
+	// No CoreTypeInfo set - should fall back to interface{}
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should have interface{} parameter (fallback)
+	if !strings.Contains(codeStr, "x interface{}") {
+		t.Errorf("Expected fallback to 'x interface{}', got:\n%s", codeStr)
+	}
+
+	// Should have interface{} return type (fallback)
+	if !strings.Contains(codeStr, ") interface{} {") {
+		t.Errorf("Expected fallback return type 'interface{}', got:\n%s", codeStr)
 	}
 }

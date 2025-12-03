@@ -128,6 +128,7 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	result.Type = qualType
 	result.Constraints = constraints
+	result.Artifacts.CoreTI = typeChecker.CoreTI // M-DX23: Capture type info for codegen
 	result.PhaseTimings["typecheck"] = time.Since(start).Milliseconds()
 
 	// Capture instantiation tracking if enabled

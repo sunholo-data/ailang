@@ -74,6 +74,9 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 	case *types.TFunc:
 		return tm.mapTFunc(typ)
 
+	case *types.TFunc2:
+		return tm.mapTFunc2(typ)
+
 	case *types.TApp:
 		// Type application - look up constructor
 		if con, ok := typ.Constructor.(*types.TCon); ok {
@@ -85,8 +88,10 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 		return "", fmt.Errorf("complex type application not yet supported: %v", t)
 
 	case *types.TVar:
-		// Type variables should be resolved before codegen
-		return "", fmt.Errorf("unresolved type variable in codegen: %s", typ.Name)
+		// M-DX23: Type variables (polymorphic functions) fall back to interface{}
+		// This enables typed signatures for monomorphic functions while
+		// preserving flexibility for generic code
+		return GoType("interface{}"), nil
 
 	default:
 		return "", fmt.Errorf("unsupported type for Go codegen: %T", t)
@@ -135,6 +140,70 @@ func (tm *TypeMapper) mapTFunc(typ *types.TFunc) (GoType, error) {
 		return GoType(fmt.Sprintf("func() %s", returnType)), nil
 	}
 	return GoType(fmt.Sprintf("func(%s) %s", join(paramTypes, ", "), returnType)), nil
+}
+
+// mapTFunc2 maps a TFunc2 (function type with effect row) to Go.
+// M-DX23: TFunc2 is the new function type system used after type checking.
+func (tm *TypeMapper) mapTFunc2(typ *types.TFunc2) (GoType, error) {
+	var paramTypes []string
+	for _, p := range typ.Params {
+		pt, err := tm.MapType(p)
+		if err != nil {
+			return "", err
+		}
+		paramTypes = append(paramTypes, string(pt))
+	}
+
+	returnType, err := tm.MapType(typ.Return)
+	if err != nil {
+		return "", err
+	}
+
+	// Note: We ignore EffectRow for Go codegen - effects are runtime tracked
+	if len(paramTypes) == 0 {
+		return GoType(fmt.Sprintf("func() %s", returnType)), nil
+	}
+	return GoType(fmt.Sprintf("func(%s) %s", join(paramTypes, ", "), returnType)), nil
+}
+
+// ExtractFuncSignature extracts parameter types and return type from a function type.
+// M-DX23: Used to generate typed function signatures from CoreTypeInfo.
+// Returns nil slices and empty string if the type is not a function type.
+func (tm *TypeMapper) ExtractFuncSignature(t types.Type) (paramTypes []GoType, returnType GoType, ok bool) {
+	switch fn := t.(type) {
+	case *types.TFunc:
+		paramTypes = make([]GoType, len(fn.Params))
+		for i, p := range fn.Params {
+			pt, err := tm.MapType(p)
+			if err != nil {
+				return nil, "", false
+			}
+			paramTypes[i] = pt
+		}
+		rt, err := tm.MapType(fn.Return)
+		if err != nil {
+			return nil, "", false
+		}
+		return paramTypes, rt, true
+
+	case *types.TFunc2:
+		paramTypes = make([]GoType, len(fn.Params))
+		for i, p := range fn.Params {
+			pt, err := tm.MapType(p)
+			if err != nil {
+				return nil, "", false
+			}
+			paramTypes[i] = pt
+		}
+		rt, err := tm.MapType(fn.Return)
+		if err != nil {
+			return nil, "", false
+		}
+		return paramTypes, rt, true
+
+	default:
+		return nil, "", false
+	}
 }
 
 // join is a helper to join strings

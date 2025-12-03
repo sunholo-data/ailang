@@ -147,6 +147,51 @@ func convertToDrawCmdSlice(v interface{}) []*DrawCmd { ... }
 
 **Source**: DX feedback from `stapledons_voyage` agent.
 
+### Added - Typed Function Signatures Infrastructure (M-DX23)
+
+**User Impact**: Infrastructure for generating typed Go function signatures instead of `interface{}`. When CoreTypeInfo is available, functions are generated with concrete parameter and return types.
+
+**Before (interface{} everywhere):**
+```go
+func Step(world interface{}) interface{} { ... }
+```
+
+**After (typed signatures with CoreTypeInfo):**
+```go
+func Step(world World) World { ... }
+```
+
+**How it works**:
+1. Pipeline captures `CoreTypeInfo` from type checking and stores in `Artifacts.CoreTI`
+2. Compile command passes `CoreTI` to code generator via `SetCoreTypeInfo()`
+3. `generateFuncFromLambda` looks up Lambda's type by NodeID
+4. `TypeMapper.ExtractFuncSignature` extracts parameter and return types
+5. Falls back to `interface{}` if type info unavailable (backward compatible)
+
+**Key changes:**
+- Added `CoreTI` field to `Artifacts` struct in pipeline
+- Added `CoreTI` field to `CompileUnit` for multi-module support
+- Extended `TypeMapper` to handle `TVar` (returns `interface{}`) and `TFunc2`
+- Added `ExtractFuncSignature` helper for function type decomposition
+
+**Files Changed:**
+- `internal/pipeline/pipeline.go` - Added CoreTI to Artifacts (~3 LOC)
+- `internal/pipeline/pipeline_single.go` - Populate CoreTI (~1 LOC)
+- `internal/pipeline/pipeline_module.go` - Populate CoreTI in loop and result (~6 LOC)
+- `internal/pipeline/compile_unit.go` - Added CoreTI field (~2 LOC)
+- `internal/gen/golang/codegen.go` - Added coreTypeInfo field and SetCoreTypeInfo (~12 LOC)
+- `internal/gen/golang/codegen_decl.go` - Typed signature generation (~45 LOC)
+- `internal/gen/golang/types.go` - TVar handling, TFunc2, ExtractFuncSignature (~73 LOC)
+- `cmd/ailang/compile.go` - Pass CoreTI to generator (~5 LOC)
+
+**Tests:**
+- `TestGenerateTypedFunctionSignature` - Verifies typed output with CoreTypeInfo
+- `TestGenerateFallbackToInterface` - Verifies backward-compatible fallback
+
+**Note**: Full typed signatures require Lambda NodeIDs to be properly assigned during elaboration. Current real-world usage may still see `interface{}` if NodeIDs are 0.
+
+**Source**: DX feedback from `stapledons_voyage` agent (design doc M-DX23).
+
 ## [v0.5.3] - 2025-12-03
 
 ### Added - Named ADT Constructor Fields (M-DX11-NAMED-ADT)

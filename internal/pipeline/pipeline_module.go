@@ -352,6 +352,9 @@ func runModule(cfg Config, src Source) (Result, error) {
 			typeChecker.FillOperatorMethods(decl)
 		}
 
+		// M-DX23: Capture type info for codegen
+		unit.CoreTI = typeChecker.CoreTI
+
 		// Phase 3.4: Dictionary Elaboration (M-POLY-B)
 		// Transform operators (BinOp, UnOp) to dictionary applications (DictApp)
 		// This matches REPL behavior and is required for correct operator resolution
@@ -558,7 +561,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// Store artifacts
 	result.Artifacts.AST = rootUnit.Surface
 	result.Artifacts.Core = rootUnit.Core
-	result.Interface = rootUnit.Iface // Store module interface
+	result.Artifacts.CoreTI = rootUnit.CoreTI // M-DX23: Type info for codegen
+	result.Interface = rootUnit.Iface         // Store module interface
 
 	// Convert CompileUnits to LoadedModules for runtime execution (v0.2.0+)
 	result.Modules = make(map[string]*loader.LoadedModule)

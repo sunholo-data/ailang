@@ -92,8 +92,9 @@ type Source struct {
 type Artifacts struct {
 	AST    *ast.File
 	Core   *core.Program
-	Typed  interface{} // TODO: Add typed AST when available
-	Linked interface{} // TODO: Add linked program when available
+	CoreTI types.CoreTypeInfo // M-DX23: Type info for Core expressions (for typed codegen)
+	Typed  interface{}        // TODO: Add typed AST when available
+	Linked interface{}        // TODO: Add linked program when available
 }
 
 // Result contains pipeline output
