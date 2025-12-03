@@ -213,19 +213,20 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 
 			// Bind head elements
 			for i, elem := range pat.Elements {
-				if vp, ok := elem.(*core.VarPattern); ok {
+				if vp, ok := elem.(*core.VarPattern); ok && vp.Name != "_" {
+					// Skip binding for wildcard patterns (name == "_")
 					binding := fmt.Sprintf("%s := ListHead(%s)", ToGoVarName(vp.Name), scrutinee)
 					bindings = append(bindings, binding)
 					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(vp.Name)))
-					// For next element, need to get from tail
-					if i < len(pat.Elements)-1 {
-						scrutinee = fmt.Sprintf("ListTail(%s)", scrutinee)
-					}
+				}
+				// For next element, need to get from tail (always advance, even for wildcards)
+				if i < len(pat.Elements)-1 {
+					scrutinee = fmt.Sprintf("ListTail(%s)", scrutinee)
 				}
 			}
 
-			// Bind tail
-			if tailPat, ok := (*pat.Tail).(*core.VarPattern); ok {
+			// Bind tail (skip if wildcard)
+			if tailPat, ok := (*pat.Tail).(*core.VarPattern); ok && tailPat.Name != "_" {
 				// Calculate tail start position
 				if len(pat.Elements) > 0 {
 					tailExpr := scrutinee
