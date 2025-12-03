@@ -61,8 +61,8 @@ func TestToGoTypeName(t *testing.T) {
 		{"FrameInput", "FrameInput"},
 		{"tree", "Tree"},
 		{"", ""},
-		{"$a", "A"},       // Type variable
-		{"$foo", "Foo"},   // Type variable
+		{"$a", "A"},     // Type variable
+		{"$foo", "Foo"}, // Type variable
 	}
 
 	for _, tt := range tests {
@@ -108,9 +108,9 @@ func TestToGoFuncName(t *testing.T) {
 		{"init_world", false, "initWorld"},
 		{"factorial", true, "Factorial"},
 		{"factorial", false, "factorial"},
-		{"$a", true, "A"},       // Type variable
-		{"$a", false, "a"},      // Type variable
-		{"$foo_bar", true, "FooBar"},  // Type variable
+		{"$a", true, "A"},            // Type variable
+		{"$a", false, "a"},           // Type variable
+		{"$foo_bar", true, "FooBar"}, // Type variable
 	}
 
 	for _, tt := range tests {
@@ -133,6 +133,9 @@ func TestToKindConstName(t *testing.T) {
 		{"Tree", "Node", "TreeKindNode"},
 		{"DrawCmd", "Sprite", "DrawCmdKindSprite"},
 		{"option", "some", "OptionKindSome"},
+		// Double-prefix avoidance
+		{"Selection", "SelectionTile", "SelectionKindTile"},
+		{"Selection", "SelectionNone", "SelectionKindNone"},
 	}
 
 	for _, tt := range tests {
@@ -175,6 +178,9 @@ func TestToVariantStructName(t *testing.T) {
 		{"Tree", "Node", "TreeNode"},
 		{"option", "some", "OptionSome"},
 		{"option", "none", "OptionNone"},
+		// Double-prefix avoidance
+		{"Selection", "SelectionTile", "SelectionTile"},
+		{"Selection", "SelectionNone", "SelectionNone"},
 	}
 
 	for _, tt := range tests {
@@ -260,9 +266,9 @@ func TestToGoVarName(t *testing.T) {
 		{"world", "world"},
 		{"frame_input", "frameInput"},
 		{"HelloWorld", "helloWorld"},
-		{"$a", "a"},             // Type variable - $ stripped
-		{"$foo", "foo"},         // Type variable
-		{"$foo_bar", "fooBar"},  // Type variable with underscore
+		{"$a", "a"},            // Type variable - $ stripped
+		{"$foo", "foo"},        // Type variable
+		{"$foo_bar", "fooBar"}, // Type variable with underscore
 	}
 
 	for _, tt := range tests {

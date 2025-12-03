@@ -548,6 +548,10 @@ func TestGenerateMatch_ConstructorPattern(t *testing.T) {
 	}
 
 	gen := New("test")
+	// Register ADT constructors so the generator can determine the parent type
+	gen.RegisterADTConstructor("Option", "Some", 1)
+	gen.RegisterADTConstructor("Option", "None", 0)
+
 	code, err := gen.Generate(prog)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
@@ -563,6 +567,11 @@ func TestGenerateMatch_ConstructorPattern(t *testing.T) {
 	// Should have case clauses
 	if !strings.Contains(codeStr, "case") {
 		t.Errorf("Missing case clause, got:\n%s", codeStr)
+	}
+
+	// Should have proper Kind-based case (not type-based)
+	if !strings.Contains(codeStr, "OptionKind") {
+		t.Errorf("Missing OptionKind in case clause, got:\n%s", codeStr)
 	}
 }
 

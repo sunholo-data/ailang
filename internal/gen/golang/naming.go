@@ -139,13 +139,27 @@ func ToGoVarName(s string) string {
 }
 
 // ToKindConstName generates a kind constant name for sum type discriminators.
+// Avoids double-prefixing if the variant name already starts with the type name.
 //
 // Examples:
 //
 //	"Tree", "Leaf" -> "TreeKindLeaf"
 //	"Tree", "Node" -> "TreeKindNode"
+//	"Selection", "SelectionTile" -> "SelectionKindTile" (not "SelectionKindSelectionTile")
 func ToKindConstName(typeName, variantName string) string {
-	return ToPascalCase(typeName) + "Kind" + ToPascalCase(variantName)
+	pascalType := ToPascalCase(typeName)
+	pascalVariant := ToPascalCase(variantName)
+
+	// Strip type prefix from variant if it already starts with type name
+	variantSuffix := pascalVariant
+	if strings.HasPrefix(pascalVariant, pascalType) {
+		variantSuffix = pascalVariant[len(pascalType):]
+		// Handle edge case where variant name equals type name exactly
+		if variantSuffix == "" {
+			variantSuffix = pascalVariant
+		}
+	}
+	return pascalType + "Kind" + variantSuffix
 }
 
 // ToKindTypeName generates a kind type name for sum type discriminators.
@@ -158,13 +172,23 @@ func ToKindTypeName(typeName string) string {
 }
 
 // ToVariantStructName generates a variant struct name for sum types.
+// Avoids double-prefixing if the variant name already starts with the type name.
 //
 // Examples:
 //
 //	"Tree", "Leaf" -> "TreeLeaf"
 //	"Tree", "Node" -> "TreeNode"
+//	"Selection", "SelectionTile" -> "SelectionTile" (not "SelectionSelectionTile")
+//	"Selection", "None" -> "SelectionNone"
 func ToVariantStructName(typeName, variantName string) string {
-	return ToPascalCase(typeName) + ToPascalCase(variantName)
+	pascalType := ToPascalCase(typeName)
+	pascalVariant := ToPascalCase(variantName)
+
+	// Avoid double-prefix if variant already starts with type name
+	if strings.HasPrefix(pascalVariant, pascalType) {
+		return pascalVariant
+	}
+	return pascalType + pascalVariant
 }
 
 // SanitizeGoIdentifier ensures a string is a valid Go identifier.

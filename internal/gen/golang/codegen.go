@@ -21,10 +21,10 @@ import (
 
 // ADTConstructorInfo holds information about an ADT constructor.
 type ADTConstructorInfo struct {
-	TypeName    string // The ADT type name (e.g., "Selection")
-	CtorName    string // The constructor name (e.g., "SelectionNone")
-	GoFuncName  string // The Go constructor function name (e.g., "NewSelectionSelectionNone")
-	FieldCount  int    // Number of fields (0 for nullary constructors)
+	TypeName   string // The ADT type name (e.g., "Selection")
+	CtorName   string // The constructor name (e.g., "SelectionNone")
+	GoFuncName string // The Go constructor function name (e.g., "NewSelectionSelectionNone")
+	FieldCount int    // Number of fields (0 for nullary constructors)
 }
 
 // Generator produces Go source code from AILANG Core AST.
@@ -539,8 +539,8 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 			if len(parts) == 2 {
 				typeName := parts[0]
 				ctorName := parts[1]
-				// Generate Go constructor name: New + TypeName + CtorName
-				goFuncName := "New" + ToPascalCase(typeName) + ToPascalCase(ctorName)
+				// Generate Go constructor name using proper naming to avoid double-prefix
+				goFuncName := "New" + ToVariantStructName(typeName, ctorName)
 
 				// Check if this is a nullary constructor (needs to be called immediately)
 				if ctorInfo, ok := g.adtConstructors[ctorName]; ok && ctorInfo.FieldCount == 0 {
@@ -845,21 +845,37 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	needsTypeSwitch := g.patternsNeedTypeSwitch(match.Arms)
 
 	if needsTypeSwitch {
-		// Type switch for ADT constructors
-		g.writef("switch _s := _scrutinee.(type) {\n")
+		// ADT constructor matching - use Kind-based switch
+		// First, find the ADT type from constructor patterns
+		var adtTypeName string
+		for _, arm := range match.Arms {
+			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+				if info, exists := g.adtConstructors[cp.Name]; exists {
+					adtTypeName = info.TypeName
+					break
+				}
+			}
+		}
+		if adtTypeName == "" {
+			return fmt.Errorf("cannot determine ADT type for match expression")
+		}
+
+		// Assert scrutinee to ADT pointer type and switch on Kind
+		goADTName := ToGoTypeName(adtTypeName)
+		g.writef("_adt := _scrutinee.(*%s)\n", goADTName)
+		g.writef("switch _adt.Kind {\n")
 		hasDefault := false
 		for _, arm := range match.Arms {
 			if isWildcardOrVarPattern(arm.Pattern) {
 				hasDefault = true
 			}
-			if err := g.generateMatchArmTypeSwitch(&arm); err != nil {
+			if err := g.generateMatchArmADT(&arm, adtTypeName); err != nil {
 				return err
 			}
 		}
 		if !hasDefault {
 			g.writef("default:\n")
 			g.indent++
-			g.writef("_ = _s\n")
 			g.writef("panic(\"non-exhaustive match\")\n")
 			g.indent--
 		}
@@ -1129,25 +1145,63 @@ func (g *Generator) generateMatchArmValueSwitch(arm *core.MatchArm) error {
 	return nil
 }
 
-// generateMatchArmTypeSwitch generates a case clause for type-based matching.
-func (g *Generator) generateMatchArmTypeSwitch(arm *core.MatchArm) error {
+// generateMatchArmADT generates a case clause for ADT pattern matching.
+// It uses Kind-based switching and binds constructor fields.
+func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) error {
 	switch p := arm.Pattern.(type) {
 	case *core.ConstructorPattern:
-		// ADT constructor pattern - match on struct type
-		goTypeName := ToGoTypeName(p.Name)
-		g.writef("case *%s:\n", goTypeName)
-	case *core.WildcardPattern, *core.VarPattern:
+		// Generate Kind case using proper naming convention
+		kindConstName := ToKindConstName(adtTypeName, p.Name)
+		g.writef("case %s:\n", kindConstName)
+		g.indent++
+
+		// Bind fields from the variant struct using proper naming convention
+		if len(p.Args) > 0 {
+			variantFieldName := ToVariantStructName(adtTypeName, p.Name)
+			for i, arg := range p.Args {
+				if vp, ok := arg.(*core.VarPattern); ok {
+					goVarName := ToGoVarName(vp.Name)
+					g.writef("%s := _adt.%s.Value%d\n", goVarName, variantFieldName, i)
+					g.writef("_ = %s // suppress unused\n", goVarName)
+				}
+				// Wildcards don't need binding
+			}
+		}
+
+		g.writef("return ")
+		if err := g.generateExpr(arm.Body); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+
+	case *core.WildcardPattern:
 		g.writef("default:\n")
+		g.indent++
+		g.writef("return ")
+		if err := g.generateExpr(arm.Body); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+
+	case *core.VarPattern:
+		g.writef("default:\n")
+		g.indent++
+		// Bind the variable to the entire ADT
+		goVarName := ToGoVarName(p.Name)
+		g.writef("%s := _adt\n", goVarName)
+		g.writef("_ = %s // suppress unused\n", goVarName)
+		g.writef("return ")
+		if err := g.generateExpr(arm.Body); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+
 	default:
-		g.writef("case interface{}:\n")
+		return fmt.Errorf("unsupported pattern type in ADT match: %T", arm.Pattern)
 	}
-	g.indent++
-	g.writef("return ")
-	if err := g.generateExpr(arm.Body); err != nil {
-		return err
-	}
-	g.writef("\n")
-	g.indent--
 	return nil
 }
 
