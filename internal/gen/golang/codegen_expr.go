@@ -311,10 +311,14 @@ func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
 }
 
 // generateLet generates a Go variable binding.
+// M-DX13.3: Always declare as interface{} to allow type assertions later.
 func (g *Generator) generateLet(let *core.Let) error {
 	g.writef("func() interface{} {\n")
 	g.indent++
-	g.writef("%s := ", ToGoVarName(let.Name))
+	// M-DX13.3: Use "var x interface{} = ..." instead of "x := ..."
+	// This ensures type assertions like x.(int64) work even when value is a literal.
+	// "w := 8" infers int, but "var w interface{} = 8" keeps it as interface{}.
+	g.writef("var %s interface{} = ", ToGoVarName(let.Name))
 	if err := g.generateExpr(let.Value); err != nil {
 		return err
 	}

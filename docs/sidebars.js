@@ -30,6 +30,7 @@ const sidebars = {
       label: 'Getting Started',
       items: [
         'guides/getting-started',
+        'guides/editor-setup',
         'guides/module_execution',
       ],
     },

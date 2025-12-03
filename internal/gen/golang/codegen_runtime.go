@@ -453,4 +453,75 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n\n")
+
+	// M-DX12: Generate ADT slice converters for registered types
+	g.writeADTSliceConverters()
+}
+
+// writeADTSliceConverters generates type-safe slice conversion functions for ADT types.
+// M-DX12: These enable [ADT] fields to be typed slices in generated Go structs.
+func (g *Generator) writeADTSliceConverters() {
+	// Sort for deterministic output
+	var sortedTypes []string
+	for typeName := range g.adtSliceTypes {
+		sortedTypes = append(sortedTypes, typeName)
+	}
+	// Sort alphabetically
+	for i := 0; i < len(sortedTypes); i++ {
+		for j := i + 1; j < len(sortedTypes); j++ {
+			if sortedTypes[i] > sortedTypes[j] {
+				sortedTypes[i], sortedTypes[j] = sortedTypes[j], sortedTypes[i]
+			}
+		}
+	}
+
+	for _, typeName := range sortedTypes {
+		goTypeName := ToGoTypeName(typeName)
+		funcName := "convertTo" + goTypeName + "Slice"
+
+		g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
+		g.writef("// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection).\n")
+		g.writef("func %s(v interface{}) []*%s {\n", funcName, goTypeName)
+		g.indent++
+
+		// Handle nil
+		g.writef("if v == nil {\n")
+		g.indent++
+		g.writef("return nil\n")
+		g.indent--
+		g.writef("}\n")
+
+		// Assert to []interface{}
+		g.writef("src, ok := v.([]interface{})\n")
+		g.writef("if !ok {\n")
+		g.indent++
+		g.writef("panic(fmt.Sprintf(\"%s: expected []interface{}, got %%T\", v))\n", funcName)
+		g.indent--
+		g.writef("}\n")
+
+		// Handle empty slice (return empty, not nil)
+		g.writef("if len(src) == 0 {\n")
+		g.indent++
+		g.writef("return []*%s{}\n", goTypeName)
+		g.indent--
+		g.writef("}\n")
+
+		// Convert elements
+		g.writef("out := make([]*%s, len(src))\n", goTypeName)
+		g.writef("for i, e := range src {\n")
+		g.indent++
+		g.writef("elem, ok := e.(*%s)\n", goTypeName)
+		g.writef("if !ok {\n")
+		g.indent++
+		g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
+		g.indent--
+		g.writef("}\n")
+		g.writef("out[i] = elem\n")
+		g.indent--
+		g.writef("}\n")
+		g.writef("return out\n")
+
+		g.indent--
+		g.writef("}\n\n")
+	}
 }

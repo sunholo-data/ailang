@@ -15,13 +15,23 @@ type ADTGenerator struct {
 	PackageName string
 	buf         bytes.Buffer
 	indent      int
+	// adtSliceTypes tracks ADT type names that appear in list fields.
+	// M-DX12: Used to generate typed slice converters for world boundary marshalling.
+	adtSliceTypes map[string]bool
 }
 
 // NewADTGenerator creates a new ADT code generator.
 func NewADTGenerator(packageName string) *ADTGenerator {
 	return &ADTGenerator{
-		PackageName: packageName,
+		PackageName:   packageName,
+		adtSliceTypes: make(map[string]bool),
 	}
+}
+
+// GetADTSliceTypes returns the set of ADT types that appear in list fields.
+// M-DX12: Used by Generator to generate typed slice converters.
+func (g *ADTGenerator) GetADTSliceTypes() map[string]bool {
+	return g.adtSliceTypes
 }
 
 // GenerateTypeDecl generates Go code for a type declaration.
@@ -285,18 +295,23 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 
 	case *ast.ListType:
 		elemType := g.mapASTType(typ.Element)
-		// For ADT/user-defined element types, use interface{} to avoid runtime type mismatch
-		// AILANG runtime passes []interface{}, not []*ADTType
+		// M-DX12: For ADT/user-defined element types, generate typed slice []*ADTType
+		// World boundary marshalling converts []interface{} to typed slices at profile boundaries
 		if isUserDefinedType(elemType) {
-			return "interface{}"
+			// Track this ADT type for converter generation
+			// elemType is already PascalCase (e.g., "DrawCmd")
+			g.adtSliceTypes[elemType] = true
+			// Return typed pointer slice for ADTs (all ADT values are pointers)
+			return fmt.Sprintf("[]*%s", elemType)
 		}
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.ArrayType:
 		elemType := g.mapASTType(typ.Element)
-		// Same as ListType - use interface{} for ADT element types
+		// M-DX12: Same as ListType - generate typed slice for ADT elements
 		if isUserDefinedType(elemType) {
-			return "interface{}"
+			g.adtSliceTypes[elemType] = true
+			return fmt.Sprintf("[]*%s", elemType)
 		}
 		return fmt.Sprintf("[]%s", elemType)
 

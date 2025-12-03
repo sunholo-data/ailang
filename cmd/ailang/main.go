@@ -198,6 +198,9 @@ func main() {
 	case "compile":
 		compileCommand()
 
+	case "editor":
+		editorCommand()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()

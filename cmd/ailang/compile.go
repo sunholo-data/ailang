@@ -174,6 +174,9 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
+	// M-DX12: Track ADT types used in list fields for converter generation
+	var adtSliceTypes map[string]bool
+
 	// Generate types from ADTs (accumulated from all files)
 	if len(allTypeDecls) > 0 {
 		fmt.Printf("%s Generating types (%d type declarations)\n", cyan("→"), len(allTypeDecls))
@@ -183,6 +186,9 @@ func compileCommand() {
 			fmt.Fprintf(os.Stderr, "%s: type generation failed: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
+
+		// M-DX12: Capture ADT slice types for converter generation
+		adtSliceTypes = adtGen.GetADTSliceTypes()
 
 		typesFile := filepath.Join(outDir, "types.go")
 		if err := os.WriteFile(typesFile, typesCode, 0644); err != nil {
@@ -265,6 +271,7 @@ func compileCommand() {
 	codeGen := gen.New(pkgName)
 
 	// Register ADT constructors (with field types and names for proper codegen)
+	// M-DX13: Also register record types for typed struct literal generation
 	for _, td := range allTypeDecls {
 		if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
 			for _, ctor := range adt.Constructors {
@@ -272,7 +279,16 @@ func compileCommand() {
 				fieldNames := extractFieldNames(ctor.Fields)
 				codeGen.RegisterADTConstructorFull(td.Name, ctor.Name, fieldTypes, fieldNames)
 			}
+		} else if rec, ok := td.Definition.(*ast.RecordType); ok {
+			// M-DX13: Register record type for typed struct literal generation
+			fields, fieldTypes := extractRecordTypeInfo(rec)
+			codeGen.RegisterRecordType(capitalize(td.Name), fields, fieldTypes)
 		}
+	}
+
+	// M-DX12: Register ADT slice types for converter generation
+	if len(adtSliceTypes) > 0 {
+		codeGen.RegisterADTSliceTypes(adtSliceTypes)
 	}
 
 	// Count total declarations across all files
@@ -580,6 +596,19 @@ func extractFieldNames(fields []*ast.ConstructorField) []string {
 	return names
 }
 
+// extractRecordTypeInfo extracts field information from a record type definition.
+// M-DX13: Returns Go field names (PascalCase) and a map of field name -> Go type.
+func extractRecordTypeInfo(rec *ast.RecordType) ([]string, map[string]string) {
+	fields := make([]string, len(rec.Fields))
+	fieldTypes := make(map[string]string, len(rec.Fields))
+	for i, field := range rec.Fields {
+		goFieldName := capitalize(field.Name)
+		fields[i] = goFieldName
+		fieldTypes[goFieldName] = ailangTypeToGo(field.Type)
+	}
+	return fields, fieldTypes
+}
+
 // ailangTypeToGo converts an AILANG type to a Go type string
 func ailangTypeToGo(t ast.Type) string {
 	switch typ := t.(type) {
@@ -596,15 +625,18 @@ func ailangTypeToGo(t ast.Type) string {
 		case "()":
 			return "struct{}"
 		default:
-			// Assume it's a user-defined type
-			return "*" + capitalize(typ.Name)
+			// M-DX13.2: User-defined types are VALUE types in struct fields
+			// This matches adt.go's mapNamedType which returns "Coord", not "*Coord"
+			return capitalize(typ.Name)
 		}
 	case *ast.ListType:
 		elemType := ailangTypeToGo(typ.Element)
-		// For ADT/user-defined element types, use interface{} to match adt.go
-		// AILANG runtime passes []interface{}, not []*ADTType
-		if isUserDefinedGoType(elemType) {
-			return "interface{}"
+		// M-DX13.4: For user-defined element types, generate pointer slice []*Type
+		// This matches adt.go's mapASTType which returns []*Direction, not []Direction
+		// ADT values are always pointers in Go, so slices of ADTs are []*ADT
+		// M-DX15 fix: Check elemType directly, not "*" + elemType
+		if isUserDefinedGoType(elemType) { // Check if element is user-defined
+			return "[]*" + elemType
 		}
 		return "[]" + elemType
 	case *ast.RecordType:

@@ -37,6 +37,14 @@ type ADTConstructorInfo struct {
 	FieldNames []string // Original field names (e.g., ["x", "y"]) - empty strings for positional fields
 }
 
+// RecordTypeInfo holds information about a record type for typed struct generation.
+// M-DX13: Enables generating typed struct literals instead of map[string]interface{}.
+type RecordTypeInfo struct {
+	Name       string            // Go struct name (e.g., "World")
+	Fields     []string          // Field names in order (e.g., ["Npcs", "Tiles", "Width", "Height"])
+	FieldTypes map[string]string // Field name -> Go type (e.g., "Npcs" -> "[]*NPC")
+}
+
 // Generator produces Go source code from AILANG Core AST.
 type Generator struct {
 	// PackageName is the Go package name for generated code
@@ -53,6 +61,14 @@ type Generator struct {
 
 	// topLevelFuncs maps original function names to their Go names
 	topLevelFuncs map[string]string
+
+	// adtSliceTypes tracks ADT type names that need slice converter functions
+	// M-DX12: These are generated as convertTo<ADT>Slice() functions
+	adtSliceTypes map[string]bool
+
+	// recordTypes maps record type names to their info for typed struct generation
+	// M-DX13: Enables generating &World{...} instead of map[string]interface{}{...}
+	recordTypes map[string]*RecordTypeInfo
 
 	// skipRuntimeHelpers skips generating runtime helpers (for multi-file compilation)
 	skipRuntimeHelpers bool
@@ -80,6 +96,22 @@ func New(packageName string) *Generator {
 		TypeMapper:      NewTypeMapper(),
 		adtConstructors: make(map[string]*ADTConstructorInfo),
 		topLevelFuncs:   make(map[string]string),
+		adtSliceTypes:   make(map[string]bool),
+		recordTypes:     make(map[string]*RecordTypeInfo),
+	}
+}
+
+// RegisterADTSliceType marks an ADT type as needing a slice converter function.
+// M-DX12: This is called when encountering [ADT] in a record/struct field.
+func (g *Generator) RegisterADTSliceType(typeName string) {
+	g.adtSliceTypes[typeName] = true
+}
+
+// RegisterADTSliceTypes registers multiple ADT types for slice converter generation.
+// M-DX12: Used to transfer types discovered during type generation to the code generator.
+func (g *Generator) RegisterADTSliceTypes(types map[string]bool) {
+	for typeName := range types {
+		g.adtSliceTypes[typeName] = true
 	}
 }
 
@@ -117,6 +149,42 @@ func (g *Generator) RegisterADTConstructorFull(typeName, ctorName string, fieldT
 		FieldTypes: fieldTypes,
 		FieldNames: fieldNames,
 	}
+}
+
+// RegisterRecordType registers a record type for typed struct literal generation.
+// M-DX13: Enables generating &World{Field: val} instead of map[string]interface{}{...}.
+// The fields slice should contain Go field names (PascalCase), and fieldTypes maps
+// each Go field name to its Go type string.
+func (g *Generator) RegisterRecordType(name string, fields []string, fieldTypes map[string]string) {
+	g.recordTypes[name] = &RecordTypeInfo{
+		Name:       name,
+		Fields:     fields,
+		FieldTypes: fieldTypes,
+	}
+}
+
+// GetRecordTypeByFields looks up a record type by matching its field names.
+// M-DX13: Used to infer the struct type from a record literal's fields.
+// Returns nil if no matching record type is found.
+func (g *Generator) GetRecordTypeByFields(fieldNames map[string]bool) *RecordTypeInfo {
+	for _, info := range g.recordTypes {
+		if len(info.Fields) != len(fieldNames) {
+			continue
+		}
+		match := true
+		for _, f := range info.Fields {
+			// Convert Go field name (PascalCase) to AILANG field name (camelCase)
+			ailangName := strings.ToLower(f[:1]) + f[1:]
+			if !fieldNames[ailangName] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return info
+		}
+	}
+	return nil
 }
 
 // Generate produces Go source code from a Core program.
@@ -207,8 +275,6 @@ func (g *Generator) formatOutput() ([]byte, error) {
 
 // getSliceConversion returns the runtime conversion function name for a slice type.
 // Returns empty string if not a slice type or if conversion is not supported.
-// Only primitive slice types (int64, string, records) are converted.
-// ADT slices (e.g., []*Direction) must be handled without conversion.
 func (g *Generator) getSliceConversion(goType string) string {
 	switch goType {
 	case "[]int64":
@@ -218,8 +284,15 @@ func (g *Generator) getSliceConversion(goType string) string {
 	case "[]map[string]interface{}", "[]map[string]any":
 		return "ConvertToRecordSlice"
 	default:
-		// Don't convert ADT slices or other complex types
-		// They stay as []interface{} and callers handle type assertions
+		// M-DX12: Check if this is an ADT pointer slice (e.g., []*Direction)
+		// If so, use the auto-generated converter
+		if strings.HasPrefix(goType, "[]*") {
+			typeName := goType[3:] // Extract "Direction" from "[]*Direction"
+			// Only use converter if it was registered (type exists in adtSliceTypes)
+			if g.adtSliceTypes[typeName] {
+				return "convertTo" + typeName + "Slice"
+			}
+		}
 		return ""
 	}
 }

@@ -55,6 +55,297 @@ type Option = | Some(int) | None  -- Generates Value0
 
 **Source**: DX feedback from `stapledons_voyage` agent.
 
+### Added - Typed ADT Slices (M-DX12)
+
+**User Impact**: Record fields with `[ADT]` type now generate typed slices instead of `interface{}`, eliminating type assertions in host code.
+
+**AILANG source:**
+```ailang
+type FrameOutput = {
+  draw: [DrawCmd],
+  sounds: [int],
+  debug: [string]
+}
+```
+
+**Generated Go (before):**
+```go
+type FrameOutput struct {
+    Draw   interface{}  // Host must type assert
+    Sounds []int64
+    Debug  []string
+}
+```
+
+**Generated Go (after):**
+```go
+type FrameOutput struct {
+    Draw   []*DrawCmd  // Typed slice - clean API!
+    Sounds []int64
+    Debug  []string
+}
+```
+
+**Auto-generated converters with fail-fast panics:**
+```go
+func convertToDrawCmdSlice(v interface{}) []*DrawCmd {
+    // Panics on type mismatch (compiler bug detection)
+}
+```
+
+**Design principle**: World boundary marshalling - typed at profile surfaces, `[]interface{}` internally.
+
+**Files Changed:**
+- `internal/gen/golang/adt.go` - Changed `mapASTType()` to return `[]*ADT` for list-of-ADT (~25 LOC)
+- `internal/gen/golang/codegen.go` - Added `adtSliceTypes` tracking, `RegisterADTSliceTypes()` (~15 LOC)
+- `internal/gen/golang/codegen_runtime.go` - Added `writeADTSliceConverters()` (~65 LOC)
+- `cmd/ailang/compile.go` - Wired ADT slice types from ADTGenerator to Generator (~10 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - ADT Constructor List Parameters (M-DX12.5)
+
+**User Impact**: ADT constructors with list parameters now correctly use type converters. Before this fix, `PatternPatrol([Direction])` would fail with type mismatch because the list literal generated `[]interface{}` but the constructor expected `[]*Direction`.
+
+**AILANG source:**
+```ailang
+type MovementPattern =
+  | PatternPatrol([Direction])  -- List parameter
+  | PatternFixed(int, int)
+
+let patrol: [Direction] -> MovementPattern =
+  \dirs. PatternPatrol(dirs)
+```
+
+**Generated Go (before - M-DX12.5 bug):**
+```go
+func patrol(dirs interface{}) interface{} {
+    return NewMovementPatternPatternPatrol(dirs)  // Type mismatch!
+}
+```
+
+**Generated Go (after - fixed):**
+```go
+func patrol(dirs interface{}) interface{} {
+    return NewMovementPatternPatternPatrol(convertToDirectionSlice(dirs))  // Converter wraps argument
+}
+```
+
+**Root cause**: `ailangTypeToGo()` in compile.go was returning `"interface{}"` for `[ADT]` types to "match adt.go". This prevented `generateApp()` from detecting the need for type conversion.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Fixed `ailangTypeToGo()` to return `"[]*ADT"` for list-of-ADT types (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Added - Typed Record Literals (M-DX13)
+
+**User Impact**: Functions now return typed structs instead of `map[string]interface{}`, enabling clean API usage from Go host code.
+
+**AILANG source:**
+```ailang
+type World = { width: int, height: int, name: string }
+
+let createWorld: int -> int -> string -> World =
+  \w. \h. \n. { width: w, height: h, name: n }
+```
+
+**Generated Go (before - untyped):**
+```go
+func createWorld(w interface{}) interface{} {
+    return map[string]interface{}{
+        "width": w, "height": h, "name": n,
+    }
+}
+// Host code must do awkward type assertions:
+// world := result.(map[string]interface{})
+// width := world["width"].(int64)
+```
+
+**Generated Go (after - typed):**
+```go
+func createWorld(w interface{}) interface{} {
+    return &World{Width: w.(int64), Height: h.(int64), Name: n.(string)}
+}
+// Host code just works:
+// world := result.(*World)
+// width := world.Width  // Clean!
+```
+
+**How it works:**
+1. Record types are registered during compilation with field names and types
+2. When generating a record literal, field names are matched to find the struct type
+3. If matched, generates typed struct literal with proper type assertions
+4. Falls back to `map[string]interface{}` for unrecognized field patterns
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added `RecordTypeInfo`, `RegisterRecordType()`, `GetRecordTypeByFields()` (~50 LOC)
+- `internal/gen/golang/codegen_ops.go` - Added `generateTypedRecord()`, updated `generateRecord()` (~70 LOC)
+- `cmd/ailang/compile.go` - Added `extractRecordTypeInfo()`, record type registration (~20 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Literal Type Assertions (M-DX13.1)
+
+**User Impact**: Generated code no longer has invalid Go syntax like `2 .(int64)`.
+
+**Before (invalid Go):**
+```go
+&Coord{X: 2 .(int64), Y: 3 .(int64)}  // Type assertions don't work on literals!
+```
+
+**After (valid Go):**
+```go
+&Coord{X: int64(2), Y: int64(3)}  // Type conversion for literals
+```
+
+**Root cause**: Type assertions only work on interface values, not literals. Fixed by detecting literal values and using type conversion syntax instead.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_ops.go` - Added literal detection in `generateTypedRecord()` (~15 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Pointer/Value Mismatch in Nested Records (M-DX13.2)
+
+**User Impact**: Nested record fields now correctly dereference pointer values when the struct field expects a value type.
+
+**Before (type mismatch):**
+```go
+tmp1 := &Coord{X: 10, Y: 20}      // Pointer
+return &NPC{Pos: tmp1, ...}        // ERROR: Pos is Coord (value), not *Coord
+```
+
+**After (correct):**
+```go
+var tmp1 interface{} = &Coord{X: int64(10), Y: int64(20)}
+return &NPC{Pos: *(tmp1.(*Coord)), ...}  // Type assert then dereference
+```
+
+**Root cause**: `ailangTypeToGo()` was returning `"*Coord"` but adt.go's `mapNamedType()` returns `"Coord"` (value type). Fixed by aligning both to use value types for user-defined struct field types, and adding type assertion before dereference (see M-DX13.5).
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Fixed `ailangTypeToGo()` to return value types for user-defined types (~5 LOC)
+- `internal/gen/golang/codegen_ops.go` - Added `isRecordValueType()`, dereference logic (~30 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Let Bindings as interface{} (M-DX13.3)
+
+**User Impact**: Generated let bindings now use `var x interface{} = ...` instead of `x := ...`, enabling type assertions on concrete values.
+
+**Before (invalid Go):**
+```go
+// In generated IIFE for let expression:
+w := 8                  // Go infers int
+return w.(int64)        // ERROR: can't type assert non-interface type
+```
+
+**After (valid Go):**
+```go
+var w interface{} = 8   // Explicit interface{} type
+return w.(int64)        // Works - type assertion on interface{}
+```
+
+**Root cause**: Go's type inference assigns concrete types to short variable declarations. Type assertions only work on interface values.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_expr.go` - Changed `generateLet()` to use `var x interface{}` (~5 LOC)
+- `internal/gen/golang/codegen_test.go` - Updated `TestGenerateNestedLet` assertions (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Slice Type Conversion (M-DX13.4)
+
+**User Impact**: Slice fields in records now use proper type converters instead of type assertions.
+
+**Before (invalid Go):**
+```go
+// patrolPath is []interface{} at runtime
+path := patrolPath.([]Direction)  // ERROR: can't type assert to slice type
+```
+
+**After (valid Go):**
+```go
+path := convertToDirectionSlice(patrolPath)  // Uses converter function
+```
+
+**Root cause**: Go doesn't allow type assertion from `[]interface{}` to typed slices like `[]*Direction`. The slice converter iterates and type-asserts each element.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Fixed `ailangTypeToGo()` to return `[]*ADT` for list-of-ADT types (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Type Assertions for Struct Field Dereference (M-DX13.5)
+
+**User Impact**: When assigning nested records stored as `interface{}` to value-type struct fields, the generated code now properly type-asserts before dereferencing.
+
+**Before (invalid Go):**
+```go
+var tmp1 interface{} = &Coord{X: int64(10), Y: int64(20)}
+return &NPC{Pos: *tmp1, ...}  // ERROR: cannot indirect tmp1 (variable of type interface{})
+```
+
+**After (valid Go):**
+```go
+var tmp1 interface{} = &Coord{X: int64(10), Y: int64(20)}
+return &NPC{Pos: *(tmp1.(*Coord)), ...}  // Type assert then dereference
+```
+
+**Root cause**: Go requires type assertion before dereferencing an `interface{}` value. The fix adds type assertion `tmp1.(*Type)` before the dereference `*`.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_ops.go` - Added type assertion before dereference in typed record generation (~10 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - ADT Constructor Type Assertion (M-DX14)
+
+**User Impact**: ADT constructors in record fields no longer generate invalid type assertions.
+
+**Before (invalid Go):**
+```go
+return &NPC{Pattern: *(NewMovementPatternPatternStatic().(*MovementPattern))}
+// ERROR: NewMovementPatternPatternStatic() returns *MovementPattern, not interface{}
+```
+
+**After (valid Go):**
+```go
+return &NPC{Pattern: *NewMovementPatternPatternStatic()}
+// ADT constructors return typed pointers - just dereference
+```
+
+**Root cause**: ADT constructors return typed pointers (`*MovementPattern`), not `interface{}`. Type assertions only work on interface values.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_ops.go` - Added `isADTConstructorExpr()` helper to detect constructor calls (~40 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+### Fixed - Primitive Slice Field Type Mapping (M-DX15)
+
+**User Impact**: Record fields with `[int]` or `[string]` types now use proper slice converters.
+
+**Before (incorrect):**
+```go
+// ailangTypeToGo("[int]") returned "[]*int64" (wrong!)
+// This caused: &FrameOutput{Sounds: tmp1, Debug: tmp2} (no conversion)
+```
+
+**After (correct):**
+```go
+// ailangTypeToGo("[int]") returns "[]int64"
+// This generates: &FrameOutput{Sounds: ConvertToInt64Slice(tmp1), Debug: ConvertToStringSlice(tmp2)}
+```
+
+**Root cause**: `isUserDefinedGoType("*" + elemType)` was checking `"*int64"` which isn't in the primitive list, so primitives were incorrectly treated as user-defined types. Fixed by checking `elemType` directly.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Fixed `ailangTypeToGo()` to check `elemType` not `"*" + elemType` (~2 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.2] - 2025-12-03
 
 ### Added - Multi-File Compilation Support

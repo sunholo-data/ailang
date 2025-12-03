@@ -99,6 +99,7 @@ func printHelp() {
 	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
 	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
 	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))
+	fmt.Printf("  %s    Install syntax highlighting (vscode, vim, neovim)\n", cyan("editor install <editor>"))
 	fmt.Println()
 	fmt.Println("Agent Protocol:")
 	fmt.Printf("  %s                 Send message to an agent\n", cyan("agent send <agent> <json>"))

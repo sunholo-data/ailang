@@ -344,10 +344,11 @@ func TestGenerateNestedLet(t *testing.T) {
 	codeStr := string(code)
 
 	// Should have nested let bindings inside the generated IIFE
-	if !strings.Contains(codeStr, "x :=") {
+	// M-DX13.3: Uses "var x interface{}" to allow type assertions on concrete values
+	if !strings.Contains(codeStr, "var x interface{} =") {
 		t.Errorf("Missing x binding, got:\n%s", codeStr)
 	}
-	if !strings.Contains(codeStr, "y :=") {
+	if !strings.Contains(codeStr, "var y interface{} =") {
 		t.Errorf("Missing y binding, got:\n%s", codeStr)
 	}
 }
@@ -745,5 +746,55 @@ func TestExportRecursiveFunc(t *testing.T) {
 	// Should have PascalCase exported function
 	if !strings.Contains(codeStr, "func Factorial(") {
 		t.Errorf("Expected exported 'func Factorial(', got:\n%s", codeStr)
+	}
+}
+
+// M-DX12: Test ADT slice converter generation
+func TestGenerateADTSliceConverter(t *testing.T) {
+	// Register an ADT type for slice conversion
+	prog := &core.Program{
+		Decls: []core.CoreExpr{},
+	}
+
+	gen := New("game")
+	// Register ADT slice type - this is what happens when [DrawCmd] is encountered
+	gen.RegisterADTSliceType("DrawCmd")
+	gen.RegisterADTSliceType("Camera")
+
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should have DrawCmd converter
+	if !strings.Contains(codeStr, "func convertToDrawCmdSlice(v interface{}) []*DrawCmd") {
+		t.Errorf("Missing convertToDrawCmdSlice function, got:\n%s", codeStr)
+	}
+
+	// Should have Camera converter
+	if !strings.Contains(codeStr, "func convertToCameraSlice(v interface{}) []*Camera") {
+		t.Errorf("Missing convertToCameraSlice function, got:\n%s", codeStr)
+	}
+
+	// Should have fail-fast panic
+	if !strings.Contains(codeStr, "panic(fmt.Sprintf") {
+		t.Errorf("Missing panic for fail-fast, got:\n%s", codeStr)
+	}
+
+	// Should have empty slice handling
+	if !strings.Contains(codeStr, "[]*DrawCmd{}") {
+		t.Errorf("Missing empty slice return, got:\n%s", codeStr)
+	}
+
+	// Should be deterministic (sorted alphabetically)
+	cameraIdx := strings.Index(codeStr, "convertToCameraSlice")
+	drawCmdIdx := strings.Index(codeStr, "convertToDrawCmdSlice")
+	if cameraIdx == -1 || drawCmdIdx == -1 {
+		t.Errorf("Missing converters")
+	}
+	if cameraIdx > drawCmdIdx {
+		t.Errorf("Converters should be sorted alphabetically (Camera before DrawCmd), got Camera at %d, DrawCmd at %d", cameraIdx, drawCmdIdx)
 	}
 }

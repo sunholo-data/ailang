@@ -291,3 +291,77 @@ func TestMapASTType_Primitives(t *testing.T) {
 		}
 	}
 }
+
+// TestMapASTType_ADTSlices verifies M-DX12: ADT slice fields generate as typed slices
+func TestMapASTType_ADTSlices(t *testing.T) {
+	gen := NewADTGenerator("test")
+
+	// Test 1: [DrawCmd] generates as []*DrawCmd
+	adtListType := &ast.ListType{Element: &ast.SimpleType{Name: "DrawCmd"}}
+	result := gen.mapASTType(adtListType)
+	if result != "[]*DrawCmd" {
+		t.Errorf("mapASTType([DrawCmd]) = %q, want %q", result, "[]*DrawCmd")
+	}
+
+	// Test 2: ADT type is tracked for converter generation
+	sliceTypes := gen.GetADTSliceTypes()
+	if !sliceTypes["DrawCmd"] {
+		t.Errorf("DrawCmd not tracked in adtSliceTypes: %v", sliceTypes)
+	}
+
+	// Test 3: Multiple ADT slice types are tracked
+	gen2 := NewADTGenerator("test")
+	gen2.mapASTType(&ast.ListType{Element: &ast.SimpleType{Name: "Camera"}})
+	gen2.mapASTType(&ast.ListType{Element: &ast.SimpleType{Name: "NPC"}})
+	gen2.mapASTType(&ast.ListType{Element: &ast.SimpleType{Name: "int"}}) // primitive, not tracked
+
+	sliceTypes2 := gen2.GetADTSliceTypes()
+	if !sliceTypes2["Camera"] || !sliceTypes2["NPC"] {
+		t.Errorf("Expected Camera and NPC to be tracked, got: %v", sliceTypes2)
+	}
+	if sliceTypes2["int64"] {
+		t.Errorf("Primitive type int64 should not be tracked in adtSliceTypes")
+	}
+}
+
+// TestGenerateRecordWithADTSlice verifies M-DX12: record with [ADT] field generates typed slice
+func TestGenerateRecordWithADTSlice(t *testing.T) {
+	// type FrameOutput = { draw: [DrawCmd], sounds: [int], debug: [string] }
+	decl := &ast.TypeDecl{
+		Name: "FrameOutput",
+		Definition: &ast.RecordType{
+			Fields: []*ast.RecordField{
+				{Name: "draw", Type: &ast.ListType{Element: &ast.SimpleType{Name: "DrawCmd"}}},
+				{Name: "sounds", Type: &ast.ListType{Element: &ast.SimpleType{Name: "int"}}},
+				{Name: "debug", Type: &ast.ListType{Element: &ast.SimpleType{Name: "string"}}},
+			},
+		},
+	}
+
+	gen := NewADTGenerator("game")
+	code, err := gen.GenerateTypeDecl(decl)
+	if err != nil {
+		t.Fatalf("GenerateTypeDecl failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// M-DX12: ADT slice field should be typed (use Contains with flexible whitespace)
+	if !strings.Contains(codeStr, "Draw") || !strings.Contains(codeStr, "[]*DrawCmd") {
+		t.Errorf("Expected Draw field with []*DrawCmd type, got:\n%s", codeStr)
+	}
+
+	// Primitive slices should remain unchanged
+	if !strings.Contains(codeStr, "Sounds") || !strings.Contains(codeStr, "[]int64") {
+		t.Errorf("Expected Sounds field with []int64 type, got:\n%s", codeStr)
+	}
+	if !strings.Contains(codeStr, "Debug") || !strings.Contains(codeStr, "[]string") {
+		t.Errorf("Expected Debug field with []string type, got:\n%s", codeStr)
+	}
+
+	// Verify DrawCmd is tracked for converter generation
+	sliceTypes := gen.GetADTSliceTypes()
+	if !sliceTypes["DrawCmd"] {
+		t.Errorf("DrawCmd should be tracked for converter generation: %v", sliceTypes)
+	}
+}
