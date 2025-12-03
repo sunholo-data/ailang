@@ -346,6 +346,67 @@ return &NPC{Pattern: *NewMovementPatternPatternStatic()}
 
 **Source**: DX feedback from `stapledons_voyage` agent.
 
+### Fixed - RecordUpdate Preserves Typed Structs (M-DX16)
+
+**User Impact**: Record update expressions (`{ base | field: value }`) now preserve typed structs through the game loop, instead of converting to `map[string]interface{}`.
+
+**Before (type loss):**
+```go
+// InitWorld returns *World
+world := InitWorld()                        // ✓ *World
+
+// After Step, world becomes map[string]interface{}
+world = Step(world)                         // ✗ map[string]interface{}
+fmt.Printf("Type: %T\n", world)            // Output: map[string]interface{}
+
+// Can't type-assert back to *World
+w := world.(*World)                         // PANIC: not *World anymore!
+```
+
+**After (type preserved):**
+```go
+// InitWorld returns *World
+world := InitWorld()                        // ✓ *World
+
+// After Step, world is STILL *World
+world = Step(world).(*World)                // ✓ *World preserved
+fmt.Printf("Type: %T\n", world)            // Output: *recordupdate_test.World
+
+// All subsequent Steps work correctly
+for i := 0; i < 100; i++ {
+    world = Step(world).(*World)            // Type preserved through entire game loop
+}
+```
+
+**How it works**: The `RecordUpdate` runtime helper now uses Go reflection to:
+1. Detect when base is a typed struct (not `map[string]interface{}`)
+2. Create a new instance of the same type
+3. Copy all fields from the original
+4. Apply updates to matching fields (converting field names to PascalCase)
+5. Return the new typed struct pointer
+
+**Implementation:**
+```go
+// M-DX16: Handle typed structs using reflection
+baseVal := reflect.ValueOf(base)
+if baseVal.Kind() == reflect.Ptr && baseVal.Elem().Kind() == reflect.Struct {
+    // Create new instance, copy fields, apply updates
+    newPtr := reflect.New(baseVal.Elem().Type())
+    // ... copy fields, apply updates ...
+    return newPtr.Interface()  // Returns same type as input!
+}
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime.go` - Rewrote `RecordUpdate` helper with reflection (~60 LOC)
+- `internal/gen/golang/codegen.go` - Added `reflect` and `strings` imports (~10 LOC)
+
+**Tests:**
+- Added unit tests verifying type preservation through chains of updates
+- All 35+ golang codegen tests pass
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.2] - 2025-12-03
 
 ### Added - Multi-File Compilation Support
