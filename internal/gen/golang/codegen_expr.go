@@ -193,6 +193,56 @@ func (g *Generator) generateApp(app *core.App) error {
 		return nil
 	}
 
+	// Check if this is an ADT constructor call that needs type assertions
+	if ctorInfo := g.getADTConstructorForApp(app); ctorInfo != nil && len(ctorInfo.FieldTypes) > 0 {
+		// Generate ADT constructor call with type assertions/conversions
+		g.write(ctorInfo.GoFuncName + "(")
+		for i, arg := range app.Args {
+			if i > 0 {
+				g.write(", ")
+			}
+			// Add type assertion/conversion if we have type info for this field
+			if i < len(ctorInfo.FieldTypes) {
+				goType := ctorInfo.FieldTypes[i]
+				if goType != "interface{}" {
+					// Check if this is a slice type - needs runtime conversion, not assertion
+					if sliceConv := g.getSliceConversion(goType); sliceConv != "" {
+						// Slice types need runtime conversion (Go slices are invariant)
+						g.writef("runtime.%s(", sliceConv)
+						if err := g.generateExpr(arg); err != nil {
+							return err
+						}
+						g.write(")")
+						g.needsRuntimeImport = true
+					} else if lit, isLit := arg.(*core.Lit); isLit {
+						// Literals need type conversion, not assertion
+						g.writef("%s(", goType)
+						if err := g.generateExpr(lit); err != nil {
+							return err
+						}
+						g.write(")")
+					} else {
+						// Interface values need type assertion
+						if err := g.generateExpr(arg); err != nil {
+							return err
+						}
+						g.writef(".(%s)", goType)
+					}
+				} else {
+					if err := g.generateExpr(arg); err != nil {
+						return err
+					}
+				}
+			} else {
+				if err := g.generateExpr(arg); err != nil {
+					return err
+				}
+			}
+		}
+		g.write(")")
+		return nil
+	}
+
 	// Check if function is a variable that needs type assertion
 	needsAssertion := false
 	if v, ok := app.Func.(*core.Var); ok {
@@ -229,6 +279,27 @@ func (g *Generator) generateApp(app *core.App) error {
 			}
 		}
 		g.write(")")
+	}
+	return nil
+}
+
+// getADTConstructorForApp checks if an App is calling an ADT constructor and returns its info.
+func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
+	// Check for $adt.make_TypeName_CtorName pattern
+	if v, ok := app.Func.(*core.VarGlobal); ok {
+		if v.Ref.Module == "$adt" && strings.HasPrefix(v.Ref.Name, "make_") {
+			parts := strings.SplitN(v.Ref.Name[5:], "_", 2) // Skip "make_"
+			if len(parts) == 2 {
+				ctorName := parts[1]
+				if info, ok := g.adtConstructors[ctorName]; ok {
+					return info
+				}
+			}
+		}
+		// Also check direct constructor name
+		if info, ok := g.adtConstructors[v.Ref.Name]; ok {
+			return info
+		}
 	}
 	return nil
 }

@@ -343,8 +343,10 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		g.indent++
 
 		// Bind fields from the variant struct using proper naming convention
+		// Field names use ToPascalCase(ctor.Name), not ToVariantStructName
+		// e.g., for MovementPattern.PatternRandomWalk, field is "PatternRandomWalk" not "MovementPatternPatternRandomWalk"
 		if len(p.Args) > 0 {
-			variantFieldName := ToVariantStructName(adtTypeName, p.Name)
+			variantFieldName := ToPascalCase(p.Name)
 			for i, arg := range p.Args {
 				if vp, ok := arg.(*core.VarPattern); ok {
 					goVarName := ToGoVarName(vp.Name)

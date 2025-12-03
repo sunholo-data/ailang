@@ -29,10 +29,11 @@ import (
 
 // ADTConstructorInfo holds information about an ADT constructor.
 type ADTConstructorInfo struct {
-	TypeName   string // The ADT type name (e.g., "Selection")
-	CtorName   string // The constructor name (e.g., "SelectionNone")
-	GoFuncName string // The Go constructor function name (e.g., "NewSelectionSelectionNone")
-	FieldCount int    // Number of fields (0 for nullary constructors)
+	TypeName   string   // The ADT type name (e.g., "Selection")
+	CtorName   string   // The constructor name (e.g., "SelectionNone")
+	GoFuncName string   // The Go constructor function name (e.g., "NewSelectionSelectionNone")
+	FieldCount int      // Number of fields (0 for nullary constructors)
+	FieldTypes []string // Go type strings for each field (e.g., ["int64", "float64"])
 }
 
 // Generator produces Go source code from AILANG Core AST.
@@ -51,6 +52,9 @@ type Generator struct {
 
 	// topLevelFuncs maps original function names to their Go names
 	topLevelFuncs map[string]string
+
+	// needsRuntimeImport tracks if we need to import the runtime package
+	needsRuntimeImport bool
 
 	// output buffer for generated code
 	buf bytes.Buffer
@@ -75,6 +79,7 @@ func New(packageName string) *Generator {
 // RegisterADTConstructor registers an ADT constructor for proper code generation.
 // This enables VarGlobal references to ADT constructors to generate the correct
 // Go constructor function calls (e.g., NewSelectionSelectionNone() instead of SelectionNone).
+// Deprecated: Use RegisterADTConstructorWithTypes for proper type assertions.
 func (g *Generator) RegisterADTConstructor(typeName, ctorName string, fieldCount int) {
 	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
 	g.adtConstructors[ctorName] = &ADTConstructorInfo{
@@ -82,6 +87,20 @@ func (g *Generator) RegisterADTConstructor(typeName, ctorName string, fieldCount
 		CtorName:   ctorName,
 		GoFuncName: goFuncName,
 		FieldCount: fieldCount,
+		FieldTypes: nil, // No type info - will use interface{} without assertions
+	}
+}
+
+// RegisterADTConstructorWithTypes registers an ADT constructor with field type information.
+// This enables proper type assertions when calling constructors from generated code.
+func (g *Generator) RegisterADTConstructorWithTypes(typeName, ctorName string, fieldTypes []string) {
+	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
+	g.adtConstructors[ctorName] = &ADTConstructorInfo{
+		TypeName:   typeName,
+		CtorName:   ctorName,
+		GoFuncName: goFuncName,
+		FieldCount: len(fieldTypes),
+		FieldTypes: fieldTypes,
 	}
 }
 
@@ -150,4 +169,25 @@ func (g *Generator) formatOutput() ([]byte, error) {
 		return g.buf.Bytes(), fmt.Errorf("format error (raw code attached): %w", err)
 	}
 	return formatted, nil
+}
+
+// getSliceConversion returns the runtime conversion function name for a slice type.
+// Returns empty string if not a slice type.
+func (g *Generator) getSliceConversion(goType string) string {
+	switch goType {
+	case "[]int64":
+		return "ConvertToInt64Slice"
+	case "[]string":
+		return "ConvertToStringSlice"
+	case "[]map[string]interface{}", "[]map[string]any":
+		return "ConvertToRecordSlice"
+	default:
+		// Check for generic slice pattern
+		if strings.HasPrefix(goType, "[]") {
+			// For other slice types, use record slice as fallback
+			// This handles nested ADT slices, etc.
+			return "ConvertToRecordSlice"
+		}
+		return ""
+	}
 }
