@@ -1,5 +1,59 @@
 # AILANG Changelog
 
+## [v0.5.2] - 2025-12-03
+
+### Added - Relaxed Module Matching (M-DX11)
+
+**User Impact**: Files in temp directories or with explicit flags can now have mismatched module declarations. No more MOD010 errors when prototyping!
+
+**Three Relaxation Modes:**
+```bash
+# 1. CLI flag
+ailang run --relax-modules --caps IO --entry main file.ail
+ailang check --relax-modules file.ail
+
+# 2. Environment variable
+AILANG_RELAX_MODULES=1 ailang run --caps IO --entry main file.ail
+
+# 3. Auto-relaxation for temp paths (automatic)
+# Files in /tmp/, /var/folders/, or %TEMP% auto-relax with warning
+echo 'module test/hello
+let x = 42' > /tmp/test.ail
+ailang check /tmp/test.ail  # Warns but passes
+```
+
+**Warning Messages:**
+```
+# Temp path auto-relaxation
+WARNING MOD010 (temp-path): module 'test/hello' does not match canonical path 'tmp/test'
+  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.
+
+# Explicit --relax-modules flag
+WARNING MOD010 (relaxed): module 'test/hello' does not match canonical path 'src/test'
+  Running under --relax-modules; mismatch ignored. For strict checking, omit --relax-modules flag.
+```
+
+**Strict Mode (Default) Error:**
+```
+Error: MOD010: module declaration 'wrong/path' doesn't match canonical path 'src/actual'
+Suggestions:
+  1. Rename module to: module src/actual
+  2. Move file to: wrong/path.ail
+  3. For temp/scratch files: use --relax-modules or AILANG_RELAX_MODULES=1
+```
+
+**Files Changed:**
+- `internal/loader/loader.go` - Added `IsTempPath()` (~65 LOC)
+- `internal/loader/loader_test.go` - Unit tests (~55 LOC)
+- `internal/pipeline/pipeline.go` - Added `RelaxModules` config field
+- `internal/pipeline/pipeline_module.go` - MOD010 relaxation logic (~45 LOC)
+- `cmd/ailang/main.go` - `--relax-modules` flag for run command
+- `cmd/ailang/check.go` - `--relax-modules` flag for check command
+
+**Total:** ~157 LOC implementation + tests
+
+---
+
 ## [v0.5.1] - 2025-12-02
 
 ### Added - API Discovery Commands (M-DX-API-DISCOVERY)

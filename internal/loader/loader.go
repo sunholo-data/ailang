@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -564,4 +565,70 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// IsTempPath returns true if the given path is in a temporary directory.
+// This is used for relaxed module matching - files in temp directories
+// are allowed to have mismatched module declarations.
+//
+// Detection is conservative: if uncertain, returns false (doesn't auto-relax).
+//
+// Patterns detected:
+//   - os.TempDir() prefix (cross-platform)
+//   - /tmp/ prefix (Unix)
+//   - /var/folders/ prefix (macOS)
+//   - Windows %TEMP% prefix
+//   - Canonical paths starting with "tmp/" (after CanonicalModuleID strips leading /)
+func IsTempPath(path string) bool {
+	// First check for canonical paths that were originally in /tmp/
+	// CanonicalModuleID strips leading "/" so /tmp/foo becomes tmp/foo
+	if strings.HasPrefix(path, "tmp/") || path == "tmp" {
+		return true
+	}
+
+	// Check for /var/folders/ canonical paths (macOS)
+	if strings.HasPrefix(path, "var/folders/") {
+		return true
+	}
+
+	// Normalize path for comparison
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		// If we can't resolve the path, be conservative
+		return false
+	}
+
+	// Check os.TempDir() first (cross-platform)
+	tempDir := os.TempDir()
+	if strings.HasPrefix(absPath, tempDir) {
+		return true
+	}
+
+	// Platform-specific patterns
+	if runtime.GOOS == "windows" {
+		// Windows: check %TEMP% and %TMP% environment variables
+		if temp := os.Getenv("TEMP"); temp != "" {
+			if strings.HasPrefix(absPath, temp) {
+				return true
+			}
+		}
+		if tmp := os.Getenv("TMP"); tmp != "" {
+			if strings.HasPrefix(absPath, tmp) {
+				return true
+			}
+		}
+	} else {
+		// Unix-like systems
+		// Check /tmp/ prefix
+		if strings.HasPrefix(absPath, "/tmp/") || absPath == "/tmp" {
+			return true
+		}
+
+		// Check /var/folders/ prefix (macOS temp directories)
+		if strings.HasPrefix(absPath, "/var/folders/") {
+			return true
+		}
+	}
+
+	return false
 }

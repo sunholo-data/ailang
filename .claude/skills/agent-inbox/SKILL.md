@@ -14,11 +14,17 @@ description: Check and process messages from autonomous AILANG agents. Use when 
 # At session start, check for messages using AILANG CLI:
 ailang agent inbox user
 
-# Show only unread messages:
-ailang agent inbox user --unread-only
+# Show only unread messages (flags BEFORE agent ID!):
+ailang agent inbox --unread-only user
+
+# Show full message content (no truncation):
+ailang agent inbox --full user
+
+# Full content, limited to 5 messages:
+ailang agent inbox --full --limit 5 user
 
 # Archive messages after processing:
-ailang agent inbox user --archive
+ailang agent inbox --archive user
 ```
 
 **Expected output:**
@@ -56,25 +62,31 @@ ailang agent inbox user --archive
 
 Check user inbox and display all messages. Automatically marks messages as read.
 
-**Usage:**
+**Usage (flags BEFORE agent ID!):**
 ```bash
 # View all messages (unread + read)
 ailang agent inbox user
 
 # Show only unread messages
-ailang agent inbox user --unread-only
+ailang agent inbox --unread-only user
+
+# Show full message content (no truncation)
+ailang agent inbox --full user
+
+# Full content, only unread, limited to 5
+ailang agent inbox --full --unread-only --limit 5 user
 
 # Show only read messages
-ailang agent inbox user --read-only
+ailang agent inbox --read-only user
 
 # Show archived messages
-ailang agent inbox user --archived
+ailang agent inbox --archived user
 
 # Archive messages after viewing
-ailang agent inbox user --archive
+ailang agent inbox --archive user
 
 # Limit number of messages shown
-ailang agent inbox user --limit 5
+ailang agent inbox --limit 5 user
 ```
 
 ### `ailang agent send`
@@ -110,11 +122,11 @@ ailang agent inbox user
 
 **When agent reports completion:**
 ```bash
-# 1. Check messages
-ailang agent inbox user --unread-only
+# 1. Check messages (--full to see complete payload)
+ailang agent inbox --full --unread-only user
 
 # 2. Review message payload for artifact paths
-# (Payload shown in inbox output)
+# (Full payload shown when using --full flag)
 
 # 3. Review results
 ls -la eval_results/baselines/v0.4.2/
@@ -123,17 +135,17 @@ ls -la eval_results/baselines/v0.4.2/
 echo "✅ Sprint complete! Results at: eval_results/baselines/v0.4.2/"
 
 # 5. Archive after processing
-ailang agent inbox user --archive
+ailang agent inbox --archive user
 ```
 
 ### 3. Handle Error Reports
 
 **When agent reports errors:**
 ```bash
-# 1. Check messages to see error details
-ailang agent inbox user --unread-only
+# 1. Check messages to see full error details
+ailang agent inbox --full --unread-only user
 
-# 2. Review payload for error and log path
+# 2. Review payload for error and log path (visible with --full)
 # Example payload:
 # {"status": "error", "milestone": "3/5", "error": "Tests failing", "details": "logs/sprint.log"}
 
@@ -265,10 +277,24 @@ This skill loads information progressively:
 
 ## CLI Command Reference
 
+**IMPORTANT: Flags must come BEFORE the agent ID!**
+
 | Command | Purpose |
 |---------|---------|
 | `ailang agent inbox user` | View all messages (auto-marks as read) |
-| `ailang agent inbox user --unread-only` | View only unread messages |
-| `ailang agent inbox user --archive` | Archive messages after viewing |
+| `ailang agent inbox --unread-only user` | View only unread messages |
+| `ailang agent inbox --full user` | View full message content (no truncation) |
+| `ailang agent inbox --full --limit 5 user` | Full content, limit to 5 messages |
+| `ailang agent inbox --archive user` | Archive messages after viewing |
 | `ailang agent send --to-user --from "agent" '{...}'` | Send message to user inbox |
 | `ailang agent send agent-name '{...}'` | Send message to specific agent |
+
+**Available flags:**
+| Flag | Description |
+|------|-------------|
+| `--full` | Show full message content without truncation |
+| `--unread-only` | Show only unread messages |
+| `--read-only` | Show only already-read messages |
+| `--archived` | Show archived messages |
+| `--archive` | Move messages to archive after viewing |
+| `--limit N` | Maximum number of messages (default: 10) |

@@ -329,9 +329,20 @@
         "latest"
       ],
       "notes": "Add AI effect for multi-provider AI oracle"
+    },
+    "v0.5.2": {
+      "file": "prompts/v0.5.2.md",
+      "hash": "acd70c2ce6695d700b1e549c84d560fc86883848e74e3e7b2fc5edcb391a995d",
+      "description": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)",
+      "created": "2025-12-03",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)"
     }
   },
-  "active": "v0.5.0",
+  "active": "v0.5.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

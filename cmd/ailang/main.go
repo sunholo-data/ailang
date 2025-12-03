@@ -128,15 +128,16 @@ func main() {
 		// Parse check subcommand flags
 		checkFS := flag.NewFlagSet("check", flag.ExitOnError)
 		strictSyntaxCheck := checkFS.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
+		relaxModulesCheck := checkFS.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
 		_ = checkFS.Parse(flag.Args()[1:])
 
 		if checkFS.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang check [--strict-syntax] <file.ail>")
+			fmt.Println("Usage: ailang check [--strict-syntax] [--relax-modules] <file.ail>")
 			os.Exit(1)
 		}
-		checkFile(checkFS.Arg(0), *strictSyntaxCheck)
+		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck)
 
 	case "iface":
 		if flag.NArg() < 2 {
@@ -244,6 +245,9 @@ func runCommand() {
 	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash)")
 	debugFlag := fs.Bool("debug", false, "Enable Debug effect with context (collects logs/assertions)")
 
+	// Module relaxation flag
+	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -267,10 +271,10 @@ func runCommand() {
 		programArgs = fs.Args()[1:] // Skip filename, take remaining args
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool) {
 	// Configure stdlib resolver via environment variables
 	// CLI flags override environment variables
 	if stdlibPath != "" {
@@ -347,6 +351,16 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		mode = pipeline.ModeEval
 	}
 
+	// Check AILANG_RELAX_MODULES environment variable
+	// CLI flag takes precedence, but env var can also enable relaxation
+	relaxModulesEffective := relaxModules
+	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
+		switch strings.ToLower(envVal) {
+		case "1", "true", "yes":
+			relaxModulesEffective = true
+		}
+	}
+
 	cfg := pipeline.Config{
 		Mode:                    mode,
 		TraceDefaulting:         trace,
@@ -357,6 +371,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		DisableMonomorphization: noMono,
 		DebugCompile:            debugCompile,
 		StrictSyntaxMode:        strictSyntax,
+		RelaxModules:            relaxModulesEffective,
 		GlobalResolver:          builtinResolver, // Provide builtin access for type checking
 	}
 	src := pipeline.Source{

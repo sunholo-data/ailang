@@ -325,23 +325,24 @@
       "description": "Add AI effect for multi-provider AI oracle",
       "created": "2025-12-02",
       "tags": [
-        "production"
+        "production",
+        "latest"
       ],
       "notes": "Add AI effect for multi-provider AI oracle"
     },
-    "v0.5.1": {
-      "file": "prompts/v0.5.1.md",
-      "hash": "PLACEHOLDER",
-      "description": "Add Effect Module APIs section with Rand, Debug, Clock, AI, Game signatures",
-      "created": "2025-12-02",
+    "v0.5.2": {
+      "file": "prompts/v0.5.2.md",
+      "hash": "acd70c2ce6695d700b1e549c84d560fc86883848e74e3e7b2fc5edcb391a995d",
+      "description": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)",
+      "created": "2025-12-03",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "NEW: Effect Module APIs section documents all effect module function signatures upfront. No more guessing rand_int(1, 6) vs rand_int(6). Also adds Rand and Clock to the effect list."
+      "notes": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)"
     }
   },
-  "active": "v0.5.1",
+  "active": "v0.5.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

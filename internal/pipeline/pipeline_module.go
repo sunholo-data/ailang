@@ -89,8 +89,31 @@ func runModule(cfg Config, src Source) (Result, error) {
 			canonicalID := loader.CanonicalModuleID(string(modID))
 			// Exception: std/* modules bypass this check
 			if !strings.HasPrefix(canonicalID, "std/") && mod.File.Module.Path != canonicalID {
-				return result, fmt.Errorf("MOD010: module declaration '%s' doesn't match canonical path '%s'\nSuggestions:\n  1. Rename module to: module %s\n  2. Move file to: %s.ail",
-					mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
+				// Check if relaxation applies
+				isTempPath := loader.IsTempPath(string(modID))
+				shouldRelax := cfg.RelaxModules || isTempPath
+
+				if shouldRelax {
+					// Emit warning (once per path)
+					if cfg.mod010WarnedPaths == nil {
+						cfg.mod010WarnedPaths = make(map[string]bool)
+					}
+					if !cfg.mod010WarnedPaths[string(modID)] {
+						cfg.mod010WarnedPaths[string(modID)] = true
+
+						var reason string
+						if isTempPath {
+							reason = "temp-path"
+						} else {
+							reason = "relaxed"
+						}
+						warnMOD010Relaxed(mod.File.Module.Path, canonicalID, reason)
+					}
+				} else {
+					// Strict mode: emit error with suggestions
+					return result, fmt.Errorf("MOD010: module declaration '%s' doesn't match canonical path '%s'\nSuggestions:\n  1. Rename module to: module %s\n  2. Move file to: %s.ail\n  3. For temp/scratch files: use --relax-modules or AILANG_RELAX_MODULES=1",
+						mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
+				}
 			}
 		}
 
@@ -570,4 +593,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 	}
 
 	return result, nil
+}
+
+// warnMOD010Relaxed emits a warning for module path mismatch in relaxed mode.
+// The warning is printed to stderr with context about why it was relaxed.
+func warnMOD010Relaxed(declaredPath, canonicalPath, reason string) {
+	switch reason {
+	case "temp-path":
+		fmt.Fprintf(os.Stderr, "WARNING MOD010 (%s): module '%s' does not match canonical path '%s'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+			reason, declaredPath, canonicalPath)
+	case "relaxed":
+		fmt.Fprintf(os.Stderr, "WARNING MOD010 (%s): module '%s' does not match canonical path '%s'\n  Running under --relax-modules; mismatch ignored. For strict checking, omit --relax-modules flag.\n",
+			reason, declaredPath, canonicalPath)
+	default:
+		fmt.Fprintf(os.Stderr, "WARNING MOD010: module '%s' does not match canonical path '%s'\n",
+			declaredPath, canonicalPath)
+	}
 }

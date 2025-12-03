@@ -64,6 +64,10 @@ type Config struct {
 	DisableVarResolution    bool                  // Disable Var type resolution (M-DX4 workaround, default enabled)
 	DebugCompile            bool                  // Show compilation statistics (specialization counts, etc.)
 	StrictSyntaxMode        bool                  // Disable syntactic sugar (require canonical syntax)
+	RelaxModules            bool                  // Relax MOD010 validation (allow module path mismatches with warning)
+
+	// Warning tracking (to avoid duplicate warnings)
+	mod010WarnedPaths map[string]bool // Tracks paths that have already been warned for MOD010
 
 	// Environment from REPL (optional)
 	TypeEnv   *types.TypeEnv

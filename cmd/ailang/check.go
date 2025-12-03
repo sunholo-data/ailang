@@ -9,7 +9,7 @@ import (
 	"github.com/sunholo/ailang/internal/pipeline"
 )
 
-func checkFile(filename string, strictSyntax bool) {
+func checkFile(filename string, strictSyntax bool, relaxModules bool) {
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -23,10 +23,20 @@ func checkFile(filename string, strictSyntax bool) {
 	// Effect check
 	fmt.Printf("%s Effect checking...\n", cyan("→"))
 
+	// Check AILANG_RELAX_MODULES environment variable
+	relaxModulesEffective := relaxModules
+	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
+		switch strings.ToLower(envVal) {
+		case "1", "true", "yes":
+			relaxModulesEffective = true
+		}
+	}
+
 	// Use unified pipeline in dry-run mode (no evaluation)
 	cfg := pipeline.Config{
 		DryLink:          true, // Don't evaluate, just check
 		StrictSyntaxMode: strictSyntax,
+		RelaxModules:     relaxModulesEffective,
 	}
 	src := pipeline.Source{
 		Code:     string(content),

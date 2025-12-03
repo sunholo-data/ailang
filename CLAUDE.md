@@ -862,6 +862,13 @@ ailang repl                                        # Start REPL
   - **Symbol alias:** `import std/list (length as listLength)` → use `listLength(xs)` directly
   - **Combined:** `import std/list as List (map, filter)` → direct access to `map`, `filter` + qualified `List.*`
   - **Use case:** Resolve name clashes when importing from multiple modules
+- **Relaxed Module Matching (v0.5.2):** Allow module declaration to mismatch file path
+  - **Default behavior:** Strict - module path must match canonical file path (MOD010 validation)
+  - **CLI flag:** `ailang run --relax-modules --caps IO --entry main file.ail`
+  - **Environment variable:** `AILANG_RELAX_MODULES=1 ailang run ...`
+  - **Auto-relaxation:** Files in temp directories (`/tmp/`, `/var/folders/`) auto-relax with warning
+  - **Use case:** Quick prototyping, AI-generated temp files, experimentation
+  - **Warning:** Relaxed mode emits warnings - check your module paths before packaging
 - **⚠️ NULLARY FUNCTIONS BROKEN (v0.4.5):** Nullary functions (zero-arg) cannot be called from AILANG code
   - **Affected**: `_env_getArgs`, `_clock_now`, `_io_readLine`
   - **Issue**: No syntax to call them - `f` returns function object, `f()` is arity mismatch
