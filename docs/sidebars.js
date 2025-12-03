@@ -15,6 +15,7 @@
 const sidebars = {
   tutorialSidebar: [
     'intro',
+    'why-ailang',
     'vision',
     {
       type: 'category',

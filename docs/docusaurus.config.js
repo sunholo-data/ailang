@@ -126,6 +126,11 @@ const config = {
         },
         items: [
           {
+            to: '/docs/why-ailang',
+            label: 'Why AILANG',
+            position: 'left',
+          },
+          {
             to: '/docs/vision',
             label: 'Vision',
             position: 'left',
