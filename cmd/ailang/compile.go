@@ -37,14 +37,14 @@ func compileCommand() {
 		return
 	}
 
-	// Check for filename argument
+	// Check for filename arguments
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 		printCompileHelp()
 		os.Exit(1)
 	}
 
-	filename := fs.Arg(0)
+	filenames := fs.Args()
 
 	// Validate flags
 	if !*emitGoFlag {
@@ -52,66 +52,120 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
-	// Read the source file
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
-		os.Exit(1)
-	}
+	// Accumulated data from all files
+	var allTypeDecls []*ast.TypeDecl
+	var allExternFuncs []*ast.FuncDecl
+	var allCoreDecls []pipeline.Result
+	var pkgName string
+	seenTypes := make(map[string]bool) // Track types to avoid duplicates
 
-	// Check file extension
-	if !strings.HasSuffix(filename, ".ail") {
-		fmt.Fprintf(os.Stderr, "%s: file should have .ail extension\n", yellow("Warning"))
-	}
-
-	if *releaseFlag {
-		fmt.Printf("%s Compiling %s (RELEASE MODE - Debug erased)\n", cyan("→"), filename)
-	} else {
-		fmt.Printf("%s Compiling %s\n", cyan("→"), filename)
-	}
-
-	// Run the pipeline to parse and type-check
-	cfg := pipeline.Config{
-		Mode: pipeline.ModeCheck, // Parse + type-check only, no eval
-	}
-	src := pipeline.Source{
-		Code:     string(content),
-		Filename: filename,
-	}
-
-	result, err := pipeline.Run(cfg, src)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: compilation failed: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	if len(result.Errors) > 0 {
-		fmt.Fprintf(os.Stderr, "%s: errors:\n", red("Error"))
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "  %s\n", e)
+	// Process each file
+	for _, filename := range filenames {
+		// Read the source file
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
+			os.Exit(1)
 		}
-		os.Exit(1)
-	}
 
-	file := result.Artifacts.AST
-	coreProg := result.Artifacts.Core
+		// Check file extension
+		if !strings.HasSuffix(filename, ".ail") {
+			fmt.Fprintf(os.Stderr, "%s: file '%s' should have .ail extension\n", yellow("Warning"), filename)
+		}
 
-	// Determine package name
-	pkgName := *packageNameFlag
-	if pkgName == "" {
-		// Derive from module name or filename
-		if file != nil && file.Module != nil && file.Module.Path != "" {
-			// Use last component of module path
-			parts := strings.Split(file.Module.Path, "/")
-			pkgName = sanitizePackageName(parts[len(parts)-1])
+		if *releaseFlag {
+			fmt.Printf("%s Compiling %s (RELEASE MODE - Debug erased)\n", cyan("→"), filename)
 		} else {
-			// Use filename without extension
-			base := filepath.Base(filename)
-			pkgName = sanitizePackageName(strings.TrimSuffix(base, ".ail"))
+			fmt.Printf("%s Compiling %s\n", cyan("→"), filename)
 		}
+
+		// Run the pipeline to parse and type-check
+		cfg := pipeline.Config{
+			Mode: pipeline.ModeCheck, // Parse + type-check only, no eval
+		}
+		src := pipeline.Source{
+			Code:     string(content),
+			Filename: filename,
+		}
+
+		result, err := pipeline.Run(cfg, src)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: compilation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		if len(result.Errors) > 0 {
+			fmt.Fprintf(os.Stderr, "%s: errors:\n", red("Error"))
+			for _, e := range result.Errors {
+				fmt.Fprintf(os.Stderr, "  %s\n", e)
+			}
+			os.Exit(1)
+		}
+
+		file := result.Artifacts.AST
+
+		// Determine package name from first file (or use flag)
+		if pkgName == "" {
+			pkgName = *packageNameFlag
+			if pkgName == "" {
+				// Derive from module name or filename
+				if file != nil && file.Module != nil && file.Module.Path != "" {
+					// Use last component of module path
+					parts := strings.Split(file.Module.Path, "/")
+					pkgName = sanitizePackageName(parts[len(parts)-1])
+				} else {
+					// Use filename without extension
+					base := filepath.Base(filename)
+					pkgName = sanitizePackageName(strings.TrimSuffix(base, ".ail"))
+				}
+			}
+		}
+
+		// Extract type declarations from AST (current module)
+		if file != nil {
+			for _, decl := range file.Decls {
+				if td, ok := decl.(*ast.TypeDecl); ok {
+					if !seenTypes[td.Name] {
+						allTypeDecls = append(allTypeDecls, td)
+						seenTypes[td.Name] = true
+					}
+				}
+			}
+			// Extract extern functions from Funcs
+			for _, fn := range file.Funcs {
+				if fn.IsExtern {
+					allExternFuncs = append(allExternFuncs, fn)
+				}
+			}
+		}
+
+		// Extract type declarations from imported modules (cross-module ADT support)
+		currentModPath := ""
+		if file != nil && file.Module != nil {
+			currentModPath = file.Module.Path
+		}
+		for _, mod := range result.Modules {
+			if mod.File != nil {
+				if mod.File.Module != nil && mod.File.Module.Path == currentModPath {
+					continue
+				}
+				for _, decl := range mod.File.Decls {
+					if td, ok := decl.(*ast.TypeDecl); ok {
+						if !seenTypes[td.Name] {
+							allTypeDecls = append(allTypeDecls, td)
+							seenTypes[td.Name] = true
+						}
+					}
+				}
+			}
+		}
+
+		// Store result for later function generation
+		allCoreDecls = append(allCoreDecls, result)
 	}
 
 	fmt.Printf("%s Package name: %s\n", cyan("→"), pkgName)
+	fmt.Printf("%s Processed %d file(s)\n", cyan("→"), len(filenames))
 
 	// Create output directory
 	outDir := filepath.Join(*outFlag, pkgName)
@@ -120,48 +174,11 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
-	// Extract type declarations from AST (current module)
-	var typeDecls []*ast.TypeDecl
-	var externFuncs []*ast.FuncDecl
-	if file != nil {
-		for _, decl := range file.Decls {
-			if td, ok := decl.(*ast.TypeDecl); ok {
-				typeDecls = append(typeDecls, td)
-			}
-		}
-		// Extract extern functions from Funcs
-		for _, fn := range file.Funcs {
-			if fn.IsExtern {
-				externFuncs = append(externFuncs, fn)
-			}
-		}
-	}
-
-	// Extract type declarations from imported modules (cross-module ADT support)
-	// Skip the current module to avoid duplicate type declarations
-	currentModPath := ""
-	if file != nil && file.Module != nil {
-		currentModPath = file.Module.Path
-	}
-	for _, mod := range result.Modules {
-		if mod.File != nil {
-			// Skip current module (already extracted above)
-			if mod.File.Module != nil && mod.File.Module.Path == currentModPath {
-				continue
-			}
-			for _, decl := range mod.File.Decls {
-				if td, ok := decl.(*ast.TypeDecl); ok {
-					typeDecls = append(typeDecls, td)
-				}
-			}
-		}
-	}
-
-	// Generate types from ADTs
-	if len(typeDecls) > 0 {
-		fmt.Printf("%s Generating types (%d type declarations)\n", cyan("→"), len(typeDecls))
+	// Generate types from ADTs (accumulated from all files)
+	if len(allTypeDecls) > 0 {
+		fmt.Printf("%s Generating types (%d type declarations)\n", cyan("→"), len(allTypeDecls))
 		adtGen := gen.NewADTGenerator(pkgName)
-		typesCode, err := adtGen.GenerateTypeDecls(typeDecls)
+		typesCode, err := adtGen.GenerateTypeDecls(allTypeDecls)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: type generation failed: %v\n", red("Error"), err)
 			os.Exit(1)
@@ -231,9 +248,9 @@ func compileCommand() {
 	fmt.Printf("%s Generated %s\n", green("✓"), handlersFile)
 
 	// Generate extern function stubs
-	if len(externFuncs) > 0 {
-		fmt.Printf("%s Generating extern stubs (%d extern functions)\n", cyan("→"), len(externFuncs))
-		stubsCode := generateExternStubs(pkgName, externFuncs)
+	if len(allExternFuncs) > 0 {
+		fmt.Printf("%s Generating extern stubs (%d extern functions)\n", cyan("→"), len(allExternFuncs))
+		stubsCode := generateExternStubs(pkgName, allExternFuncs)
 
 		stubsFile := filepath.Join(outDir, "extern_stubs.go")
 		if err := os.WriteFile(stubsFile, stubsCode, 0644); err != nil {
@@ -243,53 +260,77 @@ func compileCommand() {
 		fmt.Printf("%s Generated %s\n", green("✓"), stubsFile)
 	}
 
-	// Generate functions from Core AST
+	// Generate functions from Core AST (accumulated from all files)
 	// Note: Function generation is experimental and may produce incomplete code
-	if coreProg != nil && len(coreProg.Decls) > 0 {
-		fmt.Printf("%s Generating functions (%d declarations)\n", cyan("→"), len(coreProg.Decls))
-		codeGen := gen.New(pkgName)
+	codeGen := gen.New(pkgName)
 
-		// Register ADT constructors from current module (with field types for proper type assertions)
-		for _, td := range typeDecls {
-			if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
-				for _, ctor := range adt.Constructors {
-					fieldTypes := extractFieldTypes(ctor.Fields)
-					codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
-				}
+	// Register ADT constructors (with field types for proper type assertions)
+	for _, td := range allTypeDecls {
+		if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+			for _, ctor := range adt.Constructors {
+				fieldTypes := extractFieldTypes(ctor.Fields)
+				codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
+			}
+		}
+	}
+
+	// Count total declarations across all files
+	totalDecls := 0
+	for _, res := range allCoreDecls {
+		if res.Artifacts.Core != nil {
+			totalDecls += len(res.Artifacts.Core.Decls)
+		}
+	}
+
+	if totalDecls > 0 {
+		fmt.Printf("%s Generating functions (%d declarations from %d files)\n", cyan("→"), totalDecls, len(allCoreDecls))
+
+		// For multi-file compilation, generate runtime helpers separately
+		if len(allCoreDecls) > 1 {
+			fmt.Printf("%s Generating runtime helpers (shared)\n", cyan("→"))
+			runtimeCode, err := codeGen.GenerateRuntime()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: runtime generation failed: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			runtimeFile := filepath.Join(outDir, "runtime.go")
+			if err := os.WriteFile(runtimeFile, runtimeCode, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot write runtime file: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
+
+			// Skip runtime helpers in subsequent code generation
+			codeGen.SetSkipRuntimeHelpers(true)
+		}
+
+		// Generate code for each file's Core program
+		var allFuncsCode []byte
+		for i, res := range allCoreDecls {
+			coreProg := res.Artifacts.Core
+			if coreProg == nil || len(coreProg.Decls) == 0 {
+				continue
+			}
+
+			funcsCode, err := codeGen.Generate(coreProg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: function generation failed for file %d: %v\n", yellow("Warning"), i+1, err)
+				continue
+			}
+
+			// For first file, include package header; for subsequent, strip header
+			if len(allFuncsCode) == 0 {
+				allFuncsCode = funcsCode
+			} else {
+				// Append functions only (skip package declaration for subsequent files)
+				allFuncsCode = append(allFuncsCode, []byte("\n")...)
+				allFuncsCode = append(allFuncsCode, stripPackageHeader(funcsCode)...)
 			}
 		}
 
-		// Register ADT constructors from imported modules (cross-module ADT support)
-		for _, mod := range result.Modules {
-			if mod.File != nil {
-				for _, decl := range mod.File.Decls {
-					if td, ok := decl.(*ast.TypeDecl); ok {
-						if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
-							for _, ctor := range adt.Constructors {
-								fieldTypes := extractFieldTypes(ctor.Fields)
-								codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
-							}
-						}
-					}
-				}
-			}
-		}
-
-		funcsCode, err := codeGen.Generate(coreProg)
-		if err != nil {
-			// Function generation is experimental - warn but continue
-			fmt.Fprintf(os.Stderr, "%s: function generation skipped (experimental): %v\n", yellow("Warning"), err)
-			fmt.Fprintf(os.Stderr, "  Type generation succeeded - use generated types in your Go code\n")
-			// Write raw code for debugging
-			if len(funcsCode) > 0 {
-				rawFile := filepath.Join(outDir, "funcs_raw.go.txt")
-				if werr := os.WriteFile(rawFile, funcsCode, 0644); werr == nil {
-					fmt.Fprintf(os.Stderr, "  Raw code written to %s for debugging\n", rawFile)
-				}
-			}
-		} else {
+		if len(allFuncsCode) > 0 {
 			funcsFile := filepath.Join(outDir, "funcs.go")
-			if err := os.WriteFile(funcsFile, funcsCode, 0644); err != nil {
+			if err := os.WriteFile(funcsFile, allFuncsCode, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: cannot write functions file: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
@@ -333,32 +374,36 @@ func sanitizePackageName(name string) string {
 }
 
 func printCompileHelp() {
-	fmt.Println(`Usage: ailang compile [options] <file.ail>
+	fmt.Println(`Usage: ailang compile [options] <file.ail> [file2.ail ...]
 
-Compile AILANG source to other languages.
+Compile AILANG source to other languages. Supports multiple files.
 
 Options:
   --emit-go              Generate Go source code (required)
   --out <dir>            Output directory (default: "gen")
-  --package-name <name>  Go package name (default: derived from module)
+  --package-name <name>  Go package name (default: derived from first module)
   --release              Mark this as a release build (info only)
   -h, --help             Show this help message
 
 Examples:
-  # Generate Go code from world.ail
+  # Generate Go code from a single file
   ailang compile --emit-go world.ail
 
+  # Compile multiple files together (types merged into one types.go)
+  ailang compile --emit-go step.ail npc_ai.ail camera.ail
+
   # Specify output directory and package name
-  ailang compile --emit-go --out gen/ --package-name game world.ail
+  ailang compile --emit-go --out gen/ --package-name game *.ail
 
 Output Structure:
   <out>/<package>/
-  ├── types.go              # Generated ADT types
+  ├── types.go              # Generated ADT types (merged from all files)
   ├── debug_types_debug.go  # Debug effect (full implementation, //go:build !release)
   ├── debug_types_release.go# Debug effect (no-ops, //go:build release)
-  ├── handlers.go           # Effect handler interfaces (Debug, Rand, Clock)
+  ├── handlers.go           # Effect handler interfaces (Debug, Rand, Clock, FS, Net, Env, AI)
+  ├── runtime.go            # Runtime helpers (only for multi-file compilation)
   ├── extern_stubs.go       # Stubs for extern functions (implement these)
-  └── funcs.go              # Generated functions (experimental)
+  └── funcs.go              # Generated functions (experimental, merged from all files)
 
 Build Commands:
   Debug mode (default):  cd <out> && go build
@@ -448,6 +493,57 @@ func capitalize(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// stripPackageHeader removes the package declaration and imports from Go code
+// Used when concatenating multiple generated files into one
+func stripPackageHeader(code []byte) []byte {
+	s := string(code)
+	lines := strings.Split(s, "\n")
+
+	// Find the first line that's not a comment, package, or import
+	startIdx := 0
+	inImport := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty lines and comments at the start
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+
+		// Skip package declaration
+		if strings.HasPrefix(trimmed, "package ") {
+			startIdx = i + 1
+			continue
+		}
+
+		// Handle import block
+		if strings.HasPrefix(trimmed, "import (") {
+			inImport = true
+			continue
+		}
+		if inImport {
+			if trimmed == ")" {
+				inImport = false
+				startIdx = i + 1
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "import ") {
+			startIdx = i + 1
+			continue
+		}
+
+		// Found actual code
+		break
+	}
+
+	if startIdx >= len(lines) {
+		return nil
+	}
+
+	return []byte(strings.Join(lines[startIdx:], "\n"))
 }
 
 // isUserDefinedGoType returns true if the Go type is a user-defined type (ADT, struct, etc.)
