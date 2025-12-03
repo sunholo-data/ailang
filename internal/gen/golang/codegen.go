@@ -53,9 +53,6 @@ type Generator struct {
 	// topLevelFuncs maps original function names to their Go names
 	topLevelFuncs map[string]string
 
-	// needsRuntimeImport tracks if we need to import the runtime package
-	needsRuntimeImport bool
-
 	// skipRuntimeHelpers skips generating runtime helpers (for multi-file compilation)
 	skipRuntimeHelpers bool
 

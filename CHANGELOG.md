@@ -2,6 +2,68 @@
 
 ## [v0.5.2] - 2025-12-03
 
+### Added - Multi-File Compilation Support
+
+**User Impact**: Compile multiple `.ail` files together to merge all types and functions into unified output files.
+
+```bash
+# Compile multiple files - types and functions are merged
+ailang compile --emit-go --package-name game step.ail npc_ai.ail camera.ail
+
+# Or use glob pattern
+ailang compile --emit-go --package-name game *.ail
+```
+
+**Generated Files:**
+- `types.go` - All ADT types from all files (deduplicated)
+- `funcs.go` - All functions from all files
+- `runtime.go` - Shared runtime helpers (only for multi-file compilation)
+- `handlers.go` - Effect handler interfaces
+
+**Important**: Compile all `.ail` files in a single command. Compiling files separately will overwrite previous output.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Multi-file argument handling, type deduplication (~120 LOC)
+- `internal/gen/golang/codegen.go` - `SetSkipRuntimeHelpers()`, `GenerateRuntime()` methods (~30 LOC)
+
+### Added - Complete Effect Handler Interfaces
+
+All seven effect handlers now have full Go interface definitions for game/application developers:
+
+| Handler | Methods | Purpose |
+|---------|---------|---------|
+| `DebugHandler` | `Log`, `Assert`, `Collect` | Debugging and tracing |
+| `RandHandler` | `RandInt`, `RandFloat` | Deterministic random numbers |
+| `ClockHandler` | `Now`, `DeltaTime` | Time and game loop timing |
+| `FSHandler` | `Exists`, `ReadFile`, `WriteFile` | File system operations |
+| `NetHandler` | `HttpGet`, `HttpPost` | Network requests |
+| `EnvHandler` | `GetEnv` | Environment variables |
+| `AIHandler` | `Call` | AI model calls |
+
+**Files Changed:**
+- `internal/gen/golang/effects.go` - Added FS, Net, Env handler definitions (~60 LOC)
+- `cmd/ailang/compile.go` - Register all handlers in generation
+
+### Fixed - Effect Handler Method Call Qualification
+
+**Bug**: Generated Go code called effect functions without handler qualification (e.g., `RandInt(1, 6)` instead of `handlers.Rand.RandInt(1, 6)`).
+
+**Fix**: Added `mapEffectBuiltinToHandler()` function to map AILANG builtins to qualified handler method calls.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_expr.go` - Effect builtin to handler mapping (~50 LOC)
+
+### Fixed - Wildcard Pattern Binding in ADT and List Patterns
+
+**Bug**: Wildcard patterns (`_`) in ADT constructor args and list cons patterns generated empty variable names (e.g., ` := _adt.Patrol.Value0`).
+
+**Root Cause**: `ToPascalCase("_")` returns empty string because underscores are skipped.
+
+**Fix**: Added `vp.Name != "_"` checks to skip generating bindings for wildcard patterns.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_match.go` - Skip wildcards in three locations (~6 LOC)
+
 ### Added - Relaxed Module Matching (M-DX11)
 
 **User Impact**: Files in temp directories or with explicit flags can now have mismatched module declarations. No more MOD010 errors when prototyping!
