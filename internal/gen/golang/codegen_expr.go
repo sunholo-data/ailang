@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // generateExpr generates Go code for a Core expression.
@@ -174,6 +175,11 @@ func (g *Generator) generateLambda(lam *core.Lambda) error {
 
 // generateApp generates a Go function application.
 func (g *Generator) generateApp(app *core.App) error {
+	// M-DX24.2: Check if this is an arithmetic helper that can be emitted as native operator
+	if g.canEmitNativeOp(app) {
+		return g.generateNativeOp(app)
+	}
+
 	// Special handling for cons operator (::)
 	if v, ok := app.Func.(*core.Var); ok && v.Name == "::" {
 		g.write("Cons(")
@@ -275,6 +281,9 @@ func (g *Generator) generateApp(app *core.App) error {
 		}
 		g.write(")")
 	} else {
+		// M-DX25.9: Get function's parameter types for call site type assertions
+		paramTypes := g.getFuncParamTypes(app.Func)
+
 		if err := g.generateExpr(app.Func); err != nil {
 			return err
 		}
@@ -283,8 +292,29 @@ func (g *Generator) generateApp(app *core.App) error {
 			if i > 0 {
 				g.write(", ")
 			}
-			if err := g.generateExpr(arg); err != nil {
-				return err
+			// M-DX25.9: Add type assertion if arg is interface{} but param expects concrete
+			if i < len(paramTypes) && paramTypes[i] != "" && paramTypes[i] != "interface{}" {
+				if g.exprProducesInterface(arg) {
+					if err := g.generateExpr(arg); err != nil {
+						return err
+					}
+					g.writef(".(%s)", paramTypes[i])
+				} else if lit, isLit := arg.(*core.Lit); isLit && isPrimitiveGoType(paramTypes[i]) {
+					// Literals need type conversion
+					g.writef("%s(", paramTypes[i])
+					if err := g.generateExpr(lit); err != nil {
+						return err
+					}
+					g.write(")")
+				} else {
+					if err := g.generateExpr(arg); err != nil {
+						return err
+					}
+				}
+			} else {
+				if err := g.generateExpr(arg); err != nil {
+					return err
+				}
 			}
 		}
 		g.write(")")
@@ -313,28 +343,122 @@ func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
 	return nil
 }
 
+// getFuncParamTypes returns the Go parameter types for a function expression.
+// M-DX25.9: Used to add type assertions at call sites when args are interface{}.
+func (g *Generator) getFuncParamTypes(funcExpr core.CoreExpr) []string {
+	if g.coreTypeInfo == nil {
+		return nil
+	}
+
+	// Get the function expression's NodeID and look up its type
+	nodeID := g.getExprNodeID(funcExpr)
+	if nodeID == 0 {
+		return nil
+	}
+
+	typ, ok := g.coreTypeInfo[nodeID]
+	if !ok {
+		return nil
+	}
+
+	// Extract parameter types from function type
+	return g.extractParamTypes(typ)
+}
+
+// extractParamTypes extracts Go parameter types from an AILANG type.
+func (g *Generator) extractParamTypes(typ types.Type) []string {
+	switch t := typ.(type) {
+	case *types.TFunc:
+		var params []string
+		for _, p := range t.Params {
+			if goType, err := g.TypeMapper.MapType(p); err == nil {
+				params = append(params, string(goType))
+			} else {
+				params = append(params, "interface{}")
+			}
+		}
+		return params
+	case *types.TFunc2:
+		var params []string
+		for _, p := range t.Params {
+			if goType, err := g.TypeMapper.MapType(p); err == nil {
+				params = append(params, string(goType))
+			} else {
+				params = append(params, "interface{}")
+			}
+		}
+		return params
+	default:
+		return nil
+	}
+}
+
 // generateLet generates a Go variable binding.
-// M-DX13.3: Always declare as interface{} to allow type assertions later.
+// M-DX25.2: Use SEPARATE types for variable (value's type) and IIFE return (body's type).
+// Bug fix: Originally used let's type for both, but let's type IS body's type, not value's type.
 func (g *Generator) generateLet(let *core.Let) error {
-	g.writef("func() interface{} {\n")
+	// M-DX25.2 FIX: Variable type comes from VALUE expression, not the let expression
+	varType := "interface{}"
+	if g.coreTypeInfo != nil {
+		valueNodeID := g.getExprNodeID(let.Value)
+		if valueNodeID != 0 {
+			if typ, ok := g.coreTypeInfo[valueNodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					varType = string(goType)
+				}
+			}
+		}
+	}
+
+	// M-DX25.2 FIX: Return type comes from LET expression (= body's type)
+	returnType := "interface{}"
+	if g.coreTypeInfo != nil {
+		if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
+			if goType, err := g.TypeMapper.MapType(typ); err == nil {
+				returnType = string(goType)
+			}
+		}
+	}
+
+	g.writef("func() %s {\n", returnType)
 	g.indent++
-	// M-DX13.3: Use "var x interface{} = ..." instead of "x := ..."
-	// This ensures type assertions like x.(int64) work even when value is a literal.
-	// "w := 8" infers int, but "var w interface{} = 8" keeps it as interface{}.
-	g.writef("var %s interface{} = ", ToGoVarName(let.Name))
+	g.writef("var %s %s = ", ToGoVarName(let.Name), varType)
+
+	// Add type assertion if value produces interface{} but we need concrete varType
+	needsValueAssertion := varType != "interface{}" && g.exprProducesInterface(let.Value)
 	if err := g.generateExpr(let.Value); err != nil {
 		return err
 	}
+	if needsValueAssertion {
+		g.writef(".(%s)", varType)
+	}
 	g.writef("\n")
+
 	g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
 	g.writef("return ")
+
+	// Add type assertion if body produces interface{} but we need concrete returnType
+	needsBodyAssertion := returnType != "interface{}" && g.exprProducesInterface(let.Body)
 	if err := g.generateExpr(let.Body); err != nil {
 		return err
 	}
+	if needsBodyAssertion {
+		g.writef(".(%s)", returnType)
+	}
 	g.writef("\n")
+
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// getExprNodeID extracts the NodeID from a CoreExpr.
+// M-DX25.2: Used to look up value expression's type separately from let's type.
+func (g *Generator) getExprNodeID(expr core.CoreExpr) uint64 {
+	if expr == nil {
+		return 0
+	}
+	return expr.ID()
 }
 
 // generateLetRec generates recursive function bindings.
@@ -371,18 +495,37 @@ func (g *Generator) generateLetRec(letrec *core.LetRec) error {
 }
 
 // generateIf generates a Go if expression.
+// M-DX25.3: Uses typed IIFE return and conditional type assertions.
 func (g *Generator) generateIf(ifExpr *core.If) error {
-	g.write("func() interface{} {\n")
+	// M-DX25.3: Look up If expression's type for IIFE return type
+	returnType := "interface{}"
+	if g.coreTypeInfo != nil {
+		if typ, ok := g.coreTypeInfo[ifExpr.NodeID]; ok {
+			if goType, err := g.TypeMapper.MapType(typ); err == nil {
+				returnType = string(goType)
+			}
+		}
+	}
+
+	g.writef("func() %s {\n", returnType)
 	g.indent++
 	g.writef("if ")
 	if err := g.generateExpr(ifExpr.Cond); err != nil {
 		return err
 	}
-	g.write(".(bool) {\n")
+	// M-DX25.3: Only add .(bool) if condition produces interface{}
+	if g.exprProducesInterface(ifExpr.Cond) {
+		g.write(".(bool)")
+	}
+	g.write(" {\n")
 	g.indent++
 	g.writef("return ")
 	if err := g.generateExpr(ifExpr.Then); err != nil {
 		return err
+	}
+	// M-DX25.3: Add type assertion if Then branch produces interface{} but we need concrete type
+	if returnType != "interface{}" && g.exprProducesInterface(ifExpr.Then) {
+		g.writef(".(%s)", returnType)
 	}
 	g.writef("\n")
 	g.indent--
@@ -390,6 +533,10 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 	g.writef("return ")
 	if err := g.generateExpr(ifExpr.Else); err != nil {
 		return err
+	}
+	// M-DX25.3: Add type assertion if Else branch produces interface{} but we need concrete type
+	if returnType != "interface{}" && g.exprProducesInterface(ifExpr.Else) {
+		g.writef(".(%s)", returnType)
 	}
 	g.writef("\n")
 	g.indent--
@@ -472,3 +619,169 @@ func mapEffectBuiltinToHandler(name string) string {
 // - Pure array ops: _array_* (compiled to Go slice operations)
 // - Pure JSON ops: _json_decode, _json_encode (compiled inline)
 // - Pure conversions: _stringToInt, _stringToFloat (compiled inline)
+
+// canEmitNativeOp checks if an App can be emitted as a native Go operator.
+// M-DX24.2: Returns true for arithmetic/comparison helpers when operands have known types.
+func (g *Generator) canEmitNativeOp(app *core.App) bool {
+	// Must have exactly 2 arguments for binary ops
+	if len(app.Args) != 2 {
+		return false
+	}
+
+	// Check if function is a known arithmetic/comparison helper
+	funcName := g.getAppFuncName(app)
+	if funcName == "" {
+		return false
+	}
+
+	// Check if this is an arithmetic/comparison helper
+	op := arithmeticHelperToOp(funcName)
+	if op == "" {
+		return false
+	}
+
+	// Check if both operands have known types
+	// For now, we check if operands are:
+	// 1. Typed parameters (Var with known type)
+	// 2. Literals (always typed)
+	// 3. Other expressions that produce concrete types
+	return g.operandHasKnownType(app.Args[0]) && g.operandHasKnownType(app.Args[1])
+}
+
+// generateNativeOp generates a native Go operator expression.
+// M-DX24.2: Emits (a + b) instead of AddInt(a, b).
+func (g *Generator) generateNativeOp(app *core.App) error {
+	funcName := g.getAppFuncName(app)
+	op := arithmeticHelperToOp(funcName)
+
+	g.write("(")
+	if err := g.generateExpr(app.Args[0]); err != nil {
+		return err
+	}
+	g.writef(" %s ", op)
+	if err := g.generateExpr(app.Args[1]); err != nil {
+		return err
+	}
+	g.write(")")
+	return nil
+}
+
+// getAppFuncName extracts the function name from an App expression.
+func (g *Generator) getAppFuncName(app *core.App) string {
+	switch f := app.Func.(type) {
+	case *core.Var:
+		return f.Name
+	case *core.VarGlobal:
+		return f.Ref.Name
+	default:
+		return ""
+	}
+}
+
+// operandHasKnownType checks if an operand has a known concrete type.
+// M-DX24.2: Used to determine if we can emit native operators.
+func (g *Generator) operandHasKnownType(expr core.CoreExpr) bool {
+	switch e := expr.(type) {
+	case *core.Lit:
+		// Literals always have concrete types
+		return true
+
+	case *core.Var:
+		// Variables are typed if they're function parameters
+		// We can't easily check this at codegen time, so we're conservative
+		// and assume local variables are typed (they come from typed function params)
+		return true
+
+	case *core.VarGlobal:
+		// Global variables might be typed
+		return true
+
+	case *core.App:
+		// Function calls - check if the function returns a concrete type
+		funcName := g.getAppFuncName(e)
+		if retType := runtimeHelperReturnType(funcName); retType != "" && retType != "interface{}" {
+			return true
+		}
+		// ADT constructors return concrete types
+		if _, isADT := g.adtConstructors[funcName]; isADT {
+			return true
+		}
+		// Top-level functions may return concrete types
+		if _, isTopLevel := g.topLevelFuncs[funcName]; isTopLevel {
+			return true
+		}
+		// Arithmetic helpers we're about to emit as native ops
+		if arithmeticHelperToOp(funcName) != "" {
+			return true
+		}
+		return false
+
+	default:
+		return false
+	}
+}
+
+// arithmeticHelperToOp maps arithmetic helper function names to Go operators.
+// M-DX24.2: Returns empty string if not a known arithmetic helper.
+func arithmeticHelperToOp(name string) string {
+	switch name {
+	// Integer arithmetic
+	case "add_Int", "AddInt":
+		return "+"
+	case "sub_Int", "SubInt":
+		return "-"
+	case "mul_Int", "MulInt":
+		return "*"
+	case "div_Int", "DivInt":
+		return "/"
+	case "mod_Int", "ModInt":
+		return "%"
+
+	// Float arithmetic
+	case "add_Float", "AddFloat":
+		return "+"
+	case "sub_Float", "SubFloat":
+		return "-"
+	case "mul_Float", "MulFloat":
+		return "*"
+	case "div_Float", "DivFloat":
+		return "/"
+
+	// Integer comparisons
+	case "eq_Int", "EqInt":
+		return "=="
+	case "ne_Int", "NeInt":
+		return "!="
+	case "lt_Int", "LtInt":
+		return "<"
+	case "le_Int", "LeInt":
+		return "<="
+	case "gt_Int", "GtInt":
+		return ">"
+	case "ge_Int", "GeInt":
+		return ">="
+
+	// Float comparisons
+	case "eq_Float", "EqFloat":
+		return "=="
+	case "ne_Float", "NeFloat":
+		return "!="
+	case "lt_Float", "LtFloat":
+		return "<"
+	case "le_Float", "LeFloat":
+		return "<="
+	case "gt_Float", "GtFloat":
+		return ">"
+	case "ge_Float", "GeFloat":
+		return ">="
+
+	// Boolean operations
+	case "and_Bool", "AndBool":
+		return "&&"
+	case "or_Bool", "OrBool":
+		return "||"
+
+	default:
+		return ""
+	}
+}

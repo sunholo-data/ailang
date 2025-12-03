@@ -78,6 +78,18 @@ type Generator struct {
 	// M-DX23: Used to generate typed function signatures
 	coreTypeInfo types.CoreTypeInfo
 
+	// expectedReturnType tracks the expected return type for current function
+	// M-DX24: Used to generate type assertions at return boundaries
+	expectedReturnType GoType
+
+	// matchReturnType tracks the expected return type for current match expression
+	// M-DX25.5: Used to generate type assertions in match arms
+	matchReturnType string
+
+	// matchScrutineeType tracks the Go type of the current match scrutinee
+	// M-DX25.7: Used to generate typed list operations instead of interface{} helpers
+	matchScrutineeType string
+
 	// output buffer for generated code
 	buf bytes.Buffer
 

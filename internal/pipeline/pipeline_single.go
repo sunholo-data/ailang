@@ -109,6 +109,17 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.EnableInstantiationTracking()
 	}
 
+	// M-DX25.4: Pass constructor → ADT type mappings to type checker
+	// This enables correct type inference for pattern matching on ADTs
+	elabCtors := elaborator.GetConstructors()
+	if len(elabCtors) > 0 {
+		ctorTypes := make(map[string]string)
+		for ctorName, ctorInfo := range elabCtors {
+			ctorTypes[ctorName] = ctorInfo.TypeName
+		}
+		typeChecker.SetConstructorTypes(ctorTypes)
+	}
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {

@@ -825,7 +825,8 @@ func TestGenerateTypedFunctionSignature(t *testing.T) {
 	}
 
 	// Set up CoreTypeInfo with a typed function signature
-	// step: *World -> *World
+	// step: World -> World (AILANG), *World -> *World (Go)
+	// M-DX25.6: ADT types map to pointers in Go
 	coreTypeInfo := make(types.CoreTypeInfo)
 	worldType := &types.TCon{Name: "World"}
 	funcType := &types.TFunc2{
@@ -845,14 +846,16 @@ func TestGenerateTypedFunctionSignature(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Should have typed parameter (World not interface{})
-	if !strings.Contains(codeStr, "world World") {
-		t.Errorf("Expected typed parameter 'world World', got:\n%s", codeStr)
+	// Should have typed parameter (World pointer not interface{})
+	// M-DX25.6: ADT types are represented as pointers in Go
+	if !strings.Contains(codeStr, "world *World") {
+		t.Errorf("Expected typed parameter 'world *World', got:\n%s", codeStr)
 	}
 
-	// Should have typed return type (World not interface{})
-	if !strings.Contains(codeStr, ") World {") {
-		t.Errorf("Expected typed return type 'World', got:\n%s", codeStr)
+	// Should have typed return type (World pointer not interface{})
+	// M-DX25.6: ADT types are represented as pointers in Go
+	if !strings.Contains(codeStr, ") *World {") {
+		t.Errorf("Expected typed return type '*World', got:\n%s", codeStr)
 	}
 }
 
@@ -891,5 +894,177 @@ func TestGenerateFallbackToInterface(t *testing.T) {
 	// Should have interface{} return type (fallback)
 	if !strings.Contains(codeStr, ") interface{} {") {
 		t.Errorf("Expected fallback return type 'interface{}', got:\n%s", codeStr)
+	}
+}
+
+// M-DX25.2: Test typed let bindings with CoreTypeInfo
+// Uses nested let inside a function to test the IIFE pattern
+func TestTypedLetBindings(t *testing.T) {
+	// func test() bool { let x = true in x }
+	valueLit := &core.Lit{
+		CoreNode: core.CoreNode{NodeID: 102}, // Value expression has its own NodeID
+		Kind:     core.BoolLit,
+		Value:    true,
+	}
+	nestedLet := &core.Let{
+		CoreNode: core.CoreNode{NodeID: 100},
+		Name:     "x",
+		Value:    valueLit,
+		Body:     &core.Var{Name: "x"},
+	}
+
+	// Wrap in a function declaration (let test = \() -> nestedLet)
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 101},
+		Params:   []string{},
+		Body:     nestedLet,
+	}
+
+	topLevelLet := &core.Let{
+		Name:  "test",
+		Value: lam,
+		Body:  &core.Var{Name: "test"},
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{topLevelLet},
+	}
+
+	// Set up CoreTypeInfo:
+	// - NodeID 100 (let expression) -> bool (the body's type = return type)
+	// - NodeID 102 (value expression) -> bool (the variable's type)
+	coreTypeInfo := make(types.CoreTypeInfo)
+	coreTypeInfo[100] = &types.TCon{Name: "bool"} // Let expression (body) type
+	coreTypeInfo[102] = &types.TCon{Name: "bool"} // Value expression type
+
+	gen := New("test")
+	gen.SetCoreTypeInfo(coreTypeInfo)
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// M-DX25.2: IIFE should return bool (not interface{})
+	if !strings.Contains(codeStr, "func() bool {") {
+		t.Errorf("Expected typed IIFE 'func() bool {', got:\n%s", codeStr)
+	}
+
+	// M-DX25.2: Variable should be typed bool (not interface{})
+	if !strings.Contains(codeStr, "var x bool =") {
+		t.Errorf("Expected typed variable 'var x bool =', got:\n%s", codeStr)
+	}
+}
+
+// M-DX25.2: Test let bindings with value that produces interface{}
+func TestTypedLetBindingsWithAssertion(t *testing.T) {
+	// func test() int64 { let x = 1 + 2 in x }
+	binOp := &core.BinOp{
+		CoreNode: core.CoreNode{NodeID: 201},
+		Op:       "+",
+		Left:     &core.Lit{Kind: core.IntLit, Value: int64(1)},
+		Right:    &core.Lit{Kind: core.IntLit, Value: int64(2)},
+	}
+	nestedLet := &core.Let{
+		CoreNode: core.CoreNode{NodeID: 200},
+		Name:     "x",
+		Value:    binOp,
+		Body:     &core.Var{Name: "x"},
+	}
+
+	// Wrap in a function
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 202},
+		Params:   []string{},
+		Body:     nestedLet,
+	}
+
+	topLevelLet := &core.Let{
+		Name:  "test",
+		Value: lam,
+		Body:  &core.Var{Name: "test"},
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{topLevelLet},
+	}
+
+	// Set up CoreTypeInfo:
+	// - NodeID 200 (let expression) -> int (the body's type = return type)
+	// - NodeID 201 (BinOp value) -> int (the variable's type)
+	coreTypeInfo := make(types.CoreTypeInfo)
+	coreTypeInfo[200] = &types.TCon{Name: "int"} // Let expression (body) type
+	coreTypeInfo[201] = &types.TCon{Name: "int"} // Value expression type (BinOp)
+
+	gen := New("test")
+	gen.SetCoreTypeInfo(coreTypeInfo)
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// M-DX25.2: IIFE should return int64 (not interface{})
+	if !strings.Contains(codeStr, "func() int64 {") {
+		t.Errorf("Expected typed IIFE 'func() int64 {', got:\n%s", codeStr)
+	}
+
+	// M-DX25.2: Variable should be typed int64
+	if !strings.Contains(codeStr, "var x int64 =") {
+		t.Errorf("Expected typed variable 'var x int64 =', got:\n%s", codeStr)
+	}
+
+	// M-DX25.8: With CoreTypeInfo providing concrete type for BinOp,
+	// no type assertion is needed - the BinOp produces int64 directly
+	if strings.Contains(codeStr, ".(int64)") {
+		t.Errorf("Should NOT have type assertion when BinOp has concrete type in CoreTypeInfo, got:\n%s", codeStr)
+	}
+}
+
+// M-DX25.2: Test fallback to interface{} when CoreTypeInfo is not available for let
+func TestTypedLetBindingsFallback(t *testing.T) {
+	// func test() { let x = true in x } (no type info)
+	nestedLet := &core.Let{
+		CoreNode: core.CoreNode{NodeID: 300},
+		Name:     "x",
+		Value:    &core.Lit{Kind: core.BoolLit, Value: true},
+		Body:     &core.Var{Name: "x"},
+	}
+
+	// Wrap in a function
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 301},
+		Params:   []string{},
+		Body:     nestedLet,
+	}
+
+	topLevelLet := &core.Let{
+		Name:  "test",
+		Value: lam,
+		Body:  &core.Var{Name: "test"},
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{topLevelLet},
+	}
+
+	// No CoreTypeInfo set - should fall back to interface{}
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should fall back to interface{}
+	if !strings.Contains(codeStr, "func() interface{} {") {
+		t.Errorf("Expected fallback 'func() interface{} {', got:\n%s", codeStr)
+	}
+
+	if !strings.Contains(codeStr, "var x interface{} =") {
+		t.Errorf("Expected fallback 'var x interface{} =', got:\n%s", codeStr)
 	}
 }

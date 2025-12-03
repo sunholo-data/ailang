@@ -156,3 +156,40 @@ ailang editor install vscode
 ```
 
 This will replace the old extension with the new version.
+
+## Recommended: Ligature Fonts
+
+AILANG uses operators like `=>`, `->`, `::`, and `\` (lambda). Programming fonts with **ligatures** render these as beautiful single glyphs:
+
+| Characters | Ligature | AILANG Usage |
+|------------|----------|--------------|
+| `=>` | ⇒ | Match arms |
+| `->` | → | Function types |
+| `::` | ∷ | Cons, type annotations |
+| `++` | ⧺ | Append |
+| `\` | λ | Lambda |
+| `!=` | ≠ | Not equal |
+| `<=` `>=` | ≤ ≥ | Comparisons |
+
+### Recommended Fonts
+
+| Font | Install | Notes |
+|------|---------|-------|
+| [Fira Code](https://github.com/tonsky/FiraCode) | `brew install --cask font-fira-code` | Most popular |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | `brew install --cask font-jetbrains-mono` | Excellent readability |
+| [Cascadia Code](https://github.com/microsoft/cascadia-code) | `brew install --cask font-cascadia-code` | Microsoft's font |
+
+### VS Code Settings
+
+Add to your `settings.json`:
+
+```json
+{
+  "editor.fontFamily": "Fira Code, Menlo, Monaco, monospace",
+  "editor.fontLigatures": true
+}
+```
+
+### Vim/Neovim
+
+Set in your terminal emulator (iTerm2, Alacritty, etc.) - Vim uses the terminal's font.

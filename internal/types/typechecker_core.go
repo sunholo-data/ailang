@@ -72,6 +72,7 @@ type CoreTypeChecker struct {
 	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
 	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes    map[string]string              // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -151,6 +152,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		effectAnnots:        make(map[uint64][]string),
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
+		constructorTypes:    make(map[string]string),
 	}
 }
 
@@ -170,6 +172,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		effectAnnots:        make(map[uint64][]string),
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
+		constructorTypes:    make(map[string]string),
 	}
 }
 
@@ -184,6 +187,21 @@ func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
 		tc.globalTypes = make(map[string]*Scheme)
 	}
 	tc.globalTypes[key] = scheme
+}
+
+// SetConstructorTypes sets the constructor → ADT type mappings.
+// M-DX25.4: Used to infer correct types for pattern matching on ADTs.
+func (tc *CoreTypeChecker) SetConstructorTypes(ctors map[string]string) {
+	tc.constructorTypes = ctors
+}
+
+// RegisterConstructorType registers a single constructor → ADT type mapping.
+// M-DX25.4: Used to infer correct types for pattern matching on ADTs.
+func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
+	if tc.constructorTypes == nil {
+		tc.constructorTypes = make(map[string]string)
+	}
+	tc.constructorTypes[ctorName] = typeName
 }
 
 // SetDebugMode enables debug output for defaulting traces

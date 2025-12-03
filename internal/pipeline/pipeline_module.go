@@ -337,6 +337,14 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 		typeChecker.SetGlobalTypes(externalTypes)
 
+		// M-DX25.4: Pass constructor → ADT type mappings to type checker
+		// This enables correct type inference for pattern matching on ADTs
+		ctorTypes := make(map[string]string)
+		for ctorName, ctorInfo := range unit.Constructors {
+			ctorTypes[ctorName] = ctorInfo.TypeName
+		}
+		typeChecker.SetConstructorTypes(ctorTypes)
+
 		// Type check ALL declarations in the module, accumulating types in moduleTypeEnv
 		for i, decl := range unit.Core.Decls {
 			// InferWithConstraints returns the updated env with new bindings

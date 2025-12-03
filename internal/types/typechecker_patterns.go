@@ -144,9 +144,18 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		return nil, typedast.TypedWildcardPattern{}, nil
 
 	case *core.ConstructorPattern:
-		// Constructor pattern - need to lookup constructor scheme
-		// TODO: This needs access to the module interface to get constructor schemes
-		// For now, we'll do basic checking without constructor validation
+		// M-DX25.4: Look up constructor's ADT type and add constraint
+		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
+		if tc.constructorTypes != nil {
+			if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+				// Add constraint: scrutinee type = ADT type
+				ctx.addConstraint(TypeEq{
+					Left:  scrutType,
+					Right: &TCon{Name: adtTypeName},
+					Path:  []string{fmt.Sprintf("constructor pattern %s (ADT type %s)", p.Name, adtTypeName)},
+				})
+			}
+		}
 
 		// Recursively check nested patterns
 		// We need to know the field types of this constructor

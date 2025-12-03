@@ -3,13 +3,37 @@ package golang
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
 )
 
 // generateMatch generates a Go switch statement for pattern matching.
+// M-DX25.5: Uses typed IIFE return based on CoreTypeInfo.
 func (g *Generator) generateMatch(match *core.Match) error {
-	g.write("func() interface{} {\n")
+	// M-DX25.5: Look up Match expression's type for IIFE return type
+	returnType := "interface{}"
+	if g.coreTypeInfo != nil {
+		if typ, ok := g.coreTypeInfo[match.NodeID]; ok {
+			if goType, err := g.TypeMapper.MapType(typ); err == nil {
+				returnType = string(goType)
+			}
+		}
+	}
+	g.matchReturnType = returnType // Store for arm generation
+
+	// M-DX25.7: Look up scrutinee's type for typed list operations
+	g.matchScrutineeType = "interface{}"
+	if g.coreTypeInfo != nil {
+		scrutineeNodeID := g.getExprNodeID(match.Scrutinee)
+		if typ, ok := g.coreTypeInfo[scrutineeNodeID]; ok {
+			if goType, err := g.TypeMapper.MapType(typ); err == nil {
+				g.matchScrutineeType = string(goType)
+			}
+		}
+	}
+
+	g.writef("func() %s {\n", returnType)
 	g.indent++
 
 	// Evaluate scrutinee once
@@ -49,7 +73,13 @@ func (g *Generator) generateMatch(match *core.Match) error {
 
 		// Assert scrutinee to ADT pointer type and switch on Kind
 		goADTName := ToGoTypeName(adtTypeName)
-		g.writef("_adt := _scrutinee.(*%s)\n", goADTName)
+		// M-DX25.6: Only type-assert if scrutinee produces interface{}
+		if g.exprProducesInterface(match.Scrutinee) {
+			g.writef("_adt := _scrutinee.(*%s)\n", goADTName)
+		} else {
+			// Scrutinee is already typed - no assertion needed
+			g.writef("_adt := _scrutinee\n")
+		}
 		g.writef("switch _adt.Kind {\n")
 		hasDefault := false
 		for _, arm := range match.Arms {
@@ -81,6 +111,10 @@ func (g *Generator) generateMatch(match *core.Match) error {
 				g.writef("return ")
 				if err := g.generateExpr(arm.Body); err != nil {
 					return err
+				}
+				// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+				if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+					g.writef(".(%s)", g.matchReturnType)
 				}
 				g.writef("\n")
 				g.indent--
@@ -127,6 +161,10 @@ func (g *Generator) generateMatchIfElse(match *core.Match) error {
 			if err := g.generateExpr(arm.Body); err != nil {
 				return err
 			}
+			// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+			if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+				g.writef(".(%s)", g.matchReturnType)
+			}
 			g.writef("\n")
 			g.indent--
 			if !first {
@@ -158,6 +196,10 @@ func (g *Generator) generateMatchIfElse(match *core.Match) error {
 		g.writef("return ")
 		if err := g.generateExpr(arm.Body); err != nil {
 			return err
+		}
+		// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+		if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+			g.writef(".(%s)", g.matchReturnType)
 		}
 		g.writef("\n")
 		g.indent--
@@ -201,52 +243,78 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 		}
 
 	case *core.ListPattern:
+		// M-DX25.7: Use typed inline operations when scrutinee type is a slice
+		isTypedSlice := strings.HasPrefix(g.matchScrutineeType, "[]") && g.matchScrutineeType != "[]interface{}"
+
 		if len(pat.Elements) == 0 && pat.Tail == nil {
 			// Empty list: []
+			if isTypedSlice {
+				return fmt.Sprintf("len(%s) == 0", scrutinee), nil, nil
+			}
 			return fmt.Sprintf("ListLen(%s) == 0", scrutinee), nil, nil
 		}
 		// List with elements or cons pattern
 		if pat.Tail != nil {
 			// Cons pattern: head :: tail or [a, b, ...rest]
 			minLen := len(pat.Elements)
-			cond := fmt.Sprintf("ListLen(%s) >= %d", scrutinee, minLen)
+			var cond string
+			if isTypedSlice {
+				cond = fmt.Sprintf("len(%s) >= %d", scrutinee, minLen)
+			} else {
+				cond = fmt.Sprintf("ListLen(%s) >= %d", scrutinee, minLen)
+			}
 
 			// Bind head elements
 			for i, elem := range pat.Elements {
 				if vp, ok := elem.(*core.VarPattern); ok && vp.Name != "_" {
 					// Skip binding for wildcard patterns (name == "_")
-					binding := fmt.Sprintf("%s := ListHead(%s)", ToGoVarName(vp.Name), scrutinee)
+					var binding string
+					if isTypedSlice {
+						// Use indexed access for typed slices
+						binding = fmt.Sprintf("%s := %s[%d]", ToGoVarName(vp.Name), scrutinee, i)
+					} else {
+						binding = fmt.Sprintf("%s := ListHead(%s)", ToGoVarName(vp.Name), scrutinee)
+					}
 					bindings = append(bindings, binding)
 					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(vp.Name)))
 				}
-				// For next element, need to get from tail (always advance, even for wildcards)
-				if i < len(pat.Elements)-1 {
+				// For untyped lists, need to get from tail (always advance, even for wildcards)
+				if !isTypedSlice && i < len(pat.Elements)-1 {
 					scrutinee = fmt.Sprintf("ListTail(%s)", scrutinee)
 				}
 			}
 
 			// Bind tail (skip if wildcard)
 			if tailPat, ok := (*pat.Tail).(*core.VarPattern); ok && tailPat.Name != "_" {
-				// Calculate tail start position
-				if len(pat.Elements) > 0 {
-					tailExpr := scrutinee
-					for range pat.Elements {
-						tailExpr = fmt.Sprintf("ListTail(%s)", tailExpr)
-					}
-					binding := fmt.Sprintf("%s := %s", ToGoVarName(tailPat.Name), tailExpr)
-					bindings = append(bindings, binding)
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
+				var binding string
+				if isTypedSlice {
+					// Use slice expression for typed slices
+					binding = fmt.Sprintf("%s := %s[%d:]", ToGoVarName(tailPat.Name), scrutinee, len(pat.Elements))
 				} else {
-					binding := fmt.Sprintf("%s := ListTail(%s)", ToGoVarName(tailPat.Name), scrutinee)
-					bindings = append(bindings, binding)
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
+					// Calculate tail start position
+					if len(pat.Elements) > 0 {
+						tailExpr := scrutinee
+						for range pat.Elements {
+							tailExpr = fmt.Sprintf("ListTail(%s)", tailExpr)
+						}
+						binding = fmt.Sprintf("%s := %s", ToGoVarName(tailPat.Name), tailExpr)
+					} else {
+						binding = fmt.Sprintf("%s := ListTail(%s)", ToGoVarName(tailPat.Name), scrutinee)
+					}
 				}
+				bindings = append(bindings, binding)
+				bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
 			}
 
 			return cond, bindings, nil
 		}
 		// Fixed-length list pattern
-		cond := fmt.Sprintf("ListLen(%s) == %d", scrutinee, len(pat.Elements))
+		var cond string
+		if isTypedSlice {
+			cond = fmt.Sprintf("len(%s) == %d", scrutinee, len(pat.Elements))
+		} else {
+			cond = fmt.Sprintf("ListLen(%s) == %d", scrutinee, len(pat.Elements))
+		}
 		return cond, bindings, nil
 
 	case *core.VarPattern:
@@ -328,6 +396,10 @@ func (g *Generator) generateMatchArmValueSwitch(arm *core.MatchArm) error {
 	if err := g.generateExpr(arm.Body); err != nil {
 		return err
 	}
+	// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+	if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+		g.writef(".(%s)", g.matchReturnType)
+	}
 	g.writef("\n")
 	g.indent--
 	return nil
@@ -375,6 +447,10 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		if err := g.generateExpr(arm.Body); err != nil {
 			return err
 		}
+		// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+		if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+			g.writef(".(%s)", g.matchReturnType)
+		}
 		g.writef("\n")
 		g.indent--
 
@@ -384,6 +460,10 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		g.writef("return ")
 		if err := g.generateExpr(arm.Body); err != nil {
 			return err
+		}
+		// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+		if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+			g.writef(".(%s)", g.matchReturnType)
 		}
 		g.writef("\n")
 		g.indent--
@@ -398,6 +478,10 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		g.writef("return ")
 		if err := g.generateExpr(arm.Body); err != nil {
 			return err
+		}
+		// M-DX25.5: Add type assertion if return type is concrete and body produces interface{}
+		if g.matchReturnType != "" && g.matchReturnType != "interface{}" && g.exprProducesInterface(arm.Body) {
+			g.writef(".(%s)", g.matchReturnType)
 		}
 		g.writef("\n")
 		g.indent--

@@ -80,6 +80,20 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 	case *types.TApp:
 		// Type application - look up constructor
 		if con, ok := typ.Constructor.(*types.TCon); ok {
+			// M-DX25.1: Special case for List type
+			// TApp("List", T) should map to []T, not "List"
+			if con.Name == "List" {
+				if len(typ.Args) > 0 {
+					elemType, err := tm.MapType(typ.Args[0])
+					if err != nil {
+						// Fallback to []interface{} if element type fails
+						return GoType("[]interface{}"), nil
+					}
+					return GoType(fmt.Sprintf("[]%s", elemType)), nil
+				}
+				// Empty List type constructor
+				return GoType("[]interface{}"), nil
+			}
 			if goType, ok := tm.knownTypes[con.Name]; ok {
 				return goType, nil
 			}
@@ -112,11 +126,14 @@ func (tm *TypeMapper) mapTCon(typ *types.TCon) (GoType, error) {
 	case "()", "unit":
 		return GoUnit, nil
 	default:
-		// User-defined type
+		// User-defined type (ADTs, records, etc.)
 		if goType, ok := tm.knownTypes[typ.Name]; ok {
 			return goType, nil
 		}
-		return GoType(ToGoTypeName(typ.Name)), nil
+		// M-DX25.6: ADT types are represented as pointers in Go
+		// Constructors return *TypeName, so parameters/returns should use *TypeName
+		goTypeName := GoType(ToGoTypeName(typ.Name))
+		return WithPointer(goTypeName), nil
 	}
 }
 
