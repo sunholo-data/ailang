@@ -205,15 +205,14 @@ func (g *Generator) generateApp(app *core.App) error {
 			if i < len(ctorInfo.FieldTypes) {
 				goType := ctorInfo.FieldTypes[i]
 				if goType != "interface{}" {
-					// Check if this is a slice type - needs runtime conversion, not assertion
+					// Check if this is a slice type - needs conversion helper
 					if sliceConv := g.getSliceConversion(goType); sliceConv != "" {
-						// Slice types need runtime conversion (Go slices are invariant)
-						g.writef("runtime.%s(", sliceConv)
+						// Slice types need conversion (Go slices are invariant)
+						g.writef("%s(", sliceConv)
 						if err := g.generateExpr(arg); err != nil {
 							return err
 						}
 						g.write(")")
-						g.needsRuntimeImport = true
 					} else if lit, isLit := arg.(*core.Lit); isLit {
 						// Literals need type conversion, not assertion
 						g.writef("%s(", goType)
