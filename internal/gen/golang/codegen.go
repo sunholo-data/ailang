@@ -90,6 +90,18 @@ type Generator struct {
 	// M-DX25.7: Used to generate typed list operations instead of interface{} helpers
 	matchScrutineeType string
 
+	// funcParamTypes maps function names to their Go parameter types
+	// M-DX25.10: Used for call site type assertions when calling user-defined functions
+	funcParamTypes map[string][]string
+
+	// funcReturnTypes maps function names to their Go return types
+	// M-DX25.10: Used to check if function call results need type assertions
+	funcReturnTypes map[string]string
+
+	// currentFuncParams maps parameter names to their Go types for the function being generated
+	// M-DX25.10: Used to check if a Var reference is a param declared as interface{}
+	currentFuncParams map[string]string
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -116,12 +128,15 @@ func (g *Generator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 // New creates a new Generator with the specified package name.
 func New(packageName string) *Generator {
 	return &Generator{
-		PackageName:     packageName,
-		TypeMapper:      NewTypeMapper(),
-		adtConstructors: make(map[string]*ADTConstructorInfo),
-		topLevelFuncs:   make(map[string]string),
-		adtSliceTypes:   make(map[string]bool),
-		recordTypes:     make(map[string]*RecordTypeInfo),
+		PackageName:       packageName,
+		TypeMapper:        NewTypeMapper(),
+		adtConstructors:   make(map[string]*ADTConstructorInfo),
+		topLevelFuncs:     make(map[string]string),
+		adtSliceTypes:     make(map[string]bool),
+		recordTypes:       make(map[string]*RecordTypeInfo),
+		funcParamTypes:    make(map[string][]string),
+		funcReturnTypes:   make(map[string]string),
+		currentFuncParams: make(map[string]string),
 	}
 }
 

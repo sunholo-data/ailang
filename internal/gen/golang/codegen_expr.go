@@ -346,6 +346,21 @@ func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
 // getFuncParamTypes returns the Go parameter types for a function expression.
 // M-DX25.9: Used to add type assertions at call sites when args are interface{}.
 func (g *Generator) getFuncParamTypes(funcExpr core.CoreExpr) []string {
+	// M-DX25.10: For VarGlobal referencing top-level functions, look up stored param types
+	if v, ok := funcExpr.(*core.VarGlobal); ok {
+		if paramTypes, found := g.funcParamTypes[v.Ref.Name]; found {
+			return paramTypes
+		}
+	}
+
+	// Also try Var (local function reference)
+	if v, ok := funcExpr.(*core.Var); ok {
+		if paramTypes, found := g.funcParamTypes[v.Name]; found {
+			return paramTypes
+		}
+	}
+
+	// Fallback: look up from CoreTypeInfo
 	if g.coreTypeInfo == nil {
 		return nil
 	}
@@ -399,7 +414,19 @@ func (g *Generator) extractParamTypes(typ types.Type) []string {
 func (g *Generator) generateLet(let *core.Let) error {
 	// M-DX25.2 FIX: Variable type comes from VALUE expression, not the let expression
 	varType := "interface{}"
-	if g.coreTypeInfo != nil {
+
+	// M-DX25.10: Special case for Record expressions - infer type from fields
+	// TypeMapper returns "struct{}" for TRecord, but we can get the proper
+	// struct name by looking up the record type from its fields.
+	if rec, isRec := let.Value.(*core.Record); isRec {
+		fieldNames := make(map[string]bool, len(rec.Fields))
+		for name := range rec.Fields {
+			fieldNames[name] = true
+		}
+		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+			varType = "*" + recordType.Name // Records are generated as pointers
+		}
+	} else if g.coreTypeInfo != nil {
 		valueNodeID := g.getExprNodeID(let.Value)
 		if valueNodeID != 0 {
 			if typ, ok := g.coreTypeInfo[valueNodeID]; ok {
@@ -412,7 +439,16 @@ func (g *Generator) generateLet(let *core.Let) error {
 
 	// M-DX25.2 FIX: Return type comes from LET expression (= body's type)
 	returnType := "interface{}"
-	if g.coreTypeInfo != nil {
+	// M-DX25.10: Special case for Record body - infer type from fields
+	if rec, isRec := let.Body.(*core.Record); isRec {
+		fieldNames := make(map[string]bool, len(rec.Fields))
+		for name := range rec.Fields {
+			fieldNames[name] = true
+		}
+		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+			returnType = "*" + recordType.Name
+		}
+	} else if g.coreTypeInfo != nil {
 		if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
 			if goType, err := g.TypeMapper.MapType(typ); err == nil {
 				returnType = string(goType)
@@ -438,7 +474,14 @@ func (g *Generator) generateLet(let *core.Let) error {
 	g.writef("return ")
 
 	// Add type assertion if body produces interface{} but we need concrete returnType
-	needsBodyAssertion := returnType != "interface{}" && g.exprProducesInterface(let.Body)
+	// M-DX25.10: Special case - if body is just the variable we declared, we know its type
+	needsBodyAssertion := false
+	if v, isVar := let.Body.(*core.Var); isVar && v.Name == let.Name {
+		// Body is just the variable we declared - its Go type is varType
+		needsBodyAssertion = returnType != "interface{}" && varType == "interface{}"
+	} else {
+		needsBodyAssertion = returnType != "interface{}" && g.exprProducesInterface(let.Body)
+	}
 	if err := g.generateExpr(let.Body); err != nil {
 		return err
 	}
@@ -499,7 +542,17 @@ func (g *Generator) generateLetRec(letrec *core.LetRec) error {
 func (g *Generator) generateIf(ifExpr *core.If) error {
 	// M-DX25.3: Look up If expression's type for IIFE return type
 	returnType := "interface{}"
-	if g.coreTypeInfo != nil {
+	// M-DX25.10: Special case for Record branches - infer type from fields
+	// Check Then branch first (both branches should have same type)
+	if rec, isRec := ifExpr.Then.(*core.Record); isRec {
+		fieldNames := make(map[string]bool, len(rec.Fields))
+		for name := range rec.Fields {
+			fieldNames[name] = true
+		}
+		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+			returnType = "*" + recordType.Name
+		}
+	} else if g.coreTypeInfo != nil {
 		if typ, ok := g.coreTypeInfo[ifExpr.NodeID]; ok {
 			if goType, err := g.TypeMapper.MapType(typ); err == nil {
 				returnType = string(goType)

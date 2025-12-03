@@ -76,8 +76,9 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	// M-DX23: Try to get typed signature from CoreTypeInfo
 	paramTypes, returnType := g.getTypedSignature(lam)
 
-	// Build parameter list
+	// Build parameter list and store parameter types for call site assertions
 	var params []string
+	var paramTypeStrings []string // M-DX25.10: Store for call site assertions
 	for i, p := range lam.Params {
 		var paramType string
 		if i < len(paramTypes) {
@@ -86,6 +87,17 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 			paramType = "interface{}"
 		}
 		params = append(params, fmt.Sprintf("%s %s", ToGoVarName(p), paramType))
+		paramTypeStrings = append(paramTypeStrings, paramType)
+	}
+
+	// M-DX25.10: Store parameter types for call site type assertions
+	g.funcParamTypes[name] = paramTypeStrings
+
+	// M-DX25.10: Store current function's param names → Go types for exprProducesInterface
+	// Clear any previous function's params and populate with current function's
+	g.currentFuncParams = make(map[string]string)
+	for i, p := range lam.Params {
+		g.currentFuncParams[p] = paramTypeStrings[i]
 	}
 
 	// Use typed return type or fall back to interface{}
@@ -94,20 +106,41 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 		retType = string(returnType)
 	}
 
+	// M-DX25.10: Store return type for function call result assertions
+	g.funcReturnTypes[name] = retType
+
 	// M-DX24: Set expected return type for type assertion generation
 	oldExpectedReturn := g.expectedReturnType
 	g.expectedReturnType = GoType(retType)
 
 	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)
 	g.indent++
-	g.writef("return ")
+
+	// M-DX25.11: Check if we need to wrap return expression in a slice converter
+	needsSliceConv := g.needsReturnSliceConversion(lam.Body)
+	if needsSliceConv {
+		sliceConv := g.getSliceConversion(retType)
+		if sliceConv != "" {
+			g.writef("return %s(", sliceConv)
+		} else {
+			// No converter available - generate without conversion
+			g.writef("return ")
+			needsSliceConv = false
+		}
+	} else {
+		g.writef("return ")
+	}
+
 	if err := g.generateExpr(lam.Body); err != nil {
 		g.expectedReturnType = oldExpectedReturn
 		return err
 	}
 
-	// M-DX24: Add type assertion if return type is concrete and expression returns interface{}
-	if g.needsReturnTypeAssertion(lam.Body) {
+	// Close the slice conversion function call
+	if needsSliceConv {
+		g.write(")")
+	} else if g.needsReturnTypeAssertion(lam.Body) {
+		// M-DX24: Add type assertion if return type is concrete and expression returns interface{}
 		g.writef(".(%s)", retType)
 	}
 
@@ -129,14 +162,138 @@ func (g *Generator) needsReturnTypeAssertion(expr core.CoreExpr) bool {
 		return false
 	}
 
+	// M-DX25.11: If return type is a slice, check for slice type mismatch
+	// Slice type assertions don't work in Go (slices are invariant), so we use converters
+	if strings.HasPrefix(string(g.expectedReturnType), "[]") {
+		return false // Handled by needsReturnSliceConversion
+	}
+
 	// Check if the expression produces interface{} from runtime helpers
 	return g.exprProducesInterface(expr)
 }
 
+// needsReturnSliceConversion checks if a return expression needs a slice converter.
+// M-DX25.11: Returns true if return type is []ConcreteType but expression produces []interface{}.
+func (g *Generator) needsReturnSliceConversion(expr core.CoreExpr) bool {
+	// Check if return type is a concrete slice
+	if !strings.HasPrefix(string(g.expectedReturnType), "[]") {
+		return false
+	}
+
+	// Don't convert if return type is already []interface{}
+	if g.expectedReturnType == "[]interface{}" {
+		return false
+	}
+
+	// Check if expression produces []interface{}
+	return g.exprProducesInterfaceSlice(expr)
+}
+
+// exprProducesInterfaceSlice checks if an expression produces []interface{} type.
+// M-DX25.11: Used to determine if slice conversion is needed.
+func (g *Generator) exprProducesInterfaceSlice(expr core.CoreExpr) bool {
+	switch e := expr.(type) {
+	case *core.List:
+		// Lists generate []interface{}{} unless typed
+		// Check if we can determine the element type
+		elemType := g.getListElementType(e)
+		return elemType == "" || elemType == "interface{}"
+
+	case *core.App:
+		// Check if it's a Cons call (:: operator)
+		if v, ok := e.Func.(*core.Var); ok && v.Name == "::" {
+			return true // Cons always returns []interface{}
+		}
+		if v, ok := e.Func.(*core.VarGlobal); ok {
+			if v.Ref.Name == "::" || v.Ref.Name == "Cons" {
+				return true
+			}
+		}
+		// Also check for VarGlobal with Cons name
+		if v, ok := e.Func.(*core.VarGlobal); ok {
+			if runtimeHelperReturnType(v.Ref.Name) == "[]interface{}" {
+				return true
+			}
+		}
+		// Check for Var with Cons
+		if v, ok := e.Func.(*core.Var); ok {
+			if runtimeHelperReturnType(v.Name) == "[]interface{}" {
+				return true
+			}
+		}
+
+	case *core.If:
+		// If expression result depends on branches - check both
+		return g.exprProducesInterfaceSlice(e.Then) || g.exprProducesInterfaceSlice(e.Else)
+
+	case *core.Match:
+		// Match expression - check first arm
+		if len(e.Arms) > 0 {
+			return g.exprProducesInterfaceSlice(e.Arms[0].Body)
+		}
+
+	case *core.Let:
+		// Let expression result is the body
+		return g.exprProducesInterfaceSlice(e.Body)
+	}
+
+	return false
+}
+
+// getListElementType is defined in codegen_ops.go
+
 // exprProducesInterface checks if an expression produces interface{} type.
 // M-DX24: Used to determine if type assertion is needed.
-// M-DX25.8: Now uses CoreTypeInfo to accurately determine expression types.
+// M-DX25.8: Uses CoreTypeInfo for accurate type checking.
+// M-DX25.10: Checks for runtime helper calls FIRST - these always produce interface{}
+// regardless of what CoreTypeInfo says about the AILANG type.
 func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
+	// M-DX25.10: Check for expressions that ALWAYS produce interface{} at runtime
+	// These generate calls to runtime helpers that return interface{}, even though
+	// the AILANG type may be concrete. Check BEFORE CoreTypeInfo lookup.
+	switch e := expr.(type) {
+	case *core.RecordAccess:
+		// RecordAccess generates FieldGet() which always returns interface{}
+		return true
+
+	case *core.DictApp:
+		// DictApp generates dict.Method() which always returns interface{}
+		// This includes NegInt, FieldGet, and other type class methods
+		return true
+
+	case *core.App:
+		// M-DX25.10: App calls to runtime builtins return interface{}
+		// Op-lowering transforms Intrinsic{OpNeg} to App{VarGlobal{"neg_Int"}}
+		// The generated NegInt(), AddInt(), etc. all return interface{}
+		if g.appCallsRuntimeBuiltin(e) {
+			return true
+		}
+		// M-DX25.10: Check if calling a user-defined function that returns interface{}
+		// This must be checked BEFORE CoreTypeInfo because the AILANG type might be
+		// concrete but the Go function was generated with interface{} return.
+		if g.appCallsInterfaceReturningFunc(e) {
+			return true
+		}
+		// M-DX25.10: Check if calling a function stored in a variable (generates CallFunc)
+		// CallFunc returns interface{} regardless of the function's actual return type
+		if g.appUsesCallFunc(e) {
+			return true
+		}
+		// M-DX25.10: Check if calling a runtime helper that returns a concrete (non-interface{}) type
+		// This must be checked BEFORE CoreTypeInfo to handle builtins like Cons that return []interface{}
+		if g.appCallsConcreteReturningHelper(e) {
+			return false
+		}
+
+	case *core.Var:
+		// M-DX25.10: Check if this Var is a function parameter generated as interface{}
+		// This must be checked BEFORE CoreTypeInfo because the AILANG type might be
+		// concrete but the Go parameter was generated as interface{}.
+		if goType, ok := g.currentFuncParams[e.Name]; ok {
+			return goType == "interface{}"
+		}
+	}
+
 	// M-DX25.8: Use CoreTypeInfo if available for accurate type checking
 	if g.coreTypeInfo != nil {
 		nodeID := g.getExprNodeID(expr)
@@ -155,9 +312,11 @@ func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
 		return false
 
 	case *core.Var, *core.VarGlobal:
-		// Variables could be either - for now assume they match expected type
-		// since we generate typed parameters
-		return false
+		// M-DX25.10 FIX: If we reach this fallback, CoreTypeInfo didn't have the type.
+		// This means the variable might have been declared as interface{} in Go.
+		// Return true to be safe - better to have unnecessary type assertions
+		// than compile errors from missing assertions.
+		return true
 
 	case *core.BinOp:
 		// Without type info, assume binary ops might need assertion
@@ -229,9 +388,13 @@ func (g *Generator) appProducesInterface(app *core.App) bool {
 			// ADT constructors return *ADT, not interface{}
 			return false
 		}
+		// M-DX25.10: Check if we know the function's actual return type
+		if retType, found := g.funcReturnTypes[name]; found {
+			return retType == "interface{}"
+		}
 		// Check if it's a known top-level function (user-defined with typed signature)
 		if _, isTopLevel := g.topLevelFuncs[name]; isTopLevel {
-			// User functions may return concrete types
+			// User functions may return concrete types (fallback if no return type stored)
 			return false
 		}
 		// M-DX24: Check if it's a runtime helper that returns a concrete type
@@ -240,8 +403,116 @@ func (g *Generator) appProducesInterface(app *core.App) bool {
 		}
 	}
 
+	// Also check for Var (local function or builtin reference like ::)
+	if v, ok := app.Func.(*core.Var); ok {
+		// Check if it's a runtime helper that returns a concrete type
+		if retType := runtimeHelperReturnType(v.Name); retType != "" && retType != "interface{}" {
+			return false
+		}
+	}
+
 	// Unknown function - assume returns interface{}
 	return true
+}
+
+// appCallsRuntimeBuiltin checks if an App calls a runtime builtin that returns interface{}.
+// M-DX25.10: Op-lowering transforms intrinsics like OpNeg to App{VarGlobal{"neg_Int"}}.
+// These generate calls to NegInt(), AddInt(), etc. which all return interface{}.
+// BUT: Binary ops that can be emitted as native Go operators return concrete types.
+func (g *Generator) appCallsRuntimeBuiltin(app *core.App) bool {
+	// M-DX24.2: If this will be emitted as a native Go operator, it produces concrete type
+	// Binary ops like (x + y), (x >= y) return concrete types, not interface{}
+	if g.canEmitNativeOp(app) {
+		return false
+	}
+
+	varGlobal, ok := app.Func.(*core.VarGlobal)
+	if !ok {
+		return false
+	}
+
+	name := varGlobal.Ref.Name
+
+	// Check for $builtin module (from op-lowering)
+	if varGlobal.Ref.Module == "$builtin" {
+		// M-DX25.10: Some builtins like :: (Cons) return concrete types, not interface{}
+		if retType := runtimeHelperReturnType(name); retType != "" && retType != "interface{}" {
+			return false // Returns concrete type, not interface{}
+		}
+		// All other op-lowered builtins return interface{}
+		// Examples: neg_Int (unary), and binary ops when operands lack known types
+		return true
+	}
+
+	// Check for common runtime helper patterns that return interface{}
+	// These are the names after op-lowering (before ToPascalCase)
+	switch {
+	case strings.HasPrefix(name, "neg_"),
+		strings.HasPrefix(name, "add_"),
+		strings.HasPrefix(name, "sub_"),
+		strings.HasPrefix(name, "mul_"),
+		strings.HasPrefix(name, "div_"),
+		strings.HasPrefix(name, "mod_"),
+		strings.HasPrefix(name, "eq_"),
+		strings.HasPrefix(name, "ne_"),
+		strings.HasPrefix(name, "lt_"),
+		strings.HasPrefix(name, "le_"),
+		strings.HasPrefix(name, "gt_"),
+		strings.HasPrefix(name, "ge_"):
+		return true
+	}
+
+	return false
+}
+
+// appUsesCallFunc checks if an App will be generated using CallFunc (function stored in variable).
+// M-DX25.10: CallFunc returns interface{} regardless of the function's actual return type.
+func (g *Generator) appUsesCallFunc(app *core.App) bool {
+	// Check if function is a Var that's NOT a known top-level function
+	if v, ok := app.Func.(*core.Var); ok {
+		if _, isTopLevel := g.topLevelFuncs[v.Name]; !isTopLevel {
+			return true
+		}
+	}
+	return false
+}
+
+// appCallsConcreteReturningHelper checks if an App calls a runtime helper that returns a concrete type.
+// M-DX25.10: Cons (::) returns []interface{}, not interface{}.
+func (g *Generator) appCallsConcreteReturningHelper(app *core.App) bool {
+	// Check for VarGlobal
+	if varGlobal, ok := app.Func.(*core.VarGlobal); ok {
+		if retType := runtimeHelperReturnType(varGlobal.Ref.Name); retType != "" && retType != "interface{}" {
+			return true
+		}
+	}
+	// Check for Var (local reference like ::)
+	if v, ok := app.Func.(*core.Var); ok {
+		if retType := runtimeHelperReturnType(v.Name); retType != "" && retType != "interface{}" {
+			return true
+		}
+	}
+	return false
+}
+
+// appCallsInterfaceReturningFunc checks if an App calls a user-defined function that returns interface{}.
+// M-DX25.10: Used to determine if function call results need type assertions.
+func (g *Generator) appCallsInterfaceReturningFunc(app *core.App) bool {
+	// Check if function is a VarGlobal referencing a known function
+	if varGlobal, ok := app.Func.(*core.VarGlobal); ok {
+		name := varGlobal.Ref.Name
+		// Check if we know this function's return type
+		if retType, found := g.funcReturnTypes[name]; found {
+			return retType == "interface{}"
+		}
+	}
+	// Also check for Var (local function reference)
+	if v, ok := app.Func.(*core.Var); ok {
+		if retType, found := g.funcReturnTypes[v.Name]; found {
+			return retType == "interface{}"
+		}
+	}
+	return false
 }
 
 // runtimeHelperReturnType returns the Go return type for known runtime helpers.
@@ -292,6 +563,12 @@ func runtimeHelperReturnType(name string) string {
 	// List operations with concrete return types
 	case "ListLen", "_list_len", "list_len":
 		return "int"
+	case "::", "Cons":
+		// M-DX25.10: Cons returns []interface{}, not interface{}
+		return "[]interface{}"
+	case "CallFunc":
+		// CallFunc is used for calling functions stored in variables, returns interface{}
+		return "" // Empty string = returns interface{}
 
 	// Type conversion helpers
 	case "toInt64":

@@ -196,6 +196,25 @@ This fixes:
 - `directionDx(dir)` where `dir` is `interface{}` → `directionDx(dir.(*Direction))`
 - `IsInBounds(..., width)` where `width` is `interface{}` → `IsInBounds(..., width.(int64))`
 
+### M-DX25.10: Runtime Helper Type Assertions (COMPLETE)
+
+**Files Modified:**
+- `internal/gen/golang/codegen_decl.go` (+15 LOC) - Early check in exprProducesInterface
+- `internal/gen/golang/codegen_expr.go` (+25 LOC) - Record type inference in generateLet/generateIf
+
+**Bug:** M-DX25.8 trusted CoreTypeInfo too much. When CoreTypeInfo says the AILANG type is `int`, it maps to `int64` and `exprProducesInterface` returns `false`. But certain expressions generate Go code that calls runtime helpers (FieldGet, NegInt) which return `interface{}` at runtime.
+
+**Fix:** Check for expressions that generate interface{}-returning runtime helpers BEFORE CoreTypeInfo:
+1. `RecordAccess` → generates `FieldGet()` → always returns `interface{}`
+2. `DictApp` → generates `dict.Method()` → always returns `interface{}` (NegInt, AddInt, etc.)
+
+**Additional fix for Record types:** TypeMapper maps `TRecord` to `struct{}`, but Record expressions know their fields. In `generateLet` and `generateIf`, when the value/body is a Record, look up the record type from fields to get the proper struct name like `*Coord`.
+
+This fixes:
+- `NegInt(x)` → `NegInt(x).(int64)` (DictApp produces interface{})
+- `FieldGet(rec, "x")` → `FieldGet(rec, "x").(int64)` (RecordAccess produces interface{})
+- `var tmp struct{} = &Coord{}` → `var tmp *Coord = &Coord{}` (Record type inference)
+
 ---
 
 ## Implementation Checklist
@@ -248,6 +267,14 @@ This fixes:
 - [x] Add `extractParamTypes` to extract types from TFunc/TFunc2
 - [x] Add type assertions at call sites when arg is interface{} but param is concrete
 
+### M-DX25.10: Runtime Helper Type Assertions
+- [x] Check for RecordAccess and DictApp BEFORE CoreTypeInfo in `exprProducesInterface`
+- [x] RecordAccess generates FieldGet() which always returns interface{}
+- [x] DictApp generates dict.Method() which always returns interface{} (NegInt, etc.)
+- [x] Add Record expression special case in generateLet for proper struct type inference
+- [x] Add Record expression special case in generateIf for proper struct type inference
+- [x] TypeMapper maps TRecord to "struct{}" but we infer proper type from record fields
+
 ---
 
 ## Acceptance Criteria (ALL MET)
@@ -255,13 +282,15 @@ This fixes:
 1. ✅ No "undefined: List" errors in generated code
 2. ✅ Typed let bindings compile without manual modification
 3. ✅ No type assertion on already-typed variables
-4. ✅ Short-circuit AND/OR generates correct typed code
-5. ✅ ADT function parameters infer correct ADT types
-6. ✅ Match expressions return correct concrete types
-7. ✅ ADT types consistently use pointers (*Direction, *World)
-8. ✅ List pattern operations preserve slice types
-9. ✅ All existing codegen tests pass
-10. ⏳ stapledons_voyage game compiles successfully (pending verification)
+4. ✅ Runtime helpers (FieldGet, NegInt) get type assertions when needed
+5. ✅ Short-circuit AND/OR generates correct typed code
+6. ✅ ADT function parameters infer correct ADT types
+7. ✅ Match expressions return correct concrete types
+8. ✅ ADT types consistently use pointers (*Direction, *World)
+9. ✅ List pattern operations preserve slice types
+10. ✅ Record literals get proper struct types in let bindings
+11. ✅ All existing codegen tests pass
+12. ⏳ stapledons_voyage game compiles successfully (pending verification)
 
 ---
 
@@ -270,7 +299,8 @@ This fixes:
 | File | Changes |
 |------|---------|
 | `internal/gen/golang/types.go` | +17 LOC - List case in TApp, ADT pointer types |
-| `internal/gen/golang/codegen_expr.go` | +40 LOC - Typed generateLet and generateIf |
+| `internal/gen/golang/codegen_expr.go` | +65 LOC - Typed generateLet/If with Record type inference |
+| `internal/gen/golang/codegen_decl.go` | +15 LOC - M-DX25.10 RecordAccess/DictApp check in exprProducesInterface |
 | `internal/gen/golang/codegen_match.go` | +100 LOC - Typed match, scrutinee assertions, inline slice ops |
 | `internal/gen/golang/codegen.go` | +7 LOC - matchReturnType and matchScrutineeType fields |
 | `internal/types/typechecker_core.go` | +20 LOC - constructorTypes registry |
@@ -280,7 +310,7 @@ This fixes:
 | `internal/gen/golang/types_test.go` | +80 LOC - 7 List mapping tests |
 | `internal/gen/golang/codegen_test.go` | +123 LOC - Typed let binding tests + pointer type expectations |
 
-**Total:** ~417 LOC (implementation + tests)
+**Total:** ~457 LOC (implementation + tests)
 
 ---
 

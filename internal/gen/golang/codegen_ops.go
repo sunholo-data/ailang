@@ -350,8 +350,19 @@ func (g *Generator) generateRecordUpdate(ru *core.RecordUpdate) error {
 }
 
 // generateList generates a Go slice literal.
+// M-DX25.11: Uses typed slices when element type is known from CoreTypeInfo.
 func (g *Generator) generateList(list *core.List) error {
-	g.write("[]interface{}{")
+	// M-DX25.11: Try to determine element type from CoreTypeInfo
+	elemType := g.getListElementType(list)
+
+	if elemType != "" && elemType != "interface{}" {
+		// Generate typed slice (e.g., []int64{1, 2, 3})
+		g.writef("[]%s{", elemType)
+	} else {
+		// Fallback to interface{} slice
+		g.write("[]interface{}{")
+	}
+
 	for i, elem := range list.Elements {
 		if i > 0 {
 			g.write(", ")
@@ -362,6 +373,38 @@ func (g *Generator) generateList(list *core.List) error {
 	}
 	g.write("}")
 	return nil
+}
+
+// getListElementType extracts the Go element type for a list from CoreTypeInfo.
+// M-DX25.11: Returns empty string if type is unknown or not a list type.
+func (g *Generator) getListElementType(list *core.List) string {
+	if g.coreTypeInfo == nil {
+		return ""
+	}
+
+	nodeID := list.NodeID
+	if nodeID == 0 {
+		return ""
+	}
+
+	typ, ok := g.coreTypeInfo[nodeID]
+	if !ok {
+		return ""
+	}
+
+	// Map the type to Go and extract element type
+	goType, err := g.TypeMapper.MapType(typ)
+	if err != nil {
+		return ""
+	}
+
+	// Check if it's a slice type and extract element type
+	goTypeStr := string(goType)
+	if len(goTypeStr) > 2 && goTypeStr[:2] == "[]" {
+		return goTypeStr[2:]
+	}
+
+	return ""
 }
 
 // generateTuple generates a Go struct for tuple.
