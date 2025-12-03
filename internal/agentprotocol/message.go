@@ -347,9 +347,24 @@ func (u *UserInbox) GetArchivedMessages() ([]*Envelope, error) {
 }
 
 // MarkAsRead moves a message from _unread to _read.
+// If the message is already in _read, this is a no-op.
 func (u *UserInbox) MarkAsRead(messageID string) error {
 	unreadDir := filepath.Join(u.stateDir, "messages", "inbox", "user", "_unread")
 	readDir := filepath.Join(u.stateDir, "messages", "inbox", "user", "_read")
+
+	srcPath := filepath.Join(unreadDir, fmt.Sprintf("%s.json", messageID))
+	dstPath := filepath.Join(readDir, fmt.Sprintf("%s.json", messageID))
+
+	// Check if already in _read (no-op)
+	if _, err := os.Stat(dstPath); err == nil {
+		return nil
+	}
+
+	// Check if source exists in _unread
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		// Message not in _unread - might already be moved or doesn't exist
+		return nil
+	}
 
 	// Ensure read directory exists
 	if err := os.MkdirAll(readDir, 0755); err != nil {
@@ -357,9 +372,6 @@ func (u *UserInbox) MarkAsRead(messageID string) error {
 	}
 
 	// Move file
-	srcPath := filepath.Join(unreadDir, fmt.Sprintf("%s.json", messageID))
-	dstPath := filepath.Join(readDir, fmt.Sprintf("%s.json", messageID))
-
 	return os.Rename(srcPath, dstPath)
 }
 
