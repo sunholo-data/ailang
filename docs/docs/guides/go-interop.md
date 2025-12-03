@@ -48,6 +48,36 @@ ailang compile --emit-go world.ail
 
 This generates `extern_stubs.go` with function signatures to implement:
 
+### Multi-File Compilation
+
+When your game has multiple AILANG modules, compile them together to merge types into a single `types.go`:
+
+```bash
+# Compile multiple files - types and functions are merged
+ailang compile --emit-go --package-name game step.ail npc_ai.ail camera.ail
+```
+
+This generates:
+- `types.go` - All ADT types from all files (deduplicated)
+- `funcs.go` - All functions from all files
+- `runtime.go` - Shared runtime helpers (only for multi-file compilation)
+- `handlers.go` - Effect handler interfaces
+
+**Important**: Compile all your `.ail` files in a single command. Compiling files separately will overwrite previous output.
+
+```bash
+# ✅ CORRECT - Compile all files together
+ailang compile --emit-go *.ail
+
+# ❌ WRONG - Each compile overwrites the previous
+ailang compile --emit-go step.ail      # Generates types.go
+ailang compile --emit-go npc_ai.ail    # OVERWRITES types.go!
+```
+
+### Generated Extern Stubs
+
+The compiler generates `extern_stubs.go` with function signatures to implement:
+
 ```go
 // Find_path is an extern function declared in AILANG.
 //
