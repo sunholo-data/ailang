@@ -264,12 +264,13 @@ func compileCommand() {
 	// Note: Function generation is experimental and may produce incomplete code
 	codeGen := gen.New(pkgName)
 
-	// Register ADT constructors (with field types for proper type assertions)
+	// Register ADT constructors (with field types and names for proper codegen)
 	for _, td := range allTypeDecls {
 		if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
 			for _, ctor := range adt.Constructors {
 				fieldTypes := extractFieldTypes(ctor.Fields)
-				codeGen.RegisterADTConstructorWithTypes(td.Name, ctor.Name, fieldTypes)
+				fieldNames := extractFieldNames(ctor.Fields)
+				codeGen.RegisterADTConstructorFull(td.Name, ctor.Name, fieldTypes, fieldNames)
 			}
 		}
 	}
@@ -561,12 +562,22 @@ func isUserDefinedGoType(goType string) bool {
 }
 
 // extractFieldTypes extracts Go type strings from AST constructor fields
-func extractFieldTypes(fields []ast.Type) []string {
+func extractFieldTypes(fields []*ast.ConstructorField) []string {
 	types := make([]string, len(fields))
 	for i, field := range fields {
-		types[i] = ailangTypeToGo(field)
+		types[i] = ailangTypeToGo(field.Type)
 	}
 	return types
+}
+
+// extractFieldNames extracts field names from AST constructor fields
+// Returns empty strings for positional fields (no name specified)
+func extractFieldNames(fields []*ast.ConstructorField) []string {
+	names := make([]string, len(fields))
+	for i, field := range fields {
+		names[i] = field.Name // Empty string if positional
+	}
+	return names
 }
 
 // ailangTypeToGo converts an AILANG type to a Go type string

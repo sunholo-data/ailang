@@ -42,7 +42,7 @@ func TestTypeDecl_AlgebraicType(t *testing.T) {
 			Constructors: []*Constructor{
 				{
 					Name:   "Some",
-					Fields: []Type{&TypeVar{Name: "a"}},
+					Fields: []*ConstructorField{{Type: &TypeVar{Name: "a"}}},
 					Pos:    Pos{Line: 1, Column: 10},
 				},
 				{
@@ -156,11 +156,11 @@ func TestDeterministicMarshaling(t *testing.T) {
 			Constructors: []*Constructor{
 				{
 					Name:   "Ok",
-					Fields: []Type{&TypeVar{Name: "a"}},
+					Fields: []*ConstructorField{{Type: &TypeVar{Name: "a"}}},
 				},
 				{
 					Name:   "Err",
-					Fields: []Type{&TypeVar{Name: "e"}},
+					Fields: []*ConstructorField{{Type: &TypeVar{Name: "e"}}},
 				},
 			},
 		},

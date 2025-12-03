@@ -348,11 +348,23 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		// e.g., for MovementPattern.PatternRandomWalk, field is "PatternRandomWalk" not "MovementPatternPatternRandomWalk"
 		if len(p.Args) > 0 {
 			variantFieldName := ToPascalCase(p.Name)
+			// Look up field names from registered constructor info
+			var ctorFieldNames []string
+			if info, exists := g.adtConstructors[p.Name]; exists && len(info.FieldNames) > 0 {
+				ctorFieldNames = info.FieldNames
+			}
 			for i, arg := range p.Args {
 				if vp, ok := arg.(*core.VarPattern); ok && vp.Name != "_" {
 					// Skip binding for wildcard patterns (name == "_")
 					goVarName := ToGoVarName(vp.Name)
-					g.writef("%s := _adt.%s.Value%d\n", goVarName, variantFieldName, i)
+					// Use named field if available, otherwise fallback to Value0, Value1, ...
+					var fieldAccess string
+					if i < len(ctorFieldNames) && ctorFieldNames[i] != "" {
+						fieldAccess = ToPascalCase(ctorFieldNames[i])
+					} else {
+						fieldAccess = fmt.Sprintf("Value%d", i)
+					}
+					g.writef("%s := _adt.%s.%s\n", goVarName, variantFieldName, fieldAccess)
 					g.writef("_ = %s // suppress unused\n", goVarName)
 				}
 				// Wildcards (_) and non-VarPattern args don't need binding

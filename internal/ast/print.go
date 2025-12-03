@@ -386,7 +386,17 @@ func simplify(node interface{}) interface{} {
 			"name": n.Name,
 		}
 		if len(n.Fields) > 0 {
-			m["fields"] = simplifyTypeSlice(n.Fields)
+			fields := make([]interface{}, len(n.Fields))
+			for i, f := range n.Fields {
+				field := map[string]interface{}{
+					"type": simplify(f.Type),
+				}
+				if f.Name != "" {
+					field["name"] = f.Name
+				}
+				fields[i] = field
+			}
+			m["fields"] = fields
 		}
 		return m
 

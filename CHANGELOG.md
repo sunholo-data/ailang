@@ -1,5 +1,60 @@
 # AILANG Changelog
 
+## [v0.5.3] - 2025-12-03
+
+### Added - Named ADT Constructor Fields (M-DX11-NAMED-ADT)
+
+**User Impact**: ADT constructors now support named fields for better Go interop and self-documenting code.
+
+**AILANG source:**
+```ailang
+type DrawCmd =
+  | Rect(x: float, y: float, w: float, h: float)
+  | Circle(cx: float, cy: float, radius: float)
+  | Clear
+```
+
+**Generated Go (before):**
+```go
+type DrawCmdRect struct {
+    Value0 float64  // What is this?
+    Value1 float64
+    Value2 float64
+    Value3 float64
+}
+```
+
+**Generated Go (after):**
+```go
+type DrawCmdRect struct {
+    X float64  // Clear field names!
+    Y float64
+    W float64
+    H float64
+}
+```
+
+**Pattern matching also uses named fields:**
+```go
+// Before: x := _adt.Rect.Value0
+// After:  x := _adt.Rect.X
+```
+
+**Backwards Compatible**: Positional syntax still works:
+```ailang
+type Option = | Some(int) | None  -- Generates Value0
+```
+
+**Files Changed:**
+- `internal/ast/ast_decl.go` - Added `ConstructorField` struct (~25 LOC)
+- `internal/parser/parser_type.go` - Added `parseConstructorField()` for `name: type` syntax (~35 LOC)
+- `internal/gen/golang/adt.go` - Generate named fields when available (~20 LOC)
+- `internal/gen/golang/codegen.go` - Added `FieldNames` to `ADTConstructorInfo` (~20 LOC)
+- `internal/gen/golang/codegen_match.go` - Use named fields in pattern matching (~15 LOC)
+- `cmd/ailang/compile.go` - Register field names with generator (~15 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
 ## [v0.5.2] - 2025-12-03
 
 ### Added - Multi-File Compilation Support

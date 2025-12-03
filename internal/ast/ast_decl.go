@@ -146,9 +146,17 @@ type AlgebraicType struct {
 	Pos          Pos
 }
 
+// ConstructorField represents a field in an ADT constructor.
+// Supports both named fields (x: int) and positional fields (int).
+type ConstructorField struct {
+	Name string // Field name (empty for positional fields)
+	Type Type   // Field type
+	Pos  Pos
+}
+
 type Constructor struct {
 	Name   string
-	Fields []Type
+	Fields []*ConstructorField
 	Pos    Pos
 }
 

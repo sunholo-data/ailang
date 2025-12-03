@@ -164,8 +164,14 @@ func (g *ADTGenerator) generateVariantStruct(typeName string, ctor *ast.Construc
 	g.indent++
 
 	for i, field := range ctor.Fields {
-		goType := g.mapASTType(field)
-		fieldName := fmt.Sprintf("Value%d", i)
+		goType := g.mapASTType(field.Type)
+		// Use named field if available, otherwise use positional (Value0, Value1, ...)
+		var fieldName string
+		if field.Name != "" {
+			fieldName = ToPascalCase(field.Name)
+		} else {
+			fieldName = fmt.Sprintf("Value%d", i)
+		}
 		g.writef("%s %s\n", fieldName, goType)
 	}
 
@@ -186,9 +192,16 @@ func (g *ADTGenerator) generateVariantConstructor(typeName string, ctor *ast.Con
 	var params []string
 	var assignments []string
 	for i, field := range ctor.Fields {
-		goType := g.mapASTType(field)
-		paramName := fmt.Sprintf("v%d", i)
-		fieldName := fmt.Sprintf("Value%d", i)
+		goType := g.mapASTType(field.Type)
+		// Use named field if available, otherwise use positional
+		var paramName, fieldName string
+		if field.Name != "" {
+			paramName = field.Name // Use original name for param
+			fieldName = ToPascalCase(field.Name)
+		} else {
+			paramName = fmt.Sprintf("v%d", i)
+			fieldName = fmt.Sprintf("Value%d", i)
+		}
 		params = append(params, fmt.Sprintf("%s %s", paramName, goType))
 		assignments = append(assignments, fmt.Sprintf("%s: %s", fieldName, paramName))
 	}

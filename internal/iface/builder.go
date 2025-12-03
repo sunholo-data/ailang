@@ -218,7 +218,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								// Convert AST field types to internal types
 								fieldTypes := make([]types.Type, len(ctor.Fields))
 								for i, field := range ctor.Fields {
-									fieldTypes[i] = astTypeToInternalType(field)
+									fieldTypes[i] = astTypeToInternalType(field.Type)
 								}
 								resultType := &types.TCon{Name: typeDecl.Name}
 

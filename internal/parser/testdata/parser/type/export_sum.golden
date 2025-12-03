@@ -7,8 +7,10 @@
             {
               "fields": [
                 {
-                  "name": "a",
-                  "type": "TypeVar"
+                  "type": {
+                    "name": "a",
+                    "type": "TypeVar"
+                  }
                 }
               ],
               "name": "Some",
@@ -37,8 +39,10 @@
             {
               "fields": [
                 {
-                  "name": "a",
-                  "type": "TypeVar"
+                  "type": {
+                    "name": "a",
+                    "type": "TypeVar"
+                  }
                 }
               ],
               "name": "Some",

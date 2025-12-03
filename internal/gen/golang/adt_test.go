@@ -13,8 +13,8 @@ func TestGenerateSumType_Simple(t *testing.T) {
 		Name: "Option",
 		Definition: &ast.AlgebraicType{
 			Constructors: []*ast.Constructor{
-				{Name: "Some", Fields: []ast.Type{&ast.SimpleType{Name: "int"}}},
-				{Name: "None", Fields: []ast.Type{}},
+				{Name: "Some", Fields: []*ast.ConstructorField{{Type: &ast.SimpleType{Name: "int"}}}},
+				{Name: "None", Fields: []*ast.ConstructorField{}},
 			},
 		},
 	}
@@ -85,11 +85,11 @@ func TestGenerateSumType_Tree(t *testing.T) {
 		Name: "Tree",
 		Definition: &ast.AlgebraicType{
 			Constructors: []*ast.Constructor{
-				{Name: "Leaf", Fields: []ast.Type{&ast.SimpleType{Name: "int"}}},
-				{Name: "Node", Fields: []ast.Type{
-					&ast.SimpleType{Name: "Tree"},
-					&ast.SimpleType{Name: "int"},
-					&ast.SimpleType{Name: "Tree"},
+				{Name: "Leaf", Fields: []*ast.ConstructorField{{Type: &ast.SimpleType{Name: "int"}}}},
+				{Name: "Node", Fields: []*ast.ConstructorField{
+					{Type: &ast.SimpleType{Name: "Tree"}},
+					{Type: &ast.SimpleType{Name: "int"}},
+					{Type: &ast.SimpleType{Name: "Tree"}},
 				}},
 			},
 		},
@@ -183,10 +183,10 @@ func TestGenerateMultipleTypes(t *testing.T) {
 			Name: "Direction",
 			Definition: &ast.AlgebraicType{
 				Constructors: []*ast.Constructor{
-					{Name: "North", Fields: []ast.Type{}},
-					{Name: "South", Fields: []ast.Type{}},
-					{Name: "East", Fields: []ast.Type{}},
-					{Name: "West", Fields: []ast.Type{}},
+					{Name: "North", Fields: []*ast.ConstructorField{}},
+					{Name: "South", Fields: []*ast.ConstructorField{}},
+					{Name: "East", Fields: []*ast.ConstructorField{}},
+					{Name: "West", Fields: []*ast.ConstructorField{}},
 				},
 			},
 		},
@@ -232,21 +232,21 @@ func TestGeneratedCodeCompiles(t *testing.T) {
 		Name: "DrawCmd",
 		Definition: &ast.AlgebraicType{
 			Constructors: []*ast.Constructor{
-				{Name: "Sprite", Fields: []ast.Type{
-					&ast.SimpleType{Name: "int"},    // x
-					&ast.SimpleType{Name: "int"},    // y
-					&ast.SimpleType{Name: "string"}, // texture
+				{Name: "Sprite", Fields: []*ast.ConstructorField{
+					{Type: &ast.SimpleType{Name: "int"}},    // x
+					{Type: &ast.SimpleType{Name: "int"}},    // y
+					{Type: &ast.SimpleType{Name: "string"}}, // texture
 				}},
-				{Name: "Rect", Fields: []ast.Type{
-					&ast.SimpleType{Name: "int"}, // x
-					&ast.SimpleType{Name: "int"}, // y
-					&ast.SimpleType{Name: "int"}, // w
-					&ast.SimpleType{Name: "int"}, // h
+				{Name: "Rect", Fields: []*ast.ConstructorField{
+					{Type: &ast.SimpleType{Name: "int"}}, // x
+					{Type: &ast.SimpleType{Name: "int"}}, // y
+					{Type: &ast.SimpleType{Name: "int"}}, // w
+					{Type: &ast.SimpleType{Name: "int"}}, // h
 				}},
-				{Name: "Text", Fields: []ast.Type{
-					&ast.SimpleType{Name: "int"},    // x
-					&ast.SimpleType{Name: "int"},    // y
-					&ast.SimpleType{Name: "string"}, // text
+				{Name: "Text", Fields: []*ast.ConstructorField{
+					{Type: &ast.SimpleType{Name: "int"}},    // x
+					{Type: &ast.SimpleType{Name: "int"}},    // y
+					{Type: &ast.SimpleType{Name: "string"}}, // text
 				}},
 			},
 		},

@@ -7,8 +7,10 @@
             {
               "fields": [
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Circle",
@@ -17,12 +19,16 @@
             {
               "fields": [
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 },
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Rectangle",
@@ -47,8 +53,10 @@
             {
               "fields": [
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Circle",
@@ -57,12 +65,16 @@
             {
               "fields": [
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 },
                 {
-                  "name": "int",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Rectangle",

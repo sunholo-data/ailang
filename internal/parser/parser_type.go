@@ -344,17 +344,17 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 			p.nextToken() // advance to LPAREN
 			// Parse constructor fields
 			p.nextToken() // consume LPAREN
-			var fields []ast.Type
+			var fields []*ast.ConstructorField
 			if !p.curTokenIs(lexer.RPAREN) {
-				fields = append(fields, p.parseType())
-				p.nextToken() // advance past the type we just parsed
+				fields = append(fields, p.parseConstructorField())
+				p.nextToken() // advance past the field we just parsed
 				for p.curTokenIs(lexer.COMMA) {
 					p.nextToken() // consume COMMA
 					if p.curTokenIs(lexer.RPAREN) {
 						break // trailing comma
 					}
-					fields = append(fields, p.parseType())
-					p.nextToken() // advance past the type we just parsed
+					fields = append(fields, p.parseConstructorField())
+					p.nextToken() // advance past the field we just parsed
 				}
 			}
 			if !p.curTokenIs(lexer.RPAREN) {
@@ -456,20 +456,20 @@ func (p *Parser) parseVariant() *ast.Constructor {
 	}
 
 	// Parse optional fields (peek ahead to see if there are any)
-	var fields []ast.Type
+	var fields []*ast.ConstructorField
 	if p.peekTokenIs(lexer.LPAREN) {
 		p.nextToken() // advance to LPAREN
 		p.nextToken() // consume LPAREN
 		if !p.curTokenIs(lexer.RPAREN) {
-			fields = append(fields, p.parseType())
-			p.nextToken() // advance past the type we just parsed
+			fields = append(fields, p.parseConstructorField())
+			p.nextToken() // advance past the field we just parsed
 			for p.curTokenIs(lexer.COMMA) {
 				p.nextToken() // consume COMMA
 				if p.curTokenIs(lexer.RPAREN) {
 					break // trailing comma
 				}
-				fields = append(fields, p.parseType())
-				p.nextToken() // advance past the type we just parsed
+				fields = append(fields, p.parseConstructorField())
+				p.nextToken() // advance past the field we just parsed
 			}
 		}
 		if !p.curTokenIs(lexer.RPAREN) {
@@ -485,6 +485,34 @@ func (p *Parser) parseVariant() *ast.Constructor {
 		Name:   name,
 		Fields: fields,
 		Pos:    p.curPos(),
+	}
+}
+
+// parseConstructorField parses a constructor field.
+// Supports both named (x: int) and positional (int) syntax.
+func (p *Parser) parseConstructorField() *ast.ConstructorField {
+	pos := p.curPos()
+
+	// Check for named field syntax: name: type
+	// Look ahead: if current is IDENT and peek is COLON, it's named
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+		name := p.curToken.Literal
+		p.nextToken() // consume IDENT
+		p.nextToken() // consume COLON
+		typ := p.parseType()
+		return &ast.ConstructorField{
+			Name: name,
+			Type: typ,
+			Pos:  pos,
+		}
+	}
+
+	// Positional field (type only)
+	typ := p.parseType()
+	return &ast.ConstructorField{
+		Name: "", // Empty name for positional fields
+		Type: typ,
+		Pos:  pos,
 	}
 }
 

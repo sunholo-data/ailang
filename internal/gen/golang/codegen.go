@@ -34,6 +34,7 @@ type ADTConstructorInfo struct {
 	GoFuncName string   // The Go constructor function name (e.g., "NewSelectionSelectionNone")
 	FieldCount int      // Number of fields (0 for nullary constructors)
 	FieldTypes []string // Go type strings for each field (e.g., ["int64", "float64"])
+	FieldNames []string // Original field names (e.g., ["x", "y"]) - empty strings for positional fields
 }
 
 // Generator produces Go source code from AILANG Core AST.
@@ -99,7 +100,14 @@ func (g *Generator) RegisterADTConstructor(typeName, ctorName string, fieldCount
 
 // RegisterADTConstructorWithTypes registers an ADT constructor with field type information.
 // This enables proper type assertions when calling constructors from generated code.
+// Deprecated: Use RegisterADTConstructorFull for named field support.
 func (g *Generator) RegisterADTConstructorWithTypes(typeName, ctorName string, fieldTypes []string) {
+	g.RegisterADTConstructorFull(typeName, ctorName, fieldTypes, nil)
+}
+
+// RegisterADTConstructorFull registers an ADT constructor with field types and names.
+// This enables proper field access in pattern matching with named fields.
+func (g *Generator) RegisterADTConstructorFull(typeName, ctorName string, fieldTypes, fieldNames []string) {
 	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
 	g.adtConstructors[ctorName] = &ADTConstructorInfo{
 		TypeName:   typeName,
@@ -107,6 +115,7 @@ func (g *Generator) RegisterADTConstructorWithTypes(typeName, ctorName string, f
 		GoFuncName: goFuncName,
 		FieldCount: len(fieldTypes),
 		FieldTypes: fieldTypes,
+		FieldNames: fieldNames,
 	}
 }
 
