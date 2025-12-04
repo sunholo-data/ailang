@@ -422,5 +422,21 @@ stderr := NewLimitedWriter(MaxOutputSize)
 ### Limitations
 
 - Process groups are Unix-only (macOS, Linux)
-- Windows would need different approach (job objects)
-- Watchdog uses `ps` command (Unix-specific)
+- Windows uses fallback single-process kill (no process tree management)
+- Watchdog uses `ps` command (Unix-specific, no-op on Windows)
+
+### Platform-Specific Implementation (Added Post-Release)
+
+To fix Windows CI build failure, syscalls were moved to platform-specific files:
+
+| File | Build Tag | Purpose |
+|------|-----------|---------|
+| `process_unix.go` | `!windows` | Unix process groups with `Setpgid`, `Kill(-pid)` |
+| `process_windows.go` | `windows` | Stubs using `os.Process.Kill()` only |
+
+**API (platform-agnostic):**
+```go
+SetProcessGroup(cmd *exec.Cmd)    // Configure process group (no-op on Windows)
+KillProcessGroup(pid int) error   // Kill group (single process on Windows)
+KillProcess(pid int) error        // Kill single process
+```
