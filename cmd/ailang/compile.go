@@ -44,7 +44,8 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
-	filenames := fs.Args()
+	// Expand directories to .ail files
+	filenames := expandFilenames(fs.Args())
 
 	// Validate flags
 	if !*emitGoFlag {
@@ -303,26 +304,23 @@ func compileCommand() {
 		fmt.Printf("%s Generating functions (%d declarations from %d files)\n", cyan("→"), totalDecls, len(allCoreDecls))
 
 		// For multi-file compilation, generate runtime helpers separately
-		if len(allCoreDecls) > 1 {
-			fmt.Printf("%s Generating runtime helpers (shared)\n", cyan("→"))
-			runtimeCode, err := codeGen.GenerateRuntime()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: runtime generation failed: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-			runtimeFile := filepath.Join(outDir, "runtime.go")
-			if err := os.WriteFile(runtimeFile, runtimeCode, 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot write runtime file: %v\n", red("Error"), err)
-				os.Exit(1)
-			}
-			fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
-
-			// Skip runtime helpers in subsequent code generation
-			codeGen.SetSkipRuntimeHelpers(true)
+		fmt.Printf("%s Generating runtime helpers (shared)\n", cyan("→"))
+		runtimeCode, err := codeGen.GenerateRuntime()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: runtime generation failed: %v\n", red("Error"), err)
+			os.Exit(1)
 		}
+		runtimeFile := filepath.Join(outDir, "runtime.go")
+		if err := os.WriteFile(runtimeFile, runtimeCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write runtime file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
 
-		// Generate code for each file's Core program
-		var allFuncsCode []byte
+		// Skip runtime helpers in subsequent code generation
+		codeGen.SetSkipRuntimeHelpers(true)
+
+		// Generate code for each file's Core program into separate output files
 		for i, res := range allCoreDecls {
 			coreProg := res.Artifacts.Core
 			if coreProg == nil || len(coreProg.Decls) == 0 {
@@ -340,23 +338,17 @@ func compileCommand() {
 				continue
 			}
 
-			// For first file, include package header; for subsequent, strip header
-			if len(allFuncsCode) == 0 {
-				allFuncsCode = funcsCode
-			} else {
-				// Append functions only (skip package declaration for subsequent files)
-				allFuncsCode = append(allFuncsCode, []byte("\n")...)
-				allFuncsCode = append(allFuncsCode, stripPackageHeader(funcsCode)...)
-			}
-		}
+			// Derive output filename from source filename
+			sourceFile := filenames[i]
+			baseName := filepath.Base(sourceFile)
+			goFileName := strings.TrimSuffix(baseName, ".ail") + ".go"
+			goFilePath := filepath.Join(outDir, goFileName)
 
-		if len(allFuncsCode) > 0 {
-			funcsFile := filepath.Join(outDir, "funcs.go")
-			if err := os.WriteFile(funcsFile, allFuncsCode, 0644); err != nil {
+			if err := os.WriteFile(goFilePath, funcsCode, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: cannot write functions file: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
-			fmt.Printf("%s Generated %s\n", green("✓"), funcsFile)
+			fmt.Printf("%s Generated %s\n", green("✓"), goFilePath)
 		}
 	}
 
@@ -396,9 +388,9 @@ func sanitizePackageName(name string) string {
 }
 
 func printCompileHelp() {
-	fmt.Println(`Usage: ailang compile [options] <file.ail> [file2.ail ...]
+	fmt.Println(`Usage: ailang compile [options] <file.ail|directory> [...]
 
-Compile AILANG source to other languages. Supports multiple files.
+Compile AILANG source to Go. Supports files, directories, or both.
 
 Options:
   --emit-go              Generate Go source code (required)
@@ -408,24 +400,29 @@ Options:
   -h, --help             Show this help message
 
 Examples:
-  # Generate Go code from a single file
-  ailang compile --emit-go world.ail
+  # Compile all .ail files in a directory
+  ailang compile --emit-go sim/
 
-  # Compile multiple files together (types merged into one types.go)
-  ailang compile --emit-go step.ail npc_ai.ail camera.ail
+  # Compile specific files
+  ailang compile --emit-go world.ail npc_ai.ail
+
+  # Mix directories and files
+  ailang compile --emit-go sim/ extra.ail
 
   # Specify output directory and package name
-  ailang compile --emit-go --out gen/ --package-name game *.ail
+  ailang compile --emit-go --out . --package-name sim_gen sim/
 
 Output Structure:
   <out>/<package>/
   ├── types.go              # Generated ADT types (merged from all files)
-  ├── debug_types_debug.go  # Debug effect (full implementation, //go:build !release)
-  ├── debug_types_release.go# Debug effect (no-ops, //go:build release)
-  ├── handlers.go           # Effect handler interfaces (Debug, Rand, Clock, FS, Net, Env, AI)
-  ├── runtime.go            # Runtime helpers (only for multi-file compilation)
-  ├── extern_stubs.go       # Stubs for extern functions (implement these)
-  └── funcs.go              # Generated functions (experimental, merged from all files)
+  ├── debug_types_debug.go  # Debug effect (//go:build !release)
+  ├── debug_types_release.go# Debug effect no-ops (//go:build release)
+  ├── handlers.go           # Effect handler interfaces
+  ├── runtime.go            # Shared runtime helpers
+  ├── extern_stubs.go       # Stubs for extern functions (if any)
+  ├── world.go              # Functions from world.ail
+  ├── npc_ai.go             # Functions from npc_ai.ail
+  └── step.go               # Functions from step.ail (one per source file)
 
 Build Commands:
   Debug mode (default):  cd <out> && go build
@@ -612,6 +609,51 @@ func extractRecordTypeInfo(rec *ast.RecordType) ([]string, map[string]string) {
 		fieldTypes[goFieldName] = ailangTypeToGo(field.Type)
 	}
 	return fields, fieldTypes
+}
+
+// expandFilenames expands directory arguments into .ail files.
+// If an argument is a directory, all .ail files in it are included.
+// Files are sorted alphabetically for deterministic compilation order.
+func expandFilenames(args []string) []string {
+	var result []string
+	for _, arg := range args {
+		info, err := os.Stat(arg)
+		if err != nil {
+			// Keep the argument as-is (will fail later with proper error)
+			result = append(result, arg)
+			continue
+		}
+
+		if info.IsDir() {
+			// Expand directory to all .ail files
+			entries, err := os.ReadDir(arg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: cannot read directory '%s': %v\n", yellow("Warning"), arg, err)
+				continue
+			}
+
+			var ailFiles []string
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ail") {
+					ailFiles = append(ailFiles, filepath.Join(arg, entry.Name()))
+				}
+			}
+
+			// Sort for deterministic order
+			// (os.ReadDir returns sorted entries, but be explicit)
+			result = append(result, ailFiles...)
+
+			if len(ailFiles) > 0 {
+				fmt.Printf("%s Found %d .ail files in %s/\n", cyan("→"), len(ailFiles), arg)
+			} else {
+				fmt.Fprintf(os.Stderr, "%s: no .ail files found in directory '%s'\n", yellow("Warning"), arg)
+			}
+		} else {
+			// Regular file
+			result = append(result, arg)
+		}
+	}
+	return result
 }
 
 // ailangTypeToGo converts an AILANG type to a Go type string
