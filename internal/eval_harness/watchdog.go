@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -86,8 +85,8 @@ func (w *Watchdog) checkAndKill() {
 			log.Printf("WATCHDOG: Killing orphan PID %d (running %v, max %v)",
 				pid, elapsed, w.MaxAge)
 			// Try to kill process group first, fall back to single process
-			if err := syscall.Kill(-pid, syscall.SIGKILL); err != nil {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
+			if err := KillProcessGroup(pid); err != nil {
+				_ = KillProcess(pid)
 			}
 			w.KilledCount++
 		}
