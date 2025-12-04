@@ -111,6 +111,9 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 	case *core.List:
 		return g.generateList(e)
 
+	case *core.Array:
+		return g.generateArray(e)
+
 	case *core.Tuple:
 		return g.generateTuple(e)
 

@@ -635,6 +635,14 @@ func ailangTypeToGo(t ast.Type) string {
 			return "[]*" + elemType
 		}
 		return "[]" + elemType
+	case *ast.ArrayType:
+		// M-TYPE1: Arrays use the same Go representation as lists (slices)
+		elemType := ailangTypeToGo(typ.Element)
+		// For user-defined element types, generate pointer slice []*Type
+		if isUserDefinedGoType(elemType) {
+			return "[]*" + elemType
+		}
+		return "[]" + elemType
 	case *ast.RecordType:
 		return "map[string]interface{}"
 	default:

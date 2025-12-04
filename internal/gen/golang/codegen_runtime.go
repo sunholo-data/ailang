@@ -603,8 +603,200 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// M-TYPE1: Array runtime functions
+	g.writeArrayRuntimeFunctions()
+
 	// M-DX12: Generate ADT slice converters for registered types
 	g.writeADTSliceConverters()
+}
+
+// writeArrayRuntimeFunctions generates Go implementations for AILANG array operations.
+// M-TYPE1: These are used when compiling std/array module functions to Go.
+func (g *Generator) writeArrayRuntimeFunctions() {
+	// FromList - creates array from list (both are []interface{} in Go)
+	g.writef("// FromList creates an array from a list.\n")
+	g.writef("// In Go, both arrays and lists are []interface{}.\n")
+	g.writef("func FromList(xs interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if xs == nil {\n")
+	g.indent++
+	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if list, ok := xs.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("// Return a copy to preserve immutability\n")
+	g.writef("result := make([]interface{}, len(list))\n")
+	g.writef("copy(result, list)\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ToList - converts array back to list (identity in Go)
+	g.writef("// ToList converts an array to a list.\n")
+	g.writef("// In Go, both are []interface{}, so this is essentially identity.\n")
+	g.writef("func ToList(arr interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if arr == nil {\n")
+	g.indent++
+	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("result := make([]interface{}, len(slice))\n")
+	g.writef("copy(result, slice)\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return []interface{}{}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Length - returns array length
+	g.writef("// Length returns the length of an array.\n")
+	g.writef("func Length(arr interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if arr == nil {\n")
+	g.indent++
+	g.writef("return int64(0)\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("return int64(len(slice))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return int64(0)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Get - gets element at index (panics if out of bounds)
+	g.writef("// Get returns the element at the given index.\n")
+	g.writef("// Panics if index is out of bounds.\n")
+	g.writef("func Get(arr interface{}, idx interface{}) interface{} {\n")
+	g.indent++
+	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice)))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return slice[i]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("panic(\"Get: not an array\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// GetOpt - safe get that returns Option[a]
+	g.writef("// GetOpt safely returns the element at index, or None if out of bounds.\n")
+	g.writef("// Returns Some(element) or None. Uses makeOptionSome/makeOptionNone helpers\n")
+	g.writef("// which delegate to typed constructors if Option ADT is present.\n")
+	g.writef("func GetOpt(arr interface{}, idx interface{}) interface{} {\n")
+	g.indent++
+	g.writef("i := toInt64(idx)\n")
+	g.writef("if i < 0 {\n")
+	g.indent++
+	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("if i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return makeOptionSome(slice[i])\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Helper functions for Option - use map representation as fallback
+	g.writef("// makeOptionSome creates a Some value.\n")
+	g.writef("// Uses map representation for runtime compatibility.\n")
+	g.writef("func makeOptionSome(v interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return map[string]interface{}{\"tag\": \"Some\", \"value\": v}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// makeOptionNone creates a None value.\n")
+	g.writef("// Uses map representation for runtime compatibility.\n")
+	g.writef("func makeOptionNone() interface{} {\n")
+	g.indent++
+	g.writef("return map[string]interface{}{\"tag\": \"None\"}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// UnsafeGet - unchecked access (no bounds check)
+	g.writef("// UnsafeGet returns element at index without bounds checking.\n")
+	g.writef("// Caller must ensure index is valid.\n")
+	g.writef("func UnsafeGet(arr interface{}, idx interface{}) interface{} {\n")
+	g.indent++
+	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("return slice[i]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("panic(\"UnsafeGet: not an array\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Set - returns new array with element updated (immutable)
+	g.writef("// Set returns a new array with the element at index updated.\n")
+	g.writef("// Preserves immutability by creating a copy.\n")
+	g.writef("func Set(arr interface{}, idx interface{}, val interface{}) interface{} {\n")
+	g.indent++
+	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice)))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make([]interface{}, len(slice))\n")
+	g.writef("copy(result, slice)\n")
+	g.writef("result[i] = val\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("panic(\"Set: not an array\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Make - creates array with default value
+	g.writef("// Make creates an array of given size with all elements set to default.\n")
+	g.writef("func Make(size interface{}, defaultVal interface{}) interface{} {\n")
+	g.indent++
+	g.writef("n := toInt64(size)\n")
+	g.writef("if n < 0 {\n")
+	g.indent++
+	g.writef("n = 0\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make([]interface{}, n)\n")
+	g.writef("for i := range result {\n")
+	g.indent++
+	g.writef("result[i] = defaultVal\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Note: NewOptionSome and NewOptionNone are generated by the ADT generator
+	// when Option type is present in the module. GetOpt uses these functions.
 }
 
 // writeADTSliceConverters generates type-safe slice conversion functions for ADT types.

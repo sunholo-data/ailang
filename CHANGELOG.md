@@ -28,10 +28,44 @@ type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander
 let patrol = PatternPatrol(#[North, East, South, West])  -- ✓ Compiles!
 ```
 
-**Files Changed:**
+**Files Changed (Parser):**
 - `internal/parser/parser_type.go` - Fix type application parsing (~15 LOC)
 - `internal/parser/type_test.go` - Add regression tests (~80 LOC)
 - `examples/runnable/array_adt.ail` - Integration test example
+
+### Fixed - Array Go Codegen (M-TYPE1 continued)
+
+**Bug**: After the parser fix, `ailang compile --emit-go` still failed because:
+1. Array literal expressions (`#[...]`) weren't being generated
+2. `Array[T]` fields in ADT constructors were mapped to `interface{}` instead of typed slices
+
+**Errors**:
+```
+unsupported expression type: *core.Array
+cannot use tmp1 (variable of type interface{}) as []*Direction
+```
+
+**Fix 1**: Added `generateArray()` function to handle `*core.Array` expressions in `codegen_ops.go`.
+
+**Fix 2**: Added `*ast.ArrayType` case to `ailangTypeToGo()` in `compile.go` so `Array[Direction]` maps to `[]*Direction`.
+
+**Result**: Generated Go code now correctly uses `convertToDirectionSlice()` conversion helpers when passing array literals to ADT constructors.
+
+**Fix 3**: Added array runtime functions to `codegen_runtime.go`:
+- `FromList(xs)` - Convert list to array
+- `ToList(arr)` - Convert array to list
+- `Length(arr)` - Get array length
+- `Get(arr, idx)` - Get element at index
+- `GetOpt(arr, idx)` - Safe get returning Option
+- `UnsafeGet(arr, idx)` - Unchecked get
+- `Set(arr, idx, val)` - Immutable update
+- `Make(size, default)` - Create array with default value
+
+**Files Changed (Go Codegen):**
+- `internal/gen/golang/codegen_expr.go` - Add Array case (~2 LOC)
+- `internal/gen/golang/codegen_ops.go` - Add `generateArray()` function (~35 LOC)
+- `internal/gen/golang/codegen_runtime.go` - Add array runtime functions (~150 LOC)
+- `cmd/ailang/compile.go` - Add ArrayType handling (~8 LOC)
 
 ## [v0.5.5] - 2025-12-04
 

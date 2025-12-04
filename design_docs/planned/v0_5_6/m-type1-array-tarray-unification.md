@@ -273,5 +273,70 @@ ailang run --caps IO --entry main examples/runnable/array_adt.ail
 # Output: Array in ADT works!
 ```
 
+## v0.5.6 Go Codegen Fix (Additional)
+
+**The parser fix enabled interpreter usage but Go compilation was still broken!**
+
+Two additional fixes were needed for `ailang compile --emit-go`:
+
+### Fix 1: Array literal codegen (`internal/gen/golang/codegen_ops.go`)
+
+Added `generateArray()` function to handle `*core.Array` expressions:
+
+```go
+case *core.Array:
+    return g.generateArray(e)
+```
+
+This generates Go slice literals from AILANG array literals `#[...]`.
+
+### Fix 2: Array type mapping in field types (`cmd/ailang/compile.go`)
+
+The `ailangTypeToGo()` function was missing `*ast.ArrayType` handling:
+
+```go
+case *ast.ArrayType:
+    // M-TYPE1: Arrays use the same Go representation as lists (slices)
+    elemType := ailangTypeToGo(typ.Element)
+    if isUserDefinedGoType(elemType) {
+        return "[]*" + elemType
+    }
+    return "[]" + elemType
+```
+
+Without this, `Array[Direction]` in ADT constructor fields was mapped to `interface{}`
+instead of `[]*Direction`, causing type mismatches when passing arrays to constructors.
+
+**Files changed (Go codegen):**
+- `internal/gen/golang/codegen_expr.go` (~2 LOC)
+- `internal/gen/golang/codegen_ops.go` (~35 LOC)
+- `cmd/ailang/compile.go` (~8 LOC)
+
+### Fix 3: Array runtime functions (`internal/gen/golang/codegen_runtime.go`)
+
+The std/array module functions (A.length, A.get, etc.) compile to Go function calls like `Length(arr)`, `Get(arr, idx)`. These need runtime implementations:
+
+```go
+// Array runtime functions added:
+func FromList(xs interface{}) interface{}
+func ToList(arr interface{}) interface{}
+func Length(arr interface{}) interface{}
+func Get(arr interface{}, idx interface{}) interface{}
+func GetOpt(arr interface{}, idx interface{}) interface{}
+func UnsafeGet(arr interface{}, idx interface{}) interface{}
+func Set(arr interface{}, idx interface{}, val interface{}) interface{}
+func Make(size interface{}, defaultVal interface{}) interface{}
+```
+
+**Files changed (Runtime):**
+- `internal/gen/golang/codegen_runtime.go` (~150 LOC)
+
+**Verified working:**
+```bash
+ailang compile --emit-go --out /tmp/array_out examples/runnable/array_adt.ail
+# Generates correct: convertToDirectionSlice(tmp1) call
+# Runtime includes: FromList, Length, Get, GetOpt, Set, Make functions
+```
+
 **Document created**: 2025-12-04
-**Last updated**: 2025-12-04 (v0.5.6 parser fix added)
+**Last updated**: 2025-12-04 (Runtime functions added)

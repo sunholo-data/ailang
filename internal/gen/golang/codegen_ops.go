@@ -418,6 +418,70 @@ func (g *Generator) getListElementType(list *core.List) string {
 	return ""
 }
 
+// generateArray generates a Go slice literal for arrays.
+// M-TYPE1: Arrays use the same Go representation as lists (slices).
+func (g *Generator) generateArray(arr *core.Array) error {
+	// M-DX26: In _impl functions, always generate []interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
+	// Try to determine element type from CoreTypeInfo
+	elemType := ""
+	if !inImplFunc {
+		elemType = g.getArrayElementType(arr)
+	}
+
+	if elemType != "" && elemType != "interface{}" {
+		// Generate typed slice (e.g., []int64{1, 2, 3})
+		g.writef("[]%s{", elemType)
+	} else {
+		// Fallback to interface{} slice
+		g.write("[]interface{}{")
+	}
+
+	for i, elem := range arr.Elements {
+		if i > 0 {
+			g.write(", ")
+		}
+		if err := g.generateExpr(elem); err != nil {
+			return err
+		}
+	}
+	g.write("}")
+	return nil
+}
+
+// getArrayElementType extracts the Go element type for an array from CoreTypeInfo.
+// M-TYPE1: Returns empty string if type is unknown or not an array type.
+func (g *Generator) getArrayElementType(arr *core.Array) string {
+	if g.coreTypeInfo == nil {
+		return ""
+	}
+
+	nodeID := arr.NodeID
+	if nodeID == 0 {
+		return ""
+	}
+
+	typ, ok := g.coreTypeInfo[nodeID]
+	if !ok {
+		return ""
+	}
+
+	// Map the type to Go and extract element type
+	goType, err := g.TypeMapper.MapType(typ)
+	if err != nil {
+		return ""
+	}
+
+	// Check if it's a slice type and extract element type
+	goTypeStr := string(goType)
+	if len(goTypeStr) > 2 && goTypeStr[:2] == "[]" {
+		return goTypeStr[2:]
+	}
+
+	return ""
+}
+
 // generateTuple generates a Go struct for tuple.
 func (g *Generator) generateTuple(tuple *core.Tuple) error {
 	g.write("[]interface{}{")
