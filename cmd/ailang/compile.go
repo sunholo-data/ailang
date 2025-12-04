@@ -514,57 +514,6 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// stripPackageHeader removes the package declaration and imports from Go code
-// Used when concatenating multiple generated files into one
-func stripPackageHeader(code []byte) []byte {
-	s := string(code)
-	lines := strings.Split(s, "\n")
-
-	// Find the first line that's not a comment, package, or import
-	startIdx := 0
-	inImport := false
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Skip empty lines and comments at the start
-		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-
-		// Skip package declaration
-		if strings.HasPrefix(trimmed, "package ") {
-			startIdx = i + 1
-			continue
-		}
-
-		// Handle import block
-		if strings.HasPrefix(trimmed, "import (") {
-			inImport = true
-			continue
-		}
-		if inImport {
-			if trimmed == ")" {
-				inImport = false
-				startIdx = i + 1
-			}
-			continue
-		}
-		if strings.HasPrefix(trimmed, "import ") {
-			startIdx = i + 1
-			continue
-		}
-
-		// Found actual code
-		break
-	}
-
-	if startIdx >= len(lines) {
-		return nil
-	}
-
-	return []byte(strings.Join(lines[startIdx:], "\n"))
-}
-
 // isUserDefinedGoType returns true if the Go type is a user-defined type (ADT, struct, etc.)
 // rather than a primitive type. Used to determine if slice elements need interface{} wrapping.
 func isUserDefinedGoType(goType string) bool {

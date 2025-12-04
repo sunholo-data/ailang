@@ -1,5 +1,118 @@
 # AILANG Changelog
 
+## [v0.5.5] - 2025-12-04
+
+### Added - Compile DX Improvements
+
+**Directory Support**: Pass directories to auto-discover `.ail` files:
+```bash
+# Before: list each file explicitly
+ailang compile --emit-go world.ail npc_ai.ail camera.ail
+
+# After: just pass the directory
+ailang compile --emit-go sim/
+```
+
+**Per-File Output**: Generated code is now split into separate files per source:
+```
+gen/game/
+├── types.go      # All ADT types (merged)
+├── runtime.go    # Shared runtime helpers
+├── handlers.go   # Effect handler interfaces
+├── world.go      # Functions from world.ail
+├── npc_ai.go     # Functions from npc_ai.ail
+└── step.go       # Functions from step.ail
+```
+
+Benefits:
+- Smaller, more navigable files
+- Easier to correlate generated code with source
+- Better IDE navigation
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Added `expandFilenames()` function, per-file output loop (~100 LOC)
+- `docs/docs/guides/go-interop.md` - Updated documentation
+
+### Added - Typed Wrapper Architecture (M-DX26)
+
+Generated functions now use a dual-function pattern:
+1. `_impl` function: Uses `interface{}` everywhere for runtime flexibility
+2. Typed wrapper: Provides typed Go API with automatic conversions
+
+**Before:**
+```go
+func Step(world *World) *World {
+    // Mixed types, conversion issues
+}
+```
+
+**After:**
+```go
+func step_impl(world interface{}) interface{} {
+    // Pure interface{} - handles all runtime conversions
+}
+
+func Step(world *World) *World {
+    return step_impl(world).(*World)  // Type-safe API
+}
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_decl.go` - Added `generateImplFunc`, `generateTypedWrapper` (~100 LOC)
+- `design_docs/implemented/v0_5_5/m-dx26-typed-wrapper-architecture.md` - Design doc
+
+### Added - Typed Function Signatures (M-DX23)
+
+Function signatures now carry full type information through CoreTypeInfo:
+- Parameter types derived from type checker
+- Return types properly mapped to Go types
+- Enables typed wrappers to generate correct type assertions
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added CoreTypeInfo integration (~30 LOC)
+- `internal/gen/golang/codegen_decl.go` - Added `getTypedSignature()` (~40 LOC)
+
+### Added - Auto-Generated ADT Slice Converters (M-DX22)
+
+Slice conversion functions are now auto-generated for all ADT types:
+```go
+// Auto-generated for each ADT type
+func ConvertToEntitySlice(v interface{}) []*Entity { ... }
+func ConvertToDirectionSlice(v interface{}) []*Direction { ... }
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_types.go` - Added slice converter generation (~50 LOC)
+
+### Fixed - Records Always Typed in _impl Functions (M-DX26 Fix)
+
+**User Impact**: Records are now always generated as typed structs even in `_impl` functions, fixing type assertion panics.
+
+**Root cause**: `_impl` functions return `interface{}`, but that's just the *signature* - the actual runtime value must still be a typed struct for type assertions to work.
+
+**Before (runtime panic):**
+```go
+func step_impl(world interface{}) interface{} {
+    return map[string]interface{}{"tick": 1}  // Wrong!
+}
+// Wrapper does: step_impl(w).(*World) → PANIC
+```
+
+**After (works correctly):**
+```go
+func step_impl(world interface{}) interface{} {
+    return &World{Tick: 1}  // Correct - actual type is *World
+}
+// Wrapper does: step_impl(w).(*World) → Works!
+```
+
+**Files Changed:**
+- `internal/gen/golang/codegen_ops.go` - Removed `inImplFunc` check in `generateRecord` (~5 LOC)
+
+**Source**: DX feedback from `stapledons_voyage` agent.
+
+---
+
 ## [v0.5.4] - 2025-12-03
 
 ### Fixed - Integer Literals as int64 (M-DX17)
