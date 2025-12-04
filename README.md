@@ -301,9 +301,9 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 ## 📊 Implementation Status
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-23%20passing%2026%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-24%20passing%2026%20failing-red.svg)
 
-**23/54 examples passing (43%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**24/55 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -311,6 +311,7 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/ai_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
+| `runnable/array_adt.ail` | ✅ Pass |  |
 | `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
 | `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
