@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.5.6] - 2025-12-04 (Unreleased)
+## [v0.5.6] - 2025-12-04
 
 ### Fixed - Array Type Application Parsing (M-TYPE1)
 
@@ -66,6 +66,109 @@ cannot use tmp1 (variable of type interface{}) as []*Direction
 - `internal/gen/golang/codegen_ops.go` - Add `generateArray()` function (~35 LOC)
 - `internal/gen/golang/codegen_runtime.go` - Add array runtime functions (~150 LOC)
 - `cmd/ailang/compile.go` - Add ArrayType handling (~8 LOC)
+
+### Fixed - Effect Handler Nil Pointer Panics
+
+**Bug**: Generated Go code crashed with cryptic nil pointer dereference when effect handlers weren't initialized.
+
+**Error**:
+```
+panic: runtime error: invalid memory address or nil pointer dereference
+```
+
+**Root Cause**: Generated code directly accessed `handlers.Rand.RandInt(...)` without checking if `handlers.Rand` was nil.
+
+**Fix**: Added `requireXxx()` guard functions that provide helpful error messages:
+
+**Before (crashes):**
+```go
+var result = handlers.Rand.RandInt(0, 3)  // nil pointer if Rand not initialized
+```
+
+**After (helpful error):**
+```go
+var result = requireRand().RandInt(0, 3)
+// panic: "Rand effect handler not initialized. Call Init() with a RandHandler before using rand_* functions."
+```
+
+**Affected handlers**: Rand, Clock, Debug, FS, Net, Env, AI
+
+**Files Changed:**
+- `internal/gen/golang/effects.go` - Add `generateRequireGuards()` (~20 LOC)
+- `internal/gen/golang/codegen_expr.go` - Update `mapEffectBuiltinToHandler()` to use guards (~60 LOC changed)
+- `internal/gen/golang/effects_test.go` - Add `TestGenerateRequireGuards` (~35 LOC)
+
+### Added - Unified Agent Messaging (M-MSG)
+
+**Goal**: Unify CLI (`ailang messages`) and Collaboration Hub dashboard to share the same SQLite database.
+
+**Before (v0.5.5)**:
+- CLI used file-based storage in `~/.ailang/state/messages/`
+- Dashboard used `collaboration.db`
+- No way to see CLI messages in dashboard or vice versa
+
+**After (v0.5.6)**:
+- Single `inbox_messages` table in `collaboration.db`
+- CLI and dashboard read/write same data
+- Real-time WebSocket updates when messages arrive
+
+**New CLI commands:**
+```bash
+ailang messages list              # List all messages
+ailang messages list --unread     # List unread only
+ailang messages send INBOX '{...}'  # Send message
+ailang messages read ID           # Read full message
+ailang messages ack ID            # Mark as read
+ailang messages ack --all         # Mark all as read
+ailang messages watch             # Real-time watch mode
+ailang messages cleanup           # Remove old messages
+```
+
+**New REST API endpoints:**
+- `GET /api/inbox` - List messages (with filtering)
+- `POST /api/inbox` - Send message
+- `GET /api/inbox/{id}` - Get single message
+- `PUT /api/inbox/{id}` - Update message status
+- `POST /api/inbox/ack-all` - Acknowledge all
+- `POST /api/inbox/cleanup` - Cleanup old messages
+
+**WebSocket events:**
+- `inbox_message` - Real-time notification when new message arrives
+
+**Files Changed:**
+- `internal/messaging/schema.go` - Add `inbox_messages` table (~30 LOC)
+- `internal/messaging/inbox.go` - New Store methods for inbox (~250 LOC)
+- `internal/server/handlers_inbox.go` - New REST endpoints (~200 LOC)
+- `internal/websocket/events.go` - Add `InboxMessageEvent` (~30 LOC)
+- `internal/websocket/server.go` - Add `BroadcastInboxMessage()` (~30 LOC)
+- `cmd/ailang/messages.go` - Updated CLI to use unified Store (~150 LOC)
+- Deleted: `internal/messaging/msgstore.go`, `internal/messaging/msgstore_test.go`
+
+### Added - Eval Process Guardrails (M-EVAL-GUARD)
+
+**Problem**: Eval benchmark processes could become orphaned when the parent harness dies (Ctrl+C, SSH disconnect, crash), running for 37+ hours and consuming CPU.
+
+**Solution**: Two-layer defense against orphans:
+
+**Layer 1: Process Groups**
+- Child processes now run in their own process group (`Setpgid: true`)
+- Timeout kills entire process group (`syscall.Kill(-pid, SIGKILL)`) instead of just the main process
+- Prevents orphaned grandchildren
+
+**Layer 2: Watchdog**
+- Background goroutine checks for orphaned `ailang run.*benchmark` processes every 60 seconds
+- Kills any process running longer than 15 minutes (eval timeout is typically 30 seconds)
+- Reports killed orphans at end of eval suite
+
+**Signal Handling**:
+- Ctrl+C now triggers graceful shutdown
+- Watchdog performs final cleanup before exit
+- Reports any orphans killed during shutdown
+
+**Files Changed:**
+- `internal/eval_harness/runner.go` - Process groups + group kill (~10 LOC)
+- `internal/eval_harness/watchdog.go` - NEW: Watchdog implementation (~110 LOC)
+- `cmd/ailang/eval_suite.go` - Signal handler + watchdog integration (~25 LOC)
 
 ## [v0.5.5] - 2025-12-04
 

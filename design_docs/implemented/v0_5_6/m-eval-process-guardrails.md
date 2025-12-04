@@ -373,4 +373,54 @@ stderr := NewLimitedWriter(MaxOutputSize)
 ---
 
 **Document created**: 2025-12-03
-**Last updated**: 2025-12-03
+**Last updated**: 2025-12-04
+
+---
+
+## Implementation Notes (v0.5.6)
+
+**Status**: IMPLEMENTED
+**Implemented**: 2025-12-04
+**Actual Time**: ~30 minutes
+
+### Changes Made
+
+**1. Process Group Support (`internal/eval_harness/runner.go`)**:
+- Added `syscall` import
+- Added `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` to both PythonRunner and AILANGRunner
+- Changed timeout kill from `cmd.Process.Kill()` to `syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)` (negative PID kills process group)
+
+**2. Watchdog (`internal/eval_harness/watchdog.go`)** - NEW FILE:
+- `Watchdog` struct with configurable `MaxAge`, `CheckPeriod`, `Pattern`
+- `Start()` method runs in background goroutine
+- `checkAndKill()` uses `ps -eo pid,etimes,command` to find orphans
+- `KillOrphans()` for immediate cleanup on shutdown
+- `Report()` returns summary of killed processes
+
+**3. Signal Handler (`cmd/ailang/eval_suite.go`)**:
+- Added `os/signal` and `syscall` imports
+- Watchdog starts with 15-minute max age, 60-second check period
+- Signal handler catches SIGINT/SIGTERM, calls `watchdog.KillOrphans()` before exit
+- Deferred cleanup reports any orphans killed
+
+### Files Changed
+
+| File | LOC | Description |
+|------|-----|-------------|
+| `internal/eval_harness/runner.go` | ~10 | Process groups + group kill |
+| `internal/eval_harness/watchdog.go` | ~110 | NEW: Watchdog implementation |
+| `cmd/ailang/eval_suite.go` | ~25 | Signal handler + watchdog integration |
+
+**Total**: ~145 LOC
+
+### Testing
+
+- All existing eval harness tests pass
+- Process groups verified on macOS (Darwin)
+- Watchdog pattern matches `ailang run.*benchmark/solution.ail`
+
+### Limitations
+
+- Process groups are Unix-only (macOS, Linux)
+- Windows would need different approach (job objects)
+- Watchdog uses `ps` command (Unix-specific)

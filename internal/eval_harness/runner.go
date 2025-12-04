@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -129,6 +130,9 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	start := time.Now()
 	cmd := exec.Command("python3", tmpFile.Name())
 
+	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -152,7 +156,8 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 	select {
 	case <-time.After(timeout):
-		_ = cmd.Process.Kill()
+		// M-EVAL-GUARD: Kill entire process group (negative PID) to prevent orphans
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		// Wait for the goroutine to finish after kill to avoid race
 		<-done
 		return &RunResult{
@@ -265,6 +270,9 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	cmd := exec.Command(r.ailangPath, args...)
 	cmd.Dir = workspace // Run from isolated workspace
 
+	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	// Use limited writers to prevent infinite loop bugs from generating gigabyte-sized output
 	stdout := NewLimitedWriter(MaxOutputSize)
 	stderr := NewLimitedWriter(MaxOutputSize)
@@ -292,7 +300,8 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 	select {
 	case <-time.After(timeout):
-		_ = cmd.Process.Kill()
+		// M-EVAL-GUARD: Kill entire process group (negative PID) to prevent orphans
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		// Wait for the goroutine to finish after kill to avoid race
 		<-done
 		return &RunResult{

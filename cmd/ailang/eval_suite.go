@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/sunholo/ailang/internal/eval_harness"
@@ -191,6 +193,31 @@ func runEvalSuite() {
 
 	// Check API keys
 	checkAPIKeys(modelList)
+
+	// M-EVAL-GUARD: Start watchdog to detect and kill orphaned eval processes
+	watchdog := eval_harness.NewWatchdog(15*time.Minute, 60*time.Second)
+	watchdogDone := make(chan struct{})
+	go watchdog.Start(watchdogDone)
+	defer func() {
+		close(watchdogDone)
+		if report := watchdog.Report(); report != "No orphaned processes detected" {
+			fmt.Printf("%s %s\n", yellow("⚠️"), report)
+		}
+	}()
+
+	// M-EVAL-GUARD: Setup signal handler for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Printf("\n%s Received interrupt, cleaning up...\n", yellow("⚠️"))
+		// Kill any remaining orphaned processes
+		killed := watchdog.KillOrphans()
+		if killed > 0 {
+			fmt.Printf("Killed %d orphaned process(es)\n", killed)
+		}
+		os.Exit(1)
+	}()
 
 	// Clean previous results (unless resuming)
 	if !*skipExisting {

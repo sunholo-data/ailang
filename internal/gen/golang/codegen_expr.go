@@ -631,70 +631,71 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 
 // mapEffectBuiltinToHandler maps AILANG effect builtin names to Go handler method calls.
 // Returns empty string if not an effect builtin (pure functions like string/array ops).
+// Uses require* guard functions to provide helpful error messages when handlers aren't initialized.
 func mapEffectBuiltinToHandler(name string) string {
 	// Effect builtins follow pattern: _effect_method
 	// Wrapper functions follow pattern: effect_method (no underscore prefix)
-	// Map to: handlers.Effect.Method
+	// Map to: requireEffect().Method (guards ensure helpful panic on nil handler)
 	effectMappings := map[string]string{
 		// Rand effect - builtins
-		"_rand_int":   "handlers.Rand.RandInt",
-		"_rand_float": "handlers.Rand.RandFloat",
-		"_rand_bool":  "handlers.Rand.RandBool",
-		"_rand_seed":  "handlers.Rand.SetSeed",
+		"_rand_int":   "requireRand().RandInt",
+		"_rand_float": "requireRand().RandFloat",
+		"_rand_bool":  "requireRand().RandBool",
+		"_rand_seed":  "requireRand().SetSeed",
 		// Rand effect - stdlib wrappers (std/rand exports these)
-		"rand_int":   "handlers.Rand.RandInt",
-		"rand_float": "handlers.Rand.RandFloat",
-		"rand_bool":  "handlers.Rand.RandBool",
-		"rand_seed":  "handlers.Rand.SetSeed",
+		"rand_int":   "requireRand().RandInt",
+		"rand_float": "requireRand().RandFloat",
+		"rand_bool":  "requireRand().RandBool",
+		"rand_seed":  "requireRand().SetSeed",
 		// Clock effect - builtins
-		"_clock_now":   "handlers.Clock.Now",
-		"_clock_sleep": "handlers.Clock.Sleep",
+		"_clock_now":   "requireClock().Now",
+		"_clock_sleep": "requireClock().Sleep",
 		// Clock effect - stdlib wrappers
-		"clock_now":   "handlers.Clock.Now",
-		"clock_sleep": "handlers.Clock.Sleep",
+		"clock_now":   "requireClock().Now",
+		"clock_sleep": "requireClock().Sleep",
 		// Game effect - maps to Clock (alternative API for game engines)
-		"_game_delta_time":  "handlers.Clock.DeltaTime",
-		"_game_total_time":  "handlers.Clock.TotalTime",
-		"_game_frame_count": "handlers.Clock.FrameCount",
+		"_game_delta_time":  "requireClock().DeltaTime",
+		"_game_total_time":  "requireClock().TotalTime",
+		"_game_frame_count": "requireClock().FrameCount",
 		// Debug effect - builtins
-		"_debug_log":   "handlers.Debug.Log",
-		"_debug_check": "handlers.Debug.Assert",
+		"_debug_log":   "requireDebug().Log",
+		"_debug_check": "requireDebug().Assert",
 		// Debug effect - stdlib wrappers
-		"debug_log":   "handlers.Debug.Log",
-		"debug_check": "handlers.Debug.Assert",
+		"debug_log":   "requireDebug().Log",
+		"debug_check": "requireDebug().Assert",
 		// IO effect - use inline Log helper (simpler than full handler)
 		"_io_print":   "Log",
 		"_io_println": "Log",
 		"io_print":    "Log",
 		"io_println":  "Log",
 		// FS effect - builtins
-		"_fs_exists":    "handlers.FS.Exists",
-		"_fs_readFile":  "handlers.FS.ReadFile",
-		"_fs_writeFile": "handlers.FS.WriteFile",
+		"_fs_exists":    "requireFS().Exists",
+		"_fs_readFile":  "requireFS().ReadFile",
+		"_fs_writeFile": "requireFS().WriteFile",
 		// FS effect - stdlib wrappers
-		"fs_exists":    "handlers.FS.Exists",
-		"fs_readFile":  "handlers.FS.ReadFile",
-		"fs_writeFile": "handlers.FS.WriteFile",
+		"fs_exists":    "requireFS().Exists",
+		"fs_readFile":  "requireFS().ReadFile",
+		"fs_writeFile": "requireFS().WriteFile",
 		// Net effect - builtins
-		"_net_httpGet":     "handlers.Net.HttpGet",
-		"_net_httpPost":    "handlers.Net.HttpPost",
-		"_net_httpRequest": "handlers.Net.HttpRequest",
+		"_net_httpGet":     "requireNet().HttpGet",
+		"_net_httpPost":    "requireNet().HttpPost",
+		"_net_httpRequest": "requireNet().HttpRequest",
 		// Net effect - stdlib wrappers
-		"net_httpGet":     "handlers.Net.HttpGet",
-		"net_httpPost":    "handlers.Net.HttpPost",
-		"net_httpRequest": "handlers.Net.HttpRequest",
+		"net_httpGet":     "requireNet().HttpGet",
+		"net_httpPost":    "requireNet().HttpPost",
+		"net_httpRequest": "requireNet().HttpRequest",
 		// Env effect - builtins
-		"_env_getArgs": "handlers.Env.GetArgs",
-		"_env_getEnv":  "handlers.Env.GetEnv",
-		"_env_hasEnv":  "handlers.Env.HasEnv",
+		"_env_getArgs": "requireEnv().GetArgs",
+		"_env_getEnv":  "requireEnv().GetEnv",
+		"_env_hasEnv":  "requireEnv().HasEnv",
 		// Env effect - stdlib wrappers
-		"env_getArgs": "handlers.Env.GetArgs",
-		"env_getEnv":  "handlers.Env.GetEnv",
-		"env_hasEnv":  "handlers.Env.HasEnv",
+		"env_getArgs": "requireEnv().GetArgs",
+		"env_getEnv":  "requireEnv().GetEnv",
+		"env_hasEnv":  "requireEnv().HasEnv",
 		// AI effect - builtins
-		"_ai_call": "handlers.AI.Call",
+		"_ai_call": "requireAI().Call",
 		// AI effect - stdlib wrappers
-		"ai_call": "handlers.AI.Call",
+		"ai_call": "requireAI().Call",
 	}
 	return effectMappings[name]
 }

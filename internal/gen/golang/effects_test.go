@@ -151,3 +151,40 @@ func TestEffectsGeneratedCodeCompiles(t *testing.T) {
 		t.Error("Generated code is empty")
 	}
 }
+
+func TestGenerateRequireGuards(t *testing.T) {
+	gen := NewEffectsGenerator("mygame")
+	handlers := []EffectHandler{
+		DefaultRandHandler(),
+		DefaultClockHandler(),
+	}
+
+	code, err := gen.GenerateHandlers(handlers)
+	if err != nil {
+		t.Fatalf("GenerateHandlers failed: %v", err)
+	}
+
+	output := string(code)
+
+	// Check requireRand guard function
+	if !strings.Contains(output, "func requireRand() RandHandler {") {
+		t.Error("Missing requireRand guard function")
+	}
+	if !strings.Contains(output, `panic("Rand effect handler not initialized`) {
+		t.Error("Missing helpful panic message for Rand")
+	}
+	if !strings.Contains(output, "if handlers.Rand == nil {") {
+		t.Error("Missing nil check for Rand")
+	}
+
+	// Check requireClock guard function
+	if !strings.Contains(output, "func requireClock() ClockHandler {") {
+		t.Error("Missing requireClock guard function")
+	}
+	if !strings.Contains(output, `panic("Clock effect handler not initialized`) {
+		t.Error("Missing helpful panic message for Clock")
+	}
+	if !strings.Contains(output, "if handlers.Clock == nil {") {
+		t.Error("Missing nil check for Clock")
+	}
+}

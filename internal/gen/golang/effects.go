@@ -140,7 +140,30 @@ func (g *EffectsGenerator) generateInitFunc(handlers []EffectHandler) {
 	g.writef("}\n\n")
 
 	g.writef("// handlers is the global handler registry.\n")
-	g.writef("var handlers Handlers\n")
+	g.writef("var handlers Handlers\n\n")
+
+	// Generate require* guard functions for each handler
+	g.generateRequireGuards(handlers)
+}
+
+// generateRequireGuards generates helper functions that panic with clear error messages
+// if effect handlers are nil. This prevents confusing nil pointer panics.
+func (g *EffectsGenerator) generateRequireGuards(handlers []EffectHandler) {
+	for _, h := range handlers {
+		lowerName := strings.ToLower(h.Name)
+		g.writef("// require%s returns the %s handler or panics with a helpful message.\n", h.Name, h.Name)
+		g.writef("func require%s() %sHandler {\n", h.Name, h.Name)
+		g.indent++
+		g.writef("if handlers.%s == nil {\n", h.Name)
+		g.indent++
+		g.writef("panic(\"%s effect handler not initialized. Call Init() with a %sHandler before using %s_* functions.\")\n",
+			h.Name, h.Name, lowerName)
+		g.indent--
+		g.writef("}\n")
+		g.writef("return handlers.%s\n", h.Name)
+		g.indent--
+		g.writef("}\n\n")
+	}
 }
 
 func (g *EffectsGenerator) writef(format string, args ...interface{}) {
