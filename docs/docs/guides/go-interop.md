@@ -50,24 +50,43 @@ This generates `extern_stubs.go` with function signatures to implement:
 
 ### Multi-File Compilation
 
-When your game has multiple AILANG modules, compile them together to merge types into a single `types.go`:
+When your game has multiple AILANG modules, compile them together. You can pass a directory to automatically discover all `.ail` files (v0.5.5+):
 
 ```bash
-# Compile multiple files - types and functions are merged
+# Pass a directory - discovers all .ail files automatically
+ailang compile --emit-go --package-name game sim/
+
+# Or pass multiple files explicitly
 ailang compile --emit-go --package-name game step.ail npc_ai.ail camera.ail
+
+# Mix directories and files
+ailang compile --emit-go --package-name game sim/ extra.ail
 ```
 
-This generates:
-- `types.go` - All ADT types from all files (deduplicated)
-- `funcs.go` - All functions from all files
-- `runtime.go` - Shared runtime helpers (only for multi-file compilation)
-- `handlers.go` - Effect handler interfaces
+This generates one output file per source file (v0.5.5+):
+
+```
+gen/game/
+├── types.go              # All ADT types (merged from all files)
+├── debug_types_debug.go  # Debug effect (//go:build !release)
+├── debug_types_release.go# Debug effect no-ops (//go:build release)
+├── handlers.go           # Effect handler interfaces
+├── runtime.go            # Shared runtime helpers
+├── step.go               # Functions from step.ail
+├── npc_ai.go             # Functions from npc_ai.ail
+└── camera.go             # Functions from camera.ail
+```
+
+**Benefits of per-file output:**
+- Smaller, more navigable files
+- Easier to correlate generated code with source
+- Better IDE navigation
 
 **Important**: Compile all your `.ail` files in a single command. Compiling files separately will overwrite previous output.
 
 ```bash
 # ✅ CORRECT - Compile all files together
-ailang compile --emit-go *.ail
+ailang compile --emit-go sim/
 
 # ❌ WRONG - Each compile overwrites the previous
 ailang compile --emit-go step.ail      # Generates types.go
