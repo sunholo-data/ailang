@@ -515,3 +515,36 @@ func (s *Server) BroadcastTelemetry(telem *TelemetryEvent) {
 		}
 	}
 }
+
+// BroadcastInboxMessage broadcasts an inbox message to ALL connected clients
+// This is used for real-time notification of new async messages
+func (s *Server) BroadcastInboxMessage(msg *messaging.InboxMessage) {
+	event, err := NewInboxMessageEvent(&InboxMessageEvent{
+		ID:            msg.ID,
+		MessageID:     msg.MessageID,
+		CorrelationID: msg.CorrelationID,
+		FromAgent:     msg.FromAgent,
+		ToInbox:       msg.ToInbox,
+		MessageType:   msg.MessageType,
+		Title:         msg.Title,
+		Payload:       msg.Payload,
+		Status:        msg.Status,
+		CreatedAt:     msg.CreatedAt.UnixMilli(),
+	})
+	if err != nil {
+		log.Printf("WebSocket: failed to create inbox message event: %v", err)
+		return
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, conn := range s.connections {
+		select {
+		case conn.send <- event:
+		default:
+			// Connection is slow, skip (message can be fetched via REST)
+			log.Printf("WebSocket: connection %s is slow, skipping inbox message", conn.id)
+		}
+	}
+}

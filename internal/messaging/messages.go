@@ -2,11 +2,8 @@ package messaging
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/sunholo/ailang/internal/agentprotocol"
 )
 
 // Message represents a message in the collaboration hub (simplified view for CLI)
@@ -308,40 +305,6 @@ func (s *Store) GetMessagesFromSeq(threadID string, fromSeq int, limit int) ([]M
 	}
 
 	return messages, rows.Err()
-}
-
-// ConvertToAgentProtocolEnvelope converts a Message to agentprotocol.Envelope for backward compatibility.
-func ConvertToAgentProtocolEnvelope(msg Message) (*agentprotocol.Envelope, error) {
-	// Parse content as JSON payload
-	var payload map[string]interface{}
-	if err := json.Unmarshal([]byte(msg.Content), &payload); err != nil {
-		// If content isn't JSON, wrap it
-		payload = map[string]interface{}{
-			"content": msg.Content,
-		}
-	}
-
-	// Map kind to message_type
-	messageType := "notification"
-	switch msg.Kind {
-	case "directive":
-		messageType = "request"
-	case "result":
-		messageType = "response"
-	case "status", "question", "proposal":
-		messageType = "notification"
-	}
-
-	return &agentprotocol.Envelope{
-		ProtocolVersion: "1.0.0",
-		SchemaVersion:   "1.0.0",
-		MessageID:       msg.ID,
-		Timestamp:       msg.CreatedAt.Format(time.RFC3339),
-		FromAgent:       msg.FromID,
-		ToAgent:         msg.ToID,
-		MessageType:     messageType,
-		Payload:         payload,
-	}, nil
 }
 
 // Subscribe creates or updates a subscription for an instance to a thread.

@@ -1,12 +1,13 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/agentprotocol"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/lexer"
@@ -215,8 +216,9 @@ func runDebugHash(filename string) {
 		os.Exit(1)
 	}
 
-	// Compute hash
-	hash := agentprotocol.ComputeHash(content)
+	// Compute hash (SHA-256, first 16 hex chars)
+	h := sha256.Sum256(content)
+	hash := hex.EncodeToString(h[:])[:16]
 
 	// Print hash (just the hash, for easy script usage)
 	fmt.Println(hash)

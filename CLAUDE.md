@@ -7,61 +7,67 @@
 ### 📬 Message Commands (Quick Reference)
 
 ```bash
-# READ MESSAGES
-ailang agent inbox user              # All messages in user inbox
-ailang agent inbox claude-code       # All messages in claude-code inbox
-ailang agent inbox --unread-only user        # Only unread (user)
-ailang agent inbox --unread-only claude-code # Only unread (claude-code)
-ailang agent inbox --full user               # Full content (no truncation)
+# LIST MESSAGES
+ailang messages list                 # All messages (alias: ailang msg ls)
+ailang messages list --unread        # Only unread messages
+ailang messages list --inbox user    # Messages for specific inbox
+ailang messages list --json          # JSON output (for scripting)
+
+# READ MESSAGE CONTENT
+ailang messages read MSG_ID          # Show full message content
+ailang messages read MSG_ID --peek   # View without marking as read
 
 # ACKNOWLEDGE (mark as read)
-ailang agent ack --all               # Acknowledge all unread
-ailang agent ack MSG_ID              # Acknowledge specific message
+ailang messages ack MSG_ID           # Mark specific message as read
+ailang messages ack --all            # Mark all as read
+ailang messages ack --all --inbox user  # Mark all in inbox as read
 
 # UN-ACKNOWLEDGE (mark as unread again)
-ailang agent unack MSG_ID            # Move back to unread
+ailang messages unack MSG_ID         # Move back to unread
 
-# SEND RESPONSE to external project
-ailang agent send PROJECT '{"type":"response","title":"Title","description":"Message"}'
+# SEND MESSAGE
+ailang messages send INBOX "message" --title "Title" --from "agent-name"
+
+# CLEANUP OLD MESSAGES
+ailang messages cleanup --older-than 7d   # Remove messages older than 7 days
+ailang messages cleanup --expired         # Remove expired messages
+ailang messages cleanup --dry-run         # Preview without deleting
+
+# WATCH FOR NEW MESSAGES
+ailang messages watch                # Watch all inboxes
+ailang messages watch --inbox user   # Watch specific inbox
 ```
-
-**⚠️ Flags BEFORE arguments:** `ailang agent inbox --unread-only user` (not `inbox user --unread-only`)
 
 ### Session Start Workflow
 
 1. **SessionStart hook runs automatically** - injects unread messages into system reminders
-2. **If no messages in reminders**, manually check: `ailang agent inbox --unread-only user`
+2. **If no messages in reminders**, manually check: `ailang messages list --unread`
 3. **When messages exist**: Summarize to user, ask what to do
-4. **After handling**: `ailang agent ack --all`
-5. **If task fails**: `ailang agent unack MSG_ID` (moves back for retry)
+4. **After handling**: `ailang messages ack --all`
+5. **If task fails**: `ailang messages unack MSG_ID` (moves back for retry)
 
-### Two Inbox Locations
+### Message Storage
 
-| Inbox | Location | Purpose |
-|-------|----------|---------|
-| **user** | `~/.ailang/state/messages/inbox/user/` | Messages TO user from agents |
-| **claude-code** | `.ailang/state/messages/claude-code/` | Messages TO claude-code agent |
+All messages are stored in the unified SQLite database at `~/.ailang/state/collaboration.db`.
+This database is shared between the CLI (`ailang messages`) and the Collaboration Hub dashboard.
 
-The SessionStart hook checks BOTH automatically.
+**Message statuses:** `unread`, `read`, `archived`, `deleted`
 
 ### Responding to External Projects
 
 For bug reports/feature requests from external projects (e.g., stapledons_voyage):
 
 ```bash
-# Recommended: Use the response script
-~/.claude/skills/ailang-feedback/scripts/send_response.sh PROJECT "Title" "Message"
-
-# Example
-~/.claude/skills/ailang-feedback/scripts/send_response.sh stapledons_voyage \
-  "Bug acknowledged" "Design doc created for v0.4.9"
+# Send message to external project inbox
+ailang messages send stapledons_voyage "Design doc created for v0.4.9" \
+  --title "Bug acknowledged" --from "ailang"
 ```
 
 **Response workflow:**
-1. Review messages (from SessionStart hook or `ailang agent inbox`)
+1. Review messages (from SessionStart hook or `ailang messages list --unread`)
 2. For bugs: Create design docs
-3. Send response: `~/.claude/skills/ailang-feedback/scripts/send_response.sh`
-4. Acknowledge: `ailang agent ack --all`
+3. Send response: `ailang messages send PROJECT "message" --title "Title"`
+4. Acknowledge: `ailang messages ack --all`
 
 ### Technical Details
 
@@ -73,7 +79,7 @@ For bug reports/feature requests from external projects (e.g., stapledons_voyage
 - Logged to `~/.ailang/state/hooks.log`
 
 **SessionStart Hook** (`scripts/hooks/session_start.sh`):
-- Checks both inbox locations on session start
+- Uses `ailang messages list --unread --json` to check for messages
 - Outputs to stdout (appears in system reminders)
 - Does NOT auto-mark as read
 
@@ -82,10 +88,11 @@ For bug reports/feature requests from external projects (e.g., stapledons_voyage
 - Sends handoff messages to sprint-planner
 
 **Message Lifecycle:**
-1. Agent sends → `_unread/` or `.pending.json`
+1. Agent sends → status: `unread`
 2. Hook injects into context
-3. `ack` → moves to `_processed/`
-4. `unack` → back to `_unread/`
+3. `ack` → status: `read`
+4. `unack` → status: `unread`
+5. `cleanup` → permanently deleted
 
 </details>
 

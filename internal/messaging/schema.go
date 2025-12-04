@@ -105,6 +105,7 @@ func createSchema(db *sql.DB) error {
 		{"metrics_aggregates", metricsAggregatesTable},
 		{"approval_history", approvalHistoryTable},
 		{"instance_history", instanceHistoryTable},
+		{"inbox_messages", inboxMessagesTable},
 	}
 
 	for _, table := range tables {
@@ -126,6 +127,8 @@ func createSchema(db *sql.DB) error {
 		metricsAggregatesPeriodIndex,
 		approvalHistoryThreadIndex,
 		instanceHistoryAgentIndex,
+		inboxMessagesInboxIndex,
+		inboxMessagesCorrelationIndex,
 	}
 
 	for _, index := range indices {
@@ -355,6 +358,33 @@ CREATE TABLE IF NOT EXISTS instance_history (
     thread_count INTEGER DEFAULT 0
 )`
 
+// Inbox messages table - simple async agent-to-agent/user messaging
+// This is the unified inbox system for CLI (ailang messages) and hooks
+const inboxMessagesTable = `
+CREATE TABLE IF NOT EXISTS inbox_messages (
+    id TEXT PRIMARY KEY,
+    message_id TEXT UNIQUE NOT NULL,
+    correlation_id TEXT,
+
+    -- Routing
+    from_agent TEXT NOT NULL,
+    to_inbox TEXT NOT NULL,
+    message_type TEXT NOT NULL DEFAULT 'notification',
+
+    -- Content
+    title TEXT NOT NULL,
+    payload TEXT,
+
+    -- State
+    status TEXT NOT NULL DEFAULT 'unread',
+    created_at TEXT NOT NULL,
+    read_at TEXT,
+    expires_at TEXT,
+
+    CHECK (message_type IN ('notification', 'request', 'response')),
+    CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
+)`
+
 // Indices for performance
 const messagesThreadSeqIndex = `CREATE INDEX IF NOT EXISTS idx_messages_thread_seq ON messages(thread_id, message_seq)`
 const messagesToIndex = `CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_type, to_id, delivery_state)`
@@ -367,3 +397,5 @@ const replayThreadIndex = `CREATE INDEX IF NOT EXISTS idx_replay_thread ON repla
 const metricsAggregatesPeriodIndex = `CREATE INDEX IF NOT EXISTS idx_metrics_period ON metrics_aggregates(scope_type, period, period_start)`
 const approvalHistoryThreadIndex = `CREATE INDEX IF NOT EXISTS idx_approval_history_thread ON approval_history(thread_id, created_at)`
 const instanceHistoryAgentIndex = `CREATE INDEX IF NOT EXISTS idx_instance_history_agent ON instance_history(agent_id, started_at)`
+const inboxMessagesInboxIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_inbox ON inbox_messages(to_inbox, status, created_at)`
+const inboxMessagesCorrelationIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_correlation ON inbox_messages(correlation_id)`

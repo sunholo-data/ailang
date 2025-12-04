@@ -3,7 +3,7 @@
 #
 # This script is called by Claude Code when a session starts.
 # It checks the user inbox for new messages from autonomous agents
-# and exports them as environment variables for Claude to see.
+# using the ailang messages CLI (backed by unified collaboration.db).
 #
 # Hook configuration (.claude/hooks.json):
 # {
@@ -20,7 +20,6 @@
 #
 # Environment variables:
 #   CLAUDE_ENV_FILE - File to write environment variables to (provided by Claude Code)
-#   STATE_DIR - Agent protocol state directory (default: .ailang/state)
 
 set -euo pipefail
 
@@ -28,7 +27,6 @@ set -euo pipefail
 HOOK_JSON=$(cat || echo "{}")
 
 # Configuration
-# Use home directory by default (where ailang CLI stores state)
 DEFAULT_STATE_DIR="${HOME}/.ailang/state"
 STATE_DIR="${STATE_DIR:-$DEFAULT_STATE_DIR}"
 LOG_FILE="${STATE_DIR}/hooks.log"
@@ -77,28 +75,10 @@ USER_ID=$(echo "$HOOK_JSON" | jq -r '.userId // "unknown"')
 log "Session ID: $SESSION_ID"
 log "User ID: $USER_ID"
 
-# Check TWO inbox locations:
-# 1. Home directory: ~/.ailang/state/messages/inbox/user/_unread/
-# 2. Project directory: <project>/.ailang/state/messages/claude-code/
-
-INBOX_DIRS=(
-    "$STATE_DIR/messages/inbox/user/_unread"
-    "$PROJECT_ROOT/.ailang/state/messages/claude-code"
-)
-
-# Collect all unread messages from both locations
-declare -a ALL_MESSAGES=()
-
-for INBOX_DIR in "${INBOX_DIRS[@]}"; do
-    if [ -d "$INBOX_DIR" ]; then
-        while IFS= read -r -d '' MSG_FILE; do
-            ALL_MESSAGES+=("$MSG_FILE")
-        done < <(find "$INBOX_DIR" -maxdepth 1 -name "*.json" -type f -print0 2>/dev/null)
-    fi
-done
-
-# Count total unread messages
-UNREAD_COUNT="${#ALL_MESSAGES[@]}"
+# Use ailang messages CLI to get unread messages (SQLite-backed)
+# The CLI handles all inbox types via the unified collaboration.db
+MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
+UNREAD_COUNT=$(echo "$MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
 
 # Function to check for active sprint and return context
 get_sprint_context() {
@@ -158,7 +138,7 @@ Progress: $COMPLETED/$TOTAL_MILESTONES milestones complete ✅
 }
 
 if [ "$UNREAD_COUNT" -eq 0 ]; then
-    log "No unread messages in any inbox location"
+    log "No unread messages"
 
     # Export empty message indicator to Claude Code environment
     if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
@@ -181,47 +161,13 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
     exit 0
 fi
 
-log "Found $UNREAD_COUNT unread message(s) across all inbox locations"
+log "Found $UNREAD_COUNT unread message(s)"
 
 # Export message count to Claude Code environment
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     echo "export AGENT_INBOX_COUNT=$UNREAD_COUNT" >> "$CLAUDE_ENV_FILE"
     log "Exported AGENT_INBOX_COUNT=$UNREAD_COUNT to CLAUDE_ENV_FILE"
 fi
-
-# Build a summary of all messages as a JSON array
-MESSAGES_JSON="["
-FIRST=true
-
-# Process each unread message and collect into JSON array
-for MSG_FILE in "${ALL_MESSAGES[@]}"; do
-    FROM_AGENT=$(jq -r '.from_agent // "unknown"' "$MSG_FILE" 2>/dev/null || echo "unknown")
-    TIMESTAMP=$(jq -r '.timestamp // "unknown"' "$MSG_FILE" 2>/dev/null || echo "unknown")
-    PAYLOAD=$(jq -c '.payload // {}' "$MSG_FILE" 2>/dev/null || echo '{}')
-
-    # Add message to JSON array
-    if [ "$FIRST" = true ]; then
-        FIRST=false
-    else
-        MESSAGES_JSON+=","
-    fi
-
-    # Escape quotes in payload for safe JSON embedding
-    PAYLOAD_ESCAPED=$(echo "$PAYLOAD" | sed 's/"/\\"/g')
-
-    MESSAGES_JSON+="{\"from\":\"$FROM_AGENT\",\"timestamp\":\"$TIMESTAMP\",\"payload\":$PAYLOAD,\"file\":\"$MSG_FILE\"}"
-
-    log "Collected message from $FROM_AGENT (source: $MSG_FILE)"
-
-    # NOTE: Messages are NOT marked as read automatically
-    # Claude Code must explicitly acknowledge them using: ailang agent ack <message-id>
-    # This prevents:
-    # 1. Messages being consumed before Claude sees them
-    # 2. Race conditions in multi-session scenarios
-    # 3. Loss of messages if context injection fails
-done
-
-MESSAGES_JSON+="]"
 
 # Export messages as environment variable (base64 encoded to handle special characters)
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
@@ -234,15 +180,19 @@ fi
 SPRINT_CONTEXT=$(get_sprint_context)
 
 # Build formatted context string for Claude
+# The MESSAGES_JSON comes from the CLI and has format:
+# [{"id":"msg_xxx","from_agent":"test","to_inbox":"user","title":"Title","payload":"...","status":"unread","created_at":"..."}]
 CONTEXT_MESSAGE=$(cat <<EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 AGENT INBOX: $UNREAD_COUNT unread message(s) from autonomous agents
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-$(echo "$MESSAGES_JSON" | jq -r '.[] | "From: \(.from)\nTime: \(.timestamp)\nMessage: \(.payload | tojson)\n"')
+$(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle: \(.title)\nTime: \(.created_at)\n"')
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 Review the messages above and decide if any action is needed.
+💡 Use 'ailang messages read <id>' to view full content
+   Use 'ailang messages ack <id>' to mark as read
+   Use 'ailang messages ack --all' to mark all as read
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $SPRINT_CONTEXT
 EOF
@@ -252,7 +202,7 @@ log "Context message prepared (length: ${#CONTEXT_MESSAGE} chars)"
 
 # Output plain text to stdout
 # Note: This appears in system reminders but may have length limits
-# Messages are NOT marked as read - Claude must acknowledge them with: ailang agent ack <message-id>
+# Messages are NOT marked as read - Claude must acknowledge them with: ailang messages ack <id>
 echo "$CONTEXT_MESSAGE"
 
 log "=== Session Start Hook Completed ==="

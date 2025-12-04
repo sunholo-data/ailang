@@ -105,6 +105,12 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
 	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
 
+	// REST API endpoints - Inbox Messages (unified messaging)
+	mux.HandleFunc("/api/inbox", s.handleInbox)
+	mux.HandleFunc("/api/inbox/", s.handleInboxMessage)
+	mux.HandleFunc("/api/inbox/ack-all", s.handleAckAll)
+	mux.HandleFunc("/api/inbox/cleanup", s.handleInboxCleanup)
+
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 

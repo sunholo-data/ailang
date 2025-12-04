@@ -67,43 +67,21 @@ func GetDefaultDatabasePath() string {
 	return filepath.Join(stateDir, "collaboration.db")
 }
 
-// MigrateIfNeeded checks if migration is needed and performs it.
-// Returns true if migration was performed, false if database already exists.
-func MigrateIfNeeded(dbPath string, messagesDir string) (bool, error) {
-	// If database already exists, no migration needed
+// EnsureDatabase creates the database if it doesn't exist.
+// Returns true if database was created, false if it already exists.
+func EnsureDatabase(dbPath string) (bool, error) {
+	// If database already exists, nothing to do
 	if DatabaseExists(dbPath) {
 		return false, nil
 	}
 
-	// Check if there are any messages to migrate
-	if _, err := os.Stat(messagesDir); os.IsNotExist(err) {
-		// No messages directory, just create empty database
-		db, err := InitDB(dbPath)
-		if err != nil {
-			return false, fmt.Errorf("failed to initialize database: %w", err)
-		}
-		db.Close()
-		return false, nil
-	}
-
-	// Perform migration
+	// Create new database
 	db, err := InitDB(dbPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to initialize database: %w", err)
 	}
-	defer db.Close()
-
-	migration := NewMigration(db, messagesDir)
-	count, err := migration.Migrate()
-	if err != nil {
-		return false, fmt.Errorf("migration failed: %w", err)
-	}
-
-	if count > 0 {
-		return true, nil
-	}
-
-	return false, nil
+	db.Close()
+	return true, nil
 }
 
 // generateRandomID generates a random hex string of the given length using crypto/rand

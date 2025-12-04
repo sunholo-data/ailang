@@ -183,8 +183,8 @@ func main() {
 	case "debug":
 		runDebug()
 
-	case "agent":
-		agentCommand()
+	case "messages", "msg":
+		messagesCommand()
 
 	case "prompt":
 		runPrompt()

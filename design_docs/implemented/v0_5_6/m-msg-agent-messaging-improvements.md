@@ -1,10 +1,15 @@
 # M-MSG: Agent Messaging System Improvements
 
 **Version**: v0.5.6
-**Status**: Planned
+**Status**: Implemented (2024-12-04)
 **Priority**: High (user-reported pain points)
 **Estimated Effort**: 2-3 days
 **Breaking Change**: Yes - clean break, no migration needed
+
+> **Implementation Note (2024-12-04):** The messaging system was unified into `collaboration.db`
+> rather than a separate `messages.db` as originally planned. This enables CLI and dashboard
+> to share the same database, with REST API (`/api/inbox`) and WebSocket (`inbox_message` events)
+> for real-time dashboard updates. See sprint JSON at `.ailang/state/sprints/sprint_M-MSG.json`.
 
 ## Problem Statement
 

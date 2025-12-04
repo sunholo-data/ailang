@@ -10,15 +10,16 @@ import (
 type EventType string
 
 const (
-	EventTypeSubscribe   EventType = "subscribe"
-	EventTypeAck         EventType = "ack"
-	EventTypeMessage     EventType = "message"
-	EventTypeBatch       EventType = "batch"
-	EventTypeError       EventType = "error"
-	EventTypePing        EventType = "ping"
-	EventTypePong        EventType = "pong"
-	EventTypeThreadState EventType = "thread_state"
-	EventTypeTelemetry   EventType = "telemetry" // Process telemetry updates
+	EventTypeSubscribe    EventType = "subscribe"
+	EventTypeAck          EventType = "ack"
+	EventTypeMessage      EventType = "message"
+	EventTypeBatch        EventType = "batch"
+	EventTypeError        EventType = "error"
+	EventTypePing         EventType = "ping"
+	EventTypePong         EventType = "pong"
+	EventTypeThreadState  EventType = "thread_state"
+	EventTypeTelemetry    EventType = "telemetry"     // Process telemetry updates
+	EventTypeInboxMessage EventType = "inbox_message" // Async inbox messages
 )
 
 // Event represents a WebSocket message envelope
@@ -87,6 +88,20 @@ type TelemetryEvent struct {
 	Cost        float64 `json:"cost"`
 	Status      string  `json:"status"` // running, completed, error
 	DurationSec int     `json:"duration_sec"`
+}
+
+// InboxMessageEvent - Server sends async inbox message updates
+type InboxMessageEvent struct {
+	ID            string `json:"id"`
+	MessageID     string `json:"message_id"`
+	CorrelationID string `json:"correlation_id,omitempty"`
+	FromAgent     string `json:"from_agent"`
+	ToInbox       string `json:"to_inbox"`
+	MessageType   string `json:"message_type"`
+	Title         string `json:"title"`
+	Payload       string `json:"payload,omitempty"`
+	Status        string `json:"status"`
+	CreatedAt     int64  `json:"created_at"`
 }
 
 // NewEvent creates a new event with timestamp
@@ -194,4 +209,9 @@ func NewPongEvent() (*Event, error) {
 // NewTelemetryEvent creates a telemetry event
 func NewTelemetryEvent(telem *TelemetryEvent) (*Event, error) {
 	return NewEvent(EventTypeTelemetry, telem)
+}
+
+// NewInboxMessageEvent creates an inbox message event
+func NewInboxMessageEvent(msg *InboxMessageEvent) (*Event, error) {
+	return NewEvent(EventTypeInboxMessage, msg)
 }

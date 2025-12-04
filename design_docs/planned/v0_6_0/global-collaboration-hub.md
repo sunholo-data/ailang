@@ -23,12 +23,22 @@
 
 The current Collaboration Hub is single-machine only:
 
-**Current State:**
+**Current State (v0.5.6+):**
 - SQLite database at `~/.ailang/state/collaboration.db` - local only
 - WebSocket connections to `localhost:1957` - single machine
-- File-based agent protocol at `~/.ailang/state/messages/` - not synced
+- **Unified inbox messaging in `collaboration.db`** (v0.5.6) - `inbox_messages` table
+- CLI (`ailang messages`) and dashboard share same database
+- REST API `/api/inbox` and WebSocket `inbox_message` events for real-time updates
 - No way to coordinate agents across multiple computers
 - No shared visibility into team-wide agent activity
+
+**v0.5.6 Foundation (Completed):**
+The local messaging system is now unified:
+- `inbox_messages` table stores all agent-to-agent, agent-to-user, user-to-agent messages
+- REST endpoints: `GET/POST /api/inbox`, `PUT /api/inbox/{id}`, `POST /api/inbox/ack-all`
+- WebSocket broadcasts new messages to all connected dashboard clients
+- CLI commands: `ailang messages list/send/ack/read/watch/cleanup`
+- This provides the foundation for global cross-machine messaging
 
 **Use Cases Blocked:**
 1. **Team Collaboration**: Multiple developers want to see each other's agent runs
@@ -222,6 +232,14 @@ CREATE INDEX idx_messages_global_order ON messages(thread_id, created_at, seq);
 -- Cross-machine approval tracking
 ALTER TABLE approvals ADD COLUMN requesting_machine TEXT;
 ALTER TABLE approvals ADD COLUMN approved_by_machine TEXT;
+
+-- Extend inbox_messages for global delivery (table already exists in v0.5.6)
+-- inbox_messages table schema (already in collaboration.db):
+--   id, message_id, correlation_id, from_agent, to_inbox, message_type,
+--   title, payload, status, created_at, read_at, expires_at
+ALTER TABLE inbox_messages ADD COLUMN source_machine TEXT;
+ALTER TABLE inbox_messages ADD COLUMN delivered_to JSONB DEFAULT '[]';
+ALTER TABLE inbox_messages ADD COLUMN pubsub_id TEXT;  -- For deduplication
 ```
 
 **Connection Strategy:**
@@ -732,4 +750,4 @@ ui/src/
 ---
 
 **Document created**: 2024-12-01
-**Last updated**: 2024-12-01
+**Last updated**: 2024-12-04 (Updated with v0.5.6 unified messaging foundation)
