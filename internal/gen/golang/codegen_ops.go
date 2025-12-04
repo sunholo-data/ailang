@@ -43,11 +43,10 @@ func (g *Generator) generateUnOp(unop *core.UnOp) error {
 
 // generateRecord generates a Go struct literal.
 // M-DX13: Uses typed struct when record type is known, otherwise map[string]interface{}.
-// M-DX26: In _impl functions, always uses untyped map[string]interface{}.
+// M-DX26 FIX: Records MUST be typed even in _impl functions because type assertions
+// work on the actual runtime type. If _impl returns map[string]interface{} but the
+// wrapper asserts (*World), it will panic. The actual value must be *World.
 func (g *Generator) generateRecord(rec *core.Record) error {
-	// M-DX26: In _impl functions, always use untyped records
-	inImplFunc := g.expectedReturnType == "interface{}"
-
 	// Build set of field names to look up matching record type
 	fieldNames := make(map[string]bool, len(rec.Fields))
 	for name := range rec.Fields {
@@ -55,11 +54,9 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 	}
 
 	// Check if we have a known record type matching these fields
-	// M-DX26: Skip typed records in _impl functions
-	var recordType *RecordTypeInfo
-	if !inImplFunc {
-		recordType = g.GetRecordTypeByFields(fieldNames)
-	}
+	// M-DX26 FIX: Always use typed records - interface{} return type just means
+	// the signature is interface{}, not that the actual values must be untyped.
+	recordType := g.GetRecordTypeByFields(fieldNames)
 	if recordType != nil {
 		return g.generateTypedRecord(rec, recordType)
 	}
