@@ -1,5 +1,38 @@
 # AILANG Changelog
 
+## [v0.5.6] - 2025-12-04 (Unreleased)
+
+### Fixed - Array Type Application Parsing (M-TYPE1)
+
+**Bug**: `Array[T]` in ADT constructor parameters was losing its element type during parsing.
+
+**Error**:
+```
+cannot unify type constructor Array with *types.TArray
+```
+
+**Root Cause**: Parser at `internal/parser/parser_type.go:27-50` was discarding type arguments when parsing type applications like `Array[Direction]`. It returned `SimpleType{Name: "Array"}` instead of `ArrayType{Element: Direction}`.
+
+**Fix**: Parser now special-cases `Array[T]` and `List[T]` to create proper AST nodes (`ast.ArrayType`, `ast.ListType`) that preserve element types.
+
+**Before (v0.5.5 - FAILS)**:
+```ailang
+type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander
+let patrol = PatternPatrol(#[North, East, South, West])
+-- Error: cannot unify type constructor Array with *types.TArray
+```
+
+**After (v0.5.6 - WORKS)**:
+```ailang
+type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander
+let patrol = PatternPatrol(#[North, East, South, West])  -- ✓ Compiles!
+```
+
+**Files Changed:**
+- `internal/parser/parser_type.go` - Fix type application parsing (~15 LOC)
+- `internal/parser/type_test.go` - Add regression tests (~80 LOC)
+- `examples/runnable/array_adt.ail` - Integration test example
+
 ## [v0.5.5] - 2025-12-04
 
 ### Added - Compile DX Improvements

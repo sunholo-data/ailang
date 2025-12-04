@@ -1,7 +1,7 @@
 # M-EVAL-GUARD: Eval Process Guardrails & Orphan Detection
 
 **Status**: Planned
-**Target**: v0.5.2
+**Target**: v0.5.6
 **Priority**: P1 - Medium (operational stability)
 **Estimated**: 2 hours
 **Dependencies**: None

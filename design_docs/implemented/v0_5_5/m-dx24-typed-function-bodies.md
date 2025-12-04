@@ -1,6 +1,11 @@
 # M-DX24: Typed Function Bodies
 
-## Status: PLANNED
+## Status: SUPERSEDED by M-DX26
+
+**Note**: This approach was superseded by M-DX26 (Typed Wrapper Architecture), which solved
+the problem differently using a dual-function pattern (_impl + typed wrapper) instead of
+trying to generate typed code in function bodies directly. The wrapper pattern proved
+simpler and more maintainable.
 
 ## Strategic Context
 

@@ -1,3 +1,10 @@
+---
+NOTE: Issues in this doc were addressed by the M-DX series in v0.5.3-v0.5.5:
+- Slice type assertions → M-DX12, M-DX22 (typed ADT slices, slice converters)
+- Type-safe function bodies → M-DX26 (typed wrapper architecture)
+---
+
+
 # M-GAME-B Phase 2: Complete Go Codegen for Game Modules
 
 **Status**: Planned

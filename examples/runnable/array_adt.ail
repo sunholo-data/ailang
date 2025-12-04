@@ -1,0 +1,15 @@
+-- array_adt.ail - M-TYPE1 Integration Test: Array in ADT Constructor
+-- Tests that Array[Direction] in ADT param works with array literals
+
+module examples/runnable/array_adt
+
+type Direction = North | South | East | West
+
+type AIBehavior =
+  | PatternPatrol(Array[Direction])
+  | RandomWander
+
+export func main() -> () ! {IO} =
+  -- Create an ADT value with an array literal
+  let patrol = PatternPatrol(#[North, East, South, West])
+  in print("Array in ADT works!")

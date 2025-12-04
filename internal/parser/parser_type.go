@@ -24,28 +24,36 @@ func (p *Parser) parseType() ast.Type {
 		name := p.curToken.Literal
 		startPos := p.curPos()
 
-		// Check for type application: List[int], Option[a], etc.
+		// Check for type application: List[int], Array[T], Option[a], etc.
 		if p.peekTokenIs(lexer.LBRACKET) {
 			p.nextToken() // consume IDENT
 			p.nextToken() // consume LBRACKET
 
-			// For now, parse type args but don't use them
-			// TODO: Proper type application parsing with TypeApp AST node
-			_ = p.parseType() // first arg
+			// Parse the first type argument (element type for Array/List)
+			elemType := p.parseType()
+
+			// Parse additional type arguments (for multi-arg generics like Result[T, E])
 			for p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // move to COMMA
-				p.nextToken() // move past COMMA
-				_ = p.parseType()
+				p.nextToken()     // move to COMMA
+				p.nextToken()     // move past COMMA
+				_ = p.parseType() // Additional args not used yet
 			}
 
 			if !p.expectPeek(lexer.RBRACKET) {
 				return nil
 			}
 
-			// Return a SimpleType for now (proper generics parsing would be more complex)
-			typ = &ast.SimpleType{
-				Name: name, // e.g., "Option" or "List"
-				Pos:  startPos,
+			// M-TYPE1: Special-case Array and List to preserve element types
+			// This enables proper unification: Array[T] in ADT params works with #[...] literals
+			switch name {
+			case "Array":
+				typ = &ast.ArrayType{Element: elemType, Pos: startPos}
+			case "List":
+				typ = &ast.ListType{Element: elemType, Pos: startPos}
+			default:
+				// Generic type application - return SimpleType for now
+				// TODO: Add ast.TypeApp for proper generic support (Option[T], Result[T,E])
+				typ = &ast.SimpleType{Name: name, Pos: startPos}
 			}
 			goto checkArrow
 		}
