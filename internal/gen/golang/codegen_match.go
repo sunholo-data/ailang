@@ -10,10 +10,14 @@ import (
 
 // generateMatch generates a Go switch statement for pattern matching.
 // M-DX25.5: Uses typed IIFE return based on CoreTypeInfo.
+// M-DX26: In _impl functions (interface{} world), uses interface{} everywhere.
 func (g *Generator) generateMatch(match *core.Match) error {
+	// M-DX26: In _impl functions, everything is interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
 	// M-DX25.5: Look up Match expression's type for IIFE return type
 	returnType := "interface{}"
-	if g.coreTypeInfo != nil {
+	if !inImplFunc && g.coreTypeInfo != nil {
 		if typ, ok := g.coreTypeInfo[match.NodeID]; ok {
 			if goType, err := g.TypeMapper.MapType(typ); err == nil {
 				returnType = string(goType)
@@ -23,8 +27,9 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.matchReturnType = returnType // Store for arm generation
 
 	// M-DX25.7: Look up scrutinee's type for typed list operations
+	// M-DX26: In _impl functions, scrutinee is always interface{}
 	g.matchScrutineeType = "interface{}"
-	if g.coreTypeInfo != nil {
+	if !inImplFunc && g.coreTypeInfo != nil {
 		scrutineeNodeID := g.getExprNodeID(match.Scrutinee)
 		if typ, ok := g.coreTypeInfo[scrutineeNodeID]; ok {
 			if goType, err := g.TypeMapper.MapType(typ); err == nil {

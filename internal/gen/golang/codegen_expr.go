@@ -18,7 +18,12 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 	case *core.Var:
 		// Check if this is a reference to a top-level function
 		if goName, ok := g.topLevelFuncs[e.Name]; ok {
-			g.write(goName)
+			// M-DX26: In _impl functions, call other _impl functions
+			if g.expectedReturnType == "interface{}" {
+				g.write(ToGoVarName(e.Name) + "_impl")
+			} else {
+				g.write(goName)
+			}
 		} else {
 			g.write(ToGoVarName(e.Name))
 		}
@@ -281,8 +286,15 @@ func (g *Generator) generateApp(app *core.App) error {
 		}
 		g.write(")")
 	} else {
+		// M-DX26: In _impl functions, don't add type assertions - all params are interface{}
+		inImplFunc := g.expectedReturnType == "interface{}"
+
 		// M-DX25.9: Get function's parameter types for call site type assertions
-		paramTypes := g.getFuncParamTypes(app.Func)
+		// M-DX26: Skip in _impl functions since we call _impl versions with interface{} params
+		var paramTypes []string
+		if !inImplFunc {
+			paramTypes = g.getFuncParamTypes(app.Func)
+		}
 
 		if err := g.generateExpr(app.Func); err != nil {
 			return err
@@ -293,7 +305,8 @@ func (g *Generator) generateApp(app *core.App) error {
 				g.write(", ")
 			}
 			// M-DX25.9: Add type assertion if arg is interface{} but param expects concrete
-			if i < len(paramTypes) && paramTypes[i] != "" && paramTypes[i] != "interface{}" {
+			// M-DX26: Skip in _impl functions
+			if !inImplFunc && i < len(paramTypes) && paramTypes[i] != "" && paramTypes[i] != "interface{}" {
 				if g.exprProducesInterface(arg) {
 					if err := g.generateExpr(arg); err != nil {
 						return err
@@ -412,26 +425,32 @@ func (g *Generator) extractParamTypes(typ types.Type) []string {
 // M-DX25.2: Use SEPARATE types for variable (value's type) and IIFE return (body's type).
 // Bug fix: Originally used let's type for both, but let's type IS body's type, not value's type.
 func (g *Generator) generateLet(let *core.Let) error {
+	// M-DX26: In _impl functions, everything is interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
 	// M-DX25.2 FIX: Variable type comes from VALUE expression, not the let expression
 	varType := "interface{}"
 
-	// M-DX25.10: Special case for Record expressions - infer type from fields
-	// TypeMapper returns "struct{}" for TRecord, but we can get the proper
-	// struct name by looking up the record type from its fields.
-	if rec, isRec := let.Value.(*core.Record); isRec {
-		fieldNames := make(map[string]bool, len(rec.Fields))
-		for name := range rec.Fields {
-			fieldNames[name] = true
-		}
-		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
-			varType = "*" + recordType.Name // Records are generated as pointers
-		}
-	} else if g.coreTypeInfo != nil {
-		valueNodeID := g.getExprNodeID(let.Value)
-		if valueNodeID != 0 {
-			if typ, ok := g.coreTypeInfo[valueNodeID]; ok {
-				if goType, err := g.TypeMapper.MapType(typ); err == nil {
-					varType = string(goType)
+	// M-DX26: Skip type inference in _impl functions
+	if !inImplFunc {
+		// M-DX25.10: Special case for Record expressions - infer type from fields
+		// TypeMapper returns "struct{}" for TRecord, but we can get the proper
+		// struct name by looking up the record type from its fields.
+		if rec, isRec := let.Value.(*core.Record); isRec {
+			fieldNames := make(map[string]bool, len(rec.Fields))
+			for name := range rec.Fields {
+				fieldNames[name] = true
+			}
+			if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+				varType = "*" + recordType.Name // Records are generated as pointers
+			}
+		} else if g.coreTypeInfo != nil {
+			valueNodeID := g.getExprNodeID(let.Value)
+			if valueNodeID != 0 {
+				if typ, ok := g.coreTypeInfo[valueNodeID]; ok {
+					if goType, err := g.TypeMapper.MapType(typ); err == nil {
+						varType = string(goType)
+					}
 				}
 			}
 		}
@@ -439,19 +458,22 @@ func (g *Generator) generateLet(let *core.Let) error {
 
 	// M-DX25.2 FIX: Return type comes from LET expression (= body's type)
 	returnType := "interface{}"
-	// M-DX25.10: Special case for Record body - infer type from fields
-	if rec, isRec := let.Body.(*core.Record); isRec {
-		fieldNames := make(map[string]bool, len(rec.Fields))
-		for name := range rec.Fields {
-			fieldNames[name] = true
-		}
-		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
-			returnType = "*" + recordType.Name
-		}
-	} else if g.coreTypeInfo != nil {
-		if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
-			if goType, err := g.TypeMapper.MapType(typ); err == nil {
-				returnType = string(goType)
+	// M-DX26: Skip type inference in _impl functions
+	if !inImplFunc {
+		// M-DX25.10: Special case for Record body - infer type from fields
+		if rec, isRec := let.Body.(*core.Record); isRec {
+			fieldNames := make(map[string]bool, len(rec.Fields))
+			for name := range rec.Fields {
+				fieldNames[name] = true
+			}
+			if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+				returnType = "*" + recordType.Name
+			}
+		} else if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
 			}
 		}
 	}
@@ -539,23 +561,30 @@ func (g *Generator) generateLetRec(letrec *core.LetRec) error {
 
 // generateIf generates a Go if expression.
 // M-DX25.3: Uses typed IIFE return and conditional type assertions.
+// M-DX26: In _impl functions, uses interface{} everywhere.
 func (g *Generator) generateIf(ifExpr *core.If) error {
+	// M-DX26: In _impl functions, everything is interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
 	// M-DX25.3: Look up If expression's type for IIFE return type
 	returnType := "interface{}"
-	// M-DX25.10: Special case for Record branches - infer type from fields
-	// Check Then branch first (both branches should have same type)
-	if rec, isRec := ifExpr.Then.(*core.Record); isRec {
-		fieldNames := make(map[string]bool, len(rec.Fields))
-		for name := range rec.Fields {
-			fieldNames[name] = true
-		}
-		if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
-			returnType = "*" + recordType.Name
-		}
-	} else if g.coreTypeInfo != nil {
-		if typ, ok := g.coreTypeInfo[ifExpr.NodeID]; ok {
-			if goType, err := g.TypeMapper.MapType(typ); err == nil {
-				returnType = string(goType)
+	// M-DX26: Skip type inference in _impl functions
+	if !inImplFunc {
+		// M-DX25.10: Special case for Record branches - infer type from fields
+		// Check Then branch first (both branches should have same type)
+		if rec, isRec := ifExpr.Then.(*core.Record); isRec {
+			fieldNames := make(map[string]bool, len(rec.Fields))
+			for name := range rec.Fields {
+				fieldNames[name] = true
+			}
+			if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+				returnType = "*" + recordType.Name
+			}
+		} else if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[ifExpr.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
 			}
 		}
 	}
@@ -675,7 +704,14 @@ func mapEffectBuiltinToHandler(name string) string {
 
 // canEmitNativeOp checks if an App can be emitted as a native Go operator.
 // M-DX24.2: Returns true for arithmetic/comparison helpers when operands have known types.
+// M-DX26: Returns false in _impl functions where all params are interface{}.
 func (g *Generator) canEmitNativeOp(app *core.App) bool {
+	// M-DX26: In _impl functions (interface{} world), never emit native ops
+	// All params are interface{}, so Go operators won't work
+	if g.expectedReturnType == "interface{}" {
+		return false
+	}
+
 	// Must have exactly 2 arguments for binary ops
 	if len(app.Args) != 2 {
 		return false

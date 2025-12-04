@@ -64,190 +64,148 @@ func (g *Generator) generateTopLevelLetRec(letrec *core.LetRec) error {
 	return nil
 }
 
-// generateFuncFromLambda generates a Go function from a Lambda expression.
-// M-DX23: When CoreTypeInfo is available, generates typed signatures instead of interface{}.
-// M-DX24: Wraps return expression with type assertion when needed.
+// generateFuncFromLambda generates Go functions from a Lambda expression.
+// M-DX26: Generates BOTH _impl (interface{} world) and typed wrapper.
+// The _impl function uses interface{} for all params and returns.
+// The typed wrapper calls _impl and handles type conversions.
 func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, exported bool) error {
-	funcName := ToGoFuncName(name, exported)
-
-	// Register this function name mapping for recursive references
-	g.topLevelFuncs[name] = funcName
-
-	// M-DX23: Try to get typed signature from CoreTypeInfo
+	// M-DX26: Get typed signature for the wrapper
 	paramTypes, returnType := g.getTypedSignature(lam)
 
-	// Build parameter list and store parameter types for call site assertions
-	var params []string
-	var paramTypeStrings []string // M-DX25.10: Store for call site assertions
-	for i, p := range lam.Params {
+	// Build typed parameter info for wrapper generation
+	var typedParamTypes []string
+	for i := range lam.Params {
 		var paramType string
 		if i < len(paramTypes) {
 			paramType = string(paramTypes[i])
 		} else {
 			paramType = "interface{}"
 		}
-		params = append(params, fmt.Sprintf("%s %s", ToGoVarName(p), paramType))
-		paramTypeStrings = append(paramTypeStrings, paramType)
+		typedParamTypes = append(typedParamTypes, paramType)
 	}
 
-	// M-DX25.10: Store parameter types for call site type assertions
-	g.funcParamTypes[name] = paramTypeStrings
-
-	// M-DX25.10: Store current function's param names → Go types for exprProducesInterface
-	// Clear any previous function's params and populate with current function's
-	g.currentFuncParams = make(map[string]string)
-	for i, p := range lam.Params {
-		g.currentFuncParams[p] = paramTypeStrings[i]
-	}
-
-	// Use typed return type or fall back to interface{}
-	retType := "interface{}"
+	// Determine typed return type
+	typedRetType := "interface{}"
 	if returnType != "" {
-		retType = string(returnType)
+		typedRetType = string(returnType)
 	}
 
-	// M-DX25.10: Store return type for function call result assertions
-	g.funcReturnTypes[name] = retType
+	// M-DX26: Store metadata for call site type assertions (uses wrapper types)
+	g.funcParamTypes[name] = typedParamTypes
+	g.funcReturnTypes[name] = typedRetType
 
-	// M-DX24: Set expected return type for type assertion generation
+	// Register function name mapping (uses wrapper name for external references)
+	funcName := ToGoFuncName(name, exported)
+	g.topLevelFuncs[name] = funcName
+
+	// M-DX26.1: Generate _impl function (interface{} everywhere)
+	if err := g.generateImplFunc(name, lam); err != nil {
+		return err
+	}
+
+	// M-DX26.1: Generate typed wrapper
+	return g.generateTypedWrapper(name, lam, typedParamTypes, typedRetType, exported)
+}
+
+// generateImplFunc generates the _impl function with interface{} everywhere.
+// M-DX26: This is the internal implementation that uses runtime helpers.
+func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
+	implName := ToGoVarName(name) + "_impl"
+
+	// Build parameter list - all interface{}
+	var params []string
+	for _, p := range lam.Params {
+		params = append(params, fmt.Sprintf("%s interface{}", ToGoVarName(p)))
+	}
+
+	// M-DX26: Set current function params as interface{} for expr generation
+	g.currentFuncParams = make(map[string]string)
+	for _, p := range lam.Params {
+		g.currentFuncParams[p] = "interface{}"
+	}
+
+	// M-DX26: No expected return type for _impl - everything is interface{}
 	oldExpectedReturn := g.expectedReturnType
-	g.expectedReturnType = GoType(retType)
+	g.expectedReturnType = "interface{}"
 
-	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)
+	g.writef("func %s(%s) interface{} {\n", implName, strings.Join(params, ", "))
 	g.indent++
-
-	// M-DX25.11: Check if we need to wrap return expression in a slice converter
-	needsSliceConv := g.needsReturnSliceConversion(lam.Body)
-	if needsSliceConv {
-		sliceConv := g.getSliceConversion(retType)
-		if sliceConv != "" {
-			g.writef("return %s(", sliceConv)
-		} else {
-			// No converter available - generate without conversion
-			g.writef("return ")
-			needsSliceConv = false
-		}
-	} else {
-		g.writef("return ")
-	}
+	g.writef("return ")
 
 	if err := g.generateExpr(lam.Body); err != nil {
 		g.expectedReturnType = oldExpectedReturn
 		return err
 	}
 
-	// Close the slice conversion function call
-	if needsSliceConv {
-		g.write(")")
-	} else if g.needsReturnTypeAssertion(lam.Body) {
-		// M-DX24: Add type assertion if return type is concrete and expression returns interface{}
-		g.writef(".(%s)", retType)
-	}
-
 	g.writef("\n")
 	g.indent--
 	g.writef("}\n\n")
 
-	// Restore previous expected return type
 	g.expectedReturnType = oldExpectedReturn
-
 	return nil
 }
 
-// needsReturnTypeAssertion checks if a return expression needs a type assertion.
-// M-DX24: Returns true if expectedReturnType is concrete and expression produces interface{}.
-func (g *Generator) needsReturnTypeAssertion(expr core.CoreExpr) bool {
-	// No assertion needed if expected type is interface{}
-	if g.expectedReturnType == "" || g.expectedReturnType == "interface{}" {
-		return false
+// generateTypedWrapper generates a typed wrapper that calls the _impl function.
+// M-DX26: This provides the typed Go API that external code uses.
+func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTypes []string, retType string, exported bool) error {
+	funcName := ToGoFuncName(name, exported)
+	implName := ToGoVarName(name) + "_impl"
+
+	// Build typed parameter list
+	var params []string
+	var callArgs []string
+	for i, p := range lam.Params {
+		pType := "interface{}"
+		if i < len(paramTypes) {
+			pType = paramTypes[i]
+		}
+		params = append(params, fmt.Sprintf("%s %s", ToGoVarName(p), pType))
+		callArgs = append(callArgs, ToGoVarName(p))
 	}
 
-	// M-DX25.11: If return type is a slice, check for slice type mismatch
-	// Slice type assertions don't work in Go (slices are invariant), so we use converters
-	if strings.HasPrefix(string(g.expectedReturnType), "[]") {
-		return false // Handled by needsReturnSliceConversion
+	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)
+	g.indent++
+
+	// Call _impl and convert result
+	if retType == "interface{}" {
+		// No conversion needed
+		g.writef("return %s(%s)\n", implName, strings.Join(callArgs, ", "))
+	} else if strings.HasPrefix(retType, "[]") {
+		// Slice return - use converter
+		sliceConv := g.getSliceConversion(retType)
+		if sliceConv != "" {
+			g.writef("return %s(%s(%s))\n", sliceConv, implName, strings.Join(callArgs, ", "))
+		} else {
+			// No converter - try type assertion (will fail at runtime if wrong)
+			g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
+		}
+	} else {
+		// Scalar return - type assertion
+		g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
 	}
 
-	// Check if the expression produces interface{} from runtime helpers
-	return g.exprProducesInterface(expr)
+	g.indent--
+	g.writef("}\n\n")
+
+	return nil
 }
-
-// needsReturnSliceConversion checks if a return expression needs a slice converter.
-// M-DX25.11: Returns true if return type is []ConcreteType but expression produces []interface{}.
-func (g *Generator) needsReturnSliceConversion(expr core.CoreExpr) bool {
-	// Check if return type is a concrete slice
-	if !strings.HasPrefix(string(g.expectedReturnType), "[]") {
-		return false
-	}
-
-	// Don't convert if return type is already []interface{}
-	if g.expectedReturnType == "[]interface{}" {
-		return false
-	}
-
-	// Check if expression produces []interface{}
-	return g.exprProducesInterfaceSlice(expr)
-}
-
-// exprProducesInterfaceSlice checks if an expression produces []interface{} type.
-// M-DX25.11: Used to determine if slice conversion is needed.
-func (g *Generator) exprProducesInterfaceSlice(expr core.CoreExpr) bool {
-	switch e := expr.(type) {
-	case *core.List:
-		// Lists generate []interface{}{} unless typed
-		// Check if we can determine the element type
-		elemType := g.getListElementType(e)
-		return elemType == "" || elemType == "interface{}"
-
-	case *core.App:
-		// Check if it's a Cons call (:: operator)
-		if v, ok := e.Func.(*core.Var); ok && v.Name == "::" {
-			return true // Cons always returns []interface{}
-		}
-		if v, ok := e.Func.(*core.VarGlobal); ok {
-			if v.Ref.Name == "::" || v.Ref.Name == "Cons" {
-				return true
-			}
-		}
-		// Also check for VarGlobal with Cons name
-		if v, ok := e.Func.(*core.VarGlobal); ok {
-			if runtimeHelperReturnType(v.Ref.Name) == "[]interface{}" {
-				return true
-			}
-		}
-		// Check for Var with Cons
-		if v, ok := e.Func.(*core.Var); ok {
-			if runtimeHelperReturnType(v.Name) == "[]interface{}" {
-				return true
-			}
-		}
-
-	case *core.If:
-		// If expression result depends on branches - check both
-		return g.exprProducesInterfaceSlice(e.Then) || g.exprProducesInterfaceSlice(e.Else)
-
-	case *core.Match:
-		// Match expression - check first arm
-		if len(e.Arms) > 0 {
-			return g.exprProducesInterfaceSlice(e.Arms[0].Body)
-		}
-
-	case *core.Let:
-		// Let expression result is the body
-		return g.exprProducesInterfaceSlice(e.Body)
-	}
-
-	return false
-}
-
-// getListElementType is defined in codegen_ops.go
 
 // exprProducesInterface checks if an expression produces interface{} type.
 // M-DX24: Used to determine if type assertion is needed.
 // M-DX25.8: Uses CoreTypeInfo for accurate type checking.
 // M-DX25.10: Checks for runtime helper calls FIRST - these always produce interface{}
 // regardless of what CoreTypeInfo says about the AILANG type.
+// M-DX26: In _impl functions, everything produces interface{} (except literals).
 func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
+	// M-DX26: In _impl functions, almost everything is interface{}
+	// Literals are the exception - they produce concrete types
+	if g.expectedReturnType == "interface{}" {
+		if _, isLit := expr.(*core.Lit); isLit {
+			return false // Literals produce concrete types
+		}
+		return true // Everything else is interface{}
+	}
+
 	// M-DX25.10: Check for expressions that ALWAYS produce interface{} at runtime
 	// These generate calls to runtime helpers that return interface{}, even though
 	// the AILANG type may be concrete. Check BEFORE CoreTypeInfo lookup.

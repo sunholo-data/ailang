@@ -43,7 +43,11 @@ func (g *Generator) generateUnOp(unop *core.UnOp) error {
 
 // generateRecord generates a Go struct literal.
 // M-DX13: Uses typed struct when record type is known, otherwise map[string]interface{}.
+// M-DX26: In _impl functions, always uses untyped map[string]interface{}.
 func (g *Generator) generateRecord(rec *core.Record) error {
+	// M-DX26: In _impl functions, always use untyped records
+	inImplFunc := g.expectedReturnType == "interface{}"
+
 	// Build set of field names to look up matching record type
 	fieldNames := make(map[string]bool, len(rec.Fields))
 	for name := range rec.Fields {
@@ -51,7 +55,11 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 	}
 
 	// Check if we have a known record type matching these fields
-	recordType := g.GetRecordTypeByFields(fieldNames)
+	// M-DX26: Skip typed records in _impl functions
+	var recordType *RecordTypeInfo
+	if !inImplFunc {
+		recordType = g.GetRecordTypeByFields(fieldNames)
+	}
 	if recordType != nil {
 		return g.generateTypedRecord(rec, recordType)
 	}
@@ -352,8 +360,14 @@ func (g *Generator) generateRecordUpdate(ru *core.RecordUpdate) error {
 // generateList generates a Go slice literal.
 // M-DX25.11: Uses typed slices when element type is known from CoreTypeInfo.
 func (g *Generator) generateList(list *core.List) error {
+	// M-DX26: In _impl functions, always generate []interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
 	// M-DX25.11: Try to determine element type from CoreTypeInfo
-	elemType := g.getListElementType(list)
+	elemType := ""
+	if !inImplFunc {
+		elemType = g.getListElementType(list)
+	}
 
 	if elemType != "" && elemType != "interface{}" {
 		// Generate typed slice (e.g., []int64{1, 2, 3})

@@ -932,10 +932,12 @@ func TestTypedLetBindings(t *testing.T) {
 
 	// Set up CoreTypeInfo:
 	// - NodeID 100 (let expression) -> bool (the body's type = return type)
+	// - NodeID 101 (lambda) -> () -> bool (function type for wrapper signature)
 	// - NodeID 102 (value expression) -> bool (the variable's type)
 	coreTypeInfo := make(types.CoreTypeInfo)
-	coreTypeInfo[100] = &types.TCon{Name: "bool"} // Let expression (body) type
-	coreTypeInfo[102] = &types.TCon{Name: "bool"} // Value expression type
+	coreTypeInfo[100] = &types.TCon{Name: "bool"}                                               // Let expression (body) type
+	coreTypeInfo[101] = &types.TFunc{Params: []types.Type{}, Return: &types.TCon{Name: "bool"}} // Lambda type for wrapper
+	coreTypeInfo[102] = &types.TCon{Name: "bool"}                                               // Value expression type
 
 	gen := New("test")
 	gen.SetCoreTypeInfo(coreTypeInfo)
@@ -946,14 +948,15 @@ func TestTypedLetBindings(t *testing.T) {
 
 	codeStr := string(code)
 
-	// M-DX25.2: IIFE should return bool (not interface{})
-	if !strings.Contains(codeStr, "func() bool {") {
-		t.Errorf("Expected typed IIFE 'func() bool {', got:\n%s", codeStr)
+	// M-DX26: Now generates _impl (interface{}) and wrapper (typed)
+	// The wrapper should return bool, calling _impl and asserting
+	if !strings.Contains(codeStr, "func test() bool {") {
+		t.Errorf("Expected typed wrapper 'func test() bool {', got:\n%s", codeStr)
 	}
 
-	// M-DX25.2: Variable should be typed bool (not interface{})
-	if !strings.Contains(codeStr, "var x bool =") {
-		t.Errorf("Expected typed variable 'var x bool =', got:\n%s", codeStr)
+	// M-DX26: _impl should return interface{}
+	if !strings.Contains(codeStr, "func test_impl() interface{} {") {
+		t.Errorf("Expected _impl function 'func test_impl() interface{} {', got:\n%s", codeStr)
 	}
 }
 
@@ -993,9 +996,11 @@ func TestTypedLetBindingsWithAssertion(t *testing.T) {
 	// Set up CoreTypeInfo:
 	// - NodeID 200 (let expression) -> int (the body's type = return type)
 	// - NodeID 201 (BinOp value) -> int (the variable's type)
+	// - NodeID 202 (lambda) -> () -> int (function type for wrapper signature)
 	coreTypeInfo := make(types.CoreTypeInfo)
-	coreTypeInfo[200] = &types.TCon{Name: "int"} // Let expression (body) type
-	coreTypeInfo[201] = &types.TCon{Name: "int"} // Value expression type (BinOp)
+	coreTypeInfo[200] = &types.TCon{Name: "int"}                                               // Let expression (body) type
+	coreTypeInfo[201] = &types.TCon{Name: "int"}                                               // Value expression type (BinOp)
+	coreTypeInfo[202] = &types.TFunc{Params: []types.Type{}, Return: &types.TCon{Name: "int"}} // Lambda type for wrapper
 
 	gen := New("test")
 	gen.SetCoreTypeInfo(coreTypeInfo)
@@ -1006,20 +1011,20 @@ func TestTypedLetBindingsWithAssertion(t *testing.T) {
 
 	codeStr := string(code)
 
-	// M-DX25.2: IIFE should return int64 (not interface{})
-	if !strings.Contains(codeStr, "func() int64 {") {
-		t.Errorf("Expected typed IIFE 'func() int64 {', got:\n%s", codeStr)
+	// M-DX26: Now generates _impl (interface{}) and wrapper (typed)
+	// The wrapper should return int64, calling _impl and asserting
+	if !strings.Contains(codeStr, "func test() int64 {") {
+		t.Errorf("Expected typed wrapper 'func test() int64 {', got:\n%s", codeStr)
 	}
 
-	// M-DX25.2: Variable should be typed int64
-	if !strings.Contains(codeStr, "var x int64 =") {
-		t.Errorf("Expected typed variable 'var x int64 =', got:\n%s", codeStr)
+	// M-DX26: _impl should return interface{}
+	if !strings.Contains(codeStr, "func test_impl() interface{} {") {
+		t.Errorf("Expected _impl function 'func test_impl() interface{} {', got:\n%s", codeStr)
 	}
 
-	// M-DX25.8: With CoreTypeInfo providing concrete type for BinOp,
-	// no type assertion is needed - the BinOp produces int64 directly
-	if strings.Contains(codeStr, ".(int64)") {
-		t.Errorf("Should NOT have type assertion when BinOp has concrete type in CoreTypeInfo, got:\n%s", codeStr)
+	// M-DX26: The wrapper SHOULD have type assertion since _impl returns interface{}
+	if !strings.Contains(codeStr, ".(int64)") {
+		t.Errorf("Wrapper should have type assertion '.(int64)', got:\n%s", codeStr)
 	}
 }
 
