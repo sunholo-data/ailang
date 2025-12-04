@@ -426,6 +426,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				return u.Unify(a1[0], t2List.Element, sub)
 			}
 		}
+		// Special case: TApp("Array", a) can unify with TArray{Element: a}
+		if t2Array, ok := t2.(*TArray); ok {
+			h1, a1 := decomposeApp(t1)
+			if headCon, ok := h1.(*TCon); ok && headCon.Name == "Array" && len(a1) == 1 {
+				// TApp("Array", a) ~ TArray{Element: a}
+				return u.Unify(a1[0], t2Array.Element, sub)
+			}
+		}
 		if t2Var, ok := t2.(*TVar2); ok {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
