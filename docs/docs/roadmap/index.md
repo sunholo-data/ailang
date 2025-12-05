@@ -17,12 +17,12 @@ Pages in this section describe **future capabilities**. For what's working today
 
 ### v0.6.0 - Core Platform
 Execution profiles and multi-agent coordination.
-- [Execution Profiles](./execution-profiles) - Define and validate execution environments (SimProfile, ServiceProfile, CliProfile)
-- [Shared Semantic State](./shared-semantic-state) - Semantic caching and agent coordination
+- [Execution Profiles](/docs/roadmap/execution-profiles) - Define and validate execution environments (SimProfile, ServiceProfile, CliProfile)
+- [Shared Semantic State](/docs/roadmap/shared-semantic-state) - Semantic caching and agent coordination
 
 ### v0.7.0 - Deterministic Tooling
 AI-friendly tooling for code transformation.
-- [Deterministic Tooling](./deterministic-tooling) - Normalize, suggest imports, apply edits
+- [Deterministic Tooling](/docs/roadmap/deterministic-tooling) - Normalize, suggest imports, apply edits
 
 ## Contributing to the Roadmap
 
