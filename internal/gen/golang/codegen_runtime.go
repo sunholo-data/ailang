@@ -420,12 +420,22 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("}\n\n")
 
 	// ListHead helper for list destructuring
+	// M-CODEGEN-TYPED-SLICES: Use reflection for typed slices (e.g., []*Tile)
 	g.writef("// ListHead returns the first element of a list.\n")
+	g.writef("// Handles both []interface{} and typed slices via reflection.\n")
 	g.writef("func ListHead(list interface{}) interface{} {\n")
 	g.indent++
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if l, ok := list.([]interface{}); ok && len(l) > 0 {\n")
 	g.indent++
 	g.writef("return l[0]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []*Tile)\n")
+	g.writef("v := reflect.ValueOf(list)\n")
+	g.writef("if v.Kind() == reflect.Slice && v.Len() > 0 {\n")
+	g.indent++
+	g.writef("return v.Index(0).Interface()\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return nil\n")
@@ -433,12 +443,22 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("}\n\n")
 
 	// ListTail helper for list destructuring
+	// M-CODEGEN-TYPED-SLICES: Use reflection for typed slices (e.g., []*Tile)
 	g.writef("// ListTail returns all but the first element of a list.\n")
+	g.writef("// Handles both []interface{} and typed slices via reflection.\n")
 	g.writef("func ListTail(list interface{}) interface{} {\n")
 	g.indent++
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if l, ok := list.([]interface{}); ok && len(l) > 0 {\n")
 	g.indent++
 	g.writef("return l[1:]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []*Tile)\n")
+	g.writef("v := reflect.ValueOf(list)\n")
+	g.writef("if v.Kind() == reflect.Slice && v.Len() > 0 {\n")
+	g.indent++
+	g.writef("return v.Slice(1, v.Len()).Interface()\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return []interface{}{}\n")
@@ -446,12 +466,22 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("}\n\n")
 
 	// ListLen helper for list length check
+	// M-CODEGEN-TYPED-SLICES: Use reflection for typed slices (e.g., []*Tile)
 	g.writef("// ListLen returns the length of a list.\n")
+	g.writef("// Handles both []interface{} and typed slices via reflection.\n")
 	g.writef("func ListLen(list interface{}) int {\n")
 	g.indent++
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if l, ok := list.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("return len(l)\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []*Tile)\n")
+	g.writef("v := reflect.ValueOf(list)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("return v.Len()\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return 0\n")

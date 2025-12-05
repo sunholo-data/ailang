@@ -68,7 +68,7 @@ Using AILANG (see teaching prompt below), write a program that:
 - Filters out even numbers
 - Returns the sum of remaining odd numbers
 
-[Run: ailang prompt | or paste from website]
+[Paste output from: ailang prompt]
 ```
 
 ## Core Features (Latest)
