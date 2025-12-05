@@ -152,8 +152,12 @@ For the formal rationale and algebraic laws, see the [Why No Loops?](https://sun
 ### Installation
 
 ```bash
-# From source
-git clone https://github.com/sunholo/ailang.git
+# Download binary (macOS Apple Silicon)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# Or from source
+git clone https://github.com/sunholo-data/ailang.git
 cd ailang
 make install
 
@@ -161,7 +165,7 @@ make install
 ailang --version
 ```
 
-For detailed installation instructions, see the [Getting Started Guide](docs/guides/getting-started.md).
+For other platforms and detailed instructions, see the [Getting Started Guide](https://sunholo-data.github.io/ailang/docs/guides/getting-started).
 
 ### Hello World (Module Execution)
 

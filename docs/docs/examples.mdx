@@ -369,11 +369,15 @@ Visit the [Playground](/docs/playground) to run code interactively in your brows
 Install AILANG and run examples locally:
 
 ```bash
-# Install (coming soon)
-brew install ailang
+# Install (macOS Apple Silicon)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# Or build from source
+git clone https://github.com/sunholo-data/ailang && cd ailang && make install
 
 # Run an example
-ailang run --caps IO --entry main examples/hello.ail
+ailang run --caps IO --entry main examples/runnable/hello.ail
 
 # Interactive REPL
 ailang repl

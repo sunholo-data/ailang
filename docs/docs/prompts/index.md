@@ -46,7 +46,12 @@ ailang prompt > syntax.md
 
 **Install AILANG:**
 ```bash
-go install github.com/sunholo/ailang/cmd/ailang@latest
+# Download binary (macOS Apple Silicon)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# Or build from source
+git clone https://github.com/sunholo-data/ailang && cd ailang && make install
 ```
 
 ### Via Website (Browse)

@@ -94,8 +94,31 @@ class AilangREPL {
 
   /**
    * Get version information
+   * @returns {string|null} Version string (e.g., "v0.5.6") or null if not ready
    */
   getVersion() {
+    if (!this.ready) {
+      return null;
+    }
+
+    try {
+      const info = window.ailangVersion();
+      if (info && info.version) {
+        // Ensure version starts with 'v'
+        const ver = info.version;
+        return ver.startsWith('v') ? ver : `v${ver}`;
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /**
+   * Get full version info object
+   * @returns {Object|null} Version info with version, buildTime, platform
+   */
+  getVersionInfo() {
     if (!this.ready) {
       return null;
     }
