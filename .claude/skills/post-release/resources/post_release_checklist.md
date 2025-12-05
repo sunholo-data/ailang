@@ -144,6 +144,34 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
   - [ ] Test examples in LIMITATIONS.md still work/fail as documented
   - [ ] Commit: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
+## 9. Run Documentation Sync Check
+
+Use the docs-sync skill to verify website accuracy:
+
+```bash
+# Check version constants match git tag
+.claude/skills/docs-sync/scripts/check_versions.sh
+
+# Audit design docs vs website claims
+.claude/skills/docs-sync/scripts/audit_design_docs.sh
+
+# Generate full sync report
+.claude/skills/docs-sync/scripts/generate_report.sh
+```
+
+- [ ] Version constants match git tag (docs/src/constants/version.js)
+- [ ] Teaching prompt references point to latest version
+- [ ] Architecture pages have PLANNED banners for unimplemented features
+- [ ] No unimplemented features claimed as current
+- [ ] Examples referenced in website actually work
+
+**If issues found:**
+- [ ] Update version.js if stale
+- [ ] Add PLANNED banners to theoretical feature pages
+- [ ] Move implemented features from roadmap to current sections
+- [ ] Fix broken example references
+- [ ] Commit: `git add docs/ && git commit -m "docs: sync website with vX.X.X"`
+
 ## Final Verification
 
 - [ ] Eval baseline complete for vX.X.X
@@ -154,6 +182,7 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
 - [ ] Design docs moved to implemented/
 - [ ] Public docs updated
 - [ ] **docs/LIMITATIONS.md updated and tested**
+- [ ] **docs-sync report shows no critical issues**
 - [ ] All changes committed and pushed
 
 ## Notes

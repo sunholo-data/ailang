@@ -68,6 +68,16 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: run_eval_baseline.sh, update_dashboard.sh, extract_changelog_metrics.sh
 - **Resources**: post_release_checklist.md
 
+**[docs-sync/](docs-sync/)** - Sync documentation website with codebase
+- Audits design docs (planned vs implemented)
+- Validates version constants against git tags
+- Checks example files work
+- Generates sync status reports
+- Tracks feature themes and creates new ones as needed
+- **Scripts**: audit_design_docs.sh, check_versions.sh, check_examples.sh, generate_report.sh
+- **Resources**: feature_themes.md, landing_page_checklist.md
+- **Use for**: Post-release website updates, accuracy audits, finding stale docs
+
 ### Sprint Planning
 
 **[sprint-planner/](sprint-planner/)** - Create comprehensive sprint plans
@@ -344,10 +354,10 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 13 (project-specific)
-**Total scripts**: 20 executable automation scripts
-**Total resources**: 12+ reference files
-**Total lines**: ~4,500 lines of structured, reusable content
+**Total skills**: 14 (project-specific)
+**Total scripts**: 24 executable automation scripts
+**Total resources**: 14+ reference files
+**Total lines**: ~5,000 lines of structured, reusable content
 
 **Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
 

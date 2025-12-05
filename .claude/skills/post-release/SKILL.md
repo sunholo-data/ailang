@@ -17,7 +17,8 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 # 2. Update website dashboard (JSON with history preservation)
 # 3. Extract metrics and UPDATE CHANGELOG.md automatically
 # 4. Move design docs from planned/ to implemented/
-# 5. Commit all changes to git
+# 5. Run docs-sync to verify website accuracy (version constants, PLANNED banners, examples)
+# 6. Commit all changes to git
 ```
 
 **🚨 CRITICAL: For releases, ALWAYS use --full flag by default**
@@ -404,6 +405,41 @@ The script helps catch these.
     # Create test file and verify behavior matches documentation
     ```
   - Commit changes: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
+
+### 7. Run Documentation Sync Check
+
+**Run docs-sync to verify website accuracy:**
+```bash
+# Check version constants are correct
+.claude/skills/docs-sync/scripts/check_versions.sh
+
+# Audit design docs vs website claims
+.claude/skills/docs-sync/scripts/audit_design_docs.sh
+
+# Generate full sync report
+.claude/skills/docs-sync/scripts/generate_report.sh
+```
+
+**What docs-sync checks:**
+- Version constants in `docs/src/constants/version.js` match git tag
+- Teaching prompt references point to latest version
+- Architecture pages have PLANNED banners for unimplemented features
+- Design docs status (planned vs implemented) matches website claims
+- Examples referenced in website actually work
+
+**If issues found:**
+1. Update version.js if stale
+2. Add PLANNED banners to theoretical feature pages
+3. Move implemented features from roadmap to current sections
+4. Fix broken example references
+
+**Commit docs-sync fixes:**
+```bash
+git add docs/
+git commit -m "docs: sync website with vX.X.X implementation"
+```
+
+See [docs-sync skill](../docs-sync/SKILL.md) for full documentation.
 
 ## Resources
 

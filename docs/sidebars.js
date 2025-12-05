@@ -17,13 +17,6 @@ const sidebars = {
     'intro',
     'why-ailang',
     'vision',
-    {
-      type: 'category',
-      label: 'Architecture',
-      items: [
-        'architecture/shared-semantic-state',
-      ],
-    },
     'examples',
     'playground',
     {
@@ -52,6 +45,9 @@ const sidebars = {
       label: 'Language Reference',
       items: [
         'reference/language-syntax',
+        'reference/effects',
+        'reference/modules',
+        'reference/arrays',
         'reference/implementation-status',
         'reference/repl-commands',
         'reference/no-loops',
@@ -99,6 +95,17 @@ const sidebars = {
       collapsed: true,
       items: [
         'benchmarks/performance',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Roadmap',
+      collapsed: false,
+      items: [
+        'roadmap/index',
+        'roadmap/execution-profiles',
+        'roadmap/deterministic-tooling',
+        'roadmap/shared-semantic-state',
       ],
     },
   ],

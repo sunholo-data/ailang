@@ -56,7 +56,7 @@ Run with: `ailang run --entry factorial examples/runnable/recursion_factorial.ai
 - <Icon name="rocket" inline /> **[AI Agent Integration Guide](/docs/guides/agent-integration)**
   Quick start for AI coding agents (Claude, GPT, Gemini)
 
-- <Icon name="book" inline /> **[Teaching Prompt v0.4.4](/docs/prompts/v0.4.4)**
+- <Icon name="book" inline /> **[Teaching Prompt {ACTIVE_PROMPT}](/docs/prompts/{ACTIVE_PROMPT})**
   Complete AILANG syntax guide for AI models
 
 ### <Icon name="user" size={20} /> For Human Developers
@@ -92,16 +92,20 @@ AILANG {STABLE_RELEASE} is the latest stable release. Check the [implementation 
 - <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
 - <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
 
-### <Icon name="wrench" size={18} /> Coming in v0.4 "Deterministic Tooling"
+### <Icon name="wrench" size={18} /> Recent Additions (v0.5.x)
 
-- <Icon name="idea" inline size={14} /> **Deterministic Normalization** - `ailang normalize` for canonical code formatting
-- <Icon name="idea" inline size={14} /> **Automated Import Suggestions** - `ailang suggest-imports` fixes missing imports
-- <Icon name="idea" inline size={14} /> **Deterministic Code Repair** - `ailang apply` for automated fixes
-- <Icon name="idea" inline size={14} /> **Total Recursion Combinators** - `fold`, `unfold`, `iterateN` for functional completeness
-- <Icon name="idea" inline size={14} /> **Runtime Reflection** - `reflectType`, `reflectEffect` for AI self-debugging (v0.4.1+)
-- <Icon name="idea" inline size={14} /> **Training Data Export** - `--emit-trace` for execution traces (v0.4.2+)
+- <CheckIcon inline size={14} /> **Go Codegen** - Compile AILANG to typed Go code (`ailang compile --emit-go`)
+- <CheckIcon inline size={14} /> **Import Aliasing** - `import std/list as List` for cleaner qualified access
+- <CheckIcon inline size={14} /> **Array Support** - Fixed-size arrays with `Array[T]` type and `#[...]` literals
+- <CheckIcon inline size={14} /> **Agent Messaging** - Unified messaging system via `ailang messages`
 
-See our [Vision](/docs/vision) for the full roadmap and measurable success criteria.
+### <Icon name="rocket" size={18} /> Roadmap
+
+- <Icon name="idea" inline size={14} /> **Execution Profiles** (v0.6.0) - Formal SimProfile, ServiceProfile, CliProfile with validation
+- <Icon name="idea" inline size={14} /> **Deterministic Tooling** (v0.7.0) - `normalize`, `suggest-imports`, `apply` commands
+- <Icon name="idea" inline size={14} /> **Shared Semantic State** (v0.6.0) - Multi-agent coordination via shared memory
+
+See our [Vision](/docs/vision) for the full roadmap and [Roadmap](/docs/roadmap) for detailed plans.
 
 ## Documentation Structure
 

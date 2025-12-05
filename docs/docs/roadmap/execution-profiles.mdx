@@ -1,10 +1,20 @@
 ---
-sidebar_position: 3
+sidebar_position: 1
 title: Execution Profiles
 description: How AILANG targets games, agents, services, and tools from a unified architecture
 ---
 
 import Icon from '@site/src/components/Icon';
+
+:::caution PLANNED FOR v0.6.0
+
+This feature is **not yet implemented**. This page describes the planned execution profile system for AILANG. The `--profile` flag and formal profile validation are planned for v0.6.0.
+
+**Design Document**: [execution-profiles.md](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/execution-profiles.md)
+
+**Current Status**: Basic Go codegen works via `ailang compile --emit-go`, but without formal profile selection.
+
+:::
 
 # Execution Profiles — A Unified Architecture
 
@@ -271,5 +281,5 @@ Effect contexts provide the deterministic, observable substrate for AI agents to
 
 ## Learn More
 
-- [Shared Semantic State](/docs/architecture/shared-semantic-state) — Future multi-agent vision
+- [Shared Semantic State](/docs/roadmap/shared-semantic-state) — Future multi-agent vision
 - [Vision](/docs/vision) — Why AILANG exists

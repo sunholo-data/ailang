@@ -1,327 +1,218 @@
-# Monomorphization - Call-Site Specialization (M-POLY-A)
+🧠 What Monomorphization is — in human-AI terms
 
-**Status**: Implemented in v0.4.0
-**Feature**: Automatic specialization of polymorphic lambdas at call sites
-**Implementation**: `internal/pipeline/specialize.go`
+Monomorphization = turning polymorphic functions into specialized, concrete versions when their argument types are known.
 
-## Overview
+In AILANG today:
 
-**ENABLED BY DEFAULT** since v0.4.0: Polymorphic lambdas are automatically specialized at call sites with concrete types.
+let max = \x. \y. if x > y then x else y
 
-**What it does:**
-- Specializes polymorphic functions (type `α -> α`) when called with concrete types
-- Eliminates runtime type resolution overhead
-- Foundation for future cross-module optimization (v0.5.0)
+has the type
+Ord a => a -> a -> a.
 
-**Key benefit**: Performance optimization through compile-time specialization rather than runtime polymorphism.
+That’s polymorphic — it can work on Int, Float, String, etc.
+But your compiler currently produces a single Core function with unresolved type variables (α1, α2), and lowering can’t decide which builtin (gt_Int, gt_Float, …) to call.
 
-## Pipeline Integration
+Monomorphization solves this by:
+	1.	Detecting that max is called with concrete types (e.g. Int).
+	2.	Cloning its Core body.
+	3.	Substituting a = Int.
+	4.	Re-running operator lowering on the clone.
+	5.	Caching that specialized function so repeated calls reuse it.
 
-### Phase 3.5: Monomorphization
+The result:
+max(3)(4) calls _max_Int,
+max(3.14)(2.71) calls _max_Float.
+No runtime dispatch, no Intrinsics left.
+It’s what Rust, MLton, and OCaml’s flambda all do internally.
 
-Runs after type checking, before lowering to avoid polymorphic code in later stages.
+⸻
 
-**Location:**
-- File pipeline: `internal/pipeline/pipeline.go:228-265`
-- Module pipeline: `internal/pipeline/pipeline.go:680-723`
+Now here’s the draft design document for AILANG:
 
-**Code:**
-```go
-specializer := NewSpecializer(&typeChecker.CoreTI)
-specializedProg, err := specializer.Specialize(coreProg)
-if err != nil {
-    return result, fmt.Errorf("monomorphization error: %w", err)
+⸻
+
+M-POLY-A: Monomorphization Pass (v0.4.0)
+
+Status: Planned
+Priority: P0 (architectural)
+Estimated: 2–3 working days
+Depends on: M-DX4 (CoreTypeInfo), M-DX2 (Type-Guided Lowering)
+
+⸻
+
+1. Problem Statement
+
+AILANG’s Hindley-Milner type inference produces polymorphic Core functions.
+However, the evaluator only executes monomorphic builtins.
+Currently, operator lowering runs before functions are specialized, leaving polymorphic Intrinsics unlowered inside lambda bodies.
+
+Example:
+
+let max = \x. \y. if x > y then x else y
+max(10)(5)     -- runtime panic: Intrinsic not lowered
+
+The body x > y cannot be lowered, because x and y have type variables (α1, α2) during compilation.
+
+⸻
+
+2. Goals
+	•	Primary: Specialize polymorphic functions at call-sites with known concrete types.
+	•	Secondary: Re-run operator lowering on specialized bodies so Intrinsics always disappear before evaluation.
+	•	Tertiary: Cache and reuse specializations to avoid code bloat.
+
+Success metric:
+✔ \x. \y. x > y works automatically for Int, Float, and String arguments.
+✔ No Intrinsics remain post-lowering.
+✔ No runtime “binop shim” needed.
+
+⸻
+
+3. Design Overview
+
+3.1 Conceptual Flow
+	1.	Inference produces polymorphic Core with type schemes and a CoreTypeInfo map.
+	2.	Specialization Pass runs after type checking, before lowering:
+	•	Detect each call site (f args) where f refers to a polymorphic definition and all argument types have concrete heads.
+	•	Clone f’s Core body, substituting type variables with concrete types.
+	•	Run lowering on the clone (using CoreTypeInfo + substitution).
+	•	Register the new symbol _f$Int$Int in the current module scope.
+	•	Rewrite the call to point to the specialized function.
+	3.	Lowering & Evaluation then proceed as normal.
+
+3.2 Architecture Diagram
+
+Parse → Elaborate → TypeCheck → [Specialize] → Lower → Eval
+
+3.3 Naming Convention
+
+Polymorphic	Specialized	Description
+max	_max$Int$Int	Two Int arguments
+max	_max$Float$Float	Two Float arguments
+id	_id$String	Single String argument
+
+
+⸻
+
+4. Implementation Plan
+
+Phase 1: Infrastructure (4–5h)
+	•	File: internal/pipeline/specialize.go
+	•	Create Specializer struct with:
+
+type Specializer struct {
+    CoreTI *types.CoreTypeInfo
+    Cache  map[string]*core.Func // (fnID + typeHeads) → specialized Core
 }
-coreProg = specializedProg
-```
 
-## Resource Limits
 
-To prevent runaway specialization that could cause compile-time explosion:
+	•	Implement typeHeads([]types.Type) []types.Head
+	•	Implement substituteTypevars(fn *core.Func, subst map[types.TypeVar]types.Type) *core.Func
 
-- **Per-function cap**: 16 specializations per function
-- **Module-wide cap**: 512 specializations per module
-- Both limits enforced automatically with clear diagnostics
+Phase 2: Specialization Pass (4h)
+	•	Walk Core AST:
+	•	For each call node (App f args):
+	•	If f is polymorphic and args all have concrete heads:
+	•	Generate key (f.ID, heads)
+	•	Lookup or create specialized version
+	•	Replace (App f args) with (App f_spec args)
+	•	Apply lowerer.Run() on new bodies
 
-**Rationale**: These limits prevent pathological cases while allowing reasonable polymorphic usage.
+Phase 3: Caching & Hygiene (2h)
+	•	Maintain a per-module specialization cache
+	•	Ensure unique names (_fn$Int$Float, etc.)
+	•	Avoid recursive infinite specialization (detect by in-progress set)
 
-## CLI Interface
+Phase 4: Testing (3–4h)
+	•	examples/snippets/showcase/lambdas_polymorphic.ail
+	•	max, min, abs, cmp, etc. work for Int, Float, String
+	•	Unit tests for specialization cache
+	•	Test mixed literals (Int+Float) defaulting
 
-### Normal Compilation (Monomorphization Enabled)
+Phase 5: Docs (2h)
+	•	docs/architecture/monomorphization.md
+	•	Update CLAUDE.md “Critical Principles”:
+	•	Add “All Intrinsics lowered before eval” invariant
+	•	Update LIMITATIONS.md: remove “polymorphic lambda” limitation
 
-```bash
-ailang run --entry main --caps IO module.ail
-```
+⸻
 
-Monomorphization runs automatically as part of the compilation pipeline.
+5. Example Walkthrough
 
-### Debug Mode (Show Specialization Stats)
+Input:
 
-```bash
-ailang run --entry main --caps IO --debug-compile module.ail
-```
+let max = \x. \y. if x > y then x else y
+let result = max(3.14)(2.71)
 
-**Example output:**
-```
-[DEBUG] Monomorphization: 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
-```
+1️⃣ Type inference:
 
-**Detailed output:**
-```
-[DEBUG] Monomorphization (module mymodule): 5 specializations, 2 skipped (cache: 3 hits, 2 misses)
-[DEBUG] Module mymodule per-function specializations:
-[DEBUG]   map: 3
-[DEBUG]   filter: 2
-[DEBUG] Module mymodule skipped functions:
-[DEBUG]   recursiveSum: Recursive function not specialized in v0.4.0
-[DEBUG]   mutualGroup: Mutually recursive bindings not specialized in v0.4.0
-```
+max : Ord a => a -> a -> a
+result : Float
 
-### Emergency Escape Hatch (Disable Monomorphization)
+2️⃣ Specialization detects call max(3.14)(2.71) → a = Float.
+Generates _max$Float$Float:
 
-```bash
-ailang run --entry main --caps IO --no-mono module.ail
-```
+let _max$Float$Float = \x: Float. \y: Float. if x > y then x else y
 
-**Use when**: Debugging compiler issues or working around bugs. Should rarely be needed.
+3️⃣ Runs lowering:
 
-## What Gets Specialized (v0.4.0)
+Intrinsic(>) → App(Var "_gt_Float", [x, y])
 
-### ✅ Supported Cases
+4️⃣ Rewrites call:
 
-1. **Inline lambda applications**
-   ```ailang
-   (\x. \y. if x > y then x else y)(3.14)(2.71)
-   ```
-   Works perfectly! Lambda is specialized for `float -> float -> float`.
+let result = _max$Float$Float(3.14)(2.71)
 
-2. **Var-bound lambdas with comparison operators**
-   ```ailang
-   let max = \x. \y. if x > y then x else y in max(3.14)(2.71)
-   ```
-   **Fixed in M-POLY-B Phase 1!** Comparison operators now specialize correctly.
+5️⃣ Evaluator executes normally. ✅
 
-3. **Concrete argument types**
-   - When argument types can be statically determined at call site
-   - Type information flows through the Core AST via CoreTypeInfo
+⸻
 
-4. **Non-recursive lambdas**
-   - Pure functions without self-reference
-   - Can be safely duplicated for each specialization
+6. Risks & Mitigations
 
-## What Gets Skipped (v0.4.0)
+Risk	Impact	Mitigation
+Infinite specialization recursion	Medium	Track active (fn, types) pairs
+Code bloat for many instantiations	Medium	Cache and deduplicate
+Complex substitution chains	Low	Use existing ApplySubstitution()
+Interaction with effects	Low	Effects preserved; no change
+Cross-module specialization	Low	For v0.4.0, specialize only within module
 
-### ❌ Known Limitations
 
-1. **Var-bound lambdas with arithmetic operators**
-   ```ailang
-   let add = \x. \y. x + y in add(3.14)(2.71)
-   ```
-   **Status**: Runtime panic!
+⸻
 
-   **Why**: Type inference defaults arithmetic to `int` (Num typeclass defaulting)
+7. Non-Goals (v0.4.0)
+	•	No user-visible typeclass or instance syntax.
+	•	No higher-rank or impredicative polymorphism.
+	•	No dictionary passing (planned for v0.5.x).
+	•	No partial specialization across recursive groups.
 
-   **Workarounds:**
-   - **Type annotations**: `let add: float -> float -> float = \x. \y. x + y`
-   - **Inline lambdas**: `(\x. \y. x + y)(3.14)(2.71)` (works!)
+⸻
 
-   **Fix**: v0.4.2 (Phase 2) will fix type inference defaulting (~4-8 hours)
+8. Deliverables
 
-2. **Recursive functions**
-   - Diagnostic message explains why
-   - Recursive functions create cycles in dependency graph
-   - Would require fixed-point specialization
+Deliverable	Description
+internal/pipeline/specialize.go	Core specialization pass
+internal/pipeline/specialize_test.go	100% coverage
+docs/architecture/monomorphization.md	Architecture doc
+examples/snippets/showcase/lambdas_polymorphic.ail	Demonstration file
+CHANGELOG.md	v0.4.0 “Monomorphization Pass” entry
 
-3. **Mutually recursive groups**
-   - Diagnostic message explains why
-   - Similar to recursive functions but with multiple interdependent bindings
 
-4. **Functions hitting per-function cap**
-   - After 16 specializations, function stops being specialized
-   - Diagnostic shows which functions hit the cap
+⸻
 
-5. **Modules hitting module cap**
-   - After 512 total specializations in a module
-   - Prevents exponential blowup in large modules
+9. Timeline
 
-## M-POLY-B Phase 1 Results (v0.4.0)
+Day	Task
+1	Implement Specializer, clone/subst helpers
+2	Integrate pass + cache, initial tests
+3	Full regression suite, docs, examples
+4 (optional)	Cross-module cache + metrics
 
-### ✅ What Works
 
-**Comparison operators**: `>`, `<`, `>=`, `<=`, `==`, `!=`
+⸻
 
-**Bugs fixed** (5 total):
-1. Dictionary elaboration for polymorphic comparisons
-2. Type substitution in monomorphization pass
-3. `cloneExpr()` for DictApp nodes
-4. `substituteType()` for Row types
-5. Operator resolution for specialized functions
+10. Expected Impact
 
-### ❌ What's Deferred
+✅ 100 % of polymorphic lambda examples compile and run
+✅ All Intrinsics eliminated before eval
+✅ Zero runtime type errors from operator polymorphism
+✅ Demonstrably faster AI DX (no manual annotations)
+✅ Paves the way for typeclass dictionaries (v0.5.0)
 
-**Arithmetic operators**: `+`, `-`, `*`, `/`, `%`
-
-**Status**: Phase 2 deferred to v0.4.2
-
-**See**: [M-POLY-B-PHASE1-COMPLETION-REPORT.md](../../../M-POLY-B-PHASE1-COMPLETION-REPORT.md)
-
-## Key Discovery
-
-**Hindley-Milner type inference already specializes simple polymorphic lambdas during type checking.**
-
-The monomorphization pass is designed for:
-- More complex polymorphic patterns that escape inference
-- Cross-module polymorphism (planned for v0.5.0)
-- Persistently polymorphic values in let-polymorphism contexts
-
-This means many simple cases "just work" without explicit monomorphization!
-
-## Implementation Details
-
-### Code Locations
-
-**Core implementation:**
-- `internal/pipeline/specialize.go` (1002 LOC)
-
-**Tests:**
-- `internal/pipeline/specialize_test.go` (461 LOC, 12/12 passing)
-- `internal/pipeline/specialize_integration_test.go` (331 LOC, 7/7 passing)
-
-**Pipeline integration:**
-- `internal/pipeline/pipeline.go` (+120 LOC)
-
-**Total**: ~1,900 lines of code
-
-### Performance Characteristics
-
-**Time complexity**: O(n) traversal of Core AST
-- Single pass over all Core nodes
-- Cache prevents duplicate work
-
-**Space complexity**: O(n × s) where s = specializations per function
-- Specializations create new Core nodes
-- Typically s ≤ 3 in practice
-
-**Overhead**: Negligible for non-polymorphic code
-- Early exit if no polymorphic functions detected
-- Cache lookup is O(1)
-
-**Cache deduplication**: Prevents redundant specializations
-- Keyed by (function ID, type signature)
-- Shares code between identical specializations
-
-## Troubleshooting
-
-### Issue: Specialization not working
-
-**Steps:**
-1. **Check debug output:**
-   ```bash
-   ailang run --debug-compile your_file.ail
-   ```
-
-2. **Look for skip reasons** in debug output:
-   - "Recursive function not specialized"
-   - "Mutually recursive bindings not specialized"
-   - "Hit per-function specialization limit"
-   - "Hit module specialization limit"
-
-3. **Verify you're not hitting caps:**
-   - Per-function: 16 specializations
-   - Per-module: 512 specializations
-
-4. **Last resort - disable monomorphization:**
-   ```bash
-   ailang run --no-mono your_file.ail
-   ```
-   If this fixes the issue, file a bug report!
-
-### Issue: Runtime panic with arithmetic operators
-
-**Current workaround (v0.4.0-v0.4.1):**
-
-```ailang
-# ❌ Broken
-let add = \x. \y. x + y in add(3.14)(2.71)
-
-# ✅ Fix 1: Type annotations
-let add: float -> float -> float = \x. \y. x + y in add(3.14)(2.71)
-
-# ✅ Fix 2: Inline lambda
-(\x. \y. x + y)(3.14)(2.71)
-```
-
-**Permanent fix**: Coming in v0.4.2 (Phase 2)
-
-### Issue: Comparison operators not working
-
-**Status**: Fixed in v0.4.0!
-
-If you're still seeing issues, ensure you're running v0.4.0 or later:
-```bash
-ailang --version
-```
-
-## Future Work (v0.5.0+)
-
-### Cross-Module Polymorphism
-
-**Goal**: Specialize polymorphic functions from imported modules
-
-**Example:**
-```ailang
-module app/main
-import std/list (map)
-
-func main() -> () ! {IO} {
-  let doubled = map(\x. x * 2, [1, 2, 3]);
-  println(show(doubled))
-}
-```
-
-Currently `std/list.map` is not specialized across module boundaries. Future work will enable this.
-
-### Higher-Rank Polymorphism
-
-**Goal**: Support rank-2 and rank-N polymorphic types
-
-**Example:**
-```ailang
-func apply_twice(f: forall a. a -> a, x: int) -> int {
-  f(f(x))
-}
-```
-
-Requires more sophisticated type system support.
-
-### Specialization Hints
-
-**Goal**: Allow programmer to control specialization
-
-**Example:**
-```ailang
-@specialize(int, float, string)
-func generic_function(x: 'a) -> 'a { x }
-```
-
-Could reduce compile times by limiting specializations.
-
-## References
-
-- **Design doc**: `design_docs/planned/m-poly-a-monomorphization.md`
-- **Phase 1 completion**: [M-POLY-B-PHASE1-COMPLETION-REPORT.md](../../../M-POLY-B-PHASE1-COMPLETION-REPORT.md)
-- **Implementation**: `internal/pipeline/specialize.go`
-- **Tests**: `internal/pipeline/specialize_test.go`, `specialize_integration_test.go`
-
-## Changelog
-
-- **v0.4.0**: Initial implementation (M-POLY-A)
-  - Inline lambda applications work
-  - Comparison operators work (M-POLY-B Phase 1)
-  - Arithmetic operators deferred to Phase 2
-- **v0.4.1**: Bug fixes
-  - Improved DEBUG_STRICT error messages
-  - Better diagnostic output
-- **v0.4.2 (planned)**: Arithmetic operator support (M-POLY-B Phase 2)
-  - Fix type inference defaulting
-  - Complete polymorphic operator support
