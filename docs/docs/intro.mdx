@@ -18,14 +18,16 @@ Welcome to the official documentation for AILANG, an experimental programming la
 
 ## What is AILANG?
 
-AILANG is a pure functional programming language that makes AI assistance a first-class citizen. It features:
+AILANG is a pure functional programming language designed for AI-assisted development. Explicit effects, structured traces, and deterministic execution make AI-generated code easier to debug and verify.
 
-- <Icon name="zap" inline /> **Pure Functional Programming**: Immutable data and explicit effects
-- <Icon name="target" inline /> **Algebraic Effects System**: Track and control side effects in the type system
-- <Icon name="code" inline /> **Type Classes**: Num, Eq, Ord, Show with dictionary-passing semantics
-- <Icon name="brain" inline /> **Pattern Matching**: Algebraic data types with exhaustiveness checking
-- <Icon name="rocket" inline /> **Auto-Import Prelude**: Zero imports needed for type classes and comparisons
-- <Icon name="bot" inline /> **AI-Optimized Design**: Generate structured execution traces for model training
+Key features:
+
+- <Icon name="zap" inline /> **Pure Functional Core**: Deterministic evaluation, referentially transparent
+- <Icon name="target" inline /> **Algebraic Effects**: Side effects declared in types (`! {IO, FS, Net}`)—constrains what code *can* do
+- <Icon name="code" inline /> **Structured Traces**: Effect calls logged with typed inputs/outputs for debugging
+- <Icon name="brain" inline /> **Pattern Matching**: ADTs with exhaustiveness checking catch invalid states at compile time
+- <Icon name="rocket" inline /> **Inline Tests**: Machine-readable specs that travel with code
+- <Icon name="bot" inline /> **Go Codegen**: Compile to native performance with full type safety
 
 ## Quick Example
 
@@ -128,12 +130,12 @@ AILANG is open source and welcomes contributions! Visit our [GitHub repository](
 AILANG is built on several key principles:
 
 1. <Icon name="target" inline /> **Explicit Over Implicit**: All effects and dependencies are visible in types
-2. <Icon name="check" inline /> **Correctness by Construction**: Make invalid states unrepresentable
-3. <Icon name="bot" inline /> **AI-Friendly**: Every language feature considers AI tooling needs
-4. <Icon name="zap" inline /> **Deterministic**: Same input always produces same output
-5. <Icon name="info" inline /> **Traceable**: Complete execution history for debugging and training
+2. <Icon name="check" inline /> **Debuggability by Construction**: Structured traces and effect boundaries make errors easy to localize
+3. <Icon name="bot" inline /> **AI-Optimized**: Constrained syntax and explicit effects narrow the search space for valid code
+4. <Icon name="zap" inline /> **Deterministic**: Same input always produces same output, enabling replay and caching
+5. <Icon name="info" inline /> **Traceable**: Effect calls logged with typed inputs/outputs for structured debugging
 
-**Read the full [Vision](/docs/vision)** to understand why AILANG is designed for AIs first, humans second, and see empirical benchmarks showing 49% improvement in AI code generation success rates.
+**Read the full [Vision](/docs/vision)** to understand why AILANG is designed for the AI era.
 
 ## Resources
 

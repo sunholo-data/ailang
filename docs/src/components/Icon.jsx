@@ -18,7 +18,15 @@ import {
   Play,
   Box,
   BarChart,
-  Github
+  Github,
+  Shield,
+  Layers,
+  Gamepad2,
+  Server,
+  Terminal,
+  Database,
+  Globe,
+  X
 } from 'lucide-react';
 
 const iconMap = {
@@ -41,6 +49,14 @@ const iconMap = {
   box: Box,
   'bar-chart': BarChart,
   github: Github,
+  shield: Shield,
+  layers: Layers,
+  gamepad: Gamepad2,
+  server: Server,
+  terminal: Terminal,
+  database: Database,
+  globe: Globe,
+  x: X,
 };
 
 export default function Icon({ name, size = 16, className = '', inline = false, color }) {

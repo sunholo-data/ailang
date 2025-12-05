@@ -178,6 +178,11 @@ const config = {
             position: 'left',
           },
           {
+            to: '/docs/benchmarks/performance',
+            label: 'Benchmarks',
+            position: 'left',
+          },
+          {
             href: 'https://sunholo-data.github.io/ailang/llms.txt',
             label: 'llms.txt',
             position: 'right',
@@ -206,6 +211,10 @@ const config = {
               {
                 label: 'AI Prompts',
                 to: '/docs/prompts',
+              },
+              {
+                label: 'Benchmarks',
+                to: '/docs/benchmarks/performance',
               },
             ],
           },

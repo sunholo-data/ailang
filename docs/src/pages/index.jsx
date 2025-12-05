@@ -17,6 +17,7 @@ import {
   Play
 } from 'lucide-react';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '../constants/version';
+import BenchmarkMini from '../components/BenchmarkMini';
 
 // Hero Section
 function HeroSection() {
@@ -41,9 +42,9 @@ function HeroSection() {
         </h1>
 
         <p className="hero-subtitle">
-          AILANG is a pure functional language designed from the ground up for
-          AI-assisted development. Explicit effects, deterministic execution,
-          and structured traces for model training.
+          AILANG makes AI-generated code cheaper to debug, replay, and fix.
+          Explicit effects constrain what code can do. Structured traces
+          make errors easy to localize.
         </p>
 
         <div className="hero-actions">
@@ -674,6 +675,7 @@ export default function Home() {
       <main>
         <HeroSection />
         <FeaturesSection />
+        <BenchmarkMini />
         <CTASection />
       </main>
     </Layout>
