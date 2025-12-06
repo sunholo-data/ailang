@@ -476,10 +476,12 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 	case *core.VarPattern:
 		g.writef("default:\n")
 		g.indent++
-		// Bind the variable to the entire ADT
-		goVarName := ToGoVarName(p.Name)
-		g.writef("%s := _adt\n", goVarName)
-		g.writef("_ = %s // suppress unused\n", goVarName)
+		// Bind the variable to the entire ADT (skip binding for wildcard "_")
+		if p.Name != "_" {
+			goVarName := ToGoVarName(p.Name)
+			g.writef("%s := _adt\n", goVarName)
+			g.writef("_ = %s // suppress unused\n", goVarName)
+		}
 		g.writef("return ")
 		if err := g.generateExpr(arm.Body); err != nil {
 			return err

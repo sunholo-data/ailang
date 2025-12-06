@@ -15,6 +15,7 @@ import (
 //	"helloWorld"  -> "HelloWorld"
 //	"hello"       -> "Hello"
 //	"_private"    -> "Private"
+//	"_"           -> "_" (special case for wildcard)
 func ToPascalCase(s string) string {
 	if s == "" {
 		return ""
@@ -35,6 +36,11 @@ func ToPascalCase(s string) string {
 		} else {
 			result.WriteRune(r)
 		}
+	}
+
+	// Handle edge case where input was all underscores (e.g., "_")
+	if result.Len() == 0 {
+		return "_"
 	}
 
 	return result.String()
@@ -121,6 +127,7 @@ func ToGoFuncName(s string, exported bool) string {
 // ToGoVarName converts an AILANG variable name to a Go variable name.
 // Variables are always package-private (camelCase).
 // Also sanitizes invalid characters like $ (from type variables).
+// Go reserved keywords are escaped with underscore suffix.
 //
 // Examples:
 //
@@ -128,6 +135,7 @@ func ToGoFuncName(s string, exported bool) string {
 //	"frame_input" -> "frameInput"
 //	"$a"          -> "a"   (type variable)
 //	"$foo_bar"    -> "fooBar"
+//	"default"     -> "default_" (escaped Go keyword)
 func ToGoVarName(s string) string {
 	// Strip $ prefix from type variables
 	if len(s) > 0 && s[0] == '$' {
@@ -135,7 +143,9 @@ func ToGoVarName(s string) string {
 	}
 	// Sanitize any remaining invalid characters
 	s = SanitizeGoIdentifier(s)
-	return ToCamelCase(s)
+	result := ToCamelCase(s)
+	// Escape Go reserved keywords
+	return EscapeKeyword(result)
 }
 
 // ToKindConstName generates a kind constant name for sum type discriminators.

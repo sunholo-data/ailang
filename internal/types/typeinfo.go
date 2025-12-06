@@ -116,25 +116,18 @@ func (cti CoreTypeInfo) ApplySubstitution(sub Substitution) {
 
 // typesIdentical checks if two types are identical (same structure, same names)
 // Used to detect fixed points in substitution application
+//
+// IMPORTANT: Uses Equals() instead of String() comparison to avoid O(n²) behavior
+// with large record types. String() comparison caused infinite loops with records
+// containing 9+ fields due to mutual recursion between Row.String() and TRecord.String().
+// See: design_docs/planned/v0_5_7/types-identical-performance.md
 func typesIdentical(t1, t2 Type) bool {
 	// Quick check: same pointer
 	if t1 == t2 {
 		return true
 	}
 
-	// Check by type
-	switch v1 := t1.(type) {
-	case *TVar2:
-		if v2, ok := t2.(*TVar2); ok {
-			return v1.Name == v2.Name
-		}
-	case *TCon:
-		if v2, ok := t2.(*TCon); ok {
-			return v1.Name == v2.Name
-		}
-	// For other types, use string comparison as fallback
-	default:
-		return t1.String() == t2.String()
-	}
-	return false
+	// Use Equals() for structural comparison - O(n) vs O(n × string_length)
+	// Equals() is implemented for all Type interfaces and handles cycles correctly
+	return t1.Equals(t2)
 }
