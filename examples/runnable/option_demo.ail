@@ -1,8 +1,5 @@
--- ⚠️  NOTE: This example type-checks but cannot execute until v0.2.0
--- The module execution feature is planned for the next release.
--- Current status: Parses ✓, Type-checks ✓, Executes ✗
-
-module examples/snippets/option_demo
+-- Option type demo: Some, None, map, getOrElse
+module examples/runnable/option_demo
 import std/option (Some, None, map, getOrElse)
 
 export pure func main() -> int {

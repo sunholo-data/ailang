@@ -1,8 +1,5 @@
--- ⚠️  NOTE: This example type-checks but cannot execute until v0.2.0
--- The module execution feature is planned for the next release.
--- Current status: Parses ✓, Type-checks ✓, Executes ✗
-
-module examples/snippets/stdlib_demo
+-- Standard library demo: string functions and options
+module examples/runnable/stdlib_demo
 import std/io (println)
 import std/list (map)
 import std/string (toUpper)
