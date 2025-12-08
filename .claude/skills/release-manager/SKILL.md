@@ -103,6 +103,25 @@ Verifying release v0.3.14...
 URL: https://github.com/sunholo-data/ailang/releases/tag/v0.3.14
 ```
 
+### `scripts/update_version_constants.sh <version>`
+Update website version constants to the new release version.
+
+**Usage:**
+```bash
+.claude/skills/release-manager/scripts/update_version_constants.sh 0.5.7
+```
+
+**What it updates:**
+- `docs/src/constants/version.js` - STABLE_RELEASE and ACTIVE_PROMPT
+
+**Output:**
+```
+Updating docs/src/constants/version.js...
+  STABLE_RELEASE: v0.5.6 → v0.5.7
+  ACTIVE_PROMPT: v0.5.2 → v0.5.2
+✓ Updated docs/src/constants/version.js
+```
+
 ### `scripts/broadcast_release.sh <version>`
 Broadcast release notification with changelog to all projects.
 
@@ -168,11 +187,17 @@ Changelog excerpt:
 
 ### 2. Update Version in Documentation
 
-Update these files:
-- **README.md**: Change "Current Version: vX.X.X"
-- **docs/reference/implementation-status.md**: Change "Current Version: vX.X.X"
+**Run the version update script:**
+```bash
+.claude/skills/release-manager/scripts/update_version_constants.sh X.X.X
+```
+
+**Also update these files manually:**
 - **CHANGELOG.md**: Change `## [Unreleased]` to `## [vX.X.X] - YYYY-MM-DD`
 - **std/VERSION**: Change to `vX.X.X` (used by stdlib resolver for version checking)
+
+**The script automatically updates:**
+- **docs/src/constants/version.js** - Website STABLE_RELEASE and ACTIVE_PROMPT
 
 ### 3. Post-Update Verification (CRITICAL)
 
@@ -187,7 +212,7 @@ If either fails, fix before committing.
 ### 4. Commit Changes
 
 ```bash
-git add README.md CHANGELOG.md docs/reference/implementation-status.md std/VERSION
+git add CHANGELOG.md std/VERSION docs/src/constants/version.js
 git commit -m "Release vX.X.X"
 ```
 
