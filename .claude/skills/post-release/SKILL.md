@@ -168,16 +168,21 @@ Use this template in CHANGELOG.md for 0.3.15
 - **Formats comparison text automatically** (+X% improvement or -X% regression)
 - Generates ready-to-paste CHANGELOG template with no manual work needed
 
-### `scripts/cleanup_design_docs.sh <version> [--dry-run]`
-Automatically move design docs from planned/ to implemented/ after a release.
+### `scripts/cleanup_design_docs.sh <version> [--dry-run] [--force]`
+Move design docs from planned/ to implemented/ after a release.
+
+**Only moves docs with "Status: Implemented"** in their frontmatter. Docs with other statuses are flagged for review.
 
 **Usage:**
 ```bash
-# Automatically move all docs for this version
+# Preview what would be moved (recommended first step)
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --dry-run
+
+# Move docs marked as Implemented
 .claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7
 
-# Preview what would be moved (no changes made)
-.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --dry-run
+# Force move all docs regardless of status
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --force
 ```
 
 **Output:**
@@ -185,25 +190,24 @@ Automatically move design docs from planned/ to implemented/ after a release.
 Design Doc Cleanup for v0.5.7
 ==================================
 
-Found 2 design doc(s) in design_docs/planned/v0_5_7/:
+Checking 2 design doc(s) in design_docs/planned/v0_5_7/:
 
   [MOVED] m-dx11-stdlib-discovery.md → design_docs/implemented/v0_5_7/
-  [MOVED] m-other-feature.md → design_docs/implemented/v0_5_7/
+  [NEEDS REVIEW] m-unfinished-feature.md
+                 Found: **Status**: Planned
 
-Removed empty design_docs/planned/v0_5_7/ folder
-
-✓ Moved 2 design doc(s) to design_docs/implemented/v0_5_7/
-
-Next steps:
-  git add design_docs/
-  git commit -m 'docs: move design docs to implemented/v0_5_7'
+Summary:
+  ✓ Moved 1 doc(s) to design_docs/implemented/v0_5_7/
+  ⚠ 1 doc(s) need review (not marked as Implemented)
 ```
 
 **What it does:**
-- Moves ALL docs in `planned/vX_Y_Z/` to `implemented/vX_Y_Z/`
-- Creates the implemented folder if needed
+- Checks each doc for `**Status**: Implemented` in the first 15 lines
+- Only moves docs with Implemented status
+- Flags docs with other statuses for review
+- Creates implemented folder if needed
 - Removes empty planned folder after moving
-- Use `--dry-run` to preview without making changes
+- Use `--dry-run` to preview, `--force` to move all regardless of status
 
 ## Post-Release Workflow
 
@@ -364,28 +368,28 @@ Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
 
 ### 5. Move Design Docs to Implemented
 
-**Move all design docs for this release:**
-```bash
-.claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X
-```
-
-This script automatically:
-- Moves ALL docs from `planned/vX_Y_Z/` to `implemented/vX_Y_Z/`
-- Creates the implemented folder if needed
-- Removes the empty planned folder
-
-**Preview first (optional):**
+**Step 1: Preview what will be moved:**
 ```bash
 .claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X --dry-run
 ```
 
-**Commit the changes:**
+**Step 2: Check any flagged docs:**
+- If docs show `[NEEDS REVIEW]`, verify if the feature was actually implemented
+- Update the doc's `**Status**:` field to `Implemented` if the feature is done
+- Or move to a future version folder if not done yet
+
+**Step 3: Move the implemented docs:**
+```bash
+.claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X
+```
+
+**Step 4: Commit the changes:**
 ```bash
 git add design_docs/
 git commit -m "docs: move design docs to implemented/vX_Y_Z"
 ```
 
-**Note**: Any docs remaining in the planned folder (for future versions) are left untouched.
+The script only moves docs with `**Status**: Implemented` in their frontmatter. This ensures we don't accidentally move unfinished work.
 
 ### 6. Update Public Documentation
 
@@ -566,4 +570,4 @@ This checks:
 - Can be run hours or even days after release
 - Dashboard JSON preserves history - never overwrites historical data
 - Always use `--full` flag for release baselines (all production models)
-- Design docs automatically moved from planned/ to implemented/ (use --dry-run to preview)
+- Design docs with "Status: Implemented" auto-moved (--dry-run to preview, --force to move all)
