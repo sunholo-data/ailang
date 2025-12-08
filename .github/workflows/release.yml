@@ -44,26 +44,28 @@ jobs:
     strategy:
       matrix:
         include:
+          # Naming follows Gemini CLI convention: {platform}.{arch}.{name}
+          # See: https://geminicli.com/docs/extensions/extension-releasing/
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
             binary_name: ailang
-            artifact_name: ailang-linux-amd64
+            artifact_name: linux.x64.ailang
           - os: macos-latest
             goos: darwin
             goarch: amd64
             binary_name: ailang
-            artifact_name: ailang-darwin-amd64
+            artifact_name: darwin.x64.ailang
           - os: macos-latest
             goos: darwin
             goarch: arm64
             binary_name: ailang
-            artifact_name: ailang-darwin-arm64
+            artifact_name: darwin.arm64.ailang
           - os: windows-latest
             goos: windows
             goarch: amd64
             binary_name: ailang.exe
-            artifact_name: ailang-windows-amd64
+            artifact_name: win32.x64.ailang
 
     steps:
     - name: Checkout code
@@ -147,15 +149,15 @@ jobs:
         echo "" >> changelog.md
         echo '```bash' >> changelog.md
         echo '# macOS (Intel)' >> changelog.md
-        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-darwin-amd64.tar.gz | tar -xz' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/darwin.x64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '' >> changelog.md
         echo '# macOS (Apple Silicon)' >> changelog.md
-        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-darwin-arm64.tar.gz | tar -xz' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/darwin.arm64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '' >> changelog.md
         echo '# Linux' >> changelog.md
-        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-linux-amd64.tar.gz | tar -xz' >> changelog.md
+        echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.x64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
         echo '```' >> changelog.md
         echo '' >> changelog.md
