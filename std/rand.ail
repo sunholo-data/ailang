@@ -1,8 +1,11 @@
-module std/rand
+-- std/rand - Random number generation
+--
+-- Generate random integers, floats, and booleans.
+-- Use rand_seed() for reproducible sequences (testing, replays).
+--
+-- Requires: Rand capability (--caps Rand)
 
--- Wrappers around Go builtins (_rand_int, _rand_float, _rand_bool, _rand_seed)
--- Effects are tracked at the type level with ! {Rand}
--- Using equation-form exports for thin wrappers
+module std/rand
 
 -- rand_int: Generate random integer in range [min, max] inclusive
 -- Set a seed first with rand_seed() for deterministic behavior

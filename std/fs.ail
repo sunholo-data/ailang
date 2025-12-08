@@ -1,8 +1,11 @@
-module std/fs
+-- std/fs - File system operations (sandboxed)
+--
+-- Read and write files with capability-based security.
+-- Respects AILANG_FS_SANDBOX environment variable for sandboxing.
+--
+-- Requires: FS capability (--caps FS)
 
--- Filesystem operations with capability-based security
--- All operations require FS capability grant
--- Respects AILANG_FS_SANDBOX for sandboxed execution
+module std/fs
 
 -- Effect marker
 -- export effect FS  -- Will be added when effect declarations are supported

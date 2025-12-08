@@ -1,8 +1,11 @@
-module std/game
+-- std/game - Game development utilities
+--
+-- Frame timing for game loops: delta time, total time, frame count.
+-- Used by game engines to provide frame-rate independent timing.
+--
+-- Requires: Clock capability (--caps Clock)
 
--- Game-specific clock builtins for frame timing
--- Effects are tracked at the type level with ! {Clock}
--- Values are set by the game engine before each frame via SetGameClock()
+module std/game
 
 -- delta_time: Get time since last frame in seconds
 -- Use for frame-rate independent physics and movement
