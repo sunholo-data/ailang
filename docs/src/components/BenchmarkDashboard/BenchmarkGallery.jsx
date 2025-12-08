@@ -21,11 +21,16 @@ export default function BenchmarkGallery({ benchmarks }) {
 function BenchmarkCard({ benchmark }) {
   const [expanded, setExpanded] = useState(false);
 
-  const { id, successRate, attempts, avgTokens, languages, codeSamples, languageStats, taskPrompt } = benchmark;
+  const { id, successRate, attempts, avgTokens, languages, codeSamples, languageStats, taskPrompt, agentStats } = benchmark;
 
   // Get AILANG and Python specific stats if available
   const ailangStats = languageStats?.ailang;
   const pythonStats = languageStats?.python;
+
+  // Get agent stats if available
+  const ailangAgent = agentStats?.ailang;
+  const pythonAgent = agentStats?.python;
+  const hasAgentData = ailangAgent || pythonAgent;
 
   // Determine status
   let status, statusColor, StatusIcon;
@@ -145,6 +150,88 @@ function BenchmarkCard({ benchmark }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {hasAgentData && (
+            <div className={styles.agentSection}>
+              <h4 className={styles.agentTitle}>🤖 Agent Evaluation Performance</h4>
+              <p className={styles.agentSubtitle}>
+                Multi-turn iterative problem solving with Claude Code
+              </p>
+              <div className={styles.agentGrid}>
+                {ailangAgent && (
+                  <div className={styles.agentCard}>
+                    <div className={styles.agentCardHeader}>AILANG</div>
+                    <div className={styles.agentMetrics}>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Success Rate</span>
+                        <span className={styles.agentValue}>
+                          {(ailangAgent.successRate * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Avg Turns</span>
+                        <span className={styles.agentValue}>
+                          {ailangAgent.avgTurns.toFixed(1)}
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Tokens</span>
+                        <span className={styles.agentValue}>
+                          {(ailangAgent.avgTokens / 1000).toFixed(0)}K
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Runs</span>
+                        <span className={styles.agentValue}>
+                          {ailangAgent.runs}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {pythonAgent && (
+                  <div className={styles.agentCard}>
+                    <div className={styles.agentCardHeader}>Python</div>
+                    <div className={styles.agentMetrics}>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Success Rate</span>
+                        <span className={styles.agentValue}>
+                          {(pythonAgent.successRate * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Avg Turns</span>
+                        <span className={styles.agentValue}>
+                          {pythonAgent.avgTurns.toFixed(1)}
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Tokens</span>
+                        <span className={styles.agentValue}>
+                          {(pythonAgent.avgTokens / 1000).toFixed(0)}K
+                        </span>
+                      </div>
+                      <div className={styles.agentMetric}>
+                        <span className={styles.agentLabel}>Runs</span>
+                        <span className={styles.agentValue}>
+                          {pythonAgent.runs}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {ailangAgent && pythonAgent && (
+                <div className={styles.agentComparison}>
+                  <p>
+                    <strong>Agent Efficiency:</strong> AILANG requires{' '}
+                    {(ailangAgent.avgTurns / pythonAgent.avgTurns).toFixed(1)}x more turns
+                    and uses {(ailangAgent.avgTokens / pythonAgent.avgTokens).toFixed(1)}x more tokens
+                    compared to Python. This reflects the learning curve of a new language.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

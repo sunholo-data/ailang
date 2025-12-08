@@ -1,0 +1,14 @@
+-- Polymorphic Comparison Functions - Simple Example
+--
+-- Status: ✅ WORKS (M-POLY-B Phase 1)
+
+-- Generic max function
+let max = \x. \y. if x > y then x else y in
+
+-- Test with different types
+let floatMax = max(3.14)(2.71) in
+let intMax = max(42)(17) in
+let stringMax = max("hello")("world") in
+
+-- Output as record
+{ float: floatMax, int: intMax, string: stringMax }

@@ -1,0 +1,64 @@
+module examples/record_update
+
+-- Record Update Examples
+-- Demonstrates the {base | field: value} syntax for immutable record updates
+-- Fixed in v0.4.9: Now works with lambda parameters (M-BUG-RECORD-UPDATE-INFERENCE)
+
+-- Example 1: Basic record update with lambda
+-- This was the main bug fix - record updates now work inside lambdas
+
+type World = { tick: int, active: bool }
+
+let step: World -> World = \world. {world | tick: world.tick + 1}
+
+let world1 = { tick: 0, active: true }
+let world2 = step(world1)
+-- world2 = { tick: 1, active: true }
+
+
+-- Example 2: Multiple field update
+-- Update several fields at once
+
+type Point = { x: int, y: int, z: int }
+
+let translate: Point -> int -> int -> Point = \p dx dy. {p | x: p.x + dx, y: p.y + dy}
+
+let origin = { x: 0, y: 0, z: 0 }
+let moved = translate(origin)(10)(20)
+-- moved = { x: 10, y: 20, z: 0 }
+
+
+-- Example 3: Let-bound record update
+-- Simple case that always worked
+
+let person = { name: "Alice", age: 25, role: "developer" }
+let birthday = {person | age: person.age + 1}
+-- birthday = { name: "Alice", age: 26, role: "developer" }
+
+
+-- Example 4: Nested update in function chain
+-- Compose multiple updates
+
+type GameState = { score: int, lives: int, level: int }
+
+let addScore: GameState -> int -> GameState = \state pts. {state | score: state.score + pts}
+let loseLife: GameState -> GameState = \state. {state | lives: state.lives - 1}
+let nextLevel: GameState -> GameState = \state. {state | level: state.level + 1}
+
+let initial = { score: 0, lives: 3, level: 1 }
+let afterPoint = addScore(initial)(100)
+let afterHit = loseLife(afterPoint)
+let afterWin = nextLevel(afterHit)
+-- afterWin = { score: 100, lives: 2, level: 2 }
+
+
+-- Example 5: Using record update in expression
+-- Can use the update inline
+
+let config = { debug: false, verbose: false, port: 8080 }
+let debugConfig = {config | debug: true, verbose: true}
+-- debugConfig = { debug: true, verbose: true, port: 8080 }
+
+
+-- Final expression
+42

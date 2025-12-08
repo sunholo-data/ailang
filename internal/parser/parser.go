@@ -17,6 +17,10 @@ type Parser struct {
 	// Pratt parsing
 	prefixParseFns map[lexer.TokenType]prefixParseFn
 	infixParseFns  map[lexer.TokenType]infixParseFn
+
+	// Surface sugar control (S-CALL0, S-CONS, S-ARROWTYPE)
+	strictSyntaxMode bool // When true, syntactic sugar is not allowed
+	sugarUsed        bool // Tracks if sugar was used in this parse (for REPL feedback)
 }
 
 type (
@@ -32,6 +36,7 @@ const (
 	LogicalAnd      // &&
 	EQUALS          // ==, !=
 	LESSGREATER     // >, <, >=, <=
+	CONS            // :: (list cons - right associative)
 	APPEND          // ++
 	SUM             // +, -
 	PRODUCT         // *, /, %
@@ -60,6 +65,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.UNIT, p.parseUnitLiteral)
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(lexer.LBRACKET, p.parseListLiteral)
+	p.registerPrefix(lexer.HASH, p.parseArrayLiteral)
 	p.registerPrefix(lexer.LBRACE, p.parseRecordLiteral)
 	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
@@ -88,8 +94,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.AND, p.parseInfixExpression)
 	p.registerInfix(lexer.OR, p.parseInfixExpression)
 	p.registerInfix(lexer.APPEND, p.parseInfixExpression)
-	p.registerInfix(lexer.CONS, p.parseInfixExpression)
+	p.registerInfix(lexer.DCOLON, p.parseConsExpression) // S-CONS: :: sugar
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
+	p.registerInfix(lexer.UNIT, p.parseZeroArgCall) // S-CALL0: f() sugar (expression context)
 	p.registerInfix(lexer.DOT, p.parseRecordAccess)
 	p.registerInfix(lexer.LARROW, p.parseSendExpression)
 
@@ -140,6 +147,30 @@ func (p *Parser) Parse() *ast.Program {
 	}
 
 	return program
+}
+
+// Surface sugar control methods
+
+// SetStrictSyntaxMode enables or disables strict syntax mode.
+// When strict mode is enabled, all syntactic sugar is rejected with helpful errors.
+func (p *Parser) SetStrictSyntaxMode(strict bool) {
+	p.strictSyntaxMode = strict
+}
+
+// SugarUsed returns true if any syntactic sugar was used during parsing.
+// This is used by the REPL to show "(desugared)" feedback to users.
+func (p *Parser) SugarUsed() bool {
+	return p.sugarUsed
+}
+
+// reportSugarError reports an error when sugar is used in strict syntax mode.
+// Provides helpful error messages with canonical equivalents.
+func (p *Parser) reportSugarError(sugarName, example, canonical string) {
+	p.report(
+		fmt.Sprintf("SUGAR_%s", sugarName),
+		fmt.Sprintf("%s sugar not allowed in strict mode", sugarName),
+		fmt.Sprintf("Use `%s` (canonical syntax) instead of `%s`", canonical, example),
+	)
 }
 
 // Utility functions

@@ -22,6 +22,12 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 		},
 	}
 
+	// CoreTI: intrinsic itself has type Bool (result), operands have type Float
+	coreTI := types.NewCoreTypeInfo()
+	coreTI.Set(intrinsic.ID(), types.TBool)          // Result type
+	coreTI.Set(intrinsic.Args[0].ID(), types.TFloat) // Operand type (variable b)
+	coreTI.Set(intrinsic.Args[1].ID(), types.TFloat) // Operand type (literal 0.0)
+
 	// Create resolved constraint that says this == operation uses Float type
 	resolvedConstraints := map[uint64]*types.ResolvedConstraint{
 		42: {
@@ -30,11 +36,17 @@ func TestOpLowering_FloatEquality(t *testing.T) {
 			Type:      types.TFloat,
 			Method:    "eq",
 		},
+		1: { // For the first argument (variable b)
+			NodeID:    1,
+			ClassName: "Eq",
+			Type:      types.TFloat,
+			Method:    "eq",
+		},
 	}
 
-	// Create OpLowerer with resolved constraints
+	// Create OpLowerer with CoreTI and resolved constraints
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, coreTI)
 	lowerer.SetResolvedConstraints(resolvedConstraints)
 
 	// Lower the intrinsic
@@ -82,7 +94,7 @@ func TestOpLowering_IntEquality(t *testing.T) {
 	}
 
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
 	lowerer.SetResolvedConstraints(resolvedConstraints)
 
 	lowered := lowerer.lowerExpr(intrinsic)
@@ -115,7 +127,7 @@ func TestOpLowering_FallbackToHeuristics(t *testing.T) {
 
 	// No resolved constraints - should fall back to heuristics
 	typeEnv := types.NewTypeEnv()
-	lowerer := NewOpLowerer(typeEnv)
+	lowerer := NewOpLowerer(typeEnv, types.NewCoreTypeInfo())
 	lowerer.SetResolvedConstraints(map[uint64]*types.ResolvedConstraint{})
 
 	lowered := lowerer.lowerExpr(intrinsic)
@@ -147,6 +159,14 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 		{"TFloat", types.TFloat, "Float"},
 		{"TBool", types.TBool, "Bool"},
 		{"TString", types.TString, "String"},
+		{
+			"List[Int]",
+			&types.TApp{
+				Constructor: &types.TCon{Name: "List"},
+				Args:        []types.Type{types.TInt},
+			},
+			"List",
+		},
 	}
 
 	for _, tt := range tests {
@@ -154,6 +174,93 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 			result := getTypeSuffixFromType(tt.typ)
 			if result != tt.expected {
 				t.Errorf("Expected %s, got %s", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestOpLowering_Concat tests that concat operations are correctly
+// lowered to concat_String or concat_List based on operand types.
+// This locks in the behavior for the ++ operator.
+func TestOpLowering_Concat(t *testing.T) {
+	tests := []struct {
+		name            string
+		leftArg         core.CoreExpr
+		rightArg        core.CoreExpr
+		expectedBuiltin string
+	}{
+		{
+			name: "string concatenation",
+			leftArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 1},
+				Name:     "$tmp1",
+			},
+			rightArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 2},
+				Name:     "$tmp2",
+			},
+			expectedBuiltin: "concat_String",
+		},
+		{
+			name: "list concatenation",
+			leftArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 3},
+				Name:     "$tmp3",
+			},
+			rightArg: &core.Var{
+				CoreNode: core.CoreNode{NodeID: 4},
+				Name:     "$tmp4",
+			},
+			expectedBuiltin: "concat_List",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create concat intrinsic
+			intrinsic := &core.Intrinsic{
+				CoreNode: core.CoreNode{NodeID: 100},
+				Op:       core.OpConcat,
+				Args:     []core.CoreExpr{tt.leftArg, tt.rightArg},
+			}
+
+			// Create lowerer with CoreTI populated
+			typeEnv := types.NewTypeEnv()
+			coreTI := types.NewCoreTypeInfo()
+
+			// Populate CoreTI with the type of the concat intrinsic
+			// The type of ++ depends on what it's concatenating
+			if tt.expectedBuiltin == "concat_String" {
+				// For string concatenation, the intrinsic returns string
+				coreTI.Set(intrinsic.ID(), types.TString)
+			} else {
+				// For list concatenation, the intrinsic returns List[int]
+				listType := &types.TApp{
+					Constructor: &types.TCon{Name: "List"},
+					Args:        []types.Type{types.TInt},
+				}
+				coreTI.Set(intrinsic.ID(), listType)
+			}
+
+			lowerer := NewOpLowerer(typeEnv, coreTI)
+
+			// Lower the intrinsic
+			lowered := lowerer.lowerExpr(intrinsic)
+
+			// Verify it was lowered to an App node
+			app, ok := lowered.(*core.App)
+			if !ok {
+				t.Fatalf("Expected App node, got %T", lowered)
+			}
+
+			// Verify the function is a builtin reference to the expected concat variant
+			builtinRef, ok := app.Func.(*core.VarGlobal)
+			if !ok {
+				t.Fatalf("Expected VarGlobal for builtin, got %T", app.Func)
+			}
+
+			if builtinRef.Ref.Name != tt.expectedBuiltin {
+				t.Errorf("Expected %s builtin, got %s", tt.expectedBuiltin, builtinRef.Ref.Name)
 			}
 		})
 	}

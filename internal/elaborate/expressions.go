@@ -95,6 +95,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.List:
 		return e.normalizeList(ex)
 
+	case *ast.Array:
+		return e.normalizeArray(ex)
+
 	case *ast.Tuple:
 		return e.normalizeTuple(ex)
 
@@ -394,12 +397,45 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			return nil, err
 		}
 
-		return &core.Let{
+		// ANF completion: if the value is a nested Let expression, flatten it.
+		// This handles cases like: let npc = { pos: { x: 10, y: 20 } } where
+		// the nested record normalization produces Let bindings in the value.
+		//
+		// Before flattening: Let npc = (Let $tmp1 = inner in outer) in body
+		// After flattening:  Let $tmp1 = inner in Let npc = outer in body
+		innerBindings, flattenedValue := extractLetBindings(value)
+
+		if len(innerBindings) == 0 {
+			// No nested lets - simple case
+			return &core.Let{
+				CoreNode: e.makeNode(let.Position()),
+				Name:     let.Name,
+				Value:    flattenedValue,
+				Body:     body,
+			}, nil
+		}
+
+		// Build flattened structure: inner bindings outermost, user binding innermost
+		// Start with: Let name = flattenedValue in body
+		result := &core.Let{
 			CoreNode: e.makeNode(let.Position()),
 			Name:     let.Name,
-			Value:    value,
+			Value:    flattenedValue,
 			Body:     body,
-		}, nil
+		}
+
+		// Wrap with inner bindings in reverse order (innermost binding becomes outermost let)
+		for i := len(innerBindings) - 1; i >= 0; i-- {
+			bind := innerBindings[i]
+			result = &core.Let{
+				CoreNode: e.makeNode(bind.Value.Span()),
+				Name:     bind.Name,
+				Value:    bind.Value,
+				Body:     result,
+			}
+		}
+
+		return result, nil
 	}
 }
 
@@ -609,7 +645,21 @@ func (e *Elaborator) normalizeRecord(rec *ast.Record) (core.CoreExpr, error) {
 }
 
 // normalizeRecordAccess handles field access
+// Also handles qualified module access (e.g., List.map for import std/list as List)
 func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr, error) {
+	// Check for module alias qualified access (e.g., List.map)
+	if ident, ok := acc.Record.(*ast.Identifier); ok {
+		qualifiedName := fmt.Sprintf("%s.%s", ident.Name, acc.Field)
+		if ref, ok := e.globalEnv[qualifiedName]; ok {
+			// This is a qualified module access, resolve to global reference
+			return &core.VarGlobal{
+				CoreNode: e.makeNode(acc.Position()),
+				Ref:      ref,
+			}, nil
+		}
+	}
+
+	// Standard record field access
 	record, binds, err := e.normalizeToAtomic(acc.Record)
 	if err != nil {
 		return nil, err
@@ -674,6 +724,28 @@ func (e *Elaborator) normalizeList(list *ast.List) (core.CoreExpr, error) {
 
 	result := &core.List{
 		CoreNode: e.makeNode(list.Position()),
+		Elements: elements,
+	}
+
+	return e.wrapWithBindings(result, allBindings), nil
+}
+
+// normalizeArray handles array construction
+func (e *Elaborator) normalizeArray(arr *ast.Array) (core.CoreExpr, error) {
+	var elements []core.CoreExpr
+	var allBindings []binding
+
+	for _, elem := range arr.Elements {
+		atomic, binds, err := e.normalizeToAtomic(elem)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, atomic)
+		allBindings = append(allBindings, binds...)
+	}
+
+	result := &core.Array{
+		CoreNode: e.makeNode(arr.Position()),
 		Elements: elements,
 	}
 

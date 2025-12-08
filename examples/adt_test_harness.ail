@@ -1,0 +1,50 @@
+module examples/adt_test_harness
+
+-- ADT Test Harness Example
+-- Demonstrates inline tests with ADT constructor inputs (fixed in v0.5.0: M-BUG-ADT-TEST-HARNESS-SCOPE)
+-- Previously failed with: "undefined variable: North" when using ADT constructors in test inputs
+
+-- Direction ADT (nullary constructors)
+type Direction = North | South | East | West
+
+-- Convert direction to degrees
+pure func directionToDegrees(d: Direction) -> int
+    tests [(North, 0), (East, 90), (South, 180), (West, 270)]
+{
+    match d {
+        North => 0,
+        East => 90,
+        South => 180,
+        West => 270
+    }
+}
+
+
+-- Option ADT (with data constructor)
+type Option[a] = Some(a) | None
+
+-- Get value with default for Option
+pure func getOrDefault(opt: Option[int], default: int) -> int
+    tests [((Some(42), 0), 42), ((None, 100), 100)]
+{
+    match opt {
+        Some(x) => x,
+        None => default
+    }
+}
+
+
+-- Bool ADT using directions
+pure func isNorthOrSouth(d: Direction) -> bool
+    tests [(North, true), (South, true), (East, false), (West, false)]
+{
+    match d {
+        North => true,
+        South => true,
+        _ => false
+    }
+}
+
+
+-- Final expression
+directionToDegrees(North) + directionToDegrees(East)

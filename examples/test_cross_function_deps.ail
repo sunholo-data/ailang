@@ -1,0 +1,145 @@
+module examples/test_cross_function_deps
+
+-- Demonstrates M-TESTING-DEPS: Inline tests for functions with cross-function dependencies
+-- This example showcases three dependency patterns:
+-- 1. Chain dependencies (lcm -> gcd)
+-- 2. Mutual recursion (isEven <-> isOdd)
+-- 3. Helper function chains (sumOfSquares -> square)
+
+-- =============================================================================
+-- Pattern 1: Chain Dependency (lcm depends on gcd)
+-- =============================================================================
+
+-- GCD using Euclidean algorithm (self-recursive)
+pure func gcd(a: int, b: int) -> int
+  tests [
+    ((12, 8), 4),
+    ((54, 24), 6),
+    ((17, 19), 1),
+    ((0, 5), 5)
+  ]
+{
+  if b == 0 then a else gcd(b, a % b)
+}
+
+-- LCM depends on gcd - M-TESTING-DEPS automatically includes gcd in test harness
+pure func lcm(a: int, b: int) -> int
+  tests [
+    ((4, 6), 12),
+    ((3, 5), 15),
+    ((12, 18), 36),
+    ((1, 10), 10)
+  ]
+{
+  (a * b) / gcd(a, b)
+}
+
+-- =============================================================================
+-- Pattern 2: Mutual Recursion (isEven <-> isOdd)
+-- =============================================================================
+
+-- isEven depends on isOdd - M-TESTING-DEPS includes both in cluster
+pure func isEven(n: int) -> bool
+  tests [
+    (0, true),
+    (1, false),
+    (4, true),
+    (7, false)
+  ]
+{
+  if n == 0 then true else isOdd(n - 1)
+}
+
+-- isOdd depends on isEven - M-TESTING-DEPS detects mutual recursion
+pure func isOdd(n: int) -> bool
+  tests [
+    (0, false),
+    (1, true),
+    (4, false),
+    (7, true)
+  ]
+{
+  if n == 0 then false else isEven(n - 1)
+}
+
+-- =============================================================================
+-- Pattern 3: Helper Function Chain
+-- =============================================================================
+
+-- Square helper function
+pure func square(x: int) -> int
+  tests [
+    (0, 0),
+    (3, 9),
+    (-4, 16),
+    (5, 25)
+  ]
+{
+  x * x
+}
+
+-- Sum of squares uses square helper
+pure func sumOfSquares(a: int, b: int) -> int
+  tests [
+    ((3, 4), 25),
+    ((0, 5), 25),
+    ((2, 2), 8),
+    ((1, 1), 2)
+  ]
+{
+  square(a) + square(b)
+}
+
+-- Distance squared uses square helper (Pythagorean theorem without sqrt)
+pure func distanceSquared(x1: int, y1: int, x2: int, y2: int) -> int
+  tests [
+    ((0, 0, 3, 4), 25),
+    ((1, 1, 4, 5), 25),
+    ((0, 0, 0, 0), 0),
+    ((0, 0, 1, 1), 2)
+  ]
+{
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  square(dx) + square(dy)
+}
+
+-- =============================================================================
+-- Pattern 4: Multi-level chain (power -> multiply -> add)
+-- =============================================================================
+
+-- Basic addition (self-contained)
+pure func add(a: int, b: int) -> int
+  tests [
+    ((2, 3), 5),
+    ((0, 0), 0),
+    ((-1, 1), 0)
+  ]
+{
+  a + b
+}
+
+-- Multiply using repeated addition
+pure func multiply(a: int, b: int) -> int
+  tests [
+    ((3, 4), 12),
+    ((0, 5), 0),
+    ((7, 1), 7)
+  ]
+{
+  if b == 0 then 0
+  else add(a, multiply(a, b - 1))
+}
+
+-- Power using repeated multiplication (3-level chain: power -> multiply -> add)
+pure func power(base: int, exp: int) -> int
+  tests [
+    ((2, 3), 8),
+    ((3, 2), 9),
+    ((5, 0), 1),
+    ((10, 1), 10)
+  ]
+{
+  if exp == 0 then 1
+  else multiply(base, power(base, exp - 1))
+}

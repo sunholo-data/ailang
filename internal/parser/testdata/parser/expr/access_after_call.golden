@@ -2,14 +2,19 @@
   "file": {
     "decls": [
       {
-        "name": "getUser",
-        "type": "Identifier"
-      },
-      {
         "field": "name",
         "record": {
-          "kind": "Unit",
-          "type": "Literal"
+          "args": [
+            {
+              "kind": "Unit",
+              "type": "Literal"
+            }
+          ],
+          "func": {
+            "name": "getUser",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
         },
         "type": "RecordAccess"
       }
@@ -17,14 +22,19 @@
     "path": "test://unit",
     "statements": [
       {
-        "name": "getUser",
-        "type": "Identifier"
-      },
-      {
         "field": "name",
         "record": {
-          "kind": "Unit",
-          "type": "Literal"
+          "args": [
+            {
+              "kind": "Unit",
+              "type": "Literal"
+            }
+          ],
+          "func": {
+            "name": "getUser",
+            "type": "Identifier"
+          },
+          "type": "FuncCall"
         },
         "type": "RecordAccess"
       }

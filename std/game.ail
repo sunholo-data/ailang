@@ -1,0 +1,20 @@
+-- std/game - Game development utilities
+--
+-- Frame timing for game loops: delta time, total time, frame count.
+-- Used by game engines to provide frame-rate independent timing.
+--
+-- Requires: Clock capability (--caps Clock)
+
+module std/game
+
+-- delta_time: Get time since last frame in seconds
+-- Use for frame-rate independent physics and movement
+export func delta_time() -> float ! {Clock} = _game_delta_time()
+
+-- total_time: Get total game time in seconds since start
+-- Use for time-based game logic (timers, animations)
+export func total_time() -> float ! {Clock} = _game_total_time()
+
+-- frame_count: Get current frame number (starts at 0)
+-- Use for frame-based logic (every N frames do X)
+export func frame_count() -> int ! {Clock} = _game_frame_count()

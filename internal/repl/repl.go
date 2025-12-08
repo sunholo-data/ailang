@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -30,12 +31,13 @@ var (
 
 // Config holds REPL configuration
 type Config struct {
-	TraceDefaulting bool
-	ShowCore        bool
-	ShowTyped       bool
-	DryLink         bool
-	Verbose         bool
-	ImportedModules []string
+	TraceDefaulting  bool
+	ShowCore         bool
+	ShowTyped        bool
+	DryLink          bool
+	Verbose          bool
+	StrictSyntaxMode bool
+	ImportedModules  []string
 }
 
 // REPL represents the Read-Eval-Print Loop
@@ -79,17 +81,22 @@ func NewWithVersion(version, buildTime string) *REPL {
 	evaluator.SetGlobalResolver(builtinResolver)
 
 	// Create effect context (grant IO by default for REPL convenience)
-	effContext := effects.NewEffContext()
-	effContext.Grant(effects.NewCapability("IO")) // Allow println, readLine, etc. in REPL
+	effContext := effects.NewEffContext([]string{}) // REPL has no CLI arguments
+	effContext.Grant(effects.NewCapability("IO"))   // Allow println, readLine, etc. in REPL
 	evaluator.SetEffContext(effContext)
 
 	// Enable experimental binop shim for REPL (handles float equality until OpLowering is complete)
 	evaluator.SetExperimentalBinopShim(true)
 
+	// Create type environment with builtins and inject prelude
+	// REPL always gets prelude (print, etc.) for convenience
+	typeEnv := types.NewTypeEnvWithBuiltins()
+	typeEnv = pipeline.InjectPrelude(typeEnv)
+
 	r := &REPL{
 		config:          &Config{},
-		env:             evaluator.Env(),                // Share the evaluator's environment (for persistent let bindings)
-		typeEnv:         types.NewTypeEnvWithBuiltins(), // Load all 49 builtins from spec registry
+		env:             evaluator.Env(), // Share the evaluator's environment (for persistent let bindings)
+		typeEnv:         typeEnv,         // Type env with builtins + prelude
 		instEnv:         types.NewInstanceEnv(),
 		dictReg:         types.NewDictionaryRegistry(),
 		instances:       make(map[string]core.DictValue),
@@ -110,6 +117,11 @@ func NewWithVersion(version, buildTime string) *REPL {
 // EnableTrace enables execution tracing
 func (r *REPL) EnableTrace() {
 	r.config.Verbose = true
+}
+
+// SetStrictSyntaxMode enables or disables strict syntax mode
+func (r *REPL) SetStrictSyntaxMode(strict bool) {
+	r.config.StrictSyntaxMode = strict
 }
 
 // getPrompt returns the REPL prompt with active capabilities
@@ -173,7 +185,7 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 	line.SetCompleter(func(line string) (c []string) {
 		if strings.HasPrefix(line, ":") {
 			commands := []string{":help", ":quit", ":type", ":import", ":dump-core",
-				":dump-typed", ":dry-link", ":trace-defaulting", ":instances",
+				":dump-typed", ":dry-link", ":strict", ":trace-defaulting", ":instances",
 				":history", ":clear", ":reset"}
 			for _, cmd := range commands {
 				if strings.HasPrefix(cmd, line) {

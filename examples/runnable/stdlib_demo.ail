@@ -1,0 +1,11 @@
+-- Standard library demo: string functions and options
+module examples/runnable/stdlib_demo
+import std/io (println)
+import std/list (map)
+import std/string (toUpper)
+import std/option (Some, getOrElse)
+
+export func main() -> () ! {IO} {
+  let s = toUpper("hello");
+  println("Result: " ++ s)
+}

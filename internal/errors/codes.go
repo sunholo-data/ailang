@@ -48,6 +48,12 @@ const (
 	// PAR013 indicates unexpected token before tests/properties (common missing })
 	PAR013 = "PAR013"
 
+	// PAR014 indicates 'const' keyword used (JavaScript/TypeScript pattern)
+	PAR014 = "PAR014"
+
+	// PAR015 indicates bare assignment without 'let' keyword (Python pattern)
+	PAR015 = "PAR015"
+
 	// PAR999 indicates internal parser error/panic
 	PAR999 = "PAR999"
 

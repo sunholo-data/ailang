@@ -1,0 +1,57 @@
+module examples/type_inference_regression
+
+-- Type Inference Regression Test
+-- Tests that [Direction] list types don't pollute int literals in same scope
+-- Reported by: stapledons_voyage (Dec 2025)
+-- Bug: "No instance for Num[[Direction]] in scope" when mixing ADT lists and ints
+-- Status: Could not reproduce after TVar2 fix - keeping as regression test
+
+type Direction = North | South | East | West
+type Position = { x: int, y: int }
+
+type MovementPattern =
+    | PatternPatrol([Direction])
+    | PatternRandomWalk(int)
+    | PatternStatic
+
+type NPC = {
+    pos: Position,
+    pattern: MovementPattern,
+    moveCounter: int,
+    patrolIndex: int
+}
+
+-- This function mixes [Direction] lists with int literals
+-- The bug caused 30 to be typed as [Direction] instead of int
+pure func init_npcs() -> [NPC] {
+    -- First create patrol NPC with direction list
+    let patrolPath = [East, South, West, North];
+    let npc_patrol = {
+        pos: { x: 0, y: 0 },
+        pattern: PatternPatrol(patrolPath),
+        moveCounter: 0,
+        patrolIndex: 0
+    };
+
+    -- Then create random walk NPC with int
+    -- Previously: 30 was incorrectly typed as [Direction]
+    let npc_random = {
+        pos: { x: 5, y: 5 },
+        pattern: PatternRandomWalk(30),
+        moveCounter: 30,
+        patrolIndex: 0
+    };
+
+    -- Static NPC
+    let npc_static = {
+        pos: { x: 10, y: 10 },
+        pattern: PatternStatic,
+        moveCounter: 0,
+        patrolIndex: 0
+    };
+
+    [npc_patrol, npc_random, npc_static]
+}
+
+-- If this runs without error, the regression is not present
+init_npcs()

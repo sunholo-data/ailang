@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/sunholo/ailang/internal/eval_harness"
@@ -56,14 +58,28 @@ func runEvalSuite() {
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for code execution")
-	maxConcurrent := fs.Int("parallel", 5, "Maximum concurrent API calls (0 = sequential)")
-	selfRepair := fs.Bool("self-repair", false, "Enable single-shot self-repair on errors")
+	maxConcurrent := fs.Int("parallel", 10, "Maximum concurrent API calls across all providers (0 = sequential, recommended: 10-15)")
+	selfRepair := fs.Bool("self-repair", true, "Enable single-shot self-repair on errors (default: true)")
+	noSelfRepair := fs.Bool("no-self-repair", false, "Disable self-repair (run without error correction)")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
+
+	// Agent mode flags
+	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code headless mode)")
+	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
+	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
+	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
+	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Initialize models configuration
+	if err := eval_harness.InitModelsConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not load models.yml: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Continuing with fallback model lists\n")
 	}
 
 	// Determine model list
@@ -90,7 +106,19 @@ func runEvalSuite() {
 	}
 	var benchmarkList []string
 	if *benchmarks == "" {
-		// Auto-discover benchmarks from benchmarks/ directory
+		// SAFETY: Agent mode requires explicit benchmark list to prevent accidental large runs
+		if *agent {
+			fmt.Fprintf(os.Stderr, "Error: --agent mode requires explicit --benchmarks list\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Agent mode is expensive and time-consuming. You must explicitly specify which benchmarks to run.\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Example:\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --benchmarks cli_args,fizzbuzz\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			os.Exit(1)
+		}
+
+		// Auto-discover benchmarks from benchmarks/ directory (standard mode only)
 		benchmarkList = discoverBenchmarks()
 		if len(benchmarkList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No benchmarks found in benchmarks/ directory\n")
@@ -112,6 +140,43 @@ func runEvalSuite() {
 		langList[i] = strings.TrimSpace(langList[i])
 	}
 
+	// Filter models for agent mode
+	if *agent {
+		if eval_harness.GlobalModelsConfig == nil {
+			fmt.Fprintf(os.Stderr, "Error: models.yml not loaded, cannot determine agent support\n")
+			os.Exit(1)
+		}
+
+		// Filter to only models that support agent eval
+		originalModels := modelList
+		modelList = eval_harness.GlobalModelsConfig.FilterAgentSupportedModels(modelList)
+
+		// Warn about skipped models
+		if len(modelList) < len(originalModels) {
+			skipped := []string{}
+			for _, model := range originalModels {
+				if !eval_harness.GlobalModelsConfig.SupportsAgentEval(model) {
+					skipped = append(skipped, model)
+				}
+			}
+			fmt.Fprintf(os.Stderr, "%s Agent mode: Skipping %d unsupported model(s): %v\n",
+				yellow("⚠️"), len(skipped), skipped)
+			fmt.Fprintf(os.Stderr, "   These models require CLI integration (not yet implemented)\n")
+			fmt.Fprintf(os.Stderr, "   Only Claude models support agent eval currently\n")
+			fmt.Println()
+		}
+
+		if len(modelList) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No models support agent evaluation\n")
+			fmt.Fprintf(os.Stderr, "Agent mode currently only supports Claude models (claude-sonnet-4-5, claude-haiku-4-5)\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Example:\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --models claude-haiku-4-5 --benchmarks fizzbuzz\n")
+			fmt.Fprintf(os.Stderr, "\n")
+			os.Exit(1)
+		}
+	}
+
 	// Calculate total runs
 	totalRuns := len(modelList) * len(benchmarkList) * len(langList)
 
@@ -129,6 +194,31 @@ func runEvalSuite() {
 	// Check API keys
 	checkAPIKeys(modelList)
 
+	// M-EVAL-GUARD: Start watchdog to detect and kill orphaned eval processes
+	watchdog := eval_harness.NewWatchdog(15*time.Minute, 60*time.Second)
+	watchdogDone := make(chan struct{})
+	go watchdog.Start(watchdogDone)
+	defer func() {
+		close(watchdogDone)
+		if report := watchdog.Report(); report != "No orphaned processes detected" {
+			fmt.Printf("%s %s\n", yellow("⚠️"), report)
+		}
+	}()
+
+	// M-EVAL-GUARD: Setup signal handler for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Printf("\n%s Received interrupt, cleaning up...\n", yellow("⚠️"))
+		// Kill any remaining orphaned processes
+		killed := watchdog.KillOrphans()
+		if killed > 0 {
+			fmt.Printf("Killed %d orphaned process(es)\n", killed)
+		}
+		os.Exit(1)
+	}()
+
 	// Clean previous results (unless resuming)
 	if !*skipExisting {
 		fmt.Printf("%s Cleaning previous results...\n", cyan("→"))
@@ -137,12 +227,23 @@ func runEvalSuite() {
 		fmt.Printf("%s Resuming run (skipping existing results)...\n", cyan("→"))
 	}
 
-	// Build job list
+	// Build job list in round-robin order by model
+	// This interleaves models to distribute API calls across providers (OpenAI, Anthropic, Google)
+	// allowing higher parallelism without hitting single-provider rate limits.
+	//
+	// Example with 3 models, 2 benchmarks, 2 languages:
+	//   Old order: [m1/b1/l1, m1/b1/l2, m1/b2/l1, m1/b2/l2, m2/b1/l1, ...]
+	//   New order: [m1/b1/l1, m2/b1/l1, m3/b1/l1, m1/b1/l2, m2/b1/l2, ...]
+	//
+	// With --parallel 10 and 3 providers, this means ~3-4 concurrent calls per provider
+	// instead of 10 calls to the same provider.
 	var jobs []Job
 	skippedCount := 0
-	for _, model := range modelList {
-		for _, benchmark := range benchmarkList {
-			for _, lang := range langList {
+	for _, lang := range langList {
+		// For each benchmark, create jobs for all models (round-robin)
+		for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
+			for _, model := range modelList {
+				benchmark := benchmarkList[benchIdx]
 				job := Job{
 					Model:     model,
 					Benchmark: benchmark,
@@ -152,10 +253,28 @@ func runEvalSuite() {
 				// Check if result already exists (if resuming)
 				if *skipExisting {
 					// Result filename format: benchmarkID_lang_model_timestamp.json
-					// We check for any file matching the pattern (ignoring timestamp)
-					pattern := filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model))
-					matches, _ := filepath.Glob(pattern)
-					if len(matches) > 0 {
+					// Check in appropriate subdirectory based on eval mode
+					var patterns []string
+					if *agent {
+						// Agent mode: check agent/ subdirectory
+						patterns = append(patterns, filepath.Join(*outputDir, "agent", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+					} else {
+						// Standard mode: check standard/ subdirectory
+						patterns = append(patterns, filepath.Join(*outputDir, "standard", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+					}
+					// Also check root directory for legacy results
+					patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+
+					foundExisting := false
+					for _, pattern := range patterns {
+						matches, _ := filepath.Glob(pattern)
+						if len(matches) > 0 {
+							foundExisting = true
+							break
+						}
+					}
+
+					if foundExisting {
 						skippedCount++
 						continue // Skip this job
 					}
@@ -171,9 +290,49 @@ func runEvalSuite() {
 		fmt.Println()
 	}
 
+	// Handle --no-self-repair flag (overrides --self-repair=true default)
+	finalSelfRepair := *selfRepair
+	if *noSelfRepair {
+		finalSelfRepair = false
+		fmt.Println("Self-repair DISABLED (--no-self-repair)")
+	} else {
+		fmt.Println("Self-repair ENABLED (default)")
+	}
+
+	// Configure agent mode if requested
+	var agentConfig *eval_harness.AgentBenchmarkConfig
+	if *agent {
+		// Agent CLI model will be determined per-job based on the code generation model
+		// (unless --agent-model is explicitly provided as override)
+		agentModelOverride := *agentModel
+
+		fmt.Println()
+		fmt.Printf("%s Agent mode ENABLED (Claude Code)\n", cyan("🤖"))
+		fmt.Printf("  - Models: %v\n", modelList)
+		if agentModelOverride != "" {
+			fmt.Printf("  - Agent CLI model: %s (override)\n", agentModelOverride)
+		} else {
+			fmt.Printf("  - Agent CLI model: per-model lookup from models.yml\n")
+		}
+		fmt.Printf("  - Parallel sessions: %d\n", *agentMaxConcurrent)
+		fmt.Printf("  - Rate limit: %d req/sec\n", *agentRequestsPerSecond)
+		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
+		fmt.Println()
+
+		agentConfig = &eval_harness.AgentBenchmarkConfig{
+			MaxConcurrent:     *agentMaxConcurrent,
+			RequestsPerSecond: *agentRequestsPerSecond,
+			TimeoutSeconds:    *agentTimeout,
+			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
+			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
+			ClaudePath:        "claude",           // Use PATH
+			ClaudeModel:       agentModelOverride, // Empty unless override specified
+		}
+	}
+
 	// Run benchmarks with concurrency control
 	startTime := time.Now()
-	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, *selfRepair, *promptVersion)
+	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
 	duration := time.Since(startTime)
 
 	// Summary
@@ -209,7 +368,7 @@ type Job struct {
 }
 
 // runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string) []SuiteResult {
+func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -263,7 +422,7 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 				cyan(j.Benchmark), green(j.Model), j.Language)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion)
+			success, err := runSingleBenchmark(j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
@@ -300,7 +459,7 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 }
 
 // runSingleBenchmark executes a single benchmark configuration
-func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string) (bool, error) {
+func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
 	// Load benchmark spec
 	specPath := filepath.Join("benchmarks", benchmarkID+".yml")
 	spec, err := eval_harness.LoadSpec(specPath)
@@ -313,7 +472,84 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		return false, fmt.Errorf("language %s not supported by benchmark %s", lang, benchmarkID)
 	}
 
-	// Create AI agent
+	// Agent mode: Use Claude Code headless evaluation
+	if agentConfig != nil {
+		// Create unique workspace for this benchmark session
+		// Format: /tmp/ailang_eval/<benchmarkID>_<model>_<timestamp>_<pid>
+		timestamp := time.Now().Format("20060102_150405")
+		workspaceID := fmt.Sprintf("%s_%s_%s_%d", benchmarkID, model, timestamp, os.Getpid())
+		sessionConfig := *agentConfig // Copy base config
+		sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
+
+		// Use per-benchmark timeout from YAML if specified, otherwise use default from flag
+		if spec.Timeout > 0 {
+			sessionConfig.TimeoutSeconds = spec.Timeout
+		}
+
+		// Look up agent model for this specific code generation model (if not overridden)
+		if sessionConfig.ClaudeModel == "" {
+			agentModelName, err := eval_harness.GlobalModelsConfig.GetAgentModelName(model)
+			if err != nil {
+				return false, fmt.Errorf("could not determine agent model for %s: %w", model, err)
+			}
+			sessionConfig.ClaudeModel = agentModelName
+		}
+
+		result, err := eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
+		if err != nil {
+			return false, fmt.Errorf("agent benchmark failed: %w", err)
+		}
+
+		// Save result to JSON
+		logger := eval_harness.NewMetricsLogger(outputDir)
+
+		// Convert AgentBenchmarkResult to RunMetrics format for logging
+		// Agent mode now uses standard validation fields (compile_ok, runtime_ok, stdout_ok)
+		metrics := &eval_harness.RunMetrics{
+			ID:           result.BenchmarkID,
+			Lang:         lang,
+			Model:        model,
+			Seed:         seed,
+			InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			OutputTokens: result.Usage.OutputTokens,
+			TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
+			CostUSD:      result.Cost,
+			// Use standard validation fields from agent runner
+			CompileOk:  result.CompileOk,
+			RuntimeOk:  result.RuntimeOk,
+			StdoutOk:   result.StdoutOk,
+			DurationMs: int64(result.DurationMS),
+			// Use standard error categorization (same as standard eval mode)
+			ErrorCategory:  eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk),
+			Stdout:         result.Stdout,
+			Stderr:         result.Stderr,
+			ExpectedStdout: spec.ExpectedOut,
+			Timestamp:      time.Now(),
+			PromptVersion:  result.PromptVersion, // Track actual prompt version used (e.g., v0.3.22 for AILANG, python for Python)
+			FirstAttemptOk: result.Success,
+			RepairUsed:     false, // Agent mode doesn't use standard repair loop
+			RepairOk:       false, // Agent mode doesn't use standard repair loop
+			Caps:           spec.Caps,
+			Code:           result.SolutionCode,
+			// Store agent KPI metrics (turns, transcript) for comparison with standard mode
+			AgentTurns:      result.NumTurns,
+			AgentTranscript: result.SessionLog,
+			EvalMode:        eval_harness.EvalModeAgent, // Mark as agent evaluation
+		}
+
+		// Append transcript to stderr for backward compatibility with existing tools
+		if result.SessionLog != "" {
+			metrics.Stderr += "\n\n=== Claude Session Transcript ===\n" + result.SessionLog
+		}
+
+		if err := logger.Log(metrics); err != nil {
+			return false, fmt.Errorf("failed to save result: %w", err)
+		}
+
+		return result.Success, nil
+	}
+
+	// Standard mode: Create AI agent
 	agent, err := eval_harness.NewAIAgent(model, seed)
 	if err != nil {
 		return false, fmt.Errorf("failed to create AI agent: %w", err)
@@ -327,34 +563,66 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 
 	// Generate prompt
 	var prompt string
+	var actualPromptVersion string
 	if promptVersion != "" {
 		// Explicit version specified via --prompt-version flag
-		loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
-		if err != nil {
-			return false, fmt.Errorf("failed to create prompt loader: %w", err)
-		}
-		customPrompt, err := loader.LoadPrompt(promptVersion)
-		if err != nil {
-			return false, fmt.Errorf("failed to load prompt version: %w", err)
-		}
-		prompt = customPrompt
-		if spec.TaskPrompt != "" {
-			prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
-		}
-	} else {
-		// Try spec.PromptFiles first, then fall back to active version from registry
-		prompt = spec.PromptForLanguage(lang)
-		if prompt == "" && lang == "ailang" {
-			// No prompt in spec, use active version from registry
+		if lang == "python" {
+			// Python always uses prompts/python.md (not versioned)
+			pythonPromptData, err := os.ReadFile("prompts/python.md")
+			if err != nil {
+				return false, fmt.Errorf("failed to load Python prompt: %w", err)
+			}
+			prompt = string(pythonPromptData)
+			actualPromptVersion = "python"
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		} else {
+			// AILANG uses versioned prompts from prompts/versions.json
 			loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
 			if err != nil {
 				return false, fmt.Errorf("failed to create prompt loader: %w", err)
 			}
-			activePrompt, err := loader.GetActivePrompt()
+			customPrompt, err := loader.LoadPrompt(promptVersion)
 			if err != nil {
-				return false, fmt.Errorf("failed to load active prompt: %w", err)
+				return false, fmt.Errorf("failed to load prompt version: %w", err)
 			}
-			prompt = activePrompt
+			prompt = customPrompt
+			actualPromptVersion = promptVersion
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		}
+	} else {
+		// No explicit prompt version specified
+		if lang == "python" {
+			// Python always uses prompts/python.md (not versioned)
+			pythonPromptData, err := os.ReadFile("prompts/python.md")
+			if err != nil {
+				return false, fmt.Errorf("failed to load Python prompt: %w", err)
+			}
+			prompt = string(pythonPromptData)
+			actualPromptVersion = "python"
+			if spec.TaskPrompt != "" {
+				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			}
+		} else {
+			// AILANG: Try spec.PromptFiles first, then fall back to active version from registry
+			prompt = spec.PromptForLanguage(lang)
+			if prompt == "" {
+				// No prompt in spec, use active version from registry
+				loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+				if err != nil {
+					return false, fmt.Errorf("failed to create prompt loader: %w", err)
+				}
+				activePrompt, err := loader.GetActivePrompt()
+				if err != nil {
+					return false, fmt.Errorf("failed to load active prompt: %w", err)
+				}
+				prompt = activePrompt
+				// Track the actual version used from registry
+				actualPromptVersion = loader.GetActiveVersionID()
+			}
 			if spec.TaskPrompt != "" {
 				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
 			}
@@ -370,8 +638,8 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 	// Execute with repair runner
 	ctx := context.Background()
 	repairRunner := eval_harness.NewRepairRunner(agent, runner, spec, timeout, selfRepair)
-	if promptVersion != "" {
-		repairRunner.SetPromptVersion(promptVersion)
+	if actualPromptVersion != "" {
+		repairRunner.SetPromptVersion(actualPromptVersion)
 	}
 
 	metrics, err := repairRunner.Run(ctx, prompt)

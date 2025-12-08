@@ -35,6 +35,7 @@ const (
 	MODULE
 	IMPORT
 	EXPORT
+	EXTERN // extern func declarations for Go interop
 	FORALL
 	EXISTS
 	TEST
@@ -49,6 +50,7 @@ const (
 	SEND
 	RECV
 	TIMEOUT
+	AS // as (import aliasing)
 
 	// Operators
 	PLUS      // +
@@ -141,6 +143,7 @@ var tokens = map[TokenType]string{
 	MODULE:     "module",
 	IMPORT:     "import",
 	EXPORT:     "export",
+	EXTERN:     "extern",
 	FORALL:     "forall",
 	EXISTS:     "exists",
 	TEST:       "test",
@@ -155,6 +158,7 @@ var tokens = map[TokenType]string{
 	SEND:       "send",
 	RECV:       "recv",
 	TIMEOUT:    "timeout",
+	AS:         "as",
 
 	PLUS:      "+",
 	MINUS:     "-",
@@ -239,6 +243,7 @@ var keywords = map[string]TokenType{
 	"module":     MODULE,
 	"import":     IMPORT,
 	"export":     EXPORT,
+	"extern":     EXTERN,
 	"forall":     FORALL,
 	"exists":     EXISTS,
 	"test":       TEST,
@@ -253,6 +258,7 @@ var keywords = map[string]TokenType{
 	"send":       SEND,
 	"recv":       RECV,
 	"timeout":    TIMEOUT,
+	"as":         AS,
 	"true":       TRUE,
 	"false":      FALSE,
 	"not":        NOT,
@@ -346,7 +352,7 @@ func (t Token) IsKeyword() bool {
 	switch t.Type {
 	case FUNC, PURE, LET, IN, IF, THEN, ELSE,
 		MATCH, WITH, TYPE, CLASS, INSTANCE,
-		MODULE, IMPORT, EXPORT,
+		MODULE, IMPORT, EXPORT, EXTERN,
 		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
 		SEND, RECV, TIMEOUT,
@@ -369,18 +375,20 @@ func (t Token) Precedence() int {
 		return 4 // EQUALS
 	case LT, GT, LTE, GTE:
 		return 5 // LESSGREATER
+	case DCOLON:
+		return 6 // CONS (:: list cons - right associative, S-CONS sugar)
 	case APPEND:
-		return 6 // APPEND (++ string concatenation)
+		return 7 // APPEND (++ string concatenation)
 	case PLUS, MINUS:
-		return 7 // SUM
+		return 8 // SUM
 	case STAR, SLASH, PERCENT:
-		return 8 // PRODUCT
+		return 9 // PRODUCT
 	case NOT:
-		return 9 // PREFIX (unary operators)
-	case LPAREN:
-		return 10 // CALL (function application)
+		return 10 // PREFIX (unary operators)
+	case LPAREN, UNIT:
+		return 11 // CALL (function application) - UNIT handles f() sugar
 	case DOT:
-		return 11 // DOT_ACCESS (field access - highest)
+		return 12 // DOT_ACCESS (field access - highest)
 	default:
 		return 0
 	}

@@ -36,236 +36,170 @@ Invoke this skill when:
 3. **Document as You Go**: Update CHANGELOG.md and sprint plan progressively
 4. **Pause for Breath**: Stop at natural breakpoints for review and approval
 5. **Track Everything**: Use TodoWrite to maintain visible progress
+6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
+
+## Multi-Session Continuity (NEW)
+
+**Sprint execution can now span multiple Claude Code sessions!**
+
+Based on [Anthropic's long-running agent patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), sprint-executor implements the "Coding Agent" pattern:
+
+- **Session Startup Routine**: Every session starts with `session_start.sh`
+  - Checks working directory
+  - Reads JSON progress file (`.ailang/state/sprints/sprint_<id>.json`)
+  - Reviews recent git commits
+  - Validates tests pass
+  - Prints "Here's where we left off" summary
+
+- **Structured Progress Tracking**: JSON file tracks state
+  - Features with `passes: true/false/null` (follows "constrained modification" pattern)
+  - Velocity metrics updated automatically
+  - Clear checkpoint messages
+  - Session timestamps
+
+- **Pause and Resume**: Work can be interrupted at any time
+  - Status saved to JSON: `not_started`, `in_progress`, `paused`, `completed`
+  - Next session picks up exactly where you left off
+  - No loss of context or progress
+
+**For JSON schema details**, see [`resources/json_progress_schema.md`](resources/json_progress_schema.md)
 
 ## Available Scripts
 
+### `scripts/session_start.sh <sprint_id>` **NEW**
+Resume sprint execution across multiple sessions.
+
+**When to use:** ALWAYS at the start of EVERY session continuing a sprint.
+
+See script documentation for full output format.
+
 ### `scripts/validate_prerequisites.sh`
-Validate prerequisites before starting sprint execution.
+Validate prerequisites before starting sprint execution (tests, linting, git status).
 
-**Usage:**
-```bash
-.claude/skills/sprint-executor/scripts/validate_prerequisites.sh
-```
+### `scripts/validate_sprint_json.sh <sprint_id>` **NEW**
+**REQUIRED before starting any sprint.** Validates that sprint JSON has real milestones (not placeholders).
 
-**Output:**
-```
-Validating sprint prerequisites...
-
-1/4 Checking working directory...
-  ✓ Working directory clean
-
-2/4 Checking current branch...
-  ✓ On branch: dev
-
-3/4 Running tests...
-  ✓ All tests pass
-
-4/4 Running linter...
-  ✓ Linting passes
-
-✓ All prerequisites validated!
-Ready to start sprint execution.
-```
+**What it checks:**
+- No placeholder milestone IDs (`MILESTONE_ID`)
+- No placeholder acceptance criteria (`Criterion 1/2`)
+- At least 2 milestones defined
+- All milestones have custom values (not defaults)
+- Dependencies reference valid milestone IDs
 
 **Exit codes:**
-- `0` - All prerequisites pass
-- `1` - One or more prerequisites fail
+- `0` - Valid JSON, ready for execution
+- `1` - Invalid JSON or placeholders detected (sprint-planner must fix)
 
 ### `scripts/milestone_checkpoint.sh <milestone_name>`
-Run checkpoint after completing a milestone.
+Run checkpoint after completing a milestone (tests, linting, git diff).
+**Now includes JSON update reminder!** Shows current milestone statuses and prompts you to update the sprint JSON.
 
-**Usage:**
+### `scripts/acceptance_test.sh <milestone_id> <test_type>` **NEW**
+Run end-to-end acceptance tests (parser, builtin, examples, REPL, e2e).
+
+### `scripts/finalize_sprint.sh <sprint_id> [version]` **NEW**
+Finalize a completed sprint by moving design docs and updating status.
+
+**What it does:**
+- Moves design doc from `planned/` to `implemented/<version>/`
+- Moves sprint plan markdown to `implemented/<version>/`
+- Updates design doc status to "IMPLEMENTED"
+- Updates sprint JSON status to "completed"
+- Updates file paths in sprint JSON
+
+**When to use:** After all milestones pass and sprint is complete.
+
+**Example:**
 ```bash
-.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh "M-S1.1: Parser foundation"
-```
-
-**Output:**
-```
-Running checkpoint for: M-S1.1: Parser foundation
-
-1/3 Running tests...
-  ✓ Tests pass
-
-2/3 Running linter...
-  ✓ Linting passes
-
-3/3 Files changed in this milestone...
- internal/parser/parser.go   | 125 ++++++++++++++++++
- internal/parser/parser_test.go | 89 +++++++++++++
- 2 files changed, 214 insertions(+)
-
-✓ Milestone checkpoint passed!
-Ready to proceed to next milestone.
+.claude/skills/sprint-executor/scripts/finalize_sprint.sh M-BUG-RECORD-UPDATE-INFERENCE v0_4_9
 ```
 
 ## Execution Flow
 
-### Phase 1: Initialize Sprint
+### Phase 0: Session Resumption (for continuing sprints)
 
-#### 1. Read Sprint Plan
-- Parse sprint plan document (e.g., `design_docs/20251019/M-S1.md`)
-- Extract all milestones and tasks
-- Note dependencies and acceptance criteria
-- Identify estimated LOC and duration
+**If this is NOT the first session for this sprint:**
 
-#### 2. Validate Prerequisites
-
-**Use the validation script:**
 ```bash
-.claude/skills/sprint-executor/scripts/validate_prerequisites.sh
+# ALWAYS run session_start.sh first!
+.claude/skills/sprint-executor/scripts/session_start.sh <sprint-id>
 ```
 
-**Manual checks:**
-- Working directory clean: `git status --short`
-- Current tests pass: `make test`
-- Current linting passes: `make lint`
-- On correct branch (usually `dev`)
+This prints "Here's where we left off" summary. **Then skip to Phase 2** to continue with the next milestone.
 
-**If validation fails:**
-- Fix issues before starting
-- Don't proceed with dirty working directory
-- Don't start with failing tests or linting
+### Phase 1: Initialize Sprint (first session only)
 
-#### 3. Create Todo List
-
-**Use TodoWrite to create tasks:**
-- Extract all milestones from sprint plan
-- Mark first milestone as `in_progress`
-- Keep remaining tasks as `pending`
-- This provides real-time progress visibility
-
-#### 4. Initial Status Update
-- Update sprint plan with "🔄 In Progress" status
-- Add start timestamp
-- Commit sprint plan update (optional)
+1. **Validate Sprint JSON** - Run `validate_sprint_json.sh <sprint-id>` **REQUIRED FIRST**
+   - If validation fails, STOP and notify user that sprint-planner must fix the JSON
+   - Do NOT proceed with placeholder milestones
+2. **Read Sprint Plan** - Parse markdown + load JSON progress file (`.ailang/state/sprints/sprint_<id>.json`)
+3. **Validate Prerequisites** - Run `validate_prerequisites.sh` (tests, linting, git status)
+4. **Create Todo List** - Use TodoWrite to track all milestones
+5. **Initial Status Update** - Mark sprint as "🔄 In Progress"
+6. **Initial DX Review** - Consider tools/helpers that would make sprint easier (see [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md))
 
 ### Phase 2: Execute Milestones
 
-**For each milestone in the sprint:**
+**For each milestone:**
 
-#### Step 1: Pre-Implementation
-- Mark milestone as `in_progress` in TodoWrite
-- Review milestone goals and acceptance criteria
-- Identify files to create/modify
-- Estimate LOC if not already specified
+1. **Pre-Implementation** - Mark milestone as `in_progress` in TodoWrite
+2. **Implement** - Write code with DX awareness (helper functions, debug flags, better errors)
+3. **Write Tests** - TDD recommended for complex logic, comprehensive coverage required
+4. **Verify Quality** - Run `milestone_checkpoint.sh <milestone-name>` (tests + lint must pass)
+5. **Update Documentation**:
+   - CHANGELOG.md (what, LOC, key decisions)
+   - Example files (REQUIRED for new features)
+   - Sprint plan markdown (mark milestone as ✅)
+6. **Update Sprint JSON** ⚠️ **CRITICAL** - The checkpoint script reminds you!
+   - Update `passes: true/false` in `.ailang/state/sprints/sprint_<id>.json`
+   - Set `completed: "<ISO timestamp>"`
+   - Add `notes: "<summary of what was done>"`
+7. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
+8. **Pause for Breath** - Show progress, ask user if ready to continue
 
-#### Step 2: Implement
-- Write implementation code following the task breakdown
-- Follow design patterns from sprint plan
-- Add inline comments for complex logic
-- Keep functions small and focused
-
-#### Step 3: Write Tests
-- Create/update test files (*_test.go)
-- Aim for comprehensive coverage (all acceptance criteria)
-- Include edge cases and error conditions
-- Test both success and failure paths
-
-#### Step 4: Verify Quality
-
-**Run checkpoint script:**
-```bash
-.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh "Milestone name"
-```
-
-**Manual verification:**
-```bash
-make test  # MUST PASS
-make lint  # MUST PASS
-```
-
-**CRITICAL**: If tests or linting fail, fix immediately before proceeding.
-
-#### Step 5: Update Documentation
-
-**Update CHANGELOG.md:**
-- What was implemented
-- LOC counts (implementation + tests)
-- Key design decisions
-- Files modified/created
-
-**Update sprint plan:**
-- Mark milestone as ✅
-- Add actual LOC vs estimated
-- Note any deviations from plan
-
-#### Step 6: Pause for Breath
-
-**After each milestone:**
-- Show summary of what was completed
-- Show current sprint progress (X of Y milestones done)
-- Show velocity (LOC/day vs planned)
-- Ask user: "Ready to continue to next milestone?" or "Need to review/adjust?"
-- If user says "pause" or "stop", save current state and exit gracefully
+**Quick tips:**
+- Use parser test helpers from `internal/parser/test_helpers.go`
+- Use `DEBUG_PARSER=1` for token flow tracing
+- Use `make doc PKG=<package>` for API discovery
+- See [resources/parser_patterns.md](resources/parser_patterns.md) for parser/pattern matching
+- See [resources/api_patterns.md](resources/api_patterns.md) for common API patterns
+- See [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md) for DX opportunities
 
 ### Phase 3: Finalize Sprint
 
-**When all milestones are complete:**
-
-#### 1. Final Testing
-```bash
-make test                # Full test suite
-make lint                # All linting
-make test-coverage-badge # Coverage check
-```
-
-#### 2. Documentation Review
-- Verify CHANGELOG.md is complete
-- Verify sprint plan shows all milestones as ✅
-- Update sprint plan with final metrics:
-  - Total LOC (actual vs estimated)
-  - Total time (actual vs estimated)
-  - Velocity achieved
-  - Test coverage achieved
-  - Any deviations from plan
-
-#### 3. Final Commit
-```bash
-git commit -m "Complete sprint: <sprint-name>
-
-Milestones completed:
-- <Milestone 1>: <LOC>
-- <Milestone 2>: <LOC>
-
-Total: <actual-LOC> LOC in <actual-time>
-Velocity: <LOC/day>
-Test coverage: <percentage>"
-```
-
-#### 4. Summary Report
-- Show sprint completion summary
-- Compare planned vs actual (LOC, time, milestones)
-- Highlight any issues or deviations
-- Suggest next steps (new sprint, release, etc.)
-
-#### 5. Identify Bumps
-- What could AILANG do better to make a smoother coding sprint?
-- Is it worth adding a new design doc to help ease how we make AILANG?
+1. **Final Testing** - Run `make test`, `make lint`, `make test-coverage-badge`
+2. **Documentation Review** - Verify CHANGELOG.md, example files, sprint plan complete
+3. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
+4. **Move Design Docs** - Run `finalize_sprint.sh <sprint-id> [version]` to:
+   - Move design docs from `planned/` to `implemented/<version>/`
+   - Update design doc status to IMPLEMENTED
+   - Update sprint JSON status to "completed"
+   - Update file paths in sprint JSON
+5. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
+6. **DX Impact Summary** - Document improvements made during sprint
 
 ## Key Features
 
 ### Continuous Testing
 - Run `make test` after every file change
 - Never proceed if tests fail
-- Show test output for visibility
 - Track test count increase
 
 ### Continuous Linting
 - Run `make lint` after implementation
 - Fix linting issues immediately
-- Use `make fmt` for formatting issues
-- Verify with `make fmt-check`
+- Use `make fmt` for formatting
 
 ### Progress Tracking
 - TodoWrite shows real-time progress
 - Sprint plan updated at each milestone
 - CHANGELOG.md grows incrementally
+- **JSON file tracks structured state** (NEW)
 - Git commits create audit trail
 
 ### Pause Points
 - After each milestone completion
-- When tests fail (fix before continuing)
-- When linting fails (fix before continuing)
+- When tests or linting fail (fix before continuing)
 - When user requests "pause"
 - When encountering unexpected issues
 
@@ -277,16 +211,39 @@ Test coverage: <percentage>"
 
 ## Resources
 
-### Milestone Checklist
-See [`resources/milestone_checklist.md`](resources/milestone_checklist.md) for complete step-by-step checklist per milestone.
+### Multi-Session State
+- **JSON Schema**: [`resources/json_progress_schema.md`](resources/json_progress_schema.md) - Sprint progress format
+- **Session Startup**: Use `session_start.sh` ALWAYS for continuing sprints
+
+### Development Tools
+- **Parser & Patterns**: [`resources/parser_patterns.md`](resources/parser_patterns.md) - Parser development + pattern matching pipeline
+- **API Patterns**: [`resources/api_patterns.md`](resources/api_patterns.md) - Common constructor signatures and API gotchas
+- **Developer Tools**: [`resources/developer_tools.md`](resources/developer_tools.md) - Make targets, ailang commands, workflows
+- **DX Improvements**: [`resources/dx_improvement_patterns.md`](resources/dx_improvement_patterns.md) - Identifying and implementing DX wins
+- **DX Quick Reference**: [`resources/dx_quick_reference.md`](resources/dx_quick_reference.md) - ROI calculator, decision matrix
+- **Milestone Checklist**: [`resources/milestone_checklist.md`](resources/milestone_checklist.md) - Step-by-step per milestone
+
+### External Documentation
+- **Parser Guide**: [docs/guides/parser_development.md](../../docs/guides/parser_development.md)
+- **Website**: https://sunholo-data.github.io/ailang/
+
+## Progressive Disclosure
+
+This skill loads information progressively:
+
+1. **Always loaded**: This SKILL.md file (YAML frontmatter + execution workflow) - ~250 lines
+2. **Execute as needed**: Scripts in `scripts/` directory (validation, checkpoints, testing)
+3. **Load on demand**: Resources in `resources/` directory (detailed guides, patterns, references)
 
 ## Prerequisites
 
-- Working directory should be clean (or have only sprint-related changes)
-- Current branch should be `dev` (or specified in sprint plan)
-- All existing tests must pass before starting
-- All existing linting must pass before starting
-- Sprint plan must be approved and documented
+- Working directory clean (or only sprint-related changes)
+- Current branch `dev` (or specified in sprint plan)
+- All existing tests pass
+- All existing linting passes
+- Sprint plan approved and documented
+- **JSON progress file created AND POPULATED by sprint-planner** (not just template!)
+- **JSON must pass validation**: `scripts/validate_sprint_json.sh <sprint-id>`
 
 ## Failure Recovery
 
@@ -313,16 +270,6 @@ See [`resources/milestone_checklist.md`](resources/milestone_checklist.md) for c
 3. Propose: (a) continue as-is, (b) reduce scope, (c) extend timeline
 4. Update sprint plan with revised estimates
 
-## Progressive Disclosure
-
-This skill loads information progressively:
-
-1. **Always loaded**: This SKILL.md file (YAML frontmatter + execution workflow)
-2. **Execute as needed**: Scripts in `scripts/` directory (validation, checkpoints)
-3. **Load on demand**: `resources/milestone_checklist.md` (detailed checklist)
-
-Scripts execute without loading into context window, saving tokens while ensuring quality.
-
 ## Notes
 
 - This skill is long-running - expect it to take hours or days
@@ -331,3 +278,5 @@ Scripts execute without loading into context window, saving tokens while ensurin
 - Git commits create a reversible audit trail
 - TodoWrite provides real-time visibility into progress
 - Test-driven development is non-negotiable - tests must pass
+- **Multi-session continuity** - Sprint can span multiple Claude Code sessions (NEW)
+- **JSON state tracking** - Structured progress in `.ailang/state/sprints/sprint_<id>.json` (NEW)

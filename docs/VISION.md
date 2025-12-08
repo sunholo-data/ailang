@@ -127,7 +127,7 @@ the foundation for AI-driven code reasoning.
 
 **Key Insight:** Deterministic semantics + explicit effects = measurably better AI code generation.
 
-*See [docs/BENCHMARK_COMPARISON.md](BENCHMARK_COMPARISON.md) for full results.*
+*See [static/benchmarks/latest.json](static/benchmarks/latest.json) for current benchmark results.*
 
 ---
 
@@ -260,7 +260,7 @@ These aren't limitations — they're **design choices** that prioritize machine 
 
 AILANG is open source and evolving rapidly:
 
-- **Try it:** `brew install ailang` (coming soon) or build from source
+- **Try it:** See [Getting Started](/docs/guides/getting-started) for installation
 - **Benchmark it:** Run `ailang eval-suite` to test AI code generation
 - **Contribute:** See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow
 - **Discuss:** Join discussions at [github.com/sunholo-data/ailang](https://github.com/sunholo-data/ailang)

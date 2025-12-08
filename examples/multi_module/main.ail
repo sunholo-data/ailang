@@ -1,0 +1,22 @@
+-- examples/multi_module/main.ail
+-- Demonstrates importing from a subdirectory module
+--
+-- Run with: ailang run --entry main examples/multi_module/main.ail
+
+module examples/multi_module/main
+
+-- Import functions from the core/types module
+import examples/multi_module/core/types (newPoint, distanceFromOrigin)
+
+export func main() -> int {
+    -- Create two points using imported function
+    let p1 = newPoint(3, 4);
+    let p2 = newPoint(-5, 12);
+
+    -- Calculate distances using imported function
+    let d1 = distanceFromOrigin(p1);  -- Should be 7 (|3| + |4|)
+    let d2 = distanceFromOrigin(p2);  -- Should be 17 (|-5| + |12|)
+
+    -- Return the sum
+    d1 + d2  -- Expected: 24
+}

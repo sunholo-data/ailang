@@ -1,0 +1,11 @@
+module examples/match_in_block
+
+// Even simpler: block with let THEN match
+
+export func test() -> int {
+  let x = 1;
+  let y = (2, 3);
+  match y {
+    (a, b) => a + b
+  }
+}

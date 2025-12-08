@@ -14,7 +14,19 @@ import {
   Target,
   BookOpen,
   Scale,
-  Brain
+  Brain,
+  Play,
+  Box,
+  BarChart,
+  Github,
+  Shield,
+  Layers,
+  Gamepad2,
+  Server,
+  Terminal,
+  Database,
+  Globe,
+  X
 } from 'lucide-react';
 
 const iconMap = {
@@ -33,6 +45,18 @@ const iconMap = {
   book: BookOpen,
   scale: Scale,
   brain: Brain,
+  play: Play,
+  box: Box,
+  'bar-chart': BarChart,
+  github: Github,
+  shield: Shield,
+  layers: Layers,
+  gamepad: Gamepad2,
+  server: Server,
+  terminal: Terminal,
+  database: Database,
+  globe: Globe,
+  x: X,
 };
 
 export default function Icon({ name, size = 16, className = '', inline = false, color }) {

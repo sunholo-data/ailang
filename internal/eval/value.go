@@ -79,6 +79,44 @@ func (l *ListValue) String() string {
 	return result
 }
 
+// ArrayValue represents an array with O(1) indexed access
+type ArrayValue struct {
+	Elements []Value
+}
+
+func (a *ArrayValue) Type() string { return "array" }
+func (a *ArrayValue) String() string {
+	result := "#["
+	for i, elem := range a.Elements {
+		if i > 0 {
+			result += ", "
+		}
+		result += elem.String()
+	}
+	result += "]"
+	return result
+}
+
+// Get returns the element at index i, or nil if out of bounds
+func (a *ArrayValue) Get(i int64) (Value, bool) {
+	if i < 0 || i >= int64(len(a.Elements)) {
+		return nil, false
+	}
+	return a.Elements[i], true
+}
+
+// Set returns a new array with the element at index i replaced
+func (a *ArrayValue) Set(i int64, v Value) *ArrayValue {
+	if i < 0 || i >= int64(len(a.Elements)) {
+		return a // Out of bounds, return unchanged
+	}
+	// Copy-on-write
+	newElements := make([]Value, len(a.Elements))
+	copy(newElements, a.Elements)
+	newElements[i] = v
+	return &ArrayValue{Elements: newElements}
+}
+
 // TupleValue represents a tuple of values
 type TupleValue struct {
 	Elements []Value
@@ -169,6 +207,32 @@ func (t *TaggedValue) String() string {
 	}
 	result += ")"
 	return result
+}
+
+// ConstructorClosure represents an ADT constructor that takes arguments
+// When applied, it creates a TaggedValue with the provided fields.
+// This is used in the test harness to inject constructor bindings.
+type ConstructorClosure struct {
+	TypeName string // The ADT name (e.g., "Option")
+	CtorName string // Constructor name (e.g., "Some")
+	Arity    int    // Number of fields expected
+}
+
+func (c *ConstructorClosure) Type() string { return "constructor" }
+func (c *ConstructorClosure) String() string {
+	return fmt.Sprintf("<constructor %s/%d>", c.CtorName, c.Arity)
+}
+
+// Apply creates a TaggedValue from the provided arguments
+func (c *ConstructorClosure) Apply(args []Value) (*TaggedValue, error) {
+	if len(args) != c.Arity {
+		return nil, fmt.Errorf("constructor %s expects %d arguments, got %d", c.CtorName, c.Arity, len(args))
+	}
+	return &TaggedValue{
+		TypeName: c.TypeName,
+		CtorName: c.CtorName,
+		Fields:   args,
+	}, nil
 }
 
 // RefCell allows self/mutual recursion via indirection

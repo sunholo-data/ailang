@@ -249,7 +249,7 @@ func TestKeywords(t *testing.T) {
 		"match", "with", "type", "class", "instance",
 		"module", "import", "export", "forall", "exists",
 		"test", "property", "assert", "spawn", "parallel",
-		"select", "channel", "true", "false", "not",
+		"select", "channel", "true", "false", "not", "as",
 	}
 
 	contextualKeywords := map[string]bool{

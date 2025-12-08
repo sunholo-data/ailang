@@ -85,19 +85,92 @@ git push
 - [ ] Committed
 - [ ] Pushed
 
-## 6. Update Design Docs
+## 6. Verify Sprint JSON Tracking
+
+Check that sprint state JSON files are properly completed:
+
+```bash
+# List sprint JSON files in project
+ls -la .ailang/state/sprints/
+
+# Verify sprint completion for this release
+cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
+```
+
+**For each sprint JSON file related to this release:**
+
+- [ ] Sprint status is `"completed"` (not `"in_progress"`)
+- [ ] All milestones marked with `"passes": true`
+- [ ] `completed` timestamp is filled out for each milestone
+- [ ] `actual_loc` values are present (not 0)
+- [ ] `velocity` section has final metrics calculated
+- [ ] `completion_summary` section exists with:
+  - [ ] Total milestones count
+  - [ ] Key deliverable counts (tests, files, functions, etc.)
+  - [ ] Phase 2 message ID if applicable
+  - [ ] Any important metrics specific to the sprint
+
+**If sprint JSON is incomplete:**
+
+1. Review sprint completion documents (e.g., `M-<MILESTONE>-SPRINT-COMPLETE.md`)
+2. Update sprint JSON with correct values
+3. Create tracked completion summary if missing (sprint JSONs are gitignored)
+
+**Common issues:**
+- Sprint left in `"in_progress"` status
+- Milestones missing completion timestamps
+- `actual_loc` not calculated
+- `velocity.efficiency` not computed
+- `completion_summary` section missing
+
+## 7. Update Design Docs
 
 - [ ] Move completed design docs to design_docs/implemented/vX_Y/
 - [ ] Update design docs with what was actually implemented
 - [ ] Create new design docs in design_docs/planned/ for deferred features
 
-## 7. Update Public Documentation
+## 8. Update Public Documentation
 
 - [ ] Ensure prompts/ reflects latest AILANG syntax
 - [ ] Update website docs (docs/) with latest features
 - [ ] Remove old references or outdated examples
 - [ ] Add new examples to website if applicable
 - [ ] Update docs/guides/evaluation/ with significant improvements
+- [ ] **Update docs/LIMITATIONS.md**:
+  - [ ] Remove limitations fixed in this release
+  - [ ] Add new limitations discovered during development
+  - [ ] Update workarounds if they changed
+  - [ ] Update version numbers ("Since", "Fixed in" fields)
+  - [ ] Test examples in LIMITATIONS.md still work/fail as documented
+  - [ ] Commit: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
+
+## 9. Run Documentation Sync Check
+
+Use the docs-sync skill to verify website accuracy:
+
+```bash
+# Check version constants match git tag
+.claude/skills/docs-sync/scripts/check_versions.sh
+
+# Audit design docs vs website claims
+.claude/skills/docs-sync/scripts/audit_design_docs.sh
+
+# Generate full sync report
+.claude/skills/docs-sync/scripts/generate_report.sh
+```
+
+- [ ] Version constants match git tag (docs/src/constants/version.js)
+- [ ] Teaching prompt references point to latest version
+- [ ] Architecture pages have PLANNED banners for unimplemented features
+- [ ] No unimplemented features claimed as current
+- [ ] Examples referenced in website actually work
+
+**If issues found:**
+- [ ] Update version.js if stale
+- [ ] Add PLANNED banners to theoretical feature pages
+- [ ] Move implemented features from roadmap to current sections
+- [ ] Fix broken example references
+- [ ] Commit: `git add docs/ && git commit -m "docs: sync website with vX.X.X"`
 
 ## Final Verification
 
@@ -108,6 +181,8 @@ git push
 - [ ] Dashboard JSON preserves history (multiple versions)
 - [ ] Design docs moved to implemented/
 - [ ] Public docs updated
+- [ ] **docs/LIMITATIONS.md updated and tested**
+- [ ] **docs-sync report shows no critical issues**
 - [ ] All changes committed and pushed
 
 ## Notes

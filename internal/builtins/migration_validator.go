@@ -105,7 +105,7 @@ func ValidateMigration(projectRoot string) (*MigrationReport, error) {
 					report.OrphanedBuiltins = append(report.OrphanedBuiltins, OrphanedBuiltin{
 						Name:     builtin,
 						Location: loc.FilePath,
-						Hint:     fmt.Sprintf("Add to internal/builtins/ (string.go, math.go, io.go, or net.go)"),
+						Hint:     "Add to internal/builtins/ (string.go, math.go, io.go, or net.go)",
 					})
 				}
 			}

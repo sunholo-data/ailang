@@ -2,9 +2,10 @@ package core
 
 import (
 	"fmt"
-	"github.com/sunholo/ailang/internal/ast"
 	"strings"
 	"testing"
+
+	"github.com/sunholo/ailang/internal/ast"
 )
 
 func TestCoreNode(t *testing.T) {

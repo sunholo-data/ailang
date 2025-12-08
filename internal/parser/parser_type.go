@@ -7,7 +7,13 @@ import (
 
 // parseType parses a type expression
 // Handles: identifiers, type variables, lists, tuples, functions
+// S-ARROWTYPE: Supports bare function type arrows (int -> bool)
 func (p *Parser) parseType() ast.Type {
+	p.debugEnter("parseType")
+	defer p.debugExit("parseType")
+
+	var typ ast.Type // Store primary type for arrow sugar checking
+
 	switch p.curToken.Type {
 	case lexer.LBRACE:
 		// Record type expression: { field: Type, ... }
@@ -18,29 +24,38 @@ func (p *Parser) parseType() ast.Type {
 		name := p.curToken.Literal
 		startPos := p.curPos()
 
-		// Check for type application: List[int], Option[a], etc.
+		// Check for type application: List[int], Array[T], Option[a], etc.
 		if p.peekTokenIs(lexer.LBRACKET) {
 			p.nextToken() // consume IDENT
 			p.nextToken() // consume LBRACKET
 
-			// For now, parse type args but don't use them
-			// TODO: Proper type application parsing with TypeApp AST node
-			_ = p.parseType() // first arg
+			// Parse the first type argument (element type for Array/List)
+			elemType := p.parseType()
+
+			// Parse additional type arguments (for multi-arg generics like Result[T, E])
 			for p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // move to COMMA
-				p.nextToken() // move past COMMA
-				_ = p.parseType()
+				p.nextToken()     // move to COMMA
+				p.nextToken()     // move past COMMA
+				_ = p.parseType() // Additional args not used yet
 			}
 
 			if !p.expectPeek(lexer.RBRACKET) {
 				return nil
 			}
 
-			// Return a SimpleType for now (proper generics parsing would be more complex)
-			return &ast.SimpleType{
-				Name: name, // e.g., "Option" or "List"
-				Pos:  startPos,
+			// M-TYPE1: Special-case Array and List to preserve element types
+			// This enables proper unification: Array[T] in ADT params works with #[...] literals
+			switch name {
+			case "Array":
+				typ = &ast.ArrayType{Element: elemType, Pos: startPos}
+			case "List":
+				typ = &ast.ListType{Element: elemType, Pos: startPos}
+			default:
+				// Generic type application - return SimpleType for now
+				// TODO: Add ast.TypeApp for proper generic support (Option[T], Result[T,E])
+				typ = &ast.SimpleType{Name: name, Pos: startPos}
 			}
+			goto checkArrow
 		}
 
 		// Check if it's a built-in type (lowercase but not type vars)
@@ -49,31 +64,35 @@ func (p *Parser) parseType() ast.Type {
 			"unit": true, "char": true,
 		}
 		if builtinTypes[name] {
-			return &ast.SimpleType{
+			typ = &ast.SimpleType{
 				Name: name,
 				Pos:  startPos,
 			}
+			goto checkArrow
 		}
 
 		// Check if it's a type variable (lowercase single letter) or type constructor (uppercase)
 		if len(name) > 0 && name[0] >= 'a' && name[0] <= 'z' {
-			return &ast.TypeVar{
+			typ = &ast.TypeVar{
 				Name: name,
 				Pos:  startPos,
 			}
+			goto checkArrow
 		}
 
-		return &ast.SimpleType{
+		typ = &ast.SimpleType{
 			Name: name,
 			Pos:  startPos,
 		}
+		goto checkArrow
 
 	case lexer.UNIT:
 		// Unit type ()
-		return &ast.SimpleType{
+		typ = &ast.SimpleType{
 			Name: "()",
 			Pos:  p.curPos(),
 		}
+		goto checkArrow
 
 	case lexer.LBRACKET:
 		// List type: [T]
@@ -83,10 +102,11 @@ func (p *Parser) parseType() ast.Type {
 		if !p.expectPeek(lexer.RBRACKET) {
 			return nil
 		}
-		return &ast.ListType{
+		typ = &ast.ListType{
 			Element: elemType,
 			Pos:     startPos,
 		}
+		goto checkArrow
 
 	case lexer.LPAREN:
 		// Could be:
@@ -189,6 +209,44 @@ func (p *Parser) parseType() ast.Type {
 	default:
 		return nil
 	}
+
+checkArrow:
+	// S-ARROWTYPE: Check for function type arrow (int -> bool)
+	if p.peekTokenIs(lexer.ARROW) {
+		startPos := typ.Position()
+		p.nextToken() // consume current token (move to ARROW)
+
+		// Check if strict syntax mode is enabled
+		if p.strictSyntaxMode {
+			p.reportSugarError("ARROWTYPE", "T -> U", "funcType T U")
+			// Return incomplete type to avoid cascading errors
+			return typ
+		}
+
+		// Sugar is allowed - mark that it was used
+		p.sugarUsed = true
+
+		p.nextToken()               // move past ARROW
+		returnType := p.parseType() // Right-associative: recursively parse return type
+
+		// Parse optional effect annotation: int -> string ! {IO}
+		var effects []string
+		if p.peekTokenIs(lexer.BANG) {
+			p.nextToken() // move to BANG
+			effects = p.parseEffectAnnotation()
+		}
+
+		// Desugar to FuncType
+		return &ast.FuncType{
+			Params:  []ast.Type{typ},
+			Return:  returnType,
+			Effects: effects,
+			Pos:     startPos,
+		}
+	}
+
+	// No arrow, return primary type as-is
+	return typ
 }
 
 // Type declaration parsing
@@ -294,17 +352,17 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 			p.nextToken() // advance to LPAREN
 			// Parse constructor fields
 			p.nextToken() // consume LPAREN
-			var fields []ast.Type
+			var fields []*ast.ConstructorField
 			if !p.curTokenIs(lexer.RPAREN) {
-				fields = append(fields, p.parseType())
-				p.nextToken() // advance past the type we just parsed
+				fields = append(fields, p.parseConstructorField())
+				p.nextToken() // advance past the field we just parsed
 				for p.curTokenIs(lexer.COMMA) {
 					p.nextToken() // consume COMMA
 					if p.curTokenIs(lexer.RPAREN) {
 						break // trailing comma
 					}
-					fields = append(fields, p.parseType())
-					p.nextToken() // advance past the type we just parsed
+					fields = append(fields, p.parseConstructorField())
+					p.nextToken() // advance past the field we just parsed
 				}
 			}
 			if !p.curTokenIs(lexer.RPAREN) {
@@ -406,20 +464,20 @@ func (p *Parser) parseVariant() *ast.Constructor {
 	}
 
 	// Parse optional fields (peek ahead to see if there are any)
-	var fields []ast.Type
+	var fields []*ast.ConstructorField
 	if p.peekTokenIs(lexer.LPAREN) {
 		p.nextToken() // advance to LPAREN
 		p.nextToken() // consume LPAREN
 		if !p.curTokenIs(lexer.RPAREN) {
-			fields = append(fields, p.parseType())
-			p.nextToken() // advance past the type we just parsed
+			fields = append(fields, p.parseConstructorField())
+			p.nextToken() // advance past the field we just parsed
 			for p.curTokenIs(lexer.COMMA) {
 				p.nextToken() // consume COMMA
 				if p.curTokenIs(lexer.RPAREN) {
 					break // trailing comma
 				}
-				fields = append(fields, p.parseType())
-				p.nextToken() // advance past the type we just parsed
+				fields = append(fields, p.parseConstructorField())
+				p.nextToken() // advance past the field we just parsed
 			}
 		}
 		if !p.curTokenIs(lexer.RPAREN) {
@@ -435,6 +493,34 @@ func (p *Parser) parseVariant() *ast.Constructor {
 		Name:   name,
 		Fields: fields,
 		Pos:    p.curPos(),
+	}
+}
+
+// parseConstructorField parses a constructor field.
+// Supports both named (x: int) and positional (int) syntax.
+func (p *Parser) parseConstructorField() *ast.ConstructorField {
+	pos := p.curPos()
+
+	// Check for named field syntax: name: type
+	// Look ahead: if current is IDENT and peek is COLON, it's named
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+		name := p.curToken.Literal
+		p.nextToken() // consume IDENT
+		p.nextToken() // consume COLON
+		typ := p.parseType()
+		return &ast.ConstructorField{
+			Name: name,
+			Type: typ,
+			Pos:  pos,
+		}
+	}
+
+	// Positional field (type only)
+	typ := p.parseType()
+	return &ast.ConstructorField{
+		Name: "", // Empty name for positional fields
+		Type: typ,
+		Pos:  pos,
 	}
 }
 

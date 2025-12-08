@@ -1,3 +1,51 @@
+// Package types implements Hindley-Milner type inference for AILANG's Core AST.
+//
+// # CoreTypeInfo Contract (M-DX4)
+//
+// CoreTypeInfo (CoreTI) is a mapping from Core NodeID to inferred Type. It is the
+// source of truth for type-guided code generation during lowering.
+//
+// **Contract**:
+//   - CoreTI is TOTAL for all Core nodes after type checking completes
+//   - Types may be type variables (TVar) before specialization/monomorphization
+//   - Lowering of overloaded operators requires non-TVar heads (concrete types)
+//   - If a Core node has no CoreTI entry, that is a COMPILER BUG
+//
+// **Phase Requirements**:
+//   - Pre-monomorphization: CoreTI may contain TVars for polymorphic code (VALID)
+//   - Post-monomorphization: Specialized bodies should have concrete types
+//   - Post-VarResolution (v0.3.18+): Monomorphic Var nodes get concrete types
+//   - Lowering phase: Operators need concrete heads; TVars trigger fallback
+//
+// **Validation**:
+//   - ValidateCoreTypeInfo (internal/pipeline) checks 100% coverage before lowering
+//   - Validation accepts TVars as valid (checks presence, not concreteness)
+//   - Use --debug-compile flag to see telemetry of CoreTI hits/misses during lowering
+//
+// **Why TVars Remain After Type Inference (v0.3.18)**:
+//
+// After Hindley-Milner unification and ApplySubstitution, some Var nodes may still
+// have TVars in CoreTI. This happens because:
+//
+//  1. Let-bound variables: The substitution tracks Let bindings but doesn't always
+//     resolve Var references to their binding's concrete type
+//  2. Polymorphic preservation: Lambda parameters intentionally keep TVars until
+//     call-site specialization (M-POLY-B)
+//
+// The VarResolver (internal/pipeline/resolve_vars.go) is a WORKAROUND that propagates
+// monomorphic types from Let bindings to Var usages. It only propagates concrete types
+// (Int, Float, String, Bool, List) and preserves polymorphism for lambda params.
+//
+// **Future (M-POLY-B, v0.4.1+)**: Var-bound polymorphic lambdas will be re-elaborated
+// after monomorphization, which will naturally resolve all operator types in specialized
+// bodies. The VarResolver is a pragmatic bridge until then.
+//
+// **Debug**:
+//   - ailang debug ast <file> --show-types --compact: Inspect CoreTI for a file
+//   - ailang run --debug-compile <file>: See lowering telemetry (CoreTI coverage)
+//   - Look for "Var type resolution complete" in debug output
+//
+// See: design_docs/planned/v0_3_18/M-DX4-SPRINT-PLAN.md
 package types
 
 import (
@@ -22,6 +70,9 @@ type CoreTypeChecker struct {
 	trackInstantiations bool                           // Whether to track instantiations
 	varCounter          int                            // Counter for generating fresh variable names
 	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
+	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
+	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes    map[string]string              // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -99,6 +150,9 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		returnTypeAnnots:    make(map[uint64]Type),
+		CoreTI:              NewCoreTypeInfo(),
+		constructorTypes:    make(map[string]string),
 	}
 }
 
@@ -116,6 +170,9 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		returnTypeAnnots:    make(map[uint64]Type),
+		CoreTI:              NewCoreTypeInfo(),
+		constructorTypes:    make(map[string]string),
 	}
 }
 
@@ -130,6 +187,21 @@ func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
 		tc.globalTypes = make(map[string]*Scheme)
 	}
 	tc.globalTypes[key] = scheme
+}
+
+// SetConstructorTypes sets the constructor → ADT type mappings.
+// M-DX25.4: Used to infer correct types for pattern matching on ADTs.
+func (tc *CoreTypeChecker) SetConstructorTypes(ctors map[string]string) {
+	tc.constructorTypes = ctors
+}
+
+// RegisterConstructorType registers a single constructor → ADT type mapping.
+// M-DX25.4: Used to infer correct types for pattern matching on ADTs.
+func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
+	if tc.constructorTypes == nil {
+		tc.constructorTypes = make(map[string]string)
+	}
+	tc.constructorTypes[ctorName] = typeName
 }
 
 // SetDebugMode enables debug output for defaulting traces
@@ -200,6 +272,11 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = defaultedType
 		unsolved = defaultedConstraints
 	}
+
+	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
+	// This ensures CoreTI has concrete types (Int, Float, etc.) instead of type variables.
+	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
+	tc.CoreTI.ApplySubstitution(sub)
 
 	// Apply final substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
@@ -329,6 +406,10 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 		fmt.Println("[debug] No defaulting applied")
 	}
 
+	// M-DX4 FIX V2: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
+	// Must be AFTER composition so we have the complete substitution with chains resolved
+	tc.CoreTI.ApplySubstitution(sub)
+
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
 
@@ -362,61 +443,79 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 
 // inferCore performs type inference on Core expressions
 func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) (typedast.TypedNode, *TypeEnv, error) {
+	var typedNode typedast.TypedNode
+	var env *TypeEnv
+	var err error
+
 	switch e := expr.(type) {
 	case *core.Lit:
-		return tc.inferLit(ctx, e)
+		typedNode, env, err = tc.inferLit(ctx, e)
 
 	case *core.Var:
-		return tc.inferVar(ctx, e)
+		typedNode, env, err = tc.inferVar(ctx, e)
 
 	case *core.VarGlobal:
-		return tc.inferVarGlobal(ctx, e)
+		typedNode, env, err = tc.inferVarGlobal(ctx, e)
 
 	case *core.Lambda:
-		return tc.inferLambda(ctx, e)
+		typedNode, env, err = tc.inferLambda(ctx, e)
 
 	case *core.Let:
-		return tc.inferLet(ctx, e)
+		typedNode, env, err = tc.inferLet(ctx, e)
 
 	case *core.LetRec:
-		return tc.inferLetRec(ctx, e)
+		typedNode, env, err = tc.inferLetRec(ctx, e)
 
 	case *core.App:
-		return tc.inferApp(ctx, e)
+		typedNode, env, err = tc.inferApp(ctx, e)
 
 	case *core.If:
-		return tc.inferIf(ctx, e)
+		typedNode, env, err = tc.inferIf(ctx, e)
 
 	case *core.BinOp:
-		return tc.inferBinOp(ctx, e)
+		typedNode, env, err = tc.inferBinOp(ctx, e)
 
 	case *core.UnOp:
-		return tc.inferUnOp(ctx, e)
+		typedNode, env, err = tc.inferUnOp(ctx, e)
 
 	case *core.Record:
-		return tc.inferRecord(ctx, e)
+		typedNode, env, err = tc.inferRecord(ctx, e)
 
 	case *core.RecordAccess:
-		return tc.inferRecordAccess(ctx, e)
+		typedNode, env, err = tc.inferRecordAccess(ctx, e)
 
 	case *core.RecordUpdate:
-		return tc.inferRecordUpdate(ctx, e)
+		typedNode, env, err = tc.inferRecordUpdate(ctx, e)
 
 	case *core.List:
-		return tc.inferList(ctx, e)
+		typedNode, env, err = tc.inferList(ctx, e)
+
+	case *core.Array:
+		typedNode, env, err = tc.inferArray(ctx, e)
 
 	case *core.Tuple:
-		return tc.inferTuple(ctx, e)
+		typedNode, env, err = tc.inferTuple(ctx, e)
 
 	case *core.Match:
-		return tc.inferMatch(ctx, e)
+		typedNode, env, err = tc.inferMatch(ctx, e)
 
 	case *core.Intrinsic:
-		return tc.inferIntrinsic(ctx, e)
+		typedNode, env, err = tc.inferIntrinsic(ctx, e)
 
 	default:
 		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
 	}
+
+	// If inference succeeded, store the type in CoreTI for operator lowering
+	if err == nil && typedNode != nil && expr != nil {
+		// Get the inferred type from the typed node
+		if inferredType, ok := typedNode.GetType().(Type); ok {
+			// Store mapping: Core NodeID → Type (principal type after inference)
+			tc.CoreTI.Set(expr.ID(), inferredType)
+		}
+	}
+
+	return typedNode, env, err
 }
 
 // formatErrors formats all collected errors

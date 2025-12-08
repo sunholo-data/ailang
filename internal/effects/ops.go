@@ -52,6 +52,7 @@ var Registry = map[string]map[string]EffOp{
 	"FS":    {},
 	"Clock": {},
 	"Net":   {},
+	"Debug": {},
 }
 
 // Call invokes an effect operation

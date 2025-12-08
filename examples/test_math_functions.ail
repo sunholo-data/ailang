@@ -1,0 +1,201 @@
+module examples/test_math_functions
+
+// Pure math functions with inline tests for comprehensive coverage
+
+// Absolute value for integers
+pure func abs(x: int) -> int
+  tests [
+    (5, 5),
+    (-5, 5),
+    (0, 0),
+    (-100, 100),
+    (42, 42)
+  ]
+{
+  if x < 0 then 0 - x else x
+}
+
+// Sign function: returns -1, 0, or 1
+pure func sign(x: int) -> int
+  tests [
+    (5, 1),
+    (-5, -1),
+    (0, 0),
+    (100, 1),
+    (-100, -1)
+  ]
+{
+  if x < 0 then -1
+  else if x > 0 then 1
+  else 0
+}
+
+// Minimum of two integers
+pure func min(a: int, b: int) -> int
+  tests [
+    ((5, 3), 3),
+    ((3, 5), 3),
+    ((7, 7), 7),
+    ((-1, -5), -5),
+    ((0, 10), 0)
+  ]
+{
+  if a < b then a else b
+}
+
+// Maximum of two integers
+pure func max(a: int, b: int) -> int
+  tests [
+    ((5, 3), 5),
+    ((3, 5), 5),
+    ((7, 7), 7),
+    ((-1, -5), -1),
+    ((0, 10), 10)
+  ]
+{
+  if a > b then a else b
+}
+
+// Clamp a value between min and max bounds
+pure func clamp(x: int, lo: int, hi: int) -> int
+  tests [
+    ((5, 0, 10), 5),
+    ((-5, 0, 10), 0),
+    ((15, 0, 10), 10),
+    ((0, 0, 10), 0),
+    ((10, 0, 10), 10)
+  ]
+{
+  if x < lo then lo
+  else if x > hi then hi
+  else x
+}
+
+// Check if a number is even
+pure func isEven(n: int) -> bool
+  tests [
+    (0, true),
+    (1, false),
+    (2, true),
+    (-2, true),
+    (7, false),
+    (100, true)
+  ]
+{
+  n % 2 == 0
+}
+
+// Check if a number is odd
+pure func isOdd(n: int) -> bool
+  tests [
+    (0, false),
+    (1, true),
+    (2, false),
+    (-3, true),
+    (7, true),
+    (100, false)
+  ]
+{
+  n % 2 != 0
+}
+
+// Check if a number is positive
+pure func isPositive(n: int) -> bool
+  tests [
+    (1, true),
+    (0, false),
+    (-1, false),
+    (100, true),
+    (-100, false)
+  ]
+{
+  n > 0
+}
+
+// Check if a number is negative
+pure func isNegative(n: int) -> bool
+  tests [
+    (1, false),
+    (0, false),
+    (-1, true),
+    (100, false),
+    (-100, true)
+  ]
+{
+  n < 0
+}
+
+// Double a number
+pure func double(x: int) -> int
+  tests [
+    (0, 0),
+    (5, 10),
+    (-3, -6),
+    (100, 200)
+  ]
+{
+  x * 2
+}
+
+// Square a number
+pure func square(x: int) -> int
+  tests [
+    (0, 0),
+    (1, 1),
+    (5, 25),
+    (-3, 9),
+    (10, 100)
+  ]
+{
+  x * x
+}
+
+// Cube a number
+pure func cube(x: int) -> int
+  tests [
+    (0, 0),
+    (1, 1),
+    (2, 8),
+    (3, 27),
+    (-2, -8)
+  ]
+{
+  x * x * x
+}
+
+// Increment a number
+pure func inc(x: int) -> int
+  tests [
+    (0, 1),
+    (5, 6),
+    (-1, 0),
+    (99, 100)
+  ]
+{
+  x + 1
+}
+
+// Decrement a number
+pure func dec(x: int) -> int
+  tests [
+    (0, -1),
+    (5, 4),
+    (1, 0),
+    (100, 99)
+  ]
+{
+  x - 1
+}
+
+// Check if divisible by n
+pure func divisibleBy(x: int, n: int) -> bool
+  tests [
+    ((10, 2), true),
+    ((10, 3), false),
+    ((15, 5), true),
+    ((15, 4), false),
+    ((0, 5), true)
+  ]
+{
+  x % n == 0
+}

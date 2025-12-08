@@ -1,0 +1,61 @@
+-- Array Grid Example
+-- Demonstrates using arrays for 2D grid operations (game use case)
+-- Uses flat array with row-major indexing for O(1) cell access
+
+module examples/array_grid
+
+import std/io (print)
+import std/array as A
+
+-- Grid dimensions
+let WIDTH = 5
+let HEIGHT = 3
+
+-- Helper: get index from (x, y) coordinates
+pure func idx(x: int, y: int) -> int {
+  y * WIDTH + x
+}
+
+-- Get cell value
+pure func getCell(grid: Array[int], x: int, y: int) -> int {
+  A.get(grid, idx(x, y))
+}
+
+-- Set cell value (returns new grid)
+pure func setCell(grid: Array[int], x: int, y: int, value: int) -> Array[int] {
+  A.set(grid, idx(x, y), value)
+}
+
+-- Print row helper
+pure func rowToString(grid: Array[int], y: int, x: int) -> string {
+  if x >= WIDTH then ""
+  else show(getCell(grid, x, y)) ++ " " ++ rowToString(grid, y, x + 1)
+}
+
+export func main() -> () ! {IO} =
+  -- Create a grid (flat array of size WIDTH * HEIGHT)
+  let emptyGrid = A.make(WIDTH * HEIGHT, 0) in
+  -- Create a sample grid with some values
+  let grid1 = setCell(emptyGrid, 0, 0, 1) in
+  let grid2 = setCell(grid1, 2, 1, 5) in
+  let grid3 = setCell(grid2, 4, 2, 9) in
+  -- Read some cells
+  let topLeft = getCell(grid3, 0, 0) in
+  let middle = getCell(grid3, 2, 1) in
+  let bottomRight = getCell(grid3, 4, 2) in
+  let empty = getCell(grid3, 1, 1) in
+  {
+    print("=== 2D Grid Example ===");
+    print("Grid size: " ++ show(WIDTH) ++ "x" ++ show(HEIGHT));
+    print("");
+    print("=== Cell Values ===");
+    print("Top-left (0,0): " ++ show(topLeft));
+    print("Middle (2,1): " ++ show(middle));
+    print("Bottom-right (4,2): " ++ show(bottomRight));
+    print("Empty cell (1,1): " ++ show(empty));
+    print("");
+    print("=== Grid Layout ===");
+    print("Row 0: " ++ rowToString(grid3, 0, 0));
+    print("Row 1: " ++ rowToString(grid3, 1, 0));
+    print("Row 2: " ++ rowToString(grid3, 2, 0))
+  }

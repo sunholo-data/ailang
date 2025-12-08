@@ -300,13 +300,21 @@ func runEvalReport() {
 		}
 	}
 
-	// Generate matrix
+	// Filter to only standard results for matrix/history (agent results tracked separately)
+	standardResults := make([]*eval_analysis.BenchmarkResult, 0, len(results))
+	for _, r := range results {
+		if r.EvalMode != "agent" {
+			standardResults = append(standardResults, r)
+		}
+	}
+
+	// Generate matrix (using only standard results for model comparison)
 	fmt.Fprintf(os.Stderr, "Generating performance matrix...\n")
 	var matrix *eval_analysis.PerformanceMatrix
 	if multiModel {
-		matrix, err = eval_analysis.GenerateMatrixWithBaselines(results, version, modelBaselines)
+		matrix, err = eval_analysis.GenerateMatrixWithBaselines(standardResults, version, modelBaselines)
 	} else {
-		matrix, err = eval_analysis.GenerateMatrix(results, version)
+		matrix, err = eval_analysis.GenerateMatrix(standardResults, version)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to generate matrix: %v\n", red("Error"), err)

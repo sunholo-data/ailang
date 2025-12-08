@@ -10,6 +10,28 @@ import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/com
 
 AILANG v0.2.0 introduces the **Module Execution Runtime** (M-R1), enabling you to run modules with exported entrypoint functions. This guide covers basic usage, requirements, and common patterns.
 
+### Execution Pipeline
+
+```mermaid
+graph LR
+    A["Source File<br/>(module.ail)"] --> B["Parse"]
+    B --> C["Type Check"]
+    C --> D["Elaborate to Core"]
+    D --> E["Load Module"]
+    E --> F["Find Entrypoint"]
+    F --> G["Execute"]
+    G --> H["Output"]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style C fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style G fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style H fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+```
+
 ## <Icon name="rocket" inline /> Quick Start
 
 ### Basic Usage

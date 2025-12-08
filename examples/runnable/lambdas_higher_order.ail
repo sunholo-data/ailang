@@ -1,0 +1,43 @@
+-- Showcase: Higher-Order Functions
+-- This example demonstrates functions that take or return functions.
+module examples/runnable/lambdas_higher_order
+
+export func main() -> () ! {IO} =
+  let _ = print("=== Higher-Order Functions ===") in
+
+  -- Function composition
+  let compose = \f. \g. \x. f(g(x)) in
+  let double = \x. x * 2 in
+  let addOne = \x. x + 1 in
+  let doubleThenAddOne = compose(addOne)(double) in
+  let _ = print("Function composition:") in
+  let _ = print("  doubleThenAddOne(5) = " ++ show(doubleThenAddOne(5))) in
+  let _ = print("  (first double, then add one)") in
+
+  -- Map-like function over a pair
+  let applyToBoth = \f. \x. \y. [f(x), f(y)] in
+  let square = \x. x * x in
+  let result = applyToBoth(square)(3)(4) in
+  let _ = print("") in
+  let _ = print("Apply function to both values:") in
+  let _ = print("  applyToBoth(square)(3)(4) = " ++ show(result)) in
+
+  -- Function that returns a function
+  let makeOperation = \op. \x. \y. op(x)(y) in
+  let add = \x. \y. x + y in
+  let multiply = \x. \y. x * y in
+  let adder = makeOperation(add) in
+  let multiplier = makeOperation(multiply) in
+  let _ = print("") in
+  let _ = print("Function returning function:") in
+  let _ = print("  adder(5)(3) = " ++ show(adder(5)(3))) in
+  let _ = print("  multiplier(5)(3) = " ++ show(multiplier(5)(3))) in
+
+  -- Applying a function twice
+  let twice = \f. \x. f(f(x)) in
+  let increment = \x. x + 1 in
+  let quadruple = twice(double) in
+  let _ = print("") in
+  let _ = print("Applying function twice:") in
+  let _ = print("  twice(increment)(5) = " ++ show(twice(increment)(5))) in
+  print("  quadruple(5) = " ++ show(quadruple(5)))

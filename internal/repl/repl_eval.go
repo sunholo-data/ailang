@@ -20,12 +20,16 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 1: Parse
 	l := lexer.New(input, "<repl>")
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(r.config.StrictSyntaxMode)
 	program := p.Parse()
 
 	if len(p.Errors()) > 0 {
 		r.printParserErrors(p.Errors(), out)
 		return
 	}
+
+	// Track if syntactic sugar was used (for user feedback)
+	sugarUsed := p.SugarUsed()
 
 	// Step 2: Elaborate to Core (with dictionary-passing)
 	elaborator := elaborate.NewElaborator()
@@ -109,8 +113,22 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 		return
 	}
 
+	// Step 5.4: Validate CoreTypeInfo before lowering (M-DX4)
+	if err := pipeline.ValidateCoreTypeInfo(elaboratedProg, typeChecker.CoreTI); err != nil {
+		fmt.Fprintf(out, "%s: %v\n", red("CoreTypeInfo validation error"), err)
+		return
+	}
+
+	// Step 5.4.5: Validate effects (M-SOUNDNESS)
+	// Note: REPL doesn't preserve Surface AST, so we pass nil
+	// Effect validation is primarily for module files where explicit declarations matter
+	if err := pipeline.ValidateEffects(nil, elaboratedProg, typeChecker.CoreTI); err != nil {
+		fmt.Fprintf(out, "%s: %v\n", red("Effect checking error"), err)
+		return
+	}
+
 	// Step 5.5: Lower intrinsic operations to dictionary calls
-	lowerer := pipeline.NewOpLowerer(r.typeEnv)
+	lowerer := pipeline.NewOpLowerer(r.typeEnv, typeChecker.CoreTI)
 	loweredProg, err := lowerer.Lower(elaboratedProg)
 	if err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Op lowering error"), err)
@@ -182,7 +200,11 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	r.lastResult = result
 
 	// Pretty print result with type on the same line
-	fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
+	if sugarUsed {
+		fmt.Fprintf(out, "%s :: %s %s\n", formatValue(result), cyan(prettyType), dim("(desugared)"))
+	} else {
+		fmt.Fprintf(out, "%s :: %s\n", formatValue(result), cyan(prettyType))
+	}
 }
 
 // initBuiltins initializes built-in type class instances

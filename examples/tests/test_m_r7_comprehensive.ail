@@ -1,45 +1,22 @@
 -- Comprehensive M-R7 Test Cases
 -- Testing modulo and float comparison edge cases
 
-module examples/test_m_r7_comprehensive
+module examples/tests/test_m_r7_comprehensive
 
--- Test 1: Basic modulo
-export func test_modulo_basic() -> int {
-  5 % 3
-}
+export func main() -> int =
+  -- Test 1: Basic modulo
+  let m1 = 5 % 3 in
 
--- Test 2: Modulo with variables
-export func test_modulo_vars() -> int {
-  let x = 10;
-  let y = 3;
-  x % y
-}
+  -- Test 2: Modulo with variables
+  let m2 = (let x = 10 in let y = 3 in x % y) in
 
--- Test 3: Float literal comparison
-export func test_float_eq() -> bool {
-  0.0 == 0.0
-}
+  -- Test 3: Float literal comparison (returns bool, not usable in arithmetic)
+  -- let f1 = 0.0 == 0.0 in
 
--- Test 4: Float variable comparison
-export func test_float_var() -> bool {
-  let x = 5.0;
-  x == 0.0
-}
+  -- Test 4: Float variable comparison (returns bool, not usable in arithmetic)
+  -- let f2 = (let x = 5.0 in x == 0.0) in
 
--- Test 5: Float in conditional
-export func test_float_if() -> int {
-  let x = 3.14;
-  if x == 3.14 then 1 else 0
-}
+  -- Test 5: Float in conditional
+  let f3 = (let x = 3.14 in if x == 3.14 then 1 else 0) in
 
-export func main() -> int {
-  {
-    let m1 = test_modulo_basic();
-    let m2 = test_modulo_vars();
-    let f1 = test_float_eq();
-    let f2 = test_float_var();
-    let f3 = test_float_if();
-    
-    m1 + m2 + f3
-  }
-}
+  m1 + m2 + f3

@@ -1,4 +1,4 @@
-module examples/test_no_import
+module examples/tests/test_no_import
 
 export func main() -> () {
   _io_println("hello");

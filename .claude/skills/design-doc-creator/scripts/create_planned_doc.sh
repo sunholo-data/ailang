@@ -15,20 +15,51 @@ DESIGN_DOCS_DIR="$PROJECT_ROOT/design_docs"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Get current version from CHANGELOG.md
+get_current_version() {
+    local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
+    if [ -f "$CHANGELOG" ]; then
+        grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" | head -1
+    else
+        echo "unknown"
+    fi
+}
+
+# Compute next patch version (e.g., v0.5.6 -> v0_5_7)
+get_next_version_folder() {
+    local current="$1"
+    # Extract major.minor.patch
+    local version="${current#v}"  # Remove 'v' prefix
+    local major=$(echo "$version" | cut -d. -f1)
+    local minor=$(echo "$version" | cut -d. -f2)
+    local patch=$(echo "$version" | cut -d. -f3)
+    # Increment patch
+    local next_patch=$((patch + 1))
+    # Return folder format (v0_5_7)
+    echo "v${major}_${minor}_${next_patch}"
+}
+
+CURRENT_VERSION=$(get_current_version)
+NEXT_VERSION_FOLDER=$(get_next_version_folder "$CURRENT_VERSION")
 
 if [ $# -lt 1 ]; then
     echo -e "${RED}✗ Error: Missing required argument${NC}"
+    echo ""
+    echo -e "${CYAN}Current AILANG version: $CURRENT_VERSION${NC}"
+    echo -e "${CYAN}Suggested next version: $NEXT_VERSION_FOLDER${NC}"
     echo ""
     echo "Usage: create_planned_doc.sh <doc-name> [version]"
     echo ""
     echo "Arguments:"
     echo "  doc-name   Document name (lowercase-with-hyphens, e.g., m-dx2-better-errors)"
-    echo "  version    Optional version folder (e.g., v0_4_0)"
+    echo "  version    Optional version folder (e.g., $NEXT_VERSION_FOLDER)"
     echo ""
     echo "Examples:"
     echo "  create_planned_doc.sh m-dx2-better-errors"
-    echo "  create_planned_doc.sh reflection-system v0_4_0"
+    echo "  create_planned_doc.sh reflection-system $NEXT_VERSION_FOLDER"
     exit 1
 fi
 
@@ -69,6 +100,22 @@ cat > "$DOC_PATH" <<'EOF'
 **Priority**: [P0/P1/P2 - High/Medium/Low]
 **Estimated**: [Time estimate, e.g., 2 days]
 **Dependencies**: [None or list other features]
+
+## AI-First Alignment Check
+
+**Score this feature against AILANG's core principles:**
+
+| Principle | Impact | Score | Notes |
+|-----------|--------|-------|-------|
+| Reduce Syntactic Noise | [+/0/−] | [+1/0/−1] | [e.g., "Removes import boilerplate"] |
+| Preserve Semantic Clarity | [+/0/−] | [+1/0/−1] | [e.g., "Effects remain explicit in types"] |
+| Increase Determinism | [+/0/−] | [+1/0/−1] | [e.g., "Injection is deterministic per entry module"] |
+| Lower Token Cost | [+/0/−] | [+1/0/−1] | [e.g., "~30 token reduction per example"] |
+| **Net Score** | | **[Total]** | **Decision: [Move forward / Reject / Redesign]** |
+
+**Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
+
+**Reference:** See [AI-first DX philosophy](../v0_3_15/example-parity-vision-alignment.md#-design-principle-ai-first-dx)
 
 ## Problem Statement
 
@@ -221,6 +268,13 @@ rm "${DOC_PATH}.bak"
 # Success message
 echo -e "${GREEN}✓ Created design document:${NC}"
 echo "  $DOC_PATH"
+echo ""
+echo -e "${CYAN}Version context:${NC}"
+echo "  Current AILANG: $CURRENT_VERSION"
+echo "  Next version:   $NEXT_VERSION_FOLDER"
+if [ -n "$VERSION" ]; then
+    echo "  Doc target:     $VERSION"
+fi
 echo ""
 echo -e "${GREEN}Next steps:${NC}"
 echo "  1. Edit $DOC_PATH to fill in the template"

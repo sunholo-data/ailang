@@ -1,0 +1,146 @@
+---
+sidebar_position: 2
+---
+
+import Icon, { CheckIcon, CrossIcon, InfoIcon } from '@site/src/components/Icon';
+import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
+
+# AI Prompt Guide: Teaching AILANG to Language Models
+
+**Purpose**: This document points to the canonical AILANG teaching prompt for AI models.
+
+**KPI**: One of AILANG's key success metrics is **"teachability to AI"** - how easily can an LLM learn to write correct AILANG code from a single prompt?
+
+---
+
+## <Icon name="book" inline /> Canonical Prompt ({ACTIVE_PROMPT})
+
+**The official AILANG teaching prompt is maintained at**:
+
+### [prompts/{ACTIVE_PROMPT}.md](../prompts/{ACTIVE_PROMPT})
+
+This prompt is:
+- <CheckIcon inline size={14} /> **Validated through eval benchmarks** - Tested across GPT-5, Gemini 2.5 Pro, Claude Sonnet 4.5
+- <CheckIcon inline size={14} /> **Up-to-date with latest features** - Record updates, auto-import prelude, syntactic sugar
+- <CheckIcon inline size={14} /> **Versioned with SHA-256 hashing** - Reproducible eval results
+- <CheckIcon inline size={14} /> **Actively maintained** - Updated as language evolves
+
+---
+
+## <Icon name="info" inline /> Quick Reference
+
+**Current version**: {STABLE_RELEASE} (Teaching prompt: {ACTIVE_PROMPT})
+
+**Core Features**:
+- <CheckIcon inline size={14} /> Module execution with effects
+- <CheckIcon inline size={14} /> Recursion (self-recursive and mutually-recursive)
+- <CheckIcon inline size={14} /> Block expressions (`{ stmt1; stmt2; result }`)
+- <CheckIcon inline size={14} /> Records (literals + field access + updates)
+- <CheckIcon inline size={14} /> Multi-line ADTs `type Tree = | Leaf | Node`
+- <CheckIcon inline size={14} /> Record update syntax `{base | field: value}`
+- <CheckIcon inline size={14} /> Auto-import std/prelude - No imports needed for comparisons
+- <CheckIcon inline size={14} /> Syntactic sugar: `::` cons, `->` function types, `f()` zero-arg calls
+- <CheckIcon inline size={14} /> Effects: IO, FS, Clock, Net, Env
+- <CheckIcon inline size={14} /> Type classes, ADTs, pattern matching
+- <CheckIcon inline size={14} /> REPL with full type checking
+
+**Known Limitations**:
+- See [Implementation Status](/docs/reference/implementation-status) for current limitations
+- See [LIMITATIONS.md](https://github.com/sunholo-data/ailang/blob/main/docs/LIMITATIONS.md) for workarounds
+
+**For complete syntax guide**, see [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT})
+
+---
+
+## <Icon name="code" inline /> Using the Prompt
+
+### For AI Code Generation
+
+When asking an AI model (Claude, GPT, Gemini) to write AILANG code, provide the full prompt from [prompts/{ACTIVE_PROMPT}.md](/docs/prompts/{ACTIVE_PROMPT}).
+
+**Example usage**:
+```
+I need you to write AILANG code to solve this problem: [problem description]
+
+First, read this AILANG syntax guide:
+[paste contents of prompts/{ACTIVE_PROMPT}.md]
+
+Now write the code.
+```
+
+### For Eval Benchmarks
+
+The eval harness automatically loads the correct prompt version from `prompts/versions.json`:
+
+```yaml
+# benchmarks/example.yml
+id: example_task
+languages: ["ailang", "python"]
+# Prompt version is auto-resolved from prompts/versions.json
+task_prompt: |
+  Write a program that [task description]
+```
+
+See [benchmarks/README.md](https://github.com/sunholo-data/ailang/tree/main/benchmarks) for details.
+
+---
+
+## <Icon name="rocket" inline /> Current Prompt
+
+**Version**: {ACTIVE_PROMPT} - [View full prompt](/docs/prompts/{ACTIVE_PROMPT})
+
+**Core Features Documented**:
+- Multi-line ADTs: `type Tree = | Leaf | Node`
+- Record updates: `{base | field: value}`
+- Auto-import std/prelude
+- Syntactic sugar: `::` cons, `->` types, `f()` zero-arg calls
+- Full module system with effects (IO, FS, Clock, Net, Env)
+- Pattern matching, recursion, type classes
+
+**Why prompt quality matters**:
+- Better AI code generation
+- Reproducible eval results
+- Consistent teaching across models
+
+---
+
+## <Icon name="target" inline /> Eval Results
+
+**Current success rates**:
+- See [Benchmark Dashboard](/docs/benchmarks/performance) for latest metrics
+- **Best model**: Claude Sonnet 4.5 (consistently highest success rates)
+- Results updated after each release
+
+**Key Insights**:
+- Teaching prompt quality directly impacts AI success rates
+- Multi-model testing reveals universal vs model-specific patterns
+- Iterative prompt improvements correlate with better code generation
+
+---
+
+## <Icon name="wrench" inline /> Contributing Improvements
+
+If you find ways to improve the AILANG teaching prompt:
+
+1. **Test your changes** with the eval harness:
+   ```bash
+   ailang eval --benchmark all --model gpt-4o-mini
+   ```
+
+2. **Measure impact**:
+   ```bash
+   tools/compare_prompts.sh old_version new_version
+   ```
+
+3. **Create new prompt version** following the versioning system in `prompts/versions.json`
+
+4. **Document changes** with SHA-256 hash and notes in `prompts/versions.json`
+
+---
+
+## See Also
+
+- **[CLAUDE.md](https://github.com/sunholo-data/ailang/blob/main/CLAUDE.md)** - Instructions for AI assistants working on AILANG development
+- **[examples/](https://github.com/sunholo-data/ailang/tree/main/examples)** - Working AILANG code examples
+- **[Language Reference](/docs/reference/language-syntax)** - Complete AILANG syntax guide
+- **[benchmarks/](https://github.com/sunholo-data/ailang/tree/main/benchmarks)** - Eval harness benchmark suite

@@ -1,0 +1,151 @@
+module testing/basic
+
+// Basic Testing Examples for AILANG
+// Demonstrates unit tests and property-based tests
+
+// ============================================================================
+// Unit Tests (Simple Boolean Assertions)
+// ============================================================================
+
+// Basic arithmetic tests
+test "addition works" = 1 + 1 == 2
+test "subtraction works" = 5 - 3 == 2
+test "multiplication works" = 3 * 4 == 12
+test "division works" = 10 / 2 == 5
+
+// String tests
+test "string equality" = "hello" == "hello"
+test "string concatenation" = "hello" ++ " " ++ "world" == "hello world"
+
+// Boolean tests
+test "true is true" = true == true
+test "false is false" = false == false
+test "not true is false" = not true == false
+
+// List tests
+test "empty list" = [] == []
+test "list equality" = [1, 2, 3] == [1, 2, 3]
+test "list head" = head([1, 2, 3]) == 1
+test "list tail" = tail([1, 2, 3]) == [2, 3]
+
+// ============================================================================
+// Property-Based Tests (QuickCheck-Style)
+// ============================================================================
+
+// Integer properties
+property "addition is commutative" (x: int, y: int) =
+  x + y == y + x
+
+property "addition is associative" (x: int, y: int, z: int) =
+  (x + y) + z == x + (y + z)
+
+property "multiplication is commutative" (x: int, y: int) =
+  x * y == y * x
+
+property "integers are reflexive" (x: int) =
+  x == x
+
+// String properties
+property "string concatenation is associative" (a: string, b: string, c: string) =
+  (a ++ b) ++ c == a ++ (b ++ c)
+
+property "empty string is identity for concatenation" (s: string) =
+  s ++ "" == s && "" ++ s == s
+
+// List properties
+property "list concatenation is associative" (xs: list(int), ys: list(int), zs: list(int)) =
+  (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
+
+property "empty list is identity for concatenation" (xs: list(int)) =
+  xs ++ [] == xs && [] ++ xs == xs
+
+property "list length after cons" (x: int, xs: list(int)) =
+  length(x :: xs) == 1 + length(xs)
+
+// ============================================================================
+// Complex Property Tests
+// ============================================================================
+
+// Reversing properties
+property "reverse twice is identity" (xs: list(int)) =
+  reverse(reverse(xs)) == xs
+
+property "reverse preserves length" (xs: list(int)) =
+  length(reverse(xs)) == length(xs)
+
+// Sorting properties (if sort is implemented)
+// property "sorted list is sorted" (xs: list(int)) =
+//   let sorted = sort(xs) in
+//   isSorted(sorted)
+
+// property "sort preserves length" (xs: list(int)) =
+//   length(sort(xs)) == length(xs)
+
+// ============================================================================
+// Option/Maybe Tests
+// ============================================================================
+
+test "Some wraps value" =
+  match Some(42) {
+    | Some(x) -> x == 42
+    | None -> false
+  }
+
+test "None has no value" =
+  match None {
+    | Some(_) -> false
+    | None -> true
+  }
+
+property "Option map None is None" (f: int -> int) =
+  map(f, None) == None
+
+property "Option map Some applies function" (f: int -> int, x: int) =
+  map(f, Some(x)) == Some(f(x))
+
+// ============================================================================
+// Result/Either Tests
+// ============================================================================
+
+test "Ok wraps success value" =
+  match Ok(42) {
+    | Ok(x) -> x == 42
+    | Err(_) -> false
+  }
+
+test "Err wraps error value" =
+  match Err("error") {
+    | Ok(_) -> false
+    | Err(msg) -> msg == "error"
+  }
+
+// ============================================================================
+// Higher-Order Function Tests
+// ============================================================================
+
+test "map applies function to list" =
+  let double = \x. x * 2 in
+  map(double, [1, 2, 3]) == [2, 4, 6]
+
+test "filter keeps matching elements" =
+  let isEven = \x. x % 2 == 0 in
+  filter(isEven, [1, 2, 3, 4]) == [2, 4]
+
+test "fold sums list" =
+  let add = \x y. x + y in
+  foldl(add, 0, [1, 2, 3, 4]) == 10
+
+property "map preserves length" (xs: list(int), f: int -> int) =
+  length(map(f, xs)) == length(xs)
+
+property "filter reduces or preserves length" (xs: list(int), p: int -> bool) =
+  length(filter(p, xs)) <= length(xs)
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+export func main() -> () ! {IO} {
+  println("Basic Testing Examples");
+  println("Use `ailang test examples/testing_basic.ail` to run tests")
+}

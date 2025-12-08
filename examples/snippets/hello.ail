@@ -1,4 +1,0 @@
--- hello.ail - Simple hello world program
-
--- Using print expression instead of func declaration
-print("Hello, AILANG!")

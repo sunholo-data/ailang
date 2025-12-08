@@ -1,0 +1,58 @@
+module examples/list_pattern_records
+
+-- List Pattern with Records Example
+-- Demonstrates record field access through list pattern bindings (fixed in v0.5.0: M-BUG-TVAR2-LIST-PATTERN)
+-- Previously failed with: "type unification failed: cannot unify open record with *types.TVar2"
+
+-- Type definitions
+type Position = { x: int, y: int }
+type Entity = { pos: Position, name: string }
+
+-- Example 1: Simple record field access in list pattern
+-- This is the main bug fix - accessing pos.x where pos is bound by a list pattern
+
+let getFirstX = \positions. match positions {
+    pos :: rest => pos.x,
+    [] => 0
+}
+
+let result1 = getFirstX([{x: 42, y: 0}, {x: 10, y: 20}])
+
+
+-- Example 2: Nested record field access in list pattern
+-- e.pos.x where e is bound from a list of Entity records
+
+let getFirstEntityX = \entities. match entities {
+    e :: rest => e.pos.x,
+    [] => 0
+}
+
+let result2 = getFirstEntityX([{pos: {x: 100, y: 20}, name: "test"}])
+
+
+-- Example 3: Multiple fields access
+-- Accessing different fields from the same bound variable
+
+let sumFirstXY = \positions. match positions {
+    p :: rest => p.x + p.y,
+    [] => 0
+}
+
+let result3 = sumFirstXY([{x: 10, y: 20}])
+
+
+-- Example 4: List with deeply nested records
+
+type Game = { player: Entity, score: int }
+
+let getPlayerX = \games. match games {
+    g :: rest => g.player.pos.x,
+    [] => 0
+}
+
+let result4 = getPlayerX([{player: {pos: {x: 50, y: 60}, name: "hero"}, score: 100}])
+
+
+-- Final expression shows all results work
+-- result1 = 42, result2 = 100, result3 = 30, result4 = 50
+result1 + result2 + result3 + result4

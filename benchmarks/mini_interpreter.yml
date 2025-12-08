@@ -1,0 +1,37 @@
+id: mini_interpreter
+description: "Interpret a mini-language with let bindings and arithmetic (complete interpreter)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements an interpreter for a mini-language:
+
+  1. Define an AST with:
+     - Num(int) - numeric literal
+     - Var(string) - variable reference
+     - Add(Expr, Expr) - addition
+     - Mul(Expr, Expr) - multiplication
+     - Let(string, Expr, Expr) - let binding: let x = e1 in e2
+
+  2. Define an environment as a list of (name, value) pairs
+
+  3. Implement `lookup(name, env)` to find a variable's value
+
+  4. Implement `eval(expr, env)` that evaluates an expression in an environment
+
+  5. Evaluate this program:
+     let x = 5 in
+       let y = x + 3 in
+         x * y
+
+     As AST: Let("x", Num(5), Let("y", Add(Var("x"), Num(3)), Mul(Var("x"), Var("y"))))
+
+  6. Print the result
+
+  Expected: x=5, y=5+3=8, result=5*8=40
+
+  Output only the code, no explanations.
+expected_stdout: |
+  40

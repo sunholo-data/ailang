@@ -5,7 +5,7 @@ entrypoint: "main"
 caps: ["Net", "IO"]
 difficulty: "hard"
 expected_gain: "high"
-prompt: |
+task_prompt: |
   Write a program in <LANG> that:
   1. Makes an HTTP POST request to https://httpbin.org/post
   2. Includes custom headers: "X-Test-Header: value123" and "Content-Type: application/json"

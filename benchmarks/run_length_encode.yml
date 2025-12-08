@@ -1,0 +1,25 @@
+id: run_length_encode
+description: "Run-length encoding of a string (string processing + recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements run-length encoding for a list of characters
+     - Run-length encoding replaces consecutive identical elements with (count, element) pairs
+     - Example: ['a', 'a', 'a', 'b', 'b', 'c'] becomes [(3, 'a'), (2, 'b'), (1, 'c')]
+
+  2. Encodes this input: ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']
+
+  3. Prints the encoded result as a list of (count, char) pairs
+
+  Expected output: [(3, a), (2, b), (4, c), (1, a)]
+
+  Note: Characters are single-character strings in AILANG.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  [(3, a), (2, b), (4, c), (1, a)]

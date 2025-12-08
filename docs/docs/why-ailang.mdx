@@ -1,0 +1,206 @@
+---
+sidebar_position: 1
+title: Why AILANG
+description: A programming language designed for AI-assisted development and deterministic systems
+---
+
+import Icon from '@site/src/components/Icon';
+
+# Why AILANG Exists
+
+## A Language Built for the AI Era
+
+Traditional programming languages were designed for humans typing code in IDEs.
+They optimize for expressiveness, flexibility, and familiar syntax patterns.
+
+**AILANG takes a different approach.**
+
+It's designed for a world where AI models write, maintain, and reason about code—
+while humans focus on architecture, requirements, and oversight.
+
+---
+
+## What Makes AILANG Different
+
+### 1. AI-Native by Design
+
+AILANG is built from first principles for AI code generation:
+
+- <Icon name="check" inline /> **Small, regular syntax** — easy for models to learn and generate correctly
+- <Icon name="check" inline /> **Algebraic effects** — explicit side effects, no hidden state
+- <Icon name="check" inline /> **Pattern matching and ADTs** — high-level, declarative logic
+- <Icon name="check" inline /> **Pure functions by default** — predictable behavior
+- <Icon name="check" inline /> **Teaching prompts** — validated instructions that models can follow
+
+The result:
+
+> **AI models produce correct AILANG code significantly more often than equivalent Go or Python.**
+
+When your codebase is AI-maintained, error rates compound. AILANG minimizes them at the source.
+
+---
+
+### 2. Deterministic Execution
+
+Many domains require reproducible computation:
+
+- **Data pipelines** — same input, same output, every time
+- **Financial systems** — auditable calculations
+- **Scientific computing** — reproducible experiments
+- **Distributed systems** — consistent state across nodes
+- **Testing** — predictable behavior for verification
+- **Simulations** — replayable scenarios
+
+**AILANG enforces deterministic semantics:**
+
+- <Icon name="check" inline /> **Pure functions** — no hidden side effects
+- <Icon name="check" inline /> **Explicit effects** — `! IO`, `! FS`, `! Net` declared in types
+- <Icon name="check" inline /> **Immutable values** — referential transparency
+- <Icon name="check" inline /> **Controlled randomness** — seeded RNG through effects
+
+This means you can:
+
+- Replay any computation exactly
+- Debug by time-traveling through execution
+- Test with confidence
+- Reason about code mathematically
+
+**Most languages leave determinism to developer discipline. AILANG enforces it.**
+
+---
+
+### 3. Explicit Effect Tracking
+
+Side effects are the #1 source of bugs in production systems. AILANG makes them visible:
+
+```
+let processFile: string -> ! {FS, IO} string =
+  \path.
+    let content = readFile(path)
+    let _ = print("Processing: " ++ path)
+    transform(content)
+```
+
+The type signature tells you **exactly** what this function can do:
+- Read from filesystem (`FS`)
+- Print to console (`IO`)
+- Nothing else
+
+This enables:
+
+- <Icon name="shield" inline /> **Capability-based security** — grant only needed permissions
+- <Icon name="shield" inline /> **Safe sandboxing** — run untrusted code with limited effects
+- <Icon name="shield" inline /> **Clear contracts** — know what code does from its type
+- <Icon name="shield" inline /> **Testability** — mock effects easily
+
+---
+
+### 4. Compiles to Go
+
+AILANG isn't interpreted — it compiles to typed, idiomatic Go code:
+
+- <Icon name="zap" inline /> **Native performance** — no runtime overhead
+- <Icon name="zap" inline /> **Seamless interop** — call Go from AILANG and vice versa
+- <Icon name="zap" inline /> **Existing ecosystem** — use Go libraries directly
+- <Icon name="zap" inline /> **Easy deployment** — single binary, no dependencies
+- <Icon name="zap" inline /> **Familiar tooling** — Go debugging, profiling, testing
+
+Write high-level logic in AILANG. Run it as fast Go code.
+
+---
+
+### 5. Built for Autonomous Agents
+
+AILANG includes first-class support for AI-driven systems:
+
+- <Icon name="bot" inline /> **AI effect** — structured LLM calls with typed contracts
+- <Icon name="bot" inline /> **Agent messaging** — inter-agent communication
+- <Icon name="bot" inline /> **Deterministic stubs** — test agent logic without models
+- <Icon name="bot" inline /> **Semantic caching** — efficient agent coordination (planned)
+
+This makes AILANG ideal for:
+
+- Multi-agent systems
+- Autonomous workflows
+- AI-assisted business logic
+- Human-AI collaborative tools
+
+---
+
+## Use Cases
+
+AILANG excels wherever you need **correctness, determinism, and AI assistance**:
+
+| Domain | Why AILANG Helps |
+|--------|------------------|
+| **Data Pipelines** | Reproducible transformations, explicit I/O |
+| **Business Logic** | Clear contracts, testable pure functions |
+| **Scientific Computing** | Deterministic results, mathematical semantics |
+| **Agent Systems** | Built-in AI effects, typed messaging |
+| **Simulations** | Replayable execution, controlled randomness |
+| **Financial Systems** | Auditable calculations, explicit effects |
+| **Distributed Systems** | Deterministic state, explicit communication |
+
+---
+
+## Why Not Just Use Go/Python/TypeScript?
+
+Because they weren't designed for AI-assisted development:
+
+| Capability | Go | Python | AILANG |
+|------------|:--:|:------:|:------:|
+| AI-native syntax | | | <Icon name="check" inline /> |
+| Deterministic by default | | | <Icon name="check" inline /> |
+| Explicit effect tracking | | | <Icon name="check" inline /> |
+| Pure functions enforced | | | <Icon name="check" inline /> |
+| Type-safe AI integration | | | <Icon name="check" inline /> |
+| Compiles to Go | <Icon name="check" inline /> | | <Icon name="check" inline /> |
+| Teaching prompts | | | <Icon name="check" inline /> |
+
+**AILANG isn't replacing your stack. It's augmenting it with a language optimized for where software is going: AI-written, AI-maintained, human-supervised.**
+
+---
+
+## Current Status
+
+AILANG is production-ready for many use cases:
+
+| Feature | Status |
+|---------|--------|
+| **Core language** (functions, ADTs, pattern matching) | <Icon name="check" inline /> Complete |
+| **Effect system** (IO, FS, Net, Clock) | <Icon name="check" inline /> Complete |
+| **Type inference** (Hindley-Milner + type classes) | <Icon name="check" inline /> Complete |
+| **Go codegen** | <Icon name="check" inline /> Complete |
+| **Module system** | <Icon name="check" inline /> Complete |
+| **Agent messaging** | <Icon name="check" inline /> Complete |
+| **Execution profiles** (SimProfile, ServiceProfile) | In Progress |
+| **Semantic caching** | Planned |
+| **WebAssembly backend** | Planned |
+
+---
+
+## The Vision
+
+> **A language where humans define intent and AI handles implementation.**
+>
+> Where correctness is enforced by the type system, not developer discipline.
+> Where reproducibility is guaranteed, not hoped for.
+> Where AI assistance is first-class, not bolted on.
+
+**This is why AILANG exists.**
+
+---
+
+## Get Started
+
+Ready to try AILANG?
+
+- <Icon name="rocket" inline /> **[Getting Started Guide](/docs/guides/getting-started)** — Install and write your first program
+- <Icon name="code" inline /> **[Playground](/docs/playground)** — Try AILANG in your browser
+- <Icon name="book" inline /> **[Language Reference](/docs/reference/language-syntax)** — Complete syntax guide
+- <Icon name="bot" inline /> **[AI Teaching Prompt](/docs/prompts)** — Train your AI to write AILANG
+- <Icon name="github" inline /> **[GitHub](https://github.com/sunholo-data/ailang)** — Source code and issues
+
+---
+
+> **AILANG — Programming for the AI era.**

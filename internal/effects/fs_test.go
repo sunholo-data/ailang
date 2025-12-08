@@ -10,7 +10,7 @@ import (
 )
 
 func TestFSReadFile_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	// Create temp file
@@ -45,7 +45,7 @@ func TestFSReadFile_Success(t *testing.T) {
 }
 
 func TestFSReadFile_MissingCapability(t *testing.T) {
-	ctx := NewEffContext() // No FS capability
+	ctx := NewEffContext([]string{}) // No FS capability
 
 	args := []eval.Value{&eval.StringValue{Value: "/tmp/test.txt"}}
 	_, err := Call(ctx, "FS", "readFile", args)
@@ -65,7 +65,7 @@ func TestFSReadFile_MissingCapability(t *testing.T) {
 }
 
 func TestFSReadFile_NonexistentFile(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	args := []eval.Value{&eval.StringValue{Value: "/nonexistent/file.txt"}}
@@ -81,7 +81,7 @@ func TestFSReadFile_NonexistentFile(t *testing.T) {
 }
 
 func TestFSReadFile_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	_, err := Call(ctx, "FS", "readFile", []eval.Value{})
@@ -100,7 +100,7 @@ func TestFSReadFile_WrongArgCount(t *testing.T) {
 }
 
 func TestFSReadFile_WrongArgType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	args := []eval.Value{&eval.IntValue{Value: 42}}
@@ -116,7 +116,7 @@ func TestFSReadFile_WrongArgType(t *testing.T) {
 }
 
 func TestFSWriteFile_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	// Create temp file path (use simple name, no wildcards which break on Windows)
@@ -151,7 +151,7 @@ func TestFSWriteFile_Success(t *testing.T) {
 }
 
 func TestFSWriteFile_MissingCapability(t *testing.T) {
-	ctx := NewEffContext() // No FS capability
+	ctx := NewEffContext([]string{}) // No FS capability
 
 	args := []eval.Value{
 		&eval.StringValue{Value: "/tmp/test.txt"},
@@ -174,7 +174,7 @@ func TestFSWriteFile_MissingCapability(t *testing.T) {
 }
 
 func TestFSWriteFile_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	// 0 args
@@ -203,7 +203,7 @@ func TestFSWriteFile_WrongArgCount(t *testing.T) {
 }
 
 func TestFSWriteFile_WrongArgType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	// Wrong path type
@@ -228,7 +228,7 @@ func TestFSWriteFile_WrongArgType(t *testing.T) {
 }
 
 func TestFSExists_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))
 
 	// Create temp file
@@ -275,7 +275,7 @@ func TestFSExists_Success(t *testing.T) {
 }
 
 func TestFSExists_MissingCapability(t *testing.T) {
-	ctx := NewEffContext() // No FS capability
+	ctx := NewEffContext([]string{}) // No FS capability
 
 	args := []eval.Value{&eval.StringValue{Value: "/tmp/test.txt"}}
 	_, err := Call(ctx, "FS", "exists", args)
@@ -310,7 +310,7 @@ func TestFSSandbox_ReadFile(t *testing.T) {
 	}
 
 	// Create context with sandbox
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
 	ctx.Grant(NewCapability("FS"))
 
@@ -341,7 +341,7 @@ func TestFSSandbox_WriteFile(t *testing.T) {
 	defer os.RemoveAll(sandbox)
 
 	// Create context with sandbox
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
 	ctx.Grant(NewCapability("FS"))
 
@@ -383,7 +383,7 @@ func TestFSSandbox_Exists(t *testing.T) {
 	}
 
 	// Create context with sandbox
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Env.Sandbox = sandbox
 	ctx.Grant(NewCapability("FS"))
 

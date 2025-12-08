@@ -1,0 +1,4 @@
+--- File Analysis for 'sample_input.txt' ---
+Total Lines: 3
+Total Words: 19
+--------------------------------------

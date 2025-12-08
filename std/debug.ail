@@ -1,0 +1,31 @@
+-- std/debug.ail
+-- Debug effect for structured tracing and assertions
+--
+-- Debug is a "ghost effect" - erasable in release mode:
+--   - Debug.log and Debug.check are write-only from AILANG
+--   - Only the host can collect debug output (via DebugContext.Collect())
+--   - In --release mode, Debug is erased from effect rows and calls become no-ops
+--
+-- Usage:
+--   import std/debug (log, check)
+--
+--   func update(e: Entity) -> Entity ! {Debug} {
+--       check(e.health >= 0, "health must be non-negative")
+--       log("updating entity")
+--       ...
+--   }
+--
+-- Note: We use "check" instead of "assert" because "assert" is a reserved keyword
+
+module std/debug
+
+-- Wrappers around Go builtins (_debug_log, _debug_check)
+-- Effects are tracked at the type level with ! {Debug}
+-- Using equation-form exports for thin wrappers
+
+-- log: Log a debug message (write-only, host collects)
+export func log(msg: string) -> () ! {Debug} = _debug_log(msg, "unknown")
+
+-- check: Record an assertion result (write-only, host collects)
+-- Assertions are collected, not thrown - execution continues
+export func check(cond: bool, msg: string) -> () ! {Debug} = _debug_check(cond, msg, "unknown")

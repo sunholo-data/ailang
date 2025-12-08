@@ -4,6 +4,9 @@
 # Force LF for golden test files (prevents Windows CRLF issues)
 *.golden text eol=lf
 
+# Force LF for prompt files (prevents hash mismatches on Windows)
+prompts/*.md text eol=lf
+
 # Force LF for shell scripts
 *.sh text eol=lf
 

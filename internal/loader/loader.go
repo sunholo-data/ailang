@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -19,9 +20,10 @@ import (
 
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
-	cache              map[string]*LoadedModule
-	basePath           string // Base directory for relative imports
-	warnedLegacyStdlib bool   // Track if we've warned about stdlib/std/* usage
+	cache            map[string]*LoadedModule
+	basePath         string          // Base directory for relative imports
+	strictSyntaxMode bool            // When true, syntactic sugar is not allowed
+	stdlibResolver   *StdlibResolver // Stdlib path resolver (initialized lazily)
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -39,9 +41,21 @@ type LoadedModule struct {
 // NewModuleLoader creates a new module loader
 func NewModuleLoader(basePath string) *ModuleLoader {
 	return &ModuleLoader{
-		cache:    make(map[string]*LoadedModule),
-		basePath: basePath,
+		cache:            make(map[string]*LoadedModule),
+		basePath:         basePath,
+		strictSyntaxMode: false, // Default: allow syntactic sugar
 	}
+}
+
+// SetStrictSyntaxMode enables or disables strict syntax mode
+func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
+	ml.strictSyntaxMode = strict
+}
+
+// ConfigureStdlibResolver configures the stdlib resolver with CLI flags
+// Call this before loading any stdlib modules
+func (ml *ModuleLoader) ConfigureStdlibResolver(cliPath string, traceEnabled, strictMode bool) {
+	ml.stdlibResolver = NewStdlibResolver(cliPath, traceEnabled, strictMode)
 }
 
 // Preload adds a pre-loaded module to the cache
@@ -57,35 +71,20 @@ func (ml *ModuleLoader) Preload(path string, loaded *LoadedModule) {
 	ml.cache[canonicalID] = loaded
 }
 
-// canonicalizeModulePath normalizes import paths and detects legacy patterns
+// canonicalizeModulePath normalizes import paths
 //
-// Returns the canonical path and a flag indicating if a legacy pattern was used.
-// Legacy pattern: "stdlib/std/io" → canonical: "std/io" (legacy=true)
-// Modern pattern: "std/io" → canonical: "std/io" (legacy=false)
-func canonicalizeModulePath(path string) (string, bool) {
-	legacy := false
+// Returns the canonical path.
+// Modern pattern: "std/io" → canonical: "std/io"
+func canonicalizeModulePath(path string) string {
 	// Strip leading "./" or ".\" for cross-platform safety
 	path = strings.TrimPrefix(strings.TrimPrefix(path, "./"), ".\\")
-
-	// Detect and normalize legacy stdlib/std/* pattern
-	if strings.HasPrefix(path, "stdlib/std/") {
-		path = strings.TrimPrefix(path, "stdlib/")
-		legacy = true
-	}
-
-	return path, legacy
+	return path
 }
 
 // Load loads a module by path
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
-	// Canonicalize the import path and check for legacy patterns
-	canonPath, isLegacy := canonicalizeModulePath(path)
-
-	// Emit one-time warning for legacy stdlib/std/* usage
-	if isLegacy && !ml.warnedLegacyStdlib {
-		fmt.Fprintf(os.Stderr, "Warning: import path 'stdlib/std/*' is deprecated; use 'std/*' instead\n")
-		ml.warnedLegacyStdlib = true
-	}
+	// Canonicalize the import path
+	canonPath := canonicalizeModulePath(path)
 
 	// Use canonicalized path for all subsequent operations
 	canonicalID := CanonicalModuleID(canonPath)
@@ -107,14 +106,19 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
 	} else if strings.HasPrefix(canonPath, "std/") {
-		// Stdlib path - resolve from AILANG_STDLIB_PATH or default to "stdlib/"
-		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-		if stdlibPath == "" {
-			stdlibPath = "stdlib"
+		// Standard library path - use StdlibResolver
+		// Initialize resolver lazily if not configured
+		if ml.stdlibResolver == nil {
+			ml.stdlibResolver = NewStdlibResolver("", false, false)
 		}
-		stdPath := filepath.Join(stdlibPath, canonPath) + ".ail"
-		searchTrace = append(searchTrace, "stdlib: "+stdPath)
-		fullPath = stdPath
+
+		resolvedPath, err := ml.stdlibResolver.ResolveStdlib(canonPath)
+		if err != nil {
+			// StdlibResolver already provides detailed error with search trace
+			return nil, err
+		}
+		fullPath = resolvedPath
+		searchTrace = append(searchTrace, "std: "+resolvedPath)
 	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
@@ -138,9 +142,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Parse file
 	l := lexer.New(string(content), fullPath)
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(ml.strictSyntaxMode)
 	file := p.ParseFile()
 	if len(p.Errors()) > 0 {
-		return nil, fmt.Errorf("parse errors in %s: %v", path, p.Errors())
+		// Format each error individually to preserve custom .Error() methods
+		// (e.g., ParserError with suggestions)
+		var errorMsgs []string
+		for _, err := range p.Errors() {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		return nil, fmt.Errorf("parse errors in %s:\n%s", path, strings.Join(errorMsgs, "\n\n"))
 	}
 
 	// Extract imports from the file
@@ -187,12 +198,12 @@ func (ml *ModuleLoader) resolvePath(path string) string {
 		return filepath.Join(ml.basePath, path) + ".ail"
 	}
 
-	// Handle stdlib imports (always relative to stdlib root)
+	// Handle standard library imports (always relative to std root)
 	if strings.HasPrefix(path, "std/") {
-		// Resolve from AILANG_STDLIB_PATH env or default to "stdlib/"
+		// Resolve from AILANG_STDLIB_PATH env or default to current directory
 		stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
 		if stdlibPath == "" {
-			stdlibPath = "stdlib"
+			stdlibPath = "." // std/ is at repository root
 		}
 		return filepath.Join(stdlibPath, path) + ".ail"
 	}
@@ -554,4 +565,70 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// IsTempPath returns true if the given path is in a temporary directory.
+// This is used for relaxed module matching - files in temp directories
+// are allowed to have mismatched module declarations.
+//
+// Detection is conservative: if uncertain, returns false (doesn't auto-relax).
+//
+// Patterns detected:
+//   - os.TempDir() prefix (cross-platform)
+//   - /tmp/ prefix (Unix)
+//   - /var/folders/ prefix (macOS)
+//   - Windows %TEMP% prefix
+//   - Canonical paths starting with "tmp/" (after CanonicalModuleID strips leading /)
+func IsTempPath(path string) bool {
+	// First check for canonical paths that were originally in /tmp/
+	// CanonicalModuleID strips leading "/" so /tmp/foo becomes tmp/foo
+	if strings.HasPrefix(path, "tmp/") || path == "tmp" {
+		return true
+	}
+
+	// Check for /var/folders/ canonical paths (macOS)
+	if strings.HasPrefix(path, "var/folders/") {
+		return true
+	}
+
+	// Normalize path for comparison
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		// If we can't resolve the path, be conservative
+		return false
+	}
+
+	// Check os.TempDir() first (cross-platform)
+	tempDir := os.TempDir()
+	if strings.HasPrefix(absPath, tempDir) {
+		return true
+	}
+
+	// Platform-specific patterns
+	if runtime.GOOS == "windows" {
+		// Windows: check %TEMP% and %TMP% environment variables
+		if temp := os.Getenv("TEMP"); temp != "" {
+			if strings.HasPrefix(absPath, temp) {
+				return true
+			}
+		}
+		if tmp := os.Getenv("TMP"); tmp != "" {
+			if strings.HasPrefix(absPath, tmp) {
+				return true
+			}
+		}
+	} else {
+		// Unix-like systems
+		// Check /tmp/ prefix
+		if strings.HasPrefix(absPath, "/tmp/") || absPath == "/tmp" {
+			return true
+		}
+
+		// Check /var/folders/ prefix (macOS temp directories)
+		if strings.HasPrefix(absPath, "/var/folders/") {
+			return true
+		}
+	}
+
+	return false
 }

@@ -1,0 +1,18 @@
+-- Test module aliasing feature
+-- import std/list as List allows List.length, List.map, etc.
+
+module examples/imports/module_alias
+
+import std/list as List
+
+-- Use qualified access via module alias
+export pure func getLength(xs: [int]) -> int {
+  List.length(xs)
+}
+
+-- Test entry point
+export func main() -> () ! {IO} {
+  let nums = [1, 2, 3, 4, 5];
+  let len = getLength(nums);
+  _io_print("Length: " ++ show(len))
+}

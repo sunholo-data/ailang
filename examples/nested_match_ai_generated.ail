@@ -1,0 +1,37 @@
+module examples/nested_match_ai_generated
+
+import std/io (println)
+
+// Minimal reproduction case from gpt5-mini benchmark failure
+// This is the EXACT code that AI generated that fails to parse
+
+export func add(value: int, state: int) -> (int, int) {
+  let newState = state + value;
+  (newState, newState)
+}
+
+export func multiply(value: int, state: int) -> (int, int) {
+  let newState = state * value;
+  (newState, newState)
+}
+
+export func main() -> () ! {IO} {
+  let state0 = 0;
+  println("Initial: " ++ show(state0));
+  let r1 = add(5, state0);
+  match r1 {
+    (state1, _) => {
+      println("After add: " ++ show(state1));
+      let r2 = multiply(3, state1);
+      match r2 {
+        (state2, _) => {
+          println("After multiply: " ++ show(state2));
+          let r3 = add(10, state2);
+          match r3 {
+            (state3, _) => println("After add: " ++ show(state3))
+          }
+        }
+      }
+    }
+  }
+}

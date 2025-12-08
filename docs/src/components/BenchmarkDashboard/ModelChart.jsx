@@ -110,6 +110,7 @@ function formatModelName(name) {
   if (name.includes('gpt-4')) return 'GPT-4';
   if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
   if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
+  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
   if (name.includes('gemini-pro')) return 'Gemini Pro';
   if (name.includes('gemini')) return 'Gemini';
 

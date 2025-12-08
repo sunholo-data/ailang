@@ -11,7 +11,7 @@ import (
 )
 
 func TestIOPrint_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	// Capture stdout
@@ -43,7 +43,7 @@ func TestIOPrint_Success(t *testing.T) {
 }
 
 func TestIOPrintln_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	// Capture stdout
@@ -75,7 +75,7 @@ func TestIOPrintln_Success(t *testing.T) {
 }
 
 func TestIOPrint_MissingCapability(t *testing.T) {
-	ctx := NewEffContext() // No IO capability granted
+	ctx := NewEffContext([]string{}) // No IO capability granted
 
 	args := []eval.Value{&eval.StringValue{Value: "Hello"}}
 	_, err := Call(ctx, "IO", "print", args)
@@ -95,7 +95,7 @@ func TestIOPrint_MissingCapability(t *testing.T) {
 }
 
 func TestIOPrint_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	// No arguments
@@ -116,7 +116,7 @@ func TestIOPrint_WrongArgCount(t *testing.T) {
 }
 
 func TestIOPrint_WrongArgType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	args := []eval.Value{&eval.IntValue{Value: 42}}
@@ -132,7 +132,7 @@ func TestIOPrint_WrongArgType(t *testing.T) {
 }
 
 func TestIOReadLine_Success(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	// Mock stdin
@@ -165,7 +165,7 @@ func TestIOReadLine_Success(t *testing.T) {
 }
 
 func TestIOReadLine_EOF(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	// Mock stdin with empty input (EOF)
@@ -193,7 +193,7 @@ func TestIOReadLine_EOF(t *testing.T) {
 }
 
 func TestIOReadLine_MissingCapability(t *testing.T) {
-	ctx := NewEffContext() // No IO capability
+	ctx := NewEffContext([]string{}) // No IO capability
 
 	_, err := Call(ctx, "IO", "readLine", []eval.Value{})
 
@@ -212,7 +212,7 @@ func TestIOReadLine_MissingCapability(t *testing.T) {
 }
 
 func TestIOReadLine_WrongArgCount(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	args := []eval.Value{&eval.StringValue{Value: "unexpected"}}
@@ -228,7 +228,7 @@ func TestIOReadLine_WrongArgCount(t *testing.T) {
 }
 
 func TestCall_UnknownEffect(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Unknown"))
 
 	_, err := Call(ctx, "Unknown", "operation", []eval.Value{})
@@ -243,7 +243,7 @@ func TestCall_UnknownEffect(t *testing.T) {
 }
 
 func TestCall_UnknownOperation(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("IO"))
 
 	_, err := Call(ctx, "IO", "unknownOp", []eval.Value{})

@@ -5,22 +5,53 @@
 # Format: <name> : <type_signature>
 #
 
+:: : (a, List[a]) -> List[a]
+_ai_call : string -> string ! {AI}
+_array_from_list : List[a] -> Array[a]
+_array_get : (Array[a], int) -> a
+_array_length : Array[a] -> int
+_array_make : (int, a) -> Array[a]
+_array_set : (Array[a], int, a) -> Array[a]
+_array_to_list : Array[a] -> List[a]
+_array_unsafe_get : (Array[a], int) -> a
+_clock_now : () -> int ! {Clock}
+_clock_sleep : int -> () ! {Clock}
+_debug_check : (bool, string, string) -> () ! {Debug}
+_debug_log : (string, string) -> () ! {Debug}
+_env_getArgs : () -> List[string] ! {Env}
+_env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
+_env_hasEnv : string -> bool ! {Env}
+_fs_exists : string -> bool ! {FS}
+_fs_readFile : string -> string ! {FS}
+_fs_writeFile : (string, string) -> () ! {FS}
+_game_delta_time : () -> float ! {Clock}
+_game_frame_count : () -> int ! {Clock}
+_game_total_time : () -> float ! {Clock}
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
+_json_encode : Json -> string
 _net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_rand_bool : () -> bool ! {Rand}
+_rand_float : (float, float) -> float ! {Rand}
+_rand_int : (int, int) -> int ! {Rand}
+_rand_seed : int -> () ! {Rand}
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
 _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string
+_str_split : (string, string) -> List[string]
 _str_trim : string -> string
 _str_upper : string -> string
+_stringToFloat : string -> Option[float]
+_stringToInt : string -> Option[int]
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool
+concat_List : (List[a], List[a]) -> List[a]
 concat_String : (string, string) -> string
 div_Float : (float, float) -> float
 div_Int : (int, int) -> int

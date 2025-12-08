@@ -97,6 +97,11 @@ func UnionEffectRows(a, b *Row) *Row {
 		effectLabels[name] = Unit()
 	}
 
+	// If no effects after merging, return nil (pure)
+	if len(effectLabels) == 0 {
+		return nil
+	}
+
 	return &Row{
 		Kind:   EffectRow,
 		Labels: effectLabels,

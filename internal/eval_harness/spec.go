@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	promptpkg "github.com/sunholo/ailang/internal/prompt"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,6 +21,7 @@ type BenchmarkSpec struct {
 	ExpectedOut  string            `yaml:"expected_stdout"`
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
+	Timeout      int               `yaml:"timeout"` // Agent timeout in seconds (default: 60)
 }
 
 // LoadSpec loads a benchmark spec from a YAML file
@@ -110,13 +112,11 @@ func getDefaultPrompt(lang string) string {
 	case "python":
 		return "You are an expert Python programmer. Write clean, idiomatic Python code."
 	case "ailang":
-		// For AILANG, use the active prompt from the registry
-		loader, err := NewPromptLoader("prompts/versions.json")
+		// For AILANG, use the active prompt from the central prompt package
+		// Single source of truth: internal/prompt (also used by `ailang prompt` CLI)
+		activePrompt, err := promptpkg.LoadPrompt("")
 		if err == nil {
-			activePrompt, err := loader.GetActivePrompt()
-			if err == nil {
-				return activePrompt
-			}
+			return activePrompt
 		}
 		// Fallback if prompt loader fails
 		return "You are writing code in AILANG, a functional programming language."

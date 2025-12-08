@@ -1,0 +1,47 @@
+id: log_file_analyzer
+description: "Parse log file and compute statistics with aggregation"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "high"
+timeout: 90
+task_prompt: |
+  Analyze a log file and compute statistics.
+
+  **Requirements**:
+
+  1. Create a log file named "app.log" with these exact 6 lines:
+     ```
+     2024-10-29 10:00:00 INFO User logged in: alice
+     2024-10-29 10:01:15 ERROR Database connection failed
+     2024-10-29 10:02:30 INFO User logged in: bob
+     2024-10-29 10:03:45 WARNING High memory usage: 85%
+     2024-10-29 10:05:00 ERROR API timeout: /users endpoint
+     2024-10-29 10:06:15 INFO User logged out: alice
+     ```
+
+  2. Parse and analyze the log:
+     - Each line format: "{date} {time} {LEVEL} {message}"
+     - Count entries by level (INFO, ERROR, WARNING)
+     - Calculate percentage for each level (use integer division, round down)
+     - Extract unique usernames mentioned after colons (alice, bob)
+
+  3. Print results in this exact format:
+     ```
+     Total log entries: 6
+     INFO: 3 (50%)
+     ERROR: 2 (33%)
+     WARNING: 1 (17%)
+     Unique users: alice, bob
+     ```
+
+  Note: Users should be printed in alphabetical order, comma-separated.
+
+
+expected_stdout: |
+  Total log entries: 6
+  INFO: 3 (50%)
+  ERROR: 2 (33%)
+  WARNING: 1 (17%)
+  Unique users: alice, bob

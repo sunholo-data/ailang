@@ -18,6 +18,88 @@ type Builder struct {
 	typeEnv *types.TypeEnv
 }
 
+// astTypeToInternalType converts an AST type to an internal type
+// This is used during interface building to get actual constructor field types
+func astTypeToInternalType(t ast.Type) types.Type {
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		switch typ.Name {
+		case "int":
+			return types.TInt
+		case "float":
+			return types.TFloat
+		case "string":
+			return types.TString
+		case "bool":
+			return types.TBool
+		case "()":
+			return types.TUnit
+		case "bytes":
+			return types.TBytes
+		default:
+			// Type variable or constructor
+			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' {
+				return &types.TVar2{Name: typ.Name, Kind: types.Star}
+			}
+			return &types.TCon{Name: typ.Name}
+		}
+
+	case *ast.FuncType:
+		paramTypes := make([]types.Type, len(typ.Params))
+		for i, p := range typ.Params {
+			paramTypes[i] = astTypeToInternalType(p)
+		}
+		var effectRow *types.Row
+		if len(typ.Effects) > 0 {
+			labels := make(map[string]types.Type)
+			for _, e := range typ.Effects {
+				labels[e] = types.TUnit
+			}
+			effectRow = &types.Row{
+				Kind:   types.EffectRow,
+				Labels: labels,
+				Tail:   nil,
+			}
+		} else {
+			effectRow = types.EmptyEffectRow()
+		}
+		return &types.TFunc2{
+			Params:    paramTypes,
+			EffectRow: effectRow,
+			Return:    astTypeToInternalType(typ.Return),
+		}
+
+	case *ast.ListType:
+		return &types.TList{
+			Element: astTypeToInternalType(typ.Element),
+		}
+
+	case *ast.ArrayType:
+		return &types.TArray{
+			Element: astTypeToInternalType(typ.Element),
+		}
+
+	case *ast.TupleType:
+		elements := make([]types.Type, len(typ.Elements))
+		for i, e := range typ.Elements {
+			elements[i] = astTypeToInternalType(e)
+		}
+		return &types.TTuple{Elements: elements}
+
+	case *ast.RecordType:
+		// Convert record type fields
+		labels := make(map[string]types.Type)
+		for _, f := range typ.Fields {
+			labels[f.Name] = astTypeToInternalType(f.Type)
+		}
+		return &types.TRecord{Fields: labels, Row: nil}
+
+	default:
+		// Unknown type, return type variable
+		return &types.TVar2{Name: "unknown", Kind: types.Star}
+	}
+}
+
 // NewBuilder creates a new interface builder
 func NewBuilder(module string, typeEnv *types.TypeEnv) *Builder {
 	return &Builder{
@@ -53,7 +135,6 @@ func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, t
 
 // Build constructs the interface from a Core program
 func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
-	// DEBUG: fmt.Printf("DEBUG Build: module=%s, astFile=%v\n", b.module, astFile != nil)
 	iface := NewIface(b.module)
 
 	// Extract exportable bindings from the program
@@ -63,9 +144,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Process each export
-	// DEBUG: fmt.Printf("DEBUG: Processing %d exports for module %s\n", len(exports), b.module)
 	for name, binding := range exports {
-		// DEBUG: fmt.Printf("DEBUG:   Processing export %s\n", name)
 		// Get the type from the environment
 		typ, err := b.typeEnv.Lookup(name)
 		if err != nil {
@@ -131,14 +210,21 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						iface.AddType(typeDecl.Name, arity)
 						// DEBUG: fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
 
-						// Extract constructors from algebraic types
+						// Extract constructors from algebraic types with ACTUAL field types
+						// This fixes the type pollution bug where placeholder TVar2s were shared
 						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
 							// DEBUG: fmt.Printf("DEBUG: Type %s is algebraic with %d constructors\n", typeDecl.Name, len(algType.Constructors))
-							for range algType.Constructors {
-								// Add constructor to exports (will be importable)
-								// The actual constructor scheme was already added above
-								// Just mark it as exportable here
-								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s\n", typeDecl.Name, ctor.Name)
+							for _, ctor := range algType.Constructors {
+								// Convert AST field types to internal types
+								fieldTypes := make([]types.Type, len(ctor.Fields))
+								for i, field := range ctor.Fields {
+									fieldTypes[i] = astTypeToInternalType(field.Type)
+								}
+								resultType := &types.TCon{Name: typeDecl.Name}
+
+								// Update/add constructor with actual field types (overwriting placeholders)
+								iface.AddConstructor(typeDecl.Name, ctor.Name, fieldTypes, resultType)
+								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s with fields %v\n", typeDecl.Name, ctor.Name, fieldTypes)
 							}
 						}
 					}
@@ -162,43 +248,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, error) {
 	exports := make(map[string]core.CoreExpr)
 
-	// DEBUG: Show metadata
-	// if prog.Meta != nil {
-	// 	fmt.Printf("DEBUG BuildInterface: module %s has metadata with %d entries\n", b.module, len(prog.Meta))
-	// 	for name, meta := range prog.Meta {
-	// 		fmt.Printf("  %s: IsExport=%v, IsPure=%v\n", name, meta.IsExport, meta.IsPure)
-	// 	}
-	// } else {
-	// 	fmt.Printf("DEBUG BuildInterface: module %s has NO metadata\n", b.module)
-	// }
-
 	// Use metadata to determine exports
 	if prog.Meta != nil {
 		for _, decl := range prog.Decls {
-			switch d := decl.(type) {
-			case *core.Let:
-				// DEBUG: fmt.Printf("DEBUG: Found Let %s\n", d.Name)
-				if meta, ok := prog.Meta[d.Name]; ok {
-					// Only export explicitly marked functions that don't start with underscore
-					if meta.IsExport && !strings.HasPrefix(d.Name, "_") {
-						// DEBUG: fmt.Printf("DEBUG: Adding export %s\n", d.Name)
-						exports[d.Name] = d.Value
-					}
-				}
-			case *core.LetRec:
-				// DEBUG: fmt.Printf("DEBUG: Found LetRec with %d bindings\n", len(d.Bindings))
-				for _, binding := range d.Bindings {
-					// DEBUG: fmt.Printf("DEBUG:   Binding %s\n", binding.Name)
-					if meta, ok := prog.Meta[binding.Name]; ok {
-						// DEBUG: fmt.Printf("DEBUG:     Has metadata: IsExport=%v\n", meta.IsExport)
-						if meta.IsExport && !strings.HasPrefix(binding.Name, "_") {
-							// DEBUG: fmt.Printf("DEBUG: Adding export %s from LetRec\n", binding.Name)
-							exports[binding.Name] = binding.Value
-						}
-					}
-					// No else needed - if no metadata, we skip the binding
-				}
-			}
+			// Recursively extract exports from nested Let/LetRec structures
+			b.extractExportsFromExpr(decl, prog.Meta, exports)
 		}
 	} else {
 		// Fallback: no metadata means no exports (safer than exporting everything)
@@ -206,6 +260,37 @@ func (b *Builder) extractExports(prog *core.Program) (map[string]core.CoreExpr, 
 	}
 
 	return exports, nil
+}
+
+// extractExportsFromExpr recursively extracts exports from nested Let/LetRec structures
+// This handles module-level lets that wrap function declarations
+func (b *Builder) extractExportsFromExpr(expr core.CoreExpr, meta map[string]*core.DeclMeta, exports map[string]core.CoreExpr) {
+	switch d := expr.(type) {
+	case *core.Let:
+		if m, ok := meta[d.Name]; ok {
+			// Only export explicitly marked functions that don't start with underscore
+			if m.IsExport && !strings.HasPrefix(d.Name, "_") {
+				exports[d.Name] = d.Value
+			}
+		}
+		// Recursively check the body for nested Let/LetRec
+		if d.Body != nil {
+			b.extractExportsFromExpr(d.Body, meta, exports)
+		}
+
+	case *core.LetRec:
+		for _, binding := range d.Bindings {
+			if m, ok := meta[binding.Name]; ok {
+				if m.IsExport && !strings.HasPrefix(binding.Name, "_") {
+					exports[binding.Name] = binding.Value
+				}
+			}
+		}
+		// Recursively check the body for nested Let/LetRec
+		if d.Body != nil {
+			b.extractExportsFromExpr(d.Body, meta, exports)
+		}
+	}
 }
 
 // generalizeType converts a type to a type scheme, generalizing at module boundary

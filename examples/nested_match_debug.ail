@@ -1,0 +1,18 @@
+module examples/nested_match_debug
+
+import std/io (println)
+
+// Minimal case: block with println BEFORE nested match
+
+export func test() -> () ! {IO} {
+  let r1 = (1, 2);
+  match r1 {
+    (a, b) => {
+      println("Before nested");
+      let r2 = (3, 4);
+      match r2 {
+        (c, d) => println("Done")
+      }
+    }
+  }
+}

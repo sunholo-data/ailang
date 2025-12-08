@@ -1,0 +1,61 @@
+module examples/env_allowlist
+
+-- Demonstrates allowlist security enforcement
+-- Shows how to restrict environment variable access
+--
+-- Usage:
+--   # Allow all variables (insecure)
+--   ailang run --caps Env examples/env_allowlist.ail
+--
+--   # Allow only specific variables (secure)
+--   ailang run --caps Env --allow-env PATH,HOME examples/env_allowlist.ail
+--
+--   # Load allowlist from file
+--   echo "PATH" > /tmp/allowlist.txt
+--   echo "HOME" >> /tmp/allowlist.txt
+--   ailang run --caps Env --allow-env-file /tmp/allowlist.txt examples/env_allowlist.ail
+
+import std/io(println)
+import std/env(getEnv, EnvError)
+import std/result(Ok, Err)
+
+-- Try to access a variable and report the result
+func tryAccess(name: string) -> string ! {Env} =
+  match getEnv(name) {
+    Ok(val) => name ++ " = " ++ val ++ " (allowed)"
+    Err(_) => name ++ " (error accessing variable)"
+  }
+
+export func main() -> () ! {Env, IO} {
+  {
+    println("=== Allowlist Security Demo ===");
+    println(" ");
+    println("Trying to access various environment variables:");
+    println(" ");
+
+    -- Try accessing common variables
+    let pathResult = tryAccess("PATH");
+    println(pathResult);
+    let homeResult = tryAccess("HOME");
+    println(homeResult);
+    let userResult = tryAccess("USER");
+    println(userResult);
+    let langResult = tryAccess("LANG");
+    println(langResult);
+
+    -- Try accessing sensitive-looking variables
+    println(" ");
+    println("Sensitive variables:");
+    let apiResult = tryAccess("API_KEY");
+    println(apiResult);
+    let secretResult = tryAccess("SECRET_TOKEN");
+    println(secretResult);
+    let pwdResult = tryAccess("PASSWORD");
+    println(pwdResult);
+
+    println(" ");
+    println("Note: Use --allow-env to restrict access");
+
+    ()
+  }
+}

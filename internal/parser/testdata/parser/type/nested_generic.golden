@@ -7,8 +7,10 @@
             {
               "fields": [
                 {
-                  "name": "a",
-                  "type": "TypeVar"
+                  "type": {
+                    "name": "a",
+                    "type": "TypeVar"
+                  }
                 }
               ],
               "name": "Leaf",
@@ -17,12 +19,16 @@
             {
               "fields": [
                 {
-                  "name": "Tree",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "Tree",
+                    "type": "SimpleType"
+                  }
                 },
                 {
-                  "name": "Tree",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "Tree",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Node",
@@ -46,8 +52,10 @@
             {
               "fields": [
                 {
-                  "name": "a",
-                  "type": "TypeVar"
+                  "type": {
+                    "name": "a",
+                    "type": "TypeVar"
+                  }
                 }
               ],
               "name": "Leaf",
@@ -56,12 +64,16 @@
             {
               "fields": [
                 {
-                  "name": "Tree",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "Tree",
+                    "type": "SimpleType"
+                  }
                 },
                 {
-                  "name": "Tree",
-                  "type": "SimpleType"
+                  "type": {
+                    "name": "Tree",
+                    "type": "SimpleType"
+                  }
                 }
               ],
               "name": "Node",

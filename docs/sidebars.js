@@ -15,6 +15,7 @@
 const sidebars = {
   tutorialSidebar: [
     'intro',
+    'why-ailang',
     'vision',
     'examples',
     'playground',
@@ -22,9 +23,21 @@ const sidebars = {
       type: 'category',
       label: 'Getting Started',
       items: [
-        'guides/agent-integration',
         'guides/getting-started',
+        'guides/editor-setup',
         'guides/module_execution',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Agent Integration',
+      items: [
+        'guides/claude-code-integration',
+        'guides/hooks-setup',
+        'guides/agent-workflows',
+        'guides/state-system-workflow',
+        'guides/agent-integration',
+        'guides/agent-messaging',
       ],
     },
     {
@@ -32,9 +45,13 @@ const sidebars = {
       label: 'Language Reference',
       items: [
         'reference/language-syntax',
+        'reference/effects',
+        'reference/modules',
+        'reference/arrays',
         'reference/implementation-status',
         'reference/repl-commands',
         'reference/no-loops',
+        'reference/limitations',
       ],
     },
     {
@@ -43,7 +60,7 @@ const sidebars = {
       items: [
         'guides/ai-prompt-guide',
         'prompts/index',
-        'prompts/v0.3.8',
+        'prompts/v0.4.4',
         'prompts/python',
       ],
     },
@@ -52,6 +69,8 @@ const sidebars = {
       label: 'Development',
       items: [
         'guides/development',
+        'guides/testing',
+        'guides/debugging',
         'guides/wasm-integration',
         'guides/benchmarking',
       ],
@@ -76,6 +95,17 @@ const sidebars = {
       collapsed: true,
       items: [
         'benchmarks/performance',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Roadmap',
+      collapsed: false,
+      items: [
+        'roadmap/index',
+        'roadmap/execution-profiles',
+        'roadmap/deterministic-tooling',
+        'roadmap/shared-semantic-state',
       ],
     },
   ],

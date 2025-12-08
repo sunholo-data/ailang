@@ -84,11 +84,10 @@ export default function AilangRepl() {
           setRepl(replInstance);
           setLoading(false);
 
-          // Get version from WASM
-          const versionInfo = window.ailangVersion ? window.ailangVersion() : { version: 'dev' };
-          const version = versionInfo.version || 'dev';
+          // Get version from WASM module
+          const version = replInstance.getVersion() || 'dev';
 
-          // Add welcome message with dynamic version
+          // Add welcome message
           setHistory([
             { type: 'output', content: `AILANG ${version} - WebAssembly REPL` },
             { type: 'output', content: 'Type :help for help, or try: 1 + 2' },

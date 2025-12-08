@@ -1,0 +1,48 @@
+id: csv_to_json_converter
+description: "Parse CSV file and convert to JSON with validation"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "medium"
+expected_gain: "high"
+timeout: 90  # Medium complexity: 90 seconds
+task_prompt: |
+  Convert a CSV file to JSON in <LANG> with validation.
+
+  **Task Requirements**:
+
+  1. **Create input CSV file "users.csv"** with this exact content:
+     ```
+     name,age,email
+     Alice,30,alice@example.com
+     Bob,25,bob@example.com
+     Carol,35,carol@example.com
+     ```
+
+  2. **Parse the CSV file**:
+     - Read the file contents
+     - Parse headers and data rows
+     - Create structured data from the CSV
+
+  3. **Validate each row**:
+     - Age must be a positive integer
+     - Email must contain "@" symbol
+     - Skip any invalid rows (don't include in output)
+
+  4. **Convert to JSON array**:
+     Create a JSON array of objects like:
+     ```json
+     [
+       {"name": "Alice", "age": 30, "email": "alice@example.com"},
+       {"name": "Bob", "age": 25, "email": "bob@example.com"},
+       {"name": "Carol", "age": 35, "email": "carol@example.com"}
+     ]
+     ```
+
+  5. **Write JSON to "users.json" file**
+
+  6. **Print to stdout**: "Converted 3 valid rows to users.json"
+  ```
+
+expected_stdout: |
+  Converted 3 valid rows to users.json

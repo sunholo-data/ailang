@@ -1,0 +1,19 @@
+-- examples/multi_module/core/types.ail
+-- Demonstrates defining types and functions in a module for import
+
+module examples/multi_module/core/types
+
+-- Record type for 2D coordinates
+type Point = { x: int, y: int }
+
+-- Create a new point
+export pure func newPoint(x: int, y: int) -> Point {
+    { x: x, y: y }
+}
+
+-- Get distance from origin (simplified: sum of absolute values)
+export pure func distanceFromOrigin(p: Point) -> int {
+    let absX = if p.x < 0 then 0 - p.x else p.x;
+    let absY = if p.y < 0 then 0 - p.y else p.y;
+    absX + absY
+}

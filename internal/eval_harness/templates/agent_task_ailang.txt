@@ -1,0 +1,52 @@
+You are solving an AILANG benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Requirements
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
+- Read {{SOLUTION_PATH}} file first so you know the template to write to
+- If your solution is impossible due to AILANG language limitations - stop and report
+
+## Verification Steps (REQUIRED!)
+
+**You MUST verify your solution before finishing:**
+
+1. **Run your solution:**
+   ```
+   ailang run --entry main --caps {{CAPS}} benchmark/solution.ail
+   ```
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**
+
+## Available Tools
+
+You have access to the `ailang` command:
+- **Run code:** `ailang run --entry main --caps {{CAPS}} solution.ail`
+- **Type check:** `ailang check solution.ail`
+- **Run tests:** `ailang test solution.ail`
+
+## Common Pitfalls
+
+- ❌ **Don't skip verification:** Always run your solution to check output
+- ✅ **Correct:** Run, compare, fix, repeat until perfect
+
+Good luck!

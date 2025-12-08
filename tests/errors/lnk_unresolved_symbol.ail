@@ -1,7 +1,7 @@
 -- Test IMP010: Symbol not exported error
 module tests/errors/lnk_unresolved_symbol
 
-import examples/v3_3/math/gcd (notThere)
+import examples/snippets/v3_3/math/gcd (notThere)
 
 -- This import should fail with IMP010
 -- The symbol notThere is not exported from math/gcd

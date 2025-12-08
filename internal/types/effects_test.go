@@ -409,7 +409,7 @@ func TestFormatEffectRow(t *testing.T) {
 			var row *Row
 			var err error
 
-			if tt.effects != nil && len(tt.effects) > 0 {
+			if len(tt.effects) > 0 {
 				row, err = ElaborateEffectRow(tt.effects)
 				if err != nil {
 					t.Fatalf("failed to create row: %v", err)

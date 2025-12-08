@@ -1,10 +1,52 @@
 # AILANG Implementation Status
 
-## Current Version: v0.3.13 (Recovery Release - show() Restored)
+> **Note**: This page shows historical releases. For the absolute latest status:
+> - **Current version**: Check `git describe --tags` or [GitHub releases](https://github.com/sunholo-data/ailang/releases)
+> - **Test coverage**: Run `make test-coverage-badge` in the repo
+> - **Features**: See [CHANGELOG.md](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
 
-## Test Coverage: 31.9%
+## Latest Stable Release
 
-## Recent Release: v0.3.12 (October 2025)
+Check [GitHub Releases](https://github.com/sunholo-data/ailang/releases/latest) for the current stable version.
+
+## Release History
+
+### v0.5.1 (December 2025)
+
+**API Discovery & DX Improvements:**
+- ✅ **`ailang builtins show <name>`** - Full documentation for any builtin with fuzzy search
+- ✅ **`--verbose` Flag** - Shows signatures and descriptions in builtins list
+- ✅ **Public Import Path** - Shows `import std/rand (rand_int)` for internal builtins
+- ✅ **Effect Module APIs** - v0.5.1 prompt documents all effect module signatures
+
+**Go Codegen Improvements:**
+- ✅ **RecordUpdate Support** - `{ base | field: value }` now generates valid Go code
+- ✅ **Runtime Helper** - `RecordUpdate()` function added to generated preamble
+
+### v0.4.5 (November 2025)
+
+**Inline Testing System (M-TESTING-INLINE):**
+- ✅ **Inline Test Syntax** - `tests [(input, expected)]` directly in function definitions
+- ✅ **`ailang test` Command** - Run inline tests with fast execution (~10-60ms per file)
+- ✅ **98 Tests Migrated** - 9 example files with comprehensive test coverage
+- ✅ **All Function Types** - Recursive, non-recursive, multi-parameter, lists, pattern matching
+- ✅ **Main Coexistence** - Tests work alongside `export func main()` functions
+- ⚠️ **Limitations** - No cross-function dependencies yet (M-TESTING-DEPS milestone)
+
+**Implementation:**
+- ~1,400 LOC (executor, harness, runner, CLI integration)
+- Full test coverage for all data types (int, float, bool, string, lists, tuples)
+- Supports LetRec and Let bindings, UnaryOp, multi-arg functions
+- Fast execution: 98 tests across 9 files in ~120ms total
+
+**Code Organization & AI Maintainability:**
+- ✅ **Pipeline Refactoring** - 2 large files → 10 focused modules (all &lt;800 lines)
+- ✅ **AI-Friendly File Sizes** - `pipeline.go` (1014→121 lines, -88%), `specialize.go` (1384→142 lines, -90%)
+- ✅ **Enhanced Documentation** - Package-level docs explaining file responsibilities
+- ✅ **Test Coverage Maintained** - All 2,847+ tests passing after refactoring
+- ✅ **Follows AI-First Design** - 200-500 line sweet spot for AI context windows
+
+## Previous Release: v0.3.12 (October 2025)
 
 **Recovery Release:**
 - ✅ **`show()` Builtin Restored** - Polymorphic `∀α. α -> string` with full type dispatch

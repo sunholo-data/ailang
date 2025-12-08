@@ -1,0 +1,97 @@
+id: state_machine_traffic_light
+description: "State machine with ADTs, exhaustive pattern matching, and state threading"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "very_high"
+timeout: 120  # Hard complexity: 120 seconds
+task_prompt: |
+  Implement a traffic light state machine in <LANG> using algebraic data types (or equivalent) and exhaustive pattern matching.
+
+  **Task Requirements**:
+
+  1. **Define State Type** (3 variants):
+     - Green state with an integer timer (remaining seconds)
+     - Yellow state with an integer timer
+     - Red state with an integer timer
+
+  2. **Define Event Type** (2 variants):
+     - Tick event (time passes, 1 second)
+     - Reset event (reset to initial state)
+
+  3. **Implement transition function** that takes a state and event, returns new state:
+     - **Green + Tick**: If timer > 1, decrement timer; else transition to Yellow with timer=3
+     - **Yellow + Tick**: If timer > 1, decrement timer; else transition to Red with timer=10
+     - **Red + Tick**: If timer > 1, decrement timer; else transition to Green with timer=20
+     - **Any state + Reset**: Return Green with timer=20
+     - Must handle **all combinations exhaustively** (all state/event combinations must be covered)
+
+  4. **Implement display function** that takes a state and returns a formatted string:
+     - Green state with timer N → "GREEN (Nsec)"
+     - Yellow state with timer N → "YELLOW (Nsec)"
+     - Red state with timer N → "RED (Nsec)"
+
+  5. **Main simulation**:
+     - Start with Green state (timer=20)
+     - Apply 25 Tick events (print state after each)
+     - Apply 1 Reset event (print state after)
+     - Apply 5 more Tick events (print state after each)
+     - Total output: 31 lines
+
+  **Expected sequence** (first 10 lines):
+  ```
+  GREEN (19sec)
+  GREEN (18sec)
+  GREEN (17sec)
+  GREEN (16sec)
+  GREEN (15sec)
+  GREEN (14sec)
+  GREEN (13sec)
+  GREEN (12sec)
+  GREEN (11sec)
+  GREEN (10sec)
+  ```
+
+  <LANG=AILANG>
+  Write to: benchmark/solution.ail
+  Module name: benchmark/solution
+  Entry point: main
+  Required capabilities: IO
+
+  <LANG=PYTHON>
+  Write to: solution.py
+  Entry point: main() function
+
+expected_stdout: |
+  GREEN (19sec)
+  GREEN (18sec)
+  GREEN (17sec)
+  GREEN (16sec)
+  GREEN (15sec)
+  GREEN (14sec)
+  GREEN (13sec)
+  GREEN (12sec)
+  GREEN (11sec)
+  GREEN (10sec)
+  GREEN (9sec)
+  GREEN (8sec)
+  GREEN (7sec)
+  GREEN (6sec)
+  GREEN (5sec)
+  GREEN (4sec)
+  GREEN (3sec)
+  GREEN (2sec)
+  GREEN (1sec)
+  YELLOW (3sec)
+  YELLOW (2sec)
+  YELLOW (1sec)
+  RED (10sec)
+  RED (9sec)
+  RED (8sec)
+  GREEN (20sec)
+  GREEN (19sec)
+  GREEN (18sec)
+  GREEN (17sec)
+  GREEN (16sec)
+  GREEN (15sec)

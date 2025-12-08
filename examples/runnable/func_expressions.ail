@@ -1,0 +1,40 @@
+-- func_expressions.ail
+-- Demonstrates anonymous function syntax (v0.3.5)
+module examples/runnable/func_expressions
+
+import std/io (println)
+
+export func main() -> () ! {IO} =
+  let _ = println("=== Anonymous Function Expressions (v0.3.5) ===") in
+
+  -- Anonymous function with explicit types
+  let double = func(x: int) -> int { x * 2 } in
+  let _ = println(show(double(5))) in
+
+  -- Anonymous function with type inference
+  let add = \x. \y. x + y in
+  let _ = println(show(add(3)(7))) in
+
+  -- Multi-parameter function via currying
+  let multiply = func(x: int) -> int { func(y: int) -> int { x * y } } in
+  let _ = println(show(multiply(6)(7))) in
+
+  -- Higher-order function with anonymous function
+  let apply = \f. \x. f(x) in
+  let triple = func(n: int) -> int { n * 3 } in
+  let _ = println(show(apply(triple)(4))) in
+
+  -- Anonymous function with effects
+  let greet = \name. println("Hello, " ++ name ++ "!") in
+  let _ = greet("AILANG") in
+
+  -- Nested anonymous functions (currying)
+  let add_curry = \x. func(y: int) -> int { x + y } in
+  let add5 = add_curry(5) in
+  let _ = println(show(add5(10))) in
+
+  -- Inline anonymous function in call
+  let result = (\f. \x. f(x))(func(n: int) -> int { n * 2 })(8) in
+  let _ = println(show(result)) in
+
+  ()

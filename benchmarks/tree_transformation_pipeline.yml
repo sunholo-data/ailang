@@ -1,0 +1,215 @@
+id: tree_transformation_pipeline
+description: "Recursive tree transformations with higher-order functions and ADTs"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "very_hard"
+expected_gain: "very_high"
+timeout: 120  # Hard complexity: 120 seconds
+task_prompt: |
+  Implement a binary tree transformation pipeline in <LANG> with recursive operations and higher-order functions.
+
+  <LANG=AILANG> Write to: benchmark/solution.ail
+
+  **Task Requirements**:
+
+  1. **Define Tree ADT** (2 variants):
+     ```ailang
+     type Tree =
+       | Leaf(int)                        // Leaf node with value
+       | Node(Tree, int, Tree)            // Internal node: (left, value, right)
+     ```
+
+  2. **Implement mapTree(fn: int -> int, tree: Tree) -> Tree**:
+     - Recursively apply function to all values
+     - Return new tree with transformed values
+
+  3. **Implement foldTree(fn: int -> int -> int, acc: int, tree: Tree) -> int**:
+     - In-order fold over tree values
+     - Combine all values using the function
+
+  4. **Implement treeToList(tree: Tree) -> List[int]**:
+     - In-order traversal to list
+     - Used for printing results
+
+  5. **Test with example tree**:
+     ```
+           5
+          / \
+         3   8
+        /   / \
+       1   7   9
+     ```
+
+     Represented as:
+     ```ailang
+     Node(
+       Node(Leaf(1), 3, Leaf(0)),  // left: 3 with left child 1 (no right child, use dummy Leaf(0))
+       5,
+       Node(Leaf(7), 8, Leaf(9))   // right: 8 with children 7 and 9
+     )
+     ```
+
+  6. **Operations to perform**:
+     - **Original**: Print in-order values [1, 3, 5, 7, 8, 9]
+     - **Doubled**: Map with `\x. x * 2`, print [2, 6, 10, 14, 16, 18]
+     - **Sum**: Fold with `\a. \b. a + b` starting with 0, print sum (33)
+     - **Depth**: Calculate tree depth (3)
+
+  **AILANG Implementation Hints**:
+  ```ailang
+  module benchmark/solution
+  import std/io (println)
+
+  type Tree =
+    | Leaf(int)
+    | Node(Tree, int, Tree)
+
+  // Map: apply function to all values
+  func mapTree(fn: int -> int, tree: Tree) -> Tree =
+    match tree with
+    | Leaf(v) -> Leaf(fn(v))
+    | Node(left, v, right) ->
+        Node(mapTree(fn, left), fn(v), mapTree(fn, right))
+
+  // Fold: in-order traversal with accumulator
+  func foldTree(fn: int -> int -> int, acc: int, tree: Tree) -> int =
+    match tree with
+    | Leaf(v) -> fn(acc, v)
+    | Node(left, v, right) ->
+        let accLeft = foldTree(fn, acc, left) in
+        let accV = fn(accLeft, v) in
+        foldTree(fn, accV, right)
+
+  // Convert tree to list (in-order)
+  func treeToList(tree: Tree) -> List[int] =
+    match tree with
+    | Leaf(v) -> [v]
+    | Node(left, v, right) ->
+        // Concatenate: left values + [v] + right values
+        // Note: List concatenation in AILANG needs helper
+        ...
+
+  // Calculate tree depth
+  func treeDepth(tree: Tree) -> int =
+    match tree with
+    | Leaf(_) -> 1
+    | Node(left, _, right) ->
+        let leftDepth = treeDepth(left) in
+        let rightDepth = treeDepth(right) in
+        1 + (if leftDepth > rightDepth then leftDepth else rightDepth)
+
+  // Helper to format list as string
+  func showList(lst: List[int]) -> string =
+    // "[1, 3, 5, 7, 8, 9]" format
+    ...
+
+  func main() !: IO -> () =
+    // Build example tree (simplified - use only real values, 0 for dummy nodes)
+    let tree = Node(
+      Node(Leaf(1), 3, Leaf(0)),
+      5,
+      Node(Leaf(7), 8, Leaf(9))
+    ) in
+
+    // Filter out zeros and print original
+    let original = ... in  // [1, 3, 5, 7, 8, 9]
+    let _ = println("Original: " ++ showList(original)) in
+
+    // Map: double all values
+    let doubled = mapTree(\x. x * 2, tree) in
+    let doubledList = ... in  // [2, 6, 10, 14, 16, 18]
+    let _ = println("Doubled: " ++ showList(doubledList)) in
+
+    // Fold: sum all values
+    let sum = foldTree(\a. \b. a + b, 0, tree) in
+    let _ = println("Sum: " ++ show(sum)) in
+
+    // Depth
+    let depth = treeDepth(tree) in
+    println("Depth: " ++ show(depth))
+  ```
+
+  **Verify your solution**:
+  ```bash
+  ailang run --entry main --caps IO benchmark/solution.ail
+  ```
+
+  <LANG=PYTHON>
+  Write to: solution.py
+
+  ```python
+  from dataclasses import dataclass
+
+  @dataclass
+  class Leaf:
+      value: int
+
+  @dataclass
+  class Node:
+      left: 'Tree'
+      value: int
+      right: 'Tree'
+
+  Tree = Leaf | Node
+
+  def map_tree(fn, tree):
+      if isinstance(tree, Leaf):
+          return Leaf(fn(tree.value))
+      else:
+          return Node(map_tree(fn, tree.left), fn(tree.value), map_tree(fn, tree.right))
+
+  def fold_tree(fn, acc, tree):
+      if isinstance(tree, Leaf):
+          return fn(acc, tree.value)
+      else:
+          acc = fold_tree(fn, acc, tree.left)
+          acc = fn(acc, tree.value)
+          return fold_tree(fn, acc, tree.right)
+
+  def tree_to_list(tree):
+      if isinstance(tree, Leaf):
+          return [tree.value] if tree.value != 0 else []
+      else:
+          return tree_to_list(tree.left) + [tree.value] + tree_to_list(tree.right)
+
+  def tree_depth(tree):
+      if isinstance(tree, Leaf):
+          return 1
+      else:
+          return 1 + max(tree_depth(tree.left), tree_depth(tree.right))
+
+  def main():
+      # Build tree
+      tree = Node(
+          Node(Leaf(1), 3, Leaf(0)),
+          5,
+          Node(Leaf(7), 8, Leaf(9))
+      )
+
+      # Original
+      original = [x for x in tree_to_list(tree) if x != 0]
+      print(f"Original: {original}")
+
+      # Doubled
+      doubled_tree = map_tree(lambda x: x * 2, tree)
+      doubled = [x for x in tree_to_list(doubled_tree) if x != 0]
+      print(f"Doubled: {doubled}")
+
+      # Sum
+      total = fold_tree(lambda a, b: a + b, 0, tree)
+      print(f"Sum: {total}")
+
+      # Depth
+      depth = tree_depth(tree)
+      print(f"Depth: {depth}")
+
+  if __name__ == "__main__":
+      main()
+  ```
+
+expected_stdout: |
+  Original: [1, 3, 5, 7, 8, 9]
+  Doubled: [2, 6, 10, 14, 16, 18]
+  Sum: 33
+  Depth: 3

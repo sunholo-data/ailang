@@ -95,9 +95,10 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 }
 
 // inferRecordUpdate infers type of record update: {base | field: value, ...}
-// Desugars to a full record construction by extracting all fields from base
+// Uses constraint-based approach to handle type variables in base expression.
+// Fix for M-BUG-RECORD-UPDATE-INFERENCE: Defers type checking to constraint solver.
 func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.RecordUpdate) (typedast.TypedNode, *TypeEnv, error) {
-	// Infer base record type
+	// 1. Infer base record type
 	baseNode, _, err := tc.inferCore(ctx, upd.Base)
 	if err != nil {
 		return nil, ctx.env, err
@@ -105,24 +106,29 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 
 	baseType := getType(baseNode)
 
-	// Extract field types from base record type
-	var baseFields map[string]Type
-	switch t := baseType.(type) {
-	case *TRecord:
-		baseFields = t.Fields
-	case *TRecord2:
-		if t.Row != nil {
-			baseFields = t.Row.Labels
-		}
-	case *TRecordOpen:
-		baseFields = t.Fields
-	default:
-		// If base type is not a record type yet (e.g., type variable),
-		// we can't desugar yet. Return an error for now.
-		return nil, ctx.env, fmt.Errorf("record update requires base to be a record type, got %T", baseType)
+	// 2. Create fresh type variables for each field being updated
+	fieldTypes := make(map[string]Type)
+	for fieldName := range upd.Updates {
+		fieldTypes[fieldName] = ctx.freshTypeVar()
 	}
 
-	// Type check updated field values and ensure they match base field types
+	// 3. Create row variable for other fields (row polymorphism)
+	// Using "r" as the name matches the pattern in inferRecordAccess
+	rowVar := &RowVar{Name: "r", Kind: RecordRow}
+
+	// 4. Create constraint: base must be a record with at least these fields
+	// Using TRecordOpen allows the base to have additional fields
+	expectedRecord := &TRecordOpen{
+		Fields: fieldTypes,
+		Row:    rowVar, // Open for additional fields
+	}
+	ctx.addConstraint(TypeEq{
+		Left:  baseType,
+		Right: expectedRecord,
+		Path:  []string{"record update base at " + upd.Span().String()},
+	})
+
+	// 5. Type check updated field values
 	updatedFields := make(map[string]typedast.TypedNode)
 	for fieldName, fieldValue := range upd.Updates {
 		valueNode, _, err := tc.inferCore(ctx, fieldValue)
@@ -130,34 +136,27 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 			return nil, ctx.env, err
 		}
 
-		// Check that field exists in base
-		baseFieldType, exists := baseFields[fieldName]
-		if !exists {
-			return nil, ctx.env, fmt.Errorf("field '%s' does not exist in base record", fieldName)
-		}
-
-		// Unify updated value type with base field type
+		// Unify value type with expected field type
 		ctx.addConstraint(TypeEq{
 			Left:  getType(valueNode),
-			Right: baseFieldType,
+			Right: fieldTypes[fieldName],
 			Path:  []string{"record update field '" + fieldName + "' at " + upd.Span().String()},
 		})
 
 		updatedFields[fieldName] = valueNode
 	}
 
-	// Desugar: create a full record with all fields from base, updating specified ones
-	// For now, we'll just return the base type (evaluation will handle the update)
-	// In a full implementation, we'd need to track which fields were updated
+	// 6. Result type is same as base (record update preserves structure)
+	// The constraint solver will resolve baseType to the concrete record type
 	return &typedast.TypedRecord{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    upd.ID(),
 			Span:      upd.Span(),
-			Type:      baseType,
+			Type:      baseType, // Will be resolved by constraint solver
 			EffectRow: getEffectRow(baseNode),
 			Core:      upd,
 		},
-		Fields: updatedFields, // This is incomplete but sufficient for type checking
+		Fields: updatedFields,
 	}, ctx.env, nil
 }
 
@@ -213,6 +212,63 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 			Type:      &TList{Element: elemType},
 			EffectRow: combineEffectList(allEffects),
 			Core:      list,
+		},
+		Elements: elements,
+	}, ctx.env, nil
+}
+
+// inferArray infers type of array construction
+func (tc *CoreTypeChecker) inferArray(ctx *InferenceContext, arr *core.Array) (*typedast.TypedArray, *TypeEnv, error) {
+	if len(arr.Elements) == 0 {
+		// Empty array - polymorphic
+		elemType := ctx.freshTypeVar()
+		return &typedast.TypedArray{
+			TypedExpr: typedast.TypedExpr{
+				NodeID:    arr.ID(),
+				Span:      arr.Span(),
+				Type:      &TArray{Element: elemType},
+				EffectRow: EmptyEffectRow(),
+				Core:      arr,
+			},
+			Elements: nil,
+		}, ctx.env, nil
+	}
+
+	// Non-empty array - all elements must have same type
+	var elements []typedast.TypedNode
+	var allEffects []*Row
+
+	firstElem, _, err := tc.inferCore(ctx, arr.Elements[0])
+	if err != nil {
+		return nil, ctx.env, err
+	}
+	elements = append(elements, firstElem)
+	allEffects = append(allEffects, getEffectRow(firstElem))
+	elemType := getType(firstElem)
+
+	for i := 1; i < len(arr.Elements); i++ {
+		elemNode, _, err := tc.inferCore(ctx, arr.Elements[i])
+		if err != nil {
+			return nil, ctx.env, err
+		}
+		elements = append(elements, elemNode)
+		allEffects = append(allEffects, getEffectRow(elemNode))
+
+		// All elements must have same type
+		ctx.addConstraint(TypeEq{
+			Left:  getType(elemNode),
+			Right: elemType,
+			Path:  []string{fmt.Sprintf("array element %d at %s", i, arr.Span())},
+		})
+	}
+
+	return &typedast.TypedArray{
+		TypedExpr: typedast.TypedExpr{
+			NodeID:    arr.ID(),
+			Span:      arr.Span(),
+			Type:      &TArray{Element: elemType},
+			EffectRow: combineEffectList(allEffects),
+			Core:      arr,
 		},
 		Elements: elements,
 	}, ctx.env, nil

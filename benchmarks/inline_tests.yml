@@ -1,0 +1,25 @@
+id: inline_tests
+description: "Write function with inline tests annotation (v0.4.7 feature)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Defines a pure function `square(n)` that returns n * n
+     - In AILANG, annotate with inline tests: `pure func square(n: int) -> int tests [(0, 0), (5, 25), (-3, 9)] { ... }`
+
+  2. Defines a pure function `isEven(n)` that returns true if n is even
+     - In AILANG, annotate with inline tests: `pure func isEven(n: int) -> bool tests [(0, true), (1, false), (4, true)] { ... }`
+
+  3. In main, call square(7) and print the result
+
+  Expected output: 49
+
+  Note: In Python, just define the functions normally without inline test syntax.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  49

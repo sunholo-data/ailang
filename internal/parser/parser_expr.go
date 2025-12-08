@@ -9,6 +9,9 @@ import (
 
 // parseExpression parses an expression with precedence
 func (p *Parser) parseExpression(precedence int) ast.Expr {
+	p.debugEnter("parseExpression")
+	defer p.debugExit("parseExpression")
+
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
@@ -165,6 +168,8 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 	match.Expr = p.parseExpression(LOWEST)
 
 	p.expectPeek(lexer.LBRACE)
+	p.traceDelimiterOpen(delimCtxMatch)
+	p.traceDelimiterToken(lexer.LBRACE, "consume")
 	p.nextToken()
 
 	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
@@ -185,6 +190,10 @@ func (p *Parser) parseMatchExpression() ast.Expr {
 	// We should already be at RBRACE
 	if !p.curTokenIs(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
+		p.traceDelimiterStack()
+	} else {
+		p.traceDelimiterToken(lexer.RBRACE, "found")
+		p.traceDelimiterClose(delimCtxMatch)
 	}
 
 	return match
@@ -206,7 +215,21 @@ func (p *Parser) parseCase() *ast.Case {
 
 	p.expectPeek(lexer.FARROW)
 	p.nextToken()
-	c.Body = p.parseExpression(LOWEST)
+
+	// Option B: Special-case block arms to use parseBlockOrExpression()
+	// This ensures proper delimiter tracking for nested match expressions in blocks.
+	// Background: Match arms can be either simple expressions OR blocks containing
+	// multiple statements including nested matches. When a block is used, we need
+	// the same delimiter tracking that function/lambda bodies use.
+	if p.curTokenIs(lexer.LBRACE) {
+		// Parse as block using the same logic as function bodies
+		p.traceDelimiterOpen(delimCtxCase)
+		c.Body = p.parseBlockOrExpression()
+		p.traceDelimiterClose(delimCtxCase)
+	} else {
+		// Parse as simple expression
+		c.Body = p.parseExpression(LOWEST)
+	}
 
 	return c
 }
@@ -285,6 +308,8 @@ func (p *Parser) parseFuncLitWithParams(pos ast.Pos, params []*ast.Param) ast.Ex
 func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// We're at LBRACE
 	startPos := p.curPos()
+	p.traceDelimiterOpen(delimCtxBlock)
+	p.traceDelimiterToken(lexer.LBRACE, "consume")
 	p.nextToken() // consume LBRACE
 
 	// Check for empty block: {}
@@ -304,12 +329,14 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// Keep parsing while we see semicolons
 	for p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to SEMICOLON
-		p.nextToken() // move past SEMICOLON
 
-		// Check for trailing semicolon before RBRACE
-		if p.curTokenIs(lexer.RBRACE) {
+		// Check for trailing semicolon (next token is RBRACE)
+		// Keep cursor at semicolon so peek is RBRACE for expectPeek below
+		if p.peekTokenIs(lexer.RBRACE) {
 			break
 		}
+
+		p.nextToken() // move past SEMICOLON
 
 		exprs = append(exprs, p.parseExpression(LOWEST))
 	}
@@ -317,8 +344,12 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// Expect closing brace
 	if !p.expectPeek(lexer.RBRACE) {
 		p.errors = append(p.errors, fmt.Errorf("expected '}' to close function body at %s", p.peekToken.Position()))
+		p.traceDelimiterStack()
 		return nil
 	}
+
+	p.traceDelimiterToken(lexer.RBRACE, "found")
+	p.traceDelimiterClose(delimCtxBlock)
 
 	// If single expression, return it directly (not as block)
 	if len(exprs) == 1 {
@@ -438,6 +469,38 @@ func (p *Parser) parseInfixExpression(left ast.Expr) ast.Expr {
 	return expr
 }
 
+// S-CONS: Parse infix cons operator :: (right-associative)
+// Desugars x :: xs to ::(x, xs) - a constructor call
+func (p *Parser) parseConsExpression(left ast.Expr) ast.Expr {
+	consPos := p.curPos()
+
+	// Check if strict syntax mode is enabled
+	if p.strictSyntaxMode {
+		p.reportSugarError("CONS", "x :: xs", "::(x, xs)")
+		// Return a placeholder to avoid cascading errors
+		return &ast.FuncCall{
+			Func: &ast.Identifier{Name: "::", Pos: consPos},
+			Args: []ast.Expr{left},
+			Pos:  consPos,
+		}
+	}
+
+	// Sugar is allowed - mark that it was used
+	p.sugarUsed = true
+
+	// Right-associative: parse right side with lower precedence
+	// This makes a :: b :: c parse as a :: (b :: c)
+	p.nextToken()
+	right := p.parseExpression(CONS - 1)
+
+	// Desugar to constructor call: ::(left, right)
+	return &ast.FuncCall{
+		Func: &ast.Identifier{Name: "::", Pos: consPos},
+		Args: []ast.Expr{left, right},
+		Pos:  consPos,
+	}
+}
+
 func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
 	call := &ast.FuncCall{
 		Func: fn,
@@ -448,12 +511,72 @@ func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
 	return call
 }
 
+// parseZeroArgCall handles S-CALL0 sugar in expression context: f() → f(())
+// This is called when the lexer creates a UNIT token for () without spaces
+func (p *Parser) parseZeroArgCall(fn ast.Expr) ast.Expr {
+	// Check strict mode
+	if p.strictSyntaxMode {
+		p.reportSugarError("CALL0", "f()", "f (())")
+		// Return the function expression unchanged
+		return fn
+	}
+
+	// Mark that sugar was used
+	p.sugarUsed = true
+
+	// Create call with unit argument
+	// Get position from the function expression
+	var fnPos ast.Pos
+	switch f := fn.(type) {
+	case *ast.Identifier:
+		fnPos = f.Pos
+	case *ast.FuncCall:
+		fnPos = f.Pos
+	default:
+		fnPos = p.curPos()
+	}
+
+	call := &ast.FuncCall{
+		Func: fn,
+		Args: []ast.Expr{
+			&ast.Literal{
+				Kind:  ast.UnitLit,
+				Value: nil,
+				Pos:   p.curPos(),
+			},
+		},
+		Pos: fnPos,
+	}
+
+	return call
+}
+
 func (p *Parser) parseCallArguments() []ast.Expr {
 	args := []ast.Expr{}
 
+	// S-CALL0: Check for zero-arg call sugar f()
+	// NOTE: Currently only works with space: f ()
+	// Without space f() requires statement-level parsing changes (TODO)
 	if p.peekTokenIs(lexer.RPAREN) {
-		p.nextToken()
-		return args
+		p.nextToken() // consume RPAREN
+
+		// Check if strict syntax mode is enabled
+		if p.strictSyntaxMode {
+			p.reportSugarError("CALL0", "f()", "f ()")
+			return args // Return empty args to avoid cascading errors
+		}
+
+		// Sugar is allowed - desugar f() to f(())
+		// Mark that sugar was used (for REPL feedback)
+		p.sugarUsed = true
+
+		// Return unit literal as single argument
+		unitLit := &ast.Literal{
+			Kind:  ast.UnitLit,
+			Value: nil,
+			Pos:   p.curPos(),
+		}
+		return []ast.Expr{unitLit}
 	}
 
 	p.nextToken()

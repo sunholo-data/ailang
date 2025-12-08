@@ -10,12 +10,14 @@ import (
 
 // ModelConfig represents a single model configuration
 type ModelConfig struct {
-	APIName     string  `yaml:"api_name"`
-	Provider    string  `yaml:"provider"`
-	Description string  `yaml:"description"`
-	EnvVar      string  `yaml:"env_var"`
-	Pricing     Pricing `yaml:"pricing"`
-	Notes       string  `yaml:"notes"`
+	APIName        string  `yaml:"api_name"`
+	Provider       string  `yaml:"provider"`
+	Description    string  `yaml:"description"`
+	EnvVar         string  `yaml:"env_var"`
+	AgentCLI       *string `yaml:"agent_cli"`        // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
+	AgentModelName *string `yaml:"agent_model_name"` // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
+	Pricing        Pricing `yaml:"pricing"`
+	Notes          string  `yaml:"notes"`
 }
 
 // Pricing represents model pricing information
@@ -124,6 +126,50 @@ func (c *ModelsConfig) CalculateCostForModel(name string, inputTokens, outputTok
 	outputCost := float64(outputTokens) / 1000.0 * model.Pricing.OutputPer1K
 
 	return inputCost + outputCost, nil
+}
+
+// SupportsAgentEval returns true if the model supports agent-based evaluation
+func (c *ModelsConfig) SupportsAgentEval(name string) bool {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return false
+	}
+	return model.AgentCLI != nil && *model.AgentCLI != ""
+}
+
+// GetAgentCLI returns the agent CLI command for a model (e.g., "claude")
+func (c *ModelsConfig) GetAgentCLI(name string) (string, error) {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return "", err
+	}
+	if model.AgentCLI == nil || *model.AgentCLI == "" {
+		return "", fmt.Errorf("model %s does not support agent evaluation", name)
+	}
+	return *model.AgentCLI, nil
+}
+
+// GetAgentModelName returns the model name to pass to the agent CLI
+func (c *ModelsConfig) GetAgentModelName(name string) (string, error) {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return "", err
+	}
+	if model.AgentModelName == nil || *model.AgentModelName == "" {
+		return "", fmt.Errorf("model %s does not have an agent_model_name configured", name)
+	}
+	return *model.AgentModelName, nil
+}
+
+// FilterAgentSupportedModels filters a list of models to only those that support agent eval
+func (c *ModelsConfig) FilterAgentSupportedModels(models []string) []string {
+	var supported []string
+	for _, model := range models {
+		if c.SupportsAgentEval(model) {
+			supported = append(supported, model)
+		}
+	}
+	return supported
 }
 
 // ListModels returns all configured model names

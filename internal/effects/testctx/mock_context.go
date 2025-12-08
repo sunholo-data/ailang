@@ -43,7 +43,7 @@ type MockEffContext struct {
 // Returns:
 //   - A new MockEffContext ready for testing
 func NewMockEffContext() *MockEffContext {
-	ctx := effects.NewEffContext()
+	ctx := effects.NewEffContext([]string{}) // No CLI args for test context
 
 	// Configure for testing
 	ctx.Env.Seed = 42 // Deterministic seed

@@ -46,7 +46,18 @@ type RunMetrics struct {
 	BinaryHash string   `json:"binary_hash,omitempty"` // SHA256 of ailang binary
 	StdlibHash string   `json:"stdlib_hash,omitempty"` // SHA256 of stdlib
 	Caps       []string `json:"caps,omitempty"`        // Capabilities granted
+
+	// Agent mode KPIs (M-EVAL-AGENT)
+	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
+	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
+	EvalMode        string `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
 }
+
+// EvalMode constants
+const (
+	EvalModeStandard = "standard" // Standard 0-shot + self-repair evaluation
+	EvalModeAgent    = "agent"    // Agent-based evaluation with multi-turn interaction
+)
 
 // ErrorCategory constants
 const (
@@ -84,8 +95,20 @@ func NewMetricsLogger(outputDir string) *MetricsLogger {
 
 // Log writes a RunMetrics to a JSON file
 func (l *MetricsLogger) Log(m *RunMetrics) error {
+	// Determine subdirectory based on eval mode
+	var targetDir string
+	switch m.EvalMode {
+	case EvalModeStandard:
+		targetDir = filepath.Join(l.outputDir, "standard")
+	case EvalModeAgent:
+		targetDir = filepath.Join(l.outputDir, "agent")
+	default:
+		// Legacy: no eval_mode field, use root directory
+		targetDir = l.outputDir
+	}
+
 	// Ensure output directory exists
-	if err := os.MkdirAll(l.outputDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -96,7 +119,7 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 		m.Model,
 		m.Timestamp.Unix(),
 	)
-	path := filepath.Join(l.outputDir, filename)
+	path := filepath.Join(targetDir, filename)
 
 	// Marshal to JSON
 	data, err := json.MarshalIndent(m, "", "  ")

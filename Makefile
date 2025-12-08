@@ -1,4 +1,4 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor
+.PHONY: build build-agent build-all test run clean install install-agent install-all fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
 
 # Binary name
 BINARY=ailang
@@ -25,15 +25,44 @@ LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Bu
 # Default target
 all: test build
 
+# Prepare prompts for embedding (copy to cmd/ailang for embed directive)
+prepare-embed:
+	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
+		echo "Copying prompts for embedding..."; \
+		rm -rf cmd/ailang/prompts; \
+		cp -r prompts cmd/ailang/prompts; \
+	fi
+
 # Build the binary
-build:
+build: prepare-embed
 	@echo "Building $(BINARY)..."
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
 
+# Build ailang-agent binary
+build-agent:
+	@echo "Building ailang-agent..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/ailang-agent ./cmd/ailang-agent
+	@echo "Build complete: $(BUILD_DIR)/ailang-agent"
+
+# Install ailang-agent to $GOPATH/bin
+install-agent:
+	@echo "Installing ailang-agent..."
+	@go install $(LDFLAGS) ./cmd/ailang-agent
+	@echo "✓ Installed to $$(go env GOPATH)/bin/ailang-agent"
+
+# Build all binaries (ailang + ailang-agent)
+build-all: build build-agent
+	@echo "✓ All binaries built"
+
+# Install all binaries
+install-all: install install-agent
+	@echo "✓ All binaries installed"
+
 # Install the binary to $GOPATH/bin
-install:
+install: prepare-embed
 	@echo "Installing $(BINARY)..."
 	@go install $(LDFLAGS) ./cmd/ailang
 	@echo "✓ Installed to $$(go env GOPATH)/bin/$(BINARY)"
@@ -57,17 +86,23 @@ install:
 	fi
 
 # Run tests (excluding scripts directory which contains standalone executables)
-test:
+test: prepare-embed
 	@echo "Running tests..."
-	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts)
+	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 
 # Test import system with golden examples
-# Run tests with coverage (excluding scripts directory)
+# Run tests with coverage (excluding scripts directory and examples/agents)
 test-coverage:
 	@echo "Running tests with coverage..."
-	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts)
+	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+# Run tests with coverage for CI (race detection enabled)
+test-coverage-ci:
+	@echo "Running tests with coverage (CI mode)..."
+	@$(GOTEST) -race -coverprofile=coverage.out -covermode=atomic $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
+	@$(GOCMD) tool cover -func=coverage.out
 
 # Format code
 fmt:
@@ -87,9 +122,9 @@ fmt-check:
 	@echo "Code formatting check passed"
 
 # Run go vet
-vet:
+vet: prepare-embed
 	@echo "Running go vet..."
-	$(GOVET) ./...
+	$(GOVET) $(shell go list ./... | grep -v examples/agents)
 	@echo "Vet complete"
 
 # Install golangci-lint
@@ -99,10 +134,18 @@ install-lint:
 	@echo "golangci-lint installed"
 
 # Run linter (requires golangci-lint)
-lint:
+lint: prepare-embed
 	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install golangci-lint'" && exit 1)
-	golangci-lint run
+	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install-golangci-lint'" && exit 1)
+	@# Run golangci-lint (config excludes examples/agents via .golangci.yml)
+	@# Note: "(related information)" lines from staticcheck are just context, not actual errors
+	@# We check for real errors by filtering out those context lines
+	@golangci-lint run ./cmd/... ./internal/... ./testutil/... 2>&1 | tee /tmp/lint.out || true
+	@if grep -v "(related information)" /tmp/lint.out | grep -q "^internal\|^cmd\|^testutil"; then \
+		echo ""; \
+		echo "❌ Lint errors found (see above)"; \
+		exit 1; \
+	fi
 	@echo "Lint complete"
 
 # Download dependencies
@@ -117,6 +160,7 @@ clean:
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
+	rm -rf cmd/ailang/prompts
 	rm -f coverage.out coverage.html
 	rm -f coverage.parser.out coverage.lexer.out
 	rm -f .parser_coverage .lexer_coverage
@@ -154,16 +198,25 @@ dev:
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go
 
 # Quick install (useful for development)
-quick-install:
+quick-install: prepare-embed
 	@go install ./cmd/ailang
 	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
 
-# Verify all examples
+# Verify all examples (CI mode - only checks examples/runnable/)
 verify-examples: build
 	@echo "Verifying examples..."
 	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
 	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
 	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
+
+# Verify ALL examples (all directories) with threshold gate
+verify-examples-all: build
+	@echo "Verifying all examples with threshold gate..."
+	@go run ./scripts/verify_examples.go --all --threshold 60
+
+# Quick example status (one-line summary)
+examples-status: build
+	@go run ./scripts/verify_examples.go --all 2>&1 | grep "Examples:"
 
 # Test operator lowering (golden tests)
 test-lowering: build
@@ -346,9 +399,9 @@ flag-broken: verify-examples
 test-imports-success: build
 	@echo "== Testing successful imports =="
 	@echo "  → imports_basic.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
 	@echo "  → imports.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/v3_3/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
+	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
 	@echo "✓ Successful imports work"
 
 # Test that error cases produce correct JSON output
@@ -366,7 +419,7 @@ regen-import-error-goldens: build
 	@mkdir -p goldens
 	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
 	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
-	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
+	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/snippets/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
 	@echo "✓ Golden files regenerated"
 
 # Test REPL/file parity for imports
@@ -429,7 +482,7 @@ test-builtin-consistency:
 
 .PHONY: test-stdlib-canaries
 test-stdlib-canaries:
-	@echo "Testing stdlib canaries..."
+	@echo "Testing std/ library canaries..."
 	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
 
 .PHONY: test-row-properties
@@ -447,11 +500,44 @@ test-repl-smoke:
 	@echo "Testing REPL smoke tests..."
 	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
 
+.PHONY: test-sim-stub
+test-sim-stub: install
+	@echo "Testing sim_stub example (Go codegen pipeline)..."
+	@cd examples/sim_stub && make clean && make test
+
+# Show Go package documentation
+.PHONY: doc
+doc:
+	@if [ -z "$(PKG)" ]; then \
+		echo "Usage: make doc PKG=<package>"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make doc PKG=internal/testing        # Show testing package docs"; \
+		echo "  make doc PKG=internal/elaborate      # Show elaborate package docs"; \
+		echo "  make doc PKG=internal/types          # Show types package docs"; \
+		echo "  make doc PKG=internal/parser         # Show parser package docs"; \
+		echo ""; \
+		echo "Common packages:"; \
+		echo "  internal/testing      - Test collection and property-based testing"; \
+		echo "  internal/elaborate    - Surface AST to Core AST elaboration"; \
+		echo "  internal/types        - Type system and type checking"; \
+		echo "  internal/parser       - Parser (see also: docs/guides/parser_development.md)"; \
+		echo "  internal/eval         - Core AST evaluator"; \
+		echo "  internal/builtins     - Builtin function registry"; \
+		exit 1; \
+	fi
+	@go doc -all github.com/sunholo/ailang/$(PKG)
+
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  make build            - Build the binary"
-	@echo "  make install          - Install binary to GOPATH/bin"
+	@echo "  make build            - Build the ailang binary"
+	@echo "  make build-agent      - Build the ailang-agent binary"
+	@echo "  make build-all        - Build all binaries (ailang + ailang-agent)"
+	@echo "  make install          - Install ailang to GOPATH/bin"
+	@echo "  make install-agent    - Install ailang-agent to GOPATH/bin"
+	@echo "  make install-all      - Install all binaries"
+	@echo "  make doc PKG=<pkg>    - Show Go package documentation (e.g., make doc PKG=internal/testing)"
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
 	@echo "  make test-parser      - Run parser tests"
@@ -467,7 +553,7 @@ help:
 	@echo "  make doctor           - Validate builtin registry"
 	@echo "  make test-regression-guards - Run regression guard tests"
 	@echo "  make test-builtin-consistency - Test builtin three-way parity"
-	@echo "  make test-stdlib-canaries - Test stdlib health (std/io, std/net)"
+	@echo "  make test-stdlib-canaries - Test std/ library health (std/io, std/net)"
 	@echo "  make test-row-properties - Test row unification properties"
 	@echo "  make test-golden-types - Test builtin type snapshots"
 	@echo "  make test-repl-smoke - REPL smoke tests (:type command)"
@@ -486,7 +572,7 @@ help:
 	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
 	@echo "  make dev              - Quick development build"
 	@echo "  make quick-install    - Quick install without version info"
-	@echo "  make test-stdlib-freeze - Verify stdlib interfaces haven't changed"
+	@echo "  make test-stdlib-freeze - Verify std/ library interfaces haven't changed"
 	@echo "  make eval-suite       - Run AI benchmark suite"
 	@echo "  make eval-report      - Generate evaluation report"
 	@echo "  make eval-analyze     - Analyze failures, generate design docs (with dedup)"
@@ -503,9 +589,9 @@ help:
 	@echo "  make help             - Show this help"
 	@echo "  make help-release     - Show release workflow (eval + dashboard)"
 
-# Test stdlib interface freeze (SHA256 digest matching)
+# Test standard library interface freeze (SHA256 digest matching)
 EX_VERIFY := scripts/verify-examples.sh
-STDLIB := stdlib/std/option.ail stdlib/std/result.ail stdlib/std/list.ail stdlib/std/string.ail stdlib/std/io.ail
+STDLIB := std/option.ail std/result.ail std/list.ail std/string.ail std/io.ail
 FREEZE_DIR := goldens/stdlib
 TOOLS := ailang
 
@@ -529,13 +615,13 @@ test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
 	  fi; \
 	done; \
 	exit $$ok
-# Stdlib interface freeze/verify targets
+# Standard library interface freeze/verify targets
 freeze-stdlib:
-	@echo "Freezing stdlib interfaces..."
+	@echo "Freezing std/ library interfaces..."
 	@tools/freeze-stdlib.sh
 
 verify-stdlib:
-	@echo "Verifying stdlib interface stability..."
+	@echo "Verifying std/ library interface stability..."
 	@tools/verify-stdlib.sh
 
 # Evaluation benchmarks
@@ -632,11 +718,12 @@ eval-baseline: build
 		echo "Usage:"; \
 		echo "  make eval-baseline EVAL_VERSION=v0.3.10"; \
 		echo "  make eval-baseline EVAL_VERSION=v0.3.10 FULL=true"; \
+		echo "  make eval-baseline EVAL_VERSION=v0.3.10 RESUME=true"; \
 		echo ""; \
 		exit 1; \
 	fi
 	@echo "Storing baseline for version $(EVAL_VERSION)..."
-	@VERSION=$(EVAL_VERSION) ./tools/eval_baseline.sh
+	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) ./tools/eval_baseline.sh
 
 eval-diff: build
 	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
@@ -707,8 +794,8 @@ eval-auto-improve-apply:
 # Documentation targets
 .PHONY: sync-prompts
 sync-prompts:
-	@echo "Syncing prompts/ to docs/prompts/..."
-	@./tools/sync-prompts.sh
+	@echo "Syncing prompts/ to docs/docs/prompts/ (Docusaurus)..."
+	@./docs/scripts/sync-prompts.sh
 
 .PHONY: generate-llms-txt
 generate-llms-txt:
@@ -784,7 +871,7 @@ build-wasm:
 check-file-sizes:
 	@echo "Checking for files >800 lines..."
 	@FOUND=0; \
-	for file in $$(find internal -name "*.go"); do \
+	for file in $$(find internal cmd -name "*.go"); do \
 		SIZE=$$(wc -l < "$$file"); \
 		if [ $$SIZE -gt 800 ]; then \
 			echo "❌ $$file: $$SIZE lines (exceeds 800 line limit)"; \
@@ -807,7 +894,7 @@ report-file-sizes:
 	@echo ""
 	@echo "CRITICAL (>800 lines):"
 	@CRITICAL=0; \
-	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
 		if [ $$SIZE -gt 800 ]; then \
 			echo "⚠️ $$FILE: $$SIZE lines"; \
 			CRITICAL=$$((CRITICAL + 1)); \
@@ -817,7 +904,7 @@ report-file-sizes:
 	@echo ""
 	@echo "WARNING (500-800 lines):"
 	@WARNING=0; \
-	find internal -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
+	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
 		if [ $$SIZE -gt 500 ] && [ $$SIZE -le 800 ]; then \
 			echo "⚠️ $$FILE: $$SIZE lines"; \
 			WARNING=$$((WARNING + 1)); \
@@ -825,8 +912,8 @@ report-file-sizes:
 	done; \
 	if [ $$WARNING -eq 0 ]; then echo "  (none)"; fi
 	@echo ""
-	@CRITICAL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
-	WARNING=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	@CRITICAL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	WARNING=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
 	echo "Summary: $$CRITICAL files exceed 800 lines, $$WARNING files between 500-800 lines"; \
 	if [ $$CRITICAL -gt 0 ]; then \
 		echo ""; \
@@ -839,17 +926,17 @@ codebase-health:
 	@echo "=== Codebase Health Report ==="
 	@echo ""
 	@echo "File Size Metrics:"
-	@TOTAL=$$(find internal -name "*.go" | wc -l | tr -d ' '); \
-	SUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
+	@TOTAL=$$(find internal cmd -name "*.go" | wc -l | tr -d ' '); \
+	SUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
 	AVG=$$(echo "$$SUM / $$TOTAL" | bc); \
 	echo "  Total files: $$TOTAL"; \
 	echo "  Total lines: $$SUM"; \
 	echo "  Average size: $$AVG lines/file"
 	@echo ""
 	@echo "File Size Distribution:"
-	@SMALL=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
-	MEDIUM=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
-	LARGE=$$(find internal -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
+	@SMALL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
+	MEDIUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
+	LARGE=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
 	echo "  ≤500 lines (good): $$SMALL files"; \
 	echo "  500-800 lines (acceptable): $$MEDIUM files"; \
 	echo "  >800 lines (needs split): $$LARGE files"; \
@@ -863,15 +950,71 @@ codebase-health:
 	echo "Goal metrics:"; \
 	if [ $$LARGE -eq 0 ]; then echo "  - 0 files >800 lines ✅"; else echo "  - 0 files >800 lines ❌"; fi; \
 	if [ $$MEDIUM -lt 5 ]; then echo "  - <5 files 500-800 lines ✅"; else echo "  - <5 files 500-800 lines ⚠️"; fi; \
-	AVG=$$(find internal -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
+	AVG=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
 	if [ $$AVG -ge 300 ] && [ $$AVG -le 400 ]; then echo "  - Average 300-400 lines ✅"; else echo "  - Average 300-400 lines ⚠️"; fi
 
 .PHONY: largest-files
 largest-files:
 	@echo "=== 20 Largest Files ==="
-	@find internal -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
+	@find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
 		awk '{printf "%4d lines: %s\n", $$1, $$2}'
 
+
+.PHONY: setup-claude
+setup-claude: ## Install Claude CLI globally for headless mode
+	@echo "Installing Claude CLI globally..."
+	@npm install -g @anthropic-ai/claude-code
+	@echo "✓ Claude CLI installed"
+	@claude --version
+
+.PHONY: update-claude
+update-claude: ## Update Claude CLI to latest version
+	@echo "Checking for Claude CLI updates..."
+	@CURRENT=$$(claude --version 2>/dev/null | grep -o '[0-9.]*' | head -1); \
+	LATEST=$$(npm view @anthropic-ai/claude-code version); \
+	if [ -z "$$CURRENT" ]; then \
+		echo "❌ Claude CLI not installed. Run: make setup-claude"; \
+		exit 1; \
+	fi; \
+	echo "Current version: $$CURRENT"; \
+	echo "Latest version:  $$LATEST"; \
+	if [ "$$CURRENT" = "$$LATEST" ]; then \
+		echo "✓ Already up to date!"; \
+	else \
+		echo ""; \
+		echo "Updating from $$CURRENT to $$LATEST..."; \
+		npm install -g @anthropic-ai/claude-code@latest; \
+		echo "✓ Updated to $$(claude --version)"; \
+	fi
+
+.PHONY: check-claude
+check-claude: ## Verify Claude CLI is installed and working
+	@command -v claude >/dev/null 2>&1 || { \
+		echo "❌ Claude CLI not found."; \
+		echo ""; \
+		echo "Install with: make setup-claude"; \
+		echo "Or manually: npm install -g @anthropic-ai/claude-code"; \
+		echo ""; \
+		echo "See docs/CLAUDE_CODE_SETUP.md for troubleshooting"; \
+		exit 1; \
+	}
+	@echo "✓ Claude CLI found: $$(which claude)"
+	@echo "✓ Version: $$(claude --version)"
+
+.PHONY: test-claude-headless
+test-claude-headless: check-claude ## Test Claude headless mode
+	@echo "Testing Claude headless mode..."
+	@OUTPUT=$$(claude -p "echo test" --output-format json 2>&1); \
+	if echo "$$OUTPUT" | jq -e '.subtype == "success"' >/dev/null 2>&1; then \
+		echo "✓ Claude headless mode working"; \
+		echo ""; \
+		echo "Available metrics:"; \
+		echo "$$OUTPUT" | jq -r 'keys | .[]' | sed 's/^/  - /'; \
+	else \
+		echo "✗ Claude headless mode failed"; \
+		echo "Output: $$OUTPUT"; \
+		exit 1; \
+	fi
 
 .PHONY: help-release
 help-release: ## Show release workflow (eval + dashboard)

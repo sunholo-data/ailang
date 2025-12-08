@@ -13,26 +13,26 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
-// TestStdlibCanary_IOModule is a smoke test that ensures stdlib/std/io.ail
+// TestStdlibCanary_IOModule is a smoke test that ensures std/io.ail
 // can be parsed and typechecked without errors.
 //
 // This is the CRITICAL regression test for v0.3.11 - the bug caused this exact
 // file to fail with "closed row missing labels: [IO]".
 func TestStdlibCanary_IOModule(t *testing.T) {
-	// Find the stdlib/std/io.ail file
+	// Find the std/io.ail file (as of v0.3.20, stdlib files are in std/)
 	stdlibPath := findStdlibPath(t)
 	ioPath := filepath.Join(stdlibPath, "std", "io.ail")
 
 	// Read the file
 	content, err := os.ReadFile(ioPath)
-	require.NoError(t, err, "Failed to read stdlib/std/io.ail")
+	require.NoError(t, err, "Failed to read std/io.ail")
 
 	// Parse the module
 	l := lexer.New(string(content), ioPath)
 	p := parser.New(l)
 	program := p.Parse()
-	require.NotNil(t, program, "Failed to parse stdlib/std/io.ail")
-	require.NotNil(t, program.Module, "stdlib/std/io.ail should have a module")
+	require.NotNil(t, program, "Failed to parse std/io.ail")
+	require.NotNil(t, program.Module, "std/io.ail should have a module")
 
 	// Typecheck the module
 	tc := types.NewTypeChecker()
@@ -48,13 +48,13 @@ func TestStdlibCanary_IOModule(t *testing.T) {
 		// If error message is literally "no errors", it's actually success (confusing API)
 		if errMsg != "no errors" {
 			// Other errors might be expected (incomplete features, etc.)
-			t.Logf("Typechecking stdlib/std/io.ail produced errors (may be expected): %v", err)
+			t.Logf("Typechecking std/io.ail produced errors (may be expected): %v", err)
 		}
 	}
 
 	// If typechecking completely succeeded, verify the result
 	if typed != nil && typed.Statements != nil {
-		t.Logf("✅ stdlib/std/io.ail typechecked successfully (%d statements)", len(typed.Statements))
+		t.Logf("✅ std/io.ail typechecked successfully (%d statements)", len(typed.Statements))
 	}
 
 	// Verify that the print function is in the typed program (if typed != nil)
@@ -90,7 +90,7 @@ func TestStdlibCanary_IOModule(t *testing.T) {
 		}
 	}
 
-	require.True(t, foundPrint, "stdlib/std/io.ail should export 'print' function")
+	require.True(t, foundPrint, "std/io.ail should export 'print' function")
 }
 
 // TestStdlibCanary_AllModules ensures all stdlib modules can be parsed and typechecked.
@@ -151,20 +151,23 @@ func TestStdlibCanary_AllModules(t *testing.T) {
 
 // findStdlibPath locates the stdlib directory relative to the test
 func findStdlibPath(t *testing.T) string {
-	// Try common paths relative to internal/types/
+	// As of v0.3.20, stdlib files moved from stdlib/std/ to std/
+	// This function now returns the root directory containing std/
 	candidates := []string{
-		"../../stdlib",
-		"../../../stdlib",
-		filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "sunholo", "ailang", "stdlib"),
+		"../..",    // From internal/pipeline/ to root
+		"../../..", // From deeper nested directories
+		filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "sunholo", "ailang"),
 	}
 
 	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
+		// Check if std/io.ail exists at this path
+		testFile := filepath.Join(path, "std", "io.ail")
+		if _, err := os.Stat(testFile); err == nil {
 			absPath, _ := filepath.Abs(path)
 			return absPath
 		}
 	}
 
-	t.Fatal("Could not find stdlib directory")
+	t.Fatal("Could not find stdlib directory (looking for std/io.ail)")
 	return ""
 }

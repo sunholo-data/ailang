@@ -39,6 +39,11 @@ type BenchmarkResult struct {
 	// Prompt versioning
 	PromptVersion string `json:"prompt_version,omitempty"`
 
+	// Agent evaluation metrics (M-EVAL-AGENT)
+	EvalMode        string `json:"eval_mode,omitempty"`        // "standard" or "agent"
+	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
+	AgentTranscript string `json:"agent_transcript,omitempty"` // Full session log
+
 	// Reproducibility
 	BinaryHash string   `json:"binary_hash,omitempty"`
 	StdlibHash string   `json:"stdlib_hash,omitempty"`
@@ -192,6 +197,9 @@ type SummaryEntry struct {
 	DurationMs     int64   `json:"duration_ms"`
 	Timestamp      string  `json:"timestamp"`
 	Stderr         string  `json:"stderr,omitempty"`
+	// Agent evaluation fields (M-EVAL-AGENT)
+	EvalMode   string `json:"eval_mode,omitempty"`   // "standard" or "agent"
+	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
 }
 
 // DashboardJSON represents the structure of docs/static/benchmarks/latest.json
@@ -216,6 +224,7 @@ type HistoryEntry struct {
 	SuccessCount  int                    `json:"successCount"`
 	Languages     string                 `json:"languages"`
 	LanguageStats map[string]interface{} `json:"languageStats,omitempty"`
+	ModelStats    map[string]interface{} `json:"modelStats,omitempty"` // Per-model, per-language stats for trend charts
 }
 
 // Validate checks if a DashboardJSON structure is valid
@@ -265,6 +274,8 @@ func (r *BenchmarkResult) ToSummaryEntry() *SummaryEntry {
 		DurationMs:     r.DurationMs,
 		Timestamp:      r.Timestamp.Format(time.RFC3339),
 		Stderr:         r.Stderr,
+		EvalMode:       r.EvalMode,
+		AgentTurns:     r.AgentTurns,
 	}
 }
 

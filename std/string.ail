@@ -1,0 +1,29 @@
+-- std/string - String manipulation functions
+--
+-- String operations: length, substring, trim, split, etc.
+-- Strings are immutable UTF-8 sequences.
+--
+-- Pure functions (no effects required)
+
+module std/string
+
+import std/option (Option, Some, None)
+
+export pure func length(s: string) -> int { _str_len(s) }
+export pure func substring(s: string, start: int, end: int) -> string { _str_slice(s, start, end) }
+export pure func toUpper(s: string) -> string { _str_upper(s) }
+export pure func toLower(s: string) -> string { _str_lower(s) }
+export pure func trim(s: string) -> string { _str_trim(s) }
+
+-- compare: -1 / 0 / +1
+export pure func compare(a: string, b: string) -> int { _str_compare(a, b) }
+
+-- returns first index or -1
+export pure func find(hay: string, needle: string) -> int { _str_find(hay, needle) }
+
+-- String parsing (returns Option)
+export pure func stringToInt(s: string) -> Option[int] { _stringToInt(s) }
+export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
+
+-- String splitting
+export pure func split(s: string, delimiter: string) -> [string] { _str_split(s, delimiter) }

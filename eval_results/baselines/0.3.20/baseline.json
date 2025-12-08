@@ -1,0 +1,13 @@
+{
+  "version": "0.3.20",
+  "git_describe": "v0.3.19-54-g1e70fa7",
+  "timestamp": "2025-10-26T20:02:35Z",
+  "models": "claude-haiku-4-5,claude-sonnet-4-5,gemini-2-5-flash,gemini-2-5-pro,gpt5,gpt5-mini",
+  "full_suite": true,
+  "languages": "python,ailang",
+  "parallel": 10,
+  "total_runs": 407,
+  "git_commit": "1e70fa7bad046e609e71e99f6795063fe85b6d94",
+  "git_branch": "dev",
+  "git_dirty": true
+}

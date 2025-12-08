@@ -1,0 +1,24 @@
+id: merge_sort
+description: "Implement merge sort algorithm (divide and conquer + recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements the merge sort algorithm with these helper functions:
+     - `merge(xs, ys)` - merges two sorted lists into one sorted list
+     - `split(xs)` - splits a list into two halves
+     - `mergeSort(xs)` - recursively sorts a list
+
+  2. Sorts this list: [38, 27, 43, 3, 9, 82, 10]
+
+  3. Prints the sorted result as a list
+
+  Expected output: [3, 9, 10, 27, 38, 43, 82]
+
+  Output only the code, no explanations.
+expected_stdout: |
+  [3, 9, 10, 27, 38, 43, 82]

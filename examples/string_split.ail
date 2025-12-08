@@ -1,0 +1,29 @@
+module examples/string_split
+
+import std/string (split)
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let csv = "Alice,30,Engineer" in
+  let fields = split(csv, ",") in
+  let text = "line1\nline2\nline3" in
+  let lines = split(text, "\n") in
+  let word = "hello" in
+  let chars = split(word, "") in
+  let _ = println("CSV fields:") in
+  let _ = printList(fields) in
+  let _ = println("Lines:") in
+  let _ = printList(lines) in
+  let _ = println("Characters:") in
+  printList(chars)
+}
+
+func printList(xs: [string]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    head :: tail => {
+      println(head);
+      printList(tail)
+    }
+  }
+}

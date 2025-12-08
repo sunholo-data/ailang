@@ -1,0 +1,45 @@
+module examples/runnable/imported_adt_types
+
+-- Example: Imported ADT types with different constructor field types
+-- This tests the fix for type pollution where [Direction] and int were confused
+
+-- Define ADT types locally (simulates import from another module)
+export type Direction = North | South | East | West
+
+export type MovementPattern =
+    | PatternPatrol([Direction])
+    | PatternRandomWalk(int)
+    | PatternStatic
+
+export type Coord = { x: int, y: int }
+
+export type NPC = {
+    id: int,
+    pos: Coord,
+    pattern: MovementPattern,
+    moveCounter: int,
+    patrolIndex: int
+}
+
+-- Test: Create NPCs with different movement patterns
+-- This previously failed with "No instance for Num[[Direction]] in scope"
+-- because the int literal 30 was incorrectly typed as [Direction]
+pure func testMixedTypes() -> [NPC] {
+    let patrolPath = [East, South, West, North];
+    let npc1 = { id: 1, pos: { x: 1, y: 1 }, pattern: PatternPatrol(patrolPath), moveCounter: 0, patrolIndex: 0 };
+    let npc2 = { id: 2, pos: { x: 2, y: 2 }, pattern: PatternRandomWalk(30), moveCounter: 30, patrolIndex: 0 };
+    let npc3 = { id: 3, pos: { x: 5, y: 5 }, pattern: PatternStatic, moveCounter: 0, patrolIndex: 0 };
+    [npc1, npc2, npc3]
+}
+
+-- Test: Multiple constructors with same ADT in same function
+pure func testMultiplePatterns() -> (MovementPattern, MovementPattern, MovementPattern) {
+    let path = [North, East];
+    let p1 = PatternPatrol(path);
+    let p2 = PatternRandomWalk(50);
+    let p3 = PatternStatic;
+    (p1, p2, p3)
+}
+
+-- Run tests
+testMixedTypes()

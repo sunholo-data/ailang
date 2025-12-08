@@ -1,0 +1,50 @@
+-- Showcase: Advanced Lambda Patterns
+-- This example demonstrates advanced functional programming patterns.
+module examples/runnable/lambdas_advanced
+
+export func main() -> () ! {IO} =
+  let _ = print("=== Advanced Lambda Patterns ===") in
+
+  -- Flip function - reverses argument order
+  let flip = \f. \x. \y. f(y)(x) in
+  let sub = \x. \y. x - y in
+  let flippedSub = flip(sub) in
+  let _ = print("Flip function (reverse arguments):") in
+  let _ = print("  sub(10)(3) = " ++ show(sub(10)(3))) in
+  let _ = print("  flip(sub)(10)(3) = " ++ show(flippedSub(10)(3))) in
+
+  -- Church encoding - representing numbers as functions
+  let zero = \f. \x. x in
+  let one = \f. \x. f(x) in
+  let two = \f. \x. f(f(x)) in
+  let three = \f. \x. f(f(f(x))) in
+
+  -- Convert church numeral to int
+  let churchToInt = \n. n(\x. x + 1)(0) in
+  let _ = print("") in
+  let _ = print("Church numerals:") in
+  let _ = print("  churchToInt(zero) = " ++ show(churchToInt(zero))) in
+  let _ = print("  churchToInt(one) = " ++ show(churchToInt(one))) in
+  let _ = print("  churchToInt(two) = " ++ show(churchToInt(two))) in
+  let _ = print("  churchToInt(three) = " ++ show(churchToInt(three))) in
+
+  -- Continuation-passing style
+  let addCPS = \x. \y. \k. k(x + y) in
+  let id = \x. x in
+  let _ = print("") in
+  let _ = print("Continuation-passing style:") in
+  let _ = print("  addCPS(3)(4)(id) = " ++ show(addCPS(3)(4)(id))) in
+
+  -- Combinator: K combinator (constant function)
+  let K = \x. \y. x in
+  let _ = print("") in
+  let _ = print("K combinator (returns first arg):") in
+  let _ = print("  K(42)(99) = " ++ show(K(42)(99))) in
+
+  -- Combinator: S combinator
+  let S = \x. \y. \z. x(z)(y(z)) in
+  let increment = \n. n + 1 in
+  let double = \n. n * 2 in
+  let _ = print("") in
+  let _ = print("S combinator:") in
+  print("  S(+)(double)(5) = " ++ show(S(\a. \b. a + b)(double)(5)))

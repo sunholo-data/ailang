@@ -3,7 +3,8 @@ package builtins
 // This file serves as the central registration point for all AILANG builtins.
 // The actual builtin implementations are organized by category in separate files:
 //
-//   - string.go  : String manipulation (_str_len, _str_compare, _str_concat, etc.)
+//   - string.go  : String manipulation (_str_len, _str_compare, concat_String, etc.)
+//   - list.go    : List operations (concat_List)
 //   - math.go    : Arithmetic, comparison, logic, conversions (add_Int, eq_Bool, etc.)
 //   - io.go      : Console I/O (_io_print, _io_println, _io_readLine)
 //   - net.go     : Network operations (_net_httpRequest)

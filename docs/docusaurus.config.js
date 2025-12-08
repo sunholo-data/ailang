@@ -12,6 +12,12 @@ const config = {
   tagline: 'AI-first programming language for AI-assisted development',
   favicon: 'img/favicon.ico',
 
+  markdown: {
+    mermaid: true,
+  },
+
+  themes: ['@docusaurus/theme-mermaid'],
+
   // Set the production url of your site here
   url: 'https://sunholo-data.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
@@ -43,6 +49,32 @@ const config = {
     },
   ],
 
+  // Google Fonts for Sunholo brand styling
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap',
+      },
+    },
+  ],
+
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
@@ -50,6 +82,26 @@ const config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  plugins: [
+    function webpackPlugin() {
+      return {
+        name: 'custom-webpack-plugin',
+        configureWebpack() {
+          return {
+            module: {
+              rules: [
+                {
+                  test: /\.ail$/,
+                  use: 'raw-loader',
+                },
+              ],
+            },
+          };
+        },
+      };
+    },
+  ],
 
   presets: [
     [
@@ -100,8 +152,13 @@ const config = {
         },
         items: [
           {
+            to: '/docs/why-ailang',
+            label: 'Why AILANG',
+            position: 'left',
+          },
+          {
             to: '/docs/vision',
-            label: '✨ Vision',
+            label: 'Vision',
             position: 'left',
           },
           {
@@ -112,12 +169,17 @@ const config = {
           },
           {
             to: '/docs/examples',
-            label: '📚 Examples',
+            label: 'Examples',
             position: 'left',
           },
           {
             to: '/docs/playground',
-            label: '🎮 Playground',
+            label: 'Playground',
+            position: 'left',
+          },
+          {
+            to: '/docs/benchmarks/performance',
+            label: 'Benchmarks',
             position: 'left',
           },
           {
@@ -149,6 +211,10 @@ const config = {
               {
                 label: 'AI Prompts',
                 to: '/docs/prompts',
+              },
+              {
+                label: 'Benchmarks',
+                to: '/docs/benchmarks/performance',
               },
             ],
           },

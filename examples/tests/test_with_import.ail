@@ -1,4 +1,4 @@
-module examples/test_with_import
+module examples/tests/test_with_import
 import std/io (println)
 
 export func main() -> () {

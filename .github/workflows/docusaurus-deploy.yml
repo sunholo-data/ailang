@@ -7,8 +7,15 @@ on:
     branches: ["main", "dev"]
     paths:
       - 'docs/**'
+      - 'prompts/**'
       - 'llms.txt'
+      - 'CHANGELOG.md'
       - '.github/workflows/docusaurus-deploy.yml'
+      # Rebuild WASM when Go source changes
+      - 'internal/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -61,6 +68,12 @@ jobs:
 
       - name: Install dependencies
         run: make docs-install
+
+      - name: Generate version constants
+        run: bash docs/scripts/generate-version-constants.sh
+
+      - name: Sync teaching prompts
+        run: bash docs/scripts/sync-prompts.sh
 
       - name: Build Docusaurus site
         run: make docs-build

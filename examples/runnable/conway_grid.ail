@@ -1,0 +1,94 @@
+module examples/runnable/conway_grid
+
+-- Conway's Game of Life on an Array grid
+-- Exercises: Arrays (spatial state), ADTs (cell state), Inline tests (invariants)
+
+import std/array (make as arrayMake, get as arrayGet, set as arraySet)
+
+-- Cell state as ADT
+export type Cell = Alive | Dead
+
+-- Grid dimensions (5x5 for simplicity)
+pure func gridSize() -> int { 5 }
+
+-- Convert 2D coordinates to 1D array index
+pure func toIndex(x: int, y: int) -> int
+  tests [((0, 0), 0), ((1, 0), 1), ((0, 1), 5), ((2, 3), 17)]
+{ y * gridSize() + x }
+
+-- Check if coordinates are in bounds
+pure func inBounds(x: int, y: int) -> bool
+  tests [((0, 0), true), ((4, 4), true), ((-1, 0), false), ((5, 0), false)]
+{ x >= 0 && x < gridSize() && y >= 0 && y < gridSize() }
+
+-- Safely get cell (returns Dead for out-of-bounds)
+pure func getCell(grid: Array[Cell], x: int, y: int) -> Cell {
+    if inBounds(x, y) then
+        arrayGet(grid, toIndex(x, y))
+    else
+        Dead
+}
+
+-- Helper: check if cell is alive (returns 1 if alive, 0 if dead)
+pure func cellValue(cell: Cell) -> int {
+    match cell { Alive => 1, Dead => 0 }
+}
+
+-- Count alive neighbors (8-directional)
+pure func countNeighbors(grid: Array[Cell], x: int, y: int) -> int {
+    let n0 = cellValue(getCell(grid, x - 1, y - 1));
+    let n1 = cellValue(getCell(grid, x,     y - 1));
+    let n2 = cellValue(getCell(grid, x + 1, y - 1));
+    let n3 = cellValue(getCell(grid, x - 1, y));
+    let n4 = cellValue(getCell(grid, x + 1, y));
+    let n5 = cellValue(getCell(grid, x - 1, y + 1));
+    let n6 = cellValue(getCell(grid, x,     y + 1));
+    let n7 = cellValue(getCell(grid, x + 1, y + 1));
+    n0 + n1 + n2 + n3 + n4 + n5 + n6 + n7
+}
+
+-- Apply Conway rules: returns 1 if cell should be alive, 0 if dead
+-- 1. Any live cell with 2-3 neighbors survives
+-- 2. Any dead cell with exactly 3 neighbors becomes alive
+-- 3. All other cells die or stay dead
+pure func shouldLive(isAlive: int, neighbors: int) -> int
+  tests [
+    ((1, 0), 0),
+    ((1, 1), 0),
+    ((1, 2), 1),
+    ((1, 3), 1),
+    ((1, 4), 0),
+    ((0, 2), 0),
+    ((0, 3), 1),
+    ((0, 4), 0)
+  ]
+{
+    if isAlive == 1 then
+        if neighbors == 2 || neighbors == 3 then 1 else 0
+    else
+        if neighbors == 3 then 1 else 0
+}
+
+-- Create empty grid (all Dead)
+pure func emptyGrid() -> Array[Cell] {
+    arrayMake(25, Dead)
+}
+
+-- Set a cell in the grid (returns new grid)
+pure func setGridCell(grid: Array[Cell], x: int, y: int, value: Cell) -> Array[Cell] {
+    if inBounds(x, y) then
+        arraySet(grid, toIndex(x, y), value)
+    else
+        grid
+}
+
+-- Create a blinker pattern (oscillates between horizontal and vertical)
+pure func makeBlinker() -> Array[Cell] {
+    let grid = emptyGrid();
+    let g1 = setGridCell(grid, 2, 1, Alive);
+    let g2 = setGridCell(g1, 2, 2, Alive);
+    setGridCell(g2, 2, 3, Alive)
+}
+
+-- Run example
+makeBlinker()

@@ -1,5 +1,5 @@
 -- Test record subsumption: accessing subset of fields
-module examples/test_record_subsumption
+module examples/tests/test_record_subsumption
 
 import std/io (println)
 

@@ -89,7 +89,7 @@ func TestBuiltinConsistency_SpecRegistryComplete(t *testing.T) {
 	}{
 		{"_io_print", 1, "IO"},
 		{"_io_println", 1, "IO"},
-		{"_io_readLine", 0, "IO"},
+		{"_io_readLine", 1, "IO"}, // Fixed v0.4.2: takes unit parameter for S-CALL0 compatibility
 		{"_net_httpRequest", 4, "Net"},
 		{"_str_len", 1, ""},
 		{"concat_String", 2, ""}, // String concatenation (pure)

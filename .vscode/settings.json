@@ -17,7 +17,8 @@
   ],
   "gopls": {
     "build.directoryFilters": [
-      "-scripts"
+      "-scripts",
+      "-examples/agents"
     ]
   },
   "files.exclude": {

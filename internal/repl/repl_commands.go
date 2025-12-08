@@ -70,6 +70,19 @@ func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 		}
 		fmt.Fprintf(out, "Dry linking %s\n", yellow(status))
 
+	case ":strict":
+		r.config.StrictSyntaxMode = !r.config.StrictSyntaxMode
+		status := "disabled"
+		if r.config.StrictSyntaxMode {
+			status = "enabled"
+		}
+		fmt.Fprintf(out, "Strict syntax mode %s\n", yellow(status))
+		if r.config.StrictSyntaxMode {
+			fmt.Fprintln(out, dim("  Syntactic sugar (::, ->, f()) will be rejected"))
+		} else {
+			fmt.Fprintln(out, dim("  Syntactic sugar (::, ->, f()) will be accepted"))
+		}
+
 	case ":trace-defaulting":
 		if len(parts) < 2 {
 			fmt.Fprintln(out, "Usage: :trace-defaulting on|off")
@@ -178,12 +191,16 @@ func (r *REPL) showType(input string, out io.Writer) {
 	// Parse
 	l := lexer.New(input, "<repl>")
 	p := parser.New(l)
+	p.SetStrictSyntaxMode(r.config.StrictSyntaxMode)
 	program := p.Parse()
 
 	if len(p.Errors()) > 0 {
 		r.printParserErrors(p.Errors(), out)
 		return
 	}
+
+	// Track if syntactic sugar was used (for user feedback)
+	sugarUsed := p.SugarUsed()
 
 	// Elaborate
 	elaborator := elaborate.NewElaborator()
@@ -219,7 +236,11 @@ func (r *REPL) showType(input string, out io.Writer) {
 
 	// Pretty print the final type
 	prettyType := r.prettyPrintFinalType(finalType, constraints)
-	fmt.Fprintf(out, "%s :: %s\n", input, cyan(prettyType))
+	if sugarUsed {
+		fmt.Fprintf(out, "%s :: %s %s\n", input, cyan(prettyType), dim("(desugared)"))
+	} else {
+		fmt.Fprintf(out, "%s :: %s\n", input, cyan(prettyType))
+	}
 }
 
 // importModule loads type class instances from a module
@@ -374,6 +395,7 @@ func (r *REPL) printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  :dump-core              Toggle Core AST display")
 	fmt.Fprintln(out, "  :dump-typed             Toggle Typed AST display")
 	fmt.Fprintln(out, "  :dry-link               Show required instances without evaluating")
+	fmt.Fprintln(out, "  :strict                 Toggle strict syntax mode (reject sugar)")
 	fmt.Fprintln(out, "  :trace-defaulting on|off Enable/disable defaulting trace")
 	fmt.Fprintln(out, "  :instances              Show available type class instances")
 	fmt.Fprintln(out, "  :test [--json]          Run tests (with optional JSON output)")

@@ -38,14 +38,16 @@ ailang eval-validate float_eq
 
 ## Architecture Overview
 
-```
-User Input ("validate my fix")
-    ↓
-Smart Agent (eval-orchestrator)  ← Natural language interface
-    ↓
-Native Go Commands (ailang eval-*)  ← Fast, type-safe execution
-    ↓
-Results + Interpretation
+```mermaid
+graph TD
+    A["User Input<br/>'validate my fix'"] --> B["eval-orchestrator Agent<br/>(Natural language interface)"]
+    B --> C["Native Go Commands<br/>(ailang eval-*)"]
+    C --> D["Results + Interpretation"]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style C fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style D fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
 ## Tier 1: Native Go Commands

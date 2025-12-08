@@ -1,0 +1,40 @@
+-- std/ai.ail
+-- AI effect for general-purpose AI oracle calls
+--
+-- The AI effect is AILANG's general-purpose AI oracle - an opaque,
+-- host-provided effect for calling external AI/ML systems. Use cases:
+--   - Game NPC decision-making (via typed wrappers)
+--   - CLI tools with AI assistance
+--   - Agents written in AILANG calling LLMs
+--   - Data analysis pipelines with AI steps
+--
+-- The interface is intentionally simple: string -> string
+-- By convention, JSON is used for input/output, but not enforced.
+--
+-- Usage:
+--   import std/ai as AI
+--   import std/json
+--
+--   func choose_action(ctx: Context) -> Action ! {AI} {
+--       let input = json.encode(ctx)
+--       let output = AI.call(input)
+--       match json.decode[Action](output) {
+--           Ok(action) => action,
+--           Err(_)     => Wait  -- Safe fallback
+--       }
+--   }
+--
+-- IMPORTANT: Host must configure AIHandler explicitly:
+--   - game.NewStubAIHandler() for testing
+--   - Your custom handler for production (e.g., OpenAI, local LLM)
+--   - Nil handler = error (no silent fallbacks)
+
+module std/ai
+
+-- Wrapper around Go builtin (_ai_call)
+-- Effects are tracked at the type level with ! {AI}
+
+-- call: Call the AI oracle with a string input
+-- Input is typically JSON-encoded context
+-- Output is typically JSON-encoded response
+export func call(input: string) -> string ! {AI} = _ai_call(input)

@@ -1,5 +1,5 @@
 # AILANG Evaluation Model Configuration
-# Last updated: October 2025
+# Last updated: November 2025
 #
 # This file defines the canonical model names for evaluation benchmarks.
 # Update this file when new model versions are released.
@@ -12,6 +12,7 @@ models:
     provider: "openai"
     description: "GPT-5 full reasoning model"
     env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -19,16 +20,54 @@ models:
       Main GPT-5 model with reasoning capabilities.
       90% discount on cached tokens ($0.125/M).
       Use for production benchmarks.
+      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
   gpt5-mini:
     api_name: "gpt-5-mini"
     provider: "openai"
     description: "GPT-5 mini (faster, cheaper)"
     env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K (~1/5 of GPT-5)
       output_per_1k: 0.002     # $2 per 1M = $0.002 per 1K
-    notes: "Smaller variant, ~1/5 the price of GPT-5"
+    notes: "Smaller variant, ~1/5 the price of GPT-5. Agent eval: Not yet supported."
+
+  # OpenAI GPT-5.1 (released November 2025)
+  gpt5-1:
+    api_name: "gpt-5.1"
+    provider: "openai"
+    description: "GPT-5.1 with adaptive reasoning"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    pricing:
+      input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
+      output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
+    notes: |
+      GPT-5.1 (Thinking mode) with adaptive reasoning.
+      Dynamically adjusts thinking time based on task complexity.
+      Same pricing as GPT-5, but may use fewer tokens on simple tasks.
+      Reasoning tokens tracked separately in usage stats.
+      24-hour extended prompt caching available.
+      Uses max_completion_tokens instead of max_tokens.
+      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
+
+  gpt5-1-instant:
+    api_name: "gpt-5.1-chat-latest"
+    provider: "openai"
+    description: "GPT-5.1 Instant (fast, general purpose)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    pricing:
+      input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
+      output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
+    notes: |
+      GPT-5.1 Instant - faster, more conversational variant.
+      Can use adaptive reasoning on complex tasks while staying fast on simple ones.
+      Same pricing as GPT-5.1 Thinking mode.
+      Good for development iteration with high intelligence.
+      Uses max_completion_tokens instead of max_tokens.
+      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
   # Anthropic Claude Sonnet 4.5 (released September 2025)
   claude-sonnet-4-5:
@@ -36,6 +75,8 @@ models:
     provider: "anthropic"
     description: "Claude Sonnet 4.5 - best for coding"
     env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "sonnet"  # Pass to --agent-model flag
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
@@ -43,6 +84,7 @@ models:
       Anthropic's most intelligent model, optimized for coding.
       Can run autonomously for 30 hours.
       1M token context window.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
 
   # Anthropic Claude Haiku 4.5 (released October 2025)
   claude-haiku-4-5:
@@ -50,6 +92,8 @@ models:
     provider: "anthropic"
     description: "Claude Haiku 4.5 - fastest and most cost-effective"
     env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "haiku"  # Pass to --agent-model flag
     pricing:
       input_per_1k: 0.001   # $1.00 per million = $0.001 per 1K
       output_per_1k: 0.005  # $5.00 per million = $0.005 per 1K
@@ -57,6 +101,26 @@ models:
       Anthropic's fastest and most cost-effective model.
       Ideal for high-volume, low-latency tasks.
       ~3x cheaper than Sonnet, competitive with GPT-5-mini and Gemini Flash.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
+
+  # Anthropic Claude Opus 4.5 (released November 2025)
+  claude-opus-4-5:
+    api_name: "claude-opus-4-5-20251101"
+    provider: "anthropic"
+    description: "Claude Opus 4.5 - most intelligent model"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "opus"  # Pass to --agent-model flag
+    pricing:
+      input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
+      output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
+    notes: |
+      Anthropic's most intelligent model, state-of-the-art for coding.
+      80.9% SWE-bench score - reclaims coding crown.
+      200K context window, 64K max output tokens.
+      66% cheaper than previous Opus ($15/$75 → $5/$25).
+      Cache reads: $0.50/M (0.1x base). Batch: 50% off.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
 
   # Google Gemini 2.5 Pro (released March 2025)
   gemini-2-5-pro:
@@ -64,6 +128,7 @@ models:
     provider: "google"
     description: "Gemini 2.5 Pro with thinking"
     env_var: "GOOGLE_API_KEY"
+    agent_cli: null  # Google Gemini CLI not yet implemented
     pricing:
       input_per_1k: 0.00125    # $1.25 per 1M = $0.00125 per 1K (≤200k context)
       output_per_1k: 0.01      # $10.00 per 1M = $0.01 per 1K (≤200k context)
@@ -72,6 +137,7 @@ models:
       1M token context window (2M coming soon).
       Pricing: $1.25/$10 per 1M (≤200k), $2.50/$15 per 1M (>200k).
       Context caching: $0.125 per 1M (≤200k).
+      Agent eval support: Not yet implemented (requires Gemini CLI integration).
 
   # Google Gemini 2.5 Flash (released September 2025)
   gemini-2-5-flash:
@@ -79,6 +145,7 @@ models:
     provider: "google"
     description: "Gemini 2.5 Flash - fast and efficient"
     env_var: "GOOGLE_API_KEY"
+    agent_cli: null  # Google Gemini CLI not yet implemented
     pricing:
       input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
       output_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
@@ -87,33 +154,69 @@ models:
       Best for large scale processing and low-latency needs.
       Good for agentic use cases and thinking tasks.
       Context caching: $0.03 per 1M.
+      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+
+  # Google Gemini 3 Pro (released November 2025)
+  gemini-3-pro:
+    api_name: "gemini-3-pro-preview"
+    provider: "google"
+    description: "Gemini 3 Pro Preview with advanced reasoning"
+    env_var: "GOOGLE_API_KEY"
+    agent_cli: null  # Google Gemini CLI not yet implemented
+    pricing:
+      input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
+      output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)
+    notes: |
+      Google's latest model with advanced reasoning capabilities.
+      Similar to GPT-5.1, uses adaptive reasoning with separate thoughtsTokenCount.
+      1M token context window, tops LMArena leaderboard (1501 Elo).
+      Pricing: $2.00/$12.00 per 1M (≤200k), $4.00/$18.00 per 1M (>200k).
+      Currently in preview - available on Vertex AI global endpoint.
+      Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
+      Agent eval support: Not yet implemented (requires Gemini CLI integration).
 
 # Default model for benchmarks
 default: "claude-sonnet-4-5"
 
 # Recommended model set for comprehensive evaluation
 benchmark_suite:
-  - "gpt5"
+  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5 (same price, better performance)
   - "claude-sonnet-4-5"
   - "gemini-2-5-pro"
 
 # Extended model set (includes smaller/faster variants)
 extended_suite:
-  - "gpt5"
+  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5
+  - "gpt5-1-instant"  # Added: Fast variant for quick iteration
   - "gpt5-mini"
+  - "claude-opus-4-5"  # Added: Most intelligent model (Nov 2025)
   - "claude-sonnet-4-5"
   - "claude-haiku-4-5"
+  - "gemini-3-pro"  # Added: Gemini 3 Pro with reasoning (Nov 2025)
   - "gemini-2-5-pro"
   - "gemini-2-5-flash"
 
 # Development/testing models (cheaper, faster)
 dev_models:
+  - "gpt5-1-instant"  # Added: Fast development with high intelligence
   - "gpt5-mini"
   - "claude-haiku-4-5"
   - "gemini-2-5-flash"
+
+# Agent CLI support for agent-based evaluation
+# - agent_cli: "claude" = Supports Claude Code CLI
+# - agent_cli: "openai" = Supports OpenAI Codex CLI (not yet implemented)
+# - agent_cli: "gemini" = Supports Gemini CLI (not yet implemented)
+# - agent_cli: null = No agent eval support
+#
+# When adding agent CLI support for new providers:
+# 1. Set agent_cli to the CLI command name
+# 2. Add agent_model_name field with the model flag value
+# 3. Update internal/agentrunner/llm_cli_handler.go with new handler
 
 # Notes for future updates:
 # - When new models release, add them here
 # - Update api_name with full version strings (e.g., "gpt-5-2025-08-07")
 # - Update pricing from official documentation
 # - Keep old model versions for historical comparison
+# - Update agent_cli field when new agent CLIs are implemented

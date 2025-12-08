@@ -1,0 +1,36 @@
+// S-CALL0 Sugar: Zero-Argument Function Calls
+// The f() syntax is sugar for f(()) - calling with unit argument
+
+// Example: Zero-arg lambda (takes unit as parameter)
+let getMessage = \u. "Hello from zero-arg lambda!"
+
+// Top-level calls demonstrate S-CALL0 working at statement level!
+// This was the missing piece that M-S-CALL0 fixes
+
+// Expression-level zero-arg calls
+let result1 = if true then getMessage() else "default"
+
+// Canonical syntax (with space) still works
+let result2 = getMessage (())
+
+// Multiple calls
+let f = \u. 42
+let g = \u. "test"
+
+let a = f()
+let b = g()
+
+// Nested calls
+let getFunc = \u. f
+let nested = getFunc()()  // Both use S-CALL0
+
+// Why S-CALL0 matters:
+// 1. Works at BOTH statement and expression levels
+// 2. Cleaner syntax: getMessage() vs getMessage (())
+// 3. Familiar to developers from other languages
+// 4. Optional --strict-syntax flag enforces canonical form
+
+// How it works:
+// The lexer creates a UNIT token for () without spaces
+// - f()    → IDENT + UNIT token → desugars to f(())
+// - f (()) → IDENT + LPAREN + RPAREN → canonical syntax

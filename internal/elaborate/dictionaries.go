@@ -20,7 +20,12 @@ func ElaborateWithDictionaries(prog *core.Program, resolved map[uint64]*types.Re
 		newDecls = append(newDecls, transformed)
 	}
 
-	return &core.Program{Decls: newDecls}, nil
+	// Preserve program metadata and flags (CRITICAL for module exports!)
+	return &core.Program{
+		Decls: newDecls,
+		Meta:  prog.Meta,  // Preserve export metadata
+		Flags: prog.Flags, // Preserve compilation state
+	}, nil
 }
 
 // DictElaborator handles dictionary transformation

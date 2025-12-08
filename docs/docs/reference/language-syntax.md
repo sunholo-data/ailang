@@ -69,18 +69,55 @@ export func isOdd(n: int) -> bool {
 }
 ```
 
-### 🚧 Inline Tests (Planned)
+### ✅ Inline Tests (v0.4.5+)
 ```typescript
--- NOT YET IMPLEMENTED
-export func factorial(n: int) -> int
+-- Inline tests for pure functions
+pure func factorial(n: int) -> int
   tests [
     (0, 1),
-    (5, 120)
+    (1, 1),
+    (5, 120),
+    (10, 3628800)
   ]
 {
   if n <= 1 then 1 else n * factorial(n - 1)
 }
+
+-- Multi-parameter functions use tuple syntax
+pure func add(x: int, y: int) -> int
+  tests [
+    ((1, 2), 3),
+    ((5, 7), 12),
+    ((0, 0), 0)
+  ]
+{
+  x + y
+}
+
+-- List operations
+pure func sum(xs: List[int]) -> int
+  tests [
+    ([], 0),
+    ([1], 1),
+    ([1, 2, 3], 6)
+  ]
+{
+  match xs {
+    [] => 0,
+    ::(x, rest) => x + sum(rest)
+  }
+}
 ```
+
+Run tests with:
+```bash
+ailang test examples/factorial.ail
+```
+
+**Limitations:**
+- Only works for self-contained pure functions
+- Functions calling other user-defined functions not yet supported (M-TESTING-DEPS)
+- Effect mocking not yet supported (M-TESTING-EFFECTS)
 
 ## Lambda Expressions ✅
 

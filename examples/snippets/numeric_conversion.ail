@@ -1,6 +1,6 @@
 -- numeric_conversion.ail
 -- Demonstrates numeric conversion builtins (v0.3.5)
-module examples/numeric_conversion
+module examples/snippets/numeric_conversion
 
 import std/io (println)
 

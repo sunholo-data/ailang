@@ -1,0 +1,79 @@
+-- Debug Effect Example
+-- Demonstrates structured tracing and assertions using the Debug effect
+--
+-- Debug is a "ghost effect" - erasable in release mode:
+--   - Debug.log and Debug.check are write-only from AILANG
+--   - Only the host can collect debug output
+--   - In release builds, Debug becomes zero-cost no-ops
+--
+-- Note: We use "check" instead of "assert" because "assert" is a reserved keyword
+--
+-- Run: ailang run --caps IO,Debug --entry main examples/runnable/debug_effect.ail
+
+module examples/runnable/debug_effect
+
+import std/debug as Debug
+
+-- A simple entity type for demonstration
+type Entity = { id: int, name: string, health: int }
+
+-- Update an entity's health with debug tracing
+func damage(e: Entity, amount: int) -> Entity ! {Debug} {
+    Debug.log("Damaging entity " ++ show(e.id) ++ " by " ++ show(amount));
+    Debug.check(amount >= 0, "damage amount must be non-negative");
+
+    let new_health = e.health - amount;
+    Debug.check(new_health >= 0, "health should not go negative");
+
+    { id: e.id, name: e.name, health: new_health }
+}
+
+-- Heal an entity with debug tracing
+func heal(e: Entity, amount: int) -> Entity ! {Debug} {
+    Debug.log("Healing entity " ++ show(e.id) ++ " by " ++ show(amount));
+    Debug.check(amount >= 0, "heal amount must be non-negative");
+
+    let new_health = e.health + amount;
+    let capped_health = if new_health > 100 then 100 else new_health;
+
+    { id: e.id, name: e.name, health: capped_health }
+}
+
+-- Process a list of entities with debug logging
+func process_entities(entities: [Entity]) -> [Entity] ! {Debug} {
+    Debug.log("Processing entities");
+    match entities {
+        [] => [],
+        e :: rest => {
+            Debug.log("Processing: " ++ e.name);
+            let updated = damage(e, 10);
+            updated :: process_entities(rest)
+        }
+    }
+}
+
+-- Main entry point
+export func main() -> () ! {IO, Debug} {
+    print("Debug Effect Demo");
+    print("=================");
+
+    -- Create some entities
+    let hero = { id: 1, name: "Hero", health: 100 };
+    let monster = { id: 2, name: "Goblin", health: 30 };
+
+    Debug.log("Starting game tick");
+    Debug.check(hero.health > 0, "hero must be alive");
+
+    -- Simulate combat
+    let damaged_hero = damage(hero, 25);
+    let healed_hero = heal(damaged_hero, 10);
+
+    print("Hero health: " ++ show(healed_hero.health));
+
+    -- Process multiple entities
+    let entities = [hero, monster];
+    let updated = process_entities(entities);
+
+    Debug.log("Game tick complete");
+    print("Demo complete!")
+}

@@ -1,0 +1,309 @@
+---
+title: Cross-Project Messaging
+sidebar_position: 15
+description: Send feedback and improvement requests from your AILANG project to AILANG core
+---
+
+# Cross-Project Messaging Guide
+
+**Send improvement requests, bug reports, and feedback from your AILANG-using project back to AILANG core.**
+
+This enables a feedback loop where projects using AILANG can automatically report issues, request features, and suggest improvements that get routed to AILANG developers.
+
+---
+
+## Quick Start
+
+From **any project** with AILANG installed, send a message to the global user inbox:
+
+```bash
+ailang agent send --to-user --from "your-project-name" '{
+  "type": "improvement_request",
+  "message": "Your feedback here"
+}'
+```
+
+That's it! The message is stored in `~/.ailang/state/messages/inbox/user/_unread/` and will be picked up by AILANG developers in their next session.
+
+---
+
+## Message Types
+
+Use these standard `type` values for automatic categorization:
+
+| Type | Use For | Example |
+|------|---------|---------|
+| `improvement_request` | Feature suggestions | "Need better error messages for parser failures" |
+| `bug_report` | Something broken | "Type inference fails on nested records" |
+| `compatibility_issue` | Version/platform problems | "v0.4.7 breaks on ARM64 Linux" |
+| `performance_issue` | Slow/resource problems | "Compilation takes 30s for 100-line file" |
+| `documentation_request` | Missing/unclear docs | "No examples for HTTP client usage" |
+| `syntax_suggestion` | Language design ideas | "Add optional semicolons" |
+
+---
+
+## Full Message Format
+
+For structured feedback, include these fields:
+
+```bash
+ailang agent send --to-user --from "game-engine-project" '{
+  "type": "bug_report",
+  "priority": "high",
+  "title": "Parser fails on multi-line strings",
+  "description": "When a string literal spans multiple lines, the parser loses track of line numbers",
+  "example_code": "let s = \"line1\nline2\"",
+  "expected_behavior": "Should parse successfully with correct line numbers in errors",
+  "actual_behavior": "Parser error: unexpected token at line -1",
+  "ailang_version": "0.4.7",
+  "os": "macOS 14.2",
+  "project_context": "Building a game scripting layer"
+}'
+```
+
+### Required Fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Message category (see types above) |
+| `message` or `description` | What you're reporting |
+
+### Optional Fields
+
+| Field | Description |
+|-------|-------------|
+| `priority` | `low`, `medium`, `high`, `critical` |
+| `title` | Short summary |
+| `example_code` | Code that demonstrates the issue |
+| `expected_behavior` | What should happen |
+| `actual_behavior` | What actually happens |
+| `ailang_version` | Output of `ailang --version` |
+| `os` | Operating system and version |
+| `project_context` | What you're building |
+| `workaround` | If you found one |
+
+---
+
+## Examples
+
+### Report a Bug
+
+```bash
+ailang agent send --to-user --from "my-compiler-project" '{
+  "type": "bug_report",
+  "priority": "high",
+  "title": "Type inference fails on recursive ADTs",
+  "example_code": "type Tree = Leaf(int) | Node(Tree, Tree)\nlet t = Node(Leaf(1), Leaf(2))",
+  "actual_behavior": "Type error: cannot unify Tree with Tree",
+  "ailang_version": "0.4.7"
+}'
+```
+
+### Request a Feature
+
+```bash
+ailang agent send --to-user --from "web-framework" '{
+  "type": "improvement_request",
+  "priority": "medium",
+  "title": "Add async/await syntax",
+  "description": "Building a web framework and need non-blocking IO. Current effect system requires explicit continuation passing.",
+  "project_context": "HTTP server framework for AILANG"
+}'
+```
+
+### Report Compatibility Issue
+
+```bash
+ailang agent send --to-user --from "ci-pipeline" '{
+  "type": "compatibility_issue",
+  "priority": "critical",
+  "title": "Binary crashes on Ubuntu 22.04 ARM64",
+  "description": "SIGILL on startup, appears to use unsupported instructions",
+  "os": "Ubuntu 22.04 ARM64 (Graviton3)",
+  "ailang_version": "0.4.7"
+}'
+```
+
+### Suggest Documentation Improvement
+
+```bash
+ailang agent send --to-user --from "tutorial-project" '{
+  "type": "documentation_request",
+  "title": "Need more ADT examples",
+  "description": "The teaching prompt has basic ADT examples but lacks complex nested pattern matching examples. My students struggle with this.",
+  "project_context": "University course using AILANG"
+}'
+```
+
+---
+
+## Programmatic Usage (from Go)
+
+If your project is written in Go, you can use the agent protocol directly:
+
+```go
+package main
+
+import (
+    "github.com/sunholo/ailang/internal/agentprotocol"
+    "os"
+    "path/filepath"
+    "time"
+)
+
+func SendFeedback(projectName, feedbackType, message string) error {
+    // Get state directory
+    homeDir, _ := os.UserHomeDir()
+    stateDir := filepath.Join(homeDir, ".ailang", "state")
+
+    // Create inbox
+    inbox := agentprotocol.NewUserInbox(stateDir)
+
+    // Build message
+    env := &agentprotocol.Envelope{
+        ProtocolVersion: "1.0.0",
+        SchemaVersion:   "1.0.0",
+        MessageID:       agentprotocol.GenerateMessageID(),
+        CorrelationID:   agentprotocol.GenerateCorrelationID(),
+        TraceID:         agentprotocol.GenerateTraceID(),
+        Timestamp:       time.Now().UTC().Format(time.RFC3339),
+        TTLSeconds:      86400, // 24 hours
+        FromAgent:       projectName,
+        ToAgent:         "user",
+        MessageType:     "request",
+        Payload: map[string]interface{}{
+            "type":    feedbackType,
+            "message": message,
+        },
+    }
+
+    _, err := inbox.SendToUser(env)
+    return err
+}
+
+// Usage
+func main() {
+    err := SendFeedback(
+        "my-game-engine",
+        "bug_report",
+        "Parser crashes on deeply nested expressions",
+    )
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+---
+
+## How Messages Are Processed
+
+1. **You send** a message from your project
+2. **Message stored** in `~/.ailang/state/messages/inbox/user/_unread/`
+3. **AILANG developer** starts a Claude Code session
+4. **SessionStart hook** detects unread messages and injects them into context
+5. **Developer reviews** and decides on action
+6. **Message acknowledged** with `ailang agent ack <message-id>`
+
+### Message Lifecycle
+
+```
+Your Project                    AILANG Core
+    │                               │
+    │  ailang agent send --to-user  │
+    ├──────────────────────────────►│
+    │                               │
+    │              ~/.ailang/state/messages/inbox/user/_unread/
+    │                               │
+    │                    [SessionStart hook fires]
+    │                               │
+    │                    [Developer sees message]
+    │                               │
+    │                    [Issue created / fixed]
+    │                               │
+    │              ailang agent ack │
+    │                               │
+    │              ~/.ailang/state/messages/inbox/user/_read/
+```
+
+---
+
+## Checking Your Sent Messages
+
+View messages you've sent (if checking from the AILANG core project):
+
+```bash
+# All messages
+ailang agent inbox user
+
+# Only unread
+ailang agent inbox --unread-only user
+
+# Already read
+ailang agent inbox --read-only user
+```
+
+---
+
+## Storage Location
+
+All messages go to the **global** inbox (not project-specific):
+
+```
+~/.ailang/state/
+└── messages/
+    └── inbox/
+        └── user/
+            ├── _unread/          # New messages land here
+            │   └── msg_*.json
+            ├── _read/            # After viewing
+            │   └── msg_*.json
+            └── _archive/         # Long-term storage
+                └── msg_*.json
+```
+
+This means messages persist across projects and are visible regardless of which directory you're in.
+
+---
+
+## Best Practices
+
+1. **Be specific** - Include version numbers, OS, and exact error messages
+2. **Include reproducible examples** - Code that demonstrates the issue
+3. **Set appropriate priority** - Reserve `critical` for blockers
+4. **Use consistent project names** - Makes it easy to track feedback sources
+5. **Include context** - What you're building helps prioritize fixes
+
+---
+
+## Automated Feedback (Advanced)
+
+Set up automatic feedback when your CI/CD detects AILANG issues:
+
+```bash
+#!/bin/bash
+# In your CI pipeline
+
+# Run AILANG tests
+if ! ailang run --caps IO --entry main tests/integration.ail 2>error.log; then
+    # Send failure report
+    ERROR=$(cat error.log | head -50 | jq -Rs .)
+
+    ailang agent send --to-user --from "my-project-ci" "{
+      \"type\": \"compatibility_issue\",
+      \"priority\": \"high\",
+      \"title\": \"CI failure on $(git rev-parse --short HEAD)\",
+      \"description\": $ERROR,
+      \"ailang_version\": \"$(ailang --version)\",
+      \"os\": \"$(uname -a)\"
+    }"
+fi
+```
+
+---
+
+## Related Documentation
+
+- [Agent Workflows](/docs/guides/agent-workflows) - Full agent protocol documentation
+- [Hooks Setup](/docs/guides/hooks-setup) - Configure session hooks
+- [State System](/docs/guides/state-system-workflow) - Understanding AILANG state management

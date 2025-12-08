@@ -25,14 +25,22 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Resources**: syntax_quick_ref.md, common_patterns.md
 - **Public-facing**: Can be shared with the community
 
-**[skill-builder/](skill-builder/)** - Create new Anthropic Agent Skills
-- Scaffolds new skill directory structure with templates
-- Validates skills against Anthropic specification
-- Includes YAML frontmatter, scripts, and resources
-- Automated skill creation and validation
-- **Scripts**: create_skill.sh, validate_skill.sh
-- **Resources**: skill_template.md
-- **Meta-skill**: Use to build more skills!
+**[builtin-developer/](builtin-developer/)** - Add new AILANG builtin functions
+- Modern registry system with M-DX1 (67% faster development)
+- Type Builder DSL and hermetic testing with MockEffContext
+- Automatic wiring to runtime/link
+- Complete validation and inspection tools
+- **Scripts**: validate_builtins.sh, check_builtin_health.sh
+- **Resources**: type_builder_examples.md, testing_patterns.md
+- **Time savings**: 2.5h instead of 7.5h per builtin
+
+**[parser-developer/](parser-developer/)** - Master AILANG parser development
+- Critical token positioning conventions (saves 30% development time)
+- AST type quick reference and common patterns
+- API discovery with make doc (80% faster)
+- Debug mode tracing (DEBUG_PARSER=1)
+- **Scripts**: trace_parser.sh, check_ast_types.sh, find_api.sh
+- **Resources**: token_positioning.md, ast_quick_reference.md, common_patterns.md, api_discovery.md
 
 **[design-doc-creator/](design-doc-creator/)** - Create AILANG design documents
 - Creates design docs in correct format and location
@@ -60,6 +68,16 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: run_eval_baseline.sh, update_dashboard.sh, extract_changelog_metrics.sh
 - **Resources**: post_release_checklist.md
 
+**[docs-sync/](docs-sync/)** - Sync documentation website with codebase
+- Audits design docs (planned vs implemented)
+- Validates version constants against git tags
+- Checks example files work
+- Generates sync status reports
+- Tracks feature themes and creates new ones as needed
+- **Scripts**: audit_design_docs.sh, check_versions.sh, check_examples.sh, generate_report.sh
+- **Resources**: feature_themes.md, landing_page_checklist.md
+- **Use for**: Post-release website updates, accuracy audits, finding stale docs
+
 ### Sprint Planning
 
 **[sprint-planner/](sprint-planner/)** - Create comprehensive sprint plans
@@ -78,6 +96,35 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - Pause points after each milestone
 - **Scripts**: validate_prerequisites.sh, milestone_checkpoint.sh
 - **Resources**: milestone_checklist.md
+
+### Automation & Integration
+
+**[model-manager/](model-manager/)** - Test, validate, and add new AI models to eval suite
+- Test API access to new models (OpenAI, Anthropic, Google)
+- Find correct API model names and pricing
+- Update models.yml configuration safely
+- Run test benchmarks to verify end-to-end
+- Vertex AI compatibility checking for Gemini models
+- **Scripts**: test_model_access.sh, verify_vertex_model.sh, update_models_yml.sh, run_test_benchmark.sh, find_model_info.sh
+- **Resources**: provider_endpoints.md, pricing_guide.md
+- **Use for**: Adding GPT-5.1, Gemini 3 Pro, and other new models to benchmarks
+
+**[headless-runner/](headless-runner/)** - Run Claude Code in headless/programmatic mode
+- Execute Claude from scripts, CI/CD pipelines, and autonomous agents
+- Full access to project configuration (skills, agents, commands)
+- Multi-turn conversations with session management
+- AILANG agent messaging integration (task claiming, handoffs, error handling)
+- Comprehensive workflow patterns (single agent, pipeline, load balancing, retry/DLQ)
+- **Scripts**: test_headless.sh, run_with_retry.sh
+- **Resources**: cli_reference.md, examples.md, agent_workflows.md, troubleshooting.md
+- **Use for**: Building autonomous agents, CI/CD integration, scheduled workflows
+
+**[agent-inbox/](agent-inbox/)** - Check and process AILANG agent messages
+- Check inbox for messages from autonomous agents
+- Acknowledge messages to claim tasks
+- Send results for agent-to-agent handoffs
+- Message format reference and workflow patterns
+- **Resources**: Integrated with headless-runner for full automation
 
 ## How Skills Work
 
@@ -307,10 +354,76 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 7 (including meta-skills!)
-**Total scripts**: 13 executable automation scripts
-**Total resources**: 9 reference files
-**Total lines**: ~3,500 lines of structured, reusable content
+**Total skills**: 14 (project-specific)
+**Total scripts**: 24 executable automation scripts
+**Total resources**: 14+ reference files
+**Total lines**: ~5,000 lines of structured, reusable content
+
+**Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
+
+## Long-Running Agent Patterns (NEW)
+
+**Our skills now implement patterns from [Anthropic's long-running agent article](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)!**
+
+### Multi-Session Continuity
+
+Skills can now span multiple Claude Code sessions with no loss of context:
+
+**Pattern**: Initializer + Coding Agent
+- **sprint-planner** (Initializer): Creates JSON progress file + infrastructure
+- **sprint-executor** (Coding Agent): Resumes work from JSON across sessions
+
+### Key Features Implemented
+
+#### 1. Session Startup Routine
+Every continuing session starts with context check:
+- `.claude/skills/sprint-executor/scripts/session_start.sh`
+- Checks pwd, reads JSON progress, reviews git log, runs tests
+- Prints "Here's where we left off" summary
+
+#### 2. Structured Progress Tracking (JSON)
+Machine-readable state files replace markdown-only tracking:
+- `.ailang/state/sprints/sprint_<id>.json` - Sprint progress
+- `.ailang/state/release_<version>.json` - Release progress
+- Follows "constrained modification" pattern (only specific fields change)
+
+#### 3. Correlation IDs
+Messages linked across agent handoffs:
+- `correlation_id: "sprint_M-S1"` - Track entire workflow
+- `reply_to: "<message_id>"` - Link conversation threads
+- Filter messages by workflow: `grep "Correlation: sprint_M-S1"`
+
+#### 4. End-to-End Testing
+Test as users would, not just unit tests:
+- `.claude/skills/sprint-executor/scripts/acceptance_test.sh`
+- Tests: parser (run examples), builtin (REPL), e2e (full pipeline)
+
+### Workflow Diagram
+
+```
+Session 1:
+  design-doc-creator → sprint-planner (creates JSON)
+    └─ JSON: .ailang/state/sprints/sprint_M-S1.json
+    └─ Message: correlation_id="sprint_M-S1"
+
+Session 2:
+  sprint-executor → session_start.sh (reads JSON)
+    └─ Implements M-S1.1, M-S1.2
+    └─ Updates JSON (passes=true/false)
+    └─ Message: milestone_complete, correlation_id="sprint_M-S1"
+
+Session 3:
+  sprint-executor → session_start.sh (resumes from JSON)
+    └─ Continues M-S1.3, M-S1.4
+    └─ Updates JSON
+    └─ Message: sprint_complete, correlation_id="sprint_M-S1"
+```
+
+### Documentation
+
+- Sprint JSON Schema: `.claude/skills/sprint-executor/resources/json_progress_schema.md`
+- Message Format: `.claude/skills/agent-inbox/resources/message_format.md`
+- Release State: `.claude/skills/release-manager/resources/release_state_schema.md`
 
 ## Best Practices
 
@@ -321,6 +434,9 @@ To share publicly:
 5. **Test scripts** - Ensure they work before committing
 6. **Document assumptions** - Make prerequisites clear
 7. **Version control** - Skills evolve with AILANG, keep them updated
+8. **NEW: Session resumption** - Always provide session_start scripts for long-running work
+9. **NEW: JSON state files** - Use structured state for machine-readable progress
+10. **NEW: Correlation IDs** - Link messages across agent handoffs
 
 ## References
 

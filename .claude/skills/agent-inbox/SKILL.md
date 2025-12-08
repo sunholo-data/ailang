@@ -1,0 +1,300 @@
+---
+name: Agent Inbox
+description: Check and process messages from autonomous AILANG agents. Use when starting a session, after agent handoffs, or when checking for completion notifications.
+---
+
+# Agent Inbox
+
+**Check for messages from autonomous agents at session start and process completion notifications.**
+
+## Quick Start
+
+**Most common usage:**
+```bash
+# At session start, check for messages using AILANG CLI:
+ailang agent inbox user
+
+# Show only unread messages (flags BEFORE agent ID!):
+ailang agent inbox --unread-only user
+
+# Show full message content (no truncation):
+ailang agent inbox --full user
+
+# Full content, limited to 5 messages:
+ailang agent inbox --full --limit 5 user
+
+# Archive messages after processing:
+ailang agent inbox --archive user
+```
+
+**Expected output:**
+```
+📬 User Inbox (2 messages)
+================================================================================
+
+▶ Message 1/2
+  ID: msg_20251025_143021_abc123
+  From: sprint-executor
+  Type: request
+  Timestamp: 2025-10-25T14:30:21Z
+  Correlation: cycle_20251025_450
+  Payload: {"status":"completed","milestone":"5/5","result":"All tests passing, docs updated"}
+
+▶ Message 2/2
+  ID: msg_20251025_143055_def456
+  From: sprint-planner
+  Type: request
+  Timestamp: 2025-10-25T14:30:55Z
+  Payload: {"status":"plan_ready","design_doc":"design_docs/planned/M-FIX-123.md"}
+```
+
+## When to Use This Skill
+
+**Invoke this skill when:**
+- **Session starts** - First action in every Claude Code session (required by CLAUDE.md)
+- **After handoffs** - When you've sent work to autonomous agents
+- **Periodic checks** - User asks "any updates from agents?"
+- **Debugging** - To see agent communication history
+
+## Available Commands
+
+### `ailang agent inbox user`
+
+Check user inbox and display all messages. Automatically marks messages as read.
+
+**Usage (flags BEFORE agent ID!):**
+```bash
+# View all messages (unread + read)
+ailang agent inbox user
+
+# Show only unread messages
+ailang agent inbox --unread-only user
+
+# Show full message content (no truncation)
+ailang agent inbox --full user
+
+# Full content, only unread, limited to 5
+ailang agent inbox --full --unread-only --limit 5 user
+
+# Show only read messages
+ailang agent inbox --read-only user
+
+# Show archived messages
+ailang agent inbox --archived user
+
+# Archive messages after viewing
+ailang agent inbox --archive user
+
+# Limit number of messages shown
+ailang agent inbox --limit 5 user
+```
+
+### `ailang agent send`
+
+Send a message to an agent or user inbox.
+
+**Usage:**
+```bash
+# Send to user inbox (for agent → user communication)
+ailang agent send --to-user --from "agent-name" '{"message": "Task complete", "status": "done"}'
+
+# Send to specific agent
+ailang agent send agent-name '{"task": "do_something"}'
+```
+
+## Workflow
+
+### 1. Session Start Check (REQUIRED)
+
+**At the start of EVERY session, run:**
+```bash
+# Check for messages from autonomous agents
+ailang agent inbox user
+```
+
+**If messages exist:**
+- Read and summarize each message to user
+- Identify message type (completion, error, handoff)
+- Ask user if they want action taken
+- Archive after handling: `ailang agent inbox user --archive`
+
+### 2. Process Completion Notifications
+
+**When agent reports completion:**
+```bash
+# 1. Check messages (--full to see complete payload)
+ailang agent inbox --full --unread-only user
+
+# 2. Review message payload for artifact paths
+# (Full payload shown when using --full flag)
+
+# 3. Review results
+ls -la eval_results/baselines/v0.4.2/
+
+# 4. Report to user
+echo "✅ Sprint complete! Results at: eval_results/baselines/v0.4.2/"
+
+# 5. Archive after processing
+ailang agent inbox --archive user
+```
+
+### 3. Handle Error Reports
+
+**When agent reports errors:**
+```bash
+# 1. Check messages to see full error details
+ailang agent inbox --full --unread-only user
+
+# 2. Review payload for error and log path (visible with --full)
+# Example payload:
+# {"status": "error", "milestone": "3/5", "error": "Tests failing", "details": "logs/sprint.log"}
+
+# 3. Read logs
+cat .ailang/state/logs/sprint-executor.log
+
+# 4. Diagnose and report to user
+echo "⚠️  Agent encountered error: Tests failing at milestone 3/5"
+
+# 5. Either fix manually or send corrective instructions
+```
+
+### 4. Respond to Agent
+
+**Send response back to agent:**
+```bash
+# Send approval/instructions to agent
+ailang agent send sprint-planner '{
+  "status": "approved",
+  "action": "proceed_with_execution"
+}'
+
+# Or send to user for notification
+ailang agent send --to-user --from "claude-code" '{
+  "message": "Issue resolved, agent can continue"
+}'
+```
+
+## Correlation IDs (NEW)
+
+**Messages now support correlation IDs for tracking handoff chains!**
+
+Based on [Anthropic's long-running agent patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), correlation IDs link related messages across agent handoffs:
+
+```json
+{
+  "message_id": "msg_20251127_103045_abc123",
+  "correlation_id": "sprint_M-S1",  // ← Links all messages in workflow
+  "reply_to": "msg_20251127_100000_def456",  // ← Links to parent message
+  "from": "sprint-executor",
+  "to": "user",
+  "type": "milestone_complete",
+  "payload": { ... }
+}
+```
+
+**Benefits:**
+- Track entire workflow: design-doc → sprint-plan → execution
+- Filter messages by workflow: `grep "Correlation: sprint_M-S1"`
+- Debug multi-agent interactions
+- Resume work from where you left off
+
+**For complete specification**, see [`resources/message_format.md`](resources/message_format.md)
+
+## Message Types
+
+### Completion Notification
+```json
+{
+  "type": "sprint_complete",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-executor",
+  "to": "user",
+  "payload": {
+    "sprint_id": "M-S1",
+    "milestones_complete": 5,
+    "result": "All tests passing, docs updated",
+    "artifacts": ["eval_results/baselines/v0.3.15/"]
+  }
+}
+```
+
+### Handoff Instruction
+```json
+{
+  "type": "plan_ready",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-planner",
+  "to": "sprint-executor",
+  "payload": {
+    "sprint_id": "M-S1",
+    "plan_path": "design_docs/planned/M-S1-plan.md",
+    "progress_path": ".ailang/state/sprints/sprint_M-S1.json",
+    "next_steps": "Begin execution with session_start.sh"
+  }
+}
+```
+
+### Error Report
+```json
+{
+  "type": "error",
+  "correlation_id": "sprint_M-S1",
+  "from": "sprint-executor",
+  "to": "user",
+  "payload": {
+    "sprint_id": "M-S1",
+    "milestone_id": "M-S1.3",
+    "error": "Tests failing: 5 benchmarks broken",
+    "details": ".ailang/state/logs/sprint-executor.log"
+  }
+}
+```
+
+## Resources
+
+### Message Format Reference
+See [`resources/message_format.md`](resources/message_format.md) for complete message format specification.
+
+### Troubleshooting Guide
+See [`resources/troubleshooting.md`](resources/troubleshooting.md) for common issues and solutions.
+
+## Progressive Disclosure
+
+This skill loads information progressively:
+
+1. **Always loaded**: This SKILL.md file (YAML frontmatter + workflow)
+2. **Execute as needed**: Scripts in `scripts/` (check_messages.sh, mark_processed.sh)
+3. **Load on demand**: `resources/` (detailed references, troubleshooting)
+
+## Notes
+
+- **Required by CLAUDE.md**: Session start check is mandatory for all Claude Code sessions
+- **Inbox location**: User inbox at `~/.ailang/state/messages/inbox/user/` (global, home directory)
+- **Hook integration**: SessionStart hook automatically forwards messages from user inbox
+- **CLI commands**: Use `ailang agent inbox` and `ailang agent send` - avoid bash scripts
+- **Auto-marking**: Messages automatically marked as read when viewed
+- **Message lifecycle**: Unread → Read → Archived (optional)
+
+## CLI Command Reference
+
+**IMPORTANT: Flags must come BEFORE the agent ID!**
+
+| Command | Purpose |
+|---------|---------|
+| `ailang agent inbox user` | View all messages (auto-marks as read) |
+| `ailang agent inbox --unread-only user` | View only unread messages |
+| `ailang agent inbox --full user` | View full message content (no truncation) |
+| `ailang agent inbox --full --limit 5 user` | Full content, limit to 5 messages |
+| `ailang agent inbox --archive user` | Archive messages after viewing |
+| `ailang agent send --to-user --from "agent" '{...}'` | Send message to user inbox |
+| `ailang agent send agent-name '{...}'` | Send message to specific agent |
+
+**Available flags:**
+| Flag | Description |
+|------|-------------|
+| `--full` | Show full message content without truncation |
+| `--unread-only` | Show only unread messages |
+| `--read-only` | Show only already-read messages |
+| `--archived` | Show archived messages |
+| `--archive` | Move messages to archive after viewing |
+| `--limit N` | Maximum number of messages (default: 10) |

@@ -1,0 +1,72 @@
+-- Array Basics Example
+-- Demonstrates O(1) indexed array operations in AILANG
+--
+-- KEY CONCEPTS:
+-- - Arrays use 0-based indexing (first element at index 0)
+-- - All operations are immutable (set returns new array)
+-- - get() throws on out-of-bounds, getOpt() returns Option[a]
+
+module examples/array_basic
+
+import std/io (print)
+import std/array as A
+import std/option (Option, Some, None)
+
+-- Create an array from a list
+let numbers = A.fromList([10, 20, 30, 40, 50])
+
+-- Get length (O(1))
+let len = A.length(numbers)
+
+-- Access elements by index (0-based, O(1))
+let first = A.get(numbers, 0)    -- index 0 = first element
+let third = A.get(numbers, 2)    -- index 2 = third element
+let last = A.get(numbers, 4)     -- index 4 = fifth (last) element
+
+-- Safe access with bounds checking using getOpt
+let safeFirst = A.getOpt(numbers, 0)   -- Some(10)
+let safeBeyond = A.getOpt(numbers, 99) -- None (out of bounds)
+let safeNeg = A.getOpt(numbers, -1)    -- None (negative index)
+
+-- Helper to show Option values
+pure func showOpt(opt: Option[int]) -> string {
+  match opt {
+    Some(x) => "Some(" ++ show(x) ++ ")"
+    None => "None"
+  }
+}
+
+-- Modify element (returns NEW array, O(n) copy-on-write)
+let modified = A.set(numbers, 2, 999)
+let originalVal = A.get(numbers, 2)  -- Original unchanged: 30
+let modifiedVal = A.get(modified, 2) -- New array has: 999
+
+-- Convert back to list (O(n))
+let asList = A.toList(numbers)
+
+-- Create array with default value (O(n))
+let zeros = A.make(5, 0)
+let zerosLen = A.length(zeros)
+
+export func main() -> () ! {IO} = {
+  print("=== Array Basics (0-based indexing) ===");
+  print("Length: " ++ show(len));
+  print("numbers[0] (first): " ++ show(first));
+  print("numbers[2] (third): " ++ show(third));
+  print("numbers[4] (last):  " ++ show(last));
+  print("");
+  print("=== Safe Access with getOpt ===");
+  print("getOpt(numbers, 0):  " ++ showOpt(safeFirst));
+  print("getOpt(numbers, 99): " ++ showOpt(safeBeyond));
+  print("getOpt(numbers, -1): " ++ showOpt(safeNeg));
+  print("");
+  print("=== Immutable Update (O(n) copy) ===");
+  print("Original[2]: " ++ show(originalVal));
+  print("Modified[2]: " ++ show(modifiedVal));
+  print("");
+  print("=== Conversions (O(n)) ===");
+  print("As list: " ++ show(asList));
+  print("");
+  print("=== Array.make ===");
+  print("Zeros length: " ++ show(zerosLen))
+}

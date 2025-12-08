@@ -1,0 +1,27 @@
+-- Sim Stub Example
+-- Demonstrates AILANG -> Go code generation workflow
+--
+-- This minimal example shows:
+-- 1. ADT type generation (World, FrameInput, FrameOutput)
+-- 2. Extern function stubs (init_world, step)
+-- 3. Integration with Go driver
+
+module world
+
+-- World state for the simulation
+type World = { tick: int, value: int, seed: int }
+
+-- Frame input (player commands, etc.)
+-- Empty for this minimal example
+type FrameInput = { dummy: int }
+
+-- Frame output (what to render)
+type FrameOutput = { message: string, tick: int }
+
+-- Initialize world with a seed for deterministic behavior
+-- Implemented in Go for full control over RNG
+extern func init_world(seed: int) -> World
+
+-- Advance simulation by one tick
+-- Takes current world state and input, returns new state and output
+extern func step(world: World, input: FrameInput) -> FrameOutput

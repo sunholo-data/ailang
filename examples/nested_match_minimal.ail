@@ -1,0 +1,15 @@
+module examples/nested_match_minimal
+
+// Absolute minimal case: single nested match with block arms
+
+export func test() -> int {
+  let x = (1, 2);
+  match x {
+    (a, b) => {
+      let y = (3, 4);
+      match y {
+        (c, d) => c + d
+      }
+    }
+  }
+}

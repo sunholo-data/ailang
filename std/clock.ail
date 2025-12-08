@@ -1,0 +1,17 @@
+-- std/clock - Time operations (virtual time for determinism)
+--
+-- Provides time operations with support for deterministic virtual time.
+-- In production mode, uses real system time.
+-- In deterministic mode (--virtual-time), uses virtual clock for reproducibility.
+--
+-- Requires: Clock capability (--caps Clock)
+
+module std/clock
+
+-- now: Get current Unix timestamp in milliseconds
+-- Returns epoch time in production mode, virtual time in deterministic mode
+export func now() -> int ! {Clock} = _clock_now()
+
+-- sleep: Sleep for specified milliseconds
+-- Blocks in production mode, advances virtual time in deterministic mode
+export func sleep(ms: int) -> () ! {Clock} = _clock_sleep(ms)

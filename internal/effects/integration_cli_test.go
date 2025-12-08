@@ -12,7 +12,7 @@ func TestIntegration_EffContextFlow(t *testing.T) {
 	evaluator := eval.NewCoreEvaluator()
 
 	// Case 1: No caps granted
-	effCtx := NewEffContext()
+	effCtx := NewEffContext([]string{})
 	evaluator.SetEffContext(effCtx)
 
 	// Get context back
@@ -38,7 +38,7 @@ func TestIntegration_EffContextFlow(t *testing.T) {
 	}
 
 	// Case 2: With IO cap
-	effCtx2 := NewEffContext()
+	effCtx2 := NewEffContext([]string{})
 	effCtx2.Grant(NewCapability("IO"))
 	evaluator.SetEffContext(effCtx2)
 

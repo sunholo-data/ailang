@@ -1,5 +1,5 @@
 -- Test: Modulo operator works
-module examples/test_modulo_works
+module examples/tests/test_modulo_works
 
 export func main() -> int {
   5 % 3

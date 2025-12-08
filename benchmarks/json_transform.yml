@@ -1,0 +1,29 @@
+id: json_transform
+description: "Parse JSON, transform data, and output (complex JSON processing)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Parses this JSON representing orders:
+     [{"id":1,"item":"apple","qty":5,"price":1.50},{"id":2,"item":"banana","qty":3,"price":0.75},{"id":3,"item":"orange","qty":8,"price":2.00}]
+
+  2. Computes the total cost for each order (qty * price)
+
+  3. Filters to keep only orders with total > 5.00
+
+  4. Prints the item name and total for each qualifying order, one per line in format:
+     {item}: {total}
+
+  Expected output (orders where qty * price > 5.00):
+  - apple: 5 * 1.50 = 7.50
+  - orange: 8 * 2.00 = 16.00
+  (banana: 3 * 0.75 = 2.25, filtered out)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  apple: 7.5
+  orange: 16.0

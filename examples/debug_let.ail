@@ -1,0 +1,14 @@
+module examples/debug_let
+
+import std/io (println)
+
+let x: int = 42
+
+pure func showX() -> int {
+    x
+}
+
+export func main() -> () ! {IO} {
+    let result = showX() in
+    println("showX() returned: " ++ show(result))
+}

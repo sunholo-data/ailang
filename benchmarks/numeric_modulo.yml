@@ -1,5 +1,7 @@
 id: numeric_modulo
 languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
 prompt: |
   Write a <LANG> program that prints the remainder of 5 divided by 3.
 expected_stdout: "2"

@@ -1,5 +1,103 @@
 # Claude Instructions for AILANG Development
 
+## 🚀 SESSION START ROUTINE
+
+**At the start of EVERY session, check for agent messages.**
+
+### 📬 Message Commands (Quick Reference)
+
+```bash
+# LIST MESSAGES
+ailang messages list                 # All messages (alias: ailang msg ls)
+ailang messages list --unread        # Only unread messages
+ailang messages list --inbox user    # Messages for specific inbox
+ailang messages list --json          # JSON output (for scripting)
+
+# READ MESSAGE CONTENT
+ailang messages read MSG_ID          # Show full message content
+ailang messages read MSG_ID --peek   # View without marking as read
+
+# ACKNOWLEDGE (mark as read)
+ailang messages ack MSG_ID           # Mark specific message as read
+ailang messages ack --all            # Mark all as read
+ailang messages ack --all --inbox user  # Mark all in inbox as read
+
+# UN-ACKNOWLEDGE (mark as unread again)
+ailang messages unack MSG_ID         # Move back to unread
+
+# SEND MESSAGE
+ailang messages send INBOX "message" --title "Title" --from "agent-name"
+
+# CLEANUP OLD MESSAGES
+ailang messages cleanup --older-than 7d   # Remove messages older than 7 days
+ailang messages cleanup --expired         # Remove expired messages
+ailang messages cleanup --dry-run         # Preview without deleting
+
+# WATCH FOR NEW MESSAGES
+ailang messages watch                # Watch all inboxes
+ailang messages watch --inbox user   # Watch specific inbox
+```
+
+### Session Start Workflow
+
+1. **SessionStart hook runs automatically** - injects unread messages into system reminders
+2. **If no messages in reminders**, manually check: `ailang messages list --unread`
+3. **When messages exist**: Summarize to user, ask what to do
+4. **After handling**: `ailang messages ack --all`
+5. **If task fails**: `ailang messages unack MSG_ID` (moves back for retry)
+
+### Message Storage
+
+All messages are stored in the unified SQLite database at `~/.ailang/state/collaboration.db`.
+This database is shared between the CLI (`ailang messages`) and the Collaboration Hub dashboard.
+
+**Message statuses:** `unread`, `read`, `archived`, `deleted`
+
+### Responding to External Projects
+
+For bug reports/feature requests from external projects (e.g., stapledons_voyage):
+
+```bash
+# Send message to external project inbox
+ailang messages send stapledons_voyage "Design doc created for v0.4.9" \
+  --title "Bug acknowledged" --from "ailang"
+```
+
+**Response workflow:**
+1. Review messages (from SessionStart hook or `ailang messages list --unread`)
+2. For bugs: Create design docs
+3. Send response: `ailang messages send PROJECT "message" --title "Title"`
+4. Acknowledge: `ailang messages ack --all`
+
+### Technical Details
+
+<details>
+<summary>Click to expand hook configuration details</summary>
+
+**Hooks:**
+- Configured in `.claude/settings.local.json`
+- Logged to `~/.ailang/state/hooks.log`
+
+**SessionStart Hook** (`scripts/hooks/session_start.sh`):
+- Uses `ailang messages list --unread --json` to check for messages
+- Outputs to stdout (appears in system reminders)
+- Does NOT auto-mark as read
+
+**Stop Hook** (`scripts/hooks/agent_handoff.sh`):
+- Detects design docs created in session
+- Sends handoff messages to sprint-planner
+
+**Message Lifecycle:**
+1. Agent sends → status: `unread`
+2. Hook injects into context
+3. `ack` → status: `read`
+4. `unack` → status: `unread`
+5. `cleanup` → permanently deleted
+
+</details>
+
+---
+
 ## ⚠️ CRITICAL PRINCIPLES
 
 ### 0. NEVER DESTROY LOCAL WORK WITH GIT OPERATIONS
@@ -64,6 +162,56 @@ git fsck --lost-found        # Find orphaned commits
 - ✅ Create new branches instead of switching to existing ones
 - ✅ Use `git status` before every git operation
 
+### 0.1. VERIFY GITHUB ACCOUNT BEFORE RELEASES/TAGS
+
+**⚠️ CRITICAL: Multi-account authentication issues (November 2025)**
+
+The developer uses multiple GitHub accounts (personal and work projects). The `gh` CLI may have the wrong account active, causing release/tag operations to fail.
+
+**The GitHub Account Mismatch (November 2025):**
+```bash
+# ❌ WRONG - Active account is for wrong project
+gh auth status
+# Shows: Active account: rw-markedmondson (Rockwool project)
+# But this repo needs: MarkEdmondson1234
+
+gh release create v0.4.4  # FAILS with auth error
+git push origin v0.4.4     # FAILS with auth error
+```
+
+**✅ CORRECT approach before ANY release or git push operations:**
+
+1. **ALWAYS check active GitHub account:**
+   ```bash
+   gh auth status
+   ```
+
+2. **Verify the active account matches the repo owner:**
+   - This repo (sunholo-data/ailang) needs: `MarkEdmondson1234`
+   - If active account is `rw-markedmondson` → WRONG ACCOUNT
+
+3. **Switch to correct account if needed:**
+   ```bash
+   gh auth switch --user MarkEdmondson1234
+   ```
+
+4. **Then proceed with release operations:**
+   ```bash
+   git push origin v0.4.4              # Push tag
+   gh release create v0.4.4 ...        # Create release
+   ```
+
+**Checklist for releases:**
+- [ ] Check `gh auth status` - verify active account
+- [ ] Switch account if needed: `gh auth switch --user MarkEdmondson1234`
+- [ ] Push tag to remote BEFORE creating release
+- [ ] Create release using `gh release create`
+
+**Why this matters:**
+- Wrong account = authentication failures
+- Tag must be on remote before release creation
+- Saves frustration and debugging time
+
 ### 1. ALWAYS USE EXISTING TOOLS FIRST
 
 **Before writing ANY new script or code:**
@@ -125,6 +273,85 @@ if err != nil {
 
 **Rule of thumb:** If the fallback value affects data integrity, business logic, or user decisions → **NO FALLBACK**. Return zero, null, or error instead.
 
+### 3. CORETYPEINFO INVARIANT - COMPLETE TYPE COVERAGE
+
+**CRITICAL COMPILER INVARIANT**: Every Core node must have an entry in CoreTypeInfo before lowering; validation enforces this (M-DX4).
+
+**The Contract:**
+```go
+// ✅ ENFORCED - Validation runs before lowering in all paths
+// File pipeline:   internal/pipeline/pipeline.go:228
+// Module pipeline: internal/pipeline/pipeline.go:631
+// REPL:            internal/repl/repl_eval.go:113
+
+if err := ValidateCoreTypeInfo(coreProg, typeChecker.CoreTI); err != nil {
+    return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
+}
+```
+
+**Why this matters:**
+- Lowering relies on CoreTypeInfo for type-directed code generation
+- Missing types cause "cannot lower unknown variant" panics with no context
+- Validation provides clear diagnostics: NodeID, ExprKind, Position, Hint
+- Forward-compatible: Polymorphic types (type variables) are accepted
+
+**Validated properties:**
+- ✅ All 20+ Core node types checked (Var, Lit, Lambda, Let, LetRec, App, If, Match, BinOp, UnOp, Intrinsic, Record, List, Tuple, DictAbs, DictApp, etc.)
+- ✅ Presence required, not concreteness (type variables OK for polymorphic code)
+- ✅ Performance: O(n) linear, zero allocations (191ns for 10 nodes, 34μs for 1000 nodes)
+
+**Error example:**
+```
+CoreTypeInfo validation failed: missing type information for Core nodes
+
+Missing Lit(Float) types (1 nodes):
+  • NodeID 42 at line 5, col 12
+    Hint: This usually means defaulting/substitution wasn't applied to CoreTI.
+
+Debug with: ailang debug ast <file> --show-types --compact
+```
+
+**Monomorphization compatibility (v0.4.0+):**
+Validated nodes may carry polymorphic types (α, β, etc.); these are accepted as long as a type exists. Monomorphization will later specialize them to concrete types before final codegen. The validator checks *presence*, not *concreteness*.
+
+**Implementation:**
+- Validator: `internal/pipeline/validate_coretypeinfo.go` (343 LOC)
+- Tests: `internal/pipeline/validate_coretypeinfo_test.go` (417 LOC, 8/8 passing)
+- Benchmarks: `internal/pipeline/validate_coretypeinfo_bench_test.go` (117 LOC)
+
+### 4. MONOMORPHIZATION - CALL-SITE SPECIALIZATION (v0.4.0)
+
+**ENABLED BY DEFAULT**: Polymorphic lambdas specialized at call sites (M-POLY-A).
+
+**Quick reference:**
+```bash
+# Normal compilation (enabled by default)
+ailang run --entry main --caps IO module.ail
+
+# Debug mode (show specialization stats)
+ailang run --debug-compile module.ail
+
+# Disable (emergency escape hatch)
+ailang run --no-mono module.ail
+```
+
+**What works (v0.4.0):**
+- ✅ Inline lambdas: `(\x. \y. if x > y then x else y)(3.14)(2.71)`
+- ✅ Comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+
+**Known issue (v0.4.0):**
+- ❌ Arithmetic operators need type annotations: `let add: float -> float -> float = \x. \y. x + y`
+- **Workaround**: Use inline lambdas or add type annotations
+- **Fix**: Coming in v0.4.2 (Phase 2)
+
+**Resource limits:**
+- Per-function: 16 specializations
+- Per-module: 512 specializations
+
+**For complete documentation:**
+- See [design_docs/implemented/v0_4_0/monomorphization.md](design_docs/implemented/v0_4_0/monomorphization.md)
+- See [M-POLY-B-PHASE1-COMPLETION-REPORT.md](M-POLY-B-PHASE1-COMPLETION-REPORT.md)
+
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
 → **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
@@ -132,7 +359,7 @@ if err != nil {
 The agent knows how to:
 - Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
 - Compare results, validate fixes, generate reports
-- Update the benchmark dashboard (docs/BENCHMARK_COMPARISON.md)
+- Update the benchmark dashboard (docs/static/benchmarks/latest.json)
 - Use all available models and their pricing
 - Route to appropriate `ailang eval-*` commands
 
@@ -156,6 +383,7 @@ The agent knows how to:
 - **post-release** - Run eval baselines and update website dashboard automatically
 - **sprint-planner** - Analyze design docs and create realistic, data-driven sprint plans
 - **sprint-executor** - Execute sprints with TDD, continuous linting, and progress tracking
+- **collaboration-hub** - Develop and modify the Collaboration Hub UI (React frontend)
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -170,6 +398,7 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Update benchmarks" → `post-release` skill
 - "Help me write AILANG code" → `use-ailang` skill
 - "Plan the sprint" → `sprint-planner` skill
+- "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
 
 ### Skills vs Agents vs Commands
 
@@ -299,314 +528,63 @@ make run FILE=...   # Run an AILANG file
 make repl           # Start interactive REPL
 ```
 
-### Adding Builtin Functions (✅ M-DX1 - COMPLETE!)
+### Collaboration Hub Server
 
-**AILANG has a modern builtin development system that reduces implementation time from 7.5h to 2.5h (-67%).**
+**For developing or modifying the Collaboration Hub UI**, use the `collaboration-hub` skill.
 
-**Status**: 🎉 **M-DX1 COMPLETE (Oct 2025)** - All 52 builtins migrated, organized, and fully documented!
-
-#### Quick Start (2.5 hours instead of 7.5)
-
-**Step 1: Register the builtin with metadata** (~30 min)
-```go
-// internal/builtins/string.go (or appropriate module file)
-func init() {
-    registerMyBuiltin()
-}
-
-func registerMyBuiltin() {
-    RegisterEffectBuiltin(BuiltinSpec{
-        Module:  "std/string",
-        Name:    "_str_reverse",
-        NumArgs: 1,
-        IsPure:  true,        // or false with Effect: "IO"
-        Type:    makeReverseType,
-        Impl:    strReverseImpl,
-        Metadata: &BuiltinMetadata{
-            Description: "Reverse a string (Unicode-aware)",
-            Params: []ParamDoc{
-                {Name: "s", Description: "String to reverse"},
-            },
-            Returns: "Reversed string",
-            Examples: []Example{
-                {Code: `_str_reverse("hello")`, Description: "Returns \"olleh\""},
-                {Code: `_str_reverse("🎉🎊")`, Description: "Returns \"🎊🎉\""},
-            },
-            Since:     "v0.3.15",
-            Stability: StabilityStable,
-            Tags:      []string{"string", "reverse", "unicode"},
-            Category:  "string",
-        },
-    })
-}
-
-func makeReverseType() types.Type {
-    T := types.NewBuilder()
-    return T.Func(T.String()).Returns(T.String())
-}
-
-func strReverseImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-    str := args[0].(*eval.StringValue).Value
-    runes := []rune(str)
-    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-        runes[i], runes[j] = runes[j], runes[i]
-    }
-    return &eval.StringValue{Value: string(runes)}, nil
-}
-```
-
-**Step 2: Write hermetic tests** (~1 hour)
-```go
-// internal/builtins/register_test.go
-func TestStrReverse(t *testing.T) {
-    ctx := testctx.NewMockEffContext()
-
-    tests := []struct {
-        input    string
-        expected string
-    }{
-        {"hello", "olleh"},
-        {"", ""},
-        {"🎉", "🎉"},
-    }
-
-    for _, tt := range tests {
-        result, err := strReverseImpl(ctx, []eval.Value{
-            testctx.MakeString(tt.input),
-        })
-        assert.NoError(t, err)
-        assert.Equal(t, tt.expected, testctx.GetString(result))
-    }
-}
-```
-
-**Step 3: Validate and inspect** (~30 min)
+**Starting the server:**
 ```bash
-# Validate the builtin (no feature flag needed since v0.3.10!)
-ailang doctor builtins
-# ✅ All builtins are valid!
-
-# List all builtins
-ailang builtins list --by-module
-# # std/string (8)
-#   _str_compare                   [pure]
-#   _str_find                      [pure]
-#   _str_len                       [pure]
-#   _str_lower                     [pure]
-#   _str_reverse                   [pure]
-#   _str_slice                     [pure]
-#   _str_trim                      [pure]
-#   _str_upper                     [pure]
-
-# Test in REPL (when M-DX1.6 is implemented)
-ailang repl
-> :type _str_reverse
-string -> string
+ailang serve                    # Start on default port 1957
+ailang serve --port 8080        # Use custom port
+ailang serve --db /tmp/test.db  # Use custom database
 ```
 
-**Step 4: Wire to runtime** (~30 min)
-- Already done! The registry automatically wires to runtime/link (no feature flag needed since v0.3.10)
+**Key endpoints:**
+- **UI**: http://localhost:1957/
+- **WebSocket**: ws://localhost:1957/ws
+- **REST API**: http://localhost:1957/api/
+- **Health**: http://localhost:1957/health
 
-#### Key Components
-
-**Central Registry** (`internal/builtins/spec.go`):
-- Single-point registration with `RegisterEffectBuiltin()`
-- Compile-time validation (arity, types, impl, effects)
-- ✅ No feature flag needed (default since v0.3.10)
-- Freeze-safe (no registration after init)
-- 49 builtins migrated (v0.3.10)
-
-**Type Builder DSL** (`internal/types/builder.go`):
-- Fluent API: `T.Func(args...).Returns(ret).Effects(effs...)`
-- Reduces type construction from 35→10 lines (-71%)
-- Methods: `String()`, `Int()`, `Bool()`, `List()`, `Record()`, `Func()`, `Returns()`, `Effects()`
-
-**Test Harness** (`internal/effects/testctx/`):
-- `MockEffContext` with HTTP/FS mocking
-- Value constructors: `MakeString()`, `MakeInt()`, `MakeRecord()`, etc.
-- Value extractors: `GetString()`, `GetInt()`, `GetRecord()`, etc.
-- Hermetic testing (no real network/FS)
-
-**Validation & Inspection**:
-- `ailang doctor builtins` - Health checks with actionable diagnostics
-- `ailang builtins list` - Browse registry (--by-effect, --by-module)
-- 6 validation rules: type, impl, arity, effect consistency, module
-
-#### Examples
-
-**Pure function:**
-```go
-RegisterEffectBuiltin(BuiltinSpec{
-    Module:  "std/string",
-    Name:    "_str_len",
-    NumArgs: 1,
-    IsPure:  true,
-    Type:    func() types.Type {
-        T := types.NewBuilder()
-        return T.Func(T.String()).Returns(T.Int())
-    },
-    Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-        s := args[0].(*eval.StringValue).Value
-        return &eval.IntValue{Value: len([]rune(s))}, nil
-    },
-})
+**After UI changes:**
+```bash
+cd ui && npm run build                              # Build React app
+cp -r ui/dist/* internal/server/dist/               # Copy to server
+ailang serve                                        # Restart server
 ```
 
-**Effect function with HTTP:**
-```go
-RegisterEffectBuiltin(BuiltinSpec{
-    Module:  "std/net",
-    Name:    "_net_httpRequest",
-    NumArgs: 4,
-    Effect:  "Net",
-    Type:    makeHTTPRequestType,
-    Impl:    effects.NetHTTPRequest,  // Uses ctx.GetHTTPClient()
-})
-```
+**Architecture:**
+- **Backend**: `internal/server/` (Go HTTP server with SQLite)
+- **Frontend**: `ui/` (React + TypeScript + Vite)
+- **Database**: `~/.ailang/state/collaboration.db`
 
-**Complex types with records:**
-```go
-func makeHTTPRequestType() types.Type {
-    T := types.NewBuilder()
+**For complete guide**: Use the `collaboration-hub` skill
 
-    headerType := T.Record(
-        types.Field("name", T.String()),
-        types.Field("value", T.String()),
-    )
+### Adding Builtin Functions
 
-    responseType := T.Record(
-        types.Field("status", T.Int()),
-        types.Field("headers", T.List(headerType)),
-        types.Field("body", T.String()),
-    )
+**To add a builtin function, use the `builtin-developer` skill.**
 
-    return T.Func(
-        T.String(),           // url
-        T.String(),           // method
-        T.List(headerType),   // headers
-        T.String(),           // body
-    ).Returns(
-        T.App("Result", responseType, T.Con("NetError")),
-    ).Effects("Net")
-}
-```
+**Quick Reference:**
+- **Development time**: ~2.5 hours (down from 7.5h with legacy system)
+- **Status**: M-DX1 COMPLETE - 52 builtins, fully documented
+- **Key benefit**: 67% faster with single-file registration
 
-#### Testing Patterns
-
-**Hermetic HTTP tests:**
-```go
-func TestNetHTTPRequest(t *testing.T) {
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.WriteHeader(200)
-        w.Write([]byte(`{"status": "ok"}`))
-    }))
-    defer server.Close()
-
-    ctx := testctx.NewMockEffContext()
-    ctx.GrantAll("Net")
-    ctx.SetHTTPClient(server.Client())
-
-    result, err := effects.NetHTTPRequest(ctx,
-        testctx.MakeString(server.URL),
-        testctx.MakeString("GET"),
-        testctx.MakeList([]eval.Value{}),
-        testctx.MakeString(""),
-    )
-
-    assert.NoError(t, err)
-    resp := testctx.GetRecord(result)
-    assert.Equal(t, 200, testctx.GetInt(resp["status"]))
-}
-```
-
-#### Migration from Legacy Registry
-
-**Before (legacy, 4 files, 35 lines of types):**
-```go
-// internal/eval/builtins.go
-registry.Register("_str_len", func(args []Value) (Value, error) { ... })
-
-// internal/link/builtin_module.go
-iface.Decls["_str_len"] = &iface.FuncDecl{
-    Type: &types.TFunc2{
-        Params: []types.Type{&types.TCon{Name: "String"}},
-        Return: &types.TCon{Name: "Int"},
-        EffectRow: &types.Row{Kind: types.KEffect{}, Labels: map[string]types.Type{}, Tail: nil},
-    },
-}
-
-// internal/runtime/builtins.go
-br.RegisterPure("_str_len", ...)
-
-// internal/types/builtins.go
-builtinTypes["_str_len"] = ...
-```
-
-**After (new registry, 1 file, 10 lines):**
-```go
-// internal/builtins/register.go
-RegisterEffectBuiltin(BuiltinSpec{
-    Module:  "std/string",
-    Name:    "_str_len",
-    NumArgs: 1,
-    IsPure:  true,
-    Type: func() types.Type {
-        T := types.NewBuilder()
-        return T.Func(T.String()).Returns(T.Int())
-    },
-    Impl: strLenImpl,
-})
-```
-
-#### Metrics
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Files to edit | 4 | 1 | -75% |
-| Type construction LOC | 35 | 10 | -71% |
-| Development time | 7.5h | 2.5h | -67% |
-| Test setup LOC | ~50 | ~15 | -70% |
-
-#### Status
-
-**🎉 M-DX1 COMPLETE (October 2025) - 90% done!**
-
-**Core Infrastructure (v0.3.9-alpha3 through v0.3.10):**
-- ✅ M-DX1.1: Central Registry with validation
-- ✅ M-DX1.2: Type Builder DSL
-- ✅ M-DX1.3: Doctor + List CLI commands
-- ✅ M-DX1.4: Test Harness with mocking
-- ✅ M-DX1.5: Complete builtin migration (52 builtins)
-- ✅ Removed feature flag - new registry is default
-- ✅ 100% test coverage on new code
-
-**Documentation & Organization (October 2025):**
-- ✅ M-DX1.11: Enhanced metadata system with 11 fields
-- ✅ M-DX1.12: File organization (split 785-line file into 7 modules)
-- ✅ M-DX1.13: Migration safety validator (`ailang builtins check-migration`)
-- ✅ M-DX1.14: **Complete documentation (52/52 builtins = 100%)** 🎉
-  - All builtins have descriptions, params, returns, examples
-  - Searchable tags, version tracking, stability indicators
-  - Files: string.go (9), math.go (37), io.go (3), net.go (1), show.go (1), json_decode.go (1)
-
-**Optional Polish (v0.3.15+):**
-- ⏳ Enhanced CLI (`--verbose`, `search` command) (~2h)
-- ⏳ REPL :type command (~0.5h)
-- ⏳ Error diagnostics improvements (~0.5h)
-
-**Verify builtin health:**
+**Validation commands:**
 ```bash
 ailang doctor builtins              # Validate all 52 builtins
-ailang builtins list                # List all builtins
-ailang builtins list --by-module    # List by module
+ailang builtins list --by-module    # Browse by module
 ailang builtins check-migration     # Check for orphaned builtins
 ```
 
-**For full documentation, see:**
-- Session summary: [M-DX1-FINAL-SUMMARY.md](M-DX1-FINAL-SUMMARY.md)
-- Design rationale: `design_docs/planned/easier-ailang-dev.md`
-- Test coverage: `internal/builtins/*_test.go`, `internal/effects/testctx/*_test.go`
-- Changelog: See v0.3.10+ entries in `CHANGELOG.md`
+**System overview:**
+- **Central Registry** (`internal/builtins/spec.go`) - Single registration point
+- **Type Builder DSL** (`internal/types/builder.go`) - Fluent type construction
+- **Test Harness** (`internal/effects/testctx/`) - Hermetic testing with mocking
+- **Auto-wiring** - Registry connects to runtime/link automatically (no feature flag since v0.3.10)
+
+**For complete guide:**
+- Use the `builtin-developer` skill for step-by-step workflow
+- See [M-DX1-FINAL-SUMMARY.md](M-DX1-FINAL-SUMMARY.md) for detailed summary
+- See `design_docs/planned/easier-ailang-dev.md` for design rationale
 
 ### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
 
@@ -668,8 +646,8 @@ ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
 # ✅ Validates before writing
 # ✅ Atomic writes (no corruption)
 
-# Generate markdown dashboard
-ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+# Generate markdown dashboard (DEPRECATED - use JSON dashboard instead)
+# ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
 
 # Run baseline (REQUIRES explicit version!)
 make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models (3 cheap models)
@@ -739,21 +717,40 @@ make clean                # Remove build artifacts and coverage files
 make help                 # Show all available make targets
 ```
 
+### Debug Flags
+
+**Quick reference table:**
+
+| Flag | Purpose | Use When |
+|------|---------|----------|
+| `DEBUG_STRICT=1` | Fail loudly on unhandled cases | Development, CI |
+| `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues |
+| `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
+| `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
+
+**Recommended combinations:**
+```bash
+# Development mode
+DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang run test.ail
+
+# CI mode
+DEBUG_STRICT=1 make test
+
+# Parser debugging
+DEBUG_PARSER=1 ailang run test.ail
+```
+
+**For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)
+
 #### Keeping `ailang` Up to Date
 
-**After making code changes to the ailang binary:**
+**After making code changes:**
 ```bash
-make quick-install  # Fast reinstall (recommended for development)
-# OR
+make quick-install  # Fast reinstall (recommended)
 make install        # Full reinstall with version info
 ```
 
-**Important**: The `ailang` command in your PATH points to `/Users/mark/go/bin/ailang` (system install), NOT `bin/ailang` (local build). Always run `make install` or `make quick-install` after building to update the system binary. Otherwise your changes won't be used when running `ailang` commands.
-
-**For local testing without install:**
-```bash
-./bin/ailang <command>  # Use local build directly
-```
+**Important**: `ailang` in PATH points to `/Users/mark/go/bin/ailang` (system), NOT `bin/ailang` (local). Always reinstall after building.
 
 ### IMPORTANT: Keeping Documentation Updated
 
@@ -802,13 +799,62 @@ Example entry:
 - These examples will be used in documentation and tutorials
 - Always test examples before documenting them as working
 
+#### 4. Documentation Website - Example Import Pattern
+
+**CRITICAL: Never embed code examples directly in documentation!**
+
+The website uses **raw-loader** to import actual example files from `examples/`. This ensures:
+- Examples always match working code
+- Syntax changes automatically propagate to docs
+- No manual updates needed when examples change
+- One less maintenance burden
+
+**Correct pattern** (import from examples/):
+```mdx
+import CodeBlock from '@theme/CodeBlock';
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
+```
+
+**Wrong pattern** (embedded code):
+```mdx
+❌ DON'T DO THIS:
+```typescript
+module examples/hello
+-- This code will drift out of sync!
+```
+```
+
+**Files that use example imports:**
+- `docs/docs/intro.mdx` - Hello world and factorial
+- `docs/docs/examples.mdx` - Multiple working examples
+- `docs/docs/guides/getting-started.mdx` - Tutorial examples
+
+**Configuration:**
+- Raw-loader configured in `docs/docusaurus.config.js`
+- Uses webpack plugin to handle `.ail` files
+- Examples imported from `@site/../examples/` path
+
 ### Writing AILANG Code
 
 **When writing AILANG code during development:**
 Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
-- **Current version**: [prompts/v0.3.8.md](prompts/v0.3.8.md)
+
+**Get the teaching prompt:**
+```bash
+ailang prompt                           # Display current/active prompt
+ailang prompt --version v0.3.24         # Display specific version
+ailang prompt --list                    # List all available versions
+ailang prompt > syntax.md               # Save to file
+```
+
+- Prompts are version-locked and tracked in `prompts/versions.json`
 - Validated through multi-model testing (Claude, GPT, Gemini)
 - Covers syntax, limitations, common pitfalls, and working examples
+- Each prompt version corresponds to a specific AILANG version
 
 **Quick reference:**
 ```bash
@@ -817,8 +863,30 @@ ailang repl                                        # Start REPL
 :type expr                                         # Check type in REPL
 ```
 
+**Critical syntax notes:**
+- **Import Aliasing (v0.4.8):** Rename modules and symbols on import
+  - **Module alias:** `import std/list as List` → enables qualified access `List.length(xs)`, `List.map(f, xs)`
+  - **Symbol alias:** `import std/list (length as listLength)` → use `listLength(xs)` directly
+  - **Combined:** `import std/list as List (map, filter)` → direct access to `map`, `filter` + qualified `List.*`
+  - **Use case:** Resolve name clashes when importing from multiple modules
+- **Relaxed Module Matching (v0.5.2):** Allow module declaration to mismatch file path
+  - **Default behavior:** Strict - module path must match canonical file path (MOD010 validation)
+  - **CLI flag:** `ailang run --relax-modules --caps IO --entry main file.ail`
+  - **Environment variable:** `AILANG_RELAX_MODULES=1 ailang run ...`
+  - **Auto-relaxation:** Files in temp directories (`/tmp/`, `/var/folders/`) auto-relax with warning
+  - **Use case:** Quick prototyping, AI-generated temp files, experimentation
+  - **Warning:** Relaxed mode emits warnings - check your module paths before packaging
+- **⚠️ NULLARY FUNCTIONS BROKEN (v0.4.5):** Nullary functions (zero-arg) cannot be called from AILANG code
+  - **Affected**: `_env_getArgs`, `_clock_now`, `_io_readLine`
+  - **Issue**: No syntax to call them - `f` returns function object, `f()` is arity mismatch
+  - **Workaround**: Use direct Go implementation via `effects.Call()` (Go tests only)
+  - **Fix planned**: M-DX10 in v0.4.6 (see [design doc](design_docs/planned/v0_4_6/m-dx10-nullary-function-calls.md))
+  - **Status**: CLI args feature implemented but not usable from AILANG until M-DX10 is fixed
+- **Type parameters:** Use `[T]` NOT `(T)` - distinguishes type/term application
+- **Match in blocks:** Known parser bug (nested delimiter tracking) - extract to helper function
+
 **For detailed syntax, limitations, and examples:**
-- See [prompts/v0.3.8.md](prompts/v0.3.8.md) - Complete AILANG teaching prompt
+- Use `ailang prompt` to get the latest teaching prompt
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 
@@ -840,299 +908,36 @@ ailang repl                                        # Start REPL
 - See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Full development guide
 - See [design_docs/](design_docs/) - Architecture and design decisions
 
-## 🎯 RELEASE WORKFLOW - READ THIS FIRST!
+## 🎯 RELEASE WORKFLOW
 
-**When user says "ready to release" or "update dashboard":**
+**For releases**: Use the `release-manager` skill
+**After release**: Use the `post-release` skill to update dashboard
 
-### Quick Reference
+**Quick reference:**
+- **release-manager** handles: verification, tagging, CI/CD monitoring
+- **post-release** handles: eval baselines, dashboard updates, docs
 
-**Run release with the release-manager skill** (handles everything):
-
-When ready to release, invoke the `release-manager` skill with the version number.
-
-The release-manager skill handles:
-- Pre-release verification (tests, linting, file sizes)
-- Version updates in documentation
-- Git tagging and pushing
-- CI/CD monitoring
-- Release verification
-
-After release completes, use the `post-release` skill to:
-- Run baseline evaluations
-- **Update website dashboard** ← Critical!
-- Update design docs and public documentation
-
-### Manual Dashboard Update (if needed)
-
-**Update website dashboard for specific version**:
-```bash
-# Generate dashboard files (markdown + JSON with history)
-# Note: 2>/dev/null suppresses progress messages that would appear in the markdown
-ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=docusaurus 2>/dev/null > docs/docs/benchmarks/performance.md
-# DO NOT redirect JSON to file - it writes to docs/static/benchmarks/latest.json automatically with history preservation
-ailang eval-report eval_results/baselines/v0.3.12 v0.3.12 --format=json
-
-# Verify JSON is valid
-jq -r '.version, .aggregates.finalSuccess' docs/static/benchmarks/latest.json
-
-# Clear Docusaurus cache (prevents webpack errors)
-cd docs && npm run clear
-
-# Test locally (optional)
-cd docs && npm start
-# Visit: http://localhost:3000/ailang/docs/benchmarks/performance
-
-# Commit and push
-git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
-git commit -m "Update benchmark dashboard for v0.3.12"
-git push
-```
-
-### Common Issues
-
-**Problem**: Dashboard shows old version (e.g., v0.3.9 instead of v0.3.12)
-**Solution**: Use `ailang eval-report` with specific baseline directory
-
-**Problem**: "Uncaught runtime errors" / webpack chunk errors
-**Cause**: Docusaurus build cache stale
-**Solution**: `cd docs && npm run clear && rm -rf docs/.docusaurus docs/build && npm start`
-
-**Problem**: Dashboard JSON shows "null" for aggregates
-**Cause**: Used wrong JSON file (performance matrix vs dashboard JSON)
-**Solution**: Use `ailang eval-report` output, not files from `eval_results/performance_tables/`
+**For manual workflows**: See [docs/guides/release.md](docs/guides/release.md)
 
 ---
 
-## 📐 Code Organization Principles (AI-First Design)
+## 📐 Code Organization Principles
 
-### File Size Guidelines
+**AILANG is designed for AI maintenance. Keep files small and focused.**
 
-**AILANG is designed to be maintained by AI assistants. Keep files small and focused.**
-
-**Target file sizes:**
-- **Sweet spot**: 200-500 lines per file
-- **Acceptable**: 500-800 lines
-- **Problematic**: 800-1200 lines (consider splitting)
-- **Critical**: 1200+ lines (MUST split before adding features)
-
-**Why small files matter for AI:**
-- Fits in AI context window (I can see the whole file at once)
-- Single responsibility principle naturally enforced
-- Easy to understand the full structure in one read
-- Reduces merge conflicts
-- Enables better testing isolation
+**File size targets:**
+- Sweet spot: 200-500 lines
+- Acceptable: 500-800 lines
+- Critical: 1200+ lines (MUST split)
 
 **Check file sizes:**
 ```bash
-make check-file-sizes    # Fails CI if any file >800 lines
-make report-file-sizes   # Shows all files >500 lines
-wc -l internal/path/file.go  # Check specific file
+make check-file-sizes    # Fails CI if >800 lines
+make report-file-sizes   # Show files >500 lines
 ```
 
-### Current Technical Debt
-
-**Check current status:**
-```bash
-make report-file-sizes    # Detailed report of files >500 lines
-make codebase-health      # Overall codebase metrics
-make largest-files        # Top 20 largest files
-```
-
-As of October 2025, ~10 files exceed the 800 line limit (out of 183 total). Run `make report-file-sizes` for the current list.
-
-**Before modifying these files:**
-1. Check if splitting is needed first
-2. Run tests before/after: `make test`
-3. Use the `codebase-organizer` agent for safe refactoring
-
-### File Organization Patterns
-
-#### Pattern 1: One Concept Per File
-
-```
-❌ BAD: Everything in one file
-internal/parser/parser.go (2518 lines)
-  - Expression parsing
-  - Statement parsing
-  - Type parsing
-  - Pattern parsing
-  - Module parsing
-
-✅ GOOD: Split by responsibility
-internal/parser/
-  ├── parser.go (200 lines)         # Main struct, entry points, package docs
-  ├── expressions.go (300 lines)    # parseExpression, parseLambda, parseCall
-  ├── statements.go (250 lines)     # parseLetDecl, parseFuncDecl, parseType
-  ├── types.go (200 lines)          # parseType, parseEffects, parseTypeParams
-  ├── patterns.go (280 lines)       # parsePattern, parseConstructor
-  ├── modules.go (150 lines)        # parseModule, parseImport, parseExport
-  └── helpers.go (140 lines)        # parseParams, parseBlock, utility functions
-```
-
-#### Pattern 2: Main File as Table of Contents
-
-Every package should have a main file (usually `pkg.go` or matching package name) that serves as navigation:
-
-```go
-// internal/parser/parser.go (200 lines max)
-package parser
-
-// Package parser implements AILANG source code parsing.
-//
-// # Architecture
-//
-// The parser is split into several files by responsibility:
-//   - parser.go: Main Parser struct and entry points (THIS FILE)
-//   - expressions.go: Expression parsing (literals, lambdas, calls, etc.)
-//   - statements.go: Top-level declarations (func, type, let)
-//   - types.go: Type annotation parsing
-//   - patterns.go: Pattern matching syntax
-//   - modules.go: Module system (import/export)
-//
-// # Usage
-//
-//   p := parser.New(lexer)
-//   file, err := p.Parse()
-//
-// # See Also
-//
-//   - internal/ast: AST node definitions
-//   - internal/lexer: Token generation
-//   - docs/parser/README.md: Detailed parser documentation
-
-// Parser is the main entry point for parsing AILANG source code.
-type Parser struct { /* ... */ }
-
-// Parse parses a complete AILANG source file.
-// Implementation delegates to parseFile() in statements.go.
-func (p *Parser) Parse() (*ast.File, error) { /* ... */ }
-```
-
-#### Pattern 3: Tests Next to Implementation
-
-```
-✅ GOOD: Focused test files
-internal/parser/
-  ├── expressions.go
-  ├── expressions_test.go (300 lines focused tests)
-  ├── statements.go
-  ├── statements_test.go (250 lines focused tests)
-  └── integration_test.go (end-to-end tests)
-
-❌ BAD: One giant test file
-  └── parser_test.go (5000 lines)
-```
-
-#### Pattern 4: Clear File Naming
-
-File names should match the main functions they contain:
-
-```
-✅ GOOD:
-expressions.go → parseExpression(), parseCall(), parseLambda()
-statements.go  → parseLetDecl(), parseFuncDecl(), parseTypeDecl()
-patterns.go    → parsePattern(), parseConstructor()
-
-❌ BAD:
-parse_stuff.go → everything mixed together
-utils.go       → vague, no clear responsibility
-```
-
-### Adding New Features (File Size Rules)
-
-**Before adding any new feature to a file:**
-
-```bash
-# 1. Check current file size
-wc -l internal/types/typechecker_core.go
-# Output: 2736 lines
-
-# 2. If >800 lines, STOP and split first
-# 3. If 500-800 lines, consider if new feature pushes it over 800
-# 4. If <500 lines, proceed normally
-
-# 5. After changes, verify size
-wc -l internal/types/typechecker_core.go
-make check-file-sizes  # Fails if >800 lines
-```
-
-**Splitting workflow:**
-
-```bash
-# Option 1: Use the codebase-organizer agent (recommended)
-# This agent safely refactors files while ensuring tests pass
-
-# Option 2: Manual split (if you understand the code deeply)
-make test                    # Baseline - all tests pass
-# ... split files ...
-make test                    # Verify - all tests still pass
-git add internal/types/*.go
-git commit -m "Split typechecker_core.go into 8 files (AI-friendly)"
-```
-
-### Package Documentation Standards
-
-Every package with >3 files MUST have a README.md:
-
-```markdown
-# internal/parser
-
-Parser for AILANG source code.
-
-## Files
-
-- `parser.go` - Main Parser struct, entry points
-- `expressions.go` - Expression parsing: literals, lambdas, calls, operators
-- `statements.go` - Declarations: func, type, let, import, export
-- `types.go` - Type annotations: simple types, effects, type parameters
-- `patterns.go` - Pattern matching: constructors, literals, wildcards, guards
-- `modules.go` - Module system: module declarations, import resolution
-- `helpers.go` - Shared utilities: parameter parsing, block parsing
-
-## Entry Points
-
-- `Parse()` → `parseFile()` in statements.go
-- `parseExpression()` in expressions.go
-- `parseType()` in types.go
-- `parsePattern()` in patterns.go
-
-## Cross-references
-
-- Consumes: `internal/lexer` (tokens)
-- Produces: `internal/ast` (syntax tree)
-- Used by: `internal/pipeline`, `internal/repl`
-```
-
-### Automated Code Organization
-
-**Use the codebase-organizer agent** for safe refactoring:
-
-The `codebase-organizer` agent is available in `.claude/agents/codebase-organizer.md`. It:
-- Monitors file sizes across the codebase
-- Identifies files that need splitting
-- Safely refactors large files into smaller, focused modules
-- Ensures all tests pass before/after refactoring
-- Maintains git history and commit hygiene
-
-**Example usage:**
-```bash
-# Ask Claude to invoke the agent:
-"Please use the codebase-organizer agent to check for files that need splitting"
-
-# Or for specific refactoring:
-"Use the codebase-organizer agent to split internal/parser/parser.go"
-```
-
-### Measuring Success
-
-```bash
-# CI checks (automatically run on PRs)
-make check-file-sizes     # Fails if any file >800 lines
-
-# Status reports
-make report-file-sizes    # Lists all files >500 lines
-make codebase-health      # Full codebase metrics
-```
+**For refactoring**: Use `codebase-organizer` agent  
+**For detailed patterns**: See [docs/guides/file-organization.md](docs/guides/file-organization.md)
 
 **Goal metrics:**
 - 0 files over 800 lines ✅
@@ -1293,6 +1098,49 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 - `internal/lexer/lexer.go` - `NextToken()` and `skipWhitespace()`
 - `internal/parser/parser.go` - `nextToken()` wrapper
 - Any parser code that checks for or handles whitespace
+
+---
+
+## Parser Development
+
+**For parser development, use the `parser-developer` skill.**
+
+**Critical conventions (saves 30% development time):**
+1. **Token position**: Parser leaves cursor AT last token (not after)
+2. **No NEWLINE tokens**: Lexer skips `\n` as whitespace
+3. **Use `DEBUG_PARSER=1`**: Trace token positions for debugging
+4. **Use `make doc PKG=<package>`**: API discovery (80% faster)
+
+**Common gotchas:**
+- ❌ IntLit is `int64`, not `int` (will panic if wrong!)
+- ❌ Never check for `lexer.NEWLINE` (lexer never generates it)
+- ❌ Print errors BEFORE `t.Fatalf` in tests
+- ❌ `string(rune(i))` produces unprintable chars (use `fmt.Sprintf`)
+
+**Quick reference:**
+```bash
+# Debug parser token flow
+DEBUG_PARSER=1 ailang run test.ail
+
+# Find API signatures
+make doc PKG=internal/parser | grep "parseExpression"
+
+# Check AST types
+grep "^type.*struct" internal/ast/ast.go | head -20
+```
+
+**Common constructors:**
+- `parser.New(lexer)` - Takes lexer instance
+- `elaborate.NewElaborator()` - No arguments (Surface → Core)
+- `types.NewTypeChecker(core, imports)` - Takes Core prog + imports
+- `link.NewLinker()` - No arguments (Dictionary linking)
+
+**For detailed guide:**
+- Use the `parser-developer` skill for complete conventions
+- See `design_docs/planned/v0_3_15/m-dx9-parser-developer-experience.md` for design docs
+- See `docs/CONTRIBUTING.md` for development workflows
+
+---
 
 ## Reference Documentation
 

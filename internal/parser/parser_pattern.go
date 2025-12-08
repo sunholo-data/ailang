@@ -8,6 +8,52 @@ import (
 )
 
 func (p *Parser) parsePattern() ast.Pattern {
+	// Parse base pattern first
+	pat := p.parseBasePattern()
+	if pat == nil {
+		return nil
+	}
+
+	// Right-associative :: sugar (S-CONS pattern extension v0.4.3)
+	// After parsing base pattern, check if next token is :: for cons sugar
+	// Example: x :: xs desugars to ::(x, xs)
+	for p.peekTokenIs(lexer.DCOLON) {
+		consPos := p.curPos()
+
+		// Check if strict syntax mode is enabled
+		if p.strictSyntaxMode {
+			p.reportSugarError("CONS_PATTERN", "x :: xs", "::(x, xs)")
+			// Return current pattern to avoid cascading errors
+			return pat
+		}
+
+		// Sugar is allowed - mark that it was used
+		p.sugarUsed = true
+
+		// Move to DCOLON, then past it to RHS
+		p.nextToken() // now at DCOLON
+		p.nextToken() // now at start of RHS pattern
+
+		// Recursively parse right side (allows chaining: a :: b :: c)
+		rhs := p.parsePattern()
+		if rhs == nil {
+			return nil
+		}
+
+		// Desugar to canonical constructor pattern: ::(pat, rhs)
+		// See internal/elaborate/patterns.go for elaboration to ListPattern
+		pat = &ast.ConstructorPattern{
+			Name:     "::",
+			Patterns: []ast.Pattern{pat, rhs},
+			Pos:      consPos,
+		}
+	}
+
+	return pat
+}
+
+// parseBasePattern parses atomic patterns (no infix operators)
+func (p *Parser) parseBasePattern() ast.Pattern {
 	switch p.curToken.Type {
 	case lexer.IDENT:
 		// Could be a variable pattern or constructor
@@ -27,6 +73,18 @@ func (p *Parser) parsePattern() ast.Pattern {
 			Value: p.literalValue(),
 			Pos:   p.curPos(),
 		}
+	case lexer.DCOLON:
+		// Handle :: (cons) constructor pattern - canonical form only
+		// :: is the list constructor, equivalent to Cons in other languages
+		// See internal/elaborate/patterns.go for elaboration to ListPattern (not ConstructorPattern!)
+		name := "::"
+		if p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken() // move to LPAREN
+			return p.parseConstructorPattern(name)
+		}
+		// :: without arguments is invalid (must be ::(head, tail) or use infix x :: xs)
+		p.report("PAT_INVALID_CONS", ":: constructor requires arguments in pattern", "Use ::(head, tail) or x :: xs pattern")
+		return nil
 	case lexer.LBRACKET:
 		return p.parseListPattern()
 	case lexer.LBRACE:

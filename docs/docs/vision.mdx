@@ -6,273 +6,253 @@ description: Why AILANG exists and what makes it different from other programmin
 
 import Icon from '@site/src/components/Icon';
 
-# AILANG Vision — The First AI-Native Language
+# AILANG Vision
 
-**AILANG isn't designed for humans who code.**
-**It's built for AIs that reason, refactor, and verify.**
+**A language where AI-generated code is easier to debug, replay, and fix.**
 
-## Why AILANG Exists
-
-Human programming languages optimize for:
-- **Comfort** — familiar syntax, IDE support, autocompletion
-- **Ambiguity** — multiple ways to express the same thing
-- **Speed** — fast typing, shortcuts, implicit behaviors
-
-AILANG optimizes for:
-- **Determinism** — predictable, reproducible execution
-- **Reflectivity** — programs that can explain themselves
-- **Compositional Reasoning** — machines that prove, transform, and reuse code
-
-Every feature exists to make programs easier for machines to **analyze, verify, and improve**.
+AILANG provides:
+- **Effect boundaries** that constrain what code can do
+- **Structured traces** that show exactly what happened
+- **Deterministic execution** that enables replay and caching
+- **Inline tests** as machine-readable specs
 
 ---
 
-## Why Not Just Use Python?
+## What Makes AILANG Different
 
-Existing languages weren't designed for machine code generation. Here's what breaks:
+### 1. Effects as Capability Boundaries (Not Just Types)
 
-### Problem 1: Implicit State Breaks AI Reasoning
-
-**Python/JavaScript:**
-```python
-total = 0  # Global state - invisible to type checker
-
-def add(x):
-    global total
-    total += x
-    return total
-
-add(5)  # Returns 5
-add(5)  # Returns 10 (same input, different output!)
-```
-
-**AI struggles:** Can't trace effects. Can't prove correctness. Non-deterministic behavior.
+**Normal compilers:**
+- `doAnything()` is fine as long as types line up
+- Side-effects are invisible to the type system
+- Logs are ad-hoc; no semantic boundary between "pure logic" and "this talks to the database"
 
 **AILANG:**
-```typescript
-fn add(x: int, state: int) -> (int, int) =
-  let newState = state + x;
-  (newState, newState)
+```
+-- The type signature constrains what this function CAN do
+let processUser: User -> ! {DB} UserRecord =
+  \user. dbWrite(transformUser(user))
 
-add(5, 0)  -- Returns (5, 5)
-add(5, 5)  -- Returns (10, 10) - explicit state threading
+-- This CANNOT compile - no DB capability granted
+let pureTransform: User -> UserRecord =
+  \user. dbWrite(user)  -- ERROR: Effect mismatch
 ```
 
-**AI wins:** All dependencies visible in types. Referentially transparent. Provable.
+**Why this matters for AI:**
+- The model literally cannot "hallucinate" a network call in a pure function
+- Effect boundaries are machine-checkable constraints, not just documentation
+- The search space for valid implementations is genuinely smaller
 
 ---
 
-### Problem 2: Multiple Correct Answers Create Non-Deterministic Generation
+### 2. Traces Are First-Class (Not Forensic Artifacts)
 
-**Python - 5 ways to transform a list:**
-```python
-# Which will the AI choose? Inconsistent across runs!
-result = [f(x) for x in items]          # Comprehension
-result = list(map(f, items))            # map
-result = []; [result.append(f(x)) for x in items]  # Loop
-result = list(map(lambda x: f(x), items))  # Lambda
-result = [*map(f, items)]               # Unpack
+**Normal languages give you:**
+- Arbitrary logs scattered throughout code
+- Mutable globals and half-observable state
+- Trace reconstruction is forensic art
+
+**AILANG gives you:**
+- A deterministic core plus effect calls as the interaction points
+- Traces structured as: `pure steps + {effect invocations with typed inputs/outputs}`
+- Sliceable by effect type: "Show only DB writes in this function for this test"
+
+**Example trace slice:**
+```
+Function: aggregateUsers
+  Step 1: map(transform, users)         [pure]
+  Step 2: DB.read(userTable)            [effect: DB]
+  Step 3: filter(isActive, _)           [pure]
+  Step 4: DB.write(aggregates)          [effect: DB]
+
+-- Slice to DB effects only:
+  DB.read(userTable) -> [User×10]
+  DB.write(aggregates) -> [Agg×10]
 ```
 
-**AILANG - One canonical form:**
-```typescript
-result = map(f, items)
--- That's it. One way. Deterministic generation.
-```
+**Why this matters:** When something goes wrong, you know exactly where to look. The model gets structured feedback ("DB.write called 10 times but expected 5 after dedupe"), not "it crashed somewhere."
 
 ---
 
-### Problem 3: Runtime Type Errors Are Silent Failures
+### 3. Inline Tests Are a Spec Surface (Not Magic)
 
-**TypeScript - Types erased at runtime:**
-```typescript
-function process(data: any) {
-    return data.field.value.toString();  // Crash if structure wrong!
+The critique is valid: "If the AI is smart enough to write a good test, it's smart enough to write correct code."
+
+But that misunderstands the purpose:
+
+**Inline tests are not "AI spontaneously inventing the spec."**
+
+They are:
+1. **A spec channel** — Humans write/approve tests, or they're generated from API contracts, examples in docs, acceptance criteria
+2. **A portable contract** — Tests live next to the function, in the same language, which is what the AI sees and optimizes against
+3. **Strengthened over time** — Today's weak test can be improved by tomorrow's model or human reviewer
+
+```
+let dedupe: List[User] -> List[User] =
+  \users. uniqueBy(_.id, users)
+
+test dedupe {
+  assert dedupe([{id: 1}, {id: 1}, {id: 2}]) == [{id: 1}, {id: 2}]
+  assert len(dedupe(users)) <= len(users)  -- property
 }
 ```
 
-**AILANG - Types enforced statically:**
-```typescript
-fn process(data: Record { field: Record { value: int } }) -> string =
-    intToString(data.field.value)
--- Type checker PROVES this can't crash
+**Why this matters:** The test isn't magic; it's a machine-readable spec that travels with the code and provides leverage for both humans and future models.
+
+---
+
+## Better Feedback Loops
+
+AI code generation is iterative. AILANG makes each iteration more productive:
+
+| Traditional | AILANG |
+|-------------|--------|
+| Arbitrary logs | Structured effect traces |
+| "Something crashed" | "Effect mismatch at line 42" |
+| Blind retry | Targeted fix |
+
+The result: faster convergence to working code.
+
+---
+
+## What Effects Actually Buy You
+
+The effect system isn't just "types for side effects." It's a **capability constraint surface**.
+
+### Example: The Missed Dedupe Problem
+
+A human asks: "Aggregate users from the database and write a summary."
+
+**In Python/Go:**
+```python
+def aggregate_users():
+    users = db.read_all()  # hidden DB access
+    # Oops, AI forgot to dedupe
+    summary = compute_summary(users)
+    db.write(summary)  # hidden DB write
+    log.info("Done")  # ad-hoc logging
+```
+
+**Debugging this:**
+- Where did it go wrong? Check logs (if you added them)
+- What did the DB see? Unknown without tracing infrastructure
+- Can you replay? Only if you captured all inputs somewhere
+
+**In AILANG:**
+```
+let aggregateUsers: () -> ! {DB, IO} Summary =
+  let users = dbReadAll()
+  -- AI forgot dedupe here
+  let summary = computeSummary(users)
+  let _ = dbWrite(summary)
+  let _ = print("Done")
+  summary
+
+-- Trace output:
+--   DB.readAll -> [User×100]
+--   DB.write(Summary{count: 100})  -- Wait, why 100? Should be unique count
+```
+
+**Debugging this:**
+- Effect trace shows exactly what DB operations happened
+- You can see: "read 100 users, wrote 100 aggregates" — the bug is obvious
+- Replay: deterministic, just re-run with same inputs
+
+**The AI gets structured feedback:**
+```
+Expected: DB.write(Summary{count: <unique_users>})
+Actual: DB.write(Summary{count: 100})
+Hint: No dedupe operation between DB.read and computeSummary
 ```
 
 ---
 
-## Proven Results — M-EVAL Benchmarks
+## Benchmark Results — M-EVAL
 
-**Real data from 264 benchmarks across GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro:**
+We continuously track AI code generation success across 46 benchmarks with Claude, GPT, and Gemini.
 
-| Metric | Python-Style Code | AILANG v0.3.14 | Improvement |
-|--------|-------------------|----------------|-------------|
-| **Compile Success** | ~45% | 67% | **+49%** |
-| **Type Safety** | N/A (dynamic) | 89% | **∞** |
-| **Effect Safety** | N/A (untracked) | 94% | **∞** |
-| **Deterministic Output** | ~62% | 91% | **+47%** |
+Key metrics:
+- **Zero-Shot**: Code works on first try
+- **Final Success**: Code works after self-repair
+- **Agent Success**: Multi-turn agent completes task
 
-### What This Means
+The jump from zero-shot to agent mode shows structured error feedback helping models self-correct.
 
-**Without AILANG:** AI generates code that compiles less than half the time. Runtime errors are unpredictable. Side effects are invisible.
-
-**With AILANG:** AI success rate increased by 49%. Type checker catches errors before runtime. Effect system makes all I/O explicit and verifiable.
-
-**Key Insight:** Deterministic semantics + explicit effects = measurably better AI code generation.
-
-*See [Benchmark Performance](/docs/benchmarks/performance) for full results.*
+See the [Benchmark Dashboard](/docs/benchmarks/performance) for live results, trends, and per-model breakdowns.
 
 ---
 
-## Current Capabilities — v0.3.x: The Deterministic Core
+## Current Capabilities — v0.5.x
 
 AILANG today provides:
 
-- <Icon name="check" inline /> **Explicit Effect Tracking** — `!: IO,FS` declares all side effects in types
-- <Icon name="check" inline /> **Total Functions** — no runtime crashes, exhaustive pattern matching
-- <Icon name="check" inline /> **Pure Evaluation** — deterministic semantics for all expressions
-- <Icon name="check" inline /> **Algebraic Data Types** — composable, type-safe data structures
-- <Icon name="check" inline /> **JSON Integration** — structured data parsing and encoding
-- <Icon name="check" inline /> **Comprehensive Testing** — >2,800 passing tests ensure correctness
-
-These features guarantee **predictable execution** and **analyzable behavior** —
-the foundation for AI-driven code reasoning.
+- <Icon name="check" inline /> **Algebraic Effects** — `! {IO, FS, Net, DB}` declares capabilities in types
+- <Icon name="check" inline /> **Deterministic Core** — pure functions are referentially transparent
+- <Icon name="check" inline /> **Structured Traces** — effect calls logged with typed inputs/outputs
+- <Icon name="check" inline /> **Inline Tests** — specs travel with code, machine-readable
+- <Icon name="check" inline /> **Go Codegen** — compile to native performance
 
 ---
 
-## Next Milestone — v0.4 "Deterministic Tooling"
+## Roadmap — Where We're Going
 
-**Goal:** Automated code repair tools that measurably improve AI code generation.
+### v0.6: Execution Profiles
 
-### What v0.4 Enables
+Formalize the three execution modes:
 
-| Capability | Benefit for AI Systems |
-|------------|------------------------|
-| **Deterministic Tooling** | Canonical IR, effect tracing, automated code repair (`normalize → suggest → apply`) |
-| **Total Recursion** | Functional completeness without loops (`fold`, `unfold`, `iterateN`) |
-| **Polymorphic Safety** | Reliable generics: `List[T]`, `Result[T,E]`, `Option[T]` |
-| **Effect Sugar** | Clean syntax (`!: IO,FS`) with precise diagnostics |
-| **Runtime Reflection** | `:type`, `reflectType`, `reflectEffect` for self-introspection (v0.4.1+) |
+| Profile | Entry Shape | Use Case |
+|---------|-------------|----------|
+| **SimProfile** | `step(World, Input) -> (World, Output)` | Simulations, games, RL |
+| **ServiceProfile** | `handle(Request) -> Response` | Microservices, agents |
+| **CliProfile** | `main(args) -> ()` | CLI tools |
 
-**The result:** Programs that can explain, verify, and improve themselves.
+### v0.7: Deterministic Tooling
 
----
+AI-friendly code transformation tools:
 
-## Future Horizons — Multi-Agent Coordination
+- `ailang normalize` — canonical form for semantic comparison
+- `ailang suggest-imports` — auto-fix missing imports
+- `ailang apply` — structured code edits
 
-Once reflection and normalization are stable, AILANG will enable **multi-agent cooperation**:
+### v0.8: Shared Semantic State
 
-### Example: Two AIs Refactor a Module
+Multi-agent coordination through language-level shared memory:
 
-**Agent A (Refactorer) proposes a change:**
-```typescript
--- Original
-fn loadConfig() !: IO,FS -> Result[Config, Error] =
-    do! readFile("config.json")
-    |> parseJSON
-    |> validateConfig
-
--- Refactored (adds caching)
-fn loadConfig() !: IO,FS -> Result[Config, Error] =
-    do! readFile("config.json")
-    |> parseJSON
-    |> validateConfig
-    |> cacheConfig !: FS  -- Added caching with FS write
-```
-
-**Agent B (Verifier) checks the refactoring:**
-```typescript
-fn verifyRefactor(original, refactored) =
-    let originalEffects = reflectEffect(original);
-    let refactoredEffects = reflectEffect(refactored);
-
-    if originalEffects == refactoredEffects then
-        checkBehavioralEquivalence(normalize(original), normalize(refactored))
-    else
-        Err("Effects changed: " ++ show(refactoredEffects))
-```
-
-**Result:** Agent B rejects the refactoring (FS write effect added). Agent A must either:
-1. Update signature to declare new effect
-2. Remove caching to preserve original behavior
-
-**Proof-synchronized:** Both agents agree on equivalence via deterministic hashing and effect tracking.
+- Semantic caching keyed by (problem + types + tests)
+- CAS-based coordination for deterministic updates
+- Effect-tracked caching patterns
 
 ---
 
-### Key Capabilities for Multi-Agent Systems
+## What AILANG Deliberately Excludes
 
-- **Shared Effect Algebra** — AIs coordinate through explicit effect declarations
-- **Canonical Normalization** — `normalize()` ensures AIs compare semantically equivalent forms
-- **Cryptographic Proofs** — Hash-based verification prevents adversarial code changes
-- **Equivalence Checking** — Automated verification that refactorings preserve behavior
-
-**The vision:** A language where AIs can reason about, improve, and trust each other's code.
-
----
-
-## Measurable Success Criteria
-
-| Metric | Target | Why It Matters |
-|---------|--------|----------------|
-| **Determinism Rate** | ≥95% | Identical outputs across runs enable caching and verification |
-| **Type Correctness** | ≥98% | Type safety prevents entire classes of bugs |
-| **Model Pass Rate** | ≥70% | AIs can solve real problems without human intervention |
-| **Normalizer Lift** | +20pp | Automated repairs reduce AI failure rates by 20+ percentage points |
-| **Eval Runtime** | &lt;2 min | Fast feedback loops enable iterative AI development |
-
----
-
-## Timeline
-
-| Phase | Focus | Target |
-|--------|--------|--------|
-| **v0.3.14** | JSON decode + stable core | Week 1 |
-| **v0.3.15** | Deterministic tooling (`normalize`, `suggest`, `apply`) | Week 3 |
-| **v0.3.16** | Total recursion combinators + import ergonomics | Week 5 |
-| **v0.4.0** | Public launch with deterministic tooling | Week 7 |
-| **v0.4.1** | Runtime reflection (monomorphic types) | Week 9 |
-| **v0.4.2** | Training data export + polymorphic reflection | Week 11 |
-
-**Note:** Reflection deferred to v0.4.1+ to derisk public launch. v0.4.0 ships with `normalize → suggest → apply` pipeline, which is sufficient to demonstrate AI-native design.
-
----
-
-## What AILANG Doesn't Do
-
-AILANG deliberately excludes features designed for human convenience:
+AILANG prioritizes machine reasoning over human ergonomics:
 
 - ❌ **LSP/IDE servers** — AIs use CLI/API, not text editors
-- ❌ **CSP/concurrency** — replaced by static effect-typed task graphs
-- ❌ **Implicit behaviors** — all effects, imports, and types are explicit
 - ❌ **Multiple syntaxes** — one canonical way to express each concept
+- ❌ **Implicit behaviors** — all effects are explicit
 
-These aren't limitations — they're **design choices** that prioritize machine reasoning over human ergonomics.
+These aren't limitations — they're design choices that make the language more predictable and constrainable for AI generation.
 
 ---
 
-## Who AILANG Is For
+## Summary
 
-### Primary Users
-- <Icon name="bot" inline /> **AI Code Generators** (Claude, GPT, Gemini) — deterministic output, verifiable correctness
-- <Icon name="bot" inline /> **Autonomous Agents** — self-repairing code through reflection and normalization
-- <Icon name="bot" inline /> **Multi-Agent Systems** — coordinated reasoning through shared effect algebra
+AILANG gives you:
 
-### Secondary Users
-- <Icon name="brain" inline /> **Researchers** — studying AI code generation, program synthesis, and verification
-- <Icon name="wrench" inline /> **Tool Builders** — creating AI-powered development tools with provable guarantees
-- <Icon name="user" inline /> **Curious Humans** — exploring what languages look like when designed for machines first
+1. **Effect constraints** — Models can't generate impossible side effects
+2. **Structured traces** — See exactly what happened, slice by effect type
+3. **Better error signals** — Specific feedback, not "it crashed"
+4. **Deterministic replay** — Same input, same output, every time
 
 ---
 
 ## Get Involved
 
-AILANG is open source and evolving rapidly:
-
-- <Icon name="rocket" inline /> **Try it:** See [Getting Started](/docs/guides/getting-started) to install and run AILANG
+- <Icon name="rocket" inline /> **Try it:** See [Getting Started](/docs/guides/getting-started)
 - <Icon name="bar-chart" inline /> **Benchmark it:** Run `ailang eval-suite` to test AI code generation
-- <Icon name="github" inline /> **Contribute:** See [Development Guide](/docs/guides/development) for contribution workflow
-- <Icon name="github" inline /> **Discuss:** Join discussions at [github.com/sunholo-data/ailang](https://github.com/sunholo-data/ailang)
+- <Icon name="github" inline /> **Contribute:** [github.com/sunholo-data/ailang](https://github.com/sunholo-data/ailang)
 
 ---
 
-> **AILANG — When the coder is the model.**
+> **AILANG — AI-first programming, done right.**

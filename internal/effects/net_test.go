@@ -10,7 +10,7 @@ import (
 
 // TestNetCapabilityChecks verifies that Net operations require Net capability
 func TestNetCapabilityChecks(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// No capabilities granted
 
 	t.Run("httpGet requires Net capability", func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestNetCapabilityChecks(t *testing.T) {
 
 // TestNetProtocolValidation verifies protocol security policies
 func TestNetProtocolValidation(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -129,7 +129,7 @@ func TestNetProtocolValidation(t *testing.T) {
 
 // TestNetIPValidation verifies IP blocking policies
 func TestNetIPValidation(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -207,7 +207,7 @@ func TestNetIPValidation(t *testing.T) {
 
 // TestNetDomainAllowlist verifies domain allowlist functionality
 func TestNetDomainAllowlist(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -281,7 +281,7 @@ func TestNetDomainAllowlist(t *testing.T) {
 
 // TestNetHttpPost verifies POST request functionality
 func TestNetHttpPost(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -336,7 +336,7 @@ func TestNetHttpPost(t *testing.T) {
 
 // TestNetBodySizeLimit verifies response size limiting
 func TestNetBodySizeLimit(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 	ctx.Net.MaxBytes = 100 // Very small limit for testing
@@ -367,7 +367,7 @@ func TestNetBodySizeLimit(t *testing.T) {
 
 // TestNetHTTPRequestCapability verifies httpRequest requires Net capability
 func TestNetHTTPRequestCapability(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	// No capabilities granted
 
 	method := &eval.StringValue{Value: "GET"}
@@ -391,7 +391,7 @@ func TestNetHTTPRequestCapability(t *testing.T) {
 
 // TestNetHTTPRequestHeaderValidation verifies header blocking
 func TestNetHTTPRequestHeaderValidation(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -469,7 +469,7 @@ func TestNetHTTPRequestHeaderValidation(t *testing.T) {
 
 // TestNetHTTPRequestMethodWhitelist verifies method validation
 func TestNetHTTPRequestMethodWhitelist(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 
@@ -514,7 +514,7 @@ func TestNetHTTPRequestMethodWhitelist(t *testing.T) {
 
 // TestNetHTTPRequestResultType verifies Result structure
 func TestNetHTTPRequestResultType(t *testing.T) {
-	ctx := NewEffContext()
+	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("Net"))
 	ctx.Net = NewNetContext()
 

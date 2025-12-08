@@ -1,0 +1,6 @@
+module examples/test_comment_bug
+
+// This is a comment
+export func simple() -> int {
+  42
+}

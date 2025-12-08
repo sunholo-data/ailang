@@ -1,0 +1,27 @@
+{
+  "id": "cli_args",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "seed": 42,
+  "input_tokens": 461658,
+  "output_tokens": 2602,
+  "total_tokens": 464260,
+  "cost_usd": 0.08764715,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 40537,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "timestamp": "2025-10-27T21:26:17.254316+01:00",
+  "code": "module solution\n\nexport func main() -\u003e () ! {IO} {\n  print(show(15))\n}\n",
+  "first_attempt_ok": false,
+  "repair_used": true,
+  "repair_ok": false,
+  "prompt_version": "agent",
+  "caps": [
+    "IO",
+    "FS"
+  ]
+}

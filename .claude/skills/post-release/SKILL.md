@@ -1,6 +1,6 @@
 ---
 name: AILANG Post-Release Tasks
-description: Run post-release tasks including eval baselines, dashboard updates, and documentation. Use after successful release to update benchmarks and website. Invoke when user says "post-release tasks", "update dashboard", or after completing a release.
+description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 46-benchmark suite (medium/hard/stretch) + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
@@ -13,11 +13,18 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 ```bash
 # User says: "Run post-release tasks for v0.3.14"
 # This skill will:
-# 1. Run eval baseline (all models, both languages)
-# 2. Update website dashboard (markdown + JSON with history)
-# 3. Extract metrics for CHANGELOG
-# 4. Guide through design doc and public doc updates
+# 1. Run eval baseline (ALL 6 PRODUCTION MODELS, both languages) - ALWAYS USE --full FOR RELEASES
+# 2. Update website dashboard (JSON with history preservation)
+# 3. Extract metrics and UPDATE CHANGELOG.md automatically
+# 4. Move design docs from planned/ to implemented/
+# 5. Run docs-sync to verify website accuracy (version constants, PLANNED banners, examples)
+# 6. Commit all changes to git
 ```
+
+**🚨 CRITICAL: For releases, ALWAYS use --full flag by default**
+- Dev models (without --full) are only for quick testing/validation, NOT releases
+- Users expect full benchmark results when they say "post-release" or "update dashboard"
+- Never start with dev models and then try to add production models later
 
 ## When to Use This Skill
 
@@ -32,18 +39,21 @@ Invoke this skill when:
 ### `scripts/run_eval_baseline.sh <version> [--full]`
 Run evaluation baseline for a release version.
 
+**🚨 CRITICAL: ALWAYS use --full for releases!**
+
 **Usage:**
 ```bash
-# Dev models only (fast, cheap)
-.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
-
-# All production models (for releases)
+# ✅ CORRECT - For releases (ALL 6 production models)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14 --full
+.claude/skills/post-release/scripts/run_eval_baseline.sh v0.3.14 --full
+
+# ❌ WRONG - Only use without --full for quick testing/validation
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
 ```
 
 **Output:**
 ```
-Running eval baseline for v0.3.14...
+Running eval baseline for 0.3.14...
 Mode: FULL (all 6 production models)
 Expected cost: ~$0.50-1.00
 Expected time: ~15-20 minutes
@@ -51,15 +61,26 @@ Expected time: ~15-20 minutes
 [Running benchmarks...]
 
 ✓ Baseline complete
-  Results: eval_results/baselines/v0.3.14
+  Results: eval_results/baselines/0.3.14
   Files: 264 result files
 ```
 
 **What it does:**
-- Runs `make eval-baseline` with appropriate flags
-- Tests both AILANG and Python implementations
-- Uses all 6 production models (--full) or 3 dev models (default)
-- Saves results to eval_results/baselines/vX.X.X/
+- **Step 1**: Runs `make eval-baseline` (standard 0-shot + repair evaluation)
+  - Tests both AILANG and Python implementations
+  - Uses all 6 production models (--full) or 3 dev models (default)
+  - Tests all benchmarks in benchmarks/ directory
+- **Step 2**: Runs agent eval on full benchmark suite
+  - **Current suite** (v0.4.8+): 46 benchmarks (trimmed from 56)
+    - Removed: trivial benchmarks (print tests), most easy benchmarks
+    - Kept: fizzbuzz (1 easy for validation), all medium/hard/stretch benchmarks
+    - **Stretch goals** (6 new): symbolic_diff, mini_interpreter, lambda_calc,
+      graph_bfs, type_unify, red_black_tree
+    - Expected: ~55-70% success rate with haiku, higher with sonnet/opus
+  - Uses haiku+sonnet (--full) or haiku only (default)
+  - Tests both AILANG and Python implementations
+- Saves combined results to eval_results/baselines/X.X.X/
+- Accepts version with or without 'v' prefix
 
 ### `scripts/update_dashboard.sh <version>`
 Update website benchmark dashboard with new release data.
@@ -71,7 +92,7 @@ Update website benchmark dashboard with new release data.
 
 **Output:**
 ```
-Updating dashboard for v0.3.14...
+Updating dashboard for 0.3.14...
 
 1/5 Generating Docusaurus markdown...
   ✓ Written to docs/docs/benchmarks/performance.md
@@ -80,32 +101,33 @@ Updating dashboard for v0.3.14...
   ✓ Written to docs/static/benchmarks/latest.json (history preserved)
 
 3/5 Validating JSON...
-  ✓ Version: v0.3.14
+  ✓ Version: 0.3.14
   ✓ Success rate: 0.627
 
 4/5 Clearing Docusaurus cache...
   ✓ Cache cleared
 
 5/5 Summary
-  ✓ Dashboard updated for v0.3.14
+  ✓ Dashboard updated for 0.3.14
   ✓ Markdown: docs/docs/benchmarks/performance.md
   ✓ JSON: docs/static/benchmarks/latest.json
 
 Next steps:
   1. Test locally: cd docs && npm start
   2. Visit: http://localhost:3000/ailang/docs/benchmarks/performance
-  3. Verify timeline shows v0.3.14
+  3. Verify timeline shows 0.3.14
   4. Commit: git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
-  5. Commit: git commit -m 'Update benchmark dashboard for v0.3.14'
+  5. Commit: git commit -m 'Update benchmark dashboard for 0.3.14'
   6. Push: git push
 ```
 
 **What it does:**
 - Generates Docusaurus-formatted markdown
 - Updates dashboard JSON with history preservation
-- Validates JSON structure
+- Validates JSON structure (version matches input exactly)
 - Clears Docusaurus build cache
 - Provides next steps for testing and committing
+- Accepts version with or without 'v' prefix
 
 ### `scripts/extract_changelog_metrics.sh [json_file]`
 Extract benchmark metrics from dashboard JSON for CHANGELOG.
@@ -125,24 +147,58 @@ Extracting metrics from docs/static/benchmarks/latest.json...
 
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 62.7% success rate (264 total runs)
+**Overall Performance**: 59.1% success rate (399 total runs)
 
 **By Language:**
-- **AILANG**: 42.1% - New language, learning curve
-- **Python**: 83.3% - Baseline for comparison
-- **Gap: 41.2 percentage points (expected for new language)**
+- **AILANG**: 33.0% - New language, learning curve
+- **Python**: 87.0% - Baseline for comparison
+- **Gap: 54.0 percentage points (expected for new language)
 
-**Comparison**: [Add comparison to previous version, e.g., "+3.5% AILANG improvement from v0.3.X"]
+**Comparison**: -15.2% AILANG regression from 0.3.14 (48.2% → 33.0%)
 
 === End Template ===
 
-Use this template in CHANGELOG.md for v0.3.14
+Use this template in CHANGELOG.md for 0.3.15
 ```
 
 **What it does:**
 - Parses dashboard JSON for metrics
 - Calculates percentages and gap between AILANG/Python
-- Generates ready-to-paste CHANGELOG template
+- **Auto-compares with previous version from history**
+- **Formats comparison text automatically** (+X% improvement or -X% regression)
+- Generates ready-to-paste CHANGELOG template with no manual work needed
+
+### `scripts/cleanup_design_docs.sh <version>`
+Help identify design docs that need to be moved from planned/ to implemented/.
+
+**Usage:**
+```bash
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.6
+```
+
+**Output:**
+```
+Design Doc Cleanup for v0.5.6
+==================================
+
+Planned docs for v0_5_6:
+  [MOVE] m-type1-array-tarray-unification.md (marked as implemented)
+  [PENDING] m-eval-process-guardrails.md
+
+Checking CHANGELOG for v0.5.6 milestones...
+  M-TYPE1: Array/TArray unification
+
+Next steps:
+  1. Review docs marked [MOVE] and move to implemented/v0_5_6/
+  2. Create implemented/v0_5_6/ if it doesn't exist
+  3. Move docs with: mv planned/v0_5_6/<doc>.md implemented/v0_5_6/
+```
+
+**What it does:**
+- Lists docs in `planned/vX_Y_Z/` with their status
+- Identifies docs marked IMPLEMENTED or SUPERSEDED in their content
+- Cross-references with CHANGELOG entries
+- Suggests next steps for manual cleanup
 
 ## Post-Release Workflow
 
@@ -157,8 +213,11 @@ If release doesn't exist, run `release-manager` skill first.
 
 ### 2. Run Eval Baseline
 
-**For releases (recommended):**
+**🚨 CRITICAL: ALWAYS use --full for releases!**
+
+**Correct workflow:**
 ```bash
+# ✅ ALWAYS do this for releases - ONE command, let it complete
 .claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X --full
 ```
 
@@ -167,13 +226,22 @@ This runs all 6 production models with both AILANG and Python.
 **Cost**: ~$0.50-1.00
 **Time**: ~15-20 minutes
 
-**If baseline times out or is interrupted:**
+**❌ WRONG workflow (what happened with v0.3.22):**
 ```bash
-bin/ailang eval-suite --full --langs python,ailang --parallel 5 \
-  --output ./eval_results/baselines/vX.X.X --self-repair --skip-existing
+# DON'T do this for releases!
+.claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X  # Missing --full!
+# Then try to add production models later with --skip-existing
+# Result: Confusion, multiple processes, incomplete baseline
 ```
 
-The `--skip-existing` flag skips benchmarks that already have result files, allowing resumption of interrupted runs.
+**If baseline times out or is interrupted:**
+```bash
+# Resume with ALL 6 models (maintains --full semantics)
+ailang eval-suite --full --langs python,ailang --parallel 5 \
+  --output eval_results/baselines/X.X.X --skip-existing
+```
+
+The `--skip-existing` flag skips benchmarks that already have result files, allowing resumption of interrupted runs. But ONLY use this for recovery, not as a strategy to "add more models later".
 
 ### 3. Update Website Dashboard
 
@@ -209,41 +277,108 @@ git push
 
 ### 4. Extract Metrics for CHANGELOG
 
-**Use the automation script:**
+**Generate metrics template:**
 ```bash
-.claude/skills/post-release/scripts/extract_changelog_metrics.sh
+.claude/skills/post-release/scripts/extract_changelog_metrics.sh X.X.X
 ```
 
-This outputs a ready-to-paste template with:
+This outputs a formatted template with:
 - Overall success rate
-- AILANG-only rate (important!)
-- Python baseline rate
-- Gap analysis
+- Standard eval metrics (0-shot, final with repair, repair effectiveness)
+- Agent eval metrics by language
+- **Automatic comparison with previous version** (no manual work!)
 
-**Update CHANGELOG.md:**
-- Paste template into CHANGELOG.md under version section
-- Add comparison to previous version (e.g., "+3.5% AILANG improvement")
-- List specific improvements or regressions
+**Update CHANGELOG.md automatically:**
+1. Run the script to generate the template
+2. Insert the "Benchmark Results (M-EVAL)" section into CHANGELOG.md
+3. Place it after the feature/fix sections and before the next version
+4. Add context about specific improvements or regressions in "Key Findings"
+5. Update any design doc references from `planned/` to `implemented/`
 
-**Example CHANGELOG entry:**
+**Example section to insert:**
 ```markdown
 ### Benchmark Results (M-EVAL)
 
-**Overall Performance**: 58.8% success rate (67/114 runs)
+**Overall Performance**: 68.1% success rate (480 total runs)
 
-**By Language:**
-- **AILANG**: 38.6% (22/57) - New language, learning curve
-- **Python**: 78.9% (45/57) - Baseline for comparison
-- **Gap**: 40.3 percentage points (expected for new language)
+**Standard Eval (0-shot + self-repair):**
 
-**Comparison**: +3.5% AILANG improvement from v0.3.7 (38.6% → 42.1%)
+| Metric | 0.4.4 | 0.4.5 | Change |
+|--------|--------|--------|--------|
+| **0-shot (first attempt)** | 55.6% | 64.0% (182/284) | **+8.4%** |
+| **Final (with repair)** | 60.5% | 68.6% (195/284) | **+8.1%** |
+| **Repair effectiveness** | +4.9pp | +4.6pp | -.3pp |
+| **Python (final)** | 73.1% | 76.4% (208/272) | +3.3% |
+
+**Agent Eval (multi-turn iterative problem solving):**
+
+| Language | 0.4.4 | 0.4.5 | Change |
+|----------|--------|--------|--------|
+| **AILANG** | 92.1% | 100.0% (38/38) | **+7.9%** |
+| **Python** | 100.0% | 100.0% (38/38) | 0% |
+
+**Key Findings:**
+- Major improvement in 0-shot performance
+- Perfect agent eval score achieved
+```
+
+**IMPORTANT**: Don't just output the template - actually edit CHANGELOG.md to insert it!
+
+### 4a. Analyze Agent Evaluation Results (NEW!)
+
+**Check agent efficiency metrics:**
+```bash
+# Get KPIs (turns, tokens, cost by language)
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/X.X.X
+```
+
+**Key metrics to track:**
+- **Avg Turns**: AILANG vs Python (target: ≤1.5x gap)
+- **Avg Tokens**: AILANG vs Python (target: ≤2.0x gap)
+- **Success Rate**: Both should be 100% (agent mode corrects mistakes)
+
+**If AILANG significantly worse than Python:**
+1. Identify expensive benchmarks (from "Most Expensive" section)
+2. View transcripts to understand issues: `.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/X.X.X <benchmark>`
+3. File optimization tasks for next release
+4. See [eval-analyzer skill's agent_optimization_guide.md](../.claude/skills/eval-analyzer/resources/agent_optimization_guide.md) for strategies
+
+**Example good result:**
+```
+🐍 Python: 10.6 avg turns, 58k tokens, 100% success
+🔷 AILANG: 12.0 avg turns, 72k tokens, 100% success
+Gap: 1.13x turns, 1.24x tokens ✅ (within target!)
+```
+
+**Example needs work:**
+```
+🐍 Python: 10.6 avg turns, 58k tokens, 100% success
+🔷 AILANG: 18.0 avg turns, 178k tokens, 100% success
+Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
 ```
 
 ### 5. Update Design Docs
 
+**Use the helper script to identify what needs moving:**
+```bash
+.claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X
+```
+
+This script:
+- Lists docs in `planned/vX_Y_Z/` that are marked IMPLEMENTED
+- Lists docs marked SUPERSEDED
+- Shows milestones from CHANGELOG for this version
+- Identifies other docs in planned/ that mention IMPLEMENTED
+
+**Manual steps after running the script:**
 - Move completed design docs from `design_docs/planned/` to `design_docs/implemented/vX_Y/`
 - Update design docs with what was actually implemented (vs planned)
+- Mark superseded docs (add status note) before moving
 - Create new design docs for deferred features
+- Create the next version folder: `design_docs/planned/vX_Y+1/`
+
+**Common issue**: Docs marked as IMPLEMENTED in their content but still in planned/.
+The script helps catch these.
 
 ### 6. Update Public Documentation
 
@@ -252,6 +387,59 @@ This outputs a ready-to-paste template with:
 - Remove outdated examples or references
 - Add new examples to website
 - Update `docs/guides/evaluation/` if significant benchmark improvements
+- **Update `docs/LIMITATIONS.md`**:
+  - Remove limitations that were fixed in this release
+  - Add new known limitations discovered during development/testing
+  - Update workarounds if they changed
+  - Update version numbers in "Since" and "Fixed in" fields
+  - **Test examples**: Verify that limitations listed still exist and workarounds still work
+    ```bash
+    # Test examples from LIMITATIONS.md
+    # Example: Test Y-combinator still fails (should fail)
+    echo 'let Y = \f. (\x. f(x(x)))(\x. f(x(x))) in Y' | ailang repl
+
+    # Example: Test named recursion works (should succeed)
+    ailang run examples/factorial.ail
+
+    # Example: Test polymorphic operator limitation (should panic with floats)
+    # Create test file and verify behavior matches documentation
+    ```
+  - Commit changes: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
+
+### 7. Run Documentation Sync Check
+
+**Run docs-sync to verify website accuracy:**
+```bash
+# Check version constants are correct
+.claude/skills/docs-sync/scripts/check_versions.sh
+
+# Audit design docs vs website claims
+.claude/skills/docs-sync/scripts/audit_design_docs.sh
+
+# Generate full sync report
+.claude/skills/docs-sync/scripts/generate_report.sh
+```
+
+**What docs-sync checks:**
+- Version constants in `docs/src/constants/version.js` match git tag
+- Teaching prompt references point to latest version
+- Architecture pages have PLANNED banners for unimplemented features
+- Design docs status (planned vs implemented) matches website claims
+- Examples referenced in website actually work
+
+**If issues found:**
+1. Update version.js if stale
+2. Add PLANNED banners to theoretical feature pages
+3. Move implemented features from roadmap to current sections
+4. Fix broken example references
+
+**Commit docs-sync fixes:**
+```bash
+git add docs/
+git commit -m "docs: sync website with vX.X.X implementation"
+```
+
+See [docs-sync skill](../docs-sync/SKILL.md) for full documentation.
 
 ## Resources
 
@@ -296,10 +484,78 @@ This skill loads information progressively:
 
 Scripts execute without loading into context window, saving tokens while providing powerful automation.
 
+## Recent Improvements (v0.3.15)
+
+### Version Format Handling
+All scripts now accept version with or without 'v' prefix:
+- ✅ `0.3.15` works
+- ✅ `v0.3.15` works
+- Scripts pass version to underlying tools exactly as given
+- No more "directory not found" errors due to version format mismatch
+
+### Auto-Comparison in Metrics
+The `extract_changelog_metrics.sh` script now:
+- Automatically finds previous version from history
+- Calculates AILANG performance difference
+- Formats comparison text ("+X% improvement" or "-X% regression")
+- Shows before/after percentages: "(48.2% → 33.0%)"
+- **Zero manual jq queries needed!**
+
+### Eliminated Manual Work
+Before v0.3.15, you needed to:
+- Run 15+ manual jq queries to extract metrics
+- Manually compare with previous version
+- Format comparison text yourself
+- Handle version prefix inconsistencies
+
+After v0.3.15:
+- **3 scripts do everything automatically**
+- No jq queries needed
+- No manual calculations
+- Version format doesn't matter
+
+## Lessons Learned (v0.4.8)
+
+### Always Validate Before Long-Running Operations
+
+The pre-release checks now include:
+1. **Golden file validation**: `make test-import-errors` to catch stale goldens
+2. **Agent eval config validation**: `--validate` flag to verify benchmarks list
+
+**Issue discovered**: Agent eval requires explicit `--benchmarks` list (safety feature), but script didn't have it defined. Now fixed with `AGENT_BENCHMARKS` at top of script.
+
+### Agent Eval Requirements
+
+- Agent mode REQUIRES explicit `--benchmarks` list (46 benchmarks as of v0.4.8)
+- The list is defined in `AGENT_BENCHMARKS` variable at top of `run_eval_baseline.sh`
+- Keep in sync with `benchmarks/` directory
+
+### Golden Files Can Become Stale
+
+When error behavior changes (e.g., module now exists → different error code), golden files need regeneration:
+```bash
+make regen-import-error-goldens
+```
+
+Pre-release checks now validate goldens match current behavior.
+
+### Validate Script Before Running
+
+Use `--validate` flag to check configuration without running full eval:
+```bash
+.claude/skills/post-release/scripts/run_eval_baseline.sh --validate
+```
+
+This checks:
+- AGENT_BENCHMARKS is defined
+- Benchmark count (46 expected)
+- ailang command exists
+- Benchmark files exist
+
 ## Notes
 
 - This skill follows Anthropic's Agent Skills specification (Oct 2025)
-- Scripts handle most automation (eval baseline, dashboard, metrics extraction)
+- Scripts handle 100% of automation (eval baseline, dashboard, metrics extraction)
 - Can be run hours or even days after release
 - Dashboard JSON preserves history - never overwrites historical data
 - Always use `--full` flag for release baselines (all production models)

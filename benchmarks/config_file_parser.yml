@@ -1,0 +1,43 @@
+id: config_file_parser
+description: "Parse and validate JSON configuration file with error handling"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO", "FS"]
+difficulty: "hard"
+expected_gain: "very_high"
+timeout: 90
+task_prompt: |
+  Build a configuration file parser with validation.
+
+  **Requirements**:
+
+  1. Create a JSON config file named "app_config.json" containing:
+     - app_name: "MyApp"
+     - version: "1.0.0"
+     - port: 8080
+     - features: ["logging", "auth", "api"]
+
+  2. Implement a function to load and validate the config:
+     - Read the JSON file
+     - Parse the JSON content
+     - Validate that port is between 1024 and 65535
+     - Validate that version contains exactly two dots (X.Y.Z format)
+     - Validate that features list is not empty
+
+  3. Print the result in this exact format:
+     "Loaded MyApp v1.0.0 on port 8080 with 3 features"
+
+  The output format must be: "Loaded {app_name} v{version} on port {port} with {count} features"
+
+  <LANG=AILANG>
+  Write your solution to: benchmark/solution.ail
+
+  Run with: ailang run --entry main --caps IO,FS benchmark/solution.ail
+
+  <LANG=PYTHON>
+  Write your solution to: solution.py
+
+  Run with: python solution.py
+
+expected_stdout: |
+  Loaded MyApp v1.0.0 on port 8080 with 3 features

@@ -1,0 +1,37 @@
+id: symbolic_diff
+description: "Symbolic differentiation of expressions (AST transformation + pattern matching)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements symbolic differentiation:
+
+  1. Define an expression AST with these constructors:
+     - Const(int) - a constant
+     - Var(string) - a variable (e.g., "x")
+     - Add(Expr, Expr) - addition
+     - Mul(Expr, Expr) - multiplication
+
+  2. Implement `diff(expr, var)` that differentiates an expression with respect to a variable:
+     - d/dx(c) = 0 (constant)
+     - d/dx(x) = 1, d/dx(y) = 0 (variable)
+     - d/dx(f + g) = d/dx(f) + d/dx(g) (sum rule)
+     - d/dx(f * g) = f * d/dx(g) + g * d/dx(f) (product rule)
+
+  3. Implement `simplify(expr)` to clean up the result:
+     - 0 + e = e, e + 0 = e
+     - 0 * e = 0, e * 0 = 0
+     - 1 * e = e, e * 1 = e
+
+  4. Differentiate: x^2 + 3x + 5 (represented as Add(Add(Mul(Var("x"), Var("x")), Mul(Const(3), Var("x"))), Const(5)))
+
+  5. Print the simplified derivative as a string
+
+  Expected: d/dx(x^2 + 3x + 5) = 2x + 3
+  Print: "Add(Add(Var(x), Var(x)), Const(3))" or simplified form
+
+  Output only the code, no explanations.
+expected_stdout: |
+  2x + 3

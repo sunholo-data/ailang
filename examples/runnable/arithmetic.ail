@@ -1,0 +1,18 @@
+-- arithmetic.ail - Basic arithmetic expressions
+module examples/runnable/arithmetic
+
+-- Entry module with exported main function
+-- Gets print prelude automatically (no import needed)
+export func main() -> () ! {IO} = {
+  -- Simple calculations
+  let x = 5 + 3 * 2 in
+  print("x = " ++ show(x));  -- Should print: x = 11
+
+  let y = (10 - 2) / 4 in
+  print("y = " ++ show(y));  -- Should print: y = 2
+
+  let x2 = 5 + 3 * 2 in
+  let y2 = (10 - 2) / 4 in
+  let z = x2 + y2 in
+  print("z = " ++ show(z))   -- Should print: z = 13
+}

@@ -3,24 +3,65 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// FallbackEvent tracks when CoreTI lookup misses during lowering
+type FallbackEvent struct {
+	Op       core.IntrinsicOp
+	NodeID   uint64
+	Fallback string // "CoreTI-hit", "ResolvedConstraints", "Default"
+	Location string // Source location if available
+}
+
 // OpLowerer performs type-directed lowering of intrinsic operations
 type OpLowerer struct {
 	typeEnv             *types.TypeEnv
 	resolvedConstraints map[uint64]*types.ResolvedConstraint // NodeID → resolved constraint
+	bindings            map[string]core.CoreExpr             // Variable name → bound expression
 	errors              []error
+	CoreTI              types.CoreTypeInfo // Core NodeID → inferred types (for type-guided lowering)
+
+	// M-DX4: Telemetry for tracking CoreTI coverage (gated by --debug-compile)
+	telemetry       []FallbackEvent
+	enableTelemetry bool
 }
 
 // NewOpLowerer creates a new operation lowerer
-func NewOpLowerer(typeEnv *types.TypeEnv) *OpLowerer {
+func NewOpLowerer(typeEnv *types.TypeEnv, coreTI types.CoreTypeInfo) *OpLowerer {
 	return &OpLowerer{
 		typeEnv:             typeEnv,
 		resolvedConstraints: make(map[uint64]*types.ResolvedConstraint),
+		bindings:            make(map[string]core.CoreExpr),
 		errors:              []error{},
+		CoreTI:              coreTI,
+		telemetry:           []FallbackEvent{},
+		enableTelemetry:     false, // Enable with SetEnableTelemetry(true)
+	}
+}
+
+// SetEnableTelemetry enables/disables fallback telemetry tracking
+func (l *OpLowerer) SetEnableTelemetry(enable bool) {
+	l.enableTelemetry = enable
+}
+
+// GetTelemetry returns collected telemetry events
+func (l *OpLowerer) GetTelemetry() []FallbackEvent {
+	return l.telemetry
+}
+
+// trackFallback records a fallback event for telemetry
+func (l *OpLowerer) trackFallback(op core.IntrinsicOp, nodeID uint64, fallback string, location string) {
+	if l.enableTelemetry {
+		l.telemetry = append(l.telemetry, FallbackEvent{
+			Op:       op,
+			NodeID:   nodeID,
+			Fallback: fallback,
+			Location: location,
+		})
 	}
 }
 
@@ -64,6 +105,9 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 		return l.lowerIntrinsic(e)
 
 	case *core.Let:
+		// Track bindings before lowering (for type inference of concat)
+		l.bindings[e.Name] = e.Value
+
 		return &core.Let{
 			CoreNode: e.CoreNode,
 			Name:     e.Name,
@@ -240,6 +284,17 @@ func (l *OpLowerer) lowerExprs(exprs []core.CoreExpr) []core.CoreExpr {
 	return result
 }
 
+// isComparisonOrEqualityOp returns true for comparison and equality operators
+// These operators return Bool but need to be lowered based on operand types
+func isComparisonOrEqualityOp(op core.IntrinsicOp) bool {
+	switch op {
+	case core.OpLt, core.OpLe, core.OpGt, core.OpGe, core.OpEq, core.OpNe:
+		return true
+	default:
+		return false
+	}
+}
+
 // lowerIntrinsic performs type-directed lowering of an intrinsic operation
 func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 	// Special handling for short-circuiting boolean operations
@@ -269,36 +324,92 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 		}
 	}
 
-	// For non-short-circuiting operations, recursively lower the arguments
-	args := l.lowerExprs(intrinsic.Args)
-
-	// Determine the type suffix from resolved constraints
+	// Determine the type suffix using type-guided lowering
 	var typeSuffix string
 
-	// Look up the resolved constraint for this intrinsic node
-	if constraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
-		// Use the type from the resolved constraint
-		typeSuffix = getTypeSuffixFromType(constraint.Type)
+	// For comparison and equality operators, use the operand type (not result type Bool)
+	// For other operators, use the intrinsic's result type
+	var typeNode uint64
+	if isComparisonOrEqualityOp(intrinsic.Op) && len(intrinsic.Args) > 0 {
+		// Use first operand's type for comparison/equality
+		typeNode = intrinsic.Args[0].ID()
 	} else {
-		// Fallback to heuristics if no constraint available
-		// This handles cases like OpNot, OpConcat that don't use type classes
-		switch intrinsic.Op {
-		case core.OpNot:
-			typeSuffix = "Bool"
-		case core.OpConcat:
-			typeSuffix = "String"
-		default:
-			// Default to Int for backward compatibility
-			typeSuffix = "Int"
+		// Use intrinsic's own type for arithmetic, boolean, etc.
+		typeNode = intrinsic.ID()
+	}
 
-			// Check if we have float literals as last resort
-			if len(args) > 0 {
-				if lit, ok := args[0].(*core.Lit); ok && lit.Kind == core.FloatLit {
-					typeSuffix = "Float"
+	// M-DX4: Get location for telemetry (if available)
+	location := ""
+	pos := intrinsic.OriginalSpan()
+	if pos.Line > 0 {
+		location = fmt.Sprintf("line %d", pos.Line)
+	}
+
+	// First, try to use CoreTI (principal types from type inference)
+	// This is the preferred method and eliminates ANF guessing
+	if inferredType, ok := l.CoreTI.Get(typeNode); ok {
+		head := types.Head(inferredType)
+
+		// M-DX4 DEBUG: Log the type and head we got
+		if l.enableTelemetry {
+			fmt.Fprintf(os.Stderr, "[DEBUG M-DX4] NodeID %d: type=%v, head=%v\n", typeNode, inferredType, head)
+		}
+
+		switch head {
+		case types.HeadInt:
+			typeSuffix = "Int"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
+		case types.HeadFloat:
+			typeSuffix = "Float"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
+		case types.HeadString:
+			typeSuffix = "String"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
+		case types.HeadBool:
+			typeSuffix = "Bool"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
+		case types.HeadList:
+			typeSuffix = "List"
+			l.trackFallback(intrinsic.Op, typeNode, "CoreTI-hit", location)
+		default:
+			// Unknown head (TVar or unknown) - try resolved constraints as fallback
+			if constraint, ok := l.resolvedConstraints[typeNode]; ok {
+				typeSuffix = getTypeSuffixFromType(constraint.Type)
+				l.trackFallback(intrinsic.Op, typeNode, "ResolvedConstraints", location)
+			} else {
+				// M-DX4: For polymorphic operands, check if the INTRINSIC itself has a constraint
+				// This handles cases where lambda parameters are polymorphic but the comparison
+				// at the call site has been resolved
+				if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+					typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
+					l.trackFallback(intrinsic.Op, intrinsic.ID(), "ResolvedConstraints-intrinsic", location)
+				} else {
+					// Last resort: use default based on operator
+					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+					l.trackFallback(intrinsic.Op, typeNode, "Default", location)
 				}
 			}
 		}
+	} else {
+		// CoreTI miss - track this as a gap
+		l.trackFallback(intrinsic.Op, typeNode, "CoreTI-miss", location)
+
+		if constraint, ok := l.resolvedConstraints[typeNode]; ok {
+			// Fallback to resolved constraints if CoreTI unavailable
+			typeSuffix = getTypeSuffixFromType(constraint.Type)
+		} else {
+			// M-DX4: For polymorphic operands, check if the INTRINSIC itself has a constraint
+			if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
+				typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
+			} else {
+				// Last resort: use default based on operator
+				typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+			}
+		}
 	}
+
+	// For non-short-circuiting operations, recursively lower the arguments
+	args := l.lowerExprs(intrinsic.Args)
 
 	// Get the builtin name from the operator table
 	builtinName, err := GetBuiltinName(intrinsic.Op, typeSuffix)
@@ -335,6 +446,22 @@ func (l *OpLowerer) AddError(err error) {
 	l.errors = append(l.errors, err)
 }
 
+// getDefaultTypeSuffix returns a default type suffix based on operator semantics
+// This is used as a last resort when type information is unavailable
+func getDefaultTypeSuffix(op core.IntrinsicOp) string {
+	switch op {
+	case core.OpNot:
+		return "Bool"
+	case core.OpConcat:
+		// Default to String for backward compatibility
+		// (List concatenation is less common in fallback scenarios)
+		return "String"
+	default:
+		// Most operators default to Int
+		return "Int"
+	}
+}
+
 // getTypeSuffixFromType extracts the type suffix from a resolved type
 // Maps TInt → "Int", TFloat → "Float", TBool → "Bool", TString → "String"
 func getTypeSuffixFromType(t types.Type) string {
@@ -348,6 +475,13 @@ func getTypeSuffixFromType(t types.Type) string {
 	case types.TString:
 		return "String"
 	default:
+		// Check if it's a List type
+		if app, ok := t.(*types.TApp); ok {
+			if con, ok := app.Constructor.(*types.TCon); ok && con.Name == "List" {
+				return "List"
+			}
+		}
+
 		// For complex types, try to extract from string representation
 		typeStr := t.String()
 		// Handle common cases like "Int", "Float", "Bool", "String"
@@ -362,6 +496,10 @@ func getTypeSuffixFromType(t types.Type) string {
 		}
 		if typeStr == "String" || typeStr == "string" {
 			return "String"
+		}
+		// Check for List in string form
+		if len(typeStr) > 5 && typeStr[:5] == "List[" {
+			return "List"
 		}
 		// Default to Int for unknown types (backward compatibility)
 		return "Int"

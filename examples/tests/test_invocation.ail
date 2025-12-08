@@ -1,5 +1,5 @@
 -- Test function invocation (M-R1 Phase 5)
-module examples/test_invocation
+module examples/tests/test_invocation
 
 -- Simple zero-arg function
 export func greet() -> int {

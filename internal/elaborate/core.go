@@ -162,15 +162,23 @@ func (e *Elaborator) normalizeToAtomic(expr ast.Expr) (core.CoreExpr, []binding,
 		return normalized, nil, nil
 	}
 
-	// Need to bind non-atomic expression
+	// ANF completion: if the normalized expression is a Let, extract the inner bindings.
+	// This handles deeply nested records where normalize() returns a Let chain.
+	// We need to flatten this so our new binding doesn't have a Let as its value.
+	innerBindings, flattenedValue := extractLetBindings(normalized)
+
+	// Need to bind the (now flattened) non-atomic expression
 	freshName := e.freshVar()
-	bind := binding{Name: freshName, Value: normalized}
+	bind := binding{Name: freshName, Value: flattenedValue}
 	varRef := &core.Var{
 		CoreNode: e.makeNode(expr.Position()),
 		Name:     freshName,
 	}
 
-	return varRef, []binding{bind}, nil
+	// Prepend inner bindings to our new binding
+	allBindings := append(innerBindings, bind)
+
+	return varRef, allBindings, nil
 }
 
 // wrapWithBindings wraps expression with let bindings
@@ -187,4 +195,36 @@ func (e *Elaborator) wrapWithBindings(expr core.CoreExpr, bindings []binding) co
 		}
 	}
 	return result
+}
+
+// extractLetBindings extracts top-level Let bindings from an expression.
+// This is used for ANF completion - ensuring no Let appears as a let RHS.
+//
+// For input: Let x = e1 in Let y = e2 in body
+// Returns:   ([{x,e1}, {y,e2}], body)
+//
+// The returned bindings are in correct order: outermost Let first.
+// This function does NOT descend into lambda bodies, LetRec, or other subexpressions.
+func extractLetBindings(expr core.CoreExpr) ([]binding, core.CoreExpr) {
+	var bindings []binding
+
+	current := expr
+	for {
+		letExpr, ok := current.(*core.Let)
+		if !ok {
+			// Not a Let - we've reached the innermost body
+			break
+		}
+
+		// Extract this binding
+		bindings = append(bindings, binding{
+			Name:  letExpr.Name,
+			Value: letExpr.Value,
+		})
+
+		// Continue with the body
+		current = letExpr.Body
+	}
+
+	return bindings, current
 }

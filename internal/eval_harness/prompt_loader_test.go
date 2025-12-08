@@ -437,6 +437,122 @@ func TestComputePromptHash(t *testing.T) {
 	}
 }
 
+func TestGetActiveVersionID(t *testing.T) {
+	// Create temporary directory structure
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	if err := os.Mkdir(promptsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test 1: Direct version ID
+	registry1 := PromptRegistry{
+		SchemaVersion: "1.0",
+		Versions: map[string]PromptVersion{
+			"v1": {
+				File:        "prompts/v1.md",
+				Hash:        "PLACEHOLDER",
+				Description: "Version 1",
+				Created:     "2025-01-01",
+				Tags:        []string{"production"},
+			},
+		},
+		Active: "v1",
+	}
+
+	registryPath1 := filepath.Join(promptsDir, "versions1.json")
+	data1, _ := json.MarshalIndent(registry1, "", "  ")
+	if err := os.WriteFile(registryPath1, data1, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader1, err := NewPromptLoader(registryPath1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	versionID := loader1.GetActiveVersionID()
+	if versionID != "v1" {
+		t.Errorf("Expected version ID 'v1', got %s", versionID)
+	}
+
+	// Test 2: "latest" special value
+	registry2 := PromptRegistry{
+		SchemaVersion: "1.0",
+		Versions: map[string]PromptVersion{
+			"v1": {
+				File:        "prompts/v1.md",
+				Hash:        "PLACEHOLDER",
+				Description: "Version 1",
+				Created:     "2025-01-01",
+				Tags:        []string{"production"},
+			},
+			"v2": {
+				File:        "prompts/v2.md",
+				Hash:        "PLACEHOLDER",
+				Description: "Version 2",
+				Created:     "2025-02-01",
+				Tags:        []string{"production"},
+			},
+			"v3-beta": {
+				File:        "prompts/v3.md",
+				Hash:        "PLACEHOLDER",
+				Description: "Version 3 beta",
+				Created:     "2025-03-01",
+				Tags:        []string{"experimental"},
+			},
+		},
+		Active: "latest",
+	}
+
+	registryPath2 := filepath.Join(promptsDir, "versions2.json")
+	data2, _ := json.MarshalIndent(registry2, "", "  ")
+	if err := os.WriteFile(registryPath2, data2, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader2, err := NewPromptLoader(registryPath2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	versionID2 := loader2.GetActiveVersionID()
+	if versionID2 != "v2" {
+		t.Errorf("Expected version ID 'v2' (latest production), got %s", versionID2)
+	}
+
+	// Test 3: No active version
+	registry3 := PromptRegistry{
+		SchemaVersion: "1.0",
+		Versions: map[string]PromptVersion{
+			"v1": {
+				File:        "prompts/v1.md",
+				Hash:        "PLACEHOLDER",
+				Description: "Version 1",
+				Created:     "2025-01-01",
+				Tags:        []string{"production"},
+			},
+		},
+		Active: "",
+	}
+
+	registryPath3 := filepath.Join(promptsDir, "versions3.json")
+	data3, _ := json.MarshalIndent(registry3, "", "  ")
+	if err := os.WriteFile(registryPath3, data3, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	loader3, err := NewPromptLoader(registryPath3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	versionID3 := loader3.GetActiveVersionID()
+	if versionID3 != "" {
+		t.Errorf("Expected empty version ID, got %s", versionID3)
+	}
+}
+
 // Helper function for substring matching
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&

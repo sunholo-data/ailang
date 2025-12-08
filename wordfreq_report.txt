@@ -1,0 +1,1510 @@
+File: analysis_results.txt
+  'total': 2
+  'file': 1
+  'analysis': 1
+  'for': 1
+  'sample_input': 1
+  'txt': 1
+  'lines': 1
+  '3': 1
+  'words': 1
+  '19': 1
+
+File: data/input.txt
+  '1': 1
+  '2': 1
+  '3': 1
+  '4': 1
+  '5': 1
+  '6': 1
+  '7': 1
+  '8': 1
+  '9': 1
+  '10': 1
+
+File: data/output.txt
+  '4': 1
+  '16': 1
+  '36': 1
+  '64': 1
+  '100': 1
+
+File: docs/build/assets/js/339e65b7.9fe47411.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/3e0b9f07.1cb7633f.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/4dcb0ee4.d6b46ab9.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/5342.e5e5d47a.js.LICENSE.txt
+  'license': 7
+  '1': 3
+  '0': 3
+  'github': 3
+  'com': 3
+  'babel': 3
+  'the': 2
+  'dompurify': 2
+  '3': 2
+  '6': 2
+  'c': 2
+  'cure53': 2
+  'and': 2
+  '2': 2
+  'blob': 2
+  'js': 2
+  'yaml': 2
+  'https': 2
+  'mit': 2
+  'wait': 1
+
+File: docs/build/assets/js/67500d10.e561b755.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/6e8b2bb3.ae9a70dc.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/70e09343.2e46ec95.js.LICENSE.txt
+  'babel': 3
+  'license': 2
+  'regenerator': 1
+  'runtime': 1
+  'copyright': 1
+  'c': 1
+  '2014': 1
+  'present': 1
+  'facebook': 1
+  'inc': 1
+  'mit': 1
+  'https': 1
+  'github': 1
+  'com': 1
+  'blob': 1
+  'main': 1
+  'packages': 1
+  'helpers': 1
+
+File: docs/build/assets/js/7890.f92fb925.js.LICENSE.txt
+  'http': 4
+  'mit': 4
+  '1': 3
+  'copyright': 3
+  'license': 3
+  'org': 3
+  'engelschall': 2
+  'function': 2
+  'generator': 2
+  'en': 2
+  'wikipedia': 2
+  'wiki': 2
+  'mit_license': 2
+  'embeddable': 1
+  'minimum': 1
+  'strictly': 1
+  'compliant': 1
+  'promises': 1
+  'a': 1
+  'thenable': 1
+
+File: docs/build/assets/js/8513.8e620990.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/945.141c3b82.js.LICENSE.txt
+  'license': 12
+  'the': 12
+  'this': 8
+  'source': 8
+  'in': 7
+  'js': 5
+  'react': 4
+  'code': 4
+  'is': 4
+  'licensed': 4
+  'under': 4
+  'file': 4
+  'root': 4
+  'directory': 4
+  'of': 4
+  'tree': 4
+  'use': 3
+  'sync': 3
+  'external': 3
+  'store': 3
+
+File: docs/build/assets/js/a18ad32d.ebba44dc.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/b994ed1b.9ec9cce2.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/f69342a8.b5250f9b.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/f8409a7e.19490c7e.js.LICENSE.txt
+  'license': 3
+  'the': 3
+  'isc': 2
+  'this': 2
+  'source': 2
+  'lucide': 1
+  'react': 1
+  'v0': 1
+  '545': 1
+  '0': 1
+  'code': 1
+  'is': 1
+  'licensed': 1
+  'under': 1
+  'see': 1
+  'file': 1
+  'in': 1
+  'root': 1
+  'directory': 1
+  'of': 1
+
+File: docs/build/assets/js/main.12d45d9a.js.LICENSE.txt
+  'license': 16
+  'the': 15
+  'this': 10
+  'source': 10
+  'in': 10
+  'react': 9
+  'c': 6
+  'mit': 6
+  'is': 6
+  'production': 5
+  'min': 5
+  'js': 5
+  'copyright': 5
+  'facebook': 5
+  'inc': 5
+  'and': 5
+  'its': 5
+  'affiliates': 5
+  'code': 5
+  'licensed': 5
+
+File: docs/build/llms.txt
+  'ailang': 725
+  'for': 542
+  'with': 510
+  'go': 494
+  '0': 476
+  '3': 425
+  'eval': 413
+  'in': 406
+  'type': 384
+  '2': 371
+  '1': 367
+  'io': 361
+  'to': 343
+  'module': 337
+  'and': 333
+  'ail': 331
+  'internal': 324
+  '5': 314
+  'a': 312
+  'loc': 302
+
+File: docs/llms.txt
+  'ailang': 192
+  'x': 170
+  'func': 155
+  'io': 151
+  'ail': 133
+  'int': 126
+  'export': 125
+  'println': 112
+  'let': 104
+  'a': 98
+  '4': 87
+  'import': 85
+  'std': 83
+  '1': 80
+  'in': 78
+  'string': 77
+  'type': 75
+  'for': 74
+  'match': 72
+  'module': 72
+
+File: docs/node_modules/@pnpm/network.ca-file/dist/fixtures/ca-file1.txt
+  'certificate': 6
+  'begin': 3
+  'end': 3
+  'xxxx': 1
+  'yyyy': 1
+  'zzzz': 1
+
+File: docs/node_modules/@pnpm/network.ca-file/fixtures/ca-file1.txt
+  'certificate': 6
+  'begin': 3
+  'end': 3
+  'xxxx': 1
+  'yyyy': 1
+  'zzzz': 1
+
+File: docs/node_modules/@webassemblyjs/leb128/LICENSE.txt
+  'the': 91
+  'or': 68
+  'of': 65
+  'and': 45
+  'to': 36
+  'license': 33
+  'work': 32
+  'any': 30
+  'you': 26
+  'in': 23
+  'by': 22
+  'for': 22
+  'a': 21
+  'that': 21
+  'works': 19
+  'such': 18
+  'derivative': 18
+  'this': 17
+  'as': 16
+  'shall': 15
+
+File: docs/node_modules/address/LICENSE.txt
+  'the': 15
+  'software': 10
+  'or': 9
+  'of': 8
+  'to': 8
+  'and': 6
+  'in': 6
+  'is': 5
+  'copyright': 4
+  'this': 3
+  'other': 3
+  'any': 3
+  'without': 3
+  'c': 2
+  'fengmk2': 2
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'including': 2
+  'use': 2
+
+File: docs/node_modules/ansi-align/node_modules/emoji-regex/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/baseline-browser-mapping/LICENSE.txt
+  'the': 100
+  'or': 69
+  'of': 67
+  'and': 46
+  'to': 40
+  'license': 35
+  'work': 34
+  'any': 30
+  'you': 26
+  'for': 24
+  'in': 24
+  'by': 23
+  'that': 22
+  'a': 22
+  'works': 19
+  'such': 18
+  'derivative': 18
+  'as': 17
+  'this': 17
+  'shall': 15
+
+File: docs/node_modules/chrome-trace-event/LICENSE.txt
+  'the': 15
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'is': 5
+  'and': 5
+  'this': 3
+  'copyright': 3
+  'any': 3
+  'without': 3
+  'all': 2
+  'rights': 2
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+
+File: docs/node_modules/cli-table3/node_modules/emoji-regex/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/cssesc/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/deepmerge/license.txt
+  'the': 15
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'and': 6
+  'in': 6
+  'is': 4
+  'copyright': 3
+  'other': 3
+  'any': 3
+  'without': 3
+  'mit': 2
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+
+File: docs/node_modules/emoji-regex/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/he/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/html-escaper/LICENSE.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+  'shall': 2
+
+File: docs/node_modules/jsesc/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/opener/LICENSE.txt
+  'the': 22
+  'to': 13
+  'and': 11
+  'or': 11
+  'of': 10
+  'software': 9
+  'is': 8
+  'you': 6
+  'in': 6
+  'copyright': 5
+  'do': 5
+  'license': 5
+  'domenic': 4
+  'this': 4
+  'what': 4
+  'fuck': 4
+  'want': 4
+  'as': 4
+  'for': 4
+  'mit': 3
+
+File: docs/node_modules/path-is-inside/LICENSE.txt
+  'the': 22
+  'to': 13
+  'and': 11
+  'or': 11
+  'of': 10
+  'software': 9
+  'is': 8
+  'you': 6
+  'in': 6
+  'copyright': 5
+  'do': 5
+  'license': 5
+  'domenic': 4
+  'this': 4
+  'what': 4
+  'fuck': 4
+  'want': 4
+  'as': 4
+  'for': 4
+  'mit': 3
+
+File: docs/node_modules/punycode/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/recharts/umd/Recharts.js.LICENSE.txt
+  'license': 6
+  'the': 6
+  'js': 4
+  'this': 4
+  'source': 4
+  'in': 4
+  'decimal': 2
+  'light': 2
+  'react': 2
+  'use': 2
+  'sync': 2
+  'external': 2
+  'store': 2
+  'shim': 2
+  'production': 2
+  'copyright': 2
+  'c': 2
+  'meta': 2
+  'platforms': 2
+  'inc': 2
+
+File: docs/node_modules/regenerate-unicode-properties/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/regenerate/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/regexpu-core/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/regjsgen/LICENSE-MIT.txt
+  'the': 15
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'any': 3
+  'without': 3
+  'mit': 2
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/rw/test/utf8.txt
+  'gréén': 1
+
+File: docs/node_modules/signal-exit/LICENSE.txt
+  'or': 8
+  'the': 6
+  'of': 5
+  'and': 4
+  'this': 4
+  'software': 4
+  'in': 4
+  'use': 3
+  'any': 3
+  'with': 3
+  'is': 3
+  'all': 3
+  'copyright': 2
+  'permission': 2
+  'to': 2
+  'for': 2
+  'provided': 2
+  'notice': 2
+  'author': 2
+  'warranties': 2
+
+File: docs/node_modules/tslib/CopyrightNotice.txt
+  'or': 8
+  'of': 5
+  'software': 4
+  'the': 4
+  'use': 3
+  'and': 3
+  'this': 3
+  'any': 3
+  'with': 3
+  'is': 3
+  'in': 3
+  'to': 2
+  'for': 2
+  'author': 2
+  'all': 2
+  'warranties': 2
+  'damages': 2
+  'action': 2
+  'copyright': 1
+  'c': 1
+
+File: docs/node_modules/tslib/LICENSE.txt
+  'or': 8
+  'of': 5
+  'software': 4
+  'the': 4
+  'use': 3
+  'and': 3
+  'this': 3
+  'any': 3
+  'with': 3
+  'is': 3
+  'in': 3
+  'to': 2
+  'for': 2
+  'author': 2
+  'all': 2
+  'warranties': 2
+  'damages': 2
+  'action': 2
+  'copyright': 1
+  'c': 1
+
+File: docs/node_modules/typescript/LICENSE.txt
+  'the': 82
+  'or': 65
+  'of': 63
+  'and': 44
+  'to': 35
+  'work': 32
+  'any': 29
+  'license': 25
+  'you': 24
+  'for': 21
+  'by': 21
+  'that': 21
+  'in': 21
+  'a': 19
+  'works': 19
+  'such': 18
+  'derivative': 18
+  'this': 16
+  'shall': 15
+  'as': 15
+
+File: docs/node_modules/typescript/ThirdPartyNoticeText.txt
+  'the': 387
+  'of': 208
+  'or': 184
+  'to': 176
+  'and': 148
+  'in': 105
+  'any': 86
+  'this': 85
+  'a': 83
+  'license': 74
+  'not': 73
+  'rights': 66
+  'material': 62
+  'public': 62
+  'for': 59
+  'licensed': 57
+  'be': 54
+  'copyright': 52
+  'is': 52
+  'by': 51
+
+File: docs/node_modules/unicode-canonical-property-names-ecmascript/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/unicode-emoji-modifier-base/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/unicode-match-property-ecmascript/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/unicode-match-property-value-ecmascript/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/unicode-property-aliases-ecmascript/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: docs/node_modules/webpack-bundle-analyzer/public/viewer.js.LICENSE.txt
+  'mit': 2
+  'jason': 2
+  'mulligan': 2
+  'copyright': 1
+  'c': 1
+  '2018': 1
+  'jed': 1
+  'watson': 1
+  'licensed': 1
+  'under': 1
+  'the': 1
+  'license': 1
+  'see': 1
+  'http': 1
+  'jedwatson': 1
+  'github': 1
+  'io': 1
+  'classnames': 1
+  '2020': 1
+  'avoidwork': 1
+
+File: docs/static/llms.txt
+  'ailang': 725
+  'for': 542
+  'with': 510
+  'go': 494
+  '0': 476
+  '3': 425
+  'eval': 413
+  'in': 406
+  'type': 384
+  '2': 371
+  '1': 367
+  'io': 361
+  'to': 343
+  'module': 337
+  'and': 333
+  'ail': 331
+  'internal': 324
+  '5': 314
+  'a': 312
+  'loc': 302
+
+File: examples/sim_stub/actual_output.txt
+  'tick': 13
+  'value': 11
+  'impl': 4
+  'go': 4
+  'debug': 3
+  'seed': 3
+  'from': 3
+  '80': 3
+  '10': 3
+  'step': 3
+  'with': 2
+  'world': 2
+  '0': 2
+  '75': 2
+  '42': 2
+  'logs': 2
+  't': 2
+  '82': 2
+  '5': 2
+  '85': 2
+
+File: examples/sim_stub/expected_output.txt
+  'tick': 13
+  'value': 11
+  'impl': 4
+  'go': 4
+  'debug': 3
+  'seed': 3
+  'from': 3
+  '80': 3
+  '10': 3
+  'step': 3
+  'with': 2
+  'world': 2
+  '0': 2
+  '75': 2
+  '42': 2
+  'logs': 2
+  't': 2
+  '82': 2
+  '5': 2
+  '85': 2
+
+File: input_data.txt
+  'hello': 1
+  'world': 1
+  'python': 1
+  'programming': 1
+  'guidelines': 1
+  'clean': 1
+  'idiomatic': 1
+  'code': 1
+  'use': 1
+  'list': 1
+  'comprehensions': 1
+  'prefer': 1
+  'pathlib': 1
+  'for': 1
+  'paths': 1
+
+File: input_numbers.txt
+  '10': 1
+  '20': 1
+  'invalid_line': 1
+  '30': 1
+
+File: internal/eval_harness/templates/agent_task_ailang.txt
+  'solution': 11
+  'your': 8
+  'to': 8
+  'output': 8
+  'run': 8
+  'ailang': 7
+  'you': 4
+  'caps': 4
+  'ail': 4
+  'check': 4
+  'write': 3
+  'solution_path': 3
+  'expected': 3
+  'the': 3
+  'benchmark': 2
+  'timeout': 2
+  'must': 2
+  'exactly': 2
+  'no': 2
+  'extra': 2
+
+File: internal/eval_harness/templates/agent_task_python.txt
+  'solution': 9
+  'your': 7
+  'to': 7
+  'output': 7
+  'you': 4
+  'python': 4
+  'write': 3
+  'solution_path': 3
+  'expected': 3
+  'run': 3
+  'python3': 3
+  'py': 3
+  'timeout': 2
+  'must': 2
+  'the': 2
+  'exactly': 2
+  'no': 2
+  'extra': 2
+  'spaces': 2
+  'if': 2
+
+File: llms.txt
+  'ailang': 192
+  'x': 170
+  'func': 155
+  'io': 151
+  'ail': 133
+  'int': 126
+  'export': 125
+  'println': 112
+  'let': 104
+  'a': 98
+  '4': 87
+  'import': 85
+  'std': 83
+  '1': 80
+  'in': 78
+  'string': 77
+  'type': 75
+  'for': 74
+  'match': 72
+  'module': 72
+
+File: names.txt
+  'alice': 1
+  'bob': 1
+  'carol': 1
+
+File: output.txt
+  'sum': 1
+  'was': 1
+  '30': 1
+
+File: output/greetings.txt
+  'hello': 3
+  'from': 3
+  'alice': 1
+  'new': 1
+  'york': 1
+  'charlie': 1
+  'chicago': 1
+  'david': 1
+  'houston': 1
+
+File: output/modulo_results.txt
+  'modulo': 11
+  'result': 11
+  '1': 4
+  '2': 4
+  '0': 3
+
+File: output/processed_data.txt
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+  '36': 1
+  '49': 1
+  '64': 1
+  '81': 1
+  '100': 1
+
+File: output/processed_results.txt
+  'result': 10
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+  '36': 1
+  '49': 1
+  '64': 1
+  '81': 1
+  '100': 1
+
+File: output/results.txt
+  'hello': 1
+  'alice': 1
+  'squared': 1
+  'results': 1
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+
+File: output/squared_numbers.txt
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+
+File: pipeline_output.txt
+  'pipeline': 1
+
+File: sample.txt
+  'python': 3
+  'is': 3
+  'powerful': 1
+  'fast': 1
+  'readable': 1
+
+File: temp_data/data.txt
+  '0': 1
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+  '36': 1
+  '49': 1
+  '64': 1
+  '81': 1
+
+File: temp_data/output.txt
+  'is': 2
+  'the': 2
+  'line': 2
+  'this': 1
+  'first': 1
+  'here': 1
+  'another': 1
+  'of': 1
+  'text': 1
+  'processed': 1
+  'numbers': 1
+  'were': 1
+  '1': 1
+  '4': 1
+  '9': 1
+  '16': 1
+  '25': 1
+
+File: temp_data/processed_data.txt
+  '2': 1
+  '4': 1
+  '6': 1
+  '8': 1
+  '10': 1
+  '20': 1
+  '40': 1
+
+File: tests/results/summary.txt
+  'ailang': 1
+  'example': 1
+  'verification': 1
+  'fri': 1
+  'oct': 1
+  '3': 1
+  '13': 1
+  '32': 1
+  '00': 1
+  'cest': 1
+  '2025': 1
+  'total': 1
+  '57': 1
+  'passed': 1
+  '0': 1
+  'failed': 1
+  '19': 1
+  'skipped': 1
+  '38': 1
+
+File: ui/node_modules/baseline-browser-mapping/LICENSE.txt
+  'the': 100
+  'or': 69
+  'of': 67
+  'and': 46
+  'to': 40
+  'license': 35
+  'work': 34
+  'any': 30
+  'you': 26
+  'for': 24
+  'in': 24
+  'by': 23
+  'that': 22
+  'a': 22
+  'works': 19
+  'such': 18
+  'derivative': 18
+  'as': 17
+  'this': 17
+  'shall': 15
+
+File: ui/node_modules/jsesc/LICENSE-MIT.txt
+  'the': 14
+  'software': 9
+  'or': 9
+  'of': 8
+  'to': 8
+  'in': 6
+  'and': 5
+  'is': 4
+  'copyright': 3
+  'be': 3
+  'any': 3
+  'without': 3
+  'permission': 2
+  'a': 2
+  'copy': 2
+  'this': 2
+  'including': 2
+  'use': 2
+  'copies': 2
+  'notice': 2
+
+File: ui/node_modules/typescript/LICENSE.txt
+  'the': 82
+  'or': 65
+  'of': 63
+  'and': 44
+  'to': 35
+  'work': 32
+  'any': 29
+  'license': 25
+  'you': 24
+  'for': 21
+  'by': 21
+  'that': 21
+  'in': 21
+  'a': 19
+  'works': 19
+  'such': 18
+  'derivative': 18
+  'this': 16
+  'shall': 15
+  'as': 15
+
+File: ui/node_modules/typescript/ThirdPartyNoticeText.txt
+  'the': 387
+  'of': 208
+  'or': 184
+  'to': 176
+  'and': 148
+  'in': 105
+  'any': 86
+  'this': 85
+  'a': 83
+  'license': 74
+  'not': 73
+  'rights': 66
+  'material': 62
+  'public': 62
+  'for': 59
+  'licensed': 57
+  'be': 54
+  'copyright': 52
+  'is': 52
+  'by': 51
+
+Aggregate:
+  'the': 2119
+  'ailang': 1842
+  'for': 1521
+  'to': 1519
+  'in': 1470
+  'and': 1444
+  'with': 1290
+  'or': 1231
+  'of': 1190
+  '0': 1137
+  'a': 1137
+  '3': 1038
+  'io': 1025
+  'go': 1004
+  '1': 968
+  '2': 944
+  'ail': 932
+  'type': 919
+  'func': 868
+  'eval': 844

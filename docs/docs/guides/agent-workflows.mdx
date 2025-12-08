@@ -1,0 +1,508 @@
+---
+sidebar_position: 6
+title: Agent Workflows
+description: Real-world workflows for interactive ↔ autonomous agent handoff
+---
+
+import { ArrowRight, CheckCircle, Play, Users } from 'lucide-react';
+
+# Agent Handoff Workflows
+
+This guide demonstrates real-world workflows for handing off work between interactive Claude Code sessions and autonomous AILANG agents.
+
+:::info Pragmatic Workflow
+SessionStart hooks run successfully but output doesn't reliably appear in Claude's context. **Use manual inbox checking instead**: Ask Claude to run `ailang agent inbox --unread-only claude-code` at the start of each session.
+:::
+
+## Quick Reference
+
+**Key Commands:**
+```bash
+# Check inboxes (FLAGS BEFORE AGENT ID!)
+ailang agent inbox --unread-only claude-code  # Project-specific
+ailang agent inbox --unread-only user          # Global
+
+# Acknowledge messages
+ailang agent ack msg_20251025_155729_a5f3e77ee975  # Single message
+ailang agent ack --all                              # All messages
+ailang agent unack msg_20251025_155729_a5f3e77ee975 # Un-acknowledge (retry)
+
+# Send messages
+ailang agent send <agent> '<json-payload>'
+ailang agent send --to-user '<json-payload>'
+```
+
+## Workflow 1: Design → Implement → Notify
+
+**Scenario:** You design a feature interactively, then hand it off to autonomous agents for implementation.
+
+### Step 1: Interactive Design (Claude Code)
+
+```
+You: "Design a fix for the import resolution bug"
+
+Claude Code: *analyzes codebase*
+Claude Code: *creates design_docs/planned/M-IMPORT-FIX.md*
+Claude Code: "I've created a design doc. It adds path normalization to the import resolver."
+
+You: "Looks good, implement it"
+```
+
+### Step 2: Session Stops (Automatic Handoff)
+
+When you stop the session (or it times out), the Stop hook fires:
+
+```bash
+# agent_handoff.sh runs automatically:
+→ Detects design_docs/planned/M-IMPORT-FIX.md (modified < 5 min ago)
+→ Computes hash: sha256:a1b2c3...
+→ Stores artifact in ~/.ailang/state/artifacts/
+→ Sends message to sprint-planner:
+  {
+    "task": "implement_design_doc",
+    "event": {
+      "session_id": "claude-session-xyz",
+      "user_id": "mark",
+      "event": "Stop",
+      "provider": "claude-code"
+    },
+    "artifacts": [
+      {
+        "path": "design_docs/planned/M-IMPORT-FIX.md",
+        "hash": "sha256:a1b2c3...",
+        "title": "M-IMPORT-FIX: Path normalization for import resolver"
+      }
+    ]
+  }
+```
+
+### Step 3: Autonomous Implementation
+
+The sprint-planner agent (running separately):
+
+```bash
+# Sprint-planner polls for messages
+→ Receives message from interactive session
+→ Reads design doc from artifact store
+→ Creates sprint plan
+→ Sends to sprint-executor
+→ Executor implements the fix
+→ Runs tests
+→ Sends completion message to user inbox
+```
+
+### Step 4: Next Session (Check Inbox)
+
+You start a new Claude Code session:
+
+```
+You: "Check inbox"
+
+Claude: *runs: ailang agent inbox --unread-only claude-code*
+Claude: "I found 1 message from sprint-executor:
+        The import fix has been implemented and tested.
+        All 15 tests passing. Ready to review."
+
+You: "Great! Show me the changes"
+
+Preview (most recent):
+  From: sprint-executor
+  Message ID: msg_20251025_143022_def456
+```
+
+:::info Making Claude Aware of Messages
+The terminal notification shows you the message exists, BUT Claude (the AI assistant) can't see it automatically due to Claude Code's architecture.
+
+**To inform Claude:**
+- Tell Claude: "Check for agent messages"
+- Or ask: "Any messages from agents?"
+- Claude will run: `ailang agent inbox user`
+
+**How it works:**
+1. SessionStart hook forwards messages from user inbox
+2. You see terminal notification (visible to you)
+3. You tell Claude to check inbox (makes it visible to AI)
+4. Claude runs `ailang agent inbox user` to display messages
+:::
+
+### Step 5: Review Results
+
+```bash
+$ ailang agent inbox user
+
+📬 User Inbox (1 message)
+================================================================================
+
+▶ Message 1/1
+  ID: msg_20251025_143022_def456
+  From: sprint-executor
+  Type: notification
+  Correlation ID: cycle_20251025_001
+  Payload:
+    {
+      "status": "completed",
+      "task": "implement M-IMPORT-FIX",
+      "tests_passed": true,
+      "files_modified": [
+        "internal/loader/import_resolver.go",
+        "internal/loader/import_resolver_test.go"
+      ],
+      "commit": "abc123def456"
+    }
+
+  ✓ Marked as read
+
+Total: 1 message(s)
+```
+
+## Workflow 2: Interactive Query → Agent Response
+
+**Scenario:** You ask an agent a question and wait for an answer.
+
+```bash
+# Send query with --wait flag
+$ ailang agent send --wait 1m eval-analyzer '{
+  "action": "summarize_failures",
+  "baseline": "eval_results/baselines/v0.3.19"
+}'
+
+✓ Message sent to eval-analyzer
+  Message ID: msg_20251025_144523_xyz789
+  Correlation ID: cycle_20251025_014
+
+Waiting for response (timeout: 1m)...
+
+✓ Received response!
+  Message ID: msg_20251025_144530_abc456
+  From: eval-analyzer
+  Payload:
+    {
+      "total_failures": 12,
+      "top_errors": [
+        {"error": "type mismatch", "count": 5},
+        {"error": "import resolution", "count": 4},
+        {"error": "syntax error", "count": 3}
+      ],
+      "recommendations": [
+        "Fix type inference in let-polymorphism",
+        "Add path normalization to imports"
+      ]
+    }
+```
+
+## Workflow 3: Background Agent → User Notification
+
+**Scenario:** An agent completes a long-running task and notifies you.
+
+### Agent Side
+
+```go
+// In your autonomous agent:
+inbox := agentprotocol.NewUserInbox(stateDir)
+
+// After completing work
+msg := &agentprotocol.Envelope{
+    MessageID:   agentprotocol.GenerateMessageID(),
+    FromAgent:   "sprint-executor",
+    ToAgent:     "user",
+    MessageType: "notification",
+    Payload: map[string]interface{}{
+        "status": "completed",
+        "task":   "implement M-IMPORT-FIX",
+        "summary": "Fixed import resolver, all tests passing",
+    },
+}
+
+inbox.SendToUser(msg)
+```
+
+### User Side
+
+Next time you start Claude Code:
+
+```
+╔═══════════════════════════════════════════════════════════╗
+║  📬 You have 1 unread message(s) from agents              ║
+╚═══════════════════════════════════════════════════════════╝
+```
+
+Check details:
+```bash
+$ ailang agent inbox user
+# ... message details displayed ...
+```
+
+## Workflow 4: Multi-Agent Pipeline
+
+**Scenario:** Work flows through multiple agents with handoffs.
+
+```mermaid
+graph TD
+    A["Interactive Session"] --> B["Stop Hook"]
+    B --> C["sprint-planner<br/>(Creates sprint plan)"]
+    C --> D["sprint-executor<br/>(Implements code)"]
+    D --> E["test-runner<br/>(Runs tests)"]
+    E --> F["verifier<br/>(Reviews code)"]
+    F --> G["User Inbox<br/>(Notification)"]
+
+    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#616161,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style D fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style G fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+```
+
+Each agent sends messages to the next agent in the pipeline using the correlation_id to track the workflow.
+
+**Example from sprint-planner:**
+
+```bash
+# Sprint-planner receives design doc
+→ Creates sprint plan
+→ Sends to sprint-executor:
+  {
+    "message_id": "msg_abc",
+    "correlation_id": "cycle_20251025_001",  # Same as original
+    "parent_message_id": "msg_xyz",          # References design doc message
+    "to_agent": "sprint-executor",
+    "payload": {
+      "sprint_plan_path": "~/.ailang/state/sprints/current_sprint.json",
+      "tasks": 5
+    }
+  }
+```
+
+## Content-Addressed Artifacts
+
+Large files (design docs, code, test results) are stored as artifacts to avoid bloating messages.
+
+### Storing Artifacts
+
+```go
+store := agentprotocol.NewArtifactStore(stateDir)
+
+// Read design doc
+content, _ := os.ReadFile("design_docs/planned/M-TEST.md")
+
+// Store with hash
+hash, _ := store.StoreArtifact("design_docs/planned/M-TEST.md", content, "text/markdown")
+// Returns: "sha256:a1b2c3d4e5f6..."
+
+// Reference in message
+msg.Payload["artifacts"] = []map[string]interface{}{
+    {
+        "path": "design_docs/planned/M-TEST.md",
+        "hash": hash,
+        "mime_type": "text/markdown",
+    },
+}
+```
+
+### Retrieving Artifacts
+
+```go
+// Agent receives message with artifact reference
+artifactHash := msg.Payload["artifacts"].([]interface{})[0].(map[string]interface{})["hash"].(string)
+
+// Retrieve content
+content, metadata, _ := store.RetrieveArtifact(artifactHash)
+
+// Use content
+fmt.Printf("Design doc: %s\n", string(content))
+```
+
+### Benefits
+
+- **Deduplication:** Same content stored only once
+- **Verification:** Hash ensures content hasn't been tampered with
+- **Bandwidth:** Messages stay small, artifacts stored separately
+- **History:** Artifacts persist even after messages are archived
+
+## Message Signing & Security
+
+All messages are signed with HMAC-SHA256 to prevent spoofing.
+
+### Automatic Signing
+
+```go
+signer := agentprotocol.NewMessageSigner(stateDir)
+
+// Sign message before sending
+signer.SignMessage(msg)
+
+// Message now has:
+// - signature: "a1b2c3d4..."
+// - signature_alg: "hmac-sha256"
+// - kid: "key-xyz123"
+```
+
+### Automatic Verification
+
+```go
+// Verify message on receive
+if err := signer.VerifyMessage(msg); err != nil {
+    log.Printf("Invalid signature: %v", err)
+    return // Reject message
+}
+```
+
+## Inbox Management
+
+### Read/Unread/Archive Flow
+
+```
+New message
+    ↓
+_unread/       ← Initial state
+    ↓
+  (view)
+    ↓
+_read/         ← After viewing
+    ↓
+  (archive)
+    ↓
+_archive/      ← Long-term storage
+```
+
+### Commands
+
+```bash
+# View unread (marks as read automatically)
+ailang agent inbox user
+
+# View without marking as read
+ailang agent inbox user --unread-only
+
+# View read messages
+ailang agent inbox user --read-only
+
+# View and archive
+ailang agent inbox user --archive
+
+# View archived
+ailang agent inbox user --archived
+```
+
+## Best Practices
+
+### 1. Use Correlation IDs
+
+Track related messages across agents:
+
+```go
+// First message in workflow
+correlationID := agentprotocol.GenerateCorrelationID()
+
+// All subsequent messages use same correlation ID
+msg.CorrelationID = correlationID
+```
+
+### 2. Include Parent Message IDs
+
+Build message chains for audit trails:
+
+```go
+// Response to a previous message
+parentID := originalMsg.MessageID
+msg.ParentMessageID = &parentID
+```
+
+### 3. Set Reasonable TTLs
+
+Messages expire after TTL to prevent stale data:
+
+```go
+msg.TTLSeconds = 3600  // 1 hour for quick responses
+msg.TTLSeconds = 86400 // 24 hours for batch jobs
+```
+
+### 4. Declare Effects
+
+Make side effects explicit:
+
+```go
+msg.DeclaredEffects = []string{"IO", "FS", "Net"}
+```
+
+### 5. Use Structured Payloads
+
+Define clear schemas for payloads:
+
+```go
+msg.PayloadSchema = "https://ailang.dev/schemas/sprint_plan/v1.json"
+msg.Payload = map[string]interface{}{
+    "tasks": []Task{...},
+    "estimated_days": 3.5,
+}
+```
+
+## Troubleshooting
+
+### Message not received
+
+**Check inbox:**
+```bash
+ls -la ~/.ailang/state/messages/inbox/user/_unread/
+```
+
+**Check agent inbox:**
+```bash
+ls -la ~/.ailang/state/messages/<agent-id>/
+```
+
+**Verify message was sent:**
+```bash
+# Look for confirmation in CLI output
+✓ Message sent to sprint-planner
+  Path: ~/.ailang/state/messages/sprint-planner/msg_xyz.pending.json
+```
+
+### Artifact not found
+
+**List all artifacts:**
+```bash
+ls -la ~/.ailang/state/artifacts/sha256/
+```
+
+**Verify hash is correct:**
+```bash
+# Compute hash using ailang CLI
+ailang debug hash design_docs/planned/M-TEST.md
+```
+
+**Check artifact metadata:**
+```bash
+cat ~/.ailang/state/artifacts/sha256/abc123.../metadata.json
+```
+
+### Hook not firing
+
+**Check .claude/hooks.json exists:**
+```bash
+cat .claude/hooks.json
+```
+
+**Verify scripts are executable:**
+```bash
+ls -la scripts/hooks/
+```
+
+**Check hook logs:**
+```bash
+tail -50 ~/.ailang/state/hooks.log
+```
+
+## Related Documentation
+
+- **[Claude Code Integration Guide](./claude-code-integration.mdx)** - Main integration guide
+- **[Hooks Setup](./hooks-setup.mdx)** - Quick setup guide
+
+**Design documents** (GitHub):
+- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete specification
+- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Protocol details
+
+---
+
+**Last updated:** October 25, 2025 (v0.3.20)

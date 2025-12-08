@@ -1,0 +1,194 @@
+module examples/nested_match_comprehensive
+
+// Comprehensive test file for nested match expression parsing
+// Created as part of M-PARSER regression fix (v0.3.21)
+// Tests all edge cases of nested match expressions
+
+import std/io (println)
+
+// === ADT Definitions ===
+
+type Result = | Ok(int) | Err(string)
+type Option = | Some(int) | None
+type Tree = | Leaf(int) | Node(Tree, int, Tree)
+
+// === Test 1: Simple Nested Match (2 levels) ===
+
+export func simpleNested(opt: Option) -> int {
+  match opt {
+    Some(x) => match Some(x + 1) {
+      Some(y) => y
+      None => 0
+    }
+    None => -1
+  }
+}
+
+// === Test 2: Deep Nesting (3 levels) ===
+
+export func deepNesting(r: Result) -> int {
+  match r {
+    Ok(x) => {
+      let opt1 = if x > 0 then Some(x) else None;
+      match opt1 {
+        Some(y) => match Some(y * 2) {
+          Some(z) => z
+          None => 0
+        }
+        None => -1
+      }
+    }
+    Err(msg) => 0
+  }
+}
+
+// === Test 3: Match in Block Expression ===
+
+export func matchInBlock(x: int) -> int {
+  {
+    let doubled = x * 2;
+    match Some(doubled) {
+      Some(y) => y + 1
+      None => 0
+    }
+  }
+}
+
+// === Test 4: Multiple Matches in Sequence ===
+
+export func sequentialMatches(opt1: Option, opt2: Option) -> int {
+  let a = match opt1 {
+    Some(x) => x
+    None => 0
+  };
+  let b = match opt2 {
+    Some(y) => y
+    None => 0
+  };
+  a + b
+}
+
+// === Test 5: Match with Tuple Pattern (Regression Case) ===
+
+export func matchWithTuple(pair: (int, int)) -> int {
+  match pair {
+    (x, y) => match Some(x + y) {
+      Some(sum) => sum
+      None => 0
+    }
+  }
+}
+
+// === Test 6: Nested Match in Each Arm ===
+
+export func matchInBothArms(r: Result) -> int {
+  match r {
+    Ok(x) => match Some(x) {
+      Some(y) => y * 2
+      None => 0
+    }
+    Err(msg) => match None {
+      Some(_) => -1
+      None => -2
+    }
+  }
+}
+
+// === Test 7: Match with Multiple Patterns per Arm ===
+
+export func matchTree(t: Tree) -> int {
+  match t {
+    Leaf(x) => x
+    Node(left, value, right) => {
+      let leftSum = match left {
+        Leaf(x) => x
+        Node(_, v, _) => v
+      };
+      let rightSum = match right {
+        Leaf(x) => x
+        Node(_, v, _) => v
+      };
+      leftSum + value + rightSum
+    }
+  }
+}
+
+// === Test 8: State Threading Pattern (Regression Case) ===
+// This is the pattern that failed in explicit_state_threading benchmark
+// Note: AILANG doesn't support type aliases yet, so we use (int, int) directly
+
+export func stateThreading(initial: int) -> int {
+  let r1 = add(5, initial);
+  match r1 {
+    (value1, state1) => {
+      let r2 = multiply(3, state1);
+      match r2 {
+        (value2, state2) => {
+          let r3 = add(10, state2);
+          match r3 {
+            (value3, state3) => state3
+          }
+        }
+      }
+    }
+  }
+}
+
+func add(x: int, state: int) -> (int, int) {
+  let newState = state + x;
+  (newState, newState)
+}
+
+func multiply(x: int, state: int) -> (int, int) {
+  let newState = state * x;
+  (newState, newState)
+}
+
+// === Test 9: Match with If-Then-Else in Arms ===
+
+export func matchWithIf(opt: Option) -> int {
+  match opt {
+    Some(x) => if x > 10 then match Some(x - 10) {
+      Some(y) => y
+      None => 0
+    } else x
+    None => 0
+  }
+}
+
+// === Test 10: Nested Match with Record Patterns ===
+
+type Person = { name: string, age: int }
+type PersonResult = | Found(Person) | NotFound
+
+export func matchWithRecords(pr: PersonResult) -> int {
+  match pr {
+    Found(person) => {
+      let ageOpt = if person.age > 0 then Some(person.age) else None;
+      match ageOpt {
+        Some(age) => age
+        None => 0
+      }
+    }
+    NotFound => -1
+  }
+}
+
+// === Main: Run all tests ===
+
+export func main() -> () ! {IO} {
+  println("=== Nested Match Comprehensive Tests ===");
+
+  println("Test 1 (simple nested): " ++ show(simpleNested(Some(5))));
+  println("Test 2 (deep nesting): " ++ show(deepNesting(Ok(10))));
+  println("Test 3 (match in block): " ++ show(matchInBlock(5)));
+  println("Test 4 (sequential): " ++ show(sequentialMatches(Some(3), Some(7))));
+  println("Test 5 (tuple pattern): " ++ show(matchWithTuple((10, 20))));
+  println("Test 6 (both arms): " ++ show(matchInBothArms(Ok(15))));
+  println("Test 7 (tree): " ++ show(matchTree(Leaf(42))));
+  println("Test 8 (state threading): " ++ show(stateThreading(0)));
+  println("Test 9 (match with if): " ++ show(matchWithIf(Some(15))));
+  println("Test 10 (records): " ++ show(matchWithRecords(Found({name: "Alice", age: 30}))));
+
+  println("All tests completed!");
+}

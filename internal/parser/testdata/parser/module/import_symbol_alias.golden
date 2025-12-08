@@ -1,0 +1,19 @@
+{
+  "file": {
+    "imports": [
+      {
+        "path": "std/string",
+        "symbolAliases": {
+          "length": "stringLength"
+        },
+        "symbols": [
+          "length"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}

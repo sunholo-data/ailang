@@ -55,6 +55,9 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	case *core.List:
 		return e.evalCoreList(n)
 
+	case *core.Array:
+		return e.evalCoreArray(n)
+
 	case *core.Tuple:
 		return e.evalCoreTuple(n)
 
@@ -309,6 +312,21 @@ func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
 	}
 
 	return &ListValue{Elements: elements}, nil
+}
+
+// evalCoreArray evaluates array construction
+func (e *CoreEvaluator) evalCoreArray(arr *core.Array) (Value, error) {
+	var elements []Value
+
+	for _, elemExpr := range arr.Elements {
+		val, err := e.evalCore(elemExpr)
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, val)
+	}
+
+	return &ArrayValue{Elements: elements}, nil
 }
 
 // evalCoreTuple evaluates tuple construction

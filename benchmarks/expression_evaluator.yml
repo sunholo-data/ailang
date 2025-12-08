@@ -1,0 +1,29 @@
+id: expression_evaluator
+description: "Build AST and evaluate arithmetic expressions (ADT + pattern matching + recursion)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Defines an expression AST data type with:
+     - Num(int) - a numeric literal
+     - Add(Expr, Expr) - addition of two expressions
+     - Mul(Expr, Expr) - multiplication of two expressions
+
+  2. Implements an `eval` function that evaluates an expression to an integer
+
+  3. Constructs and evaluates this expression:
+     (3 + 4) * (2 + 5)
+
+     As an AST: Mul(Add(Num(3), Num(4)), Add(Num(2), Num(5)))
+
+  4. Prints the result
+
+  Expected: (3 + 4) * (2 + 5) = 7 * 7 = 49
+
+  Output only the code, no explanations.
+expected_stdout: |
+  49

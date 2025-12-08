@@ -63,6 +63,29 @@ func (e *Elaborator) ElaborateExpr(expr ast.Expr) (core.CoreExpr, error) {
 	return e.elaborateExpr(expr)
 }
 
+// ModuleLet represents a module-level let binding
+type ModuleLet struct {
+	Name  string
+	Value ast.Expr
+	Pos   ast.Pos
+}
+
+// collectModuleLets extracts module-level let bindings from file statements
+// These bindings should be in scope for all function bodies in the module
+func collectModuleLets(file *ast.File) []*ModuleLet {
+	var lets []*ModuleLet
+	for _, stmt := range file.Statements {
+		if letExpr, ok := stmt.(*ast.Let); ok {
+			lets = append(lets, &ModuleLet{
+				Name:  letExpr.Name,
+				Value: letExpr.Value,
+				Pos:   letExpr.Position(),
+			})
+		}
+	}
+	return lets
+}
+
 // ElaborateFile transforms a complete file with module structure to Core ANF
 func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 	// For REPL/simple cases without module or funcs
@@ -101,6 +124,10 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			}
 		}
 	}
+
+	// Collect module-level let bindings BEFORE function elaboration
+	// These must be in scope for function bodies (M-BUG-MODULE-LET-SCOPE fix)
+	moduleLets := collectModuleLets(file)
 
 	// Build symbol table and imports map
 	funcs := collectFuncSigs(file)
@@ -210,18 +237,88 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		}
 	}
 
-	// Add any non-func statements
+	// Elaborate module-level lets and wrap all function declarations in them
+	// This ensures module-level lets are in scope for function bodies
+	if len(moduleLets) > 0 {
+		// Elaborate module-level let values once
+		elaboratedLets := make([]struct {
+			Name  string
+			Value core.CoreExpr
+			Pos   ast.Pos
+		}, len(moduleLets))
+		for i, ml := range moduleLets {
+			value, err := e.elaborateExpr(ml.Value)
+			if err != nil {
+				return nil, fmt.Errorf("error elaborating module-level let '%s': %w", ml.Name, err)
+			}
+			elaboratedLets[i] = struct {
+				Name  string
+				Value core.CoreExpr
+				Pos   ast.Pos
+			}{ml.Name, value, ml.Pos}
+		}
+
+		// Wrap each function declaration in the module-level lets
+		for i, decl := range coreDecls {
+			coreDecls[i] = e.wrapInLets(decl, elaboratedLets)
+		}
+	}
+
+	// Add any non-func, non-let statements (e.g., main() call)
 	for _, stmt := range file.Statements {
 		if expr, ok := stmt.(ast.Expr); ok {
+			// Skip let expressions - they're already processed above
+			if _, isLet := expr.(*ast.Let); isLet {
+				continue
+			}
 			coreExpr, err := e.elaborateExpr(expr)
 			if err != nil {
 				return nil, err
+			}
+			// Wrap non-func statements in module-level lets too
+			if len(moduleLets) > 0 {
+				// Re-elaborate for wrapping (values are simple, this is fine)
+				elaboratedLets := make([]struct {
+					Name  string
+					Value core.CoreExpr
+					Pos   ast.Pos
+				}, len(moduleLets))
+				for i, ml := range moduleLets {
+					value, _ := e.elaborateExpr(ml.Value)
+					elaboratedLets[i] = struct {
+						Name  string
+						Value core.CoreExpr
+						Pos   ast.Pos
+					}{ml.Name, value, ml.Pos}
+				}
+				coreExpr = e.wrapInLets(coreExpr, elaboratedLets)
 			}
 			coreDecls = append(coreDecls, coreExpr)
 		}
 	}
 
 	return &core.Program{Decls: coreDecls, Meta: meta}, nil
+}
+
+// wrapInLets wraps a Core expression in a series of let bindings
+// The lets are applied in order, so the innermost let is the last in the slice
+func (e *Elaborator) wrapInLets(expr core.CoreExpr, lets []struct {
+	Name  string
+	Value core.CoreExpr
+	Pos   ast.Pos
+}) core.CoreExpr {
+	result := expr
+	// Wrap in reverse order so first let is outermost
+	for i := len(lets) - 1; i >= 0; i-- {
+		l := lets[i]
+		result = &core.Let{
+			CoreNode: e.makeNode(l.Pos),
+			Name:     l.Name,
+			Value:    l.Value,
+			Body:     result,
+		}
+	}
+	return result
 }
 
 // findASTFunc finds the AST function declaration by name
@@ -259,6 +356,11 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 func collectFuncSigs(file *ast.File) []*FuncSig {
 	var funcs []*FuncSig
 	for _, f := range file.Funcs {
+		// Skip extern functions - they have no body to elaborate
+		// Extern functions are handled separately in codegen (extern_stubs.go)
+		if f.IsExtern {
+			continue
+		}
 		funcs = append(funcs, astFuncToSig(f))
 	}
 	return funcs

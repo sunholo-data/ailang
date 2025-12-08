@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
+import ModelComparisonTable from './ModelComparisonTable';
 import ModelTokenChart from './ModelTokenChart';
 import LanguageChart from './LanguageChart';
 import BenchmarkGallery from './BenchmarkGallery';
 import SuccessTrend from './SuccessTrend';
+import PerModelTrend from './PerModelTrend';
+import ModelDeltaTrend from './ModelDeltaTrend';
+import RadarCharts from './RadarCharts';
 import styles from './styles.module.css';
 
 export default function BenchmarkDashboard() {
@@ -125,14 +129,25 @@ export default function BenchmarkDashboard() {
         </div>
       </div>
 
-      {/* Language Comparison Chart */}
-      {languages && Object.keys(languages).length > 1 && (
+      {/* Per-Model Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
         <div className={styles.section}>
-          <h3>AILANG vs Python Performance</h3>
+          <h3>Success Rate by Model Over Time</h3>
           <p className={styles.sectionSubtitle}>
-            Direct comparison of AI code generation success rates and efficiency
+            Track how each AI model's performance evolves across AILANG versions
           </p>
-          <LanguageChart languages={languages} />
+          <PerModelTrend history={history} />
+        </div>
+      )}
+
+      {/* Model Delta Trend */}
+      {history && history.length > 1 && history.some(h => h.modelStats) && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Gap by Model</h3>
+          <p className={styles.sectionSubtitle}>
+            Positive values indicate AILANG outperforms Python for that model
+          </p>
+          <ModelDeltaTrend history={history} />
         </div>
       )}
 
@@ -141,6 +156,18 @@ export default function BenchmarkDashboard() {
         <div className={styles.section}>
           <h3>Model Performance Comparison</h3>
           <ModelChart models={models} />
+          <ModelComparisonTable models={models} />
+        </div>
+      )}
+
+      {/* Language Comparison Chart */}
+      {languages && Object.keys(languages).length > 1 && (
+        <div className={styles.section}>
+          <h3>AILANG vs Python Performance</h3>
+          <p className={styles.sectionSubtitle}>
+            Direct comparison of AI code generation success rates and efficiency
+          </p>
+          <LanguageChart languages={languages} />
         </div>
       )}
 
@@ -154,6 +181,15 @@ export default function BenchmarkDashboard() {
           <ModelTokenChart models={models} />
         </div>
       )}
+
+      {/* Evaluation Modes Comparison */}
+      <div className={styles.section}>
+        <h3>Evaluation Approaches</h3>
+        <p className={styles.sectionSubtitle}>
+          Comparing 0-shot, self-repair, and multi-turn agent evaluation modes
+        </p>
+        <RadarCharts data={data} />
+      </div>
 
       {/* Success Trend */}
       {history && history.length > 1 && (

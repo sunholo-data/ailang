@@ -257,6 +257,17 @@ func (l *List) String() string {
 	return fmt.Sprintf("[%v]", l.Elements)
 }
 
+// Array represents array construction with O(1) indexed access
+type Array struct {
+	CoreNode
+	Elements []CoreExpr // All must be atomic in ANF
+}
+
+func (a *Array) coreExpr() {}
+func (a *Array) String() string {
+	return fmt.Sprintf("#[%v]", a.Elements)
+}
+
 // Tuple represents tuple construction (elements are atomic in ANF)
 type Tuple struct {
 	CoreNode

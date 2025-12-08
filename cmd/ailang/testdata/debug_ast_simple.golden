@@ -1,0 +1,15 @@
+=== Core AST (ANF) ===
+Program:
+  [0] Let(xs) [#13] :: [α7]:
+    Value: List[3] [#4] :: [α1]:
+      [0]: Lit(1) [#1] :: α1
+      [1]: Lit(2) [#2] :: α2
+      [2]: Lit(3) [#3] :: α3
+    Body:  Let(ys) [#12] :: [α7]:
+      Value: List[3] [#8] :: [α4]:
+        [0]: Lit(4) [#5] :: α4
+        [1]: Lit(5) [#6] :: α5
+        [2]: Lit(6) [#7] :: α6
+      Body:  Intrinsic(11) [#11] :: [α7]:
+        Arg[0]: Var(xs) [#9] :: [int]
+        Arg[1]: Var(ys) [#10] :: [int]

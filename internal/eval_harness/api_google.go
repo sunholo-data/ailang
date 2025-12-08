@@ -33,6 +33,7 @@ type geminiResponse struct {
 		PromptTokenCount     int `json:"promptTokenCount"`
 		CandidatesTokenCount int `json:"candidatesTokenCount"`
 		TotalTokenCount      int `json:"totalTokenCount"`
+		ThoughtsTokenCount   int `json:"thoughtsTokenCount,omitempty"` // Reasoning tokens (Gemini 3+)
 	} `json:"usageMetadata"`
 }
 
@@ -50,11 +51,11 @@ func (a *AIAgent) callGemini(ctx context.Context, prompt string) (*GenerateResul
 		return nil, fmt.Errorf("failed to get GCP project: %w", err)
 	}
 
-	// Vertex AI endpoint
-	// Format: https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/{REGION}/publishers/google/models/{MODEL}:generateContent
-	region := "us-central1" // Default region
-	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
-		region, projectID, region, a.model)
+	// Vertex AI endpoint (global location required for newer models like Gemini 3)
+	// Format: https://aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/global/publishers/google/models/{MODEL}:generateContent
+	location := "global" // Use global endpoint (required for Gemini 3+, works for all Gemini models)
+	url := fmt.Sprintf("https://aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
+		projectID, location, a.model)
 
 	systemPrompt := "You are a programming assistant. Generate ONLY code without explanations or markdown formatting."
 	fullPrompt := fmt.Sprintf("%s\n\n%s", systemPrompt, prompt)

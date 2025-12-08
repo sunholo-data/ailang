@@ -1,0 +1,60 @@
+module examples/env_config
+
+-- Configuration management with environment variables
+-- Demonstrates fallback values, validation, and type conversion patterns
+--
+-- Usage:
+--   ailang run --caps Env examples/env_config.ail
+--   ailang run --caps Env --env PORT=3000,HOST=localhost examples/env_config.ail
+
+import std/io(println, print)
+import std/env(getEnvOr, hasEnv)
+
+-- Configuration record
+type Config = {
+  host: string,
+  port: string,
+  debug: bool,
+  logLevel: string
+}
+
+-- Load configuration from environment with sensible defaults
+func loadConfig() -> Config ! {Env} = {
+  host: getEnvOr("HOST", "0.0.0.0"),
+  port: getEnvOr("PORT", "8080"),
+  debug: hasEnv("DEBUG"),
+  logLevel: getEnvOr("LOG_LEVEL", "info")
+}
+
+-- Format config for display
+func formatConfig(config: Config) -> string =
+  "Configuration:\n" ++
+  "  Host: " ++ config.host ++ "\n" ++
+  "  Port: " ++ config.port ++ "\n" ++
+  "  Debug: " ++ (if config.debug then "enabled" else "disabled") ++ "\n" ++
+  "  Log Level: " ++ config.logLevel
+
+export func main() -> () ! {Env, IO} {
+  {
+    println("=== Configuration Management Demo ===");
+    println(" ");
+
+    -- Load config from environment
+    let host = getEnvOr("HOST", "0.0.0.0");
+    let port = getEnvOr("PORT", "8080");
+    let debug = hasEnv("DEBUG");
+    let logLevel = getEnvOr("LOG_LEVEL", "info");
+
+    -- Display configuration
+    println("Configuration:");
+    println("  Host: " ++ host);
+    println("  Port: " ++ port);
+    let debugStr = if debug then "enabled" else "disabled";
+    println("  Debug: " ++ debugStr);
+    println("  Log Level: " ++ logLevel);
+    println(" ");
+    println("Server would start at: http://" ++ host ++ ":" ++ port);
+
+    ()
+  }
+}

@@ -1,0 +1,34 @@
+id: fold_reduce
+description: "Implement fold/reduce and use for sum, product, max (higher-order functions)"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements a generic `foldl(f, acc, xs)` function that:
+     - Takes a binary function f, an initial accumulator, and a list
+     - Returns the result of folding the function over the list from left to right
+
+  2. Uses foldl to compute:
+     - Sum of [1, 2, 3, 4, 5] using addition
+     - Product of [1, 2, 3, 4, 5] using multiplication
+     - Maximum of [3, 1, 4, 1, 5, 9, 2, 6]
+
+  3. Prints three lines:
+     - Sum: {value}
+     - Product: {value}
+     - Max: {value}
+
+  Expected:
+  - Sum: 1+2+3+4+5 = 15
+  - Product: 1*2*3*4*5 = 120
+  - Max of [3,1,4,1,5,9,2,6] = 9
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Sum: 15
+  Product: 120
+  Max: 9
