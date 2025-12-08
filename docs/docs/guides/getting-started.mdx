@@ -73,6 +73,39 @@ ailang --version
 
 ---
 
+## <Icon name="server" inline /> MCP Server (Custom Integrations)
+
+For integrating AILANG tools into AI systems via [Model Context Protocol](https://modelcontextprotocol.io/):
+
+```bash
+# Clone and setup
+git clone https://github.com/sunholo-data/ailang_bootstrap.git
+cd ailang_bootstrap/mcp-server
+npm install
+npm start
+```
+
+**Configure in your MCP client:**
+```json
+{
+  "mcpServers": {
+    "ailang-tools": {
+      "command": "node",
+      "args": ["/path/to/ailang_bootstrap/mcp-server/server.js"]
+    }
+  }
+}
+```
+
+**Available Tools:**
+- <CheckIcon inline size={14} /> `ailang_prompt` - Teaching prompt (SOURCE OF TRUTH for syntax)
+- <CheckIcon inline size={14} /> `ailang_check` - Type-check files
+- <CheckIcon inline size={14} /> `ailang_run` - Run with capabilities
+- <CheckIcon inline size={14} /> `ailang_builtins` - Full stdlib documentation
+- <CheckIcon inline size={14} /> `ailang_eval` - REPL evaluation
+
+---
+
 ## <Icon name="bot" inline /> For AI Agents: CLI Integration
 
 **If you installed manually**, integrate AILANG into your AI coding agent:

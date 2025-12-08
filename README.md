@@ -198,6 +198,41 @@ ailang --version
 
 For detailed instructions, see the [Getting Started Guide](https://sunholo-data.github.io/ailang/docs/guides/getting-started).
 
+### MCP Server (For Custom Integrations)
+
+If you want to integrate AILANG tools into other AI systems via [Model Context Protocol](https://modelcontextprotocol.io/):
+
+```bash
+# Clone the bootstrap repo
+git clone https://github.com/sunholo-data/ailang_bootstrap.git
+cd ailang_bootstrap/mcp-server
+
+# Install dependencies and start server
+npm install
+npm start
+```
+
+Configure in your MCP client's `settings.json`:
+```json
+{
+  "mcpServers": {
+    "ailang-tools": {
+      "command": "node",
+      "args": ["/path/to/ailang_bootstrap/mcp-server/server.js"]
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+| Tool | Description |
+|------|-------------|
+| `ailang_prompt` | Get teaching prompt (SOURCE OF TRUTH for syntax) |
+| `ailang_check` | Type-check a file |
+| `ailang_run` | Run with capabilities |
+| `ailang_builtins` | Full stdlib docs with examples |
+| `ailang_eval` | Evaluate expression in REPL |
+
 ### Hello World (Module Execution)
 
 ```ailang
