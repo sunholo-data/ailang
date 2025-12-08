@@ -7,11 +7,52 @@ import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # Getting Started with AILANG
 
-## <Icon name="bot" inline /> For AI Agents: Quick Integration
+## <Icon name="bot" inline /> For AI Agents: Plugin Installation (Recommended)
 
-**AILANG is designed for AI-assisted development.** To integrate AILANG into your AI coding agent:
+**AILANG is designed to be used with AI coding agents.** The easiest way to get started is via your agent's plugin/extension system:
 
-### Step 1: Install AILANG
+### Claude Code
+
+```
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang
+```
+
+### Gemini CLI
+
+```bash
+gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
+```
+
+### What the Plugin Provides
+
+- <CheckIcon inline size={14} /> **AILANG binary** - Auto-installed for your platform
+- <CheckIcon inline size={14} /> **MCP tools** - `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`
+- <CheckIcon inline size={14} /> **Slash commands** - `/ailang:prompt`, `/ailang:new`, `/ailang:run`, `/ailang:challenge`
+- <CheckIcon inline size={14} /> **Teaching prompts** - Current syntax rules loaded automatically
+- <CheckIcon inline size={14} /> **Coding challenges** - Learn AILANG by building real programs
+- <CheckIcon inline size={14} /> **Full stdlib docs** - `ailang builtins list --verbose --by-module`
+
+### Using AILANG with Your Agent
+
+Once the plugin is installed, ask your agent:
+
+```
+Write an AILANG program that reads a file and counts the lines.
+```
+
+The agent will:
+1. Load the teaching prompt via `ailang prompt`
+2. Check stdlib functions via `ailang builtins list --verbose`
+3. Write correct AILANG code
+4. Type-check with `ailang check`
+5. Run with `ailang run --caps IO,FS --entry main`
+
+---
+
+## <Icon name="download" inline /> Manual Installation
+
+For standalone CLI usage or if you prefer manual installation:
 
 ```bash
 # macOS (Apple Silicon)
@@ -29,6 +70,12 @@ sudo mv ailang /usr/local/bin/
 # Verify
 ailang --version
 ```
+
+---
+
+## <Icon name="bot" inline /> For AI Agents: CLI Integration
+
+**If you installed manually**, integrate AILANG into your AI coding agent:
 
 ### Step 2: Get the AILANG Teaching Prompt
 

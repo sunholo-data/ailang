@@ -149,23 +149,54 @@ For the formal rationale and algebraic laws, see the [Why No Loops?](https://sun
 
 ## Quick Start
 
-### Installation
+### Installation for AI Agents (Recommended)
+
+AILANG is designed to be used with AI coding agents. Install via your agent's extension/plugin system:
+
+**Claude Code:**
+```
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang
+```
+
+**Gemini CLI:**
+```bash
+gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
+```
+
+These plugins provide:
+- AILANG binary (auto-installed)
+- MCP tools for type-checking and running code
+- Custom slash commands (`/ailang:prompt`, `/ailang:run`, etc.)
+- Teaching prompts and coding challenges
+- Full stdlib documentation via `ailang builtins list --verbose`
+
+### Manual Installation
+
+For standalone CLI usage or development:
 
 ```bash
-# Download binary (macOS Apple Silicon)
+# macOS (Apple Silicon)
 curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
-# Or from source
-git clone https://github.com/sunholo-data/ailang.git
-cd ailang
-make install
+# macOS (Intel)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
 
-# Verify installation
+# Linux
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# From source
+git clone https://github.com/sunholo-data/ailang.git
+cd ailang && make install
+
+# Verify
 ailang --version
 ```
 
-For other platforms and detailed instructions, see the [Getting Started Guide](https://sunholo-data.github.io/ailang/docs/guides/getting-started).
+For detailed instructions, see the [Getting Started Guide](https://sunholo-data.github.io/ailang/docs/guides/getting-started).
 
 ### Hello World (Module Execution)
 
