@@ -1,8 +1,11 @@
-module std/io
+-- std/io - Console input/output
+--
+-- Print to stdout and read from stdin.
+-- Effects tracked in the type system with ! {IO}.
+--
+-- Requires: IO capability (--caps IO)
 
--- Wrappers around Go builtins (_io_print, _io_println, _io_readLine)
--- Effects are tracked at the type level with ! {IO}
--- Using equation-form exports for thin wrappers
+module std/io
 
 -- print: Print string without newline
 export func print(s: string) -> () ! {IO} = _io_print(s)

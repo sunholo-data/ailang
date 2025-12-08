@@ -1,5 +1,13 @@
+-- std/result - Error handling (Ok or Err)
+--
+-- Represents operations that can succeed or fail.
+-- Use instead of exceptions for type-safe error handling.
+--
+-- Pure functions (no effects required)
+
 module std/result
 
+-- The Result type: Ok(value) or Err(error)
 export type Result[a, e] = Ok(a) | Err(e)
 
 export pure func map[a, b, e](f: (a) -> b, r: Result[a, e]) -> Result[b, e] {

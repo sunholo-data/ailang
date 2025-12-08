@@ -1,7 +1,11 @@
-module std/string
+-- std/string - String manipulation functions
+--
+-- String operations: length, substring, trim, split, etc.
+-- Strings are immutable UTF-8 sequences.
+--
+-- Pure functions (no effects required)
 
--- Wrappers for built-in string primitives
--- The underlying _str_* functions are registered in Go
+module std/string
 
 import std/option (Option, Some, None)
 

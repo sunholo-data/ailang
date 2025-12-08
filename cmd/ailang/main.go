@@ -180,6 +180,9 @@ func main() {
 	case "builtins":
 		runBuiltins()
 
+	case "docs":
+		docsCommand()
+
 	case "debug":
 		runDebug()
 

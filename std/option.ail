@@ -1,5 +1,13 @@
+-- std/option - Optional values (None or Some)
+--
+-- Represents values that may or may not exist.
+-- Use instead of null for type-safe optional handling.
+--
+-- Pure functions (no effects required)
+
 module std/option
 
+-- The Option type: Some(value) or None
 export type Option[a] = Some(a) | None
 
 export pure func map[a, b](f: (a) -> b, opt: Option[a]) -> Option[b] {
