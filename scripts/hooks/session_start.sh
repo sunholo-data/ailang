@@ -46,6 +46,19 @@ log() {
 
 log "=== Session Start Hook Started ==="
 
+# Get current version from CHANGELOG.md (most reliable source)
+get_current_version() {
+    local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
+    if [ -f "$CHANGELOG" ]; then
+        grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" | head -1
+    else
+        echo "unknown"
+    fi
+}
+
+CURRENT_VERSION=$(get_current_version)
+log "Current AILANG version: $CURRENT_VERSION"
+
 # Prevent duplicate execution within 3 seconds
 # Claude Code seems to run SessionStart hook twice on session start
 if [ -f "$LOCK_FILE" ]; then
@@ -150,6 +163,7 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
     SPRINT_CONTEXT=$(get_sprint_context)
 
     # Output context (will appear in system reminders)
+    echo "📦 AILANG $CURRENT_VERSION"
     if [ -n "$SPRINT_CONTEXT" ]; then
         echo "📭 Agent inbox: No unread messages from autonomous agents."
         echo "$SPRINT_CONTEXT"
@@ -183,7 +197,7 @@ SPRINT_CONTEXT=$(get_sprint_context)
 # The MESSAGES_JSON comes from the CLI and has format:
 # [{"id":"msg_xxx","from_agent":"test","to_inbox":"user","title":"Title","payload":"...","status":"unread","created_at":"..."}]
 CONTEXT_MESSAGE=$(cat <<EOF
-
+📦 AILANG $CURRENT_VERSION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📬 AGENT INBOX: $UNREAD_COUNT unread message(s) from autonomous agents
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

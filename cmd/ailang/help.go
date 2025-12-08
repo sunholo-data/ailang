@@ -96,6 +96,8 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Development Tools:")
 	fmt.Printf("  %s [--version V]   Display AILANG teaching prompt (for AI code generation)\n", cyan("prompt"))
+	fmt.Printf("  %s                     List available stdlib modules\n", cyan("docs --list"))
+	fmt.Printf("  %s               Show stdlib module documentation\n", cyan("docs <module>"))
 	fmt.Printf("  %s                 Validate builtin registry\n", cyan("doctor builtins"))
 	fmt.Printf("  %s [--by-effect|--by-module]  List all registered builtins\n", cyan("builtins list"))
 	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))

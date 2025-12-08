@@ -1,11 +1,13 @@
+-- std/array - Fixed-size arrays with O(1) access
+--
+-- Arrays provide O(1) indexed access, unlike lists which are O(n).
+-- Use for performance-critical code or when random access is needed.
+--
+-- Pure functions (no effects required)
+
 module std/array
 import std/option (Option, Some, None)
 import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
-
--- ============================================================================
--- AILANG Array Module
--- ============================================================================
--- Arrays provide O(1) indexed access, unlike lists which are O(n).
 --
 -- INDEXING: 0-based (first element at index 0, last at length-1)
 -- IMMUTABILITY: All operations return new arrays (copy-on-write)

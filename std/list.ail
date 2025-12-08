@@ -1,3 +1,10 @@
+-- std/list - Linked list operations
+--
+-- Functional list operations: map, filter, fold, etc.
+-- Lists are immutable linked lists with O(1) prepend, O(n) append.
+--
+-- Pure functions (no effects required)
+
 module std/list
 import std/option (Option, Some, None)
 

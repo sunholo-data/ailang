@@ -33,20 +33,30 @@ Invoke this skill when:
 ### `scripts/create_planned_doc.sh <doc-name> [version]`
 Create a new design document in `design_docs/planned/`.
 
+**Version Auto-Detection:**
+The script automatically detects the current AILANG version from `CHANGELOG.md` and suggests the next version folder. This prevents accidentally placing docs in wrong version folders.
+
 **Usage:**
 ```bash
-# Create doc in planned/ root
+# See current version and suggested target
+.claude/skills/design-doc-creator/scripts/create_planned_doc.sh
+# Output: Current AILANG version: v0.5.6
+#         Suggested next version: v0_5_7
+
+# Create doc in planned/ root (no version)
 .claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-dx2-better-errors
 
-# Create doc in version folder
-.claude/skills/design-doc-creator/scripts/create_planned_doc.sh reflection-system v0_4_0
+# Create doc in next version folder (recommended)
+.claude/skills/design-doc-creator/scripts/create_planned_doc.sh reflection-system v0_5_7
 ```
 
 **What it does:**
+- Detects current version from CHANGELOG.md
+- Suggests next patch version for targeting
 - Creates design doc from template
 - Places in correct directory (planned/ or planned/VERSION/)
 - Fills in creation date
-- Provides next steps
+- Shows version context in output
 
 ### `scripts/move_to_implemented.sh <doc-name> <version>`
 Move a design document from planned/ to implemented/ after completion.
