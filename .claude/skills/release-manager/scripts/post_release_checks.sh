@@ -39,12 +39,14 @@ fi
 echo
 
 # Check release binaries
+# Updated for Gemini CLI naming convention (v0.5.7+)
+# Format: {platform}.{arch}.ailang.{ext}
 echo "3/4 Checking release binaries..."
 EXPECTED_BINARIES=(
-    "ailang-darwin-amd64.tar.gz"
-    "ailang-darwin-arm64.tar.gz"
-    "ailang-linux-amd64.tar.gz"
-    "ailang-windows-amd64.zip"
+    "darwin.x64.ailang.tar.gz"
+    "darwin.arm64.ailang.tar.gz"
+    "linux.x64.ailang.tar.gz"
+    "win32.x64.ailang.zip"
 )
 
 BINARY_FAILURES=0
