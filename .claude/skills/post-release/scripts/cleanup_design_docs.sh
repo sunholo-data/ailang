@@ -1,26 +1,36 @@
 #!/bin/bash
 #
-# Cleanup design docs after a release.
-# Helps identify docs in planned/ that should be moved to implemented/.
+# Move design docs from planned/ to implemented/ after a release.
+# Automatically moves ALL docs in planned/vX_Y_Z/ for the released version.
 #
-# Usage: cleanup_design_docs.sh <version>
-# Example: cleanup_design_docs.sh 0.5.6
+# Usage: cleanup_design_docs.sh <version> [--dry-run]
+# Example: cleanup_design_docs.sh 0.5.7
+#          cleanup_design_docs.sh 0.5.7 --dry-run
 #
 
 set -e
 
 VERSION="${1:-}"
+DRY_RUN=false
+
+# Check for --dry-run flag
+for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+        DRY_RUN=true
+    fi
+done
 
 # Remove 'v' prefix if present
 VERSION="${VERSION#v}"
 
 if [ -z "$VERSION" ]; then
-    echo "Usage: $0 <version>"
-    echo "Example: $0 0.5.6"
+    echo "Usage: $0 <version> [--dry-run]"
+    echo "Example: $0 0.5.7"
+    echo "         $0 0.5.7 --dry-run"
     exit 1
 fi
 
-# Convert version to folder format (0.5.6 -> v0_5_6)
+# Convert version to folder format (0.5.7 -> v0_5_7)
 FOLDER_VERSION="v${VERSION//./_}"
 
 PLANNED_DIR="design_docs/planned"
@@ -30,71 +40,67 @@ echo "Design Doc Cleanup for v${VERSION}"
 echo "=================================="
 echo ""
 
+if [ "$DRY_RUN" = true ]; then
+    echo "Mode: DRY RUN (no changes will be made)"
+    echo ""
+fi
+
 # Check if planned folder for this version exists
-if [ -d "${PLANNED_DIR}/${FOLDER_VERSION}" ]; then
-    echo "Planned docs for ${FOLDER_VERSION}:"
-    echo ""
-
-    for doc in "${PLANNED_DIR}/${FOLDER_VERSION}"/*.md; do
-        if [ -f "$doc" ]; then
-            basename="$(basename "$doc")"
-
-            # Check if doc says IMPLEMENTED in the first 10 lines
-            if head -10 "$doc" | grep -qi "IMPLEMENTED\|Status.*IMPLEMENTED"; then
-                echo "  [MOVE] $basename (marked as implemented)"
-            elif head -10 "$doc" | grep -qi "SUPERSEDED"; then
-                echo "  [SUPERSEDED] $basename (marked as superseded)"
-            else
-                echo "  [PENDING] $basename"
-            fi
-        fi
-    done
-    echo ""
-else
-    echo "No planned/${FOLDER_VERSION} folder found."
-    echo ""
+if [ ! -d "${PLANNED_DIR}/${FOLDER_VERSION}" ]; then
+    echo "No ${PLANNED_DIR}/${FOLDER_VERSION}/ folder found."
+    echo "Nothing to move."
+    exit 0
 fi
 
-# Check CHANGELOG for this version to find implemented milestones
-echo "Checking CHANGELOG for v${VERSION} milestones..."
-echo ""
+# Count docs to move
+DOC_COUNT=$(find "${PLANNED_DIR}/${FOLDER_VERSION}" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
 
-if grep -q "## \[v${VERSION}\]" CHANGELOG.md; then
-    echo "Milestones in CHANGELOG for v${VERSION}:"
-    # Extract section between this version and previous version
-    awk "/## \[v${VERSION}\]/,/## \[v[0-9]/" CHANGELOG.md | \
-        grep -E "M-[A-Z0-9-]+|DX-[0-9]+" | \
-        head -20 | \
-        sed 's/^/  /'
-    echo ""
-else
-    echo "  No CHANGELOG entry found for v${VERSION} yet."
-    echo ""
+if [ "$DOC_COUNT" -eq 0 ]; then
+    echo "No design docs found in ${PLANNED_DIR}/${FOLDER_VERSION}/"
+    echo "Nothing to move."
+    exit 0
 fi
 
-# List any docs in planned/ that mention IMPLEMENTED
-echo "Other docs in planned/ marked as implemented:"
+echo "Found ${DOC_COUNT} design doc(s) in ${PLANNED_DIR}/${FOLDER_VERSION}/:"
 echo ""
-found=0
-for doc in "${PLANNED_DIR}"/*/*.md "${PLANNED_DIR}"/*.md; do
+
+# List and optionally move docs
+for doc in "${PLANNED_DIR}/${FOLDER_VERSION}"/*.md; do
     if [ -f "$doc" ]; then
-        if head -10 "$doc" | grep -qi "Status.*IMPLEMENTED"; then
-            echo "  [MOVE] $doc"
-            found=1
+        basename="$(basename "$doc")"
+
+        if [ "$DRY_RUN" = true ]; then
+            echo "  [WOULD MOVE] $basename"
+        else
+            # Create implemented folder if needed
+            mkdir -p "${IMPLEMENTED_DIR}/${FOLDER_VERSION}"
+
+            # Move the doc
+            mv "$doc" "${IMPLEMENTED_DIR}/${FOLDER_VERSION}/"
+            echo "  [MOVED] $basename → ${IMPLEMENTED_DIR}/${FOLDER_VERSION}/"
         fi
     fi
-done 2>/dev/null
+done
 
-if [ $found -eq 0 ]; then
-    echo "  (none found)"
+echo ""
+
+# Check if planned folder is now empty and remove it
+if [ "$DRY_RUN" = false ]; then
+    remaining=$(find "${PLANNED_DIR}/${FOLDER_VERSION}" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$remaining" -eq 0 ]; then
+        rmdir "${PLANNED_DIR}/${FOLDER_VERSION}" 2>/dev/null || true
+        echo "Removed empty ${PLANNED_DIR}/${FOLDER_VERSION}/ folder"
+        echo ""
+    fi
 fi
-echo ""
 
-echo "Next steps:"
-echo "  1. Review docs marked [MOVE] and move to implemented/${FOLDER_VERSION}/"
-echo "  2. Update docs marked [SUPERSEDED] and move to implemented/"
-echo "  3. Create implemented/${FOLDER_VERSION}/ if it doesn't exist:"
-echo "     mkdir -p ${IMPLEMENTED_DIR}/${FOLDER_VERSION}"
-echo "  4. Move docs:"
-echo "     mv ${PLANNED_DIR}/${FOLDER_VERSION}/<doc>.md ${IMPLEMENTED_DIR}/${FOLDER_VERSION}/"
-echo ""
+# Summary
+if [ "$DRY_RUN" = true ]; then
+    echo "Dry run complete. Run without --dry-run to move files."
+else
+    echo "✓ Moved ${DOC_COUNT} design doc(s) to ${IMPLEMENTED_DIR}/${FOLDER_VERSION}/"
+    echo ""
+    echo "Next steps:"
+    echo "  git add design_docs/"
+    echo "  git commit -m 'docs: move design docs to implemented/${FOLDER_VERSION}'"
+fi

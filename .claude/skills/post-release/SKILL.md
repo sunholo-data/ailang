@@ -168,37 +168,42 @@ Use this template in CHANGELOG.md for 0.3.15
 - **Formats comparison text automatically** (+X% improvement or -X% regression)
 - Generates ready-to-paste CHANGELOG template with no manual work needed
 
-### `scripts/cleanup_design_docs.sh <version>`
-Help identify design docs that need to be moved from planned/ to implemented/.
+### `scripts/cleanup_design_docs.sh <version> [--dry-run]`
+Automatically move design docs from planned/ to implemented/ after a release.
 
 **Usage:**
 ```bash
-.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.6
+# Automatically move all docs for this version
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7
+
+# Preview what would be moved (no changes made)
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --dry-run
 ```
 
 **Output:**
 ```
-Design Doc Cleanup for v0.5.6
+Design Doc Cleanup for v0.5.7
 ==================================
 
-Planned docs for v0_5_6:
-  [MOVE] m-type1-array-tarray-unification.md (marked as implemented)
-  [PENDING] m-eval-process-guardrails.md
+Found 2 design doc(s) in design_docs/planned/v0_5_7/:
 
-Checking CHANGELOG for v0.5.6 milestones...
-  M-TYPE1: Array/TArray unification
+  [MOVED] m-dx11-stdlib-discovery.md → design_docs/implemented/v0_5_7/
+  [MOVED] m-other-feature.md → design_docs/implemented/v0_5_7/
+
+Removed empty design_docs/planned/v0_5_7/ folder
+
+✓ Moved 2 design doc(s) to design_docs/implemented/v0_5_7/
 
 Next steps:
-  1. Review docs marked [MOVE] and move to implemented/v0_5_6/
-  2. Create implemented/v0_5_6/ if it doesn't exist
-  3. Move docs with: mv planned/v0_5_6/<doc>.md implemented/v0_5_6/
+  git add design_docs/
+  git commit -m 'docs: move design docs to implemented/v0_5_7'
 ```
 
 **What it does:**
-- Lists docs in `planned/vX_Y_Z/` with their status
-- Identifies docs marked IMPLEMENTED or SUPERSEDED in their content
-- Cross-references with CHANGELOG entries
-- Suggests next steps for manual cleanup
+- Moves ALL docs in `planned/vX_Y_Z/` to `implemented/vX_Y_Z/`
+- Creates the implemented folder if needed
+- Removes empty planned folder after moving
+- Use `--dry-run` to preview without making changes
 
 ## Post-Release Workflow
 
@@ -357,28 +362,30 @@ Gap: 1.13x turns, 1.24x tokens ✅ (within target!)
 Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
 ```
 
-### 5. Update Design Docs
+### 5. Move Design Docs to Implemented
 
-**Use the helper script to identify what needs moving:**
+**Move all design docs for this release:**
 ```bash
 .claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X
 ```
 
-This script:
-- Lists docs in `planned/vX_Y_Z/` that are marked IMPLEMENTED
-- Lists docs marked SUPERSEDED
-- Shows milestones from CHANGELOG for this version
-- Identifies other docs in planned/ that mention IMPLEMENTED
+This script automatically:
+- Moves ALL docs from `planned/vX_Y_Z/` to `implemented/vX_Y_Z/`
+- Creates the implemented folder if needed
+- Removes the empty planned folder
 
-**Manual steps after running the script:**
-- Move completed design docs from `design_docs/planned/` to `design_docs/implemented/vX_Y/`
-- Update design docs with what was actually implemented (vs planned)
-- Mark superseded docs (add status note) before moving
-- Create new design docs for deferred features
-- Create the next version folder: `design_docs/planned/vX_Y+1/`
+**Preview first (optional):**
+```bash
+.claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X --dry-run
+```
 
-**Common issue**: Docs marked as IMPLEMENTED in their content but still in planned/.
-The script helps catch these.
+**Commit the changes:**
+```bash
+git add design_docs/
+git commit -m "docs: move design docs to implemented/vX_Y_Z"
+```
+
+**Note**: Any docs remaining in the planned folder (for future versions) are left untouched.
 
 ### 6. Update Public Documentation
 
@@ -555,8 +562,8 @@ This checks:
 ## Notes
 
 - This skill follows Anthropic's Agent Skills specification (Oct 2025)
-- Scripts handle 100% of automation (eval baseline, dashboard, metrics extraction)
+- Scripts handle 100% of automation (eval baseline, dashboard, metrics extraction, design docs)
 - Can be run hours or even days after release
 - Dashboard JSON preserves history - never overwrites historical data
 - Always use `--full` flag for release baselines (all production models)
-- Design doc migration requires manual review
+- Design docs automatically moved from planned/ to implemented/ (use --dry-run to preview)
