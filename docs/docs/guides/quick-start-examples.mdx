@@ -8,15 +8,96 @@ import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Ico
 
 # Quick Start Examples
 
-This guide walks through practical AILANG examples, from hello world to AI-powered applications.
+**The fastest way to see AILANG in action: ask an AI agent to build something.**
 
 ## Prerequisites
 
-Make sure you have AILANG installed. See [Getting Started](./getting-started) for installation options.
+Make sure you have AILANG installed via your AI agent. See [Getting Started](./getting-started) for installation options.
 
 ---
 
-## Example 1: Hello World
+## Coding Challenges: Watch AI Build Applications
+
+The AILANG plugin includes **coding challenges** - guided tasks where you can watch an AI agent build real applications in AILANG. This is the best way to verify AILANG works and see it in action.
+
+### Available Challenges
+
+| Challenge | Difficulty | What It Builds |
+|-----------|------------|----------------|
+| `ask-ai` | Beginner | Simple AI Q&A tool |
+| `summarize-file` | Intermediate | AI-powered file summarizer |
+| `ai-debate` | Intermediate | Multi-model AI debate orchestrator |
+| `game-of-life` | Intermediate | Conway's Game of Life with HTML visualization |
+
+### How to Use Challenges
+
+**With Claude Code or Gemini CLI:**
+```
+/ailang-challenge game-of-life
+```
+
+Or ask your AI agent directly:
+```
+Complete the AILANG Game of Life challenge. Show me each step.
+```
+
+### What Happens
+
+1. The AI loads the challenge description
+2. It explores AILANG's stdlib with `ailang builtins list --verbose`
+3. It writes AILANG code step-by-step
+4. It type-checks with `ailang check`
+5. It runs with `ailang run --caps ...`
+6. You watch it work and see the output!
+
+### Example: Watch AI Build Game of Life
+
+Ask your agent:
+```
+Build Conway's Game of Life in AILANG. Use std/array for the grid,
+create Cell ADT with Alive/Dead, implement the rules as pure functions,
+and output an HTML file that animates the evolution.
+```
+
+The AI will:
+- <CheckIcon inline size={14} /> Design data structures using AILANG's type system
+- <CheckIcon inline size={14} /> Implement Conway's rules with pattern matching
+- <CheckIcon inline size={14} /> Compute 60 generations using pure functions
+- <CheckIcon inline size={14} /> Generate HTML output via FS effect
+- <CheckIcon inline size={14} /> Produce a working animation you can open in a browser
+
+**This proves:**
+- AILANG is a real programming language
+- AI agents can learn and use it correctly
+- The effect system tracks capabilities (IO, FS)
+- Pure functions enable deterministic computation
+
+### Suggested Learning Path
+
+1. **ask-ai** - Start here. Simplest AI integration (5 min)
+2. **summarize-file** - Add file I/O to AI calls (10 min)
+3. **ai-debate** - Orchestrate multiple AI calls (15 min)
+4. **game-of-life** - Pure computation showcase (20 min)
+
+### Challenge Structure
+
+Each challenge folder contains:
+```
+challenges/<name>/
+├── challenge.md    # Guided prompt (what the AI sees)
+├── solution.ail    # Working reference
+└── hints.md        # Progressive hints (optional)
+```
+
+Challenges live in the [ailang_bootstrap repo](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges).
+
+---
+
+## Language Reference Examples
+
+The following examples show AILANG syntax for reference. **You don't need to write this yourself** - just ask your AI agent to build what you need!
+
+### Example 1: Hello World
 
 The simplest AILANG program:
 
@@ -449,87 +530,10 @@ Hello World :: String
 
 ---
 
-## Coding Challenges: Watch AI Build Applications
-
-The AILANG plugin includes **coding challenges** - guided tasks where you can watch an AI agent build real applications in AILANG. This is the best way to verify AILANG works and see it in action.
-
-### Available Challenges
-
-| Challenge | Difficulty | What It Builds |
-|-----------|------------|----------------|
-| `ask-ai` | Beginner | Simple AI Q&A tool |
-| `summarize-file` | Intermediate | AI-powered file summarizer |
-| `ai-debate` | Intermediate | Multi-model AI debate orchestrator |
-| `game-of-life` | Intermediate | Conway's Game of Life with HTML visualization |
-
-### How to Use Challenges
-
-**With Claude Code or Gemini CLI:**
-```
-/ailang-challenge game-of-life
-```
-
-Or ask your AI agent directly:
-```
-Complete the AILANG Game of Life challenge. Show me each step.
-```
-
-### What Happens
-
-1. The AI loads the challenge description
-2. It explores AILANG's stdlib with `ailang builtins list --verbose`
-3. It writes AILANG code step-by-step
-4. It type-checks with `ailang check`
-5. It runs with `ailang run --caps ...`
-6. You watch it work and see the output!
-
-### Example: Watch AI Build Game of Life
-
-Ask your agent:
-```
-Build Conway's Game of Life in AILANG. Use std/array for the grid,
-create Cell ADT with Alive/Dead, implement the rules as pure functions,
-and output an HTML file that animates the evolution.
-```
-
-The AI will:
-- <CheckIcon inline size={14} /> Design data structures using AILANG's type system
-- <CheckIcon inline size={14} /> Implement Conway's rules with pattern matching
-- <CheckIcon inline size={14} /> Compute 60 generations using pure functions
-- <CheckIcon inline size={14} /> Generate HTML output via FS effect
-- <CheckIcon inline size={14} /> Produce a working animation you can open in a browser
-
-**This proves:**
-- AILANG is a real programming language
-- AI agents can learn and use it correctly
-- The effect system tracks capabilities (IO, FS)
-- Pure functions enable deterministic computation
-
-### Suggested Learning Path
-
-1. **ask-ai** - Start here. Simplest AI integration (5 min)
-2. **summarize-file** - Add file I/O to AI calls (10 min)
-3. **ai-debate** - Orchestrate multiple AI calls (15 min)
-4. **game-of-life** - Pure computation showcase (20 min)
-
-### Challenge Structure
-
-Each challenge folder contains:
-```
-challenges/<name>/
-├── challenge.md    # Guided prompt (what the AI sees)
-├── solution.ail    # Working reference
-└── hints.md        # Progressive hints (optional)
-```
-
-Challenges live in the [ailang_bootstrap repo](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges).
-
----
-
 ## Next Steps
 
+- Try the [Coding Challenges](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges) - watch AI build real apps
 - Explore [Language Syntax Reference](../reference/language-syntax)
 - Learn about [Effects and Capabilities](../reference/effects)
 - See the [AI Prompt Guide](./ai-prompt-guide) for AI agent integration
 - Browse [working examples on GitHub](https://github.com/sunholo-data/ailang/tree/main/examples)
-- Try the [Coding Challenges](https://github.com/sunholo-data/ailang_bootstrap/tree/main/challenges)
