@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -131,9 +132,21 @@ func extractEffectFromType(t types.Type) *types.Row {
 	return nil // Pure (no effects)
 }
 
+// Debug counter for tracking traversal depth
+var debugEffectCounter int
+var debugEffectMaxDepth int
+
 // collectRequiredEffects recursively walks the expression to collect all required effects
 // Returns the union of all effects used in the expression
 func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo) *types.Row {
+	debugEffectCounter++
+	if debugEffectCounter%10000 == 0 {
+		fmt.Fprintf(os.Stderr, "[DEBUG] collectRequiredEffects called %d times\n", debugEffectCounter)
+	}
+	if debugEffectCounter > 1000000 {
+		panic(fmt.Sprintf("collectRequiredEffects called >1M times, likely infinite loop. Last expr type: %T", expr))
+	}
+
 	if expr == nil {
 		return nil
 	}
@@ -181,20 +194,22 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo) *ty
 		return result
 
 	case *core.Let:
-		// Let binding: union of RHS and body effects
-		rhsEffects := collectRequiredEffects(e.Value, typeInfo)
-		bodyEffects := collectRequiredEffects(e.Body, typeInfo)
-		return types.UnionEffectRows(rhsEffects, bodyEffects)
+		// Let binding: only collect from RHS value
+		// IMPORTANT: Do NOT traverse body here - validateDecl already handles body recursion
+		// Traversing body here caused O(m²) complexity where m = number of Let bindings
+		// (M-PERF1 fix for effect checker hang on large arrays)
+		return collectRequiredEffects(e.Value, typeInfo)
 
 	case *core.LetRec:
-		// LetRec: union of all binding effects and body
+		// LetRec: only collect from binding values
+		// IMPORTANT: Do NOT traverse body here - validateDecl already handles body recursion
+		// (M-PERF1 fix for effect checker hang on large arrays)
 		var effects *types.Row
 		for _, binding := range e.Bindings {
 			bindingEffects := collectRequiredEffects(binding.Value, typeInfo)
 			effects = types.UnionEffectRows(effects, bindingEffects)
 		}
-		bodyEffects := collectRequiredEffects(e.Body, typeInfo)
-		return types.UnionEffectRows(effects, bodyEffects)
+		return effects
 
 	case *core.If:
 		// If: union of condition, then, and else effects

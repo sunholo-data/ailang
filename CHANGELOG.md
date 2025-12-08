@@ -1,5 +1,46 @@
 # AILANG Changelog
 
+## [v0.5.8] - 2025-12-08
+
+### Fixed - Effect Checker Performance on Large Arrays (M-PERF1)
+
+**Bug**: Effect checking hangs indefinitely (30+ seconds) on modules with large array literals (192+ elements).
+
+**Reporter**: stapledons_voyage project
+
+**Root Cause**: `collectRequiredEffects` had O(m²) complexity where m = number of Let bindings. When processing nested Let expressions, it traversed both RHS *and* body, but `validateDecl` *also* recursively processes bodies. This caused each array to be traversed once per preceding Let binding.
+
+**Example**: A module with 10 Let bindings containing large arrays would traverse ~55x more nodes than necessary (1+2+...+10 = 55).
+
+**Fix**: Modified `collectRequiredEffects` to only traverse RHS values for Let/LetRec nodes, not bodies. The `validateDecl` function already handles body recursion.
+
+**Before (v0.5.7 - HANGS)**:
+```bash
+$ time ailang check sim/bridge.ail
+→ Type checking sim/bridge.ail...
+→ Effect checking...
+^C  # Killed after 30+ seconds
+```
+
+**After (v0.5.8 - FAST)**:
+```bash
+$ time ailang check sim/bridge.ail
+→ Type checking sim/bridge.ail...
+→ Effect checking...
+✓ No errors found!
+real    0m1.2s
+```
+
+**Performance Results**:
+- 20 bindings × 200 elements: 172µs (was hanging)
+- Scaling: Linear (ratio 6.4 for 10x input, not 100x)
+
+**Files Changed**:
+- `internal/pipeline/validate_effects.go` - Fix Let/LetRec traversal (~10 LOC)
+- `internal/pipeline/validate_effects_test.go` - Add regression tests and benchmarks (~200 LOC)
+
+**Design Doc**: [design_docs/planned/v0_5_8/m-perf1-effect-checker-large-arrays.md](design_docs/planned/v0_5_8/m-perf1-effect-checker-large-arrays.md)
+
 ## [v0.5.7] - 2025-12-08
 
 ### Added - Stdlib Discovery for AI Agents (M-DX11)
