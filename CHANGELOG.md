@@ -1,5 +1,69 @@
 # AILANG Changelog
 
+## [v0.5.7] - 2025-12-08
+
+### Added - Stdlib Discovery for AI Agents (M-DX11)
+
+New `ailang docs` command enables AI agents to discover stdlib functions without file access:
+
+```bash
+ailang docs --list              # List all 15 stdlib modules
+ailang docs std/io              # Show module exports and signatures
+ailang docs io                  # Short form (same as std/io)
+ailang docs --examples std/ai   # Show usage examples
+```
+
+**Example output:**
+```
+$ ailang docs --list
+Available stdlib modules:
+
+  std/ai         AI effect for general-purpose AI oracle calls
+  std/array      Arrays provide O(1) indexed access
+  std/clock      Provides time operations with virtual time support
+  std/env        Access environment variables with capability-based security
+  std/fs         Read and write files with capability-based security
+  std/io         Print to stdout and read from stdin
+  ...
+
+$ ailang docs std/io
+# std/io
+Print to stdout and read from stdin.
+
+## Exports
+
+  print(s: string) -> () !
+  println(s: string) -> () !
+  readLine() -> string !
+
+## Usage
+
+  import std/io (print)
+  import std/io as Io
+```
+
+**Files Added:**
+- `cmd/ailang/docs.go` - New docs command (~340 LOC)
+
+### Improved - Stdlib Module Documentation
+
+All 15 stdlib modules now have consistent header documentation with:
+- Module description (shown in `docs --list`)
+- Capability requirements (e.g., "Requires: IO capability")
+- Brief explanation of module purpose
+
+**Modules updated:** std/ai, std/array, std/clock, std/debug, std/env, std/fs, std/game, std/io, std/json, std/list, std/net, std/option, std/rand, std/result, std/string
+
+### Added - Version Auto-Detection
+
+- Session start hook now displays current AILANG version: `📦 AILANG v0.5.7`
+- Design-doc-creator skill auto-detects version from CHANGELOG.md
+- Suggests next version folder when creating design docs
+
+**Files Changed:**
+- `scripts/hooks/session_start.sh` - Add version display
+- `.claude/skills/design-doc-creator/scripts/create_planned_doc.sh` - Add version detection
+
 ## [v0.5.6] - 2025-12-04
 
 ### Fixed - Array Type Application Parsing (M-TYPE1)
