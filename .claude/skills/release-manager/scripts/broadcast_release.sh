@@ -106,13 +106,12 @@ fi
 
 # Send to user inbox (broadcast point for all projects)
 if command -v ailang &> /dev/null; then
-    # Use --to-user to send to the global user inbox
-    # JSON payload is passed as argument, not piped
-    ailang agent send --to-user --from "release-manager" "$JSON_PAYLOAD"
+    # Use ailang messages send to broadcast to user inbox
+    ailang messages send user "$JSON_PAYLOAD" --title "$MESSAGE_TITLE" --from "release-manager"
 
     echo ""
     echo "Release notification broadcast for $VERSION"
-    echo "Projects can check their inbox with: ailang agent inbox --unread-only user"
+    echo "Projects can check their inbox with: ailang messages list --unread"
 else
     echo "Warning: ailang not found in PATH"
     echo "Install with: make install"
