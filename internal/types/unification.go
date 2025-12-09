@@ -10,23 +10,38 @@ type Substitution map[string]Type
 // Unifier handles type unification with occurs check
 type Unifier struct {
 	rowUnifier *RowUnifier
+	depth      int // Track recursion depth for cycle detection
 }
+
+// Maximum recursion depth before we assume a cycle
+const maxUnifyDepth = 1000
 
 // NewUnifier creates a new unifier
 func NewUnifier() *Unifier {
 	return &Unifier{
 		rowUnifier: NewRowUnifier(),
+		depth:      0,
 	}
 }
 
 // Unify attempts to unify two types, returning an updated substitution
 func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
-	// Apply current substitution
+	// Depth check to catch infinite recursion
+	u.depth++
+	defer func() { u.depth-- }()
+
+	if u.depth > maxUnifyDepth {
+		// Panic with useful debug info instead of hanging forever
+		panic(fmt.Sprintf("unification depth exceeded %d - likely cyclic types:\n  t1: %T\n  t2: %T\n  substitution size: %d",
+			maxUnifyDepth, t1, t2, len(sub)))
+	}
+
+	// Apply current substitution with cycle detection
 	t1 = ApplySubstitution(sub, t1)
 	t2 = ApplySubstitution(sub, t2)
 
-	// Check if already equal
-	if t1.Equals(t2) {
+	// Check if already equal with cycle detection
+	if SafeEquals(t1, t2) {
 		return sub, nil
 	}
 
@@ -567,7 +582,22 @@ func (u *Unifier) unifyRows(row1, row2 *Row, sub Substitution) (Substitution, er
 }
 
 // occurs performs the occurs check - ensures variable doesn't occur in type
+// This is the public entry point that creates a visited set for cycle detection
 func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
+	visited := make(map[Type]bool)
+	return u.occursWithVisited(varName, t, varKind, visited)
+}
+
+// occursWithVisited is the internal implementation with cycle detection
+// Cyclic types (e.g., List[NPCState] where NPCState contains List[NPCState])
+// would cause infinite recursion without tracking visited types
+func (u *Unifier) occursWithVisited(varName string, t Type, varKind Kind, visited map[Type]bool) bool {
+	// Cycle detection: if we've already started checking this type, don't recurse
+	if visited[t] {
+		return false // Already visited - not an occurs error, just a cycle
+	}
+	visited[t] = true
+
 	switch t := t.(type) {
 	case *TVar2:
 		// Type vars only occur in type vars of same kind
@@ -579,13 +609,13 @@ func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
 
 	case *Row:
 		// Check if var occurs in tail
-		if t.Tail != nil && u.occurs(varName, t.Tail, varKind) {
+		if t.Tail != nil && u.occursWithVisited(varName, t.Tail, varKind, visited) {
 			return true
 		}
 		// Check if var occurs in label types (for record rows)
 		if t.Kind.Equals(RecordRow) {
 			for _, typ := range t.Labels {
-				if u.occurs(varName, typ, varKind) {
+				if u.occursWithVisited(varName, typ, varKind, visited) {
 					return true
 				}
 			}
@@ -599,27 +629,27 @@ func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
 	case *TFunc2:
 		// Check params, return, and effect row
 		for _, p := range t.Params {
-			if u.occurs(varName, p, varKind) {
+			if u.occursWithVisited(varName, p, varKind, visited) {
 				return true
 			}
 		}
-		if u.occurs(varName, t.Return, varKind) {
+		if u.occursWithVisited(varName, t.Return, varKind, visited) {
 			return true
 		}
-		if t.EffectRow != nil && u.occurs(varName, t.EffectRow, varKind) {
+		if t.EffectRow != nil && u.occursWithVisited(varName, t.EffectRow, varKind, visited) {
 			return true
 		}
 		return false
 
 	case *TList:
-		return u.occurs(varName, t.Element, varKind)
+		return u.occursWithVisited(varName, t.Element, varKind, visited)
 
 	case *TArray:
-		return u.occurs(varName, t.Element, varKind)
+		return u.occursWithVisited(varName, t.Element, varKind, visited)
 
 	case *TTuple:
 		for _, elem := range t.Elements {
-			if u.occurs(varName, elem, varKind) {
+			if u.occursWithVisited(varName, elem, varKind, visited) {
 				return true
 			}
 		}
@@ -627,17 +657,17 @@ func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
 
 	case *TRecord2:
 		if t.Row != nil {
-			return u.occurs(varName, t.Row, varKind)
+			return u.occursWithVisited(varName, t.Row, varKind, visited)
 		}
 		return false
 
 	case *TApp:
 		// Check constructor and all args
-		if u.occurs(varName, t.Constructor, varKind) {
+		if u.occursWithVisited(varName, t.Constructor, varKind, visited) {
 			return true
 		}
 		for _, arg := range t.Args {
-			if u.occurs(varName, arg, varKind) {
+			if u.occursWithVisited(varName, arg, varKind, visited) {
 				return true
 			}
 		}
@@ -654,12 +684,427 @@ func (u *Unifier) kindsCompatible(k1, k2 Kind) bool {
 	return k1.Equals(k2)
 }
 
-// ApplySubstitution applies a substitution to a type
+// SafeEquals compares two types for equality with cycle detection
+// This prevents infinite loops when comparing cyclic type graphs
+func SafeEquals(t1, t2 Type) bool {
+	visited := make(map[typePair]bool)
+	return safeEqualsWithVisited(t1, t2, visited)
+}
+
+// typePair is used as a key for tracking visited pairs during equality checking
+type typePair struct {
+	t1, t2 Type
+}
+
+// safeEqualsWithVisited compares types with cycle detection
+func safeEqualsWithVisited(t1, t2 Type, visited map[typePair]bool) bool {
+	// Fast path: pointer equality
+	if t1 == t2 {
+		return true
+	}
+
+	// Handle nil cases
+	if t1 == nil || t2 == nil {
+		return t1 == t2
+	}
+
+	// Create pair key for cycle detection
+	pair := typePair{t1, t2}
+	if visited[pair] {
+		return true // Already comparing this pair - assume equal to break cycle
+	}
+	visited[pair] = true
+
+	switch typ1 := t1.(type) {
+	case *TVar:
+		if typ2, ok := t2.(*TVar); ok {
+			return typ1.Name == typ2.Name
+		}
+		return false
+
+	case *TVar2:
+		if typ2, ok := t2.(*TVar2); ok {
+			return typ1.Name == typ2.Name && typ1.Kind.Equals(typ2.Kind)
+		}
+		return false
+
+	case *RowVar:
+		if typ2, ok := t2.(*RowVar); ok {
+			return typ1.Name == typ2.Name && typ1.Kind.Equals(typ2.Kind)
+		}
+		return false
+
+	case *TCon:
+		if typ2, ok := t2.(*TCon); ok {
+			return typ1.Name == typ2.Name
+		}
+		return false
+
+	case *TList:
+		if typ2, ok := t2.(*TList); ok {
+			return safeEqualsWithVisited(typ1.Element, typ2.Element, visited)
+		}
+		return false
+
+	case *TArray:
+		if typ2, ok := t2.(*TArray); ok {
+			return safeEqualsWithVisited(typ1.Element, typ2.Element, visited)
+		}
+		return false
+
+	case *TTuple:
+		if typ2, ok := t2.(*TTuple); ok {
+			if len(typ1.Elements) != len(typ2.Elements) {
+				return false
+			}
+			for i := range typ1.Elements {
+				if !safeEqualsWithVisited(typ1.Elements[i], typ2.Elements[i], visited) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+
+	case *TFunc:
+		if typ2, ok := t2.(*TFunc); ok {
+			if len(typ1.Params) != len(typ2.Params) {
+				return false
+			}
+			for i := range typ1.Params {
+				if !safeEqualsWithVisited(typ1.Params[i], typ2.Params[i], visited) {
+					return false
+				}
+			}
+			return safeEqualsWithVisited(typ1.Return, typ2.Return, visited)
+		}
+		return false
+
+	case *TFunc2:
+		if typ2, ok := t2.(*TFunc2); ok {
+			if len(typ1.Params) != len(typ2.Params) {
+				return false
+			}
+			for i := range typ1.Params {
+				if !safeEqualsWithVisited(typ1.Params[i], typ2.Params[i], visited) {
+					return false
+				}
+			}
+			if !safeEqualsWithVisited(typ1.Return, typ2.Return, visited) {
+				return false
+			}
+			// Compare effect rows
+			if typ1.EffectRow == nil && typ2.EffectRow == nil {
+				return true
+			}
+			if typ1.EffectRow != nil && typ2.EffectRow != nil {
+				return safeEqualsWithVisited(typ1.EffectRow, typ2.EffectRow, visited)
+			}
+			return false
+		}
+		return false
+
+	case *TRecord:
+		if typ2, ok := t2.(*TRecord); ok {
+			if len(typ1.Fields) != len(typ2.Fields) {
+				return false
+			}
+			for k, v1 := range typ1.Fields {
+				v2, ok := typ2.Fields[k]
+				if !ok || !safeEqualsWithVisited(v1, v2, visited) {
+					return false
+				}
+			}
+			if typ1.Row == nil && typ2.Row == nil {
+				return true
+			}
+			if typ1.Row != nil && typ2.Row != nil {
+				return safeEqualsWithVisited(typ1.Row, typ2.Row, visited)
+			}
+			return false
+		}
+		return false
+
+	case *TRecord2:
+		if typ2, ok := t2.(*TRecord2); ok {
+			if typ1.Row == nil && typ2.Row == nil {
+				return true
+			}
+			if typ1.Row != nil && typ2.Row != nil {
+				return safeEqualsWithVisited(typ1.Row, typ2.Row, visited)
+			}
+			return false
+		}
+		return false
+
+	case *Row:
+		if typ2, ok := t2.(*Row); ok {
+			if !typ1.Kind.Equals(typ2.Kind) {
+				return false
+			}
+			if len(typ1.Labels) != len(typ2.Labels) {
+				return false
+			}
+			for k, v1 := range typ1.Labels {
+				v2, ok := typ2.Labels[k]
+				if !ok || !safeEqualsWithVisited(v1, v2, visited) {
+					return false
+				}
+			}
+			if typ1.Tail == nil && typ2.Tail == nil {
+				return true
+			}
+			if typ1.Tail != nil && typ2.Tail != nil {
+				return safeEqualsWithVisited(typ1.Tail, typ2.Tail, visited)
+			}
+			return false
+		}
+		return false
+
+	case *TApp:
+		if typ2, ok := t2.(*TApp); ok {
+			if !safeEqualsWithVisited(typ1.Constructor, typ2.Constructor, visited) {
+				return false
+			}
+			if len(typ1.Args) != len(typ2.Args) {
+				return false
+			}
+			for i := range typ1.Args {
+				if !safeEqualsWithVisited(typ1.Args[i], typ2.Args[i], visited) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+
+	default:
+		// Fall back to interface method for other types
+		// This is safe because we've already checked for cycles at this level
+		return t1.Equals(t2)
+	}
+}
+
+// ApplySubstitution applies a substitution to a type with cycle detection
 func ApplySubstitution(sub Substitution, t Type) Type {
 	if len(sub) == 0 {
 		return t
 	}
-	return t.Substitute(sub)
+	visited := make(map[Type]Type)
+	return safeSubstitute(t, sub, visited)
+}
+
+// safeSubstitute applies substitution with cycle detection to prevent infinite loops
+// on cyclic type graphs (e.g., recursive types like List[NPCState] where NPCState contains List[NPCState])
+func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
+	// Check if we've already visited this exact type pointer
+	if result, ok := visited[t]; ok {
+		return result // Return the already-computed result to break the cycle
+	}
+
+	// Mark as visited with the original type first (to handle cycles)
+	// We'll update this if we actually transform the type
+	visited[t] = t
+
+	switch typ := t.(type) {
+	case *TVar:
+		if newType, ok := sub[typ.Name]; ok {
+			visited[t] = newType
+			return newType
+		}
+		return t
+
+	case *TVar2:
+		if newType, ok := sub[typ.Name]; ok {
+			visited[t] = newType
+			return newType
+		}
+		return t
+
+	case *RowVar:
+		if newType, ok := sub[typ.Name]; ok {
+			visited[t] = newType
+			return newType
+		}
+		return t
+
+	case *TCon:
+		return t // Type constructors don't change
+
+	case *TList:
+		elem := safeSubstitute(typ.Element, sub, visited)
+		if elem == typ.Element {
+			return t
+		}
+		result := &TList{Element: elem}
+		visited[t] = result
+		return result
+
+	case *TArray:
+		elem := safeSubstitute(typ.Element, sub, visited)
+		if elem == typ.Element {
+			return t
+		}
+		result := &TArray{Element: elem}
+		visited[t] = result
+		return result
+
+	case *TTuple:
+		changed := false
+		elems := make([]Type, len(typ.Elements))
+		for i, e := range typ.Elements {
+			elems[i] = safeSubstitute(e, sub, visited)
+			if elems[i] != e {
+				changed = true
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &TTuple{Elements: elems}
+		visited[t] = result
+		return result
+
+	case *TFunc:
+		changed := false
+		params := make([]Type, len(typ.Params))
+		for i, p := range typ.Params {
+			params[i] = safeSubstitute(p, sub, visited)
+			if params[i] != p {
+				changed = true
+			}
+		}
+		ret := safeSubstitute(typ.Return, sub, visited)
+		if ret != typ.Return {
+			changed = true
+		}
+		if !changed {
+			return t
+		}
+		result := &TFunc{Params: params, Return: ret, Effects: typ.Effects}
+		visited[t] = result
+		return result
+
+	case *TFunc2:
+		changed := false
+		params := make([]Type, len(typ.Params))
+		for i, p := range typ.Params {
+			params[i] = safeSubstitute(p, sub, visited)
+			if params[i] != p {
+				changed = true
+			}
+		}
+		ret := safeSubstitute(typ.Return, sub, visited)
+		if ret != typ.Return {
+			changed = true
+		}
+		var effectRow *Row
+		if typ.EffectRow != nil {
+			effSub := safeSubstitute(typ.EffectRow, sub, visited)
+			if effSub != typ.EffectRow {
+				changed = true
+			}
+			if row, ok := effSub.(*Row); ok {
+				effectRow = row
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &TFunc2{Params: params, Return: ret, EffectRow: effectRow}
+		visited[t] = result
+		return result
+
+	case *TRecord:
+		changed := false
+		fields := make(map[string]Type)
+		for name, fieldType := range typ.Fields {
+			fields[name] = safeSubstitute(fieldType, sub, visited)
+			if fields[name] != fieldType {
+				changed = true
+			}
+		}
+		var row Type
+		if typ.Row != nil {
+			row = safeSubstitute(typ.Row, sub, visited)
+			if row != typ.Row {
+				changed = true
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &TRecord{Fields: fields, Row: row}
+		visited[t] = result
+		return result
+
+	case *TRecord2:
+		if typ.Row == nil {
+			return t
+		}
+		rowSub := safeSubstitute(typ.Row, sub, visited)
+		if rowSub == typ.Row {
+			return t
+		}
+		result := &TRecord2{Row: rowSub.(*Row)}
+		visited[t] = result
+		return result
+
+	case *Row:
+		changed := false
+		labels := make(map[string]Type)
+		for name, labelType := range typ.Labels {
+			labels[name] = safeSubstitute(labelType, sub, visited)
+			if labels[name] != labelType {
+				changed = true
+			}
+		}
+		var tail *RowVar
+		if typ.Tail != nil {
+			if tailSub, ok := sub[typ.Tail.Name]; ok {
+				changed = true
+				if subRow, ok := tailSub.(*Row); ok {
+					// Merge labels from substituted row
+					for k, v := range subRow.Labels {
+						labels[k] = v
+					}
+					tail = subRow.Tail
+				} else if subVar, ok := tailSub.(*RowVar); ok {
+					tail = subVar
+				}
+			} else {
+				tail = typ.Tail
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &Row{Kind: typ.Kind, Labels: labels, Tail: tail}
+		visited[t] = result
+		return result
+
+	case *TApp:
+		constr := safeSubstitute(typ.Constructor, sub, visited)
+		changed := constr != typ.Constructor
+		args := make([]Type, len(typ.Args))
+		for i, arg := range typ.Args {
+			args[i] = safeSubstitute(arg, sub, visited)
+			if args[i] != arg {
+				changed = true
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &TApp{Constructor: constr, Args: args}
+		visited[t] = result
+		return result
+
+	default:
+		// Fall back to the interface method for other types
+		// but with the visited guard already in place
+		return t.Substitute(sub)
+	}
 }
 
 // ComposeSubstitutions composes two substitutions

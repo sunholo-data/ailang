@@ -63,7 +63,7 @@ func (tc *CoreTypeChecker) applySubstitutionToConstraints(sub Substitution, cons
 	for i, c := range constraints {
 		result[i] = ClassConstraint{
 			Class:  c.Class,
-			Type:   c.Type.Substitute(sub),
+			Type:   ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
 			Path:   c.Path,
 			NodeID: c.NodeID,
 		}

@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -132,21 +131,9 @@ func extractEffectFromType(t types.Type) *types.Row {
 	return nil // Pure (no effects)
 }
 
-// Debug counter for tracking traversal depth
-var debugEffectCounter int
-var debugEffectMaxDepth int
-
 // collectRequiredEffects recursively walks the expression to collect all required effects
 // Returns the union of all effects used in the expression
 func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo) *types.Row {
-	debugEffectCounter++
-	if debugEffectCounter%10000 == 0 {
-		fmt.Fprintf(os.Stderr, "[DEBUG] collectRequiredEffects called %d times\n", debugEffectCounter)
-	}
-	if debugEffectCounter > 1000000 {
-		panic(fmt.Sprintf("collectRequiredEffects called >1M times, likely infinite loop. Last expr type: %T", expr))
-	}
-
 	if expr == nil {
 		return nil
 	}

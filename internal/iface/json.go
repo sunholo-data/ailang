@@ -2,6 +2,7 @@ package iface
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/sunholo/ailang/internal/types"
@@ -165,8 +166,18 @@ func formatTypeCanonical(t types.Type, getCanonName func(string) string) string 
 		return "[" + formatTypeCanonical(typ.Element, getCanonName) + "]"
 	case *types.TCon:
 		return typ.Name
+	case *types.TApp:
+		// Handle type applications like List[a], Option[b]
+		// Format constructor and arguments shallowly to avoid cyclic type issues
+		args := make([]string, len(typ.Args))
+		for i, arg := range typ.Args {
+			args[i] = formatTypeCanonical(arg, getCanonName)
+		}
+		return formatTypeCanonical(typ.Constructor, getCanonName) + "[" + joinTypes(args) + "]"
 	default:
-		return t.String()
+		// Fallback: return type name without traversing (cycle-safe)
+		// Don't call t.String() as it may hang on cyclic types
+		return fmt.Sprintf("<%T>", t)
 	}
 }
 

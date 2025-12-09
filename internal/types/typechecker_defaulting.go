@@ -282,29 +282,51 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 }
 
 func collectFreeVars(t Type, vars map[string]bool) {
+	visited := make(map[Type]bool)
+	collectFreeVarsWithVisited(t, vars, visited)
+}
+
+// collectFreeVarsWithVisited collects free type variables with cycle detection
+func collectFreeVarsWithVisited(t Type, vars map[string]bool, visited map[Type]bool) {
+	if t == nil {
+		return
+	}
+	if visited[t] {
+		return // Cycle detected - already visited this type
+	}
+	visited[t] = true
+
 	switch typ := t.(type) {
 	case *TVar:
 		vars[typ.Name] = true
 	case *TVar2:
 		vars[typ.Name] = true
 	case *TApp:
-		collectFreeVars(typ.Constructor, vars)
+		collectFreeVarsWithVisited(typ.Constructor, vars, visited)
 		for _, arg := range typ.Args {
-			collectFreeVars(arg, vars)
+			collectFreeVarsWithVisited(arg, vars, visited)
 		}
 	case *TFunc:
 		for _, p := range typ.Params {
-			collectFreeVars(p, vars)
+			collectFreeVarsWithVisited(p, vars, visited)
 		}
-		collectFreeVars(typ.Return, vars)
+		collectFreeVarsWithVisited(typ.Return, vars, visited)
 	case *TFunc2:
 		for _, p := range typ.Params {
-			collectFreeVars(p, vars)
+			collectFreeVarsWithVisited(p, vars, visited)
 		}
-		collectFreeVars(typ.Return, vars)
+		collectFreeVarsWithVisited(typ.Return, vars, visited)
 	case *TRecord:
 		for _, fieldType := range typ.Fields {
-			collectFreeVars(fieldType, vars)
+			collectFreeVarsWithVisited(fieldType, vars, visited)
+		}
+	case *TList:
+		collectFreeVarsWithVisited(typ.Element, vars, visited)
+	case *TArray:
+		collectFreeVarsWithVisited(typ.Element, vars, visited)
+	case *TTuple:
+		for _, elem := range typ.Elements {
+			collectFreeVarsWithVisited(elem, vars, visited)
 		}
 	}
 }

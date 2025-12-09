@@ -208,9 +208,10 @@ func NormalizeTypeName(t Type) string {
 		return "Record<>"
 
 	default:
-		// Fallback for unknown types
+		// Fallback for unknown types - AVOID t.String() as it can hang on cyclic types
+		// Return type name instead of traversing the structure
 		if t != nil {
-			return t.String()
+			return fmt.Sprintf("<%T>", t)
 		}
 		return "Unknown"
 	}

@@ -464,7 +464,13 @@ func getDefaultTypeSuffix(op core.IntrinsicOp) string {
 
 // getTypeSuffixFromType extracts the type suffix from a resolved type
 // Maps TInt → "Int", TFloat → "Float", TBool → "Bool", TString → "String"
+//
+// IMPORTANT: This function is purely SHALLOW - it only checks top-level type constructors.
+// It NEVER calls t.String() or traverses nested type structures, because cyclic types
+// (e.g., List[NPCState] where NPCState contains List[NPCState]) would cause infinite loops.
+// See M-PERF2 design doc for details.
 func getTypeSuffixFromType(t types.Type) string {
+	// Direct primitive singletons - O(1) pointer comparison
 	switch t {
 	case types.TInt:
 		return "Int"
@@ -474,36 +480,37 @@ func getTypeSuffixFromType(t types.Type) string {
 		return "Bool"
 	case types.TString:
 		return "String"
-	default:
-		// Check if it's a List type
-		if app, ok := t.(*types.TApp); ok {
-			if con, ok := app.Constructor.(*types.TCon); ok && con.Name == "List" {
+	}
+
+	// Check if it's a TCon (type constructor) directly
+	if con, ok := t.(*types.TCon); ok {
+		switch con.Name {
+		case "Int", "int":
+			return "Int"
+		case "Float", "float":
+			return "Float"
+		case "Bool", "bool":
+			return "Bool"
+		case "String", "string":
+			return "String"
+		case "List":
+			return "List"
+		}
+	}
+
+	// Shallow check for type applications (e.g., List[a])
+	// Only inspect the top-level constructor, NEVER traverse arguments
+	if app, ok := t.(*types.TApp); ok {
+		if con, ok := app.Constructor.(*types.TCon); ok {
+			if con.Name == "List" {
 				return "List"
 			}
 		}
-
-		// For complex types, try to extract from string representation
-		typeStr := t.String()
-		// Handle common cases like "Int", "Float", "Bool", "String"
-		if typeStr == "Int" || typeStr == "int" {
-			return "Int"
-		}
-		if typeStr == "Float" || typeStr == "float" {
-			return "Float"
-		}
-		if typeStr == "Bool" || typeStr == "bool" {
-			return "Bool"
-		}
-		if typeStr == "String" || typeStr == "string" {
-			return "String"
-		}
-		// Check for List in string form
-		if len(typeStr) > 5 && typeStr[:5] == "List[" {
-			return "List"
-		}
-		// Default to Int for unknown types (backward compatibility)
-		return "Int"
 	}
+
+	// Default to Int for unknown types (backward compatibility)
+	// NO t.String() - cannot risk traversing cyclic types
+	return "Int"
 }
 
 // CreateTypeMismatchError creates a structured type mismatch error for operators
