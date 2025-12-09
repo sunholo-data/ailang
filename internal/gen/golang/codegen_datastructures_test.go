@@ -118,3 +118,47 @@ func TestGenerateNestedLet(t *testing.T) {
 		t.Errorf("Missing y binding, got:\n%s", codeStr)
 	}
 }
+
+func TestGetOptHasReflectionPath(t *testing.T) {
+	// Test that GetOpt runtime function includes reflection fallback for typed slices
+	// Bug: GetOpt only handled []interface{}, but Go codegen creates typed slices
+	// like []int64 for Array[int]. Without reflection, GetOpt returns None for all indices.
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name:  "x",
+				Value: &core.Lit{Kind: core.IntLit, Value: int64(1)},
+				Body:  &core.Var{Name: "x"},
+			},
+		},
+	}
+
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Verify GetOpt has reflection path for typed slices (M-CODEGEN-GETOPT-TYPED-SLICES)
+	if !strings.Contains(codeStr, "func GetOpt(arr interface{}, idx interface{})") {
+		t.Errorf("Missing GetOpt function declaration")
+	}
+
+	// Check for fast path ([]interface{})
+	if !strings.Contains(codeStr, "arr.([]interface{})") {
+		t.Errorf("Missing fast path for []interface{} in GetOpt")
+	}
+
+	// Check for reflection path - critical fix for typed slices
+	if !strings.Contains(codeStr, "reflect.ValueOf(arr)") {
+		t.Errorf("Missing reflection path in GetOpt - typed slices like []int64 won't work")
+	}
+	if !strings.Contains(codeStr, "v.Kind() == reflect.Slice") {
+		t.Errorf("Missing reflect.Slice check in GetOpt")
+	}
+	if !strings.Contains(codeStr, "v.Index(int(i)).Interface()") {
+		t.Errorf("Missing v.Index access in GetOpt reflection path")
+	}
+}

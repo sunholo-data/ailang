@@ -253,11 +253,25 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("return []interface{}{}\n")
 	g.indent--
 	g.writef("}\n")
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if list, ok := xs.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("// Return a copy to preserve immutability\n")
 	g.writef("result := make([]interface{}, len(list))\n")
 	g.writef("copy(result, list)\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []int64, []*Tile)\n")
+	g.writef("v := reflect.ValueOf(xs)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("result := make([]interface{}, v.Len())\n")
+	g.writef("for i := 0; i < v.Len(); i++ {\n")
+	g.indent++
+	g.writef("result[i] = v.Index(i).Interface()\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n")
@@ -275,10 +289,24 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("return []interface{}{}\n")
 	g.indent--
 	g.writef("}\n")
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("result := make([]interface{}, len(slice))\n")
 	g.writef("copy(result, slice)\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []int64, []*Tile)\n")
+	g.writef("v := reflect.ValueOf(arr)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("result := make([]interface{}, v.Len())\n")
+	g.writef("for i := 0; i < v.Len(); i++ {\n")
+	g.indent++
+	g.writef("result[i] = v.Index(i).Interface()\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("return result\n")
 	g.indent--
 	g.writef("}\n")
@@ -295,9 +323,17 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("return int64(0)\n")
 	g.indent--
 	g.writef("}\n")
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("return int64(len(slice))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []int64, []*Tile)\n")
+	g.writef("v := reflect.ValueOf(arr)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("return int64(v.Len())\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return int64(0)\n")
@@ -310,6 +346,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func Get(arr interface{}, idx interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("// Fast path for []interface{}\n")
 	g.writef("if slice, ok := arr.([]interface{}); ok {\n")
 	g.indent++
 	g.writef("if i < 0 || i >= int64(len(slice)) {\n")
@@ -318,6 +355,18 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.indent--
 	g.writef("}\n")
 	g.writef("return slice[i]\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []int64, []*Tile)\n")
+	g.writef("v := reflect.ValueOf(arr)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(v.Len()) {\n")
+	g.indent++
+	g.writef("panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, v.Len()))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return v.Index(int(i)).Interface()\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("panic(\"Get: not an array\")\n")
@@ -344,6 +393,18 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.indent--
 	g.writef("}\n")
 	g.writef("return makeOptionSome(slice[i])\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Reflection path for typed slices (e.g., []int64, []*Tile)\n")
+	g.writef("v := reflect.ValueOf(arr)\n")
+	g.writef("if v.Kind() == reflect.Slice {\n")
+	g.indent++
+	g.writef("if i >= int64(v.Len()) {\n")
+	g.indent++
+	g.writef("return makeOptionNone()\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return makeOptionSome(v.Index(int(i)).Interface())\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return makeOptionNone()\n")
