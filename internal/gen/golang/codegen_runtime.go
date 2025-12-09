@@ -327,6 +327,35 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// M-BUGFIX: Float comparison helpers (missing in previous versions)
+	g.writef("// LtFloat compares two floats (less than).\n")
+	g.writef("func LtFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) < toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// LeFloat compares two floats (less or equal).\n")
+	g.writef("func LeFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) <= toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// GtFloat compares two floats (greater than).\n")
+	g.writef("func GtFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) > toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	g.writef("// GeFloat compares two floats (greater or equal).\n")
+	g.writef("func GeFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) >= toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	// Type conversion utility functions
 	g.writef("// toInt64 converts interface{} to int64.\n")
 	g.writef("func toInt64(v interface{}) int64 {\n")
@@ -862,7 +891,8 @@ func (g *Generator) writeADTSliceConverters() {
 
 	for _, typeName := range sortedTypes {
 		goTypeName := ToGoTypeName(typeName)
-		funcName := "convertTo" + goTypeName + "Slice"
+		// M-BUGFIX: Export converters so external packages can use them
+		funcName := "ConvertTo" + goTypeName + "Slice"
 
 		g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
 		g.writef("// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection).\n")

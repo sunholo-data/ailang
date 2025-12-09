@@ -771,14 +771,14 @@ func TestGenerateADTSliceConverter(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Should have DrawCmd converter
-	if !strings.Contains(codeStr, "func convertToDrawCmdSlice(v interface{}) []*DrawCmd") {
-		t.Errorf("Missing convertToDrawCmdSlice function, got:\n%s", codeStr)
+	// Should have DrawCmd converter (M-BUGFIX: exported with capital C)
+	if !strings.Contains(codeStr, "func ConvertToDrawCmdSlice(v interface{}) []*DrawCmd") {
+		t.Errorf("Missing ConvertToDrawCmdSlice function, got:\n%s", codeStr)
 	}
 
-	// Should have Camera converter
-	if !strings.Contains(codeStr, "func convertToCameraSlice(v interface{}) []*Camera") {
-		t.Errorf("Missing convertToCameraSlice function, got:\n%s", codeStr)
+	// Should have Camera converter (M-BUGFIX: exported with capital C)
+	if !strings.Contains(codeStr, "func ConvertToCameraSlice(v interface{}) []*Camera") {
+		t.Errorf("Missing ConvertToCameraSlice function, got:\n%s", codeStr)
 	}
 
 	// Should have fail-fast panic
@@ -792,8 +792,8 @@ func TestGenerateADTSliceConverter(t *testing.T) {
 	}
 
 	// Should be deterministic (sorted alphabetically)
-	cameraIdx := strings.Index(codeStr, "convertToCameraSlice")
-	drawCmdIdx := strings.Index(codeStr, "convertToDrawCmdSlice")
+	cameraIdx := strings.Index(codeStr, "ConvertToCameraSlice")
+	drawCmdIdx := strings.Index(codeStr, "ConvertToDrawCmdSlice")
 	if cameraIdx == -1 || drawCmdIdx == -1 {
 		t.Errorf("Missing converters")
 	}
@@ -1071,5 +1071,152 @@ func TestTypedLetBindingsFallback(t *testing.T) {
 
 	if !strings.Contains(codeStr, "var x interface{} =") {
 		t.Errorf("Expected fallback 'var x interface{} =', got:\n%s", codeStr)
+	}
+}
+
+// TestBlankIdentifierParameter tests that blank identifiers (_) in function parameters
+// are replaced with _unused0, _unused1, etc. to allow them to be passed as arguments.
+// M-BUGFIX: This was causing "cannot use _ as value" errors in generated Go code.
+func TestBlankIdentifierParameter(t *testing.T) {
+	// let tileFloor = \_ . 42
+	// Exported function with _ parameter
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "tileFloor",
+				Value: &core.Lambda{
+					Params: []string{"_"},
+					Body:   &core.Lit{Kind: core.IntLit, Value: int64(42)},
+				},
+				Body: &core.Var{Name: "tileFloor"},
+			},
+		},
+		Meta: map[string]*core.DeclMeta{
+			"tileFloor": {IsExport: true},
+		},
+	}
+
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// The _impl function should have _unused0 parameter, not _
+	if strings.Contains(codeStr, "tileFloor_impl(_ interface{})") {
+		t.Errorf("_impl should not have bare _ parameter, got:\n%s", codeStr)
+	}
+	if !strings.Contains(codeStr, "tileFloor_impl(_unused0 interface{})") {
+		t.Errorf("Expected _impl with _unused0 parameter, got:\n%s", codeStr)
+	}
+
+	// The typed wrapper should also have _unused0 and pass it correctly
+	if strings.Contains(codeStr, "return tileFloor_impl(_)") {
+		t.Errorf("Wrapper should not pass bare _ as argument (invalid Go), got:\n%s", codeStr)
+	}
+	if !strings.Contains(codeStr, "return tileFloor_impl(_unused0)") {
+		t.Errorf("Expected wrapper to pass _unused0 as argument, got:\n%s", codeStr)
+	}
+}
+
+// TestMultipleBlankIdentifiers tests that multiple _ parameters get unique names.
+func TestMultipleBlankIdentifiers(t *testing.T) {
+	// let f = \_ \_ . 42
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "f",
+				Value: &core.Lambda{
+					Params: []string{"_", "_"},
+					Body:   &core.Lit{Kind: core.IntLit, Value: int64(42)},
+				},
+				Body: &core.Var{Name: "f"},
+			},
+		},
+		Meta: map[string]*core.DeclMeta{
+			"f": {IsExport: true},
+		},
+	}
+
+	gen := New("test")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should have _unused0 and _unused1
+	if !strings.Contains(codeStr, "_unused0") {
+		t.Errorf("Expected _unused0 parameter, got:\n%s", codeStr)
+	}
+	if !strings.Contains(codeStr, "_unused1") {
+		t.Errorf("Expected _unused1 parameter, got:\n%s", codeStr)
+	}
+}
+
+// TestRecordReturnType tests M-BUGFIX: Functions returning record types should
+// generate correct Go return types (e.g., *BridgeState instead of struct{}).
+func TestRecordReturnType(t *testing.T) {
+	// Create a Lambda that "returns a record type"
+	// We need to set up CoreTypeInfo to indicate the return type is a TRecord
+	lam := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 1},
+		Params:   []string{"x"},
+		Body:     &core.Lit{Kind: core.IntLit, Value: int64(42)}, // placeholder body
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name:  "initBridge",
+				Value: lam,
+				Body:  &core.Var{Name: "initBridge"},
+			},
+		},
+		Meta: map[string]*core.DeclMeta{
+			"initBridge": {IsExport: true},
+		},
+	}
+
+	gen := New("test")
+
+	// Register a record type (simulating type BridgeState = { x: int, y: int })
+	gen.RegisterRecordType("BridgeState", []string{"X", "Y"}, map[string]string{
+		"X": "int64",
+		"Y": "int64",
+	})
+
+	// Set up CoreTypeInfo with the Lambda returning a TRecord with matching fields
+	cti := types.CoreTypeInfo{
+		1: &types.TFunc{
+			Params: []types.Type{&types.TCon{Name: "int"}},
+			Return: &types.TRecord{
+				Fields: map[string]types.Type{
+					"x": &types.TCon{Name: "int"},
+					"y": &types.TCon{Name: "int"},
+				},
+			},
+		},
+	}
+	gen.SetCoreTypeInfo(cti)
+
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// The typed wrapper should have *BridgeState as return type
+	// Check for the specific function signature
+	if !strings.Contains(codeStr, "func InitBridge(x int64) *BridgeState") {
+		t.Errorf("Expected 'func InitBridge(x int64) *BridgeState', got:\n%s", codeStr)
+	}
+	// Make sure the return type is not struct{} in the InitBridge function
+	if strings.Contains(codeStr, "func InitBridge(x int64) struct{}") {
+		t.Errorf("Expected *BridgeState return type, but got struct{} in InitBridge")
 	}
 }

@@ -22,6 +22,10 @@ const (
 type TypeMapper struct {
 	// knownTypes maps AILANG type names to their Go representations
 	knownTypes map[string]GoType
+	// RecordTypeLookup is a callback to look up record types by their field names.
+	// M-BUGFIX: Used to map TRecord types to named struct types like *BridgeState.
+	// The callback takes a map of field names and returns the Go type name if found.
+	RecordTypeLookup func(fields map[string]bool) (string, bool)
 }
 
 // NewTypeMapper creates a new TypeMapper with default type mappings.
@@ -68,7 +72,18 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 		return GoType("struct{}"), nil
 
 	case *types.TRecord:
-		// Records map to structs - will be expanded in A2
+		// M-BUGFIX: Look up the named struct type by matching field names
+		if tm.RecordTypeLookup != nil && len(typ.Fields) > 0 {
+			fieldNames := make(map[string]bool, len(typ.Fields))
+			for name := range typ.Fields {
+				fieldNames[name] = true
+			}
+			if goTypeName, ok := tm.RecordTypeLookup(fieldNames); ok {
+				// Return pointer to named struct type (e.g., *BridgeState)
+				return GoType("*" + goTypeName), nil
+			}
+		}
+		// Fallback: anonymous struct
 		return GoType("struct{}"), nil
 
 	case *types.TFunc:

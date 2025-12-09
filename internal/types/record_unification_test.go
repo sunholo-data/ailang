@@ -271,3 +271,106 @@ func TestOpenClosedInteractions(t *testing.T) {
 		})
 	}
 }
+
+// TestTypeAliasExpansion tests M-BUGFIX: type alias expansion during unification
+// This fixes: "cannot unify type constructor Coord with *types.TRecord"
+func TestTypeAliasExpansion(t *testing.T) {
+	// Create unifier with alias environment
+	// Simulates: type Coord = { x: int, y: int }
+	aliases := map[string]Type{
+		"Coord": &TRecord{
+			Fields: map[string]Type{
+				"x": &TCon{Name: "int"},
+				"y": &TCon{Name: "int"},
+			},
+		},
+	}
+	u := NewUnifierWithAliases(aliases)
+
+	tests := []struct {
+		name    string
+		t1      Type
+		t2      Type
+		wantErr bool
+	}{
+		{
+			name: "TCon(Coord) ~ TRecord{x,y} succeeds with alias expansion",
+			t1:   &TCon{Name: "Coord"},
+			t2: &TRecord{
+				Fields: map[string]Type{
+					"x": &TCon{Name: "int"},
+					"y": &TCon{Name: "int"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "TRecord{x,y} ~ TCon(Coord) succeeds with alias expansion (reversed)",
+			t1: &TRecord{
+				Fields: map[string]Type{
+					"x": &TCon{Name: "int"},
+					"y": &TCon{Name: "int"},
+				},
+			},
+			t2:      &TCon{Name: "Coord"},
+			wantErr: false,
+		},
+		{
+			name: "TCon(Coord) ~ TRecord{x,y,z} fails (extra field)",
+			t1:   &TCon{Name: "Coord"},
+			t2: &TRecord{
+				Fields: map[string]Type{
+					"x": &TCon{Name: "int"},
+					"y": &TCon{Name: "int"},
+					"z": &TCon{Name: "int"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "TCon(Coord) ~ TRecord{x:int} fails (missing field)",
+			t1:   &TCon{Name: "Coord"},
+			t2: &TRecord{
+				Fields: map[string]Type{
+					"x": &TCon{Name: "int"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:    "Unregistered alias TCon(Unknown) ~ TRecord fails",
+			t1:      &TCon{Name: "Unknown"},
+			t2:      &TRecord{Fields: map[string]Type{"x": &TCon{Name: "int"}}},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := u.Unify(tt.t1, tt.t2, make(Substitution))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Unify() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestTypeAliasExpansion_NoAliases tests that unification without aliases still works
+func TestTypeAliasExpansion_NoAliases(t *testing.T) {
+	// Standard unifier without alias expansion
+	u := NewUnifier()
+
+	// TCon(Coord) ~ TRecord should fail without aliases
+	t1 := &TCon{Name: "Coord"}
+	t2 := &TRecord{
+		Fields: map[string]Type{
+			"x": &TCon{Name: "int"},
+			"y": &TCon{Name: "int"},
+		},
+	}
+
+	_, err := u.Unify(t1, t2, make(Substitution))
+	if err == nil {
+		t.Error("Expected unification to fail without alias expansion")
+	}
+}

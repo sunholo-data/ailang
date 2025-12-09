@@ -1,5 +1,61 @@
 # AILANG Changelog
 
+## [v0.5.9] - 2025-12-09 (In Progress)
+
+### Added - Cyclic Type Diagnostics Phase 1 (M-DX11)
+
+Improved tooling to detect and diagnose cyclic type hangs in compilation:
+
+**New `ailang check` flags:**
+
+```bash
+# Timeout protection with stack dump on hang
+ailang check --timeout 30s file.ail
+
+# Phase timing breakdown for performance analysis
+ailang check --debug-compile file.ail
+
+# Combine both for debugging
+ailang check --timeout 30s --debug-compile file.ail
+```
+
+**Timeout behavior:**
+- On timeout: prints stack dump of all goroutines to help identify the hang location
+- Exit code: 124 (standard timeout exit code)
+- Hint message: suggests using `ailang debug cycles` (coming in Phase 2)
+
+**Phase timing output:**
+```
+⏱ Compilation Phase Timings:
+  Loading:             12ms
+  Topo Sort:            3ms
+  Parsing:             45ms
+  Elaboration:         23ms
+  Type Checking:      156ms ← Slowest
+  ----------------------------
+  Total:              239ms
+
+Warning: Type Checking took 156ms (threshold: 100ms)
+  Consider checking for complex recursive types.
+```
+
+**SafeTypeString (internal):**
+- Depth-limited type stringification prevents hangs when displaying cyclic types
+- Max depth: 100, produces `<*TVar...cycle>` markers on cycles
+- Internal API used by debuggers and error messages
+
+**Files Changed:**
+- `cmd/ailang/main.go` - Add `--timeout` and `--debug-compile` flags to check command
+- `cmd/ailang/check.go` - Implement timeout (goroutine + channel), phase timing display
+- `internal/types/safe_string.go` - Depth-limited SafeTypeString (170 LOC)
+- `docs/guides/debugging.md` - Document new check flags and troubleshooting
+
+**Design Docs Created:**
+- `design_docs/planned/v0_5_9/m-dx11-cycles.md` - Type graph cycle detection command (Phase 2)
+- `design_docs/planned/v0_5_9/m-dx11-traverse.md` - Safe type traversal library (Phase 3)
+
+**Related:** [M-DX11 Cyclic Type Diagnostics](design_docs/planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md) | [M-PERF2 Postmortem](design_docs/implemented/v0_5_8/m-perf2-cyclic-type-hang-postmortem.md)
+
 ## [v0.5.8] - 2025-12-08
 
 ### Fixed - Effect Checker Performance on Large Arrays (M-PERF1)

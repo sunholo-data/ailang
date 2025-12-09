@@ -120,6 +120,13 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.SetConstructorTypes(ctorTypes)
 	}
 
+	// M-BUGFIX: Pass type aliases to type checker for expansion during unification
+	// This enables `type Coord = {x: int, y: int}` to work with ADT variants
+	elabAliases := elaborator.GetTypeAliases()
+	for name, target := range elabAliases {
+		typeChecker.RegisterTypeAlias(name, target)
+	}
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {

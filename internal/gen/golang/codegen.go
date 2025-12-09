@@ -64,7 +64,7 @@ type Generator struct {
 	topLevelFuncs map[string]string
 
 	// adtSliceTypes tracks ADT type names that need slice converter functions
-	// M-DX12: These are generated as convertTo<ADT>Slice() functions
+	// M-DX12: These are generated as ConvertTo<ADT>Slice() functions (exported)
 	adtSliceTypes map[string]bool
 
 	// recordTypes maps record type names to their info for typed struct generation
@@ -127,7 +127,7 @@ func (g *Generator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 
 // New creates a new Generator with the specified package name.
 func New(packageName string) *Generator {
-	return &Generator{
+	g := &Generator{
 		PackageName:       packageName,
 		TypeMapper:        NewTypeMapper(),
 		adtConstructors:   make(map[string]*ADTConstructorInfo),
@@ -138,6 +138,14 @@ func New(packageName string) *Generator {
 		funcReturnTypes:   make(map[string]string),
 		currentFuncParams: make(map[string]string),
 	}
+	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
+	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {
+		if info := g.GetRecordTypeByFields(fields); info != nil {
+			return info.Name, true
+		}
+		return "", false
+	}
+	return g
 }
 
 // RegisterADTSliceType marks an ADT type as needing a slice converter function.
@@ -338,8 +346,9 @@ func (g *Generator) getSliceConversion(goType string) string {
 		if strings.HasPrefix(goType, "[]*") {
 			typeName := goType[3:] // Extract "Direction" from "[]*Direction"
 			// Only use converter if it was registered (type exists in adtSliceTypes)
+			// M-BUGFIX: Export converters so external packages can use them
 			if g.adtSliceTypes[typeName] {
-				return "convertTo" + typeName + "Slice"
+				return "ConvertTo" + typeName + "Slice"
 			}
 		}
 		return ""

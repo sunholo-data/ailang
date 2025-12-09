@@ -11,6 +11,9 @@ type Substitution map[string]Type
 type Unifier struct {
 	rowUnifier *RowUnifier
 	depth      int // Track recursion depth for cycle detection
+	// aliasEnv maps type alias names to their underlying types
+	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
+	aliasEnv map[string]Type
 }
 
 // Maximum recursion depth before we assume a cycle
@@ -21,7 +24,32 @@ func NewUnifier() *Unifier {
 	return &Unifier{
 		rowUnifier: NewRowUnifier(),
 		depth:      0,
+		aliasEnv:   nil, // No alias expansion by default
 	}
+}
+
+// NewUnifierWithAliases creates a unifier with type alias expansion support
+// M-BUGFIX: This allows ADT variants with alias parameters to work correctly
+func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
+	return &Unifier{
+		rowUnifier: NewRowUnifier(),
+		depth:      0,
+		aliasEnv:   aliases,
+	}
+}
+
+// expandAlias expands a type alias to its underlying type if applicable
+// M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
+func (u *Unifier) expandAlias(t Type) Type {
+	if u.aliasEnv == nil {
+		return t
+	}
+	if con, ok := t.(*TCon); ok {
+		if target, exists := u.aliasEnv[con.Name]; exists {
+			return target
+		}
+	}
+	return t
 }
 
 // Unify attempts to unify two types, returning an updated substitution
@@ -39,6 +67,11 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	// Apply current substitution with cycle detection
 	t1 = ApplySubstitution(sub, t1)
 	t2 = ApplySubstitution(sub, t2)
+
+	// M-BUGFIX: Expand type aliases before unification
+	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
+	t1 = u.expandAlias(t1)
+	t2 = u.expandAlias(t2)
 
 	// Check if already equal with cycle detection
 	if SafeEquals(t1, t2) {

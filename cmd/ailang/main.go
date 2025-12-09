@@ -129,15 +129,17 @@ func main() {
 		checkFS := flag.NewFlagSet("check", flag.ExitOnError)
 		strictSyntaxCheck := checkFS.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
 		relaxModulesCheck := checkFS.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+		timeoutCheck := checkFS.String("timeout", "", "Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
+		debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
 
 		_ = checkFS.Parse(flag.Args()[1:])
 
 		if checkFS.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang check [--strict-syntax] [--relax-modules] <file.ail>")
+			fmt.Println("Usage: ailang check [--strict-syntax] [--relax-modules] [--timeout <duration>] [--debug-compile] <file.ail>")
 			os.Exit(1)
 		}
-		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck)
+		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck)
 
 	case "iface":
 		if flag.NArg() < 2 {

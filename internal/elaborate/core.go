@@ -8,6 +8,7 @@ import (
 	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // Elaborator transforms surface AST to Core ANF
@@ -22,6 +23,9 @@ type Elaborator struct {
 	constructors map[string]*ConstructorInfo // Available constructors (name -> info)
 	warnings     []*ExhaustivenessWarning    // Accumulated warnings
 	exChecker    *ExhaustivenessChecker      // Exhaustiveness checker
+	// typeAliases stores type aliases for expansion during type checking
+	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
+	typeAliases map[string]types.Type
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -43,6 +47,7 @@ func NewElaborator() *Elaborator {
 		constructors: make(map[string]*ConstructorInfo),
 		warnings:     []*ExhaustivenessWarning{},
 		exChecker:    NewExhaustivenessChecker(),
+		typeAliases:  make(map[string]types.Type), // M-BUGFIX: Initialize type aliases
 	}
 }
 
@@ -60,6 +65,7 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		constructors: make(map[string]*ConstructorInfo),
 		warnings:     []*ExhaustivenessWarning{},
 		exChecker:    NewExhaustivenessChecker(),
+		typeAliases:  make(map[string]types.Type), // M-BUGFIX: Initialize type aliases
 	}
 }
 
@@ -103,6 +109,21 @@ func (e *Elaborator) GetConstructors() map[string]*ConstructorInfo {
 		}
 	}
 	return localConstructors
+}
+
+// RegisterTypeAlias registers a type alias for expansion during type checking
+// M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants
+func (e *Elaborator) RegisterTypeAlias(name string, target types.Type) {
+	if e.typeAliases == nil {
+		e.typeAliases = make(map[string]types.Type)
+	}
+	e.typeAliases[name] = target
+}
+
+// GetTypeAliases returns all type aliases registered during elaboration
+// M-BUGFIX: Used to pass aliases to the type checker for expansion during unification
+func (e *Elaborator) GetTypeAliases() map[string]types.Type {
+	return e.typeAliases
 }
 
 // GetEffectAnnotation returns the effect annotation for a Core node ID

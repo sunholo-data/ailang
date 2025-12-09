@@ -113,15 +113,27 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	implName := ToGoVarName(name) + "_impl"
 
 	// Build parameter list - all interface{}
+	// M-BUGFIX: Handle blank identifiers - replace _ with _unused{i}
 	var params []string
-	for _, p := range lam.Params {
-		params = append(params, fmt.Sprintf("%s interface{}", ToGoVarName(p)))
+	paramNameMap := make(map[string]string) // Maps original name to Go name
+	for i, p := range lam.Params {
+		paramName := ToGoVarName(p)
+		if paramName == "_" {
+			paramName = fmt.Sprintf("_unused%d", i)
+		}
+		paramNameMap[p] = paramName
+		params = append(params, fmt.Sprintf("%s interface{}", paramName))
 	}
 
 	// M-DX26: Set current function params as interface{} for expr generation
+	// Use the mapped parameter names (handles _ → _unused{i})
 	g.currentFuncParams = make(map[string]string)
-	for _, p := range lam.Params {
+	for p, goName := range paramNameMap {
 		g.currentFuncParams[p] = "interface{}"
+		// Also register the Go name so variable lookups work
+		if p != goName {
+			g.currentFuncParams[goName] = "interface{}"
+		}
 	}
 
 	// M-DX26: No expected return type for _impl - everything is interface{}
@@ -152,6 +164,9 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 	implName := ToGoVarName(name) + "_impl"
 
 	// Build typed parameter list
+	// M-BUGFIX: Handle blank identifiers - in Go, _ can be a parameter name
+	// (to discard the value) but cannot be used as a value in function calls.
+	// Replace _ with _unused0, _unused1, etc.
 	var params []string
 	var callArgs []string
 	for i, p := range lam.Params {
@@ -159,8 +174,13 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 		if i < len(paramTypes) {
 			pType = paramTypes[i]
 		}
-		params = append(params, fmt.Sprintf("%s %s", ToGoVarName(p), pType))
-		callArgs = append(callArgs, ToGoVarName(p))
+		paramName := ToGoVarName(p)
+		if paramName == "_" {
+			// Generate a usable placeholder name for blank identifiers
+			paramName = fmt.Sprintf("_unused%d", i)
+		}
+		params = append(params, fmt.Sprintf("%s %s", paramName, pType))
+		callArgs = append(callArgs, paramName)
 	}
 
 	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)

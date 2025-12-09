@@ -131,6 +131,43 @@ ailang check file.ail
 ailang iface mymodule
 ```
 
+### `ailang check` Debug Flags (v0.5.9+)
+
+The check command has additional flags for debugging compilation performance:
+
+```bash
+# Set timeout - useful for detecting cyclic type hangs
+ailang check --timeout 30s file.ail      # Timeout after 30 seconds
+ailang check --timeout 2m file.ail       # Timeout after 2 minutes
+
+# Show phase timing breakdown
+ailang check --debug-compile file.ail
+
+# Combine both for debugging hangs
+ailang check --timeout 30s --debug-compile file.ail
+```
+
+**Timeout behavior:**
+- On timeout: prints stack dump of all goroutines to help identify where the hang occurred
+- Exit code: 124 (standard timeout exit code)
+- Hint message: suggests using `ailang debug cycles` to find cyclic types
+
+**Phase timing output:**
+```
+⏱ Compilation Phase Timings:
+  Loading:             12ms
+  Topo Sort:            3ms
+  Parsing:             45ms
+  Elaboration:         23ms
+  Type Checking:      156ms ← Slowest
+  Dict Elaboration:    12ms
+  ----------------------------
+  Total:              251ms
+
+Warning: Type Checking took 156ms (threshold: 100ms)
+  Consider checking for complex recursive types.
+```
+
 ## Troubleshooting Workflows
 
 ### Problem: Type Inference Issues
@@ -180,6 +217,31 @@ ailang check problematic.ail
 # 3. Enable operator tracing
 DEBUG_OPERATOR_LOWERING=1 ailang run problematic.ail
 ```
+
+### Problem: Compilation Hangs (Cyclic Types)
+
+If compilation seems to hang indefinitely:
+
+```bash
+# 1. Run with timeout to detect hangs
+ailang check --timeout 30s problematic.ail
+
+# 2. On timeout, examine the stack dump for clues
+#    Look for "SafeEquals" or type traversal functions in stack
+
+# 3. Enable phase timing to see which phase is slow
+ailang check --debug-compile problematic.ail
+
+# 4. Once v0.5.9 Phase 2 is complete, use cycle detection:
+# ailang debug cycles problematic.ail  # (future command)
+```
+
+**Common causes:**
+- Mutually recursive types without proper fixpoint handling
+- Type aliases that expand infinitely
+- Complex generic types with many parameters
+
+**See Also**: [M-DX11 Cyclic Type Diagnostics](../../design_docs/planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md)
 
 ## Keeping `ailang` Up to Date
 

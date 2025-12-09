@@ -719,7 +719,7 @@ make help                 # Show all available make targets
 
 ### Debug Flags
 
-**Quick reference table:**
+**Quick reference table (environment variables):**
 
 | Flag | Purpose | Use When |
 |------|---------|----------|
@@ -727,6 +727,13 @@ make help                 # Show all available make targets
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
+
+**CLI flags for `ailang check` (v0.5.9+):**
+
+| Flag | Purpose | Use When |
+|------|---------|----------|
+| `--timeout 30s` | Compilation timeout with stack dump | Detecting cyclic type hangs |
+| `--debug-compile` | Show phase timing breakdown | Performance analysis |
 
 **Recommended combinations:**
 ```bash
@@ -738,6 +745,12 @@ DEBUG_STRICT=1 make test
 
 # Parser debugging
 DEBUG_PARSER=1 ailang run test.ail
+
+# Detect compilation hangs (v0.5.9+)
+ailang check --timeout 30s file.ail
+
+# Analyze which phase is slow
+ailang check --debug-compile file.ail
 ```
 
 **For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)

@@ -73,6 +73,9 @@ type CoreTypeChecker struct {
 	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
 	constructorTypes    map[string]string              // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	// aliasEnv maps type alias names to their underlying types
+	// M-BUGFIX: Used for alias expansion during unification
+	aliasEnv map[string]Type
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -153,6 +156,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
+		aliasEnv:            make(map[string]Type), // M-BUGFIX: Initialize alias environment
 	}
 }
 
@@ -173,7 +177,23 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
+		aliasEnv:            make(map[string]Type), // M-BUGFIX: Initialize alias environment
 	}
+}
+
+// RegisterTypeAlias registers a type alias for expansion during unification
+// M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants
+func (tc *CoreTypeChecker) RegisterTypeAlias(name string, target Type) {
+	if tc.aliasEnv == nil {
+		tc.aliasEnv = make(map[string]Type)
+	}
+	tc.aliasEnv[name] = target
+}
+
+// GetAliasEnv returns the type alias environment for use in unification
+// M-BUGFIX: Used to create UnifierWithAliases
+func (tc *CoreTypeChecker) GetAliasEnv() map[string]Type {
+	return tc.aliasEnv
 }
 
 // SetGlobalTypes sets the global types for import resolution
@@ -227,10 +247,18 @@ func (tc *CoreTypeChecker) SetEffectAnnotations(annots map[uint64][]string) {
 // InferWithConstraints infers type with constraints for a Core expression
 // Returns: typed expression, updated env, qualified type, constraints, error
 func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
+	// M-BUGFIX: Create unifier with alias environment for type alias expansion
+	var unifier *Unifier
+	if len(tc.aliasEnv) > 0 {
+		unifier = NewUnifierWithAliases(tc.aliasEnv)
+	} else {
+		unifier = NewUnifier()
+	}
+
 	// Create inference context
 	ctx := &InferenceContext{
 		env:                  env,
-		unifier:              NewUnifier(),
+		unifier:              unifier,
 		constraints:          []TypeConstraint{},
 		freshCounter:         0,
 		path:                 []string{},
