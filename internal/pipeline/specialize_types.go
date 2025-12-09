@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo/ailang/internal/types/traverse"
 )
 
 // canonicalTypeFingerprint produces a stable, normalized string representation of types
@@ -169,79 +170,29 @@ func generateSpecializedName(defSym string, argTypes []types.Type, fingerprint s
 	return name
 }
 
-// isPolymorphic checks if a type contains type variables
+// isPolymorphic checks if a type contains type variables.
+// Uses traverse.HasTypeVars for cycle-safe traversal - will not hang on recursive ADTs.
+//
+// M-DX11-TRAVERSE: This function was updated to use the traverse package
+// to prevent hangs on cyclic type graphs (e.g., recursive ADTs like Tree[a]).
 func isPolymorphic(t types.Type) bool {
-	if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
+	debug := os.Getenv("DEBUG_MONO_VERBOSE") != ""
+	if debug {
 		fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]   isPolymorphic(%s) type=%T\n", t, t)
 	}
-	switch typ := t.(type) {
-	case *types.TVar:
-		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TVar, returning true\n")
+
+	// Use cycle-safe traverse.HasTypeVars
+	result := traverse.HasTypeVars(t)
+
+	if debug {
+		if result {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> polymorphic (has type vars)\n")
+		} else {
+			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> monomorphic (no type vars)\n")
 		}
-		return true
-	case *types.TVar2:
-		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TVar2, returning true\n")
-		}
-		return true
-	case *types.TApp:
-		for i, arg := range typ.Args {
-			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     TApp arg[%d]: %s\n", i, arg)
-			}
-			if isPolymorphic(arg) {
-				return true
-			}
-		}
-		return false
-	case *types.TFunc2:
-		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     TFunc2 with %d params\n", len(typ.Params))
-		}
-		for i, p := range typ.Params {
-			if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     Checking param[%d]: %s (type=%T)\n", i, p, p)
-			}
-			if isPolymorphic(p) {
-				if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-					fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> param[%d] is polymorphic, returning true\n", i)
-				}
-				return true
-			}
-		}
-		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     Checking return: %s\n", typ.Return)
-		}
-		if isPolymorphic(typ.Return) {
-			return true
-		}
-		// Check effect row
-		if typ.EffectRow != nil {
-			for _, eff := range typ.EffectRow.Labels {
-				if isPolymorphic(eff) {
-					return true
-				}
-			}
-		}
-		if os.Getenv("DEBUG_MONO_VERBOSE") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG_MONO_VERBOSE]     -> TFunc2 not polymorphic, returning false\n")
-		}
-		return false
-	case *types.TRecord:
-		for _, ftyp := range typ.Fields {
-			if isPolymorphic(ftyp) {
-				return true
-			}
-		}
-		// Also check row variable
-		if typ.Row != nil && isPolymorphic(typ.Row) {
-			return true
-		}
-		return false
-	default:
-		return false
 	}
+
+	return result
 }
 
 // allConcrete checks if all types in a list are concrete (no type variables)

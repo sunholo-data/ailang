@@ -281,6 +281,12 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 	}
 }
 
+// collectFreeVars collects all free type variables from a type.
+// Uses internal cycle detection via visited set.
+//
+// NOTE: Code outside the types package should use traverse.CollectFreeVars
+// which provides the same cycle-safe behavior with a cleaner API.
+// See: internal/types/traverse/wrappers.go
 func collectFreeVars(t Type, vars map[string]bool) {
 	visited := make(map[Type]bool)
 	collectFreeVarsWithVisited(t, vars, visited)

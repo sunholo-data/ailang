@@ -319,7 +319,45 @@ Validated nodes may carry polymorphic types (α, β, etc.); these are accepted a
 - Tests: `internal/pipeline/validate_coretypeinfo_test.go` (417 LOC, 8/8 passing)
 - Benchmarks: `internal/pipeline/validate_coretypeinfo_bench_test.go` (117 LOC)
 
-### 4. MONOMORPHIZATION - CALL-SITE SPECIALIZATION (v0.4.0)
+### 4. SAFE TYPE TRAVERSAL - CYCLE PROTECTION (v0.5.9)
+
+**API DESIGN RULE** (from M-PERF2 post-mortem):
+
+> Every function of shape `func(types.Type) T` MUST document cycle-safety.
+> Either use `traverse.Walk` or add a `visited` parameter.
+
+**The traverse package** (`internal/types/traverse/`) provides safe type traversal:
+
+```go
+// Safe - automatic cycle detection
+vars := traverse.CollectFreeVars(someType)
+
+// Safe - manual callback
+traverse.Walk(someType, func(t types.Type) {
+    // process type
+})
+
+// Check for cycles
+if traverse.HasCycles(recursiveType) {
+    // handle recursive ADT
+}
+```
+
+**When to use:**
+- ✅ Code outside `internal/types/` that needs to traverse types
+- ✅ Pipeline code, evaluator, code generators
+- ✅ Any new type analysis functions
+
+**When NOT needed:**
+- Code inside `internal/types/` already has internal cycle protection
+- Simple type checks that don't recurse
+
+**Implementation:**
+- Core visitor: `internal/types/traverse/traverse.go` (~185 LOC)
+- Safe wrappers: `internal/types/traverse/wrappers.go` (~160 LOC)
+- Tests: `internal/types/traverse/traverse_test.go` (~560 LOC, 31 tests)
+
+### 5. MONOMORPHIZATION - CALL-SITE SPECIALIZATION (v0.4.0)
 
 **ENABLED BY DEFAULT**: Polymorphic lambdas specialized at call sites (M-POLY-A).
 
