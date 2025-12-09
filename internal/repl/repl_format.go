@@ -93,8 +93,25 @@ func formatValue(val interface{}) string {
 	}
 }
 
-// formatType formats types for display
+// formatType formats types for display.
+// M-DX11-TRAVERSE: Uses cycle detection to prevent infinite loops on recursive types.
 func formatType(t types.Type) string {
+	return formatTypeWithVisited(t, make(map[types.Type]bool))
+}
+
+// formatTypeWithVisited is the cycle-safe implementation of formatType.
+func formatTypeWithVisited(t types.Type, visited map[types.Type]bool) string {
+	if t == nil {
+		return "nil"
+	}
+
+	// Cycle detection
+	if visited[t] {
+		return "<cycle>"
+	}
+	visited[t] = true
+	defer delete(visited, t)
+
 	switch typ := t.(type) {
 	case *types.TVar:
 		return typ.Name
@@ -108,17 +125,17 @@ func formatType(t types.Type) string {
 		// Check if it's a function type (-> constructor)
 		if con, ok := typ.Constructor.(*types.TCon); ok && con.Name == "->" {
 			if len(typ.Args) == 2 {
-				return fmt.Sprintf("%s → %s", formatType(typ.Args[0]), formatType(typ.Args[1]))
+				return fmt.Sprintf("%s → %s", formatTypeWithVisited(typ.Args[0], visited), formatTypeWithVisited(typ.Args[1], visited))
 			}
 		}
 		// Generic application
 		args := make([]string, len(typ.Args))
 		for i, arg := range typ.Args {
-			args[i] = formatType(arg)
+			args[i] = formatTypeWithVisited(arg, visited)
 		}
-		return fmt.Sprintf("%s %s", formatType(typ.Constructor), strings.Join(args, " "))
+		return fmt.Sprintf("%s %s", formatTypeWithVisited(typ.Constructor, visited), strings.Join(args, " "))
 	case *types.TList:
-		return fmt.Sprintf("[%s]", formatType(typ.Element))
+		return fmt.Sprintf("[%s]", formatTypeWithVisited(typ.Element, visited))
 	case *types.TRecord:
 		// Sort field names for deterministic output
 		keys := make([]string, 0, len(typ.Fields))
@@ -129,7 +146,7 @@ func formatType(t types.Type) string {
 
 		fields := make([]string, len(keys))
 		for i, k := range keys {
-			fields[i] = fmt.Sprintf("%s: %s", k, formatType(typ.Fields[k]))
+			fields[i] = fmt.Sprintf("%s: %s", k, formatTypeWithVisited(typ.Fields[k], visited))
 		}
 		return fmt.Sprintf("{%s}", strings.Join(fields, ", "))
 	default:

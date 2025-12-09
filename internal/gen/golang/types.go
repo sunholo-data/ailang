@@ -43,24 +43,37 @@ func (tm *TypeMapper) RegisterType(ailangName string, goType GoType) {
 
 // MapType converts an AILANG type to its Go representation.
 // Returns the Go type string and any error.
+// M-DX11-TRAVERSE: Uses cycle detection to prevent infinite loops on recursive types.
 func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
+	return tm.mapTypeWithVisited(t, make(map[types.Type]bool))
+}
+
+// mapTypeWithVisited is the internal cycle-safe implementation of MapType.
+func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bool) (GoType, error) {
 	if t == nil {
 		return "", fmt.Errorf("nil type")
 	}
+
+	// Cycle detection: if we've seen this type, return interface{}
+	if visited[t] {
+		return GoType("interface{}"), nil
+	}
+	visited[t] = true
+	defer delete(visited, t)
 
 	switch typ := t.(type) {
 	case *types.TCon:
 		return tm.mapTCon(typ)
 
 	case *types.TList:
-		elemType, err := tm.MapType(typ.Element)
+		elemType, err := tm.mapTypeWithVisited(typ.Element, visited)
 		if err != nil {
 			return "", err
 		}
 		return GoType(fmt.Sprintf("[]%s", elemType)), nil
 
 	case *types.TArray:
-		elemType, err := tm.MapType(typ.Element)
+		elemType, err := tm.mapTypeWithVisited(typ.Element, visited)
 		if err != nil {
 			return "", err
 		}
@@ -93,10 +106,10 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 		return GoType("struct{}"), nil
 
 	case *types.TFunc:
-		return tm.mapTFunc(typ)
+		return tm.mapTFuncWithVisited(typ, visited)
 
 	case *types.TFunc2:
-		return tm.mapTFunc2(typ)
+		return tm.mapTFunc2WithVisited(typ, visited)
 
 	case *types.TApp:
 		// Type application - look up constructor
@@ -105,7 +118,7 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 			// TApp("List", T) should map to []T, not "List"
 			if con.Name == "List" {
 				if len(typ.Args) > 0 {
-					elemType, err := tm.MapType(typ.Args[0])
+					elemType, err := tm.mapTypeWithVisited(typ.Args[0], visited)
 					if err != nil {
 						// Fallback to []interface{} if element type fails
 						return GoType("[]interface{}"), nil
@@ -158,18 +171,18 @@ func (tm *TypeMapper) mapTCon(typ *types.TCon) (GoType, error) {
 	}
 }
 
-// mapTFunc maps a function type to Go.
-func (tm *TypeMapper) mapTFunc(typ *types.TFunc) (GoType, error) {
+// mapTFuncWithVisited maps a function type to Go with cycle detection.
+func (tm *TypeMapper) mapTFuncWithVisited(typ *types.TFunc, visited map[types.Type]bool) (GoType, error) {
 	var paramTypes []string
 	for _, p := range typ.Params {
-		pt, err := tm.MapType(p)
+		pt, err := tm.mapTypeWithVisited(p, visited)
 		if err != nil {
 			return "", err
 		}
 		paramTypes = append(paramTypes, string(pt))
 	}
 
-	returnType, err := tm.MapType(typ.Return)
+	returnType, err := tm.mapTypeWithVisited(typ.Return, visited)
 	if err != nil {
 		return "", err
 	}
@@ -180,19 +193,19 @@ func (tm *TypeMapper) mapTFunc(typ *types.TFunc) (GoType, error) {
 	return GoType(fmt.Sprintf("func(%s) %s", join(paramTypes, ", "), returnType)), nil
 }
 
-// mapTFunc2 maps a TFunc2 (function type with effect row) to Go.
+// mapTFunc2WithVisited maps a TFunc2 to Go with cycle detection.
 // M-DX23: TFunc2 is the new function type system used after type checking.
-func (tm *TypeMapper) mapTFunc2(typ *types.TFunc2) (GoType, error) {
+func (tm *TypeMapper) mapTFunc2WithVisited(typ *types.TFunc2, visited map[types.Type]bool) (GoType, error) {
 	var paramTypes []string
 	for _, p := range typ.Params {
-		pt, err := tm.MapType(p)
+		pt, err := tm.mapTypeWithVisited(p, visited)
 		if err != nil {
 			return "", err
 		}
 		paramTypes = append(paramTypes, string(pt))
 	}
 
-	returnType, err := tm.MapType(typ.Return)
+	returnType, err := tm.mapTypeWithVisited(typ.Return, visited)
 	if err != nil {
 		return "", err
 	}
