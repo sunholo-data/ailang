@@ -1,0 +1,209 @@
+# M-CODEGEN-OPTION-RUNTIME-HELPERS: Fix GetOpt to Return *Option Instead of Map
+
+**Status**: Implemented
+**Target**: v0.5.9
+**Priority**: P0 - Critical (Runtime panic in generated code)
+**Estimated**: 30 minutes
+**Dependencies**: M-CODEGEN-POINTER-RETURN-TYPES (completed)
+
+## AI-First Alignment Check
+
+| Principle | Impact | Score | Notes |
+|-----------|--------|-------|-------|
+| Reduce Syntactic Noise | 0 | 0 | Bug fix - no syntax change |
+| Preserve Semantic Clarity | + | +1 | Runtime returns proper typed values |
+| Increase Determinism | + | +1 | Consistent types throughout codegen |
+| Lower Token Cost | 0 | 0 | No impact on token cost |
+| **Net Score** | | **+2** | **Decision: Move forward** |
+
+## Problem Statement
+
+**Bug Report Source**: stapledons_voyage project (Dec 9, 2025)
+
+### Symptom
+
+When calling `GetOpt` on an array in generated Go code, the runtime panics:
+
+```
+panic: interface conversion: interface {} is map[string]interface {}, not *sim_gen.Option
+```
+
+### Root Cause
+
+The `makeOptionSome` and `makeOptionNone` helper functions in `codegen_runtime_collections.go` return map literals:
+
+```go
+// Current (WRONG)
+func makeOptionSome(v interface{}) interface{} {
+    return map[string]interface{}{"tag": "Some", "value": v}
+}
+
+func makeOptionNone() interface{} {
+    return map[string]interface{}{"tag": "None"}
+}
+```
+
+But the generated code in `bridge.go` does type assertions expecting `*Option`:
+
+```go
+_adt := _scrutinee.(*Option)  // FAILS: scrutinee is map, not *Option
+```
+
+### Why This Happens
+
+1. M-CODEGEN-POINTER-RETURN-TYPES fixed function signatures and struct fields to use `*Option`
+2. But `makeOptionSome`/`makeOptionNone` were never updated to match
+3. These helper functions predate the pointer-consistency fix and use legacy map representation
+
+## Goals
+
+**Primary Goal:** Make `GetOpt` return `*Option` when Option type exists in module.
+
+**Success Metrics:**
+- [x] `GetOpt` returns `*Option` values (not maps)
+- [x] Pattern matching on GetOpt results works
+- [x] No runtime panics for Option type assertions
+- [x] All tests pass
+
+## Solution Design
+
+### Overview
+
+The runtime helpers should call the ADT constructors (`NewOptionSome`, `NewOptionNone`) instead of building map literals.
+
+### Architecture
+
+| Function | Current Output | Expected Output |
+|----------|---------------|-----------------|
+| `makeOptionSome(v)` | `map[string]interface{}{"tag": "Some", "value": v}` | `NewOptionSome(v)` → `*Option` |
+| `makeOptionNone()` | `map[string]interface{}{"tag": "None"}` | `NewOptionNone()` → `*Option` |
+| `GetOpt(arr, idx)` | Returns map | Returns `*Option` |
+
+### Implementation Plan
+
+**Phase 1: Update makeOptionSome/makeOptionNone** (~15 minutes)
+
+Modify `codegen_runtime_collections.go` to generate helper functions that call ADT constructors:
+
+```go
+// Updated (CORRECT)
+g.writef("func makeOptionSome(v interface{}) interface{} {\n")
+g.indent++
+g.writef("return NewOptionSome(v)\n")
+g.indent--
+g.writef("}\n\n")
+
+g.writef("func makeOptionNone() interface{} {\n")
+g.indent++
+g.writef("return NewOptionNone()\n")
+g.indent--
+g.writef("}\n\n")
+```
+
+**Phase 2: Verify GetOpt uses helpers** (~5 minutes)
+
+GetOpt already calls `makeOptionSome`/`makeOptionNone`, so fixing those functions fixes GetOpt automatically.
+
+**Phase 3: Add regression test** (~10 minutes)
+
+Add test case that compiles code using `GetOpt` and verifies the result can be pattern-matched.
+
+### Files Modified
+
+- `internal/gen/golang/codegen_runtime_collections.go` - Lines 354-368, ~4 LOC changed
+- `internal/gen/golang/codegen_runtime_collections_test.go` - Add regression test
+
+### Code Changes
+
+**Before:**
+```go
+g.writef("// makeOptionSome creates a Some value.\n")
+g.writef("// Uses map representation for runtime compatibility.\n")
+g.writef("func makeOptionSome(v interface{}) interface{} {\n")
+g.indent++
+g.writef("return map[string]interface{}{\"tag\": \"Some\", \"value\": v}\n")
+g.indent--
+g.writef("}\n\n")
+
+g.writef("// makeOptionNone creates a None value.\n")
+g.writef("// Uses map representation for runtime compatibility.\n")
+g.writef("func makeOptionNone() interface{} {\n")
+g.indent++
+g.writef("return map[string]interface{}{\"tag\": \"None\"}\n")
+g.indent--
+g.writef("}\n\n")
+```
+
+**After:**
+```go
+g.writef("// makeOptionSome creates a Some value.\n")
+g.writef("// Calls ADT constructor for type-safe Option values.\n")
+g.writef("func makeOptionSome(v interface{}) interface{} {\n")
+g.indent++
+g.writef("return NewOptionSome(v)\n")
+g.indent--
+g.writef("}\n\n")
+
+g.writef("// makeOptionNone creates a None value.\n")
+g.writef("// Calls ADT constructor for type-safe Option values.\n")
+g.writef("func makeOptionNone() interface{} {\n")
+g.indent++
+g.writef("return NewOptionNone()\n")
+g.indent--
+g.writef("}\n\n")
+```
+
+## Edge Cases
+
+### What if Option type is not defined?
+
+The current code has a comment:
+```go
+// Note: NewOptionSome and NewOptionNone are generated by the ADT generator
+// when Option type is present in the module. GetOpt uses these functions.
+```
+
+**Assumption:** GetOpt is only generated when Option type exists.
+
+**Verification needed:** Confirm that `generateCollectionsSupport` is only called when Option type is available.
+
+### What about generic Option[a]?
+
+The ADT generator creates concrete `Option` type with constructors. The fix works because:
+- `NewOptionSome(v interface{})` accepts any value
+- `NewOptionNone()` takes no arguments
+- Both return `*Option` which matches pattern matching expectations
+
+## Success Criteria
+
+- [x] `makeOptionSome` calls `NewOptionSome`
+- [x] `makeOptionNone` calls `NewOptionNone`
+- [x] GetOpt returns `*Option` type
+- [x] Pattern matching on GetOpt results works
+- [x] Build passes
+- [x] All existing tests pass
+
+## Testing Strategy
+
+**Manual test (stapledons_voyage):**
+1. Recompile stapledons_voyage module
+2. Run simulation that uses GetOpt
+3. Verify no panic on pattern matching
+
+## Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| Option type not generated | High | Verify GetOpt only generated when Option exists |
+| Constructor signature mismatch | Medium | Check ADT generator output |
+
+## References
+
+- Bug report from stapledons_voyage (agent message Dec 9, 2025)
+- M-CODEGEN-POINTER-RETURN-TYPES (related fix for pointers)
+- `codegen_runtime_collections.go` lines 354-368
+
+---
+
+**Document created**: 2025-12-09
+**Last updated**: 2025-12-09

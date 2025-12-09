@@ -1,0 +1,207 @@
+package types
+
+import (
+	"fmt"
+)
+
+// unifyFunctions unifies two function types
+func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substitution, error) {
+	if t2Func, ok := t2.(*TFunc2); ok {
+		if len(t1.Params) != len(t2Func.Params) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2Func.Params))
+		}
+
+		// Unify parameters
+		for i := range t1.Params {
+			var err error
+			sub, err = u.Unify(t1.Params[i], t2Func.Params[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
+			}
+		}
+
+		// Unify effect rows
+		if t1.EffectRow != nil || t2Func.EffectRow != nil {
+			eff1 := t1.EffectRow
+			if eff1 == nil {
+				eff1 = EmptyEffectRow()
+			}
+			eff2 := t2Func.EffectRow
+			if eff2 == nil {
+				eff2 = EmptyEffectRow()
+			}
+			var err error
+			sub, err = u.Unify(eff1, eff2, sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify effect rows: %w", err)
+			}
+		}
+
+		// Unify return type
+		return u.Unify(t1.Return, t2Func.Return, sub)
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		// Swap and retry
+		return u.Unify(t2Var, t1, sub)
+	}
+	return nil, fmt.Errorf("cannot unify function type with %T", t2)
+}
+
+// unifyLists unifies two list types
+func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution, error) {
+	if t2List, ok := t2.(*TList); ok {
+		return u.Unify(t1.Element, t2List.Element, sub)
+	}
+	// Special case: TList{Element: a} can unify with TApp("List", a)
+	if t2App, ok := t2.(*TApp); ok {
+		h2, a2 := decomposeApp(t2App)
+		if headCon, ok := h2.(*TCon); ok && headCon.Name == "List" && len(a2) == 1 {
+			// TList{Element: a} ~ TApp("List", a)
+			return u.Unify(t1.Element, a2[0], sub)
+		}
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		// Swap and retry
+		return u.Unify(t2Var, t1, sub)
+	}
+	// Handle old type system compatibility: TCon might represent String
+	if t2Con, ok := t2.(*TCon); ok {
+		// If trying to unify list with string, fail with better error
+		if t2Con.Name == "String" {
+			return nil, fmt.Errorf("type mismatch: cannot use list where string expected")
+		}
+		// Other TCon cases fail as before
+		return nil, fmt.Errorf("cannot unify list type with %T", t2)
+	}
+	return nil, fmt.Errorf("cannot unify list type with %T", t2)
+}
+
+// unifyArrays unifies two array types
+func (u *Unifier) unifyArrays(t1 *TArray, t2 Type, sub Substitution) (Substitution, error) {
+	if t2Array, ok := t2.(*TArray); ok {
+		return u.Unify(t1.Element, t2Array.Element, sub)
+	}
+	// Special case: TArray{Element: a} can unify with TApp("Array", a)
+	if t2App, ok := t2.(*TApp); ok {
+		h2, a2 := decomposeApp(t2App)
+		if headCon, ok := h2.(*TCon); ok && headCon.Name == "Array" && len(a2) == 1 {
+			return u.Unify(t1.Element, a2[0], sub)
+		}
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		// Swap and retry
+		return u.Unify(t2Var, t1, sub)
+	}
+	return nil, fmt.Errorf("cannot unify array type with %T", t2)
+}
+
+// unifyTuples unifies two tuple types
+func (u *Unifier) unifyTuples(t1 *TTuple, t2 Type, sub Substitution) (Substitution, error) {
+	if t2Tuple, ok := t2.(*TTuple); ok {
+		if len(t1.Elements) != len(t2Tuple.Elements) {
+			return nil, fmt.Errorf("tuple size mismatch: %d vs %d", len(t1.Elements), len(t2Tuple.Elements))
+		}
+		for i := range t1.Elements {
+			var err error
+			sub, err = u.Unify(t1.Elements[i], t2Tuple.Elements[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify tuple element %d: %w", i, err)
+			}
+		}
+		return sub, nil
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		// Swap and retry
+		return u.Unify(t2Var, t1, sub)
+	}
+	return nil, fmt.Errorf("cannot unify tuple type with %T", t2)
+}
+
+// unifyTypeApps unifies two type applications
+func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substitution, error) {
+	if _, ok := t2.(*TApp); ok {
+		// Both are type applications - decompose and unify
+		h1, a1 := decomposeApp(t1)
+		h2, a2 := decomposeApp(t2)
+
+		// Require same head constructor
+		if !equalHead(h1, h2) {
+			return nil, fmt.Errorf("type constructor mismatch: %s vs %s", h1.String(), h2.String())
+		}
+
+		// Arity check
+		if len(a1) != len(a2) {
+			return nil, fmt.Errorf("arity mismatch: %s expects %d args, got %d", h1.String(), len(a1), len(a2))
+		}
+
+		// Unify each pair of args in order
+		for i := range a1 {
+			var err error
+			sub, err = u.Unify(a1[i], a2[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify type argument %d: %w", i, err)
+			}
+		}
+		return sub, nil
+	}
+	// Special case: TApp("List", a) can unify with TList{Element: a}
+	if t2List, ok := t2.(*TList); ok {
+		h1, a1 := decomposeApp(t1)
+		if headCon, ok := h1.(*TCon); ok && headCon.Name == "List" && len(a1) == 1 {
+			// TApp("List", a) ~ TList{Element: a}
+			return u.Unify(a1[0], t2List.Element, sub)
+		}
+	}
+	// Special case: TApp("Array", a) can unify with TArray{Element: a}
+	if t2Array, ok := t2.(*TArray); ok {
+		h1, a1 := decomposeApp(t1)
+		if headCon, ok := h1.(*TCon); ok && headCon.Name == "Array" && len(a1) == 1 {
+			// TApp("Array", a) ~ TArray{Element: a}
+			return u.Unify(a1[0], t2Array.Element, sub)
+		}
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		// Swap and retry
+		return u.Unify(t2Var, t1, sub)
+	}
+	return nil, fmt.Errorf("cannot unify type application with %T", t2)
+}
+
+// decomposeApp decomposes a type application into (head constructor, args)
+// Handles nested TApp chains: TApp(TApp(Result, A), B) → (Result, [A, B])
+func decomposeApp(t Type) (head Type, args []Type) {
+	// Recursively collect args from nested TApp
+	switch app := t.(type) {
+	case *TApp:
+		// Get args from this node
+		currentArgs := app.Args
+
+		// Check if constructor is another TApp (nested application)
+		innerHead, innerArgs := decomposeApp(app.Constructor)
+
+		// Combine args: inner args first, then current args
+		allArgs := make([]Type, 0, len(innerArgs)+len(currentArgs))
+		allArgs = append(allArgs, innerArgs...)
+		allArgs = append(allArgs, currentArgs...)
+
+		return innerHead, allArgs
+	default:
+		// Base case: not a TApp, this is the head
+		return t, nil
+	}
+}
+
+// equalHead checks if two type heads are equal
+// For now, we check if they're the same TCon by name
+func equalHead(h1, h2 Type) bool {
+	// Both should be TCon for well-formed type applications
+	con1, ok1 := h1.(*TCon)
+	con2, ok2 := h2.(*TCon)
+
+	if ok1 && ok2 {
+		return con1.Name == con2.Name
+	}
+
+	// Fallback: use Equals for other cases (e.g., type variables)
+	return h1.Equals(h2)
+}

@@ -287,7 +287,13 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 
 	switch typ := t.(type) {
 	case *ast.SimpleType:
-		return g.mapNamedType(typ.Name)
+		goType := g.mapNamedType(typ.Name)
+		// M-CODEGEN-POINTER-RETURN-TYPES: User-defined types need pointers to match ADT constructor returns
+		// All ADT values are pointers, so struct fields holding ADTs must be pointers
+		if isUserDefinedType(goType) {
+			return "*" + goType
+		}
+		return goType
 
 	case *ast.TypeVar:
 		// Type variables become interface{} in Go
@@ -298,10 +304,14 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		// M-DX12: For ADT/user-defined element types, generate typed slice []*ADTType
 		// World boundary marshalling converts []interface{} to typed slices at profile boundaries
 		if isUserDefinedType(elemType) {
-			// Track this ADT type for converter generation
-			// elemType is already PascalCase (e.g., "DrawCmd")
-			g.adtSliceTypes[elemType] = true
-			// Return typed pointer slice for ADTs (all ADT values are pointers)
+			// Track this ADT type for converter generation (strip * prefix for tracking)
+			baseType := strings.TrimPrefix(elemType, "*")
+			g.adtSliceTypes[baseType] = true
+			// M-CODEGEN-POINTER-RETURN-TYPES: If elemType is already a pointer, use it directly
+			// Otherwise add * prefix (for backward compatibility with direct calls)
+			if strings.HasPrefix(elemType, "*") {
+				return fmt.Sprintf("[]%s", elemType)
+			}
 			return fmt.Sprintf("[]*%s", elemType)
 		}
 		return fmt.Sprintf("[]%s", elemType)
@@ -310,7 +320,11 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		elemType := g.mapASTType(typ.Element)
 		// M-DX12: Same as ListType - generate typed slice for ADT elements
 		if isUserDefinedType(elemType) {
-			g.adtSliceTypes[elemType] = true
+			baseType := strings.TrimPrefix(elemType, "*")
+			g.adtSliceTypes[baseType] = true
+			if strings.HasPrefix(elemType, "*") {
+				return fmt.Sprintf("[]%s", elemType)
+			}
 			return fmt.Sprintf("[]*%s", elemType)
 		}
 		return fmt.Sprintf("[]%s", elemType)

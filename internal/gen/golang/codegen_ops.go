@@ -217,7 +217,11 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 				if err := g.generateExpr(value); err != nil {
 					return err
 				}
-				if isPrimitiveGoType(goType) {
+				// M-CODEGEN-POINTER-RETURN-TYPES: Add type assertion for all typed fields
+				// Both primitives (int64, string) and user-defined pointers (*ArrivalPhase)
+				// need type assertions when value is interface{}
+				// BUT: ADT constructors already return typed pointers, not interface{}
+				if g.exprProducesInterface(value) && !g.isADTConstructorExpr(value) {
 					g.writef(".(%s)", goType)
 				}
 			}

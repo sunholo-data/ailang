@@ -56,6 +56,59 @@ Warning: Type Checking took 156ms (threshold: 100ms)
 
 **Related:** [M-DX11 Cyclic Type Diagnostics](design_docs/planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md) | [M-PERF2 Postmortem](design_docs/implemented/v0_5_8/m-perf2-cyclic-type-hang-postmortem.md)
 
+### Fixed - Go Codegen Pointer/Value Type Consistency (M-CODEGEN-POINTER-RETURN-TYPES)
+
+Fixed critical type assertion failures in generated Go code. All user-defined types now consistently use pointers throughout codegen.
+
+**Reporter**: stapledons_voyage project (4 bug reports via agent messaging)
+
+**Problem**: Type mismatches between function signatures, struct fields, and type assertions caused runtime panics and compile errors:
+```
+panic: interface conversion: interface {} is *sim_gen.World, not sim_gen.World
+cannot use NewArrivalPhasePhaseBlackHole() (value of type *ArrivalPhase) as ArrivalPhase value
+cannot use nextPh (variable of type interface{}) as *ArrivalPhase value: need type assertion
+```
+
+**Root Cause**: Inconsistent pointer vs value types across codegen:
+- `_impl` functions return `interface{}` containing pointer values (`&World{}`)
+- But typed wrappers expected value types (`World`)
+- Struct fields declared as values but ADT constructors return pointers
+
+**Solution**: 4-phase fix to make all user-defined types consistently use pointers:
+
+| Phase | Issue | Fix |
+|-------|-------|-----|
+| 1 | Function signatures used value types | `ailangTypeToGo` returns `*TypeName` for user-defined types |
+| 2 | Struct fields used value types | `mapASTType` returns `*TypeName` for user-defined SimpleTypes |
+| 3 | Missing type assertions for interface{} | Added `.(T)` assertions, skip for ADT constructors |
+| 4 | Double-pointer in slices (`[]**T`) | Check for existing `*` prefix before adding |
+
+**Before (BROKEN)**:
+```go
+func InitWorld(seed int64) World { return initWorld_impl(seed).(World) }  // PANIC!
+type ArrivalState struct { Phase ArrivalPhase }  // Cannot assign *ArrivalPhase
+tmp58.([]**CrewPosition)  // Double pointer - wrong!
+```
+
+**After (FIXED)**:
+```go
+func InitWorld(seed int64) *World { return initWorld_impl(seed).(*World) }  // Works!
+type ArrivalState struct { Phase *ArrivalPhase }  // Matches ADT constructor return
+tmp58.([]*CrewPosition)  // Single pointer - correct!
+```
+
+**Files Changed**:
+- `cmd/ailang/compile.go` - `ailangTypeToGo`: pointer for user-defined types, fix ListType/ArrayType (~12 LOC)
+- `internal/gen/golang/adt.go` - `mapASTType`: pointer for SimpleTypes, handle already-pointer elements (~20 LOC)
+- `internal/gen/golang/adt_test.go` - Updated test expectations (~6 LOC)
+- `internal/gen/golang/codegen_ops.go` - `generateTypedRecord`: type assertions for interface{} values (~5 LOC)
+
+**Total**: ~43 LOC across 4 files
+
+**Design Doc**: [M-CODEGEN-POINTER-RETURN-TYPES](design_docs/planned/v0_5_9/m-codegen-pointer-return-types.md)
+
+**Note**: This makes ALL user-defined types pointers. A size-based optimization (small leaf records as values) is planned for v0.5.10 - see [M-CODEGEN-VALUE-TYPES](design_docs/planned/v0_5_10/m-codegen-value-types.md).
+
 ## [v0.5.8] - 2025-12-09
 
 ### Fixed - Go Codegen Type Safety (M-BUGFIX Sprint)

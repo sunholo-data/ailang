@@ -647,24 +647,32 @@ func ailangTypeToGo(t ast.Type) string {
 		case "()":
 			return "struct{}"
 		default:
-			// M-DX13.2: User-defined types are VALUE types in struct fields
-			// This matches adt.go's mapNamedType which returns "Coord", not "*Coord"
-			return capitalize(typ.Name)
+			// M-CODEGEN-TYPE-ASSERTIONS: User-defined types are pointers in function signatures
+			// This matches generateTypedRecord which generates &World{...} for record literals
+			// Records/ADTs are always pointers when passed through interface{} boundaries
+			return "*" + capitalize(typ.Name)
 		}
 	case *ast.ListType:
 		elemType := ailangTypeToGo(typ.Element)
-		// M-DX13.4: For user-defined element types, generate pointer slice []*Type
-		// This matches adt.go's mapASTType which returns []*Direction, not []Direction
-		// ADT values are always pointers in Go, so slices of ADTs are []*ADT
-		// M-DX15 fix: Check elemType directly, not "*" + elemType
-		if isUserDefinedGoType(elemType) { // Check if element is user-defined
+		// M-CODEGEN-POINTER-RETURN-TYPES: User-defined SimpleTypes now return *TypeName
+		// So elemType is already "*CrewPosition" for user-defined types
+		// Just concatenate "[]" + elemType - no additional "*" needed
+		if strings.HasPrefix(elemType, "*") {
+			// Already a pointer type (e.g., *CrewPosition) - just make it a slice
+			return "[]" + elemType // []*CrewPosition
+		}
+		if isUserDefinedGoType(elemType) {
+			// Fallback for non-pointer user types (shouldn't happen with current logic)
 			return "[]*" + elemType
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
 		// M-TYPE1: Arrays use the same Go representation as lists (slices)
 		elemType := ailangTypeToGo(typ.Element)
-		// For user-defined element types, generate pointer slice []*Type
+		// M-CODEGEN-POINTER-RETURN-TYPES: Same logic as ListType
+		if strings.HasPrefix(elemType, "*") {
+			return "[]" + elemType // []*TypeName
+		}
 		if isUserDefinedGoType(elemType) {
 			return "[]*" + elemType
 		}

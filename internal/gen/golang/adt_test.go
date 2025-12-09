@@ -109,14 +109,15 @@ func TestGenerateSumType_Tree(t *testing.T) {
 	}
 
 	// Node should have Tree fields (Value0, Value1, Value2)
-	if !strings.Contains(codeStr, "Value0 Tree") {
-		t.Errorf("Missing Value0 (Tree) in TreeNode")
+	// M-CODEGEN-POINTER-RETURN-TYPES: User-defined types are now pointers
+	if !strings.Contains(codeStr, "Value0 *Tree") {
+		t.Errorf("Missing Value0 (*Tree) in TreeNode")
 	}
 	if !strings.Contains(codeStr, "Value1 int64") {
 		t.Errorf("Missing Value1 (int) in TreeNode")
 	}
-	if !strings.Contains(codeStr, "Value2 Tree") {
-		t.Errorf("Missing Value2 (Tree) in TreeNode")
+	if !strings.Contains(codeStr, "Value2 *Tree") {
+		t.Errorf("Missing Value2 (*Tree) in TreeNode")
 	}
 }
 
@@ -279,7 +280,8 @@ func TestMapASTType_Primitives(t *testing.T) {
 		{&ast.SimpleType{Name: "bool"}, "bool"},
 		{&ast.SimpleType{Name: "string"}, "string"},
 		{&ast.SimpleType{Name: "unit"}, "struct{}"},
-		{&ast.SimpleType{Name: "Tree"}, "Tree"},
+		// M-CODEGEN-POINTER-RETURN-TYPES: User-defined types are now pointers
+		{&ast.SimpleType{Name: "Tree"}, "*Tree"},
 		{&ast.ListType{Element: &ast.SimpleType{Name: "int"}}, "[]int64"},
 		{&ast.ListType{Element: &ast.SimpleType{Name: "string"}}, "[]string"},
 	}

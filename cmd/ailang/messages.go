@@ -185,10 +185,15 @@ func runMessagesUnack(args []string) {
 
 func runMessagesSend(args []string) {
 	fs := flag.NewFlagSet("messages send", flag.ExitOnError)
-	jsonPayload := fs.String("json", "", "Send JSON payload instead of plain text")
+	// Note: --payload is preferred over --json to avoid confusion with --json output flag
+	payloadFlag := fs.String("payload", "", "Send structured payload (alternative to positional message)")
 	title := fs.String("title", "", "Message title")
 	from := fs.String("from", "cli", "Sender agent name")
 	correlationID := fs.String("correlation", "", "Correlation ID for grouping messages")
+
+	// Normalize args: move flags before positional arguments
+	// Go's flag package requires flags to come first, but users often put them at the end
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -198,15 +203,15 @@ func runMessagesSend(args []string) {
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: inbox required\n", red("Error"))
 		fmt.Println("Usage: ailang messages send <inbox> [message]")
-		fmt.Println("       ailang messages send <inbox> --json '{...}'")
+		fmt.Println("       ailang messages send <inbox> --payload '{...}'")
 		os.Exit(1)
 	}
 
 	inbox := fs.Arg(0)
 	var payload string
 
-	if *jsonPayload != "" {
-		payload = *jsonPayload
+	if *payloadFlag != "" {
+		payload = *payloadFlag
 	} else if fs.NArg() >= 2 {
 		payload = strings.Join(fs.Args()[1:], " ")
 	} else {
@@ -472,6 +477,51 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
+// normalizeArgsForFlags moves flags to the front of args so Go's flag package can parse them.
+// Go's flag package stops parsing when it sees a non-flag argument, but users often put
+// flags at the end (e.g., "send inbox message --title foo" instead of "send --title foo inbox message").
+func normalizeArgsForFlags(args []string, flagNames []string) []string {
+	// Build a set of known flag names (with -- prefix)
+	knownFlags := make(map[string]bool)
+	for _, name := range flagNames {
+		knownFlags["--"+name] = true
+		knownFlags["-"+name] = true
+	}
+
+	var flags []string
+	var positional []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		// Check if this is a known flag
+		isFlag := false
+		for flagName := range knownFlags {
+			if arg == flagName {
+				isFlag = true
+				// Flag with separate value
+				flags = append(flags, arg)
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+					i++
+					flags = append(flags, args[i])
+				}
+				break
+			}
+			if strings.HasPrefix(arg, flagName+"=") {
+				isFlag = true
+				// Flag with = value
+				flags = append(flags, arg)
+				break
+			}
+		}
+		if !isFlag {
+			positional = append(positional, arg)
+		}
+	}
+
+	// Flags first, then positional arguments
+	return append(flags, positional...)
+}
+
 func printMessagesHelp() {
 	fmt.Println("Usage: ailang messages <subcommand> [options]")
 	fmt.Println()
@@ -499,10 +549,12 @@ func printMessagesHelp() {
 	fmt.Println("  --inbox <name>       Filter by inbox when using --all")
 	fmt.Println()
 	fmt.Println("Send Flags:")
-	fmt.Println("  --json <payload>     Send JSON payload")
+	fmt.Println("  --payload <data>     Send payload via flag (alternative to positional arg)")
 	fmt.Println("  --title <text>       Message title")
 	fmt.Println("  --from <agent>       Sender name (default: cli)")
 	fmt.Println("  --correlation <id>   Correlation ID for grouping")
+	fmt.Println()
+	fmt.Println("Note: Flags can appear before or after positional arguments.")
 	fmt.Println()
 	fmt.Println("Aliases: msg, messages")
 	fmt.Println()
