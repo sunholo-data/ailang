@@ -308,6 +308,16 @@ func (e *Elaborator) normalizeUnaryOp(unop *ast.UnaryOp) (core.CoreExpr, error) 
 
 // normalizeIf handles conditionals
 func (e *Elaborator) normalizeIf(ifExpr *ast.If) (core.CoreExpr, error) {
+	// Check for let-without-body in branches (common mistake for FP users)
+	// This pattern: if x then y else let v = ...; expr
+	// requires explicit braces: if x then y else { let v = ...; expr }
+	if letExpr, ok := ifExpr.Then.(*ast.Let); ok && letExpr.Body == nil {
+		return nil, e.makeLetInBranchError(letExpr, "then", ifExpr)
+	}
+	if letExpr, ok := ifExpr.Else.(*ast.Let); ok && letExpr.Body == nil {
+		return nil, e.makeLetInBranchError(letExpr, "else", ifExpr)
+	}
+
 	// Condition must be atomic
 	cond, condBinds, err := e.normalizeToAtomic(ifExpr.Condition)
 	if err != nil {
@@ -333,6 +343,37 @@ func (e *Elaborator) normalizeIf(ifExpr *ast.If) (core.CoreExpr, error) {
 	}
 
 	return e.wrapWithBindings(result, condBinds), nil
+}
+
+// makeLetInBranchError creates a helpful error message when a let-without-body
+// is used directly in an if-else branch (common mistake for ML/Haskell users)
+func (e *Elaborator) makeLetInBranchError(letExpr *ast.Let, branch string, ifExpr *ast.If) error {
+	pos := letExpr.Position()
+	ifPos := ifExpr.Position()
+
+	return fmt.Errorf(`if-else branches require explicit braces when using let bindings
+
+  %s:%d:%d: if expression starts here
+  %s:%d:%d: let binding in '%s' branch has no body
+
+The parser cannot determine where multi-statement branches end without braces.
+The 'let %s = ...' is parsed as the entire %s branch expression.
+
+Fix: Wrap the %s branch in braces:
+    %s {
+        let %s = ...;
+        <your expression here>
+    }
+
+For more details, see: docs/LIMITATIONS.md#if-else-branches-require-explicit-braces`,
+		ifPos.File, ifPos.Line, ifPos.Column,
+		pos.File, pos.Line, pos.Column,
+		branch,
+		letExpr.Name, branch,
+		branch,
+		branch,
+		letExpr.Name,
+	)
 }
 
 // normalizeLet handles let bindings

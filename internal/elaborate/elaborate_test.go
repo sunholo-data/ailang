@@ -254,3 +254,106 @@ func TestNestedRecordElaboration(t *testing.T) {
 	// Let $tmp = {x: 10, y: 20} in Let npc = {pos: $tmp, name: "guard"} in npc
 	// NOT: Let npc = (Let $tmp = {x: 10, y: 20} in ...) in npc
 }
+
+// TestLetInIfElseBranchError tests that using let-without-body in if-else branches
+// produces a helpful error message (M-FIX-IF-ELSE-LET)
+func TestLetInIfElseBranchError(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name: "let in else branch without braces",
+			input: `module test
+pure func test(x: int) -> [int] {
+    if x > 10 then []
+    else
+        let v = x;
+        [v]
+}`,
+			expectError: true,
+			errorSubstr: "if-else branches require explicit braces",
+		},
+		{
+			name: "let in then branch without braces",
+			input: `module test
+pure func test(x: int) -> [int] {
+    if x > 10 then
+        let v = x;
+        [v]
+    else []
+}`,
+			expectError: true,
+			errorSubstr: "if-else branches require explicit braces",
+		},
+		{
+			name: "let in else branch WITH braces - should work",
+			input: `module test
+pure func test(x: int) -> [int] {
+    if x > 10 then [] else {
+        let v = x;
+        [v]
+    }
+}`,
+			expectError: false,
+		},
+		{
+			name: "simple if-else without let - should work",
+			input: `module test
+pure func test(x: int) -> [int] {
+    if x > 10 then [] else [x]
+}`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input, "test.ail")
+			p := parser.New(l)
+			prog := p.Parse()
+
+			if len(p.Errors()) > 0 {
+				if tt.expectError {
+					// Parse error is acceptable for some cases
+					return
+				}
+				t.Fatalf("parse errors: %v", p.Errors())
+			}
+
+			elab := NewElaborator()
+			_, err := elab.Elaborate(prog)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+					return
+				}
+				if tt.errorSubstr != "" && !contains(err.Error(), tt.errorSubstr) {
+					t.Errorf("expected error containing %q, got: %v", tt.errorSubstr, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// contains checks if s contains substr (simple helper)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && containsHelper(s, substr)))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

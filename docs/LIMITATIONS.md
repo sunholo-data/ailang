@@ -265,6 +265,67 @@ Better error recovery and suggestions planned for v0.4.0+
 
 ---
 
+### If-Else Branches Require Explicit Braces {#if-else-branches-require-explicit-braces}
+
+**Status**: Design constraint (v0.5.9 - improved error message)
+**Since**: v0.1.0
+**Affects**: Multi-statement branches in if-else expressions
+
+**Problem**:
+When using `let` bindings in if-else branches, you must wrap them in explicit braces `{}`. Without braces, the parser treats only the first `let` as the branch expression:
+
+```ailang
+-- ❌ This fails (confusing error message before v0.5.9):
+pure func buildList(x: int, maxX: int) -> [int] {
+    if x > maxX then []
+    else
+        let v = x * 2;
+        let rest = buildList(x + 1, maxX);
+        v :: rest
+}
+-- Error: if-else branches require explicit braces when using let bindings
+--        The 'let v = ...' is parsed as the entire else branch expression.
+```
+
+**Why This Happens**:
+AILANG doesn't use layout-sensitive parsing (unlike Haskell/Python). Without explicit delimiters, the parser can't determine where a multi-statement branch ends. The `let v = x * 2;` becomes the entire else branch, and `let rest = ...` is a separate statement after the if-else.
+
+**Fix**:
+Wrap multi-statement branches in braces:
+
+```ailang
+-- ✅ With explicit braces - works correctly:
+pure func buildList(x: int, maxX: int) -> [int] {
+    if x > maxX then [] else {
+        let v = x * 2;
+        let rest = buildList(x + 1, maxX);
+        v :: rest
+    }
+}
+```
+
+**Alternative Patterns**:
+
+```ailang
+-- ✅ Use accumulator pattern (no let needed):
+pure func buildList(acc: [int], x: int, maxX: int) -> [int] {
+    if x > maxX then acc
+    else buildList(x :: acc, x + 1, maxX)
+}
+
+-- ✅ Single expression in branch (no braces needed):
+pure func simple(x: int) -> [int] {
+    if x > 10 then [] else [x]
+}
+```
+
+**Technical Details**:
+- Error detection added in v0.5.9 (`internal/elaborate/expressions.go`)
+- See design doc: `design_docs/planned/v0_5_9/m-fix-if-else-let-block.md`
+- Future work may add `do` syntax or layout-sensitive parsing
+
+---
+
 ## Language Feature Gaps
 
 ### String Interpolation
