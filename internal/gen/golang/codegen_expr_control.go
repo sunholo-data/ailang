@@ -5,10 +5,81 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 )
 
+// chainBranch represents a single branch in an if-else chain.
+// M-CODEGEN-FLAT-IF-ELSE: Used to flatten nested if-else into linear if statements.
+type chainBranch struct {
+	Cond core.CoreExpr // nil for the final else branch
+	Then core.CoreExpr
+}
+
+// unwrapToIf unwraps Let expressions to find an inner If.
+// M-CODEGEN-FLAT-IF-ELSE: The elaborator wraps conditions in Lets, so we need to look through them.
+// Returns the If expression and any Let bindings that wrap it.
+func unwrapToIf(expr core.CoreExpr) (*core.If, []*core.Let) {
+	var lets []*core.Let
+	current := expr
+	for {
+		switch e := current.(type) {
+		case *core.If:
+			return e, lets
+		case *core.Let:
+			lets = append(lets, e)
+			current = e.Body
+		default:
+			return nil, nil
+		}
+	}
+}
+
+// isIfElseChain checks if an if expression is part of a chain.
+// M-CODEGEN-FLAT-IF-ELSE: Identifies chains worth flattening.
+// Looks through Let wrappers since the elaborator creates Let bindings for conditions.
+func isIfElseChain(ifExpr *core.If) bool {
+	// Check if else branch is an If (directly or wrapped in Lets)
+	nextIf, _ := unwrapToIf(ifExpr.Else)
+	return nextIf != nil
+}
+
+// collectIfChain extracts all branches from an if-else chain.
+// M-CODEGEN-FLAT-IF-ELSE: Walks the chain and collects conditions, bodies, and Let bindings.
+// Returns branches and all Let bindings needed before the flat if-else.
+func collectIfChain(ifExpr *core.If) ([]chainBranch, []*core.Let) {
+	var branches []chainBranch
+	var allLets []*core.Let
+	current := ifExpr
+	for {
+		branches = append(branches, chainBranch{
+			Cond: current.Cond,
+			Then: current.Then,
+		})
+		// Try to unwrap else branch to find next If
+		nextIf, lets := unwrapToIf(current.Else)
+		if nextIf != nil {
+			allLets = append(allLets, lets...)
+			current = nextIf
+		} else {
+			// Final else branch (no condition)
+			branches = append(branches, chainBranch{
+				Cond: nil,
+				Then: current.Else,
+			})
+			break
+		}
+	}
+	return branches, allLets
+}
+
 // generateIf generates a Go if expression.
 // M-DX25.3: Uses typed IIFE return and conditional type assertions.
 // M-DX26: In _impl functions, uses interface{} everywhere.
+// M-CODEGEN-FLAT-IF-ELSE: Detects if-else chains and generates flat code.
 func (g *Generator) generateIf(ifExpr *core.If) error {
+	// M-CODEGEN-FLAT-IF-ELSE: Detect and flatten if-else chains
+	// Only flatten at the chain root (not when already inside a chain)
+	if !g.inFlatChain && isIfElseChain(ifExpr) {
+		return g.generateIfChain(ifExpr)
+	}
+
 	// M-DX26: In _impl functions, everything is interface{}
 	inImplFunc := g.expectedReturnType == "interface{}"
 
@@ -67,6 +138,106 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 		g.writef(".(%s)", returnType)
 	}
 	g.writef("\n")
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
+// generateIfChain generates flat Go if statements for an if-else chain.
+// M-CODEGEN-FLAT-IF-ELSE: Produces linear code instead of nested closures.
+// Example: if c1 { return v1 } if c2 { return v2 } return vN
+func (g *Generator) generateIfChain(ifExpr *core.If) error {
+	// M-DX26: In _impl functions, everything is interface{}
+	inImplFunc := g.expectedReturnType == "interface{}"
+
+	// Determine return type for the IIFE wrapper
+	returnType := "interface{}"
+	if !inImplFunc {
+		// Try to infer type from the first Then branch
+		if rec, isRec := ifExpr.Then.(*core.Record); isRec {
+			fieldNames := make(map[string]bool, len(rec.Fields))
+			for name := range rec.Fields {
+				fieldNames[name] = true
+			}
+			if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+				returnType = "*" + recordType.Name
+			}
+		} else if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[ifExpr.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
+			}
+		}
+	}
+
+	// Collect all branches and Let bindings
+	branches, lets := collectIfChain(ifExpr)
+
+	// Generate single IIFE wrapper
+	g.writef("func() %s {\n", returnType)
+	g.indent++
+
+	// Set flag to prevent nested chains from re-wrapping
+	oldInFlatChain := g.inFlatChain
+	g.inFlatChain = true
+
+	// Generate all Let bindings upfront (conditions evaluated before if-else)
+	for _, let := range lets {
+		g.writef("var %s interface{} = ", ToGoVarName(let.Name))
+		if err := g.generateExpr(let.Value); err != nil {
+			g.inFlatChain = oldInFlatChain
+			return err
+		}
+		g.writef("\n")
+		g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
+	}
+
+	// Generate flat if statements for each branch (except the last)
+	for i, branch := range branches {
+		if branch.Cond != nil {
+			// Conditional branch: if cond { return value }
+			g.writef("if ")
+			if err := g.generateExpr(branch.Cond); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if g.exprProducesInterface(branch.Cond) {
+				g.write(".(bool)")
+			}
+			g.write(" {\n")
+			g.indent++
+			g.writef("return ")
+			if err := g.generateExpr(branch.Then); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+				g.writef(".(%s)", returnType)
+			}
+			g.writef("\n")
+			g.indent--
+			g.writef("}\n")
+		} else {
+			// Final else branch (no condition): return value
+			if i != len(branches)-1 {
+				// Safety check: nil Cond should only be on last branch
+				g.inFlatChain = oldInFlatChain
+				return g.generateExpr(branch.Then) // fallback
+			}
+			g.writef("return ")
+			if err := g.generateExpr(branch.Then); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+				g.writef(".(%s)", returnType)
+			}
+			g.writef("\n")
+		}
+	}
+
+	g.inFlatChain = oldInFlatChain
 	g.indent--
 	g.write("}()")
 	return nil

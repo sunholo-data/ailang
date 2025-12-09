@@ -1,0 +1,39 @@
+-- M-CODEGEN-FLAT-IF-ELSE: Test if-else chain flattening
+-- This file tests that long if-else chains are generated as flat Go code
+-- instead of deeply nested closures that cause OOM.
+--
+-- A 25-branch chain should generate ~50 lines instead of ~400 lines.
+
+module examples/if_else_chain
+
+-- Simple 5-branch if-else chain for testing
+pure func getTileType(distSq: int) -> int {
+    if distSq < 0 then 0
+    else if distSq < 4 then 1
+    else if distSq < 9 then 2
+    else if distSq < 16 then 3
+    else if distSq < 25 then 4
+    else 5
+}
+
+-- 10-branch chain to stress test flattening
+pure func classifyValue(n: int) -> int {
+    if n < 0 then 0
+    else if n < 10 then 1
+    else if n < 20 then 2
+    else if n < 30 then 3
+    else if n < 40 then 4
+    else if n < 50 then 5
+    else if n < 60 then 6
+    else if n < 70 then 7
+    else if n < 80 then 8
+    else if n < 90 then 9
+    else 10
+}
+
+-- Entry point that uses both functions
+pure func main() -> int {
+    let tile = getTileType(10);
+    let category = classifyValue(55);
+    tile + category
+}

@@ -26,8 +26,8 @@ jobs:
     - name: Build binaries
       run: make install
 
-    - name: Run tests
-      run: make test
+    - name: Run tests with timeout (M-DX11)
+      run: go test -timeout 60s ./...
 
     - name: Run parser tests
       run: make test-parser
@@ -64,6 +64,36 @@ jobs:
 
     - name: Run regression guard tests (v0.3.10 prevention)
       run: make test-regression-guards
+
+    - name: Check compilation with timeout (M-DX11)
+      run: |
+        # Use timeout to detect compilation hangs
+        ailang check --timeout 60s examples/
+
+    - name: Detect cyclic types (M-DX11)
+      id: cycles
+      run: |
+        # Run cycle detection on example files
+        ailang debug cycles --json examples/complex_types.ail > cycles.json || true
+
+        # Check if there are suspicious cycles
+        SUSPICIOUS=$(jq -r '.summary.suspicious // 0' cycles.json)
+        echo "suspicious=$SUSPICIOUS" >> $GITHUB_OUTPUT
+
+        # Show results
+        echo "=== Cycle Detection Results ==="
+        cat cycles.json | jq .
+
+        # Note: We don't fail on suspicious cycles for now (informational only)
+        # To enforce: uncomment the following line
+        # if [ "$SUSPICIOUS" -gt 0 ]; then exit 1; fi
+
+    - name: Upload cycle analysis (M-DX11)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cycle-analysis
+        path: cycles.json
 
     - name: Generate test coverage
       run: |

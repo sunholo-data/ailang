@@ -56,6 +56,60 @@ Warning: Type Checking took 156ms (threshold: 100ms)
 
 **Related:** [M-DX11 Cyclic Type Diagnostics](design_docs/planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md) | [M-PERF2 Postmortem](design_docs/implemented/v0_5_8/m-perf2-cyclic-type-hang-postmortem.md)
 
+### Fixed - Flatten Nested Closures in If-Else Chains (M-CODEGEN-FLAT-IF-ELSE)
+
+Fixed critical performance bug where if-else chains generated deeply nested closures causing Go compiler OOM and runtime GC freezes.
+
+**Reporter**: stapledons_voyage project (bug report `msg_20251209_202946_f10751f5`)
+
+**Problem**: A 25-branch if-else chain in AILANG generated ~400 lines of 25-deep nested closures:
+```go
+// BEFORE: Deeply nested closures (causes OOM)
+return func() interface{} {
+    if cond1 { return 0 }
+    return func() interface{} {
+        if cond2 { return 1 }
+        return func() interface{} {
+            // ...25 levels deep...
+        }()
+    }()
+}()
+```
+
+**Impact**:
+- Go compiler used 2GB+ RAM, often OOM-killed
+- Runtime GC pressure: 26K allocations/sec in game loops caused system freezes
+- Workaround: users had to avoid long if-else chains or close apps to compile
+
+**Solution**: Detect if-else chains and generate flat Go code with single IIFE:
+```go
+// AFTER: Flat if statements (efficient)
+return func() interface{} {
+    var tmp1 = cond1
+    var tmp2 = cond2
+    // ...all conditions evaluated upfront...
+    if tmp1 { return 0 }
+    if tmp2 { return 1 }
+    // ...flat if statements...
+    return default
+}()
+```
+
+**Metrics**:
+- 5-branch if-else: ~100 lines → ~33 lines (-67%)
+- 10-branch if-else: ~200+ lines → ~63 lines (-70%)
+- Go compiler memory: 2GB+ → <500MB
+
+**Files Changed** (~200 LOC):
+- `internal/gen/golang/codegen_expr_control.go` - Chain detection helpers, `generateIfChain()`
+- `internal/gen/golang/codegen_expr_let.go` - `isLetIfChain()`, `generateLetIfChain()`
+- `internal/gen/golang/codegen.go` - Add `inFlatChain` context flag
+- `internal/gen/golang/codegen_expr_control_test.go` - Unit tests for chain detection
+
+**Example File**: `examples/if_else_chain.ail`
+
+**Design Doc**: [design_docs/planned/v0_5_9/m-codegen-flat-if-else.md](design_docs/planned/v0_5_9/m-codegen-flat-if-else.md)
+
 ### Fixed - Go Codegen Pointer/Value Type Consistency (M-CODEGEN-POINTER-RETURN-TYPES)
 
 Fixed critical type assertion failures in generated Go code. All user-defined types now consistently use pointers throughout codegen.

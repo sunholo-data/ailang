@@ -90,6 +90,10 @@ type Generator struct {
 	// M-DX25.7: Used to generate typed list operations instead of interface{} helpers
 	matchScrutineeType string
 
+	// inFlatChain tracks whether we're inside a flattened if-else chain
+	// M-CODEGEN-FLAT-IF-ELSE: Prevents nested chains from re-wrapping in IIFEs
+	inFlatChain bool
+
 	// funcParamTypes maps function names to their Go parameter types
 	// M-DX25.10: Used for call site type assertions when calling user-defined functions
 	funcParamTypes map[string][]string

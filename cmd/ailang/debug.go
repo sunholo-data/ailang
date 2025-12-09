@@ -3,11 +3,13 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/lexer"
@@ -50,6 +52,21 @@ func runDebug() {
 		}
 		runDebugHash(debugCmd.Arg(1))
 
+	case "cycles":
+		// Parse cycles-specific flags
+		cyclesCmd := flag.NewFlagSet("cycles", flag.ExitOnError)
+		jsonFlag := cyclesCmd.Bool("json", false, "Output in JSON format")
+		if err := cyclesCmd.Parse(debugCmd.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if cyclesCmd.NArg() < 1 {
+			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
+			fmt.Println("Usage: ailang debug cycles [--json] <file.ail>")
+			os.Exit(1)
+		}
+		runDebugCycles(cyclesCmd.Arg(0), *jsonFlag)
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown debug subcommand '%s'\n", red("Error"), subcommand)
 		printDebugHelp()
@@ -62,15 +79,21 @@ func printDebugHelp() {
 	fmt.Println()
 	fmt.Println("Subcommands:")
 	fmt.Println("  ast <file>     Show Core AST (ANF) with optional type information")
+	fmt.Println("  cycles <file>  Detect cyclic type references in type definitions")
 	fmt.Println("  hash <file>    Compute SHA256 hash of a file (for artifacts)")
 	fmt.Println()
 	fmt.Println("Flags for 'debug ast':")
 	fmt.Println("  --show-types        Show inferred types for expressions")
 	fmt.Println("  --compact           Compact output (no indentation)")
 	fmt.Println()
+	fmt.Println("Flags for 'debug cycles':")
+	fmt.Println("  --json              Output in JSON format (for tooling)")
+	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang debug ast example.ail")
 	fmt.Println("  ailang debug ast --show-types example.ail")
+	fmt.Println("  ailang debug cycles examples/complex_types.ail")
+	fmt.Println("  ailang debug cycles --json examples/complex_types.ail")
 	fmt.Println("  ailang debug hash design_docs/planned/M-FIX-123.md")
 }
 
@@ -222,4 +245,232 @@ func runDebugHash(filename string) {
 
 	// Print hash (just the hash, for easy script usage)
 	fmt.Println(hash)
+}
+
+// CycleKind classifies whether a cycle is expected or suspicious
+type CycleKind string
+
+const (
+	CycleExpected   CycleKind = "expected"   // stdlib types, recursive ADTs
+	CycleSuspicious CycleKind = "suspicious" // user-defined, may cause issues
+)
+
+// CycleInfo holds information about a detected cycle
+type CycleInfo struct {
+	Kind     CycleKind `json:"kind"`
+	TypeName string    `json:"type_name"`
+	Path     []string  `json:"path"`
+	Depth    int       `json:"depth"`
+	Note     string    `json:"note,omitempty"`
+}
+
+// CyclesReport is the JSON output format
+type CyclesReport struct {
+	File    string      `json:"file"`
+	Cycles  []CycleInfo `json:"cycles"`
+	Summary struct {
+		Suspicious int `json:"suspicious"`
+		Expected   int `json:"expected"`
+		Total      int `json:"total"`
+	} `json:"summary"`
+}
+
+func runDebugCycles(filename string, outputJSON bool) {
+	// Read and parse the file
+	source, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	l := lexer.New(string(source), filename)
+	p := parser.New(l)
+	prog := p.Parse()
+
+	if len(p.Errors()) > 0 {
+		fmt.Fprintf(os.Stderr, "%s: parse errors\n", red("Error"))
+		for _, e := range p.Errors() {
+			fmt.Fprintf(os.Stderr, "  %s\n", e)
+		}
+		os.Exit(1)
+	}
+
+	// Collect type declarations from AST
+	var cycles []CycleInfo
+
+	// Get declarations from the Module (legacy) or File (new)
+	var decls []ast.Node
+	if prog.Module != nil {
+		decls = prog.Module.Decls
+	}
+
+	// Analyze type declarations for cycles
+	for _, decl := range decls {
+		analyzeDeclForCycles(decl, &cycles, filename)
+	}
+
+	// Build report
+	report := CyclesReport{
+		File:   filename,
+		Cycles: cycles,
+	}
+	for _, c := range cycles {
+		if c.Kind == CycleSuspicious {
+			report.Summary.Suspicious++
+		} else {
+			report.Summary.Expected++
+		}
+		report.Summary.Total++
+	}
+
+	if outputJSON {
+		outputCyclesJSON(report)
+	} else {
+		outputCyclesHuman(report)
+	}
+}
+
+func analyzeDeclForCycles(decl interface{}, cycles *[]CycleInfo, filename string) {
+	// We need to check type declarations for cycles
+	switch d := decl.(type) {
+	case *ast.TypeDecl:
+		// TypeDecl has Name and Definition fields
+		analyzeTypeDefForCycles(d.Name, d.Definition, cycles, filename)
+	}
+}
+
+func analyzeTypeDefForCycles(typeName string, typeDef ast.TypeDef, cycles *[]CycleInfo, filename string) {
+	// Check if this type definition contains self-references (cycles)
+	refs := collectTypeDefReferences(typeDef)
+	for _, ref := range refs {
+		if ref == typeName {
+			// Self-reference detected
+			kind := classifyCycle(typeName, filename)
+			note := ""
+			if kind == CycleExpected {
+				note = "Standard recursive ADT pattern"
+			}
+			*cycles = append(*cycles, CycleInfo{
+				Kind:     kind,
+				TypeName: typeName,
+				Path:     []string{typeName, "...", typeName},
+				Depth:    1,
+				Note:     note,
+			})
+			break // Only report once per type
+		}
+	}
+}
+
+func collectTypeDefReferences(typeDef ast.TypeDef) []string {
+	var refs []string
+	switch td := typeDef.(type) {
+	case *ast.AlgebraicType:
+		for _, ctor := range td.Constructors {
+			for _, field := range ctor.Fields {
+				refs = append(refs, collectASTTypeReferences(field.Type)...)
+			}
+		}
+	case *ast.RecordType:
+		for _, field := range td.Fields {
+			refs = append(refs, collectASTTypeReferences(field.Type)...)
+		}
+	case *ast.TypeAlias:
+		refs = append(refs, collectASTTypeReferences(td.Target)...)
+	}
+	return refs
+}
+
+func collectASTTypeReferences(typeExpr ast.Type) []string {
+	if typeExpr == nil {
+		return nil
+	}
+	var refs []string
+
+	switch t := typeExpr.(type) {
+	case *ast.SimpleType:
+		refs = append(refs, t.Name)
+	case *ast.TypeVar:
+		// Type variables don't reference concrete types
+	case *ast.FuncType:
+		for _, param := range t.Params {
+			refs = append(refs, collectASTTypeReferences(param)...)
+		}
+		refs = append(refs, collectASTTypeReferences(t.Return)...)
+	case *ast.ListType:
+		refs = append(refs, collectASTTypeReferences(t.Element)...)
+	case *ast.ArrayType:
+		refs = append(refs, collectASTTypeReferences(t.Element)...)
+	case *ast.TupleType:
+		for _, elem := range t.Elements {
+			refs = append(refs, collectASTTypeReferences(elem)...)
+		}
+	case *ast.RecordType:
+		// RecordType can appear both as TypeDef and as nested Type
+		for _, field := range t.Fields {
+			refs = append(refs, collectASTTypeReferences(field.Type)...)
+		}
+	}
+
+	return refs
+}
+
+func classifyCycle(typeName string, filename string) CycleKind {
+	// Heuristic: standard library and common recursive patterns are "expected"
+	// List, Tree, etc. are common recursive ADT names
+	commonRecursiveTypes := map[string]bool{
+		"List": true, "Tree": true, "Node": true,
+		"Expr": true, "Stmt": true, "AST": true,
+		"Stream": true, "Lazy": true,
+	}
+
+	if commonRecursiveTypes[typeName] {
+		return CycleExpected
+	}
+
+	// Files in std/ are expected to have recursive types
+	if strings.Contains(filename, "std/") || strings.Contains(filename, "stdlib/") {
+		return CycleExpected
+	}
+
+	return CycleSuspicious
+}
+
+func outputCyclesJSON(report CyclesReport) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(report); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+}
+
+func outputCyclesHuman(report CyclesReport) {
+	fmt.Printf("Analyzing type graph for %s...\n\n", report.File)
+
+	if len(report.Cycles) == 0 {
+		fmt.Println(green("No cyclic type references found."))
+		return
+	}
+
+	fmt.Printf("Found %d cyclic type reference(s):\n\n", len(report.Cycles))
+
+	for i, cycle := range report.Cycles {
+		kindStr := yellow("[SUSPICIOUS]")
+		if cycle.Kind == CycleExpected {
+			kindStr = green("[EXPECTED]")
+		}
+
+		fmt.Printf("Cycle %d %s: %s\n", i+1, kindStr, cycle.TypeName)
+		fmt.Printf("  Path: %s\n", strings.Join(cycle.Path, " → "))
+		fmt.Printf("  Depth: %d node(s)\n", cycle.Depth)
+		if cycle.Note != "" {
+			fmt.Printf("  Note: %s\n", cycle.Note)
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("Summary:")
+	fmt.Printf("  - %d suspicious cycle(s) (may cause hangs without cycle-safe traversal)\n", report.Summary.Suspicious)
+	fmt.Printf("  - %d expected cycle(s) (standard recursive patterns)\n", report.Summary.Expected)
 }

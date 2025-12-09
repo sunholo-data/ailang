@@ -5,10 +5,27 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 )
 
+// isLetIfChain checks if a Let's body is an If that starts an if-else chain.
+// M-CODEGEN-FLAT-IF-ELSE: Used to detect chains at the Let level.
+func isLetIfChain(let *core.Let) bool {
+	ifExpr, ok := let.Body.(*core.If)
+	if !ok {
+		return false
+	}
+	return isIfElseChain(ifExpr)
+}
+
 // generateLet generates a Go variable binding.
 // M-DX25.2: Use SEPARATE types for variable (value's type) and IIFE return (body's type).
 // Bug fix: Originally used let's type for both, but let's type IS body's type, not value's type.
+// M-CODEGEN-FLAT-IF-ELSE: Detects if-else chains and generates flat code.
 func (g *Generator) generateLet(let *core.Let) error {
+	// M-CODEGEN-FLAT-IF-ELSE: Detect if this Let starts an if-else chain
+	// If so, delegate to the chain generator
+	if !g.inFlatChain && isLetIfChain(let) {
+		return g.generateLetIfChain(let)
+	}
+
 	// M-DX26: In _impl functions, everything is interface{}
 	inImplFunc := g.expectedReturnType == "interface{}"
 
@@ -96,6 +113,107 @@ func (g *Generator) generateLet(let *core.Let) error {
 	}
 	g.writef("\n")
 
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
+// generateLetIfChain generates a Let that starts an if-else chain as flat code.
+// M-CODEGEN-FLAT-IF-ELSE: Collects the initial Let binding and all chain branches,
+// then generates a single IIFE with all bindings and flat if statements.
+func (g *Generator) generateLetIfChain(let *core.Let) error {
+	// The body must be an If (verified by isLetIfChain)
+	ifExpr := let.Body.(*core.If)
+
+	// Determine return type for the IIFE wrapper
+	returnType := "interface{}"
+	inImplFunc := g.expectedReturnType == "interface{}"
+	if !inImplFunc {
+		if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
+			}
+		}
+	}
+
+	// Collect all branches and Let bindings from the chain
+	branches, chainLets := collectIfChain(ifExpr)
+
+	// Generate single IIFE wrapper
+	g.writef("func() %s {\n", returnType)
+	g.indent++
+
+	// Set flag to prevent nested chains from re-wrapping
+	oldInFlatChain := g.inFlatChain
+	g.inFlatChain = true
+
+	// Generate the first Let binding (from the initial Let)
+	g.writef("var %s interface{} = ", ToGoVarName(let.Name))
+	if err := g.generateExpr(let.Value); err != nil {
+		g.inFlatChain = oldInFlatChain
+		return err
+	}
+	g.writef("\n")
+	g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
+
+	// Generate all chain Let bindings
+	for _, chainLet := range chainLets {
+		g.writef("var %s interface{} = ", ToGoVarName(chainLet.Name))
+		if err := g.generateExpr(chainLet.Value); err != nil {
+			g.inFlatChain = oldInFlatChain
+			return err
+		}
+		g.writef("\n")
+		g.writef("_ = %s // suppress unused\n", ToGoVarName(chainLet.Name))
+	}
+
+	// Generate flat if statements for each branch
+	for i, branch := range branches {
+		if branch.Cond != nil {
+			// Conditional branch: if cond { return value }
+			g.writef("if ")
+			if err := g.generateExpr(branch.Cond); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if g.exprProducesInterface(branch.Cond) {
+				g.write(".(bool)")
+			}
+			g.write(" {\n")
+			g.indent++
+			g.writef("return ")
+			if err := g.generateExpr(branch.Then); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+				g.writef(".(%s)", returnType)
+			}
+			g.writef("\n")
+			g.indent--
+			g.writef("}\n")
+		} else {
+			// Final else branch (no condition): return value
+			if i != len(branches)-1 {
+				// Safety check: nil Cond should only be on last branch
+				g.inFlatChain = oldInFlatChain
+				return g.generateExpr(branch.Then) // fallback
+			}
+			g.writef("return ")
+			if err := g.generateExpr(branch.Then); err != nil {
+				g.inFlatChain = oldInFlatChain
+				return err
+			}
+			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+				g.writef(".(%s)", returnType)
+			}
+			g.writef("\n")
+		}
+	}
+
+	g.inFlatChain = oldInFlatChain
 	g.indent--
 	g.write("}()")
 	return nil

@@ -1,0 +1,25 @@
+-- Example file demonstrating cyclic type patterns
+-- Used to test `ailang debug cycles` command
+module examples/complex_types
+
+-- Expected cycle: standard recursive ADT (should be marked "expected")
+-- This is a common pattern for linked list structures
+type List[a] =
+  | Nil
+  | Cons(a, List[a])
+
+-- Expected cycle: binary tree recursive ADT
+type Tree[a] =
+  | Leaf(a)
+  | Node(Tree[a], a, Tree[a])
+
+-- Suspicious cycle: mutually recursive records through fields
+-- This may cause traversal issues without cycle-safe code
+type Person = {
+  name: string,
+  friends: [Person]
+}
+
+-- Simple non-cyclic types for comparison
+type Point = { x: int, y: int }
+type Color = Red | Green | Blue

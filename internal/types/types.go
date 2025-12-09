@@ -1,3 +1,18 @@
+// Package types implements AILANG's type system.
+//
+// # String() Contract
+//
+// Type.String() is for DIAGNOSTIC output ONLY. It may truncate on:
+//   - Deeply nested types (>100 levels)
+//   - Cyclic types (mu-types, recursive ADTs)
+//
+// No algorithmic logic may depend on String() output.
+// For structural operations, use:
+//   - types.Equal(a, b) for equality
+//   - traverse.CollectFreeVars(t) for variable collection
+//   - traverse.Occurs(name, t) for occurs check
+//
+// For safe stringification that handles cycles, use SafeTypeString().
 package types
 
 import (
