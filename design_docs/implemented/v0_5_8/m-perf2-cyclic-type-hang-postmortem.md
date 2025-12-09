@@ -15,6 +15,8 @@ The AILANG compiler would hang indefinitely when type-checking modules containin
 
 **Fix**: Added cycle detection (visited set pattern) to three functions in the type system.
 
+> **Key Insight**: The hanging behaviour is not one bug; it's an **emergent property** of the entire type-system API being tree-structured while the representation is graph-structured. This architectural mismatch means "any function `func(Type) T` is suspect".
+
 ---
 
 ## 1. Problem Statement
@@ -67,6 +69,14 @@ List[NPC] → NPC → { inventory: [Item] } → Item → ... → List[NPC] (cycl
 ```
 
 When type unification or substitution "ties the knot" by sharing type nodes, traversing these graphs naively causes infinite loops.
+
+### The Core Architectural Mismatch
+
+> **Invariant (now formalized)**: `types.Type` is a graph; any recursive traversal must either:
+> 1. Treat that graph as a DAG (no back-edges) and enforce that invariant at construction, or
+> 2. Be cycle-aware (visited set) or depth-bounded.
+>
+> We've implemented option 2, but this must be stated as law in the codebase.
 
 ### Three Vulnerable Functions
 
@@ -126,7 +136,7 @@ if u.depth > maxUnifyDepth {
 }
 ```
 
-This **didn't trigger** because the hang wasn't in `Unify` itself - it was in helper functions called during type checking that traverse types independently.
+This **didn't trigger** because the hang wasn't in `Unify` itself - it was in helper functions called during type checking that traverse types independently. These "satellite" functions were outside the mainline unify path.
 
 ---
 
@@ -177,7 +187,51 @@ real    0m2.847s  # Was: infinite hang
 
 ---
 
-## 4. Why This Bug Existed
+## 4. Semantic Implications of the Fix
+
+We've correctly fixed non-termination. However, the fix introduces subtle semantic considerations that must be documented.
+
+### 4.1. `occurs` with Visited Set: Semantic Shift
+
+The original (acyclic) occurs check is logically equivalent to:
+
+```
+∃ path from root type to TVar α ⇒ "α occurs in t"
+```
+
+When we add a visited set, we change the semantics on cyclic graphs. If `α` lies "behind" the cycle and we mark a node visited before exploring all paths, we could report "does not occur" where, semantically, it does.
+
+**This is tolerable because:**
+- The cycle arises precisely from `α` being unified into `t` (the knot is `α↔t`)
+- AILANG's type system is **equi-recursive in practice** - we don't rely on occurs check to reject recursive types
+
+**Design Decision**: The `occurs` function is now a **cycle-safety check** rather than a rigorous "no self-reference" constraint. If we ever need full Hindley-Milner occurs failure semantics, the visited set would need to be parameterized by `(node, varName)` pair, not just node.
+
+### 4.2. `SafeEquals` and `safeSubstitute`: Approximation
+
+Any "SafeEquals" or "safeSubstitute" that bails out early on cycles can, in principle, mis-classify types:
+- Two types that are extensionally equal but have different cycle structure
+- Types that actually differ but look the same along the first few traversed edges
+
+**Formal characterization**: `SafeEquals` is a **partial relation**:
+- **Sound on acyclic types**: Equivalent to the old `Equals`
+- **Total on cyclic types**: Always terminates, but may collapse some distinctions
+
+**Compatibility condition**: If `SafeEquals(a, b)` returns `true`, the old `Equals` on purely acyclic cases would also have returned `true`.
+
+**Risk**: False positives for equality could mask bugs (e.g., thinking two constraints are identical and dropping one). For AILANG's use-case (inferring principal types for a small type algebra), this is acceptable.
+
+### 4.3. Impact on Type Soundness
+
+> **Summary**: The cycle-aware traversals are **behaviourally identical on acyclic graphs**, and approximate on cyclic ones in specific, well-understood ways.
+
+For the compiler to be sound, we rely on:
+1. The approximations being conservative (prefer termination over precision)
+2. Real-world AILANG code not depending on the subtle distinctions collapsed by cycle-aware traversals
+
+---
+
+## 5. Why This Bug Existed
 
 ### Historical Context
 
@@ -201,7 +255,7 @@ This combination created deep type graphs with cycles that triggered the bug.
 
 ---
 
-## 5. Lessons Learned
+## 6. Lessons Learned
 
 ### Lesson 1: Pointer-Based Type Graphs Require Cycle Awareness
 
@@ -258,7 +312,134 @@ Even with proper cycle detection, depth limits catch bugs we don't anticipate.
 
 ---
 
-## 6. Future Prevention
+## 7. API Design Rule
+
+> **RULE**: No new function of shape `func(Type) T` or `func(Type, ...) T` is allowed without an explicit decision: either enforce DAG invariant or use graph-safe traversal helpers.
+
+**Enforcement**:
+- Link this PM in any `// MUST handle cycles` comments in the type system
+- Code review checklist item: "Does this traverse types? If yes, is it cycle-safe?"
+- Consider adding a lint rule or compile-time check
+
+**String() Usage Policy**:
+- `String()` is for humans, **never for algorithms**
+- Error-reporting: wrap in `SafeTypeString` (truncate on cycle, don't hang)
+- Algorithmic use: **ban outright** (as done for `getTypeSuffixFromType`)
+
+---
+
+## 8. Concrete Hardening Steps
+
+### 8.1. Centralize Graph-Safe Traversal Helpers
+
+Currently we have ad hoc visited logic in multiple places. Create a unified API:
+
+```go
+// internal/types/traverse.go
+
+type Visitor struct {
+    visited map[Type]struct{}
+    depth   int
+    maxDepth int
+}
+
+func NewVisitor() *Visitor {
+    return &Visitor{visited: make(map[Type]struct{}), maxDepth: 1000}
+}
+
+func (v *Visitor) Seen(t Type) bool {
+    if _, ok := v.visited[t]; ok {
+        return true
+    }
+    v.visited[t] = struct{}{}
+    return false
+}
+```
+
+**Benefits**:
+- Don't "forget" the pattern in future functions
+- Enrich `Visitor` later (depth tracking, debug IDs) without rewriting every traversal
+
+### 8.2. Property Tests
+
+**No-hang property**: For a fuzzed set of type graphs, ensure that `collectFreeVars`, `ApplySubstitution`, `occurs` always terminate within fixed steps/time.
+
+**Functional equivalence on acyclic types**: Generate random acyclic type trees and assert:
+- `old_collectFreeVars(t) == new_collectFreeVars(t)` (snapshot old semantics in test-only impl)
+- Same for `occurs` and `substitute`
+
+This prevents "we fixed cycles but broke the tree case" regression.
+
+### 8.3. Audit `Type.String()` Usage
+
+Grep `String()` on Type and separate usages:
+- **Error-reporting only**: Wrap in `SafeTypeString`. Truncation is fine for end users.
+- **Algorithmic**: Ban outright. This is exactly what we did for `getTypeSuffixFromType`.
+
+---
+
+## 9. Op-Lowering Interaction
+
+Now that the type system no longer hangs, the op-lowering logic is in a better place, but structural questions remain.
+
+### 9.1. Reduce Type Graph Coupling
+
+Op-lowering still does:
+```go
+if inferredType, ok := l.CoreTI.Get(typeNode); ok {
+    head := types.Head(inferredType)
+    // switch head → typeSuffix
+}
+```
+
+For operator lowering, we don't need the full type. We need:
+- A small tag (Int/Float/Bool/String/List)
+- Maybe "list of X vs list of Y" in special cases
+
+**Proposed**: Precompute a "lowering tag" at the TypeEnv level:
+```go
+type LoweringHead int
+
+const (
+    LHUnknown LoweringHead = iota
+    LHInt
+    LHFloat
+    LHBool
+    LHString
+    LHList
+)
+
+func LoweringHeadOf(t Type) LoweringHead {
+    // Only inspect outermost constructor
+}
+```
+
+**Benefits**:
+- Type-directed lowering becomes robust even if internal type representation changes (e.g., move to μ-types later)
+- Bounds the surface area of "type functions that must be cycle-safe for lowering"
+
+### 9.2. Fail-Fast for Type Lookup
+
+Currently:
+```go
+if inferredType, ok := l.CoreTI.Get(typeNode); ok {
+    // ...
+} else {
+    // CoreTI-miss path
+}
+```
+
+A CoreTI miss plus a broken constraint map could send us into `getTypeSuffixFromType` on unexpected shapes.
+
+**Recommendation**: For lowering, treat "type is unknown or weird" as:
+- Safe default + DX error surfaced later, OR
+- Internal compiler error: "BUG: type inference did not assign a primitive head for operator X at node Y"
+
+Don't try to rescue cases the type system wasn't designed to produce.
+
+---
+
+## 10. Future Prevention
 
 ### Immediate (v0.5.8)
 - [x] Fix `collectFreeVars`
@@ -267,15 +448,18 @@ Even with proper cycle detection, depth limits catch bugs we don't anticipate.
 - [x] Add `ApplySubstitution` wrapper
 
 ### Short-term (v0.5.9)
+- [ ] Create `internal/types/traverse.go` with centralized `Visitor` API
 - [ ] Audit all `Type` interface method implementations for cycle safety
 - [ ] Add cycle detection to `Type.String()` (prevents logging hangs)
 - [ ] Add depth limits as safety net across type system
 - [ ] Add integration test: `stapledons_voyage/sim/test_combined.ail`
+- [ ] Add property tests for termination + functional equivalence
 
 ### Medium-term (v0.6.0)
 - [ ] Consider making type graphs explicitly acyclic with De Bruijn indices
 - [ ] Add compile-time instrumentation to detect potential cycles
-- [ ] Create type traversal helper library with built-in cycle protection
+- [ ] Implement `LoweringHead` to decouple op-lowering from full type graphs
+- [ ] Consider hash-consed immutable types with explicit μ-types
 
 ### Design Consideration: Immutable vs Mutable Types
 
@@ -289,7 +473,7 @@ Even with proper cycle detection, depth limits catch bugs we don't anticipate.
 
 ---
 
-## 7. Technical Details
+## 11. Technical Details
 
 ### How Cycles Form
 
@@ -320,15 +504,16 @@ The visited set adds O(n) space and O(1) per-node lookup overhead. Negligible in
 
 ---
 
-## 8. References
+## 12. References
 
 - [M-PERF1: Effect Checker Performance](../v0_5_8/m-perf1-effect-checker-large-arrays.md) - Related fix for NormalizeTypeName
+- [M-DX11: Cyclic Type Diagnostics](../../planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md) - DX improvements proposal
 - Original bug report: stapledons_voyage issue tracking
 - Debug session: 2025-12-08, 2025-12-09
 
 ---
 
-## Appendix: Code Locations
+## Appendix A: Code Locations
 
 ### Fixed Functions
 
@@ -348,6 +533,17 @@ The visited set adds O(n) space and O(1) per-node lookup overhead. Negligible in
 
 ---
 
+## Appendix B: Open Questions for Future Investigation
+
+1. **μ-types / hash-consing**: Given the current `types.Type` representation, what's the cleanest way to introduce μ-types or hash-consing without rebuilding the whole checker?
+
+2. **Type fuzzing harness**: Can we design a small, self-contained type-fuzzing harness for AILANG that generates recursive type graphs and checks termination + basic invariants?
+
+3. **Formalizing lowering head**: How would we formalize the notion of "lowering head" so it's independent of the internal type graph representation and safe under future changes?
+
+---
+
 **Document created**: 2025-12-09
 **Author**: Claude (AI Assistant)
-**Review status**: Pending human review
+**Review status**: Design review incorporated
+**Last updated**: 2025-12-09
