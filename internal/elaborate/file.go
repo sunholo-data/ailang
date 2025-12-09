@@ -5,6 +5,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // Elaborate transforms a surface program to Core ANF
@@ -461,6 +462,15 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		// TODO: Handle record type declarations if needed
 		return nil, nil
 
+	case *ast.TypeAlias:
+		// M-BUGFIX: Register type alias for expansion during unification
+		// This fixes: `type Coord = {x: int, y: int}` with `IsoTile(tile: Coord)`
+		targetType := e.astTypeToInternalType(def.Target)
+		if targetType != nil {
+			e.RegisterTypeAlias(typeName, targetType)
+		}
+		return nil, nil
+
 	default:
 		return nil, fmt.Errorf("unknown type definition: %T", def)
 	}
@@ -486,4 +496,68 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 		Bindings: []core.RecBinding{{Name: fn.Name, Value: value}},
 		Body:     &core.Var{CoreNode: e.makeNode(fn.Position()), Name: fn.Name},
 	}, nil
+}
+
+// astTypeToInternalType converts an AST type to an internal types.Type
+// M-BUGFIX: Used for type alias registration during elaboration
+func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
+	if t == nil {
+		return nil
+	}
+
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		switch typ.Name {
+		case "int":
+			return types.TInt
+		case "float":
+			return types.TFloat
+		case "string":
+			return types.TString
+		case "bool":
+			return types.TBool
+		case "()", "unit":
+			return types.TUnit
+		case "bytes":
+			return types.TBytes
+		default:
+			// Type constructor (e.g., user-defined ADT)
+			return &types.TCon{Name: typ.Name}
+		}
+
+	case *ast.RecordType:
+		// Convert record type to TRecord
+		fields := make(map[string]types.Type)
+		for _, field := range typ.Fields {
+			fields[field.Name] = e.astTypeToInternalType(field.Type)
+		}
+		return &types.TRecord{Fields: fields}
+
+	case *ast.ListType:
+		return &types.TList{Element: e.astTypeToInternalType(typ.Element)}
+
+	case *ast.ArrayType:
+		return &types.TArray{Element: e.astTypeToInternalType(typ.Element)}
+
+	case *ast.TupleType:
+		elements := make([]types.Type, len(typ.Elements))
+		for i, elem := range typ.Elements {
+			elements[i] = e.astTypeToInternalType(elem)
+		}
+		return &types.TTuple{Elements: elements}
+
+	case *ast.FuncType:
+		params := make([]types.Type, len(typ.Params))
+		for i, p := range typ.Params {
+			params[i] = e.astTypeToInternalType(p)
+		}
+		return &types.TFunc{
+			Params: params,
+			Return: e.astTypeToInternalType(typ.Return),
+		}
+
+	default:
+		// Unknown type - return nil (will be handled gracefully)
+		return nil
+	}
 }

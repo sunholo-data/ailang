@@ -563,6 +563,35 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// Concat helper for list concatenation (++ operator)
+	// M-CODEGEN-LIST-CONCAT: Handles []interface{} concatenation
+	g.writef("// Concat concatenates two lists (++ operator).\n")
+	g.writef("func Concat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("if a == nil {\n")
+	g.indent++
+	g.writef("return b\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("if b == nil {\n")
+	g.indent++
+	g.writef("return a\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("sliceA, okA := a.([]interface{})\n")
+	g.writef("sliceB, okB := b.([]interface{})\n")
+	g.writef("if !okA || !okB {\n")
+	g.indent++
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make([]interface{}, 0, len(sliceA)+len(sliceB))\n")
+	g.writef("result = append(result, sliceA...)\n")
+	g.writef("result = append(result, sliceB...)\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	// Log helper for IO effect
 	g.writef("// Log prints a message and returns unit.\n")
 	g.writef("func Log(msg interface{}) interface{} {\n")
@@ -654,6 +683,41 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writef("if m, ok := elem.(map[string]interface{}); ok {\n")
 	g.indent++
 	g.writef("result[i] = m\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// M-CODEGEN-BOOL-SLICE: Bool slice converter
+	g.writef("// ConvertToBoolSlice converts []interface{} to []bool.\n")
+	g.writef("func ConvertToBoolSlice(v interface{}) []bool {\n")
+	g.indent++
+	g.writef("if v == nil {\n")
+	g.indent++
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("// Passthrough if already []bool\n")
+	g.writef("if bs, ok := v.([]bool); ok {\n")
+	g.indent++
+	g.writef("return bs\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("slice, ok := v.([]interface{})\n")
+	g.writef("if !ok {\n")
+	g.indent++
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make([]bool, len(slice))\n")
+	g.writef("for i, elem := range slice {\n")
+	g.indent++
+	g.writef("if b, ok := elem.(bool); ok {\n")
+	g.indent++
+	g.writef("result[i] = b\n")
 	g.indent--
 	g.writef("}\n")
 	g.indent--

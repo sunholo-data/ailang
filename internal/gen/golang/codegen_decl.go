@@ -68,20 +68,28 @@ func (g *Generator) generateTopLevelLetRec(letrec *core.LetRec) error {
 // M-DX26: Generates BOTH _impl (interface{} world) and typed wrapper.
 // The _impl function uses interface{} for all params and returns.
 // The typed wrapper calls _impl and handles type conversions.
+// M-ZERO-ARG: Unit-typed parameters are skipped in the Go signature.
 func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, exported bool) error {
 	// M-DX26: Get typed signature for the wrapper
-	paramTypes, returnType := g.getTypedSignature(lam)
+	// M-CODEGEN-TYPED-PARAMS: Pass function name to check for AST-derived type overrides
+	paramTypes, returnType := g.getTypedSignature(name, lam)
 
 	// Build typed parameter info for wrapper generation
+	// M-ZERO-ARG: Skip unit-typed parameters - they don't appear in Go API
 	var typedParamTypes []string
-	for i := range lam.Params {
-		var paramType string
+	for i, paramName := range lam.Params {
+		var paramType GoType
 		if i < len(paramTypes) {
-			paramType = string(paramTypes[i])
+			paramType = paramTypes[i]
 		} else {
 			paramType = "interface{}"
 		}
-		typedParamTypes = append(typedParamTypes, paramType)
+
+		// M-ZERO-ARG: Skip unit-typed params from the public API types
+		if g.isUnitParam(paramName, paramType) {
+			continue
+		}
+		typedParamTypes = append(typedParamTypes, string(paramType))
 	}
 
 	// Determine typed return type
@@ -91,6 +99,7 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	}
 
 	// M-DX26: Store metadata for call site type assertions (uses wrapper types)
+	// M-ZERO-ARG: This stores only non-unit params, matching the Go wrapper signature
 	g.funcParamTypes[name] = typedParamTypes
 	g.funcReturnTypes[name] = typedRetType
 
@@ -98,10 +107,19 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	funcName := ToGoFuncName(name, exported)
 	g.topLevelFuncs[name] = funcName
 
+	// M-CROSS-MODULE: Set the declared return type for record literal resolution
+	// Extract type name from Go type (strip pointer prefix if present)
+	g.currentFuncDeclaredReturn = ""
+	if typedRetType != "interface{}" {
+		g.currentFuncDeclaredReturn = strings.TrimPrefix(typedRetType, "*")
+	}
+
 	// M-DX26.1: Generate _impl function (interface{} everywhere)
 	if err := g.generateImplFunc(name, lam); err != nil {
+		g.currentFuncDeclaredReturn = ""
 		return err
 	}
+	g.currentFuncDeclaredReturn = ""
 
 	// M-DX26.1: Generate typed wrapper
 	return g.generateTypedWrapper(name, lam, typedParamTypes, typedRetType, exported)
@@ -159,6 +177,7 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 
 // generateTypedWrapper generates a typed wrapper that calls the _impl function.
 // M-DX26: This provides the typed Go API that external code uses.
+// M-ZERO-ARG: Unit-typed parameters are skipped in the Go signature but passed to _impl.
 func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTypes []string, retType string, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 	implName := ToGoVarName(name) + "_impl"
@@ -167,18 +186,27 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 	// M-BUGFIX: Handle blank identifiers - in Go, _ can be a parameter name
 	// (to discard the value) but cannot be used as a value in function calls.
 	// Replace _ with _unused0, _unused1, etc.
+	// M-ZERO-ARG: Skip unit-typed parameters in the Go signature.
 	var params []string
 	var callArgs []string
 	for i, p := range lam.Params {
-		pType := "interface{}"
+		pType := GoType("interface{}")
 		if i < len(paramTypes) {
-			pType = paramTypes[i]
+			pType = GoType(paramTypes[i])
 		}
 		paramName := ToGoVarName(p)
 		if paramName == "_" {
 			// Generate a usable placeholder name for blank identifiers
 			paramName = fmt.Sprintf("_unused%d", i)
 		}
+
+		// M-ZERO-ARG: Skip unit-typed params in Go signature, but pass dummy to _impl
+		if g.isUnitParam(p, pType) {
+			// Unit param: don't add to Go signature, pass struct{}{} to _impl
+			callArgs = append(callArgs, "struct{}{}")
+			continue
+		}
+
 		params = append(params, fmt.Sprintf("%s %s", paramName, pType))
 		callArgs = append(callArgs, paramName)
 	}
@@ -560,9 +588,18 @@ func runtimeHelperReturnType(name string) string {
 	}
 }
 
-// getTypedSignature extracts typed parameter and return types from CoreTypeInfo.
+// getTypedSignature extracts typed parameter and return types for a function.
 // M-DX23: Returns nil/empty if type info is unavailable or not a function type.
-func (g *Generator) getTypedSignature(lam *core.Lambda) ([]GoType, GoType) {
+// M-CODEGEN-TYPED-PARAMS: First checks funcTypeOverrides for explicit AST-derived types,
+// which prevents cross-module type contamination when multiple records share field names.
+func (g *Generator) getTypedSignature(name string, lam *core.Lambda) ([]GoType, GoType) {
+	// M-CODEGEN-TYPED-PARAMS: Check for explicit override from AST first
+	// This ensures declared types (e.g., ArrivalState) are used instead of
+	// inferred structural types (TRecord{...}) which can be ambiguous
+	if override, ok := g.funcTypeOverrides[name]; ok {
+		return override.ParamTypes, override.ReturnType
+	}
+
 	if g.coreTypeInfo == nil {
 		return nil, ""
 	}
@@ -580,4 +617,27 @@ func (g *Generator) getTypedSignature(lam *core.Lambda) ([]GoType, GoType) {
 	}
 
 	return paramTypes, returnType
+}
+
+// isUnitType checks if a Go type represents the unit type.
+// M-ZERO-ARG: Used to skip unit-typed parameters in function signatures.
+// Unit types in Go are: struct{} (from AILANG ())
+func isUnitType(t GoType) bool {
+	return t == "struct{}" || t == "()" || t == "unit"
+}
+
+// isUnitParam checks if a Lambda parameter should be skipped in Go codegen.
+// M-ZERO-ARG: Parameters named "_" with unit type are implicit and shouldn't appear in Go.
+// This handles the parser's implicit unit param for zero-arg functions: func f() -> T
+func (g *Generator) isUnitParam(paramName string, paramType GoType) bool {
+	// Check if it's a unit type
+	if isUnitType(paramType) {
+		return true
+	}
+	// Also skip if the param name is "_" and type is interface{} (fallback case)
+	// This handles when type info isn't available but we know it's implicit
+	if paramName == "_" && paramType == "interface{}" {
+		return true
+	}
+	return false
 }

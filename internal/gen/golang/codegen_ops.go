@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // generateBinOp generates a Go binary operation.
@@ -46,7 +47,43 @@ func (g *Generator) generateUnOp(unop *core.UnOp) error {
 // M-DX26 FIX: Records MUST be typed even in _impl functions because type assertions
 // work on the actual runtime type. If _impl returns map[string]interface{} but the
 // wrapper asserts (*World), it will panic. The actual value must be *World.
+// M-CROSS-MODULE: Check declared return type and CoreTypeInfo to prevent type contamination.
 func (g *Generator) generateRecord(rec *core.Record) error {
+	// M-CROSS-MODULE: First check if we have a declared function return type
+	// This ensures the correct nominal type is used when multiple records share fields
+	if g.currentFuncDeclaredReturn != "" {
+		if info, exists := g.recordTypes[g.currentFuncDeclaredReturn]; exists {
+			// Verify the fields match
+			if len(info.Fields) == len(rec.Fields) {
+				match := true
+				for _, goFieldName := range info.Fields {
+					ailangName := toLowerFirst(goFieldName)
+					if _, ok := rec.Fields[ailangName]; !ok {
+						match = false
+						break
+					}
+				}
+				if match {
+					return g.generateTypedRecord(rec, info)
+				}
+			}
+		}
+	}
+
+	// M-CROSS-MODULE: Try to get the type name from CoreTypeInfo
+	// This preserves nominal type identity when set during unification
+	if g.coreTypeInfo != nil {
+		if recType, ok := g.coreTypeInfo[rec.NodeID]; ok {
+			if tRec, ok := recType.(*types.TRecord); ok && tRec.TypeName != "" {
+				// Use the nominal type name from unification
+				goTypeName := ToGoTypeName(tRec.TypeName)
+				if info, exists := g.recordTypes[goTypeName]; exists {
+					return g.generateTypedRecord(rec, info)
+				}
+			}
+		}
+	}
+
 	// Build set of field names to look up matching record type
 	fieldNames := make(map[string]bool, len(rec.Fields))
 	for name := range rec.Fields {
@@ -56,6 +93,7 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 	// Check if we have a known record type matching these fields
 	// M-DX26 FIX: Always use typed records - interface{} return type just means
 	// the signature is interface{}, not that the actual values must be untyped.
+	// WARNING: This is ambiguous when multiple records have same fields - use checks above
 	recordType := g.GetRecordTypeByFields(fieldNames)
 	if recordType != nil {
 		return g.generateTypedRecord(rec, recordType)

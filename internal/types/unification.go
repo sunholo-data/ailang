@@ -40,12 +40,23 @@ func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
 
 // expandAlias expands a type alias to its underlying type if applicable
 // M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
+// M-CROSS-MODULE: When expanding TCon to TRecord, preserve the type name
 func (u *Unifier) expandAlias(t Type) Type {
 	if u.aliasEnv == nil {
 		return t
 	}
 	if con, ok := t.(*TCon); ok {
 		if target, exists := u.aliasEnv[con.Name]; exists {
+			// M-CROSS-MODULE: If target is a TRecord, set its TypeName
+			// This preserves the nominal type identity through unification
+			if rec, ok := target.(*TRecord); ok && rec.TypeName == "" {
+				// Create a copy with the type name set
+				return &TRecord{
+					Fields:   rec.Fields,
+					Row:      rec.Row,
+					TypeName: con.Name,
+				}
+			}
 			return target
 		}
 	}

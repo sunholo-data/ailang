@@ -1112,12 +1112,16 @@ func TestBlankIdentifierParameter(t *testing.T) {
 		t.Errorf("Expected _impl with _unused0 parameter, got:\n%s", codeStr)
 	}
 
-	// The typed wrapper should also have _unused0 and pass it correctly
-	if strings.Contains(codeStr, "return tileFloor_impl(_)") {
-		t.Errorf("Wrapper should not pass bare _ as argument (invalid Go), got:\n%s", codeStr)
+	// M-ZERO-ARG: The typed wrapper should have NO parameter for unit-typed params
+	// and should pass struct{}{} to the _impl function
+	if strings.Contains(codeStr, "func TileFloor(_unused0") {
+		t.Errorf("Wrapper should not expose unit param in public API, got:\n%s", codeStr)
 	}
-	if !strings.Contains(codeStr, "return tileFloor_impl(_unused0)") {
-		t.Errorf("Expected wrapper to pass _unused0 as argument, got:\n%s", codeStr)
+	if !strings.Contains(codeStr, "func TileFloor() interface{}") {
+		t.Errorf("Expected wrapper with no parameters, got:\n%s", codeStr)
+	}
+	if !strings.Contains(codeStr, "return tileFloor_impl(struct{}{})") {
+		t.Errorf("Expected wrapper to pass struct{}{} to _impl, got:\n%s", codeStr)
 	}
 }
 

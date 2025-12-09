@@ -102,6 +102,15 @@ type Generator struct {
 	// M-DX25.10: Used to check if a Var reference is a param declared as interface{}
 	currentFuncParams map[string]string
 
+	// currentFuncDeclaredReturn stores the declared return type name for the current function
+	// M-CROSS-MODULE: Used to resolve record literal types when CoreTypeInfo has structural types
+	currentFuncDeclaredReturn string
+
+	// funcTypeOverrides stores explicit function type signatures from AST annotations.
+	// M-CODEGEN-TYPED-PARAMS: Used when CoreTypeInfo has unresolved structural types
+	// that need to be mapped back to their declared nominal types.
+	funcTypeOverrides map[string]*FuncTypeOverride
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -112,10 +121,30 @@ type Generator struct {
 	errors []error
 }
 
+// FuncTypeOverride stores explicit function type signatures from AST annotations.
+// M-CODEGEN-TYPED-PARAMS: Used to override inferred structural types with declared nominal types.
+type FuncTypeOverride struct {
+	ParamTypes []GoType
+	ReturnType GoType
+}
+
 // SetSkipRuntimeHelpers controls whether runtime helpers are included in output.
 // Use this when compiling multiple files to avoid duplicate declarations.
 func (g *Generator) SetSkipRuntimeHelpers(skip bool) {
 	g.skipRuntimeHelpers = skip
+}
+
+// RegisterFunctionType registers an explicit function type signature from AST.
+// M-CODEGEN-TYPED-PARAMS: This ensures declared types (e.g., ArrivalState) are used
+// instead of inferred structural types (TRecord{...}) which can cause cross-module contamination.
+func (g *Generator) RegisterFunctionType(name string, paramTypes []GoType, returnType GoType) {
+	if g.funcTypeOverrides == nil {
+		g.funcTypeOverrides = make(map[string]*FuncTypeOverride)
+	}
+	g.funcTypeOverrides[name] = &FuncTypeOverride{
+		ParamTypes: paramTypes,
+		ReturnType: returnType,
+	}
 }
 
 // SetCoreTypeInfo provides type information for generating typed function signatures.
@@ -338,6 +367,9 @@ func (g *Generator) getSliceConversion(goType string) string {
 		return "ConvertToInt64Slice"
 	case "[]string":
 		return "ConvertToStringSlice"
+	case "[]bool":
+		// M-CODEGEN-BOOL-SLICE: Bool slice converter
+		return "ConvertToBoolSlice"
 	case "[]map[string]interface{}", "[]map[string]any":
 		return "ConvertToRecordSlice"
 	default:

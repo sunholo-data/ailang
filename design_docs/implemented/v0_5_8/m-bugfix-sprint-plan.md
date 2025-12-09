@@ -1,10 +1,13 @@
-# Sprint Plan: M-BUGFIX v0.5.9 Bug Fix Sprint
+# Sprint Plan: M-BUGFIX v0.5.8 Bug Fix Sprint
+
+**Status:** COMPLETED ✅
 
 ## Summary
 
 Fix critical Go codegen bugs and type alias unification issue reported by stapledons_voyage. This sprint unblocks their bridge-interior-v1 sprint Session 4-8.
 
 **Duration:** 1 day (~6 hours)
+**Actual:** ~4 hours
 **Dependencies:** None (all required code is accessible)
 **Risk Level:** Low (targeted bug fixes with clear scope)
 **Sprint ID:** M-BUGFIX
@@ -42,10 +45,10 @@ Fix critical Go codegen bugs and type alias unification issue reported by staple
 - `internal/gen/golang/codegen_test.go` (~50 LOC)
 
 **Acceptance Criteria:**
-- [ ] `\_ . expr` functions compile to valid Go
-- [ ] Parameters named `_` become `_unused0`, `_unused1`, etc.
-- [ ] All existing codegen tests pass
-- [ ] `make test` passes
+- [x] `\_ . expr` functions compile to valid Go
+- [x] Parameters named `_` become `_unused0`, `_unused1`, etc.
+- [x] All existing codegen tests pass
+- [x] `make test` passes
 
 **Risks:**
 - None - surgical fix to specific location
@@ -67,10 +70,10 @@ Fix critical Go codegen bugs and type alias unification issue reported by staple
 - `internal/gen/golang/codegen_test.go` (~40 LOC)
 
 **Acceptance Criteria:**
-- [ ] `InitBridge` returns `*BridgeState` not `struct{}`
-- [ ] Struct-returning functions have correct typed signatures
-- [ ] ADT-returning functions return pointer types
-- [ ] All existing codegen tests pass
+- [x] `InitBridge` returns `*BridgeState` not `struct{}`
+- [x] Struct-returning functions have correct typed signatures
+- [x] ADT-returning functions return pointer types
+- [x] All existing codegen tests pass
 
 **Risks:**
 - Medium - need to trace through type representations
@@ -91,9 +94,9 @@ Fix critical Go codegen bugs and type alias unification issue reported by staple
 - `internal/gen/golang/codegen_test.go` (~20 LOC)
 
 **Acceptance Criteria:**
-- [ ] `convertToDrawCmdSlice` becomes `ConvertToDrawCmdSlice`
-- [ ] Generated code compiles correctly
-- [ ] Converters are accessible from external packages
+- [x] `convertToDrawCmdSlice` becomes `ConvertToDrawCmdSlice`
+- [x] Generated code compiles correctly
+- [x] Converters are accessible from external packages
 
 **Risks:**
 - None - simple naming change
@@ -117,10 +120,10 @@ Fix critical Go codegen bugs and type alias unification issue reported by staple
 - `internal/types/unification_test.go` (~50 LOC)
 
 **Acceptance Criteria:**
-- [ ] `type Coord = {x: int, y: int}` with `IsoTile(tile: Coord)` works
-- [ ] Type alias in function parameters works
-- [ ] Error messages still show alias names
-- [ ] No regression in existing unification tests
+- [x] `type Coord = {x: int, y: int}` with `IsoTile(tile: Coord)` works
+- [x] Type alias in function parameters works
+- [x] Error messages still show alias names
+- [x] No regression in existing unification tests
 
 **Risks:**
 - Medium - need to thread alias environment through type checker
@@ -139,10 +142,10 @@ Fix critical Go codegen bugs and type alias unification issue reported by staple
 5. Send confirmation to stapledons_voyage
 
 **Acceptance Criteria:**
-- [ ] All tests pass
-- [ ] Linting clean
-- [ ] stapledons_voyage code compiles (verified or confirmed)
-- [ ] Response sent to stapledons_voyage
+- [x] All tests pass
+- [x] Linting clean
+- [x] stapledons_voyage code compiles (verified or confirmed)
+- [x] Response sent to stapledons_voyage
 
 **Risks:**
 - None - verification only

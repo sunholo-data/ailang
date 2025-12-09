@@ -56,6 +56,7 @@ func compileCommand() {
 	// Accumulated data from all files
 	var allTypeDecls []*ast.TypeDecl
 	var allExternFuncs []*ast.FuncDecl
+	var allFuncs []*ast.FuncDecl // M-CODEGEN-TYPED-PARAMS: All non-extern functions for type registration
 	var allCoreDecls []pipeline.Result
 	var pkgName string
 	seenTypes := make(map[string]bool) // Track types to avoid duplicates
@@ -136,6 +137,9 @@ func compileCommand() {
 			for _, fn := range file.Funcs {
 				if fn.IsExtern {
 					allExternFuncs = append(allExternFuncs, fn)
+				} else {
+					// M-CODEGEN-TYPED-PARAMS: Collect non-extern functions for type registration
+					allFuncs = append(allFuncs, fn)
 				}
 			}
 		}
@@ -290,6 +294,28 @@ func compileCommand() {
 	// M-DX12: Register ADT slice types for converter generation
 	if len(adtSliceTypes) > 0 {
 		codeGen.RegisterADTSliceTypes(adtSliceTypes)
+	}
+
+	// M-CODEGEN-TYPED-PARAMS: Register function types from AST to prevent cross-module contamination
+	// This ensures declared types (e.g., ArrivalState) are used instead of inferred structural types
+	for _, fn := range allFuncs {
+		paramTypes := make([]gen.GoType, 0)
+		for _, p := range fn.Params {
+			// Skip implicit unit params (zero-arg functions)
+			if p.Name == "_" && p.Type != nil && p.Type.String() == "()" {
+				continue
+			}
+			if p.Type != nil {
+				paramTypes = append(paramTypes, gen.GoType(ailangTypeToGo(p.Type)))
+			} else {
+				paramTypes = append(paramTypes, gen.GoType("interface{}"))
+			}
+		}
+		var returnType gen.GoType = "interface{}"
+		if fn.ReturnType != nil {
+			returnType = gen.GoType(ailangTypeToGo(fn.ReturnType))
+		}
+		codeGen.RegisterFunctionType(fn.Name, paramTypes, returnType)
 	}
 
 	// Count total declarations across all files

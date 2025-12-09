@@ -71,7 +71,16 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 			return nil
 		}
 
-		// For other global references, use PascalCase
+		// For other global references
+		// M-CODEGEN-TYPE-ASSERTIONS: In _impl functions, call other _impl functions
+		// to avoid type mismatches (typed exports expect concrete types, not interface{})
+		if g.expectedReturnType == "interface{}" {
+			// Check if this is a known top-level function (has _impl version)
+			if _, isTopLevel := g.topLevelFuncs[e.Ref.Name]; isTopLevel {
+				g.write(ToGoVarName(e.Ref.Name) + "_impl")
+				return nil
+			}
+		}
 		g.write(ToPascalCase(e.Ref.Name))
 		return nil
 

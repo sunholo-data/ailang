@@ -1,11 +1,12 @@
 # M-TYPE-ALIAS: Type Alias Expansion in ADT Variant Parameters
 
-**Status**: Planned
-**Target**: v0.5.9
+**Status**: Implemented
+**Version**: v0.5.8
 **Priority**: P1 (Medium - workaround exists but impacts DX)
 **Estimated**: 2-3 hours
+**Actual**: 1.5 hours
 **Reported by**: stapledons_voyage project
-**Last Updated**: 2025-12-09
+**Completed**: 2025-12-09
 
 ## Problem Statement
 
@@ -191,13 +192,69 @@ Or use different constructors that don't use aliases:
 
 ## Acceptance Criteria
 
-- [ ] Type alias in ADT variant parameter unifies correctly
-- [ ] Type alias in function parameter works
-- [ ] Parameterized type aliases work
-- [ ] Error messages still show alias names when helpful
-- [ ] No regression in existing unification tests
-- [ ] stapledons_voyage IsoTile/IsoEntity constructors work
+- [x] Type alias in ADT variant parameter unifies correctly
+- [x] Type alias in function parameter works
+- [ ] Parameterized type aliases work (NOT IMPLEMENTED - see Non-Goals)
+- [x] Error messages still show alias names when helpful
+- [x] No regression in existing unification tests
+- [x] stapledons_voyage IsoTile/IsoEntity constructors work
 
 ## Related Messages
 
 - `msg_20251209_102218_5633bd38` - Bug report: type alias unification failure
+
+---
+
+## Implementation Report
+
+### What Was Built
+
+Implemented Option A (Expand During Unification) with the following components:
+
+**1. Alias Environment in Unifier (~30 LOC)**
+- Added `aliasEnv map[string]Type` field to `Unifier` struct
+- Created `NewUnifierWithAliases(aliases map[string]Type) *Unifier`
+- Added `expandAlias(t Type) Type` method
+
+**2. Alias Registration in TypeChecker (~20 LOC)**
+- Added `RegisterTypeAlias(name string, target Type)` to `CoreTypeChecker`
+- Aliases are collected during type declaration processing
+
+**3. AST to Internal Type Conversion (~60 LOC)**
+- Added `astTypeToInternalType(ast.Type) types.Type` helper in `elaborate/file.go`
+- Handles `SimpleType`, `RecordType`, `TupleType`, `FunctionType`, `ListType`, `GenericType`
+- Called when processing `*ast.TypeAlias` in `elaborateTypeDecl`
+
+**4. Pipeline Integration (~10 LOC)**
+- Wired alias registration from elaborator to type checker in `pipeline_single.go`
+
+### Non-Goals (Deferred)
+
+Parameterized type aliases were NOT implemented in this sprint:
+```ailang
+-- NOT SUPPORTED YET:
+type Pair[a, b] = { first: a, second: b }
+type IntPair = Pair[int, int]
+```
+
+This is tracked as future work - simple aliases like `type Coord = { x: int, y: int }` work now.
+
+### Code Locations
+
+**Modified files:**
+- `internal/types/unification.go` - Added aliasEnv, expandAlias (~45 LOC)
+- `internal/types/typechecker.go` - RegisterTypeAlias method (~20 LOC)
+- `internal/elaborate/file.go` - astTypeToInternalType helper, TypeAlias case (~70 LOC)
+- `internal/pipeline/pipeline_single.go` - Wiring (~5 LOC)
+- `internal/types/record_unification_test.go` - Tests for alias expansion (~50 LOC)
+
+### Verification
+
+- All existing unification tests pass (TestTRecord2Unification, TestOpenClosedInteractions, etc.)
+- New tests verify alias expansion: `TCon(Coord) ~ TRecord{x,y}` succeeds
+- stapledons_voyage IsoTile constructor works with Coord alias
+
+---
+
+**Document created**: 2025-12-09
+**Last updated**: 2025-12-09

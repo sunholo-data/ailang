@@ -202,8 +202,9 @@ func (t *TTuple) Substitute(subs map[string]Type) Type {
 
 // TRecord represents a record type with row polymorphism
 type TRecord struct {
-	Fields map[string]Type
-	Row    Type // Row variable for extensibility
+	Fields   map[string]Type
+	Row      Type   // Row variable for extensibility
+	TypeName string // M-CROSS-MODULE: Nominal type name (e.g., "ArrivalState") when unified with TCon
 }
 
 func (t *TRecord) String() string {
@@ -252,7 +253,8 @@ func (t *TRecord) Substitute(subs map[string]Type) Type {
 		row = t.Row.Substitute(subs)
 	}
 
-	return &TRecord{Fields: fields, Row: row}
+	// M-CROSS-MODULE: Preserve TypeName through substitution
+	return &TRecord{Fields: fields, Row: row, TypeName: t.TypeName}
 }
 
 // TRecordOpen marks an open record for subsumption (field access)

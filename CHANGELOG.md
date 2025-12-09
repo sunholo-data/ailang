@@ -56,7 +56,50 @@ Warning: Type Checking took 156ms (threshold: 100ms)
 
 **Related:** [M-DX11 Cyclic Type Diagnostics](design_docs/planned/v0_5_9/m-dx11-cyclic-type-diagnostics.md) | [M-PERF2 Postmortem](design_docs/implemented/v0_5_8/m-perf2-cyclic-type-hang-postmortem.md)
 
-## [v0.5.8] - 2025-12-08
+## [v0.5.8] - 2025-12-09
+
+### Fixed - Go Codegen Type Safety (M-BUGFIX Sprint)
+
+**Bug 1 - Typed Parameters Becoming interface{} (M-CODEGEN-TYPED-PARAMS)**:
+Functions with typed parameters generated `interface{}` instead of preserving type annotations.
+
+**Bug 2 - Cross-Module Type Contamination (M-CROSS-MODULE)**:
+When multiple modules had records with identical fields, types would "leak" between them.
+
+**Bug 3 - _impl Functions Calling Typed Exports (M-CODEGEN-TYPE-ASSERTIONS)**:
+After fixing typed params, `_impl` functions called typed exports without proper `_impl` redirection.
+
+**Reporter**: stapledons_voyage project
+
+**Before (BROKEN)**:
+```go
+func StepArrival(state interface{}, input interface{}) interface{}
+func initArrival_impl(...) interface{} {
+    return UpdateAllNPCs(tmp66, tmp68, tmp70)  // Type mismatch!
+}
+```
+
+**After (FIXED)**:
+```go
+func StepArrival(state *ArrivalState, input *ArrivalInput) *ArrivalState
+func initArrival_impl(...) interface{} {
+    return updateAllNPCs_impl(tmp66, tmp68, tmp70)  // Calls _impl version
+}
+```
+
+**Files Changed**:
+- `internal/types/types.go` - Added `TypeName` field to TRecord for nominal type identity
+- `internal/types/unification.go` - Modified `expandAlias` to set TypeName
+- `internal/gen/golang/types.go` - Check TypeName first in MapType
+- `internal/gen/golang/codegen.go` - Added `FuncTypeOverride`, `RegisterFunctionType`
+- `internal/gen/golang/codegen_decl.go` - Set `currentFuncDeclaredReturn`, updated `getTypedSignature`
+- `internal/gen/golang/codegen_expr.go` - Add `_impl` redirection for VarGlobal (~8 LOC)
+- `internal/gen/golang/codegen_ops.go` - Updated generateRecord to use declared return type
+- `cmd/ailang/compile.go` - Register function types from AST
+
+**Total**: ~120 LOC across 8 files
+
+**Design Docs**: [design_docs/implemented/v0_5_8/](design_docs/implemented/v0_5_8/)
 
 ### Fixed - Effect Checker Performance on Large Arrays (M-PERF1)
 

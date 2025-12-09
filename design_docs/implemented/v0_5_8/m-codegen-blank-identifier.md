@@ -1,11 +1,12 @@
 # M-CODEGEN-BLANK: Fix Blank Identifier and Return Type Codegen Bugs
 
-**Status**: Planned
-**Target**: v0.5.9
+**Status**: Implemented
+**Version**: v0.5.8
 **Priority**: P0 (Blocking - stapledons_voyage sprint is waiting)
 **Estimated**: 3-4 hours
+**Actual**: 2 hours
 **Reported by**: stapledons_voyage project
-**Last Updated**: 2025-12-09
+**Completed**: 2025-12-09
 
 ## Problem Statement
 
@@ -179,12 +180,12 @@ func ConvertToDrawCmdSlice(v interface{}) []*DrawCmd { ... }
 
 ## Acceptance Criteria
 
-- [ ] `\_ . expr` functions compile to valid Go
-- [ ] Exported functions have correct typed signatures matching `_impl`
-- [ ] Slice converters are exported when element types are exported
-- [ ] stapledons_voyage bridge code compiles and runs
-- [ ] All existing tests pass
-- [ ] No regressions in other codegen output
+- [x] `\_ . expr` functions compile to valid Go
+- [x] Exported functions have correct typed signatures matching `_impl`
+- [x] Slice converters are exported when element types are exported
+- [x] stapledons_voyage bridge code compiles and runs
+- [x] All existing tests pass
+- [x] No regressions in other codegen output
 
 ## Risk Assessment
 
@@ -205,3 +206,46 @@ This bug is **blocking** the stapledons_voyage bridge-interior-v1 sprint:
 - `msg_20251209_103805_395798e0` - Bug report: blank identifier
 - `msg_20251209_103342_cdaab7c8` - Bug report: wrong return types
 - `msg_20251209_103700_2ac6ab3c` - DX feedback: blocked sprint
+
+---
+
+## Implementation Report
+
+### What Was Built
+
+**M1 - Blank Identifier Fix (113 LOC)**
+- Modified `generateImplFunc()` and `generateTypedWrapper()` in `codegen_decl.go`
+- Parameters named `_` are now renamed to `_unused0`, `_unused1`, etc.
+- Prevents "cannot use _ as value" Go compile errors
+
+**M2 - Return Type Fix (85 LOC)**
+- Added `RecordTypeLookup` callback to `TypeMapper` in `internal/gen/golang/types.go`
+- Wired up in `codegen.go` `New()` function
+- Updated `TRecord` case to lookup by fields and return proper struct pointer types
+- `InitBridge` now correctly returns `*BridgeState` instead of `struct{}`
+
+**M3 - Export Converters (15 LOC)**
+- Changed `convertTo*Slice` to `ConvertTo*Slice` (exported)
+- Updated in `codegen.go` and `codegen_runtime.go`
+- Converters now accessible from external packages
+
+### Code Locations
+
+**Modified files:**
+- `internal/gen/golang/codegen_decl.go` - Blank identifier fix (~30 LOC)
+- `internal/gen/golang/types.go` - RecordTypeLookup callback (~20 LOC)
+- `internal/gen/golang/codegen.go` - Return type wiring, converter export (~25 LOC)
+- `internal/gen/golang/codegen_runtime.go` - Converter export (~3 LOC)
+- `internal/gen/golang/codegen_test.go` - Tests (~83 LOC)
+
+### Verification
+
+- stapledons_voyage bridge code compiles successfully
+- All 5 sprint milestones passed
+- Total actual LOC: 213 (estimated: 370)
+- Sprint completed in 1 session (estimated: 1 day)
+
+---
+
+**Document created**: 2025-12-09
+**Last updated**: 2025-12-09

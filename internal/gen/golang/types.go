@@ -72,7 +72,13 @@ func (tm *TypeMapper) MapType(t types.Type) (GoType, error) {
 		return GoType("struct{}"), nil
 
 	case *types.TRecord:
-		// M-BUGFIX: Look up the named struct type by matching field names
+		// M-CROSS-MODULE: First check if TypeName is set (preserves nominal type identity)
+		// This prevents type contamination when multiple modules have records with same fields
+		if typ.TypeName != "" {
+			goTypeName := ToGoTypeName(typ.TypeName)
+			return GoType("*" + goTypeName), nil
+		}
+		// M-BUGFIX: Fall back to field-based lookup for anonymous records
 		if tm.RecordTypeLookup != nil && len(typ.Fields) > 0 {
 			fieldNames := make(map[string]bool, len(typ.Fields))
 			for name := range typ.Fields {
