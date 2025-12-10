@@ -1,0 +1,85 @@
+-- std/math - Mathematical functions
+--
+-- Trigonometric, exponential, logarithmic, and rounding functions.
+-- All functions are pure (no effects).
+--
+-- Added in v0.5.10
+
+module std/math
+
+-- ============================================================================
+-- Trigonometric Functions
+-- ============================================================================
+
+-- sin: Compute sine of angle in radians
+export pure func sin(x: float) -> float = sin(x)
+
+-- cos: Compute cosine of angle in radians
+export pure func cos(x: float) -> float = cos(x)
+
+-- tan: Compute tangent of angle in radians
+export pure func tan(x: float) -> float = tan(x)
+
+-- asin: Compute arcsine (inverse sine) returning radians
+export pure func asin(x: float) -> float = asin(x)
+
+-- acos: Compute arccosine (inverse cosine) returning radians
+export pure func acos(x: float) -> float = acos(x)
+
+-- atan: Compute arctangent (inverse tangent) returning radians
+export pure func atan(x: float) -> float = atan(x)
+
+-- atan2: Compute two-argument arctangent for angle calculation
+export pure func atan2(y: float, x: float) -> float = atan2(y, x)
+
+-- ============================================================================
+-- Exponential and Logarithmic Functions
+-- ============================================================================
+
+-- sqrt: Compute square root
+export pure func sqrt(x: float) -> float = sqrt(x)
+
+-- pow: Compute x raised to the power y
+export pure func pow(x: float, y: float) -> float = pow(x, y)
+
+-- exp: Compute e^x (exponential function)
+export pure func exp(x: float) -> float = exp(x)
+
+-- log: Compute natural logarithm (base e)
+export pure func log(x: float) -> float = log(x)
+
+-- log10: Compute base-10 logarithm
+export pure func log10(x: float) -> float = log10(x)
+
+-- ============================================================================
+-- Rounding Functions
+-- ============================================================================
+
+-- floor: Round down to nearest integer
+export pure func floor(x: float) -> float = floor(x)
+
+-- ceil: Round up to nearest integer
+export pure func ceil(x: float) -> float = ceil(x)
+
+-- round: Round to nearest integer (half away from zero)
+export pure func round(x: float) -> float = round(x)
+
+-- ============================================================================
+-- Absolute Value Functions
+-- ============================================================================
+
+-- abs_Float: Compute absolute value of a float
+export pure func abs_Float(x: float) -> float = abs_Float(x)
+
+-- abs_Int: Compute absolute value of an integer
+export pure func abs_Int(x: int) -> int = abs_Int(x)
+
+-- ============================================================================
+-- Mathematical Constants
+-- ============================================================================
+
+-- PI: Return the mathematical constant PI (3.14159...)
+export pure func PI() -> float = PI()
+
+-- E: Return Euler's number e (2.71828...)
+export pure func E() -> float = E()

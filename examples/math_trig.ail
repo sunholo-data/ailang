@@ -1,0 +1,56 @@
+-- Math Trigonometry Example (v0.5.10)
+-- Demonstrates the new trigonometric and advanced math functions
+
+module examples/math_trig
+
+import std/io (println)
+import std/math (sin, cos, tan, sqrt, atan2, PI, E, pow, exp, log, floor, ceil, round, abs_Float, abs_Int)
+
+-- Calculate distance between two points
+pure func distance(x1: float, y1: float, x2: float, y2: float) -> float =
+    let dx = x2 - x1 in
+    let dy = y2 - y1 in
+    sqrt(dx * dx + dy * dy)
+
+-- Calculate angle from origin to a point
+pure func angleToPoint(x: float, y: float) -> float =
+    atan2(y, x)
+
+export func main() -> () ! {IO} {
+    {
+        println("=== Mathematical Constants ===");
+        println("PI = " ++ show(PI()));
+        println("E  = " ++ show(E()));
+        println("");
+        println("=== Trigonometric Functions ===");
+        println("sin(PI/4) = " ++ show(sin(PI() / 4.0)));
+        println("cos(PI/4) = " ++ show(cos(PI() / 4.0)));
+        println("tan(PI/4) = " ++ show(tan(PI() / 4.0)));
+        println("");
+        println("=== Point on Circle ===");
+        println("x = 10*cos(PI/4) = " ++ show(10.0 * cos(PI() / 4.0)));
+        println("y = 10*sin(PI/4) = " ++ show(10.0 * sin(PI() / 4.0)));
+        println("");
+        println("=== Distance Calculation ===");
+        println("distance(0,0,3,4) = " ++ show(distance(0.0, 0.0, 3.0, 4.0)));
+        println("");
+        println("=== Angle Calculation ===");
+        println("atan2(1,1) = " ++ show(angleToPoint(1.0, 1.0)) ++ " radians");
+        println("");
+        println("=== Powers and Logarithms ===");
+        println("pow(2,10) = " ++ show(pow(2.0, 10.0)));
+        println("sqrt(2) = " ++ show(sqrt(2.0)));
+        println("exp(1) = " ++ show(exp(1.0)));
+        println("log(e) = " ++ show(log(E())));
+        println("");
+        println("=== Rounding Functions ===");
+        println("floor(3.7) = " ++ show(floor(3.7)));
+        println("ceil(3.2) = " ++ show(ceil(3.2)));
+        println("round(3.5) = " ++ show(round(3.5)));
+        println("");
+        println("=== Absolute Value ===");
+        println("abs_Float(-3.14) = " ++ show(abs_Float(0.0 - 3.14)));
+        println("abs_Int(-42) = " ++ show(abs_Int(0 - 42)));
+        println("Done!")
+    }
+}

@@ -1,0 +1,37 @@
+-- std/maths - British English alias for std/math
+--
+-- Re-exports all functions from std/math.
+-- Use either import std/math or import std/maths - they're identical.
+
+module std/maths
+
+import std/math (sin, cos, tan, asin, acos, atan, atan2, sqrt, pow, exp, log, log10, floor, ceil, round, abs_Float, abs_Int, PI, E)
+
+-- Trigonometric functions
+export pure func sin(x: float) -> float = sin(x)
+export pure func cos(x: float) -> float = cos(x)
+export pure func tan(x: float) -> float = tan(x)
+export pure func asin(x: float) -> float = asin(x)
+export pure func acos(x: float) -> float = acos(x)
+export pure func atan(x: float) -> float = atan(x)
+export pure func atan2(y: float, x: float) -> float = atan2(y, x)
+
+-- Power and logarithm functions
+export pure func sqrt(x: float) -> float = sqrt(x)
+export pure func pow(x: float, y: float) -> float = pow(x, y)
+export pure func exp(x: float) -> float = exp(x)
+export pure func log(x: float) -> float = log(x)
+export pure func log10(x: float) -> float = log10(x)
+
+-- Rounding functions
+export pure func floor(x: float) -> float = floor(x)
+export pure func ceil(x: float) -> float = ceil(x)
+export pure func round(x: float) -> float = round(x)
+
+-- Absolute value
+export pure func abs_Float(x: float) -> float = abs_Float(x)
+export pure func abs_Int(x: int) -> int = abs_Int(x)
+
+-- Constants
+export pure func PI() -> float = PI()
+export pure func E() -> float = E()
