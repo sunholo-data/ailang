@@ -181,6 +181,92 @@ func TestMathNonBuiltin(t *testing.T) {
 	}
 }
 
+// TestMathConstantNotCalledAsFunction tests that math constants (PI, E) are not
+// emitted with () when called as zero-arg functions in AILANG.
+// M-CODEGEN-STDLIB-MATH: Bug #27 fix - PI() should generate math.Pi, not math.Pi().
+func TestMathConstantNotCalledAsFunction(t *testing.T) {
+	g := New("test")
+
+	// Create a program that calls PI() - which should generate math.Pi (no parens)
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "area",
+				Value: &core.App{
+					Func: &core.VarGlobal{
+						Ref: core.GlobalRef{Module: "std/math", Name: "PI"},
+					},
+					Args: []core.CoreExpr{}, // Zero args - AILANG calls PI as PI()
+				},
+				Body: &core.Var{Name: "area"},
+			},
+		},
+	}
+
+	code, err := g.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should contain math.Pi (constant)
+	if !strings.Contains(codeStr, "math.Pi") {
+		t.Error("Generated code should contain math.Pi")
+		t.Logf("Generated code:\n%s", codeStr)
+	}
+
+	// Should NOT contain math.Pi() (function call)
+	if strings.Contains(codeStr, "math.Pi()") {
+		t.Error("Generated code should NOT contain math.Pi() - PI is a constant, not a function")
+		t.Logf("Generated code:\n%s", codeStr)
+	}
+}
+
+// TestMathFunctionWithTypeAssertion tests that math functions have type assertions
+// added for interface{} arguments.
+// M-CODEGEN-STDLIB-MATH: Bug #27 fix - sin(x) should generate math.Sin(x.(float64)).
+func TestMathFunctionWithTypeAssertion(t *testing.T) {
+	g := New("test")
+
+	// Create a program that calls sin(x) where x is a variable (interface{})
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "computeSin",
+				Value: &core.Lambda{
+					Params: []string{"angle"},
+					Body: &core.App{
+						Func: &core.VarGlobal{
+							Ref: core.GlobalRef{Module: "std/math", Name: "sin"},
+						},
+						Args: []core.CoreExpr{&core.Var{Name: "angle"}},
+					},
+				},
+				Body: &core.Var{Name: "computeSin"},
+			},
+		},
+	}
+
+	code, err := g.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Should contain type assertion for the argument
+	if !strings.Contains(codeStr, ".(float64)") {
+		t.Error("Generated code should contain .(float64) type assertion for math function arg")
+		t.Logf("Generated code:\n%s", codeStr)
+	}
+
+	// Should contain math.Sin
+	if !strings.Contains(codeStr, "math.Sin") {
+		t.Error("Generated code should contain math.Sin")
+	}
+}
+
 // TestMathImportWithSkipRuntimeHelpers tests that math import is added even when
 // skipRuntimeHelpers is true (multi-file compilation mode).
 // M-CODEGEN-STDLIB-MATH: Bug #26 followup fix.

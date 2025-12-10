@@ -1,11 +1,19 @@
 # M-DX11-CYCLES: Type Graph Cycle Detection Command
 
 **Status**: Planned
-**Target**: v0.5.9
+**Target**: v0.5.10
 **Priority**: P1 (Important - DX improvement)
 **Estimated**: 4 hours
-**Dependencies**: M-PERF2 (completed), M-DX11 Phase 1 (completed)
+**Dependencies**: M-PERF2 (completed), M-DX11 Phase 1 (completed in v0.5.9)
 **Parent**: M-DX11 (Cyclic Type Diagnostics)
+
+## Prerequisite Status
+
+**M-DX11 Phase 1 (v0.5.9) - COMPLETE:**
+- ✅ `ailang check --timeout` with stack dump
+- ✅ `ailang check --debug-compile` with phase timing
+- ✅ SafeTypeString depth-limited type stringification
+- See: [design_docs/implemented/v0_5_9/m-dx11-cyclic-type-diagnostics.md](../../implemented/v0_5_9/m-dx11-cyclic-type-diagnostics.md)
 
 ## AI-First Alignment Check
 

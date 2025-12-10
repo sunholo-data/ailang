@@ -124,6 +124,34 @@ Full test suite passes. Lint passes.
 
 **Test:** `TestMathImportWithSkipRuntimeHelpers` verifies math import is present when `skipRuntimeHelpers=true`.
 
+## Bug #27 Follow-up Fixes
+
+### Issue 1: Constants treated as functions ✅ FIXED
+
+**Error:**
+```
+sim_gen/bridge.go:77:27: invalid operation: cannot call non-function math.Pi (untyped float constant 3.14159)
+```
+
+**Root cause:** AILANG `PI` is a zero-arg function (`PI()`), but Go `math.Pi` is a constant. When called via `App`, codegen emits `math.Pi()` which is invalid.
+
+**Fix:** In `generateApp`, added `getMathConstant()` helper to detect math constants (PI, E) and emit them without parentheses, ignoring the empty arg list.
+
+**Test:** `TestMathConstantNotCalledAsFunction` verifies PI() generates `math.Pi` not `math.Pi()`.
+
+### Issue 2: Missing type assertions for math function args ✅ FIXED
+
+**Error:**
+```
+sim_gen/bridge.go:108:34: cannot use angle (variable of type interface{}) as float64 value in argument to math.Sin
+```
+
+**Root cause:** Variables in generated Go code are `interface{}`, but `math.Sin`, `math.Cos`, etc. require `float64`.
+
+**Fix:** In `generateApp`, added `getMathFunction()` helper to detect math functions, then wrap arguments in `.(float64)` type assertions for interface{} values.
+
+**Test:** `TestMathFunctionWithTypeAssertion` verifies sin(x) generates `math.Sin(x.(float64))`.
+
 ## Example Generated Code
 
 **AILANG:**

@@ -191,6 +191,10 @@ To close these issues, run:
 
 **Note:** When closing issues (`--close`), the script also marks the corresponding `ailang messages` as read via `ailang messages ack`.
 
+**Deduplication:** `ailang messages import-github` checks existing issues by number before importing - issues are never duplicated.
+
+**Alternative: Auto-close via commits** - Instead of using `--close`, include `Fixes #123` in the release commit message. GitHub will auto-close issues when the commit is merged to the default branch.
+
 ### `scripts/broadcast_release.sh <version> [--include-issues]`
 Broadcast release notification with changelog to all projects.
 

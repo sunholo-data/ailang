@@ -15,6 +15,35 @@ func (g *Generator) generateApp(app *core.App) error {
 		return g.generateNativeOp(app)
 	}
 
+	// M-CODEGEN-STDLIB-MATH Bug #27: Handle math constants and functions
+	if mathConst := g.getMathConstant(app.Func); mathConst != "" {
+		// Math constants (PI, E) - emit without () even though AILANG calls them as PI()
+		g.write(mathConst)
+		return nil
+	}
+	if mathFunc := g.getMathFunction(app.Func); mathFunc != "" {
+		// Math functions (sin, cos, etc.) - emit with float64 type assertions on args
+		g.write(mathFunc + "(")
+		for i, arg := range app.Args {
+			if i > 0 {
+				g.write(", ")
+			}
+			// M-CODEGEN-STDLIB-MATH: Wrap args in .(float64) for interface{} values
+			if g.exprProducesInterface(arg) {
+				if err := g.generateExpr(arg); err != nil {
+					return err
+				}
+				g.write(".(float64)")
+			} else {
+				if err := g.generateExpr(arg); err != nil {
+					return err
+				}
+			}
+		}
+		g.write(")")
+		return nil
+	}
+
 	// Special handling for cons operator (::)
 	if v, ok := app.Func.(*core.Var); ok && v.Name == "::" {
 		g.write("Cons(")

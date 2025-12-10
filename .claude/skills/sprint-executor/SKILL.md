@@ -71,10 +71,25 @@ Resume sprint execution across multiple sessions.
 
 **When to use:** ALWAYS at the start of EVERY session continuing a sprint.
 
-See script documentation for full output format.
+**What it does:**
+1. **Syncs GitHub issues** via `ailang messages import-github`
+2. Loads sprint JSON progress file
+3. Shows linked GitHub issues with titles from local messages
+4. Displays feature progress summary
+5. Shows velocity metrics
+6. Runs tests to verify clean state
+7. Prints "Here's where we left off" summary
 
 ### `scripts/validate_prerequisites.sh`
-Validate prerequisites before starting sprint execution (tests, linting, git status).
+Validate prerequisites before starting sprint execution.
+
+**What it checks:**
+1. **Syncs GitHub issues** via `ailang messages import-github`
+2. Working directory status (clean/uncommitted changes)
+3. Current branch (dev or main)
+4. Test suite passes
+5. Linting passes
+6. Shows unread messages (potential issues/feedback)
 
 ### `scripts/validate_sprint_json.sh <sprint_id>` **NEW**
 **REQUIRED before starting any sprint.** Validates that sprint JSON has real milestones (not placeholders).
@@ -199,27 +214,39 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 - Git commits create audit trail
 
 ### GitHub Issue Integration (NEW)
-**Commits automatically reference linked GitHub issues!**
+**Uses `ailang messages` for GitHub sync and issue tracking!**
+
+**Automatic sync:**
+- `session_start.sh` and `validate_prerequisites.sh` run `ailang messages import-github` first
+- Linked issues shown with titles from local message database
 
 If `github_issues` is set in sprint JSON:
 - `validate_sprint_json.sh` shows linked issues
+- `session_start.sh` displays issue titles from messages
 - `milestone_checkpoint.sh` reminds you to include `Refs #...` in commits
 - `finalize_sprint.sh` suggests commit message with issue references
 
 **Commit message format:**
 ```bash
-# For milestone commits
+# During development - use "refs" to LINK without closing
 git commit -m "Complete M1: Parser foundation, refs #17"
 
-# For final sprint commit
-git commit -m "Finalize sprint M-BUG-FIX, refs #17, #42"
+# Final sprint commit - use "Fixes" to AUTO-CLOSE issues on merge
+git commit -m "Finalize sprint M-BUG-FIX
+
+Fixes #17
+Fixes #42"
 ```
 
+**Important: "refs" vs "Fixes"**
+- `refs #17` - Links commit to issue (NO auto-close)
+- `Fixes #17`, `Closes #17`, `Resolves #17` - AUTO-CLOSES issue when merged
+
 **Workflow:**
-1. Sprint JSON has `github_issues: [17, 42]` (set by sprint-planner)
-2. When you commit, include `refs #17, #42` in message
-3. GitHub automatically links commits to issues
-4. For bugs: Use `fixes #17` in final commit to auto-close issue
+1. Sprint JSON has `github_issues: [17, 42]` (set by sprint-planner, deduplicated)
+2. During development: Use `refs #17` to link commits without closing
+3. Final commit: Use `Fixes #17` to auto-close issues on merge
+4. No duplicates: `ailang messages import-github` checks existing issues before importing
 
 ### Pause Points
 - After each milestone completion

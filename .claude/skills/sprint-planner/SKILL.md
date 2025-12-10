@@ -287,19 +287,28 @@ The `create_sprint_json.sh` script generates placeholder content. **Before handi
 
 **sprint-executor will REJECT the sprint if placeholders remain!**
 
-### 8.1. Link GitHub Issues (Optional but Recommended)
+### 8.1. Link GitHub Issues (Automatic via ailang messages)
 
-**If this sprint addresses bugs or features from GitHub issues, link them to the sprint JSON.**
+**The script automatically discovers related GitHub issues using `ailang messages` integration.**
 
 The `create_sprint_json.sh` script automatically:
-1. Extracts message IDs from the design doc's "Bug Report" field (pattern: `msg_YYYYMMDD_HHMMSS_hash`)
-2. Looks up each message and gets the linked GitHub issue number
-3. Adds `github_issues: [...]` to the sprint JSON
+1. **Syncs GitHub issues** via `ailang messages import-github`
+2. Extracts message IDs from the design doc's "Bug Report" field (pattern: `msg_YYYYMMDD_HHMMSS_hash`)
+3. **Queries local messages** for issues matching design doc keywords
+4. Extracts explicit `#123` references from the design doc
+5. Adds `github_issues: [...]` to the sprint JSON
 
 **Why link GitHub issues?**
-- Commits automatically include `Refs #123` (or `Fixes #123` for final commit)
+- Development commits use `refs #123` to link without closing
+- Final commit uses `Fixes #123` to AUTO-CLOSE issue on merge
 - Issues are updated with links to commits/PRs
 - Audit trail from bug report → design doc → sprint → commits → release
+
+**Important: "refs" vs "Fixes"**
+- `refs #17` - Links commit to issue (NO auto-close) - use during development
+- `Fixes #17`, `Closes #17`, `Resolves #17` - AUTO-CLOSES issue when merged - use in final commit
+
+**Deduplication:** `ailang messages import-github` checks existing issues by number before importing. Issues are never duplicated.
 
 **Manual linking (if auto-extraction misses issues):**
 ```bash
@@ -321,8 +330,8 @@ jq '.github_issues = [17, 42]' .ailang/state/sprints/sprint_<id>.json > tmp && m
 2. GitHub issue #17 is created and linked to message
 3. Design doc references message ID: `**Bug Report**: msg_20251210_..._abc123`
 4. `create_sprint_json.sh` extracts message ID, looks up issue #17, adds to JSON
-5. Sprint-executor includes `Refs #17` in milestone commits
-6. `finalize_sprint.sh` suggests final commit with `Refs #17`
+5. Sprint-executor includes `refs #17` in milestone commits (links, no close)
+6. Final sprint commit uses `Fixes #17` to auto-close issue on merge
 
 ### 9. ALWAYS Hand Off to sprint-executor
 

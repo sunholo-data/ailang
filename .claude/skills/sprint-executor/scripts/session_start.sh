@@ -42,6 +42,19 @@ echo " Sprint Continuation Check - ${SPRINT_ID}"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 
+# 0. Sync GitHub issues via ailang messages
+echo -e "${BLUE}0. GitHub Sync${NC}"
+if command -v ailang &> /dev/null; then
+    if ailang messages import-github --labels bug,feature,ailang-message 2>/dev/null; then
+        echo -e "   ${GREEN}✓ Synced issues from GitHub${NC}"
+    else
+        echo -e "   ${YELLOW}⚠ GitHub sync failed (continuing anyway)${NC}"
+    fi
+else
+    echo -e "   ${YELLOW}⚠ ailang not found, skipping GitHub sync${NC}"
+fi
+echo ""
+
 # 1. Check working directory
 echo -e "${BLUE}1. Working Directory${NC}"
 echo "   $(pwd)"
@@ -73,6 +86,27 @@ echo "   Created: $CREATED"
 echo "   Last session: $LAST_SESSION"
 echo "   Last checkpoint: $LAST_CHECKPOINT"
 echo ""
+
+# 3b. Show linked GitHub issues
+GITHUB_ISSUES=$(jq -r '.github_issues // [] | @csv' "$PROGRESS_FILE" 2>/dev/null | tr -d '"')
+if [ -n "$GITHUB_ISSUES" ] && [ "$GITHUB_ISSUES" != "" ]; then
+    echo -e "${BLUE}   Linked GitHub Issues${NC}"
+    for issue_num in $(echo "$GITHUB_ISSUES" | tr ',' ' '); do
+        if command -v ailang &> /dev/null; then
+            # Try to get issue details from local messages
+            issue_title=$(ailang messages list --json --limit 100 2>/dev/null | jq -r ".[] | select(.github_issue == $issue_num) | .title" 2>/dev/null | head -1 || echo "")
+            if [ -n "$issue_title" ]; then
+                echo -e "   ${GREEN}→ #${issue_num}: ${issue_title}${NC}"
+            else
+                echo -e "   → #${issue_num} (no local message)"
+            fi
+        else
+            echo "   → #${issue_num}"
+        fi
+    done
+    echo "   Commits: 'refs #...' (link only) or 'Fixes #...' (auto-close)"
+    echo ""
+fi
 
 # 4. Feature progress summary
 echo -e "${BLUE}3. Feature Progress${NC}"

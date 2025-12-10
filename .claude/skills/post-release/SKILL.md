@@ -168,46 +168,74 @@ Use this template in CHANGELOG.md for 0.3.15
 - **Formats comparison text automatically** (+X% improvement or -X% regression)
 - Generates ready-to-paste CHANGELOG template with no manual work needed
 
-### `scripts/cleanup_design_docs.sh <version> [--dry-run] [--force]`
+### `scripts/cleanup_design_docs.sh <version> [--dry-run] [--force] [--check-only]`
 Move design docs from planned/ to implemented/ after a release.
 
-**Only moves docs with "Status: Implemented"** in their frontmatter. Docs with other statuses are flagged for review.
+**Features:**
+- Detects **duplicates** (docs already in implemented/)
+- Detects **misplaced docs** (Target: field doesn't match folder version)
+- Only moves docs with "Status: Implemented" in their frontmatter
+- Docs with other statuses are flagged for review
 
 **Usage:**
 ```bash
-# Preview what would be moved (recommended first step)
-.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --dry-run
+# Check-only: Report issues without making changes
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.9 --check-only
 
-# Move docs marked as Implemented
-.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7
+# Preview what would be moved/deleted/relocated
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.9 --dry-run
+
+# Execute: Move implemented docs, delete duplicates, relocate misplaced
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.9
 
 # Force move all docs regardless of status
-.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.7 --force
+.claude/skills/post-release/scripts/cleanup_design_docs.sh 0.5.9 --force
 ```
 
 **Output:**
 ```
-Design Doc Cleanup for v0.5.7
+Design Doc Cleanup for v0.5.9
 ==================================
 
-Checking 2 design doc(s) in design_docs/planned/v0_5_7/:
+Checking 5 design doc(s) in design_docs/planned/v0_5_9/:
 
-  [MOVED] m-dx11-stdlib-discovery.md → design_docs/implemented/v0_5_7/
+Phase 1: Detecting issues...
+
+  [DUPLICATE] m-fix-if-else-let-block.md
+              Already exists in design_docs/implemented/v0_5_9/
+  [MISPLACED] m-codegen-value-types.md
+              Target: v0.5.10 (folder: v0_5_9)
+              Should be in: design_docs/planned/v0_5_10/
+
+Issues found:
+  - 1 duplicate(s) (can be deleted)
+  - 1 misplaced doc(s) (wrong version folder)
+
+Phase 2: Processing docs...
+
+  [DELETED] m-fix-if-else-let-block.md (duplicate - already in implemented/)
+  [RELOCATED] m-codegen-value-types.md → design_docs/planned/v0_5_10/
+  [MOVED] m-dx11-cycles.md → design_docs/implemented/v0_5_9/
   [NEEDS REVIEW] m-unfinished-feature.md
                  Found: **Status**: Planned
 
 Summary:
-  ✓ Moved 1 doc(s) to design_docs/implemented/v0_5_7/
+  ✓ Deleted 1 duplicate(s)
+  ✓ Relocated 1 doc(s) to correct version folder
+  ✓ Moved 1 doc(s) to design_docs/implemented/v0_5_9/
   ⚠ 1 doc(s) need review (not marked as Implemented)
 ```
 
 **What it does:**
-- Checks each doc for `**Status**: Implemented` in the first 15 lines
-- Only moves docs with Implemented status
-- Flags docs with other statuses for review
-- Creates implemented folder if needed
-- Removes empty planned folder after moving
-- Use `--dry-run` to preview, `--force` to move all regardless of status
+- **Phase 1 (Detection)**: Identifies duplicates and misplaced docs
+- **Phase 2 (Processing)**:
+  - Deletes duplicates (same file already exists in implemented/)
+  - Relocates misplaced docs (Target: version doesn't match folder)
+  - Moves docs with "Status: Implemented" to implemented/
+  - Flags docs without Implemented status for review
+- Creates target folders if needed
+- Removes empty planned folder after cleanup
+- Use `--check-only` to only report issues, `--dry-run` to preview actions, `--force` to move all
 
 ## Post-Release Workflow
 
@@ -368,28 +396,37 @@ Gap: 1.7x turns, 3.0x tokens ⚠️ (needs optimization!)
 
 ### 5. Move Design Docs to Implemented
 
-**Step 1: Preview what will be moved:**
+**Step 1: Check for issues (duplicates, misplaced docs):**
+```bash
+.claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X --check-only
+```
+
+**Step 2: Preview all changes:**
 ```bash
 .claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X --dry-run
 ```
 
-**Step 2: Check any flagged docs:**
-- If docs show `[NEEDS REVIEW]`, verify if the feature was actually implemented
-- Update the doc's `**Status**:` field to `Implemented` if the feature is done
-- Or move to a future version folder if not done yet
+**Step 3: Check any flagged docs:**
+- `[DUPLICATE]` - These will be deleted (already in implemented/)
+- `[MISPLACED]` - These will be relocated to correct version folder
+- `[NEEDS REVIEW]` - Update `**Status**:` to `Implemented` if done, or leave for next version
 
-**Step 3: Move the implemented docs:**
+**Step 4: Execute the cleanup:**
 ```bash
 .claude/skills/post-release/scripts/cleanup_design_docs.sh X.X.X
 ```
 
-**Step 4: Commit the changes:**
+**Step 5: Commit the changes:**
 ```bash
 git add design_docs/
-git commit -m "docs: move design docs to implemented/vX_Y_Z"
+git commit -m "docs: cleanup design docs for vX_Y_Z"
 ```
 
-The script only moves docs with `**Status**: Implemented` in their frontmatter. This ensures we don't accidentally move unfinished work.
+The script automatically:
+- Deletes duplicates (same file already in implemented/)
+- Relocates misplaced docs (Target: version doesn't match folder)
+- Moves docs with "Status: Implemented" to implemented/
+- Flags remaining docs for manual review
 
 ### 6. Update Public Documentation
 
@@ -570,4 +607,7 @@ This checks:
 - Can be run hours or even days after release
 - Dashboard JSON preserves history - never overwrites historical data
 - Always use `--full` flag for release baselines (all production models)
-- Design docs with "Status: Implemented" auto-moved (--dry-run to preview, --force to move all)
+- Design docs cleanup now handles duplicates, misplaced docs, and status-based moves
+  - `--check-only` to report issues without changes
+  - `--dry-run` to preview all actions
+  - `--force` to move all regardless of status

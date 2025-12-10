@@ -1,6 +1,47 @@
 # AILANG Changelog
 
-## [v0.5.9] - 2025-12-09 (In Progress)
+## [v0.5.9] - 2025-12-10
+
+### Added - Standard Math Library Functions (M-STD-MATH-TRIG)
+
+Extended `std/math` with trigonometric and advanced mathematical functions:
+
+**New Functions (17 builtins):**
+- **Trigonometric**: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`
+- **Hyperbolic**: `sinh`, `cosh`, `tanh`
+- **Exponential/Logarithmic**: `exp`, `log`, `log10`, `log2`, `pow`
+- **Rounding**: `ceil`, `floor`, `round`, `trunc`
+- **Utility**: `sqrt`, `abs_Float` (existing), `min_Float`, `max_Float`
+
+**Constants**: `PI`, `E`, `Tau`, `Phi`, `Sqrt2`, `SqrtE`, `SqrtPi`, `SqrtPhi`, `Ln2`, `Ln10`, `Log2E`, `Log10E`
+
+**Usage:**
+```ailang
+import std/math (sin, cos, PI)
+
+let x = sin(PI / 4.0)  -- 0.707...
+let y = cos(0.0)       -- 1.0
+```
+
+**Files Changed:**
+- `stdlib/math.ail` - Added function wrappers (~50 LOC)
+- `internal/builtins/spec.go` - Registered 17 new math builtins (~100 LOC)
+- `internal/builtins/math.go` - Implemented Go handlers (~200 LOC)
+
+### Added - Go Codegen Math Support (M-CODEGEN-STDLIB-MATH)
+
+Fixed Go codegen to properly map `std/math` functions to Go's `math` package:
+
+**Problem:** Generated Go code had undefined references (`undefined: PI`, `undefined: Sin`).
+
+**Solution:** Added `mapPureMathBuiltin()` function that maps AILANG math builtins to `math.*` calls, with conditional `"math"` import.
+
+**Files Changed:**
+- `internal/gen/golang/codegen_expr_simple.go` - `mapPureMathBuiltin` (~65 LOC)
+- `internal/gen/golang/codegen.go` - Two-phase generation, `needsMathImport` flag (~25 LOC)
+- `internal/gen/golang/codegen_math_test.go` - Unit tests (~183 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_5_9/m-codegen-stdlib-math.md](design_docs/implemented/v0_5_9/m-codegen-stdlib-math.md)
 
 ### Added - Cyclic Type Diagnostics Phase 1 (M-DX11)
 

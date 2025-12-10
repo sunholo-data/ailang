@@ -293,3 +293,94 @@ func (g *Generator) mapPureMathBuiltin(name string) string {
 	}
 	return ""
 }
+
+// mathConstants lists the math builtins that are constants (not functions).
+// M-CODEGEN-STDLIB-MATH Bug #27: These should not be called with ().
+var mathConstants = map[string]string{
+	"_math_PI": "math.Pi",
+	"_math_E":  "math.E",
+	"PI":       "math.Pi",
+	"E":        "math.E",
+}
+
+// mathFunctions lists the math builtins that are functions (need float64 args).
+// M-CODEGEN-STDLIB-MATH Bug #27: These need .(float64) type assertions on args.
+var mathFunctions = map[string]string{
+	// Trig functions
+	"_math_sin": "math.Sin",
+	"_math_cos": "math.Cos",
+	"_math_tan": "math.Tan",
+	"sin":       "math.Sin",
+	"cos":       "math.Cos",
+	"tan":       "math.Tan",
+	// Inverse trig
+	"_math_asin":  "math.Asin",
+	"_math_acos":  "math.Acos",
+	"_math_atan":  "math.Atan",
+	"_math_atan2": "math.Atan2",
+	"asin":        "math.Asin",
+	"acos":        "math.Acos",
+	"atan":        "math.Atan",
+	"atan2":       "math.Atan2",
+	// Exponential/logarithmic
+	"_math_exp":   "math.Exp",
+	"_math_log":   "math.Log",
+	"_math_log10": "math.Log10",
+	"_math_pow":   "math.Pow",
+	"_math_sqrt":  "math.Sqrt",
+	"exp":         "math.Exp",
+	"log":         "math.Log",
+	"log10":       "math.Log10",
+	"pow":         "math.Pow",
+	"sqrt":        "math.Sqrt",
+	// Rounding
+	"_math_ceil":  "math.Ceil",
+	"_math_floor": "math.Floor",
+	"_math_round": "math.Round",
+	"ceil":        "math.Ceil",
+	"floor":       "math.Floor",
+	"round":       "math.Round",
+	// Utility
+	"_math_abs_Float": "math.Abs",
+	"abs_Float":       "math.Abs",
+}
+
+// getMathConstant checks if a function expression refers to a math constant (PI, E).
+// Returns the Go expression (e.g., "math.Pi") or empty string if not a constant.
+// M-CODEGEN-STDLIB-MATH Bug #27: Used to emit constants without () in App.
+func (g *Generator) getMathConstant(funcExpr core.CoreExpr) string {
+	name := ""
+	if v, ok := funcExpr.(*core.VarGlobal); ok {
+		name = v.Ref.Name
+	} else if v, ok := funcExpr.(*core.Var); ok {
+		name = v.Name
+	}
+	if name == "" {
+		return ""
+	}
+	if goExpr, ok := mathConstants[name]; ok {
+		g.needsMathImport = true
+		return goExpr
+	}
+	return ""
+}
+
+// getMathFunction checks if a function expression refers to a math function (sin, cos, etc).
+// Returns the Go function name (e.g., "math.Sin") or empty string if not a math function.
+// M-CODEGEN-STDLIB-MATH Bug #27: Used to emit functions with float64 type assertions.
+func (g *Generator) getMathFunction(funcExpr core.CoreExpr) string {
+	name := ""
+	if v, ok := funcExpr.(*core.VarGlobal); ok {
+		name = v.Ref.Name
+	} else if v, ok := funcExpr.(*core.Var); ok {
+		name = v.Name
+	}
+	if name == "" {
+		return ""
+	}
+	if goFunc, ok := mathFunctions[name]; ok {
+		g.needsMathImport = true
+		return goFunc
+	}
+	return ""
+}
