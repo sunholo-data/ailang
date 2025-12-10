@@ -411,21 +411,21 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.indent--
 	g.writef("}\n\n")
 
-	// Helper functions for Option - call ADT constructors for type safety
-	// M-CODEGEN-OPTION-RUNTIME-HELPERS: Use NewOptionSome/NewOptionNone instead of maps
+	// Helper functions for Option - self-contained fallback implementation
+	// M-CODEGEN-OPTION-RUNTIME-HELPERS: Use map-based Option when ADT not generated
 	g.writef("// makeOptionSome creates a Some value.\n")
-	g.writef("// Calls ADT constructor for type-safe Option values.\n")
+	g.writef("// Uses map-based representation for runtime compatibility.\n")
 	g.writef("func makeOptionSome(v interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewOptionSome(v)\n")
+	g.writef("return map[string]interface{}{\"_tag\": \"Some\", \"value\": v}\n")
 	g.indent--
 	g.writef("}\n\n")
 
 	g.writef("// makeOptionNone creates a None value.\n")
-	g.writef("// Calls ADT constructor for type-safe Option values.\n")
+	g.writef("// Uses map-based representation for runtime compatibility.\n")
 	g.writef("func makeOptionNone() interface{} {\n")
 	g.indent++
-	g.writef("return NewOptionNone()\n")
+	g.writef("return map[string]interface{}{\"_tag\": \"None\"}\n")
 	g.indent--
 	g.writef("}\n\n")
 

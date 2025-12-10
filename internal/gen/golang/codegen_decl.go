@@ -127,6 +127,7 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 
 // generateImplFunc generates the _impl function with interface{} everywhere.
 // M-DX26: This is the internal implementation that uses runtime helpers.
+// M-CODEGEN-V2: Uses Block IR to generate flat function bodies instead of nested IIFEs.
 func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	implName := ToGoVarName(name) + "_impl"
 
@@ -160,14 +161,14 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 
 	g.writef("func %s(%s) interface{} {\n", implName, strings.Join(params, ", "))
 	g.indent++
-	g.writef("return ")
 
-	if err := g.generateExpr(lam.Body); err != nil {
+	// M-CODEGEN-V2: Use flat body generation instead of return <expr>
+	// This eliminates nested IIFEs by flattening let chains to flat statements
+	if err := g.generateFlatBody(lam.Body); err != nil {
 		g.expectedReturnType = oldExpectedReturn
 		return err
 	}
 
-	g.writef("\n")
 	g.indent--
 	g.writef("}\n\n")
 

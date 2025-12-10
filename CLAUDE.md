@@ -36,6 +36,13 @@ ailang messages cleanup --dry-run         # Preview without deleting
 # WATCH FOR NEW MESSAGES
 ailang messages watch                # Watch all inboxes
 ailang messages watch --inbox user   # Watch specific inbox
+
+# GITHUB SYNC (v0.5.9+)
+ailang messages send user "Bug report" --type bug --github    # Send + create issue
+ailang messages send user "Feature" --type feature            # Type implies --github
+ailang messages import-github                                  # Import issues as messages
+ailang messages import-github --labels bug,feature            # Filter by labels
+ailang messages import-github --dry-run                       # Preview without importing
 ```
 
 ### Session Start Workflow
@@ -95,6 +102,42 @@ ailang messages send stapledons_voyage "Design doc created for v0.4.9" \
 5. `cleanup` → permanently deleted
 
 </details>
+
+### GitHub Sync Configuration (v0.5.9+)
+
+Messages can be synced bidirectionally with GitHub Issues. Configure in `~/.ailang/config.yaml`:
+
+```yaml
+github:
+  # REQUIRED: Must match the active `gh auth status` user
+  # HARD FAILS if mismatch - prevents accidental commits to wrong account
+  expected_user: MarkEdmondson1234
+
+  # Default repo for issue creation/import
+  default_repo: sunholo-data/ailang
+
+  # Labels automatically added to created issues
+  create_labels:
+    - ailang-message
+
+  # Labels to filter when importing issues
+  watch_labels:
+    - from:stapledon
+    - from:ailang-core
+
+  # Auto-import on session start (default: true)
+  auto_import: true
+```
+
+**Workflow:**
+1. **Outgoing:** `ailang messages send ... --github` creates local message + GitHub issue
+2. **Incoming:** `ailang messages import-github` (or session start hook) imports issues as messages
+3. **Deduplication:** Issues are tracked by `github_issue_number` - no duplicates
+
+**Error handling:**
+- Messages are ALWAYS saved locally first
+- GitHub sync failures don't lose messages
+- Account mismatch = HARD FAIL with fix instructions (`gh auth switch --user`)
 
 ---
 

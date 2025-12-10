@@ -21,11 +21,19 @@ func NewStore(db *sql.DB) *Store {
 
 // OpenStore opens or creates a SQLite database at the given path.
 // If dbPath doesn't exist, creates a new database with schema.
+// Also applies any pending schema migrations.
 func OpenStore(dbPath string) (*Store, error) {
 	db, err := InitDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
+
+	// Apply any pending migrations for existing databases
+	if err := MigrateDB(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
 	return &Store{db: db}, nil
 }
 

@@ -18,6 +18,9 @@ type InboxMessage struct {
 	MessageType   string     `json:"message_type"`
 	Title         string     `json:"title"`
 	Payload       string     `json:"payload,omitempty"`
+	Category      string     `json:"category,omitempty"`     // bug, feature, general (for GitHub sync)
+	GitHubIssue   *int       `json:"github_issue,omitempty"` // GitHub issue number
+	GitHubRepo    string     `json:"github_repo,omitempty"`  // GitHub repo (owner/repo)
 	Status        string     `json:"status"`
 	CreatedAt     time.Time  `json:"created_at"`
 	ReadAt        *time.Time `json:"read_at,omitempty"`
@@ -37,6 +40,13 @@ const (
 	InboxTypeNotification = "notification"
 	InboxTypeRequest      = "request"
 	InboxTypeResponse     = "response"
+)
+
+// Message categories (for GitHub sync)
+const (
+	CategoryBug     = "bug"
+	CategoryFeature = "feature"
+	CategoryGeneral = "general"
 )
 
 // InboxListOptions specifies filters for listing inbox messages
@@ -77,17 +87,26 @@ func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
 		expiresAt = &t
 	}
 
+	// Handle nullable category and github fields
+	var category, githubRepo *string
+	if msg.Category != "" {
+		category = &msg.Category
+	}
+	if msg.GitHubRepo != "" {
+		githubRepo = &msg.GitHubRepo
+	}
+
 	_, err := s.db.Exec(`
-		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, status, created_at, read_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
+		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
 
 	return err
 }
 
 // ListInboxMessages returns messages matching the given options
 func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error) {
-	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
+	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
 	args := []interface{}{}
 
 	if opts.Inbox != "" {
@@ -130,17 +149,24 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	var messages []InboxMessage
 	for rows.Next() {
 		var msg InboxMessage
-		var correlationID, payload sql.NullString
+		var correlationID, payload, category, githubRepo sql.NullString
+		var githubIssue sql.NullInt64
 		var readAt, expiresAt sql.NullString
 		var createdAt string
 
-		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &msg.Status, &createdAt, &readAt, &expiresAt)
+		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &msg.Status, &createdAt, &readAt, &expiresAt)
 		if err != nil {
 			return nil, err
 		}
 
 		msg.CorrelationID = correlationID.String
 		msg.Payload = payload.String
+		msg.Category = category.String
+		msg.GitHubRepo = githubRepo.String
+		if githubIssue.Valid {
+			issueNum := int(githubIssue.Int64)
+			msg.GitHubIssue = &issueNum
+		}
 
 		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
 			msg.CreatedAt = t
@@ -165,17 +191,18 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 // GetInboxMessage returns a single message by ID (UUID or message_id)
 func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	row := s.db.QueryRow(`
-		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, status, created_at, read_at, expires_at
+		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at
 		FROM inbox_messages
 		WHERE id = ? OR message_id = ?
 	`, id, id)
 
 	var msg InboxMessage
-	var correlationID, payload sql.NullString
+	var correlationID, payload, category, githubRepo sql.NullString
+	var githubIssue sql.NullInt64
 	var readAt, expiresAt sql.NullString
 	var createdAt string
 
-	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &msg.Status, &createdAt, &readAt, &expiresAt)
+	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &msg.Status, &createdAt, &readAt, &expiresAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -185,6 +212,12 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 
 	msg.CorrelationID = correlationID.String
 	msg.Payload = payload.String
+	msg.Category = category.String
+	msg.GitHubRepo = githubRepo.String
+	if githubIssue.Valid {
+		issueNum := int(githubIssue.Int64)
+		msg.GitHubIssue = &issueNum
+	}
 
 	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
 		msg.CreatedAt = t
@@ -257,6 +290,45 @@ func (s *Store) MarkAllInboxMessagesRead(inbox string) (int64, error) {
 	}
 
 	return result.RowsAffected()
+}
+
+// InboxMessageExistsByGitHub checks if a message with the given GitHub issue already exists
+func (s *Store) InboxMessageExistsByGitHub(repo string, issueNumber int) (bool, error) {
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM inbox_messages
+		WHERE github_repo = ? AND github_issue_number = ?
+	`, repo, issueNumber).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// UpdateInboxMessageGitHub updates the GitHub issue number and repo for a message
+func (s *Store) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo string) error {
+	var repoPtr *string
+	if repo != "" {
+		repoPtr = &repo
+	}
+
+	result, err := s.db.Exec(`
+		UPDATE inbox_messages
+		SET github_issue_number = ?, github_repo = COALESCE(?, github_repo)
+		WHERE message_id = ?
+	`, issueNumber, repoPtr, messageID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("message not found: %s", messageID)
+	}
+	return nil
 }
 
 // CleanupInboxMessages removes old messages

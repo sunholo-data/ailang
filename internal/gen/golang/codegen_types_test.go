@@ -237,6 +237,7 @@ func TestTypedLetBindingsWithAssertion(t *testing.T) {
 // M-DX25.2: Test fallback to interface{} when CoreTypeInfo is not available for let
 func TestTypedLetBindingsFallback(t *testing.T) {
 	// func test() { let x = true in x } (no type info)
+	// M-CODEGEN-V2: This now generates flat code, not nested IIFEs
 	nestedLet := &core.Let{
 		CoreNode: core.CoreNode{NodeID: 300},
 		Name:     "x",
@@ -270,12 +271,15 @@ func TestTypedLetBindingsFallback(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Should fall back to interface{}
-	if !strings.Contains(codeStr, "func() interface{} {") {
-		t.Errorf("Expected fallback 'func() interface{} {', got:\n%s", codeStr)
+	// M-CODEGEN-V2: Should generate flat function body with interface{} variable
+	if !strings.Contains(codeStr, "var x interface{} =") {
+		t.Errorf("Expected 'var x interface{} =', got:\n%s", codeStr)
 	}
 
-	if !strings.Contains(codeStr, "var x interface{} =") {
-		t.Errorf("Expected fallback 'var x interface{} =', got:\n%s", codeStr)
+	// M-CODEGEN-V2: Should NOT generate nested IIFEs (the whole point of the fix!)
+	// Count occurrences of IIFE pattern - should be zero in function body
+	iifeCount := strings.Count(codeStr, "return func() interface{} {")
+	if iifeCount > 0 {
+		t.Errorf("Expected no nested IIFEs in function body, found %d", iifeCount)
 	}
 }

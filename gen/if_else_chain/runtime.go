@@ -581,15 +581,15 @@ func GetOpt(arr interface{}, idx interface{}) interface{} {
 }
 
 // makeOptionSome creates a Some value.
-// Calls ADT constructor for type-safe Option values.
+// Uses map-based representation for runtime compatibility.
 func makeOptionSome(v interface{}) interface{} {
-	return NewOptionSome(v)
+	return map[string]interface{}{"_tag": "Some", "value": v}
 }
 
 // makeOptionNone creates a None value.
-// Calls ADT constructor for type-safe Option values.
+// Uses map-based representation for runtime compatibility.
 func makeOptionNone() interface{} {
-	return NewOptionNone()
+	return map[string]interface{}{"_tag": "None"}
 }
 
 // UnsafeGet returns element at index without bounds checking.

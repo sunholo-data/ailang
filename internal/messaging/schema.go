@@ -13,7 +13,7 @@ import (
 // This schema extends the existing file-based agent inbox (.ailang/state/messages/)
 // to provide ordering guarantees, real-time updates, and effect-gated approvals.
 
-const schemaVersion = "1.0.0"
+const schemaVersion = "1.1.0" // v1.1.0: Added GitHub integration fields
 
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
@@ -375,6 +375,13 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     title TEXT NOT NULL,
     payload TEXT,
 
+    -- Content category (bug, feature, general) - for GitHub sync
+    category TEXT,
+
+    -- GitHub integration (v1.1.0)
+    github_issue_number INTEGER,
+    github_repo TEXT,
+
     -- State
     status TEXT NOT NULL DEFAULT 'unread',
     created_at TEXT NOT NULL,
@@ -382,7 +389,8 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     expires_at TEXT,
 
     CHECK (message_type IN ('notification', 'request', 'response')),
-    CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
+    CHECK (status IN ('unread', 'read', 'archived', 'deleted')),
+    CHECK (category IS NULL OR category IN ('bug', 'feature', 'general'))
 )`
 
 // Indices for performance
@@ -399,3 +407,74 @@ const approvalHistoryThreadIndex = `CREATE INDEX IF NOT EXISTS idx_approval_hist
 const instanceHistoryAgentIndex = `CREATE INDEX IF NOT EXISTS idx_instance_history_agent ON instance_history(agent_id, started_at)`
 const inboxMessagesInboxIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_inbox ON inbox_messages(to_inbox, status, created_at)`
 const inboxMessagesCorrelationIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_correlation ON inbox_messages(correlation_id)`
+const inboxMessagesGitHubIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_github ON inbox_messages(github_repo, github_issue_number)`
+
+// MigrateDB applies any necessary schema migrations to an existing database.
+// This is called after InitDB to ensure existing databases are up-to-date.
+func MigrateDB(db *sql.DB) error {
+	// Check current schema version
+	var currentVersion string
+	err := db.QueryRow("SELECT version FROM schema_version ORDER BY created_at DESC LIMIT 1").Scan(&currentVersion)
+	if err != nil {
+		// No version table or no version - assume 1.0.0
+		currentVersion = "1.0.0"
+	}
+
+	// Apply migrations based on current version
+	if currentVersion == "1.0.0" {
+		if err := migrateV100ToV110(db); err != nil {
+			return fmt.Errorf("migration to v1.1.0 failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// migrateV100ToV110 adds GitHub integration columns to inbox_messages
+func migrateV100ToV110(db *sql.DB) error {
+	// Add new columns (SQLite ADD COLUMN is safe if column already exists - it will error)
+	// We use a transaction and check for column existence first
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if category column exists
+	var colName string
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='category'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		// Column doesn't exist, add it
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN category TEXT"); err != nil {
+			return fmt.Errorf("failed to add category column: %w", err)
+		}
+	}
+
+	// Check if github_issue_number column exists
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='github_issue_number'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN github_issue_number INTEGER"); err != nil {
+			return fmt.Errorf("failed to add github_issue_number column: %w", err)
+		}
+	}
+
+	// Check if github_repo column exists
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='github_repo'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN github_repo TEXT"); err != nil {
+			return fmt.Errorf("failed to add github_repo column: %w", err)
+		}
+	}
+
+	// Create index for GitHub fields
+	if _, err := tx.Exec(inboxMessagesGitHubIndex); err != nil {
+		return fmt.Errorf("failed to create github index: %w", err)
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}

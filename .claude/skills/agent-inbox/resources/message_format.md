@@ -275,17 +275,16 @@ release-manager → post-release → user
 ## Querying by Correlation ID
 
 ```bash
-# Find all messages for a sprint
-ailang agent inbox user | grep "Correlation: sprint_M-S1"
+# Find all messages for a sprint (using new CLI)
+ailang messages list --json | jq '.[] | select(.correlation_id == "sprint_M-S1")'
 
-# Using jq to filter (if JSON output available)
-ailang agent inbox user --format json | \
-  jq '.messages[] | select(.correlation_id == "sprint_M-S1")'
+# Find message chain with details
+ailang messages list --json | \
+  jq '.[] | select(.correlation_id == "sprint_M-S1") |
+      [.created_at, .from_agent, .to_inbox, .title] | @csv'
 
-# Find message chain
-ailang agent inbox user --format json | \
-  jq '.messages[] | select(.correlation_id == "sprint_M-S1") |
-      [.timestamp, .from, .to, .type] | @csv'
+# Filter by sender and correlation
+ailang messages list --from sprint-executor --json | jq '.[] | select(.correlation_id)'
 ```
 
 ## Handoff Chain Tracking
@@ -324,38 +323,24 @@ Store handoff chains in `.ailang/state/handoff_chains.json`:
 ## Sending Messages with Correlation IDs
 
 ```bash
-# Sprint planner sends handoff to sprint executor
-ailang agent send sprint-executor '{
-  "type": "plan_ready",
-  "correlation_id": "sprint_M-S1",
-  "payload": {
-    "sprint_id": "M-S1",
-    "plan_path": "design_docs/planned/v0_4_0/m-s1-sprint-plan.md",
-    "progress_path": ".ailang/state/sprints/sprint_M-S1.json"
-  }
-}'
+# Send milestone complete to user
+ailang messages send user "Milestone M-S1.1 complete. 214 LOC, all tests passing." \
+  --title "M-S1.1 Complete" \
+  --from "sprint-executor" \
+  --correlation "sprint_M-S1"
 
-# Sprint executor sends milestone complete to user
-ailang agent send --to-user --from "sprint-executor" '{
-  "type": "milestone_complete",
-  "correlation_id": "sprint_M-S1",
-  "payload": {
-    "milestone_id": "M-S1.1",
-    "passes": true,
-    "actual_loc": 214
-  }
-}'
+# Send bug report with GitHub sync
+ailang messages send user "Parser crashes on nested records" \
+  --title "Parser Bug" \
+  --from "sprint-executor" \
+  --type bug \
+  --github
 
-# Replying to a specific message
-ailang agent send sprint-planner '{
-  "type": "approval",
-  "correlation_id": "sprint_M-S1",
-  "reply_to": "msg_20251127_103000_def456",
-  "payload": {
-    "approved": true,
-    "action": "proceed"
-  }
-}'
+# Send handoff to another inbox
+ailang messages send sprint-executor "Plan ready for M-S1" \
+  --title "Sprint Plan Ready" \
+  --from "sprint-planner" \
+  --correlation "sprint_M-S1"
 ```
 
 ## Benefits of Correlation IDs

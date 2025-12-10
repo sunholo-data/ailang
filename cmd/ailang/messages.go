@@ -5,11 +5,42 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
 )
+
+// humanDuration supports human-friendly duration parsing including "d" for days.
+// Examples: "7d", "30d", "24h", "1h30m", "168h"
+type humanDuration time.Duration
+
+func (d *humanDuration) String() string {
+	return time.Duration(*d).String()
+}
+
+func (d *humanDuration) Set(s string) error {
+	// Check for day suffix (e.g., "7d", "30d")
+	dayRegex := regexp.MustCompile(`^(\d+)d$`)
+	if matches := dayRegex.FindStringSubmatch(s); len(matches) == 2 {
+		days, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return err
+		}
+		*d = humanDuration(time.Duration(days) * 24 * time.Hour)
+		return nil
+	}
+
+	// Fall back to standard Go duration parsing
+	parsed, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	*d = humanDuration(parsed)
+	return nil
+}
 
 // messagesCommand handles the 'messages' (alias: 'msg') subcommand.
 // This uses the unified collaboration.db for both CLI and dashboard access.
@@ -37,6 +68,8 @@ func messagesCommand() {
 		runMessagesWatch(args)
 	case "cleanup":
 		runMessagesCleanup(args)
+	case "import-github":
+		runMessagesImportGitHub(args)
 	case "--help", "-h", "help":
 		printMessagesHelp()
 	default:
@@ -191,9 +224,14 @@ func runMessagesSend(args []string) {
 	from := fs.String("from", "cli", "Sender agent name")
 	correlationID := fs.String("correlation", "", "Correlation ID for grouping messages")
 
+	// GitHub sync flags
+	github := fs.Bool("github", false, "Also create a GitHub issue")
+	msgType := fs.String("type", "", "Message type: bug, feature, general (implies --github)")
+	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
+
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "github", "type", "repo"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -232,6 +270,25 @@ func runMessagesSend(args []string) {
 		msgTitle = truncateString(payload, 50)
 	}
 
+	// Determine category from --type flag
+	var category string
+	if *msgType != "" {
+		switch *msgType {
+		case "bug":
+			category = messaging.CategoryBug
+		case "feature":
+			category = messaging.CategoryFeature
+		case "general":
+			category = messaging.CategoryGeneral
+		default:
+			fmt.Fprintf(os.Stderr, "%s: invalid --type value '%s' (must be bug, feature, or general)\n", red("Error"), *msgType)
+			os.Exit(1)
+		}
+	}
+
+	// If --type is specified, imply --github
+	syncToGitHub := *github || *msgType != ""
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
 		ToInbox:       inbox,
@@ -239,14 +296,34 @@ func runMessagesSend(args []string) {
 		Title:         msgTitle,
 		Payload:       payload,
 		CorrelationID: *correlationID,
+		Category:      category,
+		GitHubRepo:    *repo,
 	}
 
+	// ALWAYS save to SQLite first
 	if err := store.InsertInboxMessage(msg); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
 	fmt.Printf("%s Message sent to '%s' (ID: %s)\n", green("✓"), inbox, msg.MessageID)
+
+	// Optionally sync to GitHub
+	if syncToGitHub {
+		issueNum, err := syncMessageToGitHub(msg, *repo)
+		if err != nil {
+			// Message saved locally, but GitHub sync failed
+			fmt.Fprintf(os.Stderr, "%s GitHub sync failed: %v\n", yellow("⚠"), err)
+			fmt.Println("  Message saved locally. Retry GitHub sync with:")
+			fmt.Printf("  ailang messages github-sync %s\n", msg.MessageID)
+		} else {
+			// Update message with issue number
+			if err := store.UpdateInboxMessageGitHub(msg.MessageID, issueNum, *repo); err != nil {
+				fmt.Fprintf(os.Stderr, "%s Could not save issue number: %v\n", yellow("⚠"), err)
+			}
+			fmt.Printf("%s GitHub issue #%d created\n", green("✓"), issueNum)
+		}
+	}
 }
 
 func runMessagesRead(args []string) {
@@ -353,7 +430,8 @@ func runMessagesWatch(args []string) {
 
 func runMessagesCleanup(args []string) {
 	fs := flag.NewFlagSet("messages cleanup", flag.ExitOnError)
-	olderThan := fs.Duration("older-than", 7*24*time.Hour, "Remove messages older than this (e.g., 7d, 24h)")
+	olderThan := humanDuration(7 * 24 * time.Hour) // Default: 7 days
+	fs.Var(&olderThan, "older-than", "Remove messages older than this (e.g., 7d, 30d, 168h)")
 	expired := fs.Bool("expired", false, "Remove only expired messages")
 	dryRun := fs.Bool("dry-run", false, "Show what would be deleted without deleting")
 
@@ -372,13 +450,13 @@ func runMessagesCleanup(args []string) {
 	if *dryRun {
 		// Just show counts
 		counts, _ := store.CountInboxMessagesByStatus("")
-		fmt.Printf("Would clean up messages older than %v:\n", *olderThan)
+		fmt.Printf("Would clean up messages older than %v:\n", time.Duration(olderThan))
 		fmt.Printf("  Deleted: %d\n", counts[messaging.InboxStatusDeleted])
 		fmt.Printf("  (Dry run - no changes made)\n")
 		return
 	}
 
-	count, err := store.CleanupInboxMessages(*olderThan, *expired)
+	count, err := store.CleanupInboxMessages(time.Duration(olderThan), *expired)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -522,6 +600,171 @@ func normalizeArgsForFlags(args []string, flagNames []string) []string {
 	return append(flags, positional...)
 }
 
+func runMessagesImportGitHub(args []string) {
+	fs := flag.NewFlagSet("messages import-github", flag.ExitOnError)
+	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
+	labels := fs.String("labels", "", "Comma-separated labels to filter issues")
+	inbox := fs.String("inbox", "user", "Target inbox for imported messages")
+	dryRun := fs.Bool("dry-run", false, "Show what would be imported without importing")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Load GitHub config
+	config, err := messaging.LoadGitHubConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Check auto_import setting if not explicitly called
+	if config != nil && !config.IsAutoImportEnabled() && len(args) == 0 {
+		// Auto-import disabled and no explicit args - skip silently
+		return
+	}
+
+	// Create GitHub client
+	client := messaging.NewGitHubClient(config)
+
+	// Parse labels
+	var labelList []string
+	if *labels != "" {
+		labelList = strings.Split(*labels, ",")
+		for i := range labelList {
+			labelList[i] = strings.TrimSpace(labelList[i])
+		}
+	}
+
+	// Get repo from flag or config
+	repoName := *repo
+	if repoName == "" && config != nil {
+		repoName = config.DefaultRepo
+	}
+
+	// List issues from GitHub
+	issues, err := client.ListIssuesByLabel(repoName, labelList)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if len(issues) == 0 {
+		fmt.Println("No matching GitHub issues found.")
+		return
+	}
+
+	// Open store to check for duplicates and insert
+	store, err := openStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	imported := 0
+	skipped := 0
+
+	for _, issue := range issues {
+		// Check if already imported
+		exists, err := store.InboxMessageExistsByGitHub(repoName, issue.Number)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s checking issue #%d: %v\n", yellow("⚠"), issue.Number, err)
+			continue
+		}
+
+		if exists {
+			skipped++
+			continue
+		}
+
+		if *dryRun {
+			fmt.Printf("  Would import: #%d %s\n", issue.Number, issue.Title)
+			imported++
+			continue
+		}
+
+		// Determine category from labels
+		category := ""
+		for _, label := range issue.Labels {
+			switch label {
+			case "bug":
+				category = messaging.CategoryBug
+			case "feature", "enhancement":
+				category = messaging.CategoryFeature
+			}
+		}
+
+		// Parse from agent from title prefix [agent-name]
+		fromAgent := "github"
+		title := issue.Title
+		if strings.HasPrefix(title, "[") {
+			if idx := strings.Index(title, "]"); idx > 0 {
+				fromAgent = title[1:idx]
+				title = strings.TrimSpace(title[idx+1:])
+			}
+		}
+
+		// Create inbox message
+		msg := &messaging.InboxMessage{
+			FromAgent:   fromAgent,
+			ToInbox:     *inbox,
+			MessageType: messaging.InboxTypeNotification,
+			Title:       title,
+			Payload:     issue.Body,
+			Category:    category,
+			GitHubIssue: &issue.Number,
+			GitHubRepo:  repoName,
+		}
+
+		if err := store.InsertInboxMessage(msg); err != nil {
+			fmt.Fprintf(os.Stderr, "%s importing issue #%d: %v\n", yellow("⚠"), issue.Number, err)
+			continue
+		}
+
+		imported++
+	}
+
+	if *dryRun {
+		fmt.Printf("\nDry run: would import %d issue(s), skip %d existing\n", imported, skipped)
+	} else if imported > 0 {
+		fmt.Printf("%s Imported %d new issue(s) from GitHub (%d already existed)\n", green("✓"), imported, skipped)
+	} else {
+		fmt.Printf("No new issues to import (%d already existed)\n", skipped)
+	}
+}
+
+// syncMessageToGitHub creates a GitHub issue for the message.
+// Returns the issue number on success.
+func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string) (int, error) {
+	// Load GitHub config
+	config, err := messaging.LoadGitHubConfig()
+	if err != nil {
+		return 0, fmt.Errorf("failed to load GitHub config: %w", err)
+	}
+
+	// Create GitHub client
+	client := messaging.NewGitHubClient(config)
+
+	// Determine repo
+	repo := repoOverride
+	if repo == "" && config != nil {
+		repo = config.DefaultRepo
+	}
+
+	// Create the issue
+	input := messaging.CreateIssueInput{
+		Title:     msg.Title,
+		Body:      msg.Payload,
+		FromAgent: msg.FromAgent,
+		Category:  msg.Category,
+		Repo:      repo,
+	}
+
+	return client.CreateIssue(input)
+}
+
 func printMessagesHelp() {
 	fmt.Println("Usage: ailang messages <subcommand> [options]")
 	fmt.Println()
@@ -536,6 +779,7 @@ func printMessagesHelp() {
 	fmt.Printf("  %s <id>               Show full message content\n", cyan("read"))
 	fmt.Printf("  %s                    Watch for new messages\n", cyan("watch"))
 	fmt.Printf("  %s                  Clean up old messages\n", cyan("cleanup"))
+	fmt.Printf("  %s            Import GitHub issues as messages\n", cyan("import-github"))
 	fmt.Println()
 	fmt.Println("List Flags:")
 	fmt.Println("  --inbox <name>       Filter by inbox (user, claude-code, etc.)")
@@ -554,6 +798,17 @@ func printMessagesHelp() {
 	fmt.Println("  --from <agent>       Sender name (default: cli)")
 	fmt.Println("  --correlation <id>   Correlation ID for grouping")
 	fmt.Println()
+	fmt.Println("GitHub Sync Flags (send):")
+	fmt.Println("  --github             Also create a GitHub issue")
+	fmt.Println("  --type <type>        Message type: bug, feature, general (implies --github)")
+	fmt.Println("  --repo <owner/repo>  GitHub repo (overrides config default)")
+	fmt.Println()
+	fmt.Println("Import GitHub Flags:")
+	fmt.Println("  --repo <owner/repo>  GitHub repo to import from")
+	fmt.Println("  --labels <list>      Comma-separated labels to filter issues")
+	fmt.Println("  --inbox <name>       Target inbox for imported messages (default: user)")
+	fmt.Println("  --dry-run            Show what would be imported without importing")
+	fmt.Println()
 	fmt.Println("Note: Flags can appear before or after positional arguments.")
 	fmt.Println()
 	fmt.Println("Aliases: msg, messages")
@@ -566,4 +821,14 @@ func printMessagesHelp() {
 	fmt.Printf("  %s                     # Ack all unread\n", cyan("ailang messages ack --all"))
 	fmt.Printf("  %s   # Send message\n", cyan("ailang messages send user \"Hello\""))
 	fmt.Printf("  %s    # Watch for new\n", cyan("ailang messages watch --inbox user"))
+	fmt.Println()
+	fmt.Println("GitHub Sync Examples:")
+	fmt.Printf("  %s\n", cyan("ailang messages send ailang-core \"Parser crash\" --type bug --github"))
+	fmt.Printf("  %s\n", cyan("ailang messages send user \"Add dark mode\" --type feature"))
+	fmt.Printf("  %s\n", cyan("ailang messages send user \"Hello\" --github --repo owner/repo"))
+	fmt.Println()
+	fmt.Println("Import GitHub Examples:")
+	fmt.Printf("  %s\n", cyan("ailang messages import-github"))
+	fmt.Printf("  %s\n", cyan("ailang messages import-github --labels bug,feature"))
+	fmt.Printf("  %s\n", cyan("ailang messages import-github --dry-run"))
 }

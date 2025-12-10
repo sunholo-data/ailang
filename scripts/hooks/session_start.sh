@@ -88,6 +88,14 @@ USER_ID=$(echo "$HOOK_JSON" | jq -r '.userId // "unknown"')
 log "Session ID: $SESSION_ID"
 log "User ID: $USER_ID"
 
+# Import GitHub issues as messages (respects auto_import config setting)
+# This is silent if disabled or if there are no new issues
+if ailang messages import-github 2>/dev/null; then
+    log "GitHub import check completed"
+else
+    log "GitHub import check skipped or failed (this is normal if not configured)"
+fi
+
 # Use ailang messages CLI to get unread messages (SQLite-backed)
 # The CLI handles all inbox types via the unified collaboration.db
 MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
