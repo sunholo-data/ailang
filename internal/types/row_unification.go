@@ -7,12 +7,19 @@ import (
 
 // RowUnifier handles row unification with principal types
 type RowUnifier struct {
-	freshCounter int
+	freshCounter  int
+	parentUnifier *Unifier // M-FIX-NESTED-RECORD-LIST: Reference to parent for alias expansion
 }
 
 // NewRowUnifier creates a new row unifier
 func NewRowUnifier() *RowUnifier {
 	return &RowUnifier{freshCounter: 0}
+}
+
+// SetParentUnifier sets the parent unifier (M-FIX-NESTED-RECORD-LIST)
+// This is needed for alias expansion when unifying field types in rows
+func (ru *RowUnifier) SetParentUnifier(u *Unifier) {
+	ru.parentUnifier = u
 }
 
 // UnifyRows unifies two rows, returning an updated substitution or error
@@ -48,7 +55,15 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 	}
 
 	// 4. Unify common labels
-	unifier := NewUnifier()
+	// M-FIX-NESTED-RECORD-LIST: Use parent unifier if available to preserve aliasEnv
+	// This is critical for nested record types like Entity{pos: Coord} where
+	// Coord is a type alias that needs to be expanded during field unification
+	var unifier *Unifier
+	if ru.parentUnifier != nil {
+		unifier = ru.parentUnifier
+	} else {
+		unifier = NewUnifier()
+	}
 	for label := range common {
 		var err error
 		sub, err = unifier.Unify(r1.Labels[label], r2.Labels[label], sub)

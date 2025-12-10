@@ -122,19 +122,93 @@ Updating docs/src/constants/version.js...
 ✓ Updated docs/src/constants/version.js
 ```
 
-### `scripts/broadcast_release.sh <version>`
+### `scripts/collect_closable_issues.sh <version> [--close] [--json]`
+Find GitHub issues that can be closed with this release.
+
+**Uses `ailang messages` GitHub integration** for efficient issue discovery.
+
+**Usage:**
+```bash
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --close
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --json
+```
+
+**What it scans:**
+1. **GitHub sync** - Runs `ailang messages import-github` to sync latest issues
+2. **ailang messages** - Queries local message database for GitHub-linked issues
+3. Commits since last tag for issue references (Fixes #123, Closes #456, etc.)
+4. CHANGELOG.md entry for the version
+5. Design docs in `design_docs/implemented/vX_Y_Z/` and `design_docs/planned/vX_Y_Z/`
+6. Keyword matching between message content and CHANGELOG
+
+**Options:**
+- `--close` - Actually close the issues via `gh issue close`
+- `--json` - Output JSON format for including in release notes
+
+**Output (default):**
+```
+Syncing GitHub issues via ailang messages...
+  ✓ Synced issues from GitHub
+Scanning commits since v0.5.8 for issue references...
+  Found 0 issue(s) referenced in commits
+Scanning CHANGELOG.md for issue references...
+  Found 0 issue(s) referenced in CHANGELOG
+Scanning design docs for issue references...
+  Found 3 issue(s) referenced in design docs
+Querying ailang messages for GitHub-linked issues...
+  Found 7 issue(s) tracked in ailang messages
+Matching issues against CHANGELOG keywords...
+  Found 5 issue(s) potentially related to CHANGELOG entries
+
+============================================
+Issues to close for v0.5.9
+============================================
+  #23: [cli] Bug: Record update with nested record fails
+       Sources: design_doc,ailang_message,keyword_match
+       Labels: bug, ailang-message
+
+  #25: [cli] Bug: Record list type inference
+       Sources: ailang_message,keyword_match
+       Labels: bug, ailang-message
+
+To close these issues, run:
+  ./scripts/collect_closable_issues.sh 0.5.9 --close
+```
+
+**JSON Output (--json):**
+```json
+[
+  {
+    "number": 23,
+    "title": "[cli] Bug: Record update with nested record fails",
+    "sources": "design_doc,ailang_message,keyword_match",
+    "labels": "bug,ailang-message",
+    "url": "https://github.com/sunholo-data/ailang/issues/23"
+  }
+]
+```
+
+**Note:** When closing issues (`--close`), the script also marks the corresponding `ailang messages` as read via `ailang messages ack`.
+
+### `scripts/broadcast_release.sh <version> [--include-issues]`
 Broadcast release notification with changelog to all projects.
 
 **Usage:**
 ```bash
 .claude/skills/release-manager/scripts/broadcast_release.sh 0.4.5
+.claude/skills/release-manager/scripts/broadcast_release.sh 0.4.5 --include-issues
 ```
+
+**Options:**
+- `--include-issues` - Include list of closed/closable GitHub issues in the notification
 
 **What it does:**
 1. Extracts the changelog entry for the given version
-2. Creates a structured release notification message
-3. Broadcasts to the user inbox (global notification point)
-4. Projects receive notification when they check their inbox
+2. Optionally collects related GitHub issues (using `collect_closable_issues.sh`)
+3. Creates a structured release notification message with changelog and closed issues
+4. Broadcasts to the user inbox (global notification point)
+5. Projects receive notification when they check their inbox
 
 **Output:**
 ```
@@ -166,7 +240,10 @@ Changelog excerpt:
   "version": "v0.4.5",
   "description": "## [v0.4.5] - 2025-11-30\n\n### Added\n...",
   "priority": "high",
-  "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.4.5"
+  "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.4.5",
+  "closed_issues": [
+    {"number": 23, "title": "Bug: Record update fails", "url": "..."}
+  ]
 }
 ```
 
@@ -239,7 +316,21 @@ gh run list --limit 3
 gh run watch
 ```
 
-### 8. Verify Release
+### 8. Collect and Close Related Issues
+
+**Find issues that can be closed with this release:**
+```bash
+.claude/skills/release-manager/scripts/collect_closable_issues.sh X.X.X
+```
+
+**Review the suggested issues, then close them:**
+```bash
+.claude/skills/release-manager/scripts/collect_closable_issues.sh X.X.X --close
+```
+
+The script scans commits, CHANGELOG, and design docs for issue references, and matches open issues against CHANGELOG keywords.
+
+### 9. Verify Release
 
 **Use the verification script:**
 ```bash
@@ -257,7 +348,7 @@ Expected binaries:
 - ailang-linux-amd64.tar.gz (Linux)
 - ailang-windows-amd64.zip (Windows)
 
-### 9. Broadcast Release Notification
+### 10. Broadcast Release Notification
 
 **Notify all projects about the new release:**
 ```bash
@@ -272,7 +363,7 @@ External projects will see the notification when they check their inbox.
 - Full changelog section (Added, Changed, Fixed, etc.)
 - Link to GitHub release page
 
-### 10. Handle CI Failures
+### 11. Handle CI Failures
 
 If CI fails after push:
 ```bash
@@ -286,13 +377,14 @@ git commit -m "Fix CI: <issue>"
 git push
 ```
 
-### 11. Summary
+### 12. Summary
 
 Show user:
 - ✓ Version vX.X.X released
 - ✓ Git tag created
 - ✓ Release URL: https://github.com/sunholo-data/ailang/releases/tag/vX.X.X
 - ✓ CI workflow status
+- ✓ Related GitHub issues closed (if any)
 - ✓ Release notification broadcast to projects
 - **Next step**: Run `post-release` skill to update benchmarks and dashboard
 

@@ -115,6 +115,10 @@ type Generator struct {
 	// that need to be mapped back to their declared nominal types.
 	funcTypeOverrides map[string]*FuncTypeOverride
 
+	// needsMathImport tracks whether generated code uses math package functions
+	// M-CODEGEN-STDLIB-MATH: Set to true when mapPureMathBuiltin returns a match
+	needsMathImport bool
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -273,18 +277,27 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	g.buf.Reset()
 	g.errors = nil
 	g.indent = 0
-	g.prog = prog // Store for DeclMeta access
+	g.prog = prog             // Store for DeclMeta access
+	g.needsMathImport = false // Reset for each generation
 
-	// Write package header
-	g.writePackageHeader()
+	// M-CODEGEN-STDLIB-MATH: Two-phase generation to detect imports needed
+	// Phase 1: Generate declarations to temporary buffer to detect math usage
+	var declsBuf bytes.Buffer
+	origBuf := g.buf
+	g.buf = declsBuf
 
-	// Generate code from declarations
-	// Core programs store declarations as a flat list with metadata
 	for _, decl := range prog.Decls {
 		if err := g.generateDecl(decl); err != nil {
 			g.errors = append(g.errors, err)
 		}
 	}
+
+	declsCode := g.buf.Bytes()
+	g.buf = origBuf
+
+	// Phase 2: Write header with correct imports, then append declarations
+	g.writePackageHeader()
+	g.buf.Write(declsCode)
 
 	if len(g.errors) > 0 {
 		return nil, fmt.Errorf("generation errors: %v", g.errors)
@@ -313,12 +326,20 @@ func (g *Generator) writePackageHeader() {
 	if !g.skipRuntimeHelpers {
 		// Import fmt, reflect, strings for runtime helpers
 		// M-DX16: reflect and strings needed for typed struct RecordUpdate
+		// M-CODEGEN-STDLIB-MATH: math needed when using std/math functions
 		g.writef("import (\n")
 		g.writef("\t\"fmt\"\n")
+		if g.needsMathImport {
+			g.writef("\t\"math\"\n")
+		}
 		g.writef("\t\"reflect\"\n")
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
 		g.writeRuntimeHelpers()
+	} else if g.needsMathImport {
+		// M-CODEGEN-STDLIB-MATH: Even when skipping runtime helpers,
+		// we need to add math import if the code uses math functions
+		g.writef("import \"math\"\n\n")
 	}
 }
 

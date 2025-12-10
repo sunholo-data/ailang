@@ -114,6 +114,12 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 		return nil
 	}
 
+	// M-CODEGEN-STDLIB-MATH: Check if this is a pure math builtin
+	if mathExpr := g.mapPureMathBuiltin(e.Ref.Name); mathExpr != "" {
+		g.write(mathExpr)
+		return nil
+	}
+
 	// For other global references
 	// M-CODEGEN-TYPE-ASSERTIONS: In _impl functions, call other _impl functions
 	// to avoid type mismatches (typed exports expect concrete types, not interface{})
@@ -224,3 +230,66 @@ func mapEffectBuiltinToHandler(name string) string {
 // - Pure array ops: _array_* (compiled to Go slice operations)
 // - Pure JSON ops: _json_decode, _json_encode (compiled inline)
 // - Pure conversions: _stringToInt, _stringToFloat (compiled inline)
+
+// mapPureMathBuiltin maps AILANG pure math builtins to Go math package expressions.
+// M-CODEGEN-STDLIB-MATH: Returns Go expression for math constants/functions.
+// Returns empty string if not a math builtin.
+func (g *Generator) mapPureMathBuiltin(name string) string {
+	// Math builtins follow pattern: _math_name or just name (for stdlib wrappers)
+	mathMappings := map[string]string{
+		// Constants - return as values
+		"_math_PI": "math.Pi",
+		"_math_E":  "math.E",
+		"PI":       "math.Pi",
+		"E":        "math.E",
+
+		// Trig functions - will be called with App
+		"_math_sin": "math.Sin",
+		"_math_cos": "math.Cos",
+		"_math_tan": "math.Tan",
+		"sin":       "math.Sin",
+		"cos":       "math.Cos",
+		"tan":       "math.Tan",
+
+		// Inverse trig functions
+		"_math_asin":  "math.Asin",
+		"_math_acos":  "math.Acos",
+		"_math_atan":  "math.Atan",
+		"_math_atan2": "math.Atan2",
+		"asin":        "math.Asin",
+		"acos":        "math.Acos",
+		"atan":        "math.Atan",
+		"atan2":       "math.Atan2",
+
+		// Exponential/logarithmic functions
+		"_math_exp":   "math.Exp",
+		"_math_log":   "math.Log",
+		"_math_log10": "math.Log10",
+		"_math_pow":   "math.Pow",
+		"_math_sqrt":  "math.Sqrt",
+		"exp":         "math.Exp",
+		"log":         "math.Log",
+		"log10":       "math.Log10",
+		"pow":         "math.Pow",
+		"sqrt":        "math.Sqrt",
+
+		// Rounding functions
+		"_math_ceil":  "math.Ceil",
+		"_math_floor": "math.Floor",
+		"_math_round": "math.Round",
+		"ceil":        "math.Ceil",
+		"floor":       "math.Floor",
+		"round":       "math.Round",
+
+		// Utility functions
+		"_math_abs_Float": "math.Abs",
+		"abs_Float":       "math.Abs",
+	}
+
+	if expr, ok := mathMappings[name]; ok {
+		// Track that we need math import
+		g.needsMathImport = true
+		return expr
+	}
+	return ""
+}

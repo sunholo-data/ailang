@@ -82,11 +82,13 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 		if t1.Row != nil || t2Rec.Row != nil {
 			row1 := t1.Row
 			if row1 == nil {
-				row1 = &TVar2{Name: "ρ_empty", Kind: &KRow{ElemKind: &KRecord{}}}
+				// M-FIX-NESTED-RECORD-LIST: Use fresh name to avoid conflicts with nested records
+				row1 = &TVar2{Name: u.freshRowVarName(), Kind: &KRow{ElemKind: &KRecord{}}}
 			}
 			row2 := t2Rec.Row
 			if row2 == nil {
-				row2 = &TVar2{Name: "ρ_empty", Kind: &KRow{ElemKind: &KRecord{}}}
+				// M-FIX-NESTED-RECORD-LIST: Use fresh name to avoid conflicts with nested records
+				row2 = &TVar2{Name: u.freshRowVarName(), Kind: &KRow{ElemKind: &KRecord{}}}
 			}
 			return u.Unify(row1, row2, sub)
 		}

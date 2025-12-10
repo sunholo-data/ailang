@@ -1,17 +1,34 @@
 #!/bin/bash
-# Broadcast release notification with changelog changes
-# Usage: broadcast_release.sh <version>
+# Broadcast release notification with changelog changes and closed issues
+# Usage: broadcast_release.sh <version> [--include-issues]
 #
 # Extracts the changelog entry for the given version and broadcasts
 # it to all listening projects via the agent messaging system.
+# Optionally includes list of closed GitHub issues in the notification.
 
 set -e
 
 VERSION="${1:-}"
+INCLUDE_ISSUES=false
+
+# Parse args
+shift 2>/dev/null || true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --include-issues)
+            INCLUDE_ISSUES=true
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 if [ -z "$VERSION" ]; then
-    echo "Usage: $0 <version>"
+    echo "Usage: $0 <version> [--include-issues]"
     echo "Example: $0 0.4.5"
+    echo "Example: $0 0.4.5 --include-issues"
     exit 1
 fi
 
@@ -66,6 +83,37 @@ if [ ${#CHANGELOG_CONTENT} -gt 2000 ]; then
 ... (truncated - see full changelog at https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)"
 fi
 
+# Collect closed issues if requested
+CLOSED_ISSUES_TEXT=""
+CLOSED_ISSUES_JSON="[]"
+
+if $INCLUDE_ISSUES; then
+    echo "Collecting closed issues..."
+
+    # Get issues closed in this release (recently closed with the release label or referenced in commits)
+    COLLECT_SCRIPT="$SCRIPT_DIR/collect_closable_issues.sh"
+
+    if [ -x "$COLLECT_SCRIPT" ]; then
+        # Get JSON output of closable issues
+        CLOSED_ISSUES_JSON=$("$COLLECT_SCRIPT" "$VERSION" --json 2>/dev/null || echo "[]")
+
+        # Create human-readable text from JSON
+        if command -v jq &> /dev/null && [ "$CLOSED_ISSUES_JSON" != "[]" ]; then
+            CLOSED_ISSUES_TEXT=$(echo "$CLOSED_ISSUES_JSON" | jq -r '.[] | "- #\(.number): \(.title)"' 2>/dev/null || echo "")
+
+            if [ -n "$CLOSED_ISSUES_TEXT" ]; then
+                CHANGELOG_CONTENT="$CHANGELOG_CONTENT
+
+### Issues Closed
+$CLOSED_ISSUES_TEXT"
+                echo "  Added $(echo "$CLOSED_ISSUES_JSON" | jq 'length') issue(s) to release notes"
+            fi
+        fi
+    else
+        echo "Warning: collect_closable_issues.sh not found, skipping issue collection"
+    fi
+fi
+
 echo "Broadcasting release notification..."
 
 # Create the release notification message
@@ -81,7 +129,8 @@ if command -v jq &> /dev/null; then
         --arg description "$CHANGELOG_CONTENT" \
         --arg priority "high" \
         --arg release_url "$RELEASE_URL" \
-        '{type: $type, title: $title, version: $version, description: $description, priority: $priority, release_url: $release_url}')
+        --argjson closed_issues "$CLOSED_ISSUES_JSON" \
+        '{type: $type, title: $title, version: $version, description: $description, priority: $priority, release_url: $release_url, closed_issues: $closed_issues}')
 else
     # Fallback: use Python for JSON encoding if jq not available
     if command -v python3 &> /dev/null; then
@@ -94,9 +143,10 @@ print(json.dumps({
     'version': sys.argv[2],
     'description': sys.argv[3],
     'priority': 'high',
-    'release_url': sys.argv[4]
+    'release_url': sys.argv[4],
+    'closed_issues': json.loads(sys.argv[5]) if sys.argv[5] else []
 }))
-" "$MESSAGE_TITLE" "$VERSION" "$CHANGELOG_CONTENT" "$RELEASE_URL")
+" "$MESSAGE_TITLE" "$VERSION" "$CHANGELOG_CONTENT" "$RELEASE_URL" "$CLOSED_ISSUES_JSON")
     else
         echo "Error: Neither jq nor python3 available for JSON encoding"
         echo "Install jq with: brew install jq"

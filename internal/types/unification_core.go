@@ -9,11 +9,19 @@ type Substitution map[string]Type
 
 // Unifier handles type unification with occurs check
 type Unifier struct {
-	rowUnifier *RowUnifier
-	depth      int // Track recursion depth for cycle detection
+	rowUnifier    *RowUnifier
+	depth         int // Track recursion depth for cycle detection
+	rowVarCounter int // M-FIX-NESTED-RECORD-LIST: Counter for generating unique row variable names
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
 	aliasEnv map[string]Type
+}
+
+// freshRowVarName generates a unique row variable name (M-FIX-NESTED-RECORD-LIST)
+// This prevents nested records from sharing the same "ρ_empty" variable
+func (u *Unifier) freshRowVarName() string {
+	u.rowVarCounter++
+	return fmt.Sprintf("ρ_empty_%d", u.rowVarCounter)
 }
 
 // Maximum recursion depth before we assume a cycle
@@ -21,21 +29,27 @@ const maxUnifyDepth = 1000
 
 // NewUnifier creates a new unifier
 func NewUnifier() *Unifier {
-	return &Unifier{
+	u := &Unifier{
 		rowUnifier: NewRowUnifier(),
 		depth:      0,
 		aliasEnv:   nil, // No alias expansion by default
 	}
+	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
+	u.rowUnifier.SetParentUnifier(u)
+	return u
 }
 
 // NewUnifierWithAliases creates a unifier with type alias expansion support
 // M-BUGFIX: This allows ADT variants with alias parameters to work correctly
 func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
-	return &Unifier{
+	u := &Unifier{
 		rowUnifier: NewRowUnifier(),
 		depth:      0,
 		aliasEnv:   aliases,
 	}
+	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
+	u.rowUnifier.SetParentUnifier(u)
+	return u
 }
 
 // expandAlias expands a type alias to its underlying type if applicable
