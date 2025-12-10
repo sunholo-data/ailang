@@ -69,6 +69,26 @@ models:
       Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
+  # OpenAI GPT-5.1-Codex-Max (released December 2025)
+  gpt5-1-codex-max:
+    api_name: "gpt-5.1-codex-max"
+    provider: "openai"
+    description: "GPT-5.1-Codex-Max - purpose-built for agentic coding"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # Uses Responses API, not standard chat completions
+    pricing:
+      input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
+      output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
+    notes: |
+      OpenAI's most powerful coding model, purpose-built for agentic coding.
+      77.9% on SWE-Bench Verified, 79.9% on SWE-Lancer IC SWE.
+      Can work autonomously for 24+ hours on complex tasks.
+      400K token context window.
+      Uses Responses API (not chat completions) - requires special handling.
+      Supports reasoning.effort parameter for adjustable thinking.
+      Available in GitHub Copilot Pro/Pro+/Business/Enterprise.
+      Agent eval support: Not yet implemented (requires Responses API handler).
+
   # Anthropic Claude Sonnet 4.5 (released September 2025)
   claude-sonnet-4-5:
     api_name: "claude-sonnet-4-5-20250929"

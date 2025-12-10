@@ -45,17 +45,17 @@ type ConstructorInfo struct {
 // NewElaborator creates a new elaborator
 func NewElaborator() *Elaborator {
 	return &Elaborator{
-		nextID:          1,
-		surfaceSpans:    make(map[uint64]ast.Pos),
-		effectAnnots:    make(map[uint64][]string),
-		freshVarNum:     0,
-		globalEnv:       make(map[string]core.GlobalRef),
-		constructors:    make(map[string]*ConstructorInfo),
-		warnings:        []*ExhaustivenessWarning{},
-		exChecker:       NewExhaustivenessChecker(),
-		typeAliases:      make(map[string]types.Type),            // M-BUGFIX: Initialize type aliases
-		paramTypeAnnots:  make(map[uint64][]types.Type),         // M-FIX-FLOAT-OP: Initialize param annotations
-		returnTypeAnnots: make(map[uint64]types.Type),           // M-FIX-FLOAT-OP: Initialize return annotations
+		nextID:           1,
+		surfaceSpans:     make(map[uint64]ast.Pos),
+		effectAnnots:     make(map[uint64][]string),
+		freshVarNum:      0,
+		globalEnv:        make(map[string]core.GlobalRef),
+		constructors:     make(map[string]*ConstructorInfo),
+		warnings:         []*ExhaustivenessWarning{},
+		exChecker:        NewExhaustivenessChecker(),
+		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
+		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
 	}
 }
 
@@ -63,19 +63,19 @@ func NewElaborator() *Elaborator {
 func NewElaboratorWithPath(filePath string) *Elaborator {
 	dir := filepath.Dir(filePath)
 	return &Elaborator{
-		nextID:          1,
-		surfaceSpans:    make(map[uint64]ast.Pos),
-		effectAnnots:    make(map[uint64][]string),
-		freshVarNum:     0,
-		moduleLoader:    loader.NewModuleLoader(dir),
-		filePath:        filePath,
-		globalEnv:       make(map[string]core.GlobalRef),
-		constructors:    make(map[string]*ConstructorInfo),
-		warnings:        []*ExhaustivenessWarning{},
-		exChecker:       NewExhaustivenessChecker(),
+		nextID:           1,
+		surfaceSpans:     make(map[uint64]ast.Pos),
+		effectAnnots:     make(map[uint64][]string),
+		freshVarNum:      0,
+		moduleLoader:     loader.NewModuleLoader(dir),
+		filePath:         filePath,
+		globalEnv:        make(map[string]core.GlobalRef),
+		constructors:     make(map[string]*ConstructorInfo),
+		warnings:         []*ExhaustivenessWarning{},
+		exChecker:        NewExhaustivenessChecker(),
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
-		returnTypeAnnots: make(map[uint64]types.Type),  // M-FIX-FLOAT-OP: Initialize return annotations
+		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
 	}
 }
 

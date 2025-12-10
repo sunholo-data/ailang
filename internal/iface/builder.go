@@ -210,6 +210,14 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						iface.AddType(typeDecl.Name, arity)
 						// DEBUG: fmt.Printf("DEBUG: Added type %s to interface (arity %d)\n", typeDecl.Name, arity)
 
+						// M-FIX-RECORD-UPDATE: Add type alias for record types
+						// This allows cross-module record update to expand type names to their underlying structure
+						if recordType, ok := typeDecl.Definition.(*ast.RecordType); ok {
+							internalType := astTypeToInternalType(recordType)
+							iface.AddTypeAlias(typeDecl.Name, internalType)
+							// DEBUG: fmt.Printf("DEBUG: Added type alias %s -> %s\n", typeDecl.Name, internalType)
+						}
+
 						// Extract constructors from algebraic types with ACTUAL field types
 						// This fixes the type pollution bug where placeholder TVar2s were shared
 						if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {

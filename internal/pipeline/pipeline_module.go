@@ -120,6 +120,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Build external environment from already-compiled dependencies
 		externalTypes := make(map[string]*types.Scheme)
 		globalRefs := make(map[string]core.GlobalRef)
+		importedTypeAliases := make(map[string]types.Type) // M-FIX-RECORD-UPDATE: Collect type aliases from imports
 
 		// Always include $builtin module exports (available to all modules)
 		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
@@ -177,6 +178,14 @@ func runModule(cfg Config, src Source) (Result, error) {
 							// They're handled by the type checker
 							if cfg.TraceDefaulting {
 								fmt.Printf("  Import type %s (arity %d)\n", typ.Name, typ.Arity)
+							}
+							// M-FIX-RECORD-UPDATE: Also import type alias if present
+							// This enables cross-module record update syntax
+							if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
+								importedTypeAliases[sym] = alias
+								if cfg.TraceDefaulting {
+									fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
+								}
 							}
 							found = true
 						}
@@ -344,6 +353,19 @@ func runModule(cfg Config, src Source) (Result, error) {
 			ctorTypes[ctorName] = ctorInfo.TypeName
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
+
+		// M-FIX-RECORD-UPDATE: Pass type aliases to type checker for expansion during unification
+		// This enables `type NPC = { pos: Pos, name: string }` to work with record update
+		elabAliases := elaborator.GetTypeAliases()
+		for name, target := range elabAliases {
+			typeChecker.RegisterTypeAlias(name, target)
+		}
+
+		// M-FIX-RECORD-UPDATE: Also register type aliases from imported modules
+		// This enables cross-module record update (e.g., { npc | pos: ... } where NPC is imported)
+		for name, target := range importedTypeAliases {
+			typeChecker.RegisterTypeAlias(name, target)
+		}
 
 		// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
 		// This preserves float annotations from function declarations through elaboration

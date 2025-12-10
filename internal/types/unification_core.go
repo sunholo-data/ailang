@@ -79,6 +79,11 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	t1 = ApplySubstitution(sub, t1)
 	t2 = ApplySubstitution(sub, t2)
 
+	// M-FIX-FLOAT-OP: Guard against nil types after substitution
+	if t1 == nil || t2 == nil {
+		return nil, fmt.Errorf("cannot unify nil types: t1=%v, t2=%v", t1, t2)
+	}
+
 	// M-BUGFIX: Expand type aliases before unification
 	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
 	t1 = u.expandAlias(t1)
@@ -123,6 +128,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
 		}
+		// M-FIX-RECORD-UPDATE: Handle TVar2 with row kind
+		if t2Var, ok := t2.(*TVar2); ok {
+			// Check if it's a row variable (has row kind)
+			if _, isRowKind := t2Var.Kind.(*KRow); isRowKind {
+				// Swap and retry as row variable
+				return u.Unify(t2Var, t1, sub)
+			}
+		}
 		return nil, fmt.Errorf("cannot unify row with %T", t2)
 
 	case *TCon:
@@ -141,6 +154,10 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)
+
+	case *TFunc:
+		// M-FIX-FLOAT-OP: Handle old TFunc type that may appear after substitution chain resolution
+		return u.unifyTFunc(t1, t2, sub)
 
 	case *TList:
 		return u.unifyLists(t1, t2, sub)

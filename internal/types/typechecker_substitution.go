@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -256,15 +255,6 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			resolvedClass := c.Class
 			if normalizedType.Name == "Float" && c.Class == "Num" {
 				resolvedClass = "Fractional"
-				if os.Getenv("DEBUG_BINOP") != "" {
-					fmt.Fprintf(os.Stderr, "[DEBUG ResolveConstraint] NodeID=%d upgraded Num->Fractional (type=%s)\n",
-						c.NodeID, normalizedType.Name)
-				}
-			}
-
-			if os.Getenv("DEBUG_BINOP") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG ResolveConstraint] NodeID=%d, class=%s->%s, origType=%v, type=%s\n",
-					c.NodeID, c.Class, resolvedClass, c.Type, normalizedType.Name)
 			}
 
 			tc.resolvedConstraints[c.NodeID] = &ResolvedConstraint{

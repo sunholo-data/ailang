@@ -47,6 +47,55 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 	return nil, fmt.Errorf("cannot unify function type with %T", t2)
 }
 
+// unifyTFunc unifies old-style TFunc types
+// M-FIX-FLOAT-OP: Added to handle TFunc types that appear after substitution chain resolution
+func (u *Unifier) unifyTFunc(t1 *TFunc, t2 Type, sub Substitution) (Substitution, error) {
+	switch t2 := t2.(type) {
+	case *TFunc:
+		// Both are old-style TFunc
+		if len(t1.Params) != len(t2.Params) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2.Params))
+		}
+
+		// Unify parameters
+		for i := range t1.Params {
+			var err error
+			sub, err = u.Unify(t1.Params[i], t2.Params[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
+			}
+		}
+
+		// Unify return types
+		return u.Unify(t1.Return, t2.Return, sub)
+
+	case *TFunc2:
+		// Convert TFunc to TFunc2 semantics: unify params and return
+		if len(t1.Params) != len(t2.Params) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2.Params))
+		}
+
+		// Unify parameters
+		for i := range t1.Params {
+			var err error
+			sub, err = u.Unify(t1.Params[i], t2.Params[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
+			}
+		}
+
+		// Unify return types
+		return u.Unify(t1.Return, t2.Return, sub)
+
+	case *TVar2:
+		// Swap and retry
+		return u.Unify(t2, t1, sub)
+
+	default:
+		return nil, fmt.Errorf("cannot unify function type with %T", t2)
+	}
+}
+
 // unifyLists unifies two list types
 func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution, error) {
 	if t2List, ok := t2.(*TList); ok {

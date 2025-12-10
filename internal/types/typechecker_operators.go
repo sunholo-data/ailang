@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -80,12 +79,6 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 		// The result type is the same as the operand types
 		resultType = getType(leftNode)
 
-		// M-FIX-FLOAT-OP DEBUG
-		if os.Getenv("DEBUG_BINOP") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG BinOp] op=%s, leftType=%v, rightType=%v, resultType=%v\n",
-				binop.Op, getType(leftNode), getType(rightNode), resultType)
-		}
-
 		// M-FIX-FLOAT-OP: Check BOTH operands for Fractional constraint
 		// The Fractional constraint may be on either operand (e.g., PI() / 4.0)
 		// where 4.0 has Fractional but PI() result type variable doesn't yet
@@ -98,10 +91,6 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 			cls = "Fractional"
 		} else {
 			cls = "Num"
-		}
-
-		if os.Getenv("DEBUG_BINOP") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG BinOp] NodeID=%d, leftCls=%s, rightCls=%s -> cls=%s\n", binop.ID(), leftCls, rightCls, cls)
 		}
 
 		// Attach ONE class constraint to the unified type
@@ -361,66 +350,39 @@ func (tc *CoreTypeChecker) mostSpecificNumericClass(ctx *InferenceContext, t Typ
 	// M-FIX-FLOAT-OP: If type is already concrete float, use Fractional directly
 	// This fixes operators on function results that return float (e.g., PI() / 4.0)
 	if t == TFloat {
-		if os.Getenv("DEBUG_BINOP") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] t=%v is TFloat -> Fractional\n", t)
-		}
 		return "Fractional"
 	}
 	if con, ok := t.(*TCon); ok && (con.Name == "float" || con.Name == "Float") {
-		if os.Getenv("DEBUG_BINOP") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] t=%v is TCon float -> Fractional\n", t)
-		}
 		return "Fractional"
 	}
 
 	// M-FIX-FLOAT-OP: Check if type variable is equated with float via equality constraint
 	// This handles pow(...) + pow(...) where pow returns float but we only see type variables
-	if tvar, ok := t.(*TVar); ok {
+	if _, ok := t.(*TVar); ok {
 		for _, c := range ctx.constraints {
 			if eq, ok := c.(TypeEq); ok {
 				// Check if this equality involves our type variable and float
 				if isFloatType(eq.Left) && typesEqual(eq.Right, t) {
-					if os.Getenv("DEBUG_BINOP") != "" {
-						fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] %v equated with float via constraint -> Fractional\n", tvar.Name)
-					}
 					return "Fractional"
 				}
 				if isFloatType(eq.Right) && typesEqual(eq.Left, t) {
-					if os.Getenv("DEBUG_BINOP") != "" {
-						fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] %v equated with float via constraint -> Fractional\n", tvar.Name)
-					}
 					return "Fractional"
 				}
 			}
 		}
 	}
-	if tvar, ok := t.(*TVar2); ok {
+	if _, ok := t.(*TVar2); ok {
 		for _, c := range ctx.constraints {
 			if eq, ok := c.(TypeEq); ok {
 				if isFloatType(eq.Left) && typesEqual(eq.Right, t) {
-					if os.Getenv("DEBUG_BINOP") != "" {
-						fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] %v equated with float via constraint -> Fractional\n", tvar.Name)
-					}
 					return "Fractional"
 				}
 				if isFloatType(eq.Right) && typesEqual(eq.Left, t) {
-					if os.Getenv("DEBUG_BINOP") != "" {
-						fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] %v equated with float via constraint -> Fractional\n", tvar.Name)
-					}
 					return "Fractional"
 				}
 			}
 		}
 	}
-
-	if os.Getenv("DEBUG_BINOP") != "" {
-		fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] t=%v, checking %d qualifiedConstraints\n", t, len(ctx.qualifiedConstraints))
-		for i, c := range ctx.qualifiedConstraints {
-			fmt.Fprintf(os.Stderr, "  [%d] %s %v (matches=%v)\n", i, c.Class, c.Type, typesEqual(c.Type, t))
-		}
-	}
-
-	anyFractional := false
 
 	// Walk all constraints currently in context
 	for _, c := range ctx.qualifiedConstraints {
@@ -430,18 +392,9 @@ func (tc *CoreTypeChecker) mostSpecificNumericClass(ctx *InferenceContext, t Typ
 		// Compare the *unified* types, not raw pointers
 		if typesEqual(c.Type, t) {
 			if c.Class == "Fractional" {
-				anyFractional = true
+				return "Fractional"
 			}
 		}
-	}
-	if anyFractional {
-		if os.Getenv("DEBUG_BINOP") != "" {
-			fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] found Fractional constraint -> Fractional\n")
-		}
-		return "Fractional"
-	}
-	if os.Getenv("DEBUG_BINOP") != "" {
-		fmt.Fprintf(os.Stderr, "[DEBUG mostSpecificNumericClass] no Fractional constraint -> Num\n")
 	}
 	return "Num"
 }

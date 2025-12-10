@@ -24,22 +24,30 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 	switch typ := t.(type) {
 	case *TVar:
 		if newType, ok := sub[typ.Name]; ok {
-			visited[t] = newType
-			return newType
+			// M-FIX-FLOAT-OP: Follow substitution chains recursively
+			// If α3 -> α7 and α7 -> float, then α3 should resolve to float
+			result := safeSubstitute(newType, sub, visited)
+			visited[t] = result
+			return result
 		}
 		return t
 
 	case *TVar2:
 		if newType, ok := sub[typ.Name]; ok {
-			visited[t] = newType
-			return newType
+			// M-FIX-FLOAT-OP: Follow substitution chains recursively
+			// If α3 -> α7 and α7 -> float, then α3 should resolve to float
+			result := safeSubstitute(newType, sub, visited)
+			visited[t] = result
+			return result
 		}
 		return t
 
 	case *RowVar:
 		if newType, ok := sub[typ.Name]; ok {
-			visited[t] = newType
-			return newType
+			// M-FIX-FLOAT-OP: Follow substitution chains recursively
+			result := safeSubstitute(newType, sub, visited)
+			visited[t] = result
+			return result
 		}
 		return t
 

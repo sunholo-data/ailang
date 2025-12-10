@@ -496,8 +496,13 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		return nil, nil
 
 	case *ast.RecordType:
-		// Record types don't have constructors (they're structural)
-		// TODO: Handle record type declarations if needed
+		// M-FIX-RECORD-UPDATE: Register record type aliases for expansion during unification
+		// This allows `type NPC = { pos: Pos, name: string }` to work with record update
+		// When we have `{ npc | pos: ... }`, unification needs to expand NPC to its record type
+		recordType := e.astTypeToInternalType(def)
+		if recordType != nil {
+			e.RegisterTypeAlias(typeName, recordType)
+		}
 		return nil, nil
 
 	case *ast.TypeAlias:
@@ -607,6 +612,11 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			// Type constructor (e.g., user-defined ADT)
 			return &types.TCon{Name: typ.Name}
 		}
+
+	case *ast.TypeVar:
+		// M-FIX-FLOAT-OP: Handle type variables in function type annotations
+		// e.g., in `func map[a,b](f: (a) -> b, ...)` the `a` and `b` are TypeVars
+		return &types.TVar2{Name: typ.Name, Kind: types.Star}
 
 	case *ast.RecordType:
 		// Convert record type to TRecord

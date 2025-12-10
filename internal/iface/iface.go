@@ -11,6 +11,7 @@ type Iface struct {
 	Exports      map[string]*IfaceItem         // Exported symbols
 	Constructors map[string]*ConstructorScheme // Exported ADT constructors
 	Types        map[string]*TypeExport        // Exported type names
+	TypeAliases  map[string]types.Type         // M-FIX-RECORD-UPDATE: Type alias expansions for record types
 	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
 	Digest       string                        // Deterministic digest of interface
 }
@@ -45,6 +46,7 @@ func NewIface(module string) *Iface {
 		Exports:      make(map[string]*IfaceItem),
 		Constructors: make(map[string]*ConstructorScheme),
 		Types:        make(map[string]*TypeExport),
+		TypeAliases:  make(map[string]types.Type),
 		Schema:       "ailang.iface/v1",
 	}
 }
@@ -96,5 +98,17 @@ func (i *Iface) AddType(name string, arity int) {
 // GetType retrieves an exported type
 func (i *Iface) GetType(name string) (*TypeExport, bool) {
 	typ, ok := i.Types[name]
+	return typ, ok
+}
+
+// AddTypeAlias adds a type alias expansion to the interface (M-FIX-RECORD-UPDATE)
+// This is used for record type aliases like `type NPC = { pos: Pos, name: string }`
+func (i *Iface) AddTypeAlias(name string, target types.Type) {
+	i.TypeAliases[name] = target
+}
+
+// GetTypeAlias retrieves a type alias expansion (M-FIX-RECORD-UPDATE)
+func (i *Iface) GetTypeAlias(name string) (types.Type, bool) {
+	typ, ok := i.TypeAliases[name]
 	return typ, ok
 }
