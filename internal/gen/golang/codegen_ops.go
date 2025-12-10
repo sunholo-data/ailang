@@ -154,15 +154,18 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 		} else if goType != "" && goType != "interface{}" {
 			// M-DX13.1: For literals, use type conversion; for interface values, use assertion
 			if lit, isLit := value.(*core.Lit); isLit {
-				// Literals need type conversion, not assertion
-				if isPrimitiveGoType(goType) {
+				// M-CODEGEN-V2.M4: Only wrap literals if their native type differs from expected.
+				// generateLit already adds int64()/float64()/etc.
+				litType := g.getLitGoType(lit)
+				if isPrimitiveGoType(goType) && litType != goType {
+					// Type conversion needed (e.g., int to float)
 					g.writef("%s(", goType)
 					if err := g.generateExpr(lit); err != nil {
 						return err
 					}
 					g.write(")")
 				} else {
-					// Non-primitive literal (e.g., nested record) - generate directly
+					// Same type or non-primitive - generate directly (already typed)
 					if err := g.generateExpr(lit); err != nil {
 						return err
 					}
@@ -262,11 +265,20 @@ func (g *Generator) generateTypedRecordValue(rec *core.Record, recordType *Recor
 			}
 			g.write(")")
 		} else if lit, isLit := value.(*core.Lit); isLit && isPrimitiveGoType(goType) {
-			g.writef("%s(", goType)
-			if err := g.generateExpr(lit); err != nil {
-				return err
+			// M-CODEGEN-V2.M4: Only wrap literals if their native type differs from expected.
+			litType := g.getLitGoType(lit)
+			if litType != goType {
+				g.writef("%s(", goType)
+				if err := g.generateExpr(lit); err != nil {
+					return err
+				}
+				g.write(")")
+			} else {
+				// Same type - generate directly (already typed)
+				if err := g.generateExpr(lit); err != nil {
+					return err
+				}
 			}
-			g.write(")")
 		} else {
 			if err := g.generateExpr(value); err != nil {
 				return err

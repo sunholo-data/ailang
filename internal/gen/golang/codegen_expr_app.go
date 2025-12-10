@@ -65,12 +65,22 @@ func (g *Generator) generateApp(app *core.App) error {
 						}
 						g.write(")")
 					} else if lit, isLit := arg.(*core.Lit); isLit {
-						// Literals need type conversion, not assertion
-						g.writef("%s(", goType)
-						if err := g.generateExpr(lit); err != nil {
-							return err
+						// M-CODEGEN-V2.M4: Only wrap literals if their native type differs
+						// from the expected type. generateLit already adds int64()/float64().
+						litType := g.getLitGoType(lit)
+						if litType != goType && litType != "" {
+							// Type conversion needed (e.g., int to float)
+							g.writef("%s(", goType)
+							if err := g.generateExpr(lit); err != nil {
+								return err
+							}
+							g.write(")")
+						} else {
+							// Same type - just generate the literal (already typed)
+							if err := g.generateExpr(lit); err != nil {
+								return err
+							}
 						}
-						g.write(")")
 					} else {
 						// Interface values need type assertion
 						if err := g.generateExpr(arg); err != nil {

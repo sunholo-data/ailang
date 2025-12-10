@@ -2,10 +2,20 @@ package types
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
 )
+
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m map[uint64][]Type) []uint64 {
+	keys := make([]uint64, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
 
 // inferLambda infers type of lambda with linear capture analysis
 func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) (*typedast.TypedLambda, *TypeEnv, error) {
@@ -13,8 +23,33 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	paramTypes := make([]Type, len(lam.Params))
 	newEnv := ctx.env
 
+	// M-FIX-FLOAT-OP: Check for explicit parameter type annotations from function declarations
+	// This preserves float annotations through elaboration, fixing operator dispatch
+	annotations := tc.paramTypeAnnots[lam.ID()]
+
+	// Debug trace
+	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] inferLambda ID %d: annotations=%v, paramTypeAnnots keys=%v\n",
+			lam.ID(), annotations, getMapKeys(tc.paramTypeAnnots))
+	}
+
 	for i, param := range lam.Params {
-		paramType := ctx.freshTypeVar()
+		var paramType Type
+
+		// Use annotation if available, otherwise fresh type variable
+		if annotations != nil && i < len(annotations) && annotations[i] != nil {
+			// Use the annotated type directly - this ensures float params stay float
+			paramType = annotations[i]
+			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG]   param %s: using annotation %s\n", param, paramType)
+			}
+		} else {
+			paramType = ctx.freshTypeVar()
+			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG]   param %s: using fresh var %s\n", param, paramType)
+			}
+		}
+
 		paramTypes[i] = paramType
 		newEnv = newEnv.Extend(param, paramType)
 	}
@@ -27,6 +62,23 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	bodyNode, _, err := tc.inferCore(ctx, lam.Body)
 	if err != nil {
 		return nil, oldEnv, err
+	}
+
+	// M-FIX-FLOAT-OP: Unify body type with return type annotation if present
+	// This is the critical fix - it ensures PI() -> float ACTUALLY returns float
+	// Without this, the body's type variable might be defaulted to Int before
+	// we check compatibility with the annotation
+	if returnAnnot := tc.returnTypeAnnots[lam.ID()]; returnAnnot != nil {
+		bodyType := bodyNode.GetType().(Type)
+		ctx.addConstraint(TypeEq{
+			Left:  bodyType,
+			Right: returnAnnot,
+			Path:  []string{fmt.Sprintf("return type annotation at %s", lam.Span())},
+		})
+		if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG] inferLambda ID %d: unified body type %s with return annotation %s\n",
+				lam.ID(), bodyType, returnAnnot)
+		}
 	}
 
 	// Check for linear capture violations

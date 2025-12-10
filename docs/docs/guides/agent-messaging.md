@@ -155,6 +155,20 @@ ailang messages send INBOX "message" --type feature --github
 ailang messages send INBOX "message" --github --repo owner/repo
 ```
 
+### Reply to GitHub Issues
+
+Add comments to existing GitHub issue threads:
+
+```bash
+# Reply to a message that has a linked GitHub issue
+ailang messages reply MSG_ID "Fixed in v0.5.10" --from "claude-code"
+
+# Reply with explicit repo override
+ailang messages reply MSG_ID "Working on it" --repo owner/repo
+```
+
+The reply command only works for messages created with `--github` flag. It adds a comment to the same issue thread, keeping the conversation together.
+
 ### Import from GitHub
 
 ```bash

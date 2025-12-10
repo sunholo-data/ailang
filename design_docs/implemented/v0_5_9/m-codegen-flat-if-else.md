@@ -1,11 +1,24 @@
 # M-CODEGEN-FLAT-IF-ELSE: Flatten Nested Closure Chains in If-Else Codegen
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.5.9
+**Completed**: December 9, 2025
 **Priority**: P0 (High - causes OOM and system freezes)
-**Estimated**: 6 hours
+**Actual Duration**: 4 hours
 **Dependencies**: None
 **Bug Report**: `msg_20251209_202946_f10751f5` from stapledons_voyage
+
+## Implementation Summary
+
+Fixed nested if-else closure chains that caused OOM:
+- ✅ If-else expressions now generate flat Go code without nested IIFEs
+- ✅ 25-branch chains compile in milliseconds (was OOM at 2GB+)
+- ✅ Runtime GC pressure eliminated for hot paths
+- ✅ Commit: `07333734 flatter if else for code gen`
+
+**Key Changes:**
+- `internal/gen/golang/codegen_expr_control.go` - Flat if-else generation
+- New pattern: uses early return instead of nested closures
 
 ## AI-First Alignment Check
 

@@ -26,6 +26,12 @@ type Elaborator struct {
 	// typeAliases stores type aliases for expansion during type checking
 	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
 	typeAliases map[string]types.Type
+	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
+	// Maps Lambda NodeID -> parameter types (preserves float annotations through elaboration)
+	paramTypeAnnots map[uint64][]types.Type
+	// M-FIX-FLOAT-OP: Return type annotations from function declarations
+	// Maps Lambda NodeID -> return type (ensures PI() -> float is actually float)
+	returnTypeAnnots map[uint64]types.Type
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -39,15 +45,17 @@ type ConstructorInfo struct {
 // NewElaborator creates a new elaborator
 func NewElaborator() *Elaborator {
 	return &Elaborator{
-		nextID:       1,
-		surfaceSpans: make(map[uint64]ast.Pos),
-		effectAnnots: make(map[uint64][]string),
-		freshVarNum:  0,
-		globalEnv:    make(map[string]core.GlobalRef),
-		constructors: make(map[string]*ConstructorInfo),
-		warnings:     []*ExhaustivenessWarning{},
-		exChecker:    NewExhaustivenessChecker(),
-		typeAliases:  make(map[string]types.Type), // M-BUGFIX: Initialize type aliases
+		nextID:          1,
+		surfaceSpans:    make(map[uint64]ast.Pos),
+		effectAnnots:    make(map[uint64][]string),
+		freshVarNum:     0,
+		globalEnv:       make(map[string]core.GlobalRef),
+		constructors:    make(map[string]*ConstructorInfo),
+		warnings:        []*ExhaustivenessWarning{},
+		exChecker:       NewExhaustivenessChecker(),
+		typeAliases:      make(map[string]types.Type),            // M-BUGFIX: Initialize type aliases
+		paramTypeAnnots:  make(map[uint64][]types.Type),         // M-FIX-FLOAT-OP: Initialize param annotations
+		returnTypeAnnots: make(map[uint64]types.Type),           // M-FIX-FLOAT-OP: Initialize return annotations
 	}
 }
 
@@ -55,17 +63,19 @@ func NewElaborator() *Elaborator {
 func NewElaboratorWithPath(filePath string) *Elaborator {
 	dir := filepath.Dir(filePath)
 	return &Elaborator{
-		nextID:       1,
-		surfaceSpans: make(map[uint64]ast.Pos),
-		effectAnnots: make(map[uint64][]string),
-		freshVarNum:  0,
-		moduleLoader: loader.NewModuleLoader(dir),
-		filePath:     filePath,
-		globalEnv:    make(map[string]core.GlobalRef),
-		constructors: make(map[string]*ConstructorInfo),
-		warnings:     []*ExhaustivenessWarning{},
-		exChecker:    NewExhaustivenessChecker(),
-		typeAliases:  make(map[string]types.Type), // M-BUGFIX: Initialize type aliases
+		nextID:          1,
+		surfaceSpans:    make(map[uint64]ast.Pos),
+		effectAnnots:    make(map[uint64][]string),
+		freshVarNum:     0,
+		moduleLoader:    loader.NewModuleLoader(dir),
+		filePath:        filePath,
+		globalEnv:       make(map[string]core.GlobalRef),
+		constructors:    make(map[string]*ConstructorInfo),
+		warnings:        []*ExhaustivenessWarning{},
+		exChecker:       NewExhaustivenessChecker(),
+		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
+		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		returnTypeAnnots: make(map[uint64]types.Type),  // M-FIX-FLOAT-OP: Initialize return annotations
 	}
 }
 
@@ -129,6 +139,18 @@ func (e *Elaborator) GetTypeAliases() map[string]types.Type {
 // GetEffectAnnotation returns the effect annotation for a Core node ID
 func (e *Elaborator) GetEffectAnnotation(nodeID uint64) []string {
 	return e.effectAnnots[nodeID]
+}
+
+// GetParamTypeAnnotations returns all parameter type annotations (Lambda NodeID -> param types)
+// M-FIX-FLOAT-OP: Used to pass float annotations from func declarations to type checker
+func (e *Elaborator) GetParamTypeAnnotations() map[uint64][]types.Type {
+	return e.paramTypeAnnots
+}
+
+// GetReturnTypeAnnotations returns all return type annotations (Lambda NodeID -> return type)
+// M-FIX-FLOAT-OP: Used to ensure PI() -> float actually returns float
+func (e *Elaborator) GetReturnTypeAnnotations() map[uint64]types.Type {
+	return e.returnTypeAnnots
 }
 
 // GetWarnings returns accumulated exhaustiveness warnings

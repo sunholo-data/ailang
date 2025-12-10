@@ -2,6 +2,7 @@ package elaborate
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
@@ -411,6 +412,43 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 		Body:     body,
 	}
 
+	// M-FIX-FLOAT-OP: Preserve parameter type annotations for the type checker
+	// This ensures float annotations aren't lost during elaboration
+	if f.FuncDecl != nil && len(f.FuncDecl.Params) > 0 {
+		paramTypes := make([]types.Type, len(f.FuncDecl.Params))
+		hasAnnotations := false
+		for i, param := range f.FuncDecl.Params {
+			if param.Type != nil {
+				paramTypes[i] = e.astTypeToInternalType(param.Type)
+				hasAnnotations = true
+				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG] funcToLambda %s: param %s has type %v\n",
+						f.Name, param.Name, paramTypes[i])
+				}
+			}
+		}
+		if hasAnnotations {
+			e.paramTypeAnnots[lambda.ID()] = paramTypes
+			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Stored param annotations for Lambda ID %d, func %s: %v\n",
+					lambda.ID(), f.Name, paramTypes)
+			}
+		}
+	}
+
+	// M-FIX-FLOAT-OP: Preserve return type annotations for the type checker
+	// This ensures PI() -> float ACTUALLY constrains inference to return float
+	if f.FuncDecl != nil && f.FuncDecl.ReturnType != nil {
+		returnType := e.astTypeToInternalType(f.FuncDecl.ReturnType)
+		if returnType != nil {
+			e.returnTypeAnnots[lambda.ID()] = returnType
+			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG] funcToLambda %s: stored return type annotation %v for Lambda ID %d\n",
+					f.Name, returnType, lambda.ID())
+			}
+		}
+	}
+
 	// TODO: Preserve metadata (pure, export, tests, props) in CoreNode.Meta
 
 	return lambda, nil
@@ -478,6 +516,11 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 
 // elaborateFuncDecl handles function declarations
 func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) {
+	// Debug trace entry
+	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] elaborateFuncDecl called for %s, params=%d\n", fn.Name, len(fn.Params))
+	}
+
 	// Convert to lambda
 	lambda := &ast.Lambda{
 		Params: fn.Params,
@@ -488,6 +531,46 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 	value, err := e.normalizeLambda(lambda)
 	if err != nil {
 		return nil, err
+	}
+
+	// M-FIX-FLOAT-OP: Preserve parameter type annotations for the type checker
+	// This ensures float annotations aren't lost during elaboration
+	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] value type: %T\n", value)
+	}
+	if coreLambda, ok := value.(*core.Lambda); ok {
+		paramTypes := make([]types.Type, len(fn.Params))
+		hasAnnotations := false
+		for i, param := range fn.Params {
+			if param.Type != nil {
+				paramTypes[i] = e.astTypeToInternalType(param.Type)
+				hasAnnotations = true
+				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG]   param %s has type annotation: %v\n", param.Name, paramTypes[i])
+				}
+			}
+		}
+		if hasAnnotations {
+			e.paramTypeAnnots[coreLambda.ID()] = paramTypes
+			// Debug trace
+			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Stored param annotations for Lambda ID %d, func %s: %v\n",
+					coreLambda.ID(), fn.Name, paramTypes)
+			}
+		}
+
+		// M-FIX-FLOAT-OP: Preserve return type annotations for the type checker
+		// This ensures PI() -> float ACTUALLY constrains inference to return float
+		if fn.ReturnType != nil {
+			returnType := e.astTypeToInternalType(fn.ReturnType)
+			if returnType != nil {
+				e.returnTypeAnnots[coreLambda.ID()] = returnType
+				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG] elaborateFuncDecl %s: stored return type annotation %v for Lambda ID %d\n",
+						fn.Name, returnType, coreLambda.ID())
+				}
+			}
+		}
 	}
 
 	// Wrap in let rec if recursive

@@ -1,10 +1,28 @@
 # M-MSG-GITHUB: GitHub Issues Backend for Messaging System
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.5.9
+**Completed**: December 10, 2025
 **Priority**: P1 (Medium)
-**Estimated**: 2-3 days
+**Actual Duration**: 1 day
 **Dependencies**: Existing messaging system (v0.5.0+)
+
+## Implementation Summary
+
+All goals achieved:
+- ✅ `ailang messages send --github` creates both local message AND GitHub Issue
+- ✅ `ailang messages list` shows GitHub Issue numbers when available
+- ✅ Session startup hook imports new GitHub Issues as messages
+- ✅ Commits can reference `#123` and link to actual issues
+- ✅ Full audit trail: local DB + GitHub Issues mirror each other
+- ✅ **Bonus**: `ailang messages reply` adds comments to existing issue threads
+- ✅ **Bonus**: Auto-label creation (bug, feature, from:agent, ailang-message)
+
+**Key Implementation Files:**
+- `internal/messaging/github.go` - GitHub client with auto-label creation
+- `cmd/ailang/messages.go` - CLI with `--github`, `--type`, `reply` commands
+- `scripts/hooks/session_start.sh` - Auto-imports GitHub issues on session start
+- `~/.ailang/config.yaml` - GitHub configuration
 
 ## AI-First Alignment Check
 

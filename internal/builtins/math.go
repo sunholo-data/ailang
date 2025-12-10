@@ -572,7 +572,7 @@ func registerConversions() {
 
 func registerTrigonometry() {
 	// sin: float -> float
-	registerTrigFunc("sin", math.Sin,
+	registerTrigFunc("_math_sin", math.Sin,
 		"Compute sine of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Sine of the angle",
@@ -583,7 +583,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "sin", "sine"})
 
 	// cos: float -> float
-	registerTrigFunc("cos", math.Cos,
+	registerTrigFunc("_math_cos", math.Cos,
 		"Compute cosine of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Cosine of the angle",
@@ -594,7 +594,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "cos", "cosine"})
 
 	// tan: float -> float
-	registerTrigFunc("tan", math.Tan,
+	registerTrigFunc("_math_tan", math.Tan,
 		"Compute tangent of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Tangent of the angle",
@@ -605,7 +605,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "tan", "tangent"})
 
 	// asin: float -> float
-	registerTrigFunc("asin", math.Asin,
+	registerTrigFunc("_math_asin", math.Asin,
 		"Compute arcsine (inverse sine) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Value in range [-1, 1]"}},
 		"Angle in radians in range [-PI/2, PI/2]",
@@ -616,7 +616,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "asin", "arcsine", "inverse"})
 
 	// acos: float -> float
-	registerTrigFunc("acos", math.Acos,
+	registerTrigFunc("_math_acos", math.Acos,
 		"Compute arccosine (inverse cosine) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Value in range [-1, 1]"}},
 		"Angle in radians in range [0, PI]",
@@ -627,7 +627,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "acos", "arccosine", "inverse"})
 
 	// atan: float -> float
-	registerTrigFunc("atan", math.Atan,
+	registerTrigFunc("_math_atan", math.Atan,
 		"Compute arctangent (inverse tangent) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Any float value"}},
 		"Angle in radians in range [-PI/2, PI/2]",
@@ -638,7 +638,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "atan", "arctangent", "inverse"})
 
 	// atan2: (float, float) -> float
-	registerTrigFunc2("atan2", math.Atan2,
+	registerTrigFunc2("_math_atan2", math.Atan2,
 		"Compute two-argument arctangent for angle calculation",
 		[]ParamDoc{
 			{Name: "y", Description: "Y coordinate"},
@@ -652,7 +652,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "atan2", "angle"})
 
 	// sqrt: float -> float
-	registerTrigFunc("sqrt", math.Sqrt,
+	registerTrigFunc("_math_sqrt", math.Sqrt,
 		"Compute square root",
 		[]ParamDoc{{Name: "x", Description: "Non-negative float value"}},
 		"Square root of x (NaN if x < 0)",
@@ -663,7 +663,7 @@ func registerTrigonometry() {
 		[]string{"math", "sqrt", "square", "root"})
 
 	// pow: (float, float) -> float
-	registerTrigFunc2("pow", math.Pow,
+	registerTrigFunc2("_math_pow", math.Pow,
 		"Compute x raised to the power y",
 		[]ParamDoc{
 			{Name: "x", Description: "Base value"},
@@ -677,7 +677,7 @@ func registerTrigonometry() {
 		[]string{"math", "pow", "power", "exponent"})
 
 	// exp: float -> float
-	registerTrigFunc("exp", math.Exp,
+	registerTrigFunc("_math_exp", math.Exp,
 		"Compute e^x (exponential function)",
 		[]ParamDoc{{Name: "x", Description: "Exponent value"}},
 		"e raised to the power x",
@@ -688,7 +688,7 @@ func registerTrigonometry() {
 		[]string{"math", "exp", "exponential", "e"})
 
 	// log: float -> float
-	registerTrigFunc("log", math.Log,
+	registerTrigFunc("_math_log", math.Log,
 		"Compute natural logarithm (base e)",
 		[]ParamDoc{{Name: "x", Description: "Positive float value"}},
 		"Natural logarithm of x",
@@ -699,7 +699,7 @@ func registerTrigonometry() {
 		[]string{"math", "log", "logarithm", "ln", "natural"})
 
 	// log10: float -> float
-	registerTrigFunc("log10", math.Log10,
+	registerTrigFunc("_math_log10", math.Log10,
 		"Compute base-10 logarithm",
 		[]ParamDoc{{Name: "x", Description: "Positive float value"}},
 		"Base-10 logarithm of x",
@@ -710,7 +710,7 @@ func registerTrigonometry() {
 		[]string{"math", "log10", "logarithm"})
 
 	// floor: float -> float
-	registerTrigFunc("floor", math.Floor,
+	registerTrigFunc("_math_floor", math.Floor,
 		"Round down to nearest integer",
 		[]ParamDoc{{Name: "x", Description: "Float value"}},
 		"Largest integer <= x",
@@ -721,7 +721,7 @@ func registerTrigonometry() {
 		[]string{"math", "floor", "round", "truncate"})
 
 	// ceil: float -> float
-	registerTrigFunc("ceil", math.Ceil,
+	registerTrigFunc("_math_ceil", math.Ceil,
 		"Round up to nearest integer",
 		[]ParamDoc{{Name: "x", Description: "Float value"}},
 		"Smallest integer >= x",
@@ -732,7 +732,7 @@ func registerTrigonometry() {
 		[]string{"math", "ceil", "ceiling", "round"})
 
 	// round: float -> float
-	registerTrigFunc("round", math.Round,
+	registerTrigFunc("_math_round", math.Round,
 		"Round to nearest integer (half away from zero)",
 		[]ParamDoc{{Name: "x", Description: "Float value"}},
 		"Nearest integer to x",
@@ -743,7 +743,7 @@ func registerTrigonometry() {
 		[]string{"math", "round", "nearest"})
 
 	// abs_Float: float -> float
-	registerTrigFunc("abs_Float", math.Abs,
+	registerTrigFunc("_math_abs_Float", math.Abs,
 		"Compute absolute value of a float",
 		[]ParamDoc{{Name: "x", Description: "Float value"}},
 		"Absolute value of x",
@@ -768,7 +768,7 @@ func registerTrigonometry() {
 	}
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/math",
-		Name:    "abs_Int",
+		Name:    "_math_abs_Int",
 		NumArgs: 1,
 		IsPure:  true,
 		Type:    absIntType,
@@ -788,21 +788,23 @@ func registerTrigonometry() {
 		},
 	})
 	if err != nil {
-		panic(fmt.Sprintf("failed to register abs_Int: %v", err))
+		panic(fmt.Sprintf("failed to register _math_abs_Int: %v", err))
 	}
 
-	// PI: () -> float (mathematical constant)
+	// PI: (()) -> float (mathematical constant)
+	// Note: Takes unit argument as workaround for nullary function issue (M-DX10)
 	piImpl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		// Ignore unit argument
 		return &eval.FloatValue{Value: math.Pi}, nil
 	}
 	piType := func() types.Type {
 		T := types.NewBuilder()
-		return T.Func().Returns(T.Float()).Build()
+		return T.Func(T.Unit()).Returns(T.Float()).Build()
 	}
 	err = RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/math",
-		Name:    "PI",
-		NumArgs: 0,
+		Name:    "_math_PI",
+		NumArgs: 1,
 		IsPure:  true,
 		Type:    piType,
 		Impl:    piImpl,
@@ -819,21 +821,23 @@ func registerTrigonometry() {
 		},
 	})
 	if err != nil {
-		panic(fmt.Sprintf("failed to register PI: %v", err))
+		panic(fmt.Sprintf("failed to register _math_PI: %v", err))
 	}
 
-	// E: () -> float (Euler's number)
+	// E: (()) -> float (Euler's number)
+	// Note: Takes unit argument as workaround for nullary function issue (M-DX10)
 	eImpl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		// Ignore unit argument
 		return &eval.FloatValue{Value: math.E}, nil
 	}
 	eType := func() types.Type {
 		T := types.NewBuilder()
-		return T.Func().Returns(T.Float()).Build()
+		return T.Func(T.Unit()).Returns(T.Float()).Build()
 	}
 	err = RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "std/math",
-		Name:    "E",
-		NumArgs: 0,
+		Name:    "_math_E",
+		NumArgs: 1,
 		IsPure:  true,
 		Type:    eType,
 		Impl:    eImpl,
@@ -850,7 +854,7 @@ func registerTrigonometry() {
 		},
 	})
 	if err != nil {
-		panic(fmt.Sprintf("failed to register E: %v", err))
+		panic(fmt.Sprintf("failed to register _math_E: %v", err))
 	}
 }
 

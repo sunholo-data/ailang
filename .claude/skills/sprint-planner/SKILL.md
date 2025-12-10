@@ -287,6 +287,43 @@ The `create_sprint_json.sh` script generates placeholder content. **Before handi
 
 **sprint-executor will REJECT the sprint if placeholders remain!**
 
+### 8.1. Link GitHub Issues (Optional but Recommended)
+
+**If this sprint addresses bugs or features from GitHub issues, link them to the sprint JSON.**
+
+The `create_sprint_json.sh` script automatically:
+1. Extracts message IDs from the design doc's "Bug Report" field (pattern: `msg_YYYYMMDD_HHMMSS_hash`)
+2. Looks up each message and gets the linked GitHub issue number
+3. Adds `github_issues: [...]` to the sprint JSON
+
+**Why link GitHub issues?**
+- Commits automatically include `Refs #123` (or `Fixes #123` for final commit)
+- Issues are updated with links to commits/PRs
+- Audit trail from bug report → design doc → sprint → commits → release
+
+**Manual linking (if auto-extraction misses issues):**
+```bash
+# Add GitHub issues to sprint JSON
+jq '.github_issues = [17, 42]' .ailang/state/sprints/sprint_<id>.json > tmp && mv tmp .ailang/state/sprints/sprint_<id>.json
+```
+
+**Example JSON with linked issues:**
+```json
+{
+  "sprint_id": "M-BUG-FIX",
+  "github_issues": [17, 42],
+  "features": [...]
+}
+```
+
+**Workflow with GitHub integration:**
+1. External project sends bug report: `ailang messages send user "Bug: ..." --type bug --github`
+2. GitHub issue #17 is created and linked to message
+3. Design doc references message ID: `**Bug Report**: msg_20251210_..._abc123`
+4. `create_sprint_json.sh` extracts message ID, looks up issue #17, adds to JSON
+5. Sprint-executor includes `Refs #17` in milestone commits
+6. `finalize_sprint.sh` suggests final commit with `Refs #17`
+
 ### 9. ALWAYS Hand Off to sprint-executor
 
 **CRITICAL: After creating an approved sprint plan, ALWAYS hand off to sprint-executor immediately.**

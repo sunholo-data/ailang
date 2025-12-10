@@ -325,6 +325,7 @@ See [`resources/troubleshooting.md`](resources/troubleshooting.md) for common is
 | `ailang messages ack --all` | Mark all as read |
 | `ailang messages unack MSG_ID` | Mark as unread |
 | `ailang messages send INBOX "msg"` | Send message |
+| `ailang messages reply MSG_ID "text"` | Reply to GitHub issue thread |
 | `ailang messages import-github` | Import from GitHub |
 | `ailang messages watch` | Watch for new messages |
 | `ailang messages cleanup` | Remove old messages |

@@ -127,6 +127,20 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.RegisterTypeAlias(name, target)
 	}
 
+	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
+	// This preserves float annotations from function declarations through elaboration
+	paramAnnots := elaborator.GetParamTypeAnnotations()
+	if len(paramAnnots) > 0 {
+		typeChecker.SetParamTypeAnnotations(paramAnnots)
+	}
+
+	// M-FIX-FLOAT-OP: Pass return type annotations to type checker
+	// This ensures PI() -> float ACTUALLY constrains inference to return float
+	returnAnnots := elaborator.GetReturnTypeAnnotations()
+	if len(returnAnnots) > 0 {
+		typeChecker.SetReturnTypeAnnotations(returnAnnots)
+	}
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {

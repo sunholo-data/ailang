@@ -345,6 +345,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
 
+		// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
+		// This preserves float annotations from function declarations through elaboration
+		paramAnnots := elaborator.GetParamTypeAnnotations()
+		if len(paramAnnots) > 0 {
+			typeChecker.SetParamTypeAnnotations(paramAnnots)
+		}
+
+		// M-FIX-FLOAT-OP: Pass return type annotations to type checker
+		// This ensures PI() -> float ACTUALLY constrains inference to return float
+		returnAnnots := elaborator.GetReturnTypeAnnotations()
+		if len(returnAnnots) > 0 {
+			typeChecker.SetReturnTypeAnnotations(returnAnnots)
+		}
+
 		// Type check ALL declarations in the module, accumulating types in moduleTypeEnv
 		for i, decl := range unit.Core.Decls {
 			// InferWithConstraints returns the updated env with new bindings

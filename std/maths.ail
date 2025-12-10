@@ -5,33 +5,34 @@
 
 module std/maths
 
-import std/math (sin, cos, tan, asin, acos, atan, atan2, sqrt, pow, exp, log, log10, floor, ceil, round, abs_Float, abs_Int, PI, E)
+-- Import all functions from std/math and re-export them
+-- Note: We call the internal builtins directly to avoid extra indirection
 
 -- Trigonometric functions
-export pure func sin(x: float) -> float = sin(x)
-export pure func cos(x: float) -> float = cos(x)
-export pure func tan(x: float) -> float = tan(x)
-export pure func asin(x: float) -> float = asin(x)
-export pure func acos(x: float) -> float = acos(x)
-export pure func atan(x: float) -> float = atan(x)
-export pure func atan2(y: float, x: float) -> float = atan2(y, x)
+export pure func sin(x: float) -> float = _math_sin(x)
+export pure func cos(x: float) -> float = _math_cos(x)
+export pure func tan(x: float) -> float = _math_tan(x)
+export pure func asin(x: float) -> float = _math_asin(x)
+export pure func acos(x: float) -> float = _math_acos(x)
+export pure func atan(x: float) -> float = _math_atan(x)
+export pure func atan2(y: float, x: float) -> float = _math_atan2(y, x)
 
 -- Power and logarithm functions
-export pure func sqrt(x: float) -> float = sqrt(x)
-export pure func pow(x: float, y: float) -> float = pow(x, y)
-export pure func exp(x: float) -> float = exp(x)
-export pure func log(x: float) -> float = log(x)
-export pure func log10(x: float) -> float = log10(x)
+export pure func sqrt(x: float) -> float = _math_sqrt(x)
+export pure func pow(x: float, y: float) -> float = _math_pow(x, y)
+export pure func exp(x: float) -> float = _math_exp(x)
+export pure func log(x: float) -> float = _math_log(x)
+export pure func log10(x: float) -> float = _math_log10(x)
 
 -- Rounding functions
-export pure func floor(x: float) -> float = floor(x)
-export pure func ceil(x: float) -> float = ceil(x)
-export pure func round(x: float) -> float = round(x)
+export pure func floor(x: float) -> float = _math_floor(x)
+export pure func ceil(x: float) -> float = _math_ceil(x)
+export pure func round(x: float) -> float = _math_round(x)
 
 -- Absolute value
-export pure func abs_Float(x: float) -> float = abs_Float(x)
-export pure func abs_Int(x: int) -> int = abs_Int(x)
+export pure func abs_Float(x: float) -> float = _math_abs_Float(x)
+export pure func abs_Int(x: int) -> int = _math_abs_Int(x)
 
 -- Constants
-export pure func PI() -> float = PI()
-export pure func E() -> float = E()
+export pure func PI() -> float = _math_PI()
+export pure func E() -> float = _math_E()

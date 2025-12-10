@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -46,7 +47,24 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 	// Apply to resolved constraints
 	tc.applySubstitutionToResolvedConstraints(sub)
 
+	// M-FIX-FLOAT-OP: Apply substitution to CoreTI
+	// This ensures operator lowering sees the correct types after defaulting
+	tc.applySubstitutionToCoreTI(sub)
+
 	return newMonotype, newConstraints, newTypedNode, newEnvEntry
+}
+
+// applySubstitutionToCoreTI updates all types in CoreTI with the substitution
+// M-FIX-FLOAT-OP: This ensures float types are preserved after defaulting
+func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
+	if tc.CoreTI == nil {
+		return
+	}
+	// CoreTypeInfo is map[uint64]Type - iterate directly
+	for nodeID, typ := range tc.CoreTI {
+		newType := ApplySubstitution(sub, typ)
+		tc.CoreTI.Set(nodeID, newType)
+	}
 }
 
 // applySubstitutionToResolvedConstraints updates the resolved constraints map
@@ -231,11 +249,27 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			// This will be done when we scan the Core AST
 			// Create normalized type for dictionary lookup consistency
 			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
-			// fmt.Printf("DEBUG RESOLVE: NodeID=%d, Class=%s, OrigType=%v, NormType=%s\n",
-			// 	c.NodeID, c.Class, c.Type, normalizedType.Name)
+
+			// M-FIX-FLOAT-OP: Upgrade class based on resolved type
+			// If type resolved to Float but class is still Num, use Fractional instead
+			// This handles pow(...) + pow(...) where type inference didn't know operands were Float
+			resolvedClass := c.Class
+			if normalizedType.Name == "Float" && c.Class == "Num" {
+				resolvedClass = "Fractional"
+				if os.Getenv("DEBUG_BINOP") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG ResolveConstraint] NodeID=%d upgraded Num->Fractional (type=%s)\n",
+						c.NodeID, normalizedType.Name)
+				}
+			}
+
+			if os.Getenv("DEBUG_BINOP") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG ResolveConstraint] NodeID=%d, class=%s->%s, origType=%v, type=%s\n",
+					c.NodeID, c.Class, resolvedClass, c.Type, normalizedType.Name)
+			}
+
 			tc.resolvedConstraints[c.NodeID] = &ResolvedConstraint{
 				NodeID:    c.NodeID,
-				ClassName: c.Class,
+				ClassName: resolvedClass,
 				Type:      normalizedType, // Normalized type (float→Float, int→Int)
 				Method:    "",             // Will be filled in during Core traversal
 			}

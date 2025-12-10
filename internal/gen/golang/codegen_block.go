@@ -36,13 +36,19 @@ func (g *Generator) generateFlatBody(body core.CoreExpr) error {
 	blk := block.Lower(body)
 
 	// Generate flat variable declarations for each binding
+	// M-CODEGEN-V2.M4: Only emit suppress unused for _ placeholder bindings (effects).
+	// AILANG semantics guarantee all other bindings are used in subsequent code.
 	for _, stmt := range blk.Stmts {
-		g.writef("var %s interface{} = ", ToGoVarName(stmt.Name))
+		goName := ToGoVarName(stmt.Name)
+		g.writef("var %s interface{} = ", goName)
 		if err := g.generateExpr(stmt.Value); err != nil {
 			return err
 		}
 		g.writef("\n")
-		g.writef("_ = %s // suppress unused\n", ToGoVarName(stmt.Name))
+		// Only suppress for _ placeholder bindings (explicit ignore for effects)
+		if stmt.Name == "_" || stmt.Name[0] == '_' && len(stmt.Name) > 1 && stmt.Name[1] >= '0' && stmt.Name[1] <= '9' {
+			g.writef("_ = %s // suppress unused\n", goName)
+		}
 	}
 
 	// Generate the final expression as the return value

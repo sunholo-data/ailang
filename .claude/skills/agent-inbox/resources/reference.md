@@ -11,6 +11,7 @@ Complete reference for the AILANG messaging system CLI commands.
 | `ailang messages ack` | `msg ack` | Mark as read |
 | `ailang messages unack` | `msg unack` | Mark as unread |
 | `ailang messages send` | `msg send` | Send message |
+| `ailang messages reply` | `msg reply` | Reply to GitHub issue |
 | `ailang messages watch` | `msg watch` | Watch for new |
 | `ailang messages cleanup` | `msg cleanup` | Remove old messages |
 | `ailang messages import-github` | - | Import from GitHub |
@@ -119,6 +120,31 @@ ailang messages send user "Need async support" \
 # Override repo
 ailang messages send user "Bug" --type bug --github --repo owner/other-repo
 ```
+
+## Reply to GitHub Issue
+
+```bash
+ailang messages reply MSG_ID "REPLY_TEXT" [flags]
+```
+
+Adds a comment to an existing GitHub issue thread. Only works for messages that were created with `--github` flag.
+
+**Flags:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--from AGENT` | Sender name for attribution | "cli" |
+| `--repo OWNER/REPO` | Override repo | message's repo or config default |
+
+**Examples:**
+```bash
+# Reply to a bug report
+ailang messages reply msg_20251210_123456_abc123 "Fixed in v0.5.10" --from "claude-code"
+
+# Reply with explicit repo
+ailang messages reply MSG_ID "Working on it" --repo owner/repo
+```
+
+**Note:** The message must have a linked GitHub issue. Messages without `--github` flag cannot be replied to.
 
 ## Import from GitHub
 

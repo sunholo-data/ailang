@@ -76,6 +76,9 @@ type CoreTypeChecker struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
+	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
+	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
+	paramTypeAnnots map[uint64][]Type
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -156,7 +159,8 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
-		aliasEnv:            make(map[string]Type), // M-BUGFIX: Initialize alias environment
+		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
+		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
 	}
 }
 
@@ -177,7 +181,8 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
-		aliasEnv:            make(map[string]Type), // M-BUGFIX: Initialize alias environment
+		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
+		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
 	}
 }
 
@@ -242,6 +247,18 @@ func (tc *CoreTypeChecker) SetDefaultingConfig(config *DefaultingConfig) {
 // SetEffectAnnotations sets effect annotations from elaboration
 func (tc *CoreTypeChecker) SetEffectAnnotations(annots map[uint64][]string) {
 	tc.effectAnnots = annots
+}
+
+// SetParamTypeAnnotations sets parameter type annotations from elaboration
+// M-FIX-FLOAT-OP: This preserves float parameter annotations through elaboration
+func (tc *CoreTypeChecker) SetParamTypeAnnotations(annots map[uint64][]Type) {
+	tc.paramTypeAnnots = annots
+}
+
+// SetReturnTypeAnnotations sets return type annotations from elaboration
+// M-FIX-FLOAT-OP: This ensures PI() -> float ACTUALLY constrains inference to return float
+func (tc *CoreTypeChecker) SetReturnTypeAnnotations(annots map[uint64]Type) {
+	tc.returnTypeAnnots = annots
 }
 
 // InferWithConstraints infers type with constraints for a Core expression

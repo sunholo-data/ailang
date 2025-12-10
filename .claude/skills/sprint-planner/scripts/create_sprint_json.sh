@@ -133,6 +133,7 @@ cat > "$PROGRESS_FILE" << EOF
   "correlation_id": "sprint_${SPRINT_ID}",
   "design_doc": "${DESIGN_DOC}",
   "markdown_plan": "${SPRINT_PLAN}",
+  "github_issues": [],
   "features": $(extract_milestones "$SPRINT_PLAN"),
   "velocity": {
     "target_loc_per_day": ${TARGET_LOC_PER_DAY},
@@ -162,6 +163,43 @@ else
     exit 1
 fi
 
+# Try to extract GitHub issue numbers from design doc Bug Report field
+if [ -n "$DESIGN_DOC" ] && [ -f "$DESIGN_DOC" ]; then
+    echo ""
+    echo "Checking for linked GitHub issues..."
+
+    # Extract message IDs from Bug Report field (pattern: msg_YYYYMMDD_HHMMSS_hash)
+    MSG_IDS=$(grep -oE 'msg_[0-9]{8}_[0-9]{6}_[a-f0-9]+' "$DESIGN_DOC" 2>/dev/null || echo "")
+
+    if [ -n "$MSG_IDS" ]; then
+        GITHUB_ISSUES=""
+        for msg_id in $MSG_IDS; do
+            # Look up message and get GitHub issue number
+            ISSUE_NUM=$(ailang messages read "$msg_id" --json 2>/dev/null | jq -r '.github_issue // empty' || echo "")
+            if [ -n "$ISSUE_NUM" ] && [ "$ISSUE_NUM" != "null" ] && [ "$ISSUE_NUM" != "0" ]; then
+                if [ -n "$GITHUB_ISSUES" ]; then
+                    GITHUB_ISSUES="${GITHUB_ISSUES}, ${ISSUE_NUM}"
+                else
+                    GITHUB_ISSUES="$ISSUE_NUM"
+                fi
+                echo -e "${GREEN}  ✓ Found GitHub issue #${ISSUE_NUM} from ${msg_id}${NC}"
+            fi
+        done
+
+        if [ -n "$GITHUB_ISSUES" ]; then
+            # Update sprint JSON with GitHub issues
+            TEMP_FILE=$(mktemp)
+            jq --argjson issues "[$GITHUB_ISSUES]" '.github_issues = $issues' "$PROGRESS_FILE" > "$TEMP_FILE"
+            mv "$TEMP_FILE" "$PROGRESS_FILE"
+            echo -e "${GREEN}  ✓ Added github_issues: [${GITHUB_ISSUES}] to sprint JSON${NC}"
+        else
+            echo -e "  ℹ️  No GitHub issues linked to found messages"
+        fi
+    else
+        echo -e "  ℹ️  No Bug Report message IDs found in design doc"
+    fi
+fi
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo " Next Steps"
@@ -170,7 +208,10 @@ echo ""
 echo "1. Edit the JSON file to fill in actual milestone details:"
 echo "   ${PROGRESS_FILE}"
 echo ""
-echo "2. Send handoff message to sprint-executor:"
+echo "2. If this sprint addresses a GitHub issue, ensure github_issues is set:"
+echo "   jq '.github_issues = [123, 456]' ${PROGRESS_FILE} > tmp && mv tmp ${PROGRESS_FILE}"
+echo ""
+echo "3. Send handoff message to sprint-executor:"
 echo "   ailang agent send sprint-executor '{"
 echo "     \"type\": \"plan_ready\","
 echo "     \"correlation_id\": \"sprint_${SPRINT_ID}\","
@@ -180,7 +221,7 @@ echo "     \"progress_path\": \"${PROGRESS_FILE}\","
 echo "     \"estimated_duration\": \"${ESTIMATED_DAYS} days\""
 echo "   }'"
 echo ""
-echo "3. Start sprint execution:"
+echo "4. Start sprint execution:"
 echo "   Use sprint-executor skill to begin implementing milestones"
 echo ""
 echo "═══════════════════════════════════════════════════════════════"

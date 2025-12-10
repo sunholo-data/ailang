@@ -1,11 +1,76 @@
 # M-CODEGEN-V2: Flat Go Code Generation
 
-**Status**: Planned
+**Status**: ✅ COMPLETE
 **Target**: v0.5.9
 **Priority**: P0 (Critical - Blocks production use)
 **Estimated**: 2-3 days (core), +2 days (stretch goals)
+**Actual**: 0.2 days (263 LOC vs 650 estimated)
 **Dependencies**: None
 **Reporter**: stapledons_voyage project
+**Completed**: 2025-12-10
+
+---
+
+## Implementation Status (2025-12-10)
+
+| Milestone | Status | LOC | Notes |
+|-----------|--------|-----|-------|
+| M1-BLOCK-IR | ✅ Complete | 121 | Block/Stmt types, Lower(), LowerLetRec(), 12 tests |
+| M2-FLAT-FUNCTION-BODY | ✅ Complete | 97 | generateFlatBody(), 4 tests, modified generateImplFunc |
+| M3-VALIDATION | ✅ Complete | 0 | stapledons_voyage builds & runs, 58% IIFE reduction |
+| M4-CLEANUP-STRETCH | ✅ Complete | 45 | int64(int64) eliminated, suppress unused -44% |
+
+### Final Results
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Total lines (sim_gen/) | 6,184 | 5,594 | **-10%** |
+| Total IIFEs | 437 | 182 | **-58%** |
+| `int64(int64(...))` | 22 | 0 | **-100%** |
+| `// suppress unused` | 445 | 247 | **-44%** |
+| Go compilation | OOM | ✅ Success | **Fixed** |
+| Max function body nesting | 28+ levels | 0 | **Fixed** |
+| VALUE-position nesting | - | 2-3 levels | Expected (by design) |
+
+### Files Created/Modified
+
+**New files:**
+- `internal/gen/block/block.go` (51 LOC) - Block IR types
+- `internal/gen/block/lower.go` (70 LOC) - Core→Block lowering
+- `internal/gen/block/lower_test.go` (273 LOC) - 12 tests
+- `internal/gen/golang/codegen_block.go` (97 LOC) - Flat body generation
+- `internal/gen/golang/codegen_flat_test.go` (237 LOC) - 4 tests
+
+**Modified files:**
+- `internal/gen/golang/codegen_decl.go` - Use generateFlatBody in generateImplFunc
+- `internal/gen/golang/codegen_expr_app.go` - Fix redundant int64 wrapping
+- `internal/gen/golang/codegen_expr_simple.go` - Add getLitGoType helper
+- `internal/gen/golang/codegen_ops.go` - Fix redundant type conversions in records
+
+### Key Finding: VALUE-Position Lets
+
+The remaining nesting is **expected and by design**. When a let chain appears inside a value expression (not at function body level), it still requires IIFEs because Go has no let-expression syntax:
+
+```ailang
+-- This let chain is in VALUE position (RHS of var dSq =)
+let dSq = let tmp7 = state.discCenterX in
+          let tmp8 = state.discCenterY in
+          distSq(x, y, tmp7, tmp8)
+in ...
+```
+
+Generates:
+```go
+var dSq interface{} = func() interface{} {
+    var tmp7 interface{} = FieldGet(state, "discCenterX")
+    return func() interface{} {
+        var tmp8 interface{} = FieldGet(state, "discCenterY")
+        return distSq_impl(x, y, tmp7, tmp8)
+    }()
+}()
+```
+
+**To eliminate this nesting would require "binding hoisting"** - moving inner lets to the enclosing function body. This is a more complex transformation documented in [M-CODEGEN-V3](m-codegen-v3-binding-hoisting.md).
 
 ---
 
@@ -891,3 +956,6 @@ These belong in M-DX24 (typed codegen) or a future v0.6.0 milestone.
 | 2025-12-10 | Initial design document |
 | 2025-12-10 | Added stapledons_voyage analysis: 10 issues identified, phases 5-10 added |
 | 2025-12-10 | **Major revision**: Introduced Block IR architecture per feedback. Separated concerns (flattening vs typed codegen). Simplified context propagation. Added mechanical invariant for CI. Explicitly deferred P2 items to M-DX24/v0.6.0 |
+| 2025-12-10 | **Implementation**: M1-BLOCK-IR complete (121 LOC, 12 tests). M2-FLAT-FUNCTION-BODY complete (97 LOC, 4 tests). |
+| 2025-12-10 | **Validation**: stapledons_voyage sim_gen/ regenerated. 58% IIFE reduction (437→182). Go compiles successfully (no OOM). VALUE-position nesting identified as expected behavior. Follow-up design doc created: [M-CODEGEN-V3](m-codegen-v3-binding-hoisting.md) |
+| 2025-12-10 | **M4-CLEANUP-STRETCH complete**: Eliminated redundant `int64(int64(...))` (22→0), reduced suppress unused comments 44% (445→247), total lines reduced 10% (6,184→5,594). Sprint complete in 0.2 days vs 4 estimated. |

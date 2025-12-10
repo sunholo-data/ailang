@@ -93,6 +93,15 @@ if [[ $FAILURES -eq 0 ]]; then
         echo "Sprint: $SPRINT_ID"
         echo "File:   $CURRENT_SPRINT"
         echo
+        # Check for linked GitHub issues
+        if command -v jq &> /dev/null; then
+            GITHUB_ISSUES=$(jq -r '.github_issues // [] | map("#" + tostring) | join(", ")' "$CURRENT_SPRINT" 2>/dev/null || echo "")
+            if [[ -n "$GITHUB_ISSUES" ]]; then
+                echo "🔗 Linked GitHub issues: $GITHUB_ISSUES"
+                echo "   Include 'Refs $GITHUB_ISSUES' in commit messages"
+                echo
+            fi
+        fi
         echo "Current milestone status:"
         # Show milestone statuses from JSON
         if command -v jq &> /dev/null; then
@@ -105,6 +114,12 @@ if [[ $FAILURES -eq 0 ]]; then
         echo "   1. Update passes: true/false in the JSON"
         echo "   2. Set completed: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
         echo "   3. Add notes about what was done"
+        if command -v jq &> /dev/null; then
+            GITHUB_ISSUES=$(jq -r '.github_issues // [] | map("#" + tostring) | join(", ")' "$CURRENT_SPRINT" 2>/dev/null || echo "")
+            if [[ -n "$GITHUB_ISSUES" ]]; then
+                echo "   4. Include 'Refs $GITHUB_ISSUES' in commit message"
+            fi
+        fi
         echo
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     fi

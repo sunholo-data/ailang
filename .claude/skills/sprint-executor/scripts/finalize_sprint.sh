@@ -132,6 +132,13 @@ if [ ${#MOVED_FILES[@]} -gt 0 ]; then
     echo "Updated file paths in sprint JSON"
 fi
 
+# Get linked GitHub issues if any
+GITHUB_ISSUES=$(jq -r '.github_issues // [] | map("#" + tostring) | join(", ")' "$SPRINT_FILE" 2>/dev/null || echo "")
+ISSUE_REF=""
+if [ -n "$GITHUB_ISSUES" ]; then
+    ISSUE_REF=", refs $GITHUB_ISSUES"
+fi
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo " Sprint Finalized Successfully!"
@@ -141,6 +148,9 @@ echo "Summary:"
 echo "  Sprint ID: $SPRINT_ID"
 echo "  Status: completed"
 echo "  Target version: $TARGET_VERSION"
+if [ -n "$GITHUB_ISSUES" ]; then
+    echo "  Linked issues: $GITHUB_ISSUES"
+fi
 if [ ${#MOVED_FILES[@]} -gt 0 ]; then
     echo ""
     echo "Files moved:"
@@ -150,6 +160,10 @@ if [ ${#MOVED_FILES[@]} -gt 0 ]; then
 fi
 echo ""
 echo "Next steps:"
-echo "  1. Commit the changes: git add -A && git commit -m 'Finalize sprint $SPRINT_ID'"
+if [ -n "$GITHUB_ISSUES" ]; then
+    echo "  1. Commit the changes: git add -A && git commit -m 'Finalize sprint $SPRINT_ID${ISSUE_REF}'"
+else
+    echo "  1. Commit the changes: git add -A && git commit -m 'Finalize sprint $SPRINT_ID'"
+fi
 echo "  2. Update CHANGELOG.md if not already done"
 echo "  3. Consider creating a release if milestone reached"

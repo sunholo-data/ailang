@@ -14,17 +14,17 @@ import (
 // ============================================================================
 
 func TestSinRegistered(t *testing.T) {
-	spec, ok := GetSpec("sin")
-	require.True(t, ok, "sin should be registered")
+	spec, ok := GetSpec("_math_sin")
+	require.True(t, ok, "_math_sin should be registered")
 
 	assert.Equal(t, "std/math", spec.Module)
-	assert.Equal(t, "sin", spec.Name)
+	assert.Equal(t, "_math_sin", spec.Name)
 	assert.Equal(t, 1, spec.NumArgs)
 	assert.True(t, spec.IsPure)
 }
 
 func TestSinImpl(t *testing.T) {
-	spec, ok := GetSpec("sin")
+	spec, ok := GetSpec("_math_sin")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -54,8 +54,8 @@ func TestSinImpl(t *testing.T) {
 }
 
 func TestCosRegistered(t *testing.T) {
-	spec, ok := GetSpec("cos")
-	require.True(t, ok, "cos should be registered")
+	spec, ok := GetSpec("_math_cos")
+	require.True(t, ok, "_math_cos should be registered")
 
 	assert.Equal(t, "std/math", spec.Module)
 	assert.Equal(t, 1, spec.NumArgs)
@@ -63,7 +63,7 @@ func TestCosRegistered(t *testing.T) {
 }
 
 func TestCosImpl(t *testing.T) {
-	spec, ok := GetSpec("cos")
+	spec, ok := GetSpec("_math_cos")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -92,7 +92,7 @@ func TestCosImpl(t *testing.T) {
 }
 
 func TestTanImpl(t *testing.T) {
-	spec, ok := GetSpec("tan")
+	spec, ok := GetSpec("_math_tan")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -119,7 +119,7 @@ func TestTanImpl(t *testing.T) {
 }
 
 func TestSqrtImpl(t *testing.T) {
-	spec, ok := GetSpec("sqrt")
+	spec, ok := GetSpec("_math_sqrt")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -148,7 +148,7 @@ func TestSqrtImpl(t *testing.T) {
 }
 
 func TestSqrtNegative(t *testing.T) {
-	spec, ok := GetSpec("sqrt")
+	spec, ok := GetSpec("_math_sqrt")
 	require.True(t, ok)
 
 	args := []eval.Value{&eval.FloatValue{Value: -1.0}}
@@ -161,7 +161,7 @@ func TestSqrtNegative(t *testing.T) {
 }
 
 func TestAtan2Impl(t *testing.T) {
-	spec, ok := GetSpec("atan2")
+	spec, ok := GetSpec("_math_atan2")
 	require.True(t, ok)
 	assert.Equal(t, 2, spec.NumArgs)
 
@@ -194,7 +194,7 @@ func TestAtan2Impl(t *testing.T) {
 }
 
 func TestAbsFloatImpl(t *testing.T) {
-	spec, ok := GetSpec("abs_Float")
+	spec, ok := GetSpec("_math_abs_Float")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -221,7 +221,7 @@ func TestAbsFloatImpl(t *testing.T) {
 }
 
 func TestAbsIntImpl(t *testing.T) {
-	spec, ok := GetSpec("abs_Int")
+	spec, ok := GetSpec("_math_abs_Int")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -252,19 +252,20 @@ func TestAbsIntImpl(t *testing.T) {
 // ============================================================================
 
 func TestPIRegistered(t *testing.T) {
-	spec, ok := GetSpec("PI")
-	require.True(t, ok, "PI should be registered")
+	spec, ok := GetSpec("_math_PI")
+	require.True(t, ok, "_math_PI should be registered")
 
 	assert.Equal(t, "std/math", spec.Module)
-	assert.Equal(t, 0, spec.NumArgs) // Zero-arg function
+	assert.Equal(t, 1, spec.NumArgs) // Takes unit argument as workaround for M-DX10
 	assert.True(t, spec.IsPure)
 }
 
 func TestPIImpl(t *testing.T) {
-	spec, ok := GetSpec("PI")
+	spec, ok := GetSpec("_math_PI")
 	require.True(t, ok)
 
-	result, err := spec.Impl(nil, []eval.Value{})
+	// Pass unit value as argument (workaround for M-DX10)
+	result, err := spec.Impl(nil, []eval.Value{&eval.UnitValue{}})
 
 	require.NoError(t, err)
 	floatVal, ok := result.(*eval.FloatValue)
@@ -273,19 +274,20 @@ func TestPIImpl(t *testing.T) {
 }
 
 func TestERegistered(t *testing.T) {
-	spec, ok := GetSpec("E")
-	require.True(t, ok, "E should be registered")
+	spec, ok := GetSpec("_math_E")
+	require.True(t, ok, "_math_E should be registered")
 
 	assert.Equal(t, "std/math", spec.Module)
-	assert.Equal(t, 0, spec.NumArgs)
+	assert.Equal(t, 1, spec.NumArgs) // Takes unit argument as workaround for M-DX10
 	assert.True(t, spec.IsPure)
 }
 
 func TestEImpl(t *testing.T) {
-	spec, ok := GetSpec("E")
+	spec, ok := GetSpec("_math_E")
 	require.True(t, ok)
 
-	result, err := spec.Impl(nil, []eval.Value{})
+	// Pass unit value as argument (workaround for M-DX10)
+	result, err := spec.Impl(nil, []eval.Value{&eval.UnitValue{}})
 
 	require.NoError(t, err)
 	floatVal, ok := result.(*eval.FloatValue)
@@ -298,7 +300,7 @@ func TestEImpl(t *testing.T) {
 // ============================================================================
 
 func TestPowImpl(t *testing.T) {
-	spec, ok := GetSpec("pow")
+	spec, ok := GetSpec("_math_pow")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -329,7 +331,7 @@ func TestPowImpl(t *testing.T) {
 }
 
 func TestExpImpl(t *testing.T) {
-	spec, ok := GetSpec("exp")
+	spec, ok := GetSpec("_math_exp")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -356,7 +358,7 @@ func TestExpImpl(t *testing.T) {
 }
 
 func TestLogImpl(t *testing.T) {
-	spec, ok := GetSpec("log")
+	spec, ok := GetSpec("_math_log")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -383,7 +385,7 @@ func TestLogImpl(t *testing.T) {
 }
 
 func TestFloorImpl(t *testing.T) {
-	spec, ok := GetSpec("floor")
+	spec, ok := GetSpec("_math_floor")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -410,7 +412,7 @@ func TestFloorImpl(t *testing.T) {
 }
 
 func TestCeilImpl(t *testing.T) {
-	spec, ok := GetSpec("ceil")
+	spec, ok := GetSpec("_math_ceil")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -437,7 +439,7 @@ func TestCeilImpl(t *testing.T) {
 }
 
 func TestRoundImpl(t *testing.T) {
-	spec, ok := GetSpec("round")
+	spec, ok := GetSpec("_math_round")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -469,7 +471,7 @@ func TestRoundImpl(t *testing.T) {
 // ============================================================================
 
 func TestAsinImpl(t *testing.T) {
-	spec, ok := GetSpec("asin")
+	spec, ok := GetSpec("_math_asin")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -497,7 +499,7 @@ func TestAsinImpl(t *testing.T) {
 }
 
 func TestAcosImpl(t *testing.T) {
-	spec, ok := GetSpec("acos")
+	spec, ok := GetSpec("_math_acos")
 	require.True(t, ok)
 
 	tests := []struct {
@@ -525,7 +527,7 @@ func TestAcosImpl(t *testing.T) {
 }
 
 func TestAtanImpl(t *testing.T) {
-	spec, ok := GetSpec("atan")
+	spec, ok := GetSpec("_math_atan")
 	require.True(t, ok)
 
 	tests := []struct {

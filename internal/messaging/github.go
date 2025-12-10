@@ -59,6 +59,11 @@ func defaultExecCommand(name string, arg ...string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
+// GetConfig returns the GitHub configuration (may be nil if not configured).
+func (c *GitHubClient) GetConfig() *GitHubConfig {
+	return c.config
+}
+
 // CheckGHInstalled verifies that the gh CLI is installed and returns the version.
 // Returns an error with installation instructions if not found.
 func (c *GitHubClient) CheckGHInstalled() (string, error) {

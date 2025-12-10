@@ -6,8 +6,6 @@
 #
 
 :: : (a, List[a]) -> List[a]
-E : () -> float
-PI : () -> float
 _ai_call : string -> string ! {AI}
 _array_from_list : List[a] -> Array[a]
 _array_get : (Array[a], int) -> a
@@ -34,6 +32,25 @@ _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
+_math_E : () -> float
+_math_PI : () -> float
+_math_abs_Float : float -> float
+_math_abs_Int : int -> int
+_math_acos : float -> float
+_math_asin : float -> float
+_math_atan : float -> float
+_math_atan2 : (float, float) -> float
+_math_ceil : float -> float
+_math_cos : float -> float
+_math_exp : float -> float
+_math_floor : float -> float
+_math_log : float -> float
+_math_log10 : float -> float
+_math_pow : (float, float) -> float
+_math_round : float -> float
+_math_sin : float -> float
+_math_sqrt : float -> float
+_math_tan : float -> float
 _net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
@@ -50,28 +67,18 @@ _str_trim : string -> string
 _str_upper : string -> string
 _stringToFloat : string -> Option[float]
 _stringToInt : string -> Option[int]
-abs_Float : float -> float
-abs_Int : int -> int
-acos : float -> float
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool
-asin : float -> float
-atan : float -> float
-atan2 : (float, float) -> float
-ceil : float -> float
 concat_List : (List[a], List[a]) -> List[a]
 concat_String : (string, string) -> string
-cos : float -> float
 div_Float : (float, float) -> float
 div_Int : (int, int) -> int
 eq_Bool : (bool, bool) -> bool
 eq_Float : (float, float) -> bool
 eq_Int : (int, int) -> bool
 eq_String : (string, string) -> bool
-exp : float -> float
 floatToInt : float -> int
-floor : float -> float
 ge_Float : (float, float) -> bool
 ge_Int : (int, int) -> bool
 ge_String : (string, string) -> bool
@@ -82,8 +89,6 @@ intToFloat : int -> float
 le_Float : (float, float) -> bool
 le_Int : (int, int) -> bool
 le_String : (string, string) -> bool
-log : float -> float
-log10 : float -> float
 lt_Float : (float, float) -> bool
 lt_Int : (int, int) -> bool
 lt_String : (string, string) -> bool
@@ -99,11 +104,6 @@ neg_Float : float -> float
 neg_Int : int -> int
 not_Bool : bool -> bool
 or_Bool : (bool, bool) -> bool
-pow : (float, float) -> float
-round : float -> float
 show : α -> string
-sin : float -> float
-sqrt : float -> float
 sub_Float : (float, float) -> float
 sub_Int : (int, int) -> int
-tan : float -> float

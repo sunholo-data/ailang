@@ -384,9 +384,17 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 					typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
 					l.trackFallback(intrinsic.Op, intrinsic.ID(), "ResolvedConstraints-intrinsic", location)
 				} else {
-					// Last resort: use default based on operator
-					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
-					l.trackFallback(intrinsic.Op, typeNode, "Default", location)
+					// M-FIX-FLOAT-OP: For arithmetic operators, try operand types before defaulting
+					// This fixes float operators in pure functions where the intrinsic node
+					// has a type variable but the operands have concrete types
+					typeSuffix = l.tryOperandTypes(intrinsic)
+					if typeSuffix == "" {
+						// Last resort: use default based on operator
+						typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+						l.trackFallback(intrinsic.Op, typeNode, "Default", location)
+					} else {
+						l.trackFallback(intrinsic.Op, typeNode, "OperandType", location)
+					}
 				}
 			}
 		}
@@ -402,8 +410,12 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 			if intrConstraint, ok := l.resolvedConstraints[intrinsic.ID()]; ok {
 				typeSuffix = getTypeSuffixFromType(intrConstraint.Type)
 			} else {
-				// Last resort: use default based on operator
-				typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+				// M-FIX-FLOAT-OP: For arithmetic operators, try operand types before defaulting
+				typeSuffix = l.tryOperandTypes(intrinsic)
+				if typeSuffix == "" {
+					// Last resort: use default based on operator
+					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
+				}
 			}
 		}
 	}
@@ -460,6 +472,56 @@ func getDefaultTypeSuffix(op core.IntrinsicOp) string {
 		// Most operators default to Int
 		return "Int"
 	}
+}
+
+// tryOperandTypes attempts to determine the type suffix from operand types.
+// M-FIX-FLOAT-OP: This fixes float operators in pure functions where the intrinsic
+// node has a type variable but the operands have concrete types (e.g., float parameters).
+// Returns empty string if operand types cannot be determined.
+func (l *OpLowerer) tryOperandTypes(intrinsic *core.Intrinsic) string {
+	if len(intrinsic.Args) == 0 {
+		return ""
+	}
+
+	// Check first operand's type in CoreTI
+	firstArg := intrinsic.Args[0]
+	if inferredType, ok := l.CoreTI.Get(firstArg.ID()); ok {
+		head := types.Head(inferredType)
+		switch head {
+		case types.HeadFloat:
+			return "Float"
+		case types.HeadInt:
+			return "Int"
+		case types.HeadString:
+			return "String"
+		case types.HeadBool:
+			return "Bool"
+		case types.HeadList:
+			return "List"
+		}
+	}
+
+	// If first operand is a Var, check if it has a known type in resolved constraints
+	if varExpr, ok := firstArg.(*core.Var); ok {
+		// Check if there's a binding for this variable with a known type
+		if boundExpr, ok := l.bindings[varExpr.Name]; ok {
+			if boundType, ok := l.CoreTI.Get(boundExpr.ID()); ok {
+				head := types.Head(boundType)
+				switch head {
+				case types.HeadFloat:
+					return "Float"
+				case types.HeadInt:
+					return "Int"
+				case types.HeadString:
+					return "String"
+				case types.HeadBool:
+					return "Bool"
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // getTypeSuffixFromType extracts the type suffix from a resolved type

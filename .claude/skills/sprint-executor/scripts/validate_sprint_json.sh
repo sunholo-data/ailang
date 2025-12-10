@@ -91,6 +91,19 @@ if [ "$TOTAL_LOC" -eq 1000 ]; then
     echo "  Consider updating to match actual sprint plan estimates"
 fi
 
+# Check for GitHub issues (informational, not error)
+GITHUB_ISSUES=$(jq -r '.github_issues // [] | length' "$PROGRESS_FILE")
+if [ "$GITHUB_ISSUES" -gt 0 ]; then
+    echo -e "${GREEN}✓ ${GITHUB_ISSUES} GitHub issue(s) linked:${NC}"
+    jq -r '.github_issues[]' "$PROGRESS_FILE" | while read issue; do
+        echo "    #$issue"
+    done
+    echo "  Commits will include Refs #... in messages"
+else
+    echo -e "${YELLOW}ℹ️  No GitHub issues linked to this sprint${NC}"
+    echo "  To link issues: jq '.github_issues = [123]' $PROGRESS_FILE > tmp && mv tmp $PROGRESS_FILE"
+fi
+
 # Check each milestone has required fields
 INCOMPLETE_MILESTONES=$(jq -r '.features[] | select(.description == "Milestone description" or .estimated_loc == 200) | .id' "$PROGRESS_FILE")
 if [ -n "$INCOMPLETE_MILESTONES" ]; then

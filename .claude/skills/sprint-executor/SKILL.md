@@ -197,6 +197,29 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 - **JSON file tracks structured state** (NEW)
 - Git commits create audit trail
 
+### GitHub Issue Integration (NEW)
+**Commits automatically reference linked GitHub issues!**
+
+If `github_issues` is set in sprint JSON:
+- `validate_sprint_json.sh` shows linked issues
+- `milestone_checkpoint.sh` reminds you to include `Refs #...` in commits
+- `finalize_sprint.sh` suggests commit message with issue references
+
+**Commit message format:**
+```bash
+# For milestone commits
+git commit -m "Complete M1: Parser foundation, refs #17"
+
+# For final sprint commit
+git commit -m "Finalize sprint M-BUG-FIX, refs #17, #42"
+```
+
+**Workflow:**
+1. Sprint JSON has `github_issues: [17, 42]` (set by sprint-planner)
+2. When you commit, include `refs #17, #42` in message
+3. GitHub automatically links commits to issues
+4. For bugs: Use `fixes #17` in final commit to auto-close issue
+
 ### Pause Points
 - After each milestone completion
 - When tests or linting fail (fix before continuing)

@@ -1,11 +1,22 @@
 # M-FIX-IF-ELSE-LET: Better Error for Let in If-Else Branches
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.5.9
+**Completed**: December 10, 2025
 **Priority**: P1 (Medium)
-**Estimated**: 2 hours
+**Actual Duration**: 1 hour
 **Dependencies**: None
 **Bug Report**: `msg_20251209_200820_dce74a87` from stapledons_voyage
+
+## Implementation Summary
+
+Improved error diagnostics for let bindings in if-else branches:
+- ✅ Clear error message explains the parsing ambiguity
+- ✅ Provides working code example with explicit braces
+- ✅ Implemented in `internal/elaborate/expressions.go`
+- ✅ Commit: `e7d304ac M-FIX-IF-ELSE-LET: Better error for let in if-else branches`
+
+**Key Change:** When elaborator detects a let binding as the immediate expression of an if-else branch (without braces), it now emits a helpful error explaining that explicit braces are required.
 
 ## AI-First Alignment Check
 

@@ -8,6 +8,25 @@ import (
 	"github.com/sunholo/ailang/internal/core"
 )
 
+// getLitGoType returns the Go type that generateLit will produce for a literal.
+// M-CODEGEN-V2.M4: Used to avoid redundant type conversions like int64(int64(1)).
+func (g *Generator) getLitGoType(lit *core.Lit) string {
+	switch lit.Kind {
+	case core.IntLit:
+		return "int64"
+	case core.FloatLit:
+		return "float64"
+	case core.BoolLit:
+		return "bool"
+	case core.StringLit:
+		return "string"
+	case core.UnitLit:
+		return "struct{}"
+	default:
+		return ""
+	}
+}
+
 // generateLit generates a Go literal.
 // M-DX17: Wrap numeric literals in explicit type conversions for interface{} compatibility.
 func (g *Generator) generateLit(lit *core.Lit) error {

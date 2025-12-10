@@ -70,6 +70,8 @@ func messagesCommand() {
 		runMessagesCleanup(args)
 	case "import-github":
 		runMessagesImportGitHub(args)
+	case "reply":
+		runMessagesReply(args)
 	case "--help", "-h", "help":
 		printMessagesHelp()
 	default:
@@ -465,6 +467,87 @@ func runMessagesCleanup(args []string) {
 	fmt.Printf("%s Cleaned up %d message(s).\n", green("✓"), count)
 }
 
+func runMessagesReply(args []string) {
+	fs := flag.NewFlagSet("messages reply", flag.ExitOnError)
+	from := fs.String("from", "cli", "Sender agent name")
+	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides message's repo")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if fs.NArg() < 2 {
+		fmt.Fprintf(os.Stderr, "%s: reply requires MSG_ID and reply text\n", red("Error"))
+		fmt.Fprintln(os.Stderr, "Usage: ailang messages reply MSG_ID \"Your reply\" [--from agent]")
+		os.Exit(1)
+	}
+
+	msgID := fs.Arg(0)
+	replyText := fs.Arg(1)
+
+	store, err := openStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	// Look up the original message
+	msg, err := store.GetInboxMessage(msgID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: message not found: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Check if the message has a linked GitHub issue
+	if msg.GitHubIssue == nil {
+		fmt.Fprintf(os.Stderr, "%s: message has no linked GitHub issue\n", red("Error"))
+		fmt.Fprintln(os.Stderr, "This message was not created with --github flag.")
+		fmt.Fprintln(os.Stderr, "Use 'ailang messages send' to create a new message instead.")
+		os.Exit(1)
+	}
+
+	// Load GitHub config and create client
+	config, err := messaging.LoadGitHubConfig()
+	if err != nil {
+		// Config is optional, but we need it for the default repo
+		config = nil
+	}
+	ghClient := messaging.NewGitHubClient(config)
+
+	// Determine the repo: CLI flag > message repo > config default
+	targetRepo := msg.GitHubRepo
+	if *repo != "" {
+		targetRepo = *repo
+	}
+	if targetRepo == "" {
+		// Try to get default from config
+		cfg := ghClient.GetConfig()
+		if cfg != nil && cfg.DefaultRepo != "" {
+			targetRepo = cfg.DefaultRepo
+		}
+	}
+	if targetRepo == "" {
+		fmt.Fprintf(os.Stderr, "%s: no repository specified\n", red("Error"))
+		fmt.Fprintln(os.Stderr, "Use --repo flag or configure default_repo in ~/.ailang/config.yaml")
+		os.Exit(1)
+	}
+
+	// Format the comment with attribution
+	commentBody := replyText
+	if *from != "" {
+		commentBody = fmt.Sprintf("%s\n\n---\n_Reply by: %s via ailang messages_", replyText, *from)
+	}
+
+	if err := ghClient.AddComment(targetRepo, *msg.GitHubIssue, commentBody); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: failed to add comment: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s Reply added to GitHub issue #%d in %s\n", green("✓"), *msg.GitHubIssue, targetRepo)
+}
+
 // printInboxMessage formats and prints a message to stdout.
 func printInboxMessage(msg messaging.InboxMessage, full bool) {
 	statusIcon := "○"
@@ -776,6 +859,7 @@ func printMessagesHelp() {
 	fmt.Printf("  %s <id>                Mark message as read\n", cyan("ack"))
 	fmt.Printf("  %s <id>              Mark message as unread\n", cyan("unack"))
 	fmt.Printf("  %s <inbox> <msg>      Send a message\n", cyan("send"))
+	fmt.Printf("  %s <id> <text>       Reply to GitHub issue thread\n", cyan("reply"))
 	fmt.Printf("  %s <id>               Show full message content\n", cyan("read"))
 	fmt.Printf("  %s                    Watch for new messages\n", cyan("watch"))
 	fmt.Printf("  %s                  Clean up old messages\n", cyan("cleanup"))
@@ -803,6 +887,10 @@ func printMessagesHelp() {
 	fmt.Println("  --type <type>        Message type: bug, feature, general (implies --github)")
 	fmt.Println("  --repo <owner/repo>  GitHub repo (overrides config default)")
 	fmt.Println()
+	fmt.Println("Reply Flags:")
+	fmt.Println("  --from <agent>       Sender name for attribution (default: cli)")
+	fmt.Println("  --repo <owner/repo>  Override repo from original message")
+	fmt.Println()
 	fmt.Println("Import GitHub Flags:")
 	fmt.Println("  --repo <owner/repo>  GitHub repo to import from")
 	fmt.Println("  --labels <list>      Comma-separated labels to filter issues")
@@ -826,6 +914,7 @@ func printMessagesHelp() {
 	fmt.Printf("  %s\n", cyan("ailang messages send ailang-core \"Parser crash\" --type bug --github"))
 	fmt.Printf("  %s\n", cyan("ailang messages send user \"Add dark mode\" --type feature"))
 	fmt.Printf("  %s\n", cyan("ailang messages send user \"Hello\" --github --repo owner/repo"))
+	fmt.Printf("  %s\n", cyan("ailang messages reply MSG_ID \"Fixed in v0.5.10\" --from claude-code"))
 	fmt.Println()
 	fmt.Println("Import GitHub Examples:")
 	fmt.Printf("  %s\n", cyan("ailang messages import-github"))
