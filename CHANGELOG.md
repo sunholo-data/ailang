@@ -51,6 +51,43 @@ Fixed pre-existing test order-dependent failures in `internal/builtins/spec_test
 **Files Changed:**
 - `internal/builtins/spec_test.go` - Added helper function and updated all tests using fresh registries
 
+### Enhanced - Type Cycle Detection (M-DX11-CYCLES)
+
+Improved `ailang debug cycles` to properly detect cyclic type references in generic recursive ADTs:
+
+**What Changed:**
+- Now detects cycles in generic types like `List[a]` and `Tree[a]` (previously missed)
+- Handles parser normalization of `List[a]` to `[a]` syntax
+- Provides detailed cycle paths showing field traversal (e.g., `Tree → Node() → Tree[a]`)
+- Classifies cycles as "expected" (standard ADT patterns) or "suspicious" (user-defined)
+
+**Usage:**
+```bash
+ailang debug cycles examples/complex_types.ail      # Human-readable output
+ailang debug cycles --json examples/complex_types.ail  # JSON for tooling
+```
+
+**Example output:**
+```
+Cycle 1 [EXPECTED]: List
+  Path: List → Cons() → [a]
+  Depth: 2 node(s)
+  Note: Standard recursive ADT pattern
+
+Cycle 2 [SUSPICIOUS]: Person
+  Path: Person → friends → [] → Person
+  Depth: 3 node(s)
+```
+
+**New Files:**
+- `internal/types/cycles.go` - Type-graph cycle detection (~260 LOC)
+- `internal/types/cycles_test.go` - Comprehensive unit tests (~400 LOC)
+
+**Modified Files:**
+- `cmd/ailang/debug.go` - Integration with new detection system
+
+**Design Doc:** [design_docs/planned/v0_5_10/m-dx11-cycles.md](design_docs/planned/v0_5_10/m-dx11-cycles.md)
+
 ---
 
 ## [v0.5.9] - 2025-12-10

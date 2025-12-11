@@ -295,18 +295,26 @@ func runDebugCycles(filename string, outputJSON bool) {
 		os.Exit(1)
 	}
 
-	// Collect type declarations from AST
-	var cycles []CycleInfo
-
-	// Get declarations from the Module (legacy) or File (new)
+	// Get declarations from the Module
 	var decls []ast.Node
 	if prog.Module != nil {
 		decls = prog.Module.Decls
 	}
 
-	// Analyze type declarations for cycles
-	for _, decl := range decls {
-		analyzeDeclForCycles(decl, &cycles, filename)
+	// Use types.DetectCycles for improved cycle detection
+	// This properly handles generic types like List[a] and Tree[a]
+	typeCycles := types.DetectCycles(decls, filename)
+
+	// Convert to CLI format
+	var cycles []CycleInfo
+	for _, tc := range typeCycles {
+		cycles = append(cycles, CycleInfo{
+			Kind:     CycleKind(tc.Kind),
+			TypeName: tc.TypeName,
+			Path:     tc.Path,
+			Depth:    tc.Depth,
+			Note:     tc.Note,
+		})
 	}
 
 	// Build report
@@ -328,112 +336,6 @@ func runDebugCycles(filename string, outputJSON bool) {
 	} else {
 		outputCyclesHuman(report)
 	}
-}
-
-func analyzeDeclForCycles(decl interface{}, cycles *[]CycleInfo, filename string) {
-	// We need to check type declarations for cycles
-	switch d := decl.(type) {
-	case *ast.TypeDecl:
-		// TypeDecl has Name and Definition fields
-		analyzeTypeDefForCycles(d.Name, d.Definition, cycles, filename)
-	}
-}
-
-func analyzeTypeDefForCycles(typeName string, typeDef ast.TypeDef, cycles *[]CycleInfo, filename string) {
-	// Check if this type definition contains self-references (cycles)
-	refs := collectTypeDefReferences(typeDef)
-	for _, ref := range refs {
-		if ref == typeName {
-			// Self-reference detected
-			kind := classifyCycle(typeName, filename)
-			note := ""
-			if kind == CycleExpected {
-				note = "Standard recursive ADT pattern"
-			}
-			*cycles = append(*cycles, CycleInfo{
-				Kind:     kind,
-				TypeName: typeName,
-				Path:     []string{typeName, "...", typeName},
-				Depth:    1,
-				Note:     note,
-			})
-			break // Only report once per type
-		}
-	}
-}
-
-func collectTypeDefReferences(typeDef ast.TypeDef) []string {
-	var refs []string
-	switch td := typeDef.(type) {
-	case *ast.AlgebraicType:
-		for _, ctor := range td.Constructors {
-			for _, field := range ctor.Fields {
-				refs = append(refs, collectASTTypeReferences(field.Type)...)
-			}
-		}
-	case *ast.RecordType:
-		for _, field := range td.Fields {
-			refs = append(refs, collectASTTypeReferences(field.Type)...)
-		}
-	case *ast.TypeAlias:
-		refs = append(refs, collectASTTypeReferences(td.Target)...)
-	}
-	return refs
-}
-
-func collectASTTypeReferences(typeExpr ast.Type) []string {
-	if typeExpr == nil {
-		return nil
-	}
-	var refs []string
-
-	switch t := typeExpr.(type) {
-	case *ast.SimpleType:
-		refs = append(refs, t.Name)
-	case *ast.TypeVar:
-		// Type variables don't reference concrete types
-	case *ast.FuncType:
-		for _, param := range t.Params {
-			refs = append(refs, collectASTTypeReferences(param)...)
-		}
-		refs = append(refs, collectASTTypeReferences(t.Return)...)
-	case *ast.ListType:
-		refs = append(refs, collectASTTypeReferences(t.Element)...)
-	case *ast.ArrayType:
-		refs = append(refs, collectASTTypeReferences(t.Element)...)
-	case *ast.TupleType:
-		for _, elem := range t.Elements {
-			refs = append(refs, collectASTTypeReferences(elem)...)
-		}
-	case *ast.RecordType:
-		// RecordType can appear both as TypeDef and as nested Type
-		for _, field := range t.Fields {
-			refs = append(refs, collectASTTypeReferences(field.Type)...)
-		}
-	}
-
-	return refs
-}
-
-func classifyCycle(typeName string, filename string) CycleKind {
-	// Heuristic: standard library and common recursive patterns are "expected"
-	// List, Tree, etc. are common recursive ADT names
-	commonRecursiveTypes := map[string]bool{
-		"List": true, "Tree": true, "Node": true,
-		"Expr": true, "Stmt": true, "AST": true,
-		"Stream": true, "Lazy": true,
-	}
-
-	if commonRecursiveTypes[typeName] {
-		return CycleExpected
-	}
-
-	// Files in std/ are expected to have recursive types
-	if strings.Contains(filename, "std/") || strings.Contains(filename, "stdlib/") {
-		return CycleExpected
-	}
-
-	return CycleSuspicious
 }
 
 func outputCyclesJSON(report CyclesReport) {
