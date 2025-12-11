@@ -27,3 +27,14 @@ export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
 
 -- String splitting
 export pure func split(s: string, delimiter: string) -> [string] { _str_split(s, delimiter) }
+
+-- ============================================================================
+-- Type to String Conversion (v0.5.10)
+-- ============================================================================
+
+-- floatToStr: Convert a float to its string representation
+-- Uses compact format (no trailing zeros)
+export pure func floatToStr(f: float) -> string { _string_floatToStr(f) }
+
+-- intToStr: Convert an integer to its string representation
+export pure func intToStr(n: int) -> string { _string_intToStr(n) }

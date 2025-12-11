@@ -119,6 +119,10 @@ type Generator struct {
 	// M-CODEGEN-STDLIB-MATH: Set to true when mapPureMathBuiltin returns a match
 	needsMathImport bool
 
+	// needsStrconvImport tracks whether generated code uses strconv package functions
+	// M-CODEGEN-STDLIB-STRING: Set to true when string conversion builtins are used
+	needsStrconvImport bool
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -277,8 +281,9 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	g.buf.Reset()
 	g.errors = nil
 	g.indent = 0
-	g.prog = prog             // Store for DeclMeta access
-	g.needsMathImport = false // Reset for each generation
+	g.prog = prog               // Store for DeclMeta access
+	g.needsMathImport = false   // Reset for each generation
+	g.needsStrconvImport = false // Reset for each generation
 
 	// M-CODEGEN-STDLIB-MATH: Two-phase generation to detect imports needed
 	// Phase 1: Generate declarations to temporary buffer to detect math usage
@@ -327,19 +332,30 @@ func (g *Generator) writePackageHeader() {
 		// Import fmt, reflect, strings for runtime helpers
 		// M-DX16: reflect and strings needed for typed struct RecordUpdate
 		// M-CODEGEN-STDLIB-MATH: math needed when using std/math functions
+		// M-CODEGEN-STDLIB-STRING: strconv needed when using string conversion functions
 		g.writef("import (\n")
 		g.writef("\t\"fmt\"\n")
 		if g.needsMathImport {
 			g.writef("\t\"math\"\n")
 		}
 		g.writef("\t\"reflect\"\n")
+		if g.needsStrconvImport {
+			g.writef("\t\"strconv\"\n")
+		}
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
 		g.writeRuntimeHelpers()
-	} else if g.needsMathImport {
-		// M-CODEGEN-STDLIB-MATH: Even when skipping runtime helpers,
-		// we need to add math import if the code uses math functions
-		g.writef("import \"math\"\n\n")
+	} else if g.needsMathImport || g.needsStrconvImport {
+		// M-CODEGEN-STDLIB-MATH/STRING: Even when skipping runtime helpers,
+		// we need to add imports if the code uses stdlib functions
+		g.writef("import (\n")
+		if g.needsMathImport {
+			g.writef("\t\"math\"\n")
+		}
+		if g.needsStrconvImport {
+			g.writef("\t\"strconv\"\n")
+		}
+		g.writef(")\n\n")
 	}
 }
 

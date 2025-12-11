@@ -316,6 +316,21 @@ func simplify(node interface{}) interface{} {
 			"name": n.Name,
 		}
 
+	// M-TAPP-FIX: Handle TypeApp (generic type application)
+	case *TypeApp:
+		m := map[string]interface{}{
+			"type":        "TypeApp",
+			"constructor": n.Constructor,
+		}
+		if len(n.Args) > 0 {
+			args := make([]interface{}, len(n.Args))
+			for i, arg := range n.Args {
+				args[i] = simplify(arg)
+			}
+			m["args"] = args
+		}
+		return m
+
 	case *TypeVar:
 		return map[string]interface{}{
 			"type": "TypeVar",

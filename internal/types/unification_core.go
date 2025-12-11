@@ -164,6 +164,12 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
 		}
+		// M-TAPP-FIX: Handle TCon vs TApp - swap and let unifyTypeApps handle it
+		// This allows TApp(Option, [a]) to unify with TCon(Option) when
+		// the TCon represents the same parameterized type
+		if t2App, ok := t2.(*TApp); ok {
+			return u.unifyTypeApps(t2App, t1, sub)
+		}
 		return nil, fmt.Errorf("cannot unify type constructor %s with %T", t1.Name, t2)
 
 	case *TFunc2:

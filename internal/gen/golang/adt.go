@@ -341,6 +341,16 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		// Functions need more complex handling
 		return "interface{}"
 
+	// M-TAPP-FIX: Handle TypeApp (generic type application like Option[int])
+	case *ast.TypeApp:
+		// For generic types, use the constructor name with pointer for ADTs
+		goType := g.mapNamedType(typ.Constructor)
+		// Most generic types (Option, Result, etc.) are ADTs and need pointers
+		if isUserDefinedType(goType) {
+			return "*" + goType
+		}
+		return goType
+
 	default:
 		return "interface{}"
 	}

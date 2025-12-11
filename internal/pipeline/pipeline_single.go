@@ -114,10 +114,16 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	elabCtors := elaborator.GetConstructors()
 	if len(elabCtors) > 0 {
 		ctorTypes := make(map[string]string)
+		adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
 		for ctorName, ctorInfo := range elabCtors {
 			ctorTypes[ctorName] = ctorInfo.TypeName
+			// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
+			if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
+				adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+			}
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
+		typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 	}
 
 	// M-BUGFIX: Pass type aliases to type checker for expansion during unification

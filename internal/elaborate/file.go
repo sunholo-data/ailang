@@ -488,9 +488,11 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 	switch def := decl.Definition.(type) {
 	case *ast.AlgebraicType:
 		// Process each constructor in the ADT
+		// M-TAPP-FIX: Track type parameter count for proper TApp generation
+		typeParamCount := len(decl.TypeParams)
 		for _, ctor := range def.Constructors {
 			// Register constructor in elaborator's map
-			e.RegisterConstructor(typeName, ctor.Name, len(ctor.Fields), false)
+			e.RegisterConstructor(typeName, ctor.Name, len(ctor.Fields), false, typeParamCount)
 		}
 		// Type declarations don't produce code, return nil
 		return nil, nil
@@ -647,6 +649,18 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		return &types.TFunc{
 			Params: params,
 			Return: e.astTypeToInternalType(typ.Return),
+		}
+
+	case *ast.TypeApp:
+		// M-TAPP-FIX: Handle type application (e.g., Option[int], Result[T, E])
+		// Convert to internal TApp type with constructor and args
+		args := make([]types.Type, len(typ.Args))
+		for i, arg := range typ.Args {
+			args[i] = e.astTypeToInternalType(arg)
+		}
+		return &types.TApp{
+			Constructor: &types.TCon{Name: typ.Constructor},
+			Args:        args,
 		}
 
 	default:

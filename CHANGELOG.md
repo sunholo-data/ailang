@@ -1,5 +1,58 @@
 # AILANG Changelog
 
+## [v0.5.10] - (In Progress)
+
+### Added - String Conversion Functions (M-STRING-CONVERT)
+
+Added `floatToStr` and `intToStr` functions for converting numeric values to strings:
+
+**New Functions (2 builtins):**
+- `floatToStr(f: float) -> string` - Convert float to string (compact format)
+- `intToStr(n: int) -> string` - Convert integer to string
+
+**Usage:**
+```ailang
+import std/string (floatToStr, intToStr)
+
+let velocity = floatToStr(15.0) ++ "% c"  -- "15% c"
+let count = "Items: " ++ intToStr(42)      -- "Items: 42"
+```
+
+**Files Changed:**
+- `internal/builtins/string_convert.go` - Builtin implementations (~100 LOC)
+- `internal/builtins/string_convert_test.go` - Unit tests (~130 LOC)
+- `std/string.ail` - Added floatToStr, intToStr exports (~10 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-string-conversion.md](design_docs/implemented/v0_5_10/m-string-conversion.md)
+
+### Added - Go Codegen String Support (M-CODEGEN-STDLIB-STRING)
+
+Extended Go codegen to properly map `std/string` conversion functions to Go's `strconv` package:
+
+**Changes:**
+- `floatToStr(x)` → `strconv.FormatFloat(x.(float64), 'g', -1, 64)`
+- `intToStr(x)` → `strconv.Itoa(int(x.(int64)))`
+- Automatic `strconv` import when needed
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added needsStrconvImport flag
+- `internal/gen/golang/codegen_expr_simple.go` - String conversion mappings
+- `internal/gen/golang/codegen_expr_app.go` - String conversion handling
+- `internal/gen/golang/codegen_string_test.go` - Comprehensive tests (~260 LOC)
+
+### Fixed - Test Isolation in Builtin Tests
+
+Fixed pre-existing test order-dependent failures in `internal/builtins/spec_test.go`:
+
+**Problem:** Tests that cleared the global registry didn't restore it, causing subsequent tests to fail.
+
+**Solution:** Added `withFreshRegistry(t)` helper that uses `t.Cleanup()` to save and restore registry state.
+
+**Files Changed:**
+- `internal/builtins/spec_test.go` - Added helper function and updated all tests using fresh registries
+
+---
+
 ## [v0.5.9] - 2025-12-10
 
 ### Added - Standard Math Library Functions (M-STD-MATH-TRIG)

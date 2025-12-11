@@ -10,6 +10,21 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// withFreshRegistry saves the current registry state, creates a fresh empty registry,
+// and returns a cleanup function that restores the original state.
+// Use this in tests that need an isolated registry to avoid affecting other tests.
+func withFreshRegistry(t *testing.T) {
+	t.Helper()
+	originalRegistry := specRegistry
+	originalFrozen := frozen
+	t.Cleanup(func() {
+		specRegistry = originalRegistry
+		frozen = originalFrozen
+	})
+	specRegistry = make(map[string]*BuiltinSpec)
+	frozen = false
+}
+
 // mockImpl is a no-op implementation for testing
 func mockImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	return &eval.UnitValue{}, nil
@@ -31,9 +46,7 @@ func mockType() types.Type {
 }
 
 func TestRegisterEffectBuiltin_Success(t *testing.T) {
-	// Reset registry for testing
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -58,8 +71,7 @@ func TestRegisterEffectBuiltin_Success(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_EmptyName(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -76,8 +88,7 @@ func TestRegisterEffectBuiltin_EmptyName(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_NilTypeFunc(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -94,8 +105,7 @@ func TestRegisterEffectBuiltin_NilTypeFunc(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_TypeReturnsNil(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -114,8 +124,7 @@ func TestRegisterEffectBuiltin_TypeReturnsNil(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_ArityMismatch(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -132,8 +141,7 @@ func TestRegisterEffectBuiltin_ArityMismatch(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_NilImpl(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -150,8 +158,7 @@ func TestRegisterEffectBuiltin_NilImpl(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_Duplicate(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	spec := BuiltinSpec{
 		Module:  "std/test",
@@ -173,8 +180,7 @@ func TestRegisterEffectBuiltin_Duplicate(t *testing.T) {
 }
 
 func TestRegisterEffectBuiltin_AfterFreeze(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	// Freeze the registry
 	err := Init()
@@ -196,8 +202,7 @@ func TestRegisterEffectBuiltin_AfterFreeze(t *testing.T) {
 }
 
 func TestAllSpecs(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	// Register multiple builtins
 	specs := []BuiltinSpec{
@@ -233,8 +238,7 @@ func TestAllSpecs(t *testing.T) {
 }
 
 func TestAllNames(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	// Register multiple builtins
 	names := []string{"_test_func1", "_test_func2", "_test_func3"}
@@ -260,8 +264,7 @@ func TestAllNames(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	specRegistry = make(map[string]*BuiltinSpec)
-	frozen = false
+	withFreshRegistry(t)
 
 	assert.False(t, IsFrozen())
 

@@ -14,8 +14,14 @@
             {
               "name": "port",
               "typeExpr": {
-                "name": "Option",
-                "type": "SimpleType"
+                "args": [
+                  {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
+                ],
+                "constructor": "Option",
+                "type": "TypeApp"
               }
             }
           ],
@@ -40,8 +46,14 @@
             {
               "name": "port",
               "typeExpr": {
-                "name": "Option",
-                "type": "SimpleType"
+                "args": [
+                  {
+                    "name": "int",
+                    "type": "SimpleType"
+                  }
+                ],
+                "constructor": "Option",
+                "type": "TypeApp"
               }
             }
           ],

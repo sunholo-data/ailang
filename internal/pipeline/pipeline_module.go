@@ -293,19 +293,47 @@ func runModule(cfg Config, src Source) (Result, error) {
 			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorName)
 			factoryKey := fmt.Sprintf("$adt.%s", factoryName)
 
-			// Build factory type: a0 -> a1 -> ... -> TypeName
+			// Build factory type: a0 -> a1 -> ... -> TypeName[t0, t1, ...]
 			// Use TVar2 (new type system) for type variables with Star kind
 			var typeVars []string
 			var paramTypes []types.Type
-			for i := 0; i < ctorInfo.Arity; i++ {
-				varName := fmt.Sprintf("a%d", i)
+
+			// M-TAPP-FIX: First create type vars for ADT type parameters
+			// These will be used in the result type: TApp(TypeName, [t0, t1, ...])
+			var adtTypeVars []types.Type
+			for i := 0; i < ctorInfo.TypeParamCount; i++ {
+				varName := fmt.Sprintf("t%d", i)
 				typeVars = append(typeVars, varName)
-				paramTypes = append(paramTypes, &types.TVar2{Name: varName, Kind: types.Star})
+				adtTypeVars = append(adtTypeVars, &types.TVar2{Name: varName, Kind: types.Star})
 			}
 
-			// Result type - monomorphic for now (M-P3 limitation)
-			// Full polymorphic ADTs (Option[Int]) will require type application support in unifier
-			resultType := &types.TCon{Name: ctorInfo.TypeName}
+			// For constructor fields, use the same type vars for the first TypeParamCount fields
+			// (This assumes common case where field types are the ADT's type params)
+			// Additional fields get fresh type vars
+			for i := 0; i < ctorInfo.Arity; i++ {
+				if i < ctorInfo.TypeParamCount {
+					// Use the ADT type var
+					paramTypes = append(paramTypes, adtTypeVars[i])
+				} else {
+					// Create additional type var for extra fields
+					varName := fmt.Sprintf("a%d", i)
+					typeVars = append(typeVars, varName)
+					paramTypes = append(paramTypes, &types.TVar2{Name: varName, Kind: types.Star})
+				}
+			}
+
+			// M-TAPP-FIX: Build correct result type
+			// For parameterized ADTs, use TApp(TCon(TypeName), [type vars])
+			// For non-parameterized ADTs, use plain TCon
+			var resultType types.Type
+			if ctorInfo.TypeParamCount > 0 {
+				resultType = &types.TApp{
+					Constructor: &types.TCon{Name: ctorInfo.TypeName},
+					Args:        adtTypeVars,
+				}
+			} else {
+				resultType = &types.TCon{Name: ctorInfo.TypeName}
+			}
 
 			var factoryType types.Type
 			if ctorInfo.Arity == 0 {
@@ -349,10 +377,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// M-DX25.4: Pass constructor → ADT type mappings to type checker
 		// This enables correct type inference for pattern matching on ADTs
 		ctorTypes := make(map[string]string)
+		adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
 		for ctorName, ctorInfo := range unit.Constructors {
 			ctorTypes[ctorName] = ctorInfo.TypeName
+			// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
+			if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
+				adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+			}
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
+		typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 
 		// M-FIX-RECORD-UPDATE: Pass type aliases to type checker for expansion during unification
 		// This enables `type NPC = { pos: Pos, name: string }` to work with record update

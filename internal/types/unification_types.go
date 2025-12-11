@@ -213,6 +213,18 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
+	// M-TAPP-FIX: Handle TApp vs TCon
+	// TApp(Option, [int]) should not unify with TCon("Option") - different arities
+	// But we provide a better error message
+	if t2Con, ok := t2.(*TCon); ok {
+		h1, a1 := decomposeApp(t1)
+		if h1Con, ok := h1.(*TCon); ok && h1Con.Name == t2Con.Name {
+			// Same constructor name but different application
+			return nil, fmt.Errorf("type %s expects %d type argument(s), but got 0 (did you mean %s?)",
+				t2Con.Name, len(a1), t1.String())
+		}
+		return nil, fmt.Errorf("cannot unify %s with %s", t1.String(), t2Con.Name)
+	}
 	return nil, fmt.Errorf("cannot unify type application with %T", t2)
 }
 

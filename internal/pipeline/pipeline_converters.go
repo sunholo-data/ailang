@@ -24,10 +24,11 @@ func convertConstructors(elabCtors map[string]*elaborate.ConstructorInfo) map[st
 	ctors := make(map[string]*ConstructorInfo)
 	for name, elabCtor := range elabCtors {
 		ctors[name] = &ConstructorInfo{
-			TypeName:   elabCtor.TypeName,
-			CtorName:   elabCtor.CtorName,
-			FieldTypes: nil, // We don't have AST types here, will infer from Core
-			Arity:      elabCtor.Arity,
+			TypeName:       elabCtor.TypeName,
+			CtorName:       elabCtor.CtorName,
+			FieldTypes:     nil, // We don't have AST types here, will infer from Core
+			Arity:          elabCtor.Arity,
+			TypeParamCount: elabCtor.TypeParamCount, // M-TAPP-FIX: Propagate type param count
 		}
 	}
 	return ctors

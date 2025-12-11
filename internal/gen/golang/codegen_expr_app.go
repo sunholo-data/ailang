@@ -44,6 +44,46 @@ func (g *Generator) generateApp(app *core.App) error {
 		return nil
 	}
 
+	// M-CODEGEN-STDLIB-STRING: Handle string conversion functions
+	if strConv := g.getStringConvFunction(app.Func); strConv != StringConvNone {
+		switch strConv {
+		case StringConvFloatToStr:
+			// floatToStr(f) → strconv.FormatFloat(f.(float64), 'g', -1, 64)
+			g.write("strconv.FormatFloat(")
+			if len(app.Args) > 0 {
+				if g.exprProducesInterface(app.Args[0]) {
+					if err := g.generateExpr(app.Args[0]); err != nil {
+						return err
+					}
+					g.write(".(float64)")
+				} else {
+					if err := g.generateExpr(app.Args[0]); err != nil {
+						return err
+					}
+				}
+			}
+			g.write(", 'g', -1, 64)")
+			return nil
+		case StringConvIntToStr:
+			// intToStr(n) → strconv.Itoa(int(n.(int64)))
+			g.write("strconv.Itoa(int(")
+			if len(app.Args) > 0 {
+				if g.exprProducesInterface(app.Args[0]) {
+					if err := g.generateExpr(app.Args[0]); err != nil {
+						return err
+					}
+					g.write(".(int64)")
+				} else {
+					if err := g.generateExpr(app.Args[0]); err != nil {
+						return err
+					}
+				}
+			}
+			g.write("))")
+			return nil
+		}
+	}
+
 	// Special handling for cons operator (::)
 	if v, ok := app.Func.(*core.Var); ok && v.Name == "::" {
 		g.write("Cons(")

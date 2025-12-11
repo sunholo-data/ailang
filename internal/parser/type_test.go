@@ -323,10 +323,11 @@ func TestArrayListTypeApplication(t *testing.T) {
 			checkElement: "UserType",
 		},
 		{
-			name:         "Option[int] remains SimpleType (not special-cased)",
+			// M-TAPP-FIX: Option[int] now parses to TypeApp (correct behavior for type annotations)
+			name:         "Option[int] parses to TypeApp (generic type application)",
 			input:        "type T = Foo(Option[int])",
-			expectedType: &ast.SimpleType{},
-			checkElement: "", // SimpleType doesn't have element
+			expectedType: &ast.TypeApp{},
+			checkElement: "int", // TypeApp has args
 		},
 	}
 
@@ -376,6 +377,19 @@ func TestArrayListTypeApplication(t *testing.T) {
 				simpleType, ok := fieldType.(*ast.SimpleType)
 				assert.True(t, ok, "expected SimpleType, got %T", fieldType)
 				_ = simpleType
+				_ = expected
+			// M-TAPP-FIX: Handle TypeApp for generic type applications
+			case *ast.TypeApp:
+				typeApp, ok := fieldType.(*ast.TypeApp)
+				assert.True(t, ok, "expected TypeApp, got %T", fieldType)
+				if ok && tt.checkElement != "" {
+					require.Len(t, typeApp.Args, 1, "expected 1 type argument")
+					elemSimple, ok := typeApp.Args[0].(*ast.SimpleType)
+					assert.True(t, ok, "expected SimpleType element in TypeApp, got %T", typeApp.Args[0])
+					if ok {
+						assert.Equal(t, tt.checkElement, elemSimple.Name)
+					}
+				}
 				_ = expected
 			}
 		})

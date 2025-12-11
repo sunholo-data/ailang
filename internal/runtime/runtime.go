@@ -410,9 +410,11 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 	constructors := make(map[string]*iface.ConstructorScheme)
 	if loaded.Constructors != nil {
 		for ctorName, typeName := range loaded.Constructors {
-			// Find arity from the type declaration
+			// Find arity and type params from the type declaration
 			arity := 0
+			typeParamCount := 0
 			if typeDecl, ok := loaded.Types[typeName]; ok {
+				typeParamCount = len(typeDecl.TypeParams)
 				// Check if this is an algebraic type (sum type)
 				if algType, ok := typeDecl.Definition.(*ast.AlgebraicType); ok {
 					for _, ctor := range algType.Constructors {
@@ -424,17 +426,39 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 				}
 			}
 
+			// M-TAPP-FIX: Create type vars for ADT type parameters
+			var adtTypeVars []types.Type
+			for i := 0; i < typeParamCount; i++ {
+				adtTypeVars = append(adtTypeVars, &types.TVar2{Name: fmt.Sprintf("t%d", i), Kind: types.Star})
+			}
+
 			// Create placeholder field types
 			fieldTypes := make([]types.Type, arity)
 			for i := 0; i < arity; i++ {
-				fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
+				if i < typeParamCount {
+					// Use ADT type var for simple cases
+					fieldTypes[i] = adtTypeVars[i]
+				} else {
+					fieldTypes[i] = &types.TVar2{Name: fmt.Sprintf("a%d", i), Kind: types.Star}
+				}
+			}
+
+			// M-TAPP-FIX: Build correct result type
+			var resultType types.Type
+			if typeParamCount > 0 {
+				resultType = &types.TApp{
+					Constructor: &types.TCon{Name: typeName},
+					Args:        adtTypeVars,
+				}
+			} else {
+				resultType = &types.TCon{Name: typeName}
 			}
 
 			constructors[ctorName] = &iface.ConstructorScheme{
 				TypeName:   typeName,
 				CtorName:   ctorName,
 				FieldTypes: fieldTypes,
-				ResultType: &types.TCon{Name: typeName},
+				ResultType: resultType,
 				Arity:      arity,
 			}
 		}

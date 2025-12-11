@@ -73,6 +73,7 @@ type CoreTypeChecker struct {
 	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
 	constructorTypes    map[string]string              // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	adtTypeParams       map[string]int                 // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
@@ -159,6 +160,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
+		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
 	}
@@ -181,6 +183,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
+		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
 	}
@@ -227,6 +230,21 @@ func (tc *CoreTypeChecker) RegisterConstructorType(ctorName, typeName string) {
 		tc.constructorTypes = make(map[string]string)
 	}
 	tc.constructorTypes[ctorName] = typeName
+}
+
+// SetADTTypeParams sets the ADT type → number of type parameters mapping.
+// M-TAPP-FIX: Used to generate proper TApp types in pattern matching.
+func (tc *CoreTypeChecker) SetADTTypeParams(params map[string]int) {
+	tc.adtTypeParams = params
+}
+
+// RegisterADTTypeParams registers a single ADT → type param count mapping.
+// M-TAPP-FIX: Used to generate proper TApp types in pattern matching.
+func (tc *CoreTypeChecker) RegisterADTTypeParams(typeName string, paramCount int) {
+	if tc.adtTypeParams == nil {
+		tc.adtTypeParams = make(map[string]int)
+	}
+	tc.adtTypeParams[typeName] = paramCount
 }
 
 // SetDebugMode enables debug output for defaulting traces

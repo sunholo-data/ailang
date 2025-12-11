@@ -4,8 +4,18 @@
       {
         "definition": {
           "target": {
-            "name": "Map",
-            "type": "SimpleType"
+            "args": [
+              {
+                "name": "string",
+                "type": "SimpleType"
+              },
+              {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            ],
+            "constructor": "Map",
+            "type": "TypeApp"
           },
           "type": "TypeAlias"
         },
@@ -18,8 +28,18 @@
       {
         "definition": {
           "target": {
-            "name": "Map",
-            "type": "SimpleType"
+            "args": [
+              {
+                "name": "string",
+                "type": "SimpleType"
+              },
+              {
+                "name": "int",
+                "type": "SimpleType"
+              }
+            ],
+            "constructor": "Map",
+            "type": "TypeApp"
           },
           "type": "TypeAlias"
         },

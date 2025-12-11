@@ -20,14 +20,26 @@
               "fields": [
                 {
                   "type": {
-                    "name": "Tree",
-                    "type": "SimpleType"
+                    "args": [
+                      {
+                        "name": "a",
+                        "type": "TypeVar"
+                      }
+                    ],
+                    "constructor": "Tree",
+                    "type": "TypeApp"
                   }
                 },
                 {
                   "type": {
-                    "name": "Tree",
-                    "type": "SimpleType"
+                    "args": [
+                      {
+                        "name": "a",
+                        "type": "TypeVar"
+                      }
+                    ],
+                    "constructor": "Tree",
+                    "type": "TypeApp"
                   }
                 }
               ],
@@ -65,14 +77,26 @@
               "fields": [
                 {
                   "type": {
-                    "name": "Tree",
-                    "type": "SimpleType"
+                    "args": [
+                      {
+                        "name": "a",
+                        "type": "TypeVar"
+                      }
+                    ],
+                    "constructor": "Tree",
+                    "type": "TypeApp"
                   }
                 },
                 {
                   "type": {
-                    "name": "Tree",
-                    "type": "SimpleType"
+                    "args": [
+                      {
+                        "name": "a",
+                        "type": "TypeVar"
+                      }
+                    ],
+                    "constructor": "Tree",
+                    "type": "TypeApp"
                   }
                 }
               ],

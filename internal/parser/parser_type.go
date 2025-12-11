@@ -33,10 +33,12 @@ func (p *Parser) parseType() ast.Type {
 			elemType := p.parseType()
 
 			// Parse additional type arguments (for multi-arg generics like Result[T, E])
+			// M-TAPP-FIX: Collect ALL type arguments, not just the first
+			typeArgs := []ast.Type{elemType}
 			for p.peekTokenIs(lexer.COMMA) {
-				p.nextToken()     // move to COMMA
-				p.nextToken()     // move past COMMA
-				_ = p.parseType() // Additional args not used yet
+				p.nextToken() // move to COMMA
+				p.nextToken() // move past COMMA
+				typeArgs = append(typeArgs, p.parseType())
 			}
 
 			if !p.expectPeek(lexer.RBRACKET) {
@@ -51,9 +53,9 @@ func (p *Parser) parseType() ast.Type {
 			case "List":
 				typ = &ast.ListType{Element: elemType, Pos: startPos}
 			default:
-				// Generic type application - return SimpleType for now
-				// TODO: Add ast.TypeApp for proper generic support (Option[T], Result[T,E])
-				typ = &ast.SimpleType{Name: name, Pos: startPos}
+				// M-TAPP-FIX: Use TypeApp to preserve type arguments for generic types
+				// This enables proper type checking of Option[T], Result[T, E], etc.
+				typ = &ast.TypeApp{Constructor: name, Args: typeArgs, Pos: startPos}
 			}
 			goto checkArrow
 		}

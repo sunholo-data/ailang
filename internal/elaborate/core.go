@@ -36,10 +36,11 @@ type Elaborator struct {
 
 // ConstructorInfo holds information about an available constructor
 type ConstructorInfo struct {
-	TypeName   string // The ADT type name (e.g., "Option")
-	CtorName   string // Constructor name (e.g., "Some")
-	Arity      int    // Number of fields
-	IsImported bool   // Whether this constructor is imported
+	TypeName       string // The ADT type name (e.g., "Option")
+	CtorName       string // Constructor name (e.g., "Some")
+	Arity          int    // Number of fields
+	IsImported     bool   // Whether this constructor is imported
+	TypeParamCount int    // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
 }
 
 // NewElaborator creates a new elaborator
@@ -101,12 +102,14 @@ func (e *Elaborator) AddBuiltinsToGlobalEnv() {
 }
 
 // RegisterConstructor adds a constructor to the elaborator's constructor map
-func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, isImported bool) {
+// M-TAPP-FIX: Added typeParamCount to track ADT type parameters
+func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, isImported bool, typeParamCount int) {
 	e.constructors[ctorName] = &ConstructorInfo{
-		TypeName:   typeName,
-		CtorName:   ctorName,
-		Arity:      arity,
-		IsImported: isImported,
+		TypeName:       typeName,
+		CtorName:       ctorName,
+		Arity:          arity,
+		IsImported:     isImported,
+		TypeParamCount: typeParamCount,
 	}
 }
 

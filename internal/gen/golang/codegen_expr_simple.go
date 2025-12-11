@@ -384,3 +384,43 @@ func (g *Generator) getMathFunction(funcExpr core.CoreExpr) string {
 	}
 	return ""
 }
+
+// StringConvKind represents the type of string conversion function.
+type StringConvKind int
+
+const (
+	StringConvNone StringConvKind = iota
+	StringConvFloatToStr
+	StringConvIntToStr
+)
+
+// stringConvFunctions maps AILANG string conversion builtins to their kind.
+// M-CODEGEN-STDLIB-STRING: Used to emit strconv calls with proper arguments.
+var stringConvFunctions = map[string]StringConvKind{
+	// Builtins (underscore prefix)
+	"_string_floatToStr": StringConvFloatToStr,
+	"_string_intToStr":   StringConvIntToStr,
+	// stdlib wrappers
+	"floatToStr": StringConvFloatToStr,
+	"intToStr":   StringConvIntToStr,
+}
+
+// getStringConvFunction checks if a function expression refers to a string conversion function.
+// Returns the conversion kind or StringConvNone if not a string conversion.
+// M-CODEGEN-STDLIB-STRING: Used to emit strconv calls with proper arguments.
+func (g *Generator) getStringConvFunction(funcExpr core.CoreExpr) StringConvKind {
+	name := ""
+	if v, ok := funcExpr.(*core.VarGlobal); ok {
+		name = v.Ref.Name
+	} else if v, ok := funcExpr.(*core.Var); ok {
+		name = v.Name
+	}
+	if name == "" {
+		return StringConvNone
+	}
+	if kind, ok := stringConvFunctions[name]; ok {
+		g.needsStrconvImport = true
+		return kind
+	}
+	return StringConvNone
+}

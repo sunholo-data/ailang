@@ -84,3 +84,22 @@ func (t *TupleType) String() string {
 }
 func (t *TupleType) Position() Pos { return t.Pos }
 func (t *TupleType) typeNode()     {}
+
+// TypeApp represents type application (generic types)
+// Example: Option[int], Result[T, E], Map[string, int]
+// M-TAPP-FIX: Added to preserve type arguments in annotations
+type TypeApp struct {
+	Constructor string // Type constructor name (e.g., "Option", "Result")
+	Args        []Type // Type arguments (e.g., [int], [T, E])
+	Pos         Pos
+}
+
+func (t *TypeApp) String() string {
+	args := make([]string, len(t.Args))
+	for i, arg := range t.Args {
+		args[i] = arg.String()
+	}
+	return fmt.Sprintf("%s[%s]", t.Constructor, strings.Join(args, ", "))
+}
+func (t *TypeApp) Position() Pos { return t.Pos }
+func (t *TypeApp) typeNode()     {}

@@ -148,10 +148,28 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {
 			if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+				// M-TAPP-FIX: Check if ADT has type parameters
+				// If so, create TApp with fresh type vars, not just TCon
+				var adtType Type
+				if paramCount, hasParams := tc.adtTypeParams[adtTypeName]; hasParams && paramCount > 0 {
+					// ADT has type parameters - create TApp with fresh type vars
+					typeArgs := make([]Type, paramCount)
+					for i := 0; i < paramCount; i++ {
+						typeArgs[i] = ctx.freshTypeVar()
+					}
+					adtType = &TApp{
+						Constructor: &TCon{Name: adtTypeName},
+						Args:        typeArgs,
+					}
+				} else {
+					// No type parameters - use simple TCon
+					adtType = &TCon{Name: adtTypeName}
+				}
+
 				// Add constraint: scrutinee type = ADT type
 				ctx.addConstraint(TypeEq{
 					Left:  scrutType,
-					Right: &TCon{Name: adtTypeName},
+					Right: adtType,
 					Path:  []string{fmt.Sprintf("constructor pattern %s (ADT type %s)", p.Name, adtTypeName)},
 				})
 			}
