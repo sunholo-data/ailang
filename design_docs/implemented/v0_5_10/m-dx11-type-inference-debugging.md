@@ -1,23 +1,58 @@
 # M-DX11: Type Inference Debugging Tools
 
-**Status**: In Progress (Phase 1 ✅, Phase 2 🚧)
+**Status**: ✅ Complete (v0.5.10 scope)
 **Target**: v0.5.10 (Phases 1-2), v0.5.11 (Phases 3-4)
 **Priority**: P1 - Medium
-**Estimated**: Phase 2: 6 hours | Total: 24 hours across versions
+**Actual Time**: Phase 1: 4h, Phase 2: 2h | Total: 6 hours
 **Dependencies**: None
 
-## Scope Split (2025-12-11)
+## Implementation Report (2025-12-11)
 
-This feature has been split across versions for incremental delivery:
+### v0.5.10 Scope Complete
 
-| Phase | Description | Target | Status |
-|-------|-------------|--------|--------|
-| Phase 1 | Substitution chain tests | v0.5.10 | ✅ Complete |
-| Phase 2 | TypeReport function | v0.5.10 | 🚧 In Progress |
-| Phase 3 | --debug-types CLI | v0.5.11 | [Design doc](../v0_5_11/m-dx11-debug-types-cli.md) |
-| Phase 4 | Type provenance | v0.5.11+ | [Design doc](../v0_5_11/m-dx11-type-provenance.md) |
+| Phase | Description | Status | LOC |
+|-------|-------------|--------|-----|
+| Phase 1 | Substitution chain tests | ✅ Complete | ~200 |
+| Phase 2 | TypeReport function | ✅ Complete | ~340 |
+| **Total v0.5.10** | | **✅ Done** | **~540** |
 
-**Sprint plan for Phase 2:** [m-dx11-type-report-sprint-plan.md](m-dx11-type-report-sprint-plan.md)
+### Deferred to v0.5.11
+
+| Phase | Description | Target | Design Doc |
+|-------|-------------|--------|------------|
+| Phase 3 | --debug-types CLI | v0.5.11 | [m-dx11-debug-types-cli.md](../v0_5_11/m-dx11-debug-types-cli.md) |
+| Phase 4 | Type provenance | v0.5.11+ | [m-dx11-type-provenance.md](../v0_5_11/m-dx11-type-provenance.md) |
+
+### Phase 2 Implementation Details
+
+**Commit:** `48d81910`
+
+**New Files:**
+- `internal/types/type_report.go` (179 LOC) - TypeReport types and function
+- `internal/types/type_report_test.go` (162 LOC) - 6 unit tests
+
+**Key Types:**
+```go
+type TypeReport struct {
+    NodeID      uint64          // The Core node ID
+    Raw         Type            // What's in CoreTI (may have TVars)
+    Resolved    Type            // After applying full substitution
+    Constraints []ConstraintRef // Related constraints
+    Found       bool            // Whether node exists in CoreTI
+}
+```
+
+**Usage:**
+```go
+report := tc.TypeReport(nodeID)
+fmt.Printf("Raw: %s, Resolved: %s\n", report.Raw, report.Resolved)
+```
+
+**CLI Stub:** `ailang debug types` - shows API documentation
+
+**Key Insight:** ApplySubstitution already follows chains (M-FIX-FLOAT-OP fix), so no additional ApplyClosure implementation was needed.
+
+---
 
 ## Progress Update (2025-12-10)
 
