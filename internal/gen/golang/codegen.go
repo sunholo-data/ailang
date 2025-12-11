@@ -281,8 +281,8 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	g.buf.Reset()
 	g.errors = nil
 	g.indent = 0
-	g.prog = prog               // Store for DeclMeta access
-	g.needsMathImport = false   // Reset for each generation
+	g.prog = prog                // Store for DeclMeta access
+	g.needsMathImport = false    // Reset for each generation
 	g.needsStrconvImport = false // Reset for each generation
 
 	// M-CODEGEN-STDLIB-MATH: Two-phase generation to detect imports needed

@@ -120,9 +120,9 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Build external environment from already-compiled dependencies
 		externalTypes := make(map[string]*types.Scheme)
 		globalRefs := make(map[string]core.GlobalRef)
-		importedTypeAliases := make(map[string]types.Type)  // M-FIX-RECORD-UPDATE: Collect type aliases from imports
-		importedCtorTypes := make(map[string]string)        // M-TAPP-FIX: Track imported constructor → ADT type
-		importedADTTypeParams := make(map[string]int)       // M-TAPP-FIX: Track imported ADT → type param count
+		importedTypeAliases := make(map[string]types.Type) // M-FIX-RECORD-UPDATE: Collect type aliases from imports
+		importedCtorTypes := make(map[string]string)       // M-TAPP-FIX: Track imported constructor → ADT type
+		importedADTTypeParams := make(map[string]int)      // M-TAPP-FIX: Track imported ADT → type param count
 
 		// Always include $builtin module exports (available to all modules)
 		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
