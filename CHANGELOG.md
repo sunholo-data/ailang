@@ -86,7 +86,36 @@ Cycle 2 [SUSPICIOUS]: Person
 **Modified Files:**
 - `cmd/ailang/debug.go` - Integration with new detection system
 
-**Design Doc:** [design_docs/planned/v0_5_10/m-dx11-cycles.md](design_docs/planned/v0_5_10/m-dx11-cycles.md)
+**Design Doc:** [design_docs/implemented/v0_5_10/m-dx11-cycles.md](design_docs/implemented/v0_5_10/m-dx11-cycles.md)
+
+### Added - TypeReport Debug API (M-DX11-TYPE-REPORT)
+
+Added `TypeReport` function as the canonical primitive for type debugging:
+
+**What It Does:**
+- Consolidates type info from CoreTI, substitution, and constraints
+- Returns Raw type (as stored) and Resolved type (after substitution)
+- Lists related constraints for any Core node
+
+**Usage (Go code):**
+```go
+report := tc.TypeReport(nodeID)
+fmt.Printf("Raw: %s, Resolved: %s\n", report.Raw, report.Resolved)
+```
+
+**CLI stub:**
+```bash
+ailang debug types  # Shows API documentation
+```
+
+**New Files:**
+- `internal/types/type_report.go` - TypeReport types and function (~160 LOC)
+- `internal/types/type_report_test.go` - Unit tests (~140 LOC)
+
+**Modified Files:**
+- `cmd/ailang/debug.go` - Added `debug types` stub command
+
+**Design Doc:** [design_docs/planned/v0_5_10/m-dx11-type-inference-debugging.md](design_docs/planned/v0_5_10/m-dx11-type-inference-debugging.md)
 
 ---
 

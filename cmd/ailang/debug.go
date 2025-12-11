@@ -67,6 +67,20 @@ func runDebug() {
 		}
 		runDebugCycles(cyclesCmd.Arg(0), *jsonFlag)
 
+	case "types":
+		// Stub for future --debug-types CLI (v0.5.11)
+		// For now, just show that TypeReport API is available
+		fmt.Println(cyan("=== Type Debugging ==="))
+		fmt.Println()
+		fmt.Println("TypeReport API is available in internal/types/type_report.go")
+		fmt.Println()
+		fmt.Println("Usage (Go code):")
+		fmt.Println("  report := tc.TypeReport(nodeID)")
+		fmt.Println("  fmt.Printf(\"Raw: %s, Resolved: %s\\n\", report.Raw, report.Resolved)")
+		fmt.Println()
+		fmt.Println("Full CLI support (--debug-types flag) coming in v0.5.11")
+		fmt.Println("See: design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md")
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown debug subcommand '%s'\n", red("Error"), subcommand)
 		printDebugHelp()
@@ -80,6 +94,7 @@ func printDebugHelp() {
 	fmt.Println("Subcommands:")
 	fmt.Println("  ast <file>     Show Core AST (ANF) with optional type information")
 	fmt.Println("  cycles <file>  Detect cyclic type references in type definitions")
+	fmt.Println("  types          Show TypeReport API documentation (v0.5.10)")
 	fmt.Println("  hash <file>    Compute SHA256 hash of a file (for artifacts)")
 	fmt.Println()
 	fmt.Println("Flags for 'debug ast':")
@@ -94,6 +109,7 @@ func printDebugHelp() {
 	fmt.Println("  ailang debug ast --show-types example.ail")
 	fmt.Println("  ailang debug cycles examples/complex_types.ail")
 	fmt.Println("  ailang debug cycles --json examples/complex_types.ail")
+	fmt.Println("  ailang debug types")
 	fmt.Println("  ailang debug hash design_docs/planned/M-FIX-123.md")
 }
 
