@@ -1,10 +1,23 @@
 # M-DX11: Type Inference Debugging Tools
 
-**Status**: Partial (Phase 1 Complete)
-**Target**: v0.5.10
+**Status**: In Progress (Phase 1 ✅, Phase 2 🚧)
+**Target**: v0.5.10 (Phases 1-2), v0.5.11 (Phases 3-4)
 **Priority**: P1 - Medium
-**Estimated**: 3 days (24 hours)
+**Estimated**: Phase 2: 6 hours | Total: 24 hours across versions
 **Dependencies**: None
+
+## Scope Split (2025-12-11)
+
+This feature has been split across versions for incremental delivery:
+
+| Phase | Description | Target | Status |
+|-------|-------------|--------|--------|
+| Phase 1 | Substitution chain tests | v0.5.10 | ✅ Complete |
+| Phase 2 | TypeReport function | v0.5.10 | 🚧 In Progress |
+| Phase 3 | --debug-types CLI | v0.5.11 | [Design doc](../v0_5_11/m-dx11-debug-types-cli.md) |
+| Phase 4 | Type provenance | v0.5.11+ | [Design doc](../v0_5_11/m-dx11-type-provenance.md) |
+
+**Sprint plan for Phase 2:** [m-dx11-type-report-sprint-plan.md](m-dx11-type-report-sprint-plan.md)
 
 ## Progress Update (2025-12-10)
 
