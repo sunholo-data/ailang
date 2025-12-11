@@ -124,6 +124,14 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 	// M-CODEGEN-TYPE-ASSERTIONS: In _impl functions, call other _impl functions
 	// to avoid type mismatches (typed exports expect concrete types, not interface{})
 	if g.expectedReturnType == "interface{}" {
+		// M-CODEGEN-CROSS-MODULE: Check if this is from another user-defined module
+		// (not a pseudo-module like $adt, $builtin, and not stdlib like std/*)
+		// Cross-module function references need _impl versions to stay in interface{} land
+		// BUT stdlib modules (std/*) don't generate _impl - they use typed wrappers that call runtime helpers
+		if e.Ref.Module != "" && !strings.HasPrefix(e.Ref.Module, "$") && !strings.HasPrefix(e.Ref.Module, "std/") {
+			g.write(ToGoVarName(e.Ref.Name) + "_impl")
+			return nil
+		}
 		// Check if this is a known top-level function (has _impl version)
 		if _, isTopLevel := g.topLevelFuncs[e.Ref.Name]; isTopLevel {
 			g.write(ToGoVarName(e.Ref.Name) + "_impl")

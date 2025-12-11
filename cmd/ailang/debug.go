@@ -76,7 +76,7 @@ func runDebug() {
 		fmt.Println()
 		fmt.Println("Usage (Go code):")
 		fmt.Println("  report := tc.TypeReport(nodeID)")
-		fmt.Println("  fmt.Printf(\"Raw: %s, Resolved: %s\\n\", report.Raw, report.Resolved)")
+		fmt.Print("  fmt.Printf(\"Raw: %", "s, Resolved: %", "s\\n\", report.Raw, report.Resolved)\n")
 		fmt.Println()
 		fmt.Println("Full CLI support (--debug-types flag) coming in v0.5.11")
 		fmt.Println("See: design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md")

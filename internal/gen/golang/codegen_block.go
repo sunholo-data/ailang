@@ -32,6 +32,13 @@ func (g *Generator) generateFlatBody(body core.CoreExpr) error {
 		return g.generateFlatBodyLetRec(letrec)
 	}
 
+	// M-CODEGEN-LIST: Special case: Let-Bool-Match chain should be flattened
+	// Pattern: Let $cmp = <comparison> in Match $cmp { true => A, false => ... }
+	// This generates a flat if-else chain instead of nested switch/IIFE.
+	if let, ok := body.(*core.Let); ok && isLetBoolMatchChain(let) {
+		return g.generateFlatBodyBoolMatchChain(let)
+	}
+
 	// Lower the body to extract top-level let chains
 	blk := block.Lower(body)
 
@@ -98,6 +105,67 @@ func (g *Generator) generateFlatBodyLetRec(letrec *core.LetRec) error {
 		return err
 	}
 	g.writef("\n")
+
+	return nil
+}
+
+// generateFlatBodyBoolMatchChain generates a function body for Let-Bool-Match chains.
+// M-CODEGEN-LIST: This eliminates nested IIFEs for spectralFromRoll-style patterns.
+//
+// Instead of generating:
+//
+//	var tmp29 interface{} = LtFloat(roll, 0.76)
+//	return func() interface{} {
+//	    switch tmp29 {
+//	    case true: return M
+//	    case false: return func() interface{} { ... nested ... }()
+//	    }
+//	}()
+//
+// We generate:
+//
+//	if LtFloat(roll, 0.76).(bool) {
+//	    return M
+//	} else if LtFloat(roll, 0.88).(bool) {
+//	    return K
+//	} else {
+//	    return O
+//	}
+func (g *Generator) generateFlatBodyBoolMatchChain(let *core.Let) error {
+	entries, elseBody := collectLetBoolMatchChain(let)
+
+	for i, entry := range entries {
+		if i == 0 {
+			g.writef("if ")
+		} else {
+			g.writef("} else if ")
+		}
+		if err := g.generateExpr(entry.Condition); err != nil {
+			return err
+		}
+		if g.exprProducesInterface(entry.Condition) {
+			g.write(".(bool)")
+		}
+		g.write(" {\n")
+		g.indent++
+		g.writef("return ")
+		if err := g.generateExpr(entry.TrueBody); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+	}
+
+	// Final else
+	g.writef("} else {\n")
+	g.indent++
+	g.writef("return ")
+	if err := g.generateExpr(elseBody); err != nil {
+		return err
+	}
+	g.writef("\n")
+	g.indent--
+	g.writef("}\n")
 
 	return nil
 }

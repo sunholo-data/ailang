@@ -2,6 +2,7 @@
 package golang
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -410,7 +411,23 @@ func (g *Generator) generateRecordUpdate(ru *core.RecordUpdate) error {
 
 // generateList generates a Go slice literal.
 // M-DX25.11: Uses typed slices when element type is known from CoreTypeInfo.
+// M-CODEGEN-LIST: Flattens nested Let expressions to reduce IIFE nesting.
 func (g *Generator) generateList(list *core.List) error {
+	// M-CODEGEN-LIST: Check if any elements need flattening (contain Let expressions)
+	needsFlattening := false
+	for _, elem := range list.Elements {
+		if containsLet(elem) {
+			needsFlattening = true
+			break
+		}
+	}
+
+	if needsFlattening {
+		// M-CODEGEN-LIST: Wrap in single IIFE that flattens all element computations
+		// This reduces O(n) nesting to O(1) nesting
+		return g.generateFlattenedList(list)
+	}
+
 	// M-DX26: In _impl functions, always generate []interface{}
 	inImplFunc := g.expectedReturnType == "interface{}"
 
@@ -438,6 +455,177 @@ func (g *Generator) generateList(list *core.List) error {
 	}
 	g.write("}")
 	return nil
+}
+
+// containsLet checks if an expression contains a Let binding.
+// M-CODEGEN-LIST: Used to detect when list elements need flattening.
+func containsLet(expr core.CoreExpr) bool {
+	switch e := expr.(type) {
+	case *core.Let:
+		return true
+	case *core.LetRec:
+		return true
+	case *core.App:
+		// Check function and all arguments
+		if containsLet(e.Func) {
+			return true
+		}
+		for _, arg := range e.Args {
+			if containsLet(arg) {
+				return true
+			}
+		}
+	case *core.If:
+		return containsLet(e.Cond) || containsLet(e.Then) || containsLet(e.Else)
+	case *core.Match:
+		if containsLet(e.Scrutinee) {
+			return true
+		}
+		for _, arm := range e.Arms {
+			if containsLet(arm.Body) {
+				return true
+			}
+		}
+	case *core.BinOp:
+		return containsLet(e.Left) || containsLet(e.Right)
+	case *core.UnOp:
+		return containsLet(e.Operand)
+	case *core.List:
+		for _, elem := range e.Elements {
+			if containsLet(elem) {
+				return true
+			}
+		}
+	case *core.Array:
+		for _, elem := range e.Elements {
+			if containsLet(elem) {
+				return true
+			}
+		}
+	case *core.Tuple:
+		for _, elem := range e.Elements {
+			if containsLet(elem) {
+				return true
+			}
+		}
+	case *core.Record:
+		for _, value := range e.Fields {
+			if containsLet(value) {
+				return true
+			}
+		}
+	case *core.RecordAccess:
+		return containsLet(e.Record)
+	case *core.RecordUpdate:
+		if containsLet(e.Base) {
+			return true
+		}
+		for _, value := range e.Updates {
+			if containsLet(value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// generateFlattenedList generates a list with flattened Let bindings.
+// M-CODEGEN-LIST: Wraps list in single IIFE, flattens all element computations.
+//
+// Instead of:
+//
+//	func() interface{} {
+//	    var tmp1 = f()
+//	    return func() interface{} {
+//	        var tmp2 = g()
+//	        return []interface{}{tmp1, tmp2}
+//	    }()
+//	}()
+//
+// We generate:
+//
+//	func() interface{} {
+//	    var _list_e0 = f()
+//	    var _list_e1 = g()
+//	    return []interface{}{_list_e0, _list_e1}
+//	}()
+func (g *Generator) generateFlattenedList(list *core.List) error {
+	g.write("func() interface{} {\n")
+	g.indent++
+
+	// Evaluate all elements into temporary variables with flattened bindings
+	varNames := make([]string, len(list.Elements))
+	for i, elem := range list.Elements {
+		varName := g.uniqueVarName("_list_e")
+		varNames[i] = varName
+
+		// Use flattenExprBindings to extract and emit Let bindings
+		finalExpr := g.flattenExprBindings(elem)
+
+		// Assign the final expression to our list element var
+		g.writef("var %s interface{} = ", varName)
+		if err := g.generateExpr(finalExpr); err != nil {
+			return err
+		}
+		g.write("\n")
+	}
+
+	// Build the slice with flattened element references
+	g.write("return []interface{}{")
+	for i, varName := range varNames {
+		if i > 0 {
+			g.write(", ")
+		}
+		g.write(varName)
+	}
+	g.write("}\n")
+
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
+// flattenExprBindings extracts and emits Let bindings from an expression,
+// returning the final non-Let expression.
+// M-CODEGEN-LIST: Recursively flattens nested Let expressions.
+func (g *Generator) flattenExprBindings(expr core.CoreExpr) core.CoreExpr {
+	current := expr
+
+	// Extract consecutive Let bindings
+	for {
+		let, ok := current.(*core.Let)
+		if !ok {
+			break
+		}
+
+		// Recursively flatten the value
+		flatValue := g.flattenExprBindings(let.Value)
+
+		// Emit this binding
+		goName := ToGoVarName(let.Name)
+		g.writef("var %s interface{} = ", goName)
+		// Note: we call generateExpr here, which may still have some nesting
+		// for complex expressions, but this is much better than before
+		if err := g.generateExpr(flatValue); err != nil {
+			// On error, just emit the original - fallback behavior
+			if err := g.generateExpr(let.Value); err != nil {
+				return nil // Still return nil to continue, error already recorded
+			}
+		}
+		g.write("\n")
+
+		// Move to the body for next iteration
+		current = let.Body
+	}
+
+	return current
+}
+
+// uniqueVarName generates a unique variable name with the given prefix.
+// M-CODEGEN-LIST: Prevents name collisions in flattened bindings.
+func (g *Generator) uniqueVarName(prefix string) string {
+	g.varCounter++
+	return fmt.Sprintf("%s%d", prefix, g.varCounter)
 }
 
 // getListElementType extracts the Go element type for a list from CoreTypeInfo.

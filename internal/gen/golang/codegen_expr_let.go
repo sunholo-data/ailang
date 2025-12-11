@@ -15,11 +15,300 @@ func isLetIfChain(let *core.Let) bool {
 	return isIfElseChain(ifExpr)
 }
 
+// isLetChain checks if a Let's body is another Let (forming a chain).
+// M-CODEGEN-LIST: Used to detect Let chains that should be flattened.
+func isLetChain(let *core.Let) bool {
+	_, ok := let.Body.(*core.Let)
+	return ok
+}
+
+// isLetBoolMatchChain checks if a Let starts a bool match chain pattern.
+// M-CODEGEN-LIST: Pattern: Let $cmp = <comparison> in Match $cmp { true => A, false => ... }
+// where the false arm continues the chain.
+func isLetBoolMatchChain(let *core.Let) bool {
+	// Body must be a Match
+	match, ok := let.Body.(*core.Match)
+	if !ok {
+		return false
+	}
+
+	// Must have exactly 2 arms
+	if len(match.Arms) != 2 {
+		return false
+	}
+
+	// Both arms must be bool literal patterns
+	var trueArm, falseArm *core.MatchArm
+	for i := range match.Arms {
+		arm := &match.Arms[i]
+		if lp, ok := arm.Pattern.(*core.LitPattern); ok {
+			// LitPattern.Value is the Go value directly (bool), not *core.Lit
+			if val, ok := lp.Value.(bool); ok {
+				if val {
+					trueArm = arm
+				} else {
+					falseArm = arm
+				}
+			}
+		}
+	}
+
+	if trueArm == nil || falseArm == nil {
+		return false
+	}
+
+	// False arm must continue the chain (Let or Match)
+	switch falseArm.Body.(type) {
+	case *core.Let, *core.Match:
+		return true
+	default:
+		return false
+	}
+}
+
+// LetBoolMatchEntry represents one condition-result pair from a Let-Bool-Match chain.
+type LetBoolMatchEntry struct {
+	Condition core.CoreExpr // The actual comparison expression (e.g., LtFloat(roll, 0.76))
+	TrueBody  core.CoreExpr // What to return when condition is true
+}
+
+// collectLetBoolMatchChain extracts a chain from Let-Bool-Match pattern.
+// Returns entries for each condition and the final else body.
+func collectLetBoolMatchChain(let *core.Let) ([]LetBoolMatchEntry, core.CoreExpr) {
+	var entries []LetBoolMatchEntry
+	currentExpr := core.CoreExpr(let)
+
+	for {
+		// Current must be a Let with Match body
+		currentLet, ok := currentExpr.(*core.Let)
+		if !ok {
+			// Not a Let - check if it's a direct Match (continuation)
+			if match, ok := currentExpr.(*core.Match); ok {
+				// Direct Match - use scrutinee as condition (already computed)
+				if len(match.Arms) == 2 {
+					var trueArm, falseArm *core.MatchArm
+					for i := range match.Arms {
+						arm := &match.Arms[i]
+						if lp, ok := arm.Pattern.(*core.LitPattern); ok {
+							// LitPattern.Value is the Go value directly (bool)
+							if val, ok := lp.Value.(bool); ok {
+								if val {
+									trueArm = arm
+								} else {
+									falseArm = arm
+								}
+							}
+						}
+					}
+					if trueArm != nil && falseArm != nil {
+						entries = append(entries, LetBoolMatchEntry{
+							Condition: match.Scrutinee,
+							TrueBody:  trueArm.Body,
+						})
+						// Continue with false arm
+						switch fb := falseArm.Body.(type) {
+						case *core.Let, *core.Match:
+							currentExpr = fb
+							continue
+						default:
+							return entries, falseArm.Body
+						}
+					}
+				}
+			}
+			return entries, currentExpr
+		}
+
+		match, ok := currentLet.Body.(*core.Match)
+		if !ok {
+			return entries, currentExpr
+		}
+
+		// Extract true and false arms
+		if len(match.Arms) != 2 {
+			return entries, currentExpr
+		}
+
+		var trueArm, falseArm *core.MatchArm
+		for i := range match.Arms {
+			arm := &match.Arms[i]
+			if lp, ok := arm.Pattern.(*core.LitPattern); ok {
+				// LitPattern.Value is the Go value directly (bool)
+				if val, ok := lp.Value.(bool); ok {
+					if val {
+						trueArm = arm
+					} else {
+						falseArm = arm
+					}
+				}
+			}
+		}
+
+		if trueArm == nil || falseArm == nil {
+			return entries, currentExpr
+		}
+
+		// Add entry with the Let's Value as the condition
+		entries = append(entries, LetBoolMatchEntry{
+			Condition: currentLet.Value, // The actual comparison (LtFloat, etc.)
+			TrueBody:  trueArm.Body,
+		})
+
+		// Continue with false arm
+		switch fb := falseArm.Body.(type) {
+		case *core.Let, *core.Match:
+			currentExpr = fb
+		default:
+			// End of chain - falseBody is the final else
+			return entries, falseArm.Body
+		}
+	}
+}
+
+// generateLetBoolMatchChain generates a flat if-else chain from Let-Bool-Match pattern.
+// M-CODEGEN-LIST: Eliminates O(n) nested IIFEs for bool match chains.
+func (g *Generator) generateLetBoolMatchChain(let *core.Let) error {
+	entries, elseBody := collectLetBoolMatchChain(let)
+
+	// Determine return type
+	returnType := "interface{}"
+	inImplFunc := g.expectedReturnType == "interface{}"
+	if !inImplFunc {
+		if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
+			}
+		}
+	}
+
+	// Generate single IIFE with flat if-else
+	g.writef("func() %s {\n", returnType)
+	g.indent++
+
+	for i, entry := range entries {
+		if i == 0 {
+			g.writef("if ")
+		} else {
+			g.writef("} else if ")
+		}
+		if err := g.generateExpr(entry.Condition); err != nil {
+			return err
+		}
+		if g.exprProducesInterface(entry.Condition) {
+			g.write(".(bool)")
+		}
+		g.write(" {\n")
+		g.indent++
+		g.writef("return ")
+		if err := g.generateExpr(entry.TrueBody); err != nil {
+			return err
+		}
+		g.writef("\n")
+		g.indent--
+	}
+
+	// Final else
+	g.writef("} else {\n")
+	g.indent++
+	g.writef("return ")
+	if err := g.generateExpr(elseBody); err != nil {
+		return err
+	}
+	g.writef("\n")
+	g.indent--
+	g.writef("}\n")
+
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
+// generateFlatLetChain generates a chain of Let bindings as flat code in a single IIFE.
+// M-CODEGEN-LIST: Instead of nesting IIFEs for each Let, emit all bindings sequentially.
+func (g *Generator) generateFlatLetChain(let *core.Let) error {
+	// Collect all Let bindings in the chain
+	var bindings []*core.Let
+	current := let
+	for {
+		bindings = append(bindings, current)
+		if nextLet, ok := current.Body.(*core.Let); ok {
+			current = nextLet
+		} else {
+			break
+		}
+	}
+	// current.Body is the final body (not a Let)
+	finalBody := current.Body
+
+	// Determine return type from the outermost let (its type = final body's type)
+	returnType := "interface{}"
+	inImplFunc := g.expectedReturnType == "interface{}"
+	if !inImplFunc {
+		if g.coreTypeInfo != nil {
+			if typ, ok := g.coreTypeInfo[let.NodeID]; ok {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					returnType = string(goType)
+				}
+			}
+		}
+	}
+
+	// Generate single IIFE wrapper
+	g.writef("func() %s {\n", returnType)
+	g.indent++
+
+	// Set flag to prevent nested chains from re-wrapping
+	oldInFlatChain := g.inFlatChain
+	g.inFlatChain = true
+
+	// Generate all Let bindings sequentially
+	for _, binding := range bindings {
+		g.writef("var %s interface{} = ", ToGoVarName(binding.Name))
+		if err := g.generateExpr(binding.Value); err != nil {
+			g.inFlatChain = oldInFlatChain
+			return err
+		}
+		g.writef("\n")
+		g.writef("_ = %s // suppress unused\n", ToGoVarName(binding.Name))
+	}
+
+	// Generate the final body
+	g.writef("return ")
+	if err := g.generateExpr(finalBody); err != nil {
+		g.inFlatChain = oldInFlatChain
+		return err
+	}
+	if returnType != "interface{}" && g.exprProducesInterface(finalBody) {
+		g.writef(".(%s)", returnType)
+	}
+	g.writef("\n")
+
+	g.inFlatChain = oldInFlatChain
+	g.indent--
+	g.write("}()")
+	return nil
+}
+
 // generateLet generates a Go variable binding.
 // M-DX25.2: Use SEPARATE types for variable (value's type) and IIFE return (body's type).
 // Bug fix: Originally used let's type for both, but let's type IS body's type, not value's type.
 // M-CODEGEN-FLAT-IF-ELSE: Detects if-else chains and generates flat code.
+// M-CODEGEN-LIST: Detects Let chains and flattens them.
 func (g *Generator) generateLet(let *core.Let) error {
+	// M-CODEGEN-LIST: Detect if this Let starts a chain of Lets
+	// If so, flatten them into a single IIFE
+	if !g.inFlatChain && isLetChain(let) {
+		return g.generateFlatLetChain(let)
+	}
+
+	// M-CODEGEN-LIST: Detect if this Let starts a bool match chain
+	// Pattern: Let $cmp = <comparison> in Match $cmp { true => A, false => ... }
+	if !g.inFlatChain && isLetBoolMatchChain(let) {
+		return g.generateLetBoolMatchChain(let)
+	}
+
 	// M-CODEGEN-FLAT-IF-ELSE: Detect if this Let starts an if-else chain
 	// If so, delegate to the chain generator
 	if !g.inFlatChain && isLetIfChain(let) {

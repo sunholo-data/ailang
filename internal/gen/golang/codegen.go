@@ -129,6 +129,10 @@ type Generator struct {
 	// indentation level
 	indent int
 
+	// varCounter for generating unique variable names
+	// M-CODEGEN-LIST: Used for flattened list element bindings
+	varCounter int
+
 	// errors encountered during generation
 	errors []error
 }
