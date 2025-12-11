@@ -110,9 +110,10 @@ func NewBuilder(module string, typeEnv *types.TypeEnv) *Builder {
 
 // ConstructorInfo represents constructor information for interface building
 type ConstructorInfo struct {
-	TypeName string
-	CtorName string
-	Arity    int
+	TypeName       string
+	CtorName       string
+	Arity          int
+	TypeParamCount int // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
 }
 
 // BuildInterface extracts the typed interface from a Core program
@@ -182,7 +183,21 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		// For now, we don't have full type information for constructor fields
 		// We'll use placeholder types that will be refined later
 		// The TypeName from the ADT declaration becomes the result type
-		resultType := &types.TCon{Name: ctorInfo.TypeName}
+
+		// M-TAPP-FIX: Build TApp for parameterized ADTs (e.g., Option[a])
+		var resultType types.Type
+		if ctorInfo.TypeParamCount > 0 {
+			typeArgs := make([]types.Type, ctorInfo.TypeParamCount)
+			for i := 0; i < ctorInfo.TypeParamCount; i++ {
+				typeArgs[i] = &types.TVar2{Name: fmt.Sprintf("t%d", i), Kind: types.Star}
+			}
+			resultType = &types.TApp{
+				Constructor: &types.TCon{Name: ctorInfo.TypeName},
+				Args:        typeArgs,
+			}
+		} else {
+			resultType = &types.TCon{Name: ctorInfo.TypeName}
+		}
 
 		// Create placeholder field types (will be refined by type checker)
 		fieldTypes := make([]types.Type, ctorInfo.Arity)
@@ -228,7 +243,21 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								for i, field := range ctor.Fields {
 									fieldTypes[i] = astTypeToInternalType(field.Type)
 								}
-								resultType := &types.TCon{Name: typeDecl.Name}
+
+								// M-TAPP-FIX: Build TApp for parameterized ADTs
+								var resultType types.Type
+								if len(typeDecl.TypeParams) > 0 {
+									typeArgs := make([]types.Type, len(typeDecl.TypeParams))
+									for i, param := range typeDecl.TypeParams {
+										typeArgs[i] = &types.TVar2{Name: param, Kind: types.Star}
+									}
+									resultType = &types.TApp{
+										Constructor: &types.TCon{Name: typeDecl.Name},
+										Args:        typeArgs,
+									}
+								} else {
+									resultType = &types.TCon{Name: typeDecl.Name}
+								}
 
 								// Update/add constructor with actual field types (overwriting placeholders)
 								iface.AddConstructor(typeDecl.Name, ctor.Name, fieldTypes, resultType)

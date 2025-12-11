@@ -138,6 +138,23 @@ if paramCount, hasParams := tc.adtTypeParams[adtTypeName]; hasParams && paramCou
 - **Go Codegen** (`internal/gen/golang/adt.go`): Added TypeApp case in mapASTType
 - **Unification** (`internal/types/unification_types.go`): Added better error message for TApp vs TCon
 
+### Phase 7: Imported Constructor Fix (v0.5.10.1)
+
+**Problem:** Imported constructors (e.g., `Some`, `None` from `std/option`) weren't getting their type parameter count propagated, causing `Option[a]` return types to fail in modules that import Option.
+
+**Error:** `type Option expects 1 type argument(s), but got 0`
+
+**Root Causes:**
+1. **Interface builder** (`internal/iface/builder.go`): Created `TCon("Option")` instead of `TApp(Option, [a])` for result types
+2. **iface.ConstructorInfo**: Missing `TypeParamCount` field
+3. **Import handling** (`internal/pipeline/pipeline_module.go`): Didn't register imported constructors in `ctorTypes` and `adtTypeParams` maps
+
+**Solution:**
+- Added `TypeParamCount` to `iface.ConstructorInfo`
+- Updated interface builder to create TApp for parameterized ADTs
+- Added imported constructor tracking maps: `importedCtorTypes`, `importedADTTypeParams`
+- Merge imported constructors with local ones before setting on type checker
+
 ## Files Modified
 
 | File | Change |
@@ -151,7 +168,9 @@ if paramCount, hasParams := tc.adtTypeParams[adtTypeName]; hasParams && paramCou
 | `internal/types/unification_core.go` | Added TCon vs TApp handling |
 | `internal/types/unification_types.go` | Better TApp vs TCon error message |
 | `internal/pipeline/compile_unit.go` | Added TypeParamCount field |
-| `internal/pipeline/pipeline_module.go` | Create TApp for factory result types |
+| `internal/pipeline/pipeline_module.go` | Create TApp for factory result types; track imported constructors |
+| `internal/pipeline/pipeline_converters.go` | Propagate TypeParamCount in conversion |
+| `internal/iface/builder.go` | Added TypeParamCount; create TApp for ADT result types |
 | `internal/runtime/runtime.go` | Create TApp for constructor schemes |
 | `internal/ast/print.go` | Added TypeApp case for printer |
 | `internal/gen/golang/adt.go` | Added TypeApp case in mapASTType |

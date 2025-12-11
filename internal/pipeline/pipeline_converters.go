@@ -42,9 +42,10 @@ func convertToIfaceConstructors(pipeCtors map[string]*ConstructorInfo) map[strin
 	ifaceCtors := make(map[string]*iface.ConstructorInfo)
 	for name, pipeCtor := range pipeCtors {
 		ifaceCtors[name] = &iface.ConstructorInfo{
-			TypeName: pipeCtor.TypeName,
-			CtorName: pipeCtor.CtorName,
-			Arity:    pipeCtor.Arity,
+			TypeName:       pipeCtor.TypeName,
+			CtorName:       pipeCtor.CtorName,
+			Arity:          pipeCtor.Arity,
+			TypeParamCount: pipeCtor.TypeParamCount, // M-TAPP-FIX: Propagate type param count
 		}
 	}
 	return ifaceCtors

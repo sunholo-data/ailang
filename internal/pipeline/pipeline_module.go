@@ -120,7 +120,9 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// Build external environment from already-compiled dependencies
 		externalTypes := make(map[string]*types.Scheme)
 		globalRefs := make(map[string]core.GlobalRef)
-		importedTypeAliases := make(map[string]types.Type) // M-FIX-RECORD-UPDATE: Collect type aliases from imports
+		importedTypeAliases := make(map[string]types.Type)  // M-FIX-RECORD-UPDATE: Collect type aliases from imports
+		importedCtorTypes := make(map[string]string)        // M-TAPP-FIX: Track imported constructor → ADT type
+		importedADTTypeParams := make(map[string]int)       // M-TAPP-FIX: Track imported ADT → type param count
 
 		// Always include $builtin module exports (available to all modules)
 		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
@@ -237,6 +239,20 @@ func runModule(cfg Config, src Source) (Result, error) {
 							if cfg.TraceDefaulting {
 								fmt.Printf("  Import constructor %s -> %s\n", sym, key)
 							}
+
+							// M-TAPP-FIX: Track imported constructor for pattern matching type inference
+							importedCtorTypes[sym] = ctor.TypeName
+
+							// M-TAPP-FIX: Derive type param count from ResultType
+							// If ResultType is TApp, count the args; otherwise 0
+							if _, exists := importedADTTypeParams[ctor.TypeName]; !exists {
+								paramCount := 0
+								if tapp, ok := ctor.ResultType.(*types.TApp); ok {
+									paramCount = len(tapp.Args)
+								}
+								importedADTTypeParams[ctor.TypeName] = paramCount
+							}
+
 							found = true
 						}
 						// No else needed - if constructor not found, we continue searching
@@ -378,6 +394,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 		// This enables correct type inference for pattern matching on ADTs
 		ctorTypes := make(map[string]string)
 		adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
+
+		// M-TAPP-FIX: First add imported constructors (from depIface.GetConstructor)
+		for ctorName, typeName := range importedCtorTypes {
+			ctorTypes[ctorName] = typeName
+		}
+		for typeName, paramCount := range importedADTTypeParams {
+			adtTypeParams[typeName] = paramCount
+		}
+
+		// Then add local constructors (may override imports if same name)
 		for ctorName, ctorInfo := range unit.Constructors {
 			ctorTypes[ctorName] = ctorInfo.TypeName
 			// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
