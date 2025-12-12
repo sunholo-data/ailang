@@ -173,7 +173,11 @@ func compileCommand() {
 	fmt.Printf("%s Processed %d file(s)\n", cyan("→"), len(filenames))
 
 	// Create output directory
-	outDir := filepath.Join(*outFlag, pkgName)
+	// M-CODEGEN-OUTPUT-PATH: Don't create nested directory if --out already matches package name
+	outDir := *outFlag
+	if filepath.Base(*outFlag) != pkgName {
+		outDir = filepath.Join(*outFlag, pkgName)
+	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot create output directory '%s': %v\n", red("Error"), outDir, err)
 		os.Exit(1)
@@ -679,6 +683,11 @@ func ailangTypeToGo(t ast.Type) string {
 		return "[]" + elemType
 	case *ast.RecordType:
 		return "map[string]interface{}"
+	case *ast.TypeApp:
+		// M-CODEGEN-OPTION-TYPE-ASSERT: Handle generic type applications like Option[Color]
+		// ADTs (including Option) are always pointers in Go
+		// The type argument is erased - Option[Color] and Option[int] both become *Option
+		return "*" + capitalize(typ.Constructor)
 	default:
 		return "interface{}"
 	}
