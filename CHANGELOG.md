@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.5.10] - (In Progress)
+## [v0.5.10] - 2025-12-12
 
 ### Added - Unified AI Provider Architecture (M-UNIFIED-AI-PROVIDERS)
 
