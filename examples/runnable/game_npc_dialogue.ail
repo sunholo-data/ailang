@@ -1,0 +1,53 @@
+-- Game NPC Dialogue Example
+-- Demonstrates using AI effect to generate dynamic NPC dialogue
+--
+-- Run with stub (testing):
+--   ailang run --caps IO,AI --ai-stub --entry main examples/runnable/game_npc_dialogue.ail
+--
+-- Run with Claude Haiku (fast, cheap):
+--   ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/runnable/game_npc_dialogue.ail
+--
+-- Run with GPT-5 Mini:
+--   ailang run --caps IO,AI --ai gpt5-mini --entry main examples/runnable/game_npc_dialogue.ail
+
+module examples/runnable/game_npc_dialogue
+
+import std/ai (call)
+import std/io (println)
+
+-- Build dialogue prompt for an NPC
+func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string =
+    "You are " ++ npc_name ++ ", a " ++ role ++ " in a fantasy RPG. " ++
+    "Personality: " ++ personality ++ ". " ++
+    "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
+
+-- Generate NPC dialogue using AI
+func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} =
+    let prompt = make_prompt(npc_name, role, personality, topic) in
+    call(prompt)
+
+-- Main: demonstrate NPC dialogue generation
+export func main() -> () ! {IO, AI} {
+    println("=== NPC Dialogue Generation Demo ===");
+    println("");
+
+    -- Blacksmith dialogue
+    println("[At the Forge]");
+    println("Player: Can you forge me an enchanted sword?");
+    let blacksmith_says = ask_npc("Grimnar", "blacksmith", "gruff but kind, speaks tersely", "forging an enchanted sword") in
+    println("Grimnar: " ++ blacksmith_says);
+    println("");
+
+    -- Innkeeper dialogue
+    println("[At the Tavern]");
+    println("Player: What do you know about the dragon?");
+    let innkeeper_says = ask_npc("Mira", "innkeeper", "cheerful and gossipy, knows secrets", "rumors about the dragon") in
+    println("Mira: " ++ innkeeper_says);
+    println("");
+
+    -- Guard dialogue
+    println("[At the Town Gates]");
+    println("Player: I need to enter the restricted district.");
+    let guard_says = ask_npc("Captain Aldric", "guard captain", "stern and formal", "denying entry to restricted area") in
+    println("Captain Aldric: " ++ guard_says)
+}

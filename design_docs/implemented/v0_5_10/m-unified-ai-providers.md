@@ -1,10 +1,22 @@
 # M-UNIFIED-AI-PROVIDERS: Unified AI Provider Architecture
 
-**Status**: Planned
-**Target**: v0.5.10
+**Status**: ⚠️ Partially Implemented (v0.5.10)
+**Target**: v0.5.10 (core), v0.6.0 (new APIs)
 **Priority**: P1 (Medium)
 **Estimated**: 6 days (~30 hours total across all providers)
 **Dependencies**: None
+
+## Implementation Status (v0.5.10)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `internal/ai/provider.go` | ✅ Done | Provider interface, Request/Response types |
+| `internal/ai/openai/chat.go` | ✅ Done | Chat Completions API |
+| `internal/ai/openai/responses.go` | ⚠️ Stub | Falls back to Chat, full impl in v0.6.0 |
+| `internal/ai/gemini/generate.go` | ✅ Done | generateContent API |
+| `internal/ai/gemini/interactions.go` | ❌ TODO | Planned for v0.6.0 |
+| `internal/ai/anthropic/client.go` | ✅ Done | Messages API |
+| Test coverage | ✅ Done | ~80% coverage across providers |
 
 ## AI-First Alignment Check
 

@@ -1,7 +1,7 @@
 # M-EXEC: Multi-Executor Support for AI Coding Agents
 
 **Status**: Planned
-**Target**: v0.5.10
+**Target**: v0.6.0 (postponed from v0.5.10)
 **Priority**: P1 (Medium-High)
 **Estimated**: 2 weeks (~38 hours for MVP, +14 hours optional for Jules)
 **Dependencies**: None (current Claude Code executor is working)

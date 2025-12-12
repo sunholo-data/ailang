@@ -2,6 +2,38 @@
 
 ## [v0.5.10] - (In Progress)
 
+### Added - Unified AI Provider Architecture (M-UNIFIED-AI-PROVIDERS)
+
+Created unified `internal/ai/` package consolidating all AI provider implementations.
+This eliminates code duplication across CLI `--ai` flag and effects system.
+
+**New Packages:**
+- `internal/ai/` - Common Provider interface and types
+- `internal/ai/anthropic/` - Claude API client (Messages API)
+- `internal/ai/openai/` - OpenAI API client (Chat Completions + Responses stub)
+- `internal/ai/gemini/` - Gemini API client (generateContent, AI Studio + Vertex AI)
+
+**Benefits:**
+- Single implementation per provider, shared by all entry points
+- ~230 LOC deleted from `cmd/ailang/ai_handlers.go` (345 → 116 LOC)
+- Consistent error handling with `ai.ProviderError`
+- Support for both API key and ADC authentication (Gemini)
+- Ready for Responses API (codex models) and Interactions API (Gemini beta)
+
+**Usage:**
+```go
+// CLI and effects now use unified package
+client := anthropic.NewClient(apiKey)
+handler := client.NewHandler("claude-sonnet-4-5")
+effCtx.AI = effects.NewAIContext(handler)
+```
+
+**Files Changed:**
+- `internal/ai/` - New package (~800 LOC implementation + ~500 LOC tests)
+- `cmd/ailang/ai_handlers.go` - Refactored to use unified package (-230 LOC)
+
+**Design Doc:** [design_docs/planned/v0_5_10/m-unified-ai-providers.md](design_docs/planned/v0_5_10/m-unified-ai-providers.md)
+
 ### Added - String Conversion Functions (M-STRING-CONVERT)
 
 Added `floatToStr` and `intToStr` functions for converting numeric values to strings:

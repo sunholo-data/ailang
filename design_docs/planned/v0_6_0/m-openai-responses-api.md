@@ -1,7 +1,7 @@
 # M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module
 
 **Status**: Planned
-**Target**: v0.5.10
+**Target**: v0.6.0 (postponed from v0.5.10)
 **Priority**: P1 - Medium (enables new model support)
 **Estimated**: 3-4 days
 **Dependencies**: None (models.yml updated with gpt5-1-codex-max)

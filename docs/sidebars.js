@@ -58,6 +58,7 @@ const sidebars = {
       type: 'category',
       label: 'AI & Prompts',
       items: [
+        'guides/ai-effect',
         'guides/ai-prompt-guide',
         'prompts/index',
         'prompts/v0.4.4',

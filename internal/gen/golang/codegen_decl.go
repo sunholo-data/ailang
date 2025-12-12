@@ -247,10 +247,24 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 // M-DX26: In _impl functions, everything produces interface{} (except literals).
 func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
 	// M-DX26: In _impl functions, almost everything is interface{}
-	// Literals are the exception - they produce concrete types
+	// Exceptions: literals and ADT constructor calls (which return typed values)
 	if g.expectedReturnType == "interface{}" {
 		if _, isLit := expr.(*core.Lit); isLit {
 			return false // Literals produce concrete types
+		}
+		// M-CODEGEN-ADT-TYPE-ASSERT: ADT constructor calls return typed values (*ADT),
+		// not interface{}, even in _impl functions
+		if app, isApp := expr.(*core.App); isApp {
+			if g.isADTConstructorCall(app) {
+				return false // ADT constructors return *ADT, not interface{}
+			}
+		}
+		// M-CODEGEN-ADT-TYPE-ASSERT: Nullary ADT constructors are VarGlobal, not App.
+		// Example: `G` in `type SpectralClass = O | B | A | F | G | K | M` becomes NewSpectralClassG()
+		if vg, isVG := expr.(*core.VarGlobal); isVG {
+			if g.isNullaryADTConstructor(vg) {
+				return false // Nullary ADT constructors return *ADT, not interface{}
+			}
 		}
 		return true // Everything else is interface{}
 	}
@@ -385,11 +399,47 @@ func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
 	}
 }
 
+// isADTConstructorCall checks if an App is calling an ADT constructor.
+// M-CODEGEN-ADT-TYPE-ASSERT: ADT constructor calls return typed values (*ADT), not interface{}.
+func (g *Generator) isADTConstructorCall(app *core.App) bool {
+	// Check for $adt.make_TypeName_CtorName pattern
+	if v, ok := app.Func.(*core.VarGlobal); ok {
+		if v.Ref.Module == "$adt" && strings.HasPrefix(v.Ref.Name, "make_") {
+			return true
+		}
+		// Also check direct constructor name
+		if _, isADT := g.adtConstructors[v.Ref.Name]; isADT {
+			return true
+		}
+	}
+	return false
+}
+
+// isNullaryADTConstructor checks if a VarGlobal is a nullary ADT constructor.
+// M-CODEGEN-ADT-TYPE-ASSERT: Nullary constructors (with no fields) are VarGlobal, not App.
+// Example: `G` in `type SpectralClass = O | B | A | F | G | K | M` is a nullary constructor.
+func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
+	// Check for $adt.make_TypeName_CtorName pattern
+	if vg.Ref.Module == "$adt" && strings.HasPrefix(vg.Ref.Name, "make_") {
+		return true
+	}
+	// Check if it's in the adtConstructors map (nullary constructors have 0 field types)
+	if info, ok := g.adtConstructors[vg.Ref.Name]; ok {
+		return len(info.FieldTypes) == 0
+	}
+	return false
+}
+
 // appProducesInterface checks if a function application produces interface{}.
 // M-DX24: ADT constructors and typed runtime helpers return concrete types.
 func (g *Generator) appProducesInterface(app *core.App) bool {
 	// Check if this is a known ADT constructor or runtime helper
 	if varGlobal, ok := app.Func.(*core.VarGlobal); ok {
+		// M-CODEGEN-ADT-TYPE-ASSERT: Check for $adt.make_TypeName_CtorName pattern
+		if varGlobal.Ref.Module == "$adt" && strings.HasPrefix(varGlobal.Ref.Name, "make_") {
+			// ADT constructors return *ADT, not interface{}
+			return false
+		}
 		name := varGlobal.Ref.Name
 		if _, isADT := g.adtConstructors[name]; isADT {
 			// ADT constructors return *ADT, not interface{}

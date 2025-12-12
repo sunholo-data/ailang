@@ -157,7 +157,10 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		if !changed {
 			return t
 		}
-		result := &TRecord{Fields: fields, Row: row}
+		// M-CODEGEN-RECORD-TYPENAME-PRESERVATION: Preserve TypeName through substitution
+		// TypeName is set during unification with nominal types (e.g., `Planet` from return annotation)
+		// If lost, codegen falls back to map[string]interface{} instead of &Planet{}
+		result := &TRecord{Fields: fields, Row: row, TypeName: typ.TypeName}
 		visited[t] = result
 		return result
 

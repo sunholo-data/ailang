@@ -3,6 +3,7 @@ package golang
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -81,6 +82,19 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 				if info, exists := g.recordTypes[goTypeName]; exists {
 					return g.generateTypedRecord(rec, info)
 				}
+			} else if os.Getenv("DEBUG_CODEGEN") == "1" {
+				// Debug: TypeName lookup failed
+				fieldList := make([]string, 0, len(rec.Fields))
+				for f := range rec.Fields {
+					fieldList = append(fieldList, f)
+				}
+				if tRec, ok := recType.(*types.TRecord); ok {
+					fmt.Fprintf(os.Stderr, "[DEBUG_CODEGEN] TypeName empty for record: fields=%v, TypeName=%q (should be set by unification!)\n",
+						fieldList, tRec.TypeName)
+				} else {
+					fmt.Fprintf(os.Stderr, "[DEBUG_CODEGEN] CoreTypeInfo has wrong type: fields=%v, type=%T\n",
+						fieldList, recType)
+				}
 			}
 		}
 	}
@@ -97,10 +111,44 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 	// WARNING: This is ambiguous when multiple records have same fields - use checks above
 	recordType := g.GetRecordTypeByFields(fieldNames)
 	if recordType != nil {
+		if os.Getenv("DEBUG_CODEGEN") == "1" {
+			fieldList := make([]string, 0, len(fieldNames))
+			for f := range fieldNames {
+				fieldList = append(fieldList, f)
+			}
+			fmt.Fprintf(os.Stderr, "[DEBUG_CODEGEN] GetRecordTypeByFields match: fields=%v, found=%q (may be wrong if multiple types share fields!)\n",
+				fieldList, recordType.Name)
+		}
 		return g.generateTypedRecord(rec, recordType)
 	}
 
-	// Fallback to untyped map
+	// M-CODEGEN-RECORD-TYPENAME-PRESERVATION: Fallback to untyped map
+	// WARNING: If you reach this fallback, it likely means:
+	// 1. TRecord.TypeName was lost during substitution (check unification_substitution.go)
+	// 2. Record type wasn't registered via RegisterRecordType
+	// 3. Field name mismatch between record literal and type definition
+	// Debug: DEBUG_CODEGEN=1 to see warnings when fallback triggers
+	if os.Getenv("DEBUG_CODEGEN") == "1" {
+		fieldList := make([]string, 0, len(fieldNames))
+		for f := range fieldNames {
+			fieldList = append(fieldList, f)
+		}
+		var typeInfo string
+		if g.coreTypeInfo != nil {
+			if t := g.coreTypeInfo[rec.NodeID]; t != nil {
+				typeInfo = fmt.Sprintf("type=%T", t)
+				if tRec, ok := t.(*types.TRecord); ok {
+					typeInfo += fmt.Sprintf(", TypeName=%q", tRec.TypeName)
+				}
+			} else {
+				typeInfo = "no entry for NodeID"
+			}
+		} else {
+			typeInfo = "coreTypeInfo is nil"
+		}
+		fmt.Fprintf(os.Stderr, "[DEBUG_CODEGEN] Record fallback to map[string]interface{}: fields=%v, declaredReturn=%q, %s\n",
+			fieldList, g.currentFuncDeclaredReturn, typeInfo)
+	}
 	g.write("map[string]interface{}{")
 	first := true
 	for name, value := range rec.Fields {
@@ -175,8 +223,18 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 				// M-DX13.2: Nested record - check if field expects pointer or value
 				if strings.HasPrefix(goType, "*") {
 					// Field expects pointer - generate &Struct{}
-					if err := g.generateExpr(nestedRec); err != nil {
-						return err
+					// M-CODEGEN-NESTED-RECORD-TYPE: Use expected field type, not GetRecordTypeByFields
+					// This fixes Vec3/SystemPos confusion when multiple types have same structure
+					expectedTypeName := strings.TrimPrefix(goType, "*")
+					if expectedType, exists := g.recordTypes[expectedTypeName]; exists {
+						if err := g.generateTypedRecord(nestedRec, expectedType); err != nil {
+							return err
+						}
+					} else {
+						// Fallback to default generation (will use GetRecordTypeByFields)
+						if err := g.generateExpr(nestedRec); err != nil {
+							return err
+						}
 					}
 				} else {
 					// Field expects value - generate Struct{} (dereference if needed)

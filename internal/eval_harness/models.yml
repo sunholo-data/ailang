@@ -69,6 +69,41 @@ models:
       Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
+  # OpenAI GPT-5.2 (released December 2025)
+  gpt5-2:
+    api_name: "gpt-5.2"
+    provider: "openai"
+    description: "GPT-5.2 Thinking - 40% smarter than GPT-5.1"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    pricing:
+      input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
+      output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
+    notes: |
+      GPT-5.2 Thinking mode with enhanced reasoning capabilities.
+      40% improvement over GPT-5.1 at 40% higher cost.
+      400K token context window, 128K max output tokens.
+      Knowledge cutoff: August 31, 2025.
+      Uses max_completion_tokens instead of max_tokens.
+      Also available: gpt-5.2-chat-latest (Instant), gpt-5.2-pro.
+      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
+
+  gpt5-2-instant:
+    api_name: "gpt-5.2-chat-latest"
+    provider: "openai"
+    description: "GPT-5.2 Instant (fast, daily tasks)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    pricing:
+      input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
+      output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
+    notes: |
+      GPT-5.2 Instant - optimized for speed and daily tasks.
+      Same pricing as GPT-5.2 Thinking but faster response times.
+      Good for development iteration where speed matters.
+      Uses max_completion_tokens instead of max_tokens.
+      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
+
   # OpenAI GPT-5.1-Codex-Max (released December 2025)
   gpt5-1-codex-max:
     api_name: "gpt-5.1-codex-max"
@@ -198,30 +233,51 @@ models:
 # Default model for benchmarks
 default: "claude-sonnet-4-5"
 
-# Recommended model set for comprehensive evaluation
+# =============================================================================
+# MODEL SUITES
+# =============================================================================
+# Models defined in `models:` above are AVAILABLE but not automatically run.
+# Only models listed in a suite below are included when that suite is invoked.
+# This allows defining many models while controlling evaluation costs.
+#
+# Usage:
+#   ailang eval-suite                    # Uses dev_models (cheap, fast)
+#   ailang eval-suite --suite benchmark  # Uses benchmark_suite (core 3)
+#   ailang eval-suite --full             # Uses extended_suite (top 6)
+#   ailang eval-suite --models gpt5-2    # Run specific model(s)
+# =============================================================================
+
+# Core benchmark suite - top model from each provider (3 models)
+# Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5 (same price, better performance)
-  - "claude-sonnet-4-5"
-  - "gemini-2-5-pro"
+  - "gpt5-2"           # OpenAI flagship (Dec 2025)
+  - "claude-sonnet-4-5" # Anthropic flagship
+  - "gemini-2-5-pro"   # Google flagship
 
-# Extended model set (includes smaller/faster variants)
+# Extended suite - flagship + best alternatives (5 models)
+# Use for: Release baselines, comprehensive comparisons
+# Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-1"  # Updated: GPT-5.1 replaces GPT-5
-  - "gpt5-1-instant"  # Added: Fast variant for quick iteration
-  - "gpt5-mini"
-  - "claude-opus-4-5"  # Added: Most intelligent model (Nov 2025)
-  - "claude-sonnet-4-5"
-  - "claude-haiku-4-5"
-  - "gemini-3-pro"  # Added: Gemini 3 Pro with reasoning (Nov 2025)
-  - "gemini-2-5-pro"
-  - "gemini-2-5-flash"
+  - "gpt5-2"           # OpenAI flagship (Dec 2025)
+  - "claude-opus-4-5"  # Anthropic most intelligent
+  - "claude-sonnet-4-5" # Anthropic best for coding
+  - "gemini-3-pro"     # Google latest (Nov 2025)
+  - "gemini-2-5-pro"   # Google previous flagship
 
-# Development/testing models (cheaper, faster)
+# Development models - cheap and fast (3 models)
+# Use for: Development iteration, testing eval infrastructure
+# Cost: ~$0.10-0.50 per full benchmark run
 dev_models:
-  - "gpt5-1-instant"  # Added: Fast development with high intelligence
-  - "gpt5-mini"
-  - "claude-haiku-4-5"
-  - "gemini-2-5-flash"
+  - "gpt5-1-instant"   # OpenAI fast
+  - "claude-haiku-4-5" # Anthropic cheap
+  - "gemini-2-5-flash" # Google cheap
+
+# Available but not in default suites (run with --models flag):
+# - gpt5              # Superseded by gpt5-2
+# - gpt5-1            # Superseded by gpt5-2
+# - gpt5-mini         # Cheaper but slower than gpt5-1-instant
+# - gpt5-2-instant    # Fast variant of GPT-5.2
+# - gpt5-1-codex-max  # Agentic coding (requires Responses API)
 
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI

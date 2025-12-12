@@ -1,0 +1,221 @@
+# AI Effect: Calling LLMs from AILANG
+
+AILANG v0.5.10 provides a simple, high-level AI effect for calling external AI/ML systems directly from your code. Perfect for game NPCs, agents, CLI tools, and data pipelines.
+
+## Overview
+
+The AI effect (`std/ai`) is a **general-purpose AI oracle** - an opaque string-to-string interface for calling LLMs:
+
+```ailang
+import std/ai (call)
+
+func ask_ai(question: string) -> string ! {AI} =
+    call(question)
+```
+
+**Key Features:**
+- Simple string → string interface (JSON by convention)
+- Multi-provider support (Anthropic, OpenAI, Google)
+- Vertex AI ADC support (no API key required with gcloud auth)
+- Deterministic stub for testing
+- Effect-typed for capability tracking
+
+## Quick Start
+
+### 1. Basic Usage
+
+```ailang
+module my/app
+
+import std/ai (call)
+import std/io (println)
+
+export func main() -> () ! {IO, AI} {
+    let response = call("What is the capital of France?");
+    println("AI says: " ++ response)
+}
+```
+
+### 2. Run with Different Providers
+
+```bash
+# Claude (Anthropic) - requires ANTHROPIC_API_KEY
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main my_app.ail
+
+# GPT (OpenAI) - requires OPENAI_API_KEY
+ailang run --caps IO,AI --ai gpt5-mini --entry main my_app.ail
+
+# Gemini (Google) - uses Vertex AI ADC if no GOOGLE_API_KEY
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
+
+# Stub (deterministic testing)
+ailang run --caps IO,AI --ai-stub --entry main my_app.ail
+```
+
+## Supported Providers
+
+| Provider | Models | Auth Method | Environment Variable |
+|----------|--------|-------------|---------------------|
+| Anthropic | claude-sonnet-4-5, claude-haiku-4-5, etc. | API Key | `ANTHROPIC_API_KEY` |
+| OpenAI | gpt-5, gpt-5-mini, etc. | API Key | `OPENAI_API_KEY` |
+| Google | gemini-2-5-pro, gemini-2-5-flash, etc. | API Key or ADC | `GOOGLE_API_KEY` (optional) |
+
+### Google Vertex AI (ADC)
+
+For Google models, if no `GOOGLE_API_KEY` is set, AILANG automatically falls back to **Application Default Credentials** (ADC):
+
+```bash
+# Configure ADC once
+gcloud auth application-default login
+
+# Run without API key - uses ADC automatically
+unset GOOGLE_API_KEY
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
+```
+
+## Game Development Example
+
+Here's a complete example of using AI for NPC dialogue generation:
+
+```ailang
+-- Game NPC Dialogue Example
+module game/npc_dialogue
+
+import std/ai (call)
+import std/io (println)
+
+-- Build dialogue prompt for an NPC
+func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string =
+    "You are " ++ npc_name ++ ", a " ++ role ++ " in a fantasy RPG. " ++
+    "Personality: " ++ personality ++ ". " ++
+    "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
+
+-- Generate NPC dialogue using AI
+func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} =
+    let prompt = make_prompt(npc_name, role, personality, topic) in
+    call(prompt)
+
+-- Main: demonstrate NPC dialogue generation
+export func main() -> () ! {IO, AI} {
+    println("=== NPC Dialogue Demo ===");
+    println("");
+
+    println("[At the Forge]");
+    println("Player: Can you forge me an enchanted sword?");
+    let response = ask_npc("Grimnar", "blacksmith", "gruff but kind", "forging an enchanted sword") in
+    println("Grimnar: " ++ response)
+}
+```
+
+**Run it:**
+
+```bash
+# With Claude
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main game/npc_dialogue.ail
+```
+
+**Output:**
+
+```
+=== NPC Dialogue Demo ===
+
+[At the Forge]
+Player: Can you forge me an enchanted sword?
+Grimnar: *pounds hammer on anvil*
+The metal's got a stubborn spirit—takes patience and a steady hand to coax out the magic.
+```
+
+## Testing with Stub Handler
+
+For deterministic testing, use `--ai-stub`:
+
+```bash
+ailang run --caps IO,AI --ai-stub --entry main my_app.ail
+```
+
+The stub handler returns `{"kind":"Wait"}` for all inputs, making tests predictable and fast.
+
+## JSON Input/Output Pattern
+
+By convention, use JSON for structured input/output:
+
+```ailang
+import std/ai (call)
+import std/json (encode, decode)
+
+type GameContext = {
+    player_health: int,
+    enemy_count: int,
+    has_weapon: bool
+}
+
+type Action = Wait | Attack | Retreat | Heal
+
+func decide_action(ctx: GameContext) -> Action ! {AI} {
+    let input = encode(ctx) in
+    let output = call(input) in
+    match decode[Action](output) {
+        Ok(action) => action,
+        Err(_) => Wait  -- Safe fallback
+    }
+}
+```
+
+## Effect System Integration
+
+The AI effect integrates with AILANG's capability system:
+
+```ailang
+-- Effect declared in signature
+func my_ai_func() -> string ! {AI} = ...
+
+-- Requires --caps AI at runtime
+ailang run --caps IO,AI --ai <model> --entry main file.ail
+```
+
+Effects are tracked at the type level, ensuring:
+- AI calls are explicit in function signatures
+- Capability requirements are validated at compile time
+- Effect boundaries are clear and auditable
+
+## Configuration
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--ai <model>` | Set the AI model to use |
+| `--ai-stub` | Use deterministic stub handler |
+| `--caps AI` | Enable AI capability |
+
+### Model Lookup
+
+Models are looked up in `models.yml` or guessed from name prefixes:
+- `claude-*` → Anthropic
+- `gpt-*` → OpenAI
+- `gemini-*` → Google
+
+## Builtin Documentation
+
+View full builtin documentation:
+
+```bash
+ailang builtins show _ai_call
+```
+
+## Comparison: AI Effect vs HTTP API
+
+| Feature | AI Effect (`std/ai`) | HTTP API (`std/net`) |
+|---------|---------------------|---------------------|
+| Complexity | Simple string→string | Full HTTP control |
+| Provider setup | CLI flag | Manual headers/auth |
+| JSON handling | By convention | Required |
+| Best for | Quick LLM calls | Custom API integration |
+
+Use the AI effect for simple LLM calls. Use `std/net` when you need full control over HTTP requests (custom endpoints, streaming, etc.).
+
+## Related Documentation
+
+- [AI API Integration (HTTP)](/docs/examples/ai-api-integration) - Raw HTTP approach
+- [Effects Reference](/docs/reference/effects) - Effect system overview
+- [Module Execution](/docs/guides/module_execution) - Running AILANG modules

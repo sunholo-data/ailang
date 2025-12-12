@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
@@ -55,6 +56,7 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 
 // applySubstitutionToCoreTI updates all types in CoreTI with the substitution
 // M-FIX-FLOAT-OP: This ensures float types are preserved after defaulting
+// M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 	if tc.CoreTI == nil {
 		return
@@ -64,6 +66,136 @@ func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 		newType := ApplySubstitution(sub, typ)
 		tc.CoreTI.Set(nodeID, newType)
 	}
+
+	// M-TYPENAME-NESTED-PROPAGATION: Propagate TypeName from type aliases to all TRecords
+	// This is needed because unification propagates TypeName to intermediate copies,
+	// but those copies aren't stored in CoreTI. We need to match TRecords by their
+	// field signatures and set TypeName from matching type aliases.
+	tc.propagateTypeNameToCoreTI()
+}
+
+// propagateTypeNameToCoreTI sets TypeName on all TRecords in CoreTI that match a type alias.
+// M-TYPENAME-NESTED-PROPAGATION: This ensures codegen sees the nominal type identity.
+func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
+	if tc.CoreTI == nil || tc.aliasEnv == nil {
+		if os.Getenv("DEBUG_TYPENAME") != "" {
+			fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME] propagateTypeNameToCoreTI: skipping (CoreTI=%v, aliasEnv=%v)\n",
+				tc.CoreTI != nil, tc.aliasEnv != nil)
+		}
+		return
+	}
+
+	if os.Getenv("DEBUG_TYPENAME") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME] propagateTypeNameToCoreTI: aliasEnv has %d entries\n", len(tc.aliasEnv))
+		for name, typ := range tc.aliasEnv {
+			if rec, ok := typ.(*TRecord); ok {
+				fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   %s = %s (TypeName=%q)\n", name, typ.String(), rec.TypeName)
+			} else {
+				fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   %s = %s\n", name, typ.String())
+			}
+		}
+	}
+
+	// Build a map of field signatures → TypeName from type aliases
+	// Track ambiguous signatures (multiple types with same fields)
+	fieldSigToTypeNames := make(map[string][]string) // sig → [typeName1, typeName2, ...]
+	for aliasName, aliasType := range tc.aliasEnv {
+		if rec, ok := aliasType.(*TRecord); ok {
+			sig := recordFieldSignature(rec)
+			fieldSigToTypeNames[sig] = append(fieldSigToTypeNames[sig], aliasName)
+			if os.Getenv("DEBUG_TYPENAME") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   signature %q → %s\n", sig, aliasName)
+			}
+		}
+	}
+
+	// Build final map: only include UNIQUE signatures (no ambiguity)
+	fieldSigToTypeName := make(map[string]string)
+	for sig, typeNames := range fieldSigToTypeNames {
+		if len(typeNames) == 1 {
+			// Unique signature - safe to auto-assign
+			fieldSigToTypeName[sig] = typeNames[0]
+		} else if os.Getenv("DEBUG_TYPENAME") != "" {
+			// Ambiguous signature - skip (codegen workaround will handle)
+			fmt.Fprintf(os.Stderr, "[DEBUG_TYPENAME]   AMBIGUOUS signature %q: %v (skipping auto-assign)\n", sig, typeNames)
+		}
+	}
+
+	// Now iterate through CoreTI and set TypeName where it matches (unique signatures only)
+	for nodeID, typ := range tc.CoreTI {
+		tc.propagateTypeNameRecursively(typ, fieldSigToTypeName, nodeID)
+	}
+}
+
+// propagateTypeNameRecursively walks through a type and sets TypeName on any TRecords
+// that match a known type alias signature.
+func (tc *CoreTypeChecker) propagateTypeNameRecursively(t Type, fieldSigToTypeName map[string]string, nodeID uint64) {
+	switch typ := t.(type) {
+	case *TRecord:
+		// If this record doesn't have a TypeName, try to match by field signature
+		if typ.TypeName == "" {
+			sig := recordFieldSignature(typ)
+			if typeName, ok := fieldSigToTypeName[sig]; ok {
+				typ.TypeName = typeName
+			}
+		}
+		// Recursively process field types
+		for _, fieldType := range typ.Fields {
+			tc.propagateTypeNameRecursively(fieldType, fieldSigToTypeName, nodeID)
+		}
+
+	case *TList:
+		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+
+	case *TArray:
+		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+
+	case *TTuple:
+		for _, elem := range typ.Elements {
+			tc.propagateTypeNameRecursively(elem, fieldSigToTypeName, nodeID)
+		}
+
+	case *TFunc:
+		for _, param := range typ.Params {
+			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
+		}
+		tc.propagateTypeNameRecursively(typ.Return, fieldSigToTypeName, nodeID)
+
+	case *TFunc2:
+		for _, param := range typ.Params {
+			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
+		}
+		tc.propagateTypeNameRecursively(typ.Return, fieldSigToTypeName, nodeID)
+	}
+}
+
+// recordFieldSignature creates a canonical string representation of a TRecord's fields.
+// Used for matching records against type aliases.
+func recordFieldSignature(rec *TRecord) string {
+	if rec == nil || len(rec.Fields) == 0 {
+		return ""
+	}
+	// Sort field names for consistent signature
+	names := make([]string, 0, len(rec.Fields))
+	for name := range rec.Fields {
+		names = append(names, name)
+	}
+	// Sort using simple bubble sort to avoid import
+	for i := 0; i < len(names)-1; i++ {
+		for j := 0; j < len(names)-i-1; j++ {
+			if names[j] > names[j+1] {
+				names[j], names[j+1] = names[j+1], names[j]
+			}
+		}
+	}
+	// Build signature
+	sig := ""
+	for _, name := range names {
+		fieldType := rec.Fields[name]
+		typeName := NormalizeTypeName(fieldType)
+		sig += name + ":" + typeName + ";"
+	}
+	return sig
 }
 
 // applySubstitutionToResolvedConstraints updates the resolved constraints map

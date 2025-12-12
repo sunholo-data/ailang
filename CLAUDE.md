@@ -578,6 +578,10 @@ ailang/
 │   ├── loader/         # Module loader ✅ COMPLETE
 │   ├── errors/         # Error reporting ✅ COMPLETE
 │   ├── schema/         # JSON schemas ✅ COMPLETE
+│   ├── ai/             # Unified AI providers ✅ COMPLETE (v0.5.10)
+│   │   ├── anthropic/  # Claude API client
+│   │   ├── openai/     # OpenAI API client (Chat + Responses)
+│   │   └── gemini/     # Gemini API client (AI Studio + Vertex)
 │   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
 │   ├── eval_analysis/  # Go eval tools ✅ COMPLETE (M-EVAL v2.0)
 │   ├── eval_analyzer/  # Failure analyzer ✅ COMPLETE (M-EVAL v2.0)
@@ -808,6 +812,7 @@ make help                 # Show all available make targets
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
+| `DEBUG_CODEGEN=1` | Warn on record type fallback | Record compiles to map instead of struct |
 
 **CLI flags for `ailang check` (v0.5.9+):**
 

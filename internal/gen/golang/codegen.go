@@ -258,7 +258,10 @@ func (g *Generator) RegisterRecordType(name string, fields []string, fieldTypes 
 // GetRecordTypeByFields looks up a record type by matching its field names.
 // M-DX13: Used to infer the struct type from a record literal's fields.
 // Returns nil if no matching record type is found.
+// M-TYPENAME-NESTED-PROPAGATION: Also returns nil if multiple types match (ambiguous).
+// Callers should use CoreTypeInfo TypeName when available for unambiguous selection.
 func (g *Generator) GetRecordTypeByFields(fieldNames map[string]bool) *RecordTypeInfo {
+	var matches []*RecordTypeInfo
 	for _, info := range g.recordTypes {
 		if len(info.Fields) != len(fieldNames) {
 			continue
@@ -273,8 +276,13 @@ func (g *Generator) GetRecordTypeByFields(fieldNames map[string]bool) *RecordTyp
 			}
 		}
 		if match {
-			return info
+			matches = append(matches, info)
 		}
+	}
+	// M-TYPENAME-NESTED-PROPAGATION: Return nil if ambiguous (multiple matches)
+	// This forces callers to use more specific type information (CoreTypeInfo TypeName)
+	if len(matches) == 1 {
+		return matches[0]
 	}
 	return nil
 }

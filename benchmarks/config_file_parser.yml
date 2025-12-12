@@ -29,15 +29,6 @@ task_prompt: |
 
   The output format must be: "Loaded {app_name} v{version} on port {port} with {count} features"
 
-  <LANG=AILANG>
-  Write your solution to: benchmark/solution.ail
-
-  Run with: ailang run --entry main --caps IO,FS benchmark/solution.ail
-
-  <LANG=PYTHON>
-  Write your solution to: solution.py
-
-  Run with: python solution.py
 
 expected_stdout: |
   Loaded MyApp v1.0.0 on port 8080 with 3 features

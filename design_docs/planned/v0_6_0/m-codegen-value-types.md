@@ -1,7 +1,7 @@
 # M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy
 
 **Status**: Planned
-**Target**: v0.5.10
+**Target: v0.6.0
 **Priority**: P1 - High (DX improvement, performance)
 **Estimated**: 6-8 hours (revised up for stability guarantees)
 **Dependencies**: M-CODEGEN-POINTER-RETURN-TYPES (v0.5.9)

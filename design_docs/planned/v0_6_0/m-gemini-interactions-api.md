@@ -1,7 +1,7 @@
 # M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support
 
 **Status**: Planned
-**Target**: v0.5.10
+**Target**: v0.6.0 (postponed from v0.5.10)
 **Priority**: P1 (Medium)
 **Estimated**: 4 days (~16-20 hours)
 **Parent**: [M-UNIFIED-AI-PROVIDERS](./m-unified-ai-providers.md)

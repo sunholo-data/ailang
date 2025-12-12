@@ -151,11 +151,14 @@ func (g *Generator) generateApp(app *core.App) error {
 							}
 						}
 					} else {
-						// Interface values need type assertion
+						// M-CODEGEN-ADT-TYPE-ASSERT: Only add type assertion if arg produces interface{}
+						// ADT constructor calls (like NewSpectralClassG()) return typed values, not interface{}
 						if err := g.generateExpr(arg); err != nil {
 							return err
 						}
-						g.writef(".(%s)", goType)
+						if g.exprProducesInterface(arg) {
+							g.writef(".(%s)", goType)
+						}
 					}
 				} else {
 					if err := g.generateExpr(arg); err != nil {

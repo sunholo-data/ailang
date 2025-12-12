@@ -189,6 +189,17 @@ func runModule(cfg Config, src Source) (Result, error) {
 									fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
 								}
 							}
+							// M-CROSS-MODULE-RECORD-UNIFICATION: Import ALL type aliases from this module
+							// This ensures nested record types (e.g., SystemPos inside StarSystem) are available
+							// for unification when the parent type is imported
+							for aliasName, aliasTarget := range depIface.TypeAliases {
+								if _, exists := importedTypeAliases[aliasName]; !exists {
+									importedTypeAliases[aliasName] = aliasTarget
+									if cfg.TraceDefaulting {
+										fmt.Printf("  Import transitive type alias %s -> %s\n", aliasName, aliasTarget)
+									}
+								}
+							}
 							found = true
 						}
 

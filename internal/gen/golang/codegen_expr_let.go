@@ -3,6 +3,7 @@ package golang
 
 import (
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // isLetIfChain checks if a Let's body is an If that starts an if-else chain.
@@ -326,13 +327,28 @@ func (g *Generator) generateLet(let *core.Let) error {
 		// M-DX25.10: Special case for Record expressions - infer type from fields
 		// TypeMapper returns "struct{}" for TRecord, but we can get the proper
 		// struct name by looking up the record type from its fields.
+		// M-TYPENAME-NESTED-PROPAGATION: First check coreTypeInfo for TypeName
 		if rec, isRec := let.Value.(*core.Record); isRec {
-			fieldNames := make(map[string]bool, len(rec.Fields))
-			for name := range rec.Fields {
-				fieldNames[name] = true
+			// First try coreTypeInfo for TypeName (set during unification)
+			foundFromTypeInfo := false
+			if g.coreTypeInfo != nil {
+				if typ, ok := g.coreTypeInfo[rec.NodeID]; ok {
+					if tRec, ok := typ.(*types.TRecord); ok && tRec.TypeName != "" {
+						// Use TypeName from type checking
+						varType = "*" + ToGoTypeName(tRec.TypeName)
+						foundFromTypeInfo = true
+					}
+				}
 			}
-			if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
-				varType = "*" + recordType.Name // Records are generated as pointers
+			// Fall back to field matching if no TypeName
+			if !foundFromTypeInfo {
+				fieldNames := make(map[string]bool, len(rec.Fields))
+				for name := range rec.Fields {
+					fieldNames[name] = true
+				}
+				if recordType := g.GetRecordTypeByFields(fieldNames); recordType != nil {
+					varType = "*" + recordType.Name // Records are generated as pointers
+				}
 			}
 		} else if g.coreTypeInfo != nil {
 			valueNodeID := g.getExprNodeID(let.Value)

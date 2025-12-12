@@ -21,6 +21,32 @@ func registerAICall() {
 		Impl:    aiCallImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Call the AI oracle with a string input",
+			LongDesc: `The AI effect is AILANG's general-purpose AI oracle - an opaque,
+host-provided effect for calling external AI/ML systems.
+
+CONFIGURATION:
+  The AI handler must be configured via CLI flags when running AILANG:
+
+  ailang run --ai <model> --caps AI --entry main module.ail
+
+  Supported models (configured via models.yml or guessed from name):
+  - Anthropic: claude-sonnet-4-5, claude-haiku-4-5, etc.
+  - OpenAI:    gpt-5, gpt-5-mini, etc.
+  - Google:    gemini-2-5-pro, gemini-2-5-flash, etc.
+
+  Required environment variables (based on provider):
+  - ANTHROPIC_API_KEY for Claude models
+  - OPENAI_API_KEY for GPT models
+  - GOOGLE_API_KEY for Gemini (or leave unset to use Vertex AI ADC)
+
+TESTING:
+  Use --ai-stub for deterministic testing (returns {"kind":"Wait"}):
+
+  ailang run --ai-stub --caps AI --entry main module.ail
+
+PROTOCOL:
+  Input/output is string → string. By convention, JSON is used but not enforced.
+  The host AI handler interprets the input and generates the response.`,
 			Params: []ParamDoc{
 				{Name: "input", Description: "Input string (JSON by convention)"},
 			},
@@ -29,9 +55,10 @@ func registerAICall() {
 				{Code: `AI.call("{\"action\":\"decide\"}")`, Description: "Call AI with JSON input"},
 				{Code: `let resp = AI.call(json.encode(ctx))`, Description: "Encode context as JSON"},
 			},
+			SeeAlso:   []string{"std/json.encode", "std/json.decode"},
 			Since:     "v0.5.1",
 			Stability: StabilityStable,
-			Tags:      []string{"ai", "oracle", "llm"},
+			Tags:      []string{"ai", "oracle", "llm", "anthropic", "openai", "gemini"},
 			Category:  "ai",
 		},
 	})

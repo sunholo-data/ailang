@@ -53,16 +53,6 @@ task_prompt: |
   GREEN (10sec)
   ```
 
-  <LANG=AILANG>
-  Write to: benchmark/solution.ail
-  Module name: benchmark/solution
-  Entry point: main
-  Required capabilities: IO
-
-  <LANG=PYTHON>
-  Write to: solution.py
-  Entry point: main() function
-
 expected_stdout: |
   GREEN (19sec)
   GREEN (18sec)

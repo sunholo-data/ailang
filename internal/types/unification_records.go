@@ -78,6 +78,16 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 				return nil, fmt.Errorf("failed to unify record field '%s': %w", name, err)
 			}
 		}
+		// M-CODEGEN-RECORD-TYPENAME-PRESERVATION: Propagate TypeName during unification
+		// When a record literal (no TypeName) is unified with a type alias expansion
+		// (has TypeName), we need to propagate the TypeName so codegen knows the nominal type.
+		// This mutation is safe because unification happens during type checking, before
+		// CoreTypeInfo is finalized.
+		if t1.TypeName == "" && t2Rec.TypeName != "" {
+			t1.TypeName = t2Rec.TypeName
+		} else if t2Rec.TypeName == "" && t1.TypeName != "" {
+			t2Rec.TypeName = t1.TypeName
+		}
 		// Unify row variables if present
 		if t1.Row != nil || t2Rec.Row != nil {
 			row1 := t1.Row
@@ -102,6 +112,18 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
+	}
+	// M-CROSS-MODULE-RECORD-UNIFICATION: Handle TCon by expanding alias
+	// This occurs when a nested record field type is imported from another module
+	// and hasn't been expanded yet (e.g., position: SystemPos where SystemPos is TCon)
+	if t2Con, ok := t2.(*TCon); ok {
+		expanded := u.expandAlias(t2Con)
+		if expanded != t2Con {
+			// Successfully expanded - retry unification with expanded type
+			return u.Unify(t1, expanded, sub)
+		}
+		// Can't expand - might be an ADT or unknown type
+		return nil, fmt.Errorf("cannot unify record with unexpandable type constructor %s", t2Con.Name)
 	}
 	return nil, fmt.Errorf("cannot unify old record type with %T", t2)
 }

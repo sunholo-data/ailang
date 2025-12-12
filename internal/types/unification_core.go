@@ -105,6 +105,12 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 
 	// Check if already equal with cycle detection
 	if SafeEquals(t1, t2) {
+		// M-TYPENAME-NESTED-PROPAGATION: Even when types are "equal", propagate TypeName
+		// SafeEquals doesn't check TypeName, so two TRecords with same fields but
+		// different TypeNames will be considered equal. We still need to propagate
+		// TypeName between them to ensure codegen knows the nominal type.
+		// This must be recursive to handle nested records.
+		propagateTypeNameRecursive(t1, t2)
 		return sub, nil
 	}
 
@@ -209,4 +215,69 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 // kindsCompatible checks if two kinds are compatible for unification
 func (u *Unifier) kindsCompatible(k1, k2 Kind) bool {
 	return k1.Equals(k2)
+}
+
+// propagateTypeNameRecursive propagates TypeName between two structurally equal types.
+// M-TYPENAME-NESTED-PROPAGATION: This is called when SafeEquals returns true but
+// the types may have different TypeName values. We need to propagate TypeName
+// recursively through all nested TRecord types.
+func propagateTypeNameRecursive(t1, t2 Type) {
+	propagateTypeNameWithVisited(t1, t2, make(map[Type]bool))
+}
+
+func propagateTypeNameWithVisited(t1, t2 Type, visited map[Type]bool) {
+	// Prevent infinite recursion for cyclic types
+	if visited[t1] || visited[t2] {
+		return
+	}
+	visited[t1] = true
+	visited[t2] = true
+
+	// Handle TRecord types - propagate TypeName
+	if t1Rec, ok := t1.(*TRecord); ok {
+		if t2Rec, ok := t2.(*TRecord); ok {
+			// Propagate TypeName between the two records
+			if t1Rec.TypeName == "" && t2Rec.TypeName != "" {
+				t1Rec.TypeName = t2Rec.TypeName
+			} else if t2Rec.TypeName == "" && t1Rec.TypeName != "" {
+				t2Rec.TypeName = t1Rec.TypeName
+			}
+
+			// Recursively propagate to nested field types
+			for fieldName, fieldType1 := range t1Rec.Fields {
+				if fieldType2, exists := t2Rec.Fields[fieldName]; exists {
+					propagateTypeNameWithVisited(fieldType1, fieldType2, visited)
+				}
+			}
+		}
+	}
+
+	// Handle other container types that may have nested TRecords
+	switch typ1 := t1.(type) {
+	case *TList:
+		if typ2, ok := t2.(*TList); ok {
+			propagateTypeNameWithVisited(typ1.Element, typ2.Element, visited)
+		}
+	case *TArray:
+		if typ2, ok := t2.(*TArray); ok {
+			propagateTypeNameWithVisited(typ1.Element, typ2.Element, visited)
+		}
+	case *TTuple:
+		if typ2, ok := t2.(*TTuple); ok {
+			for i := range typ1.Elements {
+				if i < len(typ2.Elements) {
+					propagateTypeNameWithVisited(typ1.Elements[i], typ2.Elements[i], visited)
+				}
+			}
+		}
+	case *TFunc:
+		if typ2, ok := t2.(*TFunc); ok {
+			for i := range typ1.Params {
+				if i < len(typ2.Params) {
+					propagateTypeNameWithVisited(typ1.Params[i], typ2.Params[i], visited)
+				}
+			}
+			propagateTypeNameWithVisited(typ1.Return, typ2.Return, visited)
+		}
+	}
 }

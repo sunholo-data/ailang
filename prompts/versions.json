@@ -340,9 +340,21 @@
         "latest"
       ],
       "notes": "Add relaxed module matching (--relax-modules flag, AILANG_RELAX_MODULES env var)"
+    },
+    "v0.5.10": {
+      "file": "prompts/v0.5.10.md",
+      "hash": "efa8f86c5dbd007167bd8c90fa5ad8ab2d46d482001d19e31b87240245e3dfaa",
+      "description": "Streamlined educational prompt with AI effect + Vertex AI ADC support (2,204 words)",
+      "created": "2025-12-12",
+      "tags": [
+        "production",
+        "latest",
+        "optimized"
+      ],
+      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (❌ WRONG / ✅ RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
     }
   },
-  "active": "v0.5.2",
+  "active": "v0.5.10",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

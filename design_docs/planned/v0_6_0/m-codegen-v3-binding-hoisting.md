@@ -1,7 +1,7 @@
 # M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets
 
 **Status**: Planned (Follow-up to M-CODEGEN-V2)
-**Target**: v0.5.10 or v0.6.0
+**Target: v0.6.0 or v0.6.0
 **Priority**: P2 (Enhancement - not blocking production)
 **Estimated**: 2-3 days
 **Dependencies**: M-CODEGEN-V2 complete

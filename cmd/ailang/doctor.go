@@ -377,6 +377,15 @@ func runBuiltinsShow() {
 			fmt.Printf("  %s\n\n", spec.Metadata.Description)
 		}
 
+		if spec.Metadata.LongDesc != "" {
+			fmt.Println("Details:")
+			// Indent each line of LongDesc
+			for _, line := range strings.Split(spec.Metadata.LongDesc, "\n") {
+				fmt.Printf("  %s\n", line)
+			}
+			fmt.Println()
+		}
+
 		if len(spec.Metadata.Params) > 0 {
 			fmt.Println("Parameters:")
 			for _, param := range spec.Metadata.Params {

@@ -149,6 +149,77 @@ For now, use named functions for recursion. This aligns with AILANG's goal of se
 
 ---
 
+### Duplicate Record Types with Identical Fields (v0.5.10)
+
+**Status**: Known limitation with workarounds
+**Since**: v0.5.10 (December 2025)
+**Affects**: Go code generation when multiple record types share identical field structures
+
+**Problem**:
+When multiple record types have the same field names and types, the Go codegen may select the wrong struct type:
+
+```ailang
+-- In starmap.ail:
+export type Vec3 = { x: float, y: float, z: float }
+
+-- In celestial.ail:
+export type SystemPos = { x: float, y: float, z: float }
+
+-- In a function returning StarSystem:
+export type StarSystem = {
+    position: SystemPos,  -- Expects SystemPos
+    ...
+}
+
+func initSystem() -> StarSystem {
+    { position: { x: 0.0, y: 0.0, z: 0.0 }, ... }
+    -- ❌ May generate &Vec3{} instead of &SystemPos{} !
+}
+```
+
+**Root Cause**:
+1. TypeName propagation doesn't reliably reach nested record literals during type checking
+2. Codegen falls back to `GetRecordTypeByFields` which returns the first matching type
+3. When multiple types have identical fields, the "first" one found may not be the correct one
+
+**Workarounds**:
+
+1. **Merge duplicate types** (recommended if semantically equivalent):
+   ```ailang
+   -- Keep only one type, import it everywhere:
+   import sim/celestial (SystemPos)
+   -- Remove: export type Vec3 = { x: float, y: float, z: float }
+   ```
+
+2. **Rename to be unique**:
+   ```ailang
+   export type GalacticCoord = { x: float, y: float, z: float }
+   export type SystemPos = { x: float, y: float, z: float }
+   -- Different names = unambiguous
+   ```
+
+3. **Add discriminator field** (if types must be distinct):
+   ```ailang
+   export type Vec3 = { x: float, y: float, z: float, _tag: string }
+   export type SystemPos = { sysX: float, sysY: float, sysZ: float }
+   ```
+
+**Best Practice**:
+Don't define multiple record types with identical field structures. If you need type aliases, use explicit type aliases that preserve identity:
+
+```ailang
+-- ✅ Better: Single type, aliased if needed
+export type Vec3 = { x: float, y: float, z: float }
+-- Use Vec3 everywhere, or create semantic wrappers with different fields
+```
+
+**Future**:
+We plan to improve TypeName propagation to nested record literals in the type checker. Until then, avoid defining record types with identical field structures in the same project.
+
+**See Also**: `design_docs/implemented/v0_5_10/m-codegen-nested-record-type.md`, `design_docs/planned/v0_5_10/codegen-bug-pattern-analysis.md`
+
+---
+
 ### Polymorphic Operators in Lambda Bodies
 
 **Status**: Partially fixed in v0.4.0 (M-POLY-B Phase 1)

@@ -126,9 +126,16 @@ func (e *Elaborator) GetConstructors() map[string]*ConstructorInfo {
 
 // RegisterTypeAlias registers a type alias for expansion during type checking
 // M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants
+// M-TYPENAME-NESTED-PROPAGATION: Set TypeName on TRecord so unification can propagate it
 func (e *Elaborator) RegisterTypeAlias(name string, target types.Type) {
 	if e.typeAliases == nil {
 		e.typeAliases = make(map[string]types.Type)
+	}
+	// M-TYPENAME-NESTED-PROPAGATION: If target is a TRecord, set its TypeName
+	// This ensures that when the alias is expanded during unification, the
+	// TRecord carries the nominal type identity for codegen
+	if rec, ok := target.(*types.TRecord); ok && rec.TypeName == "" {
+		rec.TypeName = name
 	}
 	e.typeAliases[name] = target
 }
