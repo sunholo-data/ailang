@@ -149,6 +149,93 @@ ailang debug types  # Shows API documentation
 
 **Design Doc:** [design_docs/planned/v0_5_10/m-dx11-type-inference-debugging.md](design_docs/planned/v0_5_10/m-dx11-type-inference-debugging.md)
 
+### Fixed - TypeName Propagation to Nested Records (M-TYPENAME-NESTED-PROPAGATION)
+
+Fixed issue where nested record literals lost their type identity after type inference:
+
+**Problem:** Record literals like `{x: 1.0, y: 2.0, z: 3.0}` would lose their TypeName (e.g., "SystemPos") during substitution, causing codegen to generate anonymous structs instead of typed structs.
+
+**Solution:**
+- `RegisterTypeAlias` now sets TypeName on TRecord aliases at registration time
+- Added `propagateTypeNameToCoreTI()` to match anonymous TRecords to known type aliases after substitution
+- Handles ambiguous signatures (e.g., Vec3 and SystemPos with same fields) by skipping auto-assignment
+
+**Files Changed:**
+- `internal/elaborate/core.go` - Set TypeName on aliases (+3 LOC)
+- `internal/types/typechecker_substitution.go` - TypeName propagation (+50 LOC)
+- `internal/gen/golang/codegen.go` - Safe fallback for ambiguous types (+10 LOC)
+- `internal/gen/golang/codegen_expr_let.go` - CoreTypeInfo priority (+15 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_5_11/m-typename-nested-propagation.md](design_docs/implemented/v0_5_11/m-typename-nested-propagation.md)
+
+### Fixed - Option Type Assertions in Codegen (M-CODEGEN-OPTION-TYPE-ASSERT)
+
+Fixed missing type assertions for Option-typed fields in generated Go code:
+
+**Problem:** Fields typed `Option[T]` (like `RingColor: Option[Color]`) got `interface{}` assertions instead of `(*Option)`, causing Go compile errors.
+
+**Solution:** Added handling for `*ast.TypeApp` in `ailangTypeToGo` function - generic type applications like `Option[Color]` now correctly map to `*Option`.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Added TypeApp case in ailangTypeToGo (+5 LOC)
+
+### Fixed - Compile Output Directory Nesting (M-CODEGEN-OUTPUT-PATH)
+
+Fixed nested output directory issue in `ailang compile`:
+
+**Problem:** `--out sim_gen --package-name sim_gen` created `sim_gen/sim_gen/` instead of `sim_gen/`.
+
+**Solution:** Skip creating nested subdirectory when output directory already matches package name.
+
+**Files Changed:**
+- `cmd/ailang/compile.go` - Smart output path logic (+4 LOC)
+
+### Fixed - Float Operator Dispatch (M-FIX-FLOAT-OP)
+
+Fixed float arithmetic operators returning wrong types after type inference:
+
+**Problem:** Expressions like `3.14 + 2.71` were being dispatched to Int.add instead of Float.add.
+
+**Solution:** Apply substitution to CoreTI after defaulting, ensuring float types are preserved for operator lowering.
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-fix-float-operator-dispatch.md](design_docs/implemented/v0_5_10/m-fix-float-operator-dispatch.md)
+
+### Fixed - TApp/TCon Unification
+
+Fixed unification between type constructors and type applications:
+
+**Problem:** `TCon("Option")` and `TApp("Option", [T])` failed to unify, breaking generic ADT usage across modules.
+
+**Solution:** Enhanced unification to handle TCon/TApp equivalence for nullary type applications.
+
+### Fixed - Cross-Module Record Type Resolution
+
+Fixed record type resolution when types are defined in one module and used in another:
+
+**Problem:** Record literals in cross-module contexts got anonymous types instead of the declared type.
+
+**Solution:** Enhanced type alias lookup to search imported module environments.
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-cross-module-record-unification.md](design_docs/implemented/v0_5_10/m-cross-module-record-unification.md)
+
+### Fixed - ADT Type Assertions in Codegen
+
+Fixed type assertions for ADT variant fields in generated struct literals:
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-codegen-adt-type-assert.md](design_docs/implemented/v0_5_10/m-codegen-adt-type-assert.md)
+
+### Fixed - List Flattening in Codegen
+
+Fixed handling of nested list operations in Go code generation:
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-codegen-list-flatten.md](design_docs/implemented/v0_5_10/m-codegen-list-flatten.md)
+
+### Fixed - Tuple Pattern Matching in Codegen
+
+Fixed tuple destructuring patterns in generated Go code:
+
+**Design Doc:** [design_docs/implemented/v0_5_10/m-codegen-tuple-pattern.md](design_docs/implemented/v0_5_10/m-codegen-tuple-pattern.md)
+
 ---
 
 ## [v0.5.9] - 2025-12-10

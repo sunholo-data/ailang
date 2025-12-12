@@ -65,6 +65,40 @@ Ready to proceed with release.
 - `0` - All checks passed
 - `1` - One or more checks failed (see logs in /tmp/pre_release_*.log)
 
+### `scripts/check_implemented_docs.sh <version>`
+Verify all implemented design docs are documented in CHANGELOG.
+
+**Usage:**
+```bash
+.claude/skills/release-manager/scripts/check_implemented_docs.sh 0.5.10
+```
+
+**What it checks:**
+1. Finds all design docs in `design_docs/implemented/vX_Y_Z/`
+2. Verifies each feature doc is referenced in CHANGELOG.md
+3. Skips sprint plans and analysis docs (implementation artifacts)
+
+**Output:**
+```
+Checking implemented design docs for v0.5.10...
+
+  Found 18 design doc(s) in design_docs/implemented/v0_5_10
+  Referenced in CHANGELOG: 12
+    ✓ m-unified-ai-providers
+    ✓ m-string-conversion
+    ...
+
+  ⚠ NOT in CHANGELOG: 2
+    ✗ m-codegen-nested-record-type
+    ✗ m-fix-float-operator-dispatch
+
+  Action: Add entries for these features before releasing.
+```
+
+**Exit codes:**
+- `0` - All feature docs are in CHANGELOG
+- `1` - Some docs are missing from CHANGELOG
+
 ### `scripts/post_release_checks.sh <version>`
 Verify release was created successfully on GitHub.
 
@@ -266,7 +300,24 @@ Changelog excerpt:
 - File sizes failing → Use `codebase-organizer` agent to split large files
 - **DO NOT proceed until all checks pass**
 
-### 2. Update Version in Documentation
+### 2. Verify Implemented Design Docs (CRITICAL)
+
+**Check that all implemented features are documented:**
+```bash
+.claude/skills/release-manager/scripts/check_implemented_docs.sh X.X.X
+```
+
+**This checks `design_docs/implemented/vX_Y_Z/` against CHANGELOG:**
+- Every feature doc should have a CHANGELOG entry
+- Sprint plans and analysis docs are skipped (implementation artifacts)
+- If docs are missing from CHANGELOG, add entries before proceeding
+
+**If docs are missing:**
+- Read each missing doc to understand the feature
+- Add appropriate entry to CHANGELOG.md under the version header
+- Include: problem, solution, files changed, design doc link
+
+### 3. Update Version in Documentation
 
 **Run the version update script:**
 ```bash
@@ -280,7 +331,7 @@ Changelog excerpt:
 **The script automatically updates:**
 - **docs/src/constants/version.js** - Website STABLE_RELEASE and ACTIVE_PROMPT
 
-### 3. Post-Update Verification (CRITICAL)
+### 4. Post-Update Verification (CRITICAL)
 
 **Run checks AGAIN after documentation changes:**
 ```bash
