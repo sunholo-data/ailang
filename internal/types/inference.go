@@ -16,6 +16,7 @@ type InferenceContext struct {
 	qualifiedConstraints []ClassConstraint // Non-ground constraints for qualified types
 	TypeInfo             TypeInfo          // Maps Surface AST expressions to their inferred types (principal types)
 	expectedType         *Type             // Expected type from context (e.g., function return type in tail position)
+	debugSink            TypeDebugSink     // M-DX11: Debug sink for provenance tracking
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -64,6 +65,17 @@ func NewInferenceContext() *InferenceContext {
 		freshCounter: 0,
 		path:         []string{},
 		TypeInfo:     NewTypeInfo(),
+		debugSink:    NoOpDebugSink{}, // M-DX11: Default to no-op (zero overhead)
+	}
+}
+
+// SetDebugSink sets the debug sink for provenance tracking.
+// This should be called before type inference begins.
+func (ctx *InferenceContext) SetDebugSink(sink TypeDebugSink) {
+	if sink == nil {
+		ctx.debugSink = NoOpDebugSink{}
+	} else {
+		ctx.debugSink = sink
 	}
 }
 
@@ -539,11 +551,22 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 // Helper functions for fresh variables
 
 func (ctx *InferenceContext) freshTypeVar() Type {
+	return ctx.freshTypeVarWithOrigin(OriginInferred, 0)
+}
+
+// freshTypeVarWithOrigin creates a fresh type variable and records its origin.
+// This is used for provenance tracking to answer "why does this have type X?".
+func (ctx *InferenceContext) freshTypeVarWithOrigin(origin OriginKind, nodeID uint64) Type {
 	ctx.freshCounter++
-	return &TVar2{
+	tv := &TVar2{
 		Name: fmt.Sprintf("α%d", ctx.freshCounter),
 		Kind: Star,
 	}
+
+	// Emit debug event for provenance tracking
+	ctx.debugSink.OnFreshTypeVar(tv, nodeID, origin)
+
+	return tv
 }
 
 func (ctx *InferenceContext) freshEffectRow() *Row {

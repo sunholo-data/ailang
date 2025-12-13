@@ -312,6 +312,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		freshCounter:         0,
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
+		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
 	}
 
 	// Infer type (returns updated env)
@@ -423,6 +424,7 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, error) {
 	ctx := NewInferenceContext()
 	ctx.env = env
+	ctx.SetDebugSink(tc.DebugSink) // M-DX11: Wire provenance tracking
 
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)
