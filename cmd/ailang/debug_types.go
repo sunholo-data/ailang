@@ -201,6 +201,21 @@ func (d *TypeDebugDumper) dumpCoreTI() {
 				fmt.Printf("    Constraint: %s %s\n", c.ClassName, dim(status))
 			}
 		}
+
+		// M-DX11: Show provenance if available
+		if len(report.Origins) > 0 {
+			fmt.Printf("    Origins:\n")
+			for _, origin := range report.Origins {
+				line := fmt.Sprintf("      - %s", origin.Kind.String())
+				if origin.Note != "" {
+					line += ": " + origin.Note
+				}
+				if origin.Span.Line != 0 || origin.Span.File != "" {
+					line += " at " + origin.Span.String()
+				}
+				fmt.Println(line)
+			}
+		}
 	}
 	fmt.Println()
 }
