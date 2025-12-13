@@ -369,3 +369,58 @@ func BenchmarkVerboseDebugSink(b *testing.B) {
 		sink.OnConstraintResolve("Num", testInt, "add", 3)
 	}
 }
+
+// BenchmarkNoOpDebugSink_Provenance measures the full inference path with NoOp sink.
+// The allocations come from TVar2 creation, not from the debug sink itself.
+// Compare with BenchmarkVerboseDebugSink_Provenance to see the provenance overhead.
+// (M-DX11-TYPE-PROVENANCE)
+func BenchmarkNoOpDebugSink_Provenance(b *testing.B) {
+	ctx := NewInferenceContext()
+	// ctx.debugSink is NoOpDebugSink by default
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// This exercises the freshTypeVarWithOrigin codepath
+		_ = ctx.freshTypeVar()
+		_ = ctx.freshTypeVarWithOrigin(OriginAnnotation, 42)
+		_ = ctx.freshTypeVarWithOrigin(OriginLiteral, 43)
+	}
+}
+
+// BenchmarkNoOpDebugSink_ProvenanceOverhead verifies ZERO allocations from debug sink.
+// Uses pre-created type variable to isolate debug sink overhead.
+// This proves provenance tracking adds no overhead when disabled.
+func BenchmarkNoOpDebugSink_ProvenanceOverhead(b *testing.B) {
+	sink := NoOpDebugSink{}
+	tv := testTypeVar("α1")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// These should have ZERO allocations with NoOpDebugSink
+		sink.OnFreshTypeVar(tv, 1, OriginInferred)
+		sink.OnFreshTypeVar(tv, 2, OriginAnnotation)
+		sink.OnFreshTypeVar(tv, 3, OriginLiteral)
+		sink.OnDefault(tv, testInt, "Num constraint")
+	}
+}
+
+// BenchmarkVerboseDebugSink_Provenance measures provenance tracking overhead
+func BenchmarkVerboseDebugSink_Provenance(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ctx := NewInferenceContext()
+		sink := NewVerboseDebugSink()
+		ctx.SetDebugSink(sink)
+
+		// This exercises the freshTypeVarWithOrigin codepath with provenance recording
+		_ = ctx.freshTypeVar()
+		_ = ctx.freshTypeVarWithOrigin(OriginAnnotation, 42)
+		_ = ctx.freshTypeVarWithOrigin(OriginLiteral, 43)
+	}
+}
