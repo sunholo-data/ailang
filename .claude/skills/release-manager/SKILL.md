@@ -229,6 +229,35 @@ To close these issues, run:
 
 **Alternative: Auto-close via commits** - Instead of using `--close`, include `Fixes #123` in the release commit message. GitHub will auto-close issues when the commit is merged to the default branch.
 
+### `scripts/close_issues_with_references.sh <version> <issue> [section]`
+Close a GitHub issue with proper release references (URLs, commits, design docs).
+
+**Usage:**
+```bash
+.claude/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29
+.claude/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29 'M-STRING-CONVERT'
+```
+
+**What it does:**
+1. Gets release URL and commit hash for the version
+2. Extracts relevant CHANGELOG section (auto-detects or uses provided section name)
+3. Finds related design doc if exists
+4. Generates a comprehensive closing comment with all references
+5. Prompts for confirmation, then closes the issue
+
+**Generated comment format:**
+```markdown
+Fixed in [v0.5.10](https://github.com/sunholo-data/ailang/releases/tag/v0.5.10) - Description (M-FEATURE-CODE).
+
+Additional details from CHANGELOG...
+
+See: [Design Doc](link)
+
+Release commit: [`abc1234`](https://github.com/sunholo-data/ailang/commit/abc1234)
+```
+
+**For more details:** See [`resources/issue_closure_guide.md`](resources/issue_closure_guide.md)
+
 ### `scripts/broadcast_release.sh <version> [--include-issues]`
 Broadcast release notification with changelog to all projects.
 
@@ -447,6 +476,13 @@ Show user:
 
 ### Release Checklist
 See [`resources/release_checklist.md`](resources/release_checklist.md) for complete step-by-step checklist.
+
+### Issue Closure Guide
+See [`resources/issue_closure_guide.md`](resources/issue_closure_guide.md) for how to properly close GitHub issues with:
+- Release URLs and commit references
+- CHANGELOG excerpts
+- Design doc links
+- Best practices for closing comments
 
 ## Prerequisites
 

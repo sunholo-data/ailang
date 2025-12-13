@@ -322,15 +322,39 @@ fi
 # 9. Close issues if requested
 # ============================================================================
 
+REPO="sunholo-data/ailang"
+RELEASE_URL="https://github.com/$REPO/releases/tag/$VERSION"
+RELEASE_COMMIT=$(git rev-parse "$VERSION" 2>/dev/null || echo "")
+SHORT_COMMIT="${RELEASE_COMMIT:0:7}"
+COMMIT_URL="https://github.com/$REPO/commit/$RELEASE_COMMIT"
+
 if $CLOSE_ISSUES; then
     echo "" >&2
     echo "Closing issues..." >&2
 
     CLOSED_COUNT=0
-    while read -r num; do
+    while IFS='|' read -r num title sources labels; do
         [ -z "$num" ] && continue
         echo "  Closing #$num..." >&2
-        if gh issue close "$num" --comment "Closed via release $VERSION" 2>/dev/null; then
+
+        # Build a better closing comment with release URL and commit
+        COMMENT="Fixed in [$VERSION]($RELEASE_URL)."
+
+        # Add source info if available
+        if [ -n "$sources" ]; then
+            COMMENT="$COMMENT
+
+Identified via: $sources"
+        fi
+
+        # Add commit reference
+        if [ -n "$SHORT_COMMIT" ]; then
+            COMMENT="$COMMENT
+
+Release commit: [\`$SHORT_COMMIT\`]($COMMIT_URL)"
+        fi
+
+        if gh issue close "$num" --comment "$COMMENT" 2>/dev/null; then
             echo "    ✓ Closed #$num" >&2
             CLOSED_COUNT=$((CLOSED_COUNT + 1))
 
@@ -344,7 +368,7 @@ if $CLOSE_ISSUES; then
         else
             echo "    ✗ Failed to close #$num" >&2
         fi
-    done < "$ISSUES_FILE.open_nums"
+    done < "$ISSUES_FILE.details"
 
     echo "" >&2
     echo "✓ Closed $CLOSED_COUNT issue(s)" >&2
@@ -353,6 +377,9 @@ else
         echo "" >&2
         echo "To close these issues, run:" >&2
         echo "  $0 $VERSION --close" >&2
+        echo "" >&2
+        echo "For more detailed closing comments, use:" >&2
+        echo "  .claude/skills/release-manager/scripts/close_issues_with_references.sh $VERSION <issue_num>" >&2
     fi
 fi
 

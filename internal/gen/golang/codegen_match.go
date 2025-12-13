@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // generateMatch generates a Go switch statement for pattern matching.
@@ -35,9 +36,11 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	// M-DX25.7: Look up scrutinee's type for typed list operations
 	// M-DX26: In _impl functions, scrutinee is always interface{}
 	g.matchScrutineeType = "interface{}"
+	g.matchScrutineeAILANGType = nil // M-DX29: Reset AILANG type
 	if !inImplFunc && g.coreTypeInfo != nil {
 		scrutineeNodeID := g.getExprNodeID(match.Scrutinee)
 		if typ, ok := g.coreTypeInfo[scrutineeNodeID]; ok {
+			g.matchScrutineeAILANGType = typ // M-DX29: Store AILANG type for type argument extraction
 			if goType, err := g.TypeMapper.MapType(typ); err == nil {
 				g.matchScrutineeType = string(goType)
 			}
@@ -475,11 +478,30 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		// e.g., for MovementPattern.PatternRandomWalk, field is "PatternRandomWalk" not "MovementPatternPatternRandomWalk"
 		if len(p.Args) > 0 {
 			variantFieldName := ToPascalCase(p.Name)
-			// Look up field names from registered constructor info
+			// Look up field names and types from registered constructor info
 			var ctorFieldNames []string
-			if info, exists := g.adtConstructors[p.Name]; exists && len(info.FieldNames) > 0 {
-				ctorFieldNames = info.FieldNames
+			var ctorFieldTypes []string
+			if info, exists := g.adtConstructors[p.Name]; exists {
+				if len(info.FieldNames) > 0 {
+					ctorFieldNames = info.FieldNames
+				}
+				if len(info.FieldTypes) > 0 {
+					ctorFieldTypes = info.FieldTypes
+				}
 			}
+
+			// M-DX29: Extract type arguments from generic scrutinee type (e.g., Option[InteractableID])
+			// This allows us to add type assertions when extracting ADT values from generic containers
+			var typeArgGoTypes []string
+			if tapp, ok := g.matchScrutineeAILANGType.(*types.TApp); ok && len(tapp.Args) > 0 {
+				typeArgGoTypes = make([]string, len(tapp.Args))
+				for i, arg := range tapp.Args {
+					if goType, err := g.TypeMapper.MapType(arg); err == nil {
+						typeArgGoTypes[i] = string(goType)
+					}
+				}
+			}
+
 			for i, arg := range p.Args {
 				if vp, ok := arg.(*core.VarPattern); ok && vp.Name != "_" {
 					// Skip binding for wildcard patterns (name == "_")
@@ -491,8 +513,39 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 					} else {
 						fieldAccess = fmt.Sprintf("Value%d", i)
 					}
-					g.writef("%s := _adt.%s.%s\n", goVarName, variantFieldName, fieldAccess)
+
+					// M-DX29: Check if we need to add type assertion for ADT from generic container
+					// If the registered field type is interface{} but we have a type argument that's an ADT,
+					// add the type assertion to get the concrete type
+					fieldGoType := ""
+					if i < len(ctorFieldTypes) && ctorFieldTypes[i] != "" {
+						fieldGoType = ctorFieldTypes[i]
+					}
+					needsTypeAssertion := false
+					typeAssertionType := ""
+					if (fieldGoType == "" || fieldGoType == "interface{}") && i < len(typeArgGoTypes) && typeArgGoTypes[i] != "" {
+						// Type argument exists and field is interface{} - check if it's an ADT pointer type
+						typeArgType := typeArgGoTypes[i]
+						if strings.HasPrefix(typeArgType, "*") && typeArgType != "*struct{}" {
+							// It's a pointer type (likely an ADT) - add type assertion
+							needsTypeAssertion = true
+							typeAssertionType = typeArgType
+							fieldGoType = typeArgType
+						}
+					}
+
+					if needsTypeAssertion {
+						g.writef("%s := _adt.%s.%s.(%s)\n", goVarName, variantFieldName, fieldAccess, typeAssertionType)
+					} else {
+						g.writef("%s := _adt.%s.%s\n", goVarName, variantFieldName, fieldAccess)
+					}
 					g.writef("_ = %s // suppress unused\n", goVarName)
+
+					// M-DX27: Record the concrete Go type for this local variable
+					// This allows exprProducesInterface to know that s is bool, not interface{}
+					if fieldGoType != "" && fieldGoType != "interface{}" {
+						g.typedLocalVars[goVarName] = fieldGoType
+					}
 				}
 				// Wildcards (_) and non-VarPattern args don't need binding
 			}
@@ -737,7 +790,11 @@ func (g *Generator) generateFlatBoolMatchChain(chain []BoolMatchChainEntry, retu
 			if err := g.generateExpr(entry.Condition); err != nil {
 				return err
 			}
-			g.writef(".(bool) {\n")
+			// M-DX27: Only add type assertion if condition produces interface{}
+			if g.exprProducesInterface(entry.Condition) {
+				g.writef(".(bool)")
+			}
+			g.writef(" {\n")
 			g.indent++
 			g.writef("return ")
 			if err := g.generateExpr(entry.TrueBody); err != nil {
@@ -751,7 +808,11 @@ func (g *Generator) generateFlatBoolMatchChain(chain []BoolMatchChainEntry, retu
 			if err := g.generateExpr(entry.Condition); err != nil {
 				return err
 			}
-			g.writef(".(bool) {\n")
+			// M-DX27: Only add type assertion if condition produces interface{}
+			if g.exprProducesInterface(entry.Condition) {
+				g.writef(".(bool)")
+			}
+			g.writef(" {\n")
 			g.indent++
 			g.writef("return ")
 			if err := g.generateExpr(entry.TrueBody); err != nil {

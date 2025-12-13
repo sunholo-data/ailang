@@ -90,6 +90,10 @@ type Generator struct {
 	// M-DX25.7: Used to generate typed list operations instead of interface{} helpers
 	matchScrutineeType string
 
+	// matchScrutineeAILANGType tracks the AILANG type of the current match scrutinee
+	// M-DX29: Used to extract type arguments from generic types like Option[ADT]
+	matchScrutineeAILANGType types.Type
+
 	// inFlatChain tracks whether we're inside a flattened if-else chain
 	// M-CODEGEN-FLAT-IF-ELSE: Prevents nested chains from re-wrapping in IIFEs
 	inFlatChain bool
@@ -105,6 +109,12 @@ type Generator struct {
 	// currentFuncParams maps parameter names to their Go types for the function being generated
 	// M-DX25.10: Used to check if a Var reference is a param declared as interface{}
 	currentFuncParams map[string]string
+
+	// typedLocalVars maps local variable names to their concrete Go types
+	// M-DX27: Used to track variables bound from typed ADT fields
+	// When a variable is bound from an ADT field extraction (e.g., s := _adt.Foo.Bar),
+	// the variable has a concrete type (bool, int64, etc.) not interface{}.
+	typedLocalVars map[string]string
 
 	// currentFuncDeclaredReturn stores the declared return type name for the current function
 	// M-CROSS-MODULE: Used to resolve record literal types when CoreTypeInfo has structural types
@@ -182,6 +192,7 @@ func New(packageName string) *Generator {
 		funcParamTypes:    make(map[string][]string),
 		funcReturnTypes:   make(map[string]string),
 		currentFuncParams: make(map[string]string),
+		typedLocalVars:    make(map[string]string),
 	}
 	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
 	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {

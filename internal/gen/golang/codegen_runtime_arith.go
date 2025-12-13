@@ -91,6 +91,22 @@ func (g *Generator) writeRuntimeArithmeticHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// M-DX30: String equality comparison helper
+	g.writef("// EqString compares two strings for equality.\n")
+	g.writef("func EqString(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return a.(string) == b.(string)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// M-DX30: Float equality comparison helper
+	g.writef("// EqFloat compares two floats for equality.\n")
+	g.writef("func EqFloat(a, b interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return toFloat64(a) == toFloat64(b)\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	g.writef("// LtInt compares two integers (less than).\n")
 	g.writef("func LtInt(a, b interface{}) interface{} {\n")
 	g.indent++

@@ -70,6 +70,11 @@ func (g *Generator) generateTopLevelLetRec(letrec *core.LetRec) error {
 // The typed wrapper calls _impl and handles type conversions.
 // M-ZERO-ARG: Unit-typed parameters are skipped in the Go signature.
 func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, exported bool) error {
+	// M-DX27: Clear typed local vars from previous function
+	// This map tracks variables bound from ADT fields within a single function.
+	// Must be reset per-function to avoid scope contamination.
+	g.typedLocalVars = make(map[string]string)
+
 	// M-DX26: Get typed signature for the wrapper
 	// M-CODEGEN-TYPED-PARAMS: Pass function name to check for AST-derived type overrides
 	paramTypes, returnType := g.getTypedSignature(name, lam)
@@ -251,6 +256,14 @@ func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
 	if g.expectedReturnType == "interface{}" {
 		if _, isLit := expr.(*core.Lit); isLit {
 			return false // Literals produce concrete types
+		}
+		// M-DX27: Local variables bound from typed ADT fields have concrete types
+		// e.g., s := _adt.ContentStarfield.Scroll is bool, not interface{}
+		if v, isVar := expr.(*core.Var); isVar {
+			goVarName := ToGoVarName(v.Name)
+			if _, isTyped := g.typedLocalVars[goVarName]; isTyped {
+				return false // Variable has concrete type from ADT field extraction
+			}
 		}
 		// M-CODEGEN-ADT-TYPE-ASSERT: ADT constructor calls return typed values (*ADT),
 		// not interface{}, even in _impl functions

@@ -1,5 +1,108 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Fixed - Bool Type Assertion in Nested Match (M-DX27)
+
+Fixed invalid Go code generation when matching on a bool variable extracted from an ADT field.
+
+**The Bug:**
+When a bool variable was extracted from an ADT field and used as a match scrutinee,
+the codegen incorrectly added `.(bool)` type assertion even though the variable was
+already a concrete `bool`, not `interface{}`.
+
+```go
+// Before (invalid Go code):
+s := _adt.ContentStarfield.Scroll  // s is bool
+if s.(bool) {  // ERROR: s is already bool, not interface{}
+
+// After (valid Go code):
+s := _adt.ContentStarfield.Scroll  // s is bool
+if s {  // Correct: no type assertion needed
+```
+
+**Root Cause:**
+- `generateFlatBoolMatchChain()` added `.(bool)` unconditionally
+- `exprProducesInterface()` didn't know that ADT-bound variables have concrete types
+
+**Fix:**
+- Track typed local variables in `Generator.typedLocalVars` when binding ADT fields
+- Check this map in `exprProducesInterface()` for `*core.Var` expressions
+- Only add type assertion when the variable actually produces `interface{}`
+- Clear `typedLocalVars` at function boundaries to prevent scope contamination
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added `typedLocalVars` field (+7 LOC)
+- `internal/gen/golang/codegen_decl.go` - Check typed vars in `exprProducesInterface()`, clear per function (+12 LOC)
+- `internal/gen/golang/codegen_match.go` - Record typed vars when binding ADT fields (+25 LOC)
+- `internal/gen/golang/codegen_match_test.go` - Test for nested bool match (+74 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_5_11/m-dx27-bool-match-type-assertion.md](design_docs/implemented/v0_5_11/m-dx27-bool-match-type-assertion.md)
+
+### Fixed - ADT Type Assertion in Option Pattern Match (M-DX29)
+
+Fixed invalid Go code generation when extracting an ADT value from a generic container like `Option[ADT]`.
+
+**The Bug:**
+When pattern matching on `Option[InteractableID]` and extracting the inner value with `Some(interactable)`,
+the codegen generated `interface{}` instead of the properly typed `*InteractableID`. This caused
+"undefined field or method Kind" errors when subsequently matching on the extracted ADT.
+
+```go
+// Before (invalid Go code):
+interactable := _adt.Some.Value0  // type: interface{}
+switch _adt.Kind {                 // ERROR: interface{} has no field Kind
+
+// After (valid Go code):
+interactable := _adt.Some.Value0.(*InteractableID)  // type: *InteractableID
+switch _adt.Kind {                                   // Correct: Kind exists on *InteractableID
+```
+
+**Root Cause:**
+- Generic types like `Option[T]` store their value as `interface{}` in Go
+- When extracting from `Some`, the codegen didn't know the type argument
+- The extracted value was treated as `interface{}` instead of the concrete ADT type
+
+**Fix:**
+- Store AILANG type (`types.Type`) of match scrutinee in `matchScrutineeAILANGType`
+- When extracting from constructor, check if scrutinee is a `TApp` (generic type application)
+- If type argument is an ADT (maps to pointer type), add type assertion during extraction
+- Record the typed variable in `typedLocalVars` for subsequent operations
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Added `matchScrutineeAILANGType` field (+3 LOC)
+- `internal/gen/golang/codegen_match.go` - Store AILANG type, extract type args, add assertions (+40 LOC)
+- `internal/gen/golang/codegen_match_test.go` - Test for Option[ADT] nested match (+120 LOC)
+
+**Design Doc:** [design_docs/planned/v0_5_11/m-dx29-option-nested-adt-type.md](design_docs/planned/v0_5_11/m-dx29-option-nested-adt-type.md)
+
+### Fixed - Missing EqString Runtime Helper (M-DX30)
+
+Added missing `EqString` and `EqFloat` runtime helper functions for string and float equality comparison.
+
+**The Bug:**
+When comparing strings with `==` in AILANG code, the generated Go code called `EqString()` which didn't exist,
+causing "undefined: EqString" compilation errors.
+
+```go
+// Generated code that failed:
+EqString(station, "helm")  // ERROR: undefined: EqString
+
+// After fix - helper function now emitted:
+func EqString(a, b interface{}) interface{} {
+    return a.(string) == b.(string)
+}
+```
+
+**Fix:**
+- Added `EqString` helper function to `writeRuntimeArithmeticHelpers()`
+- Added `EqFloat` helper function for completeness (was also missing)
+
+**Files Changed:**
+- `internal/gen/golang/codegen_runtime_arith.go` - Added EqString and EqFloat helpers (+14 LOC)
+
+**Design Doc:** [design_docs/planned/v0_5_11/m-dx30-eqstring-runtime.md](design_docs/planned/v0_5_11/m-dx30-eqstring-runtime.md)
+
 ## [v0.5.10] - 2025-12-12
 
 ### Added - Unified AI Provider Architecture (M-UNIFIED-AI-PROVIDERS)
