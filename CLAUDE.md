@@ -433,6 +433,45 @@ ailang run --no-mono module.ail
 - See [design_docs/implemented/v0_4_0/monomorphization.md](design_docs/implemented/v0_4_0/monomorphization.md)
 - See [M-POLY-B-PHASE1-COMPLETION-REPORT.md](M-POLY-B-PHASE1-COMPLETION-REPORT.md)
 
+### 6. SYSTEMIC FIXES - AUDIT BEFORE PATCHING
+
+**Before fixing a bug, ALWAYS ask: "Is this part of a larger pattern?"**
+
+**The Anti-Pattern (incremental special-casing):**
+```
+v1: Add feature for case A
+v2: Bug! Add special case for B
+v3: Bug! Add special case for C
+v4: Bug! Add special case for D
+...forever patching
+```
+
+**The Pattern to Follow:**
+```
+v1: Bug report for case B
+    BEFORE fixing:
+    1. Search for similar code paths
+    2. Check if A, C, D have same gap
+    3. Design ONE fix covering ALL cases
+v2: Unified fix - no future bugs in this area
+```
+
+**Example (M-CODEGEN-UNIFIED-SLICE-CONVERTERS, Dec 2025):**
+- Bug: `[SolarPlanet]` return type panics
+- ❌ Quick fix: Add `ConvertToSolarPlanetSlice`
+- ✅ Audit found: `[]float64` ALSO broken, `[]*ADTType` partially broken
+- One unified fix covers all 3 gaps
+
+**Warning signs of fragmented design:**
+- Multiple maps tracking similar things (`adtSliceTypes`, `recordTypes`...)
+- Switch statements with growing case lists
+- Bug fixes that add `|| specialCase` conditions
+
+**When planning bug fixes:**
+- Allocate 30-60 min for systemic analysis
+- Search codebase for similar code paths
+- Check git history - has this area been patched repeatedly?
+
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
 → **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**

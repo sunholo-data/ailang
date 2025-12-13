@@ -119,6 +119,70 @@ func TestGenerateNestedLet(t *testing.T) {
 	}
 }
 
+// TestGetSliceConversion tests the unified slice conversion lookup.
+// M-CODEGEN-UNIFIED-SLICE: Verifies all type registries are checked.
+func TestGetSliceConversion(t *testing.T) {
+	gen := New("test")
+
+	// Test primitive types
+	tests := []struct {
+		name     string
+		goType   string
+		expected string
+	}{
+		{"int64 slice", "[]int64", "ConvertToInt64Slice"},
+		{"float64 slice", "[]float64", "ConvertToFloat64Slice"},
+		{"string slice", "[]string", "ConvertToStringSlice"},
+		{"bool slice", "[]bool", "ConvertToBoolSlice"},
+		{"map slice", "[]map[string]interface{}", "ConvertToRecordSlice"},
+		{"unknown slice", "[]unknown", ""},
+		{"non-slice", "int64", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := gen.getSliceConversion(tt.goType)
+			if result != tt.expected {
+				t.Errorf("getSliceConversion(%q) = %q, want %q", tt.goType, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestGetSliceConversionRecordType tests record type slice conversion lookup.
+func TestGetSliceConversionRecordType(t *testing.T) {
+	gen := New("test")
+
+	// Register a record type
+	gen.RegisterRecordType("Planet", []string{"name", "mass"}, map[string]string{"name": "string", "mass": "float64"})
+
+	// Should find the converter
+	result := gen.getSliceConversion("[]*Planet")
+	if result != "ConvertToPlanetSlice" {
+		t.Errorf("getSliceConversion(\"[]*Planet\") = %q, want \"ConvertToPlanetSlice\"", result)
+	}
+
+	// Unregistered type should return empty
+	result = gen.getSliceConversion("[]*Unknown")
+	if result != "" {
+		t.Errorf("getSliceConversion(\"[]*Unknown\") = %q, want \"\"", result)
+	}
+}
+
+// TestGetSliceConversionADTType tests ADT type slice conversion lookup via adtConstructors.
+func TestGetSliceConversionADTType(t *testing.T) {
+	gen := New("test")
+
+	// Register an ADT constructor (not using adtSliceTypes)
+	gen.RegisterADTConstructor("Star", "G", 0)
+
+	// Should find the converter via adtConstructors
+	result := gen.getSliceConversion("[]*Star")
+	if result != "ConvertToStarSlice" {
+		t.Errorf("getSliceConversion(\"[]*Star\") = %q, want \"ConvertToStarSlice\"", result)
+	}
+}
+
 func TestGetOptHasReflectionPath(t *testing.T) {
 	// Test that GetOpt runtime function includes reflection fallback for typed slices
 	// Bug: GetOpt only handled []interface{}, but Go codegen creates typed slices

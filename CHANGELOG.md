@@ -44,6 +44,38 @@ ailang run --debug-types --node 42 myfile.ail
 
 **Design Doc:** [design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md](design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md)
 
+### Fixed - Unified Slice Type Converters (M-CODEGEN-UNIFIED-SLICE)
+
+Fixed runtime panics when returning typed slices from functions that use record or ADT types.
+
+**The Bug:**
+List literal codegen produced `[]interface{}` but typed wrappers expected concrete slices
+like `[]*RecordType` or `[]float64`, causing panic during type conversion.
+
+**Root Cause:**
+Three gaps in slice type conversion:
+1. `[]float64` had no converter at all (only int64, string, bool)
+2. `[]*RecordType` had no converter (record types weren't generating slice converters)
+3. `[]*ADTType` lookup was broken (`getSliceConversion()` only checked `adtSliceTypes` map,
+   not `adtConstructors` where most ADT types are actually registered)
+
+**Fix (unified approach):**
+- Added `ConvertToFloat64Slice` converter
+- Added `writeRecordSliceConverters()` to generate converters for all registered record types
+- Updated `getSliceConversion()` to check ALL type registries:
+  1. Primitive types (int64, float64, string, bool)
+  2. ADT types (via `adtConstructors` loop)
+  3. Record types (via `recordTypes` map)
+  4. Legacy `adtSliceTypes` (for backwards compatibility)
+
+**Files Changed:**
+- `internal/gen/golang/codegen.go` - Updated `getSliceConversion()` (+23 LOC)
+- `internal/gen/golang/codegen_runtime.go` - Call `writeRecordSliceConverters()` (+3 LOC)
+- `internal/gen/golang/codegen_runtime_collections.go` - Added converters (+103 LOC)
+- `internal/gen/golang/codegen_datastructures_test.go` - Tests for unified lookup (+64 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_5_11/m-codegen-unified-slice-converters.md](design_docs/implemented/v0_5_11/m-codegen-unified-slice-converters.md)
+
 ### Fixed - Bool Type Assertion in Nested Match (M-DX27)
 
 Fixed invalid Go code generation when matching on a bool variable extracted from an ADT field.

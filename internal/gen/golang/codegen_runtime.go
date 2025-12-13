@@ -24,4 +24,7 @@ func (g *Generator) writeRuntimeHelpers() {
 
 	// M-DX12: Generate ADT slice converters for registered types
 	g.writeADTSliceConverters()
+
+	// M-CODEGEN-UNIFIED-SLICE: Generate record slice converters
+	g.writeRecordSliceConverters()
 }

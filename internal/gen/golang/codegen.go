@@ -425,10 +425,14 @@ func (g *Generator) formatOutput() ([]byte, error) {
 
 // getSliceConversion returns the runtime conversion function name for a slice type.
 // Returns empty string if not a slice type or if conversion is not supported.
+// M-CODEGEN-UNIFIED-SLICE: Checks all type registries (primitives, ADTs, records).
 func (g *Generator) getSliceConversion(goType string) string {
 	switch goType {
 	case "[]int64":
 		return "ConvertToInt64Slice"
+	case "[]float64":
+		// M-CODEGEN-UNIFIED-SLICE: Float64 slice converter
+		return "ConvertToFloat64Slice"
 	case "[]string":
 		return "ConvertToStringSlice"
 	case "[]bool":
@@ -437,12 +441,23 @@ func (g *Generator) getSliceConversion(goType string) string {
 	case "[]map[string]interface{}", "[]map[string]any":
 		return "ConvertToRecordSlice"
 	default:
-		// M-DX12: Check if this is an ADT pointer slice (e.g., []*Direction)
-		// If so, use the auto-generated converter
+		// M-CODEGEN-UNIFIED-SLICE: Check pointer slices against all type registries
 		if strings.HasPrefix(goType, "[]*") {
 			typeName := goType[3:] // Extract "Direction" from "[]*Direction"
-			// Only use converter if it was registered (type exists in adtSliceTypes)
-			// M-BUGFIX: Export converters so external packages can use them
+
+			// Check ADT types (from adtConstructors - covers all ADTs)
+			for _, info := range g.adtConstructors {
+				if info.TypeName == typeName {
+					return "ConvertTo" + typeName + "Slice"
+				}
+			}
+
+			// Check record types
+			if _, ok := g.recordTypes[typeName]; ok {
+				return "ConvertTo" + typeName + "Slice"
+			}
+
+			// Legacy: check adtSliceTypes for backward compatibility
 			if g.adtSliceTypes[typeName] {
 				return "ConvertTo" + typeName + "Slice"
 			}

@@ -87,6 +87,57 @@ Ask user:
 - Estimated effort? (e.g., 2 days, 1 week)
 - Any dependencies on other features?
 
+**⚠️ CRITICAL: Audit for Systemic Issues FIRST**
+
+**Before writing a design doc for a bug fix, ALWAYS ask: "Is this part of a larger pattern?"**
+
+**The Anti-Pattern (incremental special-casing):**
+```
+v1: Add feature for case A
+v2: Bug! Add special case for B
+v3: Bug! Add special case for C
+v4: Bug! Add special case for D
+...forever patching
+```
+
+**The Pattern to Follow (unified solutions):**
+```
+v1: Bug report for case B
+    BEFORE writing design doc:
+    1. Search for similar code paths
+    2. Check if A, C, D have same gap
+    3. Design ONE fix covering ALL cases
+v2: Unified fix - no future bugs in this area
+```
+
+**Concrete Example (M-CODEGEN-UNIFIED-SLICE-CONVERTERS, Dec 2025):**
+```
+Bug reported: [SolarPlanet] return type panics
+
+❌ Quick fix design doc: Add ConvertToSolarPlanetSlice
+   (Will need ConvertToAnotherRecordSlice later...)
+
+✅ Systemic design doc: Audit ALL slice types
+   Found: []float64 ALSO broken!
+   Found: []*ADTType partially broken!
+   One unified fix covers all 3 gaps.
+```
+
+**Analysis Checklist (do BEFORE writing design doc):**
+- [ ] Is this a one-off or part of a pattern?
+- [ ] Search codebase for similar code paths
+- [ ] Check if other types/cases have the same gap
+- [ ] Look at git history - has this area been patched repeatedly?
+- [ ] Design fix to cover ALL cases, not just the reported one
+
+**Warning Signs of Fragmented Design:**
+- Multiple maps tracking similar things (`adtSliceTypes`, `recordTypes`...)
+- Switch statements with growing case lists
+- Functions named `handleX`, `handleY`, `handleZ` instead of unified `handle`
+- Bug fixes that add `|| specialCase` conditions
+
+**When these signs appear:** Expand scope of design doc to unify the system.
+
 **⚠️ IMPORTANT: Keep AILANG's Vision in Mind**
 
 **AI-first DX = Minimize Syntactic Entropy**

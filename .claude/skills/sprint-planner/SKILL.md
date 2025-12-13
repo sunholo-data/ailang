@@ -435,6 +435,21 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md) for
 - Note areas of uncertainty
 - Highlight where you need user input
 
+### 7. Verify Design Doc Has Systemic Analysis
+
+**Before planning a sprint for a bug fix, verify the design doc addresses systemic issues.**
+
+The `design-doc-creator` skill includes guidance for auditing related code paths before writing a design doc. If the design doc only fixes the reported symptom without checking for similar gaps, send it back for revision.
+
+**Quick check:** Does the design doc mention:
+- [ ] Search for similar code paths performed?
+- [ ] Other types/cases checked for same gap?
+- [ ] Unified fix covering all cases (not just reported one)?
+
+**If not:** Ask user to revise design doc before planning sprint.
+
+See `design-doc-creator` skill for full systemic analysis checklist.
+
 ## Output Format
 
 See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md) for full template.
