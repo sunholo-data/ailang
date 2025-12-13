@@ -19,6 +19,7 @@ type TypeReport struct {
 	Raw         Type            // What's in CoreTI (may have TVars)
 	Resolved    Type            // After applying full substitution
 	Constraints []ConstraintRef // Constraints mentioning this type's variables
+	Origins     []TypeOrigin    // M-DX11: Provenance chain (where type came from)
 	Found       bool            // Whether the node was found in CoreTI
 }
 
@@ -107,6 +108,7 @@ func (k OriginKind) String() string {
 //   - Raw: The type as stored in CoreTI (may contain type variables)
 //   - Resolved: The type after applying the full substitution closure
 //   - Constraints: Any class constraints mentioning this node's type variables
+//   - Origins: Provenance chain showing where the type came from (if debug enabled)
 //   - Found: Whether the node exists in CoreTI
 func (tc *CoreTypeChecker) TypeReport(nodeID uint64) TypeReport {
 	report := TypeReport{
@@ -129,7 +131,26 @@ func (tc *CoreTypeChecker) TypeReport(nodeID uint64) TypeReport {
 	// 3. Find constraints mentioning this node
 	report.Constraints = tc.findConstraintsFor(nodeID, raw)
 
+	// 4. Get provenance if VerboseDebugSink is active (M-DX11)
+	report.Origins = tc.getProvenanceFor(raw)
+
 	return report
+}
+
+// getProvenanceFor returns type provenance if VerboseDebugSink is active.
+func (tc *CoreTypeChecker) getProvenanceFor(t Type) []TypeOrigin {
+	// Check if debug sink is VerboseDebugSink
+	verbose, ok := tc.DebugSink.(*VerboseDebugSink)
+	if !ok || verbose == nil {
+		return nil
+	}
+
+	// Get the type variable name to look up provenance
+	if t == nil {
+		return nil
+	}
+	tvName := t.String()
+	return verbose.GetProvenance(tvName)
 }
 
 // getSubstitution returns the current substitution map.
@@ -176,12 +197,52 @@ func (r TypeReport) String() string {
 		resolvedStr = r.Resolved.String()
 	}
 
-	return "TypeReport{" +
+	result := "TypeReport{" +
 		"NodeID:" + itoa(r.NodeID) +
 		", Raw:" + rawStr +
 		", Resolved:" + resolvedStr +
 		", Constraints:" + itoa(uint64(len(r.Constraints))) +
+		", Origins:" + itoa(uint64(len(r.Origins))) +
 		"}"
+
+	return result
+}
+
+// FormatDetailed returns a multi-line detailed representation of the report.
+// This format matches the design doc output format for --debug-types.
+func (r TypeReport) FormatDetailed() string {
+	if !r.Found {
+		return "NodeID " + itoa(r.NodeID) + ": not found"
+	}
+
+	rawStr := "nil"
+	if r.Raw != nil {
+		rawStr = r.Raw.String()
+	}
+
+	resolvedStr := "nil"
+	if r.Resolved != nil {
+		resolvedStr = r.Resolved.String()
+	}
+
+	result := "NodeID " + itoa(r.NodeID) + ": " + resolvedStr + "\n" +
+		"  Raw: " + rawStr + "\n" +
+		"  Resolved: " + resolvedStr
+
+	if len(r.Origins) > 0 {
+		result += "\n  Origins:"
+		for _, origin := range r.Origins {
+			result += "\n    - " + origin.Kind.String()
+			if origin.Note != "" {
+				result += ": " + origin.Note
+			}
+			if origin.Span.Line != 0 || origin.Span.File != "" {
+				result += " at " + origin.Span.String()
+			}
+		}
+	}
+
+	return result
 }
 
 // itoa converts uint64 to string without importing strconv

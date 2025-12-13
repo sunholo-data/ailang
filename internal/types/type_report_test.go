@@ -151,6 +151,112 @@ func TestOriginKind_String(t *testing.T) {
 	}
 }
 
+func TestTypeReport_WithProvenance(t *testing.T) {
+	tc := NewCoreTypeChecker()
+
+	// Set up VerboseDebugSink for provenance tracking
+	sink := NewVerboseDebugSink()
+	tc.SetDebugSink(sink)
+
+	// Add a type variable to CoreTI
+	tvar := &TVar2{Name: "α1", Kind: Star}
+	tc.CoreTI[42] = tvar
+
+	// Record some provenance for this type variable
+	sink.RecordProvenance("α1", TypeOrigin{
+		Kind:   OriginAnnotation,
+		NodeID: 42,
+		Span:   SourceSpan{File: "test.ail", Line: 10, Column: 5},
+		Note:   "parameter annotation x: int",
+	})
+	sink.RecordProvenance("α1", TypeOrigin{
+		Kind: OriginDefaulted,
+		Note: "defaulted to int via Num constraint",
+	})
+
+	report := tc.TypeReport(42)
+
+	if !report.Found {
+		t.Fatal("expected Found=true")
+	}
+	if len(report.Origins) != 2 {
+		t.Fatalf("expected 2 origins, got %d", len(report.Origins))
+	}
+
+	if report.Origins[0].Kind != OriginAnnotation {
+		t.Errorf("expected first origin to be annotation, got %v", report.Origins[0].Kind)
+	}
+	if report.Origins[1].Kind != OriginDefaulted {
+		t.Errorf("expected second origin to be defaulted, got %v", report.Origins[1].Kind)
+	}
+}
+
+func TestTypeReport_WithoutVerboseDebugSink(t *testing.T) {
+	tc := NewCoreTypeChecker()
+	// Default NoOpDebugSink - no provenance tracking
+
+	tc.CoreTI[42] = TInt
+
+	report := tc.TypeReport(42)
+
+	if !report.Found {
+		t.Fatal("expected Found=true")
+	}
+	// With NoOpDebugSink, Origins should be nil
+	if report.Origins != nil {
+		t.Errorf("expected nil Origins with NoOpDebugSink, got %v", report.Origins)
+	}
+}
+
+func TestTypeReport_FormatDetailed(t *testing.T) {
+	tc := NewCoreTypeChecker()
+	sink := NewVerboseDebugSink()
+	tc.SetDebugSink(sink)
+
+	tvar := &TVar2{Name: "α1", Kind: Star}
+	tc.CoreTI[42] = tvar
+
+	sink.RecordProvenance("α1", TypeOrigin{
+		Kind:   OriginAnnotation,
+		NodeID: 42,
+		Span:   SourceSpan{File: "test.ail", Line: 10, Column: 5},
+		Note:   "parameter annotation",
+	})
+
+	report := tc.TypeReport(42)
+	detailed := report.FormatDetailed()
+
+	// Check expected parts
+	if !contains(detailed, "NodeID 42") {
+		t.Error("expected FormatDetailed to contain 'NodeID 42'")
+	}
+	if !contains(detailed, "Raw:") {
+		t.Error("expected FormatDetailed to contain 'Raw:'")
+	}
+	if !contains(detailed, "Origins:") {
+		t.Error("expected FormatDetailed to contain 'Origins:'")
+	}
+	if !contains(detailed, "annotation") {
+		t.Error("expected FormatDetailed to contain origin kind 'annotation'")
+	}
+	if !contains(detailed, "test.ail:10:5") {
+		t.Error("expected FormatDetailed to contain source span 'test.ail:10:5'")
+	}
+
+	t.Logf("FormatDetailed output:\n%s", detailed)
+}
+
+func TestTypeReport_FormatDetailed_NotFound(t *testing.T) {
+	tc := NewCoreTypeChecker()
+
+	report := tc.TypeReport(999)
+	detailed := report.FormatDetailed()
+
+	if !contains(detailed, "not found") {
+		t.Errorf("expected FormatDetailed to contain 'not found', got: %s", detailed)
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
