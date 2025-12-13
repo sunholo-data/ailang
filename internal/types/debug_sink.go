@@ -108,10 +108,12 @@ func (NoOpDebugSink) OnDefault(Type, Type, string)                     {}
 func (NoOpDebugSink) OnConstraintAdd(string, Type, uint64)             {}
 func (NoOpDebugSink) OnConstraintResolve(string, Type, string, uint64) {}
 
-// VerboseDebugSink collects debug events for later formatting.
+// VerboseDebugSink collects debug events and type provenance for debugging.
 // Events are stored in order and can be retrieved via Events().
+// Provenance tracks where each type variable's type came from.
 type VerboseDebugSink struct {
-	events []DebugEvent
+	events     []DebugEvent
+	provenance map[string][]TypeOrigin // TypeVar name → list of origins
 }
 
 // Compile-time check that VerboseDebugSink implements TypeDebugSink
@@ -120,7 +122,8 @@ var _ TypeDebugSink = (*VerboseDebugSink)(nil)
 // NewVerboseDebugSink creates a new verbose debug sink.
 func NewVerboseDebugSink() *VerboseDebugSink {
 	return &VerboseDebugSink{
-		events: make([]DebugEvent, 0, 64), // Pre-allocate for typical programs
+		events:     make([]DebugEvent, 0, 64),     // Pre-allocate for typical programs
+		provenance: make(map[string][]TypeOrigin), // TypeVar name → origins
 	}
 }
 
@@ -129,9 +132,31 @@ func (s *VerboseDebugSink) Events() []DebugEvent {
 	return s.events
 }
 
-// Clear removes all collected events.
+// Clear removes all collected events and provenance.
 func (s *VerboseDebugSink) Clear() {
 	s.events = s.events[:0]
+	for k := range s.provenance {
+		delete(s.provenance, k)
+	}
+}
+
+// RecordProvenance adds a type origin for a type variable.
+// Multiple origins can be recorded for the same type variable
+// (e.g., inferred, then defaulted).
+func (s *VerboseDebugSink) RecordProvenance(typeVarName string, origin TypeOrigin) {
+	s.provenance[typeVarName] = append(s.provenance[typeVarName], origin)
+}
+
+// GetProvenance returns all recorded origins for a type variable.
+// Returns nil if no provenance has been recorded.
+func (s *VerboseDebugSink) GetProvenance(typeVarName string) []TypeOrigin {
+	return s.provenance[typeVarName]
+}
+
+// AllProvenance returns the complete provenance map.
+// Useful for iterating over all tracked type variables.
+func (s *VerboseDebugSink) AllProvenance() map[string][]TypeOrigin {
+	return s.provenance
 }
 
 func (s *VerboseDebugSink) OnFreshTypeVar(tv Type, nodeID uint64, origin OriginKind) {
@@ -141,6 +166,16 @@ func (s *VerboseDebugSink) OnFreshTypeVar(tv Type, nodeID uint64, origin OriginK
 		NodeID:  nodeID,
 		Origin:  origin,
 	})
+
+	// Also record provenance if type variable has a name
+	if tv != nil {
+		tvName := tv.String()
+		s.RecordProvenance(tvName, TypeOrigin{
+			Kind:   origin,
+			NodeID: nodeID,
+			Note:   "fresh type variable",
+		})
+	}
 }
 
 func (s *VerboseDebugSink) OnUnify(left, right Type, result Type, nodeID uint64) {
@@ -168,6 +203,19 @@ func (s *VerboseDebugSink) OnDefault(tv Type, defaulted Type, reason string) {
 		Defaulted: defaulted,
 		Reason:    reason,
 	})
+
+	// Record provenance for the defaulting
+	if tv != nil {
+		tvName := tv.String()
+		note := "defaulted to " + defaulted.String()
+		if reason != "" {
+			note += " (" + reason + ")"
+		}
+		s.RecordProvenance(tvName, TypeOrigin{
+			Kind: OriginDefaulted,
+			Note: note,
+		})
+	}
 }
 
 func (s *VerboseDebugSink) OnConstraintAdd(className string, ty Type, nodeID uint64) {

@@ -31,10 +31,31 @@ type ConstraintRef struct {
 	Method    string // Method name if resolved (e.g., "add", "eq")
 }
 
-// TypeOrigin tracks where a type came from (for future provenance).
+// SourceSpan represents a source code location for provenance tracking.
+// Defined here to avoid circular dependencies with ast package.
+type SourceSpan struct {
+	File   string // Source file path
+	Line   int    // Line number (1-based)
+	Column int    // Column number (1-based)
+}
+
+// String returns a human-readable location string.
+func (s SourceSpan) String() string {
+	if s.File == "" && s.Line == 0 {
+		return "<unknown>"
+	}
+	if s.File == "" {
+		return itoa(uint64(s.Line)) + ":" + itoa(uint64(s.Column))
+	}
+	return s.File + ":" + itoa(uint64(s.Line)) + ":" + itoa(uint64(s.Column))
+}
+
+// TypeOrigin tracks where a type came from for provenance debugging.
+// Used by VerboseDebugSink to answer "why does this have type X?" questions.
 type TypeOrigin struct {
 	Kind   OriginKind // How this type was determined
 	NodeID uint64     // Originating node
+	Span   SourceSpan // Source location
 	Note   string     // Human-readable description
 }
 

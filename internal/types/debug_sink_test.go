@@ -200,6 +200,116 @@ func TestVerboseDebugSink_Clear(t *testing.T) {
 	if len(sink.Events()) != 0 {
 		t.Errorf("expected 0 events after clear, got %d", len(sink.Events()))
 	}
+
+	// Verify provenance is also cleared
+	if len(sink.AllProvenance()) != 0 {
+		t.Errorf("expected 0 provenance entries after clear, got %d", len(sink.AllProvenance()))
+	}
+}
+
+func TestVerboseDebugSink_Provenance(t *testing.T) {
+	sink := NewVerboseDebugSink()
+
+	// Test RecordProvenance and GetProvenance
+	origin1 := TypeOrigin{
+		Kind:   OriginAnnotation,
+		NodeID: 42,
+		Span:   SourceSpan{File: "test.ail", Line: 10, Column: 5},
+		Note:   "parameter annotation x: int",
+	}
+	origin2 := TypeOrigin{
+		Kind:   OriginInferred,
+		NodeID: 43,
+		Note:   "from unification",
+	}
+
+	sink.RecordProvenance("α1", origin1)
+	sink.RecordProvenance("α1", origin2) // Multiple origins for same var
+
+	origins := sink.GetProvenance("α1")
+	if len(origins) != 2 {
+		t.Fatalf("expected 2 origins for α1, got %d", len(origins))
+	}
+
+	if origins[0].Kind != OriginAnnotation {
+		t.Errorf("origins[0].Kind = %v, want OriginAnnotation", origins[0].Kind)
+	}
+	if origins[0].Span.Line != 10 {
+		t.Errorf("origins[0].Span.Line = %d, want 10", origins[0].Span.Line)
+	}
+	if origins[1].Kind != OriginInferred {
+		t.Errorf("origins[1].Kind = %v, want OriginInferred", origins[1].Kind)
+	}
+
+	// Test GetProvenance for non-existent var
+	missing := sink.GetProvenance("α99")
+	if missing != nil {
+		t.Errorf("expected nil for missing type var, got %v", missing)
+	}
+
+	// Test AllProvenance
+	all := sink.AllProvenance()
+	if len(all) != 1 {
+		t.Errorf("expected 1 entry in AllProvenance, got %d", len(all))
+	}
+}
+
+func TestVerboseDebugSink_ProvenanceFromFreshTypeVar(t *testing.T) {
+	sink := NewVerboseDebugSink()
+
+	tv := testTypeVar("α1")
+	sink.OnFreshTypeVar(tv, 42, OriginAnnotation)
+
+	// OnFreshTypeVar should also record provenance
+	origins := sink.GetProvenance("α1")
+	if len(origins) != 1 {
+		t.Fatalf("expected 1 origin from OnFreshTypeVar, got %d", len(origins))
+	}
+
+	if origins[0].Kind != OriginAnnotation {
+		t.Errorf("origin.Kind = %v, want OriginAnnotation", origins[0].Kind)
+	}
+	if origins[0].NodeID != 42 {
+		t.Errorf("origin.NodeID = %d, want 42", origins[0].NodeID)
+	}
+}
+
+func TestVerboseDebugSink_ProvenanceFromDefault(t *testing.T) {
+	sink := NewVerboseDebugSink()
+
+	tv := testTypeVar("α1")
+	sink.OnDefault(tv, testInt, "Num constraint")
+
+	// OnDefault should also record provenance
+	origins := sink.GetProvenance("α1")
+	if len(origins) != 1 {
+		t.Fatalf("expected 1 origin from OnDefault, got %d", len(origins))
+	}
+
+	if origins[0].Kind != OriginDefaulted {
+		t.Errorf("origin.Kind = %v, want OriginDefaulted", origins[0].Kind)
+	}
+	if origins[0].Note == "" {
+		t.Error("expected non-empty note for defaulting origin")
+	}
+}
+
+func TestSourceSpan_String(t *testing.T) {
+	tests := []struct {
+		span SourceSpan
+		want string
+	}{
+		{SourceSpan{}, "<unknown>"},
+		{SourceSpan{Line: 10, Column: 5}, "10:5"},
+		{SourceSpan{File: "test.ail", Line: 10, Column: 5}, "test.ail:10:5"},
+	}
+
+	for _, tt := range tests {
+		got := tt.span.String()
+		if got != tt.want {
+			t.Errorf("SourceSpan%+v.String() = %q, want %q", tt.span, got, tt.want)
+		}
+	}
 }
 
 func TestDebugEventKind_String(t *testing.T) {
