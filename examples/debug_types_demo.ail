@@ -1,0 +1,40 @@
+-- Debug Types Demo
+-- Run with: ailang run --debug-types --caps IO examples/debug_types_demo.ail
+--
+-- This demonstrates the --debug-types flag which shows:
+-- 1. CoreTI Entries: Type information for each Core AST node
+-- 2. Constraints: Type class constraints and their resolution
+--    - Num (for +, *, -) -> resolved to add, mul, sub
+--    - Fractional (for float literals)
+--    - Type variables like α22, α47 for polymorphic types
+--
+-- Filter to specific node: ailang run --debug-types --node 42 ...
+
+module examples/debug_types_demo
+
+-- Numeric operations trigger Num constraints
+let add = \x. \y. x + y
+let mul = \a. \b. a * b
+
+-- Using numeric functions with concrete types
+let sum = add(10)(20)
+let product = mul(3)(4)
+
+-- Comparison triggers Ord constraint
+let maximum = \x. \y. if x > y then x else y
+let bigger = maximum(100)(50)
+
+-- Equality triggers Eq constraint
+let same = \a. \b. a == b
+let equal = same(42)(42)
+
+-- Float literals
+let pi = 3.14159
+let area = pi * 2.0 * 2.0
+
+-- String operations
+let greeting = "Hello, " ++ "World!"
+
+-- Main entrypoint
+export func main() -> () ! {IO} =
+  print(greeting)

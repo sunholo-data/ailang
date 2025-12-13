@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### Added - Type Inference Debug CLI (M-DX11)
+
+Added `--debug-types` CLI flag to show type inference debug output, enabling developers
+to understand how types are inferred and constraints are resolved.
+
+**Features:**
+- `--debug-types` flag: Shows substitution map, constraints, and CoreTI entries
+- `--node N` filter: Focus output on a specific node ID
+- Zero-overhead in production: NoOpDebugSink inlined (0 allocs/op verified)
+
+**Example usage:**
+```bash
+# Show all type inference debug info
+ailang run --debug-types myfile.ail
+
+# Filter to specific node
+ailang run --debug-types --node 42 myfile.ail
+```
+
+**Output sections:**
+- **Substitution Map**: Type variable substitutions (α → int)
+- **Constraints**: Type class constraints (Num, Eq, Ord) and resolution status
+- **CoreTI Entries**: Every Core AST node's inferred type and constraints
+
+**Architecture:**
+- `TypeDebugSink` interface in `internal/types/debug_sink.go` (~191 LOC)
+- `NoOpDebugSink`: Zero-overhead production implementation
+- `VerboseDebugSink`: Collects events for formatted output
+- `TypeDebugDumper` in `cmd/ailang/debug_types.go` (~220 LOC)
+
+**Files Changed:**
+- `internal/types/debug_sink.go` - New TypeDebugSink interface
+- `internal/types/debug_sink_test.go` - Tests and benchmarks
+- `internal/types/typechecker_core.go` - DebugSink field and SetDebugSink method
+- `internal/pipeline/pipeline.go` - DebugTypes config fields
+- `internal/pipeline/pipeline_single.go` - Wire up debug sink
+- `internal/pipeline/pipeline_module.go` - Wire up debug sink for root module
+- `cmd/ailang/main.go` - --debug-types and --node flags
+- `cmd/ailang/debug_types.go` - TypeDebugDumper formatting
+
+**Design Doc:** [design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md](design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md)
+
 ### Fixed - Bool Type Assertion in Nested Match (M-DX27)
 
 Fixed invalid Go code generation when matching on a bool variable extracted from an ADT field.
