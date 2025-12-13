@@ -5,10 +5,25 @@
 -- 1. CoreTI Entries: Type information for each Core AST node
 -- 2. Constraints: Type class constraints and their resolution
 --    - Num (for +, *, -) -> resolved to add, mul, sub
---    - Fractional (for float literals)
 --    - Type variables like α22, α47 for polymorphic types
+-- 3. Origins: WHERE types come from (provenance tracking)
+--    - inferred: fresh type variable created during inference
+--    - defaulted: type variable defaulted (e.g., Num → int)
+--    - annotation: explicit type annotation
+--    - literal: inferred from literal value
 --
 -- Filter to specific node: ailang run --debug-types --node 42 ...
+--
+-- === DEBUGGING SCENARIOS ===
+--
+-- Q: "Why did my polymorphic function get type int?"
+-- A: Look for Origins showing "defaulted" - Num defaults to int
+--
+-- Q: "Which nodes share the same type variable?"
+-- A: Search for the same α name (e.g., α22) across multiple nodes
+--
+-- Q: "Which builtin is being called for + operator?"
+-- A: Look for "Constraint: Num → add" showing method resolution
 
 module examples/debug_types_demo
 

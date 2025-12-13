@@ -154,19 +154,18 @@ ailang run --debug-types --node 42 file.ail  # Filter to specific node
 - Substitution map (type variable → resolved type)
 - Constraints (type class constraints and their resolution status)
 - CoreTI entries (type information for each Core AST node)
+- Origins/provenance (where each type came from)
 
 **When to use**:
 - Understanding why a type was inferred
 - Debugging type mismatch errors
 - Investigating constraint resolution
 - Verifying type annotations are applied correctly
+- Answering "why does this have type X?"
 
 **Example**:
 ```bash
-$ ailang run --debug-types examples/runnable/adt_option.ail
-→ Type checking...
-→ Effect checking...
-✓ Running examples/runnable/adt_option.ail
+$ ailang run --debug-types --caps IO examples/debug_types_demo.ail
 === Type Inference Debug ===
 
 [Substitution Map]
@@ -176,12 +175,12 @@ $ ailang run --debug-types examples/runnable/adt_option.ail
   (no constraints)
 
 [CoreTI Entries]
-  NodeID 1: int
-    Constraint: Num (resolved)
-  NodeID 2: int -> Option[int]
-  NodeID 3: Option[int]
-  NodeID 4: Option[int]
-  NodeID 5: int
+  NodeID 1: string -> () ! {IO}
+  NodeID 9: int
+    Constraint: Num → add
+  NodeID 31: α22
+    Origins:
+      - inferred: fresh type variable
   ...
 ```
 
@@ -194,9 +193,133 @@ $ ailang run --debug-types --node 42 file.ail
 **Output sections**:
 - **Substitution Map**: Shows type variable substitutions (α → β → int means α resolved to β which resolved to int)
 - **Constraints**: Type class constraints (Num, Eq, Ord) and whether they're resolved
-- **CoreTI Entries**: Every Core AST node's inferred type, plus any constraints mentioning that node's type variables
+- **CoreTI Entries**: Every Core AST node's inferred type, constraints, and origins
+- **Origins**: Where the type came from (annotation, literal, inferred, defaulted, etc.)
+
+### Understanding Origins (Provenance)
+
+The `Origins:` section answers "why does this expression have this type?" Each origin shows:
+- **Kind**: How the type was determined (annotation, literal, inferred, defaulted, from_use, from_pattern)
+- **Note**: Human-readable explanation
+- **Location**: Source file:line:column when available
+
+**Origin kinds**:
+| Kind | Meaning | Example |
+|------|---------|---------|
+| `annotation` | Explicit type annotation | `let x: int = 42` |
+| `literal` | Inferred from literal value | `3.14` → float |
+| `inferred` | Created during type inference | Fresh type variable α |
+| `defaulted` | Type variable defaulted | Num α defaulted to int |
+| `from_use` | Inferred from call site | Function applied to int |
+| `from_pattern` | Inferred from pattern match | `Some(x)` binds x to inner type |
+
+**Example with multiple origins**:
+```
+NodeID 42: int
+  Raw: α1
+  Resolved: int
+  Origins:
+    - inferred: fresh type variable
+    - defaulted: defaulted to int (Num constraint)
+```
+This shows that node 42 started as a type variable α1, then was defaulted to `int` because of a Num constraint.
 
 ## Troubleshooting Workflows
+
+### Scenario 1: "Why is my float becoming int?"
+
+**Symptom**: You expected `float` but got `int` arithmetic.
+
+```ailang
+-- Problem: add(3.14)(2.71) gives unexpected result
+let add = \x. \y. x + y
+let result = add(3.14)(2.71)  -- Expected: 5.85, got: 5?
+```
+
+**Debug workflow**:
+```bash
+$ ailang run --debug-types myfile.ail
+```
+
+**What to look for**:
+```
+[CoreTI Entries]
+  NodeID 5: int -> int -> int    -- The add function got type int!
+    Constraint: Num → add
+    Origins:
+      - inferred: fresh type variable
+      - defaulted: defaulted to int (Num constraint)  -- HERE'S THE PROBLEM
+```
+
+**Root cause**: The Num constraint defaulted to `int` before the float literals were seen.
+
+**Fix**: Add type annotations:
+```ailang
+let add: float -> float -> float = \x. \y. x + y
+```
+
+### Scenario 2: "Type mismatch at line X"
+
+**Symptom**: Error says types don't match but you're not sure why.
+
+```
+Error: type mismatch at line 15: expected int, got α42
+```
+
+**Debug workflow**:
+```bash
+$ ailang run --debug-types --node 42 myfile.ail
+```
+
+**What to look for**:
+```
+NodeID 42: α42
+  Origins:
+    - inferred: fresh type variable
+```
+
+**Root cause**: Node 42 is still a type variable (α42) - it was never unified with a concrete type.
+
+**Fix**: Check that the expression at node 42 is actually used with concrete types, or add an annotation.
+
+### Scenario 3: "Which operator is being called?"
+
+**Symptom**: `x + y` behaves unexpectedly for your types.
+
+**Debug workflow**:
+```bash
+$ ailang run --debug-types myfile.ail | grep -A2 "Constraint: Num"
+```
+
+**What to look for**:
+```
+  NodeID 9: int
+    Constraint: Num → add     -- Shows which method resolved
+  NodeID 14: int
+    Constraint: Num → mul     -- mul was selected for *
+```
+
+The `→ add` shows the constraint resolved to the `add` method. If it says `(resolved)` without a method, the constraint was satisfied but method selection may differ.
+
+### Scenario 4: "Understanding polymorphic function types"
+
+**Symptom**: Function type shows type variables (α, β) instead of concrete types.
+
+```bash
+$ ailang run --debug-types myfile.ail
+```
+
+**What to look for**:
+```
+NodeID 31: α22
+  Origins:
+    - inferred: fresh type variable
+NodeID 35: α22
+  Origins:
+    - inferred: fresh type variable
+```
+
+**Interpretation**: Multiple nodes share the same type variable (α22), meaning they must have the same type. This is polymorphism working correctly - the type will be specialized at each call site.
 
 ### Problem: Type Inference Issues
 
