@@ -108,12 +108,23 @@ $ DEBUG_PARSER=1 ailang run test.ail
 
 ## Quick Reference Table
 
+### Environment Variables
+
 | Flag | Purpose | Use When | Output |
 |------|---------|----------|--------|
 | `DEBUG_STRICT=1` | Fail loudly on unhandled cases | Development, CI | Panics with diagnostic |
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues | Specialization details |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
+
+### CLI Flags
+
+| Flag | Purpose | Use When |
+|------|---------|----------|
+| `--debug-compile` | Show compilation phases/timing | Performance issues |
+| `--debug-types` | Type inference debug output | Type mismatch errors |
+| `--debug-types --node N` | Filter to specific node ID | Investigating specific node |
+| `--trace` | Execution tracing | Runtime debugging |
 
 ## CLI Debug Flags
 
@@ -131,20 +142,78 @@ ailang check file.ail
 
 # Show module interface
 ailang iface mymodule
+
+# Type inference debugging (v0.5.11+)
+ailang run --debug-types file.ail
+ailang run --debug-types --node 42 file.ail  # Filter to specific node
 ```
+
+### `--debug-types` - Type Inference Debugging (v0.5.11+)
+
+**What it does**: Shows detailed type inference information including:
+- Substitution map (type variable → resolved type)
+- Constraints (type class constraints and their resolution status)
+- CoreTI entries (type information for each Core AST node)
+
+**When to use**:
+- Understanding why a type was inferred
+- Debugging type mismatch errors
+- Investigating constraint resolution
+- Verifying type annotations are applied correctly
+
+**Example**:
+```bash
+$ ailang run --debug-types examples/runnable/adt_option.ail
+→ Type checking...
+→ Effect checking...
+✓ Running examples/runnable/adt_option.ail
+=== Type Inference Debug ===
+
+[Substitution Map]
+  (empty)
+
+[Constraints]
+  (no constraints)
+
+[CoreTI Entries]
+  NodeID 1: int
+    Constraint: Num (resolved)
+  NodeID 2: int -> Option[int]
+  NodeID 3: Option[int]
+  NodeID 4: Option[int]
+  NodeID 5: int
+  ...
+```
+
+**Filtering by node**:
+```bash
+# Show type info only for node ID 42
+$ ailang run --debug-types --node 42 file.ail
+```
+
+**Output sections**:
+- **Substitution Map**: Shows type variable substitutions (α → β → int means α resolved to β which resolved to int)
+- **Constraints**: Type class constraints (Num, Eq, Ord) and whether they're resolved
+- **CoreTI Entries**: Every Core AST node's inferred type, plus any constraints mentioning that node's type variables
 
 ## Troubleshooting Workflows
 
 ### Problem: Type Inference Issues
 
 ```bash
-# 1. Check types at each phase
+# 1. Use --debug-types to see all type information (v0.5.11+)
+ailang run --debug-types problematic.ail
+
+# 2. Filter to specific node if you know the ID
+ailang run --debug-types --node 42 problematic.ail
+
+# 3. Check types at each phase
 ailang check problematic.ail
 
-# 2. Enable monomorphization debugging
+# 4. Enable monomorphization debugging
 DEBUG_MONO_VERBOSE=1 ailang run --debug-compile problematic.ail
 
-# 3. Check operator resolution
+# 5. Check operator resolution
 DEBUG_OPERATOR_LOWERING=1 ailang run problematic.ail
 ```
 

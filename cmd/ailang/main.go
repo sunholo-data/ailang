@@ -256,6 +256,10 @@ func runCommand() {
 	// Module relaxation flag
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
+	// Type debugging flags (M-DX11)
+	debugTypesFlag := fs.Bool("debug-types", false, "Show type inference debug output (substitutions, constraints, CoreTI)")
+	debugTypesNodeFlag := fs.Uint64("node", 0, "Filter --debug-types output to specific node ID")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -279,10 +283,10 @@ func runCommand() {
 		programArgs = fs.Args()[1:] // Skip filename, take remaining args
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64) {
 	// Configure stdlib resolver via environment variables
 	// CLI flags override environment variables
 	if stdlibPath != "" {
@@ -381,6 +385,8 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		StrictSyntaxMode:        strictSyntax,
 		RelaxModules:            relaxModulesEffective,
 		GlobalResolver:          builtinResolver, // Provide builtin access for type checking
+		DebugTypes:              debugTypes,      // M-DX11: Enable type inference debug output
+		DebugTypesNode:          debugTypesNode,  // M-DX11: Filter to specific node ID
 	}
 	src := pipeline.Source{
 		Code:     string(content),
@@ -398,6 +404,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		}
 		os.Exit(1)
+	}
+
+	// M-DX11: Display type inference debug output if enabled
+	if debugTypes && result.DebugSink != nil && result.TypeChecker != nil {
+		FormatTypeDebugOutput(result.DebugSink, result.TypeChecker, debugTypesNode)
 	}
 
 	// Display exhaustiveness warnings

@@ -103,6 +103,58 @@ func EqString(a, b interface{}) interface{} {
 
 **Design Doc:** [design_docs/planned/v0_5_11/m-dx30-eqstring-runtime.md](design_docs/planned/v0_5_11/m-dx30-eqstring-runtime.md)
 
+### Added - Type Inference Debug CLI Flag (M-DX11)
+
+Added `--debug-types` CLI flag for formatted type inference debugging output.
+
+**New Flag:**
+```bash
+# Show type inference debug output
+ailang run --debug-types file.ail
+
+# Filter to specific node ID
+ailang run --debug-types --node 42 file.ail
+```
+
+**Output includes:**
+- **Substitution Map**: Type variable → resolved type chains
+- **Constraints**: Type class constraints (Num, Eq, Ord) and resolution status
+- **CoreTI Entries**: Type information for each Core AST node
+
+**Example output:**
+```
+=== Type Inference Debug ===
+
+[Substitution Map]
+  (empty)
+
+[Constraints]
+  (no constraints)
+
+[CoreTI Entries]
+  NodeID 1: int
+    Constraint: Num (resolved)
+  NodeID 2: int -> Option[int]
+  ...
+```
+
+**Infrastructure:**
+- `TypeDebugSink` interface for zero-overhead debug events
+- `NoOpDebugSink` for production (0 allocs/op verified)
+- `VerboseDebugSink` for collecting debug events
+- `TypeDebugDumper` for formatted CLI output
+
+**Files Changed:**
+- `internal/types/debug_sink.go` - TypeDebugSink interface (~190 LOC)
+- `cmd/ailang/debug_types.go` - TypeDebugDumper (~220 LOC)
+- `cmd/ailang/main.go` - Added --debug-types, --node flags
+- `internal/pipeline/pipeline.go` - Config and Result fields
+- `internal/pipeline/pipeline_single.go` - Pipeline wiring
+- `internal/pipeline/pipeline_module.go` - Pipeline wiring
+- `docs/docs/guides/debugging.md` - Documentation
+
+**Design Doc:** [design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md](design_docs/planned/v0_5_11/m-dx11-debug-types-cli.md)
+
 ## [v0.5.10] - 2025-12-12
 
 ### Added - Unified AI Provider Architecture (M-UNIFIED-AI-PROVIDERS)

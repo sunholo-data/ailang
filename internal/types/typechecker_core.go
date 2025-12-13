@@ -80,6 +80,8 @@ type CoreTypeChecker struct {
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
 	paramTypeAnnots map[uint64][]Type
+	// M-DX11: Debug sink for type inference events
+	DebugSink TypeDebugSink
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
@@ -163,6 +165,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
 	}
 }
 
@@ -186,6 +189,17 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		adtTypeParams:       make(map[string]int),    // M-TAPP-FIX: Initialize ADT type params
 		aliasEnv:            make(map[string]Type),   // M-BUGFIX: Initialize alias environment
 		paramTypeAnnots:     make(map[uint64][]Type), // M-FIX-FLOAT-OP: Initialize param annotations
+		DebugSink:           NoOpDebugSink{},         // M-DX11: Default to no-op (zero overhead)
+	}
+}
+
+// SetDebugSink sets the debug sink for type inference events.
+// Pass a VerboseDebugSink to collect events for later formatting.
+func (tc *CoreTypeChecker) SetDebugSink(sink TypeDebugSink) {
+	if sink == nil {
+		tc.DebugSink = NoOpDebugSink{}
+	} else {
+		tc.DebugSink = sink
 	}
 }
 

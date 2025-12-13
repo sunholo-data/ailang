@@ -66,6 +66,10 @@ type Config struct {
 	StrictSyntaxMode        bool                  // Disable syntactic sugar (require canonical syntax)
 	RelaxModules            bool                  // Relax MOD010 validation (allow module path mismatches with warning)
 
+	// M-DX11: Type debugging
+	DebugTypes     bool   // Enable type inference debugging output
+	DebugTypesNode uint64 // Filter debug output to specific node (0 = all nodes)
+
 	// Warning tracking (to avoid duplicate warnings)
 	mod010WarnedPaths map[string]bool // Tracks paths that have already been warned for MOD010
 
@@ -110,6 +114,10 @@ type Result struct {
 	EnvLockDigest  string
 	PhaseTimings   map[string]int64       // milliseconds
 	Instantiations map[string]interface{} // Polymorphic instantiation tracking
+
+	// M-DX11: Type debugging
+	TypeChecker *types.CoreTypeChecker  // Type checker (for debug output)
+	DebugSink   *types.VerboseDebugSink // Debug events (when DebugTypes enabled)
 }
 
 // Run executes the full compilation pipeline

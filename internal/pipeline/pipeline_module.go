@@ -77,6 +77,10 @@ func runModule(cfg Config, src Source) (Result, error) {
 	start = time.Now()
 	compiledUnits := make(map[string]*CompileUnit)
 
+	// M-DX11: Variables to capture root module's type checker and debug sink
+	var rootTypeChecker *types.CoreTypeChecker
+	var rootDebugSink *types.VerboseDebugSink
+
 	for _, modID := range sortedModules {
 		mod := modules[string(modID)]
 		unit := &CompileUnit{
@@ -399,6 +403,17 @@ func runModule(cfg Config, src Source) (Result, error) {
 		if cfg.TrackInstantiations {
 			typeChecker.EnableInstantiationTracking()
 		}
+
+		// M-DX11: Set up debug sink for root module only
+		var debugSink *types.VerboseDebugSink
+		if cfg.DebugTypes && string(modID) == rootCanonical {
+			debugSink = types.NewVerboseDebugSink()
+			typeChecker.SetDebugSink(debugSink)
+			// Capture root module's type checker and debug sink
+			rootTypeChecker = typeChecker
+			rootDebugSink = debugSink
+		}
+
 		typeChecker.SetGlobalTypes(externalTypes)
 
 		// M-DX25.4: Pass constructor → ADT type mappings to type checker
@@ -678,6 +693,10 @@ func runModule(cfg Config, src Source) (Result, error) {
 	result.Artifacts.Core = rootUnit.Core
 	result.Artifacts.CoreTI = rootUnit.CoreTI // M-DX23: Type info for codegen
 	result.Interface = rootUnit.Iface         // Store module interface
+
+	// M-DX11: Store type checker and debug sink for --debug-types output
+	result.TypeChecker = rootTypeChecker
+	result.DebugSink = rootDebugSink
 
 	// Convert CompileUnits to LoadedModules for runtime execution (v0.2.0+)
 	result.Modules = make(map[string]*loader.LoadedModule)

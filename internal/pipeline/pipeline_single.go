@@ -109,6 +109,13 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.EnableInstantiationTracking()
 	}
 
+	// M-DX11: Set up debug sink if enabled
+	var debugSink *types.VerboseDebugSink
+	if cfg.DebugTypes {
+		debugSink = types.NewVerboseDebugSink()
+		typeChecker.SetDebugSink(debugSink)
+	}
+
 	// M-DX25.4: Pass constructor → ADT type mappings to type checker
 	// This enables correct type inference for pattern matching on ADTs
 	elabCtors := elaborator.GetConstructors()
@@ -392,6 +399,10 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	_ = linkedExpr
 	_ = linker
 	result.PhaseTimings["evaluate"] = time.Since(start).Milliseconds()
+
+	// M-DX11: Store type checker and debug sink for --debug-types output
+	result.TypeChecker = typeChecker
+	result.DebugSink = debugSink
 
 	// Calculate environment digest for determinism
 	// TODO: Implement proper digest calculation
