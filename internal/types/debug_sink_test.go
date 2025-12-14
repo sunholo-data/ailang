@@ -334,6 +334,166 @@ func TestDebugEventKind_String(t *testing.T) {
 	}
 }
 
+// TestUnifier_EmitsOnSubstitute verifies that the Unifier emits OnSubstitute events
+// when type variables are bound during unification. (M-DX11-PHASE2)
+func TestUnifier_EmitsOnSubstitute(t *testing.T) {
+	sink := NewVerboseDebugSink()
+	u := NewUnifier()
+	u.SetDebugSink(sink)
+
+	// Create a type variable and unify it with int
+	tv := &TVar2{Name: "α1", Kind: &KStar{}}
+	sub := make(Substitution)
+
+	// Unify α1 with int - should emit OnSubstitute
+	sub, err := u.Unify(tv, testInt, sub)
+	if err != nil {
+		t.Fatalf("Unify failed: %v", err)
+	}
+
+	// Verify substitution was recorded
+	if sub["α1"] != testInt {
+		t.Errorf("expected sub[α1] = int, got %v", sub["α1"])
+	}
+
+	// Verify OnSubstitute event was emitted
+	events := sink.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	e := events[0]
+	if e.Kind != EventSubstitute {
+		t.Errorf("Kind = %v, want EventSubstitute", e.Kind)
+	}
+	if e.TypeVar == nil {
+		t.Error("TypeVar is nil")
+	} else if e.TypeVar.String() != "α1" {
+		t.Errorf("TypeVar = %v, want α1", e.TypeVar)
+	}
+	if e.Result != testInt {
+		t.Errorf("Result = %v, want int", e.Result)
+	}
+}
+
+// TestUnifier_NoOpSinkZeroOverhead verifies that NoOpDebugSink has zero overhead
+// when Unifier emits OnSubstitute events. (M-DX11-PHASE2)
+func TestUnifier_NoOpSinkZeroOverhead(t *testing.T) {
+	u := NewUnifier()
+	// Default sink is NoOpDebugSink - should have zero overhead
+
+	tv := &TVar2{Name: "α1", Kind: &KStar{}}
+	sub := make(Substitution)
+
+	// This should work without any issues and have zero allocations from debug sink
+	sub, err := u.Unify(tv, testInt, sub)
+	if err != nil {
+		t.Fatalf("Unify failed: %v", err)
+	}
+
+	if sub["α1"] != testInt {
+		t.Errorf("expected sub[α1] = int, got %v", sub["α1"])
+	}
+}
+
+// TestInferenceContext_EmitsOnConstraintAdd verifies that OnConstraintAdd events
+// are emitted when ClassConstraints are added. (M-DX11-PHASE2)
+func TestInferenceContext_EmitsOnConstraintAdd(t *testing.T) {
+	sink := NewVerboseDebugSink()
+	ctx := NewInferenceContext()
+	ctx.SetDebugSink(sink)
+
+	// Add a Num constraint manually (simulating what typechecker does)
+	ctx.addConstraint(ClassConstraint{
+		Class:  "Num",
+		Type:   testInt,
+		Path:   []string{"test"},
+		NodeID: 42,
+	})
+
+	// Verify OnConstraintAdd event was emitted
+	events := sink.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	e := events[0]
+	if e.Kind != EventConstraintAdd {
+		t.Errorf("Kind = %v, want EventConstraintAdd", e.Kind)
+	}
+	if e.ClassName != "Num" {
+		t.Errorf("ClassName = %v, want Num", e.ClassName)
+	}
+	if e.NodeID != 42 {
+		t.Errorf("NodeID = %d, want 42", e.NodeID)
+	}
+}
+
+// TestDebugEventFlow_FullPipeline verifies the complete event flow
+// from InferenceContext through Unifier to VerboseDebugSink. (M-DX11-PHASE2)
+func TestDebugEventFlow_FullPipeline(t *testing.T) {
+	sink := NewVerboseDebugSink()
+	ctx := NewInferenceContext()
+	ctx.SetDebugSink(sink)
+
+	// Simulate type checking flow:
+	// 1. Add a constraint (OnConstraintAdd)
+	ctx.addConstraint(ClassConstraint{
+		Class:  "Num",
+		Type:   testInt,
+		Path:   []string{"test"},
+		NodeID: 100,
+	})
+
+	// 2. Create a fresh type var (OnFreshTypeVar)
+	_ = ctx.freshTypeVarWithOrigin(OriginInferred, 101)
+
+	// 3. Unify type variables (OnSubstitute via Unifier)
+	tv := &TVar2{Name: "β1", Kind: &KStar{}}
+	sub := make(Substitution)
+	_, err := ctx.unifier.Unify(tv, testFloat, sub)
+	if err != nil {
+		t.Fatalf("Unify failed: %v", err)
+	}
+
+	// Verify all events are captured
+	events := sink.Events()
+	if len(events) < 3 {
+		t.Fatalf("expected at least 3 events, got %d", len(events))
+	}
+
+	// Check event types in order
+	eventKinds := make([]DebugEventKind, len(events))
+	for i, e := range events {
+		eventKinds[i] = e.Kind
+	}
+
+	// Should have: ConstraintAdd, FreshTypeVar, Substitute
+	hasConstraintAdd := false
+	hasFreshTypeVar := false
+	hasSubstitute := false
+	for _, k := range eventKinds {
+		switch k {
+		case EventConstraintAdd:
+			hasConstraintAdd = true
+		case EventFreshTypeVar:
+			hasFreshTypeVar = true
+		case EventSubstitute:
+			hasSubstitute = true
+		}
+	}
+
+	if !hasConstraintAdd {
+		t.Error("missing EventConstraintAdd event")
+	}
+	if !hasFreshTypeVar {
+		t.Error("missing EventFreshTypeVar event")
+	}
+	if !hasSubstitute {
+		t.Error("missing EventSubstitute event")
+	}
+}
+
 // BenchmarkNoOpDebugSink verifies zero allocations
 func BenchmarkNoOpDebugSink(b *testing.B) {
 	sink := NoOpDebugSink{}

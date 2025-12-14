@@ -22,6 +22,14 @@ func (ru *RowUnifier) SetParentUnifier(u *Unifier) {
 	ru.parentUnifier = u
 }
 
+// emitOnSubstitute emits an OnSubstitute event through the parent unifier's debugSink.
+// M-DX11-PHASE2: Row variable substitutions should be tracked for debugging.
+func (ru *RowUnifier) emitOnSubstitute(tv Type, resolved Type) {
+	if ru.parentUnifier != nil {
+		ru.parentUnifier.debugSink.OnSubstitute(tv, resolved)
+	}
+}
+
 // UnifyRows unifies two rows, returning an updated substitution or error
 func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, error) {
 	// 1. Check kind compatibility
@@ -86,22 +94,28 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 		// r1 open, r2 closed - r1's tail gets r2's unique labels
 		// CRITICAL FIX: Assign only2 (r2's unique labels) to r1.Tail, not only1!
 		// This allows open row r1 to unify with closed row r2 by accepting r2's labels.
-		sub[r1.Tail.Name] = &Row{
+		resolvedRow := &Row{
 			Kind:   r1.Kind,
 			Labels: only2, // r2's unique labels, not only1!
 			Tail:   nil,   // Close the row after adding r2's labels
 		}
+		sub[r1.Tail.Name] = resolvedRow
+		// M-DX11-PHASE2: Emit OnSubstitute event for row variable binding
+		ru.emitOnSubstitute(r1.Tail, resolvedRow)
 
 	case r1.Tail == nil && r2.Tail != nil:
 		// r1 closed, r2 open - r2's tail gets r1's unique labels
 		// CRITICAL FIX: Assign only1 (r1's unique labels) to r2.Tail, not only2!
 		// This allows open row r2 to unify with closed row r1 by accepting r1's labels.
 		// For example: {IO} (closed) unifies with {} | ε (open) by setting ε := {IO}
-		sub[r2.Tail.Name] = &Row{
+		resolvedRow := &Row{
 			Kind:   r2.Kind,
 			Labels: only1, // r1's unique labels, not only2!
 			Tail:   nil,   // Close the row after adding r1's labels
 		}
+		sub[r2.Tail.Name] = resolvedRow
+		// M-DX11-PHASE2: Emit OnSubstitute event for row variable binding
+		ru.emitOnSubstitute(r2.Tail, resolvedRow)
 
 	case r1.Tail != nil && r2.Tail != nil:
 		// Both open - need principal unifier
@@ -115,18 +129,24 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 			fresh := ru.freshRowVar(r1.Kind)
 
 			// r1.Tail := only2 ∪ fresh
-			sub[r1.Tail.Name] = &Row{
+			resolved1 := &Row{
 				Kind:   r1.Kind,
 				Labels: only2,
 				Tail:   fresh,
 			}
+			sub[r1.Tail.Name] = resolved1
+			// M-DX11-PHASE2: Emit OnSubstitute event for row variable binding
+			ru.emitOnSubstitute(r1.Tail, resolved1)
 
 			// r2.Tail := only1 ∪ fresh
-			sub[r2.Tail.Name] = &Row{
+			resolved2 := &Row{
 				Kind:   r2.Kind,
 				Labels: only1,
 				Tail:   fresh,
 			}
+			sub[r2.Tail.Name] = resolved2
+			// M-DX11-PHASE2: Emit OnSubstitute event for row variable binding
+			ru.emitOnSubstitute(r2.Tail, resolved2)
 		}
 	}
 

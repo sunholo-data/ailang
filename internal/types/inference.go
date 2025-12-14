@@ -71,12 +71,15 @@ func NewInferenceContext() *InferenceContext {
 
 // SetDebugSink sets the debug sink for provenance tracking.
 // This should be called before type inference begins.
+// M-DX11-PHASE2: Also wires the sink to the Unifier for OnSubstitute events.
 func (ctx *InferenceContext) SetDebugSink(sink TypeDebugSink) {
 	if sink == nil {
 		ctx.debugSink = NoOpDebugSink{}
 	} else {
 		ctx.debugSink = sink
 	}
+	// M-DX11-PHASE2: Wire to Unifier for OnSubstitute events
+	ctx.unifier.SetDebugSink(ctx.debugSink)
 }
 
 // SetEnv sets the type environment for the inference context
@@ -622,6 +625,8 @@ func (ctx *InferenceContext) addConstraint(c TypeConstraint) {
 	// Also track class constraints separately for qualified types
 	if cc, ok := c.(ClassConstraint); ok {
 		ctx.qualifiedConstraints = append(ctx.qualifiedConstraints, cc)
+		// M-DX11-PHASE2: Emit OnConstraintAdd event for debugging
+		ctx.debugSink.OnConstraintAdd(cc.Class, cc.Type, cc.NodeID)
 	}
 }
 

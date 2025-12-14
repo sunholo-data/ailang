@@ -395,6 +395,10 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 				Type:      normalizedType, // Normalized type (float→Float, int→Int)
 				Method:    "",             // Will be filled in during Core traversal
 			}
+
+			// M-DX11-PHASE2: Emit OnConstraintResolve event for debugging
+			// Method is empty here but will be filled later during Core traversal
+			tc.DebugSink.OnConstraintResolve(resolvedClass, normalizedType, "", c.NodeID)
 		}
 	}
 	return nil

@@ -314,6 +314,8 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		qualifiedConstraints: []ClassConstraint{},
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
 	}
+	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
+	unifier.SetDebugSink(tc.DebugSink)
 
 	// Infer type (returns updated env)
 	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)

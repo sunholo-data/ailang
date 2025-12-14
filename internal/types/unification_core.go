@@ -15,6 +15,8 @@ type Unifier struct {
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
 	aliasEnv map[string]Type
+	// M-DX11-PHASE2: Debug sink for emitting OnSubstitute events during unification
+	debugSink TypeDebugSink
 }
 
 // freshRowVarName generates a unique row variable name (M-FIX-NESTED-RECORD-LIST)
@@ -32,7 +34,8 @@ func NewUnifier() *Unifier {
 	u := &Unifier{
 		rowUnifier: NewRowUnifier(),
 		depth:      0,
-		aliasEnv:   nil, // No alias expansion by default
+		aliasEnv:   nil,             // No alias expansion by default
+		debugSink:  NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
 	}
 	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
 	u.rowUnifier.SetParentUnifier(u)
@@ -46,10 +49,21 @@ func NewUnifierWithAliases(aliases map[string]Type) *Unifier {
 		rowUnifier: NewRowUnifier(),
 		depth:      0,
 		aliasEnv:   aliases,
+		debugSink:  NoOpDebugSink{}, // M-DX11-PHASE2: Default to no-op (zero overhead)
 	}
 	// M-FIX-NESTED-RECORD-LIST: Set parent reference for row unification
 	u.rowUnifier.SetParentUnifier(u)
 	return u
+}
+
+// SetDebugSink sets the debug sink for OnSubstitute events during unification.
+// M-DX11-PHASE2: Called by InferenceContext/CoreTypeChecker to wire debugging.
+func (u *Unifier) SetDebugSink(sink TypeDebugSink) {
+	if sink == nil {
+		u.debugSink = NoOpDebugSink{}
+	} else {
+		u.debugSink = sink
+	}
 }
 
 // expandAlias expands a type alias to its underlying type if applicable
@@ -125,6 +139,8 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				t1.Name, t1.Kind, t2.String(), GetKind(t2))
 		}
 		sub[t1.Name] = t2
+		// M-DX11-PHASE2: Emit OnSubstitute event when type variable is bound
+		u.debugSink.OnSubstitute(t1, t2)
 		return sub, nil
 
 	case *RowVar:
@@ -137,6 +153,8 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				t1.Name, t1.Kind, t2.String(), GetKind(t2))
 		}
 		sub[t1.Name] = t2
+		// M-DX11-PHASE2: Emit OnSubstitute event when row variable is bound
+		u.debugSink.OnSubstitute(t1, t2)
 		return sub, nil
 
 	case *Row:

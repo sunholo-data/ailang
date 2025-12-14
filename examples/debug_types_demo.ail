@@ -2,11 +2,22 @@
 -- Run with: ailang run --debug-types --caps IO examples/debug_types_demo.ail
 --
 -- This demonstrates the --debug-types flag which shows:
--- 1. CoreTI Entries: Type information for each Core AST node
--- 2. Constraints: Type class constraints and their resolution
---    - Num (for +, *, -) -> resolved to add, mul, sub
---    - Type variables like α22, α47 for polymorphic types
--- 3. Origins: WHERE types come from (provenance tracking)
+--
+-- 1. [Substitution Map] - Type variable bindings during unification
+--    Shows when type variables (α1, α2, etc.) are bound to concrete types.
+--    Example: α1 → int (direct), or α1 → α2 → float (CHAIN)
+--
+-- 2. [Constraints] - Type class constraint events (M-DX11-PHASE2)
+--    - Added: when constraints like Num, Eq, Ord are added during inference
+--    - Resolved: when constraints are satisfied by type class instances
+--
+-- 3. [CoreTI Entries] - Type information for each Core AST node
+--    - NodeID: Unique identifier for the node
+--    - Type: The inferred type (e.g., int, float, α22 -> α22 -> α22)
+--    - Constraint: Resolved method (e.g., Num → add means + uses add method)
+--    - Origins: WHERE the type came from (provenance tracking)
+--
+-- Origins/Provenance kinds:
 --    - inferred: fresh type variable created during inference
 --    - defaulted: type variable defaulted (e.g., Num → int)
 --    - annotation: explicit type annotation
