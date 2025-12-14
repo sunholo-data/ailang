@@ -169,25 +169,43 @@ $ ailang run --debug-types --caps IO examples/debug_types_demo.ail
 === Type Inference Debug ===
 
 [Substitution Map]
-  (empty)
+  α1 → α2
+  α5 → α7 → α11 (CHAIN)
+  α6 → α10
+  α8 → α6 -> α7 (direct)
 
 [Constraints]
-  (no constraints)
+  Added:
+    Num α1 at node 9
+    Num α3 at node 14
+    Fractional α41 at node 60
+  Resolved:
+    Num Int →  at node 9
+    Fractional Float →  at node 60
 
 [CoreTI Entries]
   NodeID 1: string -> () ! {IO}
   NodeID 9: int
     Constraint: Num → add
-  NodeID 31: α22
-    Origins:
-      - inferred: fresh type variable
+  NodeID 60: float
+    Constraint: Fractional (resolved)
   ...
 ```
 
 **Filtering by node**:
 ```bash
-# Show type info only for node ID 42
-$ ailang run --debug-types --node 42 file.ail
+# Show type info only for node ID 9
+$ ailang run --debug-types --node 9 --caps IO examples/debug_types_demo.ail
+
+[Constraints]
+  Added:
+    Num α1 at node 9
+  Resolved:
+    Num Int →  at node 9
+
+[CoreTI Entries]
+  NodeID 9: int
+    Constraint: Num → add
 ```
 
 **Output sections**:

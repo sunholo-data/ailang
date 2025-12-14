@@ -78,23 +78,6 @@ Verify all implemented design docs are documented in CHANGELOG.
 2. Verifies each feature doc is referenced in CHANGELOG.md
 3. Skips sprint plans and analysis docs (implementation artifacts)
 
-**Output:**
-```
-Checking implemented design docs for v0.5.10...
-
-  Found 18 design doc(s) in design_docs/implemented/v0_5_10
-  Referenced in CHANGELOG: 12
-    ✓ m-unified-ai-providers
-    ✓ m-string-conversion
-    ...
-
-  ⚠ NOT in CHANGELOG: 2
-    ✗ m-codegen-nested-record-type
-    ✗ m-fix-float-operator-dispatch
-
-  Action: Add entries for these features before releasing.
-```
-
 **Exit codes:**
 - `0` - All feature docs are in CHANGELOG
 - `1` - Some docs are missing from CHANGELOG
@@ -112,30 +95,6 @@ Verify release was created successfully on GitHub.
 2. GitHub release exists (`gh release view v0.3.14`)
 3. All platform binaries present (Darwin x64/ARM64, Linux, Windows)
 4. Latest CI run passed
-
-**Output:**
-```
-Verifying release v0.3.14...
-
-1/4 Checking git tag...
-  ✓ Tag v0.3.14 exists
-
-2/4 Checking GitHub release...
-  ✓ GitHub release v0.3.14 exists
-
-3/4 Checking release binaries...
-  ✓ ailang-darwin-amd64.tar.gz
-  ✓ ailang-darwin-arm64.tar.gz
-  ✓ ailang-linux-amd64.tar.gz
-  ✓ ailang-windows-amd64.zip
-  ✓ All platform binaries present
-
-4/4 Checking CI status...
-  ✓ Latest CI run passed
-
-✓ Release v0.3.14 verified successfully!
-URL: https://github.com/sunholo-data/ailang/releases/tag/v0.3.14
-```
 
 ### `scripts/update_version_constants.sh <version>`
 Update website version constants to the new release version.
@@ -180,48 +139,7 @@ Find GitHub issues that can be closed with this release.
 - `--close` - Actually close the issues via `gh issue close`
 - `--json` - Output JSON format for including in release notes
 
-**Output (default):**
-```
-Syncing GitHub issues via ailang messages...
-  ✓ Synced issues from GitHub
-Scanning commits since v0.5.8 for issue references...
-  Found 0 issue(s) referenced in commits
-Scanning CHANGELOG.md for issue references...
-  Found 0 issue(s) referenced in CHANGELOG
-Scanning design docs for issue references...
-  Found 3 issue(s) referenced in design docs
-Querying ailang messages for GitHub-linked issues...
-  Found 7 issue(s) tracked in ailang messages
-Matching issues against CHANGELOG keywords...
-  Found 5 issue(s) potentially related to CHANGELOG entries
-
-============================================
-Issues to close for v0.5.9
-============================================
-  #23: [cli] Bug: Record update with nested record fails
-       Sources: design_doc,ailang_message,keyword_match
-       Labels: bug, ailang-message
-
-  #25: [cli] Bug: Record list type inference
-       Sources: ailang_message,keyword_match
-       Labels: bug, ailang-message
-
-To close these issues, run:
-  ./scripts/collect_closable_issues.sh 0.5.9 --close
-```
-
-**JSON Output (--json):**
-```json
-[
-  {
-    "number": 23,
-    "title": "[cli] Bug: Record update with nested record fails",
-    "sources": "design_doc,ailang_message,keyword_match",
-    "labels": "bug,ailang-message",
-    "url": "https://github.com/sunholo-data/ailang/issues/23"
-  }
-]
-```
+For output examples, see [`resources/script_examples.md`](resources/script_examples.md).
 
 **Note:** When closing issues (`--close`), the script also marks the corresponding `ailang messages` as read via `ailang messages ack`.
 
@@ -245,17 +163,6 @@ Close a GitHub issue with proper release references (URLs, commits, design docs)
 4. Generates a comprehensive closing comment with all references
 5. Prompts for confirmation, then closes the issue
 
-**Generated comment format:**
-```markdown
-Fixed in [v0.5.10](https://github.com/sunholo-data/ailang/releases/tag/v0.5.10) - Description (M-FEATURE-CODE).
-
-Additional details from CHANGELOG...
-
-See: [Design Doc](link)
-
-Release commit: [`abc1234`](https://github.com/sunholo-data/ailang/commit/abc1234)
-```
-
 **For more details:** See [`resources/issue_closure_guide.md`](resources/issue_closure_guide.md)
 
 ### `scripts/broadcast_release.sh <version> [--include-issues]`
@@ -276,43 +183,6 @@ Broadcast release notification with changelog to all projects.
 3. Creates a structured release notification message with changelog and closed issues
 4. Broadcasts to the user inbox (global notification point)
 5. Projects receive notification when they check their inbox
-
-**Output:**
-```
-Extracting changelog for v0.4.5...
-Broadcasting release notification...
-
-Release notification broadcast for v0.4.5
-Projects can check their inbox with: ailang agent inbox --unread-only user
-
-Changelog excerpt:
----
-## [v0.4.5] - 2025-11-30
-
-### Added
-- Import aliasing support
-- CLI arguments feature
-
-### Fixed
-- Parser recovery improvements
-...
----
-```
-
-**Message format sent:**
-```json
-{
-  "type": "release_notification",
-  "title": "AILANG v0.4.5 Released",
-  "version": "v0.4.5",
-  "description": "## [v0.4.5] - 2025-11-30\n\n### Added\n...",
-  "priority": "high",
-  "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.4.5",
-  "closed_issues": [
-    {"number": 23, "title": "Bug: Record update fails", "url": "..."}
-  ]
-}
-```
 
 ## Release Workflow
 

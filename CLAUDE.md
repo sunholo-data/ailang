@@ -269,7 +269,7 @@ git push origin v0.4.4     # FAILS with auth error
 - ❌ Guessing model names instead of checking `internal/eval_harness/models.yml`
 - ❌ Ignoring documented workflows in CLAUDE.md
 - ❌ Manually extracting/formatting data when automated tools exist
-- ❌ Guessing which tools to use for benchmarks/evals - ALWAYS use eval-orchestrator agent
+- ❌ Guessing which tools to use for benchmarks/evals - use `eval-analyzer` skill or `ailang eval-*` commands
 
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
@@ -474,20 +474,18 @@ v2: Unified fix - no future bugs in this area
 
 **When asked to run evals, compare benchmarks, or update benchmark results:**
 
-→ **ALWAYS use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+→ **Use the `eval-analyzer` skill or `ailang eval-*` commands directly**
 
-The agent knows how to:
-- Run benchmarks with cost-conscious defaults (cheap models for dev, --full for releases)
-- Compare results, validate fixes, generate reports
-- Update the benchmark dashboard (docs/static/benchmarks/latest.json)
-- Use all available models and their pricing
-- Route to appropriate `ailang eval-*` commands
+Common eval commands:
+```bash
+ailang eval-suite --models gpt5-mini,claude-haiku-4-5  # Run benchmarks
+ailang eval-compare baseline1 baseline2                 # Compare results
+ailang eval-report results/ v0.5.10 --format=json      # Update dashboard
+```
 
 **DO NOT:**
-- ❌ Try to guess which make targets or scripts to use
 - ❌ Write custom Python/bash scripts for benchmark analysis
 - ❌ Manually regenerate dashboard files
-- ❌ Call `ailang eval-*` commands directly (let the agent handle it)
 
 ---
 
@@ -504,6 +502,9 @@ The agent knows how to:
 - **sprint-planner** - Analyze design docs and create realistic, data-driven sprint plans
 - **sprint-executor** - Execute sprints with TDD, continuous linting, and progress tracking
 - **collaboration-hub** - Develop and modify the Collaboration Hub UI (React frontend)
+- **codebase-organizer** - Monitor and refactor large files into AI-friendly modules
+- **design-spec-auditor** - Verify code implementation matches design specifications
+- **test-coverage-guardian** - Analyze test coverage, identify gaps, improve test quality
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -519,11 +520,13 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Help me write AILANG code" → `use-ailang` skill
 - "Plan the sprint" → `sprint-planner` skill
 - "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
+- "Start dev cycle" → `dev-cycle` agent (messages → design → sprint → implement)
 
 ### Skills vs Agents vs Commands
 
 - **Skills** (.claude/skills/): Focused workflows with progressive disclosure and automation
-- **Agents** (.claude/agents/): Complex autonomous reasoning (eval-orchestrator, codebase-organizer)
+- **Agents** (.claude/agents/): Multi-stage orchestration coordinating multiple skills
+  - `dev-cycle` - Full workflow: messages → design → sprint → implementation
 - **Commands** (.claude/commands/): **Deprecated** - use skills instead
 
 ---
@@ -714,17 +717,13 @@ ailang builtins check-migration     # Check for orphaned builtins
 
 **When user asks about evaluations, benchmarks, or testing AI code generation:**
 
-→ **Use the [eval-orchestrator](.claude/agents/eval-orchestrator.md) agent**
+→ **Use the `eval-analyzer` skill or `ailang eval-*` commands**
 
-The agent handles all eval workflows:
-- Running benchmarks (defaults to cheap/fast models)
-- Comparing results and validating fixes
-- Generating reports and interpreting metrics
-- Routing to appropriate `ailang eval-*` commands
-
-**For automated fix implementation:**
-
-→ **Use the [eval-fix-implementer](.claude/agents/eval-fix-implementer.md) agent**
+Common workflows:
+- Running benchmarks: `ailang eval-suite --models MODEL1,MODEL2`
+- Comparing results: `ailang eval-compare baseline1 baseline2`
+- Generating reports: `ailang eval-report results/ VERSION --format=json`
+- Analyzing failures: Use `eval-analyzer` skill
 
 **Documentation** (for detailed reference):
 - [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
@@ -1074,7 +1073,7 @@ make check-file-sizes    # Fails CI if >800 lines
 make report-file-sizes   # Show files >500 lines
 ```
 
-**For refactoring**: Use `codebase-organizer` agent  
+**For refactoring**: Use `codebase-organizer` skill
 **For detailed patterns**: See [docs/guides/file-organization.md](docs/guides/file-organization.md)
 
 **Goal metrics:**
