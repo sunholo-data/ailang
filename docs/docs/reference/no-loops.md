@@ -46,7 +46,7 @@ for i in range(0, 10):
 
 **For AI code synthesis:**
 - ❌ Cannot infer iteration count without runtime evaluation
-- ❌ Cannot prove termination (halting problem)
+- ❌ Cannot generally prove termination for arbitrary imperative loops (halting problem)
 - ❌ Cannot determine data dependencies
 - ❌ Cannot reason about effect isolation
 - ❌ Cannot optimize (fusion, parallelization) without conservative analysis
@@ -152,7 +152,7 @@ These laws **do not hold** for imperative loops (mutation breaks equational reas
 
 | Property | Imperative Loops | AILANG Recursion |
 |----------|-----------------|------------------|
-| **Termination** | Undecidable (halting problem) | Guaranteed (structural induction) |
+| **Termination** | Undecidable in general | Guaranteed for accepted programs (structural recursion) |
 | **Effect tracking** | Hidden (implicit state) | Explicit (`! {IO}`, `! {FS}`) |
 | **Parallelization** | Requires analysis | Free (map/fold are parallelizable) |
 | **Equational reasoning** | Breaks (mutation) | Holds (pure functions) |
@@ -280,7 +280,7 @@ map(filter(xs, \x. x > 0), \x. x * 2)
 
 ## Total Recursion Guarantees
 
-AILANG enforces **structural recursion** to guarantee termination.
+AILANG enforces **structural recursion** to guarantee termination for all accepted recursive programs.
 
 ### Valid: Decreasing Argument Size
 
