@@ -1,0 +1,101 @@
+-- Test file for std/sem module
+-- Verifies sem_frame type and helper functions work correctly
+
+module examples/tests/sem_frame_test
+
+import std/sem (sem_frame, similarity_match, UpdateResult, is_similar, has_embedding, CASSuccess, CASConflict, make_frame_at, with_embedding, bump_version, get_simhash, encode_frame, decode_frame)
+import std/option (Option, Some, None)
+import std/json (Json)
+import std/result (Result)
+
+-- Test creating a sem_frame using the pure constructor
+let test_frame: sem_frame = make_frame_at(
+  "test-123",
+  "The quick brown fox jumps over the lazy dog",
+  _bytes_from_string("{\"source\": \"test\"}"),
+  1702555200
+)
+
+-- Test creating another frame for similarity comparison
+let similar_frame: sem_frame = make_frame_at(
+  "test-124",
+  "The quick brown fox jumps over the lazy cat",
+  _bytes_from_string("{\"source\": \"test\"}"),
+  1702555201
+)
+
+-- Test similarity check
+let are_similar = is_similar(test_frame, similar_frame, 10)
+
+-- Test has_embedding
+let has_emb = has_embedding(test_frame)
+
+-- Test similarity_match type
+let match_result: similarity_match = {
+  hash: test_frame.simhash,
+  distance: 0
+}
+
+-- Test UpdateResult type
+let success: UpdateResult = CASSuccess
+let conflict: UpdateResult = CASConflict("stale version")
+
+-- Test bump_version
+let bumped_frame = bump_version(test_frame)
+
+-- Test with_embedding (using dummy bytes)
+let frame_with_emb = with_embedding(test_frame, _bytes_from_string("dummy_embedding"), 768)
+let has_emb_after = has_embedding(frame_with_emb)
+
+-- Test get_simhash helper
+let simhash_val = get_simhash(test_frame)
+
+-- Test JSON encoding
+let json_str = encode_frame(test_frame)
+
+-- Test JSON decoding (round-trip)
+let decoded_opt = decode_frame(json_str)
+
+-- Main entry point for testing
+export func main() -> () ! {IO} {
+  _io_println("=== sem_frame test ===");
+  _io_println("");
+  _io_println("-- Constructor test (make_frame_at) --");
+  _io_println("Frame ID: " ++ test_frame.id);
+  _io_println("Version: " ++ show(test_frame.ver));
+  _io_println("Timestamp: " ++ show(test_frame.ts));
+  _io_println("Content: " ++ test_frame.content);
+  _io_println("SimHash: " ++ show(test_frame.simhash));
+  _io_println("Has embedding: " ++ show(has_emb));
+  _io_println("");
+  _io_println("-- Similarity test --");
+  _io_println("Similar frame content: " ++ similar_frame.content);
+  _io_println("Similar frame simhash: " ++ show(similar_frame.simhash));
+  _io_println("Are similar (threshold 10): " ++ show(are_similar));
+  _io_println("");
+  _io_println("-- Helper function tests --");
+  _io_println("get_simhash result: " ++ show(simhash_val));
+  _io_println("Bumped version: " ++ show(bumped_frame.ver));
+  _io_println("Has embedding after with_embedding: " ++ show(has_emb_after));
+  _io_println("Embedding dim: " ++ show(frame_with_emb.embedding_dim));
+  _io_println("");
+  _io_println("-- JSON round-trip test --");
+  _io_println("Encoded JSON: " ++ json_str);
+  match decoded_opt {
+    Some(decoded) => {
+      _io_println("Decoded ID: " ++ decoded.id);
+      _io_println("Decoded ver: " ++ show(decoded.ver));
+      _io_println("Decoded content: " ++ decoded.content);
+      _io_println("Round-trip ID match: " ++ show(_str_eq(test_frame.id, decoded.id)));
+      _io_println("Round-trip content match: " ++ show(_str_eq(test_frame.content, decoded.content)));
+      ()
+    },
+    None => {
+      _io_println("ERROR: Failed to decode JSON!");
+      ()
+    }
+  };
+  _io_println("");
+  _io_println("=== All tests passed ===");
+  ()
+}

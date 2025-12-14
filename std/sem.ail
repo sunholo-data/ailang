@@ -1,0 +1,312 @@
+-- std/sem - Semantic caching types (M-DX15)
+--
+-- Provides types for semantic frame caching:
+-- - sem_frame: Canonical cache entry with content/opaque separation
+-- - simhash64: 64-bit locality-sensitive hash type alias
+-- - similarity_match: Result of similarity search
+-- - update_result: CAS update result (Ok or Conflict)
+--
+-- See design_docs/planned/v0_5_11/DX-15-semantic-caching-MVP-sprint-plan.md
+
+module std/sem
+
+import std/option (Option, Some, None)
+import std/json (Json, JNull, JString, JNumber, JArray, JObject, encode, decode, kv, jo, js, jnum, jn)
+import std/result (Result, Ok, Err, isOk)
+
+-- ============================================================================
+-- Type Aliases
+-- ============================================================================
+
+-- SimHash is a 64-bit locality-sensitive hash
+-- Similar documents have hashes with low Hamming distance
+export type simhash64 = int
+
+-- ============================================================================
+-- Result Types
+-- ============================================================================
+
+-- Result of similarity search
+export type similarity_match = {
+  hash: int,      -- The matching SimHash
+  distance: int   -- Hamming distance from query (0 = identical)
+}
+
+-- Result of CAS (compare-and-swap) update
+-- CASSuccess: Update succeeded
+-- CASConflict: Another writer modified the entry (stale version)
+export type UpdateResult = CASSuccess | CASConflict(string)
+
+-- ============================================================================
+-- The Semantic Frame Type
+-- ============================================================================
+
+-- sem_frame is the canonical cache entry type.
+--
+-- Design principles (from user feedback):
+-- 1. content is UTF-8 text used for SimHash computation
+-- 2. opaque is arbitrary bytes payload (not hashed)
+-- 3. simhash is computed from content, not opaque
+-- 4. embedding is optional packed bytes (Tier 2, future)
+-- 5. meta is key-value metadata
+--
+-- Example usage:
+--   let frame = {
+--     id = "doc-123",
+--     ver = 1,
+--     ts = 1702555200,
+--     content = "The quick brown fox",
+--     simhash = _simhash("The quick brown fox"),
+--     embedding = None,
+--     embedding_dim = 0,
+--     opaque = _bytes_from_string("{\"source\": \"api\"}")
+--   }
+export type sem_frame = {
+  -- Identity fields
+  id: string,             -- Unique identifier
+  ver: int,               -- Version number (for CAS)
+  ts: int,                -- Timestamp (Unix epoch)
+
+  -- Content for similarity (required)
+  content: string,        -- UTF-8 text for SimHash computation
+  simhash: int,           -- Computed from content (simhash64 type)
+
+  -- Neural embeddings (optional, Tier 2)
+  embedding: Option[bytes],  -- Packed float32 values
+  embedding_dim: int,        -- Dimension (768 for EmbeddingGemma, 0 if none)
+
+  -- Payload (not hashed)
+  opaque: bytes           -- Arbitrary binary payload
+}
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+-- Check if two frames are similar based on SimHash
+-- threshold: maximum Hamming distance to consider "similar"
+export pure func is_similar(f1: sem_frame, f2: sem_frame, threshold: int) -> bool {
+  _hamming_distance(f1.simhash, f2.simhash) <= threshold
+}
+
+-- Check if a frame has an embedding
+export pure func has_embedding(f: sem_frame) -> bool {
+  match f.embedding {
+    Some(_) => true,
+    None => false
+  }
+}
+
+-- Get the simhash from a frame
+export pure func get_simhash(f: sem_frame) -> int {
+  f.simhash
+}
+
+-- Compare two frames by version
+export pure func is_newer(f1: sem_frame, f2: sem_frame) -> bool {
+  f1.ver > f2.ver
+}
+
+-- ============================================================================
+-- Frame Constructors
+-- ============================================================================
+
+-- make_frame_at: Pure constructor with explicit timestamp
+-- Use this for testing or when you need deterministic timestamps
+--
+-- Parameters:
+--   id: Unique identifier for the frame
+--   content: UTF-8 text used for SimHash computation
+--   opaque: Arbitrary binary payload (not hashed)
+--   ts: Unix epoch timestamp in milliseconds
+--
+-- Returns: A new sem_frame with computed SimHash, version 1, no embedding
+export pure func make_frame_at(id: string, content: string, opaque: bytes, ts: int) -> sem_frame {
+  {
+    id: id,
+    ver: 1,
+    ts: ts,
+    content: content,
+    simhash: _simhash(content),
+    embedding: None,
+    embedding_dim: 0,
+    opaque: opaque
+  }
+}
+
+-- make_frame: Constructor with automatic timestamp from Clock
+-- Use this in production code when you want real timestamps
+--
+-- Parameters:
+--   id: Unique identifier for the frame
+--   content: UTF-8 text used for SimHash computation
+--   opaque: Arbitrary binary payload (not hashed)
+--
+-- Returns: A new sem_frame with computed SimHash, current timestamp, version 1
+-- Requires: Clock capability (--caps Clock)
+export func make_frame(id: string, content: string, opaque: bytes) -> sem_frame ! {Clock} {
+  let ts = _clock_now()
+  in make_frame_at(id, content, opaque, ts)
+}
+
+-- with_embedding: Add an embedding to an existing frame
+-- Returns a new frame with the embedding set (immutable update)
+--
+-- Parameters:
+--   f: The frame to update
+--   emb: Packed float32 embedding bytes
+--   dim: Embedding dimension (e.g., 768 for EmbeddingGemma)
+--
+-- Returns: New frame with embedding set
+export pure func with_embedding(f: sem_frame, emb: bytes, dim: int) -> sem_frame {
+  {f | embedding: Some(emb), embedding_dim: dim}
+}
+
+-- bump_version: Increment the version number for CAS updates
+-- Returns a new frame with ver incremented by 1
+export pure func bump_version(f: sem_frame) -> sem_frame {
+  {f | ver: f.ver + 1}
+}
+
+-- ============================================================================
+-- JSON Serialization
+-- ============================================================================
+
+-- Helper: Convert int to float for JSON encoding
+pure func int_to_float(n: int) -> float {
+  _int_to_float(n)
+}
+
+-- Helper: Encode Option[bytes] as JNull or JString(base64)
+pure func encode_option_bytes(opt: Option[bytes]) -> Json {
+  match opt {
+    Some(b) => JString(_bytes_to_base64(b)),
+    None => JNull
+  }
+}
+
+-- encode_frame: Convert sem_frame to JSON string
+-- bytes fields are encoded as base64 strings
+-- Option[bytes] is encoded as null or base64 string
+--
+-- Example output:
+-- {"id":"doc-123","ver":1,"ts":1702555200,"content":"hello",...}
+export pure func encode_frame(f: sem_frame) -> string {
+  let json_obj = jo([
+    kv("id", js(f.id)),
+    kv("ver", jnum(int_to_float(f.ver))),
+    kv("ts", jnum(int_to_float(f.ts))),
+    kv("content", js(f.content)),
+    kv("simhash", jnum(int_to_float(f.simhash))),
+    kv("embedding", encode_option_bytes(f.embedding)),
+    kv("embedding_dim", jnum(int_to_float(f.embedding_dim))),
+    kv("opaque", js(_bytes_to_base64(f.opaque)))
+  ])
+  in encode(json_obj)
+}
+
+-- Helper: Extract string from JSON, return None if not a string
+pure func json_get_string(j: Json) -> Option[string] {
+  match j {
+    JString(s) => Some(s),
+    _ => None
+  }
+}
+
+-- Helper: Extract number from JSON as int, return None if not a number
+pure func json_get_int(j: Json) -> Option[int] {
+  match j {
+    JNumber(n) => Some(_float_to_int(n)),
+    _ => None
+  }
+}
+
+-- Helper: Find value by key in JSON object key-value list
+pure func find_key(kvs: List[{key: string, value: Json}], target: string) -> Option[Json] {
+  match kvs {
+    [] => None,
+    [pair, ...rest] => if _str_eq(pair.key, target) then Some(pair.value) else find_key(rest, target)
+  }
+}
+
+-- Helper: Extract field from JObject by key
+pure func json_field(j: Json, key: string) -> Option[Json] {
+  match j {
+    JObject(kvs) => find_key(kvs, key),
+    _ => None
+  }
+}
+
+-- Helper: Decode Option[bytes] from JSON (null or base64 string)
+pure func decode_option_bytes(j: Json) -> Option[Option[bytes]] {
+  match j {
+    JNull => Some(None),
+    JString(s) => match _bytes_from_base64(s) {
+      Some(b) => Some(Some(b)),
+      None => None
+    },
+    _ => None
+  }
+}
+
+-- decode_frame: Parse JSON string into sem_frame
+-- Returns None if JSON is invalid or missing required fields
+--
+-- Expected format: {"id":"...","ver":1,"ts":...,"content":"...",
+--                   "simhash":...,"embedding":null,"embedding_dim":0,
+--                   "opaque":"base64..."}
+export pure func decode_frame(json_str: string) -> Option[sem_frame] {
+  match decode(json_str) {
+    Err(_) => None,
+    Ok(j) => decode_frame_json(j)
+  }
+}
+
+-- Internal: Decode sem_frame from parsed JSON
+pure func decode_frame_json(j: Json) -> Option[sem_frame] {
+  -- Extract all required fields
+  let id_opt = match json_field(j, "id") { Some(v) => json_get_string(v), None => None }
+  in let ver_opt = match json_field(j, "ver") { Some(v) => json_get_int(v), None => None }
+  in let ts_opt = match json_field(j, "ts") { Some(v) => json_get_int(v), None => None }
+  in let content_opt = match json_field(j, "content") { Some(v) => json_get_string(v), None => None }
+  in let simhash_opt = match json_field(j, "simhash") { Some(v) => json_get_int(v), None => None }
+  in let emb_field = match json_field(j, "embedding") { Some(v) => decode_option_bytes(v), None => None }
+  in let dim_opt = match json_field(j, "embedding_dim") { Some(v) => json_get_int(v), None => None }
+  in let opaque_b64 = match json_field(j, "opaque") { Some(v) => json_get_string(v), None => None }
+  in let opaque_opt = match opaque_b64 { Some(s) => _bytes_from_base64(s), None => None }
+  -- Build frame if all fields present
+  in match id_opt {
+    None => None,
+    Some(id) => match ver_opt {
+      None => None,
+      Some(ver) => match ts_opt {
+        None => None,
+        Some(ts) => match content_opt {
+          None => None,
+          Some(content) => match simhash_opt {
+            None => None,
+            Some(simhash) => match emb_field {
+              None => None,
+              Some(embedding) => match dim_opt {
+                None => None,
+                Some(dim) => match opaque_opt {
+                  None => None,
+                  Some(opaque) => Some({
+                    id: id,
+                    ver: ver,
+                    ts: ts,
+                    content: content,
+                    simhash: simhash,
+                    embedding: embedding,
+                    embedding_dim: dim,
+                    opaque: opaque
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,6 +14,11 @@ _array_make : (int, a) -> Array[a]
 _array_set : (Array[a], int, a) -> Array[a]
 _array_to_list : Array[a] -> List[a]
 _array_unsafe_get : (Array[a], int) -> a
+_bytes_from_base64 : string -> Option[bytes]
+_bytes_from_string : string -> bytes
+_bytes_length : bytes -> int
+_bytes_to_base64 : bytes -> string
+_bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _debug_check : (bool, string, string) -> () ! {Debug}
@@ -27,6 +32,7 @@ _fs_writeFile : (string, string) -> () ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
+_hamming_distance : (int, int) -> int
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
@@ -56,6 +62,7 @@ _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}
 _rand_seed : int -> () ! {Rand}
+_simhash : string -> int
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int

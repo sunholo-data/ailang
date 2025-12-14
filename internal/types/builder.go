@@ -45,6 +45,11 @@ func (b *Builder) Float() Type {
 	return &TCon{Name: "float"}
 }
 
+// Bytes returns the bytes type
+func (b *Builder) Bytes() Type {
+	return &TCon{Name: "bytes"}
+}
+
 // Unit returns the unit type ()
 func (b *Builder) Unit() Type {
 	return &TCon{Name: "()"}

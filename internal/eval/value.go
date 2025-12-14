@@ -42,6 +42,20 @@ type StringValue struct {
 func (s *StringValue) Type() string   { return "string" }
 func (s *StringValue) String() string { return s.Value }
 
+// BytesValue represents a byte slice value
+type BytesValue struct {
+	Value []byte
+}
+
+func (b *BytesValue) Type() string { return "bytes" }
+func (b *BytesValue) String() string {
+	// Display as hex for readability, truncate if too long
+	if len(b.Value) <= 32 {
+		return fmt.Sprintf("<bytes:%x>", b.Value)
+	}
+	return fmt.Sprintf("<bytes:%x...>", b.Value[:32])
+}
+
 // BoolValue represents a boolean value
 type BoolValue struct {
 	Value bool
