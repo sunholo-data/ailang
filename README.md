@@ -50,14 +50,6 @@ For detailed roadmap and design philosophy, see:
 
 ---
 
-## 📋 Version & Release History
-
-**Current version**: v0.5.1 (December 2025)
-
-For detailed release notes, version history, and upcoming features, see [CHANGELOG.md](CHANGELOG.md).
-
----
-
 ## 💡 Why AILANG Works Better for AIs
 
 | Human Need | Human Feature | AI Equivalent in AILANG |
@@ -126,20 +118,6 @@ which makes it statically decidable, effect-safe, and perfectly compositional.
 - **Composable reasoning**: works algebraically with higher-order functions
 - **Easier optimization**: map/fold can fuse or parallelize safely
 - **Simpler runtime**: no mutable counters or loop scopes
-
-### 💡 Future Syntactic Sugar
-
-For readability, AILANG may later support **comprehension syntax**:
-
-```ailang
-[ p.name for p in people if p.age >= 30 ]
-```
-
-…which **desugars deterministically** to:
-
-```ailang
-map(filter(people, \p. p.age >= 30), \p. p.name)
-```
 
 **No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
 
@@ -251,15 +229,6 @@ ailang run --caps IO examples/demos/hello_io.ail
 # Output: Hello from AILANG v0.3.14!
 ```
 
-**Important**: Flags must come BEFORE the filename:
-```bash
-# ✅ CORRECT:
-ailang run --caps IO --entry main file.ail
-
-# ❌ WRONG:
-ailang run file.ail --caps IO --entry main
-```
-
 ### Interactive REPL
 
 The REPL features full type inference and deterministic evaluation:
@@ -364,76 +333,7 @@ Properties:
 
 ### 🔜 In Development
 
-See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
-
----
-
-## 📊 Implementation Status
-
-<!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-24%20passing%2026%20failing-red.svg)
-
-**24/55 examples passing (44%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
-
-| Example File | Status | Notes |
-|--------------|--------|-------|
-| `runnable/adt_option.ail` | ✅ Pass |  |
-| `runnable/adt_simple.ail` | ✅ Pass |  |
-| `runnable/ai_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/arithmetic.ail` | ✅ Pass |  |
-| `runnable/array_adt.ail` | ✅ Pass |  |
-| `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/bug_float_comparison.ail` | ✅ Pass |  |
-| `runnable/cli_args_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/closures.ail` | ✅ Pass |  |
-| `runnable/conway_grid.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/debug_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/guards_basic.ail` | ✅ Pass |  |
-| `runnable/hello.ail` | ✅ Pass |  |
-| `runnable/imported_adt_types.ail` | ✅ Pass |  |
-| `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/lambdas.ail` | ✅ Pass |  |
-| `runnable/lambdas_advanced.ail` | ✅ Pass |  |
-| `runnable/lambdas_closures.ail` | ✅ Pass |  |
-| `runnable/lambdas_curried.ail` | ✅ Pass |  |
-| `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/micro_block_if.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/micro_block_seq.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/micro_io_echo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/micro_option_map.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/micro_record_person.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/option_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/patterns.ail` | ✅ Pass |  |
-| `runnable/records.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/recursion_match.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/recursion_mutual.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/recursion_quicksort.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/simple.ail` | ✅ Pass |  |
-| `runnable/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/test_cli_io.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/test_guard_bool.ail` | ✅ Pass |  |
-| `runnable/test_import_func.ail` | ❌ Fail | Error: module loading error: failed to load std... |
-| `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runna... |
-| `runnable/test_module_minimal.ail` | ✅ Pass |  |
-| `runnable/type_classes.ail` | ✅ Pass |  |
-| `runnable/type_inference.ail` | ✅ Pass |  |
-| `runnable/typeclasses.ail` | ✅ Pass |  |
-
-<!-- EXAMPLES_STATUS_END -->
+See [design documents](design_docs/planned/) for upcoming features and development roadmap.
 
 See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
 

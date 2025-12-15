@@ -1,6 +1,0 @@
-  Hello World  
-# This is a comment line
-
-Python Programming
-  guidelines are important
-END OF FILE

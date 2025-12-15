@@ -1,5 +1,0 @@
-hello world
-python programming guidelines
-clean idiomatic code
-use list comprehensions
-prefer pathlib for paths

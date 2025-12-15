@@ -1,1 +1,0 @@
-Python is powerful. Python is fast. Python is readable.
