@@ -9,12 +9,6 @@ AILANG is a purely functional, effect-typed language designed as a **determinist
 
 AILANG exists to ensure that when AI systems improve themselves, the improvement is real.
 
-Further reading on answering common misconceptions:
-- AILANG is not another AI framework.
-- AILANG is not trying to be a "better python"
-- AILANG as a Semantic Control Surface
-
-Read more about [AILANG vs Agents](docs/docs/roadmpa/ailang-vs-agents.md) concepts.
 ---
 
 ## 🧩 Core Philosophy
@@ -36,6 +30,12 @@ AILANG **is**:
 
 Autonomous agents, self-training loops, and reflective rewriting are **enabled by AILANG’s guarantees**, not embedded as opaque runtime behavior.
 
+Further reading on answering common misconceptions:
+- AILANG is not another AI framework.
+- AILANG is not trying to be a "better python"
+- AILANG as a Semantic Control Surface
+
+Read more about [AILANG vs Agents](docs/docs/roadmpa/ailang-vs-agents.md) concepts.
 
 ## 🏗️ Architecture
 
