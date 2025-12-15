@@ -5,8 +5,16 @@
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-AILANG is a purely functional, effect-typed language designed for **autonomous code synthesis and reasoning**. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
+AILANG is a purely functional, effect-typed language designed as a **deterministic execution and evaluation substrate** for AI-generated code. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
 
+AILANG exists to ensure that when AI systems improve themselves, the improvement is real.
+
+Further reading on answering common misconceptions:
+- AILANG is not another AI framework.
+- AILANG is not trying to be a "better python"
+- AILANG as a Semantic Control Surface
+
+Read more about [AILANG vs Agents](docs/docs/roadmpa/ailang-vs-agents.md) concepts.
 ---
 
 ## 🧩 Core Philosophy
@@ -16,7 +24,18 @@ AILANG is a purely functional, effect-typed language designed for **autonomous c
 
 AILANG minimizes ambiguity and maximizes predictability. Every construct — type, effect, or expression — has **deterministic semantics** that can be reflected, verified, and serialized.
 
----
+## What AILANG Is (and Is Not)
+
+AILANG is **not** an autonomous agent framework.
+AILANG is **not** a productivity language for humans.
+
+AILANG **is**:
+- A deterministic semantic substrate for AI-generated programs
+- An evaluation harness where reasoning, testing, and execution align
+- A language where programs can be safely re-written, re-run, and compared by machines
+
+Autonomous agents, self-training loops, and reflective rewriting are **enabled by AILANG’s guarantees**, not embedded as opaque runtime behavior.
+
 
 ## 🏗️ Architecture
 
@@ -29,7 +48,7 @@ AILANG is built in layers, from stable foundations to cutting-edge features:
 - Deterministic evaluator with explicit effect tracking
 
 **In Development:**
-- Reflection & meta-programming (typed quasiquotes, structural type classes)
+- Reflection & meta-programming (typed quasiquotes, structural type classes — design complete, implementation in progress)
 - Deterministic tooling (normalize, suggest-imports, trace export)
 - Schema registry for machine-readable type definitions
 
@@ -42,7 +61,7 @@ AILANG aims to be the first language optimized for autonomous AI code synthesis.
 - **Deterministic tooling** - Canonical formatting, import suggestion, trace export
 - **Reflection & meta-programming** - Typed quasiquotes, structural type classes
 - **Schema registry** - Machine-readable type/effect definitions
-- **Cognitive autonomy** - Full round-trip reasoning with self-training
+- **Cognitive autonomy** - Full round-trip reasoning with machine-verifiable self-modification loops
 
 For detailed roadmap and design philosophy, see:
 - [VISION.md](docs/VISION.md) - Long-term vision and design principles
@@ -59,7 +78,7 @@ For detailed roadmap and design philosophy, see:
 | Code reuse | Inheritance / traits | Structural reflection & records |
 | Debugging | Interactive debugger | Replayable evaluation trace |
 | Logging | `print` / `console` | `--emit-trace jsonl` structured logs |
-| Macros | text substitution | Typed quasiquotes (semantic macros) |
+| Macros | text substitution | Typed quasiquotes (semantic macros - (planned - v0.6+) |
 
 ---
 
@@ -330,6 +349,16 @@ Properties:
 - **M-EVAL-LOOP v2.0** - Native Go eval tools with 90%+ test coverage
 - **Structured error reporting** - JSON schemas for deterministic diagnostics
 - **Effect system runtime** - Hermetic testing with `MockEffContext`
+
+## AILANG as an Evaluation Harness
+
+AILANG is intentionally designed to host AI evaluation loops:
+- Deterministic execution
+- Replayable traces
+- Property-based testing
+- Comparable outputs across models
+
+M-EVAL is not a benchmark bolted onto the language — it is evidence that the language semantics are stable enough to reason about AI performance itself.
 
 ### 🔜 In Development
 
