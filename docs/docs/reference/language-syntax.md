@@ -1,5 +1,7 @@
 # AILANG Language Syntax Reference (v0.3.0)
 
+## OLD! NEEDS UPDATE
+
 This reference documents the **currently working** syntax in AILANG v0.3.0. Features marked with 🚧 are planned but not yet implemented.
 
 ## Basic Constructs

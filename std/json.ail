@@ -141,6 +141,7 @@ func extractValue(pair: {key: string, value: Json}) -> Json {
 }
 
 -- Get all keys from object (in source order)
+-- NOTE: Callers must also `import std/list (map)` for runtime resolution
 export func keys(obj: Json) -> List[string] {
   match asObject(obj) {
     Some(kvs) => map(extractKey, kvs),
@@ -149,6 +150,7 @@ export func keys(obj: Json) -> List[string] {
 }
 
 -- Get all values from object (in source order)
+-- NOTE: Callers must also `import std/list (map)` for runtime resolution
 export func values(obj: Json) -> List[Json] {
   match asObject(obj) {
     Some(kvs) => map(extractValue, kvs),

@@ -26,6 +26,7 @@ _debug_log : (string, string) -> () ! {Debug}
 _env_getArgs : () -> List[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
+_float_to_int : float -> int
 _fs_exists : string -> bool ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
@@ -33,6 +34,7 @@ _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
 _hamming_distance : (int, int) -> int
+_int_to_float : int -> float
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}

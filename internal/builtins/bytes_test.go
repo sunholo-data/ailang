@@ -8,10 +8,10 @@ import (
 
 func TestBytesFromString(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		wantLen  int
-		wantHex  string
+		name    string
+		input   string
+		wantLen int
+		wantHex string
 	}{
 		{
 			name:    "simple ascii",
@@ -62,9 +62,9 @@ func TestBytesFromString(t *testing.T) {
 
 func TestBytesToString(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  []byte
-		want   string
+		name  string
+		input []byte
+		want  string
 	}{
 		{
 			name:  "simple ascii",
@@ -172,8 +172,8 @@ func TestBytesFromBase64(t *testing.T) {
 		},
 		{
 			name:     "truncated base64",
-			input:    "aGVsbG8",  // missing padding
-			wantSome: false,      // strict mode rejects this
+			input:    "aGVsbG8", // missing padding
+			wantSome: false,     // strict mode rejects this
 		},
 	}
 

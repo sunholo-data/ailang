@@ -127,6 +127,13 @@ func runModule(cfg Config, src Source) (Result, error) {
 		importedTypeAliases := make(map[string]types.Type) // M-FIX-RECORD-UPDATE: Collect type aliases from imports
 		importedCtorTypes := make(map[string]string)       // M-TAPP-FIX: Track imported constructor → ADT type
 		importedADTTypeParams := make(map[string]int)      // M-TAPP-FIX: Track imported ADT → type param count
+		// M-RT1-FIX: Track full constructor info for elaborator registration
+		type importedCtorInfo struct {
+			TypeName       string
+			Arity          int
+			TypeParamCount int
+		}
+		importedCtorInfos := make(map[string]*importedCtorInfo)
 
 		// Always include $builtin module exports (available to all modules)
 		if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
@@ -260,12 +267,21 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 							// M-TAPP-FIX: Derive type param count from ResultType
 							// If ResultType is TApp, count the args; otherwise 0
+							paramCount := 0
+							if tapp, ok := ctor.ResultType.(*types.TApp); ok {
+								paramCount = len(tapp.Args)
+							}
 							if _, exists := importedADTTypeParams[ctor.TypeName]; !exists {
-								paramCount := 0
-								if tapp, ok := ctor.ResultType.(*types.TApp); ok {
-									paramCount = len(tapp.Args)
-								}
 								importedADTTypeParams[ctor.TypeName] = paramCount
+							}
+
+							// M-RT1-FIX: Track full constructor info for elaborator registration
+							// This is needed so the elaborator can recognize nullary constructors
+							// (like None) in pattern matching and not treat them as variable patterns
+							importedCtorInfos[sym] = &importedCtorInfo{
+								TypeName:       ctor.TypeName,
+								Arity:          ctor.Arity,
+								TypeParamCount: paramCount,
 							}
 
 							found = true
@@ -304,6 +320,13 @@ func runModule(cfg Config, src Source) (Result, error) {
 		elaborator.SetModuleLoader(modLoader)
 		// Add builtins to global environment so they can be referenced
 		elaborator.AddBuiltinsToGlobalEnv()
+
+		// M-RT1-FIX: Register imported constructors with elaborator
+		// This is critical for pattern matching: without this, nullary constructors
+		// like None are treated as variable patterns instead of constructor patterns
+		for ctorName, info := range importedCtorInfos {
+			elaborator.RegisterConstructor(info.TypeName, ctorName, info.Arity, true, info.TypeParamCount)
+		}
 
 		unit.Core, err = elaborator.ElaborateFile(mod.File)
 		if err != nil {

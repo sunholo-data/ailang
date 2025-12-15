@@ -1,0 +1,87 @@
+-- M-RT1 Regression Test: Imported Constructor Pattern Matching
+-- This tests that nullary constructors from imported modules (like None from std/option)
+-- are correctly recognized as constructor patterns, not variable patterns.
+--
+-- Bug: Before the fix, `None` in pattern match was treated as a variable pattern
+-- that matched anything and bound the value to a variable named "None".
+-- This caused functions returning Option[T] to appear to return None when they
+-- should return Some(x).
+--
+-- Root cause: Imported constructors were not being registered with the elaborator,
+-- so the elaborator didn't know that "None" was a nullary constructor.
+module tests/m_rt1_imported_constructor_pattern_test
+
+import std/option (Option, Some, None)
+import std/json (decode, get, Json, JObject)
+import std/result (Result, Ok, Err)
+
+-- Test 1: Direct pattern matching on imported Option type
+func test_direct_option_match() -> string {
+  let x: Option[int] = Some(42);
+  match x {
+    None => "got_none",
+    Some(v) => "got_some"
+  }
+}
+
+-- Test 2: Function returning Option with value from list pattern match
+-- This was the original failing case
+func extract_first[a](xs: List[a]) -> Option[a] {
+  match xs {
+    [] => None,
+    [first, ...rest] => Some(first)
+  }
+}
+
+-- Test 3: JSON accessor pattern (the real-world use case that was broken)
+func get_json_key(json_str: string, key: string) -> Option[Json] {
+  match decode(json_str) {
+    Err(_) => None,
+    Ok(j) => get(j, key)
+  }
+}
+
+export func main() -> () ! {IO} {
+  _io_println("=== M-RT1 Regression Tests ===");
+
+  -- Test 1: Direct option match
+  let result1 = test_direct_option_match();
+  if _str_eq(result1, "got_some") then
+    _io_println("✓ Test 1: Direct option match works")
+  else
+    _io_println("✗ Test 1: FAILED - got " ++ result1);
+
+  -- Test 2: Option from list pattern
+  let result2 = extract_first([1, 2, 3]);
+  match result2 {
+    None => _io_println("✗ Test 2: FAILED - extract_first returned None"),
+    Some(v) => if v == 1 then
+      _io_println("✓ Test 2: extract_first returns Some(first)")
+    else
+      _io_println("✗ Test 2: FAILED - wrong value")
+  };
+
+  -- Test 2b: Empty list case
+  let result2b: Option[int] = extract_first([]);
+  match result2b {
+    None => _io_println("✓ Test 2b: extract_first([]) returns None"),
+    Some(_) => _io_println("✗ Test 2b: FAILED - should be None")
+  };
+
+  -- Test 3: JSON get (the real-world case)
+  let result3 = get_json_key("{\"id\":\"test123\"}", "id");
+  match result3 {
+    None => _io_println("✗ Test 3: FAILED - json get returned None"),
+    Some(_) => _io_println("✓ Test 3: json get returns Some for existing key")
+  };
+
+  -- Test 3b: Missing key
+  let result3b = get_json_key("{\"id\":\"test123\"}", "missing");
+  match result3b {
+    None => _io_println("✓ Test 3b: json get returns None for missing key"),
+    Some(_) => _io_println("✗ Test 3b: FAILED - should be None")
+  };
+
+  _io_println("=== Done ===");
+  ()
+}
