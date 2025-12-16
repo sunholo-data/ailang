@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -217,7 +216,7 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 		}
 
 		// Show progress for embedding computation (slow operation)
-		fmt.Fprintf(os.Stderr, "\r⏳ Embedding %d/%d: %s...", i+1, total, truncatePath(doc.Path, 40))
+		fmt.Fprintf(os.Stderr, "⏳ Embedding %d/%d: %s\n", i+1, total, truncatePath(doc.Path, 50))
 
 		// Compute embedding (cache miss or stale)
 		emb, err := embedder.Embed(doc.Content)
@@ -237,11 +236,6 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 			emb:   emb,
 			score: score,
 		})
-	}
-
-	// Clear progress line
-	if stats.EmbeddingsComputed > 0 {
-		fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
 	}
 
 	// Sort by score descending
