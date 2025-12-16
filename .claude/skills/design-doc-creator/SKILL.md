@@ -141,8 +141,8 @@ ailang docs search --stream implemented "feature keywords"
 # Check if design doc already planned
 ailang docs search --stream planned "feature keywords"
 
-# Use neural search for semantic matching (requires Ollama)
-ailang docs search --neural "semantic description of feature"
+# Use neural search for semantic matching (requires Ollama, slow ~20-30s)
+ailang docs search --stream planned --neural "semantic description of feature"
 
 # Search with JSON output for programmatic use
 ailang docs search --stream implemented --json "keywords"
@@ -169,9 +169,11 @@ $ ailang docs search --stream planned "lazy embedding"
 **Key flags:**
 - `--stream implemented` - Only search implemented/ directory
 - `--stream planned` - Only search planned/ directory
-- `--neural` - Use semantic embeddings (finds conceptually similar docs)
+- `--neural` - Use semantic embeddings (finds conceptually similar docs, **slow: ~20-30s**)
 - `--limit N` - Return top N results
 - `--json` - JSON output for scripting
+
+**Performance note:** SimHash search (without `--neural`) is instant. Only use `--neural` when keyword matching isn't finding what you need.
 
 **Warning Signs of Fragmented Design:**
 - Multiple maps tracking similar things (`adtSliceTypes`, `recordTypes`...)
