@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -197,8 +198,9 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 	}
 
 	var scoredDocs []scoredDoc
+	total := len(candidates)
 
-	for _, doc := range candidates {
+	for i, doc := range candidates {
 		// Compute content hash for staleness detection
 		docHash := hashContent(doc.Content)
 
@@ -213,6 +215,9 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 			})
 			continue
 		}
+
+		// Show progress for embedding computation (slow operation)
+		fmt.Fprintf(os.Stderr, "\r⏳ Embedding %d/%d: %s...", i+1, total, truncatePath(doc.Path, 40))
 
 		// Compute embedding (cache miss or stale)
 		emb, err := embedder.Embed(doc.Content)
@@ -232,6 +237,11 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 			emb:   emb,
 			score: score,
 		})
+	}
+
+	// Clear progress line
+	if stats.EmbeddingsComputed > 0 {
+		fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
 	}
 
 	// Sort by score descending
@@ -389,6 +399,14 @@ func CleanupCache(corpusPath string) (*CleanupResult, error) {
 	}
 
 	return result, nil
+}
+
+// truncatePath shortens a path for display, keeping the end
+func truncatePath(path string, maxLen int) string {
+	if len(path) <= maxLen {
+		return path
+	}
+	return "..." + path[len(path)-maxLen+3:]
 }
 
 func init() {
