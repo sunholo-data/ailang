@@ -804,8 +804,8 @@ sync-prompts:
 
 .PHONY: sync-versions
 sync-versions:
-	@echo "Syncing version constants from prompts/versions.json..."
-	@./tools/sync_version_constants.sh
+	@echo "Syncing version constants..."
+	@bash docs/scripts/generate-version-constants.sh
 
 .PHONY: generate-llms-txt
 generate-llms-txt:

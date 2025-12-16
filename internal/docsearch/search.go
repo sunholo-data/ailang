@@ -108,8 +108,17 @@ func discoverDocs(docsPath, subdir string) ([]DocFrame, error) {
 			return nil // Skip errors, continue walking
 		}
 
+		// Skip common directories that shouldn't be searched
+		if info.IsDir() {
+			name := info.Name()
+			if name == "node_modules" || name == ".git" || name == "vendor" || name == "dist" || name == "build" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
 		// Only process markdown files (and .mdx for docusaurus)
-		if info.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".mdx")) {
+		if !strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".mdx") {
 			return nil
 		}
 
