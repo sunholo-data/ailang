@@ -56,3 +56,32 @@ func ExtractTVarKind(t Type) (Kind, bool) {
 	}
 	return nil, false
 }
+
+// AsList checks if a type is a list type (either TList or TApp("list", ...)).
+// Returns the element type and true if it's a list, nil and false otherwise.
+//
+// This helper addresses DX-17: TList/TApp unification bug. The parser creates
+// TList for [T] syntax, while the type builder creates TApp("list", T) for builtins.
+// This helper recognizes both representations.
+//
+// Example:
+//
+//	if elem, ok := types.AsList(paramType); ok {
+//	    // paramType is a list with element type elem
+//	}
+//
+// Note: Case-sensitive - only matches lowercase "list" (not "List").
+func AsList(t Type) (elem Type, ok bool) {
+	switch tt := t.(type) {
+	case *TList:
+		return tt.Element, true
+	case *TApp:
+		h, args := decomposeApp(tt)
+		if con, ok := h.(*TCon); ok && con.Name == "list" && len(args) == 1 {
+			return args[0], true
+		}
+		return nil, false
+	default:
+		return nil, false
+	}
+}

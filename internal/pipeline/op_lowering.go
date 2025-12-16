@@ -555,16 +555,17 @@ func getTypeSuffixFromType(t types.Type) string {
 			return "Bool"
 		case "String", "string":
 			return "String"
-		case "List":
+		case "list": // DX-17: canonical form is lowercase
 			return "List"
 		}
 	}
 
-	// Shallow check for type applications (e.g., List[a])
+	// Shallow check for type applications (e.g., list[a])
 	// Only inspect the top-level constructor, NEVER traverse arguments
+	// DX-17: canonical form is lowercase "list"
 	if app, ok := t.(*types.TApp); ok {
 		if con, ok := app.Constructor.(*types.TCon); ok {
-			if con.Name == "List" {
+			if con.Name == "list" {
 				return "List"
 			}
 		}

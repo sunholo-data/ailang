@@ -1,0 +1,97 @@
+-- Neural Semantic Search Example
+-- DX-17: End-to-end demonstration of embedding-based similarity search
+--
+-- Prerequisites:
+--   1. Install Ollama: https://ollama.ai
+--   2. Pull embedding model: ollama pull embeddinggemma
+--   3. Start Ollama: ollama serve
+--
+-- Run: ailang run --caps IO,SharedIndex --entry main examples/neural_semantic_search.ail
+
+module examples/neural_semantic_search
+
+import std/string (floatToStr, intToStr)
+
+-- ============================================================================
+-- Neural Semantic Search Demo
+-- ============================================================================
+-- This example demonstrates:
+--   1. Generating embeddings with Ollama + EmbeddingGemma
+--   2. Storing entries with embeddings in SharedIndex
+--   3. Searching by neural similarity (cosine)
+--   4. Comparing SimHash vs Neural similarity
+
+-- Helper: Store a belief with embedding
+func store_belief_with_embedding(
+  ns: string,
+  key: string,
+  content: string,
+  version: int,
+  timestamp: int
+) -> unit ! {IO, SharedIndex} {
+  -- Generate embedding from content
+  let embedding = _ollama_embed("embeddinggemma", content)
+  -- Compute SimHash for hybrid search
+  in let simhash = _simhash(content)
+  -- Store with both SimHash and embedding
+  in _sharedindex_upsert_emb(ns, key, simhash, embedding, version, timestamp)
+}
+
+-- Helper: Search by embedding similarity
+func search_by_embedding(
+  ns: string,
+  query: string,
+  top_k: int
+) -> list[{key: string, score: float, version: int, timestamp: int}] ! {IO, SharedIndex} {
+  let query_embedding = _ollama_embed("embeddinggemma", query)
+  in _sharedindex_find_by_embedding(ns, query_embedding, top_k, 100, true)
+}
+
+-- Main demonstration
+func main() -> string ! {IO, SharedIndex} {
+  let _ = _io_println("=== Neural Semantic Search Demo ===")
+  in let _ = _io_println("")
+
+  -- Store beliefs with embeddings
+  in let _ = _io_println("Storing beliefs with neural embeddings...")
+  in let _ = store_belief_with_embedding("beliefs", "b1", "The sky is blue during the day", 1, 1000)
+  in let _ = store_belief_with_embedding("beliefs", "b2", "Stars appear at night when it gets dark", 1, 2000)
+  in let _ = store_belief_with_embedding("beliefs", "b3", "Clouds are made of water vapor", 1, 3000)
+  in let _ = store_belief_with_embedding("beliefs", "b4", "Rain falls from clouds to the ground", 1, 4000)
+  in let _ = store_belief_with_embedding("beliefs", "b5", "The ocean appears blue due to light reflection", 1, 5000)
+
+  in let count = _sharedindex_entry_count("beliefs")
+  in let _ = _io_println("Stored " ++ intToStr(count) ++ " beliefs with embeddings")
+  in let _ = _io_println("")
+
+  -- Semantic search: "What color is the sky?"
+  in let _ = _io_println("Query: 'What color is the sky?'")
+  in let results1 = search_by_embedding("beliefs", "What color is the sky?", 3)
+  in let _ = print_results(results1)
+  in let _ = _io_println("")
+
+  -- Semantic search: "What happens when it rains?"
+  in let _ = _io_println("Query: 'What happens when it rains?'")
+  in let results2 = search_by_embedding("beliefs", "What happens when it rains?", 3)
+  in let _ = print_results(results2)
+  in let _ = _io_println("")
+
+  -- Semantic search: "Tell me about water"
+  in let _ = _io_println("Query: 'Tell me about water'")
+  in let results3 = search_by_embedding("beliefs", "Tell me about water", 3)
+  in let _ = print_results(results3)
+
+  in "Demo complete!"
+}
+
+-- Print search results
+func print_results(
+  results: list[{key: string, score: float, version: int, timestamp: int}]
+) -> unit ! {IO} {
+  match results {
+    [] => _io_println("  (no results)"),
+    [first, ...rest] =>
+      let _ = _io_println("  " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")")
+      in print_results(rest)
+  }
+}

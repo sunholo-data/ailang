@@ -27,15 +27,15 @@ func TestHead_BasicTypes(t *testing.T) {
 }
 
 func TestHead_List(t *testing.T) {
-	// List[int]
+	// list[int] - DX-17: canonical form is lowercase "list"
 	listType := &TApp{
-		Constructor: &TCon{Name: "List"},
+		Constructor: &TCon{Name: "list"},
 		Args:        []Type{TInt},
 	}
 
 	result := Head(listType)
 	if result != HeadList {
-		t.Errorf("Head(List[int]) = %v, want %v", result, HeadList)
+		t.Errorf("Head(list[int]) = %v, want %v", result, HeadList)
 	}
 }
 

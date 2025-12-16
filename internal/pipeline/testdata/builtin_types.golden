@@ -5,14 +5,14 @@
 # Format: <name> : <type_signature>
 #
 
-:: : (a, List[a]) -> List[a]
+:: : (a, list[a]) -> list[a]
 _ai_call : string -> string ! {AI}
-_array_from_list : List[a] -> Array[a]
+_array_from_list : list[a] -> Array[a]
 _array_get : (Array[a], int) -> a
 _array_length : Array[a] -> int
 _array_make : (int, a) -> Array[a]
 _array_set : (Array[a], int, a) -> Array[a]
-_array_to_list : Array[a] -> List[a]
+_array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
 _bytes_from_base64 : string -> Option[bytes]
 _bytes_from_string : string -> bytes
@@ -23,7 +23,9 @@ _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _debug_check : (bool, string, string) -> () ! {Debug}
 _debug_log : (string, string) -> () ! {Debug}
-_env_getArgs : () -> List[string] ! {Env}
+_embedding_decode : bytes -> Option[list[float]]
+_embedding_encode : list[float] -> bytes
+_env_getArgs : () -> list[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _float_to_int : float -> int
@@ -59,11 +61,24 @@ _math_round : float -> float
 _math_sin : float -> float
 _math_sqrt : float -> float
 _math_tan : float -> float
-_net_httpRequest : (string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
+_ollama_embed : (string, string) -> list[float] ! {IO}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}
 _rand_seed : int -> () ! {Rand}
+_sharedindex_delete : (string, string) -> () ! {SharedIndex}
+_sharedindex_entry_count : string -> int ! {SharedIndex}
+_sharedindex_find_by_embedding : (string, list[float], int, int, bool) -> list[{key: string, score: float, timestamp: int, version: int}] ! {SharedIndex}
+_sharedindex_find_simhash : (string, int, int, int, bool) -> list[{key: string, score: float, timestamp: int, version: int}] ! {SharedIndex}
+_sharedindex_namespaces : () -> list[string] ! {SharedIndex}
+_sharedindex_upsert : (string, string, int, int, int) -> () ! {SharedIndex}
+_sharedindex_upsert_emb : (string, string, int, list[float], int, int) -> () ! {SharedIndex}
+_sharedmem_cas : (string, Option[bytes], bytes) -> bool ! {SharedMem}
+_sharedmem_delete : string -> () ! {SharedMem}
+_sharedmem_get : string -> Option[bytes] ! {SharedMem}
+_sharedmem_keys : () -> list[string] ! {SharedMem}
+_sharedmem_put : (string, bytes) -> () ! {SharedMem}
 _simhash : string -> int
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool
@@ -71,7 +86,7 @@ _str_find : (string, string) -> int
 _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string
-_str_split : (string, string) -> List[string]
+_str_split : (string, string) -> list[string]
 _str_trim : string -> string
 _str_upper : string -> string
 _stringToFloat : string -> Option[float]
@@ -81,7 +96,7 @@ _string_intToStr : int -> string
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool
-concat_List : (List[a], List[a]) -> List[a]
+concat_List : (list[a], list[a]) -> list[a]
 concat_String : (string, string) -> string
 div_Float : (float, float) -> float
 div_Int : (int, int) -> int

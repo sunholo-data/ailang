@@ -132,3 +132,77 @@ func TestExtractTVarKind(t *testing.T) {
 		})
 	}
 }
+
+// TestAsList tests the AsList helper for DX-17: TList/TApp unification
+func TestAsList(t *testing.T) {
+	T := NewBuilder()
+
+	tests := []struct {
+		name     string
+		input    Type
+		wantElem Type
+		wantOk   bool
+	}{
+		{
+			name:     "TList returns element type",
+			input:    &TList{Element: &TCon{Name: "int"}},
+			wantElem: &TCon{Name: "int"},
+			wantOk:   true,
+		},
+		{
+			name:     "TApp(list, int) returns element type",
+			input:    T.List(T.Int()),
+			wantElem: &TCon{Name: "int"},
+			wantOk:   true,
+		},
+		{
+			name:     "TApp(List, int) uppercase returns false (case sensitive)",
+			input:    T.App("List", T.Int()),
+			wantElem: nil,
+			wantOk:   false,
+		},
+		{
+			name:     "TCon(string) returns false",
+			input:    T.String(),
+			wantElem: nil,
+			wantOk:   false,
+		},
+		{
+			name:     "TApp(Option, int) returns false",
+			input:    T.App("Option", T.Int()),
+			wantElem: nil,
+			wantOk:   false,
+		},
+		{
+			name:     "TVar2 returns false",
+			input:    &TVar2{Name: "a", Kind: KStar{}},
+			wantElem: nil,
+			wantOk:   false,
+		},
+		{
+			name:     "TList with polymorphic element",
+			input:    &TList{Element: &TVar2{Name: "a", Kind: KStar{}}},
+			wantElem: &TVar2{Name: "a", Kind: KStar{}},
+			wantOk:   true,
+		},
+		{
+			name:     "TApp(list, TVar2) with polymorphic element",
+			input:    T.List(&TVar2{Name: "a", Kind: KStar{}}),
+			wantElem: &TVar2{Name: "a", Kind: KStar{}},
+			wantOk:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotElem, gotOk := AsList(tt.input)
+			if gotOk != tt.wantOk {
+				t.Errorf("AsList() gotOk = %v, want %v", gotOk, tt.wantOk)
+			}
+			// Use string comparison for type equality in tests
+			if gotOk && gotElem.String() != tt.wantElem.String() {
+				t.Errorf("AsList() gotElem = %v, want %v", gotElem, tt.wantElem)
+			}
+		})
+	}
+}

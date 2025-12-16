@@ -431,6 +431,8 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		grantCapabilities(effCtx, caps)
 
 		// Set up effect handlers if requested
+		setupSharedMemHandler(effCtx)   // SharedMem for semantic caching (M-DX15)
+		setupSharedIndexHandler(effCtx) // SharedIndex for semantic retrieval (M-DX16)
 		if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)

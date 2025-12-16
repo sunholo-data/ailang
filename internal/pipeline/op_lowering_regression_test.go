@@ -24,7 +24,7 @@ func TestConcatOperator_TypeGuidedLowering(t *testing.T) {
 		{
 			name: "list concatenation",
 			inferredType: &types.TApp{
-				Constructor: &types.TCon{Name: "List"},
+				Constructor: &types.TCon{Name: "list"}, // DX-17: canonical form is lowercase
 				Args:        []types.Type{types.TInt},
 			},
 			expectedBuiltin: "concat_List",

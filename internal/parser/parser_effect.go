@@ -12,17 +12,19 @@ import (
 func (p *Parser) parseEffectAnnotation() []string {
 	// Known canonical effect names
 	knownEffects := map[string]bool{
-		"IO":    true,
-		"FS":    true,
-		"Net":   true,
-		"Clock": true,
-		"Rand":  true,
-		"DB":    true,
-		"Trace": true,
-		"Async": true,
-		"Env":   true, // Environment variable access (v0.4.0+)
-		"Debug": true, // Structured tracing/assertions (v0.4.10+, ghost effect)
-		"AI":    true, // General-purpose AI oracle (v0.5.1+)
+		"IO":          true,
+		"FS":          true,
+		"Net":         true,
+		"Clock":       true,
+		"Rand":        true,
+		"DB":          true,
+		"Trace":       true,
+		"Async":       true,
+		"Env":         true, // Environment variable access (v0.4.0+)
+		"Debug":       true, // Structured tracing/assertions (v0.4.10+, ghost effect)
+		"AI":          true, // General-purpose AI oracle (v0.5.1+)
+		"SharedMem":   true, // Shared memory cache (v0.5.11+, M-DX15)
+		"SharedIndex": true, // Similarity index for semantic retrieval (v0.5.11+, M-DX16)
 	}
 
 	// We're at the BANG token
@@ -40,7 +42,7 @@ func (p *Parser) parseEffectAnnotation() []string {
 		if !p.curTokenIs(lexer.IDENT) {
 			p.report("PAR_EFF004_INVALID",
 				"effect name must be an identifier",
-				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug, AI")
+				"Use one of: IO, FS, Net, Clock, Rand, DB, Trace, Async, Env, Debug, AI, SharedMem, SharedIndex")
 			continue
 		}
 

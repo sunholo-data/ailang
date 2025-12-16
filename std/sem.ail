@@ -13,6 +13,7 @@ module std/sem
 import std/option (Option, Some, None)
 import std/json (Json, JNull, JString, JNumber, JArray, JObject, encode, decode, kv, jo, js, jnum, jn)
 import std/result (Result, Ok, Err, isOk)
+import std/sharedmem as cache (get, put, cas)
 
 -- ============================================================================
 -- Type Aliases
@@ -21,6 +22,49 @@ import std/result (Result, Ok, Err, isOk)
 -- SimHash is a 64-bit locality-sensitive hash
 -- Similar documents have hashes with low Hamming distance
 export type simhash64 = int
+
+-- Namespace is a string identifier for SharedIndex partitioning (DX-16)
+-- Valid: alphanumeric, underscore, hyphen. No colons, slashes, spaces.
+export type namespace = string
+
+-- ============================================================================
+-- Namespace Validation (DX-16)
+-- ============================================================================
+
+-- Check if namespace contains an invalid character
+-- Returns the character if found, None if clean
+pure func find_invalid_char(ns: string) -> Option[string] {
+  -- Check for colon
+  if _str_find(ns, ":") >= 0 then Some(":")
+  else if _str_find(ns, "/") >= 0 then Some("/")
+  else if _str_find(ns, "\\") >= 0 then Some("\\")
+  else if _str_find(ns, " ") >= 0 then Some(" ")
+  else if _str_find(ns, "\t") >= 0 then Some("\\t")
+  else if _str_find(ns, "\n") >= 0 then Some("\\n")
+  else None
+}
+
+-- validate_namespace: Validate a namespace string
+-- Returns None for valid namespaces, Some(message) for invalid
+--
+-- Rules:
+-- - Cannot be empty
+-- - Cannot contain: ':', '/', '\', space, tab, newline
+--
+-- Examples:
+--   validate_namespace("beliefs")   => None (valid)
+--   validate_namespace("")          => Some("empty namespace")
+--   validate_namespace("a:b")       => Some("invalid character: :")
+export pure func validate_namespace(ns: namespace) -> Option[string] {
+  if _str_len(ns) == 0 then Some("empty namespace")
+  else {
+    let invalid = find_invalid_char(ns)
+    in match invalid {
+      Some(c) => Some(concat_String("invalid character: ", c)),
+      None => None
+    }
+  }
+}
 
 -- ============================================================================
 -- Result Types
@@ -169,6 +213,16 @@ export pure func bump_version(f: sem_frame) -> sem_frame {
 }
 
 -- ============================================================================
+-- Embedding Encode/Decode (DX-16)
+-- ============================================================================
+-- NOTE: Use builtins directly:
+--   _embedding_encode(floats: list[float]) -> bytes
+--   _embedding_decode(bytes) -> Option[list[float]]
+--
+-- High-level helpers deferred due to TList/TApp type representation mismatch.
+-- The builtins work correctly - see internal/builtins/embedding_test.go.
+
+-- ============================================================================
 -- JSON Serialization
 -- ============================================================================
 
@@ -309,4 +363,205 @@ pure func decode_frame_json(j: Json) -> Option[sem_frame] {
       }
     }
   }
+}
+
+-- ============================================================================
+-- SharedMem Frame Operations (S2.6)
+-- ============================================================================
+
+-- load_frame: Load a sem_frame from SharedMem cache by key
+-- Returns None if key doesn't exist or JSON is invalid
+export func load_frame(key: string) -> Option[sem_frame] ! {SharedMem} {
+  match cache.get(key) {
+    None => None,
+    Some(bytes) => match _bytes_to_string(bytes) {
+      json_str => decode_frame(json_str)
+    }
+  }
+}
+
+-- store_frame: Store a sem_frame in SharedMem cache
+-- Overwrites any existing value at the key
+export func store_frame(key: string, frame: sem_frame) -> unit ! {SharedMem} {
+  let json_str = encode_frame(frame)
+  in let bytes = _bytes_from_string(json_str)
+  in cache.put(key, bytes)
+}
+
+-- UpdateResult type for CAS operations
+export type UpdateResult =
+  | CASSuccess
+  | CASConflict
+
+-- update_frame: Atomically update a frame using CAS with retries
+-- Takes an update function that transforms the frame
+-- Returns CASSuccess if update succeeded, CASConflict after max retries
+--
+-- retry_count: Number of remaining CAS retries (start with 8-10)
+export func update_frame(key: string, f: sem_frame -> sem_frame, retry_count: int) -> UpdateResult ! {SharedMem} {
+  match retry_count <= 0 {
+    true => CASConflict,
+    false => match cache.get(key) {
+      None => CASConflict,  -- Key doesn't exist
+      Some(old_bytes) => {
+        let old_json = _bytes_to_string(old_bytes)
+        in match decode_frame(old_json) {
+          None => CASConflict,  -- Invalid JSON
+          Some(old_frame) => {
+            let new_frame = f(old_frame)
+            in let new_json = encode_frame(new_frame)
+            in let new_bytes = _bytes_from_string(new_json)
+            in match cache.cas(key, Some(old_bytes), new_bytes) {
+              true => CASSuccess,
+              false => update_frame(key, f, retry_count - 1)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+-- create_or_update_frame: Create a new frame or update existing
+-- If key doesn't exist, creates with initial_frame
+-- If key exists, applies update function
+export func create_or_update_frame(key: string, initial_frame: sem_frame, f: sem_frame -> sem_frame, retry_count: int) -> UpdateResult ! {SharedMem} {
+  match cache.get(key) {
+    None => {
+      -- Try to create
+      let json_str = encode_frame(initial_frame)
+      in let bytes = _bytes_from_string(json_str)
+      in match cache.cas(key, None, bytes) {
+        true => CASSuccess,
+        false => create_or_update_frame(key, initial_frame, f, retry_count - 1)
+      }
+    },
+    Some(_) => update_frame(key, f, retry_count)
+  }
+}
+
+-- ============================================================================
+-- SharedIndex + SharedMem Combined Operations (DX-16 M9)
+-- ============================================================================
+
+-- SearchResult type for similarity search results
+-- Matches the record returned by _sharedindex_find_simhash
+export type search_result = {
+  key: string,       -- The frame key
+  score: float,      -- Similarity score (1.0 = identical, 0.0 = maximally different)
+  version: int,      -- Version number of the indexed entry
+  timestamp: int     -- Timestamp when entry was indexed
+}
+
+-- store_frame_ns: Store a frame in both SharedMem and SharedIndex
+-- Combines storage with index update for similarity search
+--
+-- Parameters:
+--   ns: Namespace for index partitioning (e.g., "beliefs", "goals")
+--   frame: The sem_frame to store
+--
+-- Effects: SharedMem (storage), SharedIndex (index update)
+--
+-- Note: Uses frame.id as the key for both storage and indexing
+export func store_frame_ns(ns: namespace, frame: sem_frame) -> unit ! {SharedMem, SharedIndex} {
+  -- Store in SharedMem
+  let json_str = encode_frame(frame)
+  in let bytes = _bytes_from_string(json_str)
+  in let _ = cache.put(frame.id, bytes)
+  -- Update SharedIndex
+  in _sharedindex_upsert(ns, frame.id, frame.simhash, frame.ver, frame.ts)
+}
+
+-- find_similar: Find frames similar to a query string
+-- Returns top-K results sorted by similarity score (descending)
+--
+-- Parameters:
+--   ns: Namespace to search in
+--   query: Query text (SimHash computed for similarity comparison)
+--   top_k: Maximum number of results to return
+--
+-- Returns: List of search results with keys, scores, versions, timestamps
+-- Note: This only searches the index - use load_frame to retrieve full frames
+export func find_similar(ns: namespace, query: string, top_k: int) -> list[search_result] ! {SharedIndex} {
+  let query_hash = _simhash(query)
+  in _sharedindex_find_simhash(ns, query_hash, top_k, 0, true)
+}
+
+-- find_similar_bounded: Find similar frames with scan limit
+-- Like find_similar but bounds the O(N) scan for large namespaces
+--
+-- Parameters:
+--   ns: Namespace to search in
+--   query: Query text
+--   top_k: Maximum results
+--   max_scan: Maximum entries to scan (0 = unlimited)
+--   deterministic: true for Strict mode (consistent ordering), false for BestEffort
+export func find_similar_bounded(ns: namespace, query: string, top_k: int, max_scan: int, deterministic: bool) -> list[search_result] ! {SharedIndex} {
+  let query_hash = _simhash(query)
+  in _sharedindex_find_simhash(ns, query_hash, top_k, max_scan, deterministic)
+}
+
+-- Helper: Get first element from search results
+-- DX-17 fix: TList/TApp now unify, so we can use pattern matching
+pure func get_first_result(results: list[search_result]) -> Option[search_result] {
+  match results {
+    [] => None,
+    [first, ..._] => Some(first)
+  }
+}
+
+-- resolve_best_match: Find the most similar frame and load it
+-- Combines index search with frame retrieval
+--
+-- Parameters:
+--   ns: Namespace to search in
+--   query: Query text
+--
+-- Returns: Some(frame) if a similar frame exists and can be loaded, None otherwise
+export func resolve_best_match(ns: namespace, query: string) -> Option[sem_frame] ! {SharedMem, SharedIndex} {
+  let query_hash = _simhash(query)
+  in let results = _sharedindex_find_simhash(ns, query_hash, 1, 0, true)
+  in match get_first_result(results) {
+    None => None,
+    Some(best) => load_frame(best.key)
+  }
+}
+
+-- resolve_best_match_threshold: Like resolve_best_match but with score threshold
+-- Only returns a match if similarity score meets the threshold
+--
+-- Parameters:
+--   ns: Namespace to search in
+--   query: Query text
+--   min_score: Minimum similarity score (0.0 to 1.0)
+--
+-- Returns: Some(frame) if score >= min_score, None otherwise
+export func resolve_best_match_threshold(ns: namespace, query: string, min_score: float) -> Option[sem_frame] ! {SharedMem, SharedIndex} {
+  let query_hash = _simhash(query)
+  in let results = _sharedindex_find_simhash(ns, query_hash, 1, 0, true)
+  in match get_first_result(results) {
+    None => None,
+    Some(best) => if best.score >= min_score then load_frame(best.key) else None
+  }
+}
+
+-- delete_frame_ns: Delete a frame from both SharedMem and SharedIndex
+-- Removes from storage and index atomically
+--
+-- Parameters:
+--   ns: Namespace containing the frame
+--   key: Frame key (id)
+export func delete_frame_ns(ns: namespace, key: string) -> unit ! {SharedMem, SharedIndex} {
+  let _ = _sharedmem_delete(key)
+  in _sharedindex_delete(ns, key)
+}
+
+-- count_frames: Get the count of indexed frames in a namespace
+export func count_frames(ns: namespace) -> int ! {SharedIndex} {
+  _sharedindex_entry_count(ns)
+}
+
+-- list_namespaces: Get all namespace names with indexed entries
+export func list_namespaces(u: unit) -> list[string] ! {SharedIndex} {
+  _sharedindex_namespaces(u)
 }

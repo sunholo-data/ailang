@@ -341,6 +341,55 @@ ailang builtins check-migration     # Check for orphaned builtins
 
 ## Common Patterns
 
+### Pattern 0: "Zero-Arg" Builtins (M-DX10 Unit-Argument Model)
+
+**⚠️ AILANG has no true nullary functions!** All functions that appear to take no arguments must take a `unit` parameter.
+
+```go
+// ✅ CORRECT - Unit-argument model
+RegisterEffectBuiltin(BuiltinSpec{
+    Module:  "std/sharedmem",
+    Name:    "_sharedmem_keys",
+    NumArgs: 1,  // Takes unit parameter!
+    Effect:  "SharedMem",
+    Type: func() types.Type {
+        T := types.NewBuilder()
+        return T.Func(T.Unit()).Returns(T.List(T.String())).Effects("SharedMem")
+    },
+    Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+        // args[0] is unit, ignored (validates arity)
+        keys := ctx.SharedMem.Cache.Keys()
+        // ...
+    },
+})
+
+// ❌ WRONG - True nullary (causes "arity mismatch: 0 vs 1")
+RegisterEffectBuiltin(BuiltinSpec{
+    Name:    "_sharedmem_keys",
+    NumArgs: 0,  // BUG!
+})
+```
+
+**Stdlib wrapper:**
+```ailang
+export func keys(u: unit) -> list[string] ! {SharedMem} {
+    _sharedmem_keys(u)
+}
+-- Or expression body:
+export func now() -> int ! {Clock} = _clock_now()
+```
+
+**Go tests must pass unit:**
+```go
+// ✅ Correct
+result, err := impl(ctx, []eval.Value{&eval.UnitValue{}})
+
+// ❌ Wrong - causes arity mismatch
+result, err := impl(ctx, []eval.Value{})
+```
+
+**Reference:** [M-DX10 design doc](../../../design_docs/implemented/v0_4_6/m-dx10-nullary-function-calls.md)
+
 ### Pattern 1: Pure String Function
 
 ```go

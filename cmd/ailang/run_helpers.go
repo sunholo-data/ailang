@@ -118,6 +118,26 @@ func grantCapabilities(effCtx *effects.EffContext, caps string) {
 	}
 }
 
+// setupSharedMemHandler initializes the SharedMem effect context if the capability is granted.
+// SharedMem provides shared memory caching for semantic caching (M-DX15).
+func setupSharedMemHandler(effCtx *effects.EffContext) {
+	if effCtx.HasCap("SharedMem") {
+		// Initialize with in-memory cache (default)
+		// Future: could add flags for Redis, memcached, etc.
+		effCtx.SharedMem = effects.NewSharedMemContext(nil)
+	}
+}
+
+// setupSharedIndexHandler initializes the SharedIndex effect context if the capability is granted.
+// SharedIndex provides similarity-based semantic retrieval (M-DX16).
+func setupSharedIndexHandler(effCtx *effects.EffContext) {
+	if effCtx.HasCap("SharedIndex") {
+		// Initialize with in-memory index (default)
+		// Future: could add flags for external index backends
+		effCtx.SharedIndex = effects.NewSharedIndexContext(nil)
+	}
+}
+
 // moduleExecParams contains all parameters needed for module execution
 type moduleExecParams struct {
 	filename          string

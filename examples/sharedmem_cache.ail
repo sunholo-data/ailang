@@ -1,0 +1,54 @@
+-- examples/sharedmem_cache.ail
+-- Demonstrates SharedMem effect for semantic caching
+--
+-- Run: ailang run --caps IO,SharedMem --entry main examples/sharedmem_cache.ail
+--
+-- This example shows:
+-- 1. Basic cache operations (get/put)
+-- 2. Semantic frame creation and storage
+-- 3. Near-duplicate detection via SimHash
+-- 4. CAS-based atomic updates
+
+module examples/sharedmem_cache
+
+import std/io (println)
+import std/option (Option, Some, None)
+import std/sharedmem (get, put, has_key)
+import std/json (js, jo, kv, jnum, jn, encode, decode)
+import std/result (Result, Ok, Err)
+import std/sem (sem_frame, make_frame_at, encode_frame, decode_frame, is_similar, store_frame, load_frame, UpdateResult, CASSuccess, CASConflict, update_frame, bump_version)
+
+-- Main entry point
+export func main() -> unit ! {IO, SharedMem} = {
+  let _ = println("=== SharedMem Cache Demo ===")
+
+  -- Demo 1: Basic cache operations
+  in let _ = println("\n1. Basic cache operations:")
+  in let _ = put("greeting", _bytes_from_string("Hello, World!"))
+  in let result = match get("greeting") {
+    Some(bytes) => _bytes_to_string(bytes),
+    None => "not found"
+  }
+  in let _ = println("   Stored and retrieved: " ++ result)
+
+  -- Demo 2: Semantic frames
+  in let _ = println("\n2. Semantic frame creation:")
+  in let frame1 = make_frame_at("doc-001", "The quick brown fox jumps over the lazy dog", _bytes_from_string("metadata"), 1000)
+  in let _ = store_frame("doc-001", frame1)
+  in let _ = println("   Stored frame with simhash: " ++ show(frame1.simhash))
+
+  -- Demo 3: Near-duplicate detection
+  in let _ = println("\n3. Near-duplicate detection:")
+  in let frame2 = make_frame_at("doc-002", "The quick brown fox leaps over the lazy dog", _bytes_from_string("metadata"), 1001)
+  in let similar = is_similar(frame1, frame2, 10)
+  in let _ = println("   Frame1 simhash: " ++ show(frame1.simhash))
+  in let _ = println("   Frame2 simhash: " ++ show(frame2.simhash))
+  in let _ = println("   Are similar (threshold 10): " ++ show(similar))
+
+  -- Demo 4: Load frame back
+  in let _ = println("\n4. Load frame from cache:")
+  in match load_frame("doc-001") {
+    Some(loaded) => println("   Loaded: id=" ++ loaded.id ++ ", ver=" ++ show(loaded.ver)),
+    None => println("   Frame not found!")
+  }
+}

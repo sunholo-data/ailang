@@ -86,7 +86,7 @@ func TestList(t *testing.T) {
 
 	app := listInt.(*TApp)
 	assert.IsType(t, &TCon{}, app.Constructor)
-	assert.Equal(t, "List", app.Constructor.(*TCon).Name)
+	assert.Equal(t, "list", app.Constructor.(*TCon).Name)
 	assert.Len(t, app.Args, 1)
 	assert.Equal(t, "int", app.Args[0].(*TCon).Name)
 }
@@ -345,7 +345,7 @@ func TestTypeString(t *testing.T) {
 		{
 			"List type",
 			b.List(b.String()),
-			"List",
+			"list",
 		},
 		{
 			"Record type",

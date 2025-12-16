@@ -76,6 +76,75 @@ funcDecl.InlineTests  // Doesn't exist! Use .Tests
 
 **Time savings**: 80% reduction (5-10 min → 30 sec per lookup)
 
+## M-DX10: Unit-Argument Model for "Nullary" Builtins
+
+**AILANG has no true nullary functions.** All functions that appear to take no arguments actually take a `unit` parameter.
+
+### The Rule
+
+| Surface syntax | Desugars to | Builtin registration |
+|----------------|-------------|---------------------|
+| `f()` | `f(())` | `NumArgs: 1`, type `() -> T` |
+| `keys()` | `keys(())` | `NumArgs: 1`, type `() -> list[string]` |
+
+### Implementing "Zero-Arg" Builtins
+
+```go
+// ✅ CORRECT - Unit-argument model
+RegisterEffectBuiltin(BuiltinSpec{
+    Name:    "_sharedmem_keys",
+    NumArgs: 1,  // Takes unit parameter!
+    Type:    func() types.Type {
+        T := types.NewBuilder()
+        return T.Func(T.Unit()).Returns(T.List(T.String())).Effects("SharedMem")
+    },
+    Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+        // args[0] is unit, ignored (but validates arity)
+        // ... implementation
+    },
+})
+
+// ❌ WRONG - True nullary (doesn't work!)
+RegisterEffectBuiltin(BuiltinSpec{
+    Name:    "_sharedmem_keys",
+    NumArgs: 0,  // BUG: Will cause "arity mismatch: 0 vs 1"
+    // ...
+})
+```
+
+### Stdlib Wrappers
+
+```ailang
+-- ✅ CORRECT - Call with ()
+export func keys(u: unit) -> list[string] ! {SharedMem} {
+    _sharedmem_keys(u)
+}
+-- Or using expression body:
+export func now() -> int ! {Clock} = _clock_now()
+
+-- ❌ WRONG - Missing ()
+export func now() -> int ! {Clock} = _clock_now  -- Returns function object!
+```
+
+### Go Tests for "Zero-Arg" Builtins
+
+```go
+// ✅ CORRECT - Pass unit value
+result, err := sharedMemKeysImpl(ctx, []eval.Value{&eval.UnitValue{}})
+
+// ❌ WRONG - Empty slice
+result, err := sharedMemKeysImpl(ctx, []eval.Value{})  // Arity mismatch!
+```
+
+### Why This Model?
+
+- **ML tradition**: Follows OCaml/SML where `()` is the canonical "no value"
+- **Uniform semantics**: `f x` works for all functions; `f ()` is just applying unit
+- **Higher-order friendly**: `let f = now` has type `() -> int ! {Clock}`
+- **S-CALL0 sugar**: Parser automatically desugars `f()` → `f(())`
+
+**Reference**: [M-DX10 design doc](../../../../design_docs/implemented/v0_4_6/m-dx10-nullary-function-calls.md)
+
 ## Full Reference
 
 See CLAUDE.md "Common API Patterns" section for additional patterns and examples.

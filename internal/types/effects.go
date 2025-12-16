@@ -47,14 +47,15 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 // IsKnownEffect checks if an effect name is one of the canonical effects
 func IsKnownEffect(name string) bool {
 	knownEffects := map[string]bool{
-		"IO":    true,
-		"FS":    true,
-		"Net":   true,
-		"Clock": true,
-		"Rand":  true,
-		"DB":    true,
-		"Trace": true,
-		"Async": true,
+		"IO":        true,
+		"FS":        true,
+		"Net":       true,
+		"Clock":     true,
+		"Rand":      true,
+		"DB":        true,
+		"Trace":     true,
+		"Async":     true,
+		"SharedMem": true, // v0.5.11: Shared memory cache effect (M-DX15)
 	}
 	return knownEffects[name]
 }

@@ -6,11 +6,27 @@ description: Why AILANG's SharedMem effect creates a paradigm shift for multi-ag
 
 import Icon from '@site/src/components/Icon';
 
-:::caution PLANNED FOR v0.6.0
+:::tip IMPLEMENTED (v0.5.11)
 
-This feature is **not yet implemented**. This page describes the vision and design goals for shared semantic state in AILANG. Implementation is planned for v0.6.0.
+Shared semantic state is now available in AILANG:
 
-**Design Document**: [semantic-caching.md](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching.md)
+**SharedMem Effect** - Key-value cache with atomic CAS (compare-and-swap):
+- `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_delete`, `_sharedmem_keys`
+- `_sharedmem_cas` - Atomic compare-and-swap for conflict-free multi-agent updates
+
+**SharedIndex Effect** - Similarity-based retrieval:
+- SimHash (Tier 1) - Fast, deterministic text similarity
+- Neural Embeddings (Tier 2) - True semantic similarity via Ollama
+
+**sem_frame Schema** - Standard semantic frame type in `std/sem`:
+- `make_frame_at`, `store_frame`, `load_frame`, `update_frame`
+- `is_similar` for near-duplicate detection
+
+See the **[Semantic Search Guide](/docs/guides/semantic-search)** for setup instructions.
+
+**Try it:** `ailang run --caps IO,SharedMem --entry main examples/sharedmem_cache.ail`
+
+**Remaining for v0.6.0**: Persistent backends (Redis, Firestore), hybrid search optimization
 
 :::
 
@@ -306,18 +322,19 @@ That's a category-defining feature.
 
 ---
 
-## Implementation: DX-15
+## Implementation: DX-15/16/17 (Complete)
 
-The shared semantic state vision is being implemented as **DX-15** in AILANG v0.5.x:
+The shared semantic state vision has been implemented across three design milestones:
 
-### Core Components
+### Core Components (All Implemented ✅)
 
-| Component | Purpose |
-|-----------|---------|
-| `SharedMem` effect | Abstract access to shared/persistent state |
-| `sem_frame` type | Canonical payload: id, version, timestamp, embedding, metadata, opaque |
-| `AI.embed` effect | Generate embeddings via pluggable backends |
-| `SharedCache` interface | Backend-agnostic (memory, Redis, Firestore) |
+| Component | Status | Description |
+|-----------|--------|-------------|
+| `SharedMem` effect | ✅ | Key-value cache with get/put/delete/cas operations |
+| `SharedIndex` effect | ✅ | Similarity index with SimHash and embedding search |
+| `sem_frame` type | ✅ | Canonical payload in `std/sem` module |
+| `_ollama_embed` | ✅ | Generate 768-dim embeddings via Ollama |
+| `_simhash` | ✅ | Fast 64-bit locality-sensitive hashing |
 
 ### Example: Multi-Agent Plan Coordination
 
@@ -343,8 +360,10 @@ match load_frame("plan:" ++ goal_id) {
 
 ### Design Documents
 
-- [DX-15: Semantic Caching Design](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching.md)
-- [DX-15: Sprint Plan](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/DX-15-semantic-caching-sprint-plan.md)
+- **[Complete Implementation Status](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/semantic-caching-complete.md)** - Definitive status document
+- [DX-15: Semantic Caching MVP](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/DX-15-semantic-caching-MVP.md)
+- [DX-16: SharedIndex + DX-17 Report](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/dx-16-sprint-completion-report.md)
+- [Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching-future.md)
 
 ---
 

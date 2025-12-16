@@ -97,17 +97,11 @@ func (u *Unifier) unifyTFunc(t1 *TFunc, t2 Type, sub Substitution) (Substitution
 }
 
 // unifyLists unifies two list types
+// DX-17: Handles both TList and TApp("list", ...) representations
 func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution, error) {
-	if t2List, ok := t2.(*TList); ok {
-		return u.Unify(t1.Element, t2List.Element, sub)
-	}
-	// Special case: TList{Element: a} can unify with TApp("List", a)
-	if t2App, ok := t2.(*TApp); ok {
-		h2, a2 := decomposeApp(t2App)
-		if headCon, ok := h2.(*TCon); ok && headCon.Name == "List" && len(a2) == 1 {
-			// TList{Element: a} ~ TApp("List", a)
-			return u.Unify(t1.Element, a2[0], sub)
-		}
+	// Check if t2 is also a list (TList or TApp("list", ...))
+	if elem, ok := AsList(t2); ok {
+		return u.Unify(t1.Element, elem, sub)
 	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
@@ -193,12 +187,12 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		}
 		return sub, nil
 	}
-	// Special case: TApp("List", a) can unify with TList{Element: a}
+	// DX-17: TApp("list", a) can unify with TList{Element: a}
+	// Use AsList helper to recognize both list representations
 	if t2List, ok := t2.(*TList); ok {
-		h1, a1 := decomposeApp(t1)
-		if headCon, ok := h1.(*TCon); ok && headCon.Name == "List" && len(a1) == 1 {
-			// TApp("List", a) ~ TList{Element: a}
-			return u.Unify(a1[0], t2List.Element, sub)
+		if elem, ok := AsList(t1); ok {
+			// TApp("list", a) ~ TList{Element: a}
+			return u.Unify(elem, t2List.Element, sub)
 		}
 	}
 	// Special case: TApp("Array", a) can unify with TArray{Element: a}

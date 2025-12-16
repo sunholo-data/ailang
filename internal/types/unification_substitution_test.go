@@ -118,3 +118,64 @@ func TestTRecordTypeNamePreservedInNestedRecord(t *testing.T) {
 		t.Errorf("inner TypeName lost: expected 'Position', got '%s'", innerResult.TypeName)
 	}
 }
+
+// TestTListTAppUnification tests DX-17: TList and TApp("list", ...) should unify
+func TestTListTAppUnification(t *testing.T) {
+	T := NewBuilder()
+	u := NewUnifier()
+
+	tests := []struct {
+		name    string
+		t1      Type
+		t2      Type
+		wantErr bool
+	}{
+		{
+			name:    "TList{int} unifies with TApp(list, int)",
+			t1:      &TList{Element: T.Int()},
+			t2:      T.List(T.Int()),
+			wantErr: false,
+		},
+		{
+			name:    "TApp(list, int) unifies with TList{int}",
+			t1:      T.List(T.Int()),
+			t2:      &TList{Element: T.Int()},
+			wantErr: false,
+		},
+		{
+			name:    "TList{string} unifies with TApp(list, string)",
+			t1:      &TList{Element: T.String()},
+			t2:      T.List(T.String()),
+			wantErr: false,
+		},
+		{
+			name:    "TList{int} does NOT unify with TApp(list, string)",
+			t1:      &TList{Element: T.Int()},
+			t2:      T.List(T.String()),
+			wantErr: true,
+		},
+		{
+			name:    "nested list: TList{TList{int}} unifies with TApp(list, TApp(list, int))",
+			t1:      &TList{Element: &TList{Element: T.Int()}},
+			t2:      T.List(T.List(T.Int())),
+			wantErr: false,
+		},
+		{
+			name:    "TList with polymorphic element",
+			t1:      &TList{Element: &TVar2{Name: "a", Kind: KStar{}}},
+			t2:      T.List(&TVar2{Name: "a", Kind: KStar{}}),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fresh unifier for each test
+			u = NewUnifier()
+			_, err := u.Unify(tt.t1, tt.t2, make(Substitution))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Unify() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

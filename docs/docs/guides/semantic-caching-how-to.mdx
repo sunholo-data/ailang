@@ -1,0 +1,500 @@
+---
+sidebar_position: 8
+title: Semantic Caching Guide
+description: How to use SharedMem and SharedIndex for AI agent working memory
+---
+
+# How to Use Semantic Caching in AILANG
+
+This guide explains the mental model, patterns, and best practices for using AILANG's semantic caching system effectively.
+
+## Mental Model
+
+**SharedMem + SharedIndex is the cognitive working memory for AI agents.**
+
+Think of it as:
+- **SharedMem**: A persistent key-value store where agents park their thoughts
+- **SharedIndex**: A semantic search layer that finds related thoughts by meaning
+- **sem_frame**: The standard "thought" format - ID, version, timestamp, content, SimHash, and opaque payload
+
+Unlike traditional caches (which store strings/bytes by exact keys), semantic caching lets agents:
+- Find related content by **meaning**, not just exact matches
+- Update state **atomically** with CAS (compare-and-swap)
+- Share **working memory** across multiple agents without message passing
+
+## Namespace Conventions
+
+Organize your frames using domain prefixes. This keeps namespaces clean and enables targeted searches:
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `plan:` | Goals, strategies, step-by-step plans | `plan:build-feature-123` |
+| `belief:` | Agent beliefs, world model assertions | `belief:user-preference-dark-mode` |
+| `doc:` | Document summaries, parsed content | `doc:readme-summary` |
+| `cache:` | Expensive computation results | `cache:llm-response-hash-abc` |
+| `session:` | Per-session temporary state | `session:user-42-context` |
+
+```ailang
+-- Good: Clear domain prefix
+let _ = store_frame("plan:migrate-db", migration_plan)
+let _ = store_frame("belief:api-rate-limit", rate_limit_info)
+
+-- Bad: Ambiguous keys
+let _ = store_frame("data123", something)  -- What is this?
+```
+
+## Canonical Patterns
+
+### Pattern 1: Cache-or-Compute
+
+Check for cached result before expensive computation:
+
+```ailang
+import std/sem (make_frame_at, store_frame, load_frame)
+
+func get_or_compute(key: string, compute: () -> bytes) -> bytes ! {SharedMem} {
+  match load_frame(key) {
+    Some(frame) => frame.opaque,
+    None => {
+      let result = compute();
+      let frame = make_frame_at(key, "", result, _clock_now(()));
+      let _ = store_frame(key, frame);
+      result
+    }
+  }
+}
+```
+
+### Pattern 2: Semantic Deduplication
+
+Before storing, check if a similar frame already exists:
+
+```ailang
+func store_if_novel(ns: string, content: string, payload: bytes) -> bool ! {SharedMem, SharedIndex} {
+  let hash = _simhash(content);
+  let similar = _sharedindex_find_simhash(ns, hash, 1, 50, true);
+
+  match similar {
+    [] => {
+      -- No similar content found, store new frame
+      let key = ns ++ ":" ++ _uuid(());
+      let frame = make_frame_at(key, content, payload, _clock_now(()));
+      let _ = store_frame(key, frame);
+      let _ = _sharedindex_upsert(ns, key, hash, 1, _clock_now(()));
+      true
+    },
+    _ => false  -- Similar content exists, skip
+  }
+}
+```
+
+### Pattern 3: Multi-Agent Plan Convergence
+
+Multiple agents refine a shared plan using CAS:
+
+```ailang
+import std/sem (update_frame, UpdateResult)
+
+func refine_plan(goal_id: string, refiner: sem_frame -> sem_frame) -> sem_frame ! {SharedMem} {
+  let key = "plan:" ++ goal_id;
+
+  -- Retry loop for CAS conflicts
+  letrec attempt = \retries.
+    if retries <= 0 then
+      match load_frame(key) {
+        Some(f) => f,
+        None => make_frame_at(key, "initial", _bytes_from_string(""), _clock_now(()))
+      }
+    else
+      match update_frame(key, refiner) {
+        Updated(frame) => frame,
+        Conflict(current) => attempt(retries - 1),  -- Retry with fresh state
+        Missing => {
+          -- Create initial frame
+          let initial = make_frame_at(key, "initial", _bytes_from_string(""), _clock_now(()));
+          let _ = store_frame(key, initial);
+          attempt(retries - 1)
+        }
+      }
+  in attempt(3)
+}
+```
+
+## Content vs Payload Guidance
+
+The `sem_frame` has two content fields:
+
+| Field | Type | Purpose | Indexed? |
+|-------|------|---------|----------|
+| `content` | `string` | Human-readable text for SimHash/search | Yes (SimHash) |
+| `opaque` | `bytes` | Binary payload (serialized data, embeddings) | No |
+
+**Guidelines:**
+
+```ailang
+-- Good: Content summarizes what's stored, opaque holds the actual data
+let frame = make_frame_at(
+  "cache:api-response",
+  "Weather forecast for Seattle: sunny, 72F",  -- Searchable summary
+  _bytes_from_string(full_json_response),       -- Full data
+  _clock_now(())
+)
+
+-- Bad: Content is empty or duplicates opaque
+let frame = make_frame_at(
+  "cache:api-response",
+  "",                                           -- No searchability!
+  _bytes_from_string(full_json_response),
+  _clock_now(())
+)
+```
+
+## Determinism Guidance
+
+AILANG's semantic caching is designed for **deterministic behavior**:
+
+### SimHash Determinism
+- Same input text always produces same 64-bit hash
+- Hamming distance scoring is deterministic
+- Tie-breaking: `(score DESC, key ASC)` - always same order
+
+### Search Determinism
+- Use `deterministic=true` in search calls for reproducible results
+- Limits scan scope with `maxScan` parameter
+
+```ailang
+-- Deterministic search (recommended for agents)
+let results = _sharedindex_find_simhash("beliefs", hash, 5, 100, true)
+--                                                              ^^^^ deterministic mode
+
+-- Best-effort search (faster, but order may vary on ties)
+let results = _sharedindex_find_simhash("beliefs", hash, 5, 100, false)
+```
+
+### CAS Determinism
+- Atomic updates prevent race conditions
+- Version numbers ensure causal ordering
+- Conflict detection enables retry patterns
+
+## Trace Debugging
+
+Enable tracing to see all SharedMem/SharedIndex operations:
+
+```bash
+# Trace SharedMem operations
+ailang run --caps IO,SharedMem --trace-sharedmem --entry main file.ail
+
+# Trace SharedIndex operations
+ailang run --caps IO,SharedIndex --trace-sharedindex --entry main file.ail
+
+# Trace both
+ailang run --caps IO,SharedMem,SharedIndex --trace-sharedmem --trace-sharedindex --entry main file.ail
+```
+
+**Trace output shows:**
+- Operation type (GET, PUT, CAS, UPSERT, FIND)
+- Keys accessed
+- Success/failure status
+- Timing information
+
+## Two-Tier Search Architecture
+
+AILANG provides two complementary search methods:
+
+### Tier 1: SimHash (Fast, Deterministic)
+
+Best for:
+- Near-duplicate detection
+- Typo tolerance
+- No external dependencies
+
+```ailang
+let hash = _simhash("The quick brown fox")
+let dist = _hamming_distance(hash1, hash2)  -- 0-64 bits
+-- Score: 1.0 - (distance / 64.0)
+```
+
+### Tier 2: Neural Embeddings (Semantic, Accurate)
+
+Best for:
+- True semantic similarity ("car" ~ "automobile")
+- Paraphrase detection
+- Cross-lingual matching
+
+```ailang
+-- Requires: ollama serve && ollama pull embeddinggemma
+let emb = _ollama_embed("embeddinggemma", "The quick brown fox")
+let results = _sharedindex_find_by_embedding("ns", emb, 5, 100, true)
+```
+
+### Hybrid Search Pattern
+
+Combine both for best results:
+
+```ailang
+func hybrid_search(ns: string, query: string, top_k: int) -> list[string] ! {SharedMem, SharedIndex} {
+  -- Phase 1: Fast SimHash pre-filter (100 candidates)
+  let hash = _simhash(query);
+  let candidates = _sharedindex_find_simhash(ns, hash, 100, 1000, true);
+
+  -- Phase 2: Re-rank with embeddings (top_k results)
+  let query_emb = _ollama_embed("embeddinggemma", query);
+  rerank_by_embedding(candidates, query_emb, top_k)
+}
+```
+
+## Embeddings Doctrine
+
+**Why embeddings matter:**
+- SimHash catches near-duplicates (shared tokens/structure). It does NOT catch paraphrases.
+- Embeddings catch paraphrases. "The sky is blue" ~ "The heavens are azure" won't match via SimHash but will via embeddings.
+
+### When to Compute Embeddings
+
+Compute embeddings for frames that represent **durable knowledge**:
+- Document summaries
+- Plans and policies
+- Entity facts
+- Extracted structured state
+
+**Avoid** embedding ephemeral "chatty" content. Prefer stable canonical text.
+
+### What to Embed
+
+- Embed the frame's `content` field, NOT the full `opaque` payload
+- `content` should be short, canonical, and discriminative (1-3 sentences plus key identifiers/constraints)
+
+```ailang
+-- Good: content is short summary, opaque holds full data
+let frame = make_frame_at(
+  "doc:report-123",
+  "Q3 sales report: revenue $1.2M, 15% growth, APAC expansion",  -- Embed this
+  _bytes_from_string(full_report_json),                           -- Not this
+  timestamp
+)
+```
+
+### How to Store with Embeddings
+
+```ailang
+import std/sem (make_frame_at, store_frame, with_embedding)
+
+func store_with_embedding(ns: string, key: string, content: string, payload: bytes, ts: int)
+  -> unit ! {SharedMem, SharedIndex, IO} {
+  -- Compute embedding once at store time
+  let emb_floats = _ollama_embed("embeddinggemma", content);
+  let emb_bytes = _embedding_encode(emb_floats);
+
+  -- Build frame with embedding
+  let frame = with_embedding(make_frame_at(key, content, payload, ts), emb_bytes, 768);
+
+  -- Store in SharedMem
+  let _ = store_frame(key, frame);
+
+  -- Index with embedding for semantic search
+  _sharedindex_upsert_emb(ns, key, frame.simhash, emb_floats, frame.ver, frame.ts)
+}
+```
+
+### Recommended Hybrid Retrieval
+
+The best pattern is:
+1. Use SimHash to get candidates (fast, bounded)
+2. Embed the query once
+3. Rerank candidates by embedding similarity
+4. Load the best key
+
+This gives you:
+- **Deterministic cost bounds** - SimHash limits candidate set
+- **Semantic accuracy** - Embeddings find paraphrases
+- **Stable traces** - Same query = same results
+
+```ailang
+func resolve_best_match_hybrid(ns: string, query: string, top_k: int, max_scan: int)
+  -> Option[sem_frame] ! {SharedMem, SharedIndex, IO} {
+
+  -- 1) SimHash candidates (deterministic, bounded)
+  let hash = _simhash(query);
+  let candidates = _sharedindex_find_simhash(ns, hash, top_k, max_scan, true);
+
+  match candidates {
+    [] => None,
+    _ => {
+      -- 2) Embed query once
+      let qemb = _ollama_embed("embeddinggemma", query);
+
+      -- 3) Rerank with embedding search
+      let results = _sharedindex_find_by_embedding(ns, qemb, 1, 100, true);
+
+      -- 4) Load best match
+      match results {
+        [] => None,
+        [best, ..._] => load_frame(best.key)
+      }
+    }
+  }
+}
+```
+
+### Best Practices for Embeddings
+
+| Practice | Why |
+|----------|-----|
+| **Canonicalize content** | Stable phrasing improves retrieval consistency |
+| **Embed once at store time** | Embedding is expensive (~160ms); don't recompute |
+| **Don't embed giant text** | Store summary in `content`, full text in `opaque` |
+| **Prefer bounded rerank** | Rerank 20-200 candidates; don't scan everything with embeddings |
+| **Record decisions** | Log model name, candidate count, scores for debugging |
+
+### Determinism with Embeddings
+
+For "Strict-ish" behavior with embeddings:
+- Keep candidate generation deterministic: `find_similar_bounded(... deterministic=true)`
+- Keep candidate bounds fixed (`top_k`, `max_scan`)
+- Use deterministic tie-breakers: `(score DESC, key ASC)`
+
+If you later add ANN indexes, treat them as BestEffort by definition.
+
+### SimHash-only vs Hybrid vs Embedding-only
+
+| Mode | Speed | Accuracy | Use When |
+|------|-------|----------|----------|
+| **SimHash-only** | ~1ms | Near-duplicates only | High-throughput, exact/near matches |
+| **Hybrid** | ~160ms | Paraphrases + near-duplicates | **Recommended default** |
+| **Embedding-only** | ~160ms | Best semantic recall | Small namespaces, semantic search only |
+
+## Killer Examples
+
+### Example 1: Dedupe Expensive LLM Calls
+
+```ailang
+module example/dedupe
+
+import std/ai (call)
+import std/sem (make_frame_at, store_frame, load_frame)
+
+func cached_ai_call(prompt: string) -> string ! {AI, SharedMem, SharedIndex} {
+  let hash = _simhash(prompt);
+  let similar = _sharedindex_find_simhash("ai-cache", hash, 1, 50, true);
+
+  match similar {
+    -- Found similar prompt with high score (>0.95 = <4 bits different)
+    [hit, ..._] if hit.score > 0.95 => {
+      match load_frame(hit.key) {
+        Some(frame) => _bytes_to_string(frame.opaque),
+        None => call_and_cache(prompt, hash)
+      }
+    },
+    -- No match, call LLM and cache
+    _ => call_and_cache(prompt, hash)
+  }
+}
+
+func call_and_cache(prompt: string, hash: int) -> string ! {AI, SharedMem, SharedIndex} {
+  let response = call(prompt);
+  let key = "ai-cache:" ++ show(hash);
+  let frame = make_frame_at(key, prompt, _bytes_from_string(response), _clock_now(()));
+  let _ = store_frame(key, frame);
+  let _ = _sharedindex_upsert("ai-cache", key, hash, 1, _clock_now(()));
+  response
+}
+```
+
+### Example 2: Multi-Agent Belief Convergence
+
+```ailang
+module example/beliefs
+
+import std/sem (make_frame_at, update_frame, load_frame, UpdateResult)
+
+type Belief = { assertion: string, confidence: float, evidence: [string] }
+
+func add_evidence(belief_id: string, new_evidence: string) -> Belief ! {SharedMem} {
+  let key = "belief:" ++ belief_id;
+
+  match update_frame(key, \frame.
+    let belief = decode_belief(frame.opaque);
+    let updated = {belief |
+      confidence: min(1.0, belief.confidence + 0.1),
+      evidence: new_evidence :: belief.evidence
+    };
+    {frame | opaque: encode_belief(updated)}
+  ) {
+    Updated(frame) => decode_belief(frame.opaque),
+    Conflict(current) => {
+      -- Another agent updated, merge our evidence
+      let existing = decode_belief(current.opaque);
+      add_evidence(belief_id, new_evidence)  -- Retry
+    },
+    Missing => {
+      -- Create initial belief
+      let initial = { assertion: "", confidence: 0.5, evidence: [new_evidence] };
+      let frame = make_frame_at(key, "", encode_belief(initial), _clock_now(()));
+      let _ = store_frame(key, frame);
+      initial
+    }
+  }
+}
+```
+
+### Example 3: Debuggable Retrieval Pipeline
+
+```ailang
+module example/debug_retrieval
+
+func traced_search(query: string) -> [string] ! {IO, SharedMem, SharedIndex} {
+  -- Log query
+  let _ = print("SEARCH: " ++ query);
+
+  -- Tier 1: SimHash
+  let hash = _simhash(query);
+  let _ = print("SimHash: " ++ show(hash));
+
+  let tier1 = _sharedindex_find_simhash("docs", hash, 10, 100, true);
+  let _ = print("Tier1 results: " ++ show(length(tier1)));
+
+  -- Tier 2: Neural (if Tier 1 sparse)
+  if length(tier1) < 3 then {
+    let emb = _ollama_embed("embeddinggemma", query);
+    let _ = print("Falling back to neural search");
+    let tier2 = _sharedindex_find_by_embedding("docs", emb, 10, 100, true);
+    let _ = print("Tier2 results: " ++ show(length(tier2)));
+    map(\r. r.key, tier2)
+  } else {
+    map(\r. r.key, tier1)
+  }
+}
+```
+
+## Running Examples
+
+```bash
+# Basic SharedMem (no Ollama needed)
+ailang run --caps IO,SharedMem --entry main examples/sharedmem_cache.ail
+
+# Full semantic retrieval with SimHash
+ailang run --caps IO,SharedMem,SharedIndex --entry main examples/semantic_retrieval.ail
+
+# Neural semantic search (requires Ollama)
+ollama serve &
+ollama pull embeddinggemma
+ailang run --caps IO,SharedMem,SharedIndex --entry main examples/neural_semantic_search.ail
+```
+
+## Summary
+
+| Concept | Key Point |
+|---------|-----------|
+| **Namespaces** | Use prefixes: `plan:`, `belief:`, `doc:`, `cache:`, `session:` |
+| **Content field** | Human-readable summary for search |
+| **Opaque field** | Binary payload, not indexed |
+| **CAS updates** | Use `update_frame` for atomic multi-agent coordination |
+| **SimHash** | Fast, deterministic, good for near-duplicates |
+| **Neural** | Semantic similarity, requires Ollama |
+| **Determinism** | Always use `deterministic=true` for reproducible agent behavior |
+
+## Related Resources
+
+- [Shared Semantic State Vision](/docs/roadmap/shared-semantic-state) - Why this matters
+- [Design Status](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/semantic-caching-complete.md) - Implementation details
+- [Future Work](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching-future.md) - Redis, Firestore, hybrid search

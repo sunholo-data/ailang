@@ -636,7 +636,7 @@ ailang/
 │   ├── typedast/       # Typed AST ✅ COMPLETE
 │   ├── channels/       # CSP implementation ❌ TODO (v0.4.0+)
 │   └── session/        # Session types ❌ TODO (v0.4.0+)
-├── stdlib/             # Standard library ✅ COMPLETE (std/io, std/fs, std/prelude)
+├── stdlib/             # Standard library ✅ COMPLETE (std/io, std/fs, std/prelude, std/json, std/sem)
 ├── tools/              # Development tools ✅ (eval, benchmarking, verification)
 ├── benchmarks/         # AI code generation benchmarks ✅
 ├── examples/           # Example .ail programs (66 files, 48 passing)
@@ -692,12 +692,19 @@ ailang serve                                        # Restart server
 
 **Quick Reference:**
 - **Development time**: ~2.5 hours (down from 7.5h with legacy system)
-- **Status**: M-DX1 COMPLETE - 52 builtins, fully documented
+- **Status**: M-DX1 COMPLETE - 72 builtins, fully documented
 - **Key benefit**: 67% faster with single-file registration
+
+**New in v0.5.11 (M-DX15):**
+- `_bytes_from_string`, `_bytes_to_string` - UTF-8 encoding/decoding
+- `_bytes_to_base64`, `_bytes_from_base64` - Base64 encoding/decoding
+- `_bytes_length` - Byte slice length
+- `_simhash`, `_hamming_distance` - Locality-sensitive hashing for near-duplicate detection
+- `_int_to_float`, `_float_to_int` - Numeric conversions (for JSON encoding)
 
 **Validation commands:**
 ```bash
-ailang doctor builtins              # Validate all 52 builtins
+ailang doctor builtins              # Validate all 72 builtins
 ailang builtins list --by-module    # Browse by module
 ailang builtins check-migration     # Check for orphaned builtins
 ```

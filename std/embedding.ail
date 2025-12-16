@@ -1,0 +1,156 @@
+-- std/embedding - Vector embedding utilities (v0.5.11)
+--
+-- Provides:
+-- - cosine: Cosine similarity between two float vectors
+-- - dot: Dot product of two vectors
+-- - magnitude: Vector magnitude (L2 norm)
+-- - normalize: Unit vector normalization
+-- - cosine_encoded: Cosine similarity for packed bytes (convenience)
+--
+-- Usage:
+--   import std/embedding (cosine, dot, magnitude)
+--   let sim = cosine([1.0, 0.0], [0.707, 0.707])  -- ~0.707
+--
+-- See also:
+--   _ollama_embed(model, text) -> list[float]
+--   _embedding_encode(floats) -> bytes
+--   _embedding_decode(bytes) -> Option[list[float]]
+
+module std/embedding
+
+import std/option (Option, Some, None)
+import std/list (map, foldl, length, zip)
+
+-- ============================================================================
+-- Core Vector Operations
+-- ============================================================================
+
+-- dot: Compute dot product of two vectors
+-- Returns 0.0 if vectors have different lengths
+--
+-- Example:
+--   dot([1.0, 2.0], [3.0, 4.0])  -- 11.0 (1*3 + 2*4)
+export pure func dot(a: list[float], b: list[float]) -> float {
+  dot_helper(a, b, 0.0)
+}
+
+pure func dot_helper(a: list[float], b: list[float], acc: float) -> float {
+  match a {
+    [] => acc,
+    [x, ...xs] => match b {
+      [] => acc,
+      [y, ...ys] => dot_helper(xs, ys, acc + x * y)
+    }
+  }
+}
+
+-- magnitude: Compute L2 norm (Euclidean length) of a vector
+--
+-- Example:
+--   magnitude([3.0, 4.0])  -- 5.0
+export pure func magnitude(v: list[float]) -> float {
+  _math_sqrt(dot(v, v))
+}
+
+-- normalize: Return unit vector (length 1) in same direction
+-- Returns original vector if magnitude is 0 (avoids division by zero)
+--
+-- Example:
+--   normalize([3.0, 4.0])  -- [0.6, 0.8]
+export pure func normalize(v: list[float]) -> list[float] {
+  let mag = magnitude(v)
+  in if mag == 0.0 then v
+     else map(\x. x / mag, v)
+}
+
+-- cosine: Compute cosine similarity between two vectors
+-- Range: -1.0 (opposite) to 1.0 (identical direction)
+-- Returns 0.0 if either vector has zero magnitude
+--
+-- Formula: cos(theta) = (a . b) / (|a| * |b|)
+--
+-- Example:
+--   cosine([1.0, 0.0], [1.0, 0.0])   -- 1.0 (identical)
+--   cosine([1.0, 0.0], [0.0, 1.0])   -- 0.0 (orthogonal)
+--   cosine([1.0, 0.0], [-1.0, 0.0])  -- -1.0 (opposite)
+export pure func cosine(a: list[float], b: list[float]) -> float {
+  let mag_a = magnitude(a)
+  in let mag_b = magnitude(b)
+  in if mag_a == 0.0 || mag_b == 0.0 then 0.0
+     else dot(a, b) / (mag_a * mag_b)
+}
+
+-- ============================================================================
+-- Convenience Functions for Packed Embeddings
+-- ============================================================================
+
+-- cosine_encoded: Cosine similarity on packed bytes (convenience wrapper)
+-- Decodes both vectors, computes cosine, returns 0.0 on decode failure
+--
+-- Example:
+--   let emb1 = _embedding_encode([1.0, 0.0])
+--   let emb2 = _embedding_encode([0.707, 0.707])
+--   cosine_encoded(emb1, emb2)  -- ~0.707
+export pure func cosine_encoded(a: bytes, b: bytes) -> float {
+  match _embedding_decode(a) {
+    None => 0.0,
+    Some(vec_a) => match _embedding_decode(b) {
+      None => 0.0,
+      Some(vec_b) => cosine(vec_a, vec_b)
+    }
+  }
+}
+
+-- ============================================================================
+-- Utility Functions
+-- ============================================================================
+
+-- euclidean_distance: Compute Euclidean distance between two vectors
+-- Returns magnitude of difference vector
+--
+-- Example:
+--   euclidean_distance([0.0, 0.0], [3.0, 4.0])  -- 5.0
+export pure func euclidean_distance(a: list[float], b: list[float]) -> float {
+  let diff = subtract_vectors(a, b)
+  in magnitude(diff)
+}
+
+pure func subtract_vectors(a: list[float], b: list[float]) -> list[float] {
+  subtract_helper(a, b)
+}
+
+pure func subtract_helper(a: list[float], b: list[float]) -> list[float] {
+  match a {
+    [] => [],
+    [x, ...xs] => match b {
+      [] => a,  -- b shorter, keep rest of a
+      [y, ...ys] => (x - y) :: subtract_helper(xs, ys)
+    }
+  }
+}
+
+-- scale: Multiply vector by scalar
+--
+-- Example:
+--   scale(2.0, [1.0, 2.0])  -- [2.0, 4.0]
+export pure func scale(s: float, v: list[float]) -> list[float] {
+  map(\x. x * s, v)
+}
+
+-- add_vectors: Element-wise addition of two vectors
+--
+-- Example:
+--   add_vectors([1.0, 2.0], [3.0, 4.0])  -- [4.0, 6.0]
+export pure func add_vectors(a: list[float], b: list[float]) -> list[float] {
+  add_helper(a, b)
+}
+
+pure func add_helper(a: list[float], b: list[float]) -> list[float] {
+  match a {
+    [] => b,
+    [x, ...xs] => match b {
+      [] => a,
+      [y, ...ys] => (x + y) :: add_helper(xs, ys)
+    }
+  }
+}

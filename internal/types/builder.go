@@ -85,10 +85,11 @@ func (b *Builder) App(con string, args ...Type) Type {
 
 // Collection constructors
 
-// List creates a list type: List<T>
+// List creates a list type: list[T]
+// Uses lowercase "list" to match AILANG syntax
 func (b *Builder) List(elem Type) Type {
 	return &TApp{
-		Constructor: &TCon{Name: "List"},
+		Constructor: &TCon{Name: "list"},
 		Args:        []Type{elem},
 	}
 }

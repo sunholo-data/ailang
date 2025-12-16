@@ -59,12 +59,12 @@ func registerListCons() {
 }
 
 // makeListConsType builds the type signature for :: (cons)
-// Type: forall a. (a, List[a]) -> List[a]
+// Type: forall a. (a, list[a]) -> list[a]
 func makeListConsType() types.Type {
 	T := types.NewBuilder()
 	// Create a type variable 'a' for the element type
 	a := T.Var("a")
-	listA := T.App("List", a)
+	listA := T.List(a) // DX-17: Use T.List() for lowercase "list" constructor
 	return T.Func(a, listA).Returns(listA).Build()
 }
 

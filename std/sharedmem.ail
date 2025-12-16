@@ -1,0 +1,62 @@
+-- std/sharedmem.ail
+-- SharedMem effect wrappers for semantic caching
+-- Part of M-DX15 (Semantic Caching MVP)
+
+module std/sharedmem
+
+import std/option (Option, Some, None)
+
+-- ============================================================================
+-- SharedMem Effect Wrappers
+-- ============================================================================
+
+-- Get a value from the shared memory cache
+-- Returns Some(bytes) if found, None otherwise
+export func get(key: string) -> Option[bytes] ! {SharedMem} {
+  _sharedmem_get(key)
+}
+
+-- Store a value in the shared memory cache
+-- Overwrites any existing value at the key
+export func put(key: string, value: bytes) -> unit ! {SharedMem} {
+  _sharedmem_put(key, value)
+}
+
+-- Compare-and-swap a value atomically
+-- If old is None: creates key only if it doesn't exist (create-if-absent)
+-- If old is Some(v): updates only if current value equals v
+-- Returns true if swap succeeded, false otherwise
+export func cas(key: string, old: Option[bytes], new: bytes) -> bool ! {SharedMem} {
+  _sharedmem_cas(key, old, new)
+}
+
+-- Delete a key from the cache
+-- No-op if key doesn't exist
+export func delete(key: string) -> unit ! {SharedMem} {
+  _sharedmem_delete(key)
+}
+
+-- Get all keys currently in the cache
+export func keys(u: unit) -> list[string] ! {SharedMem} {
+  _sharedmem_keys(u)
+}
+
+-- ============================================================================
+-- Convenience Functions
+-- ============================================================================
+
+-- Check if a key is present in the cache
+export func has_key(key: string) -> bool ! {SharedMem} {
+  match get(key) { Some(_) => true, None => false }
+}
+
+-- Get a value or return a default if not found
+export func get_or(key: string, default: bytes) -> bytes ! {SharedMem} {
+  match get(key) { Some(v) => v, None => default }
+}
+
+-- Put a value only if the key doesn't already exist
+-- Returns true if put succeeded (key was absent), false otherwise
+export func put_if_absent(key: string, value: bytes) -> bool ! {SharedMem} {
+  cas(key, None, value)
+}

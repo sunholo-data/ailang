@@ -1,0 +1,19 @@
+-- AILANG Ollama Embedding Test
+-- Tests the _ollama_embed builtin with EmbeddingGemma
+
+module examples/ollama_embed_test
+
+import std/string (intToStr)
+
+func main() -> string ! {IO} {
+  let _ = _io_println("=== Ollama Embedding Test ===")
+
+  -- Test embedding a simple text
+  in let text = "The sky is blue during the day"
+  in let _ = _io_println("Text: " ++ text)
+
+  in let embedding = _ollama_embed("embeddinggemma", text)
+  in let _ = _io_println("Got embedding (list of floats)")
+
+  in "Done!"
+}

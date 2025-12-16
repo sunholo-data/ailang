@@ -26,7 +26,7 @@ export pure func stringToInt(s: string) -> Option[int] { _stringToInt(s) }
 export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
 
 -- String splitting
-export pure func split(s: string, delimiter: string) -> [string] { _str_split(s, delimiter) }
+export pure func split(s: string, delimiter: string) -> list[string] { _str_split(s, delimiter) }
 
 -- ============================================================================
 -- Type to String Conversion (v0.5.10)

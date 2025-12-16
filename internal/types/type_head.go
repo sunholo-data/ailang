@@ -23,7 +23,7 @@ const (
 // Examples:
 //   - Head(TInt) → HeadInt
 //   - Head(TString) → HeadString
-//   - Head(TApp{Constructor: TCon{Name: "List"}, ...}) → HeadList
+//   - Head(TApp{Constructor: TCon{Name: "list"}, ...}) → HeadList
 //   - Head(TVar{...}) → HeadUnknown (type variable, need more inference)
 func Head(t Type) TypeHead {
 	if t == nil {
@@ -58,9 +58,10 @@ func Head(t Type) TypeHead {
 		return HeadArray
 
 	case *TApp:
-		// Check if it's a List type application (alternative representation)
+		// Check if it's a list type application
+		// DX-17: Canonical form is lowercase "list" (from T.List())
 		if con, ok := typ.Constructor.(*TCon); ok {
-			if con.Name == "List" {
+			if con.Name == "list" {
 				return HeadList
 			}
 		}

@@ -270,12 +270,13 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// Extract element type from scrutinee list
 		var elemType Type
 
-		// Try to extract list type from scrutinee
-		if listTy, ok := scrutType.(*TList); ok {
-			elemType = listTy.Element
+		// DX-17: Try to extract list type from scrutinee (handles both TList and TApp("list",...))
+		if elem, ok := AsList(scrutType); ok {
+			elemType = elem
 		} else {
 			// Create fresh type variable for elements
 			elemType = ctx.freshTypeVar()
+			// Constraint uses TList - the unifier handles TList ↔ TApp("list",...) equivalence
 			ctx.addConstraint(TypeEq{
 				Left:  scrutType,
 				Right: &TList{Element: elemType},

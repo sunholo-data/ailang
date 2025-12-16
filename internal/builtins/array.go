@@ -328,7 +328,7 @@ func registerArrayFromList() {
 func makeArrayFromListType() types.Type {
 	T := types.NewBuilder()
 	a := T.Var("a")
-	listA := T.App("List", a)
+	listA := T.List(a) // DX-17: Use T.List() for lowercase "list" constructor
 	arrayA := &types.TArray{Element: a}
 	return T.Func(listA).Returns(arrayA).Build()
 }
@@ -377,7 +377,7 @@ func makeArrayToListType() types.Type {
 	T := types.NewBuilder()
 	a := T.Var("a")
 	arrayA := &types.TArray{Element: a}
-	listA := T.App("List", a)
+	listA := T.List(a) // DX-17: Use T.List() for lowercase "list" constructor
 	return T.Func(arrayA).Returns(listA).Build()
 }
 

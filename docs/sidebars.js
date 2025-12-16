@@ -38,6 +38,7 @@ const sidebars = {
         'guides/state-system-workflow',
         'guides/agent-integration',
         'guides/agent-messaging',
+        'guides/semantic-search',
       ],
     },
     {

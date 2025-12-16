@@ -21,6 +21,8 @@ type EffContext struct {
 	Net          *NetContext           // Net effect configuration (security settings)
 	Debug        *DebugContext         // Debug effect state (logs, assertions)
 	AI           *AIContext            // AI effect state (handler for AI.call)
+	SharedMem    *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
+	SharedIndex  *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	EnvSnapshot  map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist []string              // Env effect: allowed variable names (nil = allow all)
 	Args         []string              // CLI arguments passed to the program (excluding program name)

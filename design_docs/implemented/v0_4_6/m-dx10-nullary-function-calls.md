@@ -1,10 +1,34 @@
 # M-DX10: Complete S-CALL0 and Unit-Argument Model
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.4.6
+**Completed**: v0.4.6
 **Priority**: P0 - High (blocks CLI args feature)
 **Estimated**: 2-3 days
 **Dependencies**: S-CALL0 (partial implementation exists)
+
+## Implementation Summary
+
+**Implemented in v0.4.6** - All phases complete:
+
+1. **Phase 1: Builtins aligned** - All "zero-arg" builtins updated to `NumArgs: 1` with unit parameter:
+   - `_clock_now`: `internal/builtins/clock.go` - Type: `() -> int ! {Clock}`
+   - `_env_getArgs`: `internal/builtins/env.go` - Type: `() -> [string] ! {Env}`
+   - `_io_readLine`: `internal/builtins/io.go` - Type: `() -> string ! {IO}`
+   - All implementations validate unit argument (defense against type system bugs)
+
+2. **Phase 1.5: Entry invocation** - Runtime invokes `main()` with unit argument (`cmd/ailang/run_helpers.go:258`)
+
+3. **Phase 2: S-CALL0 complete** - `f()` → `f(())` desugaring works in all contexts (expression, statement, lambda, match)
+
+4. **Phase 3: Stdlib fixed** - All wrappers call builtins with `()`:
+   - `std/clock.ail`: `now() = _clock_now()`
+   - `std/env.ail`: `getArgs() = _env_getArgs()`
+   - `std/io.ail`: `readLine() = _io_readLine()`
+
+5. **Phase 4: Documentation** - Teaching prompts updated with unit-argument model explanation
+
+**Verification**: All success criteria met. New builtins (e.g., `_sharedmem_keys` in v0.5.11) follow this pattern.
 
 ## AI-First Alignment Check
 

@@ -160,9 +160,9 @@ func TestGetTypeSuffixFromType(t *testing.T) {
 		{"TBool", types.TBool, "Bool"},
 		{"TString", types.TString, "String"},
 		{
-			"List[Int]",
+			"list[Int]", // DX-17: canonical form is lowercase
 			&types.TApp{
-				Constructor: &types.TCon{Name: "List"},
+				Constructor: &types.TCon{Name: "list"},
 				Args:        []types.Type{types.TInt},
 			},
 			"List",
@@ -234,9 +234,10 @@ func TestOpLowering_Concat(t *testing.T) {
 				// For string concatenation, the intrinsic returns string
 				coreTI.Set(intrinsic.ID(), types.TString)
 			} else {
-				// For list concatenation, the intrinsic returns List[int]
+				// For list concatenation, the intrinsic returns list[int]
+				// DX-17: canonical form is lowercase "list"
 				listType := &types.TApp{
-					Constructor: &types.TCon{Name: "List"},
+					Constructor: &types.TCon{Name: "list"},
 					Args:        []types.Type{types.TInt},
 				}
 				coreTI.Set(intrinsic.ID(), listType)

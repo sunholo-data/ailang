@@ -179,7 +179,7 @@ func TestBuiltinTypes_CriticalSignatures(t *testing.T) {
 		"_io_print":        "string -> () ! {IO}",
 		"_io_println":      "string -> () ! {IO}",
 		"_io_readLine":     "() -> string ! {IO}",
-		"_net_httpRequest": "(string, string, List[{name: string, value: string}], string) -> Result[{body: string, headers: List[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}",
+		"_net_httpRequest": "(string, string, list[{name: string, value: string}], string) -> Result[{body: string, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}",
 		"_str_len":         "string -> int",
 		"concat_String":    "(string, string) -> string",
 	}

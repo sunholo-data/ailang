@@ -1,0 +1,91 @@
+-- AILANG Semantic Retrieval Example
+-- Demonstrates the SharedIndex effect for similarity-based semantic search
+-- Part of M-DX16 (Deterministic Semantic Retrieval)
+
+module examples/semantic_retrieval
+
+import std/sem (
+  sem_frame, search_result,
+  store_frame_ns, find_similar, find_similar_bounded,
+  resolve_best_match, resolve_best_match_threshold,
+  delete_frame_ns, count_frames, list_namespaces
+)
+
+import std/string (floatToStr, intToStr)
+
+-- ============================================================================
+-- Example: Agent Belief Management with Semantic Similarity
+-- ============================================================================
+-- This example shows how an agent can store and retrieve beliefs using
+-- similarity search, enabling "find beliefs similar to this question" queries.
+
+-- Helper: Create a sem_frame from text content
+pure func make_frame(frame_id: string, frame_content: string, frame_ver: int, frame_ts: int) -> sem_frame {
+  let hash = _simhash(frame_content)
+  in {
+    id: frame_id,
+    content: frame_content,
+    opaque: "{}",
+    ver: frame_ver,
+    ts: frame_ts,
+    embedding: "",
+    simhash: hash
+  }
+}
+
+-- Main: Demonstrate semantic retrieval workflow
+func main() -> string ! {IO, SharedMem, SharedIndex} {
+  let _ = _io_println("=== Semantic Retrieval Demo ===")
+
+  -- Create and store some beliefs
+  in let belief1 = make_frame("belief_sky", "The sky is blue during the day", 1, 1000)
+  in let belief2 = make_frame("belief_sun", "The sun rises in the east", 1, 2000)
+  in let belief3 = make_frame("belief_moon", "The moon reflects sunlight", 1, 3000)
+  in let belief4 = make_frame("belief_stars", "Stars are visible at night when the sky is dark", 1, 4000)
+  in let belief5 = make_frame("belief_clouds", "Clouds can block the blue sky", 1, 5000)
+
+  -- Store beliefs in the "beliefs" namespace
+  in let _ = store_frame_ns("beliefs", belief1)
+  in let _ = store_frame_ns("beliefs", belief2)
+  in let _ = store_frame_ns("beliefs", belief3)
+  in let _ = store_frame_ns("beliefs", belief4)
+  in let _ = store_frame_ns("beliefs", belief5)
+
+  in let _ = _io_println("Stored 5 beliefs")
+
+  -- Check count
+  in let count = count_frames("beliefs")
+  in let _ = _io_println("Belief count: " ++ intToStr(count))
+
+  -- Find beliefs similar to "What color is the sky?"
+  in let query1 = "What color is the sky?"
+  in let _ = _io_println("\nQuery: " ++ query1)
+  in let results1 = find_similar("beliefs", query1, 3)
+  in let _ = print_results(results1)
+
+  -- Find beliefs similar to "When can you see stars?"
+  in let query2 = "When can you see stars?"
+  in let _ = _io_println("\nQuery: " ++ query2)
+  in let results2 = find_similar("beliefs", query2, 3)
+  in let _ = print_results(results2)
+
+  -- Resolve best match for a question about sunrise
+  in let query3 = "Where does the sun come up?"
+  in let _ = _io_println("\nResolving best match for: " ++ query3)
+  in let _ = match resolve_best_match("beliefs", query3) {
+    None => _io_println("No matching belief found"),
+    Some(frame) => _io_println("Best match: " ++ frame.content)
+  }
+
+  in "Demo complete"
+}
+
+-- Helper: Print search results
+func print_results(results: list[search_result]) -> unit ! {IO} {
+  match results {
+    [] => _io_println("  No results found"),
+    [first, ...rest] =>
+      let _ = _io_println("  Key: " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")")
+      in print_results(rest)
+  }
+}

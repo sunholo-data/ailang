@@ -343,18 +343,30 @@
     },
     "v0.5.10": {
       "file": "prompts/v0.5.10.md",
-      "hash": "efa8f86c5dbd007167bd8c90fa5ad8ab2d46d482001d19e31b87240245e3dfaa",
+      "hash": "1a0f8a84fe92c99d121cde88b5a442966995581cc9c678988acfe261260caf9d",
       "description": "Streamlined educational prompt with AI effect + Vertex AI ADC support (2,204 words)",
       "created": "2025-12-12",
       "tags": [
         "production",
-        "latest",
         "optimized"
       ],
       "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (❌ WRONG / ✅ RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
+    },
+    "v0.5.11": {
+      "file": "prompts/v0.5.11.md",
+      "hash": "dd7a2357c5c28a3c2c1c994434e2f8621a6288cf33aef09b8cf9eb70f0935f58",
+      "description": "Add Semantic Caching Doctrine + Embeddings Doctrine for AI agents",
+      "created": "2025-12-16",
+      "tags": [
+        "production",
+        "latest",
+        "semantic-caching",
+        "embeddings"
+      ],
+      "notes": "Major additions: (1) Semantic Caching Doctrine - SharedMem/SharedIndex as cognitive working memory, namespace conventions, canonical patterns (cache-or-compute, deduplication, multi-agent CAS). (2) Embeddings Doctrine - when/what/how to use neural embeddings for paraphrase detection, hybrid retrieval pattern. All v0.5.10 features included."
     }
   },
-  "active": "v0.5.10",
+  "active": "v0.5.11",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
