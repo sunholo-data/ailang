@@ -226,7 +226,12 @@ func printDocsSearchHelp() {
 	fmt.Println("  --neural-candidates  Max candidates for neural search (default: max(200, 20*limit))")
 	fmt.Println("  --limit <n>          Maximum results to return (default: 10)")
 	fmt.Println("  --json               Output results as JSON")
+	fmt.Println("  --rebuild            Force rebuild of all embeddings (ignore cache)")
 	fmt.Println("  --help               Show this help message")
+	fmt.Println()
+	fmt.Println("Cache Management:")
+	fmt.Println("  --cache-info         Show embedding cache statistics")
+	fmt.Println("  --cleanup            Remove orphaned cache entries (files that no longer exist)")
 	fmt.Println()
 	fmt.Println("Note: Flags must come BEFORE the query.")
 	fmt.Println()
@@ -237,11 +242,14 @@ func printDocsSearchHelp() {
 	fmt.Println("  ailang docs search --path docs --subdir guides \"getting started\"")
 	fmt.Println("  ailang docs search --neural \"semantic search\"")
 	fmt.Println("  ailang docs search --limit 5 --json \"builtin\"")
+	fmt.Println("  ailang docs search --cache-info")
+	fmt.Println("  ailang docs search --cleanup")
 	fmt.Println()
 	fmt.Println("Neural Search:")
 	fmt.Println("  When using --neural, embeddings are computed lazily only for the")
 	fmt.Println("  bounded SimHash candidate set. Embeddings are cached per-corpus with")
 	fmt.Println("  model version tagging - subsequent searches reuse cached embeddings.")
+	fmt.Println("  Content changes are detected via SHA256 hash - stale entries auto-recompute.")
 }
 
 // max returns the larger of a or b
