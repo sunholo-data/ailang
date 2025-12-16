@@ -130,6 +130,49 @@ Bug reported: [SolarPlanet] return type panics
 - [ ] Look at git history - has this area been patched repeatedly?
 - [ ] Design fix to cover ALL cases, not just the reported one
 
+**🔍 Use `ailang docs search` to Check Existing Work:**
+
+Before creating a design doc, search for existing implementations:
+
+```bash
+# Check if feature already implemented
+ailang docs search --stream implemented "feature keywords"
+
+# Check if design doc already planned
+ailang docs search --stream planned "feature keywords"
+
+# Use neural search for semantic matching (requires Ollama)
+ailang docs search --neural "semantic description of feature"
+
+# Search with JSON output for programmatic use
+ailang docs search --stream implemented --json "keywords"
+```
+
+**Example workflow:**
+```bash
+# Before creating "lazy embeddings" design doc:
+$ ailang docs search --stream implemented "embedding cache"
+🔍 SimHash search: "embedding cache"
+   Scanned: 42 docs
+
+No matching documents found.
+# ✅ Safe to create - not implemented yet
+
+$ ailang docs search --stream planned "lazy embedding"
+🔍 SimHash search: "lazy embedding"
+   Scanned: 28 docs
+
+1. design_docs/planned/v0_5_11/m-doc-sem-lazy-embeddings.md (0.85)
+# ⚠️ Already planned - review existing doc first
+```
+
+**Key flags:**
+- `--stream implemented` - Only search implemented/ directory
+- `--stream planned` - Only search planned/ directory
+- `--neural` - Use semantic embeddings (finds conceptually similar docs)
+- `--limit N` - Return top N results
+- `--json` - JSON output for scripting
+
 **Warning Signs of Fragmented Design:**
 - Multiple maps tracking similar things (`adtSliceTypes`, `recordTypes`...)
 - Switch statements with growing case lists
