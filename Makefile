@@ -834,7 +834,7 @@ docs-build: build-wasm
 	@mkdir -p docs/static/wasm docs/static/js docs/src/components
 	@cp bin/ailang.wasm docs/static/wasm/
 	@# Download wasm_exec.js from Go repo (GOROOT path unreliable with GOTOOLCHAIN=auto)
-	@curl -sL -o docs/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
+	@curl -sL -o docs/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js
 	@cp web/ailang-repl.js docs/static/js/
 	@cp web/AilangRepl.jsx docs/src/components/
 	@echo "Building Docusaurus site..."
@@ -870,7 +870,7 @@ build-wasm:
 	@echo "  1. Copy $(BUILD_DIR)/$(BINARY).wasm to your-site/static/wasm/"
 	@echo "  2. Copy web/ailang-repl.js to your-site/src/components/"
 	@echo "  3. Copy web/AilangRepl.jsx to your-site/src/components/"
-	@echo "  4. Download wasm_exec.js: curl -sL -o your-site/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js"
+	@echo "  4. Download wasm_exec.js: curl -sL -o your-site/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js"
 	@echo "  5. See web/README.md for complete setup instructions"
 
 
