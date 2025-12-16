@@ -26,10 +26,11 @@ type EmbeddingCache struct {
 
 // CachedEmbedding stores an embedding with metadata
 type CachedEmbedding struct {
-	Path      string    `json:"path"`
-	Embedding []float32 `json:"embedding"`
-	Model     string    `json:"model"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Path        string    `json:"path"`
+	Embedding   []float32 `json:"embedding"`
+	Model       string    `json:"model"`
+	ContentHash string    `json:"content_hash"` // SHA256 of content for staleness detection
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // EmbeddingCacheFile is the JSON structure for persisting the cache
@@ -109,8 +110,8 @@ func (c *EmbeddingCache) save() error {
 	return os.WriteFile(c.filePath, data, 0644)
 }
 
-// Get retrieves a cached embedding if it exists and model matches
-func (c *EmbeddingCache) Get(path string) ([]float32, bool) {
+// Get retrieves a cached embedding if it exists, model matches, and content is fresh
+func (c *EmbeddingCache) Get(path, contentHash string) ([]float32, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -124,21 +125,33 @@ func (c *EmbeddingCache) Get(path string) ([]float32, bool) {
 		return nil, false
 	}
 
+	// Check content hash matches (if provided and stored)
+	if contentHash != "" && entry.ContentHash != "" && entry.ContentHash != contentHash {
+		return nil, false // Content changed, need to recompute
+	}
+
 	return entry.Embedding, true
 }
 
-// Set stores an embedding in the cache
-func (c *EmbeddingCache) Set(path string, embedding []float32) {
+// Set stores an embedding in the cache with content hash
+func (c *EmbeddingCache) Set(path string, embedding []float32, contentHash string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.entries[path] = &CachedEmbedding{
-		Path:      path,
-		Embedding: embedding,
-		Model:     c.model,
-		UpdatedAt: time.Now(),
+		Path:        path,
+		Embedding:   embedding,
+		Model:       c.model,
+		ContentHash: contentHash,
+		UpdatedAt:   time.Now(),
 	}
 	c.dirty = true
+}
+
+// hashContent computes SHA256 hash of content for staleness detection
+func hashContent(content string) string {
+	h := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(h[:])
 }
 
 // Close saves the cache to disk
@@ -186,8 +199,11 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 	var scoredDocs []scoredDoc
 
 	for _, doc := range candidates {
-		// Check cache first
-		if cachedEmb, ok := cache.Get(doc.Path); ok {
+		// Compute content hash for staleness detection
+		docHash := hashContent(doc.Content)
+
+		// Check cache first (validates model AND content hash)
+		if cachedEmb, ok := cache.Get(doc.Path, docHash); ok {
 			stats.EmbeddingsReused++
 			score := messaging.CosineSimilarity(queryEmb, cachedEmb)
 			scoredDocs = append(scoredDocs, scoredDoc{
@@ -198,15 +214,15 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 			continue
 		}
 
-		// Compute embedding
+		// Compute embedding (cache miss or stale)
 		emb, err := embedder.Embed(doc.Content)
 		if err != nil {
 			// Skip docs that fail to embed
 			continue
 		}
 
-		// Cache the embedding
-		cache.Set(doc.Path, emb)
+		// Cache the embedding with content hash
+		cache.Set(doc.Path, emb, docHash)
 		stats.EmbeddingsComputed++
 
 		// Compute score
@@ -239,6 +255,140 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 	}
 
 	return results, stats, nil
+}
+
+// CacheInfo contains cache statistics
+type CacheInfo struct {
+	CorpusPath    string
+	CacheFile     string
+	Model         string
+	EntryCount    int
+	CacheSize     int64
+	LastUpdated   time.Time
+	OrphanedCount int
+}
+
+// CleanupResult contains cleanup operation results
+type CleanupResult struct {
+	RemovedCount int
+	RemovedPaths []string
+	OldSize      int64
+	NewSize      int64
+}
+
+// GetCacheInfo returns cache statistics for a corpus
+func GetCacheInfo(corpusPath string) (*CacheInfo, error) {
+	homeDir, _ := os.UserHomeDir()
+	cacheDir := filepath.Join(homeDir, ".ailang", "cache", "embeddings")
+	corpusHash := hashCorpusPath(corpusPath)
+	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("%s.json", corpusHash))
+
+	info := &CacheInfo{
+		CorpusPath: corpusPath,
+		CacheFile:  cacheFile,
+	}
+
+	// Check if cache file exists
+	stat, err := os.Stat(cacheFile)
+	if os.IsNotExist(err) {
+		return info, nil // Empty cache
+	}
+	if err != nil {
+		return nil, fmt.Errorf("stat cache file: %w", err)
+	}
+	info.CacheSize = stat.Size()
+
+	// Load cache file
+	data, err := os.ReadFile(cacheFile)
+	if err != nil {
+		return nil, fmt.Errorf("read cache file: %w", err)
+	}
+
+	var file EmbeddingCacheFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return nil, fmt.Errorf("parse cache file: %w", err)
+	}
+
+	info.Model = file.Model
+	info.EntryCount = len(file.Entries)
+
+	// Find latest update time and count orphaned entries
+	for path, entry := range file.Entries {
+		if entry.UpdatedAt.After(info.LastUpdated) {
+			info.LastUpdated = entry.UpdatedAt
+		}
+		// Check if file still exists
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			info.OrphanedCount++
+		}
+	}
+
+	return info, nil
+}
+
+// CleanupCache removes orphaned entries from the cache
+func CleanupCache(corpusPath string) (*CleanupResult, error) {
+	homeDir, _ := os.UserHomeDir()
+	cacheDir := filepath.Join(homeDir, ".ailang", "cache", "embeddings")
+	corpusHash := hashCorpusPath(corpusPath)
+	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("%s.json", corpusHash))
+
+	result := &CleanupResult{}
+
+	// Check if cache file exists
+	stat, err := os.Stat(cacheFile)
+	if os.IsNotExist(err) {
+		return result, nil // Nothing to clean
+	}
+	if err != nil {
+		return nil, fmt.Errorf("stat cache file: %w", err)
+	}
+	result.OldSize = stat.Size()
+
+	// Load cache file
+	data, err := os.ReadFile(cacheFile)
+	if err != nil {
+		return nil, fmt.Errorf("read cache file: %w", err)
+	}
+
+	var file EmbeddingCacheFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return nil, fmt.Errorf("parse cache file: %w", err)
+	}
+
+	// Find and remove orphaned entries
+	newEntries := make(map[string]*CachedEmbedding)
+	for path, entry := range file.Entries {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			result.RemovedCount++
+			result.RemovedPaths = append(result.RemovedPaths, path)
+		} else {
+			newEntries[path] = entry
+		}
+	}
+
+	if result.RemovedCount == 0 {
+		result.NewSize = result.OldSize
+		return result, nil
+	}
+
+	// Save cleaned cache
+	file.Entries = newEntries
+	newData, err := json.MarshalIndent(file, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshal cache: %w", err)
+	}
+
+	if err := os.WriteFile(cacheFile, newData, 0644); err != nil {
+		return nil, fmt.Errorf("write cache file: %w", err)
+	}
+
+	newStat, _ := os.Stat(cacheFile)
+	if newStat != nil {
+		result.NewSize = newStat.Size()
+	}
+
+	return result, nil
 }
 
 func init() {

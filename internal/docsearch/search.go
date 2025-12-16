@@ -22,6 +22,7 @@ type SearchOptions struct {
 	NeuralCandidates int    // Max candidates for neural search
 	Limit            int    // Max results to return
 	JSON             bool   // Output as JSON
+	Rebuild          bool   // Force rebuild of all embeddings (ignore cache)
 }
 
 // SearchResult represents a single search match

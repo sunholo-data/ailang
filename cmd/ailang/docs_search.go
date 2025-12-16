@@ -26,6 +26,11 @@ func docsSearchCommand(args []string) {
 	jsonFlag := searchFlags.Bool("json", false, "Output results as JSON")
 	helpFlag := searchFlags.Bool("help", false, "Show help for docs search")
 
+	// Cache management flags
+	cacheInfoFlag := searchFlags.Bool("cache-info", false, "Show embedding cache statistics")
+	cleanupFlag := searchFlags.Bool("cleanup", false, "Remove orphaned cache entries")
+	rebuildFlag := searchFlags.Bool("rebuild", false, "Force rebuild of all embeddings")
+
 	if err := searchFlags.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -36,7 +41,17 @@ func docsSearchCommand(args []string) {
 		return
 	}
 
-	// Need a query
+	// Handle cache management commands (no query needed)
+	if *cacheInfoFlag {
+		showCacheInfo(*pathFlag)
+		return
+	}
+	if *cleanupFlag {
+		runCacheCleanup(*pathFlag)
+		return
+	}
+
+	// Need a query for search
 	if searchFlags.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: search query required\n", red("Error"))
 		fmt.Fprintln(os.Stderr, "\nUsage: ailang docs search \"<query>\" [flags]")
@@ -99,6 +114,7 @@ func docsSearchCommand(args []string) {
 		NeuralCandidates: candidates,
 		Limit:            *limitFlag,
 		JSON:             *jsonFlag,
+		Rebuild:          *rebuildFlag,
 	}
 
 	// Run search
@@ -241,4 +257,81 @@ type FrameMetadata struct {
 	EmbeddingModel     string    `json:"embedding_model,omitempty"`
 	EmbeddingUpdatedAt time.Time `json:"embedding_updated_at,omitempty"`
 	EmbeddingDim       int       `json:"embedding_dim,omitempty"`
+}
+
+// showCacheInfo displays embedding cache statistics
+func showCacheInfo(pathFlag string) {
+	// Determine corpus path
+	var corpusPath string
+	var err error
+	if pathFlag != "" {
+		corpusPath, err = filepath.Abs(pathFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: invalid path: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	} else {
+		corpusPath, err = findDesignDocsDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	}
+
+	info, err := docsearch.GetCacheInfo(corpusPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	fmt.Println("📦 Embedding Cache Info:")
+	fmt.Printf("   Corpus: %s\n", info.CorpusPath)
+	fmt.Printf("   Cache file: %s\n", info.CacheFile)
+	fmt.Printf("   Model: %s\n", info.Model)
+	fmt.Printf("   Entries: %d\n", info.EntryCount)
+	fmt.Printf("   Cache size: %.2f KB\n", float64(info.CacheSize)/1024)
+	if !info.LastUpdated.IsZero() {
+		fmt.Printf("   Last updated: %s\n", info.LastUpdated.Format("2006-01-02 15:04:05"))
+	}
+	if info.OrphanedCount > 0 {
+		fmt.Printf("\n   ⚠️  Orphaned entries: %d (use --cleanup to remove)\n", info.OrphanedCount)
+	}
+}
+
+// runCacheCleanup removes orphaned cache entries
+func runCacheCleanup(pathFlag string) {
+	// Determine corpus path
+	var corpusPath string
+	var err error
+	if pathFlag != "" {
+		corpusPath, err = filepath.Abs(pathFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: invalid path: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	} else {
+		corpusPath, err = findDesignDocsDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	}
+
+	result, err := docsearch.CleanupCache(corpusPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	fmt.Println("🧹 Cache cleanup:")
+	if result.RemovedCount == 0 {
+		fmt.Println("   No orphaned entries found.")
+	} else {
+		fmt.Printf("   Removed %d orphaned entries:\n", result.RemovedCount)
+		for _, path := range result.RemovedPaths {
+			fmt.Printf("   - %s\n", path)
+		}
+		fmt.Printf("\n   Cache size: %.2f KB → %.2f KB\n",
+			float64(result.OldSize)/1024, float64(result.NewSize)/1024)
+	}
 }

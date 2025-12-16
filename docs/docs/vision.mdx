@@ -182,45 +182,36 @@ See the [Benchmark Dashboard](/docs/benchmarks/performance) for live results, tr
 
 ---
 
-## Current Capabilities — v0.5.x
+## Core Capabilities
 
-AILANG today provides:
+AILANG provides:
 
-- <Icon name="check" inline /> **Algebraic Effects** — `! {IO, FS, Net, DB}` declares capabilities in types
+- <Icon name="check" inline /> **Algebraic Effects** — `! {IO, FS, Net, AI, SharedMem}` declares capabilities in types
 - <Icon name="check" inline /> **Deterministic Core** — pure functions are referentially transparent
 - <Icon name="check" inline /> **Structured Traces** — effect calls logged with typed inputs/outputs
 - <Icon name="check" inline /> **Inline Tests** — specs travel with code, machine-readable
 - <Icon name="check" inline /> **Go Codegen** — compile to native performance
+- <Icon name="check" inline /> **Semantic Caching** — multi-agent coordination through shared memory
+- <Icon name="check" inline /> **AI Effect** — unified interface for LLM calls across providers
+
+See [Implementation Status](/docs/reference/implementation-status) for detailed feature availability.
 
 ---
 
-## Roadmap — Where We're Going
+## Future Directions
 
-### v0.6: Execution Profiles
+AILANG development focuses on three areas:
 
-Formalize the three execution modes:
+### Execution Profiles
+Formalized modes for different use cases: simulations, services, and CLI tools — each with validated entry shapes and effect constraints.
 
-| Profile | Entry Shape | Use Case |
-|---------|-------------|----------|
-| **SimProfile** | `step(World, Input) -> (World, Output)` | Simulations, games, RL |
-| **ServiceProfile** | `handle(Request) -> Response` | Microservices, agents |
-| **CliProfile** | `main(args) -> ()` | CLI tools |
+### Deterministic Tooling
+AI-friendly code transformation: canonical normalization, import suggestion, and structured code edits via JSON plans.
 
-### v0.7: Deterministic Tooling
+### Multi-Agent Coordination
+Language-level primitives for agent collaboration: semantic deduplication, CAS-based updates, and effect-tracked caching patterns.
 
-AI-friendly code transformation tools:
-
-- `ailang normalize` — canonical form for semantic comparison
-- `ailang suggest-imports` — auto-fix missing imports
-- `ailang apply` — structured code edits
-
-### v0.8: Shared Semantic State
-
-Multi-agent coordination through language-level shared memory:
-
-- Semantic caching keyed by (problem + types + tests)
-- CAS-based coordination for deterministic updates
-- Effect-tracked caching patterns
+See the [Roadmap](/docs/roadmap) for detailed plans and [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md) for recent additions.
 
 ---
 
