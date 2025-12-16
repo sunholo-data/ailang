@@ -16,8 +16,8 @@ import (
 // SearchOptions configures a documentation search
 type SearchOptions struct {
 	Query            string // Search query text
-	DocsPath         string // Path to design_docs directory
-	Stream           string // Filter: "planned", "implemented", "all"
+	DocsPath         string // Path to document corpus directory
+	Subdir           string // Filter by subdirectory pattern (e.g., "planned", "guides")
 	Neural           bool   // Use neural embeddings (requires Ollama)
 	NeuralCandidates int    // Max candidates for neural search
 	Limit            int    // Max results to return
@@ -59,7 +59,7 @@ func Search(opts SearchOptions) ([]SearchResult, SearchStats, error) {
 	stats := SearchStats{}
 
 	// Discover documents
-	docs, err := discoverDocs(opts.DocsPath, opts.Stream)
+	docs, err := discoverDocs(opts.DocsPath, opts.Subdir)
 	if err != nil {
 		return nil, stats, fmt.Errorf("discovering docs: %w", err)
 	}
@@ -78,7 +78,7 @@ func Search(opts SearchOptions) ([]SearchResult, SearchStats, error) {
 
 	if opts.Neural {
 		// Stage 2-3: Neural embedding search
-		results, stats, err = neuralSearch(candidates, opts.Query, opts.Limit, stats)
+		results, stats, err = neuralSearch(candidates, opts.Query, opts.DocsPath, opts.Limit, stats)
 		if err != nil {
 			// Fallback to SimHash-only results on neural failure
 			results = simhashResults(candidates, opts.Limit)
@@ -93,14 +93,14 @@ func Search(opts SearchOptions) ([]SearchResult, SearchStats, error) {
 	return results, stats, nil
 }
 
-// discoverDocs finds all markdown files in the docs path, filtered by stream
-func discoverDocs(docsPath, stream string) ([]DocFrame, error) {
+// discoverDocs finds all markdown files in the docs path, filtered by subdir pattern
+func discoverDocs(docsPath, subdir string) ([]DocFrame, error) {
 	var docs []DocFrame
 
-	// Debug: track stream filter
+	// Debug: track subdir filter
 	debug := os.Getenv("DEBUG_DOCSEARCH") == "1"
 	if debug {
-		fmt.Fprintf(os.Stderr, "[DEBUG] discoverDocs: docsPath=%q stream=%q\n", docsPath, stream)
+		fmt.Fprintf(os.Stderr, "[DEBUG] discoverDocs: docsPath=%q subdir=%q\n", docsPath, subdir)
 	}
 
 	err := filepath.Walk(docsPath, func(path string, info os.FileInfo, err error) error {
@@ -108,19 +108,16 @@ func discoverDocs(docsPath, stream string) ([]DocFrame, error) {
 			return nil // Skip errors, continue walking
 		}
 
-		// Only process markdown files
-		if info.IsDir() || !strings.HasSuffix(path, ".md") {
+		// Only process markdown files (and .mdx for docusaurus)
+		if info.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".mdx")) {
 			return nil
 		}
 
-		// Filter by stream
-		if stream == "planned" {
-			if !strings.Contains(path, "/planned/") {
-				return nil
-			}
-		}
-		if stream == "implemented" {
-			if !strings.Contains(path, "/implemented/") {
+		// Filter by subdir pattern (if specified)
+		if subdir != "" {
+			// Check if path contains the subdir pattern
+			pattern := "/" + subdir + "/"
+			if !strings.Contains(path, pattern) {
 				return nil
 			}
 		}
@@ -282,6 +279,6 @@ func simhashResults(candidates []DocFrame, limit int) []SearchResult {
 
 // neuralSearch performs embedding-based semantic search (Stage 2-3)
 // Delegates to neuralSearchImpl in embed.go
-func neuralSearch(candidates []DocFrame, query string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
-	return neuralSearchImpl(candidates, query, limit, stats)
+func neuralSearch(candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
+	return neuralSearchImpl(candidates, query, corpus, limit, stats)
 }

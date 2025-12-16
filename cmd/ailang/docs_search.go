@@ -17,7 +17,9 @@ func docsSearchCommand(args []string) {
 	searchFlags := flag.NewFlagSet("docs search", flag.ExitOnError)
 
 	// Flags
-	streamFlag := searchFlags.String("stream", "all", "Filter by stream: planned, implemented, all")
+	pathFlag := searchFlags.String("path", "", "Document corpus path (default: design_docs)")
+	subdirFlag := searchFlags.String("subdir", "", "Filter by subdirectory pattern")
+	streamFlag := searchFlags.String("stream", "", "Filter by stream: planned, implemented, all (alias for --subdir, design_docs only)")
 	neuralFlag := searchFlags.Bool("neural", false, "Use neural embeddings for semantic search")
 	neuralCandidates := searchFlags.Int("neural-candidates", 0, "Max candidates for neural search (default: max(200, 20*limit))")
 	limitFlag := searchFlags.Int("limit", 10, "Maximum results to return")
@@ -43,11 +45,43 @@ func docsSearchCommand(args []string) {
 
 	query := searchFlags.Arg(0)
 
-	// Find design_docs directory
-	docsPath, err := findDesignDocsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
+	// Determine docs path
+	var docsPath string
+	var err error
+	if *pathFlag != "" {
+		// User specified path
+		docsPath, err = filepath.Abs(*pathFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: invalid path: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if info, statErr := os.Stat(docsPath); statErr != nil || !info.IsDir() {
+			fmt.Fprintf(os.Stderr, "%s: path not found or not a directory: %s\n", red("Error"), *pathFlag)
+			os.Exit(1)
+		}
+	} else {
+		// Default to design_docs
+		docsPath, err = findDesignDocsDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	}
+
+	// Handle --stream as alias for --subdir (backwards compatibility)
+	subdir := *subdirFlag
+	if *streamFlag != "" && subdir == "" {
+		// Map stream values to subdir patterns
+		switch *streamFlag {
+		case "planned":
+			subdir = "planned"
+		case "implemented":
+			subdir = "implemented"
+		case "all":
+			subdir = ""
+		default:
+			subdir = *streamFlag // Allow arbitrary values
+		}
 	}
 
 	// Calculate neural candidates default
@@ -60,7 +94,7 @@ func docsSearchCommand(args []string) {
 	opts := docsearch.SearchOptions{
 		Query:            query,
 		DocsPath:         docsPath,
-		Stream:           *streamFlag,
+		Subdir:           subdir,
 		Neural:           *neuralFlag,
 		NeuralCandidates: candidates,
 		Limit:            *limitFlag,
@@ -166,10 +200,12 @@ func printJSONResults(results []docsearch.SearchResult, stats docsearch.SearchSt
 func printDocsSearchHelp() {
 	fmt.Println("Usage: ailang docs search [flags] \"<query>\"")
 	fmt.Println()
-	fmt.Println("Search design documentation using SimHash or neural embeddings.")
+	fmt.Println("Search documentation using SimHash or neural embeddings.")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  --stream <stream>    Filter by stream: planned, implemented, all (default: all)")
+	fmt.Println("  --path <dir>         Document corpus path (default: design_docs)")
+	fmt.Println("  --subdir <pattern>   Filter by subdirectory (e.g., 'guides', 'planned')")
+	fmt.Println("  --stream <stream>    Alias for --subdir (backwards compatibility)")
 	fmt.Println("  --neural             Use neural embeddings for semantic search (requires Ollama)")
 	fmt.Println("  --neural-candidates  Max candidates for neural search (default: max(200, 20*limit))")
 	fmt.Println("  --limit <n>          Maximum results to return (default: 10)")
@@ -181,13 +217,15 @@ func printDocsSearchHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ailang docs search \"parser error\"")
 	fmt.Println("  ailang docs search --stream planned \"type inference\"")
+	fmt.Println("  ailang docs search --path docs \"semantic caching\"")
+	fmt.Println("  ailang docs search --path docs --subdir guides \"getting started\"")
 	fmt.Println("  ailang docs search --neural \"semantic search\"")
 	fmt.Println("  ailang docs search --limit 5 --json \"builtin\"")
 	fmt.Println()
 	fmt.Println("Neural Search:")
 	fmt.Println("  When using --neural, embeddings are computed lazily only for the")
-	fmt.Println("  bounded SimHash candidate set. Embeddings are cached with model")
-	fmt.Println("  version tagging - subsequent searches reuse cached embeddings.")
+	fmt.Println("  bounded SimHash candidate set. Embeddings are cached per-corpus with")
+	fmt.Println("  model version tagging - subsequent searches reuse cached embeddings.")
 }
 
 // max returns the larger of a or b

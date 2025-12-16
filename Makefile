@@ -802,13 +802,18 @@ sync-prompts:
 	@echo "Syncing prompts/ to docs/docs/prompts/ (Docusaurus)..."
 	@./docs/scripts/sync-prompts.sh
 
+.PHONY: sync-versions
+sync-versions:
+	@echo "Syncing version constants from prompts/versions.json..."
+	@./tools/sync_version_constants.sh
+
 .PHONY: generate-llms-txt
 generate-llms-txt:
 	@echo "Generating llms.txt..."
 	@./tools/generate-llms-txt.sh
 
 .PHONY: docs
-docs: sync-prompts generate-llms-txt
+docs: sync-prompts sync-versions generate-llms-txt
 	@echo "✓ All documentation generated"
 
 # Website preview targets (Docusaurus)

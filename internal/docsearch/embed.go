@@ -1,6 +1,8 @@
 package docsearch
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,6 +19,7 @@ type EmbeddingCache struct {
 	mu       sync.RWMutex
 	entries  map[string]*CachedEmbedding // key: doc path
 	model    string                      // current model name
+	corpus   string                      // corpus path (for per-corpus caching)
 	filePath string                      // cache file path
 	dirty    bool                        // needs saving
 }
@@ -35,23 +38,34 @@ type EmbeddingCacheFile struct {
 	Entries map[string]*CachedEmbedding `json:"entries"`
 }
 
-// NewEmbeddingCache creates a new embedding cache
-func NewEmbeddingCache(model string) *EmbeddingCache {
+// NewEmbeddingCache creates a new embedding cache for a specific corpus
+func NewEmbeddingCache(model, corpus string) *EmbeddingCache {
 	// Determine cache file path
 	homeDir, _ := os.UserHomeDir()
-	cacheDir := filepath.Join(homeDir, ".ailang", "cache")
+	cacheDir := filepath.Join(homeDir, ".ailang", "cache", "embeddings")
 	_ = os.MkdirAll(cacheDir, 0755) // Best effort, cache works without persistence
+
+	// Generate corpus hash for cache filename
+	corpusHash := hashCorpusPath(corpus)
+	cacheFile := fmt.Sprintf("%s.json", corpusHash)
 
 	cache := &EmbeddingCache{
 		entries:  make(map[string]*CachedEmbedding),
 		model:    model,
-		filePath: filepath.Join(cacheDir, "doc_embeddings.json"),
+		corpus:   corpus,
+		filePath: filepath.Join(cacheDir, cacheFile),
 	}
 
 	// Try to load existing cache
 	cache.load()
 
 	return cache
+}
+
+// hashCorpusPath generates a short hash of the corpus path for cache filenames
+func hashCorpusPath(corpus string) string {
+	h := sha256.Sum256([]byte(corpus))
+	return hex.EncodeToString(h[:8]) // First 8 bytes = 16 hex chars
 }
 
 // load reads cache from disk
@@ -134,7 +148,7 @@ func (c *EmbeddingCache) Close() error {
 
 // neuralSearchImpl performs embedding-based semantic search
 // This is the real implementation of neuralSearch
-func neuralSearchImpl(candidates []DocFrame, query string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
+func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
 	// Load embedding config
 	cfg := messaging.LoadEmbedConfigFromEnv()
 
@@ -152,8 +166,8 @@ func neuralSearchImpl(candidates []DocFrame, query string, limit int, stats Sear
 	modelName := embedder.ModelName()
 	stats.EmbeddingModel = modelName
 
-	// Create/load cache
-	cache := NewEmbeddingCache(modelName)
+	// Create/load cache (per-corpus)
+	cache := NewEmbeddingCache(modelName, corpus)
 	defer cache.Close()
 
 	// Compute query embedding
