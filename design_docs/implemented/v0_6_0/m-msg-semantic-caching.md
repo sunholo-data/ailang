@@ -1,8 +1,9 @@
 # M-MSG-SEMANTIC: Semantic Search + Safe Deduplication for AILANG Messages
 
-**Status:** Planned
-**Target:** v0.5.12
-**Estimated LOC:** ~600
+**Status:** IMPLEMENTED
+**Target:** v0.5.11
+**Estimated LOC:** ~600 → **Actual:** ~650 LOC
+**Implemented:** 2025-12-16
 **Prerequisites:** DX-15/16/17 (SharedMem/SharedIndex + SimHash + embeddings + Ollama Embedder) ✅ in v0.5.11
 **Dogfood Goal:** Make semantic caching the default way AILANG developers and agents triage and reuse message context.
 

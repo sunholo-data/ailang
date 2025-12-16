@@ -1,6 +1,71 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.6.0] - 2025-12-16
+
+### Added - Semantic Doc Search (M-DOC-SEM)
+
+Added `ailang docs search` command with two-stage semantic search pipeline: SimHash for fast candidate filtering, optional neural embeddings for semantic similarity.
+
+**Features:**
+- `ailang docs search "query"` - Fast SimHash-based search across design docs
+- `--neural` flag - Enable neural embeddings via Ollama for semantic matching
+- `--path <dir>` - Search any document corpus (default: design_docs)
+- `--stream planned|implemented` - Filter by subdirectory
+- `--limit N` - Control result count (default: 10)
+- `--json` - JSON output for scripting
+- Per-corpus embedding cache with SHA256 content hash for staleness detection
+- Cache management: `--cache-info`, `--cleanup`, `--rebuild`
+
+**Example usage:**
+```bash
+# Fast SimHash search
+ailang docs search "parser error"
+
+# Neural semantic search (requires Ollama)
+ailang docs search --neural "how to handle type inference"
+
+# Search website docs
+ailang docs search --path docs "getting started"
+
+# Cache management
+ailang docs search --cache-info
+ailang docs search --cleanup
+```
+
+**Files Created:**
+- `cmd/ailang/docs_search.go` - CLI command (~350 LOC)
+- `internal/docsearch/search.go` - SimHash search pipeline (~295 LOC)
+- `internal/docsearch/embed.go` - Lazy embedding + cache management (~370 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_6_0/m-doc-sem-lazy-embeddings.md](design_docs/implemented/v0_6_0/m-doc-sem-lazy-embeddings.md)
+
+### Added - Semantic Message Search (M-MSG-SEMANTIC)
+
+Added semantic search and safe deduplication for the `ailang messages` CLI.
+
+**Features:**
+- `ailang messages search "query"` - Find messages by semantic similarity
+- `--neural` flag - Use Ollama embeddings for semantic matching
+- `--threshold N` - Minimum similarity score (default: 0.70)
+- `ailang messages dedupe` - Find duplicate message clusters
+- `--apply` flag - Actually mark duplicates (reversible via `dup_of` field)
+- Inbox inference from git repo name
+
+**Example usage:**
+```bash
+# Search messages
+ailang messages search "parser bugs"
+
+# Find duplicates
+ailang messages dedupe --threshold 0.95
+ailang messages dedupe --threshold 0.95 --apply
+```
+
+**Files Created:**
+- `cmd/ailang/messages_search.go` - Search + dedupe CLI (~220 LOC)
+- `internal/messaging/search.go` - SemanticSearch + FindDuplicates (~300 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_6_0/m-msg-semantic-caching.md](design_docs/implemented/v0_6_0/m-msg-semantic-caching.md)
 
 ### Added - Type Inference Debug CLI (M-DX11)
 

@@ -59,10 +59,11 @@ jobs:
 
       - name: Copy static assets
         run: |
-          mkdir -p docs/static/js
+          mkdir -p docs/static/js docs/static/wasm
           cp llms.txt docs/static/
           cp bin/ailang.wasm docs/static/wasm/
-          cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" docs/static/wasm/
+          # Download wasm_exec.js from Go repository (more reliable than GOROOT path)
+          curl -sL -o docs/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
           cp web/ailang-repl.js docs/static/js/
           cp web/AilangRepl.jsx docs/src/components/
 

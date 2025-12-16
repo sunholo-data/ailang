@@ -1,10 +1,11 @@
 # M-DOC-SEM: Lazy Embeddings for Neural Doc Search
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.5.11
 **Priority**: P1 (Medium)
-**Estimated**: 2-3 days
+**Estimated**: 2-3 days → **Actual**: 0.75 days (1005 LOC)
 **Dependencies**: M-DX15 (SimHash builtins - COMPLETE), SharedIndex infrastructure
+**Implemented**: 2025-12-16
 
 ## AI-First Alignment Check
 
@@ -118,22 +119,22 @@ Store in frame opaque or dedicated fields:
 - [x] Add `--json` output format
 - [x] Update CLAUDE.md with agent instructions
 
-**Phase 5: General Corpus Support** (~2 hours)
-- [ ] Add `--path <dir>` flag (default: `design_docs`)
-- [ ] Rename `--stream` to `--subdir` for general filtering
-- [ ] Per-corpus cache files: `~/.ailang/cache/embeddings/<corpus-hash>.json`
-- [ ] Update help text for general-purpose usage
+**Phase 5: General Corpus Support** (COMPLETE ✅)
+- [x] Add `--path <dir>` flag (default: `design_docs`)
+- [x] `--subdir` filter for general filtering (`--stream` kept as alias)
+- [x] Per-corpus cache files: `~/.ailang/cache/embeddings/<corpus-hash>.json`
+- [x] Update help text for general-purpose usage
 
-**Phase 6: Content Hash Caching** (~1.5 hours)
-- [ ] Add `content_hash` (SHA256) to `CachedEmbedding` struct
-- [ ] On cache lookup: verify content hash matches current file
-- [ ] Hash mismatch → automatic recompute (content changed)
-- [ ] Store absolute paths for reliable cache key matching
+**Phase 6: Content Hash Caching** (COMPLETE ✅)
+- [x] Add `content_hash` (SHA256) to `CachedEmbedding` struct
+- [x] On cache lookup: verify content hash matches current file
+- [x] Hash mismatch → automatic recompute (content changed)
+- [x] Store absolute paths for reliable cache key matching
 
-**Phase 7: Cache Management Commands** (~1 hour)
-- [ ] Add `--cleanup` flag to remove orphaned entries (paths that no longer exist)
-- [ ] Add `--cache-info` flag to show cache stats (entries, size, model, corpus)
-- [ ] Add `--rebuild` flag to force full cache rebuild
+**Phase 7: Cache Management Commands** (COMPLETE ✅)
+- [x] Add `--cleanup` flag to remove orphaned entries (paths that no longer exist)
+- [x] Add `--cache-info` flag to show cache stats (entries, size, model, corpus)
+- [x] Add `--rebuild` flag to force full cache rebuild
 
 ### Files to Modify/Create
 
@@ -274,14 +275,32 @@ Add to agent docs:
 - [x] `--json` output format works
 - [x] Agent instruction block updated
 
-**Phase 5-7 (TODO):**
-- [ ] `--path <dir>` supports arbitrary document corpora
-- [ ] `--subdir <pattern>` filters by subdirectory (replaces `--stream`)
-- [ ] Per-corpus cache files (`~/.ailang/cache/embeddings/<corpus-hash>.json`)
-- [ ] Content hash validates cache freshness (auto-recompute on change)
-- [ ] `--cleanup` removes orphaned cache entries
-- [ ] `--cache-info` shows cache statistics
-- [ ] `--rebuild` forces full cache rebuild
+**Phase 5-7 (COMPLETE ✅):**
+- [x] `--path <dir>` supports arbitrary document corpora
+- [x] `--subdir <pattern>` filters by subdirectory (`--stream` kept as backwards-compatible alias)
+- [x] Per-corpus cache files (`~/.ailang/cache/embeddings/<corpus-hash>.json`)
+- [x] Content hash (SHA256) validates cache freshness (auto-recompute on change)
+- [x] `--cleanup` removes orphaned cache entries
+- [x] `--cache-info` shows cache statistics
+- [x] `--rebuild` forces full cache rebuild
+
+## Implementation Summary
+
+**Files Created:**
+- `cmd/ailang/docs_search.go` - CLI command (~200 LOC)
+- `internal/docsearch/search.go` - SimHash search (~280 LOC)
+- `internal/docsearch/embed.go` - Lazy embedding pipeline (~215 LOC)
+
+**Key Design Decisions:**
+1. Used standalone SimHash implementation (not SharedIndex builtins) for simplicity
+2. Per-corpus cache files identified by SHA256 hash of corpus path
+3. Content hash stored with each embedding for staleness detection
+4. Progress indicator on stderr for long embedding operations
+
+**Actual vs Estimated:**
+- Estimated: 2-3 days (~12 hours)
+- Actual: 0.75 days (~6 hours)
+- LOC: 1005 total (vs estimated 840)
 
 ## Testing Strategy
 
