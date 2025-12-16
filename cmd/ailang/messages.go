@@ -53,6 +53,10 @@ func messagesCommand() {
 	switch subCmd {
 	case "list", "ls":
 		runMessagesList(args)
+	case "search":
+		runMessagesSearch(args)
+	case "dedupe":
+		runMessagesDedupe(args)
 	case "ack":
 		runMessagesAck(args)
 	case "unack":

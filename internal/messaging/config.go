@@ -35,9 +35,33 @@ func (c *GitHubConfig) IsAutoImportEnabled() bool {
 	return *c.AutoImport
 }
 
+// EmbeddingsYAMLConfig holds YAML configuration for embeddings
+type EmbeddingsYAMLConfig struct {
+	// Provider: "ollama" or "none"
+	Provider string `yaml:"provider"`
+
+	// Ollama-specific settings
+	Ollama struct {
+		Model     string `yaml:"model"`
+		Endpoint  string `yaml:"endpoint"`
+		Dimension int    `yaml:"dimension"`
+		Timeout   string `yaml:"timeout"` // e.g., "30s"
+		BatchSize int    `yaml:"batch_size"`
+	} `yaml:"ollama"`
+
+	// Search behavior
+	Search struct {
+		DefaultMode       string  `yaml:"default_mode"` // "simhash" or "neural"
+		AutoEmbedOnInsert bool    `yaml:"auto_embed_on_insert"`
+		SimhashThreshold  float64 `yaml:"simhash_threshold"`
+		NeuralThreshold   float64 `yaml:"neural_threshold"`
+	} `yaml:"search"`
+}
+
 // Config holds the full AILANG configuration
 type Config struct {
-	GitHub *GitHubConfig `yaml:"github"`
+	GitHub     *GitHubConfig         `yaml:"github"`
+	Embeddings *EmbeddingsYAMLConfig `yaml:"embeddings"`
 }
 
 // GetConfigPath returns the path to the AILANG config file
@@ -84,6 +108,19 @@ func LoadGitHubConfig() (*GitHubConfig, error) {
 		return nil, nil
 	}
 	return config.GitHub, nil
+}
+
+// LoadEmbeddingsConfig loads the embeddings configuration
+// Returns nil if embeddings config is not present (not an error)
+func LoadEmbeddingsConfig() (*EmbeddingsYAMLConfig, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, nil
+	}
+	return config.Embeddings, nil
 }
 
 // ValidateGitHubConfig validates the GitHub configuration
@@ -159,6 +196,32 @@ github:
 
   # Auto-import GitHub issues on session start (default: true)
   auto_import: true
+
+# Embedding configuration for semantic search
+embeddings:
+  # Provider: "ollama" (local) or "none" (SimHash only)
+  provider: ollama
+
+  # Ollama settings (requires 'ollama serve' running)
+  ollama:
+    # Model name - see 'ollama list' for available models
+    # Recommended: nomic-embed-text (fast), embeddinggemma (quality)
+    model: nomic-embed-text
+
+    # Ollama API endpoint (default: localhost)
+    endpoint: http://localhost:11434
+
+    # Request timeout
+    timeout: 30s
+
+  # Search behavior
+  search:
+    # Default mode: "simhash" (fast, local) or "neural" (semantic)
+    default_mode: simhash
+
+    # Similarity thresholds (0.0-1.0)
+    simhash_threshold: 0.70
+    neural_threshold: 0.75
 `
 
 	if err := os.WriteFile(configPath, []byte(exampleConfig), 0644); err != nil {

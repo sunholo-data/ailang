@@ -43,6 +43,17 @@ ailang messages send user "Feature" --type feature            # Type implies --g
 ailang messages import-github                                  # Import issues as messages
 ailang messages import-github --labels bug,feature            # Filter by labels
 ailang messages import-github --dry-run                       # Preview without importing
+
+# SEMANTIC SEARCH (v0.5.11+)
+ailang messages search "parser error"                         # Search by semantic content
+ailang messages search "bugs" --neural                        # Use Ollama embeddings
+ailang messages list --similar-to MSG_ID                      # Find similar messages
+ailang messages list --collapsed                              # Hide duplicates
+
+# DEDUPLICATION (v0.5.11+)
+ailang messages dedupe                                        # Report duplicate groups
+ailang messages dedupe --threshold 0.90                       # Custom similarity threshold
+ailang messages dedupe --apply                                # Mark duplicates
 ```
 
 ### Session Start Workflow

@@ -18,6 +18,10 @@ func runMessagesList(args []string) {
 	from := fs.String("from", "", "Filter by sender agent")
 	limit := fs.Int("limit", 20, "Maximum messages to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	similarTo := fs.String("similar-to", "", "Find messages similar to this message ID")
+	collapsed := fs.Bool("collapsed", false, "Hide duplicate messages (where dup_of is set)")
+	duplicatesOf := fs.String("duplicates-of", "", "Show only duplicates of this message ID")
+	threshold := fs.Float64("threshold", 0.70, "Similarity threshold for --similar-to (0.0-1.0)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -31,11 +35,41 @@ func runMessagesList(args []string) {
 	}
 	defer store.Close()
 
+	// Handle --similar-to mode
+	if *similarTo != "" {
+		hits, err := store.FindSimilar(*similarTo, *threshold, *limit)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+		if *jsonOut {
+			data, _ := json.MarshalIndent(hits, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
+		if len(hits) == 0 {
+			fmt.Println("No similar messages found.")
+			return
+		}
+
+		fmt.Printf("\n%s %s:\n\n", bold("Similar messages to"), *similarTo)
+		for _, hit := range hits {
+			fmt.Printf("  [%.0f%% similar] ", hit.Score*100)
+			printInboxMessage(hit.Message, false)
+		}
+		printSearchFooter("SQLite", "simhash", len(hits), *threshold)
+		return
+	}
+
 	opts := messaging.InboxListOptions{
 		Inbox:      *inbox,
 		FromAgent:  *from,
 		Limit:      *limit,
 		UnreadOnly: *unread,
+		Collapsed:  *collapsed,
+		DupOf:      *duplicatesOf,
 	}
 
 	messages, err := store.ListInboxMessages(opts)

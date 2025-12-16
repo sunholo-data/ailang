@@ -29,6 +29,14 @@ ailang messages send user "Your message" --title "Title" --from "agent-name"
 
 # Send with GitHub sync
 ailang messages send user "Bug report" --title "Parser crash" --type bug --github
+
+# Semantic search
+ailang messages search "parser error"
+ailang messages search "bugs" --neural    # Uses Ollama embeddings
+
+# Find duplicates
+ailang messages dedupe
+ailang messages dedupe --apply            # Mark duplicates
 ```
 
 ## Storage Backend
@@ -54,10 +62,23 @@ Messages in the system contain:
   "category": "bug|feature|general",
   "github_issue": 42,
   "github_repo": "owner/repo",
+  "simhash": 1234567890123456789,
+  "dup_of": "original_message_id",
+  "embedding": "[0.123, 0.456, ...]",
+  "embedding_model": "ollama:nomic-embed-text",
   "status": "unread",
   "created_at": "2025-12-10T12:34:56Z"
 }
 ```
+
+### Semantic Search Fields (v0.5.11+)
+
+| Field | Description |
+|-------|-------------|
+| `simhash` | 64-bit locality-sensitive hash for fast similarity |
+| `dup_of` | Message ID this is a duplicate of (set by dedupe) |
+| `embedding` | JSON-encoded float32 vector (neural search) |
+| `embedding_model` | Model used to generate embedding (e.g., "ollama:nomic-embed-text") |
 
 ## Architecture
 
@@ -299,6 +320,204 @@ You can write instructions as GitHub issues and have agents pick them up:
 2. Next session, `import-github` runs automatically
 3. Issue appears in agent's inbox as a message
 4. Agent reads and acts on the instructions
+
+## Semantic Search
+
+Find messages by meaning, not just exact text matches. AILANG uses **SimHash** (locality-sensitive hashing) for fast, zero-cost semantic search.
+
+### Search Commands
+
+```bash
+# Search for messages by semantic content
+ailang messages search "parser error handling"
+ailang messages search "type inference bugs" --threshold 0.5
+
+# Find messages similar to a specific message
+ailang messages list --similar-to MSG_ID --threshold 0.70
+
+# Hide duplicate messages (collapsed view)
+ailang messages list --collapsed
+
+# Show only duplicates of a specific message
+ailang messages list --duplicates-of MSG_ID
+```
+
+### Search Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--threshold` | 0.70 | Minimum similarity (0.0-1.0) |
+| `--limit` | 20 | Maximum results |
+| `--max-scan` | 1000 | Maximum messages to scan |
+| `--inbox` | (all) | Filter by inbox |
+| `--neural` | false | Use neural embeddings (requires Ollama) |
+| `--simhash` | true | Force SimHash mode (default, fast) |
+| `--json` | false | Output as JSON |
+
+### How SimHash Works
+
+SimHash generates a 64-bit fingerprint for each message based on word frequencies. Similar messages have similar fingerprints, allowing fast similarity comparison using Hamming distance:
+
+- **Score 1.0**: Identical or near-identical messages
+- **Score 0.9+**: Very similar (likely duplicates)
+- **Score 0.7-0.9**: Related topics
+- **Score below 0.7**: Different content
+
+**Benefits:**
+- ✅ Zero API costs (runs locally)
+- ✅ Fast (O(1) comparison)
+- ✅ Deterministic (same input → same output)
+- ✅ Works offline
+
+## Deduplication
+
+Find and mark duplicate messages to reduce inbox noise.
+
+### Dedupe Commands
+
+```bash
+# Report duplicates (dry run)
+ailang messages dedupe
+
+# Report with custom threshold
+ailang messages dedupe --threshold 0.90
+
+# Actually mark duplicates
+ailang messages dedupe --apply
+
+# Filter by inbox
+ailang messages dedupe --inbox user --apply
+```
+
+### How Deduplication Works
+
+1. **Find groups**: Messages with similarity ≥ threshold are grouped
+2. **Select representative**: Oldest message in each group is kept
+3. **Mark duplicates**: Newer messages get `dup_of` set to representative's ID
+4. **View behavior**: `--collapsed` hides messages with `dup_of` set
+
+### Dedupe Report
+
+```
+Duplicate Report
+
+Found 3 duplicate groups (7 messages)
+
+Group 1 (95% similar, 2 duplicates):
+  * Keep: msg_20251210_123456_abc123
+    Parser crashes on nested records
+  - Archive: msg_20251210_134500_def456
+    Parser crash with nested records
+  - Archive: msg_20251210_145600_ghi789
+    Nested record parser crash
+```
+
+## Neural Embeddings (Ollama)
+
+For more sophisticated semantic search, use neural embeddings via local Ollama.
+
+### Prerequisites
+
+1. Install Ollama: https://ollama.ai
+2. Start Ollama server: `ollama serve`
+3. Pull an embedding model:
+   ```bash
+   ollama pull nomic-embed-text      # Fast, good quality
+   ollama pull embeddinggemma        # Google's embedding model
+   ollama pull mxbai-embed-large     # High quality, slower
+   ```
+
+### Configuration
+
+Create or update `~/.ailang/config.yaml`:
+
+```yaml
+embeddings:
+  # Provider: "ollama" (local) or "none" (SimHash only)
+  provider: ollama
+
+  ollama:
+    # Model name - see 'ollama list' for available models
+    model: nomic-embed-text
+
+    # Ollama API endpoint
+    endpoint: http://localhost:11434
+
+    # Request timeout
+    timeout: 30s
+
+  search:
+    # Default search mode: "simhash" (fast) or "neural" (semantic)
+    default_mode: simhash
+
+    # Similarity thresholds (0.0-1.0)
+    simhash_threshold: 0.70
+    neural_threshold: 0.75
+```
+
+### Environment Variables
+
+Override config with environment variables:
+
+```bash
+# Provider
+export AILANG_EMBED_PROVIDER=ollama
+
+# Model
+export AILANG_OLLAMA_MODEL=nomic-embed-text
+
+# Endpoint
+export AILANG_OLLAMA_ENDPOINT=http://localhost:11434
+```
+
+### Using Neural Search
+
+```bash
+# Require Ollama to be running
+ailang messages search "parser bugs" --neural
+
+# Compare: SimHash (default, fast)
+ailang messages search "parser bugs" --simhash
+```
+
+### How Neural Search Works
+
+1. **Query embedding**: Your search query is converted to a vector
+2. **Lazy embedding**: Messages without embeddings are embedded on-demand (up to 50 per search)
+3. **Cosine similarity**: Vectors are compared using cosine similarity
+4. **Cached**: Embeddings are stored in the database for reuse
+
+**Benefits:**
+- ✅ Understands semantic meaning ("error" matches "bug", "crash", "failure")
+- ✅ Cross-lingual potential (with multilingual models)
+- ✅ Better for conceptual search
+
+**Trade-offs:**
+- ⚠️ Requires Ollama running locally
+- ⚠️ First search embeds messages (slower startup)
+- ⚠️ Uses more storage (768+ floats per message)
+
+### Model Recommendations
+
+| Model | Dimension | Speed | Quality | Use Case |
+|-------|-----------|-------|---------|----------|
+| `nomic-embed-text` | 768 | Fast | Good | General purpose |
+| `mxbai-embed-large` | 1024 | Medium | Better | High accuracy needs |
+| `embeddinggemma` | 768 | Fast | Good | Google model |
+| `all-minilm` | 384 | Very Fast | OK | Quick searches |
+
+### Checking Ollama Status
+
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# List available models
+ollama list
+
+# Pull a model
+ollama pull nomic-embed-text
+```
 
 ## Aliases
 

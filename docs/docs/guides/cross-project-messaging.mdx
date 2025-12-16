@@ -248,8 +248,40 @@ fi
 
 ---
 
+## Semantic Search
+
+Find messages by meaning, not just exact text. AILANG uses SimHash by default for fast, free semantic search:
+
+```bash
+# Search messages
+ailang messages search "parser error handling"
+
+# Use neural search (requires Ollama running locally)
+ailang messages search "type inference bugs" --neural
+
+# Find similar messages
+ailang messages list --similar-to MSG_ID
+
+# Hide duplicates
+ailang messages list --collapsed
+```
+
+For neural search, configure Ollama in `~/.ailang/config.yaml`:
+
+```yaml
+embeddings:
+  provider: ollama
+  ollama:
+    model: nomic-embed-text
+    endpoint: http://localhost:11434
+```
+
+See [Agent Messaging - Neural Embeddings](/docs/guides/agent-messaging#neural-embeddings-ollama) for full setup.
+
+---
+
 ## Related Documentation
 
-- [Agent Messaging](/docs/guides/agent-messaging) - Full messaging documentation
+- [Agent Messaging](/docs/guides/agent-messaging) - Full messaging documentation (includes semantic search)
 - [Agent Workflows](/docs/guides/agent-workflows) - Automated agent workflows
 - [Hooks Setup](/docs/guides/hooks-setup) - Configure session hooks

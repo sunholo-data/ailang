@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo/ailang/internal/builtins"
 )
 
 // InboxMessage represents a message in the unified inbox system
@@ -21,7 +22,12 @@ type InboxMessage struct {
 	Category      string     `json:"category,omitempty"`     // bug, feature, general (for GitHub sync)
 	GitHubIssue   *int       `json:"github_issue,omitempty"` // GitHub issue number
 	GitHubRepo    string     `json:"github_repo,omitempty"`  // GitHub repo (owner/repo)
-	Status        string     `json:"status"`
+	Simhash            *int64     `json:"simhash,omitempty"`              // SimHash for semantic search (v1.2.0)
+	DupOf              string     `json:"dup_of,omitempty"`               // ID of message this is a duplicate of (v1.2.0)
+	Embedding          string     `json:"embedding,omitempty"`            // JSON-encoded float32 array (v1.3.0)
+	EmbeddingModel     string     `json:"embedding_model,omitempty"`      // e.g., "ollama:nomic-embed-text" (v1.3.0)
+	EmbeddingUpdatedAt *int64     `json:"embedding_updated_at,omitempty"` // Unix millis (v1.3.0)
+	Status             string     `json:"status"`
 	CreatedAt     time.Time  `json:"created_at"`
 	ReadAt        *time.Time `json:"read_at,omitempty"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
@@ -57,6 +63,8 @@ type InboxListOptions struct {
 	FromAgent   string // Filter by sender
 	Limit       int    // Max results (0 = default 50)
 	IncludeRead bool   // Include read messages (default: true unless UnreadOnly)
+	Collapsed   bool   // Hide messages where dup_of IS NOT NULL (semantic dedup)
+	DupOf       string // Only messages that are duplicates of this ID
 }
 
 // InsertInboxMessage adds a new message to the inbox
@@ -96,17 +104,37 @@ func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
 		githubRepo = &msg.GitHubRepo
 	}
 
+	// Compute simhash from title + payload for semantic search
+	var simhash *int64
+	if msg.Simhash != nil {
+		simhash = msg.Simhash
+	} else {
+		searchText := msg.Title
+		if msg.Payload != "" {
+			searchText += " " + msg.Payload
+		}
+		hash := builtins.SimHash(searchText)
+		simhash = &hash
+		msg.Simhash = simhash // Store back in msg for caller
+	}
+
+	// Handle nullable dup_of field
+	var dupOf *string
+	if msg.DupOf != "" {
+		dupOf = &msg.DupOf
+	}
+
 	_, err := s.db.Exec(`
-		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
+		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
 
 	return err
 }
 
 // ListInboxMessages returns messages matching the given options
 func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error) {
-	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
+	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
 	args := []interface{}{}
 
 	if opts.Inbox != "" {
@@ -131,6 +159,17 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 		args = append(args, opts.FromAgent)
 	}
 
+	// Collapsed mode: hide duplicates (messages with dup_of set)
+	if opts.Collapsed {
+		query += " AND (dup_of IS NULL OR dup_of = '')"
+	}
+
+	// Filter for duplicates of a specific message
+	if opts.DupOf != "" {
+		query += " AND dup_of = ?"
+		args = append(args, opts.DupOf)
+	}
+
 	query += " ORDER BY created_at DESC"
 
 	limit := opts.Limit
@@ -149,12 +188,12 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	var messages []InboxMessage
 	for rows.Next() {
 		var msg InboxMessage
-		var correlationID, payload, category, githubRepo sql.NullString
-		var githubIssue sql.NullInt64
+		var correlationID, payload, category, githubRepo, dupOf sql.NullString
+		var githubIssue, simhash sql.NullInt64
 		var readAt, expiresAt sql.NullString
 		var createdAt string
 
-		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &msg.Status, &createdAt, &readAt, &expiresAt)
+		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &msg.Status, &createdAt, &readAt, &expiresAt)
 		if err != nil {
 			return nil, err
 		}
@@ -163,9 +202,14 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 		msg.Payload = payload.String
 		msg.Category = category.String
 		msg.GitHubRepo = githubRepo.String
+		msg.DupOf = dupOf.String
 		if githubIssue.Valid {
 			issueNum := int(githubIssue.Int64)
 			msg.GitHubIssue = &issueNum
+		}
+		if simhash.Valid {
+			hash := simhash.Int64
+			msg.Simhash = &hash
 		}
 
 		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -191,18 +235,18 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 // GetInboxMessage returns a single message by ID (UUID or message_id)
 func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	row := s.db.QueryRow(`
-		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, status, created_at, read_at, expires_at
+		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at
 		FROM inbox_messages
 		WHERE id = ? OR message_id = ?
 	`, id, id)
 
 	var msg InboxMessage
-	var correlationID, payload, category, githubRepo sql.NullString
-	var githubIssue sql.NullInt64
+	var correlationID, payload, category, githubRepo, dupOf sql.NullString
+	var githubIssue, simhash sql.NullInt64
 	var readAt, expiresAt sql.NullString
 	var createdAt string
 
-	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &msg.Status, &createdAt, &readAt, &expiresAt)
+	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &msg.Status, &createdAt, &readAt, &expiresAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -214,9 +258,14 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	msg.Payload = payload.String
 	msg.Category = category.String
 	msg.GitHubRepo = githubRepo.String
+	msg.DupOf = dupOf.String
 	if githubIssue.Valid {
 		issueNum := int(githubIssue.Int64)
 		msg.GitHubIssue = &issueNum
+	}
+	if simhash.Valid {
+		hash := simhash.Int64
+		msg.Simhash = &hash
 	}
 
 	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {

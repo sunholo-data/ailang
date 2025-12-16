@@ -400,9 +400,46 @@ _sharedindex_delete(ns: string, key: string) -> unit ! {SharedIndex}
 
 ---
 
+## Messaging System Semantic Search
+
+The AILANG CLI also provides semantic search for the messaging system:
+
+```bash
+# Search messages by semantic content
+ailang messages search "parser error handling"
+
+# Use neural search (requires Ollama)
+ailang messages search "type inference bugs" --neural
+
+# Find similar messages
+ailang messages list --similar-to MSG_ID
+
+# Deduplicate messages
+ailang messages dedupe --apply
+```
+
+Configure neural search in `~/.ailang/config.yaml`:
+
+```yaml
+embeddings:
+  provider: ollama
+  ollama:
+    model: nomic-embed-text
+    endpoint: http://localhost:11434
+    timeout: 30s
+  search:
+    default_mode: simhash
+    simhash_threshold: 0.70
+    neural_threshold: 0.75
+```
+
+See [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-search) for full documentation.
+
+---
+
 ## Next Steps
 
 - [AI Effect Guide](/docs/guides/ai-effect) - Using the AI effect for LLM calls
-- [Agent Messaging](/docs/guides/agent-messaging) - Building multi-agent systems
+- [Agent Messaging](/docs/guides/agent-messaging) - Building multi-agent systems (includes semantic search)
 - [Examples](/docs/examples) - More working examples
 

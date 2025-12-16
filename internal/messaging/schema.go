@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sunholo/ailang/internal/builtins"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -13,7 +15,7 @@ import (
 // This schema extends the existing file-based agent inbox (.ailang/state/messages/)
 // to provide ordering guarantees, real-time updates, and effect-gated approvals.
 
-const schemaVersion = "1.1.0" // v1.1.0: Added GitHub integration fields
+const schemaVersion = "1.3.0" // v1.3.0: Added neural embedding fields (embedding, embedding_model, embedding_updated_at)
 
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
@@ -85,9 +87,16 @@ func createSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create schema_version table: %w", err)
 	}
 
-	// Insert schema version (ignore if already exists)
-	if _, err := tx.Exec("INSERT OR IGNORE INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
-		return fmt.Errorf("failed to insert schema version: %w", err)
+	// Only insert schema version if no version exists yet
+	// This prevents overwriting older versions that need migration
+	var count int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM schema_version").Scan(&count); err != nil {
+		return fmt.Errorf("failed to check schema version: %w", err)
+	}
+	if count == 0 {
+		if _, err := tx.Exec("INSERT INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
+			return fmt.Errorf("failed to insert schema version: %w", err)
+		}
 	}
 
 	// Create core tables
@@ -382,6 +391,15 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     github_issue_number INTEGER,
     github_repo TEXT,
 
+    -- Semantic search (v1.2.0)
+    simhash INTEGER,
+    dup_of TEXT,
+
+    -- Neural embeddings (v1.3.0)
+    embedding TEXT,              -- JSON array of float32
+    embedding_model TEXT,        -- e.g., "ollama:nomic-embed-text"
+    embedding_updated_at INTEGER, -- unix millis
+
     -- State
     status TEXT NOT NULL DEFAULT 'unread',
     created_at TEXT NOT NULL,
@@ -408,6 +426,8 @@ const instanceHistoryAgentIndex = `CREATE INDEX IF NOT EXISTS idx_instance_histo
 const inboxMessagesInboxIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_inbox ON inbox_messages(to_inbox, status, created_at)`
 const inboxMessagesCorrelationIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_correlation ON inbox_messages(correlation_id)`
 const inboxMessagesGitHubIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_github ON inbox_messages(github_repo, github_issue_number)`
+const inboxMessagesSimhashIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_simhash ON inbox_messages(simhash)`
+const inboxMessagesDupOfIndex = `CREATE INDEX IF NOT EXISTS idx_inbox_messages_dup_of ON inbox_messages(dup_of)`
 
 // MigrateDB applies any necessary schema migrations to an existing database.
 // This is called after InitDB to ensure existing databases are up-to-date.
@@ -420,10 +440,24 @@ func MigrateDB(db *sql.DB) error {
 		currentVersion = "1.0.0"
 	}
 
-	// Apply migrations based on current version
+	// Apply migrations based on current version (chain migrations)
 	if currentVersion == "1.0.0" {
 		if err := migrateV100ToV110(db); err != nil {
 			return fmt.Errorf("migration to v1.1.0 failed: %w", err)
+		}
+		currentVersion = "1.1.0"
+	}
+
+	if currentVersion == "1.1.0" {
+		if err := migrateV110ToV120(db); err != nil {
+			return fmt.Errorf("migration to v1.2.0 failed: %w", err)
+		}
+		currentVersion = "1.2.0"
+	}
+
+	if currentVersion == "1.2.0" {
+		if err := migrateV120ToV130(db); err != nil {
+			return fmt.Errorf("migration to v1.3.0 failed: %w", err)
 		}
 	}
 
@@ -472,9 +506,137 @@ func migrateV100ToV110(db *sql.DB) error {
 	}
 
 	// Update schema version
-	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", schemaVersion); err != nil {
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.1.0"); err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
 
 	return tx.Commit()
+}
+
+// migrateV110ToV120 adds semantic search columns to inbox_messages
+func migrateV110ToV120(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if simhash column exists
+	var colName string
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='simhash'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN simhash INTEGER"); err != nil {
+			return fmt.Errorf("failed to add simhash column: %w", err)
+		}
+	}
+
+	// Check if dup_of column exists
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='dup_of'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN dup_of TEXT"); err != nil {
+			return fmt.Errorf("failed to add dup_of column: %w", err)
+		}
+	}
+
+	// Create indices for semantic search
+	if _, err := tx.Exec(inboxMessagesSimhashIndex); err != nil {
+		return fmt.Errorf("failed to create simhash index: %w", err)
+	}
+	if _, err := tx.Exec(inboxMessagesDupOfIndex); err != nil {
+		return fmt.Errorf("failed to create dup_of index: %w", err)
+	}
+
+	// Backfill simhash for existing messages
+	if err := backfillSimhash(tx); err != nil {
+		return fmt.Errorf("failed to backfill simhash: %w", err)
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.2.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// migrateV120ToV130 adds neural embedding columns to inbox_messages
+func migrateV120ToV130(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if embedding column exists
+	var colName string
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='embedding'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN embedding TEXT"); err != nil {
+			return fmt.Errorf("failed to add embedding column: %w", err)
+		}
+	}
+
+	// Check if embedding_model column exists
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='embedding_model'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN embedding_model TEXT"); err != nil {
+			return fmt.Errorf("failed to add embedding_model column: %w", err)
+		}
+	}
+
+	// Check if embedding_updated_at column exists
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='embedding_updated_at'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN embedding_updated_at INTEGER"); err != nil {
+			return fmt.Errorf("failed to add embedding_updated_at column: %w", err)
+		}
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.3.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// backfillSimhash computes and stores simhash for existing messages without one
+func backfillSimhash(tx *sql.Tx) error {
+	rows, err := tx.Query(`SELECT id, title, payload FROM inbox_messages WHERE simhash IS NULL`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	stmt, err := tx.Prepare(`UPDATE inbox_messages SET simhash = ? WHERE id = ?`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for rows.Next() {
+		var id, title string
+		var payload sql.NullString
+		if err := rows.Scan(&id, &title, &payload); err != nil {
+			return err
+		}
+
+		// Compute simhash from title + payload
+		searchText := title
+		if payload.Valid && payload.String != "" {
+			searchText += " " + payload.String
+		}
+		hash := computeSimhash(searchText)
+
+		if _, err := stmt.Exec(hash, id); err != nil {
+			return err
+		}
+	}
+
+	return rows.Err()
+}
+
+// computeSimhash computes a SimHash for the given text using the builtins implementation
+func computeSimhash(text string) int64 {
+	return builtins.SimHash(text)
 }
