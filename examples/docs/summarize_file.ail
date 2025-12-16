@@ -1,0 +1,24 @@
+-- summarize_file.ail - Combine FS and AI effects
+-- Used in: docs/docs/guides/quick-start-examples.mdx
+module examples/docs/summarize_file
+
+import std/ai (call)
+import std/fs (readFile)
+import std/io (println)
+
+func summarize(content: string) -> string ! {AI} = {
+  let prompt = "Summarize in 3-5 bullet points:\n\n" ++ content;
+  call(prompt)
+}
+
+export func main(path: string) -> () ! {IO, FS, AI} = {
+  println("Reading: " ++ path);
+  let content = readFile(path);
+
+  println("Generating summary...");
+  let summary = summarize(content);
+
+  println("");
+  println("=== Summary ===");
+  println(summary)
+}

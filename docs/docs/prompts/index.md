@@ -35,7 +35,7 @@ The `ailang` CLI provides built-in access to all prompt versions:
 ailang prompt
 
 # Get specific version
-ailang prompt --version v0.3.24
+ailang prompt --version v0.5.11
 
 # List all available versions
 ailang prompt --list
@@ -73,12 +73,15 @@ Using AILANG (see teaching prompt below), write a program that:
 
 ## Core Features (Latest)
 
-**Current implementation** (v0.4.x):
+**Current implementation** (v0.5.x):
 - ✅ Syntactic sugar: `::` cons, `->` function types, `f()` zero-arg calls
 - ✅ Multi-line ADTs: `type Tree = | Leaf | Node`
 - ✅ Record updates: `{base | field: value}`
 - ✅ Auto-import prelude (no imports for comparisons)
-- ✅ Full module system with effects (IO, FS, Clock, Net, Env)
+- ✅ Full module system with effects (IO, FS, Clock, Net, Env, AI, SharedMem, SharedIndex)
 - ✅ Pattern matching, recursion, type classes
+- ✅ **NEW (v0.5.11)**: Semantic caching with SimHash and neural embeddings
+- ✅ **NEW (v0.5.11)**: SharedMem/SharedIndex effects for AI agent working memory
+- ✅ **NEW (v0.5.10)**: Unified AI provider support (Claude, GPT, Gemini)
 
 See the [AI Prompt Guide](/docs/guides/ai-prompt-guide) for detailed usage instructions and best practices.

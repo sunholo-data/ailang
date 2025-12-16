@@ -1529,7 +1529,7 @@ jq -s 'group_by(.err_code) | map({code: .[0].err_code, count: length})' summary.
 - Extended `tools/generate-llms-txt.sh` to include Docusaurus subdirectories
 - Added all evaluation guides including eval-loop documentation
 - Size increased from 181KB to 244KB (8 M-EVAL-LOOP references)
-- Published at https://sunholo-data.github.io/ailang/llms.txt
+- Published at https://ailang.sunholo.com/llms.txt
 
 **AI Agent Usage:**
 ```

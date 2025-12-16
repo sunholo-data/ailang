@@ -439,6 +439,7 @@ See [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-se
 
 ## Next Steps
 
+- [Semantic Caching vs Vector DBs](/docs/guides/semantic-caching-vs-vectordb) - When to use which tool
 - [AI Effect Guide](/docs/guides/ai-effect) - Using the AI effect for LLM calls
 - [Agent Messaging](/docs/guides/agent-messaging) - Building multi-agent systems (includes semantic search)
 - [Examples](/docs/examples) - More working examples

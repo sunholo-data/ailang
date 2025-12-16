@@ -1,0 +1,25 @@
+-- lambdas_full.ail - Lambda expressions and higher-order functions
+-- Used in: docs/docs/guides/quick-start-examples.mdx
+module examples/docs/lambdas_full
+
+import std/io (println)
+
+export func main() -> () ! {IO} = {
+  -- Basic lambda
+  let double = \x. x * 2;
+  println("double(5) = " ++ show(double(5)));
+
+  -- Multi-parameter lambda (curried)
+  let add = \x. \y. x + y;
+  println("add(3)(4) = " ++ show(add(3)(4)));
+
+  -- Partial application
+  let add10 = add(10);
+  println("add10(5) = " ++ show(add10(5)));
+
+  -- Function composition
+  let compose = \f. \g. \x. f(g(x));
+  let inc = \x. x + 1;
+  let doubleThenInc = compose(inc)(double);
+  println("doubleThenInc(5) = " ++ show(doubleThenInc(5)))
+}

@@ -5,6 +5,18 @@ title: Quick Start Examples
 ---
 
 import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+import CodeBlock from '@theme/CodeBlock';
+
+{/* Import verified example files */}
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
+import ReadFileExample from '!!raw-loader!@site/../examples/docs/read_file.ail';
+import AIEffectExample from '!!raw-loader!@site/../examples/runnable/ai_effect.ail';
+import SummarizeFileExample from '!!raw-loader!@site/../examples/docs/summarize_file.ail';
+import RecordsPersonExample from '!!raw-loader!@site/../examples/docs/records_person.ail';
+import ADTOptionExample from '!!raw-loader!@site/../examples/docs/adt_option_pattern.ail';
+import LambdasFullExample from '!!raw-loader!@site/../examples/docs/lambdas_full.ail';
+import ConwayGridExample from '!!raw-loader!@site/../examples/runnable/conway_grid.ail';
 
 # Quick Start Examples
 
@@ -101,17 +113,13 @@ The following examples show AILANG syntax for reference. **You don't need to wri
 
 The simplest AILANG program:
 
-```typescript
--- hello.ail
-module examples/hello
-
-export func main() -> () ! {IO} =
-  print("Hello, AILANG!")
-```
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main hello.ail
+ailang run --caps IO --entry main examples/runnable/hello.ail
 ```
 
 <InfoIcon inline size={14} /> **Key concepts:**
@@ -122,82 +130,32 @@ ailang run --caps IO --entry main hello.ail
 
 ---
 
-## Example 2: Pure Functions and Recursion
+## Example 2: Pure Functions, Recursion, and Inline Tests
 
-AILANG is a pure functional language. Here's the classic factorial:
+AILANG is a pure functional language with built-in testing. This example shows both:
 
-```typescript
--- factorial.ail
-module examples/factorial
-
--- Pure function - no side effects
-pure func factorial(n: int) -> int {
-  if n <= 1 then 1 else n * factorial(n - 1)
-}
-
-export func main() -> () ! {IO} {
-  print("5! = " ++ show(factorial(5)))
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+  {FactorialExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main factorial.ail
+ailang run --caps IO --entry main examples/runnable/recursion_factorial.ail
 ```
 
-**Output:** `5! = 120`
+**Output:** `factorial(5) = 120`
+
+**Run the inline tests:**
+```bash
+ailang test examples/runnable/recursion_factorial.ail
+```
 
 <InfoIcon inline size={14} /> **Key concepts:**
 - `pure func` declares a function with no side effects
+- `tests [(input, expected), ...]` defines inline tests
 - `show()` converts values to strings (auto-imported)
 - `++` concatenates strings
 - Recursion is the primary iteration mechanism
-
----
-
-## Example 3: Inline Tests
-
-Test your pure functions directly in the code:
-
-```typescript
--- factorial_tested.ail
-module examples/factorial_tested
-
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (1, 1),
-    (5, 120),
-    (10, 3628800)
-  ]
-{
-  if n <= 1 then 1 else n * factorial(n - 1)
-}
-
-export func main() -> () ! {IO} {
-  print("Factorial of 5 is: " ++ show(factorial(5)))
-}
-```
-
-**Run tests:**
-```bash
-ailang test factorial_tested.ail
-```
-
-**Output:**
-```
-Test Results
-Module: All Tests
-
-Tests:
-  ✓ factorial_test_1 (1.5ms)
-  ✓ factorial_test_2 (800µs)
-  ✓ factorial_test_3 (1.2ms)
-  ✓ factorial_test_4 (900µs)
-
-✓ All tests passed!
-4 tests: 4 passed, 0 failed, 0 skipped (4.4ms)
-```
 
 ---
 
@@ -205,23 +163,13 @@ Tests:
 
 Use the FS (file system) effect to read files:
 
-```typescript
--- read_file.ail
-module examples/read_file
-
-import std/fs (readFile)
-import std/io (println)
-
-export func main(path: string) -> () ! {IO, FS} {
-  let content = readFile(path);
-  println("=== File Contents ===");
-  println(content)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/read_file.ail">
+  {ReadFileExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO,FS --args-json '{"path":"README.md"}' --entry main read_file.ail
+ailang run --caps IO,FS --args-json '{"path":"README.md"}' --entry main examples/docs/read_file.ail
 ```
 
 <InfoIcon inline size={14} /> **Key concepts:**
@@ -236,23 +184,9 @@ ailang run --caps IO,FS --args-json '{"path":"README.md"}' --entry main read_fil
 
 Call AI models directly from AILANG:
 
-```typescript
--- ask_ai.ail
-module examples/ask_ai
-
-import std/ai (call)
-import std/io (println)
-
-export func main() -> () ! {IO, AI} {
-  println("Asking AI a question...");
-  println("");
-
-  let response = call("What is AILANG in one sentence?");
-
-  println("AI says:");
-  println(response)
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/ai_effect.ail">
+  {AIEffectExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
@@ -260,7 +194,7 @@ export func main() -> () ! {IO, AI} {
 export ANTHROPIC_API_KEY="sk-ant-..."
 
 # Run with AI capability
-ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main ask_ai.ail
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/runnable/ai_effect.ail
 ```
 
 **Supported AI models:**
@@ -275,36 +209,14 @@ ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main ask_ai.ail
 
 Combine FS and AI effects for a useful tool:
 
-```typescript
--- summarize_file.ail
-module summarize_file
-
-import std/ai (call)
-import std/fs (readFile)
-import std/io (println)
-
-func summarize(content: string) -> string ! {AI} {
-  let prompt = "Summarize in 3-5 bullet points:\n\n" ++ content;
-  call(prompt)
-}
-
-export func main(path: string) -> () ! {IO, FS, AI} {
-  println("Reading: " ++ path);
-  let content = readFile(path);
-
-  println("Generating summary...");
-  let summary = summarize(content);
-
-  println("");
-  println("=== Summary ===");
-  println(summary)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/summarize_file.ail">
+  {SummarizeFileExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
 ailang run --caps IO,FS,AI --ai claude-haiku-4-5 \
-  --args-json '{"path":"README.md"}' --entry main summarize_file.ail
+  --args-json '{"path":"README.md"}' --entry main examples/docs/summarize_file.ail
 ```
 
 ---
@@ -313,84 +225,35 @@ ailang run --caps IO,FS,AI --ai claude-haiku-4-5 \
 
 Work with structured data:
 
-```typescript
--- records.ail
-module examples/records
-
-import std/io (println)
-
--- Define a record type (optional, AILANG infers types)
-type Person = { name: string, age: int, city: string }
-
-pure func greet(p: Person) -> string {
-  "Hello, " ++ p.name ++ " from " ++ p.city ++ "!"
-}
-
-pure func birthday(p: Person) -> Person {
-  -- Record update syntax: creates new record with updated field
-  p { age: p.age + 1 }
-}
-
-export func main() -> () ! {IO} {
-  let alice = { name: "Alice", age: 30, city: "Copenhagen" };
-
-  println(greet(alice));
-
-  let olderAlice = birthday(alice);
-  println("After birthday: " ++ show(olderAlice.age))
-}
-```
+<CodeBlock language="typescript" title="examples/docs/records_person.ail">
+  {RecordsPersonExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main records.ail
+ailang run --caps IO --entry main examples/docs/records_person.ail
 ```
 
 ---
 
 ## Example 8: Algebraic Data Types (ADTs)
 
-Define custom types with variants:
+Define custom types with variants and pattern matching:
 
-```typescript
--- option.ail
-module examples/option
-
-import std/io (println)
-
--- Define an Option type
-type Option[A] = Some(A) | None
-
--- Pattern matching on ADTs
-pure func unwrapOr[A](opt: Option[A], default: A) -> A {
-  match opt {
-    Some(x) => x,
-    None => default
-  }
-}
-
-pure func map[A, B](opt: Option[A], f: A -> B) -> Option[B] {
-  match opt {
-    Some(x) => Some(f(x)),
-    None => None
-  }
-}
-
-export func main() -> () ! {IO} {
-  let some = Some(42);
-  let none = None;
-
-  println("Some value: " ++ show(unwrapOr(some, 0)));
-  println("None value: " ++ show(unwrapOr(none, -1)));
-
-  let doubled = map(some, \x. x * 2);
-  println("Doubled: " ++ show(unwrapOr(doubled, 0)))
-}
-```
+<CodeBlock language="typescript" title="examples/docs/adt_option_pattern.ail">
+  {ADTOptionExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main option.ail
+ailang run --caps IO --entry main examples/docs/adt_option_pattern.ail
+```
+
+**Output:**
+```
+Some value: 42
+None value: -1
+Doubled: 84
 ```
 
 ---
@@ -399,86 +262,43 @@ ailang run --caps IO --entry main option.ail
 
 Functional programming with lambdas and higher-order functions:
 
-```typescript
--- lambdas.ail
-module examples/lambdas
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  -- Basic lambda
-  let double = \x. x * 2;
-  println("double(5) = " ++ show(double(5)));
-
-  -- Multi-parameter lambda
-  let add = \x y. x + y;
-  println("add(3, 4) = " ++ show(add(3)(4)));
-
-  -- Partial application
-  let add10 = add(10);
-  println("add10(5) = " ++ show(add10(5)));
-
-  -- Function composition
-  let compose = \f g x. f(g(x));
-  let inc = \x. x + 1;
-  let doubleThenInc = compose(inc)(double);
-  println("doubleThenInc(5) = " ++ show(doubleThenInc(5)))
-}
-```
+<CodeBlock language="typescript" title="examples/docs/lambdas_full.ail">
+  {LambdasFullExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main lambdas.ail
+ailang run --caps IO --entry main examples/docs/lambdas_full.ail
+```
+
+**Output:**
+```
+double(5) = 10
+add(3)(4) = 7
+add10(5) = 15
+doubleThenInc(5) = 11
 ```
 
 ---
 
 ## Example 10: Conway's Game of Life
 
-A complete implementation showing arrays, ADTs, and effects:
+A complete implementation showing arrays, ADTs, and pure functions:
 
-```typescript
--- game_of_life.ail (simplified version)
-module game_of_life
-
-import std/array (make, get, set)
-import std/io (println)
-import std/fs (writeFile)
-
-type Cell = Alive | Dead
-
--- Conway's rules
-pure func shouldLive(isAlive: int, neighbors: int) -> int {
-  if isAlive == 1 then
-    if neighbors == 2 || neighbors == 3 then 1 else 0
-  else
-    if neighbors == 3 then 1 else 0
-}
-
-pure func cellValue(cell: Cell) -> int {
-  match cell { Alive => 1, Dead => 0 }
-}
-
--- ... (full implementation computes generations and outputs HTML)
-
-export func main() -> () ! {IO, FS} {
-  println("Computing Game of Life...");
-  -- Computes 60 generations and writes HTML visualization
-  -- All logic runs in AILANG, not JavaScript
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/conway_grid.ail">
+  {ConwayGridExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --relax-modules --caps IO,FS --entry main game_of_life.ail
-open game_of_life_computed.html
+ailang run --entry main examples/runnable/conway_grid.ail
 ```
 
 This example demonstrates:
 - <CheckIcon inline size={14} /> ADT pattern matching (`match cell { Alive => ... }`)
-- <CheckIcon inline size={14} /> Pure computation of 60+ generations
+- <CheckIcon inline size={14} /> Inline tests for pure functions
 - <CheckIcon inline size={14} /> Array operations for grid management
-- <CheckIcon inline size={14} /> File writing for HTML output
+- <CheckIcon inline size={14} /> Pure computation with no side effects
 
 ---
 

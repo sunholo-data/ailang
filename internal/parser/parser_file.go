@@ -131,7 +131,7 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 					"import std/json (encode, decode) -- For JSON parsing",
 					"import std/io (println)          -- For I/O operations",
 				},
-				"https://sunholo-data.github.io/ailang/docs/guides/module_execution",
+				"https://ailang.sunholo.com/docs/guides/module_execution",
 			))
 			return nil
 		}

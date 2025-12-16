@@ -1,0 +1,29 @@
+-- npc_dialogue.ail - Game NPC Dialogue using AI Effect
+-- Used in: docs/docs/guides/ai-effect.md
+module examples/docs/npc_dialogue
+
+import std/ai (call)
+import std/io (println)
+
+-- Build dialogue prompt for an NPC
+pure func makePrompt(npcName: string, role: string, personality: string, topic: string) -> string =
+    "You are " ++ npcName ++ ", a " ++ role ++ " in a fantasy RPG. " ++
+    "Personality: " ++ personality ++ ". " ++
+    "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
+
+-- Generate NPC dialogue using AI
+func askNpc(npcName: string, role: string, personality: string, topic: string) -> string ! {AI} = {
+    let prompt = makePrompt(npcName, role, personality, topic);
+    call(prompt)
+}
+
+-- Main: demonstrate NPC dialogue generation
+export func main() -> () ! {IO, AI} = {
+    println("=== NPC Dialogue Demo ===");
+    println("");
+
+    println("[At the Forge]");
+    println("Player: Can you forge me an enchanted sword?");
+    let response = askNpc("Grimnar", "blacksmith", "gruff but kind", "forging an enchanted sword");
+    println("Grimnar: " ++ response)
+}

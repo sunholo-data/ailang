@@ -95,6 +95,27 @@ git commit -m "docs: sync website with v0.X.X implementation"
 | `check_examples.sh` | Validate example files compile/run |
 | `generate_report.sh` | Generate sync status report |
 
+### CLI Example Verification (External)
+
+The Makefile provides CLI example verification that complements this skill:
+
+```bash
+# Verify all CLI examples documented in examples/cli_examples.txt
+make verify-cli-examples
+
+# Full verification: code examples + CLI examples
+make verify-examples && make verify-cli-examples
+```
+
+**CLI Examples File Format** (`examples/cli_examples.txt`):
+```
+# Comment explaining the example
+$ ailang run --caps IO --entry main examples/runnable/hello.ail
+Hello, AILANG!
+```
+
+This ensures CLI syntax in documentation matches actual behavior.
+
 ### Version Derivation Script
 
 ```bash

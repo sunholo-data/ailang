@@ -154,7 +154,7 @@ map(filter(people, \p. p.age >= 30), \p. p.name)
 
 **No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
 
-For the formal rationale and algebraic laws, see the [Why No Loops?](https://sunholo-data.github.io/ailang/docs/reference/no-loops) documentation.
+For the formal rationale and algebraic laws, see the [Why No Loops?](https://ailang.sunholo.com/docs/reference/no-loops) documentation.
 
 ---
 
@@ -369,20 +369,20 @@ See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
 
 <!-- EXAMPLES_STATUS_END -->
 
-See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
+See **[Full Implementation Status](https://ailang.sunholo.com/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
 
 ---
 
 ## Documentation
 
-📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site
+📖 **[Complete Documentation](https://ailang.sunholo.com/)** - Visit our full documentation site
 
 **Quick Links:**
-- **[Vision](https://sunholo-data.github.io/ailang/docs/vision)** - Why AILANG exists and what makes it different
-- **[Examples](https://sunholo-data.github.io/ailang/docs/examples)** - Interactive code examples with explanations
-- **[Getting Started](https://sunholo-data.github.io/ailang/docs/guides/getting-started)** - Installation and tutorial
-- **[Language Reference](https://sunholo-data.github.io/ailang/docs/reference/language-syntax)** - Complete syntax guide
-- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
+- **[Vision](https://ailang.sunholo.com/docs/vision)** - Why AILANG exists and what makes it different
+- **[Examples](https://ailang.sunholo.com/docs/examples)** - Interactive code examples with explanations
+- **[Getting Started](https://ailang.sunholo.com/docs/guides/getting-started)** - Installation and tutorial
+- **[Language Reference](https://ailang.sunholo.com/docs/reference/language-syntax)** - Complete syntax guide
+- **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
 
 ---
 
@@ -397,7 +397,7 @@ make run FILE=<file>      # Run example file
 ```
 
 **For detailed workflows and contribution guidelines:**
-- [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development)
+- [Development Guide](https://ailang.sunholo.com/docs/guides/development)
 - [CONTRIBUTING.md](docs/CONTRIBUTING.md)
 - [CLAUDE.md](CLAUDE.md) - Instructions for AI development assistants
 
@@ -427,7 +427,7 @@ ailang/
 
 ## Contributing
 
-AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for guidelines.
+AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://ailang.sunholo.com/docs/guides/development) for guidelines.
 
 ---
 
@@ -451,7 +451,7 @@ AILANG draws inspiration from:
 
 ---
 
-*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://sunholo-data.github.io/ailang/) for exact capabilities.*
+*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://ailang.sunholo.com/) for exact capabilities.*
 
 ---
 

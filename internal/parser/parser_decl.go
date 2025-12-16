@@ -101,7 +101,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 					"Use: let name = value in ...",
 					"Note: All bindings in AILANG are immutable by default",
 				},
-				"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
 			)
 			p.errors = append(p.errors, err)
 			return nil
@@ -117,7 +117,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 					fmt.Sprintf("Use: let %s = ... in", p.curToken.Literal),
 					"AILANG requires 'let' keyword for bindings",
 				},
-				"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
 			)
 			p.errors = append(p.errors, err)
 			return nil

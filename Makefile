@@ -1,4 +1,4 @@
-.PHONY: build build-agent build-all test run clean install install-agent install-all fmt vet lint deps verify-examples verify-examples-all examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
+.PHONY: build build-agent build-all test run clean install install-agent install-all fmt vet lint deps verify-examples verify-examples-all verify-cli-examples examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
 
 # Binary name
 BINARY=ailang
@@ -213,6 +213,11 @@ verify-examples: build
 verify-examples-all: build
 	@echo "Verifying all examples with threshold gate..."
 	@go run ./scripts/verify_examples.go --all --threshold 60
+
+# Verify CLI examples (for documentation accuracy)
+verify-cli-examples:
+	@echo "Verifying CLI examples from examples/cli_examples.txt..."
+	@./tools/verify_cli_examples.sh
 
 # Quick example status (one-line summary)
 examples-status: build

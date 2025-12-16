@@ -66,13 +66,11 @@ function HeroSection() {
             <span className="hero-code-filename">hello.ail</span>
           </div>
           <pre className="hero-code-content">
-{`module examples/hello
+{`-- hello.ail
+module examples/hello
 
-effect IO
-
-let main: () -> ! IO Unit =
-  let _ = print("Hello, AILANG!")
-  ()`}
+export func main() -> () ! {IO} =
+  print("Hello, AILANG!")`}
           </pre>
         </div>
       </div>

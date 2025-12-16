@@ -32,7 +32,7 @@ Invoke this skill when:
 
 When planning sprints that involve adding error messages, help text, or documentation links:
 
-**Website**: https://sunholo-data.github.io/ailang/
+**Website**: https://ailang.sunholo.com/
 
 **Documentation Source**: The website documentation lives in this repo at `docs/`
 - Markdown files: `docs/docs/` (guides, reference, etc.)
@@ -50,7 +50,7 @@ When planning sprints that involve adding error messages, help text, or document
 
 **Full URL Example**:
 ```
-https://sunholo-data.github.io/ailang/docs/reference/language-syntax
+https://ailang.sunholo.com/docs/reference/language-syntax
 ```
 
 **Best Practices**:

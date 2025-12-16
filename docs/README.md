@@ -2,7 +2,7 @@
 
 This directory contains the AILANG documentation website built with [Docusaurus](https://docusaurus.io/).
 
-**Live site:** [https://sunholo-data.github.io/ailang/](https://sunholo-data.github.io/ailang/)
+**Live site:** [https://ailang.sunholo.com/](https://ailang.sunholo.com/)
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ npm start
 
 This starts a local development server and opens a browser window. Most changes are reflected live without restarting the server.
 
-**Local URL:** [http://localhost:3000/ailang/](http://localhost:3000/ailang/)
+**Local URL:** [http://localhost:3000/](http://localhost:3000/)
 
 ### Build
 

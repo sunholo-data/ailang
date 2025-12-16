@@ -1,0 +1,24 @@
+-- records_person.ail - Records and data types
+-- Used in: docs/docs/guides/quick-start-examples.mdx
+module examples/docs/records_person
+
+import std/io (println)
+
+-- Define a record type (optional, AILANG infers types)
+type Person = { name: string, age: int, city: string }
+
+pure func greet(p: Person) -> string =
+  "Hello, " ++ p.name ++ " from " ++ p.city ++ "!"
+
+pure func birthday(p: Person) -> Person =
+  -- Record update syntax: creates new record with updated field
+  { p | age: p.age + 1 }
+
+export func main() -> () ! {IO} = {
+  let alice = { name: "Alice", age: 30, city: "Copenhagen" };
+
+  println(greet(alice));
+
+  let olderAlice = birthday(alice);
+  println("After birthday: " ++ show(olderAlice.age))
+}

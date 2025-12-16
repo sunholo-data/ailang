@@ -8,7 +8,7 @@ export default function BenchmarkMini() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/ailang/benchmarks/latest.json')
+    fetch('/benchmarks/latest.json')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         setData(data);

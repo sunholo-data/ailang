@@ -1,0 +1,8 @@
+-- io_println_demo.ail - Demonstrates _io_println (with newline)
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/io_println_demo
+
+export func main() -> () ! {IO} = {
+    _io_println("Line 1");
+    _io_println("Line 2")
+}

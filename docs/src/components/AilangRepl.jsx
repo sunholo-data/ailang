@@ -78,7 +78,7 @@ export default function AilangRepl() {
         }
 
         const replInstance = new window.AilangREPL();
-        await replInstance.init('/ailang/wasm/ailang.wasm');
+        await replInstance.init('/wasm/ailang.wasm');
 
         if (mounted) {
           setRepl(replInstance);

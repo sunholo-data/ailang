@@ -11,26 +11,26 @@ import (
 
 // InboxMessage represents a message in the unified inbox system
 type InboxMessage struct {
-	ID            string     `json:"id"`
-	MessageID     string     `json:"message_id"`
-	CorrelationID string     `json:"correlation_id,omitempty"`
-	FromAgent     string     `json:"from_agent"`
-	ToInbox       string     `json:"to_inbox"`
-	MessageType   string     `json:"message_type"`
-	Title         string     `json:"title"`
-	Payload       string     `json:"payload,omitempty"`
-	Category      string     `json:"category,omitempty"`     // bug, feature, general (for GitHub sync)
-	GitHubIssue   *int       `json:"github_issue,omitempty"` // GitHub issue number
-	GitHubRepo    string     `json:"github_repo,omitempty"`  // GitHub repo (owner/repo)
+	ID                 string     `json:"id"`
+	MessageID          string     `json:"message_id"`
+	CorrelationID      string     `json:"correlation_id,omitempty"`
+	FromAgent          string     `json:"from_agent"`
+	ToInbox            string     `json:"to_inbox"`
+	MessageType        string     `json:"message_type"`
+	Title              string     `json:"title"`
+	Payload            string     `json:"payload,omitempty"`
+	Category           string     `json:"category,omitempty"`             // bug, feature, general (for GitHub sync)
+	GitHubIssue        *int       `json:"github_issue,omitempty"`         // GitHub issue number
+	GitHubRepo         string     `json:"github_repo,omitempty"`          // GitHub repo (owner/repo)
 	Simhash            *int64     `json:"simhash,omitempty"`              // SimHash for semantic search (v1.2.0)
 	DupOf              string     `json:"dup_of,omitempty"`               // ID of message this is a duplicate of (v1.2.0)
 	Embedding          string     `json:"embedding,omitempty"`            // JSON-encoded float32 array (v1.3.0)
 	EmbeddingModel     string     `json:"embedding_model,omitempty"`      // e.g., "ollama:nomic-embed-text" (v1.3.0)
 	EmbeddingUpdatedAt *int64     `json:"embedding_updated_at,omitempty"` // Unix millis (v1.3.0)
 	Status             string     `json:"status"`
-	CreatedAt     time.Time  `json:"created_at"`
-	ReadAt        *time.Time `json:"read_at,omitempty"`
-	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	ReadAt             *time.Time `json:"read_at,omitempty"`
+	ExpiresAt          *time.Time `json:"expires_at,omitempty"`
 }
 
 // Inbox message statuses

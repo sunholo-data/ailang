@@ -347,7 +347,7 @@ func (v *validator) formatError() error {
 	sb.WriteString("  ailang debug ast <file> --show-types --compact\n\n")
 
 	sb.WriteString("This is a compiler bug. The type checker should populate CoreTypeInfo for all Core nodes.\n")
-	sb.WriteString("See: https://sunholo-data.github.io/ailang/docs/internals/type-system\n")
+	sb.WriteString("See: https://ailang.sunholo.com/docs/internals/type-system\n")
 
 	return fmt.Errorf("%s", sb.String())
 }

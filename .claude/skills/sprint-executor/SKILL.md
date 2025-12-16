@@ -277,7 +277,7 @@ Fixes #42"
 
 ### External Documentation
 - **Parser Guide**: [docs/guides/parser_development.md](../../docs/guides/parser_development.md)
-- **Website**: https://sunholo-data.github.io/ailang/
+- **Website**: https://ailang.sunholo.com/
 
 ## Progressive Disclosure
 

@@ -1,0 +1,6 @@
+-- module_add_record.ail - Multi-arg workaround with record
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/module_add_record
+
+export func add(params: {x: int, y: int}) -> int =
+    params.x + params.y

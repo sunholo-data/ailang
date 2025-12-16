@@ -150,6 +150,44 @@ github:
 - GitHub sync failures don't lose messages
 - Account mismatch = HARD FAIL with fix instructions (`gh auth switch --user`)
 
+### Design Docs Search (v0.5.11+)
+
+Search design documentation using SimHash or neural embeddings:
+
+```bash
+# Basic search (SimHash - fast)
+ailang docs search "parser error"
+
+# Filter by stream
+ailang docs search --stream planned "type inference"
+ailang docs search --stream implemented "builtin"
+
+# Neural search (uses Ollama embeddings - requires local Ollama)
+ailang docs search --neural "semantic search"
+ailang docs search --stream planned --neural "lazy embedding"
+
+# JSON output for scripting
+ailang docs search --json "query"
+```
+
+**Note:** Flags must come BEFORE the query.
+
+**Neural Search Behavior:**
+- **When using `--neural`**, embeddings are computed lazily only for the bounded SimHash candidate set
+- Do NOT attempt to embed the entire doc corpus - that's the whole point of lazy embeddings
+- First search may be slower (computing embeddings), subsequent searches reuse cached embeddings
+- Cache stored at `~/.ailang/cache/doc_embeddings.json` with model version tagging
+- Model change triggers re-embedding on next search
+
+**Configuration:** Uses same Ollama config as messages in `~/.ailang/config.yaml`:
+```yaml
+embeddings:
+  provider: ollama
+  ollama:
+    model: embeddinggemma  # or nomic-embed-text
+    endpoint: http://localhost:11434
+```
+
 ---
 
 ## ⚠️ CRITICAL PRINCIPLES

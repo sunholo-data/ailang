@@ -117,7 +117,7 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 				"Use: let name = value in ...",
 				"Note: All bindings in AILANG are immutable by default",
 			},
-			"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
 		)
 		p.errors = append(p.errors, err)
 		return
@@ -136,7 +136,7 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 				"Use: let name = value in ...",
 				"AILANG requires 'let' keyword for bindings",
 			},
-			"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
 		)
 		p.errors = append(p.errors, err)
 		return

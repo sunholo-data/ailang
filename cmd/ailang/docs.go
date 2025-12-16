@@ -29,13 +29,20 @@ type exportDoc struct {
 
 // docsCommand implements `ailang docs` command
 func docsCommand() {
+	// Check for subcommands first
+	args := flag.Args()[1:]
+	if len(args) > 0 && args[0] == "search" {
+		docsSearchCommand(args[1:])
+		return
+	}
+
 	// Parse subcommand flags
 	docsFlags := flag.NewFlagSet("docs", flag.ExitOnError)
 	listFlag := docsFlags.Bool("list", false, "List all available stdlib modules")
 	examplesFlag := docsFlags.Bool("examples", false, "Show usage examples")
 	helpFlag := docsFlags.Bool("help", false, "Show help for docs command")
 
-	if err := docsFlags.Parse(flag.Args()[1:]); err != nil {
+	if err := docsFlags.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}

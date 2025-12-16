@@ -86,7 +86,7 @@ See [`resources/common_patterns.md`](resources/common_patterns.md) for:
 
 ### 4. **Full Documentation**
 - **Teaching prompt**: Check active version in prompts/versions.json, then use that prompt file
-- **Website**: https://sunholo-data.github.io/ailang/
+- **Website**: https://ailang.sunholo.com/
 - **Examples**: `examples/` directory (66 files, 48 passing)
 - **REPL commands**: `docs/docs/reference/repl-commands.md`
 
@@ -250,7 +250,7 @@ make install
 - **Syntax reference**: `resources/syntax_quick_ref.md`
 - **Common patterns**: `resources/common_patterns.md`
 - **Teaching prompt**: Use active version from prompts/versions.json
-- **Documentation**: https://sunholo-data.github.io/ailang/
+- **Documentation**: https://ailang.sunholo.com/
 - **Examples**: `examples/` directory
 - **Issues**: https://github.com/sunholo-data/ailang/issues
 - **REPL help**: Type `:help` in the REPL

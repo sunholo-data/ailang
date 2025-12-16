@@ -1,10 +1,22 @@
 # Module Execution Guide
 
-**AILANG v0.2.0** - Complete guide to executing modules with entrypoint functions
+**AILANG v0.5.11** - Complete guide to executing modules with entrypoint functions
 
 ---
 
 import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
+import CodeBlock from '@theme/CodeBlock';
+
+{/* Import verified example files */}
+import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+import ModuleWithHelper from '!!raw-loader!@site/../examples/docs/module_with_helper.ail';
+import ModuleMainInt from '!!raw-loader!@site/../examples/docs/module_main_int.ail';
+import ModuleGreet from '!!raw-loader!@site/../examples/docs/module_greet.ail';
+import ModuleProcessRecord from '!!raw-loader!@site/../examples/docs/module_process_record.ail';
+import ModuleAddRecord from '!!raw-loader!@site/../examples/docs/module_add_record.ail';
+import IoPrintDemo from '!!raw-loader!@site/../examples/docs/io_print_demo.ail';
+import IoPrintlnDemo from '!!raw-loader!@site/../examples/docs/io_println_demo.ail';
+import CliGreeter from '!!raw-loader!@site/../examples/docs/cli_greeter.ail';
 
 ## <Icon name="info" inline /> Overview
 
@@ -38,30 +50,25 @@ graph LR
 
 ```bash
 # Run a module with a main() function
-ailang --entry main run examples/hello.ail
+ailang run --caps IO --entry main examples/hello.ail
 
 # Run with a different entrypoint
-ailang --entry greet run examples/demo.ail
+ailang run --caps IO --entry greet examples/demo.ail
 
 # Pass arguments via JSON
-ailang --entry process --args-json '{"input": "data"}' run examples/processor.ail
+ailang run --caps IO --entry process --args-json '{"input": "data"}' examples/processor.ail
 ```
 
 ### Minimal Example
 
-```typescript
--- hello.ail
-module examples/hello
-
-export func main() -> () {
-    _io_println("Hello from AILANG!")
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+  {HelloExample}
+</CodeBlock>
 
 Run with:
 ```bash
-ailang --entry main run examples/hello.ail
-# Output: Hello from AILANG!
+ailang run --caps IO --entry main examples/runnable/hello.ail
+# Output: Hello, AILANG!
 ```
 
 ---
@@ -70,26 +77,9 @@ ailang --entry main run examples/hello.ail
 
 ### Anatomy of an Executable Module
 
-```typescript
--- my_module.ail
-module examples/my_module
-import stdlib/std/option (Some, None)
-
--- Private helper (not exported)
-func helper(x: int) -> int {
-    x * 2
-}
-
--- Exported entrypoint (0 arguments)
-export func main() -> int {
-    helper(21)
-}
-
--- Exported entrypoint (1 argument)
-export func process(input: {value: int}) -> int {
-    helper(input.value)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/module_with_helper.ail">
+  {ModuleWithHelper}
+</CodeBlock>
 
 ### Module Declaration
 
@@ -114,43 +104,37 @@ An entrypoint function must:
 
 #### 0-Argument Functions
 
-```typescript
-export func main() -> int {
-    42
-}
-```
+<CodeBlock language="typescript" title="examples/docs/module_main_int.ail">
+  {ModuleMainInt}
+</CodeBlock>
 
 Run with:
 ```bash
-ailang --entry main run module.ail
+ailang run --entry main examples/docs/module_main_int.ail
 # Output: 42
 ```
 
 #### 1-Argument Functions
 
-```typescript
-export func greet(name: string) -> () {
-    _io_println(name)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/module_greet.ail">
+  {ModuleGreet}
+</CodeBlock>
 
 Run with:
 ```bash
-ailang --entry greet --args-json '"World"' run module.ail
+ailang run --caps IO --entry greet --args-json '"World"' examples/docs/module_greet.ail
 # Output: World
 ```
 
 #### Record Parameters (Recommended Pattern)
 
-```typescript
-export func process(params: {input: string, count: int}) -> () {
-    _io_println(params.input)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/module_process_record.ail">
+  {ModuleProcessRecord}
+</CodeBlock>
 
 Run with:
 ```bash
-ailang --entry process --args-json '{"input": "data", "count": 5}' run module.ail
+ailang run --caps IO --entry process --args-json '{"input": "data", "count": 5}' examples/docs/module_process_record.ail
 # Output: data
 ```
 
@@ -166,15 +150,13 @@ export func add(x: int, y: int) -> int {
 ```
 
 <CheckIcon inline size={14} /> **Supported pattern:**
-```typescript
-export func add(params: {x: int, y: int}) -> int {
-    params.x + params.y
-}
-```
+<CodeBlock language="typescript" title="examples/docs/module_add_record.ail">
+  {ModuleAddRecord}
+</CodeBlock>
 
 Run with:
 ```bash
-ailang --entry add --args-json '{"x": 10, "y": 32}' run module.ail
+ailang run --entry add --args-json '{"x": 10, "y": 32}' examples/docs/module_add_record.ail
 # Output: 42
 ```
 
@@ -190,13 +172,9 @@ AILANG v0.2.0 provides three builtin IO functions:
 
 Print a string without a newline.
 
-```typescript
-export func main() -> () {
-    _io_print("Hello")
-    _io_print(" ")
-    _io_print("World")
-}
-```
+<CodeBlock language="typescript" title="examples/docs/io_print_demo.ail">
+  {IoPrintDemo}
+</CodeBlock>
 
 Output: `Hello World`
 
@@ -204,12 +182,9 @@ Output: `Hello World`
 
 Print a string with a newline.
 
-```typescript
-export func main() -> () {
-    _io_println("Line 1")
-    _io_println("Line 2")
-}
-```
+<CodeBlock language="typescript" title="examples/docs/io_println_demo.ail">
+  {IoPrintlnDemo}
+</CodeBlock>
 
 Output:
 ```
@@ -300,19 +275,14 @@ export func main() -> () {
 
 ### CLI Tool with Arguments
 
-```typescript
-module tools/greeter
-
-export func greet(config: {name: string, greeting: string}) -> () {
-    _io_print(config.greeting)
-    _io_print(" ")
-    _io_println(config.name)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/cli_greeter.ail">
+  {CliGreeter}
+</CodeBlock>
 
 Usage:
 ```bash
-ailang --entry greet --args-json '{"name":"Alice","greeting":"Hello"}' run tools/greeter.ail
+ailang run --caps IO --entry greet --args-json '{"name":"Alice","greeting":"Hello"}' examples/docs/cli_greeter.ail
+# Output: Hello Alice
 ```
 
 ### Interactive Program
@@ -454,16 +424,16 @@ export func public_api() -> int {
 
 ```bash
 # Basic execution
-ailang --entry main run app.ail
+ailang run --entry main app.ail
 
 # With arguments
-ailang --entry process --args-json '{"data": [1,2,3]}' run app.ail
+ailang run --entry process --args-json '{"data": [1,2,3]}' app.ail
 
 # Use fallback runner (pre-M-R1 execution)
-ailang --runner fallback run app.ail
+ailang run --runner fallback app.ail
 
 # Exit code only (no output)
-ailang --entry main --no-print run app.ail
+ailang run --entry main --no-print app.ail
 echo $?  # Check exit code
 ```
 
@@ -523,6 +493,6 @@ echo $?  # Check exit code
 
 ---
 
-**Version**: v0.2.0-rc1
-**Last Updated**: October 2, 2025
+**Version**: v0.5.11
+**Last Updated**: December 2025
 **Status**: Complete

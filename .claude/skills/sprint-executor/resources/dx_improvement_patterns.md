@@ -121,7 +121,7 @@ fmt.Printf("cur=%v peek=%v\n", p.curToken, p.peekToken)
 return fmt.Errorf("parse error")
 
 // ✅ After
-return fmt.Errorf("parse error at %s:%d: expected RPAREN, got %s. Did you forget to close the argument list? See: https://sunholo-data.github.io/ailang/docs/guides/parser_development#common-issues",
+return fmt.Errorf("parse error at %s:%d: expected RPAREN, got %s. Did you forget to close the argument list? See: https://ailang.sunholo.com/docs/guides/parser_development#common-issues",
     p.filename, p.curToken.Line, p.curToken.Type)
 ```
 

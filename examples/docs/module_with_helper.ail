@@ -1,0 +1,15 @@
+-- module_with_helper.ail - Module with private helper and exported entrypoints
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/module_with_helper
+
+-- Private helper (not exported)
+func helper(x: int) -> int =
+    x * 2
+
+-- Exported entrypoint (0 arguments)
+export func main() -> int =
+    helper(21)
+
+-- Exported entrypoint (1 argument)
+export func process(input: {value: int}) -> int =
+    helper(input.value)

@@ -1,0 +1,33 @@
+-- adt_option_pattern.ail - ADT Option type with pattern matching
+-- Used in: docs/docs/guides/quick-start-examples.mdx
+module examples/docs/adt_option_pattern
+
+import std/io (println)
+
+-- Define a monomorphic Option type for integers
+type IntOption = SomeInt(int) | NoneInt
+
+-- Pattern matching on ADTs
+pure func unwrapOrInt(opt: IntOption, default: int) -> int =
+  match opt {
+    SomeInt(x) => x,
+    NoneInt => default
+  }
+
+-- Map for int -> int
+pure func mapInt(opt: IntOption, f: int -> int) -> IntOption =
+  match opt {
+    SomeInt(x) => SomeInt(f(x)),
+    NoneInt => NoneInt
+  }
+
+export func main() -> () ! {IO} = {
+  let some = SomeInt(42);
+  let none = NoneInt;
+
+  println("Some value: " ++ show(unwrapOrInt(some, 0)));
+  println("None value: " ++ show(unwrapOrInt(none, -1)));
+
+  let doubled = mapInt(some, \x. x * 2);
+  println("Doubled: " ++ show(unwrapOrInt(doubled, 0)))
+}

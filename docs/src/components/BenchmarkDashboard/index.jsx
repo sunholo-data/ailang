@@ -18,7 +18,7 @@ export default function BenchmarkDashboard() {
 
   useEffect(() => {
     // Fetch benchmark data
-    fetch('/ailang/benchmarks/latest.json')
+    fetch('/benchmarks/latest.json')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load benchmark data');
         return res.json();
@@ -236,7 +236,7 @@ export default function BenchmarkDashboard() {
         <h3>Try AILANG Today</h3>
         <p>Start building with AI-first functional programming</p>
         <div className={styles.ctaButtons}>
-          <a href="/ailang/docs/guides/getting-started" className={styles.ctaButton}>
+          <a href="/docs/guides/getting-started" className={styles.ctaButton}>
             Get Started
           </a>
           <a href="https://github.com/sunholo-data/ailang" className={styles.ctaButton + ' ' + styles.secondary}>

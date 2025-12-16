@@ -181,7 +181,53 @@ type embedding = vector[float; 768]  -- COMPILE-TIME size check
 
 ---
 
-### 6. Cross-Key Transactions (Future)
+### 6. Default TTL for Messages (DX-21)
+
+**Priority:** Medium
+**Estimated LOC:** ~200
+
+Messages currently persist indefinitely. Add configurable default TTL:
+
+**Configuration:**
+```yaml
+messages:
+  # Default TTL for new messages (0 = no expiration)
+  default_ttl: 7d
+
+  # Auto-cleanup on session start
+  auto_cleanup: true
+
+  # Cleanup strategy: "expired" or "age"
+  cleanup_strategy: expired
+```
+
+**Implementation:**
+```go
+func (i *Inbox) SendMessage(msg *InboxMessage) error {
+    // Apply default TTL if not explicitly set
+    if msg.ExpiresAt == nil && cfg.Messages.DefaultTTL > 0 {
+        expires := time.Now().Add(cfg.Messages.DefaultTTL)
+        msg.ExpiresAt = &expires
+    }
+    // ... rest of send logic
+}
+```
+
+**Benefits:**
+- Automatic inbox hygiene (no manual cleanup needed)
+- Prevents unbounded database growth
+- Configurable per-deployment
+- Backward compatible (0 = no expiration, current default)
+
+**Current state (v0.5.11):**
+- `ExpiresAt` field exists in schema ✅
+- `cleanup --expired` command works ✅
+- No default TTL on creation ❌
+- No auto-cleanup hook ❌
+
+---
+
+### 7. Cross-Key Transactions (Future)
 
 **Priority:** Low
 **Estimated LOC:** ~500
@@ -210,12 +256,13 @@ transaction {
 | Redis backend | High | ~400 | Production persistence |
 | Firestore backend | High | ~400 | Cloud-native option |
 | Hybrid search | Medium | ~400 | SimHash + embedding combo |
+| Default TTL (DX-21) | Medium | ~200 | Auto-expiring messages |
 | In-process embedder | Low | ~600 | Remove Ollama dependency |
 | SharedMem.scan | Low | ~200 | Prefix enumeration |
 | Fixed-size vector | Low | ~500 | New language feature |
 | Cross-key transactions | Low | ~500 | Distributed protocol |
 
-**Total remaining:** ~3,000 LOC
+**Total remaining:** ~3,200 LOC
 
 ---
 

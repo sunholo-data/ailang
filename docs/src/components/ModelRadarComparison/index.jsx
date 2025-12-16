@@ -16,7 +16,7 @@ export default function ModelRadarComparison() {
   const [error, setError] = useState(null);
 
   React.useEffect(() => {
-    fetch('/ailang/benchmarks/latest.json')
+    fetch('/benchmarks/latest.json')
       .then(res => res.json())
       .then(json => setData(json))
       .catch(err => setError(err.message));

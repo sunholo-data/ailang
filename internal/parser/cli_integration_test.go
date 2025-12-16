@@ -30,7 +30,7 @@ print(response.statusCode)`
 		"namespace imports not yet supported",
 		"import std/net (httpRequest)",
 		"import std/json (encode, decode)",
-		"https://sunholo-data.github.io/ailang/docs/guides/module_execution",
+		"https://ailang.sunholo.com/docs/guides/module_execution",
 	}
 
 	for _, check := range checks {
@@ -73,7 +73,7 @@ const HEADERS = {"X-Test-Header": "value123"}`
 		"'const' keyword doesn't exist",
 		"let name = value in",
 		"immutable by default",
-		"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+		"https://ailang.sunholo.com/docs/reference/language-syntax",
 	}
 
 	for _, check := range checks {
@@ -116,7 +116,7 @@ headers = {"X-Test-Header": "value123"}`
 		"bare assignment not supported",
 		"let url = ... in",
 		"requires 'let' keyword",
-		"https://sunholo-data.github.io/ailang/docs/reference/language-syntax",
+		"https://ailang.sunholo.com/docs/reference/language-syntax",
 	}
 
 	for _, check := range checks {
@@ -179,7 +179,7 @@ func TestErrorFormattingConsistency(t *testing.T) {
 				t.Error("error should have 'Did you mean one of these?' header")
 			}
 
-			if !strings.Contains(errorMsg, "https://sunholo-data.github.io/ailang") {
+			if !strings.Contains(errorMsg, "https://ailang.sunholo.com") {
 				t.Error("error should have help URL")
 			}
 

@@ -1,3 +1,7 @@
+import CodeBlock from '@theme/CodeBlock';
+import AIEffectExample from '!!raw-loader!@site/../examples/runnable/ai_effect.ail';
+import NPCDialogueExample from '!!raw-loader!@site/../examples/docs/npc_dialogue.ail';
+
 # AI Effect: Calling LLMs from AILANG
 
 AILANG v0.5.10 provides a simple, high-level AI effect for calling external AI/ML systems directly from your code. Perfect for game NPCs, agents, CLI tools, and data pipelines.
@@ -24,17 +28,9 @@ func ask_ai(question: string) -> string ! {AI} =
 
 ### 1. Basic Usage
 
-```ailang
-module my/app
-
-import std/ai (call)
-import std/io (println)
-
-export func main() -> () ! {IO, AI} {
-    let response = call("What is the capital of France?");
-    println("AI says: " ++ response)
-}
-```
+<CodeBlock language="typescript" title="examples/runnable/ai_effect.ail">
+  {AIEffectExample}
+</CodeBlock>
 
 ### 2. Run with Different Providers
 
@@ -77,41 +73,15 @@ ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
 
 Here's a complete example of using AI for NPC dialogue generation:
 
-```ailang
--- Game NPC Dialogue Example
-module game/npc_dialogue
-
-import std/ai (call)
-import std/io (println)
-
--- Build dialogue prompt for an NPC
-func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string =
-    "You are " ++ npc_name ++ ", a " ++ role ++ " in a fantasy RPG. " ++
-    "Personality: " ++ personality ++ ". " ++
-    "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
-
--- Generate NPC dialogue using AI
-func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} =
-    let prompt = make_prompt(npc_name, role, personality, topic) in
-    call(prompt)
-
--- Main: demonstrate NPC dialogue generation
-export func main() -> () ! {IO, AI} {
-    println("=== NPC Dialogue Demo ===");
-    println("");
-
-    println("[At the Forge]");
-    println("Player: Can you forge me an enchanted sword?");
-    let response = ask_npc("Grimnar", "blacksmith", "gruff but kind", "forging an enchanted sword") in
-    println("Grimnar: " ++ response)
-}
-```
+<CodeBlock language="typescript" title="examples/docs/npc_dialogue.ail">
+  {NPCDialogueExample}
+</CodeBlock>
 
 **Run it:**
 
 ```bash
 # With Claude
-ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main game/npc_dialogue.ail
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/docs/npc_dialogue.ail
 ```
 
 **Output:**

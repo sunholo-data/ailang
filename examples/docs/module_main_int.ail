@@ -1,0 +1,6 @@
+-- module_main_int.ail - 0-argument entrypoint returning int
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/module_main_int
+
+export func main() -> int =
+    42

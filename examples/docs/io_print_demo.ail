@@ -1,0 +1,9 @@
+-- io_print_demo.ail - Demonstrates _io_print (no newline)
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/io_print_demo
+
+export func main() -> () ! {IO} = {
+    _io_print("Hello");
+    _io_print(" ");
+    _io_print("World")
+}

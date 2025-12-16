@@ -11,13 +11,13 @@ import (
 
 // SearchOptions configures semantic search parameters
 type SearchOptions struct {
-	Query     string    // Natural language query
-	Threshold float64   // Minimum similarity (0.0-1.0), default 0.70
-	Limit     int       // Max results, default 20
-	MaxScan   int       // Max messages to scan, default 1000
-	Inbox     string    // Filter by inbox (optional)
-	UseNeural bool      // Use embedding search via Ollama
-	Embedder  Embedder  // Optional embedder instance (created if nil and UseNeural=true)
+	Query     string   // Natural language query
+	Threshold float64  // Minimum similarity (0.0-1.0), default 0.70
+	Limit     int      // Max results, default 20
+	MaxScan   int      // Max messages to scan, default 1000
+	Inbox     string   // Filter by inbox (optional)
+	UseNeural bool     // Use embedding search via Ollama
+	Embedder  Embedder // Optional embedder instance (created if nil and UseNeural=true)
 }
 
 // SearchHit represents a search result with similarity score
@@ -487,10 +487,8 @@ func (s *Store) neuralSearch(opts SearchOptions) ([]SearchHit, error) {
 			continue // Skip on error, don't fail entire search
 		}
 
-		// Store embedding for future use
-		if err := s.UpdateMessageEmbedding(msg.ID, msgEmbedding, embedder.ModelName()); err != nil {
-			// Log but continue
-		}
+		// Store embedding for future use (ignore errors - non-critical)
+		_ = s.UpdateMessageEmbedding(msg.ID, msgEmbedding, embedder.ModelName())
 
 		// Compute similarity
 		score := CosineSimilarity(queryEmbedding, msgEmbedding)

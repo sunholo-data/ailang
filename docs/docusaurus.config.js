@@ -40,11 +40,11 @@ const config = {
   // Load Go's WebAssembly support for AILANG REPL
   scripts: [
     {
-      src: '/ailang/wasm/wasm_exec.js',
+      src: '/wasm/wasm_exec.js',
       async: false,
     },
     {
-      src: '/ailang/js/ailang-repl.js',
+      src: '/js/ailang-repl.js',
       async: false,
     },
   ],
@@ -183,7 +183,7 @@ const config = {
             position: 'left',
           },
           {
-            href: 'https://sunholo-data.github.io/ailang/llms.txt',
+            href: 'https://ailang.sunholo.com/llms.txt',
             label: 'llms.txt',
             position: 'right',
           },
@@ -240,7 +240,7 @@ const config = {
               },
               {
                 label: 'llms.txt',
-                href: 'https://sunholo-data.github.io/ailang/llms.txt',
+                href: 'https://ailang.sunholo.com/llms.txt',
               },
             ],
           },

@@ -1,0 +1,6 @@
+-- module_process_record.ail - Record parameter entrypoint
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/module_process_record
+
+export func process(params: {input: string, count: int}) -> () ! {IO} =
+    _io_println(params.input)

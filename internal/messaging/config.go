@@ -174,7 +174,7 @@ func WriteExampleConfig() (bool, error) {
 	}
 
 	exampleConfig := `# AILANG Configuration
-# See: https://sunholo-data.github.io/ailang/docs/guides/configuration
+# See: https://ailang.sunholo.com/docs/guides/configuration
 
 github:
   # Default repository for --github flag

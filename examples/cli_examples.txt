@@ -1,0 +1,65 @@
+# AILANG CLI Examples
+# These examples are verified by tools/verify_cli_examples.sh
+# Format:
+#   # Comment
+#   $ command
+#   expected output
+#
+# Used by documentation to ensure CLI examples are accurate.
+
+# Basic module execution with IO effect
+$ ailang run --caps IO --entry main examples/runnable/hello.ail
+Hello, AILANG!
+
+# Type checking without execution
+$ ailang check examples/runnable/hello.ail
+
+# Run arithmetic example (pure, no effects needed)
+$ ailang run --entry main examples/runnable/arithmetic.ail
+z = 13
+
+# Run with different entrypoint (factorial)
+$ ailang run --entry main examples/runnable/recursion_factorial.ail
+120
+
+# Check fibonacci
+$ ailang run --entry main examples/runnable/recursion_fibonacci.ail
+55
+
+# --- Documentation Examples (examples/docs/) ---
+
+# Module with 0-arg entrypoint returning int
+$ ailang run --entry main examples/docs/module_main_int.ail
+42
+
+# Module with 1-arg string entrypoint
+$ ailang run --caps IO --entry greet --args-json '"World"' examples/docs/module_greet.ail
+World
+
+# Module with record parameter
+$ ailang run --caps IO --entry process --args-json '{"input": "data", "count": 5}' examples/docs/module_process_record.ail
+data
+
+# Multi-argument workaround with record
+$ ailang run --entry add --args-json '{"x": 10, "y": 32}' examples/docs/module_add_record.ail
+42
+
+# CLI greeter tool
+$ ailang run --caps IO --entry greet --args-json '{"name":"Alice","greeting":"Hello"}' examples/docs/cli_greeter.ail
+Hello Alice
+
+# Module with private helper
+$ ailang run --entry main examples/docs/module_with_helper.ail
+42
+
+# ADT Option pattern matching
+$ ailang run --caps IO --entry main examples/docs/adt_option_pattern.ail
+Doubled: 84
+
+# Lambda expressions and higher-order functions
+$ ailang run --caps IO --entry main examples/docs/lambdas_full.ail
+doubleThenInc(5) = 11
+
+# Records and data types (Person record)
+$ ailang run --caps IO --entry main examples/docs/records_person.ail
+Hello, Alice from Copenhagen!

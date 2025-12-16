@@ -530,6 +530,7 @@ ailang msg send ...    # Same as: ailang messages send ...
 
 ## See Also
 
+- [Semantic Caching vs Vector DBs](/docs/guides/semantic-caching-vs-vectordb) - When to use semantic caching
 - [Cross-Project Messaging](/docs/guides/cross-project-messaging) - Send feedback from your projects
 - [Agent Workflows](/docs/guides/agent-workflows) - Automated agent workflows
 - [State System](/docs/guides/state-system-workflow) - Persistent state management

@@ -1,0 +1,12 @@
+-- read_file.ail - Reading files with FS effect
+-- Used in: docs/docs/guides/quick-start-examples.mdx
+module examples/docs/read_file
+
+import std/fs (readFile)
+import std/io (println)
+
+export func main(path: string) -> () ! {IO, FS} = {
+  let content = readFile(path);
+  println("=== File Contents ===");
+  println(content)
+}

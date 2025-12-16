@@ -134,10 +134,10 @@ func NewOllamaEmbedder(cfg OllamaConfig) (*OllamaEmbedder, error) {
 // detectDimension returns the embedding dimension for known models
 func detectDimension(model string) int {
 	dimensions := map[string]int{
-		"nomic-embed-text":  768,
-		"mxbai-embed-large": 1024,
-		"gemma2:2b":         2048,
-		"all-minilm":        384,
+		"nomic-embed-text":       768,
+		"mxbai-embed-large":      1024,
+		"gemma2:2b":              2048,
+		"all-minilm":             384,
 		"snowflake-arctic-embed": 1024,
 	}
 	if dim, ok := dimensions[model]; ok {

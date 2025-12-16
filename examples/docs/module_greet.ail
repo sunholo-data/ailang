@@ -1,0 +1,6 @@
+-- module_greet.ail - 1-argument entrypoint with string
+-- Used in: docs/docs/guides/module_execution.mdx
+module examples/docs/module_greet
+
+export func greet(name: string) -> () ! {IO} =
+    _io_println(name)
