@@ -21,8 +21,9 @@ cp bin/ailang.wasm <docusaurus-site>/static/wasm/
 cp web/ailang-repl.js <docusaurus-site>/src/components/
 cp web/AilangRepl.jsx <docusaurus-site>/src/components/
 
-# Copy Go's WASM support file
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" <docusaurus-site>/static/wasm/
+# Download Go's WASM support file
+curl -sL -o <docusaurus-site>/static/wasm/wasm_exec.js \
+  https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
 ```
 
 ### 3. Load WASM Support in Docusaurus

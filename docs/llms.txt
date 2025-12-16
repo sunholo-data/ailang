@@ -12,11 +12,13 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 ![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-37.2%25-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-39.1%25-orange.svg)
 ![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-AILANG is a purely functional, effect-typed language designed for **autonomous code synthesis and reasoning**. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
+AILANG is a purely functional, effect-typed language designed as a **deterministic execution and evaluation substrate** for AI-generated code. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
+
+AILANG exists to ensure that when AI systems improve themselves, the improvement is real.
 
 ---
 
@@ -27,7 +29,24 @@ AILANG is a purely functional, effect-typed language designed for **autonomous c
 
 AILANG minimizes ambiguity and maximizes predictability. Every construct — type, effect, or expression — has **deterministic semantics** that can be reflected, verified, and serialized.
 
----
+## What AILANG Is (and Is Not)
+
+AILANG is **not** an autonomous agent framework.
+AILANG is **not** a productivity language for humans.
+
+AILANG **is**:
+- A deterministic semantic substrate for AI-generated programs
+- An evaluation harness where reasoning, testing, and execution align
+- A language where programs can be safely re-written, re-run, and compared by machines
+
+Autonomous agents, self-training loops, and reflective rewriting are **enabled by AILANG’s guarantees**, not embedded as opaque runtime behavior.
+
+Further reading on answering common misconceptions:
+- AILANG is not another AI framework.
+- AILANG is not trying to be a "better python"
+- AILANG as a Semantic Control Surface
+
+Read more about [AILANG vs Agents](docs/docs/roadmpa/ailang-vs-agents.md) concepts.
 
 ## 🏗️ Architecture
 
@@ -40,7 +59,7 @@ AILANG is built in layers, from stable foundations to cutting-edge features:
 - Deterministic evaluator with explicit effect tracking
 
 **In Development:**
-- Reflection & meta-programming (typed quasiquotes, structural type classes)
+- Reflection & meta-programming (typed quasiquotes, structural type classes — design complete, implementation in progress)
 - Deterministic tooling (normalize, suggest-imports, trace export)
 - Schema registry for machine-readable type definitions
 
@@ -53,19 +72,11 @@ AILANG aims to be the first language optimized for autonomous AI code synthesis.
 - **Deterministic tooling** - Canonical formatting, import suggestion, trace export
 - **Reflection & meta-programming** - Typed quasiquotes, structural type classes
 - **Schema registry** - Machine-readable type/effect definitions
-- **Cognitive autonomy** - Full round-trip reasoning with self-training
+- **Cognitive autonomy** - Full round-trip reasoning with machine-verifiable self-modification loops
 
 For detailed roadmap and design philosophy, see:
 - [VISION.md](docs/VISION.md) - Long-term vision and design principles
 - [CHANGELOG.md](CHANGELOG.md) - Completed features and upcoming releases
-
----
-
-## 📋 Version & Release History
-
-**Current version**: v0.4.0 (November 2025)
-
-For detailed release notes, version history, and upcoming features, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -78,7 +89,7 @@ For detailed release notes, version history, and upcoming features, see [CHANGEL
 | Code reuse | Inheritance / traits | Structural reflection & records |
 | Debugging | Interactive debugger | Replayable evaluation trace |
 | Logging | `print` / `console` | `--emit-trace jsonl` structured logs |
-| Macros | text substitution | Typed quasiquotes (semantic macros) |
+| Macros | text substitution | Typed quasiquotes (semantic macros - (planned - v0.6+) |
 
 ---
 
@@ -138,41 +149,97 @@ which makes it statically decidable, effect-safe, and perfectly compositional.
 - **Easier optimization**: map/fold can fuse or parallelize safely
 - **Simpler runtime**: no mutable counters or loop scopes
 
-### 💡 Future Syntactic Sugar
-
-For readability, AILANG may later support **comprehension syntax**:
-
-```ailang
-[ p.name for p in people if p.age >= 30 ]
-```
-
-…which **desugars deterministically** to:
-
-```ailang
-map(filter(people, \p. p.age >= 30), \p. p.name)
-```
-
 **No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
 
-For the formal rationale and algebraic laws, see the [Why No Loops?](https://sunholo-data.github.io/ailang/docs/reference/no-loops) documentation.
+For the formal rationale and algebraic laws, see the [Why No Loops?](https://ailang.sunholo.com/docs/reference/no-loops) documentation.
 
 ---
 
 ## Quick Start
 
-### Installation
+### Installation for AI Agents (Recommended)
+
+AILANG is designed to be used with AI coding agents. Install via your agent's extension/plugin system:
+
+**Claude Code:**
+```
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang
+```
+
+**Gemini CLI:**
+```bash
+gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
+```
+
+These plugins provide:
+- AILANG binary (auto-installed)
+- MCP tools for type-checking and running code
+- Custom slash commands (`/ailang:prompt`, `/ailang:run`, etc.)
+- Teaching prompts and coding challenges
+- Full stdlib documentation via `ailang builtins list --verbose`
+
+### Manual Installation
+
+For standalone CLI usage or development:
 
 ```bash
-# From source
-git clone https://github.com/sunholo/ailang.git
-cd ailang
-make install
+# macOS (Apple Silicon)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
 
-# Verify installation
+# macOS (Intel)
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# Linux
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+sudo mv ailang /usr/local/bin/
+
+# From source
+git clone https://github.com/sunholo-data/ailang.git
+cd ailang && make install
+
+# Verify
 ailang --version
 ```
 
-For detailed installation instructions, see the [Getting Started Guide](docs/guides/getting-started.md).
+For detailed instructions, see the [Getting Started Guide](https://ailang.sunholo.com/docs/guides/getting-started).
+
+### MCP Server (For Custom Integrations)
+
+If you want to integrate AILANG tools into other AI systems via [Model Context Protocol](https://modelcontextprotocol.io/):
+
+```bash
+# Clone the bootstrap repo
+git clone https://github.com/sunholo-data/ailang_bootstrap.git
+cd ailang_bootstrap/mcp-server
+
+# Install dependencies and start server
+npm install
+npm start
+```
+
+Configure in your MCP client's `settings.json`:
+```json
+{
+  "mcpServers": {
+    "ailang-tools": {
+      "command": "node",
+      "args": ["/path/to/ailang_bootstrap/mcp-server/server.js"]
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+| Tool | Description |
+|------|-------------|
+| `ailang_prompt` | Get teaching prompt (SOURCE OF TRUTH for syntax) |
+| `ailang_check` | Type-check a file |
+| `ailang_run` | Run with capabilities |
+| `ailang_builtins` | Full stdlib docs with examples |
+| `ailang_eval` | Evaluate expression in REPL |
 
 ### Hello World (Module Execution)
 
@@ -190,15 +257,6 @@ export func main() -> () ! {IO} {
 ```bash
 ailang run --caps IO examples/demos/hello_io.ail
 # Output: Hello from AILANG v0.3.14!
-```
-
-**Important**: Flags must come BEFORE the filename:
-```bash
-# ✅ CORRECT:
-ailang run --caps IO --entry main file.ail
-
-# ❌ WRONG:
-ailang run file.ail --caps IO --entry main
 ```
 
 ### Interactive REPL
@@ -303,86 +361,58 @@ Properties:
 - **Structured error reporting** - JSON schemas for deterministic diagnostics
 - **Effect system runtime** - Hermetic testing with `MockEffContext`
 
+## AILANG as an Evaluation Harness
+
+AILANG is intentionally designed to host AI evaluation loops:
+- Deterministic execution
+- Replayable traces
+- Property-based testing
+- Comparable outputs across models
+
+M-EVAL is not a benchmark bolted onto the language — it is evidence that the language semantics are stable enough to reason about AI performance itself.
+
 ### 🔜 In Development
 
-See [CHANGELOG.md](CHANGELOG.md) for upcoming features and development roadmap.
+See [design documents](design_docs/planned/) for upcoming features and development roadmap.
+
+See **[Full Implementation Status](https://ailang.sunholo.com/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
 
 ---
 
-## 📊 Implementation Status
+## 🔗 Go Interop (v0.5.x)
 
-<!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-43%20passing%201%20failing-green.svg)
+AILANG can compile to Go for game development and performance-critical applications:
 
-**43/48 examples passing (90%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+```bash
+# Generate Go code from AILANG
+ailang compile --emit-go --package-name game world.ail
+```
 
-| Example File | Status | Notes |
-|--------------|--------|-------|
-| `runnable/adt_option.ail` | ✅ Pass |  |
-| `runnable/adt_simple.ail` | ✅ Pass |  |
-| `runnable/arithmetic.ail` | ✅ Pass |  |
-| `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/block_recursion.ail` | ✅ Pass |  |
-| `runnable/bug_float_comparison.ail` | ✅ Pass |  |
-| `runnable/closures.ail` | ✅ Pass |  |
-| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
-| `runnable/demos/hello_io.ail` | ✅ Pass |  |
-| `runnable/effects_basic.ail` | ✅ Pass |  |
-| `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/func_expressions.ail` | ✅ Pass |  |
-| `runnable/guards_basic.ail` | ✅ Pass |  |
-| `runnable/hello.ail` | ✅ Pass |  |
-| `runnable/imports.ail` | ✅ Pass |  |
-| `runnable/imports_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ✅ Pass |  |
-| `runnable/lambdas.ail` | ✅ Pass |  |
-| `runnable/lambdas_advanced.ail` | ✅ Pass |  |
-| `runnable/lambdas_closures.ail` | ✅ Pass |  |
-| `runnable/lambdas_curried.ail` | ✅ Pass |  |
-| `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ✅ Pass |  |
-| `runnable/list_patterns.ail` | ✅ Pass |  |
-| `runnable/micro_block_if.ail` | ✅ Pass |  |
-| `runnable/micro_block_seq.ail` | ✅ Pass |  |
-| `runnable/micro_io_echo.ail` | ✅ Pass |  |
-| `runnable/micro_option_map.ail` | ✅ Pass |  |
-| `runnable/micro_record_person.ail` | ✅ Pass |  |
-| `runnable/option_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/patterns.ail` | ✅ Pass |  |
-| `runnable/records.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ✅ Pass |  |
-| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
-| `runnable/recursion_mutual.ail` | ✅ Pass |  |
-| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
-| `runnable/simple.ail` | ✅ Pass |  |
-| `runnable/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
-| `runnable/test_cli_io.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
-| `runnable/test_guard_bool.ail` | ✅ Pass |  |
-| `runnable/test_import_func.ail` | ✅ Pass |  |
-| `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runna... |
-| `runnable/test_module_minimal.ail` | ✅ Pass |  |
-| `runnable/type_classes.ail` | ✅ Pass |  |
-| `runnable/type_inference.ail` | ✅ Pass |  |
-| `runnable/typeclasses.ail` | ✅ Pass |  |
+**Features:**
+- Type generation (records → Go structs)
+- Extern function stubs (implement in Go)
+- Deterministic output (fixed seeds)
 
-<!-- EXAMPLES_STATUS_END -->
+**ABI Stability (v0.5.x):** The Go interop ABI is "stable preview":
+- Primitive type mapping is stable
+- Record/struct generation is stable
+- Breaking changes announced in CHANGELOG
+- Full stability guaranteed in v0.6.0
 
-See **[Full Implementation Status](https://sunholo-data.github.io/ailang/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
+📖 See **[Go Interop Guide](docs/docs/guides/go-interop.md)** for complete documentation.
 
 ---
 
 ## Documentation
 
-📖 **[Complete Documentation](https://sunholo-data.github.io/ailang/)** - Visit our full documentation site
+📖 **[Complete Documentation](https://ailang.sunholo.com/)** - Visit our full documentation site
 
 **Quick Links:**
-- **[Vision](https://sunholo-data.github.io/ailang/docs/vision)** - Why AILANG exists and what makes it different
-- **[Examples](https://sunholo-data.github.io/ailang/docs/examples)** - Interactive code examples with explanations
-- **[Getting Started](https://sunholo-data.github.io/ailang/docs/guides/getting-started)** - Installation and tutorial
-- **[Language Reference](https://sunholo-data.github.io/ailang/docs/reference/language-syntax)** - Complete syntax guide
-- **[Benchmarks](https://sunholo-data.github.io/ailang/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
+- **[Vision](https://ailang.sunholo.com/docs/vision)** - Why AILANG exists and what makes it different
+- **[Examples](https://ailang.sunholo.com/docs/examples)** - Interactive code examples with explanations
+- **[Getting Started](https://ailang.sunholo.com/docs/guides/getting-started)** - Installation and tutorial
+- **[Language Reference](https://ailang.sunholo.com/docs/reference/language-syntax)** - Complete syntax guide
+- **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
 
 ---
 
@@ -397,7 +427,7 @@ make run FILE=<file>      # Run example file
 ```
 
 **For detailed workflows and contribution guidelines:**
-- [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development)
+- [Development Guide](https://ailang.sunholo.com/docs/guides/development)
 - [CONTRIBUTING.md](docs/CONTRIBUTING.md)
 - [CLAUDE.md](CLAUDE.md) - Instructions for AI development assistants
 
@@ -427,7 +457,7 @@ ailang/
 
 ## Contributing
 
-AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://sunholo-data.github.io/ailang/docs/guides/development) for guidelines.
+AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://ailang.sunholo.com/docs/guides/development) for guidelines.
 
 ---
 
@@ -451,7 +481,7 @@ AILANG draws inspiration from:
 
 ---
 
-*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://sunholo-data.github.io/ailang/) for exact capabilities.*
+*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://ailang.sunholo.com/) for exact capabilities.*
 
 ---
 
@@ -495,7 +525,9 @@ This produces `bin/ailang.wasm`.
 1. Copy assets:
 ```bash
 cp bin/ailang.wasm docs/static/wasm/
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" docs/static/wasm/
+# Download Go's WASM support file (more reliable than GOROOT path)
+curl -sL -o docs/static/wasm/wasm_exec.js \
+  https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
 cp web/ailang-repl.js docs/src/components/
 cp web/AilangRepl.jsx docs/src/components/
 ```
@@ -807,1930 +839,720 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.4.4)
+# AI Teaching Prompt (Latest: v0.5.11)
 
-# AILANG v0.4.4 - AI Teaching Prompt (Pattern Sugar + Syntactic Sugar + JSON Decode + Environment Variables + Net Effects)
+# AILANG v0.5.11 - AI Teaching Prompt
 
-**CRITICAL: Write code in AILANG syntax. NOT Python, NOT Rust, NOT JavaScript.**
+AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
-AILANG is a pure functional language with Hindley-Milner type inference and algebraic effects.
+## Required Program Structure
 
-**Quick Reference:**
-- Module: `module path/name` (required first line)
-- Import: `import std/io (println)` (NO quotes on module path)
-- Function: `export func name(x: int) -> int ! {IO} { body }`
-- Lambda: `\x. x * 2` or `func(x: int) -> int { x * 2 }`
-- Pattern: `match x { 0 => a, n => b }` (use `=>` not `:` or `->`, use commas between arms)
-- Effect: `! {IO, FS, Net, Env}` after return type
-- **Zero-arg call: `f ()` (SPACE required!)** NOT `f()` at top-level (v0.4.1: `f()` works in expressions)
-- ADT: `type Tree = Leaf(int) | Node(Tree, int, Tree)`
-- Record: `{name: "A", age: 30}` | Update: `{base | field: val}`
-- List: `[]` | `x :: xs` (sugar v0.4.1+) | `match xs { [] => ..., x :: xs => ... }` (sugar v0.4.4+) | `::(h, t)` (canonical)
-- Type: `int -> bool` (sugar v0.4.1+) or `funcType int bool` (canonical)
-- **Testing (v0.3.20+):** `test "name" = expr` | `property "name" (x: int) = expr`
-- **Sugar (v0.4.1+):** `::` cons (expressions + patterns v0.4.4+), `->` arrow types, `f()` expr calls | Disable: `--strict-syntax`
-
-**Entry module prelude (v0.3.16+):** `print` builtin available in entry modules (no import needed!)
-
-## Critical: What AILANG is NOT
-
-**DO NOT generate code like this - these will FAIL:**
-
-❌ **WRONG - Single-line statements without module:**
-```
-PRINT 5 % 3
-```
-Every program MUST start with `module benchmark/solution`
-
-❌ **WRONG - Imperative style with loops:**
-```python
-loop {
-  x = read();
-  if (x == "") { break; }
-  print(x);
-}
-```
-AILANG has NO `loop`, `break`, `while`, `for`. Use recursion!
-
-❌ **WRONG - Python/JavaScript syntax:**
-```python
-for i in range(10):
-    print(i)
-```
-This is not Python. Use functional recursion.
-
-❌ **WRONG - Assignment statements:**
-```
-x = 10;
-x = x + 1;
-```
-No mutable variables. Use `let` bindings.
-
-❌ **WRONG - Implicit global state:**
-```python
-total = 0  # Global variable
-
-def add(x):
-    global total
-    total += x
-```
-AILANG has NO global mutable state. Thread state explicitly!
-
-❌ **WRONG - C-style zero-argument calls:**
-```ailang
-getMessage()    -- ❌ Parse error!
-render()        -- ❌ Parse error!
-```
-AILANG uses ML-style syntax: `f ()` (space required) NOT `f()`
-
-**✅ CORRECT - Functional AILANG:**
 ```ailang
 module benchmark/solution
 
 import std/io (println)
 
-export func loop(n: int) -> () ! {IO} {
-  if n > 10
-  then ()
-  else {
-    println(show(n));
-    loop(n + 1)
-  }
-}
-
 export func main() -> () ! {IO} {
-  loop(1)
+  print(show(42))  -- print expects string, use show() for numbers
 }
 ```
 
-## MANDATORY Structure
+**Rules:**
+1. First line: `module benchmark/solution`
+2. Use `print(show(value))` for numbers, `print(str)` for strings
+3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
+4. No loops - use recursion
 
-**EVERY AILANG program MUST have this structure:**
-
-1. **Module declaration**: `module benchmark/solution` (first line)
-2. **Imports**: `import std/io (println)` (if using IO)
-3. **Functions**: `export func main() -> () ! {IO} { ... }`
-
-**IMPORTANT SYNTAX RULES:**
-- Use `func` NOT `fn`, `function`, or `def`
-- Use `type Name[a] = Constructor(a) | Constructor2` NOT `type Name { }` or `enum`
-- NO namespace syntax (`::`), just use constructor names directly
-- Semicolons REQUIRED between statements in blocks
-- Pattern matching uses `=>` NOT `:` or `->`
-- NO `for`, `while`, `var`, `const`, `let mut`, or any imperative constructs
-- **Zero-arg calls:** Use `f ()` (space!) NOT `f()` - empty parens without space are parse errors
-
-## What Works (v0.4.1)
-
-Modules, functions, lambdas, pattern matching, ADTs, records, effects (`! {IO, FS, Net, Env}`), recursion, numeric conversions, HTTP with headers, **JSON encoding/decoding**, **property-based testing**, **environment variables**, **syntactic sugar** (`::`, `->`, `f()`).
-
-**Entry-module prelude:** `print` builtin (no import) | **Auto-import:** std/prelude (comparisons work without imports)
-
-## Syntactic Sugar (v0.4.1 - NEW!)
-
-AILANG v0.4.1 introduces optional syntactic sugar for common patterns. These desugar to canonical forms during parsing.
-
-### S-CONS: Infix Cons Operator (`::`)
-
-**Sugar:** `x :: xs` (infix cons for lists, **works in both expressions AND patterns** since v0.4.4)
-**Canonical:** `::(x, xs)` (function call, still works everywhere)
-**Right-associative:** `1 :: 2 :: []` → `::(1, ::(2, []))`
-
-**✅ Both forms are equivalent:** `x :: xs` ≡ `::(x, xs)` (bijective desugaring)
-
-```ailang
--- ✅ Sugar syntax works in expressions
-let list = 1 :: 2 :: 3 :: []
-
--- ✅ Sugar syntax NOW WORKS in patterns (v0.4.4+)
-match list {
-  [] => 0,
-  x :: xs => x + sumList(xs)  -- Sugar form (NEW!)
-}
-
--- ✅ Canonical form still works everywhere
-match list {
-  [] => 0,
-  ::(h, t) => h + sumList(t)  -- Canonical form
-}
-
--- ✅ Right-associative chaining works
-match list {
-  a :: b :: c => a + b,  -- Means: a :: (b :: c)
-  _ => 0
-}
-
--- ✅ Mixed forms in same match (both are equivalent)
-match list {
-  x :: [] => "singleton",
-  ::(x, ::(y, [])) => "pair",  -- Canonical
-  x :: y :: rest => "many",     -- Sugar
-  _ => "other"
-}
-```
-
-**Note:** In `--strict-syntax` mode, only the canonical form `::(x, xs)` is allowed.
-
-### S-ARROWTYPE: Function Type Arrows (`->`)
-
-**Sugar:** `int -> bool` (arrow type syntax)
-**Canonical:** `funcType int bool` (explicit type constructor)
-**Right-associative:** `int -> bool -> string` → `funcType int (funcType bool string)`
-
-```ailang
--- Sugar syntax (v0.4.1+)
-let f: int -> bool = \x. x > 0
-
--- Desugars to canonical form
-let f: funcType int bool = \x. x > 0
-
--- Multi-argument function types
-let add: int -> int -> int = \x. \y. x + y
-```
-
-### S-CALL0: Zero-Argument Calls (`f()`)
-
-**Sugar:** `f()` (zero-arg call, works at both statement and expression level)
-**Canonical:** `f (())` (function applied to unit)
-
-```ailang
--- ✅ WORKS: Expression context
-let result = if ready() then compute() else 0
-
--- ✅ WORKS: Statement/top-level context (v0.4.1+)
-main()         -- Now works at top level!
-
--- ✅ ALSO WORKS: Canonical syntax (always available)
-main (())      -- Explicit unit application
-```
-
-The lexer creates a UNIT token for `()` without spaces, enabling the sugar to work seamlessly at all levels.
-
-### Strict Syntax Mode
-
-Disable all syntactic sugar with `--strict-syntax` flag or `:strict` REPL command:
+## CLI Exploration
 
 ```bash
-# CLI usage
-ailang run --strict-syntax module.ail
-ailang check --strict-syntax module.ail
-ailang repl --strict-syntax
-
-# REPL usage
-λ> :strict                  # Toggle strict mode
-Strict syntax mode enabled
-  Syntactic sugar (::, ->, f()) will be rejected
-
-λ> let list = 1 :: 2 :: []
-Error: CONS sugar not allowed in strict mode
-Suggestion: Use `::(x, xs)` (canonical syntax) instead of `x :: xs`
+ailang --help                   # all ailang abilities
+ailang docs --list              # List stdlib modules
+ailang docs std/io              # Show module exports
+ailang builtins list            # All 72 builtins
+ailang builtins show _ai_call   # Detailed documentation
+ailang check file.ail           # Type-check without running
 ```
 
-## HTTP POST with JSON Example (Complete - Common Use Case!)
+## Quick Reference Examples
 
-**⚠️ Keep it simple: If you only need the HTTP status code, just print `resp.status` - don't parse `resp.body` unnecessarily.**
-
-**HTTP POST with JSON payload and custom headers:**
-
+**Print calculation:**
 ```ailang
 module benchmark/solution
+export func main() -> () ! {IO} = print(show(5 % 3))
+```
 
-import std/net (httpRequest)
+**HTTP GET:**
+```ailang
+module benchmark/solution
+import std/net (httpGet)
+export func main() -> () ! {IO, Net} = print(httpGet("https://example.com"))
+```
+
+**HTTP POST with JSON:**
+```ailang
+module benchmark/solution
+import std/net (httpPost)
 import std/json (encode, jo, kv, js, jnum)
-
-export func main() -> () ! {Net, IO} {
-  -- Build JSON body
-  let jsonBody = encode(jo([
-    kv("message", js("Hello from AILANG")),
-    kv("count", jnum(42.0))
-  ]));
-
-  -- Custom headers
-  let headers = [
-    {name: "Content-Type", value: "application/json"},
-    {name: "X-Custom-Header", value: "myvalue"}
-  ];
-
-  -- Make POST request
-  match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
-    Ok(resp) => print(show(resp.status)),  -- ✅ Just print status!
-    Err(_) => print("error")
-  }
+export func main() -> () ! {IO, Net} {
+  let data = encode(jo([kv("message", js("hello")), kv("count", jnum(42.0))]));
+  print(httpPost("https://httpbin.org/post", data))
 }
 ```
 
-**Key points:**
-- `httpRequest(method, url, headers, body)` - 4 arguments, returns `Result[HttpResponse, NetError]`
-- Headers are list of records: `[{name: string, value: string}]`
-- JSON encoding: use `std/json` functions (`jo`, `kv`, `js`, `jnum`)
-- Pattern match on Result to handle success/error
-- Access response with `resp.status`, `resp.body`, `resp.headers`
-- **Keep it simple**: Only parse `resp.body` if you actually need data from it - printing `resp.status` is often enough
-
----
-
-## JSON Decoding with Pattern Matching (Separate Use Case)
-
-**⚠️ IMPORTANT: This is a SEPARATE pattern from HTTP requests. Don't combine them unless you actually need to parse response bodies!**
-
-**Parsing JSON data and extracting values:**
-
+**Filter list recursively:**
 ```ailang
 module benchmark/solution
-
-import std/json (Json, JNull, JString, JNumber, JObject, decode)
-import std/result (Result, Ok, Err)
-
--- Helper: Find a key in a JSON object
-func findKey(kvs: List[{key: string, value: Json}], target: string) -> Json {
-  match kvs {
-    [] => JNull,
-    [kv, ...rest] => if _str_eq(kv.key, target) then kv.value else findKey(rest, target)
+export func filter(people: [{name: string, age: int}], minAge: int) -> [{name: string, age: int}] =
+  match people {
+    [] => [],
+    p :: rest => if p.age >= minAge then p :: filter(rest, minAge) else filter(rest, minAge)
   }
-}
-
--- Example: Parse {"name":"Alice","age":30} and extract name
-export func main() -> int {
-  let jsonStr = "{\"name\":\"Alice\",\"age\":30}";
-  let result = decode(jsonStr);
-  match result {
-    Ok(JObject(kvs)) => match findKey(kvs, "name") {
-      JString(s) => if _str_eq(s, "Alice") then 0 else 1,
-      _ => 2
-    },
-    Ok(_) => 3,
-    Err(_) => 4
-  }
-}
 ```
 
-**Key points:**
-- `decode(jsonStr)` - Returns `Result[Json, string]`
-- JSON ADT constructors: `JNull`, `JBool(bool)`, `JNumber(float)`, `JString(string)`, `JArray(List[Json])`, `JObject(List[{key: string, value: Json}])`
-- Pattern match on Result first: `Ok(json)` or `Err(msg)`
-- Pattern match on Json constructors to extract values
-- JObject contains list of `{key: string, value: Json}` records
-- Use helper function to find keys in object
-
-**JSON ADT Constructors:**
-```ailang
-type Json =
-  | JNull
-  | JBool(bool)
-  | JNumber(float)
-  | JString(string)
-  | JArray(List[Json])
-  | JObject(List[{key: string, value: Json}])
-```
-
-**Complete example with HTTP + JSON decode:**
+**AI effect (call LLM):**
 ```ailang
 module benchmark/solution
+import std/ai (call)
+export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
+```
 
-import std/net (httpRequest)
-import std/json (Json, JObject, JString, decode)
+## What AILANG Does NOT Have
 
--- Helper: Find key in JSON object
-func findKey(kvs: List[{key: string, value: Json}], target: string) -> Json {
-  match kvs {
-    [] => JNull,
-    [kv, ...rest] => if _str_eq(kv.key, target) then kv.value else findKey(rest, target)
-  }
+| Invalid | Use Instead |
+|-----------|----------------|
+| `for`/`while` loops | Recursion |
+| `[x*2 for x in xs]` | `map(\x. x*2, xs)` or recursion |
+| `var`/`let mut` | Immutable `let` bindings |
+| `list.map()` | `map(f, list)` |
+| `import "std/io"` | `import std/io (println)` |
+| `{"key": "val"}` | `jo([kv("key", js("val"))])` |
+| `f(a, b)` for curried | `f(a)(b)` - curried calls chain |
+| mixing `let x = e in` with `;` | Use ONE style consistently |
+
+## Let Bindings: Block Style vs Expression Style
+
+**Rule: Inside `{ }` blocks, use SEMICOLONS. With `=` bodies, use `in`.**
+
+```ailang
+-- Block style: curly braces + semicolons
+export func main() -> () ! {IO} {
+  let x = 1;
+  let y = 2;
+  print(show(x + y))
 }
 
-export func main() -> () ! {Net, IO} {
-  -- Make request
-  match httpRequest("GET", "https://api.example.com/user/123", [], "") {
-    Ok(resp) => {
-      -- Parse response body
-      match decode(resp.body) {
-        Ok(JObject(kvs)) => match findKey(kvs, "name") {
-          JString(name) => print("User: " ++ name),
-          _ => print("No name found")
-        },
-        Ok(_) => print("Invalid JSON format"),
-        Err(msg) => print("Parse error: " ++ msg)
-      }
-    },
-    Err(_) => print("HTTP error")
-  }
+-- Expression style: equals + in
+export func main() -> () ! {IO} =
+  let x = 1 in
+  let y = 2 in
+  print(show(x + y))
+
+-- WRONG: Using `in` inside `{ }` block causes scope errors
+export func main() -> () ! {IO} {
+  let x = 1 in   -- DON'T use `in` inside blocks!
+  let y = 2;     -- ERROR: x out of scope
+  print(show(x + y))
 }
 ```
 
-## String Parsing with Option Types (v0.4.3+)
+**Simple rule: See `{` -> use `;`. See `=` -> use `in`.**
 
-**Safe parsing of user input to numbers:**
+## Curried Functions (CRITICAL)
+
+AILANG functions are **curried**. Multi-arg lambdas must be called with chained applications:
 
 ```ailang
+-- Define curried function
+let add = \x. \y. x + y
+
+-- CORRECT: Chain calls
+let result = add(3)(4)  -- Returns 7
+
+-- WRONG: Don't use tuple-style
+let result = add(3, 4)  -- ERROR: arity mismatch!
+```
+
+**Higher-order example (compose, foldl):**
+```ailang
 module benchmark/solution
-
-import std/string (stringToInt, stringToFloat)
-import std/option (Option, Some, None, getOrElse)
-import std/io (println)
-
--- Parse and validate age (reject negative)
-pure func parseAge(input: string) -> Option[int] {
-  match stringToInt(input) {
-    Some(age) => if age >= 0 then Some(age) else None,
-    None => None
-  }
-}
 
 export func main() -> () ! {IO} {
-  -- Valid integer
-  match stringToInt("42") {
-    Some(n) => println("Parsed: " ++ show(n)),
-    None => println("Invalid number")
-  };
-
-  -- Invalid input
-  match stringToInt("abc") {
-    Some(n) => println("Should not happen"),
-    None => println("Correctly rejected 'abc'")
-  };
-
-  -- Float parsing
-  match stringToFloat("3.14") {
-    Some(f) => println("Pi: " ++ show(f)),
-    None => println("Invalid float")
-  };
-
-  -- With default value
-  let age = getOrElse(stringToInt("invalid"), 18);
-  println("Age with default: " ++ show(age));
-
-  ()
+  -- WRONG: let compose = ... in   (don't use "in" in { } blocks!)
+  -- RIGHT: let compose = ...;
+  let compose = \f. \g. \x. f(g(x));
+  let double = \x. x * 2;
+  let addOne = \x. x + 1;
+  -- WRONG: compose(addOne, double)   (arity mismatch!)
+  -- RIGHT: compose(addOne)(double)   (chain curried calls)
+  let doubleThenAdd = compose(addOne)(double);
+  print(show(doubleThenAdd(5)))
 }
 ```
 
-**Key points:**
-- `stringToInt(s: string) -> Option[int]` - Parse string to integer, returns Some(n) or None
-- `stringToFloat(s: string) -> Option[float]` - Parse string to float, returns Some(f) or None
-- Both return `Option[T]` from `std/option` - NO exceptions!
-- Pattern match on Some/None to handle success/failure
-- Use `getOrElse(option, default)` for fallback values
-- Supports: signed numbers (+/-), scientific notation (1e-10), decimals
-- Rejects: empty strings, mixed alphanumeric, invalid formats
-
-**Common pattern - validation:**
-```ailang
--- Validate positive numbers
-pure func parsePositive(s: string) -> Option[int] {
-  match stringToInt(s) {
-    Some(n) => if n > 0 then Some(n) else None,
-    None => None
-  }
-}
-```
-
-## Critical Limitations
-
-**Syntax that does NOT exist (use alternatives):**
-- ❌ NO `for`/`while` loops → use recursion
-- ❌ NO list comprehensions `[x*2 for x in list]` → use `map` or recursion
-- ❌ NO tuple destructuring `let (x, y) = pair` → use record fields or pattern match in function
-- ❌ NO function type syntax `func(T) -> U` in type annotations → use lambda values with inferred types
-- ✅ Haskell-style list cons works in patterns since v0.4.4: `x :: xs` (desugars to `::(x, xs)`)
-- ❌ NO quoted imports `import "std/io"` → use `import std/io` (no quotes!)
-- ❌ NO JSON literals `{"key": "value"}` → use `jo([kv("key", js("value"))])`
-- ❌ NO `http.post()`, `http.get()`, `http()` functions → use `httpRequest("POST", url, headers, body)` from `std/net`
-- ❌ NO `json.encode()`, `JSON.parse()`, `parse_json()` → use `encode(jo([...]))` and `decode(jsonStr)` from `std/json`
-- ❌ NO named parameters `http.post(url=..., body=...)` → AILANG uses positional parameters only
-- ❌ NO mutable variables `var`/`let mut` → everything immutable
-- ❌ NO assignment `x = y` → use `let x = y in expr`
-- ❌ NO error propagation `?` → pattern match on Result
-- ❌ NO list spread `[x, ...rest]` in literals → use `::(h, t)` in patterns
-- ❌ NO Python/JS method calls `list.map()`, `list.append()` → use standalone functions
-- ❌ **DON'T overcomplicate** → Keep solutions simple - only add complexity when actually needed
-- 🐛 **Known parser bug:** Match inside statement blocks has delimiter tracking issues → **Workaround:** Extract to helper function or use as final block expression (fix in progress)
-
-**Important:** `show` is builtin (don't import). Higher-order functions use lambda values, not type annotations. **Keep solutions focused - don't combine unrelated patterns unnecessarily.**
-
-## IMPORT CHECKLIST - Read Before Writing Code!
-
-**std/prelude is AUTO-IMPORTED!**
-
-**You NO LONGER need to import Ord or Eq** for comparison operators:
-
+**Curried foldl (block style):**
 ```ailang
 module benchmark/solution
 
-import std/io (println)
+-- Define curried foldl
+func foldl(f: int -> int -> int, acc: int, xs: [int]) -> int =
+  match xs {
+    [] => acc,
+    x :: rest => foldl(f, f(acc)(x), rest)  -- f(acc)(x) chains the curried call
+  }
 
 export func main() -> () ! {IO} {
-  if 5 > 3 then println("Works!") else ()  // Comparison operators auto-imported!
+  let add = \a. \b. a + b;           -- Semicolons in block!
+  let sum = foldl(add, 0, [1,2,3,4,5]);
+  print(show(sum))
 }
 ```
+
+## Syntax Reference
+
+| Construct | Syntax |
+|-----------|--------|
+| Module | `module path/name` |
+| Import | `import std/io (println)` |
+| Import alias | `import std/list as L` |
+| Function | `export func name(x: int) -> int ! {IO} { body }` |
+| Lambda | `\x. x * 2` |
+| Pattern match | `match x { 0 => a, n => b }` (use `=>`, commas between arms) |
+| ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
+| Record | `{name: "A", age: 30}` |
+| Record update | `{base \| field: val}` |
+| List cons | `x :: xs` or `::(x, xs)` |
+| Array literal | `#[1, 2, 3]` |
+| Effect | `! {IO, FS, Net}` after return type |
+
+## Effects (Side Effects Must Be Declared)
+
+Every function performing I/O must declare effects:
+
+```ailang
+-- Pure (no effects)
+func add(x: int, y: int) -> int = x + y
+
+-- IO effect
+func greet(name: string) -> () ! {IO} = print("Hello " ++ name)
+
+-- Multiple effects
+func process(path: string) -> () ! {IO, FS} {
+  let content = readFile(path);
+  print(content)
+}
+```
+
+| Effect | Functions | Import |
+|--------|-----------|--------|
+| `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
+| `FS` | `readFile`, `writeFile` | `std/fs` |
+| `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
+| `Env` | `getEnv`, `getEnvOr` | `std/env` |
+| `AI` | `call` | `std/ai` |
+| `Debug` | `log`, `check` | `std/debug` |
+| `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
+| `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
+
+## Standard Library
+
+**Auto-imported (no import needed):**
+- `print` (entry modules only)
+- `show(x)` - convert to string
+- Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
 
 **Common imports:**
-- `print` → **NO IMPORT NEEDED** in entry modules (modules with `export func main`)!
-- `println` → `import std/io (println)` (still requires import)
-- `readFile`, `writeFile` → `import std/fs (readFile, writeFile)`
-- `now`, `sleep` → `import std/clock (now, sleep)`
-- `httpGet`, `httpPost` → `import std/net (httpGet, httpPost)` (simple wrappers - use for GET with no headers)
-- `httpRequest` → `import std/net (httpRequest)` **ONLY way to make HTTP POST/custom headers (no http.post()!)**
-- `getEnv`, `hasEnv`, `getEnvOr` → `import std/env (getEnv, hasEnv, getEnvOr)` **for environment variables (v0.4.0+)**
-- JSON encoding → `import std/json (encode, jo, ja, kv, js, jnum)`
-- JSON decoding → `import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject, decode)` **for parsing JSON (v0.4.1+)**
-- String parsing → `import std/string (stringToInt, stringToFloat)` **returns Option[T] (v0.4.3+)**
-- `show` → builtin, **DO NOT IMPORT**
-- `<`, `>`, `<=`, `>=`, `==`, `!=` → **AUTO-IMPORTED, NO IMPORT NEEDED!**
-
-**Standard Library Module Reference:**
-
-| Module | Functions | Import Example |
-|--------|-----------|----------------|
-| `std/io` | `print`, `println`, `readLine` | `import std/io (println)` |
-| `std/fs` | `readFile`, `writeFile`, `fileExists` | `import std/fs (readFile)` |
-| `std/net` | `httpRequest`, `httpGet`, `httpPost`, `httpFormPost` | `import std/net (httpRequest)` |
-| `std/json` | `encode`, `decode`, `jo`, `ja`, `kv`, `js`, `jnum` | `import std/json (encode, decode)` |
-| `std/env` | `getEnv`, `hasEnv`, `getEnvOr` | `import std/env (getEnv)` |
-| `std/clock` | `now`, `sleep` | `import std/clock (now)` |
-| `std/string` | `stringToInt`, `stringToFloat`, `length`, `toUpper`, `toLower`, etc. | `import std/string (stringToInt)` |
-| `std/prelude` | `show`, comparison ops, type class instances | **AUTO-IMPORTED** (no import needed) |
-
-**⚠️ Common mistake:** `readFile` is in `std/fs`, NOT `std/io`!
-
-**IMPORTANT**: If you see error "No instance for Ord" or "No instance for Eq", you may have set `AILANG_NO_PRELUDE=1`. This is rare - std/prelude is auto-imported by default.
-
-## Module Structure
-
-Every AILANG program must be a module with exported functions:
-
 ```ailang
-module benchmark/solution
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Hello, World!")
-}
-```
-
-**IMPORTANT**: Always use `module benchmark/solution` as the module name for benchmark programs.
-
-## Testing (v0.3.20+)
-
-**Property-based testing with automatic counterexample shrinking**
-
-### Unit Tests (Simple Assertions)
-
-```ailang
-test "name" = boolean_expression
-```
-
-**Examples:**
-```ailang
-test "addition works" = 1 + 1 == 2
-test "list operations" = head([1, 2, 3]) == 1
-test "string concat" = "hello" ++ " world" == "hello world"
-```
-
-### Property Tests (QuickCheck-Style)
-
-```ailang
-property "name" (param: type, ...) = boolean_expression
-```
-
-**Examples:**
-```ailang
-// Commutativity
-property "addition is commutative" (x: int, y: int) =
-  x + y == y + x
-
-// Associativity
-property "concat is associative" (a: string, b: string, c: string) =
-  (a ++ b) ++ c == a ++ (b ++ c)
-
-// Identity
-property "zero is identity" (x: int) =
-  x + 0 == x && 0 + x == x
-```
-
-**Supported types:** `int`, `float`, `bool`, `string`, `list(T)`, `Option(T)`, `Result(T, E)`, custom ADTs
-
-**Running tests:**
-```bash
-ailang test file.ail                    # Run all tests
-ailang test file.ail --format json      # JSON output for CI
-```
-
-**How it works:**
-1. Generates 100 random test cases per property
-2. Runs property on each case
-3. If failure found, shrinks to minimal counterexample
-
-## Higher-Order Functions (Lambda Values, NOT Type Annotations!)
-
-**CRITICAL**: AILANG does NOT have `func(T) -> U` type syntax. Use **lambda values** instead!
-
-**Common use case: Compose, map, filter**
-
-```ailang
-module benchmark/solution
-
--- ❌ WRONG - func(b) -> c is NOT valid type syntax
-export func compose[a, b, c](f: func(b) -> c, g: func(a) -> b) -> func(a) -> c {
-  func(x: a) -> c { f(g(x)) }
-}
-
--- ✅ CORRECT - Use lambda values
-export func main() -> () ! {IO} =
-  -- Compose: apply g, then f
-  let compose = \f. \g. \x. f(g(x)) in
-  let double = \x. x * 2 in
-  let addOne = \x. x + 1 in
-  let addOneThenDouble = compose(double)(addOne) in
-  let result = addOneThenDouble(5) in  -- (5 + 1) * 2 = 12
-  print(show(result))
-```
-
-**List operations with higher-order functions:**
-
-```ailang
-module benchmark/solution
-
-export func main() -> () ! {IO} =
-  -- Map: apply function to each element
-  let map = \f. \xs.
-    match xs {
-      [] => [],
-      x :: rest => f(x) :: map(f)(rest)  -- v0.4.4+ sugar syntax
-    } in
-
-  -- Filter: keep elements that satisfy predicate
-  let filter = \pred. \xs.
-    match xs {
-      [] => [],
-      x :: rest =>  -- v0.4.4+ sugar syntax
-        if pred(x)
-        then x :: filter(pred)(rest)
-        else filter(pred)(rest)
-    } in
-
-  let square = \x. x * x in
-  let isEven = \x. x % 2 == 0 in
-  let nums = [1, 2, 3, 4, 5] in
-  let squared = map(square)(nums) in
-  let evens = filter(isEven)(nums) in
-  print("Squared: " ++ show(squared) ++ ", Evens: " ++ show(evens))
-```
-
-**Key points:**
-- Use `\param. body` for lambda syntax (NOT `func(param) -> Type`)
-- Currying: `\f. \g. \x.` means function takes 3 arguments separately
-- No first-class function types - pass lambdas as values
-- Pattern match on lists with `[]` and `x :: xs` (sugar v0.4.4+) or `::(x, xs)` (canonical)
-
-## List Operations (Recursion, NO Comprehensions!)
-
-**CRITICAL**: AILANG has NO list comprehensions `[x*2 for x in list]`. Use recursion!
-
-**Common patterns: sum, length, filter**
-
-```ailang
-module benchmark/solution
-
--- Recursive sum
-export func sum(xs: List[int]) -> int =
-  match xs {
-    [] => 0,
-    x :: rest => x + sum(rest)  -- v0.4.4+ sugar syntax
-  }
-
--- Recursive length (polymorphic)
-export func length[a](xs: List[a]) -> int =
-  match xs {
-    [] => 0,
-    _ :: rest => 1 + length(rest)  -- v0.4.4+ sugar syntax
-  }
-
--- Recursive filter
-export func filter[a](pred: a -> bool, xs: List[a]) -> List[a] =
-  match xs {
-    [] => [],
-    x :: rest =>  -- v0.4.4+ sugar syntax
-      if pred(x)
-      then x :: filter(pred, rest)
-      else filter(pred, rest)
-  }
-
-export func main() -> () ! {IO} =
-  let nums = [1, 2, 3, 4, 5] in
-  let total = sum(nums) in
-  let count = length(nums) in
-  print("Sum: " ++ show(total) ++ ", Count: " ++ show(count))
-```
-
-**Key points:**
-- Use `List[T]` for type annotations (NOT `[T]` in function signatures)
-- Pattern match with `[]` (empty) and `x :: xs` (sugar v0.4.4+) or `::(x, xs)` (canonical)
-- List literals `[1, 2, 3]` work in expressions, not type annotations
-- No list comprehensions - write recursive functions instead
-
-## NEW (v0.3.16): Entry-Module Prelude - `print` Builtin
-
-**Entry modules (modules with `export func main`) automatically get the `print` builtin - no import needed!**
-
-### The `print` Builtin
-
-**Signature:** `print : string -> () ! {IO}`
-
-**What it does:** Prints a string to stdout **with automatic newline** (don't concatenate `"\n"`!)
-
-**Where it's available:**
-- ✅ Entry modules (modules with `export func main` with 0 parameters)
-- ✅ REPL (interactive mode)
-- ❌ Library modules (modules without `export func main`)
-
-### Entry Module Examples
-
-**✅ CORRECT - Using print in entry module:**
-```ailang
-module benchmark/solution
-
--- NO import needed!
-export func main() -> () ! {IO} {
-  print("Hello, World!")
-}
-```
-
-**✅ CORRECT - With show() for numbers:**
-```ailang
-module benchmark/solution
-
-export func main() -> () ! {IO} {
-  let x = 42 in
-  print("Answer: " ++ show(x))  -- prints: Answer: 42
-}
-```
-
-**✅ CORRECT - Multiple prints:**
-```ailang
-module benchmark/solution
-
-export func main() -> () ! {IO} = {
-  print("Line 1");
-  print("Line 2");
-  print("Line 3")
-}
-```
-
-**❌ WRONG - Don't concatenate newlines (print already adds one!):**
-```ailang
-module benchmark/solution
-
-export func main() -> () ! {IO} = {
-  print("Fizz" ++ "\n")  -- ❌ Creates double newlines!
-}
--- Output: "Fizz\n\n" (blank line after each print)
-```
-
-**✅ CORRECT - No manual newlines needed:**
-```ailang
-module benchmark/solution
-
-export func main() -> () ! {IO} = {
-  print("Fizz")  -- ✅ Automatic newline added
-}
--- Output: "Fizz\n" (one newline only)
-```
-
-### Library Module Pattern
-
-**❌ WRONG - print not available in libraries:**
-```ailang
-module mylib/utils
-
--- This will FAIL with "undefined variable: print"
-export func greet(name: string) -> () ! {IO} {
-  print("Hello, " ++ name)
-}
-```
-
-**✅ CORRECT - Use println from std/io:**
-```ailang
-module mylib/utils
-
-import std/io (println)
-
-export func greet(name: string) -> () ! {IO} {
-  println("Hello, " ++ name)
-}
-```
-
-### Why This Matters
-
-**AI-First Philosophy:** Entry modules are for **simple scripts and benchmarks** where `print` is the most common operation. Libraries should be **explicit** about their dependencies.
-
-**Rule of thumb:**
-- Writing a benchmark/script with `export func main`? Use `print` (no import)
-- Writing a library module? Use `import std/io (println)`
-
-## Effect System - Explicit Side Effects
-
-**CRITICAL: AILANG tracks ALL side effects in function signatures!**
-
-### Effect Syntax
-
-```ailang
--- Pure function (no effects)
-export func add(x: int, y: int) -> int {
-  x + y
-}
-
--- Function with IO effect
-export func printSum(a: int, b: int) -> () ! {IO} {
-  println("Sum: " ++ show(a + b))
-}
-
--- Function with FS effect
-export func readCount(filename: string) -> string ! {FS} {
-  readFile(filename)
-}
-
--- Function with MULTIPLE effects
-export func logToFile(filename: string, message: string) -> () ! {IO, FS} {
-  println("Logging: " ++ message);
-  writeFile(filename, message)
-}
-
--- Function with Net effect (simple)
-export func fetchData(url: string) -> string ! {Net} {
-  httpGet(url)
-}
-
--- Function with Net effect + custom headers (v0.3.9+)
-export func postWithHeaders(url: string, body: string) -> string ! {Net, IO} {
-  let headers = [
-    {name: "Content-Type", value: "application/json"},
-    {name: "X-Custom-Header", value: "value"}
-  ];
-  match httpRequest("POST", url, headers, body) {
-    Ok(resp) => resp.body,
-    Err(Transport(msg)) => {
-      println("Network error: " ++ msg);
-      ""
-    },
-    Err(InvalidHeader(hdr)) => {
-      println("Invalid header: " ++ hdr);
-      ""
-    },
-    Err(_) => ""
-  }
-}
-
--- Function with Env effect (v0.4.0+)
-export func getApiKey() -> string ! {Env} {
-  match getEnv("API_KEY") {
-    Ok(key) => key,
-    Err(NotFound(msg)) => "",
-    Err(NotAllowed(msg)) => ""
-  }
-}
-
--- Function with Env effect + fallback (v0.4.0+)
-export func getPort() -> int ! {Env} {
-  let portStr = getEnvOr("PORT", "8080");
-  -- Parse portStr to int (simplified)
-  8080
-}
-```
-
-**Effect Declaration Pattern**: `-> ReturnType ! {Effect1, Effect2}`
-
-### Effect Composition Rules
-
-**Rule 1: Pure functions CANNOT call effectful functions**
-```ailang
--- ❌ WRONG - pure function calling IO
-export func compute() -> int {
-  println("computing...");  -- ERROR: IO effect not declared!
-  42
-}
-
--- ✅ CORRECT - declare the effect
-export func compute() -> int ! {IO} {
-  println("computing...");
-  42
-}
-```
-
-**Rule 2: Effects propagate upward**
-```ailang
-export func helper() -> () ! {IO} {
-  println("helper")
-}
-
--- ✅ Must declare IO since helper uses IO
-export func caller() -> () ! {IO} {
-  helper()
-}
-
--- ❌ WRONG - missing IO effect
-export func caller() -> () {
-  helper()  -- ERROR: IO effect not declared!
-}
-```
-
-**Rule 3: Multiple effects must ALL be declared**
-```ailang
--- Uses both FS (readFile) and IO (println)
-export func processFile(path: string) -> () ! {IO, FS} {
-  let content = readFile(path);
-  println("Read: " ++ content)
-}
-```
-
-### Effect System Examples
-
-**Example 1: Pure computation with effect-ful output**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
--- Pure function
-export func double(x: int) -> int {
-  x * 2
-}
-
--- Pure function
-export func add(a: int, b: int) -> int {
-  a + b
-}
-
--- Effectful function (uses IO)
-export func printResult(label: string, value: int) -> () ! {IO} {
-  println(label ++ ": " ++ show(value))
-}
-
--- Effectful function calling pure functions
-export func compute_and_print() -> () ! {IO} {
-  let x = double(5);
-  let y = add(x, 3);
-  printResult("Result", y)
-}
-
-export func main() -> () ! {IO} {
-  compute_and_print()
-}
-```
-
-**Example 2: File operations with multiple effects**
-```ailang
-module benchmark/solution
-
-import std/io (println)
+import std/io (println, readLine)
 import std/fs (readFile, writeFile)
+import std/net (httpGet, httpPost, httpRequest)
+import std/json (encode, decode)
+import std/list (map, filter, foldl, length, concat)
+import std/string (split, trim, stringToInt)  -- stringToInt returns Option[int]!
+import std/ai (call)
+import std/sem (make_frame_at, store_frame, load_frame, update_frame)
+```
+
+## String Parsing (Returns Option)
+
+`stringToInt` returns `Option[int]`, NOT an int. You MUST pattern match:
+
+```ailang
+module benchmark/solution
+import std/string (stringToInt)
+
+export func main() -> () ! {IO} {
+  match stringToInt("42") {
+    Some(n) => print("Parsed: " ++ show(n)),
+    None => print("Invalid number")
+  }
+}
+```
+
+**With file reading (effect composition):**
+```ailang
+module benchmark/solution
+import std/fs (readFile)
+import std/string (stringToInt)
 
 -- Pure function (no effects)
-export func formatMessage(name: string, count: int) -> string {
+pure func formatMessage(name: string, count: int) -> string =
   "User " ++ name ++ " has " ++ show(count) ++ " items"
-}
 
 -- FS effect only
-export func readCount(filename: string) -> string ! {FS} {
-  readFile(filename)
+func readCount(filename: string) -> int ! {FS} {
+  let content = readFile(filename);
+  match stringToInt(content) {
+    Some(n) => n,
+    None => 0
+  }
 }
 
--- IO effect only
-export func printMessage(message: string) -> () ! {IO} {
-  println(message)
-}
-
--- BOTH IO and FS effects
-export func processUser(name: string, filename: string) -> () ! {IO, FS} {
-  let countStr = readCount(filename);
-  let message = formatMessage(name, 42);
-  printMessage(message)
-}
-
+-- Combined effects: IO + FS
 export func main() -> () ! {IO, FS} {
-  processUser("Alice", "count.txt")
+  let count = readCount("data.txt");
+  let msg = formatMessage("Alice", count);
+  print(msg)
 }
 ```
 
-**Example 3: Effect separation**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
--- ✅ Pure function - can be tested without IO
-export func calculateTotal(items: [int]) -> int {
-  match items {
-    [] => 0,
-    x :: xs => x + calculateTotal(xs)  -- v0.4.4+ sugar syntax
-  }
-}
-
--- ✅ Effectful function - handles IO separately
-export func displayTotal(items: [int]) -> () ! {IO} {
-  let total = calculateTotal(items);
-  println("Total: " ++ show(total))
-}
-
-export func main() -> () ! {IO} {
-  displayTotal([1, 2, 3, 4, 5])
-}
-```
-
-**Example 4: Environment variables (v0.4.0+)**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-import std/env (getEnv, hasEnv, getEnvOr)
-
--- Check if env variable exists
-export func checkApiKey() -> () ! {Env, IO} {
-  if hasEnv("API_KEY")
-  then println("API_KEY is set")
-  else println("API_KEY not found")
-}
-
--- Get env variable with error handling
-export func getConfig() -> string ! {Env} {
-  match getEnv("CONFIG_PATH") {
-    Ok(path) => path,
-    Err(NotFound(msg)) => "/default/config.json",
-    Err(NotAllowed(msg)) => "/default/config.json"
-  }
-}
-
--- Get env variable with fallback
-export func getPort() -> string ! {Env} {
-  getEnvOr("PORT", "8080")
-}
-
-export func main() -> () ! {Env, IO} {
-  checkApiKey();
-  let config = getConfig();
-  let port = getPort();
-  println("Config: " ++ config ++ ", Port: " ++ port)
-}
-```
-
-### Common Effect Errors and Fixes
-
-**Error: "Effect mismatch"**
-```ailang
--- ❌ Function declares IO but doesn't use it
-export func compute() -> int ! {IO} {
-  42  -- No IO used!
-}
-
--- ✅ Fix: Remove unnecessary effect
-export func compute() -> int {
-  42
-}
-```
-
-**Error: "Missing IO effect"**
-```ailang
--- ❌ Uses println but doesn't declare IO
-export func greet(name: string) -> () {
-  println("Hello, " ++ name)
-}
-
--- ✅ Fix: Add IO effect
-export func greet(name: string) -> () ! {IO} {
-  println("Hello, " ++ name)
-}
-```
-
-**Error: "Missing FS effect"**
-```ailang
--- ❌ Reads file but only declares IO
-export func logFile(path: string) -> () ! {IO} {
-  let content = readFile(path);
-  println(content)
-}
-
--- ✅ Fix: Add FS effect
-export func logFile(path: string) -> () ! {IO, FS} {
-  let content = readFile(path);
-  println(content)
-}
-```
-
-## NEW: Explicit State Threading
-
-**AILANG has NO mutable global variables. State must be threaded explicitly through function parameters.**
-
-### State Threading Pattern
-
-**❌ WRONG - Implicit global state (Python style):**
-```python
-total = 0  # Global mutable variable
-
-def add(x):
-    global total
-    total += x
-    return total
-```
-
-**✅ CORRECT - Explicit state threading (AILANG):**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
--- Function takes state as parameter, returns (newState, result)
-export func add(value: int, state: int) -> (int, int) {
-  let newState = state + value;
-  (newState, newState)
-}
-
--- Thread state through multiple operations
-export func demo() -> () ! {IO} {
-  let state0 = 0;
-  println("Initial: " ++ show(state0));
-
-  let r1 = add(5, state0);
-  match r1 {
-    (state1, result1) => {
-      println("After add(5): " ++ show(state1));
-
-      let r2 = add(10, state1);
-      match r2 {
-        (state2, result2) => println("After add(10): " ++ show(state2))
-      }
-    }
-  }
-}
-
-export func main() -> () ! {IO} {
-  demo()
-}
-```
-
-### State Threading Examples
-
-**Example 1: Counter with operations**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
--- State threading: (value, state) -> (newState, newState)
-export func add(value: int, state: int) -> (int, int) {
-  let newState = state + value;
-  (newState, newState)
-}
-
-export func multiply(value: int, state: int) -> (int, int) {
-  let newState = state * value;
-  (newState, newState)
-}
-
-export func main() -> () ! {IO} {
-  let state0 = 0;
-  println("Initial: " ++ show(state0));
-
-  -- add(5, 0) = (5, 5)
-  let r1 = add(5, state0);
-  match r1 {
-    (state1, _) => {
-      println("After add: " ++ show(state1));
-
-      -- multiply(3, 5) = (15, 15)
-      let r2 = multiply(3, state1);
-      match r2 {
-        (state2, _) => {
-          println("After multiply: " ++ show(state2));
-
-          -- add(10, 15) = (25, 25)
-          let r3 = add(10, state2);
-          match r3 {
-            (state3, _) => println("After add: " ++ show(state3))
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-**Example 2: Accumulator pattern**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
--- Process list element, updating accumulator
-export func processItem(item: int, acc: int) -> int {
-  acc + item * 2
-}
-
--- Thread accumulator through list
-export func processAll(items: [int], acc: int) -> int {
-  match items {
-    [] => acc,
-    x :: xs => {  -- v0.4.4+ sugar syntax
-      let newAcc = processItem(x, acc);
-      processAll(xs, newAcc)
-    }
-  }
-}
-
-export func main() -> () ! {IO} {
-  let items = [1, 2, 3, 4, 5];
-  let result = processAll(items, 0);
-  println("Result: " ++ show(result))
-}
-```
-
-## Functions
-
-```ailang
--- Simple pure function
-export func add(x: int, y: int) -> int {
-  x + y
-}
-
--- Function with effects (IO, FS)
-export func greet(name: string) -> () ! {IO} {
-  println("Hello, " ++ name)
-}
-
--- Generic function
-export func identity[a](x: a) -> a {
-  x
-}
-
--- Multi-statement body (SEMICOLONS REQUIRED!)
-export func compute() -> int {
-  let x = 10;
-  let y = 20;
-  x + y
-}
-```
-
-## Anonymous Functions
-
-Inline lambda expressions with familiar syntax:
-
-```ailang
--- Anonymous function literal
-let double = func(x: int) -> int { x * 2 }
-
--- With type inference
-let add = func(x, y) { x + y }
-
--- With effects
-let greet = func(name: string) -> () ! {IO} {
-  println("Hello, " ++ name)
-}
-
--- Higher-order functions
-let apply = func(f: func(int) -> int, x: int) -> int { f(x) }
-apply(func(n: int) -> int { n * 2 }, 5)  -- 10
-```
-
-**IMPORTANT**: Use `=>` for lambdas (`\x. body`), use `-> {` for func expressions.
-
-## Recursive Lambdas
-
-The `letrec` keyword enables recursive function definitions in expressions:
-
-```ailang
--- Fibonacci using letrec
-letrec fib = \n. if n < 2 then n else fib(n - 1) + fib(n - 2) in
-fib(10)  -- 55
-
--- Factorial
-letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in
-factorial(5)  -- 120
-```
-
-**Use case**: Recursive functions in REPL or inside expressions without full function declarations.
-
-## Numeric Conversions
-
-Explicit type conversion builtins for int ↔ float:
-
-```ailang
--- Int to Float
-intToFloat(42)  -- 42.0
-
--- Float to Int (truncates towards zero)
-floatToInt(3.14)   -- 3
-floatToInt(-3.14)  -- -3
-
--- Mixed arithmetic (requires conversion)
-let result = intToFloat(1) + 2.5  -- 3.5
-```
-
-**IMPORTANT**: AILANG does NOT do automatic numeric coercion. You MUST use these builtins.
-
-## Block Expressions
-
-Blocks allow sequencing statements with semicolons:
-
-```ailang
-export func demo() -> () ! {IO} {
-  {
-    println("First");
-    println("Second");
-    println("Third")
-  }
-}
-
--- Blocks are expressions - the last value is returned
-export func compute() -> int {
-  {
-    let x = 10;
-    let y = 20;
-    x + y
-  }
-}
-```
-
-**CRITICAL**: Semicolons REQUIRED between statements! Missing semicolons will cause parse errors.
-
-## Records (with Update Syntax!)
-
-Records are structural types with named fields:
-
-```ailang
--- Record literal
-let person = {name: "Alice", age: 30, city: "NYC"}
-
--- Field access
-person.name    -- "Alice"
-person.age     -- 30
-
--- Use in functions
-export func describe(p: {name: string, age: int}) -> string {
-  p.name ++ " is " ++ show(p.age)
-}
-```
-
-**Record Update Syntax:**
-
-Functional record updates create a new record with specified fields changed:
-
-```ailang
-let person = {name: "Alice", age: 30, city: "NYC"};
-
--- Update one field
-let older = {person | age: 31};
--- Result: {name: "Alice", age: 31, city: "NYC"}
-
--- Update multiple fields
-let moved = {older | city: "SF", age: 32};
--- Result: {name: "Alice", age: 32, city: "SF"}
-
--- Complex base expressions work
-let updated = {getRecord() | field: value};
-let nested = {config.server | port: 8080};
-```
-
-**IMPORTANT**: Updates are immutable - they create NEW records, leaving originals unchanged!
-
-### Immutable Data Structures Example
-
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
-export func formatPerson(p: {name: string, age: int, city: string}) -> string {
-  p.name ++ ", " ++ show(p.age) ++ ", " ++ p.city
-}
-
-export func main() -> () ! {IO} {
-  let original = {name: "Alice", age: 25, city: "NYC"};
-
-  -- Update age (creates NEW record)
-  let older = {original | age: 26};
-
-  -- Update city from ORIGINAL (not from older!)
-  let moved = {original | city: "SF"};
-
-  -- Print all three - original is unchanged!
-  println(formatPerson(original));  -- Alice, 25, NYC
-  println(formatPerson(older));     -- Alice, 26, NYC
-  println(formatPerson(moved))      -- Alice, 25, SF
-}
-```
-
-## Algebraic Data Types (ADTs)
-
-**✅ CORRECT AILANG SYNTAX:**
-
-```ailang
--- Option type (Maybe)
-type Option[a] = Some(a) | None
-
--- Result type (Either)
-type Result[a, e] = Ok(a) | Err(e)
-
--- Tree type
-type Tree = Leaf(int) | Node(Tree, int, Tree)
-
--- Status enum
-type Status = Pending | InProgress | Completed
-```
-
-**Multi-line ADTs (with optional leading pipe):**
-
-```ailang
-type Tree =
-  | Leaf(int)
-  | Node(Tree, int, Tree)
-
-type Option[a] =
-  | Some(a)
-  | None
-```
-
-### Exhaustive Pattern Matching
-
-**CRITICAL: All pattern matches must be exhaustive (handle all constructors)!**
-
-**❌ WRONG - Non-exhaustive (missing cases):**
-```ailang
-type Status = Pending | InProgress | Completed
-
-export func describe(status: Status) -> string {
-  match status {
-    Pending => "Waiting"
-    -- ❌ Missing InProgress and Completed!
-  }
-}
-```
-
-**✅ CORRECT - Exhaustive matching:**
-```ailang
-type Status = Pending | InProgress | Completed
-
-export func describe(status: Status) -> string {
-  match status {
-    Pending => "Waiting to start",
-    InProgress => "Currently working",
-    Completed => "All done"
-  }
-}
-```
-
-### Pattern Matching Examples
-
-**Example 1: Option type (no crashes)**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
-type Option[a] = Some(a) | None
-
-export func safeDivide(a: float, b: float) -> Option[float] {
-  if b == 0.0
-  then None
-  else Some(a / b)
-}
-
-export func describeResult(result: Option[float]) -> string {
-  match result {
-    Some(v) => "Result: " ++ show(v),
-    None => "Error: Division by zero"
-  }
-}
-
-export func main() -> () ! {IO} {
-  let r1 = safeDivide(10.0, 2.0);
-  println(describeResult(r1));
-
-  let r2 = safeDivide(10.0, 0.0);
-  println(describeResult(r2))
-}
-```
-
-**Example 2: Tree operations**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
-type Tree = Leaf(int) | Node(Tree, int, Tree)
-
-export func treeSum(t: Tree) -> int {
-  match t {
-    Leaf(v) => v,
-    Node(l, v, r) => treeSum(l) + v + treeSum(r)
-  }
-}
-
-export func treeMax(t: Tree) -> int {
-  match t {
-    Leaf(v) => v,
-    Node(l, v, r) => {
-      let lmax = treeMax(l);
-      let rmax = treeMax(r);
-      if v >= lmax && v >= rmax
-      then v
-      else if lmax >= rmax
-      then lmax
-      else rmax
-    }
-  }
-}
-
-export func main() -> () ! {IO} {
-  let tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));
-  println("Sum: " ++ show(treeSum(tree)));
-  println("Max: " ++ show(treeMax(tree)))
-}
-```
+## Operators
+
+| Type | Operators |
+|------|-----------|
+| Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
+| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| Logical | `&&`, `\|\|`, `!` |
+| String | `++` (concatenation) |
+| List | `::` (cons/prepend) |
 
 ## Pattern Matching
 
-Pattern matching is exhaustive and supports multiple patterns:
-
 ```ailang
--- Option type matching
-match result {
-  Some(v) => println("Got: " ++ show(v)),
-  None => println("No value")
-}
-
--- List matching (v0.4.4+: sugar syntax supported!)
+-- On lists
 match xs {
-  [] => println("Empty"),
-  x :: xs => println("Head: " ++ show(x))  -- Sugar (v0.4.4+)
+  [] => 0,
+  x :: rest => x + sum(rest)
 }
 
--- Alternative: Canonical form (still works)
-match xs {
-  [] => println("Empty"),
-  ::(x, xs) => println("Head: " ++ show(x))  -- Canonical
-}
-
--- Tuple matching
-match pair {
-  (x, y) => x + y
-}
-
--- Nested patterns (v0.4.4+: sugar works!)
-match xs {
-  a :: b :: c => a + b,  -- Right-associative: a :: (b :: c)
-  _ => 0
-}
-
--- Tree patterns
+-- On ADTs
 match tree {
-  Leaf(v) => v,
-  Node(Leaf(x), v, Leaf(y)) => x + v + y,
-  Node(l, v, r) => treeSum(l) + v + treeSum(r)
+  Leaf(n) => n,
+  Node(l, v, r) => countNodes(l) + 1 + countNodes(r)
 }
 
--- Guards
-match x {
-  n if n < 0 => "negative",
-  n if n == 0 => "zero",
-  n => "positive"
+-- On Option
+match result {
+  Some(x) => x,
+  None => defaultValue
 }
 ```
 
-## Recursion (instead of loops)
-
-Recursion works perfectly in v0.3.15:
-
-```ailang
-export func factorial(n: int) -> int {
-  if n <= 1
-  then 1
-  else n * factorial(n - 1)
-}
-
--- Recursion with IO effects and blocks
-export func countdown(n: int) -> () ! {IO} {
-  if n <= 0 then {
-    println("Done!")
-  } else {
-    println(show(n));
-    countdown(n - 1)
-  }
-}
-```
-
-## NEW: Canonical List Operations
-
-**AILANG provides canonical ways to transform lists - use these patterns!**
-
-### Map Pattern
-
-**Transform each element:**
+**Option type with findFirst and mapOption:**
 ```ailang
 module benchmark/solution
 
-import std/io (println)
+-- Define your own Option if needed (or import std/option)
+type Option[a] = Some(a) | None
 
--- Canonical map implementation
-export func map[a, b](f: func(a) -> b, xs: [a]) -> [b] {
+-- Find first element matching predicate
+func findFirst(pred: int -> bool, xs: [int]) -> Option[int] =
   match xs {
-    [] => [],
-    x :: rest => f(x) :: map(f, rest)  -- v0.4.4+ sugar syntax
+    [] => None,
+    x :: rest => if pred(x) then Some(x) else findFirst(pred, rest)
   }
-}
+
+-- Map over Option
+func mapOption(f: int -> int, opt: Option[int]) -> Option[int] =
+  match opt {
+    Some(v) => Some(f(v)),
+    None => None
+  }
 
 export func main() -> () ! {IO} {
-  let numbers = [1, 2, 3, 4, 5];
-  let double = func(x: int) -> int { x * 2 };
-  let doubled = map(double, numbers);
-
-  -- Print result
-  println(show(doubled))  -- [2, 4, 6, 8, 10]
+  -- Inside { } block: use semicolons, NOT "in"
+  -- WRONG: let isEven = \n. n % 2 == 0 in
+  -- RIGHT: let isEven = \n. n % 2 == 0;
+  let isEven = \n. n % 2 == 0;
+  let double = \x. x * 2;
+  let nums = [1, 3, 4, 7, 8];
+  let found = findFirst(isEven, nums);
+  let doubled = mapOption(double, found);
+  print(match doubled { Some(v) => "Found: " ++ show(v), None => "Not found" })
 }
 ```
 
-### Filter Pattern
-
-**Keep elements matching predicate:**
+**ADT state machine (traffic light):**
 ```ailang
 module benchmark/solution
 
-import std/io (println)
+type State = Green(int) | Yellow(int) | Red(int)
+type Event = Tick | Reset
 
--- Canonical filter implementation
-export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
-  match xs {
-    [] => [],
-    x :: rest =>  -- v0.4.4+ sugar syntax
-      if pred(x)
-      then x :: filter(pred, rest)
-      else filter(pred, rest)
+func transition(state: State, event: Event) -> State =
+  match event {
+    Reset => Green(20),
+    Tick => match state {
+      Green(t) => if t > 1 then Green(t - 1) else Yellow(3),
+      Yellow(t) => if t > 1 then Yellow(t - 1) else Red(10),
+      Red(t) => if t > 1 then Red(t - 1) else Green(20)
+    }
   }
-}
+
+func showState(s: State) -> string =
+  match s {
+    Green(t) => "GREEN(" ++ show(t) ++ ")",
+    Yellow(t) => "YELLOW(" ++ show(t) ++ ")",
+    Red(t) => "RED(" ++ show(t) ++ ")"
+  }
 
 export func main() -> () ! {IO} {
-  let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  let isEven = func(n: int) -> bool { n % 2 == 0 };
-  let evens = filter(isEven, numbers);
-
-  println(show(evens))  -- [2, 4, 6, 8, 10]
+  -- WRONG: let s0 = Green(2) in   (don't use "in" in blocks!)
+  -- RIGHT: let s0 = Green(2);
+  let s0 = Green(2);
+  let s1 = transition(s0, Tick);
+  let s2 = transition(s1, Tick);
+  print(showState(s2))
 }
 ```
 
-### Fold Pattern
+## JSON
 
-**Reduce list to single value:**
+**Build and encode JSON:**
 ```ailang
-module benchmark/solution
+import std/json (encode, jo, ja, kv, js, jnum)
 
-import std/io (println)
+-- Build JSON object
+let json = encode(jo([kv("name", js("Alice")), kv("age", jnum(30.0))]))
+-- Result: "{\"name\":\"Alice\",\"age\":30}"
 
--- Canonical fold (left fold)
-export func foldl[a, b](f: func(b, a) -> b, acc: b, xs: [a]) -> b {
-  match xs {
-    [] => acc,
-    x :: rest => foldl(f, f(acc, x), rest)  -- v0.4.4+ sugar syntax
-  }
-}
+-- Build JSON array
+let arr = encode(ja([jnum(1.0), jnum(2.0), jnum(3.0)]))
+-- Result: "[1,2,3]"
+```
 
-export func main() -> () ! {IO} {
-  let numbers = [1, 2, 3, 4, 5];
-  let add = func(a: int, b: int) -> int { a + b };
-  let sum = foldl(add, 0, numbers);
+**Decode JSON (returns Result):**
+```ailang
+import std/json (decode, Json, JObject, JString)
 
-  println("Sum: " ++ show(sum))  -- Sum: 15
+let result = decode("{\"name\":\"Alice\"}");
+match result {
+  Ok(json) => print(show(json)),
+  Err(msg) => print("Parse error: " ++ msg)
 }
 ```
 
-### Complete Example: Filter + Sum
-
+**Access JSON values (IMPORTANT for parsing tasks):**
 ```ailang
-module benchmark/solution
+import std/json (decode, get, has, getOr, asString, asNumber, asBool, asArray)
+import std/option (Option, Some, None)
 
-import std/io (println)
-
-export func filter[a](pred: func(a) -> bool, xs: [a]) -> [a] {
-  match xs {
-    [] => [],
-    x :: rest =>  -- v0.4.4+ sugar syntax
-      if pred(x)
-      then x :: filter(pred, rest)
-      else filter(pred, rest)
-  }
-}
-
-export func foldl[a, b](f: func(b, a) -> b, acc: b, xs: [a]) -> b {
-  match xs {
-    [] => acc,
-    x :: rest => foldl(f, f(acc, x), rest)  -- v0.4.4+ sugar syntax
-  }
-}
-
-export func main() -> () ! {IO} {
-  let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  let isEven = func(n: int) -> bool { n % 2 == 0 };
-  let add = func(a: int, b: int) -> int { a + b };
-
-  let evens = filter(isEven, numbers);
-  let sum = foldl(add, 0, evens);
-
-  println("Sum of evens: " ++ show(sum))  -- Sum of evens: 30
+-- Decode and extract values
+match decode("{\"name\":\"Alice\",\"age\":30}") {
+  Ok(obj) => {
+    -- get(obj, key) -> Option[Json]
+    match get(obj, "name") {
+      Some(j) => match asString(j) {
+        Some(name) => print("Name: " ++ name),
+        None => print("name is not a string")
+      },
+      None => print("no name field")
+    };
+    -- asNumber returns Option[float]
+    match get(obj, "age") {
+      Some(j) => match asNumber(j) {
+        Some(age) => print("Age: " ++ show(age)),
+        None => print("age is not a number")
+      },
+      None => print("no age field")
+    }
+  },
+  Err(msg) => print("Parse error: " ++ msg)
 }
 ```
 
-## Common Mistakes to Avoid
+**JSON accessor functions:**
+- `get(obj, key)` -> `Option[Json]` - Get value by key
+- `has(obj, key)` -> `bool` - Check if key exists
+- `getOr(obj, key, default)` -> `Json` - Get with fallback
+- `asString(j)` -> `Option[string]` - Extract string
+- `asNumber(j)` -> `Option[float]` - Extract number
+- `asBool(j)` -> `Option[bool]` - Extract boolean
+- `asArray(j)` -> `Option[List[Json]]` - Extract array
+- `asObject(j)` -> `Option[List[{key: string, value: Json}]]` - Extract object
 
-❌ **Don't use for/while loops:**
+## HTTP Requests
+
+**Simple GET/POST:**
 ```ailang
-for i in [1, 2, 3] { println(i) }  -- ❌ NOT supported
+import std/net (httpGet, httpPost)
+let body = httpGet("https://example.com")
+let resp = httpPost("https://api.example.com", jsonData)
 ```
 
-✅ **Use recursion:**
+**Advanced with headers:**
 ```ailang
-export func printAll(xs: [int]) -> () ! {IO} {
-  match xs {
-    [] => (),
-    x :: rest => {  -- v0.4.4+ sugar syntax
-      println(show(x));
-      printAll(rest)
+import std/net (httpRequest)
+let headers = [{name: "Authorization", value: "Bearer token"}];
+match httpRequest("POST", url, headers, body) {
+  Ok(resp) => print(resp.body),
+  Err(Transport(msg)) => print("Error: " ++ msg),
+  Err(_) => print("Other error")
+}
+```
+
+## AI Effect
+
+Call external LLMs with a string->string interface:
+
+```ailang
+import std/ai (call)
+
+func ask_ai(question: string) -> string ! {AI} = call(question)
+```
+
+**Run with providers:**
+```bash
+ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail  # Anthropic
+ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail         # OpenAI
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google (uses ADC)
+ailang run --caps IO,AI --ai-stub --entry main file.ail              # Testing stub
+```
+
+## Arrays (O(1) indexed access)
+
+```ailang
+import std/array as A
+
+let arr = #[10, 20, 30]           -- Array literal
+let val = A.get(arr, 0)           -- O(1) access: 10
+let safe = A.getOpt(arr, 99)      -- None (out of bounds)
+let arr2 = A.set(arr, 0, 99)      -- O(n) copy: #[99, 20, 30]
+```
+
+## Semantic Caching Doctrine (SharedMem + SharedIndex)
+
+AILANG programs should treat `SharedMem` + `SharedIndex` as the primary persistent working memory for agents.
+
+### When to Store
+
+Cache any expensive or repeatable computation (LLM calls, parsing, summarizing, planning, search) as a `sem_frame`:
+
+```ailang
+import std/sem (make_frame_at, store_frame, load_frame)
+
+-- After expensive computation, cache it
+let frame = make_frame_at("plan:" ++ goal_id, plan_text, plan_bytes, timestamp);
+let _ = store_frame("plan:" ++ goal_id, frame)
+```
+
+### When to Retrieve
+
+Use `SharedIndex` for meaning-based retrieval. Do NOT guess keys or enumerate all keys unless implementing maintenance tooling:
+
+```ailang
+-- Find similar content by SimHash (fast, deterministic)
+let results = _sharedindex_find_simhash("beliefs", query_hash, 5, 100, true)
+
+-- Find by neural embedding (semantic similarity via Ollama)
+let query_emb = _ollama_embed("embeddinggemma", query_text);
+let results = _sharedindex_find_by_embedding("beliefs", query_emb, 5, 100, true)
+```
+
+### How to Evolve State
+
+Use `update_frame` with CAS for conflict-free multi-agent updates:
+
+```ailang
+import std/sem (update_frame, UpdateResult)
+
+match update_frame("plan:" ++ goal_id, \frame. refine_plan(frame)) {
+  Updated(new_frame) => continue_with(new_frame),
+  Conflict(current) => retry_with_backoff(current),
+  Missing => create_initial_plan()
+}
+```
+
+### How to Debug
+
+Enable tracing to see all SharedMem/SharedIndex operations:
+
+```bash
+ailang run --caps IO,SharedMem,SharedIndex --trace-sharedmem --entry main file.ail
+```
+
+### Namespace Conventions
+
+Organize frames by domain using namespace prefixes:
+
+| Prefix | Purpose |
+|--------|---------|
+| `plan:` | Planning state, goals, strategies |
+| `belief:` | Agent beliefs, world model |
+| `doc:` | Document summaries, parsed content |
+| `cache:` | Expensive computation results |
+| `session:` | Per-session temporary state |
+
+### Two-Tier Search
+
+| Tier | Method | Use Case | Speed |
+|------|--------|----------|-------|
+| **Tier 1** | SimHash | Near-duplicates, typo tolerance | ~1ms |
+| **Tier 2** | Neural embedding | Semantic similarity, paraphrases | ~160ms |
+
+**Canonical pattern:**
+```ailang
+-- Check for exact/near match first (fast)
+let simhash = _simhash(query_text);
+let near_matches = _sharedindex_find_simhash("cache", simhash, 1, 50, true);
+
+match near_matches {
+  [] => {
+    -- No near match: compute fresh, store result
+    let result = expensive_computation(query_text);
+    let frame = make_frame_at("cache:" ++ query_id, query_text, result, now());
+    let _ = store_frame("cache:" ++ query_id, frame);
+    result
+  },
+  [hit, ..._] => {
+    -- Found cached result
+    match load_frame(hit.key) {
+      Some(frame) => frame.opaque,
+      None => expensive_computation(query_text)  -- Race: deleted between search and load
     }
   }
 }
 ```
 
-❌ **Don't forget semicolons in blocks:**
+### Embeddings Doctrine
+
+If AI/Embedding capability is available (Ollama + EmbeddingGemma), use it to make semantic caching robust to paraphrase.
+
+**When to compute embeddings:**
+- Compute embeddings for frames that represent durable knowledge: document summaries, plans, policies, entity facts, extracted structured state.
+- Avoid embedding ephemeral "chatty" content. Prefer stable canonical text.
+
+**What to embed:**
+- Embed the frame's `content`, not the full `opaque` payload.
+- `content` should be short, canonical, and discriminative (1-3 sentences plus key identifiers/constraints).
+
+**How to retrieve (hybrid pattern):**
 ```ailang
-{
-  println("First")
-  println("Second")  -- ❌ Parse error! Missing semicolon
-}
+-- 1. SimHash candidates (fast, bounded)
+let hash = _simhash(query);
+let candidates = _sharedindex_find_simhash("beliefs", hash, 100, 1000, true);
+
+-- 2. Embed query once
+let qemb = _ollama_embed("embeddinggemma", query);
+
+-- 3. Rerank with embedding search
+let results = _sharedindex_find_by_embedding("beliefs", qemb, 5, 100, true);
 ```
 
-✅ **Add semicolons between statements:**
+**How to store with embeddings:**
 ```ailang
-{
-  println("First");
-  println("Second")  -- ✅ Last statement doesn't need semicolon
-}
+import std/sem (make_frame_at, store_frame, with_embedding)
+
+-- Compute embedding at store time (expensive, do once)
+let emb_floats = _ollama_embed("embeddinggemma", content);
+let emb_bytes = _embedding_encode(emb_floats);
+let frame = with_embedding(make_frame_at(key, content, payload, ts), emb_bytes, 768);
+let _ = store_frame(key, frame);
+let _ = _sharedindex_upsert_emb("ns", key, frame.simhash, emb_floats, frame.ver, frame.ts)
 ```
 
-❌ **Don't import show:**
-```ailang
-import std/io (println, show)  -- ❌ show not in std/io
+**Debugging embeddings:**
+- If a decision depends on embedding rerank, record: model name, candidate set size, similarity scores, and chosen key.
+
+### Running with SharedMem/SharedIndex
+
+```bash
+# Basic SharedMem (key-value cache)
+ailang run --caps IO,SharedMem --entry main file.ail
+
+# Full semantic retrieval (SimHash + embeddings)
+ailang run --caps IO,SharedMem,SharedIndex --entry main file.ail
+
+# With Ollama embeddings (requires: ollama serve && ollama pull embeddinggemma)
+ailang run --caps IO,SharedMem,SharedIndex --entry main file.ail
 ```
 
-✅ **show is a builtin:**
+## List Operations
+
 ```ailang
-import std/io (println)
--- show is available automatically
-println(show(42))
-```
+-- Recursive sum (no loops!)
+func sum(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    x :: rest => x + sum(rest)
+  }
 
-❌ **Don't use invented HTTP APIs:**
-```ailang
--- ❌ These DON'T exist in AILANG!
-http.post(url, json=body, headers=h)
-http("POST", url, body: json)
-response = http.post(url, headers, body)
-```
-
-✅ **Use httpRequest from std/net:**
-```ailang
-import std/net (httpRequest)
-import std/json (encode, jo, kv, js, jnum)
-
-let jsonBody = encode(jo([kv("message", js("Hello")), kv("count", jnum(42.0))]));
-let headers = [{name: "Content-Type", value: "application/json"}];
-match httpRequest("POST", "https://httpbin.org/post", headers, jsonBody) {
-  Ok(resp) => print(show(resp.status)),
-  Err(_) => print("error")
-}
-```
-
-❌ **Don't forget module and export:**
-```ailang
-func main() {  -- ❌ Missing 'module' declaration and 'export'
-  println("hello")
-}
-```
-
-✅ **Always use module and export:**
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("hello")
-}
-```
-
-❌ **Don't forget effect declarations:**
-```ailang
--- ❌ Uses println but doesn't declare IO
-export func greet() -> () {
-  println("Hello")
-}
-```
-
-✅ **Declare all effects:**
-```ailang
--- ✅ Declares IO effect
-export func greet() -> () ! {IO} {
-  println("Hello")
-}
-```
-
-❌ **Don't use mutable globals:**
-```python
-counter = 0  # ❌ No global state in AILANG
-
-def increment():
-    global counter
-    counter += 1
-```
-
-✅ **Thread state explicitly:**
-```ailang
-export func increment(counter: int) -> int {
-  counter + 1
-}
-
--- Call: let newCounter = increment(counter)
-```
-
-❌ **Don't use Haskell-style list cons:**
-```ailang
--- ❌ Parse error - x::rest looks natural but doesn't work!
-match xs {
-  [] => 0,
-  x::rest => x + sum(rest)
-}
-```
-
-✅ **Use constructor syntax:**
-```ailang
--- ✅ CORRECT - ::(x, rest) is canonical form
-match xs {
-  [] => 0,
-  ::(x, rest) => x + sum(rest)
-}
-
--- ✅ ALSO CORRECT (v0.4.4+) - x :: xs is sugar form
-match xs {
-  [] => 0,
-  x :: rest => x + sum(rest)  -- Sugar syntax
-}
-```
-
-❌ **Don't use quoted imports (from Python/JS):**
-```ailang
--- ❌ Parse error - quotes not allowed!
-import "std/io" (println)
-import "std/net" (httpRequest)
-```
-
-✅ **Import without quotes:**
-```ailang
--- ✅ CORRECT - no quotes on module path
-import std/io (println)
-import std/net (httpRequest)
-```
-
-❌ **Don't use func(T) -> U in type annotations:**
-```ailang
--- ❌ Parse error - func(T) -> U not valid type syntax!
-export func map[a, b](f: func(a) -> b, xs: [a]) -> [b] {
+-- Recursive map
+func map(f: int -> int, xs: [int]) -> [int] =
   match xs {
     [] => [],
-    ::(x, rest) => ::(f(x), map(f, rest))
+    x :: rest => f(x) :: map(f, rest)
   }
-}
 ```
 
-✅ **Use lambda values OR inferred types:**
+## Testing
+
+**Inline tests on functions (recommended):**
 ```ailang
--- ✅ Option 1: Lambda values (let inference figure it out)
-export func map[a, b](f, xs) {
-  match xs {
-    [] => [],
-    ::(x, rest) => ::(f(x), map(f, rest))
-  }
-}
+-- Tests are pairs of (input, expected_output)
+pure func square(x: int) -> int tests [(0, 0), (5, 25)] { x * x }
 
--- ✅ Option 2: Use arrow syntax in type annotation
-export func map[a, b](f: a -> b, xs: [a]) -> [b] {
-  match xs {
-    [] => [],
-    ::(x, rest) => ::(f(x), map(f, rest))
-  }
-}
+pure func double(x: int) -> int tests [(0, 0), (3, 6), (5, 10)] { x * 2 }
 ```
 
-## Quick Reference
+Run: `ailang test file.ail`
 
-**Essential patterns:**
+## Multi-Module Projects
+
+```
+myapp/
+  ├── data.ail      -- module myapp/data
+  ├── storage.ail   -- module myapp/storage
+  └── main.ail      -- module myapp/main
+```
+
 ```ailang
--- Module structure
-module benchmark/solution
-import std/io (println)
-export func main() -> () ! {IO} { ... }
+-- myapp/data.ail
+module myapp/data
+export type User = { name: string, age: int }
 
--- Effects
-export func pure() -> int { 42 }
-export func withIO() -> () ! {IO} { println("hi") }
-export func withFS() -> string ! {FS} { readFile("file.txt") }
-export func withBoth() -> () ! {IO, FS} { ... }
-
--- State threading
-export func stateful(value: int, state: int) -> (int, int) {
-  let newState = state + value;
-  (newState, newState)
-}
-
--- ADTs
-type Option[a] = Some(a) | None
-match opt {
-  Some(v) => ...,
-  None => ...
-}
-
--- Records
-let r = {name: "Alice", age: 30};
-let updated = {r | age: 31};
-
--- Lists
-let xs = [1, 2, 3];
-match xs {
-  [] => ...,
-  x :: rest => ...  -- v0.4.4+ sugar syntax
-}
-
--- Recursion
-export func loop(n: int) -> () ! {IO} {
-  if n > 10 then () else {
-    println(show(n));
-    loop(n + 1)
-  }
-}
+-- myapp/main.ail
+module myapp/main
+import myapp/data (User)
+export func main() -> () ! {IO} = print("Hello")
 ```
 
-**Effect system quick reference:**
-- Pure function: `-> Type`
-- IO only: `-> Type ! {IO}`
-- FS only: `-> Type ! {FS}`
-- Multiple effects: `-> Type ! {IO, FS}`
-- Net effect: `-> Type ! {Net}`
+Run: `ailang run --entry main --caps IO myapp/main.ail`
 
-**Remember:**
-- Every program needs `module benchmark/solution`
-- Effects must be declared in signatures (`! {IO, FS}`)
-- State must be threaded explicitly (no globals)
-- Pattern matches must be exhaustive
-- Use recursion instead of loops
-- Semicolons between statements in blocks
-- `show` is a builtin (don't import it)
+## Common Mistakes
 
----
+| Mistake | Fix |
+|---------|-----|
+| `print(42)` | `print(show(42))` - print needs string |
+| `import "std/io"` | `import std/io (println)` - no quotes |
+| `list.map(f)` | `map(f, list)` - standalone function |
+| `for x in xs` | Use recursion or `map`/`filter` |
+| Missing `! {IO}` | Add effect to signature |
+| `let x = 1; let y = 2` at top level | Wrap in `{ }` block |
+| `match x { ... }` inside block | Extract to helper function (parser bug) |
 
-**This is v0.4.1 - Focus on: JSON Decode, Effect System, State Threading, Environment Variables**
+## Running Programs
+
+```bash
+ailang run --entry main --caps IO file.ail           # IO only
+ailang run --entry main --caps IO,FS file.ail        # IO + File System
+ailang run --entry main --caps IO,Net file.ail       # IO + Network
+ailang run --entry main --caps IO,AI --ai MODEL file.ail  # IO + AI
+ailang run --entry main --caps IO,SharedMem file.ail      # IO + Semantic cache
+ailang repl                                           # Interactive REPL
+```
+
+**Flags must come BEFORE the filename!**
 
 ---
 

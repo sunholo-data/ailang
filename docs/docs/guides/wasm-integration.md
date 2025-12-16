@@ -36,7 +36,9 @@ This produces `bin/ailang.wasm`.
 1. Copy assets:
 ```bash
 cp bin/ailang.wasm docs/static/wasm/
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" docs/static/wasm/
+# Download Go's WASM support file (more reliable than GOROOT path)
+curl -sL -o docs/static/wasm/wasm_exec.js \
+  https://raw.githubusercontent.com/golang/go/go1.22/misc/wasm/wasm_exec.js
 cp web/ailang-repl.js docs/src/components/
 cp web/AilangRepl.jsx docs/src/components/
 ```
