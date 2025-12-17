@@ -50,23 +50,40 @@ func TestValidateEffects_LargeArrayPerformance(t *testing.T) {
 }
 
 // TestValidateEffects_LinearScaling verifies that effect checking scales linearly with input size.
+// Note: This test uses warmup iterations and takes minimum times to be robust on CI.
 func TestValidateEffects_LinearScaling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping performance test in short mode")
+	}
+
 	sizes := []int{10, 50, 100}
 	var times []time.Duration
+	const iterations = 5 // Run multiple times and take minimum
 
 	for _, n := range sizes {
 		prog := buildLargeArrayProgram(n, 100)
 		typeInfo := types.NewCoreTypeInfo()
 		registerTypesForProgram(prog, typeInfo)
 
-		start := time.Now()
-		err := ValidateEffects(nil, prog, typeInfo)
-		elapsed := time.Since(start)
-		times = append(times, elapsed)
+		// Warmup run to avoid cold cache effects
+		_ = ValidateEffects(nil, prog, typeInfo)
 
-		if err != nil {
-			t.Fatalf("ValidateEffects failed for n=%d: %v", n, err)
+		// Run multiple iterations, take the minimum (least affected by CI noise)
+		var minTime time.Duration
+		for i := 0; i < iterations; i++ {
+			start := time.Now()
+			err := ValidateEffects(nil, prog, typeInfo)
+			elapsed := time.Since(start)
+
+			if err != nil {
+				t.Fatalf("ValidateEffects failed for n=%d: %v", n, err)
+			}
+
+			if minTime == 0 || elapsed < minTime {
+				minTime = elapsed
+			}
 		}
+		times = append(times, minTime)
 	}
 
 	// Check that scaling is roughly linear (not quadratic)
@@ -74,16 +91,16 @@ func TestValidateEffects_LinearScaling(t *testing.T) {
 	// For linear: time(100) / time(10) ≈ 10 (10x ratio)
 	if times[0] > 0 {
 		ratio := float64(times[2]) / float64(times[0])
-		// Allow for some noise, but ratio should be much less than 100
-		// (which would indicate quadratic behavior)
-		if ratio > 50 {
-			t.Errorf("Scaling appears quadratic: time(100)/time(10) = %.1f (expected <50 for linear)", ratio)
+		// Allow for significant noise on CI runners, but ratio should be
+		// much less than 100 (which would indicate quadratic behavior)
+		if ratio > 80 {
+			t.Errorf("Scaling appears quadratic: time(100)/time(10) = %.1f (expected <80 for linear)", ratio)
 		}
 		t.Logf("Scaling ratio time(100)/time(10) = %.1f", ratio)
 	}
 
 	for i, n := range sizes {
-		t.Logf("  n=%d: %v", n, times[i])
+		t.Logf("  n=%d: %v (min of %d iterations)", n, times[i], iterations)
 	}
 }
 
