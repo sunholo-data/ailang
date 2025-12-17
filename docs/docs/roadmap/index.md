@@ -18,6 +18,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-TOOLING-DETERMINISTIC.md)
 - [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
+- [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/m-reflect-structural-reflection.md)
 
 ## Planned for v0.6.1
 
@@ -34,6 +35,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-dx11-phase2-debug-events.md)
 - [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-dx11-phase2-sprint-plan.md)
 - [M-ENV-TYPE: Fix std/env EnvError Type Parameter Bug](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-env-type-parameter-bug.md)
+- [M-EXEC-GEMINI Sprint Plan: Gemini CLI Executor Implementation](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-exec-gemini-sprint-plan.md)
 - [M-EXEC: Multi-Executor Support for AI Coding Agents](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-exec-multi-executor-support.md)
 - [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-gemini-interactions-api.md)
 - [M-LETREC-SCOPING: Fix Letrec Recursive Binding Scope Regression](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-letrec-scoping-regression.md)
@@ -55,4 +57,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 26 planned features across 2 upcoming versions.*
+*Generated at build time. 28 planned features across 2 upcoming versions.*
