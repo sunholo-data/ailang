@@ -1,63 +1,63 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-54%20passing%202%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-27%20passing%2029%20failing-red.svg)
 
-**54/56 examples passing (96%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**27/56 examples passing (48%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `runnable/adt_option.ail` | ✅ Pass |  |
 | `runnable/adt_simple.ail` | ✅ Pass |  |
-| `runnable/ai_effect.ail` | ✅ Pass |  |
+| `runnable/ai_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
 | `runnable/block_demo.ail` | ✅ Pass |  |
-| `runnable/block_recursion.ail` | ✅ Pass |  |
+| `runnable/block_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
-| `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/cli_args_demo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/closures.ail` | ✅ Pass |  |
-| `runnable/conway_grid.ail` | ✅ Pass |  |
-| `runnable/debug_effect.ail` | ✅ Pass |  |
-| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
-| `runnable/demos/hello_io.ail` | ✅ Pass |  |
-| `runnable/effects_basic.ail` | ✅ Pass |  |
+| `runnable/conway_grid.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/debug_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
-| `runnable/func_expressions.ail` | ✅ Pass |  |
-| `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
+| `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/game_npc_dialogue.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
 | `runnable/imported_adt_types.ail` | ✅ Pass |  |
-| `runnable/imports.ail` | ✅ Pass |  |
-| `runnable/imports_basic.ail` | ✅ Pass |  |
-| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/lambdas.ail` | ✅ Pass |  |
 | `runnable/lambdas_advanced.ail` | ✅ Pass |  |
 | `runnable/lambdas_closures.ail` | ✅ Pass |  |
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
-| `runnable/list_patterns.ail` | ✅ Pass |  |
-| `runnable/micro_block_if.ail` | ✅ Pass |  |
-| `runnable/micro_block_seq.ail` | ✅ Pass |  |
-| `runnable/micro_io_echo.ail` | ✅ Pass |  |
-| `runnable/micro_option_map.ail` | ✅ Pass |  |
-| `runnable/micro_record_person.ail` | ✅ Pass |  |
-| `runnable/option_demo.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_block_if.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_block_seq.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_io_echo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_option_map.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/micro_record_person.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/option_demo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/patterns.ail` | ✅ Pass |  |
 | `runnable/records.ail` | ✅ Pass |  |
-| `runnable/recursion_factorial.ail` | ✅ Pass |  |
-| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
-| `runnable/recursion_match.ail` | ✅ Pass |  |
-| `runnable/recursion_mutual.ail` | ✅ Pass |  |
-| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_fibonacci.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_match.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_mutual.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/recursion_quicksort.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/simple.ail` | ✅ Pass |  |
-| `runnable/stdlib_demo.ail` | ✅ Pass |  |
+| `runnable/stdlib_demo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/stdlib_demo_simple.ail` | ✅ Pass |  |
 | `runnable/test_cli_io.ail` | ✅ Pass |  |
-| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
-| `runnable/test_import_func.ail` | ✅ Pass |  |
+| `runnable/test_import_func.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/test_io_builtins.ail` | ✅ Pass |  |
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |
