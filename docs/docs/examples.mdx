@@ -8,6 +8,12 @@ import Icon, { CheckIcon, WarningIcon } from '@site/src/components/Icon';
 import CodeBlock from '@theme/CodeBlock';
 import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
 import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
+import ListSumExample from '!!raw-loader!@site/../examples/runnable/list_sum.ail';
+import ADTTreeExample from '!!raw-loader!@site/../examples/runnable/adt_tree.ail';
+import TypeInferenceExample from '!!raw-loader!@site/../examples/runnable/type_inference.ail';
+import RecordsExample from '!!raw-loader!@site/../examples/runnable/records.ail';
+import LambdasHigherOrderExample from '!!raw-loader!@site/../examples/runnable/lambdas_higher_order.ail';
+import PatternsExample from '!!raw-loader!@site/../examples/runnable/patterns.ail';
 
 # AILANG Examples
 
@@ -29,7 +35,7 @@ ailang run --caps IO --entry main examples/runnable/hello.ail
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> `!: IO` declares the function performs I/O
+- <CheckIcon inline /> `! {IO}` declares the function performs I/O
 - <CheckIcon inline /> `println` is imported from `std/io`
 - <CheckIcon inline /> `--caps IO` grants I/O capability at runtime
 
@@ -68,29 +74,28 @@ echo "factorial(5)" | ailang repl --load examples/runnable/recursion_factorial.a
 
 Pattern matching is AILANG's primary control flow mechanism:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/list_sum.ail">
+  {ListSumExample}
+</CodeBlock>
 
--- Sum list using pattern matching
-fn sum(list: [int]) -> int =
-    match list {
-        [] -> 0,
-        [head, ...tail] -> head + sum(tail)
-    }
-
-fn main() !: IO -> () =
-    let numbers = [1, 2, 3, 4, 5];
-    println("Sum: " ++ show(sum(numbers)))
+**Run it:**
+```bash
+ailang run examples/runnable/list_sum.ail
 ```
 
 **Output:**
 ```
-Sum: 15
+(15, 15)
 ```
 
+:::caution Known Bug
+The length function currently returns 15 instead of 5 due to a pattern matching issue. See [design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-bug-list-length-returns-wrong-value.md) for tracking.
+:::
+
 **Key concepts:**
-- <CheckIcon inline /> `[]` matches empty list
-- <CheckIcon inline /> `[head, ...tail]` destructures list
+- <CheckIcon inline /> `INil` matches empty list
+- <CheckIcon inline /> `ICons(head, tail)` destructures list
+- <CheckIcon inline /> `letrec` enables recursive function definitions
 - <CheckIcon inline /> Exhaustive matching required (compiler enforces)
 
 ---
@@ -99,33 +104,24 @@ Sum: 15
 
 Define custom types with multiple constructors:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/adt_tree.ail">
+  {ADTTreeExample}
+</CodeBlock>
 
-type Tree =
-    | Leaf(int)
-    | Node(Tree, int, Tree)
-
--- Sum all values in tree
-fn sumTree(tree: Tree) -> int =
-    match tree {
-        Leaf(n) -> n,
-        Node(left, value, right) ->
-            sumTree(left) + value + sumTree(right)
-    }
-
-fn main() !: IO -> () =
-    let tree = Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)));
-    println("Tree sum: " ++ show(sumTree(tree)))
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/runnable/adt_tree.ail
 ```
 
 **Output:**
 ```
 Tree sum: 15
+Node count: 5
 ```
 
 **Key concepts:**
 - <CheckIcon inline /> `type Tree =` defines an ADT with 2 constructors
+- <CheckIcon inline /> `pure func` declares functions without side effects
 - <CheckIcon inline /> Pattern matching handles all cases
 - <CheckIcon inline /> Compiler ensures exhaustiveness
 
@@ -199,15 +195,13 @@ fn processFile(path: string) !: IO,FS -> () =
 
 AILANG infers types automatically using Hindley-Milner:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/type_inference.ail">
+  {TypeInferenceExample}
+</CodeBlock>
 
--- No type annotations needed!
-fn double(x) = x * 2
-
-fn main() !: IO -> () =
-    let result = double(21);
-    println(show(result))  -- Prints: 42
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/runnable/type_inference.ail
 ```
 
 **Key concepts:**
@@ -221,23 +215,20 @@ fn main() !: IO -> () =
 
 Records are structural types with width subtyping:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/records.ail">
+  {RecordsExample}
+</CodeBlock>
 
-type Person = { name: string, age: int }
-
-fn greet(person: Person) !: IO -> () =
-    println("Hello, " ++ person.name)
-
-fn main() !: IO -> () =
-    let employee = { name: "Alice", age: 30, role: "Engineer" };
-    greet(employee)  -- OK! employee has all required fields
+**Run it:**
+```bash
+ailang run examples/runnable/records.ail
 ```
 
 **Key concepts:**
 - <CheckIcon inline /> Records support structural typing
 - <CheckIcon inline /> Width subtyping: `{a, b, c}` ⊆ `{a, b}`
 - <CheckIcon inline /> Field access: `record.field`
+- <CheckIcon inline /> Nested records and lambda fields supported
 
 ---
 
@@ -310,24 +301,19 @@ ailang run --caps IO,Net --entry main examples/http_get.ail
 
 Functions are first-class values:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/lambdas_higher_order.ail">
+  {LambdasHigherOrderExample}
+</CodeBlock>
 
-fn map(f, list) =
-    match list {
-        [] -> [],
-        [x, ...xs] -> [f(x), ...map(f, xs)]
-    }
-
-fn main() !: IO -> () =
-    let numbers = [1, 2, 3, 4, 5];
-    let doubled = map(\x -> x * 2, numbers);
-    println(show(doubled))  -- [2, 4, 6, 8, 10]
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/runnable/lambdas_higher_order.ail
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> `\x -> x * 2` is a lambda function
+- <CheckIcon inline /> `\x. x * 2` is a lambda function
 - <CheckIcon inline /> Functions can be passed as arguments
+- <CheckIcon inline /> Function composition: `\f. \g. \x. f(g(x))`
 - <CheckIcon inline /> Closures capture environment
 
 ---

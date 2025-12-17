@@ -1,0 +1,20 @@
+-- list_sum.ail - List operations with pattern matching
+-- Demonstrates ADT destructuring and recursion
+
+type IntList = INil | ICons(int, IntList)
+
+-- Sum all integers in a list using letrec for recursion
+letrec sum = \list.
+    match list {
+        INil => 0,
+        ICons(head, tail) => head + sum(tail)
+    }
+in
+letrec length = \list.
+    match list {
+        INil => 0,
+        ICons(_, tail) => 1 + length(tail)
+    }
+in
+let numbers = ICons(1, ICons(2, ICons(3, ICons(4, ICons(5, INil))))) in
+(sum(numbers), length(numbers))
