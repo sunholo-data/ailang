@@ -5,6 +5,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
 expected_gain: "medium"
+timeout: 90  # Medium complexity: 90 seconds
 task_prompt: |
   Write a program in <LANG> that:
 

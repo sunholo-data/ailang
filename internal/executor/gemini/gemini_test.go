@@ -25,7 +25,7 @@ func TestGeminiDefaultModel(t *testing.T) {
 		t.Fatalf("New failed: %v", err)
 	}
 
-	// Should use Gemini 3 Flash as default
+	// Should use Gemini 3 Flash preview as default (from DefaultConfig)
 	if exec.model != "gemini-3-flash-preview" {
 		t.Errorf("expected default model 'gemini-3-flash-preview', got '%s'", exec.model)
 	}

@@ -5,6 +5,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"
 expected_gain: "high"
+timeout: 120  # Hard complexity: 120 seconds (ADT patterns need more time)
 task_prompt: |
   Write a program in <LANG> that:
 

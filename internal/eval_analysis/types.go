@@ -12,6 +12,7 @@ type BenchmarkResult struct {
 	ID            string    `json:"id"`
 	Lang          string    `json:"lang"`
 	Model         string    `json:"model"`
+	Executor      string    `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode)
 	Seed          int64     `json:"seed"`
 	InputTokens   int       `json:"input_tokens"`
 	OutputTokens  int       `json:"output_tokens"`
@@ -180,6 +181,7 @@ type SummaryEntry struct {
 	ID             string  `json:"id"`
 	Lang           string  `json:"lang"`
 	Model          string  `json:"model"`
+	Executor       string  `json:"executor,omitempty"` // Executor used: "claude", "gemini" (agent mode)
 	Seed           int64   `json:"seed"`
 	PromptVersion  string  `json:"prompt_version,omitempty"`
 	FirstAttemptOk bool    `json:"first_attempt_ok"`
@@ -257,6 +259,7 @@ func (r *BenchmarkResult) ToSummaryEntry() *SummaryEntry {
 		ID:             r.ID,
 		Lang:           r.Lang,
 		Model:          r.Model,
+		Executor:       r.Executor,
 		Seed:           r.Seed,
 		PromptVersion:  r.PromptVersion,
 		FirstAttemptOk: r.FirstAttemptOk,

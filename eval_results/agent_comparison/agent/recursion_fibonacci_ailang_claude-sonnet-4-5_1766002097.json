@@ -1,0 +1,33 @@
+{
+  "id": "recursion_fibonacci",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 681,
+  "total_tokens": 694,
+  "cost_usd": 0.015523150000000003,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 13659,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "6765\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution with the recursive Fibonacci function:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output `6765`.\n\n**Verification Summary:**\n- ✅ Code compiles and type-checks correctly\n- ✅ Output matches expected result: `6765`\n- ✅ Uses pure recursive Fibonacci as required\n- ✅ No extra spaces or formatting issues\n\nThe solution is complete and verified!",
+  "expected_stdout": "6765\n",
+  "timestamp": "2025-12-17T21:08:17.334315+01:00",
+  "code": "module benchmark/solution\n\nfunc fib(n: int) -\u003e int =\n  if n == 0 then 0\n  else if n == 1 then 1\n  else fib(n - 1) + fib(n - 2)\n\nexport func main() -\u003e () ! {IO} =\n  print(show(fib(20)))\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.5.11",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution with the recursive Fibonacci function:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output `6765`.\n\n**Verification Summary:**\n- ✅ Code compiles and type-checks correctly\n- ✅ Output matches expected result: `6765`\n- ✅ Uses pure recursive Fibonacci as required\n- ✅ No extra spaces or formatting issues\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

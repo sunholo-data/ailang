@@ -40,13 +40,14 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 // AgentBenchmarkResult captures agent evaluation outcome
 type AgentBenchmarkResult struct {
 	BenchmarkID string
+	Executor    string  // Executor used: "claude", "gemini", etc.
 	Success     bool
 	Iterations  int     // Number of agent turns
 	Cost        float64 // Total cost in USD
 	DurationMS  int     // Total time in milliseconds
 	NumTurns    int     // Conversation turns
 	Error       string  // Error message if failed
-	SessionID   string  // Claude session ID
+	SessionID   string  // Session ID from executor
 	Result      string  // Final result text from agent
 
 	// Token usage details
@@ -220,6 +221,7 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 
 	return &AgentBenchmarkResult{
 		BenchmarkID: spec.ID,
+		Executor:    "claude", // Legacy runner always uses Claude Code
 		Success:     success,
 		Iterations:  result.NumTurns,
 		Cost:        result.TotalCostUSD,

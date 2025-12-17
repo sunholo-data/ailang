@@ -120,6 +120,7 @@ echo "=== Pre-Flight Check ==="
 echo "Version: $VERSION"
 echo "Mode: ${FULL_FLAG:-DEV}"
 echo "Benchmarks: 46 (1 easy, ~19 medium, ~17 hard, 6 stretch)"
+echo "Agent models: claude-sonnet-4-5 (Claude executor), gemini-3-flash (Gemini executor)"
 echo "Agent parallelism: 2"
 echo "Agent timeout: default (no override)"
 echo "Prompt version: latest (auto-selected)"
@@ -127,11 +128,11 @@ echo
 echo "Expected results:"
 if [[ -n "$FULL_FLAG" ]]; then
     echo "  Standard eval: ~552 files (46 benchmarks × 6 models × 2 langs)"
-    echo "  Agent eval: ~184 files (46 benchmarks × 2 models × 2 langs)"
+    echo "  Agent eval: ~184 files (46 benchmarks × 2 executors × 2 langs)"
     echo "  Total: ~736 files"
 else
     echo "  Standard eval: ~276 files (46 benchmarks × 3 models × 2 langs)"
-    echo "  Agent eval: ~92 files (46 benchmarks × 1 model × 2 langs)"
+    echo "  Agent eval: ~92 files (46 benchmarks × 2 executors × 1 lang)"
     echo "  Total: ~368 files"
 fi
 echo
@@ -139,27 +140,34 @@ echo "Starting in 3 seconds... (Ctrl-C to abort)"
 sleep 3
 echo
 
-# Agent eval uses haiku/sonnet models based on --full flag
+# Agent eval uses both Claude and Gemini executors (multi-executor support v0.6.0+)
 # --benchmarks is required for agent mode (safety feature)
+# Models: claude-sonnet-4-5 (Claude executor), gemini-3-flash (Gemini executor)
+AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
+
 if [[ -n "$FULL_FLAG" ]]; then
-    # Full mode: run both haiku and sonnet (via --full, auto-filtered from extended_suite)
-    echo "Mode: FULL (haiku + sonnet via --full flag)"
+    # Full mode: run both models on both languages
+    echo "Mode: FULL (Claude Sonnet + Gemini 3 Flash)"
+    echo "Executors: claude, gemini"
     monitor_progress "$RESULTS_DIR" 184 "Agent" &
     MONITOR_PID=$!
-    ailang eval-suite --agent --full \
+    ailang eval-suite --agent \
+        --models "$AGENT_MODELS" \
         --benchmarks "$AGENT_BENCHMARKS" \
         --langs ailang,python \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
     kill $MONITOR_PID 2>/dev/null || true
 else
-    # Dev mode: haiku only (default dev_models, auto-filtered to Claude only)
-    echo "Mode: DEV (haiku only via dev_models)"
+    # Dev mode: both executors but AILANG only (faster)
+    echo "Mode: DEV (Claude Sonnet + Gemini 3 Flash, AILANG only)"
+    echo "Executors: claude, gemini"
     monitor_progress "$RESULTS_DIR" 92 "Agent" &
     MONITOR_PID=$!
     ailang eval-suite --agent \
+        --models "$AGENT_MODELS" \
         --benchmarks "$AGENT_BENCHMARKS" \
-        --langs ailang,python \
+        --langs ailang \
         --agent-parallel 2 \
         --output "$RESULTS_DIR"
     kill $MONITOR_PID 2>/dev/null || true

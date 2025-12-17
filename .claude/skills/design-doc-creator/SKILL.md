@@ -13,10 +13,37 @@ Create well-structured design documents for AILANG features following the projec
 ```bash
 # User says: "Create a design doc for better error messages"
 # This skill will:
-# 1. Ask for key details (priority, version target)
-# 2. Create design_docs/planned/better-error-messages.md
-# 3. Fill template with proper structure
-# 4. Guide you through customization
+# 1. AUTO-SEARCH for related design docs (instant SimHash)
+# 2. Show matches from implemented/ and planned/ directories
+# 3. Auto-populate "Related Documents" section in template
+# 4. Ask for key details (priority, version target)
+# 5. Create design_docs/planned/better-error-messages.md
+# 6. Fill template with proper structure
+```
+
+**Automatic Related Doc Search (v0.6.0+):**
+
+When you run the create script, it automatically:
+1. Converts doc name to search query (e.g., `m-dx2-better-errors` → `"better errors"`)
+2. Searches both `implemented/` and `planned/` directories using SimHash
+3. Shows top 3 matches with similarity scores
+4. Prompts to continue if matches found
+5. Auto-populates the "Related Documents" section in the template
+
+```bash
+$ .claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
+
+🔍 Searching for related design docs...
+
+Implemented docs matching "semantic caching":
+1. design_docs/implemented/v0_5_11/m-doc-sem-lazy-embeddings.md (0.92)
+2. design_docs/implemented/v0_4_0/monomorphization.md (0.78)
+
+Planned docs matching "semantic caching":
+1. design_docs/planned/v0_6_0/semantic-caching-future.md (0.95)
+
+⚠ Related docs found. Review them before proceeding?
+Continue creating new doc? (Y/n)
 ```
 
 ## When to Use This Skill
@@ -51,6 +78,9 @@ The script automatically detects the current AILANG version from `CHANGELOG.md` 
 ```
 
 **What it does:**
+- **Searches for related docs** using `ailang docs search` (SimHash, instant)
+- Shows top 3 matches from both `implemented/` and `planned/`
+- Auto-populates "Related Documents" section with clickable links
 - Detects current version from CHANGELOG.md
 - Suggests next patch version for targeting
 - Creates design doc from template

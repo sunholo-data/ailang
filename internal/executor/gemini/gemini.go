@@ -1,16 +1,16 @@
 // Package gemini provides an Executor implementation for Gemini CLI.
-// Gemini CLI has nearly identical syntax to Claude Code CLI, enabling 80% code reuse.
+// Updated Dec 2025 to handle Gemini CLI's actual JSON output format.
 package gemini
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,32 +54,46 @@ func (e *GeminiExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 }
 
 // ExecuteStreaming runs a task with real-time event callbacks
-// Gemini CLI uses nearly identical syntax to Claude:
-//
-//	gemini -p "prompt" --output-format stream-json -m model
+// Gemini CLI outputs a single JSON object at the end, not streaming NDJSON like Claude
 func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	sessionID := uuid.New().String()
 
-	// Build command arguments - nearly identical to Claude!
-	args := []string{
-		"-p", task.Directive, // Same as Claude
-		"--output-format", "stream-json", // Same as Claude
-		"-m", e.getModel(task), // -m instead of --model
+	// Build command arguments for Gemini CLI
+	// Gemini CLI doesn't support system prompts, so prepend to directive if needed
+	directive := task.Directive
+	if task.SystemPrompt != "" {
+		directive = task.SystemPrompt + "\n\n" + task.Directive
 	}
 
-	// System prompt - same flag as Claude
-	if task.SystemPrompt != "" {
-		args = append([]string{"--system-prompt", task.SystemPrompt}, args...)
+	args := []string{
+		directive,                 // Positional prompt (with system prompt prepended if any)
+		"--output-format", "json", // Get JSON output (stream-json doesn't stream)
+		"-m", e.getModel(task),    // Model selection
+		"-y", // Auto-approve all tool uses (YOLO mode for benchmarks)
 	}
 
 	// Add working directory if specified
 	if task.Workspace != "" {
-		args = append(args, "--add-dir", task.Workspace) // Same as Claude
+		args = append(args, "--include-directories", task.Workspace)
 	}
 
-	cmd := exec.CommandContext(ctx, e.geminiPath, args...)
+	// Resolve gemini path - prefer Node 22 installation (required for regex /v flag)
+	geminiPath := e.geminiPath
+	homeDir, _ := os.UserHomeDir()
+	node22GeminiPath := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin", "gemini")
+	if _, err := os.Stat(node22GeminiPath); err == nil {
+		geminiPath = node22GeminiPath
+	}
+
+	cmd := exec.CommandContext(ctx, geminiPath, args...)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
+	}
+
+	// Debug: print command being executed
+	if os.Getenv("DEBUG_AGENT") != "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI] Command: %s -m %s\n", geminiPath, e.getModel(task))
+		fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI] Workspace: %s\n", task.Workspace)
 	}
 
 	// Set up environment
@@ -90,6 +104,15 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if task.Workspace != "" {
 		env = append(env, fmt.Sprintf("PWD=%s", task.Workspace))
 	}
+
+	// Ensure Node 22+ is used (required for Gemini CLI's regex /v flag)
+	// Prepend nvm's Node 22 path to PATH if available
+	node22Path := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin")
+	if _, err := os.Stat(node22Path); err == nil {
+		currentPath := os.Getenv("PATH")
+		env = updateEnvVar(env, "PATH", node22Path+":"+currentPath)
+	}
+
 	cmd.Env = env
 
 	// Create pipes
@@ -105,6 +128,7 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 	// Start command
 	startTime := time.Now()
+	handler.OnTurnStart(1)
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start gemini: %w", err)
 	}
@@ -117,94 +141,18 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	// Parse streaming output - reuse Claude's NDJSON parser!
-	// Gemini CLI uses the same stream-json format
+	// Read output
 	done := make(chan error, 1)
-	var finalResult *geminiHeadlessResult
-	var transcriptBuf strings.Builder
-	var turnNum int
-	var totalInputTokens, totalOutputTokens int
+	var stdoutBuf, stderrBuf bytes.Buffer
 
 	go func() {
-		stdoutScanner := bufio.NewScanner(stdout)
-		stderrScanner := bufio.NewScanner(stderr)
-
-		// Read stderr in background
+		// Read stderr in background (debug output)
 		go func() {
-			for stderrScanner.Scan() {
-				_ = stderrScanner.Text()
-			}
+			io.Copy(&stderrBuf, stderr)
 		}()
 
-		// Parse NDJSON from stdout - same format as Claude!
-		for stdoutScanner.Scan() {
-			line := stdoutScanner.Text()
-			if line == "" {
-				continue
-			}
-
-			var event map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &event); err != nil {
-				continue
-			}
-
-			eventType, _ := event["type"].(string)
-
-			switch eventType {
-			case "stream_event":
-				streamEvent, _ := event["event"].(map[string]interface{})
-				if streamEvent == nil {
-					continue
-				}
-
-				streamType, _ := streamEvent["type"].(string)
-				switch streamType {
-				case "message_start":
-					turnNum++
-					handler.OnTurnStart(turnNum)
-					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
-
-				case "content_block_start":
-					contentBlock, _ := streamEvent["content_block"].(map[string]interface{})
-					if contentBlock != nil {
-						if blockType, _ := contentBlock["type"].(string); blockType == "tool_use" {
-							toolName, _ := contentBlock["name"].(string)
-							handler.OnToolUse(toolName, "")
-							transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", toolName))
-						}
-					}
-
-				case "content_block_delta":
-					delta, _ := streamEvent["delta"].(map[string]interface{})
-					if delta != nil {
-						if deltaType, _ := delta["type"].(string); deltaType == "text_delta" {
-							text, _ := delta["text"].(string)
-							handler.OnText(text)
-							transcriptBuf.WriteString(text)
-						}
-					}
-
-				case "message_stop":
-					handler.OnTurnEnd(turnNum)
-				}
-
-			case "result":
-				if err := json.Unmarshal([]byte(line), &finalResult); err != nil {
-					done <- fmt.Errorf("failed to parse final result: %w", err)
-					return
-				}
-				// Extract token usage if available
-				if finalResult != nil && finalResult.Usage != nil {
-					totalInputTokens = finalResult.Usage.InputTokens
-					totalOutputTokens = finalResult.Usage.OutputTokens
-				}
-			}
-		}
-
-		if err := stdoutScanner.Err(); err != nil {
-			done <- fmt.Errorf("stdout scanner error: %w", err)
-			return
-		}
+		// Read stdout (JSON result)
+		io.Copy(&stdoutBuf, stdout)
 
 		done <- cmd.Wait()
 	}()
@@ -214,58 +162,72 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	case <-timer.C:
 		_ = cmd.Process.Kill()
 		handler.OnError(fmt.Errorf("timeout after %v", timeout))
+		handler.OnTurnEnd(1)
 		return &executor.Result{
 			Success:    false,
 			Error:      fmt.Sprintf("timeout after %v", timeout),
 			DurationMS: int(time.Since(startTime).Milliseconds()),
-			NumTurns:   turnNum,
+			NumTurns:   1,
 			SessionID:  sessionID,
-			Transcript: transcriptBuf.String(),
+			Transcript: stderrBuf.String(),
 		}, nil
 
 	case err := <-done:
 		duration := time.Since(startTime)
+		handler.OnTurnEnd(1)
 
 		if err != nil {
 			handler.OnError(err)
 			return &executor.Result{
 				Success:    false,
-				Error:      err.Error(),
+				Error:      fmt.Sprintf("%v\nStderr: %s", err, stderrBuf.String()),
 				DurationMS: int(duration.Milliseconds()),
-				NumTurns:   turnNum,
+				NumTurns:   1,
 				SessionID:  sessionID,
-				Transcript: transcriptBuf.String(),
+				Transcript: stderrBuf.String(),
 			}, nil
 		}
 
-		if finalResult == nil {
+		// Parse Gemini CLI JSON output
+		var geminiResult geminiCLIResult
+		if err := json.Unmarshal(stdoutBuf.Bytes(), &geminiResult); err != nil {
 			return &executor.Result{
-				Success:      true,
-				Output:       "Session completed",
+				Success:      false,
+				Error:        fmt.Sprintf("failed to parse gemini output: %v", err),
+				Output:       stdoutBuf.String(),
 				DurationMS:   int(duration.Milliseconds()),
-				NumTurns:     turnNum,
+				NumTurns:     1,
 				SessionID:    sessionID,
-				Transcript:   transcriptBuf.String(),
-				InputTokens:  totalInputTokens,
-				OutputTokens: totalOutputTokens,
-				CostUSD:      e.CostModel().CalculateCost(executor.TokenUsage{InputTokens: totalInputTokens, OutputTokens: totalOutputTokens}),
+				Transcript:   stderrBuf.String(),
+				InputTokens:  0,
+				OutputTokens: 0,
 			}, nil
 		}
 
-		// Calculate cost using Gemini pricing
-		cost := e.calculateCost(finalResult)
+		// Extract token usage from stats
+		inputTokens, outputTokens := geminiResult.extractTokenUsage()
+
+		// Calculate cost
+		cost := e.CostModel().CalculateCost(executor.TokenUsage{
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+		})
+
+		// Report token text to handler
+		if geminiResult.Response != "" {
+			handler.OnText(geminiResult.Response)
+		}
 
 		return &executor.Result{
-			Success:      !finalResult.IsError && finalResult.Subtype == "success",
-			Output:       finalResult.Result,
-			Error:        getErrorMessage(finalResult),
-			DurationMS:   finalResult.DurationMS,
-			NumTurns:     finalResult.NumTurns,
+			Success:      true,
+			Output:       geminiResult.Response,
+			DurationMS:   int(duration.Milliseconds()),
+			NumTurns:     geminiResult.countTurns(),
 			CostUSD:      cost,
-			InputTokens:  getInputTokens(finalResult),
-			OutputTokens: getOutputTokens(finalResult),
-			SessionID:    sessionID,
-			Transcript:   transcriptBuf.String(),
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+			SessionID:    geminiResult.SessionID,
+			Transcript:   stderrBuf.String(),
 		}, nil
 	}
 }
@@ -321,57 +283,78 @@ func (e *GeminiExecutor) getModel(task *executor.Task) string {
 	return e.model
 }
 
-func (e *GeminiExecutor) calculateCost(result *geminiHeadlessResult) float64 {
-	if result == nil || result.Usage == nil {
-		return 0
-	}
-	return e.CostModel().CalculateCost(executor.TokenUsage{
-		InputTokens:  result.Usage.InputTokens,
-		OutputTokens: result.Usage.OutputTokens,
-	})
+// geminiCLIResult matches the actual Gemini CLI JSON output format
+type geminiCLIResult struct {
+	SessionID string      `json:"session_id"`
+	Response  string      `json:"response"`
+	Stats     geminiStats `json:"stats"`
 }
 
-// geminiHeadlessResult matches Gemini CLI output structure
-// Similar to Claude's format for compatibility
-type geminiHeadlessResult struct {
-	Type         string       `json:"type"`
-	Subtype      string       `json:"subtype"`
-	IsError      bool         `json:"is_error"`
-	Result       string       `json:"result"`
-	NumTurns     int          `json:"num_turns"`
-	DurationMS   int          `json:"duration_ms"`
-	TotalCostUSD float64      `json:"total_cost_usd"`
-	SessionID    string       `json:"session_id"`
-	Usage        *geminiUsage `json:"usage"`
+// geminiStats contains usage statistics from Gemini CLI
+type geminiStats struct {
+	Models map[string]geminiModelStats `json:"models"`
+	Tools  geminiToolStats             `json:"tools"`
 }
 
-type geminiUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+// geminiModelStats contains per-model usage data
+type geminiModelStats struct {
+	API    geminiAPIStats   `json:"api"`
+	Tokens geminiTokenStats `json:"tokens"`
 }
 
-func getErrorMessage(result *geminiHeadlessResult) string {
-	if result.IsError {
-		return result.Result
-	}
-	if result.Subtype == "error" || result.Subtype == "timeout" {
-		return result.Result
-	}
-	return ""
+type geminiAPIStats struct {
+	TotalRequests  int `json:"totalRequests"`
+	TotalErrors    int `json:"totalErrors"`
+	TotalLatencyMs int `json:"totalLatencyMs"`
 }
 
-func getInputTokens(result *geminiHeadlessResult) int {
-	if result.Usage != nil {
-		return result.Usage.InputTokens
-	}
-	return 0
+type geminiTokenStats struct {
+	Prompt     int `json:"prompt"`
+	Candidates int `json:"candidates"`
+	Total      int `json:"total"`
+	Cached     int `json:"cached"`
+	Thoughts   int `json:"thoughts"`
+	Tool       int `json:"tool"`
 }
 
-func getOutputTokens(result *geminiHeadlessResult) int {
-	if result.Usage != nil {
-		return result.Usage.OutputTokens
+type geminiToolStats struct {
+	TotalCalls      int `json:"totalCalls"`
+	TotalSuccess    int `json:"totalSuccess"`
+	TotalFail       int `json:"totalFail"`
+	TotalDurationMs int `json:"totalDurationMs"`
+}
+
+// extractTokenUsage aggregates token usage across all models used
+func (r *geminiCLIResult) extractTokenUsage() (inputTokens, outputTokens int) {
+	for _, modelStats := range r.Stats.Models {
+		inputTokens += modelStats.Tokens.Prompt
+		outputTokens += modelStats.Tokens.Candidates
 	}
-	return 0
+	return inputTokens, outputTokens
+}
+
+// countTurns estimates the number of turns based on API requests
+func (r *geminiCLIResult) countTurns() int {
+	totalRequests := 0
+	for _, modelStats := range r.Stats.Models {
+		totalRequests += modelStats.API.TotalRequests
+	}
+	if totalRequests == 0 {
+		return 1
+	}
+	return totalRequests
+}
+
+// updateEnvVar updates or adds an environment variable in a slice
+func updateEnvVar(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, e := range env {
+		if len(e) >= len(prefix) && e[:len(prefix)] == prefix {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 // Register registers the Gemini executor with the global factory

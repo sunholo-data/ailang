@@ -498,9 +498,10 @@ ailang docs search --rebuild        # Rebuild all embeddings
 - `--neural` - Enable neural embeddings via Ollama
 - `--neural-candidates N` - Number of SimHash candidates to re-rank (default: 10)
 
-**Performance with neural search:**
-- First run: ~30-60s (computing embeddings for all docs)
-- Subsequent runs: ~1-2s (using cached embeddings)
+**Performance with neural search (v0.6.0 benchmarks):**
+- First run: ~4-6s per document (embedding with chunking for large docs)
+- Full corpus (29 design docs): ~128s cold start
+- Subsequent runs: <1s (using cached embeddings)
 - Cache is per-corpus, per-model, with content hash staleness detection
 
 ### Messaging System Semantic Search

@@ -66,6 +66,69 @@ fi
 DOC_NAME="$1"
 VERSION="${2:-}"
 
+# Convert doc-name to search query (replace hyphens with spaces, remove m-prefix)
+search_query() {
+    local name="$1"
+    # Remove common prefixes like m-dx1, m-perf2, etc.
+    local cleaned="${name#m-}"
+    cleaned="${cleaned#[a-z]*[0-9]-}"
+    # Replace hyphens with spaces
+    echo "${cleaned//-/ }"
+}
+
+SEARCH_QUERY=$(search_query "$DOC_NAME")
+
+# Check for related design docs before creating
+echo -e "${CYAN}🔍 Searching for related design docs...${NC}"
+echo ""
+
+# Check if ailang is available
+if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+    AILANG_CMD="${PROJECT_ROOT}/bin/ailang"
+    if ! [ -x "$AILANG_CMD" ]; then
+        AILANG_CMD="ailang"
+    fi
+
+    # Search implemented docs
+    echo -e "${YELLOW}Implemented docs matching \"$SEARCH_QUERY\":${NC}"
+    IMPLEMENTED=$("$AILANG_CMD" docs search --stream implemented --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
+    if [ "$IMPLEMENTED" = "  (none found)" ]; then
+        echo "  (none found)"
+    else
+        echo "$IMPLEMENTED" | head -5
+    fi
+    echo ""
+
+    # Search planned docs
+    echo -e "${YELLOW}Planned docs matching \"$SEARCH_QUERY\":${NC}"
+    PLANNED=$("$AILANG_CMD" docs search --stream planned --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
+    if [ "$PLANNED" = "  (none found)" ]; then
+        echo "  (none found)"
+    else
+        echo "$PLANNED" | head -5
+    fi
+    echo ""
+
+    # If matches found, prompt user
+    if [ "$IMPLEMENTED" != "  (none found)" ] || [ "$PLANNED" != "  (none found)" ]; then
+        echo -e "${YELLOW}⚠ Related docs found. Review them before proceeding?${NC}"
+        read -p "Continue creating new doc? (Y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            echo ""
+            echo -e "${CYAN}Tip: Use neural search for semantic matching:${NC}"
+            echo "  $AILANG_CMD docs search --neural \"$SEARCH_QUERY\""
+            echo ""
+            echo "Cancelled."
+            exit 0
+        fi
+    fi
+else
+    echo -e "${YELLOW}⚠ ailang not found - skipping related doc search${NC}"
+    echo "  Build with: make build"
+    echo ""
+fi
+
 # Determine target directory
 if [ -n "$VERSION" ]; then
     TARGET_DIR="$DESIGN_DOCS_DIR/planned/$VERSION"
@@ -245,6 +308,16 @@ cat > "$DOC_PATH" <<'EOF'
 | [Risk 1] | [High/Med/Low] | [How to address] |
 | [Risk 2] | [High/Med/Low] | [How to address] |
 
+## Related Documents
+
+<!-- Auto-populated by semantic search on "SEARCH_QUERY_PLACEHOLDER" -->
+
+**Implemented (may inform design):**
+RELATED_IMPLEMENTED_PLACEHOLDER
+
+**Planned (check for overlap):**
+RELATED_PLANNED_PLACEHOLDER
+
 ## References
 
 - [Link to related design docs]
@@ -264,6 +337,39 @@ EOF
 # Replace CURRENT_DATE with actual date
 sed -i.bak "s/CURRENT_DATE/$CURRENT_DATE/g" "$DOC_PATH"
 rm "${DOC_PATH}.bak"
+
+# Replace search query placeholder
+sed -i.bak "s/SEARCH_QUERY_PLACEHOLDER/$SEARCH_QUERY/g" "$DOC_PATH"
+rm "${DOC_PATH}.bak"
+
+# Format search results for markdown
+format_results() {
+    local results="$1"
+    if [ "$results" = "  (none found)" ] || [ -z "$results" ]; then
+        echo "- (none found)"
+    else
+        # Convert numbered list to markdown links
+        echo "$results" | head -3 | while read -r line; do
+            # Extract path and score from format "1. path/to/doc.md (0.85)"
+            local path=$(echo "$line" | sed 's/^[0-9]*\. //' | sed 's/ ([0-9.]*)//')
+            local score=$(echo "$line" | grep -oE '\([0-9.]+\)' || echo "")
+            if [ -n "$path" ]; then
+                echo "- [$path]($path) $score"
+            fi
+        done
+    fi
+}
+
+# Replace related docs placeholders
+IMPL_FORMATTED=$(format_results "$IMPLEMENTED")
+PLAN_FORMATTED=$(format_results "$PLANNED")
+
+# Use perl for multi-line replacement (more portable than sed)
+perl -i -pe "s|RELATED_IMPLEMENTED_PLACEHOLDER|$IMPL_FORMATTED|g" "$DOC_PATH" 2>/dev/null || \
+    sed -i.bak "s|RELATED_IMPLEMENTED_PLACEHOLDER|$IMPL_FORMATTED|g" "$DOC_PATH" && rm -f "${DOC_PATH}.bak"
+
+perl -i -pe "s|RELATED_PLANNED_PLACEHOLDER|$PLAN_FORMATTED|g" "$DOC_PATH" 2>/dev/null || \
+    sed -i.bak "s|RELATED_PLANNED_PLACEHOLDER|$PLAN_FORMATTED|g" "$DOC_PATH" && rm -f "${DOC_PATH}.bak"
 
 # Success message
 echo -e "${GREEN}✓ Created design document:${NC}"

@@ -40,10 +40,10 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	// Determine which executor to use
 	executorName := config.ExecutorName
-	modelName := ""
+	modelName := config.ModelName // Use provided model name (e.g., "gemini-3-flash-preview")
 
+	// If executor not provided, look up from model config
 	if executorName == "" && GlobalModelsConfig != nil {
-		// Get executor from model config
 		var err error
 		executorName, modelName, err = GlobalModelsConfig.GetExecutorForModel(config.ModelName)
 		if err != nil {
@@ -118,13 +118,19 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		return nil, fmt.Errorf("failed to create solution placeholder: %w", err)
 	}
 
+	// Set up timeout - use spec timeout if set, otherwise use config default
+	timeoutSeconds := config.TimeoutSeconds
+	if spec.Timeout > 0 {
+		timeoutSeconds = spec.Timeout
+	}
+
 	// Build task for executor
 	task := &executor.Task{
 		ID:           fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
 		Directive:    taskPrompt,
 		SystemPrompt: systemPrompt,
 		Workspace:    workspace,
-		Timeout:      time.Duration(config.TimeoutSeconds) * time.Second,
+		Timeout:      time.Duration(timeoutSeconds) * time.Second,
 		Model:        modelName,
 	}
 
@@ -148,6 +154,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 	return &AgentBenchmarkResult{
 		BenchmarkID:   spec.ID,
+		Executor:      executorName,
 		Success:       success,
 		Iterations:    result.NumTurns,
 		Cost:          result.CostUSD,

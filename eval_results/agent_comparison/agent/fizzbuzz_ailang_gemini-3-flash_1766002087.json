@@ -1,0 +1,32 @@
+{
+  "id": "fizzbuzz",
+  "lang": "ailang",
+  "model": "gemini-3-flash",
+  "executor": "gemini",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 5870,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "exit status 1\nStderr: YOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nLoading extension: ailang\n[STARTUP] StartupProfiler.flush() called with 9 phases\n[STARTUP] Recording metric for phase: cli_startup duration: 1002.019459\n[STARTUP] Recording metric for phase: load_settings duration: 0.9453340000000026\n[STARTUP] Recording metric for phase: migrate_settings duration: 0.58562500000005\n[STARTUP] Recording metric for phase: parse_arguments duration: 19.56504199999995\n[STARTUP] Recording metric for phase: load_cli_config duration: 177.9978749999999\n[STARTUP] Recording metric for phase: initialize_app duration: 800.4714159999999\n[STARTUP] Recording metric for phase: authenticate duration: 750.75675\n[STARTUP] Recording metric for phase: discover_tools duration: 4.413084000000026\n[STARTUP] Recording metric for phase: initialize_mcp_clients duration: 1080.229708\nError when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2025-12-17T20-08-07-861Z.json\n{\n  \"error\": {\n    \"type\": \"Error\",\n    \"message\": \"[object Object]\",\n    \"code\": 1\n  }\n}\n\n\n=== Claude Session Transcript ===\nYOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nLoading extension: ailang\n[STARTUP] StartupProfiler.flush() called with 9 phases\n[STARTUP] Recording metric for phase: cli_startup duration: 1002.019459\n[STARTUP] Recording metric for phase: load_settings duration: 0.9453340000000026\n[STARTUP] Recording metric for phase: migrate_settings duration: 0.58562500000005\n[STARTUP] Recording metric for phase: parse_arguments duration: 19.56504199999995\n[STARTUP] Recording metric for phase: load_cli_config duration: 177.9978749999999\n[STARTUP] Recording metric for phase: initialize_app duration: 800.4714159999999\n[STARTUP] Recording metric for phase: authenticate duration: 750.75675\n[STARTUP] Recording metric for phase: discover_tools duration: 4.413084000000026\n[STARTUP] Recording metric for phase: initialize_mcp_clients duration: 1080.229708\nError when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2025-12-17T20-08-07-861Z.json\n{\n  \"error\": {\n    \"type\": \"Error\",\n    \"message\": \"[object Object]\",\n    \"code\": 1\n  }\n}\n",
+  "expected_stdout": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz\n31\n32\nFizz\n34\nBuzz\nFizz\n37\n38\nFizz\nBuzz\n41\nFizz\n43\n44\nFizzBuzz\n46\n47\nFizz\n49\nBuzz\nFizz\n52\n53\nFizz\nBuzz\n56\nFizz\n58\n59\nFizzBuzz\n61\n62\nFizz\n64\nBuzz\nFizz\n67\n68\nFizz\nBuzz\n71\nFizz\n73\n74\nFizzBuzz\n76\n77\nFizz\n79\nBuzz\nFizz\n82\n83\nFizz\nBuzz\n86\nFizz\n88\n89\nFizzBuzz\n91\n92\nFizz\n94\nBuzz\nFizz\n97\n98\nFizz\nBuzz\n",
+  "timestamp": "2025-12-17T21:08:07.893555+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.5.11",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 1,
+  "agent_transcript": "YOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nLoading extension: ailang\n[STARTUP] StartupProfiler.flush() called with 9 phases\n[STARTUP] Recording metric for phase: cli_startup duration: 1002.019459\n[STARTUP] Recording metric for phase: load_settings duration: 0.9453340000000026\n[STARTUP] Recording metric for phase: migrate_settings duration: 0.58562500000005\n[STARTUP] Recording metric for phase: parse_arguments duration: 19.56504199999995\n[STARTUP] Recording metric for phase: load_cli_config duration: 177.9978749999999\n[STARTUP] Recording metric for phase: initialize_app duration: 800.4714159999999\n[STARTUP] Recording metric for phase: authenticate duration: 750.75675\n[STARTUP] Recording metric for phase: discover_tools duration: 4.413084000000026\n[STARTUP] Recording metric for phase: initialize_mcp_clients duration: 1080.229708\nError when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2025-12-17T20-08-07-861Z.json\n{\n  \"error\": {\n    \"type\": \"Error\",\n    \"message\": \"[object Object]\",\n    \"code\": 1\n  }\n}\n",
+  "eval_mode": "agent"
+}

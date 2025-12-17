@@ -529,6 +529,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			ID:           result.BenchmarkID,
 			Lang:         lang,
 			Model:        model,
+			Executor:     result.Executor, // Track which executor was used (claude, gemini, etc.)
 			Seed:         seed,
 			InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 			OutputTokens: result.Usage.OutputTokens,

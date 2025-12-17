@@ -13,6 +13,7 @@ type RunMetrics struct {
 	ID             string    `json:"id"`
 	Lang           string    `json:"lang"`
 	Model          string    `json:"model"`
+	Executor       string    `json:"executor,omitempty"` // Executor used: "claude", "gemini", etc. (agent mode only)
 	Seed           int64     `json:"seed"`
 	InputTokens    int       `json:"input_tokens"`  // Prompt tokens (recorded but not primary metric)
 	OutputTokens   int       `json:"output_tokens"` // Generated code tokens (PRIMARY METRIC)
