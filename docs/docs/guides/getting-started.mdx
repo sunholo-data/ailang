@@ -216,6 +216,9 @@ make verify-examples # Test example files
 
 import CodeBlock from '@theme/CodeBlock';
 import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
+import ValuesExample from '!!raw-loader!@site/../examples/runnable/values_basic.ail';
+import LambdasExample from '!!raw-loader!@site/../examples/docs/lambdas_full.ail';
+import TestsExample from '!!raw-loader!@site/../examples/runnable/recursion_factorial.ail';
 
 <CodeBlock language="typescript" title="examples/runnable/hello.ail">
   {HelloExample}
@@ -223,34 +226,31 @@ import HelloExample from '!!raw-loader!@site/../examples/runnable/hello.ail';
 
 Run it:
 ```bash
-ailang run --caps IO --entry main examples/runnable/hello.ail
+ailang run --caps IO examples/runnable/hello.ail
 ```
 
 <WarningIcon inline size={14} /> **Note**: Flags must come BEFORE the filename when using `ailang run`.
 
 ### Working with Values
 
-```typescript
--- values.ail
-let name = "AILANG" in
-let version = 0.0 in
-print("Welcome to " ++ name ++ " v" ++ show(version))
+<CodeBlock language="typescript" title="examples/runnable/values_basic.ail">
+  {ValuesExample}
+</CodeBlock>
+
+Run it:
+```bash
+ailang run --caps IO examples/runnable/values_basic.ail
 ```
 
 ### Lambda Expressions
 
-```typescript
--- Lambda syntax with closures
-let add = \x y. x + y in
-let add5 = add(5) in  -- Partial application
-print("Result: " ++ show(add5(3)))  -- Result: 8
+<CodeBlock language="typescript" title="examples/docs/lambdas_full.ail">
+  {LambdasExample}
+</CodeBlock>
 
--- Higher-order functions
-let compose = \f g x. f(g(x)) in
-let double = \x. x * 2 in
-let inc = \x. x + 1 in
-let doubleThenInc = compose(inc)(double) in
-print("Composed: " ++ show(doubleThenInc(5)))  -- Composed: 11
+Run it:
+```bash
+ailang run --caps IO examples/docs/lambdas_full.ail
 ```
 
 ### Using the REPL
@@ -285,39 +285,23 @@ Hello World :: String
 
 Add tests directly to your function definitions:
 
-```typescript
--- Single-parameter function
-pure func factorial(n: int) -> int
-  tests [
-    (0, 1),
-    (1, 1),
-    (5, 120),
-    (10, 3628800)
-  ]
-{
-  if n <= 1 then 1 else n * factorial(n - 1)
-}
+<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+  {TestsExample}
+</CodeBlock>
 
--- Multi-parameter functions use tuple syntax
-pure func add(x: int, y: int) -> int
-  tests [
-    ((1, 2), 3),
-    ((5, 7), 12)
-  ]
-{
-  x + y
-}
-```
+Note the test syntax:
+- **Single-parameter functions**: `tests [(input, expected), ...]`
+- **Multi-parameter functions**: `tests [((arg1, arg2), expected), ...]`
 
 ### Running Tests
 
 ```bash
-ailang test examples/factorial.ail
+ailang test examples/runnable/recursion_factorial.ail
 ```
 
 Output:
 ```
-→ Running tests in examples/factorial.ail
+→ Running tests in examples/runnable/recursion_factorial.ail
 
 Test Results
 Module: All Tests

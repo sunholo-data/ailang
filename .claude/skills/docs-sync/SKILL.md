@@ -162,6 +162,15 @@ The `post-release` skill should invoke docs-sync automatically:
    - Use raw-loader to import from `examples/`
    - Be tested with `ailang run` or `ailang test`
    - Never embed code directly in MDX
+   - **CLI commands must be added to `examples/cli_examples.txt`** and verified with `./tools/verify_cli_examples.sh`
+   - Default entrypoint is `main` - don't use `--entry main` unless showing non-main entry
+   - Test all commands before documenting: `./bin/ailang run --caps IO examples/runnable/hello.ail`
+
+   **Exception for Reference Documentation:**
+   - Reference pages (e.g., `language-syntax.md`, `effects.md`) may use inline syntax snippets
+   - These are small patterns showing language constructs, not complete runnable programs
+   - Tutorial pages (`examples.mdx`, `getting-started.mdx`, `guides/`) must always import from files
+   - Rule: If the code snippet is a complete runnable program, it MUST be imported
 
 3. **Design Docs = Ultimate Source of Truth** - The folder structure tracks complete feature lifecycle:
 

@@ -99,3 +99,17 @@ isOdd(17) = true
 # List sum (letrec example)
 $ ailang run examples/runnable/list_sum.ail
 (15, 15)
+
+# --- Getting Started Guide (docs/docs/guides/getting-started.mdx) ---
+
+# Hello World
+$ ailang run --caps IO examples/runnable/hello.ail
+Hello, AILANG!
+
+# Values and string concatenation
+$ ailang run --caps IO examples/runnable/values_basic.ail
+Welcome to AILANG v0.6
+
+# Lambda expressions with higher-order functions
+$ ailang run --caps IO examples/docs/lambdas_full.ail
+doubleThenInc(5) = 11

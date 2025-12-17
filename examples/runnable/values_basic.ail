@@ -1,0 +1,10 @@
+-- values_basic.ail - Working with values and string concatenation
+-- Used in: docs/docs/guides/getting-started.mdx
+module examples/runnable/values_basic
+
+-- Entry module with exported main function
+-- Gets print prelude automatically (no import needed)
+export func main() -> () ! {IO} =
+  let name = "AILANG" in
+  let version = 0.6 in
+  print("Welcome to " ++ name ++ " v" ++ show(version))
