@@ -113,3 +113,8 @@ Welcome to AILANG v0.6
 # Lambda expressions with higher-order functions
 $ ailang run --caps IO examples/docs/lambdas_full.ail
 doubleThenInc(5) = 11
+
+# --- AI API Integration (docs/docs/examples/ai-api-integration.mdx) ---
+# Note: These examples require API keys and are NOT auto-verified
+# Claude: ailang run --caps Net,IO examples/experimental/claude_haiku_call.ail
+# OpenAI: ailang run --caps Net,IO examples/experimental/ai_call.ail
