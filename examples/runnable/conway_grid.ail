@@ -90,5 +90,60 @@ pure func makeBlinker() -> Array[Cell] {
     setGridCell(g2, 2, 3, Alive)
 }
 
--- Run example
-makeBlinker()
+-- Display a cell as character
+pure func cellChar(cell: Cell) -> string {
+    match cell { Alive => "#", Dead => "." }
+}
+
+-- Display a row of the grid
+pure func showRow(grid: Array[Cell], y: int, x: int, acc: string) -> string {
+    if x >= gridSize() then acc
+    else showRow(grid, y, x + 1, acc ++ cellChar(getCell(grid, x, y)))
+}
+
+-- Display entire grid as string
+pure func showGrid(grid: Array[Cell], y: int, acc: string) -> string {
+    if y >= gridSize() then acc
+    else showGrid(grid, y + 1, acc ++ showRow(grid, y, 0, "") ++ "\n")
+}
+
+-- Compute next cell state
+pure func nextCell(grid: Array[Cell], x: int, y: int) -> Cell {
+    let current = getCell(grid, x, y);
+    let isAlive = cellValue(current);
+    let neighbors = countNeighbors(grid, x, y);
+    if shouldLive(isAlive, neighbors) == 1 then Alive else Dead
+}
+
+-- Compute next generation (iterate through all cells)
+pure func evolveRow(grid: Array[Cell], newGrid: Array[Cell], y: int, x: int) -> Array[Cell] {
+    if x >= gridSize() then newGrid
+    else evolveRow(grid, setGridCell(newGrid, x, y, nextCell(grid, x, y)), y, x + 1)
+}
+
+pure func evolveGrid(grid: Array[Cell], newGrid: Array[Cell], y: int) -> Array[Cell] {
+    if y >= gridSize() then newGrid
+    else evolveGrid(grid, evolveRow(grid, newGrid, y, 0), y + 1)
+}
+
+pure func evolve(grid: Array[Cell]) -> Array[Cell] {
+    evolveGrid(grid, emptyGrid(), 0)
+}
+
+-- Main function to run and display Conway's Game of Life
+export func main() -> () ! {IO} = {
+    print("Conway's Game of Life - Blinker Pattern\n");
+    print("========================================\n");
+
+    let gen0 = makeBlinker();
+    print("\nGeneration 0:\n");
+    print(showGrid(gen0, 0, ""));
+
+    let gen1 = evolve(gen0);
+    print("Generation 1:\n");
+    print(showGrid(gen1, 0, ""));
+
+    let gen2 = evolve(gen1);
+    print("Generation 2 (back to original):\n");
+    print(showGrid(gen2, 0, ""))
+}

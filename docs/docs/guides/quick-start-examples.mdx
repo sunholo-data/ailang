@@ -169,7 +169,7 @@ Use the FS (file system) effect to read files:
 
 **Run it:**
 ```bash
-ailang run --caps IO,FS --args-json '{"path":"README.md"}' --entry main examples/docs/read_file.ail
+ailang run --caps IO,FS --args-json '"README.md"' --entry main examples/docs/read_file.ail
 ```
 
 <InfoIcon inline size={14} /> **Key concepts:**
@@ -216,7 +216,7 @@ Combine FS and AI effects for a useful tool:
 **Run it:**
 ```bash
 ailang run --caps IO,FS,AI --ai claude-haiku-4-5 \
-  --args-json '{"path":"README.md"}' --entry main examples/docs/summarize_file.ail
+  --args-json '"README.md"' --entry main examples/docs/summarize_file.ail
 ```
 
 ---
@@ -291,7 +291,7 @@ A complete implementation showing arrays, ADTs, and pure functions:
 
 **Run it:**
 ```bash
-ailang run --entry main examples/runnable/conway_grid.ail
+ailang run --caps IO --entry main examples/runnable/conway_grid.ail
 ```
 
 This example demonstrates:
