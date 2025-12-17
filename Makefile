@@ -130,7 +130,7 @@ vet: prepare-embed
 # Install golangci-lint
 install-lint:
 	@echo "Installing golangci-lint..."
-	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.54.2
+	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.8
 	@echo "golangci-lint installed"
 
 # Run linter (requires golangci-lint)
