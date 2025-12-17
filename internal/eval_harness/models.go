@@ -253,3 +253,26 @@ func guessProvider(modelName string) string {
 	}
 	return "unknown"
 }
+
+// GetExecutorForModel returns the appropriate executor for a model
+// Returns the executor name (e.g., "claude", "gemini") and the model name to use
+func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, modelName string, err error) {
+	model, err := c.GetModel(name)
+	if err != nil {
+		return "", "", err
+	}
+
+	if model.AgentCLI == nil || *model.AgentCLI == "" {
+		return "", "", fmt.Errorf("model %s does not support agent evaluation (no agent_cli configured)", name)
+	}
+
+	executorName = *model.AgentCLI
+
+	if model.AgentModelName != nil && *model.AgentModelName != "" {
+		modelName = *model.AgentModelName
+	} else {
+		modelName = model.APIName
+	}
+
+	return executorName, modelName, nil
+}

@@ -183,7 +183,8 @@ models:
     provider: "google"
     description: "Gemini 2.5 Pro with thinking"
     env_var: "GOOGLE_API_KEY"
-    agent_cli: null  # Google Gemini CLI not yet implemented
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-2.5-pro"  # Pass to -m flag
     pricing:
       input_per_1k: 0.00125    # $1.25 per 1M = $0.00125 per 1K (≤200k context)
       output_per_1k: 0.01      # $10.00 per 1M = $0.01 per 1K (≤200k context)
@@ -192,7 +193,7 @@ models:
       1M token context window (2M coming soon).
       Pricing: $1.25/$10 per 1M (≤200k), $2.50/$15 per 1M (>200k).
       Context caching: $0.125 per 1M (≤200k).
-      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
 
   # Google Gemini 2.5 Flash (released September 2025)
   gemini-2-5-flash:
@@ -200,7 +201,8 @@ models:
     provider: "google"
     description: "Gemini 2.5 Flash - fast and efficient"
     env_var: "GOOGLE_API_KEY"
-    agent_cli: null  # Google Gemini CLI not yet implemented
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-2.5-flash"  # Pass to -m flag
     pricing:
       input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
       output_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
@@ -209,7 +211,7 @@ models:
       Best for large scale processing and low-latency needs.
       Good for agentic use cases and thinking tasks.
       Context caching: $0.03 per 1M.
-      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
 
   # Google Gemini 3 Flash (released December 17, 2025)
   gemini-3-flash:
@@ -217,7 +219,8 @@ models:
     provider: "google"
     description: "Gemini 3 Flash - 3x faster than 2.5 Pro, outperforms it"
     env_var: "GOOGLE_API_KEY"
-    agent_cli: null  # Google Gemini CLI not yet implemented
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-3-flash-preview"  # Pass to -m flag
     pricing:
       input_per_1k: 0.0005     # $0.50 per 1M = $0.0005 per 1K
       output_per_1k: 0.003     # $3.00 per 1M = $0.003 per 1K
@@ -229,7 +232,7 @@ models:
       1M token context window, 65K max output tokens.
       Has adaptive reasoning with separate thoughtsTokenCount.
       Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
-      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
 
   # Google Gemini 3 Pro (released November 2025)
   gemini-3-pro:
@@ -237,7 +240,8 @@ models:
     provider: "google"
     description: "Gemini 3 Pro Preview with advanced reasoning"
     env_var: "GOOGLE_API_KEY"
-    agent_cli: null  # Google Gemini CLI not yet implemented
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-3-pro-preview"  # Pass to -m flag
     pricing:
       input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
       output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)
@@ -248,7 +252,7 @@ models:
       Pricing: $2.00/$12.00 per 1M (≤200k), $4.00/$18.00 per 1M (>200k).
       Currently in preview - available on Vertex AI global endpoint.
       Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
-      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
 
 # Default model for benchmarks
 default: "claude-sonnet-4-5"

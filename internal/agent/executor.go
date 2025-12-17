@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo/ailang/internal/executor"
+
+	// Register executors via init()
+	_ "github.com/sunholo/ailang/internal/executor/claude"
+	_ "github.com/sunholo/ailang/internal/executor/gemini"
 )
 
 // DirectiveExecutor executes user directives using Claude Code
@@ -185,6 +191,82 @@ var skipDirs = map[string]bool{
 	"build":        true,
 	".next":        true,
 	"coverage":     true,
+}
+
+// ExecuteWithExecutor executes a directive using the executor factory
+// This uses the new multi-executor support (Gemini by default)
+// Set AILANG_EXECUTOR=claude to use Claude Code instead
+func (e *DirectiveExecutor) ExecuteWithExecutor(directive string, workspacePath string) (*DirectiveResult, error) {
+	ctx := context.Background()
+
+	// Get the default executor (Gemini 3 Flash by default, or AILANG_EXECUTOR env)
+	exec, err := executor.GlobalFactory().GetDefault()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get executor: %w", err)
+	}
+
+	// Set up workspace
+	workspace := workspacePath
+	if workspace == "" {
+		workspace = filepath.Join(e.workspaceBase, fmt.Sprintf("directive_%s_%d",
+			uuid.New().String()[:8], time.Now().Unix()))
+
+		if err := os.MkdirAll(workspace, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create workspace: %w", err)
+		}
+
+		// Create minimal .git folder
+		gitDir := filepath.Join(workspace, ".git")
+		if err := os.MkdirAll(gitDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create .git folder: %w", err)
+		}
+	}
+
+	// Execute using the executor interface
+	task := &executor.Task{
+		ID:        "directive_" + uuid.New().String()[:8],
+		Directive: directive,
+		Workspace: workspace,
+		Timeout:   time.Duration(e.config.TimeoutSeconds) * time.Second,
+	}
+
+	result, err := exec.Execute(ctx, task)
+	if err != nil {
+		return nil, fmt.Errorf("execution failed: %w", err)
+	}
+
+	// List files created in workspace
+	filesCreated, err := listFiles(workspace)
+	if err != nil {
+		filesCreated = []string{}
+	}
+
+	return &DirectiveResult{
+		Success:      result.Success,
+		DurationMS:   result.DurationMS,
+		NumTurns:     result.NumTurns,
+		Cost:         result.CostUSD,
+		SessionID:    result.SessionID,
+		Transcript:   result.Transcript,
+		Output:       result.Output,
+		Error:        result.Error,
+		Workspace:    workspace,
+		FilesCreated: filesCreated,
+		TokensUsed: TokenUsage{
+			InputTokens:              result.InputTokens,
+			OutputTokens:             result.OutputTokens,
+			CacheReadInputTokens:     result.CacheReadInputTokens,
+			CacheCreationInputTokens: result.CacheCreationInputTokens,
+		},
+	}, nil
+}
+
+// GetDefaultExecutorName returns the name of the default executor
+func GetDefaultExecutorName() string {
+	if envExec := os.Getenv("AILANG_EXECUTOR"); envExec != "" {
+		return envExec
+	}
+	return "gemini" // Default to Gemini 3 Flash
 }
 
 // listFiles recursively lists files in a directory (relative paths), capped at maxFilesToCollect

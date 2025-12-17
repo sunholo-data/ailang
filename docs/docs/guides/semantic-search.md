@@ -80,11 +80,35 @@ ollama pull embeddinggemma
 ```
 
 **Model specs:**
-- **Size:** 622MB
+- **Size:** 622MB (or 239MB for quantized q4_0)
 - **Dimensions:** 768
 - **Parameters:** 300M
+- **Context:** 2K tokens (~8000 chars)
 - **Languages:** 100+ (multilingual)
-- **Latency:** ~160ms per embedding
+- **Latency:** ~100ms per embedding (warm)
+
+**Quantized variants** (same quality, less memory):
+
+| Variant | Size | Use Case |
+|---------|------|----------|
+| `embeddinggemma:latest` | 622MB | Best quality, default |
+| `embeddinggemma:300m-qat-q8_0` | 338MB | Good balance |
+| `embeddinggemma:300m-qat-q4_0` | 239MB | Memory-constrained |
+
+```bash
+# Pull quantized version for lower memory usage
+ollama pull embeddinggemma:300m-qat-q4_0
+```
+
+**Benchmark Results (v0.6.0):**
+
+All variants have similar warm inference speed (~100ms), difference is memory footprint:
+
+| Model | Cold Start | Warm | Memory |
+|-------|------------|------|--------|
+| q4_0 | ~200ms | ~94ms | 239MB |
+| q8_0 | ~200ms | ~101ms | 338MB |
+| latest | ~280ms | ~102ms | 622MB |
 
 ### Step 3: Start Ollama
 
@@ -212,6 +236,26 @@ export OLLAMA_HOST=http://localhost:11434
 
 # For remote Ollama server
 export OLLAMA_HOST=http://your-server:11434
+
+# Override embedding model (for CLI commands like `ailang docs search`)
+export AILANG_OLLAMA_MODEL=embeddinggemma:300m-qat-q4_0
+```
+
+### Config File (~/.ailang/config.yaml)
+
+For persistent configuration:
+
+```yaml
+embeddings:
+  provider: ollama  # or "none" to disable
+  ollama:
+    model: embeddinggemma  # or embeddinggemma:300m-qat-q4_0
+    endpoint: http://localhost:11434
+    timeout: 30s
+  search:
+    default_mode: simhash
+    simhash_threshold: 0.70
+    neural_threshold: 0.75
 ```
 
 ### Timeout Configuration
@@ -221,6 +265,25 @@ The `_ollama_embed` builtin uses a 30-second timeout by default. For large batch
 ---
 
 ## Performance Tips
+
+### 0. Large Documents Are Automatically Chunked
+
+AILANG automatically chunks documents larger than 6000 characters for embedding. This is important because:
+
+- **EmbeddingGemma has a 2K context window** (~8000 chars)
+- Large documents are split at natural boundaries (headers, paragraphs, sentences)
+- Chunk embeddings are averaged to produce a single document embedding
+
+**Chunking priority order:**
+1. Markdown headers (`## `, `# `)
+2. Code blocks (` ``` `)
+3. Paragraphs (`\n\n`)
+4. List items (`\n- `)
+5. Sentences (`. `)
+6. Line breaks (`\n`)
+7. Words (` `)
+
+This means a 50KB design document will be split into ~8 chunks, each embedded separately, then averaged.
 
 ### 1. Batch Your Embeddings
 
@@ -400,7 +463,47 @@ _sharedindex_delete(ns: string, key: string) -> unit ! {SharedIndex}
 
 ---
 
-## Messaging System Semantic Search
+## CLI Semantic Search Commands
+
+### Document Search (`ailang docs search`)
+
+Search design docs and markdown files semantically:
+
+```bash
+# Fast SimHash search (instant, no Ollama needed)
+ailang docs search "parser error handling"
+
+# Neural search with Ollama embeddings
+ailang docs search "parser error handling" --neural
+
+# Search specific directory
+ailang docs search --path design_docs/planned "type inference"
+
+# Filter by subdirectory
+ailang docs search --stream implemented "monomorphization"
+
+# Limit results
+ailang docs search --limit 5 "error handling"
+
+# JSON output for scripting
+ailang docs search --json "semantic search"
+
+# Cache management
+ailang docs search --cache-info     # Show cache stats
+ailang docs search --cleanup        # Remove orphaned entries
+ailang docs search --rebuild        # Rebuild all embeddings
+```
+
+**Neural search flags:**
+- `--neural` - Enable neural embeddings via Ollama
+- `--neural-candidates N` - Number of SimHash candidates to re-rank (default: 10)
+
+**Performance with neural search:**
+- First run: ~30-60s (computing embeddings for all docs)
+- Subsequent runs: ~1-2s (using cached embeddings)
+- Cache is per-corpus, per-model, with content hash staleness detection
+
+### Messaging System Semantic Search
 
 The AILANG CLI also provides semantic search for the messaging system:
 

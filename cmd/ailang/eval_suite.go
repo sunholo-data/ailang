@@ -486,16 +486,36 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			sessionConfig.TimeoutSeconds = spec.Timeout
 		}
 
-		// Look up agent model for this specific code generation model (if not overridden)
+		// Look up executor and model for multi-executor support
+		// This enables switching between Claude Code, Gemini CLI, etc. based on model config
+		executorName := ""
+		modelName := ""
 		if sessionConfig.ClaudeModel == "" {
-			agentModelName, err := eval_harness.GlobalModelsConfig.GetAgentModelName(model)
+			var err error
+			executorName, modelName, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
 			if err != nil {
-				return false, fmt.Errorf("could not determine agent model for %s: %w", model, err)
+				// Fall back to getting agent model name (backwards compatibility)
+				modelName, err = eval_harness.GlobalModelsConfig.GetAgentModelName(model)
+				if err != nil {
+					return false, fmt.Errorf("could not determine agent model for %s: %w", model, err)
+				}
 			}
-			sessionConfig.ClaudeModel = agentModelName
+			sessionConfig.ClaudeModel = modelName
 		}
 
-		result, err := eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
+		// Use multi-executor runner if executor is specified, otherwise fall back to legacy runner
+		var result *eval_harness.AgentBenchmarkResult
+		var err error
+		if executorName != "" {
+			multiConfig := eval_harness.MultiExecutorConfig{
+				AgentBenchmarkConfig: sessionConfig,
+				ExecutorName:         executorName,
+				ModelName:            modelName,
+			}
+			result, err = eval_harness.RunAgentBenchmarkWithExecutor(spec, multiConfig, lang)
+		} else {
+			result, err = eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
+		}
 		if err != nil {
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
 		}

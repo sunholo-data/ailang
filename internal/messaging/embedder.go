@@ -146,8 +146,45 @@ func detectDimension(model string) int {
 	return 768 // Default
 }
 
+// MaxChunkSize is the maximum characters per chunk for embedding
+// embeddinggemma has 2K context (~8000 chars), we use 6000 to be safe
+const MaxChunkSize = 6000
+
 // Embed generates an embedding for a single text
+// For long texts, it chunks and averages the embeddings
 func (e *OllamaEmbedder) Embed(text string) ([]float32, error) {
+	// If text fits in one chunk, embed directly
+	if len(text) <= MaxChunkSize {
+		return e.embedSingle(text)
+	}
+
+	// Chunk the text and embed each chunk
+	chunks := chunkText(text, MaxChunkSize)
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("no chunks generated from text")
+	}
+
+	// Embed each chunk
+	var embeddings [][]float32
+	for _, chunk := range chunks {
+		emb, err := e.embedSingle(chunk)
+		if err != nil {
+			// Skip failed chunks but continue
+			continue
+		}
+		embeddings = append(embeddings, emb)
+	}
+
+	if len(embeddings) == 0 {
+		return nil, fmt.Errorf("all chunks failed to embed")
+	}
+
+	// Average the embeddings
+	return averageEmbeddings(embeddings), nil
+}
+
+// embedSingle embeds a single chunk of text
+func (e *OllamaEmbedder) embedSingle(text string) ([]float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
@@ -164,6 +201,93 @@ func (e *OllamaEmbedder) Embed(text string) ([]float32, error) {
 	}
 
 	return resp.Embeddings[0], nil
+}
+
+// chunkText splits text into chunks of maxSize characters
+// Uses markdown-aware boundaries: headers, code blocks, paragraphs, sentences
+func chunkText(text string, maxSize int) []string {
+	if len(text) <= maxSize {
+		return []string{text}
+	}
+
+	var chunks []string
+	remaining := text
+
+	for len(remaining) > 0 {
+		if len(remaining) <= maxSize {
+			chunks = append(chunks, remaining)
+			break
+		}
+
+		// Try to find a good split point in priority order
+		chunk := remaining[:maxSize]
+		splitPoint := maxSize
+
+		// Priority 1: Markdown header (## or #)
+		if idx := findLastIndex(chunk, "\n## "); idx > maxSize/3 {
+			splitPoint = idx + 1 // Keep newline with previous chunk
+		} else if idx := findLastIndex(chunk, "\n# "); idx > maxSize/3 {
+			splitPoint = idx + 1
+		} else if idx := findLastIndex(chunk, "\n### "); idx > maxSize/3 {
+			splitPoint = idx + 1
+		} else if idx := findLastIndex(chunk, "\n```"); idx > maxSize/3 {
+			// Priority 2: Code block boundary
+			splitPoint = idx + 1
+		} else if idx := findLastIndex(chunk, "\n\n"); idx > maxSize/3 {
+			// Priority 3: Paragraph boundary
+			splitPoint = idx + 2
+		} else if idx := findLastIndex(chunk, "\n- "); idx > maxSize/3 {
+			// Priority 4: List item
+			splitPoint = idx + 1
+		} else if idx := findLastIndex(chunk, ". "); idx > maxSize/2 {
+			// Priority 5: Sentence boundary
+			splitPoint = idx + 2
+		} else if idx := findLastIndex(chunk, "\n"); idx > maxSize/2 {
+			// Priority 6: Any line break
+			splitPoint = idx + 1
+		} else if idx := findLastIndex(chunk, " "); idx > maxSize/2 {
+			// Priority 7: Word boundary
+			splitPoint = idx + 1
+		}
+
+		chunks = append(chunks, remaining[:splitPoint])
+		remaining = remaining[splitPoint:]
+	}
+
+	return chunks
+}
+
+// findLastIndex finds the last occurrence of substr in s
+func findLastIndex(s, substr string) int {
+	for i := len(s) - len(substr); i >= 0; i-- {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+// averageEmbeddings computes the mean of multiple embeddings
+func averageEmbeddings(embeddings [][]float32) []float32 {
+	if len(embeddings) == 0 {
+		return nil
+	}
+
+	dim := len(embeddings[0])
+	result := make([]float32, dim)
+
+	for _, emb := range embeddings {
+		for i, v := range emb {
+			result[i] += v
+		}
+	}
+
+	n := float32(len(embeddings))
+	for i := range result {
+		result[i] /= n
+	}
+
+	return result
 }
 
 // EmbedBatch generates embeddings for multiple texts
