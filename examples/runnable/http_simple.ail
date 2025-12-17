@@ -1,0 +1,18 @@
+-- http_simple.ail - Simple HTTP request example
+-- Demonstrates Net effect for HTTP calls
+module examples/runnable/http_simple
+
+import std/io (println)
+import std/net (httpGet)
+import std/string (length)
+
+-- Fetch a URL and print status
+export func main() -> () ! {IO, Net} {
+  let url = "https://httpbin.org/get";
+
+  -- Simple GET request (returns body string)
+  println("Fetching: " ++ url);
+
+  let response = httpGet(url);
+  println("Response length: " ++ show(length(response)) ++ " bytes")
+}

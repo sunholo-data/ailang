@@ -63,3 +63,39 @@ doubleThenInc(5) = 11
 # Records and data types (Person record)
 $ ailang run --caps IO --entry main examples/docs/records_person.ail
 Hello, Alice from Copenhagen!
+
+# --- Examples Page (docs/docs/examples.mdx) ---
+
+# Hello World with IO effect
+$ ailang run --caps IO examples/runnable/hello.ail
+Hello, AILANG!
+
+# ADT Tree with pattern matching
+$ ailang run --caps IO examples/runnable/adt_tree.ail
+Node count: 5
+
+# Multiple effects (IO + FS)
+$ ailang run --caps IO,FS examples/runnable/effects_fs_io.ail
+Read back: Hello from AILANG!
+
+# JSON parsing
+$ ailang run --caps IO examples/runnable/json_parsing.ail
+Name: AILANG
+
+# Type inference example
+$ ailang run --caps IO examples/runnable/type_inference.ail
+
+# Records example (pure, no effects)
+$ ailang run examples/runnable/records.ail
+{name: Alice, age: 30}
+
+# Higher-order functions
+$ ailang run --caps IO examples/runnable/lambdas_higher_order.ail
+
+# Mutual recursion
+$ ailang run --caps IO examples/runnable/recursion_mutual.ail
+isOdd(17) = true
+
+# List sum (letrec example)
+$ ailang run examples/runnable/list_sum.ail
+(15, 15)

@@ -1,5 +1,5 @@
 # AILANG Evaluation Model Configuration
-# Last updated: November 2025
+# Last updated: December 2025
 #
 # This file defines the canonical model names for evaluation benchmarks.
 # Update this file when new model versions are released.
@@ -211,6 +211,26 @@ models:
       Context caching: $0.03 per 1M.
       Agent eval support: Not yet implemented (requires Gemini CLI integration).
 
+  # Google Gemini 3 Flash (released December 17, 2025)
+  gemini-3-flash:
+    api_name: "gemini-3-flash-preview"
+    provider: "google"
+    description: "Gemini 3 Flash - 3x faster than 2.5 Pro, outperforms it"
+    env_var: "GOOGLE_API_KEY"
+    agent_cli: null  # Google Gemini CLI not yet implemented
+    pricing:
+      input_per_1k: 0.0005     # $0.50 per 1M = $0.0005 per 1K
+      output_per_1k: 0.003     # $3.00 per 1M = $0.003 per 1K
+    notes: |
+      Google's fastest intelligent model (released Dec 17, 2025).
+      Outperforms Gemini 2.5 Pro while being 3x faster.
+      Uses 30% fewer tokens than 2.5 Pro on thinking tasks.
+      33.7% on Humanity's Last Exam, 81.2% on MMMU-Pro.
+      1M token context window, 65K max output tokens.
+      Has adaptive reasoning with separate thoughtsTokenCount.
+      Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
+      Agent eval support: Not yet implemented (requires Gemini CLI integration).
+
   # Google Gemini 3 Pro (released November 2025)
   gemini-3-pro:
     api_name: "gemini-3-pro-preview"
@@ -270,7 +290,7 @@ extended_suite:
 dev_models:
   - "gpt5-1-instant"   # OpenAI fast
   - "claude-haiku-4-5" # Anthropic cheap
-  - "gemini-2-5-flash" # Google cheap
+  - "gemini-3-flash"   # Google cheap + smart (Dec 2025)
 
 # Available but not in default suites (run with --models flag):
 # - gpt5              # Superseded by gpt5-2
@@ -278,6 +298,7 @@ dev_models:
 # - gpt5-mini         # Cheaper but slower than gpt5-1-instant
 # - gpt5-2-instant    # Fast variant of GPT-5.2
 # - gpt5-1-codex-max  # Agentic coding (requires Responses API)
+# - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
 
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI

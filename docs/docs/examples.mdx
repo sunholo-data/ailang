@@ -14,6 +14,10 @@ import TypeInferenceExample from '!!raw-loader!@site/../examples/runnable/type_i
 import RecordsExample from '!!raw-loader!@site/../examples/runnable/records.ail';
 import LambdasHigherOrderExample from '!!raw-loader!@site/../examples/runnable/lambdas_higher_order.ail';
 import PatternsExample from '!!raw-loader!@site/../examples/runnable/patterns.ail';
+import EffectsFsIoExample from '!!raw-loader!@site/../examples/runnable/effects_fs_io.ail';
+import JsonParsingExample from '!!raw-loader!@site/../examples/runnable/json_parsing.ail';
+import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simple.ail';
+import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recursion_mutual.ail';
 
 # AILANG Examples
 
@@ -31,7 +35,7 @@ The simplest AILANG program with I/O effects:
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/runnable/hello.ail
+ailang run --caps IO examples/runnable/hello.ail
 ```
 
 **Key concepts:**
@@ -51,15 +55,10 @@ AILANG uses recursion instead of loops for deterministic control flow:
 
 **Run it:**
 ```bash
-ailang run --entry factorial examples/runnable/recursion_factorial.ail
+ailang run --caps IO examples/runnable/recursion_factorial.ail
 ```
 
-**Test it:**
-```bash
-# Test factorial(5)
-echo "factorial(5)" | ailang repl --load examples/runnable/recursion_factorial.ail
-# Output: 120
-```
+**Note:** The `main` function is the default entrypoint. This example prints factorial results using IO.
 
 **Key concepts:**
 - <CheckIcon inline /> `factorial` is **pure** (no effects declared)
@@ -110,7 +109,7 @@ Define custom types with multiple constructors:
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/runnable/adt_tree.ail
+ailang run --caps IO examples/runnable/adt_tree.ail
 ```
 
 **Output:**
@@ -133,59 +132,35 @@ Node count: 5
 
 Functions can declare multiple effects they perform:
 
-```typescript
-import std/io (println)
-import std/fs (readFile)
-import std/json (decode)
-
-fn loadConfig() !: IO,FS -> Result[string, string] =
-    do {
-        content <- readFile("config.json");
-        println("Loaded config file");
-        return Ok(content)
-    }
-
-fn main() !: IO,FS -> () =
-    match loadConfig() {
-        Ok(content) -> println("Config: " ++ content),
-        Err(e) -> println("Error: " ++ e)
-    }
-```
+<CodeBlock language="typescript" title="examples/runnable/effects_fs_io.ail">
+  {EffectsFsIoExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO,FS --entry main examples/config.ail
+ailang run --caps IO,FS examples/runnable/effects_fs_io.ail
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> `!: IO,FS` declares both I/O and filesystem effects
-- <CheckIcon inline /> `do` blocks sequence effectful operations
-- <CheckIcon inline /> `Result[T,E]` type for error handling
+- <CheckIcon inline /> `! {IO, FS}` declares both I/O and filesystem effects
+- <CheckIcon inline /> Sequential statements use `;` in block expressions
+- <CheckIcon inline /> Import functions from stdlib modules
 
 ---
 
 ### Effect Polymorphism
 
-Functions can be generic over effects:
+Functions can be generic over effects. This allows writing reusable code that works with any combination of capabilities:
 
 ```typescript
--- Works with any effect row
-fn log[e](message: string) !: {IO | e} -> () =
-    println("[LOG] " ++ message)
-
--- Calls log while also reading files
-fn processFile(path: string) !: IO,FS -> () =
-    do {
-        log("Reading file: " ++ path);
-        content <- readFile(path);
-        log("File loaded")
-    }
+-- Effect row polymorphism: {IO | e} means "IO plus any other effects"
+-- This allows functions to compose while preserving effect safety
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> `!: {IO | e}` means "IO plus whatever effects the caller has"
-- <CheckIcon inline /> Effect polymorphism enables reusable functions
-- <CheckIcon inline /> Effect rows compose naturally
+- <CheckIcon inline /> Effect rows can be extended with `{IO | e}` syntax
+- <CheckIcon inline /> Effect polymorphism enables reusable library functions
+- <CheckIcon inline /> Effects compose naturally when calling functions
 
 ---
 
@@ -201,7 +176,7 @@ AILANG infers types automatically using Hindley-Milner:
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/runnable/type_inference.ail
+ailang run --caps IO examples/runnable/type_inference.ail
 ```
 
 **Key concepts:**
@@ -238,31 +213,19 @@ ailang run examples/runnable/records.ail
 
 Parse and work with JSON data:
 
-```typescript
-import std/io (println)
-import std/json (decode)
+<CodeBlock language="typescript" title="examples/runnable/json_parsing.ail">
+  {JsonParsingExample}
+</CodeBlock>
 
-fn main() !: IO -> () =
-    let jsonString = "{\"name\": \"AILANG\", \"version\": \"0.3.14\"}";
-
-    match decode(jsonString) {
-        Ok(json) ->
-            match json {
-                Object(fields) ->
-                    match fields["name"] {
-                        Some(String(name)) -> println("Name: " ++ name),
-                        _ -> println("Name not found")
-                    },
-                _ -> println("Not an object")
-            },
-        Err(e) -> println("Parse error: " ++ e)
-    }
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/json_parsing.ail
 ```
 
 **Key concepts:**
 - <CheckIcon inline /> `decode` returns `Result[Json, string]`
-- <CheckIcon inline /> Pattern match on JSON structure
-- <CheckIcon inline /> Safe access to nested fields
+- <CheckIcon inline /> Pattern match on JSON structure using `Ok`/`Err`
+- <CheckIcon inline /> Use `get` and `asString` helpers for field access
 
 ---
 
@@ -270,27 +233,18 @@ fn main() !: IO -> () =
 
 Make HTTP requests with the Net effect:
 
-```typescript
-import std/io (println)
-import std/net (httpGet)
-
-fn main() !: IO,Net -> () =
-    match httpGet("https://api.github.com/repos/sunholo-data/ailang") {
-        Ok(response) ->
-            println("Status: " ++ show(response.status)),
-        Err(e) ->
-            println("Request failed: " ++ e)
-    }
-```
+<CodeBlock language="typescript" title="examples/runnable/http_simple.ail">
+  {HttpSimpleExample}
+</CodeBlock>
 
 **Run it:**
 ```bash
-ailang run --caps IO,Net --entry main examples/http_get.ail
+ailang run --caps IO,Net examples/runnable/http_simple.ail
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> `!: IO,Net` declares network capability
-- <CheckIcon inline /> `httpGet` returns `Result[Response, string]`
+- <CheckIcon inline /> `! {IO, Net}` declares network capability
+- <CheckIcon inline /> `httpGet` returns response body as string
 - <CheckIcon inline /> DNS rebinding protection built-in
 
 ---
@@ -307,7 +261,7 @@ Functions are first-class values:
 
 **Run it:**
 ```bash
-ailang run --caps IO --entry main examples/runnable/lambdas_higher_order.ail
+ailang run --caps IO examples/runnable/lambdas_higher_order.ail
 ```
 
 **Key concepts:**
@@ -322,25 +276,19 @@ ailang run --caps IO --entry main examples/runnable/lambdas_higher_order.ail
 
 Multiple functions can call each other:
 
-```typescript
-import std/io (println)
+<CodeBlock language="typescript" title="examples/runnable/recursion_mutual.ail">
+  {MutualRecursionExample}
+</CodeBlock>
 
-fn isEven(n: int) -> bool =
-    if n == 0 then true
-    else isOdd(n - 1)
-
-fn isOdd(n: int) -> bool =
-    if n == 0 then false
-    else isEven(n - 1)
-
-fn main() !: IO -> () =
-    println("5 is odd: " ++ show(isOdd(5)))  -- true
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/recursion_mutual.ail
 ```
 
 **Key concepts:**
-- <CheckIcon inline /> Functions can reference each other
-- <CheckIcon inline /> Stack overflow protection included
-- <CheckIcon inline /> Deterministic evaluation order
+- <CheckIcon inline /> `pure func` declares functions without side effects
+- <CheckIcon inline /> Functions can reference each other (mutual recursion)
+- <CheckIcon inline /> Built-in tests verify correctness: `tests [(0, true), (1, false), ...]`
 
 ---
 
@@ -363,7 +311,7 @@ sudo mv ailang /usr/local/bin/
 git clone https://github.com/sunholo-data/ailang && cd ailang && make install
 
 # Run an example
-ailang run --caps IO --entry main examples/runnable/hello.ail
+ailang run --caps IO examples/runnable/hello.ail
 
 # Interactive REPL
 ailang repl
@@ -375,10 +323,10 @@ Clone the repository for all 66+ examples:
 
 ```bash
 git clone https://github.com/sunholo-data/ailang
-cd ailang/examples
+cd ailang
 
 # Run specific examples
-ailang run --caps IO --entry main v3_3/factorial.ail
+ailang run --caps IO examples/runnable/recursion_factorial.ail
 ```
 
 ---

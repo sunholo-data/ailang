@@ -1,0 +1,11 @@
+Processed Data:
+- Python
+- Programming
+- Clean Code
+- Python
+
+Metrics:
+Count: 4
+Unique Count: 3
+Longest Item: Programming
+Average Length: 8.25

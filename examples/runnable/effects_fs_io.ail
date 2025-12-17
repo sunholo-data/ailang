@@ -1,0 +1,27 @@
+-- effects_fs_io.ail - Demonstrates multiple effect capabilities
+-- Shows combining IO and FS effects in a single function
+module examples/runnable/effects_fs_io
+
+import std/io (println)
+import std/fs (fileExists, readFile, writeFile)
+
+-- Function that combines IO and FS effects
+-- Note: ! {IO, FS} declares both capabilities
+export func main() -> () ! {IO, FS} {
+  let path = "/tmp/ailang_test.txt";
+  let content = "Hello from AILANG!";
+
+  -- Write a test file (FS effect)
+  writeFile(path, content);
+
+  -- Print confirmation (IO effect)
+  println("Wrote: " ++ content);
+
+  -- Check if file exists (FS effect)
+  let fileOk = fileExists(path);
+  println("File exists: " ++ show(fileOk));
+
+  -- Read it back (FS effect)
+  let readBack = readFile(path);
+  println("Read back: " ++ readBack)
+}
