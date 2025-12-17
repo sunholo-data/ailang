@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-29%20passing%2029%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-29%20passing%2032%20failing-red.svg)
 
-**29/58 examples passing (50%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**29/61 examples passing (48%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -23,15 +23,18 @@
 | `runnable/demos/adt_pipeline.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/demos/hello_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/effects_fs_io.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
 | `runnable/func_expressions.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/game_npc_dialogue.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
+| `runnable/http_simple.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/imported_adt_types.ail` | ✅ Pass |  |
 | `runnable/imports.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/imports_basic.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/json_basic_decode.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/json_parsing.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/lambdas.ail` | ✅ Pass |  |
 | `runnable/lambdas_advanced.ail` | ✅ Pass |  |
 | `runnable/lambdas_closures.ail` | ✅ Pass |  |
