@@ -1,14 +1,15 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-27%20passing%2029%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-29%20passing%2029%20failing-red.svg)
 
-**27/56 examples passing (48%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**29/58 examples passing (50%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `runnable/adt_option.ail` | ✅ Pass |  |
 | `runnable/adt_simple.ail` | ✅ Pass |  |
+| `runnable/adt_tree.ail` | ✅ Pass |  |
 | `runnable/ai_effect.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
@@ -38,6 +39,7 @@
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
 | `runnable/letrec_recursion.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/list_patterns.ail` | ❌ Fail | Error: module loading error: failed to load std... |
+| `runnable/list_sum.ail` | ✅ Pass |  |
 | `runnable/micro_block_if.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/micro_block_seq.ail` | ❌ Fail | Error: module loading error: failed to load std... |
 | `runnable/micro_io_echo.ail` | ❌ Fail | Error: module loading error: failed to load std... |
