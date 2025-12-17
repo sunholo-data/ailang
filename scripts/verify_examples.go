@@ -67,14 +67,6 @@ func runExample(filename string) reporttypes.ExampleResult {
 		return result
 	}
 
-	// Skip known documentation files
-	if strings.Contains(filename, "_demo") || strings.Contains(filename, "_test") ||
-		strings.Contains(filename, "_trace") || strings.Contains(filename, "_session") {
-		result.Status = "skipped"
-		result.Duration = time.Since(start)
-		return result
-	}
-
 	// Read file to detect capabilities and entrypoint
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -99,6 +91,15 @@ func runExample(filename string) reporttypes.ExampleResult {
 	}
 	if strings.Contains(fileContent, "! {Clock") || strings.Contains(fileContent, "_clock_") || strings.Contains(fileContent, "import std/clock") {
 		caps = append(caps, "Clock")
+	}
+	// Detect AI capability (requires --ai-stub for testing)
+	needsAIStub := false
+	if strings.Contains(fileContent, "! {AI") || strings.Contains(fileContent, "import std/ai") {
+		caps = append(caps, "AI")
+		needsAIStub = true
+	}
+	if strings.Contains(fileContent, "! {Debug") || strings.Contains(fileContent, "import std/debug") {
+		caps = append(caps, "Debug")
 	}
 
 	// Detect entrypoint (look for export func NAME)
@@ -145,6 +146,9 @@ done:
 	args := []string{"run", "./cmd/ailang", "run"}
 	if len(caps) > 0 {
 		args = append(args, "--caps", strings.Join(caps, ","))
+	}
+	if needsAIStub {
+		args = append(args, "--ai-stub")
 	}
 	if entrypoint != "main" {
 		args = append(args, "--entry", entrypoint)

@@ -1,38 +1,55 @@
-# Roadmap
+---
+title: Roadmap
+sidebar_position: 1
+---
 
-AILANG is actively developed with a clear vision for future capabilities. This section documents planned features that are in design but **not yet implemented**.
+# AILANG Roadmap
 
-## How to Read This Section
+This page is automatically generated from the [design_docs/planned](https://github.com/sunholo-data/ailang/tree/main/design_docs/planned) directory. Each item represents a planned feature or improvement with a detailed design document.
 
-Each roadmap item includes:
-- **Target Version**: When we plan to implement it
-- **Design Document**: Link to detailed design on GitHub
-- **Current Status**: What works today vs what's planned
+For completed features, see [Design Documents](/docs/design-docs).
 
-:::info
-Pages in this section describe **future capabilities**. For what's working today, see the [Language Reference](/docs/reference/language-syntax) and [Implementation Status](/docs/reference/implementation-status).
-:::
 
-## Planned Features
+## Planned for v0.7.0
 
-### v0.6.0 - Core Platform
-Execution profiles and multi-agent coordination.
-- [Execution Profiles](/docs/roadmap/execution-profiles) - Define and validate execution environments (SimProfile, ServiceProfile, CliProfile)
-- [Shared Semantic State](/docs/roadmap/shared-semantic-state) - Semantic caching and agent coordination
+- [AILANG: Auto-Caps and Capability Inference](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/20251013_auto_caps_capability_inference.md)
+- [Module Import Resolution Bug](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-IMPORT-BUG-module-import-resolution.md)
+- [M-REPL1: REPL Persistent Type Bindings & Module Loading](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-REPL1_persistent_bindings.md)
+- [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-TOOLING-DETERMINISTIC.md)
+- [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
+- [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
 
-### v0.7.0 - Deterministic Tooling
-AI-friendly tooling for code transformation.
-- [Deterministic Tooling](/docs/roadmap/deterministic-tooling) - Normalize, suggest imports, apply edits
+## Planned for v0.6.1
 
-## Contributing to the Roadmap
+- [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/M-AGENT-PROTOCOL.md)
+- [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/M-EVAL-AGENT-QUEUE.md)
+- [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/M-EVAL-AGENT.md)
+- [DX-17 Phase 2: Normalize TList to TApp at Parse Time](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/dx-17-phase2-tlist-normalization.md)
+- [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/eval-dashboard-reliability.md)
+- [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/execution-profiles.md)
+- [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/global-collaboration-hub.md)
+- [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-codegen-v3-binding-hoisting.md)
+- [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-codegen-value-types.md)
+- [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-dx11-phase2-debug-events.md)
+- [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-dx11-phase2-sprint-plan.md)
+- [M-EXEC: Multi-Executor Support for AI Coding Agents](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-exec-multi-executor-support.md)
+- [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-gemini-interactions-api.md)
+- [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-openai-responses-api-sprint.md)
+- [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-openai-responses-api.md)
+- [M-VERIFY: ARC-Style Verification & Policy Mode](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/m-verify-arc-verification-policy-mode.md)
+- [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_1/semantic-caching-future.md)
 
-Have ideas for AILANG's future?
-- Browse [design_docs/planned/](https://github.com/sunholo-data/ailang/tree/main/design_docs/planned) on GitHub
-- Open issues for discussion
-- Submit PRs with design proposals
+## Long-term Vision
 
-## Version History
+AILANG is designed as a deterministic language for autonomous AI code synthesis. The long-term roadmap includes:
 
-For what's been implemented, see:
-- [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
-- [Implementation Status](/docs/reference/implementation-status)
+- **Structural Reflection** - Typed quasiquotes and AST manipulation
+- **Schema Registry** - Machine-readable type and effect definitions
+- **Capability Budgets** - Resource-bounded effects
+- **Training Data Export** - Execution traces for AI self-training
+
+For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/vision).
+
+---
+
+*Generated at build time. 23 planned features across 2 upcoming versions.*

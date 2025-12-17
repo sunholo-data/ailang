@@ -4,8 +4,11 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "docusaurus build",
+    "sync-prompt": "bash scripts/sync-active-prompt.sh",
+    "sync-design-docs": "bash scripts/sync-design-docs.sh",
+    "sync-all": "npm run sync-prompt && npm run sync-design-docs",
+    "start": "npm run sync-all && docusaurus start",
+    "build": "npm run sync-all && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",

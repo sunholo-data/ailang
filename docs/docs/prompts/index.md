@@ -1,32 +1,21 @@
 ---
 title: AI Prompts
-sidebar_position: 4
+sidebar_position: 0
 ---
 
 # AI Prompts for AILANG
 
 These prompts teach AI models how to write correct AILANG code.
 
-## Current Prompts
+## Current Prompt
 
-> **Active Version**: See [`prompts/versions.json`](https://github.com/sunholo-data/ailang/blob/main/prompts/versions.json) in the repo for the current active prompt version.
+The **[Current Teaching Prompt](/docs/prompts/current)** is automatically synced from the AILANG source repository at build time. It always reflects the active prompt version used in production.
 
-### Latest Teaching Prompts
+:::tip Recommended
+Use `ailang prompt` via the CLI for the most accurate, version-locked prompt.
+:::
 
-> **Note**: The website shows recent production prompts. For the complete list of all versions, use `ailang prompt --list`.
-
-Prompts are synced from [`prompts/versions.json`](https://github.com/sunholo-data/ailang/blob/main/prompts/versions.json) automatically. The sync script (`make sync-prompts`) copies all prompts tagged with `production` or `latest`.
-
-**Browse recent versions:**
-- Navigate using the sidebar on the left
-- Or use `ailang prompt --version <version>` to get any version
-
-**Python comparison:**
-- **[Python Syntax Guide](/docs/prompts/python)** - AILANG vs Python side-by-side
-
-## Using the Prompts
-
-### Via CLI (Recommended)
+## Using the CLI (Recommended)
 
 The `ailang` CLI provides built-in access to all prompt versions:
 
@@ -54,11 +43,7 @@ sudo mv ailang /usr/local/bin/
 git clone https://github.com/sunholo-data/ailang && cd ailang && make install
 ```
 
-### Via Website (Browse)
-
-The website shows recent prompt versions for browsing. For the complete list, use `ailang prompt --list` or see [`prompts/versions.json`](https://github.com/sunholo-data/ailang/blob/main/prompts/versions.json).
-
-### Example Request to AI
+## Example Request to AI
 
 When asking an AI model (Claude, GPT, Gemini) to write AILANG code:
 
@@ -71,17 +56,18 @@ Using AILANG (see teaching prompt below), write a program that:
 [Paste output from: ailang prompt]
 ```
 
-## Core Features (Latest)
+## Version Management
 
-**Current implementation** (v0.5.x):
-- ✅ Syntactic sugar: `::` cons, `->` function types, `f()` zero-arg calls
-- ✅ Multi-line ADTs: `type Tree = | Leaf | Node`
-- ✅ Record updates: `{base | field: value}`
-- ✅ Auto-import prelude (no imports for comparisons)
-- ✅ Full module system with effects (IO, FS, Clock, Net, Env, AI, SharedMem, SharedIndex)
-- ✅ Pattern matching, recursion, type classes
-- ✅ **NEW (v0.5.11)**: Semantic caching with SimHash and neural embeddings
-- ✅ **NEW (v0.5.11)**: SharedMem/SharedIndex effects for AI agent working memory
-- ✅ **NEW (v0.5.10)**: Unified AI provider support (Claude, GPT, Gemini)
+Prompt versions are tracked in [`prompts/versions.json`](https://github.com/sunholo-data/ailang/blob/main/prompts/versions.json). Each version includes:
 
-See the [AI Prompt Guide](/docs/guides/ai-prompt-guide) for detailed usage instructions and best practices.
+- **Hash**: SHA256 of the prompt content for integrity
+- **Description**: What changed in this version
+- **Tags**: `production`, `latest`, `testing`
+- **Notes**: Implementation details and known issues
+
+The website automatically syncs the active prompt during CI/CD builds.
+
+## Learn More
+
+- **[AI Prompt Guide](/docs/guides/ai-prompt-guide)** - Detailed usage instructions and best practices
+- **[AI Effect System](/docs/guides/ai-effect)** - How AILANG tracks AI interactions

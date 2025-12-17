@@ -1,8 +1,136 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
-![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-39.1%25-orange.svg)
-![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
+<!-- EXAMPLES_STATUS_START -->
+![Examples](https://img.shields.io/badge/examples-54%20passing%202%20failing-green.svg)
+
+**54/56 examples passing (96%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+
+| Example File | Status | Notes |
+|--------------|--------|-------|
+| `runnable/adt_option.ail` | ✅ Pass |  |
+| `runnable/adt_simple.ail` | ✅ Pass |  |
+| `runnable/ai_effect.ail` | ✅ Pass |  |
+| `runnable/arithmetic.ail` | ✅ Pass |  |
+| `runnable/array_adt.ail` | ✅ Pass |  |
+| `runnable/block_demo.ail` | ✅ Pass |  |
+| `runnable/block_recursion.ail` | ✅ Pass |  |
+| `runnable/bug_float_comparison.ail` | ✅ Pass |  |
+| `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/closures.ail` | ✅ Pass |  |
+| `runnable/conway_grid.ail` | ✅ Pass |  |
+| `runnable/debug_effect.ail` | ✅ Pass |  |
+| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
+| `runnable/demos/hello_io.ail` | ✅ Pass |  |
+| `runnable/effects_basic.ail` | ✅ Pass |  |
+| `runnable/effects_pure.ail` | ✅ Pass |  |
+| `runnable/func_expressions.ail` | ✅ Pass |  |
+| `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
+| `runnable/guards_basic.ail` | ✅ Pass |  |
+| `runnable/hello.ail` | ✅ Pass |  |
+| `runnable/imported_adt_types.ail` | ✅ Pass |  |
+| `runnable/imports.ail` | ✅ Pass |  |
+| `runnable/imports_basic.ail` | ✅ Pass |  |
+| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/lambdas.ail` | ✅ Pass |  |
+| `runnable/lambdas_advanced.ail` | ✅ Pass |  |
+| `runnable/lambdas_closures.ail` | ✅ Pass |  |
+| `runnable/lambdas_curried.ail` | ✅ Pass |  |
+| `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/list_patterns.ail` | ✅ Pass |  |
+| `runnable/micro_block_if.ail` | ✅ Pass |  |
+| `runnable/micro_block_seq.ail` | ✅ Pass |  |
+| `runnable/micro_io_echo.ail` | ✅ Pass |  |
+| `runnable/micro_option_map.ail` | ✅ Pass |  |
+| `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/option_demo.ail` | ✅ Pass |  |
+| `runnable/patterns.ail` | ✅ Pass |  |
+| `runnable/records.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ✅ Pass |  |
+| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
+| `runnable/recursion_match.ail` | ✅ Pass |  |
+| `runnable/recursion_mutual.ail` | ✅ Pass |  |
+| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
+| `runnable/simple.ail` | ✅ Pass |  |
+| `runnable/stdlib_demo.ail` | ✅ Pass |  |
+| `runnable/stdlib_demo_simple.ail` | ✅ Pass |  |
+| `runnable/test_cli_io.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_guard_bool.ail` | ✅ Pass |  |
+| `runnable/test_import_func.ail` | ✅ Pass |  |
+| `runnable/test_io_builtins.ail` | ✅ Pass |  |
+| `runnable/test_module_minimal.ail` | ✅ Pass |  |
+| `runnable/type_classes.ail` | ✅ Pass |  |
+| `runnable/type_inference.ail` | ✅ Pass |  |
+| `runnable/typeclasses.ail` | ✅ Pass |  |
+
+<!-- EXAMPLES_STATUS_END -->
+
+<!-- EXAMPLES_STATUS_START -->
+![Examples](https://img.shields.io/badge/examples-45%20passing%206%20failing-green.svg)
+
+**45/56 examples passing (80%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+
+| Example File | Status | Notes |
+|--------------|--------|-------|
+| `runnable/adt_option.ail` | ✅ Pass |  |
+| `runnable/adt_simple.ail` | ✅ Pass |  |
+| `runnable/ai_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/arithmetic.ail` | ✅ Pass |  |
+| `runnable/array_adt.ail` | ✅ Pass |  |
+| `runnable/block_demo.ail` | ⏭️ Skip | Test/demo file |
+| `runnable/block_recursion.ail` | ✅ Pass |  |
+| `runnable/bug_float_comparison.ail` | ✅ Pass |  |
+| `runnable/cli_args_demo.ail` | ⏭️ Skip | Test/demo file |
+| `runnable/closures.ail` | ✅ Pass |  |
+| `runnable/conway_grid.ail` | ✅ Pass |  |
+| `runnable/debug_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
+| `runnable/demos/hello_io.ail` | ✅ Pass |  |
+| `runnable/effects_basic.ail` | ✅ Pass |  |
+| `runnable/effects_pure.ail` | ✅ Pass |  |
+| `runnable/func_expressions.ail` | ✅ Pass |  |
+| `runnable/game_npc_dialogue.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/guards_basic.ail` | ✅ Pass |  |
+| `runnable/hello.ail` | ✅ Pass |  |
+| `runnable/imported_adt_types.ail` | ✅ Pass |  |
+| `runnable/imports.ail` | ✅ Pass |  |
+| `runnable/imports_basic.ail` | ✅ Pass |  |
+| `runnable/json_basic_decode.ail` | ✅ Pass |  |
+| `runnable/lambdas.ail` | ✅ Pass |  |
+| `runnable/lambdas_advanced.ail` | ✅ Pass |  |
+| `runnable/lambdas_closures.ail` | ✅ Pass |  |
+| `runnable/lambdas_curried.ail` | ✅ Pass |  |
+| `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
+| `runnable/letrec_recursion.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/list_patterns.ail` | ✅ Pass |  |
+| `runnable/micro_block_if.ail` | ✅ Pass |  |
+| `runnable/micro_block_seq.ail` | ✅ Pass |  |
+| `runnable/micro_io_echo.ail` | ✅ Pass |  |
+| `runnable/micro_option_map.ail` | ✅ Pass |  |
+| `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/option_demo.ail` | ⏭️ Skip | Test/demo file |
+| `runnable/patterns.ail` | ✅ Pass |  |
+| `runnable/records.ail` | ✅ Pass |  |
+| `runnable/recursion_factorial.ail` | ✅ Pass |  |
+| `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
+| `runnable/recursion_match.ail` | ✅ Pass |  |
+| `runnable/recursion_mutual.ail` | ✅ Pass |  |
+| `runnable/recursion_quicksort.ail` | ✅ Pass |  |
+| `runnable/simple.ail` | ✅ Pass |  |
+| `runnable/stdlib_demo.ail` | ⏭️ Skip | Test/demo file |
+| `runnable/stdlib_demo_simple.ail` | ⏭️ Skip | Test/demo file |
+| `runnable/test_cli_io.ail` | ✅ Pass |  |
+| `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
+| `runnable/test_guard_bool.ail` | ✅ Pass |  |
+| `runnable/test_import_func.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/test_io_builtins.ail` | ❌ Fail | Error: effect checking failed in examples/runna... |
+| `runnable/test_module_minimal.ail` | ✅ Pass |  |
+| `runnable/type_classes.ail` | ✅ Pass |  |
+| `runnable/type_inference.ail` | ✅ Pass |  |
+| `runnable/typeclasses.ail` | ✅ Pass |  |
+
+<!-- EXAMPLES_STATUS_END -->
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution and evaluation substrate** for AI-generated code. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
@@ -35,7 +163,7 @@ Further reading on answering common misconceptions:
 - AILANG is not trying to be a "better python"
 - AILANG as a Semantic Control Surface
 
-Read more about [AILANG vs Agents](docs/docs/roadmap/ailang-vs-agents.md) concepts.
+Read more about [AILANG vs Agents](docs/docs/guides/ailang-vs-agents.mdx) concepts.
 
 ## 🏗️ Architecture
 

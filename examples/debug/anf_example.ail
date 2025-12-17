@@ -1,0 +1,8 @@
+module examples/debug/anf_example
+
+-- Example showing ANF transformation
+-- Run: ailang debug ast examples/debug/anf_example.ail
+
+let add = \x y. x + y in
+let result = add(1)(2) in
+result

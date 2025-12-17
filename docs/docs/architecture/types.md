@@ -1,11 +1,42 @@
+---
+title: Type System
+sidebar_position: 2
+---
+
 # Type System Architecture
 
 AILANG uses a Hindley-Milner type system with row polymorphism and effect tracking.
 
 ## Type Inference Pipeline
 
-```
-Surface AST → Elaboration → Core AST → Type Checking → CoreTypeInfo → Lowering → Evaluation
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph INPUT["Input"]
+        A["Surface AST"]
+    end
+
+    subgraph CORE["Core Transformation"]
+        A --> B["Elaboration"]
+        B --> C["Core AST (ANF)"]
+    end
+
+    subgraph INFERENCE["Type Inference"]
+        C --> D["Generate Constraints"]
+        D --> E["Unification"]
+        E --> F["Defaulting"]
+        F --> G["CoreTypeInfo"]
+    end
+
+    subgraph OUTPUT["Output"]
+        G --> H["Lowering"]
+        H --> I["Evaluation"]
+    end
+
+    style INPUT fill:transparent,stroke:#64b5f6,stroke-width:2px
+    style CORE fill:transparent,stroke:#ffb74d,stroke-width:2px
+    style INFERENCE fill:transparent,stroke:#81c784,stroke-width:2px
+    style OUTPUT fill:transparent,stroke:#ce93d8,stroke-width:2px
 ```
 
 ### Key Phases
@@ -36,16 +67,16 @@ tc.CoreTI.Set(expr.ID(), inferredType)
 tc.CoreTI.ApplySubstitution(sub)  // Resolve type variables to concrete types
 ```
 
-### CoreTypeInfo Invariant (M-DX4)
+### CoreTypeInfo Invariant
 
 **CRITICAL COMPILER INVARIANT**: Every Core node must have an entry in CoreTypeInfo before lowering.
 
 **Enforcement**: Validation runs before lowering in all pipeline paths:
-- File pipeline: [`internal/pipeline/pipeline.go:228`](../../internal/pipeline/pipeline.go#L228)
-- Module pipeline: [`internal/pipeline/pipeline.go:631`](../../internal/pipeline/pipeline.go#L631)
-- REPL: [`internal/repl/repl_eval.go:113`](../../internal/repl/repl_eval.go#L113)
+- File pipeline
+- Module pipeline
+- REPL
 
-**Validator**: [`internal/pipeline/validate_coretypeinfo.go`](../../internal/pipeline/validate_coretypeinfo.go)
+**Validator**: `internal/pipeline/validate_coretypeinfo.go`
 
 The validator:
 - Walks all Core node types (Var, Lit, Lambda, Let, LetRec, App, If, Match, BinOp, UnOp, Intrinsic, Record, List, Tuple, DictAbs, DictApp, etc.)
@@ -54,9 +85,9 @@ The validator:
 - Performance: O(n) linear, zero allocations
 
 **Properties**:
-- ✅ Presence required (every node must have a type)
-- ✅ Polymorphic types accepted (type variables α, β, etc. are OK)
-- ✅ Monomorphization-ready (validation checks presence, not concreteness)
+- Presence required (every node must have a type)
+- Polymorphic types accepted (type variables α, β, etc. are OK)
+- Monomorphization-ready (validation checks presence, not concreteness)
 
 **Error Example**:
 ```
@@ -120,13 +151,13 @@ println : string -> ! {IO} unit
 2. **Effect subsumption**: Check effect compatibility (subset relation)
 3. **Capability checking**: Verify runtime capabilities at evaluation
 
-See: [`internal/effects/`](../../internal/effects/) for effect runtime implementation.
+See `internal/effects/` for effect runtime implementation.
 
 ## Type Classes (Builtin)
 
 Current implementation has hardcoded type class instances (Num, Eq, Ord, Show).
 
-**Planned** (v0.4.0+): Structural reflection for user-defined type classes.
+**Planned**: Structural reflection for user-defined type classes.
 
 ### Dictionary Passing
 
@@ -142,15 +173,25 @@ add : forall a. NumDict a -> a -> a -> a
 
 Dictionaries are constructed during elaboration and passed explicitly in Core AST.
 
-## Future: Monomorphization (v0.4.0+)
+## Monomorphization
 
-**Planned transformation**: Specialize polymorphic functions to concrete types before final codegen.
+**Transformation**: Specialize polymorphic functions to concrete types before final codegen.
 
-**Current state**: Validator accepts polymorphic types (type variables).
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    A["Type Inference"] --> B["CoreTypeInfo\n(polymorphic)"]
+    B --> C["Validation"]
+    C --> D["Monomorphization"]
+    D --> E["CoreTypeInfo\n(concrete)"]
+    E --> F["Lowering"]
 
-**Monomorphization pipeline**:
-```
-Type Inference → CoreTypeInfo (polymorphic) → Validation → Monomorphization → CoreTypeInfo (concrete) → Lowering
+    style A fill:#90caf9,stroke:#1565c0,stroke-width:2px
+    style B fill:#ffe082,stroke:#f9a825,stroke-width:2px
+    style C fill:#a5d6a7,stroke:#2e7d32,stroke-width:2px
+    style D fill:#ce93d8,stroke:#7b1fa2,stroke-width:2px
+    style E fill:#ffe082,stroke:#f9a825,stroke-width:2px
+    style F fill:#ef9a9a,stroke:#c62828,stroke-width:2px
 ```
 
 After monomorphization:
@@ -158,29 +199,27 @@ After monomorphization:
 - Polymorphic functions duplicated per instantiation
 - CoreTypeInfo updated with specialized types
 
-The validator will continue to work because it checks *presence*, not *concreteness*.
+The validator continues to work because it checks *presence*, not *concreteness*.
 
 ## Implementation Files
 
 ### Type System Core
-- [`internal/types/`](../../internal/types/) - Type representations and inference
-- [`internal/types/typechecker_core.go`](../../internal/types/typechecker_core.go) - Core AST type checker
-- [`internal/types/typeinfo.go`](../../internal/types/typeinfo.go) - CoreTypeInfo storage
+- `internal/types/` - Type representations and inference
+- `internal/types/typechecker_core.go` - Core AST type checker
+- `internal/types/typeinfo.go` - CoreTypeInfo storage
 
 ### Validation
-- [`internal/pipeline/validate_coretypeinfo.go`](../../internal/pipeline/validate_coretypeinfo.go) - Validator (343 LOC)
-- [`internal/pipeline/validate_coretypeinfo_test.go`](../../internal/pipeline/validate_coretypeinfo_test.go) - Tests (417 LOC)
-- [`internal/pipeline/validate_coretypeinfo_bench_test.go`](../../internal/pipeline/validate_coretypeinfo_bench_test.go) - Benchmarks (117 LOC)
+- `internal/pipeline/validate_coretypeinfo.go` - Validator
+- `internal/pipeline/validate_coretypeinfo_test.go` - Tests
+- `internal/pipeline/validate_coretypeinfo_bench_test.go` - Benchmarks
 
 ### Type-Directed Lowering
-- [`internal/pipeline/op_lowering.go`](../../internal/pipeline/op_lowering.go) - Operator specialization using CoreTypeInfo
+- `internal/pipeline/op_lowering.go` - Operator specialization using CoreTypeInfo
 
 ### Effects
-- [`internal/effects/`](../../internal/effects/) - Effect runtime (capabilities, execution)
+- `internal/effects/` - Effect runtime (capabilities, execution)
 
 ## References
 
-- [CHANGELOG: M-DX4 CoreTypeInfo Completeness](../CHANGELOG.md#m-dx4-coretypeinfo-completeness--type-guided-lowering)
-- [Design Doc: M-DX4](../../design_docs/planned/v0_3_15/m-dx4-coretypeinfo-completeness.md)
-- [Sprint Plan: M-DX4](../../design_docs/planned/v0_3_15/M-DX4-SPRINT-PLAN-REFINED.md)
-- [ANF Normalization](./ANF.md)
+- [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
+- [ANF Normalization](./anf)

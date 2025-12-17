@@ -1,8 +1,11 @@
-# AILANG Language Syntax Reference (v0.3.0)
+---
+title: Language Syntax
+sidebar_position: 1
+---
 
-## OLD! NEEDS UPDATE
+# AILANG Language Syntax Reference
 
-This reference documents the **currently working** syntax in AILANG v0.3.0. Features marked with 🚧 are planned but not yet implemented.
+This reference documents the syntax and features of AILANG v0.6.0. Features marked with a construction sign are planned but not yet implemented.
 
 ## Basic Constructs
 
@@ -274,7 +277,7 @@ Run with capabilities:
 ailang run --caps IO,FS,Clock,Net --entry processData demo.ail
 ```
 
-### Available Effects (v0.3.0)
+### Available Effects
 
 | Effect | Builtins | Description |
 |--------|----------|-------------|

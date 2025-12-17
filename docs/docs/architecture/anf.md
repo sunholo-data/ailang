@@ -1,3 +1,8 @@
+---
+title: A-Normal Form (ANF)
+sidebar_position: 3
+---
+
 # Administrative Normal Form (ANF) in AILANG
 
 ## Why ANF?
@@ -12,6 +17,27 @@ ANF makes evaluation and lowering explicit and predictable: every non-trivial ex
 - Pair ANF with CoreTypeInfo for type-guided operator selection.
 
 ## From Surface → ANF (Core)
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph SURFACE["Surface Syntax"]
+        A["let z = ([1,2] ++ [3,4]) in z"]
+    end
+
+    subgraph ANF["Core (ANF)"]
+        B["Let $t1 = List(1,2)"]
+        C["Let $t2 = List(3,4)"]
+        D["Let $t3 = Intrinsic(OpConcat, [$t1, $t2])"]
+        E["In Var($t3)"]
+        B --> C --> D --> E
+    end
+
+    A --> B
+
+    style SURFACE fill:transparent,stroke:#64b5f6,stroke-width:2px
+    style ANF fill:transparent,stroke:#81c784,stroke-width:2px
+```
 
 **Surface:**
 
@@ -79,7 +105,7 @@ $ ailang debug ast myfile.ail --show-types
 
 ## See Also
 
-- [Adding Operators Guide](../guides/adding-operators.md) - Step-by-step operator implementation
+- [Adding Operators Guide](./adding-operators) - Step-by-step operator implementation
 - `internal/core/helpers.go` - ANF traversal utilities
 - `internal/types/typeinfo.go` - CoreTypeInfo implementation
 - `cmd/ailang/debug.go` - Debug CLI implementation

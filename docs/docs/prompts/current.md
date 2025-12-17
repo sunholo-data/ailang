@@ -1,7 +1,13 @@
 ---
-title: v0.5.11 (Current)
+title: Current Teaching Prompt
 sidebar_position: 1
+description: The active AILANG teaching prompt (v0.5.11) - auto-synced from source
 ---
+
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.5.11.md during build -->
+<!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
+<!-- Source: prompts/v0.5.11.md -->
+<!-- Active Version: v0.5.11 -->
 
 # AILANG v0.5.11 - AI Teaching Prompt
 

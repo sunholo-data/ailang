@@ -6,5 +6,5 @@ export pure func test() -> int {
 }
 
 export pure func main() -> int {
-  test
+  test()
 }

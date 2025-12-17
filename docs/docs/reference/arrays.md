@@ -341,4 +341,4 @@ actions := []Action{
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
 - [Go Codegen](/docs/guides/go-interop) - Compiling to Go
 - [Pattern Matching](/docs/reference/language-syntax) - ADTs and matching
-- [Roadmap: Execution Profiles](/docs/roadmap/execution-profiles) - Game development profiles
+- [Roadmap](/docs/roadmap) - Planned features including execution profiles

@@ -643,6 +643,20 @@ pre {
   color: var(--ifm-color-emphasis-500);
 }
 
+/* Callout boxes - work in light and dark mode */
+.callout-box {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  background: rgba(231, 60, 23, 0.08);
+  border: 1px solid rgba(231, 60, 23, 0.15);
+}
+
+[data-theme='dark'] .callout-box {
+  background: rgba(255, 90, 60, 0.1);
+  border: 1px solid rgba(255, 90, 60, 0.2);
+}
+
 /* ============================================
    ANIMATIONS
    ============================================ */

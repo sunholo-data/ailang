@@ -1,6 +1,46 @@
+---
+title: Adding Operators
+sidebar_position: 4
+---
+
 # Adding/Extending Operators in AILANG
 
 This checklist gets you from syntax → types → lowering → runtime with type-guided determinism.
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph SYNTAX["1. Syntax"]
+        A["Lexer Token"]
+        B["Parser Rule"]
+        A --> B
+    end
+
+    subgraph TYPES["2. Type Checking"]
+        C["Principal Type"]
+        D["CoreTypeInfo Entry"]
+        C --> D
+    end
+
+    subgraph LOWER["3. Lowering"]
+        E["Type-Guided\nBuiltin Selection"]
+    end
+
+    subgraph RUNTIME["4. Runtime"]
+        F["Builtin\nImplementation"]
+        G["Error Handling"]
+        F --> G
+    end
+
+    B --> C
+    D --> E
+    E --> F
+
+    style SYNTAX fill:transparent,stroke:#64b5f6,stroke-width:2px
+    style TYPES fill:transparent,stroke:#81c784,stroke-width:2px
+    style LOWER fill:transparent,stroke:#ffb74d,stroke-width:2px
+    style RUNTIME fill:transparent,stroke:#ce93d8,stroke-width:2px
+```
 
 ## 0) Decide: Monomorphic vs Polymorphic
 
@@ -49,7 +89,7 @@ default:
 
 - `internal/builtins/*.go`:
   - Register one builtin per concrete case (`concat_String`, `concat_List`, …).
-  - Type via the builder DSL (M-DX1).
+  - Type via the builder DSL.
   - Write pure, defensive implementations (return helpful errors on mismatch).
 
 ## 6) Runtime Errors
@@ -67,7 +107,7 @@ default:
 
 ## 8) Docs
 
-- Add a short note in `docs/architecture/ANF.md` if the operator has unusual ANF implications.
+- Add a short note in [ANF Architecture](./anf) if the operator has unusual ANF implications.
 - Update examples and the teaching prompt if user-facing.
 
 ## Pitfalls & Remedies
@@ -86,6 +126,6 @@ default:
 
 ## See Also
 
-- [ANF Architecture Guide](../architecture/ANF.md) - Understanding A-Normal Form
-- [M-DX2 Implementation Report](../../design_docs/planned/v0_3_16/M-DX2-COMPLETE.md) - Full sprint details
+- [ANF Architecture Guide](./anf) - Understanding A-Normal Form
+- [Type System](./types) - Type inference and CoreTypeInfo
 - `internal/builtins/README.md` - Builtin registration guide
