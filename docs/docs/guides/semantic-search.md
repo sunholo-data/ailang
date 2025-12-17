@@ -501,7 +501,7 @@ ailang docs search --rebuild        # Rebuild all embeddings
 **Performance with neural search (v0.6.0 benchmarks):**
 - First run: ~4-6s per document (embedding with chunking for large docs)
 - Full corpus (29 design docs): ~128s cold start
-- Subsequent runs: <1s (using cached embeddings)
+- Subsequent runs: &lt;1s (using cached embeddings)
 - Cache is per-corpus, per-model, with content hash staleness detection
 
 ### Messaging System Semantic Search

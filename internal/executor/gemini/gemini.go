@@ -68,7 +68,7 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	args := []string{
 		directive,                 // Positional prompt (with system prompt prepended if any)
 		"--output-format", "json", // Get JSON output (stream-json doesn't stream)
-		"-m", e.getModel(task),    // Model selection
+		"-m", e.getModel(task), // Model selection
 		"-y", // Auto-approve all tool uses (YOLO mode for benchmarks)
 	}
 

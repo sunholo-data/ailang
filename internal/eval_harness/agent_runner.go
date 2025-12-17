@@ -40,7 +40,7 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 // AgentBenchmarkResult captures agent evaluation outcome
 type AgentBenchmarkResult struct {
 	BenchmarkID string
-	Executor    string  // Executor used: "claude", "gemini", etc.
+	Executor    string // Executor used: "claude", "gemini", etc.
 	Success     bool
 	Iterations  int     // Number of agent turns
 	Cost        float64 // Total cost in USD
