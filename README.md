@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-29%20passing%2032%20failing-red.svg)
+![Examples](https://img.shields.io/badge/examples-30%20passing%2032%20failing-red.svg)
 
-**29/61 examples passing (48%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**30/62 examples passing (48%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -68,6 +68,7 @@
 | `runnable/type_classes.ail` | ✅ Pass |  |
 | `runnable/type_inference.ail` | ✅ Pass |  |
 | `runnable/typeclasses.ail` | ✅ Pass |  |
+| `runnable/values_basic.ail` | ✅ Pass |  |
 
 <!-- EXAMPLES_STATUS_END -->
 
