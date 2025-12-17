@@ -202,10 +202,11 @@ func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
 // initializeSearchPaths initializes the search path list
 // Search order (highest priority first):
 // 1. CLI flag (--stdlib-path)
-// 2. Binary-relative (../std from binary location)
-// 3. AILANG_STDLIB_PATH environment variable (colon/semicolon separated)
-// 4. User data directory (platform-specific)
-// 5. System directories (/usr/local/share/ailang/std, /usr/share/ailang/std)
+// 2. Current working directory (./std) - for development and `go run`
+// 3. Binary-relative (../std from binary location)
+// 4. AILANG_STDLIB_PATH environment variable (colon/semicolon separated)
+// 5. User data directory (platform-specific)
+// 6. System directories (/usr/local/share/ailang/std, /usr/share/ailang/std)
 func (r *StdlibResolver) initializeSearchPaths() {
 	var paths []string
 
@@ -214,7 +215,16 @@ func (r *StdlibResolver) initializeSearchPaths() {
 		paths = append(paths, r.cliOverridePath)
 	}
 
-	// 2. Binary-relative path
+	// 2. Current working directory (for development, `go run`, CI)
+	// This is critical for running from repo root where std/ lives
+	if cwd, err := os.Getwd(); err == nil {
+		cwdStd := filepath.Join(cwd, "std")
+		if absPath, err := filepath.Abs(cwdStd); err == nil {
+			paths = append(paths, absPath)
+		}
+	}
+
+	// 3. Binary-relative path
 	if binPath, err := os.Executable(); err == nil {
 		binDir := filepath.Dir(binPath)
 		stdPath := filepath.Join(binDir, "..", "std")
@@ -223,7 +233,7 @@ func (r *StdlibResolver) initializeSearchPaths() {
 		}
 	}
 
-	// 3. AILANG_STDLIB_PATH environment variable (multi-path)
+	// 4. AILANG_STDLIB_PATH environment variable (multi-path)
 	if envPath := os.Getenv("AILANG_STDLIB_PATH"); envPath != "" {
 		sep := getPathSeparator()
 		for _, p := range strings.Split(envPath, sep) {
@@ -234,12 +244,12 @@ func (r *StdlibResolver) initializeSearchPaths() {
 		}
 	}
 
-	// 4. User data directory (platform-specific)
+	// 5. User data directory (platform-specific)
 	if userDir := getUserDataDir(); userDir != "" {
 		paths = append(paths, userDir)
 	}
 
-	// 5. System directories (Unix only)
+	// 6. System directories (Unix only)
 	if runtime.GOOS != "windows" {
 		paths = append(paths,
 			"/usr/local/share/ailang/std",
