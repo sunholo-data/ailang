@@ -35,7 +35,7 @@ Further reading on answering common misconceptions:
 - AILANG is not trying to be a "better python"
 - AILANG as a Semantic Control Surface
 
-Read more about [AILANG vs Agents](docs/docs/roadmpa/ailang-vs-agents.md) concepts.
+Read more about [AILANG vs Agents](docs/docs/roadmap/ailang-vs-agents.md) concepts.
 
 ## 🏗️ Architecture
 
