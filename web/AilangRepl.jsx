@@ -62,6 +62,8 @@ export default function AilangRepl() {
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
+  // Use absolute path - site is now at root, not /ailang/ subdirectory
+  const wasmUrl = '/wasm/ailang.wasm';
 
   // Initialize WASM REPL
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function AilangRepl() {
         }
 
         const replInstance = new window.AilangREPL();
-        await replInstance.init('/ailang/wasm/ailang.wasm');
+        await replInstance.init(wasmUrl);
 
         if (mounted) {
           setRepl(replInstance);
@@ -108,7 +110,7 @@ export default function AilangRepl() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [wasmUrl]);
 
   // Auto-scroll to bottom when history updates
   useEffect(() => {
