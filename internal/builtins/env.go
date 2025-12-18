@@ -27,7 +27,8 @@ func registerEnv() {
 	type1 := func() types.Type {
 		T := types.NewBuilder()
 		// Result(String, EnvError) where EnvError = NotFound(String) | NotAllowed(String)
-		envErrorType := T.App("EnvError", T.String())
+		// Note: EnvError is a non-parameterized ADT (arity 0), use T.Con not T.App
+		envErrorType := T.Con("EnvError")
 		resultType := T.App("Result", T.String(), envErrorType)
 		return T.Func(T.String()).Returns(resultType).Effects("Env")
 	}

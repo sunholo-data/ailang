@@ -445,3 +445,76 @@ func TestLOCReduction(t *testing.T) {
 	// - Reusable (headerType extracted once)
 	// - ~70% fewer lines than nested structs
 }
+
+// TestNonParameterizedADTInResult verifies that non-parameterized ADTs
+// work correctly as type arguments to parameterized types like Result[T, E].
+//
+// This tests the fix for M-ENV-TYPE bug where EnvError (arity 0) was incorrectly
+// defined as EnvError[string] (arity 1) in the builtin registration.
+//
+// The key insight: constructor FIELD types (e.g., NotFound(string)) are different
+// from type PARAMETERS (e.g., Option[T]). EnvError has no type parameters.
+func TestNonParameterizedADTInResult(t *testing.T) {
+	b := NewBuilder()
+
+	// EnvError is a non-parameterized ADT:
+	//   type EnvError = NotFound(string) | NotAllowed(string)
+	// It has arity 0 - the (string) is a constructor field, NOT a type parameter.
+	envErrorType := b.Con("EnvError")
+
+	// Result is a parameterized type with 2 type parameters:
+	//   type Result[a, e] = Ok(a) | Err(e)
+	resultType := b.App("Result", b.String(), envErrorType)
+
+	// Verify EnvError is a simple type constructor (TCon), not a type application (TApp)
+	require.IsType(t, &TCon{}, envErrorType, "EnvError should be TCon (arity 0), not TApp")
+	assert.Equal(t, "EnvError", envErrorType.(*TCon).Name)
+
+	// Verify Result[string, EnvError] is correctly structured
+	require.IsType(t, &TApp{}, resultType, "Result[string, EnvError] should be TApp")
+	app := resultType.(*TApp)
+
+	// Check the constructor is Result (TApp stores constructor directly with all args)
+	require.IsType(t, &TCon{}, app.Constructor)
+	assert.Equal(t, "Result", app.Constructor.(*TCon).Name)
+	assert.Len(t, app.Args, 2, "Result should have 2 type arguments")
+
+	// Verify type string is correct (no spurious type argument on EnvError)
+	typeStr := resultType.String()
+	assert.Contains(t, typeStr, "Result")
+	assert.Contains(t, typeStr, "string")
+	assert.Contains(t, typeStr, "EnvError")
+	// Critical: EnvError should NOT have [string] appended
+	assert.NotContains(t, typeStr, "EnvError[string]",
+		"EnvError is arity 0, should not have type arguments")
+
+	// Contrast: Option[int] is correct because Option IS parameterized
+	optionType := b.App("Option", b.Int())
+	optionStr := optionType.String()
+	assert.Contains(t, optionStr, "Option")
+	assert.Contains(t, optionStr, "int")
+}
+
+// TestBuilderConVsApp documents the difference between T.Con and T.App
+// to prevent future confusion.
+func TestBuilderConVsApp(t *testing.T) {
+	b := NewBuilder()
+
+	// T.Con("X") creates a simple type constructor (arity 0)
+	// Use for: EnvError, NetError, Color, Direction, etc.
+	simpleCon := b.Con("EnvError")
+	assert.IsType(t, &TCon{}, simpleCon)
+	assert.Equal(t, "EnvError", simpleCon.String())
+
+	// T.App("X", args...) creates a type application (arity > 0)
+	// Use for: Option[T], Result[T, E], List[T], etc.
+	paramType := b.App("Option", b.Int())
+	assert.IsType(t, &TApp{}, paramType)
+	assert.Contains(t, paramType.String(), "Option")
+	assert.Contains(t, paramType.String(), "int")
+
+	// Common mistake: using T.App for non-parameterized types
+	// This was the bug in M-ENV-TYPE:
+	//   WRONG:  T.App("EnvError", T.String())  // Creates EnvError[string]
+	//   RIGHT:  T.Con("EnvError")               // Creates EnvError
+}

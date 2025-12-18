@@ -1,6 +1,6 @@
 # M-ENV-TYPE: Fix std/env EnvError Type Parameter Bug
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.6.1
 **Priority**: P1 (High - breaks stdlib module)
 **Estimated**: 2-4 hours

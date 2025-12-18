@@ -26,7 +26,7 @@ _debug_log : (string, string) -> () ! {Debug}
 _embedding_decode : bytes -> Option[list[float]]
 _embedding_encode : list[float] -> bytes
 _env_getArgs : () -> list[string] ! {Env}
-_env_getEnv : string -> Result[string, EnvError[string]] ! {Env}
+_env_getEnv : string -> Result[string, EnvError] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _float_to_int : float -> int
 _fs_exists : string -> bool ! {FS}
