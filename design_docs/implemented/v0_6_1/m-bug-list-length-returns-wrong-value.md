@@ -1,10 +1,12 @@
 # M-BUG: List Length Returns Sum Instead of Count
 
-**Status**: Planned
+**Status**: ✅ Resolved (by M-LETREC-SCOPING)
 **Target**: v0.6.1
 **Priority**: P1 (Medium)
 **Estimated**: 2-4 hours
+**Actual**: 0 hours (already fixed)
 **Dependencies**: None
+**Resolution Commit**: `752cf226` (Dec 18, 2025)
 
 ## AI-First Alignment Check
 
@@ -115,12 +117,12 @@ EOF
 
 ## Success Criteria
 
-- [ ] `length` function returns correct count (5 for 5-element list)
-- [ ] `sum` function still works correctly (15 for [1,2,3,4,5])
-- [ ] Wildcard patterns work correctly in all positions
-- [ ] Multiple letrec blocks work independently
-- [ ] All existing tests pass
-- [ ] Add regression test to prevent recurrence
+- [x] `length` function returns correct count (5 for 5-element list)
+- [x] `sum` function still works correctly (15 for [1,2,3,4,5])
+- [x] Wildcard patterns work correctly in all positions
+- [x] Multiple letrec blocks work independently
+- [x] All existing tests pass
+- [x] Regression test added (`internal/pipeline/specialize_integration_test.go`)
 
 ## Testing Strategy
 
@@ -144,5 +146,32 @@ EOF
 
 ---
 
+## Resolution
+
+**Root Cause:** Monomorphization cache key collision for lambdas.
+
+The monomorphization system used a generic `"(lambda)"` key for ALL anonymous lambdas with the same type signature. When two lambdas had identical types (like `sum` and `length`, both `IntList -> int`), they would share the same cache key, causing the second lambda to incorrectly receive the first lambda's specialized body.
+
+**The Fix (commit `752cf226`):**
+```go
+// Before (broken):
+DefSym: "(lambda)"  // Same key for all lambdas with same type!
+
+// After (fixed):
+DefSym: fmt.Sprintf("(lambda@%d)", lambda.ID())  // Unique per lambda
+```
+
+**Verification:**
+```bash
+$ ./bin/ailang run examples/runnable/list_sum.ail
+(15, 5)  # ✅ CORRECT: sum=15, length=5
+```
+
+**Related:**
+- Design doc: `design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md`
+- Tests: `internal/pipeline/specialize_integration_test.go`
+
+---
+
 **Document created**: 2025-12-17
-**Last updated**: 2025-12-17
+**Last updated**: 2025-12-18
