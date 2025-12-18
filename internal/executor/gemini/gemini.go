@@ -148,11 +148,11 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	go func() {
 		// Read stderr in background (debug output)
 		go func() {
-			io.Copy(&stderrBuf, stderr)
+			_, _ = io.Copy(&stderrBuf, stderr)
 		}()
 
 		// Read stdout (JSON result)
-		io.Copy(&stdoutBuf, stdout)
+		_, _ = io.Copy(&stdoutBuf, stdout)
 
 		done <- cmd.Wait()
 	}()

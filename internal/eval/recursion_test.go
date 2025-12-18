@@ -509,6 +509,111 @@ func TestMatchRecursion_DeepInt64Patterns(t *testing.T) {
 	}
 }
 
+// TestSequentialLetRec_Bug tests the sequential letrec scoping bug
+// This is a regression test for the bug where sequential letrec expressions
+// with recursive lambdas fail at runtime.
+// Expected: Both letrecs should work independently
+func TestSequentialLetRec_Bug(t *testing.T) {
+	// Build: let r1 = letrec a = λn. if n==0 then 1 else n*a(n-1) in a(3)
+	//        in let r2 = letrec b = λn. if n==0 then 1 else n*b(n-1) in b(3)
+	//        in ()
+	// This simulates what the block elaboration produces
+
+	// First letrec: a = λn. if n==0 then 1 else n*a(n-1) in a(3)
+	aBody := &core.If{
+		Cond: &core.BinOp{
+			Op:    "==",
+			Left:  &core.Var{Name: "n"},
+			Right: &core.Lit{Kind: core.IntLit, Value: 0},
+		},
+		Then: &core.Lit{Kind: core.IntLit, Value: 1},
+		Else: &core.BinOp{
+			Op:   "*",
+			Left: &core.Var{Name: "n"},
+			Right: &core.App{
+				Func: &core.Var{Name: "a"},
+				Args: []core.CoreExpr{
+					&core.BinOp{
+						Op:    "-",
+						Left:  &core.Var{Name: "n"},
+						Right: &core.Lit{Kind: core.IntLit, Value: 1},
+					},
+				},
+			},
+		},
+	}
+
+	letrec1 := &core.LetRec{
+		Bindings: []core.RecBinding{
+			{Name: "a", Value: &core.Lambda{Params: []string{"n"}, Body: aBody}},
+		},
+		Body: &core.App{
+			Func: &core.Var{Name: "a"},
+			Args: []core.CoreExpr{&core.Lit{Kind: core.IntLit, Value: 3}},
+		},
+	}
+
+	// Second letrec: b = λn. if n==0 then 1 else n*b(n-1) in b(3)
+	bBody := &core.If{
+		Cond: &core.BinOp{
+			Op:    "==",
+			Left:  &core.Var{Name: "n"},
+			Right: &core.Lit{Kind: core.IntLit, Value: 0},
+		},
+		Then: &core.Lit{Kind: core.IntLit, Value: 1},
+		Else: &core.BinOp{
+			Op:   "*",
+			Left: &core.Var{Name: "n"},
+			Right: &core.App{
+				Func: &core.Var{Name: "b"},
+				Args: []core.CoreExpr{
+					&core.BinOp{
+						Op:    "-",
+						Left:  &core.Var{Name: "n"},
+						Right: &core.Lit{Kind: core.IntLit, Value: 1},
+					},
+				},
+			},
+		},
+	}
+
+	letrec2 := &core.LetRec{
+		Bindings: []core.RecBinding{
+			{Name: "b", Value: &core.Lambda{Params: []string{"n"}, Body: bBody}},
+		},
+		Body: &core.App{
+			Func: &core.Var{Name: "b"},
+			Args: []core.CoreExpr{&core.Lit{Kind: core.IntLit, Value: 3}},
+		},
+	}
+
+	// Nested Let structure: let r1 = letrec1 in let r2 = letrec2 in ()
+	inner := &core.Let{
+		Name:  "r2",
+		Value: letrec2,
+		Body:  &core.Lit{Kind: core.UnitLit, Value: "()"},
+	}
+
+	outer := &core.Let{
+		Name:  "r1",
+		Value: letrec1,
+		Body:  inner,
+	}
+
+	evaluator := NewCoreEvaluator()
+	evaluator.SetExperimentalBinopShim(true)
+	result, err := evaluator.evalCore(outer)
+
+	if err != nil {
+		t.Fatalf("Expected sequential letrec to succeed, got error: %v", err)
+	}
+
+	// Result should be unit
+	if _, ok := result.(*UnitValue); !ok {
+		t.Errorf("Expected UnitValue, got %T: %v", result, result)
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && findSubstring(s, substr))

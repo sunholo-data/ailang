@@ -1,9 +1,10 @@
 # M-LETREC-SCOPING: Fix Letrec Recursive Binding Scope Regression
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.6.1
 **Priority**: P1 (High - breaks documented feature)
 **Estimated**: 2-4 hours
+**Actual**: ~2 hours
 **Dependencies**: None
 
 ## AI-First Alignment Check
@@ -64,74 +65,112 @@ let fact_result = letrec factorial = \n. if n == 0 then 1 else n * factorial(n -
 
 ## Root Cause Analysis
 
+### Original Hypothesis (WRONG)
+
 **Suspected locations to investigate:**
 
 1. **Type Checker** (`internal/types/typechecker.go`)
    - `inferLetRec` or similar - does it add binding to environment before checking body?
-   - Compare with how module `func` declarations handle recursion
 
 2. **Elaboration** (`internal/elaborate/elaborate.go`)
    - `case *ast.LetRec:` - does it elaborate in recursive environment?
-   - Should create `core.LetRec` with binding visible in value
 
 3. **Parser** (`internal/parser/parser.go`)
    - Less likely - syntax parses, just scoping is broken
 
-**Investigation steps:**
-```bash
-# Debug elaboration
-DEBUG_ELAB=1 ./bin/ailang run --caps IO --entry main examples/runnable/letrec_recursion.ail
+### Actual Root Cause: MONOMORPHIZATION CACHE KEY COLLISION
 
-# Compare with working module func recursion
-./bin/ailang run --caps IO --entry main examples/runnable/test_fizzbuzz.ail  # Uses module func
+**Discovery process:**
+1. Type checking and elaboration were working correctly
+2. Bug only manifested at runtime, not during compilation
+3. Single letrecs worked; sequential letrecs failed
+4. `--no-mono` flag made the bug disappear → monomorphization was the culprit
+
+**The Bug (in `internal/pipeline/specialize_lambda.go`):**
+
+```go
+// WRONG - All lambdas shared the same cache key!
+key := SpecializationKey{
+    DefSym:           "(lambda)",  // <-- PROBLEM: same for ALL lambdas
+    TypesFingerprint: fingerprint,
+}
 ```
+
+**What happened:**
+1. First letrec: `a = \n. if n == 0 then 1 else n * a(n - 1)` specializes, cached with key `{DefSym: "(lambda)", Type: "int"}`
+2. Second letrec: `b = \n. if n == 0 then 1 else n * b(n - 1)` ALSO has key `{DefSym: "(lambda)", Type: "int"}`
+3. Cache hit! Returns `a`'s specialized body for `b`
+4. `b`'s body now tries to call `a` instead of `b`
+5. Runtime error: "undefined variable: a"
+
+**Why this was hard to find:**
+- Elaboration output was CORRECT (distinct Var nodes for `a` and `b`)
+- Type checking was CORRECT
+- Only at runtime, after monomorphization, did wrong code execute
+- Single letrecs worked (no cache collision)
+- Non-recursive lambdas might produce wrong results silently without crashing
 
 ## Solution Design
 
 ### Overview
 
-Restore recursive scoping by ensuring the `letrec` binding name is added to the type environment BEFORE type-checking the value expression.
+**The fix:** Include lambda's unique NodeID in the specialization cache key to prevent different lambdas with the same type from sharing cached specialized bodies.
 
-### Expected Code Flow
+### The Fix (in `internal/pipeline/specialize_lambda.go`)
 
-**Correct behavior (how `func` works):**
-1. Register function name in environment with fresh type variable
-2. Type-check function body (can reference own name)
-3. Unify inferred type with registered type variable
-4. Type-check usage sites
+```go
+// CORRECT - Each lambda has unique cache key
+key := SpecializationKey{
+    DefSym:           fmt.Sprintf("(lambda@%d)", lambda.ID()),  // Include NodeID!
+    TypesFingerprint: fingerprint,
+}
+```
 
-**Bug behavior (what `letrec` is doing):**
-1. Type-check value expression (WRONG - name not in env yet!)
-2. Register binding
-3. Fail with "undefined variable"
+### Why This Works
 
-### Implementation Plan
+1. Each lambda node in Core AST has a unique NodeID (assigned by `freshNodeID()`)
+2. Including NodeID in cache key means `(lambda@42)` ≠ `(lambda@43)` even with same type
+3. Different lambdas now get their own cached specializations
+4. M-LETREC-SCOPING comment documents why this is critical
 
-**Phase 1: Diagnosis** (~1 hour)
-- [ ] Add debug logging to `inferLetRec` in type checker
-- [ ] Trace environment before/after binding registration
-- [ ] Compare with `inferFunc` or module function handling
-- [ ] Identify exact line where scoping breaks
+### Files Modified
 
-**Phase 2: Fix** (~1-2 hours)
-- [ ] Modify type checker to add binding BEFORE checking value
-- [ ] Use RefCell pattern (or equivalent) for deferred type
-- [ ] Ensure elaboration creates correct `core.LetRec` node
+**The actual fix (1 line):**
+- `internal/pipeline/specialize_lambda.go:84` - Include lambda ID in cache key
 
-**Phase 3: Testing** (~1 hour)
-- [ ] Verify `examples/runnable/letrec_recursion.ail` passes
-- [ ] Add unit test for letrec scoping
-- [ ] Run full test suite to catch regressions
-- [ ] Update example verification (`make verify-examples`)
+## Broader Impact & Related Issues
 
-### Files to Modify
+### What This Bug Exposed
 
-**Primary suspects:**
-- `internal/types/typechecker.go` - Fix recursive environment setup (~20 LOC change)
-- `internal/elaborate/elaborate.go` - Ensure correct Core node generation (~10 LOC)
+This was more far-reaching than just the sequential letrecs edge case:
 
-**Testing:**
-- `internal/types/typechecker_test.go` - Add letrec scoping test (~30 LOC)
+1. **ANY two anonymous lambdas with same type would collide:**
+   - `let f = \x. x + 1; let g = \x. x * 2` - both `int -> int`
+   - `map(\x. x+1, xs); map(\x. x*2, ys)` - both mapper lambdas
+   - Higher-order functions receiving multiple callbacks
+
+2. **Why letrec exposed it:** The recursive case made it obvious because:
+   - Lambda body for `b` (should call `b`) got swapped with cached body for `a` (calls `a`)
+   - Immediate "undefined variable: a" error
+   - Non-recursive lambdas would produce **wrong results silently**
+
+### Related Caching to Audit
+
+Check these for similar cache key collision risks:
+
+| Location | Status | Notes |
+|----------|--------|-------|
+| `specialize_lambda.go` | ✅ FIXED | Now includes NodeID |
+| `specialize.go` named functions | ✅ OK | Uses function name in key |
+| `type_cache` in type checker | ⚠️ CHECK | May have similar issue with polymorphic lambdas |
+
+### Recommended Test Coverage
+
+Add regression tests for:
+1. ✅ Sequential letrecs with same type
+2. 🔲 Sequential let bindings with lambdas of same type
+3. 🔲 Higher-order functions with multiple callbacks
+4. 🔲 Nested lambdas with same type at different scopes
 
 ## Examples
 
@@ -165,12 +204,11 @@ Is 42 even? true
 
 ## Success Criteria
 
-- [ ] `letrec factorial = \n. ... factorial(n-1) ...` compiles and runs
-- [ ] `examples/runnable/letrec_recursion.ail` passes verification
-- [ ] Unit test added for letrec recursive scoping
-- [ ] `make test` passes
-- [ ] `make verify-examples` shows improved pass rate (54/56 → 55/56)
-- [ ] No regressions in existing functionality
+- [x] `letrec factorial = \n. ... factorial(n-1) ...` compiles and runs
+- [x] Sequential letrecs work: `let r1 = letrec a = ... in a(3); let r2 = letrec b = ... in b(3)`
+- [x] `make test` passes (all tests pass)
+- [x] `make verify-examples` passes (61/62 - cli_args_demo.ail fails due to unrelated nullary function issue)
+- [x] No regressions in existing functionality
 
 ## Testing Strategy
 
@@ -230,4 +268,13 @@ echo 'letrec fac = \n. if n == 0 then 1 else n * fac(n-1) in fac(5)' | ./bin/ail
 ---
 
 **Document created**: 2025-12-17
-**Last updated**: 2025-12-17
+**Last updated**: 2025-12-18
+**Implemented**: 2025-12-18
+
+## Implementation Notes
+
+**Key learnings:**
+1. When debugging "scope" bugs, check ALL compilation phases including monomorphization
+2. `--no-mono` flag is a powerful diagnostic tool for isolating monomorphization bugs
+3. Cache keys for anonymous constructs MUST include unique identifiers (NodeID, hash, etc.)
+4. Bugs that cause "wrong code" silently are much worse than bugs that crash - the recursive case crashed which made debugging possible

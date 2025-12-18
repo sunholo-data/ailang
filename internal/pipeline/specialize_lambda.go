@@ -75,9 +75,13 @@ func (s *Specializer) specializeLambda(lambda *core.Lambda, argTypes []types.Typ
 	}
 
 	// Generate cache key
+	// CRITICAL: Include lambda's NodeID to distinguish different lambdas with same type
+	// M-LETREC-SCOPING: Without this, two lambdas like `\n. n*a(n-1)` and `\n. n*b(n-1)`
+	// both with type `int -> int` would share the same cache key, causing b's call
+	// to incorrectly use a's specialized body.
 	fingerprint := canonicalTypeFingerprint(argTypes)
 	key := SpecializationKey{
-		DefSym:           "(lambda)",
+		DefSym:           fmt.Sprintf("(lambda@%d)", lambda.ID()),
 		TypesFingerprint: fingerprint,
 	}
 

@@ -335,3 +335,93 @@ func TestMonomorphization_EmptyProgram(t *testing.T) {
 		t.Errorf("Expected 0 specializations for literal, got %d", stats.TotalSpecializations)
 	}
 }
+
+// TestMonomorphization_DifferentLambdasSameType_NoCacheCollision is a regression test
+// for M-LETREC-SCOPING: Two different lambdas with the same type must NOT share cache entries.
+//
+// Bug scenario that this prevents:
+//   letrec a = \n. ... a(n-1) ... in a(3)   -- first lambda, type int -> int
+//   letrec b = \n. ... b(n-1) ... in b(3)   -- second lambda, ALSO type int -> int
+//
+// Without proper cache keys, b's specialization would return a's cached body,
+// causing b's recursive call to reference 'a' instead of 'b'.
+func TestMonomorphization_DifferentLambdasSameType_NoCacheCollision(t *testing.T) {
+	// Create two distinct lambdas with identical types but different bodies
+	// Lambda 1: \x -> x (returns "a" reference for simulation)
+	lambda1 := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 100}, // Unique NodeID
+		Params:   []string{"x"},
+		Body:     &core.Var{CoreNode: core.CoreNode{NodeID: 101}, Name: "a"},
+	}
+
+	// Lambda 2: \x -> x (returns "b" reference for simulation)
+	lambda2 := &core.Lambda{
+		CoreNode: core.CoreNode{NodeID: 200}, // Different NodeID
+		Params:   []string{"x"},
+		Body:     &core.Var{CoreNode: core.CoreNode{NodeID: 201}, Name: "b"},
+	}
+
+	// Both lambdas have identical type: int -> int
+	coreTI := types.NewCoreTypeInfo()
+	lambdaType := &types.TFunc2{
+		Params:    []types.Type{types.TInt},
+		Return:    types.TInt,
+		EffectRow: &types.Row{Kind: types.KEffect{}, Labels: map[string]types.Type{}, Tail: nil},
+	}
+	coreTI.Set(lambda1.ID(), lambdaType)
+	coreTI.Set(lambda1.Body.ID(), types.TInt)
+	coreTI.Set(lambda2.ID(), lambdaType)
+	coreTI.Set(lambda2.Body.ID(), types.TInt)
+
+	specializer := NewSpecializer(&coreTI)
+	argTypes := []types.Type{types.TInt}
+	env := make(map[string]types.Type)
+
+	// Specialize first lambda
+	result1, err := specializer.specializeLambda(lambda1, argTypes, env)
+	if err != nil {
+		t.Fatalf("First specialization error: %v", err)
+	}
+
+	// Specialize second lambda (same type, different body)
+	result2, err := specializer.specializeLambda(lambda2, argTypes, env)
+	if err != nil {
+		t.Fatalf("Second specialization error: %v", err)
+	}
+
+	// CRITICAL: They must NOT be the same object (cache collision)
+	if result1 == result2 && result1 != nil {
+		t.Fatalf("M-LETREC-SCOPING REGRESSION: Different lambdas with same type returned same cached specialization!")
+	}
+
+	// Verify they have different NodeIDs if both succeeded
+	if result1 != nil && result2 != nil {
+		if result1.ID() == result2.ID() {
+			t.Errorf("Specialized lambdas should have different NodeIDs, both have %d", result1.ID())
+		}
+
+		// Verify their bodies reference different variables
+		body1, ok1 := result1.Body.(*core.Var)
+		body2, ok2 := result2.Body.(*core.Var)
+		if ok1 && ok2 {
+			if body1.Name == body2.Name {
+				t.Errorf("Specialized lambda bodies should reference different variables, both reference '%s'", body1.Name)
+			}
+			t.Logf("Lambda 1 body references: %s, Lambda 2 body references: %s", body1.Name, body2.Name)
+		}
+	}
+
+	stats := specializer.GetStats()
+	t.Logf("Stats: %d specializations, cache: %d hits / %d misses",
+		stats.TotalSpecializations, stats.CacheHits, stats.CacheMisses)
+
+	// Should have 2 specializations (no cache collision)
+	if stats.TotalSpecializations < 2 && result1 != nil && result2 != nil {
+		t.Errorf("Expected 2 specializations for different lambdas, got %d", stats.TotalSpecializations)
+	}
+
+	// Should have 2 cache misses (each lambda is unique)
+	if stats.CacheMisses < 2 && result1 != nil && result2 != nil {
+		t.Errorf("Expected 2 cache misses for different lambdas, got %d", stats.CacheMisses)
+	}
+}
