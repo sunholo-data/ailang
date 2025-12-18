@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-60%20passing%202%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-61%20passing%201%20failing-green.svg)
 
-**60/62 examples passing (97%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**61/62 examples passing (98%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -40,7 +40,7 @@
 | `runnable/lambdas_closures.ail` | ✅ Pass |  |
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
-| `runnable/letrec_recursion.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/letrec_recursion.ail` | ✅ Pass |  |
 | `runnable/list_patterns.ail` | ✅ Pass |  |
 | `runnable/list_sum.ail` | ✅ Pass |  |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
