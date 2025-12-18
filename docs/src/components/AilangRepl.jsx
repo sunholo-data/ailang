@@ -9,8 +9,7 @@
  * ```
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import useBaseUrl from '@docusaurus/useBaseUrl';
+import { useEffect, useRef, useState } from 'react';
 
 // Basic terminal-like styling (customize to match your theme)
 const styles = {
@@ -63,7 +62,8 @@ export default function AilangRepl() {
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
-  const wasmUrl = useBaseUrl('/wasm/ailang.wasm');
+  // Use absolute path directly - useBaseUrl was incorrectly prepending /ailang/
+  const wasmUrl = '/wasm/ailang.wasm';
 
   // Initialize WASM REPL
   useEffect(() => {
