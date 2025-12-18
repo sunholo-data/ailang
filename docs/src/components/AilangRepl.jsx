@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 // Basic terminal-like styling (customize to match your theme)
 const styles = {
@@ -62,6 +63,7 @@ export default function AilangRepl() {
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
+  const wasmUrl = useBaseUrl('/wasm/ailang.wasm');
 
   // Initialize WASM REPL
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function AilangRepl() {
         }
 
         const replInstance = new window.AilangREPL();
-        await replInstance.init('/wasm/ailang.wasm');
+        await replInstance.init(wasmUrl);
 
         if (mounted) {
           setRepl(replInstance);
@@ -108,7 +110,7 @@ export default function AilangRepl() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [wasmUrl]);
 
   // Auto-scroll to bottom when history updates
   useEffect(() => {
