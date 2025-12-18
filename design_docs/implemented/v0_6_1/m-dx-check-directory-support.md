@@ -1,6 +1,6 @@
 # M-DX: Add Directory Support to `ailang check`
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.6.1
 **Priority**: P2 (Low)
 **Estimated**: 2 hours
