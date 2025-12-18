@@ -16,6 +16,8 @@ on:
       - 'cmd/**'
       - 'go.mod'
       - 'go.sum'
+      # Web assets (REPL component, etc.)
+      - 'web/**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
