@@ -135,8 +135,16 @@ func main() {
 		_ = checkFS.Parse(flag.Args()[1:])
 
 		if checkFS.NArg() < 1 {
-			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
-			fmt.Println("Usage: ailang check [--strict-syntax] [--relax-modules] [--timeout <duration>] [--debug-compile] <file.ail>")
+			fmt.Fprintf(os.Stderr, "%s: missing file or directory argument\n", red("Error"))
+			fmt.Println("Usage: ailang check [options] <file.ail|directory>")
+			fmt.Println()
+			fmt.Println("Options:")
+			fmt.Println("  --strict-syntax    Disable syntactic sugar (require canonical syntax)")
+			fmt.Println("  --relax-modules    Relax MOD010 validation (allow module path mismatches)")
+			fmt.Println("  --timeout <dur>    Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
+			fmt.Println("  --debug-compile    Show compilation phase timing breakdown")
+			fmt.Println()
+			fmt.Println("If a directory is given, all .ail files are checked recursively.")
 			os.Exit(1)
 		}
 		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck)

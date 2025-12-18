@@ -340,8 +340,9 @@ func TestMonomorphization_EmptyProgram(t *testing.T) {
 // for M-LETREC-SCOPING: Two different lambdas with the same type must NOT share cache entries.
 //
 // Bug scenario that this prevents:
-//   letrec a = \n. ... a(n-1) ... in a(3)   -- first lambda, type int -> int
-//   letrec b = \n. ... b(n-1) ... in b(3)   -- second lambda, ALSO type int -> int
+//
+//	letrec a = \n. ... a(n-1) ... in a(3)   -- first lambda, type int -> int
+//	letrec b = \n. ... b(n-1) ... in b(3)   -- second lambda, ALSO type int -> int
 //
 // Without proper cache keys, b's specialization would return a's cached body,
 // causing b's recursive call to reference 'a' instead of 'b'.

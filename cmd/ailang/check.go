@@ -13,6 +13,18 @@ import (
 )
 
 func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+	// Check if path is a directory
+	info, err := os.Stat(filename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot access '%s': %v\n", red("Error"), filename, err)
+		os.Exit(1)
+	}
+
+	if info.IsDir() {
+		checkDirectory(filename, strictSyntax, relaxModules, timeout, debugCompile)
+		return
+	}
+
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -288,4 +300,137 @@ func exportTraining() {
 	fmt.Printf("  Formatting for fine-tuning...\n")
 
 	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
+}
+
+// checkDirectory recursively checks all .ail files in a directory
+func checkDirectory(dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+	var files []string
+
+	// Walk directory to find all .ail files
+	walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".ail") {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	if walkErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: cannot walk directory '%s': %v\n", red("Error"), dir, walkErr)
+		os.Exit(1)
+	}
+
+	// Handle empty directory
+	if len(files) == 0 {
+		fmt.Printf("%s No .ail files found in %s\n", yellow("⚠"), dir)
+		return
+	}
+
+	// Sort files for deterministic ordering
+	sort.Strings(files)
+
+	fmt.Printf("%s Checking %d .ail files in %s...\n\n", cyan("→"), len(files), dir)
+
+	// Track results
+	var passed, failed int
+	var errors []string
+
+	// Parse timeout once if specified
+	var timeoutDuration time.Duration
+	if timeout != "" {
+		var err error
+		timeoutDuration, err = time.ParseDuration(timeout)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: invalid timeout duration '%s': %v\n", red("Error"), timeout, err)
+			fmt.Println("Examples: 30s, 2m, 1m30s")
+			os.Exit(1)
+		}
+	}
+
+	// Check AILANG_RELAX_MODULES environment variable
+	relaxModulesEffective := relaxModules
+	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
+		switch strings.ToLower(envVal) {
+		case "1", "true", "yes":
+			relaxModulesEffective = true
+		}
+	}
+
+	// Check each file
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("%s: cannot read: %v", file, err))
+			failed++
+			continue
+		}
+
+		cfg := pipeline.Config{
+			DryLink:          true,
+			StrictSyntaxMode: strictSyntax,
+			RelaxModules:     relaxModulesEffective,
+			DebugCompile:     debugCompile,
+		}
+		src := pipeline.Source{
+			Code:     string(content),
+			Filename: file,
+			IsREPL:   false,
+		}
+
+		// Run check (with or without timeout)
+		var result pipeline.Result
+		var checkErr error
+
+		if timeoutDuration > 0 {
+			done := make(chan struct{})
+			go func() {
+				result, checkErr = pipeline.Run(cfg, src)
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				// Check completed
+			case <-time.After(timeoutDuration):
+				errors = append(errors, fmt.Sprintf("%s: timed out after %s", file, timeout))
+				failed++
+				continue
+			}
+		} else {
+			result, checkErr = pipeline.Run(cfg, src)
+		}
+
+		if checkErr != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", file, checkErr))
+			failed++
+			continue
+		}
+
+		if len(result.Errors) > 0 {
+			for _, e := range result.Errors {
+				errors = append(errors, fmt.Sprintf("%s: %v", file, e))
+			}
+			failed++
+			fmt.Printf("  %s %s\n", red("✗"), file)
+		} else {
+			passed++
+			fmt.Printf("  %s %s\n", green("✓"), file)
+		}
+	}
+
+	// Print summary
+	fmt.Println()
+	if failed == 0 {
+		fmt.Printf("%s %d files checked, all passed!\n", green("✓"), passed)
+	} else {
+		fmt.Printf("%s %d files checked: %d passed, %d failed\n", red("✗"), passed+failed, passed, failed)
+		fmt.Println()
+		fmt.Println("Errors:")
+		for _, e := range errors {
+			fmt.Printf("  • %s\n", e)
+		}
+		os.Exit(1)
+	}
 }
