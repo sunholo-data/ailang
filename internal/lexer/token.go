@@ -52,6 +52,11 @@ const (
 	TIMEOUT
 	AS // as (import aliasing)
 
+	// Contract keywords (M-VERIFY)
+	REQUIRES  // requires
+	ENSURES   // ensures
+	INVARIANT // invariant
+
 	// Operators
 	PLUS      // +
 	MINUS     // -
@@ -159,6 +164,9 @@ var tokens = map[TokenType]string{
 	RECV:       "recv",
 	TIMEOUT:    "timeout",
 	AS:         "as",
+	REQUIRES:   "requires",
+	ENSURES:    "ensures",
+	INVARIANT:  "invariant",
 
 	PLUS:      "+",
 	MINUS:     "-",
@@ -259,6 +267,9 @@ var keywords = map[string]TokenType{
 	"recv":       RECV,
 	"timeout":    TIMEOUT,
 	"as":         AS,
+	"requires":   REQUIRES,
+	"ensures":    ENSURES,
+	"invariant":  INVARIANT,
 	"true":       TRUE,
 	"false":      FALSE,
 	"not":        NOT,
@@ -356,6 +367,7 @@ func (t Token) IsKeyword() bool {
 		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
 		SEND, RECV, TIMEOUT,
+		REQUIRES, ENSURES, INVARIANT, // M-VERIFY contract keywords
 		TRUE, FALSE:
 		return true
 	}
