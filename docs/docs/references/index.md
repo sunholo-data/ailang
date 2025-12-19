@@ -110,7 +110,7 @@ AILANG compiles pattern matching to decision trees for efficiency.
 
 > **Maranget, L.** (2008). Compiling Pattern Matching to Good Decision Trees. *Proceedings of the 2008 ACM SIGPLAN Workshop on ML*, 35–46. ACM.
 > DOI: [10.1145/1411304.1411311](https://doi.org/10.1145/1411304.1411311)
-> PDF: [INRIA](http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf)
+> PDF: [Tufts CS](https://www.cs.tufts.edu/~nr/cs257/archive/luc-maranget/jun08.pdf)
 
 **Key contribution**: Novel heuristics inspired by "necessity" from lazy pattern matching. Decision trees never test a given subterm more than once (at the cost of potential code size explosion). The necessity heuristic provides a straightforward connection to runtime efficiency.
 

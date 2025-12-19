@@ -9,7 +9,7 @@ DOCS_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$DOCS_DIR")"
 DESIGN_DOCS_DIR="$PROJECT_ROOT/design_docs"
 
-GITHUB_BASE="https://github.com/sunholo-data/ailang/blob/main/design_docs"
+GITHUB_BASE="https://github.com/sunholo-data/ailang/blob/dev/design_docs"
 
 # Output files
 IMPLEMENTED_OUTPUT="$DOCS_DIR/docs/design-docs.md"
@@ -49,7 +49,7 @@ sidebar_position: 100
 
 # Design Documents
 
-This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/main/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
+This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 EOF
 
@@ -111,7 +111,7 @@ sidebar_position: 1
 
 # AILANG Roadmap
 
-This page is automatically generated from the [design_docs/planned](https://github.com/sunholo-data/ailang/tree/main/design_docs/planned) directory. Each item represents a planned feature or improvement with a detailed design document.
+This page is automatically generated from the [design_docs/planned](https://github.com/sunholo-data/ailang/tree/dev/design_docs/planned) directory. Each item represents a planned feature or improvement with a detailed design document.
 
 For completed features, see [Design Documents](/docs/design-docs).
 

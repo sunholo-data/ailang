@@ -9,6 +9,117 @@ Implement foundational contract infrastructure (AST, parser, lexer) and runtime 
 **Risk Level:** Low - leverages existing patterns extensively
 **Target Version:** v0.6.2
 
+---
+
+## ✅ SPRINT COMPLETE (December 2025)
+
+**Completed:** 2025-12-19
+**Actual Duration:** ~10-12 hours across 2 sessions
+
+### Implementation Summary
+
+All milestones completed. Runtime contract checking is now available via `--verify-contracts` flag.
+
+| Milestone | Status | Actual vs Estimate | Notes |
+|-----------|--------|-------------------|-------|
+| M1-TOKENS | ✅ Complete | On target | Added `REQUIRES`, `ENSURES` tokens |
+| M2-AST | ✅ Complete | Slight deviation | Used `core.Contract` instead of extending `ast.Property` |
+| M3-PARSER | ✅ Complete | On target | `requires { ... }` and `ensures { ... }` syntax |
+| M4-RUNTIME | ✅ Complete | Simplified | Generated inline, not via EffContext (for codegen path) |
+| M5-CODEGEN | ✅ Complete | On target | `--verify-contracts` flag, runtime panics |
+| M6-INTEGRATION | ✅ Complete | On target | Examples + end-to-end tests |
+
+### Key Implementation Decisions
+
+1. **Contract Storage**: Stored in `core.DeclMeta.Contracts` (not `ast.FuncDecl.Properties`)
+   - Reason: Contracts need Core expressions for codegen, not surface AST
+   - `core.Contract` struct has `Kind`, `Expr`, `Message`, `Location` fields
+
+2. **Predicate Evaluation**: Uses runtime helpers (`GeInt`, `NeInt`, `LeInt`, etc.)
+   - Reason: `_impl` functions use `interface{}` params; can't use raw Go operators
+   - Added `mapIntrinsicToHelper()` to map Core intrinsics to runtime helpers
+
+3. **Comments Always Generated**: `// Requires:` comments generated regardless of `--verify-contracts`
+   - Reason: Documentation value even without runtime checks
+   - Panic checks only generated when flag is set
+
+4. **Added `--relax-modules` to compile command**: Needed for example files in absolute paths
+   - Bonus fix for developer ergonomics
+   - Also supports `AILANG_RELAX_MODULES=1` environment variable
+
+### Files Created/Modified
+
+**New Files:**
+- `internal/gen/golang/contracts_integration_test.go` - End-to-end tests (~250 LOC)
+
+**Modified Files:**
+- `internal/gen/golang/codegen.go` - Added `verifyContracts`, `currentFuncName` fields
+- `internal/gen/golang/codegen_decl.go` - Call contract checks in `generateImplFunc`
+- `internal/gen/golang/contracts.go` - Implemented `generateContractRequiresChecks()`
+- `internal/gen/golang/codegen_ops.go` - Added `mapIntrinsicToHelper()` for comparisons
+- `internal/gen/golang/codegen_runtime_arith.go` - Added `NeInt` runtime helper
+- `cmd/ailang/compile.go` - Added `--verify-contracts` and `--relax-modules` flags
+- `internal/gen/golang/contracts_test.go` - Updated tests for new behavior
+
+### Generated Code Example
+
+With `--verify-contracts`:
+```go
+func absolute_impl(x interface{}) interface{} {
+    // Requires: (x >= 0)
+    if !(GeInt(x, int64(0))).(bool) {
+        panic("contract violation: requires: (x >= 0) at examples/runnable/contracts/basic.ail:13:12")
+    }
+    return x
+}
+```
+
+Without `--verify-contracts` (documentation only):
+```go
+func absolute_impl(x interface{}) interface{} {
+    // Requires: (x >= 0)
+    return x
+}
+```
+
+### Test Results
+
+All tests pass:
+- `TestContractViolation_Integration` - Compiles AILANG, runs Go tests, verifies panics
+- `TestContractViolation_NoVerify` - Verifies comments generated without panics
+- `TestGenerateContractRequiresChecks_WithPredicates` - Unit test for codegen
+- `TestGenerateContractRequiresChecks_Disabled` - Unit test for disabled mode
+
+---
+
+## Suggested Next Steps
+
+### Immediate (v0.6.2)
+
+1. **Ensures checks** - Currently only `requires` generates runtime checks
+   - Add `generateContractEnsuresChecks()` to inject checks before returns
+   - Requires tracking return value as `result` variable
+
+2. **Park admission example** - Create `examples/contracts/park.ail` from design doc
+   - ARC paper showcase for documentation and marketing
+
+3. **Documentation** - Add `docs/guides/contracts.mdx` to website
+   - Already drafted, needs review and publishing
+
+### Future Sprints
+
+**Phase 1: SMT Backend MVP** (HIGH UNCERTAINTY - 25-35h)
+- `ailang verify` command with Z3 integration
+- `IsSMTEncodable()` function for verifiable fragment detection
+- Incremental body encoding (let → ite → match)
+
+**Phase 2: Redundant Generation** (10-15h)
+- AST normalization for structural comparison
+- Multi-sample LLM codegen with contract filtering
+- Confidence scoring
+
+---
+
 ## Current Status Analysis
 
 ### Infrastructure Ready for Reuse

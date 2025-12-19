@@ -449,3 +449,12 @@ let response = encode(
 
 **Document created**: 2025-10-26
 **Last updated**: 2025-10-26
+
+---
+
+## Website Links
+
+**Update these when this feature is implemented:**
+- [Limitations page](/docs/reference/limitations) — Remove from limitations list
+- [Implementation Status](/docs/reference/implementation-status) — Update status
+- Move this doc from `planned/` to `implemented/`

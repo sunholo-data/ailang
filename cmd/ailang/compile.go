@@ -21,6 +21,8 @@ func compileCommand() {
 	outFlag := fs.String("out", "gen", "Output directory for generated files")
 	packageNameFlag := fs.String("package-name", "", "Go package name (default: derived from module name)")
 	releaseFlag := fs.Bool("release", false, "Release mode: erase Debug effect (zero-cost)")
+	verifyContractsFlag := fs.Bool("verify-contracts", false, "M-VERIFY: Generate runtime contract checks")
+	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches)")
 
 	// Help flag
 	helpFlag := fs.Bool("help", false, "Show help for compile command")
@@ -53,6 +55,15 @@ func compileCommand() {
 		os.Exit(1)
 	}
 
+	// Check AILANG_RELAX_MODULES environment variable
+	relaxModulesEffective := *relaxModulesFlag
+	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
+		switch strings.ToLower(envVal) {
+		case "1", "true", "yes":
+			relaxModulesEffective = true
+		}
+	}
+
 	// Accumulated data from all files
 	var allTypeDecls []*ast.TypeDecl
 	var allExternFuncs []*ast.FuncDecl
@@ -83,7 +94,8 @@ func compileCommand() {
 
 		// Run the pipeline to parse and type-check
 		cfg := pipeline.Config{
-			Mode: pipeline.ModeCheck, // Parse + type-check only, no eval
+			Mode:         pipeline.ModeCheck, // Parse + type-check only, no eval
+			RelaxModules: relaxModulesEffective,
 		}
 		src := pipeline.Source{
 			Code:     string(content),
@@ -279,6 +291,12 @@ func compileCommand() {
 	// Note: Function generation is experimental and may produce incomplete code
 	codeGen := gen.New(pkgName)
 
+	// M-VERIFY: Enable runtime contract checking if flag is set
+	if *verifyContractsFlag {
+		codeGen.SetVerifyContracts(true)
+		fmt.Printf("%s Contract verification enabled (runtime checks will be generated)\n", cyan("→"))
+	}
+
 	// Register ADT constructors (with field types and names for proper codegen)
 	// M-DX13: Also register record types for typed struct literal generation
 	for _, td := range allTypeDecls {
@@ -427,6 +445,7 @@ Options:
   --out <dir>            Output directory (default: "gen")
   --package-name <name>  Go package name (default: derived from first module)
   --release              Mark this as a release build (info only)
+  --verify-contracts     Generate runtime contract checks (M-VERIFY Phase 0.5)
   -h, --help             Show this help message
 
 Examples:

@@ -4,7 +4,7 @@
 
 module examples/tests/test_effect_fs
 
-export func main() -> () {
+export func main() -> () ! {IO} {
   -- Direct builtin calls bypass type checking
   -- In v0.2.1+, use: import std/fs (readFile)
   _io_println("FS test - using direct builtins")

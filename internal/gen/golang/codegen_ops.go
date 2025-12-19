@@ -11,6 +11,8 @@ import (
 )
 
 // generateBinOp generates a Go binary operation.
+// M-VERIFY: When in _impl context (interface{} world), comparison operators
+// use runtime helpers to avoid type errors with interface{} operands.
 func (g *Generator) generateBinOp(binop *core.BinOp) error {
 	// Handle cons operator specially - it's not a simple binary op in Go
 	if binop.Op == "::" {
@@ -26,6 +28,25 @@ func (g *Generator) generateBinOp(binop *core.BinOp) error {
 		return nil
 	}
 
+	// M-VERIFY: In _impl functions (interface{} world), comparison operators
+	// need runtime helpers because Go doesn't allow comparing interface{} values
+	// directly with typed literals.
+	if g.expectedReturnType == "interface{}" {
+		helper := g.mapComparisonToHelper(binop.Op)
+		if helper != "" {
+			g.writef("%s(", helper)
+			if err := g.generateExpr(binop.Left); err != nil {
+				return err
+			}
+			g.write(", ")
+			if err := g.generateExpr(binop.Right); err != nil {
+				return err
+			}
+			g.write(")")
+			return nil
+		}
+	}
+
 	g.write("(")
 	if err := g.generateExpr(binop.Left); err != nil {
 		return err
@@ -36,6 +57,28 @@ func (g *Generator) generateBinOp(binop *core.BinOp) error {
 	}
 	g.write(")")
 	return nil
+}
+
+// mapComparisonToHelper returns the runtime helper for a comparison operator.
+// M-VERIFY: Used for contract predicate checks where operands are interface{}.
+// Returns empty string if operator is not a comparison.
+func (g *Generator) mapComparisonToHelper(op string) string {
+	switch op {
+	case ">=":
+		return "GeInt" // TODO: Need type-aware dispatch
+	case ">":
+		return "GtInt"
+	case "<=":
+		return "LeInt"
+	case "<":
+		return "LtInt"
+	case "==":
+		return "EqInt"
+	case "!=":
+		return "NeInt"
+	default:
+		return ""
+	}
 }
 
 // generateUnOp generates a Go unary operation.
@@ -798,7 +841,27 @@ func (g *Generator) generateTuple(tuple *core.Tuple) error {
 }
 
 // generateIntrinsic generates code for intrinsic operations.
+// M-VERIFY: In _impl context (interface{}), comparison operators use runtime helpers.
 func (g *Generator) generateIntrinsic(intr *core.Intrinsic) error {
+	// M-VERIFY: In _impl functions (interface{} world), comparison operators
+	// need runtime helpers because Go doesn't allow comparing interface{} values
+	// directly with typed literals.
+	if g.expectedReturnType == "interface{}" && len(intr.Args) == 2 {
+		helper := g.mapIntrinsicToHelper(intr.Op)
+		if helper != "" {
+			g.writef("%s(", helper)
+			if err := g.generateExpr(intr.Args[0]); err != nil {
+				return err
+			}
+			g.write(", ")
+			if err := g.generateExpr(intr.Args[1]); err != nil {
+				return err
+			}
+			g.write(")")
+			return nil
+		}
+	}
+
 	op := g.mapIntrinsicOp(intr.Op)
 	if len(intr.Args) == 1 {
 		// Unary
@@ -820,6 +883,28 @@ func (g *Generator) generateIntrinsic(intr *core.Intrinsic) error {
 		g.write(")")
 	}
 	return nil
+}
+
+// mapIntrinsicToHelper returns the runtime helper for a comparison intrinsic.
+// M-VERIFY: Used for contract predicate checks where operands are interface{}.
+// Returns empty string if not a comparison operator.
+func (g *Generator) mapIntrinsicToHelper(op core.IntrinsicOp) string {
+	switch op {
+	case core.OpGe:
+		return "GeInt" // TODO: Need type-aware dispatch
+	case core.OpGt:
+		return "GtInt"
+	case core.OpLe:
+		return "LeInt"
+	case core.OpLt:
+		return "LtInt"
+	case core.OpEq:
+		return "EqInt"
+	case core.OpNe:
+		return "NeInt"
+	default:
+		return ""
+	}
 }
 
 // generateDictApp generates dictionary method application.

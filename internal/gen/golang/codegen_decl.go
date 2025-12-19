@@ -133,8 +133,13 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 // generateImplFunc generates the _impl function with interface{} everywhere.
 // M-DX26: This is the internal implementation that uses runtime helpers.
 // M-CODEGEN-V2: Uses Block IR to generate flat function bodies instead of nested IIFEs.
+// M-VERIFY: When verifyContracts is enabled, generates runtime requires checks at entry.
 func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	implName := ToGoVarName(name) + "_impl"
+
+	// M-VERIFY: Track current function name for contract lookup
+	g.currentFuncName = name
+	defer func() { g.currentFuncName = "" }()
 
 	// Build parameter list - all interface{}
 	// M-BUGFIX: Handle blank identifiers - replace _ with _unused{i}
@@ -167,6 +172,12 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	g.writef("func %s(%s) interface{} {\n", implName, strings.Join(params, ", "))
 	g.indent++
 
+	// M-VERIFY Phase 0.5: Generate requires contract checks at function entry
+	if err := g.generateContractRequiresChecks(); err != nil {
+		g.expectedReturnType = oldExpectedReturn
+		return err
+	}
+
 	// M-CODEGEN-V2: Use flat body generation instead of return <expr>
 	// This eliminates nested IIFEs by flattening let chains to flat statements
 	if err := g.generateFlatBody(lam.Body); err != nil {
@@ -184,6 +195,7 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 // generateTypedWrapper generates a typed wrapper that calls the _impl function.
 // M-DX26: This provides the typed Go API that external code uses.
 // M-ZERO-ARG: Unit-typed parameters are skipped in the Go signature but passed to _impl.
+// M-VERIFY Phase 0.5: Generates ensures contract checks before return.
 func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTypes []string, retType string, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 	implName := ToGoVarName(name) + "_impl"
@@ -220,28 +232,70 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 	g.writef("func %s(%s) %s {\n", funcName, strings.Join(params, ", "), retType)
 	g.indent++
 
+	// M-VERIFY Phase 0.5: Check if function has ensures contracts
+	hasEnsures := g.hasEnsuresContracts(name)
+
 	// Call _impl and convert result
-	if retType == "interface{}" {
-		// No conversion needed
-		g.writef("return %s(%s)\n", implName, strings.Join(callArgs, ", "))
-	} else if strings.HasPrefix(retType, "[]") {
-		// Slice return - use converter
-		sliceConv := g.getSliceConversion(retType)
-		if sliceConv != "" {
-			g.writef("return %s(%s(%s))\n", sliceConv, implName, strings.Join(callArgs, ", "))
+	if hasEnsures {
+		// M-VERIFY: Capture result in variable for ensures checks
+		resultExpr := fmt.Sprintf("%s(%s)", implName, strings.Join(callArgs, ", "))
+		if retType == "interface{}" {
+			g.writef("_result := %s\n", resultExpr)
+		} else if strings.HasPrefix(retType, "[]") {
+			sliceConv := g.getSliceConversion(retType)
+			if sliceConv != "" {
+				g.writef("_result := %s(%s)\n", sliceConv, resultExpr)
+			} else {
+				g.writef("_result := %s.(%s)\n", resultExpr, retType)
+			}
 		} else {
-			// No converter - try type assertion (will fail at runtime if wrong)
+			g.writef("_result := %s.(%s)\n", resultExpr, retType)
+		}
+
+		// Generate ensures checks
+		if err := g.generateContractEnsuresChecks(name, "_result", retType); err != nil {
+			return err
+		}
+
+		g.writef("return _result\n")
+	} else {
+		// No ensures - generate direct return
+		if retType == "interface{}" {
+			g.writef("return %s(%s)\n", implName, strings.Join(callArgs, ", "))
+		} else if strings.HasPrefix(retType, "[]") {
+			sliceConv := g.getSliceConversion(retType)
+			if sliceConv != "" {
+				g.writef("return %s(%s(%s))\n", sliceConv, implName, strings.Join(callArgs, ", "))
+			} else {
+				g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
+			}
+		} else {
 			g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
 		}
-	} else {
-		// Scalar return - type assertion
-		g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
 	}
 
 	g.indent--
 	g.writef("}\n\n")
 
 	return nil
+}
+
+// hasEnsuresContracts checks if a function has any ensures contracts.
+// M-VERIFY Phase 0.5: Used to decide whether to capture result in a variable.
+func (g *Generator) hasEnsuresContracts(name string) bool {
+	if g.prog == nil || g.prog.Meta == nil {
+		return false
+	}
+	meta, ok := g.prog.Meta[name]
+	if !ok {
+		return false
+	}
+	for _, c := range meta.Contracts {
+		if c.Kind == core.EnsuresKind {
+			return true
+		}
+	}
+	return false
 }
 
 // exprProducesInterface checks if an expression produces interface{} type.

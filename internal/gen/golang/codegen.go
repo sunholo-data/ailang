@@ -145,6 +145,14 @@ type Generator struct {
 
 	// errors encountered during generation
 	errors []error
+
+	// verifyContracts enables runtime contract checking
+	// M-VERIFY: When true, generates predicate checks for requires/ensures clauses
+	verifyContracts bool
+
+	// currentFuncName tracks the function name being generated for contract error messages
+	// M-VERIFY: Used to look up contracts from prog.Meta and for error reporting
+	currentFuncName string
 }
 
 // FuncTypeOverride stores explicit function type signatures from AST annotations.
@@ -178,6 +186,12 @@ func (g *Generator) RegisterFunctionType(name string, paramTypes []GoType, retur
 // instead of interface{}.
 func (g *Generator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 	g.coreTypeInfo = cti
+}
+
+// SetVerifyContracts enables runtime contract checking.
+// M-VERIFY: When enabled, generates predicate checks for requires/ensures clauses.
+func (g *Generator) SetVerifyContracts(enabled bool) {
+	g.verifyContracts = enabled
 }
 
 // New creates a new Generator with the specified package name.

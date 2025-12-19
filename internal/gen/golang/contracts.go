@@ -326,3 +326,224 @@ func DefaultContractHandler() EffectHandler {
 		},
 	}
 }
+
+// generateContractRequiresChecks generates requires contract documentation and checks.
+// M-VERIFY Phase 0.5: Always generates comments. When verifyContracts is true,
+// also generates actual Go predicate checks.
+func (g *Generator) generateContractRequiresChecks() error {
+	if g.prog == nil || g.prog.Meta == nil {
+		return nil
+	}
+
+	meta, ok := g.prog.Meta[g.currentFuncName]
+	if !ok || len(meta.Contracts) == 0 {
+		return nil
+	}
+
+	for _, c := range meta.Contracts {
+		if c.Kind != core.RequiresKind {
+			continue
+		}
+
+		// Always generate comment documenting the contract
+		g.writef("// Requires: %s\n", c.Message)
+
+		// Only generate runtime checks when verification is enabled
+		if g.verifyContracts {
+			// Generate: if !(predicate).(bool) { panic("contract violation: requires: ...") }
+			// M-VERIFY: Runtime helpers like GeInt return interface{} so we need the .(bool)
+			// assertion. The comparison itself is generated using runtime helpers (not raw Go
+			// operators) because operands are interface{} in _impl functions.
+			g.writef("if !(")
+			if err := g.generateExpr(c.Expr); err != nil {
+				return fmt.Errorf("contract predicate: %w", err)
+			}
+			g.write(").(bool) {\n")
+			g.indent++
+			g.writef("panic(\"contract violation: requires: %s at %s\")\n", c.Message, c.Location)
+			g.indent--
+			g.writef("}\n")
+		}
+	}
+
+	return nil
+}
+
+// generateContractEnsuresChecks generates ensures contract documentation and checks.
+// M-VERIFY Phase 0.5: Always generates comments. When verifyContracts is true,
+// also generates actual Go predicate checks.
+// This is called from generateTypedWrapper after the _impl call.
+// The 'result' variable must be in scope containing the return value.
+func (g *Generator) generateContractEnsuresChecks(funcName string, resultVar string, retType string) error {
+	if g.prog == nil || g.prog.Meta == nil {
+		return nil
+	}
+
+	meta, ok := g.prog.Meta[funcName]
+	if !ok || len(meta.Contracts) == 0 {
+		return nil
+	}
+
+	hasEnsures := false
+	for _, c := range meta.Contracts {
+		if c.Kind == core.EnsuresKind {
+			hasEnsures = true
+			break
+		}
+	}
+	if !hasEnsures {
+		return nil
+	}
+
+	for _, c := range meta.Contracts {
+		if c.Kind != core.EnsuresKind {
+			continue
+		}
+
+		// Always generate comment documenting the contract
+		g.writef("// Ensures: %s\n", c.Message)
+
+		// Only generate runtime checks when verification is enabled
+		if g.verifyContracts {
+			// Generate: if !(predicate) { panic("contract violation: ensures: ...") }
+			// For ensures, we're in the typed wrapper so we can use typed comparisons
+			// The 'result' identifier in the predicate refers to the result variable
+			g.writef("if !(")
+			if err := g.generateEnsuresPredicate(c.Expr, resultVar, retType); err != nil {
+				return fmt.Errorf("contract predicate: %w", err)
+			}
+			g.write(") {\n")
+			g.indent++
+			g.writef("panic(\"contract violation: ensures: %s at %s\")\n", c.Message, c.Location)
+			g.indent--
+			g.writef("}\n")
+		}
+	}
+
+	return nil
+}
+
+// generateEnsuresPredicate generates Go code for an ensures predicate expression.
+// It substitutes 'result' with the actual result variable and uses typed operations
+// since we're in the typed wrapper context.
+func (g *Generator) generateEnsuresPredicate(expr core.CoreExpr, resultVar string, retType string) error {
+	// Handle different expression types, substituting 'result' identifier
+	switch e := expr.(type) {
+	case *core.Var:
+		// Substitute 'result' with the actual result variable
+		if e.Name == "result" {
+			g.write(resultVar)
+		} else {
+			g.write(ToGoVarName(e.Name))
+		}
+		return nil
+
+	case *core.Lit:
+		// Literals are generated directly
+		return g.generateLit(e)
+
+	case *core.BinOp:
+		// For binary operations, we can use typed Go operators in the wrapper
+		// since the result variable is typed
+		g.write("(")
+		if err := g.generateEnsuresPredicate(e.Left, resultVar, retType); err != nil {
+			return err
+		}
+		g.writef(" %s ", e.Op)
+		if err := g.generateEnsuresPredicate(e.Right, resultVar, retType); err != nil {
+			return err
+		}
+		g.write(")")
+		return nil
+
+	case *core.UnOp:
+		g.writef("(%s", e.Op)
+		if err := g.generateEnsuresPredicate(e.Operand, resultVar, retType); err != nil {
+			return err
+		}
+		g.write(")")
+		return nil
+
+	case *core.Intrinsic:
+		// M-VERIFY: Handle Intrinsic nodes which represent binary/unary operations
+		// after elaboration. Map IntrinsicOp to Go operators for typed context.
+		opStr := intrinsicOpToString(e.Op)
+		if len(e.Args) == 2 {
+			// Binary operation
+			g.write("(")
+			if err := g.generateEnsuresPredicate(e.Args[0], resultVar, retType); err != nil {
+				return err
+			}
+			g.writef(" %s ", opStr)
+			if err := g.generateEnsuresPredicate(e.Args[1], resultVar, retType); err != nil {
+				return err
+			}
+			g.write(")")
+		} else if len(e.Args) == 1 {
+			// Unary operation
+			g.writef("(%s", opStr)
+			if err := g.generateEnsuresPredicate(e.Args[0], resultVar, retType); err != nil {
+				return err
+			}
+			g.write(")")
+		}
+		return nil
+
+	case *core.App:
+		// Function application - generate normally but handle result in args
+		return g.generateEnsuresApp(e, resultVar, retType)
+
+	default:
+		// Fallback to normal expression generation
+		// This handles complex expressions but won't substitute 'result'
+		return g.generateExpr(expr)
+	}
+}
+
+// intrinsicOpToString converts IntrinsicOp to Go operator string.
+func intrinsicOpToString(op core.IntrinsicOp) string {
+	switch op {
+	case core.OpAdd:
+		return "+"
+	case core.OpSub:
+		return "-"
+	case core.OpMul:
+		return "*"
+	case core.OpDiv:
+		return "/"
+	case core.OpMod:
+		return "%"
+	case core.OpEq:
+		return "=="
+	case core.OpNe:
+		return "!="
+	case core.OpLt:
+		return "<"
+	case core.OpLe:
+		return "<="
+	case core.OpGt:
+		return ">"
+	case core.OpGe:
+		return ">="
+	case core.OpAnd:
+		return "&&"
+	case core.OpOr:
+		return "||"
+	case core.OpNot:
+		return "!"
+	case core.OpNeg:
+		return "-"
+	case core.OpConcat:
+		return "+" // String concat in Go
+	default:
+		return "?" // Unknown operator
+	}
+}
+
+// generateEnsuresApp generates a function application within an ensures predicate.
+// Handles runtime helpers and substitutes 'result' in arguments.
+func (g *Generator) generateEnsuresApp(app *core.App, resultVar string, retType string) error {
+	// For now, generate as a normal expression but with result substitution
+	// The ensures predicates typically use simple comparisons which are handled by BinOp
+	return g.generateExpr(app)
+}

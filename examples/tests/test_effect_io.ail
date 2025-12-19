@@ -3,6 +3,6 @@
 
 module examples/tests/test_effect_io
 
-export func main() -> () {
+export func main() -> () ! {IO} {
   _io_println("Hello from effect system!")
 }

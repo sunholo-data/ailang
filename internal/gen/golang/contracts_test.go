@@ -124,3 +124,108 @@ func TestDefaultContractHandler(t *testing.T) {
 		t.Errorf("expected second method 'CheckEnsures', got %q", handler.Methods[1].Name)
 	}
 }
+
+// TestGenerateContractRequiresChecks_WithPredicates tests Phase 0.5 runtime contract check generation
+func TestGenerateContractRequiresChecks_WithPredicates(t *testing.T) {
+	// Create a generator with verifyContracts enabled
+	g := New("testpkg")
+	g.SetVerifyContracts(true)
+
+	// Create a simple predicate: x >= 0 (as a BinOp comparing x to 0)
+	predicate := &core.BinOp{
+		Op:    ">=",
+		Left:  &core.Var{Name: "x"},
+		Right: &core.Lit{Kind: core.IntLit, Value: int64(0)},
+	}
+
+	// Create program with metadata containing contracts
+	prog := &core.Program{
+		Meta: map[string]*core.DeclMeta{
+			"absolute": {
+				Name:     "absolute",
+				IsExport: true,
+				Contracts: []*core.Contract{
+					{
+						Kind:     core.RequiresKind,
+						Expr:     predicate,
+						Message:  "x >= 0",
+						Location: "test.ail:12:1",
+					},
+				},
+			},
+		},
+	}
+	g.prog = prog
+
+	// Set current function name to look up contracts
+	g.currentFuncName = "absolute"
+
+	// Set up function params so generateExpr can resolve x
+	g.currentFuncParams = map[string]string{"x": "interface{}"}
+	g.expectedReturnType = "interface{}"
+
+	// Generate contract checks
+	err := g.generateContractRequiresChecks()
+	if err != nil {
+		t.Fatalf("generateContractRequiresChecks failed: %v", err)
+	}
+
+	// Get the generated output
+	output := g.buf.String()
+
+	// Should contain the requires comment
+	if !strings.Contains(output, "// Requires: x >= 0") {
+		t.Errorf("missing requires comment in output:\n%s", output)
+	}
+
+	// Should contain panic on violation
+	if !strings.Contains(output, "panic(\"contract violation: requires: x >= 0 at test.ail:12:1\")") {
+		t.Errorf("missing panic statement in output:\n%s", output)
+	}
+
+	// Should contain the predicate check
+	if !strings.Contains(output, "if !(") {
+		t.Errorf("missing if statement in output:\n%s", output)
+	}
+}
+
+// TestGenerateContractRequiresChecks_Disabled tests that only comments (no panics) are generated when disabled
+func TestGenerateContractRequiresChecks_Disabled(t *testing.T) {
+	g := New("testpkg")
+	// verifyContracts is false by default
+
+	prog := &core.Program{
+		Meta: map[string]*core.DeclMeta{
+			"absolute": {
+				Name: "absolute",
+				Contracts: []*core.Contract{
+					{
+						Kind:     core.RequiresKind,
+						Expr:     &core.BinOp{Op: ">=", Left: &core.Var{Name: "x"}, Right: &core.Lit{Kind: core.IntLit, Value: int64(0)}},
+						Message:  "x >= 0",
+						Location: "test.ail:12:1",
+					},
+				},
+			},
+		},
+	}
+	g.prog = prog
+	g.currentFuncName = "absolute"
+
+	err := g.generateContractRequiresChecks()
+	if err != nil {
+		t.Fatalf("generateContractRequiresChecks failed: %v", err)
+	}
+
+	output := g.buf.String()
+
+	// Should have requires comment for documentation
+	if !strings.Contains(output, "// Requires: x >= 0") {
+		t.Errorf("expected requires comment in output when verification disabled, got:\n%s", output)
+	}
+
+	// Should NOT have panic statement when verification is disabled
+	if strings.Contains(output, "panic") {
+		t.Errorf("expected NO panic statement when verification disabled, got:\n%s", output)
+	}
+}

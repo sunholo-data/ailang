@@ -683,35 +683,31 @@ Traces include contract identifiers, verification status, and stable hashes for:
 ### Implementation Plan
 
 > **Updated December 2025**: Estimates revised based on existing Property and Debug infrastructure.
+> **Implementation Update (2025-12-19)**: Phase 0 + 0.5 COMPLETE. See sprint plan for details.
 
-**Phase 0: Plumbing** (~1 sprint / 8-12 hours) ⬇️ Reduced from 15-20h
+**Phase 0: Plumbing** (~1 sprint / 8-12 hours) ✅ **COMPLETE**
 
 Leveraging existing `Property` and `DebugContext` infrastructure:
 
-- [ ] Add `ContractKind` enum to `ast.Property` (discriminate requires/ensures/invariant)
-- [ ] Add `REQUIRES`, `ENSURES`, `INVARIANT` tokens to lexer (~10 LOC)
-- [ ] Extend function parser for `requires { ... }` and `ensures { ... }` blocks
-  - Reuse `parseExpression()` for contract predicates
-  - Store in `FuncDecl.Properties` with appropriate `ContractKind`
-- [ ] Add pretty-printer support for contracts
-- [ ] Unit tests for contract parsing
+- [x] Add `ContractKind` enum (in `core.Contract`, not `ast.Property`)
+- [x] Add `REQUIRES`, `ENSURES` tokens to lexer
+- [x] Extend function parser for `requires { ... }` and `ensures { ... }` blocks
+  - Reuses `parseExpression()` for contract predicates
+  - Stored in `core.DeclMeta.Contracts` (elaborated form)
+- [x] Contract expressions available in Core AST for codegen
+- [x] Unit tests for contract parsing
 
-**Phase 0.5: Runtime Contract Checks** (~0.5-1 sprint / 5-8 hours) 🆕 Quick Win
+**Phase 0.5: Runtime Contract Checks** (~0.5-1 sprint / 5-8 hours) ✅ **COMPLETE**
 
 Delivers immediate value before SMT backend:
 
-- [ ] Create `ContractContext` with `ContractMode` (Panic/Report/Off) (~120 LOC)
-- [ ] Add `Contract *ContractContext` field to `EffContext`
-- [ ] Generate Go runtime checks in typed wrappers:
-  - `requires`: check at function entry
-  - `ensures`: check before return
-  - **Mode-dependent behavior**:
-    - `Panic`: Go panic (fast feedback in development)
-    - `Report`: Return `ContractViolation` error + structured trace (policy mode)
-- [ ] Add `--verify-contracts[=panic|report]` flag (off by default)
-- [ ] Wire `ContractContext.Collect()` to trace output
-- [ ] Make `Args` optional in traces (`--trace-args` flag to enable)
-- [ ] Integration tests for both panic and report modes
+- [x] Generate Go runtime checks for `requires` at function entry
+- [x] Uses runtime helpers (`GeInt`, `NeInt`, etc.) for interface{} comparisons
+- [x] `--verify-contracts` flag enables runtime panics
+- [x] Comments generated always (documentation even when checks disabled)
+- [x] Integration tests verify panics on contract violations
+- [ ] **TODO**: `ensures` checks before return (requires `result` variable tracking)
+- [ ] **TODO**: Report mode (currently panic-only)
 
 **Phase 1: SMT Backend MVP** (~2-3 sprints / 25-35 hours) ⚠️ HIGH UNCERTAINTY
 
@@ -1198,4 +1194,44 @@ ContractViolation: requires clause failed for refundEligibility
 ---
 
 **Document created**: 2025-12-06
-**Last updated**: 2025-12-18
+**Last updated**: 2025-12-19
+
+---
+
+## Implementation Notes (Phase 0 + 0.5)
+
+**Completed**: 2025-12-19
+
+### Architecture Decisions
+
+1. **Contract Storage Location**: Contracts stored in `core.DeclMeta.Contracts` rather than extending `ast.FuncDecl.Properties`
+   - Rationale: Codegen operates on Core AST; contracts need elaborated expressions
+   - `core.Contract` struct: `{Kind, Expr, Message, Location}`
+
+2. **Runtime Helper Functions**: Predicates evaluated using runtime helpers instead of raw Go operators
+   - Rationale: `_impl` functions use `interface{}` parameters
+   - Added `mapIntrinsicToHelper()` to translate `OpGe` → `GeInt`, etc.
+   - Added missing `NeInt` to `codegen_runtime_arith.go`
+
+3. **Comment Generation**: `// Requires:` comments always generated
+   - Rationale: Documentation value even without runtime enforcement
+   - Panic checks conditional on `--verify-contracts` flag
+
+### CLI Changes
+
+```bash
+# Compile with runtime contract checks
+ailang compile --emit-go --verify-contracts --out ./gen example.ail
+
+# Compile without checks (comments only)
+ailang compile --emit-go --out ./gen example.ail
+
+# Support for absolute paths (also via AILANG_RELAX_MODULES=1)
+ailang compile --emit-go --relax-modules --out ./gen /path/to/example.ail
+```
+
+### Remaining Work for Full Phase 0.5
+
+1. **`ensures` checks**: Need `result` variable tracking at return points
+2. **Report mode**: Return error instead of panic for policy applications
+3. **ContractContext integration**: Wire to EffContext for trace collection

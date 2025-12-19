@@ -125,22 +125,21 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Reference',
-      collapsed: true,
+      label: 'References',
+      collapsed: false,
       items: [
         'reference/implementation-status',
         'reference/limitations',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Academic References',
-      collapsed: false,
-      items: [
-        'references/axioms',
-        'references/design-lineage',
-        'references/philosophical-foundations',
-        'references/index',
+        {
+          type: 'category',
+          label: 'Academic Foundations',
+          items: [
+            'references/axioms',
+            'references/design-lineage',
+            'references/philosophical-foundations',
+            'references/index',
+          ],
+        },
       ],
     },
     'roadmap/index',
