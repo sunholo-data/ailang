@@ -1,15 +1,16 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-65%20passing%2020%20failing-orange.svg)
+![Examples](https://img.shields.io/badge/examples-65%20passing%2023%20failing-orange.svg)
 
-**65/85 examples passing (76%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**65/88 examples passing (74%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
 | `runnable/adt_option.ail` | ✅ Pass |  |
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/adt_tree.ail` | ✅ Pass |  |
+| `runnable/ai_call.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/ai_effect.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
@@ -18,6 +19,7 @@
 | `runnable/block_demo.ail` | ✅ Pass |  |
 | `runnable/block_recursion.ail` | ✅ Pass |  |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
+| `runnable/claude_haiku_call.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/closures.ail` | ✅ Pass |  |
 | `runnable/complex_types.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/com... |
@@ -25,6 +27,7 @@
 | `runnable/contracts/park.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ✅ Pass |  |
 | `runnable/debug_effect.ail` | ✅ Pass |  |
+| `runnable/demo_ai_api.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
 | `runnable/demos/hello_io.ail` | ✅ Pass |  |
 | `runnable/effects_basic.ail` | ✅ Pass |  |
