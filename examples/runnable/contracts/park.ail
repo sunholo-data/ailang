@@ -1,0 +1,59 @@
+-- examples/runnable/contracts/park.ail
+-- Reproduces ARC paper park admission example in AILANG
+-- From: Bayless et al., "A Neurosymbolic Approach to Natural Language Formalization and Verification" (AWS, 2025)
+-- M-VERIFY: Showcase example demonstrating contract-based policy specification
+
+module examples/runnable/contracts/park
+
+-- Type vocabulary (matching ARC's datatypes/variables)
+export type Season = LOW_SEASON | HIGH_SEASON
+export type AgeClass = CHILD | ADULT | SENIOR
+export type AdmissionDecision = ADMIT | DENY
+
+-- Core policy function with contracts
+-- ARC rule: "Seniors pay $5 in low season, $10 in high season"
+-- ARC rule: "Children under 5 free in low season"
+export func admissionFee(age: int, season: Season) -> int ! {}
+requires { age >= 0 }
+ensures { result >= 0 }
+{
+  match season {
+    LOW_SEASON =>
+      if age < 5 then 0
+      else if age >= 65 then 5
+      else 15,
+    HIGH_SEASON =>
+      if age >= 65 then 10
+      else 20
+  }
+}
+
+-- Decision function: can visitor enter park given budget?
+export func canEnterPark(age: int, season: Season, budget: int) -> AdmissionDecision ! {}
+requires { age >= 0 }
+{
+  let fee = admissionFee(age, season);
+  if budget >= fee then ADMIT else DENY
+}
+
+-- Age classification helper
+export func classifyAge(age: int) -> AgeClass ! {}
+requires { age >= 0 }
+{
+  if age < 5 then CHILD
+  else if age >= 65 then SENIOR
+  else ADULT
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  -- Test cases from ARC paper scenarios
+  let seniorLow = admissionFee(70, LOW_SEASON);     -- Expected: 5
+  let seniorHigh = admissionFee(70, HIGH_SEASON);   -- Expected: 10
+  let childLow = admissionFee(3, LOW_SEASON);       -- Expected: 0
+  let adultHigh = admissionFee(30, HIGH_SEASON);    -- Expected: 20
+
+  -- Sum of all fees (5 + 10 + 0 + 20 = 35)
+  seniorLow + seniorHigh + childLow + adultHigh
+}

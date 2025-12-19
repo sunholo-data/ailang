@@ -1,0 +1,53 @@
+-- examples/runnable/contracts/basic.ail
+-- Basic contract examples demonstrating requires/ensures syntax
+-- M-VERIFY: Phase 0 - Contract parsing infrastructure
+
+module examples/runnable/contracts/basic
+
+-- Type definitions for examples
+export type Status = OK | FAIL
+
+-- Simple function with precondition
+-- requires: x must be non-negative
+export func absolute(x: int) -> int ! {}
+requires { x >= 0 }
+ensures { result >= 0 }
+{
+  x
+}
+
+-- Function with multiple requires predicates
+export func safeDivide(dividend: int, divisor: int) -> int ! {}
+requires { divisor != 0 }
+ensures { result >= 0 }
+{
+  dividend / divisor
+}
+
+-- Function with both requires and ensures
+export func increment(x: int, max: int) -> int ! {}
+requires { x >= 0 }
+ensures { result > x }
+{
+  if x + 1 > max then max else x + 1
+}
+
+-- Function demonstrating 'result' in ensures
+export func clamp(value: int, minVal: int, maxVal: int) -> int ! {}
+requires { minVal <= maxVal }
+ensures { result >= minVal }
+{
+  if value < minVal then minVal
+  else if value > maxVal then maxVal
+  else value
+}
+
+-- Simple entry point for testing
+export func main() -> int ! {}
+{
+  let a = absolute(5);
+  let b = safeDivide(10, 2);
+  let c = increment(5, 100);
+  let d = clamp(150, 0, 100);
+  a + b + c + d
+}
