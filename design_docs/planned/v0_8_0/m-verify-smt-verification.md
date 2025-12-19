@@ -1,10 +1,11 @@
-# M-VERIFY: ARC-Style Verification & Policy Mode
+# M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)
 
-**Status**: IMPLEMENTED
-**Target**: v0.6.2+
-**Priority**: P1 (Medium-High)
-**Estimated**: 6-10 weeks (phased implementation, high uncertainty for SMT phase)
+**Status**: PLANNED
+**Target**: v0.8.0
+**Priority**: P2 (Medium) - Lower priority than core language features
+**Estimated**: 4-8 weeks (HIGH UNCERTAINTY for SMT phase)
 **Dependencies**:
+- Runtime contract checks (✅ complete in v0.6.2)
 - Core type system (complete)
 - Effects system (complete)
 - Go codegen backend (complete)
@@ -12,22 +13,47 @@
 
 ---
 
-## Implementation Status Update (December 2025)
+## Prerequisites Completed (v0.6.2)
 
-**Last reviewed**: 2025-12-18
+**Phase 0 + 0.5 implemented**: See [m-verify-runtime-contracts.md](../../implemented/v0_6_2/m-verify-runtime-contracts.md)
 
-### Verdict: Still a Strong Fit for AILANG
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Contract syntax | ✅ Done | `requires { ... }`, `ensures { ... }` |
+| Runtime checks | ✅ Done | `--verify-contracts` flag with panic on violation |
+| Requires checks | ✅ Done | At function entry in `_impl` |
+| Ensures checks | ✅ Done | Before return in typed wrapper |
+| Examples | ✅ Done | `basic.ail`, `park.ail` (ARC paper showcase) |
+| Documentation | ✅ Done | `docs/docs/guides/contracts.mdx` |
 
-The design remains architecturally sound. AILANG has evolved favorably since the original design, with several developments that **reduce implementation effort**:
+---
+
+## Remaining Work (This Document)
+
+This document covers the **remaining phases** not yet implemented:
+
+| Phase | Priority | Estimated | Description |
+|-------|----------|-----------|-------------|
+| **Phase 1: SMT Backend** | P2 | 25-35h | `ailang verify` with Z3 integration |
+| **Phase 2: Redundant Gen** | P3 | 10-15h | Multi-sample codegen with contract filtering |
+| **Phase 3: SharedMem** | P4 | 20+h | Invariants over semantic cache state |
+
+**Why lower priority?**
+- Runtime checks already provide significant value
+- SMT integration has HIGH UNCERTAINTY (scope balloon risk)
+- Other language features may deliver more impact per hour
+
+---
+
+## Implementation Status
 
 | Factor | Status | Notes |
 |--------|--------|-------|
-| AST Foundation | ✅ Ready | `FuncDecl.Properties`, `Property` struct with `Binders` already exist |
-| Parser Infrastructure | ✅ Ready | `property` syntax with `forall` binders can be extended |
-| Effect System | ✅ Mature | `EffContext` in `internal/effects/` provides runtime context |
-| Codegen | ⚠️ Larger | Now 12,500 LOC (well-organized, typed wrappers help) |
-| SMT Backend | ❌ Not started | Still needs `internal/smt/` package |
-| Trace Runtime | ❌ Not started | Still needs `internal/trace/` package |
+| Contract Syntax | ✅ Complete | Parsing, elaboration, codegen working |
+| Runtime Checks | ✅ Complete | Panic mode with source locations |
+| SMT Backend | ❌ Not started | Needs `internal/smt/` package |
+| Redundant Generation | ❌ Not started | Needs AST normalization |
+| Trace Runtime | ❌ Not started | Could extend DebugContext |
 
 ### Key Finding: Existing Property Infrastructure
 
@@ -706,8 +732,8 @@ Delivers immediate value before SMT backend:
 - [x] `--verify-contracts` flag enables runtime panics
 - [x] Comments generated always (documentation even when checks disabled)
 - [x] Integration tests verify panics on contract violations
-- [ ] **TODO**: `ensures` checks before return (requires `result` variable tracking)
-- [ ] **TODO**: Report mode (currently panic-only)
+- [x] `ensures` checks before return (with `result` → `_result` substitution)
+- [ ] **TODO (v0.8.0)**: Report mode (currently panic-only)
 
 **Phase 1: SMT Backend MVP** (~2-3 sprints / 25-35 hours) ⚠️ HIGH UNCERTAINTY
 
