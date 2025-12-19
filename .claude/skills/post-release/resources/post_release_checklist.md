@@ -57,7 +57,40 @@ cd docs && npm start
 - [ ] Success rate matches eval results
 - [ ] No webpack/cache errors
 
-## 4. Extract Metrics for CHANGELOG
+## 4. Update Axiom Scorecard (if applicable)
+
+Review axiom compliance if the release includes features that affect design axioms:
+
+```bash
+# View current scorecard
+ailang axioms
+
+# Edit scorecard JSON if needed
+# File: docs/static/benchmarks/axiom_scorecard.json
+```
+
+Update if:
+- A partial implementation became complete (+1 → +2)
+- New feature aligns with an axiom (add evidence)
+- Gaps were fixed (remove from gaps array)
+
+Always add history entry:
+```json
+{
+  "version": "vX.X.X",
+  "date": "YYYY-MM-DD",
+  "score": 18,
+  "maxScore": 24,
+  "percentage": 75.0,
+  "notes": "Brief description of changes"
+}
+```
+
+- [ ] Axiom scorecard reviewed
+- [ ] Scores updated if applicable
+- [ ] History entry added
+
+## 5. Extract Metrics for CHANGELOG
 
 Use the automation script:
 ```bash
@@ -73,7 +106,7 @@ This outputs a CHANGELOG.md template with:
 - [ ] Metrics extracted
 - [ ] CHANGELOG.md updated with benchmark results
 
-## 5. Commit Dashboard Updates
+## 6. Commit Dashboard Updates
 
 ```bash
 git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
@@ -85,7 +118,7 @@ git push
 - [ ] Committed
 - [ ] Pushed
 
-## 6. Verify Sprint JSON Tracking
+## 7. Verify Sprint JSON Tracking
 
 Check that sprint state JSON files are properly completed:
 
@@ -123,13 +156,13 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
 - `velocity.efficiency` not computed
 - `completion_summary` section missing
 
-## 7. Update Design Docs
+## 8. Update Design Docs
 
 - [ ] Move completed design docs to design_docs/implemented/vX_Y/
 - [ ] Update design docs with what was actually implemented
 - [ ] Create new design docs in design_docs/planned/ for deferred features
 
-## 8. Update Public Documentation
+## 9. Update Public Documentation
 
 - [ ] Ensure prompts/ reflects latest AILANG syntax
 - [ ] Update website docs (docs/) with latest features
@@ -144,7 +177,7 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
   - [ ] Test examples in LIMITATIONS.md still work/fail as documented
   - [ ] Commit: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
-## 9. Run Documentation Sync Check
+## 10. Run Documentation Sync Check
 
 Use the docs-sync skill to verify website accuracy:
 
@@ -179,6 +212,8 @@ Use the docs-sync skill to verify website accuracy:
 - [ ] Website dashboard shows vX.X.X as latest
 - [ ] Dashboard timeline includes vX.X.X data point
 - [ ] Dashboard JSON preserves history (multiple versions)
+- [ ] **Axiom scorecard reviewed and updated if applicable**
+- [ ] **Axiom history entry added for this version**
 - [ ] Design docs moved to implemented/
 - [ ] Public docs updated
 - [ ] **docs/LIMITATIONS.md updated and tested**

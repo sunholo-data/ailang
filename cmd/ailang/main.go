@@ -214,6 +214,9 @@ func main() {
 	case "editor":
 		editorCommand()
 
+	case "axioms":
+		axiomsCommand()
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()

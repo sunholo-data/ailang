@@ -9,6 +9,7 @@ import SuccessTrend from './SuccessTrend';
 import PerModelTrend from './PerModelTrend';
 import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
+import AxiomScorecard from './AxiomScorecard';
 import styles from './styles.module.css';
 
 export default function BenchmarkDashboard() {
@@ -206,6 +207,15 @@ export default function BenchmarkDashboard() {
           <BenchmarkGallery benchmarks={benchmarks} />
         </div>
       )}
+
+      {/* Axiom Compliance */}
+      <div className={styles.section}>
+        <h3>Design Axiom Compliance</h3>
+        <p className={styles.sectionSubtitle}>
+          Tracking AILANG's adherence to its 12 core design principles
+        </p>
+        <AxiomScorecard />
+      </div>
 
       {/* Value Propositions */}
       <div className={styles.valueProps}>

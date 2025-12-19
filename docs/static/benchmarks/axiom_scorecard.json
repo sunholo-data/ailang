@@ -1,0 +1,248 @@
+{
+  "version": "v0.6.0",
+  "timestamp": "2025-12-19T10:00:00+01:00",
+  "methodology": "Manual assessment against AILANG Design Axioms (docs/docs/references/axioms.mdx)",
+  "summary": {
+    "totalScore": 19,
+    "maxScore": 24,
+    "percentage": 79.2,
+    "strongCount": 7,
+    "partialCount": 5,
+    "violationCount": 0
+  },
+  "axioms": {
+    "A1_determinism": {
+      "name": "Determinism Is a Semantic Invariant",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Pure functional core, effects explicitly typed and capability-gated, --seed flag for deterministic randomness",
+      "evidence": [
+        "No mutable state in language core",
+        "Effects require explicit capabilities (--caps IO,FS)",
+        "--seed flag for deterministic randomness"
+      ],
+      "gaps": []
+    },
+    "A2_replayability": {
+      "name": "Execution Must Be Replayable and Auditable",
+      "score": 1,
+      "maxScore": 2,
+      "status": "partial",
+      "justification": "--trace flag exists for execution tracing, but full trace export not yet implemented",
+      "evidence": [
+        "--trace flag enables execution tracing",
+        "REPL has trace mode"
+      ],
+      "gaps": [
+        "--emit-trace jsonl for full trace export (planned v0.3.15)",
+        "Trace replay tooling",
+        "Trace serialization format"
+      ]
+    },
+    "A3_effect_legibility": {
+      "name": "Effects Are Real and Must Be Legible",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Full effect system with IO/FS/Clock/Net, effects declared in function signatures, --caps required",
+      "evidence": [
+        "Effect system: ! IO, ! FS, ! Clock, ! Net",
+        "Effects in function type signatures",
+        "--caps flag required at runtime",
+        "Effect inference during type checking"
+      ],
+      "gaps": []
+    },
+    "A4_explicit_authority": {
+      "name": "Authority Must Be Explicit",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Capability-based security model, no ambient authority, explicit imports",
+      "evidence": [
+        "Capability-based security model",
+        "No ambient authority (can't read files without FS cap)",
+        "Module imports are explicit",
+        "Workspace isolation in eval benchmarks"
+      ],
+      "gaps": []
+    },
+    "A5_bounded_verification": {
+      "name": "Verification Should Be Local, Bounded, and Automatable",
+      "score": 1,
+      "maxScore": 2,
+      "status": "partial",
+      "justification": "HM type inference is local and bounded, pattern exhaustiveness checking, CoreTypeInfo validation",
+      "evidence": [
+        "Hindley-Milner type inference (local, bounded)",
+        "Pattern match exhaustiveness checking",
+        "CoreTypeInfo validation (M-DX4 invariant)"
+      ],
+      "gaps": [
+        "Contracts/preconditions (@assert)",
+        "Property-based testing integration",
+        "Refinement types"
+      ]
+    },
+    "A6_safe_concurrency": {
+      "name": "Concurrency Must Not Destroy Meaning",
+      "score": 1,
+      "maxScore": 2,
+      "status": "partial",
+      "justification": "Currently sequential-only (deterministic by default), CSP/session types planned",
+      "evidence": [
+        "Sequential execution model (deterministic)",
+        "No hidden shared state",
+        "Pure functional core prevents races"
+      ],
+      "gaps": [
+        "CSP with session types (planned v0.4.0+)",
+        "Parallel execution model",
+        "Task graphs with effect typing"
+      ]
+    },
+    "A7_machines_first": {
+      "name": "Machines Are Primary Readers",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Core design principle - AI-first language with JSON schemas, M-EVAL benchmarks, teaching prompts",
+      "evidence": [
+        "AI-first design philosophy",
+        "JSON schemas for structured errors",
+        "M-EVAL benchmark suite (264 benchmarks, 6 models)",
+        "Teaching prompts versioned and validated",
+        "Eval dashboard with multi-model comparison"
+      ],
+      "gaps": []
+    },
+    "A8_minimal_syntax": {
+      "name": "Syntax Is a Liability",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "ML heritage with lambda calculus core, everything is expression, nullary calls fixed in v0.4.6",
+      "evidence": [
+        "ML heritage (lambda calculus core)",
+        "Everything is an expression",
+        "No statement/expression distinction",
+        "Import aliasing (v0.4.8)",
+        "Nullary call syntax f() works (M-DX10, v0.4.6)"
+      ],
+      "gaps": [
+        "Block expressions add some complexity",
+        "Some parser edge cases (minor)"
+      ]
+    },
+    "A9_cost_visibility": {
+      "name": "Cost Is Part of Meaning",
+      "score": 1,
+      "maxScore": 2,
+      "status": "partial",
+      "justification": "Effect system implicitly signals resource usage, eval harness tracks costs",
+      "evidence": [
+        "Effect system hints at resource usage",
+        "Eval harness tracks token/cost per benchmark",
+        "Model pricing in models.yml"
+      ],
+      "gaps": [
+        "Capability budgets (! {IO @limit=N}) - planned v0.4.0+",
+        "Resource consumption in type signatures",
+        "Cost-aware compilation"
+      ]
+    },
+    "A10_composability": {
+      "name": "The Language Must Compose With Itself",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Row polymorphism, type inference composes, ADTs and pattern matching compose cleanly",
+      "evidence": [
+        "Row polymorphism for extensible records and effects",
+        "Type inference composes correctly",
+        "ADTs compose via pattern matching",
+        "Module system supports composition",
+        "No 'special cases' in mental model"
+      ],
+      "gaps": []
+    },
+    "A11_structured_failure": {
+      "name": "Failure Must Be Representable",
+      "score": 1,
+      "maxScore": 2,
+      "status": "partial",
+      "justification": "JSON error schemas with position info, Result types exist, error propagation planned for v0.7.0",
+      "evidence": [
+        "JSON error schemas (internal/schema/)",
+        "Errors include position info",
+        "Result types in stdlib"
+      ],
+      "gaps": [
+        "Error propagation operator (?) - planned v0.7.0 (m-error-propagation)",
+        "Error composition patterns",
+        "Typed error hierarchies"
+      ]
+    },
+    "A12_system_boundary": {
+      "name": "The Language Is a System Boundary",
+      "score": 2,
+      "maxScore": 2,
+      "status": "strong",
+      "justification": "Module system with explicit imports, effect system as boundary, capability gates",
+      "evidence": [
+        "Module system with explicit imports",
+        "Effect system as execution boundary",
+        "Capability gates control authority",
+        "Clear internal/external boundary"
+      ],
+      "gaps": []
+    }
+  },
+  "improvementRoadmap": {
+    "highPriority": [
+      {
+        "axiom": "A2_replayability",
+        "task": "Implement --emit-trace jsonl",
+        "milestone": "M-DX deterministic tooling",
+        "expectedGain": 1
+      },
+      {
+        "axiom": "A9_cost_visibility",
+        "task": "Implement capability budgets ! {IO @limit=N}",
+        "milestone": "v0.4.0+ reflection API",
+        "expectedGain": 1
+      }
+    ],
+    "mediumPriority": [
+      {
+        "axiom": "A5_bounded_verification",
+        "task": "Add contracts/preconditions (@assert)",
+        "milestone": "v0.8.0+",
+        "expectedGain": 1
+      },
+      {
+        "axiom": "A6_safe_concurrency",
+        "task": "Implement CSP with session types",
+        "milestone": "v0.8.0+",
+        "expectedGain": 1
+      },
+      {
+        "axiom": "A11_structured_failure",
+        "task": "Add error propagation operator (?)",
+        "milestone": "v0.7.0 (m-error-propagation planned)",
+        "expectedGain": 1
+      }
+    ]
+  },
+  "history": [
+    {
+      "version": "v0.6.0",
+      "date": "2025-12-19",
+      "score": 18,
+      "maxScore": 24,
+      "percentage": 75.0,
+      "notes": "Initial axiom scorecard assessment"
+    }
+  ]
+}

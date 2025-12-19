@@ -15,10 +15,11 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 # This skill will:
 # 1. Run eval baseline (ALL 6 PRODUCTION MODELS, both languages) - ALWAYS USE --full FOR RELEASES
 # 2. Update website dashboard (JSON with history preservation)
-# 3. Extract metrics and UPDATE CHANGELOG.md automatically
-# 4. Move design docs from planned/ to implemented/
-# 5. Run docs-sync to verify website accuracy (version constants, PLANNED banners, examples)
-# 6. Commit all changes to git
+# 3. Update axiom scorecard KPI (if features affect axiom compliance)
+# 4. Extract metrics and UPDATE CHANGELOG.md automatically
+# 5. Move design docs from planned/ to implemented/
+# 6. Run docs-sync to verify website accuracy (version constants, PLANNED banners, examples)
+# 7. Commit all changes to git
 ```
 
 **🚨 CRITICAL: For releases, ALWAYS use --full flag by default**
@@ -312,7 +313,36 @@ git commit -m "Update benchmark dashboard for vX.X.X"
 git push
 ```
 
-### 4. Extract Metrics for CHANGELOG
+### 4. Update Axiom Scorecard
+
+**Review and update the axiom scorecard:**
+```bash
+# View current scorecard
+ailang axioms
+
+# The scorecard is at docs/static/benchmarks/axiom_scorecard.json
+# Update scores if features were added/improved that affect axiom compliance
+```
+
+**When to update scores:**
+- +1 → +2 if a partial implementation becomes complete
+- New feature aligns with an axiom → update evidence
+- Gaps were fixed → remove from gaps array
+- Add to history array to track KPI over time
+
+**Update history entry:**
+```json
+{
+  "version": "vX.X.X",
+  "date": "YYYY-MM-DD",
+  "score": 18,
+  "maxScore": 24,
+  "percentage": 75.0,
+  "notes": "Added capability budgets (A9 +1)"
+}
+```
+
+### 5. Extract Metrics for CHANGELOG
 
 **Generate metrics template:**
 ```bash
@@ -332,7 +362,7 @@ This outputs a formatted template with:
 
 For CHANGELOG template format, see [`resources/version_notes.md`](resources/version_notes.md).
 
-### 4a. Analyze Agent Evaluation Results
+### 5a. Analyze Agent Evaluation Results
 
 ```bash
 # Get KPIs (turns, tokens, cost by language)
@@ -343,7 +373,7 @@ Target metrics: Avg Turns ≤1.5x gap, Avg Tokens ≤2.0x gap vs Python.
 
 For detailed agent analysis guide, see [`resources/version_notes.md`](resources/version_notes.md).
 
-### 5. Move Design Docs to Implemented
+### 6. Move Design Docs to Implemented
 
 **Step 1: Check for issues (duplicates, misplaced docs):**
 ```bash
@@ -377,7 +407,7 @@ The script automatically:
 - Moves docs with "Status: Implemented" to implemented/
 - Flags remaining docs for manual review
 
-### 6. Update Public Documentation
+### 7. Update Public Documentation
 
 - Update `prompts/` with latest AILANG syntax
 - Update website docs (`docs/`) with latest features
@@ -403,7 +433,7 @@ The script automatically:
     ```
   - Commit changes: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
-### 7. Run Documentation Sync Check
+### 8. Run Documentation Sync Check
 
 **Run docs-sync to verify website accuracy:**
 ```bash

@@ -8,6 +8,11 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.6.2
+
+- [M-VERIFY: Runtime Contract Checks (Phase 0 + 0.5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-verify-runtime-contracts.md)
+- [Sprint Plan: M-VERIFY Phase 0 + 0.5 - Contract Infrastructure & Runtime Checks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-verify-sprint1-plan.md)
+
 ## v0.6.1
 
 - [M-BUG: List Length Returns Sum Instead of Count](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-bug-list-length-returns-wrong-value.md)
@@ -20,7 +25,6 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EXEC: Multi-Executor Support for AI Coding Agents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md)
 - [M-LETREC-SCOPING: Fix Letrec Recursive Binding Scope Regression](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md)
 - [Sprint Plan: M-LETREC-SCOPING Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-letrec-scoping-sprint-plan.md)
-- [M-VERIFY: ARC-Style Verification & Policy Mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-verify-arc-verification-policy-mode.md)
 
 ## v0.6.0
 
@@ -357,4 +361,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 233 design documents across 38 versions.*
+*Generated at build time. 234 design documents across 39 versions.*

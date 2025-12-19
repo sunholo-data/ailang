@@ -10,6 +10,10 @@ This page is automatically generated from the [design_docs/planned](https://gith
 For completed features, see [Design Documents](/docs/design-docs).
 
 
+## Planned for v0.8.0
+
+- [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-verify-smt-verification.md)
+
 ## Planned for v0.7.0
 
 - [AILANG: Auto-Caps and Capability Inference](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/20251013_auto_caps_capability_inference.md)
@@ -34,6 +38,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/eval-dashboard-reliability.md)
 - [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/execution-profiles.md)
 - [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/global-collaboration-hub.md)
+- [Sprint Plan: M-CODEGEN-ADT-DOUBLE-PAREN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-adt-double-paren-sprint-plan.md)
+- [M-CODEGEN-ADT-DOUBLE-PAREN: Fix Empty Double-Paren ADT Constructor Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-adt-double-paren.md)
 - [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-v3-binding-hoisting.md)
 - [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-value-types.md)
 - [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-dx11-phase2-debug-events.md)
@@ -41,7 +47,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-gemini-interactions-api.md)
 - [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-openai-responses-api-sprint.md)
 - [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-openai-responses-api.md)
-- [Sprint Plan: M-VERIFY Phase 0 + 0.5 - Contract Infrastructure & Runtime Checks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-verify-sprint1-plan.md)
 - [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/semantic-caching-future.md)
 
 ## Long-term Vision
@@ -57,4 +62,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 28 planned features across 2 upcoming versions.*
+*Generated at build time. 30 planned features across 3 upcoming versions.*
