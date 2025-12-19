@@ -224,3 +224,35 @@ func TestDebugSinkFullIntegration(t *testing.T) {
 - Emitting OnUnify events (adds noise, questionable value)
 - Source span tracking for constraints (would require parser changes)
 - --debug-types output format changes (keep current format)
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Events deterministically trace inference steps |
+| A2: Replayability | +1 | Event trace enables debugging session replay |
+| A3: Effect Legibility | +1 | Internal inference effects made visible |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Per-node event scoping |
+| A6: Safe Concurrency | 0 | No concurrency changes |
+| A7: Machines First | +1 | Structured sink pattern for programmatic access |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | 0 | No cost tracking impact |
+| A10: Composability | +1 | Extends Phase 1 infrastructure |
+| A11: Structured Failure | +1 | Helps diagnose type errors |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +7** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Same input produces same events
+- [x] A3 (Effects): Sink pattern makes observation explicit
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Events designed for machine consumption

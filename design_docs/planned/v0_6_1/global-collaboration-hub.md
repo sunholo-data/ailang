@@ -5,19 +5,35 @@
 **Priority**: P0 - High
 **Dependencies**: Collaboration Hub v2 (v0.5.0)
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | 0 | 0 | Infrastructure feature, not language syntax |
-| Preserve Semantic Clarity | ++ | +2 | Global visibility into all agent executions across machines |
-| Increase Determinism | + | +1 | Centralized state, consistent cross-machine ordering |
-| Lower Token Cost | ++ | +2 | Share context/results between agents, avoid duplicate work |
-| **Net Score** | | **+5** | **Decision: Move forward** |
+### Axiom Scoring
 
-**Reference:** See [AI-first DX philosophy](../v0_3_15/example-parity-vision-alignment.md#-design-principle-ai-first-dx)
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Centralized state ensures consistent cross-machine ordering |
+| A2: Replayability | +1 | Message history persisted, traces available for audit |
+| A3: Effect Legibility | 0 | Infrastructure feature, not language-level effects |
+| A4: Explicit Authority | +1 | IAM-based access control, project-level permissions |
+| A5: Bounded Verification | 0 | No verification impact |
+| A6: Safe Concurrency | +1 | Pub/Sub prevents races, ordered message delivery |
+| A7: Machines First | +1 | API-first design, JSON schemas, no human prose |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Detailed cost estimation table, usage tracking |
+| A10: Composability | +1 | Modular architecture (Pub/Sub, SQL, Storage) |
+| A11: Structured Failure | +1 | Error handling, retry logic, dead letter queues |
+| A12: System Boundary | +1 | Clear local/global boundary, hybrid mode |
+
+**Net Score: +9** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Ordered message delivery with sequence numbers
+- [x] A3 (Effects): Infrastructure feature, does not hide language-level effects
+- [x] A4 (Authority): IAM roles enforce explicit access control
+- [x] A7 (Machines First): API-first with JSON schemas, no prose-based config
 
 ## Problem Statement
 

@@ -164,21 +164,48 @@ cat > "$DOC_PATH" <<'EOF'
 **Estimated**: [Time estimate, e.g., 2 days]
 **Dependencies**: [None or list other features]
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | [+/0/−] | [+1/0/−1] | [e.g., "Removes import boilerplate"] |
-| Preserve Semantic Clarity | [+/0/−] | [+1/0/−1] | [e.g., "Effects remain explicit in types"] |
-| Increase Determinism | [+/0/−] | [+1/0/−1] | [e.g., "Injection is deterministic per entry module"] |
-| Lower Token Cost | [+/0/−] | [+1/0/−1] | [e.g., "~30 token reduction per example"] |
-| **Net Score** | | **[Total]** | **Decision: [Move forward / Reject / Redesign]** |
+Every feature must align with AILANG's 12 Design Axioms. Score each axiom and verify no hard violations.
 
-**Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
+### Axiom Scoring
 
-**Reference:** See [AI-first DX philosophy](../v0_3_15/example-parity-vision-alignment.md#-design-principle-ai-first-dx)
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | [+1/0/−1] | [e.g., "Enables reproducible traces"] |
+| A2: Replayability | [+1/0/−1] | [e.g., "No impact on traces"] |
+| A3: Effect Legibility | [+1/0/−1] | [e.g., "Makes IO effects explicit"] |
+| A4: Explicit Authority | [+1/0/−1] | [e.g., "Enforces capability constraints"] |
+| A5: Bounded Verification | [+1/0/−1] | [e.g., "Enables local type checks"] |
+| A6: Safe Concurrency | [+1/0/−1] | [e.g., "No concurrency changes"] |
+| A7: Machines First | [+1/0/−1] | [e.g., "Reduces AI token cost"] |
+| A8: Minimal Syntax | [+1/0/−1] | [e.g., "No new syntax required"] |
+| A9: Cost Visibility | [+1/0/−1] | [e.g., "Resource costs remain visible"] |
+| A10: Composability | [+1/0/−1] | [e.g., "Composes with existing effects"] |
+| A11: Structured Failure | [+1/0/−1] | [e.g., "Errors remain typed"] |
+| A12: System Boundary | [+1/0/−1] | [e.g., "Boundary crossings explicit"] |
+
+**Net Score: [Total]** → **Decision: [Move forward / Reject / Redesign]**
+
+### Hard Violation Check
+
+**These axioms cannot have −1 scores (automatic rejection):**
+
+- [ ] A1 (Determinism): No implicit nondeterminism introduced
+- [ ] A3 (Effects): No hidden side effects
+- [ ] A4 (Authority): No ambient access granted
+- [ ] A7 (Machines First): Not optimizing for human convenience over machine analysis
+
+### Decision Thresholds
+
+| Net Score | Decision |
+|-----------|----------|
+| ≥ +2 | ✅ Proceed to implementation |
+| 0 to +1 | ⚠️ Needs stronger justification |
+| < 0 | ❌ Reject or redesign |
+| Any −1 on A1/A3/A4/A7 | ❌ Automatic rejection |
 
 ## Problem Statement
 
@@ -320,9 +347,11 @@ RELATED_PLANNED_PLACEHOLDER
 
 ## References
 
+- [Design Axioms](/docs/references/axioms) - The 12 non-negotiable principles
+- [Philosophical Foundations](/docs/references/philosophical-foundations) - Block-universe determinism
+- [Design Lineage](/docs/references/design-lineage) - What we adopted/rejected and why
 - [Link to related design docs]
 - [Link to issues or discussions]
-- [Link to prior art or research]
 
 ## Future Work
 
@@ -388,7 +417,9 @@ echo "  2. Replace [placeholders] with actual content"
 echo "  3. Commit when ready: git add $DOC_PATH"
 echo ""
 echo -e "${YELLOW}Pro tips:${NC}"
+echo "  - Complete the Axiom Compliance section (score all 12 axioms)"
+echo "  - Hard violations on A1/A3/A4/A7 = automatic rejection"
+echo "  - Net axiom score must be ≥ +2 to proceed"
 echo "  - Use M-XXX naming for milestone features"
 echo "  - Include concrete examples and metrics"
 echo "  - Keep estimates realistic (2x your initial guess)"
-echo "  - Link to related docs in References section"

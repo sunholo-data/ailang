@@ -7,19 +7,35 @@
 **Parent**: [M-UNIFIED-AI-PROVIDERS](./m-unified-ai-providers.md)
 **Dependencies**: Core infrastructure from parent doc
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | + | +1 | Stateful API reduces context-passing boilerplate |
-| Preserve Semantic Clarity | 0 | 0 | Internal implementation change, no language impact |
-| Increase Determinism | + | +1 | Better conversation tracking via interaction IDs |
-| Lower Token Cost | + | +1 | Server-side context storage reduces repeated tokens |
-| **Net Score** | | **+3** | **Decision: Move forward** |
+### Scoring
 
-**Decision rule:** Net score > +1 → Move forward | ≤ 0 → Reject or redesign
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | External API calls remain non-deterministic |
+| A2: Replayability | +1 | interaction_id enables conversation replay |
+| A3: Effect Legibility | 0 | AI effect already explicit in system |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | External dependency |
+| A6: Safe Concurrency | 0 | No concurrency changes |
+| A7: Machines First | +1 | Unified module simplifies AI provider integration |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Server-side context reduces token costs |
+| A10: Composability | +1 | Composes with unified internal/ai/ package |
+| A11: Structured Failure | +1 | Consistent error handling across APIs |
+| A12: System Boundary | +1 | Clear API boundary between generate and interactions |
+
+**Net Score: +6** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): No additional nondeterminism (external API is inherently non-deterministic)
+- [x] A3 (Effects): AI effect already required for calls
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Simplifies programmatic AI access
 
 ## Problem Statement
 

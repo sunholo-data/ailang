@@ -371,6 +371,55 @@ RegisterEffectBuiltin(BuiltinSpec{
 - Include concrete mitigation plan
 - Update as risks change
 
+### Axiom Compliance
+
+```markdown
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Enables reproducible X |
+| A2: Replayability | 0 | No impact |
+| A3: Effect Legibility | +1 | Makes Y effects explicit |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Enables local Z checks |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Reduces token cost for AI |
+| A8: Minimal Syntax | 0 | No new syntax |
+| A9: Cost Visibility | 0 | No resource changes |
+| A10: Composability | +1 | Composes with existing W |
+| A11: Structured Failure | 0 | No error handling changes |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [ ] A1 (Determinism): No implicit nondeterminism introduced
+- [ ] A3 (Effects): No hidden side effects
+- [ ] A4 (Authority): No ambient access granted
+- [ ] A7 (Machines First): Not optimizing for human convenience over machine analysis
+```
+
+**Purpose**: Verify feature aligns with AILANG's core principles.
+
+**Tips:**
+- Score EVERY axiom (use 0 for no impact)
+- Justify non-zero scores with specific reasoning
+- Hard violations (−1 on A1, A3, A4, A7) require redesign
+- Net score ≥ +2 to proceed
+- Include the hard violation checklist
+
+**Decision thresholds:**
+- **≥ +2**: Proceed to draft
+- **0 to +1**: Needs stronger justification
+- **< 0**: Reject or redesign
+- **Any −1 on A1, A3, A4, A7**: Automatic rejection
+
 ### References
 
 ```markdown
@@ -380,6 +429,7 @@ RegisterEffectBuiltin(BuiltinSpec{
 - **Prior art**: Ruby DSL for types, Rust procedural macros
 - **Related issues**: #42, #58
 - **Discussion**: Slack thread (Oct 10, 2024)
+- **Axiom reference**: [Design Axioms](/docs/references/axioms)
 ```
 
 **Purpose**: Link to context and background.
@@ -389,6 +439,7 @@ RegisterEffectBuiltin(BuiltinSpec{
 - Reference issues/PRs
 - Cite prior art or research
 - Include discussion links
+- Always include axiom reference link
 
 ### Future Work
 
@@ -598,6 +649,7 @@ Use this when creating a new design doc:
 - [ ] Priority and version target are known
 - [ ] Similar features reviewed for patterns
 - [ ] Dependencies identified
+- [ ] **Axiom quick-check**: Does this obviously violate A1, A3, A4, or A7?
 
 **When creating:**
 - [ ] Run `create_planned_doc.sh`
@@ -610,9 +662,13 @@ Use this when creating a new design doc:
 - [ ] List files to create/modify
 - [ ] Add testing strategy
 - [ ] Define non-goals
+- [ ] **Complete Axiom Compliance section** (score all 12 axioms)
+- [ ] **Verify net score ≥ +2** (or provide justification)
+- [ ] **Check hard violations** (A1, A3, A4, A7 must not be −1)
 
 **After creating:**
 - [ ] Review for clarity and completeness
+- [ ] Verify axiom scores are justified
 - [ ] Get feedback from others if major feature
 - [ ] Commit to git
 - [ ] Link from related docs if needed

@@ -610,6 +610,38 @@ Stats:
   - `docs/static/benchmarks/latest.json`
   - `internal/eval_analysis/`
 
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Dashboard updates become deterministic (append-only, validated) |
+| A2: Replayability | +1 | Preserves historical data for benchmark replay analysis |
+| A3: Effect Legibility | 0 | No impact on effect visibility |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | JSON validation prevents corruption locally |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Single source of truth aids automated tooling |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Better benchmark tracking improves cost visibility |
+| A10: Composability | +1 | Composes with existing eval-report workflow |
+| A11: Structured Failure | +1 | Atomic writes prevent partial/corrupted output |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +7** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): No implicit nondeterminism introduced
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Optimizes for automated tooling, not human convenience
+
+---
+
 ## Priority Justification
 
 **High Priority** because:

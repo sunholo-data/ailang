@@ -355,3 +355,35 @@ ailang agent unack msg_20251027_194523_a5f3e77ee975
 - Reason: Direct spawning (Milestone 1.3) provides 80% value with 20% complexity
 - Decision: Ship direct spawning first, validate concept, then upgrade to queue
 - Timeline: Queue architecture optional for v0.4.1+ if crash recovery becomes critical
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Persistent queue enables deterministic crash recovery |
+| A2: Replayability | +1 | Task queue preserves full eval run history |
+| A3: Effect Legibility | 0 | No change to effect visibility |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Task status verifiable per-benchmark |
+| A6: Safe Concurrency | +1 | Ack-based queue prevents duplicate processing |
+| A7: Machines First | +1 | Uses AILANG's agent messaging for dogfooding |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Per-task cost tracking in results |
+| A10: Composability | +1 | Extends existing M-EVAL-AGENT infrastructure |
+| A11: Structured Failure | +1 | Task failures isolated and retryable |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +8** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Queue order is deterministic
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Dogfoods AILANG's own agent protocol

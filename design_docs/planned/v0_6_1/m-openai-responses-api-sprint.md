@@ -227,3 +227,35 @@ After this feature, AILANG programs using `--ai gpt*` will benefit from:
 - **Reasoning tokens**: Better cost tracking for reasoning-heavy models
 - **Consistent API**: Same module powers both eval harness and CLI
 - **Future features**: Easier to add streaming, tool use, etc.
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | 0 | External API calls remain non-deterministic |
+| A2: Replayability | +1 | Unified client enables consistent request/response logging |
+| A3: Effect Legibility | 0 | AI calls already explicit in effect system |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | 0 | External dependency |
+| A6: Safe Concurrency | 0 | No concurrency changes |
+| A7: Machines First | +1 | Unified module simplifies AI provider integration |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Reasoning token tracking improves cost accuracy |
+| A10: Composability | +1 | Unified internal/ai/ package for all providers |
+| A11: Structured Failure | +1 | Consistent error handling across APIs |
+| A12: System Boundary | +1 | Clear API boundary between Chat and Responses |
+
+**Net Score: +6** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): No additional nondeterminism (external API is inherently non-deterministic)
+- [x] A3 (Effects): AI effect already required for calls
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Simplifies programmatic AI access

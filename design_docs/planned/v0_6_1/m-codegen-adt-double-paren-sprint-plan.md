@@ -103,3 +103,35 @@ Fix codegen bug where ADT constructors with fields generate invalid `NewConstruc
 - This is a P0 bug blocking stapledons_voyage
 - Estimated completion: ~3 hours total
 - Sprint includes investigation time since root cause is still a hypothesis
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Fix ensures deterministic codegen |
+| A2: Replayability | 0 | No replay impact |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Per-constructor regression test |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Correct Go output for machine consumption |
+| A8: Minimal Syntax | 0 | Bug fix only |
+| A9: Cost Visibility | 0 | No cost impact |
+| A10: Composability | +1 | Unblocks stapledons_voyage |
+| A11: Structured Failure | +1 | Regression test prevents recurrence |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Codegen is deterministic
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Correct machine-readable output

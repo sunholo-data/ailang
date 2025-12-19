@@ -6,19 +6,35 @@
 **Estimated**: 2 weeks
 **Dependencies**: Go codegen (v0.5.x), Effect contexts (v0.5.x)
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | + | +1 | Profile-aware defaults reduce boilerplate |
-| Preserve Semantic Clarity | + | +1 | Explicit profiles make intent clear |
-| Increase Determinism | + | +1 | Profiles define deterministic effect budgets |
-| Lower Token Cost | 0 | 0 | No change to AILANG source |
-| **Net Score** | | **+3** | **Decision: Move forward** |
+### Axiom Scoring
 
-**Decision rule:** Net score > +1 → Move forward
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Profiles define deterministic effect budgets per entry shape |
+| A2: Replayability | +1 | Effect contexts enable trace replay and inspection |
+| A3: Effect Legibility | +1 | Profiles make allowed effects explicit and machine-readable |
+| A4: Explicit Authority | +1 | Effect budgets constrain what capabilities each profile allows |
+| A5: Bounded Verification | +1 | Profile validation is local (entry shape + effects) |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Profiles are machine-decidable, CLI flag or auto-detected |
+| A8: Minimal Syntax | 0 | No new syntax required |
+| A9: Cost Visibility | +1 | Effect budgets show resource implications upfront |
+| A10: Composability | +1 | Profiles compose with existing effect system |
+| A11: Structured Failure | 0 | No error handling changes |
+| A12: System Boundary | +1 | Profiles define explicit entry/exit boundaries |
+
+**Net Score: +9** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Profiles enforce deterministic effect budgets
+- [x] A3 (Effects): All effects remain explicit and typed per profile
+- [x] A4 (Authority): Effect budgets constrain ambient access
+- [x] A7 (Machines First): CLI auto-detection, not human-centric prose
 
 ---
 

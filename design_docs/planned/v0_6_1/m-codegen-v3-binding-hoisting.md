@@ -310,6 +310,38 @@ These remain deferred to future milestones.
 - [Block IR](../../../internal/gen/block/) - Current implementation
 - [codegen_block.go](../../../internal/gen/golang/codegen_block.go) - Flat body generation
 
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Binding order becomes explicit and deterministic |
+| A2: Replayability | 0 | No impact on replay |
+| A3: Effect Legibility | +1 | Effect ordering preserved and made explicit |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Simpler code structure enables local verification |
+| A6: Safe Concurrency | 0 | No concurrency changes |
+| A7: Machines First | +1 | Flatter Go code is easier for tools to analyze |
+| A8: Minimal Syntax | 0 | No AILANG syntax changes |
+| A9: Cost Visibility | 0 | No cost tracking impact |
+| A10: Composability | +1 | Builds on M-CODEGEN-V2 infrastructure |
+| A11: Structured Failure | 0 | No error handling changes |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Evaluation order explicitly preserved
+- [x] A3 (Effects): Effects sequenced correctly via ANF
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Generates simpler Go for tooling
+
+---
+
 ## Changelog
 
 | Date | Change |

@@ -1521,6 +1521,38 @@ ailang agent verify list [--status=verified|rejected]
 
 ---
 
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Idempotent message delivery via message_id deduplication |
+| A2: Replayability | +1 | Full audit log in agent_history enables replay |
+| A3: Effect Legibility | +1 | declared_effects field makes agent effects explicit |
+| A4: Explicit Authority | +1 | Agent allowlist enforces capability bounds |
+| A5: Bounded Verification | +1 | SHA256 hashes enable local artifact verification |
+| A6: Safe Concurrency | +1 | Lease-based coordination prevents race conditions |
+| A7: Machines First | +1 | File-based messages are machine-readable JSON |
+| A8: Minimal Syntax | 0 | No AILANG syntax changes |
+| A9: Cost Visibility | +1 | agent_metrics tracks costs per operation |
+| A10: Composability | +1 | Protocol composes with existing agent/skill architecture |
+| A11: Structured Failure | +1 | DLQ with structured error reasons |
+| A12: System Boundary | +1 | Clear agent boundaries via inbox directories |
+
+**Net Score: +11** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Message ordering guaranteed by timestamps
+- [x] A3 (Effects): declared_effects field makes all effects explicit
+- [x] A4 (Authority): Agent allowlist prevents unauthorized agents
+- [x] A7 (Machines First): JSON files designed for machine consumption
+
+---
+
 ## Roadmap Fit
 
 | Version | Features | Status |

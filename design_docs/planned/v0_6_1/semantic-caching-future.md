@@ -269,3 +269,35 @@ transaction {
 **Original Design Doc:** [archived version](https://github.com/sunholo-data/ailang/blob/v0.5.10/design_docs/planned/v0_6_0/semantic-caching.md)
 **Implementation Status:** [semantic-caching-complete.md](../../implemented/v0_5_11/semantic-caching-complete.md)
 **Last Updated:** 2025-12-16
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Persistent backends enable deterministic state recovery |
+| A2: Replayability | +1 | Cached frames enable workflow replay |
+| A3: Effect Legibility | +1 | SharedMem/SharedIndex are explicit effects |
+| A4: Explicit Authority | +1 | Cache access gated by capabilities |
+| A5: Bounded Verification | +1 | CAS operations enable local consistency checks |
+| A6: Safe Concurrency | +1 | Redis/Firestore provide atomic operations |
+| A7: Machines First | +1 | SimHash + embeddings optimized for machine comparison |
+| A8: Minimal Syntax | 0 | No new syntax |
+| A9: Cost Visibility | +1 | Caching reduces AI call costs |
+| A10: Composability | +1 | Builds on v0.5.11 infrastructure |
+| A11: Structured Failure | +1 | Transaction failures structured |
+| A12: System Boundary | +1 | Clear cache/storage boundaries |
+
+**Net Score: +11** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Cache operations deterministic given same state
+- [x] A3 (Effects): SharedMem/SharedIndex require explicit capabilities
+- [x] A4 (Authority): No ambient cache access
+- [x] A7 (Machines First): Similarity search designed for AI workflows

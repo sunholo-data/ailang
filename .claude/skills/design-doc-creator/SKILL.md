@@ -213,62 +213,98 @@ $ ailang docs search --stream planned "lazy embedding"
 
 **When these signs appear:** Expand scope of design doc to unify the system.
 
-**⚠️ IMPORTANT: Keep AILANG's Vision in Mind**
+**⚠️ IMPORTANT: Axiom Compliance Check**
 
-**AI-first DX = Minimize Syntactic Entropy**
+**Every feature must align with AILANG's 12 Design Axioms.**
 
-The goal of every feature is to make AILANG the most **machine-decidable**, **context-efficient**, and **deterministic** language for AI coders.
+The axioms are the non-negotiable principles that define AILANG's semantics. Any feature that violates an axiom must justify why the axiom itself should change.
 
-Before writing a design doc, verify that the proposed feature **strictly improves one or more** of the following metrics — and **does not degrade any**:
+📖 **Canonical Reference:** [Design Axioms](/docs/references/axioms) on the website
 
-| Principle | Definition | Design-time Test |
-|-----------|------------|------------------|
-| ✅ **Reduce Syntactic Noise** | Remove or infer repetitive scaffolding (imports, effect declarations, boilerplate) | "Can an AI express the same intent with fewer tokens or less redundancy?" |
-| ✅ **Preserve Semantic Clarity** | Keep meaning explicit and compositional even when syntax is inferred | "Would another AI (or static checker) interpret this code identically?" |
-| ✅ **Increase Determinism** | Ensure identical inputs produce identical ASTs and effects. Avoid implicit state, random order, or hidden magic. | "Could this feature be fully round-tripped through the compiler?" |
-| ✅ **Lower Token Cost** | Minimize the number of tokens and transformations needed for the AI to express intent and the compiler to verify it | "Does this feature shorten the conversational path from intent → executable?" |
+### The 12 Axioms (Quick Reference)
 
-### 🧭 Implementation Guidance
+| # | Axiom | Core Principle |
+|---|-------|----------------|
+| 1 | **Determinism** | Execution must be replayable; nondeterminism is explicit, typed, localized |
+| 2 | **Replayability** | Traces are inspectable, serializable, and suitable for verification |
+| 3 | **Effects Are Legible** | Side effects are explicit, typed, and machine-readable |
+| 4 | **Explicit Authority** | No implicit access; capabilities are declared and constrained |
+| 5 | **Bounded Verification** | Local, automatable checks; not whole-program proofs |
+| 6 | **Safe Concurrency** | Parallelism must not introduce scheduling-dependent meaning |
+| 7 | **Machines First** | Semantic compression, decidable structure, toolability |
+| 8 | **Syntax Is Liability** | Only add syntax that reduces ambiguity or improves analysis |
+| 9 | **Cost Is Meaning** | Resource implications visible in types and to tools |
+| 10 | **Composability** | Features must compose without semantic blind spots |
+| 11 | **Failure Is Data** | Errors are structured, typed, inspectable, composable |
+| 12 | **System Boundary** | Crossing between intent/execution, authority/action is explicit |
 
-**Score the proposed feature across these axes:**
+### 🧭 Axiom Scoring Matrix
 
-| Axis | −1 (hurts) | 0 (neutral) | +1 (helps) |
-|------|------------|-------------|------------|
-| Syntactic Noise | adds boilerplate | — | removes boilerplate |
-| Semantic Clarity | adds ambiguity | — | clearer, self-describing |
-| Determinism | introduces nondeterminism | — | increases reproducibility |
-| Token Cost | increases context size | — | lowers token footprint |
+**Score the proposed feature against each applicable axiom:**
 
-**Decision rule:**
-- Net score **> +1**: Move forward to draft
-- Net score **≤ 0**: Reject or redesign
+| Axiom | −1 (violates) | 0 (neutral) | +1 (strengthens) |
+|-------|---------------|-------------|------------------|
+| **A1: Determinism** | adds implicit nondeterminism | — | increases reproducibility |
+| **A2: Replayability** | breaks trace reconstruction | — | improves audit/replay |
+| **A3: Effect Legibility** | hides side effects | — | makes effects more visible |
+| **A4: Explicit Authority** | grants ambient access | — | enforces capability bounds |
+| **A5: Bounded Verification** | requires global reasoning | — | enables local checks |
+| **A6: Safe Concurrency** | introduces races | — | preserves determinism |
+| **A7: Machines First** | optimizes for human prose | — | improves machine analysis |
+| **A8: Minimal Syntax** | adds syntactic surface | — | reduces ambiguity |
+| **A9: Cost Visibility** | hides resource costs | — | makes costs explicit |
+| **A10: Composability** | breaks when combined | — | composes cleanly |
+| **A11: Structured Failure** | uses unstructured exceptions | — | typed error handling |
+| **A12: System Boundary** | implicit boundary crossing | — | explicit transitions |
 
-### 💡 Examples
+### Decision Rules
 
-| Feature | Score | Why |
-|---------|-------|-----|
-| ✅ Entry-module Prelude (`print`) | **+3** | Removes boilerplate (+1), Deterministic injection (+1), Token savings (+1) |
-| ✅ Auto-cap inference (`!{IO}`) | **+2** | Syntactic noise ↓ (+1), Semantic clarity maintained (0), Token cost ↓ (+1) |
-| ❌ Global mutable state | **−2** | Violates determinism (−2) |
-| ⚠️ Optional type annotations | **±0** | Only if inference remains stable and predictable |
+**Hard violations (automatic rejection):**
+- Any score of **−1** on Axioms 1, 3, 4, or 7 → **REJECT** (core invariants)
 
-### 🧠 Conceptual Frame
+**Soft scoring:**
+- Net score across all axioms **≥ +2**: Move forward to draft
+- Net score **0 to +1**: Needs stronger justification
+- Net score **< 0**: Reject or redesign
 
-**Think of every feature as a compression algorithm for code intent.**
+### 💡 Scoring Examples
 
-The better the compression, the lower the entropy, and the more efficiently an AI can operate in that linguistic medium.
+| Feature | Axiom Scores | Net | Decision |
+|---------|--------------|-----|----------|
+| ✅ Entry-module Prelude | A7:+1, A8:+1, A1:+1 | **+3** | Accept |
+| ✅ Auto-cap inference | A3:+1, A8:+1, A4:0 | **+2** | Accept |
+| ✅ Structured error traces | A2:+1, A11:+1, A7:+1 | **+3** | Accept |
+| ❌ Global mutable state | A1:−1, A4:−1, A6:−1 | **−3** | Reject (violates A1) |
+| ❌ Implicit DB connections | A3:−1, A4:−1, A12:−1 | **−3** | Reject (violates A3, A4) |
+| ⚠️ Optional type annotations | A7:0, A5:+1, A8:−1 | **0** | Needs justification |
 
-### What AILANG Is NOT Optimized For
+### 🧠 Philosophical Grounding
 
-- ❌ IDE features (autocomplete, hover, refactoring)
-- ❌ Human concurrency patterns (CSP channels → static task graphs)
-- ❌ Familiar syntax from other languages (if it adds entropy)
+AILANG treats computation as **navigation through a fixed semantic structure**, not creation of new possibilities.
+
+Key implications:
+- **Effects are permissions**, not actions
+- **Traces are primary artifacts**, not debugging aids
+- **Cost is physical reality**, not incidental overhead
+
+📖 See [Philosophical Foundations](/docs/references/philosophical-foundations) for the full motivation.
+
+### What AILANG Deliberately Excludes
+
+These are design choices, not limitations:
+
+- ❌ **LSP/IDE servers** — AIs use CLI/API, not text editors
+- ❌ **Multiple syntaxes** — one canonical way per concept
+- ❌ **Implicit behaviors** — all effects are explicit
+- ❌ **Human concurrency patterns** — CSP channels → static task graphs
+- ❌ **Familiar syntax** — if it adds entropy, reject it
 
 ### Reference Documents
 
+- [Design Axioms](/docs/references/axioms) - The 12 non-negotiable principles
+- [Philosophical Foundations](/docs/references/philosophical-foundations) - Block-universe determinism
+- [Design Lineage](/docs/references/design-lineage) - What we adopted/rejected and why
 - [VISION_BENCHMARKS.md](../../../benchmarks/VISION_BENCHMARKS.md) - Vision goals and success metrics
-- [Example Parity & Vision Alignment](../../../design_docs/planned/v0_3_15/example-parity-vision-alignment.md) - AI-first DX philosophy detailed
-- [Auto-Capability Inference](../../../design_docs/planned/20251013_auto_caps_capability_inference.md) - Example of entropy reduction
 
 **2. Choose Document Name**
 

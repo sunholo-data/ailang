@@ -207,3 +207,35 @@ func TestListTypePrinting(t *testing.T) {
 - Type Builder: `internal/types/builder.go`
 - Parser: `internal/parser/parser_type.go`
 - AsList helper: `internal/types/helpers.go`
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Single canonical representation for list types |
+| A2: Replayability | 0 | No replay impact |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Eliminates dual-representation edge cases |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Single type form simplifies tooling |
+| A8: Minimal Syntax | +1 | [T] remains as sugar for TApp("list", T) |
+| A9: Cost Visibility | 0 | No cost impact |
+| A10: Composability | +1 | Uniform TApp pattern across all container types |
+| A11: Structured Failure | 0 | No error handling changes |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Normalization is deterministic
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Simplifies type system analysis

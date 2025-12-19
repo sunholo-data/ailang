@@ -236,3 +236,35 @@ Use traditional `if debug { log(...) }` statements.
 
 - **M-DX11:** Initial `--debug-types` infrastructure (v0.5.11)
 - **Design Doc:** [m-dx11-debug-types-cli.md](../v0_5_11/m-dx11-debug-types-cli.md)
+
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Debug events provide deterministic introspection into inference |
+| A2: Replayability | +1 | Full event trace enables debugging session replay |
+| A3: Effect Legibility | +1 | Makes type inference internal effects visible |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Events scoped to individual nodes enable local debugging |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Structured events suitable for automated analysis |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | 0 | No cost tracking impact |
+| A10: Composability | +1 | Extends existing M-DX11 infrastructure |
+| A11: Structured Failure | +1 | Events help diagnose type inference failures |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +7** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Events are deterministic given same input
+- [x] A3 (Effects): No hidden side effects (sink pattern is explicit)
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Events designed for machine consumption

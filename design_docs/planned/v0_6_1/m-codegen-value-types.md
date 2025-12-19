@@ -6,17 +6,35 @@
 **Estimated**: 6-8 hours (revised up for stability guarantees)
 **Dependencies**: M-CODEGEN-POINTER-RETURN-TYPES (v0.5.9)
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | 0 | 0 | No syntax change |
-| Preserve Semantic Clarity | + | +1 | Clear value vs pointer semantics |
-| Increase Determinism | ++ | +2 | Single source of truth, stable ABI |
-| Lower Token Cost | 0 | 0 | No impact on token cost |
-| **Net Score** | | **+3** | **Decision: Move forward** |
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Single source of truth for type categories, stable ABI |
+| A2: Replayability | +1 | ABI metadata enables reproducible builds |
+| A3: Effect Legibility | 0 | No impact on effects |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Type category verifiable per-record locally |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Heuristic is deterministic and machine-predictable |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Clear performance implications (heap vs stack) |
+| A10: Composability | +1 | Integrates with existing codegen pipeline |
+| A11: Structured Failure | +1 | ABI flip warnings prevent silent breakage |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +7** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): GoReprForType is single source of truth
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Heuristic designed for predictability
 
 ## Problem Statement
 

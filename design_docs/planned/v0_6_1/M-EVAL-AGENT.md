@@ -1059,6 +1059,40 @@ Use agents to build AILANG itself:
 
 ---
 
+---
+
+## Axiom Compliance
+
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
+
+### Scoring
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Fresh headless sessions ensure deterministic benchmark runs |
+| A2: Replayability | +1 | Session recordings and results enable analysis |
+| A3: Effect Legibility | +1 | Allowed tools explicitly declared per session |
+| A4: Explicit Authority | +1 | Workspace isolation prevents ambient access |
+| A5: Bounded Verification | +1 | Each benchmark independently verifiable |
+| A6: Safe Concurrency | +1 | Rate-limited parallel execution prevents resource contention |
+| A7: Machines First | +1 | Validates AILANG's AI-first design with agent benchmarks |
+| A8: Minimal Syntax | 0 | No syntax changes |
+| A9: Cost Visibility | +1 | Per-benchmark cost tracking in JSON output |
+| A10: Composability | +1 | Extends existing M-EVAL infrastructure |
+| A11: Structured Failure | +1 | JSON result format with error details |
+| A12: System Boundary | +1 | Clear agent/benchmark boundaries |
+
+**Net Score: +11** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Headless sessions are fresh/isolated
+- [x] A3 (Effects): Tool allowlist makes effects explicit
+- [x] A4 (Authority): Workspace sandbox enforces boundaries
+- [x] A7 (Machines First): Core purpose is AI-first benchmarking
+
+---
+
 **Created**: October 23, 2025
 **Updated**: October 27, 2025 (Claude Code integration specifics added)
 **Target Version**: v0.4.0

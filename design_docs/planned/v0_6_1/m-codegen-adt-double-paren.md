@@ -8,19 +8,35 @@
 **Dependencies**: None
 **GitHub Issue**: #52
 
-## AI-First Alignment Check
+## Axiom Compliance
 
-**Score this feature against AILANG's core principles:**
+**Canonical reference:** [Design Axioms](/docs/references/axioms)
 
-| Principle | Impact | Score | Notes |
-|-----------|--------|-------|-------|
-| Reduce Syntactic Noise | 0 | 0 | Bug fix, no syntax change |
-| Preserve Semantic Clarity | + | +1 | Ensures constructor args are passed correctly |
-| Increase Determinism | + | +1 | Deterministic Go codegen for ADT constructors |
-| Lower Token Cost | 0 | 0 | Bug fix, no token impact |
-| **Net Score** | | **+2** | **Decision: Move forward** |
+### Scoring
 
-**Decision rule:** Net score > +1 → Move forward
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| A1: Determinism | +1 | Ensures deterministic Go codegen for ADT constructors |
+| A2: Replayability | 0 | No replay impact |
+| A3: Effect Legibility | 0 | No effect changes |
+| A4: Explicit Authority | 0 | No capability changes |
+| A5: Bounded Verification | +1 | Fix is verifiable per-constructor locally |
+| A6: Safe Concurrency | 0 | No concurrency impact |
+| A7: Machines First | +1 | Correct codegen essential for automated builds |
+| A8: Minimal Syntax | 0 | No syntax changes (bug fix) |
+| A9: Cost Visibility | 0 | No cost impact |
+| A10: Composability | +1 | Fixes integration with ADT system |
+| A11: Structured Failure | +1 | Regression test catches future issues |
+| A12: System Boundary | 0 | No boundary changes |
+
+**Net Score: +5** ✅ Proceed to implementation
+
+### Hard Violation Check
+
+- [x] A1 (Determinism): Codegen is now deterministic
+- [x] A3 (Effects): No hidden side effects
+- [x] A4 (Authority): No ambient access granted
+- [x] A7 (Machines First): Correct codegen for machine consumption
 
 ## Problem Statement
 
