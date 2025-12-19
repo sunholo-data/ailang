@@ -23,6 +23,7 @@ type EffContext struct {
 	AI           *AIContext            // AI effect state (handler for AI.call)
 	SharedMem    *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
 	SharedIndex  *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
+	Contracts    *ContractContext      // Contract effect state (M-VERIFY)
 	EnvSnapshot  map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist []string              // Env effect: allowed variable names (nil = allow all)
 	Args         []string              // CLI arguments passed to the program (excluding program name)
