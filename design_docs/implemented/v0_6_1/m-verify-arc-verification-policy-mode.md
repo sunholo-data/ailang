@@ -1,14 +1,303 @@
 # M-VERIFY: ARC-Style Verification & Policy Mode
 
-**Status**: Planned
-**Target**: v0.6.0
+**Status**: IMPLEMENTED
+**Target**: v0.6.2+
 **Priority**: P1 (Medium-High)
-**Estimated**: 8-12 weeks (phased implementation, high uncertainty for SMT phase)
+**Estimated**: 6-10 weeks (phased implementation, high uncertainty for SMT phase)
 **Dependencies**:
 - Core type system (complete)
 - Effects system (complete)
 - Go codegen backend (complete)
 - SharedMem effect (planned, Phase 3 only)
+
+---
+
+## Implementation Status Update (December 2025)
+
+**Last reviewed**: 2025-12-18
+
+### Verdict: Still a Strong Fit for AILANG
+
+The design remains architecturally sound. AILANG has evolved favorably since the original design, with several developments that **reduce implementation effort**:
+
+| Factor | Status | Notes |
+|--------|--------|-------|
+| AST Foundation | ✅ Ready | `FuncDecl.Properties`, `Property` struct with `Binders` already exist |
+| Parser Infrastructure | ✅ Ready | `property` syntax with `forall` binders can be extended |
+| Effect System | ✅ Mature | `EffContext` in `internal/effects/` provides runtime context |
+| Codegen | ⚠️ Larger | Now 12,500 LOC (well-organized, typed wrappers help) |
+| SMT Backend | ❌ Not started | Still needs `internal/smt/` package |
+| Trace Runtime | ❌ Not started | Still needs `internal/trace/` package |
+
+### Key Finding: Existing Property Infrastructure
+
+AILANG already has substantial property-testing infrastructure that can be **directly reused** for contracts:
+
+**Existing AST** (`internal/ast/ast_decl.go`):
+```go
+type Property struct {
+    Name    string
+    Binders []*Binder  // forall bindings - maps to contract variables
+    Expr    Expr       // boolean expression - maps to contract predicate
+    Pos     Pos
+}
+
+type Binder struct {
+    Name string
+    Type Type
+    Pos  Pos
+}
+
+type FuncDecl struct {
+    // ...
+    Properties []*Property  // Already wired to function declarations!
+    // ...
+}
+```
+
+**Existing Parser** (`internal/parser/parser_testing.go`):
+- `parseProperty()` - parses `forall(x: Type, y: Type) => expr`
+- `parsePropertiesBlock()` - parses `[ property1, property2, ... ]`
+- `parseBinder()` - parses `name: Type`
+
+**Existing Syntax** (works today):
+```ailang
+property "addition is commutative" (x: int, y: int) =
+  x + y == y + x
+```
+
+**Existing Tokens** (`internal/lexer/token.go`):
+- ✅ `FORALL`, `PROPERTY`, `TEST`, `ASSERT` - all exist
+- ❌ `REQUIRES`, `ENSURES`, `INVARIANT` - need to add (trivial)
+
+### Mapping: Properties → Contracts
+
+| Existing Property | Contract Equivalent | Adaptation Needed |
+|------------------|--------------------|--------------------|
+| `Property.Binders` | Not used for contracts | Skip for `requires`/`ensures` (no universal quantification) |
+| `Property.Expr` | Contract predicate | Direct reuse |
+| `FuncDecl.Properties` | Contract storage | Add `ContractKind` field |
+
+**Proposed Extension**:
+```go
+type ContractKind int
+const (
+    PropertyKind ContractKind = iota  // Existing property-based tests
+    RequiresKind                       // Precondition
+    EnsuresKind                        // Postcondition
+    InvariantKind                      // Module/type invariant
+)
+
+type Property struct {
+    Name    string
+    Kind    ContractKind  // NEW: Distinguish contract types
+    Binders []*Binder     // For forall properties, empty for contracts
+    Expr    Expr
+    Pos     Pos
+}
+```
+
+### Revised Estimates
+
+| Phase | Original | Revised | Savings | Reason |
+|-------|----------|---------|---------|--------|
+| Phase 0 (Plumbing) | 15-20h | 8-12h | ~35% | Property infrastructure exists |
+| Phase 1 (SMT) | 25-35h | 25-35h | 0% | Still high uncertainty |
+| Phase 2 (Redundant Gen) | 10-15h | 10-15h | 0% | Unchanged |
+| **Total** | **50-70h** | **43-62h** | **~12%** | |
+
+### Recent Codegen Changes (Favorable)
+
+Since December 2025, codegen has evolved with:
+- **M-DX26**: Typed wrappers - functions generate both `_impl` and typed API
+- **M-DX27**: Better type tracking in match expressions
+- **M-CODEGEN-UNIFIED-SLICE**: Robust slice type conversion
+
+These changes **help** M-VERIFY because:
+1. Runtime contract checks can be injected at typed wrapper boundary
+2. Type information is preserved for SMT encoding
+3. Well-organized codegen structure (12,500 LOC across 20+ focused files)
+
+### Existing Telemetry Infrastructure
+
+AILANG has two telemetry systems that can be leveraged for M-VERIFY:
+
+**1. Pipeline Metrics** (`internal/pipeline/metrics.go`):
+- `PipelineMetrics` struct - Structured timing for compilation phases
+- `MetricsCollector` - Opt-in via `AILANG_METRICS=1`
+- Hub integration via `AILANG_HUB_URL` for centralized collection
+
+**2. Debug Effect** (`internal/effects/debug.go`) - **Directly Applicable to Contract Traces**:
+```go
+type DebugContext struct {
+    logs       []LogEntry
+    assertions []AssertionResult  // ← Maps directly to contract checks!
+    timestamp  int64
+}
+
+type LogEntry struct {
+    Message   string
+    Location  string  // "file.ail:42" (auto-injected by compiler)
+    Timestamp int64   // Logical time (host-defined)
+}
+
+type AssertionResult struct {
+    Passed   bool
+    Message  string
+    Location string
+}
+```
+
+**Key insight**: The `DebugContext` pattern is **exactly** what M-VERIFY needs for contract traces:
+
+| DebugContext Feature | M-VERIFY Equivalent |
+|---------------------|---------------------|
+| `AssertionResult` | `ContractCheck` (Passed/Failed + Message + Location) |
+| `Collect()` host-only | Contract traces are host-only |
+| `LogEntry` with timestamps | Function call trace with timing |
+| Wired to `EffContext` | Contract context integration is trivial |
+
+**Proposed extension** (follows Debug pattern):
+```go
+// ContractContext - follows DebugContext pattern exactly
+type ContractContext struct {
+    checks     []ContractCheck
+    timestamp  int64
+}
+
+type ContractCheck struct {
+    Kind      ContractKind    // Requires, Ensures, Invariant
+    Passed    bool
+    Message   string          // Contract expression as string
+    Location  string          // "module.ail:42"
+    Function  string          // "module.funcName"
+    Args      map[string]any  // Argument values at time of check
+    Hash      string          // SHA256 of contract expression
+}
+```
+
+**Impact on estimates**: Component 4 (Execution Traces) can reuse ~70% of the Debug effect architecture, further reducing Phase 0 effort.
+
+### Design Review Feedback (December 2025)
+
+**Reviewer verdict**: ✅ **Still a go** — more so than the earlier shape because it front-loads real value (Phase 0.5 runtime checks) and leans hard on existing infrastructure.
+
+#### What Got Better (Materially)
+
+| Improvement | Why It Matters |
+|-------------|----------------|
+| **Phase 0 is genuinely low-risk** | Not inventing a new AST channel; extending `Property` with `ContractKind` and reusing parser/testing plumbing |
+| **Phase 0.5 is a killer "ship something useful" slice** | Runtime contract checks + trace artifacts pay off immediately for agents and humans, even if SMT slips |
+| **Profiles are the right product surface** | `runtime-only`, `smt-best-effort`, `smt-strict` let you stay sound (no false "verified" claims) while providing guardrails |
+
+#### Design Adjustments Required
+
+**1. Don't panic by default — make runtime contract failures structured**
+
+Panics are fine for early bring-up, but for "policy mode" you need deterministic, auditable failure without taking down the host.
+
+**Updated behavior**:
+| Mode | Contract Violation Behavior |
+|------|----------------------------|
+| `debug` / `--verify-contracts` | Panic (fast feedback during development) |
+| `policy` / `--verify-contracts=report` | Return `ContractViolation` error value + structured trace, then stop |
+
+The Go embedding surfaces this as an error return at the typed wrapper boundary, not a Go panic.
+
+**Updated `ContractContext`**:
+```go
+type ContractContext struct {
+    checks     []ContractCheck
+    timestamp  int64
+    mode       ContractMode  // Panic | Report | Off
+}
+
+type ContractMode int
+const (
+    ContractModePanic  ContractMode = iota  // Development: panic on violation
+    ContractModeReport                       // Policy: return error + trace
+    ContractModeOff                          // Disabled
+)
+```
+
+**2. Make verifiable fragment enforcement mechanically obvious**
+
+The fragment definition is great, but UX lives or dies on "why was my contract skipped?".
+
+**Required implementation**:
+```go
+// IsSMTEncodable checks if a function can be verified with SMT
+// Returns (encodable, reasons[]) where reasons explain any rejections
+func IsSMTEncodable(funcDecl *ast.FuncDecl) (bool, []SMTRejectionReason)
+
+type SMTRejectionReason struct {
+    Code     string  // "RECURSIVE", "HIGHER_ORDER", "DEEP_ADT", "QUANTIFIED", "EFFECTFUL"
+    Message  string  // Human-readable explanation
+    Location Pos     // Where the issue is
+    Hint     string  // Suggested fix
+}
+```
+
+**This function must be used consistently in**:
+- Compiler warnings (`warning: contract ignored for SMT; function not in verifiable fragment`)
+- `ailang verify` output (show exact reasons)
+- Trace output (`verification.static=false, reasons=[...]`)
+
+#### Medium-Risk Items to Watch
+
+**1. SMT "function body encoding" — scope balloon risk**
+
+Even with the fragment restrictions, encoding the body is the hard part, not the contracts.
+
+**Recommended Phase 1 approach** (incremental, not all-at-once):
+
+| Step | What to Encode | SMT Approach |
+|------|----------------|--------------|
+| 1 | Contracts only | Uninterpreted function model (sanity harness) |
+| 2 | Straight-line arithmetic | `let` chains → SMT `let` |
+| 3 | `if/else` | SMT `ite` |
+| 4 | `match` over enum | SMT datatype match |
+| 5 | `match` over single-level ADT | SMT datatype constructors |
+
+**Ship "verify works for these shapes"** without pretending it's general.
+
+**2. `float` in SMT — semantic mismatch**
+
+SMT-LIB `Real` is **not** IEEE754 float semantics. If AILANG `float` is IEEE-ish, proving things with `Real` can be misleading.
+
+**Recommendation for v0.6.2 SMT MVP**:
+- Option A: Restrict SMT to `int`/`bool`/`enums` initially
+- Option B: Treat `float` as `Real` but:
+  - Label results as "mathematical reals"
+  - Only enable under `smt-best-effort` unless user explicitly opts in
+  - Add warning: `note: float verified as mathematical real, not IEEE754`
+
+**3. Trace schema — keep it stable and minimal**
+
+**Recommendation**:
+- Keep contract identifiers/hashes, pass/fail, location (always)
+- Make `Args map[string]any` **optional** behind `--trace-args` flag
+  - Can explode trace size
+  - May leak sensitive values in policy domains
+
+#### Naming: Property vs Contract
+
+The AST reuses `Property` for contracts — pragmatic, but can confuse tooling.
+
+**Resolution** (no AST churn):
+- AST stays as-is (`Property` struct)
+- User-facing output uses **"Contract"** terminology for `requires`/`ensures`
+- **"Property"** reserved for `forall`-style tests in CLI/docs
+
+Example:
+```bash
+$ ailang verify module.ail
+Verifying contracts for module.funcName...    # Not "properties"
+  requires: x >= 0                     [OK]
+  ensures:  result > x                 [OK]
+```
+
+---
 
 ## AI-First Alignment Check
 
@@ -218,13 +507,15 @@ ensures  { result == ELIGIBLE => hoursDelayed >= 5 }
 **Target fragment:** Quantifier-free with integers, reals, bools, enums (QF_LIA/QF_LRA + datatypes)
 
 **Type mapping:**
-| AILANG | SMT-LIB |
-|--------|---------|
-| `int` | `Int` |
-| `float` | `Real` |
-| `bool` | `Bool` |
-| Enum variants | `declare-datatype` |
-| Simple ADTs | `declare-datatype` (single-level) |
+| AILANG | SMT-LIB | Notes |
+|--------|---------|-------|
+| `int` | `Int` | Direct mapping |
+| `float` | `Real` | ⚠️ **Not IEEE754** — only under `smt-best-effort` with warning |
+| `bool` | `Bool` | Direct mapping |
+| Enum variants | `declare-datatype` | Direct mapping |
+| Simple ADTs | `declare-datatype` (single-level) | Single-level only in v0.6.2 |
+
+> **Note on `float`**: SMT-LIB `Real` is mathematical real arithmetic, not IEEE754 floating-point. Verification results for `float` are sound for real number semantics but may not reflect IEEE754 edge cases (NaN, infinity, rounding). Enable only under `smt-best-effort` profile with explicit warning in output.
 
 **Generated SMT structure:**
 ```smt2
@@ -391,24 +682,60 @@ Traces include contract identifiers, verification status, and stable hashes for:
 
 ### Implementation Plan
 
-**Phase 0: Plumbing** (~1-2 sprints / 15-20 hours)
-- [ ] Extend AST to carry optional `requires`/`ensures` annotations
-- [ ] Extend parser for contract syntax
+> **Updated December 2025**: Estimates revised based on existing Property and Debug infrastructure.
+
+**Phase 0: Plumbing** (~1 sprint / 8-12 hours) ⬇️ Reduced from 15-20h
+
+Leveraging existing `Property` and `DebugContext` infrastructure:
+
+- [ ] Add `ContractKind` enum to `ast.Property` (discriminate requires/ensures/invariant)
+- [ ] Add `REQUIRES`, `ENSURES`, `INVARIANT` tokens to lexer (~10 LOC)
+- [ ] Extend function parser for `requires { ... }` and `ensures { ... }` blocks
+  - Reuse `parseExpression()` for contract predicates
+  - Store in `FuncDecl.Properties` with appropriate `ContractKind`
 - [ ] Add pretty-printer support for contracts
-- [ ] Add Go runtime contract checks (panic-based, debug flag)
-- [ ] Add minimal trace runtime (`runtime/trace`) with JSON output
 - [ ] Unit tests for contract parsing
 
-**Phase 1: SMT Backend MVP** (~2-3 sprints / 25-35 hours)
-- [ ] Implement SMT-LIB codegen for restricted fragment:
-  - [ ] ints, floats, enums, simple ADTs
-  - [ ] Boolean/arithmetic operators
-  - [ ] Function body encoding (inline for simple cases)
-- [ ] Add `ailang verify <module>` command:
-  - [ ] Write `.smt2` files
-  - [ ] Shell out to Z3 (or pluggable solver)
-  - [ ] Parse sat/unsat + optional model
-- [ ] Limit to non-recursive, pure functions initially
+**Phase 0.5: Runtime Contract Checks** (~0.5-1 sprint / 5-8 hours) 🆕 Quick Win
+
+Delivers immediate value before SMT backend:
+
+- [ ] Create `ContractContext` with `ContractMode` (Panic/Report/Off) (~120 LOC)
+- [ ] Add `Contract *ContractContext` field to `EffContext`
+- [ ] Generate Go runtime checks in typed wrappers:
+  - `requires`: check at function entry
+  - `ensures`: check before return
+  - **Mode-dependent behavior**:
+    - `Panic`: Go panic (fast feedback in development)
+    - `Report`: Return `ContractViolation` error + structured trace (policy mode)
+- [ ] Add `--verify-contracts[=panic|report]` flag (off by default)
+- [ ] Wire `ContractContext.Collect()` to trace output
+- [ ] Make `Args` optional in traces (`--trace-args` flag to enable)
+- [ ] Integration tests for both panic and report modes
+
+**Phase 1: SMT Backend MVP** (~2-3 sprints / 25-35 hours) ⚠️ HIGH UNCERTAINTY
+
+**Prerequisite**: Implement `IsSMTEncodable()` function first (used everywhere):
+- [ ] `IsSMTEncodable(funcDecl) -> (bool, []SMTRejectionReason)`
+- [ ] Wire to compiler warnings, `ailang verify` output, and trace `reasons` field
+- [ ] Rejection codes: `RECURSIVE`, `HIGHER_ORDER`, `DEEP_ADT`, `QUANTIFIED`, `EFFECTFUL`
+
+**Incremental body encoding** (not all-at-once):
+- [ ] Step 1: Contracts only (uninterpreted function model)
+- [ ] Step 2: Straight-line `let` chains → SMT `let`
+- [ ] Step 3: `if/else` → SMT `ite`
+- [ ] Step 4: `match` over enum → SMT datatype match
+- [ ] Step 5: `match` over single-level ADT → SMT datatype constructors
+
+**Type mapping** (with `float` caveat):
+- [ ] `int` → `Int`, `bool` → `Bool`, enums → `declare-datatype`
+- [ ] `float` → `Real` **only under `smt-best-effort`** with warning:
+  `note: float verified as mathematical real, not IEEE754`
+
+**CLI and integration**:
+- [ ] Add `ailang verify <module>` command
+- [ ] Shell out to Z3 (or pluggable solver)
+- [ ] Parse sat/unsat + optional model
 - [ ] Integration tests with Z3
 
 **Phase 2: Redundant Generation** (~1-2 sprints / 10-15 hours)
@@ -434,18 +761,20 @@ Traces include contract identifiers, verification status, and stable hashes for:
 
 ### Files to Modify/Create
 
+> **Updated December 2025**: File estimates revised to reflect reuse of existing infrastructure.
+
 **New files:**
 
 ```
 internal/
 ├── contracts/
-│   ├── ast.go           -- Contract AST nodes (~150 LOC)
-│   ├── parser.go        -- Contract expression parser (~200 LOC)
+│   ├── context.go       -- ContractContext with ContractMode (~120 LOC)
 │   ├── checker.go       -- Contract type checking (~150 LOC)
-│   └── runtime.go       -- Runtime check generation (~100 LOC)
+│   ├── codegen.go       -- Runtime check generation (panic + error modes) (~180 LOC)
+│   └── encodable.go     -- IsSMTEncodable() + SMTRejectionReason (~100 LOC) 🆕
 ├── smt/
 │   ├── codegen.go       -- SMT-LIB generation (~400 LOC)
-│   ├── types.go         -- AILANG->SMT type mapping (~100 LOC)
+│   ├── types.go         -- AILANG->SMT type mapping + float caveat (~120 LOC)
 │   ├── solver.go        -- Z3 invocation + result parsing (~150 LOC)
 │   └── models.go        -- Counterexample parsing (~100 LOC)
 ├── redundant/
@@ -453,10 +782,8 @@ internal/
 │   ├── compare.go       -- Structural equivalence (~150 LOC)
 │   ├── confidence.go    -- Confidence scoring (~100 LOC)
 │   └── protocol.go      -- Multi-sample protocol (~100 LOC)
-└── trace/
-    ├── trace.go         -- Trace runtime (~150 LOC)
-    ├── format.go        -- JSON formatting (~100 LOC)
-    └── contracts.go     -- Contract result logging (~50 LOC)
+└── trace/                  -- NOT NEEDED: Reuse DebugContext pattern
+    └── (merged into contracts/context.go)
 
 cmd/ailang/
 ├── verify.go            -- `ailang verify` command (~100 LOC)
@@ -466,19 +793,31 @@ stdlib/
 └── std/policy.ail       -- Policy type library (~50 LOC)
 ```
 
-**Modified files:**
+**Modified files (leveraging existing infrastructure):**
 
 ```
 internal/
-├── ast/ast.go           -- Add contract annotations to FuncDecl (~+50 LOC)
-├── parser/parser.go     -- Parse requires/ensures blocks (~+100 LOC)
-├── parser/contracts.go  -- NEW: Contract expression parsing (~200 LOC)
-├── gen/golang/          -- Generate runtime checks (~+100 LOC)
-└── pipeline/pipeline.go -- Contract validation pass (~+50 LOC)
+├── ast/ast_decl.go      -- Add ContractKind to Property (~+20 LOC) ⬇️ Reuse Property
+├── lexer/token.go       -- Add REQUIRES, ENSURES, INVARIANT (~+10 LOC)
+├── parser/parser_decl.go -- Parse requires/ensures blocks (~+80 LOC) ⬇️ Reuse parseExpression
+├── effects/context.go   -- Add Contract *ContractContext (~+5 LOC) ⬇️ Follow Debug pattern
+├── gen/golang/codegen_decl.go -- Generate runtime checks (~+100 LOC)
+└── pipeline/pipeline.go -- Contract validation pass (~+30 LOC)
 ```
 
-**Total estimated new code:** ~2,200 LOC
-**Total estimated modified code:** ~300 LOC
+**Comparison: Original vs Revised Estimates**
+
+| Component | Original | Revised | Savings | Reason |
+|-----------|----------|---------|---------|--------|
+| contracts/ast.go | 150 | 0 | 100% | Reuse `ast.Property` |
+| contracts/parser.go | 200 | 0 | 100% | Reuse `parseExpression()` |
+| trace/* | 300 | 0 | 100% | Reuse `DebugContext` pattern |
+| AST modifications | 50 | 20 | 60% | Just add `ContractKind` |
+| Parser modifications | 100 | 80 | 20% | Simpler wiring |
+| **Total** | **2,500** | **~1,700** | **~32%** | |
+
+**Total estimated new code:** ~1,450 LOC (down from ~2,200)
+**Total estimated modified code:** ~245 LOC (down from ~300)
 
 ---
 
@@ -764,10 +1103,18 @@ ContractViolation: requires clause failed for refundEligibility
 
 ## Timeline
 
-**Sprint 1-2** (15-20 hours):
-- Phase 0: Contract AST, parser, runtime checks
-- Deliverable: Contracts parse and trigger runtime panics
-- Risk: Low - straightforward AST extension
+> **Updated December 2025**: Revised based on reuse of existing Property and Debug infrastructure.
+
+**Sprint 1** (8-12 hours) ⬇️ Reduced:
+- Phase 0: Contract AST extension, parser, lexer tokens
+- Deliverable: Contracts parse into `FuncDecl.Properties` with `ContractKind`
+- Risk: Very Low - leveraging existing `Property` infrastructure
+
+**Sprint 2** (5-8 hours) 🆕 Quick Win:
+- Phase 0.5: Runtime contract checks
+- Deliverable: `--verify-contracts` flag triggers runtime panics on violation
+- Risk: Low - follows proven `DebugContext` pattern
+- **Value**: Immediate usefulness before SMT backend
 
 **Sprint 3-5** (25-35 hours, **HIGH UNCERTAINTY**):
 - Phase 1: SMT backend, Z3 integration
@@ -785,11 +1132,12 @@ ContractViolation: requires clause failed for refundEligibility
 - Deliverable: More complex contracts, policy state verification
 - Risk: High - recursion/induction is hard
 
-**Total: ~50-70 hours across 8-12 weeks**
+**Revised Total: ~48-70 hours across 6-10 weeks** (down from 50-70h / 8-12 weeks)
 
 **Uncertainty notes:**
 - Estimates are best-effort heuristics, especially for Phase 1 (SMT)
-- If SMT encoding proves harder than expected, consider pivoting to "runtime-only" as v0.6.0 and deferring SMT to v0.6.1
+- **Key de-risk strategy**: Phase 0.5 delivers runtime checks first; SMT can slip without blocking all value
+- If SMT encoding proves harder than expected, ship runtime-only in v0.6.2 and defer SMT to v0.6.3
 - Success criterion for Phase 1: "park admission example verifies end-to-end"
 
 ---
@@ -822,6 +1170,13 @@ ContractViolation: requires clause failed for refundEligibility
 - **Effects Design**: [design_docs/implemented/v0_2_0/effects.md](../../../design_docs/implemented/v0_2_0/effects.md) - Existing effect system to integrate with
 - **AI-First DX Philosophy**: [example-parity-vision-alignment.md](../v0_3_15/example-parity-vision-alignment.md) - Design principles this feature follows
 
+### Existing Infrastructure to Leverage (Added December 2025)
+- **Property AST**: `internal/ast/ast_decl.go` - `Property`, `Binder`, `FuncDecl.Properties`
+- **Property Parser**: `internal/parser/parser_testing.go` - `parseProperty()`, `parseBinder()`
+- **Debug Effect**: `internal/effects/debug.go` - `DebugContext` pattern for trace collection
+- **Pipeline Metrics**: `internal/pipeline/metrics.go` - Telemetry infrastructure model
+- **Testing Examples**: `examples/testing_basic.ail` - Existing property-based testing syntax
+
 ### Showcase Examples (to be created)
 - `examples/contracts/park.ail` - Reproduces ARC paper's park admission policy (killer showcase for README/blog)
 - `examples/contracts/game_hp.ail` - Game health invariants (shows general verification beyond policy)
@@ -843,4 +1198,4 @@ ContractViolation: requires clause failed for refundEligibility
 ---
 
 **Document created**: 2025-12-06
-**Last updated**: 2025-12-06
+**Last updated**: 2025-12-18

@@ -8,6 +8,19 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/main/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.6.1
+
+- [M-BUG: List Length Returns Sum Instead of Count](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-bug-list-length-returns-wrong-value.md)
+- [Sprint Plan: M-BUG-LIST-LENGTH - Resolution Documentation](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-bug-list-length-sprint-plan.md)
+- [Sprint Plan: M-DX Check Directory Support](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-dx-check-directory-sprint-plan.md)
+- [M-DX: Add Directory Support to `ailang check`](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-dx-check-directory-support.md)
+- [M-ENV-TYPE Sprint Plan: Fix EnvError Type Parameter Bug](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-env-type-parameter-bug-sprint-plan.md)
+- [M-ENV-TYPE: Fix std/env EnvError Type Parameter Bug](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-env-type-parameter-bug.md)
+- [M-EXEC-GEMINI Sprint Plan: Gemini CLI Executor Implementation](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-exec-gemini-sprint-plan.md)
+- [M-EXEC: Multi-Executor Support for AI Coding Agents](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md)
+- [M-LETREC-SCOPING: Fix Letrec Recursive Binding Scope Regression](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md)
+- [Sprint Plan: M-LETREC-SCOPING Fix](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_1/m-letrec-scoping-sprint-plan.md)
+
 ## v0.6.0
 
 - [DX-15: Shared Memory + Near-Duplicate Caching MVP](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_6_0/DX-15-semantic-caching-MVP.md)
@@ -343,4 +356,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 222 design documents across 37 versions.*
+*Generated at build time. 232 design documents across 38 versions.*

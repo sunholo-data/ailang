@@ -454,5 +454,8 @@ For AIs: **Reason about functions, not state machines.**
 ## See Also
 
 - [README § No Loops](https://github.com/sunholo-data/ailang#-why-ailang-has-no-loops-and-never-will) - User-facing explanation
+- [Design Axioms](/docs/references/axioms) - The non-negotiable principles (Axiom 1: Determinism)
+- [Philosophical Foundations](/docs/references/philosophical-foundations) - Why determinism is structural, not conventional
+- [Citations & Bibliography](/docs/references) - Full academic references with DOIs
 - [Implementation Status](/docs/reference/implementation-status) - Current language features and limitations
 - [Getting Started](/docs/guides/getting-started) - Installation and quick start

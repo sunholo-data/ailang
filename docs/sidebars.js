@@ -131,6 +131,17 @@ const sidebars = {
         'reference/limitations',
       ],
     },
+    {
+      type: 'category',
+      label: 'Academic References',
+      collapsed: false,
+      items: [
+        'references/axioms',
+        'references/design-lineage',
+        'references/philosophical-foundations',
+        'references/index',
+      ],
+    },
     'roadmap/index',
     'design-docs',
   ],

@@ -1,0 +1,340 @@
+---
+title: Foundations, Influences, and Design Lineage
+sidebar_position: 2
+description: The intellectual and technical lineage behind AILANG's design decisions.
+---
+
+# Foundations, Influences, and Design Lineage
+
+AILANG is not a neutral aggregation of language features. It is a response to a specific set of pressures:
+
+- AI systems executing and modifying code
+- The need for replay, audit, and verification
+- Cost- and authority-aware computation
+- Determinism as an operational invariant, not a convention
+
+This page documents the **design lineage** behind AILANG: what influenced it, what was deliberately rejected, and how those decisions differ from existing languages and systems.
+
+---
+
+## Design Decision Matrix
+
+This table is the canonical map from **AILANG feature → intellectual justification**.
+It is intended to be cited directly in the AILANG paper.
+
+| Design Axis | Adopted | Explicitly Rejected | Primary References |
+|------------|--------|---------------------|-------------------|
+| Deterministic execution | Replayable traces, deterministic core | Ambient nondeterminism | Lamport (1978), Temporal |
+| Side effects | Algebraic effects, explicit handlers | Global monad stacks | Plotkin & Power, Koka |
+| Verification | Local, bounded SMT checks | Whole-program proofs by default | Z3, Liquid Types |
+| Concurrency | Deterministic-by-construction | Shared mutable state | Kahn Process Networks |
+| Authority | Explicit capabilities & budgets | Ambient authority | Capability systems, IAM |
+| Language scope | Minimal, semantics-first | Expressive cleverness | Go, Smalltalk |
+| Target reader | Machines first, humans second | Human prose optimization | MLIR, WASM |
+| Runtime cost | Modeled, inspectable | Cost-oblivious abstractions | Landauer, cloud billing models |
+
+---
+
+## Determinism, Replayability, and Auditability
+
+AILANG treats determinism as a *semantic invariant*.
+If execution cannot be replayed, it cannot be trusted, audited, or meaningfully verified.
+
+**Adopted**
+- Deterministic traces as the ground truth of execution
+- Explicit modeling of time, randomness, and IO
+- Replay as a first-class operational mode
+
+**Rejected**
+- Implicit clocks, randomness, and scheduling
+- "Mostly deterministic" execution enforced socially
+
+**References**
+- Lamport, L. (1978). *Time, Clocks, and the Ordering of Events in a Distributed System*. CACM.
+- Kreps, J. (2013). *The Log: What every software engineer should know about real-time data*.
+- Temporal Technologies. *Deterministic workflow execution model* (docs, talks).
+- Fowler, M. *Event Sourcing* (architectural lineage).
+
+---
+
+## Pure Computation with Algebraic Effects
+
+AILANG separates *what a computation means* from *what it is allowed to do*.
+Effects are explicit, typed, and inspectable by tools and agents.
+
+**Adopted**
+- Algebraic effects and handlers
+- Effect rows / effect inference
+- Explicit effect boundaries in signatures
+
+**Rejected**
+- Monads as the only abstraction for effects
+- Hidden or implicit effectful behavior
+
+**References**
+- Plotkin, G., & Power, J. *Algebraic Operations and Generic Effects*.
+- Bauer, A., & Pretnar, M. *Programming with Algebraic Effects and Handlers*.
+- Leijen, D. *Koka: Programming with Row-Polymorphic Effect Types*.
+- Multicore OCaml effect system documentation.
+
+---
+
+## Verification: Bounded and Decidable by Design
+
+AILANG is **proof-adjacent**, not proof-theoretic.
+Verification should be cheap, local, and automatable.
+
+**Adopted**
+- SMT-backed constraints
+- Refinement-style local verification
+- Verification modes (opt-in, scoped)
+
+**Rejected**
+- Mandatory whole-program proofs
+- Deep dependent type systems as default
+
+**References**
+- de Moura, L., & Bjørner, N. *Z3: An Efficient SMT Solver*.
+- Rondon, P., Kawaguchi, M., & Jhala, R. *Liquid Types*.
+- Leino, K. *Dafny*.
+- SPARK Ada technical reports.
+- Rust borrow checker literature.
+
+---
+
+## Capability Budgets and Explicit Authority
+
+AILANG treats **authority and cost as semantic facts**, not runtime surprises.
+
+**Adopted**
+- Capability-style authority via effects
+- Budget-aware execution (IO, compute, external calls)
+- Static visibility of resource implications
+
+**Rejected**
+- Ambient authority
+- Cost-blind abstractions
+
+**References**
+- Dennis, J., & Van Horn, E. *Programming Semantics for Multiprogrammed Computations*.
+- Capability-based security literature.
+- AWS/GCP IAM models (practical authority systems).
+- Distributed metering models (e.g. gas systems, as cautionary input).
+
+---
+
+## Deterministic Concurrency and Parallelism
+
+Concurrency must not destroy replayability.
+
+**Adopted**
+- Deterministic concurrency models
+- Structured, analyzable parallelism
+
+**Rejected**
+- Shared mutable state
+- Scheduling-dependent semantics
+
+**References**
+- Kahn, G. *The Semantics of a Simple Language for Parallel Programming*.
+- Deterministic Parallel Java (DPJ).
+- CALM theorem / Bloom language lineage.
+
+---
+
+## AI-First Programming and Machine-Readable Semantics
+
+AILANG assumes machines are the primary readers and executors of code.
+
+**Adopted**
+- Semantically compressed syntax
+- IR-like clarity
+- Tool- and agent-friendly structure
+
+**Rejected**
+- Rhetorical or prose-oriented language design
+- Highly dynamic semantics hostile to static reasoning
+
+**References**
+- Victor, B. *Learnable Programming*.
+- Karpathy, A. *Software 2.0*.
+- Lattner, C. *MLIR*.
+- WASM and SPIR-V specifications.
+
+---
+
+## How AILANG Differs From Existing Systems
+
+### vs Python
+- Python optimizes for human expressiveness
+- AILANG optimizes for determinism, audit, and AI execution
+- Python treats effects as ambient; AILANG types them
+
+### vs Haskell
+- Haskell centralizes effects via monads
+- AILANG uses algebraic effects for inspectability
+- AILANG rejects implicit sequencing as opaque to tools
+
+### vs Rust
+- Rust enforces memory safety
+- AILANG enforces execution determinism and authority boundaries
+- Rust is systems-first; AILANG is agent-first
+
+### vs Temporal / Workflow DSLs
+- Temporal enforces determinism at runtime
+- AILANG enforces it at compile time
+- Temporal is a framework; AILANG is a language
+
+---
+
+## Philosophical Substrate
+
+AILANG's determinism is not accidental; it reflects a structural view of computation.
+
+**References**
+- Deutsch, D. *The Fabric of Reality*.
+- Landauer, R. *Irreversibility and Heat Generation in the Computing Process*.
+- Deterministic/block-universe interpretations as interpretive grounding.
+
+---
+
+## BibTeX Starter
+
+The following BibTeX entries can be extracted into `refs.bib` for paper submission.
+
+```bibtex
+@article{lamport1978time,
+  title={Time, Clocks, and the Ordering of Events in a Distributed System},
+  author={Lamport, Leslie},
+  journal={Communications of the ACM},
+  volume={21},
+  number={7},
+  pages={558--565},
+  year={1978},
+  publisher={ACM}
+}
+
+@inproceedings{plotkin2004algebraic,
+  title={Algebraic Operations and Generic Effects},
+  author={Plotkin, Gordon and Power, John},
+  booktitle={Applied Categorical Structures},
+  volume={11},
+  pages={69--94},
+  year={2003}
+}
+
+@inproceedings{plotkin2009handlers,
+  title={Handlers of Algebraic Effects},
+  author={Plotkin, Gordon and Pretnar, Matija},
+  booktitle={Programming Languages and Systems: ESOP 2009},
+  pages={80--94},
+  year={2009},
+  publisher={Springer}
+}
+
+@article{leijen2014koka,
+  title={Koka: Programming with Row-Polymorphic Effect Types},
+  author={Leijen, Daan},
+  journal={MSFP 2014, EPTCS},
+  volume={153},
+  pages={100--126},
+  year={2014}
+}
+
+@inproceedings{rondon2008liquid,
+  title={Liquid Types},
+  author={Rondon, Patrick and Kawaguchi, Ming and Jhala, Ranjit},
+  booktitle={Proceedings of the 29th ACM SIGPLAN Conference on Programming Language Design and Implementation},
+  pages={159--169},
+  year={2008},
+  publisher={ACM}
+}
+
+@inproceedings{demoura2008z3,
+  title={Z3: An Efficient SMT Solver},
+  author={de Moura, Leonardo and Bj{\o}rner, Nikolaj},
+  booktitle={International Conference on Tools and Algorithms for the Construction and Analysis of Systems},
+  pages={337--340},
+  year={2008},
+  publisher={Springer}
+}
+
+@inproceedings{damas1982principal,
+  title={Principal Type-Schemes for Functional Programs},
+  author={Damas, Luis and Milner, Robin},
+  booktitle={Proceedings of the 9th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages={207--212},
+  year={1982},
+  publisher={ACM}
+}
+
+@inproceedings{wadler1989adhoc,
+  title={How to Make Ad-Hoc Polymorphism Less Ad Hoc},
+  author={Wadler, Philip and Blott, Stephen},
+  booktitle={Proceedings of the 16th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages={60--76},
+  year={1989},
+  publisher={ACM}
+}
+
+@article{kahn1974semantics,
+  title={The Semantics of a Simple Language for Parallel Programming},
+  author={Kahn, Gilles},
+  journal={Information Processing},
+  volume={74},
+  pages={471--475},
+  year={1974}
+}
+
+@book{deutsch1997fabric,
+  title={The Fabric of Reality},
+  author={Deutsch, David},
+  year={1997},
+  publisher={Penguin Books}
+}
+
+@article{landauer1961irreversibility,
+  title={Irreversibility and Heat Generation in the Computing Process},
+  author={Landauer, Rolf},
+  journal={IBM Journal of Research and Development},
+  volume={5},
+  number={3},
+  pages={183--191},
+  year={1961}
+}
+
+@article{chollet2019measure,
+  title={On the Measure of Intelligence},
+  author={Chollet, Fran{\c{c}}ois},
+  journal={arXiv preprint arXiv:1911.01547},
+  year={2019}
+}
+
+@article{bayless2025neurosymbolic,
+  title={A Neurosymbolic Approach to Natural Language Formalization and Verification},
+  author={Bayless, Sam and others},
+  journal={arXiv preprint arXiv:2511.09008},
+  year={2025}
+}
+```
+
+---
+
+## Contribution Guidelines
+
+When adding references:
+1. State the design decision it supports
+2. Clarify adopted vs rejected ideas
+3. Prefer sources that influenced real systems, not only theory
+
+This page is intentionally opinionated. That is a feature, not a bug.
+
+---
+
+## See Also
+
+- [Design Axioms](./axioms.mdx) — The non-negotiable principles
+- [Philosophical Foundations](./philosophical-foundations.mdx) — The deeper motivations
+- [Citations & Bibliography](./index.md) — Full citation details with DOIs and links
+- [Why No Loops?](../reference/no-loops.md) — Design rationale for iteration model
+- [Architecture Overview](../architecture/index.md) — Internal structure

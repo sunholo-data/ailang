@@ -1,0 +1,207 @@
+---
+title: AILANG Design Axioms
+sidebar_position: 1
+description: The non-negotiable principles that define AILANG's semantics, structure, and intent.
+---
+
+# AILANG Design Axioms
+
+AILANG is defined less by individual features than by a small set of **axioms**.
+These axioms constrain the design space and explain why certain features exist — and why others are deliberately absent.
+
+They are intended to be stable over time, even as syntax and implementation evolve.
+
+---
+
+## Axiom 1: Determinism Is a Semantic Invariant
+
+If a program's execution cannot be replayed, it cannot be trusted.
+
+AILANG programs must have deterministic meaning by default.
+Any source of nondeterminism (time, randomness, IO, scheduling) must be:
+
+- explicit
+- typed
+- localized
+- observable in traces
+
+Determinism is not an optimization or a runtime promise; it is part of the language's semantics.
+
+**See**: [Philosophical Foundations](./philosophical-foundations.mdx) for the deeper motivation.
+
+---
+
+## Axiom 2: Execution Must Be Replayable and Auditable
+
+Execution is a first-class artifact.
+
+AILANG treats execution traces as:
+
+- inspectable
+- serializable
+- replayable
+- suitable for verification and debugging
+
+A program that cannot explain *why* it produced an outcome is incomplete.
+
+---
+
+## Axiom 3: Effects Are Real and Must Be Legible
+
+Side effects are not a failure of abstraction; they are a property of reality.
+
+AILANG does not hide effects.
+It makes them explicit, typed, and machine-readable.
+
+Effects define *what a computation is allowed to do*, not just what it computes.
+
+**See**: [Effects Reference](/docs/reference/effects) for implementation details.
+
+---
+
+## Axiom 4: Authority Must Be Explicit
+
+No program should have implicit access to the world.
+
+AILANG requires that authority — to read data, write data, consume resources, or interact with external systems — is:
+
+- explicitly declared
+- statically visible
+- constrained by capability and budget
+
+Ambient authority is treated as a design error.
+
+---
+
+## Axiom 5: Verification Should Be Local, Bounded, and Automatable
+
+Verification is most useful when it is cheap and frequent.
+
+AILANG favors:
+
+- local properties over global proofs
+- bounded checks over unbounded reasoning
+- machine-driven verification over human ceremony
+
+Verification is a mode of execution, not a separate discipline.
+
+---
+
+## Axiom 6: Concurrency Must Not Destroy Meaning
+
+Parallelism must not introduce ambiguity.
+
+AILANG rejects concurrency models where program meaning depends on:
+
+- scheduling
+- timing races
+- hidden shared state
+
+Concurrency is permitted only when its semantics remain deterministic and replayable.
+
+---
+
+## Axiom 7: Machines Are Primary Readers
+
+AILANG assumes that machines are the primary consumers of code.
+
+The language prioritizes:
+
+- semantic compression
+- decidable structure
+- toolability and analysis
+- clarity of intent over stylistic expressiveness
+
+Human readability is preserved, but never at the expense of machine reasoning.
+
+**See**: [Why AILANG?](/docs/why-ailang) for the AI-first motivation.
+
+---
+
+## Axiom 8: Syntax Is a Liability
+
+Every syntactic feature increases the semantic surface area.
+
+AILANG adopts syntax only when it:
+
+- reduces ambiguity
+- improves analyzability
+- lowers total system complexity
+
+Expressiveness without semantic payoff is rejected.
+
+---
+
+## Axiom 9: Cost Is Part of Meaning
+
+Computation has cost.
+
+AILANG treats cost — in time, memory, IO, or external calls — as part of a program's semantics, not an incidental runtime detail.
+
+Programs should make their resource implications visible to tools and agents.
+
+**See**: [Design Lineage](./design-lineage.mdx) § Capability Budgets.
+
+---
+
+## Axiom 10: The Language Must Compose With Itself
+
+Features must compose without creating semantic blind spots.
+
+AILANG rejects features that:
+
+- break reasoning when combined
+- require "special cases" in the mental model
+- behave differently under analysis than under execution
+
+Composability is a correctness property.
+
+---
+
+## Axiom 11: Failure Must Be Representable
+
+Failure is not exceptional; it is informative.
+
+AILANG treats failure as:
+
+- structured
+- typed
+- inspectable
+- composable
+
+Unstructured exceptions are avoided.
+
+---
+
+## Axiom 12: The Language Is a System Boundary
+
+AILANG is not just syntax; it is a boundary between:
+
+- intent and execution
+- authority and action
+- possibility and permission
+
+Crossing that boundary must always be explicit.
+
+---
+
+## Closing Note
+
+These axioms are intentionally constraining.
+
+They exist to make AILANG:
+
+- predictable for machines
+- inspectable for humans
+- safe for autonomous execution
+- suitable for long-lived, evolving systems
+
+Any feature proposal that violates an axiom must justify why the axiom itself should change.
+
+---
+
+## See Also
+
+- [Philosophical Foundations](./philosophical-foundations.mdx) — The deeper motivations
+- [Design Lineage](./design-lineage.mdx) — Adopted vs rejected decisions
+- [Citations & Bibliography](./index.md) — Full academic references
