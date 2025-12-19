@@ -1,9 +1,10 @@
 # M-CODEGEN-ADT-DOUBLE-PAREN: Fix Empty Double-Paren ADT Constructor Calls
 
-**Status**: Planned
+**Status**: Implemented ✅
 **Target**: v0.6.1
 **Priority**: P0 (High) - Blocks stapledons_voyage compilation
 **Estimated**: 2-4 hours
+**Actual**: ~1.5 hours
 **Dependencies**: None
 **GitHub Issue**: #52
 
@@ -270,6 +271,89 @@ func makeViewport_impl(id, x, y, w, h interface{}) interface{} {
 
 - Consider unifying ADT constructor code paths to prevent similar bugs
 - Add CI check for `()()` pattern in generated code (lint rule)
+
+---
+
+## Implementation Report
+
+### Root Cause Confirmed
+
+**Hypothesis 1 was correct, with a twist.** The issue was in how nullary vs non-nullary constructors were distinguished:
+
+1. **`codegen_expr_app.go:117`**: The condition `len(ctorInfo.FieldTypes) > 0` meant nullary constructors (with 0 fields) fell through to generic App handling, which could cause double-paren issues.
+
+2. **`codegen_decl.go:488-508`**: The `isNullaryADTConstructor` function returned `true` for ALL `$adt.make_*` patterns without checking the actual field count from the `adtConstructors` map.
+
+### Changes Made
+
+**File 1: `internal/gen/golang/codegen_expr_app.go`**
+
+Line 117 - Changed condition from:
+```go
+if ctorInfo := g.getADTConstructorForApp(app); ctorInfo != nil && len(ctorInfo.FieldTypes) > 0 {
+```
+To:
+```go
+if ctorInfo := g.getADTConstructorForApp(app); ctorInfo != nil {
+```
+
+This ensures ALL ADT constructors (nullary and non-nullary) are handled by the ADT-specific code path, preventing fallthrough to generic App handling.
+
+**File 2: `internal/gen/golang/codegen_decl.go`**
+
+Updated `isNullaryADTConstructor` function (lines 488-508) to properly parse the `$adt.make_TypeName_CtorName` pattern and look up actual field count:
+
+```go
+func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
+    if vg.Ref.Module == "$adt" && strings.HasPrefix(vg.Ref.Name, "make_") {
+        parts := strings.SplitN(vg.Ref.Name[5:], "_", 2)
+        if len(parts) == 2 {
+            ctorName := parts[1]
+            if info, ok := g.adtConstructors[ctorName]; ok {
+                return len(info.FieldTypes) == 0
+            }
+        }
+        return false  // Default to false (safer)
+    }
+    if info, ok := g.adtConstructors[vg.Ref.Name]; ok {
+        return len(info.FieldTypes) == 0
+    }
+    return false
+}
+```
+
+**File 3: `internal/gen/golang/codegen_adt_multiarg_test.go` (NEW)**
+
+Added regression test with 3 test cases:
+- `TestADTConstructorMultiArg`: Registered multi-arg constructor
+- `TestADTConstructorUnregistered`: Unregistered constructor falls back safely
+- `TestADTConstructorNullary`: Registered nullary constructor generates `()`
+
+### Test Results
+
+```
+✅ make test - All tests pass
+✅ make lint - No errors
+✅ Generated code verified - no ()() patterns
+```
+
+### Success Criteria Status
+
+- [x] Generated Go code has no `()()` double-paren patterns
+- [x] New regression test passes
+- [x] All existing codegen tests pass
+- [x] `make test` passes
+- [x] Documentation updated (this design doc)
+- [ ] stapledons_voyage `viewport.ail` compiles without errors (to be tested by downstream project)
+
+### LOC Summary
+
+| File | Lines Changed |
+|------|---------------|
+| codegen_expr_app.go | 5 (added comment, removed condition) |
+| codegen_decl.go | 20 (rewrote isNullaryADTConstructor) |
+| codegen_adt_multiarg_test.go | ~120 (new test file) |
+| **Total** | ~145 LOC |
 
 ---
 

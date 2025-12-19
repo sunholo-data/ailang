@@ -485,10 +485,21 @@ func (g *Generator) isADTConstructorCall(app *core.App) bool {
 // isNullaryADTConstructor checks if a VarGlobal is a nullary ADT constructor.
 // M-CODEGEN-ADT-TYPE-ASSERT: Nullary constructors (with no fields) are VarGlobal, not App.
 // Example: `G` in `type SpectralClass = O | B | A | F | G | K | M` is a nullary constructor.
+// M-CODEGEN-ADT-DOUBLE-PAREN: Fixed to actually check FieldCount, not just pattern.
 func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
 	// Check for $adt.make_TypeName_CtorName pattern
 	if vg.Ref.Module == "$adt" && strings.HasPrefix(vg.Ref.Name, "make_") {
-		return true
+		// M-CODEGEN-ADT-DOUBLE-PAREN: Parse the pattern and look up actual field count.
+		// Don't assume ALL $adt.make_* are nullary!
+		parts := strings.SplitN(vg.Ref.Name[5:], "_", 2) // Skip "make_"
+		if len(parts) == 2 {
+			ctorName := parts[1]
+			if info, ok := g.adtConstructors[ctorName]; ok {
+				return len(info.FieldTypes) == 0
+			}
+		}
+		// If not in map, we can't determine - default to false (safer)
+		return false
 	}
 	// Check if it's in the adtConstructors map (nullary constructors have 0 field types)
 	if info, ok := g.adtConstructors[vg.Ref.Name]; ok {

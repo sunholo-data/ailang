@@ -114,7 +114,10 @@ func (g *Generator) generateApp(app *core.App) error {
 	}
 
 	// Check if this is an ADT constructor call that needs type assertions
-	if ctorInfo := g.getADTConstructorForApp(app); ctorInfo != nil && len(ctorInfo.FieldTypes) > 0 {
+	// M-CODEGEN-ADT-DOUBLE-PAREN: Handle BOTH nullary and non-nullary constructors here.
+	// Previously, nullary constructors (len(FieldTypes) == 0) fell through to generic
+	// App handling, which could cause double-paren issues like NewCtor()().
+	if ctorInfo := g.getADTConstructorForApp(app); ctorInfo != nil {
 		// Generate ADT constructor call with type assertions/conversions
 		g.write(ctorInfo.GoFuncName + "(")
 		for i, arg := range app.Args {
