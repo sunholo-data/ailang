@@ -410,10 +410,44 @@ type Program struct {
 
 // DeclMeta contains metadata for top-level declarations
 type DeclMeta struct {
-	Name     string
-	IsExport bool
-	IsPure   bool
-	SID      string // Source ID for tracing
+	Name      string
+	IsExport  bool
+	IsPure    bool
+	SID       string      // Source ID for tracing
+	Contracts []*Contract // M-VERIFY: Contract clauses (requires/ensures)
+}
+
+// ContractKind distinguishes between requires and ensures contracts.
+// M-VERIFY: This mirrors ast.ContractKind but lives in core for codegen.
+type ContractKind int
+
+const (
+	RequiresKind  ContractKind = iota // Precondition - checked at function entry
+	EnsuresKind                       // Postcondition - checked before return
+	InvariantKind                     // Type/module invariant
+)
+
+// String returns the string representation of ContractKind
+func (k ContractKind) String() string {
+	switch k {
+	case RequiresKind:
+		return "requires"
+	case EnsuresKind:
+		return "ensures"
+	case InvariantKind:
+		return "invariant"
+	default:
+		return "unknown"
+	}
+}
+
+// Contract represents a single contract clause (requires/ensures).
+// M-VERIFY: Contracts are predicates that get compiled to runtime checks.
+type Contract struct {
+	Kind     ContractKind // requires, ensures, or invariant
+	Expr     CoreExpr     // The predicate expression (elaborated to Core)
+	Message  string       // User-provided or auto-generated message
+	Location string       // Source location "file.ail:42"
 }
 
 // Dictionary-passing nodes for type class resolution

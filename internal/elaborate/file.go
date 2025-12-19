@@ -195,10 +195,16 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 			}
 			// Track metadata from original AST function
 			if astFunc := findASTFunc(file, f.Name); astFunc != nil {
+				// M-VERIFY: Elaborate contracts for this function
+				contracts, err := e.elaborateContracts(astFunc.Properties)
+				if err != nil {
+					return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
+				}
 				meta[f.Name] = &core.DeclMeta{
-					Name:     f.Name,
-					IsExport: astFunc.IsExport,
-					IsPure:   astFunc.IsPure,
+					Name:      f.Name,
+					IsExport:  astFunc.IsExport,
+					IsPure:    astFunc.IsPure,
+					Contracts: contracts,
 				}
 			}
 			coreDecls = append(coreDecls, let)
@@ -217,10 +223,16 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 				})
 				// Track metadata for each binding
 				if astFunc := findASTFunc(file, f.Name); astFunc != nil {
+					// M-VERIFY: Elaborate contracts for this function
+					contracts, err := e.elaborateContracts(astFunc.Properties)
+					if err != nil {
+						return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
+					}
 					meta[f.Name] = &core.DeclMeta{
-						Name:     f.Name,
-						IsExport: astFunc.IsExport,
-						IsPure:   astFunc.IsPure,
+						Name:      f.Name,
+						IsExport:  astFunc.IsExport,
+						IsPure:    astFunc.IsPure,
+						Contracts: contracts,
 					}
 				}
 			}
@@ -449,9 +461,58 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 		}
 	}
 
-	// TODO: Preserve metadata (pure, export, tests, props) in CoreNode.Meta
-
 	return lambda, nil
+}
+
+// elaborateContracts elaborates contract properties to Core contracts.
+// M-VERIFY: Contract expressions reference function parameters by name.
+func (e *Elaborator) elaborateContracts(props []*ast.Property) ([]*core.Contract, error) {
+	if len(props) == 0 {
+		return nil, nil
+	}
+
+	var contracts []*core.Contract
+	for _, prop := range props {
+		// Only process requires/ensures contracts (skip forall properties)
+		if prop.Kind != ast.RequiresKind && prop.Kind != ast.EnsuresKind && prop.Kind != ast.InvariantKind {
+			continue
+		}
+
+		// Elaborate the predicate expression to Core
+		coreExpr, err := e.elaborateExpr(prop.Expr)
+		if err != nil {
+			return nil, fmt.Errorf("elaborating contract: %w", err)
+		}
+
+		// Map AST kind to Core kind
+		var kind core.ContractKind
+		switch prop.Kind {
+		case ast.RequiresKind:
+			kind = core.RequiresKind
+		case ast.EnsuresKind:
+			kind = core.EnsuresKind
+		case ast.InvariantKind:
+			kind = core.InvariantKind
+		}
+
+		// Generate message from expression if not provided
+		message := prop.Name
+		if message == "" {
+			message = prop.Expr.String()
+		}
+
+		// Format location
+		location := fmt.Sprintf("%s:%d:%d", prop.Pos.File, prop.Pos.Line, prop.Pos.Column)
+
+		contracts = append(contracts, &core.Contract{
+			Kind:     kind,
+			Expr:     coreExpr,
+			Message:  message,
+			Location: location,
+		})
+	}
+
+	return contracts, nil
 }
 
 // makeNodeFromFunc creates CoreNode from FuncSig
