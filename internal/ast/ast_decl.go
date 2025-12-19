@@ -66,10 +66,39 @@ type TestCase struct {
 	Pos      Pos
 }
 
+// ContractKind distinguishes between property tests and contract clauses.
+// This enables reuse of the Property struct for both forall-style tests
+// and requires/ensures contracts (M-VERIFY).
+type ContractKind int
+
+const (
+	PropertyKind  ContractKind = iota // Existing forall property-based tests
+	RequiresKind                      // Precondition contract
+	EnsuresKind                       // Postcondition contract
+	InvariantKind                     // Type/module invariant contract
+)
+
+// String returns the string representation of a ContractKind
+func (k ContractKind) String() string {
+	switch k {
+	case PropertyKind:
+		return "property"
+	case RequiresKind:
+		return "requires"
+	case EnsuresKind:
+		return "ensures"
+	case InvariantKind:
+		return "invariant"
+	default:
+		return "unknown"
+	}
+}
+
 type Property struct {
 	Name    string
-	Binders []*Binder // forall bindings
-	Expr    Expr
+	Kind    ContractKind // Type of property/contract (M-VERIFY)
+	Binders []*Binder    // forall bindings (empty for requires/ensures)
+	Expr    Expr         // Boolean predicate
 	Pos     Pos
 }
 
