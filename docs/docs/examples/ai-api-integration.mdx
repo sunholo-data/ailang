@@ -5,8 +5,8 @@ description: HTTP headers, JSON encoding, and structured error handling for AI A
 ---
 
 import CodeBlock from '@theme/CodeBlock';
-import ClaudeExample from '!!raw-loader!@site/../examples/experimental/claude_haiku_call.ail';
-import OpenAIExample from '!!raw-loader!@site/../examples/experimental/ai_call.ail';
+import ClaudeExample from '!!raw-loader!@site/../examples/runnable/claude_haiku_call.ail';
+import OpenAIExample from '!!raw-loader!@site/../examples/runnable/ai_call.ail';
 
 # AI API Integration Examples
 
@@ -25,7 +25,7 @@ AILANG v0.3.9 introduces first-class support for calling AI APIs with HTTP heade
 
 ### 1. Claude (Anthropic) API
 
-<CodeBlock language="typescript" title="examples/experimental/claude_haiku_call.ail">
+<CodeBlock language="typescript" title="examples/runnable/claude_haiku_call.ail">
   {ClaudeExample}
 </CodeBlock>
 
@@ -35,7 +35,7 @@ AILANG v0.3.9 introduces first-class support for calling AI APIs with HTTP heade
 export ANTHROPIC_API_KEY="sk-ant-..."
 
 # Replace placeholder in the file, then run:
-ailang run --caps Net,IO examples/experimental/claude_haiku_call.ail
+ailang run --caps Net,IO examples/runnable/claude_haiku_call.ail
 ```
 
 **Example Output:**
@@ -62,7 +62,7 @@ Immutable data glides smooth\nCode without side paths"}],
 
 ### 2. OpenAI API
 
-<CodeBlock language="typescript" title="examples/experimental/ai_call.ail">
+<CodeBlock language="typescript" title="examples/runnable/ai_call.ail">
   {OpenAIExample}
 </CodeBlock>
 
@@ -71,7 +71,7 @@ Immutable data glides smooth\nCode without side paths"}],
 # Get API key from https://platform.openai.com/api-keys
 export OPENAI_API_KEY="sk-..."
 
-ailang run --caps Net,IO examples/experimental/ai_call.ail
+ailang run --caps Net,IO examples/runnable/ai_call.ail
 ```
 
 ## JSON Encoding
