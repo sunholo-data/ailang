@@ -11,12 +11,12 @@ import (
 
 // AxiomScorecard represents the AILANG design axiom compliance scorecard
 type AxiomScorecard struct {
-	Version     string                  `json:"version"`
-	Timestamp   string                  `json:"timestamp"`
-	Methodology string                  `json:"methodology"`
-	Summary     AxiomSummary            `json:"summary"`
-	Axioms      map[string]AxiomDetail  `json:"axioms"`
-	History     []AxiomHistoryEntry     `json:"history"`
+	Version     string                 `json:"version"`
+	Timestamp   string                 `json:"timestamp"`
+	Methodology string                 `json:"methodology"`
+	Summary     AxiomSummary           `json:"summary"`
+	Axioms      map[string]AxiomDetail `json:"axioms"`
+	History     []AxiomHistoryEntry    `json:"history"`
 }
 
 type AxiomSummary struct {
