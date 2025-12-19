@@ -336,15 +336,15 @@ The example verification status shows what percentage of AILANG features are ful
 <!-- EXAMPLES_STATUS_START -->
 ## Status
 
-![Examples](https://img.shields.io/badge/examples-61%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-65%20passing%2020%20failing-orange.svg)
 
 ### Example Verification Status
 
-*Last updated: 2025-12-18 (Auto-updated by CI)*
+*Last updated: 2025-12-19 (Auto-updated by CI)*
 
-**Summary:** 61 passed, 1 failed, 0 skipped (Total: 62)
+**Summary:** 65 passed, 20 failed, 0 skipped (Total: 85)
 
-**Overall: 61/62 examples working (98%)**
+**Overall: 65/85 examples working (76%)**
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -354,11 +354,16 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/ai_effect.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
+| `runnable/array_basic.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
+| `runnable/array_grid.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/block_demo.ail` | ✅ Pass |  |
 | `runnable/block_recursion.ail` | ✅ Pass |  |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/closures.ail` | ✅ Pass |  |
+| `runnable/complex_types.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/complex_types... |
+| `runnable/contracts/basic.ail` | ✅ Pass |  |
+| `runnable/contracts/park.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ✅ Pass |  |
 | `runnable/debug_effect.ail` | ✅ Pass |  |
 | `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
@@ -366,11 +371,13 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_fs_io.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
+| `runnable/factorial.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/func_expressions.ail` | ✅ Pass |  |
 | `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
 | `runnable/http_simple.ail` | ✅ Pass |  |
+| `runnable/if_else_chain.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/if_else_chain... |
 | `runnable/imported_adt_types.ail` | ✅ Pass |  |
 | `runnable/imports.ail` | ✅ Pass |  |
 | `runnable/imports_basic.ail` | ✅ Pass |  |
@@ -382,15 +389,27 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
 | `runnable/letrec_recursion.ail` | ✅ Pass |  |
+| `runnable/list_pattern_cons.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
+| `runnable/list_pattern_records.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/list_pattern_... |
 | `runnable/list_patterns.ail` | ✅ Pass |  |
 | `runnable/list_sum.ail` | ✅ Pass |  |
+| `runnable/match_arm_block.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/match_arm_blo... |
+| `runnable/match_arm_block_io.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
+| `runnable/match_in_block.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/match_in_bloc... |
+| `runnable/math_trig.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
 | `runnable/micro_block_seq.ail` | ✅ Pass |  |
 | `runnable/micro_io_echo.ail` | ✅ Pass |  |
 | `runnable/micro_option_map.ail` | ✅ Pass |  |
 | `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/nested_match_minimal.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/nested_match_... |
+| `runnable/nested_match_simple.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/option_demo.ail` | ✅ Pass |  |
+| `runnable/pattern_sugar.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/patterns.ail` | ✅ Pass |  |
+| `runnable/polymorphic_comparison_simple.ail` | ✅ Pass |  |
+| `runnable/polymorphic_lambdas_phase1.ail` | ✅ Pass |  |
+| `runnable/record_update.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/record_update... |
 | `runnable/records.ail` | ✅ Pass |  |
 | `runnable/recursion_factorial.ail` | ✅ Pass |  |
 | `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
@@ -398,8 +417,11 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/recursion_mutual.ail` | ✅ Pass |  |
 | `runnable/recursion_quicksort.ail` | ✅ Pass |  |
 | `runnable/simple.ail` | ✅ Pass |  |
+| `runnable/simple_func_match.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/stdlib_demo.ail` | ✅ Pass |  |
 | `runnable/stdlib_demo_simple.ail` | ✅ Pass |  |
+| `runnable/string_parsing.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
+| `runnable/string_split.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev, found v0.... |
 | `runnable/test_cli_io.ail` | ✅ Pass |  |
 | `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
@@ -408,6 +430,7 @@ The example verification status shows what percentage of AILANG features are ful
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |
 | `runnable/type_inference.ail` | ✅ Pass |  |
+| `runnable/type_inference_regression.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/type_inferenc... |
 | `runnable/typeclasses.ail` | ✅ Pass |  |
 | `runnable/values_basic.ail` | ✅ Pass |  |
 

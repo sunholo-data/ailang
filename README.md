@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-61%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-65%20passing%2020%20failing-orange.svg)
 
-**61/62 examples passing (98%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**65/85 examples passing (76%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -13,11 +13,16 @@
 | `runnable/ai_effect.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
+| `runnable/array_basic.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/array_grid.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/block_demo.ail` | ✅ Pass |  |
 | `runnable/block_recursion.ail` | ✅ Pass |  |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/closures.ail` | ✅ Pass |  |
+| `runnable/complex_types.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/com... |
+| `runnable/contracts/basic.ail` | ✅ Pass |  |
+| `runnable/contracts/park.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ✅ Pass |  |
 | `runnable/debug_effect.ail` | ✅ Pass |  |
 | `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
@@ -25,11 +30,13 @@
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_fs_io.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
+| `runnable/factorial.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/func_expressions.ail` | ✅ Pass |  |
 | `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
 | `runnable/http_simple.ail` | ✅ Pass |  |
+| `runnable/if_else_chain.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/if_... |
 | `runnable/imported_adt_types.ail` | ✅ Pass |  |
 | `runnable/imports.ail` | ✅ Pass |  |
 | `runnable/imports_basic.ail` | ✅ Pass |  |
@@ -41,15 +48,27 @@
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
 | `runnable/letrec_recursion.ail` | ✅ Pass |  |
+| `runnable/list_pattern_cons.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/list_pattern_records.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/lis... |
 | `runnable/list_patterns.ail` | ✅ Pass |  |
 | `runnable/list_sum.ail` | ✅ Pass |  |
+| `runnable/match_arm_block.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/mat... |
+| `runnable/match_arm_block_io.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/match_in_block.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/mat... |
+| `runnable/math_trig.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/micro_block_if.ail` | ✅ Pass |  |
 | `runnable/micro_block_seq.ail` | ✅ Pass |  |
 | `runnable/micro_io_echo.ail` | ✅ Pass |  |
 | `runnable/micro_option_map.ail` | ✅ Pass |  |
 | `runnable/micro_record_person.ail` | ✅ Pass |  |
+| `runnable/nested_match_minimal.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/nes... |
+| `runnable/nested_match_simple.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/option_demo.ail` | ✅ Pass |  |
+| `runnable/pattern_sugar.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/patterns.ail` | ✅ Pass |  |
+| `runnable/polymorphic_comparison_simple.ail` | ✅ Pass |  |
+| `runnable/polymorphic_lambdas_phase1.ail` | ✅ Pass |  |
+| `runnable/record_update.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/rec... |
 | `runnable/records.ail` | ✅ Pass |  |
 | `runnable/recursion_factorial.ail` | ✅ Pass |  |
 | `runnable/recursion_fibonacci.ail` | ✅ Pass |  |
@@ -57,8 +76,11 @@
 | `runnable/recursion_mutual.ail` | ✅ Pass |  |
 | `runnable/recursion_quicksort.ail` | ✅ Pass |  |
 | `runnable/simple.ail` | ✅ Pass |  |
+| `runnable/simple_func_match.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/stdlib_demo.ail` | ✅ Pass |  |
 | `runnable/stdlib_demo_simple.ail` | ✅ Pass |  |
+| `runnable/string_parsing.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/string_split.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/test_cli_io.ail` | ✅ Pass |  |
 | `runnable/test_fizzbuzz.ail` | ✅ Pass |  |
 | `runnable/test_guard_bool.ail` | ✅ Pass |  |
@@ -67,6 +89,7 @@
 | `runnable/test_module_minimal.ail` | ✅ Pass |  |
 | `runnable/type_classes.ail` | ✅ Pass |  |
 | `runnable/type_inference.ail` | ✅ Pass |  |
+| `runnable/type_inference_regression.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/typ... |
 | `runnable/typeclasses.ail` | ✅ Pass |  |
 | `runnable/values_basic.ail` | ✅ Pass |  |
 
