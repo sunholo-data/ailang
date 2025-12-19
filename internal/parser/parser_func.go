@@ -109,6 +109,20 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		}
 	}
 
+	// Parse contracts if present: requires { ... } ensures { ... }
+	// Contracts appear after effects, before tests/properties/body (M-VERIFY)
+	// The syntax is:
+	//   func name(params) -> type ! {}
+	//   requires { pred1, pred2 }
+	//   ensures  { pred3, pred4 }
+	//   { body }
+	requiresContracts, ensuresContracts := p.parseContractBlocks()
+	if len(requiresContracts) > 0 || len(ensuresContracts) > 0 {
+		// Append contracts to Properties slice (reusing existing infrastructure)
+		fn.Properties = append(fn.Properties, requiresContracts...)
+		fn.Properties = append(fn.Properties, ensuresContracts...)
+	}
+
 	// Parse tests and properties before body (they appear before opening brace)
 	// The syntax is:
 	//   func name(params) -> type
