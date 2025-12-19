@@ -12,6 +12,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.8.0
 
+- [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-contracts-assert.md)
+- [M-CSP-SESSION-TYPES: CSP Concurrency with Session Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-csp-session-types.md)
 - [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-verify-smt-verification.md)
 
 ## Planned for v0.7.0
@@ -22,12 +24,14 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-TOOLING-DETERMINISTIC.md)
 - [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
+- [M-CAPABILITY-BUDGETS: Resource-Bounded Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-capability-budgets.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-error-propagation.md)
 - [M-PATTERN-GUARDS: Evaluate Pattern Guard Conditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-pattern-guards.md)
 - [M-POLY-ARITH: Fix Polymorphic Arithmetic Operators in Lambdas](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-poly-arithmetic-fix.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-quasi-typed-quasiquotes.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-reflect-structural-reflection.md)
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-string-interpolation.md)
+- [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-trace-export.md)
 
 ## Planned for v0.6.1
 
@@ -62,4 +66,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 30 planned features across 3 upcoming versions.*
+*Generated at build time. 34 planned features across 3 upcoming versions.*
