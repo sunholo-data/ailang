@@ -1256,8 +1256,9 @@ ailang compile --emit-go --out ./gen example.ail
 ailang compile --emit-go --relax-modules --out ./gen /path/to/example.ail
 ```
 
-### Remaining Work for Full Phase 0.5
+### Remaining Work (v0.8.0)
 
-1. **`ensures` checks**: Need `result` variable tracking at return points
+~~1. **`ensures` checks**: Need `result` variable tracking at return points~~ ✅ DONE (2025-12-19)
 2. **Report mode**: Return error instead of panic for policy applications
 3. **ContractContext integration**: Wire to EffContext for trace collection
+4. **SMT Backend**: Full verification via Z3 integration
