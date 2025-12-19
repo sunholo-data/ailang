@@ -1,82 +1,46 @@
 # Experimental Examples
 
-Examples using future or unimplemented AILANG features. These files demonstrate planned capabilities that are not yet fully implemented.
+Examples demonstrating planned AILANG features that are not yet implemented. These serve as design documentation and future test cases.
 
-## ⚠️ Warning
+## Warning
 
-**These examples DO NOT currently work!** They use features that are:
-- Planned for future releases
+**These examples DO NOT currently work!** They require features that are:
+- On the [roadmap](/docs/roadmap/)
 - Partially implemented
-- Require external dependencies not yet integrated
+- Planned for future releases
 
-## Why Keep Them?
+## Current Contents
 
-These files serve as:
-- **Design documentation**: Show intended API and syntax
-- **Feature tracking**: What capabilities users want
-- **Test cases**: Will become working examples when features ship
+### Property-Based Testing (M-TESTING)
+- `factorial.ail` - Inline tests and properties syntax
+- `quicksort.ail` - Property-based testing for sorting
 
-## Contents
+**Status**: Core algorithms work, but `tests [...]` and `properties [...]` syntax not implemented.
+**Target**: v0.7.0+ (M-TESTING milestone)
 
-### AI Agent Integration
-- `ai_call.ail` - Generic AI agent calls
-- `claude_haiku_call.ail` - Claude API integration
-- `demo_ai_api.ail` - AI API demonstration
-- `demo_openai_api.ail` - OpenAI API integration
+### Concurrency (M-CHANNELS)
+- `concurrent_pipeline.ail` - CSP-based data processing with channels
+- `web_api.ail` - HTTP server with quasiquotes
 
-**Status**: Requires HTTP + JSON decoding (both implemented in v0.3.14), but needs higher-level HTTP client library and API key management.
+**Status**: Requires CSP channels, session types, and quasiquotes.
+**Target**: v0.8.0+ (long-term roadmap)
 
-### Concurrency (Future: v0.4.0+)
-- `concurrent_pipeline.ail` - Concurrent data processing
-- `web_api.ail` - HTTP server implementation
+### REPL Introspection
+- `ai_agent_integration.ail` - Effects introspection (`:effects` command)
 
-**Status**: Requires CSP channels and session types (planned for v0.4.0+)
+**Status**: Requires REPL meta-commands not exposed to programs.
+**Target**: v0.7.0 (M-REPL1)
 
-### Advanced Features
-- `factorial.ail` - May use advanced optimization features
-- `quicksort.ail` - May use advanced list operations
+## Graduated to runnable/
 
-**Status**: Core algorithms work, but may demonstrate future optimizations
+The following examples now work and have been moved to `runnable/`:
+- `ai_call.ail` - OpenAI API integration (Net effect)
+- `claude_haiku_call.ail` - Claude API integration (Net effect)
+- `demo_ai_api.ail` - HTTP API demonstration (Net effect)
 
-## Timeline
+## For Working Examples
 
-| Feature | Current Status | Target Version | Estimated |
-|---------|---------------|----------------|-----------|
-| HTTP Client Library | Builtin exists | v0.3.15 | Q4 2025 |
-| AI Agent Integration | Design only | v0.3.16 | Q1 2026 |
-| CSP Channels | Planned | v0.4.0 | Q2 2026 |
-| Session Types | Planned | v0.4.0 | Q2 2026 |
-| HTTP Server | Design only | v0.4.1 | Q3 2026 |
-
-## Testing
-
-**Do not run these examples** - they will fail with type errors, missing builtins, or unimplemented features.
-
-For current working examples, see:
-- `examples/runnable/` - Full working programs
-- `examples/snippets/` - Documentation code snippets
+See:
+- `examples/runnable/` - Full working programs (CI-verified)
+- `examples/docs/` - Documentation examples
 - `examples/tests/` - Test cases
-
-## Contributing
-
-To propose new experimental examples:
-1. Use realistic syntax based on design docs
-2. Add comments explaining what features are needed
-3. Include expected behavior in comments
-4. Link to relevant design doc or issue
-
-Example:
-```ailang
--- experimental/my_feature.ail
--- Requires: Feature X (see design_docs/planned/feature_x.md)
--- Status: Not implemented
--- Target: v0.X.Y
-
-module experimental/my_feature
-
--- Expected: This should work when Feature X ships
-export func demo() -> string {
-  -- Your example code here
-  "result"
-}
-```

@@ -35,15 +35,20 @@ All milestones completed. Runtime contract checking is now available via `--veri
    - Reason: Contracts need Core expressions for codegen, not surface AST
    - `core.Contract` struct has `Kind`, `Expr`, `Message`, `Location` fields
 
-2. **Predicate Evaluation**: Uses runtime helpers (`GeInt`, `NeInt`, `LeInt`, etc.)
+2. **Predicate Evaluation - Requires**: Uses runtime helpers (`GeInt`, `NeInt`, `LeInt`, etc.)
    - Reason: `_impl` functions use `interface{}` params; can't use raw Go operators
    - Added `mapIntrinsicToHelper()` to map Core intrinsics to runtime helpers
 
-3. **Comments Always Generated**: `// Requires:` comments generated regardless of `--verify-contracts`
+3. **Predicate Evaluation - Ensures**: Uses typed Go operators in typed wrapper
+   - Reason: Typed wrapper has concrete types; can use native Go comparisons
+   - Added `generateEnsuresPredicate()` with `result` → `_result` substitution
+   - Handles `core.Intrinsic` nodes (elaborated comparison ops)
+
+4. **Comments Always Generated**: `// Requires:` and `// Ensures:` comments generated regardless of `--verify-contracts`
    - Reason: Documentation value even without runtime checks
    - Panic checks only generated when flag is set
 
-4. **Added `--relax-modules` to compile command**: Needed for example files in absolute paths
+5. **Added `--relax-modules` to compile command**: Needed for example files in absolute paths
    - Bonus fix for developer ergonomics
    - Also supports `AILANG_RELAX_MODULES=1` environment variable
 
@@ -94,17 +99,23 @@ All tests pass:
 
 ## Suggested Next Steps
 
-### Immediate (v0.6.2)
+### Immediate (v0.6.2) - ALL COMPLETE ✅
 
-1. **Ensures checks** - Currently only `requires` generates runtime checks
-   - Add `generateContractEnsuresChecks()` to inject checks before returns
-   - Requires tracking return value as `result` variable
+1. ~~**Ensures checks**~~ ✅ DONE
+   - Added `generateContractEnsuresChecks()` to inject checks before returns
+   - Uses `_result` variable to capture return value
+   - Handles `core.Intrinsic` nodes with `intrinsicOpToString()` helper
 
-2. **Park admission example** - Create `examples/contracts/park.ail` from design doc
-   - ARC paper showcase for documentation and marketing
+2. ~~**Park admission example**~~ ✅ DONE
+   - Created `examples/runnable/contracts/park.ail` from ARC paper
+   - Full policy model with ADTs, contracts, and test cases
 
-3. **Documentation** - Add `docs/guides/contracts.mdx` to website
-   - Already drafted, needs review and publishing
+3. ~~**Documentation**~~ ✅ DONE
+   - Updated `docs/docs/guides/contracts.mdx` with:
+     - Runtime contract checking section
+     - Generated code examples
+     - Contract violation message format
+     - Updated implementation status
 
 ### Future Sprints
 

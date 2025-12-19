@@ -114,14 +114,75 @@ The [ARC paper](https://arxiv.org/abs/2511.09008) demonstrates that:
 
 AILANG implements this pattern natively: contracts are first-class syntax, not comments or annotations.
 
+## Runtime Contract Checking
+
+Enable runtime contract verification with the `--verify-contracts` flag:
+
+```bash
+# Compile with contract checks enabled
+ailang compile --verify-contracts examples/runnable/contracts/basic.ail -o output/
+
+# Run with contracts (coming in v0.6.2)
+ailang run --verify-contracts --caps IO --entry main examples/runnable/contracts/basic.ail
+```
+
+### What Gets Generated
+
+**With `--verify-contracts`**: Both documentation comments and panic checks:
+
+```go
+func absolute_impl(x interface{}) interface{} {
+    // Requires: (x >= 0)
+    if !(GeInt(x, int64(0))).(bool) {
+        panic("contract violation: requires: (x >= 0) at basic.ail:13:12")
+    }
+    return x
+}
+
+func Absolute(x int64) int64 {
+    _result := absolute_impl(x).(int64)
+    // Ensures: (result >= 0)
+    if !(_result >= int64(0)) {
+        panic("contract violation: ensures: (result >= 0) at basic.ail:14:11")
+    }
+    return _result
+}
+```
+
+**Without `--verify-contracts`**: Documentation comments only (no runtime overhead):
+
+```go
+func absolute_impl(x interface{}) interface{} {
+    // Requires: (x >= 0)
+    return x
+}
+```
+
+### Contract Violation Messages
+
+When a contract is violated at runtime, you get a clear panic message:
+
+```
+panic: contract violation: requires: (divisor != 0) at basic.ail:21:12
+```
+
+The message includes:
+- Contract type (`requires` or `ensures`)
+- Original predicate expression
+- Source location (file:line:column)
+
 ## Current Status
 
 :::note Implementation Status
-**Phase 0 Complete**: Contract syntax parses correctly and is stored in the AST.
+**Phase 0 + 0.5 Complete (v0.6.2)**:
+- ✅ Contract syntax (`requires`/`ensures`) parses correctly
+- ✅ Contracts stored in Core AST (`core.DeclMeta.Contracts`)
+- ✅ Runtime checks with `--verify-contracts` flag
+- ✅ Precondition (`requires`) checks at function entry
+- ✅ Postcondition (`ensures`) checks before return
+- ✅ `result` identifier maps to return value in ensures
 
-**Coming in Phase 0.5**: Runtime contract checks with `--verify-contracts` flag.
-
-**Future (Phase 1)**: SMT-based verification for provably correct code.
+**Future (Phase 1)**: SMT-based verification for provably correct code via `ailang verify` command.
 :::
 
 ## See Also
