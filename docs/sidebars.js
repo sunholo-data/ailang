@@ -37,6 +37,7 @@ const sidebars = {
         'reference/language-syntax',
         'reference/modules',
         'reference/effects',
+        'guides/contracts',
         'reference/arrays',
         'reference/no-loops',
         'reference/repl-commands',

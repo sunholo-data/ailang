@@ -1,0 +1,131 @@
+---
+sidebar_position: 8
+title: Contracts & Verification
+description: Design-by-contract programming with requires/ensures clauses
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import BasicContracts from '!!raw-loader!@site/../examples/runnable/contracts/basic.ail';
+import ParkExample from '!!raw-loader!@site/../examples/runnable/contracts/park.ail';
+
+# Contracts & Verification
+
+AILANG supports **design-by-contract** programming through `requires` and `ensures` clauses. Contracts make function invariants explicit and machine-checkable.
+
+:::info Research Foundation
+This feature implements techniques from the **ARC (Automated Reasoning Checks)** system developed by AWS:
+
+> Bayless et al., ["A Neurosymbolic Approach to Natural Language Formalization and Verification"](https://arxiv.org/abs/2511.09008) (2025)
+
+ARC demonstrates that formal verification combined with AI code generation dramatically improves correctness. AILANG brings these techniques into the language itself.
+:::
+
+## Contract Syntax
+
+Contracts appear after the effect annotation and before the function body:
+
+```ailang
+export func safeDivide(dividend: int, divisor: int) -> int ! {}
+requires { divisor != 0 }        -- Precondition: checked at entry
+ensures { result >= 0 }          -- Postcondition: checked before return
+{
+  dividend / divisor
+}
+```
+
+### Key Elements
+
+| Clause | Purpose | When Checked |
+|--------|---------|--------------|
+| `requires { ... }` | Precondition - what must be true when calling | Function entry |
+| `ensures { ... }` | Postcondition - what will be true when returning | Before return |
+| `result` | Special identifier for the return value | Only in `ensures` |
+
+### Multiple Predicates
+
+Separate multiple predicates with commas:
+
+```ailang
+export func clamp(value: int, min: int, max: int) -> int ! {}
+requires { min <= max }
+ensures { result >= min, result <= max }
+{
+  if value < min then min
+  else if value > max then max
+  else value
+}
+```
+
+## Basic Example
+
+This example demonstrates core contract patterns:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/basic.ail">
+  {BasicContracts}
+</CodeBlock>
+
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/runnable/contracts/basic.ail
+# Output: 116
+```
+
+## Policy Example: Park Admission
+
+This example reproduces the park admission policy from the [ARC paper](https://arxiv.org/abs/2511.09008), demonstrating how AILANG can express the same policy models with machine-checkable contracts.
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/park.ail">
+  {ParkExample}
+</CodeBlock>
+
+**Run it:**
+```bash
+ailang run --caps IO --entry main examples/runnable/contracts/park.ail
+# Output: 35 (= 5 + 10 + 0 + 20)
+```
+
+### What This Demonstrates
+
+The park example shows:
+
+1. **Domain modeling with ADTs**: Types like `Season`, `AgeClass`, and `AdmissionDecision` capture the policy vocabulary
+2. **Business rules as contracts**: "Seniors pay $5 in low season" becomes `ensures { result >= 0 }`
+3. **Function composition**: `canEnterPark` builds on `admissionFee` with contracts propagating
+4. **Testable specifications**: The `main` function exercises the policy with known test cases
+
+## Why Contracts Matter for AI
+
+Contracts are particularly valuable for AI code generation:
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Specification surface** | AI can read contracts to understand intent |
+| **Verification target** | Generated code can be checked against contracts |
+| **Confidence scoring** | Multiple AI-generated implementations can be compared for contract satisfaction |
+| **Audit trail** | Contracts document what was specified vs. implemented |
+
+### The ARC Approach
+
+The [ARC paper](https://arxiv.org/abs/2511.09008) demonstrates that:
+
+1. Having AI generate both contracts *and* code improves correctness
+2. Redundant generation (multiple samples) + verification catches bugs
+3. Formal specifications make AI reasoning auditable
+
+AILANG implements this pattern natively: contracts are first-class syntax, not comments or annotations.
+
+## Current Status
+
+:::note Implementation Status
+**Phase 0 Complete**: Contract syntax parses correctly and is stored in the AST.
+
+**Coming in Phase 0.5**: Runtime contract checks with `--verify-contracts` flag.
+
+**Future (Phase 1)**: SMT-based verification for provably correct code.
+:::
+
+## See Also
+
+- [ARC Paper (arXiv:2511.09008)](https://arxiv.org/abs/2511.09008) - Research foundation
+- [Language Syntax Reference](/docs/reference/language-syntax) - Full syntax documentation
+- [Effects System](/docs/reference/effects) - How contracts interact with effects

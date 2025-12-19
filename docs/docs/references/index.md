@@ -120,12 +120,14 @@ AILANG compiles pattern matching to decision trees for efficiency.
 
 ### Automated Reasoning Checks (ARC)
 
-AILANG's M-VERIFY contract system is inspired by AWS's neurosymbolic verification approach.
+AILANG's M-VERIFY contract system implements techniques from AWS's neurosymbolic verification research.
 
 > **Bayless, S., et al.** (2025). A Neurosymbolic Approach to Natural Language Formalization and Verification.
 > arXiv: [2511.09008](https://arxiv.org/abs/2511.09008)
 
 **Key approach**: A two-stage framework that (1) uses LLMs with optional human guidance to formalize natural language policies, and (2) uses inference-time autoformalization to validate logical correctness. Multiple redundant formalization steps cross-check for semantic equivalence, achieving 99.2% soundness.
+
+**AILANG implementation**: The [Contracts & Verification](../guides/contracts.mdx) guide shows how AILANG brings these techniques into the language itself via `requires`/`ensures` clauses. The [park admission example](../guides/contracts.mdx#policy-example-park-admission) directly reproduces the policy scenario from the ARC paper.
 
 **Note**: This is AWS's "ARC" (Automated Reasoning Checks), distinct from François Chollet's ARC-AGI benchmark.
 
