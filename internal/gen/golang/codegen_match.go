@@ -279,20 +279,49 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 			}
 
 			// Bind head elements
+			// M-DX17: Handle nested patterns (TuplePattern, etc.) not just VarPattern
 			for i, elem := range pat.Elements {
-				if vp, ok := elem.(*core.VarPattern); ok && vp.Name != "_" {
-					// Skip binding for wildcard patterns (name == "_")
-					var binding string
-					if isTypedSlice {
-						// Use indexed access for typed slices
-						binding = fmt.Sprintf("%s := %s[%d]", ToGoVarName(vp.Name), scrutinee, i)
-					} else {
-						binding = fmt.Sprintf("%s := ListHead(%s)", ToGoVarName(vp.Name), scrutinee)
-					}
-					bindings = append(bindings, binding)
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(vp.Name)))
+				// Get the current element expression
+				var elemExpr string
+				if isTypedSlice {
+					elemExpr = fmt.Sprintf("%s[%d]", scrutinee, i)
+				} else {
+					elemExpr = fmt.Sprintf("ListHead(%s)", scrutinee)
 				}
-				// For untyped lists, need to get from tail (always advance, even for wildcards)
+
+				switch elemPat := elem.(type) {
+				case *core.VarPattern:
+					if elemPat.Name != "_" {
+						binding := fmt.Sprintf("%s := %s", ToGoVarName(elemPat.Name), elemExpr)
+						bindings = append(bindings, binding)
+						bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(elemPat.Name)))
+					}
+				case *core.WildcardPattern:
+					// No binding needed for wildcards
+				case *core.TuplePattern:
+					// M-DX17: Nested tuple pattern - extract element and recurse
+					tempVar := fmt.Sprintf("_listElem%d", i)
+					binding := fmt.Sprintf("%s := %s", tempVar, elemExpr)
+					bindings = append(bindings, binding)
+					// Recursively get bindings for nested tuple
+					_, nestedBindings, err := g.generatePatternCondition(elemPat, tempVar)
+					if err != nil {
+						return "", nil, err
+					}
+					bindings = append(bindings, nestedBindings...)
+				default:
+					// Other pattern types - generate temp and recurse
+					tempVar := fmt.Sprintf("_listElem%d", i)
+					binding := fmt.Sprintf("%s := %s", tempVar, elemExpr)
+					bindings = append(bindings, binding)
+					_, nestedBindings, err := g.generatePatternCondition(elem, tempVar)
+					if err != nil {
+						return "", nil, err
+					}
+					bindings = append(bindings, nestedBindings...)
+				}
+
+				// For untyped lists, advance to next element
 				if !isTypedSlice && i < len(pat.Elements)-1 {
 					scrutinee = fmt.Sprintf("ListTail(%s)", scrutinee)
 				}

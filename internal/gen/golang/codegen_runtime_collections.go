@@ -91,10 +91,11 @@ func (g *Generator) writeRuntimeListHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
-	// Concat helper for list concatenation (++ operator)
+	// ConcatList helper for list concatenation (++ operator)
 	// M-CODEGEN-LIST-CONCAT: Handles []interface{} concatenation
-	g.writef("// Concat concatenates two lists (++ operator).\n")
-	g.writef("func Concat(a, b interface{}) interface{} {\n")
+	// M-DX17: Named ConcatList to match ToPascalCase("concat_List") from op_lowering
+	g.writef("// ConcatList concatenates two lists (++ operator).\n")
+	g.writef("func ConcatList(a, b interface{}) interface{} {\n")
 	g.indent++
 	g.writef("if a == nil {\n")
 	g.indent++
