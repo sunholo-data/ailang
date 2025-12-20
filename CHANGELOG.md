@@ -1,5 +1,46 @@
 # AILANG Changelog
 
+## [v0.6.1] - 2025-12-20
+
+### Fixed - Inline Record Literals in Match Arms (M-DX16)
+
+Fixed parser to allow inline record literals directly in match arms without requiring helper functions.
+
+**Before (required workaround):**
+```ailang
+-- ❌ Had to define helper functions for each record
+pure func bridgeInfo() -> {name: string, level: int} = {name: "Bridge", level: 1}
+
+match deckID {
+    Bridge => bridgeInfo()  -- couldn't inline the record
+}
+```
+
+**After (works directly):**
+```ailang
+-- ✅ Inline record literals work in match arms
+match deckID {
+    Bridge => {name: "Bridge", level: 1}
+    Engine => {name: "Engine", level: -2}
+}
+```
+
+**Also fixed:**
+- Nested records in match arms: `{pos: {x: 0.0, y: 0.0}}`
+- Record updates in match arms: `{base | field: newValue}`
+- Block expressions with semicolons continue to work: `{ println("hi"); 42 }`
+
+**Root cause:** `parseCase()` bypassed record literal detection, always treating `{` as a block expression.
+
+**Fix:** Modified `parseBlockOrExpression()` to detect record patterns (IDENT COLON or IDENT PIPE) after consuming LBRACE.
+
+**Files Modified:**
+- `internal/parser/parser_expr.go` - Added record detection logic (~100 LOC)
+- `internal/parser/record_match_arms_test.go` - New test file (~150 LOC)
+- `examples/runnable/record_in_match.ail` - New example (~70 LOC)
+
+**Design Doc:** [design_docs/planned/v0_6_1/m-dx16-inline-record-match-arms.md](design_docs/planned/v0_6_1/m-dx16-inline-record-match-arms.md)
+
 ## [v0.6.0] - 2025-12-16
 
 ### Added - Semantic Doc Search (M-DOC-SEM)

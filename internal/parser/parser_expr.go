@@ -216,18 +216,19 @@ func (p *Parser) parseCase() *ast.Case {
 	p.expectPeek(lexer.FARROW)
 	p.nextToken()
 
-	// Option B: Special-case block arms to use parseBlockOrExpression()
-	// This ensures proper delimiter tracking for nested match expressions in blocks.
-	// Background: Match arms can be either simple expressions OR blocks containing
-	// multiple statements including nested matches. When a block is used, we need
-	// the same delimiter tracking that function/lambda bodies use.
+	// Handle match arm bodies:
+	// - If LBRACE, use parseBlockOrExpression which handles:
+	//   - Record literals: {field: value, ...}
+	//   - Record updates: {base | field: value, ...}
+	//   - Block expressions: { expr1; expr2; ... }
+	// - Otherwise, use parseExpression for simple expressions
+	//
+	// parseBlockOrExpression includes delimiter tracing needed for nested matches.
 	if p.curTokenIs(lexer.LBRACE) {
-		// Parse as block using the same logic as function bodies
 		p.traceDelimiterOpen(delimCtxCase)
 		c.Body = p.parseBlockOrExpression()
 		p.traceDelimiterClose(delimCtxCase)
 	} else {
-		// Parse as simple expression
 		c.Body = p.parseExpression(LOWEST)
 	}
 
@@ -303,7 +304,7 @@ func (p *Parser) parseFuncLitWithParams(pos ast.Pos, params []*ast.Param) ast.Ex
 	return funcLit
 }
 
-// parseBlockOrExpression parses either a block { e1; e2; e3 } or a single expression
+// parseBlockOrExpression parses either a block { e1; e2; e3 }, record literal, or record update
 // This is called when we're at the opening LBRACE
 func (p *Parser) parseBlockOrExpression() ast.Expr {
 	// We're at LBRACE
@@ -322,7 +323,21 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		}
 	}
 
-	// Parse expressions separated by semicolons
+	// Check for record literal: {field: value, ...}
+	// This is detected by IDENT followed by COLON
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+		p.traceDelimiterClose(delimCtxBlock) // Close the block trace since we're switching to record
+		return p.parseRecordLiteralContent(startPos)
+	}
+
+	// Check for record update: {base | field: value, ...}
+	// This is detected by IDENT followed by PIPE
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.PIPE) {
+		p.traceDelimiterClose(delimCtxBlock) // Close the block trace since we're switching to record
+		return p.parseRecordUpdateContent(startPos)
+	}
+
+	// Parse expressions separated by semicolons (block expression)
 	exprs := []ast.Expr{}
 	exprs = append(exprs, p.parseExpression(LOWEST))
 
@@ -361,6 +376,110 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		Exprs: exprs,
 		Pos:   startPos,
 	}
+}
+
+// parseRecordLiteralContent parses a record literal after the { has been consumed.
+// Called when we detect {IDENT COLON ...} pattern in parseBlockOrExpression.
+// Cursor is at the first IDENT token.
+func (p *Parser) parseRecordLiteralContent(startPos ast.Pos) ast.Expr {
+	record := &ast.Record{
+		Pos: startPos,
+	}
+
+	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+		field := &ast.Field{
+			Pos: p.curPos(),
+		}
+
+		if !p.curTokenIs(lexer.IDENT) {
+			p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
+			return nil
+		}
+
+		field.Name = p.curToken.Literal
+
+		if !p.expectPeek(lexer.COLON) {
+			return nil
+		}
+		p.nextToken()
+
+		field.Value = p.parseExpression(LOWEST)
+		record.Fields = append(record.Fields, field)
+
+		if p.peekTokenIs(lexer.RBRACE) {
+			p.nextToken()
+			break
+		}
+
+		if !p.expectPeek(lexer.COMMA) {
+			return nil
+		}
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.RBRACE) {
+		p.errors = append(p.errors, fmt.Errorf("expected }, got %s", p.curToken.Type))
+		return nil
+	}
+
+	return record
+}
+
+// parseRecordUpdateContent parses a record update after the { has been consumed.
+// Called when we detect {IDENT PIPE ...} pattern in parseBlockOrExpression.
+// Cursor is at the first IDENT token (the base expression identifier).
+func (p *Parser) parseRecordUpdateContent(startPos ast.Pos) ast.Expr {
+	// Parse the base expression (the IDENT we're at)
+	base := p.parseExpression(LOWEST)
+
+	if !p.expectPeek(lexer.PIPE) {
+		return nil
+	}
+	p.nextToken() // move past PIPE
+
+	update := &ast.RecordUpdate{
+		Base: base,
+		Pos:  startPos,
+	}
+
+	// Parse updated fields
+	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+		field := &ast.Field{
+			Pos: p.curPos(),
+		}
+
+		if !p.curTokenIs(lexer.IDENT) {
+			p.errors = append(p.errors, fmt.Errorf("expected field name in record update, got %s", p.curToken.Type))
+			return nil
+		}
+
+		field.Name = p.curToken.Literal
+
+		if !p.expectPeek(lexer.COLON) {
+			return nil
+		}
+		p.nextToken()
+
+		field.Value = p.parseExpression(LOWEST)
+		update.Fields = append(update.Fields, field)
+
+		if p.peekTokenIs(lexer.RBRACE) {
+			p.nextToken()
+			break
+		}
+
+		if !p.expectPeek(lexer.COMMA) {
+			return nil
+		}
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.RBRACE) {
+		p.errors = append(p.errors, fmt.Errorf("expected } in record update, got %s", p.curToken.Type))
+		return nil
+	}
+
+	return update
 }
 
 func (p *Parser) parsePureLambda() ast.Expr {

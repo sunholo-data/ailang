@@ -1,0 +1,67 @@
+-- Example: Inline Record Literals in Match Arms (M-DX16)
+-- Demonstrates using record literals directly in match arms without helper functions.
+-- This is a DX improvement - previously required helper functions as workarounds.
+
+module examples/runnable/record_in_match
+
+import std/io (println)
+
+-- Define a simple ADT
+type Color = Red | Green | Blue
+
+-- Return record literals directly from match arms!
+-- Before M-DX16, this required helper functions for each case.
+pure func colorInfo(c: Color) -> {name: string, hex: string} =
+    match c {
+        Red => {name: "Red", hex: "#FF0000"}
+        Green => {name: "Green", hex: "#00FF00"}
+        Blue => {name: "Blue", hex: "#0000FF"}
+    }
+
+-- Nested records also work
+type Location = Home | Work | Other
+
+pure func locationInfo(loc: Location) -> {name: string, pos: {x: float, y: float}} =
+    match loc {
+        Home => {name: "Home", pos: {x: 0.0, y: 0.0}}
+        Work => {name: "Work", pos: {x: 10.5, y: 20.3}}
+        Other => {name: "Unknown", pos: {x: -1.0, y: -1.0}}
+    }
+
+-- Record updates in match arms
+pure func withDefault(c: Color, defaultHex: string) -> {name: string, hex: string} = {
+    let base = {name: "Unknown", hex: defaultHex};
+    match c {
+        Red => {base | name: "Red", hex: "#FF0000"}
+        Green => {base | name: "Green", hex: "#00FF00"}
+        Blue => {base | name: "Blue", hex: "#0000FF"}
+    }
+}
+
+-- Block expressions with statements still work
+func logAndReturn(c: Color) -> string ! {IO} =
+    match c {
+        Red => {
+            println("Processing red...");
+            "RED"
+        }
+        Green => {
+            println("Processing green...");
+            "GREEN"
+        }
+        Blue => {
+            println("Processing blue...");
+            "BLUE"
+        }
+    }
+
+func main() -> () ! {IO} = {
+    let info = colorInfo(Red);
+    println("Color: " ++ info.name ++ ", Hex: " ++ info.hex);
+
+    let loc = locationInfo(Home);
+    println("Location: " ++ loc.name);
+
+    let result = logAndReturn(Green);
+    println("Result: " ++ result)
+}
