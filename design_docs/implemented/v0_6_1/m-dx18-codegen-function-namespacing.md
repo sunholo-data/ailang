@@ -1,6 +1,6 @@
 # M-DX18: Go Codegen - Non-Exported Function Namespacing
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.6.1
 **Priority**: P0 (Blocking - breaks multi-module projects)
 **Estimated**: 2 hours
@@ -180,12 +180,12 @@ func CalculateOrbit(...) interface{} { return CalculateOrbit_impl(...) }
 
 ## Success Criteria
 
-- [ ] Multiple modules with same non-exported function names compile
-- [ ] stapledons_voyage `sim/*.ail` compiles without errors
-- [ ] Exported functions retain simple names
-- [ ] Single-module projects work unchanged
-- [ ] All existing codegen tests pass
-- [ ] `make test` passes
+- [x] Multiple modules with same non-exported function names compile
+- [ ] stapledons_voyage `sim/*.ail` compiles without errors (pending integration test)
+- [x] Exported functions retain simple names
+- [x] Single-module projects work unchanged
+- [x] All existing codegen tests pass
+- [x] `make test` passes
 
 ## Testing Strategy
 

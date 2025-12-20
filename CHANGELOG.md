@@ -41,6 +41,43 @@ match deckID {
 
 **Design Doc:** [design_docs/planned/v0_6_1/m-dx16-inline-record-match-arms.md](design_docs/planned/v0_6_1/m-dx16-inline-record-match-arms.md)
 
+### Fixed - Non-Exported Function Namespacing (M-DX18)
+
+Fixed Go codegen to namespace non-exported functions when compiling multiple modules to the same Go package. This prevents redeclaration errors when different modules have private functions with the same name.
+
+**Before (failed):**
+```
+sim/solar_demo.ail has: pure func concatLists(a: [SolarPlanet], b: [SolarPlanet]) -> [SolarPlanet]
+sim/dome_demo.ail has: pure func concatLists(a: [DrawCmd], b: [DrawCmd]) -> [DrawCmd]
+
+$ ailang compile sim/*.ail
+sim_gen/solar_demo.go:503:6: concatLists_impl redeclared in this block
+```
+
+**After (works):**
+```go
+// sim_gen/solar_demo.go
+func solar_demo__concatLists_impl(...) { ... }
+func solar_demo__concatLists(...) { ... }
+
+// sim_gen/dome_demo.go
+func dome_demo__concatLists_impl(...) { ... }
+func dome_demo__concatLists(...) { ... }
+```
+
+**Key features:**
+- Non-exported functions prefixed with `{moduleName}__`
+- Exported functions keep simple names for external access
+- Call sites automatically resolve to namespaced names
+- Module name derived from last path component
+
+**Files Modified:**
+- `internal/gen/golang/codegen.go` - Added moduleName field and SetModuleName() (~20 LOC)
+- `internal/gen/golang/codegen_decl.go` - Added namespacing in 3 functions (~20 LOC)
+- `cmd/ailang/compile.go` - Set module name per file (~30 LOC)
+
+**Design Doc:** [design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md](design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md)
+
 ## [v0.6.0] - 2025-12-16
 
 ### Added - Semantic Doc Search (M-DOC-SEM)

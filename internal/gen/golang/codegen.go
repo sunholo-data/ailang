@@ -153,6 +153,11 @@ type Generator struct {
 	// currentFuncName tracks the function name being generated for contract error messages
 	// M-VERIFY: Used to look up contracts from prog.Meta and for error reporting
 	currentFuncName string
+
+	// moduleName is the current module's short name for function namespacing
+	// M-DX18: Non-exported functions are prefixed with {moduleName}__ to prevent collisions
+	// when compiling multiple modules to the same Go package.
+	moduleName string
 }
 
 // FuncTypeOverride stores explicit function type signatures from AST annotations.
@@ -192,6 +197,21 @@ func (g *Generator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 // M-VERIFY: When enabled, generates predicate checks for requires/ensures clauses.
 func (g *Generator) SetVerifyContracts(enabled bool) {
 	g.verifyContracts = enabled
+}
+
+// SetModuleName sets the module name for function namespacing.
+// M-DX18: Non-exported functions will be prefixed with {moduleName}__ to prevent
+// collisions when multiple modules are compiled to the same Go package.
+// The moduleName should be the last component of the module path (e.g., "solar_demo"
+// from "sim/solar_demo").
+func (g *Generator) SetModuleName(name string) {
+	g.moduleName = name
+}
+
+// GetModuleName returns the current module name used for function namespacing.
+// M-DX18: Used for debugging and testing.
+func (g *Generator) GetModuleName() string {
+	return g.moduleName
 }
 
 // New creates a new Generator with the specified package name.

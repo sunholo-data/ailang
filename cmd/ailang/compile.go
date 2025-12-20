@@ -380,6 +380,19 @@ func compileCommand() {
 				codeGen.SetCoreTypeInfo(res.Artifacts.CoreTI)
 			}
 
+			// M-DX18: Set module name for function namespacing
+			// Non-exported functions will be prefixed with {moduleName}__ to prevent collisions
+			if res.Artifacts.AST != nil && res.Artifacts.AST.Module != nil && res.Artifacts.AST.Module.Path != "" {
+				parts := strings.Split(res.Artifacts.AST.Module.Path, "/")
+				moduleName := sanitizeModuleName(parts[len(parts)-1])
+				codeGen.SetModuleName(moduleName)
+			} else {
+				// Fallback: use source filename without extension
+				baseName := filepath.Base(filenames[i])
+				moduleName := sanitizeModuleName(strings.TrimSuffix(baseName, ".ail"))
+				codeGen.SetModuleName(moduleName)
+			}
+
 			funcsCode, err := codeGen.Generate(coreProg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: function generation failed for file %d: %v\n", yellow("Warning"), i+1, err)
@@ -430,6 +443,37 @@ func sanitizePackageName(name string) string {
 
 	if result == "" {
 		result = "generated"
+	}
+
+	return result
+}
+
+// sanitizeModuleName converts a module name to a valid Go identifier prefix.
+// M-DX18: Used to namespace non-exported functions when compiling multiple modules
+// to the same Go package. Unlike package names, module names preserve case since
+// they're used as function name prefixes, not Go package names.
+func sanitizeModuleName(name string) string {
+	// Replace invalid characters with underscores
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		if r == '_' {
+			return r
+		}
+		if r == '-' {
+			return '_'
+		}
+		return -1 // remove
+	}, name)
+
+	// Ensure doesn't start with number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "mod" + result
+	}
+
+	if result == "" {
+		result = "module"
 	}
 
 	return result

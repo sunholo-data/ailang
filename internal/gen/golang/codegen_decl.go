@@ -109,7 +109,12 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	g.funcReturnTypes[name] = typedRetType
 
 	// Register function name mapping (uses wrapper name for external references)
+	// M-DX18: Non-exported functions are namespaced to prevent collisions across modules
 	funcName := ToGoFuncName(name, exported)
+	if !exported && g.moduleName != "" {
+		// Prefix non-exported functions with module name to avoid collisions
+		funcName = g.moduleName + "__" + funcName
+	}
 	g.topLevelFuncs[name] = funcName
 
 	// M-CROSS-MODULE: Set the declared return type for record literal resolution
@@ -134,8 +139,13 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 // M-DX26: This is the internal implementation that uses runtime helpers.
 // M-CODEGEN-V2: Uses Block IR to generate flat function bodies instead of nested IIFEs.
 // M-VERIFY: When verifyContracts is enabled, generates runtime requires checks at entry.
+// M-DX18: Non-exported functions are namespaced to prevent collisions across modules.
 func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	implName := ToGoVarName(name) + "_impl"
+	// M-DX18: Namespace non-exported _impl functions
+	if !g.isExported(name) && g.moduleName != "" {
+		implName = g.moduleName + "__" + implName
+	}
 
 	// M-VERIFY: Track current function name for contract lookup
 	g.currentFuncName = name
@@ -196,9 +206,15 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 // M-DX26: This provides the typed Go API that external code uses.
 // M-ZERO-ARG: Unit-typed parameters are skipped in the Go signature but passed to _impl.
 // M-VERIFY Phase 0.5: Generates ensures contract checks before return.
+// M-DX18: Non-exported functions are namespaced to prevent collisions across modules.
 func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTypes []string, retType string, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 	implName := ToGoVarName(name) + "_impl"
+	// M-DX18: Namespace non-exported wrapper and _impl functions
+	if !exported && g.moduleName != "" {
+		funcName = g.moduleName + "__" + funcName
+		implName = g.moduleName + "__" + implName
+	}
 
 	// Build typed parameter list
 	// M-BUGFIX: Handle blank identifiers - in Go, _ can be a parameter name
