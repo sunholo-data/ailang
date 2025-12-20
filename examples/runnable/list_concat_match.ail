@@ -1,0 +1,128 @@
+-- Example: List Concatenation and Match Pattern Variables (M-DX17)
+-- Demonstrates ++ operator on lists and pattern variables in block expressions.
+-- Note: This example type-checks correctly; M-DX17 fixes Go codegen for these patterns.
+
+module examples/runnable/list_concat_match
+
+import std/io (println)
+
+-- List concatenation with ++
+pure func concatLists(a: [int], b: [int]) -> [int] = a ++ b
+
+-- Prepend element to list
+pure func prepend(x: int, xs: [int]) -> [int] = [x] ++ xs
+
+-- Append element to list
+pure func append(xs: [int], x: int) -> [int] = xs ++ [x]
+
+-- Flatten a list of lists
+pure func flatten(xss: [[int]]) -> [int] =
+    match xss {
+        [] => []
+        xs :: rest => xs ++ flatten(rest)
+    }
+
+-- Sum elements using match with block expression
+pure func sumList(xs: [int]) -> int =
+    match xs {
+        [] => 0
+        x :: rest => {
+            let restSum = sumList(rest);
+            x + restSum
+        }
+    }
+
+-- Transform list elements with pattern variable in block
+pure func doubleList(xs: [int]) -> [int] =
+    match xs {
+        [] => []
+        x :: rest => {
+            let doubled = x * 2;
+            [doubled] ++ doubleList(rest)
+        }
+    }
+
+-- ADT with pattern matching and blocks
+type CrewRole = Captain | Engineer | Scientist | Medic
+
+pure func roleToString(r: CrewRole) -> string =
+    match r {
+        Captain => "Captain"
+        Engineer => "Engineer"
+        Scientist => "Scientist"
+        Medic => "Medic"
+    }
+
+-- Process crew roles with pattern variables in block
+pure func processRoles(roles: [CrewRole]) -> [string] =
+    match roles {
+        [] => []
+        role :: rest => {
+            let roleStr = roleToString(role);
+            let entry = "Role: " ++ roleStr;
+            [entry] ++ processRoles(rest)
+        }
+    }
+
+-- Nested block with multiple bindings
+pure func processWithAccum(xs: [int], acc: int) -> int =
+    match xs {
+        [] => acc
+        x :: rest => {
+            let newAcc = acc + x;
+            let doubled = x * 2;
+            processWithAccum(rest, newAcc + doubled)
+        }
+    }
+
+-- Record updates combined with concatenation
+type Item = {name: string, count: int}
+
+pure func updateCounts(items: [Item], increment: int) -> [Item] =
+    match items {
+        [] => []
+        item :: rest => {
+            let updated = {item | count: item.count + increment};
+            [updated] ++ updateCounts(rest, increment)
+        }
+    }
+
+func main() -> () ! {IO} = {
+    -- Test list concatenation
+    let list1 = [1, 2, 3];
+    let list2 = [4, 5, 6];
+    let combined = concatLists(list1, list2);
+    println("Concatenated: list1 ++ list2");
+
+    -- Test prepend/append
+    let withZero = prepend(0, list1);
+    let withSeven = append(list2, 7);
+    println("Prepend and append work");
+
+    -- Test flatten
+    let nested = [[1, 2], [3, 4], [5, 6]];
+    let flat = flatten(nested);
+    println("Flattened nested lists");
+
+    -- Test sum with pattern variable in block
+    let total = sumList(list1);
+    println("Sum calculated with block expression");
+
+    -- Test transform with pattern variable
+    let doubled = doubleList(list1);
+    println("Doubled list with pattern variable in block");
+
+    -- Test ADT processing
+    let roles = [Captain, Engineer, Scientist];
+    let roleStrings = processRoles(roles);
+    println("Processed crew roles");
+
+    -- Test nested block with accumulator
+    let result = processWithAccum(list1, 0);
+    println("Processed with accumulator");
+
+    -- Test record updates with concatenation
+    let items = [{name: "Widget", count: 5}, {name: "Gadget", count: 3}];
+    let updated = updateCounts(items, 2);
+    println("Updated item counts")
+}
