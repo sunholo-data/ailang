@@ -445,12 +445,14 @@ func (g *Generator) isADTConstructorExpr(expr core.CoreExpr) bool {
 			return true
 		}
 		// Check direct constructor name
-		if _, exists := g.adtConstructors[v.Ref.Name]; exists {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+		if _, ok := g.LookupADTConstructor("", v.Ref.Name); ok {
 			return true
 		}
 	}
 	if v, ok := expr.(*core.Var); ok {
-		if _, exists := g.adtConstructors[v.Name]; exists {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+		if _, ok := g.LookupADTConstructor("", v.Name); ok {
 			return true
 		}
 	}
@@ -460,12 +462,14 @@ func (g *Generator) isADTConstructorExpr(expr core.CoreExpr) bool {
 			if v.Ref.Module == "$adt" && strings.HasPrefix(v.Ref.Name, "make_") {
 				return true
 			}
-			if _, exists := g.adtConstructors[v.Ref.Name]; exists {
+			// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+			if _, ok := g.LookupADTConstructor("", v.Ref.Name); ok {
 				return true
 			}
 		}
 		if v, ok := app.Func.(*core.Var); ok {
-			if _, exists := g.adtConstructors[v.Name]; exists {
+			// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+			if _, ok := g.LookupADTConstructor("", v.Name); ok {
 				return true
 			}
 		}

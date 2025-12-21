@@ -91,8 +91,8 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 			// Generate Go constructor name using proper naming to avoid double-prefix
 			goFuncName := "New" + ToVariantStructName(typeName, ctorName)
 
-			// Check if this is a nullary constructor (needs to be called immediately)
-			if ctorInfo, ok := g.adtConstructors[ctorName]; ok && ctorInfo.FieldCount == 0 {
+			// M-DX22: Use qualified lookup with typeName for disambiguation
+			if ctorInfo, ok := g.LookupADTConstructor(typeName, ctorName); ok && ctorInfo.FieldCount == 0 {
 				g.write(goFuncName + "()")
 			} else {
 				g.write(goFuncName)
@@ -102,7 +102,8 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 	}
 
 	// Check if this is a registered ADT constructor by name
-	if ctorInfo, ok := g.adtConstructors[e.Ref.Name]; ok {
+	// M-DX22: Use LookupADTConstructor for backwards-compatible fallback search
+	if ctorInfo, ok := g.LookupADTConstructor("", e.Ref.Name); ok {
 		// Generate the proper constructor function call
 		if ctorInfo.FieldCount == 0 {
 			// Nullary constructor: call with no args

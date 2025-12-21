@@ -321,7 +321,8 @@ func (g *Generator) operandHasKnownType(expr core.CoreExpr) bool {
 			return true
 		}
 		// ADT constructors return concrete types
-		if _, isADT := g.adtConstructors[funcName]; isADT {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+		if _, ok := g.LookupADTConstructor("", funcName); ok {
 			return true
 		}
 		// Top-level functions may return concrete types

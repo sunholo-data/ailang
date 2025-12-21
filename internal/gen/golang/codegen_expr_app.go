@@ -257,14 +257,17 @@ func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
 		if v.Ref.Module == "$adt" && strings.HasPrefix(v.Ref.Name, "make_") {
 			parts := strings.SplitN(v.Ref.Name[5:], "_", 2) // Skip "make_"
 			if len(parts) == 2 {
+				typeName := parts[0]
 				ctorName := parts[1]
-				if info, ok := g.adtConstructors[ctorName]; ok {
+				// M-DX22: Use qualified lookup with typeName for disambiguation
+				if info, ok := g.LookupADTConstructor(typeName, ctorName); ok {
 					return info
 				}
 			}
 		}
 		// Also check direct constructor name
-		if info, ok := g.adtConstructors[v.Ref.Name]; ok {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible fallback search
+		if info, ok := g.LookupADTConstructor("", v.Ref.Name); ok {
 			return info
 		}
 	}

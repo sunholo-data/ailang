@@ -75,7 +75,8 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		var adtTypeName string
 		for _, arm := range match.Arms {
 			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
-				if info, exists := g.adtConstructors[cp.Name]; exists {
+				// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+				if info, ok := g.LookupADTConstructor("", cp.Name); ok {
 					adtTypeName = info.TypeName
 					break
 				}
@@ -510,7 +511,8 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 			// Look up field names and types from registered constructor info
 			var ctorFieldNames []string
 			var ctorFieldTypes []string
-			if info, exists := g.adtConstructors[p.Name]; exists {
+			// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+			if info, ok := g.LookupADTConstructor("", p.Name); ok {
 				if len(info.FieldNames) > 0 {
 					ctorFieldNames = info.FieldNames
 				}

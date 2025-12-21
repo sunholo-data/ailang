@@ -121,3 +121,65 @@ func TestRecordReturnType(t *testing.T) {
 		t.Errorf("Expected *BridgeState return type, but got struct{} in InitBridge")
 	}
 }
+
+// TestADTConstructorQualifiedLookup tests M-DX22: Same-named constructors in
+// different ADTs should be disambiguated by type-qualified keys.
+func TestADTConstructorQualifiedLookup(t *testing.T) {
+	gen := New("test")
+
+	// Register two ADTs with same-named constructor "Viewport"
+	// DrawCmd.Viewport has 5 fields, WindowType.Viewport has 0 fields
+	gen.RegisterADTConstructorFull("DrawCmd", "Viewport",
+		[]string{"string", "int64", "int64", "int64", "int64"},
+		[]string{"name", "x", "y", "w", "h"})
+	gen.RegisterADTConstructorFull("WindowType", "Viewport", nil, nil)
+
+	// Qualified lookup should find the correct one
+	drawInfo, ok := gen.LookupADTConstructor("DrawCmd", "Viewport")
+	if !ok {
+		t.Fatal("Expected to find DrawCmd.Viewport")
+	}
+	if drawInfo.TypeName != "DrawCmd" {
+		t.Errorf("Expected TypeName=DrawCmd, got %s", drawInfo.TypeName)
+	}
+	if len(drawInfo.FieldTypes) != 5 {
+		t.Errorf("Expected 5 field types for DrawCmd.Viewport, got %d", len(drawInfo.FieldTypes))
+	}
+
+	windowInfo, ok := gen.LookupADTConstructor("WindowType", "Viewport")
+	if !ok {
+		t.Fatal("Expected to find WindowType.Viewport")
+	}
+	if windowInfo.TypeName != "WindowType" {
+		t.Errorf("Expected TypeName=WindowType, got %s", windowInfo.TypeName)
+	}
+	if len(windowInfo.FieldTypes) != 0 {
+		t.Errorf("Expected 0 field types for WindowType.Viewport, got %d", len(windowInfo.FieldTypes))
+	}
+
+	// Unqualified lookup should still work (returns first match, but both exist)
+	anyInfo, ok := gen.LookupADTConstructor("", "Viewport")
+	if !ok {
+		t.Fatal("Expected unqualified lookup to find a Viewport constructor")
+	}
+	if anyInfo.CtorName != "Viewport" {
+		t.Errorf("Expected CtorName=Viewport, got %s", anyInfo.CtorName)
+	}
+
+	// LookupADTConstructorByQualifiedName should work with full key
+	drawByKey, ok := gen.LookupADTConstructorByQualifiedName("DrawCmd.Viewport")
+	if !ok {
+		t.Fatal("Expected LookupADTConstructorByQualifiedName to find DrawCmd.Viewport")
+	}
+	if drawByKey.TypeName != "DrawCmd" {
+		t.Errorf("Expected TypeName=DrawCmd from qualified name lookup, got %s", drawByKey.TypeName)
+	}
+
+	windowByKey, ok := gen.LookupADTConstructorByQualifiedName("WindowType.Viewport")
+	if !ok {
+		t.Fatal("Expected LookupADTConstructorByQualifiedName to find WindowType.Viewport")
+	}
+	if windowByKey.TypeName != "WindowType" {
+		t.Errorf("Expected TypeName=WindowType from qualified name lookup, got %s", windowByKey.TypeName)
+	}
+}

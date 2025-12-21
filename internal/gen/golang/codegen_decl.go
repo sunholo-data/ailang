@@ -499,7 +499,8 @@ func (g *Generator) isADTConstructorCall(app *core.App) bool {
 			return true
 		}
 		// Also check direct constructor name
-		if _, isADT := g.adtConstructors[v.Ref.Name]; isADT {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+		if _, ok := g.LookupADTConstructor("", v.Ref.Name); ok {
 			return true
 		}
 	}
@@ -517,8 +518,10 @@ func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
 		// Don't assume ALL $adt.make_* are nullary!
 		parts := strings.SplitN(vg.Ref.Name[5:], "_", 2) // Skip "make_"
 		if len(parts) == 2 {
+			typeName := parts[0]
 			ctorName := parts[1]
-			if info, ok := g.adtConstructors[ctorName]; ok {
+			// M-DX22: Use qualified lookup with typeName for disambiguation
+			if info, ok := g.LookupADTConstructor(typeName, ctorName); ok {
 				return len(info.FieldTypes) == 0
 			}
 		}
@@ -526,7 +529,8 @@ func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
 		return false
 	}
 	// Check if it's in the adtConstructors map (nullary constructors have 0 field types)
-	if info, ok := g.adtConstructors[vg.Ref.Name]; ok {
+	// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+	if info, ok := g.LookupADTConstructor("", vg.Ref.Name); ok {
 		return len(info.FieldTypes) == 0
 	}
 	return false
@@ -543,7 +547,8 @@ func (g *Generator) appProducesInterface(app *core.App) bool {
 			return false
 		}
 		name := varGlobal.Ref.Name
-		if _, isADT := g.adtConstructors[name]; isADT {
+		// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+		if _, ok := g.LookupADTConstructor("", name); ok {
 			// ADT constructors return *ADT, not interface{}
 			return false
 		}

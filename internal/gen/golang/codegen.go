@@ -260,10 +260,12 @@ func (g *Generator) RegisterADTSliceTypes(types map[string]bool) {
 // RegisterADTConstructor registers an ADT constructor for proper code generation.
 // This enables VarGlobal references to ADT constructors to generate the correct
 // Go constructor function calls (e.g., NewSelectionSelectionNone() instead of SelectionNone).
+// M-DX22: Uses TypeName.CtorName as key to handle same-named constructors in different ADTs.
 // Deprecated: Use RegisterADTConstructorWithTypes for proper type assertions.
 func (g *Generator) RegisterADTConstructor(typeName, ctorName string, fieldCount int) {
 	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
-	g.adtConstructors[ctorName] = &ADTConstructorInfo{
+	qualifiedKey := typeName + "." + ctorName
+	g.adtConstructors[qualifiedKey] = &ADTConstructorInfo{
 		TypeName:   typeName,
 		CtorName:   ctorName,
 		GoFuncName: goFuncName,
@@ -281,9 +283,11 @@ func (g *Generator) RegisterADTConstructorWithTypes(typeName, ctorName string, f
 
 // RegisterADTConstructorFull registers an ADT constructor with field types and names.
 // This enables proper field access in pattern matching with named fields.
+// M-DX22: Uses TypeName.CtorName as key to handle same-named constructors in different ADTs.
 func (g *Generator) RegisterADTConstructorFull(typeName, ctorName string, fieldTypes, fieldNames []string) {
 	goFuncName := "New" + ToVariantStructName(typeName, ctorName)
-	g.adtConstructors[ctorName] = &ADTConstructorInfo{
+	qualifiedKey := typeName + "." + ctorName
+	g.adtConstructors[qualifiedKey] = &ADTConstructorInfo{
 		TypeName:   typeName,
 		CtorName:   ctorName,
 		GoFuncName: goFuncName,
@@ -291,6 +295,37 @@ func (g *Generator) RegisterADTConstructorFull(typeName, ctorName string, fieldT
 		FieldTypes: fieldTypes,
 		FieldNames: fieldNames,
 	}
+}
+
+// LookupADTConstructor looks up an ADT constructor by name.
+// M-DX22: Supports both qualified (TypeName.CtorName) and unqualified (CtorName) lookups.
+// If typeName is provided, tries qualified lookup first.
+// Falls back to unqualified lookup for backwards compatibility.
+func (g *Generator) LookupADTConstructor(typeName, ctorName string) (*ADTConstructorInfo, bool) {
+	// Try qualified lookup first if typeName is provided
+	if typeName != "" {
+		qualifiedKey := typeName + "." + ctorName
+		if info, ok := g.adtConstructors[qualifiedKey]; ok {
+			return info, true
+		}
+	}
+
+	// Fallback: Try unqualified lookup (for backwards compatibility and single-ADT cases)
+	// This iterates through all constructors to find one with matching CtorName
+	for _, info := range g.adtConstructors {
+		if info.CtorName == ctorName {
+			return info, true
+		}
+	}
+
+	return nil, false
+}
+
+// LookupADTConstructorByQualifiedName looks up by fully qualified key (TypeName.CtorName).
+// M-DX22: Use when you have both type and constructor names.
+func (g *Generator) LookupADTConstructorByQualifiedName(qualifiedKey string) (*ADTConstructorInfo, bool) {
+	info, ok := g.adtConstructors[qualifiedKey]
+	return info, ok
 }
 
 // RegisterRecordType registers a record type for typed struct literal generation.
