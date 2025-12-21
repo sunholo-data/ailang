@@ -1,11 +1,56 @@
 # M-DX18: Go Codegen - Non-Exported Function Namespacing
 
-**Status**: Implemented
+**Status**: In Progress (Bug Fix Applied, Pending Verification)
 **Target**: v0.6.1
 **Priority**: P0 (Blocking - breaks multi-module projects)
 **Estimated**: 2 hours
 **Dependencies**: None
 **Reporter**: stapledons_voyage (agent message)
+
+## ⚠️ Bug Report (2025-12-21)
+
+**The initial implementation was incomplete.** Function definitions were correctly prefixed, but call sites were not updated.
+
+### Symptom
+
+Generated Go code calls `colorRocky_impl()` but the function is defined as `celestial__colorRocky_impl()`.
+
+```go
+// Generated function definition (CORRECT - has prefix)
+func celestial__colorRocky_impl() interface{} { ... }
+
+// Generated call site (BUG - missing prefix)
+return colorRocky_impl()  // ❌ Should be celestial__colorRocky_impl()
+```
+
+### Root Cause
+
+In `internal/gen/golang/codegen_expr_simple.go`:
+- `generateVar` (line 64): Used `ToGoVarName(v.Name) + "_impl"` instead of the looked-up `goName + "_impl"`
+- `generateVarGlobal` (line 137): Same issue - didn't use the prefixed name from `topLevelFuncs`
+
+The `topLevelFuncs` map correctly stores the prefixed wrapper name (e.g., `celestial__colorRocky`), but the call generation code was ignoring it and constructing the name from scratch.
+
+### Fix Applied
+
+Both locations now use the looked-up name from `g.topLevelFuncs` which contains the correct prefix:
+
+```go
+// Before (BUG):
+g.write(ToGoVarName(v.Name) + "_impl")
+
+// After (FIXED):
+g.write(goName + "_impl")  // goName already includes module prefix
+```
+
+**Files modified:**
+- `internal/gen/golang/codegen_expr_simple.go` (lines 64, 137-138)
+
+### Verification Needed
+
+- [ ] Run `make test` to verify no regressions
+- [ ] Compile stapledons_voyage `sim/*.ail` to verify fix
+- [ ] Move this doc back to implemented/ once verified
 
 ## Axiom Compliance
 

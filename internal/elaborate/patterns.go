@@ -77,6 +77,11 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error) {
 	switch p := pat.(type) {
 	case *ast.Identifier:
+		// M-DX20: Check for wildcard pattern first
+		// "_" is a wildcard that matches anything but binds nothing
+		if p.Name == "_" {
+			return &core.WildcardPattern{}, nil
+		}
 		// Check if this identifier is a nullary constructor
 		// Nullary constructors appear as bare identifiers (e.g., "None", "Red")
 		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.Arity == 0 {

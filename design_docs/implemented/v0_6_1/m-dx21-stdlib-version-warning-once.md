@@ -1,9 +1,10 @@
 # M-DX21: Show Stdlib Version Warning Once Per Session
 
-**Status**: Planned
-**Target**: v0.6.2
+**Status**: Implemented
+**Target**: v0.6.1
 **Priority**: P3 (Low - cosmetic improvement)
 **Estimated**: 1 hour
+**Actual**: 15 minutes
 **Dependencies**: None
 **Reporter**: stapledons_voyage (agent message)
 
@@ -64,58 +65,75 @@ Warning: stdlib version mismatch: expected dev, found v0.6.0
 **Primary Goal:** Show stdlib version warning only once per session/process.
 
 **Success Metrics:**
-- Warning shown once per CLI invocation
-- Subsequent stdlib loads don't repeat warning
-- Real warnings still visible
-- Option to suppress entirely with flag or env var
+- [x] Warning shown once per CLI invocation
+- [x] Subsequent stdlib loads don't repeat warning
+- [x] Real warnings still visible
+- [x] Optional: `AILANG_NO_VERSION_WARNINGS=1` suppresses entirely
 
-## Solution Design
+---
 
-### Overview
+## Implementation Report
 
-Add a package-level flag to track if the warning has been shown, and skip subsequent warnings in the same process.
+### Solution Applied
 
-### Implementation
+Added a package-level boolean flag to track if warning has been shown:
 
 ```go
+// internal/loader/stdlib_resolver.go
+
+// stdlibVersionWarningShown tracks if we've already shown the version mismatch warning
+// M-DX21: Show warning only once per process to reduce noise
 var stdlibVersionWarningShown bool
 
-func checkStdlibVersion(expected, found string) {
-    if expected != found && !stdlibVersionWarningShown {
-        fmt.Fprintf(os.Stderr, "Warning: stdlib version mismatch: expected %s, found %s\n", expected, found)
+// In ResolveStdlib(), where warning is printed:
+if err := r.checkStdlibVersion(searchPath); err != nil {
+    if r.strictMode {
+        return "", err
+    }
+    // M-DX21: Non-strict: log warning only once per process
+    // Also check AILANG_NO_VERSION_WARNINGS to suppress entirely
+    if !stdlibVersionWarningShown && os.Getenv("AILANG_NO_VERSION_WARNINGS") == "" {
+        fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
         stdlibVersionWarningShown = true
     }
 }
 ```
 
-### Optional Enhancement
+### Files Modified
 
-Add environment variable to suppress entirely:
+| File | Changes | LOC |
+|------|---------|-----|
+| `internal/loader/stdlib_resolver.go` | Added `stdlibVersionWarningShown` flag and env var check | +10 |
 
-```go
-if os.Getenv("AILANG_NO_VERSION_WARNINGS") != "" {
-    return
-}
+**Total: 10 LOC**
+
+### Features Implemented
+
+1. **Warning shown once**: Package-level `stdlibVersionWarningShown` flag set after first warning
+2. **Suppress entirely**: `AILANG_NO_VERSION_WARNINGS=1` environment variable skips all warnings
+
+### Usage
+
+```bash
+# Default: warning shown once per process
+$ ailang compile *.ail
+Warning: stdlib version mismatch: expected dev, found v0.6.0
+# (subsequent files don't repeat warning)
+
+# Suppress entirely
+$ AILANG_NO_VERSION_WARNINGS=1 ailang compile *.ail
+# (no warning shown)
 ```
 
-### Files to Modify
-
-**Modified files:**
-- `internal/loader/stdlib.go` or equivalent (~10 LOC)
+---
 
 ## Success Criteria
 
-- [ ] Warning shown only once per process
-- [ ] Multiple module compilations show warning once
-- [ ] Real warnings still visible
-- [ ] Optional: `AILANG_NO_VERSION_WARNINGS=1` suppresses entirely
-- [ ] All existing tests pass
-
-## Non-Goals
-
-**Not in this feature:**
-- Fixing the underlying version mismatch
-- Config file for warning preferences
+- [x] Warning shown only once per process
+- [x] Multiple module compilations show warning once
+- [x] Real warnings still visible
+- [x] Optional: `AILANG_NO_VERSION_WARNINGS=1` suppresses entirely
+- [x] All existing tests pass
 
 ## References
 
@@ -124,4 +142,5 @@ if os.Getenv("AILANG_NO_VERSION_WARNINGS") != "" {
 ---
 
 **Document created**: 2025-12-20
-**Last updated**: 2025-12-20
+**Last updated**: 2025-12-21
+**Implemented**: 2025-12-21

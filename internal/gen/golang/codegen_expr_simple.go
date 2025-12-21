@@ -60,8 +60,9 @@ func (g *Generator) generateVar(v *core.Var) error {
 	// Check if this is a reference to a top-level function
 	if goName, ok := g.topLevelFuncs[v.Name]; ok {
 		// M-DX26: In _impl functions, call other _impl functions
+		// M-DX18-FIX: Use the looked-up goName which includes module prefix for non-exported funcs
 		if g.expectedReturnType == "interface{}" {
-			g.write(ToGoVarName(v.Name) + "_impl")
+			g.write(goName + "_impl")
 		} else {
 			g.write(goName)
 		}
@@ -133,8 +134,9 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 			return nil
 		}
 		// Check if this is a known top-level function (has _impl version)
-		if _, isTopLevel := g.topLevelFuncs[e.Ref.Name]; isTopLevel {
-			g.write(ToGoVarName(e.Ref.Name) + "_impl")
+		// M-DX18-FIX: Use the looked-up name which includes module prefix for non-exported funcs
+		if goName, isTopLevel := g.topLevelFuncs[e.Ref.Name]; isTopLevel {
+			g.write(goName + "_impl")
 			return nil
 		}
 	}

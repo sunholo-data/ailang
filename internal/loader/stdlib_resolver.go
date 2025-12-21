@@ -14,6 +14,10 @@ import (
 // Used to validate stdlib version compatibility.
 var BinaryVersion = "dev"
 
+// stdlibVersionWarningShown tracks if we've already shown the version mismatch warning
+// M-DX21: Show warning only once per process to reduce noise
+var stdlibVersionWarningShown bool
+
 // validateModuleName validates a stdlib module name for security
 // Prevents directory traversal and other attacks
 func validateModuleName(name string) error {
@@ -187,8 +191,12 @@ func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
 				if r.strictMode {
 					return "", err
 				}
-				// Non-strict: log warning but continue
-				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+				// M-DX21: Non-strict: log warning only once per process
+				// Also check AILANG_NO_VERSION_WARNINGS to suppress entirely
+				if !stdlibVersionWarningShown && os.Getenv("AILANG_NO_VERSION_WARNINGS") == "" {
+					fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+					stdlibVersionWarningShown = true
+				}
 			}
 			return fullPath, nil
 		}

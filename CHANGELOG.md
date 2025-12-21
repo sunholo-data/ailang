@@ -78,6 +78,63 @@ func dome_demo__concatLists(...) { ... }
 
 **Design Doc:** [design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md](design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md)
 
+### Fixed - Wildcard Pattern Type Inference in List Cons Patterns (M-DX20)
+
+Fixed wildcard `_` pattern handling in list cons patterns (`::`). Previously, `_` was incorrectly parsed as a variable pattern, causing type inference errors when the same wildcard appeared in both head and tail positions.
+
+**Before (failed):**
+```ailang
+pure func nonEmpty(xs: [int]) -> bool =
+    match xs {
+        [] => false
+        _ :: _ => true  -- ❌ Type error: cannot unify int with *types.TList
+    }
+```
+
+**After (works):**
+```ailang
+-- ✅ All wildcard patterns now work correctly
+_ :: _      -- matches any non-empty list
+_ :: rest   -- discard head, bind tail
+head :: _   -- bind head, discard tail
+```
+
+**Root cause:** When parsing patterns, `_` was tokenized as an `IDENT` and elaborated to `core.VarPattern{Name: "_"}` instead of `core.WildcardPattern`. When `_` appeared twice (e.g., `_ :: _`), the type checker tried to unify the head type (`int`) with the tail type (`[int]`).
+
+**Fix:** Added check in pattern elaboration for `Identifier.Name == "_"` to create `WildcardPattern` instead of `VarPattern`.
+
+**Files Modified:**
+- `internal/elaborate/patterns.go` - Added wildcard check (~5 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-dx20-wildcard-pattern-inference.md](design_docs/implemented/v0_6_1/m-dx20-wildcard-pattern-inference.md)
+
+### Fixed - Stdlib Version Warning Shows Only Once (M-DX21)
+
+Reduced noise from stdlib version mismatch warnings by showing the warning only once per process.
+
+**Before:**
+```
+$ ailang compile module1.ail
+Warning: stdlib version mismatch: expected dev, found v0.6.0
+
+$ ailang compile module2.ail
+Warning: stdlib version mismatch: expected dev, found v0.6.0  (repeated!)
+```
+
+**After:**
+```
+$ ailang compile *.ail
+Warning: stdlib version mismatch: expected dev, found v0.6.0
+(shown only once, subsequent compilations are quiet)
+```
+
+**Also added:** `AILANG_NO_VERSION_WARNINGS=1` environment variable to suppress the warning entirely.
+
+**Files Modified:**
+- `internal/loader/stdlib_resolver.go` - Added warning flag and env var check (~10 LOC)
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-dx21-stdlib-version-warning-once.md](design_docs/implemented/v0_6_1/m-dx21-stdlib-version-warning-once.md)
+
 ## [v0.6.0] - 2025-12-16
 
 ### Added - Semantic Doc Search (M-DOC-SEM)
