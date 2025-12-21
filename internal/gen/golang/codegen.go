@@ -60,8 +60,12 @@ type Generator struct {
 	// adtConstructors maps constructor names to their info
 	adtConstructors map[string]*ADTConstructorInfo
 
-	// topLevelFuncs maps original function names to their Go names
+	// topLevelFuncs maps original function names to their Go wrapper names
 	topLevelFuncs map[string]string
+
+	// topLevelImplFuncs maps original function names to their Go _impl names
+	// M-DX18-FIX: Needed because _impl uses ToGoVarName (camelCase) while wrapper uses ToGoFuncName
+	topLevelImplFuncs map[string]string
 
 	// adtSliceTypes tracks ADT type names that need slice converter functions
 	// M-DX12: These are generated as ConvertTo<ADT>Slice() functions (exported)
@@ -221,6 +225,7 @@ func New(packageName string) *Generator {
 		TypeMapper:        NewTypeMapper(),
 		adtConstructors:   make(map[string]*ADTConstructorInfo),
 		topLevelFuncs:     make(map[string]string),
+		topLevelImplFuncs: make(map[string]string),
 		adtSliceTypes:     make(map[string]bool),
 		recordTypes:       make(map[string]*RecordTypeInfo),
 		funcParamTypes:    make(map[string][]string),

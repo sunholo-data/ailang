@@ -71,12 +71,19 @@ func dome_demo__concatLists(...) { ... }
 - Call sites automatically resolve to namespaced names
 - Module name derived from last path component
 
+**Bug fix (2025-12-21):** Two issues fixed:
+1. Call sites weren't using prefixed names from `topLevelFuncs` map
+2. Exported functions had naming mismatch: `_impl` uses `ToGoVarName` (camelCase) but wrapper uses `ToGoFuncName` (PascalCase)
+
+Added `topLevelImplFuncs` map to track actual `_impl` names separately from wrapper names.
+
 **Files Modified:**
-- `internal/gen/golang/codegen.go` - Added moduleName field and SetModuleName() (~20 LOC)
-- `internal/gen/golang/codegen_decl.go` - Added namespacing in 3 functions (~20 LOC)
+- `internal/gen/golang/codegen.go` - Added moduleName field, SetModuleName(), and topLevelImplFuncs map (~25 LOC)
+- `internal/gen/golang/codegen_decl.go` - Added namespacing and impl name tracking (~25 LOC)
+- `internal/gen/golang/codegen_expr_simple.go` - Fixed call site generation to use topLevelImplFuncs (~15 LOC)
 - `cmd/ailang/compile.go` - Set module name per file (~30 LOC)
 
-**Design Doc:** [design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md](design_docs/planned/v0_6_1/m-dx18-codegen-function-namespacing.md)
+**Design Doc:** [design_docs/implemented/v0_6_1/m-dx18-codegen-function-namespacing.md](design_docs/implemented/v0_6_1/m-dx18-codegen-function-namespacing.md)
 
 ### Fixed - Wildcard Pattern Type Inference in List Cons Patterns (M-DX20)
 

@@ -117,6 +117,14 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	}
 	g.topLevelFuncs[name] = funcName
 
+	// M-DX18-FIX: Also store the _impl name since ToGoVarName != ToGoFuncName for exported funcs
+	// _impl uses ToGoVarName (camelCase), wrapper uses ToGoFuncName (PascalCase for exported)
+	implName := ToGoVarName(name) + "_impl"
+	if !exported && g.moduleName != "" {
+		implName = g.moduleName + "__" + implName
+	}
+	g.topLevelImplFuncs[name] = implName
+
 	// M-CROSS-MODULE: Set the declared return type for record literal resolution
 	// Extract type name from Go type (strip pointer prefix if present)
 	g.currentFuncDeclaredReturn = ""

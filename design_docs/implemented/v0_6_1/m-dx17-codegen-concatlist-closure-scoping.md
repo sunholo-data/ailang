@@ -187,6 +187,28 @@ s := _listElem0.([]interface{})[1]
 - [x] Minimal reproduction cases compile and run
 - [x] No regressions
 
+### Phase 5: Direct `concat` Function Calls ✅ COMPLETE (2025-12-21)
+
+**Bug report:** stapledons_voyage reported that direct `concat(a, b)` function calls (not using `++` operator) were generating `Concat` instead of `ConcatList`.
+
+**Root cause:** The `++` operator compiles to `concat_List` builtin which correctly maps to `ConcatList`. But direct `concat` function references fell through to `ToPascalCase("concat")` → "Concat" which doesn't exist.
+
+**Fix:** Added `mapPureListBuiltin` function in `codegen_expr_simple.go` (similar to `mapPureMathBuiltin`):
+
+```go
+func (g *Generator) mapPureListBuiltin(name string) string {
+    listMappings := map[string]string{
+        "concat":       "ConcatList",
+        "_list_concat": "ConcatList",
+        "length":       "Length",
+        "_list_length": "Length",
+    }
+    return listMappings[name]
+}
+```
+
+Called from `generateVarGlobal` after the math builtin check.
+
 ---
 
 ## Minimal Reproduction Cases

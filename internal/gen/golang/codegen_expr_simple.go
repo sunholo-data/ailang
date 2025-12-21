@@ -60,9 +60,15 @@ func (g *Generator) generateVar(v *core.Var) error {
 	// Check if this is a reference to a top-level function
 	if goName, ok := g.topLevelFuncs[v.Name]; ok {
 		// M-DX26: In _impl functions, call other _impl functions
-		// M-DX18-FIX: Use the looked-up goName which includes module prefix for non-exported funcs
+		// M-DX18-FIX: Use topLevelImplFuncs which has the correct _impl name
+		// (ToGoVarName for _impl differs from ToGoFuncName for wrapper on exported funcs)
 		if g.expectedReturnType == "interface{}" {
-			g.write(goName + "_impl")
+			if implName, ok := g.topLevelImplFuncs[v.Name]; ok {
+				g.write(implName)
+			} else {
+				// Fallback for backwards compatibility
+				g.write(goName + "_impl")
+			}
 		} else {
 			g.write(goName)
 		}
@@ -121,6 +127,12 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 		return nil
 	}
 
+	// M-DX17-FIX: Check if this is a pure list builtin (concat, length, etc.)
+	if listExpr := g.mapPureListBuiltin(e.Ref.Name); listExpr != "" {
+		g.write(listExpr)
+		return nil
+	}
+
 	// For other global references
 	// M-CODEGEN-TYPE-ASSERTIONS: In _impl functions, call other _impl functions
 	// to avoid type mismatches (typed exports expect concrete types, not interface{})
@@ -134,9 +146,9 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 			return nil
 		}
 		// Check if this is a known top-level function (has _impl version)
-		// M-DX18-FIX: Use the looked-up name which includes module prefix for non-exported funcs
-		if goName, isTopLevel := g.topLevelFuncs[e.Ref.Name]; isTopLevel {
-			g.write(goName + "_impl")
+		// M-DX18-FIX: Use topLevelImplFuncs which has the correct _impl name
+		if implName, isTopLevel := g.topLevelImplFuncs[e.Ref.Name]; isTopLevel {
+			g.write(implName)
 			return nil
 		}
 	}
@@ -302,6 +314,24 @@ func (g *Generator) mapPureMathBuiltin(name string) string {
 		return expr
 	}
 	return ""
+}
+
+// mapPureListBuiltin maps AILANG pure list builtins to Go runtime helpers.
+// M-DX17-FIX: Returns Go expression for list functions.
+// Returns empty string if not a list builtin.
+func (g *Generator) mapPureListBuiltin(name string) string {
+	listMappings := map[string]string{
+		// List concatenation - maps to ConcatList runtime helper
+		// Note: ++ operator compiles to concat_List → ConcatList
+		// But direct concat(a, b) calls need this mapping too
+		"concat":       "ConcatList",
+		"_list_concat": "ConcatList",
+
+		// List length - maps to Length runtime helper
+		"length":       "Length",
+		"_list_length": "Length",
+	}
+	return listMappings[name]
 }
 
 // mathConstants lists the math builtins that are constants (not functions).
