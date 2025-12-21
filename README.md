@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-65%20passing%2023%20failing-orange.svg)
+![Examples](https://img.shields.io/badge/examples-67%20passing%2023%20failing-orange.svg)
 
-**65/88 examples passing (74%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**67/90 examples passing (74%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -51,6 +51,7 @@
 | `runnable/lambdas_curried.ail` | ✅ Pass |  |
 | `runnable/lambdas_higher_order.ail` | ✅ Pass |  |
 | `runnable/letrec_recursion.ail` | ✅ Pass |  |
+| `runnable/list_concat_match.ail` | ✅ Pass |  |
 | `runnable/list_pattern_cons.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/list_pattern_records.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/lis... |
 | `runnable/list_patterns.ail` | ✅ Pass |  |
@@ -71,6 +72,7 @@
 | `runnable/patterns.ail` | ✅ Pass |  |
 | `runnable/polymorphic_comparison_simple.ail` | ✅ Pass |  |
 | `runnable/polymorphic_lambdas_phase1.ail` | ✅ Pass |  |
+| `runnable/record_in_match.ail` | ✅ Pass |  |
 | `runnable/record_update.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/rec... |
 | `runnable/records.ail` | ✅ Pass |  |
 | `runnable/recursion_factorial.ail` | ✅ Pass |  |
