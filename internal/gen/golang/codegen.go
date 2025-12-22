@@ -185,6 +185,11 @@ type Generator struct {
 	// M-CODEGEN-VALUE-TYPES: Records with ≤threshold primitive-only fields are generated as values
 	// Default: 4. Set to 0 to force all pointers (v0.5.9 behavior).
 	valueThreshold int
+
+	// valueTypeConverters tracks value-type record names that need AsTypeName converters
+	// M-CODEGEN-VALUE-TYPES: These handle both values and pointers in interface{}
+	// Generated as AsTypeName(v interface{}) TypeName helper functions
+	valueTypeConverters map[string]bool
 }
 
 // FuncTypeOverride stores explicit function type signatures from AST annotations.
@@ -270,9 +275,10 @@ func New(packageName string) *Generator {
 		recordTypes:       make(map[string]*RecordTypeInfo),
 		funcParamTypes:    make(map[string][]string),
 		funcReturnTypes:   make(map[string]string),
-		currentFuncParams: make(map[string]string),
-		typedLocalVars:    make(map[string]string),
-		valueThreshold:    4, // M-CODEGEN-VALUE-TYPES: Default threshold
+		currentFuncParams:   make(map[string]string),
+		typedLocalVars:      make(map[string]string),
+		valueThreshold:      4, // M-CODEGEN-VALUE-TYPES: Default threshold
+		valueTypeConverters: make(map[string]bool),
 	}
 	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
 	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {

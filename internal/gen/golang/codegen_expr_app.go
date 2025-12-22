@@ -156,11 +156,28 @@ func (g *Generator) generateApp(app *core.App) error {
 					} else {
 						// M-CODEGEN-ADT-TYPE-ASSERT: Only add type assertion if arg produces interface{}
 						// ADT constructor calls (like NewSpectralClassG()) return typed values, not interface{}
-						if err := g.generateExpr(arg); err != nil {
-							return err
-						}
 						if g.exprProducesInterface(arg) {
-							g.writef(".(%s)", goType)
+							// M-CODEGEN-VALUE-TYPES: Check if goType is a value-type record
+							// interface{} may contain value OR pointer
+							checkType := strings.TrimPrefix(goType, "*")
+							if recordInfo, ok := g.recordTypes[checkType]; ok && recordInfo.Category == TypeCategoryValue {
+								// Value-type from interface{}: use AsTypeName helper
+								g.markValueTypeConverterNeeded(checkType)
+								g.writef("As%s(", checkType)
+								if err := g.generateExpr(arg); err != nil {
+									return err
+								}
+								g.write(")")
+							} else {
+								if err := g.generateExpr(arg); err != nil {
+									return err
+								}
+								g.writef(".(%s)", goType)
+							}
+						} else {
+							if err := g.generateExpr(arg); err != nil {
+								return err
+							}
 						}
 					}
 				} else {
@@ -223,10 +240,23 @@ func (g *Generator) generateApp(app *core.App) error {
 			// M-DX26: Skip in _impl functions
 			if !inImplFunc && i < len(paramTypes) && paramTypes[i] != "" && paramTypes[i] != "interface{}" {
 				if g.exprProducesInterface(arg) {
-					if err := g.generateExpr(arg); err != nil {
-						return err
+					// M-CODEGEN-VALUE-TYPES: Check if param type is a value-type record
+					// interface{} may contain value OR pointer
+					checkType := strings.TrimPrefix(paramTypes[i], "*")
+					if recordInfo, ok := g.recordTypes[checkType]; ok && recordInfo.Category == TypeCategoryValue {
+						// Value-type from interface{}: use AsTypeName helper
+						g.markValueTypeConverterNeeded(checkType)
+						g.writef("As%s(", checkType)
+						if err := g.generateExpr(arg); err != nil {
+							return err
+						}
+						g.write(")")
+					} else {
+						if err := g.generateExpr(arg); err != nil {
+							return err
+						}
+						g.writef(".(%s)", paramTypes[i])
 					}
-					g.writef(".(%s)", paramTypes[i])
 				} else if lit, isLit := arg.(*core.Lit); isLit && isPrimitiveGoType(paramTypes[i]) {
 					// Literals need type conversion
 					g.writef("%s(", paramTypes[i])

@@ -27,4 +27,7 @@ func (g *Generator) writeRuntimeHelpers() {
 
 	// M-CODEGEN-UNIFIED-SLICE: Generate record slice converters
 	g.writeRecordSliceConverters()
+
+	// M-CODEGEN-VALUE-TYPES: Generate value-type converters (AsTypeName)
+	g.writeValueTypeConverters()
 }

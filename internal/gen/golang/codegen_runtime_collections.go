@@ -609,15 +609,29 @@ func (g *Generator) writeADTSliceConverters() {
 
 		// Convert elements
 		if isValueType {
+			// M-CODEGEN-VALUE-TYPES: Value-type slices can contain either:
+			// 1. Values directly (from literals in _impl)
+			// 2. Pointers (from FieldGet which always returns *Type)
+			// We try value assertion first, then pointer dereference
 			g.writef("out := make([]%s, len(src))\n", goTypeName)
 			g.writef("for i, e := range src {\n")
 			g.indent++
-			g.writef("elem, ok := e.(%s)\n", goTypeName)
-			g.writef("if !ok {\n")
+			g.writef("if elem, ok := e.(%s); ok {\n", goTypeName)
 			g.indent++
-			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.writef("out[i] = elem\n")
+			g.indent--
+			g.writef("} else if ptr, ok := e.(*%s); ok {\n", goTypeName)
+			g.indent++
+			g.writef("out[i] = *ptr\n")
+			g.indent--
+			g.writef("} else {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s or *%s, got %%T\", i, e))\n", funcName, goTypeName, goTypeName)
 			g.indent--
 			g.writef("}\n")
+			g.indent--
+			g.writef("}\n")
+			g.writef("return out\n")
 		} else {
 			g.writef("out := make([]*%s, len(src))\n", goTypeName)
 			g.writef("for i, e := range src {\n")
@@ -628,11 +642,11 @@ func (g *Generator) writeADTSliceConverters() {
 			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
 			g.indent--
 			g.writef("}\n")
+			g.writef("out[i] = elem\n")
+			g.indent--
+			g.writef("}\n")
+			g.writef("return out\n")
 		}
-		g.writef("out[i] = elem\n")
-		g.indent--
-		g.writef("}\n")
-		g.writef("return out\n")
 
 		g.indent--
 		g.writef("}\n\n")
@@ -721,16 +735,29 @@ func (g *Generator) writeRecordSliceConverters() {
 
 		// Convert elements
 		if isValueType {
-			// Value type: use e.(Type)
+			// M-CODEGEN-VALUE-TYPES: Value-type slices can contain either:
+			// 1. Values directly (from literals in _impl)
+			// 2. Pointers (from FieldGet which always returns *Type)
+			// We try value assertion first, then pointer dereference
 			g.writef("out := make([]%s, len(src))\n", goTypeName)
 			g.writef("for i, e := range src {\n")
 			g.indent++
-			g.writef("elem, ok := e.(%s)\n", goTypeName)
-			g.writef("if !ok {\n")
+			g.writef("if elem, ok := e.(%s); ok {\n", goTypeName)
 			g.indent++
-			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.writef("out[i] = elem\n")
+			g.indent--
+			g.writef("} else if ptr, ok := e.(*%s); ok {\n", goTypeName)
+			g.indent++
+			g.writef("out[i] = *ptr\n")
+			g.indent--
+			g.writef("} else {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s or *%s, got %%T\", i, e))\n", funcName, goTypeName, goTypeName)
 			g.indent--
 			g.writef("}\n")
+			g.indent--
+			g.writef("}\n")
+			g.writef("return out\n")
 		} else {
 			// Pointer type: use e.(*Type)
 			g.writef("out := make([]*%s, len(src))\n", goTypeName)
@@ -742,13 +769,76 @@ func (g *Generator) writeRecordSliceConverters() {
 			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
 			g.indent--
 			g.writef("}\n")
+			g.writef("out[i] = elem\n")
+			g.indent--
+			g.writef("}\n")
+			g.writef("return out\n")
 		}
-		g.writef("out[i] = elem\n")
-		g.indent--
-		g.writef("}\n")
-		g.writef("return out\n")
 
 		g.indent--
 		g.writef("}\n\n")
 	}
+}
+
+// writeValueTypeConverters generates AsTypeName helper functions for value-type records.
+// M-CODEGEN-VALUE-TYPES: These handle the dual representation in interface{}:
+// - FieldGet returns pointers (*Type) due to Go reflection
+// - Direct construction returns values (Type)
+// The converter tries value assertion first, then pointer dereference.
+//
+// M-CODEGEN-VALUE-TYPES-FIX: Generate converters for ALL value-type records, not just
+// the ones explicitly marked during code generation. This is needed because in multi-file
+// compilation, GenerateRuntime() is called BEFORE declaration codegen populates the map.
+func (g *Generator) writeValueTypeConverters() {
+	// Collect all value-type records from recordTypes registry
+	// M-CODEGEN-VALUE-TYPES-FIX: Use recordTypes as source of truth, not valueTypeConverters
+	var sortedTypes []string
+	for typeName, info := range g.recordTypes {
+		if info.Category == TypeCategoryValue {
+			sortedTypes = append(sortedTypes, typeName)
+		}
+	}
+	// Sort alphabetically
+	for i := 0; i < len(sortedTypes); i++ {
+		for j := i + 1; j < len(sortedTypes); j++ {
+			if sortedTypes[i] > sortedTypes[j] {
+				sortedTypes[i], sortedTypes[j] = sortedTypes[j], sortedTypes[i]
+			}
+		}
+	}
+
+	for _, goTypeName := range sortedTypes {
+		funcName := "As" + goTypeName
+
+		g.writef("// %s extracts %s from interface{} that may contain value or pointer.\n", funcName, goTypeName)
+		g.writef("// M-CODEGEN-VALUE-TYPES: Handles both direct construction (value) and FieldGet (pointer).\n")
+		g.writef("func %s(v interface{}) %s {\n", funcName, goTypeName)
+		g.indent++
+
+		// Try value assertion first (from direct struct construction)
+		g.writef("if val, ok := v.(%s); ok {\n", goTypeName)
+		g.indent++
+		g.writef("return val\n")
+		g.indent--
+		g.writef("}\n")
+
+		// Then pointer dereference (from FieldGet)
+		g.writef("if ptr, ok := v.(*%s); ok {\n", goTypeName)
+		g.indent++
+		g.writef("return *ptr\n")
+		g.indent--
+		g.writef("}\n")
+
+		// Panic on unexpected type
+		g.writef("panic(fmt.Sprintf(\"%s: expected %s or *%s, got %%T\", v))\n", funcName, goTypeName, goTypeName)
+
+		g.indent--
+		g.writef("}\n\n")
+	}
+}
+
+// markValueTypeConverterNeeded registers a value-type record that needs an AsTypeName converter.
+// M-CODEGEN-VALUE-TYPES: Called when generating field assignments for value-type records.
+func (g *Generator) markValueTypeConverterNeeded(goTypeName string) {
+	g.valueTypeConverters[goTypeName] = true
 }
