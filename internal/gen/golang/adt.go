@@ -18,14 +18,34 @@ type ADTGenerator struct {
 	// adtSliceTypes tracks ADT type names that appear in list fields.
 	// M-DX12: Used to generate typed slice converters for world boundary marshalling.
 	adtSliceTypes map[string]bool
+	// M-CODEGEN-VALUE-TYPES: Track record categories for value vs pointer field types.
+	// valueRecords contains names of records that should be passed by value (leaf records).
+	valueRecords map[string]bool
+	// valueThreshold is the maximum field count for value-type records.
+	// Records with <= this many fields AND all primitive fields are value types.
+	valueThreshold int
 }
 
 // NewADTGenerator creates a new ADT code generator.
 func NewADTGenerator(packageName string) *ADTGenerator {
 	return &ADTGenerator{
-		PackageName:   packageName,
-		adtSliceTypes: make(map[string]bool),
+		PackageName:    packageName,
+		adtSliceTypes:  make(map[string]bool),
+		valueRecords:   make(map[string]bool),
+		valueThreshold: 4, // Default: records with ≤4 primitive fields are values
 	}
+}
+
+// SetValueThreshold sets the maximum field count for value-type records.
+// M-CODEGEN-VALUE-TYPES: Records with <= threshold fields AND all primitive fields
+// are generated as value types instead of pointers.
+func (g *ADTGenerator) SetValueThreshold(threshold int) {
+	g.valueThreshold = threshold
+}
+
+// GetValueThreshold returns the current value threshold.
+func (g *ADTGenerator) GetValueThreshold() int {
+	return g.valueThreshold
 }
 
 // GetADTSliceTypes returns the set of ADT types that appear in list fields.
@@ -253,6 +273,12 @@ func (g *ADTGenerator) generateIsVariantMethod(typeName string, ctor *ast.Constr
 func (g *ADTGenerator) generateRecordType(name string, typeParams []string, rec *ast.RecordType, exported bool) error {
 	goTypeName := ToGoTypeName(name)
 
+	// M-CODEGEN-VALUE-TYPES: Analyze if this record qualifies as a value type
+	// before generating field types (so nested records can reference it)
+	if g.isLeafRecordAST(rec) && len(rec.Fields) <= g.valueThreshold {
+		g.valueRecords[goTypeName] = true
+	}
+
 	g.writef("// %s is a record type\n", goTypeName)
 	g.writef("type %s struct {\n", goTypeName)
 	g.indent++
@@ -266,6 +292,38 @@ func (g *ADTGenerator) generateRecordType(name string, typeParams []string, rec 
 	g.writef("}\n\n")
 
 	return nil
+}
+
+// isLeafRecordAST checks if a record type has only primitive fields.
+// M-CODEGEN-VALUE-TYPES: Leaf records can be passed by value.
+func (g *ADTGenerator) isLeafRecordAST(rec *ast.RecordType) bool {
+	for _, field := range rec.Fields {
+		if !g.isPrimitiveASTType(field.Type) {
+			return false
+		}
+	}
+	return true
+}
+
+// isPrimitiveASTType checks if an AST type is a primitive Go type.
+func (g *ADTGenerator) isPrimitiveASTType(t ast.Type) bool {
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		goType := g.mapNamedType(typ.Name)
+		// Only primitives that map to Go primitives
+		switch goType {
+		case "int64", "float64", "bool", "string":
+			return true
+		default:
+			return false
+		}
+	case *ast.ListType:
+		// Slices of primitives are allowed in leaf records
+		return g.isPrimitiveASTType(typ.Element)
+	default:
+		// TypeVar, TupleType, FunctionType, etc. are not primitive
+		return false
+	}
 }
 
 // generateTypeAlias generates a Go type alias.
@@ -290,7 +348,11 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		goType := g.mapNamedType(typ.Name)
 		// M-CODEGEN-POINTER-RETURN-TYPES: User-defined types need pointers to match ADT constructor returns
 		// All ADT values are pointers, so struct fields holding ADTs must be pointers
+		// M-CODEGEN-VALUE-TYPES: EXCEPT value records (leaf records ≤threshold fields) use value types
 		if isUserDefinedType(goType) {
+			if g.valueRecords[goType] {
+				return goType // Value type - no pointer
+			}
 			return "*" + goType
 		}
 		return goType
@@ -303,13 +365,14 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		elemType := g.mapASTType(typ.Element)
 		// M-DX12: For ADT/user-defined element types, generate typed slice []*ADTType
 		// World boundary marshalling converts []interface{} to typed slices at profile boundaries
+		// M-CODEGEN-VALUE-TYPES: Value records use []Type instead of []*Type
 		if isUserDefinedType(elemType) {
 			// Track this ADT type for converter generation (strip * prefix for tracking)
 			baseType := strings.TrimPrefix(elemType, "*")
 			g.adtSliceTypes[baseType] = true
-			// M-CODEGEN-POINTER-RETURN-TYPES: If elemType is already a pointer, use it directly
-			// Otherwise add * prefix (for backward compatibility with direct calls)
-			if strings.HasPrefix(elemType, "*") {
+			// M-CODEGEN-VALUE-TYPES: Value records already have no "*" prefix
+			// M-CODEGEN-POINTER-RETURN-TYPES: Pointer types already have "*" prefix
+			if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
 				return fmt.Sprintf("[]%s", elemType)
 			}
 			return fmt.Sprintf("[]*%s", elemType)
@@ -319,10 +382,11 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 	case *ast.ArrayType:
 		elemType := g.mapASTType(typ.Element)
 		// M-DX12: Same as ListType - generate typed slice for ADT elements
+		// M-CODEGEN-VALUE-TYPES: Value records use []Type instead of []*Type
 		if isUserDefinedType(elemType) {
 			baseType := strings.TrimPrefix(elemType, "*")
 			g.adtSliceTypes[baseType] = true
-			if strings.HasPrefix(elemType, "*") {
+			if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
 				return fmt.Sprintf("[]%s", elemType)
 			}
 			return fmt.Sprintf("[]*%s", elemType)

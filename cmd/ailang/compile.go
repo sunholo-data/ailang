@@ -23,6 +23,8 @@ func compileCommand() {
 	releaseFlag := fs.Bool("release", false, "Release mode: erase Debug effect (zero-cost)")
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "M-VERIFY: Generate runtime contract checks")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches)")
+	// M-CODEGEN-VALUE-TYPES: Control value vs pointer generation for small leaf records
+	valueThresholdFlag := fs.Int("value-threshold", 4, "Max fields for value-type records (0 = all pointers, v0.5.9 behavior)")
 
 	// Help flag
 	helpFlag := fs.Bool("help", false, "Show help for compile command")
@@ -62,6 +64,13 @@ func compileCommand() {
 		case "1", "true", "yes":
 			relaxModulesEffective = true
 		}
+	}
+
+	// M-CODEGEN-VALUE-TYPES: Validate value threshold
+	valueThreshold := *valueThresholdFlag
+	if valueThreshold < 0 {
+		fmt.Fprintf(os.Stderr, "%s: --value-threshold cannot be negative (%d), using 0 (all pointers)\n", yellow("Warning"), valueThreshold)
+		valueThreshold = 0
 	}
 
 	// Accumulated data from all files
@@ -202,6 +211,8 @@ func compileCommand() {
 	if len(allTypeDecls) > 0 {
 		fmt.Printf("%s Generating types (%d type declarations)\n", cyan("→"), len(allTypeDecls))
 		adtGen := gen.NewADTGenerator(pkgName)
+		// M-CODEGEN-VALUE-TYPES: Set value threshold for struct field generation
+		adtGen.SetValueThreshold(valueThreshold)
 		typesCode, err := adtGen.GenerateTypeDecls(allTypeDecls)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: type generation failed: %v\n", red("Error"), err)
@@ -290,6 +301,9 @@ func compileCommand() {
 	// Generate functions from Core AST (accumulated from all files)
 	// Note: Function generation is experimental and may produce incomplete code
 	codeGen := gen.New(pkgName)
+
+	// M-CODEGEN-VALUE-TYPES: Set value threshold for record literal generation
+	codeGen.SetValueThreshold(valueThreshold)
 
 	// M-VERIFY: Enable runtime contract checking if flag is set
 	if *verifyContractsFlag {
@@ -491,6 +505,7 @@ Options:
   --package-name <name>  Go package name (default: derived from first module)
   --release              Mark this as a release build (info only)
   --verify-contracts     Generate runtime contract checks (M-VERIFY Phase 0.5)
+  --value-threshold <n>  Max fields for value-type records (default: 4, 0=all pointers)
   -h, --help             Show this help message
 
 Examples:

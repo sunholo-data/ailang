@@ -211,9 +211,16 @@ func (g *Generator) generateRecord(rec *core.Record) error {
 // generateTypedRecord generates a typed Go struct literal.
 // M-DX13: Generates &World{Npcs: ..., Width: ...} instead of map[string]interface{}.
 // M-DX13.2: Generates pointer (&) only when used as return value, not for nested records.
+// M-CODEGEN-VALUE-TYPES: Generates Type{} for leaf records (value), &Type{} for others (pointer).
 func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordTypeInfo) error {
-	// Generate as pointer for top-level returns (interface{} compatibility)
-	g.writef("&%s{", recordType.Name)
+	// M-CODEGEN-VALUE-TYPES: Use Category to decide value vs pointer representation
+	if recordType.Category == TypeCategoryValue {
+		// Leaf record with few fields - generate as value
+		g.writef("%s{", recordType.Name)
+	} else {
+		// Non-leaf, recursive, or large record - generate as pointer
+		g.writef("&%s{", recordType.Name)
+	}
 	first := true
 	for _, goFieldName := range recordType.Fields {
 		// Convert Go field name (PascalCase) to AILANG field name (camelCase)
@@ -300,9 +307,20 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 					}
 				}
 			} else if isRecordValueType(goType) && !strings.HasPrefix(goType, "*") {
-				// M-DX13.2 + M-DX13.5: Field expects a record value type, but value is likely a pointer
+				// M-DX13.2 + M-DX13.5: Field expects a record value type
 				// M-DX14: Check if value is an ADT constructor (returns typed pointer, not interface{})
-				if g.isADTConstructorExpr(value) {
+				// M-CODEGEN-VALUE-TYPES: Check if this record is a value type (stored as value in interface{})
+				recordInfo, isValueRecord := g.recordTypes[goType]
+				if isValueRecord && recordInfo.Category == TypeCategoryValue {
+					// M-CODEGEN-VALUE-TYPES: Value record - runtime value is Coord, not *Coord
+					// Just need type assertion: expr.(Coord)
+					if err := g.generateExpr(value); err != nil {
+						return err
+					}
+					if g.exprProducesInterface(value) && !g.isADTConstructorExpr(value) {
+						g.writef(".(%s)", goType)
+					}
+				} else if g.isADTConstructorExpr(value) {
 					// ADT constructor returns typed pointer - just dereference, no type assertion
 					g.write("*")
 					if err := g.generateExpr(value); err != nil {
