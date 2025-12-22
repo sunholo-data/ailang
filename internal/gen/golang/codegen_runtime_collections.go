@@ -563,9 +563,22 @@ func (g *Generator) writeADTSliceConverters() {
 		// M-BUGFIX: Export converters so external packages can use them
 		funcName := "ConvertTo" + goTypeName + "Slice"
 
-		g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
-		g.writef("// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection).\n")
-		g.writef("func %s(v interface{}) []*%s {\n", funcName, goTypeName)
+		// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record
+		// adtSliceTypes may include record types that appear in list fields
+		recordInfo := g.recordTypes[goTypeName]
+		isValueType := recordInfo != nil && recordInfo.Category == TypeCategoryValue
+
+		if isValueType {
+			// Value type: generate []Type and e.(Type)
+			g.writef("// %s converts []interface{} to []%s.\n", funcName, goTypeName)
+			g.writef("// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection).\n")
+			g.writef("func %s(v interface{}) []%s {\n", funcName, goTypeName)
+		} else {
+			// Pointer type: generate []*Type and e.(*Type)
+			g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
+			g.writef("// M-DX12: Fail-fast - panics on type mismatch (compiler bug detection).\n")
+			g.writef("func %s(v interface{}) []*%s {\n", funcName, goTypeName)
+		}
 		g.indent++
 
 		// Handle nil
@@ -586,20 +599,36 @@ func (g *Generator) writeADTSliceConverters() {
 		// Handle empty slice (return empty, not nil)
 		g.writef("if len(src) == 0 {\n")
 		g.indent++
-		g.writef("return []*%s{}\n", goTypeName)
+		if isValueType {
+			g.writef("return []%s{}\n", goTypeName)
+		} else {
+			g.writef("return []*%s{}\n", goTypeName)
+		}
 		g.indent--
 		g.writef("}\n")
 
 		// Convert elements
-		g.writef("out := make([]*%s, len(src))\n", goTypeName)
-		g.writef("for i, e := range src {\n")
-		g.indent++
-		g.writef("elem, ok := e.(*%s)\n", goTypeName)
-		g.writef("if !ok {\n")
-		g.indent++
-		g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
-		g.indent--
-		g.writef("}\n")
+		if isValueType {
+			g.writef("out := make([]%s, len(src))\n", goTypeName)
+			g.writef("for i, e := range src {\n")
+			g.indent++
+			g.writef("elem, ok := e.(%s)\n", goTypeName)
+			g.writef("if !ok {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.indent--
+			g.writef("}\n")
+		} else {
+			g.writef("out := make([]*%s, len(src))\n", goTypeName)
+			g.writef("for i, e := range src {\n")
+			g.indent++
+			g.writef("elem, ok := e.(*%s)\n", goTypeName)
+			g.writef("if !ok {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.indent--
+			g.writef("}\n")
+		}
 		g.writef("out[i] = elem\n")
 		g.indent--
 		g.writef("}\n")
