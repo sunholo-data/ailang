@@ -181,14 +181,27 @@ gh auth logout --user sunholo-voight-kampff
 ### "Wrong user" error
 
 ```
-ERROR: GitHub account mismatch!
+ERROR: GitHub account mismatch
+  Expected: sunholo-voight-kampff (from config)
   Active:   MarkEdmondson1234
-  Expected: sunholo-voight-kampff
+
+Fix with one of:
+  1. Switch account:  gh auth switch --user sunholo-voight-kampff
+  2. Override:        --github-user MarkEdmondson1234
+  3. Update config:   Set expected_user in ~/.ailang/config.yaml
 ```
 
-**Fix:**
+**Fix options:**
+
 ```bash
+# Option 1: Switch to expected account
 gh auth switch --user sunholo-voight-kampff
+
+# Option 2: Override for this command (use active account)
+ailang messages send user "message" --github --github-user MarkEdmondson1234
+
+# Option 3: Update config to use current account
+# Edit ~/.ailang/config.yaml and change expected_user
 ```
 
 ### "Not authenticated" error

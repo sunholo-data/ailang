@@ -333,6 +333,20 @@ func compileCommand() {
 		codeGen.RegisterADTSliceTypes(adtSliceTypes)
 	}
 
+	// M-CODEGEN-VALUE-TYPES: Build set of value record names for ailangTypeToGo
+	// This must match the analysis in RegisterRecordTypeWithAnalysis
+	valueRecordNames := make(map[string]bool)
+	for _, td := range allTypeDecls {
+		if rec, ok := td.Definition.(*ast.RecordType); ok {
+			// Same analysis as RegisterRecordTypeWithAnalysis
+			_, fieldTypes := extractRecordTypeInfo(rec)
+			isLeaf := gen.IsLeafRecord(fieldTypes)
+			if isLeaf && len(rec.Fields) <= valueThreshold {
+				valueRecordNames[capitalize(td.Name)] = true
+			}
+		}
+	}
+
 	// M-CODEGEN-TYPED-PARAMS: Register function types from AST to prevent cross-module contamination
 	// This ensures declared types (e.g., ArrivalState) are used instead of inferred structural types
 	for _, fn := range allFuncs {
@@ -343,14 +357,14 @@ func compileCommand() {
 				continue
 			}
 			if p.Type != nil {
-				paramTypes = append(paramTypes, gen.GoType(ailangTypeToGo(p.Type)))
+				paramTypes = append(paramTypes, gen.GoType(ailangTypeToGoWithValueRecords(p.Type, valueRecordNames)))
 			} else {
 				paramTypes = append(paramTypes, gen.GoType("interface{}"))
 			}
 		}
 		var returnType gen.GoType = "interface{}"
 		if fn.ReturnType != nil {
-			returnType = gen.GoType(ailangTypeToGo(fn.ReturnType))
+			returnType = gen.GoType(ailangTypeToGoWithValueRecords(fn.ReturnType, valueRecordNames))
 		}
 		codeGen.RegisterFunctionType(fn.Name, paramTypes, returnType)
 	}
@@ -766,6 +780,66 @@ func ailangTypeToGo(t ast.Type) string {
 		// M-CODEGEN-OPTION-TYPE-ASSERT: Handle generic type applications like Option[Color]
 		// ADTs (including Option) are always pointers in Go
 		// The type argument is erased - Option[Color] and Option[int] both become *Option
+		return "*" + capitalize(typ.Constructor)
+	default:
+		return "interface{}"
+	}
+}
+
+// ailangTypeToGoWithValueRecords converts an AILANG type to a Go type string,
+// checking if record types are value types.
+// M-CODEGEN-VALUE-TYPES: Value records return TypeName instead of *TypeName.
+func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) string {
+	switch typ := t.(type) {
+	case *ast.SimpleType:
+		switch typ.Name {
+		case "int":
+			return "int64"
+		case "float":
+			return "float64"
+		case "string":
+			return "string"
+		case "bool":
+			return "bool"
+		case "()":
+			return "struct{}"
+		default:
+			// M-CODEGEN-VALUE-TYPES: Check if this is a value record
+			goTypeName := capitalize(typ.Name)
+			if valueRecords[goTypeName] {
+				return goTypeName // Value type - no pointer
+			}
+			// Pointer type for other user-defined types
+			return "*" + goTypeName
+		}
+	case *ast.ListType:
+		elemType := ailangTypeToGoWithValueRecords(typ.Element, valueRecords)
+		// M-CODEGEN-VALUE-TYPES: Value records already return TypeName (no *)
+		// Pointer types return *TypeName
+		if strings.HasPrefix(elemType, "*") {
+			// Already a pointer type - just make it a slice []*Type
+			return "[]" + elemType
+		}
+		// Check if this is a value type (no * prefix means it's a value record or primitive)
+		if isUserDefinedGoType(elemType) {
+			// Value record - return []Type
+			return "[]" + elemType
+		}
+		return "[]" + elemType
+	case *ast.ArrayType:
+		// M-TYPE1: Arrays use the same Go representation as lists (slices)
+		elemType := ailangTypeToGoWithValueRecords(typ.Element, valueRecords)
+		if strings.HasPrefix(elemType, "*") {
+			return "[]" + elemType
+		}
+		if isUserDefinedGoType(elemType) {
+			return "[]" + elemType
+		}
+		return "[]" + elemType
+	case *ast.RecordType:
+		return "map[string]interface{}"
+	case *ast.TypeApp:
+		// ADTs (including Option) are always pointers in Go
 		return "*" + capitalize(typ.Constructor)
 	default:
 		return "interface{}"
