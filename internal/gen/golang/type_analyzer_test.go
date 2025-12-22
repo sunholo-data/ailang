@@ -256,3 +256,158 @@ func TestSetValueThreshold(t *testing.T) {
 		t.Errorf("expected threshold 8, got %d", g.GetValueThreshold())
 	}
 }
+
+func TestGoReprForType(t *testing.T) {
+	g := New("test")
+	g.SetValueThreshold(4)
+
+	// Register a value type (small, leaf)
+	g.RegisterRecordTypeWithAnalysis("Coord", []string{"X", "Y"}, map[string]string{
+		"X": "int64",
+		"Y": "int64",
+	})
+
+	// Register a pointer type (non-leaf)
+	g.RegisterRecordTypeWithAnalysis("Entity", []string{"Pos", "Vel"}, map[string]string{
+		"Pos": "*Coord",
+		"Vel": "*Coord",
+	})
+
+	// Register a pointer type (large leaf)
+	g.RegisterRecordTypeWithAnalysis("BigRecord", []string{"A", "B", "C", "D", "E"}, map[string]string{
+		"A": "int64",
+		"B": "int64",
+		"C": "int64",
+		"D": "int64",
+		"E": "int64",
+	})
+
+	tests := []struct {
+		name        string
+		typeName    string
+		wantGoType  string
+		wantPointer bool
+	}{
+		{
+			name:        "value type - Coord",
+			typeName:    "Coord",
+			wantGoType:  "Coord",
+			wantPointer: false,
+		},
+		{
+			name:        "pointer type - Entity (non-leaf)",
+			typeName:    "Entity",
+			wantGoType:  "Entity",
+			wantPointer: true,
+		},
+		{
+			name:        "pointer type - BigRecord (over threshold)",
+			typeName:    "BigRecord",
+			wantGoType:  "BigRecord",
+			wantPointer: true,
+		},
+		{
+			name:        "unknown type - defaults to pointer",
+			typeName:    "Unknown",
+			wantGoType:  "Unknown",
+			wantPointer: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			goType, isPointer := g.GoReprForType(tt.typeName)
+			if goType != tt.wantGoType {
+				t.Errorf("GoReprForType() goType = %q, want %q", goType, tt.wantGoType)
+			}
+			if isPointer != tt.wantPointer {
+				t.Errorf("GoReprForType() isPointer = %v, want %v", isPointer, tt.wantPointer)
+			}
+		})
+	}
+}
+
+func TestGoTypeStringForType(t *testing.T) {
+	g := New("test")
+	g.SetValueThreshold(4)
+
+	// Register types
+	g.RegisterRecordTypeWithAnalysis("Coord", []string{"X", "Y"}, map[string]string{
+		"X": "int64",
+		"Y": "int64",
+	})
+	g.RegisterRecordTypeWithAnalysis("World", []string{"Width", "Height", "Tiles", "Npcs", "Camera"}, map[string]string{
+		"Width":  "int64",
+		"Height": "int64",
+		"Tiles":  "[][]int64",
+		"Npcs":   "[]*NPC",
+		"Camera": "*Camera",
+	})
+
+	tests := []struct {
+		name     string
+		typeName string
+		want     string
+	}{
+		{
+			name:     "value type returns plain name",
+			typeName: "Coord",
+			want:     "Coord",
+		},
+		{
+			name:     "pointer type returns * prefix",
+			typeName: "World",
+			want:     "*World",
+		},
+		{
+			name:     "unknown type returns * prefix",
+			typeName: "Unknown",
+			want:     "*Unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := g.GoTypeStringForType(tt.typeName)
+			if got != tt.want {
+				t.Errorf("GoTypeStringForType() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValueType(t *testing.T) {
+	g := New("test")
+	g.SetValueThreshold(4)
+
+	// Register a value type
+	g.RegisterRecordTypeWithAnalysis("Coord", []string{"X", "Y"}, map[string]string{
+		"X": "int64",
+		"Y": "int64",
+	})
+
+	// Register a pointer type
+	g.RegisterRecordTypeWithAnalysis("World", []string{"Pos"}, map[string]string{
+		"Pos": "*Coord",
+	})
+
+	if !g.IsValueType("Coord") {
+		t.Error("expected Coord to be value type")
+	}
+	if g.IsValueType("World") {
+		t.Error("expected World to NOT be value type")
+	}
+	if g.IsValueType("Unknown") {
+		t.Error("expected Unknown to NOT be value type (defaults to pointer)")
+	}
+
+	if g.IsPointerType("Coord") {
+		t.Error("expected Coord to NOT be pointer type")
+	}
+	if !g.IsPointerType("World") {
+		t.Error("expected World to be pointer type")
+	}
+	if !g.IsPointerType("Unknown") {
+		t.Error("expected Unknown to be pointer type (safe fallback)")
+	}
+}
