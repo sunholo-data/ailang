@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [v0.6.1] - 2025-12-20
+## [v0.6.1] - 2025-12-22
 
 ### Fixed - Inline Record Literals in Match Arms (M-DX16)
 
@@ -141,6 +141,137 @@ Warning: stdlib version mismatch: expected dev, found v0.6.0
 - `internal/loader/stdlib_resolver.go` - Added warning flag and env var check (~10 LOC)
 
 **Design Doc:** [design_docs/implemented/v0_6_1/m-dx21-stdlib-version-warning-once.md](design_docs/implemented/v0_6_1/m-dx21-stdlib-version-warning-once.md)
+
+### Added - Runtime Contract Checks (M-VERIFY)
+
+Implemented design-by-contract programming for AILANG with `requires` (preconditions) and `ensures` (postconditions) syntax. Contracts generate runtime checks that panic on violation when compiled with `--verify-contracts`.
+
+**Contract Syntax:**
+```ailang
+export func safeDivide(dividend: int, divisor: int) -> int ! {}
+requires { divisor != 0 }        -- Precondition: checked at entry
+ensures { result >= 0 }          -- Postcondition: checked before return
+{
+  dividend / divisor
+}
+```
+
+**CLI Usage:**
+```bash
+ailang compile --verify-contracts --emit-go --out ./gen module.ail
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-verify-runtime-contracts.md](design_docs/implemented/v0_6_1/m-verify-runtime-contracts.md)
+
+### Added - Multi-Executor Support for AI Coding Agents (M-EXEC)
+
+Enabled AILANG's agent system and eval harness to use multiple AI coding agent executors through a unified interface.
+
+**Supported Executors:**
+- Claude Code (existing) - Anthropic's coding agent
+- Gemini CLI (new) - Google's Gemini-powered coding agent
+
+**Key Features:**
+- Unified executor interface for consistent result formats
+- Cost tracking normalized across providers (USD)
+- Workspace management consistent across executors
+- Eval harness can benchmark across all providers
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md](design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md)
+
+### Added - Directory Support for `ailang check` (M-DX-CHECK-DIRECTORY)
+
+The `ailang check` command now supports recursive directory checking for `.ail` files.
+
+**Before:**
+```bash
+# Had to use shell workarounds
+find examples/ -name '*.ail' -exec ailang check {} \;
+```
+
+**After:**
+```bash
+# Works directly
+ailang check examples/
+ailang check --timeout 60s examples/runnable/
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-dx-check-directory-support.md](design_docs/implemented/v0_6_1/m-dx-check-directory-support.md)
+
+### Added - Value-Type Record Generation (M-CODEGEN-VALUE-TYPES)
+
+Go codegen now generates value-type structs (not pointers) for small records based on estimated memory size. Records ≤64 bytes use pass-by-value for better performance on modern CPUs.
+
+**Key Changes:**
+- Added `TypeCategory` analysis (Primitive, SmallRecord, LargeRecord, Recursive, ADT)
+- `IsLeafRecord` identifies records with only primitive fields (no nested records/ADTs)
+- `GoReprForType` as single source of truth for Go type representation
+- Records ≤64 bytes generate as value types, larger as pointers
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-codegen-value-types.md](design_docs/implemented/v0_6_1/m-codegen-value-types.md)
+
+### Fixed - Letrec Recursive Binding Scope Regression (M-LETREC-SCOPING)
+
+Fixed regression where `letrec` bindings no longer made the recursive variable visible within its own body.
+
+**Before (broken):**
+```ailang
+letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in factorial(5)
+-- Error: undefined variable: factorial
+```
+
+**After (works):**
+```ailang
+letrec factorial = \n. if n == 0 then 1 else n * factorial(n - 1) in factorial(5)
+-- Returns: 120
+```
+
+**Note:** This fix also resolved [M-BUG-LIST-LENGTH-RETURNS-WRONG-VALUE](design_docs/implemented/v0_6_1/m-bug-list-length-returns-wrong-value.md) where `length` returned sum instead of count due to the same scoping issue.
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md](design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md)
+
+### Fixed - Empty Double-Paren ADT Constructor Calls (M-CODEGEN-ADT-DOUBLE-PAREN)
+
+Fixed Go codegen that produced invalid double-paren calls for ADT constructors.
+
+**Before (broken):**
+```go
+// Generated invalid Go code
+NewDrawCmdViewport()()  // Empty double-paren
+```
+
+**After (correct):**
+```go
+// Args passed through correctly
+NewDrawCmdViewport(id, shapeType, x, y, w, h)
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-codegen-adt-double-paren.md](design_docs/implemented/v0_6_1/m-codegen-adt-double-paren.md)
+
+### Fixed - ConcatList and Closure Variable Scoping (M-DX17)
+
+Fixed two codegen bugs blocking Go compilation:
+
+1. **ConcatList undefined**: `++` operator generated calls to `ConcatList()` but runtime defined `Concat`
+2. **Closure scoping**: Variables from match patterns weren't captured in closures within match arm bodies
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-dx17-codegen-concatlist-closure-scoping.md](design_docs/implemented/v0_6_1/m-dx17-codegen-concatlist-closure-scoping.md)
+
+### Fixed - std/env EnvError Type Parameter Bug (M-ENV-TYPE-PARAMETER)
+
+Fixed type system incorrectly treating non-parameterized ADT `EnvError` as having 1 type parameter.
+
+**Before (broken):**
+```
+type EnvError expects 1 type argument(s), but got 0 (did you mean EnvError[string]?)
+```
+
+**After (works):**
+```ailang
+export func getEnv(name: string) -> Result[string, EnvError] ! {Env} = _env_getEnv(name)
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_1/m-env-type-parameter-bug.md](design_docs/implemented/v0_6_1/m-env-type-parameter-bug.md)
 
 ## [v0.6.0] - 2025-12-16
 
