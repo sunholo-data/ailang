@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-67%20passing%2023%20failing-orange.svg)
+![Examples](https://img.shields.io/badge/examples-70%20passing%2023%20failing-orange.svg)
 
-**67/90 examples passing (74%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**70/93 examples passing (75%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -67,6 +67,9 @@
 | `runnable/micro_record_person.ail` | ✅ Pass |  |
 | `runnable/nested_match_minimal.ail` | ❌ Fail | Error: MOD010: module declaration 'examples/nes... |
 | `runnable/nested_match_simple.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/no_loops_filter_map.ail` | ✅ Pass |  |
+| `runnable/no_loops_fold.ail` | ✅ Pass |  |
+| `runnable/no_loops_recursion.ail` | ✅ Pass |  |
 | `runnable/option_demo.ail` | ✅ Pass |  |
 | `runnable/pattern_sugar.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/patterns.ail` | ✅ Pass |  |
