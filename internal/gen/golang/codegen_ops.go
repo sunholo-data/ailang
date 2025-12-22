@@ -345,7 +345,17 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 				// need type assertions when value is interface{}
 				// BUT: ADT constructors already return typed pointers, not interface{}
 				if g.exprProducesInterface(value) && !g.isADTConstructorExpr(value) {
-					g.writef(".(%s)", goType)
+					// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record
+					// FieldTypes stores "*SystemPos" but value types are stored as "SystemPos" at runtime
+					assertType := goType
+					if strings.HasPrefix(goType, "*") {
+						baseType := strings.TrimPrefix(goType, "*")
+						if recordInfo, ok := g.recordTypes[baseType]; ok && recordInfo.Category == TypeCategoryValue {
+							// Value type record - runtime stores value, not pointer
+							assertType = baseType
+						}
+					}
+					g.writef(".(%s)", assertType)
 				}
 			}
 		} else {

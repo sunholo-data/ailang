@@ -136,17 +136,18 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
     fi
 done > /tmp/triage_categories_$$
 
-# Count categories (use || true to handle no matches, tr to remove newlines)
-CLOSABLE_COUNT=$(grep -c "^CLOSABLE|" /tmp/triage_categories_$$ 2>/dev/null | tr -d '\n' || echo "0")
-COVERED_COUNT=$(grep -c "^COVERED|" /tmp/triage_categories_$$ 2>/dev/null | tr -d '\n' || echo "0")
-STALE_COUNT=$(grep -c "^STALE|" /tmp/triage_categories_$$ 2>/dev/null | tr -d '\n' || echo "0")
-ORPHANED_COUNT=$(grep -c "^ORPHANED|" /tmp/triage_categories_$$ 2>/dev/null | tr -d '\n' || echo "0")
+# Count categories
+count_category() {
+    local pattern="$1"
+    local count
+    count=$(grep -c "$pattern" /tmp/triage_categories_$$ 2>/dev/null) || count=0
+    echo "$count"
+}
 
-# Ensure counts default to 0 if empty
-[[ -z "$CLOSABLE_COUNT" ]] && CLOSABLE_COUNT=0
-[[ -z "$COVERED_COUNT" ]] && COVERED_COUNT=0
-[[ -z "$STALE_COUNT" ]] && STALE_COUNT=0
-[[ -z "$ORPHANED_COUNT" ]] && ORPHANED_COUNT=0
+CLOSABLE_COUNT=$(count_category "^CLOSABLE|")
+COVERED_COUNT=$(count_category "^COVERED|")
+STALE_COUNT=$(count_category "^STALE|")
+ORPHANED_COUNT=$(count_category "^ORPHANED|")
 
 # Generate report
 REPORT=""

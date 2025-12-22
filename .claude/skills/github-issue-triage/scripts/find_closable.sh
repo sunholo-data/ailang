@@ -7,7 +7,7 @@
 # 2. Issue mentioned in CHANGELOG.md
 # 3. Issue keywords match implemented features
 
-set -euo pipefail
+set -eo pipefail  # Note: removed -u for unset variable handling
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
