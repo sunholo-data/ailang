@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -23,10 +24,11 @@ func runMessagesSend(args []string) {
 	github := fs.Bool("github", false, "Also create a GitHub issue")
 	msgType := fs.String("type", "", "Message type: bug, feature, general (implies --github)")
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
+	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "github", "type", "repo"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "github", "type", "repo", "github-user"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -105,12 +107,18 @@ func runMessagesSend(args []string) {
 
 	// Optionally sync to GitHub
 	if syncToGitHub {
-		issueNum, err := syncMessageToGitHub(msg, *repo)
+		issueNum, err := syncMessageToGitHub(msg, *repo, *githubUser)
 		if err != nil {
-			// Message saved locally, but GitHub sync failed
-			fmt.Fprintf(os.Stderr, "%s GitHub sync failed: %v\n", yellow("⚠"), err)
-			fmt.Println("  Message saved locally. Retry GitHub sync with:")
-			fmt.Printf("  ailang messages github-sync %s\n", msg.MessageID)
+			// Check for account mismatch - show prominently in red
+			if errors.Is(err, messaging.ErrAccountMismatch) {
+				fmt.Fprintf(os.Stderr, "\n%s %v\n\n", red("ERROR:"), err)
+				fmt.Println("  Message saved locally but GitHub sync BLOCKED.")
+			} else {
+				// Other errors get a warning
+				fmt.Fprintf(os.Stderr, "%s GitHub sync failed: %v\n", yellow("⚠"), err)
+				fmt.Println("  Message saved locally. Retry GitHub sync with:")
+				fmt.Printf("  ailang messages github-sync %s\n", msg.MessageID)
+			}
 		} else {
 			// Update message with issue number
 			if err := store.UpdateInboxMessageGitHub(msg.MessageID, issueNum, *repo); err != nil {
@@ -125,6 +133,7 @@ func runMessagesReply(args []string) {
 	fs := flag.NewFlagSet("messages reply", flag.ExitOnError)
 	from := fs.String("from", "cli", "Sender agent name")
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides message's repo")
+	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -169,6 +178,11 @@ func runMessagesReply(args []string) {
 		config = nil
 	}
 	ghClient := messaging.NewGitHubClient(config)
+
+	// Set override user if provided
+	if *githubUser != "" {
+		ghClient.SetOverrideUser(*githubUser)
+	}
 
 	// Determine the repo: CLI flag > message repo > config default
 	targetRepo := msg.GitHubRepo

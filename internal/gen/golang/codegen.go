@@ -281,6 +281,13 @@ func New(packageName string) *Generator {
 		}
 		return "", false
 	}
+	// M-CODEGEN-VALUE-TYPES: Wire up value record checker for TRecord -> Type vs *Type
+	g.TypeMapper.ValueRecordChecker = func(goTypeName string) bool {
+		if info, ok := g.recordTypes[goTypeName]; ok {
+			return info.Category == TypeCategoryValue
+		}
+		return false
+	}
 	return g
 }
 

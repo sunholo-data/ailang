@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -9,12 +10,18 @@ import (
 	"strings"
 )
 
+// ErrAccountMismatch is returned when the active gh user doesn't match expected_user.
+// This is a sentinel error that can be checked with errors.Is() for special handling.
+var ErrAccountMismatch = errors.New("GitHub account mismatch")
+
 // GitHubClient provides integration with GitHub via the gh CLI.
 // All methods require gh to be installed and authenticated.
 type GitHubClient struct {
 	config *GitHubConfig
 	// For testing: override command execution
 	execCommand func(name string, arg ...string) ([]byte, error)
+	// Override user: if set, skips expected_user validation when this user is active
+	overrideUser string
 }
 
 // GitHubIssue represents a GitHub issue returned from the API.
@@ -62,6 +69,13 @@ func defaultExecCommand(name string, arg ...string) ([]byte, error) {
 // GetConfig returns the GitHub configuration (may be nil if not configured).
 func (c *GitHubClient) GetConfig() *GitHubConfig {
 	return c.config
+}
+
+// SetOverrideUser sets a user to accept instead of (or in addition to) the expected_user.
+// When set, if the active gh user matches this override, validation passes.
+// This allows CLI users to bypass the expected_user check with --github-user flag.
+func (c *GitHubClient) SetOverrideUser(user string) {
+	c.overrideUser = user
 }
 
 // CheckGHInstalled verifies that the gh CLI is installed and returns the version.
@@ -116,28 +130,50 @@ func (c *GitHubClient) CheckGHAuth() (string, error) {
 // ValidateUser checks that the authenticated gh user matches the expected user.
 // Returns nil if they match, or an error with instructions if they don't.
 // This is a HARD FAIL - callers should not proceed if this returns an error.
+//
+// If SetOverrideUser() was called, that user is also accepted.
 func (c *GitHubClient) ValidateUser() error {
-	if c.config == nil {
+	// If no override and no config, fail fast without checking auth
+	if c.overrideUser == "" && c.config == nil {
 		return fmt.Errorf("GitHub config not loaded")
 	}
 
-	if c.config.ExpectedUser == "" {
+	// Need expected_user in config (unless override is set)
+	if c.overrideUser == "" && c.config.ExpectedUser == "" {
 		return fmt.Errorf("expected_user not configured in github section of ~/.ailang/config.yaml")
 	}
 
+	// Now check auth
 	activeUser, err := c.CheckGHAuth()
 	if err != nil {
 		return err
 	}
 
-	if activeUser != c.config.ExpectedUser {
-		return fmt.Errorf("GitHub account mismatch!\n"+
-			"  Expected: %s\n"+
-			"  Active:   %s\n\n"+
+	// If override user is set and matches active user, validation passes
+	if c.overrideUser != "" && activeUser == c.overrideUser {
+		return nil
+	}
+
+	// Check override mismatch (when override is set but doesn't match)
+	if c.overrideUser != "" {
+		return fmt.Errorf("%w\n"+
+			"  Override user: %s\n"+
+			"  Active:        %s\n\n"+
 			"Switch accounts with:\n"+
-			"  gh auth switch --user %s\n\n"+
-			"Or update expected_user in ~/.ailang/config.yaml",
-			c.config.ExpectedUser, activeUser, c.config.ExpectedUser)
+			"  gh auth switch --user %s",
+			ErrAccountMismatch, c.overrideUser, activeUser, c.overrideUser)
+	}
+
+	// Check expected_user from config
+	if activeUser != c.config.ExpectedUser {
+		return fmt.Errorf("%w\n"+
+			"  Expected: %s (from config)\n"+
+			"  Active:   %s\n\n"+
+			"Fix with one of:\n"+
+			"  1. Switch account:  gh auth switch --user %s\n"+
+			"  2. Override:        --github-user %s\n"+
+			"  3. Update config:   Set expected_user in ~/.ailang/config.yaml",
+			ErrAccountMismatch, c.config.ExpectedUser, activeUser, c.config.ExpectedUser, activeUser)
 	}
 
 	return nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ func runMessagesImportGitHub(args []string) {
 	labels := fs.String("labels", "", "Comma-separated labels to filter issues")
 	inbox := fs.String("inbox", "user", "Target inbox for imported messages")
 	dryRun := fs.Bool("dry-run", false, "Show what would be imported without importing")
+	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -39,6 +41,11 @@ func runMessagesImportGitHub(args []string) {
 	// Create GitHub client
 	client := messaging.NewGitHubClient(config)
 
+	// Set override user if provided
+	if *githubUser != "" {
+		client.SetOverrideUser(*githubUser)
+	}
+
 	// Parse labels
 	var labelList []string
 	if *labels != "" {
@@ -57,6 +64,11 @@ func runMessagesImportGitHub(args []string) {
 	// List issues from GitHub
 	issues, err := client.ListIssuesByLabel(repoName, labelList)
 	if err != nil {
+		// Check for account mismatch - show prominently with fix options
+		if errors.Is(err, messaging.ErrAccountMismatch) {
+			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("ERROR:"), err)
+			os.Exit(1)
+		}
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
@@ -148,7 +160,8 @@ func runMessagesImportGitHub(args []string) {
 
 // syncMessageToGitHub creates a GitHub issue for the message.
 // Returns the issue number on success.
-func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string) (int, error) {
+// If githubUserOverride is non-empty, bypasses expected_user validation if that user is active.
+func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string, githubUserOverride string) (int, error) {
 	// Load GitHub config
 	config, err := messaging.LoadGitHubConfig()
 	if err != nil {
@@ -157,6 +170,11 @@ func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string) (int,
 
 	// Create GitHub client
 	client := messaging.NewGitHubClient(config)
+
+	// Set override user if provided
+	if githubUserOverride != "" {
+		client.SetOverrideUser(githubUserOverride)
+	}
 
 	// Determine repo
 	repo := repoOverride

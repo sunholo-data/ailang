@@ -177,31 +177,37 @@ gh auth switch --user MarkEdmondson1234
 
 ## Bot User Integration (sunholo-voight-kampff)
 
-For automated issue management, you can use the org bot user instead of personal accounts.
+**Status: ACTIVE** - Bot is configured and ready to use.
 
 **Bot account:** https://github.com/sunholo-voight-kampff
 
-### Setup Instructions
+### What Uses the Bot
 
-1. **Generate Personal Access Token** for `sunholo-voight-kampff` with `repo` scope
-2. **Ensure bot has write access** to `sunholo-data/ailang`
-3. **Add bot credentials to gh CLI:**
-   ```bash
-   # Login as bot (when prompted, paste the bot's PAT)
-   gh auth login --hostname github.com
-   # Or use token file
-   gh auth login --with-token < /path/to/bot-token.txt
-   ```
-4. **Update config** (`~/.ailang/config.yaml`):
-   ```yaml
-   github:
-     expected_user: sunholo-voight-kampff
-     default_repo: sunholo-data/ailang
-   ```
-5. **Switch to bot account:**
-   ```bash
-   gh auth switch --user sunholo-voight-kampff
-   ```
+| Tool | Uses Bot? |
+|------|-----------|
+| `gh issue close/comment` | Yes (via `gh auth`) |
+| `ailang messages send --github` | Yes (via config) |
+| `ailang messages import-github` | Yes (via config) |
+| Issue triage scripts | Yes (uses `gh` CLI) |
+
+### Current Configuration
+
+The bot is configured in `~/.ailang/config.yaml`:
+```yaml
+github:
+  expected_user: sunholo-voight-kampff
+  default_repo: sunholo-data/ailang
+```
+
+### Switching Accounts
+
+```bash
+# Use bot (current)
+gh auth switch --user sunholo-voight-kampff
+
+# Use personal (update config too if using ailang messages --github)
+gh auth switch --user MarkEdmondson1234
+```
 
 ### Benefits of Bot User
 
@@ -209,21 +215,18 @@ For automated issue management, you can use the org bot user instead of personal
 - **Rate limits**: Separate from personal account limits
 - **Revocable access**: Easy to disable without affecting personal auth
 - **CI/CD integration**: Can use same token in automation
+- **Unified**: Both `gh` CLI and `ailang messages` use same account
 
-For detailed setup, see [`resources/bot_user_guide.md`](resources/bot_user_guide.md)
+For detailed setup and troubleshooting, see [`resources/bot_user_guide.md`](resources/bot_user_guide.md)
 
 ## Configuration
 
-Add to `~/.ailang/config.yaml`:
+Current config in `~/.ailang/config.yaml`:
 
 ```yaml
 github:
-  expected_user: MarkEdmondson1234    # or voight-kampff
+  expected_user: sunholo-voight-kampff  # Bot account (active)
   default_repo: sunholo-data/ailang
-  triage:
-    stale_days: 30                    # Days without activity = stale
-    auto_close_implemented: false     # Auto-close if in implemented/
-    keyword_match_threshold: 2        # Min keywords to match
 ```
 
 ## Integration with Other Skills

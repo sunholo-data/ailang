@@ -2,6 +2,18 @@
 
 This guide explains how to set up and use the `sunholo-voight-kampff` bot account for automated GitHub issue management.
 
+## Current Status
+
+**Bot is ACTIVE and configured.**
+
+```
+GitHub auth OK
+  Active user: sunholo-voight-kampff
+  Config user: sunholo-voight-kampff
+```
+
+Both `gh` CLI commands and `ailang messages` GitHub sync now use the bot account.
+
 ## Overview
 
 **Bot account:** https://github.com/sunholo-voight-kampff
@@ -11,8 +23,19 @@ Using a bot account for automated actions provides:
 - **Separate rate limits** - Won't impact personal account limits
 - **Revocable access** - Easy to disable without affecting personal auth
 - **CI/CD friendly** - Same credentials work in automation pipelines
+- **Unified tooling** - Both `gh` CLI and `ailang messages --github` use same account
 
-## Setup Instructions
+## What Uses This Bot
+
+| Tool | Uses Bot? | How |
+|------|-----------|-----|
+| `gh issue close` | Yes | Reads active account from `gh auth status` |
+| `gh issue comment` | Yes | Same |
+| `ailang messages send --github` | Yes | Reads `expected_user` from `~/.ailang/config.yaml` |
+| `ailang messages import-github` | Yes | Same |
+| Issue triage scripts | Yes | Uses `gh` CLI under the hood |
+
+## Setup Instructions (Already Complete)
 
 ### 1. Generate Personal Access Token (PAT)
 
@@ -209,3 +232,34 @@ Claude Code sessions can use either account. The `check_auth.sh` script will:
 3. Fail with instructions if mismatch
 
 This prevents accidentally using the wrong account for operations.
+
+## Switching Back to Personal Account
+
+When you need to use your personal account instead of the bot:
+
+```bash
+# 1. Switch gh CLI
+gh auth switch --user MarkEdmondson1234
+
+# 2. Update config (optional - only if you want ailang messages to also use personal)
+# Edit ~/.ailang/config.yaml:
+#   github:
+#     expected_user: MarkEdmondson1234
+```
+
+**Note:** The config file affects `ailang messages --github` sync. If you only switch `gh` but not the config, you'll get an account mismatch error when using `ailang messages` with GitHub sync.
+
+## Quick Reference
+
+```bash
+# Check current state
+gh auth status
+.claude/skills/github-issue-triage/scripts/check_auth.sh
+
+# Use bot (current config)
+gh auth switch --user sunholo-voight-kampff
+
+# Use personal
+gh auth switch --user MarkEdmondson1234
+# Then update ~/.ailang/config.yaml expected_user if needed
+```

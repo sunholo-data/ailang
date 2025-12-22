@@ -26,6 +26,10 @@ type TypeMapper struct {
 	// M-BUGFIX: Used to map TRecord types to named struct types like *BridgeState.
 	// The callback takes a map of field names and returns the Go type name if found.
 	RecordTypeLookup func(fields map[string]bool) (string, bool)
+	// ValueRecordChecker is a callback to check if a record type should be passed by value.
+	// M-CODEGEN-VALUE-TYPES: Used to determine if TRecord maps to Type or *Type.
+	// Returns true for value types (leaf records with few fields), false for pointer types.
+	ValueRecordChecker func(goTypeName string) bool
 }
 
 // NewTypeMapper creates a new TypeMapper with default type mappings.
@@ -89,6 +93,10 @@ func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bo
 		// This prevents type contamination when multiple modules have records with same fields
 		if typ.TypeName != "" {
 			goTypeName := ToGoTypeName(typ.TypeName)
+			// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record
+			if tm.ValueRecordChecker != nil && tm.ValueRecordChecker(goTypeName) {
+				return GoType(goTypeName), nil
+			}
 			return GoType("*" + goTypeName), nil
 		}
 		// M-BUGFIX: Fall back to field-based lookup for anonymous records
