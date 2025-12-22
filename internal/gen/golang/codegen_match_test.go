@@ -146,6 +146,162 @@ func TestGenerateMatch_NestedBoolFromADT(t *testing.T) {
 	}
 }
 
+// TestGenerateMatch_ADTConstructorCollision tests M-DX22: when two ADT types share
+// constructor names (e.g., SpectralType.O and SpectralClass.O), the correct ADT type
+// should be determined from the scrutinee's type info, not by constructor name lookup.
+func TestGenerateMatch_ADTConstructorCollision(t *testing.T) {
+	// Simulates:
+	// let specType: SpectralType = O
+	// match specType {
+	//   O => "O type"
+	//   B => "B type"
+	//   _ => "other"
+	// }
+	// Where SpectralType and SpectralClass both have O, B constructors
+
+	scrutineeNodeID := uint64(200)
+	matchNodeID := uint64(201)
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "classifySpec",
+				Value: &core.Lambda{
+					Params: []string{"specType"},
+					Body: &core.Match{
+						CoreNode:   core.CoreNode{NodeID: matchNodeID},
+						Scrutinee:  &core.Var{CoreNode: core.CoreNode{NodeID: scrutineeNodeID}, Name: "specType"},
+						Exhaustive: true,
+						Arms: []core.MatchArm{
+							{
+								Pattern: &core.ConstructorPattern{Name: "O", Args: []core.CorePattern{}},
+								Body:    &core.Lit{Kind: core.StringLit, Value: "O type"},
+							},
+							{
+								Pattern: &core.ConstructorPattern{Name: "B", Args: []core.CorePattern{}},
+								Body:    &core.Lit{Kind: core.StringLit, Value: "B type"},
+							},
+							{
+								Pattern: &core.WildcardPattern{},
+								Body:    &core.Lit{Kind: core.StringLit, Value: "other"},
+							},
+						},
+					},
+				},
+				Body: &core.Var{Name: "classifySpec"},
+			},
+		},
+	}
+
+	gen := New("test")
+
+	// Register SpectralType ADT (first - will be found by constructor lookup)
+	gen.RegisterADTConstructor("SpectralType", "O", 0)
+	gen.RegisterADTConstructor("SpectralType", "B", 0)
+	gen.RegisterADTConstructor("SpectralType", "A", 0)
+
+	// Register SpectralClass ADT (second - shares constructor names!)
+	gen.RegisterADTConstructor("SpectralClass", "O", 0)
+	gen.RegisterADTConstructor("SpectralClass", "B", 0)
+	gen.RegisterADTConstructor("SpectralClass", "A", 0)
+
+	// M-DX22: Set up CoreTypeInfo with SpectralClass as the scrutinee type
+	// Even though SpectralType is registered first, the type info should win
+	coreTypeInfo := make(types.CoreTypeInfo)
+	coreTypeInfo[scrutineeNodeID] = &types.TCon{Name: "SpectralClass"}
+	coreTypeInfo[matchNodeID] = &types.TCon{Name: "string"}
+	gen.SetCoreTypeInfo(coreTypeInfo)
+
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// M-DX22: The match scrutinee assertion must use SpectralClass, not SpectralType
+	// Check the specific pattern in the impl function
+	if strings.Contains(codeStr, "_scrutinee.(*SpectralType)") {
+		t.Errorf("M-DX22 FAIL: Generated code used _scrutinee.(*SpectralType) instead of _scrutinee.(*SpectralClass).\n"+
+			"When constructor names collide, scrutinee type info must take precedence.\n"+
+			"Got:\n%s", codeStr)
+	}
+
+	if !strings.Contains(codeStr, "_scrutinee.(*SpectralClass)") {
+		t.Errorf("M-DX22 FAIL: Generated code should contain _scrutinee.(*SpectralClass).\n"+
+			"Got:\n%s", codeStr)
+	}
+
+	// Should use SpectralClassKind constants (not SpectralTypeKind)
+	if strings.Contains(codeStr, "SpectralTypeKindO") || strings.Contains(codeStr, "SpectralTypeKindB") {
+		t.Errorf("M-DX22 FAIL: Generated code used SpectralTypeKind instead of SpectralClassKind.\n"+
+			"Got:\n%s", codeStr)
+	}
+
+	if !strings.Contains(codeStr, "SpectralClassKindO") && !strings.Contains(codeStr, "SpectralClassKindB") {
+		t.Errorf("M-DX22 FAIL: Generated code should use SpectralClassKind constants.\n"+
+			"Got:\n%s", codeStr)
+	}
+}
+
+// TestGenerateMatch_ADTConstructorCollision_NoTypeInfo tests that when type info is missing,
+// constructor lookup is used as fallback (backward compatibility).
+func TestGenerateMatch_ADTConstructorCollision_NoTypeInfo(t *testing.T) {
+	// Same setup but WITHOUT CoreTypeInfo - should fall back to constructor lookup
+	scrutineeNodeID := uint64(300)
+	matchNodeID := uint64(301)
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.Let{
+				Name: "classifySpec",
+				Value: &core.Lambda{
+					Params: []string{"specType"},
+					Body: &core.Match{
+						CoreNode:   core.CoreNode{NodeID: matchNodeID},
+						Scrutinee:  &core.Var{CoreNode: core.CoreNode{NodeID: scrutineeNodeID}, Name: "specType"},
+						Exhaustive: true,
+						Arms: []core.MatchArm{
+							{
+								Pattern: &core.ConstructorPattern{Name: "O", Args: []core.CorePattern{}},
+								Body:    &core.Lit{Kind: core.StringLit, Value: "O type"},
+							},
+							{
+								Pattern: &core.WildcardPattern{},
+								Body:    &core.Lit{Kind: core.StringLit, Value: "other"},
+							},
+						},
+					},
+				},
+				Body: &core.Var{Name: "classifySpec"},
+			},
+		},
+	}
+
+	gen := New("test")
+
+	// Register SpectralType first - will be found by constructor lookup
+	gen.RegisterADTConstructor("SpectralType", "O", 0)
+	gen.RegisterADTConstructor("SpectralClass", "O", 0) // Same constructor name
+
+	// NO CoreTypeInfo - should use constructor lookup fallback
+	// (This is the legacy behavior that can cause collisions)
+
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Without type info, will use first registered (SpectralType)
+	// This demonstrates the collision problem when type info is missing
+	if !strings.Contains(codeStr, "*SpectralType") && !strings.Contains(codeStr, "*SpectralClass") {
+		t.Errorf("Expected either SpectralType or SpectralClass in output.\n"+
+			"Got:\n%s", codeStr)
+	}
+}
+
 func TestGenerateMatch_WildcardPattern(t *testing.T) {
 	// match x with
 	//   | _ -> 42

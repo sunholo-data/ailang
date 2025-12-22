@@ -54,12 +54,18 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	// M-DX26: In _impl functions, scrutinee is always interface{}
 	g.matchScrutineeType = "interface{}"
 	g.matchScrutineeAILANGType = nil // M-DX29: Reset AILANG type
-	if !inImplFunc && g.coreTypeInfo != nil {
+
+	// M-DX22: ALWAYS look up AILANG type for ADT disambiguation (even in impl functions)
+	// This is needed to resolve constructor name collisions like SpectralType.O vs SpectralClass.O
+	if g.coreTypeInfo != nil {
 		scrutineeNodeID := g.getExprNodeID(match.Scrutinee)
 		if typ, ok := g.coreTypeInfo[scrutineeNodeID]; ok {
-			g.matchScrutineeAILANGType = typ // M-DX29: Store AILANG type for type argument extraction
-			if goType, err := g.TypeMapper.MapType(typ); err == nil {
-				g.matchScrutineeType = string(goType)
+			g.matchScrutineeAILANGType = typ // M-DX22/M-DX29: Store for ADT type extraction
+			// M-DX26: Only map to Go type if NOT in impl function (impl uses interface{})
+			if !inImplFunc {
+				if goType, err := g.TypeMapper.MapType(typ); err == nil {
+					g.matchScrutineeType = string(goType)
+				}
 			}
 		}
 	}
