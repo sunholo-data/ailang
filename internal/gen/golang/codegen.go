@@ -38,12 +38,30 @@ type ADTConstructorInfo struct {
 	FieldNames []string // Original field names (e.g., ["x", "y"]) - empty strings for positional fields
 }
 
+// TypeCategory represents whether a record type should be generated as value or pointer in Go.
+// M-CODEGEN-VALUE-TYPES: Size-based strategy for optimal Go code generation.
+type TypeCategory int
+
+const (
+	// TypeCategoryPointer means the type is generated as a pointer (*Type).
+	// Used for: large records, nested records, recursive types, ADTs.
+	TypeCategoryPointer TypeCategory = iota
+
+	// TypeCategoryValue means the type is generated as a value (Type).
+	// Used for: small leaf records with only primitive fields.
+	TypeCategoryValue
+)
+
 // RecordTypeInfo holds information about a record type for typed struct generation.
 // M-DX13: Enables generating typed struct literals instead of map[string]interface{}.
+// M-CODEGEN-VALUE-TYPES: Extended with Category for value vs pointer decisions.
 type RecordTypeInfo struct {
 	Name       string            // Go struct name (e.g., "World")
 	Fields     []string          // Field names in order (e.g., ["Npcs", "Tiles", "Width", "Height"])
 	FieldTypes map[string]string // Field name -> Go type (e.g., "Npcs" -> "[]*NPC")
+	FieldCount int               // Number of fields
+	Category   TypeCategory      // Value or Pointer
+	IsLeaf     bool              // True if all fields are primitives (no nested records/ADTs)
 }
 
 // Generator produces Go source code from AILANG Core AST.
@@ -162,6 +180,11 @@ type Generator struct {
 	// M-DX18: Non-exported functions are prefixed with {moduleName}__ to prevent collisions
 	// when compiling multiple modules to the same Go package.
 	moduleName string
+
+	// valueThreshold is the maximum field count for value type generation
+	// M-CODEGEN-VALUE-TYPES: Records with ≤threshold primitive-only fields are generated as values
+	// Default: 4. Set to 0 to force all pointers (v0.5.9 behavior).
+	valueThreshold int
 }
 
 // FuncTypeOverride stores explicit function type signatures from AST annotations.
@@ -218,6 +241,23 @@ func (g *Generator) GetModuleName() string {
 	return g.moduleName
 }
 
+// SetValueThreshold sets the maximum field count for value type generation.
+// M-CODEGEN-VALUE-TYPES: Records with ≤threshold primitive-only fields are generated as values.
+// Set to 0 to force all pointers (v0.5.9 behavior).
+// Negative values are treated as 0.
+func (g *Generator) SetValueThreshold(threshold int) {
+	if threshold < 0 {
+		threshold = 0
+	}
+	g.valueThreshold = threshold
+}
+
+// GetValueThreshold returns the current value threshold.
+// M-CODEGEN-VALUE-TYPES: Used for testing and debugging.
+func (g *Generator) GetValueThreshold() int {
+	return g.valueThreshold
+}
+
 // New creates a new Generator with the specified package name.
 func New(packageName string) *Generator {
 	g := &Generator{
@@ -232,6 +272,7 @@ func New(packageName string) *Generator {
 		funcReturnTypes:   make(map[string]string),
 		currentFuncParams: make(map[string]string),
 		typedLocalVars:    make(map[string]string),
+		valueThreshold:    4, // M-CODEGEN-VALUE-TYPES: Default threshold
 	}
 	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
 	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {
