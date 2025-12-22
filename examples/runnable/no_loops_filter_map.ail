@@ -1,0 +1,19 @@
+-- no_loops_filter_map.ail - Transformation without loops
+-- Demonstrates: map and filter combinators (replaces conditional for loops)
+module examples/runnable/no_loops_filter_map
+import std/list (map, filter, foldl)
+
+let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+-- Double each element (instead of: for x in xs: result.append(x * 2))
+let doubled = map(\x. x * 2, numbers)
+
+-- Keep only evens (instead of: for x in xs: if x % 2 == 0: result.append(x))
+let evens = filter(\x. x % 2 == 0, numbers)
+
+-- Chain: filter evens, then square them, then sum
+-- (instead of: for x in xs: if x % 2 == 0: total += x * x)
+let sumOfSquaredEvens = foldl(\acc x. acc + x, 0, map(\x. x * x, filter(\x. x % 2 == 0, numbers)))
+
+-- Results: doubled=[2,4,6...], evens=[2,4,6,8,10], sumOfSquaredEvens=220
+(doubled, evens, sumOfSquaredEvens)

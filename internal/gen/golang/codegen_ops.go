@@ -337,25 +337,49 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 				}
 			} else {
 				// Interface value - use type assertion
-				if err := g.generateExpr(value); err != nil {
-					return err
-				}
-				// M-CODEGEN-POINTER-RETURN-TYPES: Add type assertion for all typed fields
-				// Both primitives (int64, string) and user-defined pointers (*ArrivalPhase)
-				// need type assertions when value is interface{}
-				// BUT: ADT constructors already return typed pointers, not interface{}
-				if g.exprProducesInterface(value) && !g.isADTConstructorExpr(value) {
-					// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record
-					// FieldTypes stores "*SystemPos" but value types are stored as "SystemPos" at runtime
-					assertType := goType
-					if strings.HasPrefix(goType, "*") {
-						baseType := strings.TrimPrefix(goType, "*")
-						if recordInfo, ok := g.recordTypes[baseType]; ok && recordInfo.Category == TypeCategoryValue {
-							// Value type record - runtime stores value, not pointer
-							assertType = baseType
+				// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record from FieldGet
+				// FieldGet ALWAYS returns pointers for struct fields (uses f.Addr().Interface())
+				// For value-type records, we need: *value.(*SystemPos) to dereference
+				isValueTypeFromFieldGet := false
+				if strings.HasPrefix(goType, "*") {
+					baseType := strings.TrimPrefix(goType, "*")
+					if recordInfo, ok := g.recordTypes[baseType]; ok && recordInfo.Category == TypeCategoryValue {
+						// Check if value comes from FieldGet (RecordAccess)
+						if _, isRecordAccess := value.(*core.RecordAccess); isRecordAccess {
+							isValueTypeFromFieldGet = true
 						}
 					}
-					g.writef(".(%s)", assertType)
+				}
+
+				if isValueTypeFromFieldGet {
+					// Value-type from FieldGet: dereference the pointer
+					// FieldGet returns *SystemPos, but field expects SystemPos
+					g.write("*(")
+					if err := g.generateExpr(value); err != nil {
+						return err
+					}
+					g.writef(".(%s))", goType) // Assert to *SystemPos, then dereference
+				} else {
+					if err := g.generateExpr(value); err != nil {
+						return err
+					}
+					// M-CODEGEN-POINTER-RETURN-TYPES: Add type assertion for all typed fields
+					// Both primitives (int64, string) and user-defined pointers (*ArrivalPhase)
+					// need type assertions when value is interface{}
+					// BUT: ADT constructors already return typed pointers, not interface{}
+					if g.exprProducesInterface(value) && !g.isADTConstructorExpr(value) {
+						// M-CODEGEN-VALUE-TYPES: Check if this is a value-type record
+						// For non-FieldGet sources, we may get values directly
+						assertType := goType
+						if strings.HasPrefix(goType, "*") {
+							baseType := strings.TrimPrefix(goType, "*")
+							if recordInfo, ok := g.recordTypes[baseType]; ok && recordInfo.Category == TypeCategoryValue {
+								// Value type record from other sources - may be value
+								assertType = baseType
+							}
+						}
+						g.writef(".(%s)", assertType)
+					}
 				}
 			}
 		} else {
