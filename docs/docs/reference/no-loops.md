@@ -77,7 +77,12 @@ func sum(list: List[Int]) -> Int {
 ### Approach 2: Fold Combinators (Catamorphisms)
 
 ```ailang
-foldl(range(0, 10), 0, \acc, i. acc + i)
+module examples/sum_fold
+import std/list (foldl)
+
+-- Sum integers 0 through 9
+let numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] in
+foldl(\acc x. acc + x, 0, numbers)  -- Result: 45
 ```
 
 **Guarantees:**
@@ -96,52 +101,60 @@ AILANG's iteration primitives obey **equational laws** that enable safe transfor
 
 **Identity**:
 ```ailang
-foldl([], z, f) = z
-foldr([], z, f) = z
+foldl(f, z, []) = z
+foldr(f, z, []) = z
 ```
 
 **Fusion** (fold-after-map):
 ```ailang
-foldl(map(xs, g), z, f) = foldl(xs, z, \acc, x. f(acc, g(x)))
+foldl(f, z, map(g, xs)) = foldl(\acc x. f(acc, g(x)), z, xs)
 ```
 
 **Associativity** (for commutative operators):
 ```ailang
-foldl(xs ++ ys, z, f) = foldl(ys, foldl(xs, z, f), f)
+foldl(f, z, xs ++ ys) = foldl(f, foldl(f, z, xs), ys)
 ```
 
 ### Map Laws
 
 **Identity**:
 ```ailang
-map(xs, \x. x) = xs
+map(\x. x, xs) = xs
 ```
 
 **Composition**:
 ```ailang
-map(map(xs, f), g) = map(xs, \x. g(f(x)))
+map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 **Fusion** (map-after-map):
 ```ailang
-map(xs, g) . map(xs, f) = map(xs, \x. g(f(x)))
+map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 ### Effect Preservation
 
 **Pure functions preserve purity**:
 ```ailang
-map : (a -> b) -> List[a] -> List[b]
+-- map has no effect annotation → guaranteed pure
+map : ((a) -> b, [a]) -> [b]
 ```
 
-**Effectful functions propagate effects**:
+**Effectful functions propagate effects** (planned):
 ```ailang
-mapM : (a -> b ! {E}) -> List[a] -> List[b] ! {E}
+-- Future: mapM will propagate effects from the mapping function
+mapM : ((a) -> b ! {E}, [a]) -> [b] ! {E}
 ```
 
-**Explicit effect threading**:
+**Current approach** - use explicit recursion for effectful iteration:
 ```ailang
-foldlM : (acc -> a -> acc ! {E}) -> acc -> List[a] -> acc ! {E}
+-- Pattern matching makes effects explicit at each step
+func printAll(xs: [int]) -> () ! {IO} {
+  match xs {
+    [] => (),
+    [x, ...rest] => { _io_println(show(x)); printAll(rest) }
+  }
+}
 ```
 
 These laws **do not hold** for imperative loops (mutation breaks equational reasoning).

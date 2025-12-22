@@ -9,6 +9,23 @@ import (
 	"github.com/sunholo/ailang/internal/types"
 )
 
+// extractADTTypeName extracts the ADT type name from an AILANG type.
+// M-DX22: Used to determine the correct ADT type when constructor names collide.
+// Returns empty string if the type is not an ADT or type name cannot be determined.
+func (g *Generator) extractADTTypeName(typ types.Type) string {
+	switch t := typ.(type) {
+	case *types.TCon:
+		// Simple ADT type like SpectralType
+		return t.Name
+	case *types.TApp:
+		// Generic ADT type like Option[T]
+		if con, ok := t.Constructor.(*types.TCon); ok {
+			return con.Name
+		}
+	}
+	return ""
+}
+
 // generateMatch generates a Go switch statement for pattern matching.
 // M-DX25.5: Uses typed IIFE return based on CoreTypeInfo.
 // M-DX26: In _impl functions (interface{} world), uses interface{} everywhere.
@@ -71,14 +88,20 @@ func (g *Generator) generateMatch(match *core.Match) error {
 
 	if needsTypeSwitch {
 		// ADT constructor matching - use Kind-based switch
-		// First, find the ADT type from constructor patterns
+		// M-DX22: First try to get ADT type from scrutinee's type info (avoids constructor name collisions)
 		var adtTypeName string
-		for _, arm := range match.Arms {
-			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
-				// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
-				if info, ok := g.LookupADTConstructor("", cp.Name); ok {
-					adtTypeName = info.TypeName
-					break
+		if g.matchScrutineeAILANGType != nil {
+			adtTypeName = g.extractADTTypeName(g.matchScrutineeAILANGType)
+		}
+		// Fallback: find the ADT type from constructor patterns (legacy behavior)
+		if adtTypeName == "" {
+			for _, arm := range match.Arms {
+				if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+					// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
+					if info, ok := g.LookupADTConstructor("", cp.Name); ok {
+						adtTypeName = info.TypeName
+						break
+					}
 				}
 			}
 		}
