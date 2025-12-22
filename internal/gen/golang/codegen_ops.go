@@ -341,24 +341,24 @@ func (g *Generator) generateTypedRecord(rec *core.Record, recordType *RecordType
 				// FieldGet ALWAYS returns pointers for struct fields (uses f.Addr().Interface())
 				// For value-type records, we need: *value.(*SystemPos) to dereference
 				isValueTypeFromFieldGet := false
-				if strings.HasPrefix(goType, "*") {
-					baseType := strings.TrimPrefix(goType, "*")
-					if recordInfo, ok := g.recordTypes[baseType]; ok && recordInfo.Category == TypeCategoryValue {
-						// Check if value comes from FieldGet (RecordAccess)
-						if _, isRecordAccess := value.(*core.RecordAccess); isRecordAccess {
-							isValueTypeFromFieldGet = true
-						}
+				// Check goType (strip * if present) against value-type records
+				checkType := strings.TrimPrefix(goType, "*")
+				if recordInfo, ok := g.recordTypes[checkType]; ok && recordInfo.Category == TypeCategoryValue {
+					// Check if value comes from FieldGet (RecordAccess)
+					if _, isRecordAccess := value.(*core.RecordAccess); isRecordAccess {
+						isValueTypeFromFieldGet = true
 					}
 				}
 
 				if isValueTypeFromFieldGet {
 					// Value-type from FieldGet: dereference the pointer
 					// FieldGet returns *SystemPos, but field expects SystemPos
+					// Generate: *(tmp.(*SystemPos)) to assert pointer then dereference to value
 					g.write("*(")
 					if err := g.generateExpr(value); err != nil {
 						return err
 					}
-					g.writef(".(%s))", goType) // Assert to *SystemPos, then dereference
+					g.writef(".(*%s))", checkType) // Assert to *SystemPos, then dereference
 				} else {
 					if err := g.generateExpr(value); err != nil {
 						return err
