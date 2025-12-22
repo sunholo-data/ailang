@@ -308,8 +308,9 @@ func compileCommand() {
 			}
 		} else if rec, ok := td.Definition.(*ast.RecordType); ok {
 			// M-DX13: Register record type for typed struct literal generation
+			// M-CODEGEN-VALUE-TYPES: Use analysis to determine value vs pointer category
 			fields, fieldTypes := extractRecordTypeInfo(rec)
-			codeGen.RegisterRecordType(capitalize(td.Name), fields, fieldTypes)
+			codeGen.RegisterRecordTypeWithAnalysis(capitalize(td.Name), fields, fieldTypes)
 		}
 	}
 

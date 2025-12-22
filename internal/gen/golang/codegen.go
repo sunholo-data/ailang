@@ -373,11 +373,18 @@ func (g *Generator) LookupADTConstructorByQualifiedName(qualifiedKey string) (*A
 // M-DX13: Enables generating &World{Field: val} instead of map[string]interface{}{...}.
 // The fields slice should contain Go field names (PascalCase), and fieldTypes maps
 // each Go field name to its Go type string.
+//
+// M-CODEGEN-VALUE-TYPES: DEPRECATED - use RegisterRecordTypeWithAnalysis for automatic
+// value vs pointer analysis. This method defaults to pointer category for backward
+// compatibility but does NOT analyze field types.
 func (g *Generator) RegisterRecordType(name string, fields []string, fieldTypes map[string]string) {
 	g.recordTypes[name] = &RecordTypeInfo{
 		Name:       name,
 		Fields:     fields,
 		FieldTypes: fieldTypes,
+		FieldCount: len(fields),
+		Category:   TypeCategoryPointer, // Default to pointer for backward compatibility
+		IsLeaf:     false,               // Unknown without analysis
 	}
 }
 
