@@ -647,9 +647,21 @@ func (g *Generator) writeRecordSliceConverters() {
 		goTypeName := ToGoTypeName(typeName)
 		funcName := "ConvertTo" + goTypeName + "Slice"
 
-		g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
-		g.writef("// M-CODEGEN-UNIFIED-SLICE: Record slice converter.\n")
-		g.writef("func %s(v interface{}) []*%s {\n", funcName, goTypeName)
+		// M-CODEGEN-VALUE-TYPES: Check if this is a value type
+		recordInfo := g.recordTypes[typeName]
+		isValueType := recordInfo != nil && recordInfo.Category == TypeCategoryValue
+
+		if isValueType {
+			// Value type: generate []Type and e.(Type)
+			g.writef("// %s converts []interface{} to []%s.\n", funcName, goTypeName)
+			g.writef("// M-CODEGEN-UNIFIED-SLICE: Record slice converter (value type).\n")
+			g.writef("func %s(v interface{}) []%s {\n", funcName, goTypeName)
+		} else {
+			// Pointer type: generate []*Type and e.(*Type)
+			g.writef("// %s converts []interface{} to []*%s.\n", funcName, goTypeName)
+			g.writef("// M-CODEGEN-UNIFIED-SLICE: Record slice converter.\n")
+			g.writef("func %s(v interface{}) []*%s {\n", funcName, goTypeName)
+		}
 		g.indent++
 
 		// Handle nil
@@ -670,20 +682,38 @@ func (g *Generator) writeRecordSliceConverters() {
 		// Handle empty slice (return empty, not nil)
 		g.writef("if len(src) == 0 {\n")
 		g.indent++
-		g.writef("return []*%s{}\n", goTypeName)
+		if isValueType {
+			g.writef("return []%s{}\n", goTypeName)
+		} else {
+			g.writef("return []*%s{}\n", goTypeName)
+		}
 		g.indent--
 		g.writef("}\n")
 
 		// Convert elements
-		g.writef("out := make([]*%s, len(src))\n", goTypeName)
-		g.writef("for i, e := range src {\n")
-		g.indent++
-		g.writef("elem, ok := e.(*%s)\n", goTypeName)
-		g.writef("if !ok {\n")
-		g.indent++
-		g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
-		g.indent--
-		g.writef("}\n")
+		if isValueType {
+			// Value type: use e.(Type)
+			g.writef("out := make([]%s, len(src))\n", goTypeName)
+			g.writef("for i, e := range src {\n")
+			g.indent++
+			g.writef("elem, ok := e.(%s)\n", goTypeName)
+			g.writef("if !ok {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected %s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.indent--
+			g.writef("}\n")
+		} else {
+			// Pointer type: use e.(*Type)
+			g.writef("out := make([]*%s, len(src))\n", goTypeName)
+			g.writef("for i, e := range src {\n")
+			g.indent++
+			g.writef("elem, ok := e.(*%s)\n", goTypeName)
+			g.writef("if !ok {\n")
+			g.indent++
+			g.writef("panic(fmt.Sprintf(\"%s: element %%d: expected *%s, got %%T\", i, e))\n", funcName, goTypeName)
+			g.indent--
+			g.writef("}\n")
+		}
 		g.writef("out[i] = elem\n")
 		g.indent--
 		g.writef("}\n")
