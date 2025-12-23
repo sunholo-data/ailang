@@ -1,4 +1,4 @@
-module examples/type_inference_regression
+module examples/runnable/type_inference_regression
 
 -- Type Inference Regression Test
 -- Tests that [Direction] list types don't pollute int literals in same scope

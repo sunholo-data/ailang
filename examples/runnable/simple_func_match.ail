@@ -1,4 +1,4 @@
-module examples/simple_func_match
+module examples/runnable/simple_func_match
 
 import std/io (println)
 

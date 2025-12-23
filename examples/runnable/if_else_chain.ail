@@ -4,7 +4,7 @@
 --
 -- A 25-branch chain should generate ~50 lines instead of ~400 lines.
 
-module examples/if_else_chain
+module examples/runnable/if_else_chain
 
 -- Simple 5-branch if-else chain for testing
 pure func getTileType(distSq: int) -> int {

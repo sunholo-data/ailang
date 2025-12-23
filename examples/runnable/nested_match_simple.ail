@@ -1,4 +1,4 @@
-module examples/nested_match_simple
+module examples/runnable/nested_match_simple
 
 import std/io (println)
 

@@ -1,6 +1,6 @@
 -- Example file demonstrating cyclic type patterns
 -- Used to test `ailang debug cycles` command
-module examples/complex_types
+module examples/runnable/complex_types
 
 -- Expected cycle: standard recursive ADT (should be marked "expected")
 -- This is a common pattern for linked list structures

@@ -1,4 +1,4 @@
-module examples/factorial
+module examples/runnable/factorial
 
 import std/io (println)
 

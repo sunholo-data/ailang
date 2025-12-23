@@ -16,7 +16,7 @@
 // Canonical form remains the default output for formatters and error messages.
 // In --strict-syntax mode, only the canonical form is allowed.
 
-module examples/pattern_sugar
+module examples/runnable/pattern_sugar
 
 import std/io (println)
 

@@ -1,4 +1,4 @@
-module examples/string_split
+module examples/runnable/string_split
 
 import std/string (split)
 import std/io (println)

@@ -1,4 +1,4 @@
-module examples/match_in_block
+module examples/runnable/match_in_block
 
 // Even simpler: block with let THEN match
 

@@ -1,4 +1,4 @@
-module examples/list_pattern_records
+module examples/runnable/list_pattern_records
 
 -- List Pattern with Records Example
 -- Demonstrates record field access through list pattern bindings (fixed in v0.5.0: M-BUG-TVAR2-LIST-PATTERN)

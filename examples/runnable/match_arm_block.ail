@@ -1,4 +1,4 @@
-module examples/match_arm_block
+module examples/runnable/match_arm_block
 
 // Match arm with explicit block containing match
 

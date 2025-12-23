@@ -6,7 +6,7 @@
 -- - All operations are immutable (set returns new array)
 -- - get() throws on out-of-bounds, getOpt() returns Option[a]
 
-module examples/array_basic
+module examples/runnable/array_basic
 
 import std/io (print)
 import std/array as A

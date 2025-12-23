@@ -2,7 +2,7 @@
 -- Demonstrates using arrays for 2D grid operations (game use case)
 -- Uses flat array with row-major indexing for O(1) cell access
 
-module examples/array_grid
+module examples/runnable/array_grid
 
 import std/io (print)
 import std/array as A

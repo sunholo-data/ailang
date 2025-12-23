@@ -1,4 +1,4 @@
-module examples/string_parsing
+module examples/runnable/string_parsing
 
 -- Demonstrates string-to-number parsing with Option types
 -- Shows how to safely parse user input using pattern matching

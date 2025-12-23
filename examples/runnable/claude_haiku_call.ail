@@ -14,7 +14,7 @@
 --   2. Replace the placeholder in the main() function with your actual key
 --   3. Or modify the code to read from environment variables (when getEnv() is available)
 
-module examples/experimental/claude_haiku_call
+module examples/runnable/claude_haiku_call
 
 import std/json (encode, jo, ja, kv, js, jnum)
 import std/net (httpRequest, NetError, Transport, DisallowedHost, InvalidHeader, BodyTooLarge)

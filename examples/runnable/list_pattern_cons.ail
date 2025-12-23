@@ -10,7 +10,7 @@
 //
 // The :: pattern allows destructuring lists into head and tail components.
 
-module examples/list_pattern_cons
+module examples/runnable/list_pattern_cons
 
 import std/io (println)
 

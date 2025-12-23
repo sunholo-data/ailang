@@ -1,4 +1,4 @@
-module examples/nested_match_minimal
+module examples/runnable/nested_match_minimal
 
 // Absolute minimal case: single nested match with block arms
 

@@ -1,4 +1,4 @@
-module examples/record_update
+module examples/runnable/record_update
 
 -- Record Update Examples
 -- Demonstrates the {base | field: value} syntax for immutable record updates

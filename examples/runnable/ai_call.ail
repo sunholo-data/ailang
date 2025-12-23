@@ -14,7 +14,7 @@
 --   - Result matching (transport errors vs HTTP errors)
 --   - Error handling (truncated error bodies, status codes)
 
-module examples/experimental/ai_call
+module examples/runnable/ai_call
 
 import std/json (encode, jo, ja, kv, js, jnum)
 import std/io (println)

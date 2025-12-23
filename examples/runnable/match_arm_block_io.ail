@@ -1,4 +1,4 @@
-module examples/match_arm_block_io
+module examples/runnable/match_arm_block_io
 
 import std/io (println)
 

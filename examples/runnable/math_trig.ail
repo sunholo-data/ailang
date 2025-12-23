@@ -1,7 +1,7 @@
 -- Math Trigonometry Example (v0.5.10)
 -- Demonstrates the new trigonometric and advanced math functions
 
-module examples/math_trig
+module examples/runnable/math_trig
 
 import std/io (println)
 import std/math (sin, cos, tan, sqrt, atan2, PI, E, pow, exp, log, floor, ceil, round, abs_Float, abs_Int)
