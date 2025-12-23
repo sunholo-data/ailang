@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-70%20passing%2023%20failing-orange.svg)
+![Examples](https://img.shields.io/badge/examples-68%20passing%2029%20failing-orange.svg)
 
-**70/93 examples passing (75%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**68/97 examples passing (70%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -11,7 +11,7 @@
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/adt_tree.ail` | ✅ Pass |  |
 | `runnable/ai_call.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
-| `runnable/ai_effect.ail` | ✅ Pass |  |
+| `runnable/ai_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
 | `runnable/array_basic.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
@@ -26,16 +26,20 @@
 | `runnable/contracts/basic.ail` | ✅ Pass |  |
 | `runnable/contracts/park.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ✅ Pass |  |
-| `runnable/debug_effect.ail` | ✅ Pass |  |
+| `runnable/debug_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/demo_ai_api.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
 | `runnable/demos/hello_io.ail` | ✅ Pass |  |
+| `runnable/effect_budgets.ail` | ✅ Pass |  |
+| `runnable/effect_budgets_exhausted.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/effect_budgets_multi.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/effect_budgets_rand.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/effects_basic.ail` | ✅ Pass |  |
 | `runnable/effects_fs_io.ail` | ✅ Pass |  |
 | `runnable/effects_pure.ail` | ✅ Pass |  |
 | `runnable/factorial.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/func_expressions.ail` | ✅ Pass |  |
-| `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
+| `runnable/game_npc_dialogue.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
 | `runnable/http_simple.ail` | ✅ Pass |  |
