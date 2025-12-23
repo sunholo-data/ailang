@@ -92,6 +92,12 @@ func runExample(filename string) reporttypes.ExampleResult {
 	if strings.Contains(fileContent, "! {Clock") || strings.Contains(fileContent, "_clock_") || strings.Contains(fileContent, "import std/clock") {
 		caps = append(caps, "Clock")
 	}
+	if strings.Contains(fileContent, "! {Rand") || strings.Contains(fileContent, "_rand_") || strings.Contains(fileContent, "import std/rand") {
+		caps = append(caps, "Rand")
+	}
+	if strings.Contains(fileContent, "! {Env") || strings.Contains(fileContent, "_env_") || strings.Contains(fileContent, "import std/env") {
+		caps = append(caps, "Env")
+	}
 	// Detect AI capability (requires --ai-stub for testing)
 	needsAIStub := false
 	if strings.Contains(fileContent, "! {AI") || strings.Contains(fileContent, "import std/ai") {

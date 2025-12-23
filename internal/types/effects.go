@@ -102,15 +102,19 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 // IsKnownEffect checks if an effect name is one of the canonical effects
 func IsKnownEffect(name string) bool {
 	knownEffects := map[string]bool{
-		"IO":        true,
-		"FS":        true,
-		"Net":       true,
-		"Clock":     true,
-		"Rand":      true,
-		"DB":        true,
-		"Trace":     true,
-		"Async":     true,
-		"SharedMem": true, // v0.5.11: Shared memory cache effect (M-DX15)
+		"IO":          true,
+		"FS":          true,
+		"Net":         true,
+		"Clock":       true,
+		"Rand":        true,
+		"DB":          true,
+		"Trace":       true,
+		"Async":       true,
+		"Env":         true, // v0.4.0: Environment variable access
+		"Debug":       true, // v0.4.10: Structured tracing/assertions (ghost effect)
+		"AI":          true, // v0.5.1: General-purpose AI oracle
+		"SharedMem":   true, // v0.5.11: Shared memory cache effect (M-DX15)
+		"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
 	}
 	return knownEffects[name]
 }
