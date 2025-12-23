@@ -1,9 +1,9 @@
 # 🧠 AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-89%20passing%208%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-93%20passing%204%20failing-green.svg)
 
-**89/97 examples passing (92%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
+**93/97 examples passing (96%)** - Each example exercises specific language features, so this directly reflects implementation completeness.
 
 | Example File | Status | Notes |
 |--------------|--------|-------|
@@ -11,7 +11,7 @@
 | `runnable/adt_simple.ail` | ✅ Pass |  |
 | `runnable/adt_tree.ail` | ✅ Pass |  |
 | `runnable/ai_call.ail` | ✅ Pass |  |
-| `runnable/ai_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/ai_effect.ail` | ✅ Pass |  |
 | `runnable/arithmetic.ail` | ✅ Pass |  |
 | `runnable/array_adt.ail` | ✅ Pass |  |
 | `runnable/array_basic.ail` | ✅ Pass |  |
@@ -20,13 +20,13 @@
 | `runnable/block_recursion.ail` | ✅ Pass |  |
 | `runnable/bug_float_comparison.ail` | ✅ Pass |  |
 | `runnable/claude_haiku_call.ail` | ✅ Pass |  |
-| `runnable/cli_args_demo.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/cli_args_demo.ail` | ✅ Pass |  |
 | `runnable/closures.ail` | ✅ Pass |  |
 | `runnable/complex_types.ail` | ✅ Pass |  |
 | `runnable/contracts/basic.ail` | ✅ Pass |  |
 | `runnable/contracts/park.ail` | ✅ Pass |  |
 | `runnable/conway_grid.ail` | ✅ Pass |  |
-| `runnable/debug_effect.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/debug_effect.ail` | ✅ Pass |  |
 | `runnable/demo_ai_api.ail` | ✅ Pass |  |
 | `runnable/demos/adt_pipeline.ail` | ✅ Pass |  |
 | `runnable/demos/hello_io.ail` | ✅ Pass |  |
@@ -39,7 +39,7 @@
 | `runnable/effects_pure.ail` | ✅ Pass |  |
 | `runnable/factorial.ail` | ✅ Pass |  |
 | `runnable/func_expressions.ail` | ✅ Pass |  |
-| `runnable/game_npc_dialogue.ail` | ❌ Fail | Warning: stdlib version mismatch: expected dev,... |
+| `runnable/game_npc_dialogue.ail` | ✅ Pass |  |
 | `runnable/guards_basic.ail` | ✅ Pass |  |
 | `runnable/hello.ail` | ✅ Pass |  |
 | `runnable/http_simple.ail` | ✅ Pass |  |
