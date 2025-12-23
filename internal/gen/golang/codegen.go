@@ -266,15 +266,15 @@ func (g *Generator) GetValueThreshold() int {
 // New creates a new Generator with the specified package name.
 func New(packageName string) *Generator {
 	g := &Generator{
-		PackageName:       packageName,
-		TypeMapper:        NewTypeMapper(),
-		adtConstructors:   make(map[string]*ADTConstructorInfo),
-		topLevelFuncs:     make(map[string]string),
-		topLevelImplFuncs: make(map[string]string),
-		adtSliceTypes:     make(map[string]bool),
-		recordTypes:       make(map[string]*RecordTypeInfo),
-		funcParamTypes:    make(map[string][]string),
-		funcReturnTypes:   make(map[string]string),
+		PackageName:         packageName,
+		TypeMapper:          NewTypeMapper(),
+		adtConstructors:     make(map[string]*ADTConstructorInfo),
+		topLevelFuncs:       make(map[string]string),
+		topLevelImplFuncs:   make(map[string]string),
+		adtSliceTypes:       make(map[string]bool),
+		recordTypes:         make(map[string]*RecordTypeInfo),
+		funcParamTypes:      make(map[string][]string),
+		funcReturnTypes:     make(map[string]string),
 		currentFuncParams:   make(map[string]string),
 		typedLocalVars:      make(map[string]string),
 		valueThreshold:      4, // M-CODEGEN-VALUE-TYPES: Default threshold

@@ -90,6 +90,55 @@ let process = \x. ! {IO @limit=5, FS @limit=2}
   result
 ```
 
+### Budget Semantics: What Is Counted?
+
+**Critical clarification (from design review):**
+
+> **Rule:** Type-level budgets count **effect invocations**, not semantic cost.
+
+| Budget Kind | Counts | Layer | Example |
+|-------------|--------|-------|---------|
+| `IO @limit=N` | Number of IO effect invocations | Type-level | 3 print calls = 3 uses |
+| `Net @limit=N` | Number of Net effect invocations | Type-level | 2 HTTP requests = 2 uses |
+| `api_calls` | Semantic API calls (may differ) | Runtime/spec | Batched API = 1 semantic call |
+| `tokens` | Token consumption | Runtime/spec | Sum of input + output tokens |
+| `cost_usd` | Monetary cost | Runtime/spec | Aggregated provider costs |
+
+**Why this distinction matters:**
+
+Type-level budgets are **syntactic guarantees** - the compiler can count effect sites statically. Runtime/spec budgets track **semantic resources** that may not map 1:1 to syntax.
+
+```ailang
+-- Type sees: 1 Net invocation
+let fetchBatch = \urls. ! {Net @limit=1}
+  batchFetch(urls)  -- Internally makes N HTTP calls
+
+-- Spec sees: N api_calls (semantic)
+-- envelope.api_calls: 10  -- This is the semantic limit
+```
+
+**Internal naming note:** Think `@uses` not `@limit` - it counts how many times the effect is *used*, not a rate limit.
+
+### Budget Scope: Per-Invocation, Not Global
+
+**Budgets apply per function invocation, not globally across the program.**
+
+```ailang
+let fetch3 = \(). ! {Net @limit=3}
+  fetch(url1); fetch(url2); fetch(url3)
+
+-- Each call to fetch3 has its own budget of 3:
+fetch3()  -- Uses 3/3, OK
+fetch3()  -- Fresh budget: uses 3/3, OK
+fetch3()  -- Fresh budget: uses 3/3, OK
+-- Total: 9 Net effects, but each invocation is bounded
+```
+
+This design choice enables:
+- **Compositional reasoning** - function budgets are self-contained
+- **Static verification** - budget exhaustion checkable per function
+- **No hidden state** - no global counter to reason about
+
 ### Budget Composition
 
 ```ailang
@@ -274,11 +323,130 @@ let overBudget = \(). ! {IO @limit=2}
 | Ergonomics | Medium | Make budgets optional (unlimited by default) |
 | Dynamic budget verification | Medium | Runtime checks where static analysis fails |
 
+## Unified Budget Architecture
+
+**This feature is part of a larger budget system spanning v0.7.0 - v0.8.0.**
+
+### The Two Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    UNIFIED BUDGET SYSTEM                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  LAYER 1: TYPE-LEVEL (v0.7.0 - This Doc)                    │
+│  ────────────────────────────────────────                   │
+│  Syntax:   ! {IO @limit=N, Net @limit=M}                    │
+│  Purpose:  Static verification, type signatures             │
+│  When:     Compile time where possible                      │
+│                                                              │
+│                        ↓ compiles to ↓                       │
+│                                                              │
+│  LAYER 2: RUNTIME (v0.8.0 - D4 BudgetContext)               │
+│  ────────────────────────────────────────────               │
+│  Syntax:   BudgetContext{Limits, Usage, OnViolation}        │
+│  Purpose:  Runtime enforcement, spec-driven limits          │
+│  When:     Effect handler invocation                        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### How They Work Together
+
+| Source | Layer 1 (Type) | Layer 2 (Runtime) |
+|--------|----------------|-------------------|
+| **From code** | `! {IO @limit=5}` | Compiler injects budget check |
+| **From spec** | N/A | `envelope.api_calls: 5` in YAML |
+| **Combined** | Both apply | Runtime enforces MIN(type, spec) |
+
+### Shared BudgetContext
+
+Both layers use the same runtime infrastructure:
+
+```go
+// internal/effects/budget.go (shared by v0.7 + v0.8)
+type BudgetContext struct {
+    // Per-effect limits (from type annotations OR spec)
+    EffectLimits map[string]*EffectBudget  // "IO" -> {Limit: 5, Used: 2}
+
+    // Global limits (from spec envelope)
+    GlobalLimits BudgetLimits  // api_calls, execution_ms, tokens, cost_usd
+
+    // Current consumption
+    Usage BudgetUsage
+
+    // Policy (from spec or default)
+    Policy BudgetPolicy  // strict, warn, runtime
+
+    // Violation handler
+    OnViolation func(violation BudgetViolation) error
+}
+
+type EffectBudget struct {
+    Effect   string  // "IO", "Net", "AI", etc.
+    Limit    int     // Max uses
+    Used     int     // Current count
+    Source   string  // "type" or "spec"
+}
+```
+
+### Implementation Phases
+
+**Phase A (v0.7.0): Type-Level Budgets**
+1. Parse `@limit=N` syntax in effect types
+2. Store budget in effect AST
+3. Generate BudgetContext initialization from type annotations
+4. Wire budget checks into effect handlers
+5. `BudgetExhaustedError` with source location
+
+**Phase B (v0.8.0): Spec-Driven Budgets (D4)**
+1. Parse `envelope:` from design doc YAML
+2. Merge spec limits with type limits (MIN wins)
+3. Add `--spec` flag to inject limits at runtime
+4. Tri-state verification (PROVED/RUNTIME/UNKNOWN)
+5. Budget consumption in traces
+
+### Composition Rules
+
+When both type and spec define limits:
+
+```
+Type:  func fetch() ! {Net @limit=10}
+Spec:  envelope.api_calls: 5
+
+Result: Net budget = MIN(10, 5) = 5
+Reason: Spec is more restrictive, wins
+```
+
+When nested scopes have budgets:
+
+```ailang
+let outer = \(). ! {IO @limit=10}
+  let inner = \(). ! {IO @limit=3}
+    io1(); io2(); io3()  -- Uses 3 of inner's 3, 3 of outer's 10
+  in
+  inner();  -- 3 used
+  inner();  -- 6 used
+  inner();  -- 9 used
+  io();     -- 10 used (OK)
+  io()      -- 11 used (ERROR: outer exceeded)
+```
+
+**Rule:** Inner budget is a subset of outer. When inner exhausts, outer continues. When outer exhausts, everything stops.
+
+---
+
 ## Related Documents
 
+**Unified Budget System:**
+- [m-d4-design-doc-driven-development.md](../v0_8_0/m-d4-design-doc-driven-development.md) - D4 BudgetContext spec
+- [m-sem-kernel-vision.md](../v0_8_0/m-sem-kernel-vision.md) - Budget as bounded power (Pillar 5)
+- [execution-profiles.md](../v0_6_2/execution-profiles.md) - Per-profile effect budgets
+
 **Implemented (may inform design):**
-- Effect system implementation in `internal/effects/`
-- Capability system (`--caps` flag)
+- `internal/effects/context.go` - Existing NetContext constraints (MaxBytes, Timeout)
+- `internal/effects/capability.go` - Capability.Meta for future budget metadata
+- `internal/eval_harness/metrics.go` - Cost tracking (informs what to budget)
 
 **Axiom References:**
 - [Design Axioms](/docs/references/axioms) - A9: Cost Visibility
@@ -286,13 +454,15 @@ let overBudget = \(). ! {IO @limit=2}
 
 ## Future Work
 
-- Memory budgets (byte limits)
-- Time budgets (millisecond limits)
+- Memory budgets (byte limits) - integrate with GC
 - Automatic budget inference from code analysis
 - Budget negotiation between caller/callee
 - Budget visualization in traces
+- Token/cost budgets when AI effect boundary is defined
 
 ---
 
 **Document created**: 2025-12-19
-**Last updated**: 2025-12-19
+**Last updated**: 2025-12-23
+
+**Design Review**: Budget semantics clarified (invocation counts vs semantic cost)

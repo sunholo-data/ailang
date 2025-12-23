@@ -731,14 +731,21 @@ Sprint Plan Generated:
 
 ### Phase 1: Budget System (~3 days)
 
-**Prerequisite for D4 - budgets don't exist yet.**
+**Prerequisite for D4 - shared with [M-CAPABILITY-BUDGETS (v0.7.0)](../v0_7_0/m-capability-budgets.md).**
 
-- [ ] Create `internal/effects/budget.go`
-- [ ] Add `BudgetContext` with limits and usage tracking
+This phase implements the **runtime layer** of the unified budget system. The type-level syntax (`@limit=N`) is in v0.7.0; this phase builds the runtime infrastructure both features use.
+
+- [ ] Create `internal/effects/budget.go` (shared by v0.7 + v0.8)
+- [ ] Add `BudgetContext` with:
+  - `EffectLimits map[string]*EffectBudget` - per-effect budgets
+  - `GlobalLimits BudgetLimits` - envelope constraints
+  - `Policy BudgetPolicy` - strict/warn/runtime
 - [ ] Integrate `BudgetContext` into `EffContext`
 - [ ] Add budget-related builtins (`_budget_consume`, `_budget_check`)
 - [ ] Unit tests for budget system
-- [ ] CLI flag: `--budget api_calls=5,cost_usd=0.10`
+- [ ] CLI flag: `--budget api_calls=5,execution_ms=5000`
+
+**See:** [Unified Budget Architecture](../v0_7_0/m-capability-budgets.md#unified-budget-architecture) for how type-level and spec-driven budgets compose.
 
 ### Phase 2: Spec Schema (~2 days)
 
@@ -1098,5 +1105,295 @@ Grants (Effects):
 
 ---
 
+## Obligation Primitives v0 (Design Review Feedback)
+
+**Source:** External design review, December 2025
+
+A minimal, high-leverage set of obligation primitives (10) that map cleanly from "GitHub issue intent" → "compiler-enforceable checks" → "build manifest evidence". These are AILANG-native: effects, properties, modules, tests, traces, codegen.
+
+### Primitive 1: EffectEnvelope
+
+**What it enforces:** Exported API stays within an allowed effect set.
+
+**Why it matters:** Stops "AI quietly calls Net/FS/AI" when the issue didn't allow it.
+
+- **Example intent:** "This feature must be pure / offline / no network"
+- **Check:** For all exported funcs in scope, effects ⊆ allowed
+
+**Status:** ✅ Covered by `grants.effects.permitted` in current schema
+
+---
+
+### Primitive 2: NoEffect
+
+**What it enforces:** A scope is strictly pure (no effects).
+
+**Why it matters:** Gives you a hard "pure core" boundary for neurosymbolic separation.
+
+- **Example intent:** "Computation must be deterministic and side-effect free"
+- **Check:** Effect row is empty on all symbols in scope
+
+**Status:** 🔜 Add `grants.effects.pure_scope: true` as shorthand for empty permitted + all forbidden
+
+---
+
+### Primitive 3: RequiresProperty
+
+**What it enforces:** Certain functions/modules must carry a compiler-recognized property (your contracts layer).
+
+**Why it matters:** This is the bridge to "design doc → contract".
+
+- **Example intent:** "Must validate inputs", "must enforce policy", "must be verified"
+- **Check:** Property X attached to symbols; property rules satisfied
+
+**Status:** ⚠️ NEW - Add `obligations.requires_properties` list
+
+```yaml
+obligations:
+  requires_properties:
+    - name: "InputValidation"
+      applies_to: ["createUser", "updateUser"]
+    - name: "PolicyEnforcement"
+      applies_to: ["accessResource"]
+```
+
+---
+
+### Primitive 4: ForbidsProperty
+
+**What it enforces:** Disallow properties that imply unsafe behavior.
+
+**Why it matters:** Lets you ban classes of implementation tactics (e.g., "unsafe", "unchecked", "raw").
+
+- **Example intent:** "No raw SQL", "no bypass policy"
+- **Check:** Absence of property RawSQL / property Unsafe in scope
+
+**Status:** ⚠️ NEW - Add `obligations.forbidden_properties` list
+
+```yaml
+obligations:
+  forbidden_properties:
+    - "RawSQL"
+    - "Unsafe"
+    - "BypassPolicy"
+```
+
+---
+
+### Primitive 5: RequiresHandler
+
+**What it enforces:** If a module uses effect E, it must route through an approved handler/boundary module.
+
+**Why it matters:** Prevents ad hoc IO; centralizes enforcement/logging/tracing.
+
+- **Example intent:** "All DB writes must go through audited layer"
+- **Check:** Effect operations originate only from std/db (or your boundary module)
+
+**Status:** ⚠️ NEW - Add `grants.effect_handlers` constraint
+
+```yaml
+grants:
+  effect_handlers:
+    FS:
+      required_handler: "std/fs/audited"
+      allowed_operations: ["read"]
+    DB:
+      required_handler: "modules/db_boundary"
+```
+
+---
+
+### Primitive 6: Budget
+
+**What it enforces:** Quantitative limits on effectful operations (compile-time where possible, otherwise runtime-instrumented with trace-backed failure).
+
+**Why it matters:** Makes cost/safety constraints real.
+
+- **Example intent:** "No more than 3 external calls", "no large file reads"
+- **Check:**
+  - Static: bounded by structure where possible
+  - Otherwise: inject runtime counters + fail with typed violation event
+
+**Status:** ✅ Covered by `envelope` in current schema (api_calls, execution_ms)
+
+**Open question from reviewer:**
+> Do you want Budgets to be hard runtime failures or "trace + warn" initially?
+
+**Answer:** Configurable via `policy.budgets`:
+- `strict` = hard runtime failure
+- `warn` = trace + warn, continue execution
+- `runtime` = enforce at runtime but log before failing
+
+---
+
+### Primitive 7: RequiresAcceptanceTests
+
+**What it enforces:** A feature cannot be "implemented" unless tests tagged to that feature exist.
+
+**Why it matters:** Prevents "done" without executable intent.
+
+- **Example intent:** "Edge case X must be covered"
+- **Check:** Tests exist with `@acceptance(M-XYZ)` (or similar tag)
+
+**Status:** ⚠️ NEW - Add `obligations.requires_acceptance_tests`
+
+```yaml
+obligations:
+  requires_acceptance_tests:
+    - feature_id: "M-XYZ"
+      min_tests: 1
+      test_pattern: "test_*_m_xyz_*"
+```
+
+**Verifier output:**
+```
+Obligations (AcceptanceTests):
+  ✅ PROVED: M-XYZ has 3 tests matching pattern
+  ⚠️ UNKNOWN: M-ABC has no tests (required: 1)
+```
+
+---
+
+### Primitive 8: TraceShape
+
+**What it enforces:** Certain trace frames/events must exist for a feature.
+
+**Why it matters:** Ensures AI/humans can audit behavior without reading code.
+
+- **Example intent:** "Contract failures must be traceable", "emit dedupe stats"
+- **Check:** Compiler inserts/validates trace frame hooks on boundaries; runtime verifies schema
+
+**Status:** ⚠️ NEW - Add `obligations.trace_shape`
+
+```yaml
+obligations:
+  trace_shape:
+    - event: "contract_violation"
+      fields: ["predicate", "actual_value", "source_location"]
+    - event: "api_call"
+      fields: ["endpoint", "response_status", "latency_ms"]
+    - event: "dedupe_stats"
+      fields: ["total_items", "unique_items", "duplicates_removed"]
+```
+
+---
+
+### Primitive 9: ArtifactMarker
+
+**What it enforces:** Codegen output includes a stable marker linking build artifacts to FeatureSpec IDs.
+
+**Why it matters:** You can prove "this binary implements M-XYZ" in CI without guessing.
+
+- **Example intent:** "This feature is auditable in builds"
+- **Check:** Manifest + generated Go includes `@ailang_feature(M-XYZ, hash=...)`
+
+**Status:** ⚠️ NEW - Add to codegen + manifest output
+
+**Generated Go:**
+```go
+// @ailang_feature(M-XYZ, spec_hash=a1b2c3d4, code_hash=e5f6g7h8)
+func fetchUser_impl(ctx *effects.EffContext, userId interface{}) interface{} {
+    // ...
+}
+```
+
+**Manifest (build-manifest.json):**
+```json
+{
+  "features": [
+    {
+      "id": "M-XYZ",
+      "spec_path": "design_docs/planned/v0_8_0/user_fetch.md",
+      "spec_hash": "a1b2c3d4",
+      "code_hash": "e5f6g7h8",
+      "implemented_functions": ["fetchUser", "fetchUserBatch"]
+    }
+  ]
+}
+```
+
+---
+
+### Primitive 10: Compat
+
+**What it enforces:** Versioned interface compatibility constraints (types/effects/contracts) for a module boundary.
+
+**Why it matters:** Enables component reuse "by contract" instead of by code.
+
+- **Example intent:** "Do not break consumers", "maintain stable API"
+- **Check:** Exported signatures/effects/properties match a declared interface version
+
+**Status:** ⚠️ NEW - Add `obligations.compat`
+
+```yaml
+obligations:
+  compat:
+    interface_version: "1.0"
+    exported_types:
+      - name: "UserResult"
+        signature: "{ status: Status, data: string }"
+    exported_functions:
+      - name: "fetchUser"
+        signature: "(userId: int) -> UserResult ! {Net}"
+```
+
+**Verifier output:**
+```
+Compat (v1.0):
+  ✅ PROVED: UserResult signature matches
+  ✅ PROVED: fetchUser signature matches
+  ⚠️ BREAKING: fetchUserBatch added new effect {IO} not in v1.0
+```
+
+---
+
+### Mapping to Pipeline
+
+**Issue → FeatureSpec (AI interviewer extracts):**
+- Allowed effects → EffectEnvelope, NoEffect
+- Safety constraints → RequiresHandler, ForbidsProperty, Budget
+- Correctness evidence → RequiresAcceptanceTests, RequiresProperty
+- Auditability → TraceShape, ArtifactMarker
+- Reuse guarantees → Compat
+
+**Compiler → Manifest (CI evidence):**
+- Which primitives passed
+- Which scope they applied to
+- Hashes of FeatureSpec + code artifacts
+
+---
+
+### Recommended Starting Set (MVP)
+
+If implementing only 7 primitives first:
+
+| Priority | Primitive | Rationale |
+|----------|-----------|-----------|
+| 1 | EffectEnvelope | ✅ Already in schema |
+| 2 | RequiresHandler | Safety: centralized effect routing |
+| 3 | RequiresProperty | Bridge from design doc to contracts |
+| 4 | ForbidsProperty | Ban unsafe implementation tactics |
+| 5 | RequiresAcceptanceTests | Prevent "done" without tests |
+| 6 | TraceShape | Auditability without code reading |
+| 7 | ArtifactMarker | CI provenance: "binary implements M-XYZ" |
+
+This gives safety + auditability + "intent → enforcement" with minimal complexity.
+
+---
+
+### Open Questions (From Reviewer)
+
+**Q1: Do you want Budgets to be hard runtime failures or "trace + warn" initially?**
+
+**A:** Configurable via `policy.budgets` (see Primitive 6 above). Default to `runtime` (enforce + log) for v0.8.0.
+
+**Q2: Do you already have a property mechanism suitable for RequiresProperty, or should FeatureSpec obligations target effects/tests first?**
+
+**A:** We have partial property support via contracts (`requires/ensures`). For v0.8.0:
+- Target effects/tests first (EffectEnvelope + RequiresAcceptanceTests)
+- Add RequiresProperty/ForbidsProperty as structured contract variants in v0.8.1
+
+---
+
 **Document created**: 2025-12-21
-**Last updated**: 2025-12-21
+**Last updated**: 2025-12-23
