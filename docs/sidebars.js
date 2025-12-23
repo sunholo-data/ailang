@@ -37,6 +37,7 @@ const sidebars = {
         'reference/language-syntax',
         'reference/modules',
         'reference/effects',
+        'reference/capability-budgets',
         'guides/contracts',
         'reference/arrays',
         'reference/no-loops',
