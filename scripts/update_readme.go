@@ -27,8 +27,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Generate markdown table
-	statusTable := generateStatusTable(report)
+	// Generate compact status (just badge + summary with link)
+	statusContent := generateCompactStatus(report)
 
 	// Read current README
 	readmeContent, err := os.ReadFile("README.md")
@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// Update README with new status
-	updatedContent := updateReadmeStatus(string(readmeContent), statusTable)
+	updatedContent := updateReadmeStatus(string(readmeContent), statusContent)
 
 	// Write updated README
 	if err := os.WriteFile("README.md", []byte(updatedContent), 0644); err != nil {
@@ -49,10 +49,11 @@ func main() {
 	fmt.Println("README updated successfully")
 }
 
-func generateStatusTable(report reporttypes.VerificationReport) string {
+// generateCompactStatus creates a compact status for README (badge + summary + link)
+func generateCompactStatus(report reporttypes.VerificationReport) string {
 	var sb strings.Builder
 
-	// Add badge
+	// Add examples badge
 	sb.WriteString("![Examples](https://img.shields.io/badge/examples-")
 	if report.Failed == 0 {
 		sb.WriteString(fmt.Sprintf("%d%%20passing-brightgreen", report.Passed))
@@ -68,54 +69,20 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 			sb.WriteString("red")
 		}
 	}
-	sb.WriteString(".svg)\n\n")
+	sb.WriteString(".svg)\n")
 
-	// Add summary with percentage
+	// Add license badge on same line
+	sb.WriteString("![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)\n\n")
+
+	// Add summary with link to full status
 	percentage := float64(report.Passed) / float64(report.TotalExamples) * 100
-	sb.WriteString(fmt.Sprintf("**%d/%d examples passing (%.0f%%)** - Each example exercises specific language features, so this directly reflects implementation completeness.\n\n",
+	sb.WriteString(fmt.Sprintf("**%d/%d examples passing (%.0f%%)** | [Full status](https://ailang.sunholo.com/docs/examples)\n",
 		report.Passed, report.TotalExamples, percentage))
-
-	// Create status table
-	sb.WriteString("| Example File | Status | Notes |\n")
-	sb.WriteString("|--------------|--------|-------|\n")
-
-	for _, result := range report.Results {
-		statusIcon := getStatusIcon(result.Status)
-		notes := ""
-		if result.Status == "failed" && result.Error != "" {
-			// Extract first line of error
-			lines := strings.Split(result.Error, "\n")
-			if len(lines) > 0 {
-				firstLine := strings.TrimSpace(lines[0])
-				if len(firstLine) > 50 {
-					firstLine = firstLine[:47] + "..."
-				}
-				notes = firstLine
-			}
-		} else if result.Status == "skipped" {
-			notes = "Test/demo file"
-		}
-
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", result.File, statusIcon, notes))
-	}
 
 	return sb.String()
 }
 
-func getStatusIcon(status string) string {
-	switch status {
-	case "passed":
-		return "✅ Pass"
-	case "failed":
-		return "❌ Fail"
-	case "skipped":
-		return "⏭️ Skip"
-	default:
-		return "❓ Unknown"
-	}
-}
-
-func updateReadmeStatus(content, statusTable string) string {
+func updateReadmeStatus(content, statusContent string) string {
 	// Look for markers in README
 	startMarker := "<!-- EXAMPLES_STATUS_START -->"
 	endMarker := "<!-- EXAMPLES_STATUS_END -->"
@@ -132,7 +99,7 @@ func updateReadmeStatus(content, statusTable string) string {
 				newLines := append(lines[:i+1],
 					"",
 					startMarker,
-					statusTable,
+					statusContent,
 					endMarker,
 				)
 				newLines = append(newLines, lines[i+1:]...)
@@ -140,11 +107,11 @@ func updateReadmeStatus(content, statusTable string) string {
 			}
 		}
 		// No main title found, prepend
-		return startMarker + "\n" + statusTable + "\n" + endMarker + "\n\n" + content
+		return startMarker + "\n" + statusContent + "\n" + endMarker + "\n\n" + content
 	}
 
 	// Replace content between markers
 	before := content[:startIdx+len(startMarker)]
 	after := content[endIdx:]
-	return before + "\n" + statusTable + "\n" + after
+	return before + "\n" + statusContent + after
 }
