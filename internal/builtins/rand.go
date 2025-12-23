@@ -72,7 +72,7 @@ func makeRandIntType() types.Type {
 
 func randIntImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Rand capability
-	if err := ctx.RequireCap("Rand"); err != nil {
+	if err := ctx.RequireCapWithBudget("Rand", ""); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +129,7 @@ func makeRandFloatType() types.Type {
 
 func randFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Rand capability
-	if err := ctx.RequireCap("Rand"); err != nil {
+	if err := ctx.RequireCapWithBudget("Rand", ""); err != nil {
 		return nil, err
 	}
 
@@ -182,7 +182,7 @@ func makeRandBoolType() types.Type {
 
 func randBoolImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Rand capability
-	if err := ctx.RequireCap("Rand"); err != nil {
+	if err := ctx.RequireCapWithBudget("Rand", ""); err != nil {
 		return nil, err
 	}
 
@@ -235,7 +235,7 @@ func makeRandSeedType() types.Type {
 
 func randSeedImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Rand capability
-	if err := ctx.RequireCap("Rand"); err != nil {
+	if err := ctx.RequireCapWithBudget("Rand", ""); err != nil {
 		return nil, err
 	}
 

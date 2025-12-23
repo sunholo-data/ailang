@@ -1,0 +1,56 @@
+-- Capability Budget Example
+--
+-- This example demonstrates effect budget limiting using the @limit annotation.
+-- Effect budgets allow you to restrict how many times a function can perform
+-- a particular effect, providing fine-grained resource control.
+--
+-- Run with: ailang run --caps IO --entry main examples/reference/capability_budgets.ail
+
+module examples/reference/capability_budgets
+
+import std/io (println)
+
+-- Function with an unlimited IO budget (no @limit annotation)
+export func unlimited() -> () ! {IO} {
+  println("Unlimited call 1");
+  println("Unlimited call 2");
+  println("Unlimited call 3");
+  println("Unlimited call 4");
+  ()
+}
+
+-- Function with a budget limit of 2 IO operations
+-- After 2 IO operations, further IO calls will fail with BudgetExhaustedError
+export func limited_two() -> () ! {IO @limit=2} {
+  println("Limited call 1");
+  println("Limited call 2");
+  -- If uncommented, this would fail: println("Limited call 3");
+  ()
+}
+
+-- Function that demonstrates per-invocation budget semantics
+-- Each call to this function gets a fresh budget of 3
+export func per_call_budget() -> () ! {IO @limit=3} {
+  println("Per-call A");
+  println("Per-call B");
+  println("Per-call C");
+  ()
+}
+
+-- Main entry point demonstrating budget behavior
+export func main() -> () ! {IO} {
+  -- Unlimited function - can perform as many IO operations as needed
+  println("=== Testing unlimited IO ===");
+  unlimited();
+
+  -- Limited function - only 2 IO operations allowed
+  println("=== Testing limited IO (2 calls) ===");
+  limited_two();
+
+  -- Per-invocation semantics - each call gets fresh budget
+  println("=== Testing per-invocation semantics ===");
+  per_call_budget();  -- First call: fresh budget of 3
+  per_call_budget();  -- Second call: fresh budget of 3
+
+  println("=== All tests passed! ===")
+}

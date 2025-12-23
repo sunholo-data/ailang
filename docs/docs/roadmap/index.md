@@ -14,6 +14,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-contracts-assert.md)
 - [M-CSP-SESSION-TYPES: CSP Concurrency with Session Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-csp-session-types.md)
+- [M-SEM-KERNEL: AILANG as a Symbolic Reasoning Kernel](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-sem-kernel-vision.md)
 - [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-verify-smt-verification.md)
 
 ## Planned for v0.7.0
@@ -24,7 +25,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-TOOLING-DETERMINISTIC.md)
 - [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
-- [M-CAPABILITY-BUDGETS: Resource-Bounded Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-capability-budgets.md)
+- [M-CODEGEN-IR-STRATEGY: Multi-Layer IR Architecture for Code Generation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-codegen-ir-strategy.md)
+- [M-D4: Design-Doc-Driven Development (D4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-d4-design-doc-driven-development.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-error-propagation.md)
 - [M-PATTERN-GUARDS: Evaluate Pattern Guard Conditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-pattern-guards.md)
 - [M-POLY-ARITH: Fix Polymorphic Arithmetic Operators in Lambdas](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-poly-arithmetic-fix.md)
@@ -33,25 +35,24 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-string-interpolation.md)
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-trace-export.md)
 
-## Planned for v0.6.1
+## Planned for v0.6.2
 
-- [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/M-AGENT-PROTOCOL.md)
-- [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/M-EVAL-AGENT-QUEUE.md)
-- [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/M-EVAL-AGENT.md)
-- [DX-17 Phase 2: Normalize TList to TApp at Parse Time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/dx-17-phase2-tlist-normalization.md)
-- [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/eval-dashboard-reliability.md)
-- [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/execution-profiles.md)
-- [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/global-collaboration-hub.md)
-- [Sprint Plan: M-CODEGEN-ADT-DOUBLE-PAREN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-adt-double-paren-sprint-plan.md)
-- [M-CODEGEN-ADT-DOUBLE-PAREN: Fix Empty Double-Paren ADT Constructor Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-adt-double-paren.md)
-- [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-v3-binding-hoisting.md)
-- [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-codegen-value-types.md)
-- [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-dx11-phase2-debug-events.md)
-- [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-dx11-phase2-sprint-plan.md)
-- [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-gemini-interactions-api.md)
-- [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-openai-responses-api-sprint.md)
-- [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/m-openai-responses-api.md)
-- [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_1/semantic-caching-future.md)
+- [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-AGENT-PROTOCOL.md)
+- [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-EVAL-AGENT-QUEUE.md)
+- [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-EVAL-AGENT.md)
+- [DX-17 Phase 2: Normalize TList to TApp at Parse Time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/dx-17-phase2-tlist-normalization.md)
+- [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/eval-dashboard-reliability.md)
+- [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/execution-profiles.md)
+- [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/global-collaboration-hub.md)
+- [Sprint Plan: M-CAPABILITY-BUDGETS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-capability-budgets-sprint-plan.md)
+- [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-codegen-v3-binding-hoisting.md)
+- [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-dx11-phase2-debug-events.md)
+- [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-dx11-phase2-sprint-plan.md)
+- [M-DX19: Auto-Derive Eq for ADT Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-dx19-auto-derive-eq.md)
+- [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-gemini-interactions-api.md)
+- [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-openai-responses-api-sprint.md)
+- [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-openai-responses-api.md)
+- [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/semantic-caching-future.md)
 
 ## Long-term Vision
 
@@ -66,4 +67,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 34 planned features across 3 upcoming versions.*
+*Generated at build time. 35 planned features across 3 upcoming versions.*

@@ -31,7 +31,7 @@ func (t *TypeVar) typeNode()      {}
 type FuncType struct {
 	Params  []Type
 	Return  Type
-	Effects []string
+	Effects []EffectAnnotation // Effect annotations with optional budgets
 	Pos     Pos
 }
 
@@ -40,9 +40,9 @@ func (f *FuncType) String() string {
 	for _, p := range f.Params {
 		params = append(params, p.String())
 	}
-	effectStr := ""
-	if len(f.Effects) > 0 {
-		effectStr = fmt.Sprintf(" ! {%s}", strings.Join(f.Effects, ", "))
+	effectStr := FormatEffects(f.Effects)
+	if effectStr != "" {
+		effectStr = " " + effectStr
 	}
 	return fmt.Sprintf("(%s -> %s%s)", strings.Join(params, ", "), f.Return, effectStr)
 }

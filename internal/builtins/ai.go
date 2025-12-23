@@ -75,7 +75,7 @@ func makeAICallType() types.Type {
 
 func aiCallImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check AI capability
-	if err := ctx.RequireCap("AI"); err != nil {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
 		return nil, err
 	}
 

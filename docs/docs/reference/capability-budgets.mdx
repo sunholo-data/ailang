@@ -1,0 +1,228 @@
+---
+sidebar_position: 4
+title: Capability Budgets
+description: Fine-grained resource control through effect budget limits
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import BudgetBasic from '!!raw-loader!@site/../examples/reference/budget_basic.ail';
+import BudgetPerInvocation from '!!raw-loader!@site/../examples/reference/budget_per_invocation.ail';
+import BudgetExhausted from '!!raw-loader!@site/../examples/reference/budget_exhausted.ail';
+import CapabilityBudgets from '!!raw-loader!@site/../examples/reference/capability_budgets.ail';
+
+# Capability Budgets
+
+Capability budgets allow you to **limit how many times a function can perform a particular effect**. This provides fine-grained resource control, preventing runaway loops, rate-limiting API calls, and enforcing resource constraints at the function level.
+
+## Why Budgets?
+
+Traditional capability systems are binary: either you can perform an effect or you can't. But in practice, you often want more nuanced control:
+
+| Scenario | Without Budgets | With Budgets |
+|----------|-----------------|--------------|
+| API rate limiting | Manual counting | `! {Net @limit=100}` |
+| Logging control | Global config | `! {IO @limit=5}` |
+| Resource exhaustion | Runtime OOM | Bounded failure |
+| Testing | Mock everything | Limit side effects |
+
+**Capability budgets give you:**
+- **Compile-time documentation**: See resource usage in function signatures
+- **Runtime enforcement**: Automatic failure when limits exceeded
+- **Per-invocation isolation**: Each function call gets a fresh budget
+- **Composable limits**: Nested calls respect their own budgets
+
+## Basic Syntax
+
+Add `@limit=N` to an effect in the function signature:
+
+<CodeBlock language="typescript" title="examples/reference/budget_basic.ail">
+  {BudgetBasic}
+</CodeBlock>
+
+Run with:
+```bash
+ailang run --caps IO --entry main examples/reference/budget_basic.ail
+```
+
+### Syntax Rules
+
+```typescript
+-- Single effect with budget
+func f() -> () ! {IO @limit=5} { ... }
+
+-- Multiple effects, one with budget
+func g() -> () ! {IO @limit=10, FS} { ... }
+
+-- Multiple effects with budgets
+func h() -> () ! {IO @limit=5, Net @limit=3} { ... }
+
+-- No budget = unlimited
+func unlimited() -> () ! {IO} { ... }
+```
+
+## Per-Invocation Semantics
+
+Each function **call** gets a fresh budget. The budget is not shared across calls:
+
+<CodeBlock language="typescript" title="examples/reference/budget_per_invocation.ail">
+  {BudgetPerInvocation}
+</CodeBlock>
+
+**Output:**
+```
+First call:
+  A
+  B
+Second call:
+  A
+  B
+Third call:
+  A
+  B
+All three calls succeeded - each got fresh budget of 2!
+```
+
+All three calls succeed because each gets its own budget of 2.
+
+## Budget Exhaustion
+
+When a function exceeds its budget, it fails with a `BudgetExhaustedError`:
+
+<CodeBlock language="typescript" title="examples/reference/budget_exhausted.ail">
+  {BudgetExhausted}
+</CodeBlock>
+
+**Output:**
+```
+Attempting to exceed budget...
+Call 1
+Call 2
+Error: effect 'IO' budget exhausted: limit=2, used=2
+Hint: Increase the budget with @limit=N or refactor to use fewer IO operations
+```
+
+The error includes:
+- **Effect name**: Which effect was exhausted
+- **Limit**: The configured budget
+- **Used**: How many operations were performed
+- **Hint**: Suggestions for fixing the issue
+
+## Complete Example
+
+This example demonstrates unlimited functions, limited functions, and per-invocation semantics all together:
+
+<CodeBlock language="typescript" title="examples/reference/capability_budgets.ail">
+  {CapabilityBudgets}
+</CodeBlock>
+
+## CLI Integration
+
+### Default Behavior
+
+Budget enforcement is enabled by default when effects have `@limit` annotations:
+
+```bash
+ailang run --caps IO --entry main program.ail
+```
+
+### Bypassing Budgets
+
+For debugging or development, use `--no-budgets` to disable enforcement:
+
+```bash
+# Normal mode - budget enforced
+ailang run --caps IO --entry main program.ail
+# Error on 3rd IO call if limit=2
+
+# Debug mode - budgets bypassed
+ailang run --caps IO --no-budgets --entry main program.ail
+# All IO calls succeed regardless of limits
+```
+
+:::warning
+`--no-budgets` should only be used for debugging. In production, budget enforcement helps catch resource leaks and infinite loops.
+:::
+
+## Design Philosophy
+
+### Why Per-Invocation?
+
+Budgets reset on each function call for several reasons:
+
+1. **Composability**: Functions can be called multiple times without interference
+2. **Predictability**: The same function behaves the same way each time
+3. **Testing**: Easy to test individual functions with known budgets
+4. **Reasoning**: Local reasoning about resource usage
+
+### Why Not Global Budgets?
+
+Global budgets (shared across all calls) are harder to reason about:
+
+```typescript
+-- Hypothetical global budget (NOT how AILANG works)
+func a() -> () ! {IO @global=5} { println("A"); () }
+func b() -> () ! {IO @global=5} { println("B"); () }
+
+-- This would be confusing:
+a(); a(); a();  -- Uses 3 of 5 global budget
+b(); b(); b();  -- Fails on 3rd call? Hard to predict!
+```
+
+AILANG's per-invocation semantics avoid this confusion.
+
+### Relationship to Capability Grants
+
+Budgets are **orthogonal** to capability grants:
+
+| Concept | Purpose | Checked At |
+|---------|---------|------------|
+| Capability Grant | Permission to use effect | Runtime (`--caps`) |
+| Budget Limit | Maximum uses per call | Runtime (effect ops) |
+
+You need **both** the capability AND sufficient budget:
+
+```bash
+# Needs IO capability AND respects @limit
+ailang run --caps IO --entry main program.ail
+```
+
+## Best Practices
+
+### 1. Start Without Budgets
+
+Add budgets when you identify specific resource concerns:
+
+```typescript
+-- Start with unlimited
+func process() -> () ! {IO} { ... }
+
+-- Add budget when needed
+func process() -> () ! {IO @limit=100} { ... }
+```
+
+### 2. Use Meaningful Limits
+
+Choose limits based on actual requirements:
+
+```typescript
+-- Too restrictive
+func fetchAll() -> () ! {Net @limit=1} { ... }  -- Only 1 request?
+
+-- More reasonable
+func fetchAll() -> () ! {Net @limit=50} { ... }  -- Batch of 50
+```
+
+### 3. Document the Rationale
+
+Add comments explaining why the limit exists:
+
+```typescript
+-- Rate limited to respect API quota (100 requests/minute)
+func apiCall() -> () ! {Net @limit=100} { ... }
+```
+
+## Related Resources
+
+- [Effect System](/docs/reference/effects) - Overview of AILANG's effect system
+- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
+- [Limitations](/docs/reference/limitations) - Known limitations

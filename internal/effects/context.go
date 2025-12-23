@@ -15,18 +15,20 @@ import (
 // Thread-safety: EffContext is typically created once per evaluation and
 // should not be mutated concurrently.
 type EffContext struct {
-	Caps         map[string]Capability // Effect name → Capability grant
-	Env          EffEnv                // Environment configuration
-	Clock        *ClockContext         // Clock effect state (monotonic time)
-	Net          *NetContext           // Net effect configuration (security settings)
-	Debug        *DebugContext         // Debug effect state (logs, assertions)
-	AI           *AIContext            // AI effect state (handler for AI.call)
-	SharedMem    *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
-	SharedIndex  *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
-	Contracts    *ContractContext      // Contract effect state (M-VERIFY)
-	EnvSnapshot  map[string]string     // Env effect: immutable snapshot of environment variables
-	EnvAllowlist []string              // Env effect: allowed variable names (nil = allow all)
-	Args         []string              // CLI arguments passed to the program (excluding program name)
+	Caps           map[string]Capability // Effect name → Capability grant
+	Env            EffEnv                // Environment configuration
+	Clock          *ClockContext         // Clock effect state (monotonic time)
+	Net            *NetContext           // Net effect configuration (security settings)
+	Debug          *DebugContext         // Debug effect state (logs, assertions)
+	AI             *AIContext            // AI effect state (handler for AI.call)
+	SharedMem      *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
+	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
+	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
+	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
+	DisableBudgets bool                  // Bypass budget enforcement (--no-budgets flag)
+	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
+	EnvAllowlist   []string              // Env effect: allowed variable names (nil = allow all)
+	Args           []string              // CLI arguments passed to the program (excluding program name)
 }
 
 // EffEnv provides deterministic effect execution configuration
@@ -212,6 +214,99 @@ func (ctx *EffContext) RequireCap(name string) error {
 		return NewCapabilityError(name)
 	}
 	return nil
+}
+
+// RequireCapWithBudget checks for capability and budget, consuming one budget unit
+//
+// This combines capability checking with budget enforcement. Use this instead of
+// RequireCap when budgets are configured.
+//
+// Parameters:
+//   - name: The required capability name
+//   - position: Source position for error reporting (optional)
+//
+// Returns:
+//   - nil if the capability is granted and budget is available
+//   - CapabilityError if the capability is missing
+//   - BudgetExhaustedError if the budget is exhausted
+//
+// Example:
+//
+//	if err := ctx.RequireCapWithBudget("IO", "file.ail:10:5"); err != nil {
+//	    return nil, err
+//	}
+//	// IO operation allowed here
+func (ctx *EffContext) RequireCapWithBudget(name, position string) error {
+	// First check capability
+	if err := ctx.RequireCap(name); err != nil {
+		return err
+	}
+
+	// Then check and consume budget (if configured)
+	// Skip budget check if DisableBudgets is set (--no-budgets flag)
+	if ctx.Budget != nil && !ctx.DisableBudgets {
+		if err := ctx.Budget.CheckAndConsume(name, position); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetBudget configures the budget context
+//
+// Parameters:
+//   - budget: The budget context to use, or nil to disable budgets
+func (ctx *EffContext) SetBudget(budget *BudgetContext) {
+	ctx.Budget = budget
+}
+
+// WithBudget creates a copy of the context with the specified budget
+//
+// This is useful for function invocations that need fresh budgets.
+//
+// Parameters:
+//   - budget: The budget context to use
+//
+// Returns:
+//   - A new EffContext with the specified budget
+func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
+	// Shallow copy - share all contexts except Budget
+	return &EffContext{
+		Caps:           ctx.Caps,
+		Env:            ctx.Env,
+		Clock:          ctx.Clock,
+		Net:            ctx.Net,
+		Debug:          ctx.Debug,
+		AI:             ctx.AI,
+		SharedMem:      ctx.SharedMem,
+		SharedIndex:    ctx.SharedIndex,
+		Contracts:      ctx.Contracts,
+		Budget:         budget,
+		DisableBudgets: ctx.DisableBudgets, // Preserve --no-budgets flag
+		EnvSnapshot:    ctx.EnvSnapshot,
+		EnvAllowlist:   ctx.EnvAllowlist,
+		Args:           ctx.Args,
+	}
+}
+
+// WithBudgetLimits creates a new context with budget limits from a map[string]int
+// This implements the eval.BudgetEnforcer interface to avoid import cycles.
+//
+// Parameters:
+//   - limits: Map of effect name to budget limit (e.g., {"IO": 5, "Rand": 10})
+//
+// Returns:
+//   - A new EffContext with the specified budget limits (as interface{})
+func (ctx *EffContext) WithBudgetLimits(limits map[string]int) interface{} {
+	// Convert map[string]int to map[string]*int for NewBudgetContext
+	ptrLimits := make(map[string]*int, len(limits))
+	for effect, limit := range limits {
+		l := limit // capture for pointer
+		ptrLimits[effect] = &l
+	}
+	budget := NewBudgetContext(ptrLimits)
+	return ctx.WithBudget(budget)
 }
 
 // loadEffEnv loads effect environment from OS environment variables

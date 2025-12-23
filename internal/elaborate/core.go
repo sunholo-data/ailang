@@ -32,6 +32,9 @@ type Elaborator struct {
 	// M-FIX-FLOAT-OP: Return type annotations from function declarations
 	// Maps Lambda NodeID -> return type (ensures PI() -> float is actually float)
 	returnTypeAnnots map[uint64]types.Type
+	// M-CAPABILITY-BUDGETS: Full effect annotations with budgets
+	// Maps Lambda NodeID -> full effect annotations (preserves @limit=N through elaboration)
+	effectAnnotsFull map[uint64][]ast.EffectAnnotation
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -49,6 +52,7 @@ func NewElaborator() *Elaborator {
 		nextID:           1,
 		surfaceSpans:     make(map[uint64]ast.Pos),
 		effectAnnots:     make(map[uint64][]string),
+		effectAnnotsFull: make(map[uint64][]ast.EffectAnnotation), // M-CAPABILITY-BUDGETS
 		freshVarNum:      0,
 		globalEnv:        make(map[string]core.GlobalRef),
 		constructors:     make(map[string]*ConstructorInfo),
@@ -67,6 +71,7 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		nextID:           1,
 		surfaceSpans:     make(map[uint64]ast.Pos),
 		effectAnnots:     make(map[uint64][]string),
+		effectAnnotsFull: make(map[uint64][]ast.EffectAnnotation), // M-CAPABILITY-BUDGETS
 		freshVarNum:      0,
 		moduleLoader:     loader.NewModuleLoader(dir),
 		filePath:         filePath,
@@ -149,6 +154,12 @@ func (e *Elaborator) GetTypeAliases() map[string]types.Type {
 // GetEffectAnnotation returns the effect annotation for a Core node ID
 func (e *Elaborator) GetEffectAnnotation(nodeID uint64) []string {
 	return e.effectAnnots[nodeID]
+}
+
+// GetEffectAnnotationsFull returns all full effect annotations (Lambda NodeID -> full annotations)
+// M-CAPABILITY-BUDGETS: Used to pass budget annotations from func declarations to type checker
+func (e *Elaborator) GetEffectAnnotationsFull() map[uint64][]ast.EffectAnnotation {
+	return e.effectAnnotsFull
 }
 
 // GetParamTypeAnnotations returns all parameter type annotations (Lambda NodeID -> param types)

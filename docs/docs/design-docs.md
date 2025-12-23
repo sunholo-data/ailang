@@ -10,21 +10,34 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.6.2
 
-- [M-VERIFY: Runtime Contract Checks (Phase 0 + 0.5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-verify-runtime-contracts.md)
-- [Sprint Plan: M-VERIFY Phase 0 + 0.5 - Contract Infrastructure & Runtime Checks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-verify-sprint1-plan.md)
+- [M-CAPABILITY-BUDGETS: Resource-Bounded Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-capability-budgets.md)
+- [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-value-types.md)
+- [M-DX22 Sprint Plan: ADT Constructor Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution-sprint-plan.md)
+- [M-DX22: Go Codegen - ADT Constructor Resolution Ambiguity](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
+- [M-GITHUB-USER-OVERRIDE: GitHub Account Override Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-github-user-override.md)
 
 ## v0.6.1
 
 - [M-BUG: List Length Returns Sum Instead of Count](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-bug-list-length-returns-wrong-value.md)
 - [Sprint Plan: M-BUG-LIST-LENGTH - Resolution Documentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-bug-list-length-sprint-plan.md)
+- [Sprint Plan: M-CODEGEN-ADT-DOUBLE-PAREN](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-codegen-adt-double-paren-sprint-plan.md)
+- [M-CODEGEN-ADT-DOUBLE-PAREN: Fix Empty Double-Paren ADT Constructor Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-codegen-adt-double-paren.md)
 - [Sprint Plan: M-DX Check Directory Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx-check-directory-sprint-plan.md)
 - [M-DX: Add Directory Support to `ailang check`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx-check-directory-support.md)
+- [M-DX16: Inline Record Literals in Match Arms](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx16-inline-record-match-arms.md)
+- [M-DX16 Sprint Plan: Inline Record Literals in Match Arms](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx16-sprint-plan.md)
+- [M-DX17: Go Codegen - ConcatList Undefined + Closure Variable Scoping](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx17-codegen-concatlist-closure-scoping.md)
+- [M-DX18: Go Codegen - Non-Exported Function Namespacing](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx18-codegen-function-namespacing.md)
+- [M-DX20: Wildcard Pattern Type Inference in List Patterns](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx20-wildcard-pattern-inference.md)
+- [M-DX21: Show Stdlib Version Warning Once Per Session](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-dx21-stdlib-version-warning-once.md)
 - [M-ENV-TYPE Sprint Plan: Fix EnvError Type Parameter Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-env-type-parameter-bug-sprint-plan.md)
 - [M-ENV-TYPE: Fix std/env EnvError Type Parameter Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-env-type-parameter-bug.md)
 - [M-EXEC-GEMINI Sprint Plan: Gemini CLI Executor Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-exec-gemini-sprint-plan.md)
 - [M-EXEC: Multi-Executor Support for AI Coding Agents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md)
 - [M-LETREC-SCOPING: Fix Letrec Recursive Binding Scope Regression](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-letrec-scoping-regression.md)
 - [Sprint Plan: M-LETREC-SCOPING Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-letrec-scoping-sprint-plan.md)
+- [M-VERIFY: Runtime Contract Checks (Phase 0 + 0.5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-verify-runtime-contracts.md)
+- [Sprint Plan: M-VERIFY Phase 0 + 0.5 - Contract Infrastructure & Runtime Checks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_1/m-verify-sprint1-plan.md)
 
 ## v0.6.0
 
@@ -361,4 +374,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 234 design documents across 39 versions.*
+*Generated at build time. 247 design documents across 39 versions.*

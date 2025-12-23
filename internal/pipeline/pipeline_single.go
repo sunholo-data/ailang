@@ -154,6 +154,13 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
 	}
 
+	// M-CAPABILITY-BUDGETS: Pass full effect annotations with budgets to type checker
+	// This preserves @limit=N budget annotations from function declarations through elaboration
+	effectAnnotsFull := elaborator.GetEffectAnnotationsFull()
+	if len(effectAnnotsFull) > 0 {
+		typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
+	}
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {
@@ -371,6 +378,10 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// Set global resolver if provided (v0.2.0 hotfix for builtins)
 	if cfg.GlobalResolver != nil {
 		coreEval.SetGlobalResolver(cfg.GlobalResolver)
+	}
+	// Set CoreTypeInfo for effect budget enforcement (M-CAPABILITY-BUDGETS)
+	if typeChecker.CoreTI != nil {
+		coreEval.SetCoreTypeInfo(typeChecker.CoreTI)
 	}
 	// Set experimental flag only if allowed
 	if cfg.ExperimentalBinopShim && !cfg.RequireLowering && !cfg.FailOnShim {

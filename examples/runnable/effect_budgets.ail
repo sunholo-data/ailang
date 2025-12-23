@@ -1,0 +1,54 @@
+module examples/runnable/effect_budgets
+-- Demonstrates effect budget annotations
+-- Budgets limit how many times an effect can be invoked within a function
+
+import std/io (println)
+
+-- Function with IO budget: can only print 3 times
+-- The @limit=N syntax declares a maximum invocation count
+export func limitedPrints() -> () ! {IO @limit=3} {
+  println("  print 1 (of 3 allowed)");
+  println("  print 2 (of 3 allowed)");
+  println("  print 3 (of 3 allowed)");
+  -- A 4th print would violate the budget constraint
+  ()
+}
+
+-- Function with multiple effects, some budgeted
+-- IO has a limit of 2, Clock has unlimited access
+export func mixedEffects() -> () ! {IO @limit=2, Clock} {
+  println("  IO operation 1 (of 2 allowed)");
+  println("  IO operation 2 (of 2 allowed)");
+  -- Clock operations have no budget limit
+  ()
+}
+
+-- Helper to show budget syntax variations
+export func showBudgetSyntax() -> () ! {IO} {
+  println("");
+  println("Budget syntax examples:");
+  println("  ! {IO @limit=5}           - Allow 5 IO operations");
+  println("  ! {IO @limit=N, Clock}    - Limited IO, unlimited Clock");
+  println("  ! {Rand @limit=10, AI @limit=1}  - Multiple budgeted effects");
+  ()
+}
+
+-- Entry point demonstrating budgets
+export func main() -> () ! {IO, Clock} {
+  println("=== Effect Budget Demo ===");
+  println("");
+
+  println("1. Calling limitedPrints() [IO @limit=3]:");
+  limitedPrints();
+
+  println("");
+  println("2. Calling mixedEffects() [IO @limit=2, Clock]:");
+  mixedEffects();
+
+  showBudgetSyntax();
+
+  println("");
+  println("Note: Budget enforcement is validated at the type level.");
+  println("Runtime enforcement is demonstrated in budget_test.go");
+  ()
+}

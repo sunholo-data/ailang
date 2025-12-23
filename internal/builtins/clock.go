@@ -55,8 +55,8 @@ func clockNowImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 		panic("internal invariant violation: _clock_now expected unit argument")
 	}
 
-	// Check Clock capability
-	if err := ctx.RequireCap("Clock"); err != nil {
+	// Check Clock capability + budget
+	if err := ctx.RequireCapWithBudget("Clock", ""); err != nil {
 		return nil, err
 	}
 
@@ -101,8 +101,8 @@ func makeClockSleepType() types.Type {
 }
 
 func clockSleepImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	// Check Clock capability
-	if err := ctx.RequireCap("Clock"); err != nil {
+	// Check Clock capability + budget
+	if err := ctx.RequireCapWithBudget("Clock", ""); err != nil {
 		return nil, err
 	}
 

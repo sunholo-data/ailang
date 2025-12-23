@@ -1,0 +1,70 @@
+module examples/runnable/effect_budgets_multi
+-- Demonstrates multiple effect budgets in a single function
+-- Shows how different effects can have independent limits
+
+import std/io (println)
+import std/rand (rand_int, rand_seed)
+import std/clock (now, sleep)
+
+-- Function with multiple independent effect budgets
+-- IO: 4 prints max
+-- Rand: 2 random ops max
+-- Clock: 1 timing op max
+export func multiEffectGame() -> () ! {IO @limit=4, Rand @limit=2, Clock @limit=1} {
+  println("  Starting game simulation...");
+
+  -- Use our clock budget (1 allowed)
+  let startTime = now();
+  println("  Got start timestamp");
+
+  -- Use our rand budget (2 allowed)
+  let roll1 = rand_int(1, 7);
+  let roll2 = rand_int(1, 7);
+
+  -- Use remaining IO budget
+  println("  Dice rolled");
+  println("  Game complete!");
+
+  -- Summary: used 4 IO, 2 Rand, 1 Clock - all at their limits!
+  ()
+}
+
+-- Composition example: calling multiple budgeted functions
+-- Each function gets its own fresh budget when called
+export func runMultipleGames() -> () ! {IO, Rand, Clock} {
+  println("=== Running 3 games (each with own budgets) ===");
+  println("");
+
+  println("Game 1:");
+  multiEffectGame();
+
+  println("");
+  println("Game 2:");
+  multiEffectGame();
+
+  println("");
+  println("Game 3:");
+  multiEffectGame();
+
+  println("");
+  println("Each game had its own IO @limit=4, Rand @limit=2, Clock @limit=1");
+  ()
+}
+
+-- Entry point
+export func main() -> () ! {IO, Rand, Clock} {
+  println("=== Multi-Effect Budget Demo ===");
+  println("");
+  println("Budget composition: ! {IO @limit=4, Rand @limit=2, Clock @limit=1}");
+  println("");
+
+  -- Set deterministic seed for reproducible demo
+  rand_seed(42);
+
+  println("Single game with multiple budgets:");
+  multiEffectGame();
+
+  println("");
+  runMultipleGames();
+  ()
+}

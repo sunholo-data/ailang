@@ -78,8 +78,8 @@ var Registry = map[string]map[string]EffOp{
 //	    &eval.StringValue{Value: "Hello!"},
 //	})
 func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.Value, error) {
-	// Step 1: Check capability
-	if err := ctx.RequireCap(effectName); err != nil {
+	// Step 1: Check capability and consume budget
+	if err := ctx.RequireCapWithBudget(effectName, ""); err != nil {
 		return nil, err
 	}
 

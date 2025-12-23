@@ -97,6 +97,34 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: validate_prerequisites.sh, milestone_checkpoint.sh
 - **Resources**: milestone_checklist.md
 
+### Performance & Quality
+
+**[perf-reviewer/](perf-reviewer/)** - Review code for performance issues and run benchmarks
+- Cross-language benchmarks: AILANG interpreted vs Python vs AILANG compiled to Go
+- Performance principles guide (Abseil-inspired + Go patterns)
+- Phase timing profiler for AILANG compilation
+- Memory layout, batch operations, algorithmic complexity checks
+- **Scripts**: benchmark.sh, profile_ailang.sh
+- **Resources**: principles.md, go_patterns.md
+- **Key finding**: AILANG interpreter ~5x slower than Python for recursive workloads; compilation provides 10-50x speedup
+
+**[test-coverage-guardian/](test-coverage-guardian/)** - Analyze test coverage, identify gaps, improve test quality
+- Coverage analysis and gap detection
+- Dead code identification
+- Test robustness improvements
+- **Use for**: Pre-release quality checks, identifying untested code
+
+**[design-spec-auditor/](design-spec-auditor/)** - Verify code implementation matches design specifications
+- Compare design docs with actual code
+- Identify architectural deviations
+- Post-implementation verification
+- **Use for**: After implementing features, during code reviews, refactoring
+
+**[codebase-organizer/](codebase-organizer/)** - Monitor and refactor large files into AI-friendly modules
+- File size monitoring (target: <500 lines)
+- Safe refactoring with test verification
+- **Use for**: When files exceed thresholds, improving maintainability
+
 ### Automation & Integration
 
 **[model-manager/](model-manager/)** - Test, validate, and add new AI models to eval suite
@@ -354,10 +382,10 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 14 (project-specific)
-**Total scripts**: 24 executable automation scripts
-**Total resources**: 14+ reference files
-**Total lines**: ~5,000 lines of structured, reusable content
+**Total skills**: 15 (project-specific)
+**Total scripts**: 26 executable automation scripts
+**Total resources**: 16+ reference files
+**Total lines**: ~5,500 lines of structured, reusable content
 
 **Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
 

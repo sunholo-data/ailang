@@ -142,7 +142,7 @@ func (p *Parser) parseType() ast.Type {
 				retType := p.parseType()
 
 				// Parse optional effect annotation: (int) -> string ! {IO}
-				var effects []string
+				var effects []ast.EffectAnnotation
 				if p.peekTokenIs(lexer.BANG) {
 					p.nextToken() // move to BANG
 					effects = p.parseEffectAnnotation()
@@ -183,7 +183,7 @@ func (p *Parser) parseType() ast.Type {
 				retType := p.parseType()
 
 				// Parse optional effect annotation: (int, string) -> bool ! {IO, FS}
-				var effects []string
+				var effects []ast.EffectAnnotation
 				if p.peekTokenIs(lexer.BANG) {
 					p.nextToken() // move to BANG
 					effects = p.parseEffectAnnotation()
@@ -232,7 +232,7 @@ checkArrow:
 		returnType := p.parseType() // Right-associative: recursively parse return type
 
 		// Parse optional effect annotation: int -> string ! {IO}
-		var effects []string
+		var effects []ast.EffectAnnotation
 		if p.peekTokenIs(lexer.BANG) {
 			p.nextToken() // move to BANG
 			effects = p.parseEffectAnnotation()

@@ -1,0 +1,28 @@
+-- Per-Invocation Budget Semantics
+-- Each function call gets a fresh budget (not shared across calls)
+--
+-- Run with: ailang run --caps IO --entry main examples/reference/budget_per_invocation.ail
+
+module examples/reference/budget_per_invocation
+
+import std/io (println)
+
+-- Function with budget of 2 IO operations per call
+export func twoIOs() -> () ! {IO @limit=2} {
+  println("  A");
+  println("  B");
+  ()
+}
+
+export func main() -> () ! {IO} {
+  println("First call:");
+  twoIOs();
+
+  println("Second call:");
+  twoIOs();
+
+  println("Third call:");
+  twoIOs();
+
+  println("All three calls succeeded - each got fresh budget of 2!")
+}

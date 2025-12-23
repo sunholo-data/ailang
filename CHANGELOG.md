@@ -1,5 +1,44 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Added - Effect Budget Enforcement (M-CAPABILITY-BUDGETS)
+
+Implemented runtime enforcement of capability budgets, allowing fine-grained control over how many times a function can perform a particular effect.
+
+**Syntax:**
+```ailang
+-- Function limited to 2 IO operations
+export func limited() -> () ! {IO @limit=2} {
+  println("Call 1");  -- Uses 1/2 budget
+  println("Call 2");  -- Uses 2/2 budget
+  println("Call 3");  -- FAILS: BudgetExhaustedError
+  ()
+}
+```
+
+**Key features:**
+- **Per-invocation semantics**: Each function call gets a fresh budget (not shared across calls)
+- **Helpful error messages**: `effect 'IO' budget exhausted: limit=2, used=2` with actionable hints
+- **Full pipeline support**: Parser → Elaborator → Type Checker → Evaluator
+- **Bypass flag**: `--no-budgets` to disable budget enforcement for debugging
+
+**Implementation details:**
+- `FunctionValue.EffectBudgets` stores budget limits from function type's effect row
+- `evalCoreApp` creates budget-scoped effect context for each call
+- Builtins automatically check `RequireCapWithBudget` before executing effects
+- Budget state tracked via `BudgetContext` with `limits` and `used` maps
+
+**Files Modified:**
+- `internal/eval/eval_operations.go` - Budget scoping in function application (~20 LOC)
+- `internal/eval/eval_expressions.go` - Extract budgets from type info (~25 LOC)
+- `internal/runtime/builtins.go` - Automatic budget checking in builtin wrapper (~10 LOC)
+- `internal/effects/budget.go` - `BudgetContext` and `RequireCapWithBudget` (existing)
+- `examples/reference/capability_budgets.ail` - Working example (~50 LOC)
+- `examples/tests/test_capability_budget_exhausted.ail` - Error test case (~20 LOC)
+
+**Design Doc:** [design_docs/planned/v0_6_1/m-capability-budgets-design.md](design_docs/planned/v0_6_1/m-capability-budgets-design.md)
+
 ## [v0.6.1] - 2025-12-22
 
 ### Fixed - Inline Record Literals in Match Arms (M-DX16)

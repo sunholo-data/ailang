@@ -22,7 +22,7 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 	declaredEffects := make(map[string][]string)
 	if surfaceAST != nil {
 		for _, funcDecl := range surfaceAST.Funcs {
-			declaredEffects[funcDecl.Name] = funcDecl.Effects
+			declaredEffects[funcDecl.Name] = ast.EffectNames(funcDecl.Effects)
 		}
 	}
 

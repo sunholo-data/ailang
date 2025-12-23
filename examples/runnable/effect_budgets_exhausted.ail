@@ -1,0 +1,47 @@
+module examples/runnable/effect_budgets_exhausted
+-- Demonstrates budget exhaustion behavior
+-- Shows what happens when effect limits are exceeded
+
+import std/io (println)
+
+-- Function that WOULD exhaust its budget if runtime enforcement were active
+-- Type declares: only 2 IO operations allowed
+-- Reality: 4 IO operations attempted
+export func exceedBudget() -> () ! {IO @limit=2} {
+  println("  Operation 1 of 2 (within budget)");
+  println("  Operation 2 of 2 (at budget limit)");
+  -- These would fail with BudgetExhaustedError if enforced:
+  println("  Operation 3 (exceeds budget!)");
+  println("  Operation 4 (exceeds budget!)");
+  ()
+}
+
+-- Show expected vs actual behavior
+export func main() -> () ! {IO} {
+  println("=== Budget Exhaustion Demo ===");
+  println("");
+  println("Function signature: ! {IO @limit=2}");
+  println("Actual operations: 4 println calls");
+  println("");
+
+  println("Expected behavior (future):");
+  println("  - Operations 1-2 succeed");
+  println("  - Operation 3 fails: 'IO budget exhausted: limit 2, used 2'");
+  println("");
+
+  println("Current behavior:");
+  println("  - Type-level budget is parsed and tracked");
+  println("  - Runtime enforcement is infrastructure-ready");
+  println("  - Evaluator doesn't yet wire budgets to runtime");
+  println("  - See internal/builtins/clock_test.go for Go-level enforcement");
+  println("");
+
+  println("Running exceedBudget():");
+  exceedBudget();
+
+  println("");
+  println("NOTE: All 4 operations completed because runtime");
+  println("enforcement isn't wired to type annotations yet.");
+  println("This will be fixed in a future release.");
+  ()
+}

@@ -124,6 +124,7 @@ func printHelp() {
 	fmt.Println("  --trace              Enable execution tracing")
 	fmt.Println("  --print              Print return value (default: true)")
 	fmt.Println("  --no-print           Suppress output (exit code only)")
+	fmt.Println("  --no-budgets         Bypass effect budget enforcement (allow unlimited operations)")
 	fmt.Println()
 	fmt.Println("Global Flags:")
 	fmt.Println("  --version            Print version information")

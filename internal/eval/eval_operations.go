@@ -53,6 +53,16 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			newEnv.Set(param, args[i])
 		}
 
+		// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
+		var oldEffContext interface{}
+		if len(fn.EffectBudgets) > 0 && e.effContext != nil {
+			// Use BudgetEnforcer interface to avoid import cycle
+			if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
+				oldEffContext = e.effContext
+				e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
+			}
+		}
+
 		// Evaluate body
 		oldEnv := e.env
 		e.env = newEnv
@@ -66,6 +76,12 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		}
 
 		e.env = oldEnv
+
+		// M-CAPABILITY-BUDGETS: Restore original effect context if we modified it
+		if oldEffContext != nil {
+			e.effContext = oldEffContext
+		}
+
 		return result, err
 
 	case *BuiltinFunction:

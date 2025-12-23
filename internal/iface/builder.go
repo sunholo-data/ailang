@@ -53,7 +53,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		if len(typ.Effects) > 0 {
 			labels := make(map[string]types.Type)
 			for _, e := range typ.Effects {
-				labels[e] = types.TUnit
+				labels[e.Name] = types.TUnit
 			}
 			effectRow = &types.Row{
 				Kind:   types.EffectRow,

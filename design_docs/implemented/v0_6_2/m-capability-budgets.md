@@ -1,6 +1,6 @@
 # M-CAPABILITY-BUDGETS: Resource-Bounded Effects
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.7.0
 **Priority**: P1 (Medium) - Enables Axiom A9 compliance
 **Estimated**: 3-4 days

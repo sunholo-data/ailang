@@ -2,14 +2,17 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/lexer"
 )
 
 // parseEffectAnnotation parses effect annotations: ! {IO, FS, Net}
+// Also supports budget syntax: ! {IO @limit=5, FS @limit=2}
 // Validates effect names and detects duplicates
-func (p *Parser) parseEffectAnnotation() []string {
+func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 	// Known canonical effect names
 	knownEffects := map[string]bool{
 		"IO":          true,
@@ -32,10 +35,10 @@ func (p *Parser) parseEffectAnnotation() []string {
 		return nil
 	}
 
-	effects := []string{}
+	effects := []ast.EffectAnnotation{}
 	seen := make(map[string]bool)
 
-	// Parse comma-separated effect names
+	// Parse comma-separated effect names with optional budgets
 	for !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
 		p.nextToken()
 
@@ -47,6 +50,9 @@ func (p *Parser) parseEffectAnnotation() []string {
 		}
 
 		effectName := p.curToken.Literal
+		effectLine := p.curToken.Line
+		effectCol := p.curToken.Column
+		effectFile := p.curToken.File
 
 		// Check for unknown effects
 		if !knownEffects[effectName] {
@@ -66,8 +72,68 @@ func (p *Parser) parseEffectAnnotation() []string {
 				fmt.Sprintf("Remove duplicate '%s'", effectName))
 		} else {
 			seen[effectName] = true
-			effects = append(effects, effectName)
 		}
+
+		// Parse optional budget: @limit=N
+		var budget *int
+		if p.peekTokenIs(lexer.AT) {
+			p.nextToken() // consume @
+
+			// Expect "limit"
+			if !p.expectPeek(lexer.IDENT) || p.curToken.Literal != "limit" {
+				p.report("PAR_EFF005_BUDGET",
+					"expected 'limit' after '@'",
+					"Use @limit=N to set effect budget")
+				// Skip to next comma or closing brace
+				for !p.peekTokenIs(lexer.COMMA) && !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
+					p.nextToken()
+				}
+			} else {
+				// Expect =
+				if !p.expectPeek(lexer.ASSIGN) {
+					p.report("PAR_EFF005_BUDGET",
+						"expected '=' after 'limit'",
+						"Use @limit=N to set effect budget")
+				} else {
+					// Expect integer value (possibly negative)
+					isNegative := false
+					if p.peekTokenIs(lexer.MINUS) {
+						p.nextToken() // consume -
+						isNegative = true
+					}
+
+					if !p.expectPeek(lexer.INT) {
+						p.report("PAR_EFF005_BUDGET",
+							"budget must be an integer",
+							"Use a positive integer like @limit=5")
+					} else {
+						val, err := strconv.Atoi(p.curToken.Literal)
+						if err != nil {
+							p.report("PAR_EFF005_BUDGET",
+								fmt.Sprintf("invalid budget value '%s'", p.curToken.Literal),
+								"Use a positive integer like @limit=5")
+						} else {
+							if isNegative {
+								val = -val
+							}
+							if val < 0 {
+								p.report("PAR_EFF006_NEGATIVE",
+									fmt.Sprintf("budget cannot be negative: %d", val),
+									"Use a positive integer (0 is allowed for 'no operations')")
+							} else {
+								budget = &val
+							}
+						}
+					}
+				}
+			}
+		}
+
+		effects = append(effects, ast.EffectAnnotation{
+			Name:   effectName,
+			Budget: budget,
+			Pos:    ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
+		})
 
 		// Check for comma or closing brace
 		if p.peekTokenIs(lexer.RBRACE) {

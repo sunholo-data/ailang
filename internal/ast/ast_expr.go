@@ -127,7 +127,7 @@ func (u *UnaryOp) exprNode()     {}
 //	        {Name: "y", Type: nil, Pos: pos2},
 //	    },
 //	    Body:    bodyExpr,
-//	    Effects: []string{"IO"},
+//	    Effects: []EffectAnnotation{{Name: "IO"}},
 //	    Pos:     p.curToken.Pos,
 //	}
 //
@@ -142,7 +142,7 @@ func (u *UnaryOp) exprNode()     {}
 type Lambda struct {
 	Params  []*Param
 	Body    Expr
-	Effects []string // Effect annotations
+	Effects []EffectAnnotation // Effect annotations with optional budgets
 	Pos     Pos
 }
 
@@ -167,8 +167,8 @@ func (l *Lambda) exprNode()     {}
 // This desugars to Lambda in the elaboration phase
 type FuncLit struct {
 	Params     []*Param
-	ReturnType Type     // Optional return type annotation
-	Effects    []string // Effect annotations
+	ReturnType Type               // Optional return type annotation
+	Effects    []EffectAnnotation // Effect annotations with optional budgets
 	Body       Expr
 	Pos        Pos
 }
@@ -186,9 +186,9 @@ func (f *FuncLit) String() string {
 	if f.ReturnType != nil {
 		retType = fmt.Sprintf(" -> %s", f.ReturnType)
 	}
-	effects := ""
-	if len(f.Effects) > 0 {
-		effects = fmt.Sprintf(" ! {%s}", strings.Join(f.Effects, ", "))
+	effects := FormatEffects(f.Effects)
+	if effects != "" {
+		effects = " " + effects
 	}
 	return fmt.Sprintf("func(%s)%s%s { %s }", strings.Join(params, ", "), retType, effects, f.Body)
 }

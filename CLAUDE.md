@@ -555,6 +555,7 @@ ailang eval-report results/ v0.5.10 --format=json      # Update dashboard
 - **design-spec-auditor** - Verify code implementation matches design specifications
 - **github-issue-triage** - Monitor and triage GitHub issues against design docs, identify closable issues
 - **test-coverage-guardian** - Analyze test coverage, identify gaps, improve test quality
+- **perf-reviewer** - Review code for performance and run cross-language benchmarks (AILANG vs Python vs Go)
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -571,6 +572,7 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Plan the sprint" → `sprint-planner` skill
 - "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
 - "Triage GitHub issues" or "What issues are open?" → `github-issue-triage` skill
+- "Benchmark AILANG vs Python" or "Review for performance" → `perf-reviewer` skill
 - "Start dev cycle" → `dev-cycle` agent (messages → design → sprint → implement)
 
 ### Skills vs Agents vs Commands

@@ -82,7 +82,7 @@ func makeDeltaTimeType() types.Type {
 }
 
 func deltaTimeImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	if err := ctx.RequireCap("Clock"); err != nil {
+	if err := ctx.RequireCapWithBudget("Clock", ""); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +127,7 @@ func makeTotalTimeType() types.Type {
 }
 
 func totalTimeImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	if err := ctx.RequireCap("Clock"); err != nil {
+	if err := ctx.RequireCapWithBudget("Clock", ""); err != nil {
 		return nil, err
 	}
 
@@ -172,7 +172,7 @@ func makeFrameCountType() types.Type {
 }
 
 func frameCountImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	if err := ctx.RequireCap("Clock"); err != nil {
+	if err := ctx.RequireCapWithBudget("Clock", ""); err != nil {
 		return nil, err
 	}
 

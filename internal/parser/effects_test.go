@@ -119,8 +119,8 @@ func TestEffectAnnotationParsing(t *testing.T) {
 					t.Errorf("missing effect at index %d: expected %s", i, expected)
 					continue
 				}
-				if funcDecl.Effects[i] != expected {
-					t.Errorf("effect at index %d: expected %s, got %s", i, expected, funcDecl.Effects[i])
+				if funcDecl.Effects[i].Name != expected {
+					t.Errorf("effect at index %d: expected %s, got %s", i, expected, funcDecl.Effects[i].Name)
 				}
 			}
 		})
@@ -198,8 +198,8 @@ func TestLambdaEffectAnnotationParsing(t *testing.T) {
 						t.Errorf("missing effect at index %d: expected %s", i, expected)
 						continue
 					}
-					if lambda.Effects[i] != expected {
-						t.Errorf("effect at index %d: expected %s, got %s", i, expected, lambda.Effects[i])
+					if lambda.Effects[i].Name != expected {
+						t.Errorf("effect at index %d: expected %s, got %s", i, expected, lambda.Effects[i].Name)
 					}
 				}
 			}
@@ -287,13 +287,143 @@ func TestFunctionTypeEffectAnnotationParsing(t *testing.T) {
 						t.Errorf("missing effect at index %d: expected %s", i, expected)
 						continue
 					}
-					if funcType.Effects[i] != expected {
-						t.Errorf("effect at index %d: expected %s, got %s", i, expected, funcType.Effects[i])
+					if funcType.Effects[i].Name != expected {
+						t.Errorf("effect at index %d: expected %s, got %s", i, expected, funcType.Effects[i].Name)
 					}
 				}
 			}
 		})
 	}
+}
+
+func TestEffectBudgetParsing(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectedEffects []string
+		expectedBudgets []*int // nil = no budget, non-nil = budget value
+		shouldError     bool
+		errorCode       string
+	}{
+		{
+			name:            "effect with budget",
+			input:           "func f() -> int ! {IO @limit=5} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedBudgets: []*int{intPtr(5)},
+			shouldError:     false,
+		},
+		{
+			name:            "effect without budget",
+			input:           "func f() -> int ! {IO} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedBudgets: []*int{nil},
+			shouldError:     false,
+		},
+		{
+			name:            "mixed budgets",
+			input:           "func f() -> int ! {IO @limit=5, FS} { 42 }",
+			expectedEffects: []string{"IO", "FS"},
+			expectedBudgets: []*int{intPtr(5), nil},
+			shouldError:     false,
+		},
+		{
+			name:            "all effects with budgets",
+			input:           "func f() -> int ! {IO @limit=10, FS @limit=3} { 42 }",
+			expectedEffects: []string{"IO", "FS"},
+			expectedBudgets: []*int{intPtr(10), intPtr(3)},
+			shouldError:     false,
+		},
+		{
+			name:            "zero budget",
+			input:           "func f() -> int ! {IO @limit=0} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedBudgets: []*int{intPtr(0)},
+			shouldError:     false,
+		},
+		{
+			name:        "negative budget",
+			input:       "func f() -> int ! {IO @limit=-1} { 42 }",
+			shouldError: true,
+			errorCode:   "PAR_EFF006_NEGATIVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input, "test.ail")
+			p := New(l)
+			program := p.Parse()
+
+			if tt.shouldError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected error with code %s, but got no errors", tt.errorCode)
+				}
+
+				// Check that we got the right error code
+				foundError := false
+				for _, err := range p.Errors() {
+					if perr, ok := err.(*ParserError); ok {
+						if perr.Code == tt.errorCode {
+							foundError = true
+							break
+						}
+					}
+				}
+
+				if !foundError {
+					t.Errorf("expected error code %s, but got errors: %v", tt.errorCode, p.Errors())
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("unexpected parser errors: %v", p.Errors())
+			}
+
+			if program == nil {
+				t.Fatal("Parse() returned nil")
+			}
+
+			if len(program.File.Funcs) == 0 {
+				t.Fatal("program has no function declarations")
+			}
+
+			funcDecl := program.File.Funcs[0]
+
+			// Check effects count
+			if len(funcDecl.Effects) != len(tt.expectedEffects) {
+				t.Errorf("expected %d effects, got %d: %v", len(tt.expectedEffects), len(funcDecl.Effects), funcDecl.Effects)
+			}
+
+			// Check each effect name and budget
+			for i, expected := range tt.expectedEffects {
+				if i >= len(funcDecl.Effects) {
+					t.Errorf("missing effect at index %d: expected %s", i, expected)
+					continue
+				}
+				if funcDecl.Effects[i].Name != expected {
+					t.Errorf("effect at index %d: expected name %s, got %s", i, expected, funcDecl.Effects[i].Name)
+				}
+
+				// Check budget
+				expectedBudget := tt.expectedBudgets[i]
+				actualBudget := funcDecl.Effects[i].Budget
+
+				if expectedBudget == nil && actualBudget != nil {
+					t.Errorf("effect %s at index %d: expected no budget, got %d", expected, i, *actualBudget)
+				} else if expectedBudget != nil && actualBudget == nil {
+					t.Errorf("effect %s at index %d: expected budget %d, got nil", expected, i, *expectedBudget)
+				} else if expectedBudget != nil && actualBudget != nil && *expectedBudget != *actualBudget {
+					t.Errorf("effect %s at index %d: expected budget %d, got %d", expected, i, *expectedBudget, *actualBudget)
+				}
+			}
+		})
+	}
+}
+
+// Helper function for creating int pointers in tests
+func intPtr(i int) *int {
+	return &i
 }
 
 func TestEffectAnnotationErrorMessages(t *testing.T) {

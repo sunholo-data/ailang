@@ -36,6 +36,7 @@ type LoadedModule struct {
 	Constructors map[string]string        // Constructor name -> Type name mapping
 	Core         *core.Program            // Core representation (after elaboration)
 	Iface        *iface.Iface             // Module interface (after type checking)
+	CoreTI       interface{}              // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
 }
 
 // NewModuleLoader creates a new module loader

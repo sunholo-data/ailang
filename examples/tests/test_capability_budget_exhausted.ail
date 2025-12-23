@@ -1,0 +1,22 @@
+-- Test case for capability budget exhaustion
+-- This file is expected to FAIL with BudgetExhaustedError
+--
+-- Run with: ailang run --caps IO --entry main examples/tests/test_capability_budget_exhausted.ail
+-- Expected error: effect 'IO' budget exhausted: limit=2, used=2
+
+module examples/tests/test_capability_budget_exhausted
+
+import std/io (println)
+
+-- Function that will exceed its budget
+export func exceeds_budget() -> () ! {IO @limit=2} {
+  println("Call 1");
+  println("Call 2");
+  println("Call 3");  -- This will fail: budget exhausted
+  ()
+}
+
+export func main() -> () ! {IO} {
+  println("Testing budget exhaustion...");
+  exceeds_budget()
+}

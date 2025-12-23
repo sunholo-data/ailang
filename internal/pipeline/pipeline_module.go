@@ -490,6 +490,13 @@ func runModule(cfg Config, src Source) (Result, error) {
 			typeChecker.SetReturnTypeAnnotations(returnAnnots)
 		}
 
+		// M-CAPABILITY-BUDGETS: Pass full effect annotations with budgets to type checker
+		// This preserves @limit=N budget annotations from function declarations through elaboration
+		effectAnnotsFull := elaborator.GetEffectAnnotationsFull()
+		if len(effectAnnotsFull) > 0 {
+			typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
+		}
+
 		// Type check ALL declarations in the module, accumulating types in moduleTypeEnv
 		for i, decl := range unit.Core.Decls {
 			// InferWithConstraints returns the updated env with new bindings
@@ -685,6 +692,10 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// Create Core evaluator with global resolver
 	coreEval := eval.NewCoreEvaluator()
 	coreEval.SetGlobalResolver(resolver)
+	// Set CoreTypeInfo for effect budget enforcement (M-CAPABILITY-BUDGETS)
+	if rootUnit != nil && rootUnit.CoreTI != nil {
+		coreEval.SetCoreTypeInfo(rootUnit.CoreTI)
+	}
 	// Pass experimental flag only if allowed
 	if cfg.ExperimentalBinopShim && !cfg.RequireLowering && !cfg.FailOnShim {
 		coreEval.SetExperimentalBinopShim(true)
@@ -734,6 +745,7 @@ func runModule(cfg Config, src Source) (Result, error) {
 			File:    unit.Surface,
 			Core:    unit.Core,
 			Iface:   unit.Iface,
+			CoreTI:  unit.CoreTI, // M-CAPABILITY-BUDGETS: Pass type info for runtime budget enforcement
 			Imports: []string{},
 		}
 

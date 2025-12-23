@@ -1,0 +1,22 @@
+-- Budget Exhaustion Example
+-- Demonstrates what happens when a function exceeds its budget
+--
+-- Run with: ailang run --caps IO --entry main examples/reference/budget_exhausted.ail
+-- Expected: BudgetExhaustedError after 2 println calls
+
+module examples/reference/budget_exhausted
+
+import std/io (println)
+
+-- Function that will exceed its budget of 2
+export func exceeds_budget() -> () ! {IO @limit=2} {
+  println("Call 1");
+  println("Call 2");
+  println("Call 3");  -- This fails: budget exhausted
+  ()
+}
+
+export func main() -> () ! {IO} {
+  println("Attempting to exceed budget...");
+  exceeds_budget()
+}

@@ -1,0 +1,67 @@
+module examples/runnable/effect_budgets_rand
+-- Demonstrates effect budget annotations with Rand capability
+-- Budgets limit random number generation operations
+
+import std/io (println)
+import std/rand (rand_int, rand_float, rand_bool)
+
+-- Function limited to 5 random integer generations
+export func limitedDiceRolls() -> () ! {IO, Rand @limit=5} {
+  println("  Rolling dice (5 rolls max):");
+  let roll1 = rand_int(1, 7);
+  println("    Roll 1");
+  let roll2 = rand_int(1, 7);
+  println("    Roll 2");
+  let roll3 = rand_int(1, 7);
+  println("    Roll 3");
+  let roll4 = rand_int(1, 7);
+  println("    Roll 4");
+  let roll5 = rand_int(1, 7);
+  println("    Roll 5");
+  -- A 6th roll would exceed the budget
+  ()
+}
+
+-- Function limited to 3 random floats
+export func limitedProbabilities() -> () ! {IO, Rand @limit=3} {
+  println("  Generating probabilities (3 max):");
+  let p1 = rand_float(0.0, 1.0);
+  println("    Probability 1");
+  let p2 = rand_float(0.0, 1.0);
+  println("    Probability 2");
+  let p3 = rand_float(0.0, 1.0);
+  println("    Probability 3");
+  ()
+}
+
+-- Function limited to 2 coin flips
+export func limitedCoinFlips() -> () ! {IO, Rand @limit=2} {
+  println("  Flipping coins (2 max):");
+  let flip1 = rand_bool();
+  println("    Flip 1");
+  let flip2 = rand_bool();
+  println("    Flip 2");
+  ()
+}
+
+-- Entry point
+export func main() -> () ! {IO, Rand} {
+  println("=== Rand Budget Demo ===");
+  println("");
+
+  println("1. limitedDiceRolls() [Rand @limit=5]:");
+  limitedDiceRolls();
+
+  println("");
+  println("2. limitedProbabilities() [Rand @limit=3]:");
+  limitedProbabilities();
+
+  println("");
+  println("3. limitedCoinFlips() [Rand @limit=2]:");
+  limitedCoinFlips();
+
+  println("");
+  println("Total: 10 Rand operations across 3 functions");
+  println("Each function enforces its own budget independently");
+  ()
+}

@@ -122,6 +122,19 @@ func (m *MockEffContext) SetNetTimeout(timeout time.Duration) {
 	m.Net.Timeout = timeout
 }
 
+// SetBudget sets effect budget limits for testing budget enforcement
+//
+// Parameters:
+//   - limits: Map of effect name to budget limit (nil value = unlimited)
+//
+// Example:
+//
+//	// Allow only 2 IO operations
+//	ctx.SetBudget(map[string]*int{"IO": intPtr(2)})
+func (m *MockEffContext) SetBudget(limits map[string]*int) {
+	m.EffContext.SetBudget(effects.NewBudgetContext(limits))
+}
+
 // GetHTTPClient returns the HTTP client to use for requests
 //
 // Returns the mock client if set, otherwise returns http.DefaultClient.

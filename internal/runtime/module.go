@@ -25,8 +25,9 @@ type ModuleInstance struct {
 	Path string // Module path (e.g., "stdlib/std/io")
 
 	// Static Information (from type-checking)
-	Iface *iface.Iface  // Module interface (exports, types)
-	Core  *core.Program // Compiled Core AST
+	Iface  *iface.Iface  // Module interface (exports, types)
+	Core   *core.Program // Compiled Core AST
+	CoreTI interface{}   // Type info for Core expressions (types.CoreTypeInfo, interface{} to avoid import cycle)
 
 	// Runtime State
 	Bindings map[string]eval.Value      // All top-level bindings
@@ -54,6 +55,7 @@ func NewModuleInstance(loaded *loader.LoadedModule) *ModuleInstance {
 		Path:     loaded.Path,
 		Iface:    loaded.Iface,
 		Core:     loaded.Core,
+		CoreTI:   loaded.CoreTI, // M-CAPABILITY-BUDGETS: Pass type info for runtime budget enforcement
 		Bindings: make(map[string]eval.Value),
 		Exports:  make(map[string]eval.Value),
 		Imports:  make(map[string]*ModuleInstance),

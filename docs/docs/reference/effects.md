@@ -231,6 +231,36 @@ Error: Function 'main' requires capability IO but it was not granted.
 Use --caps IO to grant this capability.
 ```
 
+## Capability Budgets
+
+You can limit how many times a function can perform an effect using **capability budgets**:
+
+```typescript
+-- Function limited to 5 IO operations
+func rateLimited() -> () ! {IO @limit=5} {
+  println("Call 1");  -- Uses 1/5 budget
+  println("Call 2");  -- Uses 2/5 budget
+  -- ...
+  println("Call 6");  -- FAILS: BudgetExhaustedError
+  ()
+}
+```
+
+**Key features:**
+- **Per-invocation**: Each function call gets a fresh budget
+- **Composable**: Nested calls have their own budgets
+- **Bypass for debugging**: Use `--no-budgets` flag
+
+```bash
+# Normal mode - budgets enforced
+ailang run --caps IO --entry main program.ail
+
+# Debug mode - budgets bypassed
+ailang run --caps IO --no-budgets --entry main program.ail
+```
+
+**See [Capability Budgets](/docs/reference/capability-budgets) for the complete reference.**
+
 ## Effect Safety
 
 ### Static Checking
@@ -341,6 +371,7 @@ pure func double(x: int) -> int
 
 ## Related Resources
 
+- [Capability Budgets](/docs/reference/capability-budgets) - Fine-grained effect limiting
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
 - [Module System](/docs/reference/modules) - Imports and exports
 - [Testing Guide](/docs/guides/testing) - Writing tests

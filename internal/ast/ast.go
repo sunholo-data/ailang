@@ -54,6 +54,43 @@ func (p Pos) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.File, p.Line, p.Column)
 }
 
+// EffectAnnotation represents an effect with optional budget limit
+// Syntax: IO or IO @limit=5
+type EffectAnnotation struct {
+	Name   string // Effect name (e.g., "IO", "FS", "Net")
+	Budget *int   // Optional budget limit (nil = unlimited)
+	Pos    Pos
+}
+
+// String formats the effect annotation for display
+func (e *EffectAnnotation) String() string {
+	if e.Budget != nil {
+		return fmt.Sprintf("%s @limit=%d", e.Name, *e.Budget)
+	}
+	return e.Name
+}
+
+// EffectNames extracts just the effect names from annotations (for backward compatibility)
+func EffectNames(effects []EffectAnnotation) []string {
+	names := make([]string, len(effects))
+	for i, e := range effects {
+		names[i] = e.Name
+	}
+	return names
+}
+
+// FormatEffects formats a slice of effect annotations for display
+func FormatEffects(effects []EffectAnnotation) string {
+	if len(effects) == 0 {
+		return ""
+	}
+	parts := make([]string, len(effects))
+	for i, e := range effects {
+		parts[i] = e.String()
+	}
+	return fmt.Sprintf("! {%s}", strings.Join(parts, ", "))
+}
+
 // File represents a complete AILANG source file
 type File struct {
 	Module     *ModuleDecl   // Optional module declaration

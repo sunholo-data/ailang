@@ -53,6 +53,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/typedast"
 )
@@ -64,16 +65,17 @@ type CoreTypeChecker struct {
 	debugMode           bool              // Enable debug output
 	useRecordsV2        bool              // Emit TRecord2 instead of TRecord (AILANG_RECORDS_V2)
 	errors              []error
-	resolvedConstraints map[uint64]*ResolvedConstraint // NodeID → resolved constraint
-	globalTypes         map[string]*Scheme             // Global types for imports (module.name -> Scheme)
-	instantiations      []Instantiation                // Track polymorphic instantiations for debugging
-	trackInstantiations bool                           // Whether to track instantiations
-	varCounter          int                            // Counter for generating fresh variable names
-	effectAnnots        map[uint64][]string            // Effect annotations from elaboration (NodeID → effects)
-	returnTypeAnnots    map[uint64]Type                // Return type annotations from elaboration (Lambda NodeID → return type)
-	CoreTI              CoreTypeInfo                   // Core NodeID → inferred types (principal types for lowering)
-	constructorTypes    map[string]string              // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
-	adtTypeParams       map[string]int                 // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
+	resolvedConstraints map[uint64]*ResolvedConstraint    // NodeID → resolved constraint
+	globalTypes         map[string]*Scheme                // Global types for imports (module.name -> Scheme)
+	instantiations      []Instantiation                   // Track polymorphic instantiations for debugging
+	trackInstantiations bool                              // Whether to track instantiations
+	varCounter          int                               // Counter for generating fresh variable names
+	effectAnnots        map[uint64][]string               // Effect annotations from elaboration (NodeID → effects)
+	effectAnnotsFull    map[uint64][]ast.EffectAnnotation // M-CAPABILITY-BUDGETS: Full effect annotations with budgets
+	returnTypeAnnots    map[uint64]Type                   // Return type annotations from elaboration (Lambda NodeID → return type)
+	CoreTI              CoreTypeInfo                      // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes    map[string]string                 // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	adtTypeParams       map[string]int                    // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
@@ -159,6 +161,7 @@ func NewCoreTypeChecker() *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		effectAnnotsFull:    make(map[uint64][]ast.EffectAnnotation), // M-CAPABILITY-BUDGETS
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
@@ -183,6 +186,7 @@ func NewCoreTypeCheckerWithInstances(instances *InstanceEnv) *CoreTypeChecker {
 		resolvedConstraints: make(map[uint64]*ResolvedConstraint),
 		globalTypes:         make(map[string]*Scheme),
 		effectAnnots:        make(map[uint64][]string),
+		effectAnnotsFull:    make(map[uint64][]ast.EffectAnnotation), // M-CAPABILITY-BUDGETS
 		returnTypeAnnots:    make(map[uint64]Type),
 		CoreTI:              NewCoreTypeInfo(),
 		constructorTypes:    make(map[string]string),
@@ -279,6 +283,12 @@ func (tc *CoreTypeChecker) SetDefaultingConfig(config *DefaultingConfig) {
 // SetEffectAnnotations sets effect annotations from elaboration
 func (tc *CoreTypeChecker) SetEffectAnnotations(annots map[uint64][]string) {
 	tc.effectAnnots = annots
+}
+
+// SetEffectAnnotationsFull sets full effect annotations with budgets from elaboration
+// M-CAPABILITY-BUDGETS: This preserves @limit=N budget annotations through elaboration
+func (tc *CoreTypeChecker) SetEffectAnnotationsFull(annots map[uint64][]ast.EffectAnnotation) {
+	tc.effectAnnotsFull = annots
 }
 
 // SetParamTypeAnnotations sets parameter type annotations from elaboration

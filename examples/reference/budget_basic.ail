@@ -1,0 +1,24 @@
+-- Basic Capability Budget Example
+-- Demonstrates the @limit=N syntax for limiting effect operations
+--
+-- Run with: ailang run --caps IO --entry main examples/reference/budget_basic.ail
+
+module examples/reference/budget_basic
+
+import std/io (println)
+
+-- Function limited to 2 IO operations
+-- The @limit=2 annotation limits println calls to 2 per invocation
+export func limited() -> () ! {IO @limit=2} {
+  println("Call 1");
+  println("Call 2");
+  -- Uncommenting the next line would cause BudgetExhaustedError:
+  -- println("Call 3");
+  ()
+}
+
+export func main() -> () ! {IO} {
+  println("Testing budget limit of 2...");
+  limited();
+  println("Success! Function stayed within budget.")
+}

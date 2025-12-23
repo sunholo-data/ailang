@@ -18,7 +18,7 @@ import (
 //	        {Name: "n", Type: intType, Pos: pos},
 //	    },
 //	    ReturnType: intType,
-//	    Effects:    []string{},
+//	    Effects:    []EffectAnnotation{},
 //	    Tests:      []*ast.TestCase{},
 //	    Properties: []*ast.Property{},
 //	    Body:       bodyExpr,
@@ -47,7 +47,7 @@ type FuncDecl struct {
 	TypeParams []string // Generic type parameters
 	Params     []*Param
 	ReturnType Type
-	Effects    []string
+	Effects    []EffectAnnotation // Effect annotations with optional budgets
 	Tests      []*TestCase
 	Properties []*Property
 	Body       Expr // nil for extern functions

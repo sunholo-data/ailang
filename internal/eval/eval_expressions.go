@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // evalCore evaluates a Core expression
@@ -157,12 +158,48 @@ func (e *CoreEvaluator) evalCoreLit(lit *core.Lit) (Value, error) {
 
 // evalCoreLambda evaluates a lambda (creates closure)
 func (e *CoreEvaluator) evalCoreLambda(lam *core.Lambda) (Value, error) {
-	return &FunctionValue{
+	fn := &FunctionValue{
 		Params: lam.Params,
 		Body:   lam.Body,
 		Env:    e.env, // Capture environment by reference (needed for recursion)
 		Typed:  false,
-	}, nil
+	}
+
+	// M-CAPABILITY-BUDGETS: Extract effect budgets from type info if available
+	if e.coreTypeInfo != nil {
+		if t, ok := e.coreTypeInfo[lam.NodeID]; ok {
+			fn.EffectBudgets = extractEffectBudgets(t)
+		}
+	}
+
+	return fn, nil
+}
+
+// extractEffectBudgets extracts budget limits from a function type's effect row
+func extractEffectBudgets(t types.Type) map[string]int {
+	// Check if it's a function type with an effect row
+	fn, ok := t.(*types.TFunc2)
+	if !ok || fn.EffectRow == nil {
+		return nil
+	}
+
+	// Extract budgets from the effect row
+	if len(fn.EffectRow.Budgets) == 0 {
+		return nil
+	}
+
+	budgets := make(map[string]int)
+	for effect, limitPtr := range fn.EffectRow.Budgets {
+		if limitPtr != nil {
+			budgets[effect] = *limitPtr
+		}
+	}
+
+	if len(budgets) == 0 {
+		return nil
+	}
+
+	return budgets
 }
 
 // evalCoreLet evaluates a let binding

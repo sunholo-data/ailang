@@ -229,6 +229,13 @@ func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 	resolver := newModuleGlobalResolver(inst, rt)
 	rt.evaluator.SetGlobalResolver(resolver)
 
+	// M-CAPABILITY-BUDGETS: Set CoreTypeInfo for effect budget enforcement
+	if inst.CoreTI != nil {
+		if cti, ok := inst.CoreTI.(types.CoreTypeInfo); ok {
+			rt.evaluator.SetCoreTypeInfo(cti)
+		}
+	}
+
 	// 2. Iterate over top-level declarations in the Core AST
 	if inst.Core == nil {
 		return fmt.Errorf("module %s has no Core AST (loader issue)", inst.Path)

@@ -12,15 +12,24 @@ type GlobalResolver interface {
 	ResolveValue(ref core.GlobalRef) (Value, error)
 }
 
+// BudgetEnforcer is implemented by effect contexts that support budget enforcement
+// This interface avoids import cycles between eval and effects packages
+type BudgetEnforcer interface {
+	// WithBudgetLimits creates a new context with the given budget limits
+	// Returns the new context that should be used for evaluation
+	WithBudgetLimits(limits map[string]int) interface{}
+}
+
 // CoreEvaluator evaluates Core AST programs after dictionary elaboration
 type CoreEvaluator struct {
 	env                   *Environment
 	registry              *types.DictionaryRegistry
-	resolver              GlobalResolver // Resolver for global references
-	experimentalBinopShim bool           // Feature flag for operator shim
-	effContext            interface{}    // Effect context (interface{} avoids import cycle with effects package)
-	recursionDepth        int            // Current recursion depth (for stack overflow detection)
-	maxRecursionDepth     int            // Maximum allowed recursion depth (default: 10,000)
+	resolver              GlobalResolver     // Resolver for global references
+	experimentalBinopShim bool               // Feature flag for operator shim
+	effContext            interface{}        // Effect context (interface{} avoids import cycle with effects package)
+	recursionDepth        int                // Current recursion depth (for stack overflow detection)
+	maxRecursionDepth     int                // Maximum allowed recursion depth (default: 10,000)
+	coreTypeInfo          types.CoreTypeInfo // Type info for looking up effect budgets on closures
 }
 
 // Env returns the current environment (for module evaluation)
@@ -89,6 +98,14 @@ func (e *CoreEvaluator) GetEffContext() interface{} {
 	return e.effContext
 }
 
+// SetCoreTypeInfo sets the type info for looking up effect budgets on closures
+//
+// When set, the evaluator will extract effect budgets from function types
+// and populate EffectBudgets on FunctionValues during closure creation.
+func (e *CoreEvaluator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
+	e.coreTypeInfo = cti
+}
+
 // GetEnvironmentBindings returns all bindings in the current environment
 func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 	return e.env.GetAllBindings()
@@ -118,6 +135,16 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 		newEnv.Set(param, args[i])
 	}
 
+	// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
+	var oldEffContext interface{}
+	if len(fn.EffectBudgets) > 0 && e.effContext != nil {
+		// Use BudgetEnforcer interface to avoid import cycle
+		if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
+			oldEffContext = e.effContext
+			e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
+		}
+	}
+
 	// Evaluate body in new environment
 	oldEnv := e.env
 	e.env = newEnv
@@ -131,6 +158,12 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 	}
 
 	e.env = oldEnv
+
+	// Restore original effect context if we modified it
+	if oldEffContext != nil {
+		e.effContext = oldEffContext
+	}
+
 	return result, err
 }
 

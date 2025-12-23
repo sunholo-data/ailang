@@ -50,7 +50,7 @@ func makeDebugLogType() types.Type {
 
 func debugLogImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Debug capability
-	if err := ctx.RequireCap("Debug"); err != nil {
+	if err := ctx.RequireCapWithBudget("Debug", ""); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +98,7 @@ func makeDebugCheckType() types.Type {
 
 func debugCheckImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Check Debug capability
-	if err := ctx.RequireCap("Debug"); err != nil {
+	if err := ctx.RequireCapWithBudget("Debug", ""); err != nil {
 		return nil, err
 	}
 

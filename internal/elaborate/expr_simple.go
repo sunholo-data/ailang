@@ -58,12 +58,16 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 
 	// Store effect annotations if present
 	if len(lam.Effects) > 0 {
+		// Extract effect names for backward compatibility
+		effectNames := ast.EffectNames(lam.Effects)
 		// Validate and normalize effect names
-		_, err := types.ElaborateEffectRow(lam.Effects)
+		_, err := types.ElaborateEffectRow(effectNames)
 		if err != nil {
 			return nil, fmt.Errorf("invalid effect annotation: %w", err)
 		}
-		e.effectAnnots[coreLam.ID()] = lam.Effects
+		e.effectAnnots[coreLam.ID()] = effectNames
+		// M-CAPABILITY-BUDGETS: Also store full annotations with budgets
+		e.effectAnnotsFull[coreLam.ID()] = lam.Effects
 	}
 
 	return coreLam, nil
@@ -93,12 +97,16 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 
 	// Store effect annotations if present
 	if len(funcLit.Effects) > 0 {
+		// Extract effect names for backward compatibility
+		effectNames := ast.EffectNames(funcLit.Effects)
 		// Validate and normalize effect names
-		_, err := types.ElaborateEffectRow(funcLit.Effects)
+		_, err := types.ElaborateEffectRow(effectNames)
 		if err != nil {
 			return nil, fmt.Errorf("invalid effect annotation: %w", err)
 		}
-		e.effectAnnots[coreLam.ID()] = funcLit.Effects
+		e.effectAnnots[coreLam.ID()] = effectNames
+		// M-CAPABILITY-BUDGETS: Also store full annotations with budgets
+		e.effectAnnotsFull[coreLam.ID()] = funcLit.Effects
 	}
 
 	return coreLam, nil

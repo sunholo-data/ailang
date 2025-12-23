@@ -171,10 +171,11 @@ func (r *RecordValue) String() string {
 
 // FunctionValue represents a function value
 type FunctionValue struct {
-	Params []string
-	Body   interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
-	Env    *Environment
-	Typed  bool // Whether Body is typed
+	Params        []string
+	Body          interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
+	Env           *Environment
+	Typed         bool           // Whether Body is typed
+	EffectBudgets map[string]int // Budget limits per effect (from type annotation)
 }
 
 func (f *FunctionValue) Type() string   { return "function" }

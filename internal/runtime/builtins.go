@@ -73,6 +73,14 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 				if ctx == nil && !builtinSpec.IsPure {
 					return nil, fmt.Errorf("%s: no effect context available", builtinSpec.Name)
 				}
+
+				// M-CAPABILITY-BUDGETS: Check capability and consume budget before calling effect builtin
+				if ctx != nil && builtinSpec.Effect != "" {
+					if err := ctx.RequireCapWithBudget(builtinSpec.Effect, ""); err != nil {
+						return nil, err
+					}
+				}
+
 				return builtinSpec.Impl(ctx, args)
 			},
 		}

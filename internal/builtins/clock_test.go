@@ -108,3 +108,46 @@ func TestClockSleepRequiresCapability(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Clock")
 }
+
+// TestClockNowWithBudget tests that clock operations respect budget limits
+func TestClockNowWithBudget(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+	ctx.GrantAll("Clock")
+	ctx.SetBudget(map[string]*int{"Clock": intPtr(2)}) // Allow only 2 Clock operations
+
+	// First call should succeed
+	result1, err1 := clockNowImpl(ctx.EffContext, []eval.Value{&eval.UnitValue{}})
+	assert.NoError(t, err1)
+	assert.NotNil(t, result1)
+
+	// Second call should succeed
+	result2, err2 := clockNowImpl(ctx.EffContext, []eval.Value{&eval.UnitValue{}})
+	assert.NoError(t, err2)
+	assert.NotNil(t, result2)
+
+	// Third call should fail with budget exhausted
+	_, err3 := clockNowImpl(ctx.EffContext, []eval.Value{&eval.UnitValue{}})
+	assert.Error(t, err3)
+	assert.Contains(t, err3.Error(), "budget exhausted")
+}
+
+// TestClockSleepWithBudget tests that sleep operations respect budget limits
+func TestClockSleepWithBudget(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+	ctx.GrantAll("Clock")
+	ctx.SetBudget(map[string]*int{"Clock": intPtr(1)}) // Allow only 1 Clock operation
+
+	// First call should succeed
+	result1, err1 := clockSleepImpl(ctx.EffContext, []eval.Value{testctx.MakeInt(0)})
+	assert.NoError(t, err1)
+	assert.NotNil(t, result1)
+
+	// Second call should fail with budget exhausted
+	_, err2 := clockSleepImpl(ctx.EffContext, []eval.Value{testctx.MakeInt(0)})
+	assert.Error(t, err2)
+	assert.Contains(t, err2.Error(), "budget exhausted")
+}
+
+func intPtr(i int) *int {
+	return &i
+}

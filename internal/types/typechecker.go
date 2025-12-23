@@ -222,7 +222,7 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		if len(typ.Effects) > 0 {
 			labels := make(map[string]Type)
 			for _, e := range typ.Effects {
-				labels[e] = TUnit
+				labels[e.Name] = TUnit
 			}
 			effectRow = &Row{
 				Kind:   EffectRow,

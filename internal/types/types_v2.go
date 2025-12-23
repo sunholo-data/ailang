@@ -60,9 +60,10 @@ func (r *RowVar) Substitute(subs map[string]Type) Type {
 
 // Row represents a row type (for both records and effects)
 type Row struct {
-	Kind   Kind            // KRow(KEffect) or KRow(KRecord)
-	Labels map[string]Type // For records: field->type, For effects: effect->unit
-	Tail   *RowVar         // Optional row variable for extension
+	Kind    Kind            // KRow(KEffect) or KRow(KRecord)
+	Labels  map[string]Type // For records: field->type, For effects: effect->unit
+	Tail    *RowVar         // Optional row variable for extension
+	Budgets map[string]*int // For effects: optional budget limits (nil = unlimited)
 }
 
 func (r *Row) String() string {
@@ -76,7 +77,16 @@ func (r *Row) String() string {
 	var parts []string
 	for _, k := range keys {
 		if r.Kind.Equals(EffectRow) {
-			parts = append(parts, k)
+			// For effect rows, include budget annotation if present
+			if r.Budgets != nil {
+				if budget, ok := r.Budgets[k]; ok && budget != nil {
+					parts = append(parts, fmt.Sprintf("%s @limit=%d", k, *budget))
+				} else {
+					parts = append(parts, k)
+				}
+			} else {
+				parts = append(parts, k)
+			}
 		} else {
 			parts = append(parts, fmt.Sprintf("%s: %s", k, r.Labels[k].String()))
 		}
@@ -104,6 +114,12 @@ func (r *Row) Equals(other Type) bool {
 				return false
 			}
 		}
+		// Compare budgets for effect rows
+		if r.Kind.Equals(EffectRow) {
+			if !equalBudgets(r.Budgets, o.Budgets) {
+				return false
+			}
+		}
 		if r.Tail == nil && o.Tail == nil {
 			return true
 		}
@@ -115,10 +131,55 @@ func (r *Row) Equals(other Type) bool {
 	return false
 }
 
+// equalBudgets compares two budget maps for equality
+func equalBudgets(a, b map[string]*int) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		// One is nil, one is not - check if non-nil is empty
+		if a == nil && len(b) == 0 {
+			return true
+		}
+		if b == nil && len(a) == 0 {
+			return true
+		}
+		return false
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for k, av := range a {
+		bv, ok := b[k]
+		if !ok {
+			return false
+		}
+		if av == nil && bv == nil {
+			continue
+		}
+		if av == nil || bv == nil {
+			return false
+		}
+		if *av != *bv {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Row) Substitute(subs map[string]Type) Type {
 	labels := make(map[string]Type)
 	for k, v := range r.Labels {
 		labels[k] = v.Substitute(subs)
+	}
+
+	// Preserve budgets
+	var budgets map[string]*int
+	if r.Budgets != nil {
+		budgets = make(map[string]*int)
+		for k, v := range r.Budgets {
+			budgets[k] = v
+		}
 	}
 
 	var tail *RowVar
@@ -130,6 +191,15 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 				for k, v := range subRow.Labels {
 					labels[k] = v
 				}
+				// Merge budgets from substituted row
+				if subRow.Budgets != nil {
+					if budgets == nil {
+						budgets = make(map[string]*int)
+					}
+					for k, v := range subRow.Budgets {
+						budgets[k] = v
+					}
+				}
 				tail = subRow.Tail
 			} else if subVar, ok := sub.(*RowVar); ok {
 				tail = subVar
@@ -140,9 +210,10 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 	}
 
 	return &Row{
-		Kind:   r.Kind,
-		Labels: labels,
-		Tail:   tail,
+		Kind:    r.Kind,
+		Labels:  labels,
+		Tail:    tail,
+		Budgets: budgets,
 	}
 }
 

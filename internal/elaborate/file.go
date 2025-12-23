@@ -461,6 +461,14 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 		}
 	}
 
+	// M-CAPABILITY-BUDGETS: Preserve effect annotations for the type checker
+	// This ensures @limit=N budget annotations are preserved through elaboration
+	if f.FuncDecl != nil && len(f.FuncDecl.Effects) > 0 {
+		effectNames := ast.EffectNames(f.FuncDecl.Effects)
+		e.effectAnnots[lambda.ID()] = effectNames
+		e.effectAnnotsFull[lambda.ID()] = f.FuncDecl.Effects
+	}
+
 	return lambda, nil
 }
 
@@ -590,10 +598,12 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 	}
 
 	// Convert to lambda
+	// M-CAPABILITY-BUDGETS: Copy effect annotations from FuncDecl to Lambda
 	lambda := &ast.Lambda{
-		Params: fn.Params,
-		Body:   fn.Body,
-		Pos:    fn.Pos,
+		Params:  fn.Params,
+		Body:    fn.Body,
+		Effects: fn.Effects, // Preserve effect annotations including budgets
+		Pos:     fn.Pos,
 	}
 
 	value, err := e.normalizeLambda(lambda)
