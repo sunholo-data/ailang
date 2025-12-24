@@ -125,6 +125,17 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - Safe refactoring with test verification
 - **Use for**: When files exceed thresholds, improving maintainability
 
+### Environment Setup
+
+**[cloud-setup/](cloud-setup/)** - Set up cloud/mobile Claude Code environments
+- Full automated setup script for Go, make, gh
+- Verification script to check environment health
+- DNS fix, Go module proxy workarounds
+- Comprehensive troubleshooting guide
+- **Scripts**: setup.sh, verify.sh
+- **Resources**: troubleshooting.md
+- **Use for**: New cloud sessions, mobile Claude Code, missing tools
+
 ### Automation & Integration
 
 **[model-manager/](model-manager/)** - Test, validate, and add new AI models to eval suite
@@ -382,9 +393,9 @@ To share publicly:
 - sprint-planner: Template loaded on demand
 - sprint-executor: Checklist loaded on demand
 
-**Total skills**: 15 (project-specific)
-**Total scripts**: 26 executable automation scripts
-**Total resources**: 16+ reference files
+**Total skills**: 16 (project-specific)
+**Total scripts**: 28 executable automation scripts
+**Total resources**: 17+ reference files
 **Total lines**: ~5,500 lines of structured, reusable content
 
 **Note**: skill-builder is available globally at `~/.claude/skills/skill-builder/` and is not included in project skills count
