@@ -311,15 +311,17 @@ func TestArrayListTypeApplication(t *testing.T) {
 			checkElement: "Direction",
 		},
 		{
-			name:         "List[string] parses to ListType",
+			// DX-17 Phase 2: List[T] now parses to TypeApp for uniform representation
+			name:         "List[string] parses to TypeApp",
 			input:        "type T = Foo(List[string])",
-			expectedType: &ast.ListType{},
+			expectedType: &ast.TypeApp{},
 			checkElement: "string",
 		},
 		{
-			name:         "List[UserType] parses to ListType",
+			// DX-17 Phase 2: List[T] now parses to TypeApp for uniform representation
+			name:         "List[UserType] parses to TypeApp",
 			input:        "type T = Foo(List[UserType])",
-			expectedType: &ast.ListType{},
+			expectedType: &ast.TypeApp{},
 			checkElement: "UserType",
 		},
 		{
@@ -363,16 +365,7 @@ func TestArrayListTypeApplication(t *testing.T) {
 						assert.Equal(t, tt.checkElement, elemSimple.Name)
 					}
 				}
-			case *ast.ListType:
-				listType, ok := fieldType.(*ast.ListType)
-				assert.True(t, ok, "expected ListType, got %T", fieldType)
-				if ok && tt.checkElement != "" {
-					elemSimple, ok := listType.Element.(*ast.SimpleType)
-					assert.True(t, ok, "expected SimpleType element")
-					if ok {
-						assert.Equal(t, tt.checkElement, elemSimple.Name)
-					}
-				}
+			// DX-17 Phase 2: ListType case removed - List[T] now uses TypeApp
 			case *ast.SimpleType:
 				simpleType, ok := fieldType.(*ast.SimpleType)
 				assert.True(t, ok, "expected SimpleType, got %T", fieldType)
