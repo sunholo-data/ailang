@@ -104,6 +104,14 @@ func TestAgent_ProcessMessage(t *testing.T) {
 		t.Skip("Skipping: claude binary not found (required for agent execution)")
 	}
 
+	// Skip in short mode or if TEST_CLAUDE_EXECUTION not set (requires Claude API access)
+	if testing.Short() {
+		t.Skip("Skipping: requires Claude CLI execution (use -short=false to run)")
+	}
+	if os.Getenv("TEST_CLAUDE_EXECUTION") != "1" {
+		t.Skip("Skipping: requires Claude API access (set TEST_CLAUDE_EXECUTION=1 to run)")
+	}
+
 	// Create temp database
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
@@ -413,6 +421,14 @@ func min(a, b int) int {
 
 // TestAgent_ApprovalWorkflow tests that directives requiring capabilities request approval
 func TestAgent_ApprovalWorkflow(t *testing.T) {
+	// Skip in short mode or if TEST_CLAUDE_EXECUTION not set (requires Claude API access)
+	if testing.Short() {
+		t.Skip("Skipping: requires Claude CLI execution (use -short=false to run)")
+	}
+	if os.Getenv("TEST_CLAUDE_EXECUTION") != "1" {
+		t.Skip("Skipping: requires Claude API access (set TEST_CLAUDE_EXECUTION=1 to run)")
+	}
+
 	// Create temp database
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")

@@ -36,6 +36,9 @@ func TestExecute_WorkspaceCreation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping execution test in short mode (requires Claude CLI)")
 	}
+	if os.Getenv("TEST_CLAUDE_EXECUTION") != "1" {
+		t.Skip("Skipping: requires Claude API access (set TEST_CLAUDE_EXECUTION=1 to run)")
+	}
 
 	tmpDir := t.TempDir()
 	executor := NewDirectiveExecutor(tmpDir)
@@ -177,6 +180,9 @@ func TestGetErrorMessage(t *testing.T) {
 func TestExecuteWithModel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping execution test in short mode (requires Claude CLI)")
+	}
+	if os.Getenv("TEST_CLAUDE_EXECUTION") != "1" {
+		t.Skip("Skipping: requires Claude API access (set TEST_CLAUDE_EXECUTION=1 to run)")
 	}
 
 	tmpDir := t.TempDir()
