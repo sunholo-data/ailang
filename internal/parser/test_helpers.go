@@ -295,12 +295,21 @@ func AssertSimpleType(t *testing.T, typ ast.Type, expectedName string) {
 }
 
 // AssertListType verifies that a type is a list type and returns the element type.
+// DX-17 Phase 2: [T] syntax now parses to TypeApp("list", [T])
 func AssertListType(t *testing.T, typ ast.Type) ast.Type {
 	t.Helper()
-	lt, ok := typ.(*ast.ListType)
+	ta, ok := typ.(*ast.TypeApp)
 	if !ok {
-		t.Fatalf("Expected *ast.ListType, got %T", typ)
+		t.Fatalf("Expected *ast.TypeApp for list type, got %T", typ)
 		return nil
 	}
-	return lt.Element
+	if ta.Constructor != "list" {
+		t.Fatalf("Expected TypeApp with constructor 'list', got %q", ta.Constructor)
+		return nil
+	}
+	if len(ta.Args) != 1 {
+		t.Fatalf("Expected TypeApp with 1 arg, got %d", len(ta.Args))
+		return nil
+	}
+	return ta.Args[0]
 }

@@ -45,16 +45,15 @@ func (p *Parser) parseType() ast.Type {
 				return nil
 			}
 
-			// M-TYPE1: Special-case Array and List to preserve element types
+			// M-TYPE1: Special-case Array to preserve element types
 			// This enables proper unification: Array[T] in ADT params works with #[...] literals
+			// DX-17 Phase 2: List[T] now uses TypeApp for uniform representation
 			switch name {
 			case "Array":
 				typ = &ast.ArrayType{Element: elemType, Pos: startPos}
-			case "List":
-				typ = &ast.ListType{Element: elemType, Pos: startPos}
 			default:
 				// M-TAPP-FIX: Use TypeApp to preserve type arguments for generic types
-				// This enables proper type checking of Option[T], Result[T, E], etc.
+				// This enables proper type checking of Option[T], Result[T, E], List[T], etc.
 				typ = &ast.TypeApp{Constructor: name, Args: typeArgs, Pos: startPos}
 			}
 			goto checkArrow
@@ -97,16 +96,19 @@ func (p *Parser) parseType() ast.Type {
 		goto checkArrow
 
 	case lexer.LBRACKET:
-		// List type: [T]
+		// List type: [T] - normalize to TypeApp("list", [T]) for uniform representation
+		// DX-17 Phase 2: Syntactic sugar [T] normalizes to TypeApp at parse time
+		// Note: uses lowercase "list" to match internal types.Builder convention
 		startPos := p.curPos()
 		p.nextToken() // consume LBRACKET
 		elemType := p.parseType()
 		if !p.expectPeek(lexer.RBRACKET) {
 			return nil
 		}
-		typ = &ast.ListType{
-			Element: elemType,
-			Pos:     startPos,
+		typ = &ast.TypeApp{
+			Constructor: "list",
+			Args:        []ast.Type{elemType},
+			Pos:         startPos,
 		}
 		goto checkArrow
 

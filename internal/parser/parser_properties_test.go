@@ -56,15 +56,21 @@ func TestParseProperties_SingleProperty(t *testing.T) {
 		t.Errorf("expected binder name 'xs', got %q", binder.Name)
 	}
 
-	// Type should be [int]
-	listType, ok := binder.Type.(*ast.ListType)
+	// Type should be [int] - DX-17 Phase 2: Now normalized to TypeApp("list", [int])
+	typeApp, ok := binder.Type.(*ast.TypeApp)
 	if !ok {
-		t.Fatalf("expected ListType for list type, got %T", binder.Type)
+		t.Fatalf("expected TypeApp for list type, got %T", binder.Type)
+	}
+	if typeApp.Constructor != "list" {
+		t.Errorf("expected constructor 'list', got %q", typeApp.Constructor)
 	}
 	// Check element type is int
-	simpleType, ok := listType.Element.(*ast.SimpleType)
+	if len(typeApp.Args) != 1 {
+		t.Fatalf("expected 1 type arg, got %d", len(typeApp.Args))
+	}
+	simpleType, ok := typeApp.Args[0].(*ast.SimpleType)
 	if !ok {
-		t.Errorf("expected SimpleType for element, got %T", listType.Element)
+		t.Errorf("expected SimpleType for element, got %T", typeApp.Args[0])
 	}
 	if simpleType != nil && simpleType.Name != "int" {
 		t.Errorf("expected element type 'int', got %q", simpleType.Name)

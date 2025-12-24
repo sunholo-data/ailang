@@ -139,7 +139,12 @@ func (t *TFunc) Substitute(subs map[string]Type) Type {
 	}
 }
 
-// TList represents a list type
+// TList represents a list type.
+//
+// Deprecated: Use TApp("list", T) instead. The [T] syntax in source code
+// normalizes to TApp("list", T) during parsing (DX-17 Phase 2).
+// TList will be removed in v0.7.0. Use the AsList helper to check if
+// a type is a list without depending on the internal representation.
 type TList struct {
 	Element Type
 }
