@@ -15,7 +15,28 @@ AILANG is a purely functional, effect-typed language designed as a **determinist
 
 ## Quick Start
 
-### Installation
+AILANG is designed to be used by AI agents. The easiest way to get started is through your AI coding assistant.
+
+### With Claude Code
+
+```bash
+# Add AILANG to your project
+claude "Add AILANG support to this project using the teaching prompt from ailang.sunholo.com"
+```
+
+Claude Code can read the [AILANG Teaching Prompt](https://ailang.sunholo.com/docs/prompts) and write correct AILANG code.
+
+### With Gemini CLI
+
+```bash
+# Use Gemini with AILANG context
+gemini -p "$(curl -s https://ailang.sunholo.com/llms.txt)" "Write a factorial function in AILANG"
+```
+
+### Manual Installation
+
+<details>
+<summary>Click to expand manual installation instructions</summary>
 
 ```bash
 # macOS (Apple Silicon)
@@ -38,7 +59,9 @@ cd ailang && make install
 ailang --version
 ```
 
-For AI agent integration (Claude Code, Gemini CLI), see the [Getting Started Guide](https://ailang.sunholo.com/docs/guides/getting-started).
+</details>
+
+For complete setup instructions, see the [Getting Started Guide](https://ailang.sunholo.com/docs/guides/getting-started).
 
 ### Hello World
 
