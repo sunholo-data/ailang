@@ -8,6 +8,16 @@ description: Capability-based side effects in AILANG
 
 AILANG uses an **algebraic effect system** with capability-based security. All side effects must be declared in function signatures and granted at runtime.
 
+:::info Academic Foundation
+AILANG's effect system builds on foundational research:
+
+- **Plotkin & Pretnar (2009)**: [Handlers of Algebraic Effects](/references/plotkin-pretnar-2009.pdf) — Core theory of algebraic effects
+- **Leijen (2014)**: [Koka: Row Polymorphic Effect Types](/references/leijen-koka-2014-arxiv.pdf) — Row polymorphism for effects
+- **Lucassen & Gifford (1988)**: [Polymorphic Effect Systems](/references/lucassen-gifford-1988.pdf) — Original effect typing
+
+See [Citations & Bibliography](/docs/references) for complete references.
+:::
+
 ## Why Effects?
 
 Traditional languages hide side effects:

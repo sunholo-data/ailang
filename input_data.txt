@@ -1,4 +1,0 @@
-python
-programming
-clean code
-python

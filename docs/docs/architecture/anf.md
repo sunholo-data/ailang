@@ -103,6 +103,15 @@ $ ailang debug ast myfile.ail --show-types
 - **Keep AST nodes alive through lowering;** CoreTypeInfo keys by NodeID.
 - **If runtime says "wrong builtin selected",** verify CoreTypeInfo reached the lowerer.
 
+## Academic Foundation
+
+> **Flanagan, C., Sabry, A., Duba, B. F., & Felleisen, M.** (1993). The Essence of Compiling with Continuations. PLDI '93.
+> [PDF](/references/flanagan-anf-1993.pdf) · [DOI](https://doi.org/10.1145/155090.155113)
+
+ANF provides the benefits of continuation-passing style (explicit evaluation order, easy optimization) without the complexity of full CPS transformation. Every intermediate computation is bound to a name via `let`, making the evaluation sequence explicit.
+
+**See [Citations & Bibliography](/docs/references) for complete references.**
+
 ## See Also
 
 - [Adding Operators Guide](./adding-operators) - Step-by-step operator implementation

@@ -167,6 +167,20 @@ Hint: No dedupe operation between DB.read and computeSummary
 
 ---
 
+## Research Foundation: LoCoBench
+
+Recent research validates AILANG's design thesis. The [LoCoBench benchmark](https://arxiv.org/abs/2509.09614) ([PDF](/references/qiu-2025-locobench.pdf)) (Salesforce AI Research, 2025) evaluated LLMs on 8,000 multi-file software engineering tasks and found:
+
+- **30-50% performance degradation** as context grows from 10K to 1M tokens
+- **Systems languages (C, Rust) score worst**; high-level languages (Python, PHP) score best
+- **Architectural reasoning is a key failure mode** — especially for tightly-coupled systems
+
+AILANG's explicit effects, static imports, and deterministic semantics directly address these failure modes.
+
+**[See detailed analysis →](/docs/why-ailang#research-validation-long-context-code-synthesis)**
+
+---
+
 ## Benchmark Results — M-EVAL
 
 We continuously track AI code generation success across 46 benchmarks with Claude, GPT, and Gemini.

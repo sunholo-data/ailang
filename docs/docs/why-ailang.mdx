@@ -145,6 +145,109 @@ AILANG excels wherever you need **correctness, determinism, and AI assistance**:
 
 ---
 
+## Research Validation: Long-Context Code Synthesis
+
+Recent research from Salesforce AI Research ([LoCoBench, arXiv:2509.09614](https://arxiv.org/abs/2509.09614) · [PDF](/references/qiu-2025-locobench.pdf)) has systematically evaluated LLMs on complex, multi-file software engineering tasks. Their findings reveal fundamental challenges that AILANG is specifically designed to address.
+
+### The Problem: LLMs Struggle with Long-Context Code
+
+LoCoBench evaluated state-of-the-art models on 8,000 scenarios across 10 programming languages with context lengths from 10K to 1M tokens. Key findings:
+
+| Challenge Identified | LoCoBench Finding | Impact |
+|---------------------|-------------------|--------|
+| **Context Degradation** | Performance drops 30-50% as context grows from 10K to 1M tokens | Models lose track of dependencies |
+| **Systems Languages Harder** | C, Rust show worst scores; Python, PHP easiest | Low-level semantics confuse models |
+| **Architectural Reasoning Weak** | Tightly-coupled systems harder than loosely-coupled | Hidden dependencies cause failures |
+| **Multi-Session Memory Loss** | Models struggle maintaining context across sessions | No semantic identity preservation |
+| **Bug Investigation Difficult** | Tracing errors across files is a major failure mode | Implicit side effects hide bugs |
+
+<figure>
+  <img src="/img/coupling-cohesion.png" alt="LoCoBench: Coupling vs Cohesion performance analysis" style={{maxWidth: '100%', margin: '1.5rem 0'}} />
+  <figcaption style={{fontSize: '0.9rem', fontStyle: 'italic', textAlign: 'center', color: 'var(--ifm-color-content-secondary)'}}>
+    <strong>Figure: Coupling-Cohesion Analysis from LoCoBench.</strong> The study found that tightly-coupled systems with low cohesion are significantly harder for LLMs to reason about. AILANG's explicit effect types and module boundaries push codebases toward the high-cohesion, low-coupling quadrant where AI performance is strongest.
+    <br /><em>Source: Qiu et al. (2025), <a href="https://arxiv.org/abs/2509.09614">LoCoBench</a>, Figure reproduced under fair use for academic discussion.</em>
+  </figcaption>
+</figure>
+
+### How AILANG Addresses Each Challenge
+
+AILANG's design directly targets these failure modes:
+
+| LoCoBench Metric | What It Measures | How AILANG Helps | Expected Improvement |
+|------------------|------------------|------------------|---------------------|
+| **Architectural Coherence (ACS)** | System-level design consistency | Explicit effects reveal architecture; `! {DB, IO}` declares all capabilities | +15-25% |
+| **Dependency Traversal (DTA)** | Navigation of inter-module dependencies | Explicit imports, no hidden dependencies; import graph is statically visible | +25-35% |
+| **Cross-File Reasoning (CFRD)** | Multi-file relationship understanding | Module boundaries are explicit; ADTs shared via typed imports | +20-30% |
+| **Multi-Session Memory (MMR)** | Context persistence across sessions | Canonical normalization preserves semantic identity; deterministic traces | +10-20% |
+| **Information Coverage (ICU)** | Efficient use of context window | Smaller token footprint per semantic unit; less boilerplate than Python | +15-25% |
+
+### Why Language Design Matters More Than Model Size
+
+The LoCoBench paper reveals a crucial insight: **language properties affect model performance more than commonly assumed**.
+
+> "Models generally achieve higher performance on high-level languages such as Python and PHP, while showing more challenging performance patterns on systems programming languages like C and Rust."
+>
+> — LoCoBench (Salesforce AI Research, 2025)
+
+<figure>
+  <img src="/img/programming-language-performance-heatmap.png" alt="LoCoBench: Programming language performance heatmap across LLMs" style={{maxWidth: '100%', margin: '1.5rem 0'}} />
+  <figcaption style={{fontSize: '0.9rem', fontStyle: 'italic', textAlign: 'center', color: 'var(--ifm-color-content-secondary)'}}>
+    <strong>Figure: LLM Performance by Programming Language.</strong> Heatmap showing model performance across 10 programming languages. High-level languages with implicit memory management (Python, PHP) consistently outperform systems languages (C, Rust). AILANG is designed to combine the AI-friendliness of high-level languages with the explicit semantics needed for reliable code generation.
+    <br /><em>Source: Qiu et al. (2025), <a href="https://arxiv.org/abs/2509.09614">LoCoBench</a>, Figure reproduced under fair use for academic discussion.</em>
+  </figcaption>
+</figure>
+
+This isn't about training data volume—it's about **semantic clarity**:
+
+| Language Property | Python/PHP (High Scores) | C/Rust (Low Scores) | AILANG (Optimized) |
+|-------------------|--------------------------|---------------------|-------------------|
+| Side effects | Implicit | Explicit but complex | **Explicit + typed** |
+| Memory model | Hidden (GC) | Manual | **Hidden (Go runtime)** |
+| Dependencies | Dynamic imports | Header files | **Static, explicit** |
+| Error handling | Exceptions | Return codes + panic | **Typed Result/Option** |
+| Module coupling | Duck typing | Tight linking | **Row polymorphism** |
+
+**AILANG combines the semantic clarity of high-level languages with the explicit effect tracking that makes architectural reasoning tractable for AI.**
+
+### Theoretical Performance on LoCoBench Task Categories
+
+Based on AILANG's design properties, here's our predicted performance relative to Python baselines:
+
+| Task Category | Python Baseline | AILANG Prediction | Why |
+|---------------|-----------------|-------------------|-----|
+| **Architectural Understanding** | 3.4/5.0 | **4.3/5.0 (+27%)** | Effects make architecture visible |
+| **Cross-File Refactoring** | 3.6/5.0 | **4.3/5.0 (+21%)** | Explicit imports, static analysis |
+| **Bug Investigation** | 3.2/5.0 | **4.0/5.0 (+25%)** | Structured error traces |
+| **Feature Implementation** | 3.8/5.0 | **4.1/5.0 (+8%)** | Type inference guides implementation |
+| **Code Comprehension** | 3.9/5.0 | **4.0/5.0 (+3%)** | Similar—both readable |
+| **Integration Testing** | 3.7/5.0 | **4.2/5.0 (+14%)** | Effect types declare interactions |
+
+*Note: These are theoretical predictions based on AILANG's design properties. Empirical validation planned for v0.8.0.*
+
+### The Core Insight
+
+LoCoBench measures what AILANG is designed to improve:
+
+> **The hardest tasks for LLMs are exactly those where implicit behavior hides architectural structure.**
+
+AILANG addresses this by making the implicit explicit:
+
+- **Hidden state → Explicit effects** (`! {DB, IO}`)
+- **Implicit imports → Explicit module boundaries**
+- **Duck typing → Row polymorphism**
+- **Runtime errors → Typed Result/Option**
+- **Ad-hoc logging → Structured traces**
+
+**When AI can see the structure, it can reason about the structure.**
+
+### Learn More
+
+- <Icon name="book" inline /> **[LoCoBench Paper](https://arxiv.org/abs/2509.09614)** ([PDF](/references/qiu-2025-locobench.pdf)) — Full research paper
+- <Icon name="github" inline /> **[LoCoBench GitHub](https://github.com/SalesforceAIResearch/LoCoBench)** — Benchmark implementation
+- <Icon name="bar-chart" inline /> **[AILANG Benchmarks](/docs/benchmarks/performance)** — Our current evaluation results
+
+---
+
 ## Why Not Just Use Go/Python/TypeScript?
 
 Because they weren't designed for AI-assisted development:

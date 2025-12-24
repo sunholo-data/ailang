@@ -219,7 +219,31 @@ The validator continues to work because it checks *presence*, not *concreteness*
 ### Effects
 - `internal/effects/` - Effect runtime (capabilities, execution)
 
-## References
+## Academic References
+
+AILANG's type system draws from foundational research in programming language theory:
+
+### Type Inference
+> **Damas, L., & Milner, R.** (1982). Principal type-schemes for functional programs. POPL '82.
+> [PDF](/references/damas-milner-1982.pdf) · [DOI](https://doi.org/10.1145/582153.582176)
+
+The Hindley-Milner algorithm (Algorithm W) provides principal types without annotations.
+
+### Type Classes & Dictionary Passing
+> **Wadler, P., & Blott, S.** (1989). How to make ad-hoc polymorphism less ad hoc. POPL '89.
+> [DOI](https://doi.org/10.1145/75277.75283)
+
+Dictionary-passing elaboration transforms type class constraints into explicit dictionary arguments.
+
+### Row Polymorphism
+> **Wand, M.** (1989). Type inference for record concatenation and multiple inheritance. LICS '89.
+> [DOI](https://doi.org/10.1109/LICS.1989.39162)
+
+Row polymorphism enables extensible records and effect types.
+
+**See [Citations & Bibliography](/docs/references) for complete references.**
+
+## Further Reading
 
 - [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
 - [ANF Normalization](./anf)

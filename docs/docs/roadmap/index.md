@@ -14,6 +14,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-contracts-assert.md)
 - [M-CSP-SESSION-TYPES: CSP Concurrency with Session Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-csp-session-types.md)
+- [M-LOCOBENCH: Long-Context Benchmark Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-locobench-long-context-benchmark.md)
 - [M-SEM-KERNEL: AILANG as a Symbolic Reasoning Kernel](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-sem-kernel-vision.md)
 - [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-verify-smt-verification.md)
 
@@ -44,6 +45,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/eval-dashboard-reliability.md)
 - [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/execution-profiles.md)
 - [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/global-collaboration-hub.md)
+- [M-BUG-EFFECT-CHECKER-CONFLATION: Effect Checker Incorrectly Requires IO for Pure Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-bug-effect-checker-conflation.md)
 - [Sprint Plan: M-CAPABILITY-BUDGETS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-capability-budgets-sprint-plan.md)
 - [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-codegen-v3-binding-hoisting.md)
 - [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-dx11-phase2-debug-events.md)
@@ -67,4 +69,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 35 planned features across 3 upcoming versions.*
+*Generated at build time. 37 planned features across 3 upcoming versions.*

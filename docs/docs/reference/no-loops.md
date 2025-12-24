@@ -360,10 +360,26 @@ For AIs: **Reason about functions, not state machines.**
 
 ## References
 
-- **Fold Laws**: [Bird & Wadler, Introduction to Functional Programming](https://www.cs.ox.ac.uk/publications/books/functional/)
-- **Totality Checking**: [Idris Documentation on Totality](https://idris2.readthedocs.io/en/latest/tutorial/theorems.html#totality-checking)
-- **Effect Systems**: [Koka Effect Handlers](https://koka-lang.github.io/koka/doc/book.html#why-effects)
-- **Fusion Optimization**: [Stream Fusion: From Lists to Streams to Nothing at All (PDF)](https://www.cs.tufts.edu/~nr/cs257/archive/duncan-coutts/stream-fusion.pdf)
+The iteration model is grounded in established functional programming theory:
+
+> **Bird, R., & Wadler, P.** (1988). *Introduction to Functional Programming*. Prentice Hall.
+> [Publisher](https://www.cs.ox.ac.uk/publications/books/functional/)
+
+Fold laws (identity, fusion, associativity) enable safe program transformation.
+
+> **Coutts, D., Leshchinskiy, R., & Stewart, D.** (2007). Stream Fusion: From Lists to Streams to Nothing at All. ICFP '07.
+> [PDF](/references/coutts-stream-fusion-2007.pdf)
+
+Fusion optimization eliminates intermediate data structures.
+
+> **Leijen, D.** (2014). Koka: Programming with Row Polymorphic Effect Types.
+> [PDF](/references/leijen-koka-2014-arxiv.pdf) · [Tutorial](https://koka-lang.github.io/koka/doc/book.html#why-effects)
+
+Row-polymorphic effect types for safe effect propagation.
+
+- **Totality Checking**: [Idris Documentation](https://idris2.readthedocs.io/en/latest/tutorial/theorems.html#totality-checking)
+
+**See [Citations & Bibliography](/docs/references) for complete references.**
 
 ---
 

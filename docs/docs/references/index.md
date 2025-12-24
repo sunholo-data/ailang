@@ -21,7 +21,7 @@ AILANG uses Hindley-Milner type inference with let-polymorphism, providing princ
 
 > **Damas, L., & Milner, R.** (1982). Principal type-schemes for functional programs. *Proceedings of the 9th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (POPL '82)*, 207–212. ACM.
 > DOI: [10.1145/582153.582176](https://doi.org/10.1145/582153.582176)
-> PDF: [iangrant.net/hm/milner-damas.pdf](http://iangrant.net/hm/milner-damas.pdf)
+> PDF: [damas-milner-1982.pdf](/references/damas-milner-1982.pdf)
 
 **Historical context**: The type inference algorithm for the simply typed lambda calculus was devised by Curry and Feys (1958). In 1969, J. Roger Hindley extended this work and proved the algorithm always inferred the most general type. In 1978, Robin Milner independently provided an equivalent algorithm (Algorithm W). In 1982, Luis Damas proved Milner's algorithm is complete and extended it to support polymorphic references.
 
@@ -63,7 +63,7 @@ AILANG's effect system builds on foundational work in polymorphic effect types.
 
 > **Lucassen, J. M., & Gifford, D. K.** (1988). Polymorphic effect systems. *Proceedings of the 15th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (POPL '88)*, 47–57. ACM.
 > DOI: [10.1145/73560.73564](https://doi.org/10.1145/73560.73564)
-> PDF: [MIT CSAIL](https://groups.csail.mit.edu/pag/OLD/parg/lucassen88effects.pdf)
+> PDF: [lucassen-gifford-1988.pdf](/references/lucassen-gifford-1988.pdf)
 
 **Key contribution**: This paper presents a 'kinded' type system with three base kinds: types (describing values), effects (describing side-effects), and regions (describing store areas). This enables type, effect, and region polymorphism.
 
@@ -73,10 +73,10 @@ AILANG's effect handlers are inspired by the algebraic effects tradition.
 
 > **Plotkin, G., & Pretnar, M.** (2009). Handlers of Algebraic Effects. *Programming Languages and Systems: ESOP 2009*, LNCS 5502, 80–94. Springer.
 > DOI: [10.1007/978-3-642-00590-9_7](https://doi.org/10.1007/978-3-642-00590-9_7)
-> PDF: [Edinburgh](https://homepages.inf.ed.ac.uk/gdp/publications/Effect_Handlers.pdf)
+> PDF: [plotkin-pretnar-2009.pdf](/references/plotkin-pretnar-2009.pdf)
 
 > **Plotkin, G., & Pretnar, M.** (2013). Handling Algebraic Effects. *Logical Methods in Computer Science*, 9(4), Article 23.
-> arXiv: [1312.1399](https://arxiv.org/abs/1312.1399)
+> arXiv: [1312.1399](https://arxiv.org/abs/1312.1399) · PDF: [plotkin-pretnar-2013-arxiv.pdf](/references/plotkin-pretnar-2013-arxiv.pdf)
 
 **Key insight**: Algebraic effects include exceptions, state, nondeterminism, interactive I/O, and time. Handling a computation amounts to composing it with a unique homomorphism guaranteed by universality.
 
@@ -86,7 +86,7 @@ AILANG's row-polymorphic effect types are directly influenced by Koka.
 
 > **Leijen, D.** (2014). Koka: Programming with Row Polymorphic Effect Types. *Mathematically Structured Functional Programming 2014 (MSFP 2014)*, EPTCS 153, 100–126.
 > arXiv: [1406.2061](https://arxiv.org/abs/1406.2061)
-> PDF: [Microsoft Research](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/paper-20.pdf)
+> PDF: [leijen-koka-2014-arxiv.pdf](/references/leijen-koka-2014-arxiv.pdf)
 
 **Key features**: Polymorphic effects through row-polymorphism with duplicate labels. If an expression can be typed without an `exn` effect, it will never throw an unhandled exception. State can be safely combined with let-polymorphism without imperative type variables.
 
@@ -100,7 +100,7 @@ AILANG compiles to Core AST in A-Normal Form for optimization and evaluation.
 
 > **Flanagan, C., Sabry, A., Duba, B. F., & Felleisen, M.** (1993). The Essence of Compiling with Continuations. *Proceedings of the ACM SIGPLAN 1993 Conference on Programming Language Design and Implementation (PLDI '93)*, 237–247. ACM.
 > DOI: [10.1145/155090.155113](https://doi.org/10.1145/155090.155113)
-> PDF: [UCSC](http://users.soe.ucsc.edu/~cormac/papers/pldi93.pdf)
+> PDF: [flanagan-anf-1993.pdf](/references/flanagan-anf-1993.pdf)
 
 **Key insight**: One can forgo a standard 3-pass CPS transformation while still capturing the essence of compiling with continuations by doing a single source-level transformation to A-Normal Form. ANF assigns names to every intermediate computation via `let` bindings.
 
@@ -110,7 +110,7 @@ AILANG compiles pattern matching to decision trees for efficiency.
 
 > **Maranget, L.** (2008). Compiling Pattern Matching to Good Decision Trees. *Proceedings of the 2008 ACM SIGPLAN Workshop on ML*, 35–46. ACM.
 > DOI: [10.1145/1411304.1411311](https://doi.org/10.1145/1411304.1411311)
-> PDF: [Tufts CS](https://www.cs.tufts.edu/~nr/cs257/archive/luc-maranget/jun08.pdf)
+> PDF: [maranget-2008.pdf](/references/maranget-2008.pdf)
 
 **Key contribution**: Novel heuristics inspired by "necessity" from lazy pattern matching. Decision trees never test a given subterm more than once (at the cost of potential code size explosion). The necessity heuristic provides a straightforward connection to runtime efficiency.
 
@@ -123,7 +123,7 @@ AILANG compiles pattern matching to decision trees for efficiency.
 AILANG's M-VERIFY contract system implements techniques from AWS's neurosymbolic verification research.
 
 > **Bayless, S., et al.** (2025). A Neurosymbolic Approach to Natural Language Formalization and Verification.
-> arXiv: [2511.09008](https://arxiv.org/abs/2511.09008)
+> arXiv: [2511.09008](https://arxiv.org/abs/2511.09008) · PDF: [bayless-2025-neurosymbolic.pdf](/references/bayless-2025-neurosymbolic.pdf)
 
 **Key approach**: A two-stage framework that (1) uses LLMs with optional human guidance to formalize natural language policies, and (2) uses inference-time autoformalization to validate logical correctness. Multiple redundant formalization steps cross-check for semantic equivalence, achieving 99.2% soundness.
 
@@ -140,15 +140,30 @@ AILANG's M-VERIFY contract system implements techniques from AWS's neurosymbolic
 While distinct from AWS ARC, Chollet's ARC benchmark informs AILANG's approach to AI-friendly language design.
 
 > **Chollet, F.** (2019). On the Measure of Intelligence.
-> arXiv: [1911.01547](https://arxiv.org/abs/1911.01547)
+> arXiv: [1911.01547](https://arxiv.org/abs/1911.01547) · PDF: [chollet-2019-measure-of-intelligence.pdf](/references/chollet-2019-measure-of-intelligence.pdf)
 > DOI: [10.48550/arXiv.1911.01547](https://doi.org/10.48550/arXiv.1911.01547)
 
 **Key insight**: Intelligence is an agent's ability to adapt to changing environments and respond appropriately in novel situations. ARC consists of tasks requiring solvers to infer transformation rules from limited examples, then generalize to novel inputs. Despite requiring only four types of prior knowledge (objectness, goal-directedness, arithmetic, geometric topology), it presents high reasoning difficulty.
 
 > **Chollet, F., et al.** (2025). ARC-AGI-2: A New Challenge for Frontier AI Reasoning Systems.
-> arXiv: [2505.11831](https://arxiv.org/abs/2505.11831)
+> arXiv: [2505.11831](https://arxiv.org/abs/2505.11831) · PDF: [chollet-2025-arc-agi-2.pdf](/references/chollet-2025-arc-agi-2.pdf)
 
 **GitHub**: [fchollet/ARC-AGI](https://github.com/fchollet/ARC-AGI)
+
+---
+
+## AI & Software Engineering
+
+### Long-Context Code Synthesis
+
+AILANG's design addresses challenges identified in LLM code generation research.
+
+> **Qiu, J., et al.** (2025). LoCoBench: A Benchmark for Long-Context Large Language Models in Complex Software Engineering.
+> arXiv: [2509.09614](https://arxiv.org/abs/2509.09614) · PDF: [qiu-2025-locobench.pdf](/references/qiu-2025-locobench.pdf)
+
+**Key finding**: LLMs struggle with tightly-coupled systems and implicit dependencies. AILANG's explicit effects and module boundaries directly address these failure modes.
+
+**See**: [Why AILANG?](/docs/why-ailang#research-validation-long-context-code-synthesis) for detailed analysis and figures from this research.
 
 ---
 
@@ -166,7 +181,7 @@ AILANG's iteration primitives obey equational laws enabling safe transformation.
 AILANG's compiler may apply fusion optimizations to eliminate intermediate data structures.
 
 > **Coutts, D., Leshchinskiy, R., & Stewart, D.** (2007). Stream Fusion: From Lists to Streams to Nothing at All. *Proceedings of the 12th ACM SIGPLAN International Conference on Functional Programming (ICFP '07)*, 315–326.
-> PDF: [Tufts CS](https://www.cs.tufts.edu/~nr/cs257/archive/duncan-coutts/stream-fusion.pdf)
+> PDF: [coutts-stream-fusion-2007.pdf](/references/coutts-stream-fusion-2007.pdf)
 
 ### Totality and Termination
 
@@ -190,7 +205,7 @@ AILANG's syntax and semantics draw from the ML tradition.
 Effect handling and type class design influenced by Haskell.
 
 > **Marlow, S. (ed.)** (2010). *Haskell 2010 Language Report*.
-> Available: [haskell.org](https://www.haskell.org/definition/haskell2010.pdf)
+> PDF: [haskell-2010-report.pdf](/references/haskell-2010-report.pdf)
 
 ### Koka Effect Handlers (Tutorial)
 
@@ -210,7 +225,7 @@ Effect handling and type class design influenced by Haskell.
 ### Survey Papers
 
 - **Pretnar, M.** (2015). An Introduction to Algebraic Effects and Handlers.
-  PDF: [eff-lang.org/handlers-tutorial.pdf](https://www.eff-lang.org/handlers-tutorial.pdf)
+  PDF: [pretnar-2015-tutorial.pdf](/references/pretnar-2015-tutorial.pdf)
 
 ---
 
