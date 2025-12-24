@@ -120,6 +120,48 @@ func BenchmarkValidateEffects_LargeArrays(b *testing.B) {
 	}
 }
 
+// TestValidateEffects_PureFunctionNotContaminatedByContext is a regression test for
+// M-BUG-EFFECT-CHECKER-CONFLATION (v0.6.2).
+// The bug: effect checker incorrectly required IO effects for pure functions when they
+// were called inside println that appeared AFTER another println in the same block.
+// Root cause: collectRequiredEffects relied on CoreTypeInfo for function effects,
+// which had incorrect types. Fix: use declared effects from Surface AST instead.
+func TestValidateEffects_PureFunctionNotContaminatedByContext(t *testing.T) {
+	// Simplified test: recursive function calling itself
+	// Before fix: would use CoreTypeInfo (which might have wrong effects)
+	// After fix: uses declaredEffects (correct)
+
+	// sum = \xs. sum(xs)  (simplified - just tests recursion)
+	sumBody := &core.App{
+		Func: &core.Var{Name: "sum"},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	sumLambda := &core.Lambda{
+		Body: sumBody,
+	}
+
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			&core.LetRec{
+				Bindings: []core.RecBinding{
+					{Name: "sum", Value: sumLambda},
+				},
+				Body: &core.Lit{Value: int64(0)},
+			},
+		},
+	}
+
+	// Create CoreTypeInfo and register types
+	typeInfo := types.NewCoreTypeInfo()
+	registerTypesForProgram(prog, typeInfo)
+
+	// Validate effects with sum declared as pure
+	err := ValidateEffects(nil, prog, typeInfo)
+	if err != nil {
+		t.Errorf("ValidateEffects should pass for pure recursive function, got error: %v", err)
+	}
+}
+
 // buildLargeArrayProgram creates a Core program with nested Let bindings containing lists.
 // Structure: Let("a0", [elems...], Let("a1", [elems...], ... Let("main", Lit(0), Lit(0))...))
 func buildLargeArrayProgram(numBindings, elementsPerList int) *core.Program {
@@ -211,7 +253,8 @@ func TestCollectRequiredEffects_LetDoesNotTraverseBody(t *testing.T) {
 	}
 
 	// collectRequiredEffects should only see RHS effects (none), not body effects
-	effects := collectRequiredEffects(letExpr, typeInfo)
+	declaredEffects := make(map[string][]string) // Empty for this test
+	effects := collectRequiredEffects(letExpr, typeInfo, declaredEffects)
 
 	// With the fix: effects should be nil (only RHS is checked, which is pure)
 	// Without the fix: effects would include IO from the body

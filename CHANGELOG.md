@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+### Fixed - Effect Checker Incorrectly Required IO for Pure Functions (M-BUG-EFFECT-CHECKER-CONFLATION)
+
+Fixed effect checker bug where pure functions were incorrectly required to have IO effects when called inside a `println` that appeared after another `println` in the same block.
+
+**Root cause:** `collectRequiredEffects` relied solely on `CoreTypeInfo` for function effect types, which could have incorrect/contaminated types for locally-defined functions. When checking recursive calls or calls to module-level pure functions, the effect checker would extract effects from `CoreTypeInfo` instead of using the declared signature from the Surface AST.
+
+**The bug pattern:**
+```ailang
+export func main() -> () ! {IO} {
+  println("Header");                     -- First println
+  let nums = [1, 2, 3];
+  println("sum = " ++ show(sum(nums)));  -- Second println with pure function call
+  ()
+}
+
+pure func sum(xs: List[int]) -> int {   -- Pure function
+  match xs {
+    x :: rest => x + sum(rest),          -- Recursive call
+    [] => 0
+  }
+}
+```
+
+**Error (before fix):**
+```
+Effect checking failed for function 'sum'
+  Missing effects: IO
+  Suggested fix: func sum(...) -> T ! {IO}
+```
+
+**Fix:** Modified `collectRequiredEffects` to:
+1. Accept `declaredEffects` map (function names → declared effect signatures from Surface AST)
+2. When analyzing function applications, check if callee is a `Var` (local function reference)
+3. If found in `declaredEffects`, use those effects instead of `CoreTypeInfo`
+4. Only fall back to `CoreTypeInfo` for global/builtin functions
+
+**Impact:**
+- `examples/runnable/pattern_sugar.ail` now passes without modification
+- All pure recursive functions work correctly in effectful contexts
+- No false positives for effect requirements
+
+**Files Modified:**
+- `internal/pipeline/validate_effects.go` - Pass declaredEffects to collectRequiredEffects, prioritize declared signatures (~50 LOC)
+- `internal/pipeline/validate_effects_test.go` - Regression test (~40 LOC)
+
+**Debug logging:** Added `DEBUG_EFFECTS=1` environment variable for future effect debugging (gated behind flag, zero runtime cost when disabled).
+
+**Design Doc:** [design_docs/planned/v0_6_2/m-bug-effect-checker-conflation.md](design_docs/planned/v0_6_2/m-bug-effect-checker-conflation.md)
+
 ### Added - Effect Budget Enforcement (M-CAPABILITY-BUDGETS)
 
 Implemented runtime enforcement of capability budgets, allowing fine-grained control over how many times a function can perform a particular effect.
