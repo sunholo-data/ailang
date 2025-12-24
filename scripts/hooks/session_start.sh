@@ -46,6 +46,21 @@ log() {
 
 log "=== Session Start Hook Started ==="
 
+# Switch GitHub auth to AI agent account for commits/pushes
+# This ensures all AI-generated commits are attributed to sunholo-voight-kampff
+if command -v gh &> /dev/null; then
+    CURRENT_GH_USER=$(gh api user --jq '.login' 2>/dev/null || echo "")
+    if [ "$CURRENT_GH_USER" != "sunholo-voight-kampff" ]; then
+        if gh auth switch --user sunholo-voight-kampff 2>/dev/null; then
+            log "Switched GitHub auth to sunholo-voight-kampff"
+        else
+            log "Could not switch to sunholo-voight-kampff (account may not be configured)"
+        fi
+    else
+        log "GitHub auth already set to sunholo-voight-kampff"
+    fi
+fi
+
 # Get current version from CHANGELOG.md (most reliable source)
 get_current_version() {
     local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
