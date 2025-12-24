@@ -237,15 +237,15 @@ When referencing AILANG in academic work, please use the following format:
 
 **Plain text:**
 
-> Edmondson, M. (2024–2025). AILANG: A Deterministic Language for AI Code Synthesis. GitHub repository. https://github.com/sunholo-data/ailang
+> Edmondson, M. (2025–2026). AILANG: A Deterministic Language for AI Code Synthesis. GitHub repository. https://github.com/sunholo-data/ailang
 
 **BibTeX:**
 
 ```bibtex
-@software{ailang2024,
+@software{ailang2025,
   author       = {Edmondson, Mark},
   title        = {{AILANG}: A Deterministic Language for {AI} Code Synthesis},
-  year         = {2024--2025},
+  year         = {2025--2026},
   url          = {https://github.com/sunholo-data/ailang},
   note         = {Version 0.6.1}
 }
