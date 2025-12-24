@@ -229,9 +229,46 @@ Effect handling and type class design influenced by Haskell.
 
 ---
 
-## Citation Format
+## Citing AILANG
 
-When citing AILANG or its design decisions in academic work, please reference this page and the specific papers that influenced each feature. As AILANG evolves, we will publish a comprehensive design paper documenting the complete system.
+### Suggested Citation
+
+When referencing AILANG in academic work, please use the following format:
+
+**Plain text:**
+
+> Edmondson, M. (2024–2025). AILANG: A Deterministic Language for AI Code Synthesis. GitHub repository. https://github.com/sunholo-data/ailang
+
+**BibTeX:**
+
+```bibtex
+@software{ailang2024,
+  author       = {Edmondson, Mark},
+  title        = {{AILANG}: A Deterministic Language for {AI} Code Synthesis},
+  year         = {2024--2025},
+  url          = {https://github.com/sunholo-data/ailang},
+  note         = {Version 0.6.1}
+}
+```
+
+**Author ORCID:** [0000-0002-8434-3881](https://orcid.org/0000-0002-8434-3881)
+
+**For specific features**, cite the underlying research papers (listed above) alongside AILANG. For example:
+
+> AILANG implements Hindley-Milner type inference (Damas & Milner, 1982) with row-polymorphic effect types inspired by Koka (Leijen, 2014).
+
+### What to Cite
+
+| If referencing... | Cite |
+|-------------------|------|
+| The language design | This page + relevant foundational papers |
+| The implementation | GitHub repository |
+| Specific features | Feature documentation + underlying papers |
+| Benchmark results | [Evaluation documentation](/docs/guides/evaluation) |
+
+### Future Publication
+
+As AILANG evolves, we plan to publish a comprehensive design paper documenting the complete system. This page will be updated with the formal citation when available.
 
 ---
 
