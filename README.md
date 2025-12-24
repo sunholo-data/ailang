@@ -15,23 +15,31 @@ AILANG is a purely functional, effect-typed language designed as a **determinist
 
 ## Quick Start
 
-AILANG is designed to be used by AI agents. The easiest way to get started is through your AI coding assistant.
+AILANG is designed to be used by AI agents. The easiest way to get started is via your agent's plugin/extension system.
 
 ### With Claude Code
 
-```bash
-# Add AILANG to your project
-claude "Add AILANG support to this project using the teaching prompt from ailang.sunholo.com"
 ```
-
-Claude Code can read the [AILANG Teaching Prompt](https://ailang.sunholo.com/docs/prompts) and write correct AILANG code.
+/plugin marketplace add sunholo-data/ailang_bootstrap
+/plugin install ailang
+```
 
 ### With Gemini CLI
 
 ```bash
-# Use Gemini with AILANG context
-gemini -p "$(curl -s https://ailang.sunholo.com/llms.txt)" "Write a factorial function in AILANG"
+gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
 ```
+
+### What the Plugin Provides
+
+- **AILANG binary** - Auto-installed for your platform
+- **MCP tools** - `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`
+- **Slash commands** - `/ailang:prompt`, `/ailang:new`, `/ailang:run`, `/ailang:challenge`
+- **Teaching prompts** - Current syntax rules loaded automatically
+
+Once installed, just ask your agent to write AILANG code - it handles the rest.
+
+See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for details.
 
 ### Manual Installation
 
