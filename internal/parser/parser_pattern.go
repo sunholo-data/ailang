@@ -206,8 +206,101 @@ func (p *Parser) parseListPattern() ast.Pattern {
 }
 
 func (p *Parser) parseRecordPattern() ast.Pattern {
-	// TODO: Implement record pattern parsing
-	return nil
+	startPos := p.curPos()
+	// We're at LBRACE
+	p.nextToken() // consume LBRACE
+
+	// Empty record pattern: {}
+	if p.curTokenIs(lexer.RBRACE) {
+		return &ast.RecordPattern{
+			Fields: []*ast.FieldPattern{},
+			Rest:   false,
+			Pos:    startPos,
+		}
+	}
+
+	var fields []*ast.FieldPattern
+	hasRest := false
+
+	for {
+		// Check for rest pattern: ...
+		if p.curTokenIs(lexer.ELLIPSIS) {
+			hasRest = true
+			p.nextToken() // consume ELLIPSIS
+			break         // rest must be last
+		}
+
+		// Expect field name (identifier)
+		if !p.curTokenIs(lexer.IDENT) {
+			p.reportExpected(lexer.IDENT, "Expected field name in record pattern")
+			return nil
+		}
+
+		fieldName := p.curToken.Literal
+		fieldPos := p.curPos()
+
+		// Check what comes next: COLON (renaming) or COMMA/RBRACE (shorthand)
+		if p.peekTokenIs(lexer.COLON) {
+			// Renaming syntax: {name: n} or {user: {nested}}
+			p.nextToken() // consume field name, now at COLON
+			p.nextToken() // consume COLON, now at pattern
+
+			// Parse the pattern (can be nested record, identifier, etc.)
+			pat := p.parsePattern()
+			if pat == nil {
+				return nil
+			}
+
+			fields = append(fields, &ast.FieldPattern{
+				Name:    fieldName,
+				Pattern: pat,
+				Pos:     fieldPos,
+			})
+
+			p.nextToken() // move past pattern
+		} else {
+			// Shorthand syntax: {name} binds to variable "name"
+			fields = append(fields, &ast.FieldPattern{
+				Name: fieldName,
+				Pattern: &ast.Identifier{
+					Name: fieldName,
+					Pos:  fieldPos,
+				},
+				Pos: fieldPos,
+			})
+
+			p.nextToken() // move past identifier
+		}
+
+		// Check what comes next
+		if p.curTokenIs(lexer.RBRACE) {
+			break
+		}
+
+		if !p.curTokenIs(lexer.COMMA) {
+			p.reportExpected(lexer.COMMA, "Expected ',' or '}' in record pattern")
+			return nil
+		}
+
+		p.nextToken() // consume comma
+
+		// Check for closing brace after comma (trailing comma)
+		if p.curTokenIs(lexer.RBRACE) {
+			break
+		}
+	}
+
+	// We should be at RBRACE now
+	if !p.curTokenIs(lexer.RBRACE) {
+		p.reportExpected(lexer.RBRACE, "Expected '}' to close record pattern")
+		return nil
+	}
+
+	return &ast.RecordPattern{
+		Fields: fields,
+		Rest:   hasRest,
+		Pos:    startPos,
+	}
 }
 
 func (p *Parser) parseTuplePattern() ast.Pattern {

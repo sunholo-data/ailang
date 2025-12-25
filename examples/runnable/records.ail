@@ -91,14 +91,16 @@ ops.double(21)
 -- Output: 42
 
 -- =======================
--- PATTERN MATCHING (Future)
+-- PATTERN MATCHING
 -- =======================
 
--- Note: Record patterns not yet implemented
--- Future syntax will look like:
--- match person {
---   {name, age} => name ++ " is " ++ show(age)
--- }
+-- Record patterns (v0.6.2+)
+-- See examples/runnable/record_patterns.ail for comprehensive examples
+let person = {name: "Alice", age: 30} in
+match person {
+  {name, age} => name ++ " is " ++ show(age)
+}
+-- Output: "Alice is 30"
 
 -- =======================
 -- COMPLEX EXAMPLES

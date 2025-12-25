@@ -285,6 +285,22 @@ func (p TypedListPattern) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(parts, ", "))
 }
 
+type TypedRecordPattern struct {
+	Fields map[string]TypedPattern
+}
+
+func (p TypedRecordPattern) patternNode() {}
+func (p TypedRecordPattern) String() string {
+	if len(p.Fields) == 0 {
+		return "{}"
+	}
+	parts := make([]string, 0, len(p.Fields))
+	for name, pat := range p.Fields {
+		parts = append(parts, fmt.Sprintf("%s: %s", name, pat.String()))
+	}
+	return fmt.Sprintf("{%s}", strings.Join(parts, ", "))
+}
+
 // TypedProgram represents a typed program
 type TypedProgram struct {
 	Decls []TypedNode
