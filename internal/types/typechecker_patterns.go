@@ -338,6 +338,64 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			Tail:     typedTail,
 		}, nil
 
+	case *core.RecordPattern:
+		// Record pattern - scrutinee must be record type
+		// Extract field types from scrutinee record
+		var fieldTypes map[string]Type
+
+		// Try to extract record type from scrutinee
+		if recTy, ok := scrutType.(*TRecord); ok {
+			fieldTypes = recTy.Fields
+		} else {
+			// Create fresh type variables for matched fields and add constraint
+			fieldTypes = make(map[string]Type)
+			for fieldName := range p.Fields {
+				fieldTypes[fieldName] = ctx.freshTypeVar()
+			}
+			// Constraint: scrutinee type unifies with record containing matched fields
+			// Use row variable for extensibility (pattern may match subset of fields)
+			rowVar := ctx.freshRecordRow()
+			ctx.addConstraint(TypeEq{
+				Left:  scrutType,
+				Right: &TRecord{Fields: fieldTypes, Row: rowVar},
+				Path:  []string{"record pattern"},
+			})
+		}
+
+		// Recursively check each field pattern
+		bindings := make(map[string]Type)
+		typedFields := make(map[string]typedast.TypedPattern)
+
+		for fieldName, fieldPat := range p.Fields {
+			fieldType, ok := fieldTypes[fieldName]
+			if !ok {
+				// Field not in scrutinee type - create fresh type variable
+				fieldType = ctx.freshTypeVar()
+			}
+			fieldBindings, typedField, err := tc.checkPattern(fieldPat, fieldType, ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// Merge bindings
+			for name, typ := range fieldBindings {
+				if existing, ok := bindings[name]; ok {
+					// Variable bound multiple times - must unify
+					ctx.addConstraint(TypeEq{
+						Left:  existing,
+						Right: typ,
+						Path:  []string{fmt.Sprintf("pattern variable %s", name)},
+					})
+				} else {
+					bindings[name] = typ
+				}
+			}
+			typedFields[fieldName] = typedField
+		}
+
+		return bindings, typedast.TypedRecordPattern{
+			Fields: typedFields,
+		}, nil
+
 	default:
 		return nil, nil, fmt.Errorf("pattern type checking not implemented for %T", pat)
 	}

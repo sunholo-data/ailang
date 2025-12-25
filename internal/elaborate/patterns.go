@@ -174,6 +174,19 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			Elements: elements,
 			Tail:     tail,
 		}, nil
+	case *ast.RecordPattern:
+		// Elaborate record pattern - convert AST FieldPattern list to Core map
+		fields := make(map[string]core.CorePattern)
+		for _, fp := range p.Fields {
+			corePat, err := e.elaboratePattern(fp.Pattern)
+			if err != nil {
+				return nil, err
+			}
+			fields[fp.Name] = corePat
+		}
+		return &core.RecordPattern{
+			Fields: fields,
+		}, nil
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)
 	}

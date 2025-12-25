@@ -1,0 +1,125 @@
+-- record_patterns.ail - Record Pattern Matching Examples
+-- Demonstrates record destructuring in pattern matching (v0.6.2+)
+
+-- =======================
+-- BASIC SHORTHAND PATTERNS
+-- =======================
+
+-- {name} binds field "name" to variable "name"
+let person = {name: "Alice", age: 30} in
+match person {
+  {name} => name
+}
+-- Output: "Alice"
+
+-- Multiple field shorthand
+let user = {name: "Bob", age: 25, active: true} in
+match user {
+  {name, age} => name ++ " is " ++ show(age)
+}
+-- Output: "Bob is 25"
+
+-- =======================
+-- RENAMING PATTERNS
+-- =======================
+
+-- {name: n} binds field "name" to variable "n"
+let person = {name: "Charlie", age: 35} in
+match person {
+  {name: n, age: a} => n ++ " (" ++ show(a) ++ ")"
+}
+-- Output: "Charlie (35)"
+
+-- Mix shorthand and renaming
+let config = {host: "localhost", port: 8080} in
+match config {
+  {host, port: p} => host ++ ":" ++ show(p)
+}
+-- Output: "localhost:8080"
+
+-- =======================
+-- NESTED RECORD PATTERNS
+-- =======================
+
+-- Match nested records
+let data = {
+  user: {name: "Diana", email: "diana@test.com"}
+} in
+match data {
+  {user: {name}} => name
+}
+-- Output: "Diana"
+
+-- Deeper nesting with renaming
+let company = {
+  ceo: {
+    profile: {name: "Eve", title: "CEO"}
+  }
+} in
+match company {
+  {ceo: {profile: {name: n, title: t}}} => n ++ " - " ++ t
+}
+-- Output: "Eve - CEO"
+
+-- =======================
+-- PATTERN WITH REST
+-- =======================
+
+-- {name, ...} matches name field, ignores rest
+let big_record = {name: "Frank", age: 40, city: "NYC", active: true} in
+match big_record {
+  {name, ...} => name
+}
+-- Output: "Frank"
+
+-- =======================
+-- FUNCTION RETURNING EXTRACTED FIELD
+-- =======================
+
+-- Extract field using record pattern in match
+let getName = \obj.
+  match obj {
+    {name} => name
+  }
+in
+getName({name: "Grace", id: 123})
+-- Output: "Grace"
+
+-- Extract nested field
+let getEmail = \obj.
+  match obj {
+    {user: {email: e}} => e
+  }
+in
+getEmail({user: {email: "test@example.com", id: 1}})
+-- Output: "test@example.com"
+
+-- =======================
+-- MULTIPLE CASES WITH RECORDS
+-- =======================
+
+-- Multiple match arms (use COMMA, not pipe!)
+type Status = Active | Inactive
+
+let getPersonStatus = \person.
+  match person {
+    {name, status: Active} => name ++ " is active",
+    {name, status: Inactive} => name ++ " is inactive"
+  }
+in
+getPersonStatus({name: "Henry", status: Active})
+-- Output: "Henry is active"
+
+-- =======================
+-- RECORDS WITH ADT FIELDS
+-- =======================
+
+-- Record containing Option value
+type Option[a] = Some(a) | None
+
+let maybeUser = {id: 1, email: Some("test@mail.com")} in
+match maybeUser {
+  {id, email: Some(e)} => "User " ++ show(id) ++ ": " ++ e,
+  {id, email: None} => "User " ++ show(id) ++ ": no email"
+}
+-- Output: "User 1: test@mail.com"
