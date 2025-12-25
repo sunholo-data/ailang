@@ -95,16 +95,31 @@ getEmail({user: {email: "test@example.com", id: 1}})
 -- Output: "test@example.com"
 
 -- =======================
--- COMBINING WITH OTHER PATTERNS
+-- MULTIPLE CASES WITH RECORDS
 -- =======================
 
--- Record patterns work with ADTs
+-- Multiple match arms (use COMMA, not pipe!)
 type Status = Active | Inactive
 
-let getInfo = \obj.
-  match obj {
-    {name, age} => name ++ " age " ++ show(age)
+let getPersonStatus = \person.
+  match person {
+    {name, status: Active} => name ++ " is active",
+    {name, status: Inactive} => name ++ " is inactive"
   }
 in
-getInfo({name: "Henry", age: 50})
--- Output: "Henry age 50"
+getPersonStatus({name: "Henry", status: Active})
+-- Output: "Henry is active"
+
+-- =======================
+-- RECORDS WITH ADT FIELDS
+-- =======================
+
+-- Record containing Option value
+type Option[a] = Some(a) | None
+
+let maybeUser = {id: 1, email: Some("test@mail.com")} in
+match maybeUser {
+  {id, email: Some(e)} => "User " ++ show(id) ++ ": " ++ e,
+  {id, email: None} => "User " ++ show(id) ++ ": no email"
+}
+-- Output: "User 1: test@mail.com"

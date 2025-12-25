@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+### Added - Record Pattern Matching (M-RECORD-PATTERNS)
+
+Added record destructuring in pattern matching expressions. This allows extracting fields from records directly in match arms.
+
+**Supported patterns:**
+- Shorthand: `{name}` - binds field "name" to variable "name"
+- Renaming: `{name: n}` - binds field "name" to variable "n"
+- Multiple fields: `{name, age}` - binds both fields
+- Nested: `{user: {name}}` - matches nested records
+- Rest: `{name, ...}` - matches some fields, ignores rest
+
+**Example:**
+```ailang
+let person = {name: "Alice", age: 30} in
+match person {
+  {name, age} => name ++ " is " ++ show(age)
+}
+-- Output: "Alice is 30"
+
+-- Nested pattern
+let data = {user: {email: "test@example.com"}} in
+match data {
+  {user: {email: e}} => e
+}
+-- Output: "test@example.com"
+```
+
+**Files Added/Modified:**
+- `internal/parser/parser_pattern.go` - Implement `parseRecordPattern()` (~90 LOC)
+- `internal/elaborate/patterns.go` - Add `ast.RecordPattern` case (~15 LOC)
+- `internal/types/typechecker_patterns.go` - Add type checking for record patterns (~55 LOC)
+- `internal/typedast/typed_ast.go` - Add `TypedRecordPattern` type (~15 LOC)
+- `internal/parser/record_pattern_test.go` - Add comprehensive tests (~200 LOC)
+- `examples/runnable/record_patterns.ail` - New example file
+- `examples/runnable/records.ail` - Updated with working pattern example
+
 ### Fixed - Effect Checker Incorrectly Required IO for Pure Functions (M-BUG-EFFECT-CHECKER-CONFLATION)
 
 Fixed effect checker bug where pure functions were incorrectly required to have IO effects when called inside a `println` that appeared after another `println` in the same block.
