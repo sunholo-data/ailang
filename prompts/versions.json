@@ -354,19 +354,30 @@
     },
     "v0.5.11": {
       "file": "prompts/v0.5.11.md",
-      "hash": "57c2f652ebac44b2c532e367621c6dc9756f3c1f420287f1cb644a52edc99949",
+      "hash": "dd7a2357c5c28a3c2c1c994434e2f8621a6288cf33aef09b8cf9eb70f0935f58",
       "description": "Add Semantic Caching Doctrine + Embeddings Doctrine for AI agents",
       "created": "2025-12-16",
       "tags": [
         "production",
-        "latest",
         "semantic-caching",
         "embeddings"
       ],
       "notes": "Major additions: (1) Semantic Caching Doctrine - SharedMem/SharedIndex as cognitive working memory, namespace conventions, canonical patterns (cache-or-compute, deduplication, multi-agent CAS). (2) Embeddings Doctrine - when/what/how to use neural embeddings for paraphrase detection, hybrid retrieval pattern. All v0.5.10 features included."
+    },
+    "v0.6.2": {
+      "file": "prompts/v0.6.2.md",
+      "hash": "57c2f652ebac44b2c532e367621c6dc9756f3c1f420287f1cb644a52edc99949",
+      "description": "Add record pattern matching (M-RECORD-PATTERNS)",
+      "created": "2025-12-25",
+      "tags": [
+        "production",
+        "latest",
+        "record-patterns"
+      ],
+      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. All v0.5.11 features included."
     }
   },
-  "active": "v0.5.11",
+  "active": "v0.6.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
