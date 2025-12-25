@@ -366,7 +366,7 @@
     },
     "v0.6.2": {
       "file": "prompts/v0.6.2.md",
-      "hash": "57c2f652ebac44b2c532e367621c6dc9756f3c1f420287f1cb644a52edc99949",
+      "hash": "2bd5dd2236cf7bf7eaddf6ec7ff8e80bbd58340cc4c5866902b6e6aca16cb143",
       "description": "Add record pattern matching (M-RECORD-PATTERNS)",
       "created": "2025-12-25",
       "tags": [
