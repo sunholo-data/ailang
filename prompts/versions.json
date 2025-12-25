@@ -354,7 +354,7 @@
     },
     "v0.5.11": {
       "file": "prompts/v0.5.11.md",
-      "hash": "dd7a2357c5c28a3c2c1c994434e2f8621a6288cf33aef09b8cf9eb70f0935f58",
+      "hash": "57c2f652ebac44b2c532e367621c6dc9756f3c1f420287f1cb644a52edc99949",
       "description": "Add Semantic Caching Doctrine + Embeddings Doctrine for AI agents",
       "created": "2025-12-16",
       "tags": [
