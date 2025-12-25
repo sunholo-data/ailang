@@ -39,7 +39,7 @@ func main() {
 	}
 
 	// Update docs page with new status
-	updatedContent := updateExamplesStatus(string(docsContent), statusTable)
+	updatedContent := updateExamplesStatus(string(docsContent), statusTable, report)
 
 	// Write updated docs page
 	if err := os.WriteFile(docsPath, []byte(updatedContent), 0644); err != nil {
@@ -83,28 +83,39 @@ func generateStatusTable(report reporttypes.VerificationReport) string {
 	sb.WriteString(fmt.Sprintf("**Overall: %d/%d examples working (%.0f%%)**\n\n",
 		report.Passed, report.TotalExamples, percentage))
 
-	// Create status table
+	// Create status table with GitHub links
 	sb.WriteString("| Example File | Status | Notes |\n")
 	sb.WriteString("|--------------|--------|-------|\n")
+
+	const githubBase = "https://github.com/sunholo-data/ailang/blob/dev/examples/"
 
 	for _, result := range report.Results {
 		statusIcon := getStatusIcon(result.Status)
 		notes := ""
 		if result.Status == "failed" && result.Error != "" {
-			// Extract first line of error
+			// Extract first line of error, filtering out stdlib warnings
 			lines := strings.Split(result.Error, "\n")
-			if len(lines) > 0 {
-				firstLine := strings.TrimSpace(lines[0])
-				if len(firstLine) > 60 {
-					firstLine = firstLine[:57] + "..."
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				// Skip stdlib version mismatch warnings - not useful for users
+				if strings.Contains(line, "stdlib version mismatch") {
+					continue
 				}
-				notes = firstLine
+				if line != "" {
+					if len(line) > 55 {
+						line = line[:52] + "..."
+					}
+					notes = line
+					break
+				}
 			}
 		} else if result.Status == "skipped" {
 			notes = "Test/demo file"
 		}
 
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s |\n", result.File, statusIcon, notes))
+		// Create GitHub link for the file
+		fileLink := fmt.Sprintf("[`%s`](%s%s)", result.File, githubBase, result.File)
+		sb.WriteString(fmt.Sprintf("| %s | %s | %s |\n", fileLink, statusIcon, notes))
 	}
 
 	return sb.String()
@@ -123,7 +134,7 @@ func getStatusIcon(status string) string {
 	}
 }
 
-func updateExamplesStatus(content, statusTable string) string {
+func updateExamplesStatus(content, statusTable string, report reporttypes.VerificationReport) string {
 	// Look for markers in docs page
 	startMarker := "<!-- EXAMPLES_STATUS_START -->"
 	endMarker := "<!-- EXAMPLES_STATUS_END -->"
@@ -139,5 +150,46 @@ func updateExamplesStatus(content, statusTable string) string {
 	// Replace content between markers
 	before := content[:startIdx+len(startMarker)]
 	after := content[endIdx:]
-	return before + "\n" + statusTable + "\n" + after
+	result := before + "\n" + statusTable + "\n" + after
+
+	// Also update hardcoded example counts outside the markers
+	// Pattern: "97+" or "66+" etc should become dynamic
+	totalStr := fmt.Sprintf("%d+", report.TotalExamples)
+
+	// Replace common patterns for example counts
+	// "for all 97+ examples" -> "for all {total}+ examples"
+	// "97+ verified examples" -> "{total}+ verified examples"
+	result = replaceExampleCounts(result, totalStr)
+
+	return result
+}
+
+// replaceExampleCounts updates hardcoded example counts to the actual total
+func replaceExampleCounts(content, totalStr string) string {
+	// Common patterns to replace (be careful not to replace version numbers)
+	patterns := []string{
+		"for all 66+ examples",
+		"for all 97+ examples",
+		"66+ example files",
+		"97+ example files",
+		"66+ verified examples",
+		"97+ verified examples",
+	}
+
+	for _, pattern := range patterns {
+		if strings.Contains(content, pattern) {
+			// Figure out the replacement based on the pattern
+			var replacement string
+			if strings.Contains(pattern, "for all") {
+				replacement = "for all " + totalStr + " examples"
+			} else if strings.Contains(pattern, "example files") {
+				replacement = totalStr + " example files"
+			} else if strings.Contains(pattern, "verified examples") {
+				replacement = totalStr + " verified examples"
+			}
+			content = strings.ReplaceAll(content, pattern, replacement)
+		}
+	}
+
+	return content
 }
