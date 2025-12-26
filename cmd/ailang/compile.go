@@ -311,14 +311,28 @@ func compileCommand() {
 		fmt.Printf("%s Contract verification enabled (runtime checks will be generated)\n", cyan("→"))
 	}
 
+	// M-CODEGEN-DICTIONARIES M4: Clear derived Eq types from previous compilation
+	gen.ClearDerivedEqTypes()
+
 	// Register ADT constructors (with field types and names for proper codegen)
 	// M-DX13: Also register record types for typed struct literal generation
+	// M-CODEGEN-DICTIONARIES M4: Register ADT types with deriving (Eq)
 	for _, td := range allTypeDecls {
 		if adt, ok := td.Definition.(*ast.AlgebraicType); ok {
+			// Extract constructor names for derived Eq
+			var ctorNames []string
 			for _, ctor := range adt.Constructors {
 				fieldTypes := extractFieldTypes(ctor.Fields)
 				fieldNames := extractFieldNames(ctor.Fields)
 				codeGen.RegisterADTConstructorFull(td.Name, ctor.Name, fieldTypes, fieldNames)
+				ctorNames = append(ctorNames, ctor.Name)
+			}
+			// M-CODEGEN-DICTIONARIES M4: Register for derived Eq if needed
+			for _, deriving := range td.Deriving {
+				if deriving == ast.DeriveEq {
+					codeGen.RegisterDerivedEqType(capitalize(td.Name), ctorNames)
+					break
+				}
 			}
 		} else if rec, ok := td.Definition.(*ast.RecordType); ok {
 			// M-DX13: Register record type for typed struct literal generation
@@ -393,6 +407,20 @@ func compileCommand() {
 			os.Exit(1)
 		}
 		fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
+
+		// M-CODEGEN-DICTIONARIES: Generate type class dictionaries
+		fmt.Printf("%s Generating type class dictionaries\n", cyan("→"))
+		dictCode, err := codeGen.GenerateDictionaries()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: dictionary generation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		dictFile := filepath.Join(outDir, "dictionaries.go")
+		if err := os.WriteFile(dictFile, dictCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write dictionaries file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), dictFile)
 
 		// Skip runtime helpers in subsequent code generation
 		codeGen.SetSkipRuntimeHelpers(true)
@@ -542,6 +570,7 @@ Output Structure:
   ├── debug_types_release.go# Debug effect no-ops (//go:build release)
   ├── handlers.go           # Effect handler interfaces
   ├── runtime.go            # Shared runtime helpers
+  ├── dictionaries.go       # Type class dictionaries (Num, Ord, Eq)
   ├── extern_stubs.go       # Stubs for extern functions (if any)
   ├── world.go              # Functions from world.ail
   ├── npc_ai.go             # Functions from npc_ai.ail
