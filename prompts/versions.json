@@ -359,7 +359,6 @@
       "created": "2025-12-16",
       "tags": [
         "production",
-        "latest",
         "semantic-caching",
         "embeddings"
       ],
@@ -372,9 +371,10 @@
       "created": "2025-12-25",
       "tags": [
         "production",
-        "latest"
+        "latest",
+        "record-patterns"
       ],
-      "notes": "Add record pattern matching (M-RECORD-PATTERNS)"
+      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. All v0.5.11 features included."
     }
   },
   "active": "v0.6.2",
