@@ -50,7 +50,8 @@ const (
 	SEND
 	RECV
 	TIMEOUT
-	AS // as (import aliasing)
+	AS       // as (import aliasing)
+	DERIVING // deriving (type class derivation)
 
 	// Contract keywords (M-VERIFY)
 	REQUIRES  // requires
@@ -164,6 +165,7 @@ var tokens = map[TokenType]string{
 	RECV:       "recv",
 	TIMEOUT:    "timeout",
 	AS:         "as",
+	DERIVING:   "deriving",
 	REQUIRES:   "requires",
 	ENSURES:    "ensures",
 	INVARIANT:  "invariant",
@@ -267,6 +269,7 @@ var keywords = map[string]TokenType{
 	"recv":       RECV,
 	"timeout":    TIMEOUT,
 	"as":         AS,
+	"deriving":   DERIVING,
 	"requires":   REQUIRES,
 	"ensures":    ENSURES,
 	"invariant":  INVARIANT,
@@ -366,7 +369,7 @@ func (t Token) IsKeyword() bool {
 		MODULE, IMPORT, EXPORT, EXTERN,
 		FORALL, EXISTS, TEST, TESTS, PROPERTY, PROPERTIES, ASSERT,
 		SPAWN, PARALLEL, SELECT, CHANNEL,
-		SEND, RECV, TIMEOUT,
+		SEND, RECV, TIMEOUT, AS, DERIVING,
 		REQUIRES, ENSURES, INVARIANT, // M-VERIFY contract keywords
 		TRUE, FALSE:
 		return true

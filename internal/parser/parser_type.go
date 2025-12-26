@@ -306,10 +306,22 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 		return nil
 	}
 
+	// Parse optional deriving clause: deriving (Eq)
+	// After parseTypeDeclBody, parser may be AT deriving or BEFORE it
+	// depending on the type body structure (single vs multiple constructors)
+	var deriving []ast.DeriveKind
+	if p.curTokenIs(lexer.DERIVING) {
+		deriving = p.parseDeriving()
+	} else if p.peekTokenIs(lexer.DERIVING) {
+		p.nextToken() // move to DERIVING
+		deriving = p.parseDeriving()
+	}
+
 	return &ast.TypeDecl{
 		Name:       name,
 		TypeParams: typeParams,
 		Definition: definition,
+		Deriving:   deriving,
 		Exported:   exported,
 		Pos:        startPos,
 	}
@@ -676,4 +688,67 @@ func (p *Parser) parseTypeParams() []string {
 	}
 
 	return params
+}
+
+// parseDeriving parses a deriving clause: deriving (Eq) or deriving (Eq, Ord)
+// Returns a list of DeriveKind values for which type classes to derive
+func (p *Parser) parseDeriving() []ast.DeriveKind {
+	// We're already at DERIVING token
+	if !p.curTokenIs(lexer.DERIVING) {
+		return nil
+	}
+	p.nextToken() // consume DERIVING
+
+	// Expect LPAREN
+	if !p.curTokenIs(lexer.LPAREN) {
+		p.reportExpected(lexer.LPAREN, "Add '(' after 'deriving'")
+		return nil
+	}
+	p.nextToken() // consume LPAREN
+
+	var derives []ast.DeriveKind
+
+	// Parse derive list: Eq, Ord, Show, etc.
+	if !p.curTokenIs(lexer.RPAREN) {
+		kind := p.parseDeriveName()
+		if kind != ast.DeriveNone {
+			derives = append(derives, kind)
+		}
+
+		for p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // move to COMMA
+			p.nextToken() // consume COMMA
+			if p.curTokenIs(lexer.RPAREN) {
+				break // trailing comma
+			}
+			kind := p.parseDeriveName()
+			if kind != ast.DeriveNone {
+				derives = append(derives, kind)
+			}
+		}
+	}
+
+	// Expect RPAREN
+	if !p.expectPeek(lexer.RPAREN) {
+		p.report("PAR_DERIVING_RPAREN", "expected ')' to close deriving clause", "Add ')' after type class list")
+	}
+
+	return derives
+}
+
+// parseDeriveName parses a single derive name and returns the corresponding DeriveKind
+func (p *Parser) parseDeriveName() ast.DeriveKind {
+	if !p.curTokenIs(lexer.IDENT) {
+		p.report("PAR_DERIVING_NAME", "expected type class name in deriving clause", "Add 'Eq', 'Ord', or other derivable class")
+		return ast.DeriveNone
+	}
+
+	name := p.curToken.Literal
+	switch name {
+	case "Eq":
+		return ast.DeriveEq
+	default:
+		p.report("PAR_DERIVING_UNSUPPORTED", "unsupported deriving: "+name+", only 'Eq' is currently supported", "Use 'Eq'")
+		return ast.DeriveNone
+	}
 }

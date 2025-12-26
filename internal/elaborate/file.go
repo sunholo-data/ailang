@@ -549,9 +549,30 @@ func (e *Elaborator) elaborateNode(node ast.Node) (core.CoreExpr, error) {
 // Type declarations don't produce Core expressions - they have side effects:
 // 1. Register constructors in the elaborator's constructor map
 // 2. Add constructors to the module interface (for exports)
+// 3. M-DX19: Track types with `deriving (Eq)` for automatic Eq instance generation
 func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error) {
 	// Extract type name
 	typeName := decl.Name
+
+	// M-DX19: Check for deriving (Eq) clause
+	hasDerivingEq := false
+	for _, d := range decl.Deriving {
+		if d == ast.DeriveEq {
+			hasDerivingEq = true
+			break
+		}
+	}
+
+	// M-DX19: Validate deriving (Eq) constraints
+	if hasDerivingEq {
+		// Reject polymorphic types (require typeclass constraints which aren't supported yet)
+		if len(decl.TypeParams) > 0 {
+			return nil, fmt.Errorf("cannot derive Eq for polymorphic type %s[%s] without Eq constraints (deferred to v0.7+)",
+				typeName, decl.TypeParams[0])
+		}
+		// Record this type as having derived Eq
+		e.derivedEqTypes[typeName] = true
+	}
 
 	// Process the type definition
 	switch def := decl.Definition.(type) {

@@ -106,6 +106,12 @@ func (e *CoreEvaluator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 	e.coreTypeInfo = cti
 }
 
+// SetDictionaryRegistry replaces the dictionary registry.
+// M-DX19: Used to inject derived type class instances from the pipeline.
+func (e *CoreEvaluator) SetDictionaryRegistry(reg *types.DictionaryRegistry) {
+	e.registry = reg
+}
+
 // GetEnvironmentBindings returns all bindings in the current environment
 func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 	return e.env.GetAllBindings()

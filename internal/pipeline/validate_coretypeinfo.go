@@ -178,6 +178,10 @@ func (v *validator) walkExpr(expr core.CoreExpr) {
 			v.walkExpr(arg)
 		}
 
+	case *core.DictRef:
+		// M-DX19: DictRef is a leaf node representing a dictionary reference
+		// It has ClassName and TypeName but no children to walk
+
 	default:
 		// Unknown Core node type - this is a compiler bug
 		panic(fmt.Sprintf("ValidateCoreTypeInfo: unknown Core expression type %T (NodeID %d)", expr, expr.ID()))

@@ -83,3 +83,68 @@ func (g *Generator) generateExpr(expr core.CoreExpr) error {
 		return fmt.Errorf("unsupported expression type: %T", expr)
 	}
 }
+
+// needsBoolAssertion returns true if the expression returns interface{} and
+// needs a .(bool) type assertion when used in a boolean context.
+// M-CODEGEN-BOOL-ASSERTIONS: Detects DictApp calls and interface{}-typed variables.
+func (g *Generator) needsBoolAssertion(expr core.CoreExpr) bool {
+	switch e := expr.(type) {
+	case *core.DictApp:
+		// Dictionary method calls return interface{}
+		// Check if this is a comparison method (Eq, Neq, Lt, Gt, Lte, Gte)
+		switch e.Method {
+		case "eq", "neq", "lt", "gt", "lte", "gte":
+			return true
+		}
+		return false
+
+	case *core.Var:
+		// Check if this variable is known to hold an interface{} value
+		// Variables bound to dictionary results need assertions
+		goVarName := ToGoVarName(e.Name)
+
+		// If variable is in typedLocalVars, it has concrete type from ADT field extraction
+		if _, isTyped := g.typedLocalVars[goVarName]; isTyped {
+			return false
+		}
+
+		// Check if it's a typed function parameter with concrete type
+		if goType, ok := g.currentFuncParams[e.Name]; ok {
+			// Only need assertion if param is interface{}
+			return goType == "interface{}"
+		}
+
+		// Not in typed locals or typed params - might be interface{} from Let binding
+		// Conservative: assume it needs assertion in boolean context
+		return true
+
+	case *core.BinOp:
+		// Comparison operators that go through dictionaries
+		switch e.Op {
+		case "==", "!=", "<", ">", "<=", ">=":
+			// These might be lowered to DictApp, check the type
+			return false // The lowered form will be caught by DictApp case
+		}
+		return false
+
+	default:
+		return false
+	}
+}
+
+// generateExprWithBoolAssertion generates an expression and appends .(bool)
+// if the expression returns interface{} in a boolean context.
+// M-CODEGEN-BOOL-ASSERTIONS: Used for if conditions, logical operators, bool returns.
+func (g *Generator) generateExprWithBoolAssertion(expr core.CoreExpr) error {
+	needsAssertion := g.needsBoolAssertion(expr)
+
+	if err := g.generateExpr(expr); err != nil {
+		return err
+	}
+
+	if needsAssertion {
+		g.write(".(bool)")
+	}
+
+	return nil
+}

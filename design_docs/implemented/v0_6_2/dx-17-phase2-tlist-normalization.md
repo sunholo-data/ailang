@@ -1,10 +1,12 @@
 # DX-17 Phase 2: Normalize TList to TApp at Parse Time
 
-**Status:** Planned
+**Status:** ✅ Implemented
 **Priority:** Medium (cleanup, not blocking)
 **Estimated LOC:** 100-150
 **Depends On:** DX-17 Phase 1 (v0.5.11, completed)
-**Target:** v0.5.12
+**Target:** v0.6.2
+**Implemented**: 2025-12-24
+**Commit**: b9ab84e6
 
 ## Summary
 

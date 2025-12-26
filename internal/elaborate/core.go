@@ -35,6 +35,9 @@ type Elaborator struct {
 	// M-CAPABILITY-BUDGETS: Full effect annotations with budgets
 	// Maps Lambda NodeID -> full effect annotations (preserves @limit=N through elaboration)
 	effectAnnotsFull map[uint64][]ast.EffectAnnotation
+	// M-DX19: Types that derive Eq automatically
+	// Tracks ADT/record types with `deriving (Eq)` clause
+	derivedEqTypes map[string]bool
 }
 
 // ConstructorInfo holds information about an available constructor
@@ -61,6 +64,7 @@ func NewElaborator() *Elaborator {
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
+		derivedEqTypes:   make(map[string]bool),         // M-DX19: Initialize derived Eq types
 	}
 }
 
@@ -82,6 +86,7 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
+		derivedEqTypes:   make(map[string]bool),         // M-DX19: Initialize derived Eq types
 	}
 }
 
@@ -172,6 +177,16 @@ func (e *Elaborator) GetParamTypeAnnotations() map[uint64][]types.Type {
 // M-FIX-FLOAT-OP: Used to ensure PI() -> float actually returns float
 func (e *Elaborator) GetReturnTypeAnnotations() map[uint64]types.Type {
 	return e.returnTypeAnnots
+}
+
+// GetDerivedEqTypes returns all types that have `deriving (Eq)` clause
+// M-DX19: Used to register Eq instances for derived types in the type checker
+func (e *Elaborator) GetDerivedEqTypes() []string {
+	result := make([]string, 0, len(e.derivedEqTypes))
+	for typeName := range e.derivedEqTypes {
+		result = append(result, typeName)
+	}
+	return result
 }
 
 // GetWarnings returns accumulated exhaustiveness warnings

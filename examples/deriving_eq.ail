@@ -1,0 +1,44 @@
+-- Example: Automatic Eq derivation for ADT types (M-DX19)
+-- Demonstrates `deriving (Eq)` syntax for automatic equality comparison
+module examples/deriving_eq
+
+-- Simple enum with deriving (Eq)
+type Color = Red | Green | Blue deriving (Eq)
+
+-- ADT with data fields deriving (Eq)
+type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
+
+-- Test equality on enum type
+let colorTest: bool =
+  let c1 = Red in
+  let c2 = Red in
+  let c3 = Blue in
+  let sameColor = c1 == c2 in     -- true: same constructor
+  let diffColor = c1 == c3 in     -- false: different constructors
+  sameColor && (diffColor == false)
+
+-- Test equality on ADT with fields
+let shapeTest: bool =
+  let s1 = Circle(5) in
+  let s2 = Circle(5) in
+  let s3 = Circle(10) in
+  let s4 = Rectangle(3, 4) in
+  let sameShape = s1 == s2 in        -- true: same constructor, same field
+  let diffField = s1 == s3 in        -- false: same constructor, diff field
+  let diffCtor = s1 == s4 in         -- false: different constructors
+  sameShape && (diffField == false) && (diffCtor == false)
+
+-- Test inequality operator (!=)
+let neqTest: bool =
+  let r1 = Red in
+  let r2 = Blue in
+  r1 != r2   -- true: Red != Blue
+
+-- Main function for testing
+export func main() -> () ! {IO} {
+  let _ = _io_println("Testing deriving (Eq)...") in
+  let _ = _io_println("Color test: " ++ show(colorTest)) in
+  let _ = _io_println("Shape test: " ++ show(shapeTest)) in
+  let _ = _io_println("Neq test: " ++ show(neqTest)) in
+  ()
+}

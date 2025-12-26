@@ -104,6 +104,29 @@ func deriveEqFromOrd(ord *ClassInstance) *ClassInstance {
 	}
 }
 
+// AddDerivedEqForADT registers an Eq instance for an ADT type with `deriving (Eq)`.
+// M-DX19: This enables the type checker to resolve Eq constraints for the ADT type.
+func (env *InstanceEnv) AddDerivedEqForADT(typeName string) error {
+	// Create a TCon type for the ADT
+	adtType := &TCon{Name: typeName}
+
+	// Check if instance already exists
+	key := canonicalKey("Eq", adtType)
+	if _, exists := env.instances[key]; exists {
+		return nil // Already registered, nothing to do
+	}
+
+	// Add the Eq instance
+	return env.Add(&ClassInstance{
+		ClassName: "Eq",
+		TypeHead:  adtType,
+		Dict: Dict{
+			"eq":  fmt.Sprintf("derived_eq_%s", typeName),
+			"neq": fmt.Sprintf("derived_neq_%s", typeName),
+		},
+	})
+}
+
 // MissingInstanceError represents a missing type class instance
 type MissingInstanceError struct {
 	Class string
