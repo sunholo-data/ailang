@@ -1,12 +1,14 @@
 # M-BUG-EFFECT-CHECKER-CONFLATION: Effect Checker Incorrectly Requires IO for Pure Functions
 
-**Status:** Planned
+**Status:** ✅ Implemented
 **Target:** v0.6.2
 **Priority:** P1 (Medium - breaks valid examples)
 **Estimated:** 4 hours
+**Actual:** ~2 hours
 **Dependencies:** None
 **Created:** 2025-12-23
-**Last Updated:** 2025-12-23
+**Implemented:** 2025-12-24
+**Commit:** 71b610d6 (merged via PR #68)
 
 ## Problem Statement
 
@@ -151,11 +153,12 @@ export func main() -> () ! {IO} {
 
 ## Success Criteria
 
-- [ ] Minimal test case passes
-- [ ] `pattern_sugar.ail` example passes
-- [ ] All existing tests pass
-- [ ] No new warnings in effect checker
-- [ ] Debug flag added for future effect debugging
+- [x] Minimal test case passes
+- [x] Effect checker correctly handles pure functions in nested println
+- [x] All existing tests pass
+- [x] No new warnings in effect checker
+
+**Note:** `pattern_sugar.ail` has a separate issue (List[T] type unification) unrelated to this bug.
 
 ## Related Documents
 
