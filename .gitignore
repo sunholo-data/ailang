@@ -36,6 +36,9 @@ go.work.sum
 bin/ailang
 /bin
 
+# Generated Go code from compiler
+gen/
+
 # CI/CD generated files
 examples_report.json
 examples_status.md
