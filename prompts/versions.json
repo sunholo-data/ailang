@@ -366,15 +366,16 @@
     },
     "v0.6.2": {
       "file": "prompts/v0.6.2.md",
-      "hash": "2bd5dd2236cf7bf7eaddf6ec7ff8e80bbd58340cc4c5866902b6e6aca16cb143",
-      "description": "Add record pattern matching (M-RECORD-PATTERNS)",
+      "hash": "08c6eef98af8bec1a2745c8d1b9fe760fa924b8c62ff8a8c0201b32283e7b3a1",
+      "description": "Add record pattern matching (M-RECORD-PATTERNS) and deriving (Eq) (M-DX19)",
       "created": "2025-12-25",
       "tags": [
         "production",
         "latest",
-        "record-patterns"
+        "record-patterns",
+        "deriving-eq"
       ],
-      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. All v0.5.11 features included."
+      "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. M-DX19: Auto-derive Eq for ADT types using `type Color = Red | Green | Blue deriving (Eq)` syntax. Enables == and != operators via structural equality comparison. All v0.5.11 features included."
     }
   },
   "active": "v0.6.2",
