@@ -3,7 +3,16 @@ package types
 import (
 	"fmt"
 	"math"
+	"strings"
 )
+
+// DerivedADTEquality is a marker type indicating that equality should be
+// synthesized for an ADT with `deriving (Eq)`. The evaluator will handle
+// this specially by comparing TaggedValue instances structurally.
+// M-DX19: Auto-derive Eq for ADT types
+type DerivedADTEquality struct {
+	TypeName string // The ADT type name (e.g., "Color")
+}
 
 // DictionaryRegistry manages type class dictionaries for all instances.
 // Keys are in the format: "namespace::ClassName::TypeNF::method"
@@ -388,6 +397,23 @@ func (r *DictionaryRegistry) registerOrdString() {
 		}
 		return y
 	})
+}
+
+// RegisterDerivedEq registers Eq instance for an ADT type with `deriving (Eq)`.
+// The implementation is a marker (DerivedADTEquality) that tells the evaluator
+// to synthesize structural equality comparison for TaggedValue instances.
+// M-DX19: Auto-derive Eq for ADT types
+func (r *DictionaryRegistry) RegisterDerivedEq(typeName string) {
+	ns := "prelude"
+
+	// Normalize type name to lowercase for dictionary key
+	normalizedTypeName := strings.ToLower(typeName)
+
+	// Register eq method with derived marker
+	r.Register(ns, "Eq", normalizedTypeName, "eq", &DerivedADTEquality{TypeName: typeName})
+
+	// Register neq method with derived marker
+	r.Register(ns, "Eq", normalizedTypeName, "neq", &DerivedADTEquality{TypeName: typeName})
 }
 
 // ValidateRegistry checks that all required methods are present for each type class instance

@@ -474,6 +474,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 
 		rt.GetEvaluator().SetEffContext(effCtx)
 
+		// M-DX19: Inject dictionary registry with derived type class instances
+		if result.DictReg != nil {
+			rt.GetEvaluator().SetDictionaryRegistry(result.DictReg)
+		}
+
 		// Execute module entrypoint
 		execParams := moduleExecParams{
 			filename:          filename,

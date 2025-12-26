@@ -463,12 +463,8 @@ func (tc *CoreTypeChecker) walkCore(expr core.CoreExpr) {
 		// If we have a resolved constraint for this node, fill in the method
 		if rc, ok := tc.resolvedConstraints[e.ID()]; ok {
 			method := OperatorMethod(e.Op, false)
-			// fmt.Printf("DEBUG BinOp: node=%d, op='%s' -> method='%s'\n", e.ID(), e.Op, method)
 			rc.Method = method
 		}
-		// else {
-		// 	// fmt.Printf("DEBUG BinOp: node=%d, op='%s' (NO CONSTRAINT)\n", e.ID(), e.Op)
-		// }
 		// Recurse on operands
 		tc.walkCore(e.Left)
 		tc.walkCore(e.Right)

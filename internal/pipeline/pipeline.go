@@ -118,6 +118,9 @@ type Result struct {
 	// M-DX11: Type debugging
 	TypeChecker *types.CoreTypeChecker  // Type checker (for debug output)
 	DebugSink   *types.VerboseDebugSink // Debug events (when DebugTypes enabled)
+
+	// M-DX19: Dictionary registry with derived type class instances
+	DictReg *types.DictionaryRegistry
 }
 
 // Run executes the full compilation pipeline

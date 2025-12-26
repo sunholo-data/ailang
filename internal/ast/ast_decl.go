@@ -156,12 +156,34 @@ func (a *AssertStmt) Position() Pos  { return a.Pos }
 func (a *AssertStmt) stmtNode()      {}
 func (a *AssertStmt) exprNode()      {} // AssertStmt can be used as expression in test bodies
 
+// DeriveKind represents which type classes can be automatically derived
+type DeriveKind int
+
+const (
+	DeriveNone DeriveKind = iota
+	DeriveEq             // deriving (Eq) - automatic equality
+	// Future: DeriveOrd, DeriveShow, etc.
+)
+
+// String returns the string representation of a DeriveKind
+func (d DeriveKind) String() string {
+	switch d {
+	case DeriveNone:
+		return ""
+	case DeriveEq:
+		return "Eq"
+	default:
+		return "unknown"
+	}
+}
+
 // TypeDecl represents a type declaration
 type TypeDecl struct {
 	Name       string
 	TypeParams []string
 	Definition TypeDef
-	Exported   bool // True if type was declared with 'export'
+	Deriving   []DeriveKind // Type classes to auto-derive (e.g., [DeriveEq])
+	Exported   bool         // True if type was declared with 'export'
 	Pos        Pos
 }
 

@@ -62,8 +62,6 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 
 			// Create dictionary reference
 			typeName := types.NormalizeTypeName(rc.Type)
-			// fmt.Printf("DEBUG ELABORATE: BinOp NodeID=%d, Class=%s, Type=%v, NormalizedType=%s, Method=%s\n",
-			// 	e.ID(), rc.ClassName, rc.Type, typeName, rc.Method)
 			dictRef := &core.DictRef{
 				CoreNode:  e.CoreNode,
 				ClassName: rc.ClassName,
@@ -134,7 +132,47 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 		}
 
 	case *core.Intrinsic:
-		// Intrinsic nodes pass through - they'll be handled by OpLowering pass
+		// M-DX19: Check if this intrinsic has a resolved constraint (for == and != on ADT types)
+		if rc, ok := de.resolved[e.ID()]; ok && rc.Method != "" {
+			// Guard against nil Type in resolved constraint
+			if rc.Type == nil {
+				// Skip dictionary transformation if type is nil
+				args := make([]core.CoreExpr, len(e.Args))
+				for i, arg := range e.Args {
+					args[i] = de.transformExpr(arg)
+				}
+				return &core.Intrinsic{
+					CoreNode: e.CoreNode,
+					Op:       e.Op,
+					Args:     args,
+				}
+			}
+
+			// Transform to dictionary application
+			// Transform the operands
+			args := make([]core.CoreExpr, len(e.Args))
+			for i, arg := range e.Args {
+				args[i] = de.transformExpr(arg)
+			}
+
+			// Create dictionary reference
+			typeName := types.NormalizeTypeName(rc.Type)
+			dictRef := &core.DictRef{
+				CoreNode:  e.CoreNode,
+				ClassName: rc.ClassName,
+				TypeName:  typeName,
+			}
+
+			// Create dictionary application
+			return &core.DictApp{
+				CoreNode: e.CoreNode,
+				Dict:     dictRef,
+				Method:   rc.Method,
+				Args:     args,
+			}
+		}
+
+		// No dictionary transformation needed - pass through for OpLowering
 		args := make([]core.CoreExpr, len(e.Args))
 		for i, arg := range e.Args {
 			args[i] = de.transformExpr(arg)

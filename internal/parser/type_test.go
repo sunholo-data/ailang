@@ -421,3 +421,88 @@ type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander`
 	require.True(t, ok, "expected SimpleType element")
 	assert.Equal(t, "Direction", elemType.Name)
 }
+
+// TestDerivingEq tests the deriving (Eq) syntax for ADT types (M-DX19)
+func TestDerivingEq(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectDeriving  []ast.DeriveKind
+		expectTypeName  string
+	}{
+		{
+			name:           "simple enum with deriving Eq",
+			input:          "type Color = Red | Green | Blue deriving (Eq)",
+			expectDeriving: []ast.DeriveKind{ast.DeriveEq},
+			expectTypeName: "Color",
+		},
+		{
+			name:           "ADT with fields deriving Eq",
+			input:          "type Tree = Leaf(int) | Node(Tree, int, Tree) deriving (Eq)",
+			expectDeriving: []ast.DeriveKind{ast.DeriveEq},
+			expectTypeName: "Tree",
+		},
+		{
+			name:           "record type deriving Eq",
+			input:          "type Point = { x: int, y: int } deriving (Eq)",
+			expectDeriving: []ast.DeriveKind{ast.DeriveEq},
+			expectTypeName: "Point",
+		},
+		{
+			name:           "type without deriving",
+			input:          "type Color = Red | Green | Blue",
+			expectDeriving: nil,
+			expectTypeName: "Color",
+		},
+		{
+			name:           "single constructor with deriving",
+			input:          "type Wrapper = Wrap(int) deriving (Eq)",
+			expectDeriving: []ast.DeriveKind{ast.DeriveEq},
+			expectTypeName: "Wrapper",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prog := mustParse(t, tt.input)
+			require.NotNil(t, prog.File, "expected File")
+			require.Len(t, prog.File.Statements, 1, "expected 1 statement")
+
+			typeDecl, ok := prog.File.Statements[0].(*ast.TypeDecl)
+			require.True(t, ok, "expected TypeDecl, got %T", prog.File.Statements[0])
+
+			assert.Equal(t, tt.expectTypeName, typeDecl.Name)
+
+			if tt.expectDeriving == nil {
+				assert.Empty(t, typeDecl.Deriving, "expected no deriving clause")
+			} else {
+				assert.Equal(t, tt.expectDeriving, typeDecl.Deriving, "expected deriving clause to match")
+			}
+		})
+	}
+}
+
+// TestDerivingEqErrors tests error handling for invalid deriving syntax
+func TestDerivingEqErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "unsupported derive",
+			input: "type Color = Red deriving (Ord)",
+		},
+		{
+			name:  "missing lparen",
+			input: "type Color = Red deriving Eq)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := mustParseError(t, tt.input)
+			// We're mainly testing that the parser doesn't panic
+			_ = errs
+		})
+	}
+}

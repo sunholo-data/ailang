@@ -161,6 +161,31 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		typeChecker.SetEffectAnnotationsFull(effectAnnotsFull)
 	}
 
+	// M-DX19: Register derived Eq instances for types with `deriving (Eq)`
+	// This allows == to work on user-defined ADT and record types
+	derivedEqTypes := elaborator.GetDerivedEqTypes()
+	for _, typeName := range derivedEqTypes {
+		inst := &types.ClassInstance{
+			ClassName: "Eq",
+			TypeHead:  &types.TCon{Name: typeName},
+			Dict: types.Dict{
+				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
+				"neq": fmt.Sprintf("derived_neq_%s", typeName),
+			},
+		}
+		if err := cfg.InstEnv.Add(inst); err != nil {
+			// Ignore duplicate instance errors (may happen with multiple files)
+			// Just log if debug mode
+			if cfg.DebugCompile {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Could not add derived Eq instance for %s: %v\n", typeName, err)
+			}
+		}
+
+		// M-DX19: Also register in DictionaryRegistry for runtime lookup
+		// This tells the evaluator to use structural TaggedValue comparison
+		cfg.DictReg.RegisterDerivedEq(typeName)
+	}
+
 	// For REPL, extract first declaration as expression
 	var coreExpr core.CoreExpr
 	if src.IsREPL && len(coreProg.Decls) > 0 {
@@ -414,6 +439,9 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// M-DX11: Store type checker and debug sink for --debug-types output
 	result.TypeChecker = typeChecker
 	result.DebugSink = debugSink
+
+	// M-DX19: Include dictionary registry for runtime to use derived instances
+	result.DictReg = cfg.DictReg
 
 	// Calculate environment digest for determinism
 	// TODO: Implement proper digest calculation
