@@ -51,9 +51,12 @@ func (p *Parser) parseType() ast.Type {
 			switch name {
 			case "Array":
 				typ = &ast.ArrayType{Element: elemType, Pos: startPos}
+			case "List":
+				// DX-17 Phase 2: Normalize List[T] to lowercase "list" for consistency with [T] syntax
+				typ = &ast.TypeApp{Constructor: "list", Args: typeArgs, Pos: startPos}
 			default:
 				// M-TAPP-FIX: Use TypeApp to preserve type arguments for generic types
-				// This enables proper type checking of Option[T], Result[T, E], List[T], etc.
+				// This enables proper type checking of Option[T], Result[T, E], etc.
 				typ = &ast.TypeApp{Constructor: name, Args: typeArgs, Pos: startPos}
 			}
 			goto checkArrow
