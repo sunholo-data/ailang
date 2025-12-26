@@ -1,10 +1,12 @@
 # M-RECORD-PATTERNS: Record Pattern Matching
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.6.2
 **Priority**: P1 (Medium)
 **Estimated**: 1-2 days (~250-350 LOC)
 **Dependencies**: None (AST node already exists)
+**Implemented**: 2025-12-24
+**Commit**: 7f6b1c7a
 
 ## Axiom Compliance
 
