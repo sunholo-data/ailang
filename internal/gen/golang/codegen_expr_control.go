@@ -109,12 +109,9 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 	g.writef("func() %s {\n", returnType)
 	g.indent++
 	g.writef("if ")
-	if err := g.generateExpr(ifExpr.Cond); err != nil {
+	// M-CODEGEN-BOOL-ASSERTIONS: Use combined check for interface{} and DictApp results
+	if err := g.generateExprWithBoolAssertion(ifExpr.Cond); err != nil {
 		return err
-	}
-	// M-DX25.3: Only add .(bool) if condition produces interface{}
-	if g.exprProducesInterface(ifExpr.Cond) {
-		g.write(".(bool)")
 	}
 	g.write(" {\n")
 	g.indent++
@@ -123,7 +120,8 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 		return err
 	}
 	// M-DX25.3: Add type assertion if Then branch produces interface{} but we need concrete type
-	if returnType != "interface{}" && g.exprProducesInterface(ifExpr.Then) {
+	// M-CODEGEN-BOOL-ASSERTIONS: Also check needsBoolAssertion for vars that might be interface{}
+	if returnType != "interface{}" && (g.exprProducesInterface(ifExpr.Then) || g.needsBoolAssertion(ifExpr.Then)) {
 		g.writef(".(%s)", returnType)
 	}
 	g.writef("\n")
@@ -134,7 +132,8 @@ func (g *Generator) generateIf(ifExpr *core.If) error {
 		return err
 	}
 	// M-DX25.3: Add type assertion if Else branch produces interface{} but we need concrete type
-	if returnType != "interface{}" && g.exprProducesInterface(ifExpr.Else) {
+	// M-CODEGEN-BOOL-ASSERTIONS: Also check needsBoolAssertion for vars that might be interface{}
+	if returnType != "interface{}" && (g.exprProducesInterface(ifExpr.Else) || g.needsBoolAssertion(ifExpr.Else)) {
 		g.writef(".(%s)", returnType)
 	}
 	g.writef("\n")
@@ -198,12 +197,10 @@ func (g *Generator) generateIfChain(ifExpr *core.If) error {
 		if branch.Cond != nil {
 			// Conditional branch: if cond { return value }
 			g.writef("if ")
-			if err := g.generateExpr(branch.Cond); err != nil {
+			// M-CODEGEN-BOOL-ASSERTIONS: Use combined check for interface{} and DictApp results
+			if err := g.generateExprWithBoolAssertion(branch.Cond); err != nil {
 				g.inFlatChain = oldInFlatChain
 				return err
-			}
-			if g.exprProducesInterface(branch.Cond) {
-				g.write(".(bool)")
 			}
 			g.write(" {\n")
 			g.indent++
@@ -212,7 +209,8 @@ func (g *Generator) generateIfChain(ifExpr *core.If) error {
 				g.inFlatChain = oldInFlatChain
 				return err
 			}
-			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+			// M-CODEGEN-BOOL-ASSERTIONS: Also check needsBoolAssertion for vars that might be interface{}
+			if returnType != "interface{}" && (g.exprProducesInterface(branch.Then) || g.needsBoolAssertion(branch.Then)) {
 				g.writef(".(%s)", returnType)
 			}
 			g.writef("\n")
@@ -230,7 +228,8 @@ func (g *Generator) generateIfChain(ifExpr *core.If) error {
 				g.inFlatChain = oldInFlatChain
 				return err
 			}
-			if returnType != "interface{}" && g.exprProducesInterface(branch.Then) {
+			// M-CODEGEN-BOOL-ASSERTIONS: Also check needsBoolAssertion for vars that might be interface{}
+			if returnType != "interface{}" && (g.exprProducesInterface(branch.Then) || g.needsBoolAssertion(branch.Then)) {
 				g.writef(".(%s)", returnType)
 			}
 			g.writef("\n")

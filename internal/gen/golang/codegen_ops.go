@@ -44,6 +44,21 @@ func (g *Generator) generateBinOp(binop *core.BinOp) error {
 		}
 	}
 
+	// M-CODEGEN-BOOL-ASSERTIONS: Logical operators need boolean operands
+	// Both && and || require bool operands in Go, so add type assertions if needed
+	if binop.Op == "&&" || binop.Op == "||" {
+		g.write("(")
+		if err := g.generateExprWithBoolAssertion(binop.Left); err != nil {
+			return err
+		}
+		g.writef(" %s ", g.mapOperator(binop.Op))
+		if err := g.generateExprWithBoolAssertion(binop.Right); err != nil {
+			return err
+		}
+		g.write(")")
+		return nil
+	}
+
 	g.write("(")
 	if err := g.generateExpr(binop.Left); err != nil {
 		return err
