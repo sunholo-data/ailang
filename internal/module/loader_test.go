@@ -400,7 +400,7 @@ func TestCache(t *testing.T) {
 	// Retrieve from cache
 	cached := loader.getCached("test/module")
 	if cached == nil {
-		t.Error("Module should be in cache")
+		t.Fatal("Module should be in cache")
 	}
 
 	if cached.Identity != "test/module" {
