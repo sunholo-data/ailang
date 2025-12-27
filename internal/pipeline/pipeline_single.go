@@ -398,8 +398,8 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	// Phase 7: Evaluate
 	start = time.Now()
-	// Use Core evaluator for proper evaluation
-	coreEval := eval.NewCoreEvaluator()
+	// Use Core evaluator with the dictionary registry (contains prelude type class instances)
+	coreEval := eval.NewCoreEvaluatorWithRegistry(cfg.DictReg)
 	// Set global resolver if provided (v0.2.0 hotfix for builtins)
 	if cfg.GlobalResolver != nil {
 		coreEval.SetGlobalResolver(cfg.GlobalResolver)

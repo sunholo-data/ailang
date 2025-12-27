@@ -89,6 +89,9 @@ func (r *DictionaryRegistry) registerBuiltins() {
 	r.registerOrdInt()
 	r.registerOrdFloat()
 	r.registerOrdString()
+
+	// Fractional instances (extends Num for floating-point types)
+	r.registerFractionalFloat()
 }
 
 // Num instance for Int
@@ -396,6 +399,65 @@ func (r *DictionaryRegistry) registerOrdString() {
 			return x
 		}
 		return y
+	})
+}
+
+// Fractional instance for Float (extends Num with fractional operations)
+// Fractional is used for float literals and division operations
+func (r *DictionaryRegistry) registerFractionalFloat() {
+	ns := "prelude"
+
+	// Inherit all Num[Float] methods for Fractional[Float]
+	// add: Float -> Float -> Float
+	r.Register(ns, "Fractional", "float", "add", func(x, y float64) float64 {
+		return x + y
+	})
+
+	// sub: Float -> Float -> Float
+	r.Register(ns, "Fractional", "float", "sub", func(x, y float64) float64 {
+		return x - y
+	})
+
+	// mul: Float -> Float -> Float
+	r.Register(ns, "Fractional", "float", "mul", func(x, y float64) float64 {
+		return x * y
+	})
+
+	// div: Float -> Float -> Float (integer-style division, same as Num)
+	r.Register(ns, "Fractional", "float", "div", func(x, y float64) float64 {
+		return x / y
+	})
+
+	// neg: Float -> Float
+	r.Register(ns, "Fractional", "float", "neg", func(x float64) float64 {
+		return -x
+	})
+
+	// abs: Float -> Float
+	r.Register(ns, "Fractional", "float", "abs", func(x float64) float64 {
+		return math.Abs(x)
+	})
+
+	// fromInt: Int -> Float
+	r.Register(ns, "Fractional", "float", "fromInt", func(x int) float64 {
+		return float64(x)
+	})
+
+	// Fractional-specific methods:
+
+	// divide: Float -> Float -> Float (fractional division, same as div for Float)
+	r.Register(ns, "Fractional", "float", "divide", func(x, y float64) float64 {
+		return x / y
+	})
+
+	// recip: Float -> Float (reciprocal: 1/x)
+	r.Register(ns, "Fractional", "float", "recip", func(x float64) float64 {
+		return 1.0 / x
+	})
+
+	// fromRational: Float -> Float (identity for Float, simplified)
+	r.Register(ns, "Fractional", "float", "fromRational", func(x float64) float64 {
+		return x
 	})
 }
 
