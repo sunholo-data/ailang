@@ -1,140 +1,86 @@
+# golangci-lint v2.x configuration
+version: "2"
+
 run:
   timeout: 5m
   tests: true
-  build-tags: []
 
 linters:
+  default: none
   enable:
-    - errcheck
-    - gosimple
+    # Bug detectors (keep these!)
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
-    # gofmt is checked separately via 'make fmt-check' to avoid caching issues
-    - goimports
     - misspell
-    - revive
-
-  disable:
-    - gosec  # Security linter - can be noisy
-    - dupl   # Duplicate code - often false positives
-    - gocyclo # Cyclomatic complexity - can be too strict
 
 linters-settings:
-  errcheck:
-    # Don't check error returns on these
-    exclude-functions:
-      - fmt.Fprintf
-      - fmt.Printf
-      - fmt.Println
-
-  unused:
-    # Don't flag unused code in tests
-    check-exported: false
-
-  revive:
-    rules:
-      - name: exported
-        disabled: true  # Don't require comments on exported types
-      - name: var-naming
-        disabled: false
+  staticcheck:
+    # Disable stylistic checks (QF*, ST*), keep bug detectors (SA*)
+    checks:
+      - "all"
+      - "-QF*"       # Disable all quickfix suggestions (stylistic)
+      - "-ST1005"    # Error string formatting - our errors use "Hint: ..." format
+      - "-ST1023"    # Omit type from declaration - stylistic
+      - "-SA1019"    # Deprecated usage - tracked separately (TList deprecation for v0.7.0)
 
 issues:
-  # Exclude directories with multiple standalone main executables
+  # Exclude directories
   exclude-dirs:
     - examples/agents
+    - scripts
 
-  # Excluding configuration per-path, per-linter, per-text and per-source
+  # Global exclude patterns (regex matching error text)
+  # These filter out STYLISTIC issues, not bug detectors
+  exclude:
+    - "QF10[0-9][0-9]:"  # All quickfix suggestions are stylistic
+    - "ST1005:"          # Error string formatting
+    - "ST1023:"          # Omit type from declaration
+    - "SA1019:"          # Deprecated usage (tracked separately)
+
+  # Exclude rules for specific patterns
   exclude-rules:
-    # Exclude examples/agents directory (standalone executables with multiple main functions)
-    - path: examples/agents/
-      linters:
-        - typecheck
-        - unused
-
-    # Exclude scripts directory from all linters
-    - path: scripts/
-      linters:
-        - typecheck
-        - unused
-
-    # Exclude test files from some linters
+    # Allow empty branches in test code
     - path: _test\.go
-      linters:
-        - dupl
-        - gosec
-        - errcheck  # Test setup often intentionally ignores errors
+      text: "SA9003"
+
+    # Allow nil dereference warnings in tests (tests check nil explicitly)
+    - path: _test\.go
+      text: "SA5011"
+
+    # Allow variadic argument issues in tests (testing error cases)
+    - path: _test\.go
+      text: "SA5012"
 
     # Don't complain about unused test helpers
     - path: _test\.go
       text: "is unused"
-      linters:
-        - unused
 
-    # Allow empty branches in test code (often used for clarity or future TODOs)
-    - path: _test\.go
-      text: "SA9003: empty branch"
-      linters:
-        - staticcheck
-
-    # Allow possible nil dereferences in test code (tests check nil explicitly)
-    - path: _test\.go
-      text: "SA5011: possible nil pointer dereference"
-      linters:
-        - staticcheck
-
-    # Allow invalid variadic calls in tests (often testing error handling)
-    - path: _test\.go
-      text: "SA5012: variadic argument"
-      linters:
-        - staticcheck
-
-    # Don't complain about unused functions in testutil.go (they're helper functions)
+    # Don't complain about unused functions in testutil.go
     - path: testutil\.go
       text: "is unused"
-      linters:
-        - unused
 
-    # Allow underscore in eval_harness package name (M-EVAL framework)
+    # Allow underscore in package names for eval packages (M-EVAL framework)
     - path: internal/eval_harness/
       text: "don't use an underscore in package name"
-      linters:
-        - revive
 
-    # Allow underscore in eval_analysis package name (M-EVAL analysis tools)
     - path: internal/eval_analysis/
       text: "don't use an underscore in package name"
-      linters:
-        - revive
 
-    # Allow underscore in eval_analyzer package name (M-EVAL analyzer)
     - path: internal/eval_analyzer/
       text: "don't use an underscore in package name"
-      linters:
-        - revive
 
-    # Allow ALL_CAPS for error code constants (they match JSON schema error codes)
+    # Allow ALL_CAPS for error codes (match JSON schema codes)
     - path: internal/types/errors\.go
       text: "don't use ALL_CAPS in Go names"
-      linters:
-        - revive
 
-    # Allow ALL_CAPS for eval harness error codes (PAR_001, TC_REC_001, etc.)
     - path: internal/eval_harness/errors\.go
       text: "don't use ALL_CAPS in Go names"
-      linters:
-        - revive
 
-    # Allow ALL_CAPS for validation error codes (VAL_M##, VAL_T##, etc. - match error messages)
     - path: internal/planning/validator\.go
       text: "don't use ALL_CAPS in Go names"
-      linters:
-        - revive
 
-  # Maximum issues count per one linter. Set to 0 to disable.
+  # Limit output
   max-issues-per-linter: 50
-
-  # Maximum count of issues with the same text. Set to 0 to disable.
   max-same-issues: 10

@@ -149,13 +149,13 @@ func TestGenerateExprWithBoolAssertion(t *testing.T) {
 			contains: ".(bool)",
 		},
 		{
-			name: "Var adds .(bool) when not typed",
-			expr: &core.Var{Name: "sameColor"},
+			name:     "Var adds .(bool) when not typed",
+			expr:     &core.Var{Name: "sameColor"},
 			contains: ".(bool)",
 		},
 		{
-			name: "Literal does not add .(bool)",
-			expr: &core.Lit{Value: true},
+			name:     "Literal does not add .(bool)",
+			expr:     &core.Lit{Value: true},
 			contains: "true",
 		},
 	}

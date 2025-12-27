@@ -55,7 +55,7 @@ func TestModuleRuntime_GetInstance(t *testing.T) {
 	// Test: Instance found
 	inst = rt.GetInstance("test/module")
 	if inst == nil {
-		t.Error("Expected instance to be found")
+		t.Fatal("Expected instance to be found")
 	}
 
 	if inst.Path != "test/module" {

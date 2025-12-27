@@ -128,7 +128,7 @@ func TestLinkProgram_EmptyProgram(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Error("LinkProgram() should not return nil for empty program")
+		t.Fatal("LinkProgram() should not return nil for empty program")
 	}
 
 	if len(result.Decls) != 0 {
@@ -258,7 +258,7 @@ func TestLinkProgram_ComplexExpression(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Error("LinkProgram() should not return nil for complex expression")
+		t.Fatal("LinkProgram() should not return nil for complex expression")
 	}
 
 	if len(result.Decls) != 1 {

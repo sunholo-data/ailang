@@ -161,7 +161,7 @@ type DeriveKind int
 
 const (
 	DeriveNone DeriveKind = iota
-	DeriveEq             // deriving (Eq) - automatic equality
+	DeriveEq              // deriving (Eq) - automatic equality
 	// Future: DeriveOrd, DeriveShow, etc.
 )
 
