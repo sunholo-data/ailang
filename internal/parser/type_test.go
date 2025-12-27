@@ -425,10 +425,10 @@ type AIBehavior = PatternPatrol(Array[Direction]) | RandomWander`
 // TestDerivingEq tests the deriving (Eq) syntax for ADT types (M-DX19)
 func TestDerivingEq(t *testing.T) {
 	tests := []struct {
-		name            string
-		input           string
-		expectDeriving  []ast.DeriveKind
-		expectTypeName  string
+		name           string
+		input          string
+		expectDeriving []ast.DeriveKind
+		expectTypeName string
 	}{
 		{
 			name:           "simple enum with deriving Eq",
