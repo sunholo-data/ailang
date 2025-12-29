@@ -466,6 +466,55 @@ make help                      # Show all available make targets
 make help-release              # Show release workflow
 ```
 
+## Coordinator Daemon
+
+The coordinator is an always-on daemon that processes tasks automatically using AI agents.
+
+### Basic Commands
+
+```bash
+# Start the coordinator daemon
+ailang coordinator start
+
+# Check status
+ailang coordinator status
+ailang coordinator status --json     # JSON output
+
+# Stop the daemon
+ailang coordinator stop
+```
+
+### Configuration Options
+
+```bash
+# Start with custom settings
+ailang coordinator start --poll-interval 60s  # Check for tasks every 60s
+ailang coordinator start --max-worktrees 5    # Allow 5 concurrent tasks
+```
+
+### Delegating Tasks
+
+Claude can delegate tasks to the coordinator:
+
+```bash
+# Send a task to the coordinator
+ailang messages send user "Fix bug in parser" --type bug --title "Parser bug fix"
+
+# Check coordinator status
+ailang coordinator status
+
+# View coordinator logs
+tail -f ~/.ailang/logs/coordinator.log
+```
+
+### When to Use
+
+Use the coordinator when:
+- Task is large and can run autonomously
+- You want to parallelize multiple tasks
+- Task should continue after session ends
+- You need isolated git worktree execution
+
 ## Skills (Auto-Invoked)
 
 **Don't call these manually - they're auto-invoked by Claude when appropriate.**

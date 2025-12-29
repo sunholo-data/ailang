@@ -798,6 +798,70 @@ ailang serve                                        # Restart server
 
 **For complete guide**: Use the `collaboration-hub` skill
 
+### Coordinator Daemon (Task Delegation)
+
+**The Coordinator is an always-on daemon that can execute tasks autonomously using AI agents (Claude Code or Gemini CLI).**
+
+**When to use the coordinator:**
+- Delegate long-running tasks that don't need immediate attention
+- Run multiple tasks concurrently in isolated environments
+- Let background agents handle bug fixes, features, or research while you continue other work
+
+**Quick Reference:**
+```bash
+# Start the daemon
+ailang coordinator start
+
+# Check if running
+ailang coordinator status
+
+# Stop the daemon
+ailang coordinator stop
+
+# Start with custom settings
+ailang coordinator start --poll-interval 10s --max-worktrees 5
+```
+
+**Delegating Tasks from Claude Code:**
+```bash
+# Send a task to the coordinator
+ailang messages send coordinator "Fix the null pointer bug in parser.go" \
+  --title "Bug: Parser NPE" --from "claude-code" --type bug
+
+# The coordinator will:
+# 1. Pick up the task from the message queue
+# 2. Classify it (bug-fix, feature, docs, research, etc.)
+# 3. Create an isolated git worktree
+# 4. Execute using Claude Code CLI or Gemini CLI
+# 5. Store results in SQLite for review
+```
+
+**Task Routing:**
+| Task Type | Primary Provider | Use Case |
+|-----------|------------------|----------|
+| Bug Fix | Claude Code CLI | Code changes requiring file edits |
+| Feature | Claude Code CLI | New functionality implementation |
+| Refactor | Claude Code CLI | Code restructuring |
+| Test | Claude Code CLI | Writing or fixing tests |
+| Docs | Gemini API | Documentation writing |
+| Research | Gemini API | Investigation, exploration |
+
+**Storage:**
+- Task state: `~/.ailang/state/coordinator.db` (SQLite)
+- Worktrees: `~/.ailang/state/worktrees/coordinator/<task-id>/`
+- Logs: `~/.ailang/logs/coordinator.log`
+
+**Architecture:**
+- **Daemon** (`internal/coordinator/daemon.go`) - Main loop, lifecycle
+- **Analyzer** (`internal/coordinator/analyzer.go`) - Task classification, deduplication
+- **Executors** (`internal/executor/`) - Claude Code CLI, Gemini CLI
+- **Store** (`internal/coordinator/store_sqlite.go`) - Neutral storage layer
+
+**Future: Cloud Storage**
+The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Currently uses SQLite locally, but the neutral `Store` interface enables future cloud deployment without code changes.
+
+**For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
+
 ### Adding Builtin Functions
 
 **To add a builtin function, use the `builtin-developer` skill.**
