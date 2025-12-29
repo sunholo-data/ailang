@@ -108,6 +108,9 @@ const config = {
       'classic',
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
+        googleTagManager: {
+          containerId: 'GTM-WLQZQF2P',
+        },
         docs: {
           sidebarPath: './sidebars.js',
           routeBasePath: '/docs', // Docs at /docs instead of root

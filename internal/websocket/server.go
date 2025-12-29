@@ -548,3 +548,25 @@ func (s *Server) BroadcastInboxMessage(msg *messaging.InboxMessage) {
 		}
 	}
 }
+
+// BroadcastTaskEvent broadcasts a task streaming event to ALL connected clients
+// This is used for real-time task execution monitoring
+func (s *Server) BroadcastTaskEvent(stream *TaskStreamEvent) {
+	event, err := NewTaskStreamEvent(stream)
+	if err != nil {
+		log.Printf("WebSocket: failed to create task stream event: %v", err)
+		return
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, conn := range s.connections {
+		select {
+		case conn.send <- event:
+		default:
+			// Connection is slow, skip (streaming is best-effort)
+			log.Printf("WebSocket: connection %s is slow, skipping task event", conn.id)
+		}
+	}
+}

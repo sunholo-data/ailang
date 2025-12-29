@@ -368,7 +368,7 @@ function QuickStartSection() {
       <style>{`
         .quickstart-section {
           padding: 4rem 2rem;
-          background: linear-gradient(180deg, #0f1419 0%, var(--ifm-background-color) 100%);
+          background: #0f1419;
         }
 
         .quickstart-container {

@@ -209,3 +209,88 @@ func (s *Server) handleInstanceHistory(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to encode instance history response: %v", err)
 	}
 }
+
+// TaskMetrics represents live metrics for a running task
+type TaskMetrics struct {
+	TaskID      string  `json:"task_id"`
+	ThreadID    string  `json:"thread_id,omitempty"`
+	Status      string  `json:"status"`
+	CPUPercent  float64 `json:"cpu_percent"`
+	MemoryMB    float64 `json:"memory_mb"`
+	TokensIn    int     `json:"tokens_in"`
+	TokensOut   int     `json:"tokens_out"`
+	Cost        float64 `json:"cost"`
+	DurationSec int     `json:"duration_sec"`
+	PeakCPU     float64 `json:"peak_cpu"`
+	PeakMemory  float64 `json:"peak_memory_mb"`
+	TurnNum     int     `json:"turn_num,omitempty"`
+	LastEvent   string  `json:"last_event,omitempty"`
+}
+
+// CoordinatorStatus represents the coordinator daemon status
+type CoordinatorStatus struct {
+	Running      bool           `json:"running"`
+	PID          int            `json:"pid,omitempty"`
+	Uptime       string         `json:"uptime,omitempty"`
+	TasksRun     int            `json:"tasks_run"`
+	PendingTasks int            `json:"pending_tasks"`
+	RunningTasks int            `json:"running_tasks"`
+	FailedTasks  int            `json:"failed_tasks"`
+	TotalCost    float64        `json:"total_cost"`
+	TotalTokens  int            `json:"total_tokens"`
+	ActiveTasks  []*TaskMetrics `json:"active_tasks,omitempty"`
+}
+
+// handleCoordinatorStatus returns the coordinator daemon status with active task metrics
+// GET /api/coordinator/status
+func (s *Server) handleCoordinatorStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	status := &CoordinatorStatus{
+		Running: false,
+	}
+
+	// Get coordinator status from store if available
+	if s.coordStore != nil {
+		stats, err := s.coordStore.GetCoordinatorStats()
+		if err == nil {
+			status.Running = stats.Running
+			status.PID = stats.PID
+			status.Uptime = stats.Uptime
+			status.TasksRun = stats.TasksRun
+			status.PendingTasks = stats.PendingTasks
+			status.RunningTasks = stats.RunningTasks
+			status.FailedTasks = stats.FailedTasks
+			status.TotalCost = stats.TotalCost
+			status.TotalTokens = stats.TotalTokens
+		}
+	}
+
+	// Get active task metrics from resource registry
+	if s.resourceRegistry != nil {
+		metrics := s.resourceRegistry.GetAllMetrics()
+		for _, m := range metrics {
+			status.ActiveTasks = append(status.ActiveTasks, &TaskMetrics{
+				TaskID:      m.TaskID,
+				ThreadID:    m.ThreadID,
+				Status:      "running",
+				CPUPercent:  m.CPUPercent,
+				MemoryMB:    m.MemoryMB,
+				TokensIn:    m.TokensIn,
+				TokensOut:   m.TokensOut,
+				Cost:        m.Cost,
+				DurationSec: m.DurationSec,
+				PeakCPU:     m.PeakCPU,
+				PeakMemory:  m.PeakMemory,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		log.Printf("Failed to encode coordinator status response: %v", err)
+	}
+}

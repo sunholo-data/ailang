@@ -564,7 +564,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <button
             onClick={() => setShowWorkspaceInput(!showWorkspaceInput)}
             className={`workspace-toggle ${workspace ? 'has-workspace' : ''}`}
-            title={workspace || 'Set working directory'}
+            title={workspace || 'Set working directory for agent tasks'}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -574,9 +574,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             value={messageKind}
             onChange={(e) => setMessageKind(e.target.value)}
             className="kind-selector"
+            title={messageKind === 'directive'
+              ? 'Directive: A task or instruction for the agent to execute'
+              : 'Question: A query for information (won\'t trigger execution)'}
           >
-            <option value="directive">Directive</option>
-            <option value="question">Question</option>
+            <option value="directive" title="A task or instruction for the agent to execute">Directive</option>
+            <option value="question" title="A query for information (won't trigger execution)">Question</option>
           </select>
           <textarea
             value={inputValue}
@@ -923,8 +926,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           padding: 0;
           background: var(--bg-elevated);
           color: var(--text-tertiary);
@@ -1018,7 +1021,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
         .input-wrapper {
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           gap: var(--space-2);
           background: var(--bg-base);
           border: 1px solid var(--border-default);
@@ -1033,18 +1036,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         }
 
         .kind-selector {
-          padding: var(--space-2) var(--space-3);
-          padding-right: var(--space-6);
+          height: 40px;
+          padding: 0 var(--space-6) 0 var(--space-3);
           background: var(--bg-elevated);
           color: var(--text-secondary);
           font-size: var(--text-xs);
-          border: none;
-          border-radius: var(--radius-sm);
+          font-weight: var(--font-medium);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
           cursor: pointer;
           appearance: none;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
           background-repeat: no-repeat;
           background-position: right var(--space-2) center;
+          flex-shrink: 0;
+          transition: all var(--transition-fast);
+        }
+
+        .kind-selector:hover {
+          border-color: var(--border-default);
+          color: var(--text-primary);
         }
 
         .kind-selector:focus {

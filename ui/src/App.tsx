@@ -9,14 +9,8 @@ import { MetricsCard } from './components/MetricsCard';
 import { TrendsChart } from './components/TrendsChart';
 import { Selection, HierarchyResponse, Approval } from './types';
 
-// Logo icon
-const LogoIcon = (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 6v12M6 12h12" />
-    <circle cx="12" cy="12" r="3" fill="currentColor" />
-  </svg>
-);
+// Logo - use same image as ailang.sunholo.com
+const LogoImage = <img src="/logo.png" alt="AILANG" width="28" height="28" />;
 
 export const App: React.FC = () => {
   const [selection, setSelection] = useState<Selection>({ type: 'overview' });
@@ -407,7 +401,7 @@ export const App: React.FC = () => {
     <div className="app">
       <header className="app-header">
         <div className="header-brand">
-          <div className="brand-logo">{LogoIcon}</div>
+          <div className="brand-logo">{LogoImage}</div>
           <div className="brand-text">
             <h1>AILANG</h1>
             <span className="brand-subtitle">Collaboration Hub</span>
@@ -421,6 +415,20 @@ export const App: React.FC = () => {
               {pendingCount} pending
             </span>
           )}
+          <a
+            href="https://ailang.sunholo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="docs-link"
+            title="View documentation"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Docs
+          </a>
           <span className="version-tag">{version}</span>
         </div>
       </header>
@@ -476,21 +484,29 @@ export const App: React.FC = () => {
           justify-content: center;
           width: 36px;
           height: 36px;
-          background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
-          border-radius: var(--radius-md);
-          color: var(--text-inverse);
+        }
+
+        .brand-logo img {
+          width: 32px;
+          height: 32px;
+          object-fit: contain;
         }
 
         .brand-text h1 {
-          font-size: var(--text-base);
-          font-weight: var(--font-bold);
+          font-family: var(--font-heading);
+          font-size: var(--text-lg);
+          font-weight: 800;
           letter-spacing: -0.02em;
-          color: var(--text-primary);
+          background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
           line-height: 1;
           margin-bottom: 2px;
         }
 
         .brand-subtitle {
+          font-family: var(--font-heading);
           font-size: 10px;
           color: var(--text-tertiary);
           text-transform: uppercase;
@@ -503,10 +519,32 @@ export const App: React.FC = () => {
           gap: var(--space-3);
         }
 
+        .docs-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: var(--space-1) var(--space-3);
+          background: rgba(231, 60, 23, 0.1);
+          color: var(--color-primary-light);
+          font-family: var(--font-heading);
+          font-size: var(--text-xs);
+          font-weight: var(--font-semibold);
+          text-decoration: none;
+          border-radius: var(--radius-md);
+          border: 1px solid rgba(231, 60, 23, 0.2);
+          transition: all var(--transition-base);
+        }
+
+        .docs-link:hover {
+          background: rgba(231, 60, 23, 0.2);
+          border-color: rgba(231, 60, 23, 0.4);
+          color: var(--color-primary-light);
+        }
+
         .pending-badge {
           padding: var(--space-1) var(--space-2);
-          background: rgba(245, 158, 11, 0.15);
-          color: #f59e0b;
+          background: rgba(221, 107, 32, 0.15);
+          color: var(--sunholo-orange);
           font-size: var(--text-xs);
           font-weight: var(--font-medium);
           border-radius: var(--radius-full);
@@ -514,12 +552,13 @@ export const App: React.FC = () => {
 
         .version-tag {
           padding: var(--space-1) var(--space-2);
-          background: var(--bg-elevated);
-          color: var(--text-tertiary);
+          background: linear-gradient(135deg, rgba(231, 60, 23, 0.1), rgba(221, 107, 32, 0.1));
+          color: var(--color-primary-light);
           font-family: var(--font-mono);
           font-size: var(--text-xs);
-          border-radius: var(--radius-sm);
-          border: 1px solid var(--border-subtle);
+          font-weight: var(--font-semibold);
+          border-radius: var(--radius-full);
+          border: 1px solid rgba(231, 60, 23, 0.2);
         }
 
         /* Body Layout */
@@ -703,32 +742,42 @@ export const App: React.FC = () => {
 
         .new-thread-btn {
           padding: 6px 12px;
-          background: var(--color-primary);
+          background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
+          font-family: var(--font-heading);
           font-size: 13px;
+          font-weight: 600;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(231, 60, 23, 0.3);
         }
 
         .new-thread-btn:hover {
-          background: var(--color-primary-dark);
+          background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(231, 60, 23, 0.4);
         }
 
         .start-thread-btn {
           padding: 8px 16px;
-          background: var(--color-primary);
+          background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
+          font-family: var(--font-heading);
           font-size: 13px;
+          font-weight: 600;
           cursor: pointer;
-          transition: all 0.15s;
+          transition: all 0.2s;
+          box-shadow: 0 2px 8px rgba(231, 60, 23, 0.3);
         }
 
         .start-thread-btn:hover {
-          background: var(--color-primary-dark);
+          background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(231, 60, 23, 0.4);
         }
 
         .new-thread-form {
@@ -753,6 +802,7 @@ export const App: React.FC = () => {
         .new-thread-form input:focus {
           outline: none;
           border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(231, 60, 23, 0.1);
         }
 
         .form-actions {
@@ -780,13 +830,17 @@ export const App: React.FC = () => {
         }
 
         .form-actions .create-btn {
-          background: var(--color-primary);
+          background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
           border: none;
           color: white;
+          font-family: var(--font-heading);
+          font-weight: 600;
+          box-shadow: 0 2px 8px rgba(231, 60, 23, 0.3);
         }
 
         .form-actions .create-btn:hover {
-          background: var(--color-primary-dark);
+          background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+          box-shadow: 0 4px 12px rgba(231, 60, 23, 0.4);
         }
 
         .empty-state {

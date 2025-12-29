@@ -106,6 +106,11 @@ func (s *CloudStore) SetTaskThreadID(ctx context.Context, id string, threadID st
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// UpdateTaskMetrics updates peak resource metrics for a task
+func (s *CloudStore) UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // DeleteOldTasks removes tasks older than the specified duration
 func (s *CloudStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	return 0, fmt.Errorf("cloud store not yet implemented")

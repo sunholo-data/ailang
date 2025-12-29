@@ -4,6 +4,8 @@ package coordinator
 import (
 	"context"
 	"time"
+
+	"github.com/sunholo/ailang/internal/executor"
 )
 
 // TaskType represents the category of a task
@@ -24,6 +26,7 @@ type Task struct {
 	ID        string
 	Title     string
 	Content   string
+	Kind      string // "directive" or "question" - affects execution mode
 	Priority  int
 	MessageID string
 	CreatedAt time.Time
@@ -40,10 +43,11 @@ type AnalyzedTask struct {
 
 // ExecuteOptions configures task execution
 type ExecuteOptions struct {
-	Timeout   time.Duration
-	DryRun    bool
-	Workspace string // Working directory for the task
-	Model     string // Model to use (provider-specific)
+	Timeout      time.Duration
+	DryRun       bool
+	Workspace    string                 // Working directory for the task
+	Model        string                 // Model to use (provider-specific)
+	EventHandler executor.EventHandler // Optional handler for streaming events
 }
 
 // DefaultExecuteOptions returns sensible defaults

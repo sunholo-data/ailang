@@ -76,8 +76,19 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		Model:     opts.Model,
 	}
 
-	// Execute using Claude Code CLI
-	execResult, err := p.exec.Execute(ctx, execTask)
+	// For questions, use read-only tools (no file modifications)
+	if task.Task.Kind == "question" {
+		execTask.AllowedTools = []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
+	}
+
+	// Execute using Claude Code CLI - use streaming if handler provided
+	var execResult *executor.Result
+	var err error
+	if opts.EventHandler != nil {
+		execResult, err = p.exec.ExecuteStreaming(ctx, execTask, opts.EventHandler)
+	} else {
+		execResult, err = p.exec.Execute(ctx, execTask)
+	}
 	result.Duration = time.Since(start)
 
 	if err != nil {

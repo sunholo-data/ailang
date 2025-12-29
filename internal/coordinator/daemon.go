@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/websocket"
 )
 
 // Config holds daemon configuration
@@ -71,6 +72,12 @@ type Daemon struct {
 	taskStore    Store
 	executor     *TaskExecutor
 
+	// Event broadcasting for real-time updates
+	eventBroadcaster EventBroadcaster
+
+	// Resource tracking for running tasks
+	resourceRegistry *ResourceTrackerRegistry
+
 	// History tracking
 	instanceID string
 }
@@ -100,10 +107,11 @@ func NewDaemon(config *Config) (*Daemon, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Daemon{
-		config: config,
-		logger: logger,
-		ctx:    ctx,
-		cancel: cancel,
+		config:           config,
+		logger:           logger,
+		ctx:              ctx,
+		cancel:           cancel,
+		resourceRegistry: NewResourceTrackerRegistry(),
 	}, nil
 }
 
@@ -235,10 +243,22 @@ func (d *Daemon) pollAndProcessTasks() error {
 	for _, msg := range messages {
 		// Create a Task for the analyzer
 		taskID := fmt.Sprintf("task-%s", msg.ID[:8])
+
+		// Determine kind - use message kind if set, otherwise infer from type
+		kind := msg.Kind
+		if kind == "" {
+			if msg.Type == "question" || msg.Type == "research" {
+				kind = "question"
+			} else {
+				kind = "directive"
+			}
+		}
+
 		taskInput := &Task{
 			ID:        taskID,
 			Title:     msg.Title,
 			Content:   msg.Content,
+			Kind:      kind,
 			MessageID: msg.ID,
 			CreatedAt: msg.CreatedAt,
 		}
@@ -253,6 +273,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			Title:     msg.Title,
 			Content:   msg.Content,
 			Type:      analyzed.Type,
+			Kind:      kind,
 			Priority:  CalculatePriority(analyzed),
 			Status:    TaskStatusPending,
 			CreatedAt: msg.CreatedAt,
@@ -363,6 +384,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			ID:        task.ID,
 			Title:     task.Title,
 			Content:   task.Content,
+			Kind:      task.Kind,
 			MessageID: task.MessageID,
 			CreatedAt: task.CreatedAt,
 		},
@@ -387,8 +409,61 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		opts.Workspace = worktree.Path
 	}
 
+	// Create streaming event handler if broadcaster is available
+	var eventHandler *CoordinatorEventHandler
+	if d.eventBroadcaster != nil {
+		eventHandler = NewCoordinatorEventHandler(task.ID, task.ThreadID, d.eventBroadcaster)
+		opts.EventHandler = eventHandler
+
+		// Emit starting status
+		eventHandler.EmitStatus("running")
+	}
+
+	// Create resource tracker for monitoring
+	// Use current PID as initial tracker - executor will spawn subprocess
+	resourceTracker := NewResourceTracker(task.ID, task.ThreadID, 0)
+	d.resourceRegistry.Register(task.ID, resourceTracker)
+
+	// Set up update callback for WebSocket broadcasting
+	if d.eventBroadcaster != nil {
+		resourceTracker.SetUpdateCallback(func(metrics *ResourceMetrics) {
+			// Broadcast metrics update via event handler status
+			if eventHandler != nil {
+				eventHandler.UpdateMetrics(metrics.TokensIn, metrics.TokensOut, metrics.Cost)
+			}
+		})
+	}
+
+	// Start resource tracking
+	resourceTracker.Start(d.ctx)
+
 	// Execute the task
 	result, err := d.executor.ExecuteWithRetry(d.ctx, analyzed, opts, 2)
+
+	// Stop resource tracking and get final metrics
+	resourceTracker.Stop()
+	finalMetrics := resourceTracker.GetMetrics()
+	d.resourceRegistry.Unregister(task.ID)
+
+	// Emit completion status via event handler
+	if eventHandler != nil {
+		if err != nil {
+			eventHandler.OnError(err)
+			eventHandler.EmitStatus("failed")
+		} else if result != nil {
+			eventHandler.UpdateMetrics(result.InputTokens, result.OutputTokens, result.Cost)
+			if result.Success {
+				eventHandler.EmitStatus("completed")
+			} else {
+				eventHandler.EmitStatus("failed")
+			}
+		}
+	}
+
+	// Store peak resource metrics in task record
+	if finalMetrics != nil {
+		_ = d.taskStore.UpdateTaskMetrics(d.ctx, task.ID, finalMetrics.PeakCPU, finalMetrics.PeakMemory)
+	}
 
 	// Cleanup worktree
 	if worktree != nil && d.worktreeMgr != nil {
@@ -762,4 +837,33 @@ func (d *Daemon) GetLogger() *log.Logger {
 // GetContext returns the daemon's context
 func (d *Daemon) GetContext() context.Context {
 	return d.ctx
+}
+
+// SetEventBroadcaster sets the event broadcaster for real-time task updates.
+// When set, task execution events will be streamed via the broadcaster.
+func (d *Daemon) SetEventBroadcaster(broadcaster EventBroadcaster) {
+	d.eventBroadcaster = broadcaster
+}
+
+// CreateWebSocketBroadcaster creates an EventBroadcaster that broadcasts to a WebSocket server.
+// This is used when the coordinator is connected to the collaboration hub server.
+func CreateWebSocketBroadcaster(wsServer interface {
+	BroadcastTaskEvent(stream *websocket.TaskStreamEvent)
+}) EventBroadcaster {
+	return func(event *websocket.TaskStreamEvent) {
+		wsServer.BroadcastTaskEvent(event)
+	}
+}
+
+// GetActiveTaskMetrics returns metrics for all currently running tasks
+func (d *Daemon) GetActiveTaskMetrics() []*ResourceMetrics {
+	if d.resourceRegistry == nil {
+		return nil
+	}
+	return d.resourceRegistry.GetAllMetrics()
+}
+
+// GetResourceRegistry returns the resource tracker registry for external access
+func (d *Daemon) GetResourceRegistry() *ResourceTrackerRegistry {
+	return d.resourceRegistry
 }

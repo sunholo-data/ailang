@@ -13,6 +13,7 @@ type TaskRecord struct {
 	Title       string        `json:"title"`
 	Content     string        `json:"content"`
 	Type        TaskType      `json:"type"`
+	Kind        string        `json:"kind,omitempty"` // "directive" or "question" - affects execution mode
 	Priority    int           `json:"priority"`
 	Status      TaskStatus    `json:"status"`
 	Provider    string        `json:"provider,omitempty"`
@@ -25,6 +26,12 @@ type TaskRecord struct {
 	Output      string        `json:"output,omitempty"`
 	Cost        float64       `json:"cost,omitempty"`
 	TokensUsed  int           `json:"tokens_used,omitempty"`
+	// Detailed token breakdown
+	InputTokens  int `json:"input_tokens,omitempty"`
+	OutputTokens int `json:"output_tokens,omitempty"`
+	// Resource metrics
+	PeakCPU    float64 `json:"peak_cpu,omitempty"`
+	PeakMemory float64 `json:"peak_memory_mb,omitempty"`
 }
 
 // TaskStatus represents the lifecycle state of a task
@@ -93,6 +100,9 @@ type Store interface {
 
 	// Thread linking (for dashboard visibility)
 	SetTaskThreadID(ctx context.Context, id string, threadID string) error
+
+	// Resource metrics
+	UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error
 
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)

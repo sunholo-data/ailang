@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/websocket"
 )
@@ -48,6 +49,10 @@ type Server struct {
 	// Track previously seen processes for history detection
 	previouslySeenMu sync.RWMutex
 	previouslySeen   map[int]ProcessStats // keyed by PID
+
+	// Coordinator integration for task metrics
+	resourceRegistry *coordinator.ResourceTrackerRegistry
+	coordStore       CoordinatorStore
 }
 
 // NewServer creates a new HTTP server
@@ -88,6 +93,38 @@ func WithVersion(version string) ServerOption {
 	}
 }
 
+// WithResourceRegistry sets the resource tracker registry for coordinator metrics
+func WithResourceRegistry(registry *coordinator.ResourceTrackerRegistry) ServerOption {
+	return func(s *Server) {
+		s.resourceRegistry = registry
+	}
+}
+
+// WithCoordinatorStore sets the coordinator store for task statistics
+func WithCoordinatorStore(store CoordinatorStore) ServerOption {
+	return func(s *Server) {
+		s.coordStore = store
+	}
+}
+
+// CoordinatorStore provides coordinator statistics
+type CoordinatorStore interface {
+	GetCoordinatorStats() (*CoordinatorStats, error)
+}
+
+// CoordinatorStats holds coordinator daemon statistics
+type CoordinatorStats struct {
+	Running      bool
+	PID          int
+	Uptime       string
+	TasksRun     int
+	PendingTasks int
+	RunningTasks int
+	FailedTasks  int
+	TotalCost    float64
+	TotalTokens  int
+}
+
 // Start starts the HTTP server and WebSocket server
 func (s *Server) Start() error {
 	// Start WebSocket event loop in background
@@ -123,6 +160,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/metrics", s.handleMetrics)
 	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
 	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
+	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
 
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)

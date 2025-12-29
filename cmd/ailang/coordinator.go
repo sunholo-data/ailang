@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,6 +28,12 @@ func coordinatorCommand(args []string) error {
 		return coordinatorStop(subargs)
 	case "status":
 		return coordinatorStatus(subargs)
+	case "pending":
+		return coordinatorPending(subargs)
+	case "approve":
+		return coordinatorApprove(subargs)
+	case "reject":
+		return coordinatorReject(subargs)
 	case "help", "--help", "-h":
 		printCoordinatorHelp()
 		return nil
@@ -148,6 +155,7 @@ func coordinatorStop(args []string) error {
 func coordinatorStatus(args []string) error {
 	cfg := coordinator.DefaultConfig()
 	jsonOutput := false
+	watchMode := false
 
 	// Parse flags
 	for i := 0; i < len(args); i++ {
@@ -160,6 +168,8 @@ func coordinatorStatus(args []string) error {
 			}
 		case "--json":
 			jsonOutput = true
+		case "--watch", "-w":
+			watchMode = true
 		case "--help", "-h":
 			printCoordinatorStatusHelp()
 			return nil
@@ -169,6 +179,10 @@ func coordinatorStatus(args []string) error {
 	daemon, err := coordinator.NewDaemon(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create daemon: %w", err)
+	}
+
+	if watchMode {
+		return coordinatorStatusWatch(daemon)
 	}
 
 	status, err := daemon.Status()
@@ -182,10 +196,43 @@ func coordinatorStatus(args []string) error {
 		return enc.Encode(status)
 	}
 
-	// Human-readable output
-	fmt.Println(bold("Coordinator Status"))
+	printCoordinatorStatusOutput(status)
+	return nil
+}
+
+// coordinatorStatusWatch shows live status updates
+func coordinatorStatusWatch(daemon *coordinator.Daemon) error {
+	fmt.Println(bold("Coordinator Status (live, press Ctrl+C to exit)"))
 	fmt.Println()
 
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Print initial status
+	status, _ := daemon.Status()
+	printCoordinatorStatusOutput(status)
+
+	for range ticker.C {
+		// Clear screen and move cursor to top
+		fmt.Print("\033[2J\033[H")
+
+		fmt.Println(bold("Coordinator Status (live, press Ctrl+C to exit)"))
+		fmt.Println()
+
+		status, err := daemon.Status()
+		if err != nil {
+			fmt.Printf("  Error: %v\n", err)
+			continue
+		}
+
+		printCoordinatorStatusOutput(status)
+	}
+
+	return nil
+}
+
+// printCoordinatorStatusOutput prints the status in human-readable format
+func printCoordinatorStatusOutput(status *coordinator.Status) {
 	if status.Running {
 		fmt.Printf("  State:      %s %s\n", "▶", green("running"))
 		fmt.Printf("  PID:        %d\n", status.PID)
@@ -217,8 +264,6 @@ func coordinatorStatus(args []string) error {
 	if status.TotalTokens > 0 {
 		fmt.Printf("  Tokens:     %d\n", status.TotalTokens)
 	}
-
-	return nil
 }
 
 func printCoordinatorHelp() {
@@ -228,6 +273,9 @@ func printCoordinatorHelp() {
 	fmt.Println("  start     Start the coordinator daemon")
 	fmt.Println("  stop      Stop the coordinator daemon")
 	fmt.Println("  status    Show coordinator status")
+	fmt.Println("  pending   List tasks awaiting approval")
+	fmt.Println("  approve   Approve a pending task")
+	fmt.Println("  reject    Reject a pending task")
 	fmt.Println("  help      Show this help message")
 	fmt.Println("")
 	fmt.Println("The coordinator daemon watches for incoming messages and executes tasks")
@@ -237,6 +285,9 @@ func printCoordinatorHelp() {
 	fmt.Println("  ailang coordinator start")
 	fmt.Println("  ailang coordinator start --poll-interval 60s --max-worktrees 2")
 	fmt.Println("  ailang coordinator status --json")
+	fmt.Println("  ailang coordinator pending")
+	fmt.Println("  ailang coordinator approve task-abc123")
+	fmt.Println("  ailang coordinator reject task-abc123")
 	fmt.Println("  ailang coordinator stop")
 }
 
@@ -276,5 +327,210 @@ func printCoordinatorStatusHelp() {
 	fmt.Println("Options:")
 	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
 	fmt.Println("  --json            Output status as JSON")
+	fmt.Println("  --watch, -w       Watch mode: continuously update status")
 	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator status")
+	fmt.Println("  ailang coordinator status --json")
+	fmt.Println("  ailang coordinator status --watch")
+}
+
+func coordinatorApprove(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator approve <task-id>")
+	}
+
+	taskID := args[0]
+	stateDir := ""
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--help", "-h":
+			printCoordinatorApproveHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database to resolve approval
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// Resolve the approval request in database
+	ctx := context.Background()
+	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "approved", "cli-user"); err != nil {
+		return fmt.Errorf("failed to approve task: %w", err)
+	}
+
+	fmt.Println(green("✓"), "Task approved:", taskID)
+	return nil
+}
+
+func coordinatorReject(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator reject <task-id>")
+	}
+
+	taskID := args[0]
+	stateDir := ""
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--help", "-h":
+			printCoordinatorRejectHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database to resolve approval
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// Resolve the approval request in database
+	ctx := context.Background()
+	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
+		return fmt.Errorf("failed to reject task: %w", err)
+	}
+
+	fmt.Println(green("✓"), "Task rejected:", taskID)
+	return nil
+}
+
+func printCoordinatorApproveHelp() {
+	fmt.Println("Usage: ailang coordinator approve <task-id> [options]")
+	fmt.Println("")
+	fmt.Println("Approve a pending task")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator approve task-123")
+}
+
+func printCoordinatorRejectHelp() {
+	fmt.Println("Usage: ailang coordinator reject <task-id> [options]")
+	fmt.Println("")
+	fmt.Println("Reject a pending task")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator reject task-123")
+}
+
+func coordinatorPending(args []string) error {
+	stateDir := ""
+	jsonOutput := false
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--json":
+			jsonOutput = true
+		case "--help", "-h":
+			printCoordinatorPendingHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// List pending approvals
+	ctx := context.Background()
+	pending, err := store.ListPendingApprovals(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list pending approvals: %w", err)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(pending)
+	}
+
+	if len(pending) == 0 {
+		fmt.Println(green("✓"), "No pending approval requests")
+		return nil
+	}
+
+	fmt.Println(bold("Pending Approval Requests"))
+	fmt.Println()
+	for _, req := range pending {
+		fmt.Printf("  %s %s\n", yellow("⏳"), req.TaskID)
+		fmt.Printf("     Type: %s\n", req.Type)
+		fmt.Printf("     Description: %s\n", req.Description)
+		fmt.Printf("     Created: %s\n", req.CreatedAt.Format("2006-01-02 15:04:05"))
+		if req.TimeoutAt != nil {
+			fmt.Printf("     Timeout: %s\n", req.TimeoutAt.Format("2006-01-02 15:04:05"))
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("Use 'ailang coordinator approve <task-id>' or 'ailang coordinator reject <task-id>'")
+	return nil
+}
+
+func printCoordinatorPendingHelp() {
+	fmt.Println("Usage: ailang coordinator pending [options]")
+	fmt.Println("")
+	fmt.Println("List tasks awaiting human approval")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --json            Output as JSON")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator pending")
+	fmt.Println("  ailang coordinator pending --json")
 }

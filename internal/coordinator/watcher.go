@@ -13,7 +13,8 @@ type Message struct {
 	From      string
 	Title     string
 	Content   string
-	Type      string // bug, feature, task, etc.
+	Type      string // bug, feature, task, etc. (category)
+	Kind      string // directive, question (message type)
 	Priority  string // high, medium, low
 	CreatedAt time.Time
 }
@@ -107,10 +108,24 @@ func (w *MessageWatcher) poll() error {
 func (w *MessageWatcher) messageToTask(msg *Message) *Task {
 	priority := classifyPriority(msg)
 
+	// Use the message's kind directly if set
+	// Otherwise, infer from category type
+	kind := msg.Kind
+	if kind == "" {
+		// Fallback: infer kind from category type
+		// "question" or "research" categories get read-only mode
+		if msg.Type == "question" || msg.Type == "research" {
+			kind = "question"
+		} else {
+			kind = "directive"
+		}
+	}
+
 	return &Task{
 		ID:        fmt.Sprintf("task-%s", msg.ID),
 		Title:     extractTitle(msg),
 		Content:   msg.Content,
+		Kind:      kind,
 		Priority:  priority,
 		MessageID: msg.ID,
 		CreatedAt: msg.CreatedAt,

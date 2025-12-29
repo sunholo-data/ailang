@@ -65,7 +65,11 @@ func (s *SQLiteStore) migrate() error {
 		error TEXT,
 		output TEXT,
 		cost REAL DEFAULT 0,
-		tokens_used INTEGER DEFAULT 0
+		tokens_used INTEGER DEFAULT 0,
+		input_tokens INTEGER DEFAULT 0,
+		output_tokens INTEGER DEFAULT 0,
+		peak_cpu REAL DEFAULT 0,
+		peak_memory_mb REAL DEFAULT 0
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
@@ -75,10 +79,43 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
 	CREATE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_thread_id ON tasks(thread_id);
+
+	-- Approval requests for human-in-the-loop checkpoints
+	CREATE TABLE IF NOT EXISTS approval_requests (
+		id TEXT PRIMARY KEY,
+		task_id TEXT NOT NULL,
+		type TEXT NOT NULL,
+		description TEXT NOT NULL,
+		context_json TEXT,
+		status TEXT NOT NULL DEFAULT 'pending',
+		resolved_by TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		resolved_at DATETIME,
+		timeout_at DATETIME,
+		auto_reject INTEGER DEFAULT 0,
+		FOREIGN KEY (task_id) REFERENCES tasks(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_approvals_task_id ON approval_requests(task_id);
+	CREATE INDEX IF NOT EXISTS idx_approvals_status ON approval_requests(status);
 	`
 
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+
+	// Add new columns if they don't exist (for existing databases)
+	alterQueries := []string{
+		"ALTER TABLE tasks ADD COLUMN input_tokens INTEGER DEFAULT 0",
+		"ALTER TABLE tasks ADD COLUMN output_tokens INTEGER DEFAULT 0",
+		"ALTER TABLE tasks ADD COLUMN peak_cpu REAL DEFAULT 0",
+		"ALTER TABLE tasks ADD COLUMN peak_memory_mb REAL DEFAULT 0",
+	}
+	for _, q := range alterQueries {
+		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
+	}
+
+	return nil
 }
 
 // CreateTask creates a new task
@@ -396,6 +433,15 @@ func (s *SQLiteStore) SetTaskThreadID(ctx context.Context, id string, threadID s
 	return err
 }
 
+// UpdateTaskMetrics updates peak resource metrics for a task
+func (s *SQLiteStore) UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET peak_cpu = ?, peak_memory_mb = ? WHERE id = ?",
+		peakCPU, peakMemory, id,
+	)
+	return err
+}
+
 // DeleteOldTasks removes tasks older than the specified duration
 func (s *SQLiteStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	cutoff := time.Now().Add(-olderThan)
@@ -503,4 +549,182 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 
 	return task, nil
+}
+
+// ApprovalRequestRecord is the database record for an approval request
+type ApprovalRequestRecord struct {
+	ID          string    `json:"id"`
+	TaskID      string    `json:"task_id"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	ContextJSON string    `json:"context_json,omitempty"`
+	Status      string    `json:"status"`
+	ResolvedBy  string    `json:"resolved_by,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
+	TimeoutAt   *time.Time `json:"timeout_at,omitempty"`
+	AutoReject  bool      `json:"auto_reject"`
+}
+
+// CreateApprovalRequest creates a new approval request in the database
+func (s *SQLiteStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
+	query := `
+		INSERT INTO approval_requests (id, task_id, type, description, context_json, status, timeout_at, auto_reject, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		req.ID, req.TaskID, req.Type, req.Description, req.ContextJSON,
+		req.Status, req.TimeoutAt, req.AutoReject, req.CreatedAt,
+	)
+	return err
+}
+
+// GetApprovalRequest retrieves an approval request by ID
+func (s *SQLiteStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests WHERE id = ?
+	`
+	row := s.db.QueryRowContext(ctx, query, id)
+	return s.scanApprovalRequest(row)
+}
+
+// GetApprovalRequestByTask retrieves a pending approval request for a task
+func (s *SQLiteStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests WHERE task_id = ? AND status = 'pending'
+		ORDER BY created_at DESC LIMIT 1
+	`
+	row := s.db.QueryRowContext(ctx, query, taskID)
+	req, err := s.scanApprovalRequest(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return req, err
+}
+
+// ListPendingApprovals retrieves all pending approval requests
+func (s *SQLiteStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests WHERE status = 'pending'
+		ORDER BY created_at ASC
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []*ApprovalRequestRecord
+	for rows.Next() {
+		req, err := s.scanApprovalRequestFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, req)
+	}
+	return requests, rows.Err()
+}
+
+// ResolveApprovalRequest marks an approval request as approved or rejected
+func (s *SQLiteStore) ResolveApprovalRequest(ctx context.Context, id string, status string, resolvedBy string) error {
+	now := time.Now()
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ? WHERE id = ?",
+		status, resolvedBy, now, id,
+	)
+	return err
+}
+
+// ResolveApprovalRequestByTask marks an approval request for a task as approved or rejected
+func (s *SQLiteStore) ResolveApprovalRequestByTask(ctx context.Context, taskID string, status string, resolvedBy string) error {
+	now := time.Now()
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ? WHERE task_id = ? AND status = 'pending'",
+		status, resolvedBy, now, taskID,
+	)
+	if err != nil {
+		return err
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return fmt.Errorf("no pending approval request found for task: %s", taskID)
+	}
+	return nil
+}
+
+// DeleteOldApprovals removes approval requests older than the specified duration
+func (s *SQLiteStore) DeleteOldApprovals(ctx context.Context, olderThan time.Duration) (int, error) {
+	cutoff := time.Now().Add(-olderThan)
+	result, err := s.db.ExecContext(ctx,
+		"DELETE FROM approval_requests WHERE created_at < ? AND status != 'pending'",
+		cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	count, _ := result.RowsAffected()
+	return int(count), nil
+}
+
+// scanApprovalRequest scans a single approval request from a row
+func (s *SQLiteStore) scanApprovalRequest(row *sql.Row) (*ApprovalRequestRecord, error) {
+	req := &ApprovalRequestRecord{}
+	var resolvedBy, contextJSON sql.NullString
+	var resolvedAt, timeoutAt sql.NullTime
+
+	err := row.Scan(
+		&req.ID, &req.TaskID, &req.Type, &req.Description, &contextJSON,
+		&req.Status, &resolvedBy, &req.CreatedAt, &resolvedAt, &timeoutAt, &req.AutoReject,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if resolvedBy.Valid {
+		req.ResolvedBy = resolvedBy.String
+	}
+	if contextJSON.Valid {
+		req.ContextJSON = contextJSON.String
+	}
+	if resolvedAt.Valid {
+		req.ResolvedAt = &resolvedAt.Time
+	}
+	if timeoutAt.Valid {
+		req.TimeoutAt = &timeoutAt.Time
+	}
+
+	return req, nil
+}
+
+// scanApprovalRequestFromRows scans an approval request from rows
+func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequestRecord, error) {
+	req := &ApprovalRequestRecord{}
+	var resolvedBy, contextJSON sql.NullString
+	var resolvedAt, timeoutAt sql.NullTime
+
+	err := rows.Scan(
+		&req.ID, &req.TaskID, &req.Type, &req.Description, &contextJSON,
+		&req.Status, &resolvedBy, &req.CreatedAt, &resolvedAt, &timeoutAt, &req.AutoReject,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if resolvedBy.Valid {
+		req.ResolvedBy = resolvedBy.String
+	}
+	if contextJSON.Valid {
+		req.ContextJSON = contextJSON.String
+	}
+	if resolvedAt.Valid {
+		req.ResolvedAt = &resolvedAt.Time
+	}
+	if timeoutAt.Valid {
+		req.TimeoutAt = &timeoutAt.Time
+	}
+
+	return req, nil
 }

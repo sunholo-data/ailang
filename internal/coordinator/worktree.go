@@ -254,6 +254,86 @@ func findGitRoot() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// HasChanges checks if a worktree has uncommitted changes
+func (wm *WorktreeManager) HasChanges(taskID string) (bool, error) {
+	wm.mu.RLock()
+	wt, ok := wm.worktrees[taskID]
+	wm.mu.RUnlock()
+
+	if !ok {
+		return false, fmt.Errorf("worktree not found for task: %s", taskID)
+	}
+
+	// Check for uncommitted changes using git status
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = wt.Path
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	// If output is non-empty, there are changes
+	return len(strings.TrimSpace(string(output))) > 0, nil
+}
+
+// GetChangeSummary returns a summary of changes in the worktree
+func (wm *WorktreeManager) GetChangeSummary(taskID string) (*WorktreeChanges, error) {
+	wm.mu.RLock()
+	wt, ok := wm.worktrees[taskID]
+	wm.mu.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("worktree not found for task: %s", taskID)
+	}
+
+	changes := &WorktreeChanges{
+		TaskID: taskID,
+		Path:   wt.Path,
+		Branch: wt.Branch,
+	}
+
+	// Get list of changed files
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = wt.Path
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get git status: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if len(line) > 3 {
+			changes.FilesChanged = append(changes.FilesChanged, strings.TrimSpace(line[3:]))
+		}
+	}
+
+	// Get diff summary
+	cmd = exec.Command("git", "diff", "--stat", "HEAD")
+	cmd.Dir = wt.Path
+	diffOutput, _ := cmd.Output() // Ignore errors
+	changes.DiffSummary = strings.TrimSpace(string(diffOutput))
+
+	// Get commit count ahead of origin
+	cmd = exec.Command("git", "rev-list", "--count", "origin/dev..HEAD")
+	cmd.Dir = wt.Path
+	countOutput, _ := cmd.Output()
+	if count := strings.TrimSpace(string(countOutput)); count != "" {
+		changes.CommitsAhead = count
+	}
+
+	return changes, nil
+}
+
+// WorktreeChanges describes the changes in a worktree
+type WorktreeChanges struct {
+	TaskID       string   `json:"task_id"`
+	Path         string   `json:"path"`
+	Branch       string   `json:"branch"`
+	FilesChanged []string `json:"files_changed"`
+	DiffSummary  string   `json:"diff_summary"`
+	CommitsAhead string   `json:"commits_ahead"`
+}
+
 // sanitizeTaskID makes a task ID safe for use as a directory/branch name
 func sanitizeTaskID(taskID string) string {
 	// Replace unsafe characters

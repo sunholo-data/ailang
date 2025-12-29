@@ -42,8 +42,9 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 			From:      m.FromAgent,
 			Title:     m.Title,
 			Content:   m.Payload,
-			Type:      m.Category, // bug, feature, general
-			Priority:  "",         // Will be classified by analyzer
+			Type:      m.Category,    // bug, feature, general
+			Kind:      m.MessageType, // directive, question
+			Priority:  "",            // Will be classified by analyzer
 			CreatedAt: m.CreatedAt,
 		})
 	}

@@ -89,8 +89,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		args = append(args, "--add-dir", task.Workspace)
 	}
 
-	if len(e.allowedTools) > 0 {
-		args = append(args, "--allowedTools", strings.Join(e.allowedTools, ","))
+	// Use task-specific tools if specified, otherwise fall back to executor config
+	tools := e.allowedTools
+	if len(task.AllowedTools) > 0 {
+		tools = task.AllowedTools
+	}
+	if len(tools) > 0 {
+		args = append(args, "--allowedTools", strings.Join(tools, ","))
 	}
 
 	cmd := exec.CommandContext(ctx, e.claudePath, args...)
