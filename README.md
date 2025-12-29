@@ -1,10 +1,10 @@
 # AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-94%20passing%205%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-95%20passing%205%20failing-green.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-**94/99 examples passing (95%)** | [Full status](https://ailang.sunholo.com/docs/examples)
+**95/100 examples passing (95%)** | [Full status](https://ailang.sunholo.com/docs/examples)
 <!-- EXAMPLES_STATUS_END -->
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
