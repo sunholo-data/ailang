@@ -1,0 +1,240 @@
+package coordinator
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+// Message represents a message from the messaging system
+type Message struct {
+	ID        string
+	From      string
+	Title     string
+	Content   string
+	Type      string // bug, feature, task, etc.
+	Priority  string // high, medium, low
+	CreatedAt time.Time
+}
+
+// MessageStore is the interface for accessing messages
+type MessageStore interface {
+	ListUnread() ([]*Message, error)
+	MarkAsRead(id string) error
+}
+
+// MessageWatcher polls for unread messages and emits tasks
+type MessageWatcher struct {
+	store        MessageStore
+	pollInterval time.Duration
+	seenMsgIDs   map[string]bool
+	tasksChan    chan *Task
+	mu           sync.RWMutex
+}
+
+// NewMessageWatcher creates a new message watcher
+func NewMessageWatcher(store MessageStore, pollInterval time.Duration) *MessageWatcher {
+	if pollInterval <= 0 {
+		pollInterval = 30 * time.Second
+	}
+
+	return &MessageWatcher{
+		store:        store,
+		pollInterval: pollInterval,
+		seenMsgIDs:   make(map[string]bool),
+		tasksChan:    make(chan *Task, 100),
+	}
+}
+
+// Start begins watching for messages
+func (w *MessageWatcher) Start(ctx context.Context) error {
+	ticker := time.NewTicker(w.pollInterval)
+	defer ticker.Stop()
+
+	// Initial poll
+	if err := w.poll(); err != nil {
+		return fmt.Errorf("initial poll failed: %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			close(w.tasksChan)
+			return nil
+		case <-ticker.C:
+			if err := w.poll(); err != nil {
+				// Log but don't stop
+				fmt.Printf("poll error: %v\n", err)
+			}
+		}
+	}
+}
+
+// Tasks returns the channel of discovered tasks
+func (w *MessageWatcher) Tasks() <-chan *Task {
+	return w.tasksChan
+}
+
+// poll checks for new unread messages
+func (w *MessageWatcher) poll() error {
+	messages, err := w.store.ListUnread()
+	if err != nil {
+		return fmt.Errorf("failed to list unread messages: %w", err)
+	}
+
+	for _, msg := range messages {
+		if w.hasSeenMessage(msg.ID) {
+			continue
+		}
+
+		// Convert message to task
+		task := w.messageToTask(msg)
+
+		// Send to channel (non-blocking)
+		select {
+		case w.tasksChan <- task:
+			w.markSeen(msg.ID)
+		default:
+			// Channel full, will retry next poll
+		}
+	}
+
+	return nil
+}
+
+// messageToTask converts a message to a task
+func (w *MessageWatcher) messageToTask(msg *Message) *Task {
+	priority := classifyPriority(msg)
+
+	return &Task{
+		ID:        fmt.Sprintf("task-%s", msg.ID),
+		Title:     extractTitle(msg),
+		Content:   msg.Content,
+		Priority:  priority,
+		MessageID: msg.ID,
+		CreatedAt: msg.CreatedAt,
+	}
+}
+
+// hasSeenMessage checks if a message has already been processed
+func (w *MessageWatcher) hasSeenMessage(id string) bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.seenMsgIDs[id]
+}
+
+// markSeen marks a message as seen
+func (w *MessageWatcher) markSeen(id string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.seenMsgIDs[id] = true
+}
+
+// ClearSeen clears the seen messages (useful for testing)
+func (w *MessageWatcher) ClearSeen() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.seenMsgIDs = make(map[string]bool)
+}
+
+// SeenCount returns the number of seen messages
+func (w *MessageWatcher) SeenCount() int {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return len(w.seenMsgIDs)
+}
+
+// classifyPriority determines task priority from message metadata
+func classifyPriority(msg *Message) int {
+	// Check explicit priority
+	switch msg.Priority {
+	case "high", "urgent", "critical":
+		return 1
+	case "medium", "normal":
+		return 5
+	case "low":
+		return 10
+	}
+
+	// Check type
+	switch msg.Type {
+	case "bug", "error", "crash":
+		return 2
+	case "feature", "enhancement":
+		return 5
+	case "docs", "documentation":
+		return 8
+	case "research", "question":
+		return 9
+	}
+
+	// Default medium priority
+	return 5
+}
+
+// extractTitle extracts a title from the message
+func extractTitle(msg *Message) string {
+	if msg.Title != "" {
+		return msg.Title
+	}
+
+	// Use first line of content as title
+	content := msg.Content
+	for i, c := range content {
+		if c == '\n' {
+			return content[:i]
+		}
+	}
+
+	// Truncate if too long
+	if len(content) > 100 {
+		return content[:100] + "..."
+	}
+
+	return content
+}
+
+// MockMessageStore is a mock implementation for testing
+type MockMessageStore struct {
+	messages []*Message
+	readIDs  map[string]bool
+	mu       sync.RWMutex
+}
+
+// NewMockMessageStore creates a new mock message store
+func NewMockMessageStore() *MockMessageStore {
+	return &MockMessageStore{
+		messages: make([]*Message, 0),
+		readIDs:  make(map[string]bool),
+	}
+}
+
+// AddMessage adds a message to the mock store
+func (m *MockMessageStore) AddMessage(msg *Message) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.messages = append(m.messages, msg)
+}
+
+// ListUnread returns unread messages
+func (m *MockMessageStore) ListUnread() ([]*Message, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	unread := make([]*Message, 0)
+	for _, msg := range m.messages {
+		if !m.readIDs[msg.ID] {
+			unread = append(unread, msg)
+		}
+	}
+	return unread, nil
+}
+
+// MarkAsRead marks a message as read
+func (m *MockMessageStore) MarkAsRead(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.readIDs[id] = true
+	return nil
+}

@@ -1,0 +1,84 @@
+// Package coordinator provides task execution and orchestration for the AILANG daemon.
+package coordinator
+
+import (
+	"context"
+	"time"
+)
+
+// TaskType represents the category of a task
+type TaskType string
+
+const (
+	TaskTypeBugFix    TaskType = "bug-fix"
+	TaskTypeFeature   TaskType = "feature"
+	TaskTypeDocs      TaskType = "docs"
+	TaskTypeResearch  TaskType = "research"
+	TaskTypeRefactor  TaskType = "refactor"
+	TaskTypeTest      TaskType = "test"
+	TaskTypeUnknown   TaskType = "unknown"
+)
+
+// Task represents a task to be executed
+type Task struct {
+	ID        string
+	Title     string
+	Content   string
+	Priority  int
+	MessageID string
+	CreatedAt time.Time
+}
+
+// AnalyzedTask is a task with analysis metadata
+type AnalyzedTask struct {
+	Task        *Task
+	Type        TaskType
+	Keywords    []string
+	Fingerprint uint64
+	DuplicateOf string // ID of duplicate task, if any
+}
+
+// ExecuteOptions configures task execution
+type ExecuteOptions struct {
+	Timeout   time.Duration
+	DryRun    bool
+	Workspace string // Working directory for the task
+	Model     string // Model to use (provider-specific)
+}
+
+// DefaultExecuteOptions returns sensible defaults
+func DefaultExecuteOptions() *ExecuteOptions {
+	return &ExecuteOptions{
+		Timeout: 5 * time.Minute,
+		DryRun:  false,
+	}
+}
+
+// ExecuteResult contains the result of task execution
+type ExecuteResult struct {
+	Success    bool
+	Output     string
+	Error      string
+	Provider   string
+	Duration   time.Duration
+	Cost       float64
+	TokensUsed int
+	// Files affected
+	FilesCreated  []string
+	FilesModified []string
+}
+
+// Provider executes tasks using a specific AI backend.
+// There are two types of providers:
+//   - Executor-based (Claude Code, Gemini CLI): For agentic coding tasks
+//   - API-based (Gemini API, Claude API): For simple text generation
+type Provider interface {
+	// Name returns the provider identifier (e.g., "claude", "gemini", "gemini-api")
+	Name() string
+
+	// CanHandle returns true if this provider can handle the given task type
+	CanHandle(task *AnalyzedTask) bool
+
+	// Execute runs a task and returns the result
+	Execute(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions) (*ExecuteResult, error)
+}

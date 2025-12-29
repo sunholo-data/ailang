@@ -1,0 +1,204 @@
+package coordinator
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+// TaskExecutor orchestrates task execution across multiple providers.
+// It routes tasks to the appropriate provider based on task type and
+// provider capabilities.
+type TaskExecutor struct {
+	providers     []Provider
+	defaultCoding Provider // Default for coding tasks (bug-fix, feature, refactor, test)
+	defaultSimple Provider // Default for simple tasks (docs, research)
+}
+
+// NewTaskExecutor creates a new task executor with the given providers
+func NewTaskExecutor(providers ...Provider) *TaskExecutor {
+	te := &TaskExecutor{
+		providers: providers,
+	}
+
+	// Set defaults based on provider capabilities
+	for _, p := range providers {
+		// Check if it's a CLI provider (for coding tasks)
+		if p.Name() == "claude-code" || p.Name() == "gemini-cli" {
+			if te.defaultCoding == nil {
+				te.defaultCoding = p
+			}
+		}
+		// Check if it's an API provider (for simple tasks)
+		if p.Name() == "gemini-api" {
+			if te.defaultSimple == nil {
+				te.defaultSimple = p
+			}
+		}
+	}
+
+	return te
+}
+
+// DefaultTaskExecutor creates a TaskExecutor with all available providers
+func DefaultTaskExecutor() (*TaskExecutor, error) {
+	var providers []Provider
+
+	// Try to create Claude Code provider
+	claudeProvider, err := NewClaudeCodeProvider()
+	if err == nil {
+		providers = append(providers, claudeProvider)
+	}
+
+	// Try to create Gemini CLI provider
+	geminiCLI, err := NewGeminiCLIProvider()
+	if err == nil {
+		providers = append(providers, geminiCLI)
+	}
+
+	// Try to create Gemini API provider
+	geminiAPI, err := NewGeminiAPIProvider()
+	if err == nil {
+		providers = append(providers, geminiAPI)
+	}
+
+	if len(providers) == 0 {
+		return nil, fmt.Errorf("no providers available")
+	}
+
+	return NewTaskExecutor(providers...), nil
+}
+
+// Execute runs a task using the best available provider
+func (te *TaskExecutor) Execute(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions) (*ExecuteResult, error) {
+	if opts == nil {
+		opts = DefaultExecuteOptions()
+	}
+
+	// Find the best provider for this task
+	provider := te.selectProvider(task)
+	if provider == nil {
+		return &ExecuteResult{
+			Success: false,
+			Error:   "no provider available for this task type",
+		}, nil
+	}
+
+	// Execute the task
+	return provider.Execute(ctx, task, opts)
+}
+
+// ExecuteWithRetry runs a task with retry logic
+func (te *TaskExecutor) ExecuteWithRetry(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions, maxRetries int) (*ExecuteResult, error) {
+	if opts == nil {
+		opts = DefaultExecuteOptions()
+	}
+
+	var lastResult *ExecuteResult
+	baseDelay := time.Second
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff
+			delay := baseDelay * time.Duration(1<<(attempt-1))
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		result, err := te.Execute(ctx, task, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		lastResult = result
+		if result.Success {
+			return result, nil
+		}
+
+		// Check if error is retryable
+		if !isRetryable(result.Error) {
+			return result, nil
+		}
+	}
+
+	return lastResult, nil
+}
+
+// selectProvider chooses the best provider for a task
+func (te *TaskExecutor) selectProvider(task *AnalyzedTask) Provider {
+	// First, try to find a provider that explicitly handles this task type
+	for _, p := range te.providers {
+		if p.CanHandle(task) {
+			return p
+		}
+	}
+
+	// Fall back to defaults based on task type
+	switch task.Type {
+	case TaskTypeBugFix, TaskTypeFeature, TaskTypeRefactor, TaskTypeTest:
+		if te.defaultCoding != nil {
+			return te.defaultCoding
+		}
+	case TaskTypeDocs, TaskTypeResearch:
+		if te.defaultSimple != nil {
+			return te.defaultSimple
+		}
+	}
+
+	// Last resort: return first available provider
+	if len(te.providers) > 0 {
+		return te.providers[0]
+	}
+
+	return nil
+}
+
+// ListProviders returns the names of all registered providers
+func (te *TaskExecutor) ListProviders() []string {
+	names := make([]string, len(te.providers))
+	for i, p := range te.providers {
+		names[i] = p.Name()
+	}
+	return names
+}
+
+// isRetryable checks if an error should trigger a retry
+func isRetryable(errMsg string) bool {
+	if errMsg == "" {
+		return false
+	}
+
+	// Rate limiting
+	if contains(errMsg, "rate limit", "429", "too many requests") {
+		return true
+	}
+
+	// Temporary network errors
+	if contains(errMsg, "timeout", "connection", "network") {
+		return true
+	}
+
+	// Server errors
+	if contains(errMsg, "500", "502", "503", "504", "internal server error") {
+		return true
+	}
+
+	return false
+}
+
+// contains checks if s contains any of the substrings
+func contains(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

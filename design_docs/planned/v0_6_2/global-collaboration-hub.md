@@ -85,25 +85,38 @@ The local messaging system is now unified:
 
 ### Overview
 
-A serverless Google Cloud architecture that extends the local Collaboration Hub:
+A **100% serverless** Google Cloud architecture that extends the local Collaboration Hub:
 
 1. **Cloud Pub/Sub** - Global message bus for agent communication
-2. **Cloud SQL (PostgreSQL)** - Shared database for state
+2. **Firestore** - Serverless database for all state (replaces Cloud SQL)
 3. **Cloud Run** - Serverless API and WebSocket gateway
-4. **Cloud Storage** - Large file attachments and artifacts
-5. **Firebase/Firestore** - Real-time dashboard sync (alternative to custom WebSocket)
+4. **Cloud Run Jobs** - Serverless task execution (Coordinator workers)
+5. **Cloud Storage** - Large file attachments and artifacts
 6. **Cloud IAM** - Authentication and authorization
+
+**Key Design Decision: Firestore over Cloud SQL**
+
+| Aspect | Cloud SQL | Firestore (Chosen) |
+|--------|-----------|-------------------|
+| Serverless | ❌ Always-on instance | ✅ Pay-per-operation |
+| Min cost | ~$30/month | $0 (free tier) |
+| Scaling | Manual | Automatic |
+| Real-time | Requires WebSocket | Built-in listeners |
+| Offline | N/A | Built-in support |
+
+**Storage Abstraction Layer**: Both local (SQLite) and cloud (Firestore) backends implement a common `CollaborationStore` interface, enabling seamless switching between modes.
 
 ### Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Global Collaboration Hub                             │
+│                    Global Collaboration Hub (100% Serverless)                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                 │
 │  │  Machine A  │      │  Machine B  │      │  Machine C  │   (Clients)     │
 │  │  (Dev IDE)  │      │  (Cloud VM) │      │ (Teammate)  │                 │
+│  │  + Coord.   │      │  + Coord.   │      │             │                 │
 │  └──────┬──────┘      └──────┬──────┘      └──────┬──────┘                 │
 │         │                    │                    │                         │
 │         └────────────────────┼────────────────────┘                         │
@@ -120,24 +133,34 @@ A serverless Google Cloud architecture that extends the local Collaboration Hub:
 │            ▼                  ▼                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                       Google Cloud Pub/Sub                           │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │   │
-│  │  │  agent-messages │  │  agent-commands │  │  agent-approvals    │  │   │
-│  │  │  (fanout topic) │  │  (point-to-point)│ │  (request/response) │  │   │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────────┘  │   │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐ │   │
+│  │  │ hub-messages  │  │ hub-approvals │  │ coordinator-tasks         │ │   │
+│  │  │ (fanout)      │  │ (req/resp)    │  │ (task queue)              │ │   │
+│  │  └───────────────┘  └───────────────┘  └───────────────────────────┘ │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                              │                                              │
-│            ┌─────────────────┼─────────────────┐                           │
-│            ▼                 ▼                 ▼                            │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────────────────────┐ │
-│  │   Cloud SQL     │  │   Cloud     │  │       Firestore                 │ │
-│  │  (PostgreSQL)   │  │   Storage   │  │  (Real-time Dashboard Sync)     │ │
-│  │  - threads      │  │  - files    │  │  - agent status                 │ │
-│  │  - messages     │  │  - logs     │  │  - live metrics                 │ │
-│  │  - approvals    │  │  - artifacts│  │  - connection presence          │ │
-│  │  - metrics      │  │             │  │                                 │ │
-│  └─────────────────┘  └─────────────┘  └─────────────────────────────────┘ │
+│       ┌──────────────────────┼──────────────────────┐                      │
+│       ▼                      ▼                      ▼                       │
+│  ┌──────────────┐  ┌─────────────────────────┐  ┌─────────────────────┐    │
+│  │ Cloud        │  │      Firestore          │  │ Cloud Run Jobs      │    │
+│  │ Storage      │  │  (ALL state - unified)  │  │ (Coordinator)       │    │
+│  │              │  │                         │  │                     │    │
+│  │ • files      │  │ • messages & threads    │  │ • Task workers      │    │
+│  │ • logs       │  │ • approvals & budgets   │  │ • Claude/Gemini     │    │
+│  │ • artifacts  │  │ • machines & presence   │  │ • Git worktrees     │    │
+│  │ • worktrees  │  │ • coordinator tasks     │  │                     │    │
+│  └──────────────┘  │ • cost tracking         │  └─────────────────────┘    │
+│                    │ • repo locks            │                              │
+│                    └─────────────────────────┘                              │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
+
+Local Mode (SQLite):                     Cloud Mode (Firestore):
+┌─────────────────────┐                  ┌─────────────────────┐
+│ ~/.ailang/state/    │                  │ Firestore           │
+│ collaboration.db    │  ◄──Interface──► │ hub/{project}/...   │
+│ (SQLite)            │                  │                     │
+└─────────────────────┘                  └─────────────────────┘
 ```
 
 ### Component Details
@@ -201,75 +224,223 @@ ailang-{project-id}-metrics-persist           # Aggregate to Firestore
 - Dead letter queue for failed deliveries
 - 7-day message retention
 
-#### 2. Cloud SQL (PostgreSQL) - Shared State
+#### 2. Storage Abstraction Layer
 
-**Why PostgreSQL over SQLite:**
-- Multi-connection support (agents across machines)
-- ACID transactions for approval workflows
-- Connection pooling via Cloud SQL Proxy
-- Automatic backups and point-in-time recovery
-- Easy migration from SQLite (compatible schema)
+**Design Principle**: Single interface, multiple backends. Local development uses SQLite, cloud uses Firestore.
 
-**Schema Changes:**
-
-```sql
--- Add machine tracking
-CREATE TABLE machines (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    owner TEXT NOT NULL,                 -- User/team identifier
-    last_seen TIMESTAMPTZ NOT NULL,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Add project/org hierarchy
-CREATE TABLE projects (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    org_id TEXT,                         -- Optional organization
-    settings JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Extend agents table
-ALTER TABLE agents ADD COLUMN machine_id TEXT REFERENCES machines(id);
-ALTER TABLE agents ADD COLUMN project_id TEXT REFERENCES projects(id);
-ALTER TABLE agents ADD COLUMN is_global BOOLEAN DEFAULT FALSE;
-
--- Extend messages for global delivery
-ALTER TABLE messages ADD COLUMN source_machine TEXT;
-ALTER TABLE messages ADD COLUMN delivered_to JSONB DEFAULT '[]';
-ALTER TABLE messages ADD COLUMN pubsub_id TEXT;  -- For deduplication
-
--- Global message ordering
-CREATE INDEX idx_messages_global_order ON messages(thread_id, created_at, seq);
-
--- Cross-machine approval tracking
-ALTER TABLE approvals ADD COLUMN requesting_machine TEXT;
-ALTER TABLE approvals ADD COLUMN approved_by_machine TEXT;
-
--- Extend inbox_messages for global delivery (table already exists in v0.5.6)
--- inbox_messages table schema (already in collaboration.db):
---   id, message_id, correlation_id, from_agent, to_inbox, message_type,
---   title, payload, status, created_at, read_at, expires_at
-ALTER TABLE inbox_messages ADD COLUMN source_machine TEXT;
-ALTER TABLE inbox_messages ADD COLUMN delivered_to JSONB DEFAULT '[]';
-ALTER TABLE inbox_messages ADD COLUMN pubsub_id TEXT;  -- For deduplication
-```
-
-**Connection Strategy:**
 ```go
-// Cloud SQL Proxy connection (from Cloud Run)
-db, err := sql.Open("pgx", "host=/cloudsql/project:region:instance user=ailang dbname=collab")
+// internal/hub/store.go
 
-// Local development fallback
-if os.Getenv("AILANG_USE_LOCAL_DB") == "true" {
-    db, err := sql.Open("sqlite3", "~/.ailang/state/collaboration.db")
+type CollaborationStore interface {
+    // Messages
+    CreateMessage(ctx context.Context, msg *Message) error
+    GetMessage(ctx context.Context, id string) (*Message, error)
+    ListMessages(ctx context.Context, opts ListOptions) ([]*Message, error)
+    AckMessage(ctx context.Context, id string) error
+
+    // Threads
+    CreateThread(ctx context.Context, thread *Thread) error
+    GetThread(ctx context.Context, id string) (*Thread, error)
+    ListThreads(ctx context.Context, opts ListOptions) ([]*Thread, error)
+
+    // Approvals
+    CreateApproval(ctx context.Context, approval *ApprovalRequest) error
+    GetApproval(ctx context.Context, id string) (*ApprovalRequest, error)
+    UpdateApproval(ctx context.Context, id string, response *ApprovalResponse) error
+    ListPendingApprovals(ctx context.Context) ([]*ApprovalRequest, error)
+
+    // Machines & Presence
+    RegisterMachine(ctx context.Context, machine *Machine) error
+    HeartbeatMachine(ctx context.Context, id string) error
+    ListMachines(ctx context.Context, projectID string) ([]*Machine, error)
+
+    // Coordinator Tasks (see M-COORDINATOR design doc)
+    CreateTask(ctx context.Context, task *Task) error
+    GetTaskByExternalKey(ctx context.Context, key ExternalKey) (*Task, error)
+    UpdateTaskStatus(ctx context.Context, id string, status TaskStatus) error
+    ListPendingTasks(ctx context.Context, limit int) ([]*Task, error)
+
+    // Cost Tracking
+    RecordCost(ctx context.Context, taskID string, cost *CostRecord) error
+    GetBudget(ctx context.Context) (*CostBudget, error)
+    UpdateBudget(ctx context.Context, budget *CostBudget) error
+    GetDailySpending(ctx context.Context, date time.Time) (*DailySpending, error)
+
+    // Repo Locks (for Coordinator concurrency)
+    AcquireRepoLock(ctx context.Context, repoURL, taskID string) error
+    ReleaseRepoLock(ctx context.Context, repoURL string) error
+    HeartbeatRepoLock(ctx context.Context, repoURL string) error
 }
 ```
 
-#### 3. Cloud Run - Serverless API Gateway
+**Store Factory:**
+
+```go
+// internal/hub/store_factory.go
+
+func NewStore(cfg *Config) (CollaborationStore, error) {
+    switch cfg.Mode {
+    case "local":
+        dbPath := filepath.Join(cfg.StateDir, "collaboration.db")
+        return NewSQLiteStore(dbPath)
+    case "cloud":
+        return NewFirestoreStore(ctx, cfg.CloudProjectID)
+    default:
+        return nil, fmt.Errorf("unknown mode: %s", cfg.Mode)
+    }
+}
+```
+
+#### 3. Firestore - Unified Cloud State
+
+**Why Firestore (not Cloud SQL):**
+- 100% serverless (pay-per-operation, no always-on instance)
+- Built-in real-time listeners (no custom WebSocket needed)
+- Automatic scaling
+- Offline support built-in
+- Free tier covers development
+- ~$0.06/100K reads vs $30+/month Cloud SQL minimum
+
+**Firestore Schema:**
+
+```
+hub/{project-id}/
+├── config/
+│   └── settings
+│       ├── budget: {daily_limit_cents, monthly_limit_cents, ...}
+│       └── coordinator: {enabled, max_workers, ...}
+│
+├── machines/{machine-id}
+│   ├── name: "dev-laptop"
+│   ├── owner: "user@example.com"
+│   ├── last_seen: timestamp
+│   ├── online: boolean
+│   └── agents: [{id, status, ...}]
+│
+├── messages/{message-id}
+│   ├── thread_id: "thread_123"
+│   ├── from_agent: "sprint-planner"
+│   ├── to_inbox: "user"
+│   ├── source_machine: "machine_abc"
+│   ├── pubsub_id: "msg_xyz"  (for deduplication)
+│   ├── status: "unread"
+│   ├── created_at: timestamp
+│   └── payload: {...}
+│
+├── threads/{thread-id}
+│   ├── title: "Fix parser bug"
+│   ├── participants: ["user", "sprint-executor"]
+│   ├── created_at: timestamp
+│   └── last_activity: timestamp
+│
+├── approvals/{approval-id}
+│   ├── task_id: "task_123"
+│   ├── requesting_machine: "machine_abc"
+│   ├── stage: "commit"
+│   ├── status: "pending"
+│   ├── approval_packet: {...}
+│   └── created_at: timestamp
+│
+├── coordinator/
+│   ├── tasks/{task-id}
+│   │   ├── external_key: "message:ailang:msg_456"
+│   │   ├── status: "running"
+│   │   ├── task_type: "bug"
+│   │   ├── workflow: "bug-fix"
+│   │   └── ...
+│   │
+│   ├── worktrees/{task-id}
+│   │   ├── path: "gs://..."
+│   │   ├── branch: "coordinator/task_123"
+│   │   ├── heartbeat_at: timestamp
+│   │   └── status: "active"
+│   │
+│   ├── repo_locks/{repo-url-sanitized}
+│   │   ├── locked_by: "task_123"
+│   │   ├── locked_at: timestamp
+│   │   └── heartbeat_at: timestamp
+│   │
+│   └── costs/{date}
+│       ├── daily_spent_cents: 2340
+│       └── breakdown: {claude: 1800, gemini: 540}
+│
+└── metrics/{period}/{timestamp}
+    ├── runs: number
+    ├── tokens: number
+    └── cost: number
+```
+
+**Idempotency via Transactions:**
+
+```go
+func (s *FirestoreStore) CreateMessage(ctx context.Context, msg *Message) error {
+    return s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+        // Check for duplicate via pubsub_id
+        query := s.client.Collection(s.messagesPath()).
+            Where("pubsub_id", "==", msg.PubSubID).
+            Limit(1)
+
+        docs, err := tx.Documents(query).GetAll()
+        if err != nil {
+            return err
+        }
+        if len(docs) > 0 {
+            return nil // Idempotent: already exists
+        }
+
+        ref := s.client.Collection(s.messagesPath()).Doc(msg.ID)
+        return tx.Set(ref, msg)
+    })
+}
+```
+
+**SQLite Schema (Local Mode):**
+
+```sql
+-- Extended for global compatibility
+CREATE TABLE machines (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    owner TEXT NOT NULL,
+    last_seen INTEGER NOT NULL,
+    metadata TEXT DEFAULT '{}',
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+-- inbox_messages extended for global
+ALTER TABLE inbox_messages ADD COLUMN source_machine TEXT;
+ALTER TABLE inbox_messages ADD COLUMN pubsub_id TEXT;
+
+-- Coordinator tables
+CREATE TABLE coordinator_tasks (
+    id TEXT PRIMARY KEY,
+    external_key TEXT UNIQUE NOT NULL,
+    source TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    workflow TEXT,
+    current_stage TEXT,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+
+CREATE TABLE repo_locks (
+    repo_url TEXT PRIMARY KEY,
+    locked_by TEXT NOT NULL,
+    locked_at INTEGER NOT NULL,
+    heartbeat_at INTEGER NOT NULL
+);
+
+CREATE TABLE cost_tracking (
+    date TEXT PRIMARY KEY,
+    daily_spent_cents INTEGER DEFAULT 0,
+    breakdown TEXT DEFAULT '{}'
+);
+```
+
+#### 4. Cloud Run - Serverless API Gateway
 
 **Services:**
 
@@ -337,7 +508,7 @@ POST   /api/auth/refresh                # Refresh token
 GET    /api/auth/me                     # Current user info
 ```
 
-#### 4. Cloud Storage - Large Files
+#### 5. Cloud Storage - Large Files
 
 **Bucket Structure:**
 
@@ -364,43 +535,50 @@ url, err := storage.SignedURL(bucket, object, &storage.SignedURLOptions{
 })
 ```
 
-#### 5. Firestore - Real-time Dashboard
+#### 6. Coordinator Daemon (Autonomous Task Execution)
 
-**Why Firestore:**
-- Built-in real-time listeners (no custom WebSocket needed)
-- Scales automatically
-- Offline support built-in
-- Easy security rules
+**The Coordinator is an optional component** that enables fully autonomous development workflows. It monitors messages and automatically executes tasks via Claude Code or Gemini.
 
-**Collections:**
+**Full specification**: See [M-COORDINATOR: Always-On Autonomous Development Daemon](../v0_7_0/m-coordinator-always-on-daemon.md)
+
+**Key Features:**
+- Git worktrees for conflict-free concurrent execution
+- Human-in-the-loop with `<uncertainty>` tag protocol
+- Cost budgets enforced via dashboard controls
+- Dual-provider support (Claude Code headless + Gemini API)
+
+**Cloud Mode Architecture:**
 
 ```
-/projects/{projectId}/
-├── presence/
-│   └── {machineId}
-│       ├── online: boolean
-│       ├── lastSeen: timestamp
-│       └── agents: [{id, status}]
-├── metrics/
-│   └── {scope}/
-│       └── {period}/
-│           └── {timestamp}
-│               ├── runs: number
-│               ├── tokens: number
-│               └── cost: number
-├── activity/
-│   └── {activityId}
-│       ├── type: string
-│       ├── agent: string
-│       ├── machine: string
-│       └── timestamp: timestamp
+Pub/Sub (coordinator-tasks) → Cloud Run Jobs (workers) → Firestore (state)
+                                      │
+                                      ├─► Claude Code (headless)
+                                      └─► Gemini API
 ```
+
+**CLI Commands:**
+
+```bash
+# Local daemon mode
+ailang coordinator start              # Start daemon
+ailang coordinator stop               # Stop daemon
+ailang coordinator status             # Show status
+
+# Cloud mode (via Pub/Sub + Cloud Run Jobs)
+# Configured via `ailang cloud` commands
+```
+
+**Integration with Hub:**
+- Uses `CollaborationStore` interface (same as messaging)
+- Tasks stored in `coordinator/tasks/` in Firestore
+- Cost tracking integrated with Hub's budget system
+- Approval requests sent to Hub's approval queue
 
 **Real-time Listener (React):**
 ```typescript
 // Subscribe to all machines' presence
 const unsubscribe = onSnapshot(
-  collection(db, `projects/${projectId}/presence`),
+  collection(db, `hub/${projectId}/machines`),
   (snapshot) => {
     const machines = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -411,7 +589,7 @@ const unsubscribe = onSnapshot(
 );
 ```
 
-#### 6. Authentication & Authorization
+#### 7. Authentication & Authorization
 
 **Strategy: Google Cloud IAM + Project-level Permissions**
 
@@ -688,29 +866,38 @@ ui/src/
 
 | Service | Usage | Estimated Cost |
 |---------|-------|----------------|
-| Cloud SQL (db-f1-micro) | 730 hours | $8 |
-| Cloud Run (API) | 100K requests | $2 |
-| Cloud Run (WebSocket) | 500 instance hours | $5 |
+| Firestore | 2M reads, 1M writes | $3.00 |
+| Cloud Run (API) | 100K requests | $2.00 |
+| Cloud Run Jobs (Coordinator) | 500 task executions | $2.00 |
 | Pub/Sub | 1M messages | $0.40 |
 | Cloud Storage | 10 GB | $0.26 |
-| Firestore | 1M reads, 500K writes | $1.50 |
-| **Total** | | **~$17/month** |
+| **Total** | | **~$8/month** |
+
+**Note:** Firestore has a generous free tier (50K reads/day, 20K writes/day) that covers most development use cases.
 
 **Enterprise scale (50 developers, 50K agent runs/day):**
-- Cloud SQL (db-g1-small): $50
-- Cloud Run: $20
+- Firestore: $30 (10M reads, 5M writes)
+- Cloud Run (API + Jobs): $25
 - Pub/Sub: $20
 - Storage: $10
-- Firestore: $15
-- **Total: ~$115/month**
+- **Total: ~$85/month**
+
+**Comparison with Cloud SQL approach:**
+| Aspect | Cloud SQL | Firestore (Chosen) |
+|--------|-----------|-------------------|
+| Base cost | ~$30/month minimum | $0 (free tier) |
+| Small team | ~$17/month | ~$8/month |
+| Enterprise | ~$115/month | ~$85/month |
+| Scaling | Manual (resize instance) | Automatic |
 
 ### Security Considerations
 
 **Data Protection:**
-- All data encrypted at rest (Cloud SQL, Storage, Firestore)
+- All data encrypted at rest (Firestore, Cloud Storage)
 - TLS 1.3 for all connections
 - VPC Service Controls for production
 - No PII in agent messages (lint check)
+- Firestore security rules for access control
 
 **Access Control:**
 - Project-level isolation

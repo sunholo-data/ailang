@@ -3,20 +3,20 @@ package eval_harness
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 )
 
-// AIAgent generates code using LLM APIs
+// AIAgent generates code using LLM APIs.
+// Uses the unified internal/ai/ providers via providerAdapter.
 type AIAgent struct {
-	friendlyName string // Friendly name (e.g., "claude-sonnet-4-5") - used for cost lookups
-	model        string // API model name (e.g., "claude-sonnet-4-5-20250929") - used for API calls
-	apiKey       string
+	friendlyName string           // Friendly name (e.g., "claude-sonnet-4-5") - used for cost lookups
+	model        string           // API model name (e.g., "claude-sonnet-4-5-20250929") - used for API calls
+	adapter      *providerAdapter // Unified provider adapter
 	seed         int64
 }
 
-// NewAIAgent creates a new AI agent
+// NewAIAgent creates a new AI agent using unified providers.
 func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 	// Resolve model name to API name and provider
 	apiName, provider, err := ResolveModelName(model)
@@ -24,55 +24,29 @@ func NewAIAgent(model string, seed int64) (*AIAgent, error) {
 		return nil, fmt.Errorf("failed to resolve model: %w", err)
 	}
 
-	// Get API key from environment based on provider
-	var apiKey string
-	var envVar string
+	// Get API key for provider
+	apiKey, err := getAPIKeyForProvider(provider, model)
+	if err != nil {
+		return nil, err
+	}
 
-	switch provider {
-	case "openai":
-		envVar = "OPENAI_API_KEY"
-		apiKey = os.Getenv(envVar)
-		if apiKey == "" {
-			return nil, fmt.Errorf("%s environment variable not set (required for model: %s)", envVar, model)
-		}
-	case "anthropic":
-		envVar = "ANTHROPIC_API_KEY"
-		apiKey = os.Getenv(envVar)
-		if apiKey == "" {
-			return nil, fmt.Errorf("%s environment variable not set (required for model: %s)", envVar, model)
-		}
-	case "google":
-		envVar = "GOOGLE_API_KEY"
-		apiKey = os.Getenv(envVar)
-		// Google supports ADC fallback, so we'll pass empty key and let callGemini handle it
-		// Don't error here if key is missing
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s (model: %s)", provider, model)
+	// Create unified provider adapter
+	adapter, err := newProviderAdapter(apiName, apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provider: %w", err)
 	}
 
 	return &AIAgent{
 		friendlyName: model,   // Store original friendly name for cost lookups
 		model:        apiName, // Use resolved API name for API calls
-		apiKey:       apiKey,
+		adapter:      adapter,
 		seed:         seed,
 	}, nil
 }
 
-// GenerateCode generates code using the LLM
+// GenerateCode generates code using the unified provider.
 func (a *AIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	// Determine provider from model name
-	provider := guessProvider(a.model)
-
-	switch provider {
-	case "openai":
-		return a.generateOpenAI(ctx, prompt)
-	case "anthropic":
-		return a.generateAnthropic(ctx, prompt)
-	case "google":
-		return a.generateGemini(ctx, prompt)
-	default:
-		return nil, fmt.Errorf("unsupported provider for model: %s", a.model)
-	}
+	return a.adapter.generate(ctx, prompt)
 }
 
 // GenerateResult contains the result of code generation
@@ -82,21 +56,6 @@ type GenerateResult struct {
 	OutputTokens int // Completion tokens (generated code)
 	TotalTokens  int // Total tokens (for billing)
 	Model        string
-}
-
-// generateOpenAI generates code using OpenAI API
-func (a *AIAgent) generateOpenAI(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.callOpenAI(ctx, prompt)
-}
-
-// generateAnthropic generates code using Anthropic API
-func (a *AIAgent) generateAnthropic(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.callAnthropic(ctx, prompt)
-}
-
-// generateGemini generates code using Google Gemini API
-func (a *AIAgent) generateGemini(ctx context.Context, prompt string) (*GenerateResult, error) {
-	return a.callGemini(ctx, prompt)
 }
 
 // RetryConfig configures retry behavior

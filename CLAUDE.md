@@ -677,9 +677,13 @@ ailang/
 │   ├── errors/         # Error reporting ✅ COMPLETE
 │   ├── schema/         # JSON schemas ✅ COMPLETE
 │   ├── ai/             # Unified AI providers ✅ COMPLETE (v0.5.10)
-│   │   ├── anthropic/  # Claude API client
+│   │   ├── anthropic/  # Claude API client (text generation)
 │   │   ├── openai/     # OpenAI API client (Chat + Responses)
-│   │   └── gemini/     # Gemini API client (AI Studio + Vertex)
+│   │   ├── gemini/     # Gemini API client (AI Studio + Vertex)
+│   │   └── ollama/     # Ollama client (local models)
+│   ├── executor/       # Agentic CLI executors ✅ COMPLETE (v0.6.1)
+│   │   ├── claude/     # Claude Code CLI (headless mode)
+│   │   └── gemini/     # Gemini CLI (agentic coding)
 │   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
 │   ├── eval_analysis/  # Go eval tools ✅ COMPLETE (M-EVAL v2.0)
 │   ├── eval_analyzer/  # Failure analyzer ✅ COMPLETE (M-EVAL v2.0)
@@ -699,6 +703,58 @@ ailang/
 ├── tests/              # Test suite ✅
 └── docs/               # Documentation ✅ COMPLETE
 ```
+
+### AI Provider vs Executor Architecture (IMPORTANT!)
+
+**⚠️ CRITICAL DISTINCTION: There are TWO different ways to use AI in AILANG:**
+
+#### 1. `internal/ai/` - API Providers (Text Generation Only)
+- **Purpose**: Simple text generation via HTTP APIs
+- **Interface**: `ai.Provider` with `Generate(ctx, *Request) (*Response, error)`
+- **Use for**: Research, documentation, simple Q&A, text completion
+- **Packages**:
+  - `ai/gemini/` - Gemini API (AI Studio or Vertex AI)
+  - `ai/anthropic/` - Claude API (Messages API)
+  - `ai/openai/` - OpenAI API (Chat or Responses)
+  - `ai/ollama/` - Ollama (local models)
+
+```go
+// Example: Simple text generation
+client := gemini.NewClient(apiKey)
+resp, err := client.Generate(ctx, &ai.Request{
+    Model:      "gemini-2.5-flash",
+    UserPrompt: "Explain recursion",
+})
+```
+
+#### 2. `internal/executor/` - CLI Executors (Agentic Coding)
+- **Purpose**: Full agentic coding with file editing, code execution, tool use
+- **Interface**: `executor.Executor` with `Execute(ctx, *Task) (*Result, error)`
+- **Use for**: Bug fixes, feature implementation, code refactoring, anything requiring file changes
+- **Packages**:
+  - `executor/claude/` - Claude Code CLI (`claude -p --output-format json`)
+  - `executor/gemini/` - Gemini CLI (`gemini --output-format json`)
+
+```go
+// Example: Agentic coding task
+exec, _ := executor.GlobalFactory().GetExecutor("claude")
+result, err := exec.Execute(ctx, &executor.Task{
+    Directive: "Fix the null pointer bug in parser.go",
+    Workspace: "/path/to/repo",
+})
+```
+
+**When to use which:**
+| Task Type | Package | Example |
+|-----------|---------|---------|
+| Bug fix | `executor/` | "Fix the type error in line 42" |
+| New feature | `executor/` | "Add a --verbose flag to the CLI" |
+| Refactoring | `executor/` | "Split this file into smaller modules" |
+| Documentation | `ai/` or `executor/` | Simple docs: `ai/`, complex: `executor/` |
+| Research | `ai/` | "What are best practices for X?" |
+| Code review | `ai/` | "Review this diff for issues" |
+
+**Key difference**: `executor/` runs CLI tools that can edit files and execute commands. `ai/` just generates text responses.
 
 ## Development Workflow
 

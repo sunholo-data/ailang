@@ -4,13 +4,42 @@
 **Target**: v0.7.0
 **Priority**: P0 - High
 **Created**: 2025-12-29
+**Part of**: [Global Collaboration Hub](../v0_6_2/global-collaboration-hub.md)
+
 **Dependencies**:
+- **Global Collaboration Hub** (v0.6.x) - Infrastructure layer
 - Messaging system (v0.5.11+) - COMPLETE
 - Design doc creator skill - COMPLETE
 - Sprint planner skill - COMPLETE
 - Sprint executor skill - COMPLETE
 - Headless Claude Code (documented) - COMPLETE
 - Gemini CLI integration (API) - COMPLETE
+
+---
+
+## Relationship to Global Collaboration Hub
+
+This document specifies the **Coordinator Daemon**, which is a component of the [Global Collaboration Hub](../v0_6_2/global-collaboration-hub.md).
+
+**What the Hub provides:**
+- `CollaborationStore` interface (SQLite local / Firestore cloud)
+- Pub/Sub messaging infrastructure
+- Cloud Run API gateway
+- Authentication and authorization
+- Dashboard UI
+
+**What the Coordinator adds:**
+- Autonomous task execution engine
+- Git worktree management
+- Claude Code / Gemini provider abstraction
+- Task workflows (bug-fix, feature, refactor)
+- Human-in-the-loop approval protocol
+
+**Shared components:**
+- Storage uses `CollaborationStore` from Hub
+- Tasks stored in `hub/{project}/coordinator/tasks/` (Firestore)
+- Approvals sent to Hub's approval queue
+- Cost tracking integrated with Hub's budget system
 
 ---
 
@@ -1269,6 +1298,418 @@ type TestRun struct {
 
 ---
 
+## Storage Abstraction Layer
+
+> **Note**: The Coordinator uses the `CollaborationStore` interface defined in the [Global Collaboration Hub](../v0_6_2/global-collaboration-hub.md#2-storage-abstraction-layer). This section describes the Coordinator-specific extensions.
+
+**Design Decision**: SQLite locally + Firestore in cloud, unified by interface.
+
+### Why This Approach
+
+| Option | Serverless | Local Compatible | Complexity |
+|--------|------------|------------------|------------|
+| Cloud SQL everywhere | ❌ No | ✅ SQL syntax | Low |
+| **Firestore cloud + SQLite local** | ✅ Yes | ✅ Simple local | Medium |
+| Turso everywhere | ✅ Yes | ✅ SQLite wire | Low |
+
+**Chosen**: Firestore for cloud (true serverless, pay-per-op) + SQLite locally (simple, existing `collaboration.db`).
+
+### CoordinatorStore Interface
+
+```go
+// internal/coordinator/store.go
+
+type CoordinatorStore interface {
+    // Tasks
+    CreateTask(ctx context.Context, task *Task) error
+    GetTask(ctx context.Context, id string) (*Task, error)
+    GetTaskByExternalKey(ctx context.Context, key ExternalKey) (*Task, error)
+    UpdateTaskStatus(ctx context.Context, id string, status TaskStatus) error
+    UpdateTaskStage(ctx context.Context, id, stage string) error
+    ListPendingTasks(ctx context.Context, limit int) ([]*Task, error)
+    ListTasksByStatus(ctx context.Context, status TaskStatus) ([]*Task, error)
+
+    // Worktrees
+    AcquireWorktreeLease(ctx context.Context, taskID, path, branch string) error
+    ReleaseWorktreeLease(ctx context.Context, taskID string) error
+    HeartbeatWorktree(ctx context.Context, taskID string) error
+    ListOrphanedWorktrees(ctx context.Context, threshold time.Duration) ([]*WorktreeLease, error)
+    DeleteWorktreeLease(ctx context.Context, taskID string) error
+
+    // Repo Locks (for cloud concurrency)
+    AcquireRepoLock(ctx context.Context, repoURL, taskID string) error
+    ReleaseRepoLock(ctx context.Context, repoURL string) error
+    HeartbeatRepoLock(ctx context.Context, repoURL string) error
+
+    // Costs
+    RecordCost(ctx context.Context, taskID string, cost *CostRecord) error
+    GetBudget(ctx context.Context) (*CostBudget, error)
+    UpdateBudget(ctx context.Context, budget *CostBudget) error
+    GetDailySpending(ctx context.Context, date time.Time) (*DailySpending, error)
+    GetMonthlySpending(ctx context.Context, year, month int) (float64, error)
+
+    // Executions (history)
+    RecordExecution(ctx context.Context, exec *Execution) error
+    ListExecutionsForTask(ctx context.Context, taskID string) ([]*Execution, error)
+}
+```
+
+### SQLite Implementation (Local)
+
+```go
+// internal/coordinator/store_sqlite.go
+
+type SQLiteStore struct {
+    db *sql.DB
+}
+
+func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
+    db, err := sql.Open("sqlite3", dbPath)
+    if err != nil {
+        return nil, err
+    }
+
+    // Run migrations
+    if err := runMigrations(db); err != nil {
+        return nil, err
+    }
+
+    return &SQLiteStore{db: db}, nil
+}
+
+func (s *SQLiteStore) CreateTask(ctx context.Context, task *Task) error {
+    _, err := s.db.ExecContext(ctx, `
+        INSERT INTO coordinator_tasks
+            (id, external_key, source, source_id, task_type, priority, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(external_key) DO NOTHING
+    `, task.ID, task.ExternalKey, task.Source, task.SourceID,
+       task.TaskType, task.Priority, task.Status, time.Now().Unix())
+
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func (s *SQLiteStore) GetTaskByExternalKey(ctx context.Context, key ExternalKey) (*Task, error) {
+    row := s.db.QueryRowContext(ctx, `
+        SELECT id, external_key, source, source_id, task_type, priority, status,
+               workflow, current_stage, created_at, started_at, completed_at
+        FROM coordinator_tasks
+        WHERE external_key = ?
+    `, string(key))
+
+    var task Task
+    var startedAt, completedAt sql.NullInt64
+    err := row.Scan(&task.ID, &task.ExternalKey, &task.Source, &task.SourceID,
+        &task.TaskType, &task.Priority, &task.Status, &task.Workflow,
+        &task.CurrentStage, &task.CreatedAt, &startedAt, &completedAt)
+
+    if err == sql.ErrNoRows {
+        return nil, nil
+    }
+    if err != nil {
+        return nil, err
+    }
+    return &task, nil
+}
+
+// AcquireRepoLock for local mode (process-level mutex + DB)
+func (s *SQLiteStore) AcquireRepoLock(ctx context.Context, repoURL, taskID string) error {
+    now := time.Now().Unix()
+    staleThreshold := now - 300 // 5 minutes
+
+    result, err := s.db.ExecContext(ctx, `
+        INSERT INTO repo_locks (repo_url, locked_by, locked_at, heartbeat_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(repo_url) DO UPDATE
+        SET locked_by = excluded.locked_by,
+            locked_at = excluded.locked_at,
+            heartbeat_at = excluded.heartbeat_at
+        WHERE repo_locks.heartbeat_at < ?
+    `, repoURL, taskID, now, now, staleThreshold)
+
+    if err != nil {
+        return err
+    }
+
+    rows, _ := result.RowsAffected()
+    if rows == 0 {
+        return ErrRepoLocked
+    }
+    return nil
+}
+```
+
+### Firestore Implementation (Cloud)
+
+```go
+// internal/coordinator/store_firestore.go
+
+type FirestoreStore struct {
+    client    *firestore.Client
+    projectID string
+}
+
+func NewFirestoreStore(ctx context.Context, projectID string) (*FirestoreStore, error) {
+    client, err := firestore.NewClient(ctx, projectID)
+    if err != nil {
+        return nil, err
+    }
+    return &FirestoreStore{client: client, projectID: projectID}, nil
+}
+
+// Firestore collection paths
+const (
+    collTasks     = "coordinator/data/tasks"
+    collWorktrees = "coordinator/data/worktrees"
+    collRepoLocks = "coordinator/data/repo_locks"
+    collBudgets   = "coordinator/config/budgets"
+    collCosts     = "coordinator/data/costs"
+)
+
+func (s *FirestoreStore) CreateTask(ctx context.Context, task *Task) error {
+    return s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+        // Check if external_key already exists (idempotency)
+        query := s.client.Collection(collTasks).
+            Where("external_key", "==", string(task.ExternalKey)).
+            Limit(1)
+
+        docs, err := tx.Documents(query).GetAll()
+        if err != nil {
+            return err
+        }
+        if len(docs) > 0 {
+            return nil // Already exists, idempotent success
+        }
+
+        // Create new task
+        ref := s.client.Collection(collTasks).Doc(task.ID)
+        return tx.Set(ref, map[string]interface{}{
+            "id":            task.ID,
+            "external_key":  string(task.ExternalKey),
+            "source":        task.Source,
+            "source_id":     task.SourceID,
+            "task_type":     task.TaskType,
+            "priority":      task.Priority,
+            "status":        string(task.Status),
+            "workflow":      task.Workflow,
+            "current_stage": task.CurrentStage,
+            "created_at":    firestore.ServerTimestamp,
+        })
+    })
+}
+
+func (s *FirestoreStore) GetTaskByExternalKey(ctx context.Context, key ExternalKey) (*Task, error) {
+    query := s.client.Collection(collTasks).
+        Where("external_key", "==", string(key)).
+        Limit(1)
+
+    docs, err := query.Documents(ctx).GetAll()
+    if err != nil {
+        return nil, err
+    }
+    if len(docs) == 0 {
+        return nil, nil
+    }
+
+    var task Task
+    if err := docs[0].DataTo(&task); err != nil {
+        return nil, err
+    }
+    return &task, nil
+}
+
+// AcquireRepoLock using Firestore transactions
+func (s *FirestoreStore) AcquireRepoLock(ctx context.Context, repoURL, taskID string) error {
+    ref := s.client.Collection(collRepoLocks).Doc(sanitizeDocID(repoURL))
+    staleThreshold := time.Now().Add(-5 * time.Minute)
+
+    return s.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+        doc, err := tx.Get(ref)
+        if err != nil && status.Code(err) != codes.NotFound {
+            return err
+        }
+
+        // Check if lock exists and is not stale
+        if doc.Exists() {
+            var lock RepoLock
+            if err := doc.DataTo(&lock); err != nil {
+                return err
+            }
+            if lock.HeartbeatAt.After(staleThreshold) {
+                return ErrRepoLocked // Lock is held and fresh
+            }
+        }
+
+        // Acquire or steal stale lock
+        return tx.Set(ref, map[string]interface{}{
+            "repo_url":     repoURL,
+            "locked_by":    taskID,
+            "locked_at":    firestore.ServerTimestamp,
+            "heartbeat_at": firestore.ServerTimestamp,
+        })
+    })
+}
+
+func (s *FirestoreStore) HeartbeatRepoLock(ctx context.Context, repoURL string) error {
+    ref := s.client.Collection(collRepoLocks).Doc(sanitizeDocID(repoURL))
+    _, err := ref.Update(ctx, []firestore.Update{
+        {Path: "heartbeat_at", Value: firestore.ServerTimestamp},
+    })
+    return err
+}
+
+func sanitizeDocID(s string) string {
+    // Firestore doc IDs can't contain '/'
+    return strings.ReplaceAll(s, "/", "_")
+}
+```
+
+### Firestore Schema
+
+```
+coordinator/
+├── config/
+│   └── budgets/default
+│       ├── daily_limit_cents: 5000
+│       ├── monthly_limit_cents: 50000
+│       ├── task_limit_cents: 500
+│       ├── warning_threshold: 0.8
+│       └── updated_at: timestamp
+│
+├── data/
+│   ├── tasks/{task_id}
+│   │   ├── id: "task_abc123"
+│   │   ├── external_key: "message:ailang:msg_456"
+│   │   ├── source: "message"
+│   │   ├── source_id: "msg_456"
+│   │   ├── task_type: "bug"
+│   │   ├── priority: 0
+│   │   ├── status: "running"
+│   │   ├── workflow: "bug-fix"
+│   │   ├── current_stage: "fix"
+│   │   ├── created_at: timestamp
+│   │   ├── started_at: timestamp
+│   │   └── session_id: "session_xyz"
+│   │
+│   ├── worktrees/{task_id}
+│   │   ├── task_id: "task_abc123"
+│   │   ├── path: "gs://ailang-worktrees/task_abc123.tar.gz"
+│   │   ├── branch: "coordinator/task_abc123"
+│   │   ├── status: "active"
+│   │   ├── created_at: timestamp
+│   │   └── heartbeat_at: timestamp
+│   │
+│   ├── repo_locks/{repo_url_sanitized}
+│   │   ├── repo_url: "github.com/sunholo-data/ailang"
+│   │   ├── locked_by: "task_abc123"
+│   │   ├── locked_at: timestamp
+│   │   └── heartbeat_at: timestamp
+│   │
+│   ├── costs/{date_YYYY-MM-DD}
+│   │   ├── date: "2025-12-29"
+│   │   ├── daily_spent_cents: 2340
+│   │   ├── task_count: 5
+│   │   └── breakdown: {"claude": 1800, "gemini": 540}
+│   │
+│   └── executions/{execution_id}
+│       ├── task_id: "task_abc123"
+│       ├── stage: "fix"
+│       ├── provider: "claude-code"
+│       ├── started_at: timestamp
+│       ├── completed_at: timestamp
+│       ├── status: "completed"
+│       ├── cost_usd: 0.15
+│       ├── tokens_used: 12500
+│       └── duration_ms: 45000
+```
+
+### Store Factory
+
+```go
+// internal/coordinator/store_factory.go
+
+func NewStore(cfg *Config) (CoordinatorStore, error) {
+    switch cfg.Mode {
+    case "local":
+        dbPath := filepath.Join(cfg.StateDir, "collaboration.db")
+        return NewSQLiteStore(dbPath)
+
+    case "cloud":
+        ctx := context.Background()
+        return NewFirestoreStore(ctx, cfg.CloudProjectID)
+
+    default:
+        return nil, fmt.Errorf("unknown coordinator mode: %s", cfg.Mode)
+    }
+}
+```
+
+### Benefits
+
+| Aspect | SQLite (Local) | Firestore (Cloud) |
+|--------|----------------|-------------------|
+| **Serverless** | N/A (local process) | ✅ Pay-per-operation |
+| **Setup** | Zero config | Project + credentials |
+| **Transactions** | ✅ ACID | ✅ Serializable |
+| **Queries** | Full SQL | Limited (indexes required) |
+| **Cost** | Free | ~$0.06/100K reads |
+| **Latency** | <1ms | ~20-50ms |
+
+### Extensibility: Adding New Backends
+
+The interface pattern makes adding new storage backends straightforward:
+
+1. Create `internal/coordinator/store_<backend>.go`
+2. Implement all `CoordinatorStore` interface methods
+3. Add case to `NewStore()` factory function
+
+**Potential future backends:**
+
+| Backend | Use Case | Notes |
+|---------|----------|-------|
+| **Turso** | SQLite-compatible serverless | Same SQL syntax, edge deployment |
+| **DynamoDB** | AWS serverless | For AWS-native deployments |
+| **MongoDB Atlas** | Multi-cloud serverless | Document model similar to Firestore |
+| **In-memory** | Testing | Fast unit tests, no I/O |
+
+**Example: Adding Turso**
+
+```go
+// internal/coordinator/store_turso.go
+type TursoStore struct {
+    db *sql.DB  // Uses libSQL driver
+}
+
+func NewTursoStore(dbURL, authToken string) (*TursoStore, error) {
+    db, err := sql.Open("libsql", dbURL+"?authToken="+authToken)
+    if err != nil {
+        return nil, err
+    }
+    return &TursoStore{db: db}, nil
+}
+
+// Methods identical to SQLiteStore (same SQL syntax)
+```
+
+```go
+// Update factory
+func NewStore(cfg *Config) (CoordinatorStore, error) {
+    switch cfg.Mode {
+    case "local":  return NewSQLiteStore(dbPath)
+    case "gcp":    return NewFirestoreStore(ctx, cfg.ProjectID)
+    case "turso":  return NewTursoStore(cfg.TursoURL, cfg.TursoToken)
+    case "aws":    return NewDynamoDBStore(ctx, cfg.Region)
+    }
+}
+```
+
+The coordinator business logic remains unchanged - only the storage layer is swapped.
+
+---
+
 ## Architecture
 
 Monitor multiple sources for incoming work:
@@ -1743,15 +2184,16 @@ Cloud Run is fundamentally request-driven. Even with `min instances: 1` + `alway
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    PERSISTENT STATE                                   │  │
+│  │                    PERSISTENT STATE (100% Serverless)                │  │
 │  │                                                                       │  │
 │  │  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐     │  │
-│  │  │   Cloud SQL     │   │ Cloud Storage   │   │ Secret Manager  │     │  │
-│  │  │  (PostgreSQL)   │   │ (Artifacts)     │   │  (API Keys)     │     │  │
+│  │  │   Firestore     │   │ Cloud Storage   │   │ Secret Manager  │     │  │
+│  │  │  (NoSQL)        │   │ (Artifacts)     │   │  (API Keys)     │     │  │
 │  │  │                 │   │                 │   │                 │     │  │
 │  │  │ • Task queue    │   │ • Worktree zips │   │ • ANTHROPIC_KEY │     │  │
 │  │  │ • Worktree lease│   │ • Result diffs  │   │ • GEMINI_KEY    │     │  │
 │  │  │ • Cost tracking │   │ • Approval pkts │   │ • GITHUB_TOKEN  │     │  │
+│  │  │ • Repo locks    │   │                 │   │                 │     │  │
 │  │  └─────────────────┘   └─────────────────┘   └─────────────────┘     │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
@@ -1849,8 +2291,8 @@ func main() {
 }
 
 func executeTask(ctx context.Context, task *TaskMessage) *ResultMessage {
-    // 1. Acquire repo lock (Cloud SQL)
-    lock, err := acquireRepoLock(task.RepoURL)
+    // 1. Acquire repo lock (Firestore)
+    lock, err := store.AcquireRepoLock(ctx, task.RepoURL, task.TaskID)
     if err != nil {
         return &ResultMessage{TaskID: task.TaskID, Success: false, Error: "repo locked"}
     }
@@ -1890,37 +2332,27 @@ func executeTask(ctx context.Context, task *TaskMessage) *ResultMessage {
 ```
 
 **Repo Locking for Concurrency**:
-```sql
--- Per-repo lock to prevent parallel execution conflicts
-CREATE TABLE repo_locks (
-    repo_url TEXT PRIMARY KEY,
-    locked_by TEXT,            -- Task ID that holds lock
-    locked_at INTEGER,
-    heartbeat_at INTEGER
-);
-```
+
+Uses the `CoordinatorStore.AcquireRepoLock()` method from the storage abstraction layer:
+- **Local (SQLite)**: SQL `INSERT ON CONFLICT` with stale threshold check
+- **Cloud (Firestore)**: Transaction with document-level locking
 
 ```go
-func acquireRepoLock(repoURL string) (*Lock, error) {
-    // Try to acquire lock with exponential backoff
+// Locking with retry and exponential backoff
+func acquireRepoLockWithRetry(ctx context.Context, store CoordinatorStore,
+    repoURL, taskID string) error {
+
     for attempt := 0; attempt < 5; attempt++ {
-        result, err := db.Exec(`
-            INSERT INTO repo_locks (repo_url, locked_by, locked_at, heartbeat_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(repo_url) DO UPDATE
-            SET locked_by = excluded.locked_by,
-                locked_at = excluded.locked_at,
-                heartbeat_at = excluded.heartbeat_at
-            WHERE repo_locks.heartbeat_at < ?  -- Stale lock (>5 min)
-        `, repoURL, taskID, now, now, staleThreshold)
-
-        if err == nil && rowsAffected > 0 {
-            return &Lock{repoURL: repoURL}, nil
+        err := store.AcquireRepoLock(ctx, repoURL, taskID)
+        if err == nil {
+            return nil
         }
-
+        if err != ErrRepoLocked {
+            return err // Unexpected error
+        }
         time.Sleep(time.Duration(1<<attempt) * time.Second)
     }
-    return nil, ErrRepoLocked
+    return ErrRepoLocked
 }
 ```
 
@@ -1994,16 +2426,18 @@ func triggerWorker(taskID string) error {
 }
 ```
 
-**Benefits of Pub/Sub + Jobs Architecture**:
+**Benefits of Pub/Sub + Jobs + Firestore Architecture**:
 
-| Aspect | Cloud Run Daemon | Pub/Sub + Jobs |
-|--------|------------------|----------------|
-| Durability | Filesystem lost on restart | State in Cloud SQL/GCS |
+| Aspect | Cloud Run Daemon | Pub/Sub + Jobs + Firestore |
+|--------|------------------|----------------------------|
+| Durability | Filesystem lost on restart | State in Firestore/GCS |
 | Scaling | 0-1 instances | 0-N jobs per queue depth |
 | Cost | Pay for idle time | Pay only for execution |
 | Reliability | Process crash = lost state | Pub/Sub retry + dead letter |
 | Observability | Container logs only | Per-task traces in Cloud Trace |
 | Concurrency | Manual semaphore | Pub/Sub message flow control |
+| Database | Cloud SQL ($30+/mo min) | Firestore (pay-per-op) |
+| Serverless | ❌ Partial | ✅ 100% serverless |
 
 ---
 
@@ -2046,8 +2480,11 @@ func triggerWorker(taskID string) error {
 - [ ] Add session tracking for resume capability
 - [ ] Handle execution timeouts and errors
 
-**M6: State Persistence** (2 days)
-- [ ] Add SQLite tables for task queue, costs, budgets
+**M6: Storage Abstraction Layer** (3 days)
+- [ ] Create `CoordinatorStore` interface in `internal/coordinator/store.go`
+- [ ] Implement `SQLiteStore` for local mode
+- [ ] Add SQLite migrations for coordinator tables
+- [ ] Create store factory with mode detection
 - [ ] Implement execution history logging
 - [ ] Add resume from crash capability
 - [ ] Create `coordinator status` command with stats
@@ -2122,11 +2559,15 @@ func triggerWorker(taskID string) error {
 
 ### Phase 4: Cloud Deployment (~1 week)
 
-**M15: Cloud Run Support** (3 days)
-- [ ] Create Dockerfile for coordinator
-- [ ] Add PostgreSQL database support
-- [ ] Implement Cloud Storage for workspaces/worktrees
-- [ ] Add Secret Manager integration
+**M15: Cloud Deployment (Firestore + Cloud Run Jobs)** (4 days)
+- [ ] Implement `FirestoreStore` for cloud mode
+- [ ] Create Firestore indexes for queries
+- [ ] Create Dockerfile for coordinator worker
+- [ ] Set up Pub/Sub topics and subscriptions
+- [ ] Implement Cloud Storage for worktree artifacts
+- [ ] Add Secret Manager integration for API keys
+- [ ] Create Cloud Scheduler triggers for watchers
+- [ ] Deploy and test end-to-end
 
 **M16: Production Hardening** (3 days)
 - [ ] Add rate limiting and backpressure
@@ -2429,6 +2870,290 @@ stages:
 3. **Cost Budgets**: Should we have daily/monthly cost limits?
 4. **Human-in-the-Loop**: How much automation is too much?
 5. **Multi-Repo**: Should coordinator work across multiple AILANG projects?
+
+---
+
+## Sprint Plan: Local-Only Coordinator MVP
+
+### Summary
+
+Implement the local coordinator daemon that monitors messages and autonomously executes development tasks via Claude Code and Gemini. This sprint focuses on local-only mode (no cloud infrastructure required).
+
+**Duration:** 8-10 days
+**Dependencies:** None (uses existing SQLite, messaging system)
+**Risk Level:** Medium (new daemon architecture, subprocess management)
+
+### Current Status Analysis
+
+**Completed Recently:**
+- ✅ Messaging system with semantic search (v0.5.11+)
+- ✅ Design doc creator skill
+- ✅ Sprint planner / executor skills
+- ✅ Headless Claude Code documentation
+- ✅ Gemini API integration
+
+**Velocity:**
+- Recent average: ~150 LOC/day (implementation + tests)
+- Estimated capacity: ~1,200-1,500 LOC for this sprint
+
+**Remaining for Local MVP:**
+- ⏳ M1: Core Daemon Structure (~250 LOC)
+- ⏳ M2: Git Worktree Manager (~300 LOC)
+- ⏳ M3: Message Watcher (~150 LOC)
+- ⏳ M4: Task Analyzer (~200 LOC)
+- ⏳ M5: Dual-Provider Executor (~400 LOC)
+- ⏳ M6: SQLite Store (~300 LOC)
+- **Total: ~1,600 LOC**
+
+---
+
+### Milestone 1: Core Daemon Structure
+
+**Goal:** Create the daemon skeleton with start/stop/status commands and proper process management.
+
+**Estimated:** 200 implementation + 50 tests = 250 LOC
+**Duration:** 1.5 days
+
+**Files to create:**
+- `cmd/ailang/coordinator.go` - CLI commands (~80 LOC)
+- `internal/coordinator/daemon.go` - Daemon lifecycle (~120 LOC)
+- `internal/coordinator/daemon_test.go` - Tests (~50 LOC)
+
+**Tasks:**
+- Create `ailang coordinator start/stop/status` commands
+- Implement PID file management (`~/.ailang/state/coordinator.pid`)
+- Add signal handling (SIGTERM, SIGINT for graceful shutdown)
+- Create logging infrastructure (file + stdout)
+- Basic health check via status command
+
+**Acceptance Criteria:**
+- [ ] `ailang coordinator start` launches daemon process
+- [ ] `ailang coordinator status` shows running/stopped state
+- [ ] `ailang coordinator stop` gracefully shuts down
+- [ ] PID file created/removed correctly
+- [ ] Logs written to `~/.ailang/logs/coordinator.log`
+- [ ] All tests passing, linting clean
+
+**Risks:**
+- Process management edge cases - Mitigation: Test on macOS/Linux
+
+---
+
+### Milestone 2: Git Worktree Manager
+
+**Goal:** Manage isolated git worktrees for concurrent task execution.
+
+**Estimated:** 250 implementation + 50 tests = 300 LOC
+**Duration:** 1.5 days
+
+**Files to create:**
+- `internal/coordinator/worktree.go` - Worktree operations (~200 LOC)
+- `internal/coordinator/worktree_test.go` - Tests (~100 LOC)
+
+**Tasks:**
+- Create `WorktreeManager` struct with `Create()`, `Remove()`, `List()`
+- Implement branch naming: `coordinator/{task_id}`
+- Set worktree location: `~/.ailang/worktrees/{task_id}/`
+- Add max concurrent limit (default: 3)
+- Implement auto-cleanup for abandoned worktrees (>24h old)
+- Add garbage collection on daemon start
+
+**Acceptance Criteria:**
+- [ ] `CreateWorktree(taskID)` creates isolated worktree
+- [ ] Worktree has correct branch checked out
+- [ ] `RemoveWorktree(taskID)` cleans up completely
+- [ ] Max concurrent limit enforced
+- [ ] Orphaned worktrees cleaned up on start
+- [ ] All tests passing, linting clean
+
+**Risks:**
+- Git worktree edge cases (detached HEAD, conflicts) - Mitigation: Comprehensive tests
+
+---
+
+### Milestone 3: Message Watcher
+
+**Goal:** Poll for unread messages and emit task events.
+
+**Estimated:** 120 implementation + 30 tests = 150 LOC
+**Duration:** 1 day
+
+**Files to create:**
+- `internal/coordinator/watcher.go` - Watcher interface + message watcher (~100 LOC)
+- `internal/coordinator/watcher_test.go` - Tests (~50 LOC)
+
+**Tasks:**
+- Define `Watcher` interface with `Watch(ctx) <-chan IncomingTask`
+- Implement `MessageWatcher` using `ailang messages list --unread --json`
+- Parse message JSON into `IncomingTask` struct
+- Add configurable poll interval (default: 30s)
+- Handle acknowledgment tracking (don't re-emit same message)
+
+**Acceptance Criteria:**
+- [ ] Watcher emits tasks for unread messages
+- [ ] Configurable poll interval
+- [ ] Same message not emitted twice
+- [ ] Graceful shutdown via context cancellation
+- [ ] All tests passing, linting clean
+
+**Risks:**
+- Low risk - builds on existing messaging system
+
+---
+
+### Milestone 4: Task Analyzer
+
+**Goal:** Classify incoming tasks and determine execution strategy.
+
+**Estimated:** 150 implementation + 50 tests = 200 LOC
+**Duration:** 1 day
+
+**Files to create:**
+- `internal/coordinator/analyzer.go` - Task classification (~120 LOC)
+- `internal/coordinator/analyzer_test.go` - Tests (~80 LOC)
+
+**Tasks:**
+- Create `TaskAnalyzer` with `Classify(task) TaskType`
+- Implement rule-based classification:
+  - "bug", "fix", "error" → `bug-fix` workflow
+  - "feature", "add", "implement" → `feature` workflow
+  - "docs", "readme", "documentation" → `docs` workflow
+  - Default → `research` workflow
+- Add priority assignment based on source and keywords
+- Integrate SimHash deduplication (existing)
+
+**Acceptance Criteria:**
+- [ ] Tasks correctly classified by type
+- [ ] Priority assigned based on keywords
+- [ ] Duplicate tasks detected via SimHash
+- [ ] All tests passing, linting clean
+
+**Risks:**
+- Classification accuracy - Mitigation: Start simple, iterate based on usage
+
+---
+
+### Milestone 5: Dual-Provider Executor
+
+**Goal:** Execute tasks via Claude Code (headless) or Gemini API.
+
+**Estimated:** 350 implementation + 50 tests = 400 LOC
+**Duration:** 2.5 days
+
+**Files to create:**
+- `internal/coordinator/provider.go` - Provider interface (~50 LOC)
+- `internal/coordinator/provider_claude.go` - Claude Code provider (~150 LOC)
+- `internal/coordinator/provider_gemini.go` - Gemini provider (~120 LOC)
+- `internal/coordinator/executor.go` - Execution orchestration (~80 LOC)
+- `internal/coordinator/executor_test.go` - Tests (~50 LOC)
+
+**Tasks:**
+- Define `ExecutionProvider` interface
+- Implement `ClaudeCodeProvider`:
+  - Execute via `claude -p "prompt" --output-format json`
+  - Parse JSON output for results
+  - Handle timeout and errors
+- Implement `GeminiProvider`:
+  - Use existing `internal/ai/gemini/` client
+  - Format prompts for code generation
+- Create `Executor` that:
+  - Sets up worktree
+  - Runs provider in worktree directory
+  - Captures output and changes
+  - Handles workflow stages (analyze → fix → test → commit)
+
+**Acceptance Criteria:**
+- [ ] ClaudeCodeProvider executes headless Claude Code
+- [ ] GeminiProvider executes via API
+- [ ] Executor runs workflow stages in sequence
+- [ ] Output captured correctly (diff, commands, tests)
+- [ ] Timeout handling works
+- [ ] All tests passing, linting clean
+
+**Risks:**
+- Claude Code CLI changes - Mitigation: Pin version, test regularly
+- API rate limits - Mitigation: Add retry with backoff
+
+---
+
+### Milestone 6: SQLite Store + Integration
+
+**Goal:** Persist state to SQLite and wire everything together.
+
+**Estimated:** 250 implementation + 50 tests = 300 LOC
+**Duration:** 2 days
+
+**Files to create:**
+- `internal/coordinator/store.go` - Store interface (~50 LOC)
+- `internal/coordinator/store_sqlite.go` - SQLite implementation (~150 LOC)
+- `internal/coordinator/store_sqlite_test.go` - Tests (~50 LOC)
+- `internal/coordinator/coordinator.go` - Main coordinator (~100 LOC)
+
+**Tasks:**
+- Implement `CoordinatorStore` interface (subset for local mode):
+  - `CreateTask`, `UpdateTaskStatus`, `GetTask`, `ListPendingTasks`
+  - `RecordExecution`, `GetDailySpending`
+- Add SQLite migrations for `coordinator_tasks`, `coordinator_executions`
+- Create main `Coordinator` struct that wires:
+  - Daemon → Watcher → Analyzer → Executor → Store
+- Add `coordinator status` output with stats from store
+- Implement resume-from-crash (reload pending tasks on start)
+
+**Acceptance Criteria:**
+- [ ] Tasks persisted to SQLite
+- [ ] Execution history recorded
+- [ ] `coordinator status` shows task stats
+- [ ] Daemon resumes pending tasks after restart
+- [ ] All tests passing, linting clean
+- [ ] `make lint && make test` pass
+
+**Risks:**
+- Schema migration issues - Mitigation: Test migrations thoroughly
+
+---
+
+### Success Metrics
+
+- [ ] All tests passing: `make test`
+- [ ] Linting clean: `make lint`
+- [ ] Basic E2E test: Send message → Daemon processes → Task completes
+- [ ] Documentation: CLI commands documented in this doc
+- [ ] Total LOC: ~1,600 (target)
+
+### Dependencies
+
+- SQLite (existing `collaboration.db`)
+- `ailang messages` CLI (existing)
+- Claude Code CLI (`claude` binary)
+- Gemini API (existing `internal/ai/gemini/`)
+
+### Files Summary
+
+```
+internal/coordinator/
+├── daemon.go           # Daemon lifecycle (~120 LOC)
+├── daemon_test.go      # (~50 LOC)
+├── worktree.go         # Git worktree management (~200 LOC)
+├── worktree_test.go    # (~100 LOC)
+├── watcher.go          # Message watcher (~100 LOC)
+├── watcher_test.go     # (~50 LOC)
+├── analyzer.go         # Task classification (~120 LOC)
+├── analyzer_test.go    # (~80 LOC)
+├── provider.go         # Provider interface (~50 LOC)
+├── provider_claude.go  # Claude Code provider (~150 LOC)
+├── provider_gemini.go  # Gemini provider (~120 LOC)
+├── executor.go         # Execution orchestration (~80 LOC)
+├── executor_test.go    # (~50 LOC)
+├── store.go            # Store interface (~50 LOC)
+├── store_sqlite.go     # SQLite implementation (~150 LOC)
+├── store_sqlite_test.go # (~50 LOC)
+└── coordinator.go      # Main coordinator (~100 LOC)
+
+cmd/ailang/
+└── coordinator.go      # CLI commands (~80 LOC)
+
+Total: ~1,700 LOC (including tests)
+```
 
 ---
 

@@ -13,6 +13,7 @@ const (
 	ProviderOpenAI    ProviderType = "openai"
 	ProviderAnthropic ProviderType = "anthropic"
 	ProviderGoogle    ProviderType = "google"
+	ProviderOllama    ProviderType = "ollama"
 )
 
 // ModelConfig contains provider-specific model configuration.
@@ -27,6 +28,11 @@ type ModelConfig struct {
 // This is used when models.yml is not available.
 func GuessProvider(modelName string) ProviderType {
 	lower := strings.ToLower(modelName)
+
+	// Check for explicit ollama: prefix first (highest priority)
+	if strings.HasPrefix(lower, "ollama:") {
+		return ProviderOllama
+	}
 
 	// Check prefixes
 	switch {
@@ -72,6 +78,9 @@ func GetAPIKey(provider ProviderType) (string, error) {
 		// No API key, but ADC might work - return empty string
 		// Provider implementations should handle ADC separately
 		return "", nil
+	case ProviderOllama:
+		// Ollama is local, no API key needed
+		return "", nil
 	default:
 		return "", fmt.Errorf("unknown provider: %s", provider)
 	}
@@ -92,6 +101,8 @@ func ProviderFromString(s string) ProviderType {
 		return ProviderAnthropic
 	case "google", "gemini", "vertex":
 		return ProviderGoogle
+	case "ollama":
+		return ProviderOllama
 	default:
 		return ProviderType(s)
 	}
