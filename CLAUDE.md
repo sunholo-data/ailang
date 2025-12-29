@@ -122,7 +122,9 @@ Messages can be synced bidirectionally with GitHub Issues. Configure in `~/.aila
 github:
   # REQUIRED: Must match the active `gh auth status` user
   # HARD FAILS if mismatch - prevents accidental commits to wrong account
-  expected_user: MarkEdmondson1234
+  # sunholo-voight-kampff = Claude Code agent account (use for pushes)
+  # MarkEdmondson1234 = Human developer account
+  expected_user: sunholo-voight-kampff
 
   # Default repo for issue creation/import
   default_repo: sunholo-data/ailang
@@ -265,7 +267,7 @@ The developer uses multiple GitHub accounts (personal and work projects). The `g
 # ❌ WRONG - Active account is for wrong project
 gh auth status
 # Shows: Active account: rw-markedmondson (Rockwool project)
-# But this repo needs: MarkEdmondson1234
+# But this repo needs: sunholo-voight-kampff (Claude Code agent account)
 
 gh release create v0.4.4  # FAILS with auth error
 git push origin v0.4.4     # FAILS with auth error
@@ -278,13 +280,14 @@ git push origin v0.4.4     # FAILS with auth error
    gh auth status
    ```
 
-2. **Verify the active account matches the repo owner:**
-   - This repo (sunholo-data/ailang) needs: `MarkEdmondson1234`
+2. **Verify the active account matches the agent account:**
+   - This repo (sunholo-data/ailang) needs: `sunholo-voight-kampff`
+   - `MarkEdmondson1234` is the human developer account
    - If active account is `rw-markedmondson` → WRONG ACCOUNT
 
 3. **Switch to correct account if needed:**
    ```bash
-   gh auth switch --user MarkEdmondson1234
+   gh auth switch --user sunholo-voight-kampff
    ```
 
 4. **Then proceed with release operations:**
@@ -295,7 +298,7 @@ git push origin v0.4.4     # FAILS with auth error
 
 **Checklist for releases:**
 - [ ] Check `gh auth status` - verify active account
-- [ ] Switch account if needed: `gh auth switch --user MarkEdmondson1234`
+- [ ] Switch account if needed: `gh auth switch --user sunholo-voight-kampff`
 - [ ] Push tag to remote BEFORE creating release
 - [ ] Create release using `gh release create`
 
