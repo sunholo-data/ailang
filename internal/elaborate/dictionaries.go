@@ -234,8 +234,13 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	case *core.Match:
 		var newArms []core.MatchArm
 		for _, arm := range e.Arms {
+			var guard core.CoreExpr
+			if arm.Guard != nil {
+				guard = de.transformExpr(arm.Guard)
+			}
 			newArms = append(newArms, core.MatchArm{
 				Pattern: arm.Pattern,
+				Guard:   guard,
 				Body:    de.transformExpr(arm.Body),
 			})
 		}
