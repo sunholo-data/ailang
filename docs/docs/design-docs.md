@@ -10,11 +10,25 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.6.2
 
+- [Sprint Plan: DX-17 Phase 2 - Normalize TList to TApp](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/dx-17-phase2-sprint-plan.md)
+- [DX-17 Phase 2: Normalize TList to TApp at Parse Time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md)
+- [M-BUG-EFFECT-CHECKER-CONFLATION: Effect Checker Incorrectly Requires IO for Pure Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-bug-effect-checker-conflation.md)
+- [Sprint Plan: M-BUG-EFFECT-CHECKER-CONFLATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-bug-effect-checker-sprint-plan.md)
 - [M-CAPABILITY-BUDGETS: Resource-Bounded Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-capability-budgets.md)
+- [M-CODEGEN-BOOL-ASSERTIONS: Type assertions for boolean contexts in Go codegen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md)
+- [M-CODEGEN-DICTIONARIES Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-dictionaries-sprint-plan.md)
+- [M-CODEGEN-DICTIONARIES: Generate Type Class Dictionary Implementations for Go](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-dictionaries.md)
 - [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-value-types.md)
+- [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md)
+- [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx11-phase2-sprint-plan.md)
+- [M-DX17-LIST-NORMALIZATION-BUG: List[T] Not Normalized to Lowercase](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md)
+- [M-DX19: Auto-Derive Eq for ADT Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md)
+- [M-DX19 Sprint Plan: Auto-Derive Eq for ADT Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx19-sprint-plan.md)
 - [M-DX22 Sprint Plan: ADT Constructor Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution-sprint-plan.md)
 - [M-DX22: Go Codegen - ADT Constructor Resolution Ambiguity](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
 - [M-GITHUB-USER-OVERRIDE: GitHub Account Override Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-github-user-override.md)
+- [M-RECORD-PATTERNS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-record-patterns-sprint-plan.md)
+- [M-RECORD-PATTERNS: Record Pattern Matching](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-record-patterns.md)
 
 ## v0.6.1
 
@@ -374,4 +388,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 247 design documents across 39 versions.*
+*Generated at build time. 261 design documents across 39 versions.*

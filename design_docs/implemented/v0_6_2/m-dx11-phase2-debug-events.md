@@ -1,6 +1,6 @@
 # M-DX11 Phase 2: Type Checker Debug Event Emission
 
-**Status:** Planned
+**Status:** Implemented (v0.6.2)
 **Priority:** Low (DX enhancement)
 **Depends On:** M-DX11 (completed in v0.5.11)
 **Estimated Effort:** 4-6 hours

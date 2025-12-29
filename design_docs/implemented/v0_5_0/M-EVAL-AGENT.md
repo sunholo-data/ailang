@@ -1,7 +1,8 @@
 # M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite
 
-**Status**: Planned (v0.4.0)
+**Status**: Implemented (v0.5.0)
 **Created**: October 23, 2025
+**Implemented**: December 2025
 **Motivation**: Benchmark autonomous agents across multiple providers using AILANG's deterministic design
 
 ---

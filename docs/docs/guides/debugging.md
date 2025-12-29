@@ -163,9 +163,11 @@ ailang run --debug-types --node 42 file.ail  # Filter to specific node
 - Verifying type annotations are applied correctly
 - Answering "why does this have type X?"
 
+**Demo file**: See [`examples/runnable/debug_types_demo.ail`](https://github.com/sunholo-data/ailang/blob/main/examples/runnable/debug_types_demo.ail) for a complete example demonstrating all debugging sections.
+
 **Example**:
 ```bash
-$ ailang run --debug-types --caps IO examples/debug_types_demo.ail
+$ ailang run --debug-types --caps IO --entry main examples/runnable/debug_types_demo.ail
 === Type Inference Debug ===
 
 [Substitution Map]

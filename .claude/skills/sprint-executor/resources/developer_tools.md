@@ -356,6 +356,27 @@ make fuzz-parser-long          # Long-running fuzz test
 
 ## Debug & Introspection
 
+### `--debug-types` - Type Inference Debugging (v0.5.11+)
+
+**When to use**: Debugging type inference issues, understanding constraint resolution, or investigating "why does this have type X?"
+
+```bash
+# Show full type inference debug output
+ailang run --debug-types --caps IO --entry main examples/runnable/debug_types_demo.ail
+
+# Filter to specific node ID
+ailang run --debug-types --node 42 --caps IO --entry main file.ail
+```
+
+**Output sections**:
+- **Substitution Map**: Type variable bindings (α → int)
+- **Constraints**: Num/Eq/Ord constraints added and resolved
+- **CoreTI Entries**: Type info for each Core AST node
+
+**Demo file**: See `examples/runnable/debug_types_demo.ail` for complete example.
+
+**Documentation**: [Debugging Guide](docs/docs/guides/debugging.md)
+
 ### Debug Effect (v0.4.10+) - Runtime Tracing
 
 For debugging AILANG code at runtime, use the Debug effect:
@@ -573,6 +594,7 @@ cd docs && npm run clear && npm start
 | Lint code | `make lint` |
 | Verify examples | `make verify-examples` |
 | Debug AST and types | `ailang debug --show-types ast <file>` |
+| Debug type inference | `ailang run --debug-types <file>` |
 | Inspect Core AST | `ailang debug ast <file>` |
 | Start docs server | `make docs-serve` |
 | Clear docs cache | `make docs-clean` |

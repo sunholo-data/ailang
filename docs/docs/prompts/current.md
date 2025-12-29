@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.5.11) - auto-synced from source
+description: The active AILANG teaching prompt (v0.6.2) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.5.11.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.2.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.5.11.md -->
-<!-- Active Version: v0.5.11 -->
+<!-- Source: prompts/v0.6.2.md -->
+<!-- Active Version: v0.6.2 -->
 
-# AILANG v0.5.11 - AI Teaching Prompt
+# AILANG v0.6.2 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -187,6 +187,7 @@ export func main() -> () ! {IO} {
 | Lambda | `\x. x * 2` |
 | Pattern match | `match x { 0 => a, n => b }` (use `=>`, commas between arms) |
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
+| ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
 | List cons | `x :: xs` or `::(x, xs)` |
@@ -314,7 +315,54 @@ match result {
   Some(x) => x,
   None => defaultValue
 }
+
+-- On Records (destructuring)
+match person {
+  {name, age} => name ++ " is " ++ show(age)
+}
+
+-- Record with renaming
+match config {
+  {host, port: p} => host ++ ":" ++ show(p)
+}
+
+-- Nested record patterns
+match data {
+  {user: {email: e}} => e
+}
 ```
+
+**Record pattern syntax:**
+- `{name}` - shorthand, binds field "name" to variable "name"
+- `{name: n}` - renaming, binds field "name" to variable "n"
+- `{name, age}` - multiple fields
+- `{user: {name}}` - nested records
+- `{name, ...}` - rest pattern (matches some fields, ignores others)
+
+## Deriving Eq for ADT Types
+
+Use `deriving (Eq)` to auto-generate `==` and `!=` for ADT types:
+
+```ailang
+module benchmark/solution
+
+-- Enum-style ADT with derived equality
+type Color = Red | Green | Blue deriving (Eq)
+
+-- ADT with fields also works
+type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  let sameColor = Red == Red;           -- true
+  let diffColor = Red != Blue;          -- true
+  let sameShape = Circle(5) == Circle(5);     -- true
+  let diffShape = Circle(5) != Rectangle(5, 10);  -- true
+  print("Color test: " ++ show(sameColor));
+  print("Shape test: " ++ show(sameShape))
+}
+```
+
+**Note:** Derived equality compares by constructor and field values (structural equality).
 
 **Option type with findFirst and mapOption:**
 ```ailang
