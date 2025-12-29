@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestParseMessageExecutionStats(t *testing.T) {
@@ -424,10 +423,4 @@ func BenchmarkRecordMetrics(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = store.RecordMetrics("thread1", "agent1", stats)
 	}
-}
-
-// Helper to get current time truncated to the day start for consistent testing
-func dayStart() time.Time {
-	now := time.Now()
-	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 }

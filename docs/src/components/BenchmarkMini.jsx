@@ -51,21 +51,21 @@ export default function BenchmarkMini() {
           icon={<CheckCircle size={24} />}
           value={`${zeroShot}%`}
           label="Zero-Shot"
-          sublabel="Works on first try"
+          sublabel="Teaching prompt quality"
           color="#2c7a7b"
         />
         <MetricCard
           icon={<Zap size={24} />}
           value={`${final}%`}
-          label="Final Success"
-          sublabel="After self-repair"
+          label="Self-Repair"
+          sublabel="Error message quality"
           color="#e73c17"
         />
         <MetricCard
           icon={<Bot size={24} />}
           value={`${agent}%`}
           label="Agent Mode"
-          sublabel="Multi-turn completion"
+          sublabel="Overall AI coding performance"
           color="#6b46c1"
         />
       </div>

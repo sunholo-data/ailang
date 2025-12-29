@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -642,45 +641,5 @@ func TestDelimiterTracerOutputFormat(t *testing.T) {
 	}
 	if !foundIndentedBlock {
 		t.Errorf("Expected to find indented block output (depth=1 with 2 spaces), got:\n%s", output)
-	}
-}
-
-// Example showing delimiter tracing with DEBUG_DELIMITERS environment variable.
-// Run with: DEBUG_DELIMITERS=1 go test -v -run TestDelimiterTracerIntegrationWithParser
-// This is a test helper, not a runnable example.
-func testDelimiterTracingExample() {
-	// Enable delimiter tracing
-	os.Setenv("DEBUG_DELIMITERS", "1")
-	defer os.Setenv("DEBUG_DELIMITERS", "0")
-
-	// Reset global tracer
-	globalDelimiterTracer = &delimiterTracer{
-		enabled: true,
-		stack:   []delimiterFrame{},
-	}
-
-	// Parse a simple match expression
-	input := `
-module test
-
-func example(x: int) -> int {
-  match x {
-    0 => 0
-    _ => 1
-  }
-}
-`
-	l := lexer.New(input, "test.ail")
-	p := New(l)
-	program := p.ParseFile()
-
-	if len(p.Errors()) > 0 {
-		fmt.Println("Parser errors:")
-		for _, err := range p.Errors() {
-			fmt.Println("  ", err)
-		}
-	} else if program != nil {
-		fmt.Println("Parse succeeded")
-		fmt.Printf("Delimiter stack empty: %v\n", len(globalDelimiterTracer.stack) == 0)
 	}
 }

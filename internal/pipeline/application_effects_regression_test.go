@@ -35,34 +35,3 @@ func TestApplicationEffects_BuiltinEnvAvailable(t *testing.T) {
 		assert.NotNil(t, scheme.Type, "_io_print should have underlying type")
 	}
 }
-
-// formatLabels converts a label map to a sorted string representation like "{IO,Net}"
-func formatLabels(labels map[string]types.Type) string {
-	if len(labels) == 0 {
-		return "{}"
-	}
-
-	// Sort labels for deterministic comparison
-	var keys []string
-	for k := range labels {
-		keys = append(keys, k)
-	}
-	// Simple sort (good enough for test assertions)
-	for i := 0; i < len(keys); i++ {
-		for j := i + 1; j < len(keys); j++ {
-			if keys[i] > keys[j] {
-				keys[i], keys[j] = keys[j], keys[i]
-			}
-		}
-	}
-
-	result := "{"
-	for i, k := range keys {
-		if i > 0 {
-			result += ","
-		}
-		result += k
-	}
-	result += "}"
-	return result
-}

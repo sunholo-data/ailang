@@ -106,96 +106,6 @@ func mustParse(t *testing.T, input string) *ast.Program {
 	return prog
 }
 
-// assertHasErrorCode checks that at least one error in the list contains the given code.
-// Error codes are extracted from error messages by looking for patterns like "[PAR001]" or "PAR001:".
-//
-// Usage:
-//
-//	errs := mustParseError(t, "let x = \nlet y =")
-//	assertHasErrorCode(t, errs, "PAR001") // Missing value for x
-//	assertHasErrorCode(t, errs, "PAR002") // Missing value for y
-func assertHasErrorCode(t *testing.T, errs []error, code string) {
-	t.Helper()
-
-	for _, err := range errs {
-		msg := err.Error()
-		// Check for [CODE] or CODE: patterns
-		if contains(msg, "["+code+"]") || contains(msg, code+":") {
-			return
-		}
-	}
-
-	// Error not found
-	t.Errorf("Expected error code %s but not found in:\n", code)
-	for _, err := range errs {
-		t.Errorf("  - %v", err)
-	}
-}
-
-// assertHasCode checks that at least one error in the list is a ParserError with the given code.
-// This is a stricter version than assertHasErrorCode that checks the Code field directly.
-//
-// Usage:
-//
-//	errs := mustParseError(t, "type T = foo | Bar")
-//	assertHasCode(t, errs, "PAR_VARIANT_NEEDS_UIDENT")
-func assertHasCode(t *testing.T, errs []error, code string) {
-	t.Helper()
-
-	for _, err := range errs {
-		if perr, ok := err.(*ParserError); ok {
-			if perr.Code == code {
-				return
-			}
-		}
-	}
-
-	// Error not found - show what we got
-	t.Errorf("Expected ParserError with code %s but not found in:\n", code)
-	for _, err := range errs {
-		if perr, ok := err.(*ParserError); ok {
-			t.Errorf("  - ParserError{Code: %q, Message: %q}", perr.Code, perr.Message)
-		} else {
-			t.Errorf("  - %T: %v", err, err)
-		}
-	}
-}
-
-// assertErrorCount checks that the parser produced exactly n errors
-func assertErrorCount(t *testing.T, errs []error, expected int) {
-	t.Helper()
-
-	if len(errs) != expected {
-		t.Errorf("Expected %d errors, got %d:", expected, len(errs))
-		for _, err := range errs {
-			t.Errorf("  - %v", err)
-		}
-	}
-}
-
-// assertContains checks that the error message contains the given substring
-func assertContains(t *testing.T, err error, substring string) {
-	t.Helper()
-
-	if !contains(err.Error(), substring) {
-		t.Errorf("Expected error to contain %q, got: %v", substring, err)
-	}
-}
-
-// contains is a simple substring check helper
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || hasSubstring(s, substr))
-}
-
-func hasSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 // parseExpr is a helper that parses a single expression
 // Useful for expression-level tests without wrapping in a program
 func parseExpr(t *testing.T, input string) ast.Expr {
@@ -258,16 +168,6 @@ func exprToParenForm(expr ast.Expr) string {
 
 	default:
 		return "<?>"
-	}
-}
-
-// assertExprType checks that the parsed expression is of the expected type
-func assertExprType(t *testing.T, expr ast.Expr, expectedType string) {
-	t.Helper()
-
-	obj := ast.Compact(expr)
-	if !contains(obj, `"type":"`+expectedType+`"`) {
-		t.Errorf("Expected expression type %s, got: %s", expectedType, obj)
 	}
 }
 
