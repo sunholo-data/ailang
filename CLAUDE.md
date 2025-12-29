@@ -771,7 +771,15 @@ make repl           # Start interactive REPL
 
 **For developing or modifying the Collaboration Hub UI**, use the `collaboration-hub` skill.
 
-**Starting the server:**
+**Starting services (recommended):**
+```bash
+make services-start             # Start server + coordinator together
+make services-status            # Check both services
+make services-stop              # Stop both services
+make services-restart           # Rebuild and restart both
+```
+
+**Starting server only:**
 ```bash
 ailang serve                    # Start on default port 1957
 ailang serve --port 8080        # Use custom port
@@ -782,19 +790,21 @@ ailang serve --db /tmp/test.db  # Use custom database
 - **UI**: http://localhost:1957/
 - **WebSocket**: ws://localhost:1957/ws
 - **REST API**: http://localhost:1957/api/
+- **Coordinator Events**: http://localhost:1957/api/coordinator/events
 - **Health**: http://localhost:1957/health
 
 **After UI changes:**
 ```bash
 cd ui && npm run build                              # Build React app
 cp -r ui/dist/* internal/server/dist/               # Copy to server
-ailang serve                                        # Restart server
+make services-restart                               # Rebuild and restart
 ```
 
 **Architecture:**
 - **Backend**: `internal/server/` (Go HTTP server with SQLite)
 - **Frontend**: `ui/` (React + TypeScript + Vite)
 - **Database**: `~/.ailang/state/collaboration.db`
+- **Event Handler**: `internal/server/handlers_coordinator.go` (receives coordinator events)
 
 **For complete guide**: Use the `collaboration-hub` skill
 
@@ -807,7 +817,22 @@ ailang serve                                        # Restart server
 - Run multiple tasks concurrently in isolated environments
 - Let background agents handle bug fixes, features, or research while you continue other work
 
-**Quick Reference:**
+**Service Management (Recommended):**
+```bash
+# Start both server and coordinator (correct order)
+make services-start
+
+# Check status of both services
+make services-status
+
+# Stop both services
+make services-stop
+
+# Restart with fresh build
+make services-restart
+```
+
+**Individual Commands:**
 ```bash
 # Start the daemon
 ailang coordinator start
@@ -833,8 +858,16 @@ ailang messages send coordinator "Fix the null pointer bug in parser.go" \
 # 2. Classify it (bug-fix, feature, docs, research, etc.)
 # 3. Create an isolated git worktree
 # 4. Execute using Claude Code CLI or Gemini CLI
-# 5. Store results in SQLite for review
+# 5. Stream progress to dashboard in real-time
+# 6. Store results in SQLite for review
 ```
+
+**Real-Time Dashboard Streaming:**
+The coordinator streams task execution events to the Collaboration Hub dashboard:
+- Start the server first (`ailang serve` or `make services-start`)
+- Events are POSTed to `http://127.0.0.1:1957/api/coordinator/events`
+- Server broadcasts via WebSocket to all connected browsers
+- View at http://localhost:1957 in the Task Execution tab
 
 **Task Routing:**
 | Task Type | Primary Provider | Use Case |
@@ -853,6 +886,7 @@ ailang messages send coordinator "Fix the null pointer bug in parser.go" \
 
 **Architecture:**
 - **Daemon** (`internal/coordinator/daemon.go`) - Main loop, lifecycle
+- **HTTP Broadcaster** (`internal/coordinator/http_broadcaster.go`) - Streams events to dashboard
 - **Analyzer** (`internal/coordinator/analyzer.go`) - Task classification, deduplication
 - **Executors** (`internal/executor/`) - Claude Code CLI, Gemini CLI
 - **Store** (`internal/coordinator/store_sqlite.go`) - Neutral storage layer

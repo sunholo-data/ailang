@@ -45,6 +45,19 @@ ailang coordinator stop
 │                                     │    Store (SQLite)       │ │
 │                                     │   Task history/stats    │ │
 │                                     └─────────────────────────┘ │
+│                                                ↓                │
+│                                     ┌─────────────────────────┐ │
+│                                     │   HTTP Broadcaster      │ │
+│                                     │  (streams to dashboard) │ │
+│                                     └─────────────────────────┘ │
+└────────────────────────────────────────────────┬────────────────┘
+                                                 │ HTTP POST
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Collaboration Hub Server                        │
+│                    (ailang serve :1957)                          │
+├─────────────────────────────────────────────────────────────────┤
+│  POST /api/coordinator/events → WebSocket broadcast → Browser   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -267,6 +280,107 @@ coordinator:
   store:
     type: sqlite  # or "cloud"
     path: ~/.ailang/state/coordinator.db
+```
+
+## Real-Time Streaming to Dashboard
+
+The coordinator streams task execution events to the Collaboration Hub dashboard in real-time via HTTP broadcasting.
+
+### How It Works
+
+1. **Daemon executes task** - Claude Code or Gemini CLI runs
+2. **Events generated** - Status changes, tool calls, output, metrics
+3. **HTTP broadcaster** - POSTs events to `http://127.0.0.1:1957/api/coordinator/events`
+4. **Server receives** - Converts to WebSocket format
+5. **WebSocket broadcast** - All connected browsers receive updates
+6. **UI renders** - Task progress shown in real-time
+
+### Event Types
+
+| Event Type | Description |
+|------------|-------------|
+| `status` | Task state changes (running, completed, failed) |
+| `turn_start` | New conversation turn begins |
+| `turn_end` | Conversation turn completes |
+| `text` | Text output from the agent |
+| `tool_call` | Tool invocation (file edit, bash, etc.) |
+| `tool_result` | Tool execution result |
+| `metrics` | Token usage, cost, duration |
+| `error` | Error messages |
+
+### Viewing in Dashboard
+
+1. Start both services (see Service Management below)
+2. Open http://localhost:1957
+3. Navigate to a task thread
+4. Watch real-time updates as the coordinator executes
+
+### Retry Queue
+
+If the server is temporarily unavailable, important events (status, error, turn_start, turn_end) are queued for retry:
+
+- Queue capacity: 100 events
+- Batch retry: 10 events per successful connection
+- Dropped events: Streaming events (text, tool_call) - these are not critical
+
+## Service Management
+
+For convenience, Make targets are provided to manage both the Collaboration Hub server and coordinator daemon together.
+
+### Quick Start
+
+```bash
+# Start both services
+make services-start
+
+# Check status
+make services-status
+
+# Stop both services
+make services-stop
+
+# Restart with fresh build
+make services-restart
+```
+
+### Individual Service Control
+
+```bash
+# Server only
+make serve-bg          # Start server in background
+pkill -f "ailang serve"  # Stop server
+
+# Coordinator only
+ailang coordinator start   # Start daemon
+ailang coordinator stop    # Stop daemon
+ailang coordinator status  # Check status
+```
+
+### Service Order
+
+**Start order matters!** The server must be running before the coordinator:
+
+1. `ailang serve` starts first (port 1957)
+2. Coordinator daemon starts second
+3. Daemon detects server, initializes HTTP broadcaster
+4. Events stream to dashboard
+
+The `make services-start` target handles this automatically.
+
+### Troubleshooting Services
+
+```bash
+# Check if server is running
+curl http://127.0.0.1:1957/health
+
+# Check coordinator status
+ailang coordinator status
+
+# View coordinator logs
+tail -f ~/.ailang/logs/coordinator.log
+
+# Full restart (stops, rebuilds, starts)
+make services-restart
 ```
 
 ## Troubleshooting
