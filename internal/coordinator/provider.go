@@ -62,7 +62,10 @@ type ExecuteResult struct {
 	Provider   string
 	Duration   time.Duration
 	Cost       float64
-	TokensUsed int
+	TokensUsed int // Total tokens (InputTokens + OutputTokens)
+	// Detailed token breakdown
+	InputTokens  int
+	OutputTokens int
 	// Files affected
 	FilesCreated  []string
 	FilesModified []string

@@ -9,6 +9,7 @@ import (
 type TaskRecord struct {
 	ID          string        `json:"id"`
 	MessageID   string        `json:"message_id,omitempty"`
+	ThreadID    string        `json:"thread_id,omitempty"` // Thread in collaboration.db for dashboard visibility
 	Title       string        `json:"title"`
 	Content     string        `json:"content"`
 	Type        TaskType      `json:"type"`
@@ -89,6 +90,9 @@ type Store interface {
 	// Duplicate detection
 	FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error)
 	SetTaskFingerprint(ctx context.Context, id string, fingerprint uint64) error
+
+	// Thread linking (for dashboard visibility)
+	SetTaskThreadID(ctx context.Context, id string, threadID string) error
 
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)

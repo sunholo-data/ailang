@@ -101,6 +101,11 @@ func (s *CloudStore) SetTaskFingerprint(ctx context.Context, id string, fingerpr
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// SetTaskThreadID links a task to a thread in collaboration.db
+func (s *CloudStore) SetTaskThreadID(ctx context.Context, id string, threadID string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // DeleteOldTasks removes tasks older than the specified duration
 func (s *CloudStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	return 0, fmt.Errorf("cloud store not yet implemented")

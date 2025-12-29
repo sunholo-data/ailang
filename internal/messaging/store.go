@@ -42,6 +42,11 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// DB returns the underlying database connection for advanced operations.
+func (s *Store) DB() *sql.DB {
+	return s.db
+}
+
 // DatabaseExists checks if the collaboration database exists at the given path.
 func DatabaseExists(dbPath string) bool {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {

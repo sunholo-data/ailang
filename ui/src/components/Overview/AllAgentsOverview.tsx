@@ -60,8 +60,10 @@ const AgentStatusCard: React.FC<AgentStatusCardProps> = ({ agent, onClick }) => 
 
   const statusColors: Record<string, string> = {
     active: '#22c55e',
+    running: '#22c55e',  // Same as active - green
     pending: '#f59e0b',
     idle: '#6b7280',
+    error: '#ef4444',    // Red for error state
   };
 
   return (

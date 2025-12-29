@@ -49,6 +49,7 @@ func (s *SQLiteStore) migrate() error {
 	CREATE TABLE IF NOT EXISTS tasks (
 		id TEXT PRIMARY KEY,
 		message_id TEXT,
+		thread_id TEXT,
 		title TEXT NOT NULL,
 		content TEXT NOT NULL,
 		type TEXT NOT NULL,
@@ -73,6 +74,7 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 	CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
 	CREATE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id);
+	CREATE INDEX IF NOT EXISTS idx_tasks_thread_id ON tasks(thread_id);
 	`
 
 	_, err := s.db.Exec(schema)
@@ -82,11 +84,11 @@ func (s *SQLiteStore) migrate() error {
 // CreateTask creates a new task
 func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 	query := `
-		INSERT INTO tasks (id, message_id, title, content, type, priority, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, message_id, thread_id, title, content, type, priority, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
-		task.ID, task.MessageID, task.Title, task.Content,
+		task.ID, task.MessageID, task.ThreadID, task.Title, task.Content,
 		task.Type, task.Priority, task.Status, task.CreatedAt,
 	)
 	return err
@@ -95,7 +97,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 // GetTask retrieves a task by ID
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
 		       worktree_id, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE id = ?
@@ -109,7 +111,7 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 	query := `
 		UPDATE tasks SET
 			title = ?, content = ?, type = ?, priority = ?, status = ?,
-			provider = ?, worktree_id = ?, started_at = ?, completed_at = ?,
+			provider = ?, worktree_id = ?, thread_id = ?, started_at = ?, completed_at = ?,
 			duration_ns = ?, error = ?, output = ?, cost = ?, tokens_used = ?
 		WHERE id = ?
 	`
@@ -120,7 +122,7 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 
 	_, err := s.db.ExecContext(ctx, query,
 		task.Title, task.Content, task.Type, task.Priority, task.Status,
-		task.Provider, task.WorktreeID, task.StartedAt, task.CompletedAt,
+		task.Provider, task.WorktreeID, task.ThreadID, task.StartedAt, task.CompletedAt,
 		durationNs, task.Error, task.Output, task.Cost, task.TokensUsed,
 		task.ID,
 	)
@@ -137,7 +139,7 @@ func (s *SQLiteStore) DeleteTask(ctx context.Context, id string) error {
 func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*TaskRecord, error) {
 	query := strings.Builder{}
 	query.WriteString(`
-		SELECT id, message_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
 		       worktree_id, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE 1=1
@@ -363,7 +365,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// For now, exact match only (SimHash comparison would require custom SQLite function)
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, message_id, title, content, type, priority, status, provider,
+		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
 		        worktree_id, created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
@@ -381,6 +383,15 @@ func (s *SQLiteStore) SetTaskFingerprint(ctx context.Context, id string, fingerp
 	_, err := s.db.ExecContext(ctx,
 		"UPDATE tasks SET fingerprint = ? WHERE id = ?",
 		fingerprint, id,
+	)
+	return err
+}
+
+// SetTaskThreadID links a task to a thread in collaboration.db for dashboard visibility
+func (s *SQLiteStore) SetTaskThreadID(ctx context.Context, id string, threadID string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET thread_id = ? WHERE id = ?",
+		threadID, id,
 	)
 	return err
 }
@@ -409,10 +420,10 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, errStr, output sql.NullString
+	var provider, worktreeID, errStr, output, threadID sql.NullString
 
 	err := row.Scan(
-		&task.ID, &task.MessageID, &task.Title, &task.Content,
+		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
 		&worktreeID, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -441,6 +452,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if output.Valid {
 		task.Output = output.String
+	}
+	if threadID.Valid {
+		task.ThreadID = threadID.String
 	}
 
 	return task, nil
@@ -451,10 +465,10 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, errStr, output sql.NullString
+	var provider, worktreeID, errStr, output, threadID sql.NullString
 
 	err := rows.Scan(
-		&task.ID, &task.MessageID, &task.Title, &task.Content,
+		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
 		&worktreeID, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -483,6 +497,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if output.Valid {
 		task.Output = output.String
+	}
+	if threadID.Valid {
+		task.ThreadID = threadID.String
 	}
 
 	return task, nil

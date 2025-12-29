@@ -11,6 +11,8 @@ import (
 type AgentInfo struct {
 	ID         string `json:"id"`
 	LastActive int64  `json:"last_active,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Label      string `json:"label,omitempty"`
 }
 
 // Badge represents a status badge on a hierarchy node
@@ -453,27 +455,34 @@ func (s *Store) GetAgentStats(agentID string) (*AgentStats, error) {
 // GetKnownAgents returns a list of known agent IDs from the database
 func (s *Store) GetKnownAgents() ([]AgentInfo, error) {
 	// Query for distinct agent IDs from multiple sources:
-	// 1. Messages sent to ailang_instance (to_id)
-	// 2. Subscriptions (instance_id)
-	// 3. Thread target_agent from context_json
+	// 1. Registered agents (agents table)
+	// 2. Messages sent to ailang_instance (to_id)
+	// 3. Subscriptions (instance_id)
+	// 4. Agents that sent messages
 	query := `
-		SELECT DISTINCT agent_id, MAX(last_active) as last_active FROM (
+		SELECT DISTINCT agent_id, MAX(last_active) as last_active, MAX(status) as status, MAX(label) as label FROM (
+			-- Registered agents (coordinator, etc.)
+			SELECT id as agent_id, last_active_at as last_active, status, label
+			FROM agents
+
+			UNION ALL
+
 			-- Agents that received messages
-			SELECT DISTINCT to_id as agent_id, created_at as last_active
+			SELECT DISTINCT to_id as agent_id, created_at as last_active, NULL as status, NULL as label
 			FROM messages
 			WHERE to_type = 'ailang_instance' AND to_id IS NOT NULL AND to_id != ''
 
-			UNION
+			UNION ALL
 
 			-- Agents with subscriptions
-			SELECT DISTINCT instance_id as agent_id, subscribed_at as last_active
+			SELECT DISTINCT instance_id as agent_id, subscribed_at as last_active, NULL as status, NULL as label
 			FROM subscriptions
 			WHERE instance_id IS NOT NULL AND instance_id != ''
 
-			UNION
+			UNION ALL
 
 			-- Agents that sent messages
-			SELECT DISTINCT from_id as agent_id, created_at as last_active
+			SELECT DISTINCT from_id as agent_id, created_at as last_active, NULL as status, NULL as label
 			FROM messages
 			WHERE from_type = 'ailang_instance' AND from_id IS NOT NULL AND from_id != ''
 		)
@@ -491,11 +500,18 @@ func (s *Store) GetKnownAgents() ([]AgentInfo, error) {
 	for rows.Next() {
 		var agent AgentInfo
 		var lastActive sql.NullInt64
-		if err := rows.Scan(&agent.ID, &lastActive); err != nil {
+		var status, label sql.NullString
+		if err := rows.Scan(&agent.ID, &lastActive, &status, &label); err != nil {
 			return nil, fmt.Errorf("failed to scan agent: %w", err)
 		}
 		if lastActive.Valid {
 			agent.LastActive = lastActive.Int64
+		}
+		if status.Valid {
+			agent.Status = status.String
+		}
+		if label.Valid {
+			agent.Label = label.String
 		}
 		agents = append(agents, agent)
 	}
