@@ -102,19 +102,25 @@ class WebSocketService {
   connect(url: string, instanceId: string, maxRetries = 10): void {
     this.maxReconnectAttempts = maxRetries;
 
-    // Already connected to same URL
-    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.wsUrl === `${url}?instance_id=${instanceId}`) {
-      console.log('[WebSocketService] Already connected');
-      return;
-    }
-
-    // Already connecting
-    if (this.isConnecting) {
-      console.log('[WebSocketService] Already connecting');
-      return;
-    }
-
     const wsUrl = `${url}?instance_id=${instanceId}`;
+
+    // Already connected to same URL
+    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.wsUrl === wsUrl) {
+      console.log('[WebSocketService] Already connected, skipping');
+      return;
+    }
+
+    // Already connecting - critical check
+    if (this.isConnecting) {
+      console.log('[WebSocketService] Already connecting, skipping');
+      return;
+    }
+
+    // Pending connection (CONNECTING state) - also skip
+    if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+      console.log('[WebSocketService] Connection pending, skipping');
+      return;
+    }
 
     // If URL changed, close existing
     if (this.ws && this.wsUrl !== wsUrl) {
@@ -123,10 +129,11 @@ class WebSocketService {
       this.ws = null;
     }
 
+    // Set connecting flag IMMEDIATELY before any async operation
     this.isConnecting = true;
     this.wsUrl = wsUrl;
 
-    console.log(`[WebSocketService] Connecting to ${wsUrl}`);
+    console.log(`[WebSocketService] Creating new WebSocket to ${wsUrl}`);
     this.setConnectionState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
 
     try {
