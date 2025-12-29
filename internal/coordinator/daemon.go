@@ -180,8 +180,8 @@ func (d *Daemon) Run() error {
 
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
-	// Open collaboration database
-	adapter, store, err := OpenDefaultInboxAdapter("user")
+	// Open collaboration database - watch "coordinator" inbox for delegated tasks
+	adapter, store, err := OpenDefaultInboxAdapter("coordinator")
 	if err != nil {
 		return fmt.Errorf("failed to open inbox adapter: %w", err)
 	}

@@ -26,5 +26,6 @@
   },
   "go.toolsEnvVars": {
     "GOWORK": "off"
-  }
+  },
+  "git.ignoreLimitWarning": true
 }
