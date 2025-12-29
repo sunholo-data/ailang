@@ -1,0 +1,185 @@
+{
+  "current": {
+    "version": "v0.6.1",
+    "timestamp": "2025-12-29T06:44:27Z",
+    "lines": {
+      "go_production": 107191,
+      "go_test": 66263,
+      "go_total": 173454,
+      "ailang_examples": 10635,
+      "ailang_stdlib": 1688,
+      "typescript": 7435,
+      "shell": 12651,
+      "documentation": 324392,
+      "design_docs": 160277,
+      "website_docs": 20288,
+      "prompts": 45305,
+      "changelog": 9551,
+      "implementation_total": 204175
+    },
+    "files": {
+      "go": 644,
+      "ailang": 256,
+      "documentation": 703
+    },
+    "tokens": {
+      "total_characters": 15564656,
+      "estimated_tokens": 3891164
+    },
+    "git": {
+      "commits": 1402,
+      "contributors": 6
+    }
+  },
+  "history": [
+    {
+      "version": "v0.3.0",
+      "timestamp": "2025-10-15T00:00:00Z",
+      "lines": {
+        "go_production": 45000,
+        "go_test": 28000,
+        "go_total": 73000,
+        "ailang_examples": 3500,
+        "ailang_stdlib": 800,
+        "typescript": 2000,
+        "shell": 4000,
+        "documentation": 80000,
+        "design_docs": 35000,
+        "implementation_total": 83300
+      },
+      "files": {
+        "go": 280,
+        "ailang": 85,
+        "documentation": 250
+      },
+      "tokens": {
+        "total_characters": 5000000,
+        "estimated_tokens": 1250000
+      },
+      "git": {
+        "commits": 450,
+        "contributors": 4
+      }
+    },
+    {
+      "version": "v0.4.0",
+      "timestamp": "2025-11-01T00:00:00Z",
+      "lines": {
+        "go_production": 68000,
+        "go_test": 42000,
+        "go_total": 110000,
+        "ailang_examples": 5800,
+        "ailang_stdlib": 1100,
+        "typescript": 4200,
+        "shell": 7000,
+        "documentation": 150000,
+        "design_docs": 70000,
+        "implementation_total": 128100
+      },
+      "files": {
+        "go": 420,
+        "ailang": 140,
+        "documentation": 450
+      },
+      "tokens": {
+        "total_characters": 8500000,
+        "estimated_tokens": 2125000
+      },
+      "git": {
+        "commits": 750,
+        "contributors": 5
+      }
+    },
+    {
+      "version": "v0.5.0",
+      "timestamp": "2025-11-20T00:00:00Z",
+      "lines": {
+        "go_production": 88000,
+        "go_test": 54000,
+        "go_total": 142000,
+        "ailang_examples": 8200,
+        "ailang_stdlib": 1400,
+        "typescript": 5800,
+        "shell": 9500,
+        "documentation": 250000,
+        "design_docs": 110000,
+        "implementation_total": 166900
+      },
+      "files": {
+        "go": 520,
+        "ailang": 195,
+        "documentation": 620
+      },
+      "tokens": {
+        "total_characters": 11800000,
+        "estimated_tokens": 2950000
+      },
+      "git": {
+        "commits": 1050,
+        "contributors": 5
+      }
+    },
+    {
+      "version": "v0.6.0",
+      "timestamp": "2025-12-15T00:00:00Z",
+      "lines": {
+        "go_production": 102000,
+        "go_test": 63000,
+        "go_total": 165000,
+        "ailang_examples": 9800,
+        "ailang_stdlib": 1600,
+        "typescript": 7000,
+        "shell": 11500,
+        "documentation": 320000,
+        "design_docs": 145000,
+        "implementation_total": 194900
+      },
+      "files": {
+        "go": 610,
+        "ailang": 240,
+        "documentation": 780
+      },
+      "tokens": {
+        "total_characters": 14200000,
+        "estimated_tokens": 3550000
+      },
+      "git": {
+        "commits": 1300,
+        "contributors": 6
+      }
+    },
+    {
+      "version": "v0.6.1",
+      "timestamp": "2025-12-29T06:44:27Z",
+      "lines": {
+        "go_production": 107191,
+        "go_test": 66263,
+        "go_total": 173454,
+        "ailang_examples": 10635,
+        "ailang_stdlib": 1688,
+        "typescript": 7435,
+        "shell": 12651,
+        "documentation": 324392,
+        "design_docs": 160277,
+        "website_docs": 20288,
+        "prompts": 45305,
+        "changelog": 9551,
+        "implementation_total": 204175
+      },
+      "files": {
+        "go": 644,
+        "ailang": 256,
+        "documentation": 703
+      },
+      "tokens": {
+        "total_characters": 15564656,
+        "estimated_tokens": 3891164
+      },
+      "git": {
+        "commits": 1402,
+        "contributors": 6
+      }
+    }
+  ],
+  "lastUpdated": "2025-12-29T06:44:27Z"
+}

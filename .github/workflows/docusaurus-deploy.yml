@@ -58,6 +58,9 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Install jq for stats generation
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Build WASM binary
         run: make build-wasm
 
@@ -76,6 +79,9 @@ jobs:
 
       - name: Generate version constants
         run: bash docs/scripts/generate-version-constants.sh
+
+      - name: Generate codebase statistics
+        run: bash tools/generate_codebase_stats.sh
 
       - name: Sync teaching prompts
         run: bash docs/scripts/sync-prompts.sh

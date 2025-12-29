@@ -110,6 +110,7 @@ const sidebars = {
       collapsed: true,
       items: [
         'benchmarks/performance',
+        'benchmarks/codebase-stats',
       ],
     },
     {
