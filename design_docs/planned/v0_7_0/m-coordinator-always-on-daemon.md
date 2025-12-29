@@ -1694,7 +1694,15 @@ coordinator:
 
 ---
 
-### Mode 2: Cloud Run (Production/Always-On)
+### Mode 2: Cloud (Production/Always-On) - Pub/Sub + Cloud Run Jobs
+
+**Why Not Cloud Run "Daemon"**:
+Cloud Run is fundamentally request-driven. Even with `min instances: 1` + `always-allocated CPU`:
+- Process restarts are invisible
+- Filesystem is not durable (worktrees won't persist)
+- No traffic = no activity
+
+**Solution**: Event-driven coordinator with Pub/Sub as the task queue.
 
 **Architecture**:
 ```
@@ -1702,92 +1710,300 @@ coordinator:
 │                              GOOGLE CLOUD                                    │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                         CLOUD RUN                                     │  │
-│  │  ┌─────────────────────┐    ┌─────────────────────┐                  │  │
-│  │  │  coordinator-daemon │◀──▶│   Cloud SQL         │                  │  │
-│  │  │  (container)        │    │   (PostgreSQL)      │                  │  │
-│  │  │                     │    │   collaboration.db  │                  │  │
-│  │  │  • Always running   │    └─────────────────────┘                  │  │
-│  │  │  • Auto-scales 0-1  │                                             │  │
-│  │  │  • Min instances: 1 │                                             │  │
-│  │  └─────────────────────┘                                             │  │
-│  │              │                                                        │  │
-│  │              ▼                                                        │  │
-│  │  ┌─────────────────────────────────────────────────────────────┐     │  │
-│  │  │                    CLOUD SCHEDULER                           │     │  │
-│  │  │  • Trigger: every 30s                                       │     │  │
-│  │  │  • Target: /api/coordinator/poll                            │     │  │
-│  │  └─────────────────────────────────────────────────────────────┘     │  │
+│  │                    WATCHERS (Separate Services)                       │  │
+│  │                                                                       │  │
+│  │  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐     │  │
+│  │  │ Message Watcher │   │ GitHub Watcher  │   │ Webhook Handler │     │  │
+│  │  │ (Cloud Function)│   │ (Cloud Function)│   │ (Cloud Run)     │     │  │
+│  │  │ Trigger: 30s    │   │ Trigger: 60s    │   │ HTTP endpoint   │     │  │
+│  │  └────────┬────────┘   └────────┬────────┘   └────────┬────────┘     │  │
+│  │           │                     │                     │              │  │
+│  │           ▼                     ▼                     ▼              │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐   │  │
+│  │  │                    PUB/SUB TOPICS                              │   │  │
+│  │  │  coordinator-tasks  ─────────────────────────────────────────▶│   │  │
+│  │  │  coordinator-results◀─────────────────────────────────────────│   │  │
+│  │  └───────────────────────────────────────────────────────────────┘   │  │
+│  │                              │                                       │  │
+│  │                              ▼                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐   │  │
+│  │  │                    CLOUD RUN JOBS                              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │   │  │
+│  │  │  │ Task Worker 1│  │ Task Worker 2│  │ Task Worker 3│         │   │  │
+│  │  │  │              │  │              │  │              │         │   │  │
+│  │  │  │ • Pull task  │  │ • Pull task  │  │ • Pull task  │         │   │  │
+│  │  │  │ • Execute    │  │ • Execute    │  │ • Execute    │         │   │  │
+│  │  │  │ • Ack/Nack   │  │ • Ack/Nack   │  │ • Ack/Nack   │         │   │  │
+│  │  │  └──────────────┘  └──────────────┘  └──────────────┘         │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Max parallel: 3 (configurable per repo lock)                 │   │  │
+│  │  │  Timeout: 30 minutes per task                                  │   │  │
+│  │  └───────────────────────────────────────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                     SECRET MANAGER                                    │  │
-│  │  • ANTHROPIC_API_KEY                                                 │  │
-│  │  • GOOGLE_AI_API_KEY                                                 │  │
-│  │  • GITHUB_TOKEN                                                      │  │
+│  │                    PERSISTENT STATE                                   │  │
+│  │                                                                       │  │
+│  │  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐     │  │
+│  │  │   Cloud SQL     │   │ Cloud Storage   │   │ Secret Manager  │     │  │
+│  │  │  (PostgreSQL)   │   │ (Artifacts)     │   │  (API Keys)     │     │  │
+│  │  │                 │   │                 │   │                 │     │  │
+│  │  │ • Task queue    │   │ • Worktree zips │   │ • ANTHROPIC_KEY │     │  │
+│  │  │ • Worktree lease│   │ • Result diffs  │   │ • GEMINI_KEY    │     │  │
+│  │  │ • Cost tracking │   │ • Approval pkts │   │ • GITHUB_TOKEN  │     │  │
+│  │  └─────────────────┘   └─────────────────┘   └─────────────────┘     │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    CLOUD STORAGE                                      │  │
-│  │  • gs://ailang-coordinator/sprints/                                  │  │
-│  │  • gs://ailang-coordinator/workspaces/                               │  │
+│  │                    RECONCILER (Tick-Driven)                          │  │
+│  │                                                                       │  │
+│  │  Cloud Scheduler (every 5 min) ───▶ Cloud Function: reconcile       │  │
+│  │  • Garbage collect orphaned worktrees                                │  │
+│  │  • Retry failed tasks                                                │  │
+│  │  • Update cost tracking                                              │  │
+│  │  • Sync message acknowledgments                                      │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Container Spec**:
-```dockerfile
-FROM golang:1.23-alpine AS builder
-WORKDIR /app
-COPY . .
-RUN go build -o coordinator ./cmd/ailang/coordinator
+**Pub/Sub Message Schema**:
+```go
+// coordinator-tasks topic
+type TaskMessage struct {
+    TaskID      string `json:"task_id"`
+    ExternalKey string `json:"external_key"`
+    TaskType    string `json:"task_type"`
+    Priority    int    `json:"priority"`
+    RepoURL     string `json:"repo_url"`
+    BaseCommit  string `json:"base_commit"`
 
-FROM alpine:3.19
-RUN apk add --no-cache git nodejs npm
-RUN npm install -g @anthropic-ai/claude-code
+    // Content
+    Title       string `json:"title"`
+    Body        string `json:"body"`
 
-WORKDIR /app
-COPY --from=builder /app/coordinator .
-COPY --from=builder /app/.claude/skills ./.claude/skills
+    // Execution config
+    Provider    string `json:"provider,omitempty"`  // If pre-selected
+    Capabilities int   `json:"capabilities"`
 
-ENV COORDINATOR_MODE=cloud
-ENV DATABASE_URL=postgres://...
+    // Retry info
+    Attempt     int    `json:"attempt"`
+    MaxAttempts int    `json:"max_attempts"`
+}
 
-ENTRYPOINT ["./coordinator"]
+// coordinator-results topic
+type ResultMessage struct {
+    TaskID      string `json:"task_id"`
+    Success     bool   `json:"success"`
+    BranchName  string `json:"branch_name,omitempty"`
+    PRNumber    int    `json:"pr_number,omitempty"`
+    Error       string `json:"error,omitempty"`
+
+    // Metrics
+    Cost        float64 `json:"cost_usd"`
+    DurationMS  int64   `json:"duration_ms"`
+
+    // For approval workflow
+    ApprovalPacket *ApprovalPacket `json:"approval_packet,omitempty"`
+}
 ```
 
-**Cloud Run Service**:
+**Cloud Run Job Worker**:
+```go
+func main() {
+    // Job pulls from Pub/Sub, executes one task, then exits
+    ctx := context.Background()
+
+    client, _ := pubsub.NewClient(ctx, projectID)
+    sub := client.Subscription("coordinator-tasks-sub")
+
+    // Pull exactly one message
+    cctx, cancel := context.WithTimeout(ctx, 25*time.Minute)
+    defer cancel()
+
+    var taskMsg TaskMessage
+    err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
+        json.Unmarshal(msg.Data, &taskMsg)
+
+        // Execute task
+        result := executeTask(ctx, &taskMsg)
+
+        // Publish result
+        resultTopic := client.Topic("coordinator-results")
+        resultData, _ := json.Marshal(result)
+        resultTopic.Publish(ctx, &pubsub.Message{Data: resultData})
+
+        // Ack on success, Nack on failure (for retry)
+        if result.Success {
+            msg.Ack()
+        } else {
+            msg.Nack()
+        }
+
+        cancel() // Exit after processing one task
+    })
+
+    if err != nil {
+        log.Fatalf("Receive error: %v", err)
+    }
+}
+
+func executeTask(ctx context.Context, task *TaskMessage) *ResultMessage {
+    // 1. Acquire repo lock (Cloud SQL)
+    lock, err := acquireRepoLock(task.RepoURL)
+    if err != nil {
+        return &ResultMessage{TaskID: task.TaskID, Success: false, Error: "repo locked"}
+    }
+    defer lock.Release()
+
+    // 2. Download/restore worktree from GCS (or clone fresh)
+    worktree, err := setupWorktree(ctx, task)
+    if err != nil {
+        return &ResultMessage{TaskID: task.TaskID, Success: false, Error: err.Error()}
+    }
+    defer cleanupWorktree(ctx, worktree)
+
+    // 3. Execute with provider
+    result, err := runProvider(ctx, worktree, task)
+    if err != nil {
+        return &ResultMessage{TaskID: task.TaskID, Success: false, Error: err.Error()}
+    }
+
+    // 4. Archive worktree to GCS for inspection
+    archiveWorktree(ctx, worktree)
+
+    // 5. Create PR if successful
+    if result.Success {
+        pr, _ := createPR(worktree, task)
+        return &ResultMessage{
+            TaskID:     task.TaskID,
+            Success:    true,
+            BranchName: worktree.Branch,
+            PRNumber:   pr.Number,
+            Cost:       result.Cost.TotalUSD,
+            DurationMS: result.DurationMS,
+        }
+    }
+
+    return &ResultMessage{TaskID: task.TaskID, Success: false, Error: result.Error}
+}
+```
+
+**Repo Locking for Concurrency**:
+```sql
+-- Per-repo lock to prevent parallel execution conflicts
+CREATE TABLE repo_locks (
+    repo_url TEXT PRIMARY KEY,
+    locked_by TEXT,            -- Task ID that holds lock
+    locked_at INTEGER,
+    heartbeat_at INTEGER
+);
+```
+
+```go
+func acquireRepoLock(repoURL string) (*Lock, error) {
+    // Try to acquire lock with exponential backoff
+    for attempt := 0; attempt < 5; attempt++ {
+        result, err := db.Exec(`
+            INSERT INTO repo_locks (repo_url, locked_by, locked_at, heartbeat_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(repo_url) DO UPDATE
+            SET locked_by = excluded.locked_by,
+                locked_at = excluded.locked_at,
+                heartbeat_at = excluded.heartbeat_at
+            WHERE repo_locks.heartbeat_at < ?  -- Stale lock (>5 min)
+        `, repoURL, taskID, now, now, staleThreshold)
+
+        if err == nil && rowsAffected > 0 {
+            return &Lock{repoURL: repoURL}, nil
+        }
+
+        time.Sleep(time.Duration(1<<attempt) * time.Second)
+    }
+    return nil, ErrRepoLocked
+}
+```
+
+**Concurrency Strategy**:
 ```yaml
-# cloud-run-coordinator.yaml
-apiVersion: serving.knative.dev/v1
-kind: Service
+# Global concurrency across all repos: unlimited
+# Per-repo concurrency: 1 (via repo lock)
+# Rationale: Different repos can run in parallel, same repo sequential
+
+coordinator:
+  cloud:
+    max_workers: 10           # Max parallel Cloud Run Jobs
+    per_repo_concurrency: 1   # Via repo locking
+    worker_timeout: 30m       # Max execution time per task
+    stale_lock_threshold: 5m  # Consider lock stale after this
+```
+
+**Cloud Run Job Spec**:
+```yaml
+# cloud-run-job-worker.yaml
+apiVersion: run.googleapis.com/v1
+kind: Job
 metadata:
-  name: ailang-coordinator
+  name: coordinator-worker
 spec:
   template:
-    metadata:
-      annotations:
-        run.googleapis.com/cpu-always-allocated: "true"
-        autoscaling.knative.dev/minScale: "1"
-        autoscaling.knative.dev/maxScale: "1"
     spec:
-      containers:
-        - image: gcr.io/ailang/coordinator:latest
-          resources:
-            limits:
-              memory: "512Mi"
-              cpu: "1"
-          env:
-            - name: COORDINATOR_MODE
-              value: cloud
-          volumeMounts:
+      taskCount: 1
+      parallelism: 1
+      template:
+        spec:
+          containers:
+            - image: gcr.io/ailang/coordinator-worker:latest
+              resources:
+                limits:
+                  memory: "2Gi"
+                  cpu: "2"
+              env:
+                - name: GOOGLE_CLOUD_PROJECT
+                  value: ailang-prod
+              volumeMounts:
+                - name: secrets
+                  mountPath: /secrets
+          volumes:
             - name: secrets
-              mountPath: /secrets
-      volumes:
-        - name: secrets
-          secret:
-            secretName: coordinator-secrets
+              secret:
+                secretName: coordinator-secrets
+          timeoutSeconds: 1800  # 30 minutes
+          serviceAccountName: coordinator-worker-sa
 ```
+
+**Triggering Workers**:
+```go
+// Watcher publishes task to Pub/Sub
+// Cloud Run Jobs are triggered by subscription
+
+// Option 1: Push subscription triggers Cloud Run Job
+// (via Pub/Sub → Cloud Run integration)
+
+// Option 2: Scheduler polls and triggers
+// Cloud Scheduler (every 30s) → Check pending tasks → Trigger Cloud Run Job
+
+func triggerWorker(taskID string) error {
+    // Use Cloud Run Jobs API to execute a new job instance
+    client, _ := run.NewJobsClient(ctx)
+
+    _, err := client.RunJob(ctx, &runpb.RunJobRequest{
+        Name: "projects/ailang/locations/us-central1/jobs/coordinator-worker",
+    })
+    return err
+}
+```
+
+**Benefits of Pub/Sub + Jobs Architecture**:
+
+| Aspect | Cloud Run Daemon | Pub/Sub + Jobs |
+|--------|------------------|----------------|
+| Durability | Filesystem lost on restart | State in Cloud SQL/GCS |
+| Scaling | 0-1 instances | 0-N jobs per queue depth |
+| Cost | Pay for idle time | Pay only for execution |
+| Reliability | Process crash = lost state | Pub/Sub retry + dead letter |
+| Observability | Container logs only | Per-task traces in Cloud Trace |
+| Concurrency | Manual semaphore | Pub/Sub message flow control |
 
 ---
 
