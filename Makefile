@@ -1074,3 +1074,87 @@ help-release: ## Show release workflow (eval + dashboard)
 	@echo "  cd docs && npm start"
 	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
 	@echo ""
+
+# ==============================================================================
+# SERVICE MANAGEMENT
+# ==============================================================================
+
+.PHONY: serve coordinator-start coordinator-stop services-start services-stop services-restart services-status
+
+# Start the Collaboration Hub server (foreground)
+serve: quick-install
+	@echo "Starting AILANG Collaboration Hub..."
+	@ailang serve
+
+# Start the server in background
+serve-bg: quick-install
+	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+		echo "✓ Server already running on port 1957"; \
+	else \
+		echo "Starting AILANG server in background..."; \
+		nohup ailang serve > ~/.ailang/logs/server.log 2>&1 & \
+		sleep 2; \
+		if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+			echo "✓ Server started"; \
+		else \
+			echo "✗ Server failed to start. Check ~/.ailang/logs/server.log"; \
+		fi \
+	fi
+
+# Start the coordinator daemon
+coordinator-start: quick-install
+	@echo "Starting coordinator daemon..."
+	@ailang coordinator start
+
+# Stop the coordinator daemon
+coordinator-stop:
+	@echo "Stopping coordinator daemon..."
+	@ailang coordinator stop || echo "Coordinator not running"
+
+# Check coordinator status
+coordinator-status:
+	@ailang coordinator status
+
+# Start both services (server + coordinator)
+services-start: serve-bg
+	@sleep 1
+	@if ailang coordinator status 2>/dev/null | grep -q "running"; then \
+		echo "✓ Coordinator already running"; \
+	else \
+		echo "Starting coordinator daemon..."; \
+		nohup ailang coordinator start > /dev/null 2>&1 & \
+		sleep 3; \
+		ailang coordinator status; \
+	fi
+	@echo ""
+	@echo "✓ Services started:"
+	@echo "  - Server: http://127.0.0.1:1957"
+	@echo "  - Coordinator: running (check with 'make coordinator-status')"
+
+# Stop both services
+services-stop: coordinator-stop
+	@echo "Stopping server..."
+	@pkill -f "ailang serve" 2>/dev/null || echo "Server not running"
+	@echo "✓ Services stopped"
+
+# Restart all services with fresh build
+services-restart: services-stop
+	@echo "Rebuilding..."
+	@$(MAKE) quick-install
+	@echo ""
+	@$(MAKE) services-start
+
+# Show status of all services
+services-status:
+	@echo "📊 AILANG Services Status"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "Server:"
+	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+		curl -s http://127.0.0.1:1957/health | jq -r '"  Status: healthy\n  Connections: \(.connections)\n  Version: \(.version)"'; \
+	else \
+		echo "  Status: not running"; \
+	fi
+	@echo ""
+	@echo "Coordinator:"
+	@ailang coordinator status 2>/dev/null || echo "  Status: not running"

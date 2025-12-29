@@ -196,12 +196,13 @@ export interface HierarchyResponse {
 }
 
 // Selection state for hierarchy navigation
-export type SelectionType = 'overview' | 'agent' | 'thread';
+export type SelectionType = 'overview' | 'agent' | 'thread' | 'task';
 
 export interface Selection {
   type: SelectionType;
   agentId?: string;
   threadId?: string;
+  taskId?: string;
 }
 
 // Aggregated metrics from /api/metrics endpoint
@@ -253,4 +254,58 @@ export interface InstanceHistoryEntry {
   total_tokens: number;
   total_cost_cents: number;
   thread_count: number;
+}
+
+// Task Stream Events (for coordinator executor feedback loop)
+export type TaskStreamEventType =
+  | 'log'           // Log output line
+  | 'stdout'        // Standard output
+  | 'stderr'        // Standard error
+  | 'tool_use'      // Tool invocation
+  | 'thinking'      // Model thinking
+  | 'result'        // Task completion result
+  | 'error'         // Error event
+  | 'status'        // Status change
+  | 'metrics';      // Resource metrics update
+
+export interface TaskStreamEvent {
+  type: 'task_stream';
+  task_id: string;
+  thread_id?: string;
+  event_type: TaskStreamEventType;
+  timestamp: number;
+  content?: string;
+  tool_name?: string;
+  tool_input?: string;
+  cost?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  cpu_percent?: number;
+  memory_mb?: number;
+  status?: string;
+}
+
+export interface TaskResourceMetrics {
+  task_id: string;
+  cpu_percent: number;
+  memory_mb: number;
+  tokens_in: number;
+  tokens_out: number;
+  cost: number;
+  peak_cpu: number;
+  peak_memory: number;
+  updated_at: number;
+}
+
+export interface PendingApprovalRequest {
+  id: string;
+  task_id: string;
+  type: 'merge' | 'destroy' | 'execute' | 'cost';
+  description: string;
+  context_json?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'timeout';
+  created_at: string;
+  timeout_at?: string;
+  files_changed?: string[];
+  diff_summary?: string;
 }

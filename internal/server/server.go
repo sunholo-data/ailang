@@ -53,6 +53,9 @@ type Server struct {
 	// Coordinator integration for task metrics
 	resourceRegistry *coordinator.ResourceTrackerRegistry
 	coordStore       CoordinatorStore
+
+	// Coordinator approval store for approval workflow
+	approvalStore CoordinatorApprovalStore
 }
 
 // NewServer creates a new HTTP server
@@ -161,6 +164,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
 	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
 	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
+	mux.HandleFunc("/api/coordinator/pending", s.handleCoordinatorPendingApprovals)
+	mux.HandleFunc("/api/coordinator/approve/", s.handleCoordinatorApproval)
+	mux.HandleFunc("/api/coordinator/reject/", s.handleCoordinatorApproval)
+	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
 
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)

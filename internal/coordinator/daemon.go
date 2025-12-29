@@ -157,6 +157,14 @@ func (d *Daemon) Run() error {
 		d.logger.Println("Daemon running, polling for tasks...")
 	}
 
+	// Initialize HTTP broadcaster for real-time streaming to dashboard
+	if err := d.initHTTPBroadcaster(); err != nil {
+		d.logger.Printf("Warning: HTTP broadcaster not available: %v", err)
+		d.logger.Println("Task streaming to dashboard disabled - events will be logged only")
+	} else {
+		d.logger.Println("HTTP broadcaster connected to Collaboration Hub")
+	}
+
 	// Register as an agent in the collaboration hub
 	if err := d.registerAgent(); err != nil {
 		d.logger.Printf("Warning: Failed to register agent: %v", err)
@@ -184,6 +192,24 @@ func (d *Daemon) Run() error {
 			}
 		}
 	}
+}
+
+// initHTTPBroadcaster initializes the HTTP broadcaster for streaming events to dashboard
+func (d *Daemon) initHTTPBroadcaster() error {
+	serverURL := DefaultServerURL()
+
+	broadcaster := NewHTTPBroadcaster(serverURL, d.logger)
+
+	// Check if server is reachable
+	if !broadcaster.CheckServerAvailable() {
+		return fmt.Errorf("Collaboration Hub server not available at %s", serverURL)
+	}
+
+	// Set the broadcaster
+	d.SetEventBroadcaster(broadcaster.BroadcastFunc())
+	d.logger.Printf("HTTP broadcaster initialized, streaming to %s", serverURL)
+
+	return nil
 }
 
 // initTaskProcessing initializes the message adapter, analyzer, and store
@@ -532,11 +558,11 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 		if result.Success {
 			kind = "result"
 			content = fmt.Sprintf("**Task Completed Successfully**\n\n"+
-				"✅ Provider: %s\n"+
-				"⏱️ Duration: %s\n"+
-				"💰 Cost: $%.4f\n"+
-				"🔢 Tokens: %d (in: %d, out: %d)\n\n"+
-				"**Output:**\n```\n%s\n```",
+				"- **Provider:** %s\n"+
+				"- **Duration:** %s\n"+
+				"- **Cost:** $%.4f\n"+
+				"- **Tokens:** %d (in: %d, out: %d)\n\n"+
+				"---\n\n%s",
 				result.Provider, result.Duration, result.Cost,
 				result.TokensUsed, result.InputTokens, result.OutputTokens, result.Output)
 
@@ -549,9 +575,9 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 		} else {
 			kind = "error"
 			content = fmt.Sprintf("**Task Failed**\n\n"+
-				"❌ Provider: %s\n"+
-				"⏱️ Duration: %s\n\n"+
-				"**Error:**\n```\n%s\n```",
+				"- **Provider:** %s\n"+
+				"- **Duration:** %s\n\n"+
+				"**Error:** %s",
 				result.Provider, result.Duration, result.Error)
 		}
 	} else {

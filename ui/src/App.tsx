@@ -8,6 +8,7 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { MetricsCard } from './components/MetricsCard';
 import { TrendsChart } from './components/TrendsChart';
 import { Selection, HierarchyResponse, Approval } from './types';
+import { TaskExecutionPanel } from './components/TaskExecution';
 
 // Logo - use same image as ailang.sunholo.com
 const LogoImage = <img src="/logo.png" alt="AILANG" width="28" height="28" />;
@@ -182,6 +183,24 @@ export const App: React.FC = () => {
       const agent = hierarchy?.root.children?.find(a => a.id === selection.agentId);
       const thread = agent?.children?.find(t => t.id === selection.threadId);
       items.push({ label: thread?.label || 'Thread' });
+    }
+
+    if (selection.type === 'task' && selection.taskId) {
+      if (selection.agentId) {
+        items.push({
+          label: selection.agentId,
+          onClick: () => setSelection({ type: 'agent', agentId: selection.agentId }),
+        });
+      }
+      if (selection.threadId) {
+        const agent = hierarchy?.root.children?.find(a => a.id === selection.agentId);
+        const thread = agent?.children?.find(t => t.id === selection.threadId);
+        items.push({
+          label: thread?.label || 'Thread',
+          onClick: () => setSelection({ type: 'thread', agentId: selection.agentId, threadId: selection.threadId }),
+        });
+      }
+      items.push({ label: `Task ${selection.taskId.slice(0, 8)}...` });
     }
 
     return items;
@@ -384,6 +403,25 @@ export const App: React.FC = () => {
               onThreadNavigated={() => {}}
             />
           </div>
+        </div>
+      );
+    }
+
+    if (selection.type === 'task' && selection.taskId) {
+      return (
+        <div className="task-view">
+          <TaskExecutionPanel
+            taskId={selection.taskId}
+            threadId={selection.threadId}
+            onCancel={() => {
+              // Navigate back to overview or previous view
+              if (selection.threadId) {
+                setSelection({ type: 'thread', agentId: selection.agentId, threadId: selection.threadId });
+              } else {
+                setSelection({ type: 'overview' });
+              }
+            }}
+          />
         </div>
       );
     }
@@ -658,6 +696,12 @@ export const App: React.FC = () => {
 
         .thread-messages-container {
           flex: 1;
+          overflow: hidden;
+        }
+
+        /* Task View */
+        .task-view {
+          height: 100%;
           overflow: hidden;
         }
 
