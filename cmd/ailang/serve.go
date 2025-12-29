@@ -87,14 +87,14 @@ func serveCommand(args []string) error {
 		return fmt.Errorf("port %s is already in use by another process. Use --port to specify a different port", port)
 	}
 
-	// Create and start server
-	srv, err := server.NewServer(dbPath, httpAddr)
+	// Create and start server with version info
+	srv, err := server.NewServer(dbPath, httpAddr, server.WithVersion(Version))
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 	defer srv.Close()
 
-	log.Printf("AILANG Collaboration Hub Server")
+	log.Printf("AILANG Collaboration Hub Server (v%s)", Version)
 	log.Printf("Database: %s", dbPath)
 	log.Printf("")
 

@@ -46,6 +46,12 @@ type Status struct {
 	StartedAt time.Time `json:"started_at,omitempty"`
 	Uptime    string    `json:"uptime,omitempty"`
 	TasksRun  int       `json:"tasks_run"`
+	// Extended stats from database
+	PendingTasks int     `json:"pending_tasks,omitempty"`
+	RunningTasks int     `json:"running_tasks,omitempty"`
+	FailedTasks  int     `json:"failed_tasks,omitempty"`
+	TotalCost    float64 `json:"total_cost,omitempty"`
+	TotalTokens  int     `json:"total_tokens,omitempty"`
 }
 
 // Daemon is the coordinator daemon
@@ -591,6 +597,21 @@ func (d *Daemon) Status() (*Status, error) {
 	} else {
 		// Stale PID file, clean up
 		_ = os.Remove(d.config.PIDFile)
+	}
+
+	// Get actual task stats from database (in-memory counter resets on restart)
+	store, err := NewSQLiteStore(filepath.Join(d.config.StateDir, "coordinator.db"))
+	if err == nil {
+		defer store.Close()
+		stats, err := store.GetTaskStats(context.Background())
+		if err == nil {
+			status.TasksRun = stats.CompletedTasks
+			status.PendingTasks = stats.PendingTasks
+			status.RunningTasks = stats.RunningTasks
+			status.FailedTasks = stats.FailedTasks
+			status.TotalCost = stats.TotalCost
+			status.TotalTokens = stats.TotalTokens
+		}
 	}
 
 	return status, nil

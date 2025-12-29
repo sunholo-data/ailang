@@ -164,7 +164,7 @@ export const HierarchyTree: React.FC<HierarchyTreeProps> = ({ selection, onSelec
       <div className="tree-header">
         <h3>Agents</h3>
         <button className="refresh-btn" onClick={() => { fetchHierarchy(); onRefresh?.(); }} title="Refresh">
-          \u21BB
+          ↻
         </button>
       </div>
 

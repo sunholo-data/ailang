@@ -25,10 +25,28 @@ export const App: React.FC = () => {
   const [approvalHistory, setApprovalHistory] = useState<Approval[]>([]);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
+  const [version, setVersion] = useState<string>('...');
 
   // WebSocket URL - dynamically use current host/port
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const websocketUrl = `${protocol}//${window.location.host}/ws`;
+
+  // Fetch version from server
+  useEffect(() => {
+    const fetchVersion = async () => {
+      try {
+        const response = await fetch('/api/version');
+        if (response.ok) {
+          const data = await response.json();
+          setVersion(data.version || 'dev');
+        }
+      } catch (error) {
+        console.error('Error fetching version:', error);
+        setVersion('dev');
+      }
+    };
+    fetchVersion();
+  }, []);
 
   // Fetch hierarchy data
   useEffect(() => {
@@ -403,7 +421,7 @@ export const App: React.FC = () => {
               {pendingCount} pending
             </span>
           )}
-          <span className="version-tag">v0.5.0</span>
+          <span className="version-tag">{version}</span>
         </div>
       </header>
 

@@ -31,6 +31,7 @@ type Server struct {
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
+	version  string // AILANG version for display in UI
 
 	// Process management for spawned agents
 	agentsMu sync.RWMutex
@@ -50,7 +51,7 @@ type Server struct {
 }
 
 // NewServer creates a new HTTP server
-func NewServer(dbPath string, httpAddr string) (*Server, error) {
+func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, error) {
 	store, err := messaging.OpenStore(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store: %w", err)
@@ -58,15 +59,33 @@ func NewServer(dbPath string, httpAddr string) (*Server, error) {
 
 	wsServer := websocket.NewServer(store)
 
-	return &Server{
+	s := &Server{
 		store:             store,
 		wsServer:          wsServer,
 		httpAddr:          httpAddr,
 		dbPath:            dbPath,
+		version:           "dev", // Default version
 		agents:            make(map[string]*AgentProcess),
 		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
 		previouslySeen:    make(map[int]ProcessStats),
-	}, nil
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
+}
+
+// ServerOption configures the server
+type ServerOption func(*Server)
+
+// WithVersion sets the AILANG version displayed in the UI
+func WithVersion(version string) ServerOption {
+	return func(s *Server) {
+		s.version = version
+	}
 }
 
 // Start starts the HTTP server and WebSocket server
@@ -114,8 +133,9 @@ func (s *Server) Start() error {
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 
-	// Health check
+	// Health check and version
 	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/api/version", s.handleVersion)
 
 	// Serve static UI files from embedded dist folder
 	distFS, err := fs.Sub(uiAssets, "dist")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ThreadList } from './ThreadList';
 import { ConversationView } from './ConversationView';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -193,11 +193,55 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
     fetchThreads();
   }, []);
 
-  // Handle external navigation to a specific thread
+  // Fetch messages when a thread is selected
   useEffect(() => {
-    if (initialThreadId && threads.length > 0) {
+    if (!selectedThreadId) return;
+
+    // Capture threadId to avoid stale closure
+    const threadId = selectedThreadId;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch(`/api/messages?thread_id=${threadId}`);
+        if (!response.ok) {
+          console.error('Failed to fetch messages:', await response.text());
+          return;
+        }
+        const data: Message[] = await response.json();
+
+        // Always update messages for this thread (even if empty)
+        setMessages((prev) => {
+          const existing = prev.get(threadId) || [];
+          const merged = data ? [...data] : [];
+
+          // Merge with any messages that arrived via WebSocket
+          for (const msg of existing) {
+            if (!merged.find((m) => m.id === msg.id)) {
+              merged.push(msg);
+            }
+          }
+          // Sort by sequence number
+          merged.sort((a, b) => a.message_seq - b.message_seq);
+          return new Map(prev).set(threadId, merged);
+        });
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedThreadId]);
+
+  // Track which initialThreadId we've already navigated to
+  const navigatedToRef = useRef<string | null>(null);
+
+  // Handle external navigation to a specific thread (only when initialThreadId changes)
+  useEffect(() => {
+    // Only navigate if initialThreadId changed and we haven't already navigated to it
+    if (initialThreadId && initialThreadId !== navigatedToRef.current && threads.length > 0) {
       const threadExists = threads.some(t => t.id === initialThreadId);
       if (threadExists) {
+        navigatedToRef.current = initialThreadId;
         setSelectedThreadId(initialThreadId);
         // Clear unread count for this thread
         setUnreadCounts((prev) => {

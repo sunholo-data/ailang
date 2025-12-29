@@ -500,11 +500,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   </div>
                   <div className="message-footer">
                     <span className="message-seq">#{message.message_seq}</span>
-                    {message.delivery_state !== 'acked' && (
-                      <span className={`delivery-status ${message.delivery_state}`}>
-                        {message.delivery_state === 'pending' ? 'sending...' : 'delivered'}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>

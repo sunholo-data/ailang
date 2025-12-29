@@ -198,7 +198,25 @@ func coordinatorStatus(args []string) error {
 	} else {
 		fmt.Printf("  State:      %s %s\n", "⏹", red("stopped"))
 	}
-	fmt.Printf("  Tasks Run:  %d\n", status.TasksRun)
+
+	fmt.Println()
+	fmt.Println(bold("Task Statistics"))
+	fmt.Printf("  Completed:  %s\n", green(fmt.Sprintf("%d", status.TasksRun)))
+	if status.PendingTasks > 0 {
+		fmt.Printf("  Pending:    %s\n", yellow(fmt.Sprintf("%d", status.PendingTasks)))
+	}
+	if status.RunningTasks > 0 {
+		fmt.Printf("  Running:    %s\n", cyan(fmt.Sprintf("%d", status.RunningTasks)))
+	}
+	if status.FailedTasks > 0 {
+		fmt.Printf("  Failed:     %s\n", red(fmt.Sprintf("%d", status.FailedTasks)))
+	}
+	if status.TotalCost > 0 {
+		fmt.Printf("  Total Cost: $%.4f\n", status.TotalCost)
+	}
+	if status.TotalTokens > 0 {
+		fmt.Printf("  Tokens:     %d\n", status.TotalTokens)
+	}
 
 	return nil
 }
