@@ -2,15 +2,18 @@
 
 **Sprint Goal**: Generate type class dictionary implementations for Go codegen to fix broken `ailang compile --emit-go`
 
+**Status**: ✅ Completed
 **Duration**: 1 day (~4-5 hours)
 **Risk Level**: Low (well-scoped, clear implementation path)
 **Priority**: High (blocks integration tests)
+**Implemented**: 2025-12-27
+**Commit**: e8d8d2d2
 
-## Current Status
+## Final Status
 
-- **Design Doc**: `design_docs/planned/m-codegen-dictionaries.md` ✅
-- **Problem**: Go codegen emits `dict_Num_Int.Add()` but never defines the dictionary structs
-- **Impact**: `TestContractViolation_Integration` fails, `--emit-go` broken for most programs
+- **Design Doc**: `design_docs/implemented/v0_6_2/m-codegen-dictionaries.md` ✅
+- **Implementation**: ✅ Complete (185 LOC in codegen_dictionaries.go)
+- **Impact**: `TestContractViolation_Integration` now passes, `--emit-go` works
 
 ## Milestones
 

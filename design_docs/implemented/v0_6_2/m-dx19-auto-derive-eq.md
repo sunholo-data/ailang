@@ -1,11 +1,13 @@
 # M-DX19: Auto-Derive Eq for ADT Types
 
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target**: v0.6.2
 **Priority**: P1 (Medium - significant boilerplate reduction)
 **Estimated**: 4-6 hours
 **Dependencies**: None
 **Reporter**: stapledons_voyage (agent message)
+**Implemented**: 2025-12-26
+**Commit**: bb3b3a83
 
 ## Axiom Compliance
 

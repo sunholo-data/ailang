@@ -1,20 +1,23 @@
 # M-DX19 Sprint Plan: Auto-Derive Eq for ADT Types
 
 **Sprint ID**: DX19
+**Status**: ✅ Completed
 **Duration**: 4-6 hours (single session)
 **Risk Level**: Medium
 **Dependencies**: None
+**Implemented**: 2025-12-26
+**Commit**: bb3b3a83
 
 ## Summary
 
 Implement `deriving (Eq)` syntax for ADT types, enabling automatic equality comparison via `==` operator. Monomorphic types only in v0.6.2.
 
-## Current Status
+## Final Status
 
 - **Design doc**: Complete (`m-dx19-auto-derive-eq.md`)
-- **Implementation**: Not started
-- **Lexer**: No DERIVING token
-- **TypeDecl AST**: No Deriving field
+- **Implementation**: ✅ Complete
+- **Lexer**: DERIVING token added
+- **TypeDecl AST**: Deriving field added
 
 ## Velocity Reference
 

@@ -128,10 +128,18 @@ vet: prepare-embed
 	@echo "Vet complete"
 
 # Install golangci-lint (v2.x required for .golangci.yml version: "2")
+# Always reinstalls to ensure correct version - v1.x is incompatible with our config
 install-lint:
 	@echo "Installing golangci-lint v2.x..."
-	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.5.0
-	@echo "golangci-lint installed"
+	@CURRENT_VERSION=$$(golangci-lint --version 2>/dev/null | grep -o 'v[0-9]*' | head -1 || echo "none"); \
+	if [ "$$CURRENT_VERSION" != "v2" ]; then \
+		echo "Current version: $$CURRENT_VERSION (need v2.x)"; \
+		echo "Downloading golangci-lint v2.1.6..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.6; \
+	else \
+		echo "golangci-lint v2.x already installed"; \
+	fi
+	@echo "golangci-lint ready"
 
 # Run linter (requires golangci-lint)
 # Filter output to focus on BUGS and ignore STYLISTIC suggestions
