@@ -89,6 +89,8 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 	result.Output = execResult.Output
 	result.Error = execResult.Error
 	result.Cost = execResult.CostUSD
+	result.InputTokens = execResult.InputTokens
+	result.OutputTokens = execResult.OutputTokens
 	result.TokensUsed = execResult.InputTokens + execResult.OutputTokens
 	result.FilesCreated = execResult.FilesCreated
 	result.FilesModified = execResult.FilesModified
