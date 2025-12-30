@@ -5,7 +5,7 @@
 | Status | Planned |
 | Target | v0.6.2 |
 | Priority | P0 (Critical) |
-| Estimated | 2 days |
+| Estimated | 1.5 days |
 | Dependencies | M-COLLAB-PROVIDER-STATS (completed) |
 | Created | 2025-12-30 |
 | GitHub Issues | #79 (Heatmap calendar - work lost in worktree) |
@@ -16,25 +16,27 @@ The coordinator daemon executes tasks in isolated worktrees but **work is effect
 
 1. **No streaming visibility**: Human operators cannot see what the agent is doing in real-time
 2. **No human approval gate**: Completed work sits in worktrees forever, never merged
-3. **No PR creation**: Work is not converted to reviewable pull requests
-4. **No merge workflow**: Even if humans approve, there's no path to integrate the changes
+3. **No merge workflow**: Even if humans want to approve, there's no path to integrate the changes
 
 ### Evidence
 
 - Task `task-593740ab` completed a full heatmap implementation (11.6KB React component, Go backend)
-- Work exists in `~/.ailang/state/worktrees/coordinator/task-593740ab/`
-- Changes never reached the main codebase or GitHub
+- Work existed in `~/.ailang/state/worktrees/coordinator/task-593740ab/`
+- Changes never reached the main codebase
 - $2+ spent on AI execution with no visible output
+- Worktree was cleaned up, work is now permanently lost
 
 ## Goals
 
-**Primary Goal:** Make coordinator work visible, reviewable, and mergeable by humans.
+**Primary Goal:** Make coordinator work visible, reviewable, and mergeable to main worktree with human approval.
 
 **Success Metrics:**
 1. Real-time streaming of agent activity visible in dashboard
-2. Automatic PR creation when task completes
-3. Human approval required before merge
-4. Work is never "lost" - always ends in PR or rejection
+2. Completed tasks appear in "Pending Approval" queue
+3. Human approval required before merge to main worktree
+4. Work is never "lost" - always ends in merge or rejection
+
+**No GitHub PRs** - just local git operations with approval gate.
 
 ## Solution Design
 
@@ -47,8 +49,8 @@ The coordinator daemon executes tasks in isolated worktrees but **work is effect
 │                                                                      │
 │  Task Execution        Streaming Events       Completion             │
 │  ───────────────      ────────────────────   ────────────────────   │
-│  1. Create worktree    → OnTurnStart          → Create PR            │
-│  2. Run executor       → OnText               → Request approval     │
+│  1. Create worktree    → OnTurnStart          → Mark pending_approval│
+│  2. Run executor       → OnText               → Show in dashboard    │
 │  3. Track progress     → OnToolUse/Result     → Wait for human       │
 │                        → OnError              → Merge or reject      │
 │                                                                      │
@@ -60,11 +62,12 @@ The coordinator daemon executes tasks in isolated worktrees but **work is effect
 ├─────────────────────────────────────────────────────────────────────┤
 │  1. Receive events     → WebSocket broadcast → UI Dashboard          │
 │  2. Store task state   → SQLite database                             │
-│  3. Handle approvals   → POST /api/coordinator/approve/{id}          │
+│  3. Handle approvals   → POST /api/coordinator/merge/{id}            │
+│  4. Execute merge      → git merge to main worktree                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 1: Fix Streaming (Day 1 Morning)
+### Phase 1: Fix Streaming
 
 **Problem:** Events sent but not reaching UI
 
@@ -78,141 +81,69 @@ The coordinator daemon executes tasks in isolated worktrees but **work is effect
 - `internal/coordinator/event_handler.go` - Verify emission
 - `internal/server/handlers_coordinator.go` - Add event logging
 
-### Phase 2: Automatic PR Creation (Day 1 Afternoon)
+### Phase 2: Pending Approval Queue
 
 **On task completion:**
 
-1. Commit all changes in worktree with descriptive message
-2. Push branch to origin (branch name: `coordinator/<task-id>`)
-3. Create GitHub PR using `gh pr create`
-4. Link PR to original GitHub issue if present
-5. Update task record with PR URL
-
-**Files:**
-- `internal/coordinator/daemon.go` - Add PR creation after task completes
-- `internal/coordinator/github_pr.go` - New file: PR creation logic
-
-**PR Template:**
-```markdown
-## Task: {task.Title}
-
-{task.Content}
-
----
-
-### Changes Made
-
-{git diff --stat}
-
-### Executor Output
-
-{task.Output (truncated)}
-
----
-
-**Created by:** AILANG Coordinator
-**Task ID:** {task.ID}
-**Thread:** {task.ThreadID}
-**Cost:** ${task.Cost}
-**Tokens:** {task.TokensUsed}
-
-🤖 This PR was automatically created by the AILANG Coordinator daemon.
-Human review required before merge.
-```
-
-### Phase 3: Human Approval Gate (Day 2 Morning)
+1. Mark task as `pending_approval`
+2. Keep worktree with committed changes
+3. Show in dashboard "Pending Approval" section
 
 **Dashboard UI additions:**
 
-1. "Pending PRs" section showing completed tasks awaiting review
-2. PR preview with diff viewer
+1. "Pending Approval" section showing completed tasks awaiting review
+2. Diff preview from worktree
 3. Approve/Reject buttons
-4. Comments field for feedback
-
-**Backend:**
-
-1. New approval status: `pr_pending_review`
-2. Approval resolves to `approved` or `rejected`
-3. On approval: Merge PR and clean up worktree
-4. On rejection: Close PR with reason, keep worktree for retry
+4. Task details (cost, tokens, duration)
 
 **Files:**
-- `internal/coordinator/store_sqlite.go` - Add PR tracking fields
-- `internal/server/handlers_coordinator.go` - Approval with merge
-- `ui/src/components/PendingPRs/` - New component
+- `internal/coordinator/store_sqlite.go` - Add worktree_path, approval_status fields
+- `internal/server/handlers_coordinator.go` - Pending merges endpoint
+- `ui/src/components/PendingMerges/` - New component
 
-### Phase 4: Merge and Cleanup (Day 2 Afternoon)
+### Phase 3: Merge and Cleanup
 
 **After human approval:**
 
-1. Merge PR using `gh pr merge --merge`
-2. Delete remote branch
-3. Clean up worktree
-4. Update task status to `merged`
-5. Send completion notification
+1. Merge worktree changes to main worktree via `git merge`
+2. Clean up worktree
+3. Update task status to `merged`
+4. Send completion notification
 
 **After rejection:**
 
-1. Close PR with rejection reason
-2. Keep worktree for potential retry
-3. Update task status to `rejected`
-4. Create new message for retry if requested
+1. Keep worktree for potential retry
+2. Update task status to `rejected`
+3. Create new message for retry if requested
 
 **Files:**
-- `internal/coordinator/daemon.go` - Merge workflow
-- `internal/coordinator/cleanup.go` - Worktree cleanup
-
-## Implementation Plan
-
-### Day 1: Streaming + PR Creation
-
-**Morning (4h):**
-- [ ] Debug current streaming pipeline
-- [ ] Add reconnect logic to HTTP broadcaster
-- [ ] Verify events reach UI
-
-**Afternoon (4h):**
-- [ ] Implement PR creation on task completion
-- [ ] Test with real task
-- [ ] Handle edge cases (no changes, conflicts)
-
-### Day 2: Approval + Merge
-
-**Morning (4h):**
-- [ ] Add PR tracking to database
-- [ ] Implement approval API endpoints
-- [ ] Build Pending PRs UI component
-
-**Afternoon (4h):**
-- [ ] Implement merge workflow
-- [ ] Implement rejection workflow
-- [ ] Test full cycle: task → PR → approval → merge
+- `internal/coordinator/daemon.go` - Approval handling
+- `internal/coordinator/merge.go` - Merge logic
 
 ## Success Criteria
 
 - [ ] Agent activity visible in real-time in dashboard
-- [ ] Completed tasks automatically create GitHub PRs
-- [ ] PRs cannot be merged without human approval
-- [ ] Approved PRs merge cleanly
+- [ ] Completed tasks appear in "Pending Approval" queue
+- [ ] Human can view diff and approve/reject
+- [ ] Approved changes merge to main worktree
 - [ ] Rejected tasks can be retried
 - [ ] No work is ever "lost" in worktrees
 
 ## Testing Plan
 
 1. **Streaming test:** Send task, verify dashboard shows live updates
-2. **PR creation test:** Complete task, verify PR appears on GitHub
-3. **Approval flow test:** Approve PR, verify merge
-4. **Rejection flow test:** Reject PR, verify proper cleanup
-5. **Edge cases:** Network failures, conflicts, timeout handling
+2. **Pending approval test:** Complete task, verify appears in queue
+3. **Approval flow test:** Approve task, verify merge to main worktree
+4. **Rejection flow test:** Reject task, verify proper handling
+5. **Edge cases:** Network failures, merge conflicts, timeout handling
 
 ## Risk Assessment
 
 | Risk | Mitigation |
 |------|------------|
-| Merge conflicts | Detect early, request human resolution |
-| GitHub rate limits | Batch operations, exponential backoff |
+| Merge conflicts | Detect early, show to user for resolution |
+| WebSocket disconnects | Reconnect logic, event buffering |
 | Worktree accumulation | Scheduled cleanup job |
-| Large diffs | Truncate in PR, link to full diff |
 
 ## Notes
 
