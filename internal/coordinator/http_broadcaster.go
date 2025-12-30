@@ -64,6 +64,11 @@ func (h *HTTPBroadcaster) Broadcast(event *websocket.TaskStreamEvent) {
 		return
 	}
 
+	// Log event being sent (debug)
+	if h.logger != nil {
+		h.logger.Printf("HTTPBroadcaster: Sending %s event for task %s", event.StreamType, event.TaskID)
+	}
+
 	// Send to server
 	url := fmt.Sprintf("%s/api/coordinator/events", h.serverURL)
 	resp, err := h.httpClient.Post(url, "application/json", bytes.NewReader(jsonBody))
@@ -78,6 +83,11 @@ func (h *HTTPBroadcaster) Broadcast(event *websocket.TaskStreamEvent) {
 		h.logError(fmt.Sprintf("Server returned status %d", resp.StatusCode), nil)
 		h.queueFailedEvent(event)
 		return
+	}
+
+	// Log success
+	if h.logger != nil {
+		h.logger.Printf("HTTPBroadcaster: Event sent successfully")
 	}
 
 	// Try to flush failed queue on success

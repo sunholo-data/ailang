@@ -84,6 +84,11 @@ func (te *TaskExecutor) Execute(ctx context.Context, task *AnalyzedTask, opts *E
 		}, nil
 	}
 
+	// Debug logging for provider selection
+	hasEventHandler := opts.EventHandler != nil
+	fmt.Printf("[DEBUG] TaskExecutor: Selected provider '%s' for task type '%s' (EventHandler: %v)\n",
+		provider.Name(), task.Type, hasEventHandler)
+
 	// Execute the task
 	return provider.Execute(ctx, task, opts)
 }

@@ -449,6 +449,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		eventHandler = NewCoordinatorEventHandler(task.ID, task.ThreadID, d.eventBroadcaster)
 		opts.EventHandler = eventHandler
 
+		// Set up event storage for historical replay
+		if sqliteStore, ok := d.taskStore.(*SQLiteStore); ok {
+			eventHandler.SetEventStorer(func(record *TaskEventRecord) error {
+				return sqliteStore.StoreTaskEvent(d.ctx, record)
+			})
+		}
+
 		// Emit starting status
 		eventHandler.EmitStatus("running")
 	}

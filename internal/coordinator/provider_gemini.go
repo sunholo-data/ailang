@@ -76,7 +76,14 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 		Model:     opts.Model,
 	}
 
-	execResult, err := p.exec.Execute(ctx, execTask)
+	// Execute using Gemini CLI - use streaming if handler provided
+	var execResult *executor.Result
+	var err error
+	if opts.EventHandler != nil {
+		execResult, err = p.exec.ExecuteStreaming(ctx, execTask, opts.EventHandler)
+	} else {
+		execResult, err = p.exec.Execute(ctx, execTask)
+	}
 	result.Duration = time.Since(start)
 
 	if err != nil {

@@ -12,6 +12,7 @@ import {
   MessageEvent,
   BatchEvent,
   ErrorEvent,
+  TaskStreamEvent,
 } from '../types';
 
 // Connection state type
@@ -38,6 +39,7 @@ class WebSocketService {
   private messageHandlers = new Set<(msg: MessageEvent) => void>();
   private batchHandlers = new Set<(batch: BatchEvent) => void>();
   private errorHandlers = new Set<(error: ErrorEvent) => void>();
+  private taskStreamHandlers = new Set<(event: TaskStreamEvent) => void>();
 
   private subscriptions = new Map<string, number>(); // threadID -> from_seq
   private hookCount = 0;
@@ -243,6 +245,14 @@ class WebSocketService {
         // Heartbeat response
         break;
 
+      case 'task_stream':
+        if (event.data) {
+          const taskEvent = event.data as TaskStreamEvent;
+          console.log('[WebSocketService] Task stream event:', taskEvent.stream_type, taskEvent.task_id);
+          this.taskStreamHandlers.forEach(handler => handler(taskEvent));
+        }
+        break;
+
       default:
         console.log('[WebSocketService] Unknown event:', event.type);
     }
@@ -297,6 +307,16 @@ class WebSocketService {
       type: 'ping',
       timestamp: Date.now(),
     });
+  }
+
+  // Subscribe to task stream events
+  subscribeToTaskStream(handler: (event: TaskStreamEvent) => void): () => void {
+    this.taskStreamHandlers.add(handler);
+    console.log('[WebSocketService] Task stream handler registered, count:', this.taskStreamHandlers.size);
+    return () => {
+      this.taskStreamHandlers.delete(handler);
+      console.log('[WebSocketService] Task stream handler unregistered, count:', this.taskStreamHandlers.size);
+    };
   }
 }
 

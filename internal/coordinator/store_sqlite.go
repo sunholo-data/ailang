@@ -100,6 +100,30 @@ func (s *SQLiteStore) migrate() error {
 
 	CREATE INDEX IF NOT EXISTS idx_approvals_task_id ON approval_requests(task_id);
 	CREATE INDEX IF NOT EXISTS idx_approvals_status ON approval_requests(status);
+
+	-- Task streaming events for replay/history
+	CREATE TABLE IF NOT EXISTS task_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		task_id TEXT NOT NULL,
+		thread_id TEXT,
+		stream_type TEXT NOT NULL,
+		turn_num INTEGER DEFAULT 0,
+		text TEXT,
+		tool_name TEXT,
+		tool_input TEXT,
+		tool_output TEXT,
+		error_msg TEXT,
+		status TEXT,
+		tokens_in INTEGER DEFAULT 0,
+		tokens_out INTEGER DEFAULT 0,
+		cost REAL DEFAULT 0,
+		duration_sec INTEGER DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (task_id) REFERENCES tasks(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_task_events_task_id ON task_events(task_id);
+	CREATE INDEX IF NOT EXISTS idx_task_events_created_at ON task_events(created_at);
 	`
 
 	if _, err := s.db.Exec(schema); err != nil {
@@ -765,4 +789,115 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 	}
 
 	return req, nil
+}
+
+// TaskEventRecord represents a stored task streaming event
+type TaskEventRecord struct {
+	ID          int64     `json:"id"`
+	TaskID      string    `json:"task_id"`
+	ThreadID    string    `json:"thread_id,omitempty"`
+	StreamType  string    `json:"stream_type"`
+	TurnNum     int       `json:"turn_num,omitempty"`
+	Text        string    `json:"text,omitempty"`
+	ToolName    string    `json:"tool_name,omitempty"`
+	ToolInput   string    `json:"tool_input,omitempty"`
+	ToolOutput  string    `json:"tool_output,omitempty"`
+	ErrorMsg    string    `json:"error_msg,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	TokensIn    int       `json:"tokens_in,omitempty"`
+	TokensOut   int       `json:"tokens_out,omitempty"`
+	Cost        float64   `json:"cost,omitempty"`
+	DurationSec int       `json:"duration_sec,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// StoreTaskEvent saves a task streaming event to the database
+func (s *SQLiteStore) StoreTaskEvent(ctx context.Context, event *TaskEventRecord) error {
+	query := `
+		INSERT INTO task_events (task_id, thread_id, stream_type, turn_num, text, tool_name, tool_input, tool_output, error_msg, status, tokens_in, tokens_out, cost, duration_sec, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		event.TaskID, event.ThreadID, event.StreamType, event.TurnNum,
+		event.Text, event.ToolName, event.ToolInput, event.ToolOutput,
+		event.ErrorMsg, event.Status, event.TokensIn, event.TokensOut,
+		event.Cost, event.DurationSec, time.Now(),
+	)
+	return err
+}
+
+// GetTaskEvents retrieves all events for a task
+func (s *SQLiteStore) GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*TaskEventRecord, error) {
+	query := `
+		SELECT id, task_id, thread_id, stream_type, turn_num, text, tool_name, tool_input, tool_output, error_msg, status, tokens_in, tokens_out, cost, duration_sec, created_at
+		FROM task_events WHERE task_id = ?
+		ORDER BY id ASC
+	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []*TaskEventRecord
+	for rows.Next() {
+		event := &TaskEventRecord{}
+		var threadID, text, toolName, toolInput, toolOutput, errorMsg, status sql.NullString
+
+		err := rows.Scan(
+			&event.ID, &event.TaskID, &threadID, &event.StreamType, &event.TurnNum,
+			&text, &toolName, &toolInput, &toolOutput, &errorMsg, &status,
+			&event.TokensIn, &event.TokensOut, &event.Cost, &event.DurationSec, &event.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if threadID.Valid {
+			event.ThreadID = threadID.String
+		}
+		if text.Valid {
+			event.Text = text.String
+		}
+		if toolName.Valid {
+			event.ToolName = toolName.String
+		}
+		if toolInput.Valid {
+			event.ToolInput = toolInput.String
+		}
+		if toolOutput.Valid {
+			event.ToolOutput = toolOutput.String
+		}
+		if errorMsg.Valid {
+			event.ErrorMsg = errorMsg.String
+		}
+		if status.Valid {
+			event.Status = status.String
+		}
+
+		events = append(events, event)
+	}
+
+	return events, rows.Err()
+}
+
+// DeleteTaskEvents removes all events for a task
+func (s *SQLiteStore) DeleteTaskEvents(ctx context.Context, taskID string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM task_events WHERE task_id = ?", taskID)
+	return err
+}
+
+// DeleteOldTaskEvents removes events older than the specified duration
+func (s *SQLiteStore) DeleteOldTaskEvents(ctx context.Context, olderThan time.Duration) (int, error) {
+	cutoff := time.Now().Add(-olderThan)
+	result, err := s.db.ExecContext(ctx, "DELETE FROM task_events WHERE created_at < ?", cutoff)
+	if err != nil {
+		return 0, err
+	}
+	count, _ := result.RowsAffected()
+	return int(count), nil
 }

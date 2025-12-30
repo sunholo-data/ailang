@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { TaskStreamEvent, TaskResourceMetrics, PendingApprovalRequest } from '../types';
+import { wsService } from '../services/websocket';
 
 interface UseTaskStreamOptions {
   taskId: string;
@@ -25,135 +26,106 @@ export const useTaskStream = ({ taskId, onEvent }: UseTaskStreamOptions) => {
     error: null,
   });
 
-  const wsRef = useRef<WebSocket | null>(null);
   const onEventRef = useRef(onEvent);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const taskIdRef = useRef(taskId);
 
-  // Update callback ref
+  // Update refs when props change
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  // Connect to task stream via the main WebSocket endpoint
-  // Events are broadcast to all clients, we filter by taskId
-  const connect = useCallback(() => {
-    if (!taskId) return;
+  useEffect(() => {
+    taskIdRef.current = taskId;
+    // When taskId changes, fetch historical events from database
+    if (taskId) {
+      // Clear current events and fetch historical ones
+      setState(prev => ({ ...prev, events: [] }));
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use the main /ws endpoint - events are broadcast to all clients
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setState(prev => ({ ...prev, isConnected: true, error: null }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'task_stream') {
-            const streamEvent = data as TaskStreamEvent;
-
-            // Filter by taskId - only process events for our task
-            if (streamEvent.task_id !== taskId) {
-              return;
-            }
-
-            // Update events list
+      // Fetch historical events from API
+      fetch(`/api/coordinator/tasks/${taskId}/events`)
+        .then(res => res.json())
+        .then((historicalEvents: TaskStreamEvent[]) => {
+          console.log('[useTaskStream] Loaded historical events:', historicalEvents?.length || 0);
+          if (historicalEvents && historicalEvents.length > 0) {
             setState(prev => ({
               ...prev,
-              events: [...prev.events, streamEvent].slice(-500), // Keep last 500 events
-            }));
-
-            // Update metrics if present
-            if (streamEvent.event_type === 'metrics') {
-              setState(prev => ({
-                ...prev,
-                metrics: {
-                  task_id: streamEvent.task_id,
-                  cpu_percent: streamEvent.cpu_percent || 0,
-                  memory_mb: streamEvent.memory_mb || 0,
-                  tokens_in: streamEvent.tokens_in || 0,
-                  tokens_out: streamEvent.tokens_out || 0,
-                  cost: streamEvent.cost || 0,
-                  peak_cpu: Math.max(prev.metrics?.peak_cpu || 0, streamEvent.cpu_percent || 0),
-                  peak_memory: Math.max(prev.metrics?.peak_memory || 0, streamEvent.memory_mb || 0),
-                  updated_at: streamEvent.timestamp,
-                },
-              }));
-            }
-
-            // Update status if present
-            if (streamEvent.event_type === 'status' && streamEvent.status) {
-              setState(prev => ({ ...prev, status: streamEvent.status! }));
-            }
-
-            // Call external handler
-            if (onEventRef.current) {
-              onEventRef.current(streamEvent);
-            }
-          } else if (data.type === 'approval_request') {
-            setState(prev => ({
-              ...prev,
-              pendingApproval: data as PendingApprovalRequest,
-              status: 'awaiting_approval',
-            }));
-          } else if (data.type === 'approval_resolved') {
-            setState(prev => ({
-              ...prev,
-              pendingApproval: null,
-              status: data.new_status || 'running',
+              events: historicalEvents.map((e: TaskStreamEvent) => ({ ...e, type: 'task_stream' })),
             }));
           }
-        } catch (err) {
-          console.error('Failed to parse task stream event:', err);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('Task stream WebSocket error:', error);
-        setState(prev => ({ ...prev, error: 'Connection error' }));
-      };
-
-      ws.onclose = (event) => {
-        setState(prev => ({ ...prev, isConnected: false }));
-        wsRef.current = null;
-
-        // Reconnect if not a normal close
-        if (event.code !== 1000 && event.code !== 1001) {
-          reconnectTimeoutRef.current = window.setTimeout(() => {
-            connect();
-          }, 2000);
-        }
-      };
-    } catch (err) {
-      console.error('Failed to connect to task stream:', err);
-      setState(prev => ({ ...prev, error: 'Failed to connect' }));
+        })
+        .catch(err => {
+          console.error('[useTaskStream] Failed to fetch historical events:', err);
+        });
     }
   }, [taskId]);
 
-  // Disconnect
-  const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close(1000, 'Client disconnected');
-      wsRef.current = null;
-    }
-    setState(prev => ({ ...prev, isConnected: false }));
-  }, []);
-
-  // Connect on mount, disconnect on unmount
+  // Subscribe to task stream events via the shared WebSocket service
   useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+    // Track connection state from service
+    const unsubscribeState = wsService.subscribeToState((connectionState) => {
+      setState(prev => ({
+        ...prev,
+        isConnected: connectionState === 'connected',
+      }));
+    });
+
+    // Subscribe to task stream events
+    const unsubscribeEvents = wsService.subscribeToTaskStream((streamEvent) => {
+      // Filter by taskId - only process events for our task
+      // If taskId is empty, accept ALL events (useful for "running tasks" view)
+      const currentTaskId = taskIdRef.current;
+      if (currentTaskId && streamEvent.task_id !== currentTaskId) {
+        return;
+      }
+
+      console.log('[useTaskStream] Received:', streamEvent.stream_type, 'for task', streamEvent.task_id);
+
+      // Add type for consistency
+      const eventWithType = { ...streamEvent, type: 'task_stream' as const };
+
+      // Update events list
+      setState(prev => ({
+        ...prev,
+        events: [...prev.events, eventWithType].slice(-500), // Keep last 500 events
+      }));
+
+      // Update metrics from status events
+      if (streamEvent.stream_type === 'status') {
+        setState(prev => ({
+          ...prev,
+          metrics: {
+            task_id: streamEvent.task_id,
+            cpu_percent: 0,
+            memory_mb: 0,
+            tokens_in: streamEvent.tokens_in || 0,
+            tokens_out: streamEvent.tokens_out || 0,
+            cost: streamEvent.cost || 0,
+            peak_cpu: 0,
+            peak_memory: 0,
+            updated_at: streamEvent.timestamp || Date.now(),
+          },
+        }));
+        if (streamEvent.status) {
+          setState(prev => ({ ...prev, status: streamEvent.status! }));
+        }
+      }
+
+      // Update status to 'running' on turn_start
+      if (streamEvent.stream_type === 'turn_start') {
+        setState(prev => ({ ...prev, status: 'running' }));
+      }
+
+      // Call external handler
+      if (onEventRef.current) {
+        onEventRef.current(streamEvent);
+      }
+    });
+
+    return () => {
+      unsubscribeState();
+      unsubscribeEvents();
+    };
+  }, []); // Empty deps - subscribe once on mount
 
   // Clear events
   const clearEvents = useCallback(() => {
@@ -212,8 +184,6 @@ export const useTaskStream = ({ taskId, onEvent }: UseTaskStreamOptions) => {
 
   return {
     ...state,
-    connect,
-    disconnect,
     clearEvents,
     approve,
     reject,

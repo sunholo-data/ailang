@@ -2,6 +2,7 @@
 package coordinator
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,12 +13,17 @@ import (
 // This allows the event handler to be decoupled from the WebSocket server.
 type EventBroadcaster func(*websocket.TaskStreamEvent)
 
+// EventStorer is a function that stores task stream events to database.
+// This allows events to be persisted for historical replay.
+type EventStorer func(*TaskEventRecord) error
+
 // CoordinatorEventHandler implements executor.EventHandler to capture
 // and broadcast executor events via WebSocket.
 type CoordinatorEventHandler struct {
 	taskID    string
 	threadID  string
 	broadcast EventBroadcaster
+	store     EventStorer
 
 	// Rate limiting
 	mu              sync.Mutex
@@ -50,6 +56,11 @@ func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcas
 		eventBuffer:     make([]*websocket.TaskStreamEvent, 0, 100),
 		startTime:       time.Now(),
 	}
+}
+
+// SetEventStorer sets the database storage function for persisting events.
+func (h *CoordinatorEventHandler) SetEventStorer(storer EventStorer) {
+	h.store = storer
 }
 
 // OnTurnStart is called when a new turn starts
@@ -172,9 +183,13 @@ func (h *CoordinatorEventHandler) GetEventBuffer() []*websocket.TaskStreamEvent 
 	return result
 }
 
-// emitEvent broadcasts an event and buffers it for replay
+// emitEvent broadcasts an event, buffers it for replay, and stores to database
 func (h *CoordinatorEventHandler) emitEvent(event *websocket.TaskStreamEvent) {
-	// Buffer the event
+	// Debug logging
+	fmt.Printf("[DEBUG] EventHandler.emitEvent: type=%s task=%s (hasBroadcast=%v, hasStore=%v)\n",
+		event.StreamType, event.TaskID, h.broadcast != nil, h.store != nil)
+
+	// Buffer the event (in-memory for current session)
 	h.bufferMu.Lock()
 	if len(h.eventBuffer) >= h.maxBufferSize {
 		// Remove oldest event
@@ -182,6 +197,31 @@ func (h *CoordinatorEventHandler) emitEvent(event *websocket.TaskStreamEvent) {
 	}
 	h.eventBuffer = append(h.eventBuffer, event)
 	h.bufferMu.Unlock()
+
+	// Store to database for historical replay (async to not block streaming)
+	if h.store != nil {
+		go func() {
+			record := &TaskEventRecord{
+				TaskID:      event.TaskID,
+				ThreadID:    event.ThreadID,
+				StreamType:  string(event.StreamType),
+				TurnNum:     event.TurnNum,
+				Text:        event.Text,
+				ToolName:    event.ToolName,
+				ToolInput:   event.ToolInput,
+				ToolOutput:  event.ToolOutput,
+				ErrorMsg:    event.ErrorMsg,
+				Status:      event.Status,
+				TokensIn:    event.TokensIn,
+				TokensOut:   event.TokensOut,
+				Cost:        event.Cost,
+				DurationSec: event.DurationSec,
+			}
+			if err := h.store(record); err != nil {
+				fmt.Printf("[DEBUG] EventHandler: failed to store event: %v\n", err)
+			}
+		}()
+	}
 
 	// Broadcast if we have a broadcaster
 	if h.broadcast != nil {

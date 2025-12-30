@@ -56,6 +56,9 @@ type Server struct {
 
 	// Coordinator approval store for approval workflow
 	approvalStore CoordinatorApprovalStore
+
+	// Coordinator task event store for historical replay
+	taskEventStore CoordinatorTaskEventStore
 }
 
 // NewServer creates a new HTTP server
@@ -170,6 +173,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/coordinator/approve/", s.handleCoordinatorApproval)
 	mux.HandleFunc("/api/coordinator/reject/", s.handleCoordinatorApproval)
 	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
+	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
+	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
 
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)

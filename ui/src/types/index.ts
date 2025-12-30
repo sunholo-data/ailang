@@ -258,25 +258,24 @@ export interface InstanceHistoryEntry {
 }
 
 // Task Stream Events (for coordinator executor feedback loop)
+// Must match Go's TaskStreamEventType in internal/websocket/events.go
 export type TaskStreamEventType =
-  | 'log'           // Log output line
-  | 'stdout'        // Standard output
-  | 'stderr'        // Standard error
+  | 'turn_start'    // Turn started
+  | 'text'          // Text output from agent
   | 'tool_use'      // Tool invocation
-  | 'thinking'      // Model thinking
-  | 'result'        // Task completion result
+  | 'tool_result'   // Tool result
+  | 'turn_end'      // Turn ended
   | 'error'         // Error event
-  | 'status'        // Status change
-  | 'metrics';      // Resource metrics update
+  | 'status';       // Status change with metrics
 
 export interface TaskStreamEvent {
   type: 'task_stream';
   task_id: string;
   thread_id?: string;
   stream_type: TaskStreamEventType; // Maps to Go's StreamType
+  turn_num?: number;         // Turn number
   timestamp?: number;
-  text?: string;           // Maps to Go's Text field
-  content?: string;        // Alias for text
+  text?: string;             // Text content from agent
   tool_name?: string;
   tool_input?: string;
   tool_output?: string;
@@ -284,9 +283,7 @@ export interface TaskStreamEvent {
   tokens_in?: number;
   tokens_out?: number;
   duration_sec?: number;
-  cpu_percent?: number;
-  memory_mb?: number;
-  status?: string;
+  status?: string;           // running, completed, failed
   error_msg?: string;
 }
 

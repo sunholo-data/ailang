@@ -8,45 +8,43 @@ interface StreamingLogProps {
   autoScroll?: boolean;
 }
 
+// Maps stream_type to display icon
 const getEventIcon = (type: TaskStreamEventType): string => {
   switch (type) {
-    case 'log':
-    case 'stdout':
+    case 'turn_start':
+      return '[START]';
+    case 'text':
       return '>';
-    case 'stderr':
-      return '!';
     case 'tool_use':
-      return '[T]';
-    case 'thinking':
-      return '...';
-    case 'result':
-      return '[R]';
+      return '[TOOL]';
+    case 'tool_result':
+      return '[RESULT]';
+    case 'turn_end':
+      return '[END]';
     case 'error':
-      return '[E]';
+      return '[ERR]';
     case 'status':
-      return '[S]';
-    case 'metrics':
-      return '[M]';
+      return '[STATUS]';
     default:
       return '';
   }
 };
 
+// Maps stream_type to CSS class
 const getEventClass = (type: TaskStreamEventType): string => {
   switch (type) {
-    case 'stderr':
     case 'error':
       return styles.logError;
     case 'tool_use':
       return styles.logTool;
-    case 'thinking':
-      return styles.logThinking;
-    case 'result':
+    case 'tool_result':
       return styles.logResult;
+    case 'turn_start':
+    case 'turn_end':
+      return styles.logStatus;
     case 'status':
       return styles.logStatus;
-    case 'metrics':
-      return styles.logMetrics;
+    case 'text':
     default:
       return styles.logStdout;
   }
@@ -104,14 +102,14 @@ export const StreamingLog: React.FC<StreamingLogProps> = ({
         </div>
       )}
       {displayEvents.map((event, index) => (
-        <div key={`${event.timestamp}-${index}`} className={`${styles.logLine} ${getEventClass(event.event_type)}`}>
-          <span className={styles.timestamp}>{formatTimestamp(event.timestamp)}</span>
-          <span className={styles.icon}>{getEventIcon(event.event_type)}</span>
+        <div key={`${event.timestamp}-${index}`} className={`${styles.logLine} ${getEventClass(event.stream_type)}`}>
+          <span className={styles.timestamp}>{formatTimestamp(event.timestamp || Date.now())}</span>
+          <span className={styles.icon}>{getEventIcon(event.stream_type)}</span>
           {event.tool_name && (
             <span className={styles.toolName}>[{event.tool_name}]</span>
           )}
           <span className={styles.content}>
-            {event.content || event.tool_input || event.status || ''}
+            {event.text || event.tool_input || event.tool_output || event.status || event.error_msg || (event.stream_type === 'turn_start' ? `Turn ${event.turn_num}` : '')}
           </span>
         </div>
       ))}

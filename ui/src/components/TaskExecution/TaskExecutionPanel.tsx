@@ -6,15 +6,17 @@ import {
 } from '../../types';
 import { StreamingLog } from './StreamingLog';
 import { ResourceMetrics } from './ResourceMetrics';
+import { useTaskStream } from '../../hooks/useTaskStream';
 import styles from './TaskExecution.module.css';
 
 interface TaskExecutionPanelProps {
   taskId: string;
   threadId?: string;
-  events: TaskStreamEvent[];
-  metrics: TaskResourceMetrics | null;
-  pendingApproval: PendingApprovalRequest | null;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'approval_pending';
+  // Optional overrides - if not provided, uses useTaskStream hook
+  events?: TaskStreamEvent[];
+  metrics?: TaskResourceMetrics | null;
+  pendingApproval?: PendingApprovalRequest | null;
+  status?: 'pending' | 'running' | 'completed' | 'failed' | 'approval_pending';
   onApprove?: (requestId: string) => void;
   onReject?: (requestId: string) => void;
   onCancel?: () => void;
@@ -40,37 +42,54 @@ const getStatusBadge = (status: string): { label: string; className: string } =>
 export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
   taskId,
   threadId,
-  events,
-  metrics,
-  pendingApproval,
-  status,
+  events: propEvents,
+  metrics: propMetrics,
+  pendingApproval: propPendingApproval,
+  status: propStatus,
   onApprove,
   onReject,
   onCancel,
 }) => {
+  // Use the task stream hook for real-time WebSocket updates
+  const taskStream = useTaskStream({ taskId });
+
+  // Use props if provided, otherwise use hook data
+  const events = propEvents ?? taskStream.events;
+  const metrics = propMetrics ?? taskStream.metrics;
+  const pendingApproval = propPendingApproval ?? taskStream.pendingApproval;
+  const status = propStatus ?? (taskStream.status as 'pending' | 'running' | 'completed' | 'failed' | 'approval_pending');
+
   const [isApproving, setIsApproving] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
   const statusBadge = getStatusBadge(status);
 
   const handleApprove = useCallback(async () => {
-    if (!pendingApproval || !onApprove) return;
+    if (!pendingApproval) return;
     setIsApproving(true);
     try {
-      await onApprove(pendingApproval.id);
+      if (onApprove) {
+        await onApprove(pendingApproval.id);
+      } else {
+        await taskStream.approve();
+      }
     } finally {
       setIsApproving(false);
     }
-  }, [pendingApproval, onApprove]);
+  }, [pendingApproval, onApprove, taskStream]);
 
   const handleReject = useCallback(async () => {
-    if (!pendingApproval || !onReject) return;
+    if (!pendingApproval) return;
     setIsApproving(true);
     try {
-      await onReject(pendingApproval.id);
+      if (onReject) {
+        await onReject(pendingApproval.id);
+      } else {
+        await taskStream.reject();
+      }
     } finally {
       setIsApproving(false);
     }
-  }, [pendingApproval, onReject]);
+  }, [pendingApproval, onReject, taskStream]);
 
   // Sound notification for pending approvals
   useEffect(() => {

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/server"
 )
 
@@ -94,8 +95,21 @@ func serveCommand(args []string) error {
 	}
 	defer srv.Close()
 
+	// Connect to coordinator store for task events (read-only access for historical replay)
+	coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
+	coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
+	if err != nil {
+		log.Printf("Warning: Could not connect to coordinator store: %v", err)
+		log.Printf("Task event history will not be available")
+	} else {
+		srv.SetTaskEventStore(coordStore)
+		srv.SetApprovalStore(coordStore)
+		defer coordStore.Close()
+	}
+
 	log.Printf("AILANG Collaboration Hub Server (v%s)", Version)
 	log.Printf("Database: %s", dbPath)
+	log.Printf("Coordinator DB: %s", coordDbPath)
 	log.Printf("")
 
 	// Auto-open browser after a short delay (server needs to start first)
