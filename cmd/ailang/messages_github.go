@@ -102,6 +102,20 @@ func runMessagesImportGitHub(args []string) {
 			continue
 		}
 
+		// Skip issues created by ailang agents (outgoing messages have "from:" labels)
+		// This prevents feedback loops: agent creates issue → import sees it → agent processes it → repeat
+		isAgentCreated := false
+		for _, label := range issue.Labels {
+			if strings.HasPrefix(label, "from:") {
+				isAgentCreated = true
+				break
+			}
+		}
+		if isAgentCreated {
+			skipped++ // Count as skipped, not imported
+			continue
+		}
+
 		if *dryRun {
 			fmt.Printf("  Would import: #%d %s\n", issue.Number, issue.Title)
 			imported++
