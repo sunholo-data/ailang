@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { HierarchyTree } from './components/HierarchyTree';
-import { AllAgentsOverview } from './components/Overview';
+// Features
+import { HierarchyTree, AllAgentsOverview, AgentView } from './features/agents';
+import { MessageCenter } from './features/messaging';
+import { ApprovalQueue } from './features/approvals';
+import { TaskExecutionPanel } from './features/tasks';
+// Components
 import { Breadcrumb } from './components/common';
-import { MessageCenter } from './components/MessageCenter/MessageCenter';
-import { ApprovalQueue } from './components/ApprovalQueue/ApprovalQueue';
 import { ConnectionStatus } from './components/ConnectionStatus';
-import { MetricsCard } from './components/MetricsCard';
-import { TrendsChart } from './components/TrendsChart';
-import { StatsPanel } from './components/StatsPanel';
+import { MetricsCard, TrendsChart, StatsPanel } from './components/metrics';
 import { Selection, HierarchyResponse, Approval } from './types';
-import { TaskExecutionPanel } from './components/TaskExecution';
 import './App.module.css';
 
 // Logo - use same image as ailang.sunholo.com
@@ -216,15 +215,16 @@ export const App: React.FC = () => {
   };
 
   // Create a new thread for a specific agent
-  const handleCreateThreadForAgent = async (agentId: string) => {
-    if (!newThreadTitle.trim()) return;
+  const handleCreateThreadForAgent = async (agentId: string, title?: string) => {
+    const threadTitle = title || newThreadTitle;
+    if (!threadTitle.trim()) return;
 
     try {
       const response = await fetch('/api/threads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newThreadTitle.trim(),
+          title: threadTitle.trim(),
           created_by_type: 'human',
           created_by_id: 'user',
           target_agent: agentId,
@@ -266,130 +266,22 @@ export const App: React.FC = () => {
     }
 
     if (selection.type === 'agent' && selection.agentId) {
-      // Find agent's threads and show them with approvals
       const agent = hierarchy?.root.children?.find(a => a.id === selection.agentId);
       const agentApprovals = approvals.filter(a => {
-        // Check if approval belongs to a thread owned by this agent
         return agent?.children?.some(t => t.id === a.thread_id);
       });
 
       return (
-        <div className="agent-view">
-          <div className="agent-view-header">
-            <h2>{selection.agentId}</h2>
-            <span className="agent-thread-count">
-              {agent?.children?.length || 0} threads
-            </span>
-          </div>
-
-          <div className="agent-metrics-section">
-            <h3>Agent Metrics</h3>
-            <MetricsCard scopeType="agent" scopeId={selection.agentId} title="" />
-            <div className="agent-trends-grid">
-              <TrendsChart
-                scopeType="agent"
-                scopeId={selection.agentId}
-                period="hour"
-                limit={24}
-                metric="cost"
-                title="Cost (24h)"
-              />
-              <TrendsChart
-                scopeType="agent"
-                scopeId={selection.agentId}
-                period="hour"
-                limit={24}
-                metric="tokens"
-                title="Tokens (24h)"
-              />
-            </div>
-          </div>
-
-          <div className="agent-view-content">
-            <div className="agent-threads">
-              <div className="threads-header">
-                <h3>Threads</h3>
-                <button
-                  className="new-thread-btn"
-                  onClick={() => setIsCreatingThread(true)}
-                  title="New thread"
-                >
-                  + New Thread
-                </button>
-              </div>
-
-              {isCreatingThread && (
-                <div className="new-thread-form">
-                  <input
-                    type="text"
-                    value={newThreadTitle}
-                    onChange={(e) => setNewThreadTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCreateThreadForAgent(selection.agentId!);
-                      if (e.key === 'Escape') { setIsCreatingThread(false); setNewThreadTitle(''); }
-                    }}
-                    placeholder="Thread title..."
-                    autoFocus
-                  />
-                  <div className="form-actions">
-                    <button onClick={() => { setIsCreatingThread(false); setNewThreadTitle(''); }}>
-                      Cancel
-                    </button>
-                    <button
-                      className="create-btn"
-                      onClick={() => handleCreateThreadForAgent(selection.agentId!)}
-                    >
-                      Create
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {agent?.children?.map(thread => (
-                <div
-                  key={thread.id}
-                  className="thread-card"
-                  onClick={() => setSelection({ type: 'thread', agentId: selection.agentId, threadId: thread.id })}
-                >
-                  <span className="thread-title">{thread.label}</span>
-                  {thread.badges && thread.badges.length > 0 && (
-                    <span className="thread-badges">
-                      {thread.badges.map((badge, i) => (
-                        <span key={i} className={`badge badge-${badge.type}`}>
-                          {badge.count}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {(!agent?.children || agent.children.length === 0) && !isCreatingThread && (
-                <div className="no-threads">
-                  No threads yet
-                  <button
-                    className="start-thread-btn"
-                    onClick={() => setIsCreatingThread(true)}
-                  >
-                    Start a conversation
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {agentApprovals.length > 0 && (
-              <div className="agent-approvals">
-                <h3>Pending Approvals</h3>
-                <ApprovalQueue
-                  approvals={agentApprovals}
-                  history={[]}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                  onNavigateToThread={handleNavigateToThread}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+        <AgentView
+          agentId={selection.agentId}
+          agent={agent}
+          approvals={agentApprovals}
+          onThreadSelect={(threadId) => setSelection({ type: 'thread', agentId: selection.agentId, threadId })}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onNavigateToThread={handleNavigateToThread}
+          onCreateThread={(title) => handleCreateThreadForAgent(selection.agentId!, title)}
+        />
       );
     }
 
