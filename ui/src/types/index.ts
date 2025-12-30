@@ -217,6 +217,7 @@ export interface AggregatedMetrics {
   avg_tokens_per_run: number;
   avg_cost_per_run: number;
   avg_duration_per_run: number;
+  pending_tasks: number; // Number of currently running/pending tasks
 }
 
 // Metrics trend data point
@@ -272,17 +273,21 @@ export interface TaskStreamEvent {
   type: 'task_stream';
   task_id: string;
   thread_id?: string;
-  event_type: TaskStreamEventType;
-  timestamp: number;
-  content?: string;
+  stream_type: TaskStreamEventType; // Maps to Go's StreamType
+  timestamp?: number;
+  text?: string;           // Maps to Go's Text field
+  content?: string;        // Alias for text
   tool_name?: string;
   tool_input?: string;
+  tool_output?: string;
   cost?: number;
   tokens_in?: number;
   tokens_out?: number;
+  duration_sec?: number;
   cpu_percent?: number;
   memory_mb?: number;
   status?: string;
+  error_msg?: string;
 }
 
 export interface TaskResourceMetrics {

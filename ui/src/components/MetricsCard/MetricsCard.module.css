@@ -102,3 +102,46 @@
   color: var(--accent-red, #f38ba8);
   font-size: 12px;
 }
+
+/* Pending/Running state styles */
+.pending {
+  border-color: var(--accent-teal, #94e2d5);
+  background: linear-gradient(135deg, var(--bg-secondary, #1e1e2e) 0%, rgba(148, 226, 213, 0.1) 100%);
+}
+
+.pendingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-teal, #94e2d5);
+  font-weight: 500;
+}
+
+.pendingDot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-teal, #94e2d5);
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.pendingBadge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: rgba(148, 226, 213, 0.2);
+  color: var(--accent-teal, #94e2d5);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}

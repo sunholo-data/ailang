@@ -174,6 +174,16 @@ func (s *Server) handleMetricsScope(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for pending/running tasks from resourceRegistry
+	if s.resourceRegistry != nil && scopeType == "thread" {
+		allMetrics := s.resourceRegistry.GetAllMetrics()
+		for _, m := range allMetrics {
+			if m.ThreadID == scopeID {
+				metrics.PendingTasks++
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metrics); err != nil {
 		log.Printf("Failed to encode metrics response: %v", err)

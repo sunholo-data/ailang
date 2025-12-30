@@ -29,6 +29,11 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(2)}`;
 }
 
+// Check if metrics are in pending state (task running but no results yet)
+function isPendingState(metrics: AggregatedMetrics): boolean {
+  return metrics.pending_tasks > 0 && metrics.total_runs === 0;
+}
+
 export function MetricsCard({ scopeType, scopeId = '', title, compact = false }: MetricsCardProps) {
   const [metrics, setMetrics] = useState<AggregatedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,15 +95,30 @@ export function MetricsCard({ scopeType, scopeId = '', title, compact = false }:
   );
 
   if (compact) {
+    const isPending = isPendingState(metrics);
     return (
-      <div className={`${styles.card} ${styles.compact}`}>
+      <div className={`${styles.card} ${styles.compact} ${isPending ? styles.pending : ''}`}>
         <div className={styles.compactRow}>
-          <span className={styles.compactLabel}>Runs:</span>
-          <span className={styles.compactValue}>{formatNumber(metrics.total_runs)}</span>
-          <span className={styles.compactLabel}>Tokens:</span>
-          <span className={styles.compactValue}>{formatNumber(metrics.total_tokens)}</span>
-          <span className={styles.compactLabel}>Cost:</span>
-          <span className={styles.compactValue}>{formatCost(metrics.total_cost)}</span>
+          {isPending ? (
+            <>
+              <span className={styles.pendingIndicator}>
+                <span className={styles.pendingDot}></span>
+                Running task...
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={styles.compactLabel}>Runs:</span>
+              <span className={styles.compactValue}>{formatNumber(metrics.total_runs)}</span>
+              <span className={styles.compactLabel}>Tokens:</span>
+              <span className={styles.compactValue}>{formatNumber(metrics.total_tokens)}</span>
+              <span className={styles.compactLabel}>Cost:</span>
+              <span className={styles.compactValue}>{formatCost(metrics.total_cost)}</span>
+            </>
+          )}
+          {metrics.pending_tasks > 0 && !isPending && (
+            <span className={styles.pendingBadge}>+{metrics.pending_tasks} running</span>
+          )}
         </div>
       </div>
     );

@@ -30,6 +30,7 @@ type AggregatedMetrics struct {
 	AvgTokens     float64 `json:"avg_tokens_per_run"`
 	AvgCost       float64 `json:"avg_cost_per_run"`
 	AvgDuration   float64 `json:"avg_duration_per_run"`
+	PendingTasks  int     `json:"pending_tasks"` // Number of currently running/pending tasks
 }
 
 // ParseMessageExecutionStats extracts execution stats from message metadata JSON
