@@ -7,6 +7,7 @@ import { ApprovalQueue } from './components/ApprovalQueue/ApprovalQueue';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { MetricsCard } from './components/MetricsCard';
 import { TrendsChart } from './components/TrendsChart';
+import { StatsPanel } from './components/StatsPanel';
 import { Selection, HierarchyResponse, Approval } from './types';
 import { TaskExecutionPanel } from './components/TaskExecution';
 
@@ -248,11 +249,18 @@ export const App: React.FC = () => {
   const renderContent = () => {
     if (selection.type === 'overview' && hierarchy) {
       return (
-        <AllAgentsOverview
-          aggregate={hierarchy.aggregate}
-          agents={hierarchy.root.children || []}
-          onSelectAgent={(agentId) => setSelection({ type: 'agent', agentId })}
-        />
+        <div className="overview-container">
+          <div className="overview-main">
+            <AllAgentsOverview
+              aggregate={hierarchy.aggregate}
+              agents={hierarchy.root.children || []}
+              onSelectAgent={(agentId) => setSelection({ type: 'agent', agentId })}
+            />
+          </div>
+          <aside className="overview-sidebar">
+            <StatsPanel />
+          </aside>
+        </div>
       );
     }
 
@@ -896,7 +904,36 @@ export const App: React.FC = () => {
           font-size: 14px;
         }
 
+        /* Overview Layout */
+        .overview-container {
+          display: flex;
+          gap: 24px;
+          padding: 24px;
+          height: 100%;
+          overflow-y: auto;
+        }
+
+        .overview-main {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .overview-sidebar {
+          width: 320px;
+          flex-shrink: 0;
+        }
+
         /* Responsive */
+        @media (max-width: 1024px) {
+          .overview-container {
+            flex-direction: column;
+          }
+
+          .overview-sidebar {
+            width: 100%;
+          }
+        }
+
         @media (max-width: 768px) {
           .brand-text {
             display: none;

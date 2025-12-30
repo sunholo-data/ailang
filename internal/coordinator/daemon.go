@@ -293,6 +293,12 @@ func (d *Daemon) pollAndProcessTasks() error {
 		analyzed := d.analyzer.Analyze(taskInput)
 
 		// Create a task record
+		// Use message source (From) as workspace - this is the source project/agent
+		workspace := msg.From
+		if workspace == "" {
+			workspace = "unknown"
+		}
+
 		task := &TaskRecord{
 			ID:        taskID,
 			MessageID: msg.ID,
@@ -302,6 +308,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			Kind:      kind,
 			Priority:  CalculatePriority(analyzed),
 			Status:    TaskStatusPending,
+			Workspace: workspace,
 			CreatedAt: msg.CreatedAt,
 		}
 
@@ -317,11 +324,12 @@ func (d *Daemon) pollAndProcessTasks() error {
 		}
 
 		// Create a thread in collaboration.db for dashboard visibility
-		thread, err := d.msgStore.CreateThread(
+		thread, err := d.msgStore.CreateThreadWithWorkspace(
 			msg.Title,           // title
 			"ailang_instance",   // createdByType (constraint: 'human' or 'ailang_instance')
 			"coordinator",       // createdByID
 			"coordinator",       // targetAgent
+			workspace,           // workspace - source project/agent
 		)
 		if err != nil {
 			d.logger.Printf("Failed to create thread for task %s: %v", taskID, err)

@@ -69,7 +69,8 @@ func (s *SQLiteStore) migrate() error {
 		input_tokens INTEGER DEFAULT 0,
 		output_tokens INTEGER DEFAULT 0,
 		peak_cpu REAL DEFAULT 0,
-		peak_memory_mb REAL DEFAULT 0
+		peak_memory_mb REAL DEFAULT 0,
+		workspace TEXT
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
@@ -79,6 +80,7 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
 	CREATE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_thread_id ON tasks(thread_id);
+	CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace);
 
 	-- Approval requests for human-in-the-loop checkpoints
 	CREATE TABLE IF NOT EXISTS approval_requests (
@@ -110,10 +112,14 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN output_tokens INTEGER DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN peak_cpu REAL DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN peak_memory_mb REAL DEFAULT 0",
+		"ALTER TABLE tasks ADD COLUMN workspace TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
 	}
+
+	// Add new index if it doesn't exist
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace)")
 
 	return nil
 }
@@ -121,12 +127,12 @@ func (s *SQLiteStore) migrate() error {
 // CreateTask creates a new task
 func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 	query := `
-		INSERT INTO tasks (id, message_id, thread_id, title, content, type, priority, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, message_id, thread_id, title, content, type, priority, status, workspace, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.Title, task.Content,
-		task.Type, task.Priority, task.Status, task.CreatedAt,
+		task.Type, task.Priority, task.Status, task.Workspace, task.CreatedAt,
 	)
 	return err
 }
@@ -135,7 +141,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE id = ?
 	`
@@ -148,8 +154,9 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 	query := `
 		UPDATE tasks SET
 			title = ?, content = ?, type = ?, priority = ?, status = ?,
-			provider = ?, worktree_id = ?, thread_id = ?, started_at = ?, completed_at = ?,
-			duration_ns = ?, error = ?, output = ?, cost = ?, tokens_used = ?
+			provider = ?, worktree_id = ?, thread_id = ?, workspace = ?,
+			started_at = ?, completed_at = ?, duration_ns = ?,
+			error = ?, output = ?, cost = ?, tokens_used = ?
 		WHERE id = ?
 	`
 	var durationNs int64
@@ -159,8 +166,9 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 
 	_, err := s.db.ExecContext(ctx, query,
 		task.Title, task.Content, task.Type, task.Priority, task.Status,
-		task.Provider, task.WorktreeID, task.ThreadID, task.StartedAt, task.CompletedAt,
-		durationNs, task.Error, task.Output, task.Cost, task.TokensUsed,
+		task.Provider, task.WorktreeID, task.ThreadID, task.Workspace,
+		task.StartedAt, task.CompletedAt, durationNs,
+		task.Error, task.Output, task.Cost, task.TokensUsed,
 		task.ID,
 	)
 	return err
@@ -177,7 +185,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE 1=1
 	`)
@@ -205,6 +213,11 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	if filter.Provider != "" {
 		query.WriteString(" AND provider = ?")
 		args = append(args, filter.Provider)
+	}
+
+	if filter.Workspace != "" {
+		query.WriteString(" AND workspace = ?")
+		args = append(args, filter.Workspace)
 	}
 
 	if filter.Since != nil {
@@ -259,8 +272,9 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 // GetTaskStats returns aggregate statistics
 func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 	stats := &TaskStats{
-		ByType:     make(map[string]int),
-		ByProvider: make(map[string]int),
+		ByType:      make(map[string]int),
+		ByProvider:  make(map[string]int),
+		ByWorkspace: make(map[string]int),
 	}
 
 	// Count by status
@@ -325,6 +339,24 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 			return nil, err
 		}
 		stats.ByProvider[provider] = count
+	}
+
+	// Count by workspace
+	rows4, err := s.db.QueryContext(ctx, `
+		SELECT COALESCE(workspace, 'unknown'), COUNT(*) FROM tasks WHERE workspace IS NOT NULL AND workspace != '' GROUP BY workspace
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows4.Close()
+
+	for rows4.Next() {
+		var workspace string
+		var count int
+		if err := rows4.Scan(&workspace, &count); err != nil {
+			return nil, err
+		}
+		stats.ByWorkspace[workspace] = count
 	}
 
 	// Totals
@@ -403,7 +435,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		        worktree_id, created_at, started_at, completed_at, duration_ns,
+		        worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
 		fingerprint,
@@ -466,12 +498,12 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, errStr, output, threadID sql.NullString
+	var provider, worktreeID, workspace, errStr, output, threadID sql.NullString
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &workspace, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -492,6 +524,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String
+	}
+	if workspace.Valid {
+		task.Workspace = workspace.String
 	}
 	if errStr.Valid {
 		task.Error = errStr.String
@@ -511,12 +546,12 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, errStr, output, threadID sql.NullString
+	var provider, worktreeID, workspace, errStr, output, threadID sql.NullString
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &workspace, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -537,6 +572,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String
+	}
+	if workspace.Valid {
+		task.Workspace = workspace.String
 	}
 	if errStr.Valid {
 		task.Error = errStr.String

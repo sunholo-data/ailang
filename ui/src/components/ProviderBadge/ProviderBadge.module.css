@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.small {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.medium {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* Provider colors */
+.claude {
+  background-color: rgba(255, 149, 87, 0.2);
+  color: #ff9557;
+}
+
+.gemini {
+  background-color: rgba(66, 133, 244, 0.2);
+  color: #4285f4;
+}
+
+.openai {
+  background-color: rgba(16, 163, 127, 0.2);
+  color: #10a37f;
+}
+
+.ollama {
+  background-color: rgba(139, 92, 246, 0.2);
+  color: #8b5cf6;
+}
+
+.default {
+  background-color: rgba(166, 173, 200, 0.2);
+  color: var(--text-secondary, #a6adc8);
+}

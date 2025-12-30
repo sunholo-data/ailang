@@ -18,6 +18,7 @@ type TaskRecord struct {
 	Status      TaskStatus    `json:"status"`
 	Provider    string        `json:"provider,omitempty"`
 	WorktreeID  string        `json:"worktree_id,omitempty"`
+	Workspace   string        `json:"workspace,omitempty"` // Source workspace from thread (not worktree)
 	CreatedAt   time.Time     `json:"created_at"`
 	StartedAt   *time.Time    `json:"started_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
@@ -52,6 +53,7 @@ type TaskFilter struct {
 	Status    []TaskStatus
 	Type      []TaskType
 	Provider  string
+	Workspace string // Filter by source workspace
 	Since     *time.Time
 	Until     *time.Time
 	Limit     int
@@ -69,6 +71,7 @@ type TaskStats struct {
 	FailedTasks    int            `json:"failed_tasks"`
 	ByType         map[string]int `json:"by_type"`
 	ByProvider     map[string]int `json:"by_provider"`
+	ByWorkspace    map[string]int `json:"by_workspace"` // Per-workspace breakdown
 	TotalCost      float64        `json:"total_cost"`
 	TotalTokens    int            `json:"total_tokens"`
 	AvgDuration    time.Duration  `json:"avg_duration"`

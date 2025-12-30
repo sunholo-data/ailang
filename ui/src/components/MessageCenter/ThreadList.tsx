@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Thread } from '../../types';
+import { WorkspaceBadge } from '../WorkspaceBadge';
 
 interface ThreadListProps {
   threads: Thread[];
@@ -254,6 +255,9 @@ export const ThreadList: React.FC<ThreadListProps> = ({
                         {Icons.bot}
                         {thread.target_agent}
                       </span>
+                    )}
+                    {thread.workspace && (
+                      <WorkspaceBadge workspace={thread.workspace} size="small" />
                     )}
                     <span className="thread-seq">#{thread.last_seq}</span>
                   </div>

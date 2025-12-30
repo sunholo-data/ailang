@@ -142,6 +142,8 @@ func (s *Server) Start() error {
 	// REST API endpoints - Threads
 	mux.HandleFunc("/api/threads", s.handleThreads)
 	mux.HandleFunc("/api/threads/", s.handleThread)
+	mux.HandleFunc("/api/workspaces", s.handleWorkspaces)
+	mux.HandleFunc("/api/statistics", s.handleStatistics)
 
 	// REST API endpoints - Messages
 	mux.HandleFunc("/api/messages", s.handleMessages)
