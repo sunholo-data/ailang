@@ -1222,90 +1222,100 @@ func coordinatorList(args []string) error {
 		filter.Status = statusFilters
 	}
 
-	tasks, err := store.ListTasks(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("failed to list tasks: %w", err)
-	}
-
+	// JSON output mode - no interactive loop
 	if jsonOutput {
+		tasks, err := store.ListTasks(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to list tasks: %w", err)
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(tasks)
 	}
 
-	if len(tasks) == 0 {
-		fmt.Println("No tasks found.")
-		return nil
-	}
-
-	fmt.Println(bold("Tasks"))
-	fmt.Println()
-
-	// Table header
-	fmt.Printf("  %-15s %-12s %-10s %-40s %s\n",
-		dim("ID"), dim("STATUS"), dim("TYPE"), dim("TITLE"), dim("CREATED"))
-	fmt.Println("  " + strings.Repeat("─", 95))
-
-	for _, task := range tasks {
-		statusIcon, statusStr := formatTaskStatus(task.Status)
-		title := task.Title
-		if len(title) > 38 {
-			title = title[:35] + "..."
+	// Interactive loop - show list, select task, return to list
+	for {
+		tasks, err := store.ListTasks(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to list tasks: %w", err)
 		}
 
-		// Shorten ID for display (first 12 chars)
-		shortID := task.ID
-		if len(shortID) > 15 {
-			shortID = shortID[:12] + "..."
+		if len(tasks) == 0 {
+			fmt.Println("No tasks found.")
+			return nil
 		}
 
-		created := task.CreatedAt.Format("Jan 02 15:04")
+		fmt.Println()
+		fmt.Println(bold("Tasks"))
+		fmt.Println()
 
-		fmt.Printf("  %-15s %s %-11s %-10s %-40s %s\n",
-			shortID, statusIcon, statusStr, task.Type, title, dim(created))
+		// Table header
+		fmt.Printf("  %-15s %-12s %-10s %-40s %s\n",
+			dim("ID"), dim("STATUS"), dim("TYPE"), dim("TITLE"), dim("CREATED"))
+		fmt.Println("  " + strings.Repeat("─", 95))
 
-		// Show extra info for certain statuses
-		if task.Status == coordinator.TaskStatusRunning && task.Provider != "" {
-			fmt.Printf("       %s Provider: %s\n", dim("└"), task.Provider)
-		}
-		if task.Status == coordinator.TaskStatusFailed && task.Error != "" {
-			errMsg := task.Error
-			if len(errMsg) > 70 {
-				errMsg = errMsg[:67] + "..."
+		for i, task := range tasks {
+			statusIcon, statusStr := formatTaskStatus(task.Status)
+			title := task.Title
+			if len(title) > 38 {
+				title = title[:35] + "..."
 			}
-			fmt.Printf("       %s Error: %s\n", dim("└"), red(errMsg))
+
+			// Shorten ID for display (first 12 chars)
+			shortID := task.ID
+			if len(shortID) > 15 {
+				shortID = shortID[:12] + "..."
+			}
+
+			created := task.CreatedAt.Format("Jan 02 15:04")
+
+			// Show number prefix for selection
+			fmt.Printf("%2d %-15s %s %-11s %-10s %-40s %s\n",
+				i+1, shortID, statusIcon, statusStr, task.Type, title, dim(created))
+
+			// Show extra info for certain statuses
+			if task.Status == coordinator.TaskStatusRunning && task.Provider != "" {
+				fmt.Printf("       %s Provider: %s\n", dim("└"), task.Provider)
+			}
+			if task.Status == coordinator.TaskStatusFailed && task.Error != "" {
+				errMsg := task.Error
+				if len(errMsg) > 70 {
+					errMsg = errMsg[:67] + "..."
+				}
+				fmt.Printf("       %s Error: %s\n", dim("└"), red(errMsg))
+			}
+			if task.Cost > 0 {
+				fmt.Printf("       %s Cost: $%.4f (%d tokens)\n", dim("└"), task.Cost, task.TokensUsed)
+			}
 		}
-		if task.Cost > 0 {
-			fmt.Printf("       %s Cost: $%.4f (%d tokens)\n", dim("└"), task.Cost, task.TokensUsed)
+
+		fmt.Println()
+		fmt.Printf("Showing %d task(s). Use --limit N to see more.\n", len(tasks))
+		fmt.Println()
+
+		// Interactive mode - select a task to explore
+		fmt.Print("Select task [1-" + strconv.Itoa(len(tasks)) + "] or [q]uit: ")
+
+		var input string
+		fmt.Scanln(&input)
+
+		if input == "" || input == "q" || input == "Q" {
+			return nil
 		}
+
+		// Parse task number
+		num, err := strconv.Atoi(input)
+		if err != nil || num < 1 || num > len(tasks) {
+			fmt.Println(red("Invalid selection:"), input)
+			continue
+		}
+
+		selectedTask := tasks[num-1]
+		if err := showTaskDetail(ctx, store, selectedTask); err != nil {
+			fmt.Println(red("Error:"), err)
+		}
+		// Loop back to show list again
 	}
-
-	fmt.Println()
-	fmt.Printf("Showing %d task(s). Use --limit N to see more.\n", len(tasks))
-	fmt.Println()
-
-	// Interactive mode - select a task to explore
-	fmt.Println(bold("Actions:"))
-	fmt.Println("  [1-" + strconv.Itoa(len(tasks)) + "]  Select task number to explore")
-	fmt.Println("  [q]      Quit")
-	fmt.Println()
-	fmt.Print("Select task (or press Enter to quit): ")
-
-	var input string
-	fmt.Scanln(&input)
-
-	if input == "" || input == "q" || input == "Q" {
-		return nil
-	}
-
-	// Parse task number
-	num, err := strconv.Atoi(input)
-	if err != nil || num < 1 || num > len(tasks) {
-		return fmt.Errorf("invalid selection: %s", input)
-	}
-
-	selectedTask := tasks[num-1]
-	return showTaskDetail(ctx, store, selectedTask)
 }
 
 // formatTaskStatus returns an icon and colored status string
