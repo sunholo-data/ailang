@@ -61,6 +61,7 @@ type Status struct {
 type Daemon struct {
 	config    *Config
 	logger    *log.Logger
+	logFile   *os.File // Underlying log file handle (for cleanup on Windows)
 	ctx       context.Context
 	cancel    context.CancelFunc
 	startedAt time.Time
@@ -120,6 +121,7 @@ func NewDaemon(config *Config) (*Daemon, error) {
 	return &Daemon{
 		config:           config,
 		logger:           logger,
+		logFile:          logFile,
 		ctx:              ctx,
 		cancel:           cancel,
 		resourceRegistry: NewResourceTrackerRegistry(),
@@ -1335,6 +1337,19 @@ func (d *Daemon) Stop() error {
 		return fmt.Errorf("failed to kill process: %w", err)
 	}
 
+	return nil
+}
+
+// Close releases resources held by the daemon.
+// This must be called when done with the daemon to release file handles.
+// On Windows, this is required before the log file can be deleted.
+func (d *Daemon) Close() error {
+	if d.logFile != nil {
+		if err := d.logFile.Close(); err != nil {
+			return fmt.Errorf("failed to close log file: %w", err)
+		}
+		d.logFile = nil
+	}
 	return nil
 }
 

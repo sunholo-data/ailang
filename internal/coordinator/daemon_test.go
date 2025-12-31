@@ -42,6 +42,7 @@ func TestNewDaemon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	if daemon == nil {
 		t.Fatal("daemon is nil")
@@ -70,6 +71,7 @@ func TestDaemonPIDFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	// Write PID file
 	err = daemon.writePIDFile()
@@ -107,6 +109,7 @@ func TestDaemonStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	// Initially not running
 	status, err := daemon.Status()
@@ -133,6 +136,7 @@ func TestDaemonStatusJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	jsonStr, err := daemon.StatusJSON()
 	if err != nil {
@@ -163,6 +167,7 @@ func TestDaemonCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	// Write PID file
 	err = daemon.writePIDFile()
@@ -192,6 +197,7 @@ func TestIsProcessRunning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	// Current process should be running
 	if !daemon.isProcessRunning(os.Getpid()) {
@@ -218,6 +224,7 @@ func TestDaemonIncrementTasksRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create daemon: %v", err)
 	}
+	defer daemon.Close() // Required on Windows to release log file handle
 
 	if daemon.tasksRun != 0 {
 		t.Error("tasks run should start at 0")
