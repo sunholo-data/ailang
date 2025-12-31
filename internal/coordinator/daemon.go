@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1441,6 +1442,20 @@ func (d *Daemon) isProcessRunning(pid int) bool {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return false
+	}
+
+	if runtime.GOOS == "windows" {
+		// On Windows, FindProcess succeeds even for non-existent PIDs.
+		// We check by trying to terminate with signal 0 via Windows API
+		// or by running tasklist. The simplest approach is to use tasklist.
+		cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid), "/NH")
+		output, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+		// If process exists, output contains the process info
+		// If not, it contains "INFO: No tasks are running..."
+		return !strings.Contains(string(output), "INFO:")
 	}
 
 	// On Unix, FindProcess always succeeds, so we need to send signal 0
