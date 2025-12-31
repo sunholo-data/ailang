@@ -34,6 +34,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorApprove(subargs)
 	case "reject":
 		return coordinatorReject(subargs)
+	case "cleanup":
+		return coordinatorCleanup(subargs)
 	case "help", "--help", "-h":
 		printCoordinatorHelp()
 		return nil
@@ -276,6 +278,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  pending   List tasks awaiting approval")
 	fmt.Println("  approve   Approve a pending task")
 	fmt.Println("  reject    Reject a pending task")
+	fmt.Println("  cleanup   Cancel stale running/queued tasks")
 	fmt.Println("  help      Show this help message")
 	fmt.Println("")
 	fmt.Println("The coordinator daemon watches for incoming messages and executes tasks")
@@ -424,6 +427,86 @@ func coordinatorReject(args []string) error {
 
 	fmt.Println(green("✓"), "Task rejected:", taskID)
 	return nil
+}
+
+func coordinatorCleanup(args []string) error {
+	stateDir := ""
+	staleThreshold := 5 * time.Minute // Default: 5 minutes
+	dryRun := false
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--threshold":
+			if i+1 < len(args) {
+				dur, err := time.ParseDuration(args[i+1])
+				if err != nil {
+					return fmt.Errorf("invalid threshold: %w", err)
+				}
+				staleThreshold = dur
+				i++
+			}
+		case "--dry-run":
+			dryRun = true
+		case "--help", "-h":
+			printCoordinatorCleanupHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	if dryRun {
+		// Just show what would be cleaned up
+		fmt.Printf("Dry run: would cancel tasks older than %s\n", staleThreshold)
+		// TODO: Add a method to list stale tasks without cancelling
+		return nil
+	}
+
+	// Cancel stale tasks
+	count, err := store.RecoverStaleTasks(ctx, staleThreshold)
+	if err != nil {
+		return fmt.Errorf("failed to cleanup stale tasks: %w", err)
+	}
+
+	if count == 0 {
+		fmt.Println(green("✓"), "No stale tasks to clean up")
+	} else {
+		fmt.Printf("%s Cleaned up %d stale task(s)\n", green("✓"), count)
+	}
+	return nil
+}
+
+func printCoordinatorCleanupHelp() {
+	fmt.Println("Usage: ailang coordinator cleanup [options]")
+	fmt.Println("")
+	fmt.Println("Cancel stale running/queued tasks from previous daemon runs")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --threshold DURATION   Tasks older than this are considered stale (default: 5m)")
+	fmt.Println("  --state-dir DIR        State directory (default: ~/.ailang/state)")
+	fmt.Println("  --dry-run              Show what would be cleaned without doing it")
+	fmt.Println("  --help, -h             Show this help message")
+	fmt.Println("")
+	fmt.Println("Note: The daemon automatically runs this on startup.")
 }
 
 func printCoordinatorApproveHelp() {

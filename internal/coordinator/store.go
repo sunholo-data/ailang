@@ -120,6 +120,7 @@ type Store interface {
 
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)
+	RecoverStaleTasks(ctx context.Context, staleThreshold time.Duration) (int, error) // Cancel stale running/queued tasks on startup
 
 	// Lifecycle
 	Close() error

@@ -126,6 +126,11 @@ func (s *CloudStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration
 	return 0, fmt.Errorf("cloud store not yet implemented")
 }
 
+// RecoverStaleTasks marks stale running/queued tasks as cancelled
+func (s *CloudStore) RecoverStaleTasks(ctx context.Context, staleThreshold time.Duration) (int, error) {
+	return 0, fmt.Errorf("cloud store not yet implemented")
+}
+
 // CreateApprovalRequest creates a new approval request
 func (s *CloudStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
 	return fmt.Errorf("cloud store not yet implemented")

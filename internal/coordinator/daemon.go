@@ -399,6 +399,18 @@ func (d *Daemon) initTaskProcessing() error {
 	})
 	d.logger.Println("Approval checkpoint initialized")
 
+	// Recover stale tasks from previous daemon runs
+	// Tasks that were running/queued when daemon crashed are marked cancelled
+	if d.taskStore != nil {
+		staleThreshold := 5 * time.Minute // Tasks idle for >5 min are considered stale
+		recovered, err := d.taskStore.RecoverStaleTasks(d.ctx, staleThreshold)
+		if err != nil {
+			d.logger.Printf("Warning: Failed to recover stale tasks: %v", err)
+		} else if recovered > 0 {
+			d.logger.Printf("Recovered %d stale task(s) from previous daemon run", recovered)
+		}
+	}
+
 	return nil
 }
 

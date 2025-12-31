@@ -541,6 +541,26 @@ func (s *SQLiteStore) DeleteOldTasks(ctx context.Context, olderThan time.Duratio
 	return int(count), nil
 }
 
+// RecoverStaleTasks marks stale running/queued tasks as cancelled on daemon startup.
+// This handles tasks that were running when the daemon crashed or was killed.
+func (s *SQLiteStore) RecoverStaleTasks(ctx context.Context, staleThreshold time.Duration) (int, error) {
+	cutoff := time.Now().Add(-staleThreshold)
+	now := time.Now()
+
+	// Cancel tasks that are running/queued but started more than staleThreshold ago
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET status = ?, completed_at = ?, error = ?
+		 WHERE status IN (?, ?) AND (started_at < ? OR (started_at IS NULL AND created_at < ?))`,
+		TaskStatusCancelled, now, "Recovered: task was stale after daemon restart",
+		TaskStatusRunning, TaskStatusQueued, cutoff, cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	count, _ := result.RowsAffected()
+	return int(count), nil
+}
+
 // Close closes the database connection
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
