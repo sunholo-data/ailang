@@ -363,68 +363,6 @@ type geminiStreamResult struct {
 	ToolCalls    int
 }
 
-// geminiCLIResult matches the actual Gemini CLI JSON output format (legacy, for non-streaming)
-type geminiCLIResult struct {
-	SessionID string      `json:"session_id"`
-	Response  string      `json:"response"`
-	Stats     geminiStats `json:"stats"`
-}
-
-// geminiStats contains usage statistics from Gemini CLI
-type geminiStats struct {
-	Models map[string]geminiModelStats `json:"models"`
-	Tools  geminiToolStats             `json:"tools"`
-}
-
-// geminiModelStats contains per-model usage data
-type geminiModelStats struct {
-	API    geminiAPIStats   `json:"api"`
-	Tokens geminiTokenStats `json:"tokens"`
-}
-
-type geminiAPIStats struct {
-	TotalRequests  int `json:"totalRequests"`
-	TotalErrors    int `json:"totalErrors"`
-	TotalLatencyMs int `json:"totalLatencyMs"`
-}
-
-type geminiTokenStats struct {
-	Prompt     int `json:"prompt"`
-	Candidates int `json:"candidates"`
-	Total      int `json:"total"`
-	Cached     int `json:"cached"`
-	Thoughts   int `json:"thoughts"`
-	Tool       int `json:"tool"`
-}
-
-type geminiToolStats struct {
-	TotalCalls      int `json:"totalCalls"`
-	TotalSuccess    int `json:"totalSuccess"`
-	TotalFail       int `json:"totalFail"`
-	TotalDurationMs int `json:"totalDurationMs"`
-}
-
-// extractTokenUsage aggregates token usage across all models used
-func (r *geminiCLIResult) extractTokenUsage() (inputTokens, outputTokens int) {
-	for _, modelStats := range r.Stats.Models {
-		inputTokens += modelStats.Tokens.Prompt
-		outputTokens += modelStats.Tokens.Candidates
-	}
-	return inputTokens, outputTokens
-}
-
-// countTurns estimates the number of turns based on API requests
-func (r *geminiCLIResult) countTurns() int {
-	totalRequests := 0
-	for _, modelStats := range r.Stats.Models {
-		totalRequests += modelStats.API.TotalRequests
-	}
-	if totalRequests == 0 {
-		return 1
-	}
-	return totalRequests
-}
-
 // updateEnvVar updates or adds an environment variable in a slice
 func updateEnvVar(env []string, key, value string) []string {
 	prefix := key + "="

@@ -32,6 +32,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorStatus(subargs)
 	case "pending":
 		return coordinatorPending(subargs)
+	case "list":
+		return coordinatorList(subargs)
 	case "approve":
 		return coordinatorApprove(subargs)
 	case "reject":
@@ -285,8 +287,9 @@ func printCoordinatorHelp() {
 	fmt.Println("Commands:")
 	fmt.Println("  start     Start the coordinator daemon")
 	fmt.Println("  stop      Stop the coordinator daemon")
-	fmt.Println("  status    Show coordinator status")
-	fmt.Println("  pending   List tasks awaiting approval")
+	fmt.Println("  status    Show coordinator status (summary)")
+	fmt.Println("  list      List all tasks (with filters)")
+	fmt.Println("  pending   List tasks awaiting approval (interactive)")
 	fmt.Println("  diff      Show changes made by a task (git diff)")
 	fmt.Println("  logs      Show streaming logs/events for a task")
 	fmt.Println("  approve   Approve a pending task")
@@ -302,7 +305,9 @@ func printCoordinatorHelp() {
 	fmt.Println("  ailang coordinator start")
 	fmt.Println("  ailang coordinator start --poll-interval 60s --max-worktrees 2")
 	fmt.Println("  ailang coordinator status --json")
-	fmt.Println("  ailang coordinator pending")
+	fmt.Println("  ailang coordinator list --running      # See running tasks")
+	fmt.Println("  ailang coordinator list --pending      # See pending tasks")
+	fmt.Println("  ailang coordinator pending             # Interactive approval queue")
 	fmt.Println("  ailang coordinator approve task-abc123")
 	fmt.Println("  ailang coordinator reject task-abc123")
 	fmt.Println("  ailang coordinator stop")
@@ -1029,4 +1034,194 @@ func printCoordinatorPendingHelp() {
 	fmt.Println("Examples:")
 	fmt.Println("  ailang coordinator pending")
 	fmt.Println("  ailang coordinator pending --json")
+}
+
+func coordinatorList(args []string) error {
+	stateDir := ""
+	jsonOutput := false
+	limit := 50
+	var statusFilters []coordinator.TaskStatus
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--json":
+			jsonOutput = true
+		case "--limit":
+			if i+1 < len(args) {
+				n, err := strconv.Atoi(args[i+1])
+				if err == nil && n > 0 {
+					limit = n
+				}
+				i++
+			}
+		case "--status":
+			if i+1 < len(args) {
+				for _, s := range strings.Split(args[i+1], ",") {
+					statusFilters = append(statusFilters, coordinator.TaskStatus(s))
+				}
+				i++
+			}
+		case "--running":
+			statusFilters = append(statusFilters, coordinator.TaskStatusRunning)
+		case "--pending":
+			statusFilters = append(statusFilters, coordinator.TaskStatusPending, coordinator.TaskStatusQueued, coordinator.TaskStatusPendingApproval)
+		case "--completed":
+			statusFilters = append(statusFilters, coordinator.TaskStatusCompleted)
+		case "--failed":
+			statusFilters = append(statusFilters, coordinator.TaskStatusFailed, coordinator.TaskStatusRejected, coordinator.TaskStatusCancelled)
+		case "--help", "-h":
+			printCoordinatorListHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Build filter
+	filter := &coordinator.TaskFilter{
+		Limit:     limit,
+		OrderBy:   "created_at",
+		OrderDesc: true,
+	}
+	if len(statusFilters) > 0 {
+		filter.Status = statusFilters
+	}
+
+	tasks, err := store.ListTasks(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to list tasks: %w", err)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(tasks)
+	}
+
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found.")
+		return nil
+	}
+
+	fmt.Println(bold("Tasks"))
+	fmt.Println()
+
+	// Table header
+	fmt.Printf("  %-15s %-12s %-10s %-40s %s\n",
+		dim("ID"), dim("STATUS"), dim("TYPE"), dim("TITLE"), dim("CREATED"))
+	fmt.Println("  " + strings.Repeat("─", 95))
+
+	for _, task := range tasks {
+		statusIcon, statusStr := formatTaskStatus(task.Status)
+		title := task.Title
+		if len(title) > 38 {
+			title = title[:35] + "..."
+		}
+
+		// Shorten ID for display (first 12 chars)
+		shortID := task.ID
+		if len(shortID) > 15 {
+			shortID = shortID[:12] + "..."
+		}
+
+		created := task.CreatedAt.Format("Jan 02 15:04")
+
+		fmt.Printf("  %-15s %s %-11s %-10s %-40s %s\n",
+			shortID, statusIcon, statusStr, task.Type, title, dim(created))
+
+		// Show extra info for certain statuses
+		if task.Status == coordinator.TaskStatusRunning && task.Provider != "" {
+			fmt.Printf("       %s Provider: %s\n", dim("└"), task.Provider)
+		}
+		if task.Status == coordinator.TaskStatusFailed && task.Error != "" {
+			errMsg := task.Error
+			if len(errMsg) > 70 {
+				errMsg = errMsg[:67] + "..."
+			}
+			fmt.Printf("       %s Error: %s\n", dim("└"), red(errMsg))
+		}
+		if task.Cost > 0 {
+			fmt.Printf("       %s Cost: $%.4f (%d tokens)\n", dim("└"), task.Cost, task.TokensUsed)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("Showing %d task(s). Use --limit N to see more.\n", len(tasks))
+	fmt.Println()
+	fmt.Println("Quick filters:")
+	fmt.Printf("  %s  Only running tasks\n", dim("--running"))
+	fmt.Printf("  %s  Pending tasks (including approval queue)\n", dim("--pending"))
+	fmt.Printf("  %s  Completed tasks\n", dim("--completed"))
+	fmt.Printf("  %s  Failed/rejected tasks\n", dim("--failed"))
+
+	return nil
+}
+
+// formatTaskStatus returns an icon and colored status string
+func formatTaskStatus(status coordinator.TaskStatus) (string, string) {
+	switch status {
+	case coordinator.TaskStatusPending:
+		return yellow("○"), "pending"
+	case coordinator.TaskStatusQueued:
+		return yellow("◎"), "queued"
+	case coordinator.TaskStatusRunning:
+		return cyan("▶"), cyan("running")
+	case coordinator.TaskStatusPendingApproval:
+		return magenta("⏳"), magenta("approval")
+	case coordinator.TaskStatusCompleted:
+		return green("✓"), green("completed")
+	case coordinator.TaskStatusFailed:
+		return red("✗"), red("failed")
+	case coordinator.TaskStatusRejected:
+		return red("⊘"), red("rejected")
+	case coordinator.TaskStatusCancelled:
+		return dim("⊗"), dim("cancelled")
+	case coordinator.TaskStatusDuplicate:
+		return dim("⊜"), dim("duplicate")
+	default:
+		return "?", string(status)
+	}
+}
+
+func printCoordinatorListHelp() {
+	fmt.Println("Usage: ailang coordinator list [options]")
+	fmt.Println("")
+	fmt.Println("List all coordinator tasks")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --status STATUS   Filter by status (comma-separated: pending,running,completed)")
+	fmt.Println("  --running         Show only running tasks")
+	fmt.Println("  --pending         Show pending tasks (includes queued and approval)")
+	fmt.Println("  --completed       Show only completed tasks")
+	fmt.Println("  --failed          Show failed/rejected/cancelled tasks")
+	fmt.Println("  --limit N         Maximum tasks to show (default: 50)")
+	fmt.Println("  --json            Output as JSON")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator list                    # Show recent tasks")
+	fmt.Println("  ailang coordinator list --running          # Show only running tasks")
+	fmt.Println("  ailang coordinator list --pending          # Show all pending tasks")
+	fmt.Println("  ailang coordinator list --status running,pending_approval")
+	fmt.Println("  ailang coordinator list --limit 100 --json # JSON output")
 }
