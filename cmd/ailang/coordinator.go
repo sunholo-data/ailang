@@ -365,6 +365,7 @@ func coordinatorApprove(args []string) error {
 
 	taskID := args[0]
 	stateDir := ""
+	skipMerge := false
 
 	// Parse flags
 	for i := 1; i < len(args); i++ {
@@ -374,6 +375,8 @@ func coordinatorApprove(args []string) error {
 				stateDir = args[i+1]
 				i++
 			}
+		case "--skip-merge":
+			skipMerge = true
 		case "--help", "-h":
 			printCoordinatorApproveHelp()
 			return nil
@@ -385,7 +388,7 @@ func coordinatorApprove(args []string) error {
 		cfg.StateDir = stateDir
 	}
 
-	// Open the coordinator database to resolve approval
+	// Open the coordinator database
 	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
 	store, err := coordinator.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -393,13 +396,87 @@ func coordinatorApprove(args []string) error {
 	}
 	defer store.Close()
 
-	// Resolve the approval request in database
 	ctx := context.Background()
+
+	// Get the task to verify status and get worktree path
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Verify task is pending approval
+	if task.Status != coordinator.TaskStatusPendingApproval {
+		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
+	}
+
+	// Resolve the approval request in database
 	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "approved", "cli-user"); err != nil {
 		return fmt.Errorf("failed to approve task: %w", err)
 	}
 
 	fmt.Println(green("✓"), "Task approved:", taskID)
+
+	// Skip merge if requested or no worktree
+	if skipMerge {
+		fmt.Println(yellow("!"), "Merge skipped (--skip-merge)")
+		return nil
+	}
+
+	if task.WorktreePath == "" {
+		fmt.Println(yellow("!"), "No worktree path - nothing to merge")
+		return nil
+	}
+
+	// Check worktree exists
+	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
+		fmt.Println(yellow("!"), "Worktree no longer exists:", task.WorktreePath)
+		return nil
+	}
+
+	// Perform the merge
+	fmt.Println(cyan("→"), "Merging changes to dev branch...")
+	fmt.Printf("  Worktree: %s\n", task.WorktreePath)
+
+	mergeResult, err := coordinator.MergeWorktree(ctx, task.WorktreePath, "dev")
+	if err != nil {
+		return fmt.Errorf("merge failed: %w", err)
+	}
+
+	if !mergeResult.Success {
+		if len(mergeResult.ConflictFiles) > 0 {
+			fmt.Println(red("✗"), "Merge conflicts detected:")
+			for _, f := range mergeResult.ConflictFiles {
+				fmt.Printf("    - %s\n", f)
+			}
+			fmt.Println()
+			fmt.Println("Resolve conflicts manually in the worktree, then retry approval.")
+			return fmt.Errorf("merge conflicts: %v", mergeResult.ConflictFiles)
+		}
+		return fmt.Errorf("merge failed: %s", mergeResult.Error)
+	}
+
+	// Update task status to completed
+	if err := store.MarkTaskCompleted(ctx, taskID, &coordinator.ExecuteResult{
+		Success: true,
+		Output:  fmt.Sprintf("Merged to dev (commit: %s)", mergeResult.CommitHash),
+	}); err != nil {
+		fmt.Println(yellow("!"), "Warning: Failed to update task status:", err)
+	}
+
+	fmt.Println(green("✓"), "Changes merged successfully")
+	fmt.Printf("  Commit: %s\n", mergeResult.CommitHash)
+	if len(mergeResult.MergedFiles) > 0 {
+		fmt.Printf("  Files: %s\n", strings.Join(mergeResult.MergedFiles, ", "))
+	}
+
+	// Optionally clean up worktree
+	fmt.Println()
+	fmt.Printf("Worktree preserved at: %s\n", task.WorktreePath)
+	fmt.Println("To remove: git worktree remove", task.WorktreePath)
+
 	return nil
 }
 
@@ -839,14 +916,16 @@ func printCoordinatorCleanupHelp() {
 func printCoordinatorApproveHelp() {
 	fmt.Println("Usage: ailang coordinator approve <task-id> [options]")
 	fmt.Println("")
-	fmt.Println("Approve a pending task")
+	fmt.Println("Approve a pending task and merge its changes to the dev branch")
 	fmt.Println("")
 	fmt.Println("Options:")
+	fmt.Println("  --skip-merge      Approve without merging (mark as approved only)")
 	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
 	fmt.Println("  --help, -h        Show this help message")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  ailang coordinator approve task-123")
+	fmt.Println("  ailang coordinator approve task-123 --skip-merge")
 }
 
 func printCoordinatorRejectHelp() {
