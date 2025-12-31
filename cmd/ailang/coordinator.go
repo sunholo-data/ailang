@@ -436,6 +436,12 @@ func coordinatorApprove(args []string) error {
 		return nil
 	}
 
+	// Auto-commit any uncommitted changes in the worktree
+	if err := autoCommitWorktreeChanges(task.WorktreePath, task.Title); err != nil {
+		fmt.Println(yellow("!"), "Warning: Failed to auto-commit:", err)
+		// Continue anyway - user can manually commit
+	}
+
 	// Perform the merge
 	fmt.Println(cyan("→"), "Merging changes to dev branch...")
 	fmt.Printf("  Worktree: %s\n", task.WorktreePath)
@@ -1303,4 +1309,44 @@ func printCoordinatorListHelp() {
 	fmt.Println("  ailang coordinator list --pending          # Show all pending tasks")
 	fmt.Println("  ailang coordinator list --status running,pending_approval")
 	fmt.Println("  ailang coordinator list --limit 100 --json # JSON output")
+}
+
+// autoCommitWorktreeChanges checks if there are uncommitted changes in the worktree
+// and commits them automatically. This handles the case where the agent creates
+// files but doesn't commit them.
+func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
+	// Check for uncommitted changes (untracked or modified)
+	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	// If no changes, nothing to do
+	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+		return nil
+	}
+
+	fmt.Println(cyan("→"), "Auto-committing uncommitted changes in worktree...")
+
+	// Add all changes
+	addCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to add changes: %w\n%s", err, output)
+	}
+
+	// Commit with a descriptive message
+	commitMsg := fmt.Sprintf("Changes for task: %s\n\nAuto-committed by coordinator on approval.", taskTitle)
+	commitCmd := exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg)
+	commitOutput, err := commitCmd.CombinedOutput()
+	if err != nil {
+		// Check if it's just "nothing to commit"
+		if strings.Contains(string(commitOutput), "nothing to commit") {
+			return nil
+		}
+		return fmt.Errorf("failed to commit: %w\n%s", err, commitOutput)
+	}
+
+	fmt.Println(green("✓"), "Auto-committed changes")
+	return nil
 }
