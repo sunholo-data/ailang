@@ -366,6 +366,7 @@ func coordinatorApprove(args []string) error {
 	taskID := args[0]
 	stateDir := ""
 	skipMerge := false
+	keepWorktree := false
 
 	// Parse flags
 	for i := 1; i < len(args); i++ {
@@ -377,6 +378,8 @@ func coordinatorApprove(args []string) error {
 			}
 		case "--skip-merge":
 			skipMerge = true
+		case "--keep-worktree":
+			keepWorktree = true
 		case "--help", "-h":
 			printCoordinatorApproveHelp()
 			return nil
@@ -478,10 +481,34 @@ func coordinatorApprove(args []string) error {
 		fmt.Printf("  Files: %s\n", strings.Join(mergeResult.MergedFiles, ", "))
 	}
 
-	// Optionally clean up worktree
-	fmt.Println()
-	fmt.Printf("Worktree preserved at: %s\n", task.WorktreePath)
-	fmt.Println("To remove: git worktree remove", task.WorktreePath)
+	// Clean up worktree after successful merge (unless --keep-worktree)
+	if keepWorktree {
+		fmt.Println()
+		fmt.Printf("Worktree preserved at: %s\n", task.WorktreePath)
+		fmt.Println("To remove: git worktree remove", task.WorktreePath)
+	} else {
+		// Get the branch name before removing worktree
+		branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+		branchOutput, _ := branchCmd.Output()
+		branchName := strings.TrimSpace(string(branchOutput))
+
+		// Remove the worktree
+		fmt.Println(cyan("→"), "Cleaning up worktree...")
+		removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
+		if output, err := removeCmd.CombinedOutput(); err != nil {
+			fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
+		} else {
+			fmt.Println(green("✓"), "Worktree removed")
+		}
+
+		// Also delete the branch
+		if branchName != "" && branchName != "HEAD" {
+			deleteCmd := exec.Command("git", "branch", "-D", branchName)
+			if _, err := deleteCmd.CombinedOutput(); err == nil {
+				fmt.Printf("  Deleted branch: %s\n", branchName)
+			}
+		}
+	}
 
 	return nil
 }
@@ -922,16 +949,18 @@ func printCoordinatorCleanupHelp() {
 func printCoordinatorApproveHelp() {
 	fmt.Println("Usage: ailang coordinator approve <task-id> [options]")
 	fmt.Println("")
-	fmt.Println("Approve a pending task and merge its changes to the dev branch")
+	fmt.Println("Approve a pending task and merge its changes to the dev branch.")
+	fmt.Println("Automatically cleans up the worktree after merge.")
 	fmt.Println("")
 	fmt.Println("Options:")
 	fmt.Println("  --skip-merge      Approve without merging (mark as approved only)")
+	fmt.Println("  --keep-worktree   Don't remove worktree after merge")
 	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
 	fmt.Println("  --help, -h        Show this help message")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  ailang coordinator approve task-123")
-	fmt.Println("  ailang coordinator approve task-123 --skip-merge")
+	fmt.Println("  ailang coordinator approve task-123 --keep-worktree")
 }
 
 func printCoordinatorRejectHelp() {
