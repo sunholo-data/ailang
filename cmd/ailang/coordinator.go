@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
@@ -34,6 +36,12 @@ func coordinatorCommand(args []string) error {
 		return coordinatorApprove(subargs)
 	case "reject":
 		return coordinatorReject(subargs)
+	case "reopen":
+		return coordinatorReopen(subargs)
+	case "diff":
+		return coordinatorDiff(subargs)
+	case "logs":
+		return coordinatorLogs(subargs)
 	case "cleanup":
 		return coordinatorCleanup(subargs)
 	case "help", "--help", "-h":
@@ -257,6 +265,9 @@ func printCoordinatorStatusOutput(status *coordinator.Status) {
 	if status.RunningTasks > 0 {
 		fmt.Printf("  Running:    %s\n", cyan(fmt.Sprintf("%d", status.RunningTasks)))
 	}
+	if status.PendingApprovals > 0 {
+		fmt.Printf("  Approvals:  %s %s\n", yellow(fmt.Sprintf("%d", status.PendingApprovals)), "(use 'ailang coordinator pending' to review)")
+	}
 	if status.FailedTasks > 0 {
 		fmt.Printf("  Failed:     %s\n", red(fmt.Sprintf("%d", status.FailedTasks)))
 	}
@@ -276,8 +287,11 @@ func printCoordinatorHelp() {
 	fmt.Println("  stop      Stop the coordinator daemon")
 	fmt.Println("  status    Show coordinator status")
 	fmt.Println("  pending   List tasks awaiting approval")
+	fmt.Println("  diff      Show changes made by a task (git diff)")
+	fmt.Println("  logs      Show streaming logs/events for a task")
 	fmt.Println("  approve   Approve a pending task")
 	fmt.Println("  reject    Reject a pending task")
+	fmt.Println("  reopen    Reopen a rejected/cancelled task for re-approval")
 	fmt.Println("  cleanup   Cancel stale running/queued tasks")
 	fmt.Println("  help      Show this help message")
 	fmt.Println("")
@@ -426,6 +440,314 @@ func coordinatorReject(args []string) error {
 	}
 
 	fmt.Println(green("✓"), "Task rejected:", taskID)
+	return nil
+}
+
+func coordinatorReopen(args []string) error {
+	// Check for help first
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println("Usage: ailang coordinator reopen <task-id> [options]")
+			fmt.Println("")
+			fmt.Println("Reopen a rejected or cancelled task for re-approval.")
+			fmt.Println("Useful if you accidentally rejected a task.")
+			fmt.Println("")
+			fmt.Println("Options:")
+			fmt.Println("  --state-dir DIR  Use custom state directory")
+			return nil
+		}
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator reopen <task-id>")
+	}
+
+	taskID := args[0]
+	stateDir := ""
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// Reopen the task
+	ctx := context.Background()
+	if err := store.ReopenTask(ctx, taskID); err != nil {
+		return fmt.Errorf("failed to reopen task: %w", err)
+	}
+
+	fmt.Println(green("✓"), "Task reopened:", taskID)
+	fmt.Println("  Use 'ailang coordinator pending' to see it in the approval queue")
+	return nil
+}
+
+func coordinatorDiff(args []string) error {
+	// Check for help first
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println("Usage: ailang coordinator diff <task-id> [options]")
+			fmt.Println("")
+			fmt.Println("Show the git diff for changes made by a task.")
+			fmt.Println("Use this to review changes before approving or rejecting.")
+			fmt.Println("")
+			fmt.Println("Options:")
+			fmt.Println("  --stat           Show diffstat only (summary of changes)")
+			fmt.Println("  --state-dir DIR  Use custom state directory")
+			return nil
+		}
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator diff <task-id>")
+	}
+
+	taskID := args[0]
+	stateDir := ""
+	statOnly := false
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--stat":
+			statOnly = true
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// Get the task to find its worktree path
+	ctx := context.Background()
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if task.WorktreePath == "" {
+		return fmt.Errorf("task %s has no worktree path (may have been executed without isolation)", taskID)
+	}
+
+	// Check if worktree exists
+	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
+		return fmt.Errorf("worktree no longer exists: %s", task.WorktreePath)
+	}
+
+	// Show task info
+	fmt.Printf("%s %s\n", bold("Task:"), task.ID)
+	fmt.Printf("%s %s\n", bold("Title:"), task.Title)
+	fmt.Printf("%s %s\n", bold("Status:"), task.Status)
+	fmt.Printf("%s %s\n", bold("Worktree:"), task.WorktreePath)
+	fmt.Println()
+
+	// Run git diff in the worktree
+	var cmd *exec.Cmd
+	if statOnly {
+		cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--stat", "HEAD~1")
+	} else {
+		cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--color=always", "HEAD~1")
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		// If HEAD~1 doesn't exist, try diff against origin/dev
+		if statOnly {
+			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--stat", "origin/dev")
+		} else {
+			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--color=always", "origin/dev")
+		}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to run git diff: %w", err)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("To approve: %s\n", green("ailang coordinator approve "+taskID))
+	fmt.Printf("To reject:  %s\n", red("ailang coordinator reject "+taskID))
+
+	return nil
+}
+
+func coordinatorLogs(args []string) error {
+	// Check for help first
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println("Usage: ailang coordinator logs <task-id> [options]")
+			fmt.Println("")
+			fmt.Println("Show streaming logs/events for a task (running or completed).")
+			fmt.Println("Useful for monitoring in-progress tasks or reviewing what happened.")
+			fmt.Println("")
+			fmt.Println("Options:")
+			fmt.Println("  --limit N        Show last N events (default: 50)")
+			fmt.Println("  --json           Output as JSON")
+			fmt.Println("  --state-dir DIR  Use custom state directory")
+			return nil
+		}
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("usage: ailang coordinator logs <task-id>")
+	}
+
+	taskID := args[0]
+	stateDir := ""
+	limit := 50
+	jsonOutput := false
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--limit":
+			if i+1 < len(args) {
+				n, err := strconv.Atoi(args[i+1])
+				if err == nil && n > 0 {
+					limit = n
+				}
+				i++
+			}
+		case "--json":
+			jsonOutput = true
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Get task info first
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Get events for the task
+	events, err := store.GetTaskEvents(ctx, taskID, limit)
+	if err != nil {
+		return fmt.Errorf("failed to get task events: %w", err)
+	}
+
+	if jsonOutput {
+		data := struct {
+			Task   *coordinator.TaskRecord        `json:"task"`
+			Events []*coordinator.TaskEventRecord `json:"events"`
+		}{Task: task, Events: events}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(data)
+	}
+
+	// Display task info
+	fmt.Printf("%s %s\n", bold("Task:"), task.ID)
+	fmt.Printf("%s %s\n", bold("Title:"), task.Title)
+	fmt.Printf("%s %s\n", bold("Status:"), string(task.Status))
+	if task.Provider != "" {
+		fmt.Printf("%s %s\n", bold("Provider:"), task.Provider)
+	}
+	fmt.Println()
+
+	if len(events) == 0 {
+		fmt.Println(yellow("No events recorded for this task."))
+		fmt.Println("Note: Events are only recorded while the coordinator daemon is running.")
+		return nil
+	}
+
+	fmt.Printf("%s (showing %d events)\n", bold("Events:"), len(events))
+	fmt.Println(strings.Repeat("─", 60))
+
+	for _, event := range events {
+		timestamp := event.CreatedAt.Format("15:04:05")
+
+		switch event.StreamType {
+		case "turn_start":
+			fmt.Printf("%s %s Turn %d started\n", dim(timestamp), blue("◆"), event.TurnNum)
+		case "turn_end":
+			fmt.Printf("%s %s Turn %d ended\n", dim(timestamp), blue("◇"), event.TurnNum)
+		case "text":
+			// Truncate long text
+			text := event.Text
+			if len(text) > 120 {
+				text = text[:120] + "..."
+			}
+			// Remove newlines for cleaner display
+			text = strings.ReplaceAll(text, "\n", " ")
+			fmt.Printf("%s %s\n", dim(timestamp), text)
+		case "tool_use":
+			fmt.Printf("%s %s %s\n", dim(timestamp), cyan("🔧"), event.ToolName)
+		case "tool_result":
+			output := event.ToolOutput
+			if len(output) > 80 {
+				output = output[:80] + "..."
+			}
+			fmt.Printf("%s %s %s\n", dim(timestamp), green("→"), output)
+		case "error":
+			fmt.Printf("%s %s %s\n", dim(timestamp), red("✗"), event.ErrorMsg)
+		case "status":
+			fmt.Printf("%s %s %s\n", dim(timestamp), yellow("●"), event.Status)
+		default:
+			if event.Text != "" {
+				fmt.Printf("%s %s\n", dim(timestamp), event.Text)
+			}
+		}
+	}
+
+	fmt.Println(strings.Repeat("─", 60))
+
+	if task.Cost > 0 {
+		fmt.Printf("%s $%.4f (%d tokens)\n", bold("Cost:"), task.Cost, task.TokensUsed)
+	}
+
 	return nil
 }
 
@@ -588,18 +910,109 @@ func coordinatorPending(args []string) error {
 
 	fmt.Println(bold("Pending Approval Requests"))
 	fmt.Println()
-	for _, req := range pending {
-		fmt.Printf("  %s %s\n", yellow("⏳"), req.TaskID)
-		fmt.Printf("     Type: %s\n", req.Type)
-		fmt.Printf("     Description: %s\n", req.Description)
-		fmt.Printf("     Created: %s\n", req.CreatedAt.Format("2006-01-02 15:04:05"))
-		if req.TimeoutAt != nil {
-			fmt.Printf("     Timeout: %s\n", req.TimeoutAt.Format("2006-01-02 15:04:05"))
+	for i, req := range pending {
+		// Get task details for worktree info
+		task, _ := store.GetTask(ctx, req.TaskID)
+		fmt.Printf("  %s [%d] %s\n", yellow("⏳"), i+1, req.TaskID)
+		fmt.Printf("       Title: %s\n", req.Description)
+		if task != nil && task.WorktreePath != "" {
+			if _, err := os.Stat(task.WorktreePath); err == nil {
+				fmt.Printf("       Worktree: %s\n", task.WorktreePath)
+			} else {
+				fmt.Printf("       Worktree: %s\n", red("(deleted)"))
+			}
 		}
+		fmt.Printf("       Created: %s\n", req.CreatedAt.Format("2006-01-02 15:04:05"))
 		fmt.Println()
 	}
 
-	fmt.Println("Use 'ailang coordinator approve <task-id>' or 'ailang coordinator reject <task-id>'")
+	fmt.Println(bold("Actions:"))
+	fmt.Println("  [1-" + strconv.Itoa(len(pending)) + "]  Select task number")
+	fmt.Println("  [q]    Quit")
+	fmt.Println()
+	fmt.Print("Select task to review: ")
+
+	// Read user input
+	var input string
+	fmt.Scanln(&input)
+
+	if input == "" || input == "q" || input == "Q" {
+		return nil
+	}
+
+	// Parse task number
+	num, err := strconv.Atoi(input)
+	if err != nil || num < 1 || num > len(pending) {
+		return fmt.Errorf("invalid selection: %s", input)
+	}
+
+	selectedReq := pending[num-1]
+	selectedTask, _ := store.GetTask(ctx, selectedReq.TaskID)
+
+	// Show task menu
+	fmt.Println()
+	fmt.Println(bold("Task: ") + selectedReq.TaskID)
+	fmt.Println(bold("Title: ") + selectedReq.Description)
+	fmt.Println()
+	fmt.Println(bold("Actions:"))
+	fmt.Println("  [d]  View diff")
+	fmt.Println("  [s]  View diff summary (--stat)")
+	fmt.Println("  [a]  Approve")
+	fmt.Println("  [r]  Reject")
+	fmt.Println("  [q]  Cancel")
+	fmt.Println()
+	fmt.Print("Action: ")
+
+	fmt.Scanln(&input)
+
+	switch strings.ToLower(input) {
+	case "d":
+		// Show diff
+		if selectedTask == nil || selectedTask.WorktreePath == "" {
+			fmt.Println(red("✗"), "No worktree available for this task")
+			return nil
+		}
+		cmd := exec.Command("git", "-C", selectedTask.WorktreePath, "diff", "--color=always", "origin/dev")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+		// After showing diff, prompt for action
+		fmt.Println()
+		fmt.Print("Approve [a], Reject [r], or Cancel [q]: ")
+		fmt.Scanln(&input)
+		if strings.ToLower(input) == "a" {
+			// TODO: implement approve flow
+			fmt.Println(yellow("!"), "Use 'ailang coordinator approve", selectedReq.TaskID+"'")
+		} else if strings.ToLower(input) == "r" {
+			if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
+				return fmt.Errorf("failed to reject: %w", err)
+			}
+			fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
+		}
+	case "s":
+		// Show diff stat
+		if selectedTask == nil || selectedTask.WorktreePath == "" {
+			fmt.Println(red("✗"), "No worktree available for this task")
+			return nil
+		}
+		cmd := exec.Command("git", "-C", selectedTask.WorktreePath, "diff", "--stat", "origin/dev")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	case "a":
+		// TODO: implement approve flow (needs merge logic)
+		fmt.Println(yellow("!"), "Use 'ailang coordinator approve", selectedReq.TaskID+"'")
+	case "r":
+		if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
+			return fmt.Errorf("failed to reject: %w", err)
+		}
+		fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
+	case "q", "":
+		return nil
+	default:
+		fmt.Println("Unknown action:", input)
+	}
+
 	return nil
 }
 

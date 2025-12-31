@@ -31,7 +31,9 @@ var (
 	red    = color.New(color.FgRed).SprintFunc()
 	yellow = color.New(color.FgYellow).SprintFunc()
 	cyan   = color.New(color.FgCyan).SprintFunc()
+	blue   = color.New(color.FgBlue).SprintFunc()
 	bold   = color.New(color.Bold).SprintFunc()
+	// dim is defined in debug_types.go
 
 	// Global flags
 	_ = false // quietMode placeholder for future use

@@ -169,7 +169,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE id = ?
 	`
@@ -213,7 +213,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE 1=1
 	`)
@@ -326,6 +326,8 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 			stats.PendingTasks += count
 		case TaskStatusRunning:
 			stats.RunningTasks += count
+		case TaskStatusPendingApproval:
+			stats.PendingApprovals += count
 		case TaskStatusCompleted:
 			stats.CompletedTasks += count
 		case TaskStatusFailed:
@@ -488,7 +490,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		        worktree_id, workspace, created_at, started_at, completed_at, duration_ns,
+		        worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
 		fingerprint,
@@ -571,12 +573,12 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, workspace, errStr, output, threadID sql.NullString
+	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID sql.NullString
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &workspace, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &worktreePath, &workspace, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -597,6 +599,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String
+	}
+	if worktreePath.Valid {
+		task.WorktreePath = worktreePath.String
 	}
 	if workspace.Valid {
 		task.Workspace = workspace.String
@@ -619,12 +624,12 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, workspace, errStr, output, threadID sql.NullString
+	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID sql.NullString
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &workspace, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &worktreePath, &workspace, &task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -645,6 +650,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String
+	}
+	if worktreePath.Valid {
+		task.WorktreePath = worktreePath.String
 	}
 	if workspace.Valid {
 		task.Workspace = workspace.String
@@ -763,6 +771,74 @@ func (s *SQLiteStore) ResolveApprovalRequestByTask(ctx context.Context, taskID s
 	if count == 0 {
 		return fmt.Errorf("no pending approval request found for task: %s", taskID)
 	}
+
+	// Also update the task status to match the approval decision
+	var taskStatus TaskStatus
+	switch status {
+	case "rejected":
+		taskStatus = TaskStatusRejected
+	case "approved":
+		taskStatus = TaskStatusCompleted
+	default:
+		return nil // Unknown status, don't update task
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
+		taskStatus, now, taskID,
+	)
+	return err
+}
+
+// ReopenTask moves a rejected/cancelled task back to pending_approval status
+func (s *SQLiteStore) ReopenTask(ctx context.Context, taskID string) error {
+	// First check if the task exists and is in a reopenable state
+	var currentStatus string
+	err := s.db.QueryRowContext(ctx, "SELECT status FROM tasks WHERE id = ?", taskID).Scan(&currentStatus)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("task not found: %s", taskID)
+		}
+		return err
+	}
+
+	// Only allow reopening rejected or cancelled tasks
+	if currentStatus != string(TaskStatusRejected) && currentStatus != string(TaskStatusCancelled) {
+		return fmt.Errorf("cannot reopen task with status %q (only rejected or cancelled tasks can be reopened)", currentStatus)
+	}
+
+	// Update task status back to pending_approval
+	_, err = s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, completed_at = NULL WHERE id = ?",
+		TaskStatusPendingApproval, taskID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Reset the approval request back to pending (or create one if missing)
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE approval_requests SET status = 'pending', resolved_by = NULL, resolved_at = NULL WHERE task_id = ?",
+		taskID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// If no approval request existed, create one
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		approvalID := fmt.Sprintf("apr-%s", taskID[5:]) // apr-<hash> from task-<hash>
+		_, err = s.db.ExecContext(ctx,
+			`INSERT INTO approval_requests (id, task_id, type, description, status, created_at)
+			 VALUES (?, ?, 'merge', 'Task reopened for approval', 'pending', ?)`,
+			approvalID, taskID, time.Now(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create approval request: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -838,26 +914,6 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 	}
 
 	return req, nil
-}
-
-// TaskEventRecord represents a stored task streaming event
-type TaskEventRecord struct {
-	ID          int64     `json:"id"`
-	TaskID      string    `json:"task_id"`
-	ThreadID    string    `json:"thread_id,omitempty"`
-	StreamType  string    `json:"stream_type"`
-	TurnNum     int       `json:"turn_num,omitempty"`
-	Text        string    `json:"text,omitempty"`
-	ToolName    string    `json:"tool_name,omitempty"`
-	ToolInput   string    `json:"tool_input,omitempty"`
-	ToolOutput  string    `json:"tool_output,omitempty"`
-	ErrorMsg    string    `json:"error_msg,omitempty"`
-	Status      string    `json:"status,omitempty"`
-	TokensIn    int       `json:"tokens_in,omitempty"`
-	TokensOut   int       `json:"tokens_out,omitempty"`
-	Cost        float64   `json:"cost,omitempty"`
-	DurationSec int       `json:"duration_sec,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
 }
 
 // StoreTaskEvent saves a task streaming event to the database

@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+### Added - Coordinator Task Logs Command
+
+Added `ailang coordinator logs <task-id>` command to view streaming events from task execution.
+
+**Features:**
+- View real-time or historical task execution logs
+- Shows turns, text output, tool usage, errors, and status events
+- Timestamps and duration tracking
+- Supports `--limit N` to control output
+- Supports `--json` for machine-readable output
+
+**Usage:**
+```bash
+# View logs for a specific task
+ailang coordinator logs task-abc12345
+
+# Limit output to last 50 events
+ailang coordinator logs task-abc12345 --limit 50
+
+# JSON output for scripting
+ailang coordinator logs task-abc12345 --json
+```
+
+**Files Modified:**
+- `internal/coordinator/store.go` - Added `TaskEventRecord` struct and interface methods
+- `internal/coordinator/store_sqlite.go` - Implements event storage
+- `internal/coordinator/store_cloud.go` - Added stub implementations
+- `cmd/ailang/coordinator.go` - Added `logs` command (~145 LOC)
+
+### Fixed - Worktree Sync on CLI Rejection
+
+Fixed issue where rejecting tasks via CLI would clean up worktrees on disk but leave the daemon's in-memory `WorktreeManager` out of sync. This caused "max worktrees limit reached" errors even when worktree slots were actually free.
+
+**Root cause:** When tasks are rejected via `ailang coordinator reject`, the worktree is removed from disk but the daemon's in-memory tracking wasn't updated until restart.
+
+**Fix:** Added `syncWorktreeState()` to the daemon's poll loop. This calls `CleanupOrphaned()` on each cycle, which runs `git worktree prune` and removes orphaned entries from the in-memory map.
+
+**Files Modified:**
+- `internal/coordinator/daemon.go` - Added `syncWorktreeState()` function (~15 LOC)
+
 ### Added - Record Pattern Matching (M-RECORD-PATTERNS)
 
 Added record destructuring in pattern matching expressions. This allows extracting fields from records directly in match arms.

@@ -68,17 +68,38 @@ type TaskFilter struct {
 
 // TaskStats provides aggregate statistics
 type TaskStats struct {
-	TotalTasks     int            `json:"total_tasks"`
-	PendingTasks   int            `json:"pending_tasks"`
-	RunningTasks   int            `json:"running_tasks"`
-	CompletedTasks int            `json:"completed_tasks"`
-	FailedTasks    int            `json:"failed_tasks"`
-	ByType         map[string]int `json:"by_type"`
-	ByProvider     map[string]int `json:"by_provider"`
-	ByWorkspace    map[string]int `json:"by_workspace"` // Per-workspace breakdown
-	TotalCost      float64        `json:"total_cost"`
-	TotalTokens    int            `json:"total_tokens"`
-	AvgDuration    time.Duration  `json:"avg_duration"`
+	TotalTasks       int            `json:"total_tasks"`
+	PendingTasks     int            `json:"pending_tasks"`
+	RunningTasks     int            `json:"running_tasks"`
+	PendingApprovals int            `json:"pending_approvals"` // Tasks awaiting human approval
+	CompletedTasks   int            `json:"completed_tasks"`
+	FailedTasks      int            `json:"failed_tasks"`
+	ByType           map[string]int `json:"by_type"`
+	ByProvider       map[string]int `json:"by_provider"`
+	ByWorkspace      map[string]int `json:"by_workspace"` // Per-workspace breakdown
+	TotalCost        float64        `json:"total_cost"`
+	TotalTokens      int            `json:"total_tokens"`
+	AvgDuration      time.Duration  `json:"avg_duration"`
+}
+
+// TaskEventRecord represents a stored task streaming event
+type TaskEventRecord struct {
+	ID          int64     `json:"id"`
+	TaskID      string    `json:"task_id"`
+	ThreadID    string    `json:"thread_id,omitempty"`
+	StreamType  string    `json:"stream_type"` // "text", "tool_use", "tool_result", "error", "status", "turn_start", "turn_end"
+	TurnNum     int       `json:"turn_num,omitempty"`
+	Text        string    `json:"text,omitempty"`
+	ToolName    string    `json:"tool_name,omitempty"`
+	ToolInput   string    `json:"tool_input,omitempty"`
+	ToolOutput  string    `json:"tool_output,omitempty"`
+	ErrorMsg    string    `json:"error_msg,omitempty"`
+	Status      string    `json:"status,omitempty"`
+	TokensIn    int       `json:"tokens_in,omitempty"`
+	TokensOut   int       `json:"tokens_out,omitempty"`
+	Cost        float64   `json:"cost,omitempty"`
+	DurationSec int       `json:"duration_sec,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Store is the neutral interface for task persistence.
@@ -121,6 +142,10 @@ type Store interface {
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)
 	RecoverStaleTasks(ctx context.Context, staleThreshold time.Duration) (int, error) // Cancel stale running/queued tasks on startup
+
+	// Event storage (for task logs)
+	StoreTaskEvent(ctx context.Context, event *TaskEventRecord) error
+	GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*TaskEventRecord, error)
 
 	// Lifecycle
 	Close() error

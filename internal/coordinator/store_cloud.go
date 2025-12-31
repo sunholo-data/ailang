@@ -152,5 +152,15 @@ func (s *CloudStore) Close() error {
 	return nil
 }
 
+// StoreTaskEvent saves a task event to cloud storage (stub)
+func (s *CloudStore) StoreTaskEvent(ctx context.Context, event *TaskEventRecord) error {
+	return fmt.Errorf("cloud store: StoreTaskEvent not implemented")
+}
+
+// GetTaskEvents retrieves task events from cloud storage (stub)
+func (s *CloudStore) GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*TaskEventRecord, error) {
+	return nil, fmt.Errorf("cloud store: GetTaskEvents not implemented")
+}
+
 // Compile-time check that CloudStore implements Store
 var _ Store = (*CloudStore)(nil)
