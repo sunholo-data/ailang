@@ -1,0 +1,4 @@
+module examples/coordinator_e2e_test
+
+export func main() -> () ! {IO} =
+  print("Coordinator E2E Test Works!")
