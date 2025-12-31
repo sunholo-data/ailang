@@ -38,8 +38,10 @@ ailang messages watch                # Watch all inboxes
 ailang messages watch --inbox user   # Watch specific inbox
 
 # GITHUB SYNC (v0.5.9+)
-ailang messages send user "Bug report" --type bug --github    # Send + create issue
-ailang messages send user "Feature" --type feature            # Type implies --github
+ailang messages send user "Bug report" --type bug             # bug/feature imply --github
+ailang messages send user "Feature" --type feature            # Auto-creates GitHub issue
+ailang messages send user "Research" --type research          # Custom type, local only
+ailang messages send user "Docs" --type docs --github         # Custom type + explicit GitHub
 ailang messages import-github                                  # Import issues as messages
 ailang messages import-github --labels bug,feature            # Filter by labels
 ailang messages import-github --dry-run                       # Preview without importing

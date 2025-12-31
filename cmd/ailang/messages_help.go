@@ -61,7 +61,7 @@ func printMessagesHelp() {
 	fmt.Println()
 	fmt.Println("GitHub Sync Flags (send):")
 	fmt.Println("  --github             Also create a GitHub issue")
-	fmt.Println("  --type <type>        Message type: bug, feature, general (implies --github)")
+	fmt.Println("  --type <type>        Message category (any string; bug/feature imply --github)")
 	fmt.Println("  --repo <owner/repo>  GitHub repo (overrides config default)")
 	fmt.Println()
 	fmt.Println("Reply Flags:")

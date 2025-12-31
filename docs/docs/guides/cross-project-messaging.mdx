@@ -42,13 +42,19 @@ ailang messages send user "Need async/await support" \
 
 ## Message Types
 
-Use the `--type` flag for automatic categorization:
+Use the `--type` flag for categorization. Any string is accepted:
 
-| Type | Use For | GitHub Label |
-|------|---------|--------------|
-| `bug` | Something broken | Red |
-| `feature` | Feature suggestions | Cyan |
-| `general` | Other feedback | Light blue |
+| Type | Use For | GitHub Sync |
+|------|---------|-------------|
+| `bug` | Something broken | Auto (implies --github) |
+| `feature` | Feature suggestions | Auto (implies --github) |
+| Any other | Custom categories | Manual (requires --github) |
+
+**Examples of custom types:**
+- `docs` - Documentation updates
+- `research` - Research tasks
+- `chore` - Maintenance tasks
+- `test` - Testing related
 
 ---
 

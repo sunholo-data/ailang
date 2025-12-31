@@ -15,7 +15,7 @@ import (
 // This schema extends the existing file-based agent inbox (.ailang/state/messages/)
 // to provide ordering guarantees, real-time updates, and effect-gated approvals.
 
-const schemaVersion = "1.3.0" // v1.3.0: Added neural embedding fields (embedding, embedding_model, embedding_updated_at)
+const schemaVersion = "1.4.0" // v1.4.0: Removed category CHECK constraint (allow any string)
 
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
@@ -407,8 +407,8 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     expires_at TEXT,
 
     CHECK (message_type IN ('notification', 'request', 'response')),
-    CHECK (status IN ('unread', 'read', 'archived', 'deleted')),
-    CHECK (category IS NULL OR category IN ('bug', 'feature', 'general'))
+    CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
+    -- category: any string allowed (bug/feature have special behavior)
 )`
 
 // Indices for performance
@@ -458,6 +458,13 @@ func MigrateDB(db *sql.DB) error {
 	if currentVersion == "1.2.0" {
 		if err := migrateV120ToV130(db); err != nil {
 			return fmt.Errorf("migration to v1.3.0 failed: %w", err)
+		}
+		currentVersion = "1.3.0"
+	}
+
+	if currentVersion == "1.3.0" {
+		if err := migrateV130ToV140(db); err != nil {
+			return fmt.Errorf("migration to v1.4.0 failed: %w", err)
 		}
 	}
 
@@ -639,4 +646,88 @@ func backfillSimhash(tx *sql.Tx) error {
 // computeSimhash computes a SimHash for the given text using the builtins implementation
 func computeSimhash(text string) int64 {
 	return builtins.SimHash(text)
+}
+
+// migrateV130ToV140 removes the category CHECK constraint to allow any string
+// SQLite doesn't support DROP CONSTRAINT, so we recreate the table
+func migrateV130ToV140(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Create new table without the category CHECK constraint
+	newTable := `
+	CREATE TABLE inbox_messages_new (
+		id TEXT PRIMARY KEY,
+		message_id TEXT UNIQUE NOT NULL,
+		correlation_id TEXT,
+		from_agent TEXT NOT NULL,
+		to_inbox TEXT NOT NULL,
+		message_type TEXT NOT NULL DEFAULT 'notification',
+		title TEXT NOT NULL,
+		payload TEXT,
+		category TEXT,
+		github_issue_number INTEGER,
+		github_repo TEXT,
+		simhash INTEGER,
+		dup_of TEXT,
+		embedding TEXT,
+		embedding_model TEXT,
+		embedding_updated_at INTEGER,
+		status TEXT NOT NULL DEFAULT 'unread',
+		created_at TEXT NOT NULL,
+		read_at TEXT,
+		expires_at TEXT,
+		CHECK (message_type IN ('notification', 'request', 'response')),
+		CHECK (status IN ('unread', 'read', 'archived', 'deleted'))
+	)`
+
+	if _, err := tx.Exec(newTable); err != nil {
+		return fmt.Errorf("failed to create new table: %w", err)
+	}
+
+	// Copy all data (coalesce NULL status to 'unread')
+	copySQL := `INSERT INTO inbox_messages_new
+		SELECT id, message_id, correlation_id, from_agent, to_inbox,
+		       COALESCE(message_type, 'notification'), title, payload, category,
+		       github_issue_number, github_repo, simhash, dup_of,
+		       embedding, embedding_model, embedding_updated_at,
+		       COALESCE(status, 'unread'), created_at, read_at, expires_at
+		FROM inbox_messages`
+	if _, err := tx.Exec(copySQL); err != nil {
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Drop old table
+	if _, err := tx.Exec(`DROP TABLE inbox_messages`); err != nil {
+		return fmt.Errorf("failed to drop old table: %w", err)
+	}
+
+	// Rename new table
+	if _, err := tx.Exec(`ALTER TABLE inbox_messages_new RENAME TO inbox_messages`); err != nil {
+		return fmt.Errorf("failed to rename table: %w", err)
+	}
+
+	// Recreate indices
+	indices := []string{
+		inboxMessagesInboxIndex,
+		inboxMessagesCorrelationIndex,
+		inboxMessagesGitHubIndex,
+		inboxMessagesSimhashIndex,
+		inboxMessagesDupOfIndex,
+	}
+	for _, idx := range indices {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("failed to recreate index: %w", err)
+		}
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.4.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
 }
