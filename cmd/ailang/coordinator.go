@@ -1153,7 +1153,7 @@ func printCoordinatorPendingHelp() {
 func coordinatorList(args []string) error {
 	stateDir := ""
 	jsonOutput := false
-	limit := 50
+	limit := 10
 	var statusFilters []coordinator.TaskStatus
 
 	// Parse flags
