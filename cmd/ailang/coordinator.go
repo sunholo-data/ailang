@@ -1281,13 +1281,29 @@ func coordinatorList(args []string) error {
 	fmt.Println()
 	fmt.Printf("Showing %d task(s). Use --limit N to see more.\n", len(tasks))
 	fmt.Println()
-	fmt.Println("Quick filters:")
-	fmt.Printf("  %s  Only running tasks\n", dim("--running"))
-	fmt.Printf("  %s  Pending tasks (including approval queue)\n", dim("--pending"))
-	fmt.Printf("  %s  Completed tasks\n", dim("--completed"))
-	fmt.Printf("  %s  Failed/rejected tasks\n", dim("--failed"))
 
-	return nil
+	// Interactive mode - select a task to explore
+	fmt.Println(bold("Actions:"))
+	fmt.Println("  [1-" + strconv.Itoa(len(tasks)) + "]  Select task number to explore")
+	fmt.Println("  [q]      Quit")
+	fmt.Println()
+	fmt.Print("Select task (or press Enter to quit): ")
+
+	var input string
+	fmt.Scanln(&input)
+
+	if input == "" || input == "q" || input == "Q" {
+		return nil
+	}
+
+	// Parse task number
+	num, err := strconv.Atoi(input)
+	if err != nil || num < 1 || num > len(tasks) {
+		return fmt.Errorf("invalid selection: %s", input)
+	}
+
+	selectedTask := tasks[num-1]
+	return showTaskDetail(ctx, store, selectedTask)
 }
 
 // formatTaskStatus returns an icon and colored status string
@@ -1338,6 +1354,416 @@ func printCoordinatorListHelp() {
 	fmt.Println("  ailang coordinator list --pending          # Show all pending tasks")
 	fmt.Println("  ailang coordinator list --status running,pending_approval")
 	fmt.Println("  ailang coordinator list --limit 100 --json # JSON output")
+}
+
+// showTaskDetail shows detailed information about a task with interactive options
+func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *coordinator.TaskRecord) error {
+	for {
+		// Clear and show task details
+		fmt.Println()
+		fmt.Println(strings.Repeat("═", 70))
+		fmt.Printf("%s %s\n", bold("Task:"), task.ID)
+		fmt.Printf("%s %s\n", bold("Title:"), task.Title)
+		statusIcon, statusStr := formatTaskStatus(task.Status)
+		fmt.Printf("%s %s %s\n", bold("Status:"), statusIcon, statusStr)
+		fmt.Printf("%s %s\n", bold("Type:"), task.Type)
+		fmt.Printf("%s %s\n", bold("Created:"), task.CreatedAt.Format("2006-01-02 15:04:05"))
+		if task.Provider != "" {
+			fmt.Printf("%s %s\n", bold("Provider:"), task.Provider)
+		}
+		if task.Cost > 0 {
+			fmt.Printf("%s $%.4f (%d tokens)\n", bold("Cost:"), task.Cost, task.TokensUsed)
+		}
+		if task.WorktreePath != "" {
+			if _, err := os.Stat(task.WorktreePath); err == nil {
+				fmt.Printf("%s %s\n", bold("Worktree:"), task.WorktreePath)
+			} else {
+				fmt.Printf("%s %s\n", bold("Worktree:"), red("(deleted)"))
+			}
+		}
+		if task.Error != "" {
+			fmt.Printf("%s %s\n", bold("Error:"), red(task.Error))
+		}
+		fmt.Println(strings.Repeat("─", 70))
+		fmt.Println()
+
+		// Show available actions based on task state
+		fmt.Println(bold("Actions:"))
+		hasWorktree := task.WorktreePath != "" && fileExists(task.WorktreePath)
+
+		if hasWorktree {
+			fmt.Println("  [d]  View diff (full)")
+			fmt.Println("  [s]  View diff summary (--stat)")
+			fmt.Println("  [f]  Browse files changed")
+			fmt.Println("  [b]  Browse worktree directory")
+		}
+		fmt.Println("  [l]  View execution logs")
+		if task.Status == coordinator.TaskStatusPendingApproval {
+			fmt.Println("  [a]  " + green("Approve and merge"))
+			fmt.Println("  [r]  " + red("Reject"))
+		}
+		fmt.Println("  [q]  Back to list")
+		fmt.Println()
+		fmt.Print("Action: ")
+
+		var input string
+		fmt.Scanln(&input)
+
+		switch strings.ToLower(input) {
+		case "d":
+			if !hasWorktree {
+				fmt.Println(red("✗"), "No worktree available")
+				continue
+			}
+			showWorktreeDiff(task.WorktreePath, false)
+
+		case "s":
+			if !hasWorktree {
+				fmt.Println(red("✗"), "No worktree available")
+				continue
+			}
+			showWorktreeDiff(task.WorktreePath, true)
+
+		case "f":
+			if !hasWorktree {
+				fmt.Println(red("✗"), "No worktree available")
+				continue
+			}
+			browseChangedFiles(task.WorktreePath)
+
+		case "b":
+			if !hasWorktree {
+				fmt.Println(red("✗"), "No worktree available")
+				continue
+			}
+			browseWorktreeDirectory(task.WorktreePath, "")
+
+		case "l":
+			showTaskLogs(ctx, store, task.ID)
+
+		case "a":
+			if task.Status != coordinator.TaskStatusPendingApproval {
+				fmt.Println(yellow("!"), "Task is not pending approval")
+				continue
+			}
+			// Call the approve function
+			return coordinatorApprove([]string{task.ID})
+
+		case "r":
+			if task.Status != coordinator.TaskStatusPendingApproval {
+				fmt.Println(yellow("!"), "Task is not pending approval")
+				continue
+			}
+			return coordinatorReject([]string{task.ID})
+
+		case "q", "":
+			return nil
+
+		default:
+			fmt.Println("Unknown action:", input)
+		}
+	}
+}
+
+// showWorktreeDiff shows the git diff for a worktree
+func showWorktreeDiff(worktreePath string, statOnly bool) {
+	var cmd *exec.Cmd
+	if statOnly {
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--stat", "origin/dev")
+	} else {
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev")
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	fmt.Println()
+	fmt.Print("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// browseChangedFiles shows a list of changed files and lets user view them
+func browseChangedFiles(worktreePath string) {
+	// Get list of changed files
+	cmd := exec.Command("git", "-C", worktreePath, "diff", "--name-status", "origin/dev")
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Println(red("✗"), "Failed to get changed files:", err)
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
+		fmt.Println(yellow("!"), "No changed files found")
+		fmt.Print("Press Enter to continue...")
+		fmt.Scanln()
+		return
+	}
+
+	// Parse files with their status
+	type changedFile struct {
+		status string
+		path   string
+	}
+	var files []changedFile
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			files = append(files, changedFile{
+				status: parts[0],
+				path:   parts[1],
+			})
+		}
+	}
+
+	for {
+		fmt.Println()
+		fmt.Println(bold("Changed Files:"))
+		fmt.Println()
+		for i, f := range files {
+			var statusStr string
+			switch f.status {
+			case "A":
+				statusStr = green(f.status)
+			case "M":
+				statusStr = yellow(f.status)
+			case "D":
+				statusStr = red(f.status)
+			default:
+				statusStr = dim(f.status)
+			}
+			fmt.Printf("  [%d] %s %s\n", i+1, statusStr, f.path)
+		}
+		fmt.Println()
+		fmt.Println("  [q] Back")
+		fmt.Println()
+		fmt.Print("Select file to view (or q to go back): ")
+
+		var input string
+		fmt.Scanln(&input)
+
+		if input == "q" || input == "Q" || input == "" {
+			return
+		}
+
+		num, err := strconv.Atoi(input)
+		if err != nil || num < 1 || num > len(files) {
+			fmt.Println("Invalid selection")
+			continue
+		}
+
+		selectedFile := files[num-1]
+		showFileDiff(worktreePath, selectedFile.path)
+	}
+}
+
+// showFileDiff shows the diff for a specific file
+func showFileDiff(worktreePath, filePath string) {
+	fmt.Println()
+	fmt.Println(bold("Diff for:"), filePath)
+	fmt.Println(strings.Repeat("─", 60))
+
+	cmd := exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev", "--", filePath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+
+	fmt.Println()
+	fmt.Print("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// browseWorktreeDirectory lets user browse the worktree directory
+func browseWorktreeDirectory(worktreePath, subPath string) {
+	currentPath := filepath.Join(worktreePath, subPath)
+
+	for {
+		// List directory contents
+		entries, err := os.ReadDir(currentPath)
+		if err != nil {
+			fmt.Println(red("✗"), "Failed to read directory:", err)
+			return
+		}
+
+		fmt.Println()
+		if subPath == "" {
+			fmt.Println(bold("Worktree Root:"), worktreePath)
+		} else {
+			fmt.Println(bold("Directory:"), subPath)
+		}
+		fmt.Println(strings.Repeat("─", 60))
+
+		// Separate dirs and files
+		var dirs, files []os.DirEntry
+		for _, e := range entries {
+			if e.Name() == ".git" {
+				continue // Skip .git
+			}
+			if e.IsDir() {
+				dirs = append(dirs, e)
+			} else {
+				files = append(files, e)
+			}
+		}
+
+		// Show directories first
+		idx := 1
+		entryMap := make(map[int]os.DirEntry)
+		for _, d := range dirs {
+			fmt.Printf("  [%d] %s/\n", idx, cyan(d.Name()))
+			entryMap[idx] = d
+			idx++
+		}
+		// Then files
+		for _, f := range files {
+			info, _ := f.Info()
+			size := ""
+			if info != nil {
+				size = fmt.Sprintf(" (%d bytes)", info.Size())
+			}
+			fmt.Printf("  [%d] %s%s\n", idx, f.Name(), dim(size))
+			entryMap[idx] = f
+			idx++
+		}
+
+		fmt.Println()
+		if subPath != "" {
+			fmt.Println("  [u] Go up")
+		}
+		fmt.Println("  [q] Back to task")
+		fmt.Println()
+		fmt.Print("Select entry (or q to go back): ")
+
+		var input string
+		fmt.Scanln(&input)
+
+		switch strings.ToLower(input) {
+		case "q", "":
+			return
+		case "u":
+			if subPath != "" {
+				subPath = filepath.Dir(subPath)
+				if subPath == "." {
+					subPath = ""
+				}
+				currentPath = filepath.Join(worktreePath, subPath)
+			}
+		default:
+			num, err := strconv.Atoi(input)
+			if err != nil || num < 1 || num >= idx {
+				fmt.Println("Invalid selection")
+				continue
+			}
+
+			entry := entryMap[num]
+			entryPath := filepath.Join(subPath, entry.Name())
+
+			if entry.IsDir() {
+				subPath = entryPath
+				currentPath = filepath.Join(worktreePath, subPath)
+			} else {
+				// Show file contents
+				showFileContents(worktreePath, entryPath)
+			}
+		}
+	}
+}
+
+// showFileContents displays the contents of a file
+func showFileContents(worktreePath, filePath string) {
+	fullPath := filepath.Join(worktreePath, filePath)
+
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		fmt.Println(red("✗"), "Failed to read file:", err)
+		fmt.Print("Press Enter to continue...")
+		fmt.Scanln()
+		return
+	}
+
+	fmt.Println()
+	fmt.Println(bold("File:"), filePath)
+	fmt.Println(strings.Repeat("─", 60))
+
+	// Show file contents (limit to reasonable size)
+	lines := strings.Split(string(content), "\n")
+	maxLines := 50
+	if len(lines) > maxLines {
+		for i, line := range lines[:maxLines] {
+			fmt.Printf("%4d│ %s\n", i+1, line)
+		}
+		fmt.Printf("\n... and %d more lines (file truncated)\n", len(lines)-maxLines)
+	} else {
+		for i, line := range lines {
+			fmt.Printf("%4d│ %s\n", i+1, line)
+		}
+	}
+
+	fmt.Println()
+	fmt.Print("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// showTaskLogs shows the execution logs for a task
+func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, taskID string) {
+	events, err := store.GetTaskEvents(ctx, taskID, 100)
+	if err != nil {
+		fmt.Println(red("✗"), "Failed to get logs:", err)
+		fmt.Print("Press Enter to continue...")
+		fmt.Scanln()
+		return
+	}
+
+	fmt.Println()
+	fmt.Println(bold("Execution Logs"))
+	fmt.Println(strings.Repeat("─", 60))
+
+	if len(events) == 0 {
+		fmt.Println(yellow("No events recorded for this task."))
+	} else {
+		for _, event := range events {
+			timestamp := event.CreatedAt.Format("15:04:05")
+
+			switch event.StreamType {
+			case "turn_start":
+				fmt.Printf("%s %s Turn %d started\n", dim(timestamp), blue("◆"), event.TurnNum)
+			case "turn_end":
+				fmt.Printf("%s %s Turn %d ended\n", dim(timestamp), blue("◇"), event.TurnNum)
+			case "text":
+				text := event.Text
+				if len(text) > 100 {
+					text = text[:100] + "..."
+				}
+				text = strings.ReplaceAll(text, "\n", " ")
+				fmt.Printf("%s %s\n", dim(timestamp), text)
+			case "tool_use":
+				fmt.Printf("%s %s %s\n", dim(timestamp), cyan("🔧"), event.ToolName)
+			case "tool_result":
+				output := event.ToolOutput
+				if len(output) > 60 {
+					output = output[:60] + "..."
+				}
+				fmt.Printf("%s %s %s\n", dim(timestamp), green("→"), output)
+			case "error":
+				fmt.Printf("%s %s %s\n", dim(timestamp), red("✗"), event.ErrorMsg)
+			case "status":
+				fmt.Printf("%s %s %s\n", dim(timestamp), yellow("●"), event.Status)
+			default:
+				if event.Text != "" {
+					fmt.Printf("%s %s\n", dim(timestamp), event.Text)
+				}
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Print("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// fileExists checks if a file/directory exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // autoCommitWorktreeChanges checks if there are uncommitted changes in the worktree
