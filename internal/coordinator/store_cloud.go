@@ -116,6 +116,26 @@ func (s *CloudStore) SetTaskThreadID(ctx context.Context, id string, threadID st
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// SetTaskGithubIssue links a task to a GitHub issue number
+func (s *CloudStore) SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// SetTaskStage sets the pipeline stage for a task
+func (s *CloudStore) SetTaskStage(ctx context.Context, id string, stage TaskStage) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// GetTasksByGithubIssue retrieves all tasks linked to a GitHub issue
+func (s *CloudStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
+	return nil, fmt.Errorf("cloud store not yet implemented")
+}
+
+// GetTasksByStage retrieves all tasks in a specific pipeline stage
+func (s *CloudStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
+	return nil, fmt.Errorf("cloud store not yet implemented")
+}
+
 // UpdateTaskMetrics updates peak resource metrics for a task
 func (s *CloudStore) UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error {
 	return fmt.Errorf("cloud store not yet implemented")

@@ -9,14 +9,15 @@ import (
 
 // Message represents a message from the messaging system
 type Message struct {
-	ID        string
-	From      string
-	Title     string
-	Content   string
-	Type      string // bug, feature, task, etc. (category)
-	Kind      string // directive, question (message type)
-	Priority  string // high, medium, low
-	CreatedAt time.Time
+	ID          string
+	From        string
+	Title       string
+	Content     string
+	Type        string // bug, feature, task, etc. (category)
+	Kind        string // directive, question (message type)
+	Priority    string // high, medium, low
+	GithubIssue int    // Linked GitHub issue number (M-COORD-GITHUB-AUTO-ROUTING)
+	CreatedAt   time.Time
 }
 
 // MessageStore is the interface for accessing messages

@@ -72,7 +72,9 @@ func (s *SQLiteStore) migrate() error {
 		output_tokens INTEGER DEFAULT 0,
 		peak_cpu REAL DEFAULT 0,
 		peak_memory_mb REAL DEFAULT 0,
-		workspace TEXT
+		workspace TEXT,
+		github_issue INTEGER,
+		stage TEXT
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
@@ -83,6 +85,8 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_thread_id ON tasks(thread_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace);
+	CREATE INDEX IF NOT EXISTS idx_tasks_github_issue ON tasks(github_issue);
+	CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage);
 
 	-- Approval requests for human-in-the-loop checkpoints
 	CREATE TABLE IF NOT EXISTS approval_requests (
@@ -141,13 +145,18 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN workspace TEXT",
 		"ALTER TABLE tasks ADD COLUMN worktree_path TEXT",
 		"ALTER TABLE tasks ADD COLUMN session_id TEXT",
+		// M-COORD-GITHUB-AUTO-ROUTING: GitHub integration columns
+		"ALTER TABLE tasks ADD COLUMN github_issue INTEGER",
+		"ALTER TABLE tasks ADD COLUMN stage TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
 	}
 
-	// Add new index if it doesn't exist
+	// Add new indexes if they don't exist
 	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace)")
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_github_issue ON tasks(github_issue)")
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage)")
 
 	return nil
 }
@@ -169,7 +178,8 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE id = ?
 	`
@@ -213,7 +223,8 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
+		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE 1=1
 	`)
@@ -490,7 +501,8 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		        worktree_id, worktree_path, workspace, created_at, started_at, completed_at, duration_ns,
+		        worktree_id, worktree_path, workspace, github_issue, stage,
+		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
 		fingerprint,
@@ -518,6 +530,78 @@ func (s *SQLiteStore) SetTaskThreadID(ctx context.Context, id string, threadID s
 		threadID, id,
 	)
 	return err
+}
+
+// SetTaskGithubIssue links a task to a GitHub issue number
+func (s *SQLiteStore) SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET github_issue = ? WHERE id = ?",
+		issueNum, id,
+	)
+	return err
+}
+
+// SetTaskStage sets the pipeline stage for a task
+func (s *SQLiteStore) SetTaskStage(ctx context.Context, id string, stage TaskStage) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET stage = ? WHERE id = ?",
+		string(stage), id,
+	)
+	return err
+}
+
+// GetTasksByGithubIssue retrieves all tasks linked to a GitHub issue
+func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
+	query := `
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       created_at, started_at, completed_at, duration_ns,
+		       error, output, cost, tokens_used
+		FROM tasks WHERE github_issue = ?
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, issueNum)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []*TaskRecord
+	for rows.Next() {
+		task, err := s.scanTaskFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
+}
+
+// GetTasksByStage retrieves all tasks in a specific pipeline stage
+func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
+	query := `
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       created_at, started_at, completed_at, duration_ns,
+		       error, output, cost, tokens_used
+		FROM tasks WHERE stage = ?
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, string(stage))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []*TaskRecord
+	for rows.Next() {
+		task, err := s.scanTaskFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
 }
 
 // UpdateTaskMetrics updates peak resource metrics for a task
@@ -573,12 +657,14 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID sql.NullString
+	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var githubIssue sql.NullInt64
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &worktreePath, &workspace, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage,
+		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -614,6 +700,12 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if threadID.Valid {
 		task.ThreadID = threadID.String
+	}
+	if githubIssue.Valid {
+		task.GithubIssue = int(githubIssue.Int64)
+	}
+	if stage.Valid {
+		task.Stage = TaskStage(stage.String)
 	}
 
 	return task, nil
@@ -624,12 +716,14 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID sql.NullString
+	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var githubIssue sql.NullInt64
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &worktreePath, &workspace, &task.CreatedAt, &startedAt, &completedAt,
+		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage,
+		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
 	if err != nil {
@@ -665,6 +759,12 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if threadID.Valid {
 		task.ThreadID = threadID.String
+	}
+	if githubIssue.Valid {
+		task.GithubIssue = int(githubIssue.Int64)
+	}
+	if stage.Valid {
+		task.Stage = TaskStage(stage.String)
 	}
 
 	return task, nil

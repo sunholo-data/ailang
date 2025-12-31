@@ -15,11 +15,12 @@ import (
 
 // Config holds daemon configuration
 type Config struct {
-	PollInterval time.Duration // How often to check for new messages
-	MaxWorktrees int           // Maximum concurrent worktrees
-	LogFile      string        // Path to log file
-	PIDFile      string        // Path to PID file
-	StateDir     string        // Directory for state files
+	PollInterval         time.Duration // How often to check for new messages
+	MaxWorktrees         int           // Maximum concurrent worktrees
+	LogFile              string        // Path to log file
+	PIDFile              string        // Path to PID file
+	StateDir             string        // Directory for state files
+	ApprovalPollInterval time.Duration // How often to poll GitHub for approval labels (M-COORD-GITHUB-AUTO-ROUTING)
 }
 
 // DefaultConfig returns sensible defaults
@@ -79,6 +80,11 @@ type Daemon struct {
 
 	// Approval workflow
 	approvalCheckpoint *ApprovalCheckpoint
+
+	// GitHub-driven approval workflow (M-COORD-GITHUB-AUTO-ROUTING)
+	githubPoster    *GitHubPoster
+	approvalWatcher *ApprovalWatcher
+	taskChain       *TaskChain
 
 	// Event broadcasting for real-time updates
 	eventBroadcaster EventBroadcaster
@@ -182,6 +188,15 @@ func (d *Daemon) Run() error {
 	// Start GitHub sync if enabled
 	if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
 		go d.runGitHubSync()
+	}
+
+	// Start GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)
+	if d.approvalWatcher != nil {
+		if err := d.approvalWatcher.Start(d.ctx); err != nil {
+			d.logger.Printf("Warning: Failed to start approval watcher: %v", err)
+		} else {
+			d.logger.Println("GitHub approval watcher started")
+		}
 	}
 
 	for {

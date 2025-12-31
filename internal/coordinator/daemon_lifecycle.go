@@ -177,6 +177,12 @@ func (d *Daemon) isProcessRunning(pid int) bool {
 
 // cleanup removes PID file and performs other cleanup
 func (d *Daemon) cleanup() {
+	// Stop GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)
+	if d.approvalWatcher != nil {
+		d.approvalWatcher.Stop()
+		d.logger.Println("GitHub approval watcher stopped")
+	}
+
 	// Mark agent as idle in dashboard
 	if err := d.unregisterAgent(); err != nil {
 		d.logger.Printf("Failed to unregister agent: %v", err)

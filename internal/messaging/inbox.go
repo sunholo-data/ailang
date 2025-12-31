@@ -48,11 +48,15 @@ const (
 	InboxTypeResponse     = "response"
 )
 
-// Message categories (for GitHub sync)
+// Message categories (for GitHub sync and coordinator routing)
 const (
-	CategoryBug     = "bug"
-	CategoryFeature = "feature"
-	CategoryGeneral = "general"
+	CategoryBug      = "bug"
+	CategoryFeature  = "feature"
+	CategoryGeneral  = "general"
+	CategoryDocs     = "docs"
+	CategoryResearch = "research"
+	CategoryRefactor = "refactor"
+	CategoryTest     = "test"
 )
 
 // InboxListOptions specifies filters for listing inbox messages

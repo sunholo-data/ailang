@@ -19,6 +19,7 @@ func runMessagesImportGitHub(args []string) {
 	inbox := fs.String("inbox", "user", "Target inbox for imported messages")
 	dryRun := fs.Bool("dry-run", false, "Show what would be imported without importing")
 	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
+	routeByLabel := fs.Bool("route-by-label", true, "Route issues with coordinator:* labels to coordinator inbox")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -102,14 +103,10 @@ func runMessagesImportGitHub(args []string) {
 			continue
 		}
 
-		if *dryRun {
-			fmt.Printf("  Would import: #%d %s\n", issue.Number, issue.Title)
-			imported++
-			continue
-		}
-
-		// Determine category from labels
+		// Determine category and target inbox from labels (before dry-run check)
 		category := ""
+		targetInbox := *inbox
+
 		for _, label := range issue.Labels {
 			switch label {
 			case "bug":
@@ -117,6 +114,38 @@ func runMessagesImportGitHub(args []string) {
 			case "feature", "enhancement":
 				category = messaging.CategoryFeature
 			}
+
+			// Label-based routing: coordinator:* labels route to coordinator inbox
+			if *routeByLabel && strings.HasPrefix(label, "coordinator:") {
+				targetInbox = "coordinator"
+				// Extract task type from label (e.g., "coordinator:bug" -> "bug")
+				coordinatorTaskType := strings.TrimPrefix(label, "coordinator:")
+				// Override category based on coordinator task type
+				switch coordinatorTaskType {
+				case "bug":
+					category = messaging.CategoryBug
+				case "feature":
+					category = messaging.CategoryFeature
+				case "docs":
+					category = messaging.CategoryDocs
+				case "research":
+					category = messaging.CategoryResearch
+				case "refactor":
+					category = messaging.CategoryRefactor
+				case "test":
+					category = messaging.CategoryTest
+				}
+			}
+		}
+
+		if *dryRun {
+			routeInfo := ""
+			if targetInbox == "coordinator" {
+				routeInfo = fmt.Sprintf(" [auto-routed to %s]", targetInbox)
+			}
+			fmt.Printf("  Would import: #%d %s%s\n", issue.Number, issue.Title, routeInfo)
+			imported++
+			continue
 		}
 
 		// Parse from agent from title prefix [agent-name]
@@ -132,7 +161,7 @@ func runMessagesImportGitHub(args []string) {
 		// Create inbox message
 		msg := &messaging.InboxMessage{
 			FromAgent:   fromAgent,
-			ToInbox:     *inbox,
+			ToInbox:     targetInbox,
 			MessageType: messaging.InboxTypeNotification,
 			Title:       title,
 			Payload:     issue.Body,

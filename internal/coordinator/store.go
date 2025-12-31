@@ -21,6 +21,10 @@ type TaskRecord struct {
 	WorktreePath string       `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	SessionID   string        `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Workspace   string        `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
+	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
+	GithubIssue int       `json:"github_issue,omitempty"` // Linked GitHub issue number
+	Stage       TaskStage `json:"stage,omitempty"`        // Pipeline stage (design, sprint, implementation, merge)
+	// Timestamps
 	CreatedAt   time.Time     `json:"created_at"`
 	StartedAt   *time.Time    `json:"started_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
@@ -50,6 +54,17 @@ const (
 	TaskStatusRejected        TaskStatus = "rejected" // Human rejected the work
 	TaskStatusCancelled       TaskStatus = "cancelled"
 	TaskStatusDuplicate       TaskStatus = "duplicate"
+)
+
+// TaskStage represents the pipeline stage for GitHub-linked tasks
+type TaskStage string
+
+const (
+	TaskStageNone           TaskStage = ""               // Not part of a pipeline
+	TaskStageDesign         TaskStage = "design"         // Creating design document
+	TaskStageSprint         TaskStage = "sprint"         // Creating sprint plan
+	TaskStageImplementation TaskStage = "implementation" // Implementing the sprint
+	TaskStageMerge          TaskStage = "merge"          // Awaiting merge approval
 )
 
 // TaskFilter for querying tasks
@@ -130,6 +145,12 @@ type Store interface {
 
 	// Thread linking (for dashboard visibility)
 	SetTaskThreadID(ctx context.Context, id string, threadID string) error
+
+	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
+	SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error
+	SetTaskStage(ctx context.Context, id string, stage TaskStage) error
+	GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error)
+	GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error)
 
 	// Resource metrics
 	UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error

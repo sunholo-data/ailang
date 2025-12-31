@@ -114,6 +114,39 @@ func (d *Daemon) initTaskProcessing() error {
 	})
 	d.logger.Println("Approval checkpoint initialized")
 
+	// Initialize GitHub-driven approval workflow (M-COORD-GITHUB-AUTO-ROUTING)
+	githubPoster, err := NewGitHubPoster()
+	if err != nil {
+		d.logger.Printf("Warning: GitHub poster not available: %v", err)
+		d.logger.Println("GitHub-based approval workflow disabled")
+	} else {
+		d.githubPoster = githubPoster
+
+		// Create approval watcher with poll interval from config (default 60s)
+		pollInterval := d.config.ApprovalPollInterval
+		if pollInterval == 0 {
+			pollInterval = 60 * time.Second
+		}
+		d.approvalWatcher = NewApprovalWatcher(githubPoster, d.taskStore, pollInterval)
+
+		// Create task chain and register approval handlers
+		d.taskChain = NewTaskChain(githubPoster, d.taskStore, d.approvalWatcher)
+
+		// Register approval event handlers
+		d.approvalWatcher.RegisterHandler(ApprovalEventDesign, d.taskChain.OnDesignApproved)
+		d.approvalWatcher.RegisterHandler(ApprovalEventSprint, d.taskChain.OnSprintApproved)
+		d.approvalWatcher.RegisterHandler(ApprovalEventMerge, d.taskChain.OnMergeApproved)
+		d.approvalWatcher.RegisterHandler(ApprovalEventRevision, d.taskChain.OnNeedsRevision)
+
+		// Load existing watched issues from store
+		if err := d.approvalWatcher.LoadWatchedIssuesFromStore(d.ctx); err != nil {
+			d.logger.Printf("Warning: Failed to load watched issues: %v", err)
+		} else {
+			d.logger.Printf("GitHub approval watcher initialized (watching %d issue(s), poll interval: %v)",
+				d.approvalWatcher.WatchedIssueCount(), pollInterval)
+		}
+	}
+
 	// Recover stale tasks from previous daemon runs
 	// Tasks that were running/queued when daemon crashed are marked cancelled
 	if d.taskStore != nil {
@@ -206,16 +239,17 @@ func (d *Daemon) pollAndProcessTasks() error {
 		}
 
 		task := &TaskRecord{
-			ID:        taskID,
-			MessageID: msg.ID,
-			Title:     msg.Title,
-			Content:   msg.Content,
-			Type:      analyzed.Type,
-			Kind:      kind,
-			Priority:  CalculatePriority(analyzed),
-			Status:    TaskStatusPending,
-			Workspace: workspace,
-			CreatedAt: msg.CreatedAt,
+			ID:          taskID,
+			MessageID:   msg.ID,
+			Title:       msg.Title,
+			Content:     msg.Content,
+			Type:        analyzed.Type,
+			Kind:        kind,
+			Priority:    CalculatePriority(analyzed),
+			Status:      TaskStatusPending,
+			Workspace:   workspace,
+			GithubIssue: msg.GithubIssue, // M-COORD-GITHUB-AUTO-ROUTING
+			CreatedAt:   msg.CreatedAt,
 		}
 
 		// Check for duplicates
@@ -262,8 +296,23 @@ func (d *Daemon) pollAndProcessTasks() error {
 			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
 		}
 
-		d.logger.Printf("Created task %s (type: %s, priority: %d, thread: %s, agent: %s) from message %s",
-			task.ID, task.Type, task.Priority, task.ThreadID, agentID, msg.ID)
+		// M-COORD-GITHUB-AUTO-ROUTING: Initialize GitHub-linked tasks
+		if task.GithubIssue > 0 && d.taskChain != nil {
+			// Start the task chain (posts "working" comment to GitHub)
+			if err := d.taskChain.StartTask(d.ctx, task.ID, task.GithubIssue); err != nil {
+				d.logger.Printf("Warning: Failed to start task chain for issue #%d: %v", task.GithubIssue, err)
+			} else {
+				d.logger.Printf("Started GitHub pipeline for task %s (issue #%d)", task.ID, task.GithubIssue)
+			}
+
+			// Start watching for approval labels
+			if d.approvalWatcher != nil {
+				d.approvalWatcher.WatchIssue(task.GithubIssue, task.ID)
+			}
+		}
+
+		d.logger.Printf("Created task %s (type: %s, priority: %d, thread: %s, agent: %s, issue: #%d) from message %s",
+			task.ID, task.Type, task.Priority, task.ThreadID, agentID, task.GithubIssue, msg.ID)
 
 		// Mark message as read using the correct inbox adapter
 		if adapter := d.inboxAdapters[im.inbox]; adapter != nil {

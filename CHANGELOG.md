@@ -2,6 +2,46 @@
 
 ## [Unreleased]
 
+### Added - GitHub-Driven Autonomous Workflow (M-COORD-GITHUB-AUTO-ROUTING)
+
+Implemented end-to-end GitHub-driven task pipeline for autonomous coordinator operation. Issues with `coordinator:*` labels are automatically routed through design → sprint → implementation → merge workflow.
+
+**Features:**
+- **Label-Based Routing**: Issues labeled `coordinator:bug`, `coordinator:feature`, `coordinator:docs` are auto-imported to coordinator inbox
+- **GitHub Comment Posting**: Coordinator posts status updates as comments on linked GitHub issues
+- **Approval Watcher**: Polls GitHub for approval labels (`design-approved`, `sprint-approved`, `merge-approved`)
+- **Task Pipeline**: Automatic progression through stages with human approval gates
+- **Comment Templates**: Professional, formatted comments for each pipeline stage
+
+**Workflow:**
+1. Issue created with `coordinator:*` label → imported as message
+2. Task picks up message → posts "🔄 Working on this" comment
+3. Design doc complete → adds `needs-design-approval` label
+4. Human adds `design-approved` → sprint planning starts
+5. Sprint plan complete → adds `needs-sprint-approval` label
+6. Human adds `sprint-approved` → implementation starts
+7. Implementation complete → adds `needs-merge-approval` label
+8. Human adds `merge-approved` → work merged, issue closed
+
+**Approval Labels:**
+- `needs-design-approval` / `design-approved`
+- `needs-sprint-approval` / `sprint-approved`
+- `needs-merge-approval` / `merge-approved`
+- `needs-revision` (requests changes at any stage)
+
+**Files Added:**
+- `internal/coordinator/approval_watcher.go` - Polls GitHub for approval labels (~280 LOC)
+- `internal/coordinator/task_chain.go` - Pipeline stage callbacks (~350 LOC)
+- `internal/coordinator/templates.go` - GitHub comment templates (~200 LOC)
+
+**Files Modified:**
+- `internal/coordinator/store.go` - Added TaskStage, GithubIssue fields, new interface methods (~50 LOC)
+- `internal/coordinator/store_sqlite.go` - Schema migrations, new query implementations (~150 LOC)
+- `internal/coordinator/daemon.go` - Integration with watcher and chain (~30 LOC)
+- `internal/coordinator/daemon_tasks.go` - GitHub issue linking on task creation (~40 LOC)
+- `internal/coordinator/watcher.go` - Added GithubIssue to Message struct
+- `internal/coordinator/message_adapter.go` - Pass GitHub issue from inbox messages
+
 ### Added - Coordinator Task Logs Command
 
 Added `ailang coordinator logs <task-id>` command to view streaming events from task execution.
