@@ -126,6 +126,21 @@ func (s *CloudStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration
 	return 0, fmt.Errorf("cloud store not yet implemented")
 }
 
+// CreateApprovalRequest creates a new approval request
+func (s *CloudStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// ListPendingApprovals returns all pending approval requests
+func (s *CloudStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, fmt.Errorf("cloud store not yet implemented")
+}
+
+// ResolveApprovalRequest marks an approval request as resolved
+func (s *CloudStore) ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // Close closes the store
 func (s *CloudStore) Close() error {
 	// Nothing to close for stub

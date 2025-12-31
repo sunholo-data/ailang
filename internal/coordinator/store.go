@@ -113,6 +113,11 @@ type Store interface {
 	// Resource metrics
 	UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error
 
+	// Approval requests
+	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
+	ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error)
+	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
+
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)
 

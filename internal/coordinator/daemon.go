@@ -468,10 +468,14 @@ func (d *Daemon) pollAndProcessTasks() error {
 		analyzed := d.analyzer.Analyze(taskInput)
 
 		// Create a task record
-		// Use message source (From) as workspace - this is the source project/agent
-		workspace := msg.From
-		if workspace == "" {
-			workspace = "unknown"
+		// Get the agent's workspace path from the registry
+		workspace := ""
+		if agent := d.agentRegistry.GetAgentByID(agentID); agent != nil && agent.Workspace != "" {
+			workspace = agent.Workspace
+		} else {
+			// Fallback to current directory - warn as skills may not be available
+			workspace, _ = os.Getwd()
+			d.logger.Printf("WARNING: Agent %q has no workspace configured, using current directory: %s (skills may not be available)", agentID, workspace)
 		}
 
 		task := &TaskRecord{
@@ -725,6 +729,21 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, result); err != nil {
 			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 		}
+
+		// Create approval request record for the CLI/dashboard to show
+		approvalID := fmt.Sprintf("apr-%s", task.ID[5:]) // apr-<hash> from task-<hash>
+		approvalReq := &ApprovalRequestRecord{
+			ID:          approvalID,
+			TaskID:      task.ID,
+			Type:        string(ApprovalTypeMerge),
+			Description: fmt.Sprintf("Agent completed work on: %s", task.Title),
+			Status:      "pending",
+			CreatedAt:   time.Now(),
+		}
+		if err := d.taskStore.CreateApprovalRequest(d.ctx, approvalReq); err != nil {
+			d.logger.Printf("Warning: Failed to create approval request: %v", err)
+		}
+
 		d.logger.Printf("Task %s awaiting approval (cost: $%.4f, tokens: %d, worktree: %s)",
 			task.ID, result.Cost, result.TokensUsed, worktreePath)
 
