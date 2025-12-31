@@ -133,6 +133,24 @@ Options:
   --state-dir DIR    State directory
 ```
 
+### ailang coordinator worktree
+
+Show or open the worktree directory for a task.
+
+```bash
+ailang coordinator worktree <task-id> [options]
+
+Options:
+  --open, -o         Open worktree in file manager (Finder on macOS)
+  --cd               Output shell command to cd into worktree
+  --state-dir DIR    State directory
+
+Examples:
+  ailang coordinator worktree task-abc123          # Print path
+  ailang coordinator worktree task-abc123 --open   # Open in Finder
+  cd $(ailang coordinator worktree task-abc123)    # cd into worktree
+```
+
 ## Task Status Values
 
 | Status | Description |

@@ -79,18 +79,22 @@ func (h *CoordinatorEventHandler) OnTurnStart(turnNum int) {
 
 // OnText is called when text is generated
 func (h *CoordinatorEventHandler) OnText(text string) {
-	// Text events can be high-frequency, apply rate limiting
-	if !h.checkRateLimit() {
-		return
-	}
-
-	h.emitEvent(&websocket.TaskStreamEvent{
+	event := &websocket.TaskStreamEvent{
 		TaskID:     h.taskID,
 		ThreadID:   h.threadID,
 		StreamType: websocket.TaskStreamText,
 		TurnNum:    h.getCurrentTurn(),
-		Text:       truncateString(text, 2000), // Limit text size
-	})
+		Text:       text, // Store full text, don't truncate
+	}
+
+	// Always store events (for historical replay)
+	// Only apply rate limiting to WebSocket broadcast
+	h.storeEvent(event)
+
+	// Rate limit broadcasting only
+	if h.checkRateLimit() {
+		h.broadcastEvent(event)
+	}
 }
 
 // OnToolUse is called when a tool is invoked
@@ -101,7 +105,7 @@ func (h *CoordinatorEventHandler) OnToolUse(toolName string, input string) {
 		StreamType: websocket.TaskStreamToolUse,
 		TurnNum:    h.getCurrentTurn(),
 		ToolName:   toolName,
-		ToolInput:  truncateString(input, 1000), // Limit input size
+		ToolInput:  input, // Store full input, truncate only on broadcast
 	})
 }
 
@@ -113,7 +117,7 @@ func (h *CoordinatorEventHandler) OnToolResult(toolName string, output string) {
 		StreamType: websocket.TaskStreamToolResult,
 		TurnNum:    h.getCurrentTurn(),
 		ToolName:   toolName,
-		ToolOutput: truncateString(output, 2000), // Limit output size
+		ToolOutput: output, // Store full output, truncate only on broadcast
 	})
 }
 
@@ -185,10 +189,12 @@ func (h *CoordinatorEventHandler) GetEventBuffer() []*websocket.TaskStreamEvent 
 
 // emitEvent broadcasts an event, buffers it for replay, and stores to database
 func (h *CoordinatorEventHandler) emitEvent(event *websocket.TaskStreamEvent) {
-	// Debug logging
-	fmt.Printf("[DEBUG] EventHandler.emitEvent: type=%s task=%s (hasBroadcast=%v, hasStore=%v)\n",
-		event.StreamType, event.TaskID, h.broadcast != nil, h.store != nil)
+	h.storeEvent(event)
+	h.broadcastEvent(event)
+}
 
+// storeEvent stores an event to database for historical replay (always called)
+func (h *CoordinatorEventHandler) storeEvent(event *websocket.TaskStreamEvent) {
 	// Buffer the event (in-memory for current session)
 	h.bufferMu.Lock()
 	if len(h.eventBuffer) >= h.maxBufferSize {
@@ -222,10 +228,17 @@ func (h *CoordinatorEventHandler) emitEvent(event *websocket.TaskStreamEvent) {
 			}
 		}()
 	}
+}
 
-	// Broadcast if we have a broadcaster
+// broadcastEvent broadcasts an event to WebSocket clients (may be rate-limited)
+func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEvent) {
 	if h.broadcast != nil {
-		h.broadcast(event)
+		// Truncate for WebSocket broadcast (live streaming)
+		broadcastEvent := *event
+		broadcastEvent.Text = truncateString(event.Text, 2000)
+		broadcastEvent.ToolInput = truncateString(event.ToolInput, 1000)
+		broadcastEvent.ToolOutput = truncateString(event.ToolOutput, 2000)
+		h.broadcast(&broadcastEvent)
 	}
 }
 

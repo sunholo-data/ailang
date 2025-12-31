@@ -48,6 +48,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorLogs(subargs)
 	case "cleanup":
 		return coordinatorCleanup(subargs)
+	case "worktree":
+		return coordinatorWorktree(subargs)
 	case "help", "--help", "-h":
 		printCoordinatorHelp()
 		return nil
@@ -294,6 +296,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  pending   List tasks awaiting approval (interactive)")
 	fmt.Println("  diff      Show changes made by a task (git diff)")
 	fmt.Println("  logs      Show streaming logs/events for a task")
+	fmt.Println("  worktree  Show/open worktree directory for a task")
 	fmt.Println("  approve   Approve a pending task")
 	fmt.Println("  reject    Reject a pending task")
 	fmt.Println("  reopen    Reopen a rejected/cancelled task for re-approval")
@@ -310,6 +313,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  ailang coordinator list --running      # See running tasks")
 	fmt.Println("  ailang coordinator list --pending      # See pending tasks")
 	fmt.Println("  ailang coordinator pending             # Interactive approval queue")
+	fmt.Println("  ailang coordinator worktree task-abc --open")
 	fmt.Println("  ailang coordinator approve task-abc123")
 	fmt.Println("  ailang coordinator reject task-abc123")
 	fmt.Println("  ailang coordinator stop")
@@ -701,11 +705,11 @@ func coordinatorDiff(args []string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		// If HEAD~1 doesn't exist, try diff against origin/dev
+		// If HEAD~1 doesn't exist, try diff against origin/dev to HEAD (committed changes)
 		if statOnly {
-			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--stat", "origin/dev")
+			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--stat", "origin/dev", "HEAD")
 		} else {
-			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--color=always", "origin/dev")
+			cmd = exec.Command("git", "-C", task.WorktreePath, "diff", "--color=always", "origin/dev", "HEAD")
 		}
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -948,6 +952,108 @@ func printCoordinatorCleanupHelp() {
 	fmt.Println("Note: The daemon automatically runs this on startup.")
 }
 
+func coordinatorWorktree(args []string) error {
+	if len(args) == 0 {
+		printCoordinatorWorktreeHelp()
+		return nil
+	}
+
+	// Check for help flag first
+	if args[0] == "--help" || args[0] == "-h" {
+		printCoordinatorWorktreeHelp()
+		return nil
+	}
+
+	taskID := args[0]
+	stateDir := ""
+	openDir := false
+	cdShell := false
+
+	// Parse flags
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--open", "-o":
+			openDir = true
+		case "--cd":
+			cdShell = true
+		case "--help", "-h":
+			printCoordinatorWorktreeHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	// Get the task
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	if task.WorktreePath == "" {
+		return fmt.Errorf("no worktree associated with task: %s", taskID)
+	}
+
+	// Check if worktree exists
+	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
+		return fmt.Errorf("worktree no longer exists: %s", task.WorktreePath)
+	}
+
+	// Output format depends on flags
+	if cdShell {
+		// Just print the path for shell integration: eval $(ailang coordinator worktree ID --cd)
+		fmt.Printf("cd '%s'\n", task.WorktreePath)
+		return nil
+	}
+
+	if openDir {
+		openInFinder(task.WorktreePath)
+		return nil
+	}
+
+	// Default: just print the path
+	fmt.Println(task.WorktreePath)
+	return nil
+}
+
+func printCoordinatorWorktreeHelp() {
+	fmt.Println("Usage: ailang coordinator worktree <task-id> [options]")
+	fmt.Println("")
+	fmt.Println("Show or open the worktree directory for a task")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --open, -o        Open worktree in file manager (Finder)")
+	fmt.Println("  --cd              Output shell command to cd into worktree")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator worktree task-abc123")
+	fmt.Println("  ailang coordinator worktree task-abc123 --open")
+	fmt.Println("  cd $(ailang coordinator worktree task-abc123)")
+}
+
 func printCoordinatorApproveHelp() {
 	fmt.Println("Usage: ailang coordinator approve <task-id> [options]")
 	fmt.Println("")
@@ -1076,10 +1182,12 @@ func coordinatorPending(args []string) error {
 	fmt.Println(bold("Title: ") + selectedReq.Description)
 	fmt.Println()
 	fmt.Println(bold("Actions:"))
-	fmt.Println("  [d]  View diff")
+	fmt.Println("  [d]  View diff (full)")
 	fmt.Println("  [s]  View diff summary (--stat)")
-	fmt.Println("  [a]  Approve")
-	fmt.Println("  [r]  Reject")
+	fmt.Println("  [f]  Browse changed files")
+	fmt.Println("  [o]  Open worktree in Finder")
+	fmt.Println("  [a]  " + green("Approve and merge"))
+	fmt.Println("  [r]  " + red("Reject"))
 	fmt.Println("  [q]  Cancel")
 	fmt.Println()
 	fmt.Print("Action: ")
@@ -1088,22 +1196,18 @@ func coordinatorPending(args []string) error {
 
 	switch strings.ToLower(input) {
 	case "d":
-		// Show diff
+		// Show full diff (committed + uncommitted changes)
 		if selectedTask == nil || selectedTask.WorktreePath == "" {
 			fmt.Println(red("✗"), "No worktree available for this task")
 			return nil
 		}
-		cmd := exec.Command("git", "-C", selectedTask.WorktreePath, "diff", "--color=always", "origin/dev")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
+		showWorktreeDiff(selectedTask.WorktreePath, false)
 		// After showing diff, prompt for action
 		fmt.Println()
 		fmt.Print("Approve [a], Reject [r], or Cancel [q]: ")
 		fmt.Scanln(&input)
 		if strings.ToLower(input) == "a" {
-			// TODO: implement approve flow
-			fmt.Println(yellow("!"), "Use 'ailang coordinator approve", selectedReq.TaskID+"'")
+			return coordinatorApprove([]string{selectedReq.TaskID})
 		} else if strings.ToLower(input) == "r" {
 			if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
 				return fmt.Errorf("failed to reject: %w", err)
@@ -1111,18 +1215,29 @@ func coordinatorPending(args []string) error {
 			fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
 		}
 	case "s":
-		// Show diff stat
+		// Show diff stat (committed + uncommitted changes)
 		if selectedTask == nil || selectedTask.WorktreePath == "" {
 			fmt.Println(red("✗"), "No worktree available for this task")
 			return nil
 		}
-		cmd := exec.Command("git", "-C", selectedTask.WorktreePath, "diff", "--stat", "origin/dev")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
+		showWorktreeDiff(selectedTask.WorktreePath, true)
+	case "f":
+		// Browse changed files
+		if selectedTask == nil || selectedTask.WorktreePath == "" {
+			fmt.Println(red("✗"), "No worktree available for this task")
+			return nil
+		}
+		browseChangedFiles(selectedTask.WorktreePath)
+	case "o":
+		// Open worktree in Finder
+		if selectedTask == nil || selectedTask.WorktreePath == "" {
+			fmt.Println(red("✗"), "No worktree available for this task")
+			return nil
+		}
+		openInFinder(selectedTask.WorktreePath)
 	case "a":
-		// TODO: implement approve flow (needs merge logic)
-		fmt.Println(yellow("!"), "Use 'ailang coordinator approve", selectedReq.TaskID+"'")
+		// Approve and merge
+		return coordinatorApprove([]string{selectedReq.TaskID})
 	case "r":
 		if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
 			return fmt.Errorf("failed to reject: %w", err)
@@ -1408,6 +1523,7 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 			fmt.Println("  [s]  View diff summary (--stat)")
 			fmt.Println("  [f]  Browse files changed")
 			fmt.Println("  [b]  Browse worktree directory")
+			fmt.Println("  [o]  Open worktree in Finder")
 		}
 		fmt.Println("  [l]  View execution logs")
 		if task.Status == coordinator.TaskStatusPendingApproval {
@@ -1450,6 +1566,13 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 			}
 			browseWorktreeDirectory(task.WorktreePath, "")
 
+		case "o":
+			if !hasWorktree {
+				fmt.Println(red("✗"), "No worktree available")
+				continue
+			}
+			openInFinder(task.WorktreePath)
+
 		case "l":
 			showTaskLogs(ctx, store, task)
 
@@ -1479,15 +1602,79 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 
 // showWorktreeDiff shows the git diff for a worktree
 func showWorktreeDiff(worktreePath string, statOnly bool) {
+	hasCommittedChanges := false
+	hasUncommittedChanges := false
+
+	// 1. Show committed changes (origin/dev to HEAD)
 	var cmd *exec.Cmd
 	if statOnly {
-		cmd = exec.Command("git", "-C", worktreePath, "diff", "--stat", "origin/dev")
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--stat", "origin/dev", "HEAD")
 	} else {
-		cmd = exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev")
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev", "HEAD")
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
+	output, err := cmd.Output()
+	if err != nil {
+		// If origin/dev doesn't exist, try dev
+		if statOnly {
+			cmd = exec.Command("git", "-C", worktreePath, "diff", "--stat", "dev", "HEAD")
+		} else {
+			cmd = exec.Command("git", "-C", worktreePath, "diff", "--color=always", "dev", "HEAD")
+		}
+		output, _ = cmd.Output()
+	}
+	if len(output) > 0 {
+		hasCommittedChanges = true
+		fmt.Println(bold("Committed changes (origin/dev → HEAD):"))
+		fmt.Println(strings.Repeat("─", 50))
+		fmt.Print(string(output))
+		fmt.Println()
+	}
+
+	// 2. Check for uncommitted changes (untracked + modified files)
+	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusOutput, _ := statusCmd.Output()
+	if len(statusOutput) > 0 {
+		hasUncommittedChanges = true
+		fmt.Println(bold("Uncommitted changes (will be auto-committed on approve):"))
+		fmt.Println(strings.Repeat("─", 50))
+
+		// Show status with nice formatting
+		lines := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
+		for _, line := range lines {
+			if len(line) < 3 {
+				continue
+			}
+			status := line[:2]
+			file := strings.TrimSpace(line[3:])
+			switch {
+			case strings.HasPrefix(status, "??"):
+				fmt.Println("  " + green("+") + " " + file + " " + dim("(new file)"))
+			case strings.HasPrefix(status, "M") || strings.HasPrefix(status, " M"):
+				fmt.Println("  " + yellow("~") + " " + file + " " + dim("(modified)"))
+			case strings.HasPrefix(status, "D") || strings.HasPrefix(status, " D"):
+				fmt.Println("  " + red("-") + " " + file + " " + dim("(deleted)"))
+			case strings.HasPrefix(status, "A"):
+				fmt.Println("  " + green("+") + " " + file + " " + dim("(staged)"))
+			default:
+				fmt.Println("  " + status + " " + file)
+			}
+		}
+		fmt.Println()
+
+		// If not stat-only, show actual diff of uncommitted changes
+		if !statOnly {
+			// Show diff of modified files (not untracked)
+			diffCmd := exec.Command("git", "-C", worktreePath, "diff", "--color=always")
+			diffCmd.Stdout = os.Stdout
+			diffCmd.Stderr = os.Stderr
+			diffCmd.Run()
+		}
+	}
+
+	if !hasCommittedChanges && !hasUncommittedChanges {
+		fmt.Println(yellow("!"), "No changes found")
+	}
+
 	fmt.Println()
 	fmt.Print("Press Enter to continue...")
 	fmt.Scanln()
@@ -1495,36 +1682,77 @@ func showWorktreeDiff(worktreePath string, statOnly bool) {
 
 // browseChangedFiles shows a list of changed files and lets user view them
 func browseChangedFiles(worktreePath string) {
-	// Get list of changed files
-	cmd := exec.Command("git", "-C", worktreePath, "diff", "--name-status", "origin/dev")
+	// Parse files with their status
+	type changedFile struct {
+		status      string
+		path        string
+		uncommitted bool
+	}
+	var files []changedFile
+	seenPaths := make(map[string]bool)
+
+	// 1. Get committed changes (compare origin/dev to HEAD)
+	cmd := exec.Command("git", "-C", worktreePath, "diff", "--name-status", "origin/dev", "HEAD")
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Println(red("✗"), "Failed to get changed files:", err)
-		return
+		// If origin/dev doesn't exist, try dev
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--name-status", "dev", "HEAD")
+		output, _ = cmd.Output()
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
-		fmt.Println(yellow("!"), "No changed files found")
-		fmt.Print("Press Enter to continue...")
-		fmt.Scanln()
-		return
-	}
-
-	// Parse files with their status
-	type changedFile struct {
-		status string
-		path   string
-	}
-	var files []changedFile
 	for _, line := range lines {
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			files = append(files, changedFile{
-				status: parts[0],
-				path:   parts[1],
+				status:      parts[0],
+				path:        parts[1],
+				uncommitted: false,
 			})
+			seenPaths[parts[1]] = true
 		}
+	}
+
+	// 2. Get uncommitted changes (from git status)
+	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusOutput, _ := statusCmd.Output()
+	statusLines := strings.Split(strings.TrimSpace(string(statusOutput)), "\n")
+	for _, line := range statusLines {
+		if len(line) < 3 {
+			continue
+		}
+		status := strings.TrimSpace(line[:2])
+		path := strings.TrimSpace(line[3:])
+		// Skip if we already have this file from committed changes
+		if seenPaths[path] {
+			continue
+		}
+		// Convert git status codes to display format
+		var displayStatus string
+		switch {
+		case status == "??":
+			displayStatus = "+"
+		case strings.Contains(status, "M"):
+			displayStatus = "M"
+		case strings.Contains(status, "D"):
+			displayStatus = "D"
+		case strings.Contains(status, "A"):
+			displayStatus = "A"
+		default:
+			displayStatus = status
+		}
+		files = append(files, changedFile{
+			status:      displayStatus,
+			path:        path,
+			uncommitted: true,
+		})
+	}
+
+	if len(files) == 0 {
+		fmt.Println(yellow("!"), "No changed files found")
+		fmt.Print("Press Enter to continue...")
+		fmt.Scanln()
+		return
 	}
 
 	for {
@@ -1534,7 +1762,7 @@ func browseChangedFiles(worktreePath string) {
 		for i, f := range files {
 			var statusStr string
 			switch f.status {
-			case "A":
+			case "A", "+":
 				statusStr = green(f.status)
 			case "M":
 				statusStr = yellow(f.status)
@@ -1543,7 +1771,11 @@ func browseChangedFiles(worktreePath string) {
 			default:
 				statusStr = dim(f.status)
 			}
-			fmt.Printf("  [%d] %s %s\n", i+1, statusStr, f.path)
+			uncommittedTag := ""
+			if f.uncommitted {
+				uncommittedTag = " " + dim("(uncommitted)")
+			}
+			fmt.Printf("  [%d] %s %s%s\n", i+1, statusStr, f.path, uncommittedTag)
 		}
 		fmt.Println()
 		fmt.Println("  [q] Back")
@@ -1564,7 +1796,12 @@ func browseChangedFiles(worktreePath string) {
 		}
 
 		selectedFile := files[num-1]
-		showFileDiff(worktreePath, selectedFile.path)
+		if selectedFile.uncommitted && selectedFile.status == "+" {
+			// For new untracked files, just show the file contents
+			showNewFileContents(worktreePath, selectedFile.path)
+		} else {
+			showFileDiff(worktreePath, selectedFile.path)
+		}
 	}
 }
 
@@ -1574,10 +1811,40 @@ func showFileDiff(worktreePath, filePath string) {
 	fmt.Println(bold("Diff for:"), filePath)
 	fmt.Println(strings.Repeat("─", 60))
 
-	cmd := exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev", "--", filePath)
+	// Compare origin/dev to HEAD for the specific file (committed changes)
+	cmd := exec.Command("git", "-C", worktreePath, "diff", "--color=always", "origin/dev", "HEAD", "--", filePath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		// If origin/dev doesn't exist, try dev
+		cmd = exec.Command("git", "-C", worktreePath, "diff", "--color=always", "dev", "HEAD", "--", filePath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+	}
+
+	fmt.Println()
+	fmt.Print("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// showNewFileContents shows the contents of a new (untracked) file
+func showNewFileContents(worktreePath, filePath string) {
+	fullPath := filepath.Join(worktreePath, filePath)
+	fmt.Println()
+	fmt.Println(bold("New file:"), filePath)
+	fmt.Println(strings.Repeat("─", 60))
+
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		fmt.Println(red("✗"), "Failed to read file:", err)
+	} else {
+		// Show file contents with line numbers
+		lines := strings.Split(string(content), "\n")
+		for i, line := range lines {
+			fmt.Printf("%s%4d%s │ %s\n", dim(""), i+1, dim(""), green(line))
+		}
+	}
 
 	fmt.Println()
 	fmt.Print("Press Enter to continue...")
@@ -1959,6 +2226,32 @@ func showRawLogs(events []*coordinator.TaskEventRecord) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// openInFinder opens a directory in the system file manager (Finder on macOS)
+func openInFinder(path string) {
+	fmt.Println(cyan("→"), "Opening in file manager:", path)
+	var cmd *exec.Cmd
+
+	// Use platform-appropriate command
+	switch {
+	case fileExists("/usr/bin/open"): // macOS
+		cmd = exec.Command("open", path)
+	case fileExists("/usr/bin/xdg-open"): // Linux
+		cmd = exec.Command("xdg-open", path)
+	case fileExists("/usr/bin/explorer"): // Windows (unlikely via CLI)
+		cmd = exec.Command("explorer", path)
+	default:
+		fmt.Println(yellow("!"), "No file manager command found")
+		fmt.Println("  Path:", path)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		fmt.Println(red("✗"), "Failed to open:", err)
+	} else {
+		fmt.Println(green("✓"), "Opened in file manager")
+	}
 }
 
 // autoCommitWorktreeChanges checks if there are uncommitted changes in the worktree
