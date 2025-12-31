@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1439,7 +1441,7 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 			browseWorktreeDirectory(task.WorktreePath, "")
 
 		case "l":
-			showTaskLogs(ctx, store, task.ID)
+			showTaskLogs(ctx, store, task)
 
 		case "a":
 			if task.Status != coordinator.TaskStatusPendingApproval {
@@ -1703,9 +1705,9 @@ func showFileContents(worktreePath, filePath string) {
 	fmt.Scanln()
 }
 
-// showTaskLogs shows the execution logs for a task
-func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, taskID string) {
-	events, err := store.GetTaskEvents(ctx, taskID, 100)
+// showTaskLogs shows the execution logs for a task with grouped conversation view
+func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coordinator.TaskRecord) {
+	events, err := store.GetTaskEvents(ctx, task.ID, 500) // Get more events for full conversation
 	if err != nil {
 		fmt.Println(red("✗"), "Failed to get logs:", err)
 		fmt.Print("Press Enter to continue...")
@@ -1713,44 +1715,227 @@ func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, taskID st
 		return
 	}
 
+	for {
+		fmt.Println()
+		fmt.Println(bold("Execution Logs - Conversation View"))
+		fmt.Println(strings.Repeat("─", 70))
+
+		if len(events) == 0 {
+			fmt.Println(yellow("No events recorded for this task."))
+		} else {
+			// Group events by turn and aggregate text
+			type TurnContent struct {
+				TurnNum   int
+				StartTime string
+				EndTime   string
+				Text      strings.Builder
+				Tools     []string
+			}
+
+			turns := make(map[int]*TurnContent)
+			var statusEvents []string
+			var errorEvents []string
+
+			for _, event := range events {
+				timestamp := event.CreatedAt.Format("15:04:05")
+
+				switch event.StreamType {
+				case "turn_start":
+					if _, exists := turns[event.TurnNum]; !exists {
+						turns[event.TurnNum] = &TurnContent{
+							TurnNum:   event.TurnNum,
+							StartTime: timestamp,
+						}
+					}
+				case "turn_end":
+					if turn, exists := turns[event.TurnNum]; exists {
+						turn.EndTime = timestamp
+					}
+				case "text":
+					if event.TurnNum > 0 {
+						if _, exists := turns[event.TurnNum]; !exists {
+							turns[event.TurnNum] = &TurnContent{TurnNum: event.TurnNum}
+						}
+						turns[event.TurnNum].Text.WriteString(event.Text)
+					}
+				case "tool_use":
+					if event.TurnNum > 0 {
+						if _, exists := turns[event.TurnNum]; !exists {
+							turns[event.TurnNum] = &TurnContent{TurnNum: event.TurnNum}
+						}
+						turns[event.TurnNum].Tools = append(turns[event.TurnNum].Tools, event.ToolName)
+					}
+				case "status":
+					statusEvents = append(statusEvents, fmt.Sprintf("%s %s", timestamp, event.Status))
+				case "error":
+					errorEvents = append(errorEvents, fmt.Sprintf("%s %s", timestamp, event.ErrorMsg))
+				}
+			}
+
+			// Show status events
+			if len(statusEvents) > 0 {
+				fmt.Println(dim("Status:"))
+				for _, s := range statusEvents {
+					fmt.Printf("  %s %s\n", yellow("●"), s)
+				}
+				fmt.Println()
+			}
+
+			// Show turns in order
+			turnNums := make([]int, 0, len(turns))
+			for num := range turns {
+				turnNums = append(turnNums, num)
+			}
+			sort.Ints(turnNums)
+
+			for _, num := range turnNums {
+				turn := turns[num]
+				// Turn header
+				timeRange := turn.StartTime
+				if turn.EndTime != "" && turn.EndTime != turn.StartTime {
+					timeRange = turn.StartTime + " - " + turn.EndTime
+				}
+				fmt.Printf("%s %s\n", blue(fmt.Sprintf("◆ Turn %d", num)), dim("["+timeRange+"]"))
+
+				// Tools used
+				if len(turn.Tools) > 0 {
+					fmt.Printf("  %s ", cyan("Tools:"))
+					for i, tool := range turn.Tools {
+						if i > 0 {
+							fmt.Print(", ")
+						}
+						fmt.Print(tool)
+					}
+					fmt.Println()
+				}
+
+				// Text content - wrap nicely
+				text := strings.TrimSpace(turn.Text.String())
+				if text != "" {
+					// Wrap text at ~70 chars with indent
+					wrapped := wrapText(text, 66)
+					for _, line := range strings.Split(wrapped, "\n") {
+						fmt.Printf("    %s\n", line)
+					}
+				}
+				fmt.Println()
+			}
+
+			// Show errors if any
+			if len(errorEvents) > 0 {
+				fmt.Println(red("Errors:"))
+				for _, e := range errorEvents {
+					fmt.Printf("  %s %s\n", red("✗"), e)
+				}
+			}
+		}
+
+		// Interactive menu
+		hasWorktree := task.WorktreePath != "" && fileExists(task.WorktreePath)
+
+		fmt.Println(strings.Repeat("─", 70))
+		fmt.Print("Options: ")
+		if hasWorktree {
+			fmt.Print("[f] Browse files  [d] View diff  ")
+		}
+		fmt.Println("[r] Raw logs  [q] Back")
+		fmt.Print("> ")
+
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+
+		switch input {
+		case "f":
+			if hasWorktree {
+				browseChangedFiles(task.WorktreePath)
+			} else {
+				fmt.Println(red("✗"), "No worktree available")
+			}
+		case "d":
+			if hasWorktree {
+				showWorktreeDiff(task.WorktreePath, false)
+			} else {
+				fmt.Println(red("✗"), "No worktree available")
+			}
+		case "r":
+			showRawLogs(events)
+		case "q", "":
+			return
+		}
+	}
+}
+
+// wrapText wraps text at the specified width
+func wrapText(text string, width int) string {
+	var result strings.Builder
+	lines := strings.Split(text, "\n")
+
+	for i, line := range lines {
+		if i > 0 {
+			result.WriteString("\n")
+		}
+		// Handle each line
+		if len(line) <= width {
+			result.WriteString(line)
+			continue
+		}
+		// Wrap long lines
+		words := strings.Fields(line)
+		currentLine := ""
+		for _, word := range words {
+			if currentLine == "" {
+				currentLine = word
+			} else if len(currentLine)+1+len(word) <= width {
+				currentLine += " " + word
+			} else {
+				result.WriteString(currentLine + "\n")
+				currentLine = word
+			}
+		}
+		if currentLine != "" {
+			result.WriteString(currentLine)
+		}
+	}
+	return result.String()
+}
+
+// showRawLogs shows the raw event stream (original format)
+func showRawLogs(events []*coordinator.TaskEventRecord) {
 	fmt.Println()
-	fmt.Println(bold("Execution Logs"))
+	fmt.Println(bold("Raw Event Stream"))
 	fmt.Println(strings.Repeat("─", 60))
 
-	if len(events) == 0 {
-		fmt.Println(yellow("No events recorded for this task."))
-	} else {
-		for _, event := range events {
-			timestamp := event.CreatedAt.Format("15:04:05")
+	for _, event := range events {
+		timestamp := event.CreatedAt.Format("15:04:05")
 
-			switch event.StreamType {
-			case "turn_start":
-				fmt.Printf("%s %s Turn %d started\n", dim(timestamp), blue("◆"), event.TurnNum)
-			case "turn_end":
-				fmt.Printf("%s %s Turn %d ended\n", dim(timestamp), blue("◇"), event.TurnNum)
-			case "text":
-				text := event.Text
-				if len(text) > 100 {
-					text = text[:100] + "..."
-				}
-				text = strings.ReplaceAll(text, "\n", " ")
-				fmt.Printf("%s %s\n", dim(timestamp), text)
-			case "tool_use":
-				fmt.Printf("%s %s %s\n", dim(timestamp), cyan("🔧"), event.ToolName)
-			case "tool_result":
-				output := event.ToolOutput
-				if len(output) > 60 {
-					output = output[:60] + "..."
-				}
-				fmt.Printf("%s %s %s\n", dim(timestamp), green("→"), output)
-			case "error":
-				fmt.Printf("%s %s %s\n", dim(timestamp), red("✗"), event.ErrorMsg)
-			case "status":
-				fmt.Printf("%s %s %s\n", dim(timestamp), yellow("●"), event.Status)
-			default:
-				if event.Text != "" {
-					fmt.Printf("%s %s\n", dim(timestamp), event.Text)
-				}
+		switch event.StreamType {
+		case "turn_start":
+			fmt.Printf("%s %s Turn %d started\n", dim(timestamp), blue("◆"), event.TurnNum)
+		case "turn_end":
+			fmt.Printf("%s %s Turn %d ended\n", dim(timestamp), blue("◇"), event.TurnNum)
+		case "text":
+			text := event.Text
+			if len(text) > 100 {
+				text = text[:100] + "..."
+			}
+			text = strings.ReplaceAll(text, "\n", " ")
+			fmt.Printf("%s %s\n", dim(timestamp), text)
+		case "tool_use":
+			fmt.Printf("%s %s %s\n", dim(timestamp), cyan("🔧"), event.ToolName)
+		case "tool_result":
+			output := event.ToolOutput
+			if len(output) > 60 {
+				output = output[:60] + "..."
+			}
+			fmt.Printf("%s %s %s\n", dim(timestamp), green("→"), output)
+		case "error":
+			fmt.Printf("%s %s %s\n", dim(timestamp), red("✗"), event.ErrorMsg)
+		case "status":
+			fmt.Printf("%s %s %s\n", dim(timestamp), yellow("●"), event.Status)
+		default:
+			if event.Text != "" {
+				fmt.Printf("%s %s\n", dim(timestamp), event.Text)
 			}
 		}
 	}
