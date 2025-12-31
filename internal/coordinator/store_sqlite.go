@@ -57,6 +57,8 @@ func (s *SQLiteStore) migrate() error {
 		status TEXT NOT NULL DEFAULT 'pending',
 		provider TEXT,
 		worktree_id TEXT,
+		worktree_path TEXT,
+		session_id TEXT,
 		fingerprint INTEGER,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		started_at DATETIME,
@@ -137,6 +139,8 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN peak_cpu REAL DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN peak_memory_mb REAL DEFAULT 0",
 		"ALTER TABLE tasks ADD COLUMN workspace TEXT",
+		"ALTER TABLE tasks ADD COLUMN worktree_path TEXT",
+		"ALTER TABLE tasks ADD COLUMN session_id TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -449,6 +453,31 @@ func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,
 		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
 		TaskStatusCancelled, now, id,
+	)
+	return err
+}
+
+// MarkTaskPendingApproval marks a task as awaiting human approval
+func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error {
+	now := time.Now()
+	// Store status, worktree path, AND execution metrics (cost, tokens) to avoid race condition
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET
+			status = ?, completed_at = ?, worktree_path = ?,
+			duration_ns = ?, output = ?, cost = ?, tokens_used = ?
+		WHERE id = ?`,
+		TaskStatusPendingApproval, now, worktreePath,
+		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, id,
+	)
+	return err
+}
+
+// MarkTaskRejected marks a task as rejected by human
+func (s *SQLiteStore) MarkTaskRejected(ctx context.Context, id string) error {
+	now := time.Now()
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?",
+		TaskStatusRejected, now, id,
 	)
 	return err
 }

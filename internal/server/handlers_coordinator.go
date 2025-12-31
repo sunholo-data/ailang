@@ -28,6 +28,7 @@ func (s *Server) SetApprovalStore(store CoordinatorApprovalStore) {
 type CoordinatorTaskEventStore interface {
 	GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*coordinator.TaskEventRecord, error)
 	ListTasks(ctx context.Context, filter *coordinator.TaskFilter) ([]*coordinator.TaskRecord, error)
+	GetTask(ctx context.Context, id string) (*coordinator.TaskRecord, error)
 }
 
 // SetTaskEventStore sets the coordinator task event store
@@ -165,7 +166,7 @@ func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// handleCoordinatorPendingApprovals lists pending approval requests
+// handleCoordinatorPendingApprovals lists pending approval requests with enriched task info
 // GET /api/coordinator/pending
 func (s *Server) handleCoordinatorPendingApprovals(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -190,8 +191,48 @@ func (s *Server) handleCoordinatorPendingApprovals(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Enrich approvals with task info (worktree_path, files_changed)
+	var result []map[string]interface{}
+	for _, p := range pending {
+		approval := map[string]interface{}{
+			"id":          p.ID,
+			"task_id":     p.TaskID,
+			"type":        p.Type,
+			"description": p.Description,
+			"status":      p.Status,
+			"created_at":  p.CreatedAt,
+			"auto_reject": p.AutoReject,
+		}
+		if p.ContextJSON != "" {
+			approval["context_json"] = p.ContextJSON
+		}
+		if p.TimeoutAt != nil {
+			approval["timeout_at"] = p.TimeoutAt
+		}
+
+		// Get associated task for worktree info
+		if s.taskEventStore != nil {
+			task, err := s.taskEventStore.GetTask(ctx, p.TaskID)
+			if err == nil && task != nil {
+				if task.WorktreePath != "" {
+					approval["worktree_path"] = task.WorktreePath
+				}
+				if task.SessionID != "" {
+					approval["session_id"] = task.SessionID
+				}
+				approval["task_title"] = task.Title
+				approval["task_status"] = task.Status
+				if task.Provider != "" {
+					approval["provider"] = task.Provider
+				}
+			}
+		}
+
+		result = append(result, approval)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(pending); err != nil {
+	if err := json.NewEncoder(w).Encode(result); err != nil {
 		log.Printf("Failed to encode pending approvals: %v", err)
 	}
 }
@@ -263,19 +304,32 @@ func (s *Server) handleCoordinatorTaskEvents(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// handleCoordinatorTaskEvents_ handles fetching historical task events
-// GET /api/coordinator/tasks/{id}/events
+// handleCoordinatorTaskEvents_ handles task-specific endpoints
+// GET /api/coordinator/tasks/{id}/events - fetch historical task events
+// GET /api/coordinator/tasks/{id}/diff - fetch git diff for task worktree
 func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Parse path: /api/coordinator/tasks/{id}/events
+	// Parse path: /api/coordinator/tasks/{id}/{action}
 	path := strings.TrimPrefix(r.URL.Path, "/api/coordinator/tasks/")
 	parts := strings.Split(path, "/")
-	if len(parts) < 2 || parts[1] != "events" {
-		http.Error(w, "Invalid path: expected /api/coordinator/tasks/{id}/events", http.StatusBadRequest)
+	if len(parts) < 2 {
+		http.Error(w, "Invalid path: expected /api/coordinator/tasks/{id}/{action}", http.StatusBadRequest)
+		return
+	}
+
+	action := parts[1]
+	if action != "events" && action != "diff" {
+		http.Error(w, "Invalid action: expected 'events' or 'diff'", http.StatusBadRequest)
+		return
+	}
+
+	// Route to specific handler
+	if action == "diff" {
+		s.handleTaskDiff(w, r, parts[0])
 		return
 	}
 
@@ -354,5 +408,51 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		log.Printf("Failed to encode task events: %v", err)
+	}
+}
+
+// handleTaskDiff returns the git diff for a task's worktree
+// GET /api/coordinator/tasks/{id}/diff
+func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID string) {
+	if taskID == "" {
+		http.Error(w, "Task ID required", http.StatusBadRequest)
+		return
+	}
+
+	if s.taskEventStore == nil {
+		http.Error(w, "Task store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get the task to find worktree path
+	task, err := s.taskEventStore.GetTask(ctx, taskID)
+	if err != nil {
+		log.Printf("Failed to get task %s: %v", taskID, err)
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
+	if task.WorktreePath == "" {
+		http.Error(w, "Task has no worktree", http.StatusNotFound)
+		return
+	}
+
+	// Get the diff using coordinator's GetWorktreeDiff
+	diff, err := coordinator.GetWorktreeDiff(ctx, task.WorktreePath)
+	if err != nil {
+		log.Printf("Failed to get diff for task %s: %v", taskID, err)
+		http.Error(w, "Failed to get diff", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"task_id":       taskID,
+		"worktree_path": task.WorktreePath,
+		"diff":          diff,
+	}); err != nil {
+		log.Printf("Failed to encode diff response: %v", err)
 	}
 }

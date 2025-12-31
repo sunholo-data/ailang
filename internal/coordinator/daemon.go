@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -65,12 +67,21 @@ type Daemon struct {
 	tasksRun  int
 
 	// Task processing components
-	msgStore     *messaging.Store
-	msgAdapter   *InboxMessageAdapter
-	analyzer     *TaskAnalyzer
-	worktreeMgr  *WorktreeManager
-	taskStore    Store
-	executor     *TaskExecutor
+	msgStore        *messaging.Store
+	msgAdapter      *InboxMessageAdapter        // Legacy: single adapter (for backwards compat)
+	inboxAdapters   map[string]*InboxMessageAdapter // Key: inbox name
+	worktreeManagers map[string]*WorktreeManager     // Key: agent ID
+	analyzer        *TaskAnalyzer
+	worktreeMgr     *WorktreeManager              // Legacy: default worktree manager
+	taskStore       Store
+	executor        *TaskExecutor
+
+	// Agent configuration
+	agentRegistry *AgentRegistry
+	coordConfig   *CoordinatorConfig
+
+	// Approval workflow
+	approvalCheckpoint *ApprovalCheckpoint
 
 	// Event broadcasting for real-time updates
 	eventBroadcaster EventBroadcaster
@@ -170,6 +181,11 @@ func (d *Daemon) Run() error {
 		d.logger.Printf("Warning: Failed to register agent: %v", err)
 	}
 
+	// Start GitHub sync if enabled
+	if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
+		go d.runGitHubSync()
+	}
+
 	for {
 		select {
 		case <-d.ctx.Done():
@@ -212,15 +228,137 @@ func (d *Daemon) initHTTPBroadcaster() error {
 	return nil
 }
 
+// runGitHubSync runs periodic GitHub issue import in the background.
+// This imports GitHub issues as messages, which then trigger task creation.
+func (d *Daemon) runGitHubSync() {
+	cfg := d.coordConfig.GitHubSync
+	interval := time.Duration(cfg.IntervalSecs) * time.Second
+	if interval < time.Minute {
+		interval = 5 * time.Minute // Minimum 5 minutes to avoid rate limits
+	}
+
+	d.logger.Printf("GitHub sync started (interval: %v, labels: %v, target: %s)",
+		interval, cfg.WatchLabels, cfg.TargetInbox)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// Run immediately on startup
+	d.syncGitHubIssues()
+
+	for {
+		select {
+		case <-d.ctx.Done():
+			d.logger.Println("GitHub sync stopping")
+			return
+		case <-ticker.C:
+			d.syncGitHubIssues()
+		}
+	}
+}
+
+// syncGitHubIssues imports GitHub issues as messages using the ailang CLI.
+func (d *Daemon) syncGitHubIssues() {
+	cfg := d.coordConfig.GitHubSync
+	d.logger.Println("Running GitHub issue sync...")
+
+	// Build the command: ailang messages import-github [--labels label1,label2]
+	args := []string{"messages", "import-github"}
+	if len(cfg.WatchLabels) > 0 {
+		labels := ""
+		for i, label := range cfg.WatchLabels {
+			if i > 0 {
+				labels += ","
+			}
+			labels += label
+		}
+		args = append(args, "--labels", labels)
+	}
+
+	// Use exec to run the ailang command
+	cmd := exec.CommandContext(d.ctx, "ailang", args...)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		d.logger.Printf("GitHub sync error: %v\nOutput: %s", err, string(output))
+		return
+	}
+
+	// Log result (trimmed to avoid log spam)
+	result := string(output)
+	if len(result) > 200 {
+		result = result[:200] + "..."
+	}
+	if result != "" {
+		d.logger.Printf("GitHub sync: %s", result)
+	} else {
+		d.logger.Println("GitHub sync complete (no new issues)")
+	}
+}
+
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
-	// Open collaboration database - watch "coordinator" inbox for delegated tasks
+	// Load agent configuration from ~/.ailang/config.yaml
+	coordConfig, err := LoadCoordinatorConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load coordinator config: %w", err)
+	}
+	d.coordConfig = coordConfig
+
+	// Build agent registry
+	d.agentRegistry = NewAgentRegistry()
+	for _, agent := range coordConfig.Agents {
+		if regErr := d.agentRegistry.Register(agent); regErr != nil {
+			d.logger.Printf("Warning: Failed to register agent %q: %v", agent.ID, regErr)
+		}
+	}
+	d.logger.Printf("Agent registry initialized with %d agent(s): %v",
+		d.agentRegistry.Count(), d.agentRegistry.ListInboxes())
+
+	// Validate agent references
+	if issues := d.agentRegistry.Validate(); len(issues) > 0 {
+		for _, issue := range issues {
+			d.logger.Printf("Warning: Agent config issue: %s", issue)
+		}
+	}
+
+	// Initialize inbox adapters for each configured agent
+	d.inboxAdapters = make(map[string]*InboxMessageAdapter)
+	d.worktreeManagers = make(map[string]*WorktreeManager)
+
+	// Open shared message store
 	adapter, store, err := OpenDefaultInboxAdapter("coordinator")
 	if err != nil {
 		return fmt.Errorf("failed to open inbox adapter: %w", err)
 	}
-	d.msgAdapter = adapter
+	d.msgAdapter = adapter // Keep for backwards compatibility
 	d.msgStore = store
+
+	// Create adapters and worktree managers for each agent
+	for _, agent := range coordConfig.Agents {
+		// Create inbox adapter
+		inboxAdapter := &InboxMessageAdapter{
+			store: store,
+			inbox: agent.Inbox,
+		}
+		d.inboxAdapters[agent.Inbox] = inboxAdapter
+		d.logger.Printf("Watching inbox %q for agent %q", agent.Inbox, agent.ID)
+
+		// Create worktree manager with agent's workspace
+		workspace := agent.Workspace
+		if workspace == "" || workspace == "." {
+			// Use current working directory
+			workspace, _ = os.Getwd()
+		}
+		worktreeBase := filepath.Join(d.config.StateDir, "worktrees", agent.ID)
+		worktreeMgr, wmErr := NewWorktreeManager(workspace, worktreeBase, d.config.MaxWorktrees)
+		if wmErr != nil {
+			d.logger.Printf("Warning: Failed to create worktree manager for agent %q: %v", agent.ID, wmErr)
+			continue
+		}
+		d.worktreeManagers[agent.ID] = worktreeMgr
+		d.logger.Printf("Worktree manager ready for agent %q (base: %s)", agent.ID, worktreeBase)
+	}
 
 	// Initialize analyzer
 	d.analyzer = NewTaskAnalyzer(0.8)
@@ -233,12 +371,16 @@ func (d *Daemon) initTaskProcessing() error {
 	}
 	d.taskStore = taskStore
 
-	// Initialize worktree manager
-	worktreeMgr, err := NewWorktreeManager("", filepath.Join(d.config.StateDir, "worktrees", "coordinator"), d.config.MaxWorktrees)
-	if err != nil {
-		return fmt.Errorf("failed to create worktree manager: %w", err)
+	// Legacy worktree manager (for coordinator agent fallback)
+	d.worktreeMgr = d.worktreeManagers["coordinator"]
+	if d.worktreeMgr == nil {
+		// Create default if coordinator wasn't configured
+		worktreeMgr, wmErr := NewWorktreeManager("", filepath.Join(d.config.StateDir, "worktrees", "coordinator"), d.config.MaxWorktrees)
+		if wmErr != nil {
+			return fmt.Errorf("failed to create default worktree manager: %w", wmErr)
+		}
+		d.worktreeMgr = worktreeMgr
 	}
-	d.worktreeMgr = worktreeMgr
 
 	// Initialize task executor with available providers
 	executor, err := DefaultTaskExecutor()
@@ -250,23 +392,56 @@ func (d *Daemon) initTaskProcessing() error {
 		d.logger.Printf("Task executor initialized with providers: %v", executor.ListProviders())
 	}
 
+	// Initialize approval checkpoint for human-in-the-loop workflow
+	d.approvalCheckpoint = NewApprovalCheckpoint(24 * time.Hour) // 24h default timeout
+	d.approvalCheckpoint.SetCallback(func(request *ApprovalRequest) {
+		d.logger.Printf("Approval request %s resolved: %s (task: %s)", request.ID, request.Status, request.TaskID)
+	})
+	d.logger.Println("Approval checkpoint initialized")
+
 	return nil
 }
 
 // pollAndProcessTasks polls for new messages and queues them as tasks
 func (d *Daemon) pollAndProcessTasks() error {
-	messages, err := d.msgAdapter.ListUnread()
-	if err != nil {
-		return fmt.Errorf("failed to list unread messages: %w", err)
+	// Collect messages from all inbox adapters
+	type inboxMessage struct {
+		inbox   string
+		agentID string
+		msg     *Message // coordinator.Message type
+	}
+	var allMessages []inboxMessage
+
+	for inbox, adapter := range d.inboxAdapters {
+		messages, err := adapter.ListUnread()
+		if err != nil {
+			d.logger.Printf("Warning: Failed to list messages from inbox %q: %v", inbox, err)
+			continue
+		}
+		agent := d.agentRegistry.GetAgentForInbox(inbox)
+		agentID := ""
+		if agent != nil {
+			agentID = agent.ID
+		}
+		for _, msg := range messages {
+			allMessages = append(allMessages, inboxMessage{
+				inbox:   inbox,
+				agentID: agentID,
+				msg:     msg,
+			})
+		}
 	}
 
-	if len(messages) == 0 {
+	if len(allMessages) == 0 {
 		return nil
 	}
 
-	d.logger.Printf("Found %d unread messages", len(messages))
+	d.logger.Printf("Found %d unread messages across %d inboxes", len(allMessages), len(d.inboxAdapters))
 
-	for _, msg := range messages {
+	for _, im := range allMessages {
+		msg := im.msg
+		agentID := im.agentID
+
 		// Create a Task for the analyzer
 		taskID := fmt.Sprintf("task-%s", msg.ID[:8])
 
@@ -318,17 +493,23 @@ func (d *Daemon) pollAndProcessTasks() error {
 			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
 				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
 				// Mark message as read since we're skipping it
-				_ = d.msgAdapter.MarkAsRead(msg.ID)
+				if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
+					_ = adapter.MarkAsRead(msg.ID)
+				}
 				continue
 			}
 		}
 
 		// Create a thread in collaboration.db for dashboard visibility
+		targetAgent := agentID
+		if targetAgent == "" {
+			targetAgent = "coordinator"
+		}
 		thread, err := d.msgStore.CreateThreadWithWorkspace(
 			msg.Title,           // title
 			"ailang_instance",   // createdByType (constraint: 'human' or 'ailang_instance')
 			"coordinator",       // createdByID
-			"coordinator",       // targetAgent
+			targetAgent,         // targetAgent - the agent that will handle this task
 			workspace,           // workspace - source project/agent
 		)
 		if err != nil {
@@ -336,7 +517,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			// Continue anyway - thread is for visibility, not required for task
 		} else {
 			task.ThreadID = thread.ID
-			d.logger.Printf("Created thread %s for task %s", thread.ID, taskID)
+			d.logger.Printf("Created thread %s for task %s (agent: %s)", thread.ID, taskID, targetAgent)
 		}
 
 		// Store the task
@@ -350,12 +531,14 @@ func (d *Daemon) pollAndProcessTasks() error {
 			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
 		}
 
-		d.logger.Printf("Created task %s (type: %s, priority: %d, thread: %s) from message %s",
-			task.ID, task.Type, task.Priority, task.ThreadID, msg.ID)
+		d.logger.Printf("Created task %s (type: %s, priority: %d, thread: %s, agent: %s) from message %s",
+			task.ID, task.Type, task.Priority, task.ThreadID, agentID, msg.ID)
 
-		// Mark message as read
-		if err := d.msgAdapter.MarkAsRead(msg.ID); err != nil {
-			d.logger.Printf("Failed to mark message as read: %v", err)
+		// Mark message as read using the correct inbox adapter
+		if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
+			if err := adapter.MarkAsRead(msg.ID); err != nil {
+				d.logger.Printf("Failed to mark message as read: %v", err)
+			}
 		}
 
 		d.tasksRun++
@@ -425,13 +608,28 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		Type: task.Type,
 	}
 
-	// Get workspace from worktree manager
+	// Determine which agent should handle this task
+	// Look up the thread to get the target agent
+	targetAgent := "coordinator" // default
+	if task.ThreadID != "" && d.msgStore != nil {
+		if thread, err := d.msgStore.GetThread(task.ThreadID); err == nil && thread != nil && thread.TargetAgent != "" {
+			targetAgent = thread.TargetAgent
+		}
+	}
+
+	// Get the correct worktree manager for this agent
+	worktreeMgr := d.worktreeManagers[targetAgent]
+	if worktreeMgr == nil {
+		worktreeMgr = d.worktreeMgr // Fallback to default
+	}
+
+	// Create worktree for task isolation
 	var worktree *Worktree
-	if d.worktreeMgr != nil {
+	if worktreeMgr != nil {
 		var wtErr error
-		worktree, wtErr = d.worktreeMgr.CreateWorktree(task.ID)
+		worktree, wtErr = worktreeMgr.CreateWorktree(task.ID)
 		if wtErr != nil {
-			d.logger.Printf("Warning: Failed to create worktree for task %s: %v", task.ID, wtErr)
+			d.logger.Printf("Warning: Failed to create worktree for task %s (agent: %s): %v", task.ID, targetAgent, wtErr)
 			// Continue without worktree - will use current directory
 		}
 	}
@@ -506,25 +704,42 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		_ = d.taskStore.UpdateTaskMetrics(d.ctx, task.ID, finalMetrics.PeakCPU, finalMetrics.PeakMemory)
 	}
 
-	// Cleanup worktree
-	if worktree != nil && d.worktreeMgr != nil {
-		if rmErr := d.worktreeMgr.RemoveWorktree(task.ID); rmErr != nil {
-			d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
-		}
-	}
-
 	if err != nil {
+		// Cleanup worktree on error (no work to preserve)
+		if worktree != nil && d.worktreeMgr != nil {
+			if rmErr := d.worktreeMgr.RemoveWorktree(task.ID); rmErr != nil {
+				d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
+			}
+		}
 		return fmt.Errorf("executor error: %w", err)
 	}
 
 	// Update task status based on result
 	if result.Success {
-		if err := d.taskStore.MarkTaskCompleted(d.ctx, task.ID, result); err != nil {
-			d.logger.Printf("Warning: Failed to mark task completed: %v", err)
+		// PRESERVE WORKTREE - mark as pending approval, not completed
+		// Human must approve/reject before worktree is cleaned up
+		worktreePath := ""
+		if worktree != nil {
+			worktreePath = worktree.Path
 		}
-		d.logger.Printf("Task %s completed successfully (cost: $%.4f, tokens: %d)",
-			task.ID, result.Cost, result.TokensUsed)
+		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, result); err != nil {
+			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
+		}
+		d.logger.Printf("Task %s awaiting approval (cost: $%.4f, tokens: %d, worktree: %s)",
+			task.ID, result.Cost, result.TokensUsed, worktreePath)
+
+		// Check for agent-to-agent handoffs
+		// Find the agent that handled this task and check for trigger_on_complete
+		if err := d.handleAgentHandoffs(task, result); err != nil {
+			d.logger.Printf("Warning: Failed to process agent handoffs: %v", err)
+		}
 	} else {
+		// Failed tasks: cleanup worktree (no useful work to preserve)
+		if worktree != nil && d.worktreeMgr != nil {
+			if rmErr := d.worktreeMgr.RemoveWorktree(task.ID); rmErr != nil {
+				d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
+			}
+		}
 		if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, fmt.Errorf("%s", result.Error)); err != nil {
 			d.logger.Printf("Warning: Failed to mark task failed: %v", err)
 		}
@@ -647,6 +862,412 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 				task.ThreadID, stats.InputTokens+stats.OutputTokens, result.Cost)
 		}
 	}
+}
+
+// handleAgentHandoffs checks if the completed task should trigger handoffs to other agents.
+// This implements the agent-to-agent messaging with optional approval gates.
+func (d *Daemon) handleAgentHandoffs(task *TaskRecord, result *ExecuteResult) error {
+	if d.agentRegistry == nil {
+		return nil // No agent registry configured
+	}
+
+	// Determine which agent handled this task
+	sourceAgentID := "coordinator" // default
+	if task.ThreadID != "" && d.msgStore != nil {
+		if thread, err := d.msgStore.GetThread(task.ThreadID); err == nil && thread != nil && thread.TargetAgent != "" {
+			sourceAgentID = thread.TargetAgent
+		}
+	}
+
+	// Look up the source agent's configuration
+	sourceAgent := d.agentRegistry.GetAgentByID(sourceAgentID)
+	if sourceAgent == nil {
+		d.logger.Printf("Agent %s not found in registry, skipping handoffs", sourceAgentID)
+		return nil
+	}
+
+	// Check if this agent has any trigger_on_complete targets
+	if len(sourceAgent.TriggerOnComplete) == 0 {
+		return nil // No handoffs configured
+	}
+
+	d.logger.Printf("Task %s completed by agent %s, checking handoffs to: %v",
+		task.ID, sourceAgentID, sourceAgent.TriggerOnComplete)
+
+	// Process each handoff target
+	for _, targetAgentID := range sourceAgent.TriggerOnComplete {
+		targetAgent := d.agentRegistry.GetAgentByID(targetAgentID)
+		if targetAgent == nil {
+			d.logger.Printf("Warning: Handoff target agent %s not found in registry", targetAgentID)
+			continue
+		}
+
+		// Get session ID from the result for continuity
+		sessionID := ""
+		if result != nil {
+			sessionID = result.SessionID
+		}
+
+		// Build handoff message
+		handoffMessage := fmt.Sprintf("**Handoff from %s**\n\n"+
+			"Task: %s\n"+
+			"Original Request: %s\n\n"+
+			"Result: %s\n\n"+
+			"Please continue this work.",
+			sourceAgentID, task.ID, task.Content, result.Output)
+
+		if sourceAgent.AutoApproveHandoffs {
+			// Auto-approve: send message directly to target agent's inbox
+			if err := d.sendHandoffMessage(targetAgent, task, handoffMessage, sessionID); err != nil {
+				d.logger.Printf("Warning: Failed to send handoff to %s: %v", targetAgentID, err)
+				continue
+			}
+			d.logger.Printf("Auto-approved handoff from %s to %s for task %s",
+				sourceAgentID, targetAgentID, task.ID)
+		} else {
+			// Require approval: create approval request
+			if err := d.requestHandoffApproval(sourceAgent, targetAgent, task, result, handoffMessage, sessionID); err != nil {
+				d.logger.Printf("Warning: Failed to create handoff approval request: %v", err)
+				continue
+			}
+			d.logger.Printf("Created handoff approval request from %s to %s for task %s",
+				sourceAgentID, targetAgentID, task.ID)
+		}
+	}
+
+	return nil
+}
+
+// sendHandoffMessage sends a message to the target agent's inbox
+func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, message, sessionID string) error {
+	if d.msgStore == nil {
+		return fmt.Errorf("message store not available")
+	}
+
+	// Include session ID in metadata for continuity
+	metadata := ""
+	if sessionID != "" {
+		metadataMap := map[string]interface{}{
+			"session_id":     sessionID,
+			"handoff_source": task.ID,
+		}
+		if data, err := json.Marshal(metadataMap); err == nil {
+			metadata = string(data)
+		}
+	}
+
+	// Create message in the target agent's inbox
+	// We create a new thread for the handoff
+	_, err := d.msgStore.CreateMessage(
+		"",                                       // New thread (empty ThreadID)
+		"ailang_instance", "coordinator",         // from
+		targetAgent.Inbox, targetAgent.ID,        // to (inbox and agent)
+		"handoff",                                // kind
+		message,
+		metadata,
+	)
+
+	return err
+}
+
+// requestHandoffApproval creates an approval request for a handoff
+func (d *Daemon) requestHandoffApproval(
+	sourceAgent, targetAgent *AgentConfig,
+	task *TaskRecord,
+	result *ExecuteResult,
+	message, sessionID string,
+) error {
+	if d.approvalCheckpoint == nil {
+		return fmt.Errorf("approval checkpoint not available")
+	}
+
+	// Create the approval request (non-blocking - we don't wait for it)
+	request := &ApprovalRequest{
+		ID:            fmt.Sprintf("handoff-%s-%s-%d", sourceAgent.ID, targetAgent.ID, time.Now().UnixNano()),
+		TaskID:        task.ID,
+		ThreadID:      task.ThreadID,
+		Type:          ApprovalTypeHandoff,
+		Title:         fmt.Sprintf("Handoff: %s → %s", sourceAgent.Label, targetAgent.Label),
+		Description:   message,
+		SourceAgentID: sourceAgent.ID,
+		TargetAgentID: targetAgent.ID,
+		SessionID:     sessionID,
+		Timeout:       24 * time.Hour, // Allow 24 hours for human approval
+		AutoReject:    true,           // Reject on timeout (don't auto-approve handoffs)
+	}
+
+	// Store the request for dashboard visibility
+	// Note: We don't block waiting for approval here - the approval is handled
+	// asynchronously when the human approves via CLI/dashboard
+	d.approvalCheckpoint.mu.Lock()
+	d.approvalCheckpoint.requests[request.ID] = request
+	d.approvalCheckpoint.mu.Unlock()
+
+	// Broadcast the approval request event for dashboard
+	if d.eventBroadcaster != nil {
+		d.eventBroadcaster(&websocket.TaskStreamEvent{
+			TaskID:     task.ID,
+			ThreadID:   task.ThreadID,
+			StreamType: websocket.TaskStreamStatus,
+			Status:     "approval_requested",
+			Text:       fmt.Sprintf("Handoff approval needed: %s → %s", sourceAgent.ID, targetAgent.ID),
+		})
+	}
+
+	// Also post to the task's thread so it shows up in the message UI
+	if task.ThreadID != "" && d.msgStore != nil {
+		content := fmt.Sprintf("**Approval Required: Handoff to %s**\n\n%s\n\n"+
+			"Use `ailang coordinator approve %s` to approve or `reject` to reject.",
+			targetAgent.Label, message, request.ID)
+
+		_, _ = d.msgStore.CreateMessage(
+			task.ThreadID,
+			"ailang_instance", "coordinator",
+			"human", "user",
+			"approval_request",
+			content,
+			"",
+		)
+	}
+
+	return nil
+}
+
+// HandleApproval processes an approved task - merges worktree changes to main branch.
+func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) error {
+	// Get the task
+	task, err := d.taskStore.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Verify task is pending approval
+	if task.Status != TaskStatusPendingApproval {
+		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
+	}
+
+	// Get worktree path
+	if task.WorktreePath == "" {
+		return fmt.Errorf("task %s has no worktree path", taskID)
+	}
+
+	d.logger.Printf("Processing approval for task %s (worktree: %s)", taskID, task.WorktreePath)
+
+	// Attempt to merge worktree changes
+	mergeResult, err := MergeWorktree(ctx, task.WorktreePath, "main")
+	if err != nil {
+		return fmt.Errorf("merge failed: %w", err)
+	}
+
+	// Handle merge conflicts
+	if !mergeResult.Success {
+		if len(mergeResult.ConflictFiles) > 0 {
+			// Mark task as still pending but with conflict info
+			d.logger.Printf("Merge conflicts in task %s: %v", taskID, mergeResult.ConflictFiles)
+
+			// Notify via message
+			if task.ThreadID != "" && d.msgStore != nil {
+				content := fmt.Sprintf("**Merge Conflicts Detected**\n\n"+
+					"The following files have conflicts:\n%s\n\n"+
+					"Please resolve conflicts manually in the worktree at:\n`%s`\n\n"+
+					"Then retry the approval.",
+					strings.Join(mergeResult.ConflictFiles, "\n"), task.WorktreePath)
+
+				_, _ = d.msgStore.CreateMessage(
+					task.ThreadID,
+					"ailang_instance", "coordinator",
+					"human", "user",
+					"merge_conflict",
+					content,
+					"",
+				)
+			}
+
+			return fmt.Errorf("merge conflicts: %v", mergeResult.ConflictFiles)
+		}
+		return fmt.Errorf("merge failed: %s", mergeResult.Error)
+	}
+
+	// Merge succeeded - update task status
+	if err := d.taskStore.MarkTaskCompleted(ctx, taskID, &ExecuteResult{
+		Success: true,
+		Output:  fmt.Sprintf("Merged to main (commit: %s)", mergeResult.CommitHash),
+	}); err != nil {
+		d.logger.Printf("Warning: Failed to update task status: %v", err)
+	}
+
+	// Clean up worktree (changes are now in main)
+	if d.worktreeMgr != nil {
+		if rmErr := d.worktreeMgr.RemoveWorktree(taskID); rmErr != nil {
+			d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
+		}
+	}
+
+	// Notify success
+	if task.ThreadID != "" && d.msgStore != nil {
+		content := fmt.Sprintf("**Changes Merged Successfully**\n\n"+
+			"Commit: `%s`\n"+
+			"Files: %s\n"+
+			"Approved by: %s",
+			mergeResult.CommitHash,
+			strings.Join(mergeResult.MergedFiles, ", "),
+			approvedBy)
+
+		_, _ = d.msgStore.CreateMessage(
+			task.ThreadID,
+			"ailang_instance", "coordinator",
+			"human", "user",
+			"merge_complete",
+			content,
+			"",
+		)
+	}
+
+	// Broadcast event
+	if d.eventBroadcaster != nil {
+		d.eventBroadcaster(&websocket.TaskStreamEvent{
+			TaskID:     taskID,
+			ThreadID:   task.ThreadID,
+			StreamType: websocket.TaskStreamStatus,
+			Status:     "merged",
+			Text:       fmt.Sprintf("Changes merged to main (commit: %s)", mergeResult.CommitHash[:8]),
+		})
+	}
+
+	d.logger.Printf("Task %s approved and merged by %s (commit: %s)",
+		taskID, approvedBy, mergeResult.CommitHash)
+
+	// Check for pending handoff approvals for this task
+	if d.approvalCheckpoint != nil {
+		if req := d.approvalCheckpoint.GetRequestByTask(taskID); req != nil {
+			if req.Type == ApprovalTypeHandoff {
+				// Auto-approve the handoff now that the work is merged
+				if err := d.processHandoffApproval(ctx, req); err != nil {
+					d.logger.Printf("Warning: Failed to process handoff: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// HandleRejection processes a rejected task - preserves worktree and marks task rejected.
+func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason string) error {
+	// Get the task
+	task, err := d.taskStore.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Verify task is pending approval
+	if task.Status != TaskStatusPendingApproval {
+		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
+	}
+
+	d.logger.Printf("Processing rejection for task %s (worktree preserved: %s)", taskID, task.WorktreePath)
+
+	// Mark task as rejected - worktree is preserved for reference
+	if err := d.taskStore.MarkTaskRejected(ctx, taskID); err != nil {
+		return fmt.Errorf("failed to mark task rejected: %w", err)
+	}
+
+	// Notify via message
+	if task.ThreadID != "" && d.msgStore != nil {
+		content := fmt.Sprintf("**Task Rejected**\n\n"+
+			"Rejected by: %s\n"+
+			"Reason: %s\n\n"+
+			"The worktree is preserved at:\n`%s`\n\n"+
+			"You can review the changes or delete the worktree manually.",
+			rejectedBy, reason, task.WorktreePath)
+
+		_, _ = d.msgStore.CreateMessage(
+			task.ThreadID,
+			"ailang_instance", "coordinator",
+			"human", "user",
+			"task_rejected",
+			content,
+			"",
+		)
+	}
+
+	// Broadcast event
+	if d.eventBroadcaster != nil {
+		d.eventBroadcaster(&websocket.TaskStreamEvent{
+			TaskID:     taskID,
+			ThreadID:   task.ThreadID,
+			StreamType: websocket.TaskStreamStatus,
+			Status:     "rejected",
+			Text:       fmt.Sprintf("Task rejected by %s", rejectedBy),
+		})
+	}
+
+	// Reject any pending handoff approvals for this task
+	if d.approvalCheckpoint != nil {
+		if req := d.approvalCheckpoint.GetRequestByTask(taskID); req != nil {
+			_ = d.approvalCheckpoint.Reject(req.ID, rejectedBy)
+		}
+	}
+
+	d.logger.Printf("Task %s rejected by %s (worktree preserved)", taskID, rejectedBy)
+	return nil
+}
+
+// processHandoffApproval sends a handoff message after approval.
+func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalRequest) error {
+	if d.agentRegistry == nil || d.msgStore == nil {
+		return fmt.Errorf("agent registry or message store not available")
+	}
+
+	targetAgent := d.agentRegistry.GetAgentByID(req.TargetAgentID)
+	if targetAgent == nil {
+		return fmt.Errorf("target agent %s not found", req.TargetAgentID)
+	}
+
+	// Get the task for context
+	task, err := d.taskStore.GetTask(ctx, req.TaskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Create the handoff message
+	message := fmt.Sprintf("**Approved Handoff from %s**\n\n%s",
+		req.SourceAgentID, req.Description)
+
+	metadata := ""
+	if req.SessionID != "" {
+		metadataMap := map[string]interface{}{
+			"session_id":     req.SessionID,
+			"handoff_source": req.TaskID,
+		}
+		if data, err := json.Marshal(metadataMap); err == nil {
+			metadata = string(data)
+		}
+	}
+
+	// Send to target agent's inbox
+	_, err = d.msgStore.CreateMessage(
+		"",                                // New thread
+		"ailang_instance", "coordinator",  // from
+		targetAgent.Inbox, targetAgent.ID, // to
+		"handoff",
+		message,
+		metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send handoff message: %w", err)
+	}
+
+	d.logger.Printf("Handoff approved: %s → %s (task: %s)",
+		req.SourceAgentID, req.TargetAgentID, task.ID)
+
+	return nil
 }
 
 // Stop stops a running daemon

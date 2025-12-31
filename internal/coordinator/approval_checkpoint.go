@@ -16,6 +16,7 @@ const (
 	ApprovalTypeDestroy   ApprovalType = "destroy"    // Request to destroy worktree with changes
 	ApprovalTypeExecute   ApprovalType = "execute"    // Request to execute a destructive operation
 	ApprovalTypeCost      ApprovalType = "cost"       // Cost threshold exceeded
+	ApprovalTypeHandoff   ApprovalType = "handoff"    // Request to hand off work to another agent
 )
 
 // ApprovalStatus represents the state of an approval request
@@ -44,6 +45,12 @@ type ApprovalRequest struct {
 	ResolvedBy   string         `json:"resolved_by,omitempty"`
 	Timeout      time.Duration  `json:"timeout"`
 	AutoReject   bool           `json:"auto_reject"` // Reject on timeout instead of approve
+
+	// Handoff-specific fields (used when Type == ApprovalTypeHandoff)
+	SourceAgentID string `json:"source_agent_id,omitempty"` // Agent that completed the task
+	TargetAgentID string `json:"target_agent_id,omitempty"` // Agent to hand off to
+	SessionID     string `json:"session_id,omitempty"`      // Claude Code/Gemini CLI session for continuity
+	HandoffData   string `json:"handoff_data,omitempty"`    // Additional context for handoff
 }
 
 // ApprovalCallback is called when an approval is resolved

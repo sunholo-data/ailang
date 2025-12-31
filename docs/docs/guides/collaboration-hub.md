@@ -316,7 +316,57 @@ curl -X POST http://localhost:1957/api/approvals/{id}/reject \
   -d '{"notes": "Too risky"}'
 ```
 
-### Coordinator Events (Internal)
+### Coordinator API
+
+The coordinator daemon integrates with the Collaboration Hub for task management and approvals.
+
+#### Pending Approvals
+
+```bash
+# List pending approvals (enriched with task details)
+curl http://localhost:1957/api/coordinator/pending
+
+# Response includes task context:
+# {
+#   "id": "approval-123",
+#   "task_id": "task-456",
+#   "type": "task_completion",
+#   "status": "pending",
+#   "worktree_path": "/Users/.../.ailang/state/worktrees/coordinator/task-456",
+#   "session_id": "claude-session-abc",
+#   "task_title": "Fix parser bug",
+#   "task_status": "pending_approval",
+#   "provider": "claude-code"
+# }
+```
+
+#### Approve/Reject Tasks
+
+```bash
+# Approve changes (merges worktree to main branch)
+curl -X POST http://localhost:1957/api/coordinator/approve/approval-123
+
+# Reject changes (preserves worktree for inspection)
+curl -X POST http://localhost:1957/api/coordinator/reject/approval-123
+```
+
+#### Task Diff
+
+```bash
+# Get git diff for a task's worktree
+curl http://localhost:1957/api/coordinator/tasks/task-456/diff
+
+# Returns git diff output showing all changes made by the agent
+```
+
+#### Task Events
+
+```bash
+# Get execution events for a task (tool calls, output, etc.)
+curl http://localhost:1957/api/coordinator/tasks/task-456/events
+```
+
+#### Coordinator Events (Internal)
 
 ```bash
 # POST events from coordinator daemon (used internally)
@@ -392,23 +442,79 @@ make services-restart
 
 Default approval timeout is 60 seconds. If no human approves in time, the directive is cancelled.
 
+## Multi-Agent Workflows
+
+The Collaboration Hub supports chained agent workflows where completion of one agent triggers another.
+
+### Agent Configuration
+
+Agents are configured in `~/.ailang/config.yaml`:
+
+```yaml
+coordinator:
+  default_provider: claude
+
+  agents:
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-executor]
+
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: /path/to/project
+      trigger_on_complete: []
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+See [Coordinator Guide](/docs/guides/coordinator) for full configuration reference.
+
+### Approval Gates
+
+When `auto_approve_handoffs: false`, the dashboard shows approval requests before triggering the next agent:
+
+1. Agent completes task → Approval request created
+2. Dashboard shows pending approval with:
+   - Worktree path (click to inspect changes)
+   - Git diff viewer
+   - Session ID for continuity
+3. Human reviews and approves/rejects
+4. Approved → Next agent triggered with session context
+5. Rejected → Worktree preserved, no handoff
+
 ## Current Limitations
 
 :::info Status
-The Collaboration Hub is functional with the coordinator daemon providing real-time streaming.
+The Collaboration Hub is functional with the coordinator daemon providing real-time streaming and multi-agent workflows.
 :::
 
 **Completed:**
 - Real-time task streaming to dashboard
 - Service management via Make targets
 - Coordinator daemon with auto-retry queue
+- Multi-agent workflows with approval gates
+- GitHub issue sync integration
+- Session continuity across agent handoffs
 
 **Planned improvements:**
 - Agent status indicator in UI
-- Persistent configuration file
 - Cloud storage backends (Firestore, DynamoDB)
 
 ## See Also
 
+- [Coordinator Guide](/docs/guides/coordinator) - Multi-agent workflows with approval gates
 - [Agent Messaging](/docs/guides/agent-messaging) - CLI-based messaging between projects
 - [Evaluation Guide](/docs/guides/evaluation) - Running AI benchmarks

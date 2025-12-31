@@ -548,6 +548,71 @@ This skill loads information progressively:
 2. **Execute as needed**: Scripts create/move docs
 3. **Load on demand**: `resources/design_doc_structure.md` (detailed guide)
 
+## Coordinator Integration (v0.6.2+)
+
+The design-doc-creator skill integrates with the AILANG Coordinator for automated workflows.
+
+### Autonomous Workflow
+
+When configured in `~/.ailang/config.yaml`, the design-doc-creator agent can:
+1. Automatically receive GitHub issues via `github_sync`
+2. Create design docs from issue descriptions
+3. Hand off to sprint-planner on completion
+
+```yaml
+coordinator:
+  agents:
+    - id: design-doc-creator
+      inbox: design-doc-creator
+      workspace: /path/to/ailang
+      capabilities: [research, docs]
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+      session_continuity: true
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+### Sending Tasks to design-doc-creator
+
+```bash
+# Via CLI
+ailang messages send design-doc-creator "Create design doc for semantic caching" \
+  --title "Feature: Semantic Caching" --from "user"
+
+# The coordinator will:
+# 1. Pick up the message
+# 2. Create a git worktree
+# 3. Execute the design-doc-creator workflow
+# 4. Create approval request for human review
+# 5. On approval, trigger sprint-planner with handoff message
+```
+
+### Handoff Message to sprint-planner
+
+On completion, design-doc-creator sends:
+```json
+{
+  "type": "design_doc_ready",
+  "correlation_id": "task-123",
+  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
+  "session_id": "claude-session-abc",
+  "discovery": "Key findings from GitHub issue analysis"
+}
+```
+
+### Human-in-the-Loop
+
+With `auto_approve_handoffs: false`:
+1. Design doc is created in worktree
+2. Approval request shows git diff in dashboard
+3. Human reviews design doc quality
+4. Approve → Merges to main, triggers sprint-planner
+5. Reject → Worktree preserved for manual fixes
+
 ## Notes
 
 - All design docs should follow the template structure

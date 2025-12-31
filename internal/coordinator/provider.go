@@ -73,6 +73,8 @@ type ExecuteResult struct {
 	// Files affected
 	FilesCreated  []string
 	FilesModified []string
+	// Session continuity (for agent-to-agent handoffs)
+	SessionID string // Claude Code --resume ID or Gemini CLI --conversation-id
 }
 
 // Provider executes tasks using a specific AI backend.

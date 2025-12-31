@@ -322,6 +322,76 @@ This skill loads information progressively:
 3. Propose: (a) continue as-is, (b) reduce scope, (c) extend timeline
 4. Update sprint plan with revised estimates
 
+## Coordinator Integration (v0.6.2+)
+
+The sprint-executor skill integrates with the AILANG Coordinator for automated workflows.
+
+### Autonomous Workflow
+
+When configured in `~/.ailang/config.yaml`, the sprint-executor agent:
+1. Receives handoff messages from sprint-planner
+2. Executes sprint plans with TDD and continuous linting
+3. Creates approval request for code review before merge
+
+```yaml
+coordinator:
+  agents:
+    - id: sprint-executor
+      inbox: sprint-executor
+      workspace: /path/to/ailang
+      capabilities: [code, test, docs]
+      trigger_on_complete: []  # End of chain
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+```
+
+### Receiving Handoffs from sprint-planner
+
+The sprint-executor receives:
+```json
+{
+  "type": "plan_ready",
+  "correlation_id": "sprint_M-CACHE_20251231",
+  "sprint_id": "M-CACHE",
+  "plan_path": "design_docs/planned/v0_6_3/m-cache-sprint-plan.md",
+  "progress_path": ".ailang/state/sprints/sprint_M-CACHE.json",
+  "session_id": "claude-session-xyz",
+  "estimated_duration": "3 days",
+  "total_loc_estimate": 650
+}
+```
+
+### Session Continuity
+
+With `session_continuity: true`:
+- Receives `session_id` from sprint-planner handoff
+- Uses `--resume SESSION_ID` for Claude Code CLI
+- Preserves full conversation context from design → planning → execution
+- Maintains understanding of design decisions and rationale
+
+### Human-in-the-Loop
+
+With `auto_merge: false`:
+1. Sprint is executed in isolated worktree
+2. All milestones completed with tests passing
+3. Approval request shows:
+   - Git diff of all changes
+   - Test results
+   - CHANGELOG updates
+4. Human reviews implementation quality
+5. Approve → Changes merged to main branch
+6. Reject → Worktree preserved for fixes
+
+### End of Pipeline
+
+As the last agent in the chain:
+- `trigger_on_complete: []` means no automatic handoff
+- Final approval merges directly to main branch
+- Sprint JSON updated to `status: completed`
+- Design docs moved to `implemented/` directory
+
 ## Notes
 
 - This skill is long-running - expect it to take hours or days

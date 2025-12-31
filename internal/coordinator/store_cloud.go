@@ -81,6 +81,16 @@ func (s *CloudStore) MarkTaskCompleted(ctx context.Context, id string, result *E
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// MarkTaskPendingApproval marks a task as pending human approval
+func (s *CloudStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// MarkTaskRejected marks a task as rejected by human
+func (s *CloudStore) MarkTaskRejected(ctx context.Context, id string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // MarkTaskFailed marks a task as failed
 func (s *CloudStore) MarkTaskFailed(ctx context.Context, id string, err error) error {
 	return fmt.Errorf("cloud store not yet implemented")

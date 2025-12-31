@@ -101,6 +101,7 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 	result.TokensUsed = execResult.InputTokens + execResult.OutputTokens
 	result.FilesCreated = execResult.FilesCreated
 	result.FilesModified = execResult.FilesModified
+	result.SessionID = execResult.SessionID // For agent-to-agent handoffs
 
 	return result, nil
 }

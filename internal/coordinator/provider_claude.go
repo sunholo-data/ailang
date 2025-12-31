@@ -106,6 +106,7 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 	result.TokensUsed = execResult.InputTokens + execResult.OutputTokens
 	result.FilesCreated = execResult.FilesCreated
 	result.FilesModified = execResult.FilesModified
+	result.SessionID = execResult.SessionID // For agent-to-agent handoffs
 
 	return result, nil
 }

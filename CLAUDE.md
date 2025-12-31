@@ -816,6 +816,7 @@ make services-restart                               # Rebuild and restart
 - Delegate long-running tasks that don't need immediate attention
 - Run multiple tasks concurrently in isolated environments
 - Let background agents handle bug fixes, features, or research while you continue other work
+- Chain agents together (design-doc-creator → sprint-planner → sprint-executor)
 
 **Service Management (Recommended):**
 ```bash
@@ -847,20 +848,83 @@ ailang coordinator stop
 ailang coordinator start --poll-interval 10s --max-worktrees 5
 ```
 
+**Agent Configuration (v0.6.2+):**
+
+Agents are configured in `~/.ailang/config.yaml`:
+
+```yaml
+coordinator:
+  default_provider: claude
+
+  agents:
+    # Design Doc Creator - reads GitHub issues, creates design docs
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: /path/to/project
+      capabilities: [research, docs]
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+      session_continuity: true
+
+    # Sprint Planner - creates sprint plans from design docs
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-executor]
+      auto_approve_handoffs: false
+
+    # Sprint Executor - implements approved sprint plans
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: /path/to/project
+      trigger_on_complete: []
+      auto_merge: false
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+**Agent Configuration Fields:**
+| Field | Description |
+|-------|-------------|
+| `id` | Unique agent identifier |
+| `inbox` | Message inbox to watch |
+| `workspace` | Base directory for worktrees |
+| `trigger_on_complete` | Agent IDs to trigger when this agent completes |
+| `auto_approve_handoffs` | Skip approval for agent-to-agent handoffs |
+| `auto_merge` | Automatically merge approved changes |
+| `session_continuity` | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
+
+**Multi-Agent Workflow:**
+```
+GitHub Issue → design-doc-creator → [Approval] → sprint-planner → [Approval] → sprint-executor → [Approval] → Merged
+```
+
 **Delegating Tasks from Claude Code:**
 ```bash
-# Send a task to the coordinator
+# Send to design-doc-creator (first stage)
+ailang messages send design-doc-creator "Create design doc for semantic caching" \
+  --title "Feature: Semantic Caching" --from "user"
+
+# Send to sprint-planner (or let design-doc-creator trigger it)
+ailang messages send sprint-planner "Plan sprint for M-CACHE" \
+  --title "Sprint: M-CACHE" --from "user"
+
+# Send to general coordinator (ad-hoc tasks)
 ailang messages send coordinator "Fix the null pointer bug in parser.go" \
   --title "Bug: Parser NPE" --from "claude-code" --type bug
-
-# The coordinator will:
-# 1. Pick up the task from the message queue
-# 2. Classify it (bug-fix, feature, docs, research, etc.)
-# 3. Create an isolated git worktree
-# 4. Execute using Claude Code CLI or Gemini CLI
-# 5. Stream progress to dashboard in real-time
-# 6. Store results in SQLite for review
 ```
+
+**Approval Workflow:**
+- Task completes → Approval request created
+- Dashboard shows pending approvals with git diff viewer
+- Approve → Changes merged to main, next agent triggered
+- Reject → Worktree preserved for inspection
 
 **Real-Time Dashboard Streaming:**
 The coordinator streams task execution events to the Collaboration Hub dashboard:
@@ -881,11 +945,13 @@ The coordinator streams task execution events to the Collaboration Hub dashboard
 
 **Storage:**
 - Task state: `~/.ailang/state/coordinator.db` (SQLite)
-- Worktrees: `~/.ailang/state/worktrees/coordinator/<task-id>/`
+- Worktrees: `~/.ailang/state/worktrees/<agent-id>/<task-id>/`
 - Logs: `~/.ailang/logs/coordinator.log`
+- Config: `~/.ailang/config.yaml`
 
 **Architecture:**
 - **Daemon** (`internal/coordinator/daemon.go`) - Main loop, lifecycle
+- **Agent Registry** (`internal/coordinator/agent_registry.go`) - Agent configuration management
 - **HTTP Broadcaster** (`internal/coordinator/http_broadcaster.go`) - Streams events to dashboard
 - **Analyzer** (`internal/coordinator/analyzer.go`) - Task classification, deduplication
 - **Executors** (`internal/executor/`) - Claude Code CLI, Gemini CLI

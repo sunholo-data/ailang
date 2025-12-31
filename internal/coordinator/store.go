@@ -18,7 +18,9 @@ type TaskRecord struct {
 	Status      TaskStatus    `json:"status"`
 	Provider    string        `json:"provider,omitempty"`
 	WorktreeID  string        `json:"worktree_id,omitempty"`
-	Workspace   string        `json:"workspace,omitempty"` // Source workspace from thread (not worktree)
+	WorktreePath string       `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
+	SessionID   string        `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
+	Workspace   string        `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
 	CreatedAt   time.Time     `json:"created_at"`
 	StartedAt   *time.Time    `json:"started_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
@@ -39,13 +41,15 @@ type TaskRecord struct {
 type TaskStatus string
 
 const (
-	TaskStatusPending    TaskStatus = "pending"
-	TaskStatusQueued     TaskStatus = "queued"
-	TaskStatusRunning    TaskStatus = "running"
-	TaskStatusCompleted  TaskStatus = "completed"
-	TaskStatusFailed     TaskStatus = "failed"
-	TaskStatusCancelled  TaskStatus = "cancelled"
-	TaskStatusDuplicate  TaskStatus = "duplicate"
+	TaskStatusPending         TaskStatus = "pending"
+	TaskStatusQueued          TaskStatus = "queued"
+	TaskStatusRunning         TaskStatus = "running"
+	TaskStatusPendingApproval TaskStatus = "pending_approval" // Work done, awaiting human review
+	TaskStatusCompleted       TaskStatus = "completed"        // Approved and merged
+	TaskStatusFailed          TaskStatus = "failed"
+	TaskStatusRejected        TaskStatus = "rejected" // Human rejected the work
+	TaskStatusCancelled       TaskStatus = "cancelled"
+	TaskStatusDuplicate       TaskStatus = "duplicate"
 )
 
 // TaskFilter for querying tasks
@@ -93,8 +97,10 @@ type Store interface {
 	// Task state transitions
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
+	MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error // Work done, awaiting human review
 	MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error
 	MarkTaskFailed(ctx context.Context, id string, err error) error
+	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work
 	MarkTaskCancelled(ctx context.Context, id string) error
 
 	// Duplicate detection
