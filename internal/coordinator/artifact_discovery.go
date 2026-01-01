@@ -52,17 +52,32 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 }
 
 // getChangedFiles returns all files that have changed in the worktree.
+// This includes both uncommitted changes AND committed changes since branching from dev.
 func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	var allFiles []string
 
-	// Get staged and unstaged changes
-	cmd := exec.Command("git", "diff", "--name-only", "HEAD")
+	// Primary: Get all changes since branching from dev (includes commits)
+	// This catches files that the agent committed during execution
+	cmd := exec.Command("git", "diff", "--name-only", "dev...HEAD")
 	cmd.Dir = ad.WorktreePath
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		files := strings.Split(strings.TrimSpace(string(output)), "\n")
 		for _, f := range files {
 			if f != "" {
+				allFiles = append(allFiles, f)
+			}
+		}
+	}
+
+	// Also check uncommitted changes (staged + unstaged)
+	cmd = exec.Command("git", "diff", "--name-only", "HEAD")
+	cmd.Dir = ad.WorktreePath
+	output, err = cmd.Output()
+	if err == nil && len(output) > 0 {
+		files := strings.Split(strings.TrimSpace(string(output)), "\n")
+		for _, f := range files {
+			if f != "" && !sliceContains(allFiles, f) {
 				allFiles = append(allFiles, f)
 			}
 		}

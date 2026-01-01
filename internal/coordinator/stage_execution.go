@@ -431,6 +431,7 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 	case TaskStageDesign:
 		// Use git-discovered artifact if no path from markers
 		designDocPath := stageResult.DesignDocPath
+		d.logger.Printf("Design stage: marker path=%q, discovered=%d artifacts", designDocPath, len(discoveredArtifacts))
 		if designDocPath == "" && len(discoveredArtifacts) > 0 {
 			// Find first .md file in design_docs/
 			for _, artifact := range discoveredArtifacts {
