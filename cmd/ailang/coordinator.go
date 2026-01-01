@@ -42,6 +42,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorReject(subargs)
 	case "reopen":
 		return coordinatorReopen(subargs)
+	case "retry":
+		return coordinatorRetry(subargs)
 	case "diff":
 		return coordinatorDiff(subargs)
 	case "logs":
@@ -303,6 +305,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  approve        Approve a pending task")
 	fmt.Println("  reject         Reject a pending task")
 	fmt.Println("  reopen         Reopen a rejected/cancelled task for re-approval")
+	fmt.Println("  retry          Reset failed tasks to pending for retry")
 	fmt.Println("  cleanup        Cancel stale running/queued tasks")
 	fmt.Println("  help           Show this help message")
 	fmt.Println("")
@@ -621,6 +624,102 @@ func coordinatorReopen(args []string) error {
 
 	fmt.Println(green("✓"), "Task reopened:", taskID)
 	fmt.Println("  Use 'ailang coordinator pending' to see it in the approval queue")
+	return nil
+}
+
+func coordinatorRetry(args []string) error {
+	// Check for help first
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println("Usage: ailang coordinator retry <task-id|--all> [options]")
+			fmt.Println("")
+			fmt.Println("Reset failed tasks to pending so they will be retried.")
+			fmt.Println("")
+			fmt.Println("Options:")
+			fmt.Println("  --all             Retry all failed tasks")
+			fmt.Println("  --state-dir DIR   Use custom state directory")
+			fmt.Println("")
+			fmt.Println("Examples:")
+			fmt.Println("  ailang coordinator retry task-123    # Retry specific task")
+			fmt.Println("  ailang coordinator retry --all       # Retry all failed tasks")
+			return nil
+		}
+	}
+
+	stateDir := ""
+	retryAll := false
+	var taskID string
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--all":
+			retryAll = true
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		default:
+			if taskID == "" && !strings.HasPrefix(args[i], "-") {
+				taskID = args[i]
+			}
+		}
+	}
+
+	if !retryAll && taskID == "" {
+		return fmt.Errorf("usage: ailang coordinator retry <task-id|--all>")
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open the coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+
+	if retryAll {
+		// Reset all failed tasks
+		count, err := store.RetryAllFailedTasks(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to retry failed tasks: %w", err)
+		}
+		if count == 0 {
+			fmt.Println(green("✓"), "No failed tasks to retry")
+		} else {
+			fmt.Printf("%s Reset %d failed task(s) to pending\n", green("✓"), count)
+		}
+		return nil
+	}
+
+	// Reset specific task
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	if task.Status != coordinator.TaskStatusFailed {
+		return fmt.Errorf("task %s is not failed (status: %s)", taskID, task.Status)
+	}
+
+	// Reset to pending
+	if err := store.RequeueTask(ctx, taskID); err != nil {
+		return fmt.Errorf("failed to retry task: %w", err)
+	}
+
+	fmt.Println(green("✓"), "Task reset to pending:", taskID)
+	fmt.Println("  It will be picked up on the next poll cycle.")
 	return nil
 }
 

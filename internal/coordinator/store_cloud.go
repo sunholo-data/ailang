@@ -156,6 +156,11 @@ func (s *CloudStore) RecoverStaleTasks(ctx context.Context, staleThreshold time.
 	return 0, fmt.Errorf("cloud store not yet implemented")
 }
 
+// RetryAllFailedTasks resets all failed tasks to pending.
+func (s *CloudStore) RetryAllFailedTasks(ctx context.Context) (int, error) {
+	return 0, fmt.Errorf("cloud store not yet implemented")
+}
+
 // CreateApprovalRequest creates a new approval request
 func (s *CloudStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
 	return fmt.Errorf("cloud store not yet implemented")

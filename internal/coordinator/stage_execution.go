@@ -33,24 +33,36 @@ type StageExecutionResult struct {
 // This is the key integration point - tasks at different stages get different prompts
 // that invoke the appropriate skills.
 //
-// If an AgentConfig is provided with InvokeConfig, it uses the config-driven approach.
-// Otherwise, it falls back to the legacy hardcoded directives.
+// This function uses the config-driven approach by creating a temporary AgentConfig
+// with the stage-appropriate agent ID, which triggers the effective defaults.
 func BuildStageDirective(task *TaskRecord) string {
 	// For non-GitHub tasks, use original content as-is
 	if task.GithubIssue == 0 || task.Stage == TaskStageNone {
 		return task.Content
 	}
 
-	// Build stage-specific directive that invokes the appropriate skill
-	switch task.Stage {
-	case TaskStageDesign:
-		return buildDesignDirective(task)
-	case TaskStageSprint:
-		return buildSprintDirective(task)
-	case TaskStageImplementation:
-		return buildImplementationDirective(task)
-	default:
+	// Create temporary agent config with stage-appropriate ID to use defaults
+	agentID := stageToAgentIDForDirective(task.Stage)
+	if agentID == "" {
 		return task.Content
+	}
+
+	// Use config-driven approach with effective defaults
+	agent := &AgentConfig{ID: agentID}
+	return BuildDirectiveFromConfig(task, agent)
+}
+
+// stageToAgentIDForDirective maps task stages to agent IDs for directive building.
+func stageToAgentIDForDirective(stage TaskStage) string {
+	switch stage {
+	case TaskStageDesign:
+		return "design-doc-creator"
+	case TaskStageSprint:
+		return "sprint-planner"
+	case TaskStageImplementation:
+		return "sprint-executor"
+	default:
+		return ""
 	}
 }
 
@@ -69,18 +81,23 @@ func BuildStageDirective(task *TaskRecord) string {
 //   - {{.Stage}}: The current task stage
 //   - {{.OutputMarkers}}: Comma-separated list of expected output markers
 func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
-	if agent == nil || agent.Invoke == nil {
-		// Fall back to legacy behavior
+	if agent == nil {
+		// No agent config, fall back to legacy behavior
 		return BuildStageDirective(task)
 	}
 
-	invoke := agent.Invoke
+	// Use effective config (includes defaults for known agents)
+	invoke := agent.GetEffectiveInvokeConfig()
+	if invoke == nil {
+		// Unknown agent with no config, fall back to legacy
+		return BuildStageDirective(task)
+	}
 
 	switch invoke.Type {
 	case "skill":
-		return buildSkillDirective(task, agent)
+		return buildSkillDirectiveWithConfig(task, agent, invoke)
 	case "agent":
-		return buildAgentHandoffDirective(task, agent)
+		return buildAgentHandoffDirectiveWithConfig(task, agent, invoke)
 	case "prompt":
 		return buildTemplateDirective(task, agent)
 	default:
@@ -89,10 +106,12 @@ func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
 	}
 }
 
-// buildSkillDirective creates a directive that invokes a skill by name.
-func buildSkillDirective(task *TaskRecord, agent *AgentConfig) string {
-	skillName := agent.Invoke.Name
-	markers := formatOutputMarkers(agent.OutputMarkers)
+// buildSkillDirectiveWithConfig creates a directive that invokes a skill by name.
+// Uses effective config (explicit or defaults) for skill name and output markers.
+func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke *InvokeConfig) string {
+	skillName := invoke.Name
+	effectiveMarkers := agent.GetEffectiveOutputMarkers()
+	markers := formatOutputMarkers(effectiveMarkers)
 
 	var sb strings.Builder
 	if task.GithubIssue > 0 {
@@ -103,17 +122,19 @@ func buildSkillDirective(task *TaskRecord, agent *AgentConfig) string {
 
 	sb.WriteString(fmt.Sprintf("Invoke the %s skill to complete this task.\n", skillName))
 
-	if len(agent.OutputMarkers) > 0 {
+	if len(effectiveMarkers) > 0 {
 		sb.WriteString(fmt.Sprintf("\n**REQUIRED**: After completion, output these markers:\n%s", markers))
 	}
 
 	return sb.String()
 }
 
-// buildAgentHandoffDirective creates a directive that hands off to another agent.
-func buildAgentHandoffDirective(task *TaskRecord, agent *AgentConfig) string {
-	targetAgent := agent.Invoke.Name
-	markers := formatOutputMarkers(agent.OutputMarkers)
+// buildAgentHandoffDirectiveWithConfig creates a directive that hands off to another agent.
+// Uses effective config (explicit or defaults) for agent name and output markers.
+func buildAgentHandoffDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke *InvokeConfig) string {
+	targetAgent := invoke.Name
+	effectiveMarkers := agent.GetEffectiveOutputMarkers()
+	markers := formatOutputMarkers(effectiveMarkers)
 
 	var sb strings.Builder
 	if task.GithubIssue > 0 {
@@ -124,7 +145,7 @@ func buildAgentHandoffDirective(task *TaskRecord, agent *AgentConfig) string {
 
 	sb.WriteString(fmt.Sprintf("Hand off this task to the %s agent for processing.\n", targetAgent))
 
-	if len(agent.OutputMarkers) > 0 {
+	if len(effectiveMarkers) > 0 {
 		sb.WriteString(fmt.Sprintf("\n**REQUIRED**: After completion, output these markers:\n%s", markers))
 	}
 
@@ -190,19 +211,26 @@ func ParseOutputMarkers(output string, markers []string) map[string]string {
 
 // extractMarkerValue extracts the value for a single marker from output.
 // The marker can be specified with or without trailing colon.
-// Handles both "MARKER: value" and "MARKER:value" formats.
+// Handles both plain text and markdown-formatted markers:
+//   - MARKER: value
+//   - MARKER:value
+//   - **MARKER**: value
+//   - **MARKER**: `value`
 func extractMarkerValue(output, marker string) string {
 	// Normalize marker to not have trailing colon for pattern building
 	markerBase := strings.TrimSuffix(marker, ":")
 
-	// Build pattern to match "MARKER:" followed by value
-	// Captures everything until end of line
-	pattern := fmt.Sprintf(`%s:\s*(.+?)(?:\n|$)`, regexp.QuoteMeta(markerBase))
+	// Build pattern that handles optional ** (bold) and optional backticks
+	// Pattern: **?MARKER**?: `?value`?
+	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*`+"`?"+`(.+?)`+"`?"+`(?:\n|$)`, regexp.QuoteMeta(markerBase))
 	re := regexp.MustCompile(pattern)
 
 	matches := re.FindStringSubmatch(output)
 	if len(matches) >= 2 {
-		return strings.TrimSpace(matches[1])
+		value := strings.TrimSpace(matches[1])
+		// Remove any remaining backticks
+		value = strings.Trim(value, "`")
+		return value
 	}
 	return ""
 }
@@ -237,67 +265,66 @@ func HasMarkerValue(output, marker, expectedValue string) bool {
 	return false
 }
 
-// buildDesignDirective creates a directive that invokes design-doc-creator skill.
-//
-// Deprecated: Use BuildDirectiveFromConfig with InvokeConfig{Type: "skill", Name: "design-doc-creator"}
-// This legacy function is retained for backwards compatibility with agents that don't have InvokeConfig.
-func buildDesignDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`GitHub issue #%d: %s
 
-Invoke the design-doc-creator skill to create a design document for this request.
-
-**REQUIRED**: After creating the design doc, output exactly this line:
-DESIGN_DOC_PATH: design_docs/planned/<version>/<name>.md
-
-This path will be posted to GitHub for review.`, task.GithubIssue, task.Content)
-}
-
-// buildSprintDirective creates a directive that invokes sprint-planner skill.
-//
-// Deprecated: Use BuildDirectiveFromConfig with InvokeConfig{Type: "skill", Name: "sprint-planner"}
-// This legacy function is retained for backwards compatibility with agents that don't have InvokeConfig.
-func buildSprintDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`GitHub issue #%d: %s
-
-Design document approved. Invoke the sprint-planner skill to create a sprint plan.
-
-When done, output: SPRINT_PLAN_PATH: <path-to-created-plan>`, task.GithubIssue, task.Content)
-}
-
-// buildImplementationDirective creates a directive that invokes sprint-executor skill.
-//
-// Deprecated: Use BuildDirectiveFromConfig with InvokeConfig{Type: "skill", Name: "sprint-executor"}
-// This legacy function is retained for backwards compatibility with agents that don't have InvokeConfig.
-func buildImplementationDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`GitHub issue #%d: %s
-
-Sprint plan approved. Invoke the sprint-executor skill to implement the plan.
-
-When done, output:
-IMPLEMENTATION_COMPLETE: true
-BRANCH_NAME: <branch-name>
-FILES_CREATED: <files>
-FILES_MODIFIED: <files>`, task.GithubIssue, task.Content)
-}
-
-// ParseStageOutput extracts structured artifacts from execution output
+// ParseStageOutput extracts structured artifacts from execution output.
+// Handles both plain text markers and markdown-formatted markers:
+//   - DESIGN_DOC_PATH: path.md
+//   - **DESIGN_DOC_PATH**: `path.md`
 func ParseStageOutput(output string, stage TaskStage) *StageExecutionResult {
 	result := &StageExecutionResult{}
 
 	switch stage {
 	case TaskStageDesign:
-		result.DesignDocPath = extractPath(output, `DESIGN_DOC_PATH:\s*(.+\.md)`)
+		// Handle: DESIGN_DOC_PATH: path.md OR **DESIGN_DOC_PATH**: `path.md`
+		result.DesignDocPath = extractPathWithMarkdown(output, "DESIGN_DOC_PATH")
 	case TaskStageSprint:
-		result.SprintPlanPath = extractPath(output, `SPRINT_PLAN_PATH:\s*(.+\.md)`)
+		// Handle: SPRINT_PLAN_PATH: path.md OR **SPRINT_PLAN_PATH**: `path.md`
+		result.SprintPlanPath = extractPathWithMarkdown(output, "SPRINT_PLAN_PATH")
 	case TaskStageImplementation:
 		if strings.Contains(output, "IMPLEMENTATION_COMPLETE: true") ||
-			strings.Contains(output, "IMPLEMENTATION_COMPLETE:true") {
-			result.BranchName = extractPath(output, `BRANCH_NAME:\s*(\S+)`)
-			result.FilesCreated = extractList(output, `FILES_CREATED:\s*(.+)`)
-			result.FilesModified = extractList(output, `FILES_MODIFIED:\s*(.+)`)
+			strings.Contains(output, "IMPLEMENTATION_COMPLETE:true") ||
+			strings.Contains(output, "**IMPLEMENTATION_COMPLETE**: true") ||
+			strings.Contains(output, "**IMPLEMENTATION_COMPLETE**:true") {
+			result.BranchName = extractPathWithMarkdown(output, "BRANCH_NAME")
+			result.FilesCreated = extractListWithMarkdown(output, "FILES_CREATED")
+			result.FilesModified = extractListWithMarkdown(output, "FILES_MODIFIED")
 		}
 	}
 
+	return result
+}
+
+// extractPathWithMarkdown extracts a path value that may have markdown formatting.
+// Handles: MARKER: value, **MARKER**: value, MARKER: `value`, **MARKER**: `value`
+func extractPathWithMarkdown(output, marker string) string {
+	// Pattern handles optional ** (bold) around marker and optional backticks around value
+	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*` + "`?" + `([^` + "`" + `\n]+?)` + "`?" + `(?:\s|$|\n)`, regexp.QuoteMeta(marker))
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(output)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+	return ""
+}
+
+// extractListWithMarkdown extracts a comma-separated list that may have markdown formatting.
+func extractListWithMarkdown(output, marker string) []string {
+	value := extractPathWithMarkdown(output, marker)
+	if value == "" || value == "none" || value == "None" {
+		return nil
+	}
+
+	// Handle backtick-wrapped items: `file1.go`, `file2.go`
+	value = strings.ReplaceAll(value, "`", "")
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
 	return result
 }
 

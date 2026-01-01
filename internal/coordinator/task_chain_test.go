@@ -286,6 +286,13 @@ func (m *MockStore) GetTaskEvents(ctx context.Context, taskID string, limit int)
 	return nil, nil
 }
 
+func (m *MockStore) RetryAllFailedTasks(ctx context.Context) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["RetryAllFailedTasks"]++
+	return 0, nil
+}
+
 func (m *MockStore) Close() error {
 	return nil
 }

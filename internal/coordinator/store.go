@@ -164,6 +164,7 @@ type Store interface {
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)
 	RecoverStaleTasks(ctx context.Context, staleThreshold time.Duration) (int, error) // Cancel stale running/queued tasks on startup
+	RetryAllFailedTasks(ctx context.Context) (int, error)                             // Reset all failed tasks to pending
 
 	// Event storage (for task logs)
 	StoreTaskEvent(ctx context.Context, event *TaskEventRecord) error

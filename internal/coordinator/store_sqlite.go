@@ -655,6 +655,20 @@ func (s *SQLiteStore) RecoverStaleTasks(ctx context.Context, staleThreshold time
 	return int(count), nil
 }
 
+// RetryAllFailedTasks resets all failed tasks to pending so they will be retried.
+func (s *SQLiteStore) RetryAllFailedTasks(ctx context.Context) (int, error) {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET status = ?, error = NULL, started_at = NULL, completed_at = NULL
+		 WHERE status = ?`,
+		TaskStatusPending, TaskStatusFailed,
+	)
+	if err != nil {
+		return 0, err
+	}
+	count, _ := result.RowsAffected()
+	return int(count), nil
+}
+
 // Close closes the database connection
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()

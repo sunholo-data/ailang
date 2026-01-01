@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,21 @@ import (
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/websocket"
 )
+
+// stageToAgentID maps task stages to agent IDs for config lookup.
+// Returns empty string for unknown stages (fallback to legacy behavior).
+func stageToAgentID(stage TaskStage) string {
+	switch stage {
+	case TaskStageDesign:
+		return "design-doc-creator"
+	case TaskStageSprint:
+		return "sprint-planner"
+	case TaskStageImplementation:
+		return "sprint-executor"
+	default:
+		return ""
+	}
+}
 
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
@@ -376,8 +392,16 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	d.postTaskStatus(task, "running", "Starting task execution...")
 
 	// Create analyzed task for executor
-	// Use stage-aware directive for GitHub-linked tasks (M-COORD-GITHUB-AUTO-ROUTING)
-	directive := BuildStageDirective(task)
+	// Use config-driven directive for GitHub-linked tasks (M-COORD-GENERIC-WORKFLOWS)
+	// Look up agent config for this stage to use proper skill/markers
+	var agentConfig *AgentConfig
+	if d.agentRegistry != nil {
+		agentID := stageToAgentID(task.Stage)
+		if agentID != "" {
+			agentConfig = d.agentRegistry.GetAgentByID(agentID)
+		}
+	}
+	directive := BuildDirectiveFromConfig(task, agentConfig)
 	analyzed := &AnalyzedTask{
 		Task: &Task{
 			ID:        task.ID,
@@ -411,6 +435,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		var wtErr error
 		worktree, wtErr = worktreeMgr.CreateWorktree(task.ID)
 		if wtErr != nil {
+			// Check if this is a recoverable "limit reached" error
+			if errors.Is(wtErr, ErrWorktreeLimitReached) {
+				// Leave task in pending state - it will be retried when a worktree frees up
+				d.logger.Printf("INFO: Task %s waiting for worktree (limit reached), will retry", task.ID)
+				return wtErr // Return error but don't mark as failed
+			}
+
 			// CRITICAL: Do NOT continue without worktree!
 			// Agent would modify main repo directly, causing data loss.
 			d.logger.Printf("ERROR: Failed to create worktree for task %s (agent: %s): %v", task.ID, targetAgent, wtErr)

@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,10 @@ import (
 	"sync"
 	"time"
 )
+
+// ErrWorktreeLimitReached is returned when no worktrees are available.
+// Tasks receiving this error should remain in queue for retry, not fail.
+var ErrWorktreeLimitReached = errors.New("max worktrees limit reached")
 
 // Worktree represents a git worktree for task isolation
 type Worktree struct {
@@ -79,7 +84,7 @@ func (wm *WorktreeManager) CreateWorktree(taskID string) (*Worktree, error) {
 
 	// Check max limit
 	if len(wm.worktrees) >= wm.maxWorktrees {
-		return nil, fmt.Errorf("max worktrees limit reached (%d)", wm.maxWorktrees)
+		return nil, fmt.Errorf("%w (%d)", ErrWorktreeLimitReached, wm.maxWorktrees)
 	}
 
 	// Create branch name and path
