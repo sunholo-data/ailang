@@ -2,12 +2,107 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Planned |
+| Status | **PARTIALLY IMPLEMENTED** |
 | Target | v0.6.3 |
 | Priority | P0 (High) |
 | Estimated | 3-4 days |
 | Dependencies | M-COORD-UI-APPROVALS (in progress), M-COORD-HUMAN-LOOP (complete) |
 | Created | 2025-12-31 |
+| Last Updated | 2026-01-01 |
+
+## Implementation Status (2026-01-01)
+
+### ✅ COMPLETED (Infrastructure Layer)
+
+| Component | Status | Files |
+|-----------|--------|-------|
+| GitHub issue import with routing | ✅ Done | `internal/messages/github_import.go` |
+| Message → Task with github_issue field | ✅ Done | `internal/coordinator/daemon_tasks.go:218` |
+| GitHubPoster (comments, labels, close) | ✅ Done | `internal/coordinator/github_poster.go` |
+| Comment templates (working, design, sprint, merge) | ✅ Done | `internal/coordinator/templates.go` |
+| ApprovalWatcher (polls for labels) | ✅ Done | `internal/coordinator/approval_watcher.go` |
+| TaskChain (stage transitions) | ✅ Done | `internal/coordinator/task_chain.go` |
+| Database schema (github_issue, stage columns) | ✅ Done | `internal/coordinator/store_sqlite.go` |
+| "Working" comment posted on task start | ✅ Done | `TaskChain.StartTask()` |
+| GitHub labels created on repo | ✅ Done | All 10 labels exist |
+
+### ❌ NOT IMPLEMENTED (Critical Gaps)
+
+| Gap | Description | Impact |
+|-----|-------------|--------|
+| **Skill routing by stage** | Daemon doesn't route to `design-doc-creator`, `sprint-planner`, `sprint-executor` based on task stage | Tasks run generic prompts, not skill-specific workflows |
+| **Stage completion detection** | Daemon doesn't detect when Claude Code output contains a design doc / sprint plan / implementation | TaskChain callbacks (`OnDesignDocComplete`, etc.) are never called |
+| **Design doc summary extraction** | No code to parse Claude Code output and extract design doc path/summary | GitHub comment has no design doc content |
+| **Sprint plan summary extraction** | No code to parse Claude Code output and extract sprint plan | GitHub comment has no sprint plan content |
+| **Diff summary generation** | No code to generate git diff summary from worktree | GitHub comment has no diff content |
+| **Actual merge execution** | `OnMergeApproved` doesn't actually merge worktree to dev | Worktree sits orphaned |
+| **PR creation** | No code to create GitHub PR from worktree | Design says "no PRs" but users expect them |
+
+### 🔄 PARTIALLY WORKING
+
+| Component | What Works | What's Missing |
+|-----------|------------|----------------|
+| ApprovalWatcher | Detects `design-approved` label | Doesn't trigger `sprint-planner` skill |
+| ApprovalWatcher | Detects `sprint-approved` label | Doesn't trigger `sprint-executor` skill |
+| ApprovalWatcher | Detects `merge-approved` label | Doesn't execute actual merge |
+| TaskChain.OnDesignApproved | Posts "Working on Sprint Planning" comment | Doesn't invoke sprint-planner |
+| TaskChain.OnSprintApproved | Posts "Working on Implementation" comment | Doesn't invoke sprint-executor |
+
+### Root Cause Analysis
+
+**The fundamental gap:** The daemon's task execution flow doesn't integrate with the skill system.
+
+```
+CURRENT FLOW (broken):
+1. Issue → Message → Task created
+2. TaskChain.StartTask() posts "Working" comment ✅
+3. Daemon calls executeTask() with generic prompt
+4. Claude Code runs, produces some output
+5. Task marked complete/pending_approval
+6. ❌ NO CALLBACK to TaskChain
+7. ❌ NO skill routing based on stage
+8. ❌ NO summary posted to GitHub
+
+INTENDED FLOW (not implemented):
+1. Issue → Message → Task created
+2. TaskChain.StartTask() posts "Working" comment ✅
+3. Daemon detects stage="design", routes to design-doc-creator skill
+4. Claude Code creates design doc
+5. Daemon parses output, extracts design doc path
+6. TaskChain.OnDesignDocComplete() posts summary to GitHub
+7. Task enters pending_approval, waits for design-approved label
+8. ApprovalWatcher detects design-approved
+9. TaskChain.OnDesignApproved() triggers sprint-planner
+10. ... and so on through the pipeline
+```
+
+### Next Steps (v0.6.3)
+
+**Phase 1: Skill Routing (~4 hours)**
+- [ ] Add stage-to-skill mapping in daemon
+- [ ] Route `design` stage to `design-doc-creator` skill
+- [ ] Route `sprint` stage to `sprint-planner` skill
+- [ ] Route `implementation` stage to `sprint-executor` skill
+
+**Phase 2: Output Parsing (~4 hours)**
+- [ ] Parse Claude Code output for design doc paths
+- [ ] Parse Claude Code output for sprint plan paths
+- [ ] Extract summary from skill output (first 500 chars or structured JSON)
+
+**Phase 3: Callback Integration (~4 hours)**
+- [ ] Call `TaskChain.OnDesignDocComplete()` after design-doc-creator
+- [ ] Call `TaskChain.OnSprintPlanComplete()` after sprint-planner
+- [ ] Call `TaskChain.OnImplementationComplete()` after sprint-executor
+
+**Phase 4: Merge Execution (~2 hours)**
+- [ ] Implement actual git merge in `OnMergeApproved`
+- [ ] Handle merge conflicts (post to GitHub, pause)
+- [ ] Clean up worktree after successful merge
+
+**Phase 5: E2E Test (~2 hours)**
+- [ ] Create test issue with `coordinator:feature` label
+- [ ] Verify full pipeline: design → sprint → implementation → merge
+- [ ] Verify all GitHub comments and labels appear correctly
 
 ## Problem Statement
 
@@ -545,19 +640,21 @@ Issue #87 is now **Closed**.
 
 ## Success Criteria
 
-- [ ] Issues with `coordinator:*` labels auto-route to coordinator inbox
-- [ ] Coordinator posts "working" comment when picking up task
-- [ ] Design doc summary posted as GitHub comment
-- [ ] `design-approved` label triggers sprint planning
-- [ ] Sprint summary posted as GitHub comment
-- [ ] `sprint-approved` label triggers sprint execution
-- [ ] Diff summary posted on implementation completion
-- [ ] `merge-approved` label triggers merge to dev
-- [ ] Issue auto-closes on successful merge
-- [ ] Rejection via `needs-revision` label pauses workflow
-- [ ] Full audit trail visible in GitHub issue thread
-- [ ] All tests passing
-- [ ] Documentation updated
+- [x] Issues with `coordinator:*` labels auto-route to coordinator inbox ✅ **DONE**
+- [x] Coordinator posts "working" comment when picking up task ✅ **DONE**
+- [ ] Design doc summary posted as GitHub comment ❌ **NOT DONE** - callback never called
+- [ ] `design-approved` label triggers sprint planning ❌ **PARTIAL** - label detected, skill not invoked
+- [ ] Sprint summary posted as GitHub comment ❌ **NOT DONE** - callback never called
+- [ ] `sprint-approved` label triggers sprint execution ❌ **PARTIAL** - label detected, skill not invoked
+- [ ] Diff summary posted on implementation completion ❌ **NOT DONE** - callback never called
+- [ ] `merge-approved` label triggers merge to dev ❌ **NOT DONE** - no actual merge
+- [ ] Issue auto-closes on successful merge ❌ **NOT DONE** - depends on merge
+- [x] Rejection via `needs-revision` label pauses workflow ✅ **DONE**
+- [ ] Full audit trail visible in GitHub issue thread ❌ **PARTIAL** - only "working" comment visible
+- [x] All tests passing ✅ **DONE**
+- [ ] Documentation updated ❌ **NOT DONE**
+
+**Summary: 4/13 complete, 9 remaining**
 
 ## Testing Strategy
 
