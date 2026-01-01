@@ -179,7 +179,9 @@ func (d *Daemon) requestHandoffApproval(
 	return nil
 }
 
-// HandleApproval processes an approved task - merges worktree changes to main branch.
+// HandleApproval processes an approved task.
+// For GitHub-linked tasks at design/sprint stages, this triggers the next stage.
+// For merge-ready tasks, this merges worktree changes to main branch.
 func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) error {
 	// Get the task
 	task, err := d.taskStore.GetTask(ctx, taskID)
@@ -195,12 +197,54 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
 	}
 
-	// Get worktree path
+	// For GitHub-linked tasks at design/sprint stages, trigger next stage instead of merge
+	if task.GithubIssue > 0 && d.taskChain != nil {
+		switch task.Stage {
+		case TaskStageDesign:
+			d.logger.Printf("Approving design for task %s (GitHub #%d)", taskID, task.GithubIssue)
+			// Add design-approved label on GitHub
+			if d.taskChain.poster != nil {
+				if err := d.taskChain.poster.AddLabel(task.GithubIssue, LabelDesignApproved); err != nil {
+					d.logger.Printf("Warning: Failed to add design-approved label: %v", err)
+				}
+				// Remove needs-design-approval label
+				if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, LabelNeedsDesignApproval); err != nil {
+					d.logger.Printf("Warning: Failed to remove needs-design-approval label: %v", err)
+				}
+			}
+			// Trigger next stage via TaskChain
+			return d.taskChain.OnDesignApproved(ctx, &ApprovalEvent{
+				TaskID:      taskID,
+				IssueNumber: task.GithubIssue,
+			})
+
+		case TaskStageSprint:
+			d.logger.Printf("Approving sprint for task %s (GitHub #%d)", taskID, task.GithubIssue)
+			// Add sprint-approved label on GitHub
+			if d.taskChain.poster != nil {
+				if err := d.taskChain.poster.AddLabel(task.GithubIssue, LabelSprintApproved); err != nil {
+					d.logger.Printf("Warning: Failed to add sprint-approved label: %v", err)
+				}
+				// Remove needs-sprint-approval label
+				if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, LabelNeedsSprintApproval); err != nil {
+					d.logger.Printf("Warning: Failed to remove needs-sprint-approval label: %v", err)
+				}
+			}
+			// Trigger next stage via TaskChain
+			return d.taskChain.OnSprintApproved(ctx, &ApprovalEvent{
+				TaskID:      taskID,
+				IssueNumber: task.GithubIssue,
+			})
+		}
+		// For implementation/merge stage, fall through to merge logic
+	}
+
+	// Get worktree path for merge
 	if task.WorktreePath == "" {
 		return fmt.Errorf("task %s has no worktree path", taskID)
 	}
 
-	d.logger.Printf("Processing approval for task %s (worktree: %s)", taskID, task.WorktreePath)
+	d.logger.Printf("Processing merge approval for task %s (worktree: %s)", taskID, task.WorktreePath)
 
 	// Attempt to merge worktree changes
 	mergeResult, err := MergeWorktree(ctx, task.WorktreePath, "main")
