@@ -46,12 +46,12 @@ type Status struct {
 	Uptime    string    `json:"uptime,omitempty"`
 	TasksRun  int       `json:"tasks_run"`
 	// Extended stats from database
-	PendingTasks    int     `json:"pending_tasks,omitempty"`
-	RunningTasks    int     `json:"running_tasks,omitempty"`
-	PendingApprovals int    `json:"pending_approvals,omitempty"` // Tasks awaiting human approval
-	FailedTasks     int     `json:"failed_tasks,omitempty"`
-	TotalCost       float64 `json:"total_cost,omitempty"`
-	TotalTokens     int     `json:"total_tokens,omitempty"`
+	PendingTasks     int     `json:"pending_tasks,omitempty"`
+	RunningTasks     int     `json:"running_tasks,omitempty"`
+	PendingApprovals int     `json:"pending_approvals,omitempty"` // Tasks awaiting human approval
+	FailedTasks      int     `json:"failed_tasks,omitempty"`
+	TotalCost        float64 `json:"total_cost,omitempty"`
+	TotalTokens      int     `json:"total_tokens,omitempty"`
 }
 
 // Daemon is the coordinator daemon
@@ -65,14 +65,14 @@ type Daemon struct {
 	tasksRun  int
 
 	// Task processing components
-	msgStore        *messaging.Store
-	msgAdapter      *InboxMessageAdapter        // Legacy: single adapter (for backwards compat)
-	inboxAdapters   map[string]*InboxMessageAdapter // Key: inbox name
+	msgStore         *messaging.Store
+	msgAdapter       *InboxMessageAdapter            // Legacy: single adapter (for backwards compat)
+	inboxAdapters    map[string]*InboxMessageAdapter // Key: inbox name
 	worktreeManagers map[string]*WorktreeManager     // Key: agent ID
-	analyzer        *TaskAnalyzer
-	worktreeMgr     *WorktreeManager              // Legacy: default worktree manager
-	taskStore       Store
-	executor        *TaskExecutor
+	analyzer         *TaskAnalyzer
+	worktreeMgr      *WorktreeManager // Legacy: default worktree manager
+	taskStore        Store
+	executor         *TaskExecutor
 
 	// Agent configuration
 	agentRegistry *AgentRegistry

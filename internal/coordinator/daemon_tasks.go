@@ -287,11 +287,11 @@ func (d *Daemon) pollAndProcessTasks() error {
 			targetAgent = "coordinator"
 		}
 		thread, err := d.msgStore.CreateThreadWithWorkspace(
-			msg.Title,           // title
-			"ailang_instance",   // createdByType (constraint: 'human' or 'ailang_instance')
-			"coordinator",       // createdByID
-			targetAgent,         // targetAgent - the agent that will handle this task
-			workspace,           // workspace - source project/agent
+			msg.Title,         // title
+			"ailang_instance", // createdByType (constraint: 'human' or 'ailang_instance')
+			"coordinator",     // createdByID
+			targetAgent,       // targetAgent - the agent that will handle this task
+			workspace,         // workspace - source project/agent
 		)
 		if err != nil {
 			d.logger.Printf("Failed to create thread for task %s: %v", taskID, err)
@@ -552,6 +552,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, worktreeBranch, result); err != nil {
 			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 		}
+
+		// Update task with worktree info before ProcessStageCompletion
+		// (needed for git diff artifact discovery)
+		task.WorktreePath = worktreePath
 
 		// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 		// This posts the summary to GitHub and adds the appropriate approval label

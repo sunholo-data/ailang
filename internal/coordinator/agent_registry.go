@@ -27,29 +27,30 @@ type ApprovalConfig struct {
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
-	ID                   string   `yaml:"id" json:"id"`
-	Label                string   `yaml:"label" json:"label"`
-	Inbox                string   `yaml:"inbox" json:"inbox"`                                   // Message inbox to watch
-	Workspace            string   `yaml:"workspace" json:"workspace"`                           // Base directory for worktrees
-	Capabilities         []string `yaml:"capabilities" json:"capabilities"`                     // e.g., ["code", "research", "docs"]
-	TriggerOnComplete    []string `yaml:"trigger_on_complete" json:"trigger_on_complete"`       // Agent IDs to trigger when this agent completes
-	AutoApproveHandoffs  bool     `yaml:"auto_approve_handoffs" json:"auto_approve_handoffs"`   // Skip approval for agent-to-agent handoffs
-	AutoMerge            bool     `yaml:"auto_merge" json:"auto_merge"`                         // Automatically merge approved work
-	Provider             string   `yaml:"provider" json:"provider"`                             // "claude" or "gemini"
-	MaxConcurrentTasks   int      `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"`     // 0 = unlimited
-	SessionContinuity    bool     `yaml:"session_continuity" json:"session_continuity"`         // Use --resume for Claude Code / --conversation-id for Gemini
+	ID                  string   `yaml:"id" json:"id"`
+	Label               string   `yaml:"label" json:"label"`
+	Inbox               string   `yaml:"inbox" json:"inbox"`                                 // Message inbox to watch
+	Workspace           string   `yaml:"workspace" json:"workspace"`                         // Base directory for worktrees
+	Capabilities        []string `yaml:"capabilities" json:"capabilities"`                   // e.g., ["code", "research", "docs"]
+	TriggerOnComplete   []string `yaml:"trigger_on_complete" json:"trigger_on_complete"`     // Agent IDs to trigger when this agent completes
+	AutoApproveHandoffs bool     `yaml:"auto_approve_handoffs" json:"auto_approve_handoffs"` // Skip approval for agent-to-agent handoffs
+	AutoMerge           bool     `yaml:"auto_merge" json:"auto_merge"`                       // Automatically merge approved work
+	Provider            string   `yaml:"provider" json:"provider"`                           // "claude" or "gemini"
+	MaxConcurrentTasks  int      `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"`   // 0 = unlimited
+	SessionContinuity   bool     `yaml:"session_continuity" json:"session_continuity"`       // Use --resume for Claude Code / --conversation-id for Gemini
 
 	// Generic workflow configuration (v0.6.3+)
-	Invoke        *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                 // How to invoke this agent
-	OutputMarkers []string        `yaml:"output_markers" json:"output_markers,omitempty"` // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
-	Approval      *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`             // Approval workflow configuration
+	Invoke           *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                       // How to invoke this agent
+	OutputMarkers    []string        `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
+	ArtifactPatterns []string        `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
+	Approval         *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`                   // Approval workflow configuration
 }
 
 // AgentRegistry manages the set of configured agents.
 // It provides thread-safe lookup by ID or inbox.
 type AgentRegistry struct {
-	mu     sync.RWMutex
-	agents map[string]*AgentConfig // key: agent ID
+	mu      sync.RWMutex
+	agents  map[string]*AgentConfig // key: agent ID
 	byInbox map[string]*AgentConfig // key: inbox name
 }
 
@@ -242,6 +243,7 @@ func DefaultInvokeConfig(agentID string) *InvokeConfig {
 // Returns nil for unknown agents (no markers expected).
 //
 // Deprecated: Agents should have explicit OutputMarkers in YAML.
+// Consider using ArtifactPatterns + git diff instead for deterministic artifact discovery.
 func DefaultOutputMarkers(agentID string) []string {
 	switch agentID {
 	case "design-doc-creator":
@@ -250,6 +252,25 @@ func DefaultOutputMarkers(agentID string) []string {
 		return []string{"SPRINT_PLAN_PATH:", "SPRINT_JSON_PATH:"}
 	case "sprint-executor":
 		return []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}
+	default:
+		return nil
+	}
+}
+
+// DefaultArtifactPatterns returns the default file patterns for known AILANG agent IDs.
+// These patterns are used with git diff to deterministically discover created/modified artifacts.
+// Returns nil for unknown agents (no patterns = no artifact collection).
+func DefaultArtifactPatterns(agentID string) []string {
+	switch agentID {
+	case "design-doc-creator":
+		// Design docs only create .md files in design_docs/
+		return []string{"design_docs/**/*.md"}
+	case "sprint-planner":
+		// Sprint planner creates design docs and JSON progress files
+		return []string{"design_docs/**/*.md", ".ailang/state/sprints/*.json"}
+	case "sprint-executor":
+		// Sprint executor modifies many files - collect .go, .md, .json
+		return []string{"**/*.go", "**/*.md", "**/*.json", "**/*.ail"}
 	default:
 		return nil
 	}
@@ -302,6 +323,15 @@ func (a *AgentConfig) GetEffectiveOutputMarkers() []string {
 		return a.OutputMarkers
 	}
 	return DefaultOutputMarkers(a.ID)
+}
+
+// GetEffectiveArtifactPatterns returns the agent's artifact patterns, or defaults for known agents.
+// These patterns are used with git diff to discover created/modified files.
+func (a *AgentConfig) GetEffectiveArtifactPatterns() []string {
+	if len(a.ArtifactPatterns) > 0 {
+		return a.ArtifactPatterns
+	}
+	return DefaultArtifactPatterns(a.ID)
 }
 
 // GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.

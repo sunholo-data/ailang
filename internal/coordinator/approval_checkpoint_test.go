@@ -767,9 +767,9 @@ func TestApprovalCheckpoint_AutoRejectTimeout(t *testing.T) {
 	ac := NewApprovalCheckpoint(100 * time.Millisecond)
 
 	status, err := ac.RequestApproval(context.Background(), &ApprovalRequest{
-		ID:        "test-1",
-		TaskID:    "task-123",
-		Type:      ApprovalTypeMerge,
+		ID:         "test-1",
+		TaskID:     "task-123",
+		Type:       ApprovalTypeMerge,
 		AutoReject: true,
 	})
 

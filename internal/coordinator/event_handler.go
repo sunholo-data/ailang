@@ -33,9 +33,9 @@ type CoordinatorEventHandler struct {
 	throttled       bool
 
 	// Event buffering for replay
-	eventBuffer     []*websocket.TaskStreamEvent
-	maxBufferSize   int
-	bufferMu        sync.RWMutex
+	eventBuffer   []*websocket.TaskStreamEvent
+	maxBufferSize int
+	bufferMu      sync.RWMutex
 
 	// Metrics tracking
 	currentTurn int
@@ -51,8 +51,8 @@ func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcas
 		taskID:          taskID,
 		threadID:        threadID,
 		broadcast:       broadcast,
-		maxEventsPerSec: 10,      // Rate limit: max 10 events per second
-		maxBufferSize:   100,     // Keep last 100 events for replay
+		maxEventsPerSec: 10,  // Rate limit: max 10 events per second
+		maxBufferSize:   100, // Keep last 100 events for replay
 		eventBuffer:     make([]*websocket.TaskStreamEvent, 0, 100),
 		startTime:       time.Now(),
 	}

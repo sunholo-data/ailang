@@ -55,6 +55,28 @@ Invoke this skill when:
 - Before starting implementation of a new feature
 - After completing a feature (to move to implemented/)
 
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output this marker at the end of your response:
+
+```
+DESIGN_DOC_PATH: design_docs/planned/vX_Y/design-doc-name.md
+```
+
+**Why?** The coordinator uses this marker to:
+1. Read the design doc content for GitHub comments
+2. Track artifacts across pipeline stages
+3. Provide visibility to humans reviewing the issue
+
+**Example completion:**
+```
+## Design Document Created
+
+I've created the design document...
+
+**DESIGN_DOC_PATH**: `design_docs/planned/v0_6_3/m-feature-design.md`
+```
+
 ## Available Scripts
 
 ### `scripts/create_planned_doc.sh <doc-name> [version]`

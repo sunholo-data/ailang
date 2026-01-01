@@ -10,18 +10,18 @@ import (
 
 // MockGitHubClient provides a mock GitHub client for testing
 type MockGitHubClient struct {
-	mu                sync.Mutex
-	comments          map[int][]string              // issueNum -> comments
-	labels            map[int][]string              // issueNum -> labels
-	definedLabels     map[string]*MockLabelInfo     // labelName -> info
-	closedIssues      map[int]string                // issueNum -> close reason
-	addCommentErr     error
-	addLabelErr       error
-	removeLabelErr    error
-	closeIssueErr     error
-	getLabelsErr      error
-	ensureLabelErr    error
-	callCounts        map[string]int
+	mu             sync.Mutex
+	comments       map[int][]string          // issueNum -> comments
+	labels         map[int][]string          // issueNum -> labels
+	definedLabels  map[string]*MockLabelInfo // labelName -> info
+	closedIssues   map[int]string            // issueNum -> close reason
+	addCommentErr  error
+	addLabelErr    error
+	removeLabelErr error
+	closeIssueErr  error
+	getLabelsErr   error
+	ensureLabelErr error
+	callCounts     map[string]int
 }
 
 // MockLabelInfo represents label information for testing
@@ -191,10 +191,10 @@ func TestGitHubIntegration_LabelWorkflow(t *testing.T) {
 	issueNum := 42
 
 	tests := []struct {
-		name      string
-		setup     func()
-		test      func()
-		verify    func() error
+		name   string
+		setup  func()
+		test   func()
+		verify func() error
 	}{
 		{
 			name: "add_design_approval_label",
@@ -272,9 +272,9 @@ func TestGitHubIntegration_CommentFlow(t *testing.T) {
 	issueNum := 123
 
 	tests := []struct {
-		name          string
-		comments      []string
-		expectCount   int
+		name        string
+		comments    []string
+		expectCount int
 	}{
 		{
 			name:        "single_comment",
@@ -317,10 +317,10 @@ func TestGitHubIntegration_IssueClosing(t *testing.T) {
 	issueNum := 456
 
 	tests := []struct {
-		name            string
-		closeComment    string
-		expectClosed    bool
-		expectComments  int
+		name           string
+		closeComment   string
+		expectClosed   bool
+		expectComments int
 	}{
 		{
 			name:           "close_with_comment",
@@ -358,10 +358,10 @@ func TestGitHubIntegration_IssueClosing(t *testing.T) {
 // TestGitHubIntegration_ErrorHandling tests error scenarios
 func TestGitHubIntegration_ErrorHandling(t *testing.T) {
 	tests := []struct {
-		name          string
-		operation     string
-		setupError    func(*MockGitHubClient)
-		shouldFail    bool
+		name       string
+		operation  string
+		setupError func(*MockGitHubClient)
+		shouldFail bool
 	}{
 		{
 			name:      "add_comment_error",
@@ -446,13 +446,13 @@ func TestGitHubIntegration_FullTaskLifecycle(t *testing.T) {
 
 	// Step 1: Create task from GitHub issue
 	task := &TaskRecord{
-		ID:         "gh-task-1",
-		Title:      "Fix authentication bug",
-		Content:    "Users cannot login with OAuth",
-		Type:       TaskTypeBugFix,
-		Status:     TaskStatusPending,
+		ID:          "gh-task-1",
+		Title:       "Fix authentication bug",
+		Content:     "Users cannot login with OAuth",
+		Type:        TaskTypeBugFix,
+		Status:      TaskStatusPending,
 		GithubIssue: issueNum,
-		CreatedAt:  time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	if err := store.CreateTask(ctx, task); err != nil {

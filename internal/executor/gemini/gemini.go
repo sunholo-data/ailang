@@ -68,8 +68,8 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	args := []string{
 		directive,                        // Positional prompt (with system prompt prepended if any)
 		"--output-format", "stream-json", // Stream NDJSON for real-time events
-		"-m", e.getModel(task),           // Model selection
-		"-y",                             // Auto-approve all tool uses (YOLO mode)
+		"-m", e.getModel(task), // Model selection
+		"-y", // Auto-approve all tool uses (YOLO mode)
 	}
 
 	// Add working directory if specified
@@ -330,18 +330,18 @@ func (e *GeminiExecutor) getModel(task *executor.Task) string {
 
 // geminiStreamEvent represents a single NDJSON event from stream-json output
 type geminiStreamEvent struct {
-	Type       string             `json:"type"`       // init, message, tool_call, tool_result, result
-	Timestamp  string             `json:"timestamp"`
-	SessionID  string             `json:"session_id,omitempty"`
-	Model      string             `json:"model,omitempty"`
-	Role       string             `json:"role,omitempty"`    // user, assistant
-	Content    string             `json:"content,omitempty"`
-	Delta      bool               `json:"delta,omitempty"`   // true if streaming delta
-	ToolName   string             `json:"tool_name,omitempty"`
-	ToolInput  string             `json:"tool_input,omitempty"`
-	ToolOutput string             `json:"tool_output,omitempty"`
-	Status     string             `json:"status,omitempty"`  // success, error
-	Stats      geminiStreamStats  `json:"stats,omitempty"`
+	Type       string            `json:"type"` // init, message, tool_call, tool_result, result
+	Timestamp  string            `json:"timestamp"`
+	SessionID  string            `json:"session_id,omitempty"`
+	Model      string            `json:"model,omitempty"`
+	Role       string            `json:"role,omitempty"` // user, assistant
+	Content    string            `json:"content,omitempty"`
+	Delta      bool              `json:"delta,omitempty"` // true if streaming delta
+	ToolName   string            `json:"tool_name,omitempty"`
+	ToolInput  string            `json:"tool_input,omitempty"`
+	ToolOutput string            `json:"tool_output,omitempty"`
+	Status     string            `json:"status,omitempty"` // success, error
+	Stats      geminiStreamStats `json:"stats,omitempty"`
 }
 
 // geminiStreamStats contains stats from the final result event

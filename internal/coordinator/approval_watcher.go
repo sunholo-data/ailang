@@ -68,9 +68,9 @@ type ApprovalWatcher struct {
 	lastPoll      time.Time // track last successful poll for status reporting
 
 	// Config-driven approval support (M-COORD-GENERIC-WORKFLOWS)
-	agentRegistry    *AgentRegistry                // registry of agents with approval configs
-	agentByLabel     map[string]*AgentConfig       // approved_label -> agent config
-	customHandlers   map[string]ApprovalHandler    // approved_label -> handler
+	agentRegistry  *AgentRegistry             // registry of agents with approval configs
+	agentByLabel   map[string]*AgentConfig    // approved_label -> agent config
+	customHandlers map[string]ApprovalHandler // approved_label -> handler
 }
 
 // NewApprovalWatcher creates a new approval watcher.
@@ -441,10 +441,10 @@ func (w *ApprovalWatcher) WatchedIssueCount() int {
 
 // WatcherStatus represents the current state of the ApprovalWatcher.
 type WatcherStatus struct {
-	Running       bool              `json:"running"`
-	LastPoll      time.Time         `json:"last_poll"`
-	PollInterval  time.Duration     `json:"poll_interval"`
-	WatchedIssues map[int]string    `json:"watched_issues"` // issue number -> task ID
+	Running       bool           `json:"running"`
+	LastPoll      time.Time      `json:"last_poll"`
+	PollInterval  time.Duration  `json:"poll_interval"`
+	WatchedIssues map[int]string `json:"watched_issues"` // issue number -> task ID
 }
 
 // GetStatus returns the current status of the watcher.

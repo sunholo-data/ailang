@@ -828,17 +828,17 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 
 // ApprovalRequestRecord is the database record for an approval request
 type ApprovalRequestRecord struct {
-	ID          string    `json:"id"`
-	TaskID      string    `json:"task_id"`
-	Type        string    `json:"type"`
-	Description string    `json:"description"`
-	ContextJSON string    `json:"context_json,omitempty"`
-	Status      string    `json:"status"`
-	ResolvedBy  string    `json:"resolved_by,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string     `json:"id"`
+	TaskID      string     `json:"task_id"`
+	Type        string     `json:"type"`
+	Description string     `json:"description"`
+	ContextJSON string     `json:"context_json,omitempty"`
+	Status      string     `json:"status"`
+	ResolvedBy  string     `json:"resolved_by,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
 	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
 	TimeoutAt   *time.Time `json:"timeout_at,omitempty"`
-	AutoReject  bool      `json:"auto_reject"`
+	AutoReject  bool       `json:"auto_reject"`
 }
 
 // CreateApprovalRequest creates a new approval request in the database

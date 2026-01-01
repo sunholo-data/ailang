@@ -367,11 +367,11 @@ func TestIntegration_AgentRegistry(t *testing.T) {
 	registry := NewAgentRegistry()
 
 	agent1 := &AgentConfig{
-		ID:                 "agent-1",
-		Label:              "Test Agent 1",
-		Inbox:              "inbox-1",
-		Workspace:          "/tmp/workspace1",
-		TriggerOnComplete:  []string{"agent-2"},
+		ID:                  "agent-1",
+		Label:               "Test Agent 1",
+		Inbox:               "inbox-1",
+		Workspace:           "/tmp/workspace1",
+		TriggerOnComplete:   []string{"agent-2"},
 		AutoApproveHandoffs: true,
 	}
 
@@ -969,5 +969,5 @@ FILES_MODIFIED: internal/registry/registry.go`
 func containsString(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 &&
 		(s == substr || len(s) > len(substr) &&
-		(s[:len(substr)] == substr || containsString(s[1:], substr)))
+			(s[:len(substr)] == substr || containsString(s[1:], substr)))
 }

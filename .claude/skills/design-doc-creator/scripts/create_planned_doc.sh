@@ -400,6 +400,9 @@ perl -i -pe "s|RELATED_IMPLEMENTED_PLACEHOLDER|$IMPL_FORMATTED|g" "$DOC_PATH" 2>
 perl -i -pe "s|RELATED_PLANNED_PLACEHOLDER|$PLAN_FORMATTED|g" "$DOC_PATH" 2>/dev/null || \
     sed -i.bak "s|RELATED_PLANNED_PLACEHOLDER|$PLAN_FORMATTED|g" "$DOC_PATH" && rm -f "${DOC_PATH}.bak"
 
+# Convert to relative path for coordinator marker
+RELATIVE_PATH="${DOC_PATH#$PROJECT_ROOT/}"
+
 # Success message
 echo -e "${GREEN}✓ Created design document:${NC}"
 echo "  $DOC_PATH"
@@ -423,3 +426,7 @@ echo "  - Net axiom score must be ≥ +2 to proceed"
 echo "  - Use M-XXX naming for milestone features"
 echo "  - Include concrete examples and metrics"
 echo "  - Keep estimates realistic (2x your initial guess)"
+echo ""
+# Output coordinator markers (deterministic - script knows exactly what was created)
+echo "---"
+echo "DESIGN_DOC_PATH: $RELATIVE_PATH"

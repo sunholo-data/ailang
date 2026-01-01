@@ -8,8 +8,8 @@ import (
 
 // StatisticsResponse represents aggregate statistics for the dashboard
 type StatisticsResponse struct {
-	Threads     ThreadStatistics     `json:"threads"`
-	Coordinator *CoordinatorSummary  `json:"coordinator,omitempty"`
+	Threads     ThreadStatistics    `json:"threads"`
+	Coordinator *CoordinatorSummary `json:"coordinator,omitempty"`
 }
 
 // ThreadStatistics provides thread-level statistics

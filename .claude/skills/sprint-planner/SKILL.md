@@ -28,6 +28,30 @@ Invoke this skill when:
 - User wants to know how long implementation will take
 - User needs to prioritize work for upcoming development
 
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output these markers at the end of your response:
+
+```
+SPRINT_PLAN_PATH: design_docs/planned/vX_Y/sprint-plan-name.md
+SPRINT_JSON_PATH: .ailang/state/sprints/sprint_ID.json
+```
+
+**Why?** The coordinator uses these markers to:
+1. Read the sprint plan content for GitHub comments
+2. Track artifacts across pipeline stages
+3. Provide visibility to humans reviewing the issue
+
+**Example completion:**
+```
+## Sprint Plan Created
+
+I've created the sprint plan with 3 milestones...
+
+**SPRINT_PLAN_PATH**: `design_docs/planned/v0_6_3/m-feature-sprint-plan.md`
+**SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-FEATURE.json`
+```
+
 ## Documentation URLs
 
 When planning sprints that involve adding error messages, help text, or documentation links:

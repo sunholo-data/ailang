@@ -7,20 +7,20 @@ import (
 
 // TaskRecord represents a task stored in the database
 type TaskRecord struct {
-	ID          string        `json:"id"`
-	MessageID   string        `json:"message_id,omitempty"`
-	ThreadID    string        `json:"thread_id,omitempty"` // Thread in collaboration.db for dashboard visibility
-	Title       string        `json:"title"`
-	Content     string        `json:"content"`
-	Type        TaskType      `json:"type"`
-	Kind        string        `json:"kind,omitempty"` // "directive" or "question" - affects execution mode
-	Priority    int           `json:"priority"`
-	Status      TaskStatus    `json:"status"`
-	Provider    string        `json:"provider,omitempty"`
-	WorktreeID  string        `json:"worktree_id,omitempty"`
-	WorktreePath string       `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
-	SessionID   string        `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
-	Workspace   string        `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
+	ID           string     `json:"id"`
+	MessageID    string     `json:"message_id,omitempty"`
+	ThreadID     string     `json:"thread_id,omitempty"` // Thread in collaboration.db for dashboard visibility
+	Title        string     `json:"title"`
+	Content      string     `json:"content"`
+	Type         TaskType   `json:"type"`
+	Kind         string     `json:"kind,omitempty"` // "directive" or "question" - affects execution mode
+	Priority     int        `json:"priority"`
+	Status       TaskStatus `json:"status"`
+	Provider     string     `json:"provider,omitempty"`
+	WorktreeID   string     `json:"worktree_id,omitempty"`
+	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
+	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
+	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	GithubIssue    int       `json:"github_issue,omitempty"`     // Linked GitHub issue number
 	Stage          TaskStage `json:"stage,omitempty"`            // Pipeline stage (design, sprint, implementation, merge)

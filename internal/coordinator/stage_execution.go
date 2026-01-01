@@ -111,7 +111,6 @@ func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
 func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke *InvokeConfig) string {
 	skillName := invoke.Name
 	effectiveMarkers := agent.GetEffectiveOutputMarkers()
-	markers := formatOutputMarkers(effectiveMarkers)
 
 	var sb strings.Builder
 	if task.GithubIssue > 0 {
@@ -122,8 +121,24 @@ func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke 
 
 	sb.WriteString(fmt.Sprintf("Invoke the %s skill to complete this task.\n", skillName))
 
+	// Add output markers as a prominent suffix - these are CRITICAL for coordinator to track artifacts
 	if len(effectiveMarkers) > 0 {
-		sb.WriteString(fmt.Sprintf("\n**REQUIRED**: After completion, output these markers:\n%s", markers))
+		sb.WriteString("\n---\n\n")
+		sb.WriteString("## CRITICAL: Coordinator Output Requirements\n\n")
+		sb.WriteString("**You MUST include these exact markers at the END of your response.**\n")
+		sb.WriteString("The coordinator parses these to track artifacts and post updates to GitHub.\n\n")
+		sb.WriteString("```\n")
+		for _, marker := range effectiveMarkers {
+			sb.WriteString(fmt.Sprintf("%s <path-to-file>\n", marker))
+		}
+		sb.WriteString("```\n\n")
+		sb.WriteString("**Example format:**\n")
+		sb.WriteString("```\n")
+		for _, marker := range effectiveMarkers {
+			// Show example with backticks for markdown
+			sb.WriteString(fmt.Sprintf("**%s** `design_docs/planned/v0_6_3/example.md`\n", marker))
+		}
+		sb.WriteString("```\n")
 	}
 
 	return sb.String()
@@ -134,7 +149,6 @@ func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke 
 func buildAgentHandoffDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke *InvokeConfig) string {
 	targetAgent := invoke.Name
 	effectiveMarkers := agent.GetEffectiveOutputMarkers()
-	markers := formatOutputMarkers(effectiveMarkers)
 
 	var sb strings.Builder
 	if task.GithubIssue > 0 {
@@ -145,8 +159,23 @@ func buildAgentHandoffDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, 
 
 	sb.WriteString(fmt.Sprintf("Hand off this task to the %s agent for processing.\n", targetAgent))
 
+	// Add output markers as a prominent suffix - these are CRITICAL for coordinator to track artifacts
 	if len(effectiveMarkers) > 0 {
-		sb.WriteString(fmt.Sprintf("\n**REQUIRED**: After completion, output these markers:\n%s", markers))
+		sb.WriteString("\n---\n\n")
+		sb.WriteString("## CRITICAL: Coordinator Output Requirements\n\n")
+		sb.WriteString("**You MUST include these exact markers at the END of your response.**\n")
+		sb.WriteString("The coordinator parses these to track artifacts and post updates to GitHub.\n\n")
+		sb.WriteString("```\n")
+		for _, marker := range effectiveMarkers {
+			sb.WriteString(fmt.Sprintf("%s <path-to-file>\n", marker))
+		}
+		sb.WriteString("```\n\n")
+		sb.WriteString("**Example format:**\n")
+		sb.WriteString("```\n")
+		for _, marker := range effectiveMarkers {
+			sb.WriteString(fmt.Sprintf("**%s** `design_docs/planned/v0_6_3/example.md`\n", marker))
+		}
+		sb.WriteString("```\n")
 	}
 
 	return sb.String()
@@ -265,7 +294,6 @@ func HasMarkerValue(output, marker, expectedValue string) bool {
 	return false
 }
 
-
 // ParseStageOutput extracts structured artifacts from execution output.
 // Handles both plain text markers and markdown-formatted markers:
 //   - DESIGN_DOC_PATH: path.md
@@ -298,7 +326,7 @@ func ParseStageOutput(output string, stage TaskStage) *StageExecutionResult {
 // Handles: MARKER: value, **MARKER**: value, MARKER: `value`, **MARKER**: `value`
 func extractPathWithMarkdown(output, marker string) string {
 	// Pattern handles optional ** (bold) around marker and optional backticks around value
-	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*` + "`?" + `([^` + "`" + `\n]+?)` + "`?" + `(?:\s|$|\n)`, regexp.QuoteMeta(marker))
+	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*`+"`?"+`([^`+"`"+`\n]+?)`+"`?"+`(?:\s|$|\n)`, regexp.QuoteMeta(marker))
 	re := regexp.MustCompile(pattern)
 	matches := re.FindStringSubmatch(output)
 	if len(matches) >= 2 {
@@ -337,16 +365,6 @@ func extractListWithMarkdown(output, marker string) []string {
 	return result
 }
 
-// extractPath extracts a single path from output using regex
-func extractPath(output, pattern string) string {
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(output)
-	if len(matches) >= 2 {
-		return strings.TrimSpace(matches[1])
-	}
-	return ""
-}
-
 // extractList extracts a comma-separated list from output
 func extractList(output, pattern string) []string {
 	re := regexp.MustCompile(pattern)
@@ -371,12 +389,37 @@ func extractList(output, pattern string) []string {
 
 // ProcessStageCompletion handles the completion of a stage for GitHub-linked tasks.
 // It calls the appropriate TaskChain callback and handles stage transitions.
+//
+// Artifact discovery strategy (in order of preference):
+// 1. Git diff + artifact patterns (deterministic, reliable)
+// 2. Output markers (fallback for backwards compatibility)
 func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, execResult *ExecuteResult) error {
 	if task.GithubIssue == 0 || task.Stage == TaskStageNone || d.taskChain == nil {
 		return nil // Not a GitHub-linked pipeline task
 	}
 
-	// Parse the output to extract artifacts
+	d.logger.Printf("Processing stage completion for task %s (stage: %s, issue: #%d)",
+		task.ID, task.Stage, task.GithubIssue)
+
+	// Get agent config for artifact patterns
+	agentID := stageToAgentIDForDirective(task.Stage)
+	agent := &AgentConfig{ID: agentID}
+	patterns := agent.GetEffectiveArtifactPatterns()
+
+	// Primary: Discover artifacts via git diff (deterministic)
+	var discoveredArtifacts []string
+	if task.WorktreePath != "" && len(patterns) > 0 {
+		discovery := NewArtifactDiscovery(task.WorktreePath, patterns)
+		artifacts, err := discovery.DiscoverChangedFiles()
+		if err != nil {
+			d.logger.Printf("Warning: Failed to discover artifacts via git diff: %v", err)
+		} else {
+			discoveredArtifacts = artifacts
+			d.logger.Printf("Discovered %d artifacts via git diff: %v", len(artifacts), artifacts)
+		}
+	}
+
+	// Fallback: Parse output markers (for backwards compatibility)
 	stageResult := ParseStageOutput(execResult.Output, task.Stage)
 	stageResult.Duration = execResult.Duration
 	stageResult.Cost = execResult.Cost
@@ -384,17 +427,25 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 	stageResult.InputTokens = execResult.InputTokens
 	stageResult.OutputTokens = execResult.OutputTokens
 
-	d.logger.Printf("Processing stage completion for task %s (stage: %s, issue: #%d)",
-		task.ID, task.Stage, task.GithubIssue)
-
 	switch task.Stage {
 	case TaskStageDesign:
-		if stageResult.DesignDocPath == "" {
-			d.logger.Printf("Warning: No design doc path found in output for task %s", task.ID)
-			// Still notify GitHub but without the path
+		// Use git-discovered artifact if no path from markers
+		designDocPath := stageResult.DesignDocPath
+		if designDocPath == "" && len(discoveredArtifacts) > 0 {
+			// Find first .md file in design_docs/
+			for _, artifact := range discoveredArtifacts {
+				if strings.HasPrefix(artifact, "design_docs/") && strings.HasSuffix(artifact, ".md") {
+					designDocPath = artifact
+					d.logger.Printf("Using git-discovered design doc: %s", designDocPath)
+					break
+				}
+			}
+		}
+		if designDocPath == "" {
+			d.logger.Printf("Warning: No design doc path found for task %s (neither git diff nor markers)", task.ID)
 		}
 		return d.taskChain.OnDesignDocComplete(ctx, task.ID, &DesignDocResult{
-			Path:         stageResult.DesignDocPath,
+			Path:         designDocPath,
 			Duration:     stageResult.Duration,
 			Cost:         stageResult.Cost,
 			TokensUsed:   stageResult.TokensUsed,
@@ -403,11 +454,34 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 		})
 
 	case TaskStageSprint:
-		if stageResult.SprintPlanPath == "" {
-			d.logger.Printf("Warning: No sprint plan path found in output for task %s", task.ID)
+		// Use git-discovered artifact if no path from markers
+		sprintPlanPath := stageResult.SprintPlanPath
+		if sprintPlanPath == "" && len(discoveredArtifacts) > 0 {
+			// Find first sprint plan .md file
+			for _, artifact := range discoveredArtifacts {
+				if strings.HasPrefix(artifact, "design_docs/") && strings.HasSuffix(artifact, ".md") &&
+					strings.Contains(artifact, "sprint") {
+					sprintPlanPath = artifact
+					d.logger.Printf("Using git-discovered sprint plan: %s", sprintPlanPath)
+					break
+				}
+			}
+			// Fallback: any .md in design_docs/
+			if sprintPlanPath == "" {
+				for _, artifact := range discoveredArtifacts {
+					if strings.HasPrefix(artifact, "design_docs/") && strings.HasSuffix(artifact, ".md") {
+						sprintPlanPath = artifact
+						d.logger.Printf("Using git-discovered artifact as sprint plan: %s", sprintPlanPath)
+						break
+					}
+				}
+			}
+		}
+		if sprintPlanPath == "" {
+			d.logger.Printf("Warning: No sprint plan path found for task %s (neither git diff nor markers)", task.ID)
 		}
 		return d.taskChain.OnSprintPlanComplete(ctx, task.ID, &SprintPlanResult{
-			Path:         stageResult.SprintPlanPath,
+			Path:         sprintPlanPath,
 			Duration:     stageResult.Duration,
 			Cost:         stageResult.Cost,
 			TokensUsed:   stageResult.TokensUsed,
@@ -416,6 +490,14 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 		})
 
 	case TaskStageImplementation:
+		// Use git-discovered files if no list from markers
+		filesCreated := stageResult.FilesCreated
+		filesModified := stageResult.FilesModified
+		if len(filesCreated) == 0 && len(filesModified) == 0 && len(discoveredArtifacts) > 0 {
+			// All discovered artifacts are effectively "created or modified"
+			filesModified = discoveredArtifacts
+			d.logger.Printf("Using git-discovered files as modified: %v", filesModified)
+		}
 		return d.taskChain.OnImplementationComplete(ctx, task.ID, &ImplementResult{
 			BranchName:    stageResult.BranchName,
 			WorktreePath:  task.WorktreePath,
@@ -424,8 +506,8 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 			TokensUsed:    stageResult.TokensUsed,
 			InputTokens:   stageResult.InputTokens,
 			OutputTokens:  stageResult.OutputTokens,
-			FilesCreated:  stageResult.FilesCreated,
-			FilesModified: stageResult.FilesModified,
+			FilesCreated:  filesCreated,
+			FilesModified: filesModified,
 		})
 	}
 

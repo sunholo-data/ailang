@@ -477,10 +477,10 @@ func TestGitHubWorkflow_StateTransitionOrder(t *testing.T) {
 
 	// Define workflow stages
 	stages := []struct {
-		name             string
-		labelsToAdd      []string
-		labelsToRemove   []string
-		expectedLabels   []string
+		name           string
+		labelsToAdd    []string
+		labelsToRemove []string
+		expectedLabels []string
 	}{
 		{
 			name:           "stage1_needs_design",

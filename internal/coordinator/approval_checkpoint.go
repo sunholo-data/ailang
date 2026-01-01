@@ -12,11 +12,11 @@ import (
 type ApprovalType string
 
 const (
-	ApprovalTypeMerge     ApprovalType = "merge"      // Request to merge worktree changes
-	ApprovalTypeDestroy   ApprovalType = "destroy"    // Request to destroy worktree with changes
-	ApprovalTypeExecute   ApprovalType = "execute"    // Request to execute a destructive operation
-	ApprovalTypeCost      ApprovalType = "cost"       // Cost threshold exceeded
-	ApprovalTypeHandoff   ApprovalType = "handoff"    // Request to hand off work to another agent
+	ApprovalTypeMerge   ApprovalType = "merge"   // Request to merge worktree changes
+	ApprovalTypeDestroy ApprovalType = "destroy" // Request to destroy worktree with changes
+	ApprovalTypeExecute ApprovalType = "execute" // Request to execute a destructive operation
+	ApprovalTypeCost    ApprovalType = "cost"    // Cost threshold exceeded
+	ApprovalTypeHandoff ApprovalType = "handoff" // Request to hand off work to another agent
 )
 
 // ApprovalStatus represents the state of an approval request
@@ -318,7 +318,7 @@ type ApprovalStore interface {
 // This allows CLI commands to approve/reject requests that the daemon is waiting on.
 type StoreBackedApprovalCheckpoint struct {
 	*ApprovalCheckpoint
-	store       ApprovalStore
+	store        ApprovalStore
 	pollInterval time.Duration
 }
 

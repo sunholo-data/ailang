@@ -29,6 +29,34 @@ Invoke this skill when:
 - User wants guided execution with built-in quality checks
 - User needs progress tracking and pause points
 
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output these markers at the end of your response:
+
+```
+IMPLEMENTATION_COMPLETE: true
+BRANCH_NAME: coordinator/task-XXXX
+FILES_CREATED: file1.go, file2.go
+FILES_MODIFIED: file3.go, file4.go
+```
+
+**Why?** The coordinator uses these markers to:
+1. Track implementation completion
+2. Post updates to GitHub issues
+3. Trigger the merge approval workflow
+
+**Example completion:**
+```
+## Implementation Complete
+
+All milestones have been completed and tests pass.
+
+**IMPLEMENTATION_COMPLETE**: true
+**BRANCH_NAME**: `coordinator/task-abc123`
+**FILES_CREATED**: `internal/new_file.go`, `internal/new_test.go`
+**FILES_MODIFIED**: `internal/existing.go`
+```
+
 ## Core Principles
 
 1. **Test-Driven**: All code must pass tests before moving to next milestone

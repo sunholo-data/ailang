@@ -105,10 +105,10 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 	// Create message in the target agent's inbox
 	// We create a new thread for the handoff
 	_, err := d.msgStore.CreateMessage(
-		"",                                       // New thread (empty ThreadID)
-		"ailang_instance", "coordinator",         // from
-		targetAgent.Inbox, targetAgent.ID,        // to (inbox and agent)
-		"handoff",                                // kind
+		"",                               // New thread (empty ThreadID)
+		"ailang_instance", "coordinator", // from
+		targetAgent.Inbox, targetAgent.ID, // to (inbox and agent)
+		"handoff", // kind
 		message,
 		metadata,
 	)
@@ -443,8 +443,8 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 
 	// Send to target agent's inbox
 	_, err = d.msgStore.CreateMessage(
-		"",                                // New thread
-		"ailang_instance", "coordinator",  // from
+		"",                               // New thread
+		"ailang_instance", "coordinator", // from
 		targetAgent.Inbox, targetAgent.ID, // to
 		"handoff",
 		message,

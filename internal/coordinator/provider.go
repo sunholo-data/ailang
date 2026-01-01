@@ -12,13 +12,13 @@ import (
 type TaskType string
 
 const (
-	TaskTypeBugFix    TaskType = "bug-fix"
-	TaskTypeFeature   TaskType = "feature"
-	TaskTypeDocs      TaskType = "docs"
-	TaskTypeResearch  TaskType = "research"
-	TaskTypeRefactor  TaskType = "refactor"
-	TaskTypeTest      TaskType = "test"
-	TaskTypeUnknown   TaskType = "unknown"
+	TaskTypeBugFix   TaskType = "bug-fix"
+	TaskTypeFeature  TaskType = "feature"
+	TaskTypeDocs     TaskType = "docs"
+	TaskTypeResearch TaskType = "research"
+	TaskTypeRefactor TaskType = "refactor"
+	TaskTypeTest     TaskType = "test"
+	TaskTypeUnknown  TaskType = "unknown"
 )
 
 // Task represents a task to be executed
@@ -45,8 +45,8 @@ type AnalyzedTask struct {
 type ExecuteOptions struct {
 	Timeout      time.Duration
 	DryRun       bool
-	Workspace    string                 // Working directory for the task
-	Model        string                 // Model to use (provider-specific)
+	Workspace    string                // Working directory for the task
+	Model        string                // Model to use (provider-specific)
 	EventHandler executor.EventHandler // Optional handler for streaming events
 }
 

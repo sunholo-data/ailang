@@ -14,28 +14,28 @@ import (
 
 // ResourceMetrics holds current resource usage for a task
 type ResourceMetrics struct {
-	TaskID      string    `json:"task_id"`
-	ThreadID    string    `json:"thread_id,omitempty"`
-	Timestamp   time.Time `json:"timestamp"`
+	TaskID    string    `json:"task_id"`
+	ThreadID  string    `json:"thread_id,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 
 	// Process metrics
-	CPUPercent  float64 `json:"cpu_percent"`
-	MemoryMB    float64 `json:"memory_mb"`
-	PID         int     `json:"pid,omitempty"`
+	CPUPercent float64 `json:"cpu_percent"`
+	MemoryMB   float64 `json:"memory_mb"`
+	PID        int     `json:"pid,omitempty"`
 
 	// Token metrics (accumulated)
-	TokensIn    int     `json:"tokens_in"`
-	TokensOut   int     `json:"tokens_out"`
+	TokensIn  int `json:"tokens_in"`
+	TokensOut int `json:"tokens_out"`
 
 	// Cost metrics
-	Cost        float64 `json:"cost"`
+	Cost float64 `json:"cost"`
 
 	// Duration
-	DurationSec int     `json:"duration_sec"`
+	DurationSec int `json:"duration_sec"`
 
 	// Peak values
-	PeakCPU     float64 `json:"peak_cpu"`
-	PeakMemory  float64 `json:"peak_memory_mb"`
+	PeakCPU    float64 `json:"peak_cpu"`
+	PeakMemory float64 `json:"peak_memory_mb"`
 }
 
 // ResourceTracker tracks resource usage for a running task.
@@ -46,7 +46,7 @@ type ResourceTracker struct {
 	pid       int
 	startTime time.Time
 
-	mu        sync.RWMutex
+	mu sync.RWMutex
 
 	// Current metrics
 	cpuPercent float64

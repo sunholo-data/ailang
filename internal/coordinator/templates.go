@@ -38,14 +38,14 @@ type CommentData struct {
 	OutputTokens int
 
 	// Artifacts
-	DesignDocPath    string
-	DesignDocContent string // Actual markdown content of the design doc
-	SprintPlanPath   string
+	DesignDocPath     string
+	DesignDocContent  string // Actual markdown content of the design doc
+	SprintPlanPath    string
 	SprintPlanContent string // Actual markdown content of the sprint plan
-	WorktreePath   string
-	BranchName     string
-	FilesCreated   []string
-	FilesModified  []string
+	WorktreePath      string
+	BranchName        string
+	FilesCreated      []string
+	FilesModified     []string
 
 	// Custom data
 	Extra map[string]interface{}
