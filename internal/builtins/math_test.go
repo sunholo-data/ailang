@@ -10,6 +10,49 @@ import (
 )
 
 // ============================================================================
+// Double Function Tests (Simple Test Fixture)
+// ============================================================================
+
+func TestDoubleRegistered(t *testing.T) {
+	spec, ok := GetSpec("double_Int")
+	require.True(t, ok, "double_Int should be registered")
+
+	assert.Equal(t, "std/math", spec.Module)
+	assert.Equal(t, "double_Int", spec.Name)
+	assert.Equal(t, 1, spec.NumArgs)
+	assert.True(t, spec.IsPure)
+}
+
+func TestDoubleImpl(t *testing.T) {
+	spec, ok := GetSpec("double_Int")
+	require.True(t, ok)
+
+	tests := []struct {
+		name     string
+		input    int
+		expected int
+	}{
+		{"positive", 5, 10},
+		{"zero", 0, 0},
+		{"negative", -3, -6},
+		{"large", 1000000, 2000000},
+		{"one", 1, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{&eval.IntValue{Value: tt.input}}
+			result, err := spec.Impl(nil, args)
+
+			require.NoError(t, err)
+			intVal, ok := result.(*eval.IntValue)
+			require.True(t, ok, "result should be IntValue")
+			assert.Equal(t, tt.expected, intVal.Value)
+		})
+	}
+}
+
+// ============================================================================
 // Trigonometric Functions Tests
 // ============================================================================
 

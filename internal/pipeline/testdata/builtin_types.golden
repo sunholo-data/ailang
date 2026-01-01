@@ -100,6 +100,7 @@ concat_List : (list[a], list[a]) -> list[a]
 concat_String : (string, string) -> string
 div_Float : (float, float) -> float
 div_Int : (int, int) -> int
+double_Int : int -> int
 eq_Bool : (bool, bool) -> bool
 eq_Float : (float, float) -> bool
 eq_Int : (int, int) -> bool
