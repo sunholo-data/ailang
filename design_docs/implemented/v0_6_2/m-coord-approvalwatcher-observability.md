@@ -1,10 +1,11 @@
 # M-COORD-APPROVALWATCHER-OBSERVABILITY: ApprovalWatcher Debug and Observability
 
 ## Status
-**Status**: Planned
+**Status**: ✅ Implemented
 **Target Version**: v0.6.2
 **Priority**: P1 (High - blocks autonomous workflow debugging)
 **Created**: 2026-01-01
+**Completed**: 2026-01-01
 **Bug Report**: E2E testing of M-COORD-GITHUB-COMPLETE revealed watcher not detecting labels
 
 ## Problem Statement
@@ -42,10 +43,10 @@ The ApprovalWatcher logs only:
 Add comprehensive debug logging and observability to ApprovalWatcher so issues can be diagnosed without code changes.
 
 ### Success Metrics
-- [ ] Can verify watcher is polling via logs
-- [ ] Can see which issues are being watched
-- [ ] Can see labels found during each poll cycle
-- [ ] Can diagnose label detection failures in production
+- [x] Can verify watcher is polling via logs
+- [x] Can see which issues are being watched
+- [x] Can see labels found during each poll cycle
+- [x] Can diagnose label detection failures in production
 
 ## Solution Design
 
@@ -117,13 +118,13 @@ Add `DEBUG_APPROVAL_WATCHER=1` to control verbose logging:
 
 ### Acceptance Criteria
 
-- [ ] Poll cycles are logged with issue count
-- [ ] Each issue check is logged with labels found
-- [ ] Watch/unwatch operations are logged
-- [ ] `ailang coordinator watcher-status` shows current state
-- [ ] DEBUG_APPROVAL_WATCHER=1 enables verbose mode
-- [ ] Existing tests pass
-- [ ] E2E test with GitHub labels works without manual intervention
+- [x] Poll cycles are logged with issue count
+- [x] Each issue check is logged with labels found
+- [x] Watch/unwatch operations are logged
+- [x] `ailang coordinator watcher-status` shows current state
+- [x] DEBUG_APPROVAL_WATCHER=1 enables verbose mode
+- [x] Existing tests pass
+- [x] E2E test with GitHub labels works without manual intervention
 
 ## Testing
 
@@ -159,3 +160,56 @@ Add `DEBUG_APPROVAL_WATCHER=1` to control verbose logging:
 
 - [M-COORD-GITHUB-AUTO-ROUTING](../implemented/v0_6_2/m-coord-github-auto-routing.md) - Parent design doc
 - [M-COORD-GITHUB-COMPLETE Sprint Plan](../implemented/v0_6_2/m-coord-github-complete-sprint-plan.md) - Sprint where bug was found
+
+---
+
+## Implementation Report
+
+**Completed**: 2026-01-01
+**Actual Duration**: ~40 minutes
+**Actual LOC**: ~150
+
+### What Was Built
+
+1. **Panic Recovery** (M1) - Added `defer recover()` to `handleEvent()` to catch handler panics and keep the poll goroutine alive. This was the root cause fix - if any handler panicked, the poll goroutine would die silently.
+
+2. **Debug Logging** (M2) - Added comprehensive logging throughout the polling lifecycle:
+   - Poll cycle start/end with issue count and events found
+   - Labels fetched from GitHub for each issue
+   - Watch/unwatch state changes
+
+3. **Status CLI** (M3) - Added `ailang coordinator watcher-status` command:
+   - Shows running state, poll interval, last poll time
+   - Lists all watched issues with their task IDs
+   - Supports `--json` output for scripting
+
+4. **Debug Toggle** (M4) - Added `DEBUG_APPROVAL_WATCHER=1` environment variable:
+   - Verbose mode: Logs every poll cycle and label check
+   - Normal mode: Only logs significant events (startup, events processed, errors)
+   - Documented in CLAUDE.md
+
+### Files Modified
+
+| File | Changes | LOC |
+|------|---------|-----|
+| `internal/coordinator/approval_watcher.go` | Panic recovery, debug logging, WatcherStatus struct, GetStatus() | +75 |
+| `internal/coordinator/daemon_lifecycle.go` | GetWatcherStatus() method | +10 |
+| `cmd/ailang/coordinator.go` | watcher-status command + help | +65 |
+| `CLAUDE.md` | DEBUG_APPROVAL_WATCHER documentation | +1 |
+
+### E2E Test Results
+
+Successfully verified with real GitHub issue #91:
+1. ✅ Debug logging startup: `Starting with poll interval 1m0s`
+2. ✅ Watch tracking: `Now watching issue #91 for task task-0f523cea`
+3. ✅ Poll cycle logging: `Poll cycle started (watching 4 issues)`
+4. ✅ Label detection: `Issue #91 labels: [...design-approved]`
+5. ✅ Event processing: `Processing design-approved for task task-0f523cea`
+6. ✅ Handler execution: `Design approved for task...`
+7. ✅ Task requeue: `Task requeued for sprint planning stage`
+8. ✅ Poll continues: `Poll cycle complete (4 issues, 1 events)`
+9. ✅ Label cleanup: Both approval labels removed from issue
+
+### Key Insight
+
+The root cause was **poll goroutine fragility**. If any handler (`OnDesignApproved`, `OnSprintApproved`, `OnMergeApproved`) panicked, the goroutine would die silently and polling would stop forever with no indication. The `defer recover()` fix ensures the watcher continues operating even if a handler fails.
