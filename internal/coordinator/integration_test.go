@@ -853,3 +853,121 @@ func TestIntegration_EndToEnd_SimplePath(t *testing.T) {
 
 	t.Logf("End-to-end test passed: task %s completed with cost $%.4f", task.ID, final.Cost)
 }
+
+// TestIntegration_GitHubPipelineStages tests the GitHub-driven pipeline stages
+// This verifies that:
+// 1. Tasks with GithubIssue get stage-aware directives
+// 2. Output parsing extracts design doc/sprint plan paths
+// 3. Stage transitions work correctly with RequeueTask
+func TestIntegration_GitHubPipelineStages(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	// Create a GitHub-linked task
+	task := &TaskRecord{
+		ID:          "gh-pipeline-1",
+		MessageID:   "msg-gh-1",
+		Title:       "Add new feature",
+		Content:     "Implement the frobnitz widget",
+		Type:        TaskTypeFeature,
+		Status:      TaskStatusPending,
+		GithubIssue: 42, // Linked to GitHub issue #42
+		Stage:       TaskStageDesign,
+		CreatedAt:   time.Now(),
+	}
+
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+
+	// Verify stage-aware directive for design stage
+	directive := BuildStageDirective(task)
+	if directive == task.Content {
+		t.Error("expected stage-aware directive, got original content")
+	}
+	if !containsString(directive, "design-doc-creator") {
+		t.Error("design stage directive should mention design-doc-creator skill")
+	}
+	if !containsString(directive, "DESIGN_DOC_PATH:") {
+		t.Error("design stage directive should include output format")
+	}
+
+	// Test output parsing for design stage
+	designOutput := `Created design document for frobnitz widget.
+DESIGN_DOC_PATH: design_docs/planned/v0_6_3/frobnitz-widget.md
+Ready for review.`
+
+	designResult := ParseStageOutput(designOutput, TaskStageDesign)
+	if designResult.DesignDocPath != "design_docs/planned/v0_6_3/frobnitz-widget.md" {
+		t.Errorf("expected design doc path, got: %s", designResult.DesignDocPath)
+	}
+
+	// Transition to sprint stage
+	if err := store.SetTaskStage(ctx, task.ID, TaskStageSprint); err != nil {
+		t.Fatalf("failed to set stage: %v", err)
+	}
+
+	// Verify sprint directive
+	task.Stage = TaskStageSprint
+	sprintDirective := BuildStageDirective(task)
+	if !containsString(sprintDirective, "sprint-planner") {
+		t.Error("sprint stage directive should mention sprint-planner skill")
+	}
+
+	// Test output parsing for sprint stage
+	sprintOutput := `Created sprint plan.
+SPRINT_PLAN_PATH: design_docs/planned/v0_6_3/frobnitz-sprint-plan.md
+Ready for execution.`
+
+	sprintResult := ParseStageOutput(sprintOutput, TaskStageSprint)
+	if sprintResult.SprintPlanPath != "design_docs/planned/v0_6_3/frobnitz-sprint-plan.md" {
+		t.Errorf("expected sprint plan path, got: %s", sprintResult.SprintPlanPath)
+	}
+
+	// Test RequeueTask
+	if err := store.MarkTaskRunning(ctx, task.ID, "test-provider", ""); err != nil {
+		t.Fatalf("failed to mark running: %v", err)
+	}
+
+	retrieved, _ := store.GetTask(ctx, task.ID)
+	if retrieved.Status != TaskStatusRunning {
+		t.Errorf("expected running, got %s", retrieved.Status)
+	}
+
+	if err := store.RequeueTask(ctx, task.ID); err != nil {
+		t.Fatalf("failed to requeue task: %v", err)
+	}
+
+	retrieved, _ = store.GetTask(ctx, task.ID)
+	if retrieved.Status != TaskStatusPending {
+		t.Errorf("expected pending after requeue, got %s", retrieved.Status)
+	}
+
+	// Verify implementation stage parsing
+	implOutput := `Implementation complete.
+IMPLEMENTATION_COMPLETE: true
+BRANCH_NAME: feature/frobnitz-widget
+FILES_CREATED: internal/frobnitz/widget.go, internal/frobnitz/widget_test.go
+FILES_MODIFIED: internal/registry/registry.go`
+
+	implResult := ParseStageOutput(implOutput, TaskStageImplementation)
+	if implResult.BranchName != "feature/frobnitz-widget" {
+		t.Errorf("expected branch name, got: %s", implResult.BranchName)
+	}
+	if len(implResult.FilesCreated) != 2 {
+		t.Errorf("expected 2 files created, got: %v", implResult.FilesCreated)
+	}
+	if len(implResult.FilesModified) != 1 {
+		t.Errorf("expected 1 file modified, got: %v", implResult.FilesModified)
+	}
+
+	t.Log("GitHub pipeline stages test passed")
+}
+
+// containsString checks if s contains substr
+func containsString(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || containsString(s[1:], substr)))
+}
