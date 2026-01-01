@@ -5,6 +5,25 @@ import (
 	"sync"
 )
 
+// InvokeConfig specifies how an agent should be invoked.
+// Supports three types:
+//   - "skill": Invoke a Claude Code skill (e.g., "/design-doc-creator")
+//   - "agent": Send message to another agent (e.g., "sprint-planner")
+//   - "prompt": Use custom prompt template with variable substitution
+type InvokeConfig struct {
+	Type     string `yaml:"type" json:"type"`         // "skill", "agent", or "prompt"
+	Name     string `yaml:"name" json:"name"`         // Skill/agent name (for skill/agent types)
+	Template string `yaml:"template" json:"template"` // Custom template (for prompt type)
+}
+
+// ApprovalConfig specifies the approval workflow for an agent.
+// Controls GitHub labels and comment templates for human-in-the-loop approval.
+type ApprovalConfig struct {
+	NeedsLabel            string `yaml:"needs_label" json:"needs_label"`                         // Label to add when awaiting approval (e.g., "needs-design-approval")
+	ApprovedLabel         string `yaml:"approved_label" json:"approved_label"`                   // Label that triggers next stage (e.g., "design-approved")
+	GithubCommentTemplate string `yaml:"github_comment_template" json:"github_comment_template"` // Template for GitHub comment on completion
+}
+
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
@@ -19,6 +38,11 @@ type AgentConfig struct {
 	Provider             string   `yaml:"provider" json:"provider"`                             // "claude" or "gemini"
 	MaxConcurrentTasks   int      `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"`     // 0 = unlimited
 	SessionContinuity    bool     `yaml:"session_continuity" json:"session_continuity"`         // Use --resume for Claude Code / --conversation-id for Gemini
+
+	// Generic workflow configuration (v0.6.3+)
+	Invoke        *InvokeConfig   `yaml:"invoke" json:"invoke,omitempty"`                 // How to invoke this agent
+	OutputMarkers []string        `yaml:"output_markers" json:"output_markers,omitempty"` // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
+	Approval      *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`             // Approval workflow configuration
 }
 
 // AgentRegistry manages the set of configured agents.
@@ -179,4 +203,111 @@ func (r *AgentRegistry) Validate() []string {
 	}
 
 	return issues
+}
+
+// =============================================================================
+// Default Configs (Backwards Compatibility for AILANG Workflow)
+// =============================================================================
+// These functions provide legacy defaults for agents without explicit config.
+// Deprecated: New agents should use explicit Invoke, OutputMarkers, and Approval config.
+// These defaults will be removed in v0.7.0.
+
+// DefaultInvokeConfig returns the legacy invoke config for known AILANG agent IDs.
+// Returns nil for unknown agents (no default behavior).
+//
+// Deprecated: Agents should have explicit InvokeConfig in YAML.
+func DefaultInvokeConfig(agentID string) *InvokeConfig {
+	switch agentID {
+	case "design-doc-creator":
+		return &InvokeConfig{
+			Type: "skill",
+			Name: "design-doc-creator",
+		}
+	case "sprint-planner":
+		return &InvokeConfig{
+			Type: "skill",
+			Name: "sprint-planner",
+		}
+	case "sprint-executor":
+		return &InvokeConfig{
+			Type: "skill",
+			Name: "sprint-executor",
+		}
+	default:
+		return nil
+	}
+}
+
+// DefaultOutputMarkers returns the legacy output markers for known AILANG agent IDs.
+// Returns nil for unknown agents (no markers expected).
+//
+// Deprecated: Agents should have explicit OutputMarkers in YAML.
+func DefaultOutputMarkers(agentID string) []string {
+	switch agentID {
+	case "design-doc-creator":
+		return []string{"DESIGN_DOC_PATH:"}
+	case "sprint-planner":
+		return []string{"SPRINT_PLAN_PATH:", "SPRINT_JSON_PATH:"}
+	case "sprint-executor":
+		return []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}
+	default:
+		return nil
+	}
+}
+
+// DefaultApprovalConfig returns the legacy approval config for known AILANG agent IDs.
+// Returns nil for unknown agents (no approval workflow).
+//
+// Deprecated: Agents should have explicit ApprovalConfig in YAML.
+func DefaultApprovalConfig(agentID string) *ApprovalConfig {
+	switch agentID {
+	case "design-doc-creator":
+		return &ApprovalConfig{
+			NeedsLabel:            "needs-design-approval",
+			ApprovedLabel:         "design-approved",
+			GithubCommentTemplate: "design_doc",
+		}
+	case "sprint-planner":
+		return &ApprovalConfig{
+			NeedsLabel:            "needs-sprint-approval",
+			ApprovedLabel:         "sprint-approved",
+			GithubCommentTemplate: "sprint_plan",
+		}
+	case "sprint-executor":
+		return &ApprovalConfig{
+			NeedsLabel:            "needs-implementation-approval",
+			ApprovedLabel:         "implementation-approved",
+			GithubCommentTemplate: "implementation",
+		}
+	default:
+		return nil
+	}
+}
+
+// GetEffectiveInvokeConfig returns the agent's invoke config, or defaults for known agents.
+// Returns nil for unknown agents without explicit config.
+//
+// Note: Deprecation warnings for using defaults should be logged by the caller,
+// as they have logger access. Check if result differs from explicit config.
+func (a *AgentConfig) GetEffectiveInvokeConfig() *InvokeConfig {
+	if a.Invoke != nil {
+		return a.Invoke
+	}
+	return DefaultInvokeConfig(a.ID)
+}
+
+// GetEffectiveOutputMarkers returns the agent's output markers, or defaults for known agents.
+func (a *AgentConfig) GetEffectiveOutputMarkers() []string {
+	if len(a.OutputMarkers) > 0 {
+		return a.OutputMarkers
+	}
+	return DefaultOutputMarkers(a.ID)
+}
+
+// GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.
+func (a *AgentConfig) GetEffectiveApprovalConfig() *ApprovalConfig {
+	if a.Approval != nil {
+		return a.Approval
+	}
+	return DefaultApprovalConfig(a.ID)
 }

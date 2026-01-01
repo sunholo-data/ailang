@@ -339,3 +339,477 @@ coordinator:
 		t.Errorf("expected 2 watch_labels, got %d", len(cfg.GitHubSync.WatchLabels))
 	}
 }
+
+// Tests for InvokeConfig and ApprovalConfig (M-COORD-GENERIC-WORKFLOWS M1)
+
+func TestInvokeConfig_SkillType(t *testing.T) {
+	invoke := &InvokeConfig{
+		Type: "skill",
+		Name: "design-doc-creator",
+	}
+
+	if invoke.Type != "skill" {
+		t.Errorf("expected Type 'skill', got %q", invoke.Type)
+	}
+	if invoke.Name != "design-doc-creator" {
+		t.Errorf("expected Name 'design-doc-creator', got %q", invoke.Name)
+	}
+	if invoke.Template != "" {
+		t.Errorf("expected empty Template for skill type, got %q", invoke.Template)
+	}
+}
+
+func TestInvokeConfig_AgentType(t *testing.T) {
+	invoke := &InvokeConfig{
+		Type: "agent",
+		Name: "sprint-planner",
+	}
+
+	if invoke.Type != "agent" {
+		t.Errorf("expected Type 'agent', got %q", invoke.Type)
+	}
+	if invoke.Name != "sprint-planner" {
+		t.Errorf("expected Name 'sprint-planner', got %q", invoke.Name)
+	}
+}
+
+func TestInvokeConfig_PromptType(t *testing.T) {
+	invoke := &InvokeConfig{
+		Type:     "prompt",
+		Template: "Please analyze the task: {{.TaskTitle}} and create a design document at {{.DesignDocPath}}",
+	}
+
+	if invoke.Type != "prompt" {
+		t.Errorf("expected Type 'prompt', got %q", invoke.Type)
+	}
+	if invoke.Template == "" {
+		t.Error("expected non-empty Template for prompt type")
+	}
+}
+
+func TestApprovalConfig_Labels(t *testing.T) {
+	approval := &ApprovalConfig{
+		NeedsLabel:            "needs-design-approval",
+		ApprovedLabel:         "design-approved",
+		GithubCommentTemplate: "## Design Document Ready\n\nPlease review: {{.DesignDocPath}}",
+	}
+
+	if approval.NeedsLabel != "needs-design-approval" {
+		t.Errorf("expected NeedsLabel 'needs-design-approval', got %q", approval.NeedsLabel)
+	}
+	if approval.ApprovedLabel != "design-approved" {
+		t.Errorf("expected ApprovedLabel 'design-approved', got %q", approval.ApprovedLabel)
+	}
+	if approval.GithubCommentTemplate == "" {
+		t.Error("expected non-empty GithubCommentTemplate")
+	}
+}
+
+func TestAgentConfig_WithGenericWorkflow(t *testing.T) {
+	agent := &AgentConfig{
+		ID:           "design-agent",
+		Label:        "Design Agent",
+		Inbox:        "design",
+		Workspace:    "/tmp/design",
+		Capabilities: []string{"code", "research"},
+		Provider:     "claude",
+		Invoke: &InvokeConfig{
+			Type: "skill",
+			Name: "design-doc-creator",
+		},
+		OutputMarkers: []string{"DESIGN_DOC_PATH:", "SPRINT_PLAN_PATH:"},
+		Approval: &ApprovalConfig{
+			NeedsLabel:    "needs-design-approval",
+			ApprovedLabel: "design-approved",
+		},
+	}
+
+	// Verify Invoke config
+	if agent.Invoke == nil {
+		t.Fatal("expected non-nil Invoke config")
+	}
+	if agent.Invoke.Type != "skill" {
+		t.Errorf("expected Invoke.Type 'skill', got %q", agent.Invoke.Type)
+	}
+	if agent.Invoke.Name != "design-doc-creator" {
+		t.Errorf("expected Invoke.Name 'design-doc-creator', got %q", agent.Invoke.Name)
+	}
+
+	// Verify OutputMarkers
+	if len(agent.OutputMarkers) != 2 {
+		t.Errorf("expected 2 OutputMarkers, got %d", len(agent.OutputMarkers))
+	}
+	if agent.OutputMarkers[0] != "DESIGN_DOC_PATH:" {
+		t.Errorf("expected first marker 'DESIGN_DOC_PATH:', got %q", agent.OutputMarkers[0])
+	}
+
+	// Verify Approval config
+	if agent.Approval == nil {
+		t.Fatal("expected non-nil Approval config")
+	}
+	if agent.Approval.NeedsLabel != "needs-design-approval" {
+		t.Errorf("expected Approval.NeedsLabel 'needs-design-approval', got %q", agent.Approval.NeedsLabel)
+	}
+}
+
+func TestLoadAgentRegistryFrom_WithGenericWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `
+coordinator:
+  default_provider: claude
+  agents:
+    - id: design-agent
+      label: Design Agent
+      inbox: design
+      workspace: /tmp/design
+      capabilities: [code, research]
+      provider: claude
+      invoke:
+        type: skill
+        name: design-doc-creator
+      output_markers:
+        - "DESIGN_DOC_PATH:"
+        - "STATUS:"
+      approval:
+        needs_label: needs-design-approval
+        approved_label: design-approved
+        github_comment_template: "## Design Ready\n\nPath: {{.DesignDocPath}}"
+    - id: sprint-agent
+      label: Sprint Agent
+      inbox: sprint
+      workspace: /tmp/sprint
+      capabilities: [code]
+      invoke:
+        type: agent
+        name: sprint-planner
+      output_markers:
+        - "SPRINT_PLAN_PATH:"
+      approval:
+        needs_label: needs-sprint-approval
+        approved_label: sprint-approved
+    - id: custom-agent
+      label: Custom Prompt Agent
+      inbox: custom
+      workspace: /tmp/custom
+      capabilities: [research]
+      invoke:
+        type: prompt
+        template: "Analyze task: {{.TaskTitle}}"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	registry, err := LoadAgentRegistryFrom(configPath)
+	if err != nil {
+		t.Fatalf("failed to load registry: %v", err)
+	}
+
+	if registry.Count() != 3 {
+		t.Errorf("expected 3 agents, got %d", registry.Count())
+	}
+
+	// Verify design-agent with skill invoke
+	designAgent := registry.GetAgentByID("design-agent")
+	if designAgent == nil {
+		t.Fatal("expected to find design-agent")
+	}
+	if designAgent.Invoke == nil {
+		t.Fatal("expected design-agent to have Invoke config")
+	}
+	if designAgent.Invoke.Type != "skill" {
+		t.Errorf("expected Invoke.Type 'skill', got %q", designAgent.Invoke.Type)
+	}
+	if designAgent.Invoke.Name != "design-doc-creator" {
+		t.Errorf("expected Invoke.Name 'design-doc-creator', got %q", designAgent.Invoke.Name)
+	}
+	if len(designAgent.OutputMarkers) != 2 {
+		t.Errorf("expected 2 OutputMarkers, got %d", len(designAgent.OutputMarkers))
+	}
+	if designAgent.Approval == nil {
+		t.Fatal("expected design-agent to have Approval config")
+	}
+	if designAgent.Approval.NeedsLabel != "needs-design-approval" {
+		t.Errorf("expected NeedsLabel 'needs-design-approval', got %q", designAgent.Approval.NeedsLabel)
+	}
+	if designAgent.Approval.GithubCommentTemplate == "" {
+		t.Error("expected non-empty GithubCommentTemplate")
+	}
+
+	// Verify sprint-agent with agent invoke
+	sprintAgent := registry.GetAgentByID("sprint-agent")
+	if sprintAgent == nil {
+		t.Fatal("expected to find sprint-agent")
+	}
+	if sprintAgent.Invoke == nil {
+		t.Fatal("expected sprint-agent to have Invoke config")
+	}
+	if sprintAgent.Invoke.Type != "agent" {
+		t.Errorf("expected Invoke.Type 'agent', got %q", sprintAgent.Invoke.Type)
+	}
+	if len(sprintAgent.OutputMarkers) != 1 {
+		t.Errorf("expected 1 OutputMarker, got %d", len(sprintAgent.OutputMarkers))
+	}
+
+	// Verify custom-agent with prompt invoke
+	customAgent := registry.GetAgentByID("custom-agent")
+	if customAgent == nil {
+		t.Fatal("expected to find custom-agent")
+	}
+	if customAgent.Invoke == nil {
+		t.Fatal("expected custom-agent to have Invoke config")
+	}
+	if customAgent.Invoke.Type != "prompt" {
+		t.Errorf("expected Invoke.Type 'prompt', got %q", customAgent.Invoke.Type)
+	}
+	if customAgent.Invoke.Template == "" {
+		t.Error("expected non-empty Template for prompt type")
+	}
+	// Custom agent has no approval config (optional)
+	if customAgent.Approval != nil {
+		t.Error("expected custom-agent to have nil Approval config")
+	}
+}
+
+func TestAgentConfig_NilOptionalFields(t *testing.T) {
+	// Agents without generic workflow config should work (backwards compatibility)
+	agent := &AgentConfig{
+		ID:           "legacy-agent",
+		Label:        "Legacy Agent",
+		Inbox:        "legacy",
+		Workspace:    "/tmp/legacy",
+		Capabilities: []string{"code"},
+		Provider:     "claude",
+		// Invoke, OutputMarkers, and Approval are all nil/empty
+	}
+
+	if agent.Invoke != nil {
+		t.Error("expected nil Invoke for legacy agent")
+	}
+	if len(agent.OutputMarkers) != 0 {
+		t.Errorf("expected empty OutputMarkers, got %d", len(agent.OutputMarkers))
+	}
+	if agent.Approval != nil {
+		t.Error("expected nil Approval for legacy agent")
+	}
+}
+
+// =============================================================================
+// Default Config Tests (M-COORD-GENERIC-WORKFLOWS M5)
+// =============================================================================
+
+func TestDefaultInvokeConfig_KnownAgents(t *testing.T) {
+	tests := []struct {
+		agentID      string
+		expectedType string
+		expectedName string
+	}{
+		{"design-doc-creator", "skill", "design-doc-creator"},
+		{"sprint-planner", "skill", "sprint-planner"},
+		{"sprint-executor", "skill", "sprint-executor"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.agentID, func(t *testing.T) {
+			config := DefaultInvokeConfig(tc.agentID)
+			if config == nil {
+				t.Fatalf("expected non-nil config for %s", tc.agentID)
+			}
+			if config.Type != tc.expectedType {
+				t.Errorf("expected type %q, got %q", tc.expectedType, config.Type)
+			}
+			if config.Name != tc.expectedName {
+				t.Errorf("expected name %q, got %q", tc.expectedName, config.Name)
+			}
+		})
+	}
+}
+
+func TestDefaultInvokeConfig_UnknownAgent(t *testing.T) {
+	config := DefaultInvokeConfig("unknown-agent")
+	if config != nil {
+		t.Error("expected nil config for unknown agent")
+	}
+}
+
+func TestDefaultOutputMarkers_KnownAgents(t *testing.T) {
+	tests := []struct {
+		agentID  string
+		expected []string
+	}{
+		{"design-doc-creator", []string{"DESIGN_DOC_PATH:"}},
+		{"sprint-planner", []string{"SPRINT_PLAN_PATH:", "SPRINT_JSON_PATH:"}},
+		{"sprint-executor", []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.agentID, func(t *testing.T) {
+			markers := DefaultOutputMarkers(tc.agentID)
+			if len(markers) != len(tc.expected) {
+				t.Fatalf("expected %d markers, got %d", len(tc.expected), len(markers))
+			}
+			for i, m := range markers {
+				if m != tc.expected[i] {
+					t.Errorf("marker %d: expected %q, got %q", i, tc.expected[i], m)
+				}
+			}
+		})
+	}
+}
+
+func TestDefaultOutputMarkers_UnknownAgent(t *testing.T) {
+	markers := DefaultOutputMarkers("unknown-agent")
+	if markers != nil {
+		t.Error("expected nil markers for unknown agent")
+	}
+}
+
+func TestDefaultApprovalConfig_KnownAgents(t *testing.T) {
+	tests := []struct {
+		agentID       string
+		needsLabel    string
+		approvedLabel string
+	}{
+		{"design-doc-creator", "needs-design-approval", "design-approved"},
+		{"sprint-planner", "needs-sprint-approval", "sprint-approved"},
+		{"sprint-executor", "needs-implementation-approval", "implementation-approved"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.agentID, func(t *testing.T) {
+			config := DefaultApprovalConfig(tc.agentID)
+			if config == nil {
+				t.Fatalf("expected non-nil config for %s", tc.agentID)
+			}
+			if config.NeedsLabel != tc.needsLabel {
+				t.Errorf("expected needs_label %q, got %q", tc.needsLabel, config.NeedsLabel)
+			}
+			if config.ApprovedLabel != tc.approvedLabel {
+				t.Errorf("expected approved_label %q, got %q", tc.approvedLabel, config.ApprovedLabel)
+			}
+		})
+	}
+}
+
+func TestDefaultApprovalConfig_UnknownAgent(t *testing.T) {
+	config := DefaultApprovalConfig("unknown-agent")
+	if config != nil {
+		t.Error("expected nil config for unknown agent")
+	}
+}
+
+func TestAgentConfig_GetEffectiveInvokeConfig_ExplicitConfig(t *testing.T) {
+	agent := &AgentConfig{
+		ID: "design-doc-creator",
+		Invoke: &InvokeConfig{
+			Type: "prompt",
+			Name: "custom-prompt",
+		},
+	}
+
+	config := agent.GetEffectiveInvokeConfig()
+	if config.Type != "prompt" {
+		t.Errorf("expected explicit config type 'prompt', got %q", config.Type)
+	}
+	if config.Name != "custom-prompt" {
+		t.Errorf("expected explicit config name 'custom-prompt', got %q", config.Name)
+	}
+}
+
+func TestAgentConfig_GetEffectiveInvokeConfig_FallsBackToDefault(t *testing.T) {
+	agent := &AgentConfig{
+		ID:     "design-doc-creator",
+		Invoke: nil, // No explicit config
+	}
+
+	config := agent.GetEffectiveInvokeConfig()
+	if config == nil {
+		t.Fatal("expected default config, got nil")
+	}
+	if config.Type != "skill" {
+		t.Errorf("expected default type 'skill', got %q", config.Type)
+	}
+	if config.Name != "design-doc-creator" {
+		t.Errorf("expected default name 'design-doc-creator', got %q", config.Name)
+	}
+}
+
+func TestAgentConfig_GetEffectiveOutputMarkers_ExplicitMarkers(t *testing.T) {
+	agent := &AgentConfig{
+		ID:            "design-doc-creator",
+		OutputMarkers: []string{"CUSTOM_MARKER:"},
+	}
+
+	markers := agent.GetEffectiveOutputMarkers()
+	if len(markers) != 1 {
+		t.Fatalf("expected 1 marker, got %d", len(markers))
+	}
+	if markers[0] != "CUSTOM_MARKER:" {
+		t.Errorf("expected 'CUSTOM_MARKER:', got %q", markers[0])
+	}
+}
+
+func TestAgentConfig_GetEffectiveOutputMarkers_FallsBackToDefault(t *testing.T) {
+	agent := &AgentConfig{
+		ID:            "design-doc-creator",
+		OutputMarkers: nil, // No explicit markers
+	}
+
+	markers := agent.GetEffectiveOutputMarkers()
+	if len(markers) != 1 {
+		t.Fatalf("expected 1 default marker, got %d", len(markers))
+	}
+	if markers[0] != "DESIGN_DOC_PATH:" {
+		t.Errorf("expected default 'DESIGN_DOC_PATH:', got %q", markers[0])
+	}
+}
+
+func TestAgentConfig_GetEffectiveApprovalConfig_ExplicitConfig(t *testing.T) {
+	agent := &AgentConfig{
+		ID: "design-doc-creator",
+		Approval: &ApprovalConfig{
+			NeedsLabel:    "custom-needs",
+			ApprovedLabel: "custom-approved",
+		},
+	}
+
+	config := agent.GetEffectiveApprovalConfig()
+	if config.NeedsLabel != "custom-needs" {
+		t.Errorf("expected 'custom-needs', got %q", config.NeedsLabel)
+	}
+	if config.ApprovedLabel != "custom-approved" {
+		t.Errorf("expected 'custom-approved', got %q", config.ApprovedLabel)
+	}
+}
+
+func TestAgentConfig_GetEffectiveApprovalConfig_FallsBackToDefault(t *testing.T) {
+	agent := &AgentConfig{
+		ID:       "design-doc-creator",
+		Approval: nil, // No explicit config
+	}
+
+	config := agent.GetEffectiveApprovalConfig()
+	if config == nil {
+		t.Fatal("expected default config, got nil")
+	}
+	if config.NeedsLabel != "needs-design-approval" {
+		t.Errorf("expected 'needs-design-approval', got %q", config.NeedsLabel)
+	}
+	if config.ApprovedLabel != "design-approved" {
+		t.Errorf("expected 'design-approved', got %q", config.ApprovedLabel)
+	}
+}
+
+func TestAgentConfig_GetEffectiveApprovalConfig_UnknownAgent(t *testing.T) {
+	agent := &AgentConfig{
+		ID:       "unknown-agent",
+		Approval: nil,
+	}
+
+	config := agent.GetEffectiveApprovalConfig()
+	if config != nil {
+		t.Error("expected nil config for unknown agent without explicit config")
+	}
+}
