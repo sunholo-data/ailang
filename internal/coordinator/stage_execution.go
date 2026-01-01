@@ -57,7 +57,10 @@ func buildDesignDirective(task *TaskRecord) string {
 
 Invoke the design-doc-creator skill to create a design document for this request.
 
-When done, output: DESIGN_DOC_PATH: <path-to-created-doc>`, task.GithubIssue, task.Content)
+**REQUIRED**: After creating the design doc, output exactly this line:
+DESIGN_DOC_PATH: design_docs/planned/<version>/<name>.md
+
+This path will be posted to GitHub for review.`, task.GithubIssue, task.Content)
 }
 
 // buildSprintDirective creates a directive that invokes sprint-planner skill

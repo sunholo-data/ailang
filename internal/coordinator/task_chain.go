@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -77,15 +79,28 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 		return nil
 	}
 
+	// Read the design doc content from the worktree
+	var designDocContent string
+	if result.Path != "" && task.WorktreePath != "" {
+		fullPath := filepath.Join(task.WorktreePath, result.Path)
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			log.Printf("[TaskChain] Warning: Could not read design doc at %s: %v", fullPath, err)
+		} else {
+			designDocContent = string(content)
+		}
+	}
+
 	// Render the design doc complete comment
 	data := &CommentData{
-		TaskID:        taskID,
-		DesignDocPath: result.Path,
-		Duration:      result.Duration,
-		Cost:          result.Cost,
-		TokensUsed:    result.TokensUsed,
-		InputTokens:   result.InputTokens,
-		OutputTokens:  result.OutputTokens,
+		TaskID:           taskID,
+		DesignDocPath:    result.Path,
+		DesignDocContent: designDocContent,
+		Duration:         result.Duration,
+		Cost:             result.Cost,
+		TokensUsed:       result.TokensUsed,
+		InputTokens:      result.InputTokens,
+		OutputTokens:     result.OutputTokens,
 	}
 
 	comment, err := RenderDesignDocComment(data)
@@ -151,15 +166,28 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 		return nil
 	}
 
+	// Read the sprint plan content from the worktree
+	var sprintPlanContent string
+	if result.Path != "" && task.WorktreePath != "" {
+		fullPath := filepath.Join(task.WorktreePath, result.Path)
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			log.Printf("[TaskChain] Warning: Could not read sprint plan at %s: %v", fullPath, err)
+		} else {
+			sprintPlanContent = string(content)
+		}
+	}
+
 	// Render the sprint plan ready comment
 	data := &CommentData{
-		TaskID:         taskID,
-		SprintPlanPath: result.Path,
-		Duration:       result.Duration,
-		Cost:           result.Cost,
-		TokensUsed:     result.TokensUsed,
-		InputTokens:    result.InputTokens,
-		OutputTokens:   result.OutputTokens,
+		TaskID:            taskID,
+		SprintPlanPath:    result.Path,
+		SprintPlanContent: sprintPlanContent,
+		Duration:          result.Duration,
+		Cost:              result.Cost,
+		TokensUsed:        result.TokensUsed,
+		InputTokens:       result.InputTokens,
+		OutputTokens:      result.OutputTokens,
 	}
 
 	comment, err := RenderSprintPlanComment(data)

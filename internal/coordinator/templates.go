@@ -38,8 +38,10 @@ type CommentData struct {
 	OutputTokens int
 
 	// Artifacts
-	DesignDocPath  string
-	SprintPlanPath string
+	DesignDocPath    string
+	DesignDocContent string // Actual markdown content of the design doc
+	SprintPlanPath   string
+	SprintPlanContent string // Actual markdown content of the sprint plan
 	WorktreePath   string
 	BranchName     string
 	FilesCreated   []string
@@ -90,14 +92,26 @@ I've created a design document for this issue.
 | Field | Value |
 |-------|-------|
 | **Task ID** | ` + "`{{.TaskID}}`" + ` |
-| **Design Doc** | [{{.DesignDocPath}}]({{.DesignDocPath}}) |
 | **Duration** | {{.Duration}} |
 {{if gt .Cost 0.0}}| **Cost** | ${{printf "%.4f" .Cost}} |{{end}}
 {{if gt .TokensUsed 0}}| **Tokens** | {{.TokensUsed}} ({{.InputTokens}} in / {{.OutputTokens}} out) |{{end}}
 
+{{if .DesignDocContent}}
+---
+
+<details>
+<summary><strong>📄 Design Document: {{.DesignDocPath}}</strong> (click to expand)</summary>
+
+{{.DesignDocContent}}
+
+</details>
+{{end}}
+
+---
+
 ### Next Steps
 
-1. **Review the design document** linked above
+1. **Review the design document** above
 2. **Add the ` + "`design-approved`" + ` label** to this issue to proceed to sprint planning
 3. **Add the ` + "`needs-revision`" + ` label** if changes are needed
 
@@ -112,14 +126,26 @@ I've created a sprint plan for implementing this feature.
 | Field | Value |
 |-------|-------|
 | **Task ID** | ` + "`{{.TaskID}}`" + ` |
-| **Sprint Plan** | [{{.SprintPlanPath}}]({{.SprintPlanPath}}) |
 | **Duration** | {{.Duration}} |
 {{if gt .Cost 0.0}}| **Cost** | ${{printf "%.4f" .Cost}} |{{end}}
 {{if gt .TokensUsed 0}}| **Tokens** | {{.TokensUsed}} ({{.InputTokens}} in / {{.OutputTokens}} out) |{{end}}
 
+{{if .SprintPlanContent}}
+---
+
+<details>
+<summary><strong>📋 Sprint Plan: {{.SprintPlanPath}}</strong> (click to expand)</summary>
+
+{{.SprintPlanContent}}
+
+</details>
+{{end}}
+
+---
+
 ### Next Steps
 
-1. **Review the sprint plan** linked above
+1. **Review the sprint plan** above
 2. **Add the ` + "`sprint-approved`" + ` label** to this issue to start implementation
 3. **Add the ` + "`needs-revision`" + ` label** if changes are needed
 
