@@ -113,6 +113,134 @@ coordinator:
 | `auto_merge` | bool | Automatically merge approved changes |
 | `session_continuity` | bool | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
 | `max_concurrent_tasks` | int | Maximum concurrent tasks (0 = unlimited) |
+| `invoke` | object | How to invoke this agent (skill/agent/prompt) - v0.6.3+ |
+| `output_markers` | list | Markers to extract from output - v0.6.3+ |
+| `approval` | object | Approval workflow configuration - v0.6.3+ |
+
+### Generic Workflow Configuration (v0.6.3+)
+
+The coordinator supports fully configurable workflows, allowing any project to define custom skills, stages, and approval rules without code changes.
+
+#### Invoke Configuration
+
+Specifies how an agent executes its tasks:
+
+```yaml
+# Invoke a Claude Code skill
+invoke:
+  type: skill
+  name: design-doc-creator  # Skill name (from .claude/skills/)
+
+# Hand off to another agent
+invoke:
+  type: agent
+  name: sprint-planner      # Target agent ID
+
+# Use custom prompt template
+invoke:
+  type: prompt
+  template: |
+    Task {{.TaskID}} for issue #{{.GithubIssue}}:
+    {{.Content}}
+
+    When done, output: RESULT: <value>
+```
+
+#### Output Markers
+
+Markers to extract from execution output for stage completion:
+
+```yaml
+output_markers:
+  - "DESIGN_DOC_PATH:"
+  - "SPRINT_PLAN_PATH:"
+  - "IMPLEMENTATION_COMPLETE:"
+```
+
+#### Approval Configuration
+
+Custom labels for GitHub approval workflow:
+
+```yaml
+approval:
+  needs_label: needs-design-approval     # Label when awaiting review
+  approved_label: design-approved        # Label that triggers next stage
+  github_comment_template: |             # Comment posted on completion
+    ## Design Document Ready
+    Path: {{.DesignDocPath}}
+```
+
+#### Full Example with Generic Workflow
+
+```yaml
+coordinator:
+  agents:
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: /path/to/project
+      capabilities: [research, docs]
+      provider: claude
+
+      # NEW: Generic workflow config (v0.6.3+)
+      invoke:
+        type: skill
+        name: design-doc-creator
+      output_markers:
+        - "DESIGN_DOC_PATH:"
+      approval:
+        needs_label: needs-design-approval
+        approved_label: design-approved
+        github_comment_template: "design_doc"
+
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: /path/to/project
+      capabilities: [planning]
+      provider: claude
+      invoke:
+        type: skill
+        name: sprint-planner
+      output_markers:
+        - "SPRINT_PLAN_PATH:"
+        - "SPRINT_JSON_PATH:"
+      approval:
+        needs_label: needs-sprint-approval
+        approved_label: sprint-approved
+      trigger_on_complete: [sprint-executor]
+
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: /path/to/project
+      capabilities: [code, test]
+      provider: claude
+      invoke:
+        type: skill
+        name: sprint-executor
+      output_markers:
+        - "IMPLEMENTATION_COMPLETE:"
+        - "BRANCH_NAME:"
+        - "FILES_CREATED:"
+        - "FILES_MODIFIED:"
+      approval:
+        needs_label: needs-implementation-approval
+        approved_label: implementation-approved
+      trigger_on_complete: []
+```
+
+#### Backwards Compatibility
+
+Agents without explicit `invoke`, `output_markers`, or `approval` config will use legacy defaults for known AILANG agent IDs:
+- `design-doc-creator`: skill invocation, `DESIGN_DOC_PATH:` marker, `design-approved` label
+- `sprint-planner`: skill invocation, `SPRINT_PLAN_PATH:` marker, `sprint-approved` label
+- `sprint-executor`: skill invocation, `IMPLEMENTATION_COMPLETE:` marker, `implementation-approved` label
+
+**Note:** Legacy defaults are deprecated and will be removed in v0.7.0. New agents should always use explicit configuration.
 
 ## Workflow Pipelines
 

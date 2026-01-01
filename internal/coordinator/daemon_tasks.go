@@ -544,10 +544,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// PRESERVE WORKTREE - mark as pending approval, not completed
 		// Human must approve/reject before worktree is cleaned up
 		worktreePath := ""
+		worktreeBranch := ""
 		if worktree != nil {
 			worktreePath = worktree.Path
+			worktreeBranch = worktree.Branch
 		}
-		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, result); err != nil {
+		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, worktreeBranch, result); err != nil {
 			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 		}
 

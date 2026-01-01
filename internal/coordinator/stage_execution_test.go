@@ -352,6 +352,91 @@ func TestBuildDirectiveFromConfig_MultipleMarkers(t *testing.T) {
 	}
 }
 
+// Test that agents without explicit InvokeConfig use effective defaults
+func TestBuildDirectiveFromConfig_UsesEffectiveDefaults(t *testing.T) {
+	task := &TaskRecord{
+		ID:          "test-task",
+		GithubIssue: 42,
+		Content:     "Test task content",
+		Stage:       TaskStageSprint,
+	}
+
+	// Agent without explicit InvokeConfig (common in real configs)
+	agent := &AgentConfig{
+		ID:    "sprint-planner",
+		Label: "Sprint Planner",
+		// No Invoke, OutputMarkers, or Approval set - uses defaults
+	}
+
+	result := BuildDirectiveFromConfig(task, agent)
+
+	// Should use default InvokeConfig for sprint-planner (skill type)
+	if !strings.Contains(result, "sprint-planner") {
+		t.Error("Should use default skill name 'sprint-planner'")
+	}
+
+	// Should use default OutputMarkers for sprint-planner
+	if !strings.Contains(result, "SPRINT_PLAN_PATH:") {
+		t.Error("Should include default marker SPRINT_PLAN_PATH:")
+	}
+
+	// Should include GitHub issue reference
+	if !strings.Contains(result, "GitHub issue #42") {
+		t.Error("Should include GitHub issue reference")
+	}
+}
+
+// Test design-doc-creator defaults
+func TestBuildDirectiveFromConfig_DesignDocCreatorDefaults(t *testing.T) {
+	task := &TaskRecord{
+		ID:          "test-task",
+		GithubIssue: 123,
+		Content:     "Create a design doc",
+		Stage:       TaskStageDesign,
+	}
+
+	agent := &AgentConfig{
+		ID:    "design-doc-creator",
+		Label: "Design Doc Creator",
+	}
+
+	result := BuildDirectiveFromConfig(task, agent)
+
+	if !strings.Contains(result, "design-doc-creator") {
+		t.Error("Should use default skill name 'design-doc-creator'")
+	}
+	if !strings.Contains(result, "DESIGN_DOC_PATH:") {
+		t.Error("Should include default marker DESIGN_DOC_PATH:")
+	}
+}
+
+// Test sprint-executor defaults
+func TestBuildDirectiveFromConfig_SprintExecutorDefaults(t *testing.T) {
+	task := &TaskRecord{
+		ID:          "test-task",
+		GithubIssue: 456,
+		Content:     "Implement the feature",
+		Stage:       TaskStageImplementation,
+	}
+
+	agent := &AgentConfig{
+		ID:    "sprint-executor",
+		Label: "Sprint Executor",
+	}
+
+	result := BuildDirectiveFromConfig(task, agent)
+
+	if !strings.Contains(result, "sprint-executor") {
+		t.Error("Should use default skill name 'sprint-executor'")
+	}
+	if !strings.Contains(result, "IMPLEMENTATION_COMPLETE:") {
+		t.Error("Should include default marker IMPLEMENTATION_COMPLETE:")
+	}
+	if !strings.Contains(result, "BRANCH_NAME:") {
+		t.Error("Should include default marker BRANCH_NAME:")
+	}
+}
+
 func TestFormatOutputMarkers(t *testing.T) {
 	tests := []struct {
 		markers  []string

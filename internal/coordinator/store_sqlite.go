@@ -146,6 +146,8 @@ func (s *SQLiteStore) migrate() error {
 		// M-COORD-GITHUB-AUTO-ROUTING: GitHub integration columns
 		"ALTER TABLE tasks ADD COLUMN github_issue INTEGER",
 		"ALTER TABLE tasks ADD COLUMN stage TEXT",
+		"ALTER TABLE tasks ADD COLUMN design_doc_path TEXT",
+		"ALTER TABLE tasks ADD COLUMN sprint_plan_path TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -176,7 +178,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE id = ?
@@ -221,7 +223,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE 1=1
@@ -469,15 +471,15 @@ func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
 }
 
 // MarkTaskPendingApproval marks a task as awaiting human approval
-func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error {
+func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error {
 	now := time.Now()
-	// Store status, worktree path, AND execution metrics (cost, tokens) to avoid race condition
+	// Store status, worktree path, branch, AND execution metrics (cost, tokens) to avoid race condition
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE tasks SET
-			status = ?, completed_at = ?, worktree_path = ?,
+			status = ?, completed_at = ?, worktree_path = ?, worktree_id = ?,
 			duration_ns = ?, output = ?, cost = ?, tokens_used = ?
 		WHERE id = ?`,
-		TaskStatusPendingApproval, now, worktreePath,
+		TaskStatusPendingApproval, now, worktreePath, worktreeBranch,
 		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, id,
 	)
 	return err
@@ -509,7 +511,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		        worktree_id, worktree_path, workspace, github_issue, stage,
+		        worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
@@ -558,11 +560,29 @@ func (s *SQLiteStore) SetTaskStage(ctx context.Context, id string, stage TaskSta
 	return err
 }
 
+// SetTaskDesignDocPath stores the design doc path for a task
+func (s *SQLiteStore) SetTaskDesignDocPath(ctx context.Context, id string, path string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET design_doc_path = ? WHERE id = ?",
+		path, id,
+	)
+	return err
+}
+
+// SetTaskSprintPlanPath stores the sprint plan path for a task
+func (s *SQLiteStore) SetTaskSprintPlanPath(ctx context.Context, id string, path string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET sprint_plan_path = ? WHERE id = ?",
+		path, id,
+	)
+	return err
+}
+
 // GetTasksByGithubIssue retrieves all tasks linked to a GitHub issue
 func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE github_issue = ?
@@ -589,7 +609,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
-		       worktree_id, worktree_path, workspace, github_issue, stage,
+		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
 		FROM tasks WHERE stage = ?
@@ -680,12 +700,13 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage,
+		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
@@ -728,6 +749,12 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if stage.Valid {
 		task.Stage = TaskStage(stage.String)
+	}
+	if designDocPath.Valid {
+		task.DesignDocPath = designDocPath.String
+	}
+	if sprintPlanPath.Valid {
+		task.SprintPlanPath = sprintPlanPath.String
 	}
 
 	return task, nil
@@ -739,12 +766,13 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider,
-		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage,
+		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 	)
@@ -787,6 +815,12 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if stage.Valid {
 		task.Stage = TaskStage(stage.String)
+	}
+	if designDocPath.Valid {
+		task.DesignDocPath = designDocPath.String
+	}
+	if sprintPlanPath.Valid {
+		task.SprintPlanPath = sprintPlanPath.String
 	}
 
 	return task, nil

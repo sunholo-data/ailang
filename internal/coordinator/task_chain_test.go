@@ -108,7 +108,7 @@ func (m *MockStore) MarkTaskRunning(ctx context.Context, id, provider, worktreeI
 	return nil
 }
 
-func (m *MockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error {
+func (m *MockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls["MarkTaskPendingApproval"]++
@@ -200,6 +200,26 @@ func (m *MockStore) SetTaskStage(ctx context.Context, id string, stage TaskStage
 	m.stages[id] = stage
 	if task, ok := m.tasks[id]; ok {
 		task.Stage = stage
+	}
+	return nil
+}
+
+func (m *MockStore) SetTaskDesignDocPath(ctx context.Context, id string, path string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["SetTaskDesignDocPath"]++
+	if task, ok := m.tasks[id]; ok {
+		task.DesignDocPath = path
+	}
+	return nil
+}
+
+func (m *MockStore) SetTaskSprintPlanPath(ctx context.Context, id string, path string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["SetTaskSprintPlanPath"]++
+	if task, ok := m.tasks[id]; ok {
+		task.SprintPlanPath = path
 	}
 	return nil
 }

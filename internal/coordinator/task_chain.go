@@ -74,6 +74,13 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 		return fmt.Errorf("failed to get task: %w", err)
 	}
 
+	// Store the design doc path for later use in merge comment
+	if result.Path != "" {
+		if err := tc.store.SetTaskDesignDocPath(ctx, taskID, result.Path); err != nil {
+			log.Printf("[TaskChain] Warning: Failed to store design doc path: %v", err)
+		}
+	}
+
 	if task.GithubIssue == 0 {
 		log.Printf("[TaskChain] Task %s has no linked GitHub issue, skipping notification", taskID)
 		return nil
@@ -159,6 +166,13 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 	task, err := tc.store.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Store the sprint plan path for later use in merge comment
+	if result.Path != "" {
+		if err := tc.store.SetTaskSprintPlanPath(ctx, taskID, result.Path); err != nil {
+			log.Printf("[TaskChain] Warning: Failed to store sprint plan path: %v", err)
+		}
 	}
 
 	if task.GithubIssue == 0 {
@@ -314,12 +328,13 @@ func (tc *TaskChain) OnMergeApproved(ctx context.Context, event *ApprovalEvent) 
 
 	// Render the merge complete comment
 	data := &CommentData{
-		TaskID:        event.TaskID,
-		BranchName:    task.WorktreeID, // Branch name is stored in WorktreeID
-		Duration:      task.Duration,
-		Cost:          task.Cost,
-		TokensUsed:    task.TokensUsed,
-		DesignDocPath: "", // TODO: Store and retrieve from task extras
+		TaskID:         event.TaskID,
+		BranchName:     task.WorktreeID, // Branch name is stored in WorktreeID
+		Duration:       task.Duration,
+		Cost:           task.Cost,
+		TokensUsed:     task.TokensUsed,
+		DesignDocPath:  task.DesignDocPath,
+		SprintPlanPath: task.SprintPlanPath,
 	}
 
 	comment, err := RenderMergeCompleteComment(data)

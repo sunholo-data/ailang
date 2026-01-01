@@ -22,8 +22,10 @@ type TaskRecord struct {
 	SessionID   string        `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Workspace   string        `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
-	GithubIssue int       `json:"github_issue,omitempty"` // Linked GitHub issue number
-	Stage       TaskStage `json:"stage,omitempty"`        // Pipeline stage (design, sprint, implementation, merge)
+	GithubIssue    int       `json:"github_issue,omitempty"`     // Linked GitHub issue number
+	Stage          TaskStage `json:"stage,omitempty"`            // Pipeline stage (design, sprint, implementation, merge)
+	DesignDocPath  string    `json:"design_doc_path,omitempty"`  // Path to design doc (for merge comment)
+	SprintPlanPath string    `json:"sprint_plan_path,omitempty"` // Path to sprint plan (for merge comment)
 	// Timestamps
 	CreatedAt   time.Time     `json:"created_at"`
 	StartedAt   *time.Time    `json:"started_at,omitempty"`
@@ -133,7 +135,7 @@ type Store interface {
 	// Task state transitions
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
-	MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error // Work done, awaiting human review
+	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error // Work done, awaiting human review
 	MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error
 	MarkTaskFailed(ctx context.Context, id string, err error) error
 	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work
@@ -150,6 +152,8 @@ type Store interface {
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error
 	SetTaskStage(ctx context.Context, id string, stage TaskStage) error
+	SetTaskDesignDocPath(ctx context.Context, id string, path string) error
+	SetTaskSprintPlanPath(ctx context.Context, id string, path string) error
 	GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error)
 	GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error)
 

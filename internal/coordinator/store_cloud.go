@@ -82,7 +82,7 @@ func (s *CloudStore) MarkTaskCompleted(ctx context.Context, id string, result *E
 }
 
 // MarkTaskPendingApproval marks a task as pending human approval
-func (s *CloudStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath string, result *ExecuteResult) error {
+func (s *CloudStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error {
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
@@ -128,6 +128,16 @@ func (s *CloudStore) SetTaskGithubIssue(ctx context.Context, id string, issueNum
 
 // SetTaskStage sets the pipeline stage for a task
 func (s *CloudStore) SetTaskStage(ctx context.Context, id string, stage TaskStage) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// SetTaskDesignDocPath stores the design doc path for a task
+func (s *CloudStore) SetTaskDesignDocPath(ctx context.Context, id string, path string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
+// SetTaskSprintPlanPath stores the sprint plan path for a task
+func (s *CloudStore) SetTaskSprintPlanPath(ctx context.Context, id string, path string) error {
 	return fmt.Errorf("cloud store not yet implemented")
 }
 

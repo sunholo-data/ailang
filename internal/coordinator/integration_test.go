@@ -119,7 +119,7 @@ func TestIntegration_TaskLifecycle(t *testing.T) {
 		InputTokens:  600,
 		OutputTokens: 400,
 	}
-	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/worktree/int-task-1", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/worktree/int-task-1", "branch-int-1", result); err != nil {
 		t.Fatalf("failed to mark pending approval: %v", err)
 	}
 

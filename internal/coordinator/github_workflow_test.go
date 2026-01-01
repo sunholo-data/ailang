@@ -62,7 +62,7 @@ func TestGitHubWorkflow_DesignDocStage(t *testing.T) {
 		OutputTokens: 200,
 	}
 
-	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-design-1", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-design-1", "branch-design-1", result); err != nil {
 		t.Fatalf("failed to mark pending approval: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestGitHubWorkflow_SprintPlanning(t *testing.T) {
 		OutputTokens: 100,
 	}
 
-	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-sprint-1", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-sprint-1", "branch-sprint-1", result); err != nil {
 		t.Fatalf("failed to mark pending approval: %v", err)
 	}
 
@@ -232,7 +232,7 @@ func TestGitHubWorkflow_Implementation(t *testing.T) {
 		FilesModified: []string{"feature.go", "feature_test.go"},
 	}
 
-	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-impl-1", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-impl-1", "branch-impl-1", result); err != nil {
 		t.Fatalf("failed to mark pending approval: %v", err)
 	}
 
@@ -301,7 +301,7 @@ func TestGitHubWorkflow_RejectionAndRevision(t *testing.T) {
 		OutputTokens: 200,
 	}
 
-	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-rev-1", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt-rev-1", "branch-rev-1", result); err != nil {
 		t.Fatalf("failed to mark pending approval: %v", err)
 	}
 
@@ -348,7 +348,7 @@ func TestGitHubWorkflow_RejectionAndRevision(t *testing.T) {
 		t.Fatalf("failed to mark revised running: %v", err)
 	}
 
-	if err := store.MarkTaskPendingApproval(ctx, newTask.ID, "/tmp/wt-rev-2", result); err != nil {
+	if err := store.MarkTaskPendingApproval(ctx, newTask.ID, "/tmp/wt-rev-2", "branch-rev-2", result); err != nil {
 		t.Fatalf("failed to mark revised pending approval: %v", err)
 	}
 
@@ -434,7 +434,7 @@ func TestGitHubWorkflow_ConcurrentApprovals(t *testing.T) {
 				TokensUsed: 100,
 			}
 
-			if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt", result); err != nil {
+			if err := store.MarkTaskPendingApproval(ctx, task.ID, "/tmp/wt", "branch-test", result); err != nil {
 				errors <- err
 				return
 			}

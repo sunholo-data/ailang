@@ -308,9 +308,18 @@ func extractPathWithMarkdown(output, marker string) string {
 }
 
 // extractListWithMarkdown extracts a comma-separated list that may have markdown formatting.
+// Uses a pattern that matches until end of line (unlike extractPathWithMarkdown which stops at whitespace).
 func extractListWithMarkdown(output, marker string) []string {
-	value := extractPathWithMarkdown(output, marker)
-	if value == "" || value == "none" || value == "None" {
+	// Pattern matches until end of line for comma-separated lists
+	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*(.+?)(?:\n|$)`, regexp.QuoteMeta(marker))
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(output)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	value := strings.TrimSpace(matches[1])
+	if value == "" || strings.EqualFold(value, "none") {
 		return nil
 	}
 
