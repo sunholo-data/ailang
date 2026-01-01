@@ -212,6 +212,146 @@ ailang messages import-github --dry-run
 | Labels (bug, feature) | type |
 | Issue number | github_issue_number |
 
+## GitHub-Driven Approval Workflow (v0.6.2+)
+
+The coordinator supports a fully GitHub-driven workflow where all approvals happen via GitHub labels. This enables:
+
+- **Familiar tooling** - Review everything in GitHub's UI
+- **Mobile-friendly** - Approve from GitHub mobile app
+- **Audit trail** - All approvals tracked in issue history
+- **Team collaboration** - Multiple reviewers can participate
+
+### How It Works
+
+```
+GitHub Issue Created
+       ↓
+Coordinator imports issue → TaskChain starts
+       ↓
+┌─────────────────────────────────────────────────────────────┐
+│  DESIGN STAGE                                                │
+│  • Agent creates design doc                                  │
+│  • Comment posted with full design doc content               │
+│  • Label added: needs-design-approval                        │
+│  • Human reviews design in GitHub                            │
+│  • Human adds label: design-approved                         │
+│  • ApprovalWatcher detects → advances to next stage          │
+└─────────────────────────────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SPRINT STAGE                                                │
+│  • Agent creates sprint plan                                 │
+│  • Comment posted with full sprint plan content              │
+│  • Label added: needs-sprint-approval                        │
+│  • Human reviews plan in GitHub                              │
+│  • Human adds label: sprint-approved                         │
+│  • ApprovalWatcher detects → advances to next stage          │
+└─────────────────────────────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────────────────────────────┐
+│  IMPLEMENTATION STAGE                                        │
+│  • Agent implements the sprint plan                          │
+│  • Comment posted with file changes summary                  │
+│  • Label added: needs-merge-approval                         │
+│  • Human reviews changes (can check worktree)                │
+│  • Human adds label: merge-approved                          │
+│  • ApprovalWatcher detects → merges to dev, closes issue     │
+└─────────────────────────────────────────────────────────────┘
+       ↓
+Issue auto-closed with completion summary
+```
+
+### GitHub Labels
+
+The coordinator uses these labels (created automatically if missing):
+
+**Request labels** (coordinator adds these):
+| Label | Meaning |
+|-------|---------|
+| `needs-design-approval` | Design doc ready for review |
+| `needs-sprint-approval` | Sprint plan ready for review |
+| `needs-merge-approval` | Implementation ready to merge |
+| `needs-revision` | Human requested changes |
+
+**Approval labels** (human adds these):
+| Label | Action |
+|-------|--------|
+| `design-approved` | Advance to sprint planning stage |
+| `sprint-approved` | Advance to implementation stage |
+| `merge-approved` | Merge changes and close issue |
+
+### GitHub Comment Format
+
+Each stage posts a detailed comment. For design and sprint stages, the full document content is included in a collapsible section:
+
+```markdown
+## 📋 Design Document Ready
+
+I've created a design document for this feature.
+
+**Design Doc**: `design_docs/planned/v0_6_2/m-string-reverse.md`
+
+<details>
+<summary>📄 View Full Design Document</summary>
+
+# M-STRING-REVERSE: String Reverse Builtin
+
+## Problem Statement
+...
+
+</details>
+
+---
+
+**Next Steps:**
+1. Review the design document above
+2. If approved, add the `design-approved` label
+3. If changes needed, add `needs-revision` label with a comment
+
+⏱️ Duration: 2m 30s | 💰 Cost: $0.15 | 🎟️ Tokens: 12,450
+```
+
+### Alternative: Local Approval
+
+You can also approve via CLI (useful when ApprovalWatcher isn't detecting labels):
+
+```bash
+# List pending approvals
+ailang coordinator pending
+
+# Approve a specific task (also adds label on GitHub)
+ailang coordinator approve <task-id>
+
+# Reject a task
+ailang coordinator reject <task-id>
+```
+
+When using local approval, the coordinator automatically syncs labels to GitHub.
+
+### Requesting Revision
+
+To request changes at any stage:
+
+1. Add the `needs-revision` label on GitHub
+2. Add a comment explaining what needs to change
+3. The pipeline pauses until revision is addressed
+
+### Troubleshooting GitHub Workflow
+
+**Labels not being detected:**
+- Check if ApprovalWatcher is running: look for "GitHub approval watcher started" in logs
+- Verify the issue is being watched: check coordinator logs for "Started watching issue #X"
+- Use local approval as fallback: `ailang coordinator approve <task-id>`
+
+**Comments not appearing:**
+- Verify GitHub token has write access: `gh auth status`
+- Check coordinator logs for GitHub API errors
+
+**Issue not auto-closing:**
+- Ensure merge completes successfully
+- Check worktree for uncommitted changes
+- Verify no merge conflicts
+
 ## Approval Workflow
 
 When a task completes, the coordinator creates an approval request.

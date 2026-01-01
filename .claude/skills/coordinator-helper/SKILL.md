@@ -1,6 +1,6 @@
 ---
 name: Coordinator Helper
-description: Manage coordinator daemon tasks, approve/reject work, monitor autonomous agents. Use when user asks to delegate tasks, check task status, review agent work, or manage the coordinator.
+description: Manage coordinator daemon tasks, approve/reject work, monitor autonomous agents. Use when user asks to delegate tasks, check task status, review agent work, manage the coordinator, or use GitHub-driven approval workflow.
 ---
 
 # Coordinator Helper
@@ -92,6 +92,56 @@ pending → queued → running → pending_approval → completed
                           ↘ failed / rejected
 ```
 
+## GitHub-Driven Workflow (v0.6.2+)
+
+For tasks linked to GitHub issues, the coordinator supports a fully GitHub-native approval workflow.
+
+### How It Works
+
+```
+GitHub Issue
+    ↓ (import)
+DESIGN STAGE → posts design doc to GitHub → needs-design-approval label
+    ↓ (human adds: design-approved)
+SPRINT STAGE → posts sprint plan to GitHub → needs-sprint-approval label
+    ↓ (human adds: sprint-approved)
+IMPLEMENTATION → posts file changes → needs-merge-approval label
+    ↓ (human adds: merge-approved)
+Changes merged, issue auto-closed
+```
+
+### GitHub Labels Reference
+
+| You Add This Label | What Happens |
+|--------------------|--------------|
+| `design-approved` | Advances to sprint planning |
+| `sprint-approved` | Advances to implementation |
+| `merge-approved` | Merges changes, closes issue |
+| `needs-revision` | Pauses pipeline for changes |
+
+### Quick Commands for GitHub Workflow
+
+```bash
+# Import GitHub issues as tasks
+ailang messages import-github
+
+# Check which issues are being watched
+tail -100 ~/.ailang/logs/coordinator.log | grep -i "watching issue"
+
+# Fallback: approve locally if labels aren't detected
+ailang coordinator approve <task-id>
+
+# Check pending approvals
+ailang coordinator pending
+```
+
+### Why Use GitHub Workflow?
+
+- **Review in GitHub UI** - See design docs and diffs alongside issue discussion
+- **Mobile-friendly** - Approve from GitHub mobile app
+- **Team collaboration** - Multiple reviewers can discuss in comments
+- **Audit trail** - All approvals tracked in issue history
+
 ## Workflow
 
 ### 1. Delegate a Task
@@ -126,6 +176,14 @@ pending → queued → running → pending_approval → completed
 **Task stuck:** View logs with `[l]` in task explorer
 
 **Worktree limit:** `git worktree list` then `git worktree remove <path> --force`
+
+**GitHub labels not detected:** The ApprovalWatcher may not be detecting labels. Use CLI fallback:
+```bash
+ailang coordinator pending    # List tasks waiting for approval
+ailang coordinator approve <task-id>   # Approve locally (syncs label to GitHub)
+```
+
+**No logs from ApprovalWatcher:** Check coordinator logs for "GitHub approval watcher started". If missing, verify `~/.ailang/config.yaml` has `github_sync.enabled: true`.
 
 ## Resources
 
