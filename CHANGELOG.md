@@ -29,18 +29,28 @@ Implemented end-to-end GitHub-driven task pipeline for autonomous coordinator op
 - `needs-merge-approval` / `merge-approved`
 - `needs-revision` (requests changes at any stage)
 
+**Stage Execution Layer (M-COORD-GITHUB-COMPLETE sprint):**
+- `BuildStageDirective()` - Generates skill invocation prompts per stage
+- `ParseStageOutput()` - Extracts design doc/sprint plan paths from output
+- `ProcessStageCompletion()` - Triggers TaskChain callbacks after execution
+- `RequeueTask()` - Resets task for next stage on approval
+
 **Files Added:**
 - `internal/coordinator/approval_watcher.go` - Polls GitHub for approval labels (~280 LOC)
 - `internal/coordinator/task_chain.go` - Pipeline stage callbacks (~350 LOC)
 - `internal/coordinator/templates.go` - GitHub comment templates (~200 LOC)
+- `internal/coordinator/stage_execution.go` - Stage-aware directives + output parsing (~240 LOC)
+- `internal/coordinator/stage_execution_test.go` - Unit tests (~160 LOC)
 
 **Files Modified:**
-- `internal/coordinator/store.go` - Added TaskStage, GithubIssue fields, new interface methods (~50 LOC)
-- `internal/coordinator/store_sqlite.go` - Schema migrations, new query implementations (~150 LOC)
+- `internal/coordinator/store.go` - Added TaskStage, GithubIssue fields, RequeueTask (~55 LOC)
+- `internal/coordinator/store_sqlite.go` - Schema migrations, RequeueTask impl (~165 LOC)
 - `internal/coordinator/daemon.go` - Integration with watcher and chain (~30 LOC)
-- `internal/coordinator/daemon_tasks.go` - GitHub issue linking on task creation (~40 LOC)
+- `internal/coordinator/daemon_tasks.go` - Stage-aware directives, ProcessStageCompletion (~50 LOC)
+- `internal/coordinator/task_chain.go` - RequeueTask calls on approval (~20 LOC)
 - `internal/coordinator/watcher.go` - Added GithubIssue to Message struct
 - `internal/coordinator/message_adapter.go` - Pass GitHub issue from inbox messages
+- `internal/coordinator/integration_test.go` - E2E GitHub pipeline test (~120 LOC)
 
 ### Added - Coordinator Task Logs Command
 

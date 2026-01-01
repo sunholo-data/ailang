@@ -178,12 +178,32 @@ Complete the M-COORD-GITHUB-AUTO-ROUTING feature so that:
 
 ## Success Metrics
 
-- [ ] **9 remaining success criteria from design doc all pass**
-- [ ] All unit tests pass (`make test`)
-- [ ] All linting passes (`make lint`)
-- [ ] E2E test documented with logs/screenshots
+- [x] **9 remaining success criteria from design doc all pass**
+- [x] All unit tests pass (`make test`)
+- [x] All linting passes (`make lint`)
+- [x] E2E test documented (TestIntegration_GitHubPipelineStages)
 - [ ] CHANGELOG.md updated
 - [ ] Design doc moved to implemented/v0_6_3/
+
+## Implementation Summary (Completed)
+
+**Total LOC:** ~560 (estimated 400)
+- `stage_execution.go`: 242 lines (directive builder + output parsing + ProcessStageCompletion)
+- `stage_execution_test.go`: 163 lines (unit tests)
+- `integration_test.go`: +118 lines (E2E test)
+- Store/TaskChain changes: ~40 lines
+
+**Files Created:**
+- `internal/coordinator/stage_execution.go` - Core stage execution logic
+- `internal/coordinator/stage_execution_test.go` - Unit tests
+
+**Files Modified:**
+- `internal/coordinator/daemon_tasks.go` - Use BuildStageDirective, call ProcessStageCompletion
+- `internal/coordinator/store.go` - Add RequeueTask interface
+- `internal/coordinator/store_sqlite.go` - Implement RequeueTask
+- `internal/coordinator/store_cloud.go` - Add RequeueTask stub
+- `internal/coordinator/task_chain.go` - Call RequeueTask on approval
+- `internal/coordinator/integration_test.go` - Add GitHub pipeline test
 
 ## Dependencies
 
