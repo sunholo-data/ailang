@@ -50,6 +50,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorCleanup(subargs)
 	case "worktree":
 		return coordinatorWorktree(subargs)
+	case "watcher-status":
+		return coordinatorWatcherStatus(subargs)
 	case "help", "--help", "-h":
 		printCoordinatorHelp()
 		return nil
@@ -289,19 +291,20 @@ func printCoordinatorHelp() {
 	fmt.Println("Usage: ailang coordinator <command> [options]")
 	fmt.Println("")
 	fmt.Println("Commands:")
-	fmt.Println("  start     Start the coordinator daemon")
-	fmt.Println("  stop      Stop the coordinator daemon")
-	fmt.Println("  status    Show coordinator status (summary)")
-	fmt.Println("  list      List all tasks (with filters)")
-	fmt.Println("  pending   List tasks awaiting approval (interactive)")
-	fmt.Println("  diff      Show changes made by a task (git diff)")
-	fmt.Println("  logs      Show streaming logs/events for a task")
-	fmt.Println("  worktree  Show/open worktree directory for a task")
-	fmt.Println("  approve   Approve a pending task")
-	fmt.Println("  reject    Reject a pending task")
-	fmt.Println("  reopen    Reopen a rejected/cancelled task for re-approval")
-	fmt.Println("  cleanup   Cancel stale running/queued tasks")
-	fmt.Println("  help      Show this help message")
+	fmt.Println("  start          Start the coordinator daemon")
+	fmt.Println("  stop           Stop the coordinator daemon")
+	fmt.Println("  status         Show coordinator status (summary)")
+	fmt.Println("  watcher-status Show ApprovalWatcher status (GitHub polling)")
+	fmt.Println("  list           List all tasks (with filters)")
+	fmt.Println("  pending        List tasks awaiting approval (interactive)")
+	fmt.Println("  diff           Show changes made by a task (git diff)")
+	fmt.Println("  logs           Show streaming logs/events for a task")
+	fmt.Println("  worktree       Show/open worktree directory for a task")
+	fmt.Println("  approve        Approve a pending task")
+	fmt.Println("  reject         Reject a pending task")
+	fmt.Println("  reopen         Reopen a rejected/cancelled task for re-approval")
+	fmt.Println("  cleanup        Cancel stale running/queued tasks")
+	fmt.Println("  help           Show this help message")
 	fmt.Println("")
 	fmt.Println("The coordinator daemon watches for incoming messages and executes tasks")
 	fmt.Println("using Claude Code or Gemini in isolated git worktrees.")
@@ -950,6 +953,95 @@ func printCoordinatorCleanupHelp() {
 	fmt.Println("  --help, -h             Show this help message")
 	fmt.Println("")
 	fmt.Println("Note: The daemon automatically runs this on startup.")
+}
+
+func coordinatorWatcherStatus(args []string) error {
+	stateDir := ""
+	jsonOutput := false
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--json":
+			jsonOutput = true
+		case "--help", "-h":
+			printCoordinatorWatcherStatusHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	daemon, err := coordinator.NewDaemon(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create daemon: %w", err)
+	}
+
+	// Get watcher status from daemon
+	status := daemon.GetWatcherStatus()
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
+	}
+
+	// Human-readable output
+	fmt.Println(bold("ApprovalWatcher Status"))
+	fmt.Println()
+
+	if status.Running {
+		fmt.Printf("  State:         %s %s\n", "▶", green("running"))
+	} else {
+		fmt.Printf("  State:         %s %s\n", "⏹", red("stopped"))
+	}
+
+	fmt.Printf("  Poll Interval: %s\n", status.PollInterval)
+
+	if !status.LastPoll.IsZero() {
+		ago := time.Since(status.LastPoll).Round(time.Second)
+		fmt.Printf("  Last Poll:     %s (%s ago)\n", status.LastPoll.Format("15:04:05"), ago)
+	} else {
+		fmt.Printf("  Last Poll:     %s\n", dim("never"))
+	}
+
+	fmt.Println()
+	fmt.Printf("  Watched Issues: %d\n", len(status.WatchedIssues))
+
+	if len(status.WatchedIssues) > 0 {
+		fmt.Println()
+		for issueNum, taskID := range status.WatchedIssues {
+			fmt.Printf("    #%d → %s\n", issueNum, taskID)
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(dim("Tip: Set DEBUG_APPROVAL_WATCHER=1 for verbose polling logs"))
+
+	return nil
+}
+
+func printCoordinatorWatcherStatusHelp() {
+	fmt.Println("Usage: ailang coordinator watcher-status [options]")
+	fmt.Println("")
+	fmt.Println("Show the status of the ApprovalWatcher (GitHub label polling)")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
+	fmt.Println("  --json            Output as JSON")
+	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator watcher-status")
+	fmt.Println("  ailang coordinator watcher-status --json")
 }
 
 func coordinatorWorktree(args []string) error {

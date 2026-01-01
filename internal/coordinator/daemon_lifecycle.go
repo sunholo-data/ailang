@@ -128,6 +128,18 @@ func (d *Daemon) StatusJSON() (string, error) {
 	return string(data), nil
 }
 
+// GetWatcherStatus returns the current status of the ApprovalWatcher.
+// Returns a default (not running) status if the watcher is not initialized.
+func (d *Daemon) GetWatcherStatus() WatcherStatus {
+	if d.approvalWatcher == nil {
+		return WatcherStatus{
+			Running:       false,
+			WatchedIssues: make(map[int]string),
+		}
+	}
+	return d.approvalWatcher.GetStatus()
+}
+
 // writePIDFile writes the current process ID to the PID file
 func (d *Daemon) writePIDFile() error {
 	pid := os.Getpid()

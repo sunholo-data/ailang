@@ -4,9 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 )
+
+// debugApprovalWatcher controls verbose logging (set via DEBUG_APPROVAL_WATCHER=1)
+var debugApprovalWatcher = os.Getenv("DEBUG_APPROVAL_WATCHER") == "1"
 
 // ApprovalLabel constants for GitHub label-based approval workflow
 const (
@@ -54,6 +59,7 @@ type ApprovalWatcher struct {
 	watchedIssues map[int]string // issue number -> task ID
 	stopCh        chan struct{}
 	running       bool
+	lastPoll      time.Time // track last successful poll for status reporting
 }
 
 // NewApprovalWatcher creates a new approval watcher.
@@ -83,6 +89,7 @@ func (w *ApprovalWatcher) WatchIssue(issueNumber int, taskID string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.watchedIssues[issueNumber] = taskID
+	log.Printf("[ApprovalWatcher] Now watching issue #%d for task %s", issueNumber, taskID)
 }
 
 // UnwatchIssue stops watching a GitHub issue.
@@ -90,6 +97,7 @@ func (w *ApprovalWatcher) UnwatchIssue(issueNumber int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	delete(w.watchedIssues, issueNumber)
+	log.Printf("[ApprovalWatcher] Stopped watching issue #%d", issueNumber)
 }
 
 // Start begins the polling loop.
@@ -103,6 +111,7 @@ func (w *ApprovalWatcher) Start(ctx context.Context) error {
 	w.stopCh = make(chan struct{})
 	w.mu.Unlock()
 
+	log.Printf("[ApprovalWatcher] Starting with poll interval %s", w.pollInterval)
 	go w.pollLoop(ctx)
 	return nil
 }
@@ -151,8 +160,14 @@ func (w *ApprovalWatcher) pollOnce(ctx context.Context) {
 	for k, v := range w.watchedIssues {
 		issues[k] = v
 	}
+	w.lastPoll = time.Now()
 	w.mu.Unlock()
 
+	if debugApprovalWatcher {
+		log.Printf("[ApprovalWatcher] Poll cycle started (watching %d issues)", len(issues))
+	}
+
+	eventsFound := 0
 	for issueNum, taskID := range issues {
 		select {
 		case <-ctx.Done():
@@ -162,8 +177,13 @@ func (w *ApprovalWatcher) pollOnce(ctx context.Context) {
 
 		event := w.checkIssueLabels(ctx, issueNum, taskID)
 		if event != nil {
+			eventsFound++
 			w.handleEvent(ctx, event)
 		}
+	}
+
+	if debugApprovalWatcher {
+		log.Printf("[ApprovalWatcher] Poll cycle complete (%d issues, %d events)", len(issues), eventsFound)
 	}
 }
 
@@ -173,6 +193,10 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 	if err != nil {
 		log.Printf("[ApprovalWatcher] Error getting labels for issue #%d: %v", issueNum, err)
 		return nil
+	}
+
+	if debugApprovalWatcher {
+		log.Printf("[ApprovalWatcher] Issue #%d labels: %v", issueNum, labels)
 	}
 
 	// Check for approval labels in priority order
@@ -213,7 +237,20 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 }
 
 // handleEvent processes an approval event by calling the registered handler.
+// CRITICAL: This function includes panic recovery to prevent handler panics from
+// killing the poll goroutine. If a handler panics, we log the error and stack
+// trace but continue polling. This prevents silent failures where the watcher
+// stops working with no indication of why.
 func (w *ApprovalWatcher) handleEvent(ctx context.Context, event *ApprovalEvent) {
+	// Panic recovery - prevents handler panics from killing the poll goroutine
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[ApprovalWatcher] PANIC in handler for %s (task %s, issue #%d): %v",
+				event.EventType, event.TaskID, event.IssueNumber, r)
+			log.Printf("[ApprovalWatcher] Stack trace:\n%s", debug.Stack())
+		}
+	}()
+
 	w.mu.Lock()
 	handler, ok := w.handlers[event.EventType]
 	w.mu.Unlock()
@@ -278,4 +315,31 @@ func (w *ApprovalWatcher) WatchedIssueCount() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return len(w.watchedIssues)
+}
+
+// WatcherStatus represents the current state of the ApprovalWatcher.
+type WatcherStatus struct {
+	Running       bool              `json:"running"`
+	LastPoll      time.Time         `json:"last_poll"`
+	PollInterval  time.Duration     `json:"poll_interval"`
+	WatchedIssues map[int]string    `json:"watched_issues"` // issue number -> task ID
+}
+
+// GetStatus returns the current status of the watcher.
+func (w *ApprovalWatcher) GetStatus() WatcherStatus {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Copy watched issues map
+	issues := make(map[int]string, len(w.watchedIssues))
+	for k, v := range w.watchedIssues {
+		issues[k] = v
+	}
+
+	return WatcherStatus{
+		Running:       w.running,
+		LastPoll:      w.lastPoll,
+		PollInterval:  w.pollInterval,
+		WatchedIssues: issues,
+	}
 }

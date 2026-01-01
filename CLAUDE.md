@@ -1136,6 +1136,7 @@ make help                 # Show all available make targets
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
 | `DEBUG_CODEGEN=1` | Warn on record type fallback | Record compiles to map instead of struct |
+| `DEBUG_APPROVAL_WATCHER=1` | Verbose ApprovalWatcher polling | GitHub label detection issues |
 
 **CLI flags for `ailang check` (v0.5.9+):**
 
@@ -1160,6 +1161,10 @@ ailang check --timeout 30s file.ail
 
 # Analyze which phase is slow
 ailang check --debug-compile file.ail
+
+# Coordinator GitHub label debugging (v0.6.2+)
+DEBUG_APPROVAL_WATCHER=1 ailang coordinator start
+ailang coordinator watcher-status  # Check watcher state
 ```
 
 **For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)
