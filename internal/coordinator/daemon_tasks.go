@@ -376,11 +376,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	d.postTaskStatus(task, "running", "Starting task execution...")
 
 	// Create analyzed task for executor
+	// Use stage-aware directive for GitHub-linked tasks (M-COORD-GITHUB-AUTO-ROUTING)
+	directive := BuildStageDirective(task)
 	analyzed := &AnalyzedTask{
 		Task: &Task{
 			ID:        task.ID,
 			Title:     task.Title,
-			Content:   task.Content,
+			Content:   directive, // Stage-aware: design/sprint/implementation prompts
 			Kind:      task.Kind,
 			MessageID: task.MessageID,
 			CreatedAt: task.CreatedAt,
@@ -516,6 +518,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		}
 		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, result); err != nil {
 			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
+		}
+
+		// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
+		// This posts the summary to GitHub and adds the appropriate approval label
+		if err := d.ProcessStageCompletion(d.ctx, task, result); err != nil {
+			d.logger.Printf("Warning: Failed to process stage completion: %v", err)
 		}
 
 		// Create approval request record for the CLI/dashboard to show

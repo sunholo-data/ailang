@@ -138,6 +138,7 @@ type Store interface {
 	MarkTaskFailed(ctx context.Context, id string, err error) error
 	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work
 	MarkTaskCancelled(ctx context.Context, id string) error
+	RequeueTask(ctx context.Context, id string) error // Reset status to pending for next stage execution
 
 	// Duplicate detection
 	FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error)

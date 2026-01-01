@@ -109,7 +109,7 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 }
 
 // OnDesignApproved is called when a design document is approved.
-// Transitions the task to the sprint stage.
+// Transitions the task to the sprint stage and requeues for execution.
 func (tc *TaskChain) OnDesignApproved(ctx context.Context, event *ApprovalEvent) error {
 	log.Printf("[TaskChain] Design approved for task %s (issue #%d)", event.TaskID, event.IssueNumber)
 
@@ -128,8 +128,13 @@ func (tc *TaskChain) OnDesignApproved(ctx context.Context, event *ApprovalEvent)
 		}
 	}
 
-	// Trigger sprint planning (actual execution is handled by daemon)
-	// This function just signals the transition
+	// Requeue the task for execution with the new stage
+	// This makes the daemon pick it up again with stage-aware directive
+	if err := tc.store.RequeueTask(ctx, event.TaskID); err != nil {
+		return fmt.Errorf("failed to requeue task: %w", err)
+	}
+	log.Printf("[TaskChain] Task %s requeued for sprint planning stage", event.TaskID)
+
 	return nil
 }
 
@@ -178,7 +183,7 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 }
 
 // OnSprintApproved is called when a sprint plan is approved.
-// Transitions the task to the implementation stage.
+// Transitions the task to the implementation stage and requeues for execution.
 func (tc *TaskChain) OnSprintApproved(ctx context.Context, event *ApprovalEvent) error {
 	log.Printf("[TaskChain] Sprint approved for task %s (issue #%d)", event.TaskID, event.IssueNumber)
 
@@ -197,7 +202,13 @@ func (tc *TaskChain) OnSprintApproved(ctx context.Context, event *ApprovalEvent)
 		}
 	}
 
-	// Trigger sprint execution (actual execution is handled by daemon)
+	// Requeue the task for execution with the new stage
+	// This makes the daemon pick it up again with stage-aware directive
+	if err := tc.store.RequeueTask(ctx, event.TaskID); err != nil {
+		return fmt.Errorf("failed to requeue task: %w", err)
+	}
+	log.Printf("[TaskChain] Task %s requeued for implementation stage", event.TaskID)
+
 	return nil
 }
 

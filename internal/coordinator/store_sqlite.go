@@ -493,6 +493,16 @@ func (s *SQLiteStore) MarkTaskRejected(ctx context.Context, id string) error {
 	return err
 }
 
+// RequeueTask resets a task to pending status for re-execution.
+// Used by approval handlers to trigger the next pipeline stage.
+func (s *SQLiteStore) RequeueTask(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, started_at = NULL, completed_at = NULL WHERE id = ?",
+		TaskStatusPending, id,
+	)
+	return err
+}
+
 // FindDuplicateTask finds a similar task by fingerprint
 func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
 	// For now, exact match only (SimHash comparison would require custom SQLite function)
