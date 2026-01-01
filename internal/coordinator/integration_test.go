@@ -428,6 +428,11 @@ func TestIntegration_AgentRegistry(t *testing.T) {
 
 // TestIntegration_WorktreeManager tests worktree creation and cleanup
 func TestIntegration_WorktreeManager(t *testing.T) {
+	// Skip if coordinator is running (has existing worktrees)
+	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.pid")); err == nil {
+		t.Skip("coordinator is running, skip worktree test to avoid conflicts")
+	}
+
 	// Skip if not in a git repo
 	if _, err := os.Stat(".git"); os.IsNotExist(err) {
 		// Find git root

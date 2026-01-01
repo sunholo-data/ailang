@@ -84,9 +84,7 @@ func (s *SQLiteStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_fingerprint ON tasks(fingerprint);
 	CREATE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_thread_id ON tasks(thread_id);
-	CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace);
-	CREATE INDEX IF NOT EXISTS idx_tasks_github_issue ON tasks(github_issue);
-	CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage);
+	-- Note: workspace, github_issue, stage indexes created after ALTER TABLE (for existing DBs)
 
 	-- Approval requests for human-in-the-loop checkpoints
 	CREATE TABLE IF NOT EXISTS approval_requests (
