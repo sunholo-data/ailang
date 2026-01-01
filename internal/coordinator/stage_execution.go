@@ -53,75 +53,33 @@ func BuildStageDirective(task *TaskRecord) string {
 
 // buildDesignDirective creates a directive that invokes design-doc-creator skill
 func buildDesignDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`You are working on GitHub issue #%d.
+	return fmt.Sprintf(`GitHub issue #%d: %s
 
-## Task
-%s
+Invoke the design-doc-creator skill to create a design document for this request.
 
-## Instructions
-1. Run the design-doc-creator skill to create a design document for this feature/bug
-2. Analyze the issue requirements carefully
-3. Create a comprehensive design document following AILANG conventions
-4. Output the path to the created design doc in this format:
-   DESIGN_DOC_PATH: design_docs/planned/<version>/<doc-name>.md
-
-## Important
-- Follow existing design doc patterns in design_docs/implemented/
-- Include acceptance criteria
-- Estimate effort and complexity
-- The design doc will be posted to GitHub for human review
-`, task.GithubIssue, task.Content)
+When done, output: DESIGN_DOC_PATH: <path-to-created-doc>`, task.GithubIssue, task.Content)
 }
 
 // buildSprintDirective creates a directive that invokes sprint-planner skill
 func buildSprintDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`You are continuing work on GitHub issue #%d.
-The design document has been approved. Now create a sprint plan.
+	return fmt.Sprintf(`GitHub issue #%d: %s
 
-## Original Request
-%s
+Design document approved. Invoke the sprint-planner skill to create a sprint plan.
 
-## Instructions
-1. Run the sprint-planner skill to create a sprint plan
-2. Read the approved design document
-3. Analyze recent velocity and estimate realistic milestones
-4. Create a detailed sprint plan with day-by-day tasks
-5. Output the path to the created sprint plan in this format:
-   SPRINT_PLAN_PATH: design_docs/planned/<version>/<doc-name>-sprint-plan.md
-
-## Important
-- Use actual velocity data from CHANGELOG.md
-- Include clear acceptance criteria for each milestone
-- Create the JSON progress file for multi-session execution
-- The sprint plan will be posted to GitHub for human review
-`, task.GithubIssue, task.Content)
+When done, output: SPRINT_PLAN_PATH: <path-to-created-plan>`, task.GithubIssue, task.Content)
 }
 
 // buildImplementationDirective creates a directive that invokes sprint-executor skill
 func buildImplementationDirective(task *TaskRecord) string {
-	return fmt.Sprintf(`You are implementing GitHub issue #%d.
-The design document and sprint plan have been approved. Now execute the implementation.
+	return fmt.Sprintf(`GitHub issue #%d: %s
 
-## Original Request
-%s
+Sprint plan approved. Invoke the sprint-executor skill to implement the plan.
 
-## Instructions
-1. Run the sprint-executor skill to implement the approved plan
-2. Follow test-driven development (TDD)
-3. Run tests and linting after each milestone
-4. Update CHANGELOG.md progressively
-5. When complete, output a summary in this format:
-   IMPLEMENTATION_COMPLETE: true
-   BRANCH_NAME: <branch-name>
-   FILES_CREATED: <comma-separated list>
-   FILES_MODIFIED: <comma-separated list>
-
-## Important
-- All tests must pass before marking complete
-- All linting must pass
-- Document any deviations from the plan
-- The implementation summary will be posted to GitHub for merge review
-`, task.GithubIssue, task.Content)
+When done, output:
+IMPLEMENTATION_COMPLETE: true
+BRANCH_NAME: <branch-name>
+FILES_CREATED: <files>
+FILES_MODIFIED: <files>`, task.GithubIssue, task.Content)
 }
 
 // ParseStageOutput extracts structured artifacts from execution output
