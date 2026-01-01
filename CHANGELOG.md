@@ -6,6 +6,12 @@
 
 Implemented end-to-end GitHub-driven task pipeline for autonomous coordinator operation. Issues with `coordinator:*` labels are automatically routed through design → sprint → implementation → merge workflow.
 
+**Recent Enhancements:**
+- **Design Doc Content in Comments**: Full design doc markdown is now embedded in GitHub comments (collapsible `<details>` sections) so reviewers can approve directly from GitHub without accessing local worktrees
+- **Sprint Plan Content in Comments**: Sprint plans are also shown in full for GitHub-based review
+- **Simplified Stage Directives**: Stage prompts now just invoke the appropriate skill (e.g., "Invoke the design-doc-creator skill") rather than verbose instructions
+- **Local Approval → GitHub Sync**: When approving via `ailang coordinator pending`, the appropriate approval labels are automatically added to GitHub issues
+
 **Features:**
 - **Label-Based Routing**: Issues labeled `coordinator:bug`, `coordinator:feature`, `coordinator:docs` are auto-imported to coordinator inbox
 - **GitHub Comment Posting**: Coordinator posts status updates as comments on linked GitHub issues
