@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -291,9 +292,9 @@ func TestIntegration_TaskAnalyzerClassification(t *testing.T) {
 func TestIntegration_ApprovalCheckpoint(t *testing.T) {
 	checkpoint := NewApprovalCheckpoint(1 * time.Hour)
 
-	callbackCalled := false
+	var callbackCalled atomic.Bool
 	checkpoint.SetCallback(func(request *ApprovalRequest) {
-		callbackCalled = true
+		callbackCalled.Store(true)
 	})
 
 	// Create approval request
@@ -325,7 +326,7 @@ func TestIntegration_ApprovalCheckpoint(t *testing.T) {
 		t.Errorf("expected status approved, got %s", status)
 	}
 
-	if !callbackCalled {
+	if !callbackCalled.Load() {
 		t.Error("expected callback to be called")
 	}
 }
