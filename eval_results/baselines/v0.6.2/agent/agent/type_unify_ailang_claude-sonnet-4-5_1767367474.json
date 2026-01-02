@@ -1,0 +1,32 @@
+{
+  "id": "type_unify",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 60001,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "timeout after 1m0s\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file to understand what I'm working with.[TOOL] Read\n\n[TURN 2]\nGood, I have the template. Now I'll write the complete solution implementing type unification in AILANG.[TOOL] Write\n\n[TURN 3]\nNow let's verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI have a parsing error with the `::` operator in the compose function. Let me fix this by using the proper cons syntax:[TOOL] Edit\n\n[TURN 5]\nWait, I made a syntax error. Let me fix this properly using the cons operator syntax:[TOOL] Edit\n\n[TURN 6]\n[TOOL] Bash\n\n[TURN 7]\nThe issue is with the :: operator syntax. Looking at the AILANG documentation, I need to use the infix `::` operator properly. Let me rewrite compose more simply:[TOOL] Edit\n\n[TURN 8]\nGood, I removed the probl",
+  "expected_stdout": "a = TBool\nb = TInt\n",
+  "timestamp": "2026-01-02T16:24:34.972451+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\ntype Type = TVar(string) | TInt | TBool | TFunc(Type, Type)\n\ntype Subst = {var: string, ty: Type}\n\ntype Result = Ok([Subst]) | Fail\n\nfunc apply(subst: [Subst], t: Type) -\u003e Type =\n  match t {\n    TVar(name) =\u003e match lookup(subst, name) {\n      Some(ty) =\u003e ty,\n      None =\u003e TVar(name)\n    },\n    TInt =\u003e TInt,\n    TBool =\u003e TBool,\n    TFunc(arg, res) =\u003e TFunc(apply(subst, arg), apply(subst, res))\n  }\n\nfunc lookup(subst: [Subst], name: string) -\u003e Option[Type] =\n  match subst {\n    [] =\u003e None,\n    s :: rest =\u003e if s.var == name then Some(s.ty) else lookup(rest, name)\n  }\n\nfunc concat(s1: [Subst], s2: [Subst]) -\u003e [Subst] =\n  match s1 {\n    [] =\u003e s2,\n    x :: xs =\u003e x :: concat(xs, s2)\n  }\n\nfunc unify(t1: Type, t2: Type) -\u003e Result =\n  match t1 {\n    TInt =\u003e match t2 {\n      TInt =\u003e Ok([]),\n      TVar(name) =\u003e Ok([{var: name, ty: TInt}]),\n      _ =\u003e Fail\n    },\n    TBool =\u003e match t2 {\n      TBool =\u003e Ok([]),\n      TVar(name) =\u003e Ok([{var: name, ty: TBool}]),\n      _ =\u003e Fail\n    },\n    TVar(name) =\u003e Ok([{var: name, ty: t2}]),\n    TFunc(a1, r1) =\u003e match t2 {\n      TFunc(a2, r2) =\u003e {\n        match unify(a1, a2) {\n          Ok(s1) =\u003e {\n            let r1_app = apply(s1, r1);\n            let r2_app = apply(s1, r2);\n            match unify(r1_app, r2_app) {\n              Ok(s2) =\u003e Ok(concat(s1, s2)),\n              Fail =\u003e Fail\n            }\n          },\n          Fail =\u003e Fail\n        }\n      },\n      TVar(name) =\u003e Ok([{var: name, ty: TFunc(a1, r1)}]),\n      _ =\u003e Fail\n    }\n  }\n\nfunc showType(t: Type) -\u003e string =\n  match t {\n    TVar(name) =\u003e name,\n    TInt =\u003e \"TInt\",\n    TBool =\u003e \"TBool\",\n    TFunc(arg, res) =\u003e \"TFunc(\" ++ showType(arg) ++ \", \" ++ showType(res) ++ \")\"\n  }\n\nfunc printSubst(subst: [Subst]) -\u003e () ! {IO} =\n  match subst {\n    [] =\u003e (),\n    s :: rest =\u003e {\n      print(s.var ++ \" = \" ++ showType(s.ty));\n      printSubst(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let t1 = TFunc(TVar(\"a\"), TInt);\n  let t2 = TFunc(TBool, TVar(\"b\"));\n  match unify(t1, t2) {\n    Ok(subst) =\u003e printSubst(subst),\n    Fail =\u003e print(\"Unification failed\")\n  }\n}\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 8,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file to understand what I'm working with.[TOOL] Read\n\n[TURN 2]\nGood, I have the template. Now I'll write the complete solution implementing type unification in AILANG.[TOOL] Write\n\n[TURN 3]\nNow let's verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI have a parsing error with the `::` operator in the compose function. Let me fix this by using the proper cons syntax:[TOOL] Edit\n\n[TURN 5]\nWait, I made a syntax error. Let me fix this properly using the cons operator syntax:[TOOL] Edit\n\n[TURN 6]\n[TOOL] Bash\n\n[TURN 7]\nThe issue is with the :: operator syntax. Looking at the AILANG documentation, I need to use the infix `::` operator properly. Let me rewrite compose more simply:[TOOL] Edit\n\n[TURN 8]\nGood, I removed the probl",
+  "eval_mode": "agent"
+}

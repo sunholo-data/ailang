@@ -1,0 +1,33 @@
+{
+  "id": "red_black_tree",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1546,
+  "total_tokens": 1559,
+  "cost_usd": 0.02242185,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 16761,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "[3, 7, 8, 10, 11, 18, 22, 26]\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG red-black tree insertion benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete red-black tree implementation:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output exactly: `[3, 7, 8, 10, 11, 18, 22, 26]`\n\n## Summary\n\nI've implemented a complete red-black tree with insertion and balancing in AILANG:\n\n1. **Color Type**: `Red | Black` for node coloring\n2. **RBTree Type**: `Empty | Node(Color, RBTree, int, RBTree)` for the tree structure\n3. **balance function**: Implements the 4 rotation cases to fix red-red violations:\n   - Left-left case: Left child is red with red left child\n   - Left-right case: Left child is red with red right child\n   - Right-left case: Right child is red with red left child\n   - Right-right case: Right child is red with red right child\n4. **insertHelper**: Recursively inserts values, allowing red root\n5. **insert**: Wraps insertHelper and ensures root is always black\n6. **inorder**: Returns sorted list of all values in the tree\n\nThe solution correctly inserts all 8 values and produces the sorted output `[3, 7, 8, 10, 11, 18, 22, 26]` as required.",
+  "expected_stdout": "[3, 7, 8, 10, 11, 18, 22, 26]\n",
+  "timestamp": "2026-01-02T16:04:48.562515+01:00",
+  "code": "module benchmark/solution\n\ntype Color = Red | Black\n\ntype RBTree = Empty | Node(Color, RBTree, int, RBTree)\n\n-- Balance function: fixes red-red violations\nfunc balance(color: Color, left: RBTree, value: int, right: RBTree) -\u003e RBTree =\n  match color {\n    Black =\u003e match left {\n      Node(Red, Node(Red, a, x, b), y, c) =\u003e Node(Red, Node(Black, a, x, b), y, Node(Black, c, value, right)),\n      Node(Red, a, x, Node(Red, b, y, c)) =\u003e Node(Red, Node(Black, a, x, b), y, Node(Black, c, value, right)),\n      _ =\u003e match right {\n        Node(Red, Node(Red, b, y, c), z, d) =\u003e Node(Red, Node(Black, left, value, b), y, Node(Black, c, z, d)),\n        Node(Red, b, y, Node(Red, c, z, d)) =\u003e Node(Red, Node(Black, left, value, b), y, Node(Black, c, z, d)),\n        _ =\u003e Node(color, left, value, right)\n      }\n    },\n    Red =\u003e Node(color, left, value, right)\n  }\n\n-- Helper: insert value into tree (returns tree with root possibly red)\nfunc insertHelper(x: int, tree: RBTree) -\u003e RBTree =\n  match tree {\n    Empty =\u003e Node(Red, Empty, x, Empty),\n    Node(c, left, y, right) =\u003e\n      if x \u003c y then\n        balance(c, insertHelper(x, left), y, right)\n      else if x \u003e y then\n        balance(c, left, y, insertHelper(x, right))\n      else\n        Node(c, left, y, right)\n  }\n\n-- Insert: recolor root to black\nfunc insert(x: int, tree: RBTree) -\u003e RBTree =\n  match insertHelper(x, tree) {\n    Empty =\u003e Empty,\n    Node(_, left, y, right) =\u003e Node(Black, left, y, right)\n  }\n\n-- Inorder traversal: get sorted list\nfunc inorder(tree: RBTree) -\u003e [int] =\n  match tree {\n    Empty =\u003e [],\n    Node(_, left, value, right) =\u003e inorder(left) ++ [value] ++ inorder(right)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let empty = Empty;\n  let t1 = insert(7, empty);\n  let t2 = insert(3, t1);\n  let t3 = insert(18, t2);\n  let t4 = insert(10, t3);\n  let t5 = insert(22, t4);\n  let t6 = insert(8, t5);\n  let t7 = insert(11, t6);\n  let t8 = insert(26, t7);\n  let result = inorder(t8);\n  print(show(result))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG red-black tree insertion benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete red-black tree implementation:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output exactly: `[3, 7, 8, 10, 11, 18, 22, 26]`\n\n## Summary\n\nI've implemented a complete red-black tree with insertion and balancing in AILANG:\n\n1. **Color Type**: `Red | Black` for node coloring\n2. **RBTree Type**: `Empty | Node(Color, RBTree, int, RBTree)` for the tree structure\n3. **balance function**: Implements the 4 rotation cases to fix red-red violations:\n   - Left-left case: Left child is red with red left child\n   - Left-right case: Left child is red with red right child\n   - Right-left case: Right child is red with red left child\n   - Right-right case: Right child is red with red right child\n4. **insertHelper**: Recursively inserts values, allowing red root\n5. **insert**: Wraps insertHelper and ensures root is always black\n6. **inorder**: Returns sorted list of all values in the tree\n\nThe solution correctly inserts all 8 values and produces the sorted output `[3, 7, 8, 10, 11, 18, 22, 26]` as required.",
+  "eval_mode": "agent"
+}

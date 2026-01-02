@@ -1,0 +1,33 @@
+{
+  "id": "run_length_encode",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1525,
+  "total_tokens": 1538,
+  "cost_usd": 0.022119299999999998,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 14438,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "[(3, a), (2, b), (4, c), (1, a)]\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG run-length encoding problem step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Implement run-length encoding using recursion\n2. Process the list ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']\n3. Output the result as [(3, a), (2, b), (4, c), (1, a)][TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it works:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output: `[(3, a), (2, b), (4, c), (1, a)]`\n\n## Solution Summary\n\nThe AILANG run-length encoding solution:\n\n1. **`encode` function**: Recursively processes the character list. For each character, it groups all consecutive identical characters together using the helper function.\n\n2. **`groupConsecutive` function**: Returns a `GroupResult` record containing:\n   - `count`: number of consecutive identical characters\n   - `char`: the character itself\n   - `remaining`: the rest of the list after the group\n\n3. **`formatResult` and `formatElements` functions**: Format the encoded pairs as required output format: `[(count, char), ...]`\n\n4. **`main` function**: \n   - Defines the input list: `['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']`\n   - Encodes it\n   - Formats and prints the result\n\nThe solution correctly implements run-length encoding using pure recursion (no loops) and pattern matching as required by AILANG.",
+  "expected_stdout": "[(3, a), (2, b), (4, c), (1, a)]\n",
+  "timestamp": "2026-01-02T16:06:54.153994+01:00",
+  "code": "module benchmark/solution\n\n-- Run-length encode a list of characters\n-- Returns list of (count, char) tuples\nfunc encode(chars: [string]) -\u003e [(int, string)] =\n  match chars {\n    [] =\u003e [],\n    x :: rest =\u003e {\n      let grouped = groupConsecutive(rest, x, 1);\n      (grouped.count, grouped.char) :: encode(grouped.remaining)\n    }\n  }\n\n-- Helper function to group consecutive identical characters\n-- Returns {count: int, char: string, remaining: [string]}\ntype GroupResult = {count: int, char: string, remaining: [string]}\n\nfunc groupConsecutive(chars: [string], current: string, count: int) -\u003e GroupResult =\n  match chars {\n    [] =\u003e {count: count, char: current, remaining: []},\n    x :: rest =\u003e {\n      if x == current then\n        groupConsecutive(rest, current, count + 1)\n      else\n        {count: count, char: current, remaining: x :: rest}\n    }\n  }\n\n-- Format a list of (int, string) pairs for output\nfunc formatPairs(pairs: [(int, string)]) -\u003e string =\n  match pairs {\n    [] =\u003e \"[]\",\n    [p] =\u003e \"[(count, char)]\",\n    _ =\u003e {\n      let formatted = formatPairsList(pairs);\n      \"[\" ++ formatted ++ \"]\"\n    }\n  }\n\nfunc formatPairsList(pairs: [(int, string)]) -\u003e string =\n  match pairs {\n    [] =\u003e \"\",\n    [(count, char)] =\u003e \"(\" ++ show(count) ++ \", \" ++ char ++ \")\",\n    (count, char) :: rest =\u003e \"(\" ++ show(count) ++ \", \" ++ char ++ \"), \" ++ formatPairsList(rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let input = [\"a\", \"a\", \"a\", \"b\", \"b\", \"c\", \"c\", \"c\", \"c\", \"a\"];\n  let encoded = encode(input);\n  let output = formatResult(encoded);\n  print(output)\n}\n\n-- Format the result as required\nfunc formatResult(pairs: [(int, string)]) -\u003e string =\n  match pairs {\n    [] =\u003e \"[]\",\n    _ =\u003e \"[\" ++ formatElements(pairs) ++ \"]\"\n  }\n\nfunc formatElements(pairs: [(int, string)]) -\u003e string =\n  match pairs {\n    [] =\u003e \"\",\n    [(count, char)] =\u003e \"(\" ++ show(count) ++ \", \" ++ char ++ \")\",\n    (count, char) :: rest =\u003e \"(\" ++ show(count) ++ \", \" ++ char ++ \"), \" ++ formatElements(rest)\n  }\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG run-length encoding problem step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Implement run-length encoding using recursion\n2. Process the list ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']\n3. Output the result as [(3, a), (2, b), (4, c), (1, a)][TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it works:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output: `[(3, a), (2, b), (4, c), (1, a)]`\n\n## Solution Summary\n\nThe AILANG run-length encoding solution:\n\n1. **`encode` function**: Recursively processes the character list. For each character, it groups all consecutive identical characters together using the helper function.\n\n2. **`groupConsecutive` function**: Returns a `GroupResult` record containing:\n   - `count`: number of consecutive identical characters\n   - `char`: the character itself\n   - `remaining`: the rest of the list after the group\n\n3. **`formatResult` and `formatElements` functions**: Format the encoded pairs as required output format: `[(count, char), ...]`\n\n4. **`main` function**: \n   - Defines the input list: `['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']`\n   - Encodes it\n   - Formats and prints the result\n\nThe solution correctly implements run-length encoding using pure recursion (no loops) and pattern matching as required by AILANG.",
+  "eval_mode": "agent"
+}

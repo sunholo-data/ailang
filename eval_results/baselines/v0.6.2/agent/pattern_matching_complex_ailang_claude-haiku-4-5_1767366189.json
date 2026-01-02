@@ -1,0 +1,33 @@
+{
+  "id": "pattern_matching_complex",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1219,
+  "total_tokens": 1232,
+  "cost_usd": 0.01960715,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 14123,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Sum: 18\nMax: 7\n",
+  "stderr": "Warning: stdlib version mismatch: expected dev, found v0.6.2 at /Users/mark/dev/sunholo/ailang/std\n\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step. Let me start by reading the template file to understand the structure.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Define the Tree ADT\n2. Implement tree_sum using pattern matching\n3. Implement find_max with guards\n4. Create a sample tree and print the results[TOOL] Edit\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Sum: 18 ✓\n- Max: 7 ✓\n\nThe solution demonstrates:\n\n1. **Algebraic Data Type**: Defined `Tree` with two constructors:\n   - `Leaf(int)` for leaf nodes\n   - `Node(Tree, int, Tree)` for internal nodes\n\n2. **Pattern Matching with Exhaustiveness**: Both functions use `match` expressions that cover all cases:\n   - `tree_sum` recursively sums all values\n   - `find_max` recursively finds the maximum value\n\n3. **Nested Patterns**: The `Node(l, v, r)` pattern destructures both subtrees and the value\n\n4. **Guards**: The `find_max` function uses nested guards (`if/then/else`) to find the maximum among left subtree, right subtree, and current node value\n\n5. **Sample Tree Construction**: Created the exact tree structure specified: `Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))`\n\nThe solution correctly produces the expected output with no extra formatting.",
+  "expected_stdout": "Sum: 18\nMax: 7\n",
+  "timestamp": "2026-01-02T16:03:09.027014+01:00",
+  "code": "module benchmark/solution\n\nimport std/io (println)\n\n-- Define the Tree algebraic data type\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\n-- Calculate sum of all values in tree\nfunc tree_sum(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n\n-- Find maximum value in tree with guards\nfunc find_max(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e {\n      let left_max = find_max(l);\n      let right_max = find_max(r);\n      let max_lr = if left_max \u003e right_max then left_max else right_max;\n      if v \u003e max_lr then v else max_lr\n    }\n  }\n\n-- Main entry point\nexport func main() -\u003e () ! {IO} {\n  -- Create sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n  let tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n\n  -- Calculate sum and max\n  let sum = tree_sum(tree);\n  let max = find_max(tree);\n\n  -- Print results\n  println(\"Sum: \" ++ show(sum));\n  println(\"Max: \" ++ show(max))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step. Let me start by reading the template file to understand the structure.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Define the Tree ADT\n2. Implement tree_sum using pattern matching\n3. Implement find_max with guards\n4. Create a sample tree and print the results[TOOL] Edit\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Sum: 18 ✓\n- Max: 7 ✓\n\nThe solution demonstrates:\n\n1. **Algebraic Data Type**: Defined `Tree` with two constructors:\n   - `Leaf(int)` for leaf nodes\n   - `Node(Tree, int, Tree)` for internal nodes\n\n2. **Pattern Matching with Exhaustiveness**: Both functions use `match` expressions that cover all cases:\n   - `tree_sum` recursively sums all values\n   - `find_max` recursively finds the maximum value\n\n3. **Nested Patterns**: The `Node(l, v, r)` pattern destructures both subtrees and the value\n\n4. **Guards**: The `find_max` function uses nested guards (`if/then/else`) to find the maximum among left subtree, right subtree, and current node value\n\n5. **Sample Tree Construction**: Created the exact tree structure specified: `Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))`\n\nThe solution correctly produces the expected output with no extra formatting.",
+  "eval_mode": "agent"
+}
