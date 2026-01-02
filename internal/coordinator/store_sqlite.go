@@ -56,6 +56,7 @@ func (s *SQLiteStore) migrate() error {
 		priority INTEGER DEFAULT 5,
 		status TEXT NOT NULL DEFAULT 'pending',
 		provider TEXT,
+		agent_id TEXT,
 		worktree_id TEXT,
 		worktree_path TEXT,
 		session_id TEXT,
@@ -148,6 +149,8 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN stage TEXT",
 		"ALTER TABLE tasks ADD COLUMN design_doc_path TEXT",
 		"ALTER TABLE tasks ADD COLUMN sprint_plan_path TEXT",
+		// Generic agent tracking
+		"ALTER TABLE tasks ADD COLUMN agent_id TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -177,7 +180,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 // GetTask retrieves a task by ID
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
@@ -222,7 +225,7 @@ func (s *SQLiteStore) DeleteTask(ctx context.Context, id string) error {
 func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*TaskRecord, error) {
 	query := strings.Builder{}
 	query.WriteString(`
-		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
@@ -510,7 +513,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// For now, exact match only (SimHash comparison would require custom SQLite function)
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used
@@ -581,7 +584,7 @@ func (s *SQLiteStore) SetTaskSprintPlanPath(ctx context.Context, id string, path
 // GetTasksByGithubIssue retrieves all tasks linked to a GitHub issue
 func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
@@ -608,7 +611,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 // GetTasksByStage retrieves all tasks in a specific pipeline stage
 func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, title, content, type, priority, status, provider,
+		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used
@@ -699,13 +702,13 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
-		&task.Type, &task.Priority, &task.Status, &provider,
+		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -725,6 +728,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if provider.Valid {
 		task.Provider = provider.String
+	}
+	if agentID.Valid {
+		task.AgentID = agentID.String
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String
@@ -765,13 +771,13 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
-	var provider, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
+	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
-		&task.Type, &task.Priority, &task.Status, &provider,
+		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -791,6 +797,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if provider.Valid {
 		task.Provider = provider.String
+	}
+	if agentID.Valid {
+		task.AgentID = agentID.String
 	}
 	if worktreeID.Valid {
 		task.WorktreeID = worktreeID.String

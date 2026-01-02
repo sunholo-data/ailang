@@ -397,11 +397,18 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	var agentConfig *AgentConfig
 	if d.agentRegistry != nil {
 		agentID := stageToAgentID(task.Stage)
+		d.logger.Printf("[DEBUG] Task stage: %s -> agentID: %s", task.Stage, agentID)
 		if agentID != "" {
 			agentConfig = d.agentRegistry.GetAgentByID(agentID)
+			if agentConfig != nil {
+				d.logger.Printf("[DEBUG] Found agent config: ID=%s, Invoke=%+v", agentConfig.ID, agentConfig.Invoke)
+			} else {
+				d.logger.Printf("[DEBUG] No agent config found for ID: %s", agentID)
+			}
 		}
 	}
 	directive := BuildDirectiveFromConfig(task, agentConfig)
+	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", truncateString(directive, 500))
 	analyzed := &AnalyzedTask{
 		Task: &Task{
 			ID:        task.ID,
@@ -553,9 +560,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 		}
 
-		// Update task with worktree info before ProcessStageCompletion
+		// Update task with worktree and agent info before ProcessStageCompletion
 		// (needed for git diff artifact discovery)
 		task.WorktreePath = worktreePath
+		task.AgentID = targetAgent
 
 		// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 		// This posts the summary to GitHub and adds the appropriate approval label

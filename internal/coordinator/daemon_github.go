@@ -39,8 +39,11 @@ func (d *Daemon) syncGitHubIssues() {
 	cfg := d.coordConfig.GitHubSync
 	d.logger.Println("Running GitHub issue sync...")
 
-	// Build the command: ailang messages import-github [--labels label1,label2]
+	// Build the command: ailang messages import-github [--inbox target] [--labels label1,label2]
 	args := []string{"messages", "import-github"}
+	if cfg.TargetInbox != "" {
+		args = append(args, "--inbox", cfg.TargetInbox)
+	}
 	if len(cfg.WatchLabels) > 0 {
 		labels := ""
 		for i, label := range cfg.WatchLabels {

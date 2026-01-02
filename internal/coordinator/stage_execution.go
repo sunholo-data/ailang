@@ -398,13 +398,18 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 		return nil // Not a GitHub-linked pipeline task
 	}
 
-	d.logger.Printf("Processing stage completion for task %s (stage: %s, issue: #%d)",
-		task.ID, task.Stage, task.GithubIssue)
+	d.logger.Printf("Processing stage completion for task %s (stage: %s, issue: #%d, agent: %s)",
+		task.ID, task.Stage, task.GithubIssue, task.AgentID)
 
 	// Get agent config for artifact patterns
-	agentID := stageToAgentIDForDirective(task.Stage)
+	// Prefer task.AgentID if set, otherwise fall back to stage-to-agent mapping
+	agentID := task.AgentID
+	if agentID == "" {
+		agentID = stageToAgentIDForDirective(task.Stage)
+	}
 	agent := &AgentConfig{ID: agentID}
 	patterns := agent.GetEffectiveArtifactPatterns()
+	d.logger.Printf("Using artifact patterns for agent %s: %v", agentID, patterns)
 
 	// Primary: Discover artifacts via git diff (deterministic)
 	var discoveredArtifacts []string

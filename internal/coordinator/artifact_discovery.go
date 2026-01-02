@@ -12,6 +12,7 @@ import (
 type ArtifactDiscovery struct {
 	WorktreePath string   // Path to git worktree
 	Patterns     []string // Glob patterns to filter files (e.g., "*.md", "design_docs/**")
+	BaseBranch   string   // Base branch to compare against (default: auto-detect)
 }
 
 // NewArtifactDiscovery creates a new artifact discovery instance.
@@ -19,7 +20,14 @@ func NewArtifactDiscovery(worktreePath string, patterns []string) *ArtifactDisco
 	return &ArtifactDiscovery{
 		WorktreePath: worktreePath,
 		Patterns:     patterns,
+		BaseBranch:   "", // Will auto-detect
 	}
+}
+
+// WithBaseBranch sets the base branch for comparison.
+func (ad *ArtifactDiscovery) WithBaseBranch(branch string) *ArtifactDiscovery {
+	ad.BaseBranch = branch
+	return ad
 }
 
 // DiscoverChangedFiles returns files that were created or modified in the worktree.
@@ -52,28 +60,33 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 }
 
 // getChangedFiles returns all files that have changed in the worktree.
-// This includes both uncommitted changes AND committed changes since branching from dev.
+// This includes both uncommitted changes AND committed changes since branching from base.
 func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	var allFiles []string
 
-	// Primary: Get all changes since branching from dev (includes commits)
+	// Determine base branch for comparison
+	baseBranch := ad.detectBaseBranch()
+
+	// Primary: Get all changes since branching from base (includes commits)
 	// This catches files that the agent committed during execution
-	cmd := exec.Command("git", "diff", "--name-only", "dev...HEAD")
-	cmd.Dir = ad.WorktreePath
-	output, err := cmd.Output()
-	if err == nil && len(output) > 0 {
-		files := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, f := range files {
-			if f != "" {
-				allFiles = append(allFiles, f)
+	if baseBranch != "" {
+		cmd := exec.Command("git", "diff", "--name-only", baseBranch+"...HEAD")
+		cmd.Dir = ad.WorktreePath
+		output, err := cmd.Output()
+		if err == nil && len(output) > 0 {
+			files := strings.Split(strings.TrimSpace(string(output)), "\n")
+			for _, f := range files {
+				if f != "" {
+					allFiles = append(allFiles, f)
+				}
 			}
 		}
 	}
 
 	// Also check uncommitted changes (staged + unstaged)
-	cmd = exec.Command("git", "diff", "--name-only", "HEAD")
+	cmd := exec.Command("git", "diff", "--name-only", "HEAD")
 	cmd.Dir = ad.WorktreePath
-	output, err = cmd.Output()
+	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		files := strings.Split(strings.TrimSpace(string(output)), "\n")
 		for _, f := range files {
@@ -110,6 +123,46 @@ func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	}
 
 	return allFiles, nil
+}
+
+// detectBaseBranch determines which branch to use as the base for comparison.
+// Priority:
+// 1. Explicitly configured BaseBranch
+// 2. Auto-detect common branch names (dev, main, master)
+// 3. Try to find merge-base with origin/dev, origin/main, origin/master
+func (ad *ArtifactDiscovery) detectBaseBranch() string {
+	// Use explicit base branch if set
+	if ad.BaseBranch != "" {
+		return ad.BaseBranch
+	}
+
+	// Try common branch names in order of preference
+	candidates := []string{
+		"dev",          // AILANG convention
+		"origin/dev",   // Remote tracking
+		"main",         // Modern default
+		"origin/main",  // Remote tracking
+		"master",       // Legacy default
+		"origin/master", // Remote tracking
+	}
+
+	for _, branch := range candidates {
+		if ad.branchExists(branch) {
+			return branch
+		}
+	}
+
+	// Fallback: try to find merge-base with HEAD~10 (recent ancestor)
+	// This is useful when no standard branch exists
+	return ""
+}
+
+// branchExists checks if a branch exists in the worktree.
+func (ad *ArtifactDiscovery) branchExists(branch string) bool {
+	cmd := exec.Command("git", "rev-parse", "--verify", branch)
+	cmd.Dir = ad.WorktreePath
+	err := cmd.Run()
+	return err == nil
 }
 
 // matchesAnyPattern checks if the file matches any of the configured patterns.
