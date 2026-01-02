@@ -254,9 +254,9 @@ This is a test design document.
 
 	// Verify comment contains key elements
 	checks := []string{
-		"<details>",                    // Collapsible section
-		"</details>",                   // End of collapsible
-		"test.md",                      // File name appears
+		"<details>",                      // Collapsible section
+		"</details>",                     // End of collapsible
+		"test.md",                        // File name appears
 		"This is a test design document", // Content included
 	}
 

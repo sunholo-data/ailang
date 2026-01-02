@@ -138,11 +138,11 @@ func (ad *ArtifactDiscovery) detectBaseBranch() string {
 
 	// Try common branch names in order of preference
 	candidates := []string{
-		"dev",          // AILANG convention
-		"origin/dev",   // Remote tracking
-		"main",         // Modern default
-		"origin/main",  // Remote tracking
-		"master",       // Legacy default
+		"dev",           // AILANG convention
+		"origin/dev",    // Remote tracking
+		"main",          // Modern default
+		"origin/main",   // Remote tracking
+		"master",        // Legacy default
 		"origin/master", // Remote tracking
 	}
 

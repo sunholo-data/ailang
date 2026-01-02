@@ -5,7 +5,7 @@
 | Status | Planned |
 | Target | v0.6.3 |
 | Priority | P1 (High) |
-| Estimated | 2.5 days |
+| Estimated | 3.5 days |
 | Dependencies | M-COORD-GITHUB-AUTO-ROUTING (implemented), ApprovalWatcher (implemented) |
 | Created | 2026-01-02 |
 
@@ -405,6 +405,155 @@ Previous revisions:
 **Planned (check for overlap):**
 - [m-coord-generic-workflows.md](../v0_6_3/m-coord-generic-workflows.md) - Generic stage configuration
 
+## Additional Features: Message Routing Improvements
+
+### Background
+
+While investigating why GitHub issue #104 wasn't picked up by the coordinator, we discovered a timing issue:
+
+1. Issue #104 was created WITHOUT the `coordinator:feature` label
+2. Session start hook imported it to `user` inbox (default)
+3. Label was added ~13 hours LATER
+4. Message was already imported - label change had no effect
+
+Two features address this gap:
+
+### Feature A: Interactive Message Menu (DX Improvement)
+
+The current UX requires copying long UUIDs like `87738035-3807-4b2f-935a-09ede9fb0c3a`. Add an interactive menu system:
+
+```bash
+# Interactive mode - shows numbered menu
+ailang messages
+
+# Output:
+# ┌─────────────────────────────────────────────────────────────────┐
+# │ AILANG Messages - user inbox (2 unread)                         │
+# ├─────────────────────────────────────────────────────────────────┤
+# │ [1] ● Consider importing linting issues from Sonar Cloud  #104  │
+# │ [2]   Artifact Discovery Fix v2                            #106  │
+# │ [3]   Ultrathink                                           #107  │
+# └─────────────────────────────────────────────────────────────────┘
+# │ Actions: [r]ead [f]orward [a]ck [d]elete [q]uit                 │
+#
+# Select message (1-3) or action: _
+```
+
+**Keyboard navigation:**
+- `1-9` - Select message by number
+- `r` - Read selected message
+- `f` - Forward to another inbox (prompts for target)
+- `a` - Acknowledge (mark as read)
+- `A` - Acknowledge all
+- `d` - Delete message
+- `q` - Quit
+- `j/k` or `↑/↓` - Navigate (if using TUI library)
+- `/` - Filter/search messages
+
+**Implementation options:**
+1. **Simple numbered menu** - No dependencies, basic stdin reading (~100 LOC)
+2. **promptui** - `github.com/manifoldco/promptui` - Nice prompts (~150 LOC)
+3. **bubbletea** - `github.com/charmbracelet/bubbletea` - Full TUI (~300 LOC)
+
+**Recommendation:** Start with simple numbered menu, upgrade to bubbletea if needed.
+
+**Short IDs:**
+Also support short ID prefixes (like git):
+```bash
+ailang messages read 87738     # Matches 87738035-3807-4b2f-935a-09ede9fb0c3a
+ailang messages ack 877        # Works if unique prefix
+```
+
+**Estimated: ~4 hours** (simple menu + short IDs)
+
+### Feature B: Message Forward CLI (uses interactive menu)
+
+Allow manual forwarding of messages between inboxes:
+
+```bash
+# Forward a message to a different inbox
+ailang messages forward MSG_ID --to design-doc-creator
+
+# Forward with reason (logged)
+ailang messages forward MSG_ID --to design-doc-creator --reason "Label added after import"
+
+# Bulk forward by query
+ailang messages forward --from user --to design-doc-creator --filter "github_issue IS NOT NULL"
+```
+
+**Implementation:**
+
+```go
+// cmd/ailang/messages.go
+func runMessagesForward(args []string) {
+    fs := flag.NewFlagSet("messages forward", flag.ExitOnError)
+    toInbox := fs.String("to", "", "Target inbox (required)")
+    reason := fs.String("reason", "", "Reason for forwarding (optional)")
+    // ...
+}
+```
+
+**Database update:**
+```sql
+UPDATE messages SET to_id = ? WHERE id = ?;
+-- Optionally log the forward in an audit table
+```
+
+**Estimated: ~2 hours**
+
+### Feature C: GitHub Label Re-sync
+
+Periodically check if GitHub labels changed and update message routing:
+
+```go
+// internal/coordinator/daemon_github.go
+
+// ResyncLabels checks imported messages for label changes
+func (d *Daemon) ResyncLabels(ctx context.Context) error {
+    // 1. Get all messages imported from GitHub (to_id = 'user' or misrouted)
+    // 2. For each, fetch current labels from GitHub API
+    // 3. If coordinator:* label exists, update to_id to appropriate inbox
+    // 4. Log changes for audit
+}
+```
+
+**Configuration:**
+```yaml
+coordinator:
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    resync_labels: true           # NEW: Re-check labels on imported messages
+    resync_interval_secs: 3600    # NEW: How often to re-sync (1 hour default)
+```
+
+**Routing logic:**
+- `coordinator:bug` → `design-doc-creator` (bugs need design docs too)
+- `coordinator:feature` → `design-doc-creator`
+- `coordinator:docs` → `coordinator` (direct to general)
+- `coordinator:research` → `coordinator`
+
+**Rate limiting considerations:**
+- Only check messages imported in last 7 days
+- Batch GitHub API calls (list issues with `since` parameter)
+- Cache label state to minimize API calls
+
+**Estimated: ~4 hours**
+
+### Implementation Plan Update
+
+Add to Phase 1:
+
+- [ ] Add short ID prefix matching for all message commands (~40 LOC)
+- [ ] Add interactive menu mode for `ailang messages` (~100 LOC)
+- [ ] Add `ailang messages forward` CLI command (~60 LOC)
+- [ ] Add forward logging/audit support (~20 LOC)
+- [ ] Add `ResyncLabels()` to daemon (~80 LOC)
+- [ ] Add `resync_labels` config option (~10 LOC)
+- [ ] Unit tests for all new features (~120 LOC)
+
+**Additional LOC: ~430**
+
 ## Future Work
 
 - **Partial revision** - Revise specific sections only
@@ -416,4 +565,4 @@ Previous revisions:
 ---
 
 **Document created**: 2026-01-02
-**Last updated**: 2026-01-02
+**Last updated**: 2026-01-02 (added interactive menu, forward CLI, label re-sync)

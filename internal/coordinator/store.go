@@ -17,7 +17,7 @@ type TaskRecord struct {
 	Priority     int        `json:"priority"`
 	Status       TaskStatus `json:"status"`
 	Provider     string     `json:"provider,omitempty"`
-	AgentID      string     `json:"agent_id,omitempty"`      // ID of agent that processed this task
+	AgentID      string     `json:"agent_id,omitempty"` // ID of agent that processed this task
 	WorktreeID   string     `json:"worktree_id,omitempty"`
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
