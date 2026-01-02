@@ -68,6 +68,7 @@ func (tc *TaskChain) StartTask(ctx context.Context, taskID string, issueNum int)
 
 // OnDesignDocComplete is called when a design document is created.
 // Posts a summary to GitHub and adds the needs-design-approval label.
+// If no artifact was found, posts a failure message instead.
 func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, result *DesignDocResult) error {
 	task, err := tc.store.GetTask(ctx, taskID)
 	if err != nil {
@@ -84,6 +85,29 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 	if task.GithubIssue == 0 {
 		log.Printf("[TaskChain] Task %s has no linked GitHub issue, skipping notification", taskID)
 		return nil
+	}
+
+	// M-COORD-ARTIFACT-DISCOVERY: If no artifact found, post failure message
+	if result.Path == "" {
+		log.Printf("[TaskChain] No design doc artifact found for task %s, posting failure message", taskID)
+		if tc.poster != nil {
+			failureComment := fmt.Sprintf(
+				"## ❌ Artifact Discovery Failed\n\n"+
+					"**Task:** %s\n"+
+					"**Stage:** Design Doc Creation\n"+
+					"**Duration:** %v\n\n"+
+					"No design document was found. The agent either:\n"+
+					"- Failed to create the design doc\n"+
+					"- Created it outside the expected patterns (`design_docs/**/*.md`)\n"+
+					"- Did not invoke the `design-doc-creator` skill correctly\n\n"+
+					"Check the agent output for details.",
+				taskID, result.Duration,
+			)
+			if err := tc.poster.PostComment(task.GithubIssue, failureComment); err != nil {
+				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
+			}
+		}
+		return fmt.Errorf("no design doc artifact found for task %s", taskID)
 	}
 
 	// Read the design doc content from the worktree
@@ -162,6 +186,7 @@ func (tc *TaskChain) OnDesignApproved(ctx context.Context, event *ApprovalEvent)
 
 // OnSprintPlanComplete is called when a sprint plan is created.
 // Posts a summary to GitHub and adds the needs-sprint-approval label.
+// If no artifact was found, posts a failure message instead.
 func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, result *SprintPlanResult) error {
 	task, err := tc.store.GetTask(ctx, taskID)
 	if err != nil {
@@ -178,6 +203,29 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 	if task.GithubIssue == 0 {
 		log.Printf("[TaskChain] Task %s has no linked GitHub issue, skipping notification", taskID)
 		return nil
+	}
+
+	// M-COORD-ARTIFACT-DISCOVERY: If no artifact found, post failure message
+	if result.Path == "" {
+		log.Printf("[TaskChain] No sprint plan artifact found for task %s, posting failure message", taskID)
+		if tc.poster != nil {
+			failureComment := fmt.Sprintf(
+				"## ❌ Artifact Discovery Failed\n\n"+
+					"**Task:** %s\n"+
+					"**Stage:** Sprint Planning\n"+
+					"**Duration:** %v\n\n"+
+					"No sprint plan was found. The agent either:\n"+
+					"- Failed to create the sprint plan\n"+
+					"- Created it outside the expected patterns (`design_docs/**/*.md`)\n"+
+					"- Did not invoke the `sprint-planner` skill correctly\n\n"+
+					"Check the agent output for details.",
+				taskID, result.Duration,
+			)
+			if err := tc.poster.PostComment(task.GithubIssue, failureComment); err != nil {
+				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
+			}
+		}
+		return fmt.Errorf("no sprint plan artifact found for task %s", taskID)
 	}
 
 	// Read the sprint plan content from the worktree

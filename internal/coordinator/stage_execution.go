@@ -36,13 +36,18 @@ type StageExecutionResult struct {
 // This function uses the config-driven approach by creating a temporary AgentConfig
 // with the stage-appropriate agent ID, which triggers the effective defaults.
 func BuildStageDirective(task *TaskRecord) string {
-	// For non-GitHub tasks, use original content as-is
-	if task.GithubIssue == 0 || task.Stage == TaskStageNone {
+	// M-COORD-ARTIFACT-DISCOVERY: Only fall back to raw content if we truly have no agent info
+	// (BOTH AgentID empty AND Stage is None). Previously used || which was wrong.
+	if task.AgentID == "" && task.Stage == TaskStageNone {
 		return task.Content
 	}
 
-	// Create temporary agent config with stage-appropriate ID to use defaults
-	agentID := stageToAgentIDForDirective(task.Stage)
+	// Use AgentID if available (from inbox), otherwise derive from Stage (legacy path)
+	agentID := task.AgentID
+	if agentID == "" {
+		agentID = stageToAgentIDForDirective(task.Stage)
+	}
+
 	if agentID == "" {
 		return task.Content
 	}
@@ -434,21 +439,27 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 
 	switch task.Stage {
 	case TaskStageDesign:
-		// Use git-discovered artifact if no path from markers
-		designDocPath := stageResult.DesignDocPath
-		d.logger.Printf("Design stage: marker path=%q, discovered=%d artifacts", designDocPath, len(discoveredArtifacts))
-		if designDocPath == "" && len(discoveredArtifacts) > 0 {
-			// Find first .md file in design_docs/
+		// M-COORD-ARTIFACT-DISCOVERY: Prefer git-discovered artifacts over output markers
+		// This is more reliable than parsing agent output for markers like DESIGN_DOC_PATH:
+		designDocPath := ""
+		if len(discoveredArtifacts) > 0 {
+			// Use first .md file discovered via git diff
 			for _, artifact := range discoveredArtifacts {
-				if strings.HasPrefix(artifact, "design_docs/") && strings.HasSuffix(artifact, ".md") {
+				if strings.HasSuffix(artifact, ".md") {
 					designDocPath = artifact
 					d.logger.Printf("Using git-discovered design doc: %s", designDocPath)
 					break
 				}
 			}
 		}
+		// Fallback to output markers if git diff found nothing
+		if designDocPath == "" && stageResult.DesignDocPath != "" && !strings.Contains(stageResult.DesignDocPath, "*") {
+			designDocPath = stageResult.DesignDocPath
+			d.logger.Printf("Using marker-based design doc path: %s", designDocPath)
+		}
+		d.logger.Printf("Design stage: final path=%q, discovered=%d artifacts", designDocPath, len(discoveredArtifacts))
 		if designDocPath == "" {
-			d.logger.Printf("Warning: No design doc path found for task %s (neither git diff nor markers)", task.ID)
+			d.logger.Printf("Warning: No design doc path found for task %s", task.ID)
 		}
 		return d.taskChain.OnDesignDocComplete(ctx, task.ID, &DesignDocResult{
 			Path:         designDocPath,
@@ -462,7 +473,9 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 	case TaskStageSprint:
 		// Use git-discovered artifact if no path from markers
 		sprintPlanPath := stageResult.SprintPlanPath
-		if sprintPlanPath == "" && len(discoveredArtifacts) > 0 {
+		// M-COORD-ARTIFACT-DISCOVERY: Also treat glob patterns as invalid paths
+		isValidPath := sprintPlanPath != "" && !strings.Contains(sprintPlanPath, "*")
+		if !isValidPath && len(discoveredArtifacts) > 0 {
 			// Find first sprint plan .md file
 			for _, artifact := range discoveredArtifacts {
 				if strings.HasPrefix(artifact, "design_docs/") && strings.HasSuffix(artifact, ".md") &&
