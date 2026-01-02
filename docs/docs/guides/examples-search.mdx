@@ -6,7 +6,7 @@ description: Find working AILANG code examples using the CLI
 
 # Searching Examples
 
-AILANG includes 96+ working code examples that you can search, explore, and run directly from the CLI. This is especially useful for AI models learning AILANG patterns.
+AILANG includes 97 working code examples that you can search, explore, and run directly from the CLI. This is especially useful for AI models learning AILANG patterns.
 
 ## Quick Start
 
@@ -69,11 +69,11 @@ ailang examples search "pattern matching"
 ailang examples search "recursion"
 ailang examples search "json"
 
-# Limit results
-ailang examples search "list" --limit 5
+# Limit results (flags BEFORE query)
+ailang examples search --limit 5 "list"
 
-# JSON output for scripting
-ailang examples search "fold" --json
+# JSON output for scripting (flags BEFORE query)
+ailang examples search --json "fold"
 ```
 
 **How search scoring works:**
@@ -219,8 +219,10 @@ All commands support `--json` for machine consumption:
 
 ```bash
 ailang examples list --json
-ailang examples search "recursion" --json
+ailang examples search --json "recursion"
 ```
+
+**Note:** Flags must come BEFORE the query for search commands.
 
 This is useful for:
 - Scripting and automation
