@@ -92,12 +92,14 @@ func serveCommand(args []string) error {
 
 	// Initialize OpenTelemetry (if configured via environment variables)
 	ctx := context.Background()
-	shutdownTelemetry, err := telemetry.InitOTLP(ctx, "ailang-server")
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-server")
 	if err != nil {
 		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
 	} else {
 		defer shutdownTelemetry(ctx)
-		if telemetry.IsEnabled() {
+		if telemetry.IsGoogleCloudEnabled() {
+			log.Printf("Google Cloud Trace enabled (project: %s)", telemetry.GoogleCloudProject())
+		} else if telemetry.IsEnabled() {
 			log.Printf("OpenTelemetry OTLP export enabled")
 		}
 	}

@@ -9,7 +9,13 @@ import (
 	"net/http"
 
 	"github.com/sunholo/ailang/internal/ai"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var anthropicTracer = otel.Tracer("ai.anthropic")
 
 const (
 	defaultBaseURL    = "https://api.anthropic.com/v1"
@@ -107,6 +113,15 @@ type errorResponse struct {
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Start OTEL span
+	ctx, span := anthropicTracer.Start(ctx, "anthropic.generate",
+		trace.WithAttributes(
+			attribute.String("ai.provider", "anthropic"),
+			attribute.String("ai.model", req.Model),
+		),
+	)
+	defer span.End()
+
 	// Build request
 	maxTokens := req.MaxTokens
 	if maxTokens <= 0 {
@@ -132,12 +147,16 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to marshal request")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
 	}
 
 	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create request")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to create request", err)
 	}
 
@@ -148,13 +167,19 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "request failed")
 		return nil, ai.NewProviderError("anthropic", 0, "request failed", err)
 	}
 	defer resp.Body.Close()
 
+	span.SetAttributes(attribute.Int("http.status_code", resp.StatusCode))
+
 	// Read response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read response")
 		return nil, ai.NewProviderError("anthropic", resp.StatusCode, "failed to read response", err)
 	}
 
@@ -162,14 +187,18 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	if resp.StatusCode != 200 {
 		var errResp errorResponse
 		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
+			span.SetStatus(codes.Error, errResp.Error.Message)
 			return nil, ai.NewProviderError("anthropic", resp.StatusCode, errResp.Error.Message, nil)
 		}
+		span.SetStatus(codes.Error, string(body))
 		return nil, ai.NewProviderError("anthropic", resp.StatusCode, string(body), nil)
 	}
 
 	// Parse successful response
 	var result messagesResponse
 	if err := json.Unmarshal(body, &result); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to parse response")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to parse response", err)
 	}
 
@@ -182,8 +211,16 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	if text == "" {
+		span.SetStatus(codes.Error, "empty response")
 		return nil, ai.NewProviderError("anthropic", 0, "empty response from Claude", nil)
 	}
+
+	// Record success metrics on span
+	span.SetAttributes(
+		attribute.Int("ai.tokens_in", result.Usage.InputTokens),
+		attribute.Int("ai.tokens_out", result.Usage.OutputTokens),
+		attribute.Int("ai.tokens_total", result.Usage.InputTokens+result.Usage.OutputTokens),
+	)
 
 	return &ai.Response{
 		Text:         text,

@@ -2,6 +2,79 @@
 
 ## [Unreleased]
 
+### Added - OpenTelemetry Integration (M-OTEL)
+
+Implemented comprehensive OpenTelemetry (OTLP) instrumentation across AILANG's core services for distributed tracing and observability. This enables integration with standard observability backends like Grafana, Honeycomb, Jaeger, and the ai-observer project.
+
+**Features:**
+- **Opt-in via environment variable**: Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable telemetry export
+- **Zero overhead when disabled**: No performance impact when OTLP endpoint is not configured
+- **Service resource auto-population**: Service name, version, runtime info automatically added
+- **Full span hierarchy**: Request → Executor → AI Provider spans with context propagation
+
+**Instrumented Components:**
+- **Server (`internal/server/`)**: HTTP middleware with automatic span creation, status codes, path filtering
+- **Coordinator (`internal/coordinator/`)**: Task lifecycle spans with task.id, type, stage, token/cost attributes
+- **Claude Executor (`internal/executor/claude/`)**: Execution spans with model, tokens, cost tracking
+- **Gemini Executor (`internal/executor/gemini/`)**: Execution spans with model, tokens, cost tracking
+- **AI Providers**: All four providers instrumented:
+  - `internal/ai/anthropic/` - Claude API client
+  - `internal/ai/openai/` - OpenAI API client
+  - `internal/ai/gemini/` - Gemini AI Studio/Vertex client
+  - `internal/ai/ollama/` - Local Ollama client
+
+**Configuration:**
+```bash
+# Option 1: Google Cloud Trace (recommended for GCP users)
+# Uses same convention as Gemini CLI
+export GOOGLE_CLOUD_PROJECT=multivac-internal-dev
+# Or separate telemetry project:
+export OTLP_GOOGLE_CLOUD_PROJECT=my-telemetry-project
+
+# Option 2: Generic OTLP export to collector
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Optional: Set deployment environment
+export OTEL_ENVIRONMENT=production
+
+# Start services
+ailang serve                    # Server with OTEL
+ailang coordinator start        # Coordinator with OTEL
+```
+
+**Google Cloud Trace Integration:**
+- Traces appear in [Cloud Console](https://console.cloud.google.com/traces/explorer)
+- Uses Application Default Credentials (ADC) for authentication
+- Matches Gemini CLI env var convention (`OTLP_GOOGLE_CLOUD_PROJECT` takes precedence)
+- Integration tests in `internal/telemetry/gcp_integration_test.go`
+
+**Native CLI Support:** Both Claude Code and Gemini CLI support OTLP natively:
+- Claude Code: `CLAUDE_CODE_ENABLE_TELEMETRY=1`
+- Gemini CLI: Configure in `~/.gemini/settings.json`
+
+**Files Added:**
+- `internal/telemetry/doc.go` - Package documentation (~5 LOC)
+- `internal/telemetry/otel.go` - OTLP initialization with Google Cloud Trace (~200 LOC)
+- `internal/telemetry/resource.go` - Service resource configuration (~40 LOC)
+- `internal/telemetry/otel_test.go` - Unit tests (~125 LOC)
+- `internal/telemetry/gcp_integration_test.go` - Google Cloud Trace integration tests (~125 LOC)
+
+**Files Modified:**
+- `internal/server/server.go` - Added otelhttp middleware (~15 LOC)
+- `cmd/ailang/serve.go` - Added telemetry init (~20 LOC)
+- `internal/coordinator/daemon_tasks.go` - Added task lifecycle spans (~40 LOC)
+- `cmd/ailang/coordinator.go` - Added telemetry init (~15 LOC)
+- `internal/executor/claude/claude.go` - Added execution spans (~50 LOC)
+- `internal/executor/gemini/gemini.go` - Added execution spans (~50 LOC)
+- `internal/ai/anthropic/client.go` - Added provider spans (~45 LOC)
+- `internal/ai/openai/client.go` - Added provider spans (~35 LOC)
+- `internal/ai/gemini/client.go` - Added provider spans (~30 LOC)
+- `internal/ai/ollama/client.go` - Added provider spans (~30 LOC)
+
+**Design Document:** `design_docs/planned/v0_6_2/m-otel-integration.md`
+
+**Total:** ~725 LOC across 15 files
+
 ### Added - GitHub-Driven Autonomous Workflow (M-COORD-GITHUB-AUTO-ROUTING)
 
 Implemented end-to-end GitHub-driven task pipeline for autonomous coordinator operation. Issues with `coordinator:*` labels are automatically routed through design → sprint → implementation → merge workflow.

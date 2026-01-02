@@ -15,7 +15,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var geminiTracer = otel.Tracer("executor.gemini")
 
 // GeminiExecutor executes tasks using Gemini CLI
 type GeminiExecutor struct {
@@ -56,7 +62,18 @@ func (e *GeminiExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // ExecuteStreaming runs a task with real-time event callbacks
 // Now uses stream-json output format for true NDJSON streaming like Claude
 func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	// Start OTEL span for Gemini execution
+	ctx, span := geminiTracer.Start(ctx, "gemini.execute",
+		trace.WithAttributes(
+			attribute.String("executor.name", "gemini"),
+			attribute.String("executor.model", e.model),
+			attribute.String("task.workspace", task.Workspace),
+		),
+	)
+	defer span.End()
+
 	sessionID := uuid.New().String()
+	span.SetAttributes(attribute.String("session.id", sessionID))
 
 	// Build command arguments for Gemini CLI
 	// Gemini CLI doesn't support system prompts, so prepend to directive if needed
@@ -227,7 +244,14 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	select {
 	case <-timer.C:
 		_ = cmd.Process.Kill()
-		handler.OnError(fmt.Errorf("timeout after %v", timeout))
+		timeoutErr := fmt.Errorf("timeout after %v", timeout)
+		handler.OnError(timeoutErr)
+		span.RecordError(timeoutErr)
+		span.SetStatus(codes.Error, "timeout")
+		span.SetAttributes(
+			attribute.Int("task.turns", turnNum),
+			attribute.Bool("task.success", false),
+		)
 		return &executor.Result{
 			Success:    false,
 			Error:      fmt.Sprintf("timeout after %v", timeout),
@@ -242,6 +266,12 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 		if err != nil {
 			handler.OnError(err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.SetAttributes(
+				attribute.Int("task.turns", turnNum),
+				attribute.Bool("task.success", false),
+			)
 			return &executor.Result{
 				Success:    false,
 				Error:      err.Error(),
@@ -261,6 +291,19 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		success := true
 		if finalResult != nil && finalResult.Status != "success" {
 			success = false
+		}
+
+		// Record span attributes
+		span.SetAttributes(
+			attribute.Int("task.turns", turnNum),
+			attribute.Bool("task.success", success),
+			attribute.Int("task.duration_ms", int(duration.Milliseconds())),
+			attribute.Int64("task.tokens_in", int64(inputTokens)),
+			attribute.Int64("task.tokens_out", int64(outputTokens)),
+			attribute.Float64("task.cost_usd", cost),
+		)
+		if !success {
+			span.SetStatus(codes.Error, "task failed")
 		}
 
 		return &executor.Result{

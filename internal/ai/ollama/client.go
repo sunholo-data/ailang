@@ -10,7 +10,13 @@ import (
 
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo/ailang/internal/ai"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var ollamaTracer = otel.Tracer("ai.ollama")
 
 const (
 	defaultEndpoint = "http://localhost:11434"
@@ -80,6 +86,16 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 // Generate implements ai.Provider.
 // It uses Ollama's Chat API for instruction following.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	// Start OTEL span
+	ctx, span := ollamaTracer.Start(ctx, "ollama.generate",
+		trace.WithAttributes(
+			attribute.String("ai.provider", "ollama"),
+			attribute.String("ai.model", req.Model),
+			attribute.String("ai.endpoint", c.endpoint),
+		),
+	)
+	defer span.End()
+
 	var response strings.Builder
 
 	// Build messages
@@ -125,8 +141,13 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, ai.NewProviderError("ollama", 0, err.Error(), err)
 	}
+
+	// Note: Ollama doesn't report tokens the same way, so we leave them at 0
+	span.SetAttributes(attribute.String("ai.response_model", req.Model))
 
 	return &ai.Response{
 		Text:         response.String(),

@@ -14,7 +14,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var claudeTracer = otel.Tracer("executor.claude")
 
 // ClaudeExecutor executes tasks using Claude Code CLI
 type ClaudeExecutor struct {
@@ -68,7 +74,18 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 
 // ExecuteStreaming runs a task with real-time event callbacks
 func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	// Start OTEL span for Claude execution
+	ctx, span := claudeTracer.Start(ctx, "claude.execute",
+		trace.WithAttributes(
+			attribute.String("executor.name", "claude"),
+			attribute.String("executor.model", e.model),
+			attribute.String("task.workspace", task.Workspace),
+		),
+	)
+	defer span.End()
+
 	sessionID := uuid.New().String()
+	span.SetAttributes(attribute.String("session.id", sessionID))
 
 	// Build command arguments
 	args := []string{
@@ -228,7 +245,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	select {
 	case <-timer.C:
 		_ = cmd.Process.Kill()
-		handler.OnError(fmt.Errorf("timeout after %v", timeout))
+		timeoutErr := fmt.Errorf("timeout after %v", timeout)
+		handler.OnError(timeoutErr)
+		span.RecordError(timeoutErr)
+		span.SetStatus(codes.Error, "timeout")
+		span.SetAttributes(
+			attribute.Int("task.turns", turnNum),
+			attribute.Bool("task.success", false),
+		)
 		return &executor.Result{
 			Success:    false,
 			Error:      fmt.Sprintf("timeout after %v", timeout),
@@ -243,6 +267,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 		if err != nil {
 			handler.OnError(err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.SetAttributes(
+				attribute.Int("task.turns", turnNum),
+				attribute.Bool("task.success", false),
+			)
 			return &executor.Result{
 				Success:    false,
 				Error:      err.Error(),
@@ -254,6 +284,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 
 		if finalResult == nil {
+			span.SetAttributes(
+				attribute.Int("task.turns", turnNum),
+				attribute.Bool("task.success", true),
+				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
+			)
 			return &executor.Result{
 				Success:    true,
 				Output:     "Session completed",
@@ -264,8 +299,21 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			}, nil
 		}
 
+		success := !finalResult.IsError && finalResult.Subtype == "success"
+		span.SetAttributes(
+			attribute.Int("task.turns", finalResult.NumTurns),
+			attribute.Bool("task.success", success),
+			attribute.Int("task.duration_ms", finalResult.DurationMS),
+			attribute.Int64("task.tokens_in", int64(finalResult.Usage.InputTokens)),
+			attribute.Int64("task.tokens_out", int64(finalResult.Usage.OutputTokens)),
+			attribute.Float64("task.cost_usd", finalResult.TotalCostUSD),
+		)
+		if !success {
+			span.SetStatus(codes.Error, getErrorMessage(finalResult))
+		}
+
 		return &executor.Result{
-			Success:                  !finalResult.IsError && finalResult.Subtype == "success",
+			Success:                  success,
 			Output:                   finalResult.Result,
 			Error:                    getErrorMessage(finalResult),
 			DurationMS:               finalResult.DurationMS,

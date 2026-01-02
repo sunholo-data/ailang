@@ -6,7 +6,13 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ai"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var openaiTracer = otel.Tracer("ai.openai")
 
 const (
 	defaultBaseURL = "https://api.openai.com/v1"
@@ -63,12 +69,40 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	apiType := c.detectAPIType(req.Model)
 
+	// Start OTEL span
+	ctx, span := openaiTracer.Start(ctx, "openai.generate",
+		trace.WithAttributes(
+			attribute.String("ai.provider", "openai"),
+			attribute.String("ai.model", req.Model),
+			attribute.String("ai.api_type", string(apiType)),
+		),
+	)
+	defer span.End()
+
+	var resp *ai.Response
+	var err error
+
 	switch apiType {
 	case APIResponses:
-		return c.generateResponses(ctx, req)
+		resp, err = c.generateResponses(ctx, req)
 	default:
-		return c.generateChat(ctx, req)
+		resp, err = c.generateChat(ctx, req)
 	}
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Record success metrics on span
+	span.SetAttributes(
+		attribute.Int("ai.tokens_in", resp.InputTokens),
+		attribute.Int("ai.tokens_out", resp.OutputTokens),
+		attribute.Int("ai.tokens_total", resp.TotalTokens),
+	)
+
+	return resp, nil
 }
 
 // detectAPIType determines which API to use based on the model name.
