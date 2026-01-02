@@ -29,6 +29,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-TOOLING-DETERMINISTIC.md)
 - [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
+- [M-CLOUD-EVAL: Distributed Cloud Evaluation Workers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-cloud-eval-workers.md)
 - [M-CODEGEN-IR-STRATEGY: Multi-Layer IR Architecture for Code Generation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-codegen-ir-strategy.md)
 - [M-COORDINATOR: Always-On Autonomous Development Daemon](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-coordinator-always-on-daemon.md)
 - [M-D4: Design-Doc-Driven Development (D4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-d4-design-doc-driven-development.md)
@@ -40,22 +41,35 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-string-interpolation.md)
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-trace-export.md)
 
+## Planned for v0.6.3
+
+- [Sprint Plan: M-COORD-GENERIC-WORKFLOWS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-generic-workflows-sprint-plan.md)
+- [Sprint Plan: M-COORD-TASKCHAIN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-taskchain-tests-sprint-plan.md)
+- [M-COORD-TASKCHAIN-TESTS: Add TaskChain Test Coverage](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-taskchain-tests.md)
+- [M-COORD-UI-APPROVALS: Dashboard Coordinator Approval Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-ui-approvals.md)
+- [[Feature Name]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-dx16-task-record-helpers.md)
+
 ## Planned for v0.6.2
 
-- [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-AGENT-PROTOCOL.md)
 - [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-EVAL-AGENT-QUEUE.md)
-- [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/M-EVAL-AGENT.md)
 - [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/eval-dashboard-reliability.md)
 - [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/execution-profiles.md)
 - [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/global-collaboration-hub.md)
-- [Sprint Plan: M-CAPABILITY-BUDGETS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-capability-budgets-sprint-plan.md)
+- [M-AI-OLLAMA Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-ai-ollama-sprint-plan.md)
 - [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-codegen-v3-binding-hoisting.md)
+- [M-COLLAB-PROVIDER-STATS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-collab-provider-stats-sprint-plan.md)
+- [M-COLLAB-PROVIDER-STATS: Provider & Workspace Tags and Statistics for Collaboration Hub](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-collab-provider-stats.md)
+- [M-COORD-HUMAN-LOOP Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-coord-human-loop-sprint-plan.md)
+- [M-COORD-HUMAN-LOOP: Human-in-the-Loop Coordinator Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-coord-human-loop.md)
+- [Sprint Plan: M-COORD-STABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-coord-stable-sprint-plan.md)
 - [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-eval-ollama-local-models.md)
 - [M-GEMINI-INTERACTIONS: Google Gemini Interactions API Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-gemini-interactions-api.md)
 - [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-openai-responses-api-sprint.md)
 - [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-openai-responses-api.md)
-- [Sprint Plan: M-PATTERN-GUARDS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-pattern-guards-sprint-plan.md)
-- [M-PATTERN-GUARDS: Pattern Guard Evaluation in Codegen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-pattern-guards.md)
+- [Sprint Plan: String Reverse Builtin (`_string_reverse`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-string-reverse-sprint-plan.md)
+- [String Reverse Builtin (`_string_reverse`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-string-reverse.md)
+- [M-UI-REFACTOR: Refactor UI Folder for AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-ui-refactor-ai-friendly.md)
+- [Sprint Plan: M-UI-REFACTOR - AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/m-ui-refactor-sprint-plan.md)
 - [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_2/semantic-caching-future.md)
 
 ## Long-term Vision
@@ -71,4 +85,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 36 planned features across 4 upcoming versions.*
+*Generated at build time. 47 planned features across 5 upcoming versions.*

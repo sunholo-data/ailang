@@ -257,6 +257,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 		task := &TaskRecord{
 			ID:          taskID,
 			MessageID:   msg.ID,
+			AgentID:     agentID, // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
 			Title:       msg.Title,
 			Content:     msg.Content,
 			Type:        analyzed.Type,

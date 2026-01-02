@@ -368,7 +368,7 @@ function QuickStartSection() {
       <style>{`
         .quickstart-section {
           padding: 4rem 2rem;
-          background: #0f1419;
+          background: #0a0a0a !important;
         }
 
         .quickstart-container {
@@ -385,13 +385,13 @@ function QuickStartSection() {
           font-family: 'Montserrat', sans-serif;
           font-weight: 800;
           font-size: clamp(1.75rem, 4vw, 2.5rem);
-          color: white;
+          color: #ffffff !important;
           margin-bottom: 0.5rem;
         }
 
         .quickstart-subtitle {
           font-size: 1.1rem;
-          color: rgba(255, 255, 255, 0.7);
+          color: rgba(255, 255, 255, 0.7) !important;
         }
 
         .quickstart-grid {
@@ -402,8 +402,8 @@ function QuickStartSection() {
         }
 
         .quickstart-card {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: #1a1a1a !important;
+          border: 1px solid #333333 !important;
           border-radius: 12px;
           overflow: hidden;
         }
@@ -413,20 +413,21 @@ function QuickStartSection() {
           align-items: center;
           gap: 0.75rem;
           padding: 1rem 1.25rem;
-          background: rgba(0, 0, 0, 0.2);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          color: white;
+          background: #111111 !important;
+          border-bottom: 1px solid #333333 !important;
+          color: #ffffff !important;
           font-family: 'Montserrat', sans-serif;
           font-weight: 600;
         }
 
         .quickstart-card-header svg {
-          color: #ff5a3c;
+          color: #ff5a3c !important;
         }
 
         .quickstart-code {
           position: relative;
           padding: 1.25rem;
+          background: #1a1a1a !important;
         }
 
         .quickstart-code pre {
@@ -434,7 +435,8 @@ function QuickStartSection() {
           font-family: 'JetBrains Mono', monospace;
           font-size: 0.85rem;
           line-height: 1.6;
-          color: #e2e8f0;
+          color: #ffffff !important;
+          background: transparent !important;
           white-space: pre-wrap;
           word-break: break-all;
         }
@@ -443,28 +445,28 @@ function QuickStartSection() {
           position: absolute;
           top: 0.75rem;
           right: 0.75rem;
-          background: rgba(255, 255, 255, 0.1);
+          background: #333333 !important;
           border: none;
           border-radius: 6px;
           padding: 0.5rem;
           cursor: pointer;
-          color: rgba(255, 255, 255, 0.6);
+          color: rgba(255, 255, 255, 0.7) !important;
           transition: all 0.2s ease;
         }
 
         .quickstart-copy:hover {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
+          background: #444444 !important;
+          color: #ffffff !important;
         }
 
         .quickstart-footer {
           text-align: center;
-          color: rgba(255, 255, 255, 0.6);
+          color: rgba(255, 255, 255, 0.7) !important;
           font-size: 0.95rem;
         }
 
         .quickstart-footer em {
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba(255, 255, 255, 0.9) !important;
         }
 
         .quickstart-link {
@@ -472,7 +474,7 @@ function QuickStartSection() {
           align-items: center;
           gap: 0.5rem;
           margin-top: 1rem;
-          color: #ff5a3c;
+          color: #ff5a3c !important;
           font-weight: 500;
           text-decoration: none;
           transition: gap 0.2s ease;
@@ -480,7 +482,7 @@ function QuickStartSection() {
 
         .quickstart-link:hover {
           gap: 0.75rem;
-          color: #ff5a3c;
+          color: #ff7a5c !important;
         }
       `}</style>
     </section>
