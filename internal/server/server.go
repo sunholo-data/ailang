@@ -12,7 +12,9 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:embed dist
@@ -199,6 +201,17 @@ func (s *Server) Start() error {
 
 	// CORS middleware
 	handler := s.corsMiddleware(mux)
+
+	// OpenTelemetry HTTP instrumentation (if enabled via OTEL_EXPORTER_OTLP_ENDPOINT)
+	if telemetry.IsEnabled() {
+		log.Printf("OpenTelemetry instrumentation enabled")
+		handler = otelhttp.NewHandler(handler, "ailang-server",
+			otelhttp.WithFilter(func(r *http.Request) bool {
+				// Skip tracing for health checks and static assets
+				return r.URL.Path != "/health" && r.URL.Path != "/ws"
+			}),
+		)
+	}
 
 	log.Printf("Starting HTTP server on %s", s.httpAddr)
 	log.Printf("WebSocket endpoint: ws://%s/ws", s.httpAddr)

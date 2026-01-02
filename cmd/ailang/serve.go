@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/server"
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 func serveCommand(args []string) error {
@@ -86,6 +88,18 @@ func serveCommand(args []string) error {
 
 		// Port in use by something else
 		return fmt.Errorf("port %s is already in use by another process. Use --port to specify a different port", port)
+	}
+
+	// Initialize OpenTelemetry (if configured via environment variables)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.InitOTLP(ctx, "ailang-server")
+	if err != nil {
+		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+		if telemetry.IsEnabled() {
+			log.Printf("OpenTelemetry OTLP export enabled")
+		}
 	}
 
 	// Create and start server with version info
