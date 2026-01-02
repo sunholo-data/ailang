@@ -226,6 +226,9 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "examples":
+		examplesCommand(flag.Args()[1:])
+
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown command '%s'\n", red("Error"), command)
 		printHelp()
