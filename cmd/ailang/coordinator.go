@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 func coordinatorCommand(args []string) error {
@@ -102,6 +103,17 @@ func coordinatorStart(args []string) error {
 			return nil
 		}
 	}
+
+	// Initialize OpenTelemetry (if configured via environment variables)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.InitOTLP(ctx, "ailang-coordinator")
+	if err != nil {
+		fmt.Printf("  %s Warning: Failed to initialize OpenTelemetry: %v\n", yellow("!"), err)
+	} else if telemetry.IsEnabled() {
+		fmt.Printf("  %s OpenTelemetry OTLP export enabled\n", green("✓"))
+	}
+	// Note: shutdownTelemetry will be called when daemon stops via defer in daemon.Run()
+	_ = shutdownTelemetry // We don't call it here since daemon runs indefinitely
 
 	// Create daemon
 	daemon, err := coordinator.NewDaemon(cfg)

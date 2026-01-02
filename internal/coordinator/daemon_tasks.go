@@ -10,6 +10,10 @@ import (
 
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // stageToAgentID maps task stages to agent IDs for config lookup.
@@ -380,8 +384,25 @@ func (d *Daemon) executeTaskQueue() error {
 	return nil
 }
 
+// coordinatorTracer returns the tracer for coordinator instrumentation.
+var coordinatorTracer = otel.Tracer("coordinator")
+
 // executeTask runs a single task through the executor
 func (d *Daemon) executeTask(task *TaskRecord) error {
+	// Start OTEL span for task execution
+	ctx, span := coordinatorTracer.Start(d.ctx, "coordinator.task.execute",
+		trace.WithAttributes(
+			attribute.String("task.id", task.ID),
+			attribute.String("task.type", string(task.Type)),
+			attribute.String("task.stage", string(task.Stage)),
+			attribute.String("task.title", task.Title),
+		),
+	)
+	defer span.End()
+
+	// Use traced context for the rest of the function
+	d.ctx = ctx
+
 	d.logger.Printf("Starting execution of task %s (type: %s)", task.ID, task.Type)
 
 	// Mark task as running
@@ -538,6 +559,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	if err != nil {
+		// Record error in span
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+
 		// Cleanup worktree on error (no work to preserve)
 		if worktree != nil && d.worktreeMgr != nil {
 			if rmErr := d.worktreeMgr.RemoveWorktree(task.ID); rmErr != nil {
@@ -545,6 +570,16 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			}
 		}
 		return fmt.Errorf("executor error: %w", err)
+	}
+
+	// Record result metrics in span
+	if result != nil {
+		span.SetAttributes(
+			attribute.Int64("task.tokens_in", int64(result.InputTokens)),
+			attribute.Int64("task.tokens_out", int64(result.OutputTokens)),
+			attribute.Float64("task.cost_usd", result.Cost),
+			attribute.Bool("task.success", result.Success),
+		)
 	}
 
 	// Update task status based on result
