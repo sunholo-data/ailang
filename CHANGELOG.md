@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.6.2] - 2026-01-02
 
 ### Added - OpenTelemetry Integration (M-OTEL)
 
@@ -298,6 +298,106 @@ export func limited() -> () ! {IO @limit=2} {
 - `examples/tests/test_capability_budget_exhausted.ail` - Error test case (~20 LOC)
 
 **Design Doc:** [design_docs/planned/v0_6_1/m-capability-budgets-design.md](design_docs/planned/v0_6_1/m-capability-budgets-design.md)
+
+### Added - Pattern Guards in Go Codegen (M-PATTERN-GUARDS)
+
+Fixed pattern guards to be evaluated in Go code generation. Previously guards were parsed and type-checked but silently ignored in compiled output.
+
+**Example:**
+```ailang
+match value {
+  x if x > 10 => "big",
+  x if x > 0 => "positive",
+  x => "other"
+}
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-pattern-guards.md](design_docs/implemented/v0_6_2/m-pattern-guards.md)
+
+### Added - Auto-Derive Eq for ADT Types (M-DX19)
+
+Added `deriving (Eq)` syntax to automatically generate equality for ADT types, eliminating 10-15 lines of boilerplate per enum.
+
+**Example:**
+```ailang
+type Color = Red | Green | Blue deriving (Eq)
+
+let same = Red == Red  -- true (no manual function needed)
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md](design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md)
+
+### Added - Type Class Dictionary Generation for Go (M-CODEGEN-DICTIONARIES)
+
+Go codegen now generates dictionary struct definitions for type classes. Previously, the codegen emitted references like `dict_Num_Int.Add()` but never generated the dictionary definitions, causing compilation failures.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-codegen-dictionaries.md](design_docs/implemented/v0_6_2/m-codegen-dictionaries.md)
+
+### Added - Coordinator Daemon Stability (M-COORD-STABLE)
+
+Major stability fixes for the coordinator daemon including worktree preservation, approval checkpoint wiring, HTTP event broadcasting, and agent configuration.
+
+**Key fixes:**
+- Worktrees preserved until explicit approval/rejection (previously deleted immediately)
+- ApprovalCheckpoint properly wired to block until human decision
+- HTTP broadcaster sends events to dashboard correctly
+- Agent registry for configuring workspaces and capabilities
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coord-stable.md](design_docs/implemented/v0_6_2/m-coord-stable.md)
+
+### Added - Coordinator Feedback Loop (M-COORD-FEEDBACK)
+
+Implemented real-time feedback loop between coordinator executors and humans via dashboard/CLI including streaming logs, cost/token tracking, and human approval gates.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md](design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md)
+
+### Added - Read-Only Execution Mode for Questions (M-COORDINATOR-QUESTION-MODE)
+
+Questions sent to the coordinator now execute in read-only mode with restricted tool access (`Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`), preventing accidental file modifications during informational queries.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coordinator-question-mode.md](design_docs/implemented/v0_6_2/m-coordinator-question-mode.md)
+
+### Added - GitHub Account Override Flag (M-GITHUB-USER-OVERRIDE)
+
+Added `--github-user` flag to bypass `expected_user` validation when using `ailang messages` with GitHub sync. Improved error display with red ERROR output and clear fix options.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-github-user-override.md](design_docs/implemented/v0_6_2/m-github-user-override.md)
+
+### Added - ApprovalWatcher Debug Observability (M-COORD-APPROVALWATCHER-OBSERVABILITY)
+
+Added comprehensive debug logging to ApprovalWatcher for diagnosing GitHub label detection issues. Use `DEBUG_APPROVAL_WATCHER=1` for verbose polling logs and `ailang coordinator watcher-status` to check watcher state.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability.md](design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability.md)
+
+### Added - Type Checker Debug Events (M-DX11-PHASE2)
+
+Extended `--debug-types` to emit events from the type checker including fresh type variable creation and unification events.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md](design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md)
+
+### Fixed - Boolean Type Assertions in Go Codegen (M-CODEGEN-BOOL-ASSERTIONS)
+
+Fixed Go codegen to add `.(bool)` type assertions when dictionary method results are used in boolean contexts (if conditions, logical operators).
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md](design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md)
+
+### Fixed - ADT Constructor Resolution Ambiguity (M-DX22)
+
+Fixed Go codegen to correctly resolve constructor calls when multiple ADT types have constructors with the same name. Uses fully-qualified names (`TypeName.ConstructorName`) in the internal registry.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md](design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
+
+### Fixed - TList Normalized to TApp at Parse Time (DX-17-PHASE2)
+
+Eliminated `TList` struct by normalizing `[T]` syntax to `TApp("list", T)` during parsing. This unifies the internal representation for all container types.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md](design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md)
+
+### Fixed - List[T] Normalization to Lowercase (M-DX17-LIST-NORMALIZATION-BUG)
+
+Fixed parser to normalize explicit `List[T]` syntax to lowercase `"list"`, matching the `[T]` normalization. Previously `List[T]` created a different type than `[T]`.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md](design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md)
 
 ## [v0.6.1] - 2025-12-22
 
