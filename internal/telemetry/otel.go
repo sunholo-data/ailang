@@ -191,14 +191,116 @@ func InitGoogleCloudTrace(ctx context.Context, serviceName string) (ShutdownFunc
 	}, nil
 }
 
+// IsDualExportEnabled returns true if both GCP and OTLP are configured.
+// This enables sending traces to both destinations simultaneously.
+func IsDualExportEnabled() bool {
+	return IsGoogleCloudEnabled() && IsEnabled()
+}
+
+// InitDual initializes OpenTelemetry with both Google Cloud Trace and OTLP exporters.
+// Traces are sent to both destinations simultaneously.
+//
+// Environment variables:
+//   - GOOGLE_CLOUD_PROJECT or OTLP_GOOGLE_CLOUD_PROJECT: GCP project for Cloud Trace
+//   - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP collector endpoint (e.g., Jaeger, Honeycomb)
+//
+// Example:
+//
+//	export GOOGLE_CLOUD_PROJECT=my-project
+//	export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+//
+//	shutdown, err := telemetry.InitDual(ctx, "my-service")
+func InitDual(ctx context.Context, serviceName string) (ShutdownFunc, error) {
+	var shutdownFuncs []func(context.Context) error
+
+	// Create resource
+	res, err := NewResource(serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect span exporters
+	var spanExporters []sdktrace.SpanExporter
+
+	// Add Google Cloud Trace exporter
+	projectID := GoogleCloudProject()
+	if projectID != "" {
+		gcpExporter, err := cloudtrace.New(cloudtrace.WithProjectID(projectID))
+		if err != nil {
+			return nil, err
+		}
+		shutdownFuncs = append(shutdownFuncs, gcpExporter.Shutdown)
+		spanExporters = append(spanExporters, gcpExporter)
+	}
+
+	// Add OTLP exporter
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
+		otlpExporter, err := otlptracehttp.New(ctx)
+		if err != nil {
+			return nil, err
+		}
+		shutdownFuncs = append(shutdownFuncs, otlpExporter.Shutdown)
+		spanExporters = append(spanExporters, otlpExporter)
+	}
+
+	// Create trace provider with multiple exporters
+	opts := []sdktrace.TracerProviderOption{
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	}
+	for _, exp := range spanExporters {
+		opts = append(opts, sdktrace.WithBatcher(exp))
+	}
+
+	tracerProvider := sdktrace.NewTracerProvider(opts...)
+	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
+	otel.SetTracerProvider(tracerProvider)
+
+	// Setup metric exporter (OTLP only - GCP uses separate metrics API)
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
+		metricExporter, err := otlpmetrichttp.New(ctx)
+		if err != nil {
+			return nil, err
+		}
+		shutdownFuncs = append(shutdownFuncs, metricExporter.Shutdown)
+
+		meterProvider := sdkmetric.NewMeterProvider(
+			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+			sdkmetric.WithResource(res),
+		)
+		shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
+		otel.SetMeterProvider(meterProvider)
+	}
+
+	// Set text map propagator for distributed tracing
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+
+	// Return combined shutdown function
+	return func(ctx context.Context) error {
+		var errs []error
+		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
+			if err := shutdownFuncs[i](ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		return errors.Join(errs...)
+	}, nil
+}
+
 // Init initializes telemetry based on environment configuration.
-// It checks for Google Cloud first, then falls back to generic OTLP.
 //
 // Priority:
-// 1. GOOGLE_CLOUD_PROJECT → Google Cloud Trace
-// 2. OTEL_EXPORTER_OTLP_ENDPOINT → Generic OTLP
-// 3. Neither → No-op (telemetry disabled)
+// 1. Both GOOGLE_CLOUD_PROJECT + OTEL_EXPORTER_OTLP_ENDPOINT → Dual export
+// 2. GOOGLE_CLOUD_PROJECT only → Google Cloud Trace
+// 3. OTEL_EXPORTER_OTLP_ENDPOINT only → Generic OTLP
+// 4. Neither → No-op (telemetry disabled)
 func Init(ctx context.Context, serviceName string) (ShutdownFunc, error) {
+	if IsDualExportEnabled() {
+		return InitDual(ctx, serviceName)
+	}
 	if IsGoogleCloudEnabled() {
 		return InitGoogleCloudTrace(ctx, serviceName)
 	}

@@ -109,6 +109,10 @@ func coordinatorStart(args []string) error {
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-coordinator")
 	if err != nil {
 		fmt.Printf("  %s Warning: Failed to initialize OpenTelemetry: %v\n", yellow("!"), err)
+	} else if telemetry.IsDualExportEnabled() {
+		fmt.Printf("  %s Dual telemetry export enabled:\n", green("✓"))
+		fmt.Printf("      → Google Cloud Trace (project: %s)\n", telemetry.GoogleCloudProject())
+		fmt.Printf("      → OTLP endpoint: %s\n", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	} else if telemetry.IsGoogleCloudEnabled() {
 		fmt.Printf("  %s Google Cloud Trace enabled (project: %s)\n", green("✓"), telemetry.GoogleCloudProject())
 	} else if telemetry.IsEnabled() {

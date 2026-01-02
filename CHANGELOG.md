@@ -48,6 +48,12 @@ ailang coordinator start        # Coordinator with OTEL
 - Matches Gemini CLI env var convention (`OTLP_GOOGLE_CLOUD_PROJECT` takes precedence)
 - Integration tests in `internal/telemetry/gcp_integration_test.go`
 
+**Dual Export Mode:**
+- Send traces to **both** Google Cloud Trace and another OTLP backend simultaneously
+- Auto-enabled when both `GOOGLE_CLOUD_PROJECT` and `OTEL_EXPORTER_OTLP_ENDPOINT` are set
+- Useful for sending to GCP + local Jaeger, Grafana Tempo, Honeycomb, etc.
+- Example: `export GOOGLE_CLOUD_PROJECT=my-project && export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
 **Native CLI Support:** Both Claude Code and Gemini CLI support OTLP natively:
 - Claude Code: `CLAUDE_CODE_ENABLE_TELEMETRY=1`
 - Gemini CLI: Configure in `~/.gemini/settings.json`

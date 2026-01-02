@@ -97,7 +97,11 @@ func serveCommand(args []string) error {
 		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
 	} else {
 		defer shutdownTelemetry(ctx)
-		if telemetry.IsGoogleCloudEnabled() {
+		if telemetry.IsDualExportEnabled() {
+			log.Printf("Dual telemetry export enabled:")
+			log.Printf("  → Google Cloud Trace (project: %s)", telemetry.GoogleCloudProject())
+			log.Printf("  → OTLP endpoint: %s", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+		} else if telemetry.IsGoogleCloudEnabled() {
 			log.Printf("Google Cloud Trace enabled (project: %s)", telemetry.GoogleCloudProject())
 		} else if telemetry.IsEnabled() {
 			log.Printf("OpenTelemetry OTLP export enabled")
