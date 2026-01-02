@@ -78,8 +78,8 @@ search_query() {
 
 SEARCH_QUERY=$(search_query "$DOC_NAME")
 
-# Check for related design docs before creating
-echo -e "${CYAN}🔍 Searching for related design docs...${NC}"
+# Check for related design docs before creating (using Ollama neural embeddings)
+echo -e "${CYAN}🔍 Searching for related design docs (neural/Ollama embeddings)...${NC}"
 echo ""
 
 # Check if ailang is available
@@ -89,9 +89,9 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         AILANG_CMD="ailang"
     fi
 
-    # Search implemented docs
+    # Search implemented docs with neural embeddings
     echo -e "${YELLOW}Implemented docs matching \"$SEARCH_QUERY\":${NC}"
-    IMPLEMENTED=$("$AILANG_CMD" docs search --stream implemented --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
+    IMPLEMENTED=$("$AILANG_CMD" docs search --stream implemented --neural --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
     if [ "$IMPLEMENTED" = "  (none found)" ]; then
         echo "  (none found)"
     else
@@ -99,9 +99,9 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
     fi
     echo ""
 
-    # Search planned docs
+    # Search planned docs with neural embeddings
     echo -e "${YELLOW}Planned docs matching \"$SEARCH_QUERY\":${NC}"
-    PLANNED=$("$AILANG_CMD" docs search --stream planned --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
+    PLANNED=$("$AILANG_CMD" docs search --stream planned --neural --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
     if [ "$PLANNED" = "  (none found)" ]; then
         echo "  (none found)"
     else
@@ -109,19 +109,10 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
     fi
     echo ""
 
-    # If matches found, prompt user
+    # Show info if matches found (no confirmation required - proceed automatically)
     if [ "$IMPLEMENTED" != "  (none found)" ] || [ "$PLANNED" != "  (none found)" ]; then
-        echo -e "${YELLOW}⚠ Related docs found. Review them before proceeding?${NC}"
-        read -p "Continue creating new doc? (Y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Nn]$ ]]; then
-            echo ""
-            echo -e "${CYAN}Tip: Use neural search for semantic matching:${NC}"
-            echo "  $AILANG_CMD docs search --neural \"$SEARCH_QUERY\""
-            echo ""
-            echo "Cancelled."
-            exit 0
-        fi
+        echo -e "${CYAN}ℹ Related docs found above - review them after creation if needed.${NC}"
+        echo ""
     fi
 else
     echo -e "${YELLOW}⚠ ailang not found - skipping related doc search${NC}"
@@ -337,7 +328,7 @@ Every feature must align with AILANG's 12 Design Axioms. Score each axiom and ve
 
 ## Related Documents
 
-<!-- Auto-populated by semantic search on "SEARCH_QUERY_PLACEHOLDER" -->
+<!-- Auto-populated by Ollama neural search on "SEARCH_QUERY_PLACEHOLDER" -->
 
 **Implemented (may inform design):**
 RELATED_IMPLEMENTED_PLACEHOLDER

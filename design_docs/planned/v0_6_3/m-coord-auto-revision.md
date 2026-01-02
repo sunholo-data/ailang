@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | Planned |
-| Target | v0.6.2 |
+| Target | v0.6.3 |
 | Priority | P1 (High) |
 | Estimated | 2.5 days |
 | Dependencies | M-COORD-GITHUB-AUTO-ROUTING (implemented), ApprovalWatcher (implemented) |

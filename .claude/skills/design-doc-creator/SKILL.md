@@ -13,27 +13,27 @@ Create well-structured design documents for AILANG features following the projec
 ```bash
 # User says: "Create a design doc for better error messages"
 # This skill will:
-# 1. AUTO-SEARCH for related design docs (instant SimHash)
+# 1. AUTO-SEARCH for related design docs (Ollama neural embeddings)
 # 2. Show matches from implemented/ and planned/ directories
 # 3. Auto-populate "Related Documents" section in template
-# 4. Ask for key details (priority, version target)
+# 4. Proceed automatically (no confirmation needed)
 # 5. Create design_docs/planned/better-error-messages.md
 # 6. Fill template with proper structure
 ```
 
-**Automatic Related Doc Search (v0.6.0+):**
+**Automatic Related Doc Search (v0.6.3+):**
 
 When you run the create script, it automatically:
 1. Converts doc name to search query (e.g., `m-dx2-better-errors` → `"better errors"`)
-2. Searches both `implemented/` and `planned/` directories using SimHash
+2. Searches both `implemented/` and `planned/` directories using Ollama neural embeddings
 3. Shows top 3 matches with similarity scores
-4. Prompts to continue if matches found
+4. Proceeds automatically (no confirmation prompt)
 5. Auto-populates the "Related Documents" section in the template
 
 ```bash
 $ .claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
 
-🔍 Searching for related design docs...
+🔍 Searching for related design docs (neural/Ollama embeddings)...
 
 Implemented docs matching "semantic caching":
 1. design_docs/implemented/v0_5_11/m-doc-sem-lazy-embeddings.md (0.92)
@@ -42,8 +42,7 @@ Implemented docs matching "semantic caching":
 Planned docs matching "semantic caching":
 1. design_docs/planned/v0_6_0/semantic-caching-future.md (0.95)
 
-⚠ Related docs found. Review them before proceeding?
-Continue creating new doc? (Y/n)
+ℹ Related docs found above - review them after creation if needed.
 ```
 
 ## When to Use This Skill
@@ -100,7 +99,7 @@ The script automatically detects the current AILANG version from `CHANGELOG.md` 
 ```
 
 **What it does:**
-- **Searches for related docs** using `ailang docs search` (SimHash, instant)
+- **Searches for related docs** using `ailang docs search --neural` (Ollama embeddings)
 - Shows top 3 matches from both `implemented/` and `planned/`
 - Auto-populates "Related Documents" section with clickable links
 - Detects current version from CHANGELOG.md
