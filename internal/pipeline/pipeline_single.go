@@ -1,8 +1,10 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -12,14 +14,50 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/linked"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
-// runSingle runs the pipeline for a single file/expression (REPL mode)
-func runSingle(cfg Config, src Source) (Result, error) {
+// runSingleWithContext runs the pipeline for a single file/expression (REPL mode)
+func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, error) {
 	result := Result{
 		PhaseTimings: make(map[string]int64),
 	}
+
+	// Start OTEL span for compilation pipeline (child of passed context)
+	// Span name includes filename for easy identification in trace UI
+	spanName := "compile: " + src.Filename
+	if src.IsREPL {
+		spanName = "compile: <repl>"
+	}
+	ctx, pipelineSpan := compilerTracer.Start(ctx, spanName,
+		trace.WithAttributes(
+			attribute.String("file.path", src.Filename),
+			attribute.Int("file.size_bytes", len(src.Code)),
+			attribute.Bool("is_repl", src.IsREPL),
+		),
+	)
+
+	// Capture starting memory for resource tracking
+	var startMem runtime.MemStats
+	runtime.ReadMemStats(&startMem)
+
+	// Deferred function to record memory metrics before span ends
+	defer func() {
+		var endMem runtime.MemStats
+		runtime.ReadMemStats(&endMem)
+		memoryDeltaBytes := int64(endMem.TotalAlloc - startMem.TotalAlloc)
+		allocsCount := int64(endMem.Mallocs - startMem.Mallocs)
+		pipelineSpan.SetAttributes(
+			attribute.Int64("compile.memory_delta_bytes", memoryDeltaBytes),
+			attribute.Int64("compile.allocs_count", allocsCount),
+			attribute.Int64("compile.heap_alloc_bytes", int64(endMem.HeapAlloc)),
+		)
+		pipelineSpan.End()
+	}()
 
 	// Initialize environments if not provided
 	if cfg.TypeEnv == nil {
@@ -40,6 +78,12 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	// Phase 1: Parse
 	start := time.Now()
+	_, parseSpan := compilerTracer.Start(ctx, "compile.parse",
+		trace.WithAttributes(
+			attribute.String("file.path", src.Filename),
+		),
+	)
+
 	l := lexer.New(src.Code, src.Filename)
 	p := parser.New(l)
 	p.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
@@ -49,7 +93,24 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		// For REPL, wrap expression in synthetic module
 		program := p.Parse()
 		if len(p.Errors()) > 0 {
-			return result, convertParserErrors(p.Errors())
+			parseErr := convertParserErrors(p.Errors())
+			attrs := []attribute.KeyValue{
+				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
+			}
+			// Extract position and code snippet if ParserError
+			if pe, ok := p.Errors()[0].(*parser.ParserError); ok {
+				attrs = append(attrs,
+					attribute.String("error.location", fmt.Sprintf("%d:%d", pe.Pos.Line, pe.Pos.Column)),
+					attribute.String("error.snippet", telemetry.LineSnippet(src.Code, pe.Pos.Line, 60)),
+				)
+			}
+			parseSpan.SetAttributes(attrs...)
+			parseSpan.RecordError(parseErr)
+			parseSpan.SetStatus(codes.Error, "parse errors")
+			parseSpan.End()
+			pipelineSpan.RecordError(parseErr)
+			return result, parseErr
 		}
 
 		// Create synthetic module wrapper with session ID
@@ -69,15 +130,38 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		// For files, parse as complete file
 		astFile = p.ParseFile()
 		if len(p.Errors()) > 0 {
-			return result, convertParserErrors(p.Errors())
+			parseErr := convertParserErrors(p.Errors())
+			attrs := []attribute.KeyValue{
+				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
+			}
+			// Extract position and code snippet if ParserError
+			if pe, ok := p.Errors()[0].(*parser.ParserError); ok {
+				attrs = append(attrs,
+					attribute.String("error.location", fmt.Sprintf("%d:%d", pe.Pos.Line, pe.Pos.Column)),
+					attribute.String("error.snippet", telemetry.LineSnippet(src.Code, pe.Pos.Line, 60)),
+				)
+			}
+			parseSpan.SetAttributes(attrs...)
+			parseSpan.RecordError(parseErr)
+			parseSpan.SetStatus(codes.Error, "parse errors")
+			parseSpan.End()
+			pipelineSpan.RecordError(parseErr)
+			return result, parseErr
 		}
 	}
+
+	// Record AST size on span
+	parseSpan.SetAttributes(attribute.Int("ast.statements", len(astFile.Statements)))
+	parseSpan.End()
 
 	result.Artifacts.AST = astFile
 	result.PhaseTimings["parse"] = time.Since(start).Milliseconds()
 
 	// Phase 2: Elaborate to Core
 	start = time.Now()
+	_, elabSpan := compilerTracer.Start(ctx, "compile.elaborate")
+
 	var elaborator *elaborate.Elaborator
 	if src.Filename != "" && src.Filename != "<repl>" {
 		elaborator = elaborate.NewElaboratorWithPath(src.Filename)
@@ -88,11 +172,24 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	elaborator.AddBuiltinsToGlobalEnv()
 	coreProg, err := elaborator.ElaborateFile(astFile)
 	if err != nil {
-		return result, fmt.Errorf("elaboration error: %w", err)
+		elabErr := fmt.Errorf("elaboration error: %w", err)
+		elabSpan.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(elabErr.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(elabErr)),
+		)
+		elabSpan.RecordError(elabErr)
+		elabSpan.SetStatus(codes.Error, "elaboration failed")
+		elabSpan.End()
+		pipelineSpan.RecordError(elabErr)
+		return result, elabErr
 	}
 
 	// Collect exhaustiveness warnings
 	result.Warnings = elaborator.GetWarnings()
+
+	// Record Core stats on span
+	elabSpan.SetAttributes(attribute.Int("core.decls", len(coreProg.Decls)))
+	elabSpan.End()
 
 	result.Artifacts.Core = coreProg
 	result.PhaseTimings["elaborate"] = time.Since(start).Milliseconds()
@@ -103,6 +200,8 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	// Phase 3: Type Check
 	start = time.Now()
+	_, typeSpan := compilerTracer.Start(ctx, "compile.typecheck")
+
 	typeChecker := types.NewCoreTypeCheckerWithInstances(cfg.InstEnv)
 	typeChecker.EnableTraceDefaulting(cfg.TraceDefaulting)
 	if cfg.TrackInstantiations {
@@ -195,13 +294,29 @@ func runSingle(cfg Config, src Source) (Result, error) {
 		// TODO: Implement full program type checking
 		coreExpr = coreProg.Decls[0]
 	} else {
+		typeSpan.SetStatus(codes.Error, "empty program")
+		typeSpan.End()
+		pipelineSpan.RecordError(fmt.Errorf("empty program"))
 		return result, fmt.Errorf("empty program")
 	}
 
 	typedNode, _, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, cfg.TypeEnv)
 	if err != nil {
-		return result, fmt.Errorf("type error: %w", err)
+		typeErr := fmt.Errorf("type error: %w", err)
+		typeSpan.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(typeErr.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(typeErr)),
+		)
+		typeSpan.RecordError(typeErr)
+		typeSpan.SetStatus(codes.Error, "type inference failed")
+		typeSpan.End()
+		pipelineSpan.RecordError(typeErr)
+		return result, typeErr
 	}
+
+	// Record type inference stats on span
+	typeSpan.SetAttributes(attribute.Int("constraints.count", len(constraints)))
+	typeSpan.End()
 
 	result.Type = qualType
 	result.Constraints = constraints
@@ -234,18 +349,34 @@ func runSingle(cfg Config, src Source) (Result, error) {
 	// Phase 3.5: Monomorphization (v0.4.0)
 	start = time.Now()
 
+	// Validation sub-span for CoreTypeInfo and effects
+	_, validateSpan := compilerTracer.Start(ctx, "compile.validate")
+
 	// Validate CoreTypeInfo before specialization (M-DX4)
 	// This ensures every Core node has type information before monomorphization/lowering begins
 	if err := ValidateCoreTypeInfo(coreProg, typeChecker.CoreTI); err != nil {
-		return result, fmt.Errorf("CoreTypeInfo validation failed: %w", err)
+		valErr := fmt.Errorf("CoreTypeInfo validation failed: %w", err)
+		validateSpan.RecordError(valErr)
+		validateSpan.SetStatus(codes.Error, "CoreTypeInfo validation failed")
+		validateSpan.End()
+		pipelineSpan.RecordError(valErr)
+		return result, valErr
 	}
 
 	// Validate effects (M-SOUNDNESS)
 	// This ensures functions declare all effects they use
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffects(result.Artifacts.AST, coreProg, typeChecker.CoreTI); err != nil {
-		return result, fmt.Errorf("effect checking failed: %w", err)
+		valErr := fmt.Errorf("effect checking failed: %w", err)
+		validateSpan.RecordError(valErr)
+		validateSpan.SetStatus(codes.Error, "effect validation failed")
+		validateSpan.End()
+		pipelineSpan.RecordError(valErr)
+		return result, valErr
 	}
+
+	validateSpan.SetAttributes(attribute.Bool("validation.passed", true))
+	validateSpan.End()
 
 	// Perform monomorphization unless explicitly disabled
 	var specializationStats SpecializationStats
@@ -315,10 +446,16 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 	// Phase 3.6: Operator Lowering
 	start = time.Now()
+	_, lowerSpan := compilerTracer.Start(ctx, "compile.lower")
 
 	// Check if shim is forbidden in CI mode (before any other logic)
 	if cfg.FailOnShim && cfg.ExperimentalBinopShim {
-		return result, fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim")
+		shimErr := fmt.Errorf("CI_SHIM001: Operator shim usage detected but forbidden with --fail-on-shim")
+		lowerSpan.RecordError(shimErr)
+		lowerSpan.SetStatus(codes.Error, "shim forbidden")
+		lowerSpan.End()
+		pipelineSpan.RecordError(shimErr)
+		return result, shimErr
 	}
 
 	// If require lowering is set, we must lower regardless of shim flag
@@ -333,7 +470,12 @@ func runSingle(cfg Config, src Source) (Result, error) {
 
 		loweredProg, err := lowerer.Lower(coreProg)
 		if err != nil {
-			return result, fmt.Errorf("lowering error: %w", err)
+			lowerErr := fmt.Errorf("lowering error: %w", err)
+			lowerSpan.RecordError(lowerErr)
+			lowerSpan.SetStatus(codes.Error, "lowering failed")
+			lowerSpan.End()
+			pipelineSpan.RecordError(lowerErr)
+			return result, lowerErr
 		}
 
 		// M-DX4: Report telemetry if --debug-compile flag is set
@@ -360,6 +502,9 @@ func runSingle(cfg Config, src Source) (Result, error) {
 			// Core will be displayed by caller
 		}
 	}
+
+	lowerSpan.SetAttributes(attribute.Bool("lowered", coreProg.Flags.Lowered))
+	lowerSpan.End()
 	result.PhaseTimings["lower"] = time.Since(start).Milliseconds()
 
 	// Phase 4: Dictionary Elaboration

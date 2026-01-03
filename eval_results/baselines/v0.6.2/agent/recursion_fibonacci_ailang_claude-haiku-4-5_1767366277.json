@@ -1,0 +1,33 @@
+{
+  "id": "recursion_fibonacci",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 829,
+  "total_tokens": 842,
+  "cost_usd": 0.0162636,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 11111,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "6765\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nGood, I can see the template. Now let me write the Fibonacci solution. I need to:\n1. Define a recursive Fibonacci function\n2. Compute fib(20)\n3. Print the result\n\nLet me write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output is exactly `6765`, which matches the expected output. Let me verify the details:\n\n✅ **Solution Verification:**\n- The program defines a recursive Fibonacci function using pattern matching\n- Base cases: fib(0) = 0, fib(1) = 1\n- Recursive case: fib(n) = fib(n-1) + fib(n-2)\n- Computes fib(20) and prints the result\n- Output: `6765` ✓ (matches expected output exactly)\n- No extra whitespace or formatting issues\n- Completes within the 90-second timeout\n\n**Solution complete!** The AILANG program correctly implements recursive Fibonacci computation and produces the expected output.",
+  "expected_stdout": "6765\n",
+  "timestamp": "2026-01-02T16:04:37.131007+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\nfunc fib(n: int) -\u003e int =\n  match n {\n    0 =\u003e 0,\n    1 =\u003e 1,\n    _ =\u003e fib(n - 1) + fib(n - 2)\n  }\n\nexport func main() -\u003e () ! {IO} = print(show(fib(20)))\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nGood, I can see the template. Now let me write the Fibonacci solution. I need to:\n1. Define a recursive Fibonacci function\n2. Compute fib(20)\n3. Print the result\n\nLet me write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output is exactly `6765`, which matches the expected output. Let me verify the details:\n\n✅ **Solution Verification:**\n- The program defines a recursive Fibonacci function using pattern matching\n- Base cases: fib(0) = 0, fib(1) = 1\n- Recursive case: fib(n) = fib(n-1) + fib(n-2)\n- Computes fib(20) and prints the result\n- Output: `6765` ✓ (matches expected output exactly)\n- No extra whitespace or formatting issues\n- Completes within the 90-second timeout\n\n**Solution complete!** The AILANG program correctly implements recursive Fibonacci computation and produces the expected output.",
+  "eval_mode": "agent"
+}

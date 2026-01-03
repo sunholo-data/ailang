@@ -112,8 +112,13 @@ func linkExpr(expr core.CoreExpr, dictReg *types.DictionaryRegistry) core.CoreEx
 	case *core.Match:
 		var arms []core.MatchArm
 		for _, arm := range e.Arms {
+			var guard core.CoreExpr
+			if arm.Guard != nil {
+				guard = linkExpr(arm.Guard, dictReg)
+			}
 			arms = append(arms, core.MatchArm{
 				Pattern: arm.Pattern,
+				Guard:   guard,
 				Body:    linkExpr(arm.Body, dictReg),
 			})
 		}

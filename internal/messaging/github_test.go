@@ -7,27 +7,6 @@ import (
 	"testing"
 )
 
-// mockExecCommand creates a mock command executor for testing
-func mockExecCommand(responses map[string]struct {
-	output []byte
-	err    error
-}) func(string, ...string) ([]byte, error) {
-	return func(name string, args ...string) ([]byte, error) {
-		key := name + " " + strings.Join(args, " ")
-		// Try exact match first
-		if resp, ok := responses[key]; ok {
-			return resp.output, resp.err
-		}
-		// Try prefix match for commands with varying arguments
-		for prefix, resp := range responses {
-			if strings.HasPrefix(key, prefix) {
-				return resp.output, resp.err
-			}
-		}
-		return nil, errors.New("unexpected command: " + key)
-	}
-}
-
 func TestCheckGHInstalled(t *testing.T) {
 	tests := []struct {
 		name        string

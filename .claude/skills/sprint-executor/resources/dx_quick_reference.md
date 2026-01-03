@@ -119,6 +119,32 @@ What should we build? High-level approach.
 - Related DX improvements: M-DX*, M-DX*
 ```
 
+## Compiler Debugging (v0.5.11+)
+
+### `--debug-types` - Type Inference Visibility
+
+When debugging type inference issues during development:
+
+```bash
+# Full type inference debug output
+ailang run --debug-types --caps IO --entry main file.ail
+
+# Filter to specific node
+ailang run --debug-types --node 42 --caps IO --entry main file.ail
+```
+
+**Output sections:**
+- **Substitution Map**: α → int (type variable bindings)
+- **Constraints**: Num, Eq, Ord constraints and resolution
+- **CoreTI Entries**: Per-node type information
+
+**Use when:**
+- Type inference produces unexpected results
+- Need to understand constraint resolution
+- Debugging "expected X, got Y" errors
+
+**Demo file:** `examples/runnable/debug_types_demo.ail`
+
 ## Debug Effect for Runtime Tracing (v0.4.10+)
 
 When implementing features that need runtime tracing, use the Debug effect:

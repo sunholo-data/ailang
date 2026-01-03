@@ -1,6 +1,247 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.6.3] - 2026-01-03
+
+### Deprecated - ailang-agent Binary (M-DEPRECATE-AILANG-AGENT)
+
+Removed the standalone `ailang-agent` binary and `internal/agent/` package. The coordinator daemon (`ailang coordinator`) now handles all agent functionality with additional features:
+
+**Removed:**
+- `cmd/ailang-agent/` - Standalone agent binary (~430 LOC)
+- `internal/agent/` - Agent support package (~1,330 LOC)
+- `cmd/ailang/agent.go.bak` - Backup file
+- Makefile targets: `build-agent`, `install-agent`, `build-all`, `install-all`
+
+**Migrated to Coordinator:**
+- Capability detection (FS/Net/Shell/Budget) → `internal/coordinator/capability_detector.go`
+- Impact classification (low/medium/high) → Integrated into `TaskAnalyzer.Analyze()`
+- Pre-execution cost estimation → `EstimateTotalCost()`
+
+**Use Instead:**
+```bash
+# Old (deprecated)
+ailang-agent --instance-id my-agent
+
+# New
+ailang coordinator start
+ailang coordinator status
+```
+
+**Design Doc:** `design_docs/planned/v0_6_3/m-deprecate-ailang-agent.md`
+
+### Added - Human-Friendly Tracing (M-OTEL-ENHANCED-TRACING-DX)
+
+Enhanced OpenTelemetry spans with human-readable context for faster debugging. Traces now include actionable error messages, code previews, and key identifiers visible directly in span attributes.
+
+**New Telemetry Helpers (`internal/telemetry/helpers.go`):**
+- `Truncate(s, maxLen)` - Safe UTF-8 string truncation using rune boundaries (not bytes)
+- `CategorizeError(err)` - Classifies errors into parse_error, type_error, module_error, api_error, timeout, runtime_error
+- `ShortHash(content, length)` - SHA256-based short hash for deduplication
+- `LineSnippet(source, lineNum, maxLen)` - Extracts code snippet around error location
+
+**Error Context on All Error Spans:**
+- `error.message` - Truncated error message (200 chars max)
+- `error.category` - Category for filtering (parse_error, type_error, etc.)
+- Parse errors: `error.location` (line:col) + `error.snippet` (code context)
+
+**AI Provider Improvements:**
+- `ai.prompt_preview` - First 100 chars of user prompt
+- `ai.response_preview` - First 100 chars of AI response
+- `ai.finish_reason` - Stop reason (Anthropic only)
+
+**Eval/Benchmark Improvements:**
+- `code.preview` - First 100 chars of generated code
+- `code.hash` - 8-char hash for deduplication
+- `error.summary` - Truncated stderr for failed benchmarks
+- `benchmark.repair_successful` - Self-repair tracking
+
+**CLI Run Improvements:**
+- `file.path` - Source file being executed
+- `entry.function` - Entry point function name
+- `caps.granted` - Capabilities enabled (IO, FS, Net, etc.)
+
+**Code:**
+- `internal/telemetry/helpers.go` (~95 lines)
+- `internal/telemetry/helpers_test.go` (~162 lines, 100% coverage)
+- Modified: `internal/pipeline/pipeline_single.go`, `cmd/ailang/main.go`, `cmd/ailang/eval_suite.go`
+- Modified: All 4 AI providers (`anthropic`, `openai`, `gemini`, `ollama`)
+
+## [v0.6.2] - 2026-01-02
+
+### Added - OpenTelemetry Integration (M-OTEL)
+
+Implemented comprehensive OpenTelemetry (OTLP) instrumentation across AILANG's core services for distributed tracing and observability. This enables integration with standard observability backends like Grafana, Honeycomb, Jaeger, and the ai-observer project.
+
+**Features:**
+- **Opt-in via environment variable**: Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable telemetry export
+- **Zero overhead when disabled**: No performance impact when OTLP endpoint is not configured
+- **Service resource auto-population**: Service name, version, runtime info automatically added
+- **Full span hierarchy**: Request → Executor → AI Provider spans with context propagation
+
+**Instrumented Components:**
+- **Server (`internal/server/`)**: HTTP middleware with automatic span creation, status codes, path filtering
+- **Coordinator (`internal/coordinator/`)**: Task lifecycle spans with task.id, type, stage, token/cost attributes
+- **Claude Executor (`internal/executor/claude/`)**: Execution spans with model, tokens, cost tracking
+- **Gemini Executor (`internal/executor/gemini/`)**: Execution spans with model, tokens, cost tracking
+- **AI Providers**: All four providers instrumented:
+  - `internal/ai/anthropic/` - Claude API client
+  - `internal/ai/openai/` - OpenAI API client
+  - `internal/ai/gemini/` - Gemini AI Studio/Vertex client
+  - `internal/ai/ollama/` - Local Ollama client
+
+**Configuration:**
+```bash
+# Option 1: Google Cloud Trace (recommended for GCP users)
+# Uses same convention as Gemini CLI
+export GOOGLE_CLOUD_PROJECT=multivac-internal-dev
+# Or separate telemetry project:
+export OTLP_GOOGLE_CLOUD_PROJECT=my-telemetry-project
+
+# Option 2: Generic OTLP export to collector
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Optional: Set deployment environment
+export OTEL_ENVIRONMENT=production
+
+# Start services
+ailang serve                    # Server with OTEL
+ailang coordinator start        # Coordinator with OTEL
+```
+
+**Google Cloud Trace Integration:**
+- Traces appear in [Cloud Console](https://console.cloud.google.com/traces/explorer)
+- Uses Application Default Credentials (ADC) for authentication
+- Matches Gemini CLI env var convention (`OTLP_GOOGLE_CLOUD_PROJECT` takes precedence)
+- Integration tests in `internal/telemetry/gcp_integration_test.go`
+
+**Dual Export Mode:**
+- Send traces to **both** Google Cloud Trace and another OTLP backend simultaneously
+- Auto-enabled when both `GOOGLE_CLOUD_PROJECT` and `OTEL_EXPORTER_OTLP_ENDPOINT` are set
+- Useful for sending to GCP + local Jaeger, Grafana Tempo, Honeycomb, etc.
+- Example: `export GOOGLE_CLOUD_PROJECT=my-project && export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
+**Native CLI Support:** Both Claude Code and Gemini CLI support OTLP natively:
+- Claude Code: `CLAUDE_CODE_ENABLE_TELEMETRY=1`
+- Gemini CLI: Configure in `~/.gemini/settings.json`
+
+**Files Added:**
+- `internal/telemetry/doc.go` - Package documentation (~5 LOC)
+- `internal/telemetry/otel.go` - OTLP initialization with Google Cloud Trace (~200 LOC)
+- `internal/telemetry/resource.go` - Service resource configuration (~40 LOC)
+- `internal/telemetry/otel_test.go` - Unit tests (~125 LOC)
+- `internal/telemetry/gcp_integration_test.go` - Google Cloud Trace integration tests (~125 LOC)
+
+**Files Modified:**
+- `internal/server/server.go` - Added otelhttp middleware (~15 LOC)
+- `cmd/ailang/serve.go` - Added telemetry init (~20 LOC)
+- `internal/coordinator/daemon_tasks.go` - Added task lifecycle spans (~40 LOC)
+- `cmd/ailang/coordinator.go` - Added telemetry init (~15 LOC)
+- `internal/executor/claude/claude.go` - Added execution spans (~50 LOC)
+- `internal/executor/gemini/gemini.go` - Added execution spans (~50 LOC)
+- `internal/ai/anthropic/client.go` - Added provider spans (~45 LOC)
+- `internal/ai/openai/client.go` - Added provider spans (~35 LOC)
+- `internal/ai/gemini/client.go` - Added provider spans (~30 LOC)
+- `internal/ai/ollama/client.go` - Added provider spans (~30 LOC)
+
+**Design Document:** `design_docs/planned/v0_6_2/m-otel-integration.md`
+
+**Total:** ~725 LOC across 15 files
+
+### Added - GitHub-Driven Autonomous Workflow (M-COORD-GITHUB-AUTO-ROUTING)
+
+Implemented end-to-end GitHub-driven task pipeline for autonomous coordinator operation. Issues with `coordinator:*` labels are automatically routed through design → sprint → implementation → merge workflow.
+
+**Recent Enhancements:**
+- **Design Doc Content in Comments**: Full design doc markdown is now embedded in GitHub comments (collapsible `<details>` sections) so reviewers can approve directly from GitHub without accessing local worktrees
+- **Sprint Plan Content in Comments**: Sprint plans are also shown in full for GitHub-based review
+- **Simplified Stage Directives**: Stage prompts now just invoke the appropriate skill (e.g., "Invoke the design-doc-creator skill") rather than verbose instructions
+- **Local Approval → GitHub Sync**: When approving via `ailang coordinator pending`, the appropriate approval labels are automatically added to GitHub issues
+
+**Features:**
+- **Label-Based Routing**: Issues labeled `coordinator:bug`, `coordinator:feature`, `coordinator:docs` are auto-imported to coordinator inbox
+- **GitHub Comment Posting**: Coordinator posts status updates as comments on linked GitHub issues
+- **Approval Watcher**: Polls GitHub for approval labels (`design-approved`, `sprint-approved`, `merge-approved`)
+- **Task Pipeline**: Automatic progression through stages with human approval gates
+- **Comment Templates**: Professional, formatted comments for each pipeline stage
+
+**Workflow:**
+1. Issue created with `coordinator:*` label → imported as message
+2. Task picks up message → posts "🔄 Working on this" comment
+3. Design doc complete → adds `needs-design-approval` label
+4. Human adds `design-approved` → sprint planning starts
+5. Sprint plan complete → adds `needs-sprint-approval` label
+6. Human adds `sprint-approved` → implementation starts
+7. Implementation complete → adds `needs-merge-approval` label
+8. Human adds `merge-approved` → work merged, issue closed
+
+**Approval Labels:**
+- `needs-design-approval` / `design-approved`
+- `needs-sprint-approval` / `sprint-approved`
+- `needs-merge-approval` / `merge-approved`
+- `needs-revision` (requests changes at any stage)
+
+**Stage Execution Layer (M-COORD-GITHUB-COMPLETE sprint):**
+- `BuildStageDirective()` - Generates skill invocation prompts per stage
+- `ParseStageOutput()` - Extracts design doc/sprint plan paths from output
+- `ProcessStageCompletion()` - Triggers TaskChain callbacks after execution
+- `RequeueTask()` - Resets task for next stage on approval
+
+**Files Added:**
+- `internal/coordinator/approval_watcher.go` - Polls GitHub for approval labels (~280 LOC)
+- `internal/coordinator/task_chain.go` - Pipeline stage callbacks (~350 LOC)
+- `internal/coordinator/templates.go` - GitHub comment templates (~200 LOC)
+- `internal/coordinator/stage_execution.go` - Stage-aware directives + output parsing (~240 LOC)
+- `internal/coordinator/stage_execution_test.go` - Unit tests (~160 LOC)
+
+**Files Modified:**
+- `internal/coordinator/store.go` - Added TaskStage, GithubIssue fields, RequeueTask (~55 LOC)
+- `internal/coordinator/store_sqlite.go` - Schema migrations, RequeueTask impl (~165 LOC)
+- `internal/coordinator/daemon.go` - Integration with watcher and chain (~30 LOC)
+- `internal/coordinator/daemon_tasks.go` - Stage-aware directives, ProcessStageCompletion (~50 LOC)
+- `internal/coordinator/task_chain.go` - RequeueTask calls on approval (~20 LOC)
+- `internal/coordinator/watcher.go` - Added GithubIssue to Message struct
+- `internal/coordinator/message_adapter.go` - Pass GitHub issue from inbox messages
+- `internal/coordinator/integration_test.go` - E2E GitHub pipeline test (~120 LOC)
+
+### Added - Coordinator Task Logs Command
+
+Added `ailang coordinator logs <task-id>` command to view streaming events from task execution.
+
+**Features:**
+- View real-time or historical task execution logs
+- Shows turns, text output, tool usage, errors, and status events
+- Timestamps and duration tracking
+- Supports `--limit N` to control output
+- Supports `--json` for machine-readable output
+
+**Usage:**
+```bash
+# View logs for a specific task
+ailang coordinator logs task-abc12345
+
+# Limit output to last 50 events
+ailang coordinator logs task-abc12345 --limit 50
+
+# JSON output for scripting
+ailang coordinator logs task-abc12345 --json
+```
+
+**Files Modified:**
+- `internal/coordinator/store.go` - Added `TaskEventRecord` struct and interface methods
+- `internal/coordinator/store_sqlite.go` - Implements event storage
+- `internal/coordinator/store_cloud.go` - Added stub implementations
+- `cmd/ailang/coordinator.go` - Added `logs` command (~145 LOC)
+
+### Fixed - Worktree Sync on CLI Rejection
+
+Fixed issue where rejecting tasks via CLI would clean up worktrees on disk but leave the daemon's in-memory `WorktreeManager` out of sync. This caused "max worktrees limit reached" errors even when worktree slots were actually free.
+
+**Root cause:** When tasks are rejected via `ailang coordinator reject`, the worktree is removed from disk but the daemon's in-memory tracking wasn't updated until restart.
+
+**Fix:** Added `syncWorktreeState()` to the daemon's poll loop. This calls `CleanupOrphaned()` on each cycle, which runs `git worktree prune` and removes orphaned entries from the in-memory map.
+
+**Files Modified:**
+- `internal/coordinator/daemon.go` - Added `syncWorktreeState()` function (~15 LOC)
 
 ### Added - Record Pattern Matching (M-RECORD-PATTERNS)
 
@@ -123,6 +364,106 @@ export func limited() -> () ! {IO @limit=2} {
 - `examples/tests/test_capability_budget_exhausted.ail` - Error test case (~20 LOC)
 
 **Design Doc:** [design_docs/planned/v0_6_1/m-capability-budgets-design.md](design_docs/planned/v0_6_1/m-capability-budgets-design.md)
+
+### Added - Pattern Guards in Go Codegen (M-PATTERN-GUARDS)
+
+Fixed pattern guards to be evaluated in Go code generation. Previously guards were parsed and type-checked but silently ignored in compiled output.
+
+**Example:**
+```ailang
+match value {
+  x if x > 10 => "big",
+  x if x > 0 => "positive",
+  x => "other"
+}
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-pattern-guards.md](design_docs/implemented/v0_6_2/m-pattern-guards.md)
+
+### Added - Auto-Derive Eq for ADT Types (M-DX19)
+
+Added `deriving (Eq)` syntax to automatically generate equality for ADT types, eliminating 10-15 lines of boilerplate per enum.
+
+**Example:**
+```ailang
+type Color = Red | Green | Blue deriving (Eq)
+
+let same = Red == Red  -- true (no manual function needed)
+```
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md](design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md)
+
+### Added - Type Class Dictionary Generation for Go (M-CODEGEN-DICTIONARIES)
+
+Go codegen now generates dictionary struct definitions for type classes. Previously, the codegen emitted references like `dict_Num_Int.Add()` but never generated the dictionary definitions, causing compilation failures.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-codegen-dictionaries.md](design_docs/implemented/v0_6_2/m-codegen-dictionaries.md)
+
+### Added - Coordinator Daemon Stability (M-COORD-STABLE)
+
+Major stability fixes for the coordinator daemon including worktree preservation, approval checkpoint wiring, HTTP event broadcasting, and agent configuration.
+
+**Key fixes:**
+- Worktrees preserved until explicit approval/rejection (previously deleted immediately)
+- ApprovalCheckpoint properly wired to block until human decision
+- HTTP broadcaster sends events to dashboard correctly
+- Agent registry for configuring workspaces and capabilities
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coord-stable.md](design_docs/implemented/v0_6_2/m-coord-stable.md)
+
+### Added - Coordinator Feedback Loop (M-COORD-FEEDBACK)
+
+Implemented real-time feedback loop between coordinator executors and humans via dashboard/CLI including streaming logs, cost/token tracking, and human approval gates.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md](design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md)
+
+### Added - Read-Only Execution Mode for Questions (M-COORDINATOR-QUESTION-MODE)
+
+Questions sent to the coordinator now execute in read-only mode with restricted tool access (`Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`), preventing accidental file modifications during informational queries.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coordinator-question-mode.md](design_docs/implemented/v0_6_2/m-coordinator-question-mode.md)
+
+### Added - GitHub Account Override Flag (M-GITHUB-USER-OVERRIDE)
+
+Added `--github-user` flag to bypass `expected_user` validation when using `ailang messages` with GitHub sync. Improved error display with red ERROR output and clear fix options.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-github-user-override.md](design_docs/implemented/v0_6_2/m-github-user-override.md)
+
+### Added - ApprovalWatcher Debug Observability (M-COORD-APPROVALWATCHER-OBSERVABILITY)
+
+Added comprehensive debug logging to ApprovalWatcher for diagnosing GitHub label detection issues. Use `DEBUG_APPROVAL_WATCHER=1` for verbose polling logs and `ailang coordinator watcher-status` to check watcher state.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability.md](design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability.md)
+
+### Added - Type Checker Debug Events (M-DX11-PHASE2)
+
+Extended `--debug-types` to emit events from the type checker including fresh type variable creation and unification events.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md](design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md)
+
+### Fixed - Boolean Type Assertions in Go Codegen (M-CODEGEN-BOOL-ASSERTIONS)
+
+Fixed Go codegen to add `.(bool)` type assertions when dictionary method results are used in boolean contexts (if conditions, logical operators).
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md](design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md)
+
+### Fixed - ADT Constructor Resolution Ambiguity (M-DX22)
+
+Fixed Go codegen to correctly resolve constructor calls when multiple ADT types have constructors with the same name. Uses fully-qualified names (`TypeName.ConstructorName`) in the internal registry.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md](design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
+
+### Fixed - TList Normalized to TApp at Parse Time (DX-17-PHASE2)
+
+Eliminated `TList` struct by normalizing `[T]` syntax to `TApp("list", T)` during parsing. This unifies the internal representation for all container types.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md](design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md)
+
+### Fixed - List[T] Normalization to Lowercase (M-DX17-LIST-NORMALIZATION-BUG)
+
+Fixed parser to normalize explicit `List[T]` syntax to lowercase `"list"`, matching the `[T]` normalization. Previously `List[T]` created a different type than `[T]`.
+
+**Design Doc:** [design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md](design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md)
 
 ## [v0.6.1] - 2025-12-22
 

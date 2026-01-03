@@ -1,0 +1,33 @@
+{
+  "id": "json_parse",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 617,
+  "total_tokens": 630,
+  "cost_usd": 0.0339945,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 16611,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Alice\nCharlie\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Alice\n- Charlie\n\nThe solution successfully:\n1. Parses the JSON array\n2. Filters people aged 30 or older (Alice: 30, Charlie: 35)\n3. Prints their names, one per line\n\nThe output matches the expected output with no extra spaces or newlines. ✓",
+  "expected_stdout": "Alice\nCharlie\n",
+  "timestamp": "2026-01-02T16:24:48.256616+01:00",
+  "code": "import json\n\ndata = '[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25},{\"name\":\"Charlie\",\"age\":35}]'\npeople = json.loads(data)\nfor person in people:\n    if person[\"age\"] \u003e= 30:\n        print(person[\"name\"])\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Alice\n- Charlie\n\nThe solution successfully:\n1. Parses the JSON array\n2. Filters people aged 30 or older (Alice: 30, Charlie: 35)\n3. Prints their names, one per line\n\nThe output matches the expected output with no extra spaces or newlines. ✓",
+  "eval_mode": "agent"
+}

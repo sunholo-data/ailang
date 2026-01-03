@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,7 +14,15 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// evalTracer is the OpenTelemetry tracer for eval harness instrumentation.
+var evalTracer = otel.Tracer("ailang.eval")
 
 // SuiteResult captures the result of a single benchmark run in the suite
 type SuiteResult struct {
@@ -49,6 +58,19 @@ func discoverBenchmarks() []string {
 }
 
 func runEvalSuite() {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-eval")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
+	// Start parent span for the entire eval suite
+	ctx, suiteSpan := evalTracer.Start(ctx, "eval.suite")
+	defer suiteSpan.End()
+
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
@@ -179,6 +201,17 @@ func runEvalSuite() {
 
 	// Calculate total runs
 	totalRuns := len(modelList) * len(benchmarkList) * len(langList)
+
+	// Set suite span attributes now that we know the configuration
+	suiteSpan.SetAttributes(
+		attribute.StringSlice("eval.models", modelList),
+		attribute.StringSlice("eval.benchmarks", benchmarkList),
+		attribute.StringSlice("eval.languages", langList),
+		attribute.Int("eval.total_runs", totalRuns),
+		attribute.Bool("eval.agent_mode", *agent),
+		attribute.Bool("eval.full_suite", *fullSuite),
+		attribute.Int64("eval.seed", *seed),
+	)
 
 	fmt.Printf("%s AILANG Benchmark Suite\n", cyan("🚀"))
 	fmt.Println("==========================")
@@ -332,7 +365,7 @@ func runEvalSuite() {
 
 	// Run benchmarks with concurrency control
 	startTime := time.Now()
-	results := runBenchmarksParallel(jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
+	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
 	duration := time.Since(startTime)
 
 	// Summary
@@ -344,6 +377,19 @@ func runEvalSuite() {
 		} else {
 			failCount++
 		}
+	}
+
+	// Record suite results on span
+	suiteSpan.SetAttributes(
+		attribute.Int("eval.success_count", successCount),
+		attribute.Int("eval.fail_count", failCount),
+		attribute.Int64("eval.duration_ms", duration.Milliseconds()),
+		attribute.Float64("eval.success_rate", float64(successCount)/float64(totalRuns)*100),
+	)
+	if failCount > 0 {
+		suiteSpan.SetStatus(codes.Error, fmt.Sprintf("%d/%d benchmarks failed", failCount, totalRuns))
+	} else {
+		suiteSpan.SetStatus(codes.Ok, "all benchmarks passed")
 	}
 
 	fmt.Println()
@@ -368,7 +414,7 @@ type Job struct {
 }
 
 // runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) []SuiteResult {
+func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -422,7 +468,7 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 				cyan(j.Benchmark), green(j.Model), j.Language)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
@@ -459,17 +505,35 @@ func runBenchmarksParallel(jobs []Job, seed int64, outputDir string, timeout tim
 }
 
 // runSingleBenchmark executes a single benchmark configuration
-func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
+	// Start span for this benchmark
+	// Include benchmark ID in span name for easy identification in trace viewers
+	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
+		trace.WithAttributes(
+			attribute.String("benchmark.id", benchmarkID),
+			attribute.String("benchmark.model", model),
+			attribute.String("benchmark.language", lang),
+			attribute.Int64("benchmark.seed", seed),
+			attribute.Bool("benchmark.agent_mode", agentConfig != nil),
+		),
+	)
+	defer benchSpan.End()
+
 	// Load benchmark spec
 	specPath := filepath.Join("benchmarks", benchmarkID+".yml")
 	spec, err := eval_harness.LoadSpec(specPath)
 	if err != nil {
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "failed to load benchmark spec")
 		return false, fmt.Errorf("failed to load benchmark: %w", err)
 	}
 
 	// Check if language is supported
 	if !spec.SupportsLanguage(lang) {
-		return false, fmt.Errorf("language %s not supported by benchmark %s", lang, benchmarkID)
+		err := fmt.Errorf("language %s not supported by benchmark %s", lang, benchmarkID)
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "unsupported language")
+		return false, err
 	}
 
 	// Agent mode: Use Claude Code headless evaluation
@@ -517,6 +581,8 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 			result, err = eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
 		}
 		if err != nil {
+			benchSpan.RecordError(err)
+			benchSpan.SetStatus(codes.Error, "agent benchmark failed")
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
 		}
 
@@ -564,7 +630,40 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		}
 
 		if err := logger.Log(metrics); err != nil {
+			benchSpan.RecordError(err)
+			benchSpan.SetStatus(codes.Error, "failed to save result")
 			return false, fmt.Errorf("failed to save result: %w", err)
+		}
+
+		// Record success attributes on span
+		benchSpan.SetAttributes(
+			attribute.Bool("benchmark.success", result.Success),
+			attribute.Int64("benchmark.duration_ms", int64(result.DurationMS)),
+			attribute.Int("benchmark.input_tokens", result.Usage.InputTokens),
+			attribute.Int("benchmark.output_tokens", result.Usage.OutputTokens),
+			attribute.Float64("benchmark.cost_usd", result.Cost),
+			attribute.Int("benchmark.turns", result.NumTurns),
+		)
+
+		// Add code preview and hash for debugging and deduplication
+		if result.SolutionCode != "" {
+			benchSpan.SetAttributes(
+				attribute.String("code.preview", telemetry.Truncate(result.SolutionCode, 100)),
+				attribute.String("code.hash", telemetry.ShortHash(result.SolutionCode, 8)),
+			)
+		}
+
+		if result.Success {
+			benchSpan.SetStatus(codes.Ok, "benchmark passed")
+		} else {
+			// Add error summary for failed benchmarks
+			if result.Stderr != "" {
+				benchSpan.SetAttributes(
+					attribute.String("error.summary", telemetry.Truncate(result.Stderr, 200)),
+					attribute.String("error.category", telemetry.CategorizeError(errors.New(result.Stderr))),
+				)
+			}
+			benchSpan.SetStatus(codes.Error, "benchmark failed")
 		}
 
 		return result.Success, nil
@@ -573,12 +672,16 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 	// Standard mode: Create AI agent
 	agent, err := eval_harness.NewAIAgent(model, seed)
 	if err != nil {
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "failed to create AI agent")
 		return false, fmt.Errorf("failed to create AI agent: %w", err)
 	}
 
 	// Get runner
 	runner, err := eval_harness.GetRunner(lang, spec)
 	if err != nil {
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "failed to get runner")
 		return false, fmt.Errorf("failed to get runner: %w", err)
 	}
 
@@ -656,8 +759,7 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 		fmt.Printf("[DEBUG] First 300 chars: %s\n", prompt[:min(300, len(prompt))])
 	}
 
-	// Execute with repair runner
-	ctx := context.Background()
+	// Execute with repair runner (use ctx from span, not new context)
 	repairRunner := eval_harness.NewRepairRunner(agent, runner, spec, timeout, selfRepair)
 	if actualPromptVersion != "" {
 		repairRunner.SetPromptVersion(actualPromptVersion)
@@ -665,26 +767,63 @@ func runSingleBenchmark(model, benchmarkID, lang string, seed int64, outputDir s
 
 	metrics, err := repairRunner.Run(ctx, prompt)
 	if err != nil {
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "benchmark execution failed")
 		return false, fmt.Errorf("benchmark execution failed: %w", err)
 	}
 
 	// Save result to JSON
 	logger := eval_harness.NewMetricsLogger(outputDir)
 	if err := logger.Log(metrics); err != nil {
+		benchSpan.RecordError(err)
+		benchSpan.SetStatus(codes.Error, "failed to save result")
 		return false, fmt.Errorf("failed to save result: %w", err)
+	}
+
+	// Record benchmark metrics on span
+	benchSpan.SetAttributes(
+		attribute.Bool("benchmark.success", metrics.StdoutOk),
+		attribute.Bool("benchmark.compile_ok", metrics.CompileOk),
+		attribute.Bool("benchmark.runtime_ok", metrics.RuntimeOk),
+		attribute.Int64("benchmark.duration_ms", metrics.DurationMs),
+		attribute.Int64("benchmark.input_tokens", int64(metrics.InputTokens)),
+		attribute.Int64("benchmark.output_tokens", int64(metrics.OutputTokens)),
+		attribute.Float64("benchmark.cost_usd", metrics.CostUSD),
+		attribute.String("benchmark.error_category", string(metrics.ErrorCategory)),
+		attribute.Bool("benchmark.repair_used", metrics.RepairUsed),
+		attribute.Bool("benchmark.repair_successful", metrics.RepairOk),
+	)
+
+	// Add code preview and hash for debugging and deduplication
+	if metrics.Code != "" {
+		benchSpan.SetAttributes(
+			attribute.String("code.preview", telemetry.Truncate(metrics.Code, 100)),
+			attribute.String("code.hash", telemetry.ShortHash(metrics.Code, 8)),
+		)
+	}
+
+	// Add error summary for failed benchmarks
+	if !metrics.StdoutOk && metrics.Stderr != "" {
+		benchSpan.SetAttributes(
+			attribute.String("error.summary", telemetry.Truncate(metrics.Stderr, 200)),
+		)
 	}
 
 	// Return error with failure details if benchmark failed
 	if !metrics.StdoutOk {
 		if !metrics.CompileOk {
+			benchSpan.SetStatus(codes.Error, "compilation failed")
 			return false, fmt.Errorf("compilation failed (%s)", metrics.ErrorCategory)
 		}
 		if !metrics.RuntimeOk {
+			benchSpan.SetStatus(codes.Error, "runtime error")
 			return false, fmt.Errorf("runtime error (%s)", metrics.ErrorCategory)
 		}
+		benchSpan.SetStatus(codes.Error, "output mismatch")
 		return false, fmt.Errorf("output mismatch (%s)", metrics.ErrorCategory)
 	}
 
+	benchSpan.SetStatus(codes.Ok, "benchmark passed")
 	return true, nil
 }
 

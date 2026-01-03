@@ -13,27 +13,27 @@ Create well-structured design documents for AILANG features following the projec
 ```bash
 # User says: "Create a design doc for better error messages"
 # This skill will:
-# 1. AUTO-SEARCH for related design docs (instant SimHash)
+# 1. AUTO-SEARCH for related design docs (Ollama neural embeddings)
 # 2. Show matches from implemented/ and planned/ directories
 # 3. Auto-populate "Related Documents" section in template
-# 4. Ask for key details (priority, version target)
+# 4. Proceed automatically (no confirmation needed)
 # 5. Create design_docs/planned/better-error-messages.md
 # 6. Fill template with proper structure
 ```
 
-**Automatic Related Doc Search (v0.6.0+):**
+**Automatic Related Doc Search (v0.6.3+):**
 
 When you run the create script, it automatically:
 1. Converts doc name to search query (e.g., `m-dx2-better-errors` → `"better errors"`)
-2. Searches both `implemented/` and `planned/` directories using SimHash
+2. Searches both `implemented/` and `planned/` directories using Ollama neural embeddings
 3. Shows top 3 matches with similarity scores
-4. Prompts to continue if matches found
+4. Proceeds automatically (no confirmation prompt)
 5. Auto-populates the "Related Documents" section in the template
 
 ```bash
 $ .claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
 
-🔍 Searching for related design docs...
+🔍 Searching for related design docs (neural/Ollama embeddings)...
 
 Implemented docs matching "semantic caching":
 1. design_docs/implemented/v0_5_11/m-doc-sem-lazy-embeddings.md (0.92)
@@ -42,8 +42,7 @@ Implemented docs matching "semantic caching":
 Planned docs matching "semantic caching":
 1. design_docs/planned/v0_6_0/semantic-caching-future.md (0.95)
 
-⚠ Related docs found. Review them before proceeding?
-Continue creating new doc? (Y/n)
+ℹ Related docs found above - review them after creation if needed.
 ```
 
 ## When to Use This Skill
@@ -54,6 +53,28 @@ Invoke this skill when:
 - User mentions "document the design" or "create a spec"
 - Before starting implementation of a new feature
 - After completing a feature (to move to implemented/)
+
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output this marker at the end of your response:
+
+```
+DESIGN_DOC_PATH: design_docs/planned/vX_Y/design-doc-name.md
+```
+
+**Why?** The coordinator uses this marker to:
+1. Read the design doc content for GitHub comments
+2. Track artifacts across pipeline stages
+3. Provide visibility to humans reviewing the issue
+
+**Example completion:**
+```
+## Design Document Created
+
+I've created the design document...
+
+**DESIGN_DOC_PATH**: `design_docs/planned/v0_6_3/m-feature-design.md`
+```
 
 ## Available Scripts
 
@@ -78,7 +99,7 @@ The script automatically detects the current AILANG version from `CHANGELOG.md` 
 ```
 
 **What it does:**
-- **Searches for related docs** using `ailang docs search` (SimHash, instant)
+- **Searches for related docs** using `ailang docs search --neural` (Ollama embeddings)
 - Shows top 3 matches from both `implemented/` and `planned/`
 - Auto-populates "Related Documents" section with clickable links
 - Detects current version from CHANGELOG.md
@@ -547,6 +568,71 @@ This skill loads information progressively:
 1. **Always loaded**: This SKILL.md file (workflow overview)
 2. **Execute as needed**: Scripts create/move docs
 3. **Load on demand**: `resources/design_doc_structure.md` (detailed guide)
+
+## Coordinator Integration (v0.6.2+)
+
+The design-doc-creator skill integrates with the AILANG Coordinator for automated workflows.
+
+### Autonomous Workflow
+
+When configured in `~/.ailang/config.yaml`, the design-doc-creator agent can:
+1. Automatically receive GitHub issues via `github_sync`
+2. Create design docs from issue descriptions
+3. Hand off to sprint-planner on completion
+
+```yaml
+coordinator:
+  agents:
+    - id: design-doc-creator
+      inbox: design-doc-creator
+      workspace: /path/to/ailang
+      capabilities: [research, docs]
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+      session_continuity: true
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+### Sending Tasks to design-doc-creator
+
+```bash
+# Via CLI
+ailang messages send design-doc-creator "Create design doc for semantic caching" \
+  --title "Feature: Semantic Caching" --from "user"
+
+# The coordinator will:
+# 1. Pick up the message
+# 2. Create a git worktree
+# 3. Execute the design-doc-creator workflow
+# 4. Create approval request for human review
+# 5. On approval, trigger sprint-planner with handoff message
+```
+
+### Handoff Message to sprint-planner
+
+On completion, design-doc-creator sends:
+```json
+{
+  "type": "design_doc_ready",
+  "correlation_id": "task-123",
+  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
+  "session_id": "claude-session-abc",
+  "discovery": "Key findings from GitHub issue analysis"
+}
+```
+
+### Human-in-the-Loop
+
+With `auto_approve_handoffs: false`:
+1. Design doc is created in worktree
+2. Approval request shows git diff in dashboard
+3. Human reviews design doc quality
+4. Approve → Merges to main, triggers sprint-planner
+5. Reject → Worktree preserved for manual fixes
 
 ## Notes
 

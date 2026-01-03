@@ -1,0 +1,1 @@
+export { ProviderBadge } from './ProviderBadge';

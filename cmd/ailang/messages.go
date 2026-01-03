@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 // humanDuration supports human-friendly duration parsing including "d" for days.
@@ -42,8 +44,22 @@ func (d *humanDuration) Set(s string) error {
 // messagesCommand handles the 'messages' (alias: 'msg') subcommand.
 // This uses the unified collaboration.db for both CLI and dashboard access.
 func messagesCommand() {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-messages")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
 	if len(os.Args) < 3 {
-		runMessagesList([]string{})
+		// Check if stdin is a terminal (interactive)
+		if isTerminal() {
+			runMessagesInteractive()
+		} else {
+			runMessagesList([]string{})
+		}
 		return
 	}
 
@@ -65,6 +81,8 @@ func messagesCommand() {
 		runMessagesSend(args)
 	case "read":
 		runMessagesRead(args)
+	case "forward", "fwd":
+		runMessagesForward(args)
 	case "watch":
 		runMessagesWatch(args)
 	case "cleanup":

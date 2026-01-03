@@ -464,6 +464,69 @@ func (c *GitHubClient) AddComment(repo string, number int, body string) error {
 	return nil
 }
 
+// AddLabelToIssue adds a label to an existing issue.
+func (c *GitHubClient) AddLabelToIssue(repo string, number int, label string) error {
+	if err := c.PreFlightChecks(); err != nil {
+		return err
+	}
+
+	if repo == "" && c.config != nil {
+		repo = c.config.DefaultRepo
+	}
+	if repo == "" {
+		return fmt.Errorf("no repository specified")
+	}
+
+	args := []string{"issue", "edit",
+		"--repo", repo,
+		strconv.Itoa(number),
+		"--add-label", label,
+	}
+
+	output, err := c.execCommand("gh", args...)
+	if err != nil {
+		return fmt.Errorf("failed to add label to issue #%d: %w\nOutput: %s", number, err, string(output))
+	}
+
+	return nil
+}
+
+// RemoveLabelFromIssue removes a label from an existing issue.
+func (c *GitHubClient) RemoveLabelFromIssue(repo string, number int, label string) error {
+	if err := c.PreFlightChecks(); err != nil {
+		return err
+	}
+
+	if repo == "" && c.config != nil {
+		repo = c.config.DefaultRepo
+	}
+	if repo == "" {
+		return fmt.Errorf("no repository specified")
+	}
+
+	args := []string{"issue", "edit",
+		"--repo", repo,
+		strconv.Itoa(number),
+		"--remove-label", label,
+	}
+
+	output, err := c.execCommand("gh", args...)
+	if err != nil {
+		return fmt.Errorf("failed to remove label from issue #%d: %w\nOutput: %s", number, err, string(output))
+	}
+
+	return nil
+}
+
+// GetIssueLabels returns the labels on an issue.
+func (c *GitHubClient) GetIssueLabels(repo string, number int) ([]string, error) {
+	issue, err := c.GetIssue(repo, number)
+	if err != nil {
+		return nil, err
+	}
+	return issue.Labels, nil
+}
+
 // EnsureLabel creates a label if it doesn't already exist.
 // Returns nil if label exists or was created successfully.
 func (c *GitHubClient) EnsureLabel(repo, name, description, color string) error {

@@ -18,23 +18,6 @@ func extractOk(result eval.Value) eval.Value {
 	return ctor.Fields[0]
 }
 
-func extractErr(result eval.Value) string {
-	ctor, ok := result.(*eval.TaggedValue)
-	if !ok || ctor.CtorName != "Err" || len(ctor.Fields) != 1 {
-		return ""
-	}
-	strVal, ok := ctor.Fields[0].(*eval.StringValue)
-	if !ok {
-		return ""
-	}
-	return strVal.Value
-}
-
-func isOk(result eval.Value) bool {
-	ctor, ok := result.(*eval.TaggedValue)
-	return ok && ctor.CtorName == "Ok"
-}
-
 // Streaming Builder Tests
 
 func TestJSONBuilder_Null(t *testing.T) {

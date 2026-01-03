@@ -101,7 +101,7 @@ ailang messages send INBOX "MESSAGE" [flags]
 | `--from AGENT` | Sender name | "cli" |
 | `--correlation ID` | Correlation ID | none |
 | `--github` | Create GitHub issue | false |
-| `--type TYPE` | bug/feature/general | none |
+| `--type TYPE` | Category (any string; bug/feature imply --github) | none |
 | `--repo OWNER/REPO` | GitHub repo | config default |
 
 **Examples:**
@@ -109,16 +109,23 @@ ailang messages send INBOX "MESSAGE" [flags]
 # Basic local message
 ailang messages send user "Task complete" --title "Done" --from "agent"
 
-# Bug report with GitHub sync
+# Bug report (--type bug implies --github)
 ailang messages send user "Parser crashes on nested records" \
-  --title "Parser bug" --type bug --github
+  --title "Parser bug" --type bug
 
-# Feature request
+# Feature request (--type feature implies --github)
 ailang messages send user "Need async support" \
-  --title "Async" --type feature --github
+  --title "Async" --type feature
+
+# Custom type (local only, no GitHub sync)
+ailang messages send user "Research findings" --type research --from "agent"
+ailang messages send user "Documentation draft" --type docs
+
+# Custom type WITH GitHub sync (explicit --github)
+ailang messages send user "Docs update" --type docs --github
 
 # Override repo
-ailang messages send user "Bug" --type bug --github --repo owner/other-repo
+ailang messages send user "Bug" --type bug --repo owner/other-repo
 ```
 
 ## Reply to GitHub Issue
@@ -217,7 +224,7 @@ CREATE TABLE inbox_messages (
     message_type TEXT NOT NULL,
     title TEXT NOT NULL,
     payload TEXT,
-    category TEXT,                -- bug, feature, general
+    category TEXT,                -- any string (bug/feature have special behavior)
     github_issue_number INTEGER,  -- Linked GitHub issue
     github_repo TEXT,             -- owner/repo
     status TEXT NOT NULL,         -- unread, read, archived, deleted

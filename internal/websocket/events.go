@@ -20,6 +20,7 @@ const (
 	EventTypeThreadState  EventType = "thread_state"
 	EventTypeTelemetry    EventType = "telemetry"     // Process telemetry updates
 	EventTypeInboxMessage EventType = "inbox_message" // Async inbox messages
+	EventTypeTaskStream   EventType = "task_stream"   // Task execution streaming events
 )
 
 // Event represents a WebSocket message envelope
@@ -102,6 +103,37 @@ type InboxMessageEvent struct {
 	Payload       string `json:"payload,omitempty"`
 	Status        string `json:"status"`
 	CreatedAt     int64  `json:"created_at"`
+}
+
+// TaskStreamEventType represents the type of task streaming event
+type TaskStreamEventType string
+
+const (
+	TaskStreamTurnStart  TaskStreamEventType = "turn_start"
+	TaskStreamText       TaskStreamEventType = "text"
+	TaskStreamToolUse    TaskStreamEventType = "tool_use"
+	TaskStreamToolResult TaskStreamEventType = "tool_result"
+	TaskStreamTurnEnd    TaskStreamEventType = "turn_end"
+	TaskStreamError      TaskStreamEventType = "error"
+	TaskStreamStatus     TaskStreamEventType = "status" // Task status changes
+)
+
+// TaskStreamEvent - Server sends task execution streaming events
+type TaskStreamEvent struct {
+	TaskID      string              `json:"task_id"`
+	ThreadID    string              `json:"thread_id,omitempty"`
+	StreamType  TaskStreamEventType `json:"stream_type"`
+	TurnNum     int                 `json:"turn_num,omitempty"`
+	Text        string              `json:"text,omitempty"`
+	ToolName    string              `json:"tool_name,omitempty"`
+	ToolInput   string              `json:"tool_input,omitempty"`
+	ToolOutput  string              `json:"tool_output,omitempty"`
+	ErrorMsg    string              `json:"error_msg,omitempty"`
+	Status      string              `json:"status,omitempty"` // running, completed, failed
+	TokensIn    int                 `json:"tokens_in,omitempty"`
+	TokensOut   int                 `json:"tokens_out,omitempty"`
+	Cost        float64             `json:"cost,omitempty"`
+	DurationSec int                 `json:"duration_sec,omitempty"`
 }
 
 // NewEvent creates a new event with timestamp
@@ -214,4 +246,9 @@ func NewTelemetryEvent(telem *TelemetryEvent) (*Event, error) {
 // NewInboxMessageEvent creates an inbox message event
 func NewInboxMessageEvent(msg *InboxMessageEvent) (*Event, error) {
 	return NewEvent(EventTypeInboxMessage, msg)
+}
+
+// NewTaskStreamEvent creates a task stream event
+func NewTaskStreamEvent(stream *TaskStreamEvent) (*Event, error) {
+	return NewEvent(EventTypeTaskStream, stream)
 }

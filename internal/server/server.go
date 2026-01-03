@@ -10,8 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:embed dist
@@ -31,6 +34,7 @@ type Server struct {
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
+	version  string // AILANG version for display in UI
 
 	// Process management for spawned agents
 	agentsMu sync.RWMutex
@@ -47,10 +51,20 @@ type Server struct {
 	// Track previously seen processes for history detection
 	previouslySeenMu sync.RWMutex
 	previouslySeen   map[int]ProcessStats // keyed by PID
+
+	// Coordinator integration for task metrics
+	resourceRegistry *coordinator.ResourceTrackerRegistry
+	coordStore       CoordinatorStore
+
+	// Coordinator approval store for approval workflow
+	approvalStore CoordinatorApprovalStore
+
+	// Coordinator task event store for historical replay
+	taskEventStore CoordinatorTaskEventStore
 }
 
 // NewServer creates a new HTTP server
-func NewServer(dbPath string, httpAddr string) (*Server, error) {
+func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, error) {
 	store, err := messaging.OpenStore(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store: %w", err)
@@ -58,15 +72,65 @@ func NewServer(dbPath string, httpAddr string) (*Server, error) {
 
 	wsServer := websocket.NewServer(store)
 
-	return &Server{
+	s := &Server{
 		store:             store,
 		wsServer:          wsServer,
 		httpAddr:          httpAddr,
 		dbPath:            dbPath,
+		version:           "dev", // Default version
 		agents:            make(map[string]*AgentProcess),
 		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
 		previouslySeen:    make(map[int]ProcessStats),
-	}, nil
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
+}
+
+// ServerOption configures the server
+type ServerOption func(*Server)
+
+// WithVersion sets the AILANG version displayed in the UI
+func WithVersion(version string) ServerOption {
+	return func(s *Server) {
+		s.version = version
+	}
+}
+
+// WithResourceRegistry sets the resource tracker registry for coordinator metrics
+func WithResourceRegistry(registry *coordinator.ResourceTrackerRegistry) ServerOption {
+	return func(s *Server) {
+		s.resourceRegistry = registry
+	}
+}
+
+// WithCoordinatorStore sets the coordinator store for task statistics
+func WithCoordinatorStore(store CoordinatorStore) ServerOption {
+	return func(s *Server) {
+		s.coordStore = store
+	}
+}
+
+// CoordinatorStore provides coordinator statistics
+type CoordinatorStore interface {
+	GetCoordinatorStats() (*CoordinatorStats, error)
+}
+
+// CoordinatorStats holds coordinator daemon statistics
+type CoordinatorStats struct {
+	Running      bool
+	PID          int
+	Uptime       string
+	TasksRun     int
+	PendingTasks int
+	RunningTasks int
+	FailedTasks  int
+	TotalCost    float64
+	TotalTokens  int
 }
 
 // Start starts the HTTP server and WebSocket server
@@ -83,6 +147,8 @@ func (s *Server) Start() error {
 	// REST API endpoints - Threads
 	mux.HandleFunc("/api/threads", s.handleThreads)
 	mux.HandleFunc("/api/threads/", s.handleThread)
+	mux.HandleFunc("/api/workspaces", s.handleWorkspaces)
+	mux.HandleFunc("/api/statistics", s.handleStatistics)
 
 	// REST API endpoints - Messages
 	mux.HandleFunc("/api/messages", s.handleMessages)
@@ -104,6 +170,13 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/metrics", s.handleMetrics)
 	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
 	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
+	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
+	mux.HandleFunc("/api/coordinator/pending", s.handleCoordinatorPendingApprovals)
+	mux.HandleFunc("/api/coordinator/approve/", s.handleCoordinatorApproval)
+	mux.HandleFunc("/api/coordinator/reject/", s.handleCoordinatorApproval)
+	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
+	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
+	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
 
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)
@@ -114,8 +187,9 @@ func (s *Server) Start() error {
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 
-	// Health check
+	// Health check and version
 	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/api/version", s.handleVersion)
 
 	// Serve static UI files from embedded dist folder
 	distFS, err := fs.Sub(uiAssets, "dist")
@@ -127,6 +201,17 @@ func (s *Server) Start() error {
 
 	// CORS middleware
 	handler := s.corsMiddleware(mux)
+
+	// OpenTelemetry HTTP instrumentation (if enabled via OTEL_EXPORTER_OTLP_ENDPOINT)
+	if telemetry.IsEnabled() {
+		log.Printf("OpenTelemetry instrumentation enabled")
+		handler = otelhttp.NewHandler(handler, "ailang-server",
+			otelhttp.WithFilter(func(r *http.Request) bool {
+				// Skip tracing for health checks and static assets
+				return r.URL.Path != "/health" && r.URL.Path != "/ws"
+			}),
+		)
+	}
 
 	log.Printf("Starting HTTP server on %s", s.httpAddr)
 	log.Printf("WebSocket endpoint: ws://%s/ws", s.httpAddr)

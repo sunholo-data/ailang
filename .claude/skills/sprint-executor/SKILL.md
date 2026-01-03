@@ -29,6 +29,34 @@ Invoke this skill when:
 - User wants guided execution with built-in quality checks
 - User needs progress tracking and pause points
 
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output these markers at the end of your response:
+
+```
+IMPLEMENTATION_COMPLETE: true
+BRANCH_NAME: coordinator/task-XXXX
+FILES_CREATED: file1.go, file2.go
+FILES_MODIFIED: file3.go, file4.go
+```
+
+**Why?** The coordinator uses these markers to:
+1. Track implementation completion
+2. Post updates to GitHub issues
+3. Trigger the merge approval workflow
+
+**Example completion:**
+```
+## Implementation Complete
+
+All milestones have been completed and tests pass.
+
+**IMPLEMENTATION_COMPLETE**: true
+**BRANCH_NAME**: `coordinator/task-abc123`
+**FILES_CREATED**: `internal/new_file.go`, `internal/new_test.go`
+**FILES_MODIFIED**: `internal/existing.go`
+```
+
 ## Core Principles
 
 1. **Test-Driven**: All code must pass tests before moving to next milestone
@@ -321,6 +349,76 @@ This skill loads information progressively:
 2. Calculate actual velocity
 3. Propose: (a) continue as-is, (b) reduce scope, (c) extend timeline
 4. Update sprint plan with revised estimates
+
+## Coordinator Integration (v0.6.2+)
+
+The sprint-executor skill integrates with the AILANG Coordinator for automated workflows.
+
+### Autonomous Workflow
+
+When configured in `~/.ailang/config.yaml`, the sprint-executor agent:
+1. Receives handoff messages from sprint-planner
+2. Executes sprint plans with TDD and continuous linting
+3. Creates approval request for code review before merge
+
+```yaml
+coordinator:
+  agents:
+    - id: sprint-executor
+      inbox: sprint-executor
+      workspace: /path/to/ailang
+      capabilities: [code, test, docs]
+      trigger_on_complete: []  # End of chain
+      auto_approve_handoffs: false
+      auto_merge: false
+      session_continuity: true
+      max_concurrent_tasks: 1
+```
+
+### Receiving Handoffs from sprint-planner
+
+The sprint-executor receives:
+```json
+{
+  "type": "plan_ready",
+  "correlation_id": "sprint_M-CACHE_20251231",
+  "sprint_id": "M-CACHE",
+  "plan_path": "design_docs/planned/v0_6_3/m-cache-sprint-plan.md",
+  "progress_path": ".ailang/state/sprints/sprint_M-CACHE.json",
+  "session_id": "claude-session-xyz",
+  "estimated_duration": "3 days",
+  "total_loc_estimate": 650
+}
+```
+
+### Session Continuity
+
+With `session_continuity: true`:
+- Receives `session_id` from sprint-planner handoff
+- Uses `--resume SESSION_ID` for Claude Code CLI
+- Preserves full conversation context from design → planning → execution
+- Maintains understanding of design decisions and rationale
+
+### Human-in-the-Loop
+
+With `auto_merge: false`:
+1. Sprint is executed in isolated worktree
+2. All milestones completed with tests passing
+3. Approval request shows:
+   - Git diff of all changes
+   - Test results
+   - CHANGELOG updates
+4. Human reviews implementation quality
+5. Approve → Changes merged to main branch
+6. Reject → Worktree preserved for fixes
+
+### End of Pipeline
+
+As the last agent in the chain:
+- `trigger_on_complete: []` means no automatic handoff
+- Final approval merges directly to main branch
+- Sprint JSON updated to `status: completed`
+- Design docs moved to `implemented/` directory
 
 ## Notes
 

@@ -1,0 +1,33 @@
+{
+  "id": "adt_option",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 800,
+  "total_tokens": 813,
+  "cost_usd": 0.0821438,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 18078,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 5.0\nError: Division by zero\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it matches the expected output.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the Option monad solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `Result: 5.0`\n- `Error: Division by zero`\n\nThe solution successfully implements:\n1. An Option type using `Some` and `NoneType` classes\n2. A safe division function that returns `Some(result)` when divisor is non-zero and `NoneType()` when divisor is zero\n3. Tests with `divide(10, 2)` and `divide(10, 0)`\n4. Proper printing of results with the exact format required\n\nThe solution is complete and verified!",
+  "expected_stdout": "Result: 5.0\nError: Division by zero\n",
+  "timestamp": "2026-01-02T16:23:34.972583+01:00",
+  "code": "from typing import Union, Generic, TypeVar\n\nT = TypeVar('T')\n\nclass Some(Generic[T]):\n    def __init__(self, value: T):\n        self.value = value\n\nclass NoneType:\n    pass\n\nOption = Union[Some[T], NoneType]\n\ndef divide(a: float, b: float) -\u003e Option[float]:\n    if b == 0:\n        return NoneType()\n    return Some(a / b)\n\ndef print_result(result: Option[float]):\n    if isinstance(result, Some):\n        print(f\"Result: {result.value}\")\n    else:\n        print(\"Error: Division by zero\")\n\nif __name__ == \"__main__\":\n    print_result(divide(10, 2))\n    print_result(divide(10, 0))\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it matches the expected output.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the Option monad solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `Result: 5.0`\n- `Error: Division by zero`\n\nThe solution successfully implements:\n1. An Option type using `Some` and `NoneType` classes\n2. A safe division function that returns `Some(result)` when divisor is non-zero and `NoneType()` when divisor is zero\n3. Tests with `divide(10, 2)` and `divide(10, 0)`\n4. Proper printing of results with the exact format required\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

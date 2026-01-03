@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -114,10 +115,12 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 	}
 
 	// Generate filename: <id>_<lang>_<model>_<timestamp>.json
+	// Sanitize model name: replace colons with underscores (Windows compatibility)
+	sanitizedModel := strings.ReplaceAll(m.Model, ":", "_")
 	filename := fmt.Sprintf("%s_%s_%s_%d.json",
 		m.ID,
 		m.Lang,
-		m.Model,
+		sanitizedModel,
 		m.Timestamp.Unix(),
 	)
 	path := filepath.Join(targetDir, filename)

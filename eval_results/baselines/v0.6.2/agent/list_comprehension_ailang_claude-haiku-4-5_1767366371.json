@@ -1,0 +1,33 @@
+{
+  "id": "list_comprehension",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1095,
+  "total_tokens": 1108,
+  "cost_usd": 0.018952300000000002,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 15153,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Sum of squares of evens: 220\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this step by step. First, let me read the template file to understand the structure.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Implement filter, map, and sum as recursive functions\n2. Create a list of integers 1-10\n3. Filter for even numbers\n4. Map by squaring\n5. Sum the results\n6. Print in the exact format required[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output. Let me verify the calculation is correct:\n\n- Even numbers from 1-10: [2, 4, 6, 8, 10]\n- Squared: [4, 16, 36, 64, 100]\n- Sum: 4 + 16 + 36 + 64 + 100 = 220 ✓\n\nThe solution is complete and verified. It:\n1. ✅ Creates a list [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n2. ✅ Filters to keep only even numbers using recursive filter function\n3. ✅ Maps filtered list by squaring using recursive map function\n4. ✅ Computes sum using recursive sum function\n5. ✅ Prints the exact required output: \"Sum of squares of evens: 220\"\n\nAll requirements satisfied!",
+  "expected_stdout": "Sum of squares of evens: 220\n",
+  "timestamp": "2026-01-02T16:06:11.511261+01:00",
+  "code": "module benchmark/solution\n\n-- Recursive filter function\nfunc filter(pred: int -\u003e bool, xs: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e if pred(x) then x :: filter(pred, rest) else filter(pred, rest)\n  }\n\n-- Recursive map function\nfunc map(f: int -\u003e int, xs: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e f(x) :: map(f, rest)\n  }\n\n-- Recursive sum function\nfunc sum(xs: [int]) -\u003e int =\n  match xs {\n    [] =\u003e 0,\n    x :: rest =\u003e x + sum(rest)\n  }\n\n-- Check if a number is even\nfunc isEven(n: int) -\u003e bool = n % 2 == 0\n\n-- Square a number\nfunc square(n: int) -\u003e int = n * n\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n  let evens = filter(isEven, nums);\n  let squared = map(square, evens);\n  let result = sum(squared);\n  print(\"Sum of squares of evens: \" ++ show(result))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this step by step. First, let me read the template file to understand the structure.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. I need to:\n1. Implement filter, map, and sum as recursive functions\n2. Create a list of integers 1-10\n3. Filter for even numbers\n4. Map by squaring\n5. Sum the results\n6. Print in the exact format required[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output. Let me verify the calculation is correct:\n\n- Even numbers from 1-10: [2, 4, 6, 8, 10]\n- Squared: [4, 16, 36, 64, 100]\n- Sum: 4 + 16 + 36 + 64 + 100 = 220 ✓\n\nThe solution is complete and verified. It:\n1. ✅ Creates a list [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n2. ✅ Filters to keep only even numbers using recursive filter function\n3. ✅ Maps filtered list by squaring using recursive map function\n4. ✅ Computes sum using recursive sum function\n5. ✅ Prints the exact required output: \"Sum of squares of evens: 220\"\n\nAll requirements satisfied!",
+  "eval_mode": "agent"
+}

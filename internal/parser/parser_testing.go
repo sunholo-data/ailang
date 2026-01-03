@@ -24,8 +24,11 @@ func (p *Parser) parseTestsBlock() []*ast.TestCase {
 	}
 
 	for {
-		// Skip newlines and commas between test cases
-		for p.curTokenIs(lexer.NEWLINE) || p.curTokenIs(lexer.COMMA) {
+		// Track position to detect infinite loops (M-PARSER-LOOP)
+		startPos := p.curPos()
+
+		// Skip commas between test cases
+		for p.curTokenIs(lexer.COMMA) {
 			p.nextToken()
 		}
 
@@ -40,17 +43,24 @@ func (p *Parser) parseTestsBlock() []*ast.TestCase {
 			tests = append(tests, testCase)
 		}
 
-		// Skip trailing newlines
-		for p.curTokenIs(lexer.NEWLINE) {
-			p.nextToken()
-		}
-
 		// Check if we're done or continuing
 		if p.curTokenIs(lexer.RBRACKET) {
 			break
 		}
 		if p.curTokenIs(lexer.COMMA) {
 			p.nextToken() // consume comma
+			continue
+		}
+
+		// Safety: if we didn't advance, force advance to prevent infinite loop
+		if p.curPos() == startPos {
+			p.report("PAR_INFINITE_LOOP",
+				"parser stuck - unrecognized syntax in tests block",
+				"Check for unimplemented test case syntax")
+			p.nextToken() // Force advance
+			if p.curTokenIs(lexer.RBRACKET) || p.curTokenIs(lexer.EOF) {
+				break
+			}
 			continue
 		}
 
@@ -170,8 +180,11 @@ func (p *Parser) parsePropertiesBlock() []*ast.Property {
 	}
 
 	for {
-		// Skip newlines and commas between properties
-		for p.curTokenIs(lexer.NEWLINE) || p.curTokenIs(lexer.COMMA) {
+		// Track position to detect infinite loops (M-PARSER-LOOP)
+		startPos := p.curPos()
+
+		// Skip commas between properties
+		for p.curTokenIs(lexer.COMMA) {
 			p.nextToken()
 		}
 
@@ -186,17 +199,24 @@ func (p *Parser) parsePropertiesBlock() []*ast.Property {
 			properties = append(properties, property)
 		}
 
-		// Skip trailing newlines
-		for p.curTokenIs(lexer.NEWLINE) {
-			p.nextToken()
-		}
-
 		// Check if we're done or continuing
 		if p.curTokenIs(lexer.RBRACKET) {
 			break
 		}
 		if p.curTokenIs(lexer.COMMA) {
 			p.nextToken() // consume comma
+			continue
+		}
+
+		// Safety: if we didn't advance, force advance to prevent infinite loop
+		if p.curPos() == startPos {
+			p.report("PAR_INFINITE_LOOP",
+				"parser stuck - unrecognized syntax in properties block",
+				"Check for unimplemented property syntax")
+			p.nextToken() // Force advance
+			if p.curTokenIs(lexer.RBRACKET) || p.curTokenIs(lexer.EOF) {
+				break
+			}
 			continue
 		}
 

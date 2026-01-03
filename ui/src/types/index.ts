@@ -196,12 +196,13 @@ export interface HierarchyResponse {
 }
 
 // Selection state for hierarchy navigation
-export type SelectionType = 'overview' | 'agent' | 'thread';
+export type SelectionType = 'overview' | 'agent' | 'thread' | 'task';
 
 export interface Selection {
   type: SelectionType;
   agentId?: string;
   threadId?: string;
+  taskId?: string;
 }
 
 // Aggregated metrics from /api/metrics endpoint
@@ -216,6 +217,7 @@ export interface AggregatedMetrics {
   avg_tokens_per_run: number;
   avg_cost_per_run: number;
   avg_duration_per_run: number;
+  pending_tasks: number; // Number of currently running/pending tasks
 }
 
 // Metrics trend data point
@@ -253,4 +255,59 @@ export interface InstanceHistoryEntry {
   total_tokens: number;
   total_cost_cents: number;
   thread_count: number;
+}
+
+// Task Stream Events (for coordinator executor feedback loop)
+// Must match Go's TaskStreamEventType in internal/websocket/events.go
+export type TaskStreamEventType =
+  | 'turn_start'    // Turn started
+  | 'text'          // Text output from agent
+  | 'tool_use'      // Tool invocation
+  | 'tool_result'   // Tool result
+  | 'turn_end'      // Turn ended
+  | 'error'         // Error event
+  | 'status';       // Status change with metrics
+
+export interface TaskStreamEvent {
+  type: 'task_stream';
+  task_id: string;
+  thread_id?: string;
+  stream_type: TaskStreamEventType; // Maps to Go's StreamType
+  turn_num?: number;         // Turn number
+  timestamp?: number;
+  text?: string;             // Text content from agent
+  tool_name?: string;
+  tool_input?: string;
+  tool_output?: string;
+  cost?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  duration_sec?: number;
+  status?: string;           // running, completed, failed
+  error_msg?: string;
+}
+
+export interface TaskResourceMetrics {
+  task_id: string;
+  cpu_percent: number;
+  memory_mb: number;
+  tokens_in: number;
+  tokens_out: number;
+  cost: number;
+  peak_cpu: number;
+  peak_memory: number;
+  updated_at: number;
+}
+
+export interface PendingApprovalRequest {
+  id: string;
+  task_id: string;
+  type: 'merge' | 'destroy' | 'execute' | 'cost';
+  description: string;
+  context_json?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'timeout';
+  created_at: string;
+  timeout_at?: string;
+  files_changed?: string[];
+  diff_summary?: string;
 }

@@ -84,10 +84,19 @@ See [`resources/common_patterns.md`](resources/common_patterns.md) for:
 - Common mistakes and fixes
 - Best practices
 
-### 4. **Full Documentation**
+### 4. **Searchable Examples** (v0.6.2+)
+Use CLI to find working AILANG patterns:
+```bash
+ailang examples search "pattern matching"   # Search by content/tags
+ailang examples show adt_option             # View example with metadata
+ailang examples list --tags recursion       # Filter by tag
+ailang examples tags                        # List all available tags
+```
+
+### 5. **Full Documentation**
 - **Teaching prompt**: Check active version in prompts/versions.json, then use that prompt file
 - **Website**: https://ailang.sunholo.com/
-- **Examples**: `examples/` directory (66 files, 48 passing)
+- **Examples**: `examples/runnable/` directory (96 working examples)
 - **REPL commands**: `docs/docs/reference/repl-commands.md`
 
 ## Usage Contexts
@@ -202,6 +211,27 @@ ailang builtins list --by-module
 
 # Run tests
 ailang test
+```
+
+### Examples Commands (v0.6.2+)
+
+```bash
+# Search for working examples
+ailang examples search "pattern matching"
+ailang examples search "recursion" --limit 5
+
+# List examples with filters
+ailang examples list                    # All working examples
+ailang examples list --tags adt         # Filter by tag
+ailang examples list --status all       # Include broken
+
+# View specific example
+ailang examples show adt_option         # Show with metadata
+ailang examples show adt_option --run   # Show and execute
+ailang examples show fold --expected    # Show expected output only
+
+# List available tags
+ailang examples tags
 ```
 
 ## Progressive Disclosure

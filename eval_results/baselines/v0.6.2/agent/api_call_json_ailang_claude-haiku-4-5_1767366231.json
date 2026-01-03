@@ -1,0 +1,33 @@
+{
+  "id": "api_call_json",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 60003,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "timeout after 1m0s\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to see what's already there:[TOOL] Read\n\n[TURN 2]\nLet me check the directory structure:[TOOL] Bash\n\n[TURN 3]\nNow let me read the actual file:[TOOL] Read\n\n[TURN 4]\nNow I'll write the solution. I need to:\n1. Make an HTTP POST request to https://httpbin.org/post\n2. Include custom headers: \"X-Test-Header: value123\" and \"Content-Type: application/json\"\n3. Send a JSON body with the message and count\n4. Print only the status code\n\nLet me write the complete solution:[TOOL] Write\n\n[TURN 5]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 6]\nIt seems the response object doesn't have a `statusCode` field. Let me check the correct field name by examining httpRequest response structure:[TOOL] Bash\n\n[TURN 7]\nLet me check the standard library documentation for httpRequest:[TOOL] Bash\n\n[TURN 8]\nI see - the simple `httpPost` returns just a string, but I need the status code. Let me check for the advanced httpRequest function:[TOOL] Bash\n\n[TURN 9]\nPerfect! The response object has a `status` field (not `statusCode`), and it's an `int`. Let me update the solution:[TOOL] Edit\n\n[TURN 10]\nNow let me run it again to verify:[TOOL] Bash\n\n[TURN 11]\nIt seems `_net_httpRequest` is not exported by std/net. Let me check what is actually exported from std/net:[TOOL] Bash\n\n[TURN 12]\nThe builtin exists but may not be exported through std/net. Let me try using it as a direct builtin:[TOOL] Edit\n\n[TURN 13]\nNow let me run it again:[TOOL] Bash\n\n[TURN 14]\nPerfect! The solution runs successfully and outputs `200`, which matches the expected output exactly. Let me verify the output one more time to be certain:[TOOL] Bash\n\n[TURN 15]\nExcellent! The solution is complete and verified. Here's a summary of what was implemented:\n\n## Solution Summary\n\nThe AILANG program successfully:\n\n1. **Makes an HTTP POST request** to `https://httpbin.org/post` using the `_net_httpRequest` builtin\n2. **Includes custom headers**: \n   - `X-Test-Header: value123`\n   - `Content-Type: application/json`\n3. **Sends a JSON body** with:\n   - `message: \"Hello from AILANG\"`\n   - `count: 42`\n4. **Prints only the status code** (`200`)\n\nThe solution uses:\n- `std/json` module for JSON encoding (with",
+  "expected_stdout": "200\n",
+  "timestamp": "2026-01-02T16:03:51.906641+01:00",
+  "code": "module benchmark/solution\n\nimport std/json (encode, jo, kv, js, jnum)\n\nexport func main() -\u003e () ! {Net, IO} {\n  let headers = [\n    {name: \"X-Test-Header\", value: \"value123\"},\n    {name: \"Content-Type\", value: \"application/json\"}\n  ];\n  let body = encode(jo([\n    kv(\"message\", js(\"Hello from AILANG\")),\n    kv(\"count\", jnum(42.0))\n  ]));\n  match _net_httpRequest(\"POST\", \"https://httpbin.org/post\", headers, body) {\n    Ok(response) =\u003e print(show(response.status)),\n    Err(_) =\u003e print(\"Error\")\n  }\n}\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "Net",
+    "IO"
+  ],
+  "agent_turns": 15,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to see what's already there:[TOOL] Read\n\n[TURN 2]\nLet me check the directory structure:[TOOL] Bash\n\n[TURN 3]\nNow let me read the actual file:[TOOL] Read\n\n[TURN 4]\nNow I'll write the solution. I need to:\n1. Make an HTTP POST request to https://httpbin.org/post\n2. Include custom headers: \"X-Test-Header: value123\" and \"Content-Type: application/json\"\n3. Send a JSON body with the message and count\n4. Print only the status code\n\nLet me write the complete solution:[TOOL] Write\n\n[TURN 5]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 6]\nIt seems the response object doesn't have a `statusCode` field. Let me check the correct field name by examining httpRequest response structure:[TOOL] Bash\n\n[TURN 7]\nLet me check the standard library documentation for httpRequest:[TOOL] Bash\n\n[TURN 8]\nI see - the simple `httpPost` returns just a string, but I need the status code. Let me check for the advanced httpRequest function:[TOOL] Bash\n\n[TURN 9]\nPerfect! The response object has a `status` field (not `statusCode`), and it's an `int`. Let me update the solution:[TOOL] Edit\n\n[TURN 10]\nNow let me run it again to verify:[TOOL] Bash\n\n[TURN 11]\nIt seems `_net_httpRequest` is not exported by std/net. Let me check what is actually exported from std/net:[TOOL] Bash\n\n[TURN 12]\nThe builtin exists but may not be exported through std/net. Let me try using it as a direct builtin:[TOOL] Edit\n\n[TURN 13]\nNow let me run it again:[TOOL] Bash\n\n[TURN 14]\nPerfect! The solution runs successfully and outputs `200`, which matches the expected output exactly. Let me verify the output one more time to be certain:[TOOL] Bash\n\n[TURN 15]\nExcellent! The solution is complete and verified. Here's a summary of what was implemented:\n\n## Solution Summary\n\nThe AILANG program successfully:\n\n1. **Makes an HTTP POST request** to `https://httpbin.org/post` using the `_net_httpRequest` builtin\n2. **Includes custom headers**: \n   - `X-Test-Header: value123`\n   - `Content-Type: application/json`\n3. **Sends a JSON body** with:\n   - `message: \"Hello from AILANG\"`\n   - `count: 42`\n4. **Prints only the status code** (`200`)\n\nThe solution uses:\n- `std/json` module for JSON encoding (with",
+  "eval_mode": "agent"
+}

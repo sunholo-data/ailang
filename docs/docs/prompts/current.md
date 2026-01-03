@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.5.11) - auto-synced from source
+description: The active AILANG teaching prompt (v0.6.2) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.5.11.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.2.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.5.11.md -->
-<!-- Active Version: v0.5.11 -->
+<!-- Source: prompts/v0.6.2.md -->
+<!-- Active Version: v0.6.2 -->
 
-# AILANG v0.5.11 - AI Teaching Prompt
+# AILANG v0.6.2 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -21,15 +21,26 @@ module benchmark/solution
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  print(show(42))  -- print expects string, use show() for numbers
+  println(show(42))  -- println adds newline, print does not
 }
 ```
 
 **Rules:**
 1. First line: `module benchmark/solution`
-2. Use `print(show(value))` for numbers, `print(str)` for strings
+2. Use `println(show(value))` for numbers with newline, `println(str)` for strings
 3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
 4. No loops - use recursion
+
+## print vs println (IMPORTANT)
+
+```ailang
+import std/io (print, println)
+
+print("A"); print("B")     -- Output: AB (no newlines)
+println("A"); println("B") -- Output: A\nB\n (with newlines)
+```
+
+**Use `println` for most output.** Use `print` only when building output on one line.
 
 ## CLI Exploration
 
@@ -40,6 +51,8 @@ ailang docs std/io              # Show module exports
 ailang builtins list            # All 72 builtins
 ailang builtins show _ai_call   # Detailed documentation
 ailang check file.ail           # Type-check without running
+ailang examples search "recursion"  # Find working code examples
+ailang examples show fold_reduce    # View example with expected output
 ```
 
 ## Quick Reference Examples
@@ -47,14 +60,26 @@ ailang check file.ail           # Type-check without running
 **Print calculation:**
 ```ailang
 module benchmark/solution
-export func main() -> () ! {IO} = print(show(5 % 3))
+import std/io (println)
+export func main() -> () ! {IO} = println(show(5 % 3))
+```
+
+**If-then-else (NO braces!):**
+```ailang
+module benchmark/solution
+import std/io (println)
+export func main() -> () ! {IO} {
+  let x = 10;
+  let msg = if x > 0 then "positive" else "not positive";
+  println(msg)
+}
 ```
 
 **HTTP GET:**
 ```ailang
 module benchmark/solution
 import std/net (httpGet)
-export func main() -> () ! {IO, Net} = print(httpGet("https://example.com"))
+export func main() -> () ! {IO, Net} = println(httpGet("https://example.com"))
 ```
 
 **HTTP POST with JSON:**
@@ -64,7 +89,7 @@ import std/net (httpPost)
 import std/json (encode, jo, kv, js, jnum)
 export func main() -> () ! {IO, Net} {
   let data = encode(jo([kv("message", js("hello")), kv("count", jnum(42.0))]));
-  print(httpPost("https://httpbin.org/post", data))
+  println(httpPost("https://httpbin.org/post", data))
 }
 ```
 
@@ -82,7 +107,7 @@ export func filter(people: [{name: string, age: int}], minAge: int) -> [{name: s
 ```ailang
 module benchmark/solution
 import std/ai (call)
-export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
+export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 ```
 
 ## What AILANG Does NOT Have
@@ -95,7 +120,8 @@ export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
 | `list.map()` | `map(f, list)` |
 | `import "std/io"` | `import std/io (println)` |
 | `{"key": "val"}` | `jo([kv("key", js("val"))])` |
-| `f(a, b)` for curried | `f(a)(b)` - curried calls chain |
+| `f(a)(b)` for multi-arg func | `f(a, b)` - multi-arg funcs use commas |
+| `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
 
 ## Let Bindings: Block Style vs Expression Style
@@ -107,73 +133,99 @@ export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
 export func main() -> () ! {IO} {
   let x = 1;
   let y = 2;
-  print(show(x + y))
+  println(show(x + y))
 }
 
 -- Expression style: equals + in
 export func main() -> () ! {IO} =
   let x = 1 in
   let y = 2 in
-  print(show(x + y))
+  println(show(x + y))
 
 -- WRONG: Using `in` inside `{ }` block causes scope errors
 export func main() -> () ! {IO} {
   let x = 1 in   -- DON'T use `in` inside blocks!
   let y = 2;     -- ERROR: x out of scope
-  print(show(x + y))
+  println(show(x + y))
 }
 ```
 
 **Simple rule: See `{` -> use `;`. See `=` -> use `in`.**
 
-## Curried Functions (CRITICAL)
+## Function Calls: Multi-arg vs Curried (CRITICAL)
 
-AILANG functions are **curried**. Multi-arg lambdas must be called with chained applications:
+**Two styles with DIFFERENT call syntax:**
 
 ```ailang
--- Define curried function
-let add = \x. \y. x + y
+-- MULTI-ARG FUNC: Call with commas f(a, b)
+func add(a: int, b: int) -> int = a + b
+let result = add(3, 4)      -- CORRECT: 7
+-- let bad = add(3)(4)      -- WRONG: arity mismatch!
 
--- CORRECT: Chain calls
-let result = add(3)(4)  -- Returns 7
-
--- WRONG: Don't use tuple-style
-let result = add(3, 4)  -- ERROR: arity mismatch!
+-- CURRIED LAMBDA: Call with chained f(a)(b)
+let addC = \a. \b. a + b
+let result = addC(3)(4)     -- CORRECT: 7
+let add10 = addC(10)        -- Partial application!
+-- let bad = addC(3, 4)     -- WRONG: arity mismatch!
 ```
 
-**Higher-order example (compose, foldl):**
+**Rule: Match call style to definition style:**
+| Definition | Call Style | Partial App? |
+|------------|------------|--------------|
+| `func f(a, b) = ...` | `f(a, b)` | No |
+| `let f = \a. \b. ...` | `f(a)(b)` | Yes |
+
+**Higher-order with curried lambdas:**
 ```ailang
 module benchmark/solution
+import std/io (println)
 
 export func main() -> () ! {IO} {
-  -- WRONG: let compose = ... in   (don't use "in" in { } blocks!)
-  -- RIGHT: let compose = ...;
   let compose = \f. \g. \x. f(g(x));
   let double = \x. x * 2;
   let addOne = \x. x + 1;
-  -- WRONG: compose(addOne, double)   (arity mismatch!)
-  -- RIGHT: compose(addOne)(double)   (chain curried calls)
-  let doubleThenAdd = compose(addOne)(double);
-  print(show(doubleThenAdd(5)))
+  let doubleThenAdd = compose(addOne)(double);  -- Curried: chain calls
+  println(show(doubleThenAdd(5)))
 }
 ```
 
-**Curried foldl (block style):**
+**Using std/list foldl (IMPORTANT - takes pair, not curried!):**
 ```ailang
 module benchmark/solution
+import std/io (println)
+import std/list (foldl)
 
--- Define curried foldl
-func foldl(f: int -> int -> int, acc: int, xs: [int]) -> int =
-  match xs {
-    [] => acc,
-    x :: rest => foldl(f, f(acc)(x), rest)  -- f(acc)(x) chains the curried call
-  }
+-- std/list foldl signature: foldl(f: (acc, elem) -> acc, initial, list)
+-- The function f takes a PAIR, not curried arguments!
 
 export func main() -> () ! {IO} {
-  let add = \a. \b. a + b;           -- Semicolons in block!
-  let sum = foldl(add, 0, [1,2,3,4,5]);
-  print(show(sum))
+  -- CORRECT: lambda takes pair (acc, x)
+  let sum = foldl(\(acc, x). acc + x, 0, [1,2,3,4,5]);
+  println(show(sum))
 }
+```
+
+**WRONG vs RIGHT foldl usage:**
+```ailang
+-- WRONG: curried lambda (arity mismatch error!)
+foldl(\acc. \x. acc + x, 0, xs)
+
+-- RIGHT: pair lambda
+foldl(\(acc, x). acc + x, 0, xs)
+```
+
+**Sorting with sortBy:**
+```ailang
+import std/list (sortBy)
+
+-- Comparator returns: negative if a < b, 0 if equal, positive if a > b
+func cmpInt(a: int, b: int) -> int = a - b
+
+let sorted = sortBy(cmpInt, [3, 1, 4, 1, 5])  -- [1, 1, 3, 4, 5]
+
+-- Reverse sort: swap arguments
+func cmpDesc(a: int, b: int) -> int = b - a
+let descending = sortBy(cmpDesc, [3, 1, 4])   -- [4, 3, 1]
 ```
 
 ## Syntax Reference
@@ -187,6 +239,7 @@ export func main() -> () ! {IO} {
 | Lambda | `\x. x * 2` |
 | Pattern match | `match x { 0 => a, n => b }` (use `=>`, commas between arms) |
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
+| ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
 | List cons | `x :: xs` or `::(x, xs)` |
@@ -235,8 +288,8 @@ import std/io (println, readLine)
 import std/fs (readFile, writeFile)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode)
-import std/list (map, filter, foldl, length, concat)
-import std/string (split, trim, stringToInt)  -- stringToInt returns Option[int]!
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop)  -- sortBy(cmp, xs), NO flatten!
+import std/string (split, trim, stringToInt, contains, find)  -- contains(hay, needle) -> bool, find returns index or -1
 import std/ai (call)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 ```
@@ -314,7 +367,54 @@ match result {
   Some(x) => x,
   None => defaultValue
 }
+
+-- On Records (destructuring)
+match person {
+  {name, age} => name ++ " is " ++ show(age)
+}
+
+-- Record with renaming
+match config {
+  {host, port: p} => host ++ ":" ++ show(p)
+}
+
+-- Nested record patterns
+match data {
+  {user: {email: e}} => e
+}
 ```
+
+**Record pattern syntax:**
+- `{name}` - shorthand, binds field "name" to variable "name"
+- `{name: n}` - renaming, binds field "name" to variable "n"
+- `{name, age}` - multiple fields
+- `{user: {name}}` - nested records
+- `{name, ...}` - rest pattern (matches some fields, ignores others)
+
+## Deriving Eq for ADT Types
+
+Use `deriving (Eq)` to auto-generate `==` and `!=` for ADT types:
+
+```ailang
+module benchmark/solution
+
+-- Enum-style ADT with derived equality
+type Color = Red | Green | Blue deriving (Eq)
+
+-- ADT with fields also works
+type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  let sameColor = Red == Red;           -- true
+  let diffColor = Red != Blue;          -- true
+  let sameShape = Circle(5) == Circle(5);     -- true
+  let diffShape = Circle(5) != Rectangle(5, 10);  -- true
+  print("Color test: " ++ show(sameColor));
+  print("Shape test: " ++ show(sameShape))
+}
+```
+
+**Note:** Derived equality compares by constructor and field values (structural equality).
 
 **Option type with findFirst and mapOption:**
 ```ailang
@@ -388,11 +488,18 @@ export func main() -> () ! {IO} {
 
 **Build and encode JSON:**
 ```ailang
-import std/json (encode, jo, ja, kv, js, jnum)
+import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
--- Build JSON object
-let json = encode(jo([kv("name", js("Alice")), kv("age", jnum(30.0))]))
--- Result: "{\"name\":\"Alice\",\"age\":30}"
+-- JSON constructors: js(string), jnum(float), jb(bool), jn() for null
+-- jo([kv(k,v)...]) for objects, ja([...]) for arrays
+
+-- Build JSON object with all types
+let json = encode(jo([
+  kv("name", js("Alice")),
+  kv("age", jnum(30.0)),
+  kv("active", jb(true))
+]))
+-- Result: "{\"name\":\"Alice\",\"age\":30,\"active\":true}"
 
 -- Build JSON array
 let arr = encode(ja([jnum(1.0), jnum(2.0), jnum(3.0)]))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -11,7 +12,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/server"
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 func serveCommand(args []string) error {
@@ -87,15 +90,46 @@ func serveCommand(args []string) error {
 		return fmt.Errorf("port %s is already in use by another process. Use --port to specify a different port", port)
 	}
 
-	// Create and start server
-	srv, err := server.NewServer(dbPath, httpAddr)
+	// Initialize OpenTelemetry (if configured via environment variables)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-server")
+	if err != nil {
+		log.Printf("Warning: Failed to initialize OpenTelemetry: %v", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+		if telemetry.IsDualExportEnabled() {
+			log.Printf("Dual telemetry export enabled:")
+			log.Printf("  → Google Cloud Trace (project: %s)", telemetry.GoogleCloudProject())
+			log.Printf("  → OTLP endpoint: %s", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+		} else if telemetry.IsGoogleCloudEnabled() {
+			log.Printf("Google Cloud Trace enabled (project: %s)", telemetry.GoogleCloudProject())
+		} else if telemetry.IsEnabled() {
+			log.Printf("OpenTelemetry OTLP export enabled")
+		}
+	}
+
+	// Create and start server with version info
+	srv, err := server.NewServer(dbPath, httpAddr, server.WithVersion(Version))
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 	defer srv.Close()
 
-	log.Printf("AILANG Collaboration Hub Server")
+	// Connect to coordinator store for task events (read-only access for historical replay)
+	coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
+	coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
+	if err != nil {
+		log.Printf("Warning: Could not connect to coordinator store: %v", err)
+		log.Printf("Task event history will not be available")
+	} else {
+		srv.SetTaskEventStore(coordStore)
+		srv.SetApprovalStore(coordStore)
+		defer coordStore.Close()
+	}
+
+	log.Printf("AILANG Collaboration Hub Server (v%s)", Version)
 	log.Printf("Database: %s", dbPath)
+	log.Printf("Coordinator DB: %s", coordDbPath)
 	log.Printf("")
 
 	// Auto-open browser after a short delay (server needs to start first)

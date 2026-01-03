@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -22,9 +23,25 @@ func (s *Server) handleThreads(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetThreads(w http.ResponseWriter, r *http.Request) {
-	// Get all threads with status filter
+	// Get filter params
 	status := r.URL.Query().Get("status")
+	workspace := r.URL.Query().Get("workspace")
 
+	// Use filtered query if workspace is specified
+	if workspace != "" {
+		threads, err := s.store.GetThreadsFiltered(s.store.NewThreadFilter(status, workspace, 100))
+		if err != nil {
+			http.Error(w, "Failed to get threads", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(threads); err != nil {
+			log.Printf("Failed to encode threads response: %v", err)
+		}
+		return
+	}
+
+	// Default: filter by status only
 	threads, err := s.store.GetThreadsByStatus(status, 100)
 	if err != nil {
 		http.Error(w, "Failed to get threads", http.StatusInternalServerError)
@@ -165,5 +182,27 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// GET /api/workspaces - List all distinct workspaces
+func (s *Server) handleWorkspaces(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	workspaces, err := s.store.GetDistinctWorkspaces()
+	if err != nil {
+		http.Error(w, "Failed to get workspaces", http.StatusInternalServerError)
+		return
+	}
+
+	// Sort for consistent ordering
+	sort.Strings(workspaces)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(workspaces); err != nil {
+		log.Printf("Failed to encode workspaces response: %v", err)
 	}
 }

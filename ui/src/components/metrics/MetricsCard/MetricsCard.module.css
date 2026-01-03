@@ -1,0 +1,147 @@
+.card {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border-color, #313244);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card.compact {
+  padding: 8px 12px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+  margin: 0 0 12px 0;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metricLabel {
+  font-size: 11px;
+  color: var(--text-secondary, #a6adc8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metricValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+.metricValue.cost {
+  color: var(--accent-green, #a6e3a1);
+}
+
+.averages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #313244);
+  font-size: 12px;
+  color: var(--text-secondary, #a6adc8);
+}
+
+.averagesLabel {
+  font-weight: 500;
+}
+
+.avgItem {
+  background: var(--bg-tertiary, #181825);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+.compactRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.compactLabel {
+  color: var(--text-secondary, #a6adc8);
+}
+
+.compactValue {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  color: var(--text-primary, #cdd6f4);
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.loading {
+  color: var(--text-secondary, #a6adc8);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.error {
+  border-color: var(--accent-red, #f38ba8);
+}
+
+.errorText {
+  color: var(--accent-red, #f38ba8);
+  font-size: 12px;
+}
+
+/* Pending/Running state styles */
+.pending {
+  border-color: var(--accent-teal, #94e2d5);
+  background: linear-gradient(135deg, var(--bg-secondary, #1e1e2e) 0%, rgba(148, 226, 213, 0.1) 100%);
+}
+
+.pendingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-teal, #94e2d5);
+  font-weight: 500;
+}
+
+.pendingDot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-teal, #94e2d5);
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.pendingBadge {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: rgba(148, 226, 213, 0.2);
+  color: var(--accent-teal, #94e2d5);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}

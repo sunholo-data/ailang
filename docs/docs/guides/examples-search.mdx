@@ -1,0 +1,241 @@
+---
+sidebar_position: 6
+title: Searching Examples
+description: Find working AILANG code examples using the CLI
+---
+
+# Searching Examples
+
+AILANG includes 97 working code examples that you can search, explore, and run directly from the CLI. This is especially useful for AI models learning AILANG patterns.
+
+## Quick Start
+
+```bash
+# List all working examples
+ailang examples list
+
+# Search for examples
+ailang examples search "pattern matching"
+
+# Show a specific example
+ailang examples show adt_option
+
+# List available tags
+ailang examples tags
+```
+
+## Commands
+
+### `ailang examples list`
+
+List all examples with optional filtering.
+
+```bash
+# List all working examples
+ailang examples list
+
+# Filter by tag
+ailang examples list --tags recursion
+
+# Include broken examples
+ailang examples list --status all
+
+# JSON output
+ailang examples list --json
+```
+
+**Output:**
+```
+📚 AILANG Examples (9/14)
+
+✅ hello.ail
+   Basic hello world program
+   Tags: basic, io
+
+✅ adt_simple.ail
+   ADT declaration and constructor pattern matching
+   Tags: adt, pattern-matching, m-p3
+```
+
+### `ailang examples search`
+
+Search examples by content, description, or tags.
+
+```bash
+# Search by keyword
+ailang examples search "pattern matching"
+
+# Search for specific features
+ailang examples search "recursion"
+ailang examples search "json"
+
+# Limit results (flags BEFORE query)
+ailang examples search --limit 5 "list"
+
+# JSON output for scripting (flags BEFORE query)
+ailang examples search --json "fold"
+```
+
+**How search scoring works:**
+
+| Match Type | Score | Description |
+|------------|-------|-------------|
+| Tag match | 1.0 | Query matches a tag exactly |
+| Description match | 0.95 | Query found in description |
+| Content match | 0.80 | Query found in .ail file |
+| Partial match | 0.60-0.70 | Some query words found |
+
+**Example output:**
+```
+🔍 Search: "pattern matching"
+   Found 10 examples
+
+1. adt_option.ail (0.95, description)
+   Option type with pattern matching
+   Tags: adt, pattern-matching, option, m-p3
+
+2. adt_simple.ail (0.95, description)
+   ADT declaration and constructor pattern matching
+   Tags: adt, pattern-matching, m-p3
+
+3. patterns.ail (0.90, tag)
+   All pattern types: tuples, literals, constructors, nested
+   Tags: pattern-matching, tuples, adt, m-p3
+```
+
+### `ailang examples show`
+
+Display a specific example with metadata and expected output.
+
+```bash
+# Show example code
+ailang examples show adt_option
+
+# Show and run the example
+ailang examples show adt_option --run
+
+# Show only expected output
+ailang examples show fold_reduce --expected
+```
+
+**Output:**
+```
+📄 adt_option.ail
+   Option type with pattern matching
+   Tags: adt, pattern-matching, option, m-p3
+────────────────────────────────────────────────────────────
+-- ADT with Option type and pattern matching
+-- Demonstrates pattern matching with both Some and None cases
+
+type Option[a] = Some(a) | None
+
+-- Test Some case
+match Some(42) {
+  Some(n) => n,
+  None => 0
+}
+────────────────────────────────────────────────────────────
+
+📤 Expected output:
+42
+```
+
+### `ailang examples tags`
+
+List all available tags and their example counts.
+
+```bash
+ailang examples tags
+```
+
+**Output:**
+```
+🏷️  Available tags:
+
+  m-p3                      (3 examples)
+  pattern-matching          (3 examples)
+  adt                       (3 examples)
+  arithmetic                (2 examples)
+  recursion                 (2 examples)
+  io                        (1 examples)
+  higher-order              (1 examples)
+
+Use: ailang examples list --tags <tag>
+```
+
+## Use Cases
+
+### Finding Patterns for AI Code Generation
+
+When an AI model needs to write AILANG code, it can:
+
+1. **Search for similar problems:**
+   ```bash
+   ailang examples search "filter list"
+   ailang examples search "fold reduce"
+   ```
+
+2. **View working patterns:**
+   ```bash
+   ailang examples show fold_reduce
+   ```
+
+3. **Check expected output:**
+   ```bash
+   ailang examples show recursion_fibonacci --expected
+   ```
+
+### Learning by Example
+
+Browse examples by feature:
+
+```bash
+# ADT and pattern matching
+ailang examples list --tags adt
+
+# Recursion patterns
+ailang examples list --tags recursion
+
+# IO and effects
+ailang examples list --tags io
+```
+
+### Verifying Syntax
+
+If you're unsure about syntax, find a working example:
+
+```bash
+# How do I use records?
+ailang examples search "records"
+ailang examples show records
+
+# How do I use match expressions?
+ailang examples search "match"
+```
+
+## JSON Output
+
+All commands support `--json` for machine consumption:
+
+```bash
+ailang examples list --json
+ailang examples search --json "recursion"
+```
+
+**Note:** Flags must come BEFORE the query for search commands.
+
+This is useful for:
+- Scripting and automation
+- Integration with other tools
+- AI model context building
+
+## Example Manifest
+
+Examples are tracked in `examples/manifest.json` which contains:
+- File paths
+- Status (working/broken)
+- Tags for categorization
+- Descriptions
+- Expected output
+
+This manifest is automatically used by the search and list commands.

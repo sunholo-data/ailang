@@ -27,6 +27,7 @@ func init() {
 	registerStringToInt()
 	registerStringToFloat()
 	registerStrSplit()
+	registerStringReverse()
 }
 
 // ============================================================================
@@ -683,4 +684,68 @@ func strSplitImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	}
 
 	return &eval.ListValue{Elements: elements}, nil
+}
+
+// registerStringReverse registers the _string_reverse builtin
+func registerStringReverse() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_string_reverse",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStringReverseType,
+		Impl:    stringReverseImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Reverse a string",
+			LongDesc:    "Returns a new string with Unicode characters in reverse order. Correctly handles multi-byte UTF-8 characters like emoji.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "The string to reverse"},
+			},
+			Returns: "A new string with characters reversed",
+			Examples: []Example{
+				{Code: `_string_reverse("hello")`, Description: `Returns "olleh"`},
+				{Code: `_string_reverse("")`, Description: `Returns ""`},
+				{Code: `_string_reverse("🎉")`, Description: `Returns "🎉" (single character unchanged)`},
+			},
+			Since:     "v0.6.2",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "reverse", "unicode", "utf8"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _string_reverse: %v", err))
+	}
+}
+
+// makeStringReverseType builds the type signature for _string_reverse
+// Type: (String) -> String
+func makeStringReverseType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.String()).Build()
+}
+
+// stringReverseImpl is the implementation for _string_reverse
+// Reverses a UTF-8 string at the rune (character) level
+func stringReverseImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// Extract string argument
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_string_reverse: expected String, got %T", args[0])
+	}
+
+	// Convert string to runes for proper Unicode handling
+	runes := []rune(strVal.Value)
+
+	// Reverse the rune slice in-place
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+
+	// Convert back to string
+	reversed := string(runes)
+
+	return &eval.StringValue{Value: reversed}, nil
 }

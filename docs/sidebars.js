@@ -85,6 +85,7 @@ const sidebars = {
         'guides/development',
         'guides/testing',
         'guides/debugging',
+        'guides/telemetry',
         'guides/go-interop',
         'guides/wasm-integration',
         'guides/benchmarking',
@@ -110,6 +111,7 @@ const sidebars = {
       collapsed: true,
       items: [
         'benchmarks/performance',
+        'benchmarks/codebase-stats',
       ],
     },
     {

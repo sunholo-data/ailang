@@ -238,22 +238,6 @@ func ResolveModelName(name string) (apiName, provider string, err error) {
 	return model.APIName, model.Provider, nil
 }
 
-// guessProvider attempts to guess the provider from model name
-func guessProvider(modelName string) string {
-	if len(modelName) >= 3 {
-		prefix := modelName[:3]
-		switch prefix {
-		case "gpt":
-			return "openai"
-		case "cla":
-			return "anthropic"
-		case "gem":
-			return "google"
-		}
-	}
-	return "unknown"
-}
-
 // GetExecutorForModel returns the appropriate executor for a model
 // Returns the executor name (e.g., "claude", "gemini") and the model name to use
 func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, modelName string, err error) {

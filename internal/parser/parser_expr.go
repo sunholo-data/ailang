@@ -12,6 +12,17 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 	p.debugEnter("parseExpression")
 	defer p.debugExit("parseExpression")
 
+	// Loop detection (M-PARSER-LOOP): if we see the same position twice, we're stuck
+	startPos := p.curPos()
+	if p.lastExprPos == startPos && startPos.Line > 0 {
+		p.report("PAR_INFINITE_LOOP",
+			fmt.Sprintf("parser stuck at %d:%d - unrecognized syntax", startPos.Line, startPos.Column),
+			"Check for unimplemented syntax (tests [...], properties [...], etc.)")
+		p.nextToken() // Force advance to break out of loop
+		return nil
+	}
+	p.lastExprPos = startPos
+
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)

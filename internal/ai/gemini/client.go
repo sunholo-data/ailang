@@ -7,7 +7,14 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var geminiAITracer = otel.Tracer("ai.gemini")
 
 const (
 	// AI Studio base URL (uses API key)
@@ -93,7 +100,37 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	return c.generateContent(ctx, req)
+	// Start OTEL span
+	ctx, span := geminiAITracer.Start(ctx, "gemini.generate",
+		trace.WithAttributes(
+			attribute.String("ai.provider", "gemini"),
+			attribute.String("ai.model", req.Model),
+			attribute.String("ai.auth_type", string(c.authType)),
+			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
+		),
+	)
+	defer span.End()
+
+	resp, err := c.generateContent(ctx, req)
+	if err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Record success metrics on span
+	span.SetAttributes(
+		attribute.Int("ai.tokens_in", resp.InputTokens),
+		attribute.Int("ai.tokens_out", resp.OutputTokens),
+		attribute.Int("ai.tokens_total", resp.TotalTokens),
+		attribute.String("ai.response_preview", telemetry.Truncate(resp.Text, 100)),
+	)
+
+	return resp, nil
 }
 
 // Name implements ai.Provider.

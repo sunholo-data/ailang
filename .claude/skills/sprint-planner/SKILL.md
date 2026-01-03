@@ -28,6 +28,30 @@ Invoke this skill when:
 - User wants to know how long implementation will take
 - User needs to prioritize work for upcoming development
 
+## Coordinator Integration
+
+**When invoked by the AILANG Coordinator** (detected by GitHub issue reference in the prompt), you MUST output these markers at the end of your response:
+
+```
+SPRINT_PLAN_PATH: design_docs/planned/vX_Y/sprint-plan-name.md
+SPRINT_JSON_PATH: .ailang/state/sprints/sprint_ID.json
+```
+
+**Why?** The coordinator uses these markers to:
+1. Read the sprint plan content for GitHub comments
+2. Track artifacts across pipeline stages
+3. Provide visibility to humans reviewing the issue
+
+**Example completion:**
+```
+## Sprint Plan Created
+
+I've created the sprint plan with 3 milestones...
+
+**SPRINT_PLAN_PATH**: `design_docs/planned/v0_6_3/m-feature-sprint-plan.md`
+**SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-FEATURE.json`
+```
+
 ## Documentation URLs
 
 When planning sprints that involve adding error messages, help text, or documentation links:
@@ -470,6 +494,88 @@ This skill loads information progressively:
 3. **Load on demand**: `resources/sprint_plan_template.md` (template)
 
 Scripts execute without loading into context window, saving tokens.
+
+## Coordinator Integration (v0.6.2+)
+
+The sprint-planner skill integrates with the AILANG Coordinator for automated workflows.
+
+### Autonomous Workflow
+
+When configured in `~/.ailang/config.yaml`, the sprint-planner agent:
+1. Receives handoff messages from design-doc-creator
+2. Creates sprint plans from design docs
+3. Hands off to sprint-executor on completion
+
+```yaml
+coordinator:
+  agents:
+    - id: sprint-planner
+      inbox: sprint-planner
+      workspace: /path/to/ailang
+      capabilities: [research, docs, planning]
+      trigger_on_complete: [sprint-executor]
+      auto_approve_handoffs: false
+      session_continuity: true
+```
+
+### Receiving Handoffs from design-doc-creator
+
+The sprint-planner receives:
+```json
+{
+  "type": "design_doc_ready",
+  "correlation_id": "task-123",
+  "design_doc_path": "design_docs/planned/v0_6_3/m-semantic-caching.md",
+  "session_id": "claude-session-abc"
+}
+```
+
+### Sending Tasks to sprint-planner
+
+```bash
+# Direct task (skip design-doc-creator)
+ailang messages send sprint-planner "Plan sprint for M-CACHE feature" \
+  --title "Sprint: M-CACHE" --from "user"
+
+# Reference existing design doc
+ailang messages send sprint-planner '{"design_doc_path": "design_docs/planned/v0_6_3/m-cache.md"}' \
+  --title "Sprint: M-CACHE" --from "design-doc-creator"
+```
+
+### Handoff Message to sprint-executor
+
+On completion, sprint-planner sends:
+```json
+{
+  "type": "plan_ready",
+  "correlation_id": "sprint_M-CACHE_20251231",
+  "sprint_id": "M-CACHE",
+  "plan_path": "design_docs/planned/v0_6_3/m-cache-sprint-plan.md",
+  "progress_path": ".ailang/state/sprints/sprint_M-CACHE.json",
+  "session_id": "claude-session-xyz",
+  "estimated_duration": "3 days",
+  "total_loc_estimate": 650,
+  "risk_level": "medium"
+}
+```
+
+### Human-in-the-Loop
+
+With `auto_approve_handoffs: false`:
+1. Sprint plan is created in worktree
+2. JSON progress file is created
+3. Approval request shows sprint plan in dashboard
+4. Human reviews plan feasibility
+5. Approve → Merges to main, triggers sprint-executor
+6. Reject → Worktree preserved, plan can be revised
+
+### Session Continuity
+
+With `session_continuity: true`:
+- Receives `session_id` from design-doc-creator handoff
+- Uses `--resume SESSION_ID` for Claude Code CLI
+- Preserves context from previous agent's work
+- Enables seamless multi-agent conversations
 
 ## Notes
 

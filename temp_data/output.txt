@@ -1,3 +1,0 @@
-This is the first line.
-Here is another line of text.
-The processed numbers were: [1, 4, 9, 16, 25]

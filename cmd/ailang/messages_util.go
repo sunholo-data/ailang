@@ -1,17 +1,222 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"golang.org/x/term"
 )
 
 // Utility functions and watch/cleanup operations for messages
+
+// isTerminal returns true if stdin is a terminal (interactive mode).
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+// runMessagesInteractive shows an interactive menu for managing messages.
+func runMessagesInteractive() {
+	store, err := openStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	reader := bufio.NewReader(os.Stdin)
+	selectedIdx := -1
+
+	for {
+		// Get messages
+		messages, err := store.ListInboxMessages(messaging.InboxListOptions{
+			Limit: 20,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			return
+		}
+
+		// Get unread count
+		counts, _ := store.CountInboxMessagesByStatus("")
+		unreadCount := counts[messaging.InboxStatusUnread]
+
+		// Clear screen and print header
+		fmt.Print("\033[H\033[2J") // ANSI clear screen
+		fmt.Println("┌─────────────────────────────────────────────────────────────────┐")
+		fmt.Printf("│ AILANG Messages (%d unread)                                      │\n", unreadCount)
+		fmt.Println("├─────────────────────────────────────────────────────────────────┤")
+
+		if len(messages) == 0 {
+			fmt.Println("│ No messages.                                                    │")
+		} else {
+			for i, msg := range messages {
+				unreadMark := " "
+				if msg.Status == messaging.InboxStatusUnread {
+					unreadMark = yellow("●")
+				}
+
+				// Truncate title to fit
+				title := msg.Title
+				if len(title) > 45 {
+					title = title[:42] + "..."
+				}
+
+				// Show GitHub issue number if available
+				issueStr := ""
+				if msg.GitHubIssue != nil {
+					issueStr = fmt.Sprintf("#%d", *msg.GitHubIssue)
+				}
+
+				// Highlight selected row
+				prefix := " "
+				if i == selectedIdx {
+					prefix = cyan(">")
+				}
+
+				fmt.Printf("│%s[%d] %s %-45s %6s │\n", prefix, i+1, unreadMark, title, issueStr)
+			}
+		}
+
+		fmt.Println("└─────────────────────────────────────────────────────────────────┘")
+		fmt.Println()
+		fmt.Println("Actions: [1-9] select  [r]ead  [f]orward  [a]ck  [A]ck all  [q]uit")
+		fmt.Println()
+
+		if selectedIdx >= 0 && selectedIdx < len(messages) {
+			msg := messages[selectedIdx]
+			fmt.Printf("Selected: %s (ID: %s)\n", bold(msg.Title), msg.ID[:8])
+		}
+
+		fmt.Print("Enter command: ")
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return
+		}
+		input = strings.TrimSpace(input)
+
+		if input == "" {
+			continue
+		}
+
+		// Handle single character commands
+		switch input {
+		case "q", "quit", "exit":
+			fmt.Println("Goodbye!")
+			return
+
+		case "r", "read":
+			if selectedIdx < 0 || selectedIdx >= len(messages) {
+				fmt.Println(red("No message selected. Press 1-9 to select."))
+				waitForEnter(reader)
+				continue
+			}
+			msg := messages[selectedIdx]
+			_ = store.MarkInboxMessageRead(msg.ID)
+			printInboxMessage(msg, true)
+			waitForEnter(reader)
+
+		case "f", "forward":
+			if selectedIdx < 0 || selectedIdx >= len(messages) {
+				fmt.Println(red("No message selected. Press 1-9 to select."))
+				waitForEnter(reader)
+				continue
+			}
+			msg := messages[selectedIdx]
+			fmt.Print("Forward to inbox (design-doc-creator/sprint-planner/coordinator): ")
+			target, _ := reader.ReadString('\n')
+			target = strings.TrimSpace(target)
+			if target != "" {
+				if err := store.ForwardInboxMessage(msg.ID, target); err != nil {
+					fmt.Printf("%s: %v\n", red("Error"), err)
+				} else {
+					fmt.Printf("%s Forwarded to %s\n", green("✓"), target)
+				}
+				waitForEnter(reader)
+			}
+
+		case "a", "ack":
+			if selectedIdx < 0 || selectedIdx >= len(messages) {
+				fmt.Println(red("No message selected. Press 1-9 to select."))
+				waitForEnter(reader)
+				continue
+			}
+			msg := messages[selectedIdx]
+			if err := store.MarkInboxMessageRead(msg.ID); err != nil {
+				fmt.Printf("%s: %v\n", red("Error"), err)
+			} else {
+				fmt.Printf("%s Message marked as read.\n", green("✓"))
+			}
+			selectedIdx = -1 // Deselect
+			time.Sleep(500 * time.Millisecond)
+
+		case "A":
+			count, err := store.MarkAllInboxMessagesRead("")
+			if err != nil {
+				fmt.Printf("%s: %v\n", red("Error"), err)
+			} else {
+				fmt.Printf("%s %d message(s) marked as read.\n", green("✓"), count)
+			}
+			selectedIdx = -1
+			time.Sleep(500 * time.Millisecond)
+
+		default:
+			// Try to parse as number for selection
+			if num, err := strconv.Atoi(input); err == nil && num >= 1 && num <= len(messages) {
+				selectedIdx = num - 1
+			} else {
+				fmt.Printf("%s Unknown command: %s\n", yellow("?"), input)
+				waitForEnter(reader)
+			}
+		}
+	}
+}
+
+// waitForEnter waits for user to press Enter.
+func waitForEnter(reader *bufio.Reader) {
+	fmt.Print("\nPress Enter to continue...")
+	reader.ReadString('\n')
+}
+
+// resolveMessageID resolves a short ID prefix to a full message ID.
+// Returns error if no match or multiple matches (ambiguous prefix).
+func resolveMessageID(store *messaging.Store, prefix string) (string, error) {
+	// If prefix looks like a full UUID, use it directly
+	if len(prefix) >= 36 {
+		return prefix, nil
+	}
+
+	// Query messages where ID starts with prefix
+	messages, err := store.ListInboxMessages(messaging.InboxListOptions{
+		Limit: 100, // Reasonable limit for prefix search
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var matches []string
+	for _, msg := range messages {
+		if strings.HasPrefix(msg.ID, prefix) {
+			matches = append(matches, msg.ID)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no message found with prefix '%s'", prefix)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix '%s' matches %d messages, use a longer prefix", prefix, len(matches))
+	}
+}
 
 func runMessagesWatch(args []string) {
 	fs := flag.NewFlagSet("messages watch", flag.ExitOnError)

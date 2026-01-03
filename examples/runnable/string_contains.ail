@@ -1,0 +1,21 @@
+-- string_contains.ail
+-- Demonstrates std/string contains and find functions
+-- Status: ✅ Working
+
+module examples/runnable/string_contains
+
+import std/io (println)
+import std/string (contains, find)
+
+export func main() -> () ! {IO} {
+  let text = "Hello, AILANG world!";
+
+  -- contains: returns bool
+  println("Text: " ++ text);
+  println("Contains 'AILANG': " ++ show(contains(text, "AILANG")));
+  println("Contains 'Python': " ++ show(contains(text, "Python")));
+
+  -- find: returns index or -1
+  println("Index of 'world': " ++ show(find(text, "world")));
+  println("Index of 'missing': " ++ show(find(text, "missing")))
+}

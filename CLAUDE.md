@@ -16,6 +16,14 @@ ailang messages list --json          # JSON output (for scripting)
 # READ MESSAGE CONTENT
 ailang messages read MSG_ID          # Show full message content
 ailang messages read MSG_ID --peek   # View without marking as read
+ailang messages read 877             # Short ID prefix (like git) - v0.6.3+
+
+# FORWARD MESSAGES (v0.6.3+)
+ailang messages forward --to design-doc-creator 877    # Forward to different inbox
+ailang messages forward --to coordinator --reason "Label changed" 877
+
+# INTERACTIVE MODE (v0.6.3+)
+ailang messages                      # Interactive menu with keyboard navigation
 
 # ACKNOWLEDGE (mark as read)
 ailang messages ack MSG_ID           # Mark specific message as read
@@ -38,8 +46,10 @@ ailang messages watch                # Watch all inboxes
 ailang messages watch --inbox user   # Watch specific inbox
 
 # GITHUB SYNC (v0.5.9+)
-ailang messages send user "Bug report" --type bug --github    # Send + create issue
-ailang messages send user "Feature" --type feature            # Type implies --github
+ailang messages send user "Bug report" --type bug             # bug/feature imply --github
+ailang messages send user "Feature" --type feature            # Auto-creates GitHub issue
+ailang messages send user "Research" --type research          # Custom type, local only
+ailang messages send user "Docs" --type docs --github         # Custom type + explicit GitHub
 ailang messages import-github                                  # Import issues as messages
 ailang messages import-github --labels bug,feature            # Filter by labels
 ailang messages import-github --dry-run                       # Preview without importing
@@ -122,7 +132,9 @@ Messages can be synced bidirectionally with GitHub Issues. Configure in `~/.aila
 github:
   # REQUIRED: Must match the active `gh auth status` user
   # HARD FAILS if mismatch - prevents accidental commits to wrong account
-  expected_user: MarkEdmondson1234
+  # sunholo-voight-kampff = Claude Code agent account (use for pushes)
+  # MarkEdmondson1234 = Human developer account
+  expected_user: sunholo-voight-kampff
 
   # Default repo for issue creation/import
   default_repo: sunholo-data/ailang
@@ -265,7 +277,7 @@ The developer uses multiple GitHub accounts (personal and work projects). The `g
 # ❌ WRONG - Active account is for wrong project
 gh auth status
 # Shows: Active account: rw-markedmondson (Rockwool project)
-# But this repo needs: MarkEdmondson1234
+# But this repo needs: sunholo-voight-kampff (Claude Code agent account)
 
 gh release create v0.4.4  # FAILS with auth error
 git push origin v0.4.4     # FAILS with auth error
@@ -278,13 +290,14 @@ git push origin v0.4.4     # FAILS with auth error
    gh auth status
    ```
 
-2. **Verify the active account matches the repo owner:**
-   - This repo (sunholo-data/ailang) needs: `MarkEdmondson1234`
+2. **Verify the active account matches the agent account:**
+   - This repo (sunholo-data/ailang) needs: `sunholo-voight-kampff`
+   - `MarkEdmondson1234` is the human developer account
    - If active account is `rw-markedmondson` → WRONG ACCOUNT
 
 3. **Switch to correct account if needed:**
    ```bash
-   gh auth switch --user MarkEdmondson1234
+   gh auth switch --user sunholo-voight-kampff
    ```
 
 4. **Then proceed with release operations:**
@@ -295,7 +308,7 @@ git push origin v0.4.4     # FAILS with auth error
 
 **Checklist for releases:**
 - [ ] Check `gh auth status` - verify active account
-- [ ] Switch account if needed: `gh auth switch --user MarkEdmondson1234`
+- [ ] Switch account if needed: `gh auth switch --user sunholo-voight-kampff`
 - [ ] Push tag to remote BEFORE creating release
 - [ ] Create release using `gh release create`
 
@@ -556,6 +569,7 @@ ailang eval-report results/ v0.5.10 --format=json      # Update dashboard
 - **github-issue-triage** - Monitor and triage GitHub issues against design docs, identify closable issues
 - **test-coverage-guardian** - Analyze test coverage, identify gaps, improve test quality
 - **perf-reviewer** - Review code for performance and run cross-language benchmarks (AILANG vs Python vs Go)
+- **trace-debugger** - Debug performance issues using OTEL traces, analyze bottlenecks, suggest new instrumentation
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -573,6 +587,7 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
 - "Triage GitHub issues" or "What issues are open?" → `github-issue-triage` skill
 - "Benchmark AILANG vs Python" or "Review for performance" → `perf-reviewer` skill
+- "Why is compilation slow?" or "Debug with traces" → `trace-debugger` skill
 - "Start dev cycle" → `dev-cycle` agent (messages → design → sprint → implement)
 
 ### Skills vs Agents vs Commands
@@ -674,9 +689,13 @@ ailang/
 │   ├── errors/         # Error reporting ✅ COMPLETE
 │   ├── schema/         # JSON schemas ✅ COMPLETE
 │   ├── ai/             # Unified AI providers ✅ COMPLETE (v0.5.10)
-│   │   ├── anthropic/  # Claude API client
+│   │   ├── anthropic/  # Claude API client (text generation)
 │   │   ├── openai/     # OpenAI API client (Chat + Responses)
-│   │   └── gemini/     # Gemini API client (AI Studio + Vertex)
+│   │   ├── gemini/     # Gemini API client (AI Studio + Vertex)
+│   │   └── ollama/     # Ollama client (local models)
+│   ├── executor/       # Agentic CLI executors ✅ COMPLETE (v0.6.1)
+│   │   ├── claude/     # Claude Code CLI (headless mode)
+│   │   └── gemini/     # Gemini CLI (agentic coding)
 │   ├── eval_harness/   # AI evaluation framework ✅ COMPLETE (M-EVAL)
 │   ├── eval_analysis/  # Go eval tools ✅ COMPLETE (M-EVAL v2.0)
 │   ├── eval_analyzer/  # Failure analyzer ✅ COMPLETE (M-EVAL v2.0)
@@ -697,6 +716,58 @@ ailang/
 └── docs/               # Documentation ✅ COMPLETE
 ```
 
+### AI Provider vs Executor Architecture (IMPORTANT!)
+
+**⚠️ CRITICAL DISTINCTION: There are TWO different ways to use AI in AILANG:**
+
+#### 1. `internal/ai/` - API Providers (Text Generation Only)
+- **Purpose**: Simple text generation via HTTP APIs
+- **Interface**: `ai.Provider` with `Generate(ctx, *Request) (*Response, error)`
+- **Use for**: Research, documentation, simple Q&A, text completion
+- **Packages**:
+  - `ai/gemini/` - Gemini API (AI Studio or Vertex AI)
+  - `ai/anthropic/` - Claude API (Messages API)
+  - `ai/openai/` - OpenAI API (Chat or Responses)
+  - `ai/ollama/` - Ollama (local models)
+
+```go
+// Example: Simple text generation
+client := gemini.NewClient(apiKey)
+resp, err := client.Generate(ctx, &ai.Request{
+    Model:      "gemini-2.5-flash",
+    UserPrompt: "Explain recursion",
+})
+```
+
+#### 2. `internal/executor/` - CLI Executors (Agentic Coding)
+- **Purpose**: Full agentic coding with file editing, code execution, tool use
+- **Interface**: `executor.Executor` with `Execute(ctx, *Task) (*Result, error)`
+- **Use for**: Bug fixes, feature implementation, code refactoring, anything requiring file changes
+- **Packages**:
+  - `executor/claude/` - Claude Code CLI (`claude -p --output-format json`)
+  - `executor/gemini/` - Gemini CLI (`gemini --output-format json`)
+
+```go
+// Example: Agentic coding task
+exec, _ := executor.GlobalFactory().GetExecutor("claude")
+result, err := exec.Execute(ctx, &executor.Task{
+    Directive: "Fix the null pointer bug in parser.go",
+    Workspace: "/path/to/repo",
+})
+```
+
+**When to use which:**
+| Task Type | Package | Example |
+|-----------|---------|---------|
+| Bug fix | `executor/` | "Fix the type error in line 42" |
+| New feature | `executor/` | "Add a --verbose flag to the CLI" |
+| Refactoring | `executor/` | "Split this file into smaller modules" |
+| Documentation | `ai/` or `executor/` | Simple docs: `ai/`, complex: `executor/` |
+| Research | `ai/` | "What are best practices for X?" |
+| Code review | `ai/` | "Review this diff for issues" |
+
+**Key difference**: `executor/` runs CLI tools that can edit files and execute commands. `ai/` just generates text responses.
+
 ## Development Workflow
 
 ### Building and Testing
@@ -712,7 +783,15 @@ make repl           # Start interactive REPL
 
 **For developing or modifying the Collaboration Hub UI**, use the `collaboration-hub` skill.
 
-**Starting the server:**
+**Starting services (recommended):**
+```bash
+make services-start             # Start server + coordinator together
+make services-status            # Check both services
+make services-stop              # Stop both services
+make services-restart           # Rebuild and restart both
+```
+
+**Starting server only:**
 ```bash
 ailang serve                    # Start on default port 1957
 ailang serve --port 8080        # Use custom port
@@ -723,21 +802,177 @@ ailang serve --db /tmp/test.db  # Use custom database
 - **UI**: http://localhost:1957/
 - **WebSocket**: ws://localhost:1957/ws
 - **REST API**: http://localhost:1957/api/
+- **Coordinator Events**: http://localhost:1957/api/coordinator/events
 - **Health**: http://localhost:1957/health
 
 **After UI changes:**
 ```bash
 cd ui && npm run build                              # Build React app
 cp -r ui/dist/* internal/server/dist/               # Copy to server
-ailang serve                                        # Restart server
+make services-restart                               # Rebuild and restart
 ```
 
 **Architecture:**
 - **Backend**: `internal/server/` (Go HTTP server with SQLite)
 - **Frontend**: `ui/` (React + TypeScript + Vite)
 - **Database**: `~/.ailang/state/collaboration.db`
+- **Event Handler**: `internal/server/handlers_coordinator.go` (receives coordinator events)
 
 **For complete guide**: Use the `collaboration-hub` skill
+
+### Coordinator Daemon (Task Delegation)
+
+**The Coordinator is an always-on daemon that can execute tasks autonomously using AI agents (Claude Code or Gemini CLI).**
+
+**When to use the coordinator:**
+- Delegate long-running tasks that don't need immediate attention
+- Run multiple tasks concurrently in isolated environments
+- Let background agents handle bug fixes, features, or research while you continue other work
+- Chain agents together (design-doc-creator → sprint-planner → sprint-executor)
+
+**Service Management (Recommended):**
+```bash
+# Start both server and coordinator (correct order)
+make services-start
+
+# Check status of both services
+make services-status
+
+# Stop both services
+make services-stop
+
+# Restart with fresh build
+make services-restart
+```
+
+**Individual Commands:**
+```bash
+# Start the daemon
+ailang coordinator start
+
+# Check if running
+ailang coordinator status
+
+# Stop the daemon
+ailang coordinator stop
+
+# Start with custom settings
+ailang coordinator start --poll-interval 10s --max-worktrees 5
+```
+
+**Agent Configuration (v0.6.2+):**
+
+Agents are configured in `~/.ailang/config.yaml`:
+
+```yaml
+coordinator:
+  default_provider: claude
+
+  agents:
+    # Design Doc Creator - reads GitHub issues, creates design docs
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: /path/to/project
+      capabilities: [research, docs]
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+      session_continuity: true
+
+    # Sprint Planner - creates sprint plans from design docs
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-executor]
+      auto_approve_handoffs: false
+
+    # Sprint Executor - implements approved sprint plans
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: /path/to/project
+      trigger_on_complete: []
+      auto_merge: false
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+**Agent Configuration Fields:**
+| Field | Description |
+|-------|-------------|
+| `id` | Unique agent identifier |
+| `inbox` | Message inbox to watch |
+| `workspace` | Base directory for worktrees |
+| `trigger_on_complete` | Agent IDs to trigger when this agent completes |
+| `auto_approve_handoffs` | Skip approval for agent-to-agent handoffs |
+| `auto_merge` | Automatically merge approved changes |
+| `session_continuity` | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
+
+**Multi-Agent Workflow:**
+```
+GitHub Issue → design-doc-creator → [Approval] → sprint-planner → [Approval] → sprint-executor → [Approval] → Merged
+```
+
+**Delegating Tasks from Claude Code:**
+```bash
+# Send to design-doc-creator (first stage)
+ailang messages send design-doc-creator "Create design doc for semantic caching" \
+  --title "Feature: Semantic Caching" --from "user"
+
+# Send to sprint-planner (or let design-doc-creator trigger it)
+ailang messages send sprint-planner "Plan sprint for M-CACHE" \
+  --title "Sprint: M-CACHE" --from "user"
+
+# Send to general coordinator (ad-hoc tasks)
+ailang messages send coordinator "Fix the null pointer bug in parser.go" \
+  --title "Bug: Parser NPE" --from "claude-code" --type bug
+```
+
+**Approval Workflow:**
+- Task completes → Approval request created
+- Dashboard shows pending approvals with git diff viewer
+- Approve → Changes merged to main, next agent triggered
+- Reject → Worktree preserved for inspection
+
+**Real-Time Dashboard Streaming:**
+The coordinator streams task execution events to the Collaboration Hub dashboard:
+- Start the server first (`ailang serve` or `make services-start`)
+- Events are POSTed to `http://127.0.0.1:1957/api/coordinator/events`
+- Server broadcasts via WebSocket to all connected browsers
+- View at http://localhost:1957 in the Task Execution tab
+
+**Task Routing:**
+| Task Type | Primary Provider | Use Case |
+|-----------|------------------|----------|
+| Bug Fix | Claude Code CLI | Code changes requiring file edits |
+| Feature | Claude Code CLI | New functionality implementation |
+| Refactor | Claude Code CLI | Code restructuring |
+| Test | Claude Code CLI | Writing or fixing tests |
+| Docs | Gemini API | Documentation writing |
+| Research | Gemini API | Investigation, exploration |
+
+**Storage:**
+- Task state: `~/.ailang/state/coordinator.db` (SQLite)
+- Worktrees: `~/.ailang/state/worktrees/<agent-id>/<task-id>/`
+- Logs: `~/.ailang/logs/coordinator.log`
+- Config: `~/.ailang/config.yaml`
+
+**Architecture:**
+- **Daemon** (`internal/coordinator/daemon.go`) - Main loop, lifecycle
+- **Agent Registry** (`internal/coordinator/agent_registry.go`) - Agent configuration management
+- **HTTP Broadcaster** (`internal/coordinator/http_broadcaster.go`) - Streams events to dashboard
+- **Analyzer** (`internal/coordinator/analyzer.go`) - Task classification, deduplication
+- **Executors** (`internal/executor/`) - Claude Code CLI, Gemini CLI
+- **Store** (`internal/coordinator/store_sqlite.go`) - Neutral storage layer
+
+**Future: Cloud Storage**
+The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Currently uses SQLite locally, but the neutral `Store` interface enables future cloud deployment without code changes.
+
+**For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
 
 ### Adding Builtin Functions
 
@@ -911,6 +1146,7 @@ make help                 # Show all available make targets
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs |
 | `DEBUG_CODEGEN=1` | Warn on record type fallback | Record compiles to map instead of struct |
+| `DEBUG_APPROVAL_WATCHER=1` | Verbose ApprovalWatcher polling | GitHub label detection issues |
 
 **CLI flags for `ailang check` (v0.5.9+):**
 
@@ -935,9 +1171,53 @@ ailang check --timeout 30s file.ail
 
 # Analyze which phase is slow
 ailang check --debug-compile file.ail
+
+# Coordinator GitHub label debugging (v0.6.2+)
+DEBUG_APPROVAL_WATCHER=1 ailang coordinator start
+ailang coordinator watcher-status  # Check watcher state
 ```
 
 **For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)
+
+### Telemetry & Trace Debugging (v0.6.3+)
+
+**Use the `trace-debugger` skill for performance analysis and debugging with distributed traces.**
+
+**Quick Start:**
+```bash
+# Check telemetry configuration
+ailang trace status
+
+# List recent traces (requires GOOGLE_CLOUD_PROJECT set)
+ailang trace list --hours 1 --limit 10
+
+# View trace hierarchy with timing
+ailang trace view <trace-id>
+
+# Filter by operation type
+ailang trace list --filter "compile"
+ailang trace list --filter "eval.suite"
+```
+
+**When to use traces vs debug flags:**
+
+| Issue Type | Use Traces | Use Debug Flags |
+|------------|------------|-----------------|
+| Slow compilation | ✅ `ailang trace list --filter compile` | `--debug-compile` for phase timing |
+| Hang/infinite loop | ✅ Trace shows where it stopped | `--timeout 30s` for stack dump |
+| Type inference | 🔜 Future (`types.unify` span) | `DEBUG_MONO_VERBOSE=1` |
+| Eval performance | ✅ `eval.suite`, `eval.benchmark` spans | N/A |
+| Codegen fallbacks | 🔜 Future (`codegen.*` spans) | `DEBUG_CODEGEN=1` |
+
+**Instrumented components:**
+- Compiler pipeline (`compile.parse`, `compile.typecheck`, etc.)
+- Eval harness (`eval.suite`, `eval.benchmark`)
+- Messaging (`messages.send`, `messages.list`, `messages.search`)
+- AI providers (`anthropic.generate`, `openai.generate`, etc.)
+
+**Important limitation:** Traces only cover AILANG tooling, NOT generated Go code runtime.
+
+**For detailed patterns**: Use the `trace-debugger` skill or see [docs/docs/guides/telemetry.md](docs/docs/guides/telemetry.md)
 
 #### Keeping `ailang` Up to Date
 

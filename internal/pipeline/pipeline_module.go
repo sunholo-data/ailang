@@ -1,8 +1,10 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -14,14 +16,44 @@ import (
 	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
-// runModule runs the pipeline for a module with dependencies
-func runModule(cfg Config, src Source) (Result, error) {
+// runModuleWithContext runs the pipeline for a module with dependencies
+func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, error) {
 	// DEBUG: if cfg.TraceDefaulting { fmt.Printf("DEBUG: runModule called for %s\n", src.Filename) }
 	result := Result{
 		PhaseTimings: make(map[string]int64),
 	}
+
+	// Start OTEL span for module compilation pipeline (child of passed context)
+	// Span name includes filename for easy identification in trace UI
+	ctx, pipelineSpan := compilerTracer.Start(ctx, "compile: "+src.Filename,
+		trace.WithAttributes(
+			attribute.String("file.path", src.Filename),
+			attribute.Int("file.size_bytes", len(src.Code)),
+		),
+	)
+
+	// Capture starting memory for resource tracking
+	var startMem runtime.MemStats
+	runtime.ReadMemStats(&startMem)
+
+	// Deferred function to record memory metrics before span ends
+	defer func() {
+		var endMem runtime.MemStats
+		runtime.ReadMemStats(&endMem)
+		memoryDeltaBytes := int64(endMem.TotalAlloc - startMem.TotalAlloc)
+		allocsCount := int64(endMem.Mallocs - startMem.Mallocs)
+		pipelineSpan.SetAttributes(
+			attribute.Int64("compile.memory_delta_bytes", memoryDeltaBytes),
+			attribute.Int64("compile.allocs_count", allocsCount),
+			attribute.Int64("compile.heap_alloc_bytes", int64(endMem.HeapAlloc)),
+		)
+		pipelineSpan.End()
+	}()
 
 	// Initialize environments if not provided
 	if cfg.TypeEnv == nil {
@@ -42,16 +74,32 @@ func runModule(cfg Config, src Source) (Result, error) {
 
 	// Phase 1: Load module and dependencies
 	start := time.Now()
+	_, loadSpan := compilerTracer.Start(ctx, "compile.load",
+		trace.WithAttributes(
+			attribute.String("root.module", src.Filename),
+		),
+	)
+
 	modLoader := loader.NewModuleLoader(".")
 	modLoader.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
 	modules, err := modLoader.LoadAll([]string{src.Filename})
 	if err != nil {
-		return result, fmt.Errorf("module loading error: %w", err)
+		loadErr := fmt.Errorf("module loading error: %w", err)
+		loadSpan.RecordError(loadErr)
+		loadSpan.SetStatus(codes.Error, "module loading failed")
+		loadSpan.End()
+		pipelineSpan.RecordError(loadErr)
+		return result, loadErr
 	}
+
+	loadSpan.SetAttributes(attribute.Int("modules.count", len(modules)))
+	loadSpan.End()
 	result.PhaseTimings["load"] = time.Since(start).Milliseconds()
 
 	// Phase 2: Topological sort
 	start = time.Now()
+	_, topoSpan := compilerTracer.Start(ctx, "compile.topo_sort")
+
 	modLinker := link.NewModuleLinker(modLoader)
 	// Register $builtin as a first-class module
 	link.RegisterBuiltinModule(modLinker)
@@ -59,8 +107,16 @@ func runModule(cfg Config, src Source) (Result, error) {
 	rootCanonical := loader.CanonicalModuleID(src.Filename)
 	sortedModules, err := modLinker.TopoSortFromRoot(rootCanonical, modules)
 	if err != nil {
-		return result, fmt.Errorf("dependency cycle: %w", err)
+		topoErr := fmt.Errorf("dependency cycle: %w", err)
+		topoSpan.RecordError(topoErr)
+		topoSpan.SetStatus(codes.Error, "dependency cycle detected")
+		topoSpan.End()
+		pipelineSpan.RecordError(topoErr)
+		return result, topoErr
 	}
+
+	topoSpan.SetAttributes(attribute.Int("modules.sorted", len(sortedModules)))
+	topoSpan.End()
 	result.PhaseTimings["topo"] = time.Since(start).Milliseconds()
 
 	// Phase 3: Two-phase compilation
@@ -75,6 +131,12 @@ func runModule(cfg Config, src Source) (Result, error) {
 	}
 
 	start = time.Now()
+	_, compileSpan := compilerTracer.Start(ctx, "compile.modules",
+		trace.WithAttributes(
+			attribute.Int("modules.count", len(sortedModules)),
+		),
+	)
+
 	compiledUnits := make(map[string]*CompileUnit)
 
 	// M-DX11: Variables to capture root module's type checker and debug sink
@@ -675,6 +737,8 @@ func runModule(cfg Config, src Source) (Result, error) {
 	// This allows $adt to collect all constructors from all loaded modules
 	link.RegisterAdtModule(modLinker)
 
+	compileSpan.SetAttributes(attribute.Int("modules.compiled", len(compiledUnits)))
+	compileSpan.End()
 	result.PhaseTimings["compile"] = time.Since(start).Milliseconds()
 
 	// Phase 3b: Register compiled modules with resolver for on-demand evaluation

@@ -27,11 +27,16 @@ task_prompt: |
 
   4. Differentiate: x^2 + 3x + 5 (represented as Add(Add(Mul(Var("x"), Var("x")), Mul(Const(3), Var("x"))), Const(5)))
 
-  5. Print the simplified derivative as a string
+  5. Implement `showExpr(expr)` to convert AST to readable string:
+     - Const(n) -> just the number as string
+     - Var(name) -> just the variable name
+     - Add(a, b) -> "(" ++ showExpr(a) ++ " + " ++ showExpr(b) ++ ")"
+     - Mul(a, b) -> "(" ++ showExpr(a) ++ " * " ++ showExpr(b) ++ ")"
 
-  Expected: d/dx(x^2 + 3x + 5) = 2x + 3
-  Print: "Add(Add(Var(x), Var(x)), Const(3))" or simplified form
+  6. Print the simplified derivative using showExpr
+
+  Expected output for d/dx(x^2 + 3x + 5): ((x + x) + 3)
 
   Output only the code, no explanations.
 expected_stdout: |
-  2x + 3
+  ((x + x) + 3)

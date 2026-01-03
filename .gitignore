@@ -46,12 +46,18 @@ coverage.txt
 
 # Eval harness runtime artifacts
 benchmark/solution*.ail
-benchmark/__pycache__/
 data/
 output/
-*.pyc
 .eval_workspace/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
 
 # Agent protocol runtime state (like .git/)
 .ailang/
 /ui/node_modules
+
+# Temporary data
+temp_data/

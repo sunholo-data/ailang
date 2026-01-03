@@ -1,0 +1,33 @@
+{
+  "id": "canonical_normalization",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 768,
+  "total_tokens": 781,
+  "cost_usd": 0.08128685,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 18434,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Sum of evens: 30\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it works correctly.[TOOL] Read\n\n[TURN 2]\nNow I'll write the most idiomatic Python solution that implements the required functions and produces the exact output.[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: \"Sum of evens: 30\"\n\n## Solution Summary\n\nI've successfully written an idiomatic Python solution that:\n\n1. **`filterEvens(numbers)`** - Uses a list comprehension (the most Pythonic way) to filter even numbers\n2. **`sumList(numbers)`** - Uses the built-in `sum()` function (canonical approach)\n3. **`main()`** - Orchestrates the logic with clear function composition\n4. Uses `if __name__ == \"__main__\":` pattern for script entry point\n5. Uses f-string for formatted output\n\nThe solution produces the exact expected output: `Sum of evens: 30`",
+  "expected_stdout": "Sum of evens: 30\n",
+  "timestamp": "2026-01-02T16:23:35.051364+01:00",
+  "code": "def filterEvens(numbers):\n    return [n for n in numbers if n % 2 == 0]\n\ndef sumList(numbers):\n    return sum(numbers)\n\ndef main():\n    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    evens = filterEvens(numbers)\n    result = sumList(evens)\n    print(f\"Sum of evens: {result}\")\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it works correctly.[TOOL] Read\n\n[TURN 2]\nNow I'll write the most idiomatic Python solution that implements the required functions and produces the exact output.[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: \"Sum of evens: 30\"\n\n## Solution Summary\n\nI've successfully written an idiomatic Python solution that:\n\n1. **`filterEvens(numbers)`** - Uses a list comprehension (the most Pythonic way) to filter even numbers\n2. **`sumList(numbers)`** - Uses the built-in `sum()` function (canonical approach)\n3. **`main()`** - Orchestrates the logic with clear function composition\n4. Uses `if __name__ == \"__main__\":` pattern for script entry point\n5. Uses f-string for formatted output\n\nThe solution produces the exact expected output: `Sum of evens: 30`",
+  "eval_mode": "agent"
+}

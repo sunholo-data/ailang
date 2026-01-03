@@ -1,0 +1,5 @@
+-- hello_coordinator.ail - Example created by coordinator task
+module examples/hello_coordinator
+
+export func main() -> () ! {IO} =
+  print("Hello from Coordinator!")

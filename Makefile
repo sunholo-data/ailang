@@ -1,4 +1,4 @@
-.PHONY: build build-agent build-all test run clean install install-agent install-all fmt vet lint deps verify-examples verify-examples-all verify-cli-examples examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
+.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all verify-cli-examples examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
 
 # Binary name
 BINARY=ailang
@@ -39,27 +39,6 @@ build: prepare-embed
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
-
-# Build ailang-agent binary
-build-agent:
-	@echo "Building ailang-agent..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/ailang-agent ./cmd/ailang-agent
-	@echo "Build complete: $(BUILD_DIR)/ailang-agent"
-
-# Install ailang-agent to $GOPATH/bin
-install-agent:
-	@echo "Installing ailang-agent..."
-	@go install $(LDFLAGS) ./cmd/ailang-agent
-	@echo "✓ Installed to $$(go env GOPATH)/bin/ailang-agent"
-
-# Build all binaries (ailang + ailang-agent)
-build-all: build build-agent
-	@echo "✓ All binaries built"
-
-# Install all binaries
-install-all: install install-agent
-	@echo "✓ All binaries installed"
 
 # Install the binary to $GOPATH/bin
 install: prepare-embed
@@ -128,10 +107,18 @@ vet: prepare-embed
 	@echo "Vet complete"
 
 # Install golangci-lint (v2.x required for .golangci.yml version: "2")
+# Always reinstalls to ensure correct version - v1.x is incompatible with our config
 install-lint:
 	@echo "Installing golangci-lint v2.x..."
-	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.5.0
-	@echo "golangci-lint installed"
+	@CURRENT_VERSION=$$(golangci-lint --version 2>/dev/null | grep -o 'v[0-9]*' | head -1 || echo "none"); \
+	if [ "$$CURRENT_VERSION" != "v2" ]; then \
+		echo "Current version: $$CURRENT_VERSION (need v2.x)"; \
+		echo "Downloading golangci-lint v2.1.6..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.6; \
+	else \
+		echo "golangci-lint v2.x already installed"; \
+	fi
+	@echo "golangci-lint ready"
 
 # Run linter (requires golangci-lint)
 # Filter output to focus on BUGS and ignore STYLISTIC suggestions
@@ -557,11 +544,7 @@ doc:
 help:
 	@echo "Available targets:"
 	@echo "  make build            - Build the ailang binary"
-	@echo "  make build-agent      - Build the ailang-agent binary"
-	@echo "  make build-all        - Build all binaries (ailang + ailang-agent)"
 	@echo "  make install          - Install ailang to GOPATH/bin"
-	@echo "  make install-agent    - Install ailang-agent to GOPATH/bin"
-	@echo "  make install-all      - Install all binaries"
 	@echo "  make doc PKG=<pkg>    - Show Go package documentation (e.g., make doc PKG=internal/testing)"
 	@echo "  make test             - Run Go unit tests"
 	@echo "  make test-coverage    - Run tests with coverage"
@@ -1066,3 +1049,87 @@ help-release: ## Show release workflow (eval + dashboard)
 	@echo "  cd docs && npm start"
 	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
 	@echo ""
+
+# ==============================================================================
+# SERVICE MANAGEMENT
+# ==============================================================================
+
+.PHONY: serve coordinator-start coordinator-stop services-start services-stop services-restart services-status
+
+# Start the Collaboration Hub server (foreground)
+serve: quick-install
+	@echo "Starting AILANG Collaboration Hub..."
+	@ailang serve
+
+# Start the server in background
+serve-bg: quick-install
+	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+		echo "✓ Server already running on port 1957"; \
+	else \
+		echo "Starting AILANG server in background..."; \
+		nohup ailang serve > ~/.ailang/logs/server.log 2>&1 & \
+		sleep 2; \
+		if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+			echo "✓ Server started"; \
+		else \
+			echo "✗ Server failed to start. Check ~/.ailang/logs/server.log"; \
+		fi \
+	fi
+
+# Start the coordinator daemon
+coordinator-start: quick-install
+	@echo "Starting coordinator daemon..."
+	@ailang coordinator start
+
+# Stop the coordinator daemon
+coordinator-stop:
+	@echo "Stopping coordinator daemon..."
+	@ailang coordinator stop || echo "Coordinator not running"
+
+# Check coordinator status
+coordinator-status:
+	@ailang coordinator status
+
+# Start both services (server + coordinator)
+services-start: serve-bg
+	@sleep 1
+	@if ailang coordinator status 2>/dev/null | grep -q "running"; then \
+		echo "✓ Coordinator already running"; \
+	else \
+		echo "Starting coordinator daemon..."; \
+		nohup ailang coordinator start > /dev/null 2>&1 & \
+		sleep 3; \
+		ailang coordinator status; \
+	fi
+	@echo ""
+	@echo "✓ Services started:"
+	@echo "  - Server: http://127.0.0.1:1957"
+	@echo "  - Coordinator: running (check with 'make coordinator-status')"
+
+# Stop both services
+services-stop: coordinator-stop
+	@echo "Stopping server..."
+	@pkill -f "ailang serve" 2>/dev/null || echo "Server not running"
+	@echo "✓ Services stopped"
+
+# Restart all services with fresh build
+services-restart: services-stop
+	@echo "Rebuilding..."
+	@$(MAKE) quick-install
+	@echo ""
+	@$(MAKE) services-start
+
+# Show status of all services
+services-status:
+	@echo "📊 AILANG Services Status"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "Server:"
+	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
+		curl -s http://127.0.0.1:1957/health | jq -r '"  Status: healthy\n  Connections: \(.connections)\n  Version: \(.version)"'; \
+	else \
+		echo "  Status: not running"; \
+	fi
+	@echo ""
+	@echo "Coordinator:"
+	@ailang coordinator status 2>/dev/null || echo "  Status: not running"

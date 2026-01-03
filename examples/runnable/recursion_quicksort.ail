@@ -1,37 +1,35 @@
 -- recursion_quicksort.ail
--- Demonstrates real-world recursion with list processing
--- Status: ⚠️ Partial (list operations limited in current runtime)
+-- Demonstrates quicksort vs std/list sortBy
+-- Status: ✅ Working
 
 module examples/runnable/recursion_quicksort
 
 import std/io (println)
+import std/list (filter, concat, sortBy)
 
--- Quicksort implementation (conceptual)
--- Note: Full list pattern matching and helper functions not yet supported
--- This demonstrates the recursive structure
+-- Custom quicksort implementation using filter
+func quicksort(lst: [int]) -> [int] =
+  match lst {
+    [] => [],
+    [x] => [x],
+    [pivot, ...rest] => {
+      let lesser = filter(\x. x <= pivot, rest);
+      let greater = filter(\x. x > pivot, rest);
+      concat(quicksort(lesser), concat([pivot], quicksort(greater)))
+    }
+  }
 
--- Placeholder: actual implementation would require:
--- 1. List pattern matching: match lst { [] => ..., [x] => ..., [pivot, ...rest] => ... }
--- 2. List operations: filter, concat
--- 3. Partition logic
-
-export func quicksort(lst: [int]) -> [int] {
-  -- Would be: match lst {
-  --   [] => [],
-  --   [x] => [x],
-  --   [pivot, ...rest] => {
-  --     let lesser = filter(\x. x <= pivot, rest);
-  --     let greater = filter(\x. x > pivot, rest);
-  --     concat(quicksort(lesser), [pivot], quicksort(greater))
-  --   }
-  -- }
-  lst
-}
+-- Comparison function for sortBy
+func cmpInt(a: int, b: int) -> int = a - b
 
 export func main() -> () ! {IO} {
   let input = [3, 1, 4, 1, 5, 9, 2, 6];
-  let sorted = quicksort(input);
 
-  println("Input: [3, 1, 4, 1, 5, 9, 2, 6]");
-  println("Sorted: (quicksort not fully implemented yet)")
+  -- Using custom quicksort
+  let qs = quicksort(input);
+  println("Quicksort: " ++ show(qs));
+
+  -- Using std/list sortBy (merge sort)
+  let ms = sortBy(cmpInt, input);
+  println("sortBy:    " ++ show(ms))
 }

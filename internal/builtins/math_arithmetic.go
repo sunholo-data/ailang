@@ -31,6 +31,8 @@ func registerArithmetic() {
 	}), "Integer modulo operation (errors on modulo by zero)", []string{"math", "arithmetic", "modulo", "remainder"})
 	registerBuiltinWithMeta("neg_Int", 1, true, intToInt(func(a int) int { return -a }),
 		"Negate an integer", []string{"math", "arithmetic", "negate", "negative"})
+	registerBuiltinWithMeta("double_Int", 1, true, intToInt(func(a int) int { return a * 2 }),
+		"Double an integer", []string{"math", "arithmetic", "double", "test"})
 
 	// Float arithmetic (with special IEEE 754 behavior)
 	registerBuiltinWithMeta("add_Float", 2, true, floatFloatToFloat(func(a, b float64) float64 { return a + b }),

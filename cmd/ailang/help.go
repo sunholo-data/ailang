@@ -103,6 +103,7 @@ func printHelp() {
 	fmt.Printf("  %s      Debug AST and type information\n", cyan("debug ast [flags] <file>"))
 	fmt.Printf("  %s    Install syntax highlighting (vscode, vim, neovim)\n", cyan("editor install <editor>"))
 	fmt.Printf("  %s              Show design axiom compliance scorecard\n", cyan("axioms [--json]"))
+	fmt.Printf("  %s            Search and explore working code examples\n", cyan("examples <cmd>"))
 	fmt.Println()
 	fmt.Println("Messages:")
 	fmt.Printf("  %s                  List messages (alias: msg ls)\n", cyan("messages list"))

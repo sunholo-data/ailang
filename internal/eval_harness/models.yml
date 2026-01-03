@@ -254,6 +254,65 @@ models:
       Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
+  # =============================================================================
+  # LOCAL MODELS (via Ollama)
+  # =============================================================================
+  # These models run locally via Ollama - no API keys or costs.
+  # Requires: ollama serve running locally
+  # Install: https://ollama.ai/download
+
+  ollama-codellama:
+    api_name: "codellama:7b"
+    provider: "ollama"
+    description: "CodeLlama 7B - local code generation"
+    env_var: ""  # No API key needed
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Meta's CodeLlama 7B model via Ollama.
+      Best for: Quick iteration, offline development, privacy-sensitive code.
+      Requires: ollama pull codellama:7b
+
+  ollama-deepseek-coder:
+    api_name: "deepseek-coder:6.7b"
+    provider: "ollama"
+    description: "DeepSeek Coder 6.7B - competitive with GPT-3.5"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      DeepSeek Coder 6.7B - strong code generation model.
+      Competitive with GPT-3.5 on coding benchmarks.
+      Requires: ollama pull deepseek-coder:6.7b
+
+  ollama-qwen-coder:
+    api_name: "qwen2.5-coder:7b"
+    provider: "ollama"
+    description: "Qwen 2.5 Coder 7B - top-tier open model"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Alibaba's Qwen 2.5 Coder 7B - top-tier open source coding model.
+      Excellent code completion and generation.
+      Requires: ollama pull qwen2.5-coder:7b
+
+  ollama-llama3-2:
+    api_name: "llama3.2:3b"
+    provider: "ollama"
+    description: "Llama 3.2 3B - fast local inference"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Meta's Llama 3.2 3B model - fast and lightweight.
+      Good for quick tests and development iteration.
+      Requires: ollama pull llama3.2:3b
+
 # Default model for benchmarks
 default: "claude-sonnet-4-5"
 
@@ -295,6 +354,16 @@ dev_models:
   - "gpt5-1-instant"   # OpenAI fast
   - "claude-haiku-4-5" # Anthropic cheap
   - "gemini-3-flash"   # Google cheap + smart (Dec 2025)
+
+# Local models - free, offline, privacy-preserving (4 models)
+# Use for: Offline development, cost-free iteration, privacy-sensitive code
+# Cost: $0.00 (runs locally via Ollama)
+# Requires: ollama serve running locally
+local_models:
+  - "ollama-codellama"      # CodeLlama 7B
+  - "ollama-deepseek-coder" # DeepSeek Coder 6.7B
+  - "ollama-qwen-coder"     # Qwen 2.5 Coder 7B
+  - "ollama-llama3-2"       # Llama 3.2 3B (fast)
 
 # Available but not in default suites (run with --models flag):
 # - gpt5              # Superseded by gpt5-2

@@ -356,6 +356,27 @@ make fuzz-parser-long          # Long-running fuzz test
 
 ## Debug & Introspection
 
+### `--debug-types` - Type Inference Debugging (v0.5.11+)
+
+**When to use**: Debugging type inference issues, understanding constraint resolution, or investigating "why does this have type X?"
+
+```bash
+# Show full type inference debug output
+ailang run --debug-types --caps IO --entry main examples/runnable/debug_types_demo.ail
+
+# Filter to specific node ID
+ailang run --debug-types --node 42 --caps IO --entry main file.ail
+```
+
+**Output sections**:
+- **Substitution Map**: Type variable bindings (α → int)
+- **Constraints**: Num/Eq/Ord constraints added and resolved
+- **CoreTI Entries**: Type info for each Core AST node
+
+**Demo file**: See `examples/runnable/debug_types_demo.ail` for complete example.
+
+**Documentation**: [Debugging Guide](docs/docs/guides/debugging.md)
+
 ### Debug Effect (v0.4.10+) - Runtime Tracing
 
 For debugging AILANG code at runtime, use the Debug effect:
@@ -444,6 +465,55 @@ make clean                     # Remove build artifacts and coverage files
 make help                      # Show all available make targets
 make help-release              # Show release workflow
 ```
+
+## Coordinator Daemon
+
+The coordinator is an always-on daemon that processes tasks automatically using AI agents.
+
+### Basic Commands
+
+```bash
+# Start the coordinator daemon
+ailang coordinator start
+
+# Check status
+ailang coordinator status
+ailang coordinator status --json     # JSON output
+
+# Stop the daemon
+ailang coordinator stop
+```
+
+### Configuration Options
+
+```bash
+# Start with custom settings
+ailang coordinator start --poll-interval 60s  # Check for tasks every 60s
+ailang coordinator start --max-worktrees 5    # Allow 5 concurrent tasks
+```
+
+### Delegating Tasks
+
+Claude can delegate tasks to the coordinator:
+
+```bash
+# Send a task to the coordinator
+ailang messages send user "Fix bug in parser" --type bug --title "Parser bug fix"
+
+# Check coordinator status
+ailang coordinator status
+
+# View coordinator logs
+tail -f ~/.ailang/logs/coordinator.log
+```
+
+### When to Use
+
+Use the coordinator when:
+- Task is large and can run autonomously
+- You want to parallelize multiple tasks
+- Task should continue after session ends
+- You need isolated git worktree execution
 
 ## Skills (Auto-Invoked)
 
@@ -573,6 +643,7 @@ cd docs && npm run clear && npm start
 | Lint code | `make lint` |
 | Verify examples | `make verify-examples` |
 | Debug AST and types | `ailang debug --show-types ast <file>` |
+| Debug type inference | `ailang run --debug-types <file>` |
 | Inspect Core AST | `ailang debug ast <file>` |
 | Start docs server | `make docs-serve` |
 | Clear docs cache | `make docs-clean` |

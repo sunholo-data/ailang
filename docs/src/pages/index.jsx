@@ -14,7 +14,12 @@ import {
   Sparkles,
   Cpu,
   BookOpen,
-  Play
+  Play,
+  RefreshCw,
+  Activity,
+  Lock,
+  Copy,
+  Check
 } from 'lucide-react';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '../constants/version';
 import BenchmarkMini from '../components/BenchmarkMini';
@@ -297,43 +302,236 @@ export func main() -> () ! {IO} =
   );
 }
 
-// Features Section
+// Quick Start Section
+function QuickStartSection() {
+  const [copiedClaude, setCopiedClaude] = React.useState(false);
+  const [copiedGemini, setCopiedGemini] = React.useState(false);
+
+  const copyToClipboard = (text, setCopied) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <section className="quickstart-section">
+      <div className="quickstart-container">
+        <div className="quickstart-header">
+          <h2 className="quickstart-title">Start in 30 Seconds</h2>
+          <p className="quickstart-subtitle">
+            Install via your AI coding agent's plugin system
+          </p>
+        </div>
+
+        <div className="quickstart-grid">
+          <div className="quickstart-card">
+            <div className="quickstart-card-header">
+              <Bot size={24} />
+              <span>Claude Code</span>
+            </div>
+            <div className="quickstart-code">
+              <pre>/plugin marketplace add sunholo-data/ailang_bootstrap{'\n'}/plugin install ailang</pre>
+              <button
+                className="quickstart-copy"
+                onClick={() => copyToClipboard('/plugin marketplace add sunholo-data/ailang_bootstrap\n/plugin install ailang', setCopiedClaude)}
+              >
+                {copiedClaude ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="quickstart-card">
+            <div className="quickstart-card-header">
+              <Terminal size={24} />
+              <span>Gemini CLI</span>
+            </div>
+            <div className="quickstart-code">
+              <pre>gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git</pre>
+              <button
+                className="quickstart-copy"
+                onClick={() => copyToClipboard('gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git', setCopiedGemini)}
+              >
+                {copiedGemini ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="quickstart-footer">
+          <p>Then just ask your agent: <em>"Write an AILANG program that reads a file and counts lines"</em></p>
+          <Link to="https://github.com/sunholo-data/ailang_bootstrap" className="quickstart-link">
+            View ailang_bootstrap on GitHub <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+
+      <style>{`
+        .quickstart-section {
+          padding: 4rem 2rem;
+          background: #0a0a0a !important;
+        }
+
+        .quickstart-container {
+          max-width: 900px;
+          margin: 0 auto;
+        }
+
+        .quickstart-header {
+          text-align: center;
+          margin-bottom: 2.5rem;
+        }
+
+        .quickstart-title {
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 800;
+          font-size: clamp(1.75rem, 4vw, 2.5rem);
+          color: #ffffff !important;
+          margin-bottom: 0.5rem;
+        }
+
+        .quickstart-subtitle {
+          font-size: 1.1rem;
+          color: rgba(255, 255, 255, 0.7) !important;
+        }
+
+        .quickstart-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .quickstart-card {
+          background: #1a1a1a !important;
+          border: 1px solid #333333 !important;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .quickstart-card-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem 1.25rem;
+          background: #111111 !important;
+          border-bottom: 1px solid #333333 !important;
+          color: #ffffff !important;
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 600;
+        }
+
+        .quickstart-card-header svg {
+          color: #ff5a3c !important;
+        }
+
+        .quickstart-code {
+          position: relative;
+          padding: 1.25rem;
+          background: #1a1a1a !important;
+        }
+
+        .quickstart-code pre {
+          margin: 0;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.85rem;
+          line-height: 1.6;
+          color: #ffffff !important;
+          background: transparent !important;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+
+        .quickstart-copy {
+          position: absolute;
+          top: 0.75rem;
+          right: 0.75rem;
+          background: #333333 !important;
+          border: none;
+          border-radius: 6px;
+          padding: 0.5rem;
+          cursor: pointer;
+          color: rgba(255, 255, 255, 0.7) !important;
+          transition: all 0.2s ease;
+        }
+
+        .quickstart-copy:hover {
+          background: #444444 !important;
+          color: #ffffff !important;
+        }
+
+        .quickstart-footer {
+          text-align: center;
+          color: rgba(255, 255, 255, 0.7) !important;
+          font-size: 0.95rem;
+        }
+
+        .quickstart-footer em {
+          color: rgba(255, 255, 255, 0.9) !important;
+        }
+
+        .quickstart-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-top: 1rem;
+          color: #ff5a3c !important;
+          font-weight: 500;
+          text-decoration: none;
+          transition: gap 0.2s ease;
+        }
+
+        .quickstart-link:hover {
+          gap: 0.75rem;
+          color: #ff7a5c !important;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+// Features Section - Aligned with AILANG Design Axioms
 const features = [
   {
-    icon: Zap,
-    title: 'Pure Functional',
-    description: 'Immutable data structures and first-class functions. Everything is an expression that returns a value.',
-    color: '#e73c17'
+    icon: RefreshCw,
+    title: 'Deterministic Execution',
+    description: 'Same input, same output, every time. Replay any execution for debugging. No hidden nondeterminism.',
+    color: '#e73c17',
+    axiom: 'Axiom 1'
   },
   {
     icon: Shield,
-    title: 'Algebraic Effects',
-    description: 'Track all side effects in the type system. IO, FS, Clock, Net with capability-based security.',
-    color: '#2c7a7b'
+    title: 'Effect Boundaries',
+    description: 'Side effects are explicit in types. AI cannot hallucinate network calls in pure functions.',
+    color: '#2c7a7b',
+    axiom: 'Axiom 3 & 4'
   },
   {
-    icon: Layers,
-    title: 'Type Classes',
-    description: 'Num, Eq, Ord, Show with dictionary-passing semantics. Auto-imported prelude for zero boilerplate.',
-    color: '#6b46c1'
+    icon: Activity,
+    title: 'Structured Traces',
+    description: 'See exactly what happened. Slice traces by effect type. Get specific feedback, not "it crashed."',
+    color: '#6b46c1',
+    axiom: 'Axiom 2'
   },
   {
-    icon: Code2,
-    title: 'Pattern Matching',
-    description: 'Exhaustive pattern matching on ADTs, tuples, lists, and records with guards and wildcards.',
-    color: '#2b6cb0'
+    icon: Cpu,
+    title: 'Machine-First Design',
+    description: 'Built for AI reasoning, not human ergonomics. Decidable structure and semantic compression.',
+    color: '#2b6cb0',
+    axiom: 'Axiom 7'
   },
   {
-    icon: Bot,
-    title: 'AI-Optimized',
-    description: 'Generate structured execution traces for model training. Deterministic semantics for AI reasoning.',
-    color: '#dd6b20'
+    icon: Lock,
+    title: 'Explicit Authority',
+    description: 'No implicit access to the world. Capabilities are statically visible and constrained by budget.',
+    color: '#dd6b20',
+    axiom: 'Axiom 4'
   },
   {
-    icon: Terminal,
-    title: 'Go Codegen',
-    description: 'Compile AILANG to typed Go code. Multi-file support, effect handlers, and full type safety.',
-    color: '#38a169'
+    icon: Zap,
+    title: 'Pure Functional Core',
+    description: 'Lambda calculus, pattern matching, ADTs. Composable features that never break reasoning.',
+    color: '#38a169',
+    axiom: 'Axiom 10'
   }
 ];
 
@@ -342,9 +540,13 @@ function FeaturesSection() {
     <section className="features-section">
       <div className="features-container">
         <div className="features-header">
-          <h2 className="features-title">Built for the AI Era</h2>
+          <h2 className="features-title">Built on 12 Design Axioms</h2>
           <p className="features-subtitle">
-            Every language feature considers AI tooling needs. Deterministic, traceable, and safe by design.
+            Every feature derives from non-negotiable principles that make AI-generated code easier to debug, replay, and fix.
+            <br />
+            <Link to="/docs/references/axioms" className="features-axioms-link">
+              Read the full axioms <ArrowRight size={14} />
+            </Link>
           </p>
         </div>
 
@@ -363,6 +565,9 @@ function FeaturesSection() {
               </div>
               <h3 className="feature-title">{feature.title}</h3>
               <p className="feature-description">{feature.description}</p>
+              {feature.axiom && (
+                <span className="feature-axiom">{feature.axiom}</span>
+              )}
             </div>
           ))}
         </div>
@@ -398,8 +603,24 @@ function FeaturesSection() {
         .features-subtitle {
           font-size: 1.15rem;
           color: var(--ifm-font-color-secondary);
-          max-width: 600px;
+          max-width: 700px;
           margin: 0 auto;
+        }
+
+        .features-axioms-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          margin-top: 0.75rem;
+          color: var(--ifm-color-primary);
+          font-weight: 500;
+          font-size: 0.95rem;
+          text-decoration: none;
+          transition: gap 0.2s ease;
+        }
+
+        .features-axioms-link:hover {
+          gap: 0.6rem;
         }
 
         .features-grid {
@@ -449,6 +670,18 @@ function FeaturesSection() {
           color: var(--ifm-font-color-secondary);
           line-height: 1.7;
           margin: 0;
+        }
+
+        .feature-axiom {
+          display: inline-block;
+          margin-top: 1rem;
+          padding: 0.25rem 0.75rem;
+          background: rgba(231, 60, 23, 0.1);
+          border: 1px solid rgba(231, 60, 23, 0.2);
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--ifm-color-primary);
         }
 
         @keyframes fadeInUp {
@@ -672,6 +905,7 @@ export default function Home() {
       description="AILANG is a pure functional programming language designed for AI-assisted software development">
       <main>
         <HeroSection />
+        <QuickStartSection />
         <FeaturesSection />
         <BenchmarkMini />
         <CTASection />

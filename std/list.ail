@@ -73,3 +73,53 @@ export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b {
 export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
   match xs { [] => acc, [x, ...rest] => f(x, foldr(f, acc, rest)) }
 }
+
+-- ============================================================================
+-- Sorting (v0.6.3) - Merge sort with custom comparator
+-- ============================================================================
+
+-- sortBy: Sort list using a comparison function
+-- cmp(a, b) should return: negative if a < b, 0 if equal, positive if a > b
+export pure func sortBy[a](cmp: (a, a) -> int, xs: [a]) -> [a] {
+  match xs {
+    [] => [],
+    [x] => [x],
+    _ => {
+      let mid = length(xs) / 2;
+      let left = take(mid, xs);
+      let right = drop(mid, xs);
+      mergeBy(cmp, sortBy(cmp, left), sortBy(cmp, right))
+    }
+  }
+}
+
+-- mergeBy: Merge two sorted lists using comparison function
+pure func mergeBy[a](cmp: (a, a) -> int, xs: [a], ys: [a]) -> [a] {
+  match xs {
+    [] => ys,
+    [x, ...xr] => match ys {
+      [] => xs,
+      [y, ...yr] => if cmp(x, y) <= 0
+        then [x] ++ mergeBy(cmp, xr, ys)
+        else [y] ++ mergeBy(cmp, xs, yr)
+    }
+  }
+}
+
+-- take: Take first n elements
+export pure func take[a](n: int, xs: [a]) -> [a] {
+  if n <= 0 then []
+  else match xs {
+    [] => [],
+    [x, ...rest] => [x] ++ take(n - 1, rest)
+  }
+}
+
+-- drop: Drop first n elements
+export pure func drop[a](n: int, xs: [a]) -> [a] {
+  if n <= 0 then xs
+  else match xs {
+    [] => [],
+    [_, ...rest] => drop(n - 1, rest)
+  }
+}

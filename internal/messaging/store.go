@@ -7,7 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
+
+// messagingTracer is the OpenTelemetry tracer for messaging instrumentation.
+// When no TracerProvider is configured, this returns a no-op tracer with ~2ns overhead.
+var messagingTracer = otel.Tracer("ailang.messaging")
 
 // Store provides CRUD operations for the collaboration hub database.
 type Store struct {
@@ -40,6 +46,11 @@ func OpenStore(dbPath string) (*Store, error) {
 // Close closes the database connection.
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// DB returns the underlying database connection for advanced operations.
+func (s *Store) DB() *sql.DB {
+	return s.db
 }
 
 // DatabaseExists checks if the collaboration database exists at the given path.

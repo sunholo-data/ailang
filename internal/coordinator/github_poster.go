@@ -1,0 +1,164 @@
+package coordinator
+
+import (
+	"fmt"
+
+	"github.com/sunholo/ailang/internal/messaging"
+)
+
+// GitHubPoster provides GitHub integration for the coordinator.
+// It wraps the messaging GitHubClient to post comments, manage labels,
+// and close issues as part of the autonomous workflow.
+type GitHubPoster struct {
+	client *messaging.GitHubClient
+	repo   string
+}
+
+// NewGitHubPoster creates a new GitHub poster for coordinator tasks.
+func NewGitHubPoster() (*GitHubPoster, error) {
+	config, err := messaging.LoadGitHubConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GitHub config: %w", err)
+	}
+
+	client := messaging.NewGitHubClient(config)
+
+	repo := ""
+	if config != nil {
+		repo = config.DefaultRepo
+	}
+
+	return &GitHubPoster{
+		client: client,
+		repo:   repo,
+	}, nil
+}
+
+// PostComment posts a comment to a GitHub issue.
+func (p *GitHubPoster) PostComment(issueNum int, body string) error {
+	return p.client.AddComment(p.repo, issueNum, body)
+}
+
+// AddLabel adds a label to a GitHub issue.
+// Creates the label if it doesn't exist.
+func (p *GitHubPoster) AddLabel(issueNum int, label string) error {
+	// Ensure label exists first
+	if err := p.EnsureLabel(label); err != nil {
+		return err
+	}
+	return p.client.AddLabelToIssue(p.repo, issueNum, label)
+}
+
+// RemoveLabel removes a label from a GitHub issue.
+func (p *GitHubPoster) RemoveLabel(issueNum int, label string) error {
+	return p.client.RemoveLabelFromIssue(p.repo, issueNum, label)
+}
+
+// CloseIssue closes a GitHub issue with an optional comment.
+func (p *GitHubPoster) CloseIssue(issueNum int, comment string) error {
+	return p.client.CloseIssue(p.repo, issueNum, comment)
+}
+
+// GetLabels returns the current labels on an issue.
+func (p *GitHubPoster) GetLabels(issueNum int) ([]string, error) {
+	return p.client.GetIssueLabels(p.repo, issueNum)
+}
+
+// HasLabel checks if an issue has a specific label.
+func (p *GitHubPoster) HasLabel(issueNum int, label string) (bool, error) {
+	labels, err := p.GetLabels(issueNum)
+	if err != nil {
+		return false, err
+	}
+	for _, l := range labels {
+		if l == label {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// EnsureLabel creates a label if it doesn't exist.
+func (p *GitHubPoster) EnsureLabel(label string) error {
+	// Define colors for coordinator labels
+	labelColors := map[string]string{
+		// Routing labels
+		"coordinator:bug":      "D73A4A", // Red
+		"coordinator:feature":  "A2EEEF", // Cyan
+		"coordinator:docs":     "0E8A16", // Green
+		"coordinator:research": "FBCA04", // Yellow
+		"coordinator:refactor": "7057FF", // Purple
+		"coordinator:test":     "E4E669", // Light yellow
+
+		// Status labels
+		"needs-design-approval": "B60205", // Dark red
+		"needs-sprint-approval": "B60205", // Dark red
+		"needs-merge-approval":  "B60205", // Dark red
+		"needs-revision":        "FFA500", // Orange
+
+		// Approval labels
+		"design-approved": "0E8A16", // Green
+		"sprint-approved": "0E8A16", // Green
+		"merge-approved":  "0E8A16", // Green
+	}
+
+	labelDescriptions := map[string]string{
+		// Routing labels
+		"coordinator:bug":      "Bug fix - auto-routes to coordinator daemon",
+		"coordinator:feature":  "New feature - auto-routes to coordinator daemon",
+		"coordinator:docs":     "Documentation task - auto-routes to coordinator daemon",
+		"coordinator:research": "Research task - auto-routes to coordinator daemon",
+		"coordinator:refactor": "Refactoring task - auto-routes to coordinator daemon",
+		"coordinator:test":     "Test writing task - auto-routes to coordinator daemon",
+
+		// Status labels
+		"needs-design-approval": "Awaiting human approval of design document",
+		"needs-sprint-approval": "Awaiting human approval of sprint plan",
+		"needs-merge-approval":  "Awaiting human approval to merge changes",
+		"needs-revision":        "Requires revision based on feedback",
+
+		// Approval labels
+		"design-approved": "Human approved the design document",
+		"sprint-approved": "Human approved the sprint plan",
+		"merge-approved":  "Human approved the implementation for merge",
+	}
+
+	color, ok := labelColors[label]
+	if !ok {
+		color = "C5DEF5" // Default light blue
+	}
+
+	description, ok := labelDescriptions[label]
+	if !ok {
+		description = "Coordinator auto-routing label"
+	}
+
+	return p.client.EnsureLabel(p.repo, label, description, color)
+}
+
+// PostWorkingStatus posts a "working on it" comment to the issue.
+func (p *GitHubPoster) PostWorkingStatus(issueNum int, taskID, agent string) error {
+	body := fmt.Sprintf(`**🤖 Agent Working**
+
+I've picked up this issue and am working on it.
+
+| Field | Value |
+|-------|-------|
+| **Task ID** | `+"`%s`"+` |
+| **Agent** | %s |
+| **Status** | In Progress |
+
+You'll receive updates as I make progress.`, taskID, agent)
+
+	return p.PostComment(issueNum, body)
+}
+
+// Repo returns the configured repository.
+func (p *GitHubPoster) Repo() string {
+	return p.repo
+}
+
+// Client returns the underlying GitHub client.
+func (p *GitHubPoster) Client() *messaging.GitHubClient {
+	return p.client
+}

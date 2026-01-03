@@ -46,7 +46,9 @@ You have access to the `ailang` command:
 
 ## Common Pitfalls
 
+- ❌ **No markdown fences in solution.ail:** Write raw AILANG code, NOT ```ailang...```
 - ❌ **Don't skip verification:** Always run your solution to check output
+- ✅ **Write raw code:** The file should start with `module benchmark/solution` NOT ``` ```ailang```
 - ✅ **Correct:** Run, compare, fix, repeat until perfect
 
 Good luck!

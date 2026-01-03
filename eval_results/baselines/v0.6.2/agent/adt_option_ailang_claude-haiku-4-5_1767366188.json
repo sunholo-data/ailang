@@ -1,0 +1,33 @@
+{
+  "id": "adt_option",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 966,
+  "total_tokens": 979,
+  "cost_usd": 0.017495800000000002,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 13257,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 5.0\nError: Division by zero\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. The task requires:\n1. Define an Option type (Some/None)\n2. Implement safe division returning Option[Float]\n3. Test with divide(10, 2) and divide(10, 0)\n4. Print results in the specified format[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n- `Result: 5.0` ✓\n- `Error: Division by zero` ✓\n\n## Solution Complete ✓\n\nThe AILANG program successfully:\n\n1. **Defines an Option type** - A generic algebraic data type with two constructors: `Some(a)` for successful values and `None` for missing values\n2. **Implements safe division** - The `divide(num, denom)` function returns `Some(result)` when divisor is non-zero, `None` when divisor is zero\n3. **Tests the function** - Calls `divide(10.0, 2.0)` (which returns `Some(5.0)`) and `divide(10.0, 0.0)` (which returns `None`)\n4. **Prints formatted results** - Uses pattern matching to display \"Result: 5.0\" and \"Error: Division by zero\"\n\nThe solution correctly demonstrates Option/Maybe monad operations using algebraic data types in AILANG.",
+  "expected_stdout": "Result: 5.0\nError: Division by zero\n",
+  "timestamp": "2026-01-02T16:03:08.244428+01:00",
+  "code": "module benchmark/solution\n\ntype Option[a] = Some(a) | None\n\nfunc divide(num: float, denom: float) -\u003e Option[float] =\n  if denom == 0.0 then None else Some(num / denom)\n\nfunc formatResult(opt: Option[float]) -\u003e string =\n  match opt {\n    Some(v) =\u003e \"Result: \" ++ show(v),\n    None =\u003e \"Error: Division by zero\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let result1 = divide(10.0, 2.0);\n  let result2 = divide(10.0, 0.0);\n  print(formatResult(result1));\n  print(formatResult(result2))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. The task requires:\n1. Define an Option type (Some/None)\n2. Implement safe division returning Option[Float]\n3. Test with divide(10, 2) and divide(10, 0)\n4. Print results in the specified format[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n- `Result: 5.0` ✓\n- `Error: Division by zero` ✓\n\n## Solution Complete ✓\n\nThe AILANG program successfully:\n\n1. **Defines an Option type** - A generic algebraic data type with two constructors: `Some(a)` for successful values and `None` for missing values\n2. **Implements safe division** - The `divide(num, denom)` function returns `Some(result)` when divisor is non-zero, `None` when divisor is zero\n3. **Tests the function** - Calls `divide(10.0, 2.0)` (which returns `Some(5.0)`) and `divide(10.0, 0.0)` (which returns `None`)\n4. **Prints formatted results** - Uses pattern matching to display \"Result: 5.0\" and \"Error: Division by zero\"\n\nThe solution correctly demonstrates Option/Maybe monad operations using algebraic data types in AILANG.",
+  "eval_mode": "agent"
+}

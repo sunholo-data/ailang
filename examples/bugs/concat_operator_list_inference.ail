@@ -1,0 +1,40 @@
+-- Bug: List concat with ++ operator defaults to string concat
+-- Status: ❌ Broken (v0.6.2)
+--
+-- ISSUE: When using ++ on list types in a simple expression context,
+-- the type checker defaults to string concatenation instead of list concat.
+--
+-- Error: "cannot unify list[int] with string"
+--
+-- WORKS: Using ++ in a match arm body (see quicksort example)
+-- FAILS: Using ++ in a simple function expression
+--
+-- WORKAROUND: Use std/list.concat function instead of ++ operator
+--
+-- RELATED: design_docs/implemented/v0_4_5/concat-operator-type-inference-bug.md
+-- (Note: That doc describes the OPPOSITE problem - list defaulting when string
+-- was intended. This bug may be a regression from that fix going too far.)
+
+module examples/bugs/concat_operator_list_inference
+
+-- This FAILS with: cannot unify list[int] with string
+-- pure func concatLists(a: [int], b: [int]) -> [int] = a ++ b
+
+-- WORKAROUND: Use explicit concat from std/list
+import std/list (concat)
+
+pure func concatLists(a: [int], b: [int]) -> [int] = concat(a, b)
+
+-- This WORKS (same operator in match context)
+import std/list (filter)
+
+pure func quicksort(list: [int]) -> [int] =
+  match list {
+    [] => [],
+    [x] => [x],
+    [pivot, ...rest] => {
+      let less = filter(\x. x < pivot, rest);
+      let greater = filter(\x. x >= pivot, rest);
+      quicksort(less) ++ [pivot] ++ quicksort(greater)  -- Works here!
+    }
+  }

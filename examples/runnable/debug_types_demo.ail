@@ -1,0 +1,50 @@
+-- Debug Types Demo
+-- Run with: ailang run --debug-types --caps IO --entry main examples/runnable/debug_types_demo.ail
+--
+-- This example demonstrates the --debug-types flag which shows:
+-- 1. Type variable substitutions during inference
+-- 2. Type class constraints (Num, Eq, Ord) as they're added and resolved
+-- 3. How polymorphic code gets specialized
+--
+-- Expected output sections:
+--   [Substitution Map] - Shows how type variables (α1, α2, ...) get bound
+--   [Constraints]      - Shows Num/Eq/Ord constraints added and resolved
+--   [CoreTI Entries]   - Shows final types for each AST node
+
+module examples/runnable/debug_types_demo
+
+-- Simple arithmetic triggers Num constraints
+let add_ints = 1 + 2
+
+-- Float arithmetic shows different constraint resolution
+let add_floats = 1.5 + 2.5
+
+-- Comparison triggers Ord constraints
+let compare_nums = 10 > 5
+
+-- Equality triggers Eq constraints
+let check_equal = "hello" == "world"
+
+-- Polymorphic function - watch type variables get specialized
+let identity = \x. x
+
+-- Using identity with different types shows specialization
+let int_result = identity(42)
+let str_result = identity("test")
+
+-- Higher-order function with constraints
+let apply_twice = \f. \x. f(f(x))
+let double = \n. n * 2
+let result = apply_twice(double)(3)
+
+-- Print results using show() builtin
+export func main() -> () ! {IO} = {
+  print("=== Debug Types Demo ===");
+  print("add_ints: " ++ show(add_ints));
+  print("add_floats: " ++ show(add_floats));
+  print("compare_nums: " ++ show(compare_nums));
+  print("check_equal: " ++ show(check_equal));
+  print("int_result: " ++ show(int_result));
+  print("str_result: " ++ str_result);
+  print("apply_twice(double)(3): " ++ show(result))
+}

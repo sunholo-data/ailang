@@ -31,14 +31,28 @@ type ThreadContext struct {
 // CreateThread creates a new thread in the database.
 // targetAgent specifies which agent this conversation is with (optional).
 func (s *Store) CreateThread(title, createdByType, createdByID, targetAgent string) (*Thread, error) {
+	return s.CreateThreadWithWorkspace(title, createdByType, createdByID, targetAgent, "")
+}
+
+// CreateThreadWithWorkspace creates a new thread with an optional workspace context.
+// workspace is the source project/directory that originated this thread.
+func (s *Store) CreateThreadWithWorkspace(title, createdByType, createdByID, targetAgent, workspace string) (*Thread, error) {
 	now := time.Now()
 	threadID := fmt.Sprintf("thread_%d_%s", now.UnixMilli(), generateRandomID(8))
 
-	// Store target_agent in context_json
+	// Store target_agent and workspace in context_json
 	var contextJSON *string
-	if targetAgent != "" {
-		ctx := fmt.Sprintf(`{"target_agent":"%s"}`, targetAgent)
-		contextJSON = &ctx
+	ctx := ThreadContext{
+		TargetAgent: targetAgent,
+		Workspace:   workspace,
+	}
+	if targetAgent != "" || workspace != "" {
+		contextBytes, err := json.Marshal(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal context: %w", err)
+		}
+		contextStr := string(contextBytes)
+		contextJSON = &contextStr
 	}
 
 	_, err := s.db.Exec(`
@@ -58,6 +72,7 @@ func (s *Store) CreateThread(title, createdByType, createdByID, targetAgent stri
 		CreatedByID:   createdByID,
 		Status:        "active",
 		TargetAgent:   targetAgent,
+		Workspace:     workspace,
 		LastSeq:       0,
 		UpdatedAt:     now,
 	}, nil
@@ -284,4 +299,111 @@ func (s *Store) GetThreadsByStatus(status string, limit int) ([]Thread, error) {
 	}
 
 	return threads, nil
+}
+
+// ThreadFilter represents filter options for querying threads
+type ThreadFilter struct {
+	Status    string // Filter by status (active, paused, resolved, archived)
+	Workspace string // Filter by workspace
+	Limit     int    // Maximum number of results
+}
+
+// NewThreadFilter creates a new ThreadFilter with the given parameters
+func (s *Store) NewThreadFilter(status, workspace string, limit int) ThreadFilter {
+	return ThreadFilter{
+		Status:    status,
+		Workspace: workspace,
+		Limit:     limit,
+	}
+}
+
+// GetThreadsFiltered returns threads matching the given filter
+func (s *Store) GetThreadsFiltered(filter ThreadFilter) ([]Thread, error) {
+	if filter.Limit <= 0 {
+		filter.Limit = 100
+	}
+
+	// Get all threads first, then filter by workspace (since it's in context_json)
+	// For better performance with large datasets, consider adding a workspace column
+	threads, err := s.GetThreadsByStatus(filter.Status, 1000) // Get more to account for filtering
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter by workspace if specified
+	if filter.Workspace != "" {
+		filtered := make([]Thread, 0)
+		for _, t := range threads {
+			if t.Workspace == filter.Workspace {
+				filtered = append(filtered, t)
+				if len(filtered) >= filter.Limit {
+					break
+				}
+			}
+		}
+		return filtered, nil
+	}
+
+	// Apply limit
+	if len(threads) > filter.Limit {
+		return threads[:filter.Limit], nil
+	}
+	return threads, nil
+}
+
+// GetDistinctWorkspaces returns a list of all unique workspaces from threads
+func (s *Store) GetDistinctWorkspaces() ([]string, error) {
+	// Get all threads and extract unique workspaces
+	threads, err := s.GetThreadsByStatus("", 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	workspaceSet := make(map[string]bool)
+	for _, t := range threads {
+		if t.Workspace != "" {
+			workspaceSet[t.Workspace] = true
+		}
+	}
+
+	workspaces := make([]string, 0, len(workspaceSet))
+	for w := range workspaceSet {
+		workspaces = append(workspaces, w)
+	}
+	return workspaces, nil
+}
+
+// ThreadAggregateStats provides aggregate statistics about threads
+type ThreadAggregateStats struct {
+	TotalThreads int            `json:"total_threads"`
+	ByStatus     map[string]int `json:"by_status"`
+	ByWorkspace  map[string]int `json:"by_workspace"`
+}
+
+// GetThreadAggregateStats returns aggregate statistics about threads
+func (s *Store) GetThreadAggregateStats() (*ThreadAggregateStats, error) {
+	threads, err := s.GetThreadsByStatus("", 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &ThreadAggregateStats{
+		TotalThreads: len(threads),
+		ByStatus:     make(map[string]int),
+		ByWorkspace:  make(map[string]int),
+	}
+
+	for _, t := range threads {
+		// Count by status
+		stats.ByStatus[t.Status]++
+
+		// Count by workspace
+		workspace := t.Workspace
+		if workspace == "" {
+			workspace = "(no workspace)"
+		}
+		stats.ByWorkspace[workspace]++
+	}
+
+	return stats, nil
 }

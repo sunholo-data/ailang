@@ -1,0 +1,1 @@
+Python is idiomatic. Clean code is better than complex code.

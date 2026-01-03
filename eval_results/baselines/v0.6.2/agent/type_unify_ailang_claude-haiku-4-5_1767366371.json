@@ -1,0 +1,32 @@
+{
+  "id": "type_unify",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 60009,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "timeout after 1m0s\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG type unification benchmark step by step.\n\nLet me start by reading the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nLet me check the correct directory structure:[TOOL] Bash\n\n[TURN 3]\nLet me check the exact path with a more flexible search:[TOOL] Bash\n\n[TURN 4]\n[TOOL] Bash\n\n[TURN 5]\n[TOOL] Bash\n\n[TURN 6]\n[TOOL] Read\n\n[TURN 7]\nNow I'll implement the type unification algorithm in AILANG:[TOOL] Write\n\n[TURN 8]\nNow let me test the solution:[TOOL] Bash\n\n[TURN 9]\nI see the issue - AILANG doesn't support union types in return annotations. Let me fix this by using simpler return types:[TOOL] Write\n\n[TURN 10]\n[TOOL] Bash\n\n[TURN 11]\nAILANG doesn't support union types in return annotations. Let me use the Option type instead:[TOOL] Write\n\n[TURN 12]\n[TOOL] Bash\n\n[TURN 13]\nThe issue is that string comparison is not directly supported. Let me refactor to avoid comparing strings in match guards:[TOOL] Write\n\n[TURN 14]\n[TOOL] Bash\n",
+  "expected_stdout": "a = TBool\nb = TInt\n",
+  "timestamp": "2026-01-02T16:06:11.815564+01:00",
+  "code": "module benchmark/solution\n\nimport std/io (println)\n\n-- Type ADT\ntype Type = TVar(string) | TInt | TBool | TFunc(Type, Type)\n\n-- Substitution: list of (varName, Type) pairs\ntype Binding = {var: string, typ: Type}\n\n-- Check if two strings are equal (builtin comparison for strings)\npure func strEq(s1: string, s2: string) -\u003e bool =\n  s1 == s2\n\n-- Unify two types\npure func unify(t1: Type, t2: Type) -\u003e [Binding] =\n  match t1 {\n    TInt =\u003e match t2 {\n      TInt =\u003e [],\n      _ =\u003e []\n    },\n    TBool =\u003e match t2 {\n      TBool =\u003e [],\n      _ =\u003e []\n    },\n    TVar(a) =\u003e match t2 {\n      TVar(b) =\u003e if strEq(a, b) then [] else [{var: a, typ: TVar(b)}],\n      _ =\u003e [{var: a, typ: t2}]\n    },\n    TFunc(a1, r1) =\u003e match t2 {\n      TFunc(a2, r2) =\u003e unifyHelper(a1, a2, r1, r2),\n      _ =\u003e []\n    }\n  }\n\n-- Helper to unify function types\npure func unifyHelper(a1: Type, a2: Type, r1: Type, r2: Type) -\u003e [Binding] =\n  match a1 {\n    TInt =\u003e match a2 {\n      TInt =\u003e unifyBase(r1, r2),\n      _ =\u003e []\n    },\n    TBool =\u003e match a2 {\n      TBool =\u003e unifyBase(r1, r2),\n      _ =\u003e []\n    },\n    TVar(varname) =\u003e match a2 {\n      TVar(varname2) =\u003e if strEq(varname, varname2) then unifyBase(r1, r2) else {\n        let s1 = [{var: varname, typ: TVar(varname2)}];\n        concatenateSubst(s1, unifyBase(r1, r2))\n      },\n      _ =\u003e {\n        let s1 = [{var: varname, typ: a2}];\n        concatenateSubst(s1, unifyBase(r1, r2))\n      }\n    },\n    _ =\u003e []\n  }\n\n-- Base unification for simple cases\npure func unifyBase(t1: Type, t2: Type) -\u003e [Binding] =\n  match t1 {\n    TInt =\u003e match t2 {\n      TInt =\u003e [],\n      _ =\u003e []\n    },\n    TBool =\u003e match t2 {\n      TBool =\u003e [],\n      _ =\u003e []\n    },\n    TVar(a) =\u003e match t2 {\n      TVar(b) =\u003e if strEq(a, b) then [] else [{var: a, typ: TVar(b)}],\n      _ =\u003e [{var: a, typ: t2}]\n    },\n    TFunc(_, _) =\u003e []\n  }\n\n-- Concatenate two substitutions\npure func concatenateSubst(s1: [Binding], s2: [Binding]) -\u003e [Binding] =\n  match s1 {\n    [] =\u003e s2,\n    x :: rest =\u003e x :: concatenateSubst(rest, s2)\n  }\n\n-- Format a type for display\npure func formatType(t: Type) -\u003e string =\n  match t {\n    TVar(name) =\u003e name,\n    TInt =\u003e \"TInt\",\n    TBool =\u003e \"TBool\",\n    TFunc(arg, res) =\u003e \"TFunc(\" ++ formatType(arg) ++ \", \" ++ formatType(res) ++ \")\"\n  }\n\n-- Main entry point\nexport func main() -\u003e () ! {IO} {\n  let t1 = TFunc(TVar(\"a\"), TInt);\n  let t2 = TFunc(TBool, TVar(\"b\"));\n  let subst = unify(t1, t2);\n  printSubstitution(subst)\n}\n\n-- Print substitution\nfunc printSubstitution(subst: [Binding]) -\u003e () ! {IO} =\n  match subst {\n    [] =\u003e println(\"No unification\"),\n    x :: rest =\u003e {\n      let msg = x.var ++ \" = \" ++ formatType(x.typ);\n      let _ = println(msg);\n      printSubstitution(rest)\n    }\n  }\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 14,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG type unification benchmark step by step.\n\nLet me start by reading the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nLet me check the correct directory structure:[TOOL] Bash\n\n[TURN 3]\nLet me check the exact path with a more flexible search:[TOOL] Bash\n\n[TURN 4]\n[TOOL] Bash\n\n[TURN 5]\n[TOOL] Bash\n\n[TURN 6]\n[TOOL] Read\n\n[TURN 7]\nNow I'll implement the type unification algorithm in AILANG:[TOOL] Write\n\n[TURN 8]\nNow let me test the solution:[TOOL] Bash\n\n[TURN 9]\nI see the issue - AILANG doesn't support union types in return annotations. Let me fix this by using simpler return types:[TOOL] Write\n\n[TURN 10]\n[TOOL] Bash\n\n[TURN 11]\nAILANG doesn't support union types in return annotations. Let me use the Option type instead:[TOOL] Write\n\n[TURN 12]\n[TOOL] Bash\n\n[TURN 13]\nThe issue is that string comparison is not directly supported. Let me refactor to avoid comparing strings in match guards:[TOOL] Write\n\n[TURN 14]\n[TOOL] Bash\n",
+  "eval_mode": "agent"
+}

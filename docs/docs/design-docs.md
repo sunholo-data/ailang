@@ -8,13 +8,46 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.6.3
+
+- [M-COORD-GENERIC-WORKFLOWS: Configurable Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-coord-generic-workflows.md)
+
 ## v0.6.2
 
+- [Sprint Plan: DX-17 Phase 2 - Normalize TList to TApp](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/dx-17-phase2-sprint-plan.md)
+- [DX-17 Phase 2: Normalize TList to TApp at Parse Time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/dx-17-phase2-tlist-normalization.md)
+- [M-BUG-EFFECT-CHECKER-CONFLATION: Effect Checker Incorrectly Requires IO for Pure Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-bug-effect-checker-conflation.md)
+- [Sprint Plan: M-BUG-EFFECT-CHECKER-CONFLATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-bug-effect-checker-sprint-plan.md)
+- [Sprint Plan: M-CAPABILITY-BUDGETS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-capability-budgets-sprint-plan.md)
 - [M-CAPABILITY-BUDGETS: Resource-Bounded Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-capability-budgets.md)
+- [M-CODEGEN-BOOL-ASSERTIONS: Type assertions for boolean contexts in Go codegen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-bool-assertions.md)
+- [M-CODEGEN-DICTIONARIES Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-dictionaries-sprint-plan.md)
+- [M-CODEGEN-DICTIONARIES: Generate Type Class Dictionary Implementations for Go](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-dictionaries.md)
 - [M-CODEGEN-VALUE-TYPES: Size-Based Pointer vs Value Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-codegen-value-types.md)
+- [Sprint Plan: M-COORD-APPROVALWATCHER-OBSERVABILITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability-sprint-plan.md)
+- [M-COORD-APPROVALWATCHER-OBSERVABILITY: ApprovalWatcher Debug and Observability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-approvalwatcher-observability.md)
+- [M-COORD-GITHUB-AUTO-ROUTING Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-auto-routing-sprint-plan.md)
+- [M-COORD-GITHUB-AUTO-ROUTING: GitHub-Driven Autonomous Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-auto-routing.md)
+- [Sprint Plan: M-COORD-GITHUB-AUTO-ROUTING Completion](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-complete-sprint-plan.md)
+- [Sprint Plan: M-COORD-STABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-stable-sprint-plan.md)
+- [M-COORD-STABLE: Coordinator Daemon Stability & Agent Collaboration Foundation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-stable.md)
+- [M-COORD-FEEDBACK Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coordinator-feedback-loop-sprint-plan.md)
+- [M-COORD-FEEDBACK: Coordinator Executor Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md)
+- [M-COORDINATOR-QUESTION-MODE: Read-Only Execution for Questions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coordinator-question-mode.md)
+- [M-DX11 Phase 2: Type Checker Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx11-phase2-debug-events.md)
+- [M-DX11 Phase 2 Sprint Plan: Debug Event Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx11-phase2-sprint-plan.md)
+- [M-DX17-LIST-NORMALIZATION-BUG: List[T] Not Normalized to Lowercase](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx17-list-normalization-bug.md)
+- [M-DX19: Auto-Derive Eq for ADT Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx19-auto-derive-eq.md)
+- [M-DX19 Sprint Plan: Auto-Derive Eq for ADT Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx19-sprint-plan.md)
 - [M-DX22 Sprint Plan: ADT Constructor Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution-sprint-plan.md)
 - [M-DX22: Go Codegen - ADT Constructor Resolution Ambiguity](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
 - [M-GITHUB-USER-OVERRIDE: GitHub Account Override Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-github-user-override.md)
+- [M-OTEL: OpenTelemetry OTLP Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-otel-integration.md)
+- [M-OTEL Sprint Plan: OpenTelemetry OTLP Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-otel-sprint-plan.md)
+- [Sprint Plan: M-PATTERN-GUARDS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards-sprint-plan.md)
+- [M-PATTERN-GUARDS: Pattern Guard Evaluation in Codegen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)
+- [M-RECORD-PATTERNS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-record-patterns-sprint-plan.md)
+- [M-RECORD-PATTERNS: Record Pattern Matching](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-record-patterns.md)
 
 ## v0.6.1
 
@@ -161,6 +194,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.5.0
 
+- [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-AGENT-PROTOCOL.md)
+- [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-EVAL-AGENT.md)
 - [M-GAME-A: Go Codegen Foundation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-A-go-codegen-foundation.md)
 - [M-GAME-B: Effects for Games](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-B-effects-for-games.md)
 - [M-GAME-C: Compiler UX & Extern Functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-C-compiler-ux-extern.md)
@@ -374,4 +409,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 247 design documents across 39 versions.*
+*Generated at build time. 279 design documents across 40 versions.*

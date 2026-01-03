@@ -1,0 +1,32 @@
+-- Bug: Parser infinite loop on unrecognized test/property syntax
+-- Status: ❌ Broken (v0.6.2)
+--
+-- ISSUE: The parser enters an infinite loop when encountering unimplemented
+-- `tests [...]` and `test "name" { ... }` syntax. This consumes unlimited
+-- memory (67+ GB observed) before being killed by the OS.
+--
+-- Stack trace shows:
+--   parseTestDecl -> parseStatement -> parseExpression (infinite loop)
+--
+-- ROOT CAUSE: Parser attempts to parse test declarations but doesn't have
+-- proper error recovery for unrecognized tokens, causing parseExpression
+-- to loop indefinitely.
+--
+-- WORKAROUND: Use `ailang check --timeout 5s` to detect these issues
+--
+-- FIX NEEDED: Parser should fail fast with clear error on unrecognized syntax
+-- rather than looping. Add default timeout and/or memory limit.
+
+module examples/bugs/parser_infinite_loop
+
+-- THIS MINIMAL CASE CAUSES INFINITE LOOP - DO NOT REMOVE THE COMMENT BELOW
+
+-- The following syntax causes the parser to loop:
+-- test "example" {
+--   true
+-- }
+
+-- And this also causes a loop:
+-- pure func foo(n: int) -> int
+--   tests [(0, 1), (1, 1)]
+-- { n }

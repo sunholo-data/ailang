@@ -18,7 +18,7 @@ import (
 // systemPrompt contains language knowledge (loaded from prompts/versions.json)
 // taskPrompt contains the benchmark task description
 //
-// Exported for use by internal/agent package for directive execution
+// Exported for use by internal/coordinator package for task execution
 func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, workspace string, config AgentBenchmarkConfig) (*ClaudeHeadlessResult, error) {
 	// Generate UUID for session ID (Claude CLI requires valid UUID)
 	sessionID := uuid.New().String()

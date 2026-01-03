@@ -1,0 +1,33 @@
+{
+  "id": "effect_pure_separation",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 16,
+  "output_tokens": 1200,
+  "total_tokens": 1216,
+  "cost_usd": 0.021256100000000003,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 17121,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 13\n",
+  "stderr": "Warning: stdlib version mismatch: expected dev, found v0.6.2 at /Users/mark/dev/sunholo/ailang/std\n\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution that demonstrates pure vs effectful function separation:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output: \"Result: 13\"\n\nLet me verify there are no extra newlines or formatting issues:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution is verified and correct. Let me summarize what was implemented:\n\n## Solution Summary\n\nThe AILANG program successfully demonstrates **pure vs effectful function separation**:\n\n### Pure Functions (no effects, enforced by type system):\n1. **`double(x: int) -\u003e int`** - Returns x * 2 (marked with `pure`)\n2. **`add(a: int, b: int) -\u003e int`** - Returns a + b (marked with `pure`)\n\n### Effectful Functions (with IO effects):\n1. **`printResult(label: string, value: int) -\u003e () ! {IO}`** - Performs IO by printing\n2. **`main() -\u003e () ! {IO}`** - Orchestrates the computation and calls effectful functions\n\n### Key Design Principles Demonstrated:\n- ✅ Pure functions use `pure func` keyword and have no `! {...}` effect annotation\n- ✅ Effectful functions declare their effects in the signature (e.g., `! {IO}`)\n- ✅ Pure functions can be safely called from effectful functions\n- ✅ The type system enforces this separation\n- ✅ Output is exactly as expected: \"Result: 13\"\n\nThe solution passes all verification steps with no extra whitespace or formatting issues.",
+  "expected_stdout": "Result: 13\n",
+  "timestamp": "2026-01-02T16:08:47.568344+01:00",
+  "code": "module benchmark/solution\n\nimport std/io (println)\n\n-- Pure function: no side effects, no effect annotation\npure func double(x: int) -\u003e int = x * 2\n\n-- Pure function: no side effects, no effect annotation\npure func add(a: int, b: int) -\u003e int = a + b\n\n-- Effectful function: performs IO\nfunc printResult(label: string, value: int) -\u003e () ! {IO} {\n  let result = label ++ \": \" ++ show(value);\n  println(result)\n}\n\n-- Effectful function: orchestrates computation and printing\nexport func main() -\u003e () ! {IO} {\n  let doubled = double(5);\n  let sum = add(doubled, 3);\n  printResult(\"Result\", sum)\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.2",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 13,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file to understand the structure:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution that demonstrates pure vs effectful function separation:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the exact expected output: \"Result: 13\"\n\nLet me verify there are no extra newlines or formatting issues:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution is verified and correct. Let me summarize what was implemented:\n\n## Solution Summary\n\nThe AILANG program successfully demonstrates **pure vs effectful function separation**:\n\n### Pure Functions (no effects, enforced by type system):\n1. **`double(x: int) -\u003e int`** - Returns x * 2 (marked with `pure`)\n2. **`add(a: int, b: int) -\u003e int`** - Returns a + b (marked with `pure`)\n\n### Effectful Functions (with IO effects):\n1. **`printResult(label: string, value: int) -\u003e () ! {IO}`** - Performs IO by printing\n2. **`main() -\u003e () ! {IO}`** - Orchestrates the computation and calls effectful functions\n\n### Key Design Principles Demonstrated:\n- ✅ Pure functions use `pure func` keyword and have no `! {...}` effect annotation\n- ✅ Effectful functions declare their effects in the signature (e.g., `! {IO}`)\n- ✅ Pure functions can be safely called from effectful functions\n- ✅ The type system enforces this separation\n- ✅ Output is exactly as expected: \"Result: 13\"\n\nThe solution passes all verification steps with no extra whitespace or formatting issues.",
+  "eval_mode": "agent"
+}

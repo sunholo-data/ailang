@@ -1,109 +1,120 @@
 ---
 sidebar_position: 13
 title: Collaboration Hub
-description: Human-AI collaboration via the web UI and background agent
+description: Human-AI collaboration via the web UI and coordinator daemon
 ---
 
 # Collaboration Hub Guide
 
-The AILANG Collaboration Hub enables human-AI collaboration through a web UI and background agent.
+The AILANG Collaboration Hub enables human-AI collaboration through a web UI and the coordinator daemon.
 
 ## Installation
 
 ### Building from Source
 
 ```bash
-# Build ailang-agent only
-make build-agent
-
-# Or build all binaries (ailang + ailang-agent)
-make build-all
+# Build ailang
+make build
 
 # Install to $GOPATH/bin (makes it available system-wide)
-make install-agent
-
-# Or install all binaries
-make install-all
+make install
 ```
 
 After installation, verify it works:
 
 ```bash
-ailang-agent --version
-# ailang-agent version 0.4.5-dev
+ailang --version
+ailang coordinator status
 ```
 
 ## Quick Start
 
-### 1. Start the Server
+### Using Make (Recommended)
+
+The easiest way to start everything:
+
+```bash
+# Start both server and coordinator daemon
+make services-start
+
+# Check status
+make services-status
+
+# Stop all services
+make services-stop
+```
+
+### Manual Start
+
+#### 1. Start the Server
 
 ```bash
 ailang serve
 ```
 
-This opens [http://localhost:1956](http://localhost:1956) with:
+This opens [http://localhost:1957](http://localhost:1957) with:
 - **Messages tab** - Send directives to agents, see results
 - **Approvals tab** - Approve/reject capability requests
+- **Task Execution tab** - Watch real-time task progress from coordinator
 
-### 2. Start the Agent
+#### 2. Start the Coordinator Daemon
 
 In a separate terminal:
 
 ```bash
-ailang-agent --instance-id my-agent --db ~/.ailang/state/collaboration.db
+ailang coordinator start
 ```
 
-The agent:
-- Polls for new messages every 2 seconds
-- Executes directives using Claude Code
-- Sends results back to the UI
+The coordinator:
+- Watches for new messages automatically
+- Executes tasks in isolated git worktrees
+- Streams progress to the dashboard in real-time
+- Stores results in SQLite
 
-### 3. Send a Directive
+#### 3. Send a Task
 
-In the web UI:
+From the CLI:
+```bash
+ailang messages send coordinator "Create a hello.go file" --title "New file"
+```
+
+Or from the web UI:
 1. Click **New Thread**
 2. Type a directive: `Create a hello.go file that prints "Hello, World!"`
 3. Click **Send**
 
-Watch the agent execute and return results!
+Watch the coordinator execute in real-time!
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   Browser (localhost:1956)                   │
-│  ┌─────────────────┐  ┌─────────────────────────────────┐   │
-│  │ Messages Tab    │  │ Approvals Tab                   │   │
-│  │ - Send tasks    │  │ - Approve Net/FS capabilities   │   │
-│  │ - See results   │  │ - Reject risky operations       │   │
-│  └─────────────────┘  └─────────────────────────────────┘   │
+│                   Browser (localhost:1957)                   │
+│  ┌───────────────┐  ┌───────────────┐  ┌─────────────────┐  │
+│  │ Messages Tab  │  │ Approvals Tab │  │ Task Execution  │  │
+│  │ - Send tasks  │  │ - Approve caps│  │ - Live progress │  │
+│  │ - See results │  │ - Reject risky│  │ - Real-time     │  │
+│  └───────────────┘  └───────────────┘  └─────────────────┘  │
 └────────────────────────────┬────────────────────────────────┘
                              │ WebSocket + REST API
                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    ailang serve                              │
-│  - HTTP server on port 1956                                 │
-│  - WebSocket for real-time updates                          │
+│                    ailang serve (:1957)                      │
+│  - HTTP server on port 1957                                 │
+│  - WebSocket /ws for real-time updates                      │
 │  - REST API: /api/threads, /api/messages, /api/approvals   │
-└────────────────────────────┬────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│              ~/.ailang/state/collaboration.db               │
-│  - threads: conversation threads                            │
-│  - messages: directives and results                         │
-│  - approvals: capability requests                           │
-└────────────────────────────┬────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    ailang-agent                              │
-│  - Polls for messages every 2 seconds                       │
-│  - Detects required capabilities (IO, FS, Net)             │
-│  - Requests approval for sensitive operations               │
-│  - Executes via Claude Code headless mode                   │
-│  - Reports results back to database                         │
-└─────────────────────────────────────────────────────────────┘
+│  - Coordinator endpoint: /api/coordinator/events            │
+└─────────────────┬──────────────────────┬────────────────────┘
+                  │                      │
+                  ▼                      ▼
+┌─────────────────────────────┐  ┌────────────────────────────┐
+│ ~/.ailang/state/            │  │   Coordinator Daemon       │
+│    collaboration.db         │  │   (ailang coordinator)     │
+│  - threads                  │  │  - Polls for messages      │
+│  - messages                 │  │  - Executes in worktrees   │
+│  - approvals                │←─│  - POSTs events to server  │
+│  - coordinator tasks        │  │  - Claude Code/Gemini CLI  │
+└─────────────────────────────┘  └────────────────────────────┘
 ```
 
 ## Approval Workflow
@@ -142,7 +153,7 @@ Agent: [Approval received]
 ### Server
 
 ```bash
-# Start server (default port 1956)
+# Start server (default port 1957)
 ailang serve
 
 # Custom port
@@ -152,17 +163,36 @@ ailang serve --port 8080
 ailang serve --db /path/to/collab.db
 ```
 
-### Agent
+### Coordinator Daemon
 
 ```bash
-# Start agent
-ailang-agent --instance-id my-agent --db ~/.ailang/state/collaboration.db
+# Start coordinator daemon
+ailang coordinator start
 
-# Custom poll interval (seconds)
-ailang-agent --instance-id my-agent --poll-interval 5
+# Check status
+ailang coordinator status
 
-# Show version
-ailang-agent --version
+# Stop daemon
+ailang coordinator stop
+
+# Start with options
+ailang coordinator start --poll-interval 10s --max-worktrees 5
+```
+
+### Service Management (Make)
+
+```bash
+# Start both server and coordinator
+make services-start
+
+# Stop both
+make services-stop
+
+# Restart with fresh build
+make services-restart
+
+# Check status of both
+make services-status
 ```
 
 ## Database Schema
@@ -219,25 +249,25 @@ CREATE TABLE approvals (
 
 ```bash
 # List threads
-curl http://localhost:1956/api/threads
+curl http://localhost:1957/api/threads
 
 # Create thread
-curl -X POST http://localhost:1956/api/threads \
+curl -X POST http://localhost:1957/api/threads \
   -H "Content-Type: application/json" \
   -d '{"title": "Build a CLI tool"}'
 
 # Get thread
-curl http://localhost:1956/api/threads/{thread_id}
+curl http://localhost:1957/api/threads/{thread_id}
 ```
 
 ### Messages
 
 ```bash
 # Get messages for thread
-curl http://localhost:1956/api/messages?thread_id={thread_id}
+curl http://localhost:1957/api/messages?thread_id={thread_id}
 
 # Send message
-curl -X POST http://localhost:1956/api/messages \
+curl -X POST http://localhost:1957/api/messages \
   -H "Content-Type: application/json" \
   -d '{
     "thread_id": "...",
@@ -254,23 +284,86 @@ curl -X POST http://localhost:1956/api/messages \
 
 ```bash
 # List pending approvals
-curl http://localhost:1956/api/approvals?status=pending
+curl http://localhost:1957/api/approvals?status=pending
 
 # Approve
-curl -X POST http://localhost:1956/api/approvals/{id}/approve \
+curl -X POST http://localhost:1957/api/approvals/{id}/approve \
   -H "Content-Type: application/json" \
   -d '{"notes": "Looks safe"}'
 
 # Reject
-curl -X POST http://localhost:1956/api/approvals/{id}/reject \
+curl -X POST http://localhost:1957/api/approvals/{id}/reject \
   -H "Content-Type: application/json" \
   -d '{"notes": "Too risky"}'
+```
+
+### Coordinator API
+
+The coordinator daemon integrates with the Collaboration Hub for task management and approvals.
+
+#### Pending Approvals
+
+```bash
+# List pending approvals (enriched with task details)
+curl http://localhost:1957/api/coordinator/pending
+
+# Response includes task context:
+# {
+#   "id": "approval-123",
+#   "task_id": "task-456",
+#   "type": "task_completion",
+#   "status": "pending",
+#   "worktree_path": "/Users/.../.ailang/state/worktrees/coordinator/task-456",
+#   "session_id": "claude-session-abc",
+#   "task_title": "Fix parser bug",
+#   "task_status": "pending_approval",
+#   "provider": "claude-code"
+# }
+```
+
+#### Approve/Reject Tasks
+
+```bash
+# Approve changes (merges worktree to main branch)
+curl -X POST http://localhost:1957/api/coordinator/approve/approval-123
+
+# Reject changes (preserves worktree for inspection)
+curl -X POST http://localhost:1957/api/coordinator/reject/approval-123
+```
+
+#### Task Diff
+
+```bash
+# Get git diff for a task's worktree
+curl http://localhost:1957/api/coordinator/tasks/task-456/diff
+
+# Returns git diff output showing all changes made by the agent
+```
+
+#### Task Events
+
+```bash
+# Get execution events for a task (tool calls, output, etc.)
+curl http://localhost:1957/api/coordinator/tasks/task-456/events
+```
+
+#### Coordinator Events (Internal)
+
+```bash
+# POST events from coordinator daemon (used internally)
+curl -X POST http://localhost:1957/api/coordinator/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task_id": "...",
+    "stream_type": "status",
+    "status": "running"
+  }'
 ```
 
 ### Health Check
 
 ```bash
-curl http://localhost:1956/health
+curl http://localhost:1957/health
 # {"status":"healthy","connections":1,"timestamp":1732888800}
 ```
 
@@ -280,49 +373,129 @@ curl http://localhost:1956/health
 
 ```bash
 # Check if port is in use
-lsof -i :1956
+lsof -i :1957
 
 # Use different port
 ailang serve --port 8080
 ```
 
-### Agent not receiving messages
+### Coordinator not receiving messages
 
 ```bash
-# Verify database path matches
-ailang serve --db ~/.ailang/state/collaboration.db
-ailang-agent --db ~/.ailang/state/collaboration.db
+# Check coordinator status
+ailang coordinator status
 
-# Check agent logs (runs in foreground)
-ailang-agent --instance-id test
+# Check logs
+tail -f ~/.ailang/logs/coordinator.log
+
+# Restart services
+make services-restart
 ```
+
+### Streaming not working
+
+If events aren't appearing in the dashboard:
+
+```bash
+# 1. Verify server is running
+curl http://127.0.0.1:1957/health
+
+# 2. Check coordinator can reach server
+# (Should see "HTTP broadcaster initialized" in logs)
+tail ~/.ailang/logs/coordinator.log | grep broadcaster
+
+# 3. Restart both services in correct order
+make services-restart
+```
+
+**Note:** The server must start before the coordinator. Use `make services-start` to ensure correct order.
 
 ### Messages stuck as "pending"
 
-The agent may have crashed. Restart it:
+The coordinator may have stopped. Check and restart:
 
 ```bash
-ailang-agent --instance-id my-agent --db ~/.ailang/state/collaboration.db
+ailang coordinator status
+make services-restart
 ```
 
 ### Approval timeout
 
 Default approval timeout is 60 seconds. If no human approves in time, the directive is cancelled.
 
+## Multi-Agent Workflows
+
+The Collaboration Hub supports chained agent workflows where completion of one agent triggers another.
+
+### Agent Configuration
+
+Agents are configured in `~/.ailang/config.yaml`:
+
+```yaml
+coordinator:
+  default_provider: claude
+
+  agents:
+    - id: design-doc-creator
+      label: "Design Doc Creator"
+      inbox: design-doc-creator
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-planner]
+      auto_approve_handoffs: false
+
+    - id: sprint-planner
+      label: "Sprint Planner"
+      inbox: sprint-planner
+      workspace: /path/to/project
+      trigger_on_complete: [sprint-executor]
+
+    - id: sprint-executor
+      label: "Sprint Executor"
+      inbox: sprint-executor
+      workspace: /path/to/project
+      trigger_on_complete: []
+
+  github_sync:
+    enabled: true
+    interval_secs: 300
+    target_inbox: design-doc-creator
+```
+
+See [Coordinator Guide](/docs/guides/coordinator) for full configuration reference.
+
+### Approval Gates
+
+When `auto_approve_handoffs: false`, the dashboard shows approval requests before triggering the next agent:
+
+1. Agent completes task → Approval request created
+2. Dashboard shows pending approval with:
+   - Worktree path (click to inspect changes)
+   - Git diff viewer
+   - Session ID for continuity
+3. Human reviews and approves/rejects
+4. Approved → Next agent triggered with session context
+5. Rejected → Worktree preserved, no handoff
+
 ## Current Limitations
 
-:::warning Work in Progress
-The Collaboration Hub is functional but has some limitations:
+:::info Status
+The Collaboration Hub is functional with the coordinator daemon providing real-time streaming and multi-agent workflows.
 :::
 
-1. **No background daemon** - Agent must run in foreground
-2. **No project settings** - Agent executes in temp workspace, doesn't load `.claude/`
-3. **No persistent config** - All settings via CLI flags
-4. **No agent status UI** - Can't see if agent is running from the web UI
+**Completed:**
+- Real-time task streaming to dashboard
+- Service management via Make targets
+- Coordinator daemon with auto-retry queue
+- Multi-agent workflows with approval gates
+- GitHub issue sync integration
+- Session continuity across agent handoffs
 
-These are planned for v0.5.0 (Background Agent Daemon feature).
+**Planned improvements:**
+- Agent status indicator in UI
+- Cloud storage backends (Firestore, DynamoDB)
 
 ## See Also
 
+- [Coordinator Guide](/docs/guides/coordinator) - Multi-agent workflows with approval gates
 - [Agent Messaging](/docs/guides/agent-messaging) - CLI-based messaging between projects
 - [Evaluation Guide](/docs/guides/evaluation) - Running AI benchmarks

@@ -318,3 +318,147 @@ func TestStrSplitType(t *testing.T) {
 	// We can't easily inspect the curried function structure here,
 	// but we verify it builds without panicking
 }
+
+// TestStringReverse tests the _string_reverse builtin
+func TestStringReverse(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Basic cases
+		{"empty string", "", ""},
+		{"single character", "a", "a"},
+		{"two characters", "ab", "ba"},
+
+		// ASCII strings
+		{"hello world", "hello", "olleh"},
+		{"digits", "12345", "54321"},
+		{"special characters", "!@#$%", "%$#@!"},
+		{"mixed alphanumeric", "abc123", "321cba"},
+
+		// Unicode - emoji
+		{"single emoji", "🎉", "🎉"},
+		{"two emoji", "🎉🎊", "🎊🎉"},
+		{"emoji and text", "a🎉b", "b🎉a"},
+		{"multiple emoji", "🎈🎊🎉", "🎉🎊🎈"},
+
+		// Unicode - accented characters
+		{"accented cafe", "café", "éfac"},
+		{"accented greek", "αβγ", "γβα"},
+		{"mixed accents", "é à ñ", "ñ à é"},
+
+		// Complex Unicode
+		{"emoji with spaces", "🎉 🎊", "🎊 🎉"},
+		{"mixed multilingual", "hello🎉世界", "界世🎉olleh"},
+		{"newline character", "hello\nworld", "dlrow\nolleh"},
+		{"tab character", "hello\tworld", "dlrow\tolleh"},
+
+		// Edge cases
+		{"single space", " ", " "},
+		{"multiple spaces", "   ", "   "},
+		{"whitespace only", "\t\n ", " \n\t"},
+		{"long string", "abcdefghijklmnopqrstuvwxyz", "zyxwvutsrqponmlkjihgfedcba"},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the builtin
+			args := []eval.Value{&eval.StringValue{Value: tt.input}}
+			result, err := stringReverseImpl(ctx.EffContext, args)
+
+			if err != nil {
+				t.Fatalf("stringReverseImpl() returned error: %v", err)
+			}
+
+			// Check that result is a StringValue
+			strVal, ok := result.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("stringReverseImpl() returned %T, expected *eval.StringValue", result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("reverse(%q) = %q, want %q", tt.input, strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestStringReverseWrongArgType tests error handling for wrong argument types
+func TestStringReverseWrongArgType(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	// Test with integer instead of string
+	args := []eval.Value{&eval.IntValue{Value: 42}}
+	_, err := stringReverseImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("stringReverseImpl() should return error for wrong arg type, got nil")
+	}
+
+	// Test with bool
+	args = []eval.Value{&eval.BoolValue{Value: true}}
+	_, err = stringReverseImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("stringReverseImpl() should return error for bool arg type, got nil")
+	}
+}
+
+// TestStringReverseType verifies the type signature is correctly constructed
+func TestStringReverseType(t *testing.T) {
+	typ := makeStringReverseType()
+	if typ == nil {
+		t.Error("makeStringReverseType() returned nil")
+	}
+	// Type should be: String -> String
+	// We can't easily inspect the function structure here,
+	// but we verify it builds without panicking
+}
+
+// TestStringReverseIdempotent tests that reversing twice returns original
+func TestStringReverseIdempotent(t *testing.T) {
+	tests := []string{
+		"hello",
+		"🎉🎊",
+		"café",
+		"123",
+		"",
+		"a",
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			// First reverse
+			args1 := []eval.Value{&eval.StringValue{Value: input}}
+			result1, err := stringReverseImpl(ctx.EffContext, args1)
+			if err != nil {
+				t.Fatalf("first reverse failed: %v", err)
+			}
+
+			reversed, ok := result1.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("expected *eval.StringValue, got %T", result1)
+			}
+
+			// Second reverse
+			args2 := []eval.Value{reversed}
+			result2, err := stringReverseImpl(ctx.EffContext, args2)
+			if err != nil {
+				t.Fatalf("second reverse failed: %v", err)
+			}
+
+			doubleReversed, ok := result2.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("expected *eval.StringValue, got %T", result2)
+			}
+
+			if doubleReversed.Value != input {
+				t.Errorf("reverse(reverse(%q)) = %q, want %q",
+					input, doubleReversed.Value, input)
+			}
+		})
+	}
+}

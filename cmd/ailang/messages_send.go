@@ -22,7 +22,7 @@ func runMessagesSend(args []string) {
 
 	// GitHub sync flags
 	github := fs.Bool("github", false, "Also create a GitHub issue")
-	msgType := fs.String("type", "", "Message type: bug, feature, general (implies --github)")
+	msgType := fs.String("type", "", "Message category (any string; bug/feature imply --github)")
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
 	githubUser := fs.String("github-user", "", "Override expected GitHub user (bypass config.expected_user)")
 
@@ -67,24 +67,15 @@ func runMessagesSend(args []string) {
 		msgTitle = truncateString(payload, 50)
 	}
 
-	// Determine category from --type flag
-	var category string
-	if *msgType != "" {
-		switch *msgType {
-		case "bug":
-			category = messaging.CategoryBug
-		case "feature":
-			category = messaging.CategoryFeature
-		case "general":
-			category = messaging.CategoryGeneral
-		default:
-			fmt.Fprintf(os.Stderr, "%s: invalid --type value '%s' (must be bug, feature, or general)\n", red("Error"), *msgType)
-			os.Exit(1)
-		}
-	}
+	// Determine category from --type flag (any string allowed)
+	category := *msgType
 
-	// If --type is specified, imply --github
-	syncToGitHub := *github || *msgType != ""
+	// Special behavior for known types: bug/feature imply --github
+	knownGitHubTypes := map[string]bool{
+		messaging.CategoryBug:     true,
+		messaging.CategoryFeature: true,
+	}
+	syncToGitHub := *github || knownGitHubTypes[category]
 
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
