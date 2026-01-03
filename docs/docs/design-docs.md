@@ -29,6 +29,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-COORD-GITHUB-AUTO-ROUTING Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-auto-routing-sprint-plan.md)
 - [M-COORD-GITHUB-AUTO-ROUTING: GitHub-Driven Autonomous Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-auto-routing.md)
 - [Sprint Plan: M-COORD-GITHUB-AUTO-ROUTING Completion](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-github-complete-sprint-plan.md)
+- [Sprint Plan: M-COORD-STABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-stable-sprint-plan.md)
 - [M-COORD-STABLE: Coordinator Daemon Stability & Agent Collaboration Foundation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coord-stable.md)
 - [M-COORD-FEEDBACK Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coordinator-feedback-loop-sprint-plan.md)
 - [M-COORD-FEEDBACK: Coordinator Executor Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-coordinator-feedback-loop.md)
@@ -41,6 +42,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-DX22 Sprint Plan: ADT Constructor Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution-sprint-plan.md)
 - [M-DX22: Go Codegen - ADT Constructor Resolution Ambiguity](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-dx22-adt-constructor-resolution.md)
 - [M-GITHUB-USER-OVERRIDE: GitHub Account Override Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-github-user-override.md)
+- [M-OTEL: OpenTelemetry OTLP Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-otel-integration.md)
+- [M-OTEL Sprint Plan: OpenTelemetry OTLP Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-otel-sprint-plan.md)
 - [Sprint Plan: M-PATTERN-GUARDS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards-sprint-plan.md)
 - [M-PATTERN-GUARDS: Pattern Guard Evaluation in Codegen](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)
 - [M-RECORD-PATTERNS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-record-patterns-sprint-plan.md)
@@ -406,4 +409,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 276 design documents across 40 versions.*
+*Generated at build time. 279 design documents across 40 versions.*

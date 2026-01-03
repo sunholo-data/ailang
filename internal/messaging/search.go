@@ -1,12 +1,16 @@
 package messaging
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/sunholo/ailang/internal/builtins"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // SearchOptions configures semantic search parameters
@@ -29,6 +33,20 @@ type SearchHit struct {
 
 // SemanticSearch finds messages similar to the query using SimHash or embeddings
 func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
+	// Start span for search operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.search",
+		trace.WithAttributes(
+			attribute.String("search.query", opts.Query),
+			attribute.Bool("search.use_neural", opts.UseNeural),
+			attribute.Float64("search.threshold", opts.Threshold),
+			attribute.Int("search.limit", opts.Limit),
+			attribute.Int("search.max_scan", opts.MaxScan),
+			attribute.String("search.inbox", opts.Inbox),
+		),
+	)
+	defer span.End()
+
 	// Apply defaults
 	if opts.Threshold <= 0 {
 		opts.Threshold = 0.70
@@ -42,7 +60,15 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 
 	// Use neural search if requested
 	if opts.UseNeural {
-		return s.neuralSearch(opts)
+		results, err := s.neuralSearch(opts)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "neural search failed")
+			return nil, err
+		}
+		span.SetAttributes(attribute.Int("search.result_count", len(results)))
+		span.SetStatus(codes.Ok, "search completed")
+		return results, nil
 	}
 
 	// Compute query simhash
@@ -99,6 +125,8 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 	}
 
 	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "error iterating search results")
 		return nil, err
 	}
 
@@ -115,6 +143,8 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 		hits = hits[:opts.Limit]
 	}
 
+	span.SetAttributes(attribute.Int("search.result_count", len(hits)))
+	span.SetStatus(codes.Ok, "search completed")
 	return hits, nil
 }
 

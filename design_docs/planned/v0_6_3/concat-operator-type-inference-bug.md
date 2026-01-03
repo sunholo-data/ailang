@@ -1,11 +1,16 @@
-# String Concatenation Operator (`++`) Type Inference Bug
+# Concatenation Operator (`++`) Type Inference Bug
 
 **Status**: Planned
-**Target**: v0.4.5
-**Priority**: P1 (Medium) - Blocks some benchmarks, has workarounds
-**Estimated**: 1-2 days (4-8 hours)
+**Target**: v0.6.3
+**Priority**: P1 (High) - Blocks common list operations
+**Estimated**: 4-8 hours
 **Dependencies**: None
-**Bug ID**: M-BUG-CONCAT-INFERENCE
+**Bug ID**: M-CONCAT-INFERENCE
+**Master Doc**: [v0_6_3-bug-fixes.md](v0_6_3-bug-fixes.md)
+
+> ⚠️ **UPDATE (v0.6.2)**: The original bug (defaulting to list when string intended)
+> appears to have been over-corrected. The current bug is the **opposite**: `++` now
+> defaults to **string concat** when **list concat** is intended. See examples below.
 
 ## AI-First Alignment Check
 

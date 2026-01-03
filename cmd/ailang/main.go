@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"github.com/sunholo/ailang/internal/prompt"
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"go.opentelemetry.io/otel"
 )
 
 //go:embed all:prompts
@@ -220,6 +223,9 @@ func main() {
 	case "axioms":
 		axiomsCommand()
 
+	case "trace":
+		traceCommand()
+
 	case "coordinator":
 		if err := coordinatorCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -313,6 +319,21 @@ func runCommand() {
 }
 
 func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool) {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
+	// Create root span for the entire run command
+	// All child spans (compile, execute) will be linked under this
+	tracer := otel.Tracer("ailang.cli")
+	ctx, rootSpan := tracer.Start(ctx, "ailang run: "+filename)
+	defer rootSpan.End()
+
 	// Configure stdlib resolver via environment variables
 	// CLI flags override environment variables
 	if stdlibPath != "" {
@@ -420,7 +441,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		IsREPL:   false,
 	}
 
-	result, err := pipeline.Run(cfg, src)
+	result, err := pipeline.RunWithContext(ctx, cfg, src)
 	if err != nil {
 		if jsonOutput {
 			// Structured JSON output

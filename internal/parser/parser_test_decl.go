@@ -35,11 +35,8 @@ func (p *Parser) parseTestDecl() *ast.TestDecl {
 	var body []ast.Expr
 
 	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
-		// Skip newlines
-		if p.curTokenIs(lexer.NEWLINE) {
-			p.nextToken()
-			continue
-		}
+		// Track position to detect infinite loops (M-PARSER-LOOP)
+		startPos := p.curPos()
 
 		// Parse expression or assert statement
 		expr := p.parseStatement()
@@ -47,9 +44,17 @@ func (p *Parser) parseTestDecl() *ast.TestDecl {
 			body = append(body, expr)
 		}
 
-		// Skip optional semicolons and newlines
-		for p.curTokenIs(lexer.SEMICOLON) || p.curTokenIs(lexer.NEWLINE) {
+		// Skip optional semicolons
+		for p.curTokenIs(lexer.SEMICOLON) {
 			p.nextToken()
+		}
+
+		// Safety: if we didn't advance, force advance to prevent infinite loop
+		if p.curPos() == startPos && !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+			p.report("PAR_INFINITE_LOOP",
+				"parser stuck - unrecognized syntax in test block",
+				"Check for unimplemented test/property syntax")
+			p.nextToken() // Force advance
 		}
 	}
 
@@ -92,20 +97,10 @@ func (p *Parser) parsePropertyDecl() *ast.PropertyDecl {
 	}
 	p.nextToken() // consume LBRACE
 
-	// Skip newlines
-	for p.curTokenIs(lexer.NEWLINE) {
-		p.nextToken()
-	}
-
 	// Parse the property (forall(...) => expr)
 	property := p.parseProperty()
 	if property == nil {
 		return nil
-	}
-
-	// Skip newlines
-	for p.curTokenIs(lexer.NEWLINE) {
-		p.nextToken()
 	}
 
 	// Expect closing brace

@@ -7,7 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
+
+// messagingTracer is the OpenTelemetry tracer for messaging instrumentation.
+// When no TracerProvider is configured, this returns a no-op tracer with ~2ns overhead.
+var messagingTracer = otel.Tracer("ailang.messaging")
 
 // Store provides CRUD operations for the collaboration hub database.
 type Store struct {

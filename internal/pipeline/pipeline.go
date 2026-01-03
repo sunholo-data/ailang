@@ -28,6 +28,8 @@
 package pipeline
 
 import (
+	"context"
+
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
@@ -35,7 +37,12 @@ import (
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/types"
+	"go.opentelemetry.io/otel"
 )
+
+// compilerTracer is the OpenTelemetry tracer for compiler instrumentation.
+// When no TracerProvider is configured, this returns a no-op tracer with ~2ns overhead.
+var compilerTracer = otel.Tracer("ailang.compiler")
 
 // Mode determines pipeline execution behavior
 type Mode int
@@ -132,6 +139,12 @@ type Result struct {
 // Use AILANG_METRICS_VERBOSE=1 for detailed timing breakdown to stderr.
 // Use AILANG_HUB_URL to send metrics to the collaboration hub.
 func Run(cfg Config, src Source) (Result, error) {
+	return RunWithContext(context.Background(), cfg, src)
+}
+
+// RunWithContext runs the compilation pipeline with an explicit context for tracing.
+// Use this when you have a parent span that should be the root of compilation traces.
+func RunWithContext(ctx context.Context, cfg Config, src Source) (Result, error) {
 	// Initialize metrics collector (only active if AILANG_METRICS=1)
 	isModule := !(src.IsREPL || src.Filename == "" || src.Filename == "<repl>")
 	metrics := NewMetricsCollector(src.Filename, isModule)
@@ -141,10 +154,10 @@ func Run(cfg Config, src Source) (Result, error) {
 
 	// For simple expressions/REPL, use the original single-file pipeline
 	if src.IsREPL || src.Filename == "" || src.Filename == "<repl>" {
-		result, err = runSingle(cfg, src)
+		result, err = runSingleWithContext(ctx, cfg, src)
 	} else {
 		// For files with potential imports, use the module pipeline
-		result, err = runModule(cfg, src)
+		result, err = runModuleWithContext(ctx, cfg, src)
 	}
 
 	// Record metrics from result and finalize

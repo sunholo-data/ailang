@@ -1,82 +1,59 @@
--- ⚠️ WARNING: This example does not work with current implementation
--- Requires: property-based testing (M-TESTING), inline test blocks
--- Status: Quicksort function works! But property/test syntax not implemented yet
--- See design_docs/planned/v0_4_2/m-testing-property-based-testing.md
---
 -- quicksort.ail: Functional sorting demonstration
+-- Status: ✅ Working (v0.6.3)
 --
--- This example shows how AILANG's Hindley-Milner type inference handles
--- polymorphic functions WITHOUT explicit type parameters. The quicksort
--- function works on ANY orderable type - the Ord constraint is inferred
--- automatically from the use of < and >= operators.
+-- This example shows two approaches to sorting in AILANG:
+-- 1. Custom quicksort using filter and pattern matching
+-- 2. Using std/list sortBy (merge sort)
 --
--- Type inferred: ∀a. [Ord a] => [a] -> [a]
--- (For all types a that implement Ord, takes a list of a and returns a list of a)
+-- Note: Property-based testing (test/property blocks) planned for future release.
 
 module examples/experimental/quicksort
 
--- Generic quicksort for any orderable type
--- Note: No [a: Ord] syntax needed - type inference handles it!
--- The Ord constraint is inferred from the < and >= operators below
-pure func quicksort(list: [a]) -> [a] {
+import std/io (println)
+import std/list (filter, sortBy, length)
+
+-- Custom quicksort using filter
+pure func quicksort(list: [int]) -> [int] =
   match list {
     [] => [],
     [x] => [x],
     [pivot, ...rest] => {
-      -- Ord constraint inferred from < operator
       let less = filter(\x. x < pivot, rest);
-      -- Ord constraint inferred from >= operator
       let greater = filter(\x. x >= pivot, rest);
       quicksort(less) ++ [pivot] ++ quicksort(greater)
     }
   }
-}
 
--- Helper function to count occurrences
--- Eq constraint inferred from == operator
-pure func count(x: a, list: [a]) -> int {
+-- Count occurrences (for verification)
+pure func count(x: int, list: [int]) -> int =
   match list {
     [] => 0,
     [h, ...t] => if h == x then 1 + count(x, t) else count(x, t)
   }
+
+-- Comparator for sortBy
+func cmpInt(a: int, b: int) -> int = a - b
+
+export func main() -> () ! {IO} {
+  let input = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5];
+
+  println("Input: " ++ show(input));
+  println("");
+
+  -- Custom quicksort
+  let qs = quicksort(input);
+  println("Custom quicksort: " ++ show(qs));
+
+  -- Using std/list sortBy (merge sort)
+  let ms = sortBy(cmpInt, input);
+  println("std/list sortBy:  " ++ show(ms));
+
+  -- Verify same length
+  println("");
+  println("Quicksort length: " ++ show(length(qs)));
+  println("sortBy length:    " ++ show(length(ms)));
+
+  -- Count preservation check
+  println("Count of 5 in original: " ++ show(count(5, input)));
+  println("Count of 5 in sorted:   " ++ show(count(5, qs)))
 }
-
--- The following property-based tests and inline test blocks are planned for v0.4.2
--- See: design_docs/planned/v0_4_2/m-testing-property-based-testing.md
---
--- PLANNED (not yet implemented):
---
--- property "sort is idempotent" {
---   forall(list: [int]) =>
---     quicksort(quicksort(list)) == quicksort(list)
--- }
---
--- property "sort preserves length" {
---   forall(list: [int]) =>
---     length(quicksort(list)) == length(list)
--- }
---
--- property "sort produces ordered output" {
---   forall(list: [int]) => {
---     let sorted = quicksort(list)
---     forall(i: int) where i >= 0 && i < length(sorted) - 1 =>
---       sorted[i] <= sorted[i + 1]
---   }
--- }
---
--- property "sort is permutation" {
---   forall(list: [int], x: int) =>
---     count(x, list) == count(x, quicksort(list))
--- }
---
--- test "quicksort examples" {
---   assert quicksort([]) == []
---   assert quicksort([1]) == [1]
---   assert quicksort([3, 1, 2]) == [1, 2, 3]
---   assert quicksort([5, 2, 8, 1, 9]) == [1, 2, 5, 8, 9]
---   assert quicksort([1, 1, 1]) == [1, 1, 1]
--- }
-
--- For now, here's a simple manual test you can run in the REPL:
--- > quicksort([3, 1, 4, 1, 5, 9, 2, 6])
--- Expected: [1, 1, 2, 3, 4, 5, 6, 9]

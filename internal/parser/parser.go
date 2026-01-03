@@ -21,6 +21,9 @@ type Parser struct {
 	// Surface sugar control (S-CALL0, S-CONS, S-ARROWTYPE)
 	strictSyntaxMode bool // When true, syntactic sugar is not allowed
 	sugarUsed        bool // Tracks if sugar was used in this parse (for REPL feedback)
+
+	// Loop detection (M-PARSER-LOOP): track last position to detect infinite loops
+	lastExprPos ast.Pos
 }
 
 type (

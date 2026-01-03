@@ -132,11 +132,6 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	//     body
 	//   }
 
-	// Skip any newlines/whitespace before tests/properties/body
-	for p.peekTokenIs(lexer.NEWLINE) {
-		p.nextToken()
-	}
-
 	// Parse tests if present (before body)
 	// Check for both TESTS token (legacy) and contextual "tests" keyword
 	if p.peekTokenIs(lexer.TESTS) || p.peekIsContextualKeyword("tests") {

@@ -120,89 +120,83 @@
     },
     {
       "path": "experimental/factorial.ail",
-      "status": "experimental",
+      "status": "aspirational",
       "tags": [
         "func",
         "recursion",
         "tests",
         "future"
       ],
-      "description": "Factorial with func declarations and tests syntax",
+      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
       "requires": [
         "func",
         "tests",
         "properties"
       ],
-      "skip_reason": "func declarations not implemented"
+      "skip_reason": "tests/properties syntax not implemented. Running causes memory explosion."
     },
     {
       "path": "experimental/quicksort.ail",
-      "status": "experimental",
+      "status": "working",
       "tags": [
-        "func",
         "algorithms",
+        "sorting",
         "pattern-matching",
-        "future"
+        "stdlib"
       ],
-      "description": "Quicksort with advanced list patterns",
-      "requires": [
-        "func",
-        "list-patterns",
-        "properties"
-      ],
-      "skip_reason": "func and advanced patterns not implemented"
+      "description": "Functional sorting: custom quicksort and std/list sortBy"
     },
     {
       "path": "experimental/concurrent_pipeline.ail",
-      "status": "experimental",
+      "status": "aspirational",
       "tags": [
         "csp",
         "channels",
         "concurrency",
         "future"
       ],
-      "description": "CSP-based concurrent pipeline",
+      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
       "requires": [
         "channels",
         "spawn",
         "parallel",
         "session-types"
       ],
-      "skip_reason": "CSP not implemented"
+      "skip_reason": "CSP not implemented. Running causes memory explosion."
     },
     {
       "path": "experimental/web_api.ail",
-      "status": "experimental",
+      "status": "aspirational",
       "tags": [
         "quasiquotes",
         "http",
         "effects",
         "future"
       ],
-      "description": "Web API with SQL/HTML quasiquotes",
+      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
       "requires": [
         "quasiquotes",
         "http-effects",
         "db-effects"
       ],
-      "skip_reason": "Quasiquotes not implemented"
+      "skip_reason": "Quasiquotes not implemented. Running causes memory explosion."
     },
     {
       "path": "experimental/ai_agent_integration.ail",
-      "status": "experimental",
+      "status": "aspirational",
       "tags": [
         "ai",
         "effects",
         "introspection",
         "future"
       ],
-      "description": "AI agent integration demonstration",
+      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
       "requires": [
         "effects",
         "introspection",
         "json-schema"
       ],
-      "skip_reason": "Full effect system not implemented"
+      "skip_reason": "Uses arrow lambda syntax and spread operators not yet implemented"
     },
     {
       "path": "adt_tree.ail",
@@ -571,14 +565,37 @@
       "description": "letrec_recursion.ail"
     },
     {
-      "path": "list_concat_match.ail",
-      "status": "working",
+      "path": "bugs/list_concat_match.ail",
+      "status": "broken",
       "tags": [
+        "bug",
         "list",
-        "pattern-matching",
-        "data-structures"
+        "type-inference"
       ],
-      "description": "Example: List Concatenation and Match Pattern Variables (M-DX17)"
+      "description": "Bug: ++ operator defaults to string concat in simple expressions. See bugs/concat_operator_list_inference.ail",
+      "skip_reason": "Type inference bug: ++ defaults to string concat instead of list concat"
+    },
+    {
+      "path": "bugs/concat_operator_list_inference.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "list",
+        "type-inference"
+      ],
+      "description": "Bug reproduction: ++ operator list concat inference issue with workaround",
+      "skip_reason": "Demonstrates ++ operator type inference bug with workaround"
+    },
+    {
+      "path": "bugs/parser_infinite_loop_on_test_syntax.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "parser",
+        "critical"
+      ],
+      "description": "Bug: Parser infinite loop on test/property syntax causes 67GB memory usage",
+      "skip_reason": "DO NOT UNCOMMENT - documents parser loop bug. See M-PARSER-LOOP design doc."
     },
     {
       "path": "list_pattern_cons.ail",
@@ -885,6 +902,15 @@
       "description": "String Split example"
     },
     {
+      "path": "runnable/string_contains.ail",
+      "status": "working",
+      "tags": [
+        "string",
+        "stdlib"
+      ],
+      "description": "Demonstrates std/string contains and find functions"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [
@@ -966,10 +992,11 @@
     }
   ],
   "statistics": {
-    "total": 102,
-    "working": 97,
-    "experimental": 5,
-    "coverage": 0.951
+    "total": 105,
+    "working": 98,
+    "aspirational": 4,
+    "broken": 3,
+    "coverage": 0.933
   },
   "milestones": {
     "completed": [

@@ -1,12 +1,16 @@
 package messaging
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/builtins"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // InboxMessage represents a message in the unified inbox system
@@ -73,6 +77,18 @@ type InboxListOptions struct {
 
 // InsertInboxMessage adds a new message to the inbox
 func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
+	// Start span for message send operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.send",
+		trace.WithAttributes(
+			attribute.String("message.to_inbox", msg.ToInbox),
+			attribute.String("message.from_agent", msg.FromAgent),
+			attribute.String("message.type", msg.MessageType),
+			attribute.String("message.category", msg.Category),
+		),
+	)
+	defer span.End()
+
 	if msg.ID == "" {
 		msg.ID = uuid.New().String()
 	}
@@ -133,11 +149,31 @@ func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
 
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to insert message")
+	} else {
+		span.SetAttributes(attribute.String("message.id", msg.ID))
+		span.SetStatus(codes.Ok, "message sent")
+	}
+
 	return err
 }
 
 // ListInboxMessages returns messages matching the given options
 func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error) {
+	// Start span for message list operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.list",
+		trace.WithAttributes(
+			attribute.String("list.inbox", opts.Inbox),
+			attribute.Bool("list.unread_only", opts.UnreadOnly),
+			attribute.Bool("list.collapsed", opts.Collapsed),
+			attribute.Int("list.limit", opts.Limit),
+		),
+	)
+	defer span.End()
+
 	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
 	args := []interface{}{}
 
@@ -185,6 +221,8 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to query messages")
 		return nil, err
 	}
 	defer rows.Close()
@@ -233,11 +271,28 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 		messages = append(messages, msg)
 	}
 
-	return messages, rows.Err()
+	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "error iterating messages")
+		return messages, err
+	}
+
+	span.SetAttributes(attribute.Int("list.result_count", len(messages)))
+	span.SetStatus(codes.Ok, "messages listed")
+	return messages, nil
 }
 
 // GetInboxMessage returns a single message by ID (UUID or message_id)
 func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
+	// Start span for message read operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.read",
+		trace.WithAttributes(
+			attribute.String("message.id", id),
+		),
+	)
+	defer span.End()
+
 	row := s.db.QueryRow(`
 		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, status, created_at, read_at, expires_at
 		FROM inbox_messages
@@ -252,9 +307,12 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 
 	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &msg.Status, &createdAt, &readAt, &expiresAt)
 	if err == sql.ErrNoRows {
+		span.SetStatus(codes.Ok, "message not found")
 		return nil, nil
 	}
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read message")
 		return nil, err
 	}
 
@@ -286,6 +344,12 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 		}
 	}
 
+	span.SetAttributes(
+		attribute.String("message.from_agent", msg.FromAgent),
+		attribute.String("message.to_inbox", msg.ToInbox),
+		attribute.String("message.type", msg.MessageType),
+	)
+	span.SetStatus(codes.Ok, "message read")
 	return &msg, nil
 }
 
