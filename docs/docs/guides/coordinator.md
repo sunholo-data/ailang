@@ -752,6 +752,21 @@ The coordinator streams task execution events to the Collaboration Hub dashboard
 | `metrics` | Token usage, cost, duration |
 | `error` | Error messages |
 
+## Cloud Tracing
+
+The coordinator integrates with Google Cloud Trace for distributed tracing. Task executions, provider calls, and approval workflows are all traced.
+
+![AILANG Cloud Trace](/img/ailand-cloud-trace.png)
+
+Enable by setting `GOOGLE_CLOUD_PROJECT`:
+
+```bash
+export GOOGLE_CLOUD_PROJECT=your-project-id
+ailang coordinator start
+```
+
+For complete telemetry configuration (OTLP, Jaeger, dual export), see the [Telemetry Guide](./telemetry.md).
+
 ## Service Management
 
 ### Quick Start
