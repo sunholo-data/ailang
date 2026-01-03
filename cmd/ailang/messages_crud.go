@@ -140,7 +140,13 @@ func runMessagesAck(args []string) {
 		os.Exit(1)
 	}
 
-	msgID := fs.Arg(0)
+	// Resolve short ID prefix to full ID
+	msgID, err := resolveMessageID(store, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
 	if err := store.MarkInboxMessageRead(msgID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -168,7 +174,13 @@ func runMessagesUnack(args []string) {
 	}
 	defer store.Close()
 
-	msgID := fs.Arg(0)
+	// Resolve short ID prefix to full ID
+	msgID, err := resolveMessageID(store, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
 	if err := store.MarkInboxMessageUnread(msgID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -198,7 +210,13 @@ func runMessagesRead(args []string) {
 	}
 	defer store.Close()
 
-	msgID := fs.Arg(0)
+	// Resolve short ID prefix to full ID
+	msgID, err := resolveMessageID(store, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
 	msg, err := store.GetInboxMessage(msgID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -222,4 +240,71 @@ func runMessagesRead(args []string) {
 	}
 
 	printInboxMessage(*msg, true)
+}
+
+func runMessagesForward(args []string) {
+	fs := flag.NewFlagSet("messages forward", flag.ExitOnError)
+	toInbox := fs.String("to", "", "Target inbox (required)")
+	reason := fs.String("reason", "", "Reason for forwarding (logged)")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if *toInbox == "" {
+		fmt.Fprintf(os.Stderr, "%s: --to flag is required\n", red("Error"))
+		fmt.Fprintf(os.Stderr, "\nUsage: ailang messages forward <MSG_ID> --to <inbox>\n")
+		fmt.Fprintf(os.Stderr, "\nAvailable inboxes: user, design-doc-creator, sprint-planner, sprint-executor, coordinator\n")
+		os.Exit(1)
+	}
+
+	if fs.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, "%s: message ID required\n", red("Error"))
+		os.Exit(1)
+	}
+
+	store, err := openStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	// Resolve short ID prefix to full ID
+	msgID, err := resolveMessageID(store, fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Get the message to verify it exists and show what we're forwarding
+	msg, err := store.GetInboxMessage(msgID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if msg == nil {
+		fmt.Fprintf(os.Stderr, "%s: message not found\n", red("Error"))
+		os.Exit(1)
+	}
+
+	oldInbox := msg.ToInbox
+
+	// Forward the message (update to_id in database)
+	if err := store.ForwardInboxMessage(msgID, *toInbox); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Log the forward
+	reasonStr := ""
+	if *reason != "" {
+		reasonStr = fmt.Sprintf(" (reason: %s)", *reason)
+	}
+
+	fmt.Printf("%s Forwarded message from '%s' to '%s'%s\n",
+		green("✓"), oldInbox, *toInbox, reasonStr)
+	fmt.Printf("   Title: %s\n", msg.Title)
+	fmt.Printf("   ID: %s\n", msgID[:8]+"...")
 }

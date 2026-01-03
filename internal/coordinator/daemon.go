@@ -188,6 +188,11 @@ func (d *Daemon) Run() error {
 	// Start GitHub sync if enabled
 	if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
 		go d.runGitHubSync()
+
+		// Start label resync if enabled (M-MSG-ROUTING)
+		if d.coordConfig.GitHubSync.ResyncLabels {
+			go d.runLabelResync()
+		}
 	}
 
 	// Start GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)

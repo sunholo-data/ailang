@@ -17,10 +17,12 @@ type CoordinatorConfig struct {
 
 // GitHubSyncConfig configures automatic GitHub issue import.
 type GitHubSyncConfig struct {
-	Enabled      bool     `yaml:"enabled" json:"enabled"`
-	IntervalSecs int      `yaml:"interval_secs" json:"interval_secs"` // Default: 300 (5 min)
-	WatchLabels  []string `yaml:"watch_labels" json:"watch_labels"`   // Filter by labels
-	TargetInbox  string   `yaml:"target_inbox" json:"target_inbox"`   // Where to send imported issues
+	Enabled           bool     `yaml:"enabled" json:"enabled"`
+	IntervalSecs      int      `yaml:"interval_secs" json:"interval_secs"`             // Default: 300 (5 min)
+	WatchLabels       []string `yaml:"watch_labels" json:"watch_labels"`               // Filter by labels
+	TargetInbox       string   `yaml:"target_inbox" json:"target_inbox"`               // Where to send imported issues
+	ResyncLabels      bool     `yaml:"resync_labels" json:"resync_labels"`             // Re-check labels on imported messages
+	ResyncIntervalSec int      `yaml:"resync_interval_secs" json:"resync_interval_secs"` // Default: 3600 (1 hour)
 }
 
 // ConfigFile represents the full ~/.ailang/config.yaml structure.

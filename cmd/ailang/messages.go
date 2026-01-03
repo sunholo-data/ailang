@@ -43,7 +43,12 @@ func (d *humanDuration) Set(s string) error {
 // This uses the unified collaboration.db for both CLI and dashboard access.
 func messagesCommand() {
 	if len(os.Args) < 3 {
-		runMessagesList([]string{})
+		// Check if stdin is a terminal (interactive)
+		if isTerminal() {
+			runMessagesInteractive()
+		} else {
+			runMessagesList([]string{})
+		}
 		return
 	}
 
@@ -65,6 +70,8 @@ func messagesCommand() {
 		runMessagesSend(args)
 	case "read":
 		runMessagesRead(args)
+	case "forward", "fwd":
+		runMessagesForward(args)
 	case "watch":
 		runMessagesWatch(args)
 	case "cleanup":

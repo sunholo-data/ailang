@@ -345,6 +345,22 @@ func (s *Store) MarkAllInboxMessagesRead(inbox string) (int64, error) {
 	return result.RowsAffected()
 }
 
+// ForwardInboxMessage moves a message to a different inbox
+func (s *Store) ForwardInboxMessage(id string, toInbox string) error {
+	result, err := s.db.Exec(`
+		UPDATE inbox_messages SET to_inbox = ? WHERE id = ? OR message_id = ?
+	`, toInbox, id, id)
+	if err != nil {
+		return err
+	}
+
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("message not found")
+	}
+	return nil
+}
+
 // InboxMessageExistsByGitHub checks if a message with the given GitHub issue already exists
 func (s *Store) InboxMessageExistsByGitHub(repo string, issueNumber int) (bool, error) {
 	var count int
