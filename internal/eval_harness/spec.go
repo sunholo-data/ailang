@@ -65,32 +65,49 @@ func (s *BenchmarkSpec) SupportsLanguage(lang string) bool {
 // PromptForLanguage returns the prompt with language-specific base prompt + task prompt
 func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 	var basePrompt string
+	var taskDescription string
 
-	// Load language-specific prompt file if available
-	if s.PromptFiles != nil {
-		if promptFile, ok := s.PromptFiles[lang]; ok {
-			data, err := os.ReadFile(promptFile)
-			if err == nil {
-				basePrompt = string(data)
+	// For AILANG: ALWAYS use teaching prompt as base, treat s.Prompt as task description
+	// This ensures the model always has AILANG syntax reference
+	if lang == "ailang" {
+		// Always load the teaching prompt for AILANG
+		basePrompt = getDefaultPrompt("ailang")
+
+		// The inline prompt field is the task description for AILANG
+		if s.TaskPrompt != "" {
+			taskDescription = s.TaskPrompt
+		} else if s.Prompt != "" {
+			taskDescription = s.Prompt
+		}
+	} else {
+		// For other languages, use the original logic
+		// Load language-specific prompt file if available
+		if s.PromptFiles != nil {
+			if promptFile, ok := s.PromptFiles[lang]; ok {
+				data, err := os.ReadFile(promptFile)
+				if err == nil {
+					basePrompt = string(data)
+				}
 			}
-			// If file not found, fall back to inline prompt or default
 		}
+
+		// If no language-specific prompt file, use inline prompt or default
+		if basePrompt == "" {
+			if s.Prompt != "" {
+				basePrompt = s.Prompt
+			} else {
+				basePrompt = getDefaultPrompt(lang)
+			}
+		}
+
+		// For non-AILANG, task_prompt is appended separately
+		taskDescription = s.TaskPrompt
 	}
 
-	// If no language-specific prompt file, use inline prompt or default
-	if basePrompt == "" {
-		if s.Prompt != "" {
-			basePrompt = s.Prompt
-		} else {
-			// Default minimal prompt for languages without specific guidance
-			basePrompt = getDefaultPrompt(lang)
-		}
-	}
-
-	// Append task-specific prompt
+	// Build full prompt
 	fullPrompt := basePrompt
-	if s.TaskPrompt != "" {
-		fullPrompt = fullPrompt + "\n\n## Task\n\n" + s.TaskPrompt
+	if taskDescription != "" {
+		fullPrompt = fullPrompt + "\n\n## Task\n\n" + taskDescription
 	}
 
 	// Normalize language names for <LANG> placeholder

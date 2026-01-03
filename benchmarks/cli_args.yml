@@ -2,7 +2,7 @@ id: cli_args
 description: "Read file from CLI argument, process, write result (IO + FS)"
 languages: ["python", "ailang"]
 entrypoint: "main"
-caps: ["IO", "FS"]
+caps: ["IO", "FS", "Env"]
 difficulty: "hard"
 expected_gain: "high"
 prompt: |

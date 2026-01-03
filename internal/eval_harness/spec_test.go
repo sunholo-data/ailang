@@ -97,18 +97,38 @@ func TestPromptForLanguage(t *testing.T) {
 		Prompt: "Write code in <LANG> that prints hello",
 	}
 
-	tests := []struct {
-		lang     string
-		expected string
-	}{
-		{"python", "Write code in Python 3 that prints hello"},
-		{"ailang", "Write code in AILANG that prints hello"},
+	// Test Python - uses inline prompt directly
+	pythonResult := spec.PromptForLanguage("python")
+	expectedPython := "Write code in Python 3 that prints hello"
+	if pythonResult != expectedPython {
+		t.Errorf("PromptForLanguage(python) = %s, want %s", pythonResult, expectedPython)
 	}
 
-	for _, tt := range tests {
-		result := spec.PromptForLanguage(tt.lang)
-		if result != tt.expected {
-			t.Errorf("PromptForLanguage(%s) = %s, want %s", tt.lang, result, tt.expected)
-		}
+	// Test AILANG - should always include teaching prompt with task appended
+	ailangResult := spec.PromptForLanguage("ailang")
+
+	// For AILANG, the result should:
+	// 1. Start with the teaching prompt (contains "AILANG v0.6")
+	// 2. Have the task description appended after "## Task"
+	if len(ailangResult) < 100 {
+		t.Errorf("PromptForLanguage(ailang) result too short, expected teaching prompt + task")
 	}
+
+	// Check that teaching prompt is included (starts with # AILANG)
+	if ailangResult[:9] != "# AILANG " {
+		t.Errorf("PromptForLanguage(ailang) should start with teaching prompt header, got: %s", ailangResult[:50])
+	}
+
+	// Check that task description is appended
+	if !containsSubstring(ailangResult, "## Task") {
+		t.Errorf("PromptForLanguage(ailang) should contain '## Task' section")
+	}
+	if !containsSubstring(ailangResult, "prints hello") {
+		t.Errorf("PromptForLanguage(ailang) should contain task description 'prints hello'")
+	}
+}
+
+// containsSubstring checks if s contains substr
+func containsSubstring(s, substr string) bool {
+	return findSubstring(s, substr) != -1
 }
