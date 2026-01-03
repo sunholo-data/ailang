@@ -37,14 +37,33 @@ func NewTaskChain(poster *GitHubPoster, store Store, watcher *ApprovalWatcher) *
 }
 
 // StartTask initializes a new GitHub-linked task at the design stage.
+// It first claims the issue to prevent race conditions with other coordinator instances.
 func (tc *TaskChain) StartTask(ctx context.Context, taskID string, issueNum int) error {
+	// Claim the issue first to prevent race conditions
+	// If another coordinator already claimed it, we skip this task
+	if tc.poster != nil {
+		if err := tc.poster.ClaimIssue(issueNum); err != nil {
+			log.Printf("[TaskChain] Issue #%d already claimed or claim failed: %v", issueNum, err)
+			return fmt.Errorf("failed to claim issue #%d: %w", issueNum, err)
+		}
+		log.Printf("[TaskChain] Claimed issue #%d for task %s", issueNum, taskID)
+	}
+
 	// Link task to GitHub issue
 	if err := tc.store.SetTaskGithubIssue(ctx, taskID, issueNum); err != nil {
+		// Release claim on failure
+		if tc.poster != nil {
+			_ = tc.poster.ReleaseIssue(issueNum)
+		}
 		return fmt.Errorf("failed to link task to issue: %w", err)
 	}
 
 	// Set initial stage
 	if err := tc.store.SetTaskStage(ctx, taskID, TaskStageDesign); err != nil {
+		// Release claim on failure
+		if tc.poster != nil {
+			_ = tc.poster.ReleaseIssue(issueNum)
+		}
 		return fmt.Errorf("failed to set task stage: %w", err)
 	}
 
@@ -395,6 +414,11 @@ func (tc *TaskChain) OnMergeApproved(ctx context.Context, event *ApprovalEvent) 
 		if err := tc.poster.CloseIssue(event.IssueNumber, comment); err != nil {
 			return fmt.Errorf("failed to close issue: %w", err)
 		}
+
+		// Release the claim label since task is complete
+		if err := tc.poster.ReleaseIssue(event.IssueNumber); err != nil {
+			log.Printf("[TaskChain] Warning: Failed to release issue claim: %v", err)
+		}
 	}
 
 	// The actual merge is handled by the daemon's approval workflow
@@ -426,7 +450,7 @@ func (tc *TaskChain) OnNeedsRevision(ctx context.Context, event *ApprovalEvent) 
 }
 
 // OnError is called when an error occurs during any stage.
-// Posts an error comment to GitHub.
+// Posts an error comment to GitHub and releases the claim.
 func (tc *TaskChain) OnError(ctx context.Context, taskID string, errMsg string) error {
 	task, err := tc.store.GetTask(ctx, taskID)
 	if err != nil {
@@ -444,6 +468,13 @@ func (tc *TaskChain) OnError(ctx context.Context, taskID string, errMsg string) 
 	} else if tc.poster != nil {
 		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post error comment: %v", err)
+		}
+	}
+
+	// Release the claim label so the issue can be retried
+	if tc.poster != nil {
+		if err := tc.poster.ReleaseIssue(task.GithubIssue); err != nil {
+			log.Printf("[TaskChain] Warning: Failed to release issue claim: %v", err)
 		}
 	}
 
