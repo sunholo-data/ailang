@@ -21,6 +21,9 @@ export pure func compare(a: string, b: string) -> int { _str_compare(a, b) }
 -- returns first index or -1
 export pure func find(hay: string, needle: string) -> int { _str_find(hay, needle) }
 
+-- returns true if hay contains needle
+export pure func contains(hay: string, needle: string) -> bool { find(hay, needle) >= 0 }
+
 -- String parsing (returns Option)
 export pure func stringToInt(s: string) -> Option[int] { _stringToInt(s) }
 export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
