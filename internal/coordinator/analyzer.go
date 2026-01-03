@@ -52,6 +52,12 @@ func (a *TaskAnalyzer) Analyze(task *Task) *AnalyzedTask {
 		a.mu.Unlock()
 	}
 
+	// Detect capabilities and impact level
+	cd := NewCapabilityDetector()
+	analyzed.Capabilities = cd.DetectCapabilities(task.Content)
+	analyzed.ImpactLevel = cd.ClassifyImpact(analyzed.Capabilities)
+	analyzed.EstimatedCost = cd.EstimateTotalCost(analyzed.Capabilities, 0.01) // Base cost $0.01
+
 	return analyzed
 }
 

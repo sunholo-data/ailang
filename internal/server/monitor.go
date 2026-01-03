@@ -146,8 +146,8 @@ func (s *Server) collectProcessStats() []ProcessStats {
 			StartedAt:   agent.StartedAt,
 			DurationSec: int(time.Since(agent.StartedAt).Seconds()),
 			Status:      "running",
-			Source:      "ui",           // UI-spawned agents
-			Command:     "ailang-agent", // Default command for UI agents
+			Source:      "ui",               // UI-spawned agents
+			Command:     "ailang-coordinator", // Coordinator daemon
 		}
 
 		// Check if process is still running
@@ -339,7 +339,7 @@ func getTotalResourceUsage(pid int) (float64, float64) {
 // findAILangProcesses scans for any ailang-related processes not tracked by the server
 // This catches orphaned processes from crashed sessions AND eval suite processes
 func findAILangProcesses() []ProcessStats {
-	// Find processes matching "ailang" pattern (includes ailang, ailang-agent, etc.)
+	// Find processes matching "ailang" pattern (includes ailang, coordinator, etc.)
 	cmd := exec.Command("pgrep", "-f", "ailang")
 	output, err := cmd.Output()
 	if err != nil {
@@ -392,17 +392,10 @@ func findAILangProcesses() []ProcessStats {
 			source = "cli"
 			// Extract filename if possible
 			command = extractRunCommand(cmdLine)
-		} else if strings.Contains(cmdLine, "ailang-agent") {
-			// Extract --instance-id value if present
-			agentInstanceID := extractFlagValue(cmdLine, "--instance-id")
-			if agentInstanceID != "" {
-				instanceID = agentInstanceID
-				command = agentInstanceID
-			} else {
-				instanceID = fmt.Sprintf("agent_%d", pid)
-				command = "agent"
-			}
-			source = "agent"
+		} else if strings.Contains(cmdLine, "coordinator") {
+			instanceID = fmt.Sprintf("coordinator_%d", pid)
+			source = "coordinator"
+			command = "coordinator"
 		} else if strings.Contains(cmdLine, "ailang repl") {
 			instanceID = fmt.Sprintf("repl_%d", pid)
 			source = "cli"

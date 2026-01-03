@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -151,6 +152,10 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN sprint_plan_path TEXT",
 		// Generic agent tracking
 		"ALTER TABLE tasks ADD COLUMN agent_id TEXT",
+		// M-DEPRECATE-AILANG-AGENT: Capability detection columns
+		"ALTER TABLE tasks ADD COLUMN capabilities_json TEXT",
+		"ALTER TABLE tasks ADD COLUMN impact_level TEXT",
+		"ALTER TABLE tasks ADD COLUMN estimated_cost REAL DEFAULT 0",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -166,13 +171,21 @@ func (s *SQLiteStore) migrate() error {
 
 // CreateTask creates a new task
 func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
+	// Serialize capabilities to JSON
+	var capsJSON []byte
+	if len(task.Capabilities) > 0 {
+		capsJSON, _ = json.Marshal(task.Capabilities)
+	}
+
 	query := `
-		INSERT INTO tasks (id, message_id, thread_id, title, content, type, priority, status, workspace, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, message_id, thread_id, title, content, type, priority, status, workspace,
+		                   capabilities_json, impact_level, estimated_cost, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.Title, task.Content,
-		task.Type, task.Priority, task.Status, task.Workspace, task.CreatedAt,
+		task.Type, task.Priority, task.Status, task.Workspace,
+		string(capsJSON), task.ImpactLevel, task.EstimatedCost, task.CreatedAt,
 	)
 	return err
 }
@@ -183,7 +196,8 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
-		       error, output, cost, tokens_used
+		       error, output, cost, tokens_used,
+		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -228,7 +242,8 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
-		       error, output, cost, tokens_used
+		       error, output, cost, tokens_used,
+		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE 1=1
 	`)
 
@@ -614,7 +629,8 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
-		       error, output, cost, tokens_used
+		       error, output, cost, tokens_used,
+		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE stage = ?
 		ORDER BY created_at DESC
 	`
@@ -705,6 +721,8 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
+	var capsJSON, impactLevel sql.NullString
+	var estimatedCost sql.NullFloat64
 
 	err := row.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
@@ -712,6 +730,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
+		&capsJSON, &impactLevel, &estimatedCost,
 	)
 	if err != nil {
 		return nil, err
@@ -761,6 +780,16 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if sprintPlanPath.Valid {
 		task.SprintPlanPath = sprintPlanPath.String
+	}
+	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
+	if capsJSON.Valid && capsJSON.String != "" {
+		_ = json.Unmarshal([]byte(capsJSON.String), &task.Capabilities)
+	}
+	if impactLevel.Valid {
+		task.ImpactLevel = impactLevel.String
+	}
+	if estimatedCost.Valid {
+		task.EstimatedCost = estimatedCost.Float64
 	}
 
 	return task, nil
@@ -774,6 +803,8 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var githubIssue sql.NullInt64
+	var capsJSON, impactLevel sql.NullString
+	var estimatedCost sql.NullFloat64
 
 	err := rows.Scan(
 		&task.ID, &task.MessageID, &threadID, &task.Title, &task.Content,
@@ -781,6 +812,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
+		&capsJSON, &impactLevel, &estimatedCost,
 	)
 	if err != nil {
 		return nil, err
@@ -830,6 +862,16 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if sprintPlanPath.Valid {
 		task.SprintPlanPath = sprintPlanPath.String
+	}
+	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
+	if capsJSON.Valid && capsJSON.String != "" {
+		_ = json.Unmarshal([]byte(capsJSON.String), &task.Capabilities)
+	}
+	if impactLevel.Valid {
+		task.ImpactLevel = impactLevel.String
+	}
+	if estimatedCost.Valid {
+		task.EstimatedCost = estimatedCost.Float64
 	}
 
 	return task, nil

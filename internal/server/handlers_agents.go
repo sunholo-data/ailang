@@ -6,9 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
-	"time"
 )
 
 // GET /api/agents - List known agent IDs and running agents
@@ -73,61 +71,10 @@ func (s *Server) handleSpawnAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	s.agentsMu.RUnlock()
 
-	// Spawn the agent process
-	cmd := exec.Command("ailang-agent", "--instance-id", body.InstanceID, "--db", s.dbPath)
-
-	// Create telemetry parser to capture and broadcast stdout telemetry
-	// We don't know the PID yet, so use 0 and update after Start()
-	telemetryParser := NewTelemetryParser(body.InstanceID, 0, s.wsServer)
-
-	// Tee stdout to both os.Stdout (for logging) and telemetry parser
-	cmd.Stdout = NewTeeWriter(os.Stdout, telemetryParser)
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to spawn agent: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Update telemetry parser with actual PID
-	telemetryParser.pid = cmd.Process.Pid
-
-	// Track the process
-	agent := &AgentProcess{
-		InstanceID: body.InstanceID,
-		PID:        cmd.Process.Pid,
-		StartedAt:  time.Now(),
-		cmd:        cmd,
-	}
-
-	s.agentsMu.Lock()
-	s.agents[body.InstanceID] = agent
-	s.agentsMu.Unlock()
-
-	// Start goroutine to clean up when process exits
-	go func() {
-		exitErr := cmd.Wait()
-		if exitErr != nil {
-			log.Printf("Agent %s (PID %d) exited with error: %v", body.InstanceID, agent.PID, exitErr)
-		} else {
-			log.Printf("Agent %s (PID %d) exited normally", body.InstanceID, agent.PID)
-		}
-
-		// Broadcast final telemetry update
-		telemetryParser.MarkComplete(exitErr)
-
-		s.agentsMu.Lock()
-		delete(s.agents, body.InstanceID)
-		s.agentsMu.Unlock()
-	}()
-
-	log.Printf("Spawned agent %s with PID %d", body.InstanceID, agent.PID)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(agent); err != nil {
-		log.Printf("Failed to encode agent response: %v", err)
-	}
+	// ailang-agent is deprecated - use coordinator instead
+	// Return an error directing users to the new approach
+	http.Error(w, "ailang-agent is deprecated. Use 'ailang coordinator start' instead. "+
+		"See: https://ailang.sunholo.com/docs/guides/collaboration-hub", http.StatusGone)
 }
 
 // DELETE /api/agents/{id} - Stop a running agent

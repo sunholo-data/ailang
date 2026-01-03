@@ -1,36 +1,30 @@
 ---
 sidebar_position: 13
 title: Collaboration Hub
-description: Human-AI collaboration via the web UI and background agent
+description: Human-AI collaboration via the web UI and coordinator daemon
 ---
 
 # Collaboration Hub Guide
 
-The AILANG Collaboration Hub enables human-AI collaboration through a web UI and background agent.
+The AILANG Collaboration Hub enables human-AI collaboration through a web UI and the coordinator daemon.
 
 ## Installation
 
 ### Building from Source
 
 ```bash
-# Build ailang-agent only
-make build-agent
-
-# Or build all binaries (ailang + ailang-agent)
-make build-all
+# Build ailang
+make build
 
 # Install to $GOPATH/bin (makes it available system-wide)
-make install-agent
-
-# Or install all binaries
-make install-all
+make install
 ```
 
 After installation, verify it works:
 
 ```bash
-ailang-agent --version
-# ailang-agent version 0.4.5-dev
+ailang --version
+ailang coordinator status
 ```
 
 ## Quick Start
@@ -199,19 +193,6 @@ make services-restart
 
 # Check status of both
 make services-status
-```
-
-### Legacy Agent (Optional)
-
-```bash
-# Start standalone agent (alternative to coordinator)
-ailang-agent --instance-id my-agent --db ~/.ailang/state/collaboration.db
-
-# Custom poll interval (seconds)
-ailang-agent --instance-id my-agent --poll-interval 5
-
-# Show version
-ailang-agent --version
 ```
 
 ## Database Schema

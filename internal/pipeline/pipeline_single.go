@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -39,7 +40,24 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			attribute.Bool("is_repl", src.IsREPL),
 		),
 	)
-	defer pipelineSpan.End()
+
+	// Capture starting memory for resource tracking
+	var startMem runtime.MemStats
+	runtime.ReadMemStats(&startMem)
+
+	// Deferred function to record memory metrics before span ends
+	defer func() {
+		var endMem runtime.MemStats
+		runtime.ReadMemStats(&endMem)
+		memoryDeltaBytes := int64(endMem.TotalAlloc - startMem.TotalAlloc)
+		allocsCount := int64(endMem.Mallocs - startMem.Mallocs)
+		pipelineSpan.SetAttributes(
+			attribute.Int64("compile.memory_delta_bytes", memoryDeltaBytes),
+			attribute.Int64("compile.allocs_count", allocsCount),
+			attribute.Int64("compile.heap_alloc_bytes", int64(endMem.HeapAlloc)),
+		)
+		pipelineSpan.End()
+	}()
 
 	// Initialize environments if not provided
 	if cfg.TypeEnv == nil {

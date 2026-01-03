@@ -2,6 +2,33 @@
 
 ## [v0.6.3] - 2026-01-03
 
+### Deprecated - ailang-agent Binary (M-DEPRECATE-AILANG-AGENT)
+
+Removed the standalone `ailang-agent` binary and `internal/agent/` package. The coordinator daemon (`ailang coordinator`) now handles all agent functionality with additional features:
+
+**Removed:**
+- `cmd/ailang-agent/` - Standalone agent binary (~430 LOC)
+- `internal/agent/` - Agent support package (~1,330 LOC)
+- `cmd/ailang/agent.go.bak` - Backup file
+- Makefile targets: `build-agent`, `install-agent`, `build-all`, `install-all`
+
+**Migrated to Coordinator:**
+- Capability detection (FS/Net/Shell/Budget) → `internal/coordinator/capability_detector.go`
+- Impact classification (low/medium/high) → Integrated into `TaskAnalyzer.Analyze()`
+- Pre-execution cost estimation → `EstimateTotalCost()`
+
+**Use Instead:**
+```bash
+# Old (deprecated)
+ailang-agent --instance-id my-agent
+
+# New
+ailang coordinator start
+ailang coordinator status
+```
+
+**Design Doc:** `design_docs/planned/v0_6_3/m-deprecate-ailang-agent.md`
+
 ### Added - Human-Friendly Tracing (M-OTEL-ENHANCED-TRACING-DX)
 
 Enhanced OpenTelemetry spans with human-readable context for faster debugging. Traces now include actionable error messages, code previews, and key identifiers visible directly in span attributes.

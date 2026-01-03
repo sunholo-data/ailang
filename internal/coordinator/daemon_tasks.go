@@ -259,18 +259,21 @@ func (d *Daemon) pollAndProcessTasks() error {
 		}
 
 		task := &TaskRecord{
-			ID:          taskID,
-			MessageID:   msg.ID,
-			AgentID:     agentID, // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
-			Title:       msg.Title,
-			Content:     msg.Content,
-			Type:        analyzed.Type,
-			Kind:        kind,
-			Priority:    CalculatePriority(analyzed),
-			Status:      TaskStatusPending,
-			Workspace:   workspace,
-			GithubIssue: msg.GithubIssue, // M-COORD-GITHUB-AUTO-ROUTING
-			CreatedAt:   msg.CreatedAt,
+			ID:            taskID,
+			MessageID:     msg.ID,
+			AgentID:       agentID, // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
+			Title:         msg.Title,
+			Content:       msg.Content,
+			Type:          analyzed.Type,
+			Kind:          kind,
+			Priority:      CalculatePriority(analyzed),
+			Status:        TaskStatusPending,
+			Workspace:     workspace,
+			GithubIssue:   msg.GithubIssue, // M-COORD-GITHUB-AUTO-ROUTING
+			CreatedAt:     msg.CreatedAt,
+			Capabilities:  analyzed.Capabilities,  // M-DEPRECATE-AILANG-AGENT
+			ImpactLevel:   analyzed.ImpactLevel,   // M-DEPRECATE-AILANG-AGENT
+			EstimatedCost: analyzed.EstimatedCost, // M-DEPRECATE-AILANG-AGENT
 		}
 
 		// Check for duplicates
@@ -332,8 +335,17 @@ func (d *Daemon) pollAndProcessTasks() error {
 			}
 		}
 
-		d.logger.Printf("Created task %s (type: %s, priority: %d, thread: %s, agent: %s, issue: #%d) from message %s",
-			task.ID, task.Type, task.Priority, task.ThreadID, agentID, task.GithubIssue, msg.ID)
+		// Log capability detection results
+		capStr := "none"
+		if len(analyzed.Capabilities) > 0 {
+			capTypes := make([]string, len(analyzed.Capabilities))
+			for i, cap := range analyzed.Capabilities {
+				capTypes[i] = string(cap.Type)
+			}
+			capStr = fmt.Sprintf("%v", capTypes)
+		}
+		d.logger.Printf("Created task %s (type: %s, priority: %d, impact: %s, caps: %s, est_cost: $%.2f, agent: %s, issue: #%d) from message %s",
+			task.ID, task.Type, task.Priority, task.ImpactLevel, capStr, task.EstimatedCost, agentID, task.GithubIssue, msg.ID)
 
 		// Mark message as read using the correct inbox adapter
 		if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
@@ -579,6 +591,17 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			attribute.Int64("task.tokens_out", int64(result.OutputTokens)),
 			attribute.Float64("task.cost_usd", result.Cost),
 			attribute.Bool("task.success", result.Success),
+		)
+	}
+
+	// Record resource metrics in span (peak CPU/memory)
+	if finalMetrics != nil {
+		span.SetAttributes(
+			attribute.Float64("task.peak_cpu_percent", finalMetrics.PeakCPU),
+			attribute.Float64("task.peak_memory_mb", finalMetrics.PeakMemory),
+			attribute.Float64("task.cpu_percent", finalMetrics.CPUPercent),
+			attribute.Float64("task.memory_mb", finalMetrics.MemoryMB),
+			attribute.Int("task.duration_sec", finalMetrics.DurationSec),
 		)
 	}
 
