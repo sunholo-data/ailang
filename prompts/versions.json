@@ -366,7 +366,7 @@
     },
     "v0.6.2": {
       "file": "prompts/v0.6.2.md",
-      "hash": "d95158821fb31006059527e1cdb4a99d687cdc4b091014fcc85454c29873c8d9",
+      "hash": "cfb01d2604fa8d7ea96d3a21f07b20d4707002ee07a752198f83bcc2dc70fefd",
       "description": "Add record pattern matching (M-RECORD-PATTERNS) and deriving (Eq) (M-DX19)",
       "created": "2025-12-25",
       "tags": [
