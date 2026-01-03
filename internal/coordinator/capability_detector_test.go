@@ -67,6 +67,37 @@ func TestCapabilityDetector_DetectCapabilities(t *testing.T) {
 			content: "download the file from https://example.com and save it",
 			wantCaps: []CapabilityType{CapabilityFS, CapabilityNet},
 		},
+		// New AILANG effect capabilities
+		{
+			name:     "IO capability for print operations",
+			content:  "print the result to the console",
+			wantCaps: []CapabilityType{CapabilityIO},
+		},
+		{
+			name:     "Clock capability for sleep operations",
+			content:  "sleep for 5 seconds then resume",
+			wantCaps: []CapabilityType{CapabilityClock},
+		},
+		{
+			name:     "Env capability for getenv operations",
+			content:  "use getenv to get the secret",
+			wantCaps: []CapabilityType{CapabilityEnv},
+		},
+		{
+			name:     "AI capability for LLM operations",
+			content:  "use claude to generate a summary",
+			wantCaps: []CapabilityType{CapabilityAI},
+		},
+		{
+			name:     "Debug capability for debugging",
+			content:  "add a breakpoint here",
+			wantCaps: []CapabilityType{CapabilityDebug},
+		},
+		{
+			name:     "multiple AILANG capabilities",
+			content:  "print the clock timestamp to console",
+			wantCaps: []CapabilityType{CapabilityIO, CapabilityClock},
+		},
 	}
 
 	for _, tt := range tests {
@@ -138,6 +169,32 @@ func TestCapabilityDetector_ClassifyImpact(t *testing.T) {
 			name:       "FS only is medium risk",
 			caps:       []Capability{{Type: CapabilityFS}},
 			wantImpact: "medium",
+		},
+		// New AILANG effect capabilities
+		{
+			name:       "AI is high risk",
+			caps:       []Capability{{Type: CapabilityAI}},
+			wantImpact: "high",
+		},
+		{
+			name:       "Env is medium risk",
+			caps:       []Capability{{Type: CapabilityEnv}},
+			wantImpact: "medium",
+		},
+		{
+			name:       "IO only is low risk",
+			caps:       []Capability{{Type: CapabilityIO}},
+			wantImpact: "low",
+		},
+		{
+			name:       "Clock only is low risk",
+			caps:       []Capability{{Type: CapabilityClock}},
+			wantImpact: "low",
+		},
+		{
+			name:       "Debug only is low risk",
+			caps:       []Capability{{Type: CapabilityDebug}},
+			wantImpact: "low",
 		},
 	}
 
@@ -246,6 +303,32 @@ func TestCapabilityDetector_FormatImpact(t *testing.T) {
 			name: "Budget capability",
 			caps: []Capability{{Type: CapabilityBudget}},
 			want: "May incur additional costs",
+		},
+		// New AILANG effect capabilities
+		{
+			name: "IO capability",
+			caps: []Capability{{Type: CapabilityIO}},
+			want: "Console I/O",
+		},
+		{
+			name: "Clock capability",
+			caps: []Capability{{Type: CapabilityClock}},
+			want: "Time/scheduling operations",
+		},
+		{
+			name: "Env capability",
+			caps: []Capability{{Type: CapabilityEnv}},
+			want: "May access environment variables",
+		},
+		{
+			name: "AI capability",
+			caps: []Capability{{Type: CapabilityAI}},
+			want: "HIGH RISK - External AI/LLM API calls",
+		},
+		{
+			name: "Debug capability",
+			caps: []Capability{{Type: CapabilityDebug}},
+			want: "Debugging operations",
 		},
 	}
 

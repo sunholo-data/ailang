@@ -298,15 +298,23 @@ func (cd *CapabilityDetector) ClassifyImpact(caps []Capability) string {
 		}
 	}
 
-	// Network or high-cost operations are medium risk
+	// AI operations are high risk (external API calls, potentially expensive)
 	for _, cap := range caps {
-		if cap.Type == CapabilityNet || cap.Type == CapabilityBudget {
+		if cap.Type == CapabilityAI {
+			return "high"
+		}
+	}
+
+	// Network, FS, Env, or high-cost operations are medium risk
+	for _, cap := range caps {
+		switch cap.Type {
+		case CapabilityNet, CapabilityBudget, CapabilityFS, CapabilityEnv:
 			return "medium"
 		}
 	}
 
-	// File system only is medium risk
-	return "medium"
+	// IO, Clock, Debug are low risk
+	return "low"
 }
 
 // FormatImpact formats a human-readable impact description
@@ -318,6 +326,8 @@ func (cd *CapabilityDetector) FormatImpact(caps []Capability) string {
 	var impacts []string
 	for _, cap := range caps {
 		switch cap.Type {
+		case CapabilityIO:
+			impacts = append(impacts, "Console I/O")
 		case CapabilityFS:
 			if len(cap.Paths) > 0 && cap.Paths[0] != "*" {
 				impacts = append(impacts, "May modify files: "+strings.Join(cap.Paths, ", "))
@@ -326,6 +336,14 @@ func (cd *CapabilityDetector) FormatImpact(caps []Capability) string {
 			}
 		case CapabilityNet:
 			impacts = append(impacts, "May make network requests")
+		case CapabilityClock:
+			impacts = append(impacts, "Time/scheduling operations")
+		case CapabilityEnv:
+			impacts = append(impacts, "May access environment variables")
+		case CapabilityAI:
+			impacts = append(impacts, "HIGH RISK - External AI/LLM API calls")
+		case CapabilityDebug:
+			impacts = append(impacts, "Debugging operations")
 		case CapabilityShell:
 			impacts = append(impacts, "HIGH RISK - Can execute arbitrary shell commands")
 		case CapabilityBudget:
