@@ -569,6 +569,7 @@ ailang eval-report results/ v0.5.10 --format=json      # Update dashboard
 - **github-issue-triage** - Monitor and triage GitHub issues against design docs, identify closable issues
 - **test-coverage-guardian** - Analyze test coverage, identify gaps, improve test quality
 - **perf-reviewer** - Review code for performance and run cross-language benchmarks (AILANG vs Python vs Go)
+- **trace-debugger** - Debug performance issues using OTEL traces, analyze bottlenecks, suggest new instrumentation
 
 **Complete skill documentation**: See [.claude/skills/README.md](.claude/skills/README.md)
 
@@ -586,6 +587,7 @@ Skills are invoked automatically by Claude when appropriate for the task. Just d
 - "Add a feature to the monitoring dashboard" → `collaboration-hub` skill
 - "Triage GitHub issues" or "What issues are open?" → `github-issue-triage` skill
 - "Benchmark AILANG vs Python" or "Review for performance" → `perf-reviewer` skill
+- "Why is compilation slow?" or "Debug with traces" → `trace-debugger` skill
 - "Start dev cycle" → `dev-cycle` agent (messages → design → sprint → implement)
 
 ### Skills vs Agents vs Commands
@@ -1176,6 +1178,46 @@ ailang coordinator watcher-status  # Check watcher state
 ```
 
 **For detailed documentation**: See [docs/guides/debugging.md](docs/guides/debugging.md)
+
+### Telemetry & Trace Debugging (v0.6.3+)
+
+**Use the `trace-debugger` skill for performance analysis and debugging with distributed traces.**
+
+**Quick Start:**
+```bash
+# Check telemetry configuration
+ailang trace status
+
+# List recent traces (requires GOOGLE_CLOUD_PROJECT set)
+ailang trace list --hours 1 --limit 10
+
+# View trace hierarchy with timing
+ailang trace view <trace-id>
+
+# Filter by operation type
+ailang trace list --filter "compile"
+ailang trace list --filter "eval.suite"
+```
+
+**When to use traces vs debug flags:**
+
+| Issue Type | Use Traces | Use Debug Flags |
+|------------|------------|-----------------|
+| Slow compilation | ✅ `ailang trace list --filter compile` | `--debug-compile` for phase timing |
+| Hang/infinite loop | ✅ Trace shows where it stopped | `--timeout 30s` for stack dump |
+| Type inference | 🔜 Future (`types.unify` span) | `DEBUG_MONO_VERBOSE=1` |
+| Eval performance | ✅ `eval.suite`, `eval.benchmark` spans | N/A |
+| Codegen fallbacks | 🔜 Future (`codegen.*` spans) | `DEBUG_CODEGEN=1` |
+
+**Instrumented components:**
+- Compiler pipeline (`compile.parse`, `compile.typecheck`, etc.)
+- Eval harness (`eval.suite`, `eval.benchmark`)
+- Messaging (`messages.send`, `messages.list`, `messages.search`)
+- AI providers (`anthropic.generate`, `openai.generate`, etc.)
+
+**Important limitation:** Traces only cover AILANG tooling, NOT generated Go code runtime.
+
+**For detailed patterns**: Use the `trace-debugger` skill or see [docs/docs/guides/telemetry.md](docs/docs/guides/telemetry.md)
 
 #### Keeping `ailang` Up to Date
 

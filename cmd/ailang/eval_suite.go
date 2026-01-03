@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -56,8 +57,16 @@ func discoverBenchmarks() []string {
 }
 
 func runEvalSuite() {
-	// Start parent span for the entire eval suite
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-eval")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
+	// Start parent span for the entire eval suite
 	ctx, suiteSpan := evalTracer.Start(ctx, "eval.suite")
 	defer suiteSpan.End()
 
@@ -497,7 +506,8 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 // runSingleBenchmark executes a single benchmark configuration
 func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
 	// Start span for this benchmark
-	ctx, benchSpan := evalTracer.Start(ctx, "eval.benchmark",
+	// Include benchmark ID in span name for easy identification in trace viewers
+	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
 		trace.WithAttributes(
 			attribute.String("benchmark.id", benchmarkID),
 			attribute.String("benchmark.model", model),

@@ -186,7 +186,8 @@ func traceListCommand() {
 		}
 
 		fmt.Printf("• %s%s\n", name, durationStr)
-		fmt.Printf("  ID: %s | Spans: %d | Started: %s\n", traceID[:16]+"...", spanCount, startTime)
+		// Show full trace ID so users can copy it for `trace view`
+		fmt.Printf("  ID: %s | Spans: %d | Started: %s\n", traceID, spanCount, startTime)
 
 		if labels, ok := t["labels"].(map[string]string); ok && len(labels) > 0 {
 			for k, v := range labels {
@@ -204,10 +205,20 @@ func traceListCommand() {
 func traceViewCommand() {
 	if flag.NArg() < 3 {
 		fmt.Println("Usage: ailang trace view <trace-id>")
+		fmt.Println()
+		fmt.Println("The trace ID must be the full 32-character hex ID from 'ailang trace list'")
 		return
 	}
 
 	traceID := flag.Arg(2)
+
+	// Validate trace ID format (should be 32 hex characters)
+	if len(traceID) != 32 {
+		fmt.Fprintf(os.Stderr, "Error: Invalid trace ID length (%d chars, expected 32)\n", len(traceID))
+		fmt.Fprintf(os.Stderr, "Use 'ailang trace list' to get the full trace ID\n")
+		os.Exit(1)
+	}
+
 	projectID := telemetry.GoogleCloudProject()
 	if projectID == "" {
 		fmt.Fprintf(os.Stderr, "Error: GOOGLE_CLOUD_PROJECT or OTLP_GOOGLE_CLOUD_PROJECT not set\n")
@@ -230,6 +241,8 @@ func traceViewCommand() {
 	resp, err := client.GetTrace(ctx, req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting trace: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nTip: Make sure you're using the full 32-character trace ID.\n")
+		fmt.Fprintf(os.Stderr, "View in browser: https://console.cloud.google.com/traces/explorer?project=%s&traceId=%s\n", projectID, traceID)
 		os.Exit(1)
 	}
 
