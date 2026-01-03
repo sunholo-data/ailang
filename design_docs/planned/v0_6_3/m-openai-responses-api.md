@@ -307,6 +307,7 @@ ailang eval-suite --models gpt5-1-codex-max --benchmarks fizzbuzz,recursion_fact
 - [ ] Module importable and usable outside eval harness
 - [ ] All tests passing (>80% coverage for new module)
 - [ ] Documentation updated (models.yml notes, eval guide)
+- [ ] **Update eval suites**: Replace `gpt5-2` with `gpt5-1-codex-max` in `benchmark_suite` and `extended_suite` (Codex-Max is OpenAI's flagship coding model with 77.9% SWE-Bench)
 
 ## Testing Strategy
 
