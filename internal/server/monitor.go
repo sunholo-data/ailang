@@ -452,22 +452,6 @@ func extractRunCommand(cmdLine string) string {
 	return "run"
 }
 
-// extractFlagValue extracts the value of a flag from a command line
-// e.g., extractFlagValue("ailang-agent --instance-id my-agent", "--instance-id") returns "my-agent"
-func extractFlagValue(cmdLine, flag string) string {
-	parts := strings.Fields(cmdLine)
-	for i, p := range parts {
-		if p == flag && i+1 < len(parts) {
-			return parts[i+1]
-		}
-		// Also handle --flag=value format
-		if strings.HasPrefix(p, flag+"=") {
-			return strings.TrimPrefix(p, flag+"=")
-		}
-	}
-	return ""
-}
-
 // parseElapsedTime parses ps etime format (e.g., "12:34" for mm:ss, "1-12:34:56" for days)
 func parseElapsedTime(etime string) int {
 	// Format can be: [[DD-]HH:]MM:SS
