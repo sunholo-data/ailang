@@ -61,6 +61,27 @@ if command -v gh &> /dev/null; then
     fi
 fi
 
+# Start coordinator daemon if not running (cloud environments only)
+# The coordinator handles autonomous task execution from GitHub issues
+if [ "${CLAUDE_CODE_REMOTE:-false}" = "true" ]; then
+    if [ -x "$PROJECT_ROOT/bin/ailang" ]; then
+        COORD_STATUS=$("$PROJECT_ROOT/bin/ailang" coordinator status 2>/dev/null | grep -o "running\|stopped" | head -1 || echo "unknown")
+        if [ "$COORD_STATUS" != "running" ]; then
+            if "$PROJECT_ROOT/bin/ailang" coordinator start >/dev/null 2>&1; then
+                log "Started coordinator daemon"
+                echo "🤖 Coordinator: Started (polls GitHub for issues)"
+            else
+                log "Failed to start coordinator daemon"
+            fi
+        else
+            log "Coordinator already running"
+            echo "🤖 Coordinator: Running"
+        fi
+    else
+        log "ailang binary not found, skipping coordinator start"
+    fi
+fi
+
 # Get current version from CHANGELOG.md (most reliable source)
 get_current_version() {
     local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
