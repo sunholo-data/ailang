@@ -16,6 +16,14 @@ ailang messages list --json          # JSON output (for scripting)
 # READ MESSAGE CONTENT
 ailang messages read MSG_ID          # Show full message content
 ailang messages read MSG_ID --peek   # View without marking as read
+ailang messages read 877             # Short ID prefix (like git) - v0.6.3+
+
+# FORWARD MESSAGES (v0.6.3+)
+ailang messages forward --to design-doc-creator 877    # Forward to different inbox
+ailang messages forward --to coordinator --reason "Label changed" 877
+
+# INTERACTIVE MODE (v0.6.3+)
+ailang messages                      # Interactive menu with keyboard navigation
 
 # ACKNOWLEDGE (mark as read)
 ailang messages ack MSG_ID           # Mark specific message as read
