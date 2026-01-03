@@ -32,6 +32,45 @@ log() {
 log "=== Cloud Setup Hook Started ==="
 log "CLAUDE_CODE_REMOTE=$CLAUDE_CODE_REMOTE"
 
+# Create AILANG config if missing (coordinator needs this)
+create_ailang_config() {
+    local AILANG_CONFIG="${HOME}/.ailang/config.yaml"
+
+    if [ ! -f "$AILANG_CONFIG" ]; then
+        mkdir -p "$(dirname "$AILANG_CONFIG")"
+        cat > "$AILANG_CONFIG" << 'YAML'
+github:
+  expected_user: sunholo-voight-kampff
+  default_repo: sunholo-data/ailang
+  create_labels:
+    - ailang-message
+  watch_labels:
+    - coordinator:bug
+    - coordinator:feature
+    - coordinator:docs
+  auto_import: true
+
+coordinator:
+  default_provider: claude
+
+  agents:
+    - id: coordinator
+      label: "General Coordinator"
+      inbox: coordinator
+      workspace: /home/user/ailang
+      capabilities: [code, docs, research]
+
+  github_sync:
+    enabled: false  # Disabled in cloud - gh auth not available
+    interval_secs: 60
+    target_inbox: coordinator
+YAML
+        log "Created default config.yaml (GitHub sync disabled - no auth)"
+    fi
+}
+
+create_ailang_config
+
 # Check if setup already completed this session
 if [ -f "$SETUP_MARKER" ]; then
     MARKER_AGE=$(($(date +%s) - $(stat -c %Y "$SETUP_MARKER" 2>/dev/null || stat -f %m "$SETUP_MARKER" 2>/dev/null || echo 0)))
