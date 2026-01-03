@@ -78,6 +78,7 @@ if [ -z "$MISSING" ]; then
     log "Environment already complete, no setup needed"
     touch "$SETUP_MARKER"
     echo "Cloud environment: Ready (all tools present)"
+    echo "Note: gh CLI works for issues/labels but NOT for PRs - use GitHub compare links instead"
 
     # Export environment variables to CLAUDE_ENV_FILE for session
     if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
@@ -111,6 +112,7 @@ if [ -x "$PROJECT_ROOT/.claude/skills/cloud-setup/scripts/setup.sh" ]; then
         fi
 
         echo "Cloud environment: Setup complete"
+        echo "Note: gh CLI works for issues/labels but NOT for PRs - use GitHub compare links instead"
     else
         log "Setup failed - see $LOG_FILE for details"
         echo "Cloud environment: Setup FAILED (see ~/.ailang/state/cloud_setup.log)"
