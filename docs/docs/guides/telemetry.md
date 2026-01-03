@@ -156,6 +156,19 @@ The benchmark evaluation system emits spans for suite execution and individual b
 | `eval.suite` | Parent span for entire benchmark run | `eval.models`, `eval.benchmarks`, `eval.languages`, `eval.total_runs`, `eval.agent_mode`, `eval.success_count`, `eval.fail_count`, `eval.success_rate` |
 | `eval.benchmark` | Individual benchmark execution | `benchmark.id`, `benchmark.model`, `benchmark.language`, `benchmark.seed`, `benchmark.success`, `benchmark.duration_ms`, `benchmark.input_tokens`, `benchmark.output_tokens`, `benchmark.cost_usd` |
 
+**v0.6.3+ Enhanced Attributes:**
+
+For successful benchmarks:
+- `code.preview` - First 100 chars of generated code
+- `code.hash` - 8-char hash for deduplication
+
+For failed benchmarks:
+- `error.summary` - Truncated error message
+- `error.category` - Error classification
+
+For standard mode (with repair):
+- `benchmark.repair_successful` - Whether self-repair succeeded
+
 ### Messaging System (`ailang messages`)
 
 Message operations emit spans for observability:
@@ -197,10 +210,53 @@ All AI providers emit spans for API calls:
 
 | Provider | Span Name | Key Attributes |
 |----------|-----------|----------------|
-| Anthropic | `anthropic.generate` | `ai.model`, `ai.tokens_in`, `ai.tokens_out`, `http.status_code` |
-| OpenAI | `openai.generate` | `ai.model`, `ai.api_type` (chat/responses), `ai.tokens_*` |
-| Gemini | `gemini.generate` | `ai.model`, `ai.auth_type` (api_key/adc), `ai.tokens_*` |
-| Ollama | `ollama.generate` | `ai.model`, `ai.endpoint` |
+| Anthropic | `anthropic.generate` | `ai.model`, `ai.tokens_in`, `ai.tokens_out`, `http.status_code`, `ai.prompt_preview`, `ai.response_preview`, `ai.finish_reason` |
+| OpenAI | `openai.generate` | `ai.model`, `ai.api_type` (chat/responses), `ai.tokens_*`, `ai.prompt_preview`, `ai.response_preview` |
+| Gemini | `gemini.generate` | `ai.model`, `ai.auth_type` (api_key/adc), `ai.tokens_*`, `ai.prompt_preview`, `ai.response_preview` |
+| Ollama | `ollama.generate` | `ai.model`, `ai.endpoint`, `ai.prompt_preview`, `ai.response_preview` |
+
+## Telemetry Helpers (v0.6.3+)
+
+The `internal/telemetry` package provides helper functions for safe, consistent span attributes:
+
+### Truncate
+
+Safely truncate strings for span attributes, preserving UTF-8 boundaries:
+
+```go
+import "github.com/sunholo/ailang/internal/telemetry"
+
+// Truncate to 100 chars, adding "..." if truncated
+preview := telemetry.Truncate(longString, 100)
+// "Hello, 世界..." (never breaks in middle of multi-byte chars)
+```
+
+### CategorizeError
+
+Categorize errors for filtering and aggregation:
+
+```go
+category := telemetry.CategorizeError(err)
+// Returns: "network", "timeout", "auth", "rate_limit", "parse", "type", "runtime", or "unknown"
+```
+
+### ShortHash
+
+Generate deterministic short hashes for deduplication:
+
+```go
+hash := telemetry.ShortHash(codeString)
+// Returns 8-char hex string like "a1b2c3d4"
+```
+
+### LineSnippet
+
+Extract source code context around a line number:
+
+```go
+snippet := telemetry.LineSnippet(sourceCode, lineNumber, 60)
+// Returns up to 60 chars of the specified line
+```
 
 ## Example: Local Jaeger Setup
 
@@ -290,6 +346,9 @@ All spans include:
 | `ai.tokens_out` | Output tokens |
 | `ai.tokens_total` | Total tokens |
 | `ai.cost_usd` | Estimated cost in USD |
+| `ai.prompt_preview` | First 100 chars of prompt (v0.6.3+) |
+| `ai.response_preview` | First 100 chars of response (v0.6.3+) |
+| `ai.finish_reason` | Why generation stopped: `end_turn`, `max_tokens`, etc. (v0.6.3+) |
 
 ### Task Attributes
 
@@ -300,6 +359,38 @@ All spans include:
 | `task.stage` | Pipeline stage: `design`, `sprint`, `implement` |
 | `task.success` | Boolean success status |
 | `task.duration_ms` | Duration in milliseconds |
+
+### Error Context Attributes (v0.6.3+)
+
+When errors occur, spans include rich debugging context:
+
+| Attribute | Description |
+|-----------|-------------|
+| `error.message` | Truncated error message (max 200 chars, UTF-8 safe) |
+| `error.category` | Error type: `network`, `timeout`, `auth`, `rate_limit`, `parse`, `type`, `runtime`, `unknown` |
+| `error.location` | Position in source: `line:column` format |
+| `error.snippet` | Source code around error (max 60 chars) |
+| `error.summary` | Short error description for failed benchmarks |
+
+### Code Context Attributes (v0.6.3+)
+
+Eval benchmarks include code analysis attributes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `code.preview` | First 100 chars of generated code |
+| `code.hash` | Short hash (8 chars) for deduplication |
+| `benchmark.repair_successful` | Whether self-repair succeeded (standard mode) |
+
+### CLI Run Attributes (v0.6.3+)
+
+The `ailang run` command includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `file.path` | Path to the executed file |
+| `entry.function` | Entry point function name |
+| `caps.granted` | List of granted capabilities (e.g., `["IO", "FS"]`) |
 
 ## Architecture
 
