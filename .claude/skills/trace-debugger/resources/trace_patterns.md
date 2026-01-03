@@ -158,8 +158,8 @@ eval.suite
   eval.fail_count: int       # Failed runs
   eval.success_rate: float   # Success percentage
 
-eval.benchmark
-  benchmark.id: string       # Benchmark identifier
+eval.benchmark: {benchmark_id}     # Span name includes ID for easy identification
+  benchmark.id: string       # Benchmark identifier (also in span name)
   benchmark.model: string    # Model used
   benchmark.language: string # Target language
   benchmark.success: bool    # Pass/fail
