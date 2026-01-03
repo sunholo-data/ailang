@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -118,6 +119,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		trace.WithAttributes(
 			attribute.String("ai.provider", "anthropic"),
 			attribute.String("ai.model", req.Model),
+			attribute.String("ai.prompt_preview", telemetry.Truncate(req.UserPrompt, 100)),
 		),
 	)
 	defer span.End()
@@ -147,6 +149,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to marshal request")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to marshal request", err)
@@ -155,6 +161,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/messages", bytes.NewReader(jsonBody))
 	if err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create request")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to create request", err)
@@ -167,6 +177,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "request failed")
 		return nil, ai.NewProviderError("anthropic", 0, "request failed", err)
@@ -178,6 +192,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Read response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to read response")
 		return nil, ai.NewProviderError("anthropic", resp.StatusCode, "failed to read response", err)
@@ -187,9 +205,17 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	if resp.StatusCode != 200 {
 		var errResp errorResponse
 		if json.Unmarshal(body, &errResp) == nil && errResp.Error.Message != "" {
+			span.SetAttributes(
+				attribute.String("error.message", telemetry.Truncate(errResp.Error.Message, 200)),
+				attribute.String("error.category", "api_error"),
+			)
 			span.SetStatus(codes.Error, errResp.Error.Message)
 			return nil, ai.NewProviderError("anthropic", resp.StatusCode, errResp.Error.Message, nil)
 		}
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(string(body), 200)),
+			attribute.String("error.category", "api_error"),
+		)
 		span.SetStatus(codes.Error, string(body))
 		return nil, ai.NewProviderError("anthropic", resp.StatusCode, string(body), nil)
 	}
@@ -197,6 +223,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	// Parse successful response
 	var result messagesResponse
 	if err := json.Unmarshal(body, &result); err != nil {
+		span.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(err.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(err)),
+		)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse response")
 		return nil, ai.NewProviderError("anthropic", 0, "failed to parse response", err)
@@ -211,6 +241,10 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	if text == "" {
+		span.SetAttributes(
+			attribute.String("error.message", "empty response from Claude"),
+			attribute.String("error.category", "api_error"),
+		)
 		span.SetStatus(codes.Error, "empty response")
 		return nil, ai.NewProviderError("anthropic", 0, "empty response from Claude", nil)
 	}
@@ -220,6 +254,8 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		attribute.Int("ai.tokens_in", result.Usage.InputTokens),
 		attribute.Int("ai.tokens_out", result.Usage.OutputTokens),
 		attribute.Int("ai.tokens_total", result.Usage.InputTokens+result.Usage.OutputTokens),
+		attribute.String("ai.response_preview", telemetry.Truncate(text, 100)),
+		attribute.String("ai.finish_reason", result.StopReason),
 	)
 
 	return &ai.Response{

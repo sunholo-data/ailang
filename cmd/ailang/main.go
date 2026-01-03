@@ -18,6 +18,8 @@ import (
 	"github.com/sunholo/ailang/internal/schema"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 //go:embed all:prompts
@@ -331,8 +333,19 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	// Create root span for the entire run command
 	// All child spans (compile, execute) will be linked under this
 	tracer := otel.Tracer("ailang.cli")
-	ctx, rootSpan := tracer.Start(ctx, "ailang run: "+filename)
+	ctx, rootSpan := tracer.Start(ctx, "ailang run: "+filename,
+		oteltrace.WithAttributes(
+			attribute.String("file.path", filename),
+			attribute.String("entry.function", entry),
+		),
+	)
 	defer rootSpan.End()
+
+	// Add capabilities to span (if any granted)
+	if caps != "" {
+		capList := strings.Split(caps, ",")
+		rootSpan.SetAttributes(attribute.StringSlice("caps.granted", capList))
+	}
 
 	// Configure stdlib resolver via environment variables
 	// CLI flags override environment variables

@@ -1,5 +1,44 @@
 # AILANG Changelog
 
+## [v0.6.3] - 2026-01-03
+
+### Added - Human-Friendly Tracing (M-OTEL-ENHANCED-TRACING-DX)
+
+Enhanced OpenTelemetry spans with human-readable context for faster debugging. Traces now include actionable error messages, code previews, and key identifiers visible directly in span attributes.
+
+**New Telemetry Helpers (`internal/telemetry/helpers.go`):**
+- `Truncate(s, maxLen)` - Safe UTF-8 string truncation using rune boundaries (not bytes)
+- `CategorizeError(err)` - Classifies errors into parse_error, type_error, module_error, api_error, timeout, runtime_error
+- `ShortHash(content, length)` - SHA256-based short hash for deduplication
+- `LineSnippet(source, lineNum, maxLen)` - Extracts code snippet around error location
+
+**Error Context on All Error Spans:**
+- `error.message` - Truncated error message (200 chars max)
+- `error.category` - Category for filtering (parse_error, type_error, etc.)
+- Parse errors: `error.location` (line:col) + `error.snippet` (code context)
+
+**AI Provider Improvements:**
+- `ai.prompt_preview` - First 100 chars of user prompt
+- `ai.response_preview` - First 100 chars of AI response
+- `ai.finish_reason` - Stop reason (Anthropic only)
+
+**Eval/Benchmark Improvements:**
+- `code.preview` - First 100 chars of generated code
+- `code.hash` - 8-char hash for deduplication
+- `error.summary` - Truncated stderr for failed benchmarks
+- `benchmark.repair_successful` - Self-repair tracking
+
+**CLI Run Improvements:**
+- `file.path` - Source file being executed
+- `entry.function` - Entry point function name
+- `caps.granted` - Capabilities enabled (IO, FS, Net, etc.)
+
+**Code:**
+- `internal/telemetry/helpers.go` (~95 lines)
+- `internal/telemetry/helpers_test.go` (~162 lines, 100% coverage)
+- Modified: `internal/pipeline/pipeline_single.go`, `cmd/ailang/main.go`, `cmd/ailang/eval_suite.go`
+- Modified: All 4 AI providers (`anthropic`, `openai`, `gemini`, `ollama`)
+
 ## [v0.6.2] - 2026-01-02
 
 ### Added - OpenTelemetry Integration (M-OTEL)

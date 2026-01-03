@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -643,9 +644,25 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 			attribute.Float64("benchmark.cost_usd", result.Cost),
 			attribute.Int("benchmark.turns", result.NumTurns),
 		)
+
+		// Add code preview and hash for debugging and deduplication
+		if result.SolutionCode != "" {
+			benchSpan.SetAttributes(
+				attribute.String("code.preview", telemetry.Truncate(result.SolutionCode, 100)),
+				attribute.String("code.hash", telemetry.ShortHash(result.SolutionCode, 8)),
+			)
+		}
+
 		if result.Success {
 			benchSpan.SetStatus(codes.Ok, "benchmark passed")
 		} else {
+			// Add error summary for failed benchmarks
+			if result.Stderr != "" {
+				benchSpan.SetAttributes(
+					attribute.String("error.summary", telemetry.Truncate(result.Stderr, 200)),
+					attribute.String("error.category", telemetry.CategorizeError(errors.New(result.Stderr))),
+				)
+			}
 			benchSpan.SetStatus(codes.Error, "benchmark failed")
 		}
 
@@ -774,7 +791,23 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		attribute.Float64("benchmark.cost_usd", metrics.CostUSD),
 		attribute.String("benchmark.error_category", string(metrics.ErrorCategory)),
 		attribute.Bool("benchmark.repair_used", metrics.RepairUsed),
+		attribute.Bool("benchmark.repair_successful", metrics.RepairOk),
 	)
+
+	// Add code preview and hash for debugging and deduplication
+	if metrics.Code != "" {
+		benchSpan.SetAttributes(
+			attribute.String("code.preview", telemetry.Truncate(metrics.Code, 100)),
+			attribute.String("code.hash", telemetry.ShortHash(metrics.Code, 8)),
+		)
+	}
+
+	// Add error summary for failed benchmarks
+	if !metrics.StdoutOk && metrics.Stderr != "" {
+		benchSpan.SetAttributes(
+			attribute.String("error.summary", telemetry.Truncate(metrics.Stderr, 200)),
+		)
+	}
 
 	// Return error with failure details if benchmark failed
 	if !metrics.StdoutOk {

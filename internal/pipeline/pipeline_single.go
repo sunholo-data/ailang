@@ -13,6 +13,7 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/linked"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -75,6 +76,18 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		program := p.Parse()
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
+			attrs := []attribute.KeyValue{
+				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
+			}
+			// Extract position and code snippet if ParserError
+			if pe, ok := p.Errors()[0].(*parser.ParserError); ok {
+				attrs = append(attrs,
+					attribute.String("error.location", fmt.Sprintf("%d:%d", pe.Pos.Line, pe.Pos.Column)),
+					attribute.String("error.snippet", telemetry.LineSnippet(src.Code, pe.Pos.Line, 60)),
+				)
+			}
+			parseSpan.SetAttributes(attrs...)
 			parseSpan.RecordError(parseErr)
 			parseSpan.SetStatus(codes.Error, "parse errors")
 			parseSpan.End()
@@ -100,6 +113,18 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		astFile = p.ParseFile()
 		if len(p.Errors()) > 0 {
 			parseErr := convertParserErrors(p.Errors())
+			attrs := []attribute.KeyValue{
+				attribute.String("error.message", telemetry.Truncate(parseErr.Error(), 200)),
+				attribute.String("error.category", telemetry.CategorizeError(parseErr)),
+			}
+			// Extract position and code snippet if ParserError
+			if pe, ok := p.Errors()[0].(*parser.ParserError); ok {
+				attrs = append(attrs,
+					attribute.String("error.location", fmt.Sprintf("%d:%d", pe.Pos.Line, pe.Pos.Column)),
+					attribute.String("error.snippet", telemetry.LineSnippet(src.Code, pe.Pos.Line, 60)),
+				)
+			}
+			parseSpan.SetAttributes(attrs...)
 			parseSpan.RecordError(parseErr)
 			parseSpan.SetStatus(codes.Error, "parse errors")
 			parseSpan.End()
@@ -130,6 +155,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	coreProg, err := elaborator.ElaborateFile(astFile)
 	if err != nil {
 		elabErr := fmt.Errorf("elaboration error: %w", err)
+		elabSpan.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(elabErr.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(elabErr)),
+		)
 		elabSpan.RecordError(elabErr)
 		elabSpan.SetStatus(codes.Error, "elaboration failed")
 		elabSpan.End()
@@ -256,6 +285,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	typedNode, _, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, cfg.TypeEnv)
 	if err != nil {
 		typeErr := fmt.Errorf("type error: %w", err)
+		typeSpan.SetAttributes(
+			attribute.String("error.message", telemetry.Truncate(typeErr.Error(), 200)),
+			attribute.String("error.category", telemetry.CategorizeError(typeErr)),
+		)
 		typeSpan.RecordError(typeErr)
 		typeSpan.SetStatus(codes.Error, "type inference failed")
 		typeSpan.End()
