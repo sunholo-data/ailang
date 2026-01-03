@@ -6,6 +6,10 @@ import (
 	"github.com/sunholo/ailang/internal/messaging"
 )
 
+// LabelInProgress is the claim label used to prevent race conditions
+// when multiple coordinator instances try to pick up the same issue.
+const LabelInProgress = "coordinator:in-progress"
+
 // GitHubPoster provides GitHub integration for the coordinator.
 // It wraps the messaging GitHubClient to post comments, manage labels,
 // and close issues as part of the autonomous workflow.
@@ -90,6 +94,9 @@ func (p *GitHubPoster) EnsureLabel(label string) error {
 		"coordinator:refactor": "7057FF", // Purple
 		"coordinator:test":     "E4E669", // Light yellow
 
+		// Claim label (prevents race conditions across coordinator instances)
+		"coordinator:in-progress": "1D76DB", // Blue - task being worked on
+
 		// Status labels
 		"needs-design-approval": "B60205", // Dark red
 		"needs-sprint-approval": "B60205", // Dark red
@@ -110,6 +117,9 @@ func (p *GitHubPoster) EnsureLabel(label string) error {
 		"coordinator:research": "Research task - auto-routes to coordinator daemon",
 		"coordinator:refactor": "Refactoring task - auto-routes to coordinator daemon",
 		"coordinator:test":     "Test writing task - auto-routes to coordinator daemon",
+
+		// Claim label
+		"coordinator:in-progress": "Task claimed by a coordinator instance - prevents duplicate work",
 
 		// Status labels
 		"needs-design-approval": "Awaiting human approval of design document",
@@ -161,4 +171,36 @@ func (p *GitHubPoster) Repo() string {
 // Client returns the underlying GitHub client.
 func (p *GitHubPoster) Client() *messaging.GitHubClient {
 	return p.client
+}
+
+// ClaimIssue attempts to claim an issue by adding the in-progress label.
+// Returns an error if the issue is already claimed by another coordinator.
+// This prevents race conditions when multiple coordinators poll GitHub.
+func (p *GitHubPoster) ClaimIssue(issueNum int) error {
+	// Check if already claimed
+	claimed, err := p.HasLabel(issueNum, LabelInProgress)
+	if err != nil {
+		return fmt.Errorf("failed to check claim status: %w", err)
+	}
+	if claimed {
+		return fmt.Errorf("issue #%d already claimed by another coordinator", issueNum)
+	}
+
+	// Claim it by adding the label
+	if err := p.AddLabel(issueNum, LabelInProgress); err != nil {
+		return fmt.Errorf("failed to claim issue: %w", err)
+	}
+
+	return nil
+}
+
+// ReleaseIssue releases a claimed issue by removing the in-progress label.
+// Called when a task completes, fails, or is cancelled.
+func (p *GitHubPoster) ReleaseIssue(issueNum int) error {
+	return p.RemoveLabel(issueNum, LabelInProgress)
+}
+
+// IsIssueClaimed checks if an issue is already claimed by any coordinator.
+func (p *GitHubPoster) IsIssueClaimed(issueNum int) (bool, error) {
+	return p.HasLabel(issueNum, LabelInProgress)
 }
