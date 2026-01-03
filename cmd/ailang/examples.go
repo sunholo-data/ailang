@@ -13,20 +13,20 @@ import (
 
 // ExampleManifest represents the examples/manifest.json structure
 type ExampleManifest struct {
-	Schema        string           `json:"schema"`
-	SchemaVersion string           `json:"schema_version"`
-	GeneratedAt   string           `json:"generated_at"`
-	Generator     string           `json:"generator"`
-	Examples      []ExampleEntry   `json:"examples"`
+	Schema        string         `json:"schema"`
+	SchemaVersion string         `json:"schema_version"`
+	GeneratedAt   string         `json:"generated_at"`
+	Generator     string         `json:"generator"`
+	Examples      []ExampleEntry `json:"examples"`
 }
 
 // ExampleEntry represents a single example in the manifest
 type ExampleEntry struct {
-	Path        string            `json:"path"`
-	Status      string            `json:"status"`
-	Tags        []string          `json:"tags"`
-	Description string            `json:"description"`
-	Expected    *ExpectedOutput   `json:"expected,omitempty"`
+	Path        string          `json:"path"`
+	Status      string          `json:"status"`
+	Tags        []string        `json:"tags"`
+	Description string          `json:"description"`
+	Expected    *ExpectedOutput `json:"expected,omitempty"`
 }
 
 // ExpectedOutput defines the expected output for an example

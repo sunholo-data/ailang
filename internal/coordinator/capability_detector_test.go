@@ -63,8 +63,8 @@ func TestCapabilityDetector_DetectCapabilities(t *testing.T) {
 			wantCaps: []CapabilityType{CapabilityFS, CapabilityBudget}, // refactor triggers both FS and Budget
 		},
 		{
-			name:    "multiple capabilities",
-			content: "download the file from https://example.com and save it",
+			name:     "multiple capabilities",
+			content:  "download the file from https://example.com and save it",
 			wantCaps: []CapabilityType{CapabilityFS, CapabilityNet},
 		},
 		// New AILANG effect capabilities

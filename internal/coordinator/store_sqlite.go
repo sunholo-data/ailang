@@ -531,7 +531,8 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		`SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		        created_at, started_at, completed_at, duration_ns,
-		        error, output, cost, tokens_used
+		        error, output, cost, tokens_used,
+		        capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE fingerprint = ? AND status != 'cancelled' LIMIT 1`,
 		fingerprint,
 	)
@@ -602,7 +603,8 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 		SELECT id, message_id, thread_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       created_at, started_at, completed_at, duration_ns,
-		       error, output, cost, tokens_used
+		       error, output, cost, tokens_used,
+		       capabilities_json, impact_level, estimated_cost
 		FROM tasks WHERE github_issue = ?
 		ORDER BY created_at DESC
 	`

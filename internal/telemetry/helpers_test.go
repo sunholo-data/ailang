@@ -19,10 +19,10 @@ func TestTruncate(t *testing.T) {
 		{"very short max", "hello", 3, "hel"},
 		{"zero max", "hello", 0, ""},
 		{"negative max", "hello", -1, ""},
-		{"unicode string", "hello 世界", 10, "hello 世界"},       // 8 runes, no truncation needed
-		{"unicode needs truncation", "hello 世界!", 8, "hello..."},   // 9 runes, truncate
-		{"long unicode", "世界世界世界世界世界", 8, "世界世界世..."},              // 10 runes, truncate to 5+...
-		{"emoji", "hello 👋 world", 12, "hello 👋 w..."},             // 13 runes, truncate to 9+...
+		{"unicode string", "hello 世界", 10, "hello 世界"},           // 8 runes, no truncation needed
+		{"unicode needs truncation", "hello 世界!", 8, "hello..."}, // 9 runes, truncate
+		{"long unicode", "世界世界世界世界世界", 8, "世界世界世..."},            // 10 runes, truncate to 5+...
+		{"emoji", "hello 👋 world", 12, "hello 👋 w..."},           // 13 runes, truncate to 9+...
 	}
 
 	for _, tt := range tests {

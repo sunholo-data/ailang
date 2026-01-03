@@ -146,7 +146,7 @@ func (s *Server) collectProcessStats() []ProcessStats {
 			StartedAt:   agent.StartedAt,
 			DurationSec: int(time.Since(agent.StartedAt).Seconds()),
 			Status:      "running",
-			Source:      "ui",               // UI-spawned agents
+			Source:      "ui",                 // UI-spawned agents
 			Command:     "ailang-coordinator", // Coordinator daemon
 		}
 

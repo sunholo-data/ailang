@@ -25,7 +25,7 @@ const (
 // Capability represents a detected capability requirement
 type Capability struct {
 	Type        CapabilityType `json:"type"`
-	Paths       []string       `json:"paths,omitempty"`       // Affected paths or URLs
+	Paths       []string       `json:"paths,omitempty"`        // Affected paths or URLs
 	BudgetDelta float64        `json:"budget_delta,omitempty"` // Estimated cost if Budget type
 }
 

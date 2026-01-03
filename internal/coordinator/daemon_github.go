@@ -226,4 +226,3 @@ func (d *Daemon) routeByLabels(labels []string, currentInbox string) string {
 	// No routing label found, keep current inbox
 	return currentInbox
 }
-
