@@ -355,34 +355,68 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 
 // MarkInboxMessageRead marks a message as read
 func (s *Store) MarkInboxMessageRead(id string) error {
+	// Start span for message ack operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.ack",
+		trace.WithAttributes(
+			attribute.String("message.id", id),
+			attribute.String("message.new_status", InboxStatusRead),
+		),
+	)
+	defer span.End()
+
 	now := time.Now().Format(time.RFC3339)
 	result, err := s.db.Exec(`
 		UPDATE inbox_messages SET status = ?, read_at = ? WHERE (id = ? OR message_id = ?) AND status = ?
 	`, InboxStatusRead, now, id, id, InboxStatusUnread)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	affected, _ := result.RowsAffected()
 	if affected == 0 {
-		return fmt.Errorf("message not found or already read")
+		err := fmt.Errorf("message not found or already read")
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
+
+	span.SetAttributes(attribute.Int64("messages.affected", affected))
+	span.SetStatus(codes.Ok, "message acknowledged")
 	return nil
 }
 
 // MarkInboxMessageUnread marks a message as unread
 func (s *Store) MarkInboxMessageUnread(id string) error {
+	// Start span for message unack operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.unack",
+		trace.WithAttributes(
+			attribute.String("message.id", id),
+			attribute.String("message.new_status", InboxStatusUnread),
+		),
+	)
+	defer span.End()
+
 	result, err := s.db.Exec(`
 		UPDATE inbox_messages SET status = ?, read_at = NULL WHERE id = ? OR message_id = ?
 	`, InboxStatusUnread, id, id)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	affected, _ := result.RowsAffected()
 	if affected == 0 {
-		return fmt.Errorf("message not found")
+		err := fmt.Errorf("message not found")
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
+
+	span.SetAttributes(attribute.Int64("messages.affected", affected))
+	span.SetStatus(codes.Ok, "message unacknowledged")
 	return nil
 }
 
@@ -466,6 +500,16 @@ func (s *Store) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo
 
 // CleanupInboxMessages removes old messages
 func (s *Store) CleanupInboxMessages(olderThan time.Duration, expiredOnly bool) (int64, error) {
+	// Start span for message cleanup operation
+	ctx := context.Background()
+	_, span := messagingTracer.Start(ctx, "messages.cleanup",
+		trace.WithAttributes(
+			attribute.Bool("cleanup.expired_only", expiredOnly),
+			attribute.Int64("cleanup.older_than_ms", olderThan.Milliseconds()),
+		),
+	)
+	defer span.End()
+
 	var result sql.Result
 	var err error
 
@@ -482,10 +526,15 @@ func (s *Store) CleanupInboxMessages(olderThan time.Duration, expiredOnly bool) 
 	}
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return 0, err
 	}
 
-	return result.RowsAffected()
+	affected, _ := result.RowsAffected()
+	span.SetAttributes(attribute.Int64("cleanup.deleted_count", affected))
+	span.SetStatus(codes.Ok, "cleanup complete")
+	return affected, nil
 }
 
 // CountInboxMessagesByStatus returns counts of messages by status

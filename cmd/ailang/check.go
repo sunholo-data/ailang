@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,24 +11,63 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
+// checkTracer is the OpenTelemetry tracer for check command instrumentation.
+var checkTracer = otel.Tracer("ailang.check")
+
 func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-check")
+	if err != nil {
+		// Non-fatal: continue without telemetry
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
+	// Parse timeout for span attribute
+	var timeoutMs int64
+	if timeout != "" {
+		if d, err := time.ParseDuration(timeout); err == nil {
+			timeoutMs = d.Milliseconds()
+		}
+	}
+
+	// Start root span for check operation
+	ctx, span := checkTracer.Start(ctx, "ailang.check",
+		trace.WithAttributes(
+			attribute.String("file.path", filename),
+			attribute.Int64("timeout_ms", timeoutMs),
+		),
+	)
+	defer span.End()
+
 	// Check if path is a directory
 	info, err := os.Stat(filename)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		fmt.Fprintf(os.Stderr, "%s: cannot access '%s': %v\n", red("Error"), filename, err)
 		os.Exit(1)
 	}
 
 	if info.IsDir() {
-		checkDirectory(filename, strictSyntax, relaxModules, timeout, debugCompile)
+		span.SetAttributes(attribute.Bool("is_directory", true))
+		checkDirectoryWithContext(ctx, filename, strictSyntax, relaxModules, timeout, debugCompile)
 		return
 	}
 
 	// Read the file
 	content, err := os.ReadFile(filename)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
 		os.Exit(1)
 	}
@@ -38,6 +78,8 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		var err error
 		timeoutDuration, err = time.ParseDuration(timeout)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "invalid timeout")
 			fmt.Fprintf(os.Stderr, "%s: invalid timeout duration '%s': %v\n", red("Error"), timeout, err)
 			fmt.Println("Examples: 30s, 2m, 1m30s")
 			os.Exit(1)
@@ -74,22 +116,37 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 
 	// Run with timeout if specified
 	if timeoutDuration > 0 {
-		runCheckWithTimeout(cfg, src, timeoutDuration, filename)
+		runCheckWithTimeoutAndContext(ctx, cfg, src, timeoutDuration, filename)
 	} else {
-		runCheck(cfg, src)
+		runCheckWithContext(ctx, cfg, src)
 	}
 }
 
-// runCheck executes the pipeline without timeout
-func runCheck(cfg pipeline.Config, src pipeline.Source) {
+// runCheckWithContext executes the pipeline without timeout, with telemetry context
+func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source) {
+	// Start result span
+	_, resultSpan := checkTracer.Start(ctx, "check.result")
+	defer resultSpan.End()
+
 	result, err := pipeline.Run(cfg, src)
 	if err != nil {
+		resultSpan.SetAttributes(
+			attribute.Bool("passed", false),
+			attribute.Int("errors.count", 1),
+		)
+		resultSpan.RecordError(err)
+		resultSpan.SetStatus(codes.Error, err.Error())
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
 
 	// Check for any errors
 	if len(result.Errors) > 0 {
+		resultSpan.SetAttributes(
+			attribute.Bool("passed", false),
+			attribute.Int("errors.count", len(result.Errors)),
+		)
+		resultSpan.SetStatus(codes.Error, "check failed")
 		for _, e := range result.Errors {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
 		}
@@ -101,11 +158,24 @@ func runCheck(cfg pipeline.Config, src pipeline.Source) {
 		printPhaseTimings(result.PhaseTimings)
 	}
 
+	resultSpan.SetAttributes(
+		attribute.Bool("passed", true),
+		attribute.Int("errors.count", 0),
+	)
+	resultSpan.SetStatus(codes.Ok, "check passed")
 	fmt.Printf("\n%s No errors found!\n", green("✓"))
 }
 
-// runCheckWithTimeout executes the pipeline with a watchdog timer
-func runCheckWithTimeout(cfg pipeline.Config, src pipeline.Source, timeout time.Duration, filename string) {
+// runCheckWithTimeoutAndContext executes the pipeline with a watchdog timer and telemetry
+func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source, timeout time.Duration, filename string) {
+	// Start result span
+	_, resultSpan := checkTracer.Start(ctx, "check.result",
+		trace.WithAttributes(
+			attribute.Int64("timeout_ms", timeout.Milliseconds()),
+		),
+	)
+	defer resultSpan.End()
+
 	type checkResult struct {
 		result pipeline.Result
 		err    error
@@ -121,10 +191,21 @@ func runCheckWithTimeout(cfg pipeline.Config, src pipeline.Source, timeout time.
 	select {
 	case r := <-done:
 		if r.err != nil {
+			resultSpan.SetAttributes(
+				attribute.Bool("passed", false),
+				attribute.Int("errors.count", 1),
+			)
+			resultSpan.RecordError(r.err)
+			resultSpan.SetStatus(codes.Error, r.err.Error())
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), r.err)
 			os.Exit(1)
 		}
 		if len(r.result.Errors) > 0 {
+			resultSpan.SetAttributes(
+				attribute.Bool("passed", false),
+				attribute.Int("errors.count", len(r.result.Errors)),
+			)
+			resultSpan.SetStatus(codes.Error, "check failed")
 			for _, e := range r.result.Errors {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
 			}
@@ -134,9 +215,19 @@ func runCheckWithTimeout(cfg pipeline.Config, src pipeline.Source, timeout time.
 		if cfg.DebugCompile && len(r.result.PhaseTimings) > 0 {
 			printPhaseTimings(r.result.PhaseTimings)
 		}
+		resultSpan.SetAttributes(
+			attribute.Bool("passed", true),
+			attribute.Int("errors.count", 0),
+		)
+		resultSpan.SetStatus(codes.Ok, "check passed")
 		fmt.Printf("\n%s No errors found!\n", green("✓"))
 
 	case <-time.After(timeout):
+		resultSpan.SetAttributes(
+			attribute.Bool("passed", false),
+			attribute.Bool("timed_out", true),
+		)
+		resultSpan.SetStatus(codes.Error, "timeout")
 		fmt.Fprintf(os.Stderr, "\n%s Compilation timed out after %s\n", red("TIMEOUT"), timeout)
 		fmt.Fprintf(os.Stderr, "File: %s\n\n", filename)
 
@@ -302,8 +393,8 @@ func exportTraining() {
 	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
 }
 
-// checkDirectory recursively checks all .ail files in a directory
-func checkDirectory(dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+// checkDirectoryWithContext recursively checks all .ail files with telemetry
+func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
 	var files []string
 
 	// Walk directory to find all .ail files

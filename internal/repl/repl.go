@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/peterh/liner"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/effects"
@@ -17,6 +19,10 @@ import (
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Color functions for pretty output
@@ -28,6 +34,9 @@ var (
 	bold   = color.New(color.Bold).SprintFunc()
 	dim    = color.New(color.Faint).SprintFunc()
 )
+
+// replTracer is the OpenTelemetry tracer for REPL instrumentation.
+var replTracer = otel.Tracer("ailang.repl")
 
 // Config holds REPL configuration
 type Config struct {
@@ -141,8 +150,34 @@ func (r *REPL) getPrompt() string {
 	return fmt.Sprintf("λ[%s]> ", strings.Join(caps, ","))
 }
 
-// Start begins the REPL session
+// Start begins the REPL session (backward compatible wrapper)
 func (r *REPL) Start(in io.Reader, out io.Writer) {
+	r.StartWithContext(context.Background(), in, out)
+}
+
+// StartWithContext begins the REPL session with OpenTelemetry context
+func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer) {
+	// Generate session ID for tracing
+	sessionID := uuid.New().String()[:8]
+	sessionStart := time.Now()
+	inputCount := 0
+
+	// Start session span
+	ctx, sessionSpan := replTracer.Start(ctx, "repl.session",
+		trace.WithAttributes(
+			attribute.String("session.id", sessionID),
+			attribute.String("version", r.version),
+		),
+	)
+	defer func() {
+		sessionSpan.SetAttributes(
+			attribute.Int("session.input_count", inputCount),
+			attribute.Int64("session.duration_ms", time.Since(sessionStart).Milliseconds()),
+		)
+		sessionSpan.SetStatus(codes.Ok, "session complete")
+		sessionSpan.End()
+	}()
+
 	// Create liner instance for readline functionality
 	line := liner.NewLiner()
 	defer line.Close()
@@ -255,19 +290,52 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 		// Add to our internal history
 		r.history = append(r.history, input)
 
+		// Increment input count for session metrics
+		inputCount++
+
+		// Truncate input for span attribute (max 200 chars)
+		inputPreview := input
+		if len(inputPreview) > 200 {
+			inputPreview = inputPreview[:200] + "..."
+		}
+
 		// Handle commands
 		if strings.HasPrefix(input, ":") {
+			// Start span for command input
+			_, inputSpan := replTracer.Start(ctx, "repl.input",
+				trace.WithAttributes(
+					attribute.String("input.type", "command"),
+					attribute.String("input.text", inputPreview),
+					attribute.Int("input.number", inputCount),
+				),
+			)
+
 			// Check if it's a quit command
 			if strings.HasPrefix(input, ":quit") || strings.HasPrefix(input, ":q") || strings.HasPrefix(input, ":exit") {
+				inputSpan.SetStatus(codes.Ok, "quit command")
+				inputSpan.End()
 				fmt.Fprintln(out, green("Goodbye!"))
 				break // Exit the loop
 			}
 			r.HandleCommand(input, out)
+			inputSpan.SetStatus(codes.Ok, "command processed")
+			inputSpan.End()
 			continue
 		}
 
+		// Start span for expression input
+		_, inputSpan := replTracer.Start(ctx, "repl.input",
+			trace.WithAttributes(
+				attribute.String("input.type", "expression"),
+				attribute.String("input.text", inputPreview),
+				attribute.Int("input.number", inputCount),
+			),
+		)
+
 		// Process expression through full pipeline
 		r.ProcessExpression(input, out)
+		inputSpan.SetStatus(codes.Ok, "expression evaluated")
+		inputSpan.End()
 	}
 
 	// Save history before exiting

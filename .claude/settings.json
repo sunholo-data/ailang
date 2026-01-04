@@ -1,4 +1,26 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(ailang:*)",
+      "Bash(./bin/ailang:*)",
+      "Bash(.claude/skills/**/scripts/*.sh:*)",
+      "Skill(design-doc-creator)",
+      "Skill(sprint-executor)",
+      "Skill(sprint-planner)",
+      "Skill(release-manager)",
+      "Skill(post-release)",
+      "Skill(builtin-developer)",
+      "Skill(model-manager)",
+      "Skill(prompt-manager)",
+      "Skill(use-ailang)",
+      "Skill(github-issue-triage)",
+      "Skill(eval-analyzer)",
+      "Skill(design-spec-auditor)",
+      "Skill(skill-builder)",
+      "Skill(perf-reviewer)",
+      "Skill(trace-debugger)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -11,6 +33,28 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/agent_handoff.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/format_go.sh"
           }
         ]
       }

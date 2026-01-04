@@ -179,6 +179,47 @@ Message operations emit spans for observability:
 | `messages.list` | List messages with filters | `list.inbox`, `list.unread_only`, `list.collapsed`, `list.limit`, `list.result_count` |
 | `messages.read` | Read single message by ID | `message.id`, `message.from_agent`, `message.to_inbox`, `message.type` |
 | `messages.search` | Semantic search | `search.query`, `search.use_neural`, `search.threshold`, `search.limit`, `search.inbox`, `search.result_count` |
+| `messages.ack` | Mark message as read | `message.id`, `message.new_status` |
+| `messages.unack` | Mark message as unread | `message.id`, `message.new_status` |
+| `messages.cleanup` | Delete old/expired messages | `cleanup.older_than`, `cleanup.expired_only`, `cleanup.dry_run`, `cleanup.deleted_count` |
+| `messages.github_sync` | Import issues from GitHub | `github.repo`, `sync.dry_run`, `github.issues_found`, `sync.imported`, `sync.skipped` |
+
+### REPL (`ailang repl`)
+
+Interactive REPL sessions emit session-level and input-level spans:
+
+| Span | Description | Key Attributes |
+|------|-------------|----------------|
+| `repl.session` | Parent span for entire REPL session | `session.id`, `version`, `session.input_count`, `session.duration_ms` |
+| `repl.input` | Individual user input evaluation | `input.type` (command/expression), `input.text` (truncated 200 chars), `input.number` |
+
+**Span Hierarchy:**
+```
+repl.session (duration of interactive session)
+  └─ repl.input #1 (first user input)
+  └─ repl.input #2 (second user input)
+  └─ ... (subsequent inputs)
+```
+
+Session metrics are finalized when the REPL exits, capturing total input count and session duration.
+
+### Check Command (`ailang check`)
+
+The type checking command emits spans for file/directory verification:
+
+| Span | Description | Key Attributes |
+|------|-------------|----------------|
+| `ailang.check` | Root span for check operation | `file.path`, `timeout_ms`, `is_directory` |
+| `check.result` | Check outcome with pass/fail | `passed` (bool), `errors.count`, `timed_out` (if timeout occurred) |
+
+**Span Hierarchy:**
+```
+ailang.check (root span)
+  └─ check.result (with pass/fail and error counts)
+  └─ compile.* (compilation phases from compiler pipeline)
+```
+
+When using `--timeout`, the `timed_out` attribute is set if compilation exceeds the limit.
 
 ### Server (`ailang serve`)
 
@@ -455,6 +496,8 @@ When `GOOGLE_CLOUD_PROJECT` or `OTEL_EXPORTER_OTLP_ENDPOINT` is set:
 | Compiler Pipeline | 5-7 spans | ~100μs |
 | Eval Harness | 2 spans per benchmark | ~50μs |
 | Messaging | 1 span per operation | ~20μs |
+| REPL Session | 1 session + N input spans | ~30μs per input |
+| Check Command | 2 spans (root + result) | ~40μs |
 | AI Providers | 1 span per API call | ~30μs |
 
 **Note:** Actual overhead depends on your OTEL collector. Local Jaeger adds ~10μs, while cloud exports (GCP, Honeycomb) add ~50-100μs due to batching and network I/O.

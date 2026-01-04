@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,11 +9,29 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // GitHub integration for messages: import-github, syncMessageToGitHub
 
 func runMessagesImportGitHub(args []string) {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-messages")
+	if err != nil {
+		// Non-fatal: continue without telemetry
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
+	// Start span for GitHub sync operation
+	tracer := otel.Tracer("ailang.messaging")
+	_, span := tracer.Start(ctx, "messages.github_sync")
+	defer span.End()
+
 	fs := flag.NewFlagSet("messages import-github", flag.ExitOnError)
 	repo := fs.String("repo", "", "GitHub repo (owner/repo) - overrides config default")
 	labels := fs.String("labels", "", "Comma-separated labels to filter issues")
@@ -22,6 +41,8 @@ func runMessagesImportGitHub(args []string) {
 	routeByLabel := fs.Bool("route-by-label", true, "Route issues with coordinator:* labels to coordinator inbox")
 
 	if err := fs.Parse(args); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
@@ -29,6 +50,8 @@ func runMessagesImportGitHub(args []string) {
 	// Load GitHub config
 	config, err := messaging.LoadGitHubConfig()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
@@ -36,6 +59,7 @@ func runMessagesImportGitHub(args []string) {
 	// Check auto_import setting if not explicitly called
 	if config != nil && !config.IsAutoImportEnabled() && len(args) == 0 {
 		// Auto-import disabled and no explicit args - skip silently
+		span.SetStatus(codes.Ok, "auto-import disabled")
 		return
 	}
 
@@ -62,9 +86,17 @@ func runMessagesImportGitHub(args []string) {
 		repoName = config.DefaultRepo
 	}
 
+	// Add repo attribute to span
+	span.SetAttributes(
+		attribute.String("github.repo", repoName),
+		attribute.Bool("sync.dry_run", *dryRun),
+	)
+
 	// List issues from GitHub
 	issues, err := client.ListIssuesByLabel(repoName, labelList)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		// Check for account mismatch - show prominently with fix options
 		if errors.Is(err, messaging.ErrAccountMismatch) {
 			fmt.Fprintf(os.Stderr, "\n%s %v\n", red("ERROR:"), err)
@@ -74,7 +106,10 @@ func runMessagesImportGitHub(args []string) {
 		os.Exit(1)
 	}
 
+	span.SetAttributes(attribute.Int("github.issues_found", len(issues)))
+
 	if len(issues) == 0 {
+		span.SetStatus(codes.Ok, "no matching issues")
 		fmt.Println("No matching GitHub issues found.")
 		return
 	}
@@ -177,6 +212,13 @@ func runMessagesImportGitHub(args []string) {
 
 		imported++
 	}
+
+	// Record final counts on span
+	span.SetAttributes(
+		attribute.Int("sync.imported", imported),
+		attribute.Int("sync.skipped", skipped),
+	)
+	span.SetStatus(codes.Ok, "sync complete")
 
 	if *dryRun {
 		fmt.Printf("\nDry run: would import %d issue(s), skip %d existing\n", imported, skipped)

@@ -1,15 +1,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/repl"
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 func runREPL(learn bool, trace bool, strictSyntax bool) {
+	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
+	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-repl")
+	if err != nil {
+		// Non-fatal: continue without telemetry
+	} else {
+		defer shutdownTelemetry(ctx)
+	}
+
 	// Use the new REPL implementation with version info
 	r := repl.NewWithVersion(Version, BuildTime)
 	if trace {
@@ -18,7 +29,7 @@ func runREPL(learn bool, trace bool, strictSyntax bool) {
 	if strictSyntax {
 		r.SetStrictSyntaxMode(true)
 	}
-	r.Start(os.Stdin, os.Stdout)
+	r.StartWithContext(ctx, os.Stdin, os.Stdout)
 }
 
 //nolint:unused // TODO: Implement test runner functionality
