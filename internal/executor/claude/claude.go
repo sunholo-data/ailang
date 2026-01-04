@@ -146,14 +146,18 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 	// Inject correlation IDs as resource attributes so Claude Code metrics/events
 	// can be joined with AILANG traces in the dashboard
-	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s", task.ID, sessionID)
+	// source=coordinator distinguishes from user-initiated sessions (source=user)
+	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s,ailang.source=coordinator", task.ID, sessionID)
 	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
 
-	// Inherit OTEL exporter configuration from parent environment
-	// This allows metrics/events to flow to the same backend (GCP, local collector, etc.)
-	if endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); endpoint != "" {
-		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
+	// Configure OTEL exporter for trace collection
+	// Priority: parent env > default to local observatory server
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		// Default to local observatory for unified trace collection
+		endpoint = "http://localhost:1957"
 	}
+	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
 	if protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); protocol != "" {
 		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
 	}

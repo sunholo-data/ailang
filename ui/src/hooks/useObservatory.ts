@@ -46,12 +46,13 @@ export interface Span {
 
 export interface TraceSummary {
   trace_id: string;
-  root_span_name: string;
+  root_span: string;  // Root span name
   span_count: number;
   duration_ms: number;
   start_time: string;
   status: string;
   task_id?: string;
+  service_name?: string;  // e.g., "ailang-run", "ailang-eval", "claude-code"
 }
 
 export interface Trace {
@@ -328,6 +329,43 @@ interface UseObservatoryWsOptions {
   onMetricsUpdated?: (metrics: MetricsSummary) => void;
   workspaceId?: string;
   taskId?: string;
+}
+
+// Telemetry configuration from backend
+export interface TelemetryConfig {
+  gcp_enabled: boolean;
+  gcp_project: string;
+  gcp_trace_url?: string;
+  otlp_enabled: boolean;
+}
+
+// Hook for telemetry configuration
+export function useTelemetryConfig() {
+  const [config, setConfig] = useState<TelemetryConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/telemetry/config')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setConfig(data);
+        setError(null);
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : 'Failed to fetch telemetry config');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  return { config, loading, error };
 }
 
 export function useObservatoryWs(options: UseObservatoryWsOptions = {}) {

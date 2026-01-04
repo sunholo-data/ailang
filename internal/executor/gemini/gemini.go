@@ -142,7 +142,8 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	env = append(env, "GEMINI_TELEMETRY_ENABLED=true")
 
 	// Inject correlation IDs as resource attributes for dashboard linking
-	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s", task.ID, sessionID)
+	// source=coordinator distinguishes from user-initiated sessions (source=user)
+	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s,ailang.source=coordinator", task.ID, sessionID)
 	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
 
 	// For GCP export, check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
@@ -165,10 +166,14 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
 	}
 
-	// Also inherit OTEL endpoint if set (for local collector routing)
-	if endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); endpoint != "" {
-		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
+	// Configure OTEL exporter for trace collection
+	// Priority: parent env > default to local observatory server
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		// Default to local observatory for unified trace collection
+		endpoint = "http://localhost:1957"
 	}
+	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
 
 	cmd.Env = env
 

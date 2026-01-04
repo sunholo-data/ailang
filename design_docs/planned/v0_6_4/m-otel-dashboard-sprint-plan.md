@@ -3,8 +3,10 @@
 **Sprint ID**: M-OTEL-DASHBOARD
 **Design Doc**: [m-otel-dashboard.md](m-otel-dashboard.md)
 **Target Version**: v0.6.4
-**Duration**: 8 days (64 hours)
+**Duration**: 6 days (48 hours) - reduced due to foundation work
 **Risk Level**: Medium
+
+> **Foundation Complete (2026-01-04)**: OTLP receiver, Claude Code integration, and UI enhancements implemented. See [implemented/v0_6_4/m-otel-dashboard-foundation.md](../../implemented/v0_6_4/m-otel-dashboard-foundation.md).
 
 ## Executive Summary
 

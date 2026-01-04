@@ -11,6 +11,10 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.6.3
 
 - [M-COORD-GENERIC-WORKFLOWS: Configurable Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-coord-generic-workflows.md)
+- [Sprint Plan: M-OTEL-ENHANCED-TRACING-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-enhanced-tracing-dx-sprint-plan.md)
+- [M-OTEL-ENHANCED-TRACING-DX: Human-Friendly Tracing for Debugging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-enhanced-tracing-dx.md)
+- [Parser Infinite Loop Guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-parser-infinite-loop-guard.md)
+- [Sprint Plan: M-PARSER-LOOP - Parser Infinite Loop Guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-parser-loop-sprint-plan.md)
 
 ## v0.6.2
 
@@ -238,7 +242,6 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-BUG-NULLARY - Nullary Constructor Pattern Matching Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/M-BUG-NULLARY-sprint-plan.md)
 - [Agent Execution Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/agent-execution-integration.md)
-- [String Concatenation Operator (`++`) Type Inference Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/concat-operator-type-inference-bug.md)
 - [Nullary Constructor Pattern Matching Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/nullary-constructor-pattern-matching-bug.md)
 
 ## v0.4.3
@@ -409,4 +412,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 279 design documents across 40 versions.*
+*Generated at build time. 282 design documents across 40 versions.*

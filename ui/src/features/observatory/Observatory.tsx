@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
-import { useTraces, useMetrics, useObservatoryWs, TraceSummary, MetricsSummary } from '../../hooks/useObservatory';
+import { useTraces, useTrace, useMetrics, useObservatoryWs, useTelemetryConfig, TraceSummary, MetricsSummary } from '../../hooks/useObservatory';
 import styles from './Observatory.module.css';
 
 // Format duration in human-readable format
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms.toFixed(0)}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${(ms / 60000).toFixed(2)}m`;
+function formatDuration(ms: number | string): string {
+  const val = Number(ms) || 0;
+  if (val < 1000) return `${val.toFixed(0)}ms`;
+  if (val < 60000) return `${(val / 1000).toFixed(2)}s`;
+  return `${(val / 60000).toFixed(2)}m`;
 }
 
 // Format cost in USD
-function formatCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
+function formatCost(usd: number | string): string {
+  const val = Number(usd) || 0;
+  if (val < 0.01) return `$${val.toFixed(4)}`;
+  return `$${val.toFixed(2)}`;
 }
 
 // Format large numbers
-function formatNumber(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return n.toString();
+function formatNumber(n: number | string): string {
+  const val = Number(n) || 0;
+  if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+  if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+  return val.toString();
 }
 
 // Metrics overview card
@@ -69,25 +72,73 @@ function MetricsCard({ metrics }: { metrics: MetricsSummary | null }) {
   );
 }
 
-// Trace list item
-function TraceRow({ trace, onClick }: { trace: TraceSummary; onClick: () => void }) {
+// Format service name for display (shorter, friendlier labels)
+function formatServiceName(serviceName: string | undefined): string {
+  if (!serviceName) return '-';
+  // Map common service names to shorter labels
+  const serviceMap: Record<string, string> = {
+    'ailang-run': 'run',
+    'ailang-eval': 'eval',
+    'ailang-check': 'check',
+    'ailang-messages': 'msg',
+    'ailang-server': 'server',
+    'ailang-coordinator': 'coord',
+    'claude-code': 'claude',
+    'claude-code-vscode': 'claude',
+    'claude-code-test': 'test',
+    'gemini-cli': 'gemini',
+  };
+  return serviceMap[serviceName] || serviceName;
+}
+
+// Get color class for service name
+function getServiceClass(serviceName: string | undefined): string {
+  if (!serviceName) return '';
+  if (serviceName.startsWith('ailang-')) return styles.serviceAilang;
+  if (serviceName === 'claude-code') return styles.serviceClaude;
+  if (serviceName === 'gemini-cli') return styles.serviceGemini;
+  if (serviceName === 'coordinator') return styles.serviceCoordinator;
+  return styles.serviceOther;
+}
+
+// Trace list item with inline expandable details
+function TraceRowWithDetail({ trace, isExpanded, onToggle }: {
+  trace: TraceSummary;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const statusClass = trace.status === 'OK' ? styles.statusOk :
                       trace.status === 'ERROR' ? styles.statusError : styles.statusUnset;
 
   return (
-    <tr className={styles.traceRow} onClick={onClick}>
-      <td className={styles.traceId}>{trace.trace_id.substring(0, 8)}...</td>
-      <td className={styles.traceName}>{trace.root_span_name}</td>
-      <td className={styles.traceSpans}>{trace.span_count}</td>
-      <td className={styles.traceDuration}>{formatDuration(trace.duration_ms)}</td>
-      <td className={statusClass}>{trace.status}</td>
-      <td className={styles.traceTime}>{new Date(trace.start_time).toLocaleString()}</td>
-    </tr>
+    <>
+      <tr className={`${styles.traceRow} ${isExpanded ? styles.traceRowExpanded : ''}`} onClick={onToggle}>
+        <td className={styles.traceExpander}>{isExpanded ? '▼' : '▶'}</td>
+        <td className={`${styles.traceSource} ${getServiceClass(trace.service_name)}`}>
+          {formatServiceName(trace.service_name)}
+        </td>
+        <td className={styles.traceId}>{trace.trace_id.substring(0, 8)}...</td>
+        <td className={styles.traceName}>{trace.root_span}</td>
+        <td className={styles.traceSpans}>{trace.span_count}</td>
+        <td className={styles.traceDuration}>{formatDuration(trace.duration_ms)}</td>
+        <td className={statusClass}>{trace.status}</td>
+        <td className={styles.traceTime}>{new Date(trace.start_time).toLocaleString()}</td>
+      </tr>
+      {isExpanded && (
+        <tr className={styles.traceDetailRow}>
+          <td colSpan={8}>
+            <TraceDetailView traceId={trace.trace_id} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
-// Trace list component
-function TraceList({ traces, onSelectTrace }: { traces: TraceSummary[]; onSelectTrace: (id: string) => void }) {
+// Trace list component with inline expansion
+function TraceList({ traces }: { traces: TraceSummary[] }) {
+  const [expandedTraceId, setExpandedTraceId] = useState<string | null>(null);
+
   if (traces.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -96,10 +147,16 @@ function TraceList({ traces, onSelectTrace }: { traces: TraceSummary[]; onSelect
     );
   }
 
+  const toggleTrace = (traceId: string) => {
+    setExpandedTraceId(prev => prev === traceId ? null : traceId);
+  };
+
   return (
     <table className={styles.traceTable}>
       <thead>
         <tr>
+          <th></th>
+          <th>Source</th>
           <th>Trace ID</th>
           <th>Root Span</th>
           <th>Spans</th>
@@ -110,10 +167,11 @@ function TraceList({ traces, onSelectTrace }: { traces: TraceSummary[]; onSelect
       </thead>
       <tbody>
         {traces.map(trace => (
-          <TraceRow
+          <TraceRowWithDetail
             key={trace.trace_id}
             trace={trace}
-            onClick={() => onSelectTrace(trace.trace_id)}
+            isExpanded={expandedTraceId === trace.trace_id}
+            onToggle={() => toggleTrace(trace.trace_id)}
           />
         ))}
       </tbody>
@@ -131,11 +189,27 @@ function ConnectionStatus({ isConnected }: { isConnected: boolean }) {
   );
 }
 
+// GCP Cloud Trace link
+function GCPTraceLink({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={styles.gcpLink}
+      title="View traces in Google Cloud Console"
+    >
+      <span className={styles.gcpIcon}>☁</span>
+      GCP Trace
+    </a>
+  );
+}
+
 // Main Observatory component
 export function Observatory() {
   const { traces, loading: tracesLoading, error: tracesError, refresh: refreshTraces } = useTraces({ limit: 50 });
-  const { metrics, loading: metricsLoading, error: metricsError, refresh: refreshMetrics } = useMetrics();
-  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
+  const { metrics, refresh: refreshMetrics } = useMetrics();
+  const { config: telemetryConfig } = useTelemetryConfig();
 
   // Real-time updates
   const { isConnected } = useObservatoryWs({
@@ -147,8 +221,7 @@ export function Observatory() {
       refreshTraces();
       refreshMetrics();
     },
-    onMetricsUpdated: (newMetrics) => {
-      // Could update metrics directly here instead of refetching
+    onMetricsUpdated: () => {
       refreshMetrics();
     },
   });
@@ -157,7 +230,12 @@ export function Observatory() {
     <div className={styles.observatory}>
       <header className={styles.header}>
         <h1>Observatory</h1>
-        <ConnectionStatus isConnected={isConnected} />
+        <div className={styles.headerActions}>
+          {telemetryConfig?.gcp_enabled && telemetryConfig?.gcp_trace_url && (
+            <GCPTraceLink url={telemetryConfig.gcp_trace_url} />
+          )}
+          <ConnectionStatus isConnected={isConnected} />
+        </div>
       </header>
 
       <section className={styles.overview}>
@@ -175,52 +253,144 @@ export function Observatory() {
         {tracesLoading && <div className={styles.loading}>Loading traces...</div>}
         {tracesError && <div className={styles.error}>Error: {tracesError}</div>}
         {!tracesLoading && !tracesError && (
-          <TraceList traces={traces} onSelectTrace={setSelectedTraceId} />
+          <TraceList traces={traces} />
         )}
       </section>
+    </div>
+  );
+}
 
-      {selectedTraceId && (
-        <section className={styles.traceDetail}>
-          <div className={styles.sectionHeader}>
-            <h2>Trace Detail: {selectedTraceId.substring(0, 16)}...</h2>
-            <button onClick={() => setSelectedTraceId(null)} className={styles.closeButton}>
-              Close
-            </button>
-          </div>
-          <TraceDetailView traceId={selectedTraceId} />
-        </section>
+// Span detail card
+function SpanDetail({ span }: { span: any }) {
+  const [showAttributes, setShowAttributes] = useState(false);
+
+  // Extract key metrics from attributes
+  const attrs = span.attributes || {};
+  const inputTokens = span.tokens_in || attrs.input_tokens;
+  const outputTokens = span.tokens_out || attrs.output_tokens;
+  const cacheReadTokens = attrs.cache_read_tokens;
+  const cacheCreationTokens = attrs.cache_creation_tokens;
+  const durationMs = attrs.duration_ms || span.duration_ms;
+  const sessionId = attrs['session.id']?.substring(0, 8);
+
+  return (
+    <div
+      className={styles.spanNode}
+      style={{ marginLeft: span.parent_span_id ? '24px' : '0' }}
+    >
+      <div className={styles.spanHeader}>
+        <span className={styles.spanName}>{span.name}</span>
+        <span className={styles.spanDuration}>{formatDuration(durationMs || 0)}</span>
+        <span className={`${styles.spanStatus} ${span.status === 'ok' ? styles.statusOk : span.status === 'error' ? styles.statusError : styles.statusUnset}`}>
+          {span.status}
+        </span>
+      </div>
+
+      <div className={styles.spanMeta}>
+        {span.provider && <span className={styles.spanProvider}>{span.provider}</span>}
+        {span.model && <span className={styles.spanModel}>{span.model}</span>}
+        {sessionId && <span className={styles.spanSession}>session: {sessionId}...</span>}
+      </div>
+
+      {/* Token & Cost breakdown */}
+      {(inputTokens || outputTokens || span.cost_usd) && (
+        <div className={styles.spanMetrics}>
+          {inputTokens > 0 && (
+            <span className={styles.spanMetric}>
+              <span className={styles.metricIcon}>↓</span>
+              {formatNumber(inputTokens)} in
+            </span>
+          )}
+          {outputTokens > 0 && (
+            <span className={styles.spanMetric}>
+              <span className={styles.metricIcon}>↑</span>
+              {formatNumber(outputTokens)} out
+            </span>
+          )}
+          {cacheReadTokens > 0 && (
+            <span className={styles.spanMetric}>
+              <span className={styles.metricIcon}>⚡</span>
+              {formatNumber(cacheReadTokens)} cached
+            </span>
+          )}
+          {span.cost_usd > 0 && (
+            <span className={styles.spanCost}>{formatCost(span.cost_usd)}</span>
+          )}
+        </div>
+      )}
+
+      {/* Expandable attributes */}
+      {Object.keys(attrs).length > 0 && (
+        <div className={styles.spanAttributes}>
+          <button
+            className={styles.attributeToggle}
+            onClick={() => setShowAttributes(!showAttributes)}
+          >
+            {showAttributes ? '▼' : '▶'} Attributes ({Object.keys(attrs).length})
+          </button>
+          {showAttributes && (
+            <div className={styles.attributeList}>
+              {Object.entries(attrs).map(([key, value]) => (
+                <div key={key} className={styles.attributeItem}>
+                  <span className={styles.attributeKey}>{key}:</span>
+                  <span className={styles.attributeValue}>
+                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-// Trace detail view (placeholder - can be expanded)
+// Trace detail view
 function TraceDetailView({ traceId }: { traceId: string }) {
-  const { trace, loading, error } = require('../../hooks/useObservatory').useTrace(traceId);
+  const { trace, loading, error } = useTrace(traceId);
 
   if (loading) return <div className={styles.loading}>Loading trace details...</div>;
   if (error) return <div className={styles.error}>Error: {error}</div>;
   if (!trace) return <div className={styles.emptyState}>Trace not found</div>;
 
+  // Calculate totals
+  const totalTokensIn = trace.spans.reduce((sum: number, s: any) => sum + (s.tokens_in || 0), 0);
+  const totalTokensOut = trace.spans.reduce((sum: number, s: any) => sum + (s.tokens_out || 0), 0);
+  const totalCost = trace.spans.reduce((sum: number, s: any) => sum + (s.cost_usd || 0), 0);
+
   return (
-    <div className={styles.spanTree}>
-      {trace.spans.map((span: any) => (
-        <div
-          key={span.id}
-          className={styles.spanNode}
-          style={{ marginLeft: span.parent_span_id ? '24px' : '0' }}
-        >
-          <div className={styles.spanHeader}>
-            <span className={styles.spanName}>{span.name}</span>
-            <span className={styles.spanDuration}>{formatDuration(span.duration_ms || 0)}</span>
-          </div>
-          <div className={styles.spanMeta}>
-            <span className={styles.spanProvider}>{span.provider}</span>
-            {span.model && <span className={styles.spanModel}>{span.model}</span>}
-            {span.cost_usd > 0 && <span className={styles.spanCost}>{formatCost(span.cost_usd)}</span>}
-          </div>
+    <div className={styles.traceDetailContent}>
+      {/* Trace summary */}
+      <div className={styles.traceSummary}>
+        <div className={styles.traceSummaryItem}>
+          <span className={styles.summaryLabel}>Spans:</span>
+          <span className={styles.summaryValue}>{trace.spans.length}</span>
         </div>
-      ))}
+        {totalTokensIn > 0 && (
+          <div className={styles.traceSummaryItem}>
+            <span className={styles.summaryLabel}>Total Tokens:</span>
+            <span className={styles.summaryValue}>{formatNumber(totalTokensIn)} in / {formatNumber(totalTokensOut)} out</span>
+          </div>
+        )}
+        {totalCost > 0 && (
+          <div className={styles.traceSummaryItem}>
+            <span className={styles.summaryLabel}>Total Cost:</span>
+            <span className={styles.summaryValue}>{formatCost(totalCost)}</span>
+          </div>
+        )}
+        <div className={styles.traceSummaryItem}>
+          <span className={styles.summaryLabel}>Duration:</span>
+          <span className={styles.summaryValue}>{formatDuration(trace.duration_ms || 0)}</span>
+        </div>
+      </div>
+
+      {/* Span tree */}
+      <div className={styles.spanTree}>
+        {trace.spans.map((span: any) => (
+          <SpanDetail key={span.id} span={span} />
+        ))}
+      </div>
     </div>
   );
 }

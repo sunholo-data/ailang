@@ -45,9 +45,15 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-trace-export.md)
 - [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/semantic-caching-future.md)
 
+## Planned for v0.6.4
+
+- [M-OTEL-DASHBOARD Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-otel-dashboard-sprint-plan.md)
+- [M-OTEL-DASHBOARD: Unified Observability Platform](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-otel-dashboard.md)
+
 ## Planned for v0.6.3
 
 - [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/M-EVAL-AGENT-QUEUE.md)
+- [Concatenation Operator (`++`) Type Inference Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/concat-operator-type-inference-bug.md)
 - [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/eval-dashboard-reliability.md)
 - [M-AI-OLLAMA Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-ai-ollama-sprint-plan.md)
 - [M-COLLAB-PROVIDER-STATS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-collab-provider-stats-sprint-plan.md)
@@ -61,6 +67,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-COORD-TASKCHAIN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-taskchain-tests-sprint-plan.md)
 - [M-COORD-TASKCHAIN-TESTS: Add TaskChain Test Coverage](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-taskchain-tests.md)
 - [M-COORD-UI-APPROVALS: Dashboard Coordinator Approval Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-coord-ui-approvals.md)
+- [Sprint Plan: M-DEPRECATE-AILANG-AGENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-deprecate-ailang-agent-sprint-plan.md)
 - [M-DEPRECATE-AILANG-AGENT: Deprecate Standalone Agent Binary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-deprecate-ailang-agent.md)
 - [[Feature Name]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-dx16-task-record-helpers.md)
 - [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-eval-ollama-local-models.md)
@@ -68,12 +75,16 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-MSG-ROUTING - Message Routing DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-msg-routing-sprint-plan.md)
 - [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-openai-responses-api-sprint.md)
 - [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-openai-responses-api.md)
+- [M-OTEL-CROSS-PROCESS: Cross-Process Trace Linking](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-otel-cross-process-linking.md)
+- [Sprint Plan: M-OTEL-CROSS-PROCESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-otel-cross-process-sprint-plan.md)
+- [[Feature Name]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-otel-enhanced-tracing.md)
 - [M-OTEL-EXTENDED: Extended OpenTelemetry Instrumentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-otel-extended-instrumentation.md)
 - [M-OTEL-EXTENDED Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-otel-extended-sprint-plan.md)
 - [Sprint Plan: String Reverse Builtin (`_string_reverse`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-string-reverse-sprint-plan.md)
 - [String Reverse Builtin (`_string_reverse`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-string-reverse.md)
 - [M-UI-REFACTOR: Refactor UI Folder for AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-ui-refactor-ai-friendly.md)
 - [Sprint Plan: M-UI-REFACTOR - AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/m-ui-refactor-sprint-plan.md)
+- [AILANG v0.6.3 Bug Fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_3/v0_6_3-bug-fixes.md)
 
 ## Long-term Vision
 
@@ -88,4 +99,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 53 planned features across 4 upcoming versions.*
+*Generated at build time. 61 planned features across 5 upcoming versions.*

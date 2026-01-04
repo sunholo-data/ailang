@@ -21,6 +21,37 @@
   font-family: var(--font-heading);
 }
 
+/* Header actions */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* GCP Cloud Trace link */
+.gcpLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(66, 133, 244, 0.15);
+  color: #4285f4;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.gcpLink:hover {
+  background: rgba(66, 133, 244, 0.25);
+  color: #5b9bff;
+}
+
+.gcpIcon {
+  font-size: 14px;
+}
+
 /* Connection status */
 .connectionStatus {
   display: flex;
@@ -174,6 +205,33 @@
   background: var(--bg-hover, #232d3a);
 }
 
+.traceRowExpanded {
+  background: var(--bg-hover, #232d3a);
+  border-bottom: none;
+}
+
+.traceExpander {
+  width: 24px;
+  text-align: center;
+  color: var(--text-secondary, #8b949e);
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.traceRow:hover .traceExpander {
+  color: var(--color-primary, #e73c17);
+}
+
+.traceDetailRow {
+  background: var(--bg-elevated, #141d2b);
+}
+
+.traceDetailRow td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #30363d);
+}
+
 .traceId {
   font-family: var(--font-mono, monospace);
   font-size: 13px;
@@ -198,6 +256,43 @@
 .traceTime {
   color: var(--text-tertiary, #6e7681);
   font-size: 13px;
+}
+
+/* Source column - color-coded by service type */
+.traceSource {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+  min-width: 60px;
+}
+
+.serviceAilang {
+  background: rgba(231, 60, 23, 0.15);
+  color: #ff5a3c;
+}
+
+.serviceClaude {
+  background: rgba(210, 151, 87, 0.15);
+  color: #d29757;
+}
+
+.serviceGemini {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.serviceCoordinator {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.serviceOther {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
 }
 
 /* Status badges */
@@ -273,6 +368,130 @@
   color: #22c55e;
   padding: 2px 8px;
   border-radius: 4px;
+}
+
+.spanSession {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.spanStatus {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+/* Token metrics row */
+.spanMetrics {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.spanMetric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary, #8b949e);
+}
+
+.metricIcon {
+  color: var(--color-primary, #e73c17);
+  font-size: 10px;
+}
+
+/* Expandable attributes section */
+.spanAttributes {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-color, #30363d);
+  padding-top: 8px;
+}
+
+.attributeToggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attributeToggle:hover {
+  color: var(--text-primary, #cdd6f4);
+}
+
+.attributeList {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.attributeItem {
+  display: flex;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color, #30363d);
+}
+
+.attributeItem:last-child {
+  border-bottom: none;
+}
+
+.attributeKey {
+  color: #8b5cf6;
+  min-width: 150px;
+  flex-shrink: 0;
+}
+
+.attributeValue {
+  color: var(--text-primary, #cdd6f4);
+  word-break: break-all;
+}
+
+/* Trace detail content */
+.traceDetailContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.traceSummary {
+  display: flex;
+  gap: 24px;
+  padding: 12px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.traceSummaryItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.summaryLabel {
+  color: var(--text-secondary, #8b949e);
+  font-size: 12px;
+}
+
+.summaryValue {
+  color: var(--text-primary, #cdd6f4);
+  font-weight: 500;
+  font-family: var(--font-mono, monospace);
 }
 
 /* States */

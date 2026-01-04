@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 // handleSelectFolder opens a native folder picker dialog and returns the selected path
@@ -99,4 +101,30 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 	default:
 		return "", fmt.Errorf("folder picker not supported on %s", runtime.GOOS)
 	}
+}
+
+// handleTelemetryConfig returns the current telemetry configuration
+// GET /api/telemetry/config
+func (s *Server) handleTelemetryConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	config := map[string]interface{}{
+		"gcp_enabled":  telemetry.IsGoogleCloudEnabled(),
+		"gcp_project":  telemetry.GoogleCloudProject(),
+		"otlp_enabled": telemetry.IsEnabled(),
+	}
+
+	// Add GCP console link if enabled
+	if telemetry.IsGoogleCloudEnabled() {
+		config["gcp_trace_url"] = fmt.Sprintf(
+			"https://console.cloud.google.com/traces/explorer?project=%s",
+			telemetry.GoogleCloudProject(),
+		)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(config)
 }

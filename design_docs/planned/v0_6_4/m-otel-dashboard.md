@@ -1,10 +1,12 @@
 # M-OTEL-DASHBOARD: Unified Observability Platform
 
-**Status**: Planned
+**Status**: Planned (Foundation Complete)
 **Target**: v0.6.4
 **Priority**: P0 (High)
-**Estimated**: 8 days (64 hours)
+**Estimated**: 6 days (48 hours) - reduced from 8 days due to foundation work
 **Dependencies**: M-OTEL-CROSS-PROCESS (v0.6.3), M-OTEL-EXTENDED (v0.6.3)
+
+> **Note (2026-01-04)**: Foundation work completed in v0.6.4-pre. See [implemented/v0_6_4/m-otel-dashboard-foundation.md](../../implemented/v0_6_4/m-otel-dashboard-foundation.md) for details on OTLP receiver, Claude Code integration, and UI enhancements.
 
 ## Executive Summary
 

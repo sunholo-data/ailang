@@ -289,12 +289,13 @@ func (d *Daemon) pollAndProcessTasks() error {
 			}
 		}
 
-		// Create a thread in collaboration.db for dashboard visibility
+		// Get or create a thread in collaboration.db for dashboard visibility
+		// Using GetOrCreate prevents duplicate threads when message isn't marked read properly
 		targetAgent := agentID
 		if targetAgent == "" {
 			targetAgent = "coordinator"
 		}
-		thread, err := d.msgStore.CreateThreadWithWorkspace(
+		thread, created, err := d.msgStore.GetOrCreateThreadWithWorkspace(
 			msg.Title,         // title
 			"ailang_instance", // createdByType (constraint: 'human' or 'ailang_instance')
 			"coordinator",     // createdByID
@@ -302,16 +303,29 @@ func (d *Daemon) pollAndProcessTasks() error {
 			workspace,         // workspace - source project/agent
 		)
 		if err != nil {
-			d.logger.Printf("Failed to create thread for task %s: %v", taskID, err)
+			d.logger.Printf("Failed to get/create thread for task %s: %v", taskID, err)
 			// Continue anyway - thread is for visibility, not required for task
 		} else {
 			task.ThreadID = thread.ID
-			d.logger.Printf("Created thread %s for task %s (agent: %s)", thread.ID, taskID, targetAgent)
+			if created {
+				d.logger.Printf("Created thread %s for task %s (agent: %s)", thread.ID, taskID, targetAgent)
+			} else {
+				d.logger.Printf("Reusing existing thread %s for task %s (agent: %s)", thread.ID, taskID, targetAgent)
+			}
 		}
 
 		// Store the task
 		if err := d.taskStore.CreateTask(d.ctx, task); err != nil {
 			d.logger.Printf("Failed to create task for message %s: %v", msg.ID, err)
+			// Still mark message as read even if task creation fails (e.g., duplicate task)
+			// This prevents infinite loops when the same message keeps being processed
+			if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
+				if markErr := adapter.MarkAsRead(msg.ID); markErr != nil {
+					d.logger.Printf("Failed to mark message as read after task error: %v", markErr)
+				} else {
+					d.logger.Printf("Marked message %s as read (task already existed)", msg.ID)
+				}
+			}
 			continue
 		}
 

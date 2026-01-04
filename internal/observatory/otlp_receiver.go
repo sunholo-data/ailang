@@ -1,0 +1,491 @@
+// Package observatory provides a unified observability platform for AILANG.
+package observatory
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
+	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+)
+
+// OTLPReceiver receives spans via the standard OTLP HTTP protocol.
+// This allows any OTEL-compatible exporter to send traces to the observatory.
+type OTLPReceiver struct {
+	backend Backend
+}
+
+// NewOTLPReceiver creates a new OTLP receiver that stores spans in the backend.
+func NewOTLPReceiver(backend Backend) *OTLPReceiver {
+	return &OTLPReceiver{backend: backend}
+}
+
+// RegisterRoutes registers the OTLP HTTP endpoints on the given mux.
+// Implements the OTLP/HTTP specification:
+// - POST /v1/traces - Receive trace data (protobuf or JSON)
+// - POST /v1/logs - Receive logs/events (for Claude Code events)
+// - POST /v1/metrics - Receive metrics (for Claude Code metrics)
+func (r *OTLPReceiver) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /v1/traces", r.handleTraces)
+	mux.HandleFunc("POST /v1/logs", r.handleLogs)
+	mux.HandleFunc("POST /v1/metrics", r.handleMetrics)
+}
+
+// handleMetrics handles the OTLP metrics export endpoint.
+// Currently accepts and acknowledges metrics but doesn't store them.
+// Claude Code sends metrics like token counts, costs, session info.
+func (r *OTLPReceiver) handleMetrics(w http.ResponseWriter, req *http.Request) {
+	// Read and discard body - we accept metrics but don't store them yet
+	_, _ = io.ReadAll(req.Body)
+	defer req.Body.Close()
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"partialSuccess": map[string]any{},
+	})
+}
+
+// handleTraces handles the OTLP trace export endpoint.
+func (r *OTLPReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	var exportReq coltracepb.ExportTraceServiceRequest
+
+	// Parse based on content type
+	contentType := req.Header.Get("Content-Type")
+	switch contentType {
+	case "application/x-protobuf":
+		if err := proto.Unmarshal(body, &exportReq); err != nil {
+			http.Error(w, fmt.Sprintf("failed to parse protobuf: %v", err), http.StatusBadRequest)
+			return
+		}
+	case "application/json":
+		if err := protojson.Unmarshal(body, &exportReq); err != nil {
+			http.Error(w, fmt.Sprintf("failed to parse JSON: %v", err), http.StatusBadRequest)
+			return
+		}
+	default:
+		// Try protobuf first, fall back to JSON
+		if err := proto.Unmarshal(body, &exportReq); err != nil {
+			if jsonErr := protojson.Unmarshal(body, &exportReq); jsonErr != nil {
+				http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
+				return
+			}
+		}
+	}
+
+	// Convert and store spans
+	ctx := req.Context()
+	for _, resourceSpans := range exportReq.ResourceSpans {
+		if err := r.processResourceSpans(ctx, resourceSpans); err != nil {
+			// Log but continue processing other spans
+			fmt.Printf("observatory: failed to process resource spans: %v\n", err)
+		}
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"partialSuccess": map[string]any{},
+	})
+}
+
+// handleLogs handles the OTLP logs export endpoint.
+// This receives Claude Code events (api_request, tool_result, etc.) and converts them to spans.
+func (r *OTLPReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "failed to read body", http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	fmt.Printf("observatory: received logs request, body length: %d, content-type: %s\n", len(body), req.Header.Get("Content-Type"))
+
+	var exportReq collogspb.ExportLogsServiceRequest
+
+	// Parse based on content type
+	contentType := req.Header.Get("Content-Type")
+	switch contentType {
+	case "application/x-protobuf":
+		if err := proto.Unmarshal(body, &exportReq); err != nil {
+			fmt.Printf("observatory: failed to parse protobuf logs: %v\n", err)
+			http.Error(w, fmt.Sprintf("failed to parse protobuf: %v", err), http.StatusBadRequest)
+			return
+		}
+	case "application/json":
+		if err := protojson.Unmarshal(body, &exportReq); err != nil {
+			fmt.Printf("observatory: failed to parse JSON logs: %v\n", err)
+			http.Error(w, fmt.Sprintf("failed to parse JSON: %v", err), http.StatusBadRequest)
+			return
+		}
+	default:
+		// Try protobuf first, fall back to JSON
+		if err := proto.Unmarshal(body, &exportReq); err != nil {
+			if jsonErr := protojson.Unmarshal(body, &exportReq); jsonErr != nil {
+				fmt.Printf("observatory: failed to parse logs (tried both): proto=%v, json=%v\n", err, jsonErr)
+				http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
+				return
+			}
+		}
+	}
+
+	fmt.Printf("observatory: parsed %d resource logs\n", len(exportReq.ResourceLogs))
+
+	// Convert and store logs as spans
+	ctx := req.Context()
+	for _, resourceLogs := range exportReq.ResourceLogs {
+		if err := r.processResourceLogs(ctx, resourceLogs); err != nil {
+			fmt.Printf("observatory: failed to process resource logs: %v\n", err)
+		}
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"partialSuccess": map[string]any{},
+	})
+}
+
+// processResourceLogs converts Claude Code events to spans.
+func (r *OTLPReceiver) processResourceLogs(ctx context.Context, rl *logspb.ResourceLogs) error {
+	// Extract resource attributes
+	resourceAttrs := make(map[string]any)
+	if rl.Resource != nil {
+		for _, kv := range rl.Resource.Attributes {
+			resourceAttrs[kv.Key] = anyValueToGo(kv.Value)
+		}
+	}
+
+	fmt.Printf("observatory: processing resource logs with %d scope logs, resource attrs: %v\n", len(rl.ScopeLogs), resourceAttrs)
+
+	for _, scopeLogs := range rl.ScopeLogs {
+		fmt.Printf("observatory: scope has %d log records\n", len(scopeLogs.LogRecords))
+		for _, logRecord := range scopeLogs.LogRecords {
+			span := r.convertLogToSpan(logRecord, resourceAttrs)
+			if span != nil {
+				fmt.Printf("observatory: converted log to span: name=%s, tokens=%d/%d\n", span.Name, span.TokensIn, span.TokensOut)
+				if err := r.backend.CreateSpan(ctx, span); err != nil {
+					return fmt.Errorf("store span from log: %w", err)
+				}
+			} else {
+				fmt.Printf("observatory: log record skipped (no event.name)\n")
+			}
+		}
+	}
+	return nil
+}
+
+// convertLogToSpan converts a Claude Code event (OTEL log record) to a span.
+// Claude Code events: claude_code.api_request, claude_code.tool_result, etc.
+func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map[string]any) *Span {
+	// Extract log attributes
+	attrs := make(map[string]any)
+	for _, kv := range log.Attributes {
+		attrs[kv.Key] = anyValueToGo(kv.Value)
+	}
+
+	// Get event name
+	eventName := extractString(attrs, "event.name")
+	if eventName == "" {
+		// Not a Claude Code event, skip
+		return nil
+	}
+
+	// Generate IDs
+	spanID := generateSpanID()
+	traceID := extractString(resourceAttrs, "ailang.trace_id")
+	if traceID == "" {
+		traceID = generateTraceID()
+	}
+
+	// Extract timing
+	timestamp := time.Unix(0, int64(log.TimeUnixNano))
+	durationMs := int64(extractInt(attrs, "duration_ms"))
+	var endTime *time.Time
+	if durationMs > 0 {
+		t := timestamp.Add(time.Duration(durationMs) * time.Millisecond)
+		endTime = &t
+	} else {
+		endTime = &timestamp
+	}
+
+	// Extract Claude Code specific metrics
+	tokensIn := int64(extractInt(attrs, "input_tokens"))
+	tokensOut := int64(extractInt(attrs, "output_tokens"))
+	costUSD := extractFloat(attrs, "cost_usd")
+	model := extractString(attrs, "model")
+	sessionID := extractString(resourceAttrs, "session.id")
+
+	// Determine status
+	status := SpanStatusOK
+	statusMsg := ""
+	if eventName == "claude_code.api_error" {
+		status = SpanStatusError
+		statusMsg = extractString(attrs, "error")
+	} else if success := extractString(attrs, "success"); success == "false" {
+		status = SpanStatusError
+		statusMsg = extractString(attrs, "error")
+	}
+
+	// Build span name
+	spanName := eventName
+	if toolName := extractString(attrs, "tool_name"); toolName != "" {
+		spanName = fmt.Sprintf("claude_code.tool.%s", toolName)
+	}
+
+	// Add session ID to attributes
+	if sessionID != "" {
+		attrs["claude.session_id"] = sessionID
+	}
+
+	return &Span{
+		ID:                 spanID,
+		TraceID:            traceID,
+		Name:               spanName,
+		Kind:               SpanKindInternal,
+		Status:             status,
+		StatusMessage:      statusMsg,
+		StartTime:          timestamp,
+		EndTime:            endTime,
+		DurationMs:         durationMs,
+		TokensIn:           tokensIn,
+		TokensOut:          tokensOut,
+		CostUSD:            costUSD,
+		Model:              model,
+		Provider:           ProviderClaude,
+		Attributes:         attrs,
+		ResourceAttributes: resourceAttrs,
+	}
+}
+
+// generateSpanID generates a random 16-character hex span ID.
+func generateSpanID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// generateTraceID generates a random 32-character hex trace ID.
+func generateTraceID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// processResourceSpans converts and stores spans from a resource.
+func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.ResourceSpans) error {
+	// Extract resource attributes
+	resourceAttrs := make(map[string]any)
+	if rs.Resource != nil {
+		for _, kv := range rs.Resource.Attributes {
+			resourceAttrs[kv.Key] = anyValueToGo(kv.Value)
+		}
+	}
+
+	for _, scopeSpans := range rs.ScopeSpans {
+		for _, span := range scopeSpans.Spans {
+			normalized := r.convertSpan(span, resourceAttrs)
+			if err := r.backend.CreateSpan(ctx, normalized); err != nil {
+				return fmt.Errorf("store span %s: %w", span.SpanId, err)
+			}
+		}
+	}
+	return nil
+}
+
+// convertSpan converts an OTLP span to the observatory model.
+func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]any) *Span {
+	// Extract span attributes
+	attrs := make(map[string]any)
+	for _, kv := range span.Attributes {
+		attrs[kv.Key] = anyValueToGo(kv.Value)
+	}
+
+	// Convert times
+	startTime := time.Unix(0, int64(span.StartTimeUnixNano))
+	endTime := time.Unix(0, int64(span.EndTimeUnixNano))
+	durationMs := endTime.Sub(startTime).Milliseconds()
+
+	// Convert status
+	status := SpanStatusUnset
+	statusMsg := ""
+	if span.Status != nil {
+		switch span.Status.Code {
+		case tracepb.Status_STATUS_CODE_OK:
+			status = SpanStatusOK
+		case tracepb.Status_STATUS_CODE_ERROR:
+			status = SpanStatusError
+		}
+		statusMsg = span.Status.Message
+	}
+
+	// Convert kind
+	kind := SpanKindInternal
+	switch span.Kind {
+	case tracepb.Span_SPAN_KIND_CLIENT:
+		kind = SpanKindClient
+	case tracepb.Span_SPAN_KIND_SERVER:
+		kind = SpanKindServer
+	case tracepb.Span_SPAN_KIND_PRODUCER:
+		kind = SpanKindProducer
+	case tracepb.Span_SPAN_KIND_CONSUMER:
+		kind = SpanKindConsumer
+	}
+
+	// Extract parent span ID
+	parentSpanID := ""
+	if len(span.ParentSpanId) > 0 {
+		parentSpanID = fmt.Sprintf("%x", span.ParentSpanId)
+	}
+
+	// Extract normalized metrics from attributes
+	tokensIn := int64(extractInt(attrs, "gen_ai.usage.input_tokens", "ailang.tokens.input"))
+	tokensOut := int64(extractInt(attrs, "gen_ai.usage.output_tokens", "ailang.tokens.output"))
+	costUSD := extractFloat(attrs, "gen_ai.usage.cost", "ailang.cost.usd")
+	model := extractString(attrs, "gen_ai.request.model", "ailang.model")
+	providerStr := extractString(attrs, "ailang.provider", "gen_ai.system")
+
+	// Map provider string to Provider type
+	var provider Provider
+	switch providerStr {
+	case "claude", "anthropic":
+		provider = ProviderClaude
+	case "gemini", "google":
+		provider = ProviderGemini
+	case "ollama":
+		provider = ProviderOllama
+	default:
+		provider = Provider(providerStr)
+	}
+
+	return &Span{
+		ID:                 fmt.Sprintf("%x", span.SpanId),
+		TraceID:            fmt.Sprintf("%x", span.TraceId),
+		ParentSpanID:       parentSpanID,
+		Name:               span.Name,
+		Kind:               kind,
+		Status:             status,
+		StatusMessage:      statusMsg,
+		StartTime:          startTime,
+		EndTime:            &endTime,
+		DurationMs:         durationMs,
+		TokensIn:           tokensIn,
+		TokensOut:          tokensOut,
+		CostUSD:            costUSD,
+		Model:              model,
+		Provider:           provider,
+		Attributes:         attrs,
+		ResourceAttributes: resourceAttrs,
+	}
+}
+
+// anyValueToGo converts an OTLP AnyValue to a Go value.
+func anyValueToGo(v *commonpb.AnyValue) any {
+	if v == nil {
+		return nil
+	}
+	switch val := v.Value.(type) {
+	case *commonpb.AnyValue_StringValue:
+		return val.StringValue
+	case *commonpb.AnyValue_IntValue:
+		return val.IntValue
+	case *commonpb.AnyValue_DoubleValue:
+		return val.DoubleValue
+	case *commonpb.AnyValue_BoolValue:
+		return val.BoolValue
+	case *commonpb.AnyValue_ArrayValue:
+		arr := make([]any, len(val.ArrayValue.Values))
+		for i, elem := range val.ArrayValue.Values {
+			arr[i] = anyValueToGo(elem)
+		}
+		return arr
+	case *commonpb.AnyValue_KvlistValue:
+		m := make(map[string]any)
+		for _, kv := range val.KvlistValue.Values {
+			m[kv.Key] = anyValueToGo(kv.Value)
+		}
+		return m
+	default:
+		return nil
+	}
+}
+
+// Helper functions
+func extractInt(attrs map[string]any, keys ...string) int {
+	for _, key := range keys {
+		if v, ok := attrs[key]; ok {
+			switch val := v.(type) {
+			case int:
+				return val
+			case int64:
+				return int(val)
+			case float64:
+				return int(val)
+			case string:
+				// Claude Code sends numbers as strings
+				if i, err := strconv.Atoi(val); err == nil {
+					return i
+				}
+				// Try parsing as float then convert
+				if f, err := strconv.ParseFloat(val, 64); err == nil {
+					return int(f)
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func extractFloat(attrs map[string]any, keys ...string) float64 {
+	for _, key := range keys {
+		if v, ok := attrs[key]; ok {
+			switch val := v.(type) {
+			case float64:
+				return val
+			case int:
+				return float64(val)
+			case int64:
+				return float64(val)
+			case string:
+				// Claude Code sends numbers as strings
+				if f, err := strconv.ParseFloat(val, 64); err == nil {
+					return f
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func extractString(attrs map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := attrs[key]; ok {
+			if s, ok := v.(string); ok {
+				return s
+			}
+		}
+	}
+	return ""
+}

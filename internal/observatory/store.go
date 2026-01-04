@@ -3,6 +3,7 @@ package observatory
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -634,7 +635,8 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 		       COALESCE(SUM(duration_ms), 0) as duration_ms,
 		       MIN(start_time) as start_time,
 		       (SELECT status FROM spans s3 WHERE s3.trace_id = s.trace_id AND s3.parent_span_id IS NULL LIMIT 1) as status,
-		       task_id
+		       task_id,
+		       (SELECT resource_attributes FROM spans s4 WHERE s4.trace_id = s.trace_id AND s4.parent_span_id IS NULL LIMIT 1) as resource_attrs
 		FROM spans s
 		WHERE 1=1
 	`
@@ -671,10 +673,10 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 	var summaries []*TraceSummary
 	for rows.Next() {
 		ts := &TraceSummary{}
-		var rootSpan, status, taskID sql.NullString
+		var rootSpan, status, taskID, resourceAttrs sql.NullString
 		var startTimeStr string
 		if err := rows.Scan(&ts.TraceID, &rootSpan, &ts.SpanCount, &ts.DurationMs,
-			&startTimeStr, &status, &taskID); err != nil {
+			&startTimeStr, &status, &taskID, &resourceAttrs); err != nil {
 			return nil, err
 		}
 		if rootSpan.Valid {
@@ -686,8 +688,17 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 		if taskID.Valid {
 			ts.TaskID = taskID.String
 		}
+		// Extract service.name from resource_attributes JSON
+		if resourceAttrs.Valid && resourceAttrs.String != "" {
+			ts.ServiceName = extractServiceName(resourceAttrs.String)
+		}
 		// Parse start_time from string (SQLite MIN() returns string)
+		// SQLite stores as "2006-01-02 15:04:05.999999999+07:00" (space, not T)
 		if parsedTime, err := time.Parse(time.RFC3339Nano, startTimeStr); err == nil {
+			ts.StartTime = parsedTime
+		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05.999999999-07:00", startTimeStr); err == nil {
+			ts.StartTime = parsedTime
+		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05-07:00", startTimeStr); err == nil {
 			ts.StartTime = parsedTime
 		} else if parsedTime, err := time.Parse("2006-01-02T15:04:05Z", startTimeStr); err == nil {
 			ts.StartTime = parsedTime
@@ -697,6 +708,21 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 		summaries = append(summaries, ts)
 	}
 	return summaries, rows.Err()
+}
+
+// extractServiceName extracts service.name from resource_attributes JSON.
+func extractServiceName(jsonStr string) string {
+	if jsonStr == "" || jsonStr == "{}" {
+		return ""
+	}
+	var attrs map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &attrs); err != nil {
+		return ""
+	}
+	if sn, ok := attrs["service.name"].(string); ok {
+		return sn
+	}
+	return ""
 }
 
 // ===== Span Event Operations =====

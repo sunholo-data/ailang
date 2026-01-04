@@ -51,9 +51,96 @@ export GOOGLE_CLOUD_PROJECT=your-project-id
 docker run -d -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
+# Option 3: AILANG Observatory Dashboard (local UI)
+ailang server  # Starts server on localhost:1957
+# View traces at http://localhost:1957 → Observatory tab
+
 # Verify configuration
 ailang trace status
 ```
+
+## Observatory Dashboard Setup (v0.6.3+)
+
+The Observatory provides a local dashboard for viewing traces from Claude Code, Gemini CLI, and AILANG.
+
+### Start the Server
+
+```bash
+ailang server
+# Or: make services-start
+```
+
+### Configure Claude Code
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1957",
+    "OTEL_RESOURCE_ATTRIBUTES": "ailang.source=user"
+  }
+}
+```
+
+**What Claude Code sends:** Events via OTLP logs (token counts, costs, model, session info)
+
+### Configure Gemini CLI
+
+Add to `~/.gemini/settings.json`:
+
+```json
+{
+  "telemetry": {
+    "enabled": true
+  }
+}
+```
+
+And add to shell profile (`~/.zshenv`, `~/.bashrc`):
+
+```bash
+export GEMINI_TELEMETRY_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_RESOURCE_ATTRIBUTES="ailang.source=user"
+```
+
+**What Gemini CLI sends:** Full traces (complete span hierarchy)
+
+### Environment Variables Reference
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Claude Code telemetry | `1` |
+| `OTEL_LOGS_EXPORTER` | Log export protocol | `otlp` |
+| `OTEL_METRICS_EXPORTER` | Metrics export protocol | `otlp` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol | `http/json` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Observatory URL | `http://localhost:1957` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Span metadata | `ailang.source=user` |
+| `GEMINI_TELEMETRY_ENABLED` | Enable Gemini CLI telemetry | `true` |
+
+### OTLP Endpoints
+
+The Observatory receives data on:
+- `/v1/traces` - Trace spans (Gemini CLI, AILANG)
+- `/v1/logs` - Log records (Claude Code events)
+- `/v1/metrics` - Metrics data
+
+Both protobuf and JSON formats are supported.
+
+### Verify Telemetry is Working
+
+1. Ensure `ailang server` is running
+2. Run a Claude Code or Gemini CLI command
+3. Open http://localhost:1957 → Observatory tab
+4. New traces should appear automatically
+
+**Note:** If server is not running, OTLP exports fail silently (no impact on CLI tools).
 
 ## Available Scripts
 

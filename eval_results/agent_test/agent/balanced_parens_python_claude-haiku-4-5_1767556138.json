@@ -1,0 +1,30 @@
+{
+  "id": "balanced_parens",
+  "lang": "python",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 556,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "compile_error",
+  "stderr": "exit status 1",
+  "expected_stdout": "true\nfalse\nfalse\ntrue\n",
+  "timestamp": "2026-01-04T20:48:58.369924+01:00",
+  "code": "# TODO: Write your Python solution here\n",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "eval_mode": "agent"
+}

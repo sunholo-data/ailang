@@ -725,6 +725,172 @@ When `GOOGLE_CLOUD_PROJECT` or `OTEL_EXPORTER_OTLP_ENDPOINT` is set:
 
 **Note:** Actual overhead depends on your OTEL collector. Local Jaeger adds ~10μs, while cloud exports (GCP, Honeycomb) add ~50-100μs due to batching and network I/O.
 
+## Observatory Dashboard Integration (v0.6.3+)
+
+The AILANG Observatory provides a local dashboard for viewing traces, spans, and metrics from Claude Code, Gemini CLI, and AILANG operations in real-time.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Your Development Environment                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   Claude Code ──────────────┐                                        │
+│   (metrics + events)        │                                        │
+│                             │    OTLP/HTTP                           │
+│   Gemini CLI ───────────────┼────────────────►  AILANG Server       │
+│   (full traces)             │                   (localhost:1957)    │
+│                             │                         │              │
+│   ailang run ───────────────┘                         │              │
+│   (full traces)                                       │              │
+│                                                       ▼              │
+│                                              ┌──────────────────┐    │
+│                                              │  Observatory UI  │    │
+│                                              │  /observatory    │    │
+│                                              └──────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Setup
+
+**1. Start the AILANG server:**
+
+```bash
+ailang server
+# Or with make
+make services-start
+```
+
+**2. Configure Claude Code:**
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1957",
+    "OTEL_RESOURCE_ATTRIBUTES": "ailang.source=user"
+  }
+}
+```
+
+**3. Configure Gemini CLI:**
+
+Add to `~/.gemini/settings.json`:
+
+```json
+{
+  "telemetry": {
+    "enabled": true
+  }
+}
+```
+
+And add to your shell profile (`~/.zshenv`, `~/.bashrc`, etc.):
+
+```bash
+# Gemini CLI telemetry to Observatory
+export GEMINI_TELEMETRY_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_RESOURCE_ATTRIBUTES="ailang.source=user"
+```
+
+**4. View the dashboard:**
+
+Open http://localhost:1957 and navigate to the Observatory tab.
+
+### What Gets Captured
+
+| Source | Data Type | What You See |
+|--------|-----------|--------------|
+| Claude Code | Events (OTLP logs) | Token counts, costs, model, session info |
+| Gemini CLI | Full traces | Complete span hierarchy with timing |
+| AILANG commands | Full traces | Compilation phases, eval benchmarks, etc. |
+
+### Environment Variables Reference
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Claude Code telemetry export | `1` |
+| `OTEL_LOGS_EXPORTER` | Log export protocol | `otlp` |
+| `OTEL_METRICS_EXPORTER` | Metrics export protocol | `otlp` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | OTLP transport protocol | `http/json` or `grpc` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Observatory server URL | `http://localhost:1957` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Span metadata | `ailang.source=user` |
+| `GEMINI_TELEMETRY_ENABLED` | Enable Gemini CLI telemetry | `true` |
+
+### Resource Attributes
+
+The `OTEL_RESOURCE_ATTRIBUTES` field supports these attributes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `ailang.source` | `user` for manual sessions, `coordinator` for automated |
+| `ailang.task_id` | Coordinator task ID (set automatically) |
+| `ailang.session_id` | Session ID (set automatically) |
+
+### OTLP Receiver Endpoints
+
+The Observatory server exposes standard OTLP endpoints:
+
+| Endpoint | Method | Content-Type | Purpose |
+|----------|--------|--------------|---------|
+| `/v1/traces` | POST | `application/x-protobuf`, `application/json` | Trace spans |
+| `/v1/logs` | POST | `application/x-protobuf`, `application/json` | Log records (Claude Code events) |
+| `/v1/metrics` | POST | `application/x-protobuf`, `application/json` | Metrics |
+
+Both protobuf and JSON formats are supported. Claude Code uses JSON (`http/json` protocol).
+
+### Silent Failure Mode
+
+**Important:** If the Observatory server is not running, OTLP exports fail silently. This is by design - your CLI tools continue working normally without errors or delays.
+
+To verify telemetry is working:
+1. Ensure `ailang server` is running
+2. Run a Claude Code or Gemini CLI command
+3. Check the Observatory dashboard for new traces
+
+### Filtering Noisy Traces
+
+The Observatory automatically filters out polling endpoints to reduce noise:
+- `/api/approvals`, `/api/hierarchy`, `/api/statistics`
+- `/api/observatory/*`, `/api/metrics/*`
+- `/assets/*`, `/v1/*` (OTLP endpoints themselves)
+- `/health`, `/ws`, `/ws/observatory`
+
+Only meaningful operations appear in the trace list.
+
+### Coordinator vs User Sessions
+
+The `ailang.source` attribute distinguishes trace sources:
+
+| Source | Origin | Typical Use |
+|--------|--------|-------------|
+| `user` | Manual Claude Code / Gemini CLI sessions | Interactive development |
+| `coordinator` | Automated tasks via `ailang coordinator` | Background automation |
+
+This allows filtering in the dashboard to see only relevant traces.
+
+### Dual Export (Observatory + GCP)
+
+Send traces to **both** the local Observatory and Google Cloud Trace:
+
+```bash
+# Local Observatory
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
+
+# Also export to GCP
+export GOOGLE_CLOUD_PROJECT=your-project-id
+```
+
+The AILANG server will export to both destinations.
+
 ## Troubleshooting
 
 ### Traces not appearing in GCP?

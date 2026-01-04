@@ -78,6 +78,74 @@ func (s *Store) CreateThreadWithWorkspace(title, createdByType, createdByID, tar
 	}, nil
 }
 
+// GetOrCreateThreadWithWorkspace returns an existing thread with the same title and target agent,
+// or creates a new one if none exists. This prevents duplicate threads for the same task.
+func (s *Store) GetOrCreateThreadWithWorkspace(title, createdByType, createdByID, targetAgent, workspace string) (*Thread, bool, error) {
+	// First, check if a thread with this title and target agent already exists
+	existing, err := s.GetThreadByTitleAndAgent(title, targetAgent)
+	if err == nil && existing != nil {
+		// Thread already exists, return it
+		return existing, false, nil
+	}
+
+	// Create new thread
+	thread, err := s.CreateThreadWithWorkspace(title, createdByType, createdByID, targetAgent, workspace)
+	if err != nil {
+		return nil, false, err
+	}
+	return thread, true, nil
+}
+
+// GetThreadByTitleAndAgent finds a thread by title and target agent.
+// Returns nil, nil if no matching thread is found.
+func (s *Store) GetThreadByTitleAndAgent(title, targetAgent string) (*Thread, error) {
+	var thread Thread
+	var createdAtMs, updatedAtMs int64
+	var contextJSON sql.NullString
+
+	// Query threads and filter by context_json containing the target agent
+	// We search for threads with matching title and parse context to check target_agent
+	rows, err := s.db.Query(`
+		SELECT id, title, created_at, created_by_type, created_by_id, status, context_json, last_seq, updated_at
+		FROM threads
+		WHERE title = ? AND status = 'active'
+		ORDER BY created_at DESC
+	`, title)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query threads: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.Scan(
+			&thread.ID, &thread.Title, &createdAtMs, &thread.CreatedByType, &thread.CreatedByID,
+			&thread.Status, &contextJSON, &thread.LastSeq, &updatedAtMs,
+		)
+		if err != nil {
+			continue
+		}
+
+		thread.CreatedAt = time.UnixMilli(createdAtMs)
+		thread.UpdatedAt = time.UnixMilli(updatedAtMs)
+		if contextJSON.Valid {
+			thread.ContextJSON = contextJSON.String
+			ctx := parseThreadContext(contextJSON.String)
+			thread.TargetAgent = ctx.TargetAgent
+			thread.Workspace = ctx.Workspace
+
+			// Check if target agent matches
+			if ctx.TargetAgent == targetAgent {
+				return &thread, nil
+			}
+		} else if targetAgent == "" {
+			// No context and no target agent requested - match
+			return &thread, nil
+		}
+	}
+
+	return nil, nil // No matching thread found
+}
+
 // GetThread retrieves a thread by ID.
 func (s *Store) GetThread(threadID string) (*Thread, error) {
 	var thread Thread

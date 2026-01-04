@@ -378,11 +378,12 @@ type TraceQuery struct {
 
 // TraceSummary represents a summary of a trace for list views.
 type TraceSummary struct {
-	TraceID    string     `json:"trace_id"`
-	RootSpan   string     `json:"root_span"`
-	SpanCount  int        `json:"span_count"`
-	DurationMs int64      `json:"duration_ms"`
-	StartTime  time.Time  `json:"start_time"`
-	Status     SpanStatus `json:"status"`
-	TaskID     string     `json:"task_id,omitempty"`
+	TraceID     string     `json:"trace_id"`
+	RootSpan    string     `json:"root_span"`
+	SpanCount   int        `json:"span_count"`
+	DurationMs  int64      `json:"duration_ms"`
+	StartTime   time.Time  `json:"start_time"`
+	Status      SpanStatus `json:"status"`
+	TaskID      string     `json:"task_id,omitempty"`
+	ServiceName string     `json:"service_name,omitempty"` // e.g., "ailang-run", "ailang-eval", "claude-code"
 }

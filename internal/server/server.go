@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -206,11 +207,18 @@ func (s *Server) Start() error {
 
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
+	mux.HandleFunc("/api/telemetry/config", s.handleTelemetryConfig)
 
 	// Observatory API endpoints (if configured)
 	if s.obsAPI != nil {
 		s.obsAPI.RegisterRoutes(mux)
 		log.Printf("Observatory API registered at /api/observatory/*")
+	}
+	// OTLP receiver for standard trace/log/metrics ingestion
+	if s.obsBackend != nil {
+		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)
+		otlpReceiver.RegisterRoutes(mux)
+		log.Printf("OTLP receiver registered at /v1/traces, /v1/logs, /v1/metrics")
 	}
 	if s.obsHub != nil {
 		go s.obsHub.Run()
@@ -238,8 +246,47 @@ func (s *Server) Start() error {
 		log.Printf("OpenTelemetry instrumentation enabled")
 		handler = otelhttp.NewHandler(handler, "ailang-server",
 			otelhttp.WithFilter(func(r *http.Request) bool {
-				// Skip tracing for health checks and static assets
-				return r.URL.Path != "/health" && r.URL.Path != "/ws"
+				path := r.URL.Path
+				// Skip tracing for:
+				// - Health checks
+				// - WebSocket endpoints
+				// - Static assets (JS, CSS, images, fonts)
+				// - Root path (just serves UI)
+				// - OTLP receiver endpoints (would cause infinite loop)
+				// - High-frequency polling endpoints (create noise)
+				// - Observatory API (tracing our own traces is confusing)
+				if path == "/health" || path == "/" {
+					return false
+				}
+				if path == "/ws" || path == "/ws/observatory" {
+					return false
+				}
+				if strings.HasPrefix(path, "/assets/") {
+					return false
+				}
+				if strings.HasPrefix(path, "/v1/") { // OTLP endpoints
+					return false
+				}
+				// Skip high-frequency polling endpoints (UI polls these constantly)
+				if path == "/api/approvals" || path == "/api/hierarchy" ||
+					path == "/api/statistics" || path == "/api/version" ||
+					path == "/api/monitor" || path == "/api/telemetry/config" {
+					return false
+				}
+				// Skip observatory API (tracing our own traces would be confusing)
+				if strings.HasPrefix(path, "/api/observatory/") {
+					return false
+				}
+				// Skip metrics polling
+				if strings.HasPrefix(path, "/api/metrics") {
+					return false
+				}
+				// Skip common static files
+				if strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico") ||
+					strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".woff2") {
+					return false
+				}
+				return true
 			}),
 		)
 	}
