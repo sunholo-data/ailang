@@ -3,38 +3,32 @@
 **Sprint ID:** M-OTEL-EXTENDED
 **Design Doc:** [m-otel-extended-instrumentation.md](m-otel-extended-instrumentation.md)
 **Target:** v0.6.3
-**Duration:** 1 day (~6 hours)
+**Duration:** 3 days (~18 hours remaining)
 **Risk Level:** Low
 
 ## Goal
 
-Add OpenTelemetry instrumentation to Compiler Pipeline, Eval Harness, and Message System with zero overhead when disabled.
+Complete OpenTelemetry instrumentation across AILANG CLI commands: Eval Harness, Extended Messages, REPL, and Check command.
+
+## Current Status
+
+- **M1: Compiler Pipeline** - ✅ COMPLETE
+- **M2: Eval Harness** - 🔄 IN PROGRESS
+- **M3: Extended Messages** - Planned
+- **M4: REPL Command** - Planned (NEW)
+- **M5: Check Command** - Planned (NEW)
+
+## Velocity Analysis
+
+- Recent telemetry work: ~150 LOC/day
+- Estimated capacity for 3 days: ~450 LOC
+- Sprint estimate: ~370 LOC (within capacity)
 
 ## Milestones
 
-### M1: Compiler Pipeline Instrumentation (~2 hours, ~120 LOC)
+### M1: Compiler Pipeline Instrumentation ✅ COMPLETE
 
-**Description:** Add spans for compilation phases (lex, parse, elaborate, typecheck, lower).
-
-**Files to modify:**
-- `internal/pipeline/pipeline.go` (+80 LOC)
-- `internal/pipeline/module_pipeline.go` (+40 LOC)
-
-**Tasks:**
-- [ ] Add tracer import and package-level tracer
-- [ ] Add `compile.pipeline` parent span with file attributes
-- [ ] Add `compile.lex` span with token count
-- [ ] Add `compile.parse` span with AST node count
-- [ ] Add `compile.elaborate` span with core node count
-- [ ] Add `compile.typecheck` span with type/constraint counts
-- [ ] Add `compile.lower` span with IR size
-- [ ] Propagate context through all phases
-
-**Acceptance Criteria:**
-- [ ] Compilation produces spans visible in GCP/Jaeger
-- [ ] Spans show parent-child hierarchy
-- [ ] Zero overhead when OTEL disabled (no-op tracer)
-- [ ] Existing tests pass
+**Status:** Already implemented with spans for parse, elaborate, typecheck, validate, lower.
 
 ### M2: Eval Harness Instrumentation (~2 hours, ~100 LOC)
 
@@ -58,58 +52,129 @@ Add OpenTelemetry instrumentation to Compiler Pipeline, Eval Harness, and Messag
 - [ ] Token/cost data visible in span attributes
 - [ ] Existing eval tests pass
 
-### M3: Message System Instrumentation (~2 hours, ~110 LOC)
+### M3: Extended Message System Instrumentation (~1.5 hours, ~60 LOC)
 
-**Description:** Add spans for message CRUD operations and search.
+**Description:** Complete messaging observability (send/search already exist, add list/read/ack).
 
 **Files to modify:**
-- `internal/messaging/store.go` (+50 LOC)
-- `internal/messaging/search.go` (+30 LOC)
-- `internal/coordinator/daemon_github.go` (+30 LOC)
+- `internal/messages/store.go` (+40 LOC)
+- `internal/messages/github.go` (+20 LOC)
 
 **Tasks:**
-- [ ] Add tracer import and package-level tracer
-- [ ] Add `messages.send` span with inbox/type attributes
-- [ ] Add `messages.read` span with message ID
-- [ ] Add `messages.list` span with query/count attributes
-- [ ] Add `messages.search` span with query/neural flag
-- [ ] Add `messages.ack` span with message ID
-- [ ] Add `messages.github_sync` span with repo/count
+- [ ] Add `messages.list` span with query.inbox, query.status, results.count
+- [ ] Add `messages.read` span with message.id, message.inbox
+- [ ] Add `messages.ack` span with message.id, message.status
+- [ ] Add `messages.unack` span with message.id
+- [ ] Add `messages.github_sync` span with github.repo, issues.imported
+- [ ] Add `messages.cleanup` span with deleted.count
 
 **Acceptance Criteria:**
-- [ ] Message operations produce spans
-- [ ] Search operations show query and result count
-- [ ] GitHub sync shows imported issue count
-- [ ] Existing messaging tests pass
+- [ ] `messages.list` traced with query parameters
+- [ ] `messages.read` traced with message ID
+- [ ] `messages.ack`/`unack` traced
+- [ ] `messages.github_sync` traced with import counts
 
-### M4: Documentation Update (~30 min, ~50 LOC)
+---
 
-**Description:** Update telemetry docs with new instrumented components.
+### M4: REPL Command Instrumentation (~2 hours, ~90 LOC)
+
+**Description:** Enable post-hoc analysis of REPL debugging sessions.
 
 **Files to modify:**
-- `docs/docs/guides/telemetry.md` (+50 LOC)
+- `cmd/ailang/repl.go` (+30 LOC)
+- `internal/repl/repl.go` (+40 LOC)
+- `internal/repl/repl_eval.go` (+20 LOC)
+
+**Span Hierarchy:**
+```
+repl.session (session.id, duration_ms)
+├── repl.input (input.type=expression, input.text)
+│   └── compile.pipeline (from M1)
+└── repl.input (input.type=command)
+```
 
 **Tasks:**
-- [ ] Add Compiler section with span names/attributes
-- [ ] Add Eval Harness section
-- [ ] Add Message System section
-- [ ] Update architecture diagram
+- [ ] Initialize telemetry in cmd/ailang/repl.go with service "ailang-repl"
+- [ ] Create `repl.session` span that lives for entire session duration
+- [ ] Add `repl.input` child spans for each user input line
+- [ ] Add `repl.eval` spans for expression evaluation results
+- [ ] Ensure compilation spans (M1) nest correctly under input spans
+
+**Acceptance Criteria:**
+- [ ] `repl.session` spans capture full interactive sessions
+- [ ] `repl.input` spans show each user input
+- [ ] Compilation phases nest correctly under input spans
+- [ ] Session duration and input count captured
+
+---
+
+### M5: Check Command Instrumentation (~1.5 hours, ~40 LOC)
+
+**Description:** Enable type-check performance monitoring and regression detection.
+
+**Files to modify:**
+- `cmd/ailang/check.go` (+40 LOC)
+
+**Span Hierarchy:**
+```
+ailang.check (file.path, file.count)
+├── compile.pipeline (from M1)
+└── check.result (passed, errors.count)
+```
+
+**Tasks:**
+- [ ] Initialize telemetry in cmd/ailang/check.go with service "ailang-check"
+- [ ] Create `ailang.check` root span with file.path, timeout_ms
+- [ ] Add `check.result` span with passed, errors.count, warnings.count
+- [ ] Ensure compilation phases from M1 nest as children
+
+**Acceptance Criteria:**
+- [ ] `ailang.check` root span with file path
+- [ ] Compilation phases nest as children
+- [ ] `check.result` shows pass/fail with error counts
+- [ ] Works with `--timeout` flag
+
+---
+
+### M6: Documentation Update (~30 min, ~80 LOC)
+
+**Description:** Update telemetry docs with all new instrumented components.
+
+**Files to modify:**
+- `docs/docs/guides/telemetry.md` (+80 LOC)
+
+**Tasks:**
+- [ ] Add Eval Harness section with span names/attributes
+- [ ] Add Extended Messages section
+- [ ] Add REPL section with session hierarchy example
+- [ ] Add Check Command section
+- [ ] Update span reference table
 
 **Acceptance Criteria:**
 - [ ] Docs build without errors
-- [ ] All new spans documented
+- [ ] All new spans documented with attributes
+
+## Day-by-Day Breakdown
+
+| Day | Milestone | Hours | LOC |
+|-----|-----------|-------|-----|
+| 1 | M2: Eval Harness | 2h | 100 |
+| 2 | M3: Messages + M5: Check | 1.5h + 1.5h | 100 |
+| 3 | M4: REPL + M6: Docs | 2h + 0.5h | 170 |
 
 ## Success Metrics
 
-- [ ] All 4 milestones complete
+- [ ] All 5 remaining milestones complete (M2-M6)
 - [ ] Tests pass: `make test`
 - [ ] Lint clean: `make lint`
-- [ ] ~380 LOC added total
+- [ ] ~370 LOC added total
 - [ ] Zero performance impact when telemetry disabled
+- [ ] Spans visible in GCP Cloud Trace
 
 ## Dependencies
 
 - Telemetry infrastructure (completed in v0.6.1) ✅
+- M1 Compiler Pipeline spans ✅
 - Global TracerProvider pattern established ✅
 
 ## Notes
@@ -117,3 +182,4 @@ Add OpenTelemetry instrumentation to Compiler Pipeline, Eval Harness, and Messag
 - Uses same pattern as existing AI provider instrumentation
 - No-op overhead measured at <5ns per span when disabled
 - All changes are additive (no behavioral changes)
+- REPL input text truncated to 200 chars in span attributes

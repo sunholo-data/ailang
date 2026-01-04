@@ -3,9 +3,10 @@
 **Status:** Planned
 **Target:** v0.6.3
 **Priority:** P1 (Medium)
-**Estimated:** 2 days (16 hours)
+**Estimated:** 3 days (24 hours)
 **Dependencies:** Telemetry infrastructure (completed in v0.6.1)
 **Created:** 2026-01-02
+**Updated:** 2026-01-04
 
 ## Problem Statement
 
@@ -24,23 +25,29 @@ However, this instrumentation is currently limited to:
 **Missing instrumentation points:**
 1. **Compiler Pipeline** - No visibility into compilation phases (lexer, parser, type inference, lowering)
 2. **Eval Harness** - No tracing of benchmark execution, model performance
-3. **Message System** - No observability of message send/receive, search operations
+3. **Message System** - Partial coverage (send/search exist, but list/read/ack missing)
+4. **REPL Command** - Interactive sessions completely dark, no visibility into user interactions
+5. **Check Command** - Type checking invocations have no tracing
 
 **Impact:**
 - Cannot identify slow compilation phases
 - No performance data for AI code generation benchmarks
-- Message system operations invisible to observability tools
+- Message system operations partially invisible to observability tools
+- REPL debugging sessions cannot be analyzed post-hoc
+- Type check performance regressions go undetected
 
 ## Goals
 
-**Primary Goal:** Add OpenTelemetry spans to Compiler Pipeline, Eval Harness, and Message System with zero overhead when disabled.
+**Primary Goal:** Add OpenTelemetry spans to Compiler Pipeline, Eval Harness, Message System, REPL, and Check commands with zero overhead when disabled.
 
 **Success Metrics:**
 1. Compiler phases visible as child spans (lexer, parser, elaborate, type-check, lower)
 2. Eval benchmark runs traced with model/benchmark attributes
-3. Message operations (send, read, search) traced with operation metadata
-4. Zero performance impact when telemetry disabled (no-op spans)
-5. All new spans integrate with existing GCP/OTLP export
+3. Message operations (send, list, read, ack, search) traced with operation metadata
+4. REPL sessions traced with command/evaluation hierarchy
+5. Check command traced with file and type-check results
+6. Zero performance impact when telemetry disabled (no-op spans)
+7. All new spans integrate with existing GCP/OTLP export
 
 ## Solution Design
 
@@ -49,21 +56,34 @@ However, this instrumentation is currently limited to:
 All components use the **global TracerProvider pattern** already established:
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Global TracerProvider                          │
-│  (initialized once by ailang serve/coordinator/run)               │
-├──────────────────────────────────────────────────────────────────┤
-│  Server    │  Coordinator  │  AI Providers  │  Executors         │
-│  (HTTP)    │  (Tasks)      │  (API calls)   │  (Claude/Gemini)   │
-├──────────────────────────────────────────────────────────────────┤
-│  NEW: Compiler  │  NEW: Eval Harness  │  NEW: Message System     │
-│  (phases)       │  (benchmarks)       │  (send/receive/search)   │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         Global TracerProvider                               │
+│  (initialized once by ailang serve/coordinator/run/repl/check/eval-suite)   │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Server    │  Coordinator  │  AI Providers  │  Executors                   │
+│  (HTTP)    │  (Tasks)      │  (API calls)   │  (Claude/Gemini)             │
+├────────────────────────────────────────────────────────────────────────────┤
+│  M1: Compiler   │  M2: Eval Harness  │  M3: Message System                 │
+│  (phases)       │  (benchmarks)       │  (send/list/read/ack/search)       │
+├────────────────────────────────────────────────────────────────────────────┤
+│  M4: REPL Command                    │  M5: Check Command                  │
+│  (session/input/eval hierarchy)      │  (file type-check with phases)     │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Milestone Overview
+
+| Milestone | Component | Priority | Effort | Status |
+|-----------|-----------|----------|--------|--------|
+| M1 | Compiler Pipeline | High | 6h | ✅ COMPLETE |
+| M2 | Eval Harness | High | 5h | 🔄 IN PROGRESS |
+| M3 | Extended Messages | Medium | 4h | Planned |
+| M4 | REPL Command | Medium | 5h | Planned |
+| M5 | Check Command | Medium | 4h | Planned |
 
 ### Implementation Plan
 
-#### Phase 1: Compiler Pipeline Instrumentation (~6 hours)
+#### M1: Compiler Pipeline Instrumentation ✅ COMPLETE
 
 **Spans to add:**
 
@@ -119,7 +139,7 @@ func (p *Pipeline) Compile(ctx context.Context, src string) (*Result, error) {
 **Zero-overhead guarantee:**
 When no TracerProvider is configured, `otel.Tracer()` returns a no-op tracer. The `Start()` calls become no-ops with ~2ns overhead (measured).
 
-#### Phase 2: Eval Harness Instrumentation (~5 hours)
+#### M2: Eval Harness Instrumentation (~5 hours)
 
 **Spans to add:**
 
@@ -171,18 +191,22 @@ func (r *Runner) RunSuite(ctx context.Context, suite *Suite) (*Results, error) {
 - Token usage analysis
 - Latency breakdown by model
 
-#### Phase 3: Message System Instrumentation (~5 hours)
+#### M3: Extended Message System Instrumentation (~4 hours)
 
-**Spans to add:**
+**Existing spans (already implemented):**
+- `messages.send` - inbox.go
+- `messages.search` - search.go
+
+**NEW spans to add:**
 
 | Span Name | Location | Attributes |
 |-----------|----------|------------|
-| `messages.send` | `internal/messages/store.go` | `message.inbox`, `message.type`, `message.github` |
-| `messages.read` | `internal/messages/store.go` | `message.id`, `message.inbox` |
 | `messages.list` | `internal/messages/store.go` | `query.inbox`, `query.status`, `results.count` |
-| `messages.search` | `internal/messages/search.go` | `search.query`, `search.neural`, `results.count` |
-| `messages.ack` | `internal/messages/store.go` | `message.id` |
-| `messages.github_sync` | `internal/messages/github.go` | `github.repo`, `issues.imported` |
+| `messages.read` | `internal/messages/store.go` | `message.id`, `message.inbox` |
+| `messages.ack` | `internal/messages/store.go` | `message.id`, `message.status` |
+| `messages.unack` | `internal/messages/store.go` | `message.id` |
+| `messages.github_sync` | `internal/messages/github.go` | `github.repo`, `issues.imported`, `issues.created` |
+| `messages.cleanup` | `internal/messages/store.go` | `deleted.count`, `older_than` |
 
 **Implementation:**
 
@@ -210,13 +234,85 @@ func (s *Store) Send(ctx context.Context, msg *Message) error {
 ```
 
 **Files to modify:**
-- `internal/messages/store.go` (+50 LOC) - CRUD operations
-- `internal/messages/search.go` (+30 LOC) - Search operations
-- `internal/messages/github.go` (+30 LOC) - GitHub sync
+- `internal/messages/store.go` (+40 LOC) - list/read/ack/unack/cleanup
+- `internal/messages/github.go` (+20 LOC) - GitHub sync spans
 
-### Span Hierarchy Example
+#### M4: REPL Command Instrumentation (~5 hours)
 
-With full instrumentation, a coordinator task produces this trace tree:
+**Design:** The REPL session becomes a parent span containing all user interactions.
+
+**Span hierarchy:**
+
+```
+repl.session (session.id=abc123, started_at=...)
+├── repl.input (input.text=":type foo", input.type=command)
+├── repl.input (input.text="let x = 42", input.type=expression)
+│   └── compile.pipeline (file.path=<repl>)
+│       ├── compile.parse
+│       ├── compile.elaborate
+│       └── compile.typecheck
+├── repl.input (input.text="x + 1", input.type=expression)
+│   ├── compile.pipeline
+│   └── eval.expression (result.type=int, result.value=43)
+└── repl.input (input.text=":quit", input.type=command)
+```
+
+**Spans to add:**
+
+| Span Name | Location | Attributes |
+|-----------|----------|------------|
+| `repl.session` | `cmd/ailang/repl.go` | `session.id`, `session.started_at` |
+| `repl.input` | `internal/repl/repl.go` | `input.text`, `input.type` (command/expression/empty) |
+| `repl.eval` | `internal/repl/repl_eval.go` | `result.type`, `eval.duration_ms` |
+
+**Implementation notes:**
+- Initialize telemetry at REPL start with `telemetry.Init(ctx, "ailang-repl")`
+- Create session span that lives for entire REPL duration
+- Each input line becomes a child span
+- Compilation spans (M1) automatically nest under input spans
+- On `:quit` or EOF, end session span with final attributes
+
+**Files to modify:**
+- `cmd/ailang/repl.go` (+30 LOC) - Session span, telemetry init
+- `internal/repl/repl.go` (+40 LOC) - Input spans
+- `internal/repl/repl_eval.go` (+20 LOC) - Eval spans
+
+#### M5: Check Command Instrumentation (~4 hours)
+
+**Design:** The check command produces a root span with compilation phases as children.
+
+**Span hierarchy:**
+
+```
+ailang.check (file.path=main.ail, file.count=1)
+├── compile.pipeline (file.path=main.ail)
+│   ├── compile.parse (tokens.count=156)
+│   ├── compile.elaborate (core.nodes=42)
+│   ├── compile.typecheck (types.inferred=12)
+│   └── compile.validate (validation.passed=true)
+└── check.result (passed=true, errors.count=0, warnings.count=2)
+```
+
+**Spans to add:**
+
+| Span Name | Location | Attributes |
+|-----------|----------|------------|
+| `ailang.check` | `cmd/ailang/check.go` | `file.path`, `file.count`, `timeout_ms` |
+| `check.result` | `cmd/ailang/check.go` | `passed`, `errors.count`, `warnings.count` |
+
+**Implementation notes:**
+- Initialize telemetry with `telemetry.Init(ctx, "ailang-check")`
+- Root span wraps entire check operation
+- Compilation spans (M1) automatically nest as children
+- Result span captures final outcome
+- Supports multi-file checking with file count attribute
+
+**Files to modify:**
+- `cmd/ailang/check.go` (+40 LOC) - Root span, telemetry init, result span
+
+### Span Hierarchy Examples
+
+**Coordinator task trace:**
 
 ```
 coordinator.execute_task (task.id=abc123)
@@ -231,6 +327,34 @@ coordinator.execute_task (task.id=abc123)
 │   └── gemini.execute (model=gemini-2.5-pro)
 │       └── gemini.generate (tokens_in=500, tokens_out=1200)
 └── messages.send (message.inbox=sprint-executor)
+```
+
+**REPL session trace (M4):**
+
+```
+repl.session (session.id=repl_001, duration_ms=45000)
+├── repl.input (input.type=expression, input.text="let double = \\x. x * 2")
+│   └── compile.pipeline (file.path=<repl>)
+│       ├── compile.parse
+│       ├── compile.elaborate
+│       └── compile.typecheck
+├── repl.input (input.type=expression, input.text="double(21)")
+│   ├── compile.pipeline
+│   └── repl.eval (result.type=int, result.value=42)
+├── repl.input (input.type=command, input.text=":type double")
+└── repl.input (input.type=command, input.text=":quit")
+```
+
+**Check command trace (M5):**
+
+```
+ailang.check (file.path=main.ail)
+├── compile.pipeline (file.path=main.ail)
+│   ├── compile.parse (tokens.count=234)
+│   ├── compile.elaborate (core.nodes=89)
+│   ├── compile.typecheck (types.inferred=24, constraints.count=45)
+│   └── compile.validate (validation.passed=true)
+└── check.result (passed=true, errors.count=0, warnings.count=1)
 ```
 
 ## Testing Strategy
@@ -272,10 +396,35 @@ GOOGLE_CLOUD_PROJECT=multivac-internal-dev go test -tags=integration ./internal/
 
 ## Success Criteria
 
-- [ ] Compiler pipeline phases visible as spans in traces
-- [ ] Eval harness benchmarks traced with model/token attributes
-- [ ] Message system operations traced
-- [ ] All spans integrate with existing GCP/OTLP export
+**M1: Compiler Pipeline** ✅
+- [x] Compiler pipeline phases visible as spans in traces
+- [x] All spans integrate with existing GCP/OTLP export
+
+**M2: Eval Harness**
+- [ ] Eval suite runs produce parent span visible in GCP/Jaeger
+- [ ] Each benchmark is a child span of suite
+- [ ] Token/cost data visible in span attributes
+- [ ] Existing eval tests pass
+
+**M3: Extended Messages**
+- [ ] `messages.list` traced with query parameters
+- [ ] `messages.read` traced with message ID
+- [ ] `messages.ack`/`unack` traced
+- [ ] `messages.github_sync` traced with import counts
+
+**M4: REPL Command**
+- [ ] `repl.session` spans capture full interactive sessions
+- [ ] `repl.input` spans show each user input
+- [ ] Compilation phases nest correctly under input spans
+- [ ] Session duration and input count captured
+
+**M5: Check Command**
+- [ ] `ailang.check` root span with file path
+- [ ] Compilation phases nest as children
+- [ ] `check.result` shows pass/fail with error counts
+- [ ] Works with `--timeout` flag
+
+**Cross-cutting**
 - [ ] Zero performance impact when telemetry disabled
 - [ ] Tests verify span creation and hierarchy
 - [ ] Documentation updated (`docs/docs/guides/telemetry.md`)
@@ -293,28 +442,55 @@ GOOGLE_CLOUD_PROJECT=multivac-internal-dev go test -tags=integration ./internal/
 
 ## Timeline
 
-| Phase | Effort | Description |
-|-------|--------|-------------|
-| 1 | 6h | Compiler pipeline instrumentation |
-| 2 | 5h | Eval harness instrumentation |
-| 3 | 5h | Message system instrumentation |
+| Milestone | Effort | Description | Status |
+|-----------|--------|-------------|--------|
+| M1 | 6h | Compiler pipeline instrumentation | ✅ Complete |
+| M2 | 5h | Eval harness instrumentation | 🔄 In Progress |
+| M3 | 4h | Extended message operations | Planned |
+| M4 | 5h | REPL command instrumentation | Planned |
+| M5 | 4h | Check command instrumentation | Planned |
 
-**Total: 16 hours (~2 days)**
+**Total: 24 hours (~3 days)**
+**Remaining: 18 hours (~2.5 days)**
 
 ## Files to Modify
 
+### M1: Compiler Pipeline ✅
 | File | Change | LOC |
 |------|--------|-----|
 | `internal/pipeline/pipeline.go` | Add phase spans | +80 |
 | `internal/pipeline/module_pipeline.go` | Add module spans | +40 |
+
+### M2: Eval Harness
+| File | Change | LOC |
+|------|--------|-----|
 | `internal/eval_harness/runner.go` | Add suite/benchmark spans | +60 |
 | `internal/eval_harness/model_runner.go` | Add model call spans | +40 |
-| `internal/messages/store.go` | Add CRUD spans | +50 |
-| `internal/messages/search.go` | Add search spans | +30 |
-| `internal/messages/github.go` | Add sync spans | +30 |
-| `docs/docs/guides/telemetry.md` | Update documentation | +50 |
 
-**Total: ~380 LOC**
+### M3: Extended Messages
+| File | Change | LOC |
+|------|--------|-----|
+| `internal/messages/store.go` | Add list/read/ack spans | +40 |
+| `internal/messages/github.go` | Add sync spans | +20 |
+
+### M4: REPL Command
+| File | Change | LOC |
+|------|--------|-----|
+| `cmd/ailang/repl.go` | Session span, telemetry init | +30 |
+| `internal/repl/repl.go` | Input spans | +40 |
+| `internal/repl/repl_eval.go` | Eval spans | +20 |
+
+### M5: Check Command
+| File | Change | LOC |
+|------|--------|-----|
+| `cmd/ailang/check.go` | Root span, telemetry init, result span | +40 |
+
+### Documentation
+| File | Change | LOC |
+|------|--------|-----|
+| `docs/docs/guides/telemetry.md` | Update with new spans | +80 |
+
+**Total: ~490 LOC**
 
 ## Related Documents
 
@@ -323,11 +499,18 @@ GOOGLE_CLOUD_PROJECT=multivac-internal-dev go test -tags=integration ./internal/
 
 ## Open Questions
 
-1. **Sampling for compiler spans?** - For high-volume compilation (REPL), should we sample spans to reduce overhead?
+1. **Sampling for REPL spans?** - Long REPL sessions could generate many spans. Sample?
    - Recommendation: No sampling initially; measure impact first
+   - Consider: Session-level sampling (trace some sessions, not others)
 
 2. **Span attributes for type inference?** - Should we expose constraint solver metrics?
    - Recommendation: Start minimal, add detail based on debugging needs
+
+3. **REPL input text truncation?** - Should long inputs be truncated in span attributes?
+   - Recommendation: Truncate to 200 chars; full text rarely needed for debugging
+
+4. **Check command multi-file handling?** - Create one span per file or aggregate?
+   - Recommendation: One parent span, child spans per file for clarity
 
 ## Risk Assessment
 
