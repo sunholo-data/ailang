@@ -21,6 +21,13 @@ func runREPL(learn bool, trace bool, strictSyntax bool) {
 		defer shutdownTelemetry(ctx)
 	}
 
+	// Extract trace context from environment (enables cross-process trace linking)
+	// If TRACEPARENT is set (e.g., by coordinator or CI), the REPL session will be
+	// a child span in the parent trace
+	ctx = telemetry.ExtractTraceContext(ctx)
+	// Note: REPL doesn't create its own root span here - that's handled by the repl package
+	// The extracted context will flow through to any spans created during REPL execution
+
 	// Use the new REPL implementation with version info
 	r := repl.NewWithVersion(Version, BuildTime)
 	if trace {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -128,6 +129,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if task.Workspace != "" {
 		env = append(env, fmt.Sprintf("PWD=%s", task.Workspace))
 	}
+
+	// Inject W3C trace context for distributed tracing
+	// This enables ailang run commands spawned by Claude to link back to this trace
+	env = telemetry.InjectTraceContext(ctx, env)
+
+	// Inject correlation IDs for fallback linking
+	env = telemetry.InjectCorrelationIDs(env, task.ID, sessionID)
+
 	cmd.Env = env
 
 	// Create pipes

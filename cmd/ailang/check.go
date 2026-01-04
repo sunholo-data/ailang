@@ -31,6 +31,13 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		defer shutdownTelemetry(ctx)
 	}
 
+	// Extract parent trace context from environment (if running as subprocess)
+	// This enables distributed tracing when ailang is spawned by coordinator/executors
+	ctx = telemetry.ExtractTraceContext(ctx)
+
+	// Extract correlation IDs for span attributes (fallback linking)
+	taskID, sessionID := telemetry.ExtractCorrelationIDs()
+
 	// Parse timeout for span attribute
 	var timeoutMs int64
 	if timeout != "" {
@@ -47,6 +54,14 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		),
 	)
 	defer span.End()
+
+	// Add correlation IDs as span attributes (if present)
+	if taskID != "" {
+		span.SetAttributes(attribute.String("ailang.task_id", taskID))
+	}
+	if sessionID != "" {
+		span.SetAttributes(attribute.String("ailang.session_id", sessionID))
+	}
 
 	// Check if path is a directory
 	info, err := os.Stat(filename)

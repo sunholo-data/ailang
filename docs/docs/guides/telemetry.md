@@ -366,6 +366,156 @@ Configure in `~/.gemini/settings.json`:
 }
 ```
 
+## Cross-Process Trace Linking (v0.6.3+)
+
+AILANG supports end-to-end distributed tracing across process boundaries. When the coordinator spawns CLI executors (Claude Code, Gemini CLI), and those CLIs spawn `ailang run` commands, all spans are linked into a single trace.
+
+### How It Works
+
+The trace context flows via W3C TRACEPARENT environment variables:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ Coordinator (traced)                                                  │
+│   └─ coordinator.execute_task                                        │
+│        │                                                             │
+│        ├── Injects: TRACEPARENT=00-{trace_id}-{span_id}-01          │
+│        ├── Injects: AILANG_TASK_ID=...                              │
+│        └── Injects: AILANG_SESSION_ID=...                           │
+│                        │                                             │
+│                        ▼                                             │
+│              ┌─────────────────────────────────────────────┐         │
+│              │ Claude Code / Gemini CLI (may add spans)    │         │
+│              │   └─ Environment variables inherited        │         │
+│              │                        │                     │         │
+│              │                        ▼                     │         │
+│              │              ┌───────────────────────┐       │         │
+│              │              │ ailang run (traced)   │       │         │
+│              │              │   └─ Extracts         │       │         │
+│              │              │      TRACEPARENT      │       │         │
+│              │              │   └─ Creates child    │       │         │
+│              │              │      spans            │       │         │
+│              │              └───────────────────────┘       │         │
+│              └─────────────────────────────────────────────┘         │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Environment Variables
+
+The following environment variables are used for trace propagation:
+
+| Variable | Format | Description |
+|----------|--------|-------------|
+| `TRACEPARENT` | `00-{trace_id}-{span_id}-{flags}` | W3C trace context (standard) |
+| `TRACESTATE` | Vendor-specific | Additional trace state (optional) |
+| `AILANG_TASK_ID` | UUID | Coordinator task ID (fallback correlation) |
+| `AILANG_SESSION_ID` | UUID | Executor session ID (fallback correlation) |
+
+### Supported Commands
+
+These commands extract trace context from the environment:
+
+| Command | Behavior |
+|---------|----------|
+| `ailang run` | Creates child span under parent trace |
+| `ailang check` | Creates child span under parent trace |
+| `ailang eval-suite` | Creates child span under parent trace |
+| `ailang repl` | Session uses extracted trace context |
+
+### CLI Tool Scenarios
+
+Depending on whether the CLI tool (Claude Code, Gemini CLI) supports OTEL:
+
+**Scenario A: CLI supports OTEL (ideal)**
+```
+Executor span ──► CLI span ──► ailang run span
+     │                │             │
+     └────────────────┴─────────────┘
+              (single trace)
+```
+
+**Scenario B: CLI passes env vars through (current)**
+```
+Executor span ──────────────────► ailang run span
+     │                                  │
+     └──────────────────────────────────┘
+              (linked trace, CLI gap)
+```
+
+**Scenario C: CLI sanitizes environment (fallback)**
+```
+Executor span             ailang run span
+     │                          │
+     │     (correlated via      │
+     └──── AILANG_TASK_ID) ─────┘
+```
+
+### Using in CI/CD
+
+Export trace context to link CI runs with AILANG executions:
+
+**GitHub Actions:**
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run with trace linking
+        env:
+          TRACEPARENT: "00-${{ github.run_id }}-${{ github.job }}-01"
+          AILANG_TASK_ID: ${{ github.run_id }}
+        run: |
+          ailang run --caps IO --entry main app.ail
+```
+
+**Cloud Build:**
+```yaml
+steps:
+  - name: 'ailang-builder'
+    env:
+      - 'TRACEPARENT=00-${BUILD_ID}-cloudtrace-01'
+      - 'AILANG_TASK_ID=${BUILD_ID}'
+    args: ['run', '--caps', 'IO', '--entry', 'main', 'app.ail']
+```
+
+### Verification
+
+To verify trace linking is working:
+
+```bash
+# 1. Set up telemetry
+export GOOGLE_CLOUD_PROJECT=your-project
+
+# 2. Create a trace context manually
+export TRACEPARENT="00-$(uuidgen | tr -d '-')-$(uuidgen | tr -d '-' | cut -c1-16)-01"
+
+# 3. Run a command
+ailang run --caps IO --entry main examples/runnable/hello.ail
+
+# 4. Check traces
+ailang trace list --hours 1
+```
+
+The trace should show a child span linked to your TRACEPARENT.
+
+### Programmatic Usage
+
+The telemetry package provides helpers for trace propagation:
+
+```go
+import "github.com/sunholo/ailang/internal/telemetry"
+
+// Inject trace context into subprocess environment
+env := os.Environ()
+env = telemetry.InjectTraceContext(ctx, env)
+env = telemetry.InjectCorrelationIDs(env, taskID, sessionID)
+cmd.Env = env
+
+// Extract trace context from environment (in subprocess)
+ctx = telemetry.ExtractTraceContext(ctx)
+taskID, sessionID := telemetry.ExtractCorrelationIDs()
+```
+
 ## Trace Attributes Reference
 
 ### Common Attributes

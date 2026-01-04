@@ -67,9 +67,23 @@ func runEvalSuite() {
 		defer shutdownTelemetry(ctx)
 	}
 
+	// Extract trace context from environment (enables cross-process trace linking)
+	// If TRACEPARENT is set (e.g., by coordinator or CI), this eval suite will be
+	// a child span in the parent trace
+	ctx = telemetry.ExtractTraceContext(ctx)
+	taskID, sessionID := telemetry.ExtractCorrelationIDs()
+
 	// Start parent span for the entire eval suite
 	ctx, suiteSpan := evalTracer.Start(ctx, "eval.suite")
 	defer suiteSpan.End()
+
+	// Record correlation IDs as span attributes for fallback trace linking
+	if taskID != "" {
+		suiteSpan.SetAttributes(attribute.String("ailang.task_id", taskID))
+	}
+	if sessionID != "" {
+		suiteSpan.SetAttributes(attribute.String("ailang.session_id", sessionID))
+	}
 
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)

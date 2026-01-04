@@ -330,6 +330,13 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		defer shutdownTelemetry(ctx)
 	}
 
+	// Extract parent trace context from environment (if running as subprocess)
+	// This enables distributed tracing when ailang is spawned by coordinator/executors
+	ctx = telemetry.ExtractTraceContext(ctx)
+
+	// Extract correlation IDs for span attributes (fallback linking)
+	taskID, sessionID := telemetry.ExtractCorrelationIDs()
+
 	// Create root span for the entire run command
 	// All child spans (compile, execute) will be linked under this
 	tracer := otel.Tracer("ailang.cli")
@@ -340,6 +347,14 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		),
 	)
 	defer rootSpan.End()
+
+	// Add correlation IDs as span attributes (if present)
+	if taskID != "" {
+		rootSpan.SetAttributes(attribute.String("ailang.task_id", taskID))
+	}
+	if sessionID != "" {
+		rootSpan.SetAttributes(attribute.String("ailang.session_id", sessionID))
+	}
 
 	// Add capabilities to span (if any granted)
 	if caps != "" {
