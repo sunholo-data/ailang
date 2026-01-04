@@ -137,6 +137,37 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Inject correlation IDs for fallback linking
 	env = telemetry.InjectCorrelationIDs(env, task.ID, sessionID)
 
+	// Enable Claude Code telemetry for metrics/events export
+	// Claude Code exports metrics and events (not traces), but we can correlate
+	// them with our traces using OTEL_RESOURCE_ATTRIBUTES
+	env = append(env, "CLAUDE_CODE_ENABLE_TELEMETRY=1")
+	env = append(env, "OTEL_METRICS_EXPORTER=otlp")
+	env = append(env, "OTEL_LOGS_EXPORTER=otlp")
+
+	// Inject correlation IDs as resource attributes so Claude Code metrics/events
+	// can be joined with AILANG traces in the dashboard
+	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s", task.ID, sessionID)
+	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
+
+	// Inherit OTEL exporter configuration from parent environment
+	// This allows metrics/events to flow to the same backend (GCP, local collector, etc.)
+	if endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); endpoint != "" {
+		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
+	}
+	if protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); protocol != "" {
+		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
+	}
+	// For GCP export, Claude Code needs to know the project
+	// Check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
+	project := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
+	if project == "" {
+		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+	if project != "" {
+		env = append(env, fmt.Sprintf("GOOGLE_CLOUD_PROJECT=%s", project))
+		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
+	}
+
 	cmd.Env = env
 
 	// Create pipes
@@ -293,6 +324,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 
 		if finalResult == nil {
+			span.SetStatus(codes.Ok, "session completed")
 			span.SetAttributes(
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", true),
@@ -319,6 +351,8 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		)
 		if !success {
 			span.SetStatus(codes.Error, getErrorMessage(finalResult))
+		} else {
+			span.SetStatus(codes.Ok, "task completed successfully")
 		}
 
 		return &executor.Result{

@@ -137,6 +137,39 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Inject correlation IDs for fallback linking
 	env = telemetry.InjectCorrelationIDs(env, task.ID, sessionID)
 
+	// Enable Gemini CLI telemetry for trace export
+	// Gemini CLI supports full traces (unlike Claude Code which only does metrics/events)
+	env = append(env, "GEMINI_TELEMETRY_ENABLED=true")
+
+	// Inject correlation IDs as resource attributes for dashboard linking
+	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s", task.ID, sessionID)
+	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
+
+	// For GCP export, check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
+	project := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
+	if project == "" {
+		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+
+	// Set telemetry target based on available configuration
+	// Priority: GEMINI_TELEMETRY_TARGET env > GCP if project is set > default "gcp"
+	if target := os.Getenv("GEMINI_TELEMETRY_TARGET"); target != "" {
+		env = append(env, fmt.Sprintf("GEMINI_TELEMETRY_TARGET=%s", target))
+	} else if project != "" {
+		env = append(env, "GEMINI_TELEMETRY_TARGET=gcp")
+	}
+
+	// Pass both project env vars for compatibility
+	if project != "" {
+		env = append(env, fmt.Sprintf("GOOGLE_CLOUD_PROJECT=%s", project))
+		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
+	}
+
+	// Also inherit OTEL endpoint if set (for local collector routing)
+	if endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); endpoint != "" {
+		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
+	}
+
 	cmd.Env = env
 
 	// Create pipes
@@ -312,6 +345,8 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		)
 		if !success {
 			span.SetStatus(codes.Error, "task failed")
+		} else {
+			span.SetStatus(codes.Ok, "task completed successfully")
 		}
 
 		return &executor.Result{

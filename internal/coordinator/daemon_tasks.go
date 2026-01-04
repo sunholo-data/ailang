@@ -663,6 +663,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.logger.Printf("Warning: Failed to mark task failed: %v", err)
 		}
 		d.logger.Printf("Task %s failed: %s", task.ID, result.Error)
+		span.SetStatus(codes.Error, result.Error)
+	}
+
+	// Set span status for successful tasks
+	if result.Success {
+		span.SetStatus(codes.Ok, "task completed successfully")
 	}
 
 	// Post result to thread

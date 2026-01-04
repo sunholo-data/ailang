@@ -81,6 +81,7 @@ func traceListCommand() {
 	hours := fs.Int("hours", 1, "Look back this many hours")
 	filter := fs.String("filter", "", "Filter by span name (e.g., 'ailang run')")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	showAll := fs.Bool("all", false, "Show all traces including internal OTEL exporter traces")
 
 	// Skip "ailang trace list" args
 	if err := fs.Parse(os.Args[3:]); err != nil {
@@ -130,6 +131,14 @@ func traceListCommand() {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error listing traces: %v\n", err)
 			os.Exit(1)
+		}
+
+		// Skip internal OTEL exporter traces unless --all is specified
+		if !*showAll && len(resp.Spans) > 0 {
+			rootName := resp.Spans[0].Name
+			if isInternalTrace(rootName) {
+				continue
+			}
 		}
 
 		count++
@@ -291,4 +300,21 @@ func valueOrNone(s string) string {
 
 func timestampProto(t time.Time) *timestamppb.Timestamp {
 	return timestamppb.New(t)
+}
+
+// isInternalTrace returns true for OTEL exporter internal traces that should be hidden by default
+func isInternalTrace(name string) bool {
+	// Google Cloud Trace exporter internal spans
+	if strings.HasPrefix(name, "google.devtools.cloudtrace") {
+		return true
+	}
+	// OTLP exporter internal spans
+	if strings.HasPrefix(name, "opentelemetry.") {
+		return true
+	}
+	// Health check endpoints (high-frequency, low-value)
+	if name == "/health" || name == "health.check" {
+		return true
+	}
+	return false
 }

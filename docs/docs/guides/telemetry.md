@@ -426,15 +426,29 @@ These commands extract trace context from the environment:
 
 Depending on whether the CLI tool (Claude Code, Gemini CLI) supports OTEL:
 
-**Scenario A: CLI supports OTEL (ideal)**
+**Scenario A: Gemini CLI (full traces)**
 ```
-Executor span ──► CLI span ──► ailang run span
-     │                │             │
-     └────────────────┴─────────────┘
-              (single trace)
+Executor span ──► Gemini CLI span ──► ailang run span
+     │                  │                   │
+     └──────────────────┴───────────────────┘
+                   (single trace)
 ```
 
-**Scenario B: CLI passes env vars through (current)**
+Gemini CLI supports full trace export. Spans appear in the same trace hierarchy.
+
+**Scenario B: Claude Code (metrics + linked traces)**
+```
+Executor span ─────────────────────► ailang run span
+     │                                     │
+     └─────────────────────────────────────┘
+              (linked trace, CLI gap)
+
+   + Claude Code metrics/events with ailang.task_id correlation
+```
+
+Claude Code exports **metrics and events** (not traces), but we inject `ailang.task_id` via `OTEL_RESOURCE_ATTRIBUTES` so they can be joined with AILANG traces in the dashboard.
+
+**Scenario C: CLI passes env vars through (fallback)**
 ```
 Executor span ──────────────────► ailang run span
      │                                  │
@@ -442,12 +456,71 @@ Executor span ──────────────────► ailang r
               (linked trace, CLI gap)
 ```
 
-**Scenario C: CLI sanitizes environment (fallback)**
+**Scenario C: CLI sanitizes environment (rare)**
 ```
 Executor span             ailang run span
      │                          │
      │     (correlated via      │
      └──── AILANG_TASK_ID) ─────┘
+```
+
+### CLI Telemetry Configuration
+
+The AILANG executors automatically configure CLI telemetry. Here's what gets injected:
+
+**Claude Code** (via environment variables):
+```bash
+CLAUDE_CODE_ENABLE_TELEMETRY=1           # Enable telemetry
+OTEL_METRICS_EXPORTER=otlp               # Export metrics via OTLP
+OTEL_LOGS_EXPORTER=otlp                  # Export events via OTLP
+OTEL_RESOURCE_ATTRIBUTES=ailang.task_id=...,ailang.session_id=...  # Correlation IDs
+OTEL_EXPORTER_OTLP_ENDPOINT=...          # Inherited from parent
+OTEL_EXPORTER_OTLP_PROTOCOL=...          # Inherited from parent
+OTLP_GOOGLE_CLOUD_PROJECT=...            # Primary project
+GOOGLE_CLOUD_PROJECT=...                 # Fallback project
+TRACEPARENT=00-{trace_id}-{span_id}-01   # W3C trace context (for ailang run)
+```
+
+**Note:** Claude Code exports **metrics and events only** (not traces). The `OTEL_RESOURCE_ATTRIBUTES` allows joining Claude Code metrics with AILANG traces by `ailang.task_id`.
+
+**Gemini CLI** (via environment variables):
+```bash
+GEMINI_TELEMETRY_ENABLED=true            # Enable telemetry (includes traces)
+GEMINI_TELEMETRY_TARGET=gcp              # Export to GCP (if project set)
+OTEL_RESOURCE_ATTRIBUTES=ailang.task_id=...,ailang.session_id=...  # Correlation IDs
+OTLP_GOOGLE_CLOUD_PROJECT=...            # Primary project var (checked first)
+GOOGLE_CLOUD_PROJECT=...                 # Fallback project
+OTEL_EXPORTER_OTLP_ENDPOINT=...          # For local collector
+TRACEPARENT=00-{trace_id}-{span_id}-01   # W3C trace context
+```
+
+**Note:** Gemini CLI exports **full traces** that appear in the trace hierarchy.
+
+**Project detection order:**
+1. `OTLP_GOOGLE_CLOUD_PROJECT` - Primary (Gemini CLI standard)
+2. `GOOGLE_CLOUD_PROJECT` - Fallback (GCP standard)
+
+**Manual CLI configuration** (if running CLIs directly):
+
+Claude Code settings (`~/.claude/settings.json`):
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"
+  }
+}
+```
+
+Gemini CLI settings (`~/.gemini/settings.json`):
+```json
+{
+  "telemetry": {
+    "enabled": true,
+    "target": "gcp"
+  }
+}
 ```
 
 ### Using in CI/CD
