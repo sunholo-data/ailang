@@ -1,0 +1,321 @@
+.observatory {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+/* Connection status */
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connected {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Metrics card - use app's gradient */
+.metricsCard {
+  background: linear-gradient(135deg, var(--gradient-start, #e73c17) 0%, var(--gradient-end, #dd6b20) 100%);
+  border-radius: var(--radius-lg, 12px);
+  padding: 24px;
+  color: white;
+  box-shadow: 0 4px 20px rgba(231, 60, 23, 0.3);
+}
+
+.metricsCard h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  opacity: 0.95;
+  font-family: var(--font-heading);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 20px;
+}
+
+.metric {
+  text-align: center;
+}
+
+.metricValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-family: var(--font-mono, monospace);
+}
+
+.metricLabel {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Section styling - dark theme */
+.overview,
+.traces,
+.traceDetail {
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-radius: var(--radius-lg, 12px);
+}
+
+.traces,
+.traceDetail {
+  padding: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sectionHeader h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.refreshButton,
+.closeButton {
+  padding: 8px 16px;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #1a2332);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary, #8b949e);
+  transition: all 0.2s;
+}
+
+.refreshButton:hover,
+.closeButton:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
+  color: var(--text-primary, #cdd6f4);
+}
+
+/* Trace table */
+.traceTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.traceTable th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg-elevated, #141d2b);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #8b949e);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.traceTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-size: 14px;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.traceRow {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.traceRow:hover {
+  background: var(--bg-hover, #232d3a);
+}
+
+.traceId {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--color-primary-light, #ff5a3c);
+}
+
+.traceName {
+  font-weight: 500;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.traceSpans {
+  color: var(--text-secondary, #8b949e);
+}
+
+.traceDuration {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.traceTime {
+  color: var(--text-tertiary, #6e7681);
+  font-size: 13px;
+}
+
+/* Status badges */
+.statusOk {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.statusError {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.statusUnset {
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* Trace detail view */
+.spanTree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spanNode {
+  background: var(--bg-elevated, #141d2b);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 16px;
+  border-left: 3px solid var(--color-primary, #e73c17);
+}
+
+.spanHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.spanName {
+  font-weight: 500;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.spanDuration {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--color-primary-light, #ff5a3c);
+}
+
+.spanMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #8b949e);
+}
+
+.spanProvider {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.spanModel {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.spanCost {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* States */
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary, #8b949e);
+}
+
+.error {
+  padding: 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md, 8px);
+  color: #ef4444;
+}
+
+.emptyState {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-tertiary, #6e7681);
+}
+
+.emptyState p {
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .observatory {
+    padding: 16px;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metricValue {
+    font-size: 22px;
+  }
+
+  .traceTable {
+    display: block;
+    overflow-x: auto;
+  }
+}

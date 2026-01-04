@@ -1,0 +1,411 @@
+import { useEffect, useState, useCallback, useRef } from 'react';
+
+// Observatory types matching Go backend models
+export interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Task {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  source_type: string;
+  from_agent: string;
+  cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface Span {
+  id: string;
+  trace_id: string;
+  parent_span_id?: string;
+  task_id?: string;
+  name: string;
+  kind: string;
+  status: string;
+  start_time: string;
+  end_time?: string;
+  duration_ms?: number;
+  provider: string;
+  model?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  cost_usd?: number;
+  attributes: Record<string, any>;
+}
+
+export interface TraceSummary {
+  trace_id: string;
+  root_span_name: string;
+  span_count: number;
+  duration_ms: number;
+  start_time: string;
+  status: string;
+  task_id?: string;
+}
+
+export interface Trace {
+  trace_id: string;
+  spans: Span[];
+  task_id?: string;
+  start_time: string;
+  end_time?: string;
+  duration_ms?: number;
+}
+
+export interface MetricsSummary {
+  total_spans: number;
+  total_traces: number;
+  total_tasks: number;
+  total_workspaces: number;
+  total_agents: number;
+  total_cost_usd: number;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  avg_duration_ms: number;
+  error_rate: number;
+  success_rate: number;
+  spans_by_status: Record<string, number>;
+  spans_by_provider: Record<string, number>;
+}
+
+export interface WSEvent {
+  type: string;
+  timestamp: string;
+  data: any;
+}
+
+// Base API URL
+const API_BASE = '/api/observatory';
+
+// Fetch helper
+async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    ...options,
+  });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// Hook for workspaces
+export function useWorkspaces() {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAPI<Workspace[]>('/workspaces');
+      setWorkspaces(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch workspaces');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { workspaces, loading, error, refresh };
+}
+
+// Hook for tasks
+interface UseTasksOptions {
+  workspaceId?: string;
+  status?: string;
+  limit?: number;
+}
+
+export function useTasks(options: UseTasksOptions = {}) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (options.workspaceId) params.set('workspace_id', options.workspaceId);
+      if (options.status) params.set('status', options.status);
+      if (options.limit) params.set('limit', options.limit.toString());
+
+      const query = params.toString();
+      const endpoint = query ? `/tasks?${query}` : '/tasks';
+      const data = await fetchAPI<Task[]>(endpoint);
+      setTasks(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [options.workspaceId, options.status, options.limit]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { tasks, loading, error, refresh };
+}
+
+// Hook for spans
+interface UseSpansOptions {
+  traceId?: string;
+  taskId?: string;
+  status?: string;
+  limit?: number;
+}
+
+export function useSpans(options: UseSpansOptions = {}) {
+  const [spans, setSpans] = useState<Span[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (options.traceId) params.set('trace_id', options.traceId);
+      if (options.taskId) params.set('task_id', options.taskId);
+      if (options.status) params.set('status', options.status);
+      if (options.limit) params.set('limit', options.limit.toString());
+
+      const query = params.toString();
+      const endpoint = query ? `/spans?${query}` : '/spans';
+      const data = await fetchAPI<Span[]>(endpoint);
+      setSpans(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch spans');
+    } finally {
+      setLoading(false);
+    }
+  }, [options.traceId, options.taskId, options.status, options.limit]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { spans, loading, error, refresh };
+}
+
+// Hook for traces
+interface UseTracesOptions {
+  taskId?: string;
+  status?: string;
+  limit?: number;
+}
+
+export function useTraces(options: UseTracesOptions = {}) {
+  const [traces, setTraces] = useState<TraceSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (options.taskId) params.set('task_id', options.taskId);
+      if (options.status) params.set('status', options.status);
+      if (options.limit) params.set('limit', options.limit.toString());
+
+      const query = params.toString();
+      const endpoint = query ? `/traces?${query}` : '/traces';
+      const data = await fetchAPI<TraceSummary[]>(endpoint);
+      setTraces(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch traces');
+    } finally {
+      setLoading(false);
+    }
+  }, [options.taskId, options.status, options.limit]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { traces, loading, error, refresh };
+}
+
+// Hook for single trace with full span tree
+export function useTrace(traceId: string | null) {
+  const [trace, setTrace] = useState<Trace | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!traceId) {
+      setTrace(null);
+      return;
+    }
+
+    setLoading(true);
+    fetchAPI<Trace>(`/traces/${traceId}`)
+      .then(data => {
+        setTrace(data);
+        setError(null);
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : 'Failed to fetch trace');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [traceId]);
+
+  return { trace, loading, error };
+}
+
+// Hook for metrics summary
+export function useMetrics() {
+  const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAPI<MetricsSummary>('/metrics/summary');
+      setMetrics(data);
+      setError(null);
+    } catch (err) {
+      // Don't show error if just no data yet - show empty metrics
+      setMetrics({
+        total_spans: 0,
+        total_traces: 0,
+        total_tasks: 0,
+        total_workspaces: 0,
+        total_agents: 0,
+        total_cost_usd: 0,
+        total_tokens_in: 0,
+        total_tokens_out: 0,
+        avg_duration_ms: 0,
+        error_rate: 0,
+        success_rate: 0,
+        spans_by_status: {},
+        spans_by_provider: {},
+      });
+      setError(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { metrics, loading, error, refresh };
+}
+
+// Hook for observatory WebSocket real-time updates
+interface UseObservatoryWsOptions {
+  onSpanCreated?: (span: Span) => void;
+  onSpanUpdated?: (span: Span) => void;
+  onTaskCreated?: (task: Task) => void;
+  onTaskUpdated?: (task: Task) => void;
+  onTaskCompleted?: (task: Task) => void;
+  onMetricsUpdated?: (metrics: MetricsSummary) => void;
+  workspaceId?: string;
+  taskId?: string;
+}
+
+export function useObservatoryWs(options: UseObservatoryWsOptions = {}) {
+  const [isConnected, setIsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const optionsRef = useRef(options);
+
+  // Update options ref
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/observatory`;
+
+    const connect = () => {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        // Send subscription if filters provided
+        const sub: any = {};
+        if (optionsRef.current.workspaceId) sub.workspace_id = optionsRef.current.workspaceId;
+        if (optionsRef.current.taskId) sub.task_id = optionsRef.current.taskId;
+        if (Object.keys(sub).length > 0) {
+          ws.send(JSON.stringify(sub));
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        // Reconnect after delay
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        setIsConnected(false);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const wsEvent: WSEvent = JSON.parse(event.data);
+          const opts = optionsRef.current;
+
+          switch (wsEvent.type) {
+            case 'span.created':
+              opts.onSpanCreated?.(wsEvent.data);
+              break;
+            case 'span.updated':
+              opts.onSpanUpdated?.(wsEvent.data);
+              break;
+            case 'task.created':
+              opts.onTaskCreated?.(wsEvent.data);
+              break;
+            case 'task.updated':
+              opts.onTaskUpdated?.(wsEvent.data);
+              break;
+            case 'task.completed':
+              opts.onTaskCompleted?.(wsEvent.data);
+              break;
+            case 'metrics.updated':
+              opts.onMetricsUpdated?.(wsEvent.data);
+              break;
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
+
+  return { isConnected };
+}

@@ -210,8 +210,8 @@ func main() {
 	case "prompt":
 		runPrompt()
 
-	case "serve":
-		if err := serveCommand(flag.Args()[1:]); err != nil {
+	case "server", "serve": // "serve" kept as alias for backward compatibility
+		if err := serverCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}

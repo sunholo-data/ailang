@@ -4,6 +4,7 @@ import { HierarchyTree, AllAgentsOverview, AgentView } from './features/agents';
 import { MessageCenter } from './features/messaging';
 import { ApprovalQueue } from './features/approvals';
 import { TaskExecutionPanel } from './features/tasks';
+import { Observatory } from './features/observatory';
 // Components
 import { Breadcrumb } from './components/common';
 import { ConnectionStatus } from './components/ConnectionStatus';
@@ -327,6 +328,10 @@ export const App: React.FC = () => {
       );
     }
 
+    if (selection.type === 'observatory') {
+      return <Observatory />;
+    }
+
     return (
       <div className="empty-state">
         <p>Select an agent or thread from the sidebar</p>
@@ -354,6 +359,18 @@ export const App: React.FC = () => {
               {pendingCount} pending
             </span>
           )}
+          <button
+            onClick={() => setSelection({ type: 'observatory' })}
+            className={`nav-button ${selection.type === 'observatory' ? 'active' : ''}`}
+            title="View Observatory - Traces & Metrics"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            Observatory
+          </button>
           <a
             href="https://ailang.sunholo.com"
             target="_blank"
@@ -373,15 +390,18 @@ export const App: React.FC = () => {
       </header>
 
       <div className="app-body">
-        <aside className="app-sidebar">
-          <HierarchyTree
-            selection={selection}
-            onSelect={setSelection}
-          />
-        </aside>
+        {/* Hide sidebar for Observatory - it needs full width */}
+        {selection.type !== 'observatory' && (
+          <aside className="app-sidebar">
+            <HierarchyTree
+              selection={selection}
+              onSelect={setSelection}
+            />
+          </aside>
+        )}
 
-        <main className="app-main">
-          {selection.type !== 'overview' && (
+        <main className={`app-main ${selection.type === 'observatory' ? 'full-width' : ''}`}>
+          {selection.type !== 'overview' && selection.type !== 'observatory' && (
             <Breadcrumb items={getBreadcrumbItems()} />
           )}
           <div className="main-content">

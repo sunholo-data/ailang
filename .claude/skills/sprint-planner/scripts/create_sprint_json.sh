@@ -110,7 +110,7 @@ extract_milestones() {
   {
     "id": "MILESTONE_ID",
     "description": "Milestone description",
-    "estimated_loc": 200,
+    "estimated_loc": 0,
     "actual_loc": null,
     "dependencies": [],
     "acceptance_criteria": [

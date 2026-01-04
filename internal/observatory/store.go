@@ -672,8 +672,9 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 	for rows.Next() {
 		ts := &TraceSummary{}
 		var rootSpan, status, taskID sql.NullString
+		var startTimeStr string
 		if err := rows.Scan(&ts.TraceID, &rootSpan, &ts.SpanCount, &ts.DurationMs,
-			&ts.StartTime, &status, &taskID); err != nil {
+			&startTimeStr, &status, &taskID); err != nil {
 			return nil, err
 		}
 		if rootSpan.Valid {
@@ -684,6 +685,14 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 		}
 		if taskID.Valid {
 			ts.TaskID = taskID.String
+		}
+		// Parse start_time from string (SQLite MIN() returns string)
+		if parsedTime, err := time.Parse(time.RFC3339Nano, startTimeStr); err == nil {
+			ts.StartTime = parsedTime
+		} else if parsedTime, err := time.Parse("2006-01-02T15:04:05Z", startTimeStr); err == nil {
+			ts.StartTime = parsedTime
+		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr); err == nil {
+			ts.StartTime = parsedTime
 		}
 		summaries = append(summaries, ts)
 	}

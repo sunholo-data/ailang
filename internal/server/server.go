@@ -12,6 +12,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -61,6 +62,11 @@ type Server struct {
 
 	// Coordinator task event store for historical replay
 	taskEventStore CoordinatorTaskEventStore
+
+	// Observatory for telemetry, traces, and metrics visualization
+	obsBackend observatory.Backend
+	obsAPI     *observatory.API
+	obsHub     *observatory.Hub
 }
 
 // NewServer creates a new HTTP server
@@ -112,6 +118,20 @@ func WithResourceRegistry(registry *coordinator.ResourceTrackerRegistry) ServerO
 func WithCoordinatorStore(store CoordinatorStore) ServerOption {
 	return func(s *Server) {
 		s.coordStore = store
+	}
+}
+
+// WithObservatoryDB sets up the observatory backend with SQLite at the given path
+func WithObservatoryDB(dbPath string) ServerOption {
+	return func(s *Server) {
+		backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize observatory: %v", err)
+			return
+		}
+		s.obsBackend = backend
+		s.obsAPI = observatory.NewAPI(backend)
+		s.obsHub = observatory.NewHub()
 	}
 }
 
@@ -187,6 +207,17 @@ func (s *Server) Start() error {
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 
+	// Observatory API endpoints (if configured)
+	if s.obsAPI != nil {
+		s.obsAPI.RegisterRoutes(mux)
+		log.Printf("Observatory API registered at /api/observatory/*")
+	}
+	if s.obsHub != nil {
+		go s.obsHub.Run()
+		mux.HandleFunc("/ws/observatory", s.obsHub.HandleWebSocket)
+		log.Printf("Observatory WebSocket registered at /ws/observatory")
+	}
+
 	// Health check and version
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/api/version", s.handleVersion)
@@ -239,5 +270,13 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 // Close closes the server and releases resources
 func (s *Server) Close() error {
+	if s.obsHub != nil {
+		s.obsHub.Stop()
+	}
+	if s.obsBackend != nil {
+		if err := s.obsBackend.Close(); err != nil {
+			log.Printf("Warning: Failed to close observatory backend: %v", err)
+		}
+	}
 	return s.store.Close()
 }

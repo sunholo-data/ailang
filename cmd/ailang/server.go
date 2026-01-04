@@ -17,7 +17,7 @@ import (
 	"github.com/sunholo/ailang/internal/telemetry"
 )
 
-func serveCommand(args []string) error {
+func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
 	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
@@ -36,9 +36,11 @@ func serveCommand(args []string) error {
 				i++
 			}
 		case "--help", "-h":
-			fmt.Println("Usage: ailang serve [options]")
+			fmt.Println("Usage: ailang server [options]")
 			fmt.Println("")
-			fmt.Println("Start the AILANG Collaboration Hub HTTP server")
+			fmt.Println("Start the AILANG Observatory and Collaboration Hub server")
+			fmt.Println("")
+			fmt.Println("Alias: 'ailang serve' also works (backward compatibility)")
 			fmt.Println("")
 			fmt.Println("Options:")
 			fmt.Println("  --port PORT   HTTP server port (default: 1957)")
@@ -46,9 +48,9 @@ func serveCommand(args []string) error {
 			fmt.Println("  --help, -h    Show this help message")
 			fmt.Println("")
 			fmt.Println("Examples:")
-			fmt.Println("  ailang serve")
-			fmt.Println("  ailang serve --port 8080")
-			fmt.Println("  ailang serve --db /tmp/collab.db")
+			fmt.Println("  ailang server")
+			fmt.Println("  ailang server --port 8080")
+			fmt.Println("  ailang server --db /tmp/collab.db")
 			fmt.Println("")
 			fmt.Println("Endpoints:")
 			fmt.Println("  UI:          http://localhost:PORT/")
@@ -108,8 +110,14 @@ func serveCommand(args []string) error {
 		}
 	}
 
-	// Create and start server with version info
-	srv, err := server.NewServer(dbPath, httpAddr, server.WithVersion(Version))
+	// Observatory database path (for telemetry, traces, metrics)
+	obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
+
+	// Create and start server with version info and observatory
+	srv, err := server.NewServer(dbPath, httpAddr,
+		server.WithVersion(Version),
+		server.WithObservatoryDB(obsDbPath),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
@@ -127,8 +135,9 @@ func serveCommand(args []string) error {
 		defer coordStore.Close()
 	}
 
-	log.Printf("AILANG Collaboration Hub Server (v%s)", Version)
-	log.Printf("Database: %s", dbPath)
+	log.Printf("AILANG Observatory & Collaboration Hub (v%s)", Version)
+	log.Printf("Collaboration DB: %s", dbPath)
+	log.Printf("Observatory DB: %s", obsDbPath)
 	log.Printf("Coordinator DB: %s", coordDbPath)
 	log.Printf("")
 

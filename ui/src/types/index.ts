@@ -196,7 +196,7 @@ export interface HierarchyResponse {
 }
 
 // Selection state for hierarchy navigation
-export type SelectionType = 'overview' | 'agent' | 'thread' | 'task';
+export type SelectionType = 'overview' | 'agent' | 'thread' | 'task' | 'observatory';
 
 export interface Selection {
   type: SelectionType;
