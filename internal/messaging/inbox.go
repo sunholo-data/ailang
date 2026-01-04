@@ -472,6 +472,25 @@ func (s *Store) InboxMessageExistsByGitHub(repo string, issueNumber int) (bool, 
 	return count > 0, nil
 }
 
+// InboxMessageExistsByTitle checks if a message with the same title already exists in the inbox
+// Returns the existing message ID if found, or empty string if no duplicate
+func (s *Store) InboxMessageExistsByTitle(inbox string, title string) (string, error) {
+	var existingID string
+	err := s.db.QueryRow(`
+		SELECT id FROM inbox_messages
+		WHERE to_inbox = ? AND title = ? AND status NOT IN (?, ?)
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, inbox, title, InboxStatusDeleted, InboxStatusArchived).Scan(&existingID)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return "", nil
+		}
+		return "", err
+	}
+	return existingID, nil
+}
+
 // UpdateInboxMessageGitHub updates the GitHub issue number and repo for a message
 func (s *Store) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo string) error {
 	var repoPtr *string

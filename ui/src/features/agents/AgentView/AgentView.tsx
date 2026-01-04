@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { HierarchyNode, Approval } from '../../../types';
 import { MetricsCard, TrendsChart } from '../../../components/metrics';
 import { ApprovalQueue } from '../../approvals';
-import './AgentView.module.css';
+import './AgentView.css';
 
 interface AgentViewProps {
   agentId: string;

@@ -19,6 +19,7 @@ func runMessagesSend(args []string) {
 	title := fs.String("title", "", "Message title")
 	from := fs.String("from", "cli", "Sender agent name")
 	correlationID := fs.String("correlation", "", "Correlation ID for grouping messages")
+	force := fs.Bool("force", false, "Force send even if duplicate exists")
 
 	// GitHub sync flags
 	github := fs.Bool("github", false, "Also create a GitHub issue")
@@ -28,7 +29,7 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "github", "type", "repo", "github-user"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "github", "type", "repo", "github-user"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -86,6 +87,19 @@ func runMessagesSend(args []string) {
 		CorrelationID: *correlationID,
 		Category:      category,
 		GitHubRepo:    *repo,
+	}
+
+	// Check for duplicate messages (same title in same inbox)
+	if !*force {
+		existingID, err := store.InboxMessageExistsByTitle(inbox, msgTitle)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: checking duplicates: %v\n", yellow("⚠"), err)
+			// Continue anyway - dedup check is best-effort
+		} else if existingID != "" {
+			fmt.Fprintf(os.Stderr, "%s: duplicate message exists (ID: %s)\n", yellow("⚠"), existingID[:8])
+			fmt.Fprintf(os.Stderr, "  Use --force to send anyway, or use a different title\n")
+			os.Exit(1)
+		}
 	}
 
 	// ALWAYS save to SQLite first

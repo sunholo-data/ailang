@@ -162,13 +162,28 @@ export const HierarchyTree: React.FC<HierarchyTreeProps> = ({ selection, onSelec
   return (
     <div className="hierarchy-tree">
       <div className="tree-header">
-        <h3>Agents</h3>
+        <h3>Navigation</h3>
         <button className="refresh-btn" onClick={() => { fetchHierarchy(); onRefresh?.(); }} title="Refresh">
           ↻
         </button>
       </div>
 
       <div className="tree-content">
+        {/* Observatory link */}
+        <div className="tree-node">
+          <div
+            className={`tree-node-content nav-item ${selection.type === 'observatory' ? 'selected' : ''}`}
+            onClick={() => onSelect({ type: 'observatory' })}
+          >
+            <span className="nav-icon">📊</span>
+            <span className="node-label">Observatory</span>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="tree-separator" />
+
+        {/* Agents tree */}
         {hierarchy && renderNode(hierarchy.root)}
       </div>
 

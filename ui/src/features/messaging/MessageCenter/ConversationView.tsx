@@ -7,7 +7,7 @@ import { Icons } from '../../../components/common/Icons';
 import { truncateId } from '../../../utils/formatters';
 import { MessageItem } from './MessageItem';
 import { MessageInput } from './MessageInput';
-import './ConversationView.module.css';
+import './ConversationView.css';
 
 interface ConversationViewProps {
   thread?: Thread;

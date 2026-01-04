@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Approval, EffectDelta } from '../../../types';
 import { Icons } from '../../../components/common/Icons';
 import { formatTimestamp } from '../../../utils/formatters';
-import './ApprovalQueue.module.css';
+import './ApprovalQueue.css';
 
 interface ApprovalQueueProps {
   approvals: Approval[];

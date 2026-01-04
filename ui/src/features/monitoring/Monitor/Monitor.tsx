@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Icons, getStatusColor } from '../../../components/common/Icons';
 import { formatDuration, formatCost } from '../../../utils/formatters';
-import './Monitor.module.css';
+import './Monitor.css';
 
 // Process statistics from the API
 interface ProcessStats {

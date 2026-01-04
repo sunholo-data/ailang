@@ -201,3 +201,31 @@
 .aggregate-stats .pending {
   color: #f59e0b;
 }
+
+/* Navigation items (Observatory, etc.) */
+.tree-node-content.nav-item {
+  font-weight: 500;
+  color: #cdd6f4;
+  padding-left: 12px;
+}
+
+.tree-node-content.nav-item:hover {
+  background: rgba(231, 60, 23, 0.1);
+}
+
+.tree-node-content.nav-item.selected {
+  background: rgba(231, 60, 23, 0.2);
+  color: #ff5a3c;
+}
+
+.nav-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* Separator between sections */
+.tree-separator {
+  height: 1px;
+  background: #313244;
+  margin: 8px 12px;
+}

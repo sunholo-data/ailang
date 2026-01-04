@@ -10,7 +10,7 @@ import { Breadcrumb } from './components/common';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { MetricsCard, TrendsChart, StatsPanel } from './components/metrics';
 import { Selection, HierarchyResponse, Approval } from './types';
-import './App.module.css';
+import './App.css';
 
 // Logo - use same image as ailang.sunholo.com
 const LogoImage = <img src="/logo.png" alt="AILANG" width="28" height="28" />;
@@ -344,7 +344,12 @@ export const App: React.FC = () => {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="header-brand">
+        <div
+          className="header-brand"
+          onClick={() => setSelection({ type: 'overview' })}
+          style={{ cursor: 'pointer' }}
+          title="Return to All Agents Overview"
+        >
           <div className="brand-logo">{LogoImage}</div>
           <div className="brand-text">
             <h1>AILANG</h1>
@@ -359,18 +364,6 @@ export const App: React.FC = () => {
               {pendingCount} pending
             </span>
           )}
-          <button
-            onClick={() => setSelection({ type: 'observatory' })}
-            className={`nav-button ${selection.type === 'observatory' ? 'active' : ''}`}
-            title="View Observatory - Traces & Metrics"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            Observatory
-          </button>
           <a
             href="https://ailang.sunholo.com"
             target="_blank"
@@ -390,17 +383,14 @@ export const App: React.FC = () => {
       </header>
 
       <div className="app-body">
-        {/* Hide sidebar for Observatory - it needs full width */}
-        {selection.type !== 'observatory' && (
-          <aside className="app-sidebar">
-            <HierarchyTree
-              selection={selection}
-              onSelect={setSelection}
-            />
-          </aside>
-        )}
+        <aside className="app-sidebar">
+          <HierarchyTree
+            selection={selection}
+            onSelect={setSelection}
+          />
+        </aside>
 
-        <main className={`app-main ${selection.type === 'observatory' ? 'full-width' : ''}`}>
+        <main className="app-main">
           {selection.type !== 'overview' && selection.type !== 'observatory' && (
             <Breadcrumb items={getBreadcrumbItems()} />
           )}
