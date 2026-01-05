@@ -195,7 +195,7 @@ const spans = usePaginatedSpans(traceId, 100, spanPage);
 - `ui/src/components/observatory/TraceView.tsx` (+50 LOC)
 - `ui/src/hooks/useSpans.ts` (+50 LOC)
 
-### M6: Calculate Cost in OTLP Receiver (~80 LOC, 2 hours) ⭐ HIGH PRIORITY
+### M6: Calculate Cost in OTLP Receiver (~80 LOC, 2 hours) ✅ IMPLEMENTED
 
 **Problem:** AI providers emit tokens but NOT cost. Cost shows $0.00 for ALL traces.
 
@@ -215,31 +215,39 @@ model := extractString(attrs, "gen_ai.request.model", "ailang.model")
 // NEW: Calculate cost from tokens using models.yml pricing
 costUSD := extractFloat(attrs, "ai.cost_usd", ...) // Try explicit first
 if costUSD == 0 && tokensIn > 0 && model != "" {
-    costUSD = calculateCostFromPricing(model, tokensIn, tokensOut)
+    costUSD = CalculateCostFromTokens(model, tokensIn, tokensOut)
 }
 ```
 
-**Pricing integration:**
-- Load `internal/eval_harness/models.yml` at OTLP receiver startup
-- Cache pricing map: `map[string]struct{InputPer1K, OutputPer1K float64}`
-- Calculate: `cost = (tokensIn * input_per_1k / 1000) + (tokensOut * output_per_1k / 1000)`
-- Match model names: `claude-sonnet-4-5` → `claude-sonnet-4-5` in models.yml
-- Fallback: Return 0.0 if model not found (no silent fallbacks per CLAUDE.md)
+**Implementation (January 2025):**
+- Created `internal/observatory/pricing.go` (~170 LOC) with:
+  - `CalculateCostFromTokens(model, tokensIn, tokensOut)` - Main calculation function
+  - `normalizeModelName(model)` - Model name normalization (date suffixes, API names)
+  - Lazy loading of models.yml at first use (sync.Once pattern)
+  - Support for 18 models with accurate pricing
+- Modified `internal/observatory/otlp_receiver.go` (+10 LOC):
+  - Cost calculation in `convertSpan()` and `convertLogToSpan()`
+- Added tests in `internal/observatory/pricing_test.go` (~120 LOC):
+  - `TestNormalizeModelName` - All model name variants
+  - `TestCalculateCostFromTokens_*` - Zero tokens, with config, unknown model
 
-**Files to modify:**
-- `internal/observatory/pricing.go` (+50 LOC, new file for models.yml loading)
-- `internal/observatory/otlp_receiver.go` (+20 LOC)
-- `internal/observatory/otlp_receiver_test.go` (+30 LOC)
+**Files modified:**
+- `internal/observatory/pricing.go` (+170 LOC, new file)
+- `internal/observatory/pricing_test.go` (+120 LOC, new file)
+- `internal/observatory/otlp_receiver.go` (+10 LOC)
+- `internal/observatory/otlp_receiver_test.go` (+90 LOC)
 
-**Impact:** After this fix, Observatory will show accurate costs for:
-- ✅ Eval suite runs (historical + future)
+**Impact:** Observatory now shows accurate costs for:
+- ✅ Eval suite runs (new spans going forward)
 - ✅ Coordinator tasks
 - ✅ Direct `ailang` CLI usage
 - ✅ Any trace with tokens + model name
 
+**Note:** Historical spans already in database keep their original cost values. Only new incoming spans get calculated costs.
+
 ## Success Criteria
 
-- [ ] **Cost calculation works for all traces** (eval suites show accurate $ amounts)
+- [x] **Cost calculation works for all traces** (eval suites show accurate $ amounts) - ✅ M6 IMPLEMENTED
 - [ ] OTLP HTTP handler test coverage > 70%
 - [ ] API handler test coverage > 60%
 - [ ] Hierarchy respects configurable span limits
@@ -249,15 +257,15 @@ if costUSD == 0 && tokensIn > 0 && model != "" {
 
 ## Estimated Effort
 
-| Milestone | LOC | Time | Priority |
-|-----------|-----|------|----------|
-| M6: Cost calculation | 100 | 2h | **High** ⭐ |
-| M1: OTLP HTTP tests | 150 | 4h | High |
-| M2: Configurable limits | 80 | 2h | Medium |
-| M3: API handler tests | 200 | 4h | Medium |
-| M4: Log conversion tests | 100 | 2h | Low |
-| M5: UI lazy loading | 100 | 3h | Medium |
-| **Total** | **730** | **17h** | |
+| Milestone | LOC | Time | Priority | Status |
+|-----------|-----|------|----------|--------|
+| M6: Cost calculation | 100 | 2h | **High** ⭐ | ✅ DONE |
+| M1: OTLP HTTP tests | 150 | 4h | High | Pending |
+| M2: Configurable limits | 80 | 2h | Medium | Pending |
+| M3: API handler tests | 200 | 4h | Medium | Pending |
+| M4: Log conversion tests | 100 | 2h | Low | Pending |
+| M5: UI lazy loading | 100 | 3h | Medium | Pending |
+| **Total** | **730** | **17h** | | |
 
 ## Non-Goals
 

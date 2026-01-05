@@ -254,6 +254,11 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	model := extractString(attrs, "model")
 	sessionID := extractString(resourceAttrs, "session.id")
 
+	// Calculate cost from tokens if not provided (M-TASK-HIERARCHY-FOLLOWUPS M6)
+	if costUSD == 0 && (tokensIn > 0 || tokensOut > 0) && model != "" {
+		costUSD = CalculateCostFromTokens(model, tokensIn, tokensOut)
+	}
+
 	// Determine status
 	status := SpanStatusOK
 	statusMsg := ""
@@ -282,6 +287,7 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	// 2. task.id span attribute (coordinator sets this on task execution spans)
 	// 3. task.workspace span attribute (executor sets this for coordinator tasks)
 	// 4. process.cwd worktree path fallback (Claude Code subprocesses)
+	// 5. Session-based correlation: look up parent claude.execute span by session.id
 	taskID := extractString(resourceAttrs, "ailang.task_id")
 	if taskID == "" {
 		// Check task.id span attribute (coordinator sets this)
@@ -297,6 +303,21 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 		taskID = extractTaskIDFromCwd(resourceAttrs)
 	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
+
+	// Session-based correlation (M-TASK-HIERARCHY-SESSION-LINKING)
+	// Claude Code internal events have session.id but not task_id.
+	// Look up the parent claude.execute span which has both session.id AND task_id.
+	if taskID == "" && sessionID != "" {
+		parentTaskID, parentAssignmentID, parentTraceID := r.backend.LookupTaskBySessionID(context.Background(), sessionID)
+		if parentTaskID != "" {
+			taskID = parentTaskID
+			assignmentID = parentAssignmentID
+			// Also link to parent trace for proper hierarchy
+			if parentTraceID != "" {
+				traceID = parentTraceID
+			}
+		}
+	}
 
 	return &Span{
 		ID:                 spanID,
@@ -428,6 +449,26 @@ func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.Res
 				return fmt.Errorf("store span %s: %w", span.SpanId, err)
 			}
 			fmt.Printf("observatory: stored span successfully\n")
+
+			// Post-processing: Link orphaned Claude Code events to this span's task hierarchy
+			// (M-TASK-HIERARCHY-SESSION-LINKING)
+			// When claude.execute span arrives (delayed by OTEL batching), retroactively link
+			// any Claude Code internal events that arrived earlier via OTLP logs.
+			if normalized.Name == "claude.execute" && normalized.TaskID != "" {
+				sessionID := extractString(normalized.Attributes, "session.id")
+				if sessionID != "" {
+					linked, err := r.backend.LinkOrphanedSpansBySession(ctx, sessionID, normalized.TaskID, normalized.AgentAssignmentID)
+					if err != nil {
+						fmt.Printf("observatory: warning: failed to link orphaned spans for session %s: %v\n", sessionID, err)
+					} else if linked > 0 {
+						fmt.Printf("observatory: linked %d orphaned Claude Code events to task %s (session %s)\n", linked, normalized.TaskID, sessionID)
+						// Recalculate task aggregates to reflect newly linked spans
+						if err := r.backend.RecalculateTaskAggregates(ctx, normalized.TaskID); err != nil {
+							fmt.Printf("observatory: warning: failed to recalculate aggregates for task %s: %v\n", normalized.TaskID, err)
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -487,7 +528,13 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	tokensIn := int64(extractInt(attrs, "gen_ai.usage.input_tokens", "ailang.tokens.input", "ai.tokens_in", "task.tokens_in"))
 	tokensOut := int64(extractInt(attrs, "gen_ai.usage.output_tokens", "ailang.tokens.output", "ai.tokens_out", "task.tokens_out"))
 	costUSD := extractFloat(attrs, "gen_ai.usage.cost", "ailang.cost.usd", "ai.cost_usd", "task.cost_usd")
-	model := extractString(attrs, "gen_ai.request.model", "ailang.model")
+	model := extractString(attrs, "gen_ai.request.model", "ailang.model", "ai.model")
+
+	// Calculate cost from tokens if not provided (M-TASK-HIERARCHY-FOLLOWUPS M6)
+	// AI providers emit tokens but not cost, so we calculate from models.yml pricing
+	if costUSD == 0 && (tokensIn > 0 || tokensOut > 0) && model != "" {
+		costUSD = CalculateCostFromTokens(model, tokensIn, tokensOut)
+	}
 	providerStr := extractString(attrs, "ailang.provider", "gen_ai.system")
 
 	// Map provider string to Provider type

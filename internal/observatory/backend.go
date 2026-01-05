@@ -43,6 +43,11 @@ type Backend interface {
 	DeleteSpan(ctx context.Context, id string) error
 	GetTrace(ctx context.Context, traceID string) (*Trace, error)
 	ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error)
+	// LookupTaskBySessionID finds task hierarchy for Claude Code session correlation
+	LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string)
+	// LinkOrphanedSpansBySession updates spans with matching session.id that lack task linkage
+	// Called after storing claude.execute span to retroactively link orphaned Claude Code events
+	LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error)
 
 	// Span event operations
 	CreateSpanEvent(ctx context.Context, e *SpanEvent) error
@@ -274,6 +279,18 @@ func (b *SQLiteBackend) GetTrace(ctx context.Context, traceID string) (*Trace, e
 
 func (b *SQLiteBackend) ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error) {
 	return b.store.ListTraces(opts)
+}
+
+// LookupTaskBySessionID finds task hierarchy for Claude Code session correlation.
+// Used by OTLP receiver to link Claude Code internal events to their parent executor span.
+func (b *SQLiteBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (taskID, assignmentID, traceID string) {
+	return b.store.LookupTaskBySessionID(sessionID)
+}
+
+// LinkOrphanedSpansBySession updates orphaned spans when claude.execute span arrives.
+// Fixes race condition where Claude Code events arrive before parent span is batch-flushed.
+func (b *SQLiteBackend) LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error) {
+	return b.store.LinkOrphanedSpansBySession(sessionID, taskID, assignmentID)
 }
 
 // ===== Span Event Operations =====

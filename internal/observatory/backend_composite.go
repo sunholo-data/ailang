@@ -306,5 +306,15 @@ func (b *CompositeBackend) GetTaskTimeline(ctx context.Context, taskID string) (
 	return b.local.GetTaskTimeline(ctx, taskID)
 }
 
+// LookupTaskBySessionID delegates to local (session correlation is local only).
+func (b *CompositeBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
+	return b.local.LookupTaskBySessionID(ctx, sessionID)
+}
+
+// LinkOrphanedSpansBySession delegates to local (session correlation is local only).
+func (b *CompositeBackend) LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error) {
+	return b.local.LinkOrphanedSpansBySession(ctx, sessionID, taskID, assignmentID)
+}
+
 // Ensure CompositeBackend implements Backend
 var _ Backend = (*CompositeBackend)(nil)

@@ -573,5 +573,15 @@ func (b *GCPTraceBackend) GetTaskTimeline(ctx context.Context, taskID string) ([
 	return nil, errNotSupported("GetTaskTimeline")
 }
 
+// LookupTaskBySessionID is not supported by GCP backend (session correlation is local only).
+func (b *GCPTraceBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
+	return "", "", ""
+}
+
+// LinkOrphanedSpansBySession is not supported by GCP backend (session correlation is local only).
+func (b *GCPTraceBackend) LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error) {
+	return 0, nil
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)

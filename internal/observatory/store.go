@@ -626,6 +626,67 @@ func (s *Store) DeleteSpan(id string) error {
 	return err
 }
 
+// LookupTaskBySessionID finds task hierarchy info for a given session ID.
+// This enables correlating Claude Code internal events to their parent executor span.
+// Returns taskID, agentAssignmentID, traceID (for trace linking), or empty strings if not found.
+func (s *Store) LookupTaskBySessionID(sessionID string) (taskID, assignmentID, traceID string) {
+	if sessionID == "" {
+		return "", "", ""
+	}
+
+	// Query for claude.execute span with matching session.id in attributes
+	// The session.id key contains a dot, so it must be quoted in the JSON path: $."session.id"
+	row := s.db.QueryRow(`
+		SELECT task_id, agent_assignment_id, trace_id
+		FROM spans
+		WHERE name = 'claude.execute'
+		AND json_extract(attributes, '$."session.id"') = ?
+		ORDER BY start_time DESC
+		LIMIT 1
+	`, sessionID)
+
+	var taskIDNull, assignmentIDNull, traceIDNull sql.NullString
+	if err := row.Scan(&taskIDNull, &assignmentIDNull, &traceIDNull); err != nil {
+		return "", "", ""
+	}
+
+	return taskIDNull.String, assignmentIDNull.String, traceIDNull.String
+}
+
+// LinkOrphanedSpansBySession updates spans that have a matching session.id but no task_id.
+// This fixes the race condition where Claude Code internal events arrive via OTLP before
+// the claude.execute span is batch-flushed by the OTEL SDK.
+// Called after storing a claude.execute span to retroactively link orphaned child spans.
+func (s *Store) LinkOrphanedSpansBySession(sessionID, taskID, assignmentID string) (int64, error) {
+	if sessionID == "" || taskID == "" {
+		return 0, nil
+	}
+
+	// Update all spans that:
+	// 1. Have matching session.id in attributes
+	// 2. Don't already have a task_id (orphaned)
+	// 3. Are NOT the claude.execute span itself
+	var assignmentArg interface{}
+	if assignmentID != "" {
+		assignmentArg = assignmentID
+	}
+
+	result, err := s.db.Exec(`
+		UPDATE spans SET
+			task_id = ?,
+			agent_assignment_id = ?
+		WHERE json_extract(attributes, '$."session.id"') = ?
+		AND (task_id IS NULL OR task_id = '')
+		AND name != 'claude.execute'
+	`, taskID, assignmentArg, sessionID)
+	if err != nil {
+		return 0, fmt.Errorf("link orphaned spans: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, nil
+}
+
 // GetTrace retrieves a complete trace with all spans.
 func (s *Store) GetTrace(traceID string) (*Trace, error) {
 	spans, err := s.ListSpans(SpanListOptions{TraceID: traceID})

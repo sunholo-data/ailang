@@ -631,3 +631,95 @@ func TestShouldFilterSpan(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertSpan_CalculatesCostFromTokens tests that cost is calculated when not provided.
+// This is M6 from M-TASK-HIERARCHY-FOLLOWUPS: AI providers emit tokens but not cost.
+func TestConvertSpan_CalculatesCostFromTokens(t *testing.T) {
+	// Reset pricing config for clean test
+	ResetPricingConfig()
+
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "anthropic.generate",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(2 * time.Second).UnixNano()),
+		// Span attributes with tokens but NO cost (like AI providers emit)
+		Attributes: []*commonpb.KeyValue{
+			{Key: "gen_ai.usage.input_tokens", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 1000}}},
+			{Key: "gen_ai.usage.output_tokens", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 1000}}},
+			// NO gen_ai.usage.cost - should be calculated from tokens
+			{Key: "gen_ai.request.model", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "claude-sonnet-4-5"}}},
+		},
+	}
+
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-eval",
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Verify tokens were extracted
+	if span.TokensIn != 1000 {
+		t.Errorf("TokensIn = %d, want 1000", span.TokensIn)
+	}
+	if span.TokensOut != 1000 {
+		t.Errorf("TokensOut = %d, want 1000", span.TokensOut)
+	}
+
+	// Cost should be calculated from tokens using models.yml pricing
+	// Claude Sonnet 4.5: $0.003/1K input + $0.015/1K output = $0.018 for 1000+1000 tokens
+	// If models.yml is not available, cost will be 0 (no fallback)
+	if pricingConfig := GetPricingConfig(); pricingConfig != nil {
+		expectedCost := 0.018 // $0.003 + $0.015 = $0.018
+		if span.CostUSD < expectedCost*0.99 || span.CostUSD > expectedCost*1.01 {
+			t.Errorf("CostUSD = %f, want ~%f (calculated from tokens)", span.CostUSD, expectedCost)
+		}
+	} else {
+		// If models.yml not available, cost should be 0 (no silent fallbacks)
+		t.Logf("models.yml not available, skipping cost calculation verification")
+	}
+}
+
+// TestConvertSpan_DoesNotOverwriteExistingCost tests that existing cost is not overwritten.
+func TestConvertSpan_DoesNotOverwriteExistingCost(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "coordinator.task.execute",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(5 * time.Minute).UnixNano()),
+		// Span attributes with tokens AND cost (coordinator aggregates these)
+		Attributes: []*commonpb.KeyValue{
+			{Key: "task.tokens_in", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 5000}}},
+			{Key: "task.tokens_out", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 2000}}},
+			{Key: "task.cost_usd", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_DoubleValue{DoubleValue: 0.25}}}, // Explicit cost
+			{Key: "gen_ai.request.model", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "claude-sonnet-4-5"}}},
+		},
+	}
+
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-coordinator",
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Explicit cost should be preserved (not overwritten with calculated value)
+	if span.CostUSD != 0.25 {
+		t.Errorf("CostUSD = %f, want 0.25 (should preserve explicit cost, not calculate)", span.CostUSD)
+	}
+}

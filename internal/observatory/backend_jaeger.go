@@ -215,5 +215,15 @@ func (b *JaegerBackend) GetTaskTimeline(ctx context.Context, taskID string) ([]*
 	return nil, errJaegerNotSupported("GetTaskTimeline")
 }
 
+// LookupTaskBySessionID is not supported by Jaeger backend (session correlation is local only).
+func (b *JaegerBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
+	return "", "", ""
+}
+
+// LinkOrphanedSpansBySession is not supported by Jaeger backend (session correlation is local only).
+func (b *JaegerBackend) LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error) {
+	return 0, nil
+}
+
 // Ensure JaegerBackend implements Backend
 var _ Backend = (*JaegerBackend)(nil)
