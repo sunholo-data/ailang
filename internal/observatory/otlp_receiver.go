@@ -198,6 +198,9 @@ func (r *OTLPReceiver) processResourceLogs(ctx context.Context, rl *logspb.Resou
 		for _, logRecord := range scopeLogs.LogRecords {
 			span := r.convertLogToSpan(logRecord, resourceAttrs)
 			if span != nil {
+				// Validate task hierarchy references (M-TASK-HIERARCHY)
+				r.validateTaskHierarchy(ctx, span)
+
 				fmt.Printf("observatory: converted log to span: name=%s, tokens=%d/%d\n", span.Name, span.TokensIn, span.TokensOut)
 				if err := r.backend.CreateSpan(ctx, span); err != nil {
 					return fmt.Errorf("store span from log: %w", err)
@@ -273,9 +276,15 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 		attrs["claude.session_id"] = sessionID
 	}
 
+	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
+	taskID := extractString(resourceAttrs, "ailang.task_id")
+	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
+
 	return &Span{
 		ID:                 spanID,
 		TraceID:            traceID,
+		TaskID:             taskID,
+		AgentAssignmentID:  assignmentID,
 		Name:               spanName,
 		Kind:               SpanKindInternal,
 		Status:             status,
@@ -392,6 +401,10 @@ func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.Res
 			}
 
 			normalized := r.convertSpan(span, resourceAttrs)
+
+			// Validate task hierarchy references (M-TASK-HIERARCHY)
+			r.validateTaskHierarchy(ctx, normalized)
+
 			fmt.Printf("observatory: storing span name=%s, id=%s\n", normalized.Name, normalized.ID)
 			if err := r.backend.CreateSpan(ctx, normalized); err != nil {
 				return fmt.Errorf("store span %s: %w", span.SpanId, err)
@@ -467,10 +480,16 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 		provider = Provider(providerStr)
 	}
 
+	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
+	taskID := extractString(resourceAttrs, "ailang.task_id")
+	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
+
 	return &Span{
 		ID:                 fmt.Sprintf("%x", span.SpanId),
 		TraceID:            fmt.Sprintf("%x", span.TraceId),
 		ParentSpanID:       parentSpanID,
+		TaskID:             taskID,
+		AgentAssignmentID:  assignmentID,
 		Name:               span.Name,
 		Kind:               kind,
 		Status:             status,
@@ -485,6 +504,26 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 		Provider:           provider,
 		Attributes:         attrs,
 		ResourceAttributes: resourceAttrs,
+	}
+}
+
+// validateTaskHierarchy validates that task_id and assignment_id references exist.
+// Logs warnings if they don't - spans are still stored but with a warning.
+func (r *OTLPReceiver) validateTaskHierarchy(ctx context.Context, span *Span) {
+	// Validate task_id if present
+	if span.TaskID != "" {
+		task, err := r.backend.GetTask(ctx, span.TaskID)
+		if err != nil || task == nil {
+			fmt.Printf("observatory: WARNING: span %s has task_id=%s but task not found\n", span.ID, span.TaskID)
+		}
+	}
+
+	// Validate assignment_id if present
+	if span.AgentAssignmentID != "" {
+		assignment, err := r.backend.GetAgentAssignment(ctx, span.AgentAssignmentID)
+		if err != nil || assignment == nil {
+			fmt.Printf("observatory: WARNING: span %s has assignment_id=%s but assignment not found\n", span.ID, span.AgentAssignmentID)
+		}
 	}
 }
 

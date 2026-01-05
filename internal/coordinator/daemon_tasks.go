@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/websocket"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -165,6 +166,18 @@ func (d *Daemon) initTaskProcessing() error {
 			d.logger.Printf("GitHub approval watcher initialized (watching %d issue(s), poll interval: %v)",
 				d.approvalWatcher.WatchedIssueCount(), pollInterval)
 		}
+	}
+
+	// Initialize Observatory sync for trace linking (M-TASK-HIERARCHY)
+	// Uses the same state directory for the observatory database
+	obsDBPath := filepath.Join(d.config.StateDir, "observatory.db")
+	obsBackend, err := observatory.NewSQLiteBackendFromPath(obsDBPath)
+	if err != nil {
+		d.logger.Printf("Warning: Failed to initialize Observatory backend: %v", err)
+		d.logger.Println("Observatory trace linking disabled")
+	} else {
+		d.observatorySync = NewObservatorySync(obsBackend, d.logger)
+		d.logger.Printf("Observatory sync initialized (db: %s)", obsDBPath)
 	}
 
 	// Recover stale tasks from previous daemon runs
@@ -516,9 +529,37 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		return failErr
 	}
 
+	// Sync task to Observatory for trace linking (M-TASK-HIERARCHY)
+	var obsContext *ObservatoryContext
+	if d.observatorySync != nil {
+		// Sync task entity
+		if err := d.observatorySync.SyncTask(d.ctx, task); err != nil {
+			d.logger.Printf("Warning: Failed to sync task to Observatory: %v", err)
+		}
+
+		// Create agent assignment and get ID for context propagation
+		assignmentID, err := d.observatorySync.SyncAgentAssignment(d.ctx, task.ID, targetAgent, "claude")
+		if err != nil {
+			d.logger.Printf("Warning: Failed to sync agent assignment: %v", err)
+		}
+
+		// Get workspace ID from sync cache
+		workspaceID := d.observatorySync.GetWorkspaceID(task.Workspace)
+
+		obsContext = &ObservatoryContext{
+			TaskID:       task.ID,
+			AgentID:      targetAgent,
+			AssignmentID: assignmentID,
+			WorkspaceID:  workspaceID,
+		}
+		d.logger.Printf("Observatory context: task=%s agent=%s assignment=%s workspace=%s",
+			task.ID, targetAgent, assignmentID, workspaceID)
+	}
+
 	opts := &ExecuteOptions{
-		Timeout:   10 * time.Minute, // 10 minute timeout per task
-		Workspace: worktree.Path,    // Always have worktree (fail fast above)
+		Timeout:            10 * time.Minute, // 10 minute timeout per task
+		Workspace:          worktree.Path,    // Always have worktree (fail fast above)
+		ObservatoryContext: obsContext,
 	}
 
 	// Create streaming event handler if broadcaster is available

@@ -16,13 +16,19 @@ export interface Task {
   description: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   source_type: string;
-  from_agent: string;
-  cost_usd: number;
-  input_tokens: number;
-  output_tokens: number;
+  source_ref?: string;
+  priority: string;
   created_at: string;
   started_at?: string;
   completed_at?: string;
+  // Aggregated metrics (matching Go backend)
+  total_duration_ms: number;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  total_cost_usd: number;
+  agent_count: number;
+  span_count: number;
+  error_count: number;
 }
 
 export interface Span {
@@ -30,18 +36,22 @@ export interface Span {
   trace_id: string;
   parent_span_id?: string;
   task_id?: string;
+  agent_assignment_id?: string;
   name: string;
   kind: string;
   status: string;
+  status_message?: string;
   start_time: string;
   end_time?: string;
-  duration_ms?: number;
-  provider: string;
+  duration_ms: number;
+  // Normalized metrics (matching Go backend field names)
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
   model?: string;
-  input_tokens?: number;
-  output_tokens?: number;
-  cost_usd?: number;
+  provider?: string;
   attributes: Record<string, any>;
+  resource_attributes?: Record<string, any>;
 }
 
 export interface TraceSummary {
@@ -446,4 +456,95 @@ export function useObservatoryWs(options: UseObservatoryWsOptions = {}) {
   }, []);
 
   return { isConnected };
+}
+
+// ===== Task Hierarchy Types (M-TASK-HIERARCHY) =====
+
+export interface AgentAssignment {
+  id: string;
+  task_id: string;
+  agent_id: string;
+  provider: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  assigned_at: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost_usd?: number;
+  tool_calls?: number;
+}
+
+export interface SpanNode {
+  span: Span;
+  children?: SpanNode[];
+}
+
+export interface HierarchyTraceSummary {
+  span_count: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  duration_ms: number;
+  error_count: number;
+}
+
+export interface TraceHierarchy {
+  trace_id: string;
+  root_span?: SpanNode;
+  spans: SpanNode[];
+  summary: HierarchyTraceSummary;
+}
+
+export interface AgentHierarchy {
+  agent: AgentAssignment;
+  traces: TraceHierarchy[];
+}
+
+export interface TaskHierarchy {
+  task: Task;
+  agents: AgentHierarchy[];
+}
+
+// Hook for task hierarchy
+interface UseTaskHierarchyOptions {
+  depth?: number;
+  includeSpans?: boolean;
+}
+
+export function useTaskHierarchy(taskId: string | null, options: UseTaskHierarchyOptions = {}) {
+  const [hierarchy, setHierarchy] = useState<TaskHierarchy | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!taskId) {
+      setHierarchy(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (options.depth !== undefined) params.set('depth', options.depth.toString());
+      if (options.includeSpans === false) params.set('include_spans', 'false');
+
+      const query = params.toString();
+      const endpoint = query ? `/tasks/${taskId}/hierarchy?${query}` : `/tasks/${taskId}/hierarchy`;
+      const data = await fetchAPI<TaskHierarchy>(endpoint);
+      setHierarchy(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch task hierarchy');
+      setHierarchy(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [taskId, options.depth, options.includeSpans]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { hierarchy, loading, error, refresh };
 }

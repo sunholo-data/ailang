@@ -74,6 +74,15 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		Workspace: opts.Workspace,
 		Timeout:   opts.Timeout,
 		Model:     opts.Model,
+		Metadata:  make(map[string]string),
+	}
+
+	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)
+	if opts.ObservatoryContext != nil {
+		execTask.Metadata["ailang.task_id"] = opts.ObservatoryContext.TaskID
+		execTask.Metadata["ailang.agent_id"] = opts.ObservatoryContext.AgentID
+		execTask.Metadata["ailang.assignment_id"] = opts.ObservatoryContext.AssignmentID
+		execTask.Metadata["ailang.workspace_id"] = opts.ObservatoryContext.WorkspaceID
 	}
 
 	// For questions, use read-only tools (no file modifications)

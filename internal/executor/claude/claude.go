@@ -144,10 +144,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	env = append(env, "OTEL_METRICS_EXPORTER=otlp")
 	env = append(env, "OTEL_LOGS_EXPORTER=otlp")
 
-	// Inject correlation IDs as resource attributes so Claude Code metrics/events
-	// can be joined with AILANG traces in the dashboard
-	// source=coordinator distinguishes from user-initiated sessions (source=user)
-	resourceAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.session_id=%s,ailang.source=coordinator", task.ID, sessionID)
+	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
+	// Merge with existing OTEL_RESOURCE_ATTRIBUTES from environment
+	resourceAttrs := buildResourceAttributes(task, sessionID)
 	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
 
 	// Configure OTEL exporter for trace collection
@@ -458,4 +457,48 @@ func Register() {
 
 func init() {
 	Register()
+}
+
+// buildResourceAttributes creates OTEL_RESOURCE_ATTRIBUTES value.
+// Merges existing attributes from environment with task-specific attributes.
+// Priority: existing env attrs + task Metadata + default attrs.
+func buildResourceAttributes(task *executor.Task, sessionID string) string {
+	attrs := make(map[string]string)
+
+	// 1. Start with existing environment attributes (preserve user settings)
+	if existing := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); existing != "" {
+		for _, pair := range strings.Split(existing, ",") {
+			parts := strings.SplitN(pair, "=", 2)
+			if len(parts) == 2 {
+				attrs[parts[0]] = parts[1]
+			}
+		}
+	}
+
+	// 2. Add task Metadata attributes (from Observatory context via coordinator)
+	if task.Metadata != nil {
+		for k, v := range task.Metadata {
+			if strings.HasPrefix(k, "ailang.") && v != "" {
+				attrs[k] = v
+			}
+		}
+	}
+
+	// 3. Add default attributes (lowest priority, don't overwrite)
+	if _, exists := attrs["ailang.task_id"]; !exists && task.ID != "" {
+		attrs["ailang.task_id"] = task.ID
+	}
+	if _, exists := attrs["ailang.session_id"]; !exists && sessionID != "" {
+		attrs["ailang.session_id"] = sessionID
+	}
+	if _, exists := attrs["ailang.source"]; !exists {
+		attrs["ailang.source"] = "coordinator"
+	}
+
+	// Build final attribute string
+	var parts []string
+	for k, v := range attrs {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
+	}
+	return strings.Join(parts, ",")
 }

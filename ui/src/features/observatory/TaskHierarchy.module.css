@@ -1,0 +1,390 @@
+/* TaskHierarchy styles - dark theme matching Observatory */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-radius: var(--radius-lg, 12px);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.refreshButton,
+.closeButton {
+  padding: 8px 16px;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #1a2332);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary, #8b949e);
+  transition: all 0.2s;
+}
+
+.refreshButton:hover,
+.closeButton:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
+  color: var(--text-primary, #cdd6f4);
+}
+
+/* Task summary card */
+.taskSummary {
+  background: linear-gradient(135deg, var(--gradient-start, #e73c17) 0%, var(--gradient-end, #dd6b20) 100%);
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 20px rgba(231, 60, 23, 0.3);
+}
+
+.taskHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.taskTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.taskStatus {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.taskMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+}
+
+.taskMetric {
+  text-align: center;
+}
+
+.metricValue {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+}
+
+.metricLabel {
+  font-size: 11px;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.errorValue {
+  color: #ff6b6b;
+}
+
+/* Section title */
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #8b949e);
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Agent section */
+.agentsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agentSection {
+  background: var(--bg-elevated, #141d2b);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.agentHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.agentHeader:hover {
+  background: var(--bg-hover, #232d3a);
+}
+
+.expandIcon {
+  color: var(--text-secondary, #8b949e);
+  font-size: 10px;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.agentId {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.agentStatus {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.agentSummary {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary, #8b949e);
+}
+
+/* Traces container */
+.tracesContainer {
+  padding: 0 16px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emptyTraces {
+  padding: 12px 16px 16px 32px;
+  color: var(--text-tertiary, #6e7681);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Trace section */
+.traceSection {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md, 8px);
+  border-left: 3px solid var(--color-primary, #e73c17);
+}
+
+.traceHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.traceHeader:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.traceId {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--color-primary-light, #ff5a3c);
+}
+
+.traceSummary {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary, #8b949e);
+}
+
+.summaryItem {
+  color: var(--text-secondary, #8b949e);
+}
+
+/* Span tree */
+.spanTree {
+  padding: 8px 12px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spanNode {
+  background: var(--bg-surface, #1a2332);
+  border-radius: 6px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+.spanHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.spanName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.spanDuration {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--color-primary-light, #ff5a3c);
+  margin-left: auto;
+}
+
+.spanStatus {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.spanMetrics {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  padding-left: 24px;
+  font-size: 11px;
+}
+
+.metric {
+  color: var(--text-secondary, #8b949e);
+}
+
+.cost {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.errorCount {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.spanChildren {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Provider colors */
+.providerClaude {
+  background: rgba(210, 151, 87, 0.15);
+  color: #d29757;
+}
+
+.providerGemini {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.providerOpenai {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.providerOther {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+/* Status colors */
+.statusOk {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.statusError {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.statusRunning {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.statusPending {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+.statusDefault {
+  background: rgba(156, 163, 175, 0.1);
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* States */
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary, #8b949e);
+}
+
+.error {
+  padding: 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md, 8px);
+  color: #ef4444;
+}
+
+.emptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .taskMetrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .metricValue {
+    font-size: 18px;
+  }
+
+  .agentSummary,
+  .traceSummary {
+    display: none;
+  }
+}

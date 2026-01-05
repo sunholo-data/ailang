@@ -94,6 +94,9 @@ type Daemon struct {
 
 	// History tracking
 	instanceID string
+
+	// Observatory integration for trace linking (M-TASK-HIERARCHY)
+	observatorySync *ObservatorySync
 }
 
 // NewDaemon creates a new daemon instance

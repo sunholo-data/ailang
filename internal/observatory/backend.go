@@ -38,6 +38,7 @@ type Backend interface {
 	GetSpan(ctx context.Context, id string) (*Span, error)
 	ListSpans(ctx context.Context, opts SpanListOptions) ([]*Span, error)
 	UpdateSpan(ctx context.Context, span *Span) error
+	UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error
 	DeleteSpan(ctx context.Context, id string) error
 	GetTrace(ctx context.Context, traceID string) (*Trace, error)
 	ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error)
@@ -176,7 +177,59 @@ func (b *SQLiteBackend) GetAgentStats(ctx context.Context, agentID string) (*Age
 // ===== Span Operations =====
 
 func (b *SQLiteBackend) CreateSpan(ctx context.Context, span *Span) error {
+	// Use transaction for span creation with aggregation updates (M-TASK-HIERARCHY)
+	if span.TaskID != "" || span.AgentAssignmentID != "" {
+		return b.createSpanWithAggregation(ctx, span)
+	}
+	// No task/assignment linkage, use simple insert
 	return b.store.CreateSpan(span)
+}
+
+// createSpanWithAggregation creates a span and updates related aggregates in a transaction.
+func (b *SQLiteBackend) createSpanWithAggregation(ctx context.Context, span *Span) error {
+	tx, err := b.store.DB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback() // No-op if committed
+
+	// Insert span
+	var parentSpanID, taskID, agentAssignmentID interface{}
+	if span.ParentSpanID != "" {
+		parentSpanID = span.ParentSpanID
+	}
+	if span.TaskID != "" {
+		taskID = span.TaskID
+	}
+	if span.AgentAssignmentID != "" {
+		agentAssignmentID = span.AgentAssignmentID
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO spans (id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		                   name, kind, status, status_message, start_time, end_time,
+		                   duration_ms, tokens_in, tokens_out, cost_usd, model, provider,
+		                   attributes, resource_attributes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, span.ID, span.TraceID, parentSpanID, taskID, agentAssignmentID,
+		span.Name, span.Kind, span.Status, span.StatusMessage, span.StartTime, span.EndTime,
+		span.DurationMs, span.TokensIn, span.TokensOut, span.CostUSD, span.Model, span.Provider,
+		span.AttributesJSON(), span.ResourceAttributesJSON(), span.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("insert span: %w", err)
+	}
+
+	// Update task aggregates
+	if err := UpdateTaskAggregates(ctx, tx, span); err != nil {
+		return err
+	}
+
+	// Update agent assignment aggregates
+	if err := UpdateAgentAssignmentAggregates(ctx, tx, span); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (b *SQLiteBackend) GetSpan(ctx context.Context, id string) (*Span, error) {
@@ -189,6 +242,21 @@ func (b *SQLiteBackend) ListSpans(ctx context.Context, opts SpanListOptions) ([]
 
 func (b *SQLiteBackend) UpdateSpan(ctx context.Context, span *Span) error {
 	return b.store.UpdateSpan(span)
+}
+
+func (b *SQLiteBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error {
+	var taskIDArg, assignmentIDArg interface{}
+	if taskID != "" {
+		taskIDArg = taskID
+	}
+	if assignmentID != "" {
+		assignmentIDArg = assignmentID
+	}
+	_, err := b.store.DB().ExecContext(ctx, `
+		UPDATE spans SET task_id = ?, agent_assignment_id = ?
+		WHERE id = ?
+	`, taskIDArg, assignmentIDArg, spanID)
+	return err
 }
 
 func (b *SQLiteBackend) DeleteSpan(ctx context.Context, id string) error {

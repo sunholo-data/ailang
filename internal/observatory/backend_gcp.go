@@ -138,6 +138,10 @@ func (b *GCPTraceBackend) UpdateSpan(ctx context.Context, span *Span) error {
 	return errNotSupported("UpdateSpan")
 }
 
+func (b *GCPTraceBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error {
+	return errNotSupported("UpdateSpanLinks")
+}
+
 func (b *GCPTraceBackend) DeleteSpan(ctx context.Context, id string) error {
 	return errNotSupported("DeleteSpan")
 }

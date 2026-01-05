@@ -135,6 +135,10 @@ func (b *JaegerBackend) UpdateSpan(ctx context.Context, span *Span) error {
 	return errJaegerNotSupported("UpdateSpan")
 }
 
+func (b *JaegerBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error {
+	return errJaegerNotSupported("UpdateSpanLinks")
+}
+
 func (b *JaegerBackend) DeleteSpan(ctx context.Context, id string) error {
 	return errJaegerNotSupported("DeleteSpan")
 }

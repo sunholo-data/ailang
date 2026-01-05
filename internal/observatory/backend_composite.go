@@ -185,6 +185,10 @@ func (b *CompositeBackend) UpdateSpan(ctx context.Context, span *Span) error {
 	return b.local.UpdateSpan(ctx, span)
 }
 
+func (b *CompositeBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error {
+	return b.local.UpdateSpanLinks(ctx, spanID, taskID, assignmentID)
+}
+
 func (b *CompositeBackend) DeleteSpan(ctx context.Context, id string) error {
 	return b.local.DeleteSpan(ctx, id)
 }

@@ -53,6 +53,18 @@ type ExecuteOptions struct {
 	Workspace    string                // Working directory for the task
 	Model        string                // Model to use (provider-specific)
 	EventHandler executor.EventHandler // Optional handler for streaming events
+
+	// Observatory context for trace linking (M-TASK-HIERARCHY)
+	ObservatoryContext *ObservatoryContext
+}
+
+// ObservatoryContext holds context for linking traces to coordinator entities.
+// This enables the WORKSPACE → TASK → AGENT → SPANS hierarchy in Observatory.
+type ObservatoryContext struct {
+	TaskID       string // Coordinator task ID
+	AgentID      string // Agent handling the task (e.g., "design-doc-creator")
+	AssignmentID string // Observatory agent_assignment ID (aa_xxx)
+	WorkspaceID  string // Observatory workspace ID (ws_xxx)
 }
 
 // DefaultExecuteOptions returns sensible defaults

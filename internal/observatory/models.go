@@ -5,8 +5,19 @@ package observatory
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"time"
 )
+
+// DefaultDatabasePath returns the default path for the observatory database.
+func DefaultDatabasePath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "observatory.db"
+	}
+	return filepath.Join(homeDir, ".ailang", "state", "observatory.db")
+}
 
 // Workspace represents a git repository or project root.
 type Workspace struct {

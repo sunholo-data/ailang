@@ -74,6 +74,9 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/observatory/metrics/providers", a.handleGetProviderComparison)
 	mux.HandleFunc("GET /api/observatory/tasks/{id}/timeline", a.handleGetTaskTimeline)
 
+	// Hierarchy endpoint (M-TASK-HIERARCHY)
+	mux.HandleFunc("GET /api/observatory/tasks/{id}/hierarchy", a.handleGetTaskHierarchy)
+
 	// Telemetry ingest endpoint (for receiving OTEL/Claude data)
 	mux.HandleFunc("POST /api/observatory/ingest/claude", a.handleIngestClaude)
 	mux.HandleFunc("POST /api/observatory/ingest/otel", a.handleIngestOTEL)
@@ -617,6 +620,37 @@ func (a *API) handleGetTaskTimeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, timeline)
+}
+
+// ===== Hierarchy Handler (M-TASK-HIERARCHY) =====
+
+func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	// Parse query parameters
+	opts := DefaultHierarchyOptions()
+
+	if depth := r.URL.Query().Get("depth"); depth != "" {
+		if d, err := strconv.Atoi(depth); err == nil && d > 0 {
+			opts.MaxDepth = d
+		}
+	}
+
+	if includeSpans := r.URL.Query().Get("include_spans"); includeSpans == "false" {
+		opts.IncludeSpans = false
+	}
+
+	hierarchy, err := GetTaskHierarchy(r.Context(), a.backend, id, opts)
+	if err != nil {
+		if isNotFoundError(err) {
+			writeError(w, http.StatusNotFound, "task not found: "+id)
+		} else {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, hierarchy)
 }
 
 // ===== Telemetry Ingest Handlers =====
