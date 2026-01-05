@@ -37,7 +37,9 @@
       "Skill(design-spec-auditor)",
       "Skill(skill-builder)",
       "Skill(perf-reviewer)",
-      "Skill(trace-debugger)"
+      "Skill(trace-debugger)",
+      "Bash(.claude/skills/gemini-cli-helper/scripts/:*)",
+      "Skill(gemini-cli-helper)"
     ]
   },
   "hooks": {

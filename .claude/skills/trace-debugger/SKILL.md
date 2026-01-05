@@ -91,29 +91,33 @@ Add to `~/.claude/settings.json`:
 
 ### Configure Gemini CLI
 
+**Important**: Gemini CLI only supports `local` (file-based) or `gcp` (GCP Cloud Trace) telemetry targets.
+It does NOT support direct OTLP export to custom endpoints.
+
 Add to `~/.gemini/settings.json`:
 
 ```json
 {
   "telemetry": {
-    "enabled": true
+    "enabled": true,
+    "target": "gcp",
+    "logPrompts": true
   }
 }
 ```
 
-And add to shell profile (`~/.zshenv`, `~/.bashrc`):
+**Architecture**: Gemini traces go to GCP Cloud Trace, then Observatory pulls them via the GCP Trace API.
 
-```bash
-export GEMINI_TELEMETRY_ENABLED=true
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
-export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
-export OTEL_RESOURCE_ATTRIBUTES="ailang.source=user"
-```
+**Trace Linking**: The Observatory links Gemini traces to AILANG traces via:
+- `session.id` - Links tool invocations in the same session
+- `ailang.task_id` - Added by Coordinator for delegated tasks
+- `ailang.workspace` - Groups traces by project
 
-**What Gemini CLI sends:** Full traces (complete span hierarchy)
+**What Gemini CLI sends to GCP:** Full traces (complete span hierarchy with parent-child relationships, token counts, model info, prompts)
 
 ### Environment Variables Reference
 
+**Claude Code** (direct OTLP export to Observatory):
 | Variable | Purpose | Example |
 |----------|---------|---------|
 | `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Claude Code telemetry | `1` |
@@ -122,7 +126,13 @@ export OTEL_RESOURCE_ATTRIBUTES="ailang.source=user"
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol | `http/json` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Observatory URL | `http://localhost:1957` |
 | `OTEL_RESOURCE_ATTRIBUTES` | Span metadata | `ailang.source=user` |
-| `GEMINI_TELEMETRY_ENABLED` | Enable Gemini CLI telemetry | `true` |
+
+**Gemini CLI** (GCP Cloud Trace only - configure via `~/.gemini/settings.json`):
+| Setting | Purpose | Value |
+|---------|---------|-------|
+| `telemetry.enabled` | Enable telemetry | `true` |
+| `telemetry.target` | Export destination | `gcp` |
+| `telemetry.logPrompts` | Include prompt text | `true` |
 
 ### OTLP Endpoints
 
