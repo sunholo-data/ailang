@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -122,18 +123,75 @@ func WithCoordinatorStore(store CoordinatorStore) ServerOption {
 	}
 }
 
-// WithObservatoryDB sets up the observatory backend with SQLite at the given path
+// WithObservatoryDB sets up the observatory backend with SQLite at the given path.
+// If GCP project is configured (via GOOGLE_CLOUD_PROJECT or OTLP_GOOGLE_CLOUD_PROJECT),
+// it also adds a GCP Trace remote backend for federated trace queries.
 func WithObservatoryDB(dbPath string) ServerOption {
 	return func(s *Server) {
-		backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+		// Create local SQLite backend
+		sqliteBackend, err := observatory.NewSQLiteBackendFromPath(dbPath)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize observatory: %v", err)
 			return
 		}
+
+		// Check for GCP project configuration
+		gcpProject := getGCPProject()
+		var backend observatory.Backend
+
+		// GCP Trace federation disabled until M-GEMINI-TRACE investigation is complete
+		// See: design_docs/planned/v0_6_4/m-gemini-trace-investigation.md
+		// Issue: Gemini CLI exports to Cloud Logging, not Cloud Trace
+		if gcpProject != "" && getEnv("AILANG_ENABLE_GCP_TRACE") == "1" {
+			// Create GCP Trace remote backend
+			gcpBackend, err := observatory.NewGCPTraceBackend(observatory.GCPConfig{
+				ProjectID: gcpProject,
+			})
+			if err != nil {
+				log.Printf("Warning: Failed to initialize GCP Trace backend (will use local only): %v", err)
+				backend = sqliteBackend
+			} else {
+				// Create composite backend with local + GCP remote
+				compositeBackend, err := observatory.NewCompositeBackend(observatory.CompositeConfig{
+					Local:   sqliteBackend,
+					Remotes: []observatory.Backend{gcpBackend},
+				})
+				if err != nil {
+					log.Printf("Warning: Failed to create composite backend: %v", err)
+					backend = sqliteBackend
+				} else {
+					backend = compositeBackend
+					log.Printf("Observatory: Composite backend enabled (local + GCP Trace project=%s)", gcpProject)
+				}
+			}
+		} else {
+			backend = sqliteBackend
+			if gcpProject != "" {
+				log.Printf("Observatory: Local-only mode (GCP Trace disabled, set AILANG_ENABLE_GCP_TRACE=1 to enable)")
+			} else {
+				log.Printf("Observatory: Local-only mode")
+			}
+		}
+
 		s.obsBackend = backend
 		s.obsAPI = observatory.NewAPI(backend)
 		s.obsHub = observatory.NewHub()
 	}
+}
+
+// getGCPProject returns the GCP project ID from environment variables.
+func getGCPProject() string {
+	// Check OTLP-specific variable first (for dual-export scenarios)
+	if project := getEnv("OTLP_GOOGLE_CLOUD_PROJECT"); project != "" {
+		return project
+	}
+	// Fall back to standard GCP variable
+	return getEnv("GOOGLE_CLOUD_PROJECT")
+}
+
+// getEnv returns an environment variable value.
+func getEnv(key string) string {
+	return os.Getenv(key)
 }
 
 // CoordinatorStore provides coordinator statistics
@@ -302,6 +360,19 @@ func (s *Server) Start() error {
 // CORS middleware to allow cross-origin requests from the UI
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Log ALL POST requests to help debug Gemini telemetry
+		if r.Method == "POST" {
+			log.Printf("POST request: %s (Content-Type: %s, UA: %s)", r.URL.Path, r.Header.Get("Content-Type"), r.Header.Get("User-Agent"))
+		}
+		// Debug logging for OTLP paths or any POST to non-API paths
+		if strings.HasPrefix(r.URL.Path, "/v1/") {
+			log.Printf("OTLP request: %s %s (Content-Type: %s)", r.Method, r.URL.Path, r.Header.Get("Content-Type"))
+		}
+		// Catch any other telemetry paths that might be used
+		if strings.Contains(r.URL.Path, "trace") || strings.Contains(r.URL.Path, "log") || strings.Contains(r.URL.Path, "metric") {
+			log.Printf("Potential telemetry request: %s %s (Content-Type: %s, UA: %s)", r.Method, r.URL.Path, r.Header.Get("Content-Type"), r.Header.Get("User-Agent"))
+		}
+
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

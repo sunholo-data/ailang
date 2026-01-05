@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -95,7 +96,19 @@ func (r *OTLPReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
 
 	// Convert and store spans
 	ctx := req.Context()
-	for _, resourceSpans := range exportReq.ResourceSpans {
+	fmt.Printf("observatory: received traces request with %d resource spans\n", len(exportReq.ResourceSpans))
+	for i, resourceSpans := range exportReq.ResourceSpans {
+		scopeCount := 0
+		spanCount := 0
+		if resourceSpans.ScopeSpans != nil {
+			scopeCount = len(resourceSpans.ScopeSpans)
+			for _, scope := range resourceSpans.ScopeSpans {
+				if scope.Spans != nil {
+					spanCount += len(scope.Spans)
+				}
+			}
+		}
+		fmt.Printf("observatory: resource[%d] has %d scope spans, %d total spans\n", i, scopeCount, spanCount)
 		if err := r.processResourceSpans(ctx, resourceSpans); err != nil {
 			// Log but continue processing other spans
 			fmt.Printf("observatory: failed to process resource spans: %v\n", err)
@@ -294,6 +307,71 @@ func generateTraceID() string {
 	return hex.EncodeToString(b)
 }
 
+// shouldFilterSpan returns true if the span should be filtered out (not stored).
+// Filters out internal OTEL exporter operations and other noisy traces.
+// resourceAttrs contains service.name and other resource-level attributes.
+func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
+	// Filter out GCP Trace exporter internal operations
+	if strings.HasPrefix(name, "google.devtools.cloudtrace") {
+		return true
+	}
+
+	// Filter out OTEL SDK internal operations
+	if strings.HasPrefix(name, "opentelemetry.") {
+		return true
+	}
+
+	// Filter out health checks and monitoring endpoints
+	if name == "/health" || name == "health.check" || name == "/api/health" {
+		return true
+	}
+
+	// Filter out static asset requests
+	if strings.HasPrefix(name, "/assets/") || strings.HasSuffix(name, ".js") ||
+		strings.HasSuffix(name, ".css") || strings.HasSuffix(name, ".png") ||
+		strings.HasSuffix(name, ".ico") || strings.HasSuffix(name, ".svg") {
+		return true
+	}
+
+	// Filter out high-frequency polling endpoints (UI polls these constantly)
+	pollingEndpoints := []string{
+		"/api/approvals",
+		"/api/hierarchy",
+		"/api/statistics",
+		"/api/version",
+		"/api/monitor",
+		"/api/telemetry/config",
+		"/api/metrics",
+		"/api/observatory/traces",
+		"/api/observatory/metrics",
+	}
+	for _, ep := range pollingEndpoints {
+		if strings.HasPrefix(name, ep) {
+			return true
+		}
+	}
+
+	// Filter out coordinator daemon polling operations
+	// These run every 30 seconds and clutter the trace view
+	serviceName, _ := resourceAttrs["service.name"].(string)
+	if serviceName == "ailang-coordinator" {
+		// Filter coordinator internal polling - messages.list runs every poll cycle
+		coordinatorPolling := []string{
+			"messages.list",
+			"messages.count",
+			"inbox.poll",
+			"agent.heartbeat",
+		}
+		for _, op := range coordinatorPolling {
+			if name == op {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // processResourceSpans converts and stores spans from a resource.
 func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.ResourceSpans) error {
 	// Extract resource attributes
@@ -303,13 +381,22 @@ func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.Res
 			resourceAttrs[kv.Key] = anyValueToGo(kv.Value)
 		}
 	}
+	fmt.Printf("observatory: processing resource with attrs: %v\n", resourceAttrs)
 
 	for _, scopeSpans := range rs.ScopeSpans {
 		for _, span := range scopeSpans.Spans {
+			// Check if span should be filtered out (pass resource attrs for service-based filtering)
+			if shouldFilterSpan(span.Name, resourceAttrs) {
+				fmt.Printf("observatory: filtered span name=%s (internal/noise)\n", span.Name)
+				continue
+			}
+
 			normalized := r.convertSpan(span, resourceAttrs)
+			fmt.Printf("observatory: storing span name=%s, id=%s\n", normalized.Name, normalized.ID)
 			if err := r.backend.CreateSpan(ctx, normalized); err != nil {
 				return fmt.Errorf("store span %s: %w", span.SpanId, err)
 			}
+			fmt.Printf("observatory: stored span successfully\n")
 		}
 	}
 	return nil

@@ -376,14 +376,24 @@ type TraceQuery struct {
 	Offset    int        `json:"offset,omitempty"`
 }
 
+// TraceSource indicates where the trace data originated from.
+type TraceSource string
+
+const (
+	TraceSourceLocal  TraceSource = "local"  // Local OTLP receiver
+	TraceSourceGCP    TraceSource = "gcp"    // Google Cloud Trace
+	TraceSourceJaeger TraceSource = "jaeger" // Jaeger backend
+)
+
 // TraceSummary represents a summary of a trace for list views.
 type TraceSummary struct {
-	TraceID     string     `json:"trace_id"`
-	RootSpan    string     `json:"root_span"`
-	SpanCount   int        `json:"span_count"`
-	DurationMs  int64      `json:"duration_ms"`
-	StartTime   time.Time  `json:"start_time"`
-	Status      SpanStatus `json:"status"`
-	TaskID      string     `json:"task_id,omitempty"`
-	ServiceName string     `json:"service_name,omitempty"` // e.g., "ailang-run", "ailang-eval", "claude-code"
+	TraceID     string      `json:"trace_id"`
+	RootSpan    string      `json:"root_span"`
+	SpanCount   int         `json:"span_count"`
+	DurationMs  int64       `json:"duration_ms"`
+	StartTime   time.Time   `json:"start_time"`
+	Status      SpanStatus  `json:"status"`
+	TaskID      string      `json:"task_id,omitempty"`
+	ServiceName string      `json:"service_name,omitempty"` // e.g., "ailang-run", "ailang-eval", "claude-code"
+	Source      TraceSource `json:"source,omitempty"`       // Where trace came from: local, gcp, jaeger
 }

@@ -4,6 +4,7 @@ package observatory
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 // CompositeBackend implements Backend with write-local, read-remote pattern.
@@ -220,11 +221,13 @@ func (b *CompositeBackend) ListTraces(ctx context.Context, opts TraceQuery) ([]*
 			seen[t.TraceID] = true
 		}
 
-		for _, remote := range b.remotes {
+		for i, remote := range b.remotes {
 			remoteTraces, err := remote.ListTraces(ctx, opts)
 			if err != nil {
+				log.Printf("composite: remote[%d] ListTraces error: %v", i, err)
 				continue
 			}
+			log.Printf("composite: remote[%d] returned %d traces", i, len(remoteTraces))
 			for _, t := range remoteTraces {
 				if !seen[t.TraceID] {
 					traces = append(traces, t)

@@ -672,7 +672,9 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 
 	var summaries []*TraceSummary
 	for rows.Next() {
-		ts := &TraceSummary{}
+		ts := &TraceSummary{
+			Source: TraceSourceLocal, // Mark as coming from local OTLP
+		}
 		var rootSpan, status, taskID, resourceAttrs sql.NullString
 		var startTimeStr string
 		if err := rows.Scan(&ts.TraceID, &rootSpan, &ts.SpanCount, &ts.DurationMs,
