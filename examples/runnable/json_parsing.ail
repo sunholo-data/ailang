@@ -1,13 +1,13 @@
 -- json_parsing.ail - JSON parsing example
--- Demonstrates JSON decode and pattern matching
+-- Demonstrates JSON decode with convenience functions (v0.6.4+)
 module examples/runnable/json_parsing
 
 import std/io (println)
-import std/json (Json, JNull, JString, JNumber, JObject, JArray, decode, get, asString)
+import std/json (decode, getString, getNumber)
 import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
 
--- Parse JSON and extract values
+-- Parse JSON and extract values using convenience functions
 export func main() -> () ! {IO} {
   let jsonStr = "{\"name\": \"AILANG\", \"version\": 0.6}";
 
@@ -15,13 +15,16 @@ export func main() -> () ! {IO} {
     Ok(obj) => {
       println("Parsed JSON successfully!");
 
-      -- Extract name field
-      match get(obj, "name") {
-        Some(nameVal) => match asString(nameVal) {
-          Some(name) => println("Name: " ++ name),
-          None => println("Name is not a string")
-        },
-        None => println("Name not found")
+      -- Extract name field using getString (combines get + asString)
+      match getString(obj, "name") {
+        Some(name) => println("Name: " ++ name),
+        None => println("Name not found or not a string")
+      };
+
+      -- Extract version using getNumber
+      match getNumber(obj, "version") {
+        Some(ver) => println("Version: " ++ show(ver)),
+        None => println("Version not found or not a number")
       }
     },
     Err(e) => println("Parse error: " ++ e)

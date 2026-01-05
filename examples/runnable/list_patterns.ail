@@ -1,6 +1,7 @@
+-- List patterns demo: head, tail, last, nth (v0.6.5+)
 module examples/runnable/list_patterns
 import std/io (println)
-import std/list (length, head, tail)
+import std/list (length, head, tail, last, nth, any)
 import std/option (Some, None)
 
 export func main() -> () ! {IO} =
@@ -10,5 +11,14 @@ export func main() -> () ! {IO} =
     Some(h) => println("HEAD=" ++ show(h)),
     None => println("HEAD=None")
   } in
+  let _ = match last(xs) {
+    Some(l) => println("LAST=" ++ show(l)),
+    None => println("LAST=None")
+  } in
+  let _ = match nth(xs, 1) {
+    Some(n) => println("NTH(1)=" ++ show(n)),
+    None => println("NTH(1)=None")
+  } in
+  let _ = println("ANY(>15)=" ++ show(any(\x. x > 15, xs))) in
   let _ = println("TLEN=" ++ show(length(tail(xs)))) in
   ()
