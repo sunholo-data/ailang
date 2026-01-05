@@ -1,0 +1,766 @@
+{
+  "version": "v0.6.5",
+  "timestamp": "2026-01-05T18:01:30.871491+01:00",
+  "total_runs": 92,
+  "aggregates": {
+    "0-shot_success": 0.41304347826086957,
+    "final_success": 0.5869565217391305,
+    "repair_used": 43,
+    "repair_success_rate": 0.37209302325581395,
+    "total_tokens": 596641,
+    "total_cost_usd": 0.710537,
+    "avg_duration_ms": 112.55434782608695
+  },
+  "models": {
+    "claude-haiku-4-5": {
+      "total_runs": 92,
+      "aggregates": {
+        "0-shot_success": 0.41304347826086957,
+        "final_success": 0.5869565217391305,
+        "repair_used": 43,
+        "repair_success_rate": 0.37209302325581395,
+        "total_tokens": 596641,
+        "total_cost_usd": 0.710537,
+        "avg_duration_ms": 112.55434782608695
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10635
+        },
+        "api_call_json": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 10583
+        },
+        "balanced_parens": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 10793
+        },
+        "binary_tree_sum": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 1107
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 606
+        },
+        "cli_args": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 271
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 11484
+        },
+        "csv_to_json_converter": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11625
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 837
+        },
+        "effect_pure_separation": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 1186
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 3328
+        },
+        "error_handling": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 11057
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 628
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 690
+        },
+        "expression_evaluator": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 995
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 451
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10249
+        },
+        "fold_reduce": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 10937
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10728
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11462
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 2819
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 2635
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 21760
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10515
+        },
+        "json_parse": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 10733
+        },
+        "json_transform": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11236
+        },
+        "lambda_calc": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11190
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10903
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 12456
+        },
+        "merge_sort": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11074
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11090
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10645
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11017
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10226
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11012
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 10417
+        },
+        "record_update": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 10548
+        },
+        "records_person": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10538
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10509
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11333
+        },
+        "run_length_encode": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11114
+        },
+        "state_machine_traffic_light": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11625
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 11882
+        },
+        "tree_transformation_pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 11801
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10674
+        },
+        "type_unify": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 5032
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 46,
+          "success_rate": 0.5217391304347826,
+          "avg_tokens": 384.89130434782606
+        },
+        "python": {
+          "total_runs": 46,
+          "success_rate": 0.6521739130434783,
+          "avg_tokens": 605.0434782608696
+        }
+      }
+    }
+  },
+  "benchmarks": {
+    "adt_option": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 496,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "api_call_json": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 253.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "balanced_parens": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 226.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "binary_tree_sum": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 904,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "canonical_normalization": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 172.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "cli_args": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 138.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "config_file_parser": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 718,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "csv_to_json_converter": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 695,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_composition": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 303.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_pure_separation": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 443,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_tracking_io_fs": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 726.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "error_handling": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 585,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "exhaustive_pattern_matching": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 183.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "explicit_state_threading": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 217.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "expression_evaluator": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 375.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fizzbuzz": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 141,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "float_eq": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 81,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fold_reduce": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 447,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "gcd_lcm": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 185.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "graph_bfs": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 729.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "higher_order_functions": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 537,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "immutable_data_structures": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 508,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "inline_tests": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 233.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_encode": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 166,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_parse": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 359.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_transform": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 449,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "lambda_calc": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 793,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "list_comprehension": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 229,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "log_file_analyzer": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 1104,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "merge_sort": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 477.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "mini_interpreter": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 887,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "nested_records": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 481,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "no_runtime_crashes_option": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 675.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "numeric_modulo": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 78,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pattern_matching_complex": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 338,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pipeline": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 107.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "record_update": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 433,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "records_person": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 137,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "recursion_fibonacci": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 118,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "red_black_tree": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 1094,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "run_length_encode": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 821.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "state_machine_traffic_light": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 493.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "symbolic_diff": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 1805.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "tree_transformation_pipeline": {
+      "total_runs": 2,
+      "success_rate": 0,
+      "avg_tokens": 652,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_safe_record_access": {
+      "total_runs": 2,
+      "success_rate": 1,
+      "avg_tokens": 134.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_unify": {
+      "total_runs": 2,
+      "success_rate": 0.5,
+      "avg_tokens": 1633.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    }
+  },
+  "error_codes": [
+    {
+      "code": "WRONG_LANG",
+      "count": 20,
+      "repair_success": 0
+    },
+    {
+      "code": "PAR_001",
+      "count": 7,
+      "repair_success": 0
+    }
+  ],
+  "languages": {
+    "ailang": {
+      "total_runs": 46,
+      "success_rate": 0.5217391304347826,
+      "avg_tokens": 384.89130434782606
+    },
+    "python": {
+      "total_runs": 46,
+      "success_rate": 0.6521739130434783,
+      "avg_tokens": 605.0434782608696
+    }
+  },
+  "prompt_versions": {
+    "python": {
+      "total_runs": 46,
+      "0-shot_success": 0.34782608695652173,
+      "final_success": 0.6521739130434783,
+      "avg_tokens": 1456.8478260869565
+    }
+  }
+}

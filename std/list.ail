@@ -123,3 +123,51 @@ export pure func drop[a](n: int, xs: [a]) -> [a] {
     [_, ...rest] => drop(n - 1, rest)
   }
 }
+
+-- ============================================================================
+-- Index Access (v0.6.5) - Element access by index
+-- ============================================================================
+
+-- nth: Get element at index (0-based). Returns None for negative or out-of-bounds.
+export pure func nth[a](xs: [a], idx: int) -> Option[a] {
+  if idx < 0 then None
+  else match xs {
+    [] => None,
+    [x, ...rest] => if idx == 0 then Some(x) else nth(rest, idx - 1)
+  }
+}
+
+-- last: Get last element of list
+export pure func last[a](xs: [a]) -> Option[a] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [_, ...rest] => last(rest)
+  }
+}
+
+-- ============================================================================
+-- Predicates (v0.6.5) - Element searching
+-- ============================================================================
+
+-- any: Check if any element satisfies predicate (short-circuits on first match)
+-- Note: 'exists' is a reserved keyword in AILANG, so we use 'any' instead
+export pure func any[a](p: (a) -> bool, xs: [a]) -> bool {
+  match xs {
+    [] => false,
+    [x, ...rest] => if p(x) then true else any(p, rest)
+  }
+}
+
+-- findIndex: Find index of first element matching predicate
+export pure func findIndex[a](p: (a) -> bool, xs: [a]) -> Option[int] {
+  findIndexHelper(p, xs, 0)
+}
+
+-- Helper for findIndex with accumulator
+pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
+  match xs {
+    [] => None,
+    [x, ...rest] => if p(x) then Some(idx) else findIndexHelper(p, rest, idx + 1)
+  }
+}

@@ -389,18 +389,29 @@
     },
     "v0.6.4": {
       "file": "prompts/v0.6.4.md",
-      "hash": "PENDING",
+      "hash": "89e22f571d97c4c9baddc6c00d9609a4e39c5be31faf292cee1bfec92d13cf90",
       "description": "JSON convenience functions (getString, getInt, etc.) + import reminder",
       "created": "2026-01-05",
       "tags": [
         "production",
-        "latest",
         "json-helpers"
       ],
       "notes": "JSON CONVENIENCE FUNCTIONS: Added getString, getNumber, getInt, getBool, getArray, getObject to std/json.ail. These combine get()+asX() to reduce nested Option matching from 4 levels to 2. Also added prominent import reminder warning to reduce 'forgot to import' errors. Target: json_parse benchmark turns <25 (down from 47 in v0.6.3)."
+    },
+    "v0.6.5": {
+      "file": "prompts/v0.6.5.md",
+      "hash": "1a831b2a65a39be82d2004b1e6ffb9d93feba036ec41710d94838ae8e84fdb1e",
+      "description": "stdlib gaps: list (nth/last/any/findIndex), string (join), JSON array extraction",
+      "created": "2026-01-05",
+      "tags": [
+        "production",
+        "latest",
+        "stdlib-gaps"
+      ],
+      "notes": "STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join, and JSON array extraction (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, etc). Permissive variants skip non-matching elements, strict variants fail. Target: Reduce config_file_parser benchmark failures by providing common helper functions."
     }
   },
-  "active": "v0.6.4",
+  "active": "v0.6.5",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
@@ -164,6 +165,407 @@ func TestValidateTaskHierarchy_InvalidReferences(t *testing.T) {
 
 	// If we get here without panic, the test passes
 	// In production, warnings would be logged
+}
+
+// TestExtractTaskIDFromCwd tests task ID extraction from worktree paths.
+// This is CRITICAL for M-TASK-HIERARCHY - Claude Code doesn't pass env vars to subprocesses,
+// so we extract task ID from the worktree cwd path.
+func TestExtractTaskIDFromCwd(t *testing.T) {
+	tests := []struct {
+		name     string
+		cwd      string
+		expected string
+	}{
+		// Standard coordinator worktree paths
+		{
+			name:     "coordinator worktree path",
+			cwd:      "/Users/mark/.ailang/state/worktrees/coordinator/task-ea0363c8",
+			expected: "task-ea0363c8",
+		},
+		{
+			name:     "coordinator worktree with subdir",
+			cwd:      "/Users/mark/.ailang/state/worktrees/coordinator/task-ea0363c8/internal/parser",
+			expected: "task-ea0363c8",
+		},
+		{
+			name:     "agent-specific worktree",
+			cwd:      "/Users/mark/.ailang/state/worktrees/sprint-executor/task-b734d0f2",
+			expected: "task-b734d0f2",
+		},
+		{
+			name:     "design-doc-creator worktree",
+			cwd:      "/home/dev/.ailang/state/worktrees/design-doc-creator/task-12345678/docs",
+			expected: "task-12345678",
+		},
+
+		// Edge cases
+		{
+			name:     "no worktrees in path",
+			cwd:      "/Users/mark/dev/sunholo/ailang",
+			expected: "",
+		},
+		{
+			name:     "worktrees but no task",
+			cwd:      "/Users/mark/.ailang/state/worktrees/coordinator",
+			expected: "",
+		},
+		{
+			name:     "task prefix without full ID - returns prefix",
+			cwd:      "/Users/mark/.ailang/state/worktrees/coordinator/task-",
+			expected: "task-", // Empty hex chars but still valid prefix
+		},
+		{
+			name:     "empty cwd",
+			cwd:      "",
+			expected: "",
+		},
+		{
+			name:     "task in different context (not worktrees)",
+			cwd:      "/tmp/task-ea0363c8",
+			expected: "",
+		},
+		{
+			name:     "multiple worktrees segments",
+			cwd:      "/data/worktrees/backup/worktrees/coordinator/task-abcd1234",
+			expected: "task-abcd1234",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs := map[string]any{
+				"process.cwd": tt.cwd,
+			}
+			got := extractTaskIDFromCwd(attrs)
+			if got != tt.expected {
+				t.Errorf("extractTaskIDFromCwd(%q) = %q, want %q", tt.cwd, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestExtractTokensMultipleNamingConventions tests that tokens are extracted from various attribute names.
+// Different AI providers use different naming conventions:
+// - gen_ai.* (OpenTelemetry semantic conventions)
+// - ailang.* (AILANG custom)
+// - ai.* (internal/ai/ providers)
+func TestExtractTokensMultipleNamingConventions(t *testing.T) {
+	tests := []struct {
+		name            string
+		attrs           map[string]any
+		expectedIn      int
+		expectedOut     int
+		expectedCostUSD float64
+	}{
+		{
+			name: "gen_ai convention (OTEL standard)",
+			attrs: map[string]any{
+				"gen_ai.usage.input_tokens":  500,
+				"gen_ai.usage.output_tokens": 200,
+				"gen_ai.usage.cost":          0.05,
+			},
+			expectedIn:      500,
+			expectedOut:     200,
+			expectedCostUSD: 0.05,
+		},
+		{
+			name: "ai.* convention (internal/ai/ providers)",
+			attrs: map[string]any{
+				"ai.tokens_in":  int64(1000),
+				"ai.tokens_out": int64(400),
+				"ai.cost_usd":   0.10,
+			},
+			expectedIn:      1000,
+			expectedOut:     400,
+			expectedCostUSD: 0.10,
+		},
+		{
+			name: "ailang.* convention",
+			attrs: map[string]any{
+				"ailang.tokens.input":  750,
+				"ailang.tokens.output": 300,
+				"ailang.cost.usd":      0.08,
+			},
+			expectedIn:      750,
+			expectedOut:     300,
+			expectedCostUSD: 0.08,
+		},
+		{
+			name: "task.* convention (coordinator executor spans)",
+			attrs: map[string]any{
+				"task.tokens_in":  int64(2000),
+				"task.tokens_out": int64(800),
+				"task.cost_usd":   0.25,
+			},
+			expectedIn:      2000,
+			expectedOut:     800,
+			expectedCostUSD: 0.25,
+		},
+		{
+			name: "mixed conventions (first one wins)",
+			attrs: map[string]any{
+				"gen_ai.usage.input_tokens": 100,
+				"ai.tokens_in":              999, // Should be ignored
+			},
+			expectedIn:  100, // gen_ai wins (first in key list)
+			expectedOut: 0,
+		},
+		{
+			name: "string values (Claude Code sends numbers as strings)",
+			attrs: map[string]any{
+				"ai.tokens_in":  "1234",
+				"ai.tokens_out": "567",
+				"ai.cost_usd":   "0.123",
+			},
+			expectedIn:      1234,
+			expectedOut:     567,
+			expectedCostUSD: 0.123,
+		},
+		{
+			name: "float values",
+			attrs: map[string]any{
+				"ai.tokens_in":  float64(800),
+				"ai.tokens_out": float64(350),
+			},
+			expectedIn:  800,
+			expectedOut: 350,
+		},
+		{
+			name:            "no token attributes",
+			attrs:           map[string]any{},
+			expectedIn:      0,
+			expectedOut:     0,
+			expectedCostUSD: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Must match the key list in otlp_receiver.go convertSpan()
+			gotIn := extractInt(tt.attrs, "gen_ai.usage.input_tokens", "ailang.tokens.input", "ai.tokens_in", "task.tokens_in")
+			gotOut := extractInt(tt.attrs, "gen_ai.usage.output_tokens", "ailang.tokens.output", "ai.tokens_out", "task.tokens_out")
+			gotCost := extractFloat(tt.attrs, "gen_ai.usage.cost", "ailang.cost.usd", "ai.cost_usd", "task.cost_usd")
+
+			if gotIn != tt.expectedIn {
+				t.Errorf("tokensIn = %d, want %d", gotIn, tt.expectedIn)
+			}
+			if gotOut != tt.expectedOut {
+				t.Errorf("tokensOut = %d, want %d", gotOut, tt.expectedOut)
+			}
+			if gotCost != tt.expectedCostUSD {
+				t.Errorf("costUSD = %f, want %f", gotCost, tt.expectedCostUSD)
+			}
+		})
+	}
+}
+
+// TestConvertSpan_TokensFromAIProvider tests that ai.tokens_in/out attributes are properly extracted.
+// This verifies the fix for M-TASK-HIERARCHY token display issue.
+func TestConvertSpan_TokensFromAIProvider(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "anthropic.generate",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(500 * time.Millisecond).UnixNano()),
+		// Span attributes with ai.* naming convention (from internal/ai/ providers)
+		Attributes: []*commonpb.KeyValue{
+			{Key: "ai.tokens_in", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 1500}}},
+			{Key: "ai.tokens_out", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 750}}},
+			{Key: "ai.cost_usd", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_DoubleValue{DoubleValue: 0.15}}},
+			{Key: "ailang.provider", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "anthropic"}}},
+		},
+	}
+
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-cli",
+		"process.cwd":  "/Users/mark/.ailang/state/worktrees/coordinator/task-12345678",
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Verify tokens were extracted from ai.* attributes
+	if span.TokensIn != 1500 {
+		t.Errorf("TokensIn = %d, want 1500", span.TokensIn)
+	}
+	if span.TokensOut != 750 {
+		t.Errorf("TokensOut = %d, want 750", span.TokensOut)
+	}
+	if span.CostUSD != 0.15 {
+		t.Errorf("CostUSD = %f, want 0.15", span.CostUSD)
+	}
+
+	// Verify task ID extracted from cwd
+	if span.TaskID != "task-12345678" {
+		t.Errorf("TaskID = %q, want %q", span.TaskID, "task-12345678")
+	}
+
+	// Verify provider mapping
+	if span.Provider != ProviderClaude {
+		t.Errorf("Provider = %v, want %v", span.Provider, ProviderClaude)
+	}
+}
+
+// TestConvertSpan_TaskIDFromCwdFallback tests that task ID is extracted from cwd when not in resource attrs.
+// This is the M-TASK-HIERARCHY workaround for Claude Code not passing env vars to subprocesses.
+func TestConvertSpan_TaskIDFromCwdFallback(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "messages.send",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(100 * time.Millisecond).UnixNano()),
+	}
+
+	// Resource attributes with cwd in worktree but NO explicit ailang.task_id
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-messages",
+		"process.cwd":  "/Users/mark/.ailang/state/worktrees/sprint-executor/task-abcd1234/internal",
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Task ID should be extracted from cwd path
+	if span.TaskID != "task-abcd1234" {
+		t.Errorf("TaskID = %q, want %q (should be extracted from cwd)", span.TaskID, "task-abcd1234")
+	}
+}
+
+// TestConvertSpan_ExplicitTaskIDTakesPrecedence tests that explicit ailang.task_id beats cwd fallback.
+func TestConvertSpan_ExplicitTaskIDTakesPrecedence(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "compile.typecheck",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(50 * time.Millisecond).UnixNano()),
+	}
+
+	// Resource attributes with BOTH explicit task_id AND cwd with different task
+	resourceAttrs := map[string]any{
+		"service.name":   "ailang-check",
+		"ailang.task_id": "task-explicit", // Explicit - should win
+		"process.cwd":    "/Users/mark/.ailang/state/worktrees/coordinator/task-from-cwd",
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Explicit ailang.task_id should take precedence
+	if span.TaskID != "task-explicit" {
+		t.Errorf("TaskID = %q, want %q (explicit should beat cwd fallback)", span.TaskID, "task-explicit")
+	}
+}
+
+// TestConvertSpan_TaskIDFromTaskIDAttribute tests that task ID is extracted from task.id span attribute.
+// This is critical for coordinator.task.execute spans where the coordinator sets task.id directly.
+func TestConvertSpan_TaskIDFromTaskIDAttribute(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "coordinator.task.execute",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(60 * time.Second).UnixNano()),
+		// Span attributes with task.id (set by coordinator daemon)
+		Attributes: []*commonpb.KeyValue{
+			{Key: "task.id", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "task-12345678"}}},
+			{Key: "task.type", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "bug"}}},
+			{Key: "task.title", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "Fix the parser"}}},
+		},
+	}
+
+	// Resource attributes - coordinator runs in main directory, no task ID in cwd
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-coordinator",
+		"process.cwd":  "/Users/mark/dev/sunholo/ailang", // Main dir, no task ID here
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Task ID should be extracted from task.id span attribute
+	if span.TaskID != "task-12345678" {
+		t.Errorf("TaskID = %q, want %q (should be extracted from task.id)", span.TaskID, "task-12345678")
+	}
+}
+
+// TestConvertSpan_TaskIDFromWorkspaceAttribute tests that task ID is extracted from task.workspace span attribute.
+// This is critical for coordinator executor spans where the coordinator process runs in the main directory
+// but the Claude Code subprocess runs in the worktree. The executor sets task.workspace to the worktree path.
+func TestConvertSpan_TaskIDFromWorkspaceAttribute(t *testing.T) {
+	backend := newTestBackend(t)
+	receiver := NewOTLPReceiver(backend)
+
+	spanID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	traceID := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+
+	now := time.Now()
+	otlpSpan := &tracepb.Span{
+		SpanId:            spanID,
+		TraceId:           traceID,
+		Name:              "claude.execute",
+		StartTimeUnixNano: uint64(now.UnixNano()),
+		EndTimeUnixNano:   uint64(now.Add(30 * time.Second).UnixNano()),
+		// Span attributes with task.workspace (set by coordinator executor)
+		Attributes: []*commonpb.KeyValue{
+			{Key: "executor.name", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "claude"}}},
+			{Key: "task.workspace", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "/Users/mark/.ailang/state/worktrees/coordinator/task-abcd1234"}}},
+			{Key: "task.tokens_in", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 500}}},
+			{Key: "task.tokens_out", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: 2000}}},
+			{Key: "task.cost_usd", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_DoubleValue{DoubleValue: 0.15}}},
+		},
+	}
+
+	// Resource attributes with cwd in MAIN directory (NOT worktree)
+	// This simulates the coordinator daemon which runs in the main repo
+	resourceAttrs := map[string]any{
+		"service.name": "ailang-coordinator",
+		"process.cwd":  "/Users/mark/dev/sunholo/ailang", // Main dir, no task ID here
+	}
+
+	span := receiver.convertSpan(otlpSpan, resourceAttrs)
+
+	// Task ID should be extracted from task.workspace span attribute
+	if span.TaskID != "task-abcd1234" {
+		t.Errorf("TaskID = %q, want %q (should be extracted from task.workspace)", span.TaskID, "task-abcd1234")
+	}
+
+	// Verify tokens were extracted from task.* attributes
+	if span.TokensIn != 500 {
+		t.Errorf("TokensIn = %d, want 500", span.TokensIn)
+	}
+	if span.TokensOut != 2000 {
+		t.Errorf("TokensOut = %d, want 2000", span.TokensOut)
+	}
+	if span.CostUSD != 0.15 {
+		t.Errorf("CostUSD = %f, want 0.15", span.CostUSD)
+	}
 }
 
 // TestShouldFilterSpan tests the span filtering logic.

@@ -117,13 +117,36 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 		return agentHierarchy, nil
 	}
 
-	// Get all spans for this agent assignment
+	// Get spans explicitly linked to this agent assignment
 	spans, err := backend.ListSpans(ctx, SpanListOptions{
 		AgentAssignmentID: agent.ID,
-		Limit:             1000, // Reasonable limit
+		Limit:             1000,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("list spans: %w", err)
+		return nil, fmt.Errorf("list spans by assignment: %w", err)
+	}
+
+	// Also get spans linked to task but without agent_assignment_id
+	// These are spans from OTLP that were linked via task_id from cwd path
+	taskSpans, err := backend.ListSpans(ctx, SpanListOptions{
+		TaskID: agent.TaskID,
+		Limit:  1000,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list spans by task: %w", err)
+	}
+
+	// Merge task spans that don't have an agent_assignment_id
+	// (they belong to this task but weren't explicitly linked to an agent)
+	seenSpans := make(map[string]bool)
+	for _, s := range spans {
+		seenSpans[s.ID] = true
+	}
+	for _, s := range taskSpans {
+		if s.AgentAssignmentID == "" && !seenSpans[s.ID] {
+			spans = append(spans, s)
+			seenSpans[s.ID] = true
+		}
 	}
 
 	// Group spans by trace_id

@@ -41,3 +41,17 @@ export pure func floatToStr(f: float) -> string { _string_floatToStr(f) }
 
 -- intToStr: Convert an integer to its string representation
 export pure func intToStr(n: int) -> string { _string_intToStr(n) }
+
+-- ============================================================================
+-- String Building (v0.6.5)
+-- ============================================================================
+
+-- join: Concatenate list of strings with delimiter
+-- Complexity: O(n²) due to repeated concatenation - acceptable for small lists
+export pure func join(delimiter: string, xs: [string]) -> string {
+  match xs {
+    [] => "",
+    [x] => x,
+    [x, ...rest] => x ++ delimiter ++ join(delimiter, rest)
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "json_parse",
+  "lang": "ailang",
+  "model": "claude-haiku-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 24,
+  "output_tokens": 1934,
+  "total_tokens": 1958,
+  "cost_usd": 0.0608555,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 34829,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Alice\nCharlie\n",
+  "stderr": "Warning: stdlib version mismatch: expected dev, found v0.6.2 at /Users/mark/dev/sunholo/ailang/std\n\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step. Let me start by reading the template file.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. The task is to:\n1. Parse a JSON array of objects\n2. Filter to keep only people aged 30 or older\n3. Print the names, one per line\n\nLet me write the AILANG code:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI see. The `getArray` function takes 1 argument (the JSON value), not 2. Let me check the correct JSON API and fix this:[TOOL] Bash\n\n[TURN 5]\nLet me check the documentation for the JSON module:[TOOL] Bash\n\n[TURN 6]\nI see! `getArray` is for getting an array from an object by key. To extract an array from JSON directly, I should use `asArray`. Let me fix the code:[TOOL] Write\n\n[TURN 7]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 8]\nPerfect! The output matches exactly:\n- Alice\n- Charlie\n\nThe solution correctly:\n1. Parses the JSON array using `decode()`\n2. Extracts the array from the JSON using `asArray()`\n3. Recursively filters through the people list\n4. For each person, extracts the name and age using the convenience functions `getString()` and `getInt()`\n5. Prints only those aged 30 or older\n6. Outputs the names one per line with `println()`\n\nThe solution is complete and verified!",
+  "expected_stdout": "Alice\nCharlie\n",
+  "timestamp": "2026-01-05T17:16:51.19819+01:00",
+  "code": "module benchmark/solution\n\nimport std/io (println)\nimport std/json (decode, asArray, getString, getInt)\nimport std/option (Option, Some, None)\n\nfunc filterAndPrint(people: [Json]) -\u003e () ! {IO} =\n  match people {\n    [] =\u003e (),\n    person :: rest =\u003e {\n      let name = getString(person, \"name\");\n      let age = getInt(person, \"age\");\n      let shouldPrint = match (name, age) {\n        (Some(n), Some(a)) =\u003e if a \u003e= 30 then true else false,\n        _ =\u003e false\n      };\n      if shouldPrint then {\n        match name {\n          Some(n) =\u003e println(n),\n          None =\u003e ()\n        }\n      } else ();\n      filterAndPrint(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let jsonStr = \"[{\\\"name\\\":\\\"Alice\\\",\\\"age\\\":30},{\\\"name\\\":\\\"Bob\\\",\\\"age\\\":25},{\\\"name\\\":\\\"Charlie\\\",\\\"age\\\":35}]\";\n  match decode(jsonStr) {\n    Ok(json) =\u003e match asArray(json) {\n      Some(people) =\u003e filterAndPrint(people),\n      None =\u003e ()\n    },\n    Err(_) =\u003e ()\n  }\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.4",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 22,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step. Let me start by reading the template file.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution. The task is to:\n1. Parse a JSON array of objects\n2. Filter to keep only people aged 30 or older\n3. Print the names, one per line\n\nLet me write the AILANG code:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI see. The `getArray` function takes 1 argument (the JSON value), not 2. Let me check the correct JSON API and fix this:[TOOL] Bash\n\n[TURN 5]\nLet me check the documentation for the JSON module:[TOOL] Bash\n\n[TURN 6]\nI see! `getArray` is for getting an array from an object by key. To extract an array from JSON directly, I should use `asArray`. Let me fix the code:[TOOL] Write\n\n[TURN 7]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 8]\nPerfect! The output matches exactly:\n- Alice\n- Charlie\n\nThe solution correctly:\n1. Parses the JSON array using `decode()`\n2. Extracts the array from the JSON using `asArray()`\n3. Recursively filters through the people list\n4. For each person, extracts the name and age using the convenience functions `getString()` and `getInt()`\n5. Prints only those aged 30 or older\n6. Outputs the names one per line with `println()`\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

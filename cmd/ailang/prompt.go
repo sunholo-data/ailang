@@ -175,6 +175,10 @@ func showPromptInfo(version string) {
 	}
 
 	if metadata.Hash != "" && metadata.Hash != "PLACEHOLDER" {
-		fmt.Printf("%s: %s\n", bold("Hash"), metadata.Hash[:16]+"...")
+		hashDisplay := metadata.Hash
+		if len(hashDisplay) > 16 {
+			hashDisplay = hashDisplay[:16] + "..."
+		}
+		fmt.Printf("%s: %s\n", bold("Hash"), hashDisplay)
 	}
 }

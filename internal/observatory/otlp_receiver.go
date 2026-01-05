@@ -276,10 +276,23 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 		attrs["claude.session_id"] = sessionID
 	}
 
-	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
-	// Primary: explicit ailang.task_id from OTEL_RESOURCE_ATTRIBUTES
-	// Fallback: extract from process.cwd worktree path (Claude Code doesn't pass env to subprocesses)
+	// Extract task hierarchy context (M-TASK-HIERARCHY)
+	// Priority order:
+	// 1. ailang.task_id from resource attributes (OTEL_RESOURCE_ATTRIBUTES)
+	// 2. task.id span attribute (coordinator sets this on task execution spans)
+	// 3. task.workspace span attribute (executor sets this for coordinator tasks)
+	// 4. process.cwd worktree path fallback (Claude Code subprocesses)
 	taskID := extractString(resourceAttrs, "ailang.task_id")
+	if taskID == "" {
+		// Check task.id span attribute (coordinator sets this)
+		taskID = extractString(attrs, "task.id")
+	}
+	if taskID == "" {
+		// Check task.workspace span attribute (executor sets this)
+		if workspace := extractString(attrs, "task.workspace"); workspace != "" {
+			taskID = extractTaskIDFromPath(workspace)
+		}
+	}
 	if taskID == "" {
 		taskID = extractTaskIDFromCwd(resourceAttrs)
 	}
@@ -466,9 +479,14 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	}
 
 	// Extract normalized metrics from attributes
-	tokensIn := int64(extractInt(attrs, "gen_ai.usage.input_tokens", "ailang.tokens.input"))
-	tokensOut := int64(extractInt(attrs, "gen_ai.usage.output_tokens", "ailang.tokens.output"))
-	costUSD := extractFloat(attrs, "gen_ai.usage.cost", "ailang.cost.usd")
+	// Support multiple naming conventions:
+	// - gen_ai.* (OpenTelemetry semantic conventions)
+	// - ailang.* (AILANG custom)
+	// - ai.* (used by internal/ai/ providers)
+	// - task.* (used by coordinator executor spans)
+	tokensIn := int64(extractInt(attrs, "gen_ai.usage.input_tokens", "ailang.tokens.input", "ai.tokens_in", "task.tokens_in"))
+	tokensOut := int64(extractInt(attrs, "gen_ai.usage.output_tokens", "ailang.tokens.output", "ai.tokens_out", "task.tokens_out"))
+	costUSD := extractFloat(attrs, "gen_ai.usage.cost", "ailang.cost.usd", "ai.cost_usd", "task.cost_usd")
 	model := extractString(attrs, "gen_ai.request.model", "ailang.model")
 	providerStr := extractString(attrs, "ailang.provider", "gen_ai.system")
 
@@ -485,10 +503,23 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 		provider = Provider(providerStr)
 	}
 
-	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
-	// Primary: explicit ailang.task_id from OTEL_RESOURCE_ATTRIBUTES
-	// Fallback: extract from process.cwd worktree path (Claude Code doesn't pass env to subprocesses)
+	// Extract task hierarchy context (M-TASK-HIERARCHY)
+	// Priority order:
+	// 1. ailang.task_id from resource attributes (OTEL_RESOURCE_ATTRIBUTES)
+	// 2. task.id span attribute (coordinator sets this on task execution spans)
+	// 3. task.workspace span attribute (executor sets this for coordinator tasks)
+	// 4. process.cwd worktree path fallback (Claude Code subprocesses)
 	taskID := extractString(resourceAttrs, "ailang.task_id")
+	if taskID == "" {
+		// Check task.id span attribute (coordinator sets this)
+		taskID = extractString(attrs, "task.id")
+	}
+	if taskID == "" {
+		// Check task.workspace span attribute (executor sets this)
+		if workspace := extractString(attrs, "task.workspace"); workspace != "" {
+			taskID = extractTaskIDFromPath(workspace)
+		}
+	}
 	if taskID == "" {
 		taskID = extractTaskIDFromCwd(resourceAttrs)
 	}
@@ -626,26 +657,34 @@ func extractString(attrs map[string]any, keys ...string) string {
 	return ""
 }
 
-// extractTaskIDFromCwd extracts task ID from worktree path as a fallback.
+// extractTaskIDFromCwd extracts task ID from worktree path in process.cwd attribute.
 // Claude Code CLI doesn't pass OTEL_RESOURCE_ATTRIBUTES to subprocesses,
 // but the worktree path contains the task ID.
-// Path format: /Users/.../worktrees/coordinator/task-XXXXXXXX
 func extractTaskIDFromCwd(attrs map[string]any) string {
 	cwd := extractString(attrs, "process.cwd")
 	if cwd == "" {
 		return ""
 	}
+	return extractTaskIDFromPath(cwd)
+}
+
+// extractTaskIDFromPath extracts task ID from a file path.
+// Path format: .../worktrees/.../task-XXXXXXXX/...
+// Returns empty string if no task ID found.
+func extractTaskIDFromPath(path string) string {
+	if path == "" {
+		return ""
+	}
 
 	// Look for task ID pattern in the path
-	// Format: .../worktrees/.../task-XXXXXXXX/...
 	const taskPrefix = "task-"
-	idx := strings.Index(cwd, "/worktrees/")
+	idx := strings.Index(path, "/worktrees/")
 	if idx == -1 {
 		return ""
 	}
 
 	// Find task-XXXXXXXX in the path after /worktrees/
-	remainder := cwd[idx:]
+	remainder := path[idx:]
 	taskIdx := strings.Index(remainder, taskPrefix)
 	if taskIdx == -1 {
 		return ""

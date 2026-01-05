@@ -211,3 +211,142 @@ export func getArray(obj: Json, key: string) -> Option[List[Json]] {
 export func getObject(obj: Json, key: string) -> Option[Json] {
   get(obj, key)
 }
+
+-- ============================================================================
+-- JSON Array Type Extraction (v0.6.5)
+-- Two variants: permissive (filter/skip non-matching) vs strict (fail on mismatch)
+-- ============================================================================
+
+-- filterStrings: Extract string values from JSON array, skipping non-strings
+-- Permissive: JNumber, JBool, etc. are silently ignored
+export pure func filterStrings(xs: [Json]) -> [string] {
+  match xs {
+    [] => [],
+    [x, ...rest] => match x {
+      JString(s) => [s] ++ filterStrings(rest),
+      _ => filterStrings(rest)
+    }
+  }
+}
+
+-- filterNumbers: Extract float values from JSON array, skipping non-numbers
+-- Permissive: JString, JBool, etc. are silently ignored
+export pure func filterNumbers(xs: [Json]) -> [float] {
+  match xs {
+    [] => [],
+    [x, ...rest] => match x {
+      JNumber(n) => [n] ++ filterNumbers(rest),
+      _ => filterNumbers(rest)
+    }
+  }
+}
+
+-- allStrings: Extract ALL elements as strings, or None if any non-string
+-- Strict: Returns None if array contains JNumber, JBool, etc.
+export pure func allStrings(xs: [Json]) -> Option[[string]] {
+  allStringsHelper(xs, [])
+}
+
+-- Helper for allStrings with accumulator (builds list in reverse, then reverses)
+pure func allStringsHelper(xs: [Json], acc: [string]) -> Option[[string]] {
+  match xs {
+    [] => Some(reverseStrings(acc)),
+    [x, ...rest] => match x {
+      JString(s) => allStringsHelper(rest, [s] ++ acc),
+      _ => None
+    }
+  }
+}
+
+-- Helper to reverse string list (avoids import cycle)
+pure func reverseStrings(xs: [string]) -> [string] {
+  reverseStringsHelper(xs, [])
+}
+
+pure func reverseStringsHelper(xs: [string], acc: [string]) -> [string] {
+  match xs {
+    [] => acc,
+    [x, ...rest] => reverseStringsHelper(rest, [x] ++ acc)
+  }
+}
+
+-- allNumbers: Extract ALL elements as numbers, or None if any non-number
+-- Strict: Returns None if array contains JString, JBool, etc.
+export pure func allNumbers(xs: [Json]) -> Option[[float]] {
+  allNumbersHelper(xs, [])
+}
+
+-- Helper for allNumbers with accumulator
+pure func allNumbersHelper(xs: [Json], acc: [float]) -> Option[[float]] {
+  match xs {
+    [] => Some(reverseFloats(acc)),
+    [x, ...rest] => match x {
+      JNumber(n) => allNumbersHelper(rest, [n] ++ acc),
+      _ => None
+    }
+  }
+}
+
+-- Helper to reverse float list
+pure func reverseFloats(xs: [float]) -> [float] {
+  reverseFloatsHelper(xs, [])
+}
+
+pure func reverseFloatsHelper(xs: [float], acc: [float]) -> [float] {
+  match xs {
+    [] => acc,
+    [x, ...rest] => reverseFloatsHelper(rest, [x] ++ acc)
+  }
+}
+
+-- ============================================================================
+-- Convenience Wrappers: Object → Array → Typed Elements (v0.6.5)
+-- ============================================================================
+
+-- getStringArray: Get string array from object (permissive)
+export func getStringArray(obj: Json, key: string) -> Option[[string]] {
+  match getArray(obj, key) {
+    Some(arr) => Some(filterStrings(arr)),
+    None => None
+  }
+}
+
+-- getStringArrayStrict: Get string array from object (strict)
+export func getStringArrayStrict(obj: Json, key: string) -> Option[[string]] {
+  match getArray(obj, key) {
+    Some(arr) => allStrings(arr),
+    None => None
+  }
+}
+
+-- getStringArrayOrEmpty: Get string array or [] if missing/invalid
+export func getStringArrayOrEmpty(obj: Json, key: string) -> [string] {
+  match getArray(obj, key) {
+    Some(arr) => filterStrings(arr),
+    None => []
+  }
+}
+
+-- getNumberArray: Get number array from object (permissive)
+export func getNumberArray(obj: Json, key: string) -> Option[[float]] {
+  match getArray(obj, key) {
+    Some(arr) => Some(filterNumbers(arr)),
+    None => None
+  }
+}
+
+-- getNumberArrayStrict: Get number array from object (strict)
+export func getNumberArrayStrict(obj: Json, key: string) -> Option[[float]] {
+  match getArray(obj, key) {
+    Some(arr) => allNumbers(arr),
+    None => None
+  }
+}
+
+-- getNumberArrayOrEmpty: Get number array or [] if missing/invalid
+export func getNumberArrayOrEmpty(obj: Json, key: string) -> [float] {
+  match getArray(obj, key) {
+    Some(arr) => filterNumbers(arr),
+    None => []
+  }
+}

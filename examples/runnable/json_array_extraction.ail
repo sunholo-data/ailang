@@ -1,0 +1,106 @@
+-- JSON Array Extraction (v0.6.5)
+-- Demonstrates filterStrings, allStrings, getStringArrayOrEmpty, etc.
+
+module examples/runnable/json_array_extraction
+
+import std/json (Json, JString, JNumber, JBool, JNull, JArray,
+                 filterStrings, filterNumbers, allStrings, allNumbers,
+                 getStringArray, getStringArrayStrict, getStringArrayOrEmpty,
+                 getNumberArray, getNumberArrayOrEmpty,
+                 decode, jo, ja, kv, js, jnum)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+import std/string (join, floatToStr)
+import std/list (length)
+
+-- Helper to show float list
+func showFloats(xs: [float]) -> string {
+  showFloatsHelper(xs, true)
+}
+
+func showFloatsHelper(xs: [float], first: bool) -> string {
+  match xs {
+    [] => "",
+    [x, ...rest] => {
+      let prefix = if first then "" else ", ";
+      prefix ++ floatToStr(x) ++ showFloatsHelper(rest, false)
+    }
+  }
+}
+
+export func main() -> () ! {IO} {
+  print("=== Permissive Array Extraction (filterStrings/filterNumbers) ===");
+
+  -- Mixed array with different JSON types
+  let mixed = [JString("apple"), JNumber(42.0), JString("banana"), JBool(true), JString("cherry")];
+
+  -- filterStrings: Extract only strings, skip non-strings
+  let strings = filterStrings(mixed);
+  print("filterStrings(mixed) = [" ++ join(", ", strings) ++ "]");
+
+  -- filterNumbers: Extract only numbers, skip non-numbers
+  let numbers = filterNumbers(mixed);
+  print("filterNumbers(mixed) = [" ++ showFloats(numbers) ++ "]");
+
+  print("");
+  print("=== Strict Array Extraction (allStrings/allNumbers) ===");
+
+  -- allStrings: Fails if any element is not a string
+  match allStrings(mixed) {
+    Some(xs) => print("allStrings(mixed) = Some([" ++ join(", ", xs) ++ "])"),
+    None => print("allStrings(mixed) = None (mixed types!)")
+  };
+
+  -- All-string array
+  let onlyStrings = [JString("red"), JString("green"), JString("blue")];
+  match allStrings(onlyStrings) {
+    Some(xs) => print("allStrings(onlyStrings) = Some([" ++ join(", ", xs) ++ "])"),
+    None => print("allStrings(onlyStrings) = None")
+  };
+
+  -- All-number array
+  let onlyNumbers = [JNumber(1.0), JNumber(2.0), JNumber(3.0)];
+  match allNumbers(onlyNumbers) {
+    Some(xs) => print("allNumbers(onlyNumbers) = Some([" ++ showFloats(xs) ++ "])"),
+    None => print("allNumbers(onlyNumbers) = None")
+  };
+
+  print("");
+  print("=== Convenience Wrappers (getStringArrayOrEmpty, etc.) ===");
+
+  -- Parse JSON object with tags array
+  let jsonStr = "{\"name\": \"Project\", \"tags\": [\"ai\", \"lang\", \"functional\"]}";
+  match decode(jsonStr) {
+    Ok(obj) => {
+      -- getStringArrayOrEmpty: Returns [] if missing or invalid
+      let tags = getStringArrayOrEmpty(obj, "tags");
+      print("getStringArrayOrEmpty(obj, \"tags\") = [" ++ join(", ", tags) ++ "]");
+
+      let missing = getStringArrayOrEmpty(obj, "categories");
+      print("getStringArrayOrEmpty(obj, \"categories\") = [" ++ join(", ", missing) ++ "] (empty for missing)");
+
+      -- getStringArray: Returns Option (Some for valid, None for missing/invalid)
+      match getStringArray(obj, "tags") {
+        Some(xs) => print("getStringArray(obj, \"tags\") = Some([" ++ join(", ", xs) ++ "])"),
+        None => print("getStringArray(obj, \"tags\") = None")
+      }
+    },
+    Err(e) => print("Parse error: " ++ e)
+  };
+
+  print("");
+  print("=== Real-World Use Case: Config Parsing ===");
+
+  -- Parse a config with string arrays
+  let configStr = "{\"allowedHosts\": [\"example.com\", \"api.example.com\"], \"ports\": [80, 443, 8080]}";
+  match decode(configStr) {
+    Ok(config) => {
+      let hosts = getStringArrayOrEmpty(config, "allowedHosts");
+      print("Allowed hosts (" ++ show(length(hosts)) ++ "): " ++ join(", ", hosts));
+
+      let ports = getNumberArrayOrEmpty(config, "ports");
+      print("Ports (" ++ show(length(ports)) ++ "): " ++ showFloats(ports))
+    },
+    Err(e) => print("Config parse error: " ++ e)
+  }
+}
