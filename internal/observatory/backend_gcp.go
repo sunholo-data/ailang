@@ -142,6 +142,10 @@ func (b *GCPTraceBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, a
 	return errNotSupported("UpdateSpanLinks")
 }
 
+func (b *GCPTraceBackend) RecalculateTaskAggregates(ctx context.Context, taskID string) error {
+	return errNotSupported("RecalculateTaskAggregates")
+}
+
 func (b *GCPTraceBackend) DeleteSpan(ctx context.Context, id string) error {
 	return errNotSupported("DeleteSpan")
 }

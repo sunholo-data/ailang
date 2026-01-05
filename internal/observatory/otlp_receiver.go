@@ -277,7 +277,12 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	}
 
 	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
+	// Primary: explicit ailang.task_id from OTEL_RESOURCE_ATTRIBUTES
+	// Fallback: extract from process.cwd worktree path (Claude Code doesn't pass env to subprocesses)
 	taskID := extractString(resourceAttrs, "ailang.task_id")
+	if taskID == "" {
+		taskID = extractTaskIDFromCwd(resourceAttrs)
+	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
 
 	return &Span{
@@ -481,7 +486,12 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	}
 
 	// Extract task hierarchy context from resource attributes (M-TASK-HIERARCHY)
+	// Primary: explicit ailang.task_id from OTEL_RESOURCE_ATTRIBUTES
+	// Fallback: extract from process.cwd worktree path (Claude Code doesn't pass env to subprocesses)
 	taskID := extractString(resourceAttrs, "ailang.task_id")
+	if taskID == "" {
+		taskID = extractTaskIDFromCwd(resourceAttrs)
+	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
 
 	return &Span{
@@ -612,6 +622,51 @@ func extractString(attrs map[string]any, keys ...string) string {
 				return s
 			}
 		}
+	}
+	return ""
+}
+
+// extractTaskIDFromCwd extracts task ID from worktree path as a fallback.
+// Claude Code CLI doesn't pass OTEL_RESOURCE_ATTRIBUTES to subprocesses,
+// but the worktree path contains the task ID.
+// Path format: /Users/.../worktrees/coordinator/task-XXXXXXXX
+func extractTaskIDFromCwd(attrs map[string]any) string {
+	cwd := extractString(attrs, "process.cwd")
+	if cwd == "" {
+		return ""
+	}
+
+	// Look for task ID pattern in the path
+	// Format: .../worktrees/.../task-XXXXXXXX/...
+	const taskPrefix = "task-"
+	idx := strings.Index(cwd, "/worktrees/")
+	if idx == -1 {
+		return ""
+	}
+
+	// Find task-XXXXXXXX in the path after /worktrees/
+	remainder := cwd[idx:]
+	taskIdx := strings.Index(remainder, taskPrefix)
+	if taskIdx == -1 {
+		return ""
+	}
+
+	// Extract task ID (task-XXXXXXXX format, 8 hex chars after prefix)
+	start := taskIdx
+	end := start + len(taskPrefix) + 8 // task- + 8 hex chars
+	if end > len(remainder) {
+		// Try to find next path separator
+		nextSlash := strings.Index(remainder[start:], "/")
+		if nextSlash > 0 {
+			end = start + nextSlash
+		} else {
+			end = len(remainder)
+		}
+	}
+
+	taskID := remainder[start:end]
+	if strings.HasPrefix(taskID, taskPrefix) {
+		return taskID
 	}
 	return ""
 }

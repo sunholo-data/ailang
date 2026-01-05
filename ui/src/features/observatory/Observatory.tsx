@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { useTraces, useTrace, useMetrics, useObservatoryWs, useTelemetryConfig, TraceSummary, MetricsSummary } from '../../hooks/useObservatory';
+import { useTraces, useTrace, useMetrics, useTasks, useObservatoryWs, useTelemetryConfig, TraceSummary, MetricsSummary, Task } from '../../hooks/useObservatory';
+import { TaskHierarchyView } from './TaskHierarchy';
 import styles from './Observatory.module.css';
+
+type TabType = 'traces' | 'tasks';
 
 // Format duration in human-readable format
 function formatDuration(ms: number | string): string {
@@ -179,6 +182,57 @@ function TraceList({ traces }: { traces: TraceSummary[] }) {
   );
 }
 
+// Task list item
+function TaskRow({ task, onSelect }: { task: Task; onSelect: () => void }) {
+  const statusClass = task.status === 'completed' ? styles.statusOk :
+                      task.status === 'failed' ? styles.statusError :
+                      task.status === 'running' ? styles.statusRunning : styles.statusPending;
+
+  return (
+    <tr className={styles.traceRow} onClick={onSelect}>
+      <td className={styles.traceExpander}>▶</td>
+      <td className={styles.taskTitle}>{task.title || task.id.substring(0, 12)}</td>
+      <td className={statusClass}>{task.status}</td>
+      <td className={styles.traceSpans}>{formatNumber(task.span_count || 0)}</td>
+      <td className={styles.traceDuration}>{formatNumber((task.total_tokens_in || 0) + (task.total_tokens_out || 0))}</td>
+      <td className={styles.traceDuration}>{formatCost(task.total_cost_usd || 0)}</td>
+      <td className={styles.traceTime}>{new Date(task.created_at).toLocaleString()}</td>
+    </tr>
+  );
+}
+
+// Task list component
+function TaskList({ tasks, onSelectTask }: { tasks: Task[]; onSelectTask: (taskId: string) => void }) {
+  if (tasks.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        <p>No tasks yet. Tasks will appear here when coordinator processes work.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className={styles.traceTable}>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Task</th>
+          <th>Status</th>
+          <th>Spans</th>
+          <th>Tokens</th>
+          <th>Cost</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tasks.map(task => (
+          <TaskRow key={task.id} task={task} onSelect={() => onSelectTask(task.id)} />
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // Connection status indicator
 function ConnectionStatus({ isConnected }: { isConnected: boolean }) {
   return (
@@ -207,7 +261,11 @@ function GCPTraceLink({ url }: { url: string }) {
 
 // Main Observatory component
 export function Observatory() {
+  const [activeTab, setActiveTab] = useState<TabType>('traces');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
   const { traces, loading: tracesLoading, error: tracesError, refresh: refreshTraces } = useTraces({ limit: 50 });
+  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks({ limit: 50 });
   const { metrics, refresh: refreshMetrics } = useMetrics();
   const { config: telemetryConfig } = useTelemetryConfig();
 
@@ -215,16 +273,26 @@ export function Observatory() {
   const { isConnected } = useObservatoryWs({
     onSpanCreated: () => {
       refreshTraces();
+      refreshTasks();
       refreshMetrics();
     },
     onTaskCompleted: () => {
       refreshTraces();
+      refreshTasks();
       refreshMetrics();
     },
     onMetricsUpdated: () => {
       refreshMetrics();
     },
   });
+
+  const handleSelectTask = (taskId: string) => {
+    setSelectedTaskId(taskId);
+  };
+
+  const handleCloseTaskDetail = () => {
+    setSelectedTaskId(null);
+  };
 
   return (
     <div className={styles.observatory}>
@@ -242,20 +310,64 @@ export function Observatory() {
         <MetricsCard metrics={metrics} />
       </section>
 
-      <section className={styles.traces}>
-        <div className={styles.sectionHeader}>
-          <h2>Recent Traces</h2>
-          <button onClick={refreshTraces} className={styles.refreshButton}>
-            Refresh
-          </button>
-        </div>
+      {/* Tab Navigation */}
+      <div className={styles.tabNav}>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'traces' ? styles.tabButtonActive : ''}`}
+          onClick={() => { setActiveTab('traces'); setSelectedTaskId(null); }}
+        >
+          Traces
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'tasks' ? styles.tabButtonActive : ''}`}
+          onClick={() => { setActiveTab('tasks'); setSelectedTaskId(null); }}
+        >
+          Tasks
+        </button>
+      </div>
 
-        {tracesLoading && <div className={styles.loading}>Loading traces...</div>}
-        {tracesError && <div className={styles.error}>Error: {tracesError}</div>}
-        {!tracesLoading && !tracesError && (
-          <TraceList traces={traces} />
-        )}
-      </section>
+      {/* Task Detail View */}
+      {selectedTaskId && (
+        <section className={styles.taskDetail}>
+          <TaskHierarchyView taskId={selectedTaskId} onClose={handleCloseTaskDetail} />
+        </section>
+      )}
+
+      {/* Traces Tab Content */}
+      {activeTab === 'traces' && !selectedTaskId && (
+        <section className={styles.traces}>
+          <div className={styles.sectionHeader}>
+            <h2>Recent Traces</h2>
+            <button onClick={refreshTraces} className={styles.refreshButton}>
+              Refresh
+            </button>
+          </div>
+
+          {tracesLoading && <div className={styles.loading}>Loading traces...</div>}
+          {tracesError && <div className={styles.error}>Error: {tracesError}</div>}
+          {!tracesLoading && !tracesError && (
+            <TraceList traces={traces} />
+          )}
+        </section>
+      )}
+
+      {/* Tasks Tab Content */}
+      {activeTab === 'tasks' && !selectedTaskId && (
+        <section className={styles.traces}>
+          <div className={styles.sectionHeader}>
+            <h2>Recent Tasks</h2>
+            <button onClick={refreshTasks} className={styles.refreshButton}>
+              Refresh
+            </button>
+          </div>
+
+          {tasksLoading && <div className={styles.loading}>Loading tasks...</div>}
+          {tasksError && <div className={styles.error}>Error: {tasksError}</div>}
+          {!tasksLoading && !tasksError && (
+            <TaskList tasks={tasks} onSelectTask={handleSelectTask} />
+          )}
+        </section>
+      )}
     </div>
   );
 }

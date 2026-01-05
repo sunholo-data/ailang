@@ -189,6 +189,10 @@ func (b *CompositeBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, 
 	return b.local.UpdateSpanLinks(ctx, spanID, taskID, assignmentID)
 }
 
+func (b *CompositeBackend) RecalculateTaskAggregates(ctx context.Context, taskID string) error {
+	return b.local.RecalculateTaskAggregates(ctx, taskID)
+}
+
 func (b *CompositeBackend) DeleteSpan(ctx context.Context, id string) error {
 	return b.local.DeleteSpan(ctx, id)
 }

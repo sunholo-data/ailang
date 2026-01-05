@@ -171,6 +171,73 @@
   color: var(--text-primary, #cdd6f4);
 }
 
+/* Tab Navigation */
+.tabNav {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface, #1a2332);
+  padding: 4px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.tabButton {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tabButton:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #cdd6f4);
+}
+
+.tabButtonActive {
+  background: linear-gradient(135deg, var(--gradient-start, #e73c17) 0%, var(--gradient-end, #dd6b20) 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(231, 60, 23, 0.3);
+}
+
+.tabButtonActive:hover {
+  background: linear-gradient(135deg, var(--gradient-start, #e73c17) 0%, var(--gradient-end, #dd6b20) 100%);
+  color: white;
+}
+
+/* Task detail section */
+.taskDetail {
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px;
+}
+
+/* Task title cell */
+.taskTitle {
+  font-weight: 500;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status styles for tasks */
+.statusRunning {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.statusPending {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
 /* Trace table */
 .traceTable {
   width: 100%;

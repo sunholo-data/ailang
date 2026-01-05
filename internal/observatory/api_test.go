@@ -595,3 +595,195 @@ func TestAPI_InvalidJSON(t *testing.T) {
 		t.Errorf("Expected 400 for invalid JSON, got %d", rec.Code)
 	}
 }
+
+// TestAPI_TaskHierarchy tests the full hierarchy API endpoint.
+func TestAPI_TaskHierarchy(t *testing.T) {
+	api, cleanup := setupTestAPI(t)
+	defer cleanup()
+
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+	ctx := context.Background()
+
+	// Step 1: Create workspace
+	ws := &Workspace{
+		ID:        "ws-api-hier",
+		Name:      "Hierarchy API Test",
+		Path:      "/tmp/api-hier",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	api.backend.CreateWorkspace(ctx, ws)
+
+	// Step 2: Create task
+	task := &Task{
+		ID:          "task-api-hier",
+		WorkspaceID: "ws-api-hier",
+		Title:       "Test Hierarchy Task",
+		Status:      TaskStatusRunning,
+		Priority:    "high",
+		CreatedAt:   time.Now(),
+	}
+	api.backend.CreateTask(ctx, task)
+
+	// Step 3: Create agent assignment
+	aa := &AgentAssignment{
+		ID:         "aa-api-hier",
+		TaskID:     "task-api-hier",
+		AgentID:    "test-agent",
+		Provider:   ProviderClaude,
+		Status:     AgentStatusRunning,
+		AssignedAt: time.Now(),
+	}
+	api.backend.CreateAgentAssignment(ctx, aa)
+
+	// Step 4: Create spans with hierarchy
+	spans := []struct {
+		id     string
+		parent string
+		name   string
+		tokens int64
+		status SpanStatus
+	}{
+		{"span-api-1", "", "executor.run", 0, SpanStatusOK},
+		{"span-api-2", "span-api-1", "anthropic.messages.create", 5000, SpanStatusOK},
+		{"span-api-3", "span-api-1", "tool.Edit", 0, SpanStatusOK},
+		{"span-api-4", "span-api-1", "anthropic.messages.create", 3000, SpanStatusError},
+	}
+	for _, s := range spans {
+		span := &Span{
+			ID:                s.id,
+			TraceID:           "trace-api-hier",
+			ParentSpanID:      s.parent,
+			TaskID:            "task-api-hier",
+			AgentAssignmentID: "aa-api-hier",
+			Name:              s.name,
+			Kind:              SpanKindClient,
+			Status:            s.status,
+			StartTime:         time.Now(),
+			DurationMs:        1000,
+			TokensIn:          s.tokens,
+			TokensOut:         s.tokens / 4,
+			CostUSD:           float64(s.tokens) * 0.000003,
+			Provider:          ProviderClaude,
+			CreatedAt:         time.Now(),
+		}
+		api.backend.CreateSpan(ctx, span)
+	}
+
+	// Test: Get hierarchy via API
+	req := httptest.NewRequest("GET", "/api/observatory/tasks/task-api-hier/hierarchy", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Parse response
+	var hierarchy TaskHierarchy
+	if err := json.NewDecoder(rec.Body).Decode(&hierarchy); err != nil {
+		t.Fatalf("Failed to decode hierarchy: %v", err)
+	}
+
+	// Verify task
+	if hierarchy.Task.ID != "task-api-hier" {
+		t.Errorf("Task ID mismatch: got %q", hierarchy.Task.ID)
+	}
+	if hierarchy.Task.Title != "Test Hierarchy Task" {
+		t.Errorf("Task title mismatch: got %q", hierarchy.Task.Title)
+	}
+
+	// Verify agents
+	if len(hierarchy.Agents) != 1 {
+		t.Fatalf("Expected 1 agent, got %d", len(hierarchy.Agents))
+	}
+	if hierarchy.Agents[0].Agent.AgentID != "test-agent" {
+		t.Errorf("Agent ID mismatch: got %q", hierarchy.Agents[0].Agent.AgentID)
+	}
+
+	// Verify traces
+	if len(hierarchy.Agents[0].Traces) != 1 {
+		t.Fatalf("Expected 1 trace, got %d", len(hierarchy.Agents[0].Traces))
+	}
+	trace := hierarchy.Agents[0].Traces[0]
+	if trace.Summary.SpanCount != 4 {
+		t.Errorf("Expected 4 spans, got %d", trace.Summary.SpanCount)
+	}
+	if trace.Summary.ErrorCount != 1 {
+		t.Errorf("Expected 1 error, got %d", trace.Summary.ErrorCount)
+	}
+
+	// Verify root span has children
+	if trace.RootSpan == nil {
+		t.Fatal("Expected root span")
+	}
+	if trace.RootSpan.Span.Name != "executor.run" {
+		t.Errorf("Root span name mismatch: got %q", trace.RootSpan.Span.Name)
+	}
+	if len(trace.RootSpan.Children) != 3 {
+		t.Errorf("Expected 3 children, got %d", len(trace.RootSpan.Children))
+	}
+
+	t.Logf("Hierarchy API Test Complete:")
+	t.Logf("  Task: %s (%s)", hierarchy.Task.Title, hierarchy.Task.Status)
+	t.Logf("  Agents: %d, Traces: %d, Spans: %d", len(hierarchy.Agents), len(hierarchy.Agents[0].Traces), trace.Summary.SpanCount)
+	t.Logf("  Tokens: %d, Cost: $%.4f", trace.Summary.TotalTokens, trace.Summary.TotalCostUSD)
+}
+
+// TestAPI_TaskHierarchyNotFound tests 404 response for missing task.
+func TestAPI_TaskHierarchyNotFound(t *testing.T) {
+	api, cleanup := setupTestAPI(t)
+	defer cleanup()
+
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	req := httptest.NewRequest("GET", "/api/observatory/tasks/nonexistent/hierarchy", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("Expected 404 for non-existent task hierarchy, got %d", rec.Code)
+	}
+}
+
+// TestAPI_TaskHierarchyOptions tests hierarchy query options.
+func TestAPI_TaskHierarchyOptions(t *testing.T) {
+	api, cleanup := setupTestAPI(t)
+	defer cleanup()
+
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+	ctx := context.Background()
+
+	// Create minimal test data
+	ws := &Workspace{ID: "ws-opts", Name: "Options Test", Path: "/tmp/opts", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	api.backend.CreateWorkspace(ctx, ws)
+
+	task := &Task{ID: "task-opts", WorkspaceID: "ws-opts", Title: "Options Test", Status: TaskStatusRunning, CreatedAt: time.Now()}
+	api.backend.CreateTask(ctx, task)
+
+	aa := &AgentAssignment{ID: "aa-opts", TaskID: "task-opts", AgentID: "opt-agent", Provider: ProviderClaude, Status: AgentStatusRunning, AssignedAt: time.Now()}
+	api.backend.CreateAgentAssignment(ctx, aa)
+
+	// Test with include_spans=false
+	req := httptest.NewRequest("GET", "/api/observatory/tasks/task-opts/hierarchy?include_spans=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d", rec.Code)
+	}
+
+	var hierarchy TaskHierarchy
+	json.NewDecoder(rec.Body).Decode(&hierarchy)
+
+	// Should have agents but no traces (when include_spans=false)
+	if len(hierarchy.Agents) != 1 {
+		t.Errorf("Expected 1 agent, got %d", len(hierarchy.Agents))
+	}
+	if len(hierarchy.Agents[0].Traces) != 0 {
+		t.Errorf("Expected 0 traces when include_spans=false, got %d", len(hierarchy.Agents[0].Traces))
+	}
+}

@@ -5,6 +5,7 @@ module std/json
 import std/option (Option, Some, None)
 import std/result (Result)
 import std/list (foldl, foldr, map)
+import std/math (floatToInt)
 
 -- JSON ADT with all JSON types
 export type Json =
@@ -156,4 +157,57 @@ export func values(obj: Json) -> List[Json] {
     Some(kvs) => map(extractValue, kvs),
     None => []
   }
+}
+
+-- ============================================================================
+-- JSON Convenience Functions (v0.6.4)
+-- These combine get() + asX() to reduce nested Option matching
+-- ============================================================================
+
+-- getString: Get string value from JSON object by key
+export func getString(obj: Json, key: string) -> Option[string] {
+  match get(obj, key) {
+    Some(j) => asString(j),
+    None => None
+  }
+}
+
+-- getNumber: Get float value from JSON object by key
+export func getNumber(obj: Json, key: string) -> Option[float] {
+  match get(obj, key) {
+    Some(j) => asNumber(j),
+    None => None
+  }
+}
+
+-- getInt: Get int value from JSON object by key (truncates float)
+export func getInt(obj: Json, key: string) -> Option[int] {
+  match get(obj, key) {
+    Some(j) => match asNumber(j) {
+      Some(f) => Some(floatToInt(f)),
+      None => None
+    },
+    None => None
+  }
+}
+
+-- getBool: Get bool value from JSON object by key
+export func getBool(obj: Json, key: string) -> Option[bool] {
+  match get(obj, key) {
+    Some(j) => asBool(j),
+    None => None
+  }
+}
+
+-- getArray: Get array value from JSON object by key
+export func getArray(obj: Json, key: string) -> Option[List[Json]] {
+  match get(obj, key) {
+    Some(j) => asArray(j),
+    None => None
+  }
+}
+
+-- getObject: Get nested object from JSON object by key (returns Json)
+export func getObject(obj: Json, key: string) -> Option[Json] {
+  get(obj, key)
 }

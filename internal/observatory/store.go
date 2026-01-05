@@ -415,6 +415,42 @@ func (s *Store) CreateSpan(span *Span) error {
 		span.Name, span.Kind, span.Status, span.StatusMessage, span.StartTime, span.EndTime,
 		span.DurationMs, span.TokensIn, span.TokensOut, span.CostUSD, span.Model, span.Provider,
 		span.AttributesJSON(), span.ResourceAttributesJSON(), span.CreatedAt)
+	if err != nil {
+		return err
+	}
+
+	// Update task aggregates if span is linked to a task (M-TASK-HIERARCHY M4)
+	if span.TaskID != "" {
+		if err := s.updateTaskAggregatesFromSpan(span); err != nil {
+			// Log but don't fail span creation
+			fmt.Printf("observatory: warning: failed to update task aggregates for task %s: %v\n", span.TaskID, err)
+		}
+	}
+
+	return nil
+}
+
+// updateTaskAggregatesFromSpan updates task totals when a span is added.
+// Called from CreateSpan to maintain real-time aggregates.
+func (s *Store) updateTaskAggregatesFromSpan(span *Span) error {
+	// Update task with span metrics
+	// Using atomic UPDATE to handle concurrent span insertions
+	isError := 0
+	if span.Status == SpanStatusError {
+		isError = 1
+	}
+
+	_, err := s.db.Exec(`
+		UPDATE tasks SET
+			span_count = span_count + 1,
+			total_tokens_in = total_tokens_in + ?,
+			total_tokens_out = total_tokens_out + ?,
+			total_cost_usd = total_cost_usd + ?,
+			total_duration_ms = total_duration_ms + ?,
+			error_count = error_count + ?,
+			updated_at = datetime('now')
+		WHERE id = ?
+	`, span.TokensIn, span.TokensOut, span.CostUSD, span.DurationMs, isError, span.TaskID)
 	return err
 }
 

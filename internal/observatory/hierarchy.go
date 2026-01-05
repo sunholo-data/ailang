@@ -4,6 +4,8 @@ package observatory
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 )
 
 // TaskHierarchy represents a task with its full agent and span hierarchy.
@@ -40,6 +42,18 @@ type HierarchyTraceSummary struct {
 	TotalCostUSD float64 `json:"total_cost_usd"`
 	DurationMs   int64   `json:"duration_ms"`
 	ErrorCount   int     `json:"error_count"`
+}
+
+// getEarliestStartTime returns the earliest span start time in the trace.
+// Used for chronological sorting of traces.
+func (t *TraceHierarchy) getEarliestStartTime() time.Time {
+	var earliest time.Time
+	for _, node := range t.Spans {
+		if node.Span != nil && (earliest.IsZero() || node.Span.StartTime.Before(earliest)) {
+			earliest = node.Span.StartTime
+		}
+	}
+	return earliest
 }
 
 // HierarchyOptions configures the hierarchy query.
@@ -124,6 +138,13 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 		agentHierarchy.Traces = append(agentHierarchy.Traces, traceHierarchy)
 	}
 
+	// Sort traces by their first span's start time (chronological order)
+	sort.Slice(agentHierarchy.Traces, func(i, j int) bool {
+		iTime := agentHierarchy.Traces[i].getEarliestStartTime()
+		jTime := agentHierarchy.Traces[j].getEarliestStartTime()
+		return iTime.Before(jTime)
+	})
+
 	return agentHierarchy, nil
 }
 
@@ -172,10 +193,18 @@ func buildTraceHierarchy(traceID string, spans []*Span, maxDepth int) *TraceHier
 		}
 	}
 
-	// Build flat list for easy rendering
+	// Build flat list for easy rendering, sorted by start time
 	flatSpans := make([]*SpanNode, 0, len(spans))
 	for _, span := range spans {
 		flatSpans = append(flatSpans, spanIndex[span.ID])
+	}
+	sort.Slice(flatSpans, func(i, j int) bool {
+		return flatSpans[i].Span.StartTime.Before(flatSpans[j].Span.StartTime)
+	})
+
+	// Sort children of each node by start time
+	for _, node := range flatSpans {
+		sortChildrenByTime(node)
 	}
 
 	traceHierarchy := &TraceHierarchy{
@@ -200,5 +229,18 @@ func limitDepth(node *SpanNode, currentDepth, maxDepth int) {
 	}
 	for _, child := range node.Children {
 		limitDepth(child, currentDepth+1, maxDepth)
+	}
+}
+
+// sortChildrenByTime recursively sorts children by start time.
+func sortChildrenByTime(node *SpanNode) {
+	if len(node.Children) == 0 {
+		return
+	}
+	sort.Slice(node.Children, func(i, j int) bool {
+		return node.Children[i].Span.StartTime.Before(node.Children[j].Span.StartTime)
+	})
+	for _, child := range node.Children {
+		sortChildrenByTime(child)
 	}
 }

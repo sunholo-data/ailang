@@ -133,9 +133,39 @@ Validate prerequisites before starting sprint execution.
 - `0` - Valid JSON, ready for execution
 - `1` - Invalid JSON or placeholders detected (sprint-planner must fix)
 
-### `scripts/milestone_checkpoint.sh <milestone_name>`
-Run checkpoint after completing a milestone (tests, linting, git diff).
-**Now includes JSON update reminder!** Shows current milestone statuses and prompts you to update the sprint JSON.
+### `scripts/milestone_checkpoint.sh <milestone_name> [sprint_id]`
+Run checkpoint after completing a milestone.
+
+**CRITICAL: Tests passing ≠ Feature working!** This script verifies with REAL DATA.
+
+**What it does:**
+1. Runs `make test` and `make lint`
+2. Shows git diff of changed files
+3. Checks file sizes (AI-friendly codebase guidelines)
+4. **Runs milestone-specific verification** (database queries, API calls, etc.)
+5. Shows JSON update reminder with current milestone statuses
+
+**Sprint-specific verification (e.g., M-TASK-HIERARCHY):**
+- **M1**: Checks observatory_sync.go exists, tasks in DB with non-empty IDs
+- **M2**: Checks OTEL_RESOURCE_ATTRIBUTES in executor, spans with task attributes
+- **M3**: Checks spans have task_id linked
+- **M4**: Checks task aggregates (span_count, tokens) are populated
+- **M5**: Checks hierarchy API returns data for existing tasks
+- **M6**: Checks TaskHierarchy component imported AND connected in UI
+- **M7**: Checks backfill command exists and responds to --help
+
+**Example:**
+```bash
+# Verify M1 (should pass if entity sync works)
+.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh M1 M-TASK-HIERARCHY
+
+# Verify M2 (will fail if OTEL attributes not propagated)
+.claude/skills/sprint-executor/scripts/milestone_checkpoint.sh M2 M-TASK-HIERARCHY
+```
+
+**Exit codes:**
+- `0` - Checkpoint passed (all verifications succeeded)
+- `1` - Checkpoint FAILED (DO NOT mark milestone complete)
 
 ### `scripts/acceptance_test.sh <milestone_id> <test_type>` **NEW**
 Run end-to-end acceptance tests (parser, builtin, examples, REPL, e2e).

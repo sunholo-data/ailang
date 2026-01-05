@@ -65,6 +65,16 @@ export pure func ceil(x: float) -> float = _math_ceil(x)
 export pure func round(x: float) -> float = _math_round(x)
 
 -- ============================================================================
+-- Type Conversion Functions
+-- ============================================================================
+
+-- floatToInt: Convert float to int (truncates toward zero)
+export pure func floatToInt(x: float) -> int = _float_to_int(x)
+
+-- intToFloat: Convert int to float
+export pure func intToFloat(x: int) -> float = _int_to_float(x)
+
+-- ============================================================================
 -- Absolute Value Functions
 -- ============================================================================
 

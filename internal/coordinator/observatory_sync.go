@@ -69,8 +69,11 @@ func (s *ObservatorySync) SyncTask(ctx context.Context, task *TaskRecord) error 
 		CompletedAt: task.CompletedAt,
 	}
 
+	s.logger.Printf("Observatory sync DEBUG: task.ID=%q, workspaceID=%q, title=%q", task.ID, workspaceID, task.Title)
+
 	// Try to create first
 	if err := s.backend.CreateTask(ctx, obsTask); err != nil {
+		s.logger.Printf("Observatory sync DEBUG: CreateTask error: %v", err)
 		// If exists, try to update
 		if existingTask, getErr := s.backend.GetTask(ctx, task.ID); getErr == nil && existingTask != nil {
 			return s.backend.UpdateTask(ctx, obsTask)

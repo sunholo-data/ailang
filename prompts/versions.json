@@ -371,14 +371,36 @@
       "created": "2025-12-25",
       "tags": [
         "production",
-        "latest",
         "record-patterns",
         "deriving-eq"
       ],
       "notes": "Record pattern matching for destructuring records in match expressions. Syntax: {name}, {name: var}, {name, age}, {user: {name}} for nested patterns, {name, ...} for rest patterns. M-DX19: Auto-derive Eq for ADT types using `type Color = Red | Green | Blue deriving (Eq)` syntax. Enables == and != operators via structural equality comparison. All v0.5.11 features included."
+    },
+    "v0.6.3": {
+      "file": "prompts/v0.6.3.md",
+      "hash": "c9ba19b659ed31fc7686c64808805558a7b3199aa2d14cc74cd74ebb014e61cc",
+      "description": "Document std/math (floatToInt, intToFloat) and std/string functions for agent discoverability",
+      "created": "2026-01-05",
+      "tags": [
+        "production",
+        "stdlib-docs"
+      ],
+      "notes": "AGENT DISCOVERABILITY: Added explicit documentation for std/math (floatToInt, intToFloat, floor, ceil, round) and expanded std/string (substring, contains, stringToInt, intToStr, floatToStr). Analysis of agent transcripts showed models were implementing their own broken versions of functions that already exist in stdlib but weren't documented in the prompt."
+    },
+    "v0.6.4": {
+      "file": "prompts/v0.6.4.md",
+      "hash": "PENDING",
+      "description": "JSON convenience functions (getString, getInt, etc.) + import reminder",
+      "created": "2026-01-05",
+      "tags": [
+        "production",
+        "latest",
+        "json-helpers"
+      ],
+      "notes": "JSON CONVENIENCE FUNCTIONS: Added getString, getNumber, getInt, getBool, getArray, getObject to std/json.ail. These combine get()+asX() to reduce nested Option matching from 4 levels to 2. Also added prominent import reminder warning to reduce 'forgot to import' errors. Target: json_parse benchmark turns <25 (down from 47 in v0.6.3)."
     }
   },
-  "active": "v0.6.2",
+  "active": "v0.6.4",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

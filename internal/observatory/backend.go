@@ -39,6 +39,7 @@ type Backend interface {
 	ListSpans(ctx context.Context, opts SpanListOptions) ([]*Span, error)
 	UpdateSpan(ctx context.Context, span *Span) error
 	UpdateSpanLinks(ctx context.Context, spanID, taskID, assignmentID string) error
+	RecalculateTaskAggregates(ctx context.Context, taskID string) error
 	DeleteSpan(ctx context.Context, id string) error
 	GetTrace(ctx context.Context, traceID string) (*Trace, error)
 	ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error)
@@ -257,6 +258,10 @@ func (b *SQLiteBackend) UpdateSpanLinks(ctx context.Context, spanID, taskID, ass
 		WHERE id = ?
 	`, taskIDArg, assignmentIDArg, spanID)
 	return err
+}
+
+func (b *SQLiteBackend) RecalculateTaskAggregates(ctx context.Context, taskID string) error {
+	return RecalculateTaskAggregates(ctx, b.store.DB(), taskID)
 }
 
 func (b *SQLiteBackend) DeleteSpan(ctx context.Context, id string) error {

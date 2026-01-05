@@ -1,0 +1,44 @@
+-- json_helpers.ail - Demonstrates JSON convenience functions (v0.6.4)
+-- These helpers reduce nested Option matching when extracting typed values
+module examples/runnable/json_helpers
+
+import std/json (decode, getString, getInt, getNumber, getBool)
+import std/string (intToStr, floatToStr)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Extract name with single match (vs 2 nested matches without helper)
+func getName(obj: Json) -> string =
+  match getString(obj, "name") {
+    Some(name) => name,
+    None => "unknown"
+  }
+
+-- Extract age as int (JSON numbers are floats, getInt truncates)
+func getAge(obj: Json) -> int =
+  match getInt(obj, "age") {
+    Some(age) => age,
+    None => 0
+  }
+
+-- Extract score as float
+func getScore(obj: Json) -> float =
+  match getNumber(obj, "score") {
+    Some(score) => score,
+    None => 0.0
+  }
+
+-- Format person info
+func formatPerson(obj: Json) -> string =
+  getName(obj) ++ " (age " ++ intToStr(getAge(obj)) ++ ", score " ++ floatToStr(getScore(obj)) ++ ")"
+
+-- Parse and format JSON person
+func parsePerson(jsonStr: string) -> string =
+  match decode(jsonStr) {
+    Ok(obj) => formatPerson(obj),
+    Err(e) => "Parse error: " ++ e
+  }
+
+-- Entry point - just call parsePerson directly
+export func main() -> () ! {IO} =
+  print(parsePerson("{\"name\":\"Alice\",\"age\":30,\"score\":95.5}"))

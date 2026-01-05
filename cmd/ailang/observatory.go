@@ -115,6 +115,9 @@ type BackfillResult struct {
 func runBackfill(ctx context.Context, backend observatory.Backend, opts BackfillOptions) (*BackfillResult, error) {
 	result := &BackfillResult{}
 
+	// Track which tasks need aggregate recalculation
+	tasksToRecalculate := make(map[string]bool)
+
 	// Get all tasks or just the specified one
 	var tasks []*observatory.Task
 	var err error
@@ -160,11 +163,17 @@ func runBackfill(ctx context.Context, backend observatory.Backend, opts Backfill
 				endTime = assignment.CompletedAt.Add(opts.Window)
 			}
 
+			if opts.Verbose {
+				fmt.Printf("  Assignment %s: provider=%s, window=%s to %s\n",
+					assignment.ID, assignment.Provider, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
+			}
+
 			// Find unlinked spans in this time window
+			// Use large limit to ensure we get all spans (pagination would be complex)
 			spans, err := backend.ListSpans(ctx, observatory.SpanListOptions{
 				StartAfter:  startTime,
 				StartBefore: endTime,
-				Limit:       1000,
+				Limit:       100000,
 			})
 			if err != nil {
 				result.Errors++
@@ -172,6 +181,10 @@ func runBackfill(ctx context.Context, backend observatory.Backend, opts Backfill
 					fmt.Printf("  Error listing spans for assignment %s: %v\n", assignment.ID, err)
 				}
 				continue
+			}
+
+			if opts.Verbose && len(spans) > 0 {
+				fmt.Printf("    Found %d spans in window\n", len(spans))
 			}
 
 			for _, span := range spans {
@@ -183,8 +196,20 @@ func runBackfill(ctx context.Context, backend observatory.Backend, opts Backfill
 					continue
 				}
 
-				// Check if span matches the agent (by provider or name patterns)
-				if !spanMatchesAgent(span, assignment) {
+				// Check if span matches this task (by task ID from cwd path or resource attrs)
+				if !spanMatchesTask(span, task, assignment) {
+					// Debug: check why it didn't match
+					if opts.Verbose {
+						cwd := ""
+						if span.ResourceAttributes != nil {
+							if c, ok := span.ResourceAttributes["process.cwd"].(string); ok {
+								cwd = c
+							}
+						}
+						extractedTaskID := extractTaskIDFromCwd(cwd)
+						fmt.Printf("    Span %s: cwd=%s, extracted=%s, expected=%s\n",
+							span.ID[:8], cwd[max(0, len(cwd)-50):], extractedTaskID, task.ID)
+					}
 					continue
 				}
 
@@ -204,6 +229,8 @@ func runBackfill(ctx context.Context, backend observatory.Backend, opts Backfill
 						}
 						continue
 					}
+					// Mark task for aggregate recalculation
+					tasksToRecalculate[task.ID] = true
 				}
 
 				result.SpansLinked++
@@ -211,39 +238,112 @@ func runBackfill(ctx context.Context, backend observatory.Backend, opts Backfill
 		}
 	}
 
+	// Recalculate aggregates for tasks that had spans linked
+	if !opts.DryRun && len(tasksToRecalculate) > 0 {
+		if opts.Verbose {
+			fmt.Printf("Recalculating aggregates for %d tasks...\n", len(tasksToRecalculate))
+		}
+		for taskID := range tasksToRecalculate {
+			if err := backend.RecalculateTaskAggregates(ctx, taskID); err != nil {
+				result.Errors++
+				if opts.Verbose {
+					fmt.Printf("  Error recalculating aggregates for task %s: %v\n", taskID, err)
+				}
+			}
+		}
+	}
+
 	return result, nil
 }
 
-// spanMatchesAgent checks if a span likely came from a specific agent assignment.
-func spanMatchesAgent(span *observatory.Span, assignment *observatory.AgentAssignment) bool {
-	// Match by provider
-	if span.Provider != "" && string(span.Provider) == string(assignment.Provider) {
-		return true
+// spanMatchesTask checks if a span came from a specific task.
+// Matches spans that have task context either from:
+// 1. ailang.task_id in resource_attributes (set by coordinator via OTEL_RESOURCE_ATTRIBUTES)
+// 2. process.cwd containing worktree path (fallback - Claude Code doesn't pass env to subprocesses)
+// Also verifies the task ID matches the expected task.
+func spanMatchesTask(span *observatory.Span, task *observatory.Task, assignment *observatory.AgentAssignment) bool {
+	if span.ResourceAttributes == nil {
+		return false
 	}
 
-	// Match by span name patterns
-	switch assignment.Provider {
-	case observatory.ProviderClaude:
-		if strings.Contains(span.Name, "anthropic") || strings.Contains(span.Name, "claude") {
+	// Try explicit ailang.task_id first
+	spanTaskID, _ := span.ResourceAttributes["ailang.task_id"].(string)
+
+	// Fallback: extract from process.cwd worktree path
+	if spanTaskID == "" {
+		if cwd, ok := span.ResourceAttributes["process.cwd"].(string); ok {
+			spanTaskID = extractTaskIDFromCwd(cwd)
+		}
+	}
+
+	if spanTaskID == "" {
+		// No task context - this span wasn't from a coordinator task
+		return false
+	}
+
+	// Verify task ID matches the task we're backfilling
+	if spanTaskID != task.ID {
+		return false
+	}
+
+	// Check for assignment_id match if present
+	if assignmentID, ok := span.ResourceAttributes["ailang.assignment_id"].(string); ok && assignmentID != "" {
+		// Exact assignment match
+		return assignmentID == assignment.ID
+	}
+
+	// Task ID matches - check service name for additional verification
+	// Accept AILANG services (they're our tooling running within the task)
+	// Also accept provider-specific services as a sanity check
+	if serviceName, ok := span.ResourceAttributes["service.name"].(string); ok {
+		// AILANG tooling spans (ailang-check, ailang-messages, etc.)
+		if strings.HasPrefix(serviceName, "ailang") {
 			return true
 		}
-	case observatory.ProviderGemini:
-		if strings.Contains(span.Name, "gemini") || strings.Contains(span.Name, "google") {
-			return true
+		// Provider-specific services
+		switch assignment.Provider {
+		case observatory.ProviderClaude:
+			return strings.Contains(serviceName, "claude") || strings.Contains(serviceName, "anthropic")
+		case observatory.ProviderGemini:
+			return strings.Contains(serviceName, "gemini") || strings.Contains(serviceName, "google")
 		}
 	}
 
-	// Match by resource attributes
-	if span.ResourceAttributes != nil {
-		if serviceName, ok := span.ResourceAttributes["service.name"].(string); ok {
-			if strings.Contains(serviceName, "claude") && assignment.Provider == observatory.ProviderClaude {
-				return true
-			}
-			if strings.Contains(serviceName, "gemini") && assignment.Provider == observatory.ProviderGemini {
-				return true
-			}
+	// Task ID matched but no recognizable service name - still link it
+	// (the task ID from cwd is strong enough evidence)
+	return true
+}
+
+// extractTaskIDFromCwd extracts task ID from worktree path.
+// Path format: /Users/.../worktrees/coordinator/task-XXXXXXXX
+func extractTaskIDFromCwd(cwd string) string {
+	const taskPrefix = "task-"
+	idx := strings.Index(cwd, "/worktrees/")
+	if idx == -1 {
+		return ""
+	}
+
+	remainder := cwd[idx:]
+	taskIdx := strings.Index(remainder, taskPrefix)
+	if taskIdx == -1 {
+		return ""
+	}
+
+	// Find end of task ID (next / or end of string)
+	start := taskIdx
+	end := start + len(taskPrefix) + 8
+	if end > len(remainder) {
+		nextSlash := strings.Index(remainder[start:], "/")
+		if nextSlash > 0 {
+			end = start + nextSlash
+		} else {
+			end = len(remainder)
 		}
 	}
 
-	return false
+	taskID := remainder[start:end]
+	if strings.HasPrefix(taskID, taskPrefix) {
+		return taskID
+	}
+	return ""
 }

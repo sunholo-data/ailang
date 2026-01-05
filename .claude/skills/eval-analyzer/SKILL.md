@@ -1,24 +1,38 @@
 ---
 name: Eval Analyzer
-description: Analyze evaluation baseline results, identify failure patterns, and generate actionable insights. Use after running eval baselines or when user asks to analyze eval results, check benchmarks, investigate failures, or understand what's failing.
+description: Identify AILANG language gaps from agent struggles, analyze eval baselines, and generate actionable insights. PRIMARY PURPOSE is finding what stdlib/prompt improvements would help agents succeed. Use when analyzing eval results, checking benchmarks, or investigating failures.
 ---
 
 # Eval Analyzer
 
-Analyze AILANG evaluation baseline results to identify failure patterns, compare model performance, and generate actionable insights.
+**Primary goal**: Identify AILANG language gaps from what agents struggle with → drives stdlib additions and prompt improvements.
+
+Secondary: Analyze eval baseline results, compare model performance, track success rates.
 
 ## Quick Start
 
-**Most common usage:**
+**Language gap analysis** (most valuable):
+```bash
+# Find what stdlib/prompt improvements would help agents
+.claude/skills/eval-analyzer/scripts/find_language_gaps.sh eval_results/baselines/v0.6.2
+
+# Output shows:
+# - Functions agents searched for but couldn't find
+# - Undefined variable errors (hallucinated functions)
+# - Type confusion patterns
+# - Benchmarks with stuck loops (high turn count)
+# - Mapping of hallucinated names to actual builtins
+```
+
+**Standard analysis:**
 ```bash
 # User says: "Analyze the v0.3.24 eval results"
 # This skill will:
-# 1. Run eval-analyze to categorize failures (standard eval)
-# 2. Run agent KPIs to analyze efficiency (agent eval)
-# 3. Generate summary with jq queries
+# 1. Run find_language_gaps.sh to identify AILANG improvements needed
+# 2. Run eval-analyze to categorize failures
+# 3. Run agent KPIs to analyze efficiency
 # 4. Identify top failing benchmarks
-# 5. Show model performance comparison
-# 6. Provide optimization recommendations
+# 5. Generate actionable recommendations
 ```
 
 **For agent evaluation analysis** (NEW - optimization focus):
@@ -35,6 +49,77 @@ Analyze AILANG evaluation baseline results to identify failure patterns, compare
 
 **See [`resources/agent_optimization_guide.md`](resources/agent_optimization_guide.md) for complete optimization strategies.**
 
+## Language Gap Analysis (PRIMARY GOAL)
+
+**The most valuable output of eval analysis is identifying AILANG language gaps** - what agents struggle with that reveals missing stdlib functions, undocumented features, or prompt gaps.
+
+### Why This Matters
+
+When an agent fails after many turns, the transcript reveals what it was *trying* to do:
+
+```
+[config_file_parser - 22 turns]
+Turn 14: "Perfect! There's floatToInt in std/prelude" -- HALLUCINATED!
+Turn 15: "It looks like floatToInt is a builtin, not from a module"
+Turn 18: "Let me add a floatToInt using basic arithmetic" -- broken workaround
+```
+
+**Insight**: Agent knows what it needs (`floatToInt`) but can't find it → **stdlib gap**.
+
+### Language Gap Workflow
+
+```bash
+# Step 1: Find stuck loops - agents searching for functions
+cat eval_results/baselines/v0.6.2/agent/*_ailang_*.json | \
+  jq -r 'select(.stdout_ok == false) | .stderr' | \
+  grep -i "let me check\|what function\|is available\|undefined variable" | head -20
+
+# Step 2: Check if builtin exists for hallucinated function
+ailang builtins list | grep -i "float\|int"
+
+# Step 3: Check if stdlib wrapper exists
+grep -i "floatToInt" std/*.ail
+
+# Step 4: If builtin exists but wrapper doesn't → Add stdlib wrapper
+# Step 5: If wrapper exists but agent didn't know → Update prompt
+```
+
+### Gap Pattern Categories
+
+| Agent Behavior | Gap Type | Fix |
+|----------------|----------|-----|
+| "Let me check what X is available" then fails | Missing stdlib wrapper | Add wrapper to std/ |
+| Uses function that exists but wrong name | Undocumented | Document in prompt |
+| Tries Python syntax in AILANG | Prompt gap | Add AILANG examples |
+| 10+ turns on same type error | Type confusion | Add type examples to prompt |
+| `undefined variable: floatToInt` | Missing wrapper | Add `floatToInt = _float_to_int` |
+
+### Example Gap Report
+
+After analysis, produce actionable output:
+
+```markdown
+## Missing Wrappers (builtin exists, wrapper doesn't)
+| Function | Builtin | Add to | Impact |
+|----------|---------|--------|--------|
+| floatToInt | _float_to_int | std/math | 3 benchmarks |
+| intToFloat | _int_to_float | std/math | 2 benchmarks |
+
+## Undocumented (exists but agents don't know)
+| Function | Module | Agents looked for |
+|----------|--------|-------------------|
+| substring | std/string | stringSlice, slice |
+| contains | std/string | includes, has |
+
+## Prompt Gaps (syntax confusion)
+| Issue | Example | Add to prompt |
+|-------|---------|---------------|
+| Json vs string | `get(str, key)` fails | Json type examples |
+| String not list | `match s { [a,b] => }` | String handling section |
+```
+
+**See [design_docs/planned/v0_6_5/m-eval-gap-analysis.md](../../../design_docs/planned/v0_6_5/m-eval-gap-analysis.md) for full analysis example.**
+
 ## When to Use This Skill
 
 Invoke this skill when:
@@ -43,6 +128,7 @@ Invoke this skill when:
 - When investigating why benchmark performance changed
 - User wants to understand failure patterns or model performance
 - Comparing two versions of AILANG
+- **Identifying AILANG language gaps** from what agents struggle with
 
 ## Key Eval Commands
 
