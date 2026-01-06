@@ -1,359 +1,197 @@
 # M-COLLAB-PROVIDER-STATS Sprint Plan
 
-**Sprint**: Provider & Workspace Tags and Statistics
-**Duration**: 1.5 days
+**Sprint**: Provider & Workspace Tags and Statistics Integration
+**Duration**: 0.5 days (4 hours) - reduced because components already exist
 **Design Doc**: [m-collab-provider-stats.md](m-collab-provider-stats.md)
+**Updated**: 2026-01-06
 
 ## Sprint Overview
 
-Add provider and workspace as visible metadata with filtering and per-dimension statistics in the Collaboration Hub.
+**Key Discovery:** Most components already exist but are not integrated!
 
-## Tasks
+### Already Implemented ✅
+| Component | Location | Status |
+|-----------|----------|--------|
+| ProviderBadge | `ui/src/components/badges/ProviderBadge/` | ✅ Built, **not used in ThreadList** |
+| WorkspaceBadge | `ui/src/components/badges/WorkspaceBadge/` | ✅ Built, used in ThreadList |
+| FilterBar | `ui/src/components/badges/FilterBar/` | ✅ Built, **not integrated** |
+| GetTaskStats | `internal/coordinator/store_sqlite.go` | ✅ Returns ByProvider, ByWorkspace counts |
+| StatsPanel | `ui/src/components/metrics/StatsPanel/` | ✅ Shows by_provider, by_workspace |
 
-### Phase 1: Database Schema (1 hour)
+### Integration Gaps (This Sprint)
+| Gap | Description | Est |
+|-----|-------------|-----|
+| ProviderBadge in ThreadList | Component exists but not rendered | 0.5h |
+| FilterBar integration | Component exists but not wired | 1.5h |
+| Cost/token stats | GetTaskStats returns counts only | 1.5h |
 
-#### Task 1.1: Add Workspace Column to Tasks Table
-**Files**: `internal/coordinator/store_sqlite.go`
-**Effort**: 30 min
+**Total Estimated: 3.5-4 hours**
 
-```go
-// In migrate() function, add:
-alterQueries := []string{
-    "ALTER TABLE tasks ADD COLUMN workspace TEXT",
-}
-// Add index
-"CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace)"
-```
+## Milestones
 
-**Acceptance Criteria:**
-- [ ] Column exists in tasks table
-- [ ] Index created for filtering performance
-- [ ] Existing databases migrate cleanly
+### M1: Integrate ProviderBadge into ThreadList (~30 min)
 
-#### Task 1.2: Update TaskRecord Struct
-**Files**: `internal/coordinator/types.go` or `store_sqlite.go`
-**Effort**: 30 min
+**Files:**
+- `ui/src/features/messaging/MessageCenter/ThreadList.tsx`
 
-- Add `Workspace string` field to TaskRecord
-- Update scanTask to read workspace
-- Update CreateTask/UpdateTask to save workspace
+**Current State:** WorkspaceBadge is imported and used; ProviderBadge exists but not imported.
 
-### Phase 2: Coordinator Workspace Tracking (2 hours)
-
-#### Task 2.1: Capture Thread Workspace in Daemon
-**Files**: `internal/coordinator/daemon.go`
-**Effort**: 45 min
-
-```go
-// In processTask or similar:
-// Get workspace from thread
-thread, _ := d.msgStore.GetThread(task.ThreadID)
-sourceWorkspace := ""
-if thread != nil && thread.Workspace != "" {
-    sourceWorkspace = thread.Workspace
-}
-
-// Store on task
-task.Workspace = sourceWorkspace
-```
+**Tasks:**
+- [ ] Import ProviderBadge from `../../../components/badges/ProviderBadge`
+- [ ] Add `<ProviderBadge provider={thread.target_agent} />` next to WorkspaceBadge
+- [ ] Verify color scheme works (Claude=orange, Gemini=blue)
 
 **Acceptance Criteria:**
-- [ ] Thread workspace captured when task starts
-- [ ] Stored in task record
+- [ ] Provider badge visible on each thread
+- [ ] Color-coded by provider
 
-#### Task 2.2: Include Workspace in Result Metadata
-**Files**: `internal/coordinator/daemon.go`
-**Effort**: 45 min
+---
 
-```go
-// In postTaskResult, add to metadata:
-metadata := map[string]interface{}{
-    "provider": result.Provider,
-    "source_workspace": task.Workspace,  // Add this
-    "execution_stats": map[string]interface{}{
-        // ...existing fields...
-        "workspace": task.Workspace,  // Also add here
-    },
-}
-```
+### M2: Integrate FilterBar into MessageCenter (~1.5 hours)
 
-**Acceptance Criteria:**
-- [ ] Workspace included in message metadata
-- [ ] Available for UI to read
+**Files:**
+- `ui/src/features/messaging/MessageCenter/MessageCenter.tsx`
+- `ui/src/features/messaging/MessageCenter/ThreadList.tsx`
 
-#### Task 2.3: Update Store Methods
-**Files**: `internal/coordinator/store_sqlite.go`
-**Effort**: 30 min
+**Current State:** FilterBar component exists with full implementation; not used anywhere.
 
-- Update MarkTaskCompleted to save workspace
-- Update any queries that should filter by workspace
+**Tasks:**
+- [ ] Import FilterBar into MessageCenter
+- [ ] Add filter state: `const [selectedProvider, setSelectedProvider] = useState('')`
+- [ ] Add filter state: `const [selectedWorkspace, setSelectedWorkspace] = useState('')`
+- [ ] Extract unique providers from threads array
+- [ ] Extract unique workspaces from threads array
+- [ ] Filter threads before passing to ThreadList
+- [ ] Add localStorage persistence for filter state
+- [ ] Position FilterBar above ThreadList
 
-### Phase 3: Provider Tag Display (1.5 hours)
-
-#### Task 3.1: Create ProviderBadge Component
-**Files**: `ui/src/components/ProviderBadge.tsx`
-**Effort**: 45 min
-
+**Implementation:**
 ```typescript
-interface ProviderBadgeProps {
-  provider?: string;
-}
+// In MessageCenter.tsx
+import { FilterBar } from '../../../components/badges/FilterBar';
 
-const providerColors: Record<string, { bg: string; text: string }> = {
-  'claude-code': { bg: '#F97316', text: 'white' },  // Orange
-  'gemini-cli': { bg: '#3B82F6', text: 'white' },   // Blue
-  'gemini-api': { bg: '#22C55E', text: 'white' },   // Green
-};
+const [selectedProvider, setSelectedProvider] = useState(
+  localStorage.getItem('collab_filter_provider') || ''
+);
+const [selectedWorkspace, setSelectedWorkspace] = useState(
+  localStorage.getItem('collab_filter_workspace') || ''
+);
 
-export const ProviderBadge: React.FC<ProviderBadgeProps> = ({ provider }) => {
-  if (!provider) return null;
-  const colors = providerColors[provider] || { bg: '#6B7280', text: 'white' };
-  return (
-    <span className="provider-badge" style={{ backgroundColor: colors.bg, color: colors.text }}>
-      {provider}
-    </span>
-  );
-};
+// Extract unique values
+const providers = [...new Set(threads.map(t => t.target_agent).filter(Boolean))];
+const workspaces = [...new Set(threads.map(t => t.workspace).filter(Boolean))];
+
+// Filter threads
+const filteredThreads = threads.filter(t => {
+  if (selectedProvider && t.target_agent !== selectedProvider) return false;
+  if (selectedWorkspace && t.workspace !== selectedWorkspace) return false;
+  return true;
+});
+
+// Save to localStorage on change
+useEffect(() => {
+  localStorage.setItem('collab_filter_provider', selectedProvider);
+  localStorage.setItem('collab_filter_workspace', selectedWorkspace);
+}, [selectedProvider, selectedWorkspace]);
 ```
 
 **Acceptance Criteria:**
-- [ ] Badge renders with correct color
-- [ ] Handles undefined/null gracefully (returns null)
-- [ ] Unknown providers get gray color
+- [ ] FilterBar visible above thread list
+- [ ] Provider dropdown populated with available providers
+- [ ] Workspace dropdown populated with available workspaces
+- [ ] Selecting filter updates visible threads
+- [ ] Filters persist on refresh
 
-#### Task 3.2: Add Provider Badge to Message List
-**Files**: `ui/src/components/MessageCenter/ConversationView.tsx`
-**Effort**: 45 min
+---
 
-- Import ProviderBadge
-- Extract provider from message metadata
-- Add badge next to status indicator
-- Style to align with existing badges
+### M3: Add Cost/Token Breakdown to Statistics (~1.5 hours)
 
-**Acceptance Criteria:**
-- [ ] Provider badge visible on result messages
-- [ ] Positioned consistently with other badges
+**Files:**
+- `internal/coordinator/store_sqlite.go` - Extend GetTaskStats
+- `internal/server/handlers_statistics.go` - Update response struct
+- `ui/src/components/metrics/StatsPanel/StatsPanel.tsx` - Display cost
 
-### Phase 4: Workspace Tag Display (1.5 hours)
+**Current State:**
+- GetTaskStats returns ByProvider/ByWorkspace with counts only
+- StatsPanel shows counts but not cost/tokens
 
-#### Task 4.1: Create WorkspaceBadge Component
-**Files**: `ui/src/components/WorkspaceBadge.tsx`
-**Effort**: 45 min
+**Backend Tasks:**
+- [ ] Add ProviderDetailedStats struct with cost, tokens
+- [ ] Update SQL to aggregate cost/tokens per provider
+- [ ] Update SQL to aggregate cost/tokens per workspace
+- [ ] Return detailed breakdown in API response
 
-```typescript
-interface WorkspaceBadgeProps {
-  workspace?: string;
-}
-
-export const WorkspaceBadge: React.FC<WorkspaceBadgeProps> = ({ workspace }) => {
-  if (!workspace) return null;
-
-  // Get folder name (last path component)
-  const folderName = workspace.split('/').pop() || workspace;
-
-  return (
-    <span
-      className="workspace-badge"
-      title={workspace}  // Full path on hover
-    >
-      📁 {folderName}
-    </span>
-  );
-};
+**SQL Change:**
+```sql
+-- Per-provider with cost/tokens
+SELECT
+    COALESCE(provider, 'unknown') as provider,
+    COUNT(*) as task_count,
+    COALESCE(SUM(cost), 0) as total_cost,
+    COALESCE(SUM(input_tokens), 0) as input_tokens,
+    COALESCE(SUM(output_tokens), 0) as output_tokens
+FROM tasks
+WHERE provider IS NOT NULL
+GROUP BY provider
 ```
 
-**Acceptance Criteria:**
-- [ ] Badge shows folder name
-- [ ] Tooltip shows full path
-- [ ] Handles undefined/null gracefully
-
-#### Task 4.2: Add Workspace Badge to Message List
-**Files**: `ui/src/components/MessageCenter/ConversationView.tsx`
-**Effort**: 45 min
-
-- Import WorkspaceBadge
-- Extract workspace from message metadata (source_workspace or thread.workspace)
-- Add badge next to provider badge
+**Frontend Tasks:**
+- [ ] Update TypeScript interfaces for detailed stats
+- [ ] Display cost next to count in provider cards
+- [ ] Display cost next to count in workspace cards
+- [ ] Format cost as currency ($X.XX)
 
 **Acceptance Criteria:**
-- [ ] Workspace badge visible on messages
-- [ ] Shows thread workspace when available
+- [ ] API returns cost_usd, input_tokens, output_tokens per provider
+- [ ] API returns cost_usd, input_tokens, output_tokens per workspace
+- [ ] StatsPanel displays cost alongside task counts
 
-### Phase 5: Filtering UI (2 hours)
+---
 
-#### Task 5.1: Create FilterBar Component
-**Files**: `ui/src/components/FilterBar.tsx`
-**Effort**: 1 hour
+## Files Modified
 
-```typescript
-interface FilterBarProps {
-  providers: string[];        // Available providers
-  workspaces: string[];       // Available workspaces
-  selectedProviders: string[];
-  selectedWorkspaces: string[];
-  onProviderChange: (providers: string[]) => void;
-  onWorkspaceChange: (workspaces: string[]) => void;
-}
+| File | Changes | Est LOC |
+|------|---------|---------|
+| `ThreadList.tsx` | Import + add ProviderBadge | +5 |
+| `MessageCenter.tsx` | FilterBar + state + filtering | +60 |
+| `store_sqlite.go` | Extend GetTaskStats with costs | +40 |
+| `handlers_statistics.go` | Update structs + queries | +30 |
+| `StatsPanel.tsx` | Display cost in breakdowns | +25 |
+| **Total** | | **~160** |
 
-export const FilterBar: React.FC<FilterBarProps> = (props) => {
-  // Render provider chips (toggleable)
-  // Render workspace dropdown
-};
-```
+## Success Metrics
 
-**Acceptance Criteria:**
-- [ ] Provider chips are toggleable
-- [ ] Workspace dropdown shows available options
-- [ ] Clear filters button
-
-#### Task 5.2: Integrate FilterBar into ThreadList/MessageCenter
-**Files**: `ui/src/components/MessageCenter/MessageCenter.tsx`
-**Effort**: 45 min
-
-- Add filter state
-- Pass to FilterBar
-- Filter displayed messages based on selections
-- Persist to localStorage
-
-**Acceptance Criteria:**
-- [ ] Filters affect displayed messages
-- [ ] Filter state persists on refresh
-
-#### Task 5.3: Add CSS Styles
-**Files**: `ui/src/components/MessageCenter/MessageCenter.css`
-**Effort**: 15 min
-
-- Style filter bar
-- Style badges
-- Responsive layout
-
-### Phase 6: Filter API (1.5 hours)
-
-#### Task 6.1: Add Filter Params to Messages API
-**Files**: `internal/server/handlers_messages.go`
-**Effort**: 45 min
-
-```go
-func (h *Handler) ListMessages(w http.ResponseWriter, r *http.Request) {
-    threadID := r.URL.Query().Get("thread_id")
-    provider := r.URL.Query().Get("provider")
-    workspace := r.URL.Query().Get("workspace")
-
-    // Build SQL with optional WHERE clauses
-    query := "SELECT ... FROM messages m"
-    // Join with tasks if filtering by provider/workspace
-}
-```
-
-**Acceptance Criteria:**
-- [ ] provider filter works
-- [ ] workspace filter works
-- [ ] Multiple filters combine (AND)
-
-#### Task 6.2: Add Workspaces List Endpoint
-**Files**: `internal/server/handlers_messages.go`
-**Effort**: 45 min
-
-```go
-// GET /api/workspaces
-func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
-    // SELECT DISTINCT workspace FROM threads WHERE workspace IS NOT NULL
-    // OR SELECT DISTINCT workspace FROM tasks WHERE workspace IS NOT NULL
-}
-```
-
-**Acceptance Criteria:**
-- [ ] Returns unique workspaces
-- [ ] Used to populate filter dropdown
-
-### Phase 7: Statistics (2.5 hours)
-
-#### Task 7.1: Create Statistics API Endpoint
-**Files**: `internal/server/handlers_statistics.go` (new)
-**Effort**: 1 hour
-
-```go
-// GET /api/statistics
-
-type StatisticsResponse struct {
-    Global      GlobalStats      `json:"global"`
-    ByProvider  []ProviderStats  `json:"by_provider"`
-    ByWorkspace []WorkspaceStats `json:"by_workspace"`
-}
-
-func (h *Handler) GetStatistics(w http.ResponseWriter, r *http.Request) {
-    // Query for global stats
-    // Query for per-provider breakdown
-    // Query for per-workspace breakdown
-}
-```
-
-**Acceptance Criteria:**
-- [ ] Returns global totals
-- [ ] Returns per-provider breakdown
-- [ ] Returns per-workspace breakdown
-
-#### Task 7.2: Create Statistics UI Components
-**Files**: `ui/src/components/StatsPanel.tsx`
-**Effort**: 1 hour
-
-- ProviderStatsPanel: Cards for each provider
-- WorkspaceStatsPanel: Cards for each workspace
-- Fetch from /api/statistics
-
-**Acceptance Criteria:**
-- [ ] Shows provider breakdown cards
-- [ ] Shows workspace breakdown cards
-- [ ] Loading and error states
-
-#### Task 7.3: Integrate into Dashboard
-**Files**: `ui/src/components/MessageCenter/MessageCenter.tsx` or new page
-**Effort**: 30 min
-
-- Add stats panels to UI
-- Fetch on mount
-- Refresh button
-
-**Acceptance Criteria:**
-- [ ] Stats visible in dashboard
-- [ ] Data updates on refresh
+- [ ] ProviderBadge visible on threads (M1)
+- [ ] FilterBar filters threads by provider (M2)
+- [ ] FilterBar filters threads by workspace (M2)
+- [ ] Statistics show cost breakdown by provider (M3)
+- [ ] Statistics show cost breakdown by workspace (M3)
+- [ ] All existing tests pass
+- [ ] UI builds: `cd ui && npm run build`
 
 ## Testing
 
 ### Manual Tests
 - [ ] Start services: `make services-start`
-- [ ] Set workspace on a thread via folder picker
-- [ ] Run a task (send directive to coordinator)
-- [ ] Verify provider badge appears on result message
-- [ ] Verify workspace badge appears on result message
-- [ ] Test provider filter: select claude-code only
-- [ ] Test workspace filter: select specific folder only
-- [ ] Check statistics panel shows breakdown
-- [ ] Verify filters persist on page refresh
+- [ ] Open dashboard: http://localhost:1957
+- [ ] Verify provider badge on threads
+- [ ] Test provider filter dropdown
+- [ ] Test workspace filter dropdown
+- [ ] Verify filter persistence after refresh
+- [ ] Check statistics panel shows cost breakdown
 
 ### Automated Tests
-- [ ] Store migration adds workspace column
-- [ ] ProviderBadge renders correctly for each provider
-- [ ] WorkspaceBadge shows folder name with tooltip
-- [ ] Statistics aggregation returns correct totals
+- [ ] Run `make test` - all pass
+- [ ] Run `cd ui && npm run build` - builds successfully
 
 ## Definition of Done
 
 - [ ] All acceptance criteria met
 - [ ] No console errors in browser
-- [ ] Responsive design works
-- [ ] Build passes: `cd ui && npm run build`
-- [ ] Go tests pass: `make test`
-- [ ] Documentation updated
-
-## Rollback Plan
-
-If issues arise:
-1. Workspace column is additive (no breaking changes)
-2. Filters can be disabled in UI
-3. Statistics endpoint can return empty arrays
-4. Badges are optional (check for null)
+- [ ] Build passes
+- [ ] Tests pass
 
 ---
 
 **Created**: 2024-12-30
+**Updated**: 2026-01-06 (reduced scope after discovering existing components)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Thread } from '../../../types';
 import { WorkspaceBadge } from '../../../components/badges/WorkspaceBadge';
+import { ProviderBadge } from '../../../components/badges/ProviderBadge';
 
 interface ThreadListProps {
   threads: Thread[];
@@ -251,10 +252,7 @@ export const ThreadList: React.FC<ThreadListProps> = ({
 
                   <div className="thread-meta">
                     {thread.target_agent && (
-                      <span className="thread-agent" title={`Target: ${thread.target_agent}`}>
-                        {Icons.bot}
-                        {thread.target_agent}
-                      </span>
+                      <ProviderBadge provider={thread.target_agent} size="small" />
                     )}
                     {thread.workspace && (
                       <WorkspaceBadge workspace={thread.workspace} size="small" />
@@ -564,27 +562,6 @@ export const ThreadList: React.FC<ThreadListProps> = ({
 
         .thread-creator svg {
           opacity: 0.7;
-        }
-
-        .thread-agent {
-          display: flex;
-          align-items: center;
-          gap: var(--space-1);
-          font-size: var(--text-xs);
-          font-weight: var(--font-medium);
-          color: var(--color-primary);
-          padding: 2px 6px;
-          background: rgba(37, 194, 160, 0.1);
-          border-radius: var(--radius-sm);
-          max-width: 120px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .thread-agent svg {
-          flex-shrink: 0;
-          opacity: 0.8;
         }
 
         .thread-seq {

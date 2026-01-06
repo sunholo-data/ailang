@@ -421,7 +421,11 @@ function SpanDetail({ span }: { span: any }) {
           )}
           {cacheReadTokens > 0 && (
             <span className={styles.spanMetric}>
-              <span className={styles.metricIcon}>⚡</span>
+              <span className={styles.metricIcon}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+              </span>
               {formatNumber(cacheReadTokens)} cached
             </span>
           )}

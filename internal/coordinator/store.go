@@ -88,20 +88,28 @@ type TaskFilter struct {
 	OrderDesc bool
 }
 
+// DetailedStats provides cost/token breakdown for a provider or workspace
+type DetailedStats struct {
+	Count        int     `json:"count"`
+	CostUSD      float64 `json:"cost_usd"`
+	InputTokens  int     `json:"input_tokens"`
+	OutputTokens int     `json:"output_tokens"`
+}
+
 // TaskStats provides aggregate statistics
 type TaskStats struct {
-	TotalTasks       int            `json:"total_tasks"`
-	PendingTasks     int            `json:"pending_tasks"`
-	RunningTasks     int            `json:"running_tasks"`
-	PendingApprovals int            `json:"pending_approvals"` // Tasks awaiting human approval
-	CompletedTasks   int            `json:"completed_tasks"`
-	FailedTasks      int            `json:"failed_tasks"`
-	ByType           map[string]int `json:"by_type"`
-	ByProvider       map[string]int `json:"by_provider"`
-	ByWorkspace      map[string]int `json:"by_workspace"` // Per-workspace breakdown
-	TotalCost        float64        `json:"total_cost"`
-	TotalTokens      int            `json:"total_tokens"`
-	AvgDuration      time.Duration  `json:"avg_duration"`
+	TotalTasks       int                       `json:"total_tasks"`
+	PendingTasks     int                       `json:"pending_tasks"`
+	RunningTasks     int                       `json:"running_tasks"`
+	PendingApprovals int                       `json:"pending_approvals"` // Tasks awaiting human approval
+	CompletedTasks   int                       `json:"completed_tasks"`
+	FailedTasks      int                       `json:"failed_tasks"`
+	ByType           map[string]int            `json:"by_type"`
+	ByProvider       map[string]*DetailedStats `json:"by_provider"`
+	ByWorkspace      map[string]*DetailedStats `json:"by_workspace"` // Per-workspace breakdown
+	TotalCost        float64                   `json:"total_cost"`
+	TotalTokens      int                       `json:"total_tokens"`
+	AvgDuration      time.Duration             `json:"avg_duration"`
 }
 
 // TaskEventRecord represents a stored task streaming event

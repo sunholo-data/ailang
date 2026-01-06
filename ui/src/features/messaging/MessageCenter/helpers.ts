@@ -23,11 +23,21 @@ export const parseExecutionMetadata = (metadataJson?: string): ExecutionMetadata
 
 /**
  * Check if a status message indicates "running" state
+ * Also checks message age - status messages older than 5 minutes are not "running"
  */
 export const isRunningStatus = (message: Message): boolean => {
   if (message.kind !== 'status') return false;
   const content = message.content.toLowerCase();
-  return content.includes('running') || content.includes('thinking') || content.includes('executing') || content.includes('processing');
+  const hasRunningKeyword = content.includes('running') || content.includes('thinking') || content.includes('executing') || content.includes('processing');
+  if (!hasRunningKeyword) return false;
+
+  // Don't show spinner for old status messages (older than 5 minutes)
+  // If a task hasn't completed in 5 minutes, something is wrong and we shouldn't show spinner forever
+  const messageAge = Date.now() - new Date(message.created_at).getTime();
+  const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+  if (messageAge > STALE_THRESHOLD_MS) return false;
+
+  return true;
 };
 
 /**

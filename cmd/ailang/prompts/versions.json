@@ -400,16 +400,17 @@
     },
     "v0.6.5": {
       "file": "prompts/v0.6.5.md",
-      "hash": "e55b825b32e9a958eca1f030b4b855e3aedb5a6d61f91cb142906b60c5c82ea0",
-      "description": "stdlib gaps + prelude fix: println in prelude (no import needed), print requires std/io",
+      "hash": "53508b2f9cc0f8314a9f547863d01e50a2cdb9f358f7e9db5eaff5e81abd4dab",
+      "description": "stdlib gaps + language gaps (polymorphic ADT) + record_update + error handling examples",
       "created": "2026-01-05",
       "tags": [
         "production",
         "latest",
         "stdlib-gaps",
-        "prelude-fix"
+        "prelude-fix",
+        "language-gaps"
       ],
-      "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). Added Option construction examples, floatToInt/intToFloat examples, chars() for string to character list conversion. STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, and JSON array extraction (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, etc)."
+      "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, JSON array extraction. LANGUAGE GAP WARNINGS (from agent analysis): Added letrec for recursive lambdas section, type annotations for HOFs section, expanded 'What AILANG Does NOT Have' table (tuple let-destructuring, lambda tuple syntax outside foldl, nested func syntax)."
     }
   },
   "active": "v0.6.5",

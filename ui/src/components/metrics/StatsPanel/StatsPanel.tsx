@@ -7,14 +7,22 @@ interface ThreadStatistics {
   by_workspace: Record<string, number>;
 }
 
+// Detailed stats with cost/token breakdown
+interface DetailedStats {
+  count: number;
+  cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
 interface CoordinatorSummary {
   total_tasks: number;
   pending_tasks: number;
   running_tasks: number;
   completed_tasks: number;
   failed_tasks: number;
-  by_provider?: Record<string, number>;
-  by_workspace?: Record<string, number>;
+  by_provider?: Record<string, DetailedStats>;
+  by_workspace?: Record<string, DetailedStats>;
   total_cost: number;
   total_tokens: number;
 }
@@ -159,10 +167,56 @@ export function StatsPanel({ refreshTrigger }: StatsPanelProps) {
           {stats.coordinator.by_provider && Object.keys(stats.coordinator.by_provider).length > 0 && (
             <div className={styles.subSection}>
               <h5>By Provider</h5>
-              {Object.entries(stats.coordinator.by_provider).map(([provider, count]) => (
-                <div key={provider} className={styles.statRow}>
-                  <span className={styles.providerBadge} data-provider={provider}>{provider}</span>
-                  <span className={styles.value}>{count}</span>
+              {Object.entries(stats.coordinator.by_provider).map(([provider, details]) => (
+                <div key={provider} className={styles.detailedStatRow}>
+                  <div className={styles.detailedHeader}>
+                    <span className={styles.providerBadge} data-provider={provider}>{provider}</span>
+                    <span className={styles.count}>{details.count} tasks</span>
+                  </div>
+                  <div className={styles.detailedMetrics}>
+                    {details.cost_usd > 0 && (
+                      <span className={styles.metric} title="Total cost">
+                        ${details.cost_usd.toFixed(4)}
+                      </span>
+                    )}
+                    {(details.input_tokens > 0 || details.output_tokens > 0) && (
+                      <span className={styles.metric} title="Tokens (in/out)">
+                        {details.input_tokens.toLocaleString()}/{details.output_tokens.toLocaleString()} tok
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* By Workspace */}
+          {stats.coordinator.by_workspace && Object.keys(stats.coordinator.by_workspace).length > 0 && (
+            <div className={styles.subSection}>
+              <h5>By Workspace</h5>
+              {Object.entries(stats.coordinator.by_workspace)
+                .sort(([, a], [, b]) => b.count - a.count)
+                .slice(0, 10)
+                .map(([workspace, details]) => (
+                <div key={workspace} className={styles.detailedStatRow}>
+                  <div className={styles.detailedHeader}>
+                    <span className={styles.workspaceName} title={workspace}>
+                      {getFolderName(workspace)}
+                    </span>
+                    <span className={styles.count}>{details.count} tasks</span>
+                  </div>
+                  <div className={styles.detailedMetrics}>
+                    {details.cost_usd > 0 && (
+                      <span className={styles.metric} title="Total cost">
+                        ${details.cost_usd.toFixed(4)}
+                      </span>
+                    )}
+                    {(details.input_tokens > 0 || details.output_tokens > 0) && (
+                      <span className={styles.metric} title="Tokens (in/out)">
+                        {details.input_tokens.toLocaleString()}/{details.output_tokens.toLocaleString()} tok
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

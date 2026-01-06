@@ -22,6 +22,8 @@ interface MessageItemProps {
   onApprovalNotesChange: (approvalId: string, notes: string) => void;
   onApprove: (approvalId: string) => void;
   onReject: (approvalId: string) => void;
+  // Thread completion context - disables spinner for old status messages
+  threadCompleted?: boolean;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -36,9 +38,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onApprovalNotesChange,
   onApprove,
   onReject,
+  threadCompleted = false,
 }) => {
   const isHuman = message.from_type === 'human';
-  const isRunning = isRunningStatus(message);
+  // Only show running spinner if message indicates running AND thread hasn't completed
+  const isRunning = isRunningStatus(message) && !threadCompleted;
   const { needsTruncation, truncated, fullLength, lineCount } = getTruncatedContent(message.content);
   const displayContent = isExpanded ? message.content : truncated;
   const isFilesExpanded = expandedFiles.has(message.id);

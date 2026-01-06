@@ -39,7 +39,9 @@
       "Skill(perf-reviewer)",
       "Skill(trace-debugger)",
       "Bash(.claude/skills/gemini-cli-helper/scripts/:*)",
-      "Skill(gemini-cli-helper)"
+      "Skill(gemini-cli-helper)",
+      "Bash(.claude/skills/eval-gap-finder/scripts/:*)",
+      "Skill(eval-gap-finder)"
     ]
   },
   "hooks": {

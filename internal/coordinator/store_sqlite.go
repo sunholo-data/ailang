@@ -330,8 +330,8 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 	stats := &TaskStats{
 		ByType:      make(map[string]int),
-		ByProvider:  make(map[string]int),
-		ByWorkspace: make(map[string]int),
+		ByProvider:  make(map[string]*DetailedStats),
+		ByWorkspace: make(map[string]*DetailedStats),
 	}
 
 	// Count by status
@@ -382,9 +382,17 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 		stats.ByType[taskType] = count
 	}
 
-	// Count by provider
+	// Count by provider with cost/token breakdown
 	rows3, err := s.db.QueryContext(ctx, `
-		SELECT COALESCE(provider, 'unknown'), COUNT(*) FROM tasks WHERE provider IS NOT NULL GROUP BY provider
+		SELECT
+			COALESCE(provider, 'unknown') as provider,
+			COUNT(*) as task_count,
+			COALESCE(SUM(cost), 0) as total_cost,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens
+		FROM tasks
+		WHERE provider IS NOT NULL
+		GROUP BY provider
 	`)
 	if err != nil {
 		return nil, err
@@ -394,15 +402,30 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 	for rows3.Next() {
 		var provider string
 		var count int
-		if err := rows3.Scan(&provider, &count); err != nil {
+		var cost float64
+		var inputTokens, outputTokens int
+		if err := rows3.Scan(&provider, &count, &cost, &inputTokens, &outputTokens); err != nil {
 			return nil, err
 		}
-		stats.ByProvider[provider] = count
+		stats.ByProvider[provider] = &DetailedStats{
+			Count:        count,
+			CostUSD:      cost,
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+		}
 	}
 
-	// Count by workspace
+	// Count by workspace with cost/token breakdown
 	rows4, err := s.db.QueryContext(ctx, `
-		SELECT COALESCE(workspace, 'unknown'), COUNT(*) FROM tasks WHERE workspace IS NOT NULL AND workspace != '' GROUP BY workspace
+		SELECT
+			COALESCE(workspace, 'unknown') as workspace,
+			COUNT(*) as task_count,
+			COALESCE(SUM(cost), 0) as total_cost,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens
+		FROM tasks
+		WHERE workspace IS NOT NULL AND workspace != ''
+		GROUP BY workspace
 	`)
 	if err != nil {
 		return nil, err
@@ -412,10 +435,17 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 	for rows4.Next() {
 		var workspace string
 		var count int
-		if err := rows4.Scan(&workspace, &count); err != nil {
+		var cost float64
+		var inputTokens, outputTokens int
+		if err := rows4.Scan(&workspace, &count, &cost, &inputTokens, &outputTokens); err != nil {
 			return nil, err
 		}
-		stats.ByWorkspace[workspace] = count
+		stats.ByWorkspace[workspace] = &DetailedStats{
+			Count:        count,
+			CostUSD:      cost,
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+		}
 	}
 
 	// Totals

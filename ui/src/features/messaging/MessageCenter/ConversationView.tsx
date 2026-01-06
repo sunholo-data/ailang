@@ -1,13 +1,23 @@
 /**
  * Conversation view - displays messages and input for a thread
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Message, Thread } from '../../../types';
 import { Icons } from '../../../components/common/Icons';
 import { truncateId } from '../../../utils/formatters';
 import { MessageItem } from './MessageItem';
 import { MessageInput } from './MessageInput';
 import './ConversationView.css';
+
+/**
+ * Check if a thread has a terminal message (result, error, approval_request)
+ * If it does, status messages should NOT show the running spinner
+ */
+const hasTerminalMessage = (messages: Message[]): boolean => {
+  return messages.some(m =>
+    m.kind === 'result' || m.kind === 'error' || m.kind === 'approval_request'
+  );
+};
 
 interface ConversationViewProps {
   thread?: Thread;
@@ -32,6 +42,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [handledApprovals, setHandledApprovals] = useState<Set<string>>(new Set());
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+  // Check if thread has completed (has result/error/approval_request message)
+  // Used to prevent showing spinner on old "status: running" messages
+  const threadCompleted = useMemo(() => hasTerminalMessage(messages), [messages]);
 
   // Load workspace from thread when thread changes
   useEffect(() => {
@@ -164,6 +178,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 onApprovalNotesChange={updateApprovalNotes}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                threadCompleted={threadCompleted}
               />
             );
           })

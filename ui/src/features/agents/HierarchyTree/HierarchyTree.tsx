@@ -175,7 +175,13 @@ export const HierarchyTree: React.FC<HierarchyTreeProps> = ({ selection, onSelec
             className={`tree-node-content nav-item ${selection.type === 'observatory' ? 'selected' : ''}`}
             onClick={() => onSelect({ type: 'observatory' })}
           >
-            <span className="nav-icon">📊</span>
+            <span className="nav-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="10" width="4" height="11" rx="1" />
+                <rect x="10" y="6" width="4" height="15" rx="1" />
+                <rect x="17" y="3" width="4" height="18" rx="1" />
+              </svg>
+            </span>
             <span className="node-label">Observatory</span>
           </div>
         </div>

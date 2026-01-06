@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThreadList } from './ThreadList';
 import { ConversationView } from './ConversationView';
+import { FilterBar } from '../../../components/badges/FilterBar';
 import { useWebSocket } from '../../../hooks/useWebSocket';
 import { Thread, Message, MessageEvent } from '../../../types';
 
@@ -45,6 +46,50 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Map<string, Message[]>>(new Map());
   const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map());
+
+  // Filter state with localStorage persistence
+  const [selectedProvider, setSelectedProvider] = useState(
+    () => localStorage.getItem('collab_filter_provider') || ''
+  );
+  const [selectedWorkspace, setSelectedWorkspace] = useState(
+    () => localStorage.getItem('collab_filter_workspace') || ''
+  );
+
+  // Persist filter state to localStorage
+  useEffect(() => {
+    localStorage.setItem('collab_filter_provider', selectedProvider);
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    localStorage.setItem('collab_filter_workspace', selectedWorkspace);
+  }, [selectedWorkspace]);
+
+  // Extract unique providers and workspaces from threads
+  const providers = useMemo(() =>
+    [...new Set(threads.map(t => t.target_agent).filter(Boolean) as string[])],
+    [threads]
+  );
+
+  const workspaces = useMemo(() =>
+    [...new Set(threads.map(t => t.workspace).filter(Boolean) as string[])],
+    [threads]
+  );
+
+  // Filter threads based on selected filters
+  const filteredThreads = useMemo(() =>
+    threads.filter(t => {
+      if (selectedProvider && t.target_agent !== selectedProvider) return false;
+      if (selectedWorkspace && t.workspace !== selectedWorkspace) return false;
+      return true;
+    }),
+    [threads, selectedProvider, selectedWorkspace]
+  );
+
+  // Clear all filters
+  const handleClearFilters = useCallback(() => {
+    setSelectedProvider('');
+    setSelectedWorkspace('');
+  }, []);
 
   // Agent management
   const [runningAgents, setRunningAgents] = useState<RunningAgent[]>([]);
@@ -495,7 +540,11 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
           <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
         <div className="status-meta">
-          <span className="thread-count">{threads.length} threads</span>
+          <span className="thread-count">
+            {filteredThreads.length === threads.length
+              ? `${threads.length} threads`
+              : `${filteredThreads.length}/${threads.length} threads`}
+          </span>
           <span className="agent-count">{runningAgents.length} agents</span>
           <button className="launch-agent-btn" onClick={() => setShowAgentModal(true)}>
             + Agent
@@ -554,8 +603,20 @@ export const MessageCenter: React.FC<MessageCenterProps> = ({
       {/* Main Layout */}
       <div className="center-layout">
         <aside className="threads-panel">
+          {/* FilterBar - only show if there are threads to filter */}
+          {threads.length > 0 && (providers.length > 0 || workspaces.length > 0) && (
+            <FilterBar
+              providers={providers}
+              workspaces={workspaces}
+              selectedProvider={selectedProvider}
+              selectedWorkspace={selectedWorkspace}
+              onProviderChange={setSelectedProvider}
+              onWorkspaceChange={setSelectedWorkspace}
+              onClearFilters={handleClearFilters}
+            />
+          )}
           <ThreadList
-            threads={threads}
+            threads={filteredThreads}
             selectedThreadId={selectedThreadId}
             onSelectThread={handleSelectThread}
             onCreateThread={handleCreateThread}
