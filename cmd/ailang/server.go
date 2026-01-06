@@ -132,6 +132,8 @@ func serverCommand(args []string) error {
 	} else {
 		srv.SetTaskEventStore(coordStore)
 		srv.SetApprovalStore(coordStore)
+		srv.SetCoordinatorStore(&coordStoreAdapter{store: coordStore})
+		srv.SetCoordinatorStoreRaw(coordStore) // Full store for Control Plane queries
 		defer coordStore.Close()
 	}
 
@@ -195,4 +197,28 @@ func openBrowser(url string) error {
 	}
 
 	return cmd.Start()
+}
+
+// coordStoreAdapter adapts coordinator.SQLiteStore to server.CoordinatorStore
+type coordStoreAdapter struct {
+	store *coordinator.SQLiteStore
+}
+
+// GetCoordinatorStats implements server.CoordinatorStore
+func (a *coordStoreAdapter) GetCoordinatorStats() (*server.CoordinatorStats, error) {
+	ctx := context.Background()
+	stats, err := a.store.GetTaskStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &server.CoordinatorStats{
+		Running:      true, // If we got here, coordinator store is available
+		TasksRun:     stats.CompletedTasks,
+		PendingTasks: stats.PendingTasks,
+		RunningTasks: stats.RunningTasks,
+		FailedTasks:  stats.FailedTasks,
+		TotalCost:    stats.TotalCost,
+		TotalTokens:  stats.TotalTokens,
+	}, nil
 }

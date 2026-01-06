@@ -15,6 +15,7 @@
   padding: var(--space-3) var(--space-4);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0; /* Prevent header from collapsing */
 }
 
 .header-info {

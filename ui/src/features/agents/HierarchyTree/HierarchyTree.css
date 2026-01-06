@@ -223,6 +223,52 @@
   flex-shrink: 0;
 }
 
+/* Control Plane v4 - Primary navigation */
+.tree-node-content.nav-primary {
+  background: linear-gradient(135deg, rgba(37, 194, 160, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(37, 194, 160, 0.3);
+  border-radius: 6px;
+  margin: 0 8px 4px 8px;
+}
+
+.tree-node-content.nav-primary:hover {
+  background: linear-gradient(135deg, rgba(37, 194, 160, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border-color: rgba(37, 194, 160, 0.5);
+}
+
+.tree-node-content.nav-primary.selected {
+  background: linear-gradient(135deg, rgba(37, 194, 160, 0.25) 0%, rgba(245, 158, 11, 0.15) 100%);
+  border-color: #25c2a0;
+  color: #25c2a0;
+}
+
+.tree-node-content.nav-primary .nav-icon {
+  color: #25c2a0;
+}
+
+/* v4 badge for Control Plane */
+.nav-badge-new {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #25c2a0 0%, #1a9a7d 100%);
+  color: #0d1117;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 /* Separator between sections */
 .tree-separator {
   height: 1px;

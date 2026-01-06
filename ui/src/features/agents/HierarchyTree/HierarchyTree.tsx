@@ -169,6 +169,27 @@ export const HierarchyTree: React.FC<HierarchyTreeProps> = ({ selection, onSelec
       </div>
 
       <div className="tree-content">
+        {/* Control Plane v4 - Primary dashboard */}
+        <div className="tree-node">
+          <div
+            className={`tree-node-content nav-item nav-primary ${selection.type === 'controlplane' ? 'selected' : ''}`}
+            onClick={() => onSelect({ type: 'controlplane' })}
+          >
+            <span className="nav-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="4" />
+                <line x1="12" y1="2" x2="12" y2="4" />
+                <line x1="12" y1="20" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="4" y2="12" />
+                <line x1="20" y1="12" x2="22" y2="12" />
+              </svg>
+            </span>
+            <span className="node-label">Control Plane</span>
+            <span className="nav-badge-new">v4</span>
+          </div>
+        </div>
+
         {/* Observatory link */}
         <div className="tree-node">
           <div

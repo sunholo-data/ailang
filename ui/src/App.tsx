@@ -5,6 +5,7 @@ import { MessageCenter } from './features/messaging';
 import { ApprovalQueue } from './features/approvals';
 import { TaskExecutionPanel } from './features/tasks';
 import { Observatory } from './features/observatory';
+import { ControlPlane } from './features/controlplane/ControlPlane';
 // Components
 import { Breadcrumb } from './components/common';
 import { ConnectionStatus } from './components/ConnectionStatus';
@@ -16,7 +17,8 @@ import './App.css';
 const LogoImage = <img src="/logo.png" alt="AILANG" width="28" height="28" />;
 
 export const App: React.FC = () => {
-  const [selection, setSelection] = useState<Selection>({ type: 'overview' });
+  // Default to Control Plane v4 as the main view
+  const [selection, setSelection] = useState<Selection>({ type: 'controlplane' });
   const [hierarchy, setHierarchy] = useState<HierarchyResponse | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [approvalHistory, setApprovalHistory] = useState<Approval[]>([]);
@@ -332,6 +334,8 @@ export const App: React.FC = () => {
       return <Observatory />;
     }
 
+    // Note: controlplane is handled at top level as full-page UI
+
     return (
       <div className="empty-state">
         <p>Select an agent or thread from the sidebar</p>
@@ -340,6 +344,11 @@ export const App: React.FC = () => {
   };
 
   const pendingCount = approvals?.filter((a) => a.status === 'pending').length || 0;
+
+  // Control Plane v4 is a full-page standalone UI
+  if (selection.type === 'controlplane') {
+    return <ControlPlane onSwitchToOldDashboard={() => setSelection({ type: 'overview' })} />;
+  }
 
   return (
     <div className="app">
@@ -359,6 +368,15 @@ export const App: React.FC = () => {
 
         <div className="header-meta">
           <ConnectionStatus />
+          {selection.type !== 'controlplane' && (
+            <button
+              className="control-plane-link"
+              onClick={() => setSelection({ type: 'controlplane' })}
+              title="Open Control Plane v4"
+            >
+              ◎ Control Plane
+            </button>
+          )}
           {pendingCount > 0 && (
             <span className="pending-badge" title={`${pendingCount} pending approvals`}>
               {pendingCount} pending

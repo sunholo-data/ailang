@@ -58,6 +58,7 @@ type Server struct {
 	// Coordinator integration for task metrics
 	resourceRegistry *coordinator.ResourceTrackerRegistry
 	coordStore       CoordinatorStore
+	coordStoreRaw    coordinator.Store // Full store interface for Control Plane queries
 
 	// Coordinator approval store for approval workflow
 	approvalStore CoordinatorApprovalStore
@@ -266,6 +267,10 @@ func (s *Server) Start() error {
 	// REST API endpoints - Utility
 	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
 	mux.HandleFunc("/api/telemetry/config", s.handleTelemetryConfig)
+
+	// REST API endpoints - Control Plane
+	mux.HandleFunc("/api/controlplane/heatmap", s.handleControlPlaneHeatmap)
+	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
 
 	// Observatory API endpoints (if configured)
 	if s.obsAPI != nil {

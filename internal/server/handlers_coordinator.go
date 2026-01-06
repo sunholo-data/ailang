@@ -36,6 +36,16 @@ func (s *Server) SetTaskEventStore(store CoordinatorTaskEventStore) {
 	s.taskEventStore = store
 }
 
+// SetCoordinatorStore sets the coordinator store for statistics
+func (s *Server) SetCoordinatorStore(store CoordinatorStore) {
+	s.coordStore = store
+}
+
+// SetCoordinatorStoreRaw sets the raw coordinator store for Control Plane queries
+func (s *Server) SetCoordinatorStoreRaw(store coordinator.Store) {
+	s.coordStoreRaw = store
+}
+
 // handleCoordinatorRunningTasks returns the list of running/pending tasks
 // GET /api/coordinator/running
 func (s *Server) handleCoordinatorRunningTasks(w http.ResponseWriter, r *http.Request) {
