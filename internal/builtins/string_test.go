@@ -462,3 +462,104 @@ func TestStringReverseIdempotent(t *testing.T) {
 		})
 	}
 }
+
+// TestStrChars tests the _str_chars builtin
+func TestStrChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		// Basic cases
+		{"empty string", "", []string{}},
+		{"single character", "a", []string{"a"}},
+		{"two characters", "ab", []string{"a", "b"}},
+
+		// ASCII strings
+		{"hello", "hello", []string{"h", "e", "l", "l", "o"}},
+		{"digits", "123", []string{"1", "2", "3"}},
+		{"special characters", "!@#", []string{"!", "@", "#"}},
+
+		// Unicode - emoji
+		{"single emoji", "🎉", []string{"🎉"}},
+		{"two emoji", "🎉🎊", []string{"🎉", "🎊"}},
+		{"emoji and text", "a🎉b", []string{"a", "🎉", "b"}},
+
+		// Unicode - accented characters
+		{"accented cafe", "café", []string{"c", "a", "f", "é"}},
+		{"accented greek", "αβγ", []string{"α", "β", "γ"}},
+
+		// Mixed Unicode
+		{"mixed multilingual", "hello世界", []string{"h", "e", "l", "l", "o", "世", "界"}},
+		{"mixed with emoji", "hi🎉", []string{"h", "i", "🎉"}},
+
+		// Edge cases
+		{"single space", " ", []string{" "}},
+		{"whitespace", " \t", []string{" ", "\t"}},
+		{"newline", "a\nb", []string{"a", "\n", "b"}},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the builtin
+			args := []eval.Value{&eval.StringValue{Value: tt.input}}
+			result, err := strCharsImpl(ctx.EffContext, args)
+
+			if err != nil {
+				t.Fatalf("strCharsImpl() returned error: %v", err)
+			}
+
+			// Check that result is a ListValue
+			listVal, ok := result.(*eval.ListValue)
+			if !ok {
+				t.Fatalf("strCharsImpl() returned %T, expected *eval.ListValue", result)
+			}
+
+			// Convert Elements to []string for comparison
+			var got []string
+			for _, elem := range listVal.Elements {
+				strVal, ok := elem.(*eval.StringValue)
+				if !ok {
+					t.Fatalf("expected *eval.StringValue in list, got %T", elem)
+				}
+				got = append(got, strVal.Value)
+			}
+
+			if len(got) != len(tt.expected) {
+				t.Errorf("chars(%q) length = %d, want %d\ngot: %v\nwant: %v",
+					tt.input, len(got), len(tt.expected), got, tt.expected)
+				return
+			}
+
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("chars(%q)[%d] = %q, want %q\ngot: %v\nwant: %v",
+						tt.input, i, got[i], tt.expected[i], got, tt.expected)
+				}
+			}
+		})
+	}
+}
+
+// TestStrCharsWrongArgType tests error handling for wrong argument types
+func TestStrCharsWrongArgType(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	// Test with integer instead of string
+	args := []eval.Value{&eval.IntValue{Value: 42}}
+	_, err := strCharsImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strCharsImpl() should return error for wrong arg type, got nil")
+	}
+}
+
+// TestStrCharsType verifies the type signature is correctly constructed
+func TestStrCharsType(t *testing.T) {
+	typ := makeStrCharsType()
+	if typ == nil {
+		t.Error("makeStrCharsType() returned nil")
+	}
+	// Type should be: String -> [String]
+}

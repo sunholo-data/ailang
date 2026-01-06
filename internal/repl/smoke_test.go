@@ -49,8 +49,8 @@ func TestREPLSmoke_TypeCommand(t *testing.T) {
 			},
 		},
 		{
-			name:    ":type print shows ! {IO} (prelude)",
-			command: ":type print",
+			name:    ":type println shows ! {IO} (prelude)",
+			command: ":type println",
 			mustContain: []string{
 				"! {IO}", // CRITICAL: Effect row must be present
 				"string", // Parameter type

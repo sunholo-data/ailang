@@ -80,6 +80,7 @@ _sharedmem_get : string -> Option[bytes] ! {SharedMem}
 _sharedmem_keys : () -> list[string] ! {SharedMem}
 _sharedmem_put : (string, bytes) -> () ! {SharedMem}
 _simhash : string -> int
+_str_chars : string -> list[string]
 _str_compare : (string, string) -> int
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int

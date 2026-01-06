@@ -19,9 +19,10 @@ type SimpleEvaluator struct {
 func NewSimple() *SimpleEvaluator {
 	env := NewEnvironment()
 
-	// Register print builtin
-	env.Set("print", &BuiltinFunction{
-		Name: "print",
+	// Register println builtin (prelude provides this without import)
+	// Note: print (no newline) requires: import std/io (print)
+	env.Set("println", &BuiltinFunction{
+		Name: "println",
 		Fn: func(args []Value) (Value, error) {
 			for _, arg := range args {
 				fmt.Print(arg.String())

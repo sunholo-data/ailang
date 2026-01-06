@@ -1,7 +1,6 @@
 module examples/runnable/string_split
 
-import std/string (split)
-import std/io (println)
+import std/string (split, chars)
 
 export func main() -> () ! {IO} {
   let csv = "Alice,30,Engineer" in
@@ -9,13 +8,13 @@ export func main() -> () ! {IO} {
   let text = "line1\nline2\nline3" in
   let lines = split(text, "\n") in
   let word = "hello" in
-  let chars = split(word, "") in
+  let cs = chars(word) in  -- Use chars() for character-by-character processing
   let _ = println("CSV fields:") in
   let _ = printList(fields) in
   let _ = println("Lines:") in
   let _ = printList(lines) in
   let _ = println("Characters:") in
-  printList(chars)
+  printList(cs)
 }
 
 func printList(xs: [string]) -> () ! {IO} {

@@ -31,6 +31,11 @@ export pure func stringToFloat(s: string) -> Option[float] { _stringToFloat(s) }
 -- String splitting
 export pure func split(s: string, delimiter: string) -> list[string] { _str_split(s, delimiter) }
 
+-- chars: Convert string to list of single-character strings
+-- Useful for character-by-character processing
+-- Example: chars("abc") returns ["a", "b", "c"]
+export pure func chars(s: string) -> list[string] { _str_chars(s) }
+
 -- ============================================================================
 -- Type to String Conversion (v0.5.10)
 -- ============================================================================

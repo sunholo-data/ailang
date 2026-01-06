@@ -21,7 +21,9 @@ import (
 // core principle: effects remain explicit in type signatures (! {IO}).
 //
 // **Prelude contents:**
-//   - print : string -> () ! {IO}   -- Alias to _io_println
+//   - println : string -> () ! {IO}   -- Print with newline (most common use case)
+//
+// **Note:** `print` (no newline) requires explicit import: `import std/io (print)`
 //
 // **Shadowing:** User definitions shadow prelude (no warning, intentional)
 //
@@ -33,21 +35,22 @@ import (
 func InjectPrelude(env *types.TypeEnv) *types.TypeEnv {
 	// Debug logging (controlled by DEBUG_PRELUDE env var)
 	if os.Getenv("DEBUG_PRELUDE") != "" {
-		fmt.Fprintf(os.Stderr, "prelude: injecting type for [print]\n")
+		fmt.Fprintf(os.Stderr, "prelude: injecting type for [println]\n")
 	}
 
-	// Inject print type: string -> () ! {IO}
+	// Inject println type: string -> () ! {IO}
+	// println is the common case (with newline), print (no newline) requires import
 	T := types.NewBuilder()
-	printType := T.Func(T.String()).Returns(T.Unit()).Effects("IO")
+	printlnType := T.Func(T.String()).Returns(T.Unit()).Effects("IO")
 
 	// Wrap in a scheme (no type variables)
-	printScheme := &types.Scheme{
+	printlnScheme := &types.Scheme{
 		TypeVars: []string{},
 		RowVars:  []string{},
-		Type:     printType,
+		Type:     printlnType,
 	}
 
-	env = env.ExtendScheme("print", printScheme)
+	env = env.ExtendScheme("println", printlnScheme)
 	return env
 }
 

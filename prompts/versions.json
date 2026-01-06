@@ -400,15 +400,16 @@
     },
     "v0.6.5": {
       "file": "prompts/v0.6.5.md",
-      "hash": "1a831b2a65a39be82d2004b1e6ffb9d93feba036ec41710d94838ae8e84fdb1e",
-      "description": "stdlib gaps: list (nth/last/any/findIndex), string (join), JSON array extraction",
+      "hash": "e55b825b32e9a958eca1f030b4b855e3aedb5a6d61f91cb142906b60c5c82ea0",
+      "description": "stdlib gaps + prelude fix: println in prelude (no import needed), print requires std/io",
       "created": "2026-01-05",
       "tags": [
         "production",
         "latest",
-        "stdlib-gaps"
+        "stdlib-gaps",
+        "prelude-fix"
       ],
-      "notes": "STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join, and JSON array extraction (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, etc). Permissive variants skip non-matching elements, strict variants fail. Target: Reduce config_file_parser benchmark failures by providing common helper functions."
+      "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). Added Option construction examples, floatToInt/intToFloat examples, chars() for string to character list conversion. STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, and JSON array extraction (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, etc)."
     }
   },
   "active": "v0.6.5",

@@ -62,79 +62,80 @@ export func main(x: int) -> () ! {IO} = print("hello")`,
 	}
 }
 
-// TestPrelude_TypeInjection tests that InjectPrelude correctly adds print to type environment
+// TestPrelude_TypeInjection tests that InjectPrelude correctly adds println to type environment
 func TestPrelude_TypeInjection(t *testing.T) {
 	// Create base type environment with builtins
 	env := types.NewTypeEnvWithBuiltins()
 
-	// Verify print is NOT in base environment
-	_, err := env.Lookup("print")
+	// Verify println is NOT in base environment
+	_, err := env.Lookup("println")
 	if err == nil {
-		t.Fatal("print should not be in base type environment")
+		t.Fatal("println should not be in base type environment")
 	}
 
 	// Inject prelude
 	env = InjectPrelude(env)
 
-	// Verify print IS now in environment
-	printBinding, err := env.Lookup("print")
+	// Verify println IS now in environment
+	printlnBinding, err := env.Lookup("println")
 	if err != nil {
-		t.Fatalf("print should be in type environment after injection: %v", err)
+		t.Fatalf("println should be in type environment after injection: %v", err)
 	}
 
-	// Verify print has correct type: string -> () ! {IO}
-	scheme, ok := printBinding.(*types.Scheme)
+	// Verify println has correct type: string -> () ! {IO}
+	scheme, ok := printlnBinding.(*types.Scheme)
 	if !ok {
-		t.Fatalf("print binding is not a Scheme, got %T", printBinding)
+		t.Fatalf("println binding is not a Scheme, got %T", printlnBinding)
 	}
 
 	// Check it's a function type
 	funcType, ok := scheme.Type.(*types.TFunc2)
 	if !ok {
-		t.Fatalf("print type is not TFunc2, got %T", scheme.Type)
+		t.Fatalf("println type is not TFunc2, got %T", scheme.Type)
 	}
 
 	// Check parameters: should have 1 parameter of type string
 	if len(funcType.Params) != 1 {
-		t.Fatalf("print should have 1 parameter, got %d", len(funcType.Params))
+		t.Fatalf("println should have 1 parameter, got %d", len(funcType.Params))
 	}
 
 	// The parameter type should be string (lowercase, as it's a primitive)
 	paramTypeStr := funcType.Params[0].String()
 	if paramTypeStr != "string" {
-		t.Fatalf("print parameter should be string, got %v", funcType.Params[0])
+		t.Fatalf("println parameter should be string, got %v", funcType.Params[0])
 	}
 
 	// Check return type: should be Unit (represented as ())
 	returnTypeStr := funcType.Return.String()
 	if returnTypeStr != "()" {
-		t.Fatalf("print return type should be (), got %v", funcType.Return)
+		t.Fatalf("println return type should be (), got %v", funcType.Return)
 	}
 
 	// Check effects: should have IO effect
 	if funcType.EffectRow == nil {
-		t.Fatal("print should have effect row")
+		t.Fatal("println should have effect row")
 	}
 	if _, hasIO := funcType.EffectRow.Labels["IO"]; !hasIO {
-		t.Fatal("print should have IO effect")
+		t.Fatal("println should have IO effect")
 	}
 }
 
-// TestPrelude_NotInBuiltinList tests that print is NOT in the global builtin registry
+// TestPrelude_NotInBuiltinList tests that println is NOT in the global builtin registry
 func TestPrelude_NotInBuiltinList(t *testing.T) {
-	// This test ensures print is not globally available
+	// This test ensures println is not globally available
 	// It should only be injected via prelude for entry modules
+	// print (no newline) requires explicit import from std/io
 
 	// Create a type environment with builtins
 	env := types.NewTypeEnvWithBuiltins()
 
-	// Verify print is NOT in the base environment
-	_, err := env.Lookup("print")
+	// Verify println is NOT in the base environment (prelude-only)
+	_, err := env.Lookup("println")
 	if err == nil {
-		t.Fatal("print should NOT be in global builtins (it's prelude-only)")
+		t.Fatal("println should NOT be in global builtins (it's prelude-only)")
 	}
 
-	// Verify _io_println IS available (print delegates to this)
+	// Verify _io_println IS available (println delegates to this)
 	_, err = env.Lookup("_io_println")
 	if err != nil {
 		t.Fatal("_io_println should be in global builtins")

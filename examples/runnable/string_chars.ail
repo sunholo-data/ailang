@@ -1,0 +1,93 @@
+module examples/runnable/string_chars
+
+-- Demonstrates the chars function for character-by-character processing
+-- chars(s) converts a string to a list of single-character strings
+-- Unicode-aware: handles emoji and multi-byte characters correctly
+
+import std/string (chars)
+import std/list (length, map, filter, foldl)
+
+-- Count vowels in a string
+pure func countVowels(s: string) -> int {
+  let cs = chars(s);
+  let vowels = filter(func(c: string) -> bool { c == "a" || c == "e" || c == "i" || c == "o" || c == "u" }, cs);
+  length(vowels)
+}
+
+-- Check if string is a palindrome (using character comparison)
+pure func isPalindrome(s: string) -> bool {
+  let cs = chars(s);
+  let reversed = reverseList(cs);
+  listsEqual(cs, reversed)
+}
+
+pure func reverseList(xs: [string]) -> [string] {
+  foldl(func(acc: [string], x: string) -> [string] { x :: acc }, [], xs)
+}
+
+-- Compare two lists of strings element by element
+pure func listsEqual(xs: [string], ys: [string]) -> bool {
+  match (xs, ys) {
+    ([], []) => true,
+    (x :: xt, y :: yt) => if x == y then listsEqual(xt, yt) else false,
+    _ => false
+  }
+}
+
+-- Count total characters (Unicode-aware)
+pure func charCount(s: string) -> int {
+  length(chars(s))
+}
+
+-- Extract first character safely
+pure func firstChar(s: string) -> string {
+  match chars(s) {
+    [] => "",
+    c :: _ => c
+  }
+}
+
+-- Extract last character safely
+pure func lastChar(s: string) -> string {
+  let cs = chars(s);
+  match reverseList(cs) {
+    [] => "",
+    c :: _ => c
+  }
+}
+
+export func main() -> () ! {IO} {
+  println("=== chars() Examples ===");
+  println("");
+
+  -- Basic usage
+  println("Basic usage:");
+  println("  chars(\"hello\") = " ++ show(chars("hello")));
+  println("  chars(\"abc\") = " ++ show(chars("abc")));
+  println("");
+
+  -- Unicode handling
+  println("Unicode handling:");
+  println("  chars(\"cafe\") = " ++ show(chars("cafe")));
+  println("  charCount(\"hello\") = " ++ show(charCount("hello")));
+  println("");
+
+  -- Character processing
+  println("Character processing:");
+  println("  countVowels(\"hello\") = " ++ show(countVowels("hello")));
+  println("  countVowels(\"aeiou\") = " ++ show(countVowels("aeiou")));
+  println("");
+
+  -- Palindrome check
+  println("Palindrome check:");
+  println("  isPalindrome(\"racecar\") = " ++ show(isPalindrome("racecar")));
+  println("  isPalindrome(\"hello\") = " ++ show(isPalindrome("hello")));
+  println("");
+
+  -- First/last character
+  println("First/last character:");
+  println("  firstChar(\"hello\") = " ++ show(firstChar("hello")));
+  println("  lastChar(\"hello\") = " ++ show(lastChar("hello")));
+  println("  firstChar(\"\") = " ++ show(firstChar("")));
+  ()
+}

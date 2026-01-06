@@ -28,6 +28,7 @@ func init() {
 	registerStringToFloat()
 	registerStrSplit()
 	registerStringReverse()
+	registerStringChars()
 }
 
 // ============================================================================
@@ -748,4 +749,73 @@ func stringReverseImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 	reversed := string(runes)
 
 	return &eval.StringValue{Value: reversed}, nil
+}
+
+// ============================================================================
+// String Character Operations (M-DX-CHARS)
+// ============================================================================
+
+// registerStringChars registers the _str_chars builtin
+func registerStringChars() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_chars",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrCharsType,
+		Impl:    strCharsImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Convert string to list of single-character strings",
+			LongDesc:    "Splits a string into individual Unicode characters, returning each as a single-character string. Correctly handles multi-byte UTF-8 characters like emoji.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to convert to character list"},
+			},
+			Returns: "[string] - List of single-character strings",
+			Examples: []Example{
+				{Code: `_str_chars("abc")`, Description: `Returns ["a", "b", "c"]`},
+				{Code: `_str_chars("hello")`, Description: `Returns ["h", "e", "l", "l", "o"]`},
+				{Code: `_str_chars("")`, Description: `Returns [] (empty list)`},
+				{Code: `_str_chars("🎉")`, Description: `Returns ["🎉"] (single character)`},
+				{Code: `_str_chars("a🎉b")`, Description: `Returns ["a", "🎉", "b"]`},
+			},
+			SeeAlso:   []string{"_str_split", "_str_len", "_str_slice"},
+			Since:     "v0.6.5",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "characters", "list", "unicode", "utf8"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_chars: %v", err))
+	}
+}
+
+// makeStrCharsType builds the type signature for _str_chars
+// Type: string -> [string]
+func makeStrCharsType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.List(T.String())).Build()
+}
+
+// strCharsImpl is the implementation for _str_chars
+// Converts string to list of single-character strings (Unicode-aware)
+func strCharsImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// Extract string argument
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_chars: expected String, got %T", args[0])
+	}
+
+	// Convert string to runes for proper Unicode handling
+	runes := []rune(strVal.Value)
+
+	// Build list of single-character strings
+	elements := make([]eval.Value, len(runes))
+	for i, r := range runes {
+		elements[i] = &eval.StringValue{Value: string(r)}
+	}
+
+	return &eval.ListValue{Elements: elements}, nil
 }
