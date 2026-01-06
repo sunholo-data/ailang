@@ -24,10 +24,28 @@ import styles from './ControlPlane.module.css';
 import {
   useHeatmapData,
   useTopologyData,
-  useStatistics,
+  useControlPlaneStats,
   useEventQueue,
   useTraceData,
+  useBreakdownData,
+  BreakdownItem,
 } from './hooks';
+import {
+  ControlPlaneFilters,
+  hasActiveFilters,
+  getFilterDescription,
+  hasTimeRangeFilter,
+  mergeFilters,
+  clearTimeRangeFilter,
+} from './types';
+import {
+  useMetrics,
+  useTasks,
+  useTraces,
+  MetricsSummary,
+  Task as ObservatoryTask,
+  TraceSummary,
+} from '../../hooks/useObservatory';
 
 // Types
 interface Agent {
@@ -88,84 +106,17 @@ interface TrustCapability {
   icon: string;
 }
 
-// Mock data generators
-const generateHeatmapData = (): HeatmapCell[] => {
-  const cells: HeatmapCell[] = [];
-  const now = new Date();
-  for (let i = 89; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dayOfWeek = date.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const baseActivity = isWeekend ? Math.random() * 20 : Math.random() * 100 + 20;
-    cells.push({
-      date: date.toISOString().split('T')[0],
-      taskCount: Math.floor(baseActivity),
-      cost: baseActivity * 0.003,
-      successRate: 0.85 + Math.random() * 0.15,
-    });
-  }
-  return cells;
-};
+// Mock data removed - using real API data only
 
-const mockAgents: Agent[] = [
-  { id: 'design-doc-creator', label: 'Doc Creator', status: 'idle', trustScore: 80, taskCount: 47, cost: 1.23 },
-  { id: 'sprint-planner', label: 'Planner', status: 'busy', trustScore: 65, taskCount: 31, cost: 0.87 },
-  { id: 'sprint-executor', label: 'Executor', status: 'idle', trustScore: 45, taskCount: 89, cost: 2.45 },
-  { id: 'eval-analyzer', label: 'Analyzer', status: 'blocked', trustScore: 72, taskCount: 23, cost: 0.56 },
-];
-
-const mockEdges: TopologyEdge[] = [
-  { source: 'github', target: 'design-doc-creator', messageCount: 12, active: false },
-  { source: 'design-doc-creator', target: 'sprint-planner', messageCount: 31, active: true },
-  { source: 'sprint-planner', target: 'sprint-executor', messageCount: 28, active: false },
-  { source: 'sprint-executor', target: 'approval', messageCount: 89, active: false },
-];
-
-const mockSpans: Span[] = [
-  {
-    id: '1', name: 'coordinator.analyze', startMs: 0, durationMs: 2300,
-    children: [
-      { id: '1.1', name: 'task.classify', startMs: 100, durationMs: 800 },
-      { id: '1.2', name: 'task.route', startMs: 1000, durationMs: 1200 },
-    ]
-  },
-  { id: '2', name: 'executor.init', startMs: 2400, durationMs: 800 },
-  {
-    id: '3', name: 'executor.claude.execute', startMs: 3300, durationMs: 142000,
-    children: [
-      { id: '3.1', name: 'claude.read_files', startMs: 3400, durationMs: 3200 },
-      {
-        id: '3.2', name: 'claude.generate', startMs: 6700, durationMs: 98000,
-        children: [
-          { id: '3.2.1', name: 'anthropic.api', startMs: 6800, durationMs: 96000 },
-        ]
-      },
-      { id: '3.3', name: 'claude.write_files', startMs: 105000, durationMs: 4100 },
-    ]
-  },
-  { id: '4', name: 'coordinator.validate', startMs: 145500, durationMs: 3800 },
-  { id: '5', name: 'coordinator.finalize', startMs: 149500, durationMs: 2100 },
-];
-
-const mockTrustCapabilities: TrustCapability[] = [
-  { name: 'Read Files', score: 95, icon: '◉' },
-  { name: 'Write Docs', score: 80, icon: '◎' },
-  { name: 'Write Code', score: 45, icon: '⬡' },
-  { name: 'Run Tests', score: 70, icon: '▣' },
-  { name: 'Git Commit', score: 60, icon: '◈' },
-  { name: 'Git Push', score: 30, icon: '◇' },
+// Default trust capabilities (will be replaced by agent-specific config)
+const defaultTrustCapabilities: TrustCapability[] = [
+  { name: 'Read Files', score: 75, icon: '◉' },
+  { name: 'Write Docs', score: 75, icon: '◎' },
+  { name: 'Write Code', score: 50, icon: '⬡' },
+  { name: 'Run Tests', score: 75, icon: '▣' },
+  { name: 'Git Commit', score: 50, icon: '◈' },
+  { name: 'Git Push', score: 25, icon: '◇' },
   { name: 'Release', score: 0, icon: '⬢' },
-];
-
-const mockEvents: EventMessage[] = [
-  { id: 'e1', timestamp: new Date(Date.now() - 120000).toISOString(), type: 'task_start', source: 'coordinator', target: 'design-doc-creator', content: 'Starting task: Create design doc for Control Plane v4' },
-  { id: 'e2', timestamp: new Date(Date.now() - 90000).toISOString(), type: 'message', source: 'design-doc-creator', content: 'Reading existing design docs...' },
-  { id: 'e3', timestamp: new Date(Date.now() - 60000).toISOString(), type: 'handoff', source: 'design-doc-creator', target: 'sprint-planner', content: 'Design doc complete, handing off to sprint-planner' },
-  { id: 'e4', timestamp: new Date(Date.now() - 45000).toISOString(), type: 'task_start', source: 'sprint-planner', content: 'Analyzing design doc, calculating velocity...' },
-  { id: 'e5', timestamp: new Date(Date.now() - 30000).toISOString(), type: 'approval', source: 'sprint-planner', content: 'Sprint plan ready for approval: M-CONTROL-PLANE-V4' },
-  { id: 'e6', timestamp: new Date(Date.now() - 15000).toISOString(), type: 'task_complete', source: 'sprint-executor', content: 'Milestone M1 complete: Component scaffolding' },
-  { id: 'e7', timestamp: new Date(Date.now() - 5000).toISOString(), type: 'message', source: 'sprint-executor', content: 'Starting milestone M2: Heatmap implementation' },
 ];
 
 // Utility functions
@@ -189,6 +140,32 @@ const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+};
+
+// Parse selectedLevel to ControlPlaneFilters
+const parseSelectedLevelToFilters = (selectedLevel: string): ControlPlaneFilters => {
+  if (!selectedLevel || selectedLevel === 'global') {
+    return {};
+  }
+  // Format: "source-eval", "provider-claude", "model-claude-sonnet-4-5", "workspace-abc123"
+  const parts = selectedLevel.split('-');
+  if (parts.length < 2) return {};
+
+  const filterType = parts[0];
+  const filterValue = parts.slice(1).join('-'); // Handle model names with dashes
+
+  switch (filterType) {
+    case 'source':
+      return { source_type: filterValue };
+    case 'provider':
+      return { provider: filterValue };
+    case 'model':
+      return { model: filterValue };
+    case 'workspace':
+      return { workspace: filterValue };
+    default:
+      return {};
+  }
 };
 
 // Components
@@ -236,11 +213,36 @@ const CommandBar: React.FC<{
   </div>
 );
 
+interface AggregationStats {
+  totalTasks: number;
+  totalCost: number;
+  activeAgents: number;
+  pendingApprovals: number;
+  workspaces?: Record<string, number>;
+}
+
+interface FormattedBreakdownItem extends BreakdownItem {
+  costFormatted: string;
+  percentageFormatted: string;
+  tokensFormatted: string;
+}
+
+interface BreakdownData {
+  byProvider: FormattedBreakdownItem[];
+  bySourceType: FormattedBreakdownItem[];
+  byModel: FormattedBreakdownItem[];
+  byWorkspace: FormattedBreakdownItem[];
+  totalCost: string;
+}
+
 const AggregationNav: React.FC<{
   selectedLevel: string;
   onSelectLevel: (level: string) => void;
-}> = ({ selectedLevel, onSelectLevel }) => {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'workspaces']));
+  stats?: AggregationStats | null;
+  breakdowns?: BreakdownData | null;
+  loading?: boolean;
+}> = ({ selectedLevel, onSelectLevel, stats, breakdowns, loading }) => {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'source-type']));
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => {
@@ -257,9 +259,10 @@ const AggregationNav: React.FC<{
     icon: string;
     depth: number;
     count?: number;
-    cost?: number;
+    cost?: string;
+    percentage?: string;
     children?: React.ReactNode;
-  }> = ({ id, label, icon, depth, count, cost, children }) => {
+  }> = ({ id, label, icon, depth, count, cost, percentage, children }) => {
     const isExpanded = expanded.has(id);
     const isSelected = selectedLevel === id;
     const hasChildren = React.Children.count(children) > 0;
@@ -282,10 +285,13 @@ const AggregationNav: React.FC<{
           <span className={styles.navIcon}>{icon}</span>
           <span className={styles.navLabel}>{label}</span>
           {count !== undefined && (
-            <span className={styles.navCount}>{count}</span>
+            <span className={styles.navCount}>{count.toLocaleString()}</span>
           )}
-          {cost !== undefined && (
-            <span className={styles.navCost}>${cost.toFixed(2)}</span>
+          {percentage && (
+            <span className={styles.navPct}>{percentage}</span>
+          )}
+          {cost && (
+            <span className={styles.navCost}>{cost}</span>
           )}
         </button>
         {hasChildren && isExpanded && (
@@ -295,43 +301,135 @@ const AggregationNav: React.FC<{
     );
   };
 
+  // Icons for different breakdown categories
+  const sourceIcons: Record<string, string> = {
+    eval: '⚗',
+    coordinator: '◈',
+    direct_api: '↗',
+    local: '⌂',
+    other: '○',
+  };
+
+  const providerIcons: Record<string, string> = {
+    claude: '◉',
+    anthropic: '◉',
+    gemini: '◎',
+    openai: '○',
+    'gcp.vertex.agent': '◎',
+  };
+
   return (
     <nav className={styles.aggregationNav}>
       <div className={styles.navHeader}>
         <span className={styles.navTitle}>AGGREGATIONS</span>
       </div>
       <div className={styles.navTree}>
-        <NavItem id="global" label="Global" icon="◎" depth={0} count={167} cost={4.20}>
-          <NavItem id="workspaces" label="Workspaces" icon="▤" depth={1} count={3}>
-            <NavItem id="ws-ailang" label="ailang" icon="▢" depth={2} count={89} cost={2.45} />
-            <NavItem id="ws-stapledon" label="stapledon" icon="▢" depth={2} count={54} cost={1.12} />
-            <NavItem id="ws-other" label="other" icon="▢" depth={2} count={24} cost={0.63} />
+        <NavItem
+          id="global"
+          label="Global"
+          icon="◎"
+          depth={0}
+          count={loading ? undefined : stats?.totalTasks}
+          cost={loading ? undefined : breakdowns?.totalCost}
+        >
+          {/* Source Type breakdown */}
+          <NavItem
+            id="source-type"
+            label="By Source"
+            icon="▤"
+            depth={1}
+          >
+            {breakdowns?.bySourceType.map(item => (
+              <NavItem
+                key={item.id}
+                id={`source-${item.id}`}
+                label={item.label}
+                icon={sourceIcons[item.id] || '○'}
+                depth={2}
+                count={item.span_count}
+                percentage={item.percentageFormatted}
+                cost={item.costFormatted}
+              />
+            ))}
           </NavItem>
-          <NavItem id="providers" label="Providers" icon="◇" depth={1}>
-            <NavItem id="prov-claude" label="claude" icon="⬡" depth={2} count={142} cost={3.87} />
-            <NavItem id="prov-gemini" label="gemini" icon="⬢" depth={2} count={25} cost={0.33} />
+
+          {/* Provider breakdown */}
+          <NavItem
+            id="provider"
+            label="By Provider"
+            icon="◈"
+            depth={1}
+          >
+            {breakdowns?.byProvider.map(item => (
+              <NavItem
+                key={item.id}
+                id={`provider-${item.id}`}
+                label={item.label}
+                icon={providerIcons[item.id] || '○'}
+                depth={2}
+                count={item.span_count}
+                percentage={item.percentageFormatted}
+                cost={item.costFormatted}
+              />
+            ))}
           </NavItem>
-          <NavItem id="models" label="Models" icon="◈" depth={1}>
-            <NavItem id="model-opus" label="opus-4.5" icon="●" depth={2} count={12} cost={1.24} />
-            <NavItem id="model-sonnet" label="sonnet-4" icon="◐" depth={2} count={89} cost={2.13} />
-            <NavItem id="model-haiku" label="haiku-4" icon="○" depth={2} count={41} cost={0.50} />
+
+          {/* Model breakdown */}
+          <NavItem
+            id="model"
+            label="By Model"
+            icon="◎"
+            depth={1}
+          >
+            {breakdowns?.byModel.slice(0, 10).map(item => (
+              <NavItem
+                key={item.id}
+                id={`model-${item.id}`}
+                label={item.label}
+                icon="·"
+                depth={2}
+                count={item.span_count}
+                percentage={item.percentageFormatted}
+                cost={item.costFormatted}
+              />
+            ))}
           </NavItem>
-          <NavItem id="trust" label="Trust Level" icon="◉" depth={1}>
-            <NavItem id="trust-auto" label="Full Auto" icon="●" depth={2} count={34} />
-            <NavItem id="trust-low" label="Low-Risk" icon="◐" depth={2} count={67} />
-            <NavItem id="trust-review" label="Review" icon="◔" depth={2} count={45} />
-            <NavItem id="trust-manual" label="Manual" icon="○" depth={2} count={21} />
-          </NavItem>
+
+          {/* Workspace breakdown */}
+          {breakdowns?.byWorkspace && breakdowns.byWorkspace.length > 0 && (
+            <NavItem
+              id="workspace"
+              label="By Workspace"
+              icon="⬡"
+              depth={1}
+            >
+              {breakdowns.byWorkspace.map(item => (
+                <NavItem
+                  key={item.id}
+                  id={`workspace-${item.id}`}
+                  label={item.label || item.id}
+                  icon="·"
+                  depth={2}
+                  count={item.task_count}
+                  cost={item.costFormatted}
+                />
+              ))}
+            </NavItem>
+          )}
         </NavItem>
       </div>
       <div className={styles.navFooter}>
         <div className={styles.navStat}>
           <span className={styles.navStatLabel}>Active Agents</span>
-          <span className={styles.navStatValue}>4</span>
+          <span className={styles.navStatValue}>
+            {loading ? '...' : stats?.activeAgents ?? 0}
+          </span>
         </div>
         <div className={styles.navStat}>
           <span className={styles.navStatLabel}>Pending Approvals</span>
-          <span className={`${styles.navStatValue} ${styles.navStatWarning}`}>12</span>
+          <span className={`${styles.navStatValue} ${stats?.pendingApprovals ? styles.navStatWarning : ''}`}>
+            {loading ? '...' : stats?.pendingApprovals ?? 0}
+          </span>
         </div>
       </div>
     </nav>
@@ -754,7 +852,7 @@ const AgentTopology: React.FC<{
     return nodes;
   }, [agents, onAgentClick]);
 
-  // Convert edges to React Flow edges
+  // Convert edges to React Flow edges - always visible with clear styling
   const initialEdges: Edge[] = useMemo(() => {
     return topologyEdges.map((edge, idx) => ({
       id: `edge-${idx}`,
@@ -762,19 +860,27 @@ const AgentTopology: React.FC<{
       target: edge.target,
       type: 'smoothstep',
       animated: edge.active,
-      label: edge.messageCount.toString(),
-      labelStyle: { fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' },
-      labelBgStyle: { fill: '#1a1f2e', fillOpacity: 0.9 },
-      labelBgPadding: [4, 2] as [number, number],
+      // Show message count or "→" if 0
+      label: edge.messageCount > 0 ? edge.messageCount.toString() : '→',
+      labelStyle: {
+        fill: edge.active ? '#25c2a0' : '#94a3b8',
+        fontSize: 12,
+        fontFamily: 'monospace',
+        fontWeight: edge.messageCount > 0 ? 600 : 400,
+      },
+      labelBgStyle: { fill: '#1a1f2e', fillOpacity: 0.95 },
+      labelBgPadding: [6, 4] as [number, number],
+      labelBgBorderRadius: 4,
       style: {
-        stroke: edge.active ? '#25c2a0' : '#374151',
-        strokeWidth: edge.active ? 2 : 1,
+        // Always use at least strokeWidth 2 for visibility
+        stroke: edge.active ? '#25c2a0' : '#64748b',
+        strokeWidth: edge.active ? 3 : 2,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: edge.active ? '#25c2a0' : '#374151',
-        width: 20,
-        height: 20,
+        color: edge.active ? '#25c2a0' : '#64748b',
+        width: 24,
+        height: 24,
       },
     }));
   }, [topologyEdges]);
@@ -900,6 +1006,15 @@ const MessageQueue: React.FC<{
         <span className={styles.queueCount}>{events.length} events</span>
       </div>
       <div className={styles.queueList}>
+        {events.length === 0 && (
+          <div className={styles.queueEmpty}>
+            <span className={styles.queueEmptyIcon}>◎</span>
+            <span className={styles.queueEmptyText}>No recent events</span>
+            <span className={styles.queueEmptyHint}>
+              Events appear when tasks run or agents communicate
+            </span>
+          </div>
+        )}
         {events.map((event) => (
           <div
             key={event.id}
@@ -1250,63 +1365,87 @@ const TrustConfigPanel: React.FC<{
 
 interface GlobalStatsProps {
   stats?: {
-    completedTasks: number;
-    pendingApprovals: number;
+    // Observatory stats (canonical telemetry)
+    totalSpans: number;
+    totalTasks: number;
+    totalTokens: string;
     totalCost: string;
-    totalTokens: number;
-    taskSuccess: string;
+    successRate: string;
+    // Coordinator runtime stats
+    activeAgents: number;
+    pendingApprovals: number;
+    coordinatorTasks: number;
+    coordinatorCost: string;
+    // Data source status
+    observatoryOK: boolean;
+    coordinatorOK: boolean;
   } | null;
   loading?: boolean;
+  isFiltered?: boolean;
+  filterDescription?: string;
+  onClearFilter?: () => void;
 }
 
-const GlobalStats: React.FC<GlobalStatsProps> = ({ stats, loading }) => {
-  const formatTokens = (n: number) => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-    return n.toString();
-  };
-
+const GlobalStats: React.FC<GlobalStatsProps> = ({ stats, loading, isFiltered, filterDescription, onClearFilter }) => {
   return (
     <div className={styles.globalStats}>
-      <div className={styles.statCard}>
-        <span className={styles.statIcon}>◈</span>
+      {isFiltered && (
+        <div className={styles.filterBadge}>
+          <span className={styles.filterIcon}>⚡</span>
+          <span className={styles.filterText}>{filterDescription}</span>
+          <button className={styles.clearFilterBtn} onClick={onClearFilter} title="Clear filter">×</button>
+        </div>
+      )}
+      <span className={styles.statsScope} title={isFiltered ? "Filtered telemetry" : "Observatory telemetry (all sources)"}>
+        {isFiltered ? 'Filtered' : 'Observatory'}
+      </span>
+      <div className={styles.statCard} title="Total spans from all sources (evals, coordinator, local)">
+        <span className={styles.statIcon}>▤</span>
         <div className={styles.statContent}>
-          <span className={styles.statValue}>{loading ? '...' : stats?.completedTasks ?? '—'}</span>
-          <span className={styles.statLabel}>Completed</span>
+          <span className={styles.statValue}>{loading ? '...' : stats?.totalSpans ?? '—'}</span>
+          <span className={styles.statLabel}>Spans</span>
         </div>
       </div>
-      <div className={styles.statCard}>
-        <span className={`${styles.statIcon} ${styles.statWarning}`}>⏳</span>
-        <div className={styles.statContent}>
-          <span className={`${styles.statValue} ${styles.statWarning}`}>
-            {loading ? '...' : stats?.pendingApprovals ?? '—'}
-          </span>
-          <span className={styles.statLabel}>Pending</span>
-        </div>
-      </div>
-      <div className={styles.statCard}>
+      <div className={styles.statCard} title="Total cost across all API calls">
         <span className={styles.statIcon}>$</span>
         <div className={styles.statContent}>
           <span className={styles.statValue}>{loading ? '...' : stats?.totalCost ?? '—'}</span>
           <span className={styles.statLabel}>Total Cost</span>
         </div>
       </div>
-      <div className={styles.statCard}>
+      <div className={styles.statCard} title="Total tokens (input + output)">
         <span className={styles.statIcon}>◎</span>
         <div className={styles.statContent}>
-          <span className={styles.statValue}>
-            {loading ? '...' : stats ? formatTokens(stats.totalTokens) : '—'}
-          </span>
+          <span className={styles.statValue}>{loading ? '...' : stats?.totalTokens ?? '—'}</span>
           <span className={styles.statLabel}>Tokens</span>
         </div>
       </div>
-      <div className={styles.statCard}>
+      <div className={styles.statCard} title="Success rate across all operations">
         <span className={`${styles.statIcon} ${styles.statSuccess}`}>✓</span>
         <div className={styles.statContent}>
           <span className={`${styles.statValue} ${styles.statSuccess}`}>
-            {loading ? '...' : stats?.taskSuccess ?? '—'}
+            {loading ? '...' : stats?.successRate ?? '—'}
           </span>
-          <span className={styles.statLabel}>Success Rate</span>
+          <span className={styles.statLabel}>Success</span>
+        </div>
+      </div>
+      <span className={styles.statsScope} title="Coordinator runtime (delegated tasks only)">
+        Coordinator
+      </span>
+      <div className={styles.statCard} title="Agents currently running tasks">
+        <span className={styles.statIcon}>◈</span>
+        <div className={styles.statContent}>
+          <span className={styles.statValue}>{loading ? '...' : stats?.activeAgents ?? '—'}</span>
+          <span className={styles.statLabel}>Active</span>
+        </div>
+      </div>
+      <div className={styles.statCard} title="Tasks awaiting human approval">
+        <span className={`${styles.statIcon} ${styles.statWarning}`}>⏳</span>
+        <div className={styles.statContent}>
+          <span className={`${styles.statValue} ${stats?.pendingApprovals ? styles.statWarning : ''}`}>
+            {loading ? '...' : stats?.pendingApprovals ?? '—'}
+          </span>
+          <span className={styles.statLabel}>Pending</span>
         </div>
       </div>
     </div>
@@ -1322,49 +1461,67 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState('24h');
   const [selectedLevel, setSelectedLevel] = useState('global');
-  const [trustCapabilities, setTrustCapabilities] = useState(mockTrustCapabilities);
+  const [trustCapabilities, setTrustCapabilities] = useState(defaultTrustCapabilities);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Fetch real data from APIs
-  const { data: heatmapResponse, loading: heatmapLoading } = useHeatmapData({ days: 90 });
+  // Track time range selection from heatmap (separate from dimension filters)
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
+
+  // Convert selectedLevel to dimension filters
+  const dimensionFilters = useMemo(() => parseSelectedLevelToFilters(selectedLevel), [selectedLevel]);
+
+  // Merge dimension filters with time range from heatmap selection
+  const filters = useMemo((): ControlPlaneFilters => {
+    let merged = { ...dimensionFilters };
+    if (selectedDateRange && selectedDateRange.start && selectedDateRange.end) {
+      merged = mergeFilters(merged, {
+        start_date: selectedDateRange.start,
+        end_date: selectedDateRange.end,
+      });
+    }
+    return merged;
+  }, [dimensionFilters, selectedDateRange]);
+
+  const isFiltered = hasActiveFilters(filters);
+  const hasDimensionFilter = hasActiveFilters(dimensionFilters);
+  const hasTimeFilter = hasTimeRangeFilter(filters);
+  const filterDescription = getFilterDescription(filters);
+
+  // Fetch real data from APIs - pass merged filters to all applicable hooks
+  const { data: heatmapResponse, loading: heatmapLoading } = useHeatmapData({ days: 90, filters });
   const { data: topologyData, loading: topologyLoading } = useTopologyData({ refreshInterval: 5000 });
-  const { stats, loading: statsLoading } = useStatistics({ refreshInterval: 10000 });
+  const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
+  const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
   const { events: liveEvents, connected: wsConnected } = useEventQueue({ maxEvents: 50 });
   const { spans: traceSpans, traces } = useTraceData({ limit: 10 });
 
-  // Transform data for components
+  // Transform data for components - NO MOCK FALLBACKS
   const heatmapData = useMemo(() => {
-    if (heatmapResponse?.cells) return heatmapResponse.cells;
-    return generateHeatmapData(); // Fallback to mock if loading
+    return heatmapResponse?.cells || [];
   }, [heatmapResponse]);
 
   const agents = useMemo(() => {
-    if (topologyData?.agents) return topologyData.agents;
-    return mockAgents; // Fallback to mock if loading
+    return topologyData?.agents || [];
   }, [topologyData]);
 
   const edges = useMemo(() => {
-    if (topologyData?.edges) {
-      return topologyData.edges.map((e) => ({
-        ...e,
-        active: agents.some((a) => a.id === e.source && a.status === 'busy'),
-      }));
-    }
-    return mockEdges; // Fallback to mock if loading
+    if (!topologyData?.edges) return [];
+    return topologyData.edges.map((e) => ({
+      ...e,
+      active: agents.some((a) => a.id === e.source && a.status === 'busy'),
+    }));
   }, [topologyData, agents]);
 
   const events = useMemo(() => {
-    if (liveEvents.length > 0) return liveEvents;
-    return mockEvents; // Fallback to mock if no live events
+    return liveEvents;
   }, [liveEvents]);
 
   const spans = useMemo(() => {
-    if (traceSpans.length > 0) return traceSpans;
-    return mockSpans; // Fallback to mock if no trace data
+    return traceSpans;
   }, [traceSpans]);
 
   // Interactive state
-  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
+  // selectedDateRange is now declared above with filters for bidirectional sync
   const [topologyExpanded, setTopologyExpanded] = useState(false);
   const [detailPanel, setDetailPanel] = useState<DetailPanelState>({ type: null, id: null });
   const [selectedAgentId, setSelectedAgentId] = useState('sprint-executor');
@@ -1438,7 +1595,17 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             <span className={styles.themeToggleLabel}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
         </div>
-        <GlobalStats stats={stats} loading={statsLoading} />
+        <GlobalStats
+          stats={stats}
+          loading={statsLoading}
+          isFiltered={isFiltered}
+          filterDescription={filterDescription}
+          onClearFilter={() => {
+            // Clear both dimension and time range filters
+            setSelectedLevel('global');
+            setSelectedDateRange(null);
+          }}
+        />
       </header>
 
       {/* Command Bar */}
@@ -1455,6 +1622,14 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         <AggregationNav
           selectedLevel={selectedLevel}
           onSelectLevel={setSelectedLevel}
+          stats={stats ? {
+            totalTasks: stats.totalTasks,
+            totalCost: parseFloat(stats.totalCost.replace('$', '')),
+            activeAgents: stats.activeAgents,
+            pendingApprovals: stats.pendingApprovals,
+          } : null}
+          breakdowns={breakdowns}
+          loading={statsLoading || breakdownLoading}
         />
 
         {/* Main Canvas */}

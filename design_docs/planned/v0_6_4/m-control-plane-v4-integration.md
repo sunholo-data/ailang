@@ -1,48 +1,278 @@
-# M-CONTROL-PLANE-V4-INTEGRATION: Connect Control Plane UI to Real Data
+# M-CONTROL-PLANE-V4-INTEGRATION: Unified Telemetry for Agent Monitoring
 
 **Status**: Planned
 **Target**: v0.6.4
-**Priority**: P1
-**Estimated**: 2-3 days
+**Priority**: P0 (Critical)
+**Estimated**: 3-4 days
 **Dependencies**: M-OTEL-DASHBOARD (completed mockup), Observatory API (M1-M4 complete)
-**Bug Report**: N/A (feature request)
+**Bug Report**: N/A (architectural unification)
 
 ## Related Documents
 
 - [M-OTEL-DASHBOARD Sprint Plan](m-otel-dashboard-sprint-plan.md) - Original mockup design
 - [M-TASK-HIERARCHY Sprint Plan](../v0_6_5/m-task-hierarchy-sprint-plan.md) - Task hierarchy API
+- [Observatory Implementation](../../../internal/observatory/) - OTEL storage backend
+
+---
+
+## Executive Summary
+
+**This design document addresses a critical data architecture problem**: the Control Plane and Observatory show different metrics for the same system because they query different data sources. This must be resolved before the dashboard can be used for production monitoring, eval tracking, or autonomous agent orchestration.
+
+**Discovered Discrepancy:**
+| Metric | Control Plane (`/api/statistics`) | Observatory (`/api/observatory/metrics`) |
+|--------|-----------------------------------|------------------------------------------|
+| Tasks | 29 completed | 24 tasks |
+| Cost | $4.20 | $446.20 |
+| Tokens | 107.6K | 11.9M (in) + tokens out |
+
+These numbers differ by **100x** in cost because they track fundamentally different things.
 
 ---
 
 ## Problem Statement
 
-The Control Plane v4 UI mockup is complete with beautiful visualizations (Activity Heatmap, Agent Topology, Trace Waterfall, Message Queue), but all data is currently mocked. We need to connect these components to real data from existing AILANG APIs.
+### Two Separate Data Systems
 
-**Current State:**
-- UI mockup complete with mock data arrays
-- Observatory API (M1-M4) provides tasks, spans, traces, messages
-- Coordinator API provides task execution, approvals, events
-- Statistics API provides aggregate metrics
-- No unified API for Control Plane-specific aggregations
+AILANG has evolved two parallel observability systems that were designed for different purposes:
 
-**Pain Points:**
-- Dashboard shows fake data, not real agent activity
-- No visibility into actual coordinator task costs/performance
-- Activity heatmap uses random mock data
-- Agent topology doesn't reflect real agent relationships
+#### 1. Observatory (`~/.ailang/state/observatory.db`)
+
+**Purpose:** Store OTEL spans from all AILANG operations
+
+**Data Source:** OTLP Receiver (`internal/observatory/otlp_receiver.go`)
+- Receives OpenTelemetry spans from instrumented code
+- Stores spans in SQLite with normalized attributes
+- Forwards to GCP Cloud Trace (when configured)
+
+**What it tracks:**
+- Every instrumented operation (`compile.*`, `eval.*`, `messages.*`, `anthropic.generate`, etc.)
+- Token usage per span (from OTEL attributes)
+- Cost per span (calculated from tokens + model pricing)
+- Task hierarchies linking spans to logical tasks
+
+**Key Tables:**
+```sql
+spans (id, trace_id, task_id, tokens_in, tokens_out, cost_usd, ...)
+tasks (id, title, total_tokens_in, total_tokens_out, total_cost_usd, ...)
+agent_assignments (id, task_id, agent_id, tokens_in, tokens_out, cost_usd, ...)
+```
+
+**API:** `/api/observatory/*`
+
+#### 2. Coordinator (`~/.ailang/state/coordinator.db`)
+
+**Purpose:** Track delegated tasks managed by the coordinator daemon
+
+**Data Source:** Coordinator Daemon (`internal/coordinator/daemon.go`)
+- Creates task records when messages are processed
+- Updates tasks with execution results from Claude Code / Gemini CLI
+- Tracks approvals, worktrees, and agent assignments
+
+**What it tracks:**
+- Tasks delegated to AI agents (design-doc-creator, sprint-planner, etc.)
+- Execution costs reported by CLI tools (often incomplete)
+- Task lifecycle (pending → running → pending_approval → completed)
+
+**Key Tables:**
+```sql
+tasks (id, title, cost, tokens_used, status, provider, agent_id, ...)
+task_events (id, task_id, tokens_in, tokens_out, cost, ...)
+approval_requests (id, task_id, status, ...)
+```
+
+**API:** `/api/statistics`, `/api/coordinator/*`
+
+### Why the Numbers Don't Match
+
+| Aspect | Observatory | Coordinator |
+|--------|-------------|-------------|
+| **Scope** | ALL OTEL spans (evals, CLI ops, API calls) | Only coordinator-delegated tasks |
+| **Token Source** | OTEL span attributes | CLI execution results |
+| **Cost Calculation** | `tokens × model_pricing` per span | `result.Cost` from executor |
+| **Task Definition** | Any operation with `task_id` attribute | Explicit task record in DB |
+| **Data Flow** | Real-time via OTLP receiver | Batch on task completion |
+
+**Example:** Running `ailang eval-suite` generates:
+- **Observatory:** 1000+ spans with token/cost data for each model call
+- **Coordinator:** 0 tasks (not a delegated task)
+
+**Example:** Delegating "Fix parser bug" to design-doc-creator:
+- **Observatory:** Spans from Claude Code execution (if instrumented)
+- **Coordinator:** 1 task with aggregated cost/tokens from CLI output
+
+### The Real Problem
+
+**The Control Plane currently shows Coordinator stats**, which only reflects delegated tasks. But the **Observatory contains the canonical OTEL telemetry** - the raw, accurate data about actual token usage and costs.
+
+For the dashboard to be useful for:
+- Production monitoring
+- Eval tracking
+- Cost analysis
+- Autonomous agent orchestration
+
+**Observatory must be the source of truth.**
 
 ---
 
 ## Goals
 
-**Primary Goal:** Connect Control Plane v4 to real AILANG data sources for production monitoring.
+**Primary Goal:** Make Observatory the canonical data source for Control Plane, with Coordinator data as a supplementary view.
 
 **Success Metrics:**
-1. Activity Heatmap shows real task counts, costs, success rates by date
-2. Agent Topology displays actual agents from config with live status
-3. Trace Waterfall renders real OTEL spans from Observatory
-4. Message Queue shows live coordinator events via WebSocket
-5. Statistics cards reflect actual costs, tokens, task counts
+1. Header stats show Observatory metrics (total tokens, total cost, total spans)
+2. Coordinator stats shown separately in "Agent Tasks" context
+3. Numbers match between all views (no unexplained discrepancies)
+4. Traces/Tasks tabs mirror Observatory functionality
+5. Architecture supports future autonomous agent monitoring
+
+---
+
+## Solution Architecture
+
+### Unified Data Model
+
+The solution treats **Observatory as the canonical source** and **Coordinator as a view**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Control Plane Dashboard                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │  Global Stats    │  │  Agent Tasks     │  │  Traces Tab   │ │
+│  │  (Observatory)   │  │  (Coordinator)   │  │  (Observatory)│ │
+│  │                  │  │                  │  │               │ │
+│  │  Total Cost      │  │  Pending Tasks   │  │  Span Tree    │ │
+│  │  Total Tokens    │  │  Running Tasks   │  │  Waterfall    │ │
+│  │  Total Spans     │  │  Pending Approvals│ │               │ │
+│  │  Success Rate    │  │  Agent Stats     │  │               │ │
+│  └──────────────────┘  └──────────────────┘  └───────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+│ Observatory   │     │ Coordinator   │     │ GCP Cloud     │
+│ (SQLite)      │────▶│ (SQLite)      │     │ Trace         │
+│               │     │               │     │ (optional)    │
+│ observatory.db│     │ coordinator.db│     │               │
+└───────────────┘     └───────────────┘     └───────────────┘
+       ▲                     ▲
+       │                     │
+       │   OTLP Receiver     │   Task Events
+       │                     │
+┌──────┴──────────────────────┴──────────────────────────────────┐
+│                    Instrumented Code                            │
+│                                                                 │
+│  ailang eval-suite    |    Claude Code CLI    |    Gemini CLI  │
+│  ailang messages      |    coordinator daemon |    direct API  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Universal Task Hierarchy
+
+**Key Architectural Principle:** Observatory's workspace/task hierarchy is the **universal organizing structure** for ALL telemetry sources.
+
+```
+Observatory (canonical source)
+├── Workspace: "ailang"
+│   │
+│   ├── Task: "v0.6.3 Eval Baseline" (source: eval)
+│   │   ├── trace: eval.suite
+│   │   │   └── spans: api_request ×7,675 → $442.28
+│   │   └── metrics: 6 models, 46 benchmarks
+│   │
+│   ├── Task: "Fix parser bug #123" (source: coordinator)
+│   │   ├── agent: design-doc-creator
+│   │   ├── trace: claude.execute
+│   │   │   └── spans: anthropic.generate ×50 → $0.15
+│   │   └── approval: pending
+│   │
+│   ├── Task: "Research embeddings" (source: local/direct)
+│   │   └── trace: user-session-abc
+│   │       └── spans: gemini.generate ×3 → $0.02
+│   │
+│   └── Task: "CI Pipeline Run" (source: future/github-actions)
+│       └── spans: ...
+```
+
+**All sources are SUBSETS of Observatory:**
+
+| Source | Task Creation | Span Linking | Current Status |
+|--------|---------------|--------------|----------------|
+| **Eval** | `ailang eval-suite` creates task | `eval.*` spans link via trace_id | ⚠️ Needs task_id linking |
+| **Coordinator** | Daemon creates task on message pickup | `claude.execute` links via session.id | ✅ Implemented |
+| **Local/Direct** | CLI creates task on `ailang run` | Spans link via trace_id | ⚠️ Needs task creation |
+| **Future Sources** | TBD (GitHub Actions, webhooks, etc.) | TBD | 🔜 Extensible design |
+
+### Data Reconciliation Strategy
+
+To ensure ALL sources appear in Observatory task hierarchy:
+
+1. **Coordinator → Observatory Link** ✅ DONE
+   - When coordinator starts a task, create Observatory task record
+   - When Claude Code/Gemini CLI send OTEL spans, link to Observatory task via `session.id`
+   - Already implemented: `LookupTaskBySessionID()` in `observatory/store.go`
+
+2. **Eval → Observatory Link** ⚠️ TODO
+   - `ailang eval-suite` should create an Observatory task at start
+   - All `eval.*` and `api_request` spans should carry that task_id
+   - Enables: "Show me all evals for this week" in Control Plane
+
+3. **Local Usage → Observatory Link** ⚠️ TODO
+   - `ailang run`, REPL sessions should create lightweight tasks
+   - Enables: "How much did local experimentation cost this month?"
+
+5. **Metrics Aggregation**
+   - Observatory `GetMetricsSummary()` aggregates from `spans` table
+   - This includes ALL sources, organized by workspace/task
+   - Coordinator stats remain useful for agent-specific views
+
+### UI Data Sources
+
+   | Component | Data Source | Rationale |
+   |-----------|-------------|-----------|
+   | Header Stats (Cost/Tokens/Spans) | Observatory `/api/observatory/metrics/summary` | Canonical OTEL data |
+   | Header Stats (Active Agents/Pending) | Coordinator `/api/statistics` | Runtime state |
+   | Activity Heatmap | Observatory spans grouped by date | Complete activity |
+   | Agent Topology | Config + Coordinator status | Agent relationships |
+   | Trace Waterfall | Observatory `/api/observatory/traces` | OTEL spans |
+   | Message Queue | WebSocket (coordinator events) | Real-time |
+   | Tasks Tab | Observatory `/api/observatory/tasks` | Task hierarchy |
+
+---
+
+## Future Vision: Autonomous Agent Orchestration
+
+This integration is foundational for autonomous AI agents that self-organize in the cloud.
+
+### Phase 1: Unified Monitoring (v0.6.4) ← **This Design**
+- Single source of truth for costs/tokens/performance
+- Real-time visibility into agent execution
+- Historical data for trend analysis
+
+### Phase 2: Agent Performance Analytics (v0.7.0)
+- Per-agent cost breakdown from OTEL spans
+- Success rate by agent/provider/model
+- Bottleneck identification (which agents are slow?)
+- Alert thresholds for cost overruns
+
+### Phase 3: Self-Organizing Agents (v0.8.0+)
+- Agents can query Observatory to understand system state
+- Coordinator routes tasks based on agent performance history
+- Automatic scaling: spawn more agents when queue grows
+- Trust adjustment based on success rates
+
+### Phase 4: Cloud Deployment (v1.0.0+)
+- Observatory data replicated to cloud storage
+- Multiple coordinator instances coordinating via shared state
+- Agents run in ephemeral containers
+- Human-in-the-loop for high-impact decisions only
+
+**Key Insight:** All of this depends on **accurate, unified telemetry**. Getting the data model right now enables autonomous orchestration later.
 
 ---
 
@@ -327,29 +557,120 @@ interface TrustCapability {
 
 ## Implementation Plan
 
-### Milestone 1: Backend API Additions (~150 LOC, 4h)
+### Milestone 0: Data Verification (~2h)
 
-Create `internal/server/handlers_controlplane.go`:
+**CRITICAL: Verify data sources before building UI integration.**
 
-1. **Heatmap Endpoint**
-   - Query coordinator tasks grouped by date
-   - Calculate daily stats (count, cost, success rate)
-   - Return 90-day array
+#### 0.1 Query Both Databases
 
-2. **Topology Endpoint**
-   - Load agent config from registry
-   - Query coordinator for running tasks
-   - Query observatory for agent stats
-   - Build edges from trigger_on_complete + message counts
+```bash
+# Observatory metrics
+sqlite3 ~/.ailang/state/observatory.db "
+  SELECT
+    COUNT(*) as span_count,
+    COALESCE(SUM(tokens_in), 0) as total_tokens_in,
+    COALESCE(SUM(tokens_out), 0) as total_tokens_out,
+    COALESCE(SUM(cost_usd), 0) as total_cost
+  FROM spans;
+"
 
-3. **Aggregations Endpoint**
-   - Collect unique values from multiple sources
-   - Return filter options
+# Coordinator metrics
+sqlite3 ~/.ailang/state/coordinator.db "
+  SELECT
+    COUNT(*) as task_count,
+    COALESCE(SUM(tokens_used), 0) as total_tokens,
+    COALESCE(SUM(cost), 0) as total_cost
+  FROM tasks WHERE status = 'completed';
+"
+```
 
-4. **Enhance Statistics Endpoint**
-   - Add active_agents count
-   - Add pending_approvals count
-   - Add calculated success_rate
+#### 0.2 Understand the Difference
+
+**Verified Data (January 2026):**
+
+**Observatory (`observatory.db`):**
+```
+span_count: 25,615
+tokens_in:  9,330,656
+tokens_out: 2,579,127
+total_cost: $449.58
+traces:     18,669
+tasks:      23
+```
+
+**Coordinator (`coordinator.db`):**
+```
+task_count: 29 (completed)
+tokens:     107,615
+total_cost: $4.20
+```
+
+**Cost Breakdown by Span Type:**
+| Span Name | Count | Cost |
+|-----------|-------|------|
+| `api_request` | 7,675 | $442.28 |
+| `anthropic.generate` | 814 | $5.33 |
+| `gemini.generate` | 379 | $1.25 |
+| `claude.execute` | 22 | $0.49 |
+| `coordinator.task.execute` | 14 | $0.25 |
+
+**Why Numbers Differ:**
+- **$442** = Eval benchmark runs (`api_request` spans from `ailang eval-suite`)
+- **$5.33** = Direct Anthropic API calls (research, docs, etc.)
+- **$1.25** = Direct Gemini API calls
+- **$4.20** = Coordinator-delegated tasks (design docs, sprints, etc.)
+
+The Observatory includes **everything** (evals, direct API calls, coordinator tasks). The Coordinator only tracks **delegated agent tasks**.
+
+#### 0.3 Define Canonical Source
+
+For each metric type:
+| Metric | Canonical Source | Why |
+|--------|------------------|-----|
+| Total Cost | Observatory | Includes all operations |
+| Total Tokens | Observatory | Accurate per-span data |
+| Task Count | Observatory `tasks` | Unified task model |
+| Agent Status | Coordinator | Runtime state |
+| Pending Approvals | Coordinator | Approval workflow |
+
+### Milestone 1: Backend API Updates (~150 LOC, 4h)
+
+**Update `internal/server/handlers_controlplane.go`:**
+
+1. **Heatmap Endpoint** - Use Observatory spans
+   ```go
+   // Query observatory.db instead of coordinator.db
+   // Group spans by date, aggregate tokens/cost/status
+   GET /api/controlplane/heatmap?days=90&source=observatory
+   ```
+
+2. **Unified Statistics Endpoint**
+   ```go
+   // Combine both sources with clear labeling
+   GET /api/controlplane/stats
+   {
+     "observatory": {
+       "total_spans": 50000,
+       "total_cost_usd": 446.20,
+       "total_tokens_in": 11900000,
+       "total_tokens_out": 1200000,
+       "success_rate": 0.95
+     },
+     "coordinator": {
+       "completed_tasks": 29,
+       "pending_tasks": 0,
+       "running_tasks": 0,
+       "pending_approvals": 12,
+       "active_agents": 2
+     }
+   }
+   ```
+
+3. **Topology Endpoint** - Already correct
+   - Agent config + runtime status
+
+4. **Aggregations Endpoint** - Already correct
+   - Filter options from multiple sources
 
 ### Milestone 2: Frontend Data Hooks (~200 LOC, 4h)
 
@@ -448,13 +769,29 @@ Update `ui/src/features/controlplane/ControlPlane.tsx`:
 
 ## Success Criteria
 
-- [ ] Activity Heatmap shows real data from last 90 days
+### Data Accuracy
+- [ ] Header stats show Observatory metrics: ~$450, ~12M tokens, ~25K spans
+- [ ] Agent Tasks section shows Coordinator metrics: 29 tasks, $4.20, 107K tokens
+- [ ] Numbers are clearly labeled with their source (Observatory vs Coordinator)
+- [ ] Hover tooltips explain what each metric includes
+
+### UI Integration
+- [ ] Activity Heatmap shows real span data from last 90 days
 - [ ] Agent Topology reflects config + live status
 - [ ] Trace Waterfall renders real Observatory spans
+- [ ] Tasks Tab shows Observatory task hierarchy
 - [ ] Message Queue streams live WebSocket events
-- [ ] Statistics match `ailang coordinator status` output
+
+### Verification
+- [ ] `sqlite3 ~/.ailang/state/observatory.db` metrics match header stats
+- [ ] `ailang coordinator status` output matches Agent Tasks section
 - [ ] No hardcoded mock data in production build
 - [ ] All new endpoints documented in API reference
+
+### Future-Proofing
+- [ ] Architecture documented for autonomous agent orchestration
+- [ ] API supports filtering by agent/provider/workspace
+- [ ] WebSocket events include all data needed for real-time updates
 
 ---
 

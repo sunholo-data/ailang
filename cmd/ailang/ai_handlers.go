@@ -7,12 +7,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/ai/anthropic"
 	"github.com/sunholo/ailang/internal/ai/gemini"
+	"github.com/sunholo/ailang/internal/ai/ollama"
 	"github.com/sunholo/ailang/internal/ai/openai"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval_harness"
@@ -77,6 +80,18 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 			handler = client.NewHandler(model.APIName)
 		}
 
+	case ai.ProviderOllama:
+		// Ollama is local, no API key needed
+		client, err := ollama.NewClient()
+		if err != nil {
+			return fmt.Errorf("failed to create Ollama client: %w", err)
+		}
+		// Check connection before proceeding
+		if err := client.CheckConnection(context.Background()); err != nil {
+			return err
+		}
+		handler = client.NewHandler(model.APIName)
+
 	default:
 		return fmt.Errorf("unsupported AI provider: %s", model.Provider)
 	}
@@ -124,8 +139,22 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string) error {
 			handler = client.NewHandler(modelName)
 		}
 
+	case ai.ProviderOllama:
+		// Ollama is local, no API key needed
+		client, err := ollama.NewClient()
+		if err != nil {
+			return fmt.Errorf("failed to create Ollama client: %w", err)
+		}
+		// Check connection before proceeding
+		if err := client.CheckConnection(context.Background()); err != nil {
+			return err
+		}
+		// Strip ollama: prefix if present
+		model := strings.TrimPrefix(modelName, "ollama:")
+		handler = client.NewHandler(model)
+
 	default:
-		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt/gemini-)", modelName)
+		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt-/gemini-/ollama:)", modelName)
 	}
 
 	effCtx.AI = effects.NewAIContext(handler)

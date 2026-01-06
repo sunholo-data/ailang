@@ -31,12 +31,12 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 			t.Fatalf("Failed to decode request body: %v", err)
 		}
-		if reqBody.Model != "gpt-5-mini" {
-			t.Errorf("Model = %s, want gpt-5-mini", reqBody.Model)
+		if reqBody.Model != "gpt-4-turbo" {
+			t.Errorf("Model = %s, want gpt-4-turbo", reqBody.Model)
 		}
-		// GPT-5 models use MaxCompletionTokens, not MaxTokens
-		if reqBody.MaxCompletionTokens != 2048 {
-			t.Errorf("MaxCompletionTokens = %d, want 2048", reqBody.MaxCompletionTokens)
+		// GPT-4 uses MaxTokens, not MaxCompletionTokens
+		if reqBody.MaxTokens != 2048 {
+			t.Errorf("MaxTokens = %d, want 2048", reqBody.MaxTokens)
 		}
 		if len(reqBody.Messages) != 2 {
 			t.Errorf("len(Messages) = %d, want 2", len(reqBody.Messages))
@@ -52,7 +52,7 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 		resp := chatResponse{
 			ID:     "chatcmpl-123",
 			Object: "chat.completion",
-			Model:  "gpt-5-mini-20250901",
+			Model:  "gpt-4-turbo-20240901",
 			Choices: []chatChoice{
 				{
 					Index: 0,
@@ -74,10 +74,11 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Use GPT-4 (legacy model) to test Chat Completions path
 	client := NewClient("test-key", WithBaseURL(server.URL))
 
 	resp, err := client.Generate(context.Background(), &ai.Request{
-		Model:        "gpt-5-mini",
+		Model:        "gpt-4-turbo",
 		SystemPrompt: "You are helpful.",
 		UserPrompt:   "Hello",
 		MaxTokens:    2048,
@@ -100,7 +101,8 @@ func TestClient_Generate_ChatCompletions(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_WithReasoningTokens(t *testing.T) {
+func TestClient_Generate_ChatCompletions_WithReasoningTokens(t *testing.T) {
+	// Test Chat Completions reasoning tokens with explicit API type override
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify max_completion_tokens is used for GPT-5.1
 		var reqBody chatRequest
@@ -130,7 +132,8 @@ func TestClient_Generate_WithReasoningTokens(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient("test-key", WithBaseURL(server.URL))
+	// Force Chat Completions API to test that path
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIChatCompletions))
 
 	resp, err := client.Generate(context.Background(), &ai.Request{
 		Model:      "gpt-5.1",
@@ -149,7 +152,7 @@ func TestClient_Generate_WithReasoningTokens(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_Error(t *testing.T) {
+func TestClient_Generate_ChatCompletions_Error(t *testing.T) {
 	tests := []struct {
 		name       string
 		statusCode int
@@ -184,9 +187,10 @@ func TestClient_Generate_Error(t *testing.T) {
 			}))
 			defer server.Close()
 
+			// Use GPT-4 (legacy model) to test Chat Completions error handling
 			client := NewClient("test-key", WithBaseURL(server.URL))
 			_, err := client.Generate(context.Background(), &ai.Request{
-				Model:      "gpt-5",
+				Model:      "gpt-4",
 				UserPrompt: "test",
 			})
 
@@ -209,7 +213,7 @@ func TestClient_Generate_Error(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_NoChoices(t *testing.T) {
+func TestClient_Generate_ChatCompletions_NoChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := chatResponse{
 			Choices: []chatChoice{},
@@ -218,9 +222,10 @@ func TestClient_Generate_NoChoices(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Use GPT-4 (legacy model) to test Chat Completions path
 	client := NewClient("test-key", WithBaseURL(server.URL))
 	_, err := client.Generate(context.Background(), &ai.Request{
-		Model:      "gpt-5",
+		Model:      "gpt-4",
 		UserPrompt: "test",
 	})
 
@@ -244,12 +249,19 @@ func TestClient_DetectAPIType(t *testing.T) {
 		model string
 		want  APIType
 	}{
-		{"gpt-5", APIChatCompletions},
-		{"gpt-5-mini", APIChatCompletions},
-		{"gpt-5.1", APIChatCompletions},
+		// Modern models use Responses API
+		{"gpt-5", APIResponses},
+		{"gpt-5-mini", APIResponses},
+		{"gpt-5.1", APIResponses},
+		{"gpt-5.2", APIResponses},
 		{"gpt-5.1-codex-max", APIResponses},
 		{"codex-mini", APIResponses},
-		{"o1-preview", APIChatCompletions},
+		{"o1-preview", APIResponses},
+		{"o3-mini", APIResponses},
+		// Legacy models use Chat Completions
+		{"gpt-4", APIChatCompletions},
+		{"gpt-4-turbo", APIChatCompletions},
+		{"gpt-3.5-turbo", APIChatCompletions},
 	}
 
 	for _, tt := range tests {
@@ -334,7 +346,7 @@ func TestUsesMaxCompletionTokens(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_WithSeed(t *testing.T) {
+func TestClient_Generate_ChatCompletions_WithSeed(t *testing.T) {
 	var receivedSeed *int64
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -349,9 +361,10 @@ func TestClient_Generate_WithSeed(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Use GPT-4 (legacy model) to test Chat Completions path
 	client := NewClient("test-key", WithBaseURL(server.URL))
 	client.Generate(context.Background(), &ai.Request{
-		Model:      "gpt-5",
+		Model:      "gpt-4",
 		UserPrompt: "test",
 		Options:    map[string]any{"seed": int64(42)},
 	})
@@ -361,14 +374,14 @@ func TestClient_Generate_WithSeed(t *testing.T) {
 	}
 }
 
-func TestClient_Generate_DefaultMaxTokens(t *testing.T) {
-	var receivedMaxCompletionTokens int
+func TestClient_Generate_ChatCompletions_DefaultMaxTokens(t *testing.T) {
+	var receivedMaxTokens int
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var reqBody chatRequest
 		json.NewDecoder(r.Body).Decode(&reqBody)
-		// GPT-5 uses MaxCompletionTokens, not MaxTokens
-		receivedMaxCompletionTokens = reqBody.MaxCompletionTokens
+		// GPT-4 uses MaxTokens
+		receivedMaxTokens = reqBody.MaxTokens
 
 		resp := chatResponse{
 			Choices: []chatChoice{{Message: chatMessage{Content: "ok"}}},
@@ -377,14 +390,294 @@ func TestClient_Generate_DefaultMaxTokens(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Use GPT-4 (legacy model) to test Chat Completions path
 	client := NewClient("test-key", WithBaseURL(server.URL))
 	client.Generate(context.Background(), &ai.Request{
-		Model:      "gpt-5",
+		Model:      "gpt-4",
 		UserPrompt: "test",
 		// MaxTokens not set - should default to 4096
 	})
 
-	if receivedMaxCompletionTokens != 4096 {
-		t.Errorf("default MaxCompletionTokens = %d, want 4096", receivedMaxCompletionTokens)
+	if receivedMaxTokens != 4096 {
+		t.Errorf("default MaxTokens = %d, want 4096", receivedMaxTokens)
+	}
+}
+
+// ============================================================================
+// Responses API Tests
+// ============================================================================
+
+func TestClient_Generate_ResponsesAPI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request goes to /responses endpoint
+		if r.URL.Path != "/responses" {
+			t.Errorf("Path = %s, want /responses", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-key" {
+			t.Errorf("Authorization = %s, want Bearer test-key", r.Header.Get("Authorization"))
+		}
+
+		// Verify request body format
+		var reqBody responsesRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+			t.Fatalf("Failed to decode request body: %v", err)
+		}
+		if reqBody.Model != "gpt5-1-codex-max" {
+			t.Errorf("Model = %s, want gpt5-1-codex-max", reqBody.Model)
+		}
+		if len(reqBody.Input) != 2 {
+			t.Errorf("len(Input) = %d, want 2", len(reqBody.Input))
+		}
+		// System prompt maps to "developer" role
+		if reqBody.Input[0].Role != "developer" {
+			t.Errorf("Input[0].Role = %s, want developer", reqBody.Input[0].Role)
+		}
+		if reqBody.Input[0].Content != "You are a coding assistant." {
+			t.Errorf("Input[0].Content = %q", reqBody.Input[0].Content)
+		}
+		if reqBody.Input[1].Role != "user" {
+			t.Errorf("Input[1].Role = %s, want user", reqBody.Input[1].Role)
+		}
+		// Check reasoning effort
+		if reqBody.Reasoning == nil || reqBody.Reasoning.Effort != "medium" {
+			t.Errorf("Reasoning.Effort = %v, want medium", reqBody.Reasoning)
+		}
+
+		// Return Responses API format response
+		resp := responsesResponse{
+			ID:    "resp_123",
+			Model: "gpt5-1-codex-max",
+			Output: []responsesOutputItem{
+				{
+					Type:   "message",
+					Status: "completed",
+					Role:   "assistant",
+					Content: []responsesContent{
+						{Type: "output_text", Text: "Here is your code:"},
+					},
+				},
+			},
+			Usage: responsesUsage{
+				InputTokens:  50,
+				OutputTokens: 100,
+				TotalTokens:  150,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL))
+
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:        "gpt5-1-codex-max", // Codex model triggers Responses API
+		SystemPrompt: "You are a coding assistant.",
+		UserPrompt:   "Write fizzbuzz in Go",
+		MaxTokens:    8192,
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+
+	if resp.Text != "Here is your code:" {
+		t.Errorf("Text = %q, want %q", resp.Text, "Here is your code:")
+	}
+	if resp.InputTokens != 50 {
+		t.Errorf("InputTokens = %d, want 50", resp.InputTokens)
+	}
+	if resp.OutputTokens != 100 {
+		t.Errorf("OutputTokens = %d, want 100", resp.OutputTokens)
+	}
+}
+
+func TestClient_Generate_ResponsesAPI_WithReasoningTokens(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := responsesResponse{
+			Model: "gpt5-1-codex-max",
+			Output: []responsesOutputItem{
+				{
+					Type:   "message",
+					Status: "completed",
+					Role:   "assistant",
+					Content: []responsesContent{
+						{Type: "output_text", Text: "Thought about it..."},
+					},
+				},
+			},
+			Usage: responsesUsage{
+				InputTokens:  20,
+				OutputTokens: 200,
+				TotalTokens:  220,
+				OutputDetails: struct {
+					ReasoningTokens int `json:"reasoning_tokens"`
+				}{ReasoningTokens: 150},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
+
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "test-model",
+		UserPrompt: "test",
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+
+	// OutputTokens should be output - reasoning
+	if resp.OutputTokens != 50 {
+		t.Errorf("OutputTokens = %d, want 50 (200 - 150 reasoning)", resp.OutputTokens)
+	}
+	if resp.ReasonTokens != 150 {
+		t.Errorf("ReasonTokens = %d, want 150", resp.ReasonTokens)
+	}
+}
+
+func TestClient_Generate_ResponsesAPI_ReasoningEffort(t *testing.T) {
+	var receivedEffort string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var reqBody responsesRequest
+		json.NewDecoder(r.Body).Decode(&reqBody)
+		if reqBody.Reasoning != nil {
+			receivedEffort = reqBody.Reasoning.Effort
+		}
+
+		resp := responsesResponse{
+			Output: []responsesOutputItem{
+				{Type: "message", Role: "assistant", Content: []responsesContent{{Type: "output_text", Text: "ok"}}},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
+	client.Generate(context.Background(), &ai.Request{
+		Model:      "test",
+		UserPrompt: "test",
+		Options:    map[string]any{"reasoning_effort": "high"},
+	})
+
+	if receivedEffort != "high" {
+		t.Errorf("reasoning_effort = %q, want high", receivedEffort)
+	}
+}
+
+func TestClient_Generate_ResponsesAPI_PolymorphicOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return response with multiple output types
+		resp := responsesResponse{
+			Model: "gpt5-1-codex-max",
+			Output: []responsesOutputItem{
+				{
+					Type:    "reasoning",
+					Summary: []responsesSummary{{Type: "summary_text", Text: "Thinking..."}},
+				},
+				{
+					Type: "message",
+					Role: "assistant",
+					Content: []responsesContent{
+						{Type: "output_text", Text: "First part."},
+					},
+				},
+				{
+					Type:      "function_call",
+					Name:      "run_code",
+					Arguments: `{"code": "print('hello')"}`,
+					CallID:    "call_123",
+				},
+				{
+					Type: "message",
+					Role: "assistant",
+					Content: []responsesContent{
+						{Type: "output_text", Text: "Second part."},
+					},
+				},
+			},
+			Usage: responsesUsage{InputTokens: 10, OutputTokens: 20, TotalTokens: 30},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
+
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "test",
+		UserPrompt: "test",
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+
+	// Should concatenate text from all message outputs
+	expected := "First part.\nSecond part."
+	if resp.Text != expected {
+		t.Errorf("Text = %q, want %q", resp.Text, expected)
+	}
+}
+
+func TestClient_Generate_ResponsesAPI_NoTextOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return response with only reasoning/function_call (no message)
+		resp := responsesResponse{
+			Output: []responsesOutputItem{
+				{Type: "reasoning", Summary: []responsesSummary{{Type: "summary_text", Text: "thinking"}}},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "test",
+		UserPrompt: "test",
+	})
+
+	if err == nil {
+		t.Fatal("Generate() expected error for no text output, got nil")
+	}
+
+	providerErr, ok := err.(*ai.ProviderError)
+	if !ok {
+		t.Fatalf("err type = %T, want *ai.ProviderError", err)
+	}
+	if providerErr.Message != "no text output in response" {
+		t.Errorf("Message = %q, want %q", providerErr.Message, "no text output in response")
+	}
+}
+
+func TestClient_Generate_ResponsesAPI_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"error":{"message":"Invalid model","type":"invalid_request_error"}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-key", WithBaseURL(server.URL), WithAPIType(APIResponses))
+	_, err := client.Generate(context.Background(), &ai.Request{
+		Model:      "invalid",
+		UserPrompt: "test",
+	})
+
+	if err == nil {
+		t.Fatal("Generate() expected error, got nil")
+	}
+
+	providerErr, ok := err.(*ai.ProviderError)
+	if !ok {
+		t.Fatalf("err type = %T, want *ai.ProviderError", err)
+	}
+	if providerErr.StatusCode != 400 {
+		t.Errorf("StatusCode = %d, want 400", providerErr.StatusCode)
+	}
+	if providerErr.Message != "Invalid model" {
+		t.Errorf("Message = %q, want %q", providerErr.Message, "Invalid model")
 	}
 }

@@ -110,7 +110,7 @@ models:
     provider: "openai"
     description: "GPT-5.1-Codex-Max - purpose-built for agentic coding"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # Uses Responses API, not standard chat completions
+    agent_cli: null  # Uses Responses API for text generation
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -119,10 +119,10 @@ models:
       77.9% on SWE-Bench Verified, 79.9% on SWE-Lancer IC SWE.
       Can work autonomously for 24+ hours on complex tasks.
       400K token context window.
-      Uses Responses API (not chat completions) - requires special handling.
-      Supports reasoning.effort parameter for adjustable thinking.
+      Uses Responses API (/v1/responses) - fully supported as of v0.6.3.
+      Supports reasoning.effort parameter (none/low/medium/high).
       Available in GitHub Copilot Pro/Pro+/Business/Enterprise.
-      Agent eval support: Not yet implemented (requires Responses API handler).
+      Eval support: ✅ Fully supported via Responses API.
 
   # Anthropic Claude Sonnet 4.5 (released September 2025)
   claude-sonnet-4-5:
@@ -333,7 +333,7 @@ default: "claude-sonnet-4-5"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-2"           # OpenAI flagship (Dec 2025)
+  - "gpt5-1-codex-max" # OpenAI agentic coding (Dec 2025)
   - "claude-sonnet-4-5" # Anthropic flagship
   - "gemini-2-5-pro"   # Google flagship
 
@@ -341,7 +341,7 @@ benchmark_suite:
 # Use for: Release baselines, comprehensive comparisons
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-2"           # OpenAI flagship (Dec 2025)
+  - "gpt5-1-codex-max" # OpenAI agentic coding (Dec 2025)
   - "claude-opus-4-5"  # Anthropic most intelligent
   - "claude-sonnet-4-5" # Anthropic best for coding
   - "gemini-3-pro"     # Google latest (Nov 2025)
@@ -366,11 +366,11 @@ local_models:
   - "ollama-llama3-2"       # Llama 3.2 3B (fast)
 
 # Available but not in default suites (run with --models flag):
-# - gpt5              # Superseded by gpt5-2
-# - gpt5-1            # Superseded by gpt5-2
+# - gpt5              # Superseded by gpt5-1-codex-max
+# - gpt5-1            # Superseded by gpt5-1-codex-max
+# - gpt5-2            # GPT-5.2 flagship (use codex-max for coding tasks)
 # - gpt5-mini         # Cheaper but slower than gpt5-1-instant
 # - gpt5-2-instant    # Fast variant of GPT-5.2
-# - gpt5-1-codex-max  # Agentic coding (requires Responses API)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
 
 # Agent CLI support for agent-based evaluation

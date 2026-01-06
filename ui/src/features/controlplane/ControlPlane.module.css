@@ -78,44 +78,45 @@
 /* ================================================================
    Light Theme - Sunholo Brand Colors
    Primary: Orange #e73c17 | Accent: Teal #2c7a7b
+   Enhanced for readability - higher contrast
    ================================================================ */
 .controlPlaneLight {
-  /* Base colors - Light backgrounds */
-  --bg-deep: #f8f9fa;
+  /* Base colors - Light backgrounds with slight warmth */
+  --bg-deep: #faf9f7;
   --bg-base: #ffffff;
-  --bg-surface: #f3f4f6;
+  --bg-surface: #f5f4f2;
   --bg-elevated: #ffffff;
-  --bg-hover: #e5e7eb;
+  --bg-hover: #ebe9e6;
 
-  /* Primary accent - Sunholo Orange */
-  --primary: #e73c17;
-  --primary-dim: rgba(231, 60, 23, 0.12);
-  --primary-glow: rgba(231, 60, 23, 0.3);
+  /* Primary accent - Sunholo Orange (slightly darker for contrast) */
+  --primary: #d13510;
+  --primary-dim: rgba(209, 53, 16, 0.15);
+  --primary-glow: rgba(209, 53, 16, 0.35);
 
-  /* Secondary - Sunholo Teal */
-  --amber: #2c7a7b;
-  --amber-dim: rgba(44, 122, 123, 0.12);
-  --amber-glow: rgba(44, 122, 123, 0.3);
+  /* Secondary - Sunholo Teal (slightly darker for contrast) */
+  --amber: #236868;
+  --amber-dim: rgba(35, 104, 104, 0.15);
+  --amber-glow: rgba(35, 104, 104, 0.35);
 
-  /* Status colors - Adjusted for light theme */
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #2563eb;
+  /* Status colors - Darker for light theme visibility */
+  --success: #047857;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --info: #1d4ed8;
 
-  /* Text - Dark on light */
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-tertiary: #6b7280;
-  --text-muted: #9ca3af;
+  /* Text - Higher contrast dark on light */
+  --text-primary: #0f0f0f;
+  --text-secondary: #374151;
+  --text-tertiary: #4b5563;
+  --text-muted: #6b7280;
 
-  /* Borders */
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: #e5e7eb;
-  --border-emphasis: #d1d5db;
+  /* Borders - More visible */
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-default: #d1d5db;
+  --border-emphasis: #9ca3af;
 
-  /* Graph edges */
-  --edge-color: #d1d5db;
+  /* Graph edges - More visible in light mode */
+  --edge-color: #9ca3af;
   --edge-active: var(--primary);
 }
 
@@ -190,9 +191,55 @@
   background: var(--bg-deep);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   overflow: hidden;
+}
+
+/* Light theme - larger, bolder text for readability */
+.controlPlaneLight {
+  font-size: 15px;
+  font-weight: 450;
+}
+
+/* Light theme specific sizing overrides */
+.controlPlaneLight .statValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.controlPlaneLight .statLabel {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.controlPlaneLight .panelTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.controlPlaneLight .navLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.controlPlaneLight .navStatValue {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.controlPlaneLight .queueMessage {
+  font-size: 13px;
+}
+
+.controlPlaneLight .heatmapTotal {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.controlPlaneLight .rfNodeLabel {
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* ================================================================
@@ -319,7 +366,71 @@
 /* Global Stats */
 .globalStats {
   display: flex;
+  align-items: center;
   gap: var(--space-4);
+}
+
+.statsScope {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* Filter badge for active filtering */
+.filterBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bg-base);
+  animation: filterPulse 2s ease-in-out infinite;
+}
+
+@keyframes filterPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.filterIcon {
+  font-size: 12px;
+}
+
+.filterText {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clearFilterBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: var(--bg-base);
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.clearFilterBtn:hover {
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .statCard {
@@ -618,6 +729,13 @@
   font-size: 10px;
   color: var(--amber);
   font-variant-numeric: tabular-nums;
+}
+
+.navPct {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .navChildren {
@@ -1793,6 +1911,37 @@
   font-size: 9px;
   color: var(--text-quaternary);
   font-family: var(--font-mono);
+}
+
+.queueEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.queueEmptyIcon {
+  font-size: 32px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+  opacity: 0.6;
+}
+
+.queueEmptyText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.queueEmptyHint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  max-width: 200px;
+  line-height: 1.4;
 }
 
 /* ================================================================

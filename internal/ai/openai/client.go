@@ -113,19 +113,26 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 }
 
 // detectAPIType determines which API to use based on the model name.
+// Responses API is preferred for all modern models (GPT-5+, o-series).
+// Chat Completions is only used for legacy models (GPT-4 and earlier).
 func (c *Client) detectAPIType(model string) APIType {
 	// If API type is explicitly set, use it
 	if c.apiType != "" {
 		return c.apiType
 	}
 
-	// Codex models use Responses API
 	lower := strings.ToLower(model)
-	if strings.Contains(lower, "codex") {
+
+	// Modern models use Responses API (better caching, CoT passing, lower latency)
+	// GPT-5, GPT-5.1, GPT-5.2, o1, o3, codex all benefit from Responses API
+	if strings.HasPrefix(lower, "gpt-5") ||
+		strings.Contains(lower, "codex") ||
+		strings.HasPrefix(lower, "o1") ||
+		strings.HasPrefix(lower, "o3") {
 		return APIResponses
 	}
 
-	// All other models use Chat Completions
+	// Legacy models (GPT-4, GPT-3.5, etc.) use Chat Completions
 	return APIChatCompletions
 }
 

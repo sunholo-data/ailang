@@ -1,23 +1,23 @@
 # M-AI-OLLAMA: Unified Ollama Provider for Local Models
 
-**Status:** Planned
-**Target:** v0.6.2
+**Status:** Implemented
+**Target:** v0.6.3
 **Priority:** P1 (Medium)
-**Estimated:** 2-3 days (includes eval harness migration)
-**Dependencies:** M-UNIFIED-AI-PROVIDERS (v0.5.10) - partially implemented (CLI done, eval harness NOT migrated)
+**Completed:** 2026-01-06
+**Dependencies:** M-UNIFIED-AI-PROVIDERS (v0.5.10) - fully implemented
 **Created:** 2024-12-24
-**Updated:** 2024-12-24
+**Updated:** 2026-01-06
 
 ## Problem Statement
 
 The unified AI provider system (`internal/ai/`) supports OpenAI, Anthropic, and Google - but **no local models**. This creates gaps:
 
-**⚠️ CRITICAL FINDING:** The eval harness (`internal/eval_harness/`) does NOT use the unified `internal/ai/` package! It has its own duplicated implementations:
-- `api_openai.go` - ~120 LOC duplicate
-- `api_anthropic.go` - ~100 LOC duplicate
-- `api_google.go` - ~150 LOC duplicate
+**✅ RESOLVED:** The eval harness (`internal/eval_harness/`) now uses the unified `internal/ai/` package. The duplicate implementations have been deleted:
+- ~~`api_openai.go`~~ - Deleted
+- ~~`api_anthropic.go`~~ - Deleted
+- ~~`api_google.go`~~ - Deleted
 
-This means adding a new provider requires changes in TWO places, defeating the purpose of unification. **This design doc will fix that** by migrating the eval harness to use `internal/ai/`.
+Adding a new provider now only requires ONE implementation in `internal/ai/`.
 
 **Current gaps:**
 
@@ -44,10 +44,10 @@ This means adding a new provider requires changes in TWO places, defeating the p
 - ✅ Any future AI-powered features
 
 **Success Metrics:**
-- [ ] `internal/ai/ollama/` implements `Provider` interface
-- [ ] All three touchpoints work with local models
-- [ ] Same JSON output format as cloud providers
-- [ ] Clear error when Ollama not running
+- [x] `internal/ai/ollama/` implements `Provider` interface
+- [x] All three touchpoints work with local models
+- [x] Same JSON output format as cloud providers
+- [x] Clear error when Ollama not running
 
 ## Solution Design
 
@@ -396,13 +396,13 @@ func ask(question: string) -> string ! {AI} =
 
 ## Success Criteria
 
-- [ ] `internal/ai/ollama/` package implements `Provider` interface
-- [ ] `ailang run --ai ollama:codellama` works (CLI)
-- [ ] `ailang eval-suite --models ollama:codellama` works (evals)
-- [ ] AILANG programs with `std/ai` work with Ollama
-- [ ] Same JSON output schema as cloud providers
-- [ ] Clear error when Ollama not running
-- [ ] All existing tests pass
+- [x] `internal/ai/ollama/` package implements `Provider` interface
+- [x] `ailang run --ai ollama:codellama` works (CLI)
+- [x] `ailang eval-suite --models ollama:codellama` works (evals)
+- [x] AILANG programs with `std/ai` work with Ollama
+- [x] Same JSON output schema as cloud providers
+- [x] Clear error when Ollama not running
+- [x] All existing tests pass
 
 ## Risks & Mitigations
 

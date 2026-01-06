@@ -2,6 +2,7 @@
  * Hook for fetching heatmap data from Control Plane API
  */
 import { useState, useEffect, useCallback } from 'react';
+import { ControlPlaneFilters, buildFilterQueryString } from '../types';
 
 export interface HeatmapCell {
   date: string;
@@ -21,17 +22,22 @@ export interface HeatmapData {
 interface UseHeatmapDataOptions {
   days?: number;
   refreshInterval?: number; // ms, 0 to disable
+  filters?: ControlPlaneFilters; // Filter params for interactive filtering
 }
 
 export function useHeatmapData(options: UseHeatmapDataOptions = {}) {
-  const { days = 90, refreshInterval = 30000 } = options;
+  const { days = 90, refreshInterval = 30000, filters = {} } = options;
   const [data, setData] = useState<HeatmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Build query string with days + filters
+  const filterString = buildFilterQueryString(filters);
+  const queryString = filterString ? `?days=${days}&${filterString.slice(1)}` : `?days=${days}`;
+
   const fetchData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/controlplane/heatmap?days=${days}`);
+      const response = await fetch(`/api/controlplane/heatmap${queryString}`);
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
@@ -43,7 +49,7 @@ export function useHeatmapData(options: UseHeatmapDataOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();

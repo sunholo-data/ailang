@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/observatory"
 )
 
 // ============================================================================
@@ -72,12 +73,22 @@ type TopologyResponse struct {
 // Handlers
 // ============================================================================
 
-// GET /api/controlplane/heatmap - Get daily task activity for heatmap visualization
+// GET /api/controlplane/heatmap - Get daily activity data for heatmap visualization
+// Uses Observatory spans for canonical telemetry data with filter support.
+// Query params:
+//   - days: Number of days to include (default: 90, max: 365)
+//   - source_type: Filter by source (eval, coordinator, direct_api, local, other)
+//   - provider: Filter by provider (claude, gemini, openai)
+//   - model: Filter by model name
+//   - start_date: Filter start date (YYYY-MM-DD)
+//   - end_date: Filter end date (YYYY-MM-DD)
 func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	ctx := r.Context()
 
 	// Parse days parameter (default: 90)
 	days := 90
@@ -87,74 +98,99 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	// Calculate date range
-	now := time.Now()
-	startDate := now.AddDate(0, 0, -days)
+	// Parse filters
+	filter := parseControlPlaneFilter(r)
 
-	// Get tasks from coordinator store
+	// Initialize response
 	var cells []HeatmapCell
 	var totalTasks int
 	var totalCost float64
 
-	coordStore := s.getCoordStoreForControlPlane()
-	if coordStore != nil {
-		// Query tasks within date range
-		ctx := context.Background()
-		filter := &coordinator.TaskFilter{
-			Since:     &startDate,
-			OrderBy:   "created_at",
-			OrderDesc: false,
-		}
-
-		tasks, err := coordStore.ListTasks(ctx, filter)
-		if err != nil {
-			log.Printf("Failed to get tasks for heatmap: %v", err)
-		} else {
-			// Group tasks by date
-			dateMap := make(map[string]struct {
-				count     int
-				cost      float64
-				completed int
-			})
-
-			for _, task := range tasks {
-				dateStr := task.CreatedAt.Format("2006-01-02")
-				entry := dateMap[dateStr]
-				entry.count++
-				entry.cost += task.Cost
-				if task.Status == coordinator.TaskStatusCompleted {
-					entry.completed++
+	// Try Observatory backend first (canonical source)
+	if s.obsBackend != nil {
+		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
+			points, err := sqliteBackend.GetFilteredHeatmapData(ctx, filter, days)
+			if err != nil {
+				log.Printf("Failed to get observatory heatmap data: %v", err)
+			} else {
+				// Convert observatory data points to heatmap cells
+				for _, point := range points {
+					cells = append(cells, HeatmapCell{
+						Date:        point.Date,
+						TaskCount:   point.SpanCount, // Use span count as activity indicator
+						Cost:        point.Cost,
+						SuccessRate: point.SuccessRate,
+					})
+					totalTasks += point.SpanCount
+					totalCost += point.Cost
 				}
-				dateMap[dateStr] = entry
-				totalTasks++
-				totalCost += task.Cost
+			}
+		}
+	}
+
+	// If no observatory data, fall back to coordinator store (unfiltered, coordinator only)
+	if len(cells) == 0 {
+		now := time.Now()
+		startDate := now.AddDate(0, 0, -days)
+
+		coordStore := s.getCoordStoreForControlPlane()
+		if coordStore != nil {
+			coordFilter := &coordinator.TaskFilter{
+				Since:     &startDate,
+				OrderBy:   "created_at",
+				OrderDesc: false,
 			}
 
-			// Generate cells for all days in range
-			for d := startDate; !d.After(now); d = d.AddDate(0, 0, 1) {
-				dateStr := d.Format("2006-01-02")
-				entry := dateMap[dateStr]
-				successRate := 0.0
-				if entry.count > 0 {
-					successRate = float64(entry.completed) / float64(entry.count)
+			tasks, err := coordStore.ListTasks(ctx, coordFilter)
+			if err != nil {
+				log.Printf("Failed to get tasks for heatmap: %v", err)
+			} else {
+				// Group tasks by date
+				dateMap := make(map[string]struct {
+					count     int
+					cost      float64
+					completed int
+				})
+
+				for _, task := range tasks {
+					dateStr := task.CreatedAt.Format("2006-01-02")
+					entry := dateMap[dateStr]
+					entry.count++
+					entry.cost += task.Cost
+					if task.Status == coordinator.TaskStatusCompleted {
+						entry.completed++
+					}
+					dateMap[dateStr] = entry
+					totalTasks++
+					totalCost += task.Cost
 				}
+
+				// Generate cells for all days in range
+				for d := startDate; !d.After(now); d = d.AddDate(0, 0, 1) {
+					dateStr := d.Format("2006-01-02")
+					entry := dateMap[dateStr]
+					successRate := 0.0
+					if entry.count > 0 {
+						successRate = float64(entry.completed) / float64(entry.count)
+					}
+					cells = append(cells, HeatmapCell{
+						Date:        dateStr,
+						TaskCount:   entry.count,
+						Cost:        entry.cost,
+						SuccessRate: successRate,
+					})
+				}
+			}
+		} else {
+			// No data source - return empty data for all days
+			for d := startDate; !d.After(now); d = d.AddDate(0, 0, 1) {
 				cells = append(cells, HeatmapCell{
-					Date:        dateStr,
-					TaskCount:   entry.count,
-					Cost:        entry.cost,
-					SuccessRate: successRate,
+					Date:        d.Format("2006-01-02"),
+					TaskCount:   0,
+					Cost:        0,
+					SuccessRate: 0,
 				})
 			}
-		}
-	} else {
-		// No coordinator store - return empty data for all days
-		for d := startDate; !d.After(now); d = d.AddDate(0, 0, 1) {
-			cells = append(cells, HeatmapCell{
-				Date:        d.Format("2006-01-02"),
-				TaskCount:   0,
-				Cost:        0,
-				SuccessRate: 0,
-			})
 		}
 	}
 
@@ -344,4 +380,304 @@ func (s *Server) handleControlPlaneTopology(w http.ResponseWriter, r *http.Reque
 // Helper to get the full coordinator store interface
 func (s *Server) getCoordStoreForControlPlane() coordinator.Store {
 	return s.coordStoreRaw
+}
+
+// ============================================================================
+// Unified Stats API (Observatory + Coordinator)
+// ============================================================================
+
+// UnifiedStatsResponse combines Observatory telemetry with Coordinator runtime state
+type UnifiedStatsResponse struct {
+	// Observatory metrics (canonical source of truth for telemetry)
+	Observatory *ObservatoryStats `json:"observatory"`
+
+	// Coordinator runtime state (subset of observatory - delegated tasks only)
+	Coordinator *CoordinatorRuntimeStats `json:"coordinator"`
+
+	// Metadata about data sources
+	Sources DataSources `json:"sources"`
+}
+
+// ObservatoryStats holds metrics from the Observatory database
+type ObservatoryStats struct {
+	TotalSpans      int     `json:"total_spans"`
+	TotalTasks      int     `json:"total_tasks"`
+	TotalWorkspaces int     `json:"total_workspaces"`
+	TotalAgents     int     `json:"total_agents"`
+	TotalTokensIn   int64   `json:"total_tokens_in"`
+	TotalTokensOut  int64   `json:"total_tokens_out"`
+	TotalCostUSD    float64 `json:"total_cost_usd"`
+	SuccessRate     float64 `json:"success_rate"`
+}
+
+// CoordinatorRuntimeStats holds live coordinator state
+type CoordinatorRuntimeStats struct {
+	Running          bool    `json:"running"`
+	CompletedTasks   int     `json:"completed_tasks"`
+	PendingTasks     int     `json:"pending_tasks"`
+	RunningTasks     int     `json:"running_tasks"`
+	FailedTasks      int     `json:"failed_tasks"`
+	PendingApprovals int     `json:"pending_approvals"`
+	ActiveAgents     int     `json:"active_agents"`
+	TotalCost        float64 `json:"total_cost"`   // Coordinator-tracked subset
+	TotalTokens      int     `json:"total_tokens"` // Coordinator-tracked subset
+}
+
+// DataSources documents where each metric comes from
+type DataSources struct {
+	ObservatoryDB string `json:"observatory_db"` // Path to observatory.db
+	CoordinatorDB string `json:"coordinator_db"` // Path to coordinator.db
+	ObservatoryOK bool   `json:"observatory_ok"` // Whether observatory is available
+	CoordinatorOK bool   `json:"coordinator_ok"` // Whether coordinator is available
+}
+
+// parseControlPlaneFilter extracts filter parameters from query string
+func parseControlPlaneFilter(r *http.Request) *observatory.ControlPlaneFilter {
+	q := r.URL.Query()
+	filter := &observatory.ControlPlaneFilter{
+		SourceType: q.Get("source_type"),
+		Provider:   q.Get("provider"),
+		Model:      q.Get("model"),
+		Workspace:  q.Get("workspace"),
+		StartDate:  q.Get("start_date"), // YYYY-MM-DD format
+		EndDate:    q.Get("end_date"),   // YYYY-MM-DD format
+	}
+	return filter
+}
+
+// GET /api/controlplane/stats - Get unified stats from Observatory + Coordinator
+func (s *Server) handleControlPlaneStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+	filter := parseControlPlaneFilter(r)
+
+	response := UnifiedStatsResponse{
+		Sources: DataSources{
+			ObservatoryDB: "~/.ailang/state/observatory.db",
+			CoordinatorDB: "~/.ailang/state/coordinator.db",
+		},
+	}
+
+	// Get Observatory metrics (canonical source of truth)
+	if s.obsBackend != nil {
+		// Use filtered metrics if SQLite backend with filter support
+		var metrics *observatory.MetricsSummary
+		var err error
+
+		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok && !filter.IsEmpty() {
+			metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter)
+		} else {
+			metrics, err = s.obsBackend.GetMetricsSummary(ctx)
+		}
+
+		if err != nil {
+			log.Printf("Failed to get observatory metrics: %v", err)
+		} else if metrics != nil {
+			response.Observatory = &ObservatoryStats{
+				TotalSpans:      metrics.TotalSpans,
+				TotalTasks:      metrics.TotalTasks,
+				TotalWorkspaces: metrics.TotalWorkspaces,
+				TotalAgents:     metrics.TotalAgents,
+				TotalTokensIn:   metrics.TotalTokensIn,
+				TotalTokensOut:  metrics.TotalTokensOut,
+				TotalCostUSD:    metrics.TotalCostUSD,
+				SuccessRate:     metrics.SuccessRate,
+			}
+			response.Sources.ObservatoryOK = true
+		}
+	}
+
+	// Get Coordinator runtime state (subset - delegated tasks only)
+	coordStore := s.getCoordStoreForControlPlane()
+	if coordStore != nil {
+		// Get basic stats from coordinator store interface
+		if s.coordStore != nil {
+			coordStats, err := s.coordStore.GetCoordinatorStats()
+			if err == nil && coordStats != nil {
+				response.Coordinator = &CoordinatorRuntimeStats{
+					Running:        coordStats.Running,
+					CompletedTasks: coordStats.TasksRun,
+					PendingTasks:   coordStats.PendingTasks,
+					RunningTasks:   coordStats.RunningTasks,
+					FailedTasks:    coordStats.FailedTasks,
+					TotalCost:      coordStats.TotalCost,
+					TotalTokens:    coordStats.TotalTokens,
+				}
+				response.Sources.CoordinatorOK = true
+
+				// Get additional stats (pending approvals, active agents)
+				taskStats, err := coordStore.GetTaskStats(ctx)
+				if err == nil && taskStats != nil {
+					response.Coordinator.PendingApprovals = taskStats.PendingApprovals
+				}
+
+				// Count active agents (agents with running tasks)
+				runningTasks, err := coordStore.ListTasks(ctx, &coordinator.TaskFilter{
+					Status: []coordinator.TaskStatus{coordinator.TaskStatusRunning},
+				})
+				if err == nil {
+					agentSet := make(map[string]bool)
+					for _, task := range runningTasks {
+						if task.AgentID != "" {
+							agentSet[task.AgentID] = true
+						}
+					}
+					response.Coordinator.ActiveAgents = len(agentSet)
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode unified stats response: %v", err)
+	}
+}
+
+// ============================================================================
+// Breakdown/Drill-Down API
+// ============================================================================
+
+// BreakdownItem represents a single item in a breakdown
+type BreakdownItem struct {
+	ID         string  `json:"id"`
+	Label      string  `json:"label"`
+	SpanCount  int     `json:"span_count"`
+	TaskCount  int     `json:"task_count,omitempty"`
+	TokensIn   int64   `json:"tokens_in"`
+	TokensOut  int64   `json:"tokens_out"`
+	CostUSD    float64 `json:"cost_usd"`
+	Percentage float64 `json:"percentage,omitempty"` // Percentage of total cost
+}
+
+// BreakdownResponse contains hierarchical breakdown data
+type BreakdownResponse struct {
+	// By provider (claude, gemini, openai)
+	ByProvider []BreakdownItem `json:"by_provider"`
+
+	// By source type (inferred from span name patterns)
+	BySourceType []BreakdownItem `json:"by_source_type"`
+
+	// By model
+	ByModel []BreakdownItem `json:"by_model"`
+
+	// By workspace
+	ByWorkspace []BreakdownItem `json:"by_workspace"`
+
+	// Totals for percentage calculations
+	TotalCost float64 `json:"total_cost"`
+}
+
+// GET /api/controlplane/stats/breakdown - Get breakdown data for drill-down
+func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := BreakdownResponse{}
+
+	// Get Observatory backend for direct SQL queries
+	if s.obsBackend == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	ctx := r.Context()
+	filter := parseControlPlaneFilter(r)
+
+	// Type assert to SQLiteBackend which has breakdown methods
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		log.Printf("Observatory backend does not support breakdown queries (type: %T)", s.obsBackend)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Get total cost (filtered if filter is set)
+	var metrics *observatory.MetricsSummary
+	var err error
+	if !filter.IsEmpty() {
+		metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter)
+	} else {
+		metrics, err = s.obsBackend.GetMetricsSummary(ctx)
+	}
+	if err == nil && metrics != nil {
+		response.TotalCost = metrics.TotalCostUSD
+	}
+
+	// Get breakdowns (filtered if filter is set)
+	if !filter.IsEmpty() {
+		if items, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, filter); err == nil {
+			response.ByProvider = convertBreakdownItems(items)
+		}
+		if items, err := sqliteBackend.GetFilteredBreakdownBySourceType(ctx, filter); err == nil {
+			response.BySourceType = convertBreakdownItems(items)
+		}
+		if items, err := sqliteBackend.GetFilteredBreakdownByModel(ctx, filter); err == nil {
+			response.ByModel = convertBreakdownItems(items)
+		}
+		// Workspace breakdown doesn't need filtering (it shows all workspaces always)
+		if items, err := sqliteBackend.GetBreakdownByWorkspace(ctx); err == nil {
+			response.ByWorkspace = convertBreakdownItems(items)
+		}
+	} else {
+		// No filter - use original methods
+		if items, err := sqliteBackend.GetBreakdownByProvider(ctx); err == nil {
+			response.ByProvider = convertBreakdownItems(items)
+		}
+		if items, err := sqliteBackend.GetBreakdownBySourceType(ctx); err == nil {
+			response.BySourceType = convertBreakdownItems(items)
+		}
+		if items, err := sqliteBackend.GetBreakdownByModel(ctx); err == nil {
+			response.ByModel = convertBreakdownItems(items)
+		}
+		if items, err := sqliteBackend.GetBreakdownByWorkspace(ctx); err == nil {
+			response.ByWorkspace = convertBreakdownItems(items)
+		}
+	}
+
+	// Calculate percentages
+	if response.TotalCost > 0 {
+		for i := range response.ByProvider {
+			response.ByProvider[i].Percentage = (response.ByProvider[i].CostUSD / response.TotalCost) * 100
+		}
+		for i := range response.BySourceType {
+			response.BySourceType[i].Percentage = (response.BySourceType[i].CostUSD / response.TotalCost) * 100
+		}
+		for i := range response.ByModel {
+			response.ByModel[i].Percentage = (response.ByModel[i].CostUSD / response.TotalCost) * 100
+		}
+		for i := range response.ByWorkspace {
+			response.ByWorkspace[i].Percentage = (response.ByWorkspace[i].CostUSD / response.TotalCost) * 100
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode breakdown response: %v", err)
+	}
+}
+
+// convertBreakdownItems converts observatory.BreakdownItem to server.BreakdownItem
+func convertBreakdownItems(items []observatory.BreakdownItem) []BreakdownItem {
+	result := make([]BreakdownItem, len(items))
+	for i, item := range items {
+		result[i] = BreakdownItem{
+			ID:        item.ID,
+			Label:     item.Label,
+			SpanCount: item.SpanCount,
+			TaskCount: item.TaskCount,
+			TokensIn:  item.TokensIn,
+			TokensOut: item.TokensOut,
+			CostUSD:   item.CostUSD,
+		}
+	}
+	return result
 }

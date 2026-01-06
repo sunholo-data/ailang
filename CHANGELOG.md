@@ -2,6 +2,42 @@
 
 ## [v0.6.3] - 2026-01-03
 
+### Added - OpenAI Responses API Support (M-OPENAI-RESPONSES-API)
+
+Implemented full support for OpenAI's Responses API (`/v1/responses`) for all modern models. The Responses API provides better caching, chain-of-thought passing between turns, and lower latency.
+
+**New in `internal/ai/openai/`:**
+- `types.go`: Added Responses API request/response types (~70 LOC)
+  - `responsesRequest` with `input` array (replaces `messages`)
+  - `responsesReasoning` with `effort` parameter (none/low/medium/high)
+  - `responsesResponse` with polymorphic `output` array
+  - `responsesOutputItem` supporting message/reasoning/function_call types
+- `responses.go`: Full implementation (~120 LOC)
+  - Maps `SystemPrompt` to `developer` role (Responses API equivalent of `system`)
+  - Parses polymorphic output (concatenates all message text)
+  - Tracks reasoning tokens separately from output tokens
+  - Default reasoning effort: `medium`
+
+**API Detection (automatic routing):**
+- **Responses API** (modern): GPT-5, GPT-5.1, GPT-5.2, o1, o3, codex models
+- **Chat Completions** (legacy): GPT-4, GPT-3.5, and earlier models
+- Override with `WithAPIType(APIResponses)` or `WithAPIType(APIChatCompletions)` option
+
+**Usage:**
+```go
+client := openai.NewClient(apiKey)
+resp, err := client.Generate(ctx, &ai.Request{
+    Model:        "gpt-5",  // Auto-uses Responses API for GPT-5+
+    SystemPrompt: "You are a coding assistant.",
+    UserPrompt:   "Write fizzbuzz",
+    Options:      map[string]any{"reasoning_effort": "high"},
+})
+```
+
+**Tests:** 6 new tests for Responses API (basic, reasoning tokens, effort, polymorphic output, no output error, API errors)
+
+**Design Doc:** `design_docs/implemented/v0_6_3/m-openai-responses-api-sprint.md`
+
 ### Deprecated - ailang-agent Binary (M-DEPRECATE-AILANG-AGENT)
 
 Removed the standalone `ailang-agent` binary and `internal/agent/` package. The coordinator daemon (`ailang coordinator`) now handles all agent functionality with additional features:
