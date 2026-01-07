@@ -91,6 +91,7 @@ func (p *ScriptProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *
 		fmt.Sprintf("AILANG_MESSAGE_ID=%s", task.Task.MessageID),
 		fmt.Sprintf("AILANG_WORKSPACE=%s", opts.Workspace),
 		fmt.Sprintf("AILANG_PROVIDER=script"),
+		fmt.Sprintf("AILANG_PAYLOAD=%s", task.Task.Content), // Raw JSON payload
 	)
 
 	// Parse JSON payload to environment variables if enabled
