@@ -21,6 +21,9 @@ func runMessagesSend(args []string) {
 	correlationID := fs.String("correlation", "", "Correlation ID for grouping messages")
 	force := fs.Bool("force", false, "Force send even if duplicate exists")
 
+	// Task hierarchy flags (M-UNIFIED-AI-CONTROL-PLANE)
+	parentTaskID := fs.String("parent-task", "", "Parent task ID for hierarchical execution")
+
 	// GitHub sync flags
 	github := fs.Bool("github", false, "Also create a GitHub issue")
 	msgType := fs.String("type", "", "Message category (any string; bug/feature imply --github)")
@@ -29,7 +32,7 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "github", "type", "repo", "github-user"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "github", "type", "repo", "github-user"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -85,6 +88,7 @@ func runMessagesSend(args []string) {
 		Title:         msgTitle,
 		Payload:       payload,
 		CorrelationID: *correlationID,
+		ParentTaskID:  *parentTaskID,
 		Category:      category,
 		GitHubRepo:    *repo,
 	}

@@ -6,15 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
-	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -121,57 +118,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		cmd.Dir = task.Workspace
 	}
 
-	// Set up environment
-	cwd, _ := os.Getwd()
-	stdlibPath := filepath.Join(cwd, "std")
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
-	if task.Workspace != "" {
-		env = append(env, fmt.Sprintf("PWD=%s", task.Workspace))
-	}
-
-	// Inject W3C trace context for distributed tracing
-	// This enables ailang run commands spawned by Claude to link back to this trace
-	env = telemetry.InjectTraceContext(ctx, env)
-
-	// Inject correlation IDs for fallback linking
-	env = telemetry.InjectCorrelationIDs(env, task.ID, sessionID)
-
-	// Enable Claude Code telemetry for metrics/events export
-	// Claude Code exports metrics and events (not traces), but we can correlate
-	// them with our traces using OTEL_RESOURCE_ATTRIBUTES
-	env = append(env, "CLAUDE_CODE_ENABLE_TELEMETRY=1")
-	env = append(env, "OTEL_METRICS_EXPORTER=otlp")
-	env = append(env, "OTEL_LOGS_EXPORTER=otlp")
-
-	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
-	// Merge with existing OTEL_RESOURCE_ATTRIBUTES from environment
-	resourceAttrs := buildResourceAttributes(task, sessionID)
-	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
-
-	// Configure OTEL exporter for trace collection
-	// Priority: parent env > default to local observatory server
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		// Default to local observatory for unified trace collection
-		endpoint = "http://localhost:1957"
-	}
-	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
-	if protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); protocol != "" {
-		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
-	}
-	// For GCP export, Claude Code needs to know the project
-	// Check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
-	project := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
-	if project == "" {
-		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	if project != "" {
-		env = append(env, fmt.Sprintf("GOOGLE_CLOUD_PROJECT=%s", project))
-		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
-	}
-
-	cmd.Env = env
+	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
+	cmd.Env = executor.BuildEnvironment(executor.EnvironmentOptions{
+		Task:                  task,
+		SessionID:             sessionID,
+		Context:               ctx,
+		EnableClaudeTelemetry: true,
+	})
 
 	// Create pipes
 	stdout, err := cmd.StdoutPipe()
@@ -457,48 +410,4 @@ func Register() {
 
 func init() {
 	Register()
-}
-
-// buildResourceAttributes creates OTEL_RESOURCE_ATTRIBUTES value.
-// Merges existing attributes from environment with task-specific attributes.
-// Priority: existing env attrs + task Metadata + default attrs.
-func buildResourceAttributes(task *executor.Task, sessionID string) string {
-	attrs := make(map[string]string)
-
-	// 1. Start with existing environment attributes (preserve user settings)
-	if existing := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); existing != "" {
-		for _, pair := range strings.Split(existing, ",") {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				attrs[parts[0]] = parts[1]
-			}
-		}
-	}
-
-	// 2. Add task Metadata attributes (from Observatory context via coordinator)
-	if task.Metadata != nil {
-		for k, v := range task.Metadata {
-			if strings.HasPrefix(k, "ailang.") && v != "" {
-				attrs[k] = v
-			}
-		}
-	}
-
-	// 3. Add default attributes (lowest priority, don't overwrite)
-	if _, exists := attrs["ailang.task_id"]; !exists && task.ID != "" {
-		attrs["ailang.task_id"] = task.ID
-	}
-	if _, exists := attrs["ailang.session_id"]; !exists && sessionID != "" {
-		attrs["ailang.session_id"] = sessionID
-	}
-	if _, exists := attrs["ailang.source"]; !exists {
-		attrs["ailang.source"] = "coordinator"
-	}
-
-	// Build final attribute string
-	var parts []string
-	for k, v := range attrs {
-		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
-	}
-	return strings.Join(parts, ",")
 }

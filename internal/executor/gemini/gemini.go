@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
-	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -114,66 +113,20 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI] Workspace: %s\n", task.Workspace)
 	}
 
-	// Set up environment
-	cwd, _ := os.Getwd()
-	stdlibPath := filepath.Join(cwd, "std")
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
-	if task.Workspace != "" {
-		env = append(env, fmt.Sprintf("PWD=%s", task.Workspace))
-	}
+	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
+	env := executor.BuildEnvironment(executor.EnvironmentOptions{
+		Task:                  task,
+		SessionID:             sessionID,
+		Context:               ctx,
+		EnableGeminiTelemetry: true,
+	})
 
 	// Ensure Node 22+ is used (required for Gemini CLI's regex /v flag)
 	node22Path := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin")
 	if _, err := os.Stat(node22Path); err == nil {
 		currentPath := os.Getenv("PATH")
-		env = updateEnvVar(env, "PATH", node22Path+":"+currentPath)
+		env = executor.UpdateEnvVar(env, "PATH", node22Path+":"+currentPath)
 	}
-
-	// Inject W3C trace context for distributed tracing
-	// This enables ailang run commands spawned by Gemini to link back to this trace
-	env = telemetry.InjectTraceContext(ctx, env)
-
-	// Inject correlation IDs for fallback linking
-	env = telemetry.InjectCorrelationIDs(env, task.ID, sessionID)
-
-	// Enable Gemini CLI telemetry for trace export
-	// Gemini CLI supports full traces (unlike Claude Code which only does metrics/events)
-	env = append(env, "GEMINI_TELEMETRY_ENABLED=true")
-
-	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
-	// Merges existing attributes from environment with task-specific attributes
-	resourceAttrs := buildResourceAttributes(task, sessionID)
-	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
-
-	// For GCP export, check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
-	project := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
-	if project == "" {
-		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-
-	// Set telemetry target based on available configuration
-	// Priority: GEMINI_TELEMETRY_TARGET env > GCP if project is set > default "gcp"
-	if target := os.Getenv("GEMINI_TELEMETRY_TARGET"); target != "" {
-		env = append(env, fmt.Sprintf("GEMINI_TELEMETRY_TARGET=%s", target))
-	} else if project != "" {
-		env = append(env, "GEMINI_TELEMETRY_TARGET=gcp")
-	}
-
-	// Pass both project env vars for compatibility
-	if project != "" {
-		env = append(env, fmt.Sprintf("GOOGLE_CLOUD_PROJECT=%s", project))
-		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
-	}
-
-	// Configure OTEL exporter for trace collection
-	// Priority: parent env > default to local observatory server
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		// Default to local observatory for unified trace collection
-		endpoint = "http://localhost:1957"
-	}
-	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
 
 	cmd.Env = env
 
@@ -454,18 +407,6 @@ type geminiStreamResult struct {
 	ToolCalls    int
 }
 
-// updateEnvVar updates or adds an environment variable in a slice
-func updateEnvVar(env []string, key, value string) []string {
-	prefix := key + "="
-	for i, e := range env {
-		if len(e) >= len(prefix) && e[:len(prefix)] == prefix {
-			env[i] = prefix + value
-			return env
-		}
-	}
-	return append(env, prefix+value)
-}
-
 // Register registers the Gemini executor with the global factory
 func Register() {
 	executor.GlobalFactory().Register("gemini", func(cfg *executor.Config) (executor.Executor, error) {
@@ -475,48 +416,4 @@ func Register() {
 
 func init() {
 	Register()
-}
-
-// buildResourceAttributes creates OTEL_RESOURCE_ATTRIBUTES value.
-// Merges existing attributes from environment with task-specific attributes.
-// Priority: existing env attrs + task Metadata + default attrs.
-func buildResourceAttributes(task *executor.Task, sessionID string) string {
-	attrs := make(map[string]string)
-
-	// 1. Start with existing environment attributes (preserve user settings)
-	if existing := os.Getenv("OTEL_RESOURCE_ATTRIBUTES"); existing != "" {
-		for _, pair := range strings.Split(existing, ",") {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				attrs[parts[0]] = parts[1]
-			}
-		}
-	}
-
-	// 2. Add task Metadata attributes (from Observatory context via coordinator)
-	if task.Metadata != nil {
-		for k, v := range task.Metadata {
-			if strings.HasPrefix(k, "ailang.") && v != "" {
-				attrs[k] = v
-			}
-		}
-	}
-
-	// 3. Add default attributes (lowest priority, don't overwrite)
-	if _, exists := attrs["ailang.task_id"]; !exists && task.ID != "" {
-		attrs["ailang.task_id"] = task.ID
-	}
-	if _, exists := attrs["ailang.session_id"]; !exists && sessionID != "" {
-		attrs["ailang.session_id"] = sessionID
-	}
-	if _, exists := attrs["ailang.source"]; !exists {
-		attrs["ailang.source"] = "coordinator"
-	}
-
-	// Build final attribute string
-	var parts []string
-	for k, v := range attrs {
-		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
-	}
-	return strings.Join(parts, ",")
 }

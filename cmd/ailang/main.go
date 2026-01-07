@@ -237,6 +237,9 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "exec":
+		runExec()
+
 	case "examples":
 		examplesCommand(flag.Args()[1:])
 

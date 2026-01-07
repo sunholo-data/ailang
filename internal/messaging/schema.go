@@ -15,7 +15,7 @@ import (
 // This schema extends the existing file-based agent inbox (.ailang/state/messages/)
 // to provide ordering guarantees, real-time updates, and effect-gated approvals.
 
-const schemaVersion = "1.4.0" // v1.4.0: Removed category CHECK constraint (allow any string)
+const schemaVersion = "1.5.0" // v1.5.0: Added parent_task_id for task hierarchy (M-UNIFIED-AI-CONTROL-PLANE)
 
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
@@ -400,6 +400,9 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     embedding_model TEXT,        -- e.g., "ollama:nomic-embed-text"
     embedding_updated_at INTEGER, -- unix millis
 
+    -- Task hierarchy (v1.5.0, M-UNIFIED-AI-CONTROL-PLANE)
+    parent_task_id TEXT,         -- Link to parent task for hierarchical execution
+
     -- State
     status TEXT NOT NULL DEFAULT 'unread',
     created_at TEXT NOT NULL,
@@ -465,6 +468,13 @@ func MigrateDB(db *sql.DB) error {
 	if currentVersion == "1.3.0" {
 		if err := migrateV130ToV140(db); err != nil {
 			return fmt.Errorf("migration to v1.4.0 failed: %w", err)
+		}
+		currentVersion = "1.4.0"
+	}
+
+	if currentVersion == "1.4.0" {
+		if err := migrateV140ToV150(db); err != nil {
+			return fmt.Errorf("migration to v1.5.0 failed: %w", err)
 		}
 	}
 
@@ -726,6 +736,51 @@ func migrateV130ToV140(db *sql.DB) error {
 
 	// Update schema version
 	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.4.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// migrateV140ToV150 adds parent_task_id column for task hierarchy (M-UNIFIED-AI-CONTROL-PLANE)
+func migrateV140ToV150(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if column already exists
+	var columnExists bool
+	rows, err := tx.Query("PRAGMA table_info(inbox_messages)")
+	if err != nil {
+		return fmt.Errorf("failed to check table schema: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var dfltValue interface{}
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("failed to scan column info: %w", err)
+		}
+		if name == "parent_task_id" {
+			columnExists = true
+			break
+		}
+	}
+
+	if !columnExists {
+		// Add the parent_task_id column
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN parent_task_id TEXT"); err != nil {
+			return fmt.Errorf("failed to add parent_task_id column: %w", err)
+		}
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.5.0"); err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
 
