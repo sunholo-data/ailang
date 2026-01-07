@@ -192,7 +192,52 @@ DB_PORT=5432
 - `AILANG_MESSAGE_ID` - Source message ID
 - `AILANG_WORKSPACE` - Worktree path
 
-**Example: Eval Runner Agent**
+**Example: Echo Demo Agent**
+
+A demo script is included at `scripts/coordinator/echo_payload.sh` that echoes back all payload variables:
+
+```yaml
+coordinator:
+  agents:
+    - id: echo-demo
+      label: "Echo Demo"
+      inbox: echo-demo
+      workspace: /path/to/project
+      invoke:
+        type: script
+        command: "./scripts/coordinator/echo_payload.sh"
+        env_from_payload: true
+        timeout: "1m"
+      output_markers:
+        - "ECHO_COMPLETE:"
+      trigger_on_complete: []
+```
+
+**Test the demo:**
+
+```bash
+# Send a JSON payload to the echo-demo agent
+ailang messages send echo-demo '{"model": "gpt5", "benchmark": "fizzbuzz", "config": {"parallel": true}}' \
+  --title "Echo test" --from "user"
+```
+
+**Expected output:**
+```
+AILANG Script Invoke Demo
+Task Context:
+  AILANG_TASK_ID:     task-xxx
+  AILANG_MESSAGE_ID:  msg-xxx
+  AILANG_WORKSPACE:   /path/to/worktree
+
+Payload Variables (from JSON):
+  BENCHMARK=fizzbuzz
+  CONFIG_PARALLEL=true
+  MODEL=gpt5
+
+ECHO_COMPLETE: true
+```
+
+**Production Example: Eval Runner**
 
 ```yaml
 coordinator:

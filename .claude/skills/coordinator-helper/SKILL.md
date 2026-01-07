@@ -178,24 +178,28 @@ For deterministic tasks that don't need AI inference:
 # In ~/.ailang/config.yaml
 coordinator:
   agents:
-    - id: eval-runner
-      inbox: eval-runner
+    - id: echo-demo
+      inbox: echo-demo
       invoke:
         type: script
-        command: "./scripts/run_eval.sh"
+        command: "./scripts/coordinator/echo_payload.sh"
         env_from_payload: true
-        timeout: "1h"
+        timeout: "1m"
+      output_markers:
+        - "ECHO_COMPLETE:"
 ```
 
-**Demo script:** `scripts/coordinator/echo_payload.sh` echoes back all payload variables.
-
-**Test it:**
+**Test the demo:**
 ```bash
-ailang messages send eval-runner '{"model": "gpt5", "benchmark": "fizzbuzz"}' \
-  --title "Test script" --from "user"
+ailang messages send echo-demo '{"model": "gpt5", "benchmark": "fizzbuzz"}' \
+  --title "Echo test" --from "user"
 ```
 
-JSON payload converts to env vars: `MODEL=gpt5`, `BENCHMARK=fizzbuzz`
+**What happens:**
+- JSON `{"model": "gpt5"}` → env var `MODEL=gpt5`
+- Nested JSON `{"db": {"host": "x"}}` → env var `DB_HOST=x`
+- Auto-injected: `AILANG_TASK_ID`, `AILANG_MESSAGE_ID`, `AILANG_WORKSPACE`
+- Cost: $0.00 (no AI inference)
 
 ## Troubleshooting
 
