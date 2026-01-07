@@ -273,6 +273,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
 	mux.HandleFunc("/api/controlplane/stats", s.handleControlPlaneStats)
 	mux.HandleFunc("/api/controlplane/stats/breakdown", s.handleControlPlaneStatsBreakdown)
+	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.handleControlPlaneExecHierarchy)
 
 	// Observatory API endpoints (if configured)
 	if s.obsAPI != nil {

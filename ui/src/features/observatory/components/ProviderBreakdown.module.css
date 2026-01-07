@@ -1,0 +1,150 @@
+.container {
+  background: var(--bg-secondary, #1e1e1e);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.empty {
+  color: var(--text-secondary, #888);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  background: var(--bg-tertiary, #2a2a2a);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.labelContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.percentage {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-accent, #58a6ff);
+}
+
+.barContainer {
+  height: 8px;
+  background: var(--bg-primary, #1a1a1a);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary, #888);
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  font-size: 13px;
+  color: var(--text-primary, #e0e0e0);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+/* Summary Cards Grid */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.summaryCard {
+  background: var(--bg-secondary, #1e1e1e);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.summaryValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary, #e0e0e0);
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-secondary, #888);
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .stats {
+    gap: 12px;
+  }
+
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summaryValue {
+    font-size: 20px;
+  }
+}

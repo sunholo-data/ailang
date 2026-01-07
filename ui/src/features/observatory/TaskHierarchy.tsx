@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTaskHierarchy, TaskHierarchy as TaskHierarchyType, AgentHierarchy, TraceHierarchy, SpanNode } from '../../hooks/useObservatory';
+import { TaskTimeline } from './components/TaskTimeline';
 import styles from './TaskHierarchy.module.css';
 
 // Format duration in human-readable format
@@ -293,6 +294,9 @@ export function TaskHierarchyView({ taskId, onClose }: TaskHierarchyViewProps) {
       </div>
 
       <TaskSummaryCard hierarchy={hierarchy} />
+
+      {/* Visual Timeline */}
+      <TaskTimeline taskId={taskId} />
 
       <div className={styles.agentsContainer}>
         <h3 className={styles.sectionTitle}>Agent Assignments</h3>

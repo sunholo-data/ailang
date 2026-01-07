@@ -215,6 +215,10 @@ func (b *JaegerBackend) GetTaskTimeline(ctx context.Context, taskID string) ([]*
 	return nil, errJaegerNotSupported("GetTaskTimeline")
 }
 
+func (b *JaegerBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error) {
+	return nil, errJaegerNotSupported("GetExecTaskHierarchy")
+}
+
 // LookupTaskBySessionID is not supported by Jaeger backend (session correlation is local only).
 func (b *JaegerBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return "", "", ""

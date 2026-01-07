@@ -32,6 +32,7 @@ import {
 } from './hooks';
 import {
   ControlPlaneFilters,
+  StatusFilter,
   hasActiveFilters,
   getFilterDescription,
   hasTimeRangeFilter,
@@ -168,13 +169,24 @@ const parseSelectedLevelToFilters = (selectedLevel: string): ControlPlaneFilters
   }
 };
 
+// Status filter options with labels
+const statusFilterOptions: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'running', label: 'Running' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+];
+
 // Components
 const CommandBar: React.FC<{
   searchQuery: string;
   onSearchChange: (q: string) => void;
   timeRange: string;
   onTimeRangeChange: (r: string) => void;
-}> = ({ searchQuery, onSearchChange, timeRange, onTimeRangeChange }) => (
+  statusFilter: StatusFilter;
+  onStatusChange: (status: StatusFilter) => void;
+}> = ({ searchQuery, onSearchChange, timeRange, onTimeRangeChange, statusFilter, onStatusChange }) => (
   <div className={styles.commandBar}>
     <div className={styles.searchContainer}>
       <span className={styles.searchIcon}>⌘</span>
@@ -185,6 +197,15 @@ const CommandBar: React.FC<{
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
       />
+      {searchQuery && (
+        <button
+          className={styles.searchClear}
+          onClick={() => onSearchChange('')}
+          title="Clear search"
+        >
+          ×
+        </button>
+      )}
       <kbd className={styles.searchKbd}>K</kbd>
     </div>
     <div className={styles.commandActions}>
@@ -200,10 +221,15 @@ const CommandBar: React.FC<{
         <option value="90d">Last 90 days</option>
       </select>
       <div className={styles.filterChips}>
-        <button className={`${styles.chip} ${styles.chipActive}`}>All</button>
-        <button className={styles.chip}>Running</button>
-        <button className={styles.chip}>Pending</button>
-        <button className={styles.chip}>Failed</button>
+        {statusFilterOptions.map(({ value, label }) => (
+          <button
+            key={value}
+            className={`${styles.chip} ${statusFilter === value ? styles.chipActive : ''} ${styles[`chip${value.charAt(0).toUpperCase() + value.slice(1)}`] || ''}`}
+            onClick={() => onStatusChange(value)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <div className={styles.liveIndicator}>
         <span className={styles.liveDot} />
@@ -1460,6 +1486,7 @@ interface ControlPlaneProps {
 export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboard }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState('24h');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedLevel, setSelectedLevel] = useState('global');
   const [trustCapabilities, setTrustCapabilities] = useState(defaultTrustCapabilities);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -1470,7 +1497,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   // Convert selectedLevel to dimension filters
   const dimensionFilters = useMemo(() => parseSelectedLevelToFilters(selectedLevel), [selectedLevel]);
 
-  // Merge dimension filters with time range from heatmap selection
+  // Merge dimension filters with time range from heatmap selection, status, and search
   const filters = useMemo((): ControlPlaneFilters => {
     let merged = { ...dimensionFilters };
     if (selectedDateRange && selectedDateRange.start && selectedDateRange.end) {
@@ -1479,8 +1506,16 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         end_date: selectedDateRange.end,
       });
     }
+    // Add status filter if not 'all'
+    if (statusFilter && statusFilter !== 'all') {
+      merged = mergeFilters(merged, { status: statusFilter });
+    }
+    // Add search filter if not empty
+    if (searchQuery.trim()) {
+      merged = mergeFilters(merged, { search: searchQuery.trim() });
+    }
     return merged;
-  }, [dimensionFilters, selectedDateRange]);
+  }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery]);
 
   const isFiltered = hasActiveFilters(filters);
   const hasDimensionFilter = hasActiveFilters(dimensionFilters);
@@ -1601,9 +1636,11 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           isFiltered={isFiltered}
           filterDescription={filterDescription}
           onClearFilter={() => {
-            // Clear both dimension and time range filters
+            // Clear all filters
             setSelectedLevel('global');
             setSelectedDateRange(null);
+            setStatusFilter('all');
+            setSearchQuery('');
           }}
         />
       </header>
@@ -1614,6 +1651,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         onSearchChange={setSearchQuery}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
       />
 
       {/* Main Layout */}

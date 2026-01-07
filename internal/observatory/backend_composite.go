@@ -306,6 +306,10 @@ func (b *CompositeBackend) GetTaskTimeline(ctx context.Context, taskID string) (
 	return b.local.GetTaskTimeline(ctx, taskID)
 }
 
+func (b *CompositeBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error) {
+	return b.local.GetExecTaskHierarchy(ctx, limit)
+}
+
 // LookupTaskBySessionID delegates to local (session correlation is local only).
 func (b *CompositeBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return b.local.LookupTaskBySessionID(ctx, sessionID)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/sunholo/ailang/internal/effects"
@@ -341,7 +342,23 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	ctx = telemetry.ExtractTraceContext(ctx)
 
 	// Extract correlation IDs for span attributes (fallback linking)
-	taskID, sessionID := telemetry.ExtractCorrelationIDs()
+	corrTaskID, sessionID := telemetry.ExtractCorrelationIDs()
+
+	// Generate task ID for this run command
+	runTaskID := fmt.Sprintf("run_%d", time.Now().UnixNano())
+
+	// Inherit parent task from environment if set
+	// This enables automatic hierarchy linking when ailang exec spawns ailang run
+	parentTaskID := os.Getenv("AILANG_PARENT_TASK_ID")
+
+	// If no parent task, use generic root marker for analytics
+	// This ensures all runs appear in Observatory hierarchy views
+	if parentTaskID == "" {
+		parentTaskID = "root"
+	}
+
+	// Export current task ID so child processes inherit the hierarchy
+	os.Setenv("AILANG_PARENT_TASK_ID", runTaskID)
 
 	// Create root span for the entire run command
 	// All child spans (compile, execute) will be linked under this
@@ -350,13 +367,15 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		oteltrace.WithAttributes(
 			attribute.String("file.path", filename),
 			attribute.String("entry.function", entry),
+			attribute.String("exec.task_id", runTaskID),
+			attribute.String("exec.parent_task_id", parentTaskID),
 		),
 	)
 	defer rootSpan.End()
 
 	// Add correlation IDs as span attributes (if present)
-	if taskID != "" {
-		rootSpan.SetAttributes(attribute.String("ailang.task_id", taskID))
+	if corrTaskID != "" {
+		rootSpan.SetAttributes(attribute.String("ailang.task_id", corrTaskID))
 	}
 	if sessionID != "" {
 		rootSpan.SetAttributes(attribute.String("ailang.session_id", sessionID))

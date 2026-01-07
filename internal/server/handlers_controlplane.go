@@ -681,3 +681,49 @@ func convertBreakdownItems(items []observatory.BreakdownItem) []BreakdownItem {
 	}
 	return result
 }
+
+// GET /api/controlplane/exec-hierarchy - Get exec task hierarchy from span attributes
+// Returns tree structure of ailang exec tasks with parent/child relationships
+// Query params:
+//   - limit: Maximum number of exec spans to query (default: 100)
+func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse limit parameter
+	limit := 100
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 && l <= 1000 {
+			limit = l
+		}
+	}
+
+	// Get SQLite backend for direct store access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "Exec hierarchy requires SQLite backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	hierarchy, err := sqliteBackend.Store().GetExecTaskHierarchy(limit)
+	if err != nil {
+		log.Printf("Failed to get exec hierarchy: %v", err)
+		http.Error(w, "Failed to get exec hierarchy", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		Hierarchy []*observatory.ExecTaskNode `json:"hierarchy"`
+		Count     int                         `json:"count"`
+	}{
+		Hierarchy: hierarchy,
+		Count:     len(hierarchy),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode exec hierarchy response: %v", err)
+	}
+}

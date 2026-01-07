@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTraces, useTrace, useMetrics, useTasks, useObservatoryWs, useTelemetryConfig, TraceSummary, MetricsSummary, Task } from '../../hooks/useObservatory';
 import { TaskHierarchyView } from './TaskHierarchy';
+import { ControlPlaneAnalytics } from './components/ControlPlaneAnalytics';
+import { SearchFilters, FilterState, filterTasks, filterTraces } from './components/SearchFilters';
 import styles from './Observatory.module.css';
 
-type TabType = 'traces' | 'tasks';
+type TabType = 'traces' | 'tasks' | 'analytics';
+
+// Default filter state
+const defaultFilters: FilterState = {
+  search: '',
+  status: 'all',
+  timeRange: 'all',
+};
 
 // Format duration in human-readable format
 function formatDuration(ms: number | string): string {
@@ -233,12 +242,60 @@ function TaskList({ tasks, onSelectTask }: { tasks: Task[]; onSelectTask: (taskI
   );
 }
 
-// Connection status indicator
-function ConnectionStatus({ isConnected }: { isConnected: boolean }) {
+// Connection status indicator with more state
+interface ConnectionStatusProps {
+  connectionState: string;
+  reconnectAttempts: number;
+  lastEventTime: Date | null;
+  onReconnect: () => void;
+}
+
+function ConnectionStatus({ connectionState, reconnectAttempts, lastEventTime, onReconnect }: ConnectionStatusProps) {
+  const getStatusClass = () => {
+    switch (connectionState) {
+      case 'connected':
+        return styles.connected;
+      case 'connecting':
+        return styles.connecting;
+      case 'error':
+        return styles.connectionError;
+      default:
+        return styles.disconnected;
+    }
+  };
+
+  const getStatusLabel = () => {
+    switch (connectionState) {
+      case 'connected':
+        return 'Live';
+      case 'connecting':
+        return 'Connecting...';
+      case 'error':
+        return 'Error';
+      default:
+        return reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts})` : 'Disconnected';
+    }
+  };
+
+  // Format last event time
+  const lastEventLabel = lastEventTime
+    ? `Last: ${lastEventTime.toLocaleTimeString()}`
+    : null;
+
   return (
-    <div className={`${styles.connectionStatus} ${isConnected ? styles.connected : styles.disconnected}`}>
-      <span className={styles.statusDot}></span>
-      {isConnected ? 'Live' : 'Disconnected'}
+    <div className={styles.connectionStatusWrapper}>
+      <div className={`${styles.connectionStatus} ${getStatusClass()}`}>
+        <span className={styles.statusDot}></span>
+        {getStatusLabel()}
+      </div>
+      {lastEventLabel && connectionState === 'connected' && (
+        <span className={styles.lastEvent}>{lastEventLabel}</span>
+      )}
+      {connectionState !== 'connected' && connectionState !== 'connecting' && (
+        <button className={styles.reconnectButton} onClick={onReconnect}>
+          Reconnect
+        </button>
+      )}
     </div>
   );
 }
@@ -263,14 +320,20 @@ function GCPTraceLink({ url }: { url: string }) {
 export function Observatory() {
   const [activeTab, setActiveTab] = useState<TabType>('traces');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskFilters, setTaskFilters] = useState<FilterState>(defaultFilters);
+  const [traceFilters, setTraceFilters] = useState<FilterState>(defaultFilters);
 
-  const { traces, loading: tracesLoading, error: tracesError, refresh: refreshTraces } = useTraces({ limit: 50 });
-  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks({ limit: 50 });
+  const { traces, loading: tracesLoading, error: tracesError, refresh: refreshTraces } = useTraces({ limit: 100 });
+  const { tasks, loading: tasksLoading, error: tasksError, refresh: refreshTasks } = useTasks({ limit: 100 });
   const { metrics, refresh: refreshMetrics } = useMetrics();
   const { config: telemetryConfig } = useTelemetryConfig();
 
-  // Real-time updates
-  const { isConnected } = useObservatoryWs({
+  // Apply filters to tasks and traces
+  const filteredTasks = useMemo(() => filterTasks(tasks, taskFilters), [tasks, taskFilters]);
+  const filteredTraces = useMemo(() => filterTraces(traces, traceFilters), [traces, traceFilters]);
+
+  // Real-time updates with enhanced connection state
+  const { connectionState, reconnectAttempts, lastEventTime, manualReconnect } = useObservatoryWs({
     onSpanCreated: () => {
       refreshTraces();
       refreshTasks();
@@ -302,7 +365,12 @@ export function Observatory() {
           {telemetryConfig?.gcp_enabled && telemetryConfig?.gcp_trace_url && (
             <GCPTraceLink url={telemetryConfig.gcp_trace_url} />
           )}
-          <ConnectionStatus isConnected={isConnected} />
+          <ConnectionStatus
+            connectionState={connectionState}
+            reconnectAttempts={reconnectAttempts}
+            lastEventTime={lastEventTime}
+            onReconnect={manualReconnect}
+          />
         </div>
       </header>
 
@@ -324,6 +392,12 @@ export function Observatory() {
         >
           Tasks
         </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'analytics' ? styles.tabButtonActive : ''}`}
+          onClick={() => { setActiveTab('analytics'); setSelectedTaskId(null); }}
+        >
+          Analytics
+        </button>
       </div>
 
       {/* Task Detail View */}
@@ -343,10 +417,32 @@ export function Observatory() {
             </button>
           </div>
 
+          <SearchFilters
+            filters={traceFilters}
+            onChange={setTraceFilters}
+            showStatusFilter={true}
+            showProviderFilter={true}
+            statusOptions={['all', 'completed', 'failed', 'pending']}
+            placeholder="Search traces by ID, span name, or service..."
+          />
+
           {tracesLoading && <div className={styles.loading}>Loading traces...</div>}
           {tracesError && <div className={styles.error}>Error: {tracesError}</div>}
           {!tracesLoading && !tracesError && (
-            <TraceList traces={traces} />
+            <>
+              {filteredTraces.length === 0 && traces.length > 0 ? (
+                <div className={styles.emptyState}>
+                  <p>No traces match your filters. Try adjusting your search criteria.</p>
+                </div>
+              ) : (
+                <TraceList traces={filteredTraces} />
+              )}
+              {filteredTraces.length > 0 && filteredTraces.length < traces.length && (
+                <div className={styles.filterInfo}>
+                  Showing {filteredTraces.length} of {traces.length} traces
+                </div>
+              )}
+            </>
           )}
         </section>
       )}
@@ -361,11 +457,38 @@ export function Observatory() {
             </button>
           </div>
 
+          <SearchFilters
+            filters={taskFilters}
+            onChange={setTaskFilters}
+            showStatusFilter={true}
+            placeholder="Search tasks by title or ID..."
+          />
+
           {tasksLoading && <div className={styles.loading}>Loading tasks...</div>}
           {tasksError && <div className={styles.error}>Error: {tasksError}</div>}
           {!tasksLoading && !tasksError && (
-            <TaskList tasks={tasks} onSelectTask={handleSelectTask} />
+            <>
+              {filteredTasks.length === 0 && tasks.length > 0 ? (
+                <div className={styles.emptyState}>
+                  <p>No tasks match your filters. Try adjusting your search criteria.</p>
+                </div>
+              ) : (
+                <TaskList tasks={filteredTasks} onSelectTask={handleSelectTask} />
+              )}
+              {filteredTasks.length > 0 && filteredTasks.length < tasks.length && (
+                <div className={styles.filterInfo}>
+                  Showing {filteredTasks.length} of {tasks.length} tasks
+                </div>
+              )}
+            </>
           )}
+        </section>
+      )}
+
+      {/* Analytics Tab Content */}
+      {activeTab === 'analytics' && (
+        <section className={styles.traces}>
+          <ControlPlaneAnalytics />
         </section>
       )}
     </div>

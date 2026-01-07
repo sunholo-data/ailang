@@ -36,7 +36,23 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	ctx = telemetry.ExtractTraceContext(ctx)
 
 	// Extract correlation IDs for span attributes (fallback linking)
-	taskID, sessionID := telemetry.ExtractCorrelationIDs()
+	corrTaskID, sessionID := telemetry.ExtractCorrelationIDs()
+
+	// Generate task ID for this check command
+	checkTaskID := fmt.Sprintf("check_%d", time.Now().UnixNano())
+
+	// Inherit parent task from environment if set
+	// This enables automatic hierarchy linking when ailang exec spawns ailang check
+	parentTaskID := os.Getenv("AILANG_PARENT_TASK_ID")
+
+	// If no parent task, use generic root marker for analytics
+	// This ensures all checks appear in Observatory hierarchy views
+	if parentTaskID == "" {
+		parentTaskID = "root"
+	}
+
+	// Export current task ID so child processes inherit the hierarchy
+	os.Setenv("AILANG_PARENT_TASK_ID", checkTaskID)
 
 	// Parse timeout for span attribute
 	var timeoutMs int64
@@ -51,13 +67,15 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		trace.WithAttributes(
 			attribute.String("file.path", filename),
 			attribute.Int64("timeout_ms", timeoutMs),
+			attribute.String("exec.task_id", checkTaskID),
+			attribute.String("exec.parent_task_id", parentTaskID),
 		),
 	)
 	defer span.End()
 
 	// Add correlation IDs as span attributes (if present)
-	if taskID != "" {
-		span.SetAttributes(attribute.String("ailang.task_id", taskID))
+	if corrTaskID != "" {
+		span.SetAttributes(attribute.String("ailang.task_id", corrTaskID))
 	}
 	if sessionID != "" {
 		span.SetAttributes(attribute.String("ailang.session_id", sessionID))

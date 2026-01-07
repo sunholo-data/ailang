@@ -53,6 +53,12 @@
 }
 
 /* Connection status */
+.connectionStatusWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .connectionStatus {
   display: flex;
   align-items: center;
@@ -68,7 +74,21 @@
   color: #22c55e;
 }
 
+.connecting {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.connecting .statusDot {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 .disconnected {
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+.connectionError {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
@@ -78,6 +98,39 @@
   height: 8px;
   border-radius: 50%;
   background: currentColor;
+}
+
+.lastEvent {
+  font-size: 11px;
+  color: var(--text-secondary, #8b949e);
+  opacity: 0.8;
+}
+
+.reconnectButton {
+  padding: 4px 10px;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reconnectButton:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #cdd6f4);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
 }
 
 /* Metrics card - use app's gradient */
@@ -584,6 +637,16 @@
 
 .emptyState p {
   margin: 0;
+}
+
+.filterInfo {
+  padding: 12px 16px;
+  margin-top: 12px;
+  text-align: center;
+  color: var(--text-secondary, #8b949e);
+  font-size: 13px;
+  background: var(--bg-surface-secondary, #232d3a);
+  border-radius: var(--radius-md, 8px);
 }
 
 /* Responsive adjustments */

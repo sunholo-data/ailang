@@ -573,6 +573,10 @@ func (b *GCPTraceBackend) GetTaskTimeline(ctx context.Context, taskID string) ([
 	return nil, errNotSupported("GetTaskTimeline")
 }
 
+func (b *GCPTraceBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error) {
+	return nil, errNotSupported("GetExecTaskHierarchy")
+}
+
 // LookupTaskBySessionID is not supported by GCP backend (session correlation is local only).
 func (b *GCPTraceBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {
 	return "", "", ""

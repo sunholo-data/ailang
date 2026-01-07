@@ -2,6 +2,9 @@
  * Control Plane filter types for interactive filtering
  */
 
+// Status filter values
+export type StatusFilter = 'all' | 'running' | 'pending' | 'completed' | 'failed';
+
 // Filter parameters that can be passed to Control Plane API endpoints
 export interface ControlPlaneFilters {
   source_type?: string; // eval, coordinator, direct_api, local, other
@@ -10,6 +13,8 @@ export interface ControlPlaneFilters {
   workspace?: string;   // workspace ID
   start_date?: string;  // YYYY-MM-DD format for time range filter (inclusive)
   end_date?: string;    // YYYY-MM-DD format for time range filter (inclusive)
+  status?: StatusFilter; // Filter by task/span status
+  search?: string;      // Search query for filtering by name/content
 }
 
 // Check if any filters are active
@@ -20,7 +25,9 @@ export function hasActiveFilters(filters: ControlPlaneFilters): boolean {
     filters.model ||
     filters.workspace ||
     filters.start_date ||
-    filters.end_date
+    filters.end_date ||
+    (filters.status && filters.status !== 'all') ||
+    filters.search
   );
 }
 
@@ -38,6 +45,8 @@ export function buildFilterQueryString(filters: ControlPlaneFilters): string {
   if (filters.workspace) params.set('workspace', filters.workspace);
   if (filters.start_date) params.set('start_date', filters.start_date);
   if (filters.end_date) params.set('end_date', filters.end_date);
+  if (filters.status && filters.status !== 'all') params.set('status', filters.status);
+  if (filters.search) params.set('search', filters.search);
   const queryString = params.toString();
   return queryString ? `?${queryString}` : '';
 }

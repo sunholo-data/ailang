@@ -378,84 +378,125 @@ export function useTelemetryConfig() {
   return { config, loading, error };
 }
 
-export function useObservatoryWs(options: UseObservatoryWsOptions = {}) {
-  const [isConnected, setIsConnected] = useState(false);
+// Connection state enum
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// Return type for WebSocket hook
+export interface UseObservatoryWsReturn {
+  connectionState: ConnectionState;
+  isConnected: boolean;
+  lastEventTime: Date | null;
+  reconnectAttempts: number;
+  manualReconnect: () => void;
+}
+
+export function useObservatoryWs(options: UseObservatoryWsOptions = {}): UseObservatoryWsReturn {
+  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+  const [lastEventTime, setLastEventTime] = useState<Date | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const optionsRef = useRef(options);
+  const reconnectTimeoutRef = useRef<number | null>(null);
 
   // Update options ref
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
-  useEffect(() => {
+  const connect = useCallback(() => {
+    // Clear any pending reconnect
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/observatory`;
 
-    const connect = () => {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    setConnectionState('connecting');
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
-      ws.onopen = () => {
-        setIsConnected(true);
-        // Send subscription if filters provided
-        const sub: any = {};
-        if (optionsRef.current.workspaceId) sub.workspace_id = optionsRef.current.workspaceId;
-        if (optionsRef.current.taskId) sub.task_id = optionsRef.current.taskId;
-        if (Object.keys(sub).length > 0) {
-          ws.send(JSON.stringify(sub));
-        }
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        // Reconnect after delay
-        setTimeout(connect, 3000);
-      };
-
-      ws.onerror = () => {
-        setIsConnected(false);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const wsEvent: WSEvent = JSON.parse(event.data);
-          const opts = optionsRef.current;
-
-          switch (wsEvent.type) {
-            case 'span.created':
-              opts.onSpanCreated?.(wsEvent.data);
-              break;
-            case 'span.updated':
-              opts.onSpanUpdated?.(wsEvent.data);
-              break;
-            case 'task.created':
-              opts.onTaskCreated?.(wsEvent.data);
-              break;
-            case 'task.updated':
-              opts.onTaskUpdated?.(wsEvent.data);
-              break;
-            case 'task.completed':
-              opts.onTaskCompleted?.(wsEvent.data);
-              break;
-            case 'metrics.updated':
-              opts.onMetricsUpdated?.(wsEvent.data);
-              break;
-          }
-        } catch (err) {
-          console.error('Failed to parse WebSocket message:', err);
-        }
-      };
+    ws.onopen = () => {
+      setConnectionState('connected');
+      setReconnectAttempts(0);
+      // Send subscription if filters provided
+      const sub: any = {};
+      if (optionsRef.current.workspaceId) sub.workspace_id = optionsRef.current.workspaceId;
+      if (optionsRef.current.taskId) sub.task_id = optionsRef.current.taskId;
+      if (Object.keys(sub).length > 0) {
+        ws.send(JSON.stringify(sub));
+      }
     };
 
+    ws.onclose = () => {
+      setConnectionState('disconnected');
+      // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      setReconnectAttempts(prev => prev + 1);
+      reconnectTimeoutRef.current = window.setTimeout(connect, delay);
+    };
+
+    ws.onerror = () => {
+      setConnectionState('error');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const wsEvent: WSEvent = JSON.parse(event.data);
+        setLastEventTime(new Date());
+        const opts = optionsRef.current;
+
+        switch (wsEvent.type) {
+          case 'span.created':
+            opts.onSpanCreated?.(wsEvent.data);
+            break;
+          case 'span.updated':
+            opts.onSpanUpdated?.(wsEvent.data);
+            break;
+          case 'task.created':
+            opts.onTaskCreated?.(wsEvent.data);
+            break;
+          case 'task.updated':
+            opts.onTaskUpdated?.(wsEvent.data);
+            break;
+          case 'task.completed':
+            opts.onTaskCompleted?.(wsEvent.data);
+            break;
+          case 'metrics.updated':
+            opts.onMetricsUpdated?.(wsEvent.data);
+            break;
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket message:', err);
+      }
+    };
+  }, [reconnectAttempts]);
+
+  const manualReconnect = useCallback(() => {
+    wsRef.current?.close();
+    setReconnectAttempts(0);
+    connect();
+  }, [connect]);
+
+  useEffect(() => {
     connect();
 
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       wsRef.current?.close();
     };
   }, []);
 
-  return { isConnected };
+  return {
+    connectionState,
+    isConnected: connectionState === 'connected',
+    lastEventTime,
+    reconnectAttempts,
+    manualReconnect,
+  };
 }
 
 // ===== Task Hierarchy Types (M-TASK-HIERARCHY) =====
@@ -547,4 +588,53 @@ export function useTaskHierarchy(taskId: string | null, options: UseTaskHierarch
   }, [refresh]);
 
   return { hierarchy, loading, error, refresh };
+}
+
+// TaskTimeline type matching Go backend model
+export interface TaskTimelineItem {
+  task_id: string;
+  title: string;
+  status: string;
+  span_id?: string;
+  span_name?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_ms?: number;
+  span_status?: string;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost_usd?: number;
+  provider?: string;
+}
+
+// Hook for task timeline (Gantt-style span data)
+export function useTaskTimeline(taskId: string | null) {
+  const [timeline, setTimeline] = useState<TaskTimelineItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!taskId) {
+      setTimeline([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await fetchAPI<TaskTimelineItem[]>(`/tasks/${taskId}/timeline`);
+      setTimeline(data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch task timeline');
+      setTimeline([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [taskId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { timeline, loading, error, refresh };
 }

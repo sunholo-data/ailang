@@ -86,6 +86,7 @@ func isToolCallSpan(name string) bool {
 
 // RecalculateTaskAggregates recalculates all aggregate metrics for a task from its spans.
 // Use this for backfill operations or to fix inconsistent aggregates.
+// Deprecated: Use Store.RecalculateTaskAggregates instead for encapsulation.
 func RecalculateTaskAggregates(ctx context.Context, db *sql.DB, taskID string) error {
 	_, err := db.ExecContext(ctx, `
 		UPDATE tasks SET
@@ -106,6 +107,7 @@ func RecalculateTaskAggregates(ctx context.Context, db *sql.DB, taskID string) e
 
 // RecalculateAgentAssignmentAggregates recalculates all aggregate metrics for an agent assignment.
 // Use this for backfill operations or to fix inconsistent aggregates.
+// Deprecated: Use Store.RecalculateAgentAssignmentAggregates instead for encapsulation.
 func RecalculateAgentAssignmentAggregates(ctx context.Context, db *sql.DB, assignmentID string) error {
 	_, err := db.ExecContext(ctx, `
 		UPDATE agent_assignments SET
