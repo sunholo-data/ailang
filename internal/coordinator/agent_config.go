@@ -188,6 +188,20 @@ coordinator:
       auto_merge: false  # Require approval before merge
       session_continuity: true
 
+    # Script agent for deterministic workflows (v0.6.4+)
+    # Runs shell scripts instead of AI - useful for evals, deploys, syncs
+    - id: eval-runner
+      label: "Eval Runner"
+      inbox: eval-runner
+      workspace: /path/to/main/project
+      invoke:
+        type: script                    # Run script, not AI
+        command: ./scripts/run-eval.sh  # Script to execute
+        env_from_payload: true          # JSON payload becomes env vars
+        timeout: 2h                     # Long timeout for evals
+      output_markers: ["EVAL_RESULT:", "PASS_RATE:"]
+      trigger_on_complete: []           # End of pipeline
+
   github_sync:
     enabled: true
     interval_secs: 300  # Check every 5 minutes

@@ -56,6 +56,10 @@ type ExecuteOptions struct {
 
 	// Observatory context for trace linking (M-TASK-HIERARCHY)
 	ObservatoryContext *ObservatoryContext
+
+	// InvokeConfig for script execution (v0.6.4+)
+	// Set when the agent has invoke.type: "script"
+	InvokeConfig *InvokeConfig
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.

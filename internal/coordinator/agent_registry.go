@@ -6,14 +6,23 @@ import (
 )
 
 // InvokeConfig specifies how an agent should be invoked.
-// Supports three types:
+// Supports four types:
 //   - "skill": Invoke a Claude Code skill (e.g., "/design-doc-creator")
 //   - "agent": Send message to another agent (e.g., "sprint-planner")
 //   - "prompt": Use custom prompt template with variable substitution
+//   - "script": Execute a shell script with JSON payload as environment variables (v0.6.4+)
 type InvokeConfig struct {
-	Type     string `yaml:"type" json:"type"`         // "skill", "agent", or "prompt"
+	Type     string `yaml:"type" json:"type"`         // "skill", "agent", "prompt", or "script"
 	Name     string `yaml:"name" json:"name"`         // Skill/agent name (for skill/agent types)
 	Template string `yaml:"template" json:"template"` // Custom template (for prompt type)
+
+	// Script-specific fields (v0.6.4+)
+	// Used when Type == "script" for deterministic workflow execution
+	Command        string `yaml:"command" json:"command,omitempty"`                   // Script path or inline command
+	Shell          string `yaml:"shell" json:"shell,omitempty"`                       // Shell to use (default: /bin/sh)
+	EnvFromPayload bool   `yaml:"env_from_payload" json:"env_from_payload,omitempty"` // Parse JSON payload as env vars
+	Timeout        string `yaml:"timeout" json:"timeout,omitempty"`                   // Execution timeout (e.g., "30m", "2h")
+	WorkingDir     string `yaml:"working_dir" json:"working_dir,omitempty"`           // Working directory (supports {{.Workspace}})
 }
 
 // ApprovalConfig specifies the approval workflow for an agent.

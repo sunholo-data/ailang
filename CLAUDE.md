@@ -912,6 +912,38 @@ coordinator:
 | `auto_merge` | Automatically merge approved changes |
 | `session_continuity` | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
 
+**Script Invoke Type (v0.6.4+):**
+
+Any agent can run deterministic shell scripts instead of AI by setting `invoke.type: script`:
+
+```yaml
+- id: eval-runner
+  inbox: eval-runner
+  workspace: /path/to/project
+  invoke:
+    type: script                    # Run script instead of AI
+    command: ./scripts/run-eval.sh  # Script to execute
+    env_from_payload: true          # JSON payload → env vars
+    timeout: 2h                     # Execution timeout
+  output_markers: ["EVAL_RESULT:", "PASS_RATE:"]
+```
+
+**Usage:**
+```bash
+# Send JSON payload - becomes environment variables
+ailang messages send eval-runner '{"model": "gpt5", "benchmarks": "all"}' \
+  --title "Run v0.6.4 baseline"
+
+# Script receives: MODEL=gpt5 BENCHMARKS=all ./scripts/run-eval.sh
+# Plus: AILANG_TASK_ID, AILANG_MESSAGE_ID, AILANG_WORKSPACE
+```
+
+**Benefits:**
+- Deterministic (same input = same execution)
+- Zero cost ($0.00 - no AI tokens)
+- Composable with AI agents (AI → Script → AI pipelines)
+- Same approval workflow, dashboard streaming, output markers
+
 **Multi-Agent Workflow:**
 ```
 GitHub Issue → design-doc-creator → [Approval] → sprint-planner → [Approval] → sprint-executor → [Approval] → Merged

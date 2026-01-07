@@ -105,6 +105,11 @@ func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
 		return buildAgentHandoffDirectiveWithConfig(task, agent, invoke)
 	case "prompt":
 		return buildTemplateDirective(task, agent)
+	case "script":
+		// For scripts, the "directive" is passed as-is to be parsed as JSON payload
+		// The actual command comes from InvokeConfig.Command
+		// Scripts receive task content which may be JSON for env var injection
+		return task.Content
 	default:
 		// Unknown type, fall back to legacy
 		return BuildStageDirective(task)

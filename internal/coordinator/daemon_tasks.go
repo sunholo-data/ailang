@@ -562,6 +562,15 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		ObservatoryContext: obsContext,
 	}
 
+	// Pass InvokeConfig for script execution (v0.6.4+)
+	// This allows the TaskExecutor to route to ScriptProvider
+	if agentConfig != nil && agentConfig.Invoke != nil {
+		opts.InvokeConfig = agentConfig.Invoke
+		if agentConfig.Invoke.Type == "script" {
+			d.logger.Printf("Task %s will use script execution: %s", task.ID, agentConfig.Invoke.Command)
+		}
+	}
+
 	// Create streaming event handler if broadcaster is available
 	var eventHandler *CoordinatorEventHandler
 	if d.eventBroadcaster != nil {

@@ -10,9 +10,10 @@ import (
 // It routes tasks to the appropriate provider based on task type and
 // provider capabilities.
 type TaskExecutor struct {
-	providers     []Provider
-	defaultCoding Provider // Default for coding tasks (bug-fix, feature, refactor, test)
-	defaultSimple Provider // Default for simple tasks (docs, research)
+	providers      []Provider
+	defaultCoding  Provider // Default for coding tasks (bug-fix, feature, refactor, test)
+	defaultSimple  Provider // Default for simple tasks (docs, research)
+	scriptProvider Provider // Provider for deterministic script execution (v0.6.4+)
 }
 
 // NewTaskExecutor creates a new task executor with the given providers
@@ -62,11 +63,19 @@ func DefaultTaskExecutor() (*TaskExecutor, error) {
 		providers = append(providers, geminiAPI)
 	}
 
+	// Script provider is always available (no external dependencies)
+	scriptProvider := NewScriptProvider()
+
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("no providers available")
+		// Even with no AI providers, scripts can still work
+		te := NewTaskExecutor()
+		te.scriptProvider = scriptProvider
+		return te, nil
 	}
 
-	return NewTaskExecutor(providers...), nil
+	te := NewTaskExecutor(providers...)
+	te.scriptProvider = scriptProvider
+	return te, nil
 }
 
 // Execute runs a task using the best available provider
@@ -75,7 +84,20 @@ func (te *TaskExecutor) Execute(ctx context.Context, task *AnalyzedTask, opts *E
 		opts = DefaultExecuteOptions()
 	}
 
-	// Find the best provider for this task
+	// Check for script invoke type first (v0.6.4+)
+	// Script execution is determined by InvokeConfig, not task type
+	if opts.InvokeConfig != nil && opts.InvokeConfig.Type == "script" {
+		if te.scriptProvider != nil {
+			fmt.Printf("[DEBUG] TaskExecutor: Using script provider for task (invoke.type=script)\n")
+			return te.scriptProvider.Execute(ctx, task, opts)
+		}
+		return &ExecuteResult{
+			Success: false,
+			Error:   "script provider not available",
+		}, nil
+	}
+
+	// Find the best AI provider for this task
 	provider := te.selectProvider(task)
 	if provider == nil {
 		return &ExecuteResult{
