@@ -51,6 +51,8 @@ export interface Span {
   startMs: number;
   durationMs: number;
   children?: Span[];
+  status?: 'ok' | 'error';
+  attributes?: Record<string, string>;
 }
 
 // Topology edge

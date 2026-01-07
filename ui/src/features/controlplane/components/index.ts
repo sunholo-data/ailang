@@ -35,3 +35,6 @@ export type { TraceWaterfallProps } from './TraceWaterfall';
 
 export { DetailPanel } from './DetailPanel';
 export type { DetailPanelProps } from './DetailPanel';
+
+export { EventDetail } from './EventDetail';
+export type { EventDetailProps } from './EventDetail';

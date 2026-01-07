@@ -1119,6 +1119,17 @@ services-restart: services-stop
 	@echo ""
 	@$(MAKE) services-start
 
+# Build and deploy UI (cleans old assets first)
+.PHONY: ui-deploy
+ui-deploy:
+	@echo "Building UI..."
+	@cd ui && npm run build
+	@echo "Cleaning old assets..."
+	@rm -rf internal/server/dist/assets/*
+	@echo "Deploying to server..."
+	@cp -r ui/dist/* internal/server/dist/
+	@echo "✓ UI deployed ($(shell ls internal/server/dist/assets | wc -l | tr -d ' ') assets)"
+
 # Show status of all services
 services-status:
 	@echo "📊 AILANG Services Status"

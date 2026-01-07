@@ -8,6 +8,7 @@ import styles from '../ControlPlane.module.css';
 export interface MessageQueueProps {
   events: EventMessage[];
   onEventClick: (event: EventMessage) => void;
+  loading?: boolean;
 }
 
 const getEventIcon = (type: EventMessage['type']): string => {
@@ -44,7 +45,7 @@ const formatRelativeTime = (timestamp: string): string => {
   return `${Math.floor(diff / 3600000)}h ago`;
 };
 
-export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick }) => {
+export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick, loading }) => {
   return (
     <div className={styles.messageQueue}>
       <div className={styles.queueHeader}>
@@ -52,10 +53,18 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
           <span className={styles.panelIcon}>▥</span>
           Event Queue
         </h3>
-        <span className={styles.queueCount}>{events.length} events</span>
+        <span className={styles.queueCount}>
+          {loading ? '...' : `${events.length} events`}
+        </span>
       </div>
       <div className={styles.queueList}>
-        {events.length === 0 && (
+        {loading && (
+          <div className={styles.queueEmpty}>
+            <span className={styles.queueEmptyIcon}>◎</span>
+            <span className={styles.queueEmptyText}>Loading events...</span>
+          </div>
+        )}
+        {!loading && events.length === 0 && (
           <div className={styles.queueEmpty}>
             <span className={styles.queueEmptyIcon}>◎</span>
             <span className={styles.queueEmptyText}>No recent events</span>
@@ -64,7 +73,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
             </span>
           </div>
         )}
-        {events.map((event) => (
+        {!loading && events.map((event) => (
           <div
             key={event.id}
             className={styles.queueItem}

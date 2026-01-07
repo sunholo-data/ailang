@@ -23,17 +23,30 @@ export interface Trace {
   timestamp: string;
 }
 
+// Raw span from API response (matches actual /api/observatory/spans response)
+interface RawSpan {
+  id: string;
+  parent_span_id?: string;
+  name: string;
+  start_time: string;
+  duration_ms: number;
+  status?: string;
+  attributes?: Record<string, string>;
+}
+
 interface UseTraceDataOptions {
   traceId?: string;
+  taskId?: string;
   limit?: number;
   refreshInterval?: number;
 }
 
 export function useTraceData(options: UseTraceDataOptions = {}) {
-  const { traceId, limit = 10, refreshInterval = 0 } = options;
+  const { traceId, taskId, limit = 10, refreshInterval = 0 } = options;
   const [traces, setTraces] = useState<Trace[]>([]);
   const [spans, setSpans] = useState<Span[]>([]);
   const [loading, setLoading] = useState(true);
+  const [spansLoading, setSpansLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch trace list
@@ -54,23 +67,56 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
     }
   }, [limit]);
 
-  // Fetch spans for a specific trace
-  const fetchSpans = useCallback(async (tid: string) => {
-    if (!tid) return;
+  // Fetch spans by trace_id
+  const fetchByTraceId = async (tid: string): Promise<RawSpan[]> => {
+    const response = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
+    if (!response.ok) return [];
+    return await response.json() || [];
+  };
 
+  // Fetch spans by task_id
+  const fetchByTaskId = async (tid: string): Promise<RawSpan[]> => {
+    const response = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
+    if (!response.ok) return [];
+    return await response.json() || [];
+  };
+
+  // Fetch spans for a specific trace or task - tries multiple approaches
+  const fetchSpans = useCallback(async (id: string, idType?: 'trace' | 'task' | 'auto') => {
+    if (!id) return;
+
+    setSpansLoading(true);
     try {
-      const response = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+      let result: RawSpan[] = [];
+      const type = idType || 'auto';
+
+      if (type === 'trace') {
+        result = await fetchByTraceId(id);
+      } else if (type === 'task') {
+        result = await fetchByTaskId(id);
+      } else {
+        // Auto mode: try trace_id first, then task_id
+        result = await fetchByTraceId(id);
+        if (result.length === 0) {
+          // Try as task_id
+          result = await fetchByTaskId(id);
+        }
+        if (result.length === 0) {
+          // Try with "task-" prefix if not already present
+          if (!id.startsWith('task-')) {
+            result = await fetchByTaskId(`task-${id}`);
+          }
+        }
       }
-      const result = await response.json();
 
       // Transform flat spans to hierarchical structure
-      const hierarchicalSpans = buildSpanHierarchy(result || []);
+      const hierarchicalSpans = buildSpanHierarchy(result);
       setSpans(hierarchicalSpans);
       setError(null);
     } catch (err) {
       setSpans([]);
+    } finally {
+      setSpansLoading(false);
     }
   }, []);
 
@@ -85,14 +131,17 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
 
   useEffect(() => {
     if (traceId) {
-      fetchSpans(traceId);
+      fetchSpans(traceId, 'trace');
+    } else if (taskId) {
+      fetchSpans(taskId, 'task');
     }
-  }, [traceId, fetchSpans]);
+  }, [traceId, taskId, fetchSpans]);
 
   return {
     traces,
     spans,
     loading,
+    spansLoading,
     error,
     refetchTraces: fetchTraces,
     fetchSpansForTrace: fetchSpans,
@@ -100,16 +149,6 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
 }
 
 // Transform flat span list to hierarchical structure
-interface RawSpan {
-  span_id: string;
-  parent_span_id?: string;
-  operation_name: string;
-  start_time: string;
-  duration_ms: number;
-  status_code?: string;
-  attributes?: Record<string, string>;
-}
-
 function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
   if (!rawSpans.length) return [];
 
@@ -122,11 +161,11 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
 
   rawSpans.forEach((raw) => {
     const span: Span = {
-      id: raw.span_id,
-      name: raw.operation_name,
+      id: raw.id,
+      name: raw.name,
       startMs: new Date(raw.start_time).getTime() - minStart,
       durationMs: raw.duration_ms,
-      status: raw.status_code === 'ERROR' ? 'error' : 'ok',
+      status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',
       attributes: raw.attributes,
       children: [],
     };
@@ -134,7 +173,7 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
 
     if (raw.parent_span_id) {
       const children = childMap.get(raw.parent_span_id) || [];
-      children.push(raw.span_id);
+      children.push(raw.id);
       childMap.set(raw.parent_span_id, children);
     }
   });
@@ -143,8 +182,8 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
   const rootSpans: Span[] = [];
 
   rawSpans.forEach((raw) => {
-    const span = spanMap.get(raw.span_id)!;
-    const childIds = childMap.get(raw.span_id) || [];
+    const span = spanMap.get(raw.id)!;
+    const childIds = childMap.get(raw.id) || [];
     span.children = childIds.map((id) => spanMap.get(id)!).filter(Boolean);
 
     if (!raw.parent_span_id) {
@@ -152,8 +191,11 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
     }
   });
 
-  // Sort by start time
+  // Sort root spans and their children by start time
   rootSpans.sort((a, b) => a.startMs - b.startMs);
+  rootSpans.forEach((root) => {
+    root.children?.sort((a, b) => a.startMs - b.startMs);
+  });
 
   return rootSpans;
 }
