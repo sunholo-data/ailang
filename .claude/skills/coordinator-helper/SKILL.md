@@ -168,6 +168,34 @@ ailang coordinator pending
 | feature | Claude Code | New functionality |
 | docs | Gemini | Documentation |
 | research | Gemini | Investigation |
+| script | Shell | Deterministic workflows (v0.6.4+) |
+
+### 4. Script Agents (v0.6.4+)
+
+For deterministic tasks that don't need AI inference:
+
+```yaml
+# In ~/.ailang/config.yaml
+coordinator:
+  agents:
+    - id: eval-runner
+      inbox: eval-runner
+      invoke:
+        type: script
+        command: "./scripts/run_eval.sh"
+        env_from_payload: true
+        timeout: "1h"
+```
+
+**Demo script:** `scripts/coordinator/echo_payload.sh` echoes back all payload variables.
+
+**Test it:**
+```bash
+ailang messages send eval-runner '{"model": "gpt5", "benchmark": "fizzbuzz"}' \
+  --title "Test script" --from "user"
+```
+
+JSON payload converts to env vars: `MODEL=gpt5`, `BENCHMARK=fizzbuzz`
 
 ## Troubleshooting
 

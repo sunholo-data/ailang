@@ -144,6 +144,78 @@ invoke:
     {{.Content}}
 
     When done, output: RESULT: <value>
+
+# Execute a deterministic script (v0.6.4+)
+invoke:
+  type: script
+  command: "./scripts/run_eval.sh"   # Script path or inline command
+  shell: /bin/bash                    # Shell to use (default: /bin/sh)
+  env_from_payload: true              # Convert JSON payload to env vars
+  timeout: "30m"                      # Execution timeout
+  working_dir: "{{.Workspace}}"       # Working directory
+```
+
+#### Script Invoke Type (v0.6.4+)
+
+The `script` invoke type enables deterministic workflow execution without AI inference. This is useful for:
+
+- **Eval runners** - Execute benchmarks with consistent behavior
+- **Data pipelines** - Transform data without AI variability
+- **Infrastructure tasks** - Run deployment scripts
+- **Cost optimization** - $0.00 execution cost for deterministic tasks
+
+**JSON Payload to Environment Variables:**
+
+When `env_from_payload: true`, the task's JSON content is converted to environment variables:
+
+```json
+{
+  "model": "gpt5",
+  "benchmark": "fizzbuzz",
+  "db": {
+    "host": "localhost",
+    "port": 5432
+  }
+}
+```
+
+Becomes:
+```bash
+MODEL=gpt5
+BENCHMARK=fizzbuzz
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+**Auto-injected variables:**
+- `AILANG_TASK_ID` - Coordinator task ID
+- `AILANG_MESSAGE_ID` - Source message ID
+- `AILANG_WORKSPACE` - Worktree path
+
+**Example: Eval Runner Agent**
+
+```yaml
+coordinator:
+  agents:
+    - id: eval-runner
+      label: "Eval Runner"
+      inbox: eval-runner
+      workspace: /path/to/project
+      invoke:
+        type: script
+        command: "./scripts/run_eval.sh"
+        env_from_payload: true
+        timeout: "1h"
+      output_markers:
+        - "EVAL_COMPLETE:"
+        - "RESULTS_PATH:"
+      trigger_on_complete: []
+```
+
+**Mixed pipelines** work seamlessly - you can chain AI agents with script agents:
+
+```
+design-doc-creator (AI) → sprint-planner (AI) → eval-runner (Script)
 ```
 
 #### Output Markers
@@ -697,6 +769,7 @@ Tasks are routed to providers based on agent configuration:
 |----------|----------|----------|
 | `claude` | Claude Code CLI | Code editing, complex tasks |
 | `gemini` | Gemini CLI | Research, documentation |
+| `script` | Shell (v0.6.4+) | Deterministic workflows, evals, data pipelines |
 
 ## Storage
 
