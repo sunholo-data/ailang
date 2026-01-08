@@ -2317,6 +2317,53 @@
   line-height: 1.4;
 }
 
+/* Pagination controls */
+.queuePagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.queuePageBtn {
+  width: 28px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.queuePageBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.queuePageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.queuePageInfo {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  min-width: 50px;
+  text-align: center;
+}
+
 /* ================================================================
    Detail Panel (Slide-in)
    ================================================================ */
@@ -2576,6 +2623,55 @@
   border-radius: var(--radius-md) !important;
 }
 
+/* Workflow Stages Panel */
+.workflowStagesPanel {
+  pointer-events: none;
+}
+
+.workflowStages {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.workflowStage {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  text-transform: uppercase;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.workflowInput {
+  border-color: var(--amber-dim);
+  color: var(--amber);
+}
+
+.workflowProcessing {
+  border-color: var(--primary-dim);
+  color: var(--primary);
+}
+
+.workflowOutput {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.workflowArrow {
+  color: var(--text-tertiary);
+  font-size: var(--font-sm);
+}
+
 /* React Flow Handle */
 .rfHandle {
   width: 8px !important;
@@ -2733,4 +2829,218 @@
 
 .rfSinkNode[data-type="success"] .rfSinkBadge {
   color: var(--success);
+}
+
+/* ==============================
+   Selection & Highlighting States
+   ============================== */
+
+/* Selected node - bright border and glow */
+.rfNodeSelected {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 20px var(--primary-glow), inset 0 0 8px rgba(37, 194, 160, 0.1) !important;
+  z-index: 10;
+  transform: scale(1.02);
+}
+
+/* Highlighted node (part of active path) */
+.rfNodeHighlighted {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 12px var(--primary-glow) !important;
+}
+
+/* Dimmed node (not in highlighted path) */
+.rfNodeDimmed {
+  opacity: 0.35;
+  filter: grayscale(50%);
+  transition: opacity 0.3s ease-in-out, filter 0.3s ease-in-out;
+}
+
+/* ==============================
+   Edge Flow Animations
+   ============================== */
+
+@keyframes edgeFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -20px;
+  }
+}
+
+/* Active edge with flowing animation */
+.rfEdgeActive path {
+  stroke-dasharray: 8, 4 !important;
+  animation: edgeFlow 1s linear infinite;
+}
+
+/* Highlighted edge glow */
+.topologyViewport :global(.react-flow__edge.selected) path {
+  stroke: var(--primary) !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 6px var(--primary-glow));
+}
+
+/* ==============================
+   Workflow Group Backgrounds
+   ============================== */
+
+.rfGroupBackground {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(30, 41, 59, 0.2) 100%);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  z-index: -1;
+}
+
+.rfGroupLabel {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* Input group - amber accent */
+.rfGroupInput {
+  border-color: var(--amber-dim);
+}
+.rfGroupInput .rfGroupLabel {
+  color: var(--amber);
+}
+
+/* Processing group - primary accent */
+.rfGroupProcessing {
+  border-color: var(--primary-dim);
+}
+.rfGroupProcessing .rfGroupLabel {
+  color: var(--primary);
+}
+
+/* Output group - success accent */
+.rfGroupOutput {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.rfGroupOutput .rfGroupLabel {
+  color: var(--success);
+}
+
+/* ==============================
+   Status Change Animations
+   ============================== */
+
+/* Busy status pulse */
+.rfAgentNode[data-status="busy"] {
+  animation: busyPulse 2s ease-in-out infinite;
+}
+
+@keyframes busyPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px var(--primary-dim);
+  }
+  50% {
+    box-shadow: 0 0 16px var(--primary-glow), 0 0 24px var(--primary-dim);
+  }
+}
+
+/* Error status shake on first render */
+.rfAgentNode[data-status="error"] {
+  animation: errorShake 0.4s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Smooth transitions for all node states */
+.rfAgentNode,
+.rfSourceNode,
+.rfSinkNode {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==============================
+   Topology Empty State
+   ============================== */
+
+.topologyEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 280px;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.topologyEmptyIcon {
+  font-size: 48px;
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  animation: hexPulse 3s ease-in-out infinite;
+}
+
+@keyframes hexPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+.topologyEmptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.topologyEmptyText {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* Panel badge for agent count */
+.panelBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--primary-dim);
+  color: var(--primary);
+  border-radius: 100px;
+  margin-left: var(--space-2);
+}
+
+/* Show All button when topology is filtered */
+.showAllBtn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: var(--amber-dim);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-sm);
+  color: var(--amber);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.showAllBtn:hover {
+  background: var(--amber);
+  color: var(--bg-deep);
 }

@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+// timePtr converts a time.Time value to a pointer (for EndTime fields).
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
 // TestGetTaskHierarchy tests the full hierarchy query.
 func TestGetTaskHierarchy(t *testing.T) {
 	backend, err := NewSQLiteBackendFromPath(":memory:")
@@ -599,6 +604,294 @@ func TestGetTaskHierarchy_ChildSpansSortedByTime(t *testing.T) {
 			t.Errorf("Child[%d] = %s, want %s (children should be sorted by start time)",
 				i, rootSpan.Children[i].Span.ID, expected)
 		}
+	}
+}
+
+// TestTimestampCorrelation tests the virtual re-parenting of ailang.* spans under exec.tool_use.
+// This is the core of the M-TASK-HIERARCHY feature for proper trace visualization.
+func TestTimestampCorrelation(t *testing.T) {
+	// Test the helper functions directly
+	t.Run("isExecutorSpan", func(t *testing.T) {
+		tests := []struct {
+			name string
+			want bool
+		}{
+			{"claude.execute", true},
+			{"gemini.execute", true},
+			{"exec.turn", false},
+			{"exec.tool_use", false},
+			{"ailang.run", false},
+		}
+		for _, tt := range tests {
+			span := &Span{Name: tt.name}
+			if got := isExecutorSpan(span); got != tt.want {
+				t.Errorf("isExecutorSpan(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		}
+	})
+
+	t.Run("isToolUseSpan", func(t *testing.T) {
+		tests := []struct {
+			name string
+			want bool
+		}{
+			{"exec.tool_use", true},
+			{"exec.turn", false},
+			{"claude.execute", false},
+		}
+		for _, tt := range tests {
+			span := &Span{Name: tt.name}
+			if got := isToolUseSpan(span); got != tt.want {
+				t.Errorf("isToolUseSpan(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		}
+	})
+
+	t.Run("isAilangChildSpan", func(t *testing.T) {
+		tests := []struct {
+			name string
+			want bool
+		}{
+			{"ailang.run", true},
+			{"ailang.check", true},
+			{"ailang.exec", true},
+			{"compile.parse", true},
+			{"compile.typecheck", true},
+			{"eval.benchmark", true},
+			{"exec.turn", false},
+			{"exec.tool_use", false},
+			{"claude.execute", false},
+			{"anthropic.generate", false},
+		}
+		for _, tt := range tests {
+			span := &Span{Name: tt.name}
+			if got := isAilangChildSpan(span); got != tt.want {
+				t.Errorf("isAilangChildSpan(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		}
+	})
+}
+
+// TestTimestampCorrelation_FullHierarchy tests the complete timestamp correlation flow.
+func TestTimestampCorrelation_FullHierarchy(t *testing.T) {
+	backend, err := NewSQLiteBackendFromPath(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create backend: %v", err)
+	}
+	defer backend.Close()
+	ctx := context.Background()
+
+	// Create workspace and task
+	ws := &Workspace{ID: "ws_corr", Name: "test", Path: "/tmp/test", CreatedAt: time.Now()}
+	backend.CreateWorkspace(ctx, ws)
+	task := &Task{ID: "task-corr", WorkspaceID: "ws_corr", Title: "Correlation Test", Status: TaskStatusRunning, CreatedAt: time.Now()}
+	backend.CreateTask(ctx, task)
+	agent := &AgentAssignment{ID: "aa_corr", TaskID: "task-corr", AgentID: "test", Provider: ProviderClaude, Status: AgentStatusRunning, AssignedAt: time.Now()}
+	backend.CreateAgentAssignment(ctx, agent)
+
+	baseTime := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+
+	// Create executor span (claude.execute)
+	executor := &Span{
+		ID:                "executor",
+		TraceID:           "trace-corr",
+		AgentAssignmentID: "aa_corr",
+		TaskID:            "task-corr",
+		Name:              "claude.execute",
+		StartTime:         baseTime,
+		EndTime:           timePtr(baseTime.Add(10 * time.Second)),
+		DurationMs:        10000,
+	}
+	backend.CreateSpan(ctx, executor)
+
+	// Create turn span (child of executor)
+	turn := &Span{
+		ID:                "turn-1",
+		TraceID:           "trace-corr",
+		ParentSpanID:      "executor",
+		AgentAssignmentID: "aa_corr",
+		TaskID:            "task-corr",
+		Name:              "exec.turn",
+		StartTime:         baseTime.Add(100 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(5 * time.Second)),
+		DurationMs:        4900,
+	}
+	backend.CreateSpan(ctx, turn)
+
+	// Create tool_use span (child of executor)
+	// Tool starts at T+200ms and ends at T+4s
+	tool := &Span{
+		ID:                "tool-1",
+		TraceID:           "trace-corr",
+		ParentSpanID:      "executor",
+		AgentAssignmentID: "aa_corr",
+		TaskID:            "task-corr",
+		Name:              "exec.tool_use",
+		StartTime:         baseTime.Add(200 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(4 * time.Second)),
+		DurationMs:        3800,
+	}
+	backend.CreateSpan(ctx, tool)
+
+	// Create ailang.run span (child of executor in DB, but should correlate to tool)
+	// This span starts at T+300ms which is WITHIN tool's time window
+	ailangRun := &Span{
+		ID:                "ailang-run",
+		TraceID:           "trace-corr",
+		ParentSpanID:      "executor", // In DB, parent is executor
+		AgentAssignmentID: "aa_corr",
+		TaskID:            "task-corr",
+		Name:              "ailang.run",
+		StartTime:         baseTime.Add(300 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(3 * time.Second)),
+		DurationMs:        2700,
+	}
+	backend.CreateSpan(ctx, ailangRun)
+
+	// Create compile.parse span (also should correlate to tool)
+	compileSpan := &Span{
+		ID:                "compile-parse",
+		TraceID:           "trace-corr",
+		ParentSpanID:      "executor", // In DB, parent is executor
+		AgentAssignmentID: "aa_corr",
+		TaskID:            "task-corr",
+		Name:              "compile.parse",
+		StartTime:         baseTime.Add(400 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(500 * time.Millisecond)),
+		DurationMs:        100,
+	}
+	backend.CreateSpan(ctx, compileSpan)
+
+	// Get hierarchy - this should apply timestamp correlation
+	hierarchy, err := GetTaskHierarchy(ctx, backend, "task-corr", DefaultHierarchyOptions())
+	if err != nil {
+		t.Fatalf("GetTaskHierarchy failed: %v", err)
+	}
+
+	// Find the executor node
+	trace := hierarchy.Agents[0].Traces[0]
+	var executorNode *SpanNode
+	for _, node := range trace.Spans {
+		if node.Span.Name == "claude.execute" {
+			executorNode = node
+			break
+		}
+	}
+	if executorNode == nil {
+		t.Fatal("Expected to find executor node")
+	}
+
+	// After correlation, executor should have: turn, tool (but NOT ailang.run, compile.parse)
+	executorChildNames := make([]string, 0, len(executorNode.Children))
+	for _, child := range executorNode.Children {
+		executorChildNames = append(executorChildNames, child.Span.Name)
+	}
+	t.Logf("Executor children after correlation: %v", executorChildNames)
+
+	// Find tool node
+	var toolNode *SpanNode
+	for _, child := range executorNode.Children {
+		if child.Span.Name == "exec.tool_use" {
+			toolNode = child
+			break
+		}
+	}
+	if toolNode == nil {
+		t.Fatal("Expected to find tool node under executor")
+	}
+
+	// Tool should now have ailang.run and compile.parse as children (re-parented!)
+	toolChildNames := make([]string, 0, len(toolNode.Children))
+	for _, child := range toolNode.Children {
+		toolChildNames = append(toolChildNames, child.Span.Name)
+	}
+	t.Logf("Tool children after correlation: %v", toolChildNames)
+
+	// Verify ailang.run is under tool
+	foundAilangRun := false
+	foundCompile := false
+	for _, child := range toolNode.Children {
+		if child.Span.Name == "ailang.run" {
+			foundAilangRun = true
+		}
+		if child.Span.Name == "compile.parse" {
+			foundCompile = true
+		}
+	}
+
+	if !foundAilangRun {
+		t.Error("ailang.run should be re-parented under exec.tool_use (timestamp correlation failed)")
+	}
+	if !foundCompile {
+		t.Error("compile.parse should be re-parented under exec.tool_use (timestamp correlation failed)")
+	}
+
+	// Verify ailang.run is NOT a direct child of executor anymore
+	for _, child := range executorNode.Children {
+		if child.Span.Name == "ailang.run" {
+			t.Error("ailang.run should NOT be a direct child of executor after correlation")
+		}
+	}
+}
+
+// TestTimestampCorrelation_NoMatchingTool tests that spans outside tool windows stay under executor.
+func TestTimestampCorrelation_NoMatchingTool(t *testing.T) {
+	baseTime := time.Date(2025, 1, 8, 10, 0, 0, 0, time.UTC)
+
+	// Create span index manually
+	executor := &SpanNode{Span: &Span{
+		ID:        "executor",
+		Name:      "claude.execute",
+		StartTime: baseTime,
+		EndTime:   timePtr(baseTime.Add(10 * time.Second)),
+	}}
+
+	// Tool from T+1s to T+2s
+	tool := &SpanNode{Span: &Span{
+		ID:           "tool-1",
+		Name:         "exec.tool_use",
+		ParentSpanID: "executor",
+		StartTime:    baseTime.Add(1 * time.Second),
+		EndTime:      timePtr(baseTime.Add(2 * time.Second)),
+	}}
+
+	// ailang.run at T+5s (OUTSIDE tool window)
+	ailangRun := &SpanNode{Span: &Span{
+		ID:           "ailang-run",
+		Name:         "ailang.run",
+		ParentSpanID: "executor",
+		StartTime:    baseTime.Add(5 * time.Second),
+		EndTime:      timePtr(baseTime.Add(6 * time.Second)),
+	}}
+
+	// Build tree: executor -> [tool, ailangRun]
+	executor.Children = []*SpanNode{tool, ailangRun}
+
+	spanIndex := map[string]*SpanNode{
+		"executor":   executor,
+		"tool-1":     tool,
+		"ailang-run": ailangRun,
+	}
+
+	// Apply correlation
+	applyTimestampCorrelation(spanIndex)
+
+	// ailang.run should STILL be under executor (no matching tool window)
+	foundUnderExecutor := false
+	for _, child := range executor.Children {
+		if child.Span.Name == "ailang.run" {
+			foundUnderExecutor = true
+			break
+		}
+	}
+
+	if !foundUnderExecutor {
+		t.Error("ailang.run should remain under executor when no matching tool window exists")
+	}
+
+	// Tool should have no children
+	if len(tool.Children) != 0 {
+		t.Errorf("Tool should have no children, got %d", len(tool.Children))
 	}
 }
 

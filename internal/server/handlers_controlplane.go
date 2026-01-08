@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
@@ -680,6 +681,164 @@ func convertBreakdownItems(items []observatory.BreakdownItem) []BreakdownItem {
 		}
 	}
 	return result
+}
+
+// ============================================================================
+// Observed Topology API - Data-Driven Graph
+// ============================================================================
+
+// ObservedTopologyNode represents a node in the observed topology
+type ObservedTopologyNode struct {
+	ID           string `json:"id"`
+	Label        string `json:"label"`
+	NodeType     string `json:"node_type"` // agent, source, sink
+	MessagesSent int    `json:"messages_sent"`
+	MessagesRecv int    `json:"messages_recv"`
+	LastActivity string `json:"last_activity,omitempty"`
+}
+
+// ObservedTopologyEdge represents an edge derived from actual message flows
+type ObservedTopologyEdge struct {
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	MessageCount int    `json:"message_count"`
+	LastActivity string `json:"last_activity,omitempty"`
+	Active       bool   `json:"active"`
+}
+
+// ObservedTopologyResponse is the response for GET /api/controlplane/topology/observed
+type ObservedTopologyResponse struct {
+	Nodes   []ObservedTopologyNode `json:"nodes"`
+	Edges   []ObservedTopologyEdge `json:"edges"`
+	IsEmpty bool                   `json:"is_empty"`
+}
+
+// GET /api/controlplane/topology/observed - Get topology derived from actual message flows
+// This returns a data-driven graph based on from_agent → to_inbox message relationships
+func (s *Server) handleControlPlaneTopologyObserved(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := ObservedTopologyResponse{
+		Nodes: []ObservedTopologyNode{},
+		Edges: []ObservedTopologyEdge{},
+	}
+
+	// Get message flow edges from the messaging store
+	edges, err := s.store.GetMessageFlowEdges()
+	if err != nil {
+		log.Printf("Failed to get message flow edges: %v", err)
+	}
+
+	// Get active agents from the messaging store
+	agents, err := s.store.GetActiveAgents()
+	if err != nil {
+		log.Printf("Failed to get active agents: %v", err)
+	}
+
+	// Build nodes from active agents
+	nodeMap := make(map[string]bool)
+	for _, agent := range agents {
+		nodeMap[agent.ID] = true
+		response.Nodes = append(response.Nodes, ObservedTopologyNode{
+			ID:           agent.ID,
+			Label:        formatAgentLabel(agent.ID),
+			NodeType:     "agent",
+			MessagesSent: agent.MessagesSent,
+			MessagesRecv: agent.MessagesRecv,
+			LastActivity: agent.LastActivity,
+		})
+	}
+
+	// Build edges and ensure all nodes exist
+	for _, edge := range edges {
+		// Add source node if not already present
+		if !nodeMap[edge.FromAgent] {
+			nodeMap[edge.FromAgent] = true
+			response.Nodes = append(response.Nodes, ObservedTopologyNode{
+				ID:       edge.FromAgent,
+				Label:    formatAgentLabel(edge.FromAgent),
+				NodeType: "agent",
+			})
+		}
+
+		// Add target node if not already present
+		if !nodeMap[edge.ToInbox] {
+			nodeMap[edge.ToInbox] = true
+			response.Nodes = append(response.Nodes, ObservedTopologyNode{
+				ID:       edge.ToInbox,
+				Label:    formatAgentLabel(edge.ToInbox),
+				NodeType: "agent",
+			})
+		}
+
+		// Determine if edge is active (activity in last 5 minutes)
+		active := false
+		if edge.LastActivity != "" {
+			if t, err := time.Parse(time.RFC3339, edge.LastActivity); err == nil {
+				active = time.Since(t) < 5*time.Minute
+			}
+		}
+
+		response.Edges = append(response.Edges, ObservedTopologyEdge{
+			Source:       edge.FromAgent,
+			Target:       edge.ToInbox,
+			MessageCount: edge.MessageCount,
+			LastActivity: edge.LastActivity,
+			Active:       active,
+		})
+	}
+
+	// Detect node types based on edge topology
+	hasIncoming := make(map[string]bool)
+	hasOutgoing := make(map[string]bool)
+	for _, edge := range response.Edges {
+		hasIncoming[edge.Target] = true
+		hasOutgoing[edge.Source] = true
+	}
+
+	// Update node types: sources have no incoming, sinks have no outgoing
+	for i := range response.Nodes {
+		nodeID := response.Nodes[i].ID
+		if !hasIncoming[nodeID] && hasOutgoing[nodeID] {
+			response.Nodes[i].NodeType = "source"
+		} else if hasIncoming[nodeID] && !hasOutgoing[nodeID] {
+			response.Nodes[i].NodeType = "sink"
+		}
+	}
+
+	response.IsEmpty = len(response.Nodes) == 0
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode observed topology response: %v", err)
+	}
+}
+
+// formatAgentLabel converts an agent ID to a human-readable label
+func formatAgentLabel(agentID string) string {
+	// Handle special cases
+	switch agentID {
+	case "github":
+		return "GitHub Issues"
+	case "approval":
+		return "Approval Queue"
+	case "main":
+		return "Main Branch"
+	case "user":
+		return "User"
+	}
+
+	// Convert kebab-case to Title Case
+	parts := strings.Split(agentID, "-")
+	for i, part := range parts {
+		if len(part) > 0 {
+			parts[i] = strings.ToUpper(part[:1]) + part[1:]
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // GET /api/controlplane/exec-hierarchy - Get exec task hierarchy from span attributes

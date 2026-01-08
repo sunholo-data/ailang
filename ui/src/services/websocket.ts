@@ -30,7 +30,7 @@ class WebSocketService {
   private ws: WebSocket | null = null;
   private wsUrl: string | null = null;
   private isConnecting = false;
-  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './StatsPanel.module.css';
 
 interface ThreadStatistics {
@@ -41,11 +41,8 @@ export function StatsPanel({ refreshTrigger }: StatsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, [refreshTrigger]);
-
-  const fetchStats = async () => {
+  // Define fetchStats with useCallback BEFORE useEffect that uses it
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -60,7 +57,11 @@ export function StatsPanel({ refreshTrigger }: StatsPanelProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [refreshTrigger, fetchStats]);
 
   if (loading && !stats) {
     return <div className={styles.loading}>Loading statistics...</div>;

@@ -86,8 +86,11 @@ func (p *ScriptProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *
 	env := os.Environ()
 
 	// Add AILANG context variables
+	// AILANG_PARENT_TASK_ID enables hierarchy tracking: when the script calls
+	// `ailang exec`, the exec command will link back to this coordinator task
 	env = append(env,
 		fmt.Sprintf("AILANG_TASK_ID=%s", task.Task.ID),
+		fmt.Sprintf("AILANG_PARENT_TASK_ID=%s", task.Task.ID), // Script's children link to this task
 		fmt.Sprintf("AILANG_MESSAGE_ID=%s", task.Task.MessageID),
 		fmt.Sprintf("AILANG_WORKSPACE=%s", opts.Workspace),
 		fmt.Sprintf("AILANG_PROVIDER=script"),

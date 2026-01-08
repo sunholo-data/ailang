@@ -1,5 +1,10 @@
 /**
- * Hook for subscribing to live events via WebSocket AND fetching historical events
+ * Hook for fetching events from the AILANG messages table
+ *
+ * Messages are the SINGLE SOURCE OF TRUTH for events.
+ * Everything flows through `ailang messages` - coordinator, evals, user interaction, external projects.
+ *
+ * NO mixing with other data sources - just messages.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ControlPlaneFilters } from '../types';
@@ -8,13 +13,18 @@ export interface EventMessage {
   id: string;
   timestamp: string;
   type: 'task_start' | 'task_complete' | 'task_error' | 'handoff' | 'approval' | 'message';
-  source: string;
-  target?: string;
-  content: string;
+  source: string;       // from_agent
+  target?: string;      // to_inbox
+  content: string;      // title
+  // Extended fields for correlation with topology
+  from_agent?: string;
+  to_inbox?: string;
+  inbox?: string;       // alias for to_inbox (compatibility)
+  task_id?: string;     // correlation with exec hierarchy
   metadata?: Record<string, unknown>;
 }
 
-// Inbox message from the API
+// Message from the inbox API
 interface InboxMessage {
   id: string;
   to_inbox: string;
@@ -27,24 +37,7 @@ interface InboxMessage {
   read_at?: string;
   correlation_id?: string;
   parent_task_id?: string;
-}
-
-// Observatory task from the API
-interface ObservatoryTask {
-  id: string;
-  workspace_id: string;
-  title: string;
-  description: string;
-  source_type: string;
-  status: string;
-  priority: string;
-  created_at: string;
-  total_duration_ms: number;
-  total_tokens_in: number;
-  total_tokens_out: number;
-  total_cost_usd: number;
-  span_count: number;
-  error_count: number;
+  task_id?: string;
 }
 
 interface UseEventQueueOptions {
@@ -61,96 +54,67 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch historical events from /api/inbox AND observatory tasks
-  const fetchHistoricalEvents = useCallback(async () => {
+  // Fetch messages from /api/inbox - SINGLE SOURCE OF TRUTH
+  const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch inbox messages
-      const inboxParams = new URLSearchParams();
+      const params = new URLSearchParams();
       if (filters?.source_type) {
-        inboxParams.set('inbox', filters.source_type);
+        params.set('inbox', filters.source_type);
       }
-      const inboxUrl = `/api/inbox${inboxParams.toString() ? '?' + inboxParams.toString() : ''}`;
+      params.set('limit', String(maxEvents));
 
-      // Fetch observatory tasks (these have real trace data)
-      const tasksUrl = '/api/observatory/tasks?limit=50';
+      const url = `/api/inbox${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
 
-      const [inboxResponse, tasksResponse] = await Promise.all([
-        fetch(inboxUrl),
-        fetch(tasksUrl),
-      ]);
-
-      const inboxEvents: EventMessage[] = [];
-      const taskEvents: EventMessage[] = [];
-
-      // Process inbox messages
-      if (inboxResponse.ok) {
-        const data = await inboxResponse.json();
-        const messages: InboxMessage[] = data.messages || [];
-        messages.forEach((msg) => {
-          inboxEvents.push({
-            id: msg.id,
-            timestamp: msg.created_at,
-            type: mapMessageTypeToEventType(msg.message_type),
-            source: msg.from_agent || 'unknown',
-            target: msg.to_inbox,
-            content: msg.title || msg.payload,
-            metadata: {
-              payload: msg.payload,
-              status: msg.status,
-              correlation_id: msg.correlation_id,
-              parent_task_id: msg.parent_task_id,
-              message_type: msg.message_type,
-            },
-          });
-        });
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
       }
 
-      // Process observatory tasks (these have span data!)
-      if (tasksResponse.ok) {
-        const tasks: ObservatoryTask[] = await tasksResponse.json();
-        tasks.forEach((task) => {
-          taskEvents.push({
-            id: task.id,  // task.id is the task_id for spans lookup
-            timestamp: task.created_at,
-            type: mapTaskStatusToEventType(task.status),
-            source: task.source_type || 'coordinator',
-            target: task.workspace_id,
-            content: task.title,
-            metadata: {
-              task_id: task.id,  // This is the key for span lookup!
-              workspace_id: task.workspace_id,
-              status: task.status,
-              priority: task.priority,
-              total_duration_ms: task.total_duration_ms,
-              total_tokens_in: task.total_tokens_in,
-              total_tokens_out: task.total_tokens_out,
-              total_cost_usd: task.total_cost_usd,
-              span_count: task.span_count,
-              error_count: task.error_count,
-            },
-          });
-        });
-      }
+      const data = await response.json();
+      const messages: InboxMessage[] = data.messages || [];
 
-      // Combine inbox and task events
-      setHistoricalEvents([...inboxEvents, ...taskEvents]);
+      // Transform messages to EventMessage format
+      const transformed: EventMessage[] = messages.map((msg) => ({
+        id: msg.id,
+        timestamp: msg.created_at,
+        type: mapMessageTypeToEventType(msg.message_type),
+        source: msg.from_agent || 'unknown',
+        target: msg.to_inbox,
+        content: msg.title || msg.payload,
+        // Extended fields for correlation
+        from_agent: msg.from_agent,
+        to_inbox: msg.to_inbox,
+        inbox: msg.to_inbox,
+        task_id: msg.task_id || msg.parent_task_id || msg.correlation_id,
+        metadata: {
+          payload: msg.payload,
+          status: msg.status,
+          message_type: msg.message_type,
+          correlation_id: msg.correlation_id,
+          parent_task_id: msg.parent_task_id,
+        },
+      }));
+
+      setHistoricalEvents(transformed);
       setError(null);
     } catch (err) {
-      console.error('[EventQueue] Failed to fetch historical events:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch events');
+      // NO SILENT FALLBACKS - show the error
+      console.error('[EventQueue] Failed to fetch messages:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch messages');
     } finally {
       setLoading(false);
     }
-  }, [filters?.source_type]);
+  }, [filters?.source_type, maxEvents]);
 
-  // Fetch historical events on mount and when filters change
+  // Fetch on mount and when filters change
   useEffect(() => {
-    fetchHistoricalEvents();
-  }, [fetchHistoricalEvents]);
+    fetchMessages();
+  }, [fetchMessages]);
 
+  // WebSocket for real-time updates
   const connect = useCallback(() => {
     const url = wsUrl || `ws://${window.location.host}/ws`;
 
@@ -168,37 +132,23 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle different message types
-          if (data.type === 'task_stream_event') {
-            const taskEvent = data.payload;
-            const newEvent: EventMessage = {
-              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              timestamp: new Date().toISOString(),
-              type: mapStreamTypeToEventType(taskEvent.stream_type),
-              source: taskEvent.task_id || 'coordinator',
-              target: undefined,
-              content: formatEventContent(taskEvent),
-              metadata: taskEvent,
-            };
-
-            setEvents((prev) => {
-              const updated = [newEvent, ...prev];
-              return updated.slice(0, maxEvents);
-            });
-          } else if (data.type === 'inbox_message') {
-            // Handle new inbox message via WebSocket
+          // Handle inbox_message events (new messages)
+          if (data.type === 'inbox_message') {
             const msg = data.payload as InboxMessage;
             const newEvent: EventMessage = {
               id: msg.id,
-              timestamp: msg.created_at,
+              timestamp: msg.created_at || new Date().toISOString(),
               type: mapMessageTypeToEventType(msg.message_type),
               source: msg.from_agent || 'unknown',
               target: msg.to_inbox,
               content: msg.title || msg.payload,
+              from_agent: msg.from_agent,
+              to_inbox: msg.to_inbox,
+              inbox: msg.to_inbox,
+              task_id: msg.task_id || msg.parent_task_id,
               metadata: {
                 payload: msg.payload,
                 status: msg.status,
-                correlation_id: msg.correlation_id,
                 message_type: msg.message_type,
               },
             };
@@ -208,15 +158,34 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
               return updated.slice(0, maxEvents);
             });
           }
+          // Also handle task_stream_event for live coordinator updates
+          else if (data.type === 'task_stream_event') {
+            const taskEvent = data.payload;
+            const newEvent: EventMessage = {
+              id: `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              timestamp: new Date().toISOString(),
+              type: mapStreamTypeToEventType(taskEvent.stream_type),
+              source: taskEvent.agent_id || 'coordinator',
+              target: undefined,
+              content: formatStreamContent(taskEvent),
+              task_id: taskEvent.task_id,
+              metadata: taskEvent,
+            };
+
+            setEvents((prev) => {
+              const updated = [newEvent, ...prev];
+              return updated.slice(0, maxEvents);
+            });
+          }
         } catch (err) {
-          console.error('[EventQueue] Failed to parse message:', err);
+          console.error('[EventQueue] Failed to parse WebSocket message:', err);
         }
       };
 
       ws.onclose = () => {
         setConnected(false);
         console.log('[EventQueue] WebSocket closed, reconnecting in 3s...');
-        reconnectTimeoutRef.current = window.setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, 3000);
       };
@@ -226,7 +195,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
         setError('WebSocket connection error');
       };
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect');
+      setError(err instanceof Error ? err.message : 'Failed to connect to WebSocket');
     }
   }, [wsUrl, maxEvents]);
 
@@ -247,15 +216,46 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
     setEvents([]);
   }, []);
 
-  // Combine real-time events with historical events
+  // Combine real-time events with historical, apply filters, sort by timestamp
   const allEvents = [...events, ...historicalEvents]
+    .filter((event) => {
+      // Date range filter
+      if (filters?.start_date && filters?.end_date) {
+        const eventDate = event.timestamp.split('T')[0];
+        if (eventDate < filters.start_date || eventDate > filters.end_date) {
+          return false;
+        }
+      }
+      // Status filter
+      if (filters?.status && filters.status !== 'all') {
+        if (filters.status === 'completed' && event.type !== 'task_complete') return false;
+        if (filters.status === 'failed' && event.type !== 'task_error') return false;
+        if (filters.status === 'pending' && event.type !== 'task_start' && event.type !== 'approval') return false;
+      }
+      // Search filter
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase();
+        const matches = [event.content, event.source, event.target, event.from_agent, event.to_inbox]
+          .filter(Boolean)
+          .some((val) => val?.toLowerCase().includes(searchLower));
+        if (!matches) return false;
+      }
+      return true;
+    })
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, maxEvents);
 
-  return { events: allEvents, connected, loading, error, clearEvents, refetch: fetchHistoricalEvents };
+  return {
+    events: allEvents,
+    connected,
+    loading,
+    error,
+    clearEvents,
+    refetch: fetchMessages,
+  };
 }
 
-// Helper to map message types to event types
+// Map message types to event types
 function mapMessageTypeToEventType(msgType: string): EventMessage['type'] {
   switch (msgType) {
     case 'task':
@@ -272,36 +272,13 @@ function mapMessageTypeToEventType(msgType: string): EventMessage['type'] {
     case 'approval':
     case 'approval_request':
       return 'approval';
-    case 'notification':
-    case 'info':
     default:
       return 'message';
   }
 }
 
-// Helper to map task status to event types
-function mapTaskStatusToEventType(status: string): EventMessage['type'] {
-  switch (status) {
-    case 'pending':
-    case 'running':
-      return 'task_start';
-    case 'completed':
-    case 'complete':
-      return 'task_complete';
-    case 'failed':
-    case 'error':
-      return 'task_error';
-    case 'needs_approval':
-      return 'approval';
-    default:
-      return 'message';
-  }
-}
-
-// Helper to map stream types to event types
-function mapStreamTypeToEventType(
-  streamType: string
-): EventMessage['type'] {
+// Map stream types to event types
+function mapStreamTypeToEventType(streamType: string): EventMessage['type'] {
   switch (streamType) {
     case 'task_started':
       return 'task_start';
@@ -319,8 +296,8 @@ function mapStreamTypeToEventType(
   }
 }
 
-// Helper to format event content
-function formatEventContent(event: Record<string, unknown>): string {
+// Format stream event content
+function formatStreamContent(event: Record<string, unknown>): string {
   if (event.text) return String(event.text);
   if (event.tool_name) return `Tool: ${event.tool_name}`;
   if (event.status) return `Status: ${event.status}`;

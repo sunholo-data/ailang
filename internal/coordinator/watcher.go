@@ -9,15 +9,16 @@ import (
 
 // Message represents a message from the messaging system
 type Message struct {
-	ID          string
-	From        string
-	Title       string
-	Content     string
-	Type        string // bug, feature, task, etc. (category)
-	Kind        string // directive, question (message type)
-	Priority    string // high, medium, low
-	GithubIssue int    // Linked GitHub issue number (M-COORD-GITHUB-AUTO-ROUTING)
-	CreatedAt   time.Time
+	ID           string
+	From         string
+	Title        string
+	Content      string
+	Type         string // bug, feature, task, etc. (category)
+	Kind         string // directive, question (message type)
+	Priority     string // high, medium, low
+	GithubIssue  int    // Linked GitHub issue number (M-COORD-GITHUB-AUTO-ROUTING)
+	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
+	CreatedAt    time.Time
 }
 
 // MessageStore is the interface for accessing messages
@@ -123,13 +124,14 @@ func (w *MessageWatcher) messageToTask(msg *Message) *Task {
 	}
 
 	return &Task{
-		ID:        fmt.Sprintf("task-%s", msg.ID),
-		Title:     extractTitle(msg),
-		Content:   msg.Content,
-		Kind:      kind,
-		Priority:  priority,
-		MessageID: msg.ID,
-		CreatedAt: msg.CreatedAt,
+		ID:           fmt.Sprintf("task-%s", msg.ID),
+		Title:        extractTitle(msg),
+		Content:      msg.Content,
+		Kind:         kind,
+		Priority:     priority,
+		MessageID:    msg.ID,
+		ParentTaskID: msg.ParentTaskID, // M-TASK-HIERARCHY: propagate from message
+		CreatedAt:    msg.CreatedAt,
 	}
 }
 

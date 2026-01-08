@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/ai/anthropic"
 	"github.com/sunholo/ailang/internal/ai/gemini"
@@ -135,9 +136,10 @@ func runExec() {
 	// Extract parent trace context from environment
 	ctx = telemetry.ExtractTraceContext(ctx)
 
-	// Generate task ID if not provided
+	// Generate task ID if not provided - use UUID for unified session tracking
+	// This UUID is used as both the task ID (for hierarchy) and session ID (for Claude Code CLI)
 	if *taskID == "" {
-		*taskID = fmt.Sprintf("exec_%d", time.Now().UnixNano())
+		*taskID = uuid.New().String()
 	}
 
 	// Inherit parent task from environment if not explicitly provided
@@ -272,8 +274,8 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Model:        model,
 	}
 
-	// Create streaming event handler
-	handler := &streamingEventHandler{streamJSON: streamJSON}
+	// Create spanning event handler that creates child spans for hierarchy tracking
+	handler := newSpanningEventHandler(ctx, taskID, streamJSON)
 
 	// Execute with streaming
 	return exec.ExecuteStreaming(ctx, task, handler)
@@ -414,6 +416,140 @@ func (h *streamingEventHandler) OnTurnEnd(turnNum int) {
 }
 
 func (h *streamingEventHandler) OnError(err error) {
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type:  "error",
+			Error: err.Error(),
+		})
+	}
+}
+
+// spanningEventHandler creates OTEL child spans from streaming events
+// for hierarchical tracing in the dashboard while also emitting NDJSON
+type spanningEventHandler struct {
+	ctx         context.Context
+	tracer      trace.Tracer
+	taskID      string
+	streamJSON  bool
+	currentTurn int
+	turnSpan    trace.Span
+	toolSpans   map[string]trace.Span // tool name -> active span
+}
+
+// newSpanningEventHandler creates a handler that creates child spans
+func newSpanningEventHandler(ctx context.Context, taskID string, streamJSON bool) *spanningEventHandler {
+	return &spanningEventHandler{
+		ctx:        ctx,
+		tracer:     execTracer,
+		taskID:     taskID,
+		streamJSON: streamJSON,
+		toolSpans:  make(map[string]trace.Span),
+	}
+}
+
+// SetContext updates the handler's context for proper span hierarchy.
+// Called by the executor after creating its span, so turn/tool spans
+// become children of the executor's span rather than siblings.
+func (h *spanningEventHandler) SetContext(ctx context.Context) {
+	h.ctx = ctx
+}
+
+func (h *spanningEventHandler) OnTurnStart(turnNum int) {
+	h.currentTurn = turnNum
+	// Create child span for this turn
+	_, h.turnSpan = h.tracer.Start(h.ctx, "exec.turn",
+		trace.WithAttributes(
+			attribute.Int("turn.number", turnNum),
+			attribute.String("exec.task_id", h.taskID),
+		),
+	)
+	// Also emit NDJSON for backward compatibility
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type: "turn_start",
+			Turn: turnNum,
+		})
+	}
+}
+
+func (h *spanningEventHandler) OnText(text string) {
+	// Text is recorded on turn span as an event, not a separate span
+	if h.turnSpan != nil {
+		h.turnSpan.AddEvent("text", trace.WithAttributes(
+			attribute.String("text.content", truncateString(text, 500)),
+		))
+	}
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type:    "text",
+			Content: text,
+		})
+	}
+}
+
+func (h *spanningEventHandler) OnToolUse(toolName, input string) {
+	// Create child span for tool use (child of current turn)
+	_, toolSpan := h.tracer.Start(h.ctx, "exec.tool_use",
+		trace.WithAttributes(
+			attribute.String("tool.name", toolName),
+			attribute.String("tool.input", truncateString(input, 1000)),
+			attribute.String("exec.task_id", h.taskID),
+			attribute.Int("turn.number", h.currentTurn),
+		),
+	)
+	h.toolSpans[toolName] = toolSpan
+
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type:  "tool_use",
+			Tool:  toolName,
+			Input: input,
+		})
+	}
+}
+
+func (h *spanningEventHandler) OnToolResult(toolName, output string) {
+	// End the matching tool span with the result
+	if span, ok := h.toolSpans[toolName]; ok {
+		span.SetAttributes(attribute.String("tool.output", truncateString(output, 1000)))
+		span.End()
+		delete(h.toolSpans, toolName)
+	}
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type:   "tool_result",
+			Tool:   toolName,
+			Output: output,
+		})
+	}
+}
+
+func (h *spanningEventHandler) OnTurnEnd(turnNum int) {
+	// End any remaining tool spans (shouldn't happen normally)
+	for name, span := range h.toolSpans {
+		span.SetAttributes(attribute.Bool("tool.incomplete", true))
+		span.End()
+		delete(h.toolSpans, name)
+	}
+	// End turn span
+	if h.turnSpan != nil {
+		h.turnSpan.End()
+		h.turnSpan = nil
+	}
+	if h.streamJSON {
+		emitEvent(ExecEvent{
+			Type: "turn_end",
+			Turn: turnNum,
+		})
+	}
+}
+
+func (h *spanningEventHandler) OnError(err error) {
+	// Record error on turn span if active
+	if h.turnSpan != nil {
+		h.turnSpan.RecordError(err)
+		h.turnSpan.SetStatus(codes.Error, err.Error())
+	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{
 			Type:  "error",

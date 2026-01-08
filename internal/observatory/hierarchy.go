@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -149,6 +150,31 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 		}
 	}
 
+	// Collect unique trace IDs from linked spans
+	traceIDs := make(map[string]bool)
+	for _, s := range spans {
+		traceIDs[s.TraceID] = true
+	}
+
+	// For each trace with linked spans, get ALL spans in that trace
+	// This ensures we include child spans even if they don't have task_id set
+	for traceID := range traceIDs {
+		traceSpanList, err := backend.ListSpans(ctx, SpanListOptions{
+			TraceID: traceID,
+			Limit:   1000,
+		})
+		if err != nil {
+			// Log but continue with what we have
+			continue
+		}
+		for _, s := range traceSpanList {
+			if !seenSpans[s.ID] {
+				spans = append(spans, s)
+				seenSpans[s.ID] = true
+			}
+		}
+	}
+
 	// Group spans by trace_id
 	traceSpans := make(map[string][]*Span)
 	for _, span := range spans {
@@ -194,6 +220,12 @@ func buildTraceHierarchy(traceID string, spans []*Span, maxDepth int) *TraceHier
 			rootNodes = append(rootNodes, node)
 		}
 	}
+
+	// Apply virtual re-parenting for ailang.* spans based on timestamps.
+	// This creates a "logical" hierarchy where ailang.* spans are nested
+	// under the exec.tool_use span that triggered them, even though their
+	// DB parent_span_id points to claude.execute.
+	applyTimestampCorrelation(spanIndex)
 
 	// Apply depth limit if specified
 	if maxDepth > 0 {
@@ -265,5 +297,116 @@ func sortChildrenByTime(node *SpanNode) {
 	})
 	for _, child := range node.Children {
 		sortChildrenByTime(child)
+	}
+}
+
+// =============================================================================
+// Virtual Hierarchy: Timestamp-based span correlation
+// =============================================================================
+// When Claude Code runs `ailang run`, the child process creates spans that are
+// parented to `claude.execute` (via TRACEPARENT). However, logically these spans
+// should be nested under the `exec.tool_use` span that triggered them.
+//
+// Since parent_span_id is immutable after insertion, we apply "virtual re-parenting"
+// at query time using timestamp correlation: if an ailang.* span's start time falls
+// within an exec.tool_use span's time window, we re-parent it in the in-memory tree.
+// =============================================================================
+
+// isExecutorSpan returns true if this span is a claude.execute or gemini.execute.
+func isExecutorSpan(span *Span) bool {
+	return span.Name == "claude.execute" || span.Name == "gemini.execute"
+}
+
+// isToolUseSpan returns true if this is an exec.tool_use span.
+func isToolUseSpan(span *Span) bool {
+	return span.Name == "exec.tool_use"
+}
+
+// isAilangChildSpan returns true if this span should be correlated to a tool.
+// These are spans from child ailang processes that should logically be nested
+// under the tool that invoked them.
+func isAilangChildSpan(span *Span) bool {
+	return strings.HasPrefix(span.Name, "ailang.") ||
+		strings.HasPrefix(span.Name, "compile.") ||
+		strings.HasPrefix(span.Name, "eval.")
+}
+
+// findContainingToolSpan finds the exec.tool_use span that contains this child's start time.
+// Returns nil if no containing tool span found.
+func findContainingToolSpan(child *Span, toolSpans []*SpanNode) *SpanNode {
+	for _, tool := range toolSpans {
+		if tool.Span == nil || tool.Span.EndTime == nil {
+			// Tool span not yet ended, skip
+			continue
+		}
+		// Check if child started within tool's time window
+		// child.StartTime >= tool.StartTime AND child.StartTime <= tool.EndTime
+		toolEnd := *tool.Span.EndTime
+		if (tool.Span.StartTime.Before(child.StartTime) || tool.Span.StartTime.Equal(child.StartTime)) &&
+			(toolEnd.After(child.StartTime) || toolEnd.Equal(child.StartTime)) {
+			return tool
+		}
+	}
+	return nil
+}
+
+// applyTimestampCorrelation re-parents ailang.* spans under exec.tool_use based on timestamps.
+// This creates a "logical" hierarchy that differs from the DB parent_span_id.
+//
+// The algorithm:
+// 1. Find all executor spans (claude.execute, gemini.execute)
+// 2. For each executor, collect its tool_use children
+// 3. For each ailang.* child of the executor:
+//   - Find the tool_use span whose time window contains the child's start time
+//   - Move the child under that tool span (in-memory only)
+//
+// 4. Sort tool children by start time for consistent display
+func applyTimestampCorrelation(spanIndex map[string]*SpanNode) {
+	// 1. Find executor spans (claude.execute, gemini.execute)
+	var executorNodes []*SpanNode
+	for _, node := range spanIndex {
+		if node.Span != nil && isExecutorSpan(node.Span) {
+			executorNodes = append(executorNodes, node)
+		}
+	}
+
+	// 2. For each executor, collect its direct children
+	for _, executor := range executorNodes {
+		// Collect tool spans (these will become new parents)
+		var toolSpans []*SpanNode
+		for _, child := range executor.Children {
+			if child.Span != nil && isToolUseSpan(child.Span) {
+				toolSpans = append(toolSpans, child)
+			}
+		}
+
+		// No tools = nothing to re-parent
+		if len(toolSpans) == 0 {
+			continue
+		}
+
+		// 3. Find ailang.* children of executor that should move under tools
+		var remainingChildren []*SpanNode
+		for _, child := range executor.Children {
+			if child.Span != nil && isAilangChildSpan(child.Span) {
+				// Try to find containing tool span
+				if tool := findContainingToolSpan(child.Span, toolSpans); tool != nil {
+					// Re-parent: remove from executor, add to tool
+					tool.Children = append(tool.Children, child)
+					continue
+				}
+			}
+			remainingChildren = append(remainingChildren, child)
+		}
+		executor.Children = remainingChildren
+
+		// 4. Sort tool children by start time
+		for _, tool := range toolSpans {
+			if len(tool.Children) > 0 {
+				sort.Slice(tool.Children, func(i, j int) bool {
+					return tool.Children[i].Span.StartTime.Before(tool.Children[j].Span.StartTime)
+				})
+			}
+		}
 	}
 }

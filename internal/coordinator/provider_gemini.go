@@ -69,12 +69,13 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 	}
 
 	execTask := &executor.Task{
-		ID:        task.Task.ID,
-		Directive: directive,
-		Workspace: opts.Workspace,
-		Timeout:   opts.Timeout,
-		Model:     opts.Model,
-		Metadata:  make(map[string]string),
+		ID:           task.Task.ID,
+		ParentTaskID: task.Task.ParentTaskID, // M-TASK-HIERARCHY: propagate from coordinator task
+		Directive:    directive,
+		Workspace:    opts.Workspace,
+		Timeout:      opts.Timeout,
+		Model:        opts.Model,
+		Metadata:     make(map[string]string),
 	}
 
 	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)

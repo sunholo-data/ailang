@@ -36,6 +36,7 @@ type Executor interface {
 // Task represents a coding task to execute
 type Task struct {
 	ID           string            // Unique task identifier
+	ParentTaskID string            // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
 	Directive    string            // The instruction/prompt
 	SystemPrompt string            // Optional system-level context
 	Workspace    string            // Working directory (local path)
@@ -103,6 +104,15 @@ type EventHandler interface {
 	OnToolResult(toolName string, output string)
 	OnTurnEnd(turnNum int)
 	OnError(err error)
+}
+
+// ContextAwareHandler is an optional interface for handlers that need
+// the executor's trace context for proper span hierarchy.
+// When implemented, the executor calls SetContext after creating its span,
+// so child spans created by the handler are properly nested.
+type ContextAwareHandler interface {
+	EventHandler
+	SetContext(ctx context.Context)
 }
 
 // CostModel contains pricing information

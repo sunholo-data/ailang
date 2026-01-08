@@ -23,13 +23,14 @@ const (
 
 // Task represents a task to be executed
 type Task struct {
-	ID        string
-	Title     string
-	Content   string
-	Kind      string // "directive" or "question" - affects execution mode
-	Priority  int
-	MessageID string
-	CreatedAt time.Time
+	ID           string
+	Title        string
+	Content      string
+	Kind         string // "directive" or "question" - affects execution mode
+	Priority     int
+	MessageID    string
+	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
+	CreatedAt    time.Time
 }
 
 // AnalyzedTask is a task with analysis metadata

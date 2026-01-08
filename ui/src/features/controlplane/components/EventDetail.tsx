@@ -50,10 +50,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({
   currentIndex,
   totalEvents,
 }) => {
-  if (!event) return null;
-
-  const metadata = event.metadata as Record<string, unknown> | undefined;
-  const payload = metadata?.payload as string;
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS (Rules of Hooks)
 
   // Calculate trace stats
   const totalDuration = React.useMemo(() => {
@@ -82,6 +79,12 @@ export const EventDetail: React.FC<EventDetailProps> = ({
   const zoomIn = () => setZoomLevel((z) => Math.min(z * 2, 16));
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1));
   const resetZoom = () => setZoomLevel(1);
+
+  // Early return AFTER all hooks
+  if (!event) return null;
+
+  const metadata = event.metadata as Record<string, unknown> | undefined;
+  const payload = metadata?.payload as string;
 
   const renderSpan = (span: Span, depth: number = 0): React.ReactNode => {
     const left = totalDuration > 0 ? (span.startMs / totalDuration) * 100 : 0;

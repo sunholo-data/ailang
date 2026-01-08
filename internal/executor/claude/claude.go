@@ -82,7 +82,24 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	)
 	defer span.End()
 
-	sessionID := uuid.New().String()
+	// Update handler's context so child spans (turns, tools) are properly nested
+	// under this claude.execute span rather than being siblings
+	if ctxHandler, ok := handler.(executor.ContextAwareHandler); ok {
+		ctxHandler.SetContext(ctx)
+	}
+
+	// Use task ID as session ID for unified hierarchy tracking
+	// This allows: 1) consistent span correlation, 2) Claude session resume using task ID
+	// IMPORTANT: Claude Code CLI requires session IDs to be valid UUIDs
+	sessionID := task.ID
+	if sessionID == "" {
+		// Fallback if task has no ID (shouldn't happen in normal use)
+		sessionID = uuid.New().String()
+	} else if !isValidUUID(sessionID) {
+		// Task ID is not a valid UUID (e.g., "exec-test", "task-123")
+		// Generate a UUID for Claude's session, but keep task.ID for hierarchy tracking
+		sessionID = uuid.New().String()
+	}
 	span.SetAttributes(attribute.String("session.id", sessionID))
 
 	// Build command arguments
@@ -202,7 +219,17 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					if contentBlock != nil {
 						if blockType, _ := contentBlock["type"].(string); blockType == "tool_use" {
 							toolName, _ := contentBlock["name"].(string)
-							handler.OnToolUse(toolName, "")
+							// Extract tool input if available (may be in initial block or come via delta)
+							toolInput := ""
+							if input, ok := contentBlock["input"]; ok {
+								if inputMap, ok := input.(map[string]interface{}); ok {
+									inputBytes, _ := json.Marshal(inputMap)
+									toolInput = string(inputBytes)
+								} else if inputStr, ok := input.(string); ok {
+									toolInput = inputStr
+								}
+							}
+							handler.OnToolUse(toolName, toolInput)
 							transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", toolName))
 						}
 					}
@@ -210,12 +237,23 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				case "content_block_delta":
 					delta, _ := streamEvent["delta"].(map[string]interface{})
 					if delta != nil {
-						if deltaType, _ := delta["type"].(string); deltaType == "text_delta" {
+						deltaType, _ := delta["type"].(string)
+						switch deltaType {
+						case "text_delta":
 							text, _ := delta["text"].(string)
 							handler.OnText(text)
 							transcriptBuf.WriteString(text)
+						case "input_json_delta":
+							// Tool input streaming - accumulate but we already called OnToolUse
+							// The input will be visible in the initial tool_use block
+							_ = delta["partial_json"]
 						}
 					}
+
+				case "content_block_stop":
+					// Tool block completed - could signal OnToolResult here if we had a result
+					// Claude Code sends tool results as separate user messages
+					_ = streamEvent["index"]
 
 				case "message_stop":
 					handler.OnTurnEnd(turnNum)
@@ -399,6 +437,13 @@ func getErrorMessage(result *claudeHeadlessResult) string {
 		return result.Result
 	}
 	return ""
+}
+
+// isValidUUID checks if a string is a valid UUID format
+// Claude Code CLI requires session IDs to be valid UUIDs
+func isValidUUID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
 }
 
 // Register registers the Claude executor with the global factory

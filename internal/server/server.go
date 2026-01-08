@@ -270,6 +270,7 @@ func (s *Server) Start() error {
 
 	// REST API endpoints - Control Plane
 	mux.HandleFunc("/api/controlplane/heatmap", s.handleControlPlaneHeatmap)
+	mux.HandleFunc("/api/controlplane/topology/observed", s.handleControlPlaneTopologyObserved)
 	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
 	mux.HandleFunc("/api/controlplane/stats", s.handleControlPlaneStats)
 	mux.HandleFunc("/api/controlplane/stats/breakdown", s.handleControlPlaneStatsBreakdown)

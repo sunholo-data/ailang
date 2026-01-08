@@ -12,7 +12,7 @@ import (
 type ExecTaskNode struct {
 	TaskID       string          `json:"task_id"`
 	ParentTaskID string          `json:"parent_task_id"`
-	Command      string          `json:"command"`   // exec, run, check
+	Command      string          `json:"command"`   // exec, run, check, turn, tool_use
 	Provider     string          `json:"provider"`  // for exec: claude, gemini, etc.
 	Workspace    string          `json:"workspace"` // for exec
 	FilePath     string          `json:"file_path"` // for run, check
@@ -20,6 +20,11 @@ type ExecTaskNode struct {
 	StartTime    *time.Time      `json:"start_time,omitempty"`
 	DurationMs   int             `json:"duration_ms,omitempty"`
 	Children     []*ExecTaskNode `json:"children,omitempty"`
+	// Turn/tool specific fields
+	TurnNumber int    `json:"turn_number,omitempty"` // for turn spans
+	ToolName   string `json:"tool_name,omitempty"`   // for tool_use spans
+	ToolInput  string `json:"tool_input,omitempty"`  // for tool_use spans
+	ToolOutput string `json:"tool_output,omitempty"` // for tool_use spans
 }
 
 // GetMetricsSummary returns global metrics.
@@ -127,6 +132,7 @@ func (s *Store) GetTaskTimeline(taskID string) ([]*TaskTimeline, error) {
 }
 
 // GetExecTaskHierarchy returns the hierarchy of ailang commands (exec, run, check) from span attributes
+// including turn and tool_use child spans for complete hierarchy visualization
 func (s *Store) GetExecTaskHierarchy(limit int) ([]*ExecTaskNode, error) {
 	if limit <= 0 {
 		limit = 100
@@ -217,7 +223,91 @@ func (s *Store) GetExecTaskHierarchy(limit int) ([]*ExecTaskNode, error) {
 		return nil, err
 	}
 
-	// Build tree structure
+	// Query turn and tool_use spans and attach to their parent exec nodes
+	turnToolRows, err := s.db.Query(`
+		SELECT
+			id,
+			name,
+			JSON_EXTRACT(attributes, '$."exec.task_id"') as parent_task_id,
+			JSON_EXTRACT(attributes, '$."turn.number"') as turn_number,
+			JSON_EXTRACT(attributes, '$."tool.name"') as tool_name,
+			JSON_EXTRACT(attributes, '$."tool.input"') as tool_input,
+			JSON_EXTRACT(attributes, '$."tool.output"') as tool_output,
+			status,
+			start_time,
+			duration_ms
+		FROM spans
+		WHERE name = 'exec.turn' OR name = 'exec.tool_use'
+		ORDER BY start_time ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer turnToolRows.Close()
+
+	// Attach turn/tool spans to their parent exec nodes
+	for turnToolRows.Next() {
+		var spanID, spanName string
+		var parentTaskID, toolName, toolInput, toolOutput, status sql.NullString
+		var turnNumber sql.NullInt64
+		var startTime sql.NullTime
+		var durationMs sql.NullInt64
+
+		if err := turnToolRows.Scan(&spanID, &spanName, &parentTaskID, &turnNumber, &toolName, &toolInput, &toolOutput, &status, &startTime, &durationMs); err != nil {
+			return nil, err
+		}
+
+		// Skip if no parent task ID
+		if !parentTaskID.Valid || parentTaskID.String == "" {
+			continue
+		}
+
+		// Find parent exec node
+		parent, ok := nodeMap[parentTaskID.String]
+		if !ok {
+			continue // Parent exec not in result set
+		}
+
+		// Create child node
+		command := "turn"
+		if spanName == "exec.tool_use" {
+			command = "tool_use"
+		}
+
+		child := &ExecTaskNode{
+			TaskID:       spanID, // Use span ID for uniqueness
+			ParentTaskID: parentTaskID.String,
+			Command:      command,
+			Status:       status.String,
+			Children:     []*ExecTaskNode{},
+		}
+		if turnNumber.Valid {
+			child.TurnNumber = int(turnNumber.Int64)
+		}
+		if toolName.Valid {
+			child.ToolName = toolName.String
+		}
+		if toolInput.Valid {
+			child.ToolInput = toolInput.String
+		}
+		if toolOutput.Valid {
+			child.ToolOutput = toolOutput.String
+		}
+		if startTime.Valid {
+			child.StartTime = &startTime.Time
+		}
+		if durationMs.Valid {
+			child.DurationMs = int(durationMs.Int64)
+		}
+
+		parent.Children = append(parent.Children, child)
+	}
+
+	if err := turnToolRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build tree structure for exec/run/check nodes
 	var roots []*ExecTaskNode
 	for _, node := range nodes {
 		if node.ParentTaskID == "" || node.ParentTaskID == "root" {

@@ -42,7 +42,80 @@ import type {
   HeatmapCell,
   EventMessage,
   TrustCapability,
+  TopologyEdge,
+  Span,
 } from './components';
+
+/**
+ * Find the agent path from an event through the topology.
+ * Uses both source (from_agent) and target (to_inbox) to find best match.
+ * Returns a Set of node IDs that should be highlighted.
+ */
+const findAgentPath = (
+  sourceAgent: string,
+  topologyEdges: TopologyEdge[],
+  allNodeIds: string[],
+  targetAgent?: string
+): Set<string> => {
+  const path = new Set<string>();
+  if (allNodeIds.length === 0) return path;
+
+  // Find a matching node - use exact match first, then partial
+  let startNodeId: string | null = null;
+  const candidates = [targetAgent, sourceAgent].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const candidateLower = candidate.toLowerCase();
+
+    // Exact match
+    const exactMatch = allNodeIds.find(id => id === candidate || id.toLowerCase() === candidateLower);
+    if (exactMatch) {
+      startNodeId = exactMatch;
+      break;
+    }
+
+    // Partial match
+    const partialMatch = allNodeIds.find(id =>
+      id.toLowerCase().includes(candidateLower) ||
+      candidateLower.includes(id.toLowerCase())
+    );
+    if (partialMatch) {
+      startNodeId = partialMatch;
+      break;
+    }
+  }
+
+  // If no match found, use the first node as a starting point
+  if (!startNodeId && allNodeIds.length > 0) {
+    startNodeId = allNodeIds[0];
+  }
+
+  if (!startNodeId) return path;
+
+  // BFS from start node to find all connected nodes
+  const visited = new Set<string>();
+  const queue = [startNodeId];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    path.add(current);
+
+    // Find connected nodes (both directions)
+    topologyEdges.forEach(edge => {
+      if (edge.source === current && !visited.has(edge.target)) {
+        queue.push(edge.target);
+      }
+      if (edge.target === current && !visited.has(edge.source)) {
+        queue.push(edge.source);
+      }
+    });
+  }
+
+  return path;
+};
 
 // Parse selectedLevel to ControlPlaneFilters
 const parseSelectedLevelToFilters = (selectedLevel: string): ControlPlaneFilters => {
@@ -86,6 +159,10 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   // Track time range selection from heatmap (separate from dimension filters)
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
 
+  // Agent Topology selection and highlighting state
+  const [selectedTopologyNode, setSelectedTopologyNode] = useState<string | null>(null);
+  const [highlightedPath, setHighlightedPath] = useState<Set<string>>(new Set());
+
   // Convert selectedLevel to dimension filters
   const dimensionFilters = useMemo(() => parseSelectedLevelToFilters(selectedLevel), [selectedLevel]);
 
@@ -120,6 +197,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const { events: liveEvents, loading: eventsLoading } = useEventQueue({ maxEvents: 50, filters });
   // Track selected event for trace correlation
   const [selectedEventTraceId, setSelectedEventTraceId] = useState<string | null>(null);
+  // Detail panel state - must be defined before memos that use it
+  const [detailPanel, setDetailPanel] = useState<DetailPanelState>({ type: null, id: null });
 
   const { spans: traceSpans, spansLoading, fetchSpansForTrace } = useTraceData({
     limit: 100  // Don't auto-fetch, we'll call fetchSpansForTrace manually with auto mode
@@ -130,17 +209,40 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     return heatmapResponse?.cells || [];
   }, [heatmapResponse]);
 
-  const agents = useMemo(() => {
+  // Full topology data (unfiltered) - from message-based observed topology
+  const messageBasedAgents = useMemo(() => {
     return topologyData?.agents || [];
   }, [topologyData]);
 
-  const edges = useMemo(() => {
+  // Edges with active status based on agent state
+  const allEdges = useMemo(() => {
     if (!topologyData?.edges) return [];
     return topologyData.edges.map((e) => ({
       ...e,
-      active: agents.some((a) => a.id === e.source && a.status === 'busy'),
+      active: messageBasedAgents.some((a) => a.id === e.source && a.status === 'busy'),
     }));
-  }, [topologyData, agents]);
+  }, [topologyData, messageBasedAgents]);
+
+  // All node IDs for path finding
+  const allNodeIds = useMemo(() => {
+    return messageBasedAgents.map(a => a.id);
+  }, [messageBasedAgents]);
+
+  // Agents - filter by highlighted path if a node is selected
+  const agents = useMemo(() => {
+    if (highlightedPath.size === 0) {
+      return messageBasedAgents;
+    }
+    return messageBasedAgents.filter(a => highlightedPath.has(a.id));
+  }, [messageBasedAgents, highlightedPath]);
+
+  // Edges - filter by highlighted path if a node is selected
+  const edges = useMemo(() => {
+    if (highlightedPath.size === 0) {
+      return allEdges;
+    }
+    return allEdges.filter(e => highlightedPath.has(e.source) && highlightedPath.has(e.target));
+  }, [allEdges, highlightedPath]);
 
   const events = useMemo(() => {
     return liveEvents;
@@ -152,7 +254,6 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
 
   // Interactive state
   const [topologyExpanded, setTopologyExpanded] = useState(false);
-  const [detailPanel, setDetailPanel] = useState<DetailPanelState>({ type: null, id: null });
 
   const handleTrustChange = useCallback((name: string, score: number) => {
     setTrustCapabilities(prev =>
@@ -169,12 +270,37 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   }, []);
 
   const handleCellClick = useCallback((cell: HeatmapCell) => {
-    setDetailPanel({ type: 'date', id: cell.date, data: cell });
+    // Date selection now acts as a filter - no detail panel needed
+    // The date range is already set by handleDateSelect on mouseDown
+    // This callback is kept for potential future use (e.g., double-click behavior)
   }, []);
 
   const handleAgentClick = useCallback((agent: Agent) => {
     setDetailPanel({ type: 'agent', id: agent.id, data: agent });
-  }, []);
+    // Highlight the clicked agent and its path in topology (use full graph for path finding)
+    const agentPath = findAgentPath(agent.id, allEdges, allNodeIds);
+    setHighlightedPath(agentPath);
+    setSelectedTopologyNode(agent.id);
+  }, [allEdges, allNodeIds]);
+
+  // Handle node selection in topology (can be used to clear selection)
+  const handleNodeSelect = useCallback((nodeId: string | null) => {
+    if (nodeId === null) {
+      // Clicking background or "Back" button clears selection
+      setHighlightedPath(new Set());
+      setSelectedTopologyNode(null);
+      setSelectedEventTraceId(null);
+      // Close detail panel if showing an event
+      if (detailPanel.type === 'event') {
+        setDetailPanel({ type: null, id: null });
+      }
+    } else {
+      // Clicking a node selects it and highlights path
+      setSelectedTopologyNode(nodeId);
+      const agentPath = findAgentPath(nodeId, allEdges, allNodeIds);
+      setHighlightedPath(agentPath);
+    }
+  }, [allEdges, allNodeIds, detailPanel.type]);
 
   const handleEventClick = useCallback((event: EventMessage) => {
     setDetailPanel({ type: 'event', id: event.id, data: event });
@@ -194,11 +320,19 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     setSelectedEventTraceId(lookupId);
     // Use 'auto' mode to try trace_id, then task_id, then task-prefixed
     fetchSpansForTrace(lookupId, 'auto');
+
+    // Clear highlighting - the span-based topology will be shown automatically
+    // once spans are loaded (via isShowingSpanTopology check in the memos)
+    setHighlightedPath(new Set());
+    setSelectedTopologyNode(null);
   }, [fetchSpansForTrace]);
 
   const closeDetailPanel = useCallback(() => {
     setDetailPanel({ type: null, id: null });
     setSelectedEventTraceId(null);
+    // Clear topology highlighting
+    setHighlightedPath(new Set());
+    setSelectedTopologyNode(null);
   }, []);
 
   // Navigate to previous/next event
@@ -327,6 +461,11 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
               isExpanded={topologyExpanded}
               onToggleExpand={() => setTopologyExpanded(!topologyExpanded)}
               onAgentClick={handleAgentClick}
+              selectedNodeId={selectedTopologyNode}
+              highlightedPath={highlightedPath}
+              onNodeSelect={handleNodeSelect}
+              isEmpty={topologyData?.isEmpty}
+              mode="hierarchy"
             />
           </div>
           {!topologyExpanded && (

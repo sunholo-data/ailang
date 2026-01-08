@@ -452,20 +452,34 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	// Post "starting" message to thread
 	d.postTaskStatus(task, "running", "Starting task execution...")
 
+	// Determine which agent should handle this task
+	// Look up the thread to get the target agent
+	targetAgent := "coordinator" // default
+	if task.ThreadID != "" && d.msgStore != nil {
+		if thread, err := d.msgStore.GetThread(task.ThreadID); err == nil && thread != nil && thread.TargetAgent != "" {
+			targetAgent = thread.TargetAgent
+		}
+	}
+
 	// Create analyzed task for executor
 	// Use config-driven directive for GitHub-linked tasks (M-COORD-GENERIC-WORKFLOWS)
-	// Look up agent config for this stage to use proper skill/markers
+	// Look up agent config by targetAgent (from thread) or fall back to stage-based lookup
 	var agentConfig *AgentConfig
 	if d.agentRegistry != nil {
-		agentID := stageToAgentID(task.Stage)
-		d.logger.Printf("[DEBUG] Task stage: %s -> agentID: %s", task.Stage, agentID)
-		if agentID != "" {
-			agentConfig = d.agentRegistry.GetAgentByID(agentID)
-			if agentConfig != nil {
-				d.logger.Printf("[DEBUG] Found agent config: ID=%s, Invoke=%+v", agentConfig.ID, agentConfig.Invoke)
-			} else {
-				d.logger.Printf("[DEBUG] No agent config found for ID: %s", agentID)
+		// First try targetAgent (from thread - for direct messages to inboxes)
+		agentConfig = d.agentRegistry.GetAgentByID(targetAgent)
+		if agentConfig == nil {
+			// Fall back to stage-based lookup (for workflow stages)
+			agentID := stageToAgentID(task.Stage)
+			d.logger.Printf("[DEBUG] Task stage: %s -> agentID: %s", task.Stage, agentID)
+			if agentID != "" {
+				agentConfig = d.agentRegistry.GetAgentByID(agentID)
 			}
+		}
+		if agentConfig != nil {
+			d.logger.Printf("[DEBUG] Found agent config: ID=%s, Invoke=%+v", agentConfig.ID, agentConfig.Invoke)
+		} else {
+			d.logger.Printf("[DEBUG] No agent config found for agent: %s", targetAgent)
 		}
 	}
 	directive := BuildDirectiveFromConfig(task, agentConfig)
@@ -482,14 +496,8 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		Type: task.Type,
 	}
 
-	// Determine which agent should handle this task
-	// Look up the thread to get the target agent
-	targetAgent := "coordinator" // default
-	if task.ThreadID != "" && d.msgStore != nil {
-		if thread, err := d.msgStore.GetThread(task.ThreadID); err == nil && thread != nil && thread.TargetAgent != "" {
-			targetAgent = thread.TargetAgent
-		}
-	}
+	// Check if this is a script agent (doesn't need worktree isolation)
+	isScriptAgent := agentConfig != nil && agentConfig.Invoke != nil && agentConfig.Invoke.Type == "script"
 
 	// Get the correct worktree manager for this agent
 	worktreeMgr := d.worktreeManagers[targetAgent]
@@ -497,9 +505,19 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		worktreeMgr = d.worktreeMgr // Fallback to default
 	}
 
-	// Create worktree for task isolation
+	// Create worktree for task isolation (AI agents only)
+	// Script agents run deterministic commands and don't modify files, so they don't need isolation
 	var worktree *Worktree
-	if worktreeMgr != nil {
+	var workspacePath string
+
+	if isScriptAgent {
+		// Script agents use workspace directly - no worktree needed
+		workspacePath = task.Workspace
+		if workspacePath == "" && agentConfig != nil {
+			workspacePath = agentConfig.Workspace
+		}
+		d.logger.Printf("Script agent %s using workspace directly: %s", targetAgent, workspacePath)
+	} else if worktreeMgr != nil {
 		var wtErr error
 		worktree, wtErr = worktreeMgr.CreateWorktree(task.ID)
 		if wtErr != nil {
@@ -519,6 +537,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			}
 			return failErr // Don't execute without worktree isolation
 		}
+		workspacePath = worktree.Path
 	} else {
 		// No worktree manager means we can't ensure isolation
 		d.logger.Printf("ERROR: No worktree manager available for task %s (agent: %s)", task.ID, targetAgent)
@@ -558,7 +577,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 
 	opts := &ExecuteOptions{
 		Timeout:            10 * time.Minute, // 10 minute timeout per task
-		Workspace:          worktree.Path,    // Always have worktree (fail fast above)
+		Workspace:          workspacePath,    // Worktree path for AI agents, direct workspace for script agents
 		ObservatoryContext: obsContext,
 	}
 
@@ -671,6 +690,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 
 	// Update task status based on result
 	if result.Success {
+		// Check if this agent skips approval (e.g., script agents)
+		skipApproval := agentConfig != nil && agentConfig.SkipApproval
+
 		// PRESERVE WORKTREE - mark as pending approval, not completed
 		// Human must approve/reject before worktree is cleaned up
 		worktreePath := ""
@@ -679,37 +701,47 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			worktreePath = worktree.Path
 			worktreeBranch = worktree.Branch
 		}
-		if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, worktreeBranch, result); err != nil {
-			d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
-		}
 
-		// Update task with worktree and agent info before ProcessStageCompletion
-		// (needed for git diff artifact discovery)
+		// Update task with worktree and agent info (needed for git diff artifact discovery)
 		task.WorktreePath = worktreePath
 		task.AgentID = targetAgent
 
-		// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
-		// This posts the summary to GitHub and adds the appropriate approval label
-		if err := d.ProcessStageCompletion(d.ctx, task, result); err != nil {
-			d.logger.Printf("Warning: Failed to process stage completion: %v", err)
-		}
+		if skipApproval {
+			// Script agents or agents with skip_approval: mark as completed directly
+			if err := d.taskStore.MarkTaskCompleted(d.ctx, task.ID, result); err != nil {
+				d.logger.Printf("Warning: Failed to mark task completed: %v", err)
+			}
+			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
+				task.ID, result.Cost, result.TokensUsed)
+		} else {
+			// Normal agents: mark as pending approval
+			if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, worktreeBranch, result); err != nil {
+				d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
+			}
 
-		// Create approval request record for the CLI/dashboard to show
-		approvalID := fmt.Sprintf("apr-%s", task.ID[5:]) // apr-<hash> from task-<hash>
-		approvalReq := &ApprovalRequestRecord{
-			ID:          approvalID,
-			TaskID:      task.ID,
-			Type:        string(ApprovalTypeMerge),
-			Description: fmt.Sprintf("Agent completed work on: %s", task.Title),
-			Status:      "pending",
-			CreatedAt:   time.Now(),
-		}
-		if err := d.taskStore.CreateApprovalRequest(d.ctx, approvalReq); err != nil {
-			d.logger.Printf("Warning: Failed to create approval request: %v", err)
-		}
+			// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
+			// This posts the summary to GitHub and adds the appropriate approval label
+			if err := d.ProcessStageCompletion(d.ctx, task, result); err != nil {
+				d.logger.Printf("Warning: Failed to process stage completion: %v", err)
+			}
 
-		d.logger.Printf("Task %s awaiting approval (cost: $%.4f, tokens: %d, worktree: %s)",
-			task.ID, result.Cost, result.TokensUsed, worktreePath)
+			// Create approval request record for the CLI/dashboard to show
+			approvalID := fmt.Sprintf("apr-%s", task.ID[5:]) // apr-<hash> from task-<hash>
+			approvalReq := &ApprovalRequestRecord{
+				ID:          approvalID,
+				TaskID:      task.ID,
+				Type:        string(ApprovalTypeMerge),
+				Description: fmt.Sprintf("Agent completed work on: %s", task.Title),
+				Status:      "pending",
+				CreatedAt:   time.Now(),
+			}
+			if err := d.taskStore.CreateApprovalRequest(d.ctx, approvalReq); err != nil {
+				d.logger.Printf("Warning: Failed to create approval request: %v", err)
+			}
+
+			d.logger.Printf("Task %s awaiting approval (cost: $%.4f, tokens: %d, worktree: %s)",
+				task.ID, result.Cost, result.TokensUsed, worktreePath)
+		}
 
 		// Check for agent-to-agent handoffs
 		// Find the agent that handled this task and check for trigger_on_complete

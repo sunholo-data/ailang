@@ -1608,6 +1608,54 @@ This means `\n` characters are **consumed and never returned as tokens**. Even t
 - `internal/parser/parser.go` - `nextToken()` wrapper
 - Any parser code that checks for or handles whitespace
 
+### Claude Code CLI - TRACEPARENT is NOT Propagated!
+
+**⚠️ KNOWN LIMITATION: Claude Code does NOT propagate TRACEPARENT to subprocess environments.**
+
+When Claude Code runs a Bash tool (e.g., `ailang check`), the child process does NOT
+receive the trace context. Child spans are created in a DIFFERENT trace entirely.
+
+**This is a KNOWN limitation. DO NOT attempt to fix it at runtime. DO NOT "discover" it again.**
+
+**What happens:**
+```
+claude.execute (trace_id: abc123)
+  ├── exec.turn (trace_id: abc123)
+  ├── exec.tool_use: Bash "ailang check ..." (trace_id: abc123)
+  │     └── [EXPECTED: child spans here]
+  │
+  └── [ACTUAL: no children - child spans are in a different trace]
+
+ailang.check (trace_id: xyz789)  ← Different trace!
+  └── compile.parse
+  └── compile.typecheck
+```
+
+**Solution: Timestamp Correlation (Virtual Re-parenting)**
+
+We correlate spans at query time using timestamps, not runtime trace linking:
+- Implementation: `internal/observatory/hierarchy.go:applyTimestampCorrelation()`
+- Tests: `internal/observatory/hierarchy_test.go:TestTimestampCorrelation*`
+- Works for spans that ARE in the same trace (e.g., `exec.tool_use` ↔ `ailang.run` from script agents)
+
+**When timestamp correlation WORKS:**
+- Script-based agents (`invoke.type: script`) - TRACEPARENT is properly propagated
+- Direct `ailang exec` calls - parent sets TRACEPARENT in environment
+
+**When timestamp correlation CANNOT help:**
+- Claude Code tool execution - child spans are in different traces
+- Gemini CLI tool execution - same limitation
+
+**DO NOT:**
+- ❌ Try to inject TRACEPARENT into Claude Code's subprocess environment (we don't control it)
+- ❌ Attempt runtime fixes for this (Claude Code controls subprocess spawning)
+- ❌ Spend time re-investigating this - it's documented and accepted
+
+**Workaround for full hierarchy tracking:**
+- Use `task_id` and `parent_task_id` attributes instead of trace_id
+- Query spans by task_id for cross-trace linking
+- The coordinator sets `AILANG_PARENT_TASK_ID` environment variable
+
 ---
 
 ## Parser Development

@@ -72,8 +72,22 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	)
 	defer span.End()
 
-	sessionID := uuid.New().String()
-	span.SetAttributes(attribute.String("session.id", sessionID))
+	// Update handler's context so child spans (turns, tools) are properly nested
+	// under this gemini.execute span rather than being siblings
+	if ctxHandler, ok := handler.(executor.ContextAwareHandler); ok {
+		ctxHandler.SetContext(ctx)
+	}
+
+	// Use task ID for hierarchy tracking (Gemini generates its own session ID)
+	// We'll capture Gemini's session ID from the init event and store both
+	ourTaskID := task.ID
+	if ourTaskID == "" {
+		ourTaskID = uuid.New().String()
+	}
+	span.SetAttributes(attribute.String("exec.task_id", ourTaskID))
+
+	// sessionID will be updated from Gemini's init event
+	sessionID := ourTaskID // Default to our task ID
 
 	// Build command arguments for Gemini CLI
 	// Gemini CLI doesn't support system prompts, so prepend to directive if needed
@@ -188,9 +202,11 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 			switch event.Type {
 			case "init":
-				// Session initialization
+				// Session initialization - capture Gemini's session ID
 				if event.SessionID != "" {
 					sessionID = event.SessionID
+					// Store both our task_id and Gemini's session_id in the span
+					span.SetAttributes(attribute.String("exec.gemini_session_id", event.SessionID))
 				}
 				turnNum++
 				handler.OnTurnStart(turnNum)

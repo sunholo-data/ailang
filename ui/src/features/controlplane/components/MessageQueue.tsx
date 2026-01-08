@@ -1,7 +1,7 @@
 /**
  * MessageQueue - Real-time event feed for Control Plane
  */
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { EventMessage } from './types';
 import styles from '../ControlPlane.module.css';
 
@@ -9,6 +9,7 @@ export interface MessageQueueProps {
   events: EventMessage[];
   onEventClick: (event: EventMessage) => void;
   loading?: boolean;
+  pageSize?: number;
 }
 
 const getEventIcon = (type: EventMessage['type']): string => {
@@ -45,7 +46,26 @@ const formatRelativeTime = (timestamp: string): string => {
   return `${Math.floor(diff / 3600000)}h ago`;
 };
 
-export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick, loading }) => {
+export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick, loading, pageSize = 10 }) => {
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Calculate pagination
+  const totalPages = useMemo(() => Math.ceil(events.length / pageSize), [events.length, pageSize]);
+  const paginatedEvents = useMemo(() => {
+    const start = currentPage * pageSize;
+    return events.slice(start, start + pageSize);
+  }, [events, currentPage, pageSize]);
+
+  // Reset to first page when events change significantly
+  React.useEffect(() => {
+    if (currentPage >= totalPages && totalPages > 0) {
+      setCurrentPage(totalPages - 1);
+    }
+  }, [totalPages, currentPage]);
+
+  const goToPrevPage = () => setCurrentPage((p) => Math.max(0, p - 1));
+  const goToNextPage = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+
   return (
     <div className={styles.messageQueue}>
       <div className={styles.queueHeader}>
@@ -73,7 +93,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
             </span>
           </div>
         )}
-        {!loading && events.map((event) => (
+        {!loading && paginatedEvents.map((event) => (
           <div
             key={event.id}
             className={styles.queueItem}
@@ -102,6 +122,30 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
           </div>
         ))}
       </div>
+      {/* Pagination controls */}
+      {!loading && totalPages > 1 && (
+        <div className={styles.queuePagination}>
+          <button
+            className={styles.queuePageBtn}
+            onClick={goToPrevPage}
+            disabled={currentPage === 0}
+            title="Previous page"
+          >
+            ←
+          </button>
+          <span className={styles.queuePageInfo}>
+            {currentPage + 1} / {totalPages}
+          </span>
+          <button
+            className={styles.queuePageBtn}
+            onClick={goToNextPage}
+            disabled={currentPage >= totalPages - 1}
+            title="Next page"
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 };

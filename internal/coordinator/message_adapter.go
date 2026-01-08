@@ -43,15 +43,16 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 			githubIssue = *m.GitHubIssue
 		}
 		result = append(result, &Message{
-			ID:          m.ID,
-			From:        m.FromAgent,
-			Title:       m.Title,
-			Content:     m.Payload,
-			Type:        m.Category,    // bug, feature, general
-			Kind:        m.MessageType, // directive, question
-			Priority:    "",            // Will be classified by analyzer
-			GithubIssue: githubIssue,   // M-COORD-GITHUB-AUTO-ROUTING
-			CreatedAt:   m.CreatedAt,
+			ID:           m.ID,
+			From:         m.FromAgent,
+			Title:        m.Title,
+			Content:      m.Payload,
+			Type:         m.Category,     // bug, feature, general
+			Kind:         m.MessageType,  // directive, question
+			Priority:     "",             // Will be classified by analyzer
+			GithubIssue:  githubIssue,    // M-COORD-GITHUB-AUTO-ROUTING
+			ParentTaskID: m.ParentTaskID, // M-TASK-HIERARCHY: propagate from inbox message
+			CreatedAt:    m.CreatedAt,
 		})
 	}
 

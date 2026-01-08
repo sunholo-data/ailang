@@ -285,13 +285,19 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	// Priority order:
 	// 1. ailang.task_id from resource attributes (OTEL_RESOURCE_ATTRIBUTES)
 	// 2. task.id span attribute (coordinator sets this on task execution spans)
-	// 3. task.workspace span attribute (executor sets this for coordinator tasks)
-	// 4. process.cwd worktree path fallback (Claude Code subprocesses)
-	// 5. Session-based correlation: look up parent claude.execute span by session.id
+	// 3. exec.parent_task_id span attribute (ailang exec sets this for hierarchy)
+	// 4. task.workspace span attribute (executor sets this for coordinator tasks)
+	// 5. process.cwd worktree path fallback (Claude Code subprocesses)
+	// 6. Session-based correlation: look up parent claude.execute span by session.id
 	taskID := extractString(resourceAttrs, "ailang.task_id")
 	if taskID == "" {
 		// Check task.id span attribute (coordinator sets this)
 		taskID = extractString(attrs, "task.id")
+	}
+	if taskID == "" {
+		// Check exec.parent_task_id span attribute (ailang exec sets this for hierarchy)
+		// This links child ailang.exec spans to their parent coordinator task
+		taskID = extractString(attrs, "exec.parent_task_id")
 	}
 	if taskID == "" {
 		// Check task.workspace span attribute (executor sets this)
@@ -554,12 +560,18 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	// Priority order:
 	// 1. ailang.task_id from resource attributes (OTEL_RESOURCE_ATTRIBUTES)
 	// 2. task.id span attribute (coordinator sets this on task execution spans)
-	// 3. task.workspace span attribute (executor sets this for coordinator tasks)
-	// 4. process.cwd worktree path fallback (Claude Code subprocesses)
+	// 3. exec.parent_task_id span attribute (ailang exec sets this for hierarchy)
+	// 4. task.workspace span attribute (executor sets this for coordinator tasks)
+	// 5. process.cwd worktree path fallback (Claude Code subprocesses)
 	taskID := extractString(resourceAttrs, "ailang.task_id")
 	if taskID == "" {
 		// Check task.id span attribute (coordinator sets this)
 		taskID = extractString(attrs, "task.id")
+	}
+	if taskID == "" {
+		// Check exec.parent_task_id span attribute (ailang exec sets this for hierarchy)
+		// This links child ailang.exec spans to their parent coordinator task
+		taskID = extractString(attrs, "exec.parent_task_id")
 	}
 	if taskID == "" {
 		// Check task.workspace span attribute (executor sets this)

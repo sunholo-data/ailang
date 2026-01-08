@@ -61,10 +61,25 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 
 	// Inject correlation IDs for fallback linking
 	taskID := ""
+	parentTaskID := ""
 	if opts.Task != nil {
 		taskID = opts.Task.ID
+		parentTaskID = opts.Task.ParentTaskID
 	}
 	env = telemetry.InjectCorrelationIDs(env, taskID, opts.SessionID)
+
+	// Inject parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
+	// When the executor spawns AI CLI (Claude/Gemini), any child ailang commands
+	// (ailang run, ailang check) should link back to this executor's task ID.
+	// - If ParentTaskID is set: propagate the explicit parent (nested exec calls)
+	// - Otherwise: use this task's ID as the parent for child commands
+	effectiveParentID := parentTaskID
+	if effectiveParentID == "" && taskID != "" {
+		effectiveParentID = taskID
+	}
+	if effectiveParentID != "" {
+		env = append(env, fmt.Sprintf("AILANG_PARENT_TASK_ID=%s", effectiveParentID))
+	}
 
 	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
 	// Merges existing attributes from environment with task-specific attributes
