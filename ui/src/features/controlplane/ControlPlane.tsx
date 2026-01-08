@@ -308,14 +308,19 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     const metadata = event.metadata as Record<string, unknown> | undefined;
 
     // Priority order for finding trace/task ID:
-    // 1. task_id (direct span attribute)
-    // 2. parent_task_id (from coordinator)
+    // 1. task_id (direct span attribute - already in task-XXX format)
+    // 2. parent_task_id (from coordinator - already in task-XXX format)
     // 3. correlation_id (message correlation)
-    // 4. event.id (fallback)
-    const lookupId = metadata?.task_id as string
+    // 4. Construct task-{first8chars} from event.id
+    let lookupId = metadata?.task_id as string
       || metadata?.parent_task_id as string
-      || metadata?.correlation_id as string
-      || event.id;
+      || metadata?.correlation_id as string;
+
+    // If no explicit task_id, construct from message ID
+    // Coordinator creates tasks with ID format: task-{first8chars of message_id}
+    if (!lookupId && event.id) {
+      lookupId = `task-${event.id.substring(0, 8)}`;
+    }
 
     setSelectedEventTraceId(lookupId);
     // Use 'auto' mode to try trace_id, then task_id, then task-prefixed

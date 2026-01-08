@@ -183,17 +183,27 @@ import styles from '../ControlPlane.module.css';
 - `GET /api/controlplane/heatmap` - Activity by hour/day
 - `GET /api/controlplane/topology` - Service relationships
 - `GET /api/controlplane/stats/breakdown?by=provider` - Provider breakdown
+- `GET /api/controlplane/exec-hierarchy` - Execution hierarchy for tasks
 
 **Observatory:**
 - `GET /api/observatory/workspaces` - List workspaces
 - `GET /api/observatory/tasks` - List tasks
-- `GET /api/observatory/spans?task_id=X` - Spans for task
-- `GET /api/observatory/spans?trace_id=X` - Spans for trace
-- `GET /api/observatory/metrics` - Aggregate metrics
+- `GET /api/observatory/tasks/{id}` - Get single task
+- `GET /api/observatory/tasks/{id}/hierarchy` - **Full task hierarchy with all spans** (recommended)
+- `GET /api/observatory/tasks/{taskId}/agents` - List agent assignments for task
+- `GET /api/observatory/spans?task_id=X` - Spans with task_id set (limited)
+- `GET /api/observatory/spans?trace_id=X` - All spans in a trace
+- `GET /api/observatory/traces` - List traces
+- `GET /api/observatory/metrics/summary` - Aggregate metrics
+- `GET /api/observatory/metrics/providers` - Provider comparison
 
 **Inbox/Messages:**
-- `GET /api/inbox` - List messages
+- `GET /api/inbox` - List messages (includes counts by status)
+- `GET /api/inbox/{id}` - Get single message
 - `POST /api/inbox` - Send message
+- `PUT /api/inbox/{id}` - Update message (ack/unack)
+- `POST /api/inbox/ack-all` - Mark all messages as read
+- `POST /api/inbox/cleanup` - Clean up old messages
 
 **Approvals:**
 - `GET /api/approvals?status=pending` - Pending approvals
@@ -203,12 +213,169 @@ import styles from '../ControlPlane.module.css';
 **Coordinator:**
 - `GET /api/coordinator/events` - SSE stream for task events
 - `POST /api/coordinator/events` - Receive coordinator events
+- `GET /api/coordinator/status` - Coordinator daemon status
+- `GET /api/coordinator/running` - Currently running tasks
+- `GET /api/coordinator/pending` - Pending approvals
 
 **WebSocket:**
 - `ws://localhost:1957/ws` - Real-time events
-  - `new_message` - New message
+  - `inbox_message` - New inbox message
+  - `task_stream_event` - Live task execution events
   - `task_update` - Task status change
   - `span_created` - New span ingested
+- `ws://localhost:1957/ws/observatory` - Observatory-specific events
+
+## Hierarchy & Trace Correlation
+
+### Data Model Overview
+
+The system uses a hierarchical data model:
+
+```
+WORKSPACE
+  └── TASK (created from message)
+        └── AGENT_ASSIGNMENT (which executor is running)
+              └── SPANS (telemetry data)
+                    └── TRACES (span groups)
+```
+
+**Key relationships:**
+- **Message ID → Task ID**: Tasks are created with ID format `task-{first8chars of message_id}`
+- **Task → Traces**: A task may have multiple traces (e.g., coordinator trace + execution trace)
+- **Trace → Spans**: A trace contains all spans with the same `trace_id`
+
+### Task ID Correlation
+
+When clicking an event in the UI, we need to find its traces:
+
+```typescript
+// In ControlPlane.tsx handleEventClick:
+// Priority order for finding task ID:
+// 1. metadata.task_id (direct span attribute)
+// 2. metadata.parent_task_id (from coordinator)
+// 3. metadata.correlation_id (message correlation)
+// 4. Construct task-{first8chars} from event.id
+let lookupId = metadata?.task_id || metadata?.parent_task_id || metadata?.correlation_id;
+if (!lookupId && event.id) {
+  lookupId = `task-${event.id.substring(0, 8)}`;
+}
+```
+
+### Hierarchy API vs Direct Spans API
+
+**Problem**: Child spans (claude.execute, exec.turn, etc.) don't have `task_id` set - only parent spans do.
+
+**Solution**: Use the hierarchy endpoint which expands to include ALL spans in linked traces:
+
+```typescript
+// In useTraceData.ts fetchByTaskId:
+// 1. Call hierarchy endpoint (does proper trace expansion)
+const response = await fetch(`/api/observatory/tasks/${tid}/hierarchy`);
+const hierarchy = await response.json();
+
+// 2. Extract all spans from nested structure
+const allSpans = [];
+for (const agent of hierarchy.agents) {
+  for (const trace of agent.traces) {
+    for (const spanNode of trace.spans) {
+      allSpans.push(spanNode.span);
+    }
+  }
+}
+```
+
+The hierarchy endpoint (`/api/observatory/tasks/{id}/hierarchy`):
+1. Gets spans by `task_id` first
+2. Collects all unique `trace_id`s from those spans
+3. Fetches ALL spans in those traces (including children without task_id)
+4. Applies timestamp correlation for proper nesting
+
+### Timestamp Correlation (Virtual Re-parenting)
+
+Claude Code doesn't propagate TRACEPARENT to subprocess environments. This means child spans from `ailang check` are parented to `claude.execute` instead of `exec.tool_use`.
+
+The hierarchy API applies **virtual re-parenting** at query time:
+
+```
+Before (DB structure):
+claude.execute
+  ├── exec.turn
+  ├── exec.tool_use (Bash: ailang check)
+  └── ailang.check ← sibling, wrong!
+
+After (virtual hierarchy):
+claude.execute
+  └── exec.turn
+        └── exec.tool_use (Bash: ailang check)
+              └── ailang.check ← correctly nested!
+```
+
+Implementation in `internal/observatory/hierarchy.go`:
+- `applyTimestampCorrelation()` - Re-parents ailang.* spans under exec.tool_use
+- Uses span timestamps to determine which tool invoked which child process
+
+### Backend Files
+
+| File | Purpose |
+|------|---------|
+| `internal/observatory/hierarchy.go` | Task hierarchy building, timestamp correlation |
+| `internal/observatory/api.go` | REST API handlers for observatory |
+| `internal/observatory/backend.go` | Backend interface for span storage |
+| `internal/observatory/store.go` | SQLite implementation |
+| `internal/server/handlers_controlplane.go` | Control plane API endpoints |
+| `internal/server/handlers_inbox.go` | Inbox message API endpoints |
+
+### Frontend Files
+
+| File | Purpose |
+|------|---------|
+| `ui/src/features/controlplane/ControlPlane.tsx` | Main container, event click handling |
+| `ui/src/features/controlplane/hooks/useTraceData.ts` | Fetches spans via hierarchy API |
+| `ui/src/features/controlplane/hooks/useEventQueue.ts` | Message fetching + WebSocket |
+| `ui/src/features/controlplane/components/TraceWaterfall.tsx` | Span visualization |
+| `ui/src/features/controlplane/components/EventDetail.tsx` | Event detail panel |
+
+### Example Hierarchy Response
+
+```json
+{
+  "task": {
+    "id": "task-50b9518d",
+    "title": "Dashboard Trace Test",
+    "status": "pending"
+  },
+  "agents": [{
+    "agent": {
+      "id": "aa_3a4daa5f8e42ecc8",
+      "agent_id": "hierarchy-test",
+      "provider": "claude"
+    },
+    "traces": [
+      {
+        "trace_id": "79c9736d...",
+        "spans": [{"span": {"name": "coordinator.task.execute"}}],
+        "summary": {"span_count": 1}
+      },
+      {
+        "trace_id": "f87170ae...",
+        "root_span": {
+          "span": {"name": "ailang.exec"},
+          "children": [{
+            "span": {"name": "claude.execute"},
+            "children": [
+              {"span": {"name": "exec.turn"}},
+              {"span": {"name": "exec.tool_use"}},
+              {"span": {"name": "ailang.check", "children": [...]}}
+            ]
+          }]
+        },
+        "spans": [...], // Flat list of all 15 spans
+        "summary": {"span_count": 15}
+      }
+    ]
+  }]
+}
+```
 
 ## Development Workflow
 
@@ -334,37 +501,125 @@ const zoomOut = () => setZoomLevel(z => Math.max(z / 2, 1));
 
 ### Building Hierarchical Data
 
-See `useTraceData.ts` for span hierarchy:
+**For spans**: Use the hierarchy API which handles trace expansion and timestamp correlation:
+
 ```tsx
-function buildHierarchy(flatItems: RawItem[]): TreeItem[] {
-  const itemMap = new Map<string, TreeItem>();
+// In useTraceData.ts - fetch via hierarchy endpoint
+const fetchByTaskId = async (tid: string): Promise<RawSpan[]> => {
+  const response = await fetch(`/api/observatory/tasks/${tid}/hierarchy`);
+  if (!response.ok) {
+    // Fallback to direct spans query
+    const fallback = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
+    return await fallback.json() || [];
+  }
+
+  const hierarchy = await response.json();
+  const allSpans: RawSpan[] = [];
+
+  // Extract spans from nested hierarchy response
+  if (hierarchy?.agents) {
+    for (const agent of hierarchy.agents) {
+      for (const trace of agent?.traces || []) {
+        for (const spanNode of trace?.spans || []) {
+          if (spanNode?.span) allSpans.push(spanNode.span);
+        }
+      }
+    }
+  }
+  return allSpans;
+};
+```
+
+**For client-side tree building** (from flat span list):
+
+```tsx
+function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
+  const spanMap = new Map<string, Span>();
   const childMap = new Map<string, string[]>();
 
-  // First pass: create items
-  flatItems.forEach(raw => {
-    itemMap.set(raw.id, { ...raw, children: [] });
-    if (raw.parent_id) {
-      const children = childMap.get(raw.parent_id) || [];
+  // First pass: create spans and track parent relationships
+  rawSpans.forEach(raw => {
+    spanMap.set(raw.id, {
+      id: raw.id,
+      name: raw.name,
+      startMs: new Date(raw.start_time).getTime(),
+      durationMs: raw.duration_ms,
+      children: [],
+    });
+    if (raw.parent_span_id) {
+      const children = childMap.get(raw.parent_span_id) || [];
       children.push(raw.id);
-      childMap.set(raw.parent_id, children);
+      childMap.set(raw.parent_span_id, children);
     }
   });
 
   // Second pass: build tree
-  const roots: TreeItem[] = [];
-  flatItems.forEach(raw => {
-    const item = itemMap.get(raw.id)!;
-    item.children = (childMap.get(raw.id) || [])
-      .map(id => itemMap.get(id)!)
+  const roots: Span[] = [];
+  rawSpans.forEach(raw => {
+    const span = spanMap.get(raw.id)!;
+    span.children = (childMap.get(raw.id) || [])
+      .map(id => spanMap.get(id)!)
       .filter(Boolean);
-    if (!raw.parent_id) roots.push(item);
+    if (!raw.parent_span_id) roots.push(span);
   });
 
-  return roots;
+  return roots.sort((a, b) => a.startMs - b.startMs);
 }
 ```
 
 ## Troubleshooting
+
+### Hierarchy Issues
+
+**Clicking event shows no spans / empty trace:**
+
+1. Check task exists in observatory:
+   ```bash
+   sqlite3 ~/.ailang/state/observatory.db "SELECT * FROM tasks WHERE id = 'task-XXXXXXXX'"
+   ```
+
+2. Check spans exist for task:
+   ```bash
+   sqlite3 ~/.ailang/state/observatory.db "SELECT name, trace_id FROM spans WHERE task_id = 'task-XXXXXXXX'"
+   ```
+
+3. Test hierarchy API directly:
+   ```bash
+   curl -s "http://localhost:1957/api/observatory/tasks/task-XXXXXXXX/hierarchy" | jq '.agents[0].traces | length'
+   ```
+
+**Only showing parent spans, missing children (claude.execute, exec.turn, etc.):**
+
+This usually means the old API was being used. The hierarchy endpoint expands traces:
+
+```bash
+# Wrong: Direct spans query (only returns spans with task_id set)
+curl "http://localhost:1957/api/observatory/spans?task_id=task-XXX"
+
+# Correct: Hierarchy API (returns ALL spans in linked traces)
+curl "http://localhost:1957/api/observatory/tasks/task-XXX/hierarchy"
+```
+
+**Spans in wrong hierarchy (ailang.check sibling of exec.tool_use instead of child):**
+
+The timestamp correlation should fix this at query time. Check hierarchy.go:
+- `applyTimestampCorrelation()` should re-parent ailang.* spans under exec.tool_use
+- Verify span timestamps overlap correctly
+
+**Task ID format mismatch:**
+
+Tasks are created with format `task-{first 8 chars of message UUID}`:
+```bash
+# Message ID: 50b9518d-53f0-4dd7-893e-779ac90672b6
+# Task ID:    task-50b9518d
+```
+
+**Clearing old data for fresh start:**
+```bash
+sqlite3 ~/.ailang/state/observatory.db "DELETE FROM spans; DELETE FROM tasks; DELETE FROM workspaces; DELETE FROM agent_assignments;"
+```
+
+### General Issues
 
 **UI changes not appearing:**
 ```bash

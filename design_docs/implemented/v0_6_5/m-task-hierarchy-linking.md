@@ -1,11 +1,13 @@
 # M-TASK-HIERARCHY: Task-to-Trace Linking
 
-**Status**: Planned
+**Status**: ✅ IMPLEMENTED (Verified 2026-01-08)
 **Priority**: P0 (Key Feature)
-**Target**: v0.6.5
-**Estimated**: 4 days (32 hours)
+**Version**: v0.6.5
+**Actual Duration**: ~4 days
+**Implementation**: 2,571 LOC (145% of estimate)
 **Dependencies**: M-OTEL-DASHBOARD (v0.6.4)
 **Created**: 2026-01-05
+**Completed**: 2026-01-08
 
 ## Related Documents
 

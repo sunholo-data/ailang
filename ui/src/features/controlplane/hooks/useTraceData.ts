@@ -74,11 +74,39 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
     return await response.json() || [];
   };
 
-  // Fetch spans by task_id
+  // Fetch spans by task_id using the hierarchy endpoint
+  // This expands to include ALL spans in linked traces (claude.execute, exec.turn, etc.)
   const fetchByTaskId = async (tid: string): Promise<RawSpan[]> => {
-    const response = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
-    if (!response.ok) return [];
-    return await response.json() || [];
+    // Use hierarchy endpoint which does proper trace expansion
+    const response = await fetch(`/api/observatory/tasks/${tid}/hierarchy`);
+    if (!response.ok) {
+      // Fallback to direct spans query if hierarchy fails
+      const fallbackResponse = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
+      if (!fallbackResponse.ok) return [];
+      return await fallbackResponse.json() || [];
+    }
+
+    const hierarchy = await response.json();
+    // Extract all spans from the hierarchy response
+    const allSpans: RawSpan[] = [];
+
+    if (hierarchy?.agents) {
+      for (const agent of hierarchy.agents) {
+        if (agent?.traces) {
+          for (const trace of agent.traces) {
+            if (trace?.spans) {
+              for (const spanNode of trace.spans) {
+                if (spanNode?.span) {
+                  allSpans.push(spanNode.span);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return allSpans;
   };
 
   // Fetch spans for a specific trace or task - tries multiple approaches
